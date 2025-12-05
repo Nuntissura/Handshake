@@ -13778,6 +13778,887 @@ Transcript segments carry `asr_origin`:
 
 ---
 
+
+## 6.3 Mechanical Extension Engines
+
+Version: v1.1 (Integrated "Mundane" Utilities)
+
+Date: 2025-12-04
+
+Purpose: Defines a catalogue of 52 mechanical engines to be woven into the Handshake workspace, covering engineering, media, data, and low-level OS primitives.
+
+---
+
+### 6.3.1 Architectural Invariant
+
+The **Four-Layer Architecture** (§1.3) remains the law:
+
+1. **The Brain (LLM):** Plans the action and emits a PlannedOperation (JSON).  
+2. **The Gate:** Validates the operation safety.  
+3. **The Body (Mechanical):** Executes the operation deterministically using the open-source engines listed below.  
+4. **The Shadow Workspace:** Indexes the resulting artifacts.
+
+In Mechanical Engine terms:
+
+- The LLM is **never** allowed to directly modify Raw content.  
+- The LLM **only** emits a structured plan that references:
+  - Existing workspace objects by ID (document IDs, sheet IDs, node IDs, file IDs).  
+  - Allowed operations from a restricted vocabulary.  
+- The Gate:
+  - Verifies that IDs are valid and belong to the requesting user.  
+  - Checks that the operation is allowed by the user’s capability profile.  
+  - Applies domain-specific safety checks (e.g., unit safety, bounds checking, path safety).  
+- The Mechanical engine executes operations using:
+  - Deterministic libraries and runtimes.  
+  - Versioned configuration and function libraries.  
+- The Shadow Workspace:
+  - Records every operation and its outcome.  
+  - Exposes provenance (who/what/when/why).  
+  - Indexes derived artifacts for later retrieval and RAG.
+
+> Normative rule: In all domains below, LLMs are planners only. Physical or irreversible operations MUST go through a mechanical engine with explicit safety checks.
+
+---
+
+### 6.3.2 Domain 1: Engineering & Manufacturing
+
+#### 6.3.2.1 The "Spatial" Engine (Parametric CAD)
+
+* **Why (LLM Weakness):** LLMs are bad at exact geometries, tolerances, and solid modeling.  
+* **What (Mechanical Solution):** Parametric CAD kernels and scriptable CAD DSLs.  
+* **3 Use Cases:**  
+  * **Custom Enclosures:** "Design a 3D printable case for this PCB with 2mm walls."  
+  * **Part Fitting:** "Check if this peg (File A) fits into this hole (File B) with 0.1mm tolerance."  
+  * **Procedural Architecture:** "Generate a city block layout with these zoning constraints."  
+* **Open Source Software:**  
+  * **CadQuery** (Python) or **OpenSCAD**.  
+  * **Open CASCADE (OCCT)** for kernel operations.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `cad_generation`.  
+  * **Operation:** PlannedOperation contains the Python/CadQuery script.  
+  * **Output:** Saves `.step` or `.stl` file as **DerivedContent** (§2.2.2.2). Renders preview in Canvas via WebGL.
+
+#### 6.3.2.2 The "Machinist" Engine (CAM/G-Code)
+
+* **Why (LLM Weakness):** LLMs cannot calculate toolpaths or understand CNC physics (feed rates/spindle speeds).  
+* **What (Mechanical Solution):** CAM libraries that generate toolpaths from 3D geometry.  
+* **3 Use Cases:**  
+  * **CNC Routing:** "Generate G-code for this plate with these holes."  
+  * **Laser Cutting:** "Nest these parts on a 300x200mm sheet."  
+  * **3D Printing:** "Slice this STL for a 0.4mm nozzle at 0.2mm layer height."  
+* **Open Source Software:**  
+  * **OpenCAMLib** (toolpath generation).  
+  * **Slic3r**/**PrusaSlicer** (for 3D printing).  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `cam_generation`.  
+  * **Input:** References to CAD-derived files (STEP/STL).  
+  * **Output:** G-code or equivalent machine format stored as DerivedContent.  
+  * **Gate:** Enforces machine bounds and safety limits (travel, feed, RPM) from a config profile.
+
+#### 6.3.2.3 The "Physics" Engine (Dimensional Analysis)
+
+* **Why (LLM Weakness):** LLMs fail at unit consistency (e.g., adding meters to seconds).  
+* **What (Mechanical Solution):** Unit safety libraries.  
+* **3 Use Cases:**  
+  * **Engineering Sheets:** "Calculate stress (Force/Area) and output in Pascals."  
+  * **Safety:** "Flag any formula adding disparate units."  
+  * **Conversion:** "Convert all Imperial measurements in this doc to Metric."  
+* **Open Source Software:**  
+  * **Pint** (Python) or similar unit libraries.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `dimension_check`.  
+  * **Operation:** PlannedOperation references:
+    * Input expressions with units.  
+    * Desired output units.  
+  * **Output:** Normalized numeric values + unit-correctness diagnostics.
+  * **Integration:** Plugs into Spreadsheet Engine (see §6.3.3) as an extra validator.
+
+#### 6.3.2.4 The "Simulation" Engine (FEA/CFD)
+
+* **Why (LLM Weakness):** LLMs cannot solve PDEs or run real numerical solvers.  
+* **What (Mechanical Solution):** Finite element / CFD solvers.  
+* **3 Use Cases:**  
+  * **Stress Analysis:** "Will this bracket survive a 500N load?"  
+  * **Thermal:** "Will this heatsink keep the CPU under 80°C?"  
+  * **Fluid:** "Estimate pressure drop in this pipe."  
+* **Open Source Software:**  
+  * **Elmer FEM**, **Code\_Aster**, **OpenFOAM**.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `simulation_run`.  
+  * **Input:** Geometry + boundary conditions + material properties.  
+  * **Output:** Simulation results exported as derived datasets and visualizations.  
+  * **Integration:** Results indexed in the Shadow Workspace and can be visualized in Canvas.
+
+#### 6.3.2.5 The "Hardware" Engine (Real-World I/O)
+
+* **Why (LLM Weakness):** LLMs cannot read sensors or actuate hardware.  
+* **What (Mechanical Solution):** Deterministic I/O and control layers.  
+* **3 Use Cases:**  
+  * **Data Logging:** "Record temperature from this sensor every minute."  
+  * **Bench Automation:** "Sweep voltage from 1V to 5V and log current."  
+  * **Home Lab:** "Toggle this relay for 5 seconds."  
+* **Open Source Software:**  
+  * **Firmata**, **PyVISA**, or serial libraries.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `hardware_control`.  
+  * **Gate:** Enforces per-device whitelists (no arbitrary code execution).  
+  * **Output:** Time-series logs stored as DerivedContent, indexed as metrics.
+
+---
+
+### 6.3.3 Domain 2: Creative Studio
+
+#### 6.3.3.1 The "Director" Engine (Video/Animation)
+
+* **Why (LLM Weakness):** LLMs cannot render timelines, keyframes, or video encodes.  
+* **What (Mechanical Solution):** Video/animation pipelines controlled by structured scripts.  
+* **3 Use Cases:**  
+  * **B-Roll:** "Cut a 10s highlight reel from this stream with transitions."  
+  * **Storyboards:** "Compile these stills into a 24fps animatic."  
+  * **Format Conversion:** "Convert this ProRes clip into HEVC with a hard bitrate limit."  
+* **Open Source Software:**  
+  * **FFmpeg**, **Blender** (for 3D scenes).  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `video_pipeline`.  
+  * **Operation:** JSON script describing cuts, transitions, overlays.  
+  * **Output:** Encoded video file as DerivedContent.
+
+#### 6.3.3.2 The "Composer" Engine (Music/Audio)
+
+* **Why (LLM Weakness):** LLMs cannot guarantee time-accurate, phase-coherent audio.  
+* **What (Mechanical Solution):** DAWs, MIDI engines, and offline renderers.  
+* **3 Use Cases:**  
+  * **Backing Tracks:** "Render a 60 BPM click track with 4/4 signature."  
+  * **Stem Mixes:** "Balance these stems to −14 LUFS."  
+  * **Sound Design:** "Generate a 1-second laser sound effect."  
+* **Open Source Software:**  
+  * **LMMS**, **Ardour**, **SuperCollider**, **SoX**.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `audio_render`.  
+  * **Operation:** Script/MIDI describing notes, effects, arrangement.  
+  * **Output:** `.wav`/`.flac` as DerivedContent.
+
+#### 6.3.3.3 The "Artist" Engine (Visual Art)
+
+* **Why (LLM Weakness):** LLMs cannot paint pixels or control diffusion steps.  
+* **What (Mechanical Solution):** Image engines (raster + vector) controlled via structured prompts.  
+* **3 Use Cases:**  
+  * **Concept Art:** "Generate a 1024×1024 rough concept of a robot."  
+  * **Spritesheets:** "Render a 4x4 walk cycle from this base design."  
+  * **Vector Icons:** "Generate an SVG icon set following this style."  
+* **Open Source Software:**  
+  * **Krita**, **GIMP**, vector libraries, plus local diffusion models.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `image_generation`.  
+  * **Output:** Raster/Vector assets saved in the workspace.  
+  * **Integration:** Tagged for re-use in docs, canvas, and storyboards.
+
+#### 6.3.3.4 The "Publisher" Engine (Typography/Layout)
+
+* **Why (LLM Weakness):** LLMs cannot guarantee typographic consistency or print layout.  
+* **What (Mechanical Solution):** Typesetting engines and layout tools.  
+* **3 Use Cases:**  
+  * **Books/Zines:** "Lay out this manuscript as a paperback."  
+  * **Posters:** "Generate a printable A3 poster with safe margins."  
+  * **Docs-to-PDF:** "Export this doc to a print-ready PDF with proper TOC."  
+* **Open Source Software:**  
+  * **LaTeX**, **Typst**, **WeasyPrint**, **Pandoc**.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `doc_layout`.  
+  * **Input:** Document structure (from §6.1/§3).  
+  * **Output:** Typeset PDF/EPUB as DerivedContent.
+
+---
+
+### 6.3.4 Domain 3: Culinary & Home
+
+#### 6.3.4.1 The "Sous Chef" Engine (Recipe Logic)
+
+* **Why (LLM Weakness):** LLMs hallucinate quantities, timings, and conversions.  
+* **What (Mechanical Solution):** Recipe DSL + deterministic parsing and scaling.  
+* **3 Use Cases:**  
+  * **Scaling:** "Scale this recipe for 7 people."  
+  * **Substitutions:** "Swap dairy for lactose-free alternatives and recalc macros."  
+  * **Inventory:** "What can I cook with my current pantry stock?"  
+* **Open Source Software:**  
+  * **CookLang**, **OpenEats**, or equivalent.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `recipe_logic`.  
+  * **Operation:** Uses a structured recipe format with ingredients, units, and steps.  
+  * **Output:** Structured recipe stored as DerivedContent.
+
+#### 6.3.4.2 The "Safety" Engine (Food Science)
+
+* **Why (LLM Weakness):** LLMs hallucinate food safety (e.g., "Chicken is safe at 100°F").  
+* **What (Mechanical Solution):** Deterministic math/databases.  
+* **3 Use Cases:**  
+  * **Pasteurization:** "Calculate sous-vide time for 25mm chicken at 60°C."  
+  * **Nutrition:** "Get accurate macros for this specific barcode."  
+  * **Fermentation:** "Monitor temp logs for stalled yeast."  
+* **Open Source Software:**  
+  * Food safety datasets and calculators; potentially custom libraries.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `food_safety`.  
+  * **Input:** Time/temperature logs, ingredient lists.  
+  * **Output:** Safety verdicts and warnings.
+
+#### 6.3.4.3 The "Homestead" Engine (Home Logistics)
+
+* **Why (LLM Weakness):** LLMs are bad at tracking inventories, expiry dates, and home maintenance schedules reliably.  
+* **What (Mechanical Solution):** Deterministic inventory and reminder systems.  
+* **3 Use Cases:**  
+  * **Pantry:** "Remind me before ingredients expire."  
+  * **Maintenance:** "Track filter changes and maintenance tasks."  
+  * **Energy:** "Log and analyze energy usage."  
+* **Open Source Software:**  
+  * **Home Assistant**, inventory tracking tools.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `home_logistics`.  
+  * **Integration:** Hooks into time-series, calendar, and notification subsystems.
+
+---
+
+### 6.3.5 Domain 4: Organization & Knowledge
+
+#### 6.3.5.1 The "Archivist" Engine (Preservation)
+
+* **Why (LLM Weakness):** LLMs cannot guarantee long-term integrity of data.  
+* **What (Mechanical Solution):** Append-only logs and archival formats.  
+* **3 Use Cases:**  
+  * **Snapshots:** "Freeze this project state for future reference."  
+  * **WORM Storage:** "Store this legal document in an immutable archive."  
+  * **Long-term Backups:** "Plan and verify backup rotations."  
+* **Open Source Software:**  
+  * **BorgBackup**, **restic**, or similar.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `archive_management`.  
+  * **Output:** Snapshot metadata stored in the workspace.
+
+#### 6.3.5.2 The "Librarian" Engine (Taxonomy)
+
+* **Why (LLM Weakness):** LLMs do not enforce consistent tagging or hierarchies.  
+* **What (Mechanical Solution):** Controlled vocabularies and schema-based tagging.  
+* **3 Use Cases:**  
+  * **Tag Governance:** "Ensure all project docs follow this tag schema."  
+  * **Collections:** "Group related artifacts into curated collections."  
+  * **Navigation:** "Maintain cross-links and indices."  
+* **Open Source Software:**  
+  * Taxonomy libraries, graph DBs.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `taxonomy_management`.  
+  * **Output:** Tag trees and cross-reference structures.
+
+#### 6.3.5.3 The "Curator" Engine (Curation & Playlists)
+
+* **Why (LLM Weakness):** LLMs can propose items but not maintain playlists or collections over time.  
+* **What (Mechanical Solution):** Deterministic playlist/collection management.  
+* **3 Use Cases:**  
+  * **Reading Lists:** "Maintain a queue of articles to read."  
+  * **Media Playlists:** "Sync this playlist across devices."  
+  * **Project Boards:** "Curate key project artifacts into a board."  
+* **Open Source Software:**  
+  * Media servers, bookmarking tools.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `curation`.  
+  * **Integration:** Works with Shadow Workspace indices.
+
+#### 6.3.5.4 The "Analyst" Engine (Email/Tasks/Time)
+
+* **Why (LLM Weakness):** LLMs cannot reliably track time allocations, email states, and tasks across days/weeks.  
+* **What (Mechanical Solution):** Deterministic time tracking and email/task integration.  
+* **3 Use Cases:**  
+  * **Time:** "How many hours did I spend in VS Code today?"  
+  * **Email:** "Summarize unread mail from this sender."  
+  * **Tasks:** "Generate a weekly review from completed tasks."  
+* **Open Source Software:**  
+  * Time trackers, email clients with accessible APIs.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `personal_analytics`.  
+  * **Integration:** Hooks into calendar, mail, and task backends.
+
+#### 6.3.5.5 The "Chronicle" Engine (Life Logging)
+
+* **Why (LLM Weakness):** LLMs can summarize but cannot be trusted as the sole record of events.  
+* **What (Mechanical Solution):** Structured logging of activities and events.  
+* **3 Use Cases:**  
+  * **Day Logs:** "Record what I did today in a structured way."  
+  * **Mood Tracking:** "Log my mood and correlate with activities."  
+  * **Milestones:** "Track important life events."  
+* **Open Source Software:**  
+  * Journaling tools, time-series DBs.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `life_log`.  
+  * **Output:** Structured life-log entries stored in the workspace.
+
+---
+
+### 6.3.6 Domain 5: Data & Infrastructure
+
+#### 6.3.6.1 The "Wrangler" Engine (Data Engineering)
+
+* **Why (LLM Weakness):** LLMs struggle with large tabular data and schema evolution.  
+* **What (Mechanical Solution):** Data transformation and quality tools.  
+* **3 Use Cases:**  
+  * **Ingest:** "Normalize this CSV with messy headers."  
+  * **Clean:** "Drop invalid rows and fill missing values."  
+  * **Validate:** "Enforce schema and constraints."  
+* **Open Source Software:**  
+  * **dbt**, **Great Expectations**, **pandas**.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `data_wrangling`.  
+  * **Integration:** Works closely with Spreadsheet Engine and local warehouse.
+
+#### 6.3.6.2 The "DBA" Engine (Local Warehouse)
+
+* **Why (LLM Weakness):** LLMs cannot execute efficient queries or manage indices.  
+* **What (Mechanical Solution):** Local analytical databases.  
+* **3 Use Cases:**  
+  * **Analytics:** "Run a query over millions of rows."  
+  * **Rollups:** "Precompute aggregates for dashboards."  
+  * **Exploration:** "Sample data for inspection."  
+* **Open Source Software:**  
+  * **DuckDB**, **SQLite**.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `warehouse_query`.  
+  * **Output:** Query results as DerivedContent tables.
+
+#### 6.3.6.3 The "Sync" Engine (Replication/Backup)
+
+* **Why (LLM Weakness):** LLMs cannot manage replication or conflict resolution.  
+* **What (Mechanical Solution):** Sync engines with conflict resolution strategies.  
+* **3 Use Cases:**  
+  * **Replica:** "Keep this folder in sync with my NAS."  
+  * **Offline:** "Sync changes when I reconnect."  
+  * **Backups:** "Push encrypted snapshots to remote storage."  
+* **Open Source Software:**  
+  * **Syncthing**, **rclone**, **restic**.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `sync_management`.  
+  * **Integration:** Coordinates with archivist and storage subsystems.
+
+#### 6.3.6.4 The "Indexer" Engine (Search)
+
+* **Why (LLM Weakness):** LLMs cannot index or rank results deterministically.  
+* **What (Mechanical Solution):** Search indices and relevance algorithms.  
+* **3 Use Cases:**  
+  * **Full-Text:** "Index all docs for search."  
+  * **Faceted:** "Filter by tags, dates, and types."  
+  * **Hybrid:** "Combine lexical and semantic search."  
+* **Open Source Software:**  
+  * **Lucene**, **Meilisearch**, **ZincSearch**.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `index_build`.  
+  * **Output:** Indexes referenced by Shadow Workspace.
+
+#### 6.3.6.5 The "Monitor" Engine (Metrics & Alerts)
+
+* **Why (LLM Weakness):** LLMs cannot track long-term metrics or thresholds reliably.  
+* **What (Mechanical Solution):** Time-series databases and alerting systems.  
+* **3 Use Cases:**  
+  * **System:** "Monitor CPU, RAM, disk, GPU."  
+  * **App:** "Track app-specific metrics (queue length, errors)."  
+  * **User:** "Track personal metrics (writing time, focus blocks)."  
+* **Open Source Software:**  
+  * **Prometheus**, **Grafana**, local TSDBs.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `metrics_monitor`.  
+  * **Integration:** Feeds into notifications and dashboards.
+
+#### 6.3.6.6 The "Router" Engine (Data Flows)
+
+* **Why (LLM Weakness):** LLMs cannot orchestrate data pipelines with retries and backoff.  
+* **What (Mechanical Solution):** Local-first workflow schedulers.  
+* **3 Use Cases:**  
+  * **Pipelines:** "Run this pipeline daily at 03:00."  
+  * **Fan-out:** "Distribute work across multiple workers."  
+  * **Recovery:** "Retry failed steps with exponential backoff."  
+* **Open Source Software:**  
+  * **Apache Airflow**, **Prefect**, or lighter-weight DAG runners.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `data_flow`.  
+  * **Integration:** Coordinates mechanical engines and storage.
+
+#### 6.3.6.7 The "Inspector" Engine (Data Auditing)
+
+* **Why (LLM Weakness):** LLMs cannot guarantee invariants over big datasets.  
+* **What (Mechanical Solution):** Audit trails and invariants checks.  
+* **3 Use Cases:**  
+  * **Integrity:** "Check for corruption or unexpected changes."  
+  * **Compliance:** "Prove this dataset was unmodified between dates."  
+  * **Lineage:** "Trace data from source to output."  
+* **Open Source Software:**  
+  * Data lineage tools, checksum utilities.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `data_audit`.  
+  * **Output:** Audit reports and lineage graphs.
+
+---
+
+### 6.3.7 Domain 6: Travel & Spatial Intelligence
+
+#### 6.3.7.1 The "Navigator" Engine (Routing)
+
+* **Why (LLM Weakness):** LLMs cannot compute optimal routes over real maps.  
+* **What (Mechanical Solution):** Routing engines over map data.  
+* **3 Use Cases:**  
+  * **Walking:** "Can I walk from A to B in 10 mins?"  
+  * **Transit:** "What route uses the fewest transfers?"  
+  * **Driving:** "Avoid tolls and ferries."  
+* **Open Source Software:**  
+  * **OSRM**, **GraphHopper**, **OpenTripPlanner**.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `route_planning`.  
+  * **Input:** Origin/destination, constraints.  
+  * **Output:** Turn-by-turn routes and ETA.
+
+#### 6.3.7.2 The "Cartographer" Engine (Maps)
+
+* **Why (LLM Weakness):** LLMs cannot render maps or projections.  
+* **What (Mechanical Solution):** Map rendering engines.  
+* **3 Use Cases:**  
+  * **Static Maps:** "Render a map snapshot for this route."  
+  * **Layers:** "Show POIs, heatmaps."  
+  * **Overlays:** "Annotate map with custom markers."  
+* **Open Source Software:**  
+  * **Mapnik**, **TileServer GL**, **OpenMapTiles**.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `map_render`.  
+  * **Output:** Map tiles/images as DerivedContent.
+
+#### 6.3.7.3 The "Geo" Engine (Spatial Queries)
+
+* **Why (LLM Weakness):** LLMs cannot do spatial joins or coordinate transforms.  
+* **What (Mechanical Solution):** GIS libraries.  
+* **3 Use Cases:**  
+  * **Proximity:** "Find all locations within 5km."  
+  * **Overlays:** "Intersect areas with risk zones."  
+  * **Projections:** "Convert between coordinate systems."  
+* **Open Source Software:**  
+  * **GDAL**, **PostGIS**.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `spatial_query`.  
+  * **Output:** GeoJSON and tables.
+
+---
+
+### 6.3.8 Domain 7: Developer Tools & System Context
+
+#### 6.3.8.1 The "Profiler" Engine (System State)
+
+* **Why (LLM Weakness):** LLMs operate blind to CPU, RAM, disk, GPU usage.  
+* **What (Mechanical Solution):** System profiling tools.  
+* **3 Use Cases:**  
+  * **Diagnostics:** "Why is my machine slow?"  
+  * **Capacity:** "Can I train this model on my GPU?"  
+  * **Safety:** "Warn me if disk is almost full."  
+* **Open Source Software:**  
+  * System libraries (e.g., `psutil`).  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `system_profile`.  
+  * **Output:** Structured system metrics.
+
+#### 6.3.8.2 The "Workspace" Engine (File/Process Model)
+
+* **Why (LLM Weakness):** LLMs cannot safely enumerate files and processes by themselves.  
+* **What (Mechanical Solution):** Controlled file and process graph.  
+* **3 Use Cases:**  
+  * **Context:** "Show me all files in this project."  
+  * **Safety:** "Warn me before deleting."  
+  * **Search:** "Find large files."  
+* **Open Source Software:**  
+  * File system libraries, process introspection.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `workspace_model`.  
+  * **Integration:** Feeds the AI Orchestrator with safe, filtered context.
+
+#### 6.3.8.3 The "Clipboard" Engine (Ephemeral Context)
+
+* **Why (LLM Weakness):** LLMs cannot see the clipboard directly.  
+* **What (Mechanical Solution):** Controlled clipboard bridge.  
+* **3 Use Cases:**  
+  * **Context:** "Fix the code I just copied."  
+  * **Snippets:** "Save this snippet as a reusable block."  
+  * **History:** "Search past clipboard entries."  
+* **Open Source Software:**  
+  * Clipboard utilities.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `clipboard_bridge`.  
+  * **Integration:** Exposes clipboard snapshots to LLMs under explicit user consent.
+
+#### 6.3.8.4 The "Quota" Engine (Resource Limits)
+
+* **Why (LLM Weakness):** LLMs will happily run out of disk/GPU/CPU if not constrained.  
+* **What (Mechanical Solution):** Quota and limit management.  
+* **3 Use Cases:**  
+  * **Prevention:** "Warn me if I don’t have space for this model download."  
+  * **Guardrails:** "Stop jobs that exceed resource budgets."  
+  * **Reporting:** "Show resource usage over time."  
+* **Open Source Software:**  
+  * Resource/quota libraries.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `resource_quota`.  
+  * **Integration:** Tied to system profiler and storage.
+
+#### 6.3.8.5 The "Guard" Engine (Secrets & Safety)
+
+* **Why (LLM Weakness):** LLMs may expose secrets if not constrained.  
+* **What (Mechanical Solution):** Secret scanning and redaction.  
+* **3 Use Cases:**  
+  * **Secrets:** "Did I accidentally leave an API key in this commit?"  
+  * **Policies:** "Block uploads containing secrets."  
+  * **Audits:** "Scan workspace for credentials."  
+* **Open Source Software:**  
+  * Secret scanners (e.g., **truffleHog**, **gitleaks**).  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `secret_scan`.  
+  * **Integration:** Runs before external sync or uploads.
+
+---
+
+### 6.3.9 Domain 8: OS Primitives & Desktop Integration
+
+#### 6.3.9.1 The "Window" Engine (UI Automation)
+
+* **Why (LLM Weakness):** LLMs cannot interact with the OS GUI directly.  
+* **What (Mechanical Solution):** Controlled UI automation.  
+* **3 Use Cases:**  
+  * **Automation:** "Click this button in this window."  
+  * **Screenshotting:** "Capture a screenshot of this region."  
+  * **Testing:** "Verify this UI flow works."  
+* **Open Source Software:**  
+  * **SikuliX**, **PyAutoGUI**.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `ui_automation`.  
+  * **Gate:** Strict whitelists + prompts for user approval.
+
+#### 6.3.9.2 The "Shell" Engine (Command Runner)
+
+* **Why (LLM Weakness):** LLMs cannot safely run shell commands.  
+* **What (Mechanical Solution):** Controlled, logged command execution.  
+* **3 Use Cases:**  
+  * **Admin:** "Clean temp folders safely."  
+  * **Tasks:** "Run this build script."  
+  * **Checks:** "List disk usage."  
+* **Open Source Software:**  
+  * Shell wrappers and sandboxing tools.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `shell_command`.  
+  * **Gate:** Command allowlists, path restrictions.
+
+#### 6.3.9.3 The "Scheduler" Engine (Local Jobs)
+
+* **Why (LLM Weakness):** LLMs cannot schedule or remember to run jobs later.  
+* **What (Mechanical Solution):** Local job scheduler.  
+* **3 Use Cases:**  
+  * **Periodic Tasks:** "Run this backup nightly."  
+  * **Deferred Work:** "Transcribe this file when the machine is idle."  
+  * **Reminders:** "Remind me to review logs tomorrow."  
+* **Open Source Software:**  
+  * Cron-like schedulers, queue workers.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `local_schedule`.  
+  * **Integration:** Hooks into notification system.
+
+#### 6.3.9.4 The "Notifier" Engine (Desktop Notifications)
+
+* **Why (LLM Weakness):** LLMs cannot raise OS notifications.  
+* **What (Mechanical Solution):** Notification bridge.  
+* **3 Use Cases:**  
+  * **Alerts:** "Notify me if this job fails."  
+  * **Reminders:** "Ping me at 18:00 with this note."  
+  * **Status:** "Show job completion toasts."  
+* **Open Source Software:**  
+  * Desktop notification libraries.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `notification`.  
+  * **Integration:** Used by other engines to surface events.
+
+---
+
+### 6.3.10 Domain 9: Software Engineering & DevOps
+
+#### 6.3.10.1 The "Repo" Engine (Version Control)
+
+* **Why (LLM Weakness):** LLMs do not understand Git state or history deterministically.  
+* **What (Mechanical Solution):** Git clients and libraries.  
+* **3 Use Cases:**  
+  * **Diffs:** "Show what changed since main."  
+  * **Branches:** "List open branches and their status."  
+  * **Tags:** "Tag this commit as a release."  
+* **Open Source Software:**  
+  * **git**, **libgit2**, tooling around them.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `repo_management`.  
+  * **Integration:** Tied to Workspace Engine for project roots.
+
+#### 6.3.10.2 The "Build" Engine (Compilation & Packaging)
+
+* **Why (LLM Weakness):** LLMs cannot reliably run builds or ensure reproducibility.  
+* **What (Mechanical Solution):** Build systems.  
+* **3 Use Cases:**  
+  * **Compile:** "Build this project for target X."  
+  * **Package:** "Create an installer/bundle."  
+  * **CI Mirroring:** "Reproduce CI pipeline locally."  
+* **Open Source Software:**  
+  * **CMake**, **Ninja**, language-specific build tools.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `build_pipeline`.  
+  * **Integration:** Works with Shell and Container engines.
+
+#### 6.3.10.3 The "Test" Engine (Automated Tests)
+
+* **Why (LLM Weakness):** LLMs cannot execute tests or interpret all results reliably.  
+* **What (Mechanical Solution):** Test runners.  
+* **3 Use Cases:**  
+  * **Unit Tests:** "Run tests and summarize failures."  
+  * **Integration Tests:** "Run long-running suites."  
+  * **Regression:** "Compare new vs old test results."  
+* **Open Source Software:**  
+  * **pytest**, **JUnit**, etc.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `test_runner`.  
+  * **Output:** Test reports stored as DerivedContent.
+
+#### 6.3.10.4 The "Deploy" Engine (Local Deployments)
+
+* **Why (LLM Weakness):** LLMs cannot manage environment configuration consistently.  
+* **What (Mechanical Solution):** Deployment scripts and tools.  
+* **3 Use Cases:**  
+  * **Local Services:** "Start/stop dev services."  
+  * **Configs:** "Apply environment-specific configs."  
+  * **Rollbacks:** "Revert to previous deployment state."  
+* **Open Source Software:**  
+  * **Ansible**, **Docker Compose**, etc.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `local_deploy`.  
+  * **Integration:** Uses Container and Shell engines.
+
+#### 6.3.10.5 The "Log" Engine (Log Aggregation)
+
+* **Why (LLM Weakness):** LLMs cannot aggregate logs efficiently.  
+* **What (Mechanical Solution):** Log collection and indexing.  
+* **3 Use Cases:**  
+  * **Dev Logs:** "Collect logs from services."  
+  * **Search:** "Find errors across components."  
+  * **Dashboards:** "Feed logs into dashboards."  
+* **Open Source Software:**  
+  * **Loki**, **ELK Stack**, local log tools.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `log_aggregation`.  
+  * **Integration:** Ties into Monitor and Indexer engines.
+
+#### 6.3.10.6 The "Contract" Engine (API Testing)
+
+* **Why (LLM Weakness):** LLMs hallucinate API interactions.  
+* **What (Mechanical Solution):** Contract and schema-based API tests.  
+* **3 Use Cases:**  
+  * **Schema Validation:** "Verify this API matches its OpenAPI spec."  
+  * **Mocking:** "Generate mocks for offline testing."  
+  * **Regression:** "Detect contract-breaking changes."  
+* **Open Source Software:**  
+  * API testing tools, schema validators.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `api_contract`.  
+  * **Integration:** Works with Repo and Build engines.
+
+#### 6.3.10.7 The "Formatter" Engine (Lint/Style)
+
+* **Why (LLM Weakness):** LLMs can propose code but not enforce style mechanically.  
+* **What (Mechanical Solution):** Linters and formatters.  
+* **3 Use Cases:**  
+  * **Style Guide:** "Ensure I never use the passive voice."  
+  * **Code Style:** "Reformat code to match project style."  
+  * **Docs Style:** "Normalize headings and lists."  
+* **Open Source Software:**  
+  * **black**, **prettier**, **eslint**, text formatters.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `formatting`.  
+  * **Integration:** Used by language tools across the workspace.
+
+#### 6.3.10.8 The "Container" Engine (Environment)
+
+* **Why (LLM Weakness):** LLMs cannot reliably reason about environments.  
+* **What (Mechanical Solution):** Containers and environment managers.  
+* **3 Use Cases:**  
+  * **Reproducibility:** "Run this in a pinned environment."  
+  * **Isolation:** "Sandbox risky experiments."  
+  * **Testing:** "Test in multiple environments."  
+* **Open Source Software:**  
+  * **Docker**, **Podman**, **nix**.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `environment`.  
+  * **Integration:** Wraps other jobs in controlled environments.
+
+#### 6.3.10.9 The "Network" Engine (Traffic Analysis)
+
+* **Why (LLM Weakness):** LLMs cannot inspect network traffic deterministically.  
+* **What (Mechanical Solution):** Packet and HTTP inspection tools.  
+* **3 Use Cases:**  
+  * **Debugging:** "Inspect traffic to this service."  
+  * **Security:** "Detect suspicious connections."  
+  * **Monitoring:** "Aggregate request metrics."  
+* **Open Source Software:**  
+  * **Wireshark**, **mitmproxy**.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `network_analysis`.  
+  * **Integration:** Works with Monitor and Log engines.
+
+#### 6.3.10.10 The "Decompiler" Engine (Reverse Engineering)
+
+* **Why (LLM Weakness):** LLMs cannot disassemble or decompile binaries reliably.  
+* **What (Mechanical Solution):** Reverse engineering tools.  
+* **3 Use Cases:**  
+  * **Inspection:** "Explore what this binary does."  
+  * **Diffing:** "Compare two binary versions."  
+  * **Security:** "Check for suspicious behavior."  
+* **Open Source Software:**  
+  * **Ghidra**, **Radare2**.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `reverse_engineering`.  
+  * **Output:** Structured analysis artifacts.
+
+---
+
+### 6.3.11 Domain 10: Language & Linguistics
+
+#### 6.3.11.1 The "Polyglot" Engine (Offline Translation)
+
+* **Why (LLM Weakness):** LLMs may rely on remote services; local translation is needed for privacy/offline.  
+* **What (Mechanical Solution):** Local translation models and TM systems.  
+* **3 Use Cases:**  
+  * **Offline Translation:** "Translate this document without leaving the machine."  
+  * **Glossaries:** "Use this domain-specific glossary."  
+  * **Batch:** "Translate a corpus of files."  
+* **Open Source Software:**  
+  * **Marian**, **Argos Translate**, local NMT.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `offline_translation`.  
+  * **Output:** Translated documents as DerivedContent.
+
+#### 6.3.11.2 The "Red Pen" Engine (Grammar & Style)
+
+* **Why (LLM Weakness):** LLMs are probabilistic and can miss consistent grammar/style enforcement.  
+* **What (Mechanical Solution):** Deterministic grammar/style checkers.  
+* **3 Use Cases:**  
+  * **Proofreading:** "Highlight grammar issues only."  
+  * **Style Guide:** "Enforce specific style rules."  
+  * **Diagnostics:** "Report style issues by category."  
+* **Open Source Software:**  
+  * **LanguageTool**, similar tools.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `grammar_style_check`.  
+  * **Integration:** Provides diagnostics to the Doc editor without rewriting text.
+
+#### 6.3.11.3 The "Lexicographer" Engine (Dictionary/Thesaurus)
+
+* **Why (LLM Weakness):** LLMs hallucinate definitions and synonyms.  
+* **What (Mechanical Solution):** Authoritative dictionaries and thesauri.  
+* **3 Use Cases:**  
+  * **Definitions:** "Look up the precise definition of this word."  
+  * **Synonyms:** "Suggest synonyms from a curated list."  
+  * **Terminology:** "Validate domain-specific usage."  
+* **Open Source Software:**  
+  * Offline dictionary databases.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `dictionary_service`.  
+  * **Integration:** Injects definitions into context windows.
+
+#### 6.3.11.4 The "Phonetician" Engine (G2P/IPA)
+
+* **Why (LLM Weakness):** LLMs struggle with accurate phonetic transcriptions.  
+* **What (Mechanical Solution):** Grapheme-to-phoneme models and IPA generators.  
+* **3 Use Cases:**  
+  * **Pronunciation:** "Generate IPA for this word."  
+  * **TTS Prep:** "Prepare phonetic input for TTS engines."  
+  * **Language Study:** "Compare phonetic forms across dialects."  
+* **Open Source Software:**  
+  * G2P libraries, phonetic datasets.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `phonetic_transcription`.  
+  * **Output:** Phonetic strings aligned to text.
+
+#### 6.3.11.5 The "Aligner" Engine (Parallel Text)
+
+* **Why (LLM Weakness):** LLMs cannot reliably align bilingual corpora.  
+* **What (Mechanical Solution):** Sentence and paragraph aligners.  
+* **3 Use Cases:**  
+  * **Corpus Prep:** "Align source and translation texts."  
+  * **QA:** "Detect misaligned segments."  
+  * **Training Data:** "Prepare parallel corpora for MT models."  
+* **Open Source Software:**  
+  * Alignment tools, bilingual corpora.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `text_alignment`.  
+  * **Output:** Alignment maps and aligned corpora.
+
+#### 6.3.11.6 The "Detector" Engine (Language ID)
+
+* **Why (LLM Weakness):** LLMs can misidentify languages, especially in mixed text.  
+* **What (Mechanical Solution):** Language identification libraries.  
+* **3 Use Cases:**  
+  * **Routing:** "Choose the right model for this language."  
+  * **Filtering:** "Detect unsupported or unexpected languages."  
+  * **Analytics:** "Break down corpus by language."  
+* **Open Source Software:**  
+  * Language ID libraries.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `language_detection`.  
+  * **Output:** Language labels per document/segment.
+
+#### 6.3.11.7 The "Anonymizer" Engine (PII Scrubbing)
+
+* **Why (LLM Weakness):** LLMs may leak PII if not constrained.  
+* **What (Mechanical Solution):** PII detection and redaction.  
+* **3 Use Cases:**  
+  * **Pre-processing:** "Redact PII before documents leave the machine."  
+  * **Reporting:** "Highlight where PII appears."  
+  * **Compliance:** "Ensure exports meet privacy requirements."  
+* **Open Source Software:**  
+  * PII detection libraries.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `pii_scrub`.  
+  * **Integration:** Runs before syncing/sharing content.
+
+#### 6.3.11.8 The "Morphologist" Engine (Stemming/Lemmatization)
+
+* **Why (LLM Weakness):** LLMs are not a replacement for lexical normalization.  
+* **What (Mechanical Solution):** Deterministic stemming/lemmatization.  
+* **3 Use Cases:**  
+  * **Search:** "Improve recall by normalizing word forms."  
+  * **Analytics:** "Group terms by lemma."  
+  * **Pre-processing:** "Normalize tokens before indexing."  
+* **Open Source Software:**  
+  * NLP libraries (e.g., **spaCy**, **NLTK**, **Stanza**).  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `morphology`.  
+  * **Output:** Normalized tokens and lemmas.
+
+#### 6.3.11.9 The "Converter" Engine (Universal Text)
+
+* **Why (LLM Weakness):** LLMs cannot robustly handle all text encodings and formats.  
+* **What (Mechanical Solution):** Text format and encoding converters.  
+* **3 Use Cases:**  
+  * **Encoding:** "Convert between encodings safely."  
+  * **Formats:** "Normalize text from various formats."  
+  * **Cleanup:** "Strip control characters and normalize line endings."  
+* **Open Source Software:**  
+  * Text conversion utilities.  
+* **Spec Implementation:**  
+  * **Job:** AI Job Profile: `text_conversion`.  
+  * **Output:** Clean, normalized text for downstream engines.
+
+#### 6.3.11.10 The "Sentiment" Engine (Vibe Check)
+
+* **Why (LLM Weakness):** LLMs are inconsistent at sentiment scoring across time and datasets.  
+* **What (Mechanical Solution):** Fixed, versioned sentiment models and rule-based checkers.  
+* **3 Use Cases:**  
+  * **Docs:** "Score tone of feedback emails."  
+  * **Threads:** "Track sentiment over time in a conversation."  
+  * **Dashboards:** "Visualize sentiment trends."  
+* **Open Source Software:**  
+
+
+
 # 7. User Experience & Development
 ## 7.1 User Interface Components
 
