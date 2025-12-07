@@ -5,6 +5,7 @@ use axum::{
     Json, Router,
 };
 use chrono::Utc;
+use serde::Deserialize;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -54,8 +55,34 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/canvases",
             post(create_canvas).get(list_canvases),
         )
-        .route("/canvases/:canvas_id", get(get_canvas))
+        .route(
+            "/canvases/:canvas_id",
+            get(get_canvas).put(update_canvas_graph),
+        )
         .with_state(state)
+}
+
+#[derive(Deserialize)]
+struct UpdateCanvasGraphRequest {
+    nodes: Vec<IncomingCanvasNode>,
+    edges: Vec<IncomingCanvasEdge>,
+}
+
+#[derive(Deserialize)]
+struct IncomingCanvasNode {
+    id: Option<String>,
+    kind: String,
+    position_x: f64,
+    position_y: f64,
+    data: Option<Value>,
+}
+
+#[derive(Deserialize)]
+struct IncomingCanvasEdge {
+    id: Option<String>,
+    from_node_id: String,
+    to_node_id: String,
+    kind: String,
 }
 
 async fn create_canvas(
@@ -245,5 +272,150 @@ async fn get_canvas(
         updated_at: canvas.updated_at,
         nodes,
         edges,
+    }))
+}
+
+async fn update_canvas_graph(
+    State(state): State<AppState>,
+    Path(canvas_id): Path<String>,
+    Json(payload): Json<UpdateCanvasGraphRequest>,
+) -> Result<Json<CanvasWithGraphResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let canvas = sqlx::query_as!(
+        CanvasRow,
+        r#"
+        SELECT
+            id as "id!: String",
+            workspace_id as "workspace_id!: String",
+            title as "title!: String",
+            created_at as "created_at: chrono::DateTime<chrono::Utc>",
+            updated_at as "updated_at: chrono::DateTime<chrono::Utc>"
+        FROM canvases
+        WHERE id = ?1
+        "#,
+        canvas_id
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(super::workspaces::internal_error)?;
+
+    let canvas = match canvas {
+        Some(row) => row,
+        None => return Err(super::workspaces::not_found("canvas_not_found")),
+    };
+
+    let mut tx = state
+        .pool
+        .begin()
+        .await
+        .map_err(super::workspaces::internal_error)?;
+
+    // Edges depend on nodes; clear edges first, then nodes.
+    sqlx::query!(
+        r#"DELETE FROM canvas_edges WHERE canvas_id = ?1"#,
+        canvas.id
+    )
+    .execute(&mut *tx)
+    .await
+    .map_err(super::workspaces::internal_error)?;
+
+    sqlx::query!(
+        r#"DELETE FROM canvas_nodes WHERE canvas_id = ?1"#,
+        canvas.id
+    )
+    .execute(&mut *tx)
+    .await
+    .map_err(super::workspaces::internal_error)?;
+
+    let now = Utc::now();
+    let mut inserted_nodes = Vec::with_capacity(payload.nodes.len());
+
+    for incoming in payload.nodes.into_iter() {
+        let node_id = incoming.id.unwrap_or_else(|| Uuid::new_v4().to_string());
+        let data = incoming
+            .data
+            .unwrap_or_else(|| Value::Object(Default::default()));
+        let data_str = data.to_string();
+
+        sqlx::query!(
+            r#"
+            INSERT INTO canvas_nodes (
+                id, canvas_id, kind, position_x, position_y, data, created_at, updated_at
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+            "#,
+            node_id,
+            canvas.id,
+            incoming.kind,
+            incoming.position_x,
+            incoming.position_y,
+            data_str,
+            now,
+            now
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(super::workspaces::internal_error)?;
+
+        inserted_nodes.push(CanvasNodeResponse {
+            id: node_id,
+            canvas_id: canvas.id.clone(),
+            kind: incoming.kind,
+            position_x: incoming.position_x,
+            position_y: incoming.position_y,
+            data,
+            created_at: now,
+            updated_at: now,
+        });
+    }
+
+    let mut inserted_edges = Vec::with_capacity(payload.edges.len());
+
+    for incoming in payload.edges.into_iter() {
+        let edge_id = incoming.id.unwrap_or_else(|| Uuid::new_v4().to_string());
+
+        sqlx::query!(
+            r#"
+            INSERT INTO canvas_edges (
+                id, canvas_id, from_node_id, to_node_id, kind, created_at, updated_at
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            "#,
+            edge_id,
+            canvas.id,
+            incoming.from_node_id,
+            incoming.to_node_id,
+            incoming.kind,
+            now,
+            now
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(super::workspaces::internal_error)?;
+
+        inserted_edges.push(CanvasEdgeResponse {
+            id: edge_id,
+            canvas_id: canvas.id.clone(),
+            from_node_id: incoming.from_node_id,
+            to_node_id: incoming.to_node_id,
+            kind: incoming.kind,
+            created_at: now,
+            updated_at: now,
+        });
+    }
+
+    tx.commit()
+        .await
+        .map_err(super::workspaces::internal_error)?;
+
+    tracing::info!(target: "handshake_core", route = "/canvases/:canvas_id", status = "ok", canvas_id = %canvas.id, nodes = inserted_nodes.len(), edges = inserted_edges.len(), "update canvas graph");
+
+    Ok(Json(CanvasWithGraphResponse {
+        id: canvas.id,
+        workspace_id: canvas.workspace_id,
+        title: canvas.title,
+        created_at: canvas.created_at,
+        updated_at: now,
+        nodes: inserted_nodes,
+        edges: inserted_edges,
     }))
 }

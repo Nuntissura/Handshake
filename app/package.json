@@ -11,10 +11,16 @@
     "lint": "eslint src --ext .ts,.tsx"
   },
   "dependencies": {
+    "@excalidraw/excalidraw": "^0.18.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
+    "@tiptap/core": "^3.13.0",
+    "@tiptap/extension-collaboration": "^3.13.0",
+    "@tiptap/react": "^3.13.0",
+    "@tiptap/starter-kit": "^3.13.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "yjs": "^13.6.27"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

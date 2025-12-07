@@ -87,6 +87,21 @@ export type CanvasWithGraph = CanvasSummary & {
   edges: CanvasEdge[];
 };
 
+export type CanvasNodeInput = {
+  id?: string;
+  kind: string;
+  position_x: number;
+  position_y: number;
+  data?: unknown;
+};
+
+export type CanvasEdgeInput = {
+  id?: string;
+  from_node_id: string;
+  to_node_id: string;
+  kind: string;
+};
+
 export type LogTailResponse = {
   lines: string[];
 };
@@ -127,6 +142,17 @@ export async function updateDocumentBlocks(documentId: string, blocks: BlockInpu
   return request(`/documents/${encodeURIComponent(documentId)}/blocks`, {
     method: "PUT",
     body: { blocks },
+  });
+}
+
+export async function updateCanvasGraph(
+  canvasId: string,
+  nodes: CanvasNodeInput[],
+  edges: CanvasEdgeInput[],
+): Promise<CanvasWithGraph> {
+  return request(`/canvases/${encodeURIComponent(canvasId)}`, {
+    method: "PUT",
+    body: { nodes, edges },
   });
 }
 
