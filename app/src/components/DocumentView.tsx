@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { BlockInput, DocumentWithBlocks, getDocument, updateDocumentBlocks } from "../lib/api";
+import { JSONContent } from "@tiptap/core";
+import { Block, BlockInput, DocumentWithBlocks, getDocument, updateDocumentBlocks } from "../lib/api";
+import { TiptapEditor } from "./TiptapEditor";
 
 type Props = {
   documentId: string | null;
@@ -9,7 +11,7 @@ export function DocumentView({ documentId }: Props) {
   const [doc, setDoc] = useState<DocumentWithBlocks | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editorText, setEditorText] = useState<string>("");
+  const [editorContent, setEditorContent] = useState<JSONContent | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -18,7 +20,7 @@ export function DocumentView({ documentId }: Props) {
     if (!documentId) {
       setDoc(null);
       setError(null);
-      setEditorText("");
+      setEditorContent(null);
       return;
     }
     const load = async () => {
@@ -29,7 +31,7 @@ export function DocumentView({ documentId }: Props) {
       try {
         const response = await getDocument(documentId);
         setDoc(response);
-        setEditorText(blocksToEditorText(response));
+        setEditorContent(blocksToTiptap(response.blocks));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load document");
       } finally {
@@ -87,7 +89,7 @@ export function DocumentView({ documentId }: Props) {
                 setIsSaving(true);
                 setSaveError(null);
                 try {
-                  const blocks = editorTextToBlocks(editorText, blocksForDisplay);
+                  const blocks = tiptapToBlocks(editorContent, blocksForDisplay);
                   const updated = await updateDocumentBlocks(documentId, blocks);
                   setLastSavedAt(new Date().toLocaleTimeString());
                   setDoc({
@@ -112,7 +114,7 @@ export function DocumentView({ documentId }: Props) {
                 try {
                   const refreshed = await getDocument(documentId);
                   setDoc(refreshed);
-                  setEditorText(blocksToEditorText(refreshed));
+                  setEditorContent(blocksToTiptap(refreshed.blocks));
                 } catch (err) {
                   setSaveError(err instanceof Error ? err.message : "Failed to reload");
                 } finally {
@@ -125,62 +127,159 @@ export function DocumentView({ documentId }: Props) {
             </button>
           </div>
         </div>
-        <textarea
-          className="document-editor__textarea"
-          rows={12}
-          value={editorText}
-          onChange={(e) => setEditorText(e.target.value)}
-          placeholder="Start typing your document. Separate paragraphs with a blank line."
-        />
+        <TiptapEditor initialContent={editorContent} onChange={setEditorContent} />
         <div className="document-editor__status">
           {lastSavedAt && <span className="muted">Saved at {lastSavedAt}</span>}
           {saveError && <span className="muted">Error: {saveError}</span>}
         </div>
       </div>
 
-      <h3>Blocks</h3>
-      {blocksForDisplay.length === 0 ? (
-        <p className="muted">No blocks yet.</p>
-      ) : (
-        <ul className="list-inline">
-          {blocksForDisplay.map((block) => (
-            <li key={block.id} className="content-card" style={{ padding: "10px" }}>
-              <strong>
-                {block.sequence}. {block.kind}
-              </strong>
-              <p className="muted">{block.raw_content.slice(0, 200)}</p>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="document-blocks">
+        <h3 className="document-blocks__title">Storage blocks (debug, read-only)</h3>
+        {blocksForDisplay.length === 0 ? (
+          <p className="muted">No blocks yet.</p>
+        ) : (
+          <div className="document-blocks__list">
+            {blocksForDisplay.map((block) => (
+              <div key={block.id} className="content-card document-blocks__card">
+                <strong>
+                  {block.sequence}. {block.kind}
+                </strong>
+                <p className="muted">{block.raw_content.slice(0, 200)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function blocksToEditorText(document: DocumentWithBlocks): string {
-  if (document.blocks.length === 0) return "";
-  const sorted = [...document.blocks].sort((a, b) => a.sequence - b.sequence);
-  return sorted.map((b) => b.raw_content).join("\n\n");
+const EMPTY_DOC: JSONContent = { type: "doc", content: [] };
+
+function blocksToTiptap(blocks: Block[]): JSONContent {
+  if (!blocks || blocks.length === 0) return EMPTY_DOC;
+  const sorted = [...blocks].sort((a, b) => a.sequence - b.sequence);
+  const content = sorted
+    .map((block) => blockToNode(block))
+    .filter((node): node is JSONContent => Boolean(node));
+  return { type: "doc", content };
 }
 
-function editorTextToBlocks(text: string, existing: DocumentWithBlocks["blocks"]): BlockInput[] {
-  const segments = text
-    .split(/\n{2,}/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-
-  const blocks: BlockInput[] = [];
-  for (let i = 0; i < segments.length; i++) {
-    const existingId = i < existing.length ? existing[i].id : undefined;
-    blocks.push({
-      id: existingId,
-      kind: "paragraph",
-      sequence: i,
-      raw_content: segments[i],
-      display_content: segments[i],
-      derived_content: existingId ? existing[i].derived_content : undefined,
-    });
+function blockToNode(block: Block): JSONContent | null {
+  const maybeDerived = block.derived_content as JSONContent | null;
+  if (maybeDerived && typeof maybeDerived === "object" && "type" in maybeDerived) {
+    return maybeDerived;
   }
 
+  const plainText = block.raw_content ?? "";
+  const kind = block.kind ?? "paragraph";
+
+  switch (true) {
+    case kind.startsWith("heading_"): {
+      const levelStr = kind.split("_")[1];
+      const level = Number(levelStr);
+      return makeHeading(isFinite(level) ? level : 1, plainText);
+    }
+    case kind === "heading": {
+      return makeHeading(1, plainText);
+    }
+    case kind === "bulletList": {
+      return makeListNode("bulletList", plainText);
+    }
+    case kind === "orderedList": {
+      return makeListNode("orderedList", plainText);
+    }
+    case kind === "codeBlock": {
+      return {
+        type: "codeBlock",
+        content: textNodeOrEmpty(plainText),
+      };
+    }
+    case kind === "blockquote": {
+      return {
+        type: "blockquote",
+        content: [{ type: "paragraph", content: textNodeOrEmpty(plainText) }],
+      };
+    }
+    default: {
+      return {
+        type: "paragraph",
+        content: textNodeOrEmpty(plainText),
+      };
+    }
+  }
+}
+
+function makeHeading(level: number, text: string): JSONContent {
+  return {
+    type: "heading",
+    attrs: { level: Math.min(Math.max(level, 1), 3) },
+    content: textNodeOrEmpty(text),
+  };
+}
+
+function makeListNode(type: "bulletList" | "orderedList", text: string): JSONContent {
+  const items = text
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map<JSONContent>((item) => ({
+      type: "listItem",
+      content: [{ type: "paragraph", content: textNodeOrEmpty(item) }],
+    }));
+  return { type, content: items.length > 0 ? items : [{ type: "listItem", content: [{ type: "paragraph" }] }] };
+}
+
+function tiptapToBlocks(docJson: JSONContent | null, existing: Block[]): BlockInput[] {
+  const content = docJson?.content ?? [];
+  const blocks: BlockInput[] = [];
+
+  content.forEach((node, index) => {
+    if (!node || typeof node !== "object") {
+      return;
+    }
+    const existingId = index < existing.length ? existing[index].id : undefined;
+    const raw = extractPlainText(node);
+    const kind = kindFromNode(node);
+
+    blocks.push({
+      id: existingId,
+      kind,
+      sequence: index,
+      raw_content: raw,
+      display_content: raw,
+    });
+  });
+
   return blocks;
+}
+
+function kindFromNode(node: JSONContent): string {
+  if (node.type === "heading") {
+    const level = Number((node.attrs as { level?: unknown } | undefined)?.level);
+    if (Number.isFinite(level)) {
+      return `heading_${level}`;
+    }
+  }
+  return node.type ?? "paragraph";
+}
+
+function extractPlainText(node: JSONContent): string {
+  if (!node) return "";
+  if (node.type === "text" && typeof node.text === "string") {
+    return node.text;
+  }
+
+  const childContent = node.content ?? [];
+  if (!Array.isArray(childContent) || childContent.length === 0) return "";
+
+  return childContent
+    .map((child) => extractPlainText(child))
+    .filter(Boolean)
+    .join(node.type === "listItem" ? "\n" : node.type?.includes("List") ? "\n" : " ");
+}
+
+function textNodeOrEmpty(text: string): JSONContent[] {
+  return text ? [{ type: "text", text }] : [];
 }

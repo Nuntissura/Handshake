@@ -28,16 +28,23 @@ body {
   min-height: 100vh;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 32px;
+  justify-content: flex-start;
+  padding: 32px 24px 48px;
   background: radial-gradient(circle at 20% 20%, var(--hs-color-accent-soft) 0, transparent 25%),
     radial-gradient(circle at 80% 10%, #f5f3ff 0, transparent 20%),
     radial-gradient(circle at 50% 80%, #dcfce7 0, transparent 25%),
     var(--hs-color-bg);
 }
 
-.app-header {
+.app-layout {
   width: min(1200px, 96vw);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.app-header {
+  width: 100%;
   background: var(--hs-color-surface);
   border: 1px solid var(--hs-color-border);
   border-radius: 18px;
@@ -132,11 +139,11 @@ body {
 }
 
 .app-body {
-  width: min(1200px, 96vw);
+  width: 100%;
   background: var(--hs-color-surface);
   border: 1px solid var(--hs-color-border);
   border-radius: 18px;
-  margin-top: 16px;
+  margin-top: 0;
   box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
   display: flex;
   overflow: hidden;
@@ -356,6 +363,103 @@ body {
   gap: 12px;
   color: var(--hs-color-text-subtle);
   font-size: 14px;
+}
+
+.document-blocks {
+  margin-top: 12px;
+}
+
+.document-blocks__title {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: var(--hs-color-text-subtle);
+  letter-spacing: 0.01em;
+}
+
+.document-blocks__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.document-blocks__card {
+  padding: 10px;
+  cursor: default;
+  font-size: 14px;
+}
+
+.document-blocks__card p {
+  margin: 6px 0 0 0;
+  color: var(--hs-color-text-subtle);
+}
+
+.canvas-editor {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.excalidraw-wrapper {
+  height: 640px;
+}
+
+.tiptap-editor {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 12px;
+  background: var(--hs-color-surface);
+  color: var(--hs-color-text);
+  display: flex;
+  flex-direction: column;
+}
+
+.tiptap-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--hs-color-border);
+  background: var(--hs-color-surface);
+}
+
+.tiptap-toolbar--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.tt-button {
+  background: var(--hs-color-bg);
+  color: var(--hs-color-text);
+  border: 1px solid var(--hs-color-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tt-button--active {
+  background: var(--hs-color-accent);
+  border-color: var(--hs-color-accent);
+  color: #ffffff;
+}
+
+.tt-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tiptap-surface {
+  padding: 12px;
+}
+
+.tiptap-scroll {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.tiptap-surface .ProseMirror {
+  min-height: 240px;
+  outline: none;
 }
 
 @media (max-width: 900px) {
