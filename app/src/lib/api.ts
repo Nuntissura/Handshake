@@ -46,6 +46,15 @@ export type Block = {
   derived_content: unknown;
 };
 
+export type BlockInput = {
+  id?: string;
+  kind: string;
+  sequence: number;
+  raw_content: string;
+  display_content?: string;
+  derived_content?: unknown;
+};
+
 export type DocumentWithBlocks = DocumentSummary & {
   blocks: Block[];
 };
@@ -108,4 +117,11 @@ export async function getDocument(docId: string): Promise<DocumentWithBlocks> {
 
 export async function getCanvas(canvasId: string): Promise<CanvasWithGraph> {
   return request(`/canvases/${canvasId}`);
+}
+
+export async function updateDocumentBlocks(documentId: string, blocks: BlockInput[]): Promise<Block[]> {
+  return request(`/documents/${encodeURIComponent(documentId)}/blocks`, {
+    method: "PUT",
+    body: { blocks },
+  });
 }
