@@ -250,6 +250,54 @@ body {
   color: var(--hs-color-text-subtle);
 }
 
+.debug-panel {
+  max-height: 260px;
+  overflow: hidden;
+}
+
+.debug-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.debug-panel__refresh {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--hs-color-surface);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.debug-panel__refresh:hover:not(:disabled) {
+  background: var(--hs-color-accent-soft);
+  border-color: var(--hs-color-accent);
+}
+
+.debug-panel__refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.debug-panel__logbox {
+  margin-top: 8px;
+  border: 1px solid var(--hs-color-border);
+  border-radius: 10px;
+  background: var(--hs-color-bg);
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 8px;
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 12px;
+}
+
+.debug-panel__line {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .document-editor {
   display: flex;
   flex-direction: column;

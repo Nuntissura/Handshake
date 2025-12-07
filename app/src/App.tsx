@@ -4,6 +4,7 @@ import { useState } from "react";
 import { WorkspaceSidebar } from "./components/WorkspaceSidebar";
 import { DocumentView } from "./components/DocumentView";
 import { CanvasView } from "./components/CanvasView";
+import { DebugPanel } from "./components/DebugPanel";
 
 function App() {
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
@@ -35,6 +36,7 @@ function App() {
         />
 
         <div className="content-panel">
+          <DebugPanel />
           {selectedDocumentId ? (
             <DocumentView documentId={selectedDocumentId} />
           ) : selectedCanvasId ? (

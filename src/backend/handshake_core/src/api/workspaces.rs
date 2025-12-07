@@ -50,6 +50,8 @@ async fn create_workspace(
     .await
     .map_err(internal_error)?;
 
+    tracing::info!(target: "handshake_core", route = "/workspaces", status = "created", workspace_id = %id, "workspace created");
+
     Ok((
         StatusCode::CREATED,
         Json(WorkspaceResponse {
@@ -78,6 +80,8 @@ async fn list_workspaces(
     .fetch_all(&state.pool)
     .await
     .map_err(internal_error)?;
+
+    tracing::info!(target: "handshake_core", route = "/workspaces", status = "ok", count = rows.len(), "list workspaces");
 
     let workspaces = rows
         .into_iter()
@@ -117,6 +121,8 @@ async fn create_document(
     .await
     .map_err(internal_error)?;
 
+    tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id/documents", status = "created", workspace_id = %workspace_id, document_id = %id, "document created");
+
     Ok((
         StatusCode::CREATED,
         Json(DocumentResponse {
@@ -152,6 +158,8 @@ async fn list_documents(
     .fetch_all(&state.pool)
     .await
     .map_err(internal_error)?;
+
+    tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id/documents", status = "ok", workspace_id = %workspace_id, count = rows.len(), "list documents");
 
     let docs = rows
         .into_iter()
@@ -213,6 +221,8 @@ async fn get_document(
     .fetch_all(&state.pool)
     .await
     .map_err(internal_error)?;
+
+    tracing::info!(target: "handshake_core", route = "/documents/:document_id", status = "ok", document_id = %doc.id, "get document");
 
     let blocks = blocks
         .into_iter()
@@ -315,6 +325,8 @@ async fn replace_blocks(
     }
 
     tx.commit().await.map_err(internal_error)?;
+
+    tracing::info!(target: "handshake_core", route = "/documents/:document_id/blocks", status = "ok", document_id = %document_id, blocks = result_blocks.len(), "replace blocks");
 
     Ok(Json(result_blocks))
 }
