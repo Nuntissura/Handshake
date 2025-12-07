@@ -241,6 +241,51 @@ E. RAW LOG (SUB-WORKSURFACE, LIVE)
 ----------------------------------
 [LOG_RAW_SURFACE_START]
 
+[RAW_ENTRY_ID]
+1
+[TIMESTAMP]
+2025-12-07T02:00:00+01:00
+[SESSION_ID]
+HS-20251207-0200-tauri-bootstrap
+[ROLE]
+Orchestrator
+[PHASE]
+P0-Env-Setup
+[VERTICAL_SLICE]
+VS-DesktopShell-Bootstrap
+[WP_ID]
+WP-0-Env-And-Tauri-Scaffold
+[WP_STATUS]
+Started
+[TASK_SUMMARY]
+Guided user through installing Windows toolchain and scaffolding a Tauri + React desktop app for Handshake.
+[METHOD_SUMMARY]
+Used PowerShell, Node/npm, Rust + cargo, Tauri CLI, and Visual Studio Build Tools to resolve linker issues and run the starter app.
+[SPEC_REFERENCES]
+Handshake_Master_Spec_v02.12.md §7.6 Development Roadmap; Handshake Codex v0.5 (environment and tooling behaviour).
+[LAW_AND_CODEX_REFERENCES]
+Handshake Codex v0.5; Handshake_logger_v3.1 instructions.
+[FILES_TOUCHED]
+D:\Projects\LLM projects\Handshakepp
+D:\Projects\LLM projects\Handshakepp\src
+D:\Projects\LLM projects\Handshakepp\src-tauri
+[TOOLS_AND_MODELS]
+PowerShell; Node.js v24.11.1; npm v11.6.2; Rust v1.91.1; cargo v1.91.1; Tauri CLI; Visual Studio 2022 Build Tools (MSVC); ChatGPT (GPT-5.1 Thinking).
+[STATE_BEFORE_BRIEF]
+Handshake repo existed with specs but no Tauri desktop shell; Node/Rust installed but MSVC linker missing; no app folder or dev run.
+[STATE_AFTER_BRIEF]
+Tauri React+TypeScript template created under Handshakepp; npm dependencies installed; Rust/MSVC toolchain working; npm run tauri dev opens starter window successfully.
+[RESULT]
+OK
+[BLOCKERS_OR_RISKS]
+Installer and toolchain setup were heavy; risk of future drift between spec’s planned src/frontend/desktop layout and current app/ placement—must reconcile before further structure work.
+[NEXT_STEP_HINT]
+Decide whether to move the Tauri app under src/frontend/desktop or update the layout spec, then define the first Handshake UI vertical slice (diagnostic shell/healthcheck).
+[HANDOFF_HINT]
+Next assistant should inspect D:\Projects\LLM projects\Handshakepp and treat it as the current prototype desktop shell; align any refactors with the Master Spec before moving or renaming.
+[NOTES]
+User prefers minimal, step-by-step CLI instructions with no future-step spam; keep path handling exact and avoid placeholder paths.
+
 [LOG_RAW_SURFACE_END]
 
 
