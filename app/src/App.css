@@ -250,6 +250,66 @@ body {
   color: var(--hs-color-text-subtle);
 }
 
+.document-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.document-editor__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.document-editor__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.document-editor__actions button {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--hs-color-surface);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.document-editor__actions button:hover:not(:disabled) {
+  background: var(--hs-color-accent-soft);
+  border-color: var(--hs-color-accent);
+}
+
+.document-editor__actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.document-editor__textarea {
+  width: 100%;
+  min-height: 200px;
+  border-radius: 12px;
+  border: 1px solid var(--hs-color-border);
+  padding: 12px;
+  font-size: 16px;
+  font-family: inherit;
+  background: var(--hs-color-bg);
+  color: var(--hs-color-text);
+  box-sizing: border-box;
+}
+
+.document-editor__textarea:focus {
+  outline: 2px solid var(--hs-color-accent);
+}
+
+.document-editor__status {
+  display: flex;
+  gap: 12px;
+  color: var(--hs-color-text-subtle);
+  font-size: 14px;
+}
+
 @media (max-width: 900px) {
   .app-body {
     flex-direction: column;
