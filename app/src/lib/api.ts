@@ -1,0 +1,111 @@
+const BASE_URL = "http://127.0.0.1:37501";
+
+type FetchOptions = {
+  method?: string;
+  body?: unknown;
+};
+
+async function request<T>(path: string, options: FetchOptions = {}): Promise<T> {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    method: options.method ?? "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Request failed: ${response.status} ${response.statusText} - ${text}`);
+  }
+
+  return (await response.json()) as T;
+}
+
+export type Workspace = {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DocumentSummary = {
+  id: string;
+  workspace_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Block = {
+  id: string;
+  kind: string;
+  sequence: number;
+  raw_content: string;
+  display_content: string;
+  derived_content: unknown;
+};
+
+export type DocumentWithBlocks = DocumentSummary & {
+  blocks: Block[];
+};
+
+export type CanvasSummary = {
+  id: string;
+  workspace_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CanvasNode = {
+  id: string;
+  kind: string;
+  position_x: number;
+  position_y: number;
+  data: unknown;
+};
+
+export type CanvasEdge = {
+  id: string;
+  from_node_id: string;
+  to_node_id: string;
+  kind: string;
+};
+
+export type CanvasWithGraph = CanvasSummary & {
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
+};
+
+export async function listWorkspaces(): Promise<Workspace[]> {
+  return request("/workspaces");
+}
+
+export async function createWorkspace(name: string): Promise<Workspace> {
+  return request("/workspaces", { method: "POST", body: { name } });
+}
+
+export async function listDocuments(workspaceId: string): Promise<DocumentSummary[]> {
+  return request(`/workspaces/${workspaceId}/documents`);
+}
+
+export async function createDocument(workspaceId: string, title: string): Promise<DocumentSummary> {
+  return request(`/workspaces/${workspaceId}/documents`, { method: "POST", body: { title } });
+}
+
+export async function listCanvases(workspaceId: string): Promise<CanvasSummary[]> {
+  return request(`/workspaces/${workspaceId}/canvases`);
+}
+
+export async function createCanvas(workspaceId: string, title: string): Promise<CanvasSummary> {
+  return request(`/workspaces/${workspaceId}/canvases`, { method: "POST", body: { title } });
+}
+
+export async function getDocument(docId: string): Promise<DocumentWithBlocks> {
+  return request(`/documents/${docId}`);
+}
+
+export async function getCanvas(canvasId: string): Promise<CanvasWithGraph> {
+  return request(`/canvases/${canvasId}`);
+}
