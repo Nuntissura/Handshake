@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO blocks (\n                id, document_id, kind, sequence, raw_content, display_content, derived_content, created_at, updated_at\n            )\n            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": []
+  },
+  "hash": "d18b26ce7dff534ca00c3f792eca69f1ad6a14aa25b6611dc9639c6d6796b4ff"
+}

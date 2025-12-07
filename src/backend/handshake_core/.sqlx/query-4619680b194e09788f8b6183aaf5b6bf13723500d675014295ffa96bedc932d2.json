@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            id as \"id!: String\",\n            workspace_id as \"workspace_id!: String\",\n            title as \"title!: String\",\n            created_at as \"created_at: chrono::DateTime<chrono::Utc>\",\n            updated_at as \"updated_at: chrono::DateTime<chrono::Utc>\"\n        FROM canvases\n        WHERE workspace_id = ?1\n        ORDER BY created_at ASC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "workspace_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "title!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at: chrono::DateTime<chrono::Utc>",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "updated_at: chrono::DateTime<chrono::Utc>",
+        "ordinal": 4,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4619680b194e09788f8b6183aaf5b6bf13723500d675014295ffa96bedc932d2"
+}

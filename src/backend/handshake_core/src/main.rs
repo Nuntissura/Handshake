@@ -1,21 +1,17 @@
 use axum::{extract::State, routing::get, Json, Router};
-use serde::Serialize;
 use sqlx::{sqlite::SqliteConnectOptions, sqlite::SqlitePoolOptions, SqlitePool};
-use std::{net::SocketAddr, path::Path, process, str::FromStr};
+use std::{net::SocketAddr, path::Path, path::PathBuf, process, str::FromStr};
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 
-#[derive(Serialize)]
-struct HealthResponse {
-    status: String,
-    component: &'static str,
-    version: &'static str,
-    db_status: String,
-}
+mod api;
+mod models;
+
+use models::HealthResponse;
 
 #[derive(Clone)]
-struct AppState {
-    pool: SqlitePool,
+pub struct AppState {
+    pub pool: SqlitePool,
 }
 
 #[tokio::main]
@@ -32,7 +28,8 @@ async fn main() {
 
     let app = Router::new()
         .route("/health", get(health))
-        .with_state(state)
+        .with_state(state.clone())
+        .merge(api::routes(state))
         .layer(cors);
 
     println!(
@@ -49,17 +46,25 @@ async fn main() {
 }
 
 async fn init_db() -> Result<SqlitePool, sqlx::Error> {
-    let data_dir = Path::new("data");
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root_dir = manifest_dir
+        .parent()
+        .and_then(Path::parent)
+        .and_then(Path::parent)
+        .map(Path::to_path_buf)
+        .expect("failed to resolve repo root");
+    let data_dir = root_dir.join("data");
     if !data_dir.exists() {
-        std::fs::create_dir_all(data_dir).map_err(|err| {
+        std::fs::create_dir_all(&data_dir).map_err(|err| {
             eprintln!("failed to create data directory {:?}: {}", data_dir, err);
             sqlx::Error::Io(err)
         })?;
     }
 
-    let db_url = "sqlite://data/handshake.db";
+    let db_path = data_dir.join("handshake.db");
+    let db_url = format!("sqlite://{}", db_path.to_string_lossy());
 
-    let connect_options = SqliteConnectOptions::from_str(db_url)?
+    let connect_options = SqliteConnectOptions::from_str(&db_url)?
         .create_if_missing(true)
         .foreign_keys(true);
 
