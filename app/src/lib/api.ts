@@ -87,6 +87,10 @@ export type CanvasWithGraph = CanvasSummary & {
   edges: CanvasEdge[];
 };
 
+export type LogTailResponse = {
+  lines: string[];
+};
+
 export async function listWorkspaces(): Promise<Workspace[]> {
   return request("/workspaces");
 }
@@ -124,4 +128,9 @@ export async function updateDocumentBlocks(documentId: string, blocks: BlockInpu
     method: "PUT",
     body: { blocks },
   });
+}
+
+export async function getLogTail(limit = 200): Promise<LogTailResponse> {
+  const url = `/logs/tail?limit=${limit}`;
+  return request(url);
 }

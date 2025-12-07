@@ -83,6 +83,8 @@ async fn create_canvas(
     .await
     .map_err(super::workspaces::internal_error)?;
 
+    tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id/canvases", status = "created", workspace_id = %workspace_id, canvas_id = %id, "canvas created");
+
     Ok((
         StatusCode::CREATED,
         Json(CanvasResponse {
@@ -119,6 +121,8 @@ async fn list_canvases(
     .fetch_all(&state.pool)
     .await
     .map_err(super::workspaces::internal_error)?;
+
+    tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id/canvases", status = "ok", workspace_id = %workspace_id, count = rows.len(), "list canvases");
 
     let canvases = rows
         .into_iter()
@@ -230,6 +234,8 @@ async fn get_canvas(
             updated_at: e.updated_at,
         })
         .collect();
+
+    tracing::info!(target: "handshake_core", route = "/canvases/:canvas_id", status = "ok", canvas_id = %canvas.id, "get canvas");
 
     Ok(Json(CanvasWithGraphResponse {
         id: canvas.id,

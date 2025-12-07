@@ -5,6 +5,7 @@ use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 
 mod api;
+mod logging;
 mod models;
 
 use models::HealthResponse;
@@ -17,6 +18,8 @@ pub struct AppState {
 #[tokio::main]
 async fn main() {
     let addr: SocketAddr = ([127, 0, 0, 1], 37501).into();
+
+    logging::init_logging();
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -32,11 +35,7 @@ async fn main() {
         .merge(api::routes(state))
         .layer(cors);
 
-    println!(
-        "handshake_core listening on {} (pid {})",
-        addr,
-        process::id()
-    );
+    tracing::info!(target: "handshake_core", listen_addr = %addr, pid = process::id(), "handshake_core started");
 
     let listener = TcpListener::bind(addr)
         .await
@@ -56,7 +55,7 @@ async fn init_db() -> Result<SqlitePool, sqlx::Error> {
     let data_dir = root_dir.join("data");
     if !data_dir.exists() {
         std::fs::create_dir_all(&data_dir).map_err(|err| {
-            eprintln!("failed to create data directory {:?}: {}", data_dir, err);
+            tracing::error!(target: "handshake_core", path = %data_dir.display(), error = %err, "failed to create data directory");
             sqlx::Error::Io(err)
         })?;
     }
@@ -75,7 +74,7 @@ async fn init_db() -> Result<SqlitePool, sqlx::Error> {
 
     sqlx::migrate!("./migrations").run(&pool).await?;
 
-    println!("database ready at {}", db_url);
+    tracing::info!(target: "handshake_core", db_url = %db_url, "database ready");
 
     Ok(pool)
 }
@@ -85,14 +84,14 @@ async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
     let db_status = match db_check {
         Ok(_) => "ok",
         Err(err) => {
-            eprintln!("/health db check error: {}", err);
+            tracing::error!(target: "handshake_core", route = "/health", error = %err, "db check error");
             "error"
         }
     };
 
     let overall_status = if db_status == "ok" { "ok" } else { "error" };
 
-    println!("/health 200");
+    tracing::info!(target: "handshake_core", route = "/health", status = overall_status, db_status = db_status, "health check");
 
     Json(HealthResponse {
         status: overall_status.to_string(),
