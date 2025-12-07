@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            id as \"id!: String\",\n            canvas_id as \"canvas_id!: String\",\n            kind as \"kind!: String\",\n            position_x as \"position_x!: f64\",\n            position_y as \"position_y!: f64\",\n            data as \"data!: String\",\n            created_at as \"created_at: chrono::DateTime<chrono::Utc>\",\n            updated_at as \"updated_at: chrono::DateTime<chrono::Utc>\"\n        FROM canvas_nodes\n        WHERE canvas_id = ?1\n        ORDER BY created_at ASC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "canvas_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "kind!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "position_x!: f64",
+        "ordinal": 3,
+        "type_info": "Float"
+      },
+      {
+        "name": "position_y!: f64",
+        "ordinal": 4,
+        "type_info": "Float"
+      },
+      {
+        "name": "data!: String",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at: chrono::DateTime<chrono::Utc>",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "updated_at: chrono::DateTime<chrono::Utc>",
+        "ordinal": 7,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c285c5ee235cf5f997dc397bb6eda39420deb5a12a550e1715daf5cf132f2964"
+}
