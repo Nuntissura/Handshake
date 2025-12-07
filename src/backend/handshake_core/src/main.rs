@@ -2,6 +2,7 @@ use axum::{routing::get, Json, Router};
 use serde::Serialize;
 use std::{net::SocketAddr, process};
 use tokio::net::TcpListener;
+use tower_http::cors::{Any, CorsLayer};
 
 #[derive(Serialize)]
 struct HealthResponse {
@@ -23,7 +24,12 @@ async fn health() -> Json<HealthResponse> {
 async fn main() {
     let addr: SocketAddr = ([127, 0, 0, 1], 37501).into();
 
-    let app = Router::new().route("/health", get(health));
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    let app = Router::new().route("/health", get(health)).layer(cors);
 
     println!(
         "handshake_core listening on {} (pid {})",
