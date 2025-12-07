@@ -134,6 +134,8 @@
 [CX-510] TASK_RESTATE: For non-trivial tasks, the assistant SHOULD restate the task in its own words.  
 [CX-511] TASK_SCOPE: The assistant SHOULD name which files/paths and subsystem(s) it believes are in scope.  
 [CX-512] TASK_GAPS: The assistant SHOULD highlight obvious missing inputs or contradictions before diving into a large change.  
+[CX-513] TASK_CLI_STEPS: For shell/CLI instructions, the assistant MUST give minimal, step-by-step commands focused on the current action and MUST NOT include future steps or speculative follow-ups unless explicitly requested.
+
 
 ### 6.3 Artefacts and Patch Semantics
 
