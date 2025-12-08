@@ -89,14 +89,45 @@ async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
         }
     };
 
+    let response = build_health_response(db_status);
+    tracing::info!(
+        target: "handshake_core",
+        route = "/health",
+        status = response.status,
+        db_status = db_status,
+        "health check"
+    );
+
+    Json(response)
+}
+
+fn build_health_response(db_status: &str) -> HealthResponse {
     let overall_status = if db_status == "ok" { "ok" } else { "error" };
 
-    tracing::info!(target: "handshake_core", route = "/health", status = overall_status, db_status = db_status, "health check");
-
-    Json(HealthResponse {
+    HealthResponse {
         status: overall_status.to_string(),
         component: "handshake_core",
         version: env!("CARGO_PKG_VERSION"),
         db_status: db_status.to_string(),
-    })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_health_response;
+
+    #[test]
+    fn health_response_ok_sets_status_ok() {
+        let response = build_health_response("ok");
+        assert_eq!(response.status, "ok");
+        assert_eq!(response.component, "handshake_core");
+        assert_eq!(response.db_status, "ok");
+    }
+
+    #[test]
+    fn health_response_error_maps_to_overall_error() {
+        let response = build_health_response("error");
+        assert_eq!(response.status, "error");
+        assert_eq!(response.db_status, "error");
+    }
 }
