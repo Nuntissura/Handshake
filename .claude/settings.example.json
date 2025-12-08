@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /s /b *.db *.sqlite schema.sql)",
+      "Bash(dir:*)",
+      "Bash(sqlite3:*)",
+      "Bash(cargo tree:*)",
+      "Bash(tree:*)",
+      "Bash(findstr:*)",
+      "Bash(npx pnpm -v)",
+      "Bash(npx pnpm install:*)",
+      "Bash(npx pnpm add:*)",
+      "Bash(npx pnpm build:*)",
+      "Bash(where:*)",
+      "Bash(python:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(npx pnpm run lint)",
+      "Bash(cargo test:*)",
+      "Bash(npx vitest:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
