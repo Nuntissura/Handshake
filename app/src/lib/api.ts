@@ -106,6 +106,13 @@ export type LogTailResponse = {
   lines: string[];
 };
 
+export type HealthResponse = {
+  status?: string;
+  component?: string;
+  version?: string;
+  db_status?: string;
+};
+
 export async function listWorkspaces(): Promise<Workspace[]> {
   return request("/workspaces");
 }
@@ -159,4 +166,8 @@ export async function updateCanvasGraph(
 export async function getLogTail(limit = 200): Promise<LogTailResponse> {
   const url = `/logs/tail?limit=${limit}`;
   return request(url);
+}
+
+export async function getHealth(): Promise<HealthResponse> {
+  return request("/health");
 }

@@ -29,25 +29,10 @@ export function WorkspaceSidebar({
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [canvases, setCanvases] = useState<CanvasSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const ws = await listWorkspaces();
-        setWorkspaces(ws);
-        if (ws.length > 0) {
-          selectWorkspace(ws[0].id);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load workspaces");
-      } finally {
-        setLoading(false);
-      }
-    };
-    void load();
+    void loadWorkspaces();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -62,7 +47,7 @@ export function WorkspaceSidebar({
       setDocuments(docs);
       setCanvases(cvs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load workspace details");
+      setWorkspaceError(err instanceof Error ? err.message : "Failed to load workspace details");
     }
   }
 
@@ -74,7 +59,7 @@ export function WorkspaceSidebar({
       setWorkspaces((prev) => [...prev, ws]);
       await selectWorkspace(ws.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create workspace");
+      setWorkspaceError(err instanceof Error ? err.message : "Failed to create workspace");
     }
   }
 
@@ -88,7 +73,7 @@ export function WorkspaceSidebar({
       onSelectDocument(doc.id);
       onSelectCanvas(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create document");
+      setWorkspaceError(err instanceof Error ? err.message : "Failed to create document");
     }
   }
 
@@ -102,7 +87,24 @@ export function WorkspaceSidebar({
       onSelectCanvas(canvas.id);
       onSelectDocument(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create canvas");
+      setWorkspaceError(err instanceof Error ? err.message : "Failed to create canvas");
+    }
+  }
+
+  async function loadWorkspaces() {
+    setLoading(true);
+    try {
+      const ws = await listWorkspaces();
+      setWorkspaces(ws);
+      setWorkspaceError(null);
+      if (ws.length > 0) {
+        selectWorkspace(ws[0].id);
+      }
+    } catch (err) {
+      setWorkspaceError(err instanceof Error ? err.message : "Failed to load workspaces");
+      // keep existing workspaces on failure
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -112,7 +114,19 @@ export function WorkspaceSidebar({
         <h3>Workspaces</h3>
         <button onClick={handleCreateWorkspace}>New Workspace</button>
         {loading && <p className="muted">Loading…</p>}
-        {error && <p className="muted">Error: {error}</p>}
+        {workspaceError && (
+          <div
+            className="content-card"
+            style={{ padding: "8px 10px", background: "#fff6f2", border: "1px solid #f4b8a7", marginTop: 8 }}
+          >
+            <p className="muted" style={{ marginBottom: 8 }}>
+              Could not refresh the workspace list. Your existing workspaces are safe; this is likely a temporary connection issue. You can continue using the list below or press Retry.
+            </p>
+            <button type="button" onClick={() => void loadWorkspaces()} disabled={loading}>
+              Retry
+            </button>
+          </div>
+        )}
         <ul className="list">
           {workspaces.map((ws) => (
             <li
@@ -175,3 +189,5 @@ export function WorkspaceSidebar({
     </aside>
   );
 }
+
+

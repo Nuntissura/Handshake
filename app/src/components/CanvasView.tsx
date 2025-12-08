@@ -9,6 +9,7 @@ import {
   updateCanvasGraph,
 } from "../lib/api";
 import { ExcalidrawCanvas } from "./ExcalidrawCanvas";
+import { CanvasHeader } from "./CanvasHeader";
 import {
   ExcalidrawArrowElement,
   ExcalidrawElement,
@@ -19,14 +20,17 @@ import {
   ExcalidrawRectangleElement,
   ExcalidrawTextElement,
 } from "@excalidraw/excalidraw/element/types";
-import { BinaryFiles } from "@excalidraw/excalidraw/types";
+import { BinaryFileData, BinaryFiles } from "@excalidraw/excalidraw/types";
+import { logEvent } from "../state/debugEvents";
 
 type Props = {
   canvasId: string | null;
 };
 
-const isDevEnv = typeof globalThis !== "undefined" && (globalThis as any).process?.env?.NODE_ENV === "development";
-// TODO(dev-tools): Phase 0/1 should expose an in-app debug/logs panel so canvas errors are visible without opening the Tauri console (Roadmap §7.6).
+const isDevEnv =
+  typeof globalThis !== "undefined" &&
+  (globalThis as { process?: { env?: Record<string, unknown> } }).process?.env?.NODE_ENV === "development";
+// TODO(dev-tools): Phase 0/1 should expose an in-app debug/logs panel so canvas errors are visible without opening the Tauri console (Roadmap A7.6).
 
 export function CanvasView({ canvasId }: Props) {
   const [canvas, setCanvas] = useState<CanvasWithGraph | null>(null);
@@ -63,8 +67,10 @@ export function CanvasView({ canvasId }: Props) {
         setInitialFiles(mapped.files);
         setElements(mapped.elements);
         setFiles(mapped.files);
+        logEvent({ type: "canvas-load", targetId: canvasId, result: "ok" });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load canvas");
+        logEvent({ type: "canvas-load", targetId: canvasId, result: "error", message: String(err) });
       } finally {
         setLoading(false);
       }
@@ -93,10 +99,31 @@ export function CanvasView({ canvasId }: Props) {
       setElements(mapped.elements);
       setFiles(mapped.files);
       setLastSavedAt(new Date().toLocaleTimeString());
+      logEvent({ type: "canvas-save", targetId: canvasId, result: "ok" });
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Failed to save canvas");
+      logEvent({ type: "canvas-save", targetId: canvasId, result: "error", message: String(err) });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleReload = async () => {
+    if (!canvasId) return;
+    setLoading(true);
+    setSaveError(null);
+    try {
+      const refreshed = await getCanvas(canvasId);
+      setCanvas(refreshed);
+      const mapped = canvasToElements(refreshed);
+      setInitialElements(mapped.elements);
+      setInitialFiles(mapped.files);
+      setElements(mapped.elements);
+      setFiles(mapped.files);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reload canvas");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -113,7 +140,7 @@ export function CanvasView({ canvasId }: Props) {
     return (
       <div className="content-card">
         <h2>Canvas</h2>
-        <p className="muted">Loading…</p>
+        <p className="muted">Loading...</p>
       </div>
     );
   }
@@ -131,44 +158,17 @@ export function CanvasView({ canvasId }: Props) {
 
   return (
     <div className="content-card">
-      <h2>{canvas.title}</h2>
-      <p className="muted">Workspace: {canvas.workspace_id}</p>
-      <p className="muted">
-        Created: {new Date(canvas.created_at).toLocaleString()} – Updated: {new Date(canvas.updated_at).toLocaleString()}
-      </p>
-      <div className="document-editor__actions" style={{ marginBottom: "12px", alignItems: "center" }}>
-        <span className="muted">
-          Nodes: {stats.nodes} • Edges: {stats.edges} {lastSavedAt ? `• Saved at ${lastSavedAt}` : ""}
-        </span>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? "Saving..." : "Save Canvas"}
-          </button>
-          <button
-            onClick={async () => {
-              if (!canvasId) return;
-              setLoading(true);
-              setSaveError(null);
-              try {
-                const refreshed = await getCanvas(canvasId);
-                setCanvas(refreshed);
-                const mapped = canvasToElements(refreshed);
-                setInitialElements(mapped.elements);
-                setInitialFiles(mapped.files);
-                setElements(mapped.elements);
-                setFiles(mapped.files);
-              } catch (err) {
-                setError(err instanceof Error ? err.message : "Failed to reload canvas");
-              } finally {
-                setLoading(false);
-              }
-            }}
-            disabled={isSaving}
-          >
-            Reload
-          </button>
-        </div>
-      </div>
+      <CanvasHeader
+        title={canvas.title}
+        workspaceId={canvas.workspace_id}
+        createdAt={canvas.created_at}
+        updatedAt={canvas.updated_at}
+        stats={stats}
+        lastSavedAt={lastSavedAt}
+        isSaving={isSaving}
+        onSave={handleSave}
+        onReload={handleReload}
+      />
 
       <div className="canvas-editor">
         {initialElements && (
@@ -240,13 +240,98 @@ type ElementSnapshot = {
   scale?: ExcalidrawImageElement["scale"];
   crop?: ExcalidrawImageElement["crop"];
   fileData?: { mimeType: string; dataURL: string } | null;
-  // Free draw / data passthrough
+  // Misc
+  frameId?: string | null;
   data?: unknown;
 };
 
 type NodeData = {
   element: ElementSnapshot;
 };
+
+type TextLikeElement = ExcalidrawElement & {
+  text?: string;
+  fontSize?: number;
+  fontFamily?: number;
+  textAlign?: ExcalidrawTextElement["textAlign"];
+  verticalAlign?: ExcalidrawTextElement["verticalAlign"];
+  baseline?: number | null;
+  containerId?: string | null;
+  originalText?: string;
+  autoResize?: boolean;
+  lineHeight?: number;
+};
+
+type LinearLikeElement = ExcalidrawElement & {
+  points?: ExcalidrawLinearElement["points"];
+  lastCommittedPoint?: ExcalidrawLinearElement["lastCommittedPoint"];
+  startBinding?: ExcalidrawArrowElement["startBinding"];
+  endBinding?: ExcalidrawArrowElement["endBinding"];
+  startArrowhead?: ExcalidrawArrowElement["startArrowhead"] | null;
+  endArrowhead?: ExcalidrawArrowElement["endArrowhead"] | null;
+  pressures?: number[] | null;
+  simulatePressure?: boolean;
+};
+
+type ImageLikeElement = ExcalidrawElement & {
+  fileId?: string | null;
+  status?: ExcalidrawImageElement["status"];
+  scale?: ExcalidrawImageElement["scale"];
+  crop?: ExcalidrawImageElement["crop"];
+};
+
+type ElementWithData = ExcalidrawElement & { data?: unknown };
+
+type ElementWithFrame = ExcalidrawElement & { frameId?: string | null };
+
+type FileId = string;
+
+function isTextLike(el: ExcalidrawElement): el is TextLikeElement {
+  return "text" in el;
+}
+
+function isLinearLike(el: ExcalidrawElement): el is LinearLikeElement {
+  return "points" in el;
+}
+
+function isImageLike(el: ExcalidrawElement): el is ImageLikeElement {
+  return "fileId" in el;
+}
+
+function hasDataField(el: ExcalidrawElement): el is ElementWithData {
+  return "data" in el;
+}
+
+function hasFrameId(el: ExcalidrawElement | ElementSnapshot): el is ElementWithFrame {
+  return "frameId" in el;
+}
+
+function getBinaryFileData(files: BinaryFiles | null | undefined, fileId: FileId | null | undefined) {
+  if (!files || !fileId) return null;
+  const file = files[fileId];
+  if (
+    file &&
+    typeof file === "object" &&
+    "dataURL" in file &&
+    "mimeType" in file &&
+    "created" in file &&
+    "lastRetrieved" in file
+  ) {
+    return file as BinaryFileData;
+  }
+  return null;
+}
+
+function logLinearDebug(label: string, el: LinearLikeElement) {
+  if (!isDevEnv) return;
+  const pointsCount = Array.isArray(el.points) ? el.points.length : 0;
+  console.debug(label, {
+    id: el.id,
+    startArrowhead: "startArrowhead" in el ? el.startArrowhead : undefined,
+    endArrowhead: "endArrowhead" in el ? el.endArrowhead : undefined,
+    points: pointsCount,
+  });
+}
 
 function safeNodeData(node: CanvasNode): NodeData {
   if (node && typeof node.data === "object" && node.data !== null) {
@@ -305,7 +390,7 @@ function randomSeed() {
   return Math.floor(Math.random() * 1_000_000_000);
 }
 
-function canvasToElements(canvas: CanvasWithGraph): { elements: ExcalidrawElement[]; files: BinaryFiles } {
+export function canvasToElements(canvas: CanvasWithGraph): { elements: ExcalidrawElement[]; files: BinaryFiles } {
   const now = Date.now();
   const nodeData = new Map<string, NodeData>();
   const files: BinaryFiles = {};
@@ -326,19 +411,11 @@ function canvasToElements(canvas: CanvasWithGraph): { elements: ExcalidrawElemen
   if (isDevEnv) {
     const firstFree = Array.from(elementsById.values()).find((e) => e.type === "freedraw");
     const firstArrow = Array.from(elementsById.values()).find((e) => e.type === "arrow");
-    if (firstFree) {
-      console.debug("[Canvas load] freedraw reconstructed", {
-        id: firstFree.id,
-        points: Array.isArray((firstFree as any).points) ? (firstFree as any).points.length : 0,
-      });
+    if (firstFree && isLinearLike(firstFree)) {
+      logLinearDebug("[Canvas load] freedraw reconstructed", firstFree);
     }
-    if (firstArrow) {
-      console.debug("[Canvas load] arrow reconstructed", {
-        id: firstArrow.id,
-        startArrowhead: (firstArrow as any).startArrowhead,
-        endArrowhead: (firstArrow as any).endArrowhead,
-        points: Array.isArray((firstArrow as any).points) ? (firstArrow as any).points.length : 0,
-      });
+    if (firstArrow && isLinearLike(firstArrow)) {
+      logLinearDebug("[Canvas load] arrow reconstructed", firstArrow);
     }
   }
 
@@ -392,7 +469,7 @@ function nodeToElement(
     index: null,
     isDeleted: snap.isDeleted ?? false,
     groupIds: snap.groupIds ?? [],
-    frameId: (snap as any).frameId ?? null,
+    frameId: hasFrameId(snap) ? snap.frameId ?? null : null,
     boundElements: snap.boundElements ?? [],
     updated: timestamp,
     link: snap.link ?? null,
@@ -409,13 +486,15 @@ function nodeToElement(
       crop: (snap.crop as ExcalidrawImageElement["crop"]) ?? null,
     };
     if (snap.fileData && snap.fileId) {
-      files[snap.fileId] = {
+      const created = Date.now();
+      const fileEntry: BinaryFileData = {
         id: snap.fileId,
         dataURL: snap.fileData.dataURL,
         mimeType: snap.fileData.mimeType,
-        created: Date.now(),
-        lastRetrieved: Date.now(),
-      } as any;
+        created,
+        lastRetrieved: created,
+      };
+      files[snap.fileId] = fileEntry;
     } else if (snap.fileId && !files[snap.fileId]) {
       // TODO: Image files persistence is not yet implemented; fileId is stored but file data is not persisted.
     }
@@ -425,28 +504,27 @@ function nodeToElement(
   if (type === "freedraw" || type === "line") {
     const linear: ExcalidrawLinearElement = {
       ...(base as ExcalidrawGenericElement),
-    type: type as ExcalidrawLinearElement["type"],
-    points: normalizeLinearPoints(snap.points as ExcalidrawLinearElement["points"], snap.width ?? 0, snap.height ?? 0),
-    lastCommittedPoint: (snap.lastCommittedPoint as ExcalidrawLinearElement["lastCommittedPoint"]) ?? null,
-    startBinding: (snap.startBinding as ExcalidrawArrowElement["startBinding"]) ?? null,
-    endBinding: (snap.endBinding as ExcalidrawArrowElement["endBinding"]) ?? null,
-    startArrowhead: (snap.startArrowhead as ExcalidrawArrowElement["startArrowhead"]) ?? null,
-    endArrowhead: (snap.endArrowhead as ExcalidrawArrowElement["endArrowhead"]) ?? null,
-  };
-  const pressures = (snap.pressures as number[] | null) ?? null;
-  const simulatePressure = snap.simulatePressure ?? false;
-  return {
-    ...(linear as any),
-    pressures: normalizePressures(pressures, linear.points),
-    simulatePressure,
-  } as ExcalidrawLinearElement;
-}
+      type: type as ExcalidrawLinearElement["type"],
+      points: normalizeLinearPoints(snap.points as ExcalidrawLinearElement["points"], snap.width ?? 0, snap.height ?? 0),
+      lastCommittedPoint: (snap.lastCommittedPoint as ExcalidrawLinearElement["lastCommittedPoint"]) ?? null,
+      startBinding: (snap.startBinding as ExcalidrawArrowElement["startBinding"]) ?? null,
+      endBinding: (snap.endBinding as ExcalidrawArrowElement["endBinding"]) ?? null,
+      startArrowhead: (snap.startArrowhead as ExcalidrawArrowElement["startArrowhead"]) ?? null,
+      endArrowhead: (snap.endArrowhead as ExcalidrawArrowElement["endArrowhead"]) ?? null,
+    };
+    const pressures = (snap.pressures as number[] | null) ?? null;
+    const simulatePressure = snap.simulatePressure ?? false;
+    return {
+      ...linear,
+      pressures: normalizePressures(pressures, linear.points),
+      simulatePressure,
+    };
+  }
 
   if (type === "arrow") {
     const startArrowhead =
       snap.startArrowhead !== undefined && snap.startArrowhead !== null ? snap.startArrowhead : null;
-    const endArrowhead =
-      snap.endArrowhead !== undefined && snap.endArrowhead !== null ? snap.endArrowhead : "arrow";
+    const endArrowhead = snap.endArrowhead !== undefined && snap.endArrowhead !== null ? snap.endArrowhead : "arrow";
 
     const arrow: ExcalidrawArrowElement = {
       ...(base as ExcalidrawGenericElement),
@@ -523,8 +601,8 @@ function edgeToElement(
     roundness: snap.roundness ?? null,
     roughness: snap.roughness,
     opacity: snap.opacity,
-    width: snap.width ?? (Math.abs(dx) || 1),
-    height: snap.height ?? (Math.abs(dy) || 1),
+    width: (snap.width ?? Math.abs(dx)) || 1,
+    height: (snap.height ?? Math.abs(dy)) || 1,
     angle: snap.angle ?? 0,
     seed: snap.seed ?? randomSeed(),
     version: snap.version ?? 1,
@@ -532,7 +610,7 @@ function edgeToElement(
     index: null,
     isDeleted: snap.isDeleted ?? false,
     groupIds: snap.groupIds ?? [],
-    frameId: (snap as any).frameId ?? null,
+    frameId: hasFrameId(snap) ? snap.frameId ?? null : null,
     boundElements: snap.boundElements ?? [],
     updated: timestamp,
     link: snap.link ?? null,
@@ -560,7 +638,7 @@ function edgeToElement(
   return arrow;
 }
 
-function elementsToGraph(elements: readonly ExcalidrawElement[], files: BinaryFiles | null): {
+export function elementsToGraph(elements: readonly ExcalidrawElement[], files: BinaryFiles | null): {
   nodes: CanvasNodeInput[];
   edges: CanvasEdgeInput[];
 } {
@@ -569,6 +647,7 @@ function elementsToGraph(elements: readonly ExcalidrawElement[], files: BinaryFi
   const nodeIds = new Set<string>();
   let loggedFreedraw = false;
   let loggedArrow = false;
+  const fileMap = files ?? {};
 
   elements.forEach((el) => {
     if (el.isDeleted || el.type === "selection") return;
@@ -578,18 +657,14 @@ function elementsToGraph(elements: readonly ExcalidrawElement[], files: BinaryFi
       position_x: el.x,
       position_y: el.y,
       data: {
-        element: sanitizeElement(el, files ?? {}),
+        element: sanitizeElement(el, fileMap),
       },
     };
     nodes.push(nodeInput);
     nodeIds.add(el.id);
 
-    if (isDevEnv && !loggedFreedraw && el.type === "freedraw") {
-      console.debug("[Canvas save] freedraw snapshot", {
-        id: el.id,
-        type: el.type,
-        points: Array.isArray((el as any).points) ? (el as any).points.length : 0,
-      });
+    if (isDevEnv && !loggedFreedraw && el.type === "freedraw" && isLinearLike(el)) {
+      logLinearDebug("[Canvas save] freedraw snapshot", el);
       loggedFreedraw = true;
     }
   });
@@ -608,13 +683,8 @@ function elementsToGraph(elements: readonly ExcalidrawElement[], files: BinaryFi
         kind: el.type,
       });
 
-      if (isDevEnv && !loggedArrow) {
-        console.debug("[Canvas save] arrow snapshot", {
-          id: el.id,
-          startArrowhead: (el as any).startArrowhead,
-          endArrowhead: (el as any).endArrowhead,
-          points: Array.isArray((el as any).points) ? (el as any).points.length : 0,
-        });
+      if (isDevEnv && !loggedArrow && isLinearLike(el)) {
+        logLinearDebug("[Canvas save] arrow snapshot", el);
         loggedArrow = true;
       }
     }
@@ -652,41 +722,56 @@ function sanitizeElement(el: ExcalidrawElement, files: BinaryFiles): ElementSnap
     locked: el.locked ?? false,
     groupIds: el.groupIds ?? [],
     isDeleted: el.isDeleted ?? false,
-    text: (el as any).text,
-    fontSize: (el as any).fontSize,
-    fontFamily: (el as any).fontFamily,
-    textAlign: (el as any).textAlign,
-    verticalAlign: (el as any).verticalAlign,
-    baseline: (el as any).baseline,
-    containerId: (el as any).containerId,
-    originalText: (el as any).originalText,
-    autoResize: (el as any).autoResize,
-    lineHeight: (el as any).lineHeight,
-    points: (el as any).points,
-    lastCommittedPoint: (el as any).lastCommittedPoint,
-    startBinding: (el as any).startBinding,
-    endBinding: (el as any).endBinding,
-    startArrowhead: (el as any).startArrowhead ?? null,
-    endArrowhead: (el as any).endArrowhead ?? null,
-    pressures: (el as any).pressures ?? null,
-    simulatePressure: (el as any).simulatePressure,
-    fileId: (el as any).fileId,
-    status: (el as any).status,
-    scale: (el as any).scale,
-    crop: (el as any).crop,
-    data: (el as any).data,
   };
 
+  if (isTextLike(el)) {
+    snap.text = el.text;
+    snap.fontSize = el.fontSize;
+    snap.fontFamily = el.fontFamily;
+    snap.textAlign = el.textAlign;
+    snap.verticalAlign = el.verticalAlign;
+    snap.baseline = el.baseline ?? null;
+    snap.containerId = el.containerId;
+    snap.originalText = el.originalText;
+    snap.autoResize = el.autoResize;
+    snap.lineHeight = el.lineHeight;
+  }
+
+  if (isLinearLike(el)) {
+    snap.points = el.points;
+    snap.lastCommittedPoint = el.lastCommittedPoint;
+    snap.startBinding = el.startBinding;
+    snap.endBinding = el.endBinding;
+    snap.startArrowhead = (el.startArrowhead as ExcalidrawArrowElement["startArrowhead"]) ?? null;
+    snap.endArrowhead = (el.endArrowhead as ExcalidrawArrowElement["endArrowhead"]) ?? null;
+    snap.pressures = el.pressures ?? null;
+    snap.simulatePressure = el.simulatePressure;
+  }
+
+  if (isImageLike(el)) {
+    snap.fileId = el.fileId ?? null;
+    snap.status = el.status;
+    snap.scale = el.scale;
+    snap.crop = el.crop;
+    const binary = getBinaryFileData(files, snap.fileId);
+    snap.fileData = binary
+      ? {
+          mimeType: binary.mimeType,
+          dataURL: binary.dataURL,
+        }
+      : null;
+  }
+
+  if (hasDataField(el)) {
+    snap.data = el.data;
+  }
+
+  if (hasFrameId(el)) {
+    snap.frameId = el.frameId ?? null;
+  }
+
   if (el.type === "image") {
-    const fileId = (el as any).fileId as string | null;
-    if (fileId && files[fileId]) {
-      snap.fileData = {
-        mimeType: files[fileId].mimeType,
-        dataURL: files[fileId].dataURL,
-      };
-    } else {
-      snap.fileData = null;
-    }
+    snap.fileData = snap.fileData ?? null;
   }
 
   return snap;
@@ -751,6 +836,7 @@ function withElementDefaults(snap: ElementSnapshot | undefined, fallbackId?: str
     crop: snap?.crop,
     data: snap?.data,
     fileData: snap?.fileData ?? null,
+    frameId: hasFrameId(snap) ? snap.frameId ?? null : null,
   };
 }
 
@@ -781,7 +867,7 @@ function runFreedrawSelfTest() {
       link: null,
       locked: false,
       isDeleted: false,
-      points: null as any, // simulate legacy/broken data
+      points: null as unknown as ExcalidrawLinearElement["points"], // simulate legacy/broken data
       pressures: null,
       simulatePressure: false,
     };
@@ -793,12 +879,12 @@ function runFreedrawSelfTest() {
         position_x: 0,
         position_y: 0,
         data: { element: dummySnap },
-      } as unknown as CanvasNode,
+      } as CanvasNode,
       nd,
       {},
       Date.now(),
     );
-    if (!el || !(el as any).points || (el as any).points.length < 2) {
+    if (!el || !isLinearLike(el) || !el.points || el.points.length < 2) {
       console.debug("[Canvas self-test] Freedraw normalization failed", el);
     }
   } catch (err) {

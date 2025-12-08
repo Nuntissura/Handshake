@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { JSONContent } from "@tiptap/core";
 import { Block, BlockInput, DocumentWithBlocks, getDocument, updateDocumentBlocks } from "../lib/api";
 import { TiptapEditor } from "./TiptapEditor";
+import { logEvent } from "../state/debugEvents";
 
 type Props = {
   documentId: string | null;
@@ -32,8 +33,10 @@ export function DocumentView({ documentId }: Props) {
         const response = await getDocument(documentId);
         setDoc(response);
         setEditorContent(blocksToTiptap(response.blocks));
+        logEvent({ type: "doc-load", targetId: documentId, result: "ok" });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load document");
+        logEvent({ type: "doc-load", targetId: documentId, result: "error", message: String(err) });
       } finally {
         setLoading(false);
       }
@@ -96,8 +99,10 @@ export function DocumentView({ documentId }: Props) {
                     ...doc,
                     blocks: updated,
                   });
+                  logEvent({ type: "doc-save", targetId: documentId, result: "ok" });
                 } catch (err) {
                   setSaveError(err instanceof Error ? err.message : "Failed to save");
+                  logEvent({ type: "doc-save", targetId: documentId, result: "error", message: String(err) });
                 } finally {
                   setIsSaving(false);
                 }
@@ -115,8 +120,10 @@ export function DocumentView({ documentId }: Props) {
                   const refreshed = await getDocument(documentId);
                   setDoc(refreshed);
                   setEditorContent(blocksToTiptap(refreshed.blocks));
+                  logEvent({ type: "doc-load", targetId: documentId, result: "ok" });
                 } catch (err) {
                   setSaveError(err instanceof Error ? err.message : "Failed to reload");
+                  logEvent({ type: "doc-load", targetId: documentId, result: "error", message: String(err) });
                 } finally {
                   setLoading(false);
                 }
