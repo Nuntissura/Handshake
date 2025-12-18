@@ -1,18 +1,29 @@
 use axum::{extract::State, routing::get, Json, Router};
+use duckdb::Connection as DuckDbConnection;
 use sqlx::{sqlite::SqliteConnectOptions, sqlite::SqlitePoolOptions, SqlitePool};
-use std::{net::SocketAddr, path::Path, path::PathBuf, process, str::FromStr};
+use std::{
+    net::SocketAddr,
+    path::{Path, PathBuf},
+    process,
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 
 mod api;
+mod flight_recorder;
+mod jobs;
 mod logging;
 mod models;
+mod workflows;
 
 use models::HealthResponse;
 
 #[derive(Clone)]
 pub struct AppState {
     pub pool: SqlitePool,
+    pub fr_pool: Arc<Mutex<DuckDbConnection>>,
 }
 
 #[tokio::main]
@@ -27,12 +38,17 @@ async fn main() {
         .allow_headers(Any);
 
     let pool = init_db().await.expect("failed to init database");
-    let state = AppState { pool };
+    let fr_pool = init_flight_recorder()
+        .await
+        .expect("failed to init flight recorder");
+    let state = AppState { pool, fr_pool };
+    let api_routes = api::routes(state.clone());
 
     let app = Router::new()
         .route("/health", get(health))
         .with_state(state.clone())
-        .merge(api::routes(state))
+        .merge(api_routes.clone())
+        .nest("/api", api_routes)
         .layer(cors);
 
     tracing::info!(target: "handshake_core", listen_addr = %addr, pid = process::id(), "handshake_core started");
@@ -77,6 +93,37 @@ async fn init_db() -> Result<SqlitePool, sqlx::Error> {
     tracing::info!(target: "handshake_core", db_url = %db_url, "database ready");
 
     Ok(pool)
+}
+
+async fn init_flight_recorder() -> Result<Arc<Mutex<DuckDbConnection>>, duckdb::Error> {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root_dir = manifest_dir
+        .parent()
+        .and_then(Path::parent)
+        .and_then(Path::parent)
+        .map(Path::to_path_buf)
+        .expect("failed to resolve repo root");
+    let data_dir = root_dir.join("data");
+    // Flight recorder gets its own file
+    let fr_db_path = data_dir.join("flight_recorder.db");
+
+    let conn = DuckDbConnection::open(&fr_db_path)?;
+
+    conn.execute_batch(
+        r#"
+        CREATE TABLE IF NOT EXISTS events (
+            timestamp DATETIME DEFAULT current_timestamp,
+            event_type TEXT NOT NULL,
+            job_id TEXT,
+            workflow_id TEXT,
+            payload JSON
+        );
+    "#,
+    )?;
+
+    tracing::info!(target: "handshake_core", db_path = %fr_db_path.display(), "flight recorder ready");
+
+    Ok(Arc::new(Mutex::new(conn)))
 }
 
 async fn health(State(state): State<AppState>) -> Json<HealthResponse> {

@@ -1,6 +1,7 @@
 # RUNBOOK_DEBUG
 
 ## First 5 minutes
+> **WARNING for AI Agents:** Commands like `pnpm -C app tauri dev` or `just dev` start a long-running development server. They MUST NOT be executed with a blocking tool (like `run_shell_command`). These commands should be run in a separate, dedicated terminal by the user or as a true background process.
 - Repro fast: `pnpm -C app tauri dev` (frontend + Tauri) and keep terminal output visible; note console errors.
 - Check backend health while reproing: `cargo run --bin handshake_core` (or rely on the Tauri spawn) and watch `data/logs/handshake_core.log`.
 - Confirm branch/spec alignment: skim `docs/SPEC_CURRENT.md` for the exact feature expectation before changing code.

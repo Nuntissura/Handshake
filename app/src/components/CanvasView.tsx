@@ -21,7 +21,7 @@ import {
   ExcalidrawRectangleElement,
   ExcalidrawTextElement,
 } from "@excalidraw/excalidraw/element/types";
-import { BinaryFileData, BinaryFiles } from "@excalidraw/excalidraw/types";
+import { BinaryFileData, BinaryFiles, DataURL } from "@excalidraw/excalidraw/types";
 import { logEvent } from "../state/debugEvents";
 
 type Props = {
@@ -234,6 +234,8 @@ export function CanvasView({ canvasId, onDeleted }: Props) {
 const DEFAULT_NODE_WIDTH = 240;
 const DEFAULT_NODE_HEIGHT = 140;
 
+type ExFileId = BinaryFileData["id"];
+
 // Helper types and functions remain unchanged from the previous version.
 
 type ElementSnapshot = {
@@ -278,11 +280,11 @@ type ElementSnapshot = {
   endArrowhead?: ExcalidrawArrowElement["endArrowhead"] | null;
   pressures?: number[] | null;
   simulatePressure?: boolean;
-  fileId?: string | null;
+  fileId?: ExFileId | null;
   status?: ExcalidrawImageElement["status"];
   scale?: ExcalidrawImageElement["scale"];
   crop?: ExcalidrawImageElement["crop"];
-  fileData?: { mimeType: string; dataURL: string } | null;
+  fileData?: { mimeType: BinaryFileData["mimeType"]; dataURL: DataURL } | null;
   frameId?: string | null;
   data?: unknown;
 };
@@ -316,7 +318,7 @@ type LinearLikeElement = ExcalidrawElement & {
 };
 
 type ImageLikeElement = ExcalidrawElement & {
-  fileId?: string | null;
+  fileId?: ExFileId | null;
   status?: ExcalidrawImageElement["status"];
   scale?: ExcalidrawImageElement["scale"];
   crop?: ExcalidrawImageElement["crop"];
@@ -325,8 +327,6 @@ type ImageLikeElement = ExcalidrawElement & {
 type ElementWithData = ExcalidrawElement & { data?: unknown };
 
 type ElementWithFrame = ExcalidrawElement & { frameId?: string | null };
-
-type FileId = string;
 
 function isTextLike(el: ExcalidrawElement): el is TextLikeElement {
   return "text" in el;
@@ -348,7 +348,7 @@ function hasFrameId(el: ExcalidrawElement | ElementSnapshot): el is ElementWithF
   return "frameId" in el;
 }
 
-function getBinaryFileData(files: BinaryFiles | null | undefined, fileId: FileId | null | undefined) {
+function getBinaryFileData(files: BinaryFiles | null | undefined, fileId: ExFileId | null | undefined) {
   if (!files || !fileId) return null;
   const file = files[fileId];
   if (
@@ -556,7 +556,7 @@ function nodeToElement(
       ...linear,
       pressures: normalizePressures(pressures, linear.points),
       simulatePressure,
-    };
+    } as ExcalidrawLinearElement;
   }
 
   if (type === "arrow") {
@@ -873,7 +873,7 @@ function withElementDefaults(snap: ElementSnapshot | undefined, fallbackId?: str
     crop: snap?.crop,
     data: snap?.data,
     fileData: snap?.fileData ?? null,
-    frameId: hasFrameId(snap) ? snap.frameId ?? null : null,
+    frameId: snap && hasFrameId(snap) ? snap.frameId ?? null : null,
   };
 }
 

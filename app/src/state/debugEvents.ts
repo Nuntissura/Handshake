@@ -1,4 +1,11 @@
-export type DebugEventType = "doc-save" | "doc-load" | "canvas-save" | "canvas-load";
+export type DebugEventType =
+  | "doc-save"
+  | "doc-load"
+  | "doc-delete"
+  | "canvas-save"
+  | "canvas-load"
+  | "canvas-delete"
+  | "ai-job";
 
 export type DebugEvent = {
   id: string;

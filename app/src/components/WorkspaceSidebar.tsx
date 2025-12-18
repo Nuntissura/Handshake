@@ -42,8 +42,6 @@ export function WorkspaceSidebar({
   const selectWorkspace = useCallback(
     async (id: string) => {
       setSelectedWorkspaceId(id);
-      onSelectDocument(null);
-      onSelectCanvas(null);
       setDocuments([]);
       setCanvases([]);
       try {
@@ -54,7 +52,7 @@ export function WorkspaceSidebar({
         setWorkspaceError(err instanceof Error ? err.message : "Failed to load workspace details");
       }
     },
-    [onSelectCanvas, onSelectDocument],
+    [],
   );
 
   const loadWorkspaces = useCallback(async () => {
@@ -64,16 +62,14 @@ export function WorkspaceSidebar({
       const ws = await listWorkspaces();
       setWorkspaces(ws);
       setWorkspaceError(null);
-      if (ws.length > 0) {
-        await selectWorkspace(ws[0].id);
-      }
+      // Do not auto-select; leave selection to user click.
     } catch (err) {
       setWorkspaceError(err instanceof Error ? err.message : "Failed to load workspaces");
       // keep existing workspaces on failure
     } finally {
       setLoading(false);
     }
-  }, [selectWorkspace]);
+  }, []);
 
   useEffect(() => {
     void loadWorkspaces();

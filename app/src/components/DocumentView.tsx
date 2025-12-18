@@ -1,6 +1,15 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { JSONContent } from "@tiptap/core";
-import { Block, BlockInput, DocumentWithBlocks, deleteDocument, getDocument, updateDocumentBlocks } from "../lib/api";
+import {
+  Block,
+  BlockInput,
+  DocumentWithBlocks,
+  WorkflowRun,
+  createJob,
+  deleteDocument,
+  getDocument,
+  updateDocumentBlocks,
+} from "../lib/api";
 import { TiptapEditor } from "./TiptapEditor";
 import { logEvent } from "../state/debugEvents";
 
@@ -19,6 +28,8 @@ export function DocumentView({ documentId, onDeleted }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [aiJobStatus, setAiJobStatus] = useState<"idle" | "pending" | "success" | "error">("idle");
+  const [aiJobMessage, setAiJobMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!documentId) {
@@ -126,6 +137,37 @@ export function DocumentView({ documentId, onDeleted }: Props) {
             <button
               onClick={async () => {
                 if (!documentId) return;
+                setAiJobStatus("pending");
+                setAiJobMessage(null);
+                try {
+                  const run: WorkflowRun = await createJob("doc_test", "doc-proto-001");
+                  setAiJobStatus("success");
+                  setAiJobMessage(`Job ${run.job_id} (${run.status})`);
+                  logEvent({
+                    type: "ai-job",
+                    targetId: documentId,
+                    result: "ok",
+                    message: `job_id=${run.job_id}`,
+                  });
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : "Failed to start AI job";
+                  setAiJobStatus("error");
+                  setAiJobMessage(message);
+                  logEvent({
+                    type: "ai-job",
+                    targetId: documentId,
+                    result: "error",
+                    message: String(err),
+                  });
+                }
+              }}
+              disabled={isSaving || isDeleting || aiJobStatus === "pending" || !documentId}
+            >
+              {aiJobStatus === "pending" ? "Starting AI job..." : "Run AI Job"}
+            </button>
+            <button
+              onClick={async () => {
+                if (!documentId) return;
                 setLoading(true);
                 setSaveError(null);
                 setDeleteError(null);
@@ -188,6 +230,11 @@ export function DocumentView({ documentId, onDeleted }: Props) {
           {lastSavedAt && <span className="muted">Saved at {lastSavedAt}</span>}
           {saveError && <span className="muted">Error: {saveError}</span>}
           {deleteError && <span className="muted">Error: {deleteError}</span>}
+          {aiJobMessage && (
+            <span className={aiJobStatus === "error" ? "muted" : "muted"}>
+              AI Job: {aiJobMessage}
+            </span>
+          )}
         </div>
       </div>
 

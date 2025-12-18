@@ -45,28 +45,30 @@ function App() {
 
           <div className="content-panel">
             <DebugPanel />
-            {selectedDocumentId ? (
-              <DocumentView
-                documentId={selectedDocumentId}
-                onDeleted={() => {
-                  setSelectedDocumentId(null);
-                }}
-              />
-            ) : selectedCanvasId ? (
-              <CanvasView
-                canvasId={selectedCanvasId}
-                onDeleted={() => {
-                  setSelectedCanvasId(null);
-                }}
-              />
-            ) : (
-              <div className="content-card">
-                <h2>Welcome</h2>
-                <p className="muted">
-                  Select or create a workspace, then add documents or canvases to view their details.
-                </p>
-              </div>
-            )}
+            <div className="content-main">
+              {selectedDocumentId ? (
+                <DocumentView
+                  documentId={selectedDocumentId}
+                  onDeleted={() => {
+                    setSelectedDocumentId(null);
+                  }}
+                />
+              ) : selectedCanvasId ? (
+                <CanvasView
+                  canvasId={selectedCanvasId}
+                  onDeleted={() => {
+                    setSelectedCanvasId(null);
+                  }}
+                />
+              ) : (
+                <div className="content-card">
+                  <h2>Welcome</h2>
+                  <p className="muted">
+                    Select or create a workspace, then add documents or canvases to view their details.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

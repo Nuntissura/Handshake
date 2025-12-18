@@ -39,11 +39,11 @@ validate:
 # Codex guardrails: prevent direct fetch in components, println/eprintln in backend, and doc drift.
 codex-check:
 	@echo "Codex check: disallow direct fetch in app/src (outside lib/api.ts)..."
-	@rg -n "\\bfetch\\s*\\(" app/src | rg -v "app/src/lib/api.ts" && exit 1 || exit 0
+	@rg -n "\\bfetch\\s*\\(" app/src --glob "!app/src/lib/api.ts" && exit 1 || exit 0
 	@echo "Codex check: disallow println!/eprintln! in backend..."
 	@rg -n "eprintln!|println!" src/backend/handshake_core/src && exit 1 || exit 0
-	@echo "Codex check: docs must reference Codex v0.7..."
-	@rg -n "Codex v0\\.5|Handshake Codex v0\\.5" docs && exit 1 || exit 0
+	@echo "Codex check: docs must reference Codex v0.8..."
+	@rg -q 'Codex v0\\.8|Handshake Codex v0\\.8' docs && exit 0 || exit 1
 	@echo "Codex check: SPEC_CURRENT points to latest master spec..."
 	@node scripts/spec-current-check.mjs
 	@echo "Codex check: TODOs must include HSK issue tags..."
@@ -73,3 +73,36 @@ codex-check-test:
 # AI review (requires gemini CLI)
 ai-review:
 	node scripts/ai-review-gemini.mjs
+
+# === Workflow Enforcement Commands (Codex v0.8) ===
+
+# Create new task packet from template [CX-580]
+create-task-packet wp-id:
+	@echo "Creating task packet: {{wp-id}}..."
+	@node scripts/create-task-packet.mjs {{wp-id}}
+
+# Pre-work validation - run before starting implementation [CX-587, CX-620]
+pre-work wp-id:
+	@node scripts/validation/pre-work-check.mjs {{wp-id}}
+
+# Post-work validation - run before commit [CX-623, CX-651]
+post-work wp-id:
+	@node scripts/validation/post-work-check.mjs {{wp-id}}
+
+# Full workflow validation for a work packet
+validate-workflow wp-id:
+	@echo "Running full workflow validation for {{wp-id}}..."
+	@echo ""
+	@echo "Step 1: Pre-work check"
+	@just pre-work {{wp-id}}
+	@echo ""
+	@echo "Step 2: Code quality validation"
+	@just validate
+	@echo ""
+	@echo "Step 3: AI review"
+	@just ai-review
+	@echo ""
+	@echo "Step 4: Post-work check"
+	@just post-work {{wp-id}}
+	@echo ""
+	@echo "✅ Full workflow validation passed for {{wp-id}}"

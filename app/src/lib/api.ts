@@ -125,6 +125,14 @@ export type HealthResponse = {
   db_status?: string;
 };
 
+export type WorkflowRun = {
+  id: string;
+  job_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export async function listWorkspaces(): Promise<Workspace[]> {
   return request("/workspaces");
 }
@@ -194,4 +202,11 @@ export async function getLogTail(limit = 200): Promise<LogTailResponse> {
 
 export async function getHealth(): Promise<HealthResponse> {
   return request("/health");
+}
+
+export async function createJob(jobKind: string, protocolId: string): Promise<WorkflowRun> {
+  return request("/api/jobs", {
+    method: "POST",
+    body: { job_kind: jobKind, protocol_id: protocolId },
+  });
 }

@@ -15,3 +15,5 @@ chrono = { version = "0.4", features = ["serde", "clock"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
 tracing-appender = "0.2"
+thiserror = "2.0.17"
+duckdb = { version = "1.4.3", features = ["bundled"] }

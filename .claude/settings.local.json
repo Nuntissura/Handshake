@@ -18,7 +18,11 @@
       "Bash(cargo test:*)",
       "Bash(npx vitest:*)",
       "Bash(pnpm -C app test)",
-      "Bash(move:*)"
+      "Bash(move:*)",
+      "Bash(ls:*)",
+      "Bash(just validate:*)",
+      "Bash(pnpm -C app run lint:*)",
+      "Bash(if not exist \"D:\\Projects\\LLM projects\\Handshake\\scripts\\validation\"\" mkdir \"D:ProjectsLLM projectsHandshakescriptsvalidation \")"
     ],
     "deny": [],
     "ask": []

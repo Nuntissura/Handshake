@@ -199,6 +199,18 @@
 [CX-573] TRACEABILITY_MIN: Repo-changing work MUST be traceable to a work item (task packet / log entry / issue ID) referenced in the review note and ideally in the commit message.  
 [CX-573A] AI_REVIEW_GATE: Repo-changing work MUST run an automated AI review locally via the gemini CLI (just ai-review) and attach ai_review.md to the task packet/logger; WARN decisions must be acknowledged and BLOCK decisions block merge.  
 
+### 6.7A The Quality Rubric Gate
+
+[CX-573B] RUBRIC_DRIVEN_VALIDATION: All non-trivial work packets delivered by a Coder role MUST be evaluated by the Orchestrator/Validator role against the official Quality Rubric. The Coder MUST use the rubric for self-assessment before submitting work, and the Validator MUST use it for the final review.
+
+| Category | Needs Improvement (1) | Meets Expectations (2) | Exceeds Expectations (3) |
+| :--- | :--- | :--- | :--- |
+| **Correctness & Functionality** | Feature is incomplete, buggy, or does not meet the core requirements of the task packet. | Feature is implemented correctly as per the spec. All validation commands pass. | Functionality is robust, handles edge cases not explicitly mentioned, and is highly polished. |
+| **Code Quality & Readability** | Code is difficult to understand, violates project conventions, or is poorly structured. | Code is clear, follows existing project conventions and style, and is reasonably easy to follow. | Code is exceptionally clear, idiomatic, and improves the structure of the surrounding code. |
+| **Testing & Verification** | No tests are added for new functionality, or existing tests are broken. | New functionality is covered by adequate tests (unit or integration). All tests pass. | Tests are comprehensive, covering important edge cases, and significantly improve confidence in the code's reliability. |
+| **Hygiene & Best Practices** | Linter fails. Obvious "code smells" (e.g., very large functions, commented-out code, magic numbers) are introduced. | Code passes all linter checks. Follows general best practices for the language and framework. | Code not only passes checks but actively reduces technical debt (e.g., refactors a messy section, improves typing). |
+| **Reporting & Communication**| Report is missing, inaccurate, or does not provide the requested information for validation. | Report is accurate, complete, and provides all information requested in the task packet's `REPORTING` section. | Report provides extra insights, clearly explains complex trade-offs, and proactively identifies future risks or opportunities. |  
+
 ---
 
 

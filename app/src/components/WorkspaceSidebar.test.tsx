@@ -26,7 +26,7 @@ describe("WorkspaceSidebar", () => {
   const noop = () => {};
 
   it("renders workspaces on successful fetch without error banner", async () => {
-    const api = await import("../lib/api");
+    const api = vi.mocked(await import("../lib/api"), true);
     api.listDocuments.mockResolvedValue([]);
     api.listCanvases.mockResolvedValue([]);
     api.listWorkspaces.mockResolvedValue([
@@ -51,7 +51,7 @@ describe("WorkspaceSidebar", () => {
   });
 
   it("shows error banner and Retry button when fetch fails", async () => {
-    const api = await import("../lib/api");
+    const api = vi.mocked(await import("../lib/api"), true);
     api.listDocuments.mockResolvedValue([]);
     api.listCanvases.mockResolvedValue([]);
     api.listWorkspaces.mockRejectedValue(new Error("network down"));

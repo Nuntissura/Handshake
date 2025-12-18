@@ -2,6 +2,26 @@
 
 Purpose: reduce coding errors by standard checks and clear risk tiers.
 
+## Gate 0: Pre-Work Validation (AI Autonomy - Mandatory)
+
+**[CX-620, CX-587]** Before any implementation work starts, Gate 0 MUST pass.
+
+**For Orchestrator Agents:**
+- Task packet MUST exist in `docs/task_packets/WP-{ID}.md`
+- Logger entry MUST reference WP_ID
+- All task packet fields MUST be filled (no `{placeholders}`)
+- Verification: `just pre-work WP-{ID}` MUST pass
+
+**For Coder Agents:**
+- Task packet MUST be verified before writing any code
+- If no packet found, work MUST be BLOCKED immediately
+- Bootstrap protocol MUST be followed (read START_HERE, SPEC_CURRENT, packet)
+- BOOTSTRAP block MUST be output before first code change
+
+**Enforcement:** Gate 0 is automated via validation scripts. Failure exits 1 and blocks work.
+
+**Why:** For AI-autonomous operation, the workflow requires deterministic enforcement. Human users may not have coding expertise and rely on these gates to ensure correctness.
+
 ## Risk tiers
 | Tier | Use when | Required checks | Review |
 | --- | --- | --- | --- |
@@ -27,6 +47,25 @@ If uncertain, choose the higher tier.
 `just validate` runs: `just docs-check`, `just codex-check`, `pnpm -C app run lint`, `pnpm -C app test`, `pnpm -C app run depcruise`, `cargo fmt`, `cargo clippy --all-targets --all-features`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`, `cargo deny check advisories licenses bans sources`.
 
 AI review runs locally via `just ai-review` using the `gemini` CLI and the output `ai_review.md` must be attached to the task packet/logger.
+
+## Gate 1: Post-Work Validation (AI Autonomy - Mandatory)
+
+**[CX-623, CX-651]** Before requesting commit, Gate 1 MUST pass.
+
+**Required:**
+- All TEST_PLAN commands MUST have been run
+- Validation results MUST be documented in logger
+- Git status MUST show changes (work actually done)
+- For MEDIUM/HIGH: AI review MUST be complete and not BLOCKED
+- Logger entry MUST have RESULT field updated
+- Verification: `just post-work WP-{ID}` MUST pass
+
+**Enforcement:** Gate 1 is automated via validation scripts. Failure exits 1 and blocks commit.
+
+**Full workflow validation:**
+```bash
+just validate-workflow WP-{ID}  # Runs pre-work, validate, ai-review, post-work
+```
 
 ## Self-review checklist (required)
 1) Diff scan: every line is necessary for the task; no drive-by changes.

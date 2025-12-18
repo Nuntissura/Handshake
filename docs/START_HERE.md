@@ -2,8 +2,44 @@
 
 ## Canonical sources
 - **Spec:** `docs/SPEC_CURRENT.md` (points to the current Handshake master spec).
-- **Governance guardrails:** `Handshake Codex v0.7` (repo root) + latest `Handshake_logger_*` (root + `log_archive/`).
+- **Governance guardrails:** `Handshake Codex v0.8` (repo root) + latest `Handshake_logger_*` (root + `log_archive/`).
 - **Architecture & debug:** `docs/ARCHITECTURE.md` and `docs/RUNBOOK_DEBUG.md`.
+
+## AI Agent Workflow (Mandatory for AI-Autonomous Operation)
+
+**[CX-503, CX-580-623]** This repository is designed for AI-autonomous software engineering. Human users may not have coding expertise and rely on deterministic workflow enforcement.
+
+**Two agent roles:**
+1. **Orchestrator** — Creates task packets, delegates work, manages workflow
+2. **Coder/Debugger** — Implements work per task packet scope
+
+**Mandatory protocols:**
+- **Orchestrators:** Read `docs/ORCHESTRATOR_PROTOCOL.md` before delegating
+- **Coders:** Read `docs/CODER_PROTOCOL.md` before writing any code
+
+**Workflow enforcement commands:**
+```bash
+# Orchestrator: Create task packet from template
+just create-task-packet WP-{phase}-{name}
+
+# Orchestrator: Verify packet complete before delegation
+just pre-work WP-{ID}
+
+# Coder: Verify packet exists before coding
+just pre-work WP-{ID}
+
+# Coder: Verify work complete before commit
+just post-work WP-{ID}
+
+# Full workflow validation (pre-work + validate + ai-review + post-work)
+just validate-workflow WP-{ID}
+```
+
+**Gate 0 (Pre-Work):** Task packet MUST exist and pass `just pre-work WP-{ID}` before implementation starts. If blocked, STOP and request help.
+
+**Gate 1 (Post-Work):** All validation MUST pass `just post-work WP-{ID}` before commit. If blocked, fix issues and re-run.
+
+**See:** `docs/QUALITY_GATE.md` for Gate 0 and Gate 1 requirements.
 
 ## Repo map (open in an editor and `rg`)
 - `app/` — React + Tauri frontend; UI components live under `app/src/`.
@@ -17,9 +53,11 @@
 - `docs_local/` — staging/non-canonical notes and diaries.
 - `log_archive/` — historical logger drops.
 - `docs/OWNERSHIP.md` — path/area owners for routing reviews.
-- Root files: `Handshake_Master_Spec_v*.md`, `Handshake Codex v0.7`, `Handshake_logger_*`, phase/plan docs.
+- Root files: `Handshake_Master_Spec_v*.md`, `Handshake Codex v0.8`, `Handshake_logger_*`, phase/plan docs.
+- `docs/ORCHESTRATOR_PROTOCOL.md` and `docs/CODER_PROTOCOL.md` — AI agent workflow protocols.
 
 ## How to run
+> **WARNING for AI Agents:** Commands like `pnpm -C app tauri dev` or `just dev` start a long-running development server. They MUST NOT be executed with a blocking tool (like `run_shell_command`). These commands should be run in a separate, dedicated terminal by the user or as a true background process.
 ```bash
 # Frontend dev shell (Tauri + React)
 pnpm -C app tauri dev
