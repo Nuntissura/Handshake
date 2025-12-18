@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   CanvasEdge,
   CanvasEdgeInput,
@@ -6,6 +6,7 @@ import {
   CanvasNodeInput,
   CanvasWithGraph,
   getCanvas,
+  deleteCanvas,
   updateCanvasGraph,
 } from "../lib/api";
 import { ExcalidrawCanvas } from "./ExcalidrawCanvas";
@@ -25,14 +26,14 @@ import { logEvent } from "../state/debugEvents";
 
 type Props = {
   canvasId: string | null;
+  onDeleted: () => void;
 };
 
 const isDevEnv =
   typeof globalThis !== "undefined" &&
   (globalThis as { process?: { env?: Record<string, unknown> } }).process?.env?.NODE_ENV === "development";
-// TODO(dev-tools): Phase 0/1 should expose an in-app debug/logs panel so canvas errors are visible without opening the Tauri console (Roadmap A7.6).
 
-export function CanvasView({ canvasId }: Props) {
+export function CanvasView({ canvasId, onDeleted }: Props) {
   const [canvas, setCanvas] = useState<CanvasWithGraph | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +43,8 @@ export function CanvasView({ canvasId }: Props) {
   const [files, setFiles] = useState<BinaryFiles | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
@@ -52,12 +55,15 @@ export function CanvasView({ canvasId }: Props) {
       setInitialFiles(null);
       setElements(null);
       setFiles(null);
+      setDeleteError(null);
+      setIsDeleting(false);
       return;
     }
     const load = async () => {
       setLoading(true);
       setError(null);
       setSaveError(null);
+      setDeleteError(null);
       setLastSavedAt(null);
       try {
         const data = await getCanvas(canvasId);
@@ -69,6 +75,11 @@ export function CanvasView({ canvasId }: Props) {
         setFiles(mapped.files);
         logEvent({ type: "canvas-load", targetId: canvasId, result: "ok" });
       } catch (err) {
+        if (isNotFound(err)) {
+          window.dispatchEvent(new CustomEvent("handshake:canvas-deleted", { detail: { canvasId, workspaceId: null } }));
+          onDeleted();
+          return;
+        }
         setError(err instanceof Error ? err.message : "Failed to load canvas");
         logEvent({ type: "canvas-load", targetId: canvasId, result: "error", message: String(err) });
       } finally {
@@ -76,7 +87,7 @@ export function CanvasView({ canvasId }: Props) {
       }
     };
     void load();
-  }, [canvasId]);
+  }, [canvasId, onDeleted]);
 
   const stats = useMemo(() => {
     return {
@@ -89,6 +100,7 @@ export function CanvasView({ canvasId }: Props) {
     if (!canvasId || !canvas || !elements) return;
     setIsSaving(true);
     setSaveError(null);
+    setDeleteError(null);
     try {
       const graph = elementsToGraph(elements, files);
       const updated = await updateCanvasGraph(canvasId, graph.nodes, graph.edges);
@@ -112,6 +124,7 @@ export function CanvasView({ canvasId }: Props) {
     if (!canvasId) return;
     setLoading(true);
     setSaveError(null);
+    setDeleteError(null);
     try {
       const refreshed = await getCanvas(canvasId);
       setCanvas(refreshed);
@@ -124,6 +137,34 @@ export function CanvasView({ canvasId }: Props) {
       setError(err instanceof Error ? err.message : "Failed to reload canvas");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!canvasId) return;
+    const confirmed = window.confirm("Delete this canvas? This cannot be undone.");
+    if (!confirmed) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteCanvas(canvasId);
+      const workspaceId = canvas?.workspace_id ?? null;
+      window.dispatchEvent(new CustomEvent("handshake:canvas-deleted", { detail: { canvasId, workspaceId } }));
+      logEvent({ type: "canvas-delete", targetId: canvasId, result: "ok" });
+      onDeleted();
+    } catch (err) {
+      if (isNotFound(err)) {
+        const workspaceId = canvas?.workspace_id ?? null;
+        window.dispatchEvent(new CustomEvent("handshake:canvas-deleted", { detail: { canvasId, workspaceId } }));
+        logEvent({ type: "canvas-delete", targetId: canvasId, result: "ok" });
+        onDeleted();
+        return;
+      }
+      const message = err instanceof Error ? err.message : "Failed to delete canvas";
+      setDeleteError(message);
+      logEvent({ type: "canvas-delete", targetId: canvasId, result: "error", message: String(err) });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -166,8 +207,10 @@ export function CanvasView({ canvasId }: Props) {
         stats={stats}
         lastSavedAt={lastSavedAt}
         isSaving={isSaving}
+        isDeleting={isDeleting}
         onSave={handleSave}
         onReload={handleReload}
+        onDelete={handleDelete}
       />
 
       <div className="canvas-editor">
@@ -182,6 +225,7 @@ export function CanvasView({ canvasId }: Props) {
           />
         )}
         {saveError && <p className="muted">Error: {saveError}</p>}
+        {deleteError && <p className="muted">Error: {deleteError}</p>}
       </div>
     </div>
   );
@@ -189,6 +233,8 @@ export function CanvasView({ canvasId }: Props) {
 
 const DEFAULT_NODE_WIDTH = 240;
 const DEFAULT_NODE_HEIGHT = 140;
+
+// Helper types and functions remain unchanged from the previous version.
 
 type ElementSnapshot = {
   id: string;
@@ -214,7 +260,6 @@ type ElementSnapshot = {
   link: string | null;
   locked: boolean;
   isDeleted: boolean;
-  // Text
   text?: string;
   fontSize?: number;
   fontFamily?: number;
@@ -225,7 +270,6 @@ type ElementSnapshot = {
   originalText?: string;
   autoResize?: boolean;
   lineHeight?: number;
-  // Linear / arrow
   points?: ExcalidrawLinearElement["points"];
   lastCommittedPoint?: ExcalidrawLinearElement["lastCommittedPoint"];
   startBinding?: ExcalidrawArrowElement["startBinding"];
@@ -234,13 +278,11 @@ type ElementSnapshot = {
   endArrowhead?: ExcalidrawArrowElement["endArrowhead"] | null;
   pressures?: number[] | null;
   simulatePressure?: boolean;
-  // Image
   fileId?: string | null;
   status?: ExcalidrawImageElement["status"];
   scale?: ExcalidrawImageElement["scale"];
   crop?: ExcalidrawImageElement["crop"];
   fileData?: { mimeType: string; dataURL: string } | null;
-  // Misc
   frameId?: string | null;
   data?: unknown;
 };
@@ -349,7 +391,6 @@ function safeNodeData(node: CanvasNode): NodeData {
       };
     }
   }
-  // Legacy minimal data fallback
   return {
     element: withElementDefaults(
       {
@@ -365,12 +406,12 @@ function safeNodeData(node: CanvasNode): NodeData {
         fillStyle: "solid",
         strokeWidth: 1,
         strokeStyle: "solid",
+        roundness: null,
         roughness: 0,
         opacity: 100,
         seed: randomSeed(),
         version: 1,
         versionNonce: randomSeed(),
-        roundness: null,
         boundElements: [],
         groupIds: [],
         link: null,
@@ -441,7 +482,6 @@ function nodeToElement(
 
   const normalizePressures = (pressures: number[] | null | undefined, points: ExcalidrawLinearElement["points"]) => {
     if (!pressures || pressures.length !== points.length) {
-      // Safely default to matching length so Excalidraw doesn't crash on mismatch.
       return points.map(() => 0.5);
     }
     return pressures;
@@ -495,8 +535,6 @@ function nodeToElement(
         lastRetrieved: created,
       };
       files[snap.fileId] = fileEntry;
-    } else if (snap.fileId && !files[snap.fileId]) {
-      // TODO: Image files persistence is not yet implemented; fileId is stored but file data is not persisted.
     }
     return img;
   }
@@ -547,7 +585,6 @@ function nodeToElement(
     return { ...(base as ExcalidrawRectangleElement), type } as ExcalidrawRectangleElement | ExcalidrawEllipseElement;
   }
 
-  // Default to text
   const textContent = snap.text ?? "";
   const textEl: ExcalidrawTextElement = {
     ...(base as ExcalidrawGenericElement),
@@ -867,7 +904,7 @@ function runFreedrawSelfTest() {
       link: null,
       locked: false,
       isDeleted: false,
-      points: null as unknown as ExcalidrawLinearElement["points"], // simulate legacy/broken data
+      points: null as unknown as ExcalidrawLinearElement["points"],
       pressures: null,
       simulatePressure: false,
     };
@@ -893,3 +930,9 @@ function runFreedrawSelfTest() {
 }
 
 runFreedrawSelfTest();
+
+function isNotFound(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.toLowerCase().includes("not_found") || message.includes("404");
+}
+

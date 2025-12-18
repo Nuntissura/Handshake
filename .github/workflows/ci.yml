@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install frontend deps
+        run: pnpm -C app install --frozen-lockfile
+
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Docs check
+        run: |
+          test -s docs/START_HERE.md
+          test -s docs/SPEC_CURRENT.md
+          test -s docs/ARCHITECTURE.md
+          test -s docs/RUNBOOK_DEBUG.md
+          test -s docs/PAST_WORK_INDEX.md
+
+      - name: Codex checks
+        run: |
+          echo "Disallow direct fetch in app/src (outside lib/api.ts)..."
+          rg -n "\\bfetch\\s*\\(" app/src | rg -v "app/src/lib/api.ts" && exit 1 || exit 0
+          echo "Disallow println!/eprintln! in backend..."
+          rg -n "eprintln!|println!" src/backend/handshake_core/src && exit 1 || exit 0
+          echo "Docs must reference Codex v0.7..."
+          rg -n "Codex v0\\.5|Handshake Codex v0\\.5" docs && exit 1 || exit 0
+          echo "SPEC_CURRENT must reference latest master spec..."
+          node scripts/spec-current-check.mjs
+          echo "TODOs must include HSK issue tags..."
+          rg -n --pcre2 "TODO(?!\\(HSK-\\d+\\))" app/src src/backend scripts --glob "!scripts/fixtures/**" --glob "!scripts/codex-check-test.mjs" && exit 1 || exit 0
+
+      - name: Codex check tests
+        run: node scripts/codex-check-test.mjs
+
+      - name: Frontend lint
+        run: pnpm -C app run lint
+
+      - name: Frontend architecture (dependency-cruiser)
+        run: pnpm -C app run depcruise
+
+      - name: Frontend tests
+        run: pnpm -C app test
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Rust fmt check
+        working-directory: src/backend/handshake_core
+        run: cargo fmt -- --check
+
+      - name: Rust clippy
+        run: cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features
+
+      - name: Rust tests
+        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml
+
+  secret_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Gitleaks scan
+        uses: gitleaks/gitleaks-action@v2
+
+  dependency_audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install frontend deps
+        run: pnpm -C app install --frozen-lockfile
+
+      - name: Frontend audit
+        run: pnpm -C app audit --audit-level high
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny
+
+      - name: Rust dependency policy
+        run: cargo deny check advisories licenses bans sources

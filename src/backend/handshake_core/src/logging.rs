@@ -5,9 +5,7 @@ use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 pub fn init_logging() {
     let root_dir = repo_root();
     let log_dir = root_dir.join("data").join("logs");
-    if let Err(err) = fs::create_dir_all(&log_dir) {
-        eprintln!("failed to create log directory {:?}: {}", log_dir, err);
-    }
+    let log_dir_result = fs::create_dir_all(&log_dir);
 
     let file_appender = tracing_appender::rolling::never(&log_dir, "handshake_core.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
@@ -34,6 +32,15 @@ pub fn init_logging() {
         .with(fmt_layer)
         .with(stdout_layer)
         .init();
+
+    if let Err(err) = log_dir_result {
+        tracing::error!(
+            target: "handshake_core",
+            "failed to create log directory {:?}: {}",
+            log_dir,
+            err
+        );
+    }
 }
 
 fn repo_root() -> PathBuf {

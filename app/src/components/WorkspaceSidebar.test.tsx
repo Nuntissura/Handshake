@@ -13,6 +13,7 @@ vi.mock("../lib/api", () => {
     createWorkspace: vi.fn(),
     createDocument: vi.fn(),
     createCanvas: vi.fn(),
+    deleteWorkspace: vi.fn(),
     __esModule: true,
   };
 });
@@ -34,10 +35,12 @@ describe("WorkspaceSidebar", () => {
 
     render(
       <WorkspaceSidebar
+        refreshKey={0}
         onSelectDocument={noop}
         onSelectCanvas={noop}
         selectedDocumentId={null}
         selectedCanvasId={null}
+        onWorkspaceDeleted={noop}
       />,
     );
 
@@ -55,10 +58,12 @@ describe("WorkspaceSidebar", () => {
 
     render(
       <WorkspaceSidebar
+        refreshKey={0}
         onSelectDocument={noop}
         onSelectCanvas={noop}
         selectedDocumentId={null}
         selectedCanvasId={null}
+        onWorkspaceDeleted={noop}
       />,
     );
 

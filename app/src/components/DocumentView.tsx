@@ -1,20 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { JSONContent } from "@tiptap/core";
-import { Block, BlockInput, DocumentWithBlocks, getDocument, updateDocumentBlocks } from "../lib/api";
+import { Block, BlockInput, DocumentWithBlocks, deleteDocument, getDocument, updateDocumentBlocks } from "../lib/api";
 import { TiptapEditor } from "./TiptapEditor";
 import { logEvent } from "../state/debugEvents";
 
 type Props = {
   documentId: string | null;
+  onDeleted: () => void;
 };
 
-export function DocumentView({ documentId }: Props) {
+export function DocumentView({ documentId, onDeleted }: Props) {
   const [doc, setDoc] = useState<DocumentWithBlocks | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editorContent, setEditorContent] = useState<JSONContent | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
@@ -35,14 +38,22 @@ export function DocumentView({ documentId }: Props) {
         setEditorContent(blocksToTiptap(response.blocks));
         logEvent({ type: "doc-load", targetId: documentId, result: "ok" });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load document");
+        const message = err instanceof Error ? err.message : "Failed to load document";
+        if (isDocumentNotFound(err)) {
+          window.dispatchEvent(
+            new CustomEvent("handshake:document-deleted", { detail: { documentId, workspaceId: null } }),
+          );
+          onDeleted();
+          return;
+        }
+        setError(message);
         logEvent({ type: "doc-load", targetId: documentId, result: "error", message: String(err) });
       } finally {
         setLoading(false);
       }
     };
     void load();
-  }, [documentId]);
+  }, [documentId, onDeleted]);
 
   const blocksForDisplay = useMemo(() => doc?.blocks ?? [], [doc]);
 
@@ -59,7 +70,7 @@ export function DocumentView({ documentId }: Props) {
     return (
       <div className="content-card">
         <h2>Document</h2>
-        <p className="muted">Loading…</p>
+        <p className="muted">Loading...</p>
       </div>
     );
   }
@@ -80,7 +91,7 @@ export function DocumentView({ documentId }: Props) {
       <h2>{doc.title}</h2>
       <p className="muted">Workspace: {doc.workspace_id}</p>
       <p className="muted">
-        Created: {new Date(doc.created_at).toLocaleString()} — Updated: {new Date(doc.updated_at).toLocaleString()}
+        Created: {new Date(doc.created_at).toLocaleString()} - Updated: {new Date(doc.updated_at).toLocaleString()}
       </p>
       <div className="document-editor">
         <div className="document-editor__header">
@@ -91,6 +102,7 @@ export function DocumentView({ documentId }: Props) {
                 if (!documentId) return;
                 setIsSaving(true);
                 setSaveError(null);
+                setDeleteError(null);
                 try {
                   const blocks = tiptapToBlocks(editorContent, blocksForDisplay);
                   const updated = await updateDocumentBlocks(documentId, blocks);
@@ -116,6 +128,7 @@ export function DocumentView({ documentId }: Props) {
                 if (!documentId) return;
                 setLoading(true);
                 setSaveError(null);
+                setDeleteError(null);
                 try {
                   const refreshed = await getDocument(documentId);
                   setDoc(refreshed);
@@ -132,12 +145,49 @@ export function DocumentView({ documentId }: Props) {
             >
               Reload
             </button>
+            <button
+              onClick={async () => {
+                if (!documentId) return;
+                const confirmed = window.confirm("Delete this document? This cannot be undone.");
+                if (!confirmed) return;
+                setIsDeleting(true);
+                setDeleteError(null);
+                try {
+                  await deleteDocument(documentId);
+                  const workspaceId = doc?.workspace_id ?? null;
+                  window.dispatchEvent(
+                    new CustomEvent("handshake:document-deleted", { detail: { documentId, workspaceId } }),
+                  );
+                  logEvent({ type: "doc-delete", targetId: documentId, result: "ok" });
+                  onDeleted();
+                } catch (err) {
+                  if (isDocumentNotFound(err)) {
+                    const workspaceId = doc?.workspace_id ?? null;
+                    window.dispatchEvent(
+                      new CustomEvent("handshake:document-deleted", { detail: { documentId, workspaceId } }),
+                    );
+                    logEvent({ type: "doc-delete", targetId: documentId, result: "ok" });
+                    onDeleted();
+                    return;
+                  }
+                  const message = err instanceof Error ? err.message : "Failed to delete document";
+                  setDeleteError(message);
+                  logEvent({ type: "doc-delete", targetId: documentId, result: "error", message: String(err) });
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+              disabled={isSaving || isDeleting || !documentId}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </button>
           </div>
         </div>
         <TiptapEditor initialContent={editorContent} onChange={setEditorContent} />
         <div className="document-editor__status">
           {lastSavedAt && <span className="muted">Saved at {lastSavedAt}</span>}
           {saveError && <span className="muted">Error: {saveError}</span>}
+          {deleteError && <span className="muted">Error: {deleteError}</span>}
         </div>
       </div>
 
@@ -188,33 +238,27 @@ function blockToNode(block: Block): JSONContent | null {
       const level = Number(levelStr);
       return makeHeading(isFinite(level) ? level : 1, plainText);
     }
-    case kind === "heading": {
+    case kind === "heading":
       return makeHeading(1, plainText);
-    }
-    case kind === "bulletList": {
+    case kind === "bulletList":
       return makeListNode("bulletList", plainText);
-    }
-    case kind === "orderedList": {
+    case kind === "orderedList":
       return makeListNode("orderedList", plainText);
-    }
-    case kind === "codeBlock": {
+    case kind === "codeBlock":
       return {
         type: "codeBlock",
         content: textNodeOrEmpty(plainText),
       };
-    }
-    case kind === "blockquote": {
+    case kind === "blockquote":
       return {
         type: "blockquote",
         content: [{ type: "paragraph", content: textNodeOrEmpty(plainText) }],
       };
-    }
-    default: {
+    default:
       return {
         type: "paragraph",
         content: textNodeOrEmpty(plainText),
       };
-    }
   }
 }
 
@@ -289,4 +333,9 @@ function extractPlainText(node: JSONContent): string {
 
 function textNodeOrEmpty(text: string): JSONContent[] {
   return text ? [{ type: "text", text }] : [];
+}
+
+function isDocumentNotFound(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.toLowerCase().includes("document_not_found") || message.includes("404");
 }

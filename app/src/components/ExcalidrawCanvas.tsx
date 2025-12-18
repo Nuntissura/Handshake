@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useState } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import { ExcalidrawElement } from "@excalidraw/excalidraw/element/types";
@@ -19,16 +19,15 @@ export function ExcalidrawCanvas({
   onChange,
   readOnly = false,
 }: ExcalidrawCanvasProps) {
-  const initialDataRef = useRef<{ elements: readonly ExcalidrawElement[]; files?: BinaryFiles } | null>(null);
-
-  if (!initialDataRef.current) {
-    initialDataRef.current = { elements: initialElements ?? [], files: initialFiles ?? undefined };
-  }
+  const [initialData] = useState<{ elements: readonly ExcalidrawElement[]; files?: BinaryFiles }>(() => ({
+    elements: initialElements ?? [],
+    files: initialFiles ?? undefined,
+  }));
 
   return (
     <div className="excalidraw-wrapper">
       <Excalidraw
-        initialData={initialDataRef.current}
+        initialData={initialData}
         onChange={(elements, _appState, files) => onChange(elements, files)}
         viewModeEnabled={readOnly}
       />

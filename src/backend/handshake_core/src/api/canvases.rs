@@ -57,7 +57,9 @@ pub fn routes(state: AppState) -> Router {
         )
         .route(
             "/canvases/:canvas_id",
-            get(get_canvas).put(update_canvas_graph),
+            get(get_canvas)
+                .put(update_canvas_graph)
+                .delete(delete_canvas),
         )
         .with_state(state)
 }
@@ -83,6 +85,32 @@ struct IncomingCanvasEdge {
     from_node_id: String,
     to_node_id: String,
     kind: String,
+}
+
+async fn delete_canvas(
+    State(state): State<AppState>,
+    Path(canvas_id): Path<String>,
+) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    let existing = sqlx::query_scalar!(
+        r#"SELECT COUNT(1) as "count!: i64" FROM canvases WHERE id = ?1"#,
+        canvas_id
+    )
+    .fetch_one(&state.pool)
+    .await
+    .map_err(super::workspaces::internal_error)?;
+
+    if existing == 0 {
+        return Err(super::workspaces::not_found("canvas_not_found"));
+    }
+
+    sqlx::query!(r#"DELETE FROM canvases WHERE id = ?1"#, canvas_id)
+        .execute(&state.pool)
+        .await
+        .map_err(super::workspaces::internal_error)?;
+
+    tracing::info!(target: "handshake_core", route = "/canvases/:canvas_id", status = "deleted", canvas_id = %canvas_id, "canvas deleted");
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn create_canvas(

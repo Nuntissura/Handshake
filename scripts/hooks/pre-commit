@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+set -e
+
+# Enforce local AI review before commit.
+node scripts/ai-review-gemini.mjs

@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
+import type { DebugEvent } from "../state/debugEvents";
 
 const mockApi = () =>
   vi.doMock("../lib/api", () => ({
@@ -7,11 +8,11 @@ const mockApi = () =>
     getHealth: vi.fn(async () => ({ status: "ok", db_status: "ok" })),
   }));
 
-async function loadPanelWithEvents(events: any[]) {
+async function loadPanelWithEvents(events: DebugEvent[]) {
   vi.resetModules();
   mockApi();
   vi.doMock("../state/debugEvents", () => ({
-    subscribeDebugEvents: (listener: (evts: any[]) => void) => {
+    subscribeDebugEvents: (listener: (evts: DebugEvent[]) => void) => {
       listener(events);
       return () => {};
     },
@@ -49,7 +50,7 @@ describe("DebugPanel", () => {
       getHealth: vi.fn(async () => ({ status: "error", db_status: "down" })),
     }));
     vi.doMock("../state/debugEvents", () => ({
-      subscribeDebugEvents: (listener: (evts: any[]) => void) => {
+      subscribeDebugEvents: (listener: (evts: DebugEvent[]) => void) => {
         listener([]);
         return () => {};
       },

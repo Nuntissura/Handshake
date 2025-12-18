@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest run",
-    "lint": "eslint src --ext .ts,.tsx"
+    "lint": "eslint src --ext .ts,.tsx",
+    "depcruise": "dependency-cruiser --config .dependency-cruiser.cjs src"
   },
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
@@ -34,6 +35,7 @@
     "@typescript-eslint/eslint-plugin": "^8.48.1",
     "@typescript-eslint/parser": "^8.48.1",
     "@vitejs/plugin-react": "^4.6.0",
+    "dependency-cruiser": "^17.3.4",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "globals": "^16.5.0",

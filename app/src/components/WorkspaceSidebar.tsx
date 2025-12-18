@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   createCanvas,
   createDocument,
   createWorkspace,
+  deleteWorkspace,
   listCanvases,
   listDocuments,
   listWorkspaces,
@@ -12,17 +13,24 @@ import {
 } from "../lib/api";
 
 type Props = {
+  refreshKey: number;
   onSelectDocument: (id: string | null) => void;
   onSelectCanvas: (id: string | null) => void;
   selectedDocumentId: string | null;
   selectedCanvasId: string | null;
+  onWorkspaceDeleted: () => void;
 };
 
+type DocumentDeletedDetail = { documentId: string; workspaceId?: string | null };
+type CanvasDeletedDetail = { canvasId: string; workspaceId?: string | null };
+
 export function WorkspaceSidebar({
+  refreshKey,
   onSelectDocument,
   onSelectCanvas,
   selectedDocumentId,
   selectedCanvasId,
+  onWorkspaceDeleted,
 }: Props) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
@@ -31,25 +39,70 @@ export function WorkspaceSidebar({
   const [loading, setLoading] = useState<boolean>(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
 
+  const selectWorkspace = useCallback(
+    async (id: string) => {
+      setSelectedWorkspaceId(id);
+      onSelectDocument(null);
+      onSelectCanvas(null);
+      setDocuments([]);
+      setCanvases([]);
+      try {
+        const [docs, cvs] = await Promise.all([listDocuments(id), listCanvases(id)]);
+        setDocuments(docs);
+        setCanvases(cvs);
+      } catch (err) {
+        setWorkspaceError(err instanceof Error ? err.message : "Failed to load workspace details");
+      }
+    },
+    [onSelectCanvas, onSelectDocument],
+  );
+
+  const loadWorkspaces = useCallback(async () => {
+    // Do NOT clear workspaces on error or at request start; only update them on successful response.
+    setLoading(true);
+    try {
+      const ws = await listWorkspaces();
+      setWorkspaces(ws);
+      setWorkspaceError(null);
+      if (ws.length > 0) {
+        await selectWorkspace(ws[0].id);
+      }
+    } catch (err) {
+      setWorkspaceError(err instanceof Error ? err.message : "Failed to load workspaces");
+      // keep existing workspaces on failure
+    } finally {
+      setLoading(false);
+    }
+  }, [selectWorkspace]);
+
   useEffect(() => {
     void loadWorkspaces();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refreshKey, loadWorkspaces]);
 
-  async function selectWorkspace(id: string) {
-    setSelectedWorkspaceId(id);
-    onSelectDocument(null);
-    onSelectCanvas(null);
-    setDocuments([]);
-    setCanvases([]);
-    try {
-      const [docs, cvs] = await Promise.all([listDocuments(id), listCanvases(id)]);
-      setDocuments(docs);
-      setCanvases(cvs);
-    } catch (err) {
-      setWorkspaceError(err instanceof Error ? err.message : "Failed to load workspace details");
-    }
-  }
+  useEffect(() => {
+    const handleDocumentDeleted = (event: Event) => {
+      const detail = (event as CustomEvent<DocumentDeletedDetail>).detail;
+      if (!detail) return;
+      setDocuments((prev) => prev.filter((doc) => doc.id !== detail.documentId));
+    };
+    const handleCanvasDeleted = (event: Event) => {
+      const detail = (event as CustomEvent<CanvasDeletedDetail>).detail;
+      if (!detail) return;
+      setCanvases((prev) => prev.filter((canvas) => canvas.id !== detail.canvasId));
+    };
+    const handleRefreshWorkspaces = () => {
+      void loadWorkspaces();
+    };
+
+    window.addEventListener("handshake:document-deleted", handleDocumentDeleted);
+    window.addEventListener("handshake:canvas-deleted", handleCanvasDeleted);
+    window.addEventListener("handshake:refresh-workspaces", handleRefreshWorkspaces);
+    return () => {
+      window.removeEventListener("handshake:document-deleted", handleDocumentDeleted);
+      window.removeEventListener("handshake:canvas-deleted", handleCanvasDeleted);
+      window.removeEventListener("handshake:refresh-workspaces", handleRefreshWorkspaces);
+    };
+  }, [loadWorkspaces]);
 
   async function handleCreateWorkspace() {
     const name = window.prompt("Workspace name?");
@@ -60,6 +113,24 @@ export function WorkspaceSidebar({
       await selectWorkspace(ws.id);
     } catch (err) {
       setWorkspaceError(err instanceof Error ? err.message : "Failed to create workspace");
+    }
+  }
+
+  async function handleDeleteWorkspace() {
+    if (!selectedWorkspaceId) return;
+    const confirmed = window.confirm("Delete this workspace and all its documents/canvases? This cannot be undone.");
+    if (!confirmed) return;
+    try {
+      await deleteWorkspace(selectedWorkspaceId);
+      setWorkspaces((prev) => prev.filter((w) => w.id !== selectedWorkspaceId));
+      setSelectedWorkspaceId(null);
+      setDocuments([]);
+      setCanvases([]);
+      onSelectDocument(null);
+      onSelectCanvas(null);
+      onWorkspaceDeleted();
+    } catch (err) {
+      setWorkspaceError(err instanceof Error ? err.message : "Failed to delete workspace");
     }
   }
 
@@ -91,36 +162,25 @@ export function WorkspaceSidebar({
     }
   }
 
-  async function loadWorkspaces() {
-    setLoading(true);
-    try {
-      const ws = await listWorkspaces();
-      setWorkspaces(ws);
-      setWorkspaceError(null);
-      if (ws.length > 0) {
-        selectWorkspace(ws[0].id);
-      }
-    } catch (err) {
-      setWorkspaceError(err instanceof Error ? err.message : "Failed to load workspaces");
-      // keep existing workspaces on failure
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
     <aside className="sidebar">
       <section>
         <h3>Workspaces</h3>
-        <button onClick={handleCreateWorkspace}>New Workspace</button>
-        {loading && <p className="muted">Loading…</p>}
+        <div className="button-row">
+          <button onClick={handleCreateWorkspace}>New Workspace</button>
+          <button onClick={handleDeleteWorkspace} disabled={!selectedWorkspaceId}>
+            Delete Workspace
+          </button>
+        </div>
+        {loading && <p className="muted">Loading...</p>}
         {workspaceError && (
           <div
             className="content-card"
             style={{ padding: "8px 10px", background: "#fff6f2", border: "1px solid #f4b8a7", marginTop: 8 }}
           >
             <p className="muted" style={{ marginBottom: 8 }}>
-              Could not refresh the workspace list. Your existing workspaces are safe; this is likely a temporary connection issue. You can continue using the list below or press Retry.
+              Could not refresh the workspace list. Your existing workspaces are safe; this is likely a temporary
+              connection issue. You can continue using the list below or press Retry.
             </p>
             <button type="button" onClick={() => void loadWorkspaces()} disabled={loading}>
               Retry
@@ -189,5 +249,3 @@ export function WorkspaceSidebar({
     </aside>
   );
 }
-
-

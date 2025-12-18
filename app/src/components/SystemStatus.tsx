@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { getHealth } from "../lib/api";
 
 type Status = "loading" | "ok" | "error";
-
-const HEALTH_URL = "http://127.0.0.1:37501/health";
 
 export function SystemStatus() {
   const [status, setStatus] = useState<Status>("loading");
@@ -15,12 +14,7 @@ export function SystemStatus() {
     setDbStatus(null);
 
     try {
-      const response = await fetch(HEALTH_URL, { method: "GET" });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data: { status?: string; db_status?: string } = await response.json();
+      const data = await getHealth();
       if (data?.status === "ok") {
         setStatus("ok");
         setMessage(null);
@@ -39,9 +33,12 @@ export function SystemStatus() {
   }, []);
 
   useEffect(() => {
-    void checkHealth();
+    const initialId = window.setTimeout(() => void checkHealth(), 0);
     const id = window.setInterval(() => void checkHealth(), 8000);
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearTimeout(initialId);
+      window.clearInterval(id);
+    };
   }, [checkHealth]);
 
   const indicatorColor =

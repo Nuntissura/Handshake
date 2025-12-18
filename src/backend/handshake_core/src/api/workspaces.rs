@@ -1,7 +1,7 @@
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use chrono::Utc;
@@ -24,8 +24,12 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/documents",
             post(create_document).get(list_documents),
         )
-        .route("/documents/:document_id", get(get_document))
+        .route(
+            "/documents/:document_id",
+            get(get_document).delete(delete_document),
+        )
         .route("/documents/:document_id/blocks", put(replace_blocks))
+        .route("/workspaces/:workspace_id", delete(delete_workspace))
         .with_state(state)
 }
 
@@ -94,6 +98,32 @@ async fn list_workspaces(
         .collect();
 
     Ok(Json(workspaces))
+}
+
+async fn delete_workspace(
+    State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    let exists = sqlx::query_scalar!(
+        r#"SELECT COUNT(1) as "count!: i64" FROM workspaces WHERE id = ?1"#,
+        workspace_id
+    )
+    .fetch_one(&state.pool)
+    .await
+    .map_err(internal_error)?;
+
+    if exists == 0 {
+        return Err(not_found("workspace_not_found"));
+    }
+
+    sqlx::query!(r#"DELETE FROM workspaces WHERE id = ?1"#, workspace_id)
+        .execute(&state.pool)
+        .await
+        .map_err(internal_error)?;
+
+    tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id", status = "deleted", workspace_id = %workspace_id, "workspace deleted");
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn create_document(
@@ -249,6 +279,32 @@ async fn get_document(
     }))
 }
 
+async fn delete_document(
+    State(state): State<AppState>,
+    Path(document_id): Path<String>,
+) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    let existing = sqlx::query_scalar!(
+        r#"SELECT COUNT(1) as "count!: i64" FROM documents WHERE id = ?1"#,
+        document_id
+    )
+    .fetch_one(&state.pool)
+    .await
+    .map_err(internal_error)?;
+
+    if existing == 0 {
+        return Err(not_found("document_not_found"));
+    }
+
+    sqlx::query!(r#"DELETE FROM documents WHERE id = ?1"#, document_id)
+        .execute(&state.pool)
+        .await
+        .map_err(internal_error)?;
+
+    tracing::info!(target: "handshake_core", route = "/documents/:document_id", status = "deleted", document_id = %document_id, "document deleted");
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
 async fn replace_blocks(
     State(state): State<AppState>,
     Path(document_id): Path<String>,
@@ -355,7 +411,7 @@ pub(super) async fn ensure_workspace(
 }
 
 pub(super) fn internal_error(err: impl std::fmt::Display) -> (StatusCode, Json<ErrorResponse>) {
-    eprintln!("db_error: {}", err);
+    tracing::error!(target: "handshake_core", error = %err, "db_error");
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         Json(ErrorResponse { error: "db_error" }),

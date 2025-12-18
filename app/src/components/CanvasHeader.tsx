@@ -1,4 +1,4 @@
-type CanvasHeaderProps = {
+﻿type CanvasHeaderProps = {
   title: string;
   workspaceId: string;
   createdAt: string;
@@ -6,8 +6,10 @@ type CanvasHeaderProps = {
   stats: { nodes: number; edges: number };
   lastSavedAt: string | null;
   isSaving: boolean;
+  isDeleting: boolean;
   onSave: () => void;
   onReload: () => void | Promise<void>;
+  onDelete: () => void | Promise<void>;
 };
 
 export function CanvasHeader({
@@ -18,8 +20,10 @@ export function CanvasHeader({
   stats,
   lastSavedAt,
   isSaving,
+  isDeleting,
   onSave,
   onReload,
+  onDelete,
 }: CanvasHeaderProps) {
   return (
     <>
@@ -30,7 +34,7 @@ export function CanvasHeader({
       </p>
       <div className="document-editor__actions" style={{ marginBottom: "12px", alignItems: "center" }}>
         <span className="muted">
-          Nodes: {stats.nodes} • Edges: {stats.edges} {lastSavedAt ? `• Saved at ${lastSavedAt}` : ""}
+          Nodes: {stats.nodes} | Edges: {stats.edges} {lastSavedAt ? `| Saved at ${lastSavedAt}` : ""}
         </span>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={onSave} disabled={isSaving}>
@@ -38,6 +42,9 @@ export function CanvasHeader({
           </button>
           <button onClick={onReload} disabled={isSaving}>
             Reload
+          </button>
+          <button onClick={onDelete} disabled={isSaving || isDeleting}>
+            {isDeleting ? "Deleting..." : "Delete"}
           </button>
         </div>
       </div>

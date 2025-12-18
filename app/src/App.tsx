@@ -9,6 +9,7 @@ import { DebugPanel } from "./components/DebugPanel";
 function App() {
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [selectedCanvasId, setSelectedCanvasId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState<number>(0);
 
   return (
     <main className="app-shell">
@@ -24,6 +25,7 @@ function App() {
 
         <div className="app-body">
           <WorkspaceSidebar
+            refreshKey={refreshKey}
             selectedDocumentId={selectedDocumentId}
             selectedCanvasId={selectedCanvasId}
             onSelectDocument={(id) => {
@@ -34,14 +36,29 @@ function App() {
               setSelectedCanvasId(id);
               if (id !== null) setSelectedDocumentId(null);
             }}
+            onWorkspaceDeleted={() => {
+              setSelectedDocumentId(null);
+              setSelectedCanvasId(null);
+              setRefreshKey((k) => k + 1);
+            }}
           />
 
           <div className="content-panel">
             <DebugPanel />
             {selectedDocumentId ? (
-              <DocumentView documentId={selectedDocumentId} />
+              <DocumentView
+                documentId={selectedDocumentId}
+                onDeleted={() => {
+                  setSelectedDocumentId(null);
+                }}
+              />
             ) : selectedCanvasId ? (
-              <CanvasView canvasId={selectedCanvasId} />
+              <CanvasView
+                canvasId={selectedCanvasId}
+                onDeleted={() => {
+                  setSelectedCanvasId(null);
+                }}
+              />
             ) : (
               <div className="content-card">
                 <h2>Welcome</h2>

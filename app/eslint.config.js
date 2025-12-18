@@ -29,6 +29,26 @@ export default [
       ...js.configs.recommended.rules,
       ...tseslint.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
+      'no-restricted-globals': ['error', 'fetch'],
+    },
+  },
+  {
+    files: ['src/lib/api.ts'],
+    rules: {
+      'no-restricted-globals': 'off',
+    },
+  },
+  {
+    files: [
+      'src/**/*.test.{ts,tsx}',
+      'src/**/*.spec.{ts,tsx}',
+      'src/**/__tests__/**/*.{ts,tsx}',
+    ],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.vitest,
+      },
     },
   },
 ];

@@ -16,7 +16,9 @@
       "Bash(cargo clippy:*)",
       "Bash(npx pnpm run lint)",
       "Bash(cargo test:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(pnpm -C app test)",
+      "Bash(move:*)"
     ],
     "deny": [],
     "ask": []

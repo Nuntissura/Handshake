@@ -1,32 +1,40 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { act } from "react";
 import { vi } from "vitest";
 import { DocumentView } from "./DocumentView";
+import type { JSONContent } from "@tiptap/core";
+import type { BlockInput } from "../lib/api";
 
 vi.mock("../state/debugEvents", () => ({
   logEvent: vi.fn(),
 }));
 
 vi.mock("./TiptapEditor", () => ({
-  TiptapEditor: ({ initialContent, onChange }: { initialContent: any; onChange: (doc: any) => void }) => (
+  TiptapEditor: ({
+    initialContent,
+    onChange,
+  }: {
+    initialContent: JSONContent | null;
+    onChange: (doc: JSONContent | null) => void;
+  }) => (
     <div>
-      <div
-        contentEditable
+      <textarea
         data-testid="tiptap-editor"
-        onInput={(e) =>
+        defaultValue={initialContent?.content?.[0]?.text ?? "Hello"}
+        onChange={(e) =>
           onChange({
             type: "doc",
-            content: [{ type: "text", text: (e.target as HTMLElement).textContent ?? "" }],
+            content: [{ type: "text", text: (e.target as HTMLTextAreaElement).value }],
           })
         }
-      >
-        {initialContent?.content?.[0]?.text ?? "Hello"}
-      </div>
+      />
     </div>
   ),
 }));
 
 vi.mock("../lib/api", () => {
-  const updateDocumentBlocks = vi.fn(async (_id: string, blocks: any[]) => blocks);
+  const deleteDocument = vi.fn(async () => undefined);
+  const updateDocumentBlocks = vi.fn(async (_id: string, blocks: BlockInput[]) => blocks);
   const getDocument = vi.fn(async () => ({
     id: "doc-1",
     workspace_id: "w1",
@@ -44,25 +52,32 @@ vi.mock("../lib/api", () => {
       },
     ],
   }));
-  return { getDocument, updateDocumentBlocks };
+  return { getDocument, updateDocumentBlocks, deleteDocument };
 });
 
 describe("DocumentView", () => {
   it("saves edited text via updateDocumentBlocks", async () => {
-    render(<DocumentView documentId="doc-1" />);
+    await act(async () => {
+      render(<DocumentView documentId="doc-1" onDeleted={() => {}} />);
+    });
 
     // Wait for the editor to render the initial text.
     const editor = await screen.findByTestId("tiptap-editor");
-    fireEvent.input(editor, { target: { textContent: "Hello world" } });
+    await act(async () => {
+      fireEvent.change(editor, { target: { value: "Hello world" } });
+    });
 
-    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /save/i }));
+    });
 
     const api = await import("../lib/api");
-    const updateDocumentBlocks = (api as { updateDocumentBlocks: ReturnType<typeof vi.fn> }).updateDocumentBlocks;
+    const updateDocumentBlocks = vi.mocked(api.updateDocumentBlocks);
 
     await waitFor(() => {
       expect(updateDocumentBlocks).toHaveBeenCalledTimes(1);
-      const [_docId, blocks] = updateDocumentBlocks.mock.calls[0] as [string, Array<{ raw_content: string }>];
+      const [docId, blocks] = updateDocumentBlocks.mock.calls[0] as [string, BlockInput[]];
+      expect(docId).toBe("doc-1");
       expect(blocks[0]?.raw_content).toBe("Hello world");
     });
   });

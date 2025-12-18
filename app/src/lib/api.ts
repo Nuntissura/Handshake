@@ -19,7 +19,19 @@ async function request<T>(path: string, options: FetchOptions = {}): Promise<T> 
     throw new Error(`Request failed: ${response.status} ${response.statusText} - ${text}`);
   }
 
-  return (await response.json()) as T;
+  // Handle empty responses (e.g., 204 No Content or DELETE with no body)
+  const contentLength = response.headers.get("content-length");
+  if (response.status === 204 || contentLength === "0") {
+    return undefined as T;
+  }
+
+  // Check if response has content before parsing JSON
+  const text = await response.text();
+  if (!text || text.trim().length === 0) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text) as T;
 }
 
 export type Workspace = {
@@ -121,6 +133,10 @@ export async function createWorkspace(name: string): Promise<Workspace> {
   return request("/workspaces", { method: "POST", body: { name } });
 }
 
+export async function deleteWorkspace(id: string): Promise<void> {
+  await request(`/workspaces/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
 export async function listDocuments(workspaceId: string): Promise<DocumentSummary[]> {
   return request(`/workspaces/${workspaceId}/documents`);
 }
@@ -129,12 +145,20 @@ export async function createDocument(workspaceId: string, title: string): Promis
   return request(`/workspaces/${workspaceId}/documents`, { method: "POST", body: { title } });
 }
 
+export async function deleteDocument(documentId: string): Promise<void> {
+  await request(`/documents/${encodeURIComponent(documentId)}`, { method: "DELETE" });
+}
+
 export async function listCanvases(workspaceId: string): Promise<CanvasSummary[]> {
   return request(`/workspaces/${workspaceId}/canvases`);
 }
 
 export async function createCanvas(workspaceId: string, title: string): Promise<CanvasSummary> {
   return request(`/workspaces/${workspaceId}/canvases`, { method: "POST", body: { title } });
+}
+
+export async function deleteCanvas(canvasId: string): Promise<void> {
+  await request(`/canvases/${encodeURIComponent(canvasId)}`, { method: "DELETE" });
 }
 
 export async function getDocument(docId: string): Promise<DocumentWithBlocks> {
