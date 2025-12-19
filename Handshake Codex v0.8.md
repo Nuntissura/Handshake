@@ -104,7 +104,7 @@
 [CX-331] LOGGING_PRINT_LIMIT: `print()` SHOULD be limited to tests and `/archive/` experiments.
 [CX-332] LOGGING_CONTEXT: Logs SHOULD include enough context (job IDs, doc IDs, user/session IDs where helpful) to debug issues.
 
-[CX-333] LOG_ATTRIBUTION: Work artefacts (log entries, review notes, commit messages) SHOULD include a stable `AGENT_ID` and `ROLE` so "who did what" remains searchable months later.
+[CX-333] LOG_ATTRIBUTION: Work artefacts (task packets, task board entries, milestone logs, review notes, commit messages) SHOULD include a stable `AGENT_ID` and `ROLE` so "who did what" remains searchable months later.
 [CX-334] AGENT_REGISTRY: The repo SHOULD keep an `AGENT_REGISTRY` (`/docs/agents/AGENT_REGISTRY.md`) mapping `AGENT_ID` -> current model/tooling + responsibility; changes to mappings SHOULD be logged.
 [CX-335] LOG_MODEL_LABELS_OPTIONAL: If model/vendor names are captured for convenience, they SHOULD be treated as secondary labels (not primary identifiers) and SHOULD live in structured metadata fields (not scattered through free text), subject to any active bootloader constraints.
 
@@ -199,7 +199,7 @@
 [CX-571] REVIEW_MIN_OUTPUT: A review MUST record: intent summary, key risks, required fixes, and exact validation commands run (or explicitly not run) with outcomes.
 [CX-572] OK_REQUIRES_VALIDATION: The assistant MUST NOT claim a change is "OK", "verified", or "working" unless either (a) tests/checks ran and passed, or (b) the user explicitly validated the behaviour.
 [CX-573] TRACEABILITY_MIN: Repo-changing work MUST be traceable to a work item (task packet / log entry / issue ID) referenced in the review note and ideally in the commit message.
-[CX-573A] AI_REVIEW_GATE: Repo-changing work MUST run an automated AI review locally via the gemini CLI (just ai-review) and attach ai_review.md to the task packet/logger; WARN decisions must be acknowledged and BLOCK decisions block merge.
+[CX-573A] AI_REVIEW_GATE: Repo-changing work MUST run an automated AI review locally via the gemini CLI (just ai-review) and attach ai_review.md to the task packet (logger only if explicitly requested); WARN decisions must be acknowledged and BLOCK decisions block merge.
 
 ### 6.7A The Quality Rubric Gate
 
@@ -264,9 +264,9 @@ BOOTSTRAP
 
 [CX-584] ORCH_BLOCKING_RULE: If the orchestrator cannot create a complete packet (unclear requirements, missing context, ambiguous scope), it MUST STOP and request clarification from the user. The orchestrator MUST NOT delegate incomplete or ambiguous work.
 
-[CX-585] ORCH_LOGGER_ENTRY: The orchestrator MUST create a RAW_ENTRY in the logger documenting the task packet creation BEFORE delegating work. The entry MUST include WP_ID and TASK_SUMMARY at minimum.
+[CX-585] ORCH_TASK_BOARD_UPDATE: The orchestrator SHOULD update `docs/TASK_BOARD.md` upon creating a task packet. Logger entries for task creation are OPTIONAL and generally discouraged to avoid noise.
 
-[CX-586] ORCH_AUTHORITY_DOCS: Packets MUST include pointers to: `docs/START_HERE.md`, `docs/SPEC_CURRENT.md`, `docs/ARCHITECTURE.md`, `docs/RUNBOOK_DEBUG.md`, `docs/QUALITY_GATE.md`, and the latest logger file.
+[CX-586] ORCH_AUTHORITY_DOCS: Packets MUST include pointers to: `docs/START_HERE.md`, `docs/SPEC_CURRENT.md`, `docs/ARCHITECTURE.md`, `docs/RUNBOOK_DEBUG.md`, `docs/QUALITY_GATE.md` (logger pointer OPTIONAL, only if logger will be used for this WP).
 
 [CX-587] ORCH_PRE_WORK_CHECK: Before delegating, the orchestrator SHOULD run (or instruct the coder to run): `just pre-work {WP_ID}` to verify the packet is complete and system is ready for work.
 
@@ -274,8 +274,7 @@ BOOTSTRAP
 
 [CX-620] CODER_PACKET_CHECK: Before writing any code, the coder agent MUST verify a task packet exists by checking:
 1. File exists at `docs/task_packets/WP-*.md` (created recently), OR
-2. Logger contains RAW_ENTRY with matching WP_ID, OR
-3. Orchestrator message includes complete TASK_PACKET block
+2. Orchestrator message includes complete TASK_PACKET block
 
 [CX-621] CODER_BLOCKING_RULE: If no task packet is found, the coder MUST:
 1. Output: "❌ BLOCKED: No task packet found [CX-620]"
@@ -312,21 +311,15 @@ BOOTSTRAP
 [CX-649] ROLLBACK_HINTS: Reviews/commits SHOULD include a brief rollback hint (e.g., git hash or steps) for traceability.
 [CX-649A] TODO_POLICY: New TODOs in source code and scripts MUST include a tracking tag in the form `TODO(HSK-####): ...` and be searchable by ID. Docs SHOULD use `TBD (HSK-####)` or explicit prose instead of TODO.
 
-### 6.13 Logger Requirements (Strengthened for AI Autonomy)
+### 6.13 Task Packets as Primary Log; Logger Milestone-Only
 
-[CX-650] LOGGER_ENTRY_REQUIRED: All repo-changing work MUST have a corresponding RAW_ENTRY in the logger. Work without a logger entry MUST be rejected at review.
+[CX-650] TASK_LOG_PRIMARY: `docs/TASK_BOARD.md` + the task packet are the primary, mandatory micro-log for day-to-day work. Validation commands/outcomes and status updates MUST be recorded in the task packet. The Handshake logger is optional and reserved for milestones or hard bugs when explicitly requested.
 
-[CX-651] LOGGER_ENTRY_TIMING: The RAW_ENTRY MUST be written:
-- By orchestrator: When creating task packet (before delegation)
-- By coder: When completing work (before commit request)
+[CX-651] LOGGER_USE_CASES: The Handshake logger SHOULD be used only when the user requests it or when recording major milestones/critical incidents. Routine Work Packet completion MUST NOT be blocked on a logger entry.
 
-[CX-652] LOGGER_VERIFICATION: Before requesting commit, the coder MUST verify:
-1. Logger entry exists with matching WP_ID
-2. FILES_TOUCHED matches actual changed files
-3. RESULT field is set appropriately (OK/PARTIAL/FAIL)
-4. VALIDATION section documents commands run
+[CX-652] TASK_PACKET_VALIDATION: Before requesting commit, the coder MUST verify the task packet contains a VALIDATION block with commands run and outcomes, and that `docs/TASK_BOARD.md` reflects the current status.
 
-[CX-653] LOGGER_PACKET_LINK: Every logger entry MUST reference its task packet WP_ID. Every task packet MUST have at least one logger entry.
+[CX-653] TASK_PACKET_UNIQUENESS: Each Work Packet MUST have its own task packet file (do not reuse an old file for a new WP). Status/notes/validation may be updated within that WP's file as the work progresses.
 
 ---
 
@@ -366,9 +359,8 @@ BOOTSTRAP
 
 [CX-901] ENFORCEMENT_SCRIPTS: The repo MUST include enforcement scripts in `/scripts/validation/`:
 - `pre-work-check.mjs` - Verifies task packet exists before work starts
-- `post-work-check.mjs` - Verifies logger entry and validation before commit
+- `post-work-check.mjs` - Verifies task packet validation/status (logger only if requested)
 - `task-packet-check.mjs` - Validates packet structure
-- `logger-check.mjs` - Validates logger entry format
 - `ci-traceability-check.mjs` - CI verification of workflow compliance
 
 [CX-902] ENFORCEMENT_HOOKS: Git hooks SHOULD enforce:
@@ -383,8 +375,8 @@ BOOTSTRAP
 
 [CX-904] ENFORCEMENT_CI: GitHub Actions SHOULD verify:
 - All commits reference task packets via WP-ID
-- Logger entries exist for all repo-changing commits
-- Validation commands are documented in commits/reviews
+- Validation commands are documented in task packets/commits/reviews
+- Logger entries are only required when explicitly requested (milestones/hard bugs)
 - No commits bypass workflow requirements
 
 [CX-905] ENFORCEMENT_FAILURE: If automated checks fail, work MUST be rejected with:
@@ -409,7 +401,7 @@ BOOTSTRAP
 
 [CX-961] CHANGE_SUMMARY_V08_2: v0.8 adds §9 "Automated Enforcement" defining required scripts, hooks, and CI checks to enforce workflow deterministically without relying on AI agent compliance alone.
 
-[CX-962] CHANGE_SUMMARY_V08_3: v0.8 strengthens logger requirements [CX-650-653] from SHOULD to MUST, making work traceability non-negotiable.
+[CX-962] CHANGE_SUMMARY_V08_3: v0.8 clarifies workflow traceability: `docs/TASK_BOARD.md` + task packets are the primary micro-log; the Handshake logger is optional for milestones/hard bugs when explicitly requested.
 
 [CX-963] CHANGE_SUMMARY_V08_4: v0.8 adds [CX-503] explicitly stating this codex is optimized for AI-autonomous operation where the human user may not have coding expertise.
 
@@ -423,22 +415,24 @@ BOOTSTRAP
 
 **If you are an Orchestrator:**
 1. Read `docs/ORCHESTRATOR_PROTOCOL.md` FIRST
-2. Create task packet (`just create-task-packet WP-{ID}`)
-3. Verify (`just pre-work WP-{ID}`)
-4. Add logger entry
-5. Only then delegate to coder
+2. Create task packet (`just create-task-packet WP-{ID}`) — new file per WP
+3. Update `docs/TASK_BOARD.md` to "Ready for Dev"
+4. Verify (`just pre-work WP-{ID}`)
+5. Only then delegate to coder (logger optional; use only if milestone/hard bug)
 
 **If you are a Coder/Debugger:**
 1. Read `docs/CODER_PROTOCOL.md` FIRST
 2. Verify task packet exists [CX-620]
-3. Output BOOTSTRAP block [CX-622]
-4. Implement within scope
-5. Run validation (`just post-work WP-{ID}`)
-6. Document in logger before commit
+3. Update `docs/TASK_BOARD.md` to "In Progress"
+4. Output BOOTSTRAP block [CX-622]
+5. Implement within scope
+6. Run validation (`just post-work WP-{ID}`)
+7. Record validation/status in the task packet (logger only if requested)
+8. Update `docs/TASK_BOARD.md` to "Done"
 
 **If you are a Reviewer:**
 1. Verify task packet exists for the work
-2. Verify logger entry documents work
+2. Verify validation is recorded in the task packet (logger only if requested)
 3. Check validation commands were run
 4. Run `just ai-review` if not already done
 5. Block merge if workflow was bypassed

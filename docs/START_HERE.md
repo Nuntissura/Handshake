@@ -2,7 +2,7 @@
 
 ## Canonical sources
 - **Spec:** `docs/SPEC_CURRENT.md` (points to the current Handshake master spec).
-- **Governance guardrails:** `Handshake Codex v0.8` (repo root) + latest `Handshake_logger_*` (root + `log_archive/`).
+- **Governance guardrails:** `Handshake Codex v0.8` (repo root) + `docs/TASK_BOARD.md` + task packets. Handshake logger is for milestones/hard bugs when requested.
 - **Architecture & debug:** `docs/ARCHITECTURE.md` and `docs/RUNBOOK_DEBUG.md`.
 
 ## AI Agent Workflow (Mandatory for AI-Autonomous Operation)
@@ -93,7 +93,7 @@ If additional setup (DB seed, env) is required: TBD (HSK-1001) — document once
 
 For task packets: include scope, expected behavior, in-scope paths, DONE_MEANS, BOOTSTRAP block (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP), and these commands.
 
-CI expectation: run `just validate`; AI review is local (`just ai-review`) and the output must be recorded in the task packet/logger.
+CI expectation: run `just validate`; AI review is local (`just ai-review`) and the output must be recorded in the task packet (logger only if requested).
 
 ## Bug triage map (jump into RUNBOOK_DEBUG)
 - UI/frontend: see `docs/RUNBOOK_DEBUG.md#ui-and-shell` (app React + Tauri window lifecycle).

@@ -106,13 +106,24 @@ const template = `# Task Packet: ${WP_ID}
 ## Authority
 - **SPEC_CURRENT**: docs/SPEC_CURRENT.md
 - **Codex**: Handshake Codex v0.8.md
-- **Latest Logger**: {filename of current logger}
+- **Task Board**: docs/TASK_BOARD.md
+- **Logger**: (optional; milestones/hard bugs only)
 - **ADRs**: {if relevant to this work}
 
 ## Notes
 - **Assumptions**: {Mark any assumptions as "ASSUMPTION: ..."}
 - **Open Questions**: {Questions that need resolution before or during work}
 - **Dependencies**: {Other work this depends on, if any}
+
+## Validation
+- Command:
+- Result:
+- Notes:
+
+## Status / Handoff
+- Current WP_STATUS:
+- What changed in this update:
+- Next step / handoff hint:
 `;
 
 // Write the file
@@ -122,8 +133,8 @@ console.log(`✅ Task packet created: ${filePath}`);
 console.log('');
 console.log('Next steps:');
 console.log('1. Edit the file and fill in all {placeholder} values');
-console.log('2. Verify completeness: just pre-work ' + WP_ID);
-console.log('3. Add logger entry referencing ' + WP_ID);
+console.log('2. Update docs/TASK_BOARD.md to "Ready for Dev"');
+console.log('3. Verify completeness: just pre-work ' + WP_ID);
 console.log('4. Delegate to coder with packet path');
 console.log('');
 console.log('Template fields to complete:');
@@ -133,4 +144,4 @@ console.log('- RISK_TIER: Choose LOW/MEDIUM/HIGH');
 console.log('- TEST_PLAN: List specific commands');
 console.log('- DONE_MEANS: Define success criteria');
 console.log('- BOOTSTRAP: Fill in FILES_TO_OPEN, SEARCH_TERMS, RISK_MAP');
-console.log('- Authority: Update Latest Logger filename');
+console.log('- Authority: Update Task Board / optional logger reference');

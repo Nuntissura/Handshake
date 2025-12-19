@@ -14,16 +14,20 @@ use tower_http::cors::{Any, CorsLayer};
 mod api;
 mod flight_recorder;
 mod jobs;
+mod llm;
 mod logging;
 mod models;
+mod terminal;
 mod workflows;
 
+use crate::llm::{LLMClient, MockLLMClient, OllamaClient};
 use models::HealthResponse;
 
 #[derive(Clone)]
 pub struct AppState {
     pub pool: SqlitePool,
     pub fr_pool: Arc<Mutex<DuckDbConnection>>,
+    pub llm_client: Arc<dyn LLMClient>,
 }
 
 #[tokio::main]
@@ -41,7 +45,24 @@ async fn main() {
     let fr_pool = init_flight_recorder()
         .await
         .expect("failed to init flight recorder");
-    let state = AppState { pool, fr_pool };
+
+    // Initialize LLM Client. Defaulting to Ollama if configured, otherwise Mock.
+    let llm_client: Arc<dyn LLMClient> = if let Ok(url) = std::env::var("OLLAMA_URL") {
+        let model = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "llama3".to_string());
+        tracing::info!(target: "handshake_core", url = %url, model = %model, "using Ollama LLM client");
+        Arc::new(OllamaClient::new(url, model))
+    } else {
+        tracing::info!(target: "handshake_core", "using Mock LLM client");
+        Arc::new(MockLLMClient {
+            response: "This is a mock AI response from Handshake Core.".to_string(),
+        })
+    };
+
+    let state = AppState {
+        pool,
+        fr_pool,
+        llm_client,
+    };
     let api_routes = api::routes(state.clone());
 
     let app = Router::new()

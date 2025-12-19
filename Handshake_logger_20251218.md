@@ -1312,6 +1312,258 @@ This task is complete and validated. The UI can now trigger AI jobs.
 Manual end-to-end UI validation confirmed functionality. Codex proactively fixed "can't interact" bug and other minor UI/config issues. Absence of terminal/console logs for AI job calls noted.
 
 
+[RAW_ENTRY_ID]
+23
+[TIMESTAMP]
+2025-12-19T10:00:00+01:00
+[SESSION_ID]
+HS-20251219-1000-ai-baseline
+[ROLE]
+Orchestrator
+[PHASE]
+P1-Implementation
+[VERTICAL_SLICE]
+VS-AI-Core-Infra
+[WP_ID]
+WP-1-AI-Integration-Baseline
+[WP_STATUS]
+Delegated
+[TASK_SUMMARY]
+Created task packet for LLM client baseline and real document AI actions.
+[METHOD_SUMMARY]
+Defined scope for LLMClient abstraction and Ollama integration in a new task packet.
+[SPEC_REFERENCES]
+Handshake_Master_Spec_v02.50.md §7.6.3 Phase 1 Item 1 & 7
+[LAW_AND_CODEX_REFERENCES]
+Handshake Codex v0.8.md [CX-580]
+[FILES_TOUCHED]
+docs/task_packets/WP-1-AI-Integration-Baseline.md
+[TOOLS_AND_MODELS]
+Gemini (Orchestrator role)
+[STATE_BEFORE_BRIEF]
+Phase 1 core infrastructure was present but AI jobs were mocks. Task board was out of date.
+[STATE_AFTER_BRIEF]
+Task board updated. Task packet WP-1-AI-Integration-Baseline created and delegated.
+[RESULT]
+None
+[BLOCKERS_OR_RISKS]
+Ollama connectivity requires local setup; fallback to mock client is needed for tests.
+[NEXT_STEP_HINT]
+Coder to implement LLMClient and real doc actions per task packet.
+[HANDOFF_HINT]
+Read docs/task_packets/WP-1-AI-Integration-Baseline.md
+[NOTES]
+LLM author: Gemini per HL-I-042
+
+
+[RAW_ENTRY_ID]
+24
+[TIMESTAMP]
+2025-12-19T11:00:00+01:00
+[SESSION_ID]
+HS-20251219-1000-ai-baseline
+[ROLE]
+Coder
+[PHASE]
+P1-Implementation
+[VERTICAL_SLICE]
+VS-AI-Core-Infra
+[WP_ID]
+WP-1-AI-Integration-Baseline
+[WP_STATUS]
+Completed
+[TASK_SUMMARY]
+Implemented LLMClient abstraction and integrated it into AI jobs for document summarization.
+[METHOD_SUMMARY]
+Added `LLMClient` trait and `OllamaClient`/`MockLLMClient` in `llm.rs`. Integrated `reqwest` for Ollama API calls. Updated `AppState` to include `llm_client`. Modified `create_job` and `start_workflow_for_job` to handle `doc_id` and perform real LLM summarization. Fixed SQLX macro issues by using standard queries for new fields.
+[SPEC_REFERENCES]
+Handshake_Master_Spec_v02.50.md §7.6.3 Phase 1 Item 1 & 7
+[LAW_AND_CODEX_REFERENCES]
+Handshake Codex v0.8.md [CX-101]
+[FILES_TOUCHED]
+src/backend/handshake_core/Cargo.toml
+src/backend/handshake_core/src/llm.rs
+src/backend/handshake_core/src/main.rs
+src/backend/handshake_core/src/api/jobs.rs
+src/backend/handshake_core/src/jobs.rs
+src/backend/handshake_core/src/workflows.rs
+app/src/lib/api.ts
+app/src/components/DocumentView.tsx
+[TOOLS_AND_MODELS]
+Gemini (Coder role); cargo check; cargo test; pnpm test.
+[STATE_BEFORE_BRIEF]
+AI jobs were mocks; no LLM client abstraction existed.
+[STATE_AFTER_BRIEF]
+LLMClient abstraction implemented. Real document context is passed to LLM for summarization jobs. Flight recorder captures workflow outcomes.
+[RESULT]
+OK
+[BLOCKERS_OR_RISKS]
+None. Mock client ensures tests pass without Ollama.
+[NEXT_STEP_HINT]
+Implement "Summarize" UI panel to display job outputs.
+[HANDOFF_HINT]
+Ready for next Phase 1 tasks.
+[NOTES]
+VALIDATION:
+- cargo check: ✅ PASS
+- cargo test: ✅ PASS (2 tests)
+LLM author: Gemini per HL-I-042
+
+
+[RAW_ENTRY_ID]
+25
+[TIMESTAMP]
+2025-12-19T11:30:00+01:00
+[SESSION_ID]
+HS-20251219-1130-summary-ui-impl
+[ROLE]
+Coder
+[PHASE]
+P1-Implementation
+[VERTICAL_SLICE]
+VS-AI-UX-Baseline
+[WP_ID]
+WP-1-AI-UX-Summarize-Display
+[WP_STATUS]
+Completed
+[TASK_SUMMARY]
+Implemented job result retrieval and UI display for document summaries.
+[METHOD_SUMMARY]
+Added `GET /api/jobs/:id` endpoint to backend. Created `JobResultPanel` React component with polling logic. Integrated into `DocumentView` to show summary on completion.
+[SPEC_REFERENCES]
+Handshake_Master_Spec_v02.50.md §7.6.3 Phase 1 Item 5 & 7
+[LAW_AND_CODEX_REFERENCES]
+Handshake Codex v0.8.md
+[FILES_TOUCHED]
+src/backend/handshake_core/src/api/jobs.rs
+app/src/lib/api.ts
+app/src/components/DocumentView.tsx
+app/src/components/JobResultPanel.tsx
+[TOOLS_AND_MODELS]
+GPT5.2 Codex (Coder role); cargo check; pnpm test.
+[STATE_BEFORE_BRIEF]
+AI jobs ran but results were hidden.
+[STATE_AFTER_BRIEF]
+Users can run "Summarize", see a "Processing..." status, and view the final summary in a dismissible panel.
+[RESULT]
+OK
+[BLOCKERS_OR_RISKS]
+Polling interval is hardcoded (1s); might need backoff for long jobs later.
+[NEXT_STEP_HINT]
+Refine AI prompt for better summaries; add more job types.
+[HANDOFF_HINT]
+Feature complete.
+[NOTES]
+VALIDATION:
+- cargo check: ✅ PASS
+- pnpm lint: ✅ PASS
+- pnpm test: ✅ PASS (8 tests)
+LLM author: GPT5.2 Codex per HL-I-042
+
+
+[RAW_ENTRY_ID]
+26
+[TIMESTAMP]
+2025-12-19T12:00:00+01:00
+[SESSION_ID]
+HS-20251219-1200-flight-recorder-ui
+[ROLE]
+Coder
+[PHASE]
+P1-Implementation
+[VERTICAL_SLICE]
+VS-AI-Observability
+[WP_ID]
+WP-1-Flight-Recorder-UI
+[WP_STATUS]
+Completed
+[TASK_SUMMARY]
+Implemented Flight Recorder UI to visualize AI events from DuckDB.
+[METHOD_SUMMARY]
+Exposed `/api/events` in backend querying DuckDB events table. Created `FlightRecorderView` React component with periodic polling. Integrated navigation into `App.tsx` to switch between Workspace and Flight Recorder views.
+[SPEC_REFERENCES]
+Handshake_Master_Spec_v02.50.md §7.6.3 Item 5
+[LAW_AND_CODEX_REFERENCES]
+Handshake Codex v0.8.md
+[FILES_TOUCHED]
+src/backend/handshake_core/src/api/flight_recorder.rs
+src/backend/handshake_core/src/api/mod.rs
+app/src/lib/api.ts
+app/src/components/FlightRecorderView.tsx
+app/src/App.tsx
+[TOOLS_AND_MODELS]
+GPT5.2 Codex (Coder role); cargo check; pnpm test.
+[STATE_BEFORE_BRIEF]
+Flight Recorder logged events to DuckDB but they were not visible in the UI.
+[STATE_AFTER_BRIEF]
+Users can now switch to the "Flight Recorder" view to see a chronological log of all AI actions, job IDs, and data payloads.
+[RESULT]
+OK
+[BLOCKERS_OR_RISKS]
+DuckDB connection is locked during query; high-frequency polling might impact write performance if log volume grows very large.
+[NEXT_STEP_HINT]
+Add filtering by `job_id` or `event_type` to the Flight Recorder view.
+[HANDOFF_HINT]
+Observability loop closed for Phase 1 MVP.
+[NOTES]
+VALIDATION:
+- cargo check: ✅ PASS
+- pnpm lint: ✅ PASS
+- pnpm test: ✅ PASS (8 tests)
+- ai-review: ✅ PASS
+LLM author: GPT5.2 Codex per HL-I-042
+
+
+[RAW_ENTRY_ID]
+27
+[TIMESTAMP]
+2025-12-19T02:33:00+01:00
+[SESSION_ID]
+HS-20251219-0233-capability-enforce
+[ROLE]
+Coder
+[PHASE]
+P1-Implementation
+[VERTICAL_SLICE]
+VS-AI-Core-Infra
+[WP_ID]
+WP-1-Capability-Enforcement
+[WP_STATUS]
+Completed
+[TASK_SUMMARY]
+Added mandatory capability enforcement for workflow jobs.
+[METHOD_SUMMARY]
+Mapped job_kinds to required capabilities, enforced profile checks before executing jobs, and added a backend test to ensure unauthorized jobs fail with an explicit message.
+[SPEC_REFERENCES]
+Handshake_Master_Spec_v02.50.md A7.6.3 Item 4
+[LAW_AND_CODEX_REFERENCES]
+Handshake Codex v0.8.md
+[FILES_TOUCHED]
+docs/TASK_BOARD.md
+src/backend/handshake_core/Cargo.toml
+src/backend/handshake_core/Cargo.lock
+src/backend/handshake_core/src/workflows.rs
+[TOOLS_AND_MODELS]
+Coder terminal agent; cargo; pnpm; node
+[STATE_BEFORE_BRIEF]
+Workflow engine executed jobs without enforcing capability profiles; no guardrails or tests ensured doc_summarize required doc.summarize.
+[STATE_AFTER_BRIEF]
+Capability map and profile check added; unauthorized jobs fail with an "Unauthorized: Missing capability" error and workflow status failed; regression test added to lock behavior.
+[RESULT]
+OK
+[BLOCKERS_OR_RISKS]
+New job kinds must be added to the capability map or they will fail closed; capability profiles are code-defined for now.
+[NEXT_STEP_HINT]
+Persist capability profiles beyond code defaults and expand map when introducing new job kinds or profiles.
+[HANDOFF_HINT]
+Capability enforcement lives in workflows.rs; update the job_kind-to-capability map and profiles when adding new job types.
+[NOTES]
+VALIDATION:
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml: バ. PASS
+- pnpm -C app test: バ. PASS
+- node scripts/validation/pre-work-check.mjs WP-1-Capability-Enforcement: バ. PASS
+- node scripts/validation/post-work-check.mjs WP-1-Capability-Enforcement: Pending rerun post-logger entry
+
 [LOG_RAW_SURFACE_END]
 
 

@@ -60,26 +60,6 @@ if (taskPacketFiles.length === 0) {
   }
 }
 
-// Check 3: Logger entry exists
-console.log('\nCheck 3: Logger entry');
-const loggerFiles = fs.readdirSync('.')
-  .filter(f => f.startsWith('Handshake_logger_') && f.endsWith('.md'))
-  .sort()
-  .reverse();
-
-if (loggerFiles.length === 0) {
-  errors.push('No logger file found');
-  console.log('❌ FAIL: No logger file');
-} else {
-  const loggerContent = fs.readFileSync(loggerFiles[0], 'utf8');
-  if (!loggerContent.includes(WP_ID)) {
-    errors.push(`WP_ID ${WP_ID} not found in logger`);
-    console.log(`❌ FAIL: ${WP_ID} not in logger`);
-  } else {
-    console.log('✅ PASS: Logger entry found');
-  }
-}
-
 // Results
 console.log('\n' + '='.repeat(50));
 if (errors.length === 0) {

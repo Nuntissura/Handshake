@@ -1,30 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dir /s /b *.db *.sqlite schema.sql)",
-      "Bash(dir:*)",
-      "Bash(sqlite3:*)",
-      "Bash(cargo tree:*)",
-      "Bash(tree:*)",
-      "Bash(findstr:*)",
-      "Bash(npx pnpm -v)",
-      "Bash(npx pnpm install:*)",
-      "Bash(npx pnpm add:*)",
-      "Bash(npx pnpm build:*)",
-      "Bash(where:*)",
-      "Bash(python:*)",
-      "Bash(cargo clippy:*)",
-      "Bash(npx pnpm run lint)",
-      "Bash(cargo test:*)",
-      "Bash(npx vitest:*)",
-      "Bash(pnpm -C app test)",
-      "Bash(move:*)",
+      "Bash(git ls-files:*)",
       "Bash(ls:*)",
-      "Bash(just validate:*)",
-      "Bash(pnpm -C app run lint:*)",
-      "Bash(if not exist \"D:\\Projects\\LLM projects\\Handshake\\scripts\\validation\"\" mkdir \"D:ProjectsLLM projectsHandshakescriptsvalidation \")"
-    ],
-    "deny": [],
-    "ask": []
+      "Bash(node scripts/validation/ai-review.mjs:*)",
+      "Bash(just ai-review:*)",
+      "Bash(cat:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(cargo fmt:*)"
+    ]
   }
 }

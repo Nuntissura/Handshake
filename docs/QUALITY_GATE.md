@@ -8,7 +8,6 @@ Purpose: reduce coding errors by standard checks and clear risk tiers.
 
 **For Orchestrator Agents:**
 - Task packet MUST exist in `docs/task_packets/WP-{ID}.md`
-- Logger entry MUST reference WP_ID
 - All task packet fields MUST be filled (no `{placeholders}`)
 - Verification: `just pre-work WP-{ID}` MUST pass
 
@@ -42,11 +41,11 @@ If uncertain, choose the higher tier.
 - Any new error codes/tags documented in `docs/RUNBOOK_DEBUG.md`.
 - New flags/toggles documented in `docs/ARCHITECTURE.md`.
 - Targeted test added for logic changes, or explicit reason recorded.
-- AI review result recorded (PASS or WARN acknowledged) by attaching `ai_review.md` from `just ai-review`. BLOCK must be resolved.
+- AI review result recorded (PASS or WARN acknowledged) by attaching `ai_review.md` from `just ai-review` to the task packet (logger only if explicitly requested). BLOCK must be resolved.
 
 `just validate` runs: `just docs-check`, `just codex-check`, `pnpm -C app run lint`, `pnpm -C app test`, `pnpm -C app run depcruise`, `cargo fmt`, `cargo clippy --all-targets --all-features`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`, `cargo deny check advisories licenses bans sources`.
 
-AI review runs locally via `just ai-review` using the `gemini` CLI and the output `ai_review.md` must be attached to the task packet/logger.
+AI review runs locally via `just ai-review` using the `gemini` CLI and the output `ai_review.md` must be attached to the task packet (logger only if requested).
 
 ## Gate 1: Post-Work Validation (AI Autonomy - Mandatory)
 
@@ -54,10 +53,10 @@ AI review runs locally via `just ai-review` using the `gemini` CLI and the outpu
 
 **Required:**
 - All TEST_PLAN commands MUST have been run
-- Validation results MUST be documented in logger
+- Validation results MUST be documented in the task packet (logger only if explicitly requested)
 - Git status MUST show changes (work actually done)
 - For MEDIUM/HIGH: AI review MUST be complete and not BLOCKED
-- Logger entry MUST have RESULT field updated
+- Task packet MUST capture current status/result
 - Verification: `just post-work WP-{ID}` MUST pass
 
 **Enforcement:** Gate 1 is automated via validation scripts. Failure exits 1 and blocks commit.

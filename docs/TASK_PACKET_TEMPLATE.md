@@ -8,6 +8,7 @@ Copy this into each new task packet and fill all fields.
 - REQUESTOR:
 - DATE:
 - AGENT_ID / ROLE:
+- STATUS: Ready-for-Dev | In-Progress | Done
 
 ## Goal
 - Scope:
@@ -22,12 +23,13 @@ Copy this into each new task packet and fill all fields.
 - ROLLBACK_HINT:
 - SCAFFOLD_USED (yes/no + reason):
 - SCAFFOLD_WAIVER_APPROVED_BY (if waived):
-- AI_REVIEW (required for MEDIUM/HIGH; attach `ai_review.md` from local `gemini` CLI):
+- AI_REVIEW (required for MEDIUM/HIGH; attach `ai_review.md` from local `gemini` CLI to this packet):
 
 ## Authority
 - SPEC_CURRENT:
 - Codex:
-- Latest logger:
+- Task Board: docs/TASK_BOARD.md
+- Logger (optional for milestones/hard bugs):
 - ADRs (if relevant):
 
 ## Bootstrap
@@ -39,3 +41,13 @@ Copy this into each new task packet and fill all fields.
 ## Notes
 - Assumptions (if any):
 - Open questions (if any):
+
+## Validation
+- Command:
+- Result:
+- Notes:
+
+## Status / Handoff
+- Current WP_STATUS:
+- What changed in this update:
+- Next step / handoff hint:

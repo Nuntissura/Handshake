@@ -31,12 +31,7 @@ Complete ALL steps before writing code. If any step fails, STOP and request help
 ls -la docs/task_packets/WP-*.md
 ```
 
-**Method 2: Search logger**
-```bash
-grep "WP-{ID}" Handshake_logger_*.md
-```
-
-**Method 3: Check handoff message**
+**Method 2: Check handoff message**
 Look for TASK_PACKET block in orchestrator's message.
 
 **IF NOT FOUND:**
@@ -47,7 +42,6 @@ Orchestrator must create a task packet before I can start.
 
 Missing:
 - Task packet file in docs/task_packets/
-- WP_ID in logger
 - TASK_PACKET block in handoff
 
 Orchestrator: Please create task packet using:
@@ -91,7 +85,19 @@ Orchestrator: Please complete the task packet before I proceed.
 
 ---
 
-### Step 3: Bootstrap Protocol [CX-574-577] ✋ STOP
+### Step 3: Update Task Board [CX-585]
+
+**Update `docs/TASK_BOARD.md`:**
+- Move WP-{ID} to "In Progress"
+
+**Verify file updated:**
+```bash
+grep "WP-{ID}" docs/TASK_BOARD.md
+```
+
+---
+
+### Step 4: Bootstrap Protocol [CX-574-577] ✋ STOP
 
 **Read these files in order:**
 
@@ -114,7 +120,7 @@ cat docs/RUNBOOK_DEBUG.md
 
 ---
 
-### Step 4: Output BOOTSTRAP Block ✋ STOP
+### Step 5: Output BOOTSTRAP Block ✋ STOP
 
 **Before first code change, output:**
 
@@ -160,7 +166,7 @@ RISK_MAP:
 
 ---
 
-### Step 5: Implementation
+### Step 6: Implementation
 
 **Follow packet scope strictly:**
 
@@ -191,7 +197,7 @@ RISK_MAP:
 
 Complete ALL steps before claiming work is done.
 
-### Step 6: Run Validation [CX-623] ✋ STOP
+### Step 7: Run Validation [CX-623] ✋ STOP
 
 **Run ALL commands from TEST_PLAN:**
 
@@ -241,7 +247,7 @@ Fix issues, re-run tests, update VALIDATION block.
 
 ---
 
-### Step 7: AI Review [CX-573A] ✋ STOP
+### Step 8: AI Review [CX-573A] ✋ STOP
 
 **For MEDIUM/HIGH RISK_TIER:**
 ```bash
@@ -279,87 +285,15 @@ Fix BLOCK issues, re-run `just ai-review` until PASS or WARN.
 
 ---
 
-### Step 8: Update Logger ✋ STOP
+### Step 9: Update Task Packet (validation + status) ✋ STOP
 
-**Add completion entry to latest `Handshake_logger_*.md`:**
-
-```markdown
-[RAW_ENTRY_ID]
-{next sequential ID}
-
-[TIMESTAMP]
-{ISO 8601 with timezone}
-
-[SESSION_ID]
-{from orchestrator or new}
-
-[ROLE]
-Coder
-
-[PHASE]
-{from task packet}
-
-[VERTICAL_SLICE]
-{from task packet}
-
-[WP_ID]
-WP-{phase}-{name}
-
-[WP_STATUS]
-Completed
-
-[TASK_SUMMARY]
-{from task packet - one line}
-
-[METHOD_SUMMARY]
-{Brief description of implementation approach}
-
-[SPEC_REFERENCES]
-{If any specs guided the work}
-
-[LAW_AND_CODEX_REFERENCES]
-Handshake Codex v0.8
-
-[FILES_TOUCHED]
-{List actual files changed - from git status}
-src/backend/handshake_core/src/api/jobs.rs
-src/backend/handshake_core/src/jobs.rs
-src/backend/handshake_core/src/models.rs
-
-[TOOLS_AND_MODELS]
-{Your model name, Coder role}
-
-[STATE_BEFORE_BRIEF]
-{Repo state before your work}
-
-[STATE_AFTER_BRIEF]
-{Repo state after your work - what changed}
-
-[RESULT]
-OK
-
-[BLOCKERS_OR_RISKS]
-None (or document any risks discovered)
-
-[NEXT_STEP_HINT]
-{What should happen next, if anything}
-
-[HANDOFF_HINT]
-Work complete per WP-{ID}. Ready for review.
-
-[NOTES]
-VALIDATION:
-- cargo test: ✅ PASS (5 tests)
-- pnpm test: ✅ PASS (12 tests)
-- pnpm lint: ✅ PASS
-- just ai-review: ✅ PASS
-
-LLM author: {Your model} per HL-I-042
-```
+- Append a `VALIDATION` block to the task packet with commands + outcomes from Step 7/8.
+- Set WP_STATUS/notes in the task packet to reflect current state (e.g., Completed/Blocked).
+- Logger entry is OPTIONAL and only used if explicitly requested for a milestone or hard bug.
 
 ---
 
-### Step 9: Post-Work Validation ✋ STOP
+### Step 10: Post-Work Validation ✋ STOP
 
 **Run automated check:**
 ```bash
@@ -387,9 +321,12 @@ Fix errors, re-run `just post-work`.
 
 ---
 
-### Step 10: Request Commit
+### Step 11: Update Task Board & Request Commit
 
-**Output final summary:**
+**1. Update `docs/TASK_BOARD.md`:**
+- Move WP-{ID} to "Done"
+
+**2. Output final summary:**
 ```
 ✅ Work complete and validated [CX-623]
 ========================================
@@ -458,7 +395,7 @@ Ready for commit.
 3. Follow scope strictly
 4. Run all validation commands [CX-623]
 5. Document validation results
-6. Update logger before commit [CX-651]
+6. Update task packet before commit (logger only if requested)
 7. Run `just post-work WP-{ID}` before claiming done
 
 ---
@@ -473,7 +410,6 @@ Ready for commit.
 
 I searched:
 - docs/task_packets/ → No WP-{ID} file found
-- Logger → No WP-{ID} entry found
 - Handoff message → No TASK_PACKET block
 
 Orchestrator: Please run `just create-task-packet WP-{ID}`
@@ -575,15 +511,14 @@ $ just post-work WP-1-Job-Cancel
 Now work is done.
 ```
 
-### ❌ Mistake 4: No logger update
+### ❌ Mistake 4: No task packet update
 **Wrong:**
 ```
-[Requests commit without updating logger]
+[Requests commit without updating task packet validation/status]
 ```
 **Right:**
 ```
-[Updates logger with RAW_ENTRY]
-[Includes VALIDATION section with results]
+[Updates task packet with VALIDATION + current status]
 [Then requests commit]
 ```
 
@@ -606,7 +541,7 @@ Now work is done.
 - ❌ Work rejected at review for missing validation
 - ❌ Tests fail but you claim "done"
 - ❌ Scope creep (changed unrelated code)
-- ❌ No logger entry for your work
+- ❌ No task packet validation/status recorded
 
 ---
 
@@ -640,7 +575,7 @@ git status
 - [CX-623]: MUST document validation
 - [CX-572]: MUST NOT claim "OK" without tests
 - [CX-573]: MUST be traceable to WP_ID
-- [CX-651]: MUST update logger before commit
+- [CX-650]: Task packet + task board are primary micro-log (logger only if requested)
 
 **Remember**:
 - Task packet = your contract

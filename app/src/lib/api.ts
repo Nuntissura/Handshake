@@ -133,6 +133,14 @@ export type WorkflowRun = {
   updated_at: string;
 };
 
+export type FlightEvent = {
+  timestamp: string;
+  event_type: string;
+  job_id?: string;
+  workflow_id?: string;
+  payload: unknown;
+};
+
 export async function listWorkspaces(): Promise<Workspace[]> {
   return request("/workspaces");
 }
@@ -204,9 +212,38 @@ export async function getHealth(): Promise<HealthResponse> {
   return request("/health");
 }
 
-export async function createJob(jobKind: string, protocolId: string): Promise<WorkflowRun> {
+export async function getEvents(): Promise<FlightEvent[]> {
+  // Primary path per task packet DONE_MEANS; /api/events remains as backend alias.
+  return request("/api/flight_recorder");
+}
+
+export type AiJob = {
+  id: string;
+  job_kind: string;
+  status: string;
+  error_message?: string;
+  protocol_id: string;
+  profile_id: string;
+  capability_profile_id: string;
+  access_mode: string;
+  safety_mode: string;
+  job_inputs?: string;
+  job_outputs?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function createJob(
+  jobKind: string,
+  protocolId: string,
+  docId?: string,
+): Promise<WorkflowRun> {
   return request("/api/jobs", {
     method: "POST",
-    body: { job_kind: jobKind, protocol_id: protocolId },
+    body: { job_kind: jobKind, protocol_id: protocolId, doc_id: docId },
   });
+}
+
+export async function getJob(jobId: string): Promise<AiJob> {
+  return request(`/api/jobs/${encodeURIComponent(jobId)}`);
 }

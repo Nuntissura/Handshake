@@ -11,6 +11,7 @@ import {
   updateDocumentBlocks,
 } from "../lib/api";
 import { TiptapEditor } from "./TiptapEditor";
+import { JobResultPanel } from "./JobResultPanel";
 import { logEvent } from "../state/debugEvents";
 
 type Props = {
@@ -28,14 +29,14 @@ export function DocumentView({ documentId, onDeleted }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
-  const [aiJobStatus, setAiJobStatus] = useState<"idle" | "pending" | "success" | "error">("idle");
-  const [aiJobMessage, setAiJobMessage] = useState<string | null>(null);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!documentId) {
       setDoc(null);
       setError(null);
       setEditorContent(null);
+      setActiveJobId(null);
       return;
     }
     const load = async () => {
@@ -43,6 +44,7 @@ export function DocumentView({ documentId, onDeleted }: Props) {
       setError(null);
       setSaveError(null);
       setLastSavedAt(null);
+      setActiveJobId(null);
       try {
         const response = await getDocument(documentId);
         setDoc(response);
@@ -137,12 +139,9 @@ export function DocumentView({ documentId, onDeleted }: Props) {
             <button
               onClick={async () => {
                 if (!documentId) return;
-                setAiJobStatus("pending");
-                setAiJobMessage(null);
                 try {
-                  const run: WorkflowRun = await createJob("doc_test", "doc-proto-001");
-                  setAiJobStatus("success");
-                  setAiJobMessage(`Job ${run.job_id} (${run.status})`);
+                  const run: WorkflowRun = await createJob("doc_summarize", "doc-proto-001", documentId);
+                  setActiveJobId(run.job_id);
                   logEvent({
                     type: "ai-job",
                     targetId: documentId,
@@ -151,19 +150,18 @@ export function DocumentView({ documentId, onDeleted }: Props) {
                   });
                 } catch (err) {
                   const message = err instanceof Error ? err.message : "Failed to start AI job";
-                  setAiJobStatus("error");
-                  setAiJobMessage(message);
                   logEvent({
                     type: "ai-job",
                     targetId: documentId,
                     result: "error",
                     message: String(err),
                   });
+                  alert(`Failed to start job: ${message}`);
                 }
               }}
-              disabled={isSaving || isDeleting || aiJobStatus === "pending" || !documentId}
+              disabled={isSaving || isDeleting || !!activeJobId || !documentId}
             >
-              {aiJobStatus === "pending" ? "Starting AI job..." : "Run AI Job"}
+              {activeJobId ? "Job Running..." : "Summarize"}
             </button>
             <button
               onClick={async () => {
@@ -225,16 +223,19 @@ export function DocumentView({ documentId, onDeleted }: Props) {
             </button>
           </div>
         </div>
+        
+        {activeJobId && (
+          <JobResultPanel 
+            jobId={activeJobId} 
+            onDismiss={() => setActiveJobId(null)} 
+          />
+        )}
+
         <TiptapEditor initialContent={editorContent} onChange={setEditorContent} />
         <div className="document-editor__status">
           {lastSavedAt && <span className="muted">Saved at {lastSavedAt}</span>}
           {saveError && <span className="muted">Error: {saveError}</span>}
           {deleteError && <span className="muted">Error: {deleteError}</span>}
-          {aiJobMessage && (
-            <span className={aiJobStatus === "error" ? "muted" : "muted"}>
-              AI Job: {aiJobMessage}
-            </span>
-          )}
         </div>
       </div>
 

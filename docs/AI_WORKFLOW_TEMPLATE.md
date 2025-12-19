@@ -23,9 +23,10 @@ This document is intended to be copied into other projects as a starting point. 
 ## Canonical inputs and precedence (template)
 1) `docs/SPEC_CURRENT.md` (points to current master spec)
 2) Codex (repo root)
-3) Latest logger (root or `log_archive/`)
-4) ADRs (`docs/adr/`)
-5) Past specs/logs (`docs/PAST_WORK_INDEX.md`)
+3) Task Board (`docs/TASK_BOARD.md`) + task packet for the WP
+4) Logger (optional; milestones/hard bugs only, root or `log_archive/`)
+5) ADRs (`docs/adr/`)
+6) Past specs/logs (`docs/PAST_WORK_INDEX.md`)
 
 ## Required navigation pack (copy these)
 | File | Purpose | Why it matters |
@@ -54,7 +55,7 @@ This document is intended to be copied into other projects as a starting point. 
 4) Coder reads `docs/ARCHITECTURE.md` or `docs/RUNBOOK_DEBUG.md` based on type.
 5) Implement change using scaffolds if adding components/endpoints.
 6) Run required commands from `docs/QUALITY_GATE.md`.
-7) Run `just ai-review` and attach `ai_review.md` to the packet/logger.
+7) Run `just ai-review` and attach `ai_review.md` to the task packet (logger only if requested).
 8) Update `docs/ARCHITECTURE.md` or `docs/RUNBOOK_DEBUG.md` if new entrypoints or repeatable failures were added.
 9) Reviewer validates against codex + required checks.
 
@@ -77,7 +78,7 @@ Use scaffolds for new components/endpoints to avoid drift:
 Run `just ai-review` which calls `scripts/ai-review-gemini.mjs`.
 - Requires local `gemini` CLI (set `GEMINI_CLI` if not on PATH).
 - Writes `ai_review.json` and `ai_review.md`.
-- `ai_review.md` must be attached to the task packet/logger.
+- `ai_review.md` must be attached to the task packet (logger only if requested).
 - BLOCK decisions block merge; WARN must be acknowledged.
 
 Why CLI-only:
@@ -103,6 +104,7 @@ These checks are designed to run in CI or locally:
 ## Logging and debug anchors
 Use stable error tags like `HSK-####` for repeatable failures.
 Add those tags to `docs/RUNBOOK_DEBUG.md` with entrypoints and triage notes.
+Task Board + task packet act as the micro-log; the Handshake logger is for milestones/hard bugs when requested.
 
 ## Repository layout conventions (template)
 - `/docs/` is canonical operational guidance.

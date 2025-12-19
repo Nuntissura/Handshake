@@ -9,7 +9,11 @@ You are an **Orchestrator** agent. Your job is to:
 3. Delegate work to coder/debugger agents
 4. Verify work completion
 
-**CRITICAL**: You MUST create a task packet BEFORE delegating any coding work. This is not optional.
+**CRITICAL RULES:**
+1. **NO CODING:** You MUST NOT write, modify, or delete files in `src/`, `app/`, `tests/`, or `scripts/` (except for creating new Task Packets in `docs/task_packets/`).
+2. **NO OVERWRITING:** You MUST verify a WP_ID is unique before creating a packet.
+3. **NEW FILE PER WP:** Create a new task packet file for each WP. Do not reuse a completed packet for a new task; updating status/notes inside an existing WP file is allowed.
+4. **STOP AT DELEGATION:** Your response MUST END immediately after the Handoff Message. Do not simulate the Coder.
 
 ---
 
@@ -42,14 +46,21 @@ Please provide clarification before I can create a task packet.
 
 ### Step 2: Create Task Packet ✋ STOP
 
-**Option A: Use template generator (recommended)**
+**1. Check for ID collision:**
 ```bash
-just create-task-packet "WP-{phase}-{name}"
+ls docs/task_packets/WP-{phase}-{name}-*.md
 ```
+*Always append a unique suffix (e.g., date or short hash) to the WP ID to ensure a fresh file.*
+*Example: WP-1-Terminal-Exec-20251219*
 
-**Option B: Manual creation**
+**2. Use template generator:**
+```bash
+just create-task-packet "WP-{phase}-{name}-{suffix}"
+```
+*If script fails -> STOP. Resolve collision.*
 
-Create file: `docs/task_packets/WP-{ID}-{Name}.md`
+**3. Fill details (Update only):**
+Edit `docs/task_packets/WP-{ID}-{Name}.md` to fill placeholders.
 
 Use this template:
 ```markdown
@@ -121,7 +132,8 @@ Use this template:
 ## Authority
 - **SPEC_CURRENT**: docs/SPEC_CURRENT.md
 - **Codex**: Handshake Codex v0.8.md
-- **Latest Logger**: {filename of current logger}
+- **Task Board**: docs/TASK_BOARD.md
+- **Logger**: (optional) latest Handshake_logger_* if requested for milestone/hard bug
 - **ADRs**: {if relevant}
 
 ## Notes
@@ -137,74 +149,18 @@ ls -la docs/task_packets/WP-*.md
 
 ---
 
-### Step 3: Create Logger Entry ✋ STOP
+### Step 3: Update Task Board ✋ STOP
 
-Add RAW_ENTRY to latest `Handshake_logger_*.md`:
+**Update `docs/TASK_BOARD.md`:**
+- Move WP-{ID} to "Ready for Dev"
+- Or "In Progress" if assigning immediately
 
-```markdown
-[RAW_ENTRY_ID]
-{next sequential ID}
-
-[TIMESTAMP]
-{ISO 8601 with timezone}
-
-[SESSION_ID]
-{HS-YYYYMMDD-HHMM-tag}
-
-[ROLE]
-Orchestrator
-
-[PHASE]
-{P0/P0.5/P1/etc}
-
-[VERTICAL_SLICE]
-{VS-Feature-Name}
-
-[WP_ID]
-WP-{phase}-{name}
-
-[WP_STATUS]
-Delegated
-
-[TASK_SUMMARY]
-{One line summary of what coder will do}
-
-[METHOD_SUMMARY]
-Created task packet and delegated to coder agent
-
-[SPEC_REFERENCES]
-{Master spec sections if relevant}
-
-[LAW_AND_CODEX_REFERENCES]
-Handshake Codex v0.8
-
-[FILES_TOUCHED]
-docs/task_packets/WP-{ID}-{Name}.md
-
-[TOOLS_AND_MODELS]
-{Your model name, Orchestrator role}
-
-[STATE_BEFORE_BRIEF]
-{Repo state before work}
-
-[STATE_AFTER_BRIEF]
-Task packet created, work delegated to coder
-
-[RESULT]
-None (work in progress)
-
-[BLOCKERS_OR_RISKS]
-{Known risks from RISK_MAP}
-
-[NEXT_STEP_HINT]
-Coder will implement per task packet WP-{ID}
-
-[HANDOFF_HINT]
-Read task packet docs/task_packets/WP-{ID}-{Name}.md
-
-[NOTES]
-LLM author: {Your model} per HL-I-042
+**Verify file updated:**
+```bash
+grep "WP-{ID}" docs/TASK_BOARD.md
 ```
+
+**Note:** You DO NOT need to create a logger entry at this stage. Logger entries are reserved for work completion, milestones, or critical blockers.
 
 ---
 
@@ -289,12 +245,11 @@ Immediately after updating the packet's status, you MUST also edit `docs/TASK_BO
 ### ❌ DO NOT delegate if:
 1. Requirements are unclear or ambiguous [CX-584]
 2. Task packet file does not exist [CX-580]
-3. Logger entry is missing [CX-585]
-4. `just pre-work` validation fails [CX-587]
-5. You haven't confirmed packet completeness [CX-582]
+3. `just pre-work` validation fails [CX-587]
+4. You haven't confirmed packet completeness [CX-582]
 
 ### ✅ DO delegate when:
-1. All 5 steps complete
+1. All steps complete
 2. `just pre-work WP-{ID}` returns PASS
 3. Handoff message includes all required info
 4. You've confirmed coder understands the task
@@ -423,12 +378,12 @@ Task Packet: docs/task_packets/WP-1-Job-Cancel.md
 
 **You succeeded if:**
 - ✅ Task packet file exists and is complete
-- ✅ Logger entry documents packet creation
 - ✅ `just pre-work WP-{ID}` passes
 - ✅ Coder receives clear handoff message
-- ✅ Coder can start work immediately without questions
+- ✅ **YOU STOPPED TALKING** after the handoff message
 
 **You failed if:**
+- ❌ You wrote code in `src/` or `app/`
 - ❌ Coder asks "what should I do?"
 - ❌ Coder starts coding without packet
 - ❌ Work gets rejected at review for missing packet
@@ -448,9 +403,6 @@ just pre-work WP-{ID}
 
 # Check packet exists
 ls docs/task_packets/WP-*.md
-
-# Check logger
-tail -50 Handshake_logger_*.md
 ```
 
 **Codex rules enforced:**
@@ -458,7 +410,7 @@ tail -50 Handshake_logger_*.md
 - [CX-581]: Packet MUST have required structure
 - [CX-582]: Packet MUST be verified before delegation
 - [CX-584]: MUST NOT delegate ambiguous work
-- [CX-585]: MUST create logger entry
+- [CX-585]: Update task board; logger only if explicitly requested for milestone/hard bug
 - [CX-587]: SHOULD run pre-work check
 
 **Remember**: Better to spend 10 minutes on a good task packet than 2 hours fixing misunderstood work.

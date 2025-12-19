@@ -8,7 +8,7 @@ Task packets are structured work items that define:
 - **Scope**: What to change and what NOT to change
 - **Quality Gate**: Risk tier, test plan, done criteria
 - **Bootstrap**: Files to open, search terms, commands to run
-- **Traceability**: Links to specs, logger entries, WP_IDs
+- **Traceability**: Links to specs, WP_IDs, and status/validation recorded in the task packet + `docs/TASK_BOARD.md`
 
 ## Naming Convention
 
@@ -39,7 +39,7 @@ This generates a task packet from template with all required fields.
 - DONE_MEANS (success criteria)
 - ROLLBACK_HINT (how to undo)
 - BOOTSTRAP (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP)
-- AUTHORITY (SPEC_CURRENT, Codex, Logger references)
+- AUTHORITY (SPEC_CURRENT, Codex, Task Board; logger only if requested for milestone/hard bug)
 
 ## Validation
 
