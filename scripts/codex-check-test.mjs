@@ -28,8 +28,10 @@ shouldFail(
 );
 
 // Validate that the TODO policy is enforced in the fixture.
+// We avoid --pcre2 because it's not always available.
+// Instead, we check if "TODO" exists but "TODO(HSK-" doesn't.
 shouldFail(
-  'rg -n --pcre2 "TODO(?!\\(HSK-\\d+\\))" scripts/fixtures/forbidden_todo.txt && exit 1 || exit 0',
+  'node -e "const out = require(\'child_process\').execSync(\'rg -n TODO scripts/fixtures/forbidden_todo.txt\').toString(); if (out.split(\'\\n\').filter(Boolean).some(l => !/TODO\\(HSK-\\d+\\)/.test(l))) process.exit(1)"',
   "TODO guard fixture",
 );
 

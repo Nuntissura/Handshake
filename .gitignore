@@ -1,3 +1,35 @@
+# Build artifacts (Rust)
+target/
+/target/
+src/**/target/
+
+# Build artifacts (Node)
+node_modules/
+*/node_modules/
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Debug symbols (Windows)
+*.pdb
+*.ilk
+
+# Debug symbols (macOS)
+*.dSYM/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+
+# OS-specific
+.DS_Store
+Thumbs.db
+.env.local
+
+# Existing project entries
 data/
 ai_review.json
 ai_review.md
