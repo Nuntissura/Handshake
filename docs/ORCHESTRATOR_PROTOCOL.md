@@ -63,8 +63,15 @@ just validator-spec-regression
 ### Step 2: Task Board Review ✋ STOP
 - [ ] TASK_BOARD.md is current
 - [ ] No stalled WPs (>2 weeks idle)
-- [ ] All "Done" WPs marked VALIDATED
-- [ ] Blocked WPs have escalation notes
+- [ ] All "Done" WPs show VALIDATED status (Validator approved them)
+- [ ] Blocked WPs have documented reason + ETA for unblocking
+
+**CLARIFICATION:** Orchestrator's role is to:
+1. **CHECK** that TASK_BOARD correctly reflects packet status (is it in sync?)
+2. **UPDATE** TASK_BOARD when Validator gives approval (move WP to Done + mark VALIDATED)
+3. **RECORD** the validation verdict (PASS/FAIL) and timestamp
+
+Orchestrator does NOT do validation (Validator does). Orchestrator just tracks status.
 
 ### Step 3: Supply Chain Audit ✋ STOP
 ```bash
@@ -93,22 +100,43 @@ cargo deny check && npm audit
 
 This gate prevents autonomous spec drift and ensures user intentionality at each work cycle.
 
-### 2.5.1 Trigger: When to Pause
+### 2.5.1 Trigger: When to Pause (Decision Tree)
 
-**Orchestrator MUST pause and enrich Master Spec BEFORE creating work packets when:**
+**CLARIFICATION: Enrichment vs. Transcription**
 
-1. User request implies new requirements not in Main Body
-2. Spec roadmap items need to be promoted to Main Body
-3. Phase gates reveal spec gaps (e.g., "Phase 1 closure requires...")
-4. Risk assessment shows spec alignment issues
-5. Architecture decisions require spec updates for traceability
+Orchestrator MUST NOT enrich speculatively. Instead, use this decision tree:
 
-**Do NOT skip enrichment even if:**
-- Spec seems complete
-- User says "just code it"
-- Timeline is tight
+```
+Does Master Spec Main Body clearly cover this requirement?
+├─ YES (requirement is explicit in Main Body)
+│  └─ Proceed to task packet creation (no enrichment needed)
+│
+├─ NO, but it's in Roadmap
+│  └─ Promote roadmap item to Main Body + enrich spec
+│     (This is NECESSARY enrichment, user-intended)
+│
+├─ NO, and it's NEW or UNCLEAR
+│  └─ ASK USER for clarification BEFORE enriching
+│     (Enrichment requires user signature; don't guess)
+│
+└─ CONFLICTING signals (spec says one thing, user implies another)
+   └─ ESCALATE to user; get explicit decision before proceeding
+      (Don't interpret; let user clarify intent)
+```
 
-**Rule: Zero task packets without enriched spec.**
+**When Enrichment is REQUIRED (after user clarification):**
+1. User request clearly implies requirement not yet in Main Body
+2. Roadmap item needs promotion to Main Body for clarity
+3. Phase gate reveals missing acceptance criteria
+4. User explicitly requests spec clarification (with signature)
+
+**When Enrichment is FORBIDDEN (DO NOT enrich speculatively):**
+- Spec seems incomplete but user hasn't asked for enrichment
+- You're guessing what the requirement "should be"
+- Timeline pressure (don't enrich to save schedule)
+- Enrichment would require major spec redesign (escalate instead)
+
+**Rule: Zero speculative enrichment. Enrichment requires user signature (approval).**
 
 ### 2.5.2 Enrichment Workflow ✋ BLOCKING
 
@@ -767,7 +795,7 @@ ROLLBACK_HINT: Undo changes if needed
 
 Complete ALL steps before delegating. If any step fails, STOP and fix it.
 
-### Step 1: Verify Understanding ✋ STOP
+### Step 1: Verify Understanding & Blockers ✋ STOP
 
 **Before creating task packet, ensure:**
 - [ ] User request is clear and unambiguous
@@ -775,7 +803,19 @@ Complete ALL steps before delegating. If any step fails, STOP and fix it.
 - [ ] Success criteria are measurable
 - [ ] You understand acceptance criteria
 
-**IF UNCLEAR:**
+**NEW: Check for blocking dependencies:**
+```bash
+# Verify blocker status in TASK_BOARD
+grep -A5 "## Blocked" docs/TASK_BOARD.md
+```
+- [ ] If this WP has a blocker: Is blocker VALIDATED? ✅
+- [ ] If blocker is not VALIDATED: Mark new WP as BLOCKED (don't proceed yet)
+- [ ] If blocker failed validation (FAIL): Escalate; don't create this WP until blocker fixed
+
+**BLOCKING RULE:** Never create downstream WP if blocker is not VALIDATED.
+If blocker is READY/IN-PROGRESS/BLOCKED → Mark new WP as BLOCKED in TASK_BOARD.
+
+**IF UNCLEAR (Requirements ambiguous):**
 ```
 ❌ BLOCKED: Requirements unclear [CX-584]
 
@@ -786,7 +826,21 @@ I need clarification on:
 
 Please provide clarification before I can create a task packet.
 ```
-**STOP** - Do not proceed with assumptions.
+
+**IF BLOCKER NOT READY (Dependency not VALIDATED):**
+```
+⚠️ BLOCKED: Depends on unresolved blocker [CX-635]
+
+This WP depends on:
+- WP-1-Storage-Abstraction-Layer (Status: In Progress, not VALIDATED)
+
+Blocker ETA: [when do you expect this to VALIDATE?]
+
+Action: I'm marking this WP as BLOCKED in TASK_BOARD.
+When blocker VALIDATEs, I'll move this to READY FOR DEV.
+```
+
+**STOP** - Do not proceed with assumptions or unresolved blockers.
 
 ---
 
@@ -1222,6 +1276,22 @@ Every work packet MUST include these sections (in order):
 
 **EVERY WP MUST reference Master Spec Main Body (NOT Roadmap).**
 
+**CLARIFICATION: Orchestrator's Role in SPEC_ANCHOR Verification**
+
+Orchestrator DOES verify (checklist below):
+- ✅ SPEC_ANCHOR cites a Main Body section (not Roadmap)
+- ✅ Cited section exists in SPEC_CURRENT.md
+- ✅ Section number is specific (§2.3.12.1, not §2.3.12 alone)
+
+Orchestrator DOES NOT verify (Validator verifies this):
+- ❌ Whether the cited requirement is the RIGHT interpretation
+- ❌ Whether this requirement is complete/correct
+- ❌ Whether all MUST/SHOULD from that section are covered
+
+**If SPEC_ANCHOR is ambiguous** (could map to multiple sections):
+→ ESCALATE to user; get explicit decision before proceeding.
+Do not guess which section is correct.
+
 **Valid SPEC_ANCHOR examples:**
 - `§2.3.12.1 (Four Portability Pillars)`
 - `§2.3.12.3 (Storage API Abstraction Pattern)`
@@ -1231,14 +1301,15 @@ Every work packet MUST include these sections (in order):
 - `§Future Work (Phase 2+)` — Not Main Body
 - `§Roadmap` — Not specific enough
 - No SPEC_ANCHOR at all — Every WP requires one
+- `§2.3.12` alone — Too broad; need specific subsection
 
 **Orchestrator verification checklist:**
 - [ ] SPEC_ANCHOR references MAIN BODY section (before Roadmap)
 - [ ] SPEC_ANCHOR exists in latest Master Spec version
-- [ ] Requirement is specific (verifiable with yes/no test)
-- [ ] All MUST/SHOULD from that spec section mapped to DONE_MEANS
+- [ ] Section number is specific (§X.X.X format)
+- [ ] If multiple valid sections exist → ESCALATE to user for clarification
 
-**If FAIL:** Reject WP; request Orchestrator cite spec requirement explicitly.
+**If FAIL:** Reject WP; request Orchestrator cite spec requirement explicitly or escalate.
 
 ### 5.3 IN_SCOPE_PATHS Precision [CX-603]
 
