@@ -54,15 +54,10 @@ async fn create_new_job(
     State(state): State<AppState>,
     Json(payload): Json<CreateJobRequest>,
 ) -> Result<Json<WorkflowRun>, String> {
-    // Temporary hard gate: only allow safe job kinds while the system is stabilized.
-    // Terminal execution and other unreviewed kinds are blocked to avoid RCE.
-    let allowed_job_kinds = ["doc_summarize", "doc_test"];
-    if !allowed_job_kinds.contains(&payload.job_kind.as_str()) {
-        return Err(format!(
-            "job_kind '{}' is currently disabled for security hardening",
-            payload.job_kind
-        ));
-    }
+    let capability_profile_id = state
+        .capability_registry
+        .profile_for_job_kind(&payload.job_kind)
+        .map_err(|e| e.to_string())?;
 
     let job_inputs = payload
         .job_inputs
@@ -74,15 +69,15 @@ async fn create_new_job(
         &payload.job_kind,
         &payload.protocol_id,
         // Server-enforced capability profile to prevent client-side escalation.
-        "default",
+        capability_profile_id.as_str(),
         job_inputs,
     )
     .await
-    .map_err(|e| format!("Failed to create job: {:?}", e))?;
+    .map_err(|e| e.to_string())?;
 
     let workflow_run = start_workflow_for_job(&state, job)
         .await
-        .map_err(|e| format!("Failed to start workflow: {:?}", e))?;
+        .map_err(|e| e.to_string())?;
 
     Ok(Json(workflow_run))
 }
@@ -91,31 +86,111 @@ async fn get_job(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<AiJob>, String> {
-    let job = sqlx::query_as::<_, AiJob>(
-        r#"
-        SELECT
-            id,
-            job_kind,
-            status,
-            error_message,
-            protocol_id,
-            profile_id,
-            capability_profile_id,
-            access_mode,
-            safety_mode,
-            job_inputs,
-            job_outputs,
-            created_at,
-            updated_at
-        FROM ai_jobs
-        WHERE id = $1
-        "#,
-    )
-    .bind(id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(|e| format!("Database error: {:?}", e))?
-    .ok_or_else(|| "Job not found".to_string())?;
+    let job = state
+        .storage
+        .get_ai_job(&id)
+        .await
+        .map_err(|e| e.to_string())?;
 
     Ok(Json(job))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::capabilities::CapabilityRegistry;
+    use crate::llm::TestLLMClient;
+    use crate::storage::sqlite::SqliteDatabase;
+    use axum::extract::State;
+    use duckdb::Connection as DuckDbConnection;
+    use serde_json::json;
+    use std::sync::{Arc, Mutex};
+
+    async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
+        let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
+        sqlite.run_migrations().await?;
+
+        let fr_conn = DuckDbConnection::open_in_memory()?;
+        fr_conn.execute_batch(
+            r#"
+                CREATE TABLE events (
+                    timestamp DATETIME DEFAULT current_timestamp,
+                    event_type TEXT NOT NULL,
+                    job_id TEXT,
+                    workflow_id TEXT,
+                    payload JSON
+                );
+            "#,
+        )?;
+
+        Ok(AppState {
+            storage: sqlite.into_arc(),
+            fr_pool: Arc::new(Mutex::new(fr_conn)),
+            llm_client: Arc::new(TestLLMClient {
+                response: "mock".to_string(),
+            }),
+            capability_registry: Arc::new(CapabilityRegistry::new_default()),
+        })
+    }
+
+    fn terminal_command() -> (String, Vec<String>) {
+        if cfg!(target_os = "windows") {
+            (
+                "cmd".to_string(),
+                vec!["/C".into(), "echo".into(), "hello".into()],
+            )
+        } else {
+            ("echo".to_string(), vec!["hello".into()])
+        }
+    }
+
+    #[tokio::test]
+    async fn create_job_rejects_unknown_job_kind() -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let request = CreateJobRequest {
+            job_kind: "unknown_job".to_string(),
+            protocol_id: "protocol-default".to_string(),
+            doc_id: None,
+            job_inputs: None,
+        };
+
+        let result = create_new_job(State(state), Json(request)).await;
+        assert!(result.is_err(), "expected unknown job_kind to be rejected");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_job_allows_terminal_when_authorized() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let state = setup_state().await?;
+        let (program, args) = terminal_command();
+
+        let request = CreateJobRequest {
+            job_kind: "term_exec".to_string(),
+            protocol_id: "protocol-default".to_string(),
+            doc_id: None,
+            job_inputs: Some(json!({ "program": program, "args": args })),
+        };
+
+        let response = create_new_job(State(state.clone()), Json(request)).await?;
+        let workflow_run = response.0;
+
+        let job = state.storage.get_ai_job(&workflow_run.job_id).await?;
+        assert_eq!(job.status, "completed");
+
+        let outputs = job.job_outputs.as_ref().ok_or("missing job outputs")?;
+        let stdout = outputs
+            .get("stdout")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        assert!(
+            stdout.contains("hello"),
+            "expected terminal output to contain 'hello', got '{}'",
+            stdout
+        );
+
+        Ok(())
+    }
 }

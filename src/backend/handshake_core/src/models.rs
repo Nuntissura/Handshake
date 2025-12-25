@@ -1,7 +1,8 @@
+pub use crate::capabilities::{CapabilityProfile, CapabilityRegistry, RegistryError};
+pub use crate::storage::{AiJob, WorkflowRun};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sqlx::FromRow;
 
 #[derive(Serialize)]
 pub struct HealthResponse {
@@ -126,30 +127,4 @@ pub struct CanvasWithGraphResponse {
 #[derive(Serialize)]
 pub struct ErrorResponse {
     pub error: &'static str,
-}
-
-#[derive(Serialize, FromRow, Debug, Clone)]
-pub struct AiJob {
-    pub id: String,
-    pub job_kind: String,
-    pub status: String,
-    pub error_message: Option<String>,
-    pub protocol_id: String,
-    pub profile_id: String,
-    pub capability_profile_id: String,
-    pub access_mode: String,
-    pub safety_mode: String,
-    pub job_inputs: Option<String>,
-    pub job_outputs: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Serialize, FromRow, Debug, Clone)]
-pub struct WorkflowRun {
-    pub id: String,
-    pub job_id: String,
-    pub status: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
 }

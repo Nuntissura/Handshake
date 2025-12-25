@@ -1,38 +1,35 @@
 use axum::{extract::State, routing::get, Json, Router};
 use duckdb::Connection as DuckDbConnection;
-use sqlx::{sqlite::SqliteConnectOptions, sqlite::SqlitePoolOptions, SqlitePool};
+use handshake_core::{
+    api,
+    capabilities::CapabilityRegistry,
+    llm::{LLMClient, OllamaClient},
+    logging,
+    models::HealthResponse,
+    storage::{
+        retention::{Janitor, JanitorConfig},
+        sqlite::SqliteDatabase,
+        Database,
+    },
+    AppState,
+};
 use std::{
     net::SocketAddr,
     path::{Path, PathBuf},
-    process,
-    str::FromStr,
     sync::{Arc, Mutex},
 };
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 
-mod api;
-mod flight_recorder;
-mod jobs;
-mod llm;
-mod logging;
-mod models;
-mod storage;
-mod terminal;
-mod workflows;
-
-use crate::llm::{LLMClient, MockLLMClient, OllamaClient};
-use models::HealthResponse;
-
-#[derive(Clone)]
-pub struct AppState {
-    pub pool: SqlitePool,
-    pub fr_pool: Arc<Mutex<DuckDbConnection>>,
-    pub llm_client: Arc<dyn LLMClient>,
-}
-
 #[tokio::main]
 async fn main() {
+    if let Err(err) = run().await {
+        tracing::error!(target: "handshake_core", error = %err, "handshake_core failed to start");
+        std::process::exit(1);
+    }
+}
+
+async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let addr: SocketAddr = ([127, 0, 0, 1], 37501).into();
 
     logging::init_logging();
@@ -42,31 +39,24 @@ async fn main() {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let pool = init_db().await.expect("failed to init database");
-    let fr_pool = init_flight_recorder()
-        .await
-        .expect("failed to init flight recorder");
-
-    // Initialize LLM Client. Defaulting to Ollama if configured, otherwise Mock.
-    let llm_client: Arc<dyn LLMClient> = if let Ok(url) = std::env::var("OLLAMA_URL") {
-        let model = match std::env::var("OLLAMA_MODEL") {
-            Ok(val) => val,
-            Err(_) => "llama3".to_string(),
-        };
-        tracing::info!(target: "handshake_core", url = %url, model = %model, "using Ollama LLM client");
-        Arc::new(OllamaClient::new(url, model))
-    } else {
-        tracing::info!(target: "handshake_core", "using Mock LLM client");
-        Arc::new(MockLLMClient {
-            response: "This is a mock AI response from Handshake Core.".to_string(),
-        })
-    };
+    let (storage, sqlite_pool) = init_storage().await?;
+    let fr_pool = init_flight_recorder().await?;
+    let llm_client = init_llm_client()?;
+    let capability_registry = Arc::new(CapabilityRegistry::new_default());
 
     let state = AppState {
-        pool,
-        fr_pool,
+        storage,
+        fr_pool: fr_pool.clone(),
         llm_client,
+        capability_registry,
     };
+
+    // Start Janitor background service [§2.3.11]
+    // Configuration via environment or defaults
+    let janitor_config = init_janitor_config();
+    let janitor = Arc::new(Janitor::new(sqlite_pool, fr_pool, janitor_config));
+    let _janitor_handle = janitor.spawn_background();
+
     let api_routes = api::routes(state.clone());
 
     let app = Router::new()
@@ -76,59 +66,98 @@ async fn main() {
         .nest("/api", api_routes)
         .layer(cors);
 
-    tracing::info!(target: "handshake_core", listen_addr = %addr, pid = process::id(), "handshake_core started");
+    tracing::info!(target: "handshake_core", listen_addr = %addr, "handshake_core started");
 
-    let listener = TcpListener::bind(addr)
-        .await
-        .expect("failed to bind listener");
-
-    axum::serve(listener, app).await.expect("server error");
+    let listener = TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+    Ok(())
 }
 
-async fn init_db() -> Result<SqlitePool, sqlx::Error> {
+/// Initialize Janitor configuration from environment variables.
+///
+/// Environment variables:
+/// - `JANITOR_DRY_RUN`: Set to "true" to enable dry-run mode (default: false)
+/// - `JANITOR_INTERVAL_SECS`: Prune interval in seconds (default: 3600)
+/// - `JANITOR_RETENTION_DAYS`: Days to retain AI job results (default: 30)
+fn init_janitor_config() -> JanitorConfig {
+    use handshake_core::storage::retention::RetentionPolicy;
+
+    let dry_run = std::env::var("JANITOR_DRY_RUN")
+        .map(|v| v.to_lowercase() == "true")
+        .unwrap_or(false);
+
+    let interval_secs = std::env::var("JANITOR_INTERVAL_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(3600);
+
+    let retention_days = std::env::var("JANITOR_RETENTION_DAYS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(30);
+
+    let policy = RetentionPolicy {
+        kind: handshake_core::storage::retention::ArtifactKind::Result,
+        window_days: retention_days,
+        min_versions: 3,
+    };
+
+    tracing::info!(
+        target: "handshake_core::janitor",
+        dry_run,
+        interval_secs,
+        retention_days,
+        "Janitor config initialized"
+    );
+
+    JanitorConfig {
+        policies: vec![policy],
+        dry_run,
+        interval_secs,
+        batch_size: 1000,
+    }
+}
+
+async fn init_storage() -> Result<(Arc<dyn Database>, sqlx::SqlitePool), Box<dyn std::error::Error>>
+{
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let root_dir = manifest_dir
         .parent()
         .and_then(Path::parent)
         .and_then(Path::parent)
         .map(Path::to_path_buf)
-        .expect("failed to resolve repo root");
+        .ok_or("failed to resolve repo root")?;
     let data_dir = root_dir.join("data");
     if !data_dir.exists() {
-        std::fs::create_dir_all(&data_dir).map_err(|err| {
-            tracing::error!(target: "handshake_core", path = %data_dir.display(), error = %err, "failed to create data directory");
-            sqlx::Error::Io(err)
-        })?;
+        std::fs::create_dir_all(&data_dir)?;
     }
 
     let db_path = data_dir.join("handshake.db");
     let db_url = format!("sqlite://{}", db_path.to_string_lossy());
 
-    let connect_options = SqliteConnectOptions::from_str(&db_url)?
-        .create_if_missing(true)
-        .foreign_keys(true);
+    let sqlite = SqliteDatabase::connect(&db_url, 5).await?;
+    sqlite.run_migrations().await?;
 
-    let pool = SqlitePoolOptions::new()
-        .max_connections(5)
-        .connect_with(connect_options)
-        .await?;
-
-    sqlx::migrate!("./migrations").run(&pool).await?;
+    // Clone pool before converting to Arc<dyn Database> for Janitor service
+    let pool = sqlite.pool().clone();
 
     tracing::info!(target: "handshake_core", db_url = %db_url, "database ready");
-
-    Ok(pool)
+    Ok((sqlite.into_arc(), pool))
 }
 
-async fn init_flight_recorder() -> Result<Arc<Mutex<DuckDbConnection>>, duckdb::Error> {
+async fn init_flight_recorder() -> Result<Arc<Mutex<DuckDbConnection>>, Box<dyn std::error::Error>>
+{
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let root_dir = manifest_dir
         .parent()
         .and_then(Path::parent)
         .and_then(Path::parent)
         .map(Path::to_path_buf)
-        .expect("failed to resolve repo root");
+        .ok_or("failed to resolve repo root")?;
     let data_dir = root_dir.join("data");
+    if !data_dir.exists() {
+        std::fs::create_dir_all(&data_dir)?;
+    }
     // Flight recorder gets its own file
     let fr_db_path = data_dir.join("flight_recorder.db");
 
@@ -151,9 +180,19 @@ async fn init_flight_recorder() -> Result<Arc<Mutex<DuckDbConnection>>, duckdb::
     Ok(Arc::new(Mutex::new(conn)))
 }
 
+fn init_llm_client() -> Result<Arc<dyn LLMClient>, Box<dyn std::error::Error>> {
+    let url = std::env::var("OLLAMA_URL")
+        .map_err(|_| "OLLAMA_URL not configured; LLM client cannot be initialized")?;
+    let model = match std::env::var("OLLAMA_MODEL") {
+        Ok(val) => val,
+        Err(_) => "llama3".to_string(),
+    };
+    tracing::info!(target: "handshake_core", url = %url, model = %model, "using Ollama LLM client");
+    Ok(Arc::new(OllamaClient::new(url, model)))
+}
+
 async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
-    let db_check = sqlx::query("SELECT 1").execute(&state.pool).await;
-    let db_status = match db_check {
+    let db_status = match state.storage.ping().await {
         Ok(_) => "ok",
         Err(err) => {
             tracing::error!(target: "handshake_core", route = "/health", error = %err, "db check error");
