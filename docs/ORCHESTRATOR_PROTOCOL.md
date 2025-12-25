@@ -87,6 +87,197 @@ cargo deny check && npm audit
 
 ---
 
+## Part 2.5: Strategic Pause & Signature Gate [CX-585A/B/C]
+
+**BLOCKING GATE: Every task packet creation requires spec enrichment approval**
+
+This gate prevents autonomous spec drift and ensures user intentionality at each work cycle.
+
+### 2.5.1 Trigger: When to Pause
+
+**Orchestrator MUST pause and enrich Master Spec BEFORE creating work packets when:**
+
+1. User request implies new requirements not in Main Body
+2. Spec roadmap items need to be promoted to Main Body
+3. Phase gates reveal spec gaps (e.g., "Phase 1 closure requires...")
+4. Risk assessment shows spec alignment issues
+5. Architecture decisions require spec updates for traceability
+
+**Do NOT skip enrichment even if:**
+- Spec seems complete
+- User says "just code it"
+- Timeline is tight
+
+**Rule: Zero task packets without enriched spec.**
+
+### 2.5.2 Enrichment Workflow ✋ BLOCKING
+
+**Step 1: Identify gaps in Master Spec Main Body**
+```
+Review SPEC_CURRENT.md:
+- Does Main Body cover what Coder will implement?
+- Are there roadmap items that should be Main Body?
+- Are there implicit requirements not documented?
+- Does spec define acceptance criteria?
+```
+
+**Step 2: Enrich Master Spec (if gaps found)**
+```
+If gaps found:
+1. Locate: Current Master Spec version (e.g., v02.84)
+2. Create: NEW version file (e.g., v02.85.md)
+3. Copy: Entire current spec
+4. Add: Required sections/clarifications
+5. Add: CHANGELOG entry with reason for update
+6. Update: docs/SPEC_CURRENT.md to point to new version
+```
+
+**Step 3: Update all workflow files to reference new spec**
+
+```
+Orchestrator MUST update these files to point to new spec version:
+- docs/CODER_PROTOCOL.md: Update spec version references
+- docs/VALIDATOR_PROTOCOL.md: Update spec version references
+- docs/ORCHESTRATOR_PROTOCOL.md: Update spec version references
+- docs/START_HERE.md: Update spec version references
+- docs/ARCHITECTURE.md: Update spec anchors if changed
+- All task packets: Update spec references
+```
+
+**Verification:**
+```bash
+# Check all protocol files reference latest spec version
+grep -r "Master Spec v02" docs/*.md docs/task_packets/*.md
+# Should all show v02.85 (or latest), no orphaned older versions in active files
+```
+
+### 2.5.3 Signature Gate (One-Time Use) ✋ BLOCKING
+
+**Orchestrator MUST request USER_SIGNATURE before creating work packets.**
+
+**Signature format:** `{username}{DDMMYYYYHHMM}`
+
+Example: `ilja251225032800` (ilja + 25/12/2025 03:28:00)
+
+**Signature rules (MANDATORY):**
+
+1. **One-time use only** — Each signature can be used exactly ONCE in entire repo
+2. **External clock source** — User must provide timestamp from external/verified source
+3. **Prevents reuse** — Grep repo to verify signature never appears before
+4. **Audit trail** — Record in SIGNATURE_AUDIT.md when signature is consumed
+5. **Blocks work** — Cannot create work packets without valid, unused signature
+
+**Orchestrator verification (BEFORE creating work packets):**
+
+```bash
+# Check if signature has been used before
+grep -r "ilja251225032800" .
+
+# Should return ONLY the lines you're about to add (audit log + work packet reference)
+# If it appears elsewhere, REJECT and request NEW signature
+```
+
+**If signature found elsewhere:**
+```
+❌ BLOCKED: Signature already used [CX-585B]
+
+Signature: ilja251225032800
+First use: {file and date when first used}
+Current request: New task packet creation
+
+Each signature can only be used once. Request new signature from user.
+```
+
+### 2.5.4 Signature Audit Log [CX-585B]
+
+**Orchestrator MUST maintain `docs/SIGNATURE_AUDIT.md` as central registry.**
+
+```markdown
+# SIGNATURE_AUDIT.md
+
+Record of all user signatures consumed for spec enrichment and work packet creation.
+
+---
+
+## Consumed Signatures
+
+| Signature | Used By | Date | Purpose | Master Spec Version | Notes |
+|-----------|---------|------|---------|-------------------|-------|
+| ilja251225032800 | Orchestrator | 2025-12-25 03:28 | Strategic Pause: Spec enrichment for Phase 1 storage foundation | v02.85 | Enriched spec with Storage Backend Portability requirements |
+| ilja251225041500 | Orchestrator | 2025-12-25 04:15 | Task packet creation: WP-1-Storage-Abstraction-Layer | v02.85 | Spec already enriched by ilja251225032800 |
+
+---
+
+## How to Use This Log
+
+1. When Orchestrator receives new user signature
+2. Verify signature format: `{username}{DDMMYYYYHHMM}`
+3. Search repo: `grep -r "{signature}" .`
+4. If found anywhere except this file: REJECT (already used)
+5. If not found: Proceed with enrichment/work packet creation
+6. Add row to Consumed Signatures table
+7. Include signature in relevant docs as reference: `[Approved: ilja251225032800]`
+```
+
+### 2.5.5 Workflow Integration
+
+**Complete flow before task packet creation:**
+
+```
+Pre-Orchestration Checklist (Part 2, Steps 1-5) ✅ PASS
+    ↓
+🚧 STRATEGIC PAUSE & SIGNATURE GATE (Part 2.5)
+    ↓
+1. Identify spec gaps (Master Spec Main Body coverage)
+    ↓
+2. Enrich spec if needed (version bump, update all protocol files)
+    ↓
+3. Request USER_SIGNATURE from user
+    ↓
+User provides: ilja251225032800 (name + DDMMYYYYHHMM)
+    ↓
+4. Verify signature is unused (grep repo)
+    ↓
+5. Record signature in SIGNATURE_AUDIT.md
+    ↓
+6. Reference signature in work packet metadata
+    ↓
+✅ GATE UNLOCKED: Proceed to Task Packet Creation (Part 4)
+    ↓
+Create work packets aligned with enriched, user-approved spec
+```
+
+**Example in task packet metadata:**
+```markdown
+# Task Packet: WP-1-Storage-Abstraction-Layer
+
+**Authority:** Master Spec v02.85, Strategic Pause approval [ilja251225032800]
+```
+
+### 2.5.6 Non-Negotiables for Signature Gate [CX-585C]
+
+**❌ DO NOT:**
+1. Create work packets without spec enrichment
+2. Use signature twice
+3. Skip signature verification (grep check)
+4. Proceed without user signature
+5. Forge signature from internal clock
+6. Update spec without bumping version
+7. Forget to update protocol files when spec changes
+8. Leave signature audit log blank
+
+**✅ DO:**
+1. Always enrich Master Spec before task packets
+2. Verify each signature is one-time use only
+3. Run grep check to confirm signature is unused
+4. Update ALL protocol files (CODER, VALIDATOR, ORCHESTRATOR)
+5. Record signature in SIGNATURE_AUDIT.md
+6. Document Master Spec version in task packets
+7. Include signature reference in work packet authority
+8. Keep audit trail complete for all enrichments
+
+---
+
 ## Part 3: Role & Critical Rules
 
 You are an **Orchestrator** (Lead Architect / Engineering Manager). Your job is to:
