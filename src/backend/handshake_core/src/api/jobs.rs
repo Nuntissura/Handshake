@@ -19,8 +19,6 @@ pub struct CreateJobRequest {
     #[serde(default)]
     pub doc_id: Option<String>,
     #[serde(default)]
-    pub capability_profile_id: Option<String>,
-    #[serde(default)]
     pub job_inputs: Option<Value>,
 }
 
@@ -56,6 +54,16 @@ async fn create_new_job(
     State(state): State<AppState>,
     Json(payload): Json<CreateJobRequest>,
 ) -> Result<Json<WorkflowRun>, String> {
+    // Temporary hard gate: only allow safe job kinds while the system is stabilized.
+    // Terminal execution and other unreviewed kinds are blocked to avoid RCE.
+    let allowed_job_kinds = ["doc_summarize", "doc_test"];
+    if !allowed_job_kinds.contains(&payload.job_kind.as_str()) {
+        return Err(format!(
+            "job_kind '{}' is currently disabled for security hardening",
+            payload.job_kind
+        ));
+    }
+
     let job_inputs = payload
         .job_inputs
         .clone()
@@ -65,10 +73,8 @@ async fn create_new_job(
         &state,
         &payload.job_kind,
         &payload.protocol_id,
-        payload
-            .capability_profile_id
-            .as_deref()
-            .unwrap_or("default"),
+        // Server-enforced capability profile to prevent client-side escalation.
+        "default",
         job_inputs,
     )
     .await

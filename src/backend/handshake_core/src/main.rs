@@ -48,7 +48,10 @@ async fn main() {
 
     // Initialize LLM Client. Defaulting to Ollama if configured, otherwise Mock.
     let llm_client: Arc<dyn LLMClient> = if let Ok(url) = std::env::var("OLLAMA_URL") {
-        let model = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "llama3".to_string());
+        let model = match std::env::var("OLLAMA_MODEL") {
+            Ok(val) => val,
+            Err(_) => "llama3".to_string(),
+        };
         tracing::info!(target: "handshake_core", url = %url, model = %model, "using Ollama LLM client");
         Arc::new(OllamaClient::new(url, model))
     } else {

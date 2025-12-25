@@ -17,7 +17,11 @@ pub struct LogTailResponse {
 pub async fn tail_logs(
     params: Query<TailParams>,
 ) -> Result<Json<LogTailResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let limit = params.limit.unwrap_or(200).min(1000);
+    let limit = match params.limit {
+        Some(value) => value,
+        None => 200,
+    }
+    .min(1000);
     let log_path = repo_root()
         .join("data")
         .join("logs")

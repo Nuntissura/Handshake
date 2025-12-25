@@ -256,16 +256,21 @@ async fn get_document(
 
     let blocks = blocks
         .into_iter()
-        .map(|b| BlockResponse {
-            id: b.id,
-            kind: b.kind,
-            sequence: b.sequence,
-            raw_content: b.raw_content,
-            display_content: b.display_content,
-            derived_content: serde_json::from_str(&b.derived_content)
-                .unwrap_or(Value::Object(Default::default())),
-            created_at: b.created_at,
-            updated_at: b.updated_at,
+        .map(|b| {
+            let derived = match serde_json::from_str(&b.derived_content) {
+                Ok(val) => val,
+                Err(_) => Value::Object(Default::default()),
+            };
+            BlockResponse {
+                id: b.id,
+                kind: b.kind,
+                sequence: b.sequence,
+                raw_content: b.raw_content,
+                display_content: b.display_content,
+                derived_content: derived,
+                created_at: b.created_at,
+                updated_at: b.updated_at,
+            }
         })
         .collect();
 
@@ -337,14 +342,19 @@ async fn replace_blocks(
 
     let mut result_blocks = Vec::with_capacity(payload.blocks.len());
     for incoming in payload.blocks.into_iter() {
-        let block_id = incoming.id.unwrap_or_else(|| Uuid::new_v4().to_string());
+        let block_id = match incoming.id {
+            Some(id) => id,
+            None => Uuid::new_v4().to_string(),
+        };
         let now = Utc::now();
-        let display_content = incoming
-            .display_content
-            .unwrap_or_else(|| incoming.raw_content.clone());
-        let derived = incoming
-            .derived_content
-            .unwrap_or_else(|| Value::Object(Default::default()));
+        let display_content = match incoming.display_content {
+            Some(content) => content,
+            None => incoming.raw_content.clone(),
+        };
+        let derived = match incoming.derived_content {
+            Some(val) => val,
+            None => Value::Object(Default::default()),
+        };
         let derived_str = derived.to_string();
 
         sqlx::query!(

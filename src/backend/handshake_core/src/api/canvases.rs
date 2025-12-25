@@ -265,15 +265,21 @@ async fn get_canvas(
 
     let nodes = nodes
         .into_iter()
-        .map(|n| CanvasNodeResponse {
-            id: n.id,
-            canvas_id: n.canvas_id,
-            kind: n.kind,
-            position_x: n.position_x,
-            position_y: n.position_y,
-            data: serde_json::from_str(&n.data).unwrap_or(Value::Object(Default::default())),
-            created_at: n.created_at,
-            updated_at: n.updated_at,
+        .map(|n| {
+            let parsed = match serde_json::from_str(&n.data) {
+                Ok(val) => val,
+                Err(_) => Value::Object(Default::default()),
+            };
+            CanvasNodeResponse {
+                id: n.id,
+                canvas_id: n.canvas_id,
+                kind: n.kind,
+                position_x: n.position_x,
+                position_y: n.position_y,
+                data: parsed,
+                created_at: n.created_at,
+                updated_at: n.updated_at,
+            }
         })
         .collect();
 
@@ -358,10 +364,14 @@ async fn update_canvas_graph(
     let mut inserted_nodes = Vec::with_capacity(payload.nodes.len());
 
     for incoming in payload.nodes.into_iter() {
-        let node_id = incoming.id.unwrap_or_else(|| Uuid::new_v4().to_string());
-        let data = incoming
-            .data
-            .unwrap_or_else(|| Value::Object(Default::default()));
+        let node_id = match incoming.id {
+            Some(id) => id,
+            None => Uuid::new_v4().to_string(),
+        };
+        let data = match incoming.data {
+            Some(value) => value,
+            None => Value::Object(Default::default()),
+        };
         let data_str = data.to_string();
 
         sqlx::query!(
@@ -399,7 +409,10 @@ async fn update_canvas_graph(
     let mut inserted_edges = Vec::with_capacity(payload.edges.len());
 
     for incoming in payload.edges.into_iter() {
-        let edge_id = incoming.id.unwrap_or_else(|| Uuid::new_v4().to_string());
+        let edge_id = match incoming.id {
+            Some(id) => id,
+            None => Uuid::new_v4().to_string(),
+        };
 
         sqlx::query!(
             r#"

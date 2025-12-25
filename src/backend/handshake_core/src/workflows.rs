@@ -49,8 +49,7 @@ fn capability_profile_has_required(
 ) -> Result<(), WorkflowError> {
     let has_capability = CAPABILITY_PROFILES
         .get(capability_profile_id)
-        .map(|set| set.contains(required))
-        .unwrap_or(false);
+        .map_or(false, |set| set.contains(required));
 
     if has_capability {
         Ok(())
@@ -64,6 +63,17 @@ fn capability_profile_has_required(
 fn enforce_capabilities(job: &AiJob) -> Result<(), WorkflowError> {
     let required = required_capability_for_job_kind(&job.job_kind)?;
     capability_profile_has_required(&job.capability_profile_id, required)
+}
+
+fn parse_inputs(raw: Option<&str>) -> serde_json::Value {
+    if let Some(value) = raw {
+        match serde_json::from_str(value) {
+            Ok(parsed) => parsed,
+            Err(_) => json!({}),
+        }
+    } else {
+        json!({})
+    }
 }
 
 pub async fn start_workflow_for_job(
@@ -160,8 +170,7 @@ pub async fn start_workflow_for_job(
 
 async fn run_job(state: &AppState, job: &AiJob) -> Result<(), WorkflowError> {
     if job.job_kind == "doc_test" || job.job_kind == "doc_summarize" {
-        let inputs: serde_json::Value =
-            serde_json::from_str(job.job_inputs.as_deref().unwrap_or("{}")).unwrap_or_default();
+        let inputs = parse_inputs(job.job_inputs.as_deref());
         let doc_id = inputs.get("doc_id").and_then(|v| v.as_str());
 
         if let Some(doc_id) = doc_id {
@@ -205,28 +214,27 @@ async fn run_job(state: &AppState, job: &AiJob) -> Result<(), WorkflowError> {
                 .await?;
         }
     } else if job.job_kind == "term_exec" || job.job_kind == "terminal_exec" {
-        execute_terminal_job(state, job).await?;
+        return Err(WorkflowError::Unauthorized {
+            capability: "terminal jobs are disabled during security hardening".to_string(),
+        });
     }
     Ok(())
 }
 
 async fn execute_terminal_job(state: &AppState, job: &AiJob) -> Result<(), WorkflowError> {
-    let inputs: serde_json::Value =
-        serde_json::from_str(job.job_inputs.as_deref().unwrap_or("{}")).unwrap_or_default();
+    let inputs = parse_inputs(job.job_inputs.as_deref());
 
     let program = inputs
         .get("program")
         .and_then(|v| v.as_str())
         .ok_or_else(|| WorkflowError::Terminal("program is required".into()))?;
-    let args: Vec<String> = inputs
-        .get("args")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                .collect()
-        })
-        .unwrap_or_else(Vec::new);
+    let args: Vec<String> = match inputs.get("args").and_then(|v| v.as_array()) {
+        Some(arr) => arr
+            .iter()
+            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+            .collect(),
+        None => Vec::new(),
+    };
     let timeout_ms = inputs
         .get("timeout_ms")
         .and_then(|v| v.as_u64())
@@ -470,7 +478,10 @@ mod tests {
         .expect("failed to fetch updated job");
 
         assert_eq!(updated_job.status, "failed");
-        let message = updated_job.error_message.unwrap_or_default();
+        let message = match updated_job.error_message.clone() {
+            Some(text) => text,
+            None => String::new(),
+        };
         assert!(
             message.contains("Unauthorized: Missing capability doc.summarize"),
             "unexpected error message: {}",
@@ -651,9 +662,11 @@ mod tests {
         .await
         .expect("failed to load job");
 
-        let _ = start_workflow_for_job(&state, job)
-            .await
-            .expect("workflow failed");
+        let result = start_workflow_for_job(&state, job).await;
+        assert!(
+            result.is_err(),
+            "terminal jobs should be blocked during security hardening"
+        );
 
         let updated_job = sqlx::query_as::<_, (String, Option<String>, Option<String>)>(
             r#"
@@ -665,16 +678,17 @@ mod tests {
         .await
         .expect("failed to fetch updated job");
 
-        assert_eq!(updated_job.0, "completed");
+        assert_eq!(updated_job.0, "failed");
+        let err_message = match updated_job.1 {
+            Some(msg) => msg,
+            None => "missing error".to_string(),
+        };
         assert!(
-            updated_job.1.is_none(),
-            "expected no error, got {:?}",
-            updated_job.1
+            err_message
+                .to_lowercase()
+                .contains("terminal jobs are disabled"),
+            "expected terminal block message, got {}",
+            err_message
         );
-
-        let outputs: serde_json::Value =
-            serde_json::from_str(&updated_job.2.unwrap_or_else(|| "{}".to_string()))
-                .unwrap_or_default();
-        assert!(outputs.get("stdout").is_some(), "stdout missing");
     }
 }

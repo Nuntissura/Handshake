@@ -297,6 +297,468 @@ You are an **Orchestrator** (Lead Architect / Engineering Manager). Your job is 
 
 ---
 
+## Part 3.5: What Orchestrator MUST Provide to Coder [CX-608]
+
+**BLOCKING REQUIREMENT: Task packets are contracts between Orchestrator and Coder. Every field is mandatory.**
+
+The CODER_PROTOCOL [CX-620-623] defines 11 steps that Coder MUST follow. This section specifies what **Orchestrator MUST provide** to enable Coder's execution. If any field is incomplete, Coder will BLOCK at Step 2 and return the packet for completion.
+
+### Overview: 10 Required Task Packet Fields
+
+Every task packet MUST include all 10 fields in this exact structure:
+
+| Field | Purpose | Completeness Criteria |
+|-------|---------|----------------------|
+| **TASK_ID + WP_ID** | Unique identifier for tracking | Format: `WP-{phase}-{short-name}` (e.g., `WP-1-Storage-DAL`) |
+| **STATUS** | Coder knows when to start | MUST be `Ready-for-Dev` or `In-Progress` (not TBD/Draft) |
+| **RISK_TIER** | Determines validation rigor | MUST be `LOW`, `MEDIUM`, or `HIGH` (with clear justification) |
+| **SCOPE** | Coder knows what to change | 1-2 sentence description + rationale (Business/technical WHY) |
+| **IN_SCOPE_PATHS** | Coder knows which files to modify | EXACT file paths or directories (5-20 entries); no vague patterns like "backend" |
+| **OUT_OF_SCOPE** | Coder knows what NOT to change | Explicit list of deferred work, related tasks, refactoring NOT included |
+| **TEST_PLAN** | Coder knows how to validate | EXACT bash commands (cargo test, pnpm test, just ai-review, etc.); no placeholders |
+| **DONE_MEANS** | Coder knows success criteria | Concrete checklist (3-8 items); 1:1 mapped to SPEC_ANCHOR; no "works well" vagueness |
+| **ROLLBACK_HINT** | Coder knows how to undo | `git revert {commit}` OR explicit undo steps (if multi-step changes) |
+| **BOOTSTRAP** | Coder knows where to start | 4 sub-fields (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP) |
+
+**Coder will verify all 10 fields exist in Step 2 of CODER_PROTOCOL. Missing = BLOCK.**
+
+---
+
+### Field 1: TASK_ID & WP_ID (Unique Identifier) [CX-600]
+
+**What Coder expects:**
+- Unique identifier format: `WP-{phase}-{name}`
+- Example: `WP-1-Storage-Abstraction-Layer`
+- Used for: Task board tracking, commit messages, validation logs
+
+**What "complete" means:**
+- ✅ ID is unique (no duplicates in docs/task_packets/)
+- ✅ Format matches pattern `WP-{1-9}-{descriptive-name}`
+- ✅ Name reflects actual work (not generic like "Feature-A")
+
+**Example:**
+```markdown
+## Metadata
+- TASK_ID: WP-1-Storage-Abstraction-Layer
+- WP_ID: WP-1-Storage-Abstraction-Layer
+```
+
+---
+
+### Field 2: STATUS (Work State) [CX-601]
+
+**What Coder expects:**
+- Coder will BLOCK if status is not clearly "Ready-for-Dev" or "In-Progress"
+- If status is TBD/Draft/Pending, Coder cannot start
+
+**What "complete" means:**
+- ✅ STATUS is `Ready-for-Dev` (packet complete, awaiting assignment)
+- ✅ OR STATUS is `In-Progress` (actively assigned)
+- ✅ NOT: Draft, TBD, Pending, Waiting, Proposed
+
+**Example:**
+```markdown
+## Metadata
+- STATUS: Ready-for-Dev
+```
+
+**Why it matters:**
+- Coder uses this as the GO/NO-GO signal
+- If status is Draft, Coder interprets as incomplete packet
+
+---
+
+### Field 3: RISK_TIER (Validation Rigor) [CX-602]
+
+**What Coder expects:**
+- Clear tier that determines validation scope
+- LOW = Docs-only, no behavior change
+- MEDIUM = Code change, one module, no migrations
+- HIGH = Cross-module, migrations, IPC, security
+
+**What "complete" means:**
+- ✅ RISK_TIER is LOW, MEDIUM, or HIGH
+- ✅ Justification provided (why this tier, not lower)
+- ✅ Matches TEST_PLAN complexity (HIGH tier → include `just ai-review`)
+
+**Example:**
+```markdown
+## Quality Gate
+- **RISK_TIER**: HIGH
+  - Justification: Cross-module refactor (AppState, jobs, workflows); includes migration
+  - Requires: cargo test + pnpm test + just ai-review
+```
+
+**Why it matters:**
+- LOW tier: Coder skips AI review
+- MEDIUM tier: Coder runs AI review
+- HIGH tier: Coder must pass AI review (no WARN/BLOCK)
+
+---
+
+### Field 4: SCOPE (What to Change) [CX-603]
+
+**What Coder expects:**
+- Clear, unambiguous description of the work
+- Business rationale (WHY this change?)
+- No ambiguity about boundaries
+
+**What "complete" means:**
+- ✅ One-sentence summary: "Add {feature/fix/refactor}"
+- ✅ Business/technical rationale: "Because {reason}"
+- ✅ Boundary clarity: "This does NOT include {related work}"
+
+**Examples:**
+
+❌ **Incomplete SCOPE:**
+```markdown
+SCOPE: Improve job handling
+```
+
+✅ **Complete SCOPE:**
+```markdown
+## Scope
+- **What**: Add `/jobs/:id/cancel` endpoint to allow users to stop running jobs
+- **Why**: Users currently have no way to cancel jobs; reduces support load for stuck workflows
+- **Boundary**: This does NOT include retry logic (separate task), UI changes (separate task), or job timeout enforcement (Phase 2)
+```
+
+**Why it matters:**
+- Coder uses SCOPE to decide what's "done"
+- Ambiguous scope = scope creep (Coder implements too much or too little)
+
+---
+
+### Field 5: IN_SCOPE_PATHS (Exact File Boundaries) [CX-604]
+
+**What Coder expects:**
+- EXACT file paths Coder is allowed to modify
+- No vague patterns ("backend", "api", "feature-X")
+- 5-20 entries (not 100+)
+
+**What "complete" means:**
+- ✅ Specific file paths (not directories alone): `/src/backend/handshake_core/src/api/jobs.rs`
+- ✅ OR specific directory paths (if entire directory): `/src/backend/handshake_core/migrations/`
+- ✅ 5-20 entries (if >20, likely scope creep; split into multiple WPs)
+- ✅ Paths relative to repo root
+- ✅ Every path in this list is justified by SCOPE
+
+❌ **Incomplete IN_SCOPE_PATHS:**
+```markdown
+IN_SCOPE_PATHS:
+- src/backend/
+- app/
+```
+
+✅ **Complete IN_SCOPE_PATHS:**
+```markdown
+## Scope
+- **IN_SCOPE_PATHS**:
+  * src/backend/handshake_core/src/api/jobs.rs (add cancel endpoint)
+  * src/backend/handshake_core/src/jobs.rs (update status enum)
+  * src/backend/handshake_core/src/workflows.rs (stop workflow on cancel)
+  * src/backend/handshake_core/migrations/0003_job_status.sql (new status value)
+  * src/backend/handshake_core/tests/job_cancel_tests.rs (new tests)
+```
+
+**Why it matters:**
+- Coder will ONLY modify these files
+- Validator will flag changes outside IN_SCOPE_PATHS as scope creep
+- Prevents "drive-by" refactoring of unrelated code
+
+---
+
+### Field 6: OUT_OF_SCOPE (What NOT to Change) [CX-604B]
+
+**What Coder expects:**
+- Explicit list of what Coder should NOT touch
+- Deferred work, related tasks, refactoring NOT included
+
+**What "complete" means:**
+- ✅ List 3-8 items that sound related but are OUT_OF_SCOPE
+- ✅ Each item has brief reason ("separate task", "Phase 2", "high risk")
+- ✅ Protects against scope creep
+
+❌ **Incomplete OUT_OF_SCOPE:**
+```markdown
+OUT_OF_SCOPE:
+- Unrelated work
+```
+
+✅ **Complete OUT_OF_SCOPE:**
+```markdown
+## Scope
+- **OUT_OF_SCOPE**:
+  * UI changes (cancel button in Jobs view) → separate WP
+  * Retry logic (failed job retry) → Phase 2 task
+  * Timeout enforcement (cancel if >N seconds) → Phase 2 task
+  * Job history/audit trail → separate task
+  * Workspace-level job management → separate WP
+```
+
+**Why it matters:**
+- Coder sees these and avoids temptation to "fix it while we're here"
+- Validator can check for scope creep against this list
+- Prevents incomplete features (UI missing when backend is done)
+
+---
+
+### Field 7: TEST_PLAN (Exact Validation Commands) [CX-605]
+
+**What Coder expects:**
+- EXACT bash commands to run
+- Not "test the feature"; exact `cargo test`, `pnpm test` commands
+- Coder will copy-paste these commands
+
+**What "complete" means:**
+- ✅ For LOW tier: At least 2-3 commands (cargo test, lint)
+- ✅ For MEDIUM tier: 4-5 commands (add `just ai-review`)
+- ✅ For HIGH tier: 5-6 commands (add `just ai-review`, stricter checks)
+- ✅ Each command is literal (can be copy-pasted)
+- ✅ Commands are in logical order (build → test → review)
+- ✅ `just post-work WP-{ID}` is ALWAYS included (Step 10 of CODER_PROTOCOL)
+
+❌ **Incomplete TEST_PLAN:**
+```markdown
+TEST_PLAN:
+- Run tests
+- Check quality
+```
+
+✅ **Complete TEST_PLAN:**
+```markdown
+## Quality Gate
+- **TEST_PLAN**:
+  ```bash
+  # Compile and unit test
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml
+
+  # React component tests
+  pnpm -C app test
+
+  # Linting
+  pnpm -C app run lint
+  cargo clippy --all-targets --all-features
+
+  # AI review (HIGH tier)
+  just ai-review
+
+  # Post-work validation
+  just post-work WP-1-Storage-Abstraction-Layer
+  ```
+```
+
+**Why it matters:**
+- Coder runs EVERY command in TEST_PLAN before claiming done (Step 7 of CODER_PROTOCOL)
+- Exact commands prevent misinterpretation
+- Order matters: compile first, then test, then review
+- `just post-work` is the final gate before commit
+
+---
+
+### Field 8: DONE_MEANS (Success Criteria) [CX-606]
+
+**What Coder expects:**
+- Concrete, measurable checklist of "done"
+- 1:1 mapped to SPEC_ANCHOR requirements
+- Not vague ("works", "passes tests")
+
+**What "complete" means:**
+- ✅ 3-8 items, each testable
+- ✅ Each item maps to SPEC_ANCHOR: "per §2.3.12.1 storage API requirement"
+- ✅ Uses MUST/SHOULD language from spec
+- ✅ Includes validation success: "All tests pass", "AI review passes"
+- ✅ Each item has YES/NO answer (not subjective)
+
+❌ **Incomplete DONE_MEANS:**
+```markdown
+DONE_MEANS:
+- Feature works
+- Tests pass
+```
+
+✅ **Complete DONE_MEANS:**
+```markdown
+## Quality Gate
+- **DONE_MEANS**:
+  * ✅ Storage trait defined per §2.3.12.1 with 6 required methods (get_blocks, save_blocks, etc.)
+  * ✅ AppState refactored to use `Arc<dyn Database>` (not concrete SqlitePool)
+  * ✅ SqliteDatabase implements trait with all 6 methods (§2.3.12.2)
+  * ✅ PostgresDatabase stub created with method signatures (§2.3.12.3)
+  * ✅ All existing tests pass (5 units + 3 integration tests)
+  * ✅ All NEW tests pass (2 trait tests + 2 sqlite impl tests)
+  * ✅ `just ai-review` returns PASS or WARN (no BLOCK)
+  * ✅ `just post-work WP-1-Storage-Abstraction-Layer` returns PASS
+```
+
+**Why it matters:**
+- Validator will check each item against code (file:line mapping)
+- Spec anchor references prove this WP is NOT inventing requirements
+- Clear success criteria prevent "done" wars
+
+---
+
+### Field 9: ROLLBACK_HINT (How to Undo) [CX-607]
+
+**What Coder expects:**
+- Clear way to revert the work if something goes wrong
+- Simple: `git revert {commit}`
+- Complex: Step-by-step undo instructions
+
+**What "complete" means:**
+- ✅ Simple case: `git revert {commit-hash}` (once Coder provides commit)
+- ✅ Complex case: Multi-step undo guide:
+  ```bash
+  # Step 1: Revert migration
+  # Step 2: Revert trait definition
+  # Step 3: Restore AppState
+  ```
+- ✅ If data migration: Include restore procedure
+
+❌ **Incomplete ROLLBACK_HINT:**
+```markdown
+ROLLBACK_HINT: Undo changes if needed
+```
+
+✅ **Complete ROLLBACK_HINT:**
+```markdown
+## Authority
+- **ROLLBACK_HINT**:
+  ```bash
+  git revert <commit-hash>
+  # Single commit reverts:
+  # 1. Trait definition (storage.rs new file)
+  # 2. AppState refactor (app_state.rs)
+  # 3. Migration (0003_storage_api.sql)
+  # 4. Tests (new test file)
+
+  # If already deployed, manual steps:
+  # - Restore previous AppState code
+  # - Run: cargo build
+  # - Restart service
+  ```
+```
+
+**Why it matters:**
+- Validator wants to know rollback cost before approving
+- Guides incident response if WP causes regression
+
+---
+
+### Field 10: BOOTSTRAP (Coder's Work Plan) [CX-608]
+
+**What Coder expects:**
+- Clear map of what to read before coding
+- List of files to open, search patterns, commands to run
+- So Coder can validate understanding (Step 5 of CODER_PROTOCOL)
+
+**What "complete" means:**
+
+**Sub-field 10A: FILES_TO_OPEN (5-15 files)**
+- ✅ Always include: `docs/START_HERE.md`, `docs/SPEC_CURRENT.md`, `docs/ARCHITECTURE.md`
+- ✅ Then: 5-15 implementation files (exact paths)
+- ✅ Order matters: context first, implementation last
+
+**Sub-field 10B: SEARCH_TERMS (10-20 grep patterns)**
+- ✅ Key symbols: "Database", "AppState", "trait"
+- ✅ Error messages: "connection failed", "pool exhausted"
+- ✅ Feature names: "storage", "migration", "backend"
+- ✅ Total: 10-20 patterns for grep -r searches
+
+**Sub-field 10C: RUN_COMMANDS (3-6 startup commands)**
+- ✅ `just dev` (start dev environment)
+- ✅ `cargo test --manifest-path ...` (verify setup)
+- ✅ `pnpm -C app test` (verify frontend setup)
+- ✅ Commands Coder can run to validate dev environment
+
+**Sub-field 10D: RISK_MAP (3-8 failure modes)**
+- ✅ "{Failure mode}" -> "{Affected subsystem}"
+- ✅ Examples:
+  - "Trait method missing" -> "Storage layer"
+  - "IPC contract breaks" -> "Tauri bridge"
+  - "Migration fails" -> "Database layer"
+
+❌ **Incomplete BOOTSTRAP:**
+```markdown
+## Bootstrap
+- FILES_TO_OPEN: Some files
+- SEARCH_TERMS: storage, database
+- RUN_COMMANDS: cargo test
+- RISK_MAP: TBD
+```
+
+✅ **Complete BOOTSTRAP:**
+```markdown
+## Bootstrap (Coder Work Plan)
+- **FILES_TO_OPEN**:
+  * docs/START_HERE.md (repository overview)
+  * docs/SPEC_CURRENT.md (current spec version)
+  * docs/ARCHITECTURE.md (storage architecture)
+  * src/backend/handshake_core/src/lib.rs (module structure)
+  * src/backend/handshake_core/src/api/mod.rs (API layer)
+  * src/backend/handshake_core/src/api/jobs.rs (job endpoints - MODIFY)
+  * src/backend/handshake_core/src/jobs.rs (job logic - MODIFY)
+  * src/backend/handshake_core/src/workflows.rs (workflow logic - MODIFY)
+  * src/backend/handshake_core/src/storage/ (new module - CREATE)
+  * src/backend/handshake_core/migrations/ (schema changes)
+  * app/src/components/JobsView.tsx (frontend display)
+
+- **SEARCH_TERMS**:
+  * "pub struct AppState" (current app state)
+  * "pub struct SqlitePool" (direct DB access - refactor away)
+  * "pub trait Database" (new trait we're defining)
+  * "impl Database for SqliteDatabase" (implementation)
+  * "fn get_blocks", "fn save_blocks" (trait methods)
+  * "migration", "CREATE TABLE" (schema changes)
+  * "#[tokio::test]" (test patterns)
+  * "dyn Database" (trait object usage)
+  * "Arc<dyn Database>" (correct dependency injection)
+  * "PostgreSQL", "sqlite3" (backend references)
+
+- **RUN_COMMANDS**:
+  ```bash
+  just dev          # Start dev environment (backend + frontend)
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml  # Unit/integration tests
+  pnpm -C app test  # React component tests
+  just validate     # Full hygiene check
+  ```
+
+- **RISK_MAP**:
+  * "Trait method signature mismatch" -> "Storage layer" (causes compilation failure)
+  * "AppState refactor incomplete" -> "All job/workflow endpoints" (runtime panics)
+  * "Migration doesn't match new schema" -> "Database layer" (corrupt schema)
+  * "Impl for SqliteDatabase incomplete" -> "Local storage" (missing functionality)
+  * "PostgreSQL stub not compilable" -> "Build pipeline" (compilation blocker)
+  * "Test coverage gap" -> "Validator blocks merge" (validation failure)
+```
+
+**Why it matters:**
+- Coder uses this to output BOOTSTRAP block before implementing (Step 5 of CODER_PROTOCOL)
+- Validator checks: "Did Coder read these files?" via BOOTSTRAP output
+- Risk map helps Coder understand impact of mistakes
+
+---
+
+### Summary: How Orchestrator Uses This Section
+
+**Before creating task packet:**
+1. ✅ Fill all 10 fields with the completeness criteria above
+2. ✅ Validate: Every field has no TBDs, placeholders, or vagueness
+3. ✅ Run `just pre-work WP-{ID}` to verify file structure
+4. ✅ Pass to Validator if they exist, or proceed to delegation
+
+**When delegating to Coder:**
+- Coder will verify all 10 fields in Step 2 of CODER_PROTOCOL
+- If ANY field is incomplete, Coder will BLOCK and return for fixes
+- Once all 10 fields are complete, Coder can proceed confidently
+
+**When Validator reviews:**
+- Validator will check: Does task packet enable Coder's work?
+- Validator will also check: Are DONE_MEANS 1:1 with SPEC_ANCHOR?
+- Validator will verify: Is IN_SCOPE_PATHS necessary and sufficient?
+
+---
+
 ## Part 4: Task Packet Creation Workflow [CX-601-607]
 
 ---

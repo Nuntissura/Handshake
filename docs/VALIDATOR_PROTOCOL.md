@@ -1,0 +1,164 @@
+# VALIDATOR_PROTOCOL [CX-570-579]
+
+Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Objective: block merges unless evidence proves the work meets the spec, codex, and task packet requirements. Core principle: "Evidence or Death" — if it is not mapped to a file:line, it does not exist. No rubber-stamping.
+
+## Pre-Flight (Blocking)
+- Inputs required: task packet (STATUS not empty), docs/SPEC_CURRENT.md, applicable spec slices, current diff.
+- If task packet is missing or incomplete, return FAIL with reason [CX-573].
+- Preserve User Context sections in packets (do not edit/remove) [CX-654].
+- Spec integrity regression check: SPEC_CURRENT must point to the latest spec and must not drop required sections (e.g., storage portability A2.3.12). If regression or missing sections are detected, verdict = FAIL and spec version bump is required before proceeding.
+- Packet completeness checklist (blocking):
+  - STATUS present and one of Ready for Dev / In Progress / Done.
+  - RISK_TIER present.
+  - DONE_MEANS concrete (no “tbd”/empty).
+  - TEST_PLAN commands present (no placeholders).
+  - BOOTSTRAP present (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP).
+  - SPEC reference present and matches docs/SPEC_CURRENT.md version.
+  - USER_SIGNATURE present and unchanged.
+  Missing/invalid → FAIL; return packet to Orchestrator/Coder to fix before proceeding.
+
+## Core Process (Follow in Order)
+0) BOOTSTRAP Verification
+- Confirm Coder outputted BOOTSTRAP block per CODER_PROTOCOL [CX-577, CX-622]; if missing/incomplete, halt and request completion before proceeding.
+- Verify BOOTSTRAP fields match task packet (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP).
+
+1) Spec Extraction
+- List every MUST/SHOULD from the task packet DONE_MEANS + referenced spec sections (MAIN-BODY FIRST; roadmap alone is insufficient; include A1-6 and A9-11 if governing; include tokenization A4.6, storage portability A2.3.12, determinism/repro/error-code conventions when applicable).
+- Definition of “requirement”: any sentence/bullet containing MUST/SHOULD/SHALL or numbered checklist items. Roadmap is a pointer; Master Spec body is the authority.
+- Copy identifiers (anchors, bullet labels) to keep traceability. No assumptions from memory.
+- Spec ref consistency: ensure the packet’s referenced spec version exists and matches docs/SPEC_CURRENT.md; if divergent, FAIL and request spec alignment or explicit version bump.
+
+2) Evidence Mapping (Spec -> Code)
+- For each requirement, locate the implementation with file path + line number.
+- Quote the exact code or link to test names; "looks implemented" is not acceptable.
+- If any requirement lacks evidence, verdict = FAIL.
+
+2A) Skeleton / Type Rigor (STOP gate when Coder provides skeleton/interfaces)
+- Count fields vs. spec 1:1; enforce specific types over generic/stringly types.
+- Reject JSON blobs or string-errors where enums/typed errors are required.
+- Hollow definition: code that compiles but provides no real logic (todo!/Ok(()) stubs, empty structs, stub impls that always succeed). Any hollow code outside skeleton phase = FAIL.
+- If hollow or under-specified, verdict = FAIL; evidence mapping does not proceed until this passes.
+
+2B) Hygiene & Forbidden Pattern Audit (run before evidence verification)
+- Scope: files in IN_SCOPE_PATHS plus direct importers (one hop) where touched code is used.
+- Grep the touched/impacted code paths for:
+  - `split_whitespace`, `unwrap`, `expect`, `todo!`, `unimplemented!`, `dbg!`, `println!`, `eprintln!`, `panic!`, `Value` misuse (serialize/deserialize without validation).
+  - `serde_json::Value` where typed structs should exist in core/domain paths (allowed only in transport/deserialization edges with immediate parsing).
+  - `Mock`, `Stub`, `placeholder`, `hollow` in production paths (enforce Zero Placeholder Policy).
+- Apply Zero Placeholder Policy [CX-573D]: no hollow structs, mock implementations, or "TODO later" in production paths.
+- Allowed exceptions (must be justified in code + validation notes):
+  - unwrap/expect only in #[cfg(test)] or truly unrecoverable static/const init (e.g., Lazy regex); panic/dbg forbidden in production.
+  - serde_json::Value only at deserialization boundary with immediate validation (<5 lines to typed struct).
+- Flag any finding; if production path contains forbidden pattern and no justification, verdict = FAIL [CX-573E].
+
+2C) Evidence Verification (Coder evidence mapping)
+- Open cited files/lines and verify the logic satisfies the requirement.
+- Grep for "pending|todo|placeholder|upstream" in production; hits without justification = FAIL.
+- Enforce MAIN-BODY alignment (CX-598): if Main Body requirements are unmet (even if roadmap items are), verdict = FAIL and WP is re-opened.
+- Phase completion rule: a phase is only Done if every MUST/SHOULD requirement in that phase's Master Spec body is implemented. Missing any item weakens subsequent phases; roadmap is a pointer, Master Spec body is the authority.
+
+3A) Error Modeling & Traceability
+- Errors must be typed enums; stringly errors are not acceptable. Prefer stable error codes (e.g., HSK-####) mapped to variants; grep for ad-hoc string errors in production paths and fail.
+- Traceability field spec: trace_id: uuid::Uuid; job_id: uuid::Uuid; context: typed struct/enum (not String). Governed paths: all mutation handlers (workflows.rs, jobs.rs, storage/ writers, llm jobs). Missing trace_id/job_id in signatures or logs = FAIL. Grep for mutation functions lacking these fields; treat absent propagation as FAIL.
+- Determinism: grep for rand()/thread_rng()/Instant::now()/SystemTime::now() in production paths; if found without explicit determinism guard (seeded, bounded, test-only), flag and FAIL unless waived.
+
+4) Test Verification
+- Primary execution: Coder runs TEST_PLAN; Validator spot-checks outputs and re-runs selectively if evidence is missing/suspicious. If TEST_PLAN not run, FAIL unless explicitly waived.
+- Coverage enforcement: require at least one targeted test that fails if the new logic is removed (or a documented waiver). If new code has 0% coverage and no waiver, verdict = FAIL; <80% coverage should be called out as a WARN with recommendation to add tests.
+- Suggested naming for removal-check tests: `{feature}__removal_check` to make intent auditable. If Validator cannot identify any test guarding the change and no waiver is present, mark as FAIL.
+
+5) Storage DAL Audit (run whenever storage/DB/SQL/handlers change or `state.pool`/`sqlx` appear)
+- CX-DBP-VAL-010: No direct DB access outside storage/ DAL. Grep for `state.pool`, `sqlx::query` in non-storage paths.
+- CX-DBP-VAL-011: SQL portability. Flag `?1`, `strftime(`, `CREATE TRIGGER` SQLite-only syntax in migrations/queries.
+- CX-DBP-VAL-012: Trait boundary. No direct `SqlitePool` / concrete pool types crossing the API surface; require trait-based storage interface.
+- CX-DBP-VAL-013: Migration hygiene. Check numbering continuity, idempotency hints, and consistent versioning.
+- CX-DBP-VAL-014: Dual-backend readiness. If tests exist, ensure both backends are parameterized; if absent, mark as gap (waiver must be explicit).
+- Block if storage portability requirements are missing from SPEC_CURRENT (A2.3.12) or DAL violations are present; re-open affected WPs.
+
+6) Architecture & RDD/LLM Compliance
+- Verify RDD separation: RAW writes only at storage/raw layer; DERIVED/DISPLAY not used as write-back sources.
+- LLM client compliance: all AI calls through shared `/src/backend/llm/` adapter; no direct `reqwest`/provider calls in features/jobs.
+- Capability enforcement: ensure job/feature code checks capability gates; no bypasses or client-supplied escalation.
+
+7) Security / Red Team Pass
+- Threat sketch for changed surfaces: inputs, deserialization, command/SQL paths.
+- Check for injection vectors (command/SQL), missing timeouts/retries, unbounded outputs, missing pagination/limits.
+- Terminal/RCE: deny-by-default, allowlists, quotas (timeout, max output), cwd restriction; enforce sensible defaults (e.g., bounded timeout/output) or fail if absent. Suggested defaults: timeout ≤ 10s, kill_grace ≤ 5s, max_output ≤ 1MB, cwd pinned to workspace root.
+- Logging/PII: no secrets/PII in logs; use structured logging only (no println).
+- Path safety: enforce canonicalize + workspace-root checks for any filesystem access; path traversal without checks = FAIL.
+- Panic/unwrap safety: unwraps allowed only in tests; panic/unwrap in production paths = FAIL.
+- SQL safety: no string-concat queries; use sqlx macros or parameterized queries.
+- Build hygiene: flag large/untracked build artifacts or missing .gitignore entries that allow committing targets/pdbs; these are governance violations until remediated.
+- Git hygiene: verify .gitignore covers build artifacts (target/, *.pdb, node_modules, platform-specific); if repo bloat or missing ignores detected, verdict = FAIL until remediated (no "pass with debt").
+
+7.1) Git & Build Hygiene Audit (execute when any build artifacts/.gitignore risk is suspected)
+- Check .gitignore coverage for: target/, node_modules/, *.pdb, *.dSYM, .DS_Store, Thumbs.db. Missing entries = FAIL until added.
+- Repo size sanity: if repo > 1GB or untracked files >10MB, FAIL until cleaned (cargo clean, remove node_modules, ensure ignored).
+- Committed artifacts: fail if git ls-files surfaces target/, node_modules, *.pdb, *.dSYM.
+- May be automated via `just validator-hygiene-full` or `validator-git-hygiene`.
+
+## Waiver Protocol [CX-573F]
+- When waivers are needed: dual-backend test gap (CX-DBP-VAL-014), justified unwrap/Value exceptions, unavoidable platform-specific code, deferred non-critical hygiene.
+- Approval: MEDIUM/HIGH risk requires explicit user approval; LOW risk can be Coder + Validator with user visibility.
+- Recording (in task packet under "WAIVERS GRANTED"): waiver ID/date, check waived, scope (per WP), justification, approver, expiry (e.g., Phase 1 completion or specific WP).
+- Waivers NOT allowed: spec regression, evidence mapping gaps, hard invariant violations, security gate violations, traceability removal, RCE guard removal.
+- Absent waiver for a required check = FAIL. Expired waivers at phase boundary must be revalidated or removed.
+
+## Escalation Protocol (Blocking paths)
+- Incomplete task packet/spec regression: FAIL immediately; send to Orchestrator to fix packet/spec before validation continues.
+- Spec mismatch (requirement unmet): FAIL with requirement + path:line evidence; can only proceed after code fix or spec update approved and versioned.
+- Test flake/unreproducible failure: request full output; attempt re-run. If still inconsistent, FAIL and return to Coder to stabilize.
+- Security finding (dependency or RCE gap): if critical (RCE, license violation, path traversal), FAIL and block; if warning (deprecated lib), record in Risks/Gaps with follow-up WP.
+
+## Standard Command Set (run when applicable)
+- `just validator-scan` (forbidden patterns, mocks/placeholders, RDD/LLM/DB boundary greps)
+- `just validator-dal-audit` (CX-DBP-VAL-010..014 checks: DB boundary, SQL portability, trait boundary, migration hygiene, dual-backend readiness)
+- `just validator-spec-regression` (SPEC_CURRENT points to latest; required anchors like A2.3.12 present)
+- `just validator-phase-gate Phase-1` (ensure no Ready-for-Dev items remain before phase progression; depends on validator scans)
+- `just validator-error-codes` (stringly errors/determinism/HSK-#### enforcement)
+- `just validator-coverage-gaps` (sanity check that tests exist/guard the change)
+- `just validator-traceability` (trace_id/job_id presence in governed mutation paths)
+- `just validator-git-hygiene` or `just validator-hygiene-full` (artifact and .gitignore checks)
+- TEST_PLAN commands from the task packet (must be run or explicitly waived by the user)
+- If applicable: run or verify at least one targeted test that would fail if the new logic is removed; note command/output.
+- If a required check cannot be satisfied, obtain explicit user waiver and record it in the task packet and report; absent waiver = FAIL.
+
+## Verdict (Binary)
+- PASS: Every requirement mapped to evidence, hygiene clean, tests verified (or explicitly waived by user), DAL audit clean when applicable, phase-gate satisfied when progressing.
+- FAIL: List missing evidence, failed audits, tests not run, or unmet phase-gate. No partial passes.
+
+## Report Template
+```
+VALIDATION REPORT — {WP_ID}
+Verdict: PASS | FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/{WP_ID}.md (status: {status})
+- Spec: {spec version/anchors}
+
+Findings:
+- Requirement X: satisfied at {path:line}; evidence snippet...
+- Hygiene: {clean | issues with details}
+- Forbidden Patterns: {results of grep}
+- Storage DAL Audit (if applicable): {results for CX-DBP-VAL-010..014}
+- Architecture/RDD/LLM: {findings}
+- Security/Red Team: {findings}
+
+Tests:
+- {command}: {pass/fail/not run + reason}
+- Coverage note: {does disabling feature fail tests?}
+
+Risks/Gaps:
+- {list any residual risk or missing coverage}
+ 
+Task Packet Update:
+- STATUS update in docs/task_packets/{WP_ID}.md: PASS/FAIL with reasons, actionables, and further risks. Append to the packet (do not overwrite User Context).
+- TASK_BOARD update: when PASS and all criteria met (no acknowledged debt), move WP to Done; if FAIL, mark status accordingly. No "pass with debt" for architectural invariants.
+- Board consistency: if packet STATUS and TASK_BOARD disagree, reconcile before declaring PASS; unresolved mismatch = FAIL pending correction.
+```
+
+## Non-Negotiables
+- Evidence over intuition; speculative language is prohibited [CX-588].
+- Automated ai-review scripts are insufficient; manual evidence-based validation is required.
+- If a check cannot be performed (env/tools unavailable), report as FAIL with reason—do not assume OK.
+- No “pass with debt” for hard invariants, security, traceability, or spec alignment; either fix or obtain explicit user waiver per protocol.

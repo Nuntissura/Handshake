@@ -34,12 +34,14 @@
 
 
 
-# Project Handshake – Master Specification
+# Handshake Master Spec v02.82
 
-**Status:** Merged Specification (Diary Governance + Infrastructure)
-**Version:** v02.50
-**Date:** 2025-12-18
-**Purpose:** Complete reference combining product vision, Diary governance (Parts 1-2 runtime, Part 5 content integrity, Part 6 validation gates, Part 7 response behavior, Part 10 file integrity, Part 12 pre-commit gate), extraction pipeline (DES-001, IMG-001, SYM-001), mechanical integrations (Docling, ASR), COR-701 deterministic edit process, LOG-001 session logging, and AI job model.
+**Status:** Normative (Design Locked for Phase 1 Alignment)
+**Version:** v02.82
+**Date:** 2025-12-25
+**Author:** Handshake Architecture Group (HAG) / AI Orchestrator
+
+**Purpose:** Complete reference combining product vision, Diary governance, extraction pipeline, Phase 1 closure requirements, technical supply-chain gate specs, and the formal Spec Integrity Audit Protocol (§11.11). Enriched §2.3.11 (PruneReport).
 
 ---
 
@@ -114,6 +116,7 @@
   - [10.7 Charts & Dashboards](#107-charts--dashboards)
   - [10.8 Presentations (Decks)](#108-presentations-decks)
   - [10.9 Future Surfaces](#109-future-surfaces)
+  - [10.10 Photo Studio](#1010-photo-studio)
 - [11 Shared Dev Platform & OSS Foundations](#11-shared-dev-platform-oss-foundations)
   - [11.1 Capabilities & Consent Model](#111-capabilities-consent-model)
   - [11.2 Sandbox Policy vs Hard Isolation](#112-sandbox-policy-vs-hard-isolation)
@@ -125,11 +128,16 @@
     - [11.7.1 Terminal Engine / PTY / Sandbox](#1171-terminal-engine--pty--sandbox)
     - [11.7.2 Monaco Bundling / LSP Bridges](#1172-monaco-bundling--lsp-bridges)
     - [11.7.3 Mail / Calendar Engines](#1173-mail--calendar-engines)
+    - [11.7.4 OSS Licensing, Compliance, Isolation, and Determinism (Baseline Policy Addendum)](#1174-oss-licensing-compliance-isolation-and-determinism-baseline-policy-addendum)
+    - [11.7.5 Industry Modules & OSS Foundations Spec (Embedded Snapshot)](#1175-industry-modules--oss-foundations-spec-embedded-snapshot)
+    - [11.7.6 Photo Stack OSS Component Matrix (Photo Studio)](#1176-photo-stack-oss-component-matrix-photo-studio)
+  - [11.8 Mechanical Extension Specification v1.2 (Verbatim)](#118-mechanical-extension-specification-v12-verbatim)
   - [11.9 Future Shared Primitives](#119-future-shared-primitives)
     - [11.9.1 ActivitySpan and SessionSpan](#1191-activityspan-and-sessionspan)
     - [11.9.2 Calendar Range as a Query Surface](#1192-calendar-range-as-a-query-surface)
     - [11.9.3 CalendarEvent and ActivitySpan Join Semantics](#1193-calendarevent-and-activityspan-join-semantics)
     - [11.9.4 Minimum Slice for Calendar and Flight Recorder](#1194-minimum-slice-for-calendar-and-flight-recorder)
+  - [11.10 Implementation Notes: Phase 1 Final Gaps](#1110-implementation-notes-phase-1-final-gaps)
 
 ---
 
@@ -1102,6 +1110,8 @@ At the lowest level, the workspace is a graph of entities. Key types include:
 - **Table**: a schema plus rows; rows contain cells; columns have types.
 - **Chart**: a visualization entity that references an existing Table (or table-range/query) by ID; stores a user/AI-authored chart spec and renders as DisplayContent without duplicating tabular data.
 - **Deck**: an ordered set of slides for presentation/export; each slide composes references to existing entities (blocks, canvas frames, charts, assets) instead of copying their RawContent.
+- **Sheet**: a first-class workspace entity containing a `cells` map (`RowCol -> Cell`).
+- **Cell**: The atomic unit of a sheet. `Cell { value: String, formula: Option<String>, derived_value: Option<Value> }`.
 - **Task / Event**: structured entities with dates, assignees, statuses, relations.
 - **Asset**: files, images, media.
 - **External Resource**: emails, calendar events, files from external systems.
@@ -1113,6 +1123,14 @@ Each of these entities has:
 - A set of **RawContent** properties (canonical text, binary, or structured data).
 - A set of **DerivedContent** properties (embeddings, summaries, tags, plans, layouts, style vectors, etc.).
 - One or more **DisplayContent** projections (UI surfaces).
+
+#### 2.2.1.13 Sheet Entity (MEX v1.2)
+- **Data Model**: `Sheet` is a first-class workspace entity.
+- **Schema**: Contains a `cells` map (`RowCol -> Cell`).
+- **Cell Object**: `Cell { value: String, formula: Option<String>, derived_value: Option<Value> }`.
+- **Mechanical Adapter**: `engine.sheets` (MEX v1.2) handles batch evaluation and CSV conversion.
+- **Diagnostics**: Formula errors (e.g., `#DIV/0!`) MUST emit `Diagnostic` objects with `surface: "sheet"` and `source: "engine"`.
+- **Invariants**: `derived_value` is updated only via `engine.sheets`; user edits target `value` or `formula` only.
 
 #### 2.2.1.1 Unified Node Schema (Logical Super-Node)
 
@@ -1293,6 +1311,364 @@ The Raw/Derived/Display rules in Section 2.2.2 apply equally to SFW and NSFW mat
 - Text-only logging is enforced: no token IDs are persisted; tokenization occurs per-engine at train time using tokenizer metadata (model/tokenizer ids, context window, precision, inference params).
 - Provenance fields (file paths/hashes, selection ranges, tool invocations, spec/requirement refs, data_signature, job_ids_json) are mandatory and align with the provenance rules in Section 2.9 and the Diary clauses.
 - Sensitive identifiers (user_id_hash, workspace_id) must respect the capability and consent model; export controls apply to Skill Bank artifacts (see Section 5.2/5.3).
+
+### 2.2.3 Photo Stack Entities (Photo Studio Extension)
+
+This section extends **§2.2.1 Core Entities** with photo-specific entities used by **Photo Studio (§10.10)** and executed via **Darkroom engine contracts (§6.3.3.6)**.
+
+**Normative constraints:**
+- All Photo Stack entities MUST be representable as **Assets** (or Asset-linked records) under the workspace model (no hidden engine-private long-term stores).
+- All entities MUST be addressable by content hash / artifact handle where applicable (see §2.3.10).
+
+#### 2.2.3.0 Entities Snapshot (Photo Stack v0.3.0)
+
+The following is a **verbatim snapshot** of the Photo Stack entity shapes (TypeScript-style) adapted into Master Spec numbering.
+
+#### 2.2.3.1 Asset
+```typescript
+interface Asset {
+  asset_id: UUID;
+  kind: AssetKind; // Expanded enum
+  mime: string;
+  original_filename?: string;
+  content_hash: SHA256Hex;
+  size_bytes: number;
+  dimensions?: { width: number; height: number };
+  color_profile?: string; // ICC profile name or embedded
+  created_at: Timestamp;
+  source_refs?: SourceRef[];
+  classification: 'low' | 'medium' | 'high';
+  exportable: boolean;
+  
+  // Proxy support (new)
+  proxy_asset_id?: UUID;
+  is_proxy_of?: UUID;
+  proxy_settings?: ProxySettings;
+}
+
+enum AssetKind {
+  PHOTO_RAW = 'photo_raw',
+  PHOTO_DNG = 'photo_dng',
+  PHOTO_RASTER = 'photo_raster',
+  PHOTO_PROXY = 'photo_proxy',  // NEW
+  MASK_RASTER = 'mask_raster',
+  MASK_VECTOR = 'mask_vector',
+  LAYER_DOC = 'layer_doc',
+  PREVIEW_TILE = 'preview_tile',
+  PREVIEW_SMART = 'preview_smart',
+  EXPORT_IMAGE = 'export_image',
+  VECTOR_DOC = 'vector_doc',
+  SIDECAR_XMP = 'sidecar_xmp',
+  LENS_PROFILE = 'lens_profile',
+  COLOR_PROFILE = 'color_profile',
+  LUT_3D = 'lut_3d',
+  PRESET = 'preset',
+  BUNDLE = 'bundle',
+  VIDEO = 'video',  // NEW
+  AUDIO = 'audio',  // NEW
+  DOCUMENT = 'document',  // NEW (for Docling)
+  MOODBOARD = 'moodboard'  // NEW
+}
+```
+
+#### 2.2.3.2 PhotoAsset (enhanced)
+```typescript
+interface PhotoAsset {
+  photo_id: UUID;
+  source_asset: AssetHandle;
+  metadata: PhotoMetadata;
+  derived: PhotoDerivedState;
+  
+  // Library metadata
+  rating: 0 | 1 | 2 | 3 | 4 | 5;
+  color_label?: 'red' | 'yellow' | 'green' | 'blue' | 'purple';
+  flag: 'none' | 'pick' | 'reject';
+  keywords: string[];
+  collections: UUID[];
+  
+  // Technical metadata
+  capture_time?: Timestamp;
+  camera_make?: string;
+  camera_model?: string;
+  lens_model?: string;
+  focal_length?: number;
+  aperture?: number;
+  shutter_speed?: string;
+  iso?: number;
+  gps?: { lat: number; lon: number; alt?: number };
+  
+  // AI-generated metadata (NEW)
+  ai_metadata?: AIGeneratedMetadata;
+}
+
+interface AIGeneratedMetadata {
+  auto_tags?: string[];
+  auto_caption?: string;
+  quality_score?: number;  // 0-100
+  technical_quality?: {
+    sharpness: number;
+    noise: number;
+    exposure: number;
+  };
+  content_analysis?: {
+    subjects: string[];
+    scene_type: string;
+    mood: string;
+    colors: string[];
+  };
+  generated_by: {
+    model: string;
+    version: string;
+    timestamp: Timestamp;
+  };
+}
+
+interface PhotoDerivedState {
+  current_recipe_id: UUID;
+  recipe_history: UUID[];
+  snapshots: Snapshot[];
+  masks: MaskAsset[];
+  preview_pyramid_id?: UUID;
+  smart_preview_id?: UUID;
+  
+  // Proxy support (NEW)
+  proxy_id?: UUID;
+  proxy_generated_at?: Timestamp;
+  proxy_settings?: ProxySettings;
+}
+```
+
+#### 2.2.3.3 EditRecipe (comprehensive)
+```typescript
+interface EditRecipe {
+  recipe_id: UUID;
+  schema_version: 'edit_recipe_v3';  // Updated
+  engine_id: 'photo_develop';
+  engine_version: string;
+  source_photo_id: UUID;
+  
+  // Global adjustments
+  basic: BasicAdjustments;
+  tone_curve?: ToneCurveSettings;
+  hsl?: HSLSettings;
+  color_grading?: ColorGradingSettings;
+  detail?: DetailSettings;
+  lens_corrections?: LensCorrectionSettings;
+  transform?: TransformSettings;
+  effects?: EffectsSettings;
+  calibration?: CalibrationSettings;
+  
+  // Local adjustments
+  local_adjustments: LocalAdjustment[];
+  
+  // Retouching
+  spot_removals: SpotRemoval[];
+  
+  // Crop & rotation
+  crop?: CropSettings;
+  
+  // AI-assisted adjustments (NEW)
+  ai_adjustments?: AIAssistedAdjustments;
+  
+  // Metadata
+  history_parent_recipe_id?: UUID;
+  created_by_job_id: UUID;
+  created_at: Timestamp;
+}
+
+interface AIAssistedAdjustments {
+  // Adjustments suggested/applied via AI analysis
+  suggested_by_model: string;
+  applied: boolean;
+  suggestions: {
+    parameter: string;
+    current_value: number;
+    suggested_value: number;
+    confidence: number;
+    reasoning?: string;
+  }[];
+}
+
+interface BasicAdjustments {
+  white_balance: { temp: number; tint: number; preset?: WBPreset };
+  exposure: number;  // EV
+  contrast: number;  // -100 to 100
+  highlights: number;
+  shadows: number;
+  whites: number;
+  blacks: number;
+  texture: number;
+  clarity: number;
+  dehaze: number;
+  vibrance: number;
+  saturation: number;
+}
+
+interface LocalAdjustment {
+  id: UUID;
+  name?: string;
+  mask: MaskDefinition;
+  adjustments: Partial<BasicAdjustments> & {
+    // Additional local-only adjustments
+    moiré?: number;
+    defringe?: number;
+    hue?: number;
+    // Full tone curve, etc.
+  };
+}
+
+interface MaskDefinition {
+  type: 'brush' | 'linear_gradient' | 'radial_gradient' | 'range_luminance' | 
+        'range_color' | 'ai_subject' | 'ai_sky' | 'ai_background' | 'ai_people' | 
+        'ai_object' | 'compound';
+  params: BrushParams | GradientParams | RangeParams | AIParams | CompoundParams;
+  feather: number;
+  density: number;
+  invert: boolean;
+  rasterized_mask_id?: UUID;  // Cached raster version
+  
+  // Proxy-based mask scaling (NEW)
+  source_resolution?: { width: number; height: number };
+  scaling_applied?: boolean;
+}
+```
+
+#### 2.2.3.4 Moodboard (NEW)
+```typescript
+interface Moodboard {
+  moodboard_id: UUID;
+  name: string;
+  description?: string;
+  
+  // Canvas settings
+  canvas: {
+    width: number;
+    height: number;
+    background_color: Color;
+  };
+  
+  // Elements
+  elements: MoodboardElement[];
+  
+  // AI analysis
+  style_analysis?: {
+    dominant_colors: string[];
+    mood_keywords: string[];
+    style_description: string;
+    suggested_presets: UUID[];
+  };
+  
+  created_at: Timestamp;
+  modified_at: Timestamp;
+}
+
+interface MoodboardElement {
+  id: UUID;
+  type: 'image' | 'text' | 'shape' | 'color_swatch';
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  rotation: number;
+  
+  // Type-specific data
+  image_data?: {
+    source: 'local' | 'web' | 'generated';
+    asset_id?: UUID;
+    url?: string;
+    ai_enhanced?: boolean;
+  };
+  text_data?: {
+    content: string;
+    font: string;
+    size: number;
+    color: Color;
+  };
+  color_data?: {
+    color: Color;
+    extracted_from?: UUID;  // Image it was extracted from
+  };
+}
+```
+
+#### 2.2.3.5 LayerDocument (comprehensive)
+```typescript
+interface LayerDocument {
+  document_id: UUID;
+  schema_version: 'layer_doc_v2';
+  
+  // Document properties
+  canvas: {
+    width: number;
+    height: number;
+    resolution: number;  // PPI
+    color_mode: 'rgb' | 'cmyk' | 'grayscale' | 'lab';
+    bit_depth: 8 | 16 | 32;
+    color_profile: string;
+    background_color?: Color;
+  };
+  
+  // Layer tree
+  root_group: LayerGroup;
+  
+  // Document metadata
+  created_by_job_id: UUID;
+  created_at: Timestamp;
+  modified_at: Timestamp;
+}
+
+interface LayerNode {
+  id: UUID;
+  name: string;
+  type: LayerType;
+  visible: boolean;
+  locked: boolean;
+  opacity: number;  // 0-100
+  blend_mode: BlendMode;
+  blend_ranges?: BlendRanges;
+  position: { x: number; y: number };
+  transform?: AffineTransform;
+}
+
+interface PixelLayer extends LayerNode {
+  type: 'pixel';
+  asset_id: UUID;  // Reference to raster asset
+  mask?: MaskLayer;
+}
+
+interface AdjustmentLayer extends LayerNode {
+  type: 'adjustment';
+  adjustment_type: AdjustmentType;
+  parameters: AdjustmentParameters;
+  mask?: MaskLayer;
+}
+
+interface LiveFilterLayer extends LayerNode {
+  type: 'live_filter';
+  filter_type: FilterType;
+  parameters: FilterParameters;
+  mask?: MaskLayer;
+}
+
+interface LayerGroup extends LayerNode {
+  type: 'group';
+  children: LayerNode[];
+  passthrough: boolean;
+}
+
+interface TextLayer extends LayerNode {
+  type: 'text';
+  text_content: FormattedText;
+  // Typography settings
+}
+
+interface ShapeLayer extends LayerNode {
+  type: 'shape';
+  path_data: PathData;
+  fill?: FillStyle;
+  stroke?: StrokeStyle;
+}
+```
+
+---
 
 ## 2.3 Content Integrity (Diary Part 5: COR-700)
 
@@ -1906,7 +2282,7 @@ Components:
      - Workspace entity IDs.
      - Node type (doc block, code block, canvas node, etc.).
      - Version and timestamp.
-
+     - `source_hash` of the underlying RawContent segment (MUST; used for drift detection and cache correctness).
 6. **Latency budgets**
    - Shadow Workspace and embedding updates are incremental and asynchronous; editing should not be blocked by indexing.
    - Large batch operations (e.g. imports, full re-index) may run in the background with progress indicators; concrete latency targets are defined and validated using the benchmark harness described in the base research.
@@ -2156,6 +2532,74 @@ When an exporter emits a bundle (e.g. Debug Bundle ZIP):
 ---
 
 #### 2.3.10.9 Materialize semantics (normative)
+... (content preserved) ...
+
+#### 2.3.10.10 Photo Studio ExportRecord Mapping (normative)
+
+Photo Studio exports MUST follow the unified export contract (§2.3.10.1–§2.3.10.9).
+
+**Surface-specific export manifest (`.hs.export.json`):**
+- Photo Studio MAY emit a surface-friendly manifest named `.hs.export.json` inside the export artifact directory.
+- `.hs.export.json` MUST be a **lossless projection** of the authoritative `ExportRecord` (same `export_id`, same artifact hashes, same provenance), and MUST NOT introduce a parallel source of truth.
+
+**Additional Photo Studio provenance fields (if present):**
+- `source_photo_asset_id` (UUID)
+- `recipe_ref` (ArtifactHandle or content hash of `.hs.recipe.json`)
+- `layers_ref` (ArtifactHandle or content hash of `.hs.layers.json`, optional)
+- `mask_refs[]` (ArtifactHandles, optional)
+- `proxy_lineage[]` (list of proxy artifacts used, optional)
+- `engine_versions` (map of engine name → version/build id)
+
+**Determinism requirements:**
+- The determinism level recorded in `ExportRecord.determinism_level` MUST match the strictest applicable class across all contributing Photo Studio operations (see §6.3.3.6.1).
+
+### 2.3.11 Retention & Pruning (MEX v1.2)
+
+#### 2.3.11.0 Normative Data Structures
+
+```rust
+/// [HSK-GC-001] Retention Policy Schema
+/// Defines how artifacts and logs are pruned to prevent disk bloat.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct RetentionPolicy {
+    pub kind: ArtifactKind,
+    pub window_days: u32,   // Default: 30 for Logs, 7 for Cache
+    pub min_versions: u32,  // Default: 3; keep even if expired
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ArtifactKind { 
+    Log,      // Flight Recorder traces (.jsonl)
+    Result,   // AI Job outputs / EngineResults
+    Evidence, // Context snapshots (ACE-RAG)
+    Cache,    // Web/Model cache
+    Checkpoint // Durable workflow snapshots
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PruneReport {
+    pub timestamp: DateTime<Utc>,
+    pub items_scanned: u32,
+    pub items_pruned: u32,
+    pub items_spared_pinned: u32,
+    pub items_spared_window: u32,
+    pub total_bytes_freed: u64,
+}
+```
+
+#### 2.3.11.1 Hard Invariants
+
+1.  **[HSK-GC-002] Pinning Invariant:** Any artifact or log entry marked `is_pinned: true` (in SQLite metadata or sidecar) MUST be excluded from automated GC runs.
+2.  **[HSK-GC-003] Audit Trail:** Every GC run MUST emit a `meta.gc_summary` event to the Flight Recorder containing counts of pruned vs. spared items.
+3.  **[HSK-GC-004] Atomic Materialize:** The `PruneReport` MUST be written as a versioned artifact before old logs are unlinked.
+
+#### 2.3.11.2 Mechanical Engine Contract: engine.janitor (v1.2)
+
+- **Operation:** `prune`
+- **Input Schema:** `{ policies: Vec<RetentionPolicy>, dry_run: bool }`
+- **Output:** `PruneReport` (as defined above)
+- **Side Effects:** Deletion of files from `artifacts/` and `logs/` roots that exceed `window_days` and are not pinned or required for `min_versions`.
+
 
 Materialize = writing an existing artifact payload to:
 - `ExportTarget::LocalFile` (path chosen by user)
@@ -4317,6 +4761,58 @@ For sensitive workflows (e.g. sending emails, deleting data), an additional **ex
 
 ---
 
+
+### 2.5.12 Context Packs AI Job Profile
+
+**Implements:** AI Job Model (Section 2.6.6)  
+**Profile ID:** `context_pack_builder_v0.1`  
+**Status:** Draft (internal)
+
+**Why**  
+Retrieval-backed answers and transformations improve correctness and token efficiency when the system prefers **mechanical, reusable compactions** over raw snippet dumps. A ContextPack is a derived, provenance-bound artifact (facts/constraints/open loops + anchors) that can be retrieved cheaply and assembled deterministically into PromptEnvelopes.
+
+**What**
+- Defines job types that build/refresh ContextPacks for workspace entities and sources.
+- Enforces freshness binding (`source_hashes[]`) and provenance binding (`SourceRef` requirements) at build time.
+- Produces artifact-first outputs (pack artifact + Derived record) for downstream use by ACE runtime (§2.6.6.7.14).
+
+#### 2.5.12.1 Profile-specific fields
+
+| Field | Type | Description |
+|------|------|-------------|
+| `target_ref` | EntityRef \| SourceRef | Pack target (entity or specific source) |
+| `selector_allowlist` | string[]? | Optional bounded selector allowlist for scanning/coverage |
+| `force_rebuild` | bool? | If true, rebuild even when an equivalent fresh pack exists |
+| `pack_schema_version` | int | ContextPackPayload schema version (default: 1) |
+| `max_anchor_reads` | int? | Cap on anchor span extraction work (budget guardrails) |
+
+#### 2.5.12.2 PlannedOperation types
+
+| Operation | Description |
+|----------|-------------|
+| `build_context_pack` | Build a new ContextPack for `target_ref` |
+| `refresh_context_pack` | Rebuild an existing pack when stale (`source_hash` drift) |
+
+#### 2.5.12.3 Required validators
+
+At minimum, this profile MUST run:
+- **CompactionSchemaGuard** (pack payload schema + provenance binding)  
+- **ContextPackFreshnessGuard** (staleness rules, source_hash mismatch handling)  
+- **RetrievalBudgetGuard** (anchor span extraction stays bounded)  
+- **ArtifactHandleOnlyGuard** (pack output is artifact-first; bounded summaries only)  
+
+#### 2.5.12.4 Outputs (canonical)
+
+- `ContextPackRecord` (DerivedContent): `{pack_id, target, pack_artifact, source_hashes[], builder, created_at, version}`  
+- `pack_artifact` (ArtifactHandle): JSON payload `ContextPackPayload` (synopsis, facts, constraints, open_loops, anchors, coverage)
+
+Notes:
+- ContextPacks are **Derived** and MUST be regenerable.  
+- Packs SHOULD default to `exportable=false` unless explicitly elevated by policy/consent.
+
+---
+
+
 ### 2.6.6 AI Job Model (Global)
 
 **Why**  
@@ -4615,8 +5111,102 @@ Each profile:
 
 See referenced sections for full profile definitions.
 
+##### 2.6.6.6.4 Docs AI Job Profile (Normative)
+
+The `DocsAiJobProfile` governs all LLM operations on the `Document` and `Sheets` surfaces.
+
+```rust
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DocsAiJobProfile {
+    /// Target document UUID
+    pub doc_id: Uuid,
+    /// Optional selection range for rewriting/inserting
+    pub selection: Option<SelectionRange>,
+    /// Scope of the operation (Block, Section, or Full Document)
+    pub layer_scope: LayerScope,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SelectionRange {
+    pub start_block_id: String,
+    pub end_block_id: String,
+    pub focus_offset: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum LayerScope {
+    Block,
+    Section,
+    Document,
+}
+```
+
+**Invariant:** All `doc_rewrite` and `doc_summarize` jobs MUST include a valid `DocsAiJobProfile` in their `job_inputs` JSON payload.
+
+### 2.6.7 Semantic Catalog Registry (Normative)
+
+The `SemanticCatalog` resolves abstract tool requests (e.g., "summarize this") to concrete engine operations based on the user's capability profile.
+
+```rust
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SemanticCatalog {
+    pub tools: Vec<ToolEntry>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ToolEntry {
+    /// Abstract ID (e.g., "doc.summarize")
+    pub id: String,
+    /// Concrete engine ID (e.g., "engine.llm.summarizer")
+    pub engine_id: String,
+    /// Engine operation to invoke
+    pub operation: String,
+    /// Capability required to use this tool
+    pub capability_required: String,
+    /// JSON Schema reference for inputs
+    pub schema_ref: String,
+}
+```
+
+**Invariant:** The Catalog MUST be loaded from `assets/semantic_catalog.json` at startup. Catalog resolution MUST filter tools against the user's `CapabilityRegistry` grants.
+
 ---
 
+### 4.6 Tokenization Service (Normative)
+
+The system MUST provide a unified `TokenizationService` to ensure budget compliance across different model architectures.
+
+```rust
+pub trait TokenizationService {
+    /// Count tokens for a given model architecture.
+    /// MUST NOT split words on whitespace for BPE models (Llama3/Mistral).
+    fn count_tokens(&self, text: &str, model: &str) -> Result<u32, TokenizerError>;
+    
+    /// Truncate text to fit within a token limit.
+    fn truncate(&self, text: &str, limit: u32, model: &str) -> String;
+}
+```
+
+**Required Implementations:**
+1.  **Tiktoken:** For OpenAI/GPT-4 class models.
+2.  **SentencePiece:** For Llama3/Mistral (Ollama) models.
+3.  **VibeTokenizer (Fallback):** A rough estimator (char_count / 4) used ONLY when exact tokenizers fail or model is unknown.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SemanticCatalog {
+    pub tools: Vec<ToolEntry>,
+    pub agents: Vec<AgentEntry>,
+    pub routing_rules: Vec<RoutingRule>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ToolEntry {
+    pub id: String,
+    pub engine_id: String,
+    pub operation: String,
+    pub capability_required: String,
+    pub schema_ref: String,
+}
+```
 
 ---
 
@@ -5006,8 +5596,8 @@ Each model call MUST compile context in this order:
 2) resolve scope inputs (EntityRefs/task/project + optional scope hints)  
 3) allocate budgets (prefix/suffix + tool inline limits)  
 4) insert pinned criticals (safety rules, hard constraints, open loops)  
-5) retrieve candidates (KG neighborhood bounded + Shadow Workspace hybrid + SessionLog compactions + linked artifacts)  
-6) score + select deterministically (stable tie-breakers)  
+5) retrieve candidates (QueryPlan route: ContextPacks preferred + KG neighborhood bounded + Shadow Workspace hybrid + LocalWebCacheIndex hits + SessionLog compactions + linked artifacts)
+6) score + select deterministically (stable tie-breakers; persist selection + spans to RetrievalTrace)
 7) compact if triggers fire (§2.6.6.7.8)  
 8) assemble PromptEnvelope (stable prefix + variable suffix)  
 9) emit ContextPlan + ContextSnapshot (hashes, selection, truncation)
@@ -5040,6 +5630,11 @@ The runtime MUST provide validators that reject violations:
 7) **JobBoundaryRoutingGuard** (policy/projection/model-tier cannot change mid-job)
 8) **LocalPayloadGuard** (if `local_only_payload_ref` is set: `exportable=false`, encrypted-at-rest, retention TTL applied)
 
+9) **RetrievalBudgetGuard** (evidence budgets; bounded reads; truncation flags)  
+10) **ContextPackFreshnessGuard** (pack freshness invariants; regenerate or downgrade)  
+11) **IndexDriftGuard** (embedding/KG/cache drift detection; fail or degrade per policy)  
+12) **CacheKeyGuard** (cache key computed + logged for cacheable stages; replay integrity)
+
 ---
 
 ##### 2.6.6.7.12 Logging + Acceptance Tests (minimum)
@@ -5053,6 +5648,11 @@ For each model call (job step), log to Flight Recorder (§11.5):
 - prompt envelope hashes
 - ContextSnapshot ID + hash
 - artifact handles referenced
+- QueryPlan ID + hash (ACE-RAG-001)
+- normalized_query_hash (ACE-RAG-001)
+- RetrievalTrace ID + hash (ACE-RAG-001; includes rerank/diversity metadata and spans)
+- per-stage cache hit/miss markers (ACE-RAG-001)
+- drift flags + degraded-mode marker (ACE-RAG-001)
 
 Minimum tests:
 - strict determinism hash test
@@ -5064,6 +5664,7 @@ Minimum tests:
 - job-boundary routing test
 - local-only prompt payload retention/export test
 - retrieval scoring determinism test (same inputs → same candidate order and selection)
+- ACE-RAG-001 conformance tests (see §2.6.6.7.14.13)
 
 ---
 
@@ -5075,6 +5676,391 @@ If `local_only_payload_ref` is used:
 - stored in encrypted local artifact store (encryption at rest required)
 - MUST NOT sync/replicate to cloud unless user explicitly enables export for that artifact
 - SHOULD have a finite retention TTL by default
+
+
+
+##### 2.6.6.7.14 Retrieval Correctness & Efficiency (ACE-RAG-001) (normative)
+
+**Status:** Draft (normative once implemented)  
+**Version:** v0.1  
+**Applies to:** Any AI job step that compiles context via ACE runtime, including Project Brain / RAG-backed answers.
+
+---
+
+###### 2.6.6.7.14.1 Normative language
+
+The key words **MUST**, **SHOULD**, **MAY** are to be interpreted as requirement levels.
+
+---
+
+###### 2.6.6.7.14.2 Purpose
+
+This section defines a **deterministic, auditable retrieval and context assembly contract** that improves:
+
+- **Correctness:** evidence quality, provenance binding, and freshness invariants.
+- **Speed:** hash-key caching and incremental reuse.
+- **Token efficiency:** strict evidence budgets + artifact-first evidence transport.
+
+---
+
+###### 2.6.6.7.14.3 Scope
+
+**In scope**
+- Query planning and store routing for retrieval (KG / Shadow Workspace / ContextPacks / LocalWebCacheIndex).
+- ContextPacks (mechanical compactions) as preferred retrieval substrate.
+- Deterministic ranking, diversity, and bounded reads (span extraction).
+- Hash-key caching contracts and invalidation.
+- Index drift detection invariants.
+- Logging requirements and conformance tests.
+
+**Out of scope**
+- Introducing new datastores. This spec reuses existing workspace DB/KG/Shadow Workspace.
+- Changing core policy/capability semantics; this section adds retrieval-specific enforcement only.
+
+---
+
+###### 2.6.6.7.14.4 Definitions
+
+- **Evidence item:** A bounded excerpt or structured claim that is backed by one or more `SourceRef`s.
+- **Bounded read:** A read operation that returns at most `max_read_tokens` (or char limit) from a selector-defined region.
+- **ContextPack:** A mechanical artifact that contains structured compactions (facts/constraints/open loops) plus bounded anchors with SourceRefs.
+- **Strict mode:** retrieval MUST be deterministic (or deterministic approximation with fixed seed/settings).
+- **Replay mode:** retrieval MAY be approximate, but the candidate list and selection inputs are persisted so the run can be replayed exactly.
+
+---
+
+###### 2.6.6.7.14.5 New typed objects (schemas)
+
+```text
+QueryPlan (Derived)
+- plan_id: UUID
+- created_at: Timestamp
+- query_text: string
+- query_kind: (fact_lookup | summarize | compare | transform | export | unknown)
+- route[]: RouteStep
+- budgets: RetrievalBudgets
+- filters: RetrievalFilters
+- determinism_mode: (strict | replay)
+- policy_id: string
+- version: int
+
+RouteStep
+- store: (context_packs | knowledge_graph | shadow_ws_lexical | shadow_ws_vector | local_web_cache | bounded_read_only)
+- purpose: string                  // human-readable (logged), not executed as code
+- max_candidates: int
+- required: bool                   // if true: failure is a hard error, not a silent skip
+
+RetrievalBudgets
+- max_total_evidence_tokens: int
+- max_snippets_total: int
+- max_snippets_per_source: int
+- max_candidates_total: int
+- max_read_tokens: int
+- max_tool_calls: int
+- max_rerank_candidates: int
+- tool_delta_inline_char_limit: int
+
+RetrievalFilters
+- allow_external_fetch: bool
+- trust_min: (low | medium | high)
+- content_tier_allowlist[]?: string
+- consent_profile_allowlist[]?: string
+- entity_types_allowlist[]?: string
+- time_range?: {start?: Timestamp, end?: Timestamp}
+
+SemanticCatalogEntry (Derived)
+- entry_id: UUID
+- kind: (entity_type | index | view | tool)
+- name: string
+- version: int
+- description: string
+- query_routes[]: (knowledge_graph | shadow_ws_lexical | shadow_ws_vector | bounded_read | sql_query)
+- supported_selectors[]: string     // canonical names; implementation-defined mapping
+- default_budgets?: Partial<RetrievalBudgets>
+- examples[]?: {query: string, route_hint: string}
+- last_updated_at: Timestamp
+
+ContextPackRecord (Derived)
+- pack_id: UUID
+- target: EntityRef | SourceRef
+- pack_artifact: ArtifactHandle
+- source_hashes[]: Hash             // hashes of underlying sources at pack build time
+- created_at: Timestamp
+- builder: {tool_id, tool_version, config_hash}
+- version: int
+
+ContextPackPayload (stored inside pack_artifact; canonical json)
+- synopsis: string                  // <= 800 chars
+- facts[]: {fact_id, text, source_refs[]: SourceRef, confidence: float}
+- constraints[]: {constraint_id, text, source_refs[]: SourceRef, severity: (hard|soft)}
+- open_loops[]: {loop_id, question, source_refs[]: SourceRef}
+- anchors[]: {anchor_id, source_ref: SourceRef, excerpt_hint: string}   // excerpt_hint <= 200 chars
+- coverage: {scanned_selectors[]: string, skipped_selectors[]?: string}
+
+RetrievalCandidate (Derived)
+- candidate_id: string              // stable identifier of what was retrieved (source/snippet/entity)
+- kind: (source_ref | entity_ref | artifact_handle)
+- ref: SourceRef | EntityRef | ArtifactHandle
+- store: (context_packs | knowledge_graph | shadow_ws_lexical | shadow_ws_vector | local_web_cache)
+- scores: {
+    lexical?: float,
+    vector?: float,
+    graph?: float,
+    pack?: float,
+    trust_adjust?: float
+  }
+- base_score: float                 // computed deterministically
+- tiebreak: string                  // stable tie-break key
+
+RetrievalTrace (Derived; persisted per model call)
+- trace_id: UUID
+- query_plan_id: UUID
+- normalized_query_hash: Hash
+- route_taken[]: {store, reason, cache_hit?: bool}
+- candidates[]: RetrievalCandidate
+- rerank: {used: bool, method: string, inputs_hash: Hash, outputs_hash: Hash}
+- diversity: {used: bool, method: string, lambda?: float}
+- selected[]: {ref, final_rank: int, final_score: float, why: string}
+- spans[]: {ref: SourceRef, selector: string, start: int, end: int, token_estimate: int}
+- budgets_applied: RetrievalBudgets
+- truncation_flags[]?: string
+- warnings[]?: string
+- errors[]?: string
+```
+
+---
+
+###### 2.6.6.7.14.6 Required behavior (normative algorithms)
+
+**A) Query planning is mandatory**
+1. For any retrieval-backed model call, the runtime MUST produce a `QueryPlan` before candidate generation.
+2. `QueryPlan.route[]` MUST be derived from:
+   - SemanticCatalog (if present),
+   - policy/capability constraints,
+   - determinism mode,
+   - budgets.
+3. If the runtime cannot produce a plan, the call MUST fail with a surfaced error (not silently proceed).
+
+**B) Query normalization (deterministic)**
+The runtime MUST compute `normalized_query_hash = sha256(normalize(query_text))`, where `normalize()`:
+- trims leading/trailing whitespace,
+- collapses internal whitespace runs to single spaces,
+- NFC normalizes unicode,
+- lowercases using Unicode casefold,
+- strips control characters.
+
+**C) Candidate generation (route order and hard rules)**
+Given `QueryPlan.route[]`, the runtime MUST execute store steps in order until one of:
+- sufficient high-quality evidence is gathered within budgets, OR
+- max_tool_calls reached, OR
+- a required step fails (hard error).
+
+Default routing policy (if no SemanticCatalog hint):
+1) `context_packs` (preferred)
+2) `knowledge_graph` (prefilter candidate entity sets)
+3) `shadow_ws_lexical` (high-precision)
+4) `shadow_ws_vector` (semantic recall)
+5) `local_web_cache` (only if allow_external_fetch=false OR cached hit exists)
+6) `bounded_read_only` (escalation reads to resolve ambiguity)
+
+Hard constraints:
+- The runtime MUST NOT fetch new external web content unless `filters.allow_external_fetch=true` and policy/capability allows it.
+- The runtime MUST NOT include raw unbounded content in prompts; all reads MUST be bounded.
+
+**D) Deterministic base scoring**
+For each `RetrievalCandidate`, compute:
+
+`base_score = pack_score + trust_adjust + max(lexical_score, vector_score, graph_score)`
+
+Where:
+- missing score fields are treated as 0.0
+- `pack_score` MUST be:
+  - 1.0 for a valid, fresh ContextPack candidate
+  - 0.0 otherwise
+- `trust_adjust` MUST be derived deterministically from `trust_min` and evidence metadata; at minimum:
+  - if candidate trust_class < trust_min => candidate MUST be dropped
+  - else trust_adjust MAY be 0.0 or a fixed bump per trust class
+
+Tie-break rule (mandatory):
+- Candidates MUST be stable-sorted by:
+  1) `base_score` desc
+  2) `tiebreak` asc (where `tiebreak = canonical_id_string(ref)`)
+
+**E) Reranking (strict vs replay)**
+- In `strict` mode:
+  - Reranking MAY be used only if the reranker is deterministic under identical inputs (fixed weights + deterministic math).
+  - If reranker cannot guarantee determinism, reranking MUST be disabled.
+- In `replay` mode:
+  - Any reranking method MAY be used, but the runtime MUST persist:
+    - rerank inputs (candidate list ids/hashes),
+    - rerank outputs order,
+    - rerank method metadata and hashes.
+  - Replay MUST re-use the persisted rerank order (do not recompute).
+
+**F) Diversity / de-duplication (token efficiency)**
+The runtime MUST enforce:
+- `max_snippets_per_source`
+- `max_snippets_total`
+
+If `diversity.used=true`, the runtime MUST use a deterministic diversity method:
+- Recommended: MMR using deterministic similarity (embedding cosine) with fixed `lambda`.
+- Similarity function and `lambda` MUST be logged in `RetrievalTrace`.
+
+**G) Span extraction (bounded reads)**
+For any selected SourceRef that points to a larger region:
+- The runtime MUST extract a bounded span:
+  - prefer `ContextPackPayload.anchors[]` if present
+  - else choose the minimal selector range containing query term hits (lexical) or best local similarity window (vector)
+- The extracted span MUST obey `max_read_tokens`.
+- If a span would exceed `max_read_tokens`, the runtime MUST truncate deterministically and set a truncation flag.
+
+**H) Evidence assembly**
+The final evidence set inserted into the PromptEnvelope MUST be:
+- bounded by budgets,
+- artifact/SourceRef-based,
+- accompanied by `RetrievalTrace.trace_id` and hashes in the SessionLog/Flight Recorder.
+
+---
+
+###### 2.6.6.7.14.7 ContextPacks (mechanical compaction substrate)
+
+**ContextPack builder job**
+- Tool ID: `context_pack_builder_v0.1`
+- Inputs: `target: EntityRef | SourceRef`, optional selector allowlist
+- Outputs:
+  - `ContextPackRecord` (Derived)
+  - `pack_artifact: ArtifactHandle` containing `ContextPackPayload`
+
+**Freshness**
+- `ContextPackRecord.source_hashes[]` MUST include the hashes of the underlying sources at build time.
+- A ContextPack is **stale** if any referenced source hash differs at retrieval time.
+- Stale packs MUST NOT be treated as pack_score=1.0. The runtime MUST either:
+  - regenerate the pack (if allowed), or
+  - fall back to non-pack retrieval routes.
+
+**Provenance binding**
+- Every `fact`, `constraint`, and `open_loop` MUST include `source_refs[]`.
+- A pack item without SourceRefs MUST be dropped or marked `confidence=0` and MUST NOT be promoted to LongTermMemory.
+
+---
+
+###### 2.6.6.7.14.8 Semantic Catalog (LLM-facing data dictionary)
+
+**Requirements**
+- The runtime MUST provide a SemanticCatalog store/query interface, populated from:
+  - schema registry (entity types),
+  - known indices/views (KG, Shadow Workspace),
+  - available tools (capability gated).
+- The planner SHOULD consult SemanticCatalog first to avoid “guessing” which store/tool to use.
+- SemanticCatalog entries MUST be versioned and timestamped.
+
+**Safety**
+- Catalog queries MUST be capability gated; catalog MUST NOT reveal selectors/paths outside granted scope.
+
+---
+
+###### 2.6.6.7.14.9 Hash-key caching (speed contract)
+
+```text
+CacheKey
+- cache_kind: (retrieval_candidates | rerank_order | spans | prompt_envelope | context_snapshot)
+- determinism_mode: (strict | replay)
+- policy_id: string
+- query_hash: Hash
+- scope_inputs_hash: Hash
+- budgets_hash: Hash
+- filters_hash: Hash
+- toolchain_hash: Hash          // concatenation of {tool_id, tool_version, config_hash} for used tools
+- sources_hash: Hash            // hash over sorted (source_id, source_hash) for relevant sources
+```
+
+**Cache rules**
+- Cache lookup MUST be performed before executing expensive retrieval/rerank/span steps.
+- Any cache hit MUST be recorded in `RetrievalTrace.route_taken[].cache_hit=true`.
+- Cache invalidation MUST occur if any field in CacheKey changes.
+- In `replay` mode, cached artifacts MUST NOT replace recorded candidate lists unless the cached payload hash matches the recorded one.
+
+---
+
+###### 2.6.6.7.14.10 Index drift detection (correctness invariants)
+
+The runtime MUST detect and surface drift for derived indices:
+
+**Embedding drift**
+- Any embedding/snippet record MUST be keyed to a `source_hash`.
+- If `source_hash` mismatch is detected, candidate MUST be downgraded or dropped and a rebuild MUST be scheduled/available.
+
+**KG provenance drift**
+- Any KG-derived candidate used as evidence MUST have provenance pointers to SourceRefs or underlying entities.
+- If provenance is missing, candidate MUST NOT be used as evidence.
+
+**LocalWebCacheIndex drift**
+- Cached sources MUST respect TTL and pinning rules.
+- Expired but pinned sources MAY be used only if marked stale and surfaced as stale in RetrievalTrace warnings.
+
+---
+
+###### 2.6.6.7.14.11 Validators (runtime-enforced; required additions)
+
+Add the following validators to §2.6.6.7.11:
+
+1) **RetrievalBudgetGuard**
+- Fail if:
+  - max_total_evidence_tokens exceeded,
+  - max_snippets_total exceeded,
+  - any bounded read exceeds max_read_tokens without truncation flag.
+
+2) **ContextPackFreshnessGuard**
+- Fail or mark degraded if a selected ContextPack is stale and regeneration was required by policy but not performed.
+
+3) **IndexDriftGuard**
+- If any selected evidence item has source_hash mismatch (embedding drift) or missing provenance (KG drift), the job MUST:
+  - either fail (policy dependent), or
+  - downgrade to `completed_with_issues` and include explicit warnings + recovery action (reindex/backfill).
+
+4) **CacheKeyGuard**
+- Ensure CacheKey is computed and logged for all cacheable stages; reject missing keys in strict mode.
+
+---
+
+###### 2.6.6.7.14.12 Logging requirements (extends §2.6.6.7.12)
+
+For each retrieval-backed model call, the runtime MUST log to Flight Recorder:
+- `QueryPlan` (id + hash)
+- `normalized_query_hash`
+- `RetrievalTrace` (id + hash)
+- cache hits/misses per stage
+- rerank metadata (method + inputs_hash + outputs_hash)
+- diversity metadata (method + lambda)
+- per-source caps enforcement outcomes
+- drift detection flags and any degraded-mode marker
+
+---
+
+###### 2.6.6.7.14.13 Conformance tests (minimum set; extends §2.6.6.7.12)
+
+T-ACE-RAG-001 Query normalization determinism  
+- Same input string variations (whitespace/unicode) MUST yield identical normalized_query_hash.
+
+T-ACE-RAG-002 Strict ranking determinism  
+- Under strict mode, identical inputs MUST yield identical candidate order and selection, including tie-break behavior.
+
+T-ACE-RAG-003 Replay persistence correctness  
+- Under replay mode, replay MUST re-use persisted candidate list + rerank order and produce identical selected ids/hashes.
+
+T-ACE-RAG-004 ContextPack freshness invalidation  
+- If any underlying source_hash changes, a previously built pack MUST be marked stale and MUST NOT receive pack_score=1.0.
+
+T-ACE-RAG-005 Budget enforcement  
+- Evidence token ceilings and per-source caps MUST never be exceeded; truncation MUST be deterministic and logged.
+
+T-ACE-RAG-006 Drift detection  
+- Corrupt an embedding record source_hash and verify IndexDriftGuard triggers (fail or degraded output per policy).
+
+T-ACE-RAG-007 Cache key invalidation  
+- Change any CacheKey component (budgets/policy/toolchain_hash/source hash) and verify cache miss + recomputation.
+
+---
 
 
 ## 2.7 Response Behavior Contract (Diary ANS-001)
@@ -7122,7 +8108,77 @@ impl DeterministicEditEngine {
 
 ---
 
-### 2.9.2 Definitions
+### 2.9.3 Mutation Traceability (normative)
+
+To satisfy the traceability invariant (§7.6.3.8), every mutation to `RawContent` (e.g., document blocks) MUST persist metadata identifying the source of the change.
+
+```rust
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MutationMetadata {
+    pub actor: WriteActor, // HUMAN | AI | SYSTEM
+    pub job_id: Option<Uuid>,
+    pub workflow_id: Option<Uuid>,
+    pub timestamp: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum WriteActor {
+    Human,
+    Ai,
+    System,
+}
+```
+
+1. **Storage Requirement:** Database tables for `blocks`, `cells`, and `nodes` MUST include `last_actor`, `last_job_id`, and `last_workflow_id` columns.
+2. **Audit Invariant:** Any row where `last_actor == 'AI'` MUST have a non-null `last_job_id` referencing a valid AI Job.
+3. **Silent Edit Block:** The storage guard (§WP-1-Global-Silent-Edit-Guard) MUST verify that `MutationMetadata` is present and valid for all AI-authored writes.
+
+#### 2.9.3.1 Persistence Schema (Normative)
+
+To support the `MutationMetadata` struct, the following columns MUST be added to all content tables (`blocks`, `canvas_nodes`, `canvas_edges`, `workspaces`, `documents`):
+
+| Column Name | SQL Type | Nullable | Description |
+| :--- | :--- | :--- | :--- |
+| `last_actor_kind` | `TEXT` | NO | Enum: "HUMAN", "AI", "SYSTEM" |
+| `last_actor_id` | `TEXT` | YES | User ID or System Component ID |
+| `last_job_id` | `TEXT` | YES | UUID of the AI Job (REQUIRED if kind='AI') |
+| `last_workflow_id` | `TEXT` | YES | UUID of the parent Workflow (REQUIRED if kind='AI') |
+| `edit_event_id` | `TEXT` | NO | UUID of the specific mutation event (traceability anchor) |
+
+**Invariant:** A database check constraint (or strict application logic) MUST enforce:
+`CHECK (last_actor_kind != 'AI' OR last_job_id IS NOT NULL)`
+
+#### 2.9.3.2 Storage Guard Trait
+
+The application MUST implement the `StorageGuard` trait for all persistence operations.
+
+```rust
+/// HSK-TRAIT-001: Storage Guard
+#[async_trait]
+pub trait StorageGuard {
+    /// Verifies the write request against the "No Silent Edits" policy.
+    /// Returns:
+    /// - Ok(MutationMetadata): If allowed. Metadata MUST be returned for DB insertion.
+    /// - Err(GuardError::SilentEdit): If AI attempts write without job/approval context.
+    async fn validate_write(
+        &self, 
+        actor: &WriteActor, 
+        resource_id: &str
+    ) -> Result<MutationMetadata, GuardError>;
+}
+
+#[derive(Debug, ThisError)]
+pub enum GuardError {
+    #[error("HSK-403-SILENT-EDIT: AI attempted mutation without approval context. Job: {0:?}")]
+    SilentEdit(Option<Uuid>),
+    #[error("HSK-500-DB: Database error: {0}")]
+    Db(#[from] sqlx::Error),
+}
+```
+
+---
+
+### 2.9.4 Definitions
 
 | Clause | Definition | Rust Type |
 |--------|------------|-----------|
@@ -9747,6 +10803,18 @@ VRAM Management:
 - Specify fallback flow (e.g., GPU -> CPU -> smaller model) and token/budget guardrails for local vs any optional cloud usage.
 - Expose configuration for model pools and budgets; surface contention (GPU mem, queue depth) via observability dashboards.
 
+### 4.6 Tokenization and Metrics Contract (normative)
+
+For AI-autonomous operation, token counts MUST be accurate to ensure budget enforcement and billing (where applicable). 
+
+1. **No String-Split Approximation:** Implementations MUST NOT use whitespace splitting for token counts in production.
+2. **Model-Specific Tokenizers:**
+   - **GPT-class:** MUST use `tiktoken` or compatible BPE tokenizer.
+   - **Llama/Mistral (Ollama):** MUST fetch the tokenizer configuration from the local runtime (e.g. `/api/show` in Ollama) and use the correct tokenizer (SentencePiece/Tiktoken).
+3. **Vibe Tokenizer (Fallback):** If a model-specific tokenizer is unavailable, the system MUST fallback to a "Vibe Tokenizer" which uses a `char_count / 4.0` heuristic. 
+   - **Audit Trail:** Vibe Tokenizer usage MUST emit a `metric.accuracy_warning` to the Flight Recorder.
+4. **Consistency Invariant:** Token counts emitted to `JobMetrics` (§2.6.6.2.7) MUST match the counts used for retrieval budgeting (§2.6.6.7.14).
+
 <a id="5-security-observability"></a>
 # 5. Security & Observability
 
@@ -11244,6 +12312,46 @@ fn test_calendar_mutations_emit_flight_recorder_spans() {
 ```
 
 
+### 5.4.7 Photo Stack Test Suite (Determinism + Golden Fixtures)
+
+This section defines Photo Stack-specific testing requirements used by **Photo Studio (§10.10)** and the **Darkroom engine set (§6.3.3.6)**.
+
+#### 5.4.7.1 Schema Validation
+- All JSON artifacts MUST validate against versioned JSON Schema
+- Schema evolution MUST maintain backward compatibility
+- Schema files MUST be versioned in repository
+
+#### 5.4.7.2 Golden Fixture Tests
+**RAW Development:**
+- 10+ camera manufacturers × 3 exposure conditions
+- Verify: WB, exposure, tone curve, HSL, detail
+- Comparison: SSIM ≥ 0.995 for CPU, ≥ 0.99 for GPU
+
+**Compositing:**
+- All blend modes against Photoshop reference
+- Layer masks, clipping, groups
+- Comparison: SSIM ≥ 0.999 for blend modes
+
+**Merge Operations:**
+- HDR: 3/5/7 bracket sets with known output
+- Panorama: 3-image, 9-image, 360° sets
+- Focus: Macro stack reference
+
+**Proxy Workflow:**
+- Verify proxy generation matches settings
+- Verify AI result scaling accuracy
+- Verify metadata preservation
+
+#### 5.4.7.3 Determinism Tests
+- Replay test: Re-execute job, compare output hash
+- Cross-platform: Same input → same output (within determinism class)
+- Version tracking: Engine version changes require revalidation
+
+#### 5.4.7.4 AI Model Tests
+- Vision model output consistency (same image → similar tags)
+- LLM output quality (manual review of samples)
+- ComfyUI workflow reproducibility (with fixed seeds)
+
 ### 5.5.1 Benchmark Architecture
 
 #### 5.5.1.1 Why Build a Benchmark Harness?
@@ -11404,6 +12512,27 @@ class OllamaAdapter(LLMAdapter):
 
 
 # 6. Mechanical Integrations
+
+### 5.5.7 Photo Stack Performance Budgets & Benchmark Scenarios
+
+This section defines Photo Stack performance targets and benchmark inputs. GPU scheduling rules are defined under **§6.3.3.6.3**.
+
+#### 5.5.7.1 Performance Budgets
+| Operation | Target (4K image) | Maximum |
+|-----------|------------------|---------|
+| Preview (fit) | <100ms | 200ms |
+| Preview (1:1 tile) | <50ms | 100ms |
+| Full recipe apply | <500ms | 1000ms |
+| AI mask (subject) | <1000ms | 2000ms |
+| Export (JPEG) | <200ms | 500ms |
+| Layer composite (10 layers) | <300ms | 600ms |
+| Proxy generation | <2000ms | 5000ms |
+| Vision model analysis | <3000ms | 10000ms |
+| LLM response (short) | <2000ms | 5000ms |
+
+#### 5.5.7.2 Benchmark scenario requirements (normative)
+- Benchmarks MUST include: RAW decode, develop render, proxy pyramid generation, masking, export, and (if enabled) vision/LLM tagging.
+- Scenarios MUST be executed with fixed engine versions and recorded determinism class; any engine version change MUST trigger re-baselining (see §5.4.7.3).
 
 ## 6.0 Mechanical Tool Bus & Integration Principles
 
@@ -15096,13 +16225,59 @@ Transcript segments carry `asr_origin`:
 
 ## 6.3 Mechanical Extension Engines
 
-Version: v1.1 (Integrated "Mundane" Utilities)
+Version: v1.2 (Tool Bus + conformance; 22 spec-grade engines)
 
-Date: 2025-12-04
+Date: 2025-12-23
 
-Purpose: Defines a catalogue of 52 mechanical engines to be woven into the Handshake workspace, covering engineering, media, data, and low-level OS primitives.
+Purpose: Defines the normative Mechanical Tool Bus contract and a spec-grade set of 22 mechanical engines that Handshake can invoke under governance. The expanded per-domain engine catalogue below is retained as design/backlog content and is NOT callable unless upgraded to v1.2 templates and passing conformance.
 
-Status: Mixed maturity — most engines are design-only; per-domain implementation status and owners must be tracked before calling this normative.
+Status: Contract is spec-grade; engine maturity remains mixed. Only engines that pass the v1.2 conformance suite are considered callable/normative.
+
+Normative scope: §6.3.0 + §11.8.
+Informational scope: §6.3.1–§6.3.* engine notes (until upgraded).
+
+---
+
+
+### 6.3.0 Mechanical Tool Bus Contract (normative; MEX v1.2)
+
+This subsection upgrades §6.3 from a descriptive catalogue into an **executable contract** for invoking mechanical engines. The canonical spec-grade contract (including full envelopes, gates, registry requirements, conformance vectors, and the 22-engine set) is imported in **§11.8**.
+
+**Terminology and schema discrimination**
+- **Engine PlannedOperation (EPO):** a single-engine invocation envelope with `schema_version = "poe-1.0"` (and later `poe-*` variants).  
+- **Edit PlannedOperation (COR/BL):** any PlannedOperation used for document/patch semantics elsewhere in this Master Spec.  
+- **Rule:** these MUST remain unambiguous via `schema_version` (and, where present, `protocol_id`). Engine invocations MUST use `poe-*`.
+
+**Artifact-first I/O**
+- **Size rule:** any payload > **32KB** MUST be passed via input artifacts (handles/refs), never inlined into the PlannedOperation.  
+- Outputs MUST be exported as artifacts (immutable) with **SHA-256** hashing + sidecar provenance manifests (see Artifact rules in §2.3.10).
+
+**Determinism levels (D0–D3)**
+- **D3 Bitwise:** identical inputs/config/environment ⇒ identical bytes.  
+- **D2 Structural:** identical semantics; bytes may differ; canonicalization required for stable hashes.  
+- **D1 Best-effort:** depends on external/labile inputs; replay relies on captured evidence.  
+- **D0 Live:** inherently non-replayable unless evidence capture “freezes” the claim.  
+- **Evidence rule:** D0/D1 results MUST carry evidence artifacts referenced in EngineResult.
+
+**Required global gates (minimum)**
+- `G-SCHEMA` (validate envelopes)  
+- `G-CAP` (capabilities/consent; default-deny)  
+- `G-INTEGRITY` (artifact hash verification, path safety, no-bypass invariants)  
+- `G-BUDGET` (time/memory/output caps; kill/timeout policy)  
+- `G-PROVENANCE` (required provenance fields present; artifacts referenced, not inlined)  
+- `G-DET` (determinism/evidence policy enforcement)
+
+Gate outcomes MUST be logged to Flight Recorder and surfaced in Problems when denied or degraded.
+
+**Registry + adapter resolution**
+- Engines MUST be declared in `mechanical_engines.json` (engine_id, ops, determinism ceiling, required gates, default capabilities, conformance vectors, implementation/adapters).  
+- **No-bypass:** engines MUST NOT be invokable outside the orchestrator/runtime.
+
+**Conformance harness (minimum)**
+An engine is “callable” only after it passes: schema validation, capability denial tests, budget enforcement, integrity checks, artifact-only I/O, provenance completeness, and determinism/evidence rules for its determinism class.
+
+**Capability model alignment**
+v1.2 capability strings (file/process/network/device/secrets/GPU) are enforced through the global capability/consent system in **§11.1**. Device/network/secrets MUST remain deny-by-default and require explicit consent records.
 
 ---
 
@@ -15318,6 +16493,31 @@ When the goal is not to depict a scene but to interpret an idea (e.g., abstract 
 
 The "recipe" created by these vectors is then passed to the Production Team (§6.3.3.5.3) for execution.
 
+####### 6.3.3.5.2.2.1 `ConceptRecipe` (Typed, Replayable)
+
+The Artistic Vectors UI MUST materialize a typed `ConceptRecipe` artifact (Derived) rather than keeping the "recipe" implicit in UI state.
+
+- **Artifact kind:** `ATELIER_CONCEPT_RECIPE`
+- **Schema version:** `concept_recipe.v1`
+- **Fields (normative):**
+  - `recipe_id` (stable id)
+  - `intent_text` (string; raw intent, uncensored)
+  - `vectors` (object of floats in `[0.0, 1.0]`):
+    - `abstraction`, `clarity`, `tone`, `harmony`, `complexity`, `familiarity`
+  - `studio_philosophy` (enum; see §6.3.3.5.2.3)
+  - `constraints[]` (typed constraints; role-agnostic):
+    - each constraint is `{kind, path, op, value, rationale}`
+  - `seed_policy` (object):
+    - `mode` ∈ `{fixed_seed, deterministic_approx}`
+    - `seed` (int; required when `mode=fixed_seed`)
+  - `pins` (required):
+    - `role_registry_version`
+    - `vocab_snapshot_ids[]`
+    - `model_ids[]` (if any models were consulted to derive constraints)
+    - `tool_versions[]` (UI + compiler versions)
+- **Replay rule:** given identical `ConceptRecipe` + identical role contracts/pins, downstream role composition MUST be replayable.
+- **Validator hook:** `ATELIER-LENS-VAL-009 Recipe validity (FAIL)` applies to every materialized `ConceptRecipe` used by Atelier Lens (§6.3.3.5.7).
+
 ###### 6.3.3.5.2.3 Studio Philosophy (Master Control)
 
 This defines the team's collaborative dynamic and applies to both modes.
@@ -15451,9 +16651,621 @@ This is the detailed set of skills available to the Visuals Department.
 - **Comfy recipe:** references `template_id` from a template registry; if no confident match, use `generic_fallback` and emit an Advisory Panel note (never block).
 - **Provenance:** compiler version + template registry version + input hash + output hash recorded in Flight Recorder/DerivedContent sidecar.
 
+##### 6.3.3.5.7 Atelier Role Dual-Contract Runtime (Extraction + Creative Output)
+
+This subsection formalizes **Atelier-as-runtime**: every Atelier role is an executable lens that can (a) **extract** role-relevant descriptors from any ingested artifact and (b) **produce** role-specific creative deliverables. Roles may claim relevance across domains (e.g., architecture, fashion, interiors, set dressing, adult content, graphic design) and the system MUST support **multi-claim** on a single artifact.
+
+**Non-negotiable invariant (Raw/Derived):** role extraction outputs MUST be stored in Raw/Derived as captured; any redaction, filtering, or policy transformations are allowed ONLY at Display/Export connector boundaries and MUST NOT write back into stored artifacts.
+
+###### 6.3.3.5.7.1 Role Registry + Dual Contracts
+
+**Config entity:** `AtelierRoleSpec` (versioned)
+
+- `role_id` (stable identifier; never reused)
+- `department_id` (stable identifier)
+- `display_name`
+- `modes_supported`: `{representational, conceptual}` (subset)
+- `content_profiles_supported`: list of `content_profile` IDs the role supports (workspace-level gating; declared as strings, not a closed enum).
+- `claim_features`: list of feature sources the role can use (e.g., `docling.blocks`, `image.frames`, `vlm.caption`, `ocr.text`, `audio.transcript`)
+- `extract_contracts[]`: list of `RoleExtractContract` versions
+- `produce_contracts[]`: list of `RoleProduceContract` versions
+- `allowed_models[]`: local model IDs permitted for this role (vision/text/embeddings)
+- `allowed_tools[]`: mechanical tools permitted (validators, mappers, renderers, exporters)
+- `vocab_namespace`: default controlled-vocab namespace for this role (may be empty)
+- `proposal_policy`: `{disabled, queue_only, auto_accept_with_threshold}` (see §6.3.3.5.7.6)
+
+**Dual contract pattern (per role):**
+
+1) **Extraction contract** `ROLE:<role_id>:X:<ver>`
+   - Defines what the role extracts and how it is validated.
+
+2) **Creative output contract** `ROLE:<role_id>:C:<ver>`
+   - Defines what the role can produce and the typed deliverables it emits.
+
+**Derived entity:** `RoleDescriptorBundle` (versioned; per artifact × role)
+
+- `artifact_id`
+- `role_id`
+- `contract_id` (`ROLE:<role_id>:X:<ver>`)
+- `confidence` (0..1)
+- `fields{}` (schema per contract; see “Role overlay schemas” below)
+- `tags[]` (controlled vocab; optional)
+- `open_notes` (optional; non-joinable text; never used as a canonical key)
+- `evidence_refs[]` (see §6.3.3.5.7.3)
+- `provenance` (model/tool versions, config hashes, timestamps, input refs)
+
+**Derived entity:** `RoleDeliverableBundle` (versioned; per plan × role)
+
+- `plan_id` (e.g., `AtelierProductionPlan` ID)
+- `role_id`
+- `contract_id` (`ROLE:<role_id>:C:<ver>`)
+- `deliverables[]` (typed; see §6.3.3.5.7.10)
+- `inputs[]` (references to `RoleDescriptorBundle`s, workspace refs, user pins)
+- `provenance` (compiler versions, template registry versions, hashes)
+
+**Role overlay schemas (growth-safe):**
+- `fields{}` MUST be strongly typed and versioned per contract.
+- Free-text is allowed only in `open_notes` and never as a join key.
+- Cross-role normalization is explicit and opt-in via mapping jobs (never implicit).
+
+###### 6.3.3.5.7.2 Claim Router (Role-First Routing)
+
+**Job:** `ATELIER_CLAIM`
+
+- **Input:** `artifact_id` + available precomputed signals (Docling blocks, thumbnails/frames, OCR snippets, VLM captions if enabled).
+- **Output (Derived):**
+  - `RoleScore[] = {role_id, score}` for **all** roles in the active `AtelierRoleSpec` registry (dense distribution; used for scheduling and audit).
+  - `RoleClaim[] = {role_id, confidence, reasons[], evidence_refs[]}` for roles above `min_confidence` (multi-claim allowed).
+  - `RoleGlance[] = {role_id, status, note, evidence_refs[]}` where `status ∈ {none, weak, claimed}` (see “all-roles glance” below).
+- **Policy:** multi-claim allowed; `top_k` and `min_confidence` are config-driven.
+- **Determinism:** pinned `AtelierRoleSpec` registry version + pinned claim config + pinned claim model version (if used) MUST yield identical outputs for identical inputs.
+
+**Default strategy (hybrid, deterministic):**
+- Rule-based feature triggers (cheap, explicit) + optional local classifier for disambiguation.
+- Claims MUST log which features fired and why (replayable trace).
+
+**All-roles glance (ideal behavior; SHOULD, not MUST):**
+- In the ideal path, **every role gets a “look”** at every ingested artifact and either:
+  - emits a small, evidence-linked observation, or
+  - explicitly reports “none” (no relevant signal).
+- This is implemented as `RoleGlance[]`:
+  - `status=claimed` for roles that also appear in `RoleClaim[]`,
+  - `status=weak` for low-confidence but potentially interesting signals,
+  - `status=none` for “looked, no findings”.
+- **Config knobs:** `glance.enabled` (default true), `glance.max_ms_per_role`, `glance.store_none` (if false, omit `status=none` records to save space; still keep `RoleScore[]`).
+
+**Scheduling note:**
+- `RoleScore[]` + `top_k` determine which roles run deep `ROLE:<id>:X:<ver>` extraction in the same ingest pass; `RoleGlance[]` is always “cheap pass” and must not require heavy VLM/LLM calls.
+
+###### 6.3.3.5.7.3 Evidence Pointer Standard (Required for all role extraction)
+
+All role extraction MUST emit evidence pointers sufficient to audit and replay extraction.
+
+**Type:** `EvidenceRef`
+
+- `artifact_id`
+- `kind`: `{image_bbox, image_mask, page_span, text_span, time_span, table_cell}`
+- `locator`: coordinates/offsets (normalized coordinates for images; byte/char spans for text)
+- `source_ref`: reference to upstream artifact (e.g., Docling block id, OCR run id, frame id)
+- `confidence`
+- `notes` (optional)
+
+Validators MUST reject `RoleDescriptorBundle` outputs that omit required evidence for mandatory fields.
+
+###### 6.3.3.5.7.4 Base Ingestion Integration (Docling + Visual Models)
+
+**Ingestion staging:**
+- Docling ingestion MAY produce structured blocks (`docling.blocks`) and extracted figures/images.
+- A parallel local visual model MAY produce `vlm.caption`/`vlm.tags` signals for `ATELIER_CLAIM` and role extractors.
+
+**Rule:** role extractors MUST prefer deterministic, pinned model signals and MUST store provenance sufficient for replay.
+
+###### 6.3.3.5.7.5 Determinism + Replay Contract (Atelier Lens)
+
+For `ATELIER_CLAIM`, `ATELIER_ROLE_EXTRACT`, and `ATELIER_ROLE_COMPOSE`:
+
+- **Pinned inputs:** artifact bytes hash + upstream parse products hashes.
+- **Pinned configs:** role registry version + contract versions + vocab snapshot versions.
+- **Pinned models/tools:** exact model IDs and tool versions MUST be recorded.
+- **Replay:** rerun with the same pins MUST reproduce identical Derived outputs (byte-identical JSON for bundles).
+
+###### 6.3.3.5.7.6 Organic Growth: Vocabulary + Schema Proposals (Role-Native)
+
+To allow the descriptor database to grow organically without losing queryability:
+
+**Derived entity:** `VocabProposal`
+
+- `namespace` (role-local or shared)
+- `term`
+- `term_type` (tag, enum member, schema field, mapping rule)
+- `examples[]` (evidence refs + artifact IDs)
+- `proposer` (role_id + contract_id)
+- `support_count`
+- `status`: `{queued, accepted, merged, rejected}`
+- `decision_provenance` (who/what accepted; rule; timestamp)
+
+**Jobs:**
+- `ATELIER_VOCAB_PROPOSE`: append proposals from role extraction runs.
+- `ATELIER_VOCAB_RESOLVE`: merge/synonymize/promote proposals into vocab snapshots.
+
+**Rule:** accepted vocab changes are versioned; role extraction outputs MUST reference the vocab snapshot used.
+
+###### 6.3.3.5.7.7 Expansion Patterns (Novel Extensions) — Technical Spec
+
+This section enumerates ten expansion patterns that build on the Role Registry + Dual Contracts. Each pattern defines its additional entities and jobs.
+
+1) **Cross-role dependency solver (Production Graph)**
+   - **Entity:** `AtelierDeliverableGraph` (nodes = deliverables; edges = dependencies; typed ports).
+   - **Job:** `ATELIER_GRAPH_SOLVE` (toposort + constraint checks; produces an execution plan).
+   - **Rule:** role produce contracts MUST declare input/output ports so scheduling is deterministic.
+   - **Failure mode:** missing dependency → Advisory Panel warning + partial plan (never block by default).
+
+2) **Role claiming as a mixture model (Soft Multi-Claim)**
+   - **Entity:** `RoleMixture = {role_id -> weight}` normalized to sum=1.
+   - **Job:** `ATELIER_CLAIM_MIXTURE` (optional replacement for `ATELIER_CLAIM`).
+   - **Rule:** downstream extractors scale effort by weight (e.g., deep pass only for weights ≥ threshold).
+   - **Storage:** persist mixture and feature attributions for audit.
+
+3) **Role-specific embeddings + retrieval lanes**
+   - **Entity:** `LaneIndex(role_id, index_version)` + `LaneEmbedding(artifact_id, role_id, vector, anchor_text, provenance)`.
+   - **Jobs:** `ATELIER_LANE_EMBED` (compute), `ATELIER_LANE_INDEX` (index), `ATELIER_LANE_QUERY`.
+   - **Rule:** the same artifact may have different anchors per role (e.g., wardrobe-focused summary vs lighting-focused summary).
+   - **Determinism:** embedding model IDs pinned per lane.
+
+4) **Multi-resolution extraction (Fast pass → Deep pass)**
+   - **Jobs:** `ATELIER_FAST_CLAIM` (cheap), `ATELIER_DEEP_EXTRACT(role_id)` (expensive).
+   - **Budget controls:** per-workspace GPU budget; per-role max deep calls; queue scheduling.
+   - **Rule:** deep pass MUST reference the fast pass evidence and may only add fields allowed by the role’s extract contract.
+
+5) **Descriptor evolution via proposal queues (Structured growth)**
+   - **Entity:** `VocabProposal` (see §6.3.3.5.7.6) + `SchemaProposal` (field additions with types).
+   - **Job:** `ATELIER_SCHEMA_EVOLVE` (generates new contract versions and migration notes).
+   - **Rule:** migrations are additive by default; destructive changes require explicit review note and version bump.
+
+6) **Role-to-role critique loops (Bounded, mechanical)**
+   - **Entity:** `CritiquePatchSet = {target_role_id, suggested_changes[], evidence_refs[], severity}`.
+   - **Job:** `ATELIER_CRITIQUE` (runs permitted critic roles against bundles/deliverables).
+   - **Rule:** critiques are **never auto-applied**; they surface as click-to-apply patches (same interaction model as Authenticity Advisor).
+   - **Determinism:** critic contracts are versioned; outputs are replayable.
+
+7) **Scene-state as an entity that roles patch**
+   - **Entity:** `AtelierSceneState` (typed state: palette, materials, wardrobe, lighting, camera, props, typography, etc.).
+   - **Entity:** `RoleStatePatch(role_id, patch_ops[], evidence_refs[])` (JSON Patch-like ops).
+   - **Job:** `ATELIER_STATE_MERGE` (applies patches in deterministic order; conflict resolution rules).
+   - **Rule:** conflict resolution is explicit (priority table or merge strategy per field); conflicts produce advisory warnings.
+
+8) **Style lineage graph (Forkable provenance)**
+   - **Entity:** `StyleLineageGraph` with nodes `{artifact, bundle, deliverable, plan}` and edges `{derived_from, forked_from, replaced_role_output}`.
+   - **Job:** `ATELIER_LINEAGE_UPDATE` (append edges on every extraction/compose).
+   - **Use:** “fork this look” by swapping one role’s deliverable bundle and re-solving the production graph.
+
+9) **Deliverable families per role (Typed artifacts, not just prompts)**
+   - **Entity:** `RoleDeliverable(kind, payload_ref, schema_version, constraints[], checksums[])`
+   - **Kinds:** `{shot_list, lighting_plan, wardrobe_board, prop_list, palette_pack, typography_brief, comfy_recipe_template, unreal_scene_constraints, moodboard_spec, …}`
+   - **Job:** `ATELIER_DELIVERABLE_VALIDATE` (per-kind validation).
+   - **Rule:** deliverables MUST be referenced as artifacts with hashes (no opaque blobs without provenance).
+
+10) **Cross-domain role reusable primitives (Claim-anywhere design)**
+   - **Config:** `RolePrimitiveSpec` (reusable extraction/compose modules shared across roles, e.g., `palette_extractor`, `material_classifier`, `typography_detector`).
+   - **Jobs:** `ATELIER_PRIMITIVE_RUN`, `ATELIER_PRIMITIVE_VALIDATE`.
+   - **Rule:** primitives are deterministic modules used by multiple roles; role contracts declare which primitives they call.
+   - **Result:** the same role can claim and contribute across unrelated domains without bespoke pipelines.
+
+###### 6.3.3.5.7.8 Job Profiles (Required)
+
+- `ATELIER_CLAIM` (or `ATELIER_CLAIM_MIXTURE`)
+- `ATELIER_ROLE_EXTRACT` (runs per claimed role; produces `RoleDescriptorBundle`)
+- `ATELIER_ROLE_COMPOSE` (runs per requested role; produces `RoleDeliverableBundle`)
+- Optional expansion jobs: `ATELIER_GRAPH_SOLVE`, `ATELIER_STATE_MERGE`, `ATELIER_LANE_INDEX`, `ATELIER_VOCAB_PROPOSE`, `ATELIER_VOCAB_RESOLVE`, `ATELIER_CRITIQUE`, `ATELIER_LINEAGE_UPDATE`
+
+###### 6.3.3.5.7.9 Validators (Required)
+
+- **ATELIER-LENS-VAL-001 Evidence (FAIL):** required evidence refs present for mandatory fields.
+- **ATELIER-LENS-VAL-002 Contract adherence (FAIL):** bundle fields match contract schema version; unknown fields rejected.
+- **ATELIER-LENS-VAL-003 Provenance (FAIL):** model/tool/config pins recorded; artifact hashes present.
+- **ATELIER-LENS-VAL-004 No write-back filtering (FAIL):** any Display/Export projection MUST NOT mutate stored Raw/Derived.
+- **ATELIER-LENS-VAL-005 Namespace safety (FAIL):** role-local terms MUST stay in role vocab namespace; shared terms must reference a shared vocab snapshot.
+- **ATELIER-LENS-VAL-006 Glance coverage (WARN):** if `glance.enabled=true`, missing `RoleScore` entries or missing per-role `RoleGlance` entries are WARN-only (never block ingest).
+- **ATELIER-LENS-VAL-007 Merge determinism (FAIL):** if `ATELIER_STATE_MERGE` is invoked, identical inputs + identical `merge_policy_id` + identical pins MUST yield identical `SceneState.resolved_hash`.
+- **ATELIER-LENS-VAL-008 Conflict accounting (FAIL):** if merge policy resolves conflicts or conflicts are detected, a `ConflictSet` artifact MUST be emitted and linked from the `SceneState`.
+- **ATELIER-LENS-VAL-009 Recipe validity (FAIL):** any `ConceptRecipe` used by Atelier Lens MUST pass range checks (`vectors` in `[0..1]`), required pins present, and seed policy recorded.
+- **ATELIER-LENS-VAL-010 DAG validity (FAIL):** if `ATELIER_GRAPH_SOLVE` is invoked, the resulting `AtelierProductionGraph` MUST be acyclic OR explicitly cycle-broken with a recorded rule.
+- **ATELIER-LENS-VAL-011 Dependency completeness (FAIL):** every `solve_plan` step MUST declare required inputs, and the execution plan MUST not schedule a step before its declared dependencies are satisfied.
+
+###### 6.3.3.5.7.10 UI/UX Surfaces (Minimum)
+
+- **Role Claims Panel:** shows claimed roles + confidence + evidence highlights.
+- **Role Glances Grid (collapsed):** shows every role with `{none|weak|claimed}` status and the role’s 1-line note (if any); expands into evidence highlights.
+- **Role Bundle Viewer:** per-role overlays with evidence hover (bbox/span highlight).
+- **Role Lane Search:** “search as role” using the role’s lane index (if enabled).
+- **Proposal Queue:** queued vocab/schema proposals with examples; accept/merge/reject.
+- **Deliverables Browser:** typed deliverables per role with validation status and lineage links.
+
+#### 6.3.3.6 The "Darkroom" Engine (Photo Stack)
+
+* **Why (LLM Weakness):** LLMs cannot reliably perform RAW demosaic, color pipeline math, masking, GPU scheduling, or produce repeatable pixel outputs.
+* **What (Mechanical Solution):** A deterministic/non-destructive photo + compositing engine set with proxy-first workflows, explicit contracts, and artifact-first outputs.
+* **3 Use Cases:**
+  * **Develop:** "Apply this recipe to 200 RAW files and export print-ready TIFFs."
+  * **Mask & Retouch:** "Generate subject masks, refine edges, and apply local exposure adjustments."
+  * **Composite:** "Combine layers with blend modes and export a flattened deliverable with provenance."
+
+* **Open Source Software (typical):** LibRaw / RawSpeed, OpenColorIO, LittleCMS, Lensfun, OpenImageIO/libvips/OpenCV (see §11.7.6).
+* **Spec Implementation:**
+  * **Job Profiles:** `photo_develop`, `photo_mask`, `photo_composite`, `photo_export`
+  * **Operation Transport:** MEX v1.2 `PlannedOperations` for each engine adapter (see §11.8)
+  * **Output:** DerivedContent artifacts + ExportRecord (§2.3.10)
+
+##### 6.3.3.6.1 Determinism class mapping (normative)
+
+Photo Stack determinism labels map into MEX determinism classes as follows:
+
+| Photo Stack label | Meaning | Master/MEX class |
+|------------------|---------|------------------|
+| BITWISE | byte-identical outputs for same inputs + engine versions | D3 |
+| FLOAT_INVARIANT | numerically equivalent within tolerance; stable hashes via canonicalization | D2 |
+| STRUCTURAL | structure/metadata stable; pixels may vary slightly | D1 |
+| BEST_EFFORT | non-deterministic or model-driven | D0 |
+
+##### 6.3.3.6.2 Mechanical Engine Contracts (Photo Stack v0.3.0 snapshot)
+##### 6.3.3.6.2.1 `engine.raw_decode`
+**Purpose:** Decode RAW files to linear RGB working space.
+
+**Implementation:** Wrapper around LibRaw with RawSpeed fallback.
+
+**Inputs:**
+- `source_asset`: RAW file handle
+- `decode_options`: Demosaic algorithm, highlight mode, noise threshold
+
+**Outputs:**
+- Linear 16-bit or float RGB buffer
+- Extracted metadata (EXIF, camera info)
+- Color matrix for profile
+
+**Determinism:** BITWISE (given same LibRaw version and options)
+
+##### 6.3.3.6.2.2 `engine.photo_develop`
+**Purpose:** Apply EditRecipe to produce rendered output.
+
+**Stages:**
+1. RAW decode (if applicable)
+2. Lens corrections (Lensfun)
+3. Transform/perspective
+4. Exposure, WB, basic adjustments
+5. Tone curve
+6. HSL adjustments
+7. Color grading
+8. Local adjustments (with masks)
+9. Detail (sharpening, NR)
+10. Effects (vignette, grain)
+11. Color profile conversion
+12. Crop
+
+**Determinism:** BITWISE for CPU path; FLOAT_INVARIANT for GPU path
+
+##### 6.3.3.6.2.3 `engine.mask`
+**Purpose:** Generate and manipulate masks.
+
+**Operations:**
+- `brush_stroke`: Add brush stroke to mask
+- `gradient_create`: Create linear/radial gradient mask
+- `ai_segment`: Run SAM or semantic model
+- `range_mask`: Generate luminance/color range mask
+- `compound`: Boolean operations on masks
+- `feather`: Apply edge feathering
+- `refine_edge`: Edge detection refinement
+- `scale_mask`: Scale mask from proxy to full resolution (NEW)
+
+**Determinism:** 
+- Manual masks: BITWISE
+- AI masks: STOCHASTIC (model version tracked)
+
+##### 6.3.3.6.2.4 `engine.merge`
+**Purpose:** Computational photography merges.
+
+**Operations:**
+- `hdr_merge`: Multi-exposure HDR fusion
+- `panorama_stitch`: Image stitching with projection
+- `focus_stack`: Depth-of-field stacking
+- `align_stack`: Sub-pixel alignment
+
+**Implementation Strategy:**
+- HDR: Custom implementation (Debevec/Robertson) or careful OSS selection
+- Panorama: Evaluate GPL alternatives vs custom
+- Focus: Laplacian pyramid (well-documented algorithm)
+
+**Determinism:** STRUCTURAL (output hash may vary, but visually identical)
+
+##### 6.3.3.6.2.5 `engine.layer_compositor`
+**Purpose:** Render LayerDocument to flat output.
+
+**Features:**
+- Bottom-up layer traversal
+- Blend mode application (all 27+ modes)
+- Mask application per layer
+- Adjustment layer evaluation
+- Live filter evaluation
+- Group handling (passthrough vs normal)
+- Blend range (blend-if) evaluation
+
+**Optimization:**
+- Tiled rendering for memory efficiency
+- GPU acceleration for filters
+- Caching of unchanged sub-trees
+
+**Determinism:** BITWISE (CPU) or FLOAT_INVARIANT (GPU)
+
+##### 6.3.3.6.2.6 `engine.ai_enhance`
+**Purpose:** ML-based image enhancement.
+
+**Operations:**
+- `denoise`: Neural network denoising
+- `super_resolution`: 2x upscaling (proxy/web images only)
+- `raw_details`: Detail enhancement
+- `face_restore`: Face quality enhancement (cropped regions)
+- `style_transfer`: Apply artistic style (proxy images)
+- `inpaint`: Fill regions (proxy images)
+
+**Scope Limitations:**
+- Input images MUST be ≤4096px on long edge
+- For larger inputs, use proxy or region extraction first
+
+**Implementation:** Wrapper around selected models (NAFNet, Real-ESRGAN, etc.)
+
+**Determinism:** BEST_EFFORT (model version + seed tracked)
+
+##### 6.3.3.6.2.7 `engine.export`
+**Purpose:** Produce final deliverable files.
+
+**Responsibilities:**
+- Format conversion (JPEG, PNG, TIFF, etc.)
+- Color space conversion (sRGB, AdobeRGB, ProPhoto)
+- Resize/resample
+- Metadata embedding
+- Watermarking (optional)
+- Policy enforcement (classification, consent)
+- Artifact manifest creation
+
+**Determinism:** BITWISE (for lossless) or STRUCTURAL (for lossy)
+
+##### 6.3.3.6.2.8 `engine.vector_render`
+**Purpose:** Rasterize vector content for compositing.
+
+**Implementation:** Cairo or Skia-based path rendering.
+
+**Features:**
+- Path stroking and filling
+- Text rendering (FreeType + HarfBuzz)
+- Gradient fills
+- Pattern fills
+- Effects (shadow, glow via blur)
+
+**Determinism:** BITWISE with font pinning
+
+### 9.9 `engine.proxy` (NEW)
+**Purpose:** Generate and manage proxy files for AI processing.
+
+**Operations:**
+- `generate`: Create proxy from high-res source
+- `sync`: Ensure proxy is current with source edits
+- `invalidate`: Mark proxy as stale
+- `scale_result`: Map AI results from proxy to full resolution
+
+**Settings:**
+```typescript
+interface ProxyGenerateOptions {
+  source_asset_id: UUID;
+  long_edge: number;  // 2048-4096
+  format: 'jpeg' | 'webp';
+  quality: number;
+  apply_current_recipe: boolean;  // Bake in current edits?
+}
+```
+
+**Determinism:** BITWISE
+
+### 9.10 `engine.vision` (NEW)
+**Purpose:** Run vision models for image understanding.
+
+**Operations:**
+- `describe`: Generate natural language description
+- `tag`: Extract keywords/tags
+- `analyze_quality`: Technical quality assessment
+- `detect_content`: Subject/scene detection
+- `extract_colors`: Dominant color extraction
+- `ocr`: Text extraction from images
+
+**Implementation:** Wrapper around MiniCPM-V, Qwen2-VL, or configured model.
+
+**Inputs:**
+- Image (proxy recommended for performance)
+- Prompt/query (optional)
+- Model selection
+
+**Outputs:**
+- Structured analysis result
+- Confidence scores
+
+**Determinism:** STOCHASTIC (model + temperature tracked)
+
+### 9.11 `engine.llm` (NEW)
+**Purpose:** Run local LLMs for text generation and analysis.
+
+**Operations:**
+- `generate`: Free-form text generation
+- `summarize`: Document summarization
+- `extract`: Structured data extraction
+- `classify`: Content classification
+- `chat`: Multi-turn conversation
+
+**Implementation:** Integration with Llama.cpp, Ollama, or similar.
+
+**Models:**
+- Llama 3.1/3.2 (reasoning, instruction-following)
+- Mythomax (creative writing)
+- Configurable model selection
+
+**Determinism:** STOCHASTIC (model + seed + temperature tracked)
+
+### 9.12 `engine.comfyui` (NEW)
+**Purpose:** Execute ComfyUI workflows for generative AI.
+
+**Scope:** 
+- Input images MUST be ≤4096px
+- Intended for moodboard/web images, NOT high-res camera files
+
+**Operations:**
+- `upscale`: Upscale web images (Real-ESRGAN, etc.)
+- `style_transfer`: Apply artistic styles
+- `generate`: Text-to-image generation
+- `inpaint`: Fill/modify regions
+- `refactor`: Modify image to match creative direction
+
+**Workflow Execution:**
+- Workflows defined as JSON graphs
+- Execute via ComfyUI API or embedded runtime
+- Results written to artifact store
+
+**Determinism:** STOCHASTIC (workflow + seed tracked)
+
+---
+
+##### 6.3.3.6.3 GPU Scheduling & Performance (Photo Stack v0.3.0 snapshot)
+##### 6.3.3.6.3.1 Priority Queues
+```
+Priority 0 (Critical): User-blocking operations (tool feedback)
+Priority 1 (Interactive): Preview renders, brush strokes, live adjustments
+Priority 2 (Background): Full-quality preview generation, mask computation
+Priority 3 (Batch): Export jobs, AI enhancement, merge operations
+Priority 4 (Idle): Proxy generation, pre-computation, AI tagging
+```
+
+##### 6.3.3.6.3.2 Memory Management
+- Tile-based processing for images > 64MP
+- GPU memory pool with automatic spilling
+- Preview pyramid caching with LRU eviction
+- Smart preview generation for offline editing
+- Proxy cache management with size limits
+
+##### 6.3.3.6.3.3 Threading Model
+- UI thread: Never blocked by rendering
+- Render thread pool: libvips/GEGL worker threads
+- GPU dispatch thread: Manages compute shaders
+- I/O thread pool: File loading/saving
+- AI inference thread: Model execution (NEW)
+- LLM thread: Language model inference (NEW)
+
+##### 6.3.3.6.3.4 AI Model Loading
+- Models loaded on-demand
+- Model cache with configurable memory limit
+- Automatic unloading of unused models
+- Preloading of frequently-used models
+
 ---
 
 ### 6.3.4 Domain 3: Culinary & Home
+
+###### 6.3.3.5.7.11 Merge & Arbitration Contract (Role Overlap)
+
+Atelier is explicitly multi-role and overlap is expected. The system MUST define deterministic merge semantics for role outputs without silently overwriting other roles.
+
+**Derived entities (versioned):**
+
+- `SceneState` (`scene_state.v1`)
+  - `scene_id`
+  - `inputs[]` (artifact refs used to build the scene)
+  - `mode` ∈ `{representational, conceptual}`
+  - `content_profile` (string)
+  - `concept_recipe_ref` (optional; `ATELIER_CONCEPT_RECIPE`)
+  - `role_layers{role_id -> role_bundle_ref}` (refs to `RoleDescriptorBundle`)
+  - `merge_policy_id` (string)
+  - `resolved` (object; computed, not directly edited)
+  - `resolved_hash` (sha256 over canonical `resolved`)
+  - `conflict_set_ref` (optional)
+
+- `ScenePatchSet` (`scene_patchset.v1`)
+  - `patch_id`, `scene_id`, `role_id`
+  - `ops[]` (see `PatchOp`)
+  - `evidence_refs[]` (required for non-trivial edits)
+  - `provenance` (pins; tool/model/config hashes)
+
+- `PatchOp` (`patch_op.v1`)
+  - `op` ∈ `{add, set, remove, constrain}`
+  - `path` (JSONPointer)
+  - `value` (JSON)
+  - `rationale` (string; uncensored)
+  - `priority` (optional int; only used if `merge_policy_id` enables resolution)
+
+- `ConflictSet` (`conflict_set.v1`)
+  - `scene_id`
+  - `conflicts[]` where each conflict includes:
+    - `path`
+    - `candidates[]` (op refs + role ids)
+    - `resolution` ∈ `{unresolved, resolved}`
+    - `winner` (optional op ref)
+    - `rule` (deterministic rule identifier)
+
+**Merge semantics (normative):**
+
+- Default policy is **overlay-only**: role layers coexist; `resolved` is produced by a deterministic projection that does NOT discard any role layer data.
+- If `merge_policy_id` enables resolution:
+  - tie-breaking MUST be deterministic and explicit (e.g., fixed priority list or numeric weights),
+  - resolution MUST be recorded in `ConflictSet`,
+  - no silent overwrites are allowed.
+
+**Job profile (normative):** `ATELIER_STATE_MERGE`
+
+- **Input:** `{role_layers, concept_recipe_ref?, merge_policy_id}`
+- **Output:** `SceneState` (+ optional `ConflictSet`)
+- **Replay rule:** with pinned versions, re-running merge MUST reproduce `resolved_hash`.
+- **Validators:** `ATELIER-LENS-VAL-007` and `ATELIER-LENS-VAL-008` apply.
+
+###### 6.3.3.5.7.12 Nested Production Dependencies (Execution Graph)
+
+Nested production requires explicit dependency semantics so departments can commission one another deterministically (e.g., Graphic Design → Fashion patterns → Wardrobe synthesis). 
+
+**Derived entity:** `AtelierProductionGraph` (`atelier_prod_graph.v1`)
+
+- `graph_id`, `scene_id`
+- `nodes[]`: `{node_id, role_id, deliverable_kind, required_inputs[]}`
+- `edges[]`: `{from_node_id, to_node_id, kind}` where `kind=depends_on`
+- `acyclic` (bool; MUST be true unless cycle-breaking is explicitly recorded)
+- `solve_plan[]`: ordered steps `{step_id, node_id, run_profile, pins, budget}`
+
+**Job profile (normative):** `ATELIER_GRAPH_SOLVE`
+
+- **Input:** `SceneState` + requested `deliverable_kinds[]`
+- **Output:** `AtelierProductionGraph` + `solve_plan`
+- **Cycle rule:** cycles MUST be prevented by design; if cycles appear, the solver MUST emit an explicit cycle-break record (rule id + rationale) and mark `acyclic=false`.
+- **Validators:** `ATELIER-LENS-VAL-010` and `ATELIER-LENS-VAL-011` apply.
+
+###### 6.3.3.5.7.13 Post-Production Role Contracts (Concrete Examples)
+
+The Finishing department MUST be representable as dual contracts (Extraction + Creative Output), not only as prose.
+
+**Example role: `finishing.color_grading_team`**
+
+- `ROLE:finishing.color_grading_team:X:v1` (Extraction)
+  - **Extracts (evidence-linked):** `palette_targets`, `contrast_intent`, `skin_tone_targets`, `lighting_continuity_issues`, `film_stock_emulation_refs`, `grade_references[]`.
+  - **Evidence:** bbox/page/span for references; time spans for video clips.
+- `ROLE:finishing.color_grading_team:C:v1` (Creative Output)
+  - **Outputs:** `GradeTargetSpec` (curves + lift/gamma/gain intent), `LUTSpec` (if applicable), `ColoristNotes`, `ContinuityFixList`.
+
+**Example role: `finishing.editorial_team`**
+
+- `ROLE:finishing.editorial_team:X:v1`
+  - **Extracts:** beat/tempo cues, continuity risks, framing continuity, cut-rhythm references, montage patterns (time-span evidence required).
+- `ROLE:finishing.editorial_team:C:v1`
+  - **Outputs:** `EditPlan` (beat sheet + cut points), `ContinuityChecklist`, `PickupShotList`.
+
+**Example role: `finishing.vfx_team`**
+
+- `ROLE:finishing.vfx_team:X:v1`
+  - **Extracts:** compositing opportunities, tracking markers, lighting match cues, matte boundaries, artifact risks, reference comps.
+- `ROLE:finishing.vfx_team:C:v1`
+  - **Outputs:** `VFXShotList` (shot id + task + constraints), `CompConstraints`, `AssetRequirements`.
+
+All post-production role bundles MUST follow the Evidence Pointer Standard (§6.3.3.5.7.3) and be replayable under pinned versions (§6.3.3.5.7.5).
 
 #### 6.3.4.1 The "Sous Chef" Engine (Recipe Logic)
 
@@ -17318,6 +19130,9 @@ This section covers how to actually build Handshake efficiently.
 **v02.42 note:** Additive roadmap entries are tagged `[ADD v02.42]` (no rewrites of existing bullets; Phase 0 remains closed).
 
 **v02.49 note:** Additive roadmap entries are tagged `[ADD v02.49]` (no rewrites of existing bullets; Phase 0 remains closed).
+**v02.52 note:** Additive roadmap entries are tagged `[ADD v02.52]` (no rewrites of existing bullets; Phase 0 remains closed).
+**v02.63 note:** Additive roadmap entries are tagged `[ADD v02.63]` (reconciliation of orphans; no rewrites of prior bullets).
+
 
 **Why**  
 A clear roadmap with phases and dependencies ensures focused effort and prevents scope creep. This section provides the practical build order for Project Handshake.
@@ -17476,6 +19291,15 @@ Stand up a stable “Hello, workspace” application that matches the high-level
 Deliver the **first real Handshake**: a single-user, local-first workspace where documents and canvases are editable, AI assistance is available, and every AI action is traceable through the AI Job Model, Workflow Engine, Flight Recorder, and capability system. Debug tools for AI behaviour and workflows are mandatory.
 Ship with the default local LLM runtime (Ollama), hardened document/canvas editors (Tiptap/BlockNote and Excalidraw), and initial mechanical/observability tooling so the MVP loop exercises the full AI Job + Workflow + Flight Recorder stack end-to-end.
 
+- [ADD v02.52] ACE-RAG-001 groundwork: make retrieval planning/tracing/budgeting a first-class runtime contract in MVP (QueryPlan + RetrievalTrace + strict budgets + cache keys). ContextPacks/drift/caching effectiveness ship in Phase 2.
+- [ADD v02.52] Add: Minimum viable export to prevent lock-in and enable reproducible debugging (bundles).
+
+- [ADD v02.68] Adopt Mechanical Extension v1.2 as the callable Tool Bus contract for all mechanical jobs (Engine PlannedOperation/EngineResult envelopes, artifact-first I/O, no-bypass).
+- [ADD v02.68] Require v1.2 global engine gates + conformance harness before expanding mechanical engines beyond MVP wiring (denials/reasons visible in Problems + Flight Recorder).
+
+- [ADD v02.79] Establish **Photo Studio (skeleton)** as a first-class workspace surface governed by AI Job Model + Workflow Engine + Flight Recorder (no-bypass; job-request driven).
+
+
 **MUST deliver**
 
 1. **Model runtime integration (LLM core)**  
@@ -17607,11 +19431,36 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
    - Enforce the copyleft isolation rule: GPL/AGPL components MUST be `external_process` or `external_service` (never linked into the app binary).
    - Gate release builds on register completeness + policy compliance.
 
+#### 11.7.5 Supply Chain Mechanical Gates (MEX v1.2)
+- **Engine IDs**:
+  - `engine.supply_chain.vuln`: Wraps `cargo-audit` / `npm audit` / `osv-scanner`.
+  - `engine.supply_chain.sbom`: Generates CycloneDX / SPDX via `syft`.
+  - `engine.supply_chain.license`: Wraps `scancode-toolkit` or `cargo-deny`.
+- **Capability Requirements**: All supply-chain engines require `proc.exec` for their respective binaries and `fs.read:inputs`.
+- **Artifact Schemas**:
+  - `SupplyChainReport { kind: Vuln | SBOM | License, engine_version: String, timestamp: DateTime, findings: JSON }`.
+- **Governance**: Any HIGH severity vulnerability or UNKNOWN license found during a `release` build MUST be emitted as a `BLOCK` problem in the diagnostics registry.
+
 14. **[ADD v02.44] Deliverables PDF pipeline (MVP)**  
    - Implement `creative.deliverables.pdf_packaging` as a first-class Job path: Typst render + qpdf packaging.
-   - Store output artifacts with provenance and deterministic output checks (byte-stable where feasible; otherwise stable hash policy).
-**Vertical slice (core loop)**  
-- Start the app and open a sample document.  
+      - Store output artifacts with provenance and deterministic output checks (byte-stable where feasible; otherwise stable hash policy).
+      - **Implementation Note:** See §11.10.1 for binary resolution and job constraints.
+   
+   15. **[ADD v02.52] Bundle Export Framework v0 (MVP)**
+      - **Debug Bundle export**: implement end-to-end exactly as specified in the Master Spec’s Debug Bundle section (no edits).
+      - **Workspace Bundle export v0**: backup/transfer/fixture export for docs/canvases/tables + raw assets (when present).
+   
+   16. **[ADD v02.53] AI Rewrite UI Primitives (Human-in-the-Loop)**
+      - Implement `DOC_REWRITE` workflow with "Diff" view and "Accept/Reject" gating.
+      - Enforce "No Silent Edits" invariant via UI and Backend Gate.
+      - Log rejected variations to Flight Recorder.
+   
+   
+17. **[ADD v02.79] Photo Studio v0 (skeleton surface + governance wiring)**  
+   - [ADD v02.79] Import JPEG/PNG/TIFF as Assets; generate thumbnails/previews as artifacts (no binaries in prompts/logs).  
+   - [ADD v02.79] Minimal “edit recipe” placeholder stored as versioned sidecar (even if only exposure/WB placeholders).  
+   - [ADD v02.79] Export via governed job path (artifact + export record; no direct file mutation).  
+**Vertical slice (core loop)**- Start the app and open a sample document.  
 - Select text and trigger “Rewrite selection”.  
 - See the updated text in the document.  
 - Open Job History and locate the corresponding job with correct status and metadata.  
@@ -17621,16 +19470,19 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - Save, restart, reopen; typography selection persists.
 - Export Canvas to PNG/SVG; exported result preserves the chosen font.
 - Export a deliverable PDF (Typst + qpdf); exported result is reproducible (byte-stable or stable hash policy).
-
+- [ADD v02.52] Trigger “Ask about this document” (RAG-aware Q&A) and verify Evidence view exposes QueryPlan + RetrievalTrace ids/hashes and bounded spans (with truncation flags if budgets hit).
+- [ADD v02.52] Export a Workspace Bundle for a non-trivial workspace and verify: manifest + doc/canvas/table snapshots + export report.
+- [ADD v02.52] Export a Debug Bundle for one AI job and verify required files + SAFE_DEFAULT redaction mode.
 
 13. **[ADD v02.36] ACE Runtime (MVP) + Validator Pack (CI-gated)**  
    - For every AI job: emit and persist **ContextPlan** and per-call **ContextSnapshot** artifacts.  
    - Enforce the runtime validators (see §2.6.6.7.11) on every job; violations fail the job with normalized diagnostics.  
    - Debug Bundle export includes: ContextPlan, ContextSnapshots, validator outcomes, and evidence refs used.
 
-14. **[ADD v02.36] Terminal LAW (minimal slice) promoted to MUST**  
-   - Terminal command execution MUST NOT bypass capabilities/consent, Workflow Engine, Gate, or Flight Recorder.  
+14. **[ADD v02.36] Terminal LAW (minimal slice) promoted to MUST**
+   - Terminal command execution MUST NOT bypass capabilities/consent, Workflow Engine, Gate, or Flight Recorder.
    - Every terminal run is bound to `job_id` / `workflow_id` and records scrubbed context + artifact references as provenance.
+   - **[ADD v02.63] ModelProfile/Routing/SafetyProfile clarity:** Phase 1 runtime integration MUST define a concrete profile schema (id, role, safety policy, routing notes) for models used in MVP.
 
 15. **[ADD v02.36] Capability single-source-of-truth + unknown-capability validator**  
    - Resolve all capability declarations via job profiles (`capability_profile_id`) into a single normalized set used by Gate + UI.  
@@ -17643,11 +19495,47 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
    - Deterministic font loading via `FontFace` / `document.fonts.ready`; no “flash of fallback” on first render.  
    - Sanitize font names and file paths to prevent CSS injection; UI never crawls font directories directly.  
    - Canvas text objects can select bundled fonts; export (PNG/SVG) preserves selected font.
+   - **Implementation Note:** See §11.10.2 for runtime root and CSP policy.
 
 17. **[ADD v02.42] Iterative Deepening (snippet-first) — MVP policy scaffolding**  
    - Enforce snippet-first retrieval policy for any retrieval-capable job in Phase 1 (local workspace search, MCP reads): start with bounded snippets only; no full-document/page injection paths. (See §2.6.6.7.5.2.)  
    - Implement SEARCH → READ separation in adapters (stubs acceptable in Phase 1): `search(query) -> snippets` and bounded `read(section_selector) -> excerpt`.  
    - Emit and log EvidenceSnippets with (minimum) `fetch_depth = snippet`, `trust_class`, a resolvable citation/SourceRef, and a 1–2 line relevance rationale; enforce per-step retrieval budgets and anti-context-rot rules (dedupe, exclude tool logs).  
+
+18. **[ADD v02.52] Retrieval Correctness & Efficiency (ACE-RAG-001) — Phase 1 plumbing**
+   - Emit and persist `QueryPlan` and `RetrievalTrace` for every retrieval-backed model call; link both to the `ContextSnapshot` / `PromptEnvelope`.
+   - Implement deterministic `normalized_query_hash` (sha256 of normalized query text) and record it in `RetrievalTrace`.
+   - Compute and record `CacheKey` for cacheable stages (even if cache is initially a stub); log cache hit/miss per stage.
+   - Enforce hard budgets at runtime:
+     - `RetrievalBudgetGuard` (evidence tokens/snippet counts/read caps; deterministic truncation with flags).
+     - `CacheKeyGuard` (strict mode requires cache key computation + logging).
+   - Add a minimal Semantic Catalog registry (built-in) so routing does not depend on “LLM guessing” store/tool names.
+   - Operator Consoles MUST deep-link: Job → Model Call → QueryPlan/Trace → Evidence items (SourceRefs/ArtifactHandles) without opening raw documents by default.
+
+
+19. **[ADD v02.67] Atelier Lens Runtime v0.1 (Role claiming + dual-contract extraction)**
+   - Implement `ATELIER_CLAIM` as a mechanical job (capability-gated; logged) that emits:
+     - `RoleScore[]` (dense distribution over all registered roles)
+     - `RoleClaim[]` (thresholded multi-claim set used to schedule deep passes)
+     - `RoleGlance[]` (cheap all-roles glance; **SHOULD** cover every role; may record `found=false` without blocking)
+   - Implement a versioned `AtelierRoleSpec` registry and enforce dual contract ids:
+     - `ROLE:<role_id>:X:<ver>` (extraction) → `RoleDescriptorBundle`
+     - `ROLE:<role_id>:C:<ver>` (creative) → `RoleDeliverableBundle`
+   - Implement Lens job profiles (all through Workflow Engine + Flight Recorder):
+     - `ATELIER_ROLE_EXTRACT`, `ATELIER_ROLE_COMPOSE`, `ATELIER_STATE_MERGE`, `ATELIER_GRAPH_SOLVE`, `ATELIER_CONCEPT_RECIPE`
+   - Evidence discipline: every claimed field MUST have `EvidenceRef` (bbox/page/span/time-range) and must pass `ATELIER-LENS-VAL-003` (missing evidence is FAIL).
+   - MVP role set MUST include at least one Finishing role contract (Editor or Color) alongside pre/prod roles.
+   - Wire Lens validators `ATELIER-LENS-VAL-007..011` as required gates for Lens runs (merge determinism/conflict accounting, recipe validity, DAG validity, dependency completeness).
+
+20. **[ADD v02.68] Mechanical Extension v1.2 runtime contract (MEX) — Phase 1 foundations**
+   - Implement Engine PlannedOperation (`schema_version=poe-1.0`) + EngineResult envelopes; validate with `G-SCHEMA`.
+   - Implement the required gate pipeline for engine jobs: `G-CAP`, `G-INTEGRITY`, `G-BUDGET`, `G-PROVENANCE`, `G-DET`; log every decision/outcome to Flight Recorder and surface denials in Problems.
+   - Implement the engine registry loader (`mechanical_engines.json`) and adapter resolution; capabilities are default-deny and must be explicitly granted/recorded.
+   - Implement **Conformance Harness v0** and require at least **3 engines** to pass conformance (recommended: Context/Sandbox/Wrangler or equivalents) before enabling additional engines.
+   - Enforce artifact-first I/O: any payload >32KB uses artifact handles; outputs are artifacts with SHA-256 + sidecar provenance manifests; no direct filesystem bypass (materialize-only).
+   - Canonical references: §6.3.0 + §11.8.
+- [ADD v02.79] Import a small photo set → open Photo Studio → apply a minimal recipe stub → export a derivative → inspect provenance in Job History / Flight Recorder.
+
 
 **Key risks addressed in Phase 1**
 
@@ -17676,6 +19564,25 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - [ADD v02.49] Unmanaged OSS/tool outputs (random files) create untraceable side effects and break reproducibility; mitigated by manifest + SHA-256 + materialize-only semantics.
 - [ADD v02.49] Disk bloat / cache drift from derived outputs; mitigated by TTL + pinning + deterministic GC with visible reports.
 
+- [ADD v02.52] Retrieval remains opaque / non-replayable (answers cannot be explained or reproduced); mitigated by mandatory QueryPlan + RetrievalTrace + deterministic tie-breaks and persisted selection inputs.
+- [ADD v02.52] Token budgets silently drift upward (context bloat, slower answers, worse correctness); mitigated by hard BudgetGuard enforcement + deterministic truncation flags + CI fixtures.
+- [ADD v02.52] No redaction-safe evidence packet for LLM coders/validators (Debug Bundle).
+- [ADD v02.52] Data lock-in / inability to back up workspace state early (Workspace Bundle).
+- [ADD v02.52] Accidental leakage through export (exportable=false enforcement + policy gating).
+
+
+- [ADD v02.67] Atelier role overlap/contradictions can produce nondeterministic outputs unless merge/arbitration is explicit; mitigated by `SceneState` + `ConflictSet` + `ATELIER_STATE_MERGE` and validators `ATELIER-LENS-VAL-007/008`.
+- [ADD v02.67] Conceptual Mode vectors are not replayable/auditable if they remain UI-only; mitigated by typed `ConceptRecipe` and `ATELIER-LENS-VAL-009`.
+- [ADD v02.67] Nested Production remains prose without enforceable dependencies; mitigated by `AtelierProductionGraph` + `ATELIER_GRAPH_SOLVE` and validators `ATELIER-LENS-VAL-010/011`.
+- [ADD v02.67] “Everyone finds something” can degrade relevance and blow up compute; mitigated by `RoleGlance` (cheap, non-blocking) + thresholded `RoleClaim` (top-k deep passes) + explicit per-run budgets.
+
+
+- [ADD v02.68] Mechanical jobs become an ungoverned “escape hatch” (bypass, side effects, missing provenance); mitigated by v1.2 envelopes + required gates + registry + conformance harness, with denials visible in Problems/Flight Recorder.
+- [ADD v02.68] Unbounded mechanical outputs (logs/large blobs) pollute context and break artifact discipline; mitigated by artifact-first I/O (>32KB rule) + output caps + G-BUDGET/G-PROVENANCE enforcement.
+- [ADD v02.79] Scope explosion (Lightroom/Affinity-class) → enforce Phase 1 boundary: “skeleton only; no RAW/masks/layers/AI”.
+- [ADD v02.79] UI bypassing job runtime → all Photo Studio actions MUST enqueue jobs (“single execution authority”).
+
+
 **Acceptance criteria**
 
 - Calendar range selection returns the same ActivitySpan/SessionSpan set as the equivalent Flight Recorder interval-overlap query (filters + attribution mode recorded).
@@ -17691,12 +19598,14 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - Data layer invariants enforced: Raw/Derived/Display separation respected; layer_scope/apply_scoped/preview_only/access_mode persisted; per-op provenance visible in Flight Recorder.  
 - At least one end-to-end MCP-backed job (stub server is fine) is visible in Job History and Flight Recorder, with Gate decisions and capability metadata attached.
 - Migrations validated: forward/backward fixture tests pass and migration version surfaces in a health check.  
-- Workflow/Job completeness: mandatory fields (job_kind/profile_id/layer_scope/EntityRef) recorded; idempotency keys honored; retries capped; crash/restart yields resumed or failed runs with clear status.  
-- Capability model is default-deny across AI/mechanical/terminal/Monaco; approvals cached with TTL; allow/deny decisions logged in Flight Recorder.  
-- Retention/redaction defaults enforced: FR/log retention windows applied; redacted output retention window honored; env/secret scrubbing verified.  
-- Terminal LAW (minimal slice): run_command defaults to policy mode with timeout (~180s), kill_grace, and max_output_bytes (~1–2MB); approvals UI present; sessions bound to workspace; executions logged in Flight Recorder.  
-- CI gates: lint/format/test and health script enforced in CI; fail if logging/FR hooks are missing.  
-- Sheets MVP present: HyperFormula formulas, basic grid operations, and import/export fixture pass.
+- Workflow/Job completeness: mandatory fields (job_kind/profile_id/layer_scope/EntityRef) recorded; idempotency keys honored; retries capped; crash/restart yields resumed or failed runs with clear status.
+- Capability model is default-deny across AI/mechanical/terminal/Monaco; approvals cached with TTL; allow/deny decisions logged in Flight Recorder.
+- Retention/redaction defaults enforced: FR/log retention windows applied; redacted output retention window honored; env/secret scrubbing verified.
+- **[ADD v02.63] Model profile clarity:** Runtime integration documents and ships a concrete ModelProfile/Routing/SafetyProfile schema for MVP models (id, role, safety policy, routing notes) and evidence of usage in jobs.
+- Terminal LAW (minimal slice): run_command defaults to policy mode with timeout (~180s), kill_grace, and max_output_bytes (~1–2MB); approvals UI present; sessions bound to workspace; executions logged in Flight Recorder.
+- CI gates: lint/format/test and health script enforced in CI; fail if logging/FR hooks are missing.
+- Sheets MVP present (v02.70). Implementation details moved to **§2.2.1.13**.
+  - HyperFormula formulas, basic grid operations, and import/export fixture pass.
 - Safety/ops engines exercised: Guard/Container/Quota enforced with FR evidence; Profiler/Monitor metrics visible per job; Repo/Formatter/Deploy paths logged via capability gates; Clipboard/Notifier actions bound to consent/capability.
 - Atelier foundation present: create/edit `AtelierProductionPlan`, run `AtelierCompiler` to emit deterministic prompt/design/comfy_recipe exports with provenance; internal storage remains raw.
 
@@ -17718,6 +19627,26 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - [ADD v02.49] Pin/unpin + TTL + GC can be demonstrated end-to-end; GC does not delete pinned; retention report is stored as an artifact.
 - [ADD v02.49] Any “export to file path” uses atomic materialize and logs policy + hashes (no direct writes).
 
+- [ADD v02.52] For every retrieval-backed call: QueryPlan + RetrievalTrace exist, are hashed, and are reachable from Job History/Operator Consoles; evidence items are bounded and carry SourceRefs or ArtifactHandles.
+- [ADD v02.52] CI runs T-ACE-RAG-001 (normalization determinism) and T-ACE-RAG-002 (strict ranking determinism) on a fixed fixture corpus; failures surface as Problems with Debug Bundle linkage.
+- [ADD v02.52] Debug Bundle meets required structure and emits its export event (per existing Master Spec).
+- [ADD v02.52] Workspace Bundle contains required tree and manifest; produces stable hashes when rerun with identical inputs/profile.
+- [ADD v02.52] Policy context is captured/visible for export actions.
+- [ADD v02.52] Attempt to include `exportable=false` artifacts without explicit policy is denied, logged, and surfaced.
+
+
+- [ADD v02.67] Atelier Lens v0.1 runs end-to-end on a mixed-domain fixture set; Role Claims + Role Glances are visible, and top-k role extraction produces evidence-linked `RoleDescriptorBundle`s.
+- [ADD v02.67] `ATELIER_STATE_MERGE` produces deterministic `SceneState.resolved` hashes under pinned inputs and emits `ConflictSet` whenever conflicts exist; `ATELIER-LENS-VAL-007/008` pass on golden fixtures.
+- [ADD v02.67] `ConceptRecipe` is generated from Artistic Vectors, persisted with pins, and replayable; `ATELIER-LENS-VAL-009` passes.
+- [ADD v02.67] `AtelierProductionGraph` is solvable and produces a stable `solve_plan`; `ATELIER-LENS-VAL-010/011` pass.
+- [ADD v02.67] At least one Finishing role emits a typed deliverable bundle (e.g., grade targets/LUT spec, edit beat map, VFX shot list) with evidence refs and Flight Recorder provenance.
+
+
+- [ADD v02.68] At least 3 mechanical engines pass Conformance Harness v0; Engine PlannedOperation/EngineResult envelopes validate, required gates run, and denials are visible in Problems/Flight Recorder.
+- [ADD v02.68] Artifact-first engine I/O is enforced: payloads >32KB are artifact refs, outputs are artifacts with SHA-256 + provenance manifests, and D0/D1 runs include evidence artifacts when applicable.
+- [ADD v02.79] Can import a folder of images, render a grid, open a single image, and export a derivative via job history with traceable inputs/outputs.
+
+
 **Explicitly OUT of scope**
 
 - [ADD v02.47] Charts/dashboards, decks, and any PPTX/PDF export pipelines (including in-app presentation surfaces).
@@ -17737,6 +19666,14 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - Font editing/subsetting workflows.
 
 - [ADD v02.49] Cross-device artifact sync/dedup, multi-user artifact lineage, and advanced GC heuristics beyond TTL+pinning.
+
+- [ADD v02.52] ContextPacks builder job, pack freshness guard, index drift guard, and hash-key caching effectiveness (candidate/rerank/span caches) — Phase 2.
+- [ADD v02.52] Format round-tripping (DOCX/PPTX/XLSX writers).
+- [ADD v02.52] Cloud bundle sharing/upload.
+- [ADD v02.52] Export workflows that mutate Raw/Derived stores.
+
+- [ADD v02.79] Photo Studio advanced features: RAW decode, lens corrections, masks, layer compositor, HDR/pano/focus merges, AI vision, ComfyUI, vector tools.
+
 
 **Mechanical Track (Phase 1)**
 - Deliver low-risk local engines: `Context` (rg), `Version` (Jujutsu/Gitoxide), `Sandbox` (safe code exec), `Publisher` (deterministic Markdown/Doc to PDF), `Formatter` (lint/format enforcement), `Repo` (git/libgit actions), and `Deploy` (minimal devops automation).
@@ -17759,6 +19696,19 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - [ADD v02.49] Retention/pinning MVP: implement pin/unpin + TTL + a deterministic GC job/command; GC never deletes pinned artifacts; emit a retention report artifact for visibility.
 - [ADD v02.49] Bundle canonical hashing: implement canonical bundle hashing (zip normalization) and use it for any bundle-style artifact (debug bundles, packaged deliverables, multi-file exports).
 
+- [ADD v02.52] Retrieval trace bundle exporter: a mechanical job that takes `trace_id` (and referenced artifacts) and emits a redacted-by-default Debug Bundle artifact for retrieval issues (QueryPlan/Trace + budgets + cache keys + selected spans).
+- [ADD v02.52] Deterministic bounded-read span extractor (mechanical helper) used by retrieval escalation paths; emits span selection provenance and truncation flags.
+- [ADD v02.52] Job profiles (capability-gated; logged; hashed): `debug_bundle_export_v0`, `workspace_bundle_export_v0`.
+
+
+- [ADD v02.67] Add mechanical job profiles + runner integration for Atelier Lens: `atelier_claim_v0`, `atelier_role_extract_v0`, `atelier_role_compose_v0`, `atelier_state_merge_v0`, `atelier_graph_solve_v0`, `atelier_concept_recipe_v0`; all capability-gated and Flight Recorder logged with pins/hashes.
+- [ADD v02.67] Add CI fixtures + validators for Lens runs (VAL-007..011) and ensure denials/FAILs surface in Problems (no silent failures).
+
+
+- [ADD v02.68] Mechanical Extension v1.2 enforcement: engine jobs use `poe-*` envelopes; required gates (`G-SCHEMA/G-CAP/G-INTEGRITY/G-BUDGET/G-PROVENANCE/G-DET`) run and are logged; engine registry is authoritative; conformance must pass before an engine is enabled for general use.
+- [ADD v02.79] Add Darkroom engine stubs behind Mechanical Extension v1.2 (non-functional OK) so Photo Studio UI cannot mutate state outside the job/gate pipeline.
+
+
 **Atelier Track (Phase 1)**
 - Implement storage + versioning for `DerivedContent: AtelierProductionPlan` (prose-first brief headings always present; structured `PlanFields` footer).
 - Add `ATELIER_PLAN` job profile and a minimal editor surface for creating/refining plans (no rendering required in Phase 1).
@@ -17766,15 +19716,40 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - Wire Atelier validators (ATELIER-VAL-001..005) to plan save/compile; auto-fill defaults rather than prompting.
 - Acceptance: plans can be authored, validated, compiled, and exported with provenance linking to input references; connector-specific filtering occurs only at Display/Export boundaries.
 
+- [ADD v02.52] Any Atelier job step that consults workspace evidence MUST emit QueryPlan/Trace and obey RetrievalBudgets (no “hidden retrieval” inside compilers).
+- [ADD v02.52] Workspace/Debug Bundles may include Atelier artifacts **only if policy allows**; filtering remains Display/Export-only.
+
+
+- [ADD v02.67] Implement Lens surfaces: Role Claims Panel, Role Glances Grid, Role Bundle Viewer (with evidence highlights) and Deliverables Browser for `RoleDeliverableBundle`.
+- [ADD v02.67] Wire `ATELIER_CLAIM` into ingestion surfaces so any imported image/text can be claimed by multiple roles (cross-domain by design).
+- [ADD v02.67] Ship MVP role contracts (dual-contract) for: `dop.lighting`, `set.set_dressing`, `fashion.styling`, `graphic_design`, and one Finishing role (`finishing.color` or `finishing.editorial`).
+- [ADD v02.67] Implement `ATELIER_CONCEPT_RECIPE` and pass `ConceptRecipe` into compilers/composers (Conceptual Mode becomes replayable; recipes are first-class artifacts).
+- [ADD v02.67] Implement `ATELIER_STATE_MERGE` (SceneState + ConflictSet) and `ATELIER_GRAPH_SOLVE` (ProductionGraph + solve_plan) as mechanical jobs used by Atelier compilation flows.
+- [ADD v02.79] Add Photo Studio worksurface shell: browser grid + viewer + metadata inspector (read-only metadata is acceptable in Phase 1).
+
+
 **Distillation Track (Phase 1)**
 - Define Skill Bank schema alignment and logging-only distillation job profiles (no training) using Workflow Engine.
 - Capture teacher/student metadata, context refs, reward features, lineage fields, and data_signature/job_ids_json in Flight Recorder.
 - Acceptance: distillation job schema is wired with capability gating; log entries include all mandatory fields; no model training or promotion yet.
 
+- [ADD v02.52] Distillation jobs MUST record referenced QueryPlan/Trace ids (when retrieval-backed) so training/eval inputs are auditable and replayable.
+- [ADD v02.52] Distillation log artifacts must respect `exportable` flags so bundles cannot leak local-only payloads.
+
+
+- [ADD v02.79] Capture Photo Studio job traces as distillation-ready sequences (recordable workflows; no learning required in Phase 1).
 ### 7.6.4 Phase 2 — Ingestion & Shadow Workspace (Docling + RAG MVP)
 
 **Goal**  
 Make Handshake useful over **existing** files and unlock basic retrieval-augmented generation, reusing the existing AI Job, workflow, and observability stack. Maintain and extend debug surfaces for ingestion and retrieval.
+
+- [ADD v02.52] Implement ACE-RAG-001 as the canonical RAG contract: packs-first routing, deterministic scoring/selection, hash-key caching, and drift detection wired into Operator Consoles.
+- [ADD v02.52] Add: Bundle export covers imported files + ingestion outputs in a portable, policy-safe way.
+
+- [ADD v02.68] Enforce v1.2 evidence semantics for any D1 ingestion/verification engine: external/non-deterministic claims must carry evidence artifacts (snapshots/screenshots) and be replayable from bundles.
+
+- [ADD v02.79] Make Photo Studio content **searchable in Shadow Workspace** (metadata + previews/proxies indexed; raw binaries remain referenced).
+
 
 **MUST deliver**
 
@@ -17840,6 +19815,9 @@ Make Handshake useful over **existing** files and unlock basic retrieval-augment
    - [ADD v02.36] Enforce evidence binding: answers must carry linked evidence refs; policy may fail the job or mark it incomplete when evidence is missing.
    - [ADD v02.36] Debug Bundle (ingestion/RAG) includes retrieval query, ranked chunk IDs/hashes, embedding/index configuration + versions, and prompt budget/truncation flags.
 
+12. **[ADD v02.52] Workspace Bundle v0 (Expanded)**
+   - Workspace Bundle v0 expands to include imported raw assets + key derived/canonical snapshots produced by ingestion.
+
 
 4. **Descriptor extraction core (image + text)**  
    - Implement the DES-001 / IMG-001 / TXT-001 descriptor pipelines at MVP level for any content imported via Docling or direct file import, as defined in Sections 1.3 and 6.3.  
@@ -17890,6 +19868,11 @@ Make Handshake useful over **existing** files and unlock basic retrieval-augment
    - Enforce `ExportRecord` + SHA-256 + canonical bundle hashing for any export job introduced in Phase 2 (deck_export_*, chart exports, Debug Bundle exports used by Operator Consoles).  
    - Any ingestion producing multi-file outputs (figures/tables/thumbnails) MUST emit per-artifact manifests and apply retention/pinning defaults based on classification.
 
+
+13. **[ADD v02.79] Photo ingestion + catalog + indexing (Phase 2 baseline)**  
+   - [ADD v02.79] Catalog/DAM baseline: collections, flags/ratings, folder sync; metadata read/write pipeline.  
+   - [ADD v02.79] Proxy + preview pipeline as mechanical jobs (proxy-first for AI later).  
+   - [ADD v02.79] Index photo metadata (and optionally captions) into Shadow Workspace for retrieval/debug.  
 **Vertical slice**  
 - Import a `.docx` or `.pdf` file.  
 - Wait for ingestion to complete and open the resulting document.  
@@ -17898,10 +19881,45 @@ Make Handshake useful over **existing** files and unlock basic retrieval-augment
 - Open a descriptor/debug view for the imported file and inspect at least one DescriptorRow (image or text) with correct `content_tier` / `consent_profile` metadata and provenance.
 - [ADD v02.40] Run one external web retrieval (allowed/consented), then repeat the same question and confirm it is answered from `LocalWebCacheIndex` (cache hit visible in RAG Debugger; no second external call).
 - [ADD v02.47] Import a financial PDF → extract a table → create a chart referencing that table → assemble a 3‑slide deck (title + chart + table) → export PPTX → verify provenance in Job History + Flight Recorder.
+- [ADD v02.52] Import a PDF/DOCX, run ingestion, export Workspace Bundle; verify original bytes + canonical snapshot + Display-derived render included.
+
+
+11. **[ADD v02.52] ACE-RAG-001 Retrieval Contract (RAG correctness, speed, token efficiency)**
+   - Implement `ContextPack` builder job (`context_pack_builder_v0.1`) producing pack artifacts with `facts/constraints/open_loops/anchors/coverage` and SourceRefs.
+   - Enforce pack freshness (`ContextPackFreshnessGuard`) using source hashes; stale packs MUST not be preferred.
+   - Implement `IndexDriftGuard`:
+     - Embedding drift: vector/snippet records carry `source_hash`; mismatch triggers drop/downgrade + reindex recommendation.
+     - KG drift: candidates used as evidence require provenance; missing provenance disqualifies evidence use.
+     - LocalWebCacheIndex drift: TTL/pinning warnings surfaced; pinned-but-stale marked clearly in traces.
+   - Implement hash-key caching for retrieval stages:
+     - retrieval candidate list cache (cache_kind=`retrieval_candidates`)
+     - rerank order cache (cache_kind=`rerank_order`)
+     - (optional) spans cache and prompt envelope cache once stable
+   - Determinism split:
+     - strict mode: deterministic ranking + tie-breaks; deterministic rerank only.
+     - replay mode: persist candidate ids/hashes + rerank order; replay reuses persisted order.
+   - Upgrade Operator Consoles RAG Query Debugger + Index Doctor to show:
+     - QueryPlan + RetrievalTrace ids/hashes, route taken, cache hits/misses, candidates + scores + tie-break keys,
+       selected spans + truncation flags, drift flags, and degraded-mode markers.
+
+- [ADD v02.52] Verify ContextPacks are preferred when fresh, fall back is logged when stale; RAG Debugger shows QueryPlan/Trace, cache hit/miss, and drift flags for the answer.
+
+
+13. **[ADD v02.67] Atelier Lens at scale (Role lanes + organic growth controls)**
+   - Implement `ATELIER_LANE_INDEX` to build role-scoped retrieval lanes (lexical + vector) over:
+     - `RoleDescriptorBundle` (role overlays, evidence-linked)
+     - `RoleDeliverableBundle` (typed outputs)
+   - Implement organic growth queue jobs:
+     - `ATELIER_VOCAB_PROPOSE` (emit proposed terms/fields with example evidence)
+     - `ATELIER_VOCAB_RESOLVE` (accept/merge/reject; produces a new vocab snapshot id)
+   - “Search as role”: add retrieval routing so role lanes are queryable and preferred when a role lens is selected.
+   - Scheduling: enforce budgets so only top-k roles run deep extraction; `RoleGlance` remains cheap and non-blocking at corpus scale.
+- [ADD v02.79] Import RAW+JPEG set → generate previews/proxies → search by metadata → open from results → export derivative; confirm provenance chain.
 
 
 **Key risks addressed in Phase 2**
 
+- [ADD v02.52] Ingested content cannot be backed up/moved while preserving provenance/IDs.
 - [ADD v02.47] Charts/decks accidentally become a parallel datastore (data copied into chart/deck content instead of ID-based references).
 - [ADD v02.47] Export provenance gaps (missing hashes/engine version/policy) prevent reproducibility and audit.
 - [ADD v02.47] Export policy leakage: sensitive content exported without `SAFE_DEFAULT` gating and explicit logging.
@@ -17920,14 +19938,25 @@ Make Handshake useful over **existing** files and unlock basic retrieval-augment
 - [ADD v02.40] Privacy leakage: cached pages contain sensitive material that is later exported or sent to external models (mitigate via consent gates + minimization + sensitivity tagging + never writing redactions back into stored content).
 
 
-8. **Calendar ingestion and ICS invite pipeline (read-only external, local drafts)**  
-   - Implement `calendar_sync` as a mechanical engine for **read-only** provider ingestion (CalDAV) into a local calendar store with idempotency keys and observable sync state.  
-   - Parse **ICS attachments** from mail ingestion into **draft** CalendarEvents (no external export) and attach provenance to the source MailMessage/thread.  
-   - Store and surface timezone/recurrence fields as Raw/Derived data (no advanced UI editing required in this phase).  
+8. **Calendar ingestion and ICS invite pipeline (read-only external, local drafts)**
+   - Implement `calendar_sync` as a mechanical engine for **read-only** provider ingestion (CalDAV) into a local calendar store with idempotency keys and observable sync state.
+   - Parse **ICS attachments** from mail ingestion into **draft** CalendarEvents (no external export) and attach provenance to the source MailMessage/thread.
+   - Store and surface timezone/recurrence fields as Raw/Derived data (no advanced UI editing required in this phase).
+   - **[ADD v02.63] Full Calendar Law delivery (write + recurrence + governance):** add recurrence editing UI, patch-set mutation governance (expected_etag/local_rev + provenance), identity/idempotency rules, and export/write policy enforcement aligned with A§10.4.1.
+   - **[ADD v02.63] ACE↔Calendar compatibility:** add ACE compatibility tests (scope hint, cache/prefix stability) for calendar context; ensure calendar writes/reads do not violate ACE determinism/caching rules.
 
 
 - [ADD v02.44] JVM-based services (Tika/GROBID) increase packaging/ops complexity and require strict resource limits and isolation.
 - [ADD v02.44] Untrusted file parsing (PDF/media) is a high-risk surface; enforce §11.7.4 untrusted-input policies and capture evidence/provenance for every derived artifact.
+- [ADD v02.67] Role-lane indexing and “organic growth” can degrade queryability if uncontrolled; mitigated by proposal queues, vocab snapshot ids, and lane rebuilds driven by accepted changes.
+- [ADD v02.67] Lane/index drift breaks replayability; mitigated by pinned lane build configs + hash-keyed rebuild semantics and surfacing drift in Inspector/Operator Consoles.
+- [ADD v02.67] Compute cost grows superlinearly with corpus size; mitigated by claim/glance/deep split with strict budgets and backpressure-aware scheduling.
+
+
+- [ADD v02.68] External facts are not verifiable/replayable (link rot, changing pages, disputes); mitigated by Archivist/Guide evidence bundles and v1.2 D1 evidence requirements (replay uses captured artifacts).
+- [ADD v02.79] Index bloat / perf regression → index references + derived previews only (artifact-first), not raw pixels.
+
+
 **Acceptance criteria**
 
 - [ADD v02.47] Chart stores only spec + entity refs; table edits update render; no duplicated table rows/cells exist in Chart RawContent.
@@ -17935,7 +19964,9 @@ Make Handshake useful over **existing** files and unlock basic retrieval-augment
 - [ADD v02.47] Chart/deck create/update/export operations are visible as explicit jobs (with previews, validators, and Flight Recorder traces).
 
 - At least one external calendar can be ingested read-only via `calendar_sync` and rendered in the Calendar surface with provenance and sync diagnostics visible.
-- Ingestion jobs are visible and inspectable in Job History and Flight Recorder.  
+- **[ADD v02.63] Calendar Law compliance tests pass (A§5.4.6.4) and ACE↔Calendar compatibility tests added; recurrence editing/write governance enforced per A§10.4.1 (patch-set, idempotency, identity).**
+- **[ADD v02.63] Contextual hardening primitives:** audit trail and retention policies are recorded (TraceRetentionPolicy/AuditTrail/CapabilityGrant logs); capability grants/denials and retention/redaction defaults are visible in FR/Problems; schema/docs updated for these primitives.
+- Ingestion jobs are visible and inspectable in Job History and Flight Recorder.
 - Shadow Workspace can be inspected via logs or a debug view (e.g. number of indexed documents, last index time).
 - Shadow Workspace inspection is available via Operator Consoles (Index Doctor) and supports rebuild/backfill with FR+Problems linkage.
   
@@ -17969,11 +20000,24 @@ Make Handshake useful over **existing** files and unlock basic retrieval-augment
 - [ADD v02.49] Deck export bundles include canonical bundle hash and per-file manifests (or embedded `bundle_index.json`); ExportRecord includes export policy, engine/version/config hash, and SHA-256 hashes.
 - [ADD v02.49] Ingestion-derived artifacts (tables/figures/thumbnails) can be pinned and survive TTL/GC; retention state is inspectable via Operator Consoles.
 
+- [ADD v02.52] ACE-RAG-001 conformance tests pass (T-ACE-RAG-001..007): normalization determinism, strict ranking determinism, replay persistence, pack freshness invalidation, budget enforcement, drift detection, cache invalidation.
+- [ADD v02.52] Repeating the same query over unchanged sources shows cache hits in RetrievalTrace and reduced retrieval latency (measured in Flight Recorder).
+- [ADD v02.52] RAG Debugger deep-links: Answer → RetrievalTrace → selected spans → source documents; every evidence item is bounded and provenance-carrying.
+- [ADD v02.52] export_report lists inclusions/exclusions and reasons; denials visible in Problems + Flight Recorder.
+- [ADD v02.52] exported entities preserve stable IDs referenced by jobs/workflows.
+
+
+- [ADD v02.67] Role-lane search exists: selecting a role lens routes queries through the correct lane index, and results show evidence refs and provenance.
+- [ADD v02.67] Vocab/schema proposal queue works end-to-end (propose → review/resolve → new snapshot id → lane rebuild) and produces audit logs in Flight Recorder/Operator Consoles.
+- [ADD v02.67] Lane rebuilds are deterministic under pinned configs and surface drift flags when underlying sources change.
+- [ADD v02.79] Photo search returns correct assets by metadata/collection; opening a result shows traceable derivation artifacts.
+
+
 **Explicitly OUT of scope**
 
 - [ADD v02.47] Extension marketplace for chart/deck templates, third‑party exporters, and collaborative review/commenting (defer to Phase 4).
 
-- External calendar write-back (CalDAV PUT/DELETE) and full recurrence editing UI.
+- **[ADD v02.63] External calendar provider write-back (CalDAV PUT/DELETE) remains out-of-scope; Phase 2 covers local recurrence/editing only.**
 - Advanced knowledge graph visualization.
 - Complex retriever configuration UIs.
 - Graph/node authoring UI for image workflows, advanced ComfyUI graphs, or multi-model routing; only the pinned SDXL workflow is in scope.  
@@ -17982,6 +20026,13 @@ Make Handshake useful over **existing** files and unlock basic retrieval-augment
 - Advanced multi-agent orchestration beyond basic agent invocation (e.g., AutoGen/LangGraph multi-step flows).
 - Full mail client functionality beyond read-only ingestion and rendering.
 - [ADD v02.40] Bulk crawling/archiving of arbitrary websites beyond explicit allowlist runs (no “mirror the web” mode).
+
+
+- [ADD v02.52] Cross-device/multi-user caching and pack-regeneration policy (collaboration-safe semantics) — Phase 4.
+- [ADD v02.52] “Rehydrate full index from bundle” as a supported workflow (future phase).
+- [ADD v02.52] publishing bundles as shareable links.
+
+- [ADD v02.79] Full layer compositor, advanced masking, merges, AI generation.
 
 
 **Mechanical Track (Phase 2)**
@@ -17994,6 +20045,8 @@ Make Handshake useful over **existing** files and unlock basic retrieval-augment
 - Acceptance: ingestion/descriptor/indexing runs show mechanical provenance in Flight Recorder; Shadow Workspace metrics/logs expose indexed docs and language/normalization steps; RAG answers list retrieved snippets and source artifacts; data audits (Inspector/Router) log routing decisions and invariants.
 - When these engines are exposed as remote services, they SHOULD prefer MCP as the tool interface and MUST route calls through the same MCP Gate and Flight Recorder paths as other AI jobs (Sections 2.6.6 and 11.3).
 - [ADD v02.40] Implement Cache-to-Index Assimilation as a mechanical job using existing engines (`Archivist` capture → `Indexer` normalize/chunk/index → `Inspector` TTL/pinning audits) and log all steps in Flight Recorder.
+- [ADD v02.52] `workspace_bundle_export_v0` supports inclusion of imported raw assets + selected derived sidecars (policy-gated).
+- **[ADD v02.63] OS primitives track (Window/Shell Engines):** add UI automation and sandboxed shell mechanical jobs (capability-gated, logged, bounded outputs) with FR/Job History visibility and health/timeout/quotas.
 
 
 
@@ -18001,15 +20054,39 @@ Make Handshake useful over **existing** files and unlock basic retrieval-augment
 - [ADD v02.44] Creative asset ingestion jobs: thumbnails (libvips), metadata extraction (Tika + ExifTool), dedupe scanning (Czkawka) with provenance sidecars.
 - [ADD v02.44] Bibliography primitives + tooling integration: `science.primitives.bibliography` (JabRef / Hayagriva / Citation.js; citeproc-rs only with MPL obligations tracked) and coupling to paper ingestion outputs.
 - [ADD v02.44] Local analytics substrate + unit validator: `science.analytics.local` (Arrow + DuckDB) and `science.validators.units_dimension` (Pint) as gates for derived tables/params.
+- [ADD v02.67] Implement `ATELIER_LANE_INDEX`, `ATELIER_VOCAB_PROPOSE`, and `ATELIER_VOCAB_RESOLVE` as mechanical job profiles (capability-gated; logged; deterministic outputs via snapshot ids).
+- [ADD v02.67] Add lane/index Inspector audits (coverage, drift, rebuild triggers) and render lane status in Operator Consoles.
+
+
+- [ADD v02.68] Apply v1.2 determinism/evidence policy: `Archivist` and `Guide` operations classified as D1 MUST emit evidence artifacts; conformance harness includes evidence-required checks and replay expectations.
+- [ADD v02.79] Implement `engine.raw_decode` + minimal `engine.photo_develop` CPU path behind tool bus (pinned versions; determinism class recorded).
+
+
+**Atelier Track (Phase 2)**
+- [ADD v02.67] Expand the Role Registry materially (still contract-first); add at least one additional Finishing role and one “culture/context” advisor role as dual contracts.
+- [ADD v02.67] Implement one real Nested Production dependency chain as a production graph fixture (e.g., `graphic_design` produces a pattern deliverable consumed by `fashion.styling` synthesis), and ensure `ATELIER_GRAPH_SOLVE` schedules it deterministically.
+- [ADD v02.67] Add role-lens retrieval UI: “Search as role”, lane selection, and per-role result explanation (why this role claimed it + evidence refs).
+- [ADD v02.79] Add collections/smart filters UI + search entrypoint wired to Shadow Workspace results.
+
+
 **Distillation Track (Phase 2)**
 - Persist Skill Bank entries from real workflows; implement sample selection and teacher-eval jobs flowing through Workflow Engine.
 - Define and version the distillation eval suite; log pass@k/compile/test and collapse indicators; no student promotion yet.
 - Acceptance: Skill Bank artifacts stored with provenance and export controls; eval runs visible in Flight Recorder with required metrics and lineage fields.
 
+
+- [ADD v02.79] Preset/recipe serialization rules finalized enough for “shareable presets” (still single-user).
 ### 7.6.5 Phase 3 — ASR & Long-Form Capture
 
 **Goal**  
 Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observability primitives. Debugging ASR behaviour must be possible from logs and UI.
+
+- [ADD v02.52] Extend ACE-RAG-001 evidence selectors to transcripts (time-range SourceRefs), so Q&A over ASR outputs uses the same budgets/traces/drift guards.
+
+- [ADD v02.68] Media mechanical jobs (Director/Composer) adopt v1.2 determinism classes (D2/D3 when possible) and emit conformance vectors + provenance so renders can be re-run and compared.
+
+- [ADD v02.79] Introduce **vision-derived metadata** for photos using the same provenance/drift discipline Phase 3 applies to other stochastic outputs.
+
 
 **MUST deliver**
 
@@ -18060,11 +20137,29 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
 8. **[ADD v02.49] ASR artifact discipline (manifests + retention + bundle hashing)**  
    - ASR outputs (transcripts, segments, debug bundles) MUST emit artifact manifests with SHA-256, respect TTL/pinning defaults, and use canonical bundle hashing for exported Debug Bundles.
 
+
+9. **[ADD v02.79] Photo Vision v0 (metadata-only)**  
+   - [ADD v02.79] `engine.vision` jobs: `tag`, `describe`, `analyze_quality`, optional `ocr`; outputs stored as `.hs.ai.json` artifacts with model/version/params recorded.  
 **Vertical slice**  
 - Drop an audio file into Handshake.  
 - Run transcription and see progress.  
 - Open the resulting transcript document.  
 - Inspect Job History and Flight Recorder entries for the ASR job and confirm model choice, status transitions, and any errors.
+
+9. **[ADD v02.52] Transcript retrieval compatibility (ACE-RAG-001)**
+   - Define transcript selectors (`ts_range`, `segment_id`) as bounded selectors for `SourceRef` so reads are time-range bounded.
+   - Store `source_hash` per transcript segment (and per derived chunk) so IndexDriftGuard can detect ASR regeneration drift.
+   - ContextPack builder MUST support transcript targets and emit timestamped anchors (timecode + excerpt hint).
+   - RAG Debugger MUST render transcript spans as time ranges and deep-link to the underlying media segment where available.
+
+- [ADD v02.52] Ask a question over a transcript; RetrievalTrace shows timestamp spans, budgets, and (if applicable) drift flags when transcript is regenerated.
+
+
+- [ADD v02.67] Extend Atelier Lens to time-based media:
+  - Treat transcript spans and video time ranges as first-class `EvidenceRef.time_span` targets for role bundles.
+  - Implement/validate at least one post-production role pipeline over long-form media (Editor or Color) using time-span evidence and producing typed deliverables.
+- [ADD v02.79] Run auto-tag + quality scoring over a batch → build a smart collection from tags/scores → inspect diffs/drift via logs.
+
 
 **Key risks addressed in Phase 3**
 
@@ -18074,6 +20169,13 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
 - Symbolic/Taste engines (SYM-001 + Taste Engine) accidentally redefine descriptor law or mutate descriptor rows instead of adding separate Derived overlays.
 - NLP/media helpers could drift or silently alter base descriptors without overlays/provenance.
 - MCP-based distillation/sampling flows accidentally run with write-capable tools or bypass the Gate/logging path, causing side effects or untraceable model changes.
+
+
+- [ADD v02.52] ASR transcript regeneration changes evidence silently (drift); mitigated by per-segment source_hash + drift guard + explicit degraded-mode warnings.
+
+
+- [ADD v02.67] Time-based evidence is hard to audit and drifts when media is re-encoded; mitigated by time-span EvidenceRefs, per-segment/source hashes, and explicit drift flags in retrieval/debugger surfaces.
+- [ADD v02.79] Stochastic drift and silent regressions → require model/version pinning and artifacted outputs with comparison tools.
 
 
 **Acceptance criteria**
@@ -18099,11 +20201,21 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
 - [ADD v02.49] Demonstrate TTL + pinning on an ASR transcript + associated artifacts; expired unpinned artifacts are GC’d and a `gc_report` artifact is emitted.
 - [ADD v02.49] ASR Debug Bundle export uses canonical bundle hashing; same inputs/config produce a stable structural hash, and per-file manifests/bundle_index are recorded.
 
+- [ADD v02.52] Transcript Q&A uses the same QueryPlan/Trace pipeline; evidence spans are time-bounded and replayable.
+
+
+- [ADD v02.67] At least one long-form media artifact (audio/video) produces role bundles with `EvidenceRef.time_span` and clickable deep-links to the source segment.
+- [ADD v02.67] A post-production role (Editor or Color) runs end-to-end on long-form media and emits typed deliverables with provenance; time-based Lens validators pass (including evidence presence and drift detection where applicable).
+- [ADD v02.79] Re-running the same vision job under same model/version produces “within-policy” stable structure; drift is detectable.
+
+
 **Explicitly OUT of scope**
 
 - Real-time streaming captions.  
 - Fine-tuning workflows for ASR models.  
 - Complex diarization and speaker management UIs.
+- [ADD v02.79] AI masks/segmentation, ComfyUI, HDR/pano/focus merges.
+
 
 **Mechanical Track (Phase 3)**
 - Media engines: `Director` (FFmpeg/Manim) and `Composer` (LilyPond/Music21) producing DerivedContent with sidecar command/param/hash provenance.
@@ -18127,6 +20239,19 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
 
 - [ADD v02.44] Notebook execution as Jobs: `science.jobs.notebook_engine` (Jupyter-backed) producing typed outputs + artifacts and capturing failures as diagnostics.
 - [ADD v02.44] Reproducibility bundles: `science.repro.run_bundles` (ReproZip capture) tied to notebook/script runs with stored bundle artifacts.
+- [ADD v02.67] Ensure ASR/Media jobs emit time-span EvidenceRefs compatible with Atelier Lens and that Lens jobs can consume ASR transcript selectors and frame extracts without unbounded reads.
+
+
+- [ADD v02.68] Conformance for media engines: Director/Composer runs must satisfy v1.2 conformance (artifact-only I/O, budget caps, provenance completeness, determinism class declared). D2 outputs MUST include canonicalization rules for stable structural hashes.
+- [ADD v02.79] Implement `engine.vision` wrapper as governed job; proxy-first inputs by default.
+
+
+**Atelier Track (Phase 3)**
+- [ADD v02.67] Add explicit dual-contract examples and fixtures for post-production roles over time-based media (Editor/Color/VFX), including deliverable kinds and evidence requirements.
+- [ADD v02.67] Extend Role Glance/Claim heuristics to time-based inputs (transcripts, keyframes, shot boundaries) while keeping the claim pass cheap and budgeted.
+- [ADD v02.79] Tags panel + smart collections UI fed from vision outputs.
+
+
 **Distillation Track (Phase 3)**
 - Implement student runs, checkpoint creation, and eval/promotion gates vs teacher and previous checkpoints.
 - Enforce rollback via checkpoint lineage; gate on security flags and collapse indicators; persist promotion decisions in Flight Recorder.
@@ -18135,10 +20260,19 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
   - All such calls are logged into Flight Recorder and `fr_distillation_samples` with clear linkage to Skill Bank entries and checkpoints.
 - Acceptance: at least one promotion cycle logged end-to-end with metrics, lineage, and gate outcomes; rollback tested.
 
+
+- [ADD v02.79] Promote successful “culling + tagging” flows into reusable workflows/presets.
 ### 7.6.6 Phase 4 — Collaboration & Extension Ecosystem
 
 **Goal**  
 Move from a single-user tool to a collaborative, extensible platform, while preserving and extending observability and debug tools.
+
+- [ADD v02.52] Make ACE-RAG-001 collaboration-safe: per-user capability-gated catalogs/routes, pack regeneration policy across devices, and audit-preserving cache behavior.
+
+- [ADD v02.68] Treat engine adapters as installable/pinnable extension artifacts: registry updates are audited, adapters are hash/version pinned, and no engine becomes callable without passing conformance.
+
+- [ADD v02.79] Make Photo Studio collaboration-safe (recipes/collections/presets sync without breaking provenance or determinism guarantees).
+
 
 **MUST deliver**
 
@@ -18209,12 +20343,37 @@ Move from a single-user tool to a collaborative, extensible platform, while pres
    - Extension-delivered chart templates, dashboard layouts, and deck themes (capability-scoped; no bypass of governance).  
    - Plugin-provided exporters/renderers MUST register as mechanical jobs (engine/version/params/hashes/policy logged; no bypass).
 
+
+11. **[ADD v02.79] Photo Studio collaboration + extension hooks**  
+   - [ADD v02.79] Conflict strategy for recipe edits + collection membership + preset updates.  
+   - [ADD v02.79] Extension points: importers/export profiles/presets as plugins (gated; no-bypass).  
 **Vertical slice**  
 - Two users (or two devices) edit the same document using the chosen sync topology.  
 - One user triggers an AI action that modifies the shared document.  
 - Both users see the changes.  
 - Job History and Flight Recorder show which user triggered the job, how it ran, and how it interacted with sync/CRDT.
 - [ADD v02.47] Two users co-edit a dashboard + deck → run export → verify attribution, capability grants, and export policy in Flight Recorder/Job History.
+
+11. **[ADD v02.52] Multi-user ACE-RAG governance (packs, caches, traces)**
+   - Capability-gate Semantic Catalog and routing hints per user/workspace; catalogs MUST NOT reveal selectors/paths outside granted scope.
+   - Define cross-device policy for ContextPacks:
+     - ownership/attribution,
+     - regeneration triggers,
+     - stale/invalid handling under concurrent edits.
+   - Define multi-user cache semantics:
+     - cache keys include policy_id + user scope,
+     - caches never leak evidence across users without explicit share grants,
+     - replay mode preserves trace integrity across devices.
+   - RAG Debugger and Index Doctor MUST show user/device attribution for QueryPlan/Trace and for any pack/caching decisions.
+
+- [ADD v02.52] Two collaborators ask the same question on shared content; traces show per-user policy/capability gating and no evidence leakage across users/devices.
+
+
+- [ADD v02.67] Package Atelier roles/contracts as extensions:
+  - Define a “Role Pack” format containing `AtelierRoleSpec`, schemas, validators, and deliverable templates.
+  - Enforce capability gating + provenance: extension-provided roles MUST run through Workflow Engine + Flight Recorder and must not bypass policy/export rules.
+- [ADD v02.79] Two clients edit the same photo recipe and resolve conflict → export reproducibly with full provenance.
+
 
 **Key risks addressed in Phase 4**
 
@@ -18232,6 +20391,10 @@ Move from a single-user tool to a collaborative, extensible platform, while pres
 
 - [ADD v02.44] Plugin capability model gaps: any bypass of Gate/Workflow/Flight Recorder breaks auditability and safety; the plugin runtime MUST remain deny-by-default.
 - [ADD v02.44] Hardware/network access risk for CNC daemon connections and simulation tooling; capability scoping and logging must be complete.
+- [ADD v02.67] Role Packs/extensions can bypass Lens validators or mutate Raw/Derived unless the same gates apply; mitigated by default-deny capabilities, mandatory validator packs, and export/write-back prohibition enforced by the host runtime.
+- [ADD v02.79] Sync conflicts and provenance corruption → sync only versioned schemas + artifact refs; forbid raw mutation paths.
+
+
 **Acceptance criteria**
 
 - Collaborative edits are correctly synced and traceable in logs.  
@@ -18252,12 +20415,19 @@ Move from a single-user tool to a collaborative, extensible platform, while pres
 
 
 - [ADD v02.44] A plugin-provided vertical slice runs end-to-end with explicit capability grants, full Flight Recorder provenance, deterministic artifact outputs, and (where applicable) multi-user attribution.
+- [ADD v02.67] At least one Role Pack extension installs cleanly, registers roles/contracts, and runs Lens jobs under capability gates with full Flight Recorder provenance and validator enforcement.
+- [ADD v02.67] Cross-user attribution for Lens runs is visible in Job History/Flight Recorder where collaboration is enabled; extension provenance includes pack id/version/hash.
+- [ADD v02.79] Concurrent edits converge; all exports remain attributable to specific recipe versions + engine versions.
+
+
 **Explicitly OUT of scope**
 
 - Phase 4 does not expand core single-user UX beyond what is required for collaboration.
 - Complex plugin marketplaces, monetization, and third-party billing.
 - Unbounded external write-back/sync targets without explicit capability grants and provenance.
 - Automatic sharing of RawContent/DerivedContent across collaborators without explicit user consent controls.
+- [ADD v02.79] Full Affinity/Illustrator parity; advanced compositor; full marketplace.
+
 
 **Mechanical Track (Phase 4)**
 
@@ -18278,12 +20448,28 @@ Move from a single-user tool to a collaborative, extensible platform, while pres
 - [ADD v02.44] Creative interoperability modules:
   - `creative.interop.timeline_otio` (OTIO import/export)
   - `creative.review.annotations` (Annotorious) — only after pinned-version license verification is recorded in the OSS Component Register.
+- [ADD v02.67] Add Role Pack install/uninstall, version pinning, and deny-by-default capabilities for extension-provided Lens jobs.
+
+
+- [ADD v02.68] Engine adapter packaging posture: adapters/extensions MUST be version+hash pinned, registered (registry is authoritative), and conformance-gated. High-risk capabilities (device/network/secrets/GPU) remain default-deny and require explicit per-user grants with full provenance.
+- [ADD v02.68] Add `Sovereign` engine slice for collaboration: cryptographic signing/verification and key-handling flows run as mechanical jobs under secrets-use policy and are fully auditable (inputs/outputs as artifacts; no raw key material in logs).
+- [ADD v02.79] Plugin packaging + conformance requirements for any Photo engine adapter before it becomes callable.
+
+
+**Atelier Track (Phase 4)**
+- [ADD v02.67] Role Packs: publish/install flows for `AtelierRoleSpec` + schemas + validators + templates; ensure pack hashes are recorded and referenced by Lens outputs.
+- [ADD v02.67] Multi-user sharing: allow sharing Deliverable Bundles (not Raw/Derived corpora) under explicit grants; ensure no-censor remains internal while export projections are policy-gated.
+- [ADD v02.79] Collaborative review UI for recipe diffs + preset sharing.
+
+
 **Distillation Track (Phase 4)**
 
 - [ADD v02.47] Multi-user export governance for charts/decks: per-user consent and export policy selection recorded with lineage across collaborators/devices.
 - Multi-user governance for Skill Bank artifacts: per-user attribution, consent, and export controls; plugin/extensibility hooks use the same logging/capability model.
 - Support secure sharing/off-device export only via explicit capability grants; maintain lineage across collaborators/devices.
 - Acceptance: distillation artifacts respect multi-user capability scopes; Job History/Flight Recorder show user/device attribution for distillation jobs and exports.
+- [ADD v02.79] Shared “house style” presets and taste descriptors derived from accepted edits (opt-in).
+
 
 **Key Takeaways**  
 - The roadmap is **architecture-aligned and debug-first**: every phase explicitly requires health checks, structured logging, Flight Recorder integration, and at least one human-usable debug surface.  
@@ -19566,6 +21752,10 @@ Documents master specification version history, maps independent subsection vers
 
 | Version | Date | Description | Owner | Maturity |
 |---------|------|-------------|-------|----------|
+| **v02.68** | 2025-12-23 | Integrated Mechanical Extension v1.2 (Tool Bus contract + conformance + §11.8 verbatim import) and updated roadmap (§7.6) with MEX v1.2 sequencing across Phases 1–4; updated subsection version mapping. | PM/Architect | Normative |
+| **v02.52** | 2025-12-20 | Updated roadmap (§7.6) to implement ACE-RAG-001 cleanly (QueryPlan/Trace plumbing in Phase 1; ContextPacks/caching/drift/conformance in Phase 2; transcript selectors in Phase 3; multi-user governance in Phase 4). | PM/Architect | Normative |
+| **v02.51** | 2025-12-19 | Added §2.6.6.7.14 ACE-RAG-001 Retrieval Correctness & Efficiency (QueryPlan, Semantic Catalog, ContextPacks, RetrievalTrace, caching, drift, validators, conformance); extended ACE runtime + Index Doctor. | PM/Architect | Normative |
+| **v02.50** | 2025-12-18 | Updated artifact system (§2.3.10) and appended artifact roadmap entries across Phases 1–4 (manifests, SHA-256, canonical bundle hashing, retention/pinning/GC, materialize semantics). | PM/Architect | Normative |
 | **v02.47** | 2025-12-17 | Roadmap updated to schedule Charts/Dashboards/Decks across Phases 1–4 (guardrails, deliverables, export + provenance, collaboration). | PM/Architect | Normative |
 | **v02.46** | 2025-12-17 | Added Charts & Dashboards (§10.7) and Presentations/Decks (§10.8); added Charts & Decks AI Job Profile (§2.5.11); extended core entities (Chart/Deck); fixed markdown code-fence formatting in §4.2; resolved duplicate section numbers (2.4.4/5.2.4). | PM/Architect | Normative |
 | **v02.45** | 2025-12-17 | Updated §6.2.10.1; added §11.7.4. | PM/Architect | Normative |
@@ -19584,7 +21774,7 @@ Some subsections maintain independent version numbers due to separate evolution 
 
 | Subsection | Version | Incorporated in Master | Notes | Owner | Maturity |
 |------------|---------|------------------------|-------|-------|----------|
-| 6.3 Mechanical Extension Engines | v1.1 | v02.29 | Integrated "Mundane" utilities (2025-12-04) | Integrations/Platform lead | Research |
+| 6.3 Mechanical Extension Engines | v1.2 | v02.68 | Tool Bus contract + gates + conformance vectors; canonical spec imported in §11.8 (22 engines) | Integrations/Platform lead | Draft |
 | 10.3 Mail Client | v0.5 | v02.29 | Research/design phase; not yet implemented | Integrations/Backend lead | Research |
 | 2.5.10 Docs & Sheets AI Integration | v0.5-draft | v02.29 | Protocol spec verbatim import | Docs/Sheets AI lead | Draft |
 | 2.6.6 AI Job Model | v0.1 | v02.29 | Design note integration | Runtime/Platform lead | Draft |
@@ -19593,6 +21783,7 @@ Some subsections maintain independent version numbers due to separate evolution 
 | 10.5 Operator Consoles: Debug & Diagnostics | v0.2 | v02.34 | Operator consoles + Debug Bundle; contracts/validators in §11.4/§11.5 | Operator/Platform lead | Draft |
 | 10.6 Canvas: Typography & Font Packs | v0.1 | v02.37 | Verbatim import: Font Packs + Canvas Typography Support Spec (v0.1); headings adjusted | UI/Canvas lead | Draft |
 | 9.1 Skill Bank & Distillation | [Internal] | v02.29 | Canonical spec verbatim import (no separate version) | ML/Distillation lead | Research |
+| 10.10 Photo Studio (Photo Stack) | v0.3.0 | v02.79 | Photo Stack spec integrated across §2.2.3 / §6.3.3.6 / §10.10 / §11.7.6 / §5.4.7 / §5.5.7 / §2.3.10.10 | Creative/Photo lead | Draft |
 
 **Versioning Policy:**
 - **Master versions (v0X.YY)** increment for major integrations, structural changes, or quarterly releases.
@@ -19601,9 +21792,33 @@ Some subsections maintain independent version numbers due to separate evolution 
   2. Subsection evolves independently as a standalone module
   3. Version numbers have semantic meaning within that subsection's domain
 
-**When in doubt:** Refer to Master version (v02.50) as the authoritative integration point.
-
+**When in doubt:** Refer to Master version (v02.52) as the authoritative integration point.
 ### 8.7.3 Change Log (Recent)
+
+#### v02.68 (2025-12-23)
+**Updated:**
+- §6.3 Mechanical Extension Engines: updated to v1.2 normative scope; added §6.3.0 Mechanical Tool Bus contract summary (gates/registry/conformance/evidence) and clarified normative vs backlog.
+- §11.8 (new): imported Mechanical Extension Specification v1.2 (headings shifted +2) as the canonical engine contract and 22-engine templates.
+- §7.6 Development Roadmap: appended Mechanical Extension v1.2 implementation items across Phases 1–4 tagged `[ADD v02.68]` (Tool Bus envelopes, required gates, registry, conformance, evidence policy, packaging posture).
+- §8.7 Version tables: added v02.68 entry and updated §6.3 subsection mapping to v1.2.
+
+#### v02.67 (2025-12-22)
+**Updated:**
+- §7.6 Development Roadmap: scheduled Atelier Lens Runtime (role claiming + dual-contract extraction + merge/arbitration + production graph + ConceptRecipe) across Phases 1–4 using the fixed phase template; all new roadmap bullets tagged `[ADD v02.67]`.
+
+#### v02.52 (2025-12-20)
+**Updated:**
+- §7.6 Development Roadmap: appended ACE-RAG-001 implementation sequencing across Phases 1–4 (QueryPlan/Trace plumbing, ContextPacks, caching, drift guards, transcript selectors, multi-user governance).
+
+#### v02.51 (2025-12-19)
+**Added/Updated:**
+- §2.6.6.7.14 Retrieval Correctness & Efficiency (ACE-RAG-001): QueryPlan, Semantic Catalog, ContextPacks, RetrievalTrace, hash-key caching, drift detection, validators, and conformance tests.
+- §2.6.6.7.9 Context Compiler: step (5) and (6) extended to reference QueryPlan routing, ContextPacks/LocalWebCacheIndex, and RetrievalTrace.
+- §2.6.6.7.11 Validators: added RetrievalBudgetGuard, ContextPackFreshnessGuard, IndexDriftGuard, CacheKeyGuard.
+- §2.6.6.7.12 Logging + Acceptance Tests: added QueryPlan/RetrievalTrace logging and ACE-RAG-001 conformance tests reference.
+- §2.5.12 Context Packs AI Job Profile (new).
+- §2.3.8 Shadow Workspace: vector records MUST include `source_hash` for drift detection.
+- §10.5.5.7 Index Doctor / Consistency Auditor: extended retrieval/consistency fields (QueryPlan/RetrievalTrace, cache hits, drift flags, truncation).
 
 #### v02.50 (2025-12-18)
 **Updated:**
@@ -21004,6 +23219,30 @@ Status: Exploratory (aligned with v02.18); normative LAW sections drafted but no
 - Cross-cutting integration (with 11.4/11.5):
   - Normalized diagnostics schema and event contracts as concrete anchors for Problems/Flight Recorder.
 
+### 10.2.6 Document AI Actions (LAW)
+
+**Status:** v0.1 block-level implementation delivered (Phase 1).
+
+- **DOC-AI-001 (The Rewrite Loop)**
+  - **Invariant:** AI MUST NOT silently mutate RawContent.
+  - **v0.1 Implementation Detail:** Edits currently operate at the **Block Level** (replacing a whole block identified by ID) rather than arbitrary text spans.
+  - Workflow:
+    1. **Trigger**: User selects a block + invokes `DOC_REWRITE`.
+    2. **Gate**: Request flows through MCP Gate; checked against `doc.write` capability.
+    3. **Generation**: AI Job produces a `ChangeProposal` containing original and proposed text.
+    4. **Review**: UI displays "Diff" (Old vs New).
+    5. **Decision**: User clicks "Accept" (applies block-level patch) or "Reject" (logs `rejected_idea`).
+  - **Logging (Flight Recorder Events)**:
+    - `rewrite_proposal`: Emitted during Generation. Includes: `job_id`, `block_id`, `proposal_hash` (SHA-256).
+    - `rewrite_decision`: Emitted during Decision. Includes: `job_id`, `decision` (`accept` | `reject`), `block_id`.
+
+- **DOC-AI-002 (Variations)**
+  - The `DOC_REWRITE` job SHOULD support producing multiple `ChangeProposal` variants (e.g., "Concise", "Professional", "Creative") in a single pass if requested.
+  - UI MUST allow cycling through variants before Accepting.
+
+- **DOC-AI-003 (Rejected Ideas)**
+  - Rejected proposals MUST be logged to Flight Recorder (tagged `rejected_idea`) to preserve "lost" work for potential future retrieval.
+
 ## 10.3 Mail Client
 
 Status: v0.5 research/design; not implemented. Behaviours require capability/consent gates and workflow enforcement before shipping.
@@ -21978,6 +24217,12 @@ This section is **normative**. If any UI behavior, sync adapter, mechanical engi
 4. **Half-open intervals:** all time ranges are `[start, end)` (inclusive start, exclusive end). This applies to events, recurrence instances, free/busy blocks, and ActivitySpans.
 5. **No silent coercion:** if conversion would change the user-visible meaning (DST gap/overlap), record an explicit `CalendarNormalizationNote` and require a user-facing badge.
 
+###### 2.0.4 Mutation governance (Hard Invariant) [ilja251220250127]
+
+- **[HSK-CAL-WRITE-GATE]:** Direct database writes to `calendar_events` are **PROHIBITED** from the API layer or UI components. 
+- All mutations MUST be submitted as `CalendarMutation` patches via a `WorkflowRun` targeting the `calendar_sync` mechanical engine.
+- Every successful mutation MUST emit a `Flight Recorder` span of type `calendar_mutation` with a back-link to the `job_id`.
+
 ###### 2.0.3 Recurrence and instance identity
 
 - **RRULE is source-of-truth:** store RRULE + `DTSTART` semantics + exceptions (`EXDATE`, `RDATE`) without lossy “flattening”.
@@ -22147,6 +24392,50 @@ Display entities:
 ##### 2.3 Storage and indexing
 
 - Relational table `calendar_events` with indices on `(workspace_id, start_ts, end_ts)` and full-text on `title`, `description`, `location`.
+
+**Persistence Layer (SQLite) [ilja251220250127]:**
+
+```sql
+-- [CX-340] Centralized Storage
+CREATE TABLE calendar_sources (
+    id TEXT PRIMARY KEY NOT NULL, -- "local:uuid" | "google:account:id" | "caldav:url"
+    workspace_id TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    provider_type TEXT NOT NULL, -- "local", "google", "caldav"
+    write_policy TEXT NOT NULL, -- "read_only_import", "two_way_mirror", "publish_from_handshake"
+    default_tzid TEXT NOT NULL DEFAULT 'UTC',
+    auto_export BOOLEAN NOT NULL DEFAULT 0,
+    credentials_ref TEXT, -- handle to encrypted store (Tauri side)
+    last_sync_ts DATETIME,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE calendar_events (
+    id TEXT PRIMARY KEY NOT NULL, -- stable internal UUID
+    workspace_id TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    external_id TEXT, -- provider-specific ID (e.g. iCal UID)
+    external_etag TEXT,
+    title TEXT NOT NULL,
+    description TEXT,
+    location TEXT,
+    start_ts_utc DATETIME NOT NULL,
+    end_ts_utc DATETIME NOT NULL,
+    tzid TEXT NOT NULL DEFAULT 'UTC',
+    all_day BOOLEAN NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'confirmed', -- 'confirmed', 'tentative', 'cancelled'
+    visibility TEXT NOT NULL DEFAULT 'private', -- 'private', 'public', 'busy_only'
+    export_mode TEXT NOT NULL DEFAULT 'full_export',
+    rrule TEXT, -- iCal RRULE string
+    is_recurring BOOLEAN NOT NULL DEFAULT 0,
+    instance_key TEXT, -- hash for recurrence instances
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (source_id) REFERENCES calendar_sources(id)
+);
+```
+
 - Graph edges:
   - `event -> doc` (meeting notes)
   - `event -> mail_thread` (invites)
@@ -22192,7 +24481,20 @@ Engine: calendar_sync
 
 All external writes are capability-gated (e.g. `EXTERNAL_CALENDAR_WRITE`) and must go through the Workflow Engine, not ad-hoc helpers.
 
+**`calendar_sync` Mechanical Engine Contract [ilja251220250127]:**
 
+```rust
+pub enum CalendarMutation {
+    Create(CalendarEvent),
+    Update { id: Uuid, patch: CalendarPatch },
+    Delete(Uuid),
+}
+
+pub struct CalendarSyncInput {
+    pub source_id: String,
+    pub mutation: Option<CalendarMutation>, // If None, it is a periodic "pull" sync
+}
+```
 
 ##### 3.1 Deterministic parsing / emitting (ICS, CalDAV, JSCalendar)
 
@@ -23686,7 +25988,12 @@ MUST:
 - Show index backlog, stale derived artifacts, broken refs/orphans (where applicable).
 - Provide “rebuild / backfill / reindex” actions gated by policy.
 - Emit Problems diagnostics for detected inconsistencies.
-
+- Show retrieval evidence traces (QueryPlan + RetrievalTrace) linked to job steps, including: route_taken, cache hit/miss markers, selected IDs, spans, and truncation flags.
+- Surface drift signals explicitly:
+  - embedding drift (`source_hash` mismatch),
+  - KG provenance missing/invalid,
+  - LocalWebCacheIndex staleness/TTL vs pinning.
+- Show per-source caps enforcement (max snippets per source, max snippets total) and diversity method metadata when used (e.g., MMR lambda).
 SHOULD:
 - Provide a “dry-run” mode that reports what would change.
 
@@ -23745,6 +26052,70 @@ The bundle MUST contain a prompt that includes:
 - Direct links/ids: `diagnostic_id`, `job_id`, relevant `event_id`s
 - Policy notes (allowed/blocked)
 - What evidence is missing due to retention/redaction
+
+### 10.5.6A Workspace Bundle Export (v0)
+
+#### 10.5.6A.1 Purpose
+Provide a deterministic “backup/transfer/fixture” export path that:
+- preserves original imported bytes when present
+- exports Handshake canonical workspace state (docs/canvases/tables)
+- exports Display-derived renders for portability and review
+- remains policy-gated and exportability-safe
+
+#### 10.5.6A.2 Non-negotiable invariants
+- Export artifacts are derived from **DisplayContent**; filtering/redaction applies at **Display/Export only** and must not mutate Raw/Derived stores.
+- **CloudLeakageGuard** must deny inclusion of artifacts marked `exportable=false` unless an explicit policy override exists.
+- Export runs as a **mechanical workflow job** (capability-gated, logged, hashed).
+
+#### 10.5.6A.3 Terms
+- **BundleKind**: `debug_bundle` (existing), `workspace_bundle` (new)
+- **ExportProfile**:
+  - `SAFE_DEFAULT`: redacts secrets/PII, uses hashes/minimal previews
+  - `WORKSPACE`: includes more local context but still redacts secrets/PII
+  - `FULL_LOCAL`: full payloads; must not be exportable unless policy explicitly allows
+
+#### 10.5.6A.4 Bundle format
+- Default output is a **zip** (or folder) containing:
+  - `bundle_manifest.json` (required; schema versioned)
+  - `workspace/`
+    - `docs/<doc_id>.json`
+    - `canvases/<canvas_id>.json`
+    - `tables/<table_id>.json`
+    - `tables/<table_id>.csv`
+  - `assets/raw/` (byte-identical originals, if imported assets exist)
+  - `assets/rendered/` (Display-derived render outputs: PDF/PNG/SVG/CSV as applicable)
+  - `export_report.json` (included/excluded counts + reasons)
+
+#### 10.5.6A.5 Manifest requirements (`bundle_manifest.json`)
+Must include:
+- `bundle_kind`, `schema_version`, `created_at`
+- workspace identifier (wsid) and exported entity IDs
+- `job_id`, `workflow_run_id`
+- `export_profile_id`
+- tool/renderer versions used
+- input hashes (raw/canonical) and output hash list
+
+#### 10.5.6A.6 Policy + capabilities
+- Capability gating (minimum):
+  - `export.bundle` (initiate export)
+  - `fs.write` (destination-scoped)
+  - optional `export.include_nonexportable` (explicit and default-deny)
+- Policy context for export must be captured and visible (same treatment as other operational actions).
+- When `exportable=false` artifacts are encountered:
+  - default action: **exclude** and record reason in `export_report.json`
+  - surface denial in Problems + Flight Recorder logs
+
+#### 10.5.6A.7 Determinism
+- Same inputs + same ExportProfile + same renderer/template versions should produce stable hashes for deterministic outputs (platform constraints noted in manifest if needed).
+
+#### 10.5.6A.8 Observability
+- Emit a distinct Flight Recorder event for Workspace Bundle export (parallel to the debug bundle export event).
+- Store/export logs must include: selected IDs, profile, outputs, hashes, denials.
+
+#### 10.5.6A.9 Explicitly out of scope (v0)
+- Round-trip writers for proprietary formats (DOCX/PPTX/XLSX)
+- cloud upload/sharing
+- any export path that mutates Raw/Derived stores
 
 ### 10.5.7 Acceptance criteria and validators
 
@@ -24220,6 +26591,1255 @@ Reserved for future user-facing surfaces; add scoped subsections here.
 ---
 
 <a id="11-shared-dev-platform-oss-foundations"></a>
+## 10.10 Photo Studio
+
+Photo Studio is a Lightroom/Affinity/Illustrator-class local-first photo + compositing surface. It is implemented by Photo Stack entities (§2.2.3) and executed by Darkroom engines (§6.3.3.6), producing artifacts under the unified export contract (§2.3.10).
+
+### 10.10.1 Purpose & Scope Evolution
+
+This specification defines a **technically rigorous, testable, deterministic** "Photo Stack" inside Handshake delivering:
+
+- **Lightroom-class**: Ingest + catalog/DAM, non-destructive Develop pipeline, AI masking, merges, export presets, batch throughput
+- **Affinity Photo-class**: Layered compositing (layers/masks/blend modes/live filters), personas, macros/batch, export slices
+- **Illustrator/Affinity Designer-class (subset)**: Vector primitives, text/typography, shape tools, pathfinder operations
+- **Integrated AI Stack**: Local LLMs, vision models, and generative AI for intelligent automation
+- **Cross-Tool Integration**: Unified workflows spanning documents, spreadsheets, calendars, email, and creative tools
+
+This document survives engineering scrutiny by defining:
+- Complete tool inventories mapped to reference software
+- Open-source components available for reuse (with licenses)
+- Gaps requiring custom implementation
+- Mechanical engine contracts with determinism guarantees
+- AI/ML integration architecture with local-first processing
+- Proxy workflow architecture for high-resolution camera support
+- Validation and testing requirements
+
+---
+
+### 10.10.2 Normative Language
+
+The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, **MAY** are normative per RFC 2119.
+
+If a requirement conflicts with the future Handshake Master Spec, this spec is the source of truth for the Photo Stack until merged.
+
+---
+
+### 10.10.3 Design Principles
+
+#### 10.10.3.1 Local-first + Reproducible
+1. The Photo Stack MUST function offline for all operations once inputs exist locally.
+2. Every derived output MUST be reproducible from recorded inputs + engine versions + parameters, subject to determinism class.
+3. All AI/ML inference SHOULD run locally by default; cloud services are opt-in only.
+
+#### 10.10.3.2 Raw / Derived / Display Separation
+1. **Raw** (original files) MUST NOT be mutated by any edit operation.
+2. **Derived** holds recipes, masks, previews, layer graphs, caches, descriptors.
+3. **Display** is a projection (UI render and export pipeline).
+
+#### 10.10.3.3 Single Execution Authority
+All edits MUST execute via the Handshake workflow/job runtime (no ad-hoc bypass). UI actions produce **job requests**, not direct mutations.
+
+#### 10.10.3.4 Artifact-first Outputs
+Large outputs MUST be written as artifacts (files in the artifact store) and referenced by handles. Prompts or logs MUST carry references, not binaries.
+
+#### 10.10.3.5 Open-Source Preference
+Where production-quality open-source libraries exist, implementations SHOULD leverage them to reduce custom code, improve maintainability, and benefit from community improvements.
+
+**License Preference Order:**
+1. MIT / Apache 2.0 / BSD (most permissive, preferred for future monetization flexibility)
+2. LGPL (dynamic linking acceptable)
+3. MPL 2.0 (file-level copyleft manageable)
+4. GPL (avoid unless isolated subprocess)
+
+#### 10.10.3.6 Proxy-Based High-Resolution Workflow
+1. High-resolution camera files (>20MP) SHOULD be processed via proxy workflow for AI/ML operations.
+2. Full-resolution processing MUST be available for traditional (non-AI) operations.
+3. AI-derived adjustments SHOULD be expressible as parameters applicable to full-resolution files.
+
+#### 10.10.3.7 Cross-Tool Context Sharing
+1. Tools within Handshake SHOULD share context (selections, color palettes, metadata).
+2. Clipboard operations SHOULD preserve semantic information across tool boundaries.
+3. MCP (Model Context Protocol) SHOULD be used for tool interoperability where applicable.
+
+---
+
+### 10.10.4 Complete Tool Inventory
+
+This section provides exhaustive tool/feature lists from reference software, organized by functional domain.
+
+#### 10.10.4.1 RAW Development & Global Adjustments (Lightroom-class)
+
+##### 10.10.4.1.1 Basic Panel
+| Tool | Description | Parameters | Priority |
+|------|-------------|------------|----------|
+| White Balance | Color temperature + tint correction | temp (2000-50000K), tint (-150 to +150) | P0 |
+| Auto WB Presets | As Shot, Daylight, Cloudy, Shade, Tungsten, Fluorescent, Flash, Custom | preset enum | P0 |
+| Exposure | Overall brightness adjustment | EV (-5.0 to +5.0) | P0 |
+| Contrast | Midtone contrast | -100 to +100 | P0 |
+| Highlights | Bright area recovery | -100 to +100 | P0 |
+| Shadows | Dark area lift | -100 to +100 | P0 |
+| Whites | White point clipping | -100 to +100 | P0 |
+| Blacks | Black point clipping | -100 to +100 | P0 |
+| Texture | Mid-frequency detail | -100 to +100 | P0 |
+| Clarity | Local contrast / edge enhancement | -100 to +100 | P0 |
+| Dehaze | Atmospheric haze removal | -100 to +100 | P0 |
+| Vibrance | Saturation (muted colors prioritized) | -100 to +100 | P0 |
+| Saturation | Global saturation | -100 to +100 | P0 |
+
+##### 10.10.4.1.2 Tone Curve Panel
+| Tool | Description | Parameters | Priority |
+|------|-------------|------------|----------|
+| Parametric Curve | Region-based adjustment | highlights, lights, darks, shadows ranges + amounts | P0 |
+| Point Curve | Arbitrary spline control | Array of (x,y) control points | P0 |
+| RGB Curves | Per-channel curves | Red, Green, Blue separate point arrays | P0 |
+| Curve Presets | Linear, Medium Contrast, Strong Contrast, Custom | preset enum | P1 |
+
+##### 10.10.4.1.3 HSL/Color Panel
+| Tool | Description | Parameters | Priority |
+|------|-------------|------------|----------|
+| Hue Adjustment | Per-color hue shift | 8 color channels × hue offset (-100 to +100) | P0 |
+| Saturation Adjustment | Per-color saturation | 8 color channels × saturation (-100 to +100) | P0 |
+| Luminance Adjustment | Per-color brightness | 8 color channels × luminance (-100 to +100) | P0 |
+| Target Adjustment Tool | Click-drag in image to adjust | coordinate + drag delta + channel mode | P1 |
+| Color Channels | Red, Orange, Yellow, Green, Aqua, Blue, Purple, Magenta | enum | P0 |
+
+##### 10.10.4.1.4 Color Grading Panel (3-way + Global)
+| Tool | Description | Parameters | Priority |
+|------|-------------|------------|----------|
+| Shadows Wheel | Color tint for shadows | hue (0-360), saturation (0-100), luminance (-100 to +100) | P0 |
+| Midtones Wheel | Color tint for midtones | hue, saturation, luminance | P0 |
+| Highlights Wheel | Color tint for highlights | hue, saturation, luminance | P0 |
+| Global Wheel | Overall color tint | hue, saturation, luminance | P0 |
+| Blending | Blend mode between wheels | balance slider (-100 to +100) | P1 |
+| Balance | Shadow/highlight range definition | balance (-100 to +100) | P1 |
+
+##### 10.10.4.1.5 Detail Panel
+| Tool | Description | Parameters | Priority |
+|------|-------------|------------|----------|
+| Sharpening Amount | Overall sharpening strength | 0 to 150 | P0 |
+| Sharpening Radius | Edge detection radius | 0.5 to 3.0 px | P0 |
+| Sharpening Detail | Fine detail preservation | 0 to 100 | P0 |
+| Sharpening Masking | Edge-only sharpening | 0 to 100 | P0 |
+| Noise Reduction Luminance | Luminance noise reduction | 0 to 100 | P0 |
+| NR Luminance Detail | Detail preservation | 0 to 100 | P0 |
+| NR Luminance Contrast | Contrast preservation | 0 to 100 | P0 |
+| Noise Reduction Color | Chroma noise reduction | 0 to 100 | P0 |
+| NR Color Detail | Color detail preservation | 0 to 100 | P0 |
+| NR Color Smoothness | Color transition smoothing | 0 to 100 | P1 |
+
+##### 10.10.4.1.6 Lens Corrections Panel
+| Tool | Description | Parameters | Priority |
+|------|-------------|------------|----------|
+| Profile Corrections | Auto lens profile application | enable/disable, profile selection | P0 |
+| Distortion Correction | Barrel/pincushion correction | -100 to +100 (manual), auto from profile | P0 |
+| Vignette Correction | Light falloff correction | 0 to 200 (amount), 0 to 100 (midpoint) | P0 |
+| Chromatic Aberration | Lateral CA removal | enable/disable, purple/green amount + hue | P0 |
+| Defringe | Color fringe removal | purple hue, purple amount, green hue, green amount | P1 |
+
+##### 10.10.4.1.7 Transform Panel
+| Tool | Description | Parameters | Priority |
+|------|-------------|------------|----------|
+| Upright Auto | Automatic perspective correction | Off, Auto, Level, Vertical, Full, Guided | P0 |
+| Vertical Perspective | Manual vertical correction | -100 to +100 | P0 |
+| Horizontal Perspective | Manual horizontal correction | -100 to +100 | P0 |
+| Rotate | Image rotation | -180 to +180 degrees | P0 |
+| Aspect | Aspect ratio adjustment | -100 to +100 | P1 |
+| Scale | Image scale | 50 to 150% | P0 |
+| X Offset | Horizontal position | pixels | P1 |
+| Y Offset | Vertical position | pixels | P1 |
+| Guided Upright | Manual guide lines | Array of line segments | P1 |
+
+##### 10.10.4.1.8 Effects Panel
+| Tool | Description | Parameters | Priority |
+|------|-------------|------------|----------|
+| Post-Crop Vignette Amount | Vignette strength | -100 to +100 | P0 |
+| Vignette Midpoint | Vignette size | 0 to 100 | P0 |
+| Vignette Roundness | Vignette shape | -100 to +100 | P1 |
+| Vignette Feather | Edge softness | 0 to 100 | P0 |
+| Vignette Highlights | Highlight preservation | 0 to 100 | P1 |
+| Vignette Style | Highlight Priority, Color Priority, Paint Overlay | enum | P1 |
+| Grain Amount | Film grain strength | 0 to 100 | P1 |
+| Grain Size | Grain particle size | 0 to 100 | P1 |
+| Grain Roughness | Grain uniformity | 0 to 100 | P1 |
+
+##### 10.10.4.1.9 Calibration Panel
+| Tool | Description | Parameters | Priority |
+|------|-------------|------------|----------|
+| Process Version | Raw processing algorithm version | enum | P0 |
+| Shadow Tint | Shadow color bias | -100 to +100 | P1 |
+| Red Primary Hue | Red channel hue shift | -100 to +100 | P1 |
+| Red Primary Saturation | Red channel saturation | -100 to +100 | P1 |
+| Green Primary Hue | Green channel hue shift | -100 to +100 | P1 |
+| Green Primary Saturation | Green channel saturation | -100 to +100 | P1 |
+| Blue Primary Hue | Blue channel hue shift | -100 to +100 | P1 |
+| Blue Primary Saturation | Blue channel saturation | -100 to +100 | P1 |
+
+#### 10.10.4.2 Local Adjustments & Masking
+
+##### 10.10.4.2.1 Manual Mask Tools
+| Tool | Description | Parameters | Priority |
+|------|-------------|------------|----------|
+| Brush | Paint-on mask | size, feather, flow, density, auto-mask | P0 |
+| Linear Gradient | Graduated mask | start point, end point, feather | P0 |
+| Radial Gradient | Elliptical mask | center, radii, feather, invert | P0 |
+| Eraser | Remove from mask | size, feather, flow | P0 |
+
+##### 10.10.4.2.2 AI/Automated Masks
+| Tool | Description | Output | Priority |
+|------|-------------|--------|----------|
+| Select Subject | Semantic subject detection | Binary mask | P0 |
+| Select Sky | Sky region detection | Binary mask | P0 |
+| Select Background | Inverse of subject | Binary mask | P0 |
+| Select People | Human detection | Binary mask + sub-regions | P0 |
+| People: Skin | Skin region from person mask | Binary mask | P1 |
+| People: Body Skin | Body skin excluding face | Binary mask | P2 |
+| People: Facial Skin | Face skin only | Binary mask | P2 |
+| People: Eyebrows | Eyebrow regions | Binary mask | P2 |
+| People: Sclera | Eye whites | Binary mask | P2 |
+| People: Iris & Pupil | Colored eye portion | Binary mask | P2 |
+| People: Lips | Lip regions | Binary mask | P2 |
+| People: Teeth | Teeth regions | Binary mask | P2 |
+| People: Hair | Hair regions | Binary mask | P1 |
+| People: Clothes | Clothing regions | Binary mask | P2 |
+| Select Objects | Promptable object selection | Binary mask | P1 |
+| Landscape Masking | Terrain features (new 2025) | Multiple categorical masks | P2 |
+
+##### 10.10.4.2.3 Range Masks
+| Tool | Description | Parameters | Priority |
+|------|-------------|------------|----------|
+| Luminance Range | Brightness-based masking | range (0-100 min/max), smoothness | P0 |
+| Color Range | Color-based masking | sample colors, range, smoothness | P0 |
+| Depth Range | Depth-map masking (phone portraits) | range, feather | P2 |
+
+##### 10.10.4.2.4 Mask Operations
+| Operation | Description | Priority |
+|-----------|-------------|----------|
+| Add | Union of masks | P0 |
+| Subtract | Difference of masks | P0 |
+| Intersect | Intersection of masks | P0 |
+| Invert | Complement of mask | P0 |
+| Duplicate | Copy mask | P0 |
+| Rename | Label mask | P0 |
+| Feather | Edge softness adjustment | P0 |
+| Density | Overall mask opacity | P0 |
+
+##### 10.10.4.2.5 Local Adjustment Parameters
+All global adjustment parameters (section 3.1) available per-mask, plus:
+| Parameter | Description | Priority |
+|-----------|-------------|----------|
+| Moiré | Moiré pattern reduction | P2 |
+| Defringe | Local fringe removal | P2 |
+| Hue | Local hue shift | P1 |
+
+#### 10.10.4.3 Retouching Tools
+
+| Tool | Description | Parameters | Priority |
+|------|-------------|------------|----------|
+| Spot Removal (Heal) | Content-aware healing | size, feather, opacity, source selection | P0 |
+| Spot Removal (Clone) | Direct clone stamp | size, feather, opacity, source selection | P0 |
+| Red Eye Removal | Pet/human red-eye fix | pupil size, darken amount | P1 |
+| Content-Aware Remove | AI object removal | brush strokes defining area | P1 |
+| Generative Remove | AI-powered removal with inpainting | selection area, prompt | P2 |
+
+#### 10.10.4.4 Merge/Computational Photography
+
+| Tool | Description | Inputs | Output | Priority |
+|------|-------------|--------|--------|----------|
+| HDR Merge | High dynamic range fusion | 2+ bracketed exposures | 32-bit DNG or rendered output | P0 |
+| Panorama Merge | Image stitching | 2+ overlapping images | Large stitched image | P0 |
+| HDR Panorama | Combined HDR + stitch | Multiple bracketed pano sets | 32-bit stitched | P1 |
+| Focus Stacking | Depth-of-field extension | 2+ focus-varied images | All-in-focus composite | P1 |
+| AI Denoise | ML-based noise reduction | Single image | Denoised output | P0 |
+| Super Resolution | AI upscaling (2x) | Single image (proxy/web only) | 2x resolution output | P1 |
+| AI Raw Details | ML detail enhancement | Single raw | Enhanced DNG | P2 |
+
+#### 10.10.4.5 Library/DAM Functions
+
+| Function | Description | Priority |
+|----------|-------------|----------|
+| Import (Copy) | Copy files to managed location | P0 |
+| Import (Add) | Reference files in place | P0 |
+| Import (Move) | Move files to managed location | P1 |
+| Duplicate Detection | Content-hash deduplication | P0 |
+| Keyword Tagging | Hierarchical keywords | P0 |
+| Star Ratings | 0-5 star rating | P0 |
+| Color Labels | Red, Yellow, Green, Blue, Purple | P0 |
+| Pick/Reject Flags | Flagged, Unflagged, Rejected | P0 |
+| Collections | Manual groupings | P0 |
+| Smart Collections | Rule-based dynamic groupings | P1 |
+| Folder Sync | Sync with filesystem | P0 |
+| Metadata Read/Write | EXIF/IPTC/XMP handling | P0 |
+| Face Detection | Face region tagging | P2 |
+| Face Recognition | Identity clustering | P2 |
+| GPS/Map Integration | Geotagging and map view | P2 |
+| Stacking | Group related images | P1 |
+| Virtual Copies | Multiple edit versions | P0 |
+| AI Auto-Tagging | Vision model keyword generation | P1 |
+| AI Captioning | Vision model description generation | P1 |
+
+#### 10.10.4.6 Layer Compositor (Affinity Photo-class)
+
+##### 10.10.4.6.1 Layer Types
+| Layer Type | Description | Priority |
+|------------|-------------|----------|
+| Pixel/Raster Layer | Standard bitmap layer | P0 |
+| Adjustment Layer | Non-destructive adjustment | P0 |
+| Live Filter Layer | Non-destructive filter | P0 |
+| Group | Layer container | P0 |
+| Mask Layer | Grayscale mask | P0 |
+| Text Layer | Editable typography | P1 |
+| Shape Layer | Vector shapes | P1 |
+| Curve Layer | Vector paths | P1 |
+| Artboard | Multi-canvas container | P2 |
+| Linked Layer | External file reference | P2 |
+| Embedded Document | Nested document | P2 |
+
+##### 10.10.4.6.2 Blend Modes (Complete Set)
+| Category | Modes | Priority |
+|----------|-------|----------|
+| Normal | Normal, Dissolve | P0 |
+| Darken | Darken, Multiply, Color Burn, Linear Burn, Darker Color | P0 |
+| Lighten | Lighten, Screen, Color Dodge, Linear Dodge (Add), Lighter Color | P0 |
+| Contrast | Overlay, Soft Light, Hard Light, Vivid Light, Linear Light, Pin Light, Hard Mix | P0 |
+| Inversion | Difference, Exclusion, Subtract, Divide | P0 |
+| Component | Hue, Saturation, Color, Luminosity | P0 |
+| Special | Passthrough (groups), Average, Negation, Reflect, Glow | P1 |
+
+##### 10.10.4.6.3 Layer Properties
+| Property | Description | Priority |
+|----------|-------------|----------|
+| Opacity | Layer transparency (0-100%) | P0 |
+| Fill | Fill opacity (affects layer, not effects) | P1 |
+| Visibility | Show/hide layer | P0 |
+| Lock Position | Prevent moving | P0 |
+| Lock Alpha | Preserve transparency | P0 |
+| Lock All | Prevent all edits | P0 |
+| Color Tag | Visual organization | P1 |
+| Blend Ranges | Source/destination blend-if sliders | P1 |
+
+##### 10.10.4.6.4 Adjustment Layers
+| Adjustment | Parameters | Priority |
+|------------|------------|----------|
+| Brightness/Contrast | brightness, contrast, use legacy | P0 |
+| Levels | input levels, output levels, per-channel | P0 |
+| Curves | point array, per-channel | P0 |
+| Exposure | exposure, offset, gamma | P0 |
+| Hue/Saturation | hue, saturation, lightness, colorize | P0 |
+| Color Balance | shadows/mids/highlights, preserve luminosity | P0 |
+| Black & White | channel mixer percentages, tint | P0 |
+| Photo Filter | filter color, density, preserve luminosity | P1 |
+| Channel Mixer | RGB matrix, monochrome mode | P1 |
+| Gradient Map | gradient definition, reverse, dither | P1 |
+| Selective Color | per-color CMYK adjustments | P1 |
+| Invert | negate colors | P0 |
+| Posterize | levels | P1 |
+| Threshold | threshold level | P0 |
+| Vibrance | vibrance, saturation | P0 |
+| HSL | per-channel H/S/L | P0 |
+| Color Lookup (LUT) | 3D LUT file reference | P1 |
+| Shadows/Highlights | amount, tone, radius | P0 |
+| Lens Filter | filter color, optical density | P2 |
+| Split Toning | shadow/highlight colors, balance | P1 |
+| White Balance | temperature, tint | P0 |
+| OCIO | OpenColorIO transform | P1 |
+| Soft Proof | ICC profile simulation | P2 |
+
+##### 10.10.4.6.5 Live Filter Layers
+| Filter | Parameters | Priority |
+|--------|------------|----------|
+| Gaussian Blur | radius | P0 |
+| Motion Blur | angle, distance | P1 |
+| Radial Blur | amount, center, type | P1 |
+| Zoom Blur | amount, center | P1 |
+| Lens Blur (Depth of Field) | radius, shape, bokeh | P1 |
+| Surface Blur | radius, threshold | P1 |
+| Bilateral Blur | radius, tolerance | P2 |
+| Unsharp Mask | amount, radius, threshold | P0 |
+| High Pass | radius | P0 |
+| Clarity | amount | P0 |
+| Add Noise | amount, type, monochromatic | P1 |
+| Denoise | luminance, color | P0 |
+| Shadows/Highlights | shadow amount, highlight amount | P0 |
+| Vignette | exposure, hardness, shape | P1 |
+| Lighting Effects | light type, position, intensity, color | P2 |
+| Lens Distortion | barrel/pincushion, chromatic aberration | P1 |
+| Perspective | 4-point warp | P1 |
+| Live Mesh Warp | grid deformation | P1 |
+| Liquify (Live) | warp operations | P2 |
+| Procedural Texture | noise type, scale, octaves | P2 |
+| Diffuse Glow | amount, radius | P2 |
+| Halftone | pattern, angle, size | P2 |
+
+##### 10.10.4.6.6 Mask Types
+| Mask Type | Description | Priority |
+|-----------|-------------|----------|
+| Layer Mask | Grayscale transparency mask | P0 |
+| Vector Mask | Shape-based mask | P1 |
+| Clipping Mask | Clip to layer below | P0 |
+| Luminosity Mask | Auto-generated from luminance | P1 |
+| Hue Range Mask | Color-based live mask | P1 |
+| Band Pass Mask | Frequency-based edge mask | P2 |
+| Compound Mask | Combined mask operations | P1 |
+
+#### 10.10.4.7 Selection Tools
+
+| Tool | Description | Parameters | Priority |
+|------|-------------|------------|----------|
+| Rectangular Marquee | Rectangular selection | fixed ratio, fixed size, feather | P0 |
+| Elliptical Marquee | Elliptical selection | fixed ratio, fixed size, feather | P0 |
+| Row/Column Marquee | Single pixel line | row or column | P2 |
+| Lasso | Freehand selection | feather | P0 |
+| Polygonal Lasso | Point-to-point selection | feather | P0 |
+| Magnetic Lasso | Edge-snapping selection | width, contrast, frequency | P1 |
+| Magic Wand | Contiguous color selection | tolerance, contiguous, anti-alias | P0 |
+| Quick Selection | Brush-based smart selection | size, hardness, auto-enhance | P0 |
+| Selection Brush | Paint selection | size, hardness, mode | P0 |
+| Flood Select | All matching pixels | tolerance, contiguous | P0 |
+| Select by Color Range | Color-based selection | fuzziness, range, localized | P1 |
+| Select Subject (AI) | One-click subject selection | | P0 |
+| Select and Mask | Refine edge workspace | edge detection, global refinements | P1 |
+| Grow Selection | Expand by tolerance | | P1 |
+| Similar Selection | Select similar across image | | P1 |
+
+#### 10.10.4.8 Paint & Retouch Tools
+
+| Tool | Description | Parameters | Priority |
+|------|-------------|------------|----------|
+| Brush | General painting | size, hardness, opacity, flow, blend mode, dynamics | P0 |
+| Pencil | Aliased painting | size, opacity | P1 |
+| Eraser | Remove pixels | size, hardness, opacity, mode | P0 |
+| Background Eraser | Edge-aware erasure | tolerance, sampling, limits | P1 |
+| Magic Eraser | One-click area erasure | tolerance, contiguous | P1 |
+| Clone Stamp | Direct clone painting | size, hardness, opacity, flow, aligned | P0 |
+| Pattern Stamp | Pattern painting | size, pattern, aligned | P2 |
+| Healing Brush | Texture-aware healing | size, hardness, source mode | P0 |
+| Spot Healing | Auto-source healing | size, type | P0 |
+| Patch Tool | Region-based healing | patch mode, diffusion | P1 |
+| Content-Aware Fill | AI-powered fill | structure, color adaptation | P1 |
+| Inpainting Brush | Intelligent fill | size, iterations | P0 |
+| Red Eye Tool | Red eye correction | pupil size, darken | P1 |
+| Dodge | Lighten areas | size, range, exposure | P1 |
+| Burn | Darken areas | size, range, exposure | P1 |
+| Sponge | Saturate/desaturate | size, flow, mode | P1 |
+| Smudge | Pixel smearing | size, strength | P1 |
+| Blur Tool | Local blur painting | size, strength | P1 |
+| Sharpen Tool | Local sharpen painting | size, strength | P1 |
+| Gradient Tool | Gradient fill | type, mode, opacity, dither, reverse | P0 |
+| Paint Bucket | Area fill | tolerance, contiguous, all layers | P0 |
+
+#### 10.10.4.9 Vector & Shape Tools (Designer/Illustrator subset)
+
+| Tool | Description | Priority |
+|------|-------------|----------|
+| Pen | Bezier path creation | P0 |
+| Node/Direct Selection | Edit path nodes | P0 |
+| Rectangle | Rectangle/rounded rectangle | P0 |
+| Ellipse | Circle/ellipse | P0 |
+| Polygon | Regular polygon | P1 |
+| Star | Star shape | P1 |
+| Line | Line segment | P0 |
+| Arrow | Arrow shape | P1 |
+| Custom Shape | Shape library | P1 |
+| Text (Point) | Single-line text | P0 |
+| Text (Frame) | Paragraph text | P0 |
+| Text on Path | Path-following text | P2 |
+
+#### 10.10.4.10 Transform Tools
+
+| Tool | Description | Parameters | Priority |
+|------|-------------|------------|----------|
+| Move | Reposition content | x, y offset | P0 |
+| Free Transform | Scale, rotate, skew | bounds, rotation, skew | P0 |
+| Scale | Resize | width, height, constrain proportions | P0 |
+| Rotate | Rotation | angle, center point | P0 |
+| Skew | Shear transform | horizontal, vertical | P0 |
+| Distort | 4-corner distortion | corner positions | P0 |
+| Perspective | Perspective transform | vanishing point | P0 |
+| Warp | Grid-based warp | warp style or custom mesh | P1 |
+| Puppet Warp | Pin-based deformation | pin positions | P2 |
+| Content-Aware Scale | Seam-carving resize | protected areas | P2 |
+| Flip Horizontal | Mirror horizontally | | P0 |
+| Flip Vertical | Mirror vertically | | P0 |
+
+#### 10.10.4.11 Export Functions
+
+| Format | Options | Priority |
+|--------|---------|----------|
+| JPEG | Quality, progressive, subsampling, embed profile | P0 |
+| PNG | Bit depth (8/16), interlaced, transparency | P0 |
+| TIFF | Compression (None/LZW/ZIP), bit depth, layers | P0 |
+| WebP | Quality, lossless option | P0 |
+| AVIF | Quality, speed, bit depth | P1 |
+| HEIC/HEIF | Quality | P1 |
+| PSD | Layers, compatibility mode | P1 |
+| PDF | Quality, color space, compatibility | P1 |
+| DNG | Lossy/lossless, embed original | P0 |
+| OpenEXR | Compression, half/full float | P2 |
+| JPEG XL | Quality, effort, lossless | P2 |
+| ORA (OpenRaster) | Layer preservation | P0 |
+
+#### 10.10.4.12 Batch & Automation
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| Preset Application | Apply develop preset to selection | P0 |
+| Sync Settings | Copy settings across images | P0 |
+| Auto Sync | Live sync while editing | P1 |
+| Export Presets | Saved export configurations | P0 |
+| Batch Export | Export multiple with presets | P0 |
+| Macros (Recording) | Record action sequence | P1 |
+| Macros (Playback) | Execute recorded actions | P1 |
+| Batch Macro | Apply macro to multiple files | P1 |
+| Watch Folders | Auto-import from folders | P2 |
+| Slices | Multi-region export | P2 |
+
+---
+
+### 10.10.5 Integrated Tool Ecosystem
+
+#### 10.10.5.1 Core Handshake Tools (Built-in)
+
+| Tool | Purpose | Integration Points |
+|------|---------|-------------------|
+| **Canvas** | Visual editing surface | Photo editing, compositing, moodboards |
+| **Word** | Document creation | Reports, client briefs, photo books |
+| **Monaco** | Code/text editor | Scripts, automation, config |
+| **Calendar** | Scheduling | Shoot dates from EXIF, client deadlines |
+| **Mail** | Communication | Client delivery, proof notifications |
+| **Excel** | Data/spreadsheets | Metadata batch editing, analytics |
+| **Terminal** | Command line | Batch operations, scripting |
+| **ComfyUI** | Generative AI workflows | See section 4.2 |
+
+#### 10.10.5.2 ComfyUI Integration Scope
+
+ComfyUI provides generative AI capabilities with specific scope limitations based on file size constraints.
+
+##### 10.10.5.2.1 Supported Use Cases (Proxy/Web Images)
+
+| Use Case | Input Size | Description | Priority |
+|----------|-----------|-------------|----------|
+| **Moodboard Enhancement** | ≤4K px | Upscale/style-match web-sourced reference images | P0 |
+| **Image Refactoring** | ≤4K px | Modify found images to fit creative direction | P0 |
+| **Style Transfer** | ≤2K px | Apply artistic styles to proxy images | P1 |
+| **Object Generation** | N/A | Generate synthetic elements for compositing | P0 |
+| **Background Generation** | ≤4K px | Create or extend backgrounds | P1 |
+| **Texture Generation** | N/A | Procedural textures for compositing | P1 |
+| **Concept Visualization** | N/A | Generate mood/concept imagery from prompts | P0 |
+| **Inpainting (Small)** | ≤4K px | Fill regions in proxy images | P1 |
+| **Upscaling (Web Images)** | ≤2K px input | Upscale web-sourced images 2-4x | P0 |
+| **Face Restoration** | Cropped region | Fix faces in portrait crops | P1 |
+
+##### 10.10.5.2.2 NOT Supported (High-Resolution Camera Files)
+
+The following operations are **explicitly out of scope** for ComfyUI due to memory/compute constraints:
+
+| Camera | Resolution | Why Not Supported |
+|--------|-----------|-------------------|
+| Canon R5 | 45MP (8192×5464) | ~130MB uncompressed, exceeds VRAM |
+| Sony A7RV | 61MP (9504×6336) | ~175MB uncompressed, exceeds VRAM |
+| Fuji GFX100S | 102MP (11648×8736) | ~290MB uncompressed, far exceeds VRAM |
+| Any >20MP | >5472×3648 | Typical diffusion models operate at 1024-2048px |
+
+**For high-resolution camera files, use:**
+- Traditional processing pipeline (section 3.1-3.5)
+- Proxy workflow (section 5) for AI-assisted adjustments
+- Region-based processing (crop, process, composite back)
+
+##### 10.10.5.2.3 ComfyUI Workflow Patterns
+
+```
+Pattern 1: Web Image Enhancement
+  Web image (≤2K) → ComfyUI upscale → Moodboard
+
+Pattern 2: Style Reference Matching  
+  Found image → ComfyUI style transfer → Match to project aesthetic
+
+Pattern 3: Asset Generation
+  Text prompt → ComfyUI generate → Composite into high-res file
+
+Pattern 4: Proxy-Based Enhancement
+  High-res → Export 2K proxy → ComfyUI enhance → Apply learnings to full-res (where applicable)
+
+Pattern 5: Region Processing
+  High-res crop (face/detail) → ComfyUI process → Composite back at full resolution
+```
+
+#### 10.10.5.3 Additional Recommended Tools (Permissive Licenses)
+
+##### 10.10.5.3.1 Vector Graphics & Design
+
+| Tool | License | Purpose | Integration |
+|------|---------|---------|-------------|
+| **Excalidraw** | MIT | Hand-drawn diagrams, wireframes | Moodboards, client presentations |
+| **Fabric.js** | MIT | Canvas manipulation, SVG import/export | Extended canvas capabilities |
+| **Paper.js** | MIT | Vector graphics scripting, bezier editing | Vector layer implementation |
+| **Snap.svg** | Apache 2.0 | SVG manipulation and animation | Vector export, web graphics |
+| **SVG-edit** | MIT | Web-based SVG editor | Simple vector editing |
+| **SVG.js** | MIT | Lightweight SVG manipulation | Programmatic vector generation |
+
+##### 10.10.5.3.2 Audio/Video
+
+| Tool | License | Purpose | Integration |
+|------|---------|---------|-------------|
+| **ffmpeg.wasm** | MIT (wrapper) | Video transcoding, editing in browser | Video timeline, format conversion |
+| **Howler.js** | MIT | Audio playback, sprites, spatial audio | Slideshow audio, sound effects |
+| **Tone.js** | MIT | DAW-like synthesis, sequencing | Audio branding, sound design |
+| **WaveSurfer.js** | BSD-3 | Waveform visualization | Audio editing UI |
+
+##### 10.10.5.3.3 Document Processing
+
+| Tool | License | Purpose | Integration |
+|------|---------|---------|-------------|
+| **Docling** | MIT | Document parsing (PDF, DOCX, etc.) | Client brief extraction, invoice processing |
+| **pdf-lib** | MIT | PDF creation/modification | Photo book export, proof sheets |
+| **jsPDF** | MIT | PDF generation | Reports, contact sheets |
+| **PDF.js** | Apache 2.0 | PDF viewing/rendering | Document preview |
+
+##### 10.10.5.3.4 Metadata & Color
+
+| Tool | License | Purpose | Integration |
+|------|---------|---------|-------------|
+| **exifr** | MIT | Fast EXIF/IPTC/XMP/ICC parsing | Metadata panel, auto-organization |
+| **Chroma.js** | MIT | Color manipulation, palette generation | Color tools, palette extraction |
+| **Color Thief** | MIT | Dominant color extraction | Moodboard color analysis |
+| **culori** | MIT | Color space conversions (LAB, LCH, OKLab) | Color science operations |
+
+##### 10.10.5.3.5 Diagramming & Visualization
+
+| Tool | License | Purpose | Integration |
+|------|---------|---------|-------------|
+| **Mermaid** | MIT | Diagrams from text | Workflow documentation |
+| **Rough.js** | MIT | Hand-drawn style rendering | Sketch overlays |
+| **Three.js** | MIT | 3D rendering | 3D asset preview, product photography |
+
+#### 10.10.5.4 AI/ML Model Stack
+
+##### 10.10.5.4.1 Local LLMs
+
+| Model | Size | Strength | Use Cases | Priority |
+|-------|------|----------|-----------|----------|
+| **Llama 3.1/3.2** | 8B-70B | Reasoning, instruction-following | Document analysis, code generation, complex queries | P0 |
+| **Mythomax** | 7B/13B | Creative writing | Client emails, social captions, blog posts, storytelling | P0 |
+| **Qwen2.5** | 7B-72B | Multilingual, coding | International clients, automation scripts | P1 |
+
+##### 10.10.5.4.2 Vision Models
+
+| Model | VRAM | Strength | Use Cases | Priority |
+|-------|------|----------|-----------|----------|
+| **MiniCPM-V 2.6** | ~8GB | High-res native (1.8M pixels) | Image understanding without aggressive downscale | P0 |
+| **Qwen2-VL** | ~8GB | Strong OCR, Chinese support | Document scanning, text extraction | P0 |
+| **Molmo 7B** | ~8GB | General vision, Apache 2.0 | Image description, tagging | P1 |
+| **LLaVA 1.6** | ~20GB | Best quality | Complex scene analysis | P2 |
+| **InternVL2** | Various | Detailed understanding | Technical image analysis | P2 |
+
+##### 10.10.5.4.3 AI Integration Patterns
+
+```
+Pattern: Auto-Tagging Pipeline
+  Image → Vision Model → Keywords + Description → IPTC/XMP metadata
+
+Pattern: Document → Calendar Integration  
+  PDF (client brief) → Docling → LLM extract dates → Calendar events
+
+Pattern: Intelligent Culling Assistant
+  Batch images → Vision Model → Quality scores + descriptions → Smart collection
+
+Pattern: Client Communication
+  Shoot metadata → LLM → "Your photos are ready" email draft
+
+Pattern: Moodboard Analysis
+  Reference images → Vision Model → Style description → ComfyUI prompt guidance
+```
+
+#### 10.10.5.5 MCP (Model Context Protocol) Integration
+
+MCP enables standardized communication between tools and AI models.
+
+##### 10.10.5.5.1 MCP Server Capabilities
+
+| Server | Purpose | Operations |
+|--------|---------|------------|
+| **Filesystem** | File access | Read, write, list, watch |
+| **Database** | Catalog queries | SQL queries against catalog |
+| **Image** | Image operations | Metadata read, thumbnail generation |
+| **Calendar** | Scheduling | Create, read, update events |
+| **Mail** | Communication | Draft, send, search emails |
+
+##### 10.10.5.5.2 MCP Tool Exposure
+
+The Photo Stack exposes these tools via MCP for AI agents:
+
+```typescript
+interface PhotoStackMCPTools {
+  // Catalog operations
+  'photo.search': (query: SearchQuery) => PhotoResult[];
+  'photo.getMetadata': (photoId: UUID) => PhotoMetadata;
+  'photo.setMetadata': (photoId: UUID, metadata: Partial<PhotoMetadata>) => void;
+  'photo.addToCollection': (photoId: UUID, collectionId: UUID) => void;
+  
+  // Edit operations
+  'photo.applyPreset': (photoId: UUID, presetId: UUID) => void;
+  'photo.adjustBasic': (photoId: UUID, adjustments: BasicAdjustments) => void;
+  'photo.export': (photoId: UUID, exportSettings: ExportSettings) => ArtifactHandle;
+  
+  // AI operations
+  'photo.analyzeWithVision': (photoId: UUID) => VisionAnalysis;
+  'photo.generateTags': (photoId: UUID) => string[];
+  'photo.generateCaption': (photoId: UUID) => string;
+  
+  // Batch operations
+  'photo.batchApplyPreset': (photoIds: UUID[], presetId: UUID) => void;
+  'photo.batchExport': (photoIds: UUID[], exportSettings: ExportSettings) => ArtifactHandle[];
+}
+```
+
+---
+
+### 10.10.6 Proxy Workflow Architecture
+
+#### 10.10.6.1 Overview
+
+High-resolution camera files (Canon R5, Sony A7RV, Fuji GFX100S, etc.) require a proxy-based workflow for AI/ML operations due to memory constraints.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           PROXY WORKFLOW                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────┐     ┌──────────────────┐     ┌──────────────────────┐    │
+│  │   INGEST     │     │   PROCESSING     │     │      OUTPUT          │    │
+│  ├──────────────┤     ├──────────────────┤     ├──────────────────────┤    │
+│  │              │     │                  │     │                      │    │
+│  │ RAW File     │────▶│ Full Resolution  │────▶│ Print/Archive        │    │
+│  │ (45-102MP)   │     │ Traditional      │     │ (Full quality)       │    │
+│  │              │     │ Pipeline         │     │                      │    │
+│  │   LibRaw     │     │ (Section 3.1-3.5)│     │                      │    │
+│  │   Decode     │     │                  │     │                      │    │
+│  │              │     ├──────────────────┤     ├──────────────────────┤    │
+│  │      │       │     │                  │     │                      │    │
+│  │      ▼       │     │ Proxy (2-4K)     │────▶│ Web/Social           │    │
+│  │ Generate     │────▶│ AI Processing    │     │ (Optimized)          │    │
+│  │ Proxy        │     │ - Vision Model   │     │                      │    │
+│  │ (2048px)     │     │ - ComfyUI        │     │                      │    │
+│  │              │     │ - Analysis       │     │                      │    │
+│  └──────────────┘     └──────────────────┘     └──────────────────────┘    │
+│                                │                                            │
+│                                ▼                                            │
+│                       ┌──────────────────┐                                 │
+│                       │  AI OUTPUTS      │                                 │
+│                       ├──────────────────┤                                 │
+│                       │ • Keywords/Tags  │──▶ Apply to full-res metadata  │
+│                       │ • Descriptions   │──▶ IPTC captions               │
+│                       │ • Quality Scores │──▶ Smart collections           │
+│                       │ • Masks (scaled) │──▶ Upscale & apply to full-res │
+│                       │ • Adjustments    │──▶ Recipe parameters           │
+│                       └──────────────────┘                                 │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 10.10.6.2 Proxy Generation
+
+```typescript
+interface ProxySettings {
+  // Size settings
+  long_edge: 2048 | 3072 | 4096;  // pixels
+  format: 'jpeg' | 'webp' | 'avif';
+  quality: number;  // 80-95 recommended
+  
+  // Color settings  
+  color_space: 'sRGB';  // Always sRGB for AI compatibility
+  embed_profile: boolean;
+  
+  // Generation trigger
+  generate_on: 'import' | 'first_view' | 'manual';
+  
+  // Storage
+  location: 'alongside' | 'cache_directory';
+}
+
+const defaultProxySettings: ProxySettings = {
+  long_edge: 2048,
+  format: 'jpeg',
+  quality: 85,
+  color_space: 'sRGB',
+  embed_profile: true,
+  generate_on: 'import',
+  location: 'cache_directory'
+};
+```
+
+#### 10.10.6.3 AI Output Application
+
+When AI processes a proxy, outputs must be mapped back to full resolution:
+
+| AI Output | Application Method | Fidelity |
+|-----------|-------------------|----------|
+| Keywords/Tags | Direct metadata write | 100% |
+| Descriptions | Direct metadata write | 100% |
+| Quality Scores | Catalog field update | 100% |
+| Adjustment Suggestions | Recipe parameters (exposure, WB, etc.) | 100% |
+| Masks | Scale up with interpolation + edge refinement | 95-98% |
+| Crop Suggestions | Ratio-based, recalculate for full-res | 100% |
+| Face Regions | Proportional coordinate mapping | 98% |
+
+#### 10.10.6.4 Region-Based Processing
+
+For AI operations on specific regions of high-res files:
+
+```typescript
+interface RegionProcessingRequest {
+  source_photo_id: UUID;
+  region: {
+    type: 'rectangle' | 'mask';
+    // For rectangle:
+    x: number;  // Percentage 0-100
+    y: number;
+    width: number;
+    height: number;
+    // For mask:
+    mask_id?: UUID;
+  };
+  max_dimension: number;  // Max px for extracted region
+  operation: 'face_restore' | 'detail_enhance' | 'inpaint' | 'style_transfer';
+  operation_params: Record<string, unknown>;
+}
+
+// Example: Face restoration on GFX100S portrait
+const request: RegionProcessingRequest = {
+  source_photo_id: 'uuid-here',
+  region: {
+    type: 'rectangle',
+    x: 30,   // Face is 30% from left
+    y: 10,   // 10% from top  
+    width: 40,   // Face spans 40% of width
+    height: 60   // 60% of height
+  },
+  max_dimension: 2048,  // Will extract and resize to max 2048px
+  operation: 'face_restore',
+  operation_params: {
+    model: 'codeformer',
+    fidelity: 0.7
+  }
+};
+```
+
+---
+
+### 10.10.7 File Format Support Matrix
+
+#### 10.10.7.1 Import Formats
+
+| Format | Extensions | Library | Notes |
+|--------|------------|---------|-------|
+| JPEG | .jpg, .jpeg | libjpeg-turbo | Full EXIF preservation |
+| PNG | .png | libpng | 8/16-bit, alpha |
+| TIFF | .tif, .tiff | libtiff | All compressions, layers |
+| WebP | .webp | libwebp | Lossy and lossless |
+| HEIF/HEIC | .heif, .heic | libheif | HDR support |
+| AVIF | .avif | libavif | HDR, wide gamut |
+| PSD | .psd, .psb | custom parser | Layers, adjustments (subset) |
+| Camera RAW | 100+ formats | LibRaw | See LibRaw supported cameras |
+| DNG | .dng | LibRaw + DNG SDK | Linear and mosaic |
+| OpenRaster | .ora | ZIP + XML | Full layer support |
+| JPEG XL | .jxl | libjxl | Progressive, HDR |
+| OpenEXR | .exr | OpenEXR | HDR, deep compositing |
+| XMP Sidecar | .xmp | exifr/custom | Adobe Camera Raw import |
+| LCP | .lcp | custom parser | Adobe Lens Profiles |
+| PDF | .pdf | Docling/Poppler | Document import (NEW) |
+| DOCX | .docx | Docling | Document import (NEW) |
+| Video | .mp4, .mov, .webm | ffmpeg.wasm | Frame extraction (NEW) |
+
+#### 10.10.7.2 Export Formats
+
+| Format | Extensions | Options |
+|--------|------------|---------|
+| JPEG | .jpg | Quality 1-100, subsampling, progressive |
+| PNG | .png | 8/16-bit, compression level, interlace |
+| TIFF | .tif | None/LZW/ZIP/JPEG compression, 8/16/32-bit |
+| WebP | .webp | Quality, lossless |
+| AVIF | .avif | Quality, speed, 8/10/12-bit |
+| HEIF | .heif | Quality |
+| DNG | .dng | Lossy/lossless, embed original option |
+| PSD | .psd | Layers, compatibility mode |
+| PDF | .pdf | Quality, color space |
+| ORA | .ora | Full layer preservation |
+| JPEG XL | .jxl | Quality, effort, lossless |
+| Video | .mp4, .webm | Via ffmpeg.wasm (NEW) |
+
+#### 10.10.7.3 Internal Formats
+
+| Purpose | Format | Schema |
+|---------|--------|--------|
+| Edit Recipe | `.hs.recipe.json` | JSON Schema v3 |
+| Layer Document | `.hs.layers.json` | JSON Schema v2 |
+| Mask (raster) | `.hs.mask.png` | 16-bit grayscale PNG |
+| Mask (vector) | `.hs.mask.svg` | SVG subset |
+| Preview Pyramid | `.hs.preview/` | Directory with tiles + manifest |
+| Smart Preview | `.hs.smart.dng` | Reduced-resolution DNG |
+| Proxy | `.hs.proxy.jpg` | JPEG/WebP at configured size (NEW) |
+| Export Record | `.hs.export.json` | Provenance manifest |
+| Catalog | `.hs.catalog.db` | SQLite + JSON |
+| Moodboard | `.hs.moodboard.json` | JSON Schema v1 (NEW) |
+| AI Metadata | `.hs.ai.json` | Vision/LLM outputs (NEW) |
+
+---
+
+### 10.10.8 Cross-Tool Integration Patterns
+
+#### 10.10.8.1 Photo → Document Workflows
+
+```
+Pattern: Contact Sheet Generation
+  Selected photos → Vision Model captions → Word template → PDF export
+
+Pattern: Photo Book
+  Collection → Layout engine → Word/PDF with embedded images
+
+Pattern: Client Proof Sheet
+  Photos + watermarks → Metadata extraction → Excel manifest → PDF
+
+Pattern: Technical Report
+  Photo + EXIF → Docling template → Word document
+```
+
+#### 10.10.8.2 Document → Photo Workflows
+
+```
+Pattern: Brief Extraction
+  Client PDF → Docling parse → LLM extract requirements → Task list
+
+Pattern: Shot List Generation
+  Brief document → LLM analysis → Calendar events + checklist
+
+Pattern: Reference Gathering
+  Brief mentions "golden hour beach" → Web search → Moodboard auto-population
+```
+
+#### 10.10.8.3 Moodboard Workflows
+
+```
+Pattern: Style Analysis
+  Moodboard images → Vision Model → Style description → ComfyUI prompt guidance
+
+Pattern: Color Extraction
+  Moodboard → Color Thief → Palette → Apply to presets/grading
+
+Pattern: Reference Matching
+  Shot photo → Compare to moodboard → Suggest adjustments
+```
+
+#### 10.10.8.4 Calendar/Mail Integration
+
+```
+Pattern: Shoot Scheduling
+  Photo EXIF dates → Calendar events → Auto-organize by shoot
+
+Pattern: Delivery Notification
+  Export complete → LLM draft email → Send to client
+
+Pattern: Follow-up Automation
+  Shoot date + 7 days → Calendar reminder → Draft follow-up email
+```
+
+---
+
+### 10.10.9 Security, Consent, & Classification
+
+#### 10.10.9.1 Content Sensitivity
+```typescript
+interface ContentSensitivity {
+  level: 'public' | 'internal' | 'confidential' | 'restricted';
+  contains_faces: boolean;
+  face_consent: ConsentStatus[];
+  contains_location: boolean;
+  location_consent: 'allowed' | 'strip' | 'blur';
+  custom_restrictions: string[];
+}
+```
+
+#### 10.10.9.2 Export Policies
+- `exportable: false` assets MUST NOT be exported without override
+- Face regions MAY require consent verification before export
+- GPS data MAY be stripped based on policy
+- Watermarking MAY be enforced for certain sensitivity levels
+
+#### 10.10.9.3 External Service Controls
+- All cloud/ML services MUST be opt-in
+- Local-first processing MUST be default
+- Data sent externally MUST be logged with consent
+
+#### 10.10.9.4 AI Data Handling
+- AI models run locally by default
+- No image data sent to external services without explicit consent
+- AI-generated metadata clearly marked as such
+- Option to disable AI features entirely
+
+---
+
+### 10.10.10 Implementation Phases
+#### 10.10.10.1 Phase 1: Foundation (Months 1-6)
+- [ ] Core data model implementation
+- [ ] RAW decode integration (LibRaw)
+- [ ] Basic develop pipeline (exposure, WB, contrast)
+- [ ] Preview pyramid generation
+- [ ] Simple catalog/DAM
+- [ ] JPEG/PNG/TIFF export
+- [ ] Proxy generation system
+- [ ] Basic metadata handling (exifr)
+
+#### 10.10.10.2 Phase 2: Develop Parity (Months 7-12)
+- [ ] Complete global adjustments
+- [ ] Tone curve, HSL, color grading
+- [ ] Lens corrections (Lensfun integration)
+- [ ] Detail panel (sharpening, NR)
+- [ ] Transform/perspective
+- [ ] Manual mask tools (brush, gradients)
+- [ ] Preset system
+- [ ] Vision model integration (basic tagging)
+
+#### 10.10.10.3 Phase 3: AI & Merge (Months 13-18)
+- [ ] AI mask integration (SAM)
+- [ ] AI denoise
+- [ ] HDR merge
+- [ ] Panorama stitching
+- [ ] Focus stacking
+- [ ] Smart previews
+- [ ] Local LLM integration
+- [ ] ComfyUI integration (proxy images)
+- [ ] Moodboard system
+
+#### 10.10.10.4 Phase 4: Compositor (Months 19-24)
+- [ ] Layer document model
+- [ ] All blend modes
+- [ ] Adjustment layers
+- [ ] Live filters
+- [ ] Layer masks
+- [ ] Basic vector/text layers
+- [ ] Docling integration
+- [ ] Cross-tool workflows
+
+#### 10.10.10.5 Phase 5: Polish & Parity (Months 25-30)
+- [ ] Remaining Lightroom tools
+- [ ] Remaining Affinity features
+- [ ] Performance optimization
+- [ ] Extended format support
+- [ ] Batch/automation
+- [ ] Advanced vector tools
+- [ ] MCP server implementation
+- [ ] Full AI pipeline orchestration
+
+---
+
+### 10.10.11 Appendix A: Blend Mode Formulas
+
+```
+// All formulas assume RGB values normalized to [0, 1]
+// a = base (bottom layer), b = blend (top layer)
+
+Normal:      result = b
+Multiply:    result = a * b
+Screen:      result = 1 - (1 - a) * (1 - b)
+Overlay:     result = a < 0.5 ? 2 * a * b : 1 - 2 * (1 - a) * (1 - b)
+Soft Light:  result = b < 0.5 ? a - (1 - 2*b) * a * (1 - a) : a + (2*b - 1) * (D(a) - a)
+             where D(x) = x <= 0.25 ? ((16*x - 12)*x + 4)*x : sqrt(x)
+Hard Light:  result = b < 0.5 ? 2 * a * b : 1 - 2 * (1 - a) * (1 - b)
+Color Dodge: result = b == 1 ? 1 : min(1, a / (1 - b))
+Color Burn:  result = b == 0 ? 0 : 1 - min(1, (1 - a) / b)
+Darken:      result = min(a, b)
+Lighten:     result = max(a, b)
+Difference:  result = abs(a - b)
+Exclusion:   result = a + b - 2 * a * b
+Hue:         result = SetLum(SetSat(b, Sat(a)), Lum(a))
+Saturation:  result = SetLum(SetSat(a, Sat(b)), Lum(a))
+Color:       result = SetLum(b, Lum(a))
+Luminosity:  result = SetLum(a, Lum(b))
+```
+
+---
+
+### 10.10.12 Appendix B: Open-Source License Summary
+
+| License | Commercial Use | Modification | Distribution | Patent Grant | Copyleft |
+|---------|---------------|--------------|--------------|--------------|----------|
+| MIT | ✓ | ✓ | ✓ | ✗ | ✗ |
+| BSD 2/3-Clause | ✓ | ✓ | ✓ | ✗ | ✗ |
+| Apache 2.0 | ✓ | ✓ | ✓ | ✓ | ✗ |
+| LGPL 2.1/3.0 | ✓ | ✓ | ✓ | ✗ | Weak (dynamic linking OK) |
+| MPL 2.0 | ✓ | ✓ | ✓ | ✓ | File-level |
+| GPL 2.0/3.0 | ✓ | ✓ | ✓ | ✗ | Strong (derivatives must be GPL) |
+
+**Handshake Preference Order:**
+1. Apache 2.0 / MIT / BSD (most permissive, best for future monetization)
+2. LGPL (dynamic linking acceptable)
+3. MPL 2.0 (file-level copyleft manageable)
+4. GPL (avoid unless isolated subprocess)
+
+---
+
+### 10.10.13 Appendix C: Reference Implementation Notes
+
+#### 10.10.13.1 darktable Module Mapping
+
+| darktable Module | Handshake Equivalent | Notes |
+|------------------|---------------------|-------|
+| `exposure` | BasicAdjustments.exposure | Direct mapping |
+| `colorbalancergb` | ColorGradingSettings | Similar 3-way + global |
+| `filmic rgb` | Custom tone curve variant | May inspire implementation |
+| `lens correction` | LensCorrectionSettings | Both use Lensfun |
+| `denoise (profiled)` | engine.ai_enhance.denoise | Different approach (ML vs profiled) |
+| `retouch` | SpotRemoval[] | Similar heal/clone |
+| `liquify` | (Phase 5) | Mesh warp tool |
+
+#### 10.10.13.2 Affinity Photo Feature Mapping
+
+| Affinity Feature | Handshake Equivalent | Notes |
+|------------------|---------------------|-------|
+| Develop Persona | engine.photo_develop | Similar RAW workflow |
+| Photo Persona | Layer compositor | Main editing |
+| Liquify Persona | (Phase 5) | Warp tools |
+| Tone Mapping Persona | HDR processing | Subset |
+| Export Persona | engine.export | Slice support Phase 5 |
+| Live Filters | LiveFilterLayer | Non-destructive filters |
+| Macros | Batch/automation system | Recording + playback |
+
+#### 10.10.13.3 Camera Support Matrix (High-Resolution)
+
+| Camera | Resolution | Proxy Long Edge | Notes |
+|--------|-----------|-----------------|-------|
+| Canon R5 | 45MP | 2048px | Full RAW support via LibRaw |
+| Canon R5 II | 45MP | 2048px | Full RAW support via LibRaw |
+| Sony A7RV | 61MP | 2048px | Full RAW support via LibRaw |
+| Sony A1 | 50MP | 2048px | Full RAW support via LibRaw |
+| Fuji GFX100S | 102MP | 3072px | Full RAW support via LibRaw |
+| Fuji GFX100 II | 102MP | 3072px | Full RAW support via LibRaw |
+| Hasselblad X2D | 100MP | 3072px | Full RAW support via LibRaw |
+| Phase One IQ4 | 150MP | 4096px | Full RAW support via LibRaw |
+
+---
+
+### 10.10.14 Appendix D: AI Model Configuration
+
+#### 10.10.14.1 Vision Model Defaults
+
+```typescript
+const visionModelConfig = {
+  default_model: 'minicpm-v-2.6',
+  fallback_model: 'qwen2-vl-7b',
+  
+  models: {
+    'minicpm-v-2.6': {
+      max_image_pixels: 1800000,  // ~1344×1344 or 1680×1120
+      vram_required: '8GB',
+      strengths: ['high-res', 'general'],
+    },
+    'qwen2-vl-7b': {
+      max_image_pixels: 1048576,  // 1024×1024
+      vram_required: '8GB',
+      strengths: ['ocr', 'multilingual'],
+    },
+    'molmo-7b': {
+      max_image_pixels: 1048576,
+      vram_required: '8GB',
+      strengths: ['general', 'permissive-license'],
+    },
+  },
+  
+  tasks: {
+    'auto_tag': { prompt_template: '...', max_tokens: 100 },
+    'caption': { prompt_template: '...', max_tokens: 200 },
+    'quality_assess': { prompt_template: '...', max_tokens: 50 },
+  }
+};
+```
+
+#### 10.10.14.2 LLM Defaults
+
+```typescript
+const llmConfig = {
+  default_model: 'llama-3.1-8b',
+  creative_model: 'mythomax-13b',
+  
+  models: {
+    'llama-3.1-8b': {
+      context_length: 8192,
+      vram_required: '8GB',
+      strengths: ['reasoning', 'instruction-following'],
+    },
+    'llama-3.1-70b': {
+      context_length: 8192,
+      vram_required: '40GB',
+      strengths: ['complex-reasoning', 'accuracy'],
+    },
+    'mythomax-13b': {
+      context_length: 4096,
+      vram_required: '12GB',
+      strengths: ['creative-writing', 'storytelling'],
+    },
+  },
+  
+  tasks: {
+    'email_draft': { model: 'mythomax-13b', temperature: 0.7 },
+    'metadata_extract': { model: 'llama-3.1-8b', temperature: 0.1 },
+    'brief_analysis': { model: 'llama-3.1-8b', temperature: 0.3 },
+  }
+};
+```
+
+---
+
+### 10.10.15 Appendix E: ComfyUI Workflow Examples
+
+#### 10.10.15.1 Moodboard Image Upscale
+
+```json
+{
+  "workflow_id": "moodboard_upscale_2x",
+  "description": "Upscale web image 2x for moodboard use",
+  "max_input_size": 2048,
+  "nodes": {
+    "load": { "type": "LoadImage" },
+    "upscale": { 
+      "type": "ImageUpscaleWithModel",
+      "model": "RealESRGAN_x2plus"
+    },
+    "save": { "type": "SaveImage" }
+  }
+}
+```
+
+#### 10.10.15.2 Style Transfer for Reference Matching
+
+```json
+{
+  "workflow_id": "style_match",
+  "description": "Match web image style to project aesthetic",
+  "max_input_size": 1024,
+  "nodes": {
+    "load_content": { "type": "LoadImage" },
+    "load_style": { "type": "LoadImage" },
+    "transfer": {
+      "type": "StyleTransfer",
+      "strength": 0.7
+    },
+    "save": { "type": "SaveImage" }
+  }
+}
+```
+
+---
+
+### 10.10.16 Document History
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| v0.1.0 | 2025-12-24 | Initial | Base specification |
+| v0.2.0 | 2025-12-24 | Expanded | Complete tool inventory, OSS matrix, custom requirements |
+| v0.3.0 | 2025-12-24 | AI Integration | Added: Docling, vision models, local LLMs, MCP, ComfyUI scope clarification, proxy workflow, moodboard system, cross-tool integration patterns, expanded OSS matrix |
+
+---
+
+*End of Specification*
+
 # 11. Shared Dev Platform & OSS Foundations
 
 **Purpose**  
@@ -24232,6 +27852,11 @@ Centralized, single-source definitions for cross-cutting contracts that all Prod
   - Plugin manifest permissions MUST map to capability_profile_id entries; no ad-hoc plugin permissions.
   - Mail/Calendar surfaces MUST use the same capability/consent profiles (send_email, read_mail, export_calendar) used by plugin APIs and AI Job profiles.
   - Workflow/AI Job model MUST resolve effective capabilities from: plugin manifest (if tool), job profile, and surface-specific policy; the most restrictive wins.
+- **Capability Registry & SSoT Enforcement ([HSK-4001]):**
+  - The system MUST maintain a centralized `CapabilityRegistry` (SSoT) containing all valid Capability IDs (e.g. `fs.read`, `doc.summarize`, `terminal.exec`).
+  - **Hard Invariant:** Any request for a Capability ID not defined in the Registry MUST be rejected with error `HSK-4001: UnknownCapability`. Ad-hoc or "magic string" capabilities are strictly forbidden.
+  - **Audit Requirement:** Every capability check (Allow or Deny) MUST be recorded as a Flight Recorder event, capturing: `capability_id`, `actor_id`, `job_id` (if applicable), and `decision_outcome`.
+  - **Profile Schema:** `CapabilityProfile` objects (e.g. 'Analyst', 'Coder') MUST be defined solely as whitelists of IDs from the `CapabilityRegistry`.
 - Redaction/safety propagation:
   - Content classification + redaction flags flow from data layer to plugin/tool calls and AI jobs; cloud routing MUST honor projection/redaction defaults per surface (mail/calendar/doc).
 - Based on TERM-CAP: axes (model, workspace, command class/action type, time scope), approval types (per-job, per-model-per-workspace), visible “Capabilities” UI, revocation without restart, escalation flow with job/model/workspace/command context, decisions logged to Flight Recorder.
@@ -24252,6 +27877,82 @@ Centralized, single-source definitions for cross-cutting contracts that all Prod
   - `CALENDAR_ACTIVITY_SUMMARY`
   - `CALENDAR_COMPARE_ACTIVITY_WINDOWS`
 
+### 11.1.3 Scoped Capabilities (normative)
+
+Capabilities in Handshake follow a hierarchical `axis:scope` pattern to enable least-privilege access without axis-inflation.
+
+#### 11.1.3.1 Capability Schema
+
+1. **Format:** `CapabilityId := <axis>[:<scope>]`
+2. **Axis Registry:** Mandatory axes include:
+   - `fs.read`, `fs.write`
+   - `proc.exec`
+   - `net.http`
+   - `device`
+   - `secrets.use`
+3. **Scope Resolution:**
+   - A grant for an axis-only (e.g. `fs.read`) implies access to ALL scopes on that axis.
+   - A grant for a scoped axis (e.g. `fs.read:inputs`) restricts access ONLY to that scope.
+   - **Validator Requirement:** The `CapabilityRegistry` (§WP-1-Capability-SSoT) MUST resolve scoped requests against axis-level grants.
+4. **Mechanical Engine Mapping:** All engines defined in §11.8 MUST declare their required capabilities using this scoped format (e.g., `engine.spatial` requires `fs.read:inputs` and `proc.exec:cad_kernel`).
+
+#### 11.1.3.2 Registry Logic (Rust Contract)
+
+The system MUST maintain a centralized registry that validates and resolves capabilities.
+
+```rust
+pub struct CapabilityRegistry {
+    /// Valid capability axes (e.g., "fs.read", "net.http")
+    valid_axes: HashSet<String>,
+    /// Valid full capability IDs (e.g., "doc.summarize") that don't follow the axis:scope pattern
+    valid_full_ids: HashSet<String>,
+}
+
+impl CapabilityRegistry {
+    /// Validates if a capability ID is known to the system.
+    /// Returns true if the ID is a registered full ID OR if it starts with a registered axis.
+    pub fn is_valid(&self, capability_id: &str) -> bool {
+        if self.valid_full_ids.contains(capability_id) {
+            return true;
+        }
+        // Check axis format: "axis:scope"
+        if let Some((axis, _scope)) = capability_id.split_once(':') {
+            return self.valid_axes.contains(axis);
+        }
+        false
+    }
+
+    /// Resolves if a requested capability is granted by a list of held capabilities.
+    /// - Exact match: "doc.summarize" matches "doc.summarize"
+    /// - Axis inheritance: "fs.read" grants "fs.read:logs"
+    /// - Scoped match: "fs.read:logs" grants "fs.read:logs"
+    pub fn can_perform(&self, requested: &str, granted: &[String]) -> bool {
+        // 1. Sanity check: requested must be valid
+        if !self.is_valid(requested) {
+            return false;
+        }
+
+        // 2. Check against granted list
+        for grant in granted {
+            // Exact match covers full IDs and exact scoped matches
+            if grant == requested {
+                return true;
+            }
+
+            // Axis inheritance: If grant is "fs.read", it covers "fs.read:*"
+            if let Some((req_axis, _req_scope)) = requested.split_once(':') {
+                if grant == req_axis {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+}
+```
+
+---
+
 - MCP tools with write or external-network effects (including those exposed by the Python Orchestrator or external MCP servers) MUST be gated via the same approval classes and consent flows; the Rust MCP Gate (§11.3.2) enforces these decisions and logs them to Flight Recorder.
 
 ## 11.2 Sandbox Policy vs Hard Isolation
@@ -24263,6 +27964,10 @@ Centralized, single-source definitions for cross-cutting contracts that all Prod
 
 ## 11.3 Auth/Session/MCP Primitives
 
+- **MCP Lifecycle & Robustness:**
+  - **Reconnection:** The MCP Client MUST support automatic reconnection with exponential backoff if the transport (stdio/SSE) is severed.
+  - **Traceability:** Every tool call MUST include the `trace_id` from the triggering AI Job in its MCP metadata (where supported) or in the paired Flight Recorder event.
+  - **Stub Policy:** Production builds MUST NOT include the Stub Server; it is a test-only artifact.
 - Authentication/session handling, MCP usage patterns, and how servers map to sessions and WSIDs:
   - Sessions MUST bind to user identity (where applicable), WSID(s), and capability set.
   - MCP resources/tools exposed to surfaces MUST inherit the session/WSID context and capability scope.
@@ -25678,6 +29383,15 @@ Validators are deterministic checks that MUST pass for a compliant implementatio
 
 ## 11.5 Flight Recorder Event Shapes & Retention
 
+- **Observability Instrumentation (Metrics & Traces):**
+  - **Trace Invariant:** Every AI action MUST emit a unique `trace_id` which links the Job, the RAG QueryPlan, and the final result.
+  - **Span Requirements:** `Workflow::run` and each `JobKind` execution MUST be wrapped in a "Span" (Start/End events recorded in DuckDB).
+  - **Metric Naming Standards:** Standardized metric names for Phase 1: `hsk.job.latency`, `hsk.job.tokens`, `hsk.workflow.step_duration`.
+  - **Privacy & Safety:**
+    - Tracing MUST NOT record `RawContent` payloads unless the job is in `DEBUG_MODE` and the user has explicitly consented.
+    - All trace metadata MUST pass through the **Secret Redactor** before being committed to the DuckDB sink.
+  - **Retention Policy:** Implement an automatic retention policy; traces older than 7 days SHOULD be purged to maintain system performance and storage efficiency.
+
 - See **§11.9.1 ActivitySpan and SessionSpan** for the temporal provenance entities used by calendar-driven activity queries.
 
 A Flight Recorder event MUST be serializable as a single JSON object. All events MUST include a stable `event_id` and RFC3339 `timestamp`.
@@ -26245,6 +29959,2384 @@ An implementation claiming conformance to this spec MUST satisfy:
 
 This spec is a normative rewrite of `missing_items_merged_with_oss.md` and retains its component mapping and integration cautions.
 
+### 11.7.6 Photo Stack OSS Component Matrix (Photo Studio)
+
+**Normative constraints:**
+- GPL/AGPL components MUST NOT be linked/embedded into the core app binary (see §11.7.4).
+- If a GPL tool is used, it MUST be isolated as an external process with clean IPC boundaries, and treated as an optional adapter.
+- All third-party versions MUST be pinned and recorded in engine/version manifests and ExportRecords where applicable (§2.3.10.10).
+
+#### 11.7.6.1 RAW Processing
+
+| Component | Library | License | Covers | Gaps |
+|-----------|---------|---------|--------|------|
+| RAW Decode | **LibRaw** | LGPL 2.1 / CDDL | Camera RAW decoding, 750+ cameras, demosaicing | None for decoding |
+| RAW Decode (fast) | **RawSpeed** (darktable) | LGPL 2.0 | Faster decoding for supported cameras | Fewer cameras than LibRaw |
+| DNG Support | **LibRaw** + DNG SDK | Various | DNG read/write | Adobe DNG SDK has restrictive license |
+| Develop Pipeline | **darktable** modules | GPL 3.0 | Complete develop pipeline, 60+ modules | GPL requires careful integration |
+| Develop Pipeline | **RawTherapee** engine | GPL 3.0 | Alternative develop pipeline | GPL license |
+
+#### 11.7.6.2 Color Management
+
+| Component | Library | License | Covers | Gaps |
+|-----------|---------|---------|--------|------|
+| Color Transforms | **OpenColorIO (OCIO)** | BSD 3-Clause | LUT application, color space conversion, ACES | Well-covered |
+| ICC Profiles | **LittleCMS (lcms2)** | MIT | ICC profile handling, soft proofing | None |
+| Color Conversion | **babl** (GEGL) | LGPL 3.0 | Pixel format conversion, color models | Part of GEGL ecosystem |
+
+#### 11.7.6.3 Image Processing Core
+
+| Component | Library | License | Covers | Gaps |
+|-----------|---------|---------|--------|------|
+| Core Operations | **libvips** | LGPL 2.1 | 300+ operations, streaming, threading | No GPU acceleration |
+| Graph Processing | **GEGL** | LGPL 3.0 / GPL 3.0 | Graph-based processing, non-destructive | Complex integration |
+| OpenCV | **OpenCV** | Apache 2.0 | Computer vision, some filters | Heavy dependency |
+| SIMD Acceleration | **Highway** (Google) | Apache 2.0 | Cross-platform SIMD | Already in libvips |
+
+#### 11.7.6.4 Lens Correction
+
+| Component | Library | License | Covers | Gaps |
+|-----------|---------|---------|--------|------|
+| Lens Profiles | **Lensfun** | LGPL 3.0 | Distortion, CA, vignetting, 1000+ lenses | Profile coverage varies |
+| Profile Database | Lensfun DB | CC BY-SA 3.0 | Community-maintained profiles | New lenses may be missing |
+| Perspective | **libpano13** | GPL 2.0 | Perspective transforms | GPL license |
+
+#### 11.7.6.5 Merging & Stitching
+
+| Component | Library | License | Covers | Gaps |
+|-----------|---------|---------|--------|------|
+| Panorama Core | **libpano13** | GPL 2.0 | Remapping, projection | GPL license |
+| Panorama GUI/Tools | **Hugin** tools | GPL 2.0 | Full panorama pipeline | GPL, heavy |
+| Blending | **Enblend/Enfuse** | GPL 2.0 | Seam blending, exposure fusion | GPL license |
+| HDR Merge | **pfstmo** / Luminance HDR | GPL / LGPL | Tone mapping operators | Various licenses |
+| Focus Stacking | **Enfuse** | GPL 2.0 | Focus blending | GPL license |
+| Alignment | **align_image_stack** | GPL 2.0 | Image alignment | GPL license |
+
+#### 11.7.6.6 AI/ML Masking
+
+| Component | Library | License | Covers | Gaps |
+|-----------|---------|---------|--------|------|
+| Segmentation | **Segment Anything (SAM/SAM2)** | Apache 2.0 | Subject/object segmentation | Requires GPU, custom prompts |
+| Segmentation | **RMBG-2.0** / **BiRefNet** | Various OSS | Background removal | Task-specific |
+| Face Detection | **MediaPipe Face** | Apache 2.0 | Face landmarks, mesh | Specific to faces |
+| Semantic Seg. | **DeepLabV3+** / **Mask2Former** | Apache 2.0 | Semantic segmentation | Class-limited |
+| Sky Detection | Custom / SegFormer | Apache 2.0 | Sky masking | May need fine-tuning |
+
+#### 11.7.6.7 AI Enhancement
+
+| Component | Library | License | Covers | Gaps |
+|-----------|---------|---------|--------|------|
+| Denoising | **NAFNet** / **Restormer** | Various OSS | AI denoising | Needs integration |
+| Super Resolution | **Real-ESRGAN** / **SwinIR** | BSD 3-Clause | 2-4x upscaling | Proxy images only |
+| Inpainting | **LaMa** / **MAT** | Apache 2.0 | Object removal | Needs integration |
+
+#### 11.7.6.8 File Format I/O
+
+| Format | Library | License | Read | Write |
+|--------|---------|---------|------|-------|
+| JPEG | **libjpeg-turbo** | BSD-style | ✓ | ✓ |
+| PNG | **libpng** | PNG License | ✓ | ✓ |
+| TIFF | **libtiff** | BSD-like | ✓ | ✓ |
+| WebP | **libwebp** | BSD 3-Clause | ✓ | ✓ |
+| HEIF/HEIC | **libheif** | LGPL 3.0 | ✓ | ✓ |
+| AVIF | **libavif** | BSD 2-Clause | ✓ | ✓ |
+| JPEG XL | **libjxl** | BSD 3-Clause | ✓ | ✓ |
+| OpenEXR | **OpenEXR** | BSD 3-Clause | ✓ | ✓ |
+| PSD | **psd.js** / custom | Various | Partial | Partial |
+| PDF | **Poppler** / **Cairo** | GPL / LGPL | ✓ | ✓ |
+| SVG | **librsvg** / **resvg** | LGPL / MPL | ✓ | ✓ |
+| ORA | Custom (ZIP+XML) | N/A | ✓ | ✓ |
+
+#### 11.7.6.9 Vector Graphics
+
+| Component | Library | License | Covers | Gaps |
+|-----------|---------|---------|--------|------|
+| Path Operations | **Cairo** | LGPL 2.1 | 2D vector rendering | Well-covered |
+| Path Operations | **Skia** | BSD 3-Clause | 2D graphics, paths | Heavy dependency |
+| SVG Parsing | **resvg** | MPL 2.0 | SVG rendering | Rust-based |
+| Font Rendering | **FreeType** + **HarfBuzz** | FTL / MIT | Typography | Well-covered |
+| Text Layout | **Pango** | LGPL 2.1 | Complex text layout | GTK ecosystem |
+
+#### 11.7.6.10 Metadata
+
+| Component | Library | License | Covers |
+|-----------|---------|---------|--------|
+| EXIF/IPTC/XMP | **exifr** | MIT | Fast JS parsing (recommended) |
+| EXIF/IPTC/XMP | **Exiv2** | GPL 2.0 | Comprehensive but GPL |
+| EXIF/IPTC/XMP | **libexif** | LGPL 2.1 | Basic EXIF |
+| ExifTool | **ExifTool** | Artistic/GPL | Most comprehensive (CLI) |
+
+#### 11.7.6.11 Document Processing
+
+| Component | Library | License | Covers |
+|-----------|---------|---------|--------|
+| Document Parsing | **Docling** | MIT | PDF, DOCX, PPTX, images → structured data |
+| PDF Generation | **pdf-lib** | MIT | Create/modify PDFs |
+| PDF Generation | **jsPDF** | MIT | Generate PDFs from scratch |
+| PDF Viewing | **PDF.js** | Apache 2.0 | Render PDFs in browser |
+
+#### 11.7.6.12 Audio/Video
+
+| Component | Library | License | Covers |
+|-----------|---------|---------|--------|
+| Video Processing | **ffmpeg.wasm** | MIT (wrapper) | Transcode, trim, merge in browser |
+| Audio Playback | **Howler.js** | MIT | Cross-platform audio, sprites, 3D |
+| Audio Synthesis | **Tone.js** | MIT | DAW-like capabilities |
+| Audio Waveforms | **WaveSurfer.js** | BSD-3 | Visualization and editing |
+
+#### 11.7.6.13 Canvas & Design
+
+| Component | Library | License | Covers |
+|-----------|---------|---------|--------|
+| Canvas Objects | **Fabric.js** | MIT | Object model on canvas, SVG support |
+| Vector Scripting | **Paper.js** | MIT | Bezier curves, vector graphics |
+| Diagrams | **Excalidraw** | MIT | Hand-drawn diagrams, wireframes |
+| SVG Animation | **Snap.svg** | Apache 2.0 | SVG manipulation |
+| Color Utils | **Chroma.js** | MIT | Color manipulation, palettes |
+
+---
+
+#### 11.7.6.14 Custom Implementation Requirements
+##### 11.7.6.14.1 Must Build (No Suitable OSS)
+
+| Component | Reason | Complexity | Estimate |
+|-----------|--------|------------|----------|
+| **Edit Recipe Engine** | Handshake-specific non-destructive format | High | 4-6 months |
+| **Layer Graph Renderer** | Custom compositor with provenance | High | 4-6 months |
+| **Preview Pipeline** | Tiled pyramid with Handshake caching | Medium | 2-3 months |
+| **DAM Catalog** | Integration with Handshake data model | Medium | 2-3 months |
+| **Job Orchestration** | GPU scheduling, prioritization | Medium | 2-3 months |
+| **UI Controllers** | Brush dynamics, gesture handling | Medium | 3-4 months |
+| **Export Pipeline** | Policy enforcement, artifact manifests | Medium | 2 months |
+| **Preset System** | Recipe serialization, sharing | Low | 1-2 months |
+| **Proxy Manager** | Auto-generation, sync, invalidation | Medium | 2 months |
+| **AI Pipeline Orchestrator** | LLM/Vision model routing, context management | Medium | 2-3 months |
+| **MCP Server** | Tool exposure for AI agents | Medium | 2 months |
+
+##### 11.7.6.14.2 Must Integrate (OSS + Glue)
+
+| Component | Base Libraries | Integration Work |
+|-----------|----------------|------------------|
+| RAW Pipeline | LibRaw + custom parameters | Map to recipe format, caching |
+| Lens Corrections | Lensfun | Auto-detection, profile updates |
+| Color Management | OCIO + LittleCMS | Config loading, ICC embedding |
+| AI Masks | SAM + custom models | Prompt mapping, mask conversion |
+| AI Enhance | Various models | Job wrapping, format conversion |
+| Merge Tools | Hugin/Enfuse (careful GPL) | OR custom implementation |
+| Format I/O | libvips/ImageMagick | Unified loader interface |
+| Metadata | exifr + custom writers | Read/write pipeline |
+| Document Parsing | Docling | Workflow integration |
+| Vision Models | MiniCPM-V, Qwen2-VL, etc. | Inference pipeline, prompt engineering |
+| Local LLMs | Llama, Mythomax | Context management, tool use |
+
+##### 11.7.6.14.3 Must Replace or Avoid (License Issues)
+
+| OSS Project | License Issue | Replacement Strategy |
+|-------------|---------------|---------------------|
+| Hugin/Enfuse | GPL contamination | Custom merge or permissive alternatives |
+| darktable modules | GPL 3.0 | Inspired reimplementation |
+| GIMP/GEGL | GPL/LGPL mixed | Selective LGPL-only use or clean-room |
+| Exiv2 | GPL 2.0 | exifr (MIT) or libexif (LGPL) |
+
+##### 11.7.6.14.4 Algorithm Implementations Needed
+
+| Algorithm | Reference | Notes |
+|-----------|-----------|-------|
+| Demosaicing (AHD, DCB, AMAZE) | Academic papers | LibRaw handles most |
+| Tone Curve Application | Standard spline math | Well-documented |
+| HSL Manipulation | Color space math | Standard |
+| Local Contrast (Clarity) | Multi-scale decomposition | Wavelets or Laplacian |
+| Dehaze | Dark channel prior + variants | Well-published |
+| Texture Enhancement | Frequency separation | Standard |
+| HDR Merge | Debevec, Robertson methods | Well-published |
+| Panorama Stitching | Bundle adjustment + blending | Complex, consider licensing |
+| Focus Stack | Laplacian pyramid fusion | Well-documented |
+| All Blend Modes | Porter-Duff + extensions | Fully specified |
+| Mask Feathering | Gaussian + distance fields | Standard |
+
+---
+
+## 11.8 Mechanical Extension Specification v1.2 (Verbatim)
+
+This section imports the **Mechanical Extension** specification v1.2 as the canonical contract for engine envelopes, gates, capabilities, registry, conformance vectors, and the spec-grade 22-engine set. Heading levels are shifted **+2** to preserve the Master Spec’s heading hierarchy.
+
+### Handshake Mechanical Extension Specification
+
+**Name:** Mechanical Extension (Exhaustive Engines)  
+**Version:** v1.2 (spec-grade, full engine templates)  
+**Status:** Draft  
+**Supersedes:** v1.1  
+**Source artifact:** `# Project Handshake Exhaustive Mech.txt` (content hash: `7ccf492768b7…`)  
+
+#### 0. Changelog (v1.1 → v1.2)
+
+- Completed the per-engine template for **all 22 engines** (ops, params, outputs, determinism, capabilities, gates, errors, conformance vectors).
+- Added explicit **rationale blocks** (non-normative) preserving v1.0 intent (Why/What/Use Cases/OSS).
+- Tightened the determinism guidance for live/snapshot engines (Archivist/Guide/Hardware).
+
+#### 1. Purpose and scope
+
+This document defines a set of **mechanical engines** that Handshake can invoke to perform tasks that LLMs cannot reliably do (binary generation, physics, deterministic transforms, media pipelines, device I/O, data engineering, travel verification, developer tooling).
+
+This spec is intentionally **standalone**: an implementer must be able to build an engine adapter, run it under governance, and pass conformance without reading any other Handshake document.
+
+#### 2. Normative language and glossary
+
+##### 2.1 Normative language
+
+- **MUST / MUST NOT**: mandatory requirement.
+- **SHOULD / SHOULD NOT**: strongly recommended; deviations require justification.
+- **MAY**: optional.
+
+##### 2.2 Glossary (core)
+
+- **Engine**: a logical capability (e.g., `engine.spatial`) with a stable contract.
+- **Implementation (Adapter)**: a concrete backend for an engine.
+- **PlannedOperation**: a versioned, schema-validated request to invoke exactly one engine operation.
+- **Gate**: a validator that can approve/reject a PlannedOperation or a produced result.
+- **Artifact**: immutable content blob/bundle stored and referenced by hash + metadata.
+- **Evidence**: artifacts that justify non-deterministic claims (snapshots, screenshots, sensor frames).
+- **Shadow Workspace**: a per-run sandboxed working directory; only exported artifacts persist.
+- **Determinism Level**:
+  - **D3 Bitwise**: identical inputs/config/environment ⇒ identical bytes.
+  - **D2 Structural**: identical semantics; bytes may differ (canonicalization required).
+  - **D1 Best-effort**: depends on external/labile inputs; replay uses captured evidence.
+  - **D0 Live**: inherently non-replayable unless evidence capture is used to “freeze” the claim.
+
+#### 3. Architectural invariant (Brain → Gate → Body → Shadow Workspace)
+
+1) Brain (LLM) produces a PlannedOperation.  
+2) Gates validate (schema/capability/integrity/safety/budget/determinism).  
+3) Mechanical runtime executes inside sandbox.  
+4) Shadow Workspace stages intermediates; outputs are exported as artifacts.  
+5) Indexer records provenance and links outputs by reference.
+
+**No-bypass:** engines MUST NOT be invokable outside the orchestrator/runtime.
+
+#### 4. Mechanical Tool Bus Contract (normative, minimum)
+
+##### 4.1 PlannedOperation envelope (minimum fields)
+
+- `schema_version` (e.g., `poe-1.0`)
+- `op_id` (UUID)
+- `engine_id`
+- `engine_version_req`
+- `operation` (discriminator)
+- `inputs` (ArtifactHandle[] / EntityRef[])
+- `params` (engine-specific; MUST validate)
+- `capabilities_requested`
+- `budget`
+- `determinism` (`D0|D1|D2|D3`)
+- `evidence_policy` (required for D0/D1)
+- `output_spec`
+
+**Size rule:** any payload > 32KB MUST be passed as an input artifact.
+
+##### 4.2 EngineResult envelope (minimum fields)
+
+- `op_id`
+- `status`
+- `started_at`, `ended_at`
+- `outputs` (ArtifactHandle[])
+- `evidence` (ArtifactHandle[]; required for D0/D1)
+- `provenance` (engine+impl+versions, inputs, outputs, config hash, capabilities granted, environment)
+- `errors` (typed; may include `details_ref`)
+- `logs_ref` (optional artifact)
+
+#### 5. Capability and security model (normative, minimum)
+
+Capabilities are explicit, least-privilege:
+
+- `fs.read:<scope>`, `fs.write:artifacts`
+- `net.http`
+- `device.camera`, `device.mic`, `device.usb`, `device.serial`
+- `proc.exec:<allowlist>`
+- `gpu.compute`
+- `secrets.use:<id>`
+
+Any `device.*`, `net.http`, or `secrets.use:*` MUST require policy approval and be recorded in provenance.
+
+Sandbox MUST prevent filesystem escape, deny network unless granted, deny exec unless allowlisted, and record environment identifiers.
+
+#### 6. Gates (normative, minimum)
+
+Required global gates:
+
+- G-SCHEMA, G-CAP, G-INTEGRITY, G-BUDGET, G-PROVENANCE, G-DET
+
+Optional engine gates: G-SAFETY.GCODE, G-SAFETY.FOOD, G-SAFETY.SANDBOX, G-LICENSE, etc.
+
+#### 7. Artifacts + provenance (normative, minimum)
+
+- All artifacts MUST use SHA-256 hashing.
+- Bundles MUST be canonically hashed (stable order, normalized paths, normalized line endings where applicable).
+- Every artifact MUST have sidecar metadata (engine+impl versions, op_id, config hash, inputs hashes, determinism).
+
+#### 8. Engine registry (normative, minimum)
+
+An engine registry (e.g., `mechanical_engines.json`) MUST map:
+
+- engine_id → ops + schema refs + impls + capability requirements + default budgets + determinism ceilings.
+
+#### 9. Conformance suite (normative, minimum)
+
+All engines MUST pass:
+
+- schema gate, integrity gate, capability denial, budget enforcement, artifact-first outputs, provenance completeness, determinism/evidence rules.
+
+---
+
+### 10. Engine specifications (normative)
+
+
+### Domain: Engineering & Manufacturing
+
+#### Engine: Spatial (Parametric CAD)
+
+- **Engine ID:** `engine.spatial`
+- **Interface version:** 1.0
+- **Domain:** Engineering & Manufacturing
+- **Purpose:** Generate and validate parametric 3D geometry; export CAD/mesh formats; compute fit/clearance reports.
+
+##### Determinism
+
+- **Max determinism:** `D2`
+
+##### Inputs / Outputs
+
+Inputs: model specs/scripts, model3d.
+Outputs: model3d, previews, reports.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+- `proc.exec:<cad_kernel_allowlist>`
+
+##### Required gates (in addition to global gates)
+
+- G-SAFETY.GEOM (optional: reject non-manifold where required)
+
+###### Operation: `spatial.build_model`
+
+**Params**
+  - `script_ref`: ArtifactHandle (text/x-python|text/plain) OR param_spec_ref (application/json)
+  - `format`: step|stl|obj|gltf
+  - `units`: mm|cm|m|in
+  - `tolerance_mm`: number (default 0.1)
+  - `preview`: bool (default true)
+
+**Outputs**
+- artifact.model3d (+ optional artifact.image preview)
+
+###### Operation: `spatial.check_fit`
+
+**Params**
+  - `model_a`: ArtifactHandle (artifact.model3d)
+  - `model_b`: ArtifactHandle (artifact.model3d)
+  - `clearance_mm`: number
+  - `report_format`: json|pdf
+
+**Outputs**
+- artifact.document or artifact.dataset report
+
+###### Operation: `spatial.generate_layout`
+
+**Params**
+  - `constraints_ref`: ArtifactHandle (application/json)
+  - `seed`: int (required for D2/D3)
+  - `format`: step|gltf
+  - `report_format`: json
+
+**Outputs**
+- artifact.model3d + artifact.dataset report
+
+
+##### Failure codes
+
+- `SPATIAL_SYNTAX_ERROR`
+- `SPATIAL_KERNEL_ERROR`
+- `SPATIAL_EXPORT_ERROR`
+- `SPATIAL_NONMANIFOLD_REJECTED`
+- `SPATIAL_BUDGET_EXCEEDED`
+
+##### Conformance vectors
+
+- Golden: parametric box build (structural hash stable).
+- Reject: invalid schema/script rejected by G-SCHEMA.
+- Optional: non-manifold rejected by G-SAFETY.GEOM.
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs hallucinate non-manifold geometry (impossible shapes) and cannot output valid binary CAD files (STEP/STL).
+- **Mechanical solution:** A Code-to-CAD kernel that compiles scripts into precise 3D models.
+- **Example use cases:**
+  1. **Custom Enclosures** — Design a 3D printable case for this PCB with 2mm walls.
+  2. **Part Fitting** — Check if this peg (File A) fits into this hole (File B) with 0.1mm tolerance.
+  3. **Procedural Architecture** — Generate a city block layout with these zoning constraints.
+- **Candidate OSS/backends (non-normative):**
+  - **CadQuery** (Python) or **OpenSCAD**.
+  - **Open CASCADE (OCCT)** for kernel operations.
+
+
+#### Engine: Machinist (CAM / G-Code)
+
+- **Engine ID:** `engine.machinist`
+- **Interface version:** 1.0
+- **Domain:** Engineering & Manufacturing
+- **Purpose:** Generate, parse, visualize, and validate toolpaths and machine instructions (CNC/3D printing/laser).
+
+##### Determinism
+
+- **Max determinism:** `D2`
+
+##### Inputs / Outputs
+
+Inputs: model3d, gcode, machine/tool profiles.
+Outputs: gcode, previews, reports.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+- `proc.exec:<cam_allowlist>`
+
+##### Required gates (in addition to global gates)
+
+- G-SAFETY.GCODE (required for generation/optimization)
+
+###### Operation: `machinist.generate_gcode`
+
+**Params**
+  - `model_ref`: ArtifactHandle (artifact.model3d)
+  - `machine_profile_ref`: ArtifactHandle (application/json)
+  - `tool_profile_ref`: ArtifactHandle (application/json)
+  - `operation`: mill|print|laser
+  - `output_flavor`: marlin|grbl|fanuc|generic
+  - `safety_margin_mm`: number (default 1.0)
+
+**Outputs**
+- artifact.gcode (+ validation report)
+
+###### Operation: `machinist.visualize_toolpath`
+
+**Params**
+  - `gcode_ref`: ArtifactHandle (artifact.gcode)
+  - `render_mode`: 2d|3d
+  - `format`: png|mp4
+
+**Outputs**
+- artifact.image or artifact.video
+
+###### Operation: `machinist.optimize_toolpath`
+
+**Params**
+  - `gcode_ref`: ArtifactHandle (artifact.gcode)
+  - `objective`: time|distance|heat
+  - `constraints_ref`: ArtifactHandle (application/json, optional)
+  - `seed`: int (required if heuristic)
+
+**Outputs**
+- artifact.gcode
+
+###### Operation: `machinist.validate_gcode`
+
+**Params**
+  - `gcode_ref`: ArtifactHandle (artifact.gcode)
+  - `machine_profile_ref`: ArtifactHandle (application/json)
+
+**Outputs**
+- artifact.document report
+
+
+##### Failure codes
+
+- `MACH_PROFILE_INVALID`
+- `MACH_GCODE_PARSE_ERROR`
+- `MACH_GCODE_SAFETY_REJECTED`
+- `MACH_TOOLPATH_GEN_ERROR`
+- `MACH_BUDGET_EXCEEDED`
+
+##### Conformance vectors
+
+- Golden: known model+profile -> gcode passes safety gate.
+- Reject: out-of-bounds gcode rejected by G-SAFETY.GCODE.
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs cannot calculate toolpaths or understand CNC physics (feed rates/spindle speeds).
+- **Mechanical solution:** G-code generation and parsing libraries.
+- **Example use cases:**
+  1. **Fabrication** — Export this CAD model to G-code for my Ender 3.
+  2. **Verification** — Visualize the toolpath to check for collisions.
+  3. **Optimization** — Optimize travel moves to save time.
+- **Candidate OSS/backends (non-normative):**
+  - **OpenCAMLib** (Toolpaths).
+  - **GCodeTools** (Parsing).
+
+
+#### Engine: Physics (Dimensional Analysis)
+
+- **Engine ID:** `engine.physics`
+- **Interface version:** 1.0
+- **Domain:** Engineering & Manufacturing
+- **Purpose:** Unit consistency checking, conversions, and formula evaluation with explicit units.
+
+##### Determinism
+
+- **Max determinism:** `D3`
+
+##### Inputs / Outputs
+
+Inputs: text formulas, JSON vars, documents/datasets.
+Outputs: validated results + conversion reports.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+
+##### Required gates (in addition to global gates)
+
+- (none)
+
+###### Operation: `physics.check_units`
+
+**Params**
+  - `expr_ref`: ArtifactHandle (text/plain)
+  - `unit_policy_ref`: ArtifactHandle (application/json, optional)
+
+**Outputs**
+- artifact.dataset report (json/csv)
+
+###### Operation: `physics.convert_units`
+
+**Params**
+  - `doc_ref`: ArtifactHandle (artifact.document|artifact.dataset)
+  - `target_system`: metric|imperial
+  - `report_format`: json|pdf
+
+**Outputs**
+- artifact.document or artifact.dataset
+
+###### Operation: `physics.evaluate_formula`
+
+**Params**
+  - `expr_ref`: ArtifactHandle (text/plain)
+  - `vars_ref`: ArtifactHandle (application/json)
+  - `output_unit`: string (e.g., 'Pa')
+
+**Outputs**
+- artifact.dataset (json)
+
+
+##### Failure codes
+
+- `PHYS_UNIT_MISMATCH`
+- `PHYS_PARSE_ERROR`
+- `PHYS_EVAL_ERROR`
+
+##### Conformance vectors
+
+- Golden: evaluate known formula with units -> exact output.
+- Reject: mismatched units flagged/rejected.
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs fail at unit consistency (e.g., adding meters to seconds).
+- **Mechanical solution:** Unit safety libraries.
+- **Example use cases:**
+  1. **Engineering Sheets** — Calculate stress (Force/Area) and output in Pascals.
+  2. **Safety** — Flag any formula adding disparate units.
+  3. **Conversion** — Convert all Imperial measurements in this doc to Metric.
+- **Candidate OSS/backends (non-normative):**
+  - **Pint** (Python).
+  - **conversions_rs** (Rust).
+
+
+#### Engine: Simulation (FEA / CFD)
+
+- **Engine ID:** `engine.simulation`
+- **Interface version:** 1.0
+- **Domain:** Engineering & Manufacturing
+- **Purpose:** Run physics simulations (FEA/CFD/dynamics) as governed batch jobs and produce plots/fields.
+
+##### Determinism
+
+- **Max determinism:** `D2`
+
+##### Inputs / Outputs
+
+Inputs: model3d + JSON configs.
+Outputs: solver result bundle + derived plots/reports.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+- `proc.exec:<solver_allowlist>`
+- `gpu.compute (optional)`
+
+##### Required gates (in addition to global gates)
+
+- G-BUDGET strict enforcement (required)
+
+###### Operation: `simulation.run_fea`
+
+**Params**
+  - `model_ref`: ArtifactHandle (artifact.model3d)
+  - `material_ref`: ArtifactHandle (application/json)
+  - `loadcases_ref`: ArtifactHandle (application/json)
+  - `mesh_ref`: ArtifactHandle (application/json, optional)
+  - `outputs`: array (e.g., stress, displacement, safety_factor)
+
+**Outputs**
+- artifact.bundle results + plots
+
+###### Operation: `simulation.run_cfd`
+
+**Params**
+  - `geometry_ref`: ArtifactHandle (artifact.model3d)
+  - `fluid_ref`: ArtifactHandle (application/json)
+  - `boundary_ref`: ArtifactHandle (application/json)
+  - `outputs`: array (e.g., pressure, velocity, streamlines)
+
+**Outputs**
+- artifact.bundle results + plots
+
+###### Operation: `simulation.postprocess`
+
+**Params**
+  - `result_bundle_ref`: ArtifactHandle (artifact.bundle)
+  - `plots`: array (plot specs)
+  - `format`: png|pdf
+
+**Outputs**
+- artifact.image or artifact.document
+
+
+##### Failure codes
+
+- `SIM_CONFIG_INVALID`
+- `SIM_SOLVER_ERROR`
+- `SIM_CONVERGENCE_FAILED`
+- `SIM_BUDGET_EXCEEDED`
+
+##### Conformance vectors
+
+- Golden: small deterministic mesh case -> structural-stable results bundle manifest.
+- Reject: invalid config rejected by G-SCHEMA or solver guardrails.
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs can describe physics ("air flows over the wing") but cannot solve partial differential equations.
+- **Mechanical solution:** Finite Element Analysis & Fluid Dynamics solvers.
+- **Example use cases:**
+  1. **Heat** — Will this CPU heatsink exceed 80°C at 100W load?
+  2. **Stress** — Simulate a 50kg static load on this bracket.
+  3. **Aerodynamics** — Visualize airflow around this airfoil.
+- **Candidate OSS/backends (non-normative):**
+  - **OpenFOAM** (CFD).
+  - **FEniCS** (FEA).
+  - **PyDy** (Dynamics).
+
+
+#### Engine: Hardware (Real-world I/O)
+
+- **Engine ID:** `engine.hardware`
+- **Interface version:** 1.0
+- **Domain:** Engineering & Manufacturing
+- **Purpose:** Controlled access to cameras/mics/USB/serial/sensors with explicit consent and evidence capture.
+
+##### Determinism
+
+- **Max determinism:** `D0`
+
+##### Inputs / Outputs
+
+Inputs: optional command payloads.
+Outputs: media artifacts + logs/evidence.
+
+##### Capabilities
+
+- `fs.write:artifacts`
+- `device.camera (optional)`
+- `device.mic (optional)`
+- `device.usb (optional)`
+- `device.serial (optional)`
+
+##### Required gates (in addition to global gates)
+
+- Policy/consent gate per device_id/port (required)
+
+###### Operation: `hardware.capture_image`
+
+**Params**
+  - `device_id`: string
+  - `format`: png|jpg
+  - `max_width_px`: int
+  - `max_height_px`: int
+
+**Outputs**
+- artifact.image
+
+###### Operation: `hardware.capture_video_clip`
+
+**Params**
+  - `device_id`: string
+  - `duration_ms`: int
+  - `format`: mp4
+
+**Outputs**
+- artifact.video
+
+###### Operation: `hardware.capture_audio_clip`
+
+**Params**
+  - `device_id`: string
+  - `duration_ms`: int
+  - `format`: wav|flac
+
+**Outputs**
+- artifact.audio
+
+###### Operation: `hardware.serial_send`
+
+**Params**
+  - `port`: string
+  - `baud`: int
+  - `payload_ref`: ArtifactHandle (text/plain)
+
+**Outputs**
+- artifact.logs
+
+###### Operation: `hardware.serial_read`
+
+**Params**
+  - `port`: string
+  - `baud`: int
+  - `duration_ms`: int
+  - `format`: text|json
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `hardware.scan_pointcloud`
+
+**Params**
+  - `device_id`: string
+  - `format`: ply|pcd
+
+**Outputs**
+- artifact.model3d (pointcloud)
+
+
+##### Failure codes
+
+- `HW_DEVICE_DENIED`
+- `HW_DEVICE_NOT_FOUND`
+- `HW_IO_ERROR`
+- `HW_BUDGET_EXCEEDED`
+
+##### Conformance vectors
+
+- Golden: capture image (with granted capability) produces artifact + provenance.
+- Reject: denied device capability blocks execution (G-CAP).
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs are trapped in software; they cannot see or sense the room.
+- **Mechanical solution:** Hardware abstraction layers.
+- **Example use cases:**
+  1. **Monitoring** — Watch the 3D printer webcam for spaghetti failures.
+  2. **Scanning** — Import point cloud from the depth camera.
+  3. **Control** — Send 'Home' command to the serial port.
+- **Candidate OSS/backends (non-normative):**
+  - **OpenCV** (Vision).
+  - **Open3D** (Point Clouds).
+  - **Serial/Bluetooth** libraries.
+
+
+### Domain: Creative Studio
+
+#### Engine: Director (Video / Animation)
+
+- **Engine ID:** `engine.director`
+- **Interface version:** 1.0
+- **Domain:** Creative Studio
+- **Purpose:** Render timelines, generate animations, and perform deterministic video transforms/transcodes.
+
+##### Determinism
+
+- **Max determinism:** `D2`
+
+##### Inputs / Outputs
+
+Inputs: video/audio/image assets + JSON timelines.
+Outputs: rendered video + optional frame bundles.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+- `proc.exec:<video_allowlist>`
+
+##### Required gates (in addition to global gates)
+
+- G-LICENSE (optional/organization policy: asset usage)
+
+###### Operation: `director.render_timeline`
+
+**Params**
+  - `timeline_ref`: ArtifactHandle (application/json)
+  - `assets`: array[ArtifactHandle] (images/audio/video/fonts)
+  - `format`: mp4|mov
+  - `resolution`: e.g., 1920x1080
+  - `fps`: number
+  - `audio_mix_ref`: ArtifactHandle (application/json, optional)
+
+**Outputs**
+- artifact.video
+
+###### Operation: `director.supercut_remove_silence`
+
+**Params**
+  - `video_ref`: ArtifactHandle (artifact.video)
+  - `silence_threshold_db`: number
+  - `min_silence_ms`: int
+  - `format`: mp4|mov
+
+**Outputs**
+- artifact.video
+
+###### Operation: `director.transcode`
+
+**Params**
+  - `video_ref`: ArtifactHandle (artifact.video)
+  - `preset`: proxy|web|archive
+  - `format`: mp4|mov
+
+**Outputs**
+- artifact.video
+
+###### Operation: `director.extract_frames`
+
+**Params**
+  - `video_ref`: ArtifactHandle (artifact.video)
+  - `every_n_frames`: int
+  - `format`: png|jpg
+
+**Outputs**
+- artifact.bundle (frames)
+
+
+##### Failure codes
+
+- `DIR_TIMELINE_INVALID`
+- `DIR_DECODE_ERROR`
+- `DIR_ENCODE_ERROR`
+- `DIR_ASSET_MISSING`
+- `DIR_BUDGET_EXCEEDED`
+
+##### Conformance vectors
+
+- Golden: render timeline with pinned encoder settings -> structural-stable output.
+- Reject: missing assets rejected by G-INTEGRITY or engine validation.
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs cannot generate smooth math animations or edit video timelines precisely without hallucinating frames.
+- **Mechanical solution:** Code-based rendering engines for video and vector animation.
+- **Example use cases:**
+  1. **Math Explainers** — Animate the Fourier Transform.
+  2. **Supercuts** — Remove all silence and 'umms' from this recording.
+  3. **Data Viz** — Render a bar chart race of this CSV data as an MP4.
+- **Candidate OSS/backends (non-normative):**
+  - **Manim** (Math Animation).
+  - **FFmpeg** (Processing).
+  - **VapourSynth** (Scripting).
+
+
+#### Engine: Composer (Music / Audio)
+
+- **Engine ID:** `engine.composer`
+- **Interface version:** 1.0
+- **Domain:** Creative Studio
+- **Purpose:** Symbolic music processing, engraving, synthesis, mixing, and audio analysis.
+
+##### Determinism
+
+- **Max determinism:** `D2`
+
+##### Inputs / Outputs
+
+Inputs: notation text, MIDI/audio tracks.
+Outputs: engraved PDFs/SVG, MIDI/audio renders, analysis datasets.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+- `proc.exec:<audio_allowlist>`
+
+##### Required gates (in addition to global gates)
+
+- G-LICENSE (optional: soundfont/sample licensing)
+
+###### Operation: `composer.engrave_score`
+
+**Params**
+  - `notation_ref`: ArtifactHandle (text/plain) (ABC|LilyPond)
+  - `style_ref`: ArtifactHandle (application/json, optional)
+  - `output`: pdf|svg
+
+**Outputs**
+- artifact.document or artifact.image
+
+###### Operation: `composer.transpose_midi`
+
+**Params**
+  - `midi_ref`: ArtifactHandle (artifact.audio; MIDI)
+  - `from_key`: string
+  - `to_key`: string
+  - `output`: midi
+
+**Outputs**
+- artifact.audio (MIDI)
+
+###### Operation: `composer.synthesize_tone`
+
+**Params**
+  - `waveform`: sine|square|saw|triangle
+  - `freq_hz`: number
+  - `duration_ms`: int
+  - `fade_out_ms`: int (optional)
+  - `format`: wav|flac
+
+**Outputs**
+- artifact.audio
+
+###### Operation: `composer.mixdown`
+
+**Params**
+  - `tracks`: array[ArtifactHandle] (audio)
+  - `mix_spec_ref`: ArtifactHandle (application/json)
+  - `format`: wav|flac|mp3
+
+**Outputs**
+- artifact.audio
+
+###### Operation: `composer.analyze_audio`
+
+**Params**
+  - `audio_ref`: ArtifactHandle (artifact.audio)
+  - `features`: array (e.g., bpm, loudness, spectrum)
+  - `output`: json|csv
+
+**Outputs**
+- artifact.dataset
+
+
+##### Failure codes
+
+- `COMP_NOTATION_PARSE_ERROR`
+- `COMP_RENDER_ERROR`
+- `COMP_AUDIO_IO_ERROR`
+- `COMP_BUDGET_EXCEEDED`
+
+##### Conformance vectors
+
+- Golden: transpose MIDI -> stable output hash.
+- Golden: engrave same notation -> structural-stable PDF (timestamps stripped).
+
+##### Rationale (non-normative)
+
+- **Why:** Audio GenAI creates "frozen" files; LLMs cannot change a specific note or export sheet music.
+- **Mechanical solution:** Symbolic music processing.
+- **Example use cases:**
+  1. **Scoring** — Generate sheet music for this melody.
+  2. **Theory** — Transpose this MIDI from C Major to F Minor.
+  3. **Sound Design** — Synthesize a 440Hz sine wave fading out over 5s.
+- **Candidate OSS/backends (non-normative):**
+  - **LilyPond** (Engraving).
+  - **Music21** (Theory).
+  - **SuperCollider** (Synthesis).
+
+
+#### Engine: Artist (Visual Art)
+
+- **Engine ID:** `engine.artist`
+- **Interface version:** 1.0
+- **Domain:** Creative Studio
+- **Purpose:** Scriptable vector/photo/painting transforms producing editable outputs (SVG, graded images, layered files).
+
+##### Determinism
+
+- **Max determinism:** `D2`
+
+##### Inputs / Outputs
+
+Inputs: images, bundles, JSON layer specs.
+Outputs: SVG, graded image bundles, layered file bundles.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+- `proc.exec:<art_allowlist>`
+
+##### Required gates (in addition to global gates)
+
+- G-LICENSE (optional: fonts/stock assets)
+
+###### Operation: `artist.vectorize`
+
+**Params**
+  - `image_ref`: ArtifactHandle (artifact.image)
+  - `output`: svg
+  - `detail`: low|med|high
+
+**Outputs**
+- artifact.image (SVG)
+
+###### Operation: `artist.batch_color_grade`
+
+**Params**
+  - `images_bundle_ref`: ArtifactHandle (artifact.bundle)
+  - `grade_profile_ref`: ArtifactHandle (application/json)
+  - `output_format`: jpg|png|tiff
+
+**Outputs**
+- artifact.bundle
+
+###### Operation: `artist.create_layered_paint_file`
+
+**Params**
+  - `layer_spec_ref`: ArtifactHandle (application/json)
+  - `canvas_size`: e.g., 2048x2048
+  - `format`: kra|ora
+
+**Outputs**
+- artifact.bundle (layered file)
+
+###### Operation: `artist.render_scene`
+
+**Params**
+  - `scene_ref`: ArtifactHandle (application/json|text)
+  - `format`: png|exr
+  - `resolution`: e.g., 1920x1080
+
+**Outputs**
+- artifact.image
+
+
+##### Failure codes
+
+- `ART_IO_ERROR`
+- `ART_TOOL_ERROR`
+- `ART_INVALID_SPEC`
+- `ART_BUDGET_EXCEEDED`
+
+##### Conformance vectors
+
+- Golden: vectorize known input -> structural-stable SVG.
+- Reject: invalid layer spec rejected by G-SCHEMA.
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs generate raster soup. They cannot produce editable vectors, layered files, or precise photo grades.
+- **Mechanical solution:** Scriptable graphics engines.
+- **Example use cases:**
+  1. **Vectors** — Generate an SVG logo with editable paths.
+  2. **Photo** — Batch apply this color grade to 50 RAW photos.
+  3. **Painting** — Create a layered `.kra` file with separated shadows.
+- **Candidate OSS/backends (non-normative):**
+  - **Inkscape** (Vector).
+  - **Darktable** (Photo).
+  - **Krita** (Painting).
+  - **Blender** (3D Art).
+
+
+#### Engine: Publisher (Typography / Layout)
+
+- **Engine ID:** `engine.publisher`
+- **Interface version:** 1.0
+- **Domain:** Creative Studio
+- **Purpose:** Print-ready layout, typesetting, kinetic typography renders, and font tooling under policy.
+
+##### Determinism
+
+- **Max determinism:** `D2`
+
+##### Inputs / Outputs
+
+Inputs: text/markdown/html + templates + fonts.
+Outputs: PDF/HTML/video and font artifacts.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+- `proc.exec:<layout_allowlist>`
+
+##### Required gates (in addition to global gates)
+
+- G-LICENSE (recommended: fonts/assets)
+
+###### Operation: `publisher.layout_document`
+
+**Params**
+  - `content_ref`: ArtifactHandle (md|html|json)
+  - `template_ref`: ArtifactHandle (application/json)
+  - `assets`: array[ArtifactHandle] (fonts/images)
+  - `output`: pdf|html
+
+**Outputs**
+- artifact.document
+
+###### Operation: `publisher.layout_pamphlet`
+
+**Params**
+  - `content_ref`: ArtifactHandle
+  - `page_spec_ref`: ArtifactHandle (application/json)
+  - `output`: pdf
+
+**Outputs**
+- artifact.document
+
+###### Operation: `publisher.kinetic_type_render`
+
+**Params**
+  - `text_ref`: ArtifactHandle (text/plain)
+  - `audio_ref`: ArtifactHandle (artifact.audio, optional)
+  - `style_ref`: ArtifactHandle (application/json)
+  - `format`: mp4
+
+**Outputs**
+- artifact.video
+
+###### Operation: `publisher.font_generate_variant`
+
+**Params**
+  - `font_ref`: ArtifactHandle (font file as artifact.bundle or artifact.document)
+  - `variant_spec_ref`: ArtifactHandle (application/json)
+  - `output`: otf|ttf
+
+**Outputs**
+- artifact.document
+
+
+##### Failure codes
+
+- `PUB_TEMPLATE_INVALID`
+- `PUB_FONT_ERROR`
+- `PUB_LAYOUT_ERROR`
+- `PUB_BUDGET_EXCEEDED`
+
+##### Conformance vectors
+
+- Golden: layout same content+template -> structural-stable PDF.
+- Reject: disallowed font/license triggers policy gate (if enabled).
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs cannot handle page geometry, kerning, or print-ready layout.
+- **Mechanical solution:** Typesetting engines.
+- **Example use cases:**
+  1. **Zines** — Layout this text into a 4-page folded pamphlet.
+  2. **Kinetic Type** — Animate this text reacting to the beat.
+  3. **Fonts** — Generate a condensed variation of this typeface.
+- **Candidate OSS/backends (non-normative):**
+  - **Scribus** (Layout).
+  - **Coldtype** (Kinetic).
+  - **FontForge** (Fonts).
+
+
+### Domain: Culinary & Home
+
+#### Engine: Sous Chef (Recipe Logic)
+
+- **Engine ID:** `engine.sous_chef`
+- **Interface version:** 1.0
+- **Domain:** Culinary & Home
+- **Purpose:** Parse, standardize, scale recipes and generate shopping lists with unit safety.
+
+##### Determinism
+
+- **Max determinism:** `D3`
+
+##### Inputs / Outputs
+
+Inputs: recipe text/structured forms.
+Outputs: normalized recipe JSON, scaled recipes, shopping lists.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+
+##### Required gates (in addition to global gates)
+
+- G-SAFETY.FOOD (optional: forbid unsafe substitutions)
+
+###### Operation: `sous_chef.parse_recipe`
+
+**Params**
+  - `recipe_ref`: ArtifactHandle (text/plain|md|html)
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `sous_chef.scale_recipe`
+
+**Params**
+  - `recipe_ref`: ArtifactHandle (application/json|md)
+  - `scale_factor`: number OR servings_from/to
+  - `preserve_bakers_percent`: bool (default true)
+  - `output`: json|md
+
+**Outputs**
+- artifact.dataset or artifact.document
+
+###### Operation: `sous_chef.shopping_list`
+
+**Params**
+  - `recipes`: array[ArtifactHandle]
+  - `merge_policy`: by_item|by_store_section
+  - `output`: json|csv
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `sous_chef.convert_units`
+
+**Params**
+  - `recipe_ref`: ArtifactHandle
+  - `target_system`: metric|imperial
+  - `output`: json|md
+
+**Outputs**
+- artifact.dataset or artifact.document
+
+
+##### Failure codes
+
+- `CHEF_PARSE_ERROR`
+- `CHEF_UNIT_ERROR`
+- `CHEF_OUTPUT_ERROR`
+
+##### Conformance vectors
+
+- Golden: scale known recipe preserves ratios (baker's percent).
+- Reject: malformed recipe rejected by G-SCHEMA.
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs hallucinate units and fail to scale ratios (baking math).
+- **Mechanical solution:** Recipe parsers and standardizers.
+- **Example use cases:**
+  1. **Scaling** — Scale this for 300 people.
+  2. **Shopping** — Merge ingredients from these 5 recipes into one shopping list.
+  3. **Conversion** — Convert units to Metric.
+- **Candidate OSS/backends (non-normative):**
+  - **cooklang-py** (Parsing).
+  - **recipe-scrapers** (Import).
+
+
+#### Engine: Food Safety (Food Science)
+
+- **Engine ID:** `engine.food_safety`
+- **Interface version:** 1.0
+- **Domain:** Culinary & Home
+- **Purpose:** Deterministic checks against safety curves, nutrition databases, and fermentation telemetry rules.
+
+##### Determinism
+
+- **Max determinism:** `D3`
+
+##### Inputs / Outputs
+
+Inputs: measurements, logs, optional live lookups.
+Outputs: safety reports and nutrition records.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+- `net.http (optional: barcode lookup)`
+
+##### Required gates (in addition to global gates)
+
+- G-SAFETY.FOOD (required for any safety assertion outputs)
+
+###### Operation: `food_safety.pasteurization_time`
+
+**Params**
+  - `food`: string (e.g., chicken)
+  - `thickness_mm`: number
+  - `temp_c`: number
+  - `model`: usda|baldwin|custom
+  - `output`: json|pdf
+
+**Outputs**
+- artifact.document or artifact.dataset
+
+###### Operation: `food_safety.nutrition_lookup`
+
+**Params**
+  - `barcode`: string
+  - `source`: openfoodfacts|local
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `food_safety.fermentation_monitor`
+
+**Params**
+  - `temp_log_ref`: ArtifactHandle (artifact.dataset)
+  - `target_profile_ref`: ArtifactHandle (application/json)
+  - `output`: json|pdf
+
+**Outputs**
+- artifact.document or artifact.dataset
+
+
+##### Failure codes
+
+- `FOOD_RULES_MISSING`
+- `FOOD_LOOKUP_FAILED`
+- `FOOD_UNSAFE_REJECTED`
+
+##### Conformance vectors
+
+- Golden: known pasteurization case matches curve table.
+- Reject: unsafe conditions flagged and gate rejects unsafe guidance.
+
+
+
+#### Engine: Logistics (Planning / Inventory)
+
+- **Engine ID:** `engine.logistics`
+- **Interface version:** 1.0
+- **Domain:** Culinary & Home
+- **Purpose:** Meal plans, pantry inventory, label printing, and schedule optimization for household workflows.
+
+##### Determinism
+
+- **Max determinism:** `D2`
+
+##### Inputs / Outputs
+
+Inputs: inventory datasets + constraints.
+Outputs: plans, suggestions, printable labels, updated inventories.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+- `proc.exec:<printer_allowlist> (optional)`
+
+##### Required gates (in addition to global gates)
+
+- (none)
+
+###### Operation: `logistics.meal_plan`
+
+**Params**
+  - `constraints_ref`: ArtifactHandle (application/json)
+  - `days`: int
+  - `seed`: int (required for D2)
+  - `output`: json|md
+
+**Outputs**
+- artifact.document or artifact.dataset
+
+###### Operation: `logistics.pantry_suggest`
+
+**Params**
+  - `inventory_ref`: ArtifactHandle (application/json|csv)
+  - `recipes_index_ref`: ArtifactHandle (artifact.dataset, optional)
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `logistics.print_labels`
+
+**Params**
+  - `labels_ref`: ArtifactHandle (application/json)
+  - `printer_profile_ref`: ArtifactHandle (application/json)
+  - `output`: pdf|png
+
+**Outputs**
+- artifact.document or artifact.image
+
+###### Operation: `logistics.update_inventory`
+
+**Params**
+  - `inventory_ref`: ArtifactHandle
+  - `delta_ref`: ArtifactHandle (application/json)
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+
+##### Failure codes
+
+- `LOG_PLAN_FAILED`
+- `LOG_INVENTORY_INVALID`
+- `LOG_PRINTER_ERROR`
+- `LOG_BUDGET_EXCEEDED`
+
+##### Conformance vectors
+
+- Golden: meal plan with seed stable.
+- Reject: invalid inventory schema rejected.
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs cannot solve knapsack problems or track state (inventory) over time.
+- **Mechanical solution:** Solvers and databases.
+- **Example use cases:**
+  1. **Meal Plan** — Plan 1 week of meals under $50/week meeting these macros.
+  2. **Inventory** — What can I cook with my current pantry stock?
+  3. **Labels** — Print expiration labels for prep.
+- **Candidate OSS/backends (non-normative):**
+  - **OptaPy** / **OR-Tools** (Optimization).
+  - **python-escpos** (Printing).
+
+
+### Domain: Organization & Knowledge
+
+#### Engine: Archivist (Preservation)
+
+- **Engine ID:** `engine.archivist`
+- **Interface version:** 1.0
+- **Domain:** Organization & Knowledge
+- **Purpose:** Preserve web/media sources to prevent link rot; capture snapshots; store bundles with canonical hashing.
+
+##### Determinism
+
+- **Max determinism:** `D1`
+
+##### Inputs / Outputs
+
+Inputs: URLs.
+Outputs: snapshot bundles + archived media.
+
+##### Capabilities
+
+- `fs.write:artifacts`
+- `net.http`
+- `proc.exec:<archiver_allowlist>`
+
+##### Required gates (in addition to global gates)
+
+- G-DET requires evidence_policy + snapshot bundles
+
+###### Operation: `archivist.capture_webpage`
+
+**Params**
+  - `url`: string
+  - `mode`: snapshot|live
+  - `include_assets`: bool (default true)
+  - `output`: bundle
+
+**Outputs**
+- artifact.snapshot (bundle)
+
+###### Operation: `archivist.archive_video`
+
+**Params**
+  - `url`: string
+  - `formats`: array (e.g., mp4, mp3)
+  - `output`: bundle
+
+**Outputs**
+- artifact.bundle
+
+###### Operation: `archivist.retrieve_wayback`
+
+**Params**
+  - `url`: string
+  - `timestamp`: YYYYMMDDhhmmss (optional)
+  - `output`: bundle
+
+**Outputs**
+- artifact.snapshot
+
+
+##### Failure codes
+
+- `ARCH_FETCH_FAILED`
+- `ARCH_POLICY_DENIED`
+- `ARCH_TOOL_ERROR`
+- `ARCH_BUDGET_EXCEEDED`
+
+##### Conformance vectors
+
+- Golden: snapshot mode produces bundle with canonical manifest hash.
+- Reject: missing net capability denies execution.
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs summarize links but don't preserve them (link rot).
+- **Mechanical solution:** Web and media archivers.
+- **Example use cases:**
+  1. **Web** — Save this page exactly as it looks now (HTML/CSS).
+  2. **Video** — Archive this tutorial playlist.
+  3. **History** — Retrieve the 2019 version of this dead link.
+- **Candidate OSS/backends (non-normative):**
+  - **SingleFile** (Web HTML).
+  - **yt-dlp** (Video/Audio).
+  - **Wayback-Machine-Downloader**.
+
+
+#### Engine: Librarian (Taxonomy)
+
+- **Engine ID:** `engine.librarian`
+- **Interface version:** 1.0
+- **Domain:** Organization & Knowledge
+- **Purpose:** Metadata extraction, bibliography formatting, photo EXIF categorization, and ebook conversions.
+
+##### Determinism
+
+- **Max determinism:** `D2`
+
+##### Inputs / Outputs
+
+Inputs: refs, images, ebooks.
+Outputs: bib outputs, metadata datasets, converted ebooks.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+- `proc.exec:<metadata_allowlist>`
+
+##### Required gates (in addition to global gates)
+
+- (none)
+
+###### Operation: `librarian.format_bibliography`
+
+**Params**
+  - `refs_ref`: ArtifactHandle (application/json|text)
+  - `style`: bibtex|apa|mla|chicago
+  - `output`: text|json
+
+**Outputs**
+- artifact.document
+
+###### Operation: `librarian.extract_exif`
+
+**Params**
+  - `images_bundle_ref`: ArtifactHandle (artifact.bundle)
+  - `fields`: array (e.g., CameraModel, LensModel)
+  - `output`: csv|json
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `librarian.convert_ebook`
+
+**Params**
+  - `source_ref`: ArtifactHandle (md|html|epub)
+  - `target`: mobi|epub|pdf
+  - `output`: document
+
+**Outputs**
+- artifact.document
+
+
+##### Failure codes
+
+- `LIB_FORMAT_ERROR`
+- `LIB_EXIF_ERROR`
+- `LIB_CONVERT_ERROR`
+
+##### Conformance vectors
+
+- Golden: bibtex formatting deterministic for fixed input.
+- Golden: exif extraction yields stable dataset.
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs hallucinate citations and cannot read binary metadata.
+- **Mechanical solution:** Bibliography and Metadata tools.
+- **Example use cases:**
+  1. **Citations** — Format these 20 references into BibTeX.
+  2. **Photos** — Organize 10,000 photos by 'Camera Model' from EXIF data.
+  3. **E-books** — Convert this Markdown wiki to a Kindle `.mobi`.
+- **Candidate OSS/backends (non-normative):**
+  - **Pybtex** (Citations).
+  - **PyExifTool** (Metadata).
+  - **Calibre** (E-books).
+
+
+#### Engine: Analyst (Email / Tasks / Time)
+
+- **Engine ID:** `engine.analyst`
+- **Interface version:** 1.0
+- **Domain:** Organization & Knowledge
+- **Purpose:** Read-only analytics over personal sources (maildirs/tasks/time logs) producing structured datasets and reports.
+
+##### Determinism
+
+- **Max determinism:** `D2`
+
+##### Inputs / Outputs
+
+Inputs: local source indexes/snapshots.
+Outputs: structured reports/datasets.
+
+##### Capabilities
+
+- `fs.read:<mail/task/time_scopes>`
+- `fs.write:artifacts`
+- `net.http (optional connectors)`
+
+##### Required gates (in addition to global gates)
+
+- Connector policy gate (required if live pull)
+
+###### Operation: `analyst.search_email`
+
+**Params**
+  - `query`: string (engine-specific query language)
+  - `time_range_ref`: ArtifactHandle (application/json, optional)
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `analyst.extract_tasks`
+
+**Params**
+  - `text_ref`: ArtifactHandle (artifact.document|artifact.snapshot)
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `analyst.time_report`
+
+**Params**
+  - `source_ref`: ArtifactHandle (artifact.dataset)
+  - `window`: today|week|month|custom
+  - `output`: json|pdf
+
+**Outputs**
+- artifact.document or artifact.dataset
+
+
+##### Failure codes
+
+- `ANA_SOURCE_UNAVAILABLE`
+- `ANA_QUERY_ERROR`
+- `ANA_CONNECTOR_DENIED`
+
+##### Conformance vectors
+
+- Golden: search on fixed mailbox snapshot returns stable result set ordering.
+- Reject: live connector without policy consent denied.
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs cannot grep 10 years of email or track time passage.
+- **Mechanical solution:** Local indexers and trackers.
+- **Example use cases:**
+  1. **Email** — Find the invoice from 'Alice' in 2021.
+  2. **Tasks** — Show dependency chain for Project X.
+  3. **Time** — How many hours did I spend in VS Code today?
+- **Candidate OSS/backends (non-normative):**
+  - **Notmuch** (Email).
+  - **TaskWarrior** (Tasks).
+  - **ActivityWatch** (Time).
+
+
+### Domain: Data & Infrastructure
+
+#### Engine: Wrangler (Data Engineering)
+
+- **Engine ID:** `engine.wrangler`
+- **Interface version:** 1.0
+- **Domain:** Data & Infrastructure
+- **Purpose:** Data extraction, validation, conversion, and dedup at scales beyond LLM context limits.
+
+##### Determinism
+
+- **Max determinism:** `D2`
+
+##### Inputs / Outputs
+
+Inputs: datasets and bundles.
+Outputs: validation/profiling reports, converted datasets, duplicate reports.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+- `proc.exec:<data_allowlist>`
+
+##### Required gates (in addition to global gates)
+
+- G-SCHEMA may delegate to Great Expectations (recommended)
+
+###### Operation: `wrangler.validate_dataset`
+
+**Params**
+  - `dataset_ref`: ArtifactHandle (artifact.dataset)
+  - `expectations_ref`: ArtifactHandle (application/json)
+  - `output`: json|html
+
+**Outputs**
+- artifact.document
+
+###### Operation: `wrangler.convert_table`
+
+**Params**
+  - `input_ref`: ArtifactHandle (csv|xlsx|parquet|json)
+  - `target`: csv|parquet|jsonl
+  - `output`: dataset
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `wrangler.find_duplicates`
+
+**Params**
+  - `bundle_ref`: ArtifactHandle (artifact.bundle)
+  - `strategy`: hash|fuzzy
+  - `output`: json|csv
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `wrangler.profile_dataset`
+
+**Params**
+  - `dataset_ref`: ArtifactHandle
+  - `metrics`: array
+  - `output`: json|html
+
+**Outputs**
+- artifact.document
+
+
+##### Failure codes
+
+- `WR_DATA_PARSE_ERROR`
+- `WR_EXPECTATION_FAILED`
+- `WR_DEDUP_ERROR`
+
+##### Conformance vectors
+
+- Golden: validate dataset with expectations yields stable report fields.
+- Reject: expectations failure flagged (gate can reject import).
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs cannot process 1GB files or guarantee data schema validity.
+- **Mechanical solution:** Data tools and validators.
+- **Example use cases:**
+  1. **Integrity** — Check if this CSV has valid emails in column B.
+  2. **Format** — Convert Excel to JSON.
+  3. **Dedup** — Find duplicate files in this backup drive.
+- **Candidate OSS/backends (non-normative):**
+  - **Great Expectations** (Validation).
+  - **csvkit** (Tools).
+  - **Czkawka** (Deduplication).
+
+
+#### Engine: DBA (Local Warehouse)
+
+- **Engine ID:** `engine.dba`
+- **Interface version:** 1.0
+- **Domain:** Data & Infrastructure
+- **Purpose:** In-process databases for OLAP queries and indexing, returning results as artifacts.
+
+##### Determinism
+
+- **Max determinism:** `D3`
+
+##### Inputs / Outputs
+
+Inputs: datasets, SQL.
+Outputs: query result datasets and index bundles.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+- `proc.exec:<db_allowlist>`
+
+##### Required gates (in addition to global gates)
+
+- (none)
+
+###### Operation: `dba.load_dataset`
+
+**Params**
+  - `dataset_ref`: ArtifactHandle (artifact.dataset)
+  - `table`: string
+  - `mode`: append|replace
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `dba.query_sql`
+
+**Params**
+  - `sql_ref`: ArtifactHandle (text/plain)
+  - `output`: parquet|csv|json
+  - `order_by_ref`: ArtifactHandle (application/json, optional: enforce stable ordering)
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `dba.build_search_index`
+
+**Params**
+  - `corpus_ref`: ArtifactHandle (artifact.bundle|artifact.dataset)
+  - `index_spec_ref`: ArtifactHandle (application/json)
+  - `output`: bundle
+
+**Outputs**
+- artifact.bundle
+
+
+##### Failure codes
+
+- `DBA_LOAD_ERROR`
+- `DBA_SQL_ERROR`
+- `DBA_IO_ERROR`
+
+##### Conformance vectors
+
+- Golden: query with explicit ORDER BY yields stable output ordering and hash.
+- Reject: invalid SQL rejected by schema/engine error.
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs cannot perform OLAP queries on raw files.
+- **Mechanical solution:** In-process databases.
+- **Example use cases:**
+  1. **Analytics** — Run SQL query on this 1GB CSV.
+  2. **Indexing** — Create a searchable index of my notes.
+  3. **App** — Spin up a DB for this specific project.
+- **Candidate OSS/backends (non-normative):**
+  - **DuckDB** (OLAP).
+  - **sqlite-utils** (Schema).
+  - **Tantivy** (Search).
+
+
+#### Engine: Sovereign (Sync & Crypto)
+
+- **Engine ID:** `engine.sovereign`
+- **Interface version:** 1.0
+- **Domain:** Data & Infrastructure
+- **Purpose:** Encryption/signing/key usage and controlled sync/p2p; secrets never enter LLM context.
+
+##### Determinism
+
+- **Max determinism:** `D2`
+
+##### Inputs / Outputs
+
+Inputs: artifacts/bundles.
+Outputs: encrypted bundles, signatures, sync logs.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+- `secrets.use:<key_ids>`
+- `net.http (sync)`
+- `proc.exec:<crypto_allowlist>`
+
+##### Required gates (in addition to global gates)
+
+- Policy gate for secrets + remote profiles (required)
+
+###### Operation: `sovereign.encrypt`
+
+**Params**
+  - `input_ref`: ArtifactHandle
+  - `key_id`: string (secret handle)
+  - `mode`: age|pgp|custom
+  - `output`: bundle|blob
+
+**Outputs**
+- artifact.bundle or artifact.document
+
+###### Operation: `sovereign.decrypt`
+
+**Params**
+  - `encrypted_ref`: ArtifactHandle
+  - `key_id`: string
+  - `output_kind`: artifact kind
+
+**Outputs**
+- artifact.bundle or artifact.document
+
+###### Operation: `sovereign.sign`
+
+**Params**
+  - `input_ref`: ArtifactHandle
+  - `key_id`: string
+  - `sig_format`: minisign|pgp|custom
+
+**Outputs**
+- artifact.document
+
+###### Operation: `sovereign.verify`
+
+**Params**
+  - `input_ref`: ArtifactHandle
+  - `sig_ref`: ArtifactHandle
+  - `pubkey_ref`: ArtifactHandle
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `sovereign.sync_push`
+
+**Params**
+  - `bundle_ref`: ArtifactHandle (artifact.bundle)
+  - `remote_profile_ref`: ArtifactHandle (application/json)
+  - `encrypt`: bool (default true)
+
+**Outputs**
+- artifact.logs
+
+
+##### Failure codes
+
+- `SOV_KEY_DENIED`
+- `SOV_ENCRYPT_ERROR`
+- `SOV_SYNC_ERROR`
+- `SOV_VERIFY_FAILED`
+
+##### Conformance vectors
+
+- Golden: sign/verify cycle passes with fixed inputs.
+- Reject: missing secret grant denies operation.
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs cannot sync files P2P or perform encryption math.
+- **Mechanical solution:** Network and Crypto stacks.
+- **Example use cases:**
+  1. **Sync** — Sync this folder to B2 (encrypted).
+  2. **P2P** — Collaborate offline with user nearby.
+  3. **Crypto** — Sign this contract.
+- **Candidate OSS/backends (non-normative):**
+  - **Rclone** (Cloud).
+  - **libp2p** (P2P).
+  - **RustCrypto/age** (Encryption).
+
+
+### Domain: Travel & Spatial Intelligence
+
+#### Engine: Guide (Travel Planning)
+
+- **Engine ID:** `engine.guide`
+- **Interface version:** 1.0
+- **Domain:** Travel & Spatial Intelligence
+- **Purpose:** Geocode, route, and verify travel facts with evidence capture and replay semantics.
+
+##### Determinism
+
+- **Max determinism:** `D1`
+
+##### Inputs / Outputs
+
+Inputs: queries + coordinates + constraints.
+Outputs: geocode/route datasets, itinerary doc, evidence bundles.
+
+##### Capabilities
+
+- `fs.write:artifacts`
+- `net.http`
+- `proc.exec:<browser_allowlist> (optional)`
+
+##### Required gates (in addition to global gates)
+
+- G-DET requires evidence bundles for snapshot/live
+
+###### Operation: `guide.geocode`
+
+**Params**
+  - `query`: string
+  - `region_hint`: string (optional)
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `guide.route`
+
+**Params**
+  - `from_ref`: ArtifactHandle (application/json lat/lon)
+  - `to_ref`: ArtifactHandle (application/json lat/lon)
+  - `mode`: walk|drive|transit
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `guide.live_verify`
+
+**Params**
+  - `url_or_place_ref`: string or ArtifactHandle
+  - `facts`: array (hours|price|booking|address)
+  - `mode`: snapshot|live
+  - `output`: json
+  - `evidence`: required: html+screenshots bundle
+
+**Outputs**
+- artifact.dataset + artifact.snapshot
+
+###### Operation: `guide.build_itinerary`
+
+**Params**
+  - `constraints_ref`: ArtifactHandle (application/json)
+  - `seed`: int
+  - `output`: md|json
+
+**Outputs**
+- artifact.document
+
+
+##### Failure codes
+
+- `GUIDE_FETCH_DENIED`
+- `GUIDE_GEOCODE_FAILED`
+- `GUIDE_ROUTE_FAILED`
+- `GUIDE_EVIDENCE_MISSING`
+
+##### Conformance vectors
+
+- Golden: route query on fixed offline map snapshot produces stable output.
+- Reject: live verify without evidence_policy rejected by G-DET.
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs hallucinate distances, opening hours, and locations.
+- **Mechanical solution:** Geocoders, Routers, and Live Browsers.
+- **Example use cases:**
+  1. **Geocode** — Where is 'The Barn' in Berlin?
+  2. **Routing** — Can I walk from A to B in 10 mins?
+  3. **Live Check** — Is this place open right now?
+- **Candidate OSS/backends (non-normative):**
+  - **spaCy** (Entity Extraction).
+  - **Nominatim** (Geocoding).
+  - **OSRM** / **Valhalla** (Routing).
+  - **Playwright** (Live Verification).
+
+
+### Domain: Developer Tools & System Context
+
+#### Engine: Context (Code/File Search)
+
+- **Engine ID:** `engine.context`
+- **Interface version:** 1.0
+- **Domain:** Developer Tools & System Context
+- **Purpose:** Deterministic local search (grep + index) returning snippet references rather than raw file dumps.
+
+##### Determinism
+
+- **Max determinism:** `D3`
+
+##### Inputs / Outputs
+
+Inputs: filesystem scopes.
+Outputs: snippet/result datasets and excerpt artifacts.
+
+##### Capabilities
+
+- `fs.read:<scopes>`
+- `fs.write:artifacts (optional index cache)`
+- `proc.exec:<rg_allowlist> (optional)`
+
+##### Required gates (in addition to global gates)
+
+- Snippet budget enforcement (recommended)
+
+###### Operation: `context.search`
+
+**Params**
+  - `query`: string
+  - `scopes`: array (paths)
+  - `mode`: regex|literal|semantic
+  - `k`: int (default 20)
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `context.open_ref`
+
+**Params**
+  - `file`: string
+  - `range`: object (start_line,end_line)
+  - `output`: text
+
+**Outputs**
+- artifact.document
+
+###### Operation: `context.find_todos`
+
+**Params**
+  - `scopes`: array
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+
+##### Failure codes
+
+- `CTX_SCOPE_DENIED`
+- `CTX_QUERY_ERROR`
+- `CTX_IO_ERROR`
+
+##### Conformance vectors
+
+- Golden: search on frozen scope snapshot yields stable result set ordering.
+- Reject: scope outside allowlist denied by G-CAP.
+
+##### Rationale (non-normative)
+
+- **Why:** Vector search is fuzzy. Sometimes you need exact grep.
+- **Mechanical solution:** High-speed code search.
+- **Example use cases:**
+  1. **Context** — Find every file containing `PlannedOperation`.
+  2. **Refactor** — List usages of this function.
+  3. **Audit** — Find TODOs.
+- **Candidate OSS/backends (non-normative):**
+  - **Ripgrep (rg)**.
+
+
+#### Engine: Version (VCS)
+
+- **Engine ID:** `engine.version`
+- **Interface version:** 1.0
+- **Domain:** Developer Tools & System Context
+- **Purpose:** Versioning operations without requiring CLI; supports undo/history/diff/sync under policy.
+
+##### Determinism
+
+- **Max determinism:** `D3`
+
+##### Inputs / Outputs
+
+Inputs: repo state.
+Outputs: diffs, commit metadata, status reports.
+
+##### Capabilities
+
+- `fs.read:<repo>`
+- `fs.write:<repo>`
+- `proc.exec:<vcs_allowlist>`
+- `net.http (optional remote)`
+
+##### Required gates (in addition to global gates)
+
+- Remote operations require net + policy gate
+
+###### Operation: `version.status`
+
+**Params**
+  - `repo_ref`: EntityRef or ArtifactHandle (repo pointer)
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `version.diff`
+
+**Params**
+  - `repo_ref`: repo pointer
+  - `from`: rev|ref
+  - `to`: rev|ref
+  - `paths`: array (optional)
+  - `output`: patch|json
+
+**Outputs**
+- artifact.document
+
+###### Operation: `version.commit`
+
+**Params**
+  - `repo_ref`: repo pointer
+  - `message_ref`: ArtifactHandle (text/plain)
+  - `paths`: array (optional)
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `version.revert`
+
+**Params**
+  - `repo_ref`: repo pointer
+  - `target`: rev|timestamp
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+###### Operation: `version.merge`
+
+**Params**
+  - `repo_ref`: repo pointer
+  - `source`: rev|branch
+  - `strategy`: ff|rebase|merge
+  - `output`: json
+
+**Outputs**
+- artifact.dataset
+
+
+##### Failure codes
+
+- `VCS_REPO_INVALID`
+- `VCS_CONFLICT`
+- `VCS_IO_ERROR`
+- `VCS_REMOTE_DENIED`
+
+##### Conformance vectors
+
+- Golden: diff between two fixed commits stable.
+- Reject: merge conflict reported with structured error.
+
+##### Rationale (non-normative)
+
+- **Why:** Handshake tracks everything. Users shouldn't need CLI git.
+- **Mechanical solution:** Version control libraries.
+- **Example use cases:**
+  1. **Undo** — Revert workspace to yesterday.
+  2. **Sync** — Merge changes from remote.
+  3. **History** — Show diff of this file.
+- **Candidate OSS/backends (non-normative):**
+  - **Jujutsu** or **Gitoxide**.
+
+
+#### Engine: Sandbox (Code Execution)
+
+- **Engine ID:** `engine.sandbox`
+- **Interface version:** 1.0
+- **Domain:** Developer Tools & System Context
+- **Purpose:** Run code safely (prefer WASM/container) to produce artifacts and structured results; enforce strict allowlists.
+
+##### Determinism
+
+- **Max determinism:** `D2`
+
+##### Inputs / Outputs
+
+Inputs: scripts + declared inputs.
+Outputs: artifact bundles (stdout/stderr/results) + declared outputs.
+
+##### Capabilities
+
+- `fs.read:inputs`
+- `fs.write:artifacts`
+- `proc.exec:<allowlist>`
+- `net.http (optional)`
+
+##### Required gates (in addition to global gates)
+
+- G-SAFETY.SANDBOX (required)
+
+###### Operation: `sandbox.run_python`
+
+**Params**
+  - `script_ref`: ArtifactHandle (text/x-python)
+  - `requirements_ref`: ArtifactHandle (text/plain, optional)
+  - `inputs`: array[ArtifactHandle]
+  - `output_spec_ref`: ArtifactHandle (application/json)
+
+**Outputs**
+- artifact.bundle + optional artifact.dataset
+
+###### Operation: `sandbox.run_js`
+
+**Params**
+  - `script_ref`: ArtifactHandle (text/javascript)
+  - `inputs`: array[ArtifactHandle]
+  - `output_spec_ref`: ArtifactHandle (application/json)
+
+**Outputs**
+- artifact.bundle
+
+###### Operation: `sandbox.run_shell`
+
+**Params**
+  - `script_ref`: ArtifactHandle (text/plain)
+  - `shell`: bash|pwsh
+  - `command_allowlist_ref`: ArtifactHandle (application/json)
+  - `inputs`: array[ArtifactHandle]
+  - `output_spec_ref`: ArtifactHandle (application/json)
+
+**Outputs**
+- artifact.bundle
+
+
+##### Failure codes
+
+- `SBOX_POLICY_DENIED`
+- `SBOX_RUNTIME_ERROR`
+- `SBOX_TIMEOUT`
+- `SBOX_FS_ESCAPE_DETECTED`
+
+##### Conformance vectors
+
+- Golden: run pinned script in pinned runtime yields stable structural outputs.
+- Reject: forbidden syscall/network/exec blocked by G-SAFETY.SANDBOX.
+
+##### Rationale (non-normative)
+
+- **Why:** LLMs can write code but need a safe place to run it.
+- **Mechanical solution:** WASM runtimes.
+- **Example use cases:**
+  1. **Notebooks** — Run this Python analysis.
+  2. **Visualization** — Generate a plot from this data.
+  3. **Logic** — Execute this complex math logic.
+- **Candidate OSS/backends (non-normative):**
+  - **Pyodide** (Python in WASM).
+  - **Deno**.
+
+
+### Appendix — Non-normative OSS candidates (from v1.0)
+
+These are candidate backends only; the registry defines what is actually installed/allowed.
+
+- Spatial CAD: CadQuery, OpenSCAD, OCCT
+- Machinist CAM: OpenCAMLib, GCodeTools
+- Physics: Pint, conversions_rs
+- Simulation: OpenFOAM, FEniCS, PyDy
+- Hardware: OpenCV, Open3D, Serial/Bluetooth libs
+- Director: Manim, FFmpeg, VapourSynth
+- Composer: LilyPond, Music21, SuperCollider
+- Artist: Inkscape, Darktable, Krita, Blender
+- Publisher: Scribus, Coldtype, FontForge
+- Archivist: SingleFile, yt-dlp, Wayback downloaders
+- Wrangler: Great Expectations, csvkit, Czkawka
+- DBA: DuckDB, sqlite-utils, Tantivy
+- Sovereign: Rclone, libp2p, RustCrypto/age
+- Guide: spaCy, Nominatim, OSRM/Valhalla, Playwright
+- Context: Ripgrep
+- Version: Jujutsu, Gitoxide
+- Sandbox: Pyodide, Deno
+
 ## 11.9 Future Shared Primitives
 
 ### 11.9.1 ActivitySpan and SessionSpan
@@ -26337,3 +32429,51 @@ To make this real in early Handshake versions:
 4. Add a first analytics job:
    - `CALENDAR_ACTIVITY_SUMMARY` for a day/week (counts, tokens, time).
 5. Later, add policy profiles and evaluation windows on top.
+
+---
+
+## 11.10 Implementation Notes: Phase 1 Final Gaps
+
+These notes formalize the technical approach for the final deliverables of Phase 1 (§7.6.3).
+
+### 11.10.1 Deliverables PDF Pipeline (`creative.deliverables.pdf_packaging`)
+
+1.  **Binaries:** 
+    -   Must look for `typst` and `qpdf` in the system `PATH` or via environment variables `HANDSHAKE_TYPST_BIN` and `HANDSHAKE_QPDF_BIN`.
+2.  **Job Execution:**
+    -   Must run as a mechanical workflow job (capability-gated: `fs.write`, `creative.export`).
+    -   Input: Markdown source or intermediate Typst file.
+    -   Output: Artifact reference in the workspace.
+
+### 11.10.2 Canvas Typography & Font Registry
+
+1.  **Runtime Root:** All fonts must be served from `{APP_DATA}/fonts/`.
+2.  **CSP Policy:** Tauri `asset:` protocol MUST be restricted to the `{APP_DATA}/fonts/` directory.
+3.  **Bootstrap:** On first run, the "Design Pack 40" (see list in §10.6.1.4.1) must be copied from embedded resources (`app/src-tauri/resources/fonts/`) to `{APP_DATA}/fonts/bundled/`.
+4.  **Import UI:** The system settings or a dedicated Font Manager UI MUST provide an "Import Font" action.
+    -   **Behavior:** Allows the user to select local `.ttf`, `.otf`, or `.woff2` files.
+    -   **Backend:** Moves files to `{APP_DATA}/fonts/user/`, deduplicates by hash, and updates the `manifest.json`.
+5.  **Loading:** Use the `FontFace` API in the frontend to load fonts dynamically from the `asset:` URL.
+
+
+### 11.10.3 Metrics & Tokens
+
+1.  **Token Accounting:** 
+    -   For real Ollama calls, use the `prompt_eval_count` and `eval_count` fields from the response.
+    -   For mocks, emit deterministic values (e.g., 10 tokens per word) to test metric propagation.
+2.  **Ollama Detection:** 
+    -   The system MUST check `http://localhost:11434/api/tags` on startup. 
+    -   If available, enable `OllamaClient` by default.
+
+
+### 11.10.4 Phase 1 Final Gap Closure (Calendar, OSS, Validators)
+
+1.  **Calendar Activity Lens:**
+    -   **Backend:** Implement `GET /api/calendar/activity?start=...&end=...`. Query DuckDB for events where `event_type` is `ActivitySpan` or related job lifecycle events overlapping the range.
+    -   **Frontend:** Add an "Activity" tab to the Calendar surface that renders these spans as a list or timeline with deep links to the Evidence Drawer.
+2.  **OSS Register Enforcement:**
+    -   **Register:** Maintain `docs/OSS_REGISTER.md` as the source of truth for licensed components.
+    -   **Enforcement:** Add a backend unit test that fails if a dependency in `Cargo.lock` or `package.json` is missing from the register or violates the copyleft isolation rule (GPL/AGPL must be `external_process`).
+3.  **Context Validators:**
+    -   **Plan/Snapshot:** Every AI job MUST emit `context_plan.json` and `context_snapshot.json` to the job's artifact directory.
+    -   **Validator:** Implement a runtime check in `workflows.rs` that compares the actual retrieval outcome against the `context_plan`. Discrepancies (e.g., budget overrun) MUST emit a `HSK-4002: ContextViolation` diagnostic.

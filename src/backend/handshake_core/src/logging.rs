@@ -13,8 +13,14 @@ pub fn init_logging() {
     // Keep guard alive for the lifetime of the process.
     Box::leak(Box::new(_guard));
 
-    let level = std::env::var("HS_LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
-    let filter_layer = EnvFilter::try_new(level).unwrap_or_else(|_| EnvFilter::new("info"));
+    let level = match std::env::var("HS_LOG_LEVEL") {
+        Ok(val) => val,
+        Err(_) => "info".to_string(),
+    };
+    let filter_layer = match EnvFilter::try_new(level) {
+        Ok(layer) => layer,
+        Err(_) => EnvFilter::new("info"),
+    };
 
     let fmt_layer = fmt::layer()
         .with_target(true)

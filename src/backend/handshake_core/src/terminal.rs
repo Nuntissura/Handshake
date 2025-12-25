@@ -39,12 +39,19 @@ impl TerminalService {
         let mut command = Command::new(program);
         command.args(args);
 
-        let duration = Duration::from_millis(timeout_ms.unwrap_or(30_000));
+        let effective_timeout = match timeout_ms {
+            Some(ms) => ms,
+            None => 30_000,
+        };
+        let duration = Duration::from_millis(effective_timeout);
         let output = timeout(duration, command.output())
             .await
             .map_err(|_| TerminalError::Timeout(duration.as_millis() as u64))??;
 
-        let status_code = output.status.code().unwrap_or(-1);
+        let status_code = match output.status.code() {
+            Some(code) => code,
+            None => -1,
+        };
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();

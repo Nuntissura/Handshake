@@ -29,7 +29,10 @@ async fn list_events(State(state): State<AppState>) -> Result<Json<Vec<FlightEve
     let event_iter = stmt
         .query_map([], |row| {
             let payload_str: String = row.get(4)?;
-            let payload: Value = serde_json::from_str(&payload_str).unwrap_or(Value::Null);
+            let payload: Value = match serde_json::from_str(&payload_str) {
+                Ok(val) => val,
+                Err(_) => Value::Null,
+            };
 
             Ok(FlightEvent {
                 timestamp: row.get(0)?,

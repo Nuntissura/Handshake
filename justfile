@@ -96,3 +96,33 @@ validate-workflow wp-id:
 	@just post-work {{wp-id}}
 	@echo ""
 	@echo "✅ Full workflow validation passed for {{wp-id}}"
+# Validator helpers (protocol-aligned)
+validator-scan:
+	@node scripts/validation/validator-scan.mjs
+
+validator-dal-audit:
+	@node scripts/validation/validator-dal-audit.mjs
+
+validator-spec-regression:
+	@node scripts/validation/validator-spec-regression.mjs
+
+validator-phase-gate phase="Phase-1":
+	@node scripts/validation/validator-phase-gate.mjs {{phase}}
+
+validator-packet-complete wp-id:
+	@node scripts/validation/validator-packet-complete.mjs {{wp-id}}
+
+validator-error-codes:
+	@node scripts/validation/validator-error-codes.mjs
+
+validator-coverage-gaps *targets:
+	@node scripts/validation/validator-coverage-gaps.mjs {{targets}}
+
+validator-traceability *targets:
+	@node scripts/validation/validator-traceability.mjs {{targets}}
+
+validator-git-hygiene:
+	@node scripts/validation/validator-git-hygiene.mjs
+
+validator-hygiene-full:
+	@node scripts/validation/validator-hygiene-full.mjs
