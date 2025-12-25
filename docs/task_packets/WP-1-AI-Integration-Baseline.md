@@ -6,7 +6,8 @@
 - REQUESTOR: User
 - AGENT_ID: Gemini-2.0-Flash
 - ROLE: Orchestrator
-- STATUS: Completed
+- **Status:** In Progress
+- USER_SIGNATURE: <pending>
 
 ## Scope
 - **What**: Implement the core LLM client abstraction and integrate it into the AI Job/Workflow system for basic document actions (Summary/Chat).

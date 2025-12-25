@@ -6,6 +6,8 @@
 - REQUESTOR: User
 - AGENT_ID: Gemini (Orchestrator)
 - ROLE: Orchestrator
+- **Status:** In Progress
+- USER_SIGNATURE: <pending>
 
 ## Scope
 - **What**: A sample task to validate the new workflow automation scripts.

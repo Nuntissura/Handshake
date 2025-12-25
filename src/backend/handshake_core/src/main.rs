@@ -17,6 +17,7 @@ mod jobs;
 mod llm;
 mod logging;
 mod models;
+mod storage;
 mod terminal;
 mod workflows;
 

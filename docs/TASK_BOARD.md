@@ -17,17 +17,17 @@ Storage Backend Portability is foundational for Phase 1 closure. These four work
    - Effort: 15-20 hours
    - Blocker: None (foundational)
 
-2. **[WP-1-AppState-Refactoring]** - Remove SqlitePool exposure from AppState, use Arc<dyn Database>. [GAP 🟡]
+2. **[WP-1-AppState-Refactoring]** - Remove SqlitePool exposure from AppState, use Arc<dyn Database>. [READY FOR DEV 🔴]
    - Lead: Coder (Senior Systems Engineer)
    - Effort: 8-10 hours
    - Blocker: WP-1-Storage-Abstraction-Layer (MUST COMPLETE FIRST)
 
-3. **[WP-1-Migration-Framework]** - Rewrite migrations with portable SQL syntax, add schema versioning. [GAP 🟡]
+3. **[WP-1-Migration-Framework]** - Rewrite migrations with portable SQL syntax, add schema versioning. [READY FOR DEV 🔴]
    - Lead: Coder (Senior Systems Engineer)
    - Effort: 10-12 hours
    - Blocker: None (can start independently)
 
-4. **[WP-1-Dual-Backend-Tests]** - Add PostgreSQL to CI, parameterize tests for both backends. [GAP 🟡]
+4. **[WP-1-Dual-Backend-Tests]** - Add PostgreSQL to CI, parameterize tests for both backends. [READY FOR DEV 🔴]
    - Lead: DevOps/Test Engineer
    - Effort: 8-10 hours
    - Blocker: WP-1-Storage-Abstraction-Layer + WP-1-Migration-Framework
@@ -38,14 +38,14 @@ Storage Backend Portability is foundational for Phase 1 closure. These four work
 - **[WP-1-Semantic-Catalog]** - Implement SemanticCatalog per §2.6.7 with capability filtering. [READY FOR DEV 🔴]
 - **[WP-1-Mutation-Traceability]** - Enforce No Silent Edits per §2.9.3 (StorageGuard + MutationMetadata). [READY FOR DEV 🔴]
 - **[WP-1-Retention-GC]** - Implement retention/pruning per §2.3.11 (RetentionPolicy, Janitor, GC logs). [READY FOR DEV 🔴]
-- **[WP-1-AppState-Refactoring]** - Remove SqlitePool exposure from AppState, use Arc<dyn Database>. [GAP 🟡]
-- **[WP-1-Migration-Framework]** - Rewrite migrations with portable SQL and schema versioning. [GAP 🟡]
-- **[WP-1-Dual-Backend-Tests]** - Add PostgreSQL to CI, parameterize tests for both backends. [GAP 🟡]
-- **[WP-1-Security-Gates]** - Terminal/RCE guardrails (timeout/output/cwd/allowlist), secret scans. [GAP 🟡]
-- **[WP-1-Operator-Consoles-v1]** - Timeline/Jobs/Problems/Evidence views for Flight Recorder/diagnostics. [GAP 🟡]
-- **[WP-1-Metrics-Traces]** - Baseline metrics/OTel, validator pack. [GAP 🟡]
-- **[WP-1-Capability-SSoT]** - Centralized CapabilityRegistry, single source of truth. [GAP 🟡]
-- **[WP-1-MCP-End-to-End]** - Capability metadata/logging chain for MCP; end-to-end gate. [GAP 🟡]
+- **[WP-1-AppState-Refactoring]** - Remove SqlitePool exposure from AppState, use Arc<dyn Database>. [READY FOR DEV 🔴]
+- **[WP-1-Migration-Framework]** - Rewrite migrations with portable SQL and schema versioning. [READY FOR DEV 🔴]
+- **[WP-1-Dual-Backend-Tests]** - Add PostgreSQL to CI, parameterize tests for both backends. [READY FOR DEV 🔴]
+- **[WP-1-Security-Gates]** - Terminal/RCE guardrails (timeout/output/cwd/allowlist), secret scans. [READY FOR DEV 🔴]
+- **[WP-1-Operator-Consoles-v1]** - Timeline/Jobs/Problems/Evidence views for Flight Recorder/diagnostics. [READY FOR DEV 🔴]
+- **[WP-1-Metrics-Traces]** - Baseline metrics/OTel, validator pack. [READY FOR DEV 🔴]
+- **[WP-1-Capability-SSoT]** - Centralized CapabilityRegistry, single source of truth. [READY FOR DEV 🔴]
+- **[WP-1-MCP-End-to-End]** - Capability metadata/logging chain for MCP; end-to-end gate. [READY FOR DEV 🔴]
 ---
 
 ## In Progress
@@ -72,6 +72,14 @@ Storage Backend Portability is foundational for Phase 1 closure. These four work
 - **[WP-1-Semantic-Catalog]**
 - **[WP-1-Mutation-Traceability]**
 - **[WP-1-Retention-GC]**
+- **[WP-1-AppState-Refactoring]**
+- **[WP-1-Migration-Framework]**
+- **[WP-1-Dual-Backend-Tests]**
+- **[WP-1-Security-Gates]**
+- **[WP-1-Operator-Consoles-v1]**
+- **[WP-1-Metrics-Traces]**
+- **[WP-1-Capability-SSoT]**
+- **[WP-1-MCP-End-to-End]**
 
 ## Done
 

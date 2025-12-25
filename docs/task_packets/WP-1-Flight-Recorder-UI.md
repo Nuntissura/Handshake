@@ -6,7 +6,8 @@
 - REQUESTOR: User
 - AGENT_ID: Gemini-2.0-Flash
 - ROLE: Orchestrator
-- STATUS: Completed
+- **Status:** In Progress
+- USER_SIGNATURE: <pending>
 
 ## Scope
 - **What**: Implement a frontend view ("Job History" / "Flight Recorder") to visualize the AI events logged in DuckDB.

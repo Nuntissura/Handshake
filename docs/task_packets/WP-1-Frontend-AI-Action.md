@@ -6,6 +6,8 @@
 - REQUESTOR: Orchestrator
 - AGENT_ID: Gemini (Orchestrator)
 - ROLE: Orchestrator
+- **Status:** In Progress
+- USER_SIGNATURE: <pending>
 
 ## Scope
 - **What**: Implement a UI element (e.g., a button) that, when clicked, triggers a network request to the backend's POST /api/jobs endpoint.

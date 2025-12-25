@@ -1,5 +1,11 @@
-# CODER PROTOCOL [CX-620-623]
+# CODER PROTOCOL [CX-620-625]
+
 **MANDATORY** - Read this before writing any code
+
+**Supporting Documents:**
+- **CODER_RUBRIC.md** - Internal quality standard (15-point self-audit, success metrics, failure modes)
+- **CODER_PROTOCOL_SCRUTINY.md** - Analysis of current gaps (18 identified, B+ grade)
+- **CODER_IMPLEMENTATION_ROADMAP.md** - Path to 9.9/10 (3-phase improvement plan)
 
 ## Role
 
@@ -60,7 +66,7 @@ I cannot write code without a task packet.
 cat docs/task_packets/WP-{ID}-*.md
 ```
 
-**Verify packet includes:**
+**Verify packet includes ALL 10 required fields:**
 - [ ] TASK_ID and WP_ID
 - [ ] STATUS (ensure it is `Ready-for-Dev` or `In-Progress`)
 - [ ] RISK_TIER (determines validation rigor)
@@ -72,15 +78,32 @@ cat docs/task_packets/WP-{ID}-*.md
 - [ ] ROLLBACK_HINT (how to undo)
 - [ ] BOOTSTRAP block (my work plan)
 
-**IF INCOMPLETE:**
-```
-⚠️ WARNING: Task packet incomplete [CX-581]
+**COMPLETENESS CRITERIA (MANDATORY - all 10 fields must pass) [CX-581-VARIANT]**
 
-Missing required fields:
-- {Field name}
-- {Field name}
+For each field, verify it meets the objective criteria:
+
+- [ ] **TASK_ID + WP_ID**: Unique, format is `WP-{phase}-{descriptive-name}` (not generic)
+- [ ] **STATUS**: Exactly `Ready-for-Dev` or `In-Progress` (not TBD, Draft, Pending, etc.)
+- [ ] **RISK_TIER**: One of LOW/MEDIUM/HIGH with clear justification (not vague like "medium risk")
+- [ ] **SCOPE**: 1-2 concrete sentences + business rationale + boundary clarity (not "improve storage")
+- [ ] **IN_SCOPE_PATHS**: Specific file paths (5-20 entries), not vague directories like "src/backend"
+- [ ] **OUT_OF_SCOPE**: 3-8 deferred items with explicit reasons (not "other work")
+- [ ] **TEST_PLAN**: Concrete bash commands (copy-paste ready), no placeholders like "run tests"
+- [ ] **DONE_MEANS**: 3-8 measurable criteria, each verifiable yes/no (not "feature works")
+- [ ] **ROLLBACK_HINT**: Clear undo instructions (git revert OR step-by-step undo)
+- [ ] **BOOTSTRAP**: All 4 sub-fields present (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP)
+
+**IF ANY FIELD IS INCOMPLETE:**
+```
+❌ BLOCKED: Task packet incomplete [CX-581]
+
+Missing or incomplete field:
+- {Field name}: {Specific reason}
+  Expected: {Completeness criterion}
+  Found: {What's actually there}
 
 Orchestrator: Please complete the task packet before I proceed.
+I cannot start without a complete packet.
 ```
 
 ---
@@ -190,6 +213,32 @@ RISK_MAP:
 - [CX-102]: No direct HTTP in jobs/features
 - [CX-104]: No `println!`/`eprintln!` (use logging)
 - [CX-599A]: TODOs must be `TODO(HSK-####): description`
+
+---
+
+## Validation Priority (CRITICAL ORDER) [CX-623-SEQUENCE]
+
+**Before starting validation, understand the order. Do NOT skip any step.**
+
+```
+1️⃣ RUN TESTS (Primary Gate)
+   ↓ All TEST_PLAN commands pass?
+   ├─ YES → Continue to step 2
+   └─ NO → BLOCK: Fix code, re-test until all pass
+
+2️⃣ RUN AI REVIEW (Secondary Gate, MEDIUM/HIGH risk only)
+   ↓ Result: PASS, WARN, or BLOCK?
+   ├─ PASS → Continue to step 3
+   ├─ WARN → Continue to step 3 (acceptable, document reason)
+   └─ BLOCK → Fix code, re-run until PASS or WARN
+
+3️⃣ RUN POST-WORK (Final Gate)
+   ↓ `just post-work WP-{ID}` passes?
+   ├─ YES → Work is complete, proceed to commit
+   └─ NO → BLOCK: Fix validation errors, re-run until PASS
+```
+
+**Rule: Do NOT claim work is done if any gate fails.**
 
 ---
 

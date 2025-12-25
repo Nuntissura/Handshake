@@ -6,7 +6,8 @@
 - REQUESTOR: User
 - AGENT_ID: Gemini-2.0-Flash
 - ROLE: Orchestrator
-- STATUS: Completed
+- **Status:** In Progress
+- USER_SIGNATURE: <pending>
 
 ## Scope
 - **What**: Implement a "Job Result" retrieval API and a UI component to display generated document summaries.

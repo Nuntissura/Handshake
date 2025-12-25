@@ -6,7 +6,8 @@
 - REQUESTOR: User
 - AGENT_ID: Gemini-2.0-Flash
 - ROLE: Orchestrator
-- STATUS: Completed
+- **Status:** In Progress
+- USER_SIGNATURE: <pending>
 
 ## Scope
 - **What**: Implement a secure, capability-gated terminal execution tool in the backend and expose it to the workflow engine.
