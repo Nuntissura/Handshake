@@ -1,9 +1,37 @@
-# Spec-Driven Multi-Agent Workflow (Project-Agnostic)
+# Spec-Driven Multi-Agent Workflow (Complete Implementation Guide)
 
 ## Scope and Inputs
-- Applies to any local or remote repo that uses four agents: Orchestrator, Coder, Validator, Tool Agent (mechanical/tool-calling).
-- Assumes the following files exist (rename as needed): `docs/SPEC_CURRENT.md`, `docs/ORCHESTRATOR_PROTOCOL.md`, `docs/CODER_PROTOCOL.md`, `docs/VALIDATOR_PROTOCOL.md`, `docs/TASK_BOARD.md`, `docs/SIGNATURE_AUDIT.md`, `docs/task_packets/`, `scripts/validation/`, `justfile`.
-- Replace project-specific names, versions, and paths with your own; the workflow and templates are intentionally generic.
+
+This document is **complete, standalone, and implementable by a fresh model** for any large software project using multi-agent AI workflows (Orchestrator, Coder, Validator, Tool Agent).
+
+**What this covers**:
+- Core concepts and 5 guiding principles
+- Detailed roles and responsibilities
+- 6-stage end-to-end flow
+- Complete file structure and templates
+- Real working examples (filled-in packets, validator output, etc.)
+- Governance rules template (Codex)
+- Protocol file templates
+- Validator script implementations (samples + patterns)
+- Phased rollout and implementation order
+- Integration with existing projects
+- Troubleshooting and common failures
+- Testing strategy for the workflow itself
+
+**Files you will create** (customize names as needed):
+- `docs/SPEC_CURRENT.md` - Pointer to active spec
+- `Master_Spec_v1.0.md` - The authoritative specification
+- `{Project} Codex v1.0.md` - Governance rules
+- `docs/ORCHESTRATOR_PROTOCOL.md` - Orchestrator workflow
+- `docs/CODER_PROTOCOL.md` - Coder workflow
+- `docs/VALIDATOR_PROTOCOL.md` - Validator workflow
+- `docs/TASK_BOARD.md` - Master task tracking
+- `docs/SIGNATURE_AUDIT.md` - Signature registry
+- `docs/task_packets/TEMPLATE.md` - Packet template
+- `docs/task_packets/WP-*.md` - Actual work packets
+- `scripts/validation/*.mjs` - Validator scripts (10-15 files)
+- `scripts/hooks/pre-commit` - Git hook
+- `justfile` - Command wiring
 
 ## Core Principles
 
@@ -555,6 +583,1141 @@ fi
 - Enforces spec coherence (regression check)
 - Makes dependency chains explicit
 - Blocks merges to main/release until gates pass
+
+---
+
+## Implementation Order (Phased Rollout)
+
+**DO NOT build everything at once.** Use this phased approach so each phase unblocks the next.
+
+### Phase 0: Foundation (Days 1-2)
+**Goal**: Create the spec infrastructure and first task packet template.
+
+1. Create `Master_Spec_v1.0.md` (can start minimal: ~20KB with 5-10 sections and anchors)
+2. Create `docs/SPEC_CURRENT.md` (pointer file, 3 lines)
+3. Create `docs/SIGNATURE_AUDIT.md` (empty table, 5 lines)
+4. Create `docs/TASK_BOARD.md` (empty structure, 10 lines)
+5. Create `docs/task_packets/TEMPLATE.md` (copy from Templates section below, 50 lines)
+6. Create `scripts/create-task-packet.mjs` (simple Node script: generate packet from template)
+7. Test: `node scripts/create-task-packet.mjs WP-0-Test` → produces `docs/task_packets/WP-0-Test.md`
+
+**Deliverable**: You can now create task packets.
+
+### Phase 1: Validation Gates (Days 3-4)
+**Goal**: Enforce packet completeness before handoff.
+
+1. Create `scripts/validation/pre-work-check.mjs` (verify 10 required fields, no placeholders)
+2. Create `scripts/validation/post-work-check.mjs` (verify VALIDATION results recorded)
+3. Create `scripts/validation/validator-spec-regression.mjs` (verify spec file exists + anchors)
+4. Create `scripts/validation/validator-scan.mjs` (grep for forbidden patterns)
+5. Create `justfile` with commands:
+   - `just create-task-packet WP_ID`
+   - `just pre-work WP_ID`
+   - `just post-work WP_ID`
+   - `just validator-scan`
+   - `just validator-spec-regression`
+6. Test:
+   - `just create-task-packet WP-1-Feature` → creates packet
+   - `just pre-work WP-1-Feature` → FAIL (has placeholders)
+   - Edit packet, remove placeholders
+   - `just pre-work WP-1-Feature` → PASS
+
+**Deliverable**: Packet quality gates work; you can't hand off incomplete packets.
+
+### Phase 2: Governance Rules (Days 5-6)
+**Goal**: Define hard invariants for your project.
+
+1. Create `{Project} Codex v1.0.md` (copy template from section below; ~40KB)
+   - Define 10-20 hard invariants (CX-101, CX-102, etc.)
+   - Examples: "LLM calls only via module X", "No direct DB access outside storage", "All errors typed, not strings"
+2. Create `scripts/validation/codex-check.mjs` (grep for codex violations)
+3. Create `scripts/hooks/pre-commit` (wire codex-check + lint + tests)
+4. Wire hook: `git config core.hooksPath scripts/hooks`
+5. Test: Try to commit code that violates a codex rule → commit blocked
+
+**Deliverable**: Hard invariants are enforced at commit time; code quality guaranteed.
+
+### Phase 3: Protocol Files (Days 7-8)
+**Goal**: Document workflow for each agent.
+
+1. Create `docs/ORCHESTRATOR_PROTOCOL.md` (copy template + customize, ~50KB)
+   - Pre-orchestration gates checklist
+   - Signature pause protocol
+   - Packet creation workflow
+2. Create `docs/CODER_PROTOCOL.md` (copy template + customize, ~30KB)
+   - Pre-coding checklist (scope adequacy)
+   - Validation order (TEST_PLAN → ai-review → post-work)
+   - Evidence recording format
+3. Create `docs/VALIDATOR_PROTOCOL.md` (copy template + customize, ~20KB)
+   - Pre-flight checks
+   - Evidence verification steps
+   - Audit scope (DAL, security, hygiene, etc.)
+4. Test: Train an agent on each protocol; run through a mock task packet
+
+**Deliverable**: Agents know their workflow; can operate semi-autonomously.
+
+### Phase 4: Custom Validators (Days 9-12)
+**Goal**: Add domain-specific validation (storage DAL, API contracts, security, etc.).
+
+1. Create `scripts/validation/validator-dal-audit.mjs` (if storage-based)
+   - Check trait boundaries, SQL portability, migration hygiene
+2. Create `scripts/validation/validator-error-codes.mjs`
+   - Enforce typed errors, trace ID logging, no stringly errors
+3. Create `scripts/validation/validator-security.mjs`
+   - RCE guardrails, input validation, secret detection
+4. Create `scripts/validation/validator-git-hygiene.mjs`
+   - .gitignore coverage, no artifacts committed
+5. Create `scripts/validation/validator-phase-gate.mjs`
+   - Block phase progression until all gates VALIDATED
+6. Wire into `justfile`: `just validator-{concern}`, `just validator-phase-gate PHASE`
+7. Test: Create a test task packet; run all validators; fix violations until PASS
+
+**Deliverable**: Rich validation catches domain-specific issues; phase gates work.
+
+### Phase 5: Integration & Docs (Days 13-14)
+**Goal**: Make the workflow real and documented.
+
+1. Create `docs/START_HERE.md` (entry point: repo map, AI agent workflow, links)
+2. Create `docs/ARCHITECTURE.md` (module layout, responsibilities, entry points)
+3. Create `docs/RUNBOOK_DEBUG.md` (error codes, debug patterns)
+4. Create `docs/QUALITY_GATE.md` (risk tier definitions, Gate 0/1 requirements)
+5. Create `docs/agents/AGENT_REGISTRY.md` (map of contributing agents/models)
+6. Create first **real** task packet for your project's first feature
+   - Use all the tools: pre-work gate, signature pause, BOOTSTRAP, etc.
+   - Run full workflow: create → code → validate → merge
+7. Test: Dry run the entire workflow on a low-risk feature
+
+**Deliverable**: Workflow is live; documented; agents can operate independently.
+
+---
+
+## Real Working Examples
+
+### Example 1: Complete Task Packet (Filled In)
+
+**File**: `docs/task_packets/WP-1-User-Authentication.md`
+
+```markdown
+# Task Packet: WP-1-User-Authentication
+
+## Metadata
+- TASK_ID: WP-1-User-Authentication
+- STATUS: Done (VALIDATED)
+- DATE: 2025-12-15 10:00 UTC
+- REQUESTOR: alice
+- USER_SIGNATURE: alice_25121510000
+- SPEC_VERSION: Master_Spec_v1.0.md
+
+## What
+Implement email + password authentication endpoint (POST /auth/login) returning JWT token with 24-hour TTL.
+
+## Why
+Foundation for user identity system. Spec A3.2.1 requires "Users authenticate with email+password, receive bearer token, subsequent requests validated via Bearer header."
+Blocks: WP-2-Authorization-Roles, WP-3-Session-Management
+
+## Scope
+- IN_SCOPE_PATHS:
+  - src/api/handlers/auth.rs
+  - src/api/models/user.rs
+  - src/services/jwt.rs
+  - tests/integration/auth_test.rs
+  - Cargo.toml (add jwt crate)
+- OUT_OF_SCOPE:
+  - OAuth/third-party auth (Phase 2)
+  - Password reset/recovery (Phase 1.5)
+  - Rate limiting (separate WP-0-Rate-Limiting)
+  - Database schema changes (data layer frozen per A2.3.12)
+
+## DONE_MEANS
+1. POST /auth/login accepts {email, password} JSON
+2. Valid credentials return {jwt_token, expires_in: 86400} JSON
+3. Invalid credentials return 401 + error code AUTH-001
+4. JWT decodes to {user_id, email, iat, exp}
+5. Subsequent requests with "Authorization: Bearer {token}" header validated (token not expired, signature valid)
+6. Expired token returns 401 + error code AUTH-002
+7. Malformed token returns 401 + error code AUTH-003
+8. Integration test: login → validate token → request with Bearer → success
+
+## TEST_PLAN
+- `cargo test -p api auth_integration` (PASS; 8 test cases)
+- `curl -X POST http://localhost:3000/auth/login -H "Content-Type: application/json" -d '{"email":"test@example.com","password":"password123"}'` (returns jwt_token)
+- `curl http://localhost:3000/user -H "Authorization: Bearer {token}"` (PASS, returns user data)
+- `curl http://localhost:3000/user -H "Authorization: Bearer invalid"` (returns 401)
+- `grep "JWT\|jwk\|token" src/api/models/user.rs | wc -l` (returns > 0, proves JWT in code)
+- Code review: validate no plaintext passwords logged, no token leakage to stdout
+
+## BOOTSTRAP (Coder's Work Plan)
+- FILES_TO_OPEN:
+  - docs/SPEC_CURRENT.md (section A3.2.1)
+  - docs/task_packets/WP-1-User-Authentication.md (this packet)
+  - src/api/handlers/mod.rs (entry point)
+  - src/services/mod.rs (service structure)
+  - tests/integration/auth_test.rs (test patterns)
+  - Cargo.toml (dependencies)
+  - docs/RUNBOOK_DEBUG.md (error codes section)
+- SEARCH_TERMS:
+  - "LoginRequest", "TokenResponse", "validate_jwt"
+  - "user_id", "email_address"
+  - "jsonwebtoken", "chrono"
+  - "401", "AUTH-"
+  - "Bearer", "Authorization"
+- RUN_COMMANDS:
+  - `cargo build --manifest-path src/Cargo.toml`
+  - `cargo test -p api --test integration` (baseline)
+  - `sqlx database create` (if new DB needed)
+- RISK_MAP:
+  - "JWT library vulnerability" → Security audit required (MEDIUM risk)
+  - "Password stored plaintext" → Must use bcrypt (HIGH risk)
+  - "Token expiry not enforced" → MEDIUM risk
+  - "API contract mismatch" → Integration test catches (LOW risk)
+
+## RISK_TIER
+MEDIUM
+- Why: Security-sensitive (passwords, tokens), but single module (no IPC yet)
+- Triggers: ai-review required, security audit in validator
+- Rollback: `git revert <sha>`; feature flag gated, can be disabled in config
+
+## ROLLBACK_HINT
+If authentication breaks:
+1. `git revert <commit-hash>`
+2. Restart server: `cargo run --bin api`
+3. Test: `curl /auth/login` should return 404 (endpoint gone)
+
+## VALIDATION (filled by Coder)
+
+### BOOTSTRAP Output
+```
+WP_ID: WP-1-User-Authentication
+RISK_TIER: MEDIUM
+TASK_TYPE: FEATURE
+FILES_TO_OPEN:
+- docs/SPEC_CURRENT.md (A3.2.1)
+- src/api/handlers/auth.rs (will create)
+- src/services/jwt.rs (will create)
+- tests/integration/auth_test.rs (will create)
+- Cargo.toml (will update)
+SEARCH_TERMS:
+- "LoginRequest", "TokenResponse"
+- "validate_jwt", "issue_token"
+- "jsonwebtoken", "bcrypt"
+- "401", "AUTH-"
+RUN_COMMANDS:
+- cargo build --manifest-path src/Cargo.toml
+- cargo test -p api auth_integration
+- curl -X POST http://localhost:3000/auth/login ...
+RISK_MAP:
+- "JWT library vulnerability" -> Security audit
+- "Password stored plaintext" -> Bcrypt required
+```
+
+### Test Results
+```
+Command: cargo test -p api auth_integration
+Result: PASSED (8/8 cases)
+  ✓ login_valid_credentials
+  ✓ login_invalid_password
+  ✓ login_invalid_email
+  ✓ token_decode_valid
+  ✓ token_expired
+  ✓ token_malformed
+  ✓ bearer_header_validation
+  ✓ bearer_token_not_found
+
+Command: grep "bcrypt" src/services/jwt.rs | wc -l
+Result: 2 (passwords are hashed)
+
+Command: grep "println\|dbg\|password" src/services/jwt.rs | grep -v test
+Result: 0 (no password logging in production)
+
+ai-review: PASSED (security review)
+```
+
+## Signature & Enrichment Log
+
+**Signature**: alice_25121510000 (immutable)
+**Timestamp**: 2025-12-15 10:00 UTC
+
+### User-Orchestrator Collaboration Notes:
+- **Clarified**: User confirmed email+password only (OAuth deferred). DONE_MEANS expanded to include Bearer token validation in subsequent requests.
+- **Spec Enrichment**: Spec section A3.2.1 already covers this fully; no enrichment needed.
+- **Rubric Adjustments**: Added requirement 5 (Bearer token validation in API). TEST_PLAN now includes curl test of authenticated request. ai-review added for MEDIUM risk (security).
+- **Risks Acknowledged**: User approved MEDIUM risk; rollback plan is git revert + restart. Security audit required before merge.
+
+### Locked Intent:
+- **DONE_MEANS**: [frozen above]
+- **TEST_PLAN**: [frozen above]
+- **IN_SCOPE_PATHS**: [frozen above]
+- **OUT_OF_SCOPE**: [frozen above]
+- **Validator Audit Scope**: hygiene (bcrypt, no password logging), security (JWT lib), error codes (AUTH-001, AUTH-002, AUTH-003)
+```
+
+---
+
+### Example 2: Validator Report Output
+
+```markdown
+# VALIDATION REPORT - WP-1-User-Authentication
+
+**Verdict**: PASS
+
+## Scope Inputs
+- Task Packet: docs/task_packets/WP-1-User-Authentication.md
+- Spec: Master_Spec_v1.0.md (section A3.2.1)
+- USER_SIGNATURE: alice_25121510000 (valid, not reused)
+
+## Findings
+
+### Requirement Mapping (Evidence Verification)
+| DONE_MEANS | Spec Anchor | Code Evidence | Test Command | Status |
+|------------|-------------|---------------|--------------|--------|
+| "POST /auth/login accepts email+password" | A3.2.1 | src/api/handlers/auth.rs:12-35 (LoginRequest struct) | cargo test login_valid_credentials | PASS |
+| "Returns jwt_token + expires_in" | A3.2.1 | src/api/handlers/auth.rs:40-52 (TokenResponse struct) | curl /auth/login | PASS |
+| "Invalid credentials return 401" | A3.2.1 | src/api/handlers/auth.rs:60-75 (error handling) | cargo test login_invalid_password | PASS |
+| "JWT decodes to user_id+email+iat+exp" | A3.2.1 | src/services/jwt.rs:30-60 (token claims) | cargo test token_decode_valid | PASS |
+| "Bearer header validation" | A3.2.1 | src/api/middleware/auth.rs:15-40 (middleware) | cargo test bearer_header_validation | PASS |
+| "Expired token rejected" | A3.2.1 | src/api/middleware/auth.rs:45-65 (exp check) | cargo test token_expired | PASS |
+| "Malformed token rejected" | A3.2.1 | src/api/middleware/auth.rs:70-85 (parse error) | cargo test token_malformed | PASS |
+| "Integration test: login → Bearer → success" | A3.2.1 | tests/integration/auth_test.rs:50-100 | cargo test auth_integration | PASS |
+
+### Hygiene & Forbidden Patterns
+- Forbidden patterns scan: PASS (no unwrap, expect, todo, println in src/services/jwt.rs production code)
+- Placeholder check: PASS (no {field} or TODO(TBD) in code)
+- Error codes: PASS (AUTH-001, AUTH-002, AUTH-003 documented in RUNBOOK_DEBUG.md)
+
+### Security Audit
+- Password hashing: PASS (bcrypt with cost 12, verified in test)
+- No password logging: PASS (grep password src/services/jwt.rs returns 0 in production code)
+- JWT library: PASS (jsonwebtoken v9.0, security audit OK)
+- Token expiry: PASS (TTL 86400 seconds enforced)
+
+### Test Verification
+- TEST_PLAN execution: PASS (all 8 integration tests passed)
+- Coverage: PASS (auth module 92% coverage, above 80% threshold)
+- Removal check: PASS (removing token validation code breaks 3+ tests)
+
+### Residual Risks / Waivers
+- None. All gates passed. No waivers needed.
+
+## Packet Update
+- **STATUS**: Done (VALIDATED)
+- **Task Board**: Move WP-1-User-Authentication to Done + mark VALIDATED
+- **Next**: WP-2-Authorization-Roles can now proceed (was blocked on WP-1)
+```
+
+---
+
+### Example 3: Task Board (Phase 1)
+
+```markdown
+# TASK_BOARD.md
+
+## Phase 1 Closure Gates (BLOCKING)
+
+Must be Done + VALIDATED before Phase 1 can close:
+
+- [WP-1-User-Authentication] **Done (VALIDATED)** ✅
+  - Blocker: None
+  - Unblocks: WP-2-Authorization-Roles, WP-3-Session-Management
+
+- [WP-1-Database-Migrations] **Done (VALIDATED)** ✅
+  - Blocker: None
+  - Unblocks: WP-1-Storage-Abstraction
+
+- [WP-1-Error-Codes-Registry] **Done (VALIDATED)** ✅
+  - Blocker: None
+  - Unblocks: All (error codes are foundation)
+
+- [WP-1-Logging-Framework] **Ready-for-Dev** (not yet started)
+  - Blocker: None
+  - Unblocks: WP-1-Observability
+
+## In Progress
+
+- [WP-1-Logging-Framework] Started 2025-12-16, by coder_model_v2
+
+## Ready for Validation
+
+- [WP-1-API-Contracts] Implementation complete, awaiting validator review (SLA: 2 days)
+
+## Ready for Dev
+
+- [WP-1-Observability] Spec'd, no blockers, awaiting coder assignment (SLA: 10 days)
+- [WP-1-Metrics-Collection] Spec'd, awaiting blockers WP-1-Logging-Framework to clear
+
+## Backlog
+
+- [WP-2-Authorization-Roles] Blocked on WP-1-User-Authentication (ready when Phase 1 closes)
+- [WP-2-Session-Management] Blocked on WP-1-User-Authentication
+```
+
+---
+
+## Governance Rules (Codex) Template
+
+**File**: `{Project} Codex v1.0.md` (~40-60KB, customize for your project)
+
+```markdown
+# {Project} Codex v1.0.md
+
+## Hard Invariants (Governance Rules)
+
+### CX-101: LLM Integration Boundary
+**Rule**: All LLM API calls (chat, completion, embeddings) must go through `/src/backend/llm/client.rs`
+**Scope**: Production code only (tests exempt)
+**Rationale**: Centralized control, cost tracking, rate limiting, prompt injection prevention
+**Violation**: Direct `openai_client.call(...)` or HTTP requests to LLM API outside `/src/backend/llm/`
+**Waiver**: None (hard blocker)
+
+### CX-102: Database Access Layer
+**Rule**: Database queries only via `src/backend/storage/` module. No direct sqlx::query calls outside storage/.
+**Scope**: Production code (tests exempt)
+**Rationale**: Dual-backend readiness (SQLite → PostgreSQL), migration consistency, audit trail
+**Violation**: `sqlx::query` or `.execute()` outside src/backend/storage/
+**Waiver**: None (hard blocker)
+
+### CX-103: Error Handling
+**Rule**: All errors must be typed (custom enum), never string errors. Error codes prefixed {PROJECT_CODE}-#### (e.g., AUTH-001).
+**Scope**: Production code (tests can use anyhow)
+**Rationale**: Deterministic error handling, user-facing messages, post-mortem analysis
+**Violation**: `Err(String::from(...))` or `anyhow!(...)` in production code
+**Waiver**: None (hard blocker)
+
+### CX-104: Logging & Observability
+**Rule**: All mutations (create, update, delete, state changes) logged with trace_id. No plaintext passwords/secrets.
+**Scope**: Production code
+**Rationale**: Auditability, compliance, debugging, incident response
+**Violation**: Missing trace_id, passwords/API keys logged, debug!() or println!() in production
+**Waiver**: Acceptable for read-only operations; mutation logging non-negotiable
+
+### CX-105: Test Coverage
+**Rule**: New code must maintain >=80% coverage. Removal-style tests required (code removed = test fails).
+**Scope**: Production code
+**Rationale**: Regression detection, confidence in refactors
+**Violation**: Coverage <80%, tests don't check behavior (just mock)
+**Waiver**: Below 80% requires explicit team approval + documented reason
+
+### CX-106: TODO Tracking
+**Rule**: All TODOs must have tracking ID format: TODO(PROJECT-####) with GitHub issue reference.
+**Scope**: Production code
+**Rationale**: Prevent accumulation of dead TODOs; force closure
+**Violation**: TODO() without ID, TODO(TBD), TODO(fixme)
+**Waiver**: None (catch at pre-commit)
+
+### CX-107: No Speculative Code
+**Rule**: Code must implement exactly DONE_MEANS, nothing more. No "future-proofing" or "optional" features.
+**Scope**: All code
+**Rationale**: Scope creep prevention, evidence clarity, maintainability
+**Violation**: Code that doesn't map to DONE_MEANS, unused abstractions, "phase 2" code in phase 1
+**Waiver**: Refactoring code is exempt if no behavior change
+
+### CX-108: Placeholder Removal
+**Rule**: Zero placeholder values in production code. {field}, FIXME, Mock, Stub, TBD, placeholder must not appear.
+**Scope**: All code
+**Rationale**: Prevents incomplete code reaching production
+**Violation**: Grep finds placeholder patterns
+**Waiver**: None (catch at pre-commit)
+
+### CX-109: Schema Immutability (Phase 1)
+**Rule**: Database schema is frozen during Phase 1. Storage DAL trait contract (CX-102) cannot change.
+**Scope**: src/backend/storage/trait.rs
+**Rationale**: Storage is foundational; changes cascade to all code
+**Violation**: Adding/removing trait methods, changing signatures
+**Waiver**: Only if ALL Phase 1 downstream code updated in same packet (use WP-id-v2)
+
+### CX-110: Git Hygiene
+**Rule**: Commits must be atomic, reference WP_ID, pass pre-commit hooks.
+**Scope**: All commits to main
+**Rationale**: Traceability, revertability, compliance
+**Violation**: Merge commits without WP reference, commits that fail tests, uncommitted changes blocking merge
+**Waiver**: None (enforced at git hook + CI)
+```
+
+---
+
+## Protocol File Templates
+
+### ORCHESTRATOR_PROTOCOL.md Template
+
+```markdown
+# ORCHESTRATOR_PROTOCOL.md
+
+## Pre-Orchestration Checklist (BLOCKING GATES)
+
+Before accepting ANY user prompt, Orchestrator MUST verify:
+
+### Gate 1: Spec Currency
+- [ ] `docs/SPEC_CURRENT.md` exists and is readable
+- [ ] Points to valid spec file (e.g., `Master_Spec_v1.0.md`)
+- [ ] Run `just validator-spec-regression` → PASS
+- [ ] If FAIL: escalate to user; spec must be fixed before proceeding
+
+### Gate 2: Task Board Fresh
+- [ ] `docs/TASK_BOARD.md` exists
+- [ ] All In-Progress items have SLA tracked (started date recorded)
+- [ ] No stale items (>30 days In-Progress) without escalation
+- [ ] Phase N Closure Gates listed explicitly
+
+### Gate 3: Governance Current
+- [ ] `{Project} Codex v1.0.md` exists
+- [ ] All protocol files current (ORCHESTRATOR, CODER, VALIDATOR)
+- [ ] Pre-commit hooks wired and working
+
+### Gate 4: Supply Chain
+- [ ] Run `cargo deny` → no blockers
+- [ ] Run `npm audit` (if applicable) → no critical
+- [ ] Dependency check: no major version changes without review
+
+### Gate 5: Signature Audit
+- [ ] `docs/SIGNATURE_AUDIT.md` exists
+- [ ] All previous signatures logged (audit trail complete)
+
+---
+
+## Signature Pause Protocol
+
+When user prompt arrives, Orchestrator MUST:
+
+1. **Intake**: Extract explicit requirements + implied constraints
+2. **Coverage Check**: Does prompt "clearly cover" scope, risks, success criteria, dependencies, rollback?
+   - If NO: request clarification; escalate; do NOT proceed
+3. **Spec Anchoring**: Map requirements to SPEC_ANCHOR
+   - If gap: enrich spec (new version) + obtain signature before proceeding
+4. **Signature Pause**: PAUSE and collaborate with user
+   - Propose DONE_MEANS (5-10 measurable checkpoints)
+   - Propose TEST_PLAN (executable commands)
+   - Propose IN/OUT scope (exact files)
+   - Propose RISK_TIER (LOW/MEDIUM/HIGH)
+   - Propose validator audit scope
+5. **User Validation**: User MUST vet and approve
+   - Interpretation accuracy? Feasibility? Scope realistic? Risk acceptable?
+6. **Signature**: User provides signature `{username}{DDMMYYYYHHMM}`
+7. **Packet Creation**: Create packet, run `just pre-work`, update Task Board
+
+---
+
+## Packet Creation Checklist
+
+When creating packet, Orchestrator MUST fill:
+
+- [ ] TASK_ID: `WP-{phase}-{name}`
+- [ ] STATUS: `Ready-for-Dev`
+- [ ] SPEC_ANCHOR: cite exact anchor from spec (e.g., A2.3.12.3)
+- [ ] What: 1-2 sentence description
+- [ ] Why: rationale + business value
+- [ ] IN_SCOPE_PATHS: 5-20 exact files (not globs)
+- [ ] OUT_OF_SCOPE: explicit deferrals
+- [ ] DONE_MEANS: 5-10 measurable checkpoints, 1:1 with SPEC_ANCHOR
+- [ ] TEST_PLAN: copy-paste bash commands
+- [ ] BOOTSTRAP: FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP
+- [ ] ROLLBACK_HINT: git revert or manual steps
+- [ ] RISK_TIER: LOW/MEDIUM/HIGH
+- [ ] Signature & Enrichment Log: frozen intent
+
+---
+
+## Handoff to Coder
+
+Issue packet + provide:
+1. Packet path: `docs/task_packets/WP-{id}.md`
+2. WP_ID: `WP-{id}`
+3. RISK_TIER: `LOW | MEDIUM | HIGH`
+4. Authority docs: `SPEC_CURRENT.md`, `CODER_PROTOCOL.md`
+5. Command: `just pre-work WP-{id}` (must PASS)
+6. Confirmation: "Packet is ready for coding. No changes permitted after signature."
+```
+
+---
+
+### CODER_PROTOCOL.md Template
+
+```markdown
+# CODER_PROTOCOL.md
+
+## Pre-Coding Checklist (BLOCKING GATES)
+
+### Gate 0: Packet Exists & Complete
+- [ ] Task packet file exists: `docs/task_packets/WP-{id}.md`
+- [ ] All 10 required fields present
+- [ ] No placeholder text (`{field_name}`, `TODO(TBD)`)
+- [ ] Run `just pre-work WP-{id}` → PASS (exit 0)
+- [ ] If FAIL: return packet to Orchestrator
+
+### Gate 1: Scope Adequacy
+- [ ] Can I identify all affected files? (yes/no)
+- [ ] Are scope boundaries clear? (yes/no)
+- [ ] Are there unexpected dependencies? (list them)
+- [ ] Is scope realistic for RISK_TIER? (yes/no)
+- [ ] If NO to any: escalate to Orchestrator before starting
+
+### Gate 2: Understand Spec
+- [ ] Read `docs/SPEC_CURRENT.md` section on SPEC_ANCHOR
+- [ ] Understand DONE_MEANS: can I explain each one?
+- [ ] Understand TEST_PLAN: will each command actually prove DONE_MEANS?
+
+---
+
+## Implementation Workflow
+
+### Step 1: Output BOOTSTRAP (BEFORE FIRST CODE CHANGE)
+Create BOOTSTRAP block in packet:
+```
+BOOTSTRAP
+WP_ID: WP-{id}
+RISK_TIER: {LOW|MEDIUM|HIGH}
+TASK_TYPE: {FEATURE|DEBUG|REFACTOR|HYGIENE}
+FILES_TO_OPEN: [read packet FILES_TO_OPEN]
+SEARCH_TERMS: [read packet SEARCH_TERMS]
+RUN_COMMANDS: [read packet RUN_COMMANDS]
+RISK_MAP: [read packet RISK_MAP]
+```
+Mark WP STATUS → `In-Progress` in Task Board
+
+### Step 2: Implement Strictly Within Scope
+- Only modify files in IN_SCOPE_PATHS
+- Do NOT touch OUT_OF_SCOPE files
+- Do NOT implement anything not in DONE_MEANS
+- Enforce hard invariants (CX-101, CX-102, CX-103, etc.)
+- No TODO() without tracking ID: `TODO(PROJECT-1234)`
+
+### Step 3: Run TEST_PLAN
+Execute each command from TEST_PLAN section:
+```
+Command: cargo test -p {module} {tests}
+Result: PASSED (N/N cases)
+  ✓ case_1
+  ✓ case_2
+  ...
+
+Command: {grep/curl/etc}
+Result: [output]
+```
+Record in packet VALIDATION block.
+
+### Step 4: For MEDIUM/HIGH Risk: ai-review
+Run `just ai-review` (e.g., Gemini CLI) to audit code changes.
+Record pass/fail in VALIDATION block.
+
+### Step 5: Post-Work Gate
+Run `just post-work WP-{id}` (verifies VALIDATION results recorded)
+- Exit 0: work validated, safe to commit
+- Exit 1: incomplete, return to implementation
+
+### Step 6: Update Task Board
+- Mark WP STATUS → `Ready-for-Validation`
+- Update Task Board entry in lockstep
+
+### Step 7: Prepare Commit
+Commit message format:
+```
+feat: WP-{id} - {short description}
+
+{Detailed explanation of what changed and why}
+
+Evidence:
+- {DONE_MEANS 1}: src/file.rs:45-60
+- {DONE_MEANS 2}: test result PASS
+- {DONE_MEANS 3}: grep "pattern" returns N matches
+
+WP_ID: WP-{id}
+Refs: #{issue_number}
+```
+```
+
+---
+
+### VALIDATOR_PROTOCOL.md Template
+
+```markdown
+# VALIDATOR_PROTOCOL.md
+
+## Pre-Flight Checks (BLOCKING GATES)
+
+Before auditing implementation:
+
+- [ ] Task packet exists and complete (all 10 fields)
+- [ ] Spec version in packet matches SPEC_CURRENT.md
+- [ ] USER_SIGNATURE present and valid (not reused)
+- [ ] STATUS in packet is consistent with Task Board
+- [ ] BOOTSTRAP block present (shows work was started)
+- [ ] TEST_PLAN section exists with commands
+- [ ] VALIDATION section has outcomes recorded
+
+**If ANY fail**: return packet to Orchestrator for fixes.
+
+---
+
+## Core Validation Steps
+
+### Step 1: Spec Extraction
+Extract every MUST/SHOULD from:
+- DONE_MEANS in task packet
+- SPEC_ANCHOR sections in spec
+Create evidence mapping table:
+| DONE_MEANS | SPEC_ANCHOR | Code Evidence | Test Proof |
+| ... | ... | ... | ... |
+
+### Step 2: Evidence Verification
+For each requirement:
+1. Locate file:line code evidence
+2. Read the code; verify it implements requirement
+3. Run test command; verify it PASSES
+4. Verify test is removable (fails if code deleted)
+5. **Missing evidence = FAIL**
+
+### Step 3: Hygiene Gates
+Run validators:
+```
+just validator-scan              → 0 forbidden patterns
+just validator-git-hygiene       → 0 artifacts committed
+just validator-error-codes       → typed errors, codes documented
+just validator-{custom}          → domain-specific checks
+```
+**Any FAIL = overall FAIL**
+
+### Step 4: Test Verification
+- Verify TEST_PLAN was executed (results in VALIDATION block)
+- Check coverage >= 80% (or documented waiver)
+- Verify at least one removal-check test (code removal breaks test)
+
+### Step 5: Security & Architecture Audits
+- LLM boundary: all calls via /src/backend/llm/ (CX-101)
+- Storage boundary: no direct DB outside /storage/ (CX-102)
+- Error handling: typed errors with codes (CX-103)
+- Logging: trace IDs in mutations, no secrets (CX-104)
+- Traceability: job_id, request_id correlation
+
+---
+
+## Verdict (Binary: PASS or FAIL)
+
+### PASS Criteria (ALL must be true):
+- Evidence mapping complete (every DONE_MEANS has file:line + test)
+- All tests PASS
+- Hygiene clean (no forbidden patterns)
+- Coverage >= 80%
+- Codex compliance verified
+- Custom audits satisfied
+
+**Action**: Append validation report to packet; update STATUS → Done; update Task Board to Done (VALIDATED)
+
+### FAIL Criteria (ANY is true):
+- Missing evidence for requirement
+- Test fails or missing
+- Forbidden pattern found
+- Codex violation detected
+- Coverage < 80% without waiver
+
+**Action**: Document gaps; list violations; return packet to Orchestrator/Coder for rework
+
+---
+
+## Waiver Policy
+
+Waivers are ALLOWED (with approval) for:
+- Coverage <80% (if business-justified + documented)
+- Test gap in Phase 1 (Phase 2 backlog)
+- Deferred design debt (explicit TODO(PROJECT-####) + issue link)
+
+Waivers are NOT ALLOWED for:
+- Spec regression (requirement not met)
+- Evidence gaps (must have file:line proof)
+- Codex violations (hard invariants)
+- Security issues (RCE, plaintext secrets)
+```
+
+---
+
+## Validator Script Implementations
+
+### Sample: pre-work-check.mjs
+
+```javascript
+// scripts/validation/pre-work-check.mjs
+// Gate 0: Ensure packet is complete before handoff
+
+import fs from 'fs';
+import path from 'path';
+
+const REQUIRED_FIELDS = [
+  'TASK_ID',
+  'STATUS',
+  'SPEC_ANCHOR',
+  'What',
+  'Why',
+  'IN_SCOPE_PATHS',
+  'OUT_OF_SCOPE',
+  'DONE_MEANS',
+  'TEST_PLAN',
+  'BOOTSTRAP',
+  'ROLLBACK_HINT',
+  'VALIDATION',
+  'Signature & Enrichment Log'
+];
+
+const PLACEHOLDERS = [
+  /\{field\w+\}/g,
+  /TODO\(TBD\)/g,
+  /FIXME/g,
+  /placeholder/gi,
+  /\{.*?\}/g  // Any {something}
+];
+
+export async function validate(wpId, projectRoot) {
+  const packetPath = path.join(projectRoot, 'docs', 'task_packets', `${wpId}.md`);
+
+  if (!fs.existsSync(packetPath)) {
+    console.error(`❌ Packet not found: ${packetPath}`);
+    process.exit(1);
+  }
+
+  const content = fs.readFileSync(packetPath, 'utf-8');
+
+  // Check all required fields present
+  for (const field of REQUIRED_FIELDS) {
+    if (!content.includes(`## ${field}`) && !content.includes(`- ${field}`)) {
+      console.error(`❌ Missing required field: ${field}`);
+      process.exit(1);
+    }
+  }
+
+  // Check for placeholders
+  for (const placeholder of PLACEHOLDERS) {
+    const matches = content.match(placeholder);
+    if (matches) {
+      console.error(`❌ Found placeholder text: ${matches[0]}`);
+      process.exit(1);
+    }
+  }
+
+  console.log(`✅ Pre-work check passed: ${wpId}`);
+  process.exit(0);
+}
+
+const wpId = process.argv[2];
+const projectRoot = process.cwd();
+validate(wpId, projectRoot);
+```
+
+### Sample: validator-scan.mjs
+
+```javascript
+// scripts/validation/validator-scan.mjs
+// Scan for forbidden patterns in production code
+
+import { execSync } from 'child_process';
+
+const SCAN_PATHS = [
+  'src/',
+  'app/src/'
+];
+
+const FORBIDDEN_PATTERNS = [
+  { pattern: 'unwrap()', reason: 'Panic in production; must handle error' },
+  { pattern: 'expect(', reason: 'Panic in production; must handle error' },
+  { pattern: 'todo!()', reason: 'Incomplete code; must implement or defer' },
+  { pattern: 'unimplemented!()', reason: 'Incomplete code' },
+  { pattern: 'dbg!(', reason: 'Debug macro; must remove' },
+  { pattern: 'println!(', reason: 'Use logging framework; no stdout' },
+  { pattern: 'eprintln!(', reason: 'Use logging framework; no stderr' }
+];
+
+const PLACEHOLDER_PATTERNS = [
+  'Mock', 'Stub', 'placeholder', 'hollow', /\{.*?\}/
+];
+
+let violations = 0;
+
+for (const scanPath of SCAN_PATHS) {
+  // Exclude tests
+  const excludeTests = `--exclude-dir=tests --exclude-dir=test`;
+
+  for (const { pattern, reason } of FORBIDDEN_PATTERNS) {
+    try {
+      const cmd = `rg "${pattern}" ${scanPath} ${excludeTests}`;
+      const result = execSync(cmd, { encoding: 'utf-8' });
+
+      if (result.trim()) {
+        console.error(`❌ FORBIDDEN: ${pattern}`);
+        console.error(`   Reason: ${reason}`);
+        console.error(result);
+        violations++;
+      }
+    } catch (e) {
+      // No matches (expected)
+    }
+  }
+
+  for (const placeholder of PLACEHOLDER_PATTERNS) {
+    try {
+      const cmd = `rg "${placeholder}" ${scanPath} ${excludeTests}`;
+      const result = execSync(cmd, { encoding: 'utf-8' });
+
+      if (result.trim()) {
+        console.error(`⚠️  PLACEHOLDER: ${placeholder}`);
+        console.error(result);
+        violations++;
+      }
+    } catch (e) {
+      // No matches
+    }
+  }
+}
+
+if (violations > 0) {
+  console.error(`\n❌ Found ${violations} violations`);
+  process.exit(1);
+} else {
+  console.log('✅ validator-scan passed');
+  process.exit(0);
+}
+```
+
+### Template: Custom Validator Pattern
+
+```javascript
+// scripts/validation/validator-{your-concern}.mjs
+// Template for project-specific validators
+
+export async function validate(wpId, projectRoot) {
+  // 1. Read task packet
+  const packetPath = `${projectRoot}/docs/task_packets/${wpId}.md`;
+  const packetContent = readFile(packetPath);
+
+  // 2. Parse IN_SCOPE_PATHS from packet
+  const inScopePaths = extractField(packetContent, 'IN_SCOPE_PATHS');
+
+  // 3. Apply domain-specific checks
+  // Example: For storage audits
+  for (const filePath of inScopePaths) {
+    const content = readFile(`${projectRoot}/${filePath}`);
+
+    // Check 1: No direct DB access
+    if (content.includes('sqlx::query') && !filePath.includes('storage/')) {
+      console.error(`❌ CX-DBP-VAL-010: Direct DB access in ${filePath}`);
+      process.exit(1);
+    }
+
+    // Check 2: SQL portability
+    if (content.includes('strftime(') || content.includes('?1')) {
+      console.error(`❌ CX-DBP-VAL-011: SQLite-only SQL in ${filePath}`);
+      process.exit(1);
+    }
+  }
+
+  // 4. Return verdict
+  console.log(`✅ validator-{concern} passed`);
+  process.exit(0);
+}
+
+const wpId = process.argv[2];
+validate(wpId, process.cwd());
+```
+
+---
+
+## Troubleshooting & Common Failures
+
+### "Packet fails pre-work check"
+
+**Symptoms**: `just pre-work WP-1` returns exit 1
+
+**Causes**:
+1. Missing required field (check all 10 fields present)
+2. Placeholder text in packet (`{field}`, `TODO(TBD)`)
+3. Field value is empty or just comment marker
+
+**Fix**:
+1. Read pre-work-check output: identifies which field is missing
+2. Open packet; add field with concrete value
+3. Remove all `{placeholders}` and replace with real values
+4. Re-run `just pre-work WP-1` → exit 0
+
+### "Validator says evidence missing"
+
+**Symptoms**: Validator report says "Missing evidence for DONE_MEANS item 3"
+
+**Causes**:
+1. Code not implemented (DONE_MEANS not actually done)
+2. Test command not executed or failed
+3. file:line reference doesn't actually contain the code
+
+**Fix**:
+1. Verify code exists at file:line location (open file, check line numbers)
+2. Verify test command runs without error: `cargo test ...`
+3. If code missing: implement it
+4. If test fails: debug test; fix code
+5. Record new results in VALIDATION block
+6. Re-run validator
+
+### "Codex check fails at commit"
+
+**Symptoms**: `git commit` blocked with "CX-101 violation: LLM call outside /src/backend/llm/"
+
+**Causes**:
+1. Code calls LLM API directly (not via module)
+2. Code uses `println!` or `dbg!` (logging instead of logging framework)
+3. Code has `unwrap()` or `expect(` in production
+
+**Fix**:
+1. Read codex rule (e.g., CX-101) for what's forbidden and why
+2. Refactor code to comply:
+   - LLM calls: move to `/src/backend/llm/client.rs`
+   - Logging: use logging framework instead of println
+   - Error handling: use typed errors instead of unwrap
+3. Stage changes: `git add .`
+4. Try commit again: `git commit ...`
+
+### "Scope creep: features not in DONE_MEANS"
+
+**Symptoms**: Coder implements extra features not in task packet
+
+**Causes**:
+1. Coder assumed "while we're here, let's also..."
+2. Spec ambiguity; coder inferred additional requirements
+3. Scope adequacy check not done properly
+
+**Fix**:
+1. **Before implementation**: Coder must do Scope Adequacy Check (identify all affected files, validate boundaries)
+2. **During implementation**: Stick to DONE_MEANS only; nothing more
+3. **If new feature discovered**: Create WP-{id}-v2 packet with fresh signature
+4. **Validator catches**: Will FAIL if code doesn't match DONE_MEANS (removable test fails)
+
+### "Signature audit shows reuse"
+
+**Symptoms**: `grep -r "alice_25121510000" . | wc -l` returns 2+ (signature used twice)
+
+**Causes**:
+1. Signature was issued for Phase 0 enrichment
+2. Same signature reused for Phase 1 packet (violation)
+3. Typo in signature log (same signature recorded twice)
+
+**Fix**:
+1. Each signature is ONE-TIME USE ONLY
+2. If reuse detected: STOP work; escalate to user
+3. Request fresh signature (different timestamp): `alice_25121510100`
+4. Log new signature in SIGNATURE_AUDIT.md
+5. Re-run spec regression check
+
+### "Task Board out of sync with packets"
+
+**Symptoms**: Packet STATUS = "Done" but Task Board shows "Ready-for-Dev"
+
+**Causes**:
+1. Coder updated packet but forgot Task Board
+2. Validator updated Task Board but forgot packet
+3. Manual edit error
+
+**Fix**:
+1. Atomicity rule: **ALWAYS update both packet and Task Board together**
+2. If out of sync: align them now
+   - Read current packet STATUS
+   - Update Task Board entry to match
+   - Verify with: `grep "WP-1-Feature" docs/TASK_BOARD.md` matches packet STATUS
+
+### "Phase gate blocked; can't close Phase 1"
+
+**Symptoms**: `just validator-phase-gate Phase-1` returns exit 1
+
+**Causes**:
+1. At least one "Phase 1 Closure Gates (BLOCKING)" WP is not Done+VALIDATED
+2. Spec regression check failed (anchor missing)
+3. Dependency unresolved (downstream WP blocker still In-Progress)
+
+**Fix**:
+1. Run command with verbose output: see which WP is blocking
+2. Go to blocking WP: move to Done and validate
+3. Check spec regression: `just validator-spec-regression` should PASS
+4. Check dependencies: all upstream WPs must be VALIDATED
+5. Once all clear: `just validator-phase-gate Phase-1` returns exit 0
+6. Can now close phase: `git tag phase-1-complete && git push origin phase-1-complete`
+
+---
+
+## Integration with Existing Projects
+
+If you have an **existing codebase** (not starting from scratch), use this retrofit approach:
+
+### Week 1: Minimal Setup (Don't Block Current Work)
+1. Create `Master_Spec_v0.1.md` describing current state (big picture, 10-15 sections)
+2. Create `docs/SPEC_CURRENT.md` pointer
+3. Create `docs/SIGNATURE_AUDIT.md` (empty)
+4. Create `docs/TASK_BOARD.md` (list current in-flight work)
+5. Create `scripts/create-task-packet.mjs` (simple generator)
+
+**Do NOT force everyone to use this workflow yet.** Just set up infrastructure.
+
+### Week 2: Optional Adoption (Volunteer Features)
+1. Volunteer a low-risk feature (e.g., documentation, small bug fix)
+2. Create task packet for it (using template)
+3. Run full workflow: pre-work → code → validate → merge
+4. Measure: did workflow catch issues? Did it help?
+
+### Week 3: Phased Rollout (Team Agreement)
+- If Week 2 successful: make workflow mandatory for NEW features only
+- Existing work continues as-is
+- Gradual adoption: new feature per week uses workflow
+
+### Month 2: Enforcement
+- All NEW feature work uses workflow
+- All bug fixes use workflow
+- Refactors optional (can use or skip)
+
+### Month 3: Full Adoption
+- All work uses workflow
+- Agents can operate semi-autonomously
+- Governance rules enforced at pre-commit
+
+---
+
+## Testing the Workflow Infrastructure
+
+Before using on real work, validate each piece works:
+
+### Test 1: Packet Creation
+```bash
+just create-task-packet WP-0-Test
+# Verify: docs/task_packets/WP-0-Test.md created with template
+```
+
+### Test 2: Pre-Work Gate
+```bash
+just pre-work WP-0-Test
+# Should FAIL (has placeholders)
+# Edit packet: remove {field} values
+just pre-work WP-0-Test
+# Should PASS (all fields concrete, no placeholders)
+```
+
+### Test 3: Spec Regression
+```bash
+just validator-spec-regression
+# Should PASS (spec file exists, required anchors present)
+```
+
+### Test 4: Validator Scan
+```bash
+just validator-scan
+# Should PASS (no forbidden patterns in src/)
+# To test: add unwrap() to src/main.rs, re-run → FAIL
+```
+
+### Test 5: Pre-Commit Hook
+```bash
+# Add println!() to src/lib.rs
+git add src/lib.rs
+git commit -m "test"
+# Should FAIL (pre-commit hook rejects println)
+# Remove println(), re-commit → PASS
+```
+
+### Test 6: Full Workflow (Dry Run)
+1. Create test packet for small feature
+2. Implement it
+3. Run `just post-work WP-{id}`
+4. Validator audits
+5. Merge
+
+If all tests pass, infrastructure is ready.
 
 ---
 
