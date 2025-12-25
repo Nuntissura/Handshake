@@ -507,3 +507,420 @@ ls docs/task_packets/WP-*.md
 - [CX-587]: SHOULD run pre-work check
 
 **Remember**: Better to spend 10 minutes on a good task packet than 2 hours fixing misunderstood work.
+
+---
+
+## Part 5: Work Packet Lifecycle in Detail [CX-620-625]
+
+### 5.1 Required Fields in Every Work Packet
+
+Every work packet MUST include these sections (in order):
+
+```markdown
+# Task Packet: WP-{phase}-{name}
+
+## Metadata
+- TASK_ID: WP-{phase}-{name}
+- DATE: {ISO 8601 timestamp}
+- REQUESTOR: {user or source}
+- AGENT_ID: {your agent ID}
+- ROLE: Orchestrator
+- STATUS: {Ready-for-Dev|In-Progress|Done|Blocked}
+
+## Scope
+- **What**: {1-2 sentence description}
+- **Why**: {Business/technical rationale}
+- **IN_SCOPE_PATHS**: {Exact file paths - NOT vague directories}
+  * src/backend/handshake_core/src/storage/mod.rs
+  * src/backend/handshake_core/src/storage/sqlite.rs
+- **OUT_OF_SCOPE**: {What Coder CANNOT touch}
+  * Migrations rewrite (→ WP-1-Migration-Framework)
+
+## Quality Gate
+- **RISK_TIER**: LOW | MEDIUM | HIGH
+- **TEST_PLAN**: {Exact bash commands}
+- **DONE_MEANS**: {Measurable criteria - 1:1 mapped to SPEC_ANCHOR}
+- **ROLLBACK_HINT**: {How to undo}
+
+## BOOTSTRAP (Coder Work Plan)
+- **FILES_TO_OPEN**: {5-15 key files}
+- **SEARCH_TERMS**: {10-20 grep targets}
+- **RUN_COMMANDS**: {Startup + validation commands}
+- **RISK_MAP**: {Failure modes → subsystems (3-8 items)}
+
+## Authority
+- **SPEC_ANCHOR**: §{section} ({requirement})
+- **Codex**: {version}
+- **Task Board**: docs/TASK_BOARD.md
+- **Logger**: {if applicable}
+
+## Notes
+- **Assumptions**: {Any assumptions}
+- **Open Questions**: {Questions to resolve}
+- **Dependencies**: {Other WPs this depends on}
+
+---
+
+**Last Updated:** {date}
+**User Signature Locked:** {signature}
+```
+
+### 5.2 SPEC_ANCHOR Requirement (CRITICAL) [CX-601]
+
+**EVERY WP MUST reference Master Spec Main Body (NOT Roadmap).**
+
+**Valid SPEC_ANCHOR examples:**
+- `§2.3.12.1 (Four Portability Pillars)`
+- `§2.3.12.3 (Storage API Abstraction Pattern)`
+- `§A9.2.1 (Error Code Registry)`
+
+**Invalid (REJECT these):**
+- `§Future Work (Phase 2+)` — Not Main Body
+- `§Roadmap` — Not specific enough
+- No SPEC_ANCHOR at all — Every WP requires one
+
+**Orchestrator verification checklist:**
+- [ ] SPEC_ANCHOR references MAIN BODY section (before Roadmap)
+- [ ] SPEC_ANCHOR exists in latest Master Spec version
+- [ ] Requirement is specific (verifiable with yes/no test)
+- [ ] All MUST/SHOULD from that spec section mapped to DONE_MEANS
+
+**If FAIL:** Reject WP; request Orchestrator cite spec requirement explicitly.
+
+### 5.3 IN_SCOPE_PATHS Precision [CX-603]
+
+**Orchestrator MUST be specific (NOT vague).**
+
+```
+❌ WRONG: IN_SCOPE_PATHS: src/backend
+❌ WRONG: IN_SCOPE_PATHS: src/
+❌ WRONG: IN_SCOPE_PATHS: Everything related to storage
+
+✅ RIGHT: IN_SCOPE_PATHS:
+  - src/backend/handshake_core/src/storage/mod.rs
+  - src/backend/handshake_core/src/storage/sqlite.rs
+  - src/backend/handshake_core/src/api/jobs.rs
+```
+
+**Why:** Coder needs to know EXACTLY which files they can modify. Vague scope = scope creep.
+
+### 5.4 DONE_MEANS Mapping [CX-602]
+
+**Every DONE_MEANS MUST map 1:1 to SPEC_ANCHOR requirement.**
+
+Example:
+```markdown
+SPEC_ANCHOR: §2.3.12.3 (Storage API Abstraction Pattern)
+
+Spec says:
+- "MUST: Define Database trait with async methods"
+- "MUST: Implement SqliteDatabase wrapper"
+- "MUST: Create PostgresDatabase stub"
+
+DONE_MEANS (mapped):
+- [ ] MUST: Database trait defined (§2.3.12.3, requirement 1)
+- [ ] MUST: SqliteDatabase implemented (§2.3.12.3, requirement 2)
+- [ ] MUST: PostgresDatabase stub created (§2.3.12.3, requirement 3)
+- [ ] All tests pass
+- [ ] Validator sign-off (PASS verdict)
+```
+
+**Rule:** If DONE_MEANS doesn't map to spec, Validator rejects it.
+
+### 5.5 BOOTSTRAP Completeness [CX-606]
+
+**Orchestrator MUST provide:**
+
+1. **FILES_TO_OPEN (5-15 files minimum)**
+   - Spec docs (SPEC_CURRENT.md, Master Spec section)
+   - Architecture docs (ARCHITECTURE.md, relevant design docs)
+   - Implementation files (files Coder will modify)
+   - Related modules (dependencies, imports)
+
+2. **SEARCH_TERMS (10-20 grep targets minimum)**
+   - Key symbols to find (`SqlitePool`, `state.pool`)
+   - Error messages to look for
+   - Feature names to search
+   - Pattern names (`DefaultStorageGuard`)
+
+3. **RUN_COMMANDS (startup + validation)**
+   - Dev environment startup (`just dev`)
+   - Test commands (`cargo test`, `pnpm test`)
+   - Validation commands (`just validate`, `just ai-review`)
+
+4. **RISK_MAP (3-8 failure modes)**
+   - Specific failure mode
+   - Which subsystem breaks
+   - Example: `"Hollow trait implementation" → Portability Failure (Phase 1 blocker)`
+
+### 5.6 Work Packet Locking [CX-607]
+
+**Orchestrator MUST lock packet after creation:**
+
+```markdown
+---
+
+**Last Updated:** 2025-12-25
+**User Signature Locked:** ilja251220250328
+
+**IMPORTANT: This packet is locked. No edits allowed.**
+**If changes needed: Create NEW packet (WP-{ID}-variant), do NOT edit this one.**
+```
+
+**Rule of Locking:**
+- ✅ Once locked, packet is immutable
+- ✅ Prevents instruction creep mid-work
+- ✅ Creates audit trail (version history)
+- ❌ Cannot edit locked packet (violates governance)
+- ❌ If changes needed, must create new packet
+
+**When to create variant packets:**
+- WP-1-Storage-Abstraction-Layer (original, locked)
+- WP-1-Storage-Abstraction-Layer-v2 (changes needed, new packet)
+- OR: WP-1-Storage-Abstraction-Layer-20251225-1630 (date/time variant)
+
+---
+
+## Part 6: Task Board Maintenance [CX-625-630]
+
+### 6.1 Task Board Structure (Single Source of Truth)
+
+**Orchestrator maintains `docs/TASK_BOARD.md` as the authoritative status tracker.**
+
+```markdown
+# Handshake Project Task Board
+
+This board is maintained by the Orchestrator.
+Updated whenever WP status changes.
+
+---
+
+## 🚨 PHASE 1 CLOSURE GATES (BLOCKING)
+
+**Authority:** Master Spec §2.3.12, Architecture Decision {date}
+
+Storage Backend Portability Foundation (Sequential):
+
+1. **[WP-1-Storage-Abstraction-Layer]** - Define trait-based storage API
+   - Lead: Coder (Senior Systems Engineer)
+   - Effort: 15-20 hours
+   - Status: [READY FOR DEV 🔴]
+   - Blocker: None (foundational)
+
+2. **[WP-1-AppState-Refactoring]** - Remove SqlitePool from AppState
+   - Lead: Coder (Senior Systems Engineer)
+   - Effort: 8-10 hours
+   - Status: [GAP 🟡]
+   - Blocker: WP-1-Storage-Abstraction-Layer (MUST COMPLETE FIRST)
+
+---
+
+## In Progress
+
+- [WP_ID]: {Brief description}
+
+## Ready for Dev
+
+- [WP_ID]: {Brief description}
+
+## Done
+
+- [WP_ID]: {Brief description}
+
+## Blocked
+
+- [WP_ID]: {Reason for block}
+```
+
+### 6.2 Status Values (CX-625)
+
+| Status | Symbol | Meaning | When to Use |
+|--------|--------|---------|------------|
+| **READY FOR DEV** | 🔴 | Verified, waiting for Coder | After pre-work checklist PASS |
+| **IN PROGRESS** | 🟠 | Coder is working | After Coder outputs BOOTSTRAP |
+| **BLOCKED** | 🟡 | Waiting for dependency/clarification | Document specific reason |
+| **DONE** | ✅ | Merged to main | After Validator approves |
+| **GAP** | 🟡 | Not yet created as packet | Before Orchestrator creates |
+
+### 6.3 Orchestrator Responsibilities for TASK_BOARD
+
+**Update TASK_BOARD IMMEDIATELY when:**
+1. New WP created → Move to "Ready for Dev"
+2. Coder starts work → Move to "In Progress"
+3. Blocker discovered → Move to "Blocked" + document reason
+4. Validator approves → Move to "Done"
+5. Dependency unblocked → Move blocked WP to "Ready for Dev"
+
+**Keep TASK_BOARD in sync with reality:**
+```
+Never let TASK_BOARD drift from actual WP status.
+If WP file shows STATUS: In-Progress but TASK_BOARD shows Ready-for-Dev → FAIL.
+Orchestrator must maintain consistency immediately.
+```
+
+### 6.4 Phase Gate Status Tracking [CX-609]
+
+**Orchestrator must maintain Phase Gate section:**
+
+```markdown
+## 🚨 PHASE 1 CLOSURE GATES (BLOCKING - MUST COMPLETE)
+
+**Status:** HOLDING - 3 of 4 gate-critical WPs not yet created
+
+Gate-critical WPs:
+1. ✅ WP-1-Storage-Abstraction-Layer [READY FOR DEV]
+2. ❌ WP-1-AppState-Refactoring [GAP - packet not yet created]
+3. ❌ WP-1-Migration-Framework [GAP - packet not yet created]
+4. ❌ WP-1-Dual-Backend-Tests [GAP - packet not yet created]
+
+Phase closure criteria:
+- [ ] All 4 gate-critical WPs are VALIDATED (not just "done")
+- [ ] Spec regression check PASS (just validator-spec-regression)
+- [ ] All dependencies resolved
+- [ ] Waivers audit complete
+- [ ] Supply chain clean (cargo deny + npm audit)
+
+Current status: 25% ready (1 of 4 packets created, 0 VALIDATED)
+```
+
+---
+
+## Part 7: Dependency Management [CX-630-635]
+
+### 7.1 Blocking Dependencies
+
+**Orchestrator MUST identify and document all blocking relationships:**
+
+**In work packets:**
+```markdown
+## Dependencies
+
+- Depends on: WP-1-Storage-Abstraction-Layer (MUST COMPLETE FIRST)
+- Blocks: WP-1-Dual-Backend-Tests
+- Can start independently: WP-1-Migration-Framework
+```
+
+**In TASK_BOARD:**
+```markdown
+2. **[WP-1-AppState-Refactoring]**
+   - Blocker: WP-1-Storage-Abstraction-Layer (MUST COMPLETE FIRST)
+```
+
+### 7.2 Blocking Rules (MANDATORY)
+
+**DO NOT assign WP if blocker is not VALIDATED:**
+
+```
+Scenario: WP-1-AppState-Refactoring depends on WP-1-Storage-Abstraction-Layer
+
+If WP-1-Storage-Abstraction-Layer status is:
+- ✅ VALIDATED → Can assign WP-1-AppState-Refactoring
+- 🟠 IN PROGRESS → Mark WP-1-AppState-Refactoring as BLOCKED
+- 🔴 READY FOR DEV → Mark WP-1-AppState-Refactoring as BLOCKED
+- ❌ FAILS Validator → Don't assign, escalate
+
+Rule: Never assign downstream work until blocker is VALIDATED.
+```
+
+**DO NOT close phase if blockers unresolved:**
+
+```
+Phase 1 closure requires:
+- ALL 4 gate-critical WPs VALIDATED
+- ALL dependencies satisfied
+- NO unresolved blockers
+
+If WP-1-Migration-Framework blocks WP-1-Dual-Backend-Tests:
+→ Phase cannot close until BOTH are VALIDATED
+```
+
+**Document WHY WP is BLOCKED:**
+
+```markdown
+## Blocked
+
+- WP-1-AppState-Refactoring: Waiting for WP-1-Storage-Abstraction-Layer to VALIDATE (ETA 3 days)
+- WP-1-Dual-Backend-Tests: Blocked on 2 dependencies (WP-1-Storage-Abstraction-Layer, WP-1-Migration-Framework)
+```
+
+---
+
+## Part 8: Pre-Delegation Validation Checklist [CX-640]
+
+**Before handing off to Coder, Orchestrator MUST verify all 14 items:**
+
+- [ ] SPEC_ANCHOR references Main Body (not Roadmap)
+- [ ] SPEC_ANCHOR in latest Master Spec version
+- [ ] IN_SCOPE_PATHS are exact file paths (not "src/backend")
+- [ ] OUT_OF_SCOPE clearly lists what Coder cannot touch
+- [ ] DONE_MEANS are measurable (100% verifiable, not subjective)
+- [ ] Every DONE_MEANS maps 1:1 to SPEC_ANCHOR requirement
+- [ ] RISK_TIER assigned (LOW/MEDIUM/HIGH)
+- [ ] TEST_PLAN includes all applicable commands
+- [ ] BOOTSTRAP has 5-15 FILES_TO_OPEN
+- [ ] BOOTSTRAP has 10-20 SEARCH_TERMS
+- [ ] BOOTSTRAP has RISK_MAP (3-8 failure modes)
+- [ ] USER_SIGNATURE locked with date/timestamp
+- [ ] Dependencies documented (blockers + what this blocks)
+- [ ] Effort estimate provided (hours)
+
+**If ANY check fails:** Reject WP; request Orchestrator fix specific gaps.
+
+---
+
+## Part 9: Orchestrator Non-Negotiables [CX-640-650]
+
+### ❌ DO NOT:
+
+1. **Create WP without SPEC_ANCHOR** — Every WP must reference Master Spec Main Body
+2. **Edit locked work packets** — Once USER_SIGNATURE added, packet is immutable
+3. **Use vague scope** — IN_SCOPE_PATHS must be specific file paths
+4. **Assign WP with unresolved blocker** — Wait for blocker to VALIDATE first
+5. **Close phase without all WPs VALIDATED** — "Done" ≠ "VALIDATED"
+6. **Skip pre-orchestration checklist** — All 14 items must pass
+7. **Invent requirements** — Task packets point to SPEC_ANCHOR, period
+8. **Let TASK_BOARD drift** — Update immediately when WP status changes
+9. **Lump multiple features in one WP** — One WP per requirement
+10. **Leave dependencies undocumented** — TASK_BOARD must show all blocking relationships
+
+### ✅ DO:
+
+1. **Create one WP per Master Spec requirement** — No lumping
+2. **Lock every packet with USER_SIGNATURE** — Prevents instruction creep
+3. **Map every DONE_MEANS to SPEC_ANCHOR** — Traceability required
+4. **Document dependencies explicitly** — TASK_BOARD shows blockers
+5. **Maintain Phase Gate visibility** — Keep status current
+6. **Run pre-orchestration checklist** — Verify spec, board, supply chain
+7. **Update TASK_BOARD immediately** — Don't let status drift
+8. **Provide complete BOOTSTRAP** — Coder needs 5-15 files, 10-20 terms, risk map
+9. **Create variant packets for changes** — Never edit locked packets
+10. **Enforce blocking rules** — Don't assign downstream work prematurely
+
+---
+
+## Part 10: Real Examples (Templates)
+
+See actual work packets in `docs/task_packets/` for patterns:
+
+- **WP-1-Storage-Abstraction-Layer.md** — High risk, foundational (trait-based design)
+- **WP-1-AI-Integration-Baseline.md** — Medium risk, feature (LLM integration)
+- **WP-1-Terminal-Integration-Baseline.md** — High risk, security-sensitive
+
+All follow the structure in this protocol; use them as templates for new WPs.
+
+---
+
+**ORCHESTRATOR SUMMARY:**
+
+| Responsibility | Primary Document | Authority |
+|---|---|---|
+| Create work packets | `docs/task_packets/WP-*.md` | ORCHESTRATOR_PROTOCOL Part 4-5 |
+| Maintain task board | `docs/TASK_BOARD.md` | ORCHESTRATOR_PROTOCOL Part 6 |
+| Track dependencies | Packet + TASK_BOARD | ORCHESTRATOR_PROTOCOL Part 7 |
+| Validate before delegation | Pre-work checklist | ORCHESTRATOR_PROTOCOL Part 8 |
+| Lock packets | USER_SIGNATURE | ORCHESTRATOR_PROTOCOL Part 5.6 |
+| Update status immediately | TASK_BOARD sync | ORCHESTRATOR_PROTOCOL Part 6.3 |
+| Enforce phase gates | PHASE 1 CLOSURE GATES | ORCHESTRATOR_PROTOCOL Part 6.4 |
+| Manage blockers | Dependency tracking | ORCHESTRATOR_PROTOCOL Part 7 |
+
+**Orchestrator role = Precise work packets + Updated TASK_BOARD + Locked packets + Verified pre-work + Enforced dependencies + Phase gate management**
