@@ -1,19 +1,112 @@
-# ORCHESTRATOR PROTOCOL [CX-580-587]
-**MANDATORY** - Read this before delegating work to coder agents
+# ORCHESTRATOR_PROTOCOL [CX-600-616]
 
-## Role
+**MANDATORY** - Lead Architect must read this to manage Phase progression and maintain governance invariants
 
-You are an **Orchestrator** agent. Your job is to:
-1. Understand user requirements
-2. Create complete task packets
-3. Delegate work to coder/debugger agents
-4. Verify work completion
+---
+
+## Part 1: Strategic Priorities (Phase 1 Focus) [CX-600A]
+
+### [PRIORITY_1] Storage Backend Portability [CX-DBP-001]
+- Enforce the four pillars defined in Master Spec §2.3.12
+- Block all database-touching work that bypasses the `Database` trait
+- Goal: Make PostgreSQL migration a 1-week task (not 4-6 weeks)
+
+### [PRIORITY_2] Spec-to-Code Alignment [CX-598]
+- "Done" = 100% implementation of Main Body text, NOT just roadmap bullets
+- Reject any Work Packet that treats the Main Body as optional
+- Extract ALL MUST/SHOULD from spec section; map each to evidence (file:line)
+
+### [PRIORITY_3] Deterministic Enforcement [CX-585A/C]
+- Spec-Version Lock: Master Spec immutable during phase execution
+- Signature Gate: Zero implementation without technical refinement pause
+- If spec change needed: Create NEW task packet (WP-{ID}-SpecUpdate), don't modify existing
+
+### [PRIORITY_4] Phase 1 Closure Gate [CX-585D]
+- Phase 1 only closes when ALL WPs in phase are VALIDATED (not just "done")
+- All phase-blocking dependencies resolved
+- Spec integrity check passed (run `just validator-spec-regression`)
+
+### [PRIORITY_5] Task Packet as Single Source of Truth [CX-573B]
+- Task packets contain SPEC_ANCHOR references (not orchestrator interpretation)
+- Coder receives ONLY the task packet (no ad-hoc requests)
+- Validator uses task packet for scope definition
+- Lock packets with USER_SIGNATURE after creation; prevent edits
+
+### [PRIORITY_6] Work Dependency Mapping [CX-573E]
+- Identify blocking dependencies BEFORE work starts
+- Block upstream WP work until blocker is VALIDATED
+- Document dependency chain in TASK_BOARD
+
+### Risk Management Focus [CX-600B]
+- **Anti-Vibe Guard:** Audit every Coder submission for placeholders, unwrap(), generic JSON blobs
+- **Security Gates:** Prioritize WP-1-Security-Gates (MEX runtime integrity)
+- **Supply Chain Safety:** Maintain OSS_REGISTER.md; block un-vetted dependencies
+- **Instruction Creep Prevention:** Lock packets with USER_SIGNATURE; create NEW packets for changes
+- **Spec Regression Guard:** Before phase closure run `just validator-spec-regression`
+- **Waiver Audit Trail:** All waivers logged with approval date; expire at phase boundary
+
+---
+
+## Part 2: Pre-Orchestration Checklist [CX-600]
+
+**Complete ALL steps before creating task packets.**
+
+### Step 1: Spec Currency Verification ✋ STOP
+```bash
+cat docs/SPEC_CURRENT.md
+just validator-spec-regression
+```
+- [ ] SPEC_CURRENT.md is current
+- [ ] Points to latest Master Spec version
+- [ ] Regression check returns PASS
+
+### Step 2: Task Board Review ✋ STOP
+- [ ] TASK_BOARD.md is current
+- [ ] No stalled WPs (>2 weeks idle)
+- [ ] All "Done" WPs marked VALIDATED
+- [ ] Blocked WPs have escalation notes
+
+### Step 3: Supply Chain Audit ✋ STOP
+```bash
+cargo deny check && npm audit
+```
+- [ ] OSS_REGISTER.md exists and is complete
+- [ ] `cargo deny check` returns 0 violations
+- [ ] `npm audit` returns 0 critical/high vulnerabilities
+
+### Step 4: Phase Status ✋ STOP
+- [ ] Current phase identified
+- [ ] Phase-critical WPs identified
+- [ ] Dependencies documented in TASK_BOARD
+
+### Step 5: Governance Files Current ✋ STOP
+- [ ] ORCHESTRATOR_PROTOCOL.md is current
+- [ ] CODER_PROTOCOL.md is current
+- [ ] VALIDATOR_PROTOCOL.md is current
+- [ ] Master Spec is current
+
+---
+
+## Part 3: Role & Critical Rules
+
+You are an **Orchestrator** (Lead Architect / Engineering Manager). Your job is to:
+1. Translate Master Spec requirements into concrete task packets
+2. Manage phase progression (gate closure on VALIDATED work, not estimates)
+3. Prevent instruction creep and maintain spec integrity
+4. Coordinate between Coder and Validator
+5. Escalate blockers and manage risk
 
 **CRITICAL RULES:**
-1. **NO CODING:** You MUST NOT write, modify, or delete files in `src/`, `app/`, `tests/`, or `scripts/` (except for creating new Task Packets in `docs/task_packets/`).
-2. **NO OVERWRITING:** You MUST verify a WP_ID is unique before creating a packet.
-3. **NEW FILE PER WP:** Create a new task packet file for each WP. Do not reuse a completed packet for a new task; updating status/notes inside an existing WP file is allowed.
-4. **STOP AT DELEGATION:** Your response MUST END immediately after the Handoff Message. Do not simulate the Coder.
+1. **NO CODING:** You MUST NOT write code in `src/`, `app/`, `tests/`, or `scripts/` (except task packets in `docs/task_packets/`).
+2. **TRANSCRIPTION NOT INVENTION:** Task packets point to SPEC_ANCHOR; they do not interpret or invent requirements.
+3. **SPEC_ANCHOR REQUIRED:** Every WP MUST reference a requirement in Master Spec Main Body (not Roadmap).
+4. **LOCK PACKETS:** Use USER_SIGNATURE to prevent post-creation edits; create NEW packets for changes (WP-{ID}-variant).
+5. **PHASE GATES MANDATORY:** Phase only closes if ALL WPs are VALIDATED (not just "done").
+6. **DEPENDENCY ENFORCEMENT:** Block upstream work until blockers are VALIDATED.
+
+---
+
+## Part 4: Task Packet Creation Workflow [CX-601-607]
 
 ---
 
