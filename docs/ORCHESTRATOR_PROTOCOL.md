@@ -106,9 +106,45 @@ This gate prevents autonomous spec drift and ensures user intentionality at each
 
 Orchestrator MUST NOT enrich speculatively. Instead, use this decision tree:
 
+#### Definition: "Clearly Covers" (Objective 5-Point Checklist)
+
+A requirement "clearly covers" (passes Main Body criteria) when it satisfies ALL 5 points:
+
+1. ✅ **Appears in Main Body** — Not in Roadmap, not aspirational, not "Phase 2+"
+2. ✅ **Explicitly Named** — Reader immediately finds it without inference (section number, title, explicit text)
+3. ✅ **Specific** — Not "storage SHOULD be portable" but "storage API MUST implement X trait with Y methods"
+4. ✅ **Measurable Acceptance Criteria** — Clear yes/no test (e.g., "trait has 6 required async methods")
+5. ✅ **No Ambiguity** — Single valid interpretation; no multiple ways to read it
+
+**Result:**
+- **PASS (all 5 ✅)** → Requirement clearly covered. Proceed to task packet creation (no enrichment needed).
+- **FAIL (any ❌)** → Requirement NOT clearly covered. Ask user for clarification OR enrich spec (with user signature).
+
+**Examples:**
+
+CLEARLY COVERS ✅:
+```
+§2.3.12.1: Database trait MUST have these 6 async methods:
+- async fn get_blocks(&self, id: &str) -> Result<Vec<Block>>
+- async fn save_blocks(&self, blocks: Vec<Block>) -> Result<()>
+- ...etc (all 5 criteria met; unambiguous)
+```
+→ Proceed without enrichment
+
+DOES NOT CLEARLY COVER ❌:
+```
+§2.3.12: Storage abstraction SHOULD be portable
+```
+→ Criteria 3 fails (not specific); criteria 4 fails (no acceptance criteria)
+→ Requires user clarification OR enrichment (with signature)
+
+---
+
+**Decision Tree:**
+
 ```
 Does Master Spec Main Body clearly cover this requirement?
-├─ YES (requirement is explicit in Main Body)
+├─ YES (all 5 criteria met)
 │  └─ Proceed to task packet creation (no enrichment needed)
 │
 ├─ NO, but it's in Roadmap
@@ -322,6 +358,179 @@ You are an **Orchestrator** (Lead Architect / Engineering Manager). Your job is 
 4. **LOCK PACKETS:** Use USER_SIGNATURE to prevent post-creation edits; create NEW packets for changes (WP-{ID}-variant).
 5. **PHASE GATES MANDATORY:** Phase only closes if ALL WPs are VALIDATED (not just "done").
 6. **DEPENDENCY ENFORCEMENT:** Block upstream work until blockers are VALIDATED.
+
+---
+
+## Part 3-Error-Recovery: How to Recover from Orchestrator Mistakes [CX-611]
+
+**Governance violations happen. This section shows how to recover.**
+
+### Error 1: Signature Used Twice (Typo/Mistake)
+
+**Problem:** You used the same signature twice in the repo.
+
+**Prevention:** Always grep before using:
+```bash
+grep -r "{signature}" .
+# Should return ZERO results (except audit log entry you're about to add)
+```
+
+**Recovery if error occurs:**
+1. Mark signature INVALID in `docs/SIGNATURE_AUDIT.md`
+   ```markdown
+   | ilja251225032800 | Orchestrator | 2025-12-25 03:28 | (INVALID - used twice by mistake) | v02.85 | Signature rejected; same timestamp used multiple times |
+   ```
+
+2. Request NEW signature from user (different timestamp)
+   ```
+   ❌ Signature already consumed [CX-611-A]
+
+   Signature: ilja251225032800
+   First use: {file and line when first used}
+
+   Please provide a NEW signature with a different timestamp.
+   Format: {username}{DDMMYYYYHHMM}
+   ```
+
+3. Update task packets to reference new signature
+4. Document in WP NOTES: "Original signature invalid (used twice); replaced with ilja251225032801"
+
+---
+
+### Error 2: Wrong SPEC_ANCHOR in Locked Packet
+
+**Problem:** Packet is locked but SPEC_ANCHOR points to wrong requirement.
+
+**Prevention:** Verify SPEC_ANCHOR exists in Master Spec BEFORE locking:
+```bash
+grep -n "§X\.X\.X" docs/SPEC_CURRENT.md
+# Should return non-zero (section exists)
+```
+
+**Recovery if error occurs:**
+
+**Step 1: Check severity**
+- **CRITICAL (wrong scope):** SPEC_ANCHOR refers to totally different requirement
+  → Create variant packet (WP-{ID}-v2)
+
+- **MINOR (wrong section, same scope):** SPEC_ANCHOR points to same requirement in wrong subsection
+  → Add ERRATA section (read-only)
+
+**Step 2: If CRITICAL — Create variant:**
+```markdown
+# Task Packet: WP-1-Storage-Abstraction-Layer-v2
+
+## Authority
+- **SPEC_ANCHOR**: §2.3.12.3 (CORRECTED)
+- **Note**: Original WP-1-Storage-Abstraction-Layer used wrong SPEC_ANCHOR (§2.3.10); superseded by this version
+
+(Copy rest of original packet, update SPEC_ANCHOR only)
+
+---
+
+**User Signature Locked:** ilja251225041502 (new signature for corrected packet)
+```
+
+Update TASK_BOARD to reference v2 (remove original from active list, mark superseded).
+
+**Step 3: If MINOR — Add ERRATA:**
+```markdown
+## ERRATA
+
+- **Original SPEC_ANCHOR:** §2.3.12 (too broad)
+- **Correct SPEC_ANCHOR:** §2.3.12.3 (specific subsection)
+- **Reason:** Typo in section reference; scope unchanged
+- **Date corrected:** 2025-12-25
+- **Action:** No variant needed; correct the section reference mentally
+```
+
+Mark packet with ERRATA note but keep it active (no v2 needed).
+
+---
+
+### Error 3: TASK_BOARD Out of Sync with Packets
+
+**Problem:** TASK_BOARD shows "Ready for Dev" but WP file shows "In Progress".
+
+**Prevention:** Update TASK_BOARD IMMEDIATELY (within 1 hour) when WP status changes.
+
+**Recovery if error occurs:**
+1. Compare TASK_BOARD status vs. each WP's STATUS field
+   ```bash
+   grep "^- STATUS:" docs/task_packets/WP-*.md | sort
+   # Compare with docs/TASK_BOARD.md sections
+   ```
+
+2. Identify discrepancies
+3. Update TASK_BOARD to match packets (packets are source of truth)
+4. Log in decision log: "Synced TASK_BOARD: was {X days} out of sync"
+5. Review: Why did sync break? What to do differently?
+
+---
+
+### Error 4: Blocker Status Missed in Step 1
+
+**Problem:** You created WP without checking if its blocker was VALIDATED.
+
+**Prevention:** In Part 4 Step 1, always check blocker status:
+```bash
+grep -A3 "BLOCKER" docs/task_packets/WP-{upstream-id}.md
+# Should show: STATUS: Done, verdict: VALIDATED
+```
+
+**Recovery if error occurs:**
+1. Immediately mark new WP as BLOCKED in TASK_BOARD
+2. Document: "Discovered blocker after creation; should have been caught in Step 1"
+3. Add to WP NOTES: "Blocker: WP-X (Status: {current status})"
+4. Review: Why was blocker missed? Improve your Step 1 checklist.
+
+---
+
+### Error 5: Enrichment Without User Signature
+
+**Problem:** You enriched spec but didn't get user signature beforehand.
+
+**Prevention:** Request signature BEFORE enriching spec (Part 2.5.3).
+
+**Recovery if error occurs:**
+1. Retroactively request user signature for enrichment
+   ```
+   ⚠️ Signature required (retroactive) [CX-611-B]
+
+   I enriched Master Spec v02.84 → v02.85 with Storage Backend Portability requirements.
+
+   To complete governance, please provide user signature:
+   Format: {username}{DDMMYYYYHHMM}
+   ```
+
+2. Add to SIGNATURE_AUDIT.md once user provides signature:
+   ```markdown
+   | ilja251225050000 | Orchestrator | 2025-12-25 05:00 | (RETROACTIVE) Strategic Pause: Spec enrichment for Phase 1 storage | v02.85 | Retroactive approval for enrichment done at 2025-12-25 03:28 |
+   ```
+
+3. Update task packets to reference signature
+4. Note: "This is debt. Avoid in future by requesting signature BEFORE enriching spec."
+
+---
+
+### Error 6: Missing Signature in SIGNATURE_AUDIT.md
+
+**Problem:** You recorded a signature somewhere (WP, protocol, etc.) but forgot to add it to SIGNATURE_AUDIT.md.
+
+**Prevention:** Record EVERY signature immediately upon use in SIGNATURE_AUDIT.md.
+
+**Recovery if error occurs:**
+1. Find the orphaned signature in codebase:
+   ```bash
+   grep -r "ilja251225041500" docs/
+   # Shows where it was used
+   ```
+
+2. Add missing entry to SIGNATURE_AUDIT.md with metadata from actual usage
+3. Verify signature format is correct: `{username}{DDMMYYYYHHMM}`
+4. Note: "Added retroactively; ensure all future signatures recorded immediately"
+
+---
 
 ---
 
@@ -1507,6 +1716,84 @@ Phase closure criteria:
 Current status: 25% ready (1 of 4 packets created, 0 VALIDATED)
 ```
 
+### 6.5 Phase Closure Gate (Explicit Requirements) [CX-609B]
+
+**A phase is ready to close ONLY when ALL criteria below are met.**
+
+#### MUST Criteria (All Required)
+
+- [ ] **All phase-critical WPs are VALIDATED** (Validator approved, not just "done")
+  - Meaning: Validator returned `verdict: PASS` for each WP
+  - Not: "Coder finished coding" or "work merged"
+
+- [ ] **Spec regression check passes**
+  ```bash
+  just validator-spec-regression
+  # Output: ✅ Spec regression check PASSED
+  ```
+
+- [ ] **Supply chain audit clean** (zero violations)
+  ```bash
+  cargo deny check    # Should return 0 violations
+  npm audit           # Should return 0 critical/high vulnerabilities
+  ```
+
+- [ ] **No unresolved blockers** (all dependencies satisfied)
+  - TASK_BOARD shows NO items in "Blocked" state
+  - All WPs have clear VALIDATED status for their dependencies
+
+- [ ] **Git commit audit trail complete** (all commits signed/traced)
+  - All work-related commits must have proper git metadata (author, timestamp)
+  - Optional: If using git signatures, all commits must be signed
+
+#### SHOULD Criteria (Strong Recommendations)
+
+- [ ] **No open escalations from Validator** (all escalations resolved)
+- [ ] **No "deferred work" notes in WPs** (all planned work in this phase is done)
+- [ ] **Test coverage metrics on target** (>80% for phase)
+- [ ] **Security audit clean** (if phase touches security-sensitive code)
+
+#### Example: Phase 1 Closure Gate
+
+```
+Phase 1 Closure Gate Status:
+
+MUST Criteria:
+✅ WP-1-Storage-Abstraction-Layer: VALIDATED (PASS)
+✅ WP-1-AppState-Refactoring: VALIDATED (PASS)
+✅ WP-1-Migration-Framework: VALIDATED (PASS)
+✅ WP-1-Dual-Backend-Tests: VALIDATED (PASS)
+✅ Spec regression: PASS
+✅ Cargo deny: 0 violations
+✅ npm audit: 0 high vulnerabilities
+✅ No blockers in TASK_BOARD
+✅ All commits properly tracked
+
+SHOULD Criteria:
+✅ No escalations pending
+✅ No deferred work notes
+✅ Test coverage: 84% (>80% target met)
+✅ Security audit clean (Phase 1 touches storage layer)
+
+→ Phase 1 READY TO CLOSE ✅
+```
+
+#### How to Use This Gate
+
+**Before closing phase:**
+1. ✅ Check TASK_BOARD: All critical WPs show VALIDATED?
+2. ✅ Run spec regression check
+3. ✅ Run supply chain audits
+4. ✅ Review escalations log (empty?)
+5. ✅ Review WPs for deferred work notes
+6. ✅ Confirm all dependencies resolved
+
+**If ANY MUST criterion fails:**
+→ Phase is NOT ready. Document blocker + ETA.
+
+**If ALL MUST criteria pass:**
+→ Phase ready to close (SHOULD criteria are recommendations, not blockers).
+
 ---
 
 ## Part 7: Dependency Management [CX-630-635]
@@ -1565,6 +1852,113 @@ If WP-1-Migration-Framework blocks WP-1-Dual-Backend-Tests:
 
 - WP-1-AppState-Refactoring: Waiting for WP-1-Storage-Abstraction-Layer to VALIDATE (ETA 3 days)
 - WP-1-Dual-Backend-Tests: Blocked on 2 dependencies (WP-1-Storage-Abstraction-Layer, WP-1-Migration-Framework)
+```
+
+### 7.3 SLA for Work States [CX-635B]
+
+**Orchestrator MUST enforce time-based SLAs to prevent work from stalling.**
+
+| Status | Max Duration | Action if Exceeded | Escalation |
+|--------|--------------|-------------------|------------|
+| **BLOCKED** | 5 work days | Escalate blocker | Notify user: "WP-X has been blocked for 6 days. What's the plan?" |
+| **READY FOR DEV** | 10 work days | Flag as risk | Check: Is Coder assigned? Is there a hidden blocker? |
+| **IN PROGRESS** | 30 work days | Assess estimate | Was original estimate wrong? Do we need to split the work? |
+
+#### BLOCKED Status (Max 5 work days)
+
+**Scenario:** WP-1-AppState-Refactoring depends on WP-1-Storage-Abstraction-Layer
+
+**Day 0-4:** Document blocker, leave in BLOCKED state
+
+**Day 5:** If blocker still unresolved:
+```
+⚠️ ESCALATION: WP-X blocked beyond SLA [CX-635-B1]
+
+WP-ID: WP-1-AppState-Refactoring
+Status: BLOCKED (5 days, SLA exceeded)
+Blocker: WP-1-Storage-Abstraction-Layer (status: {current status})
+
+This WP cannot proceed until blocker resolves.
+
+Action required:
+1. What is the updated ETA for blocker resolution?
+2. Should we split this work differently?
+3. Is there alternative work to do while we wait?
+
+Awaiting response by: {date/time}
+```
+
+#### READY FOR DEV Status (Max 10 work days)
+
+**Scenario:** Packet created and verified, waiting for Coder to start
+
+**Day 0-9:** WP sits in "Ready for Dev", waiting for Coder assignment
+
+**Day 10:** If Coder hasn't started:
+```
+🚨 RISK FLAG: WP-X idle beyond SLA [CX-635-B2]
+
+WP-ID: WP-1-Job-Cancel-Endpoint
+Status: READY FOR DEV (10 days, no progress)
+Created: {date}, assigned: {date}
+
+Risk assessment:
+- Is Coder aware of this task?
+- Is there a blocker we missed?
+- Should Coder prioritize this over other work?
+
+Action: Confirm priority and Coder assignment
+```
+
+#### IN PROGRESS Status (Max 30 work days)
+
+**Scenario:** Coder is actively working
+
+**Day 0-29:** Coder makes progress, updates task packet with partial results
+
+**Day 30:** If still IN PROGRESS with no completion in sight:
+```
+📋 ESTIMATE REVIEW: WP-X progress check [CX-635-B3]
+
+WP-ID: WP-1-Storage-Abstraction-Layer
+Status: IN PROGRESS (30 days, original estimate: 15-20 hours)
+
+Actual progress: {what's done, what's remaining}
+Original estimate: 15-20 hours (estimated 3-5 work days)
+Actual effort: 30+ days
+
+Analysis:
+- Was original estimate too low?
+- Did scope creep occur?
+- Are there unexpected blockers?
+- Should we split work into smaller packets?
+
+Action: Reassess estimate or break work into phases
+```
+
+#### Escalation Template (Universal)
+
+Use this template for ANY SLA-triggered escalation:
+
+```
+⚠️ SLA ESCALATION: {WP-ID} [CX-635]
+
+**Work Packet:** {WP-ID} ({brief description})
+**Status:** {BLOCKED|READY FOR DEV|IN PROGRESS}
+**Duration:** {X days} (SLA limit: {Y days})
+**Created:** {date}, Last update: {date}
+
+**Current State:**
+{Description of why we're escalating}
+
+**Blocker/Issue:**
+{Specific thing preventing progress}
+
+**Action Needed:**
+{What must happen to unblock}
+
+**Response Required By:** {date/time}
+**Escalation Channel:** {user|team lead|project manager}
 ```
 
 ---

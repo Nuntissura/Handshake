@@ -10,7 +10,8 @@
       "Bash(git commit:*)",
       "Bash(cargo fmt:*)",
       "Bash(grep:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(Validator does\"\n- Clarified ownership model: Validator judges, Orchestrator records\n\n**Issue 1.4 - Dependency Enforcement Mechanism \\(RESOLVED\\)**\n- Added explicit enforcement in Part 4 Step 1:\n  * New: \"Check for blocking dependencies\" section\n  * Grep command to verify blocker status\n  * BLOCKING RULE: \"Never create downstream WP if blocker not VALIDATED\"\n  * Explicit handling: if blocker not ready → mark new WP as BLOCKED\n  * Response template for when blocker is not ready\n- Makes enforcement mechanism concrete and auditable\n\n**Impact:**\n- ORCHESTRATOR_PROTOCOL grade: B+ → A- \\(critical issues resolved\\)\n- Usability improvement: 7/10 → 8.5/10 for experienced architect\n- Consistency improvement: 6/10 → 8/10 \\(contradictions removed\\)\n- Actionability improvement: 6/10 → 8/10 \\(clear procedures\\)\n\n**How to verify fix:**\n1. Read Part 2.5.1 decision tree \\(prevents speculative enrichment\\)\n2. Read Part 5.2 CLARIFICATION box \\(splits Orchestrator vs Validator roles\\)\n3. Read Part 2 Step 2 CLARIFICATION box \\(clarifies status tracking\\)\n4. Read Part 4 Step 1 \"NEW: Check for blocking dependencies\" \\(enforcement\\)\n\n🤖 Generated with Claude Code\nCo-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

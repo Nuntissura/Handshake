@@ -78,6 +78,12 @@ This work is governed by the **Master Spec v02.84**. You MUST implement the exac
   - Matches 100% of Main Body text in §2.3.12.
   - Zero direct pool access outside `storage/` (verified by grep).
   - All tests pass with the new abstraction.
+- **TEST_PLAN:**
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`
+  - `just validator-spec-regression`
+  - `just validator-dal-audit`
+  - `just validator-hygiene-full`
+  - `just validator-error-codes`
 
 ---
 

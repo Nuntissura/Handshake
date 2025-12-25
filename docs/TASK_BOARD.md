@@ -32,17 +32,27 @@ Storage Backend Portability is foundational for Phase 1 closure. These four work
    - Effort: 8-10 hours
    - Blocker: WP-1-Storage-Abstraction-Layer + WP-1-Migration-Framework
 
+### Additional Phase 1 Must-Deliver (per Master Spec v02.84)
+
+- **[WP-1-Tokenization-Service]** - Implement TokenizationService per §4.6 (GPT + Llama tokenizers, fallback, budgeting). [READY FOR DEV 🔴]
+- **[WP-1-Semantic-Catalog]** - Implement SemanticCatalog per §2.6.7 with capability filtering. [READY FOR DEV 🔴]
+- **[WP-1-Mutation-Traceability]** - Enforce No Silent Edits per §2.9.3 (StorageGuard + MutationMetadata). [READY FOR DEV 🔴]
+- **[WP-1-Retention-GC]** - Implement retention/pruning per §2.3.11 (RetentionPolicy, Janitor, GC logs). [READY FOR DEV 🔴]
+- **[WP-1-AppState-Refactoring]** - Remove SqlitePool exposure from AppState, use Arc<dyn Database>. [GAP 🟡]
+- **[WP-1-Migration-Framework]** - Rewrite migrations with portable SQL and schema versioning. [GAP 🟡]
+- **[WP-1-Dual-Backend-Tests]** - Add PostgreSQL to CI, parameterize tests for both backends. [GAP 🟡]
+- **[WP-1-Security-Gates]** - Terminal/RCE guardrails (timeout/output/cwd/allowlist), secret scans. [GAP 🟡]
+- **[WP-1-Operator-Consoles-v1]** - Timeline/Jobs/Problems/Evidence views for Flight Recorder/diagnostics. [GAP 🟡]
+- **[WP-1-Metrics-Traces]** - Baseline metrics/OTel, validator pack. [GAP 🟡]
+- **[WP-1-Capability-SSoT]** - Centralized CapabilityRegistry, single source of truth. [GAP 🟡]
+- **[WP-1-MCP-End-to-End]** - Capability metadata/logging chain for MCP; end-to-end gate. [GAP 🟡]
 ---
 
 ## In Progress
 
 (None)
 
-## Ready for Dev
-
-- **[WP-1-Storage-Abstraction-Layer]**
-
-## Done
+## Ready for Validation (re-opened for review)
 
 - **[WP-1-Terminal-Integration-Baseline]**
 - **[WP-1-Capability-Enforcement]**
@@ -54,3 +64,15 @@ Storage Backend Portability is foundational for Phase 1 closure. These four work
 - **[WP-1-AI-Core-Backend]**
 - **[WP-Test-Sample]**
 - **[WP-Codex-v0.8]**
+
+## Ready for Dev
+
+- **[WP-1-Storage-Abstraction-Layer]**
+- **[WP-1-Tokenization-Service]**
+- **[WP-1-Semantic-Catalog]**
+- **[WP-1-Mutation-Traceability]**
+- **[WP-1-Retention-GC]**
+
+## Done
+
+(None – all prior Done items re-opened for validation)

@@ -494,3 +494,32 @@ Next: User assigns four WPs to team. Execution begins with WP-1-Storage-Abstract
 - 4 Work Packets (WP-1-SAL, WP-1-AppState, WP-1-Migration, WP-1-DualTest)
 - Task Board Phase 1 Closure Gates
 - STORAGE_PORTABILITY_ARCHITECTURE_GAP_ANALYSIS.md
+
+---
+
+## Entry 35: Validator Hardening and Re-Validation Sweep
+
+**Role:** Validator / Lead Auditor  
+**Context:** Rogue assistant removed critical spec sections; Task Board drifted; “Done” WPs lacked fresh evidence-based validation.  
+**Objective:** Re-lock spec anchors, harden validator gates, and force all WPs back through validation under the current spec.
+
+### Actions
+- Spec regression gate: Updated `validator-spec-regression.mjs` to require anchors 2.3.12 (storage), 2.3.11 (retention/GC), 2.6.7 (semantic catalog), 2.9.3 (mutation traceability/silent edits), 4.6 (tokenization). Confirmed SPEC_CURRENT -> Handshake_Master_Spec_v02.84.md (PASS).
+- Validator protocol: Added packet completeness checklist (STATUS/RISK/DONE_MEANS/TEST_PLAN/BOOTSTRAP/SPEC ref/USER_SIGNATURE), exception whitelist, traceability/determinism guards, coverage expectations, Git/Build hygiene, waiver/escalation rules, Board consistency check.
+- Tooling: Added validator helpers (packet-complete, error-codes/determinism, traceability, coverage-gaps, git-hygiene, hygiene-full); fixed validator-scan output; wired commands into justfile.
+- Task Board: Reopened all previously “Done” WPs into “Ready for Validation”; “Done” now empty pending revalidation.
+
+### Why
+- Spec v02.50 removed safety/portability sections; must block regression and align to v02.84.
+- Prior “Done” may have skipped evidence-based gates; require fresh PASS/FAIL under hardened protocol.
+- Prevent “pass with debt”: force explicit waivers and board/packet/spec alignment before marking Done.
+
+### Impact
+- Phase 1 remains blocked until reopened WPs pass validation under v02.84 anchors.
+- Validators have concrete commands to enforce anchors, hygiene, DAL boundaries, traceability, and coverage.
+- Future spec drift (missing anchors) will fail automatically.
+
+### Directives
+- Run: `just validator-spec-regression`, `validator-hygiene-full`, `validator-dal-audit`, `validator-packet-complete WP-...` before any “Done” claim.
+- Orchestrator: rebuild/add WPs for tokenization (4.6), semantic catalog (2.6.7), mutation traceability/silent edit guard (2.9.3), retention/GC (2.3.11), security gates, operator consoles, metrics/traces, capability SSoT, MCP end-to-end, migration framework, dual-backend tests, AppState refactor.
+- Validator: FAIL any WP lacking evidence mapping to v02.84 anchors or missing waivers for gaps.
