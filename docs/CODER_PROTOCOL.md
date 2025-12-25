@@ -60,6 +60,98 @@ I cannot write code without a task packet.
 
 ---
 
+### Step 1.5: Scope Adequacy Check [CX-581A-SCOPE] ✋ STOP
+
+**Purpose:** Catch scope issues BEFORE implementation. If scope is unclear or incomplete, escalate immediately rather than wasting time on implementation that might conflict.
+
+**When to run this step:** Immediately after verifying packet exists (Step 1) and before detailed reading (Step 2).
+
+**Check List:**
+
+- [ ] **Can I clearly identify all affected files?**
+  - [ ] IN_SCOPE_PATHS includes all files I'll modify
+  - [ ] No vague paths like "src/backend" (must be specific: "src/backend/jobs.rs", etc.)
+
+- [ ] **Are scope boundaries clear?**
+  - [ ] SCOPE is 1-2 sentences describing business goal
+  - [ ] Boundary is explicit (what IS and IS NOT included)
+  - [ ] I understand why each OUT_OF_SCOPE item is deferred
+
+- [ ] **Are there unexpected dependencies?**
+  - [ ] My work doesn't require changes to OUT_OF_SCOPE items
+  - [ ] No "but to implement X, I also need to implement Y" situations
+  - [ ] All required context is either in-scope or already exists
+
+- [ ] **Is the scope realistic for RISK_TIER?**
+  - [ ] LOW scope: single file, <50 lines, minimal testing
+  - [ ] MEDIUM scope: 2-4 files, <200 lines, standard testing
+  - [ ] HIGH scope: 4+ files, >200 lines, extensive testing + architecture review
+
+**If any check fails:**
+
+**Option A: Scope is incomplete (blocker)**
+
+```
+⚠️ SCOPE ISSUE: Missing IN_SCOPE_PATHS [CX-581A]
+
+Description:
+I need to modify src/backend/storage/database.rs to implement connection pooling,
+but IN_SCOPE_PATHS only includes src/backend/jobs.rs.
+
+Missing:
+- src/backend/storage/database.rs (required for pooling initialization)
+- src/backend/storage/mod.rs (required for public API)
+
+Impact:
+Cannot complete work without modifying these files.
+
+Option 1 (Recommended): Orchestrator updates IN_SCOPE_PATHS
+Option 2: Reduce scope to jobs.rs only (skip connection pooling)
+
+Awaiting Orchestrator decision.
+```
+
+**Option B: Scope conflict with OUT_OF_SCOPE (blocker)**
+
+```
+⚠️ SCOPE CONFLICT: OUT_OF_SCOPE blocker [CX-581A]
+
+Description:
+To implement job cancellation, I need to modify job state machine.
+But the state machine refactoring is marked OUT_OF_SCOPE.
+
+Current OUT_OF_SCOPE:
+- "State machine refactoring (defer to Phase 2)"
+
+Issue:
+Job cancellation requires `Cancel` state + transition logic.
+Cannot add without touching state machine.
+
+Options:
+1. Move state machine refactoring into IN_SCOPE
+2. Use workaround (add external flag, less clean but no refactoring)
+3. Defer job cancellation to Phase 2
+
+Recommending Option 2 (workaround) or Option 3 (defer).
+Orchestrator: Please advise.
+```
+
+**Option C: Scope is realistic, but I have questions**
+
+```
+✓ Scope appears clear. Quick confirmation questions:
+
+1. "Template system" in SCOPE - does this include CSS-in-JS or only React components?
+2. OUT_OF_SCOPE says "don't touch database schema" - what about indices?
+3. IN_SCOPE_PATHS lists 12 files - is this expected for "quick template addition"?
+
+If my understanding is correct, I'll proceed to Step 2. Otherwise, clarify needed.
+```
+
+**Rule:** Do NOT proceed past this step if scope is unclear. Escalate immediately.
+
+---
+
 ### Step 2: Read Task Packet ✋ STOP
 
 ```bash
@@ -216,6 +308,235 @@ RISK_MAP:
 
 ---
 
+### Step 6.5: DONE_MEANS Verification During Implementation [CX-625A]
+
+**Purpose:** Map each code change to DONE_MEANS criteria. By the end of Step 6, you should have written code that satisfies every DONE_MEANS item with file:line evidence.
+
+**During Implementation (as you code):**
+
+For each DONE_MEANS criterion in the task packet, ask yourself:
+1. **What code change does this require?**
+   - Example: "API endpoint available at `/jobs/:id/cancel`" → Requires new handler in `jobs.rs`
+
+2. **Where will I add the code?**
+   - Answer with specific file and location
+   - Example: "src/backend/handshake_core/src/api/jobs.rs, line 150-170"
+
+3. **How will I verify it's complete?**
+   - What test/command proves the criterion is met?
+   - Example: "POST request to `/jobs/123/cancel` succeeds and returns status"
+
+**After Implementation (before Step 7):**
+
+Create a DONE_MEANS mapping table:
+
+```
+DONE_MEANS VERIFICATION [CX-625A]
+============================================
+
+Criterion 1: "API endpoint POST /jobs/:id/cancel exists"
+Code evidence: src/backend/handshake_core/src/api/jobs.rs:156-165
+Test evidence: pnpm test passes (case: "cancel endpoint returns 200")
+✅ VERIFIABLE
+
+Criterion 2: "Job status changes to 'cancelled' on successful cancel"
+Code evidence: src/backend/handshake_core/src/jobs.rs:89-92
+Test evidence: pnpm test passes (case: "job status updated after cancel")
+✅ VERIFIABLE
+
+Criterion 3: "Cannot cancel already-completed jobs"
+Code evidence: src/backend/handshake_core/src/api/jobs.rs:162-165
+Test evidence: pnpm test passes (case: "cancel completed job returns error")
+✅ VERIFIABLE
+```
+
+**Rule:** Every DONE_MEANS item must have:
+1. Code location (file:lines)
+2. Test command that proves it works
+3. Status: ✅ VERIFIABLE or ❌ NOT YET VERIFIABLE
+
+**If any criterion is NOT verifiable:**
+
+```
+❌ CRITERION NOT MET: "Database transaction rollback on error"
+
+Code evidence: Not implemented
+Test evidence: No test for rollback scenario
+
+Action: Adding rollback logic + test before requesting validation.
+```
+
+Do NOT claim work is done until all DONE_MEANS are verifiable.
+
+---
+
+## Hard Invariant Enforcement Guide [CX-100-106]
+
+**Purpose:** Know what each hard invariant means and how to verify compliance before AI review.
+
+---
+
+### [CX-101] LLM Calls Through `/src/backend/llm/` Only
+
+**Meaning:** All LLM API calls (Claude, OpenAI, Ollama) must go through the central LLM module. Do NOT make direct HTTP calls to LLM providers from feature code.
+
+**Why:** Centralized control over authentication, rate limiting, cost tracking, and model switching.
+
+**Grep command to check (run before `just ai-review`):**
+```bash
+# Should find nothing in jobs/features (only in llm/)
+grep -r "reqwest\|http::" src/backend/handshake_core/src/jobs/ src/backend/handshake_core/src/api/
+grep -r "reqwest\|http::" src/backend/handshake_core/src/workflows/
+```
+
+**Enforcement rules:**
+- **New code in scope:** MUST call `/src/backend/llm/` API (e.g., `llm::call_claude()`)
+- **Existing code in scope:** If refactoring, must route through LLM module
+- **Existing code out of scope:** Ignore (no changes)
+
+**How to fix if violated:**
+1. Identify the direct HTTP call (e.g., `reqwest::Client::new().post()`)
+2. Create/use LLM module function instead
+3. Example fix:
+   ```rust
+   // ❌ WRONG
+   let response = reqwest::Client::new()
+     .post("https://api.anthropic.com/...")
+     .send().await?;
+
+   // ✅ RIGHT
+   let response = crate::llm::call_claude(prompt).await?;
+   ```
+
+---
+
+### [CX-102] No Direct HTTP in Jobs/Features
+
+**Meaning:** Jobs and feature code should not make HTTP calls directly. External calls must go through dedicated API modules (like the LLM module or storage connectors).
+
+**Why:** Maintains separation of concerns; easier to test; easier to trace failures.
+
+**Grep command to check:**
+```bash
+# Should find nothing in jobs/ or api/ (except allowed API modules)
+grep -r "reqwest\|ClientBuilder\|\.post(\|\.get(" src/backend/handshake_core/src/jobs/
+grep -r "reqwest\|ClientBuilder\|\.post(\|\.get(" src/backend/handshake_core/src/api/ \
+  | grep -v "api/llm\|api/storage"
+```
+
+**Enforcement rules:**
+- **New code in scope:** MUST NOT contain direct HTTP calls; route through modules
+- **Existing code in scope:** If refactoring, must use module-level abstractions
+- **Existing code out of scope:** Ignore
+
+**How to fix if violated:**
+1. Identify the direct HTTP call in job/feature code
+2. Create a dedicated module function (e.g., `storage::fetch_file()`)
+3. Call the module function instead
+4. Example fix:
+   ```rust
+   // ❌ WRONG (in jobs/run_export.rs)
+   let bucket = reqwest::Client::new()
+     .get(&storage_url).send().await?;
+
+   // ✅ RIGHT
+   let bucket = crate::storage::get_bucket(&bucket_name).await?;
+   ```
+
+---
+
+### [CX-104] No `println!` / `eprintln!` (Use Logging)
+
+**Meaning:** All output must go through the structured logging system (via `log`, `tracing`, or `event!` macros). Do NOT use `println!` or `eprintln!`.
+
+**Why:** Structured logging allows filtering, JSON output, log levels, and central aggregation. `println!` is unstructured and uncontrollable.
+
+**Grep command to check:**
+```bash
+# Should find nothing in src/ (only in tests/ is acceptable)
+grep -r "println!\|eprintln!" src/backend/handshake_core/src/ --include="*.rs"
+```
+
+**Enforcement rules:**
+- **New code:** MUST use `log::info!()`, `log::debug!()`, `log::warn!()`, or `event!()` macro
+- **Existing code in scope:** If refactoring, must replace `println!` with logging
+- **Existing code out of scope:** Ignore
+
+**How to fix if violated:**
+1. Identify the `println!` or `eprintln!` call
+2. Replace with logging equivalent:
+   ```rust
+   // ❌ WRONG
+   println!("Processing job: {}", job_id);
+   eprintln!("Error: {}", err);
+
+   // ✅ RIGHT
+   log::info!("Processing job: {}", job_id);
+   log::error!("Error: {}", err);
+
+   // ✅ ALSO RIGHT (if using event macro)
+   event!(Level::INFO, job_id = %job_id, "Processing job");
+   event!(Level::ERROR, error = %err, "Error occurred");
+   ```
+
+---
+
+### [CX-599A] TODOs Format: `TODO(HSK-####): description`
+
+**Meaning:** All TODO comments must reference a Handshake issue ID (HSK-####) and have a description. Generic TODOs or issue-less TODOs are not allowed.
+
+**Why:** Allows automatic TODO tracking; ensures every TODO is tied to project work.
+
+**Grep command to check:**
+```bash
+# Find all TODOs
+grep -r "TODO\|FIXME\|XXX\|HACK" src/backend/handshake_core/src/ --include="*.rs" | grep -v "TODO(HSK-"
+```
+
+**Enforcement rules:**
+- **New code:** MUST use format `TODO(HSK-NNNN): description` (e.g., `TODO(HSK-1234): Add encryption`)
+- **Existing code in scope:** If adding TODOs, must use format
+- **Existing code out of scope:** Leave as-is (don't refactor)
+
+**How to fix if violated:**
+1. Identify the TODO without issue reference
+2. Replace with proper format:
+   ```rust
+   // ❌ WRONG
+   // TODO: implement error handling
+   // FIXME: performance issue
+   // XXX: hack
+
+   // ✅ RIGHT
+   // TODO(HSK-1234): Implement proper error handling for network timeouts
+   // TODO(HSK-1235): Optimize query to <100ms
+   // TODO(HSK-1236): Replace temporary array with persistent storage
+   ```
+
+---
+
+### Summary: What to Check Before Running AI Review
+
+Run these commands before `just ai-review` to catch violations early:
+
+```bash
+# [CX-101] LLM calls only through module
+grep -r "reqwest\|http::" src/backend/handshake_core/src/jobs/ src/backend/handshake_core/src/api/
+
+# [CX-102] No direct HTTP in jobs
+grep -r "reqwest\|ClientBuilder" src/backend/handshake_core/src/jobs/ src/backend/handshake_core/src/api/
+
+# [CX-104] No println
+grep -r "println!\|eprintln!" src/backend/handshake_core/src/ --include="*.rs"
+
+# [CX-599A] TODOs have issue refs
+grep -r "TODO\|FIXME\|XXX" src/backend/handshake_core/src/ --include="*.rs" | grep -v "TODO(HSK-"
+```
+
+**Result:** If any commands return matches, fix violations before proceeding to AI review.
+
+---
+
 ## Validation Priority (CRITICAL ORDER) [CX-623-SEQUENCE]
 
 **Before starting validation, understand the order. Do NOT skip any step.**
@@ -293,6 +614,63 @@ Fixing issue before claiming done...
 ```
 
 Fix issues, re-run tests, update VALIDATION block.
+
+---
+
+### Step 7.5: Test Coverage Verification [CX-572A-COVERAGE]
+
+**Purpose:** Ensure test coverage meets minimum thresholds per RISK_TIER before AI review.
+
+**Coverage Minimums by Risk Tier:**
+
+| Risk Tier | Coverage Target | Rule | Verification |
+|-----------|-----------------|------|--------------|
+| **LOW** | None (optional) | No requirement | Skip this step if RISK_TIER is LOW |
+| **MEDIUM** | ≥ 80% | New code must have ≥80% coverage | Run `cargo tarpaulin` after tests pass |
+| **HIGH** | ≥ 85% + removal check | New code must be ≥85% + old code never removed | Run `cargo tarpaulin` + manual inspection |
+
+**How to check coverage (MEDIUM/HIGH risk only):**
+
+```bash
+# Install tarpaulin if needed
+cargo install cargo-tarpaulin
+
+# Run coverage analysis
+cd src/backend/handshake_core
+cargo tarpaulin --out Html --output-dir coverage/
+
+# Open coverage/tarpaulin-report.html and verify:
+# - Your new code has ≥80% (MEDIUM) or ≥85% (HIGH)
+# - No previously-covered code now has 0% (didn't remove tests)
+```
+
+**If coverage is LOW:**
+
+Document the reason in your VALIDATION block with one of these waivers:
+
+**Waiver Template (use sparingly):**
+```
+COVERAGE WAIVER [CX-572A-VARIANCE]
+==========================================
+
+RISK_TIER: MEDIUM
+Current Coverage: 75% (below 80% target)
+
+Reason: Database mocking complexity; 3 integration tests cover happy path
+
+Justification:
+- Critical path (query execution) at 92% coverage
+- Database layer (out of scope) at 40% coverage
+- Cannot improve without mocking framework (blocker)
+
+Risk Assessment:
+- Acceptability: ACCEPTABLE (critical path well-tested)
+- Impact: LOW (failure only in edge case)
+
+Approved by: {orchestrator decision or team agreement}
+```
+
+**Rule:** Do NOT proceed to AI review if coverage below threshold AND no approved waiver.
 
 ---
 
@@ -999,11 +1377,11 @@ Work is stuck (can't proceed without help)
 - **Effort:** 3-4 hours | **All items IMPLEMENTED ✅**
 
 ### Phase 2 (P1): Quality Systems [88 → 93/100]
-- [ ] Hard Invariant Enforcement Guide (explain [CX-101-106])
-- [ ] Test Coverage Checklist (minimum % per risk tier)
-- [ ] Scope Conflict Resolution (when implementation reveals gaps)
-- [ ] DONE_MEANS Verification Procedure (file:line evidence)
-- **Effort:** 2-3 hours | **Designed, ready for implementation**
+- [x] Hard Invariant Enforcement Guide (explain [CX-101-106]) - Added after Step 6
+- [x] Test Coverage Checklist (minimum % per risk tier) - Added as Step 7.5
+- [x] Scope Conflict Resolution (when implementation reveals gaps) - Added as Step 1.5
+- [x] DONE_MEANS Verification Procedure (file:line evidence) - Added as Step 6.5
+- **Effort:** 2-3 hours | **All items IMPLEMENTED ✅**
 
 ### Phase 3 (P2): Polish [93 → 99/100]
 - [ ] AI Review Severity Matrix (PASS/WARN/BLOCK criteria)
@@ -1023,11 +1401,11 @@ Work is stuck (can't proceed without help)
 - Coder has error recovery playbook
 - **Grade: A- (88/100)**
 
-**After Phase 2 (P1) - Designed**
-- Hard invariants explained (fewer AI blocks)
-- Test coverage minimums clear
-- Scope conflicts caught early
-- DONE_MEANS verified with evidence
+**After Phase 2 (P1) - COMPLETED ✅**
+- Hard invariants explained with grep commands and fix examples (Step 6 + enforcement guide)
+- Test coverage minimums clear with tarpaulin verification (Step 7.5)
+- Scope conflicts caught early with step 1.5 adequacy check
+- DONE_MEANS verified with file:line evidence during implementation (Step 6.5)
 - **Grade: A (93/100)**
 
 **After Phase 3 (P2) - Designed**
