@@ -6,7 +6,7 @@
 - REQUESTOR: ilja
 - AGENT_ID: Orchestrator
 - ROLE: Orchestrator
-- STATUS: In-Progress 🟠
+- STATUS: Completed ✅
 - RISK_TIER: MEDIUM
   - Justification: Foundation for security and tool filtering; refactors core workflow logic.
 - USER_SIGNATURE: ilja251220252005
@@ -141,3 +141,35 @@ Implement `CapabilityRegistry` and `CapabilityProfile` models as the Single Sour
 
 **Last Updated:** 2025-12-25
 **User Signature Locked:** ilja251220252005
+
+## VALIDATION REPORT — WP-1-Capability-SSoT
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Capability-SSoT.md (status: In-Progress)
+- Spec: Handshake_Master_Spec_v02.84.md (§11.1)
+
+Files Checked:
+- src/backend/handshake_core/src/capabilities.rs
+- src/backend/handshake_core/src/workflows.rs
+- src/backend/handshake_core/src/lib.rs
+- src/backend/handshake_core/src/api/jobs.rs
+
+Findings:
+- **Correctness**: SSoT `CapabilityRegistry` is implemented and centralized. Hardcoded maps in `workflows.rs` are removed.
+- **Spec Alignment**: Implements valid axes (`fs.read`), full IDs (`doc.summarize`), and profiles (`default`, `terminal`) as requested.
+- **Evidence Mapping**: All requirements from §11.1 mapped to code lines in `capabilities.rs`.
+- **Hygiene**: Build errors in `storage` module resolved (unblocking validation).
+- **Testing**: `cargo test` passes for both capabilities unit tests and workflow integration tests.
+- **Flight Recorder**: Capability checks emit structured events with allow/deny outcomes.
+
+Tests:
+- `cargo test ... capabilities` -> PASS
+- `cargo test ... workflow` -> PASS
+
+Risks & Suggested Actions:
+- **Risk**: Registry configuration is static (hardcoded in `capabilities.rs`). Future work (Phase 2) should move this to a config file or DB.
+- **Action**: None blocking Phase 1 closure.
+
+REASON FOR PASS:
+The implementation fully satisfies the SSoT requirement. The capability registry is now the single authority for permissions, replacing scattered logic. The build is stable.
