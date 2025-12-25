@@ -1,487 +1,461 @@
-# Handshake Spec-Driven Multi-Agent Workflow (Local Execution)
+# Spec-Driven Multi-Agent Workflow (Project-Agnostic)
 
-## Scope and Sources
-- Based on current governance: `docs/SPEC_CURRENT.md` (Master Spec v02.84), `Handshake Codex v1.4.md`, `docs/ORCHESTRATOR_PROTOCOL.md`, `docs/CODER_PROTOCOL.md`, `docs/VALIDATOR_PROTOCOL.md`, `docs/TASK_BOARD.md`, `scripts/create-task-packet.mjs`.
-- Audience: people running Handshake locally who need a precise description of how the spec, orchestrator, coder, validator, and future tool-calling agent cooperate.
+## Scope and Inputs
+- Applies to any local or remote repo that uses four agents: Orchestrator, Coder, Validator, Tool Agent (mechanical/tool-calling).
+- Assumes the following files exist (rename as needed): `docs/SPEC_CURRENT.md`, `docs/ORCHESTRATOR_PROTOCOL.md`, `docs/CODER_PROTOCOL.md`, `docs/VALIDATOR_PROTOCOL.md`, `docs/TASK_BOARD.md`, `docs/SIGNATURE_AUDIT.md`, `docs/task_packets/`, `scripts/validation/`, `justfile`.
+- Replace project-specific names, versions, and paths with your own; the workflow and templates are intentionally generic.
 
-## Spec as the Authority
-- `docs/SPEC_CURRENT.md` pins the active Master Spec version; Main Body sections are the only acceptable authority for work packets. Roadmap items require promotion plus signature before use.
-- The signature checkpoint (user-provided `{username}{DDMMYYYYHHMM}`) is a **forced collaborative pause** before spec enrichment or packet creation. Signatures are single-use, immutable locks, and must be logged in `docs/SIGNATURE_AUDIT.md`. See "Signature Pause: Alignment & Enrichment Protocol" for collaboration workflow.
-- Spec change workflow: clone the current spec to a new version, enrich with clarified requirements, update protocol files, bump references, and rerun `just validator-spec-regression`.
-- Every work packet must cite a precise `SPEC_ANCHOR` (e.g., `A2.3.12.3`) that exists in the current spec; ambiguous anchors must be escalated, not guessed.
+## Core Principles
 
-## Roles and Responsibilities
+**1. Spec as Single Source of Truth**
+- `docs/SPEC_CURRENT.md` is a pointer file naming the active Master Spec (e.g., `Master_Spec_v1.0.md`)
+- Master Spec uses hierarchical SPEC_ANCHOR format (e.g., `A2.3.12.3`)
+- Only Main Body sections are binding authority; Roadmap is optional reference
+- Every work packet must cite a precise SPEC_ANCHOR that exists in the current spec; ambiguous anchors must be escalated, not guessed
+- Spec change workflow: enrich a new version + update SPEC_CURRENT.md + run spec regression validator + obtain signature before use
+
+**2. Signatures Create Forced Alignment**
+- User-issued signature `{username}{DDMMYYYYHHMM}` (e.g., `alice_25121512345`) is required before spec enrichment OR packet creation
+- Signature is a **collaborative pause**: Orchestrator proposes, user validates, signature locks the agreement (DONE_MEANS, TEST_PLAN, scope, risk tier)
+- Signatures are **one-time-use only**, recorded in `docs/SIGNATURE_AUDIT.md`, verified via grep: `grep -r "{signature}" . | grep -c signature_audit.md` must equal 1
+- Prevents autonomous drift; every significant decision has a human decision point
+
+**3. Work is Packetized (One Requirement per Packet)**
+- One logical requirement = one task packet (WP-{phase}-{name}.md)
+- Packet contains 10 required fields: TASK_ID, STATUS, SPEC_ANCHOR, scope, DONE_MEANS, TEST_PLAN, BOOTSTRAP, ROLLBACK_HINT, VALIDATION, Signature Log
+- Packets are **immutable after signature** (USER_SIGNATURE field freezes content); changes require `-v2` variant with fresh signature
+- Prevents scope creep; enforces clear work boundaries
+
+**4. State Consistency (Packet ↔ Task Board)**
+- Task Board and packet STATUS must always match (Ready-for-Dev, In-Progress, Done, etc.)
+- State changes are **atomic**: update both packet STATUS and task board entry together
+- Prevents state drift; task board is always authoritative
+
+**5. Evidence or It Does Not Exist**
+- Every DONE_MEANS requirement must have:
+  - **Code evidence**: specific file:line where the requirement is implemented
+  - **Test proof**: command that fails if code is removed (removability check)
+  - **Spec anchor**: which section governs this requirement
+- Validator audits evidence deterministically; "looks good" is not evidence
+- Traceability enables post-mortem analysis, regression detection, feature removal safety
+
+## Roles & Responsibilities
 
 ### Orchestrator (Lead Architect / Engineering Manager)
-- Owns translation of user intent/spec requirements into immutable task packets; does not write code.
-- Pre-orchestration gates: verify spec currency and regression, task board freshness, supply chain (`cargo deny`, `npm audit`), governance file currency, and dependency chains.
-- **Signature pause protocol (before packet creation):** Orchestrator proposes enrichment and rubric adjustments; user and orchestrator collaborate to agree on DONE_MEANS, TEST_PLAN, scope, risk tier, and evidence model. See "Signature Pause: Alignment & Enrichment Protocol" for full workflow. Signature validates the collaboration and locks intent.
-- Packet creation (via `just create-task-packet WP-{id}`): fill all 10 required fields with no placeholders (scope with IN/OUT paths, RISK_TIER, TEST_PLAN commands, DONE_MEANS mapped 1:1 to SPEC_ANCHOR, ROLLBACK_HINT, BOOTSTRAP with FILES/TERMS/RUN/RISK_MAP).
-- Scope precision: IN_SCOPE_PATHS are exact files; OUT_OF_SCOPE is explicit deferral; one requirement per packet.
-- Verification before delegation: run `just pre-work WP-{id}`; block on failure; update `docs/TASK_BOARD.md` and packet STATUS in lockstep; lock packets with USER_SIGNATURE (immutable thereafter; create variant packets for changes).
-- Handoff: provide packet path, WP_ID, risk tier, authority docs, and readiness confirmation. Maintain status SLAs and dependency rules (no downstream work until blockers are VALIDATED).
+- **Owns translation** of user intent and spec requirements into immutable task packets; does not write code
+- **Pre-orchestration gates**: verify spec currency and regression, task board freshness, supply chain health (`cargo deny`, `npm audit`), governance file currency, dependency chains
+- **Signature pause protocol**: before packet creation, propose DONE_MEANS (5-10 measurable checkpoints), TEST_PLAN commands, IN/OUT scope (exact file paths), RISK_TIER with justification, validator audit scope, rollback plan, packet variant triggers
+- **Packet creation** (via `just create-task-packet WP-{id}`): fill all 10 required fields with zero placeholders; enforce SPEC_ANCHOR references; scope to exact files (not globs); one requirement per packet
+- **Verification before delegation**: run `just pre-work WP-{id}` (blocks on failure); update `docs/TASK_BOARD.md` and packet STATUS in lockstep; lock packets with USER_SIGNATURE
+- **Handoff**: provide packet path, WP_ID, RISK_TIER, authority docs (SPEC_CURRENT, protocols), and readiness confirmation; maintain SLAs (no downstream work until blockers are VALIDATED)
 
 ### Coder / Debugger
-- Refuses to start without a complete task packet; performs scope adequacy check before reading details.
-- Outputs BOOTSTRAP (FILES_TO_OPEN 5-15, SEARCH_TERMS 10-20, RUN_COMMANDS 3-6, RISK_MAP 3-8) before first change; moves WP to In Progress on the Task Board.
-- Implements only within IN_SCOPE_PATHS, honoring DONE_MEANS and OUT_OF_SCOPE. Enforces hard invariants: LLM calls only via `/src/backend/llm/` [CX-101], no direct HTTP in jobs/features [CX-102], no `println!/eprintln!` [CX-104], TODOs must be `TODO(HSK-####)`, zero speculative requirements.
-- Validation order: TEST_PLAN commands (e.g., cargo test, pnpm test/lint, clippy), then `just ai-review` for MEDIUM/HIGH risk, then `just post-work WP-{id}`. Each DONE_MEANS item must have file:line evidence and test proof.
-- Updates packet with validation block/status, maintains Task Board sync, prepares commit message referencing WP_ID; no commits without validation.
+- **Refuses to start** without a complete task packet; performs scope adequacy check (can I identify all affected files? Are boundaries clear? Are there unexpected dependencies?)
+- **Outputs BOOTSTRAP** (FILES_TO_OPEN 5-15, SEARCH_TERMS 10-20, RUN_COMMANDS 3-6, RISK_MAP 3-8) before first code change; moves WP to In Progress on Task Board
+- **Implements strictly within IN_SCOPE_PATHS**, honoring DONE_MEANS and OUT_OF_SCOPE; enforces hard invariants (zero speculative requirements, no TODO placeholders without tracking IDs)
+- **Validation order**: TEST_PLAN commands (cargo test, pnpm test, curl, etc.), then `just ai-review` for MEDIUM/HIGH risk, then `just post-work WP-{id}`. Each DONE_MEANS must have file:line evidence and test proof
+- **Updates packet** with VALIDATION block (Command, Result, Notes), maintains Task Board sync, prepares commit message referencing WP_ID; no commits without passing post-work gate
 
 ### Validator (Senior Engineer / Lead Auditor)
-- Blocks merges unless evidence proves alignment with spec, codex, and packet; preserves User Context sections in packets.
-- Pre-flight: confirm packet completeness, spec version match, USER_SIGNATURE unchanged, STATUS present, BOOTSTRAP present, TEST_PLAN concrete.
-- Spec extraction: enumerate every MUST/SHOULD from DONE_MEANS + spec slices; evidence map each to path:line; missing evidence = FAIL.
-- Skeleton/hygiene gates: reject hollow code, JSON blobs where types required, unwrap/expect/panic/dbg/println/todo in production without waiver; enforce Zero Placeholder Policy.
-- Targeted audits: storage DAL (trait boundary, SQL portability, migration hygiene, dual-backend readiness), LLM boundary, determinism/traceability (trace_id/job_id), security/RCE guardrails, git/build hygiene. Uses `just validator-scan`, `just validator-dal-audit`, `just validator-error-codes`, `just validator-hygiene-full`, etc.
-- Test verification: ensure TEST_PLAN executed; require at least one removal-check style test or documented waiver for new logic; <80% coverage flagged as risk.
-- Verdict is binary PASS/FAIL. On PASS, append validation report to packet, update STATUS, and move Task Board entry to Done; on FAIL, document gaps and return to orchestrator/coder.
+- **Blocks merges** unless evidence proves alignment with spec, codex, and packet; preserves collaboration context in packets
+- **Pre-flight checks**: confirm packet completeness (all 10 fields), spec version match, USER_SIGNATURE unchanged and valid, STATUS present, BOOTSTRAP present, TEST_PLAN concrete
+- **Spec extraction**: enumerate every MUST/SHOULD from DONE_MEANS + spec anchors; map each to file:line evidence; missing evidence = FAIL
+- **Hygiene gates**: reject hollow code, JSON blobs where types required, unwrap/expect/panic in production without waiver; enforce Zero Placeholder Policy; run `just validator-scan`
+- **Targeted audits**: storage DAL (trait boundary, SQL portability, migration numbering, dual-backend readiness), LLM boundary, determinism/traceability (trace_id/job_id in mutations), security/RCE guardrails, git/build hygiene
+- **Binary verdict**: PASS (evidence complete, audits clean, tests pass) appends validation report to packet and moves to Done; FAIL (gaps found) documents violations and returns to Orchestrator/Coder
 
-## Prompt-to-Spec and Packet Conversion
-1) **Intake:** treat the user prompt as a proto-spec. Extract explicit requirements and implied constraints.
-2) **Coverage check:** run the "clearly covers" 5-point test against the Main Body. If any point fails, request clarification and enrich the spec with a new version + signature before proceeding.
-3) **Spec anchoring:** map each requirement to a SPEC_ANCHOR. If no anchor exists, enrich spec (new version, update protocols, audit log).
-4) **Signature pause (alignment checkpoint):** Orchestrator proposes DONE_MEANS (5–10 measurable checkpoints), TEST_PLAN commands, scope boundaries (IN/OUT paths), RISK_TIER, and evidence audit model. User and Orchestrator collaborate to:
-   - Confirm DONE_MEANS are unambiguous and testable (not "implement auth", but "users can POST /auth/login and receive jwt_token")
-   - Validate TEST_PLAN commands are executable and prove each DONE_MEANS
-   - Agree on audit scope and validator rubric (e.g., DAL audit? LLM boundary? security checks?)
-   - Adjust RISK_TIER and rollback plan if needed
-   - Lock interpretation with signature; record collaboration notes in packet. See "Signature Pause: Alignment & Enrichment Protocol" for details.
-5) **Packetization:** for each requirement, generate packet with locked DONE_MEANS, TEST_PLAN, scope, and bootstrap plan. Use the generator script and replace every placeholder; run `just pre-work WP-{id}`.
-6) **Task board instantiation:** add the packet to `docs/TASK_BOARD.md` under Ready for Dev (or Blocked if dependencies are unresolved) with dependency notes.
+### Tool Agent (Mechanical Execution)
+- **Executes allowed commands** (tests, scans, formatters, linters, file searches) under an allowlist defined in the packet's Tooling section
+- **Works within bounds**: respects IN_SCOPE_PATHS, honors OUT_OF_SCOPE, respects RISK_TIER constraints (no exploratory changes)
+- **Returns deterministic logs**: command + output + exit code; logs attached to packet's VALIDATION section for reproducibility
+- **Reduces context churn**: keeps Coder/Validator prompts shorter by executing mechanical operations independently
 
-## Signature Pause: Alignment & Enrichment Protocol
+## End-to-End Flow (6 Stages)
 
-The signature checkpoint is a **forced collaborative pause** where User and Orchestrator (the LLM agent) align on requirements before any packet is created or spec is enriched. This ensures misalignment does not cascade downstream to Coder, Validator, and Tool Agent.
+**Stage 1: Intake & Coverage Check**
+- User prompt arrives; Orchestrator extracts explicit requirements and implied constraints (treat prompt as proto-spec)
+- Run "clearly covers" 5-point test against spec Main Body (does it cover scope, risks, success criteria, dependencies, rollback?)
+- If any test fails, request clarification and enrich spec with new version + signature before proceeding
 
-### What the Orchestrator Proposes (Pre-Signature)
+**Stage 2: Spec Anchoring & Signature Pause**
+- Orchestrator maps each requirement to a SPEC_ANCHOR; if no anchor exists, enrich spec (new version, update SPEC_CURRENT.md, run `just validator-spec-regression`)
+- **Signature pause (user-orchestrator alignment)**: Orchestrator proposes:
+  - 5-10 DONE_MEANS (measurable yes/no checkpoints, not aspirational)
+  - TEST_PLAN commands (executable proof for each DONE_MEANS)
+  - IN_SCOPE_PATHS (exact files, 5-20 specific paths)
+  - OUT_OF_SCOPE (explicit deferrals with reasons)
+  - RISK_TIER (LOW/MEDIUM/HIGH with justification)
+  - Validator audit scope (which audits required?)
+  - Rollback plan (if implementation fails, how to recover?)
+  - Packet variant triggers (scope creep handling)
+- User validates: interpretation accuracy? TEST_PLAN feasible? Scope realistic? Risk acceptable? Cost/benefit aligned?
+- User provides signature `{username}{DDMMYYYYHHMM}`; Orchestrator records in packet's Signature & Enrichment Log
 
-Before requesting a signature, the Orchestrator must propose:
+**Stage 3: Packetization & Pre-Flight**
+- Orchestrator creates task packet (via `just create-task-packet WP-{id}`) with all 10 fields (no placeholders)
+- Runs `just pre-work WP-{id}` (gates on completeness)
+- Updates `docs/TASK_BOARD.md` to Ready for Dev (atomic update: both packet and board)
+- Issues handoff to Coder: packet path, WP_ID, RISK_TIER, authority docs, readiness confirmation
 
-1. **Spec Enrichment Slate**
-   - New sections needed in SPEC_CURRENT.md?
-   - Existing SPEC_ANCHOR sections that apply, or gaps requiring enrichment?
-   - Hidden interdependencies or constraint violations (e.g., DAL boundary impacts, security surface changes)?
+**Stage 4: Coder Implementation Phase**
+- Coder reads task packet, performs scope adequacy check (identifies all affected files, validates boundaries, checks for hidden dependencies)
+- Outputs BOOTSTRAP block before first change (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP)
+- Implements strictly within IN_SCOPE_PATHS, honoring DONE_MEANS and OUT_OF_SCOPE (no speculative requirements)
+- Executes TEST_PLAN commands (copy-paste-ready bash commands from packet)
+- For MEDIUM/HIGH risk: runs `just ai-review`
+- Records validation evidence in packet's VALIDATION block (Command, Result, Notes)
+- Runs `just post-work WP-{id}` (gates on completion)
+- Updates packet STATUS to Ready-for-Validation + updates Task Board atomically
+- Prepares commit message referencing WP_ID
 
-2. **DONE_MEANS Refinement (5–10 Measurable Checkpoints)**
-   - Not aspirational ("implement authentication"), but concrete and testable ("users can POST /auth/login with email+password, receive jwt_token in response header with 24-hour TTL, and subsequent requests with Authorization: Bearer token succeed").
-   - Each item must be verifiable with a yes/no test or file:line evidence.
-   - Map each DONE_MEANS to a SPEC_ANCHOR.
+**Stage 5: Validator Audit Phase**
+- Validator reads packet, performs pre-flight: completeness? Spec match? USER_SIGNATURE valid? BOOTSTRAP present?
+- Extracts every MUST/SHOULD from DONE_MEANS + spec anchor sections
+- Maps each requirement to file:line code evidence
+- Runs test commands to verify evidence (removability check: does test fail if code deleted?)
+- Runs `just validator-scan` (forbidden patterns), custom audits (DAL, error codes, traceability, security, etc.)
+- Records findings in new VALIDATION REPORT block (Verdict: PASS/FAIL, Scope, Findings, Tests, Risks/Gaps, Packet Updates)
+- PASS: appends report to packet, updates packet STATUS to Done, updates Task Board to Done
+- FAIL: documents gaps and returns to Orchestrator/Coder for rework
 
-3. **TEST_PLAN Commands (Executable Proof)**
-   - Concrete cargo test, pnpm test, curl, or inspection commands that prove each DONE_MEANS.
-   - Commands must be runnable in the current codebase with no ambiguity.
-   - Coverage threshold and removal-check style test requirements.
-
-4. **Scope Precision (IN/OUT_SCOPE_PATHS)**
-   - IN_SCOPE_PATHS: exact files that will be modified (not directories, not glob patterns).
-   - OUT_OF_SCOPE: explicit deferrals and constraints (e.g., "storage DAL structure is immutable", "do not touch validator protocol").
-   - One logical requirement per packet; interdependencies flagged for sequencing.
-
-5. **RISK_TIER Assessment (LOW / MEDIUM / HIGH) with Justification**
-   - Why this tier? (e.g., "MEDIUM: modifies LLM boundary + storage schema, triggers DAL audit").
-   - If MEDIUM/HIGH: validator must-checks and ai-review triggers.
-   - Rollback plan: if implementation fails or validator rejects, what is recovery?
-
-6. **Validator Rubric & Audit Scope**
-   - Which validator scripts will run? (hygiene, DAL, LLM, security, etc.)
-   - Evidence checklist for validator: what files, what test commands, what trace IDs?
-   - Any waivers or exceptions pre-agreed?
-
-7. **Packet Variant Triggers**
-   - If user asks "can you also do X?" during implementation, will it spawn a `-v2` packet or amend DONE_MEANS?
-   - Pre-agree on scope creep handling to prevent mid-flight surprises.
-
-### What the User Should Clarify & Validate
-
-During the pause, the user must vet:
-
-1. **Interpretation Accuracy**
-   - Read the DONE_MEANS back to yourself. Does it match what you asked for?
-   - Are the checkpoints over-engineered, under-specified, or just right?
-   - Did Orchestrator miss implicit requirements (performance SLAs, backward compatibility, deprecation path)?
-
-2. **TEST_PLAN Feasibility**
-   - Can those commands actually run in the current repo state?
-   - Will a cargo test command in FILES_TO_OPEN succeed without manual setup?
-   - Is coverage threshold (e.g., 80%) realistic given the scope?
-
-3. **Scope Realism**
-   - Are the IN_SCOPE_PATHS achievable, or has Orchestrator underestimated dependencies?
-   - Are the OUT_OF_SCOPE deferrals acceptable, or do they undermine the goal?
-   - Can one requirement truly fit in one packet, or should this be two packets?
-
-4. **Risk Acknowledgment**
-   - Do you accept the RISK_TIER and validator audit scope?
-   - Is the rollback plan adequate if something goes wrong?
-   - Are there hidden systems (auth, storage, LLM integration) that might break?
-
-5. **Cost vs. Benefit**
-   - Is the effort aligned with the business value?
-   - Are there pre-requisite tasks or blockers that should be resolved first?
-
-### Collaboration Outcome: Signature Block
-
-Once aligned, the user issues a signature `{username}{DDMMYYYYHHMM}`. The Orchestrator records this block in the packet:
-
-```markdown
-## Signature & Enrichment Log
-
-**Signature:** alice_25121512345  (immutable)
-**Timestamp:** 2025-12-15 12:34:56 UTC
-
-### User-Orchestrator Collaboration Notes:
-- **Clarified:** User explained that auth must support both email and OAuth. Orchestrator updated DONE_MEANS to include OAuth flow.
-- **Spec Enrichment:** Added new section A4.2.7 (OAuth Integration) to SPEC_CURRENT.md v02.85; updated ORCHESTRATOR_PROTOCOL.md.
-- **Rubric Adjustments:** DONE_MEANS expanded from 4 to 7 items; TEST_PLAN added OAuth callback test; DAL audit added (no storage changes, but JWT schema validated).
-- **Risks Acknowledged:** User approved RISK_TIER = MEDIUM; rollback is to revert feature flag and purge test OAuth clients.
-
-### Locked Intent (Immutable):
-- **DONE_MEANS:** [frozen, word-for-word]
-- **TEST_PLAN:** [frozen]
-- **IN_SCOPE_PATHS:** [frozen]
-- **OUT_OF_SCOPE:** [frozen]
-- **Validator Audit Scope:** [frozen]
-```
-
-Once signed, the packet is locked. Any change requires user+orchestrator to collaborate again and create a `-v2` variant with a new signature.
-
-### Operational Application
-
-When Handshake agents run operationally, every spec change triggers the same pause:
-- Agent (playing Orchestrator role) proposes enrichment.
-- User reviews and agrees or refines.
-- User provides signature to lock intent.
-- Downstream agents execute with unambiguous, signed requirements.
-
-This ensures governance and provenance at development time and runtime.
-
-## Task Packet Lifecycle and State Flow
-- States: Backlog -> Ready for Dev -> In Progress -> Ready for Validation -> Done (VALIDATED). Task Board and packet STATUS must always match.
-- Dependency enforcement: downstream packets remain BLOCKED until upstream STATUS is VALIDATED; SLAs (Blocked >5 days, Ready >10 days, In Progress >30 days) trigger escalations.
-- Locking: USER_SIGNATURE freezes packet content; variants (e.g., `-v2`) are created for scope changes.
-- Artifacts: packet in `docs/task_packets/`, Task Board entry, validation block inside packet, optional logger entry for milestones/hard bugs.
-
-## Local Execution Pipeline (Three Agents + Future Tool Agent)
-1) Orchestrator (local LLM) performs gates, creates/locks packet, runs `just pre-work WP-{id}`, updates Task Board, issues handoff.
-2) Coder (local code-capable model) runs BOOTSTRAP, implements within scope, executes TEST_PLAN and hygiene commands, appends validation notes, and proposes commit message.
-3) Validator (audit model or scripted checks) replays TEST_PLAN selectively, runs validator scripts, audits evidence, and records PASS/FAIL in the packet; signals orchestrator to close or reopen.
-4) Orchestrator finalizes: posts mechanical output to user (what changed, validation summary), files validation report into the packet, moves Task Board item to Done.
-
-## Introducing a Tool-Calling Agent (Fourth Role)
-- Purpose: execute mechanical commands (just tasks, rg/grep scans, formatting, small file edits, MCP calls) so Coder/Validator prompts stay shorter and safer.
-- Workflow impact:
-  - Orchestrator adds a "Tooling" section to packets with approved commands, cwd constraints, output size limits, and logs destination.
-  - Coder delegates TEST_PLAN and search commands to the tool agent; the agent returns logs for inclusion in the packet's validation block.
-  - Validator can request reruns of validator scripts via the tool agent to keep validation reproducible.
-  - Governance: tool agent must honor IN_SCOPE_PATHS, OUT_OF_SCOPE, and risk tier; orchestrator should require command allowlists and cap time/output for security.
-- Benefits: reduces context churn for large prompts, standardizes command execution, and provides deterministic logs for Validator; risk is minimized by explicit allowlists and packet-specified bounds.
-
-## Context Window Strategy and Mitigating Context Rot
-- Spec anchoring plus immutable packets mitigate drift: all instructions live in durable files (spec version, packet, Task Board) rather than chat history.
-- Use retrieval-style prompts: supply only relevant spec slices (SPEC_ANCHOR sections), packet fields, and recent validation notes to each agent call.
-- Keep prompts short and structural: refer to packet fields by name and cite SPEC_ANCHOR IDs instead of pasting entire specs.
-- Periodically refresh summaries: when packets stay open, have orchestrator issue brief state digests (scope, open questions, last validation) to combat context rot.
-- Large-model trends: long-context models help but still benefit from hierarchical prompting (anchor IDs + concise evidence). Structured logs (validation blocks, BOOTSTRAP, command outputs) are safer than raw transcripts for reuse.
-
-## Treating Prompts as Specs for Heavy Tasks
-- Promote user prompts into packet-grade requirements: rewrite as DONE_MEANS with measurable yes/no checks, explicit file scope, and a TEST_PLAN.
-- Require spec anchors or explicit enrichment for any new behavior; record rationale in the packet "Why" and in SIGNATURE_AUDIT when enrichment occurs.
-- Survivability under scrutiny comes from determinism: every claim must point to SPEC_ANCHOR and have a verification command; assumptions go into packet Notes until resolved.
-
-## End-to-End Handshake Loop
-1) **User prompt arrives.** Orchestrator performs clarity + spec coverage checks; enriches spec if needed (signature, version bump).
-2) **Signature pause (user-orchestrator alignment).** Orchestrator proposes DONE_MEANS, TEST_PLAN, scope, RISK_TIER, and validator rubric. User and Orchestrator collaborate to refine. Once aligned, user provides signature to lock intent. Collaboration notes recorded in packet.
-3) **Packet creation and pre-flight.** Orchestrator generates packet, runs `just pre-work`, updates Task Board to Ready for Dev, and hands off.
-4) **Coder execution phase.** Coder BOOTSTRAPs, implements within scope, runs tests/ai-review/post-work, and records validation with evidence against locked DONE_MEANS.
-5) **Validator audit phase.** Validator audits spec alignment (DONE_MEANS vs SPEC_ANCHOR), hygiene, tests (TEST_PLAN), DAL/LLM/security, and records PASS/FAIL in the packet.
-6) **Orchestrator finalization.** Publishes mechanical output to user (summary + validation status), files validation report inside packet, updates Task Board to Done, and closes work item.
-
-## Task Packet Template & Required Fields
-
-Every work packet must contain exactly 10 required fields (no placeholders):
-
-1. **TASK_ID** - `WP-{phase}-{name}` (e.g., `WP-1-Storage-Layer`)
-2. **STATUS** - One of: `Ready-for-Dev | In-Progress | Done | Backlog`
-3. **What** - 1-2 sentence description of the requirement
-4. **Why** - Business/technical rationale; references SPEC_ANCHOR
-5. **IN_SCOPE_PATHS** - Exact file paths (5-20 specific files, not directory globs)
-6. **OUT_OF_SCOPE** - Explicit deferrals with reasons
-7. **DONE_MEANS** - 5-10 measurable, yes/no checkpoints mapped 1:1 to SPEC_ANCHOR
-8. **TEST_PLAN** - Copy-paste-ready bash commands proving each DONE_MEANS
-9. **BOOTSTRAP** - (Coder's work plan)
-   - `FILES_TO_OPEN`: 5-15 specific files to read first
-   - `SEARCH_TERMS`: 10-20 exact grep strings to find related code
-   - `RUN_COMMANDS`: 3-6 test/setup commands to verify state
-   - `RISK_MAP`: 3-8 failure modes → affected subsystems
-10. **VALIDATION** - (Updated by Coder, audited by Validator)
-    - `Command`: Exact test command run
-    - `Result`: PASS/FAIL with details
-    - `Notes`: Warnings or special conditions
-
-**Template Generation** (via script):
-```bash
-just create-task-packet WP-{ID}
-# → Generates docs/task_packets/WP-{ID}.md with all 10 fields + template text
-# → Requires manual replacement of every placeholder before packet is valid
-# → just pre-work WP-{ID} will FAIL until all placeholders removed
-```
+**Stage 6: Orchestrator Finalization**
+- Publishes mechanical output to user: work summary + validation status + what changed
+- Files validation report inside the original packet (immutable record)
+- Updates Task Board entry to Done (with VALIDATED marker if applicable)
+- Closes work item; issues SLA tracking for next phase
 
 ---
 
-## Validation Script Architecture
+## Task Packet Lifecycle & State Flow
 
-Create `scripts/validation/` directory with modular validator scripts. Each script checks ONE concern and exits 0 (pass) or 1 (fail). Wire through `justfile` for uniform command interface.
-
-### Pre-Work Gate (Gate 0)
-
-**File**: `scripts/validation/pre-work-check.mjs`
-
-**Checks**:
-1. Task packet file exists: `docs/task_packets/WP-{ID}.md`
-2. Packet contains all 10 required fields
-3. No placeholder text (`{field_name}`, `TODO(TBD)`)
-4. TASK_ID, RISK_TIER, SCOPE, TEST_PLAN, DONE_MEANS present
-
-**Command**: `just pre-work WP-{ID}`
-
-**Exit**: 0 (proceed to implementation), 1 (return to Orchestrator)
-
-### Post-Work Gate (Gate 1)
-
-**File**: `scripts/validation/post-work-check.mjs`
-
-**Checks**:
-1. Task packet exists
-2. VALIDATION section has outcomes recorded (Command, Result, Notes)
-3. If TEST_PLAN lists cargo test/pnpm test, validate documented in VALIDATION
-4. If RISK_TIER MEDIUM/HIGH: verify ai_review completed and not BLOCKED
-5. FILES changed in git (work was actually done)
-
-**Command**: `just post-work WP-{ID}`
-
-**Exit**: 0 (work validated, safe to commit), 1 (incomplete, return to Coder)
-
-### Forbidden Pattern Scanner
-
-**File**: `scripts/validation/validator-scan.mjs`
-
-**Forbidden in production code**:
+**State Transitions**:
 ```
-unwrap              (Exception: OK in tests)
-expect(             (Exception: OK in tests)
-todo!               (Exception: OK in tests)
-unimplemented!
-dbg!
-println!            (Exception: OK in tests)
-eprintln!
-panic!              (Exception: OK in tests)
+Backlog → Ready-for-Dev → In-Progress → Ready-for-Validation → Done (VALIDATED)
+   ↓          ↓               ↓                  ↓                  ↓
+(waiting)  (queued)      (active)         (awaiting audit)      (closed)
 ```
 
-**Placeholder patterns** (anywhere):
+**Status Rules**:
+- **Backlog**: packet created but not spec-ready; waiting for enrichment or dependency resolution
+- **Ready-for-Dev**: fully spec'd, signature obtained, `just pre-work` passed; awaiting coder assignment
+- **In-Progress**: coder actively implementing; packet shows BOOTSTRAP + validation evidence
+- **Ready-for-Validation**: implementation complete; `just post-work` passed; awaiting validator review
+- **Done (VALIDATED)**: validator issued PASS; validation report appended to packet; task board entry shows VALIDATED
+
+**Immutability & Variants**:
+- Once USER_SIGNATURE is recorded, packet content is frozen
+- Any change after signature requires creating a `-v2` variant with fresh signature and new collaboration notes
+- Old packet versions remain in git history for audit trail
+
+**SLAs & Escalation**:
+- **Backlog >5 days**: escalate; dependency or prioritization issue
+- **Ready-for-Dev >10 days**: escalate; insufficient coder capacity
+- **In-Progress >30 days**: escalate; scope creep or complexity underestimated
+- **Ready-for-Validation >3 days**: escalate; validator queue blocked
+
+**Dependency Enforcement**:
+- Task Board explicitly lists blockers: "WP-2-Feature-B blocked on WP-1-Foundation"
+- Downstream packets remain BLOCKED until upstream STATUS is VALIDATED
+- `just validator-phase-gate {PHASE}` prevents phase closure if blockers unresolved
+
+## Signature Pause (Alignment & Enrichment)
+- **Orchestrator proposes**: SPEC_ANCHORs or enrichment needed, 5-10 DONE_MEANS (measurable), TEST_PLAN commands, IN/OUT scope, RISK_TIER, validator audit scope, rollback plan, variant triggers.
+- **User validates**: interpretation accuracy, feasibility of commands, scope realism, risk acceptance, cost/benefit.
+- **Signature block (recorded in packet)**:
+  ```
+  ## Signature & Enrichment Log
+  Signature: alice_25121512345 (immutable)
+  Timestamp: 2025-12-15 12:34:56 UTC
+  Notes:
+  - Clarified: OAuth flow required; DONE_MEANS updated to include callback test.
+  - Spec Enrichment: Added A4.2.7 OAuth; SPEC_CURRENT updated.
+  - Validator Scope: DAL audit skipped; LLM boundary + security required.
+  Locked: DONE_MEANS, TEST_PLAN, IN_SCOPE_PATHS, OUT_OF_SCOPE, validator checks.
+  ```
+- Any change after signature => create `WP-{id}-v2` with a new signature.
+
+## Templates (Copy, then fill)
+
+### Task Packet (10 Required Fields)
 ```
-Mock, Stub, placeholder, hollow, {field}
+# Task Packet: WP-{phase}-{name}
+- TASK_ID: WP-{phase}-{name}
+- STATUS: Ready-for-Dev | In-Progress | Ready-for-Validation | Done | Backlog
+- SPEC_ANCHOR: {e.g., A2.3.12.3}
+- What: {1-2 sentences}
+- Why: {rationale + spec reference}
+- IN_SCOPE_PATHS:
+  - {exact file path 1}
+  - {exact file path 2}
+- OUT_OF_SCOPE:
+  - {explicit deferral + reason}
+- DONE_MEANS: 5-10 measurable checkpoints (yes/no), each mapped to SPEC_ANCHOR
+- TEST_PLAN:
+  - {command 1}
+  - {command 2}
+  - {ai-review if medium/high}
+- BOOTSTRAP (Coder work plan):
+  - FILES_TO_OPEN: 5-15 files
+  - SEARCH_TERMS: 10-20 grep strings
+  - RUN_COMMANDS: 3-6 setup/test commands
+  - RISK_MAP: 3-8 failure modes -> subsystems
+- ROLLBACK_HINT: {git revert <sha> or explicit steps}
+- VALIDATION (filled after work):
+  - Command:
+  - Result:
+  - Notes:
+- Signature & Enrichment Log: {signature block}
 ```
 
-**Command**: `just validator-scan`
+### Task Board Entry
+```
+## Phase {N} Closure Gates (Blocking)
+- [WP-1-Storage-Layer] Ready-for-Dev (no blockers)
+- [WP-1-AppState-Refactor] Blocked on WP-1-Storage-Layer
 
-**Exit**: 0 (clean), 1 (patterns found, lists all)
+## In Progress
+- [WP-1-Storage-Layer]
 
-**Note**: Update SCAN_PATHS and FORBIDDEN_PATTERNS arrays for your project.
-
-### Spec Regression Validator
-
-**File**: `scripts/validation/validator-spec-regression.mjs`
-
-**Purpose**: Gate phase progression; ensure spec integrity
-
-**Checks**:
-1. `docs/SPEC_CURRENT.md` exists and is readable
-2. Points to valid spec file (e.g., `Master_Spec_v02.84.md`) in repo root
-3. Spec file contains all REQUIRED_ANCHORS (define for your project):
-   ```javascript
-   const REQUIRED_ANCHORS = [
-     "§2.3.12",    // Storage portability
-     "§2.3.11",    // Retention/GC
-     "§2.6.7",     // Semantic catalog
-     "§2.9.3"      // Mutation traceability
-   ];
-   ```
-
-**Command**: `just validator-spec-regression`
-
-**Exit**: 0 (spec valid), 1 (file missing or anchor gap)
-
-### Custom Audit Scripts (Architecture-Specific)
-
-**Template Pattern**:
-```javascript
-// scripts/validation/validator-{concern}.mjs
-export async function validate({WP_ID, projectRoot}) {
-  // 1. Read files in scope
-  // 2. Apply domain-specific checks
-  // 3. Collect evidence
-  // 4. Return {passed: bool, violations: []}
-}
+## Ready for Dev
+- [WP-1-Migration-Framework]
 ```
 
-**Examples to implement**:
-- `validator-dal-audit.mjs` - Storage layer boundary checks
-- `validator-error-codes.mjs` - Typed errors, not stringly errors
-- `validator-traceability.mjs` - Trace IDs in mutations
-- `validator-coverage-gaps.mjs` - Test coverage thresholds
-- `validator-git-hygiene.mjs` - .gitignore, repo bloat
+### Orchestrator Handoff (to Coder)
+```
+Task Packet: docs/task_packets/WP-{id}.md
+WP_ID: WP-{id}
+RISK_TIER: LOW|MEDIUM|HIGH
 
----
+Read: ORCHESTRATOR_PROTOCOL.md, CODER_PROTOCOL.md, SPEC_CURRENT.md
+Run: just pre-work {WP_ID}
+Deliver: BOOTSTRAP block before first change.
+Scope is locked to IN_SCOPE_PATHS; OUT_OF_SCOPE is forbidden.
+DONE_MEANS and TEST_PLAN are frozen by signature.
+```
 
-## Justfile Command Wiring
+### Coder BOOTSTRAP Block (before coding)
+```
+BOOTSTRAP
+WP_ID: WP-{id}
+RISK_TIER: MEDIUM
+TASK_TYPE: FEATURE|DEBUG|REFACTOR|HYGIENE
+FILES_TO_OPEN:
+- docs/START_HERE.md
+- docs/SPEC_CURRENT.md
+- docs/task_packets/WP-{id}.md
+- src/path/file.rs
+- ...
+SEARCH_TERMS:
+- "TraitName"
+- "SqlPool"
+- ...
+RUN_COMMANDS:
+- just dev
+- cargo test --manifest-path src/backend/Cargo.toml
+- pnpm -C app test
+RISK_MAP:
+- "Trait mismatch" -> "Storage layer"
+- "API contract break" -> "Frontend/IPC"
+```
 
-Create `justfile` with commands for the entire workflow. Pattern:
+### Validator Report
+```
+VALIDATION REPORT - WP-{id}
+Verdict: PASS | FAIL
 
-```makefile
-# Scaffold
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-{id}.md (status: {status})
+- Spec: {SPEC_CURRENT ref + anchors}
+
+Findings:
+- Requirement: {DONE_MEANS item} -> {path:line}; test: {command} (PASS/FAIL)
+- Hygiene: {clean/issues}
+- Forbidden Patterns: {results}
+- Audits: {DAL/LLM/security/etc}
+
+Tests:
+- {command}: PASS/FAIL (summary)
+
+Risks/Gaps:
+- {residual risks or waivers}
+
+Packet Update:
+- STATUS set to Done|In-Progress|Blocked with reason
+- Task Board updated
+```
+
+### Tool Agent Allowlist (per packet)
+```
+## Tooling (Allowed for Tool Agent)
+- Workdir: {repo root or subdir}
+- Allowed commands:
+  - just pre-work {WP_ID}
+  - cargo test --manifest-path ...
+  - pnpm -C app test
+  - rg "pattern" src/
+- Output limits: {max lines/MB}
+- Time limits: {per command}
+- Logs: Attach output to VALIDATION section
+```
+
+### Evidence Table (inside packet)
+```
+## Evidence Mapping
+| DONE_MEANS | SPEC_ANCHOR | Code Evidence (path:line) | Test Command |
+|------------|-------------|---------------------------|--------------|
+| "DB is behind trait" | A2.3.12.3 | src/storage/mod.rs:45-120 | cargo test -p core storage_tests |
+| "No pool leaks" | A2.3.12.3 | src/api/*.rs imports checked | rg "SqlPool" src/api |
+```
+
+### Signature Audit Entry (project root)
+```
+| Signature | Used By | Timestamp | Purpose | Spec Version | Evidence |
+|-----------|---------|-----------|---------|--------------|----------|
+| alice_25121512345 | Orchestrator | 2025-12-15 12:34:56 UTC | Packet creation WP-1 | v02.85 | docs/task_packets/WP-1.md |
+```
+
+### Justfile Skeleton
+```
 create-task-packet WP_ID:
   node scripts/create-task-packet.mjs {{WP_ID}}
 
-# Validation gates
 pre-work WP_ID:
   node scripts/validation/pre-work-check.mjs {{WP_ID}}
 
 post-work WP_ID:
   node scripts/validation/post-work-check.mjs {{WP_ID}}
 
-# Validator suite
 validator-scan:
   node scripts/validation/validator-scan.mjs
 
 validator-spec-regression:
   node scripts/validation/validator-spec-regression.mjs
 
-validator-dal-audit:
-  node scripts/validation/validator-dal-audit.mjs
-
-# Unified workflow command
 validate-workflow WP_ID:
   just pre-work {{WP_ID}}
   just validator-scan
   just validator-spec-regression
   just ai-review
   just post-work {{WP_ID}}
-
-# Phase progression gate
-validator-phase-gate PHASE:
-  node scripts/validation/validator-phase-gate.mjs {{PHASE}}
 ```
 
-**Total**:
-- 5-7 core validation commands
-- 2 gates (pre-work, post-work)
-- 4-6 specialist validators
-- 1 unified workflow command
-- 1 phase gate
+## Validation Scripts (Modular, One Concern Each)
 
-**Wire all into justfile for uniform CLI interface.**
+**Pre-Work Gate (Gate 0)**: `pre-work-check.mjs`
+- Verifies task packet file exists: `docs/task_packets/WP-{ID}.md`
+- Confirms all 10 required fields present: TASK_ID, STATUS, SPEC_ANCHOR, scope, DONE_MEANS, TEST_PLAN, BOOTSTRAP, ROLLBACK_HINT, VALIDATION, Signature Log
+- Scans for placeholder text (`{field_name}`, `TODO(TBD)`, `FIXME`, mock values)
+- Exit 0: proceed to implementation; Exit 1: return to Orchestrator for completion
+- **Purpose**: prevents handoff until packet is actionable
 
----
+**Post-Work Gate (Gate 1)**: `post-work-check.mjs`
+- Verifies VALIDATION section has outcomes recorded (Command, Result, Notes)
+- If TEST_PLAN lists test commands, validates they're documented with results
+- For MEDIUM/HIGH risk: verifies `ai-review` completed and not BLOCKED
+- Checks git diff shows actual changes (work was done)
+- Exit 0: work validated, safe to commit; Exit 1: incomplete, return to Coder
+- **Purpose**: prevents merge until validation evidence present
 
-## SIGNATURE_AUDIT.md: Immutable Signature Registry
+**Forbidden Pattern Scanner**: `validator-scan.mjs`
+- Scans production code for patterns that indicate incomplete work or unsafe patterns
+- **Forbidden** (exceptions allowed in tests only): `unwrap`, `expect(`, `todo!`, `unimplemented!`, `dbg!`, `println!`, `eprintln!`, `panic!`
+- **Placeholder patterns** (anywhere): `Mock`, `Stub`, `placeholder`, `hollow`, `{field}`
+- **Configurable** per project: scan paths, allowed exceptions
+- Exit 0: clean; Exit 1: patterns found, lists all occurrences
 
-**File**: `docs/SIGNATURE_AUDIT.md`
+**Spec Regression Validator**: `validator-spec-regression.mjs`
+- Gates spec integrity and phase progression
+- Checks: `docs/SPEC_CURRENT.md` exists and is readable
+- Verifies points to valid spec file (e.g., `Master_Spec_v1.0.md`) in repo root
+- Validates spec file contains all REQUIRED_ANCHORS (project-defined list):
+  ```
+  const REQUIRED_ANCHORS = [
+    "A2.3.12",    // Example: Storage portability
+    "A2.3.11",    // Example: Retention/GC
+    "A2.6.7"      // Example: Semantic catalog
+  ];
+  ```
+- Exit 0: spec valid; Exit 1: file missing or anchor gap
+- **Purpose**: ensures spec coherence; blocks phase progression on regression
 
-**Purpose**: Single source of truth for signature consumption; prevents replay and reuse
+**Custom Auditors** (architecture-specific):
+- `validator-dal-audit`: storage layer boundary (no direct DB access outside modules, SQL portability, trait isolation, migration hygiene)
+- `validator-error-codes`: typed errors + traceability (no stringly errors, HSK-#### codes, trace IDs in mutations)
+- `validator-traceability`: determinism markers (trace_id, job_id, request_id) in mutation points
+- `validator-git-hygiene`: .gitignore coverage, no artifacts committed (target/, *.pdb, node_modules)
+- `validator-coverage-gaps`: test coverage thresholds (<80% flagged)
+- `validator-security`: RCE guardrails, input validation, secret detection
 
-**Format**:
+**Phase Gate Validator**: `validator-phase-gate.mjs`
+- Reads `docs/TASK_BOARD.md` "Phase {N} Closure Gates (BLOCKING)"
+- Verifies every listed blocking WP: status = Done AND VALIDATED
+- Runs `just validator-spec-regression` (spec must be current for phase closure)
+- Checks no unresolved dependencies (all upstream = VALIDATED)
+- Exit 0: clear to proceed; Exit 1: blockers remain
+- **Purpose**: gates phase progression; prevents moving forward with incomplete foundations
 
-```markdown
-# Signature Audit Log
+## Context Window & Prompt Hygiene (Mitigating Context Rot)
 
-**Signature Format**: {username}{DDMMYYYYHHMM}
+**Spec Anchoring Prevents Drift**:
+- All instructions live in durable files (spec version, packet, task board), not ephemeral chat history
+- Refer to SPEC_ANCHOR IDs instead of pasting entire specs (e.g., "per A2.3.12, implement trait-based storage" vs. entire storage section)
+- Spec Signature freezes intent; changes require new signature, creating audit trail
 
-**Example**: `ilja_25122512345` = user "ilja" + 2025-12-25 12:34:56 UTC
+**Retrieval-Style Prompts** (for each agent call):
+- Supply only relevant spec slices: read SPEC_ANCHOR sections directly, not full spec
+- Include the full task packet (includes Signature Log + DONE_MEANS + TEST_PLAN + BOOTSTRAP)
+- Attach latest VALIDATION block (what has been verified so far)
+- Keep total context <20KB for Coder/Validator calls; larger context for Orchestrator (who coordinates)
 
-**Rules**:
-- Each signature is ONE-TIME USE only
-- External clock required (user must verify timestamp)
-- Consumption is permanent (see log below)
-- Reuse check: `grep -r "{signature}" .` should return ONLY this audit entry
+**Short & Structural Prompts**:
+- Refer to packet fields by name + ID ("per DONE_MEANS item 3, verify file:line evidence")
+- Cite SPEC_ANCHOR IDs instead of explaining requirements ("implement per A2.3.12.3" vs. "implement a trait-based storage layer that...")
+- Use packet templates + signature log to avoid re-explaining context every turn
 
----
+**Long-Running Packets (>5 days)**:
+- Have Orchestrator issue brief state digests: current scope, open questions, last validation results, next expected step
+- Digest replaces verbose transcript; agents read digest + packet, not entire conversation
+- Reduces need to context-search through 50+ turns of negotiation
 
-## Consumed Signatures
+**Large-Context Models**:
+- Even long-context models benefit from hierarchical prompting (anchor IDs + slices)
+- Structured logs (validation blocks, BOOTSTRAP, command outputs) are safer for reuse than raw transcripts
+- Logs are deterministic and auditable; transcripts drift
 
-| Signature | Used By | Timestamp | Purpose | Spec Version | Evidence |
-|-----------|---------|-----------|---------|--------------|----------|
-| ilja_25122512345 | Orchestrator | 2025-12-25 12:34:56 UTC | Strategic Pause: Enrich storage layer scope | v02.84 | docs/task_packets/WP-1-Storage-Layer.md |
-| ilja_25122513456 | Orchestrator | 2025-12-25 13:45:56 UTC | Packet creation: Phase 1 blocker tasks | v02.84 | docs/TASK_BOARD.md update |
-
----
-
-**Verification**:
-1. Orchestrator proposes enrichment + signature
-2. User provides signature: {username}{DDMMYYYYHHMM}
-3. Orchestrator verifies reuse: `grep -r "{signature}" . | grep -c signature_audit.md` == 1
-4. If count != 1, FAIL and reject
-5. Log signature and proceed
+**Example Prompt (for Coder)**:
+```
+WP_ID: WP-1-Storage-Layer
+SPEC_ANCHOR: A2.3.12.3
+Read: docs/SPEC_CURRENT.md sections A2.3.12.3 + A2.3.12.1
+Read: docs/task_packets/WP-1-Storage-Layer.md (full packet)
+DONE_MEANS:
+  1. "AppState exposes Database as Arc<dyn Trait>"
+  2. "No SqlitePool leaks to API layer"
+TEST_PLAN: cargo test -p core storage_tests; grep "SqlPool" src/api | wc -l
+Task: Implement DONE_MEANS per packet; record evidence; run TEST_PLAN.
 ```
 
-**Integration with workflow**:
-- Orchestrator fetches fresh signature before enriching spec or creating packet
-- Checks SIGNATURE_AUDIT.md for reuse via grep
-- Records signature immediately after consumption
-- Prevents autonomous drift by forcing human decision points
-
----
-
-## Evidence Model: Requirement → Code → Test
-
-**Pattern**: Every DONE_MEANS requirement maps to code evidence + test proof
-
-**Structure in Packet**:
-
-```markdown
-## Evidence Mapping
-
-| DONE_MEANS | SPEC_ANCHOR | Code Evidence | Test Command |
-|------------|-------------|---------------|--------------|
-| "AppState exposes DB as Arc<dyn Trait>" | §2.3.12.3 | src/main.rs:42-55 | grep "Arc<dyn" src/api/*.rs \| wc -l |
-| "No SqlitePool leakage to API layer" | §2.3.12.3 | src/api/handler.rs (imports checked) | grep -r "SqlitePool" src/api/ \| wc -l |
-| "Auth accepts email+password via POST" | §4.1 | src/api/auth.rs:100-150 | curl -X POST /auth/login -d '...' |
-```
-
-**Validator verification**:
-1. Read DONE_MEANS
-2. For each, locate file:line evidence
-3. Run test command
-4. Record result in VALIDATION block
-5. FAIL if: evidence not found, test command fails, or test doesn't actually verify requirement
-
-**Evidence must be**:
-- Deterministic (same command always returns same result)
-- Removable (if code deleted, test fails)
-- Specific (file:line, not just "looks good")
-
----
-
-## Git Hook Integration
+## Git Hook Integration (Pre-Commit Enforcement)
 
 **File**: `scripts/hooks/pre-commit`
 
-**Purpose**: Prevent broken commits; enforce codex invariants before code enters tree
+**Purpose**: Prevent broken commits; enforce codex/governance invariants before code enters tree
 
-**Commands to run**:
+**Sample Implementation**:
 ```bash
 #!/bin/bash
 set -e
 
-# 1. Verify hard invariants (codex)
+# 1. Verify hard invariants (governance rules)
 node scripts/validation/codex-check.mjs
 
 # 2. Warn about TODOs without tracking IDs
-grep -r "TODO()" src/ app/ && echo "❌ TODOs must have tracking ID: TODO(HSK-####)" && exit 1
+grep -r "TODO()" src/ app/ && \
+  echo "❌ TODOs must have tracking ID: TODO(HSK-####)" && exit 1
 
-# 3. Forbid placeholder values
+# 3. Forbid placeholder values in code
 grep -r "{" src/ app/ --include="*.rs" --include="*.ts" --include="*.tsx" && \
-  echo "⚠️  Found placeholder text in code; this won't work" && exit 1
+  echo "⚠️  Found placeholder text in code" && exit 1
 
 # 4. Lint and format
 cargo fmt --check || exit 1
@@ -495,7 +469,7 @@ echo "✅ Pre-commit checks passed"
 git config core.hooksPath scripts/hooks
 ```
 
-**Effect**: Commit blocked until checks pass; catches errors before pushing
+**Effect**: Commit blocked until checks pass; catches errors before pushing to remote
 
 ---
 
@@ -505,29 +479,31 @@ Create `docs/` directory with:
 
 ```
 docs/
-├── START_HERE.md              # Entry point, repo map, AI agent workflow
+├── START_HERE.md              # Entry point; repo map; AI agent workflow
 ├── SPEC_CURRENT.md            # Pointer: "Current spec is Master_Spec_vX.Y.Z.md"
-├── ARCHITECTURE.md            # Module layout, responsibilities, entry points
+├── ARCHITECTURE.md            # Module layout, responsibilities, entry points, RDD
 ├── RUNBOOK_DEBUG.md           # Error codes, bug triage, debug patterns
 ├── QUALITY_GATE.md            # Risk tier definitions, Gate 0/1 requirements
-├── TASK_BOARD.md              # Master task status table + dependency tracking
+├── TASK_BOARD.md              # Master task status + Phase gates + dependencies
 ├── SIGNATURE_AUDIT.md         # Immutable registry of consumed signatures
 ├── OWNERSHIP.md               # Path/area ownership (optional)
 ├── task_packets/
 │   ├── README.md              # Packet naming convention, validation commands
-│   ├── WP-1-*.md              # (20-30 actual packets during active work)
-│   └── TEMPLATE.md            # (Packet template for copy-paste)
+│   ├── TEMPLATE.md            # Copy-paste packet template
+│   └── WP-1-*.md, WP-2-*.md   # (20-30 actual packets during active work)
 ├── adr/                       # Architecture Decision Records
-│   └── ADR-0001-workflow.md
+│   ├── ADR-0001-workflow.md
+│   └── ADR-0002-spec-governance.md
 └── agents/
     └── AGENT_REGISTRY.md      # Map of contributing agents/models
 ```
 
-**Master Spec location** (root level):
+**Master Spec location** (repo root):
 ```
 Master_Spec_v1.0.md            # Current authoritative spec (~1MB+)
-Master_Spec_v0.9.md            # (Previous versions archived in root)
+Master_Spec_v0.9.md            # (Previous versions for audit trail)
 {Project} Codex v1.0.md        # Governance rules (versioned)
+{Project} Codex v0.9.md
 ```
 
 ---
@@ -536,55 +512,66 @@ Master_Spec_v0.9.md            # (Previous versions archived in root)
 
 **Command**: `just validator-phase-gate {PHASE_ID}`
 
-**What it does**:
-1. Reads `docs/TASK_BOARD.md` "Phase {PHASE_ID} Closure Gates (BLOCKING)"
-2. Verifies every listed WP is status `Done` AND `VALIDATED`
+**What It Does**:
+1. Reads `docs/TASK_BOARD.md` section "Phase {PHASE_ID} Closure Gates (BLOCKING)"
+2. Verifies every listed blocking WP: STATUS = Done AND VALIDATED
 3. Runs `just validator-spec-regression` (spec must be current)
-4. Checks no unresolved dependencies
-5. Returns 0 (clear to proceed) or 1 (blockers remain)
+4. Checks no unresolved dependencies (all upstream = VALIDATED)
+5. Returns exit 0 (clear to proceed) or exit 1 (blockers remain)
 
-**Usage**:
+**Usage Example**:
 ```bash
 # Before closing Phase 1, run:
 just validator-phase-gate Phase-1
 
 # Output:
-# ❌ BLOCKED: WP-1-Storage-Layer not VALIDATED (status: Done)
-# ❌ BLOCKED: WP-1-AppState-Refactor not VALIDATED (status: In-Progress)
+# ✅ Phase 1 Closure Gates check...
+# ❌ BLOCKED: WP-1-Storage-Layer (status: Done, not VALIDATED)
+# ❌ BLOCKED: WP-1-AppState-Refactor (status: In-Progress)
 # Exit 1
+
+# Once all gates pass:
+# ✅ All blocking WPs VALIDATED
+# ✅ Spec regression check passed
+# ✅ No unresolved dependencies
+# Exit 0
 ```
 
-**Gates phase progression** (used in release workflows, CI/CD):
+**Gates Phase Progression** (in CI/CD or release script):
 ```bash
 if just validator-phase-gate Phase-1; then
   echo "✅ Phase 1 ready to close"
   git tag phase-1-complete
+  git push origin phase-1-complete
 else
   echo "❌ Blockers remain; cannot close phase"
+  echo "Run: just TASK_BOARD.md to review blocking WPs"
   exit 1
 fi
 ```
 
+**Why This Matters**:
+- Prevents moving forward with incomplete foundations
+- Enforces spec coherence (regression check)
+- Makes dependency chains explicit
+- Blocks merges to main/release until gates pass
+
 ---
 
-## Immediate Recommendations
-- **Implement signature pause protocol:** Before creating any packet or enriching specs, Orchestrator must propose DONE_MEANS, TEST_PLAN, scope, RISK_TIER, and validator rubric. User and Orchestrator collaborate to align. Signature locks the collaboration notes and frozen intent. Update `scripts/create-task-packet.mjs` to include Signature & Enrichment Log template.
-- **Standardize packet creation** via `scripts/create-task-packet.mjs` and enforce `just pre-work WP-{id}` before every handoff.
-- **Create validator suite** with modular scripts (scan, spec-regression, custom audits). Wire all into `justfile` for uniform CLI.
-- **Set up Git hooks** (`scripts/hooks/pre-commit`) to enforce hard invariants before code enters tree.
-- **Create SIGNATURE_AUDIT.md** and enforce one-time-use signatures via grep on every enrichment.
-- **Document TASK_BOARD.md** with Phase N Closure Gates explicitly listing blocking WPs; gate progression via `just validator-phase-gate`.
-- **Keep Task Board and packet STATUS changes atomic** (edit both together); reject work if either drifts.
-- **Keep retrieval sets tight:** SPEC_ANCHOR slice + packet (esp. Signature Log + DONE_MEANS) + latest validation block; avoid pasting whole specs to prevent context rot.
-- **Train all four agents on the signature pause protocol:** Orchestrator must always propose before pausing for signature. Coder and Validator must honor locked DONE_MEANS and TEST_PLAN. Tool Agent respects scope and audit constraints.
-- **Bootstrap repository checklist** (for new projects):
-  1. Create master spec file (versioned, with SPEC_ANCHOR hierarchies)
-  2. Create docs/SPEC_CURRENT.md pointer
-  3. Create docs/TASK_BOARD.md template + Phase definitions
-  4. Create docs/SIGNATURE_AUDIT.md (empty initially)
-  5. Create scripts/validation/*.mjs validators (at least pre-work, post-work, spec-regression)
-  6. Wire into justfile
-  7. Create scripts/hooks/pre-commit + wire git config
-  8. Create task packet template
-  9. Document protocols (ORCHESTRATOR_PROTOCOL.md, CODER_PROTOCOL.md, VALIDATOR_PROTOCOL.md)
-  10. Train agents on the workflow
+## Making It Project-Agnostic
+- Swap `SPEC_ANCHOR` format, file paths, and command runners to match your stack (e.g., `go test ./...`, `npm test`, `pytest`).
+- Rename risk tiers or add tiers; adjust validator scripts to your invariants (e.g., API contract checks, schema checks).
+- Replace LLM/LLM-boundary rules with your own hard invariants (e.g., no direct DB access, no network calls in handlers).
+- Update forbidden patterns to reflect your language/tooling.
+
+## Quick Start Checklist (new repo)
+1) Create `docs/SPEC_CURRENT.md` pointing to your spec file.
+2) Add packet template under `docs/task_packets/`.
+3) Create `docs/TASK_BOARD.md` with columns and phase gates.
+4) Add `docs/SIGNATURE_AUDIT.md` (empty table).
+5) Add validator scripts under `scripts/validation/`; wire into `justfile`.
+6) Add `scripts/create-task-packet.mjs` (or equivalent generator).
+7) Add git hook (`scripts/hooks/pre-commit`) for invariants and linting.
+8) Train agents on Orchestrator/Coder/Validator protocols and the signature pause.
+9) Run `just pre-work WP-{id}` before handoff; block on any failure.
+10) Require signature pause before enrichment or packet creation; log every signature.
