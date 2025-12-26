@@ -6,7 +6,9 @@
 - REQUESTOR: User
 - AGENT_ID: orchestrator-gemini
 - ROLE: Orchestrator
-- STATUS: DONE [VALIDATED]
+
+
+## SKELETON APPROVED
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja251220252304
 
@@ -35,12 +37,12 @@
   just validator-hygiene-full
   ```
 - **DONE_MEANS**:
-  * ✅ `QueryPlan` and `RetrievalTrace` structs match §2.6.6.7.14.5 exactly.
-  * ✅ `AceRuntimeValidator` trait defined per §2.6.6.7.14.11 in v02.85.
-  * ✅ `RetrievalBudgetGuard`, `ContextPackFreshnessGuard`, `IndexDriftGuard`, and `CacheKeyGuard` implemented.
-  * ✅ Guards wired into retrieval flow.
-  * ✅ Conformance tests `T-ACE-RAG-001` through `007` implemented and passing.
-  * ✅ No forbidden patterns (unwrap/expect/panic/dbg/Value in domain).
+  * ??? `QueryPlan` and `RetrievalTrace` structs match ??2.6.6.7.14.5 exactly.
+  * ??? `AceRuntimeValidator` trait defined per ??2.6.6.7.14.11 in v02.85.
+  * ??? `RetrievalBudgetGuard`, `ContextPackFreshnessGuard`, `IndexDriftGuard`, and `CacheKeyGuard` implemented.
+  * ??? Guards wired into retrieval flow.
+  * ??? Conformance tests `T-ACE-RAG-001` through `007` implemented and passing.
+  * ??? No forbidden patterns (unwrap/expect/panic/dbg/Value in domain).
 
 ## ROLLBACK_HINT
 ```bash
@@ -69,7 +71,7 @@ git revert <commit-sha>
   * "Forbidden patterns" -> run validator-scan and fix findings
 
 ## Authority
-- **SPEC_ANCHOR**: §2.6.6.7.14 (ACE-RAG-001)
+- **SPEC_ANCHOR**: ??2.6.6.7.14 (ACE-RAG-001)
 - **SPEC_CURRENT**: Handshake_Master_Spec_v02.85.md
 - **Codex**: Handshake Codex v1.4.md
 - **Task Board**: docs/TASK_BOARD.md
@@ -88,28 +90,28 @@ git revert <commit-sha>
 **Files Created:**
 | File | Status | Lines |
 |------|--------|-------|
-| `src/backend/handshake_core/src/ace/mod.rs` | ✅ Created | ~650 |
-| `src/backend/handshake_core/src/ace/validators/mod.rs` | ✅ Created | ~110 |
-| `src/backend/handshake_core/src/ace/validators/budget.rs` | ✅ Created | ~170 |
-| `src/backend/handshake_core/src/ace/validators/freshness.rs` | ✅ Created | ~150 |
-| `src/backend/handshake_core/src/ace/validators/drift.rs` | ✅ Created | ~180 |
-| `src/backend/handshake_core/src/ace/validators/cache.rs` | ✅ Created | ~170 |
+| `src/backend/handshake_core/src/ace/mod.rs` | ??? Created | ~650 |
+| `src/backend/handshake_core/src/ace/validators/mod.rs` | ??? Created | ~110 |
+| `src/backend/handshake_core/src/ace/validators/budget.rs` | ??? Created | ~170 |
+| `src/backend/handshake_core/src/ace/validators/freshness.rs` | ??? Created | ~150 |
+| `src/backend/handshake_core/src/ace/validators/drift.rs` | ??? Created | ~180 |
+| `src/backend/handshake_core/src/ace/validators/cache.rs` | ??? Created | ~170 |
 
 **Dependencies Added to Cargo.toml:**
 - `sha2 = "0.10"` (for query hash computation)
 - `hex = "0.4"` (for hash encoding)
-- `unicode-normalization = "0.1"` (for query normalization per §2.6.6.7.14.6(B))
+- `unicode-normalization = "0.1"` (for query normalization per ??2.6.6.7.14.6(B))
 
 **Module Registration:**
-- ✅ Added `pub mod ace;` to `lib.rs`
+- ??? Added `pub mod ace;` to `lib.rs`
 
 ### DONE_MEANS Evidence Mapping [CX-627]
 
 | Criterion | Evidence | File:Line |
 |-----------|----------|-----------|
-| QueryPlan struct matches §2.6.6.7.14.5 | Implemented with all fields | ace/mod.rs:200-230 |
-| RetrievalTrace struct matches §2.6.6.7.14.5 | Implemented with all fields | ace/mod.rs:320-360 |
-| AceRuntimeValidator trait per §2.6.6.7.14.11 | Trait with validate_plan/validate_trace | ace/validators/mod.rs:20-32 |
+| QueryPlan struct matches ??2.6.6.7.14.5 | Implemented with all fields | ace/mod.rs:200-230 |
+| RetrievalTrace struct matches ??2.6.6.7.14.5 | Implemented with all fields | ace/mod.rs:320-360 |
+| AceRuntimeValidator trait per ??2.6.6.7.14.11 | Trait with validate_plan/validate_trace | ace/validators/mod.rs:20-32 |
 | RetrievalBudgetGuard implemented | Full budget enforcement logic | ace/validators/budget.rs:1-170 |
 | ContextPackFreshnessGuard implemented | Stale pack detection logic | ace/validators/freshness.rs:1-150 |
 | IndexDriftGuard implemented | Hash mismatch/provenance detection | ace/validators/drift.rs:1-180 |
@@ -124,17 +126,17 @@ git revert <commit-sha>
 
 ## HISTORY
 
-### AUDIT REPORT — WP-1-ACE-Runtime (v02.84 Audit)
+### AUDIT REPORT ??? WP-1-ACE-Runtime (v02.84 Audit)
 Verdict: FAIL (PRE-REFINEMENT)
 Reason: Implementation absent. REFINED to v02.85.
 
-### VALIDATION REPORT — WP-1-ACE-Runtime (2025-12-26)
-Verdict: PASS ✅
+### VALIDATION REPORT ??? WP-1-ACE-Runtime (2025-12-26)
+Verdict: PASS ???
 
 I have performed a final audit of WP-1-ACE-Runtime. The Coder has successfully remediated the Hard Invariant violation by replacing the non-deterministic split_whitespace() with a custom, ASCII-fixed normalization loop.
 
 Findings:
-1. Spec Alignment (§2.6.6.7.14): QueryPlan/RetrievalTrace and AceRuntimeValidator trait implemented.
+1. Spec Alignment (??2.6.6.7.14): QueryPlan/RetrievalTrace and AceRuntimeValidator trait implemented.
 2. Required Guards: RetrievalBudgetGuard, ContextPackFreshnessGuard, IndexDriftGuard, and CacheKeyGuard implemented.
 3. Determinism: FIXED normalize_query with manual collapse loop (ASCII-fixed).
 4. Hygiene & Build: cargo test passes (58 tests). Clean validator-scan.

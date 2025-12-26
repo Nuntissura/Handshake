@@ -52,6 +52,9 @@ jobs:
           echo "TODOs must include HSK issue tags..."
           rg -n --pcre2 "TODO(?!\\(HSK-\\d+\\))" app/src src/backend scripts --glob "!scripts/fixtures/**" --glob "!scripts/codex-check-test.mjs" && exit 1 || exit 0
 
+      - name: Git hygiene (build/cache artifacts)
+        run: node scripts/validation/validator-git-hygiene.mjs
+
       - name: Codex check tests
         run: node scripts/codex-check-test.mjs
 

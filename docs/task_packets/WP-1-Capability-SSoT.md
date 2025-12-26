@@ -6,19 +6,21 @@
 - REQUESTOR: ilja
 - AGENT_ID: Orchestrator
 - ROLE: Orchestrator
-- STATUS: Completed ✅
+
+
+## SKELETON APPROVED
 - RISK_TIER: MEDIUM
   - Justification: Foundation for security and tool filtering; refactors core workflow logic.
 - USER_SIGNATURE: ilja251220252005
 
 ---
 
-## 🕵️ CODE ARCHAEOLOGY NOTE
+## ??????? CODE ARCHAEOLOGY NOTE
 **Reason:** Strategic Audit for Phase 1 closure.
-**Authority [CX-598]:** The Roadmap is only a pointer. The **Master Spec Main Body** (§1-6, §9-11) is the sole definition of "Done."
+**Authority [CX-598]:** The Roadmap is only a pointer. The **Master Spec Main Body** (??1-6, ??9-11) is the sole definition of "Done."
 **Procedure:** 
 1. Validator must check `capabilities.rs`.
-2. Verify implementation matches **100% of the technical rules, schemas, and invariants** found in the Main Body (§11.1 Capability Registry).
+2. Verify implementation matches **100% of the technical rules, schemas, and invariants** found in the Main Body (??11.1 Capability Registry).
 3. Surface-level compliance with roadmap bullets is insufficient. Every line of text in the Main Body section must be implemented.
 4. If 100% alignment exists -> **PASS**. Otherwise -> **FAIL**.
 
@@ -68,11 +70,11 @@ Implement `CapabilityRegistry` and `CapabilityProfile` models as the Single Sour
   just post-work WP-1-Capability-SSoT
   ```
 - **DONE_MEANS**:
-  - ✅ `CapabilityRegistry` implemented per Master Spec §11.1.
-  - ✅ All hardcoded capability maps removed from `workflows.rs`.
-  - ✅ `CapabilityProfile` objects (e.g. 'Analyst', 'Coder') are whitelists of Registry IDs.
-  - ✅ Integration tests verify unknown Capability ID results in deterministic error.
-  - ✅ Evidence mapping block is complete.
+  - ??? `CapabilityRegistry` implemented per Master Spec ??11.1.
+  - ??? All hardcoded capability maps removed from `workflows.rs`.
+  - ??? `CapabilityProfile` objects (e.g. 'Analyst', 'Coder') are whitelists of Registry IDs.
+  - ??? Integration tests verify unknown Capability ID results in deterministic error.
+  - ??? Evidence mapping block is complete.
 
 - **ROLLBACK_HINT**:
   ```bash
@@ -89,7 +91,7 @@ Implement `CapabilityRegistry` and `CapabilityProfile` models as the Single Sour
 - **FILES_TO_OPEN**:
   * docs/START_HERE.md
   * docs/SPEC_CURRENT.md
-  * Handshake_Master_Spec_v02.84.md (§11.1)
+  * Handshake_Master_Spec_v02.84.md (??11.1)
   * src/backend/handshake_core/src/workflows.rs
   * src/backend/handshake_core/src/api/jobs.rs
   * src/backend/handshake_core/src/lib.rs
@@ -117,7 +119,7 @@ Implement `CapabilityRegistry` and `CapabilityProfile` models as the Single Sour
 ## EVIDENCE_MAPPING
 - CapabilityRegistry SSoT (valid axes/full IDs, profiles, job/job_profile maps, HSK-4001 errors) -> src/backend/handshake_core/src/capabilities.rs:25-213
 - Axis inheritance + profile whitelist enforcement in workflows with Flight Recorder log -> src/backend/handshake_core/src/workflows.rs:100-145
-- API uses registry for job_kind → capability_profile_id mapping -> src/backend/handshake_core/src/api/jobs.rs:57-73
+- API uses registry for job_kind ??? capability_profile_id mapping -> src/backend/handshake_core/src/api/jobs.rs:57-73
 - Unknown capability/profile errors surface via registry -> src/backend/handshake_core/src/workflows.rs:285-350
 - sqlx offline cache regenerated for storage (compilation unblock) -> src/backend/handshake_core/.sqlx/
 
@@ -133,7 +135,7 @@ Implement `CapabilityRegistry` and `CapabilityProfile` models as the Single Sour
 ---
 
 ## AUTHORITY
-- **SPEC_ANCHOR**: §11.1 (Capability Registry)
+- **SPEC_ANCHOR**: ??11.1 (Capability Registry)
 - **Codex**: Handshake Codex v1.4.md
 - **Task Board**: docs/TASK_BOARD.md
 
@@ -142,8 +144,8 @@ Implement `CapabilityRegistry` and `CapabilityProfile` models as the Single Sour
 **Last Updated:** 2025-12-25
 **User Signature Locked:** ilja251220252005
 
-## VALIDATION REPORT — WP-1-Capability-SSoT
-  Verdict: PASS ✅
+## VALIDATION REPORT ??? WP-1-Capability-SSoT
+  Verdict: PASS ???
 
   The Work Packet WP-1-Capability-SSoT has been successfully implemented, verified, and closed.
 

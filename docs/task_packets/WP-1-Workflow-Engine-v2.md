@@ -7,13 +7,14 @@
 - REQUESTOR: ilja
 - AGENT_ID: orchestrator-gemini
 - ROLE: Orchestrator
-- STATUS: DONE [VALIDATED]
 
+
+## SKELETON APPROVED
 ## User Context
 We are making the "brain" of the app reliable. Currently, if the app crashes while an AI is working, we lose track of what it was doing. This task ensures every step the AI takes is written down immediately, so it can pick up right where it left off after a restart.
 
 ## Scope
-- **What**: Implement normative Workflow Engine persistence and state management per §2.6.1.
+- **What**: Implement normative Workflow Engine persistence and state management per ??2.6.1.
 - **Why**: Transition from a "minimal" async wrapper to a durable execution engine that satisfies Phase 1 Strategic Audit criteria.
 - **IN_SCOPE_PATHS**:
   * src/backend/handshake_core/src/workflows.rs (Core engine logic & state machine)
@@ -39,10 +40,10 @@ We are making the "brain" of the app reliable. Currently, if the app crashes whi
   just post-work WP-1-Workflow-Engine-v2
   ```
 - **DONE_MEANS**:
-  * ✅ [HSK-WF-001] Every node execution and status transition is persisted to SQLite.
-  * ✅ [HSK-WF-002] Engine can identify `Running` workflows on startup and mark as `Stalled`.
-  * ✅ `Database` trait updated with methods for node-level persistence.
-  * ✅ Conformance tests verify that interrupted workflows are detectable after "restart" (DB reload).
+  * ??? [HSK-WF-001] Every node execution and status transition is persisted to SQLite.
+  * ??? [HSK-WF-002] Engine can identify `Running` workflows on startup and mark as `Stalled`.
+  * ??? `Database` trait updated with methods for node-level persistence.
+  * ??? Conformance tests verify that interrupted workflows are detectable after "restart" (DB reload).
 
 ## ROLLBACK_HINT
 ```bash
@@ -70,7 +71,7 @@ git revert <commit-sha>
 
 ## Authority
 - **SPEC_CURRENT**: docs/SPEC_CURRENT.md (Master Spec v02.90)
-- **SPEC_ANCHOR**: §2.6.1 [HSK-WF-001], [HSK-WF-002]
+- **SPEC_ANCHOR**: ??2.6.1 [HSK-WF-001], [HSK-WF-002]
 - **Codex**: Handshake Codex v1.4.md
 - **Task Board**: docs/TASK_BOARD.md
 
@@ -81,12 +82,12 @@ git revert <commit-sha>
 
 ---
 
-### VALIDATION REPORT — WP-1-Workflow-Engine-v2 (2025-12-26)
-Verdict: PASS ✅
+### VALIDATION REPORT ??? WP-1-Workflow-Engine-v2 (2025-12-26)
+Verdict: PASS ???
 
 **Scope Inputs:**
 - Task Packet: `docs/task_packets/WP-1-Workflow-Engine-v2.md`
-- Spec: `Handshake_Master_Spec_v02.90 §2.6.1`
+- Spec: `Handshake_Master_Spec_v02.90 ??2.6.1`
 - Coder: [[coder gpt codex]]
 
 **Files Checked:**
@@ -105,9 +106,10 @@ Verdict: PASS ✅
 - **Tests:** PASS. Dedicated recovery tests (`stalled_workflows_are_detected_by_heartbeat`) and persistence tests (`workflow_node_execution_persists_inputs_and_outputs`) pass.
 
 **REASON FOR PASS:**
-The implementation fulfills the durability and reliability mandates of §2.6.1. It successfully transitions the Workflow Engine from a "hollow" async wrapper to a persistent execution environment capable of crash recovery and detailed auditability. This completes a critical strategic audit item for Phase 1.
+The implementation fulfills the durability and reliability mandates of ??2.6.1. It successfully transitions the Workflow Engine from a "hollow" async wrapper to a persistent execution environment capable of crash recovery and detailed auditability. This completes a critical strategic audit item for Phase 1.
 
 ---
 
 **Last Updated:** 2025-12-26
 **User Signature Locked:** ilja261220250312
+

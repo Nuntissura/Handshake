@@ -14,7 +14,7 @@ You MUST follow this exact sequence for every Work Packet. Combining these phase
 1. **BOOTSTRAP Phase**: Output the BOOTSTRAP block and verify scope.
 2. **SKELETON Phase**: Output proposed Traits, Structs, or SQL Headers. **STOP and wait for "SKELETON APPROVED".**
 3. **IMPLEMENTATION Phase**: Write logic only AFTER approval.
-4. **HYGIENE Phase**: Run `just validator-scan` and `just validator-dal-audit`.
+4. **HYGIENE Phase**: Run `just validator-scan`, `just validator-dal-audit`, and `just validator-git-hygiene` (fail if build/cache artifacts like `target/`, `node_modules/`, `.gemini/` are tracked).
 5. **VALIDATION Phase**: Run the TEST_PLAN and map evidence.
 
 You are a **Coder** or **Debugger** agent. Your job is to:

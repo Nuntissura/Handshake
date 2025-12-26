@@ -6,12 +6,14 @@
 - REQUESTOR: User
 - AGENT_ID: orchestrator-gemini
 - ROLE: Orchestrator
-- STATUS: DONE [VALIDATED]
+
+
+## SKELETON APPROVED
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja261220250201
 
 ## Scope
-- **What**: Implement the 8 remaining ACE Security Guards per §2.6.6.7.11.1–8.
+- **What**: Implement the 8 remaining ACE Security Guards per ??2.6.6.7.11.1???8.
 - **Why**: Complete the mandatory security layer for the ACE runtime to ensure auditable, deterministic, and safe execution across local and cloud tiers.
 - **IN_SCOPE_PATHS**:
   * src/backend/handshake_core/src/ace/validators/mod.rs
@@ -39,10 +41,10 @@
   just validator-hygiene-full
   ```
 - **DONE_MEANS**:
-  * ✅ `ContextDeterminismGuard`, `ArtifactHandleOnlyGuard`, `CompactionSchemaGuard`, `MemoryPromotionGuard`, `CloudLeakageGuard`, `PromptInjectionGuard`, `JobBoundaryRoutingGuard`, and `LocalPayloadGuard` implemented per §2.6.6.7.11 in v02.89 exactly.
-  * ✅ All guards integrated into the `AceRuntimeValidator` trait pipeline.
-  * ✅ Conformance tests `T-ACE-VAL-001` through `008` implemented and passing.
-  * ✅ No forbidden patterns (unwrap/expect/panic/dbg/Value in domain).
+  * ??? `ContextDeterminismGuard`, `ArtifactHandleOnlyGuard`, `CompactionSchemaGuard`, `MemoryPromotionGuard`, `CloudLeakageGuard`, `PromptInjectionGuard`, `JobBoundaryRoutingGuard`, and `LocalPayloadGuard` implemented per ??2.6.6.7.11 in v02.89 exactly.
+  * ??? All guards integrated into the `AceRuntimeValidator` trait pipeline.
+  * ??? Conformance tests `T-ACE-VAL-001` through `008` implemented and passing.
+  * ??? No forbidden patterns (unwrap/expect/panic/dbg/Value in domain).
 
 ## ROLLBACK_HINT
 ```bash
@@ -72,7 +74,7 @@ git revert <commit-sha>
   * "Trait signature mismatch" -> Compilation failure
 
 ## Authority
-- **SPEC_ANCHOR**: §2.6.6.7.11 (ACE Security Guards)
+- **SPEC_ANCHOR**: ??2.6.6.7.11 (ACE Security Guards)
 - **SPEC_CURRENT**: Handshake_Master_Spec_v02.89.md
 - **Codex**: Handshake Codex v1.4.md
 - **Task Board**: docs/TASK_BOARD.md
@@ -87,14 +89,14 @@ git revert <commit-sha>
 ### Implementation Status
 | Guard | File | Status | Conformance Test |
 |-------|------|--------|------------------|
-| ContextDeterminismGuard | determinism.rs | ✅ Complete | T-ACE-VAL-001 |
-| ArtifactHandleOnlyGuard | artifact.rs | ✅ Complete | T-ACE-VAL-002 |
-| CompactionSchemaGuard | compaction.rs | ✅ Complete | T-ACE-VAL-003 |
-| MemoryPromotionGuard | promotion.rs | ✅ Complete | T-ACE-VAL-004 |
-| CloudLeakageGuard | leakage.rs | ✅ Complete | T-ACE-VAL-005 |
-| PromptInjectionGuard | injection.rs | ✅ Complete | T-ACE-VAL-006 |
-| JobBoundaryRoutingGuard | boundary.rs | ✅ Complete | T-ACE-VAL-007 |
-| LocalPayloadGuard | payload.rs | ✅ Complete | T-ACE-VAL-008 |
+| ContextDeterminismGuard | determinism.rs | ??? Complete | T-ACE-VAL-001 |
+| ArtifactHandleOnlyGuard | artifact.rs | ??? Complete | T-ACE-VAL-002 |
+| CompactionSchemaGuard | compaction.rs | ??? Complete | T-ACE-VAL-003 |
+| MemoryPromotionGuard | promotion.rs | ??? Complete | T-ACE-VAL-004 |
+| CloudLeakageGuard | leakage.rs | ??? Complete | T-ACE-VAL-005 |
+| PromptInjectionGuard | injection.rs | ??? Complete | T-ACE-VAL-006 |
+| JobBoundaryRoutingGuard | boundary.rs | ??? Complete | T-ACE-VAL-007 |
+| LocalPayloadGuard | payload.rs | ??? Complete | T-ACE-VAL-008 |
 
 ### AceError Variants Added
 - ACE-009: DeterminismViolation
@@ -122,23 +124,24 @@ just post-work WP-1-ACE-Validators-v2  # Pending - requires VALIDATION section
 - ACE validators module is structurally complete and ready for testing once blockers are resolved
 
 ### Mandates Verified
-- ✅ All 8 guards implement `AceRuntimeValidator` trait
-- ✅ `ValidatorPipeline::with_default_guards()` includes all 12 guards
-- ✅ Every validator failure emits specific `AceError` variant
-- ✅ `PromptInjectionGuard` returns `AceError::PromptInjectionDetected` (triggers JobState::Poisoned)
-- ✅ `CloudLeakageGuard` defaults to Block for unknown sensitivity
+- ??? All 8 guards implement `AceRuntimeValidator` trait
+- ??? `ValidatorPipeline::with_default_guards()` includes all 12 guards
+- ??? Every validator failure emits specific `AceError` variant
+- ??? `PromptInjectionGuard` returns `AceError::PromptInjectionDetected` (triggers JobState::Poisoned)
+- ??? `CloudLeakageGuard` defaults to Block for unknown sensitivity
 
 ---
 
 ## HISTORY
 
-### VALIDATION REPORT — WP-1-ACE-Validators-v2 (2025-12-26)
+### VALIDATION REPORT ??? WP-1-ACE-Validators-v2 (2025-12-26)
 Verdict: PASS
 
 **REASON FOR PASS:**
-With the build restored by GPT Codex, the ACE validators tests now execute and pass (61 tests). The logic fulfills the normative requirements of §2.6.6.7.11 for the remaining 8 security guards. The pipeline is now complete with all 12 mandatory validators.
+With the build restored by GPT Codex, the ACE validators tests now execute and pass (61 tests). The logic fulfills the normative requirements of ??2.6.6.7.11 for the remaining 8 security guards. The pipeline is now complete with all 12 mandatory validators.
 
 ---
 
 **Last Updated:** 2025-12-26
 **User Signature Locked:** ilja261220250201
+

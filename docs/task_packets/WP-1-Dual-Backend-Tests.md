@@ -6,7 +6,9 @@
 - REQUESTOR: ilja
 - AGENT_ID: Orchestrator
 - ROLE: Orchestrator
-- STATUS: Done ✅
+
+
+## SKELETON APPROVED
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja251220251800
 
@@ -16,7 +18,7 @@
 
 ### Executive Summary
 
-Establish dual-backend testing infrastructure to ensure Handshake's storage layer remains portable between SQLite and PostgreSQL. This fulfills Pillar 4 of Master Spec §2.3.12 (Dual-Backend Testing Early).
+Establish dual-backend testing infrastructure to ensure Handshake's storage layer remains portable between SQLite and PostgreSQL. This fulfills Pillar 4 of Master Spec ??2.3.12 (Dual-Backend Testing Early).
 
 **Guiding Principle (Postgres later, cheap):**
 1) One storage API: force all DB access through a single module.  
@@ -63,11 +65,11 @@ Establish dual-backend testing infrastructure to ensure Handshake's storage laye
   just post-work WP-1-Dual-Backend-Tests
   ```
 - **DONE_MEANS**:
-  - ✅ `sqlx` has `postgres` feature enabled in `Cargo.toml`.
-  - ✅ `docker-compose.test.yml` defined and functional.
-  - ✅ Integration tests run against both SQLite and PostgreSQL.
-  - ✅ CI pipeline updated and passing for both backends.
-  - ✅ `PostgresDatabase` implements `Database` trait (at least ping and basic CRUD).
+  - ??? `sqlx` has `postgres` feature enabled in `Cargo.toml`.
+  - ??? `docker-compose.test.yml` defined and functional.
+  - ??? Integration tests run against both SQLite and PostgreSQL.
+  - ??? CI pipeline updated and passing for both backends.
+  - ??? `PostgresDatabase` implements `Database` trait (at least ping and basic CRUD).
 
 ---
 
@@ -95,7 +97,7 @@ Establish dual-backend testing infrastructure to ensure Handshake's storage laye
 ---
 
 ## AUTHORITY
-- **SPEC_ANCHOR**: §2.3.12.1, §2.3.12.4
+- **SPEC_ANCHOR**: ??2.3.12.1, ??2.3.12.4
 - **Codex**: Handshake Codex v1.4.md
 - **Task Board**: docs/TASK_BOARD.md
 
@@ -103,7 +105,7 @@ Establish dual-backend testing infrastructure to ensure Handshake's storage laye
 
 
 
-## VALIDATION REPORT — WP-1-Dual-Backend-Tests (Final PASS)
+## VALIDATION REPORT ??? WP-1-Dual-Backend-Tests (Final PASS)
 
 Verdict: PASS
 
@@ -113,7 +115,7 @@ Scope Inputs:
 
 - Task Packet: docs/task_packets/WP-1-Dual-Backend-Tests.md
 
-- Spec: §2.3.12 (Storage Portability Architecture)
+- Spec: ??2.3.12 (Storage Portability Architecture)
 
 
 
@@ -168,3 +170,4 @@ Tests:
 **Last Updated:** 2025-12-25
 
 **User Signature Locked:** ilja251220252030
+

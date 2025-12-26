@@ -6,12 +6,14 @@
 - REQUESTOR: User
 - AGENT_ID: orchestrator-gemini
 - ROLE: Orchestrator
-- STATUS: Done
+
+
+## SKELETON APPROVED
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja251220252310
 
 ## Scope
-- **What**: Implement mutation traceability and storage guard to enforce “No Silent Edits” per §2.9.3.
+- **What**: Implement mutation traceability and storage guard to enforce ???No Silent Edits??? per ??2.9.3.
 - **Why**: Ensure all RAW mutations carry actor/job/workflow metadata and are blocked for AI writes without approval context.
 - **IN_SCOPE_PATHS**:
   * src/backend/handshake_core/src/storage/mod.rs
@@ -35,12 +37,12 @@
   just validator-error-codes
   ```
 - **DONE_MEANS**:
-  * ✅ `MutationMetadata` struct matches §2.9.3 in v02.85.
-  * ✅ Database tables (blocks, canvas, documents) updated with §2.9.3.1 columns and `CHECK` constraint.
-  * ✅ `StorageGuard` trait implemented and integrated into all mutation paths per §2.9.3.2.
-  * ✅ AI writes without job/approval context fail with `HSK-403-SILENT-EDIT`.
-  * ✅ Unit and integration tests cover Human, AI, and System write scenarios.
-  * ✅ No forbidden patterns (unwrap/expect/panic/dbg/Value in domain).
+  * ??? `MutationMetadata` struct matches ??2.9.3 in v02.85.
+  * ??? Database tables (blocks, canvas, documents) updated with ??2.9.3.1 columns and `CHECK` constraint.
+  * ??? `StorageGuard` trait implemented and integrated into all mutation paths per ??2.9.3.2.
+  * ??? AI writes without job/approval context fail with `HSK-403-SILENT-EDIT`.
+  * ??? Unit and integration tests cover Human, AI, and System write scenarios.
+  * ??? No forbidden patterns (unwrap/expect/panic/dbg/Value in domain).
 
 ## ROLLBACK_HINT
 ```bash
@@ -70,7 +72,7 @@ git revert <commit-sha>
   * "Schema mismatch -> runtime failure" -> Database layer
 
 ## Authority
-- **SPEC_ANCHOR**: §2.9.3 (Mutation Traceability)
+- **SPEC_ANCHOR**: ??2.9.3 (Mutation Traceability)
 - **SPEC_CURRENT**: Handshake_Master_Spec_v02.85.md
 - **Codex**: Handshake Codex v1.4.md
 - **Task Board**: docs/TASK_BOARD.md
@@ -84,14 +86,14 @@ git revert <commit-sha>
 
 ## HISTORY
 
-### VALIDATION REPORT — WP-1-Mutation-Traceability (2025-12-25)
-Verdict: PASS ✅
+### VALIDATION REPORT ??? WP-1-Mutation-Traceability (2025-12-25)
+Verdict: PASS ???
 
-I have verified the remediation of the compilation blockers and hygiene issues for WP-1-Mutation-Traceability. The implementation now correctly satisfies the "No Silent Edits" invariant defined in §2.9.3 of the Master Spec v02.85.
+I have verified the remediation of the compilation blockers and hygiene issues for WP-1-Mutation-Traceability. The implementation now correctly satisfies the "No Silent Edits" invariant defined in ??2.9.3 of the Master Spec v02.85.
 
 Findings:
-1. Mutation Traceability (§2.9.3): Persisted in DB tables with mandatory columns and SQL CHECK constraints.
-2. Storage Guard (§2.9.3.2): DefaultStorageGuard implemented and integrated. Rejects AI writes without context (HSK-403-SILENT-EDIT).
+1. Mutation Traceability (??2.9.3): Persisted in DB tables with mandatory columns and SQL CHECK constraints.
+2. Storage Guard (??2.9.3.2): DefaultStorageGuard implemented and integrated. Rejects AI writes without context (HSK-403-SILENT-EDIT).
 3. Hygiene & Build: cargo test passes (54 tests). Forbidden patterns removed from production paths.
 
 ---

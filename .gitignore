@@ -29,6 +29,10 @@ package-lock.json
 Thumbs.db
 .env.local
 
+# Assistant tool caches
+.gemini/
+.claude/
+
 # Existing project entries
 data/
 ai_review.json

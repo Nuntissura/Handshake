@@ -7,8 +7,9 @@
 - REQUESTOR: ilja
 - AGENT_ID: orchestrator-gemini
 - ROLE: Orchestrator
-- STATUS: DONE [VALIDATED]
 
+
+## SKELETON APPROVED
 ## User Context
 We are fixing the "plumbing" of the app. Currently, some parts of the system are talking directly to the SQLite database, which breaks our rule of being "database-portable." This task cleans up those connections so the app is ready for future growth without costly rewrites.
 
@@ -42,11 +43,11 @@ We are fixing the "plumbing" of the app. Currently, some parts of the system are
   just post-work WP-1-Storage-Abstraction-Layer-v2
   ```
 - **DONE_MEANS**:
-  * ✅ `Database` trait contains zero backend-specific identifiers (No `sqlite_pool`).
-  * ✅ `init_storage` signature in `main.rs` returns only `Arc<dyn Database>` (no leaked pool).
-  * ✅ `Janitor` service consumes `Arc<dyn Database>` instead of `SqlitePool`.
-  * ✅ `just validator-dal-audit` returns PASS (Zero violations of CX-DBP-VAL-012).
-  * ✅ All existing tests pass using the generic trait interface.
+  * ??? `Database` trait contains zero backend-specific identifiers (No `sqlite_pool`).
+  * ??? `init_storage` signature in `main.rs` returns only `Arc<dyn Database>` (no leaked pool).
+  * ??? `Janitor` service consumes `Arc<dyn Database>` instead of `SqlitePool`.
+  * ??? `just validator-dal-audit` returns PASS (Zero violations of CX-DBP-VAL-012).
+  * ??? All existing tests pass using the generic trait interface.
 
 ## ROLLBACK_HINT
 ```bash
@@ -76,7 +77,7 @@ git revert <commit-sha>
 
 ## Authority
 - **SPEC_CURRENT**: docs/SPEC_CURRENT.md (Master Spec v02.90)
-- **SPEC_ANCHOR**: §2.3.12.3 [CX-DBP-040], §2.3.11.2 [HSK-GC-005]
+- **SPEC_ANCHOR**: ??2.3.12.3 [CX-DBP-040], ??2.3.11.2 [HSK-GC-005]
 - **Codex**: Handshake Codex v1.4.md
 - **Task Board**: docs/TASK_BOARD.md
 
@@ -86,10 +87,10 @@ git revert <commit-sha>
 **User Signature Locked:** ilja261220250259
 
 ## VALIDATION [CX-623]
-- **cargo check**: ✅ PASS
-- **cargo test**: ✅ PASS (97 tests passed)
-- **just validator-dal-audit**: ✅ PASS
-- **just validator-scan**: ✅ PASS
+- **cargo check**: ??? PASS
+- **cargo test**: ??? PASS (97 tests passed)
+- **just validator-dal-audit**: ??? PASS
+- **just validator-scan**: ??? PASS
 
 ### EVIDENCE_MAPPING
 - [CX-DBP-040] (No `sqlite_pool`): Verified in `src/backend/handshake_core/src/storage/mod.rs` (Trait pure) and `sqlite.rs` (Impl removed).
@@ -98,12 +99,12 @@ git revert <commit-sha>
 
 ---
 
-### VALIDATION REPORT — WP-1-Storage-Abstraction-Layer-v2 (2025-12-26)
-Verdict: PASS ✅
+### VALIDATION REPORT ??? WP-1-Storage-Abstraction-Layer-v2 (2025-12-26)
+Verdict: PASS ???
 
 **Scope Inputs:**
 - Task Packet: `docs/task_packets/WP-1-Storage-Abstraction-Layer-v2.md`
-- Spec: `Handshake_Master_Spec_v02.90 §2.3.12` (Pillar 1: One Storage API)
+- Spec: `Handshake_Master_Spec_v02.90 ??2.3.12` (Pillar 1: One Storage API)
 - Coder: [[coder gemini]]
 
 **Files Checked:**
@@ -123,10 +124,11 @@ Verdict: PASS ✅
 - **Tests:** PASS. `cargo test` returns 97 passed tests. Storage conformance tests verify identical behavior across both SQLite and Postgres (via the shared trait interface).
 
 **REASON FOR PASS:**
-The implementation successfully enforces the Storage Backend Portability Architecture (§2.3.12). By hardening the trait boundary and removing concrete pool leakages, the coder has eliminated the "leaky abstraction" risk and ensured that business logic remains decoupled from the underlying storage engine. This fulfills a major Phase 1 Strategic Audit criterion.
+The implementation successfully enforces the Storage Backend Portability Architecture (??2.3.12). By hardening the trait boundary and removing concrete pool leakages, the coder has eliminated the "leaky abstraction" risk and ensured that business logic remains decoupled from the underlying storage engine. This fulfills a major Phase 1 Strategic Audit criterion.
 
 ---
 
 **Last Updated:** 2025-12-26
 **User Signature Locked:** ilja261220250259
+
 
