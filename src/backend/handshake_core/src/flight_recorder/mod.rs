@@ -34,6 +34,8 @@ pub enum FlightRecorderEventType {
     LlmInference,
     Diagnostic,
     CapabilityAction,
+    /// FR-EVT-SEC-VIOLATION: Security violation detected by ACE validators [§2.6.6.7.11]
+    SecurityViolation,
 }
 
 impl fmt::Display for FlightRecorderEventType {
@@ -43,6 +45,7 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::LlmInference => write!(f, "llm_inference"),
             FlightRecorderEventType::Diagnostic => write!(f, "diagnostic"),
             FlightRecorderEventType::CapabilityAction => write!(f, "capability_action"),
+            FlightRecorderEventType::SecurityViolation => write!(f, "security_violation"),
         }
     }
 }
@@ -191,6 +194,30 @@ pub struct FrEvt004CapabilityAction {
     pub outcome: String,
     pub profile_id: Option<String>,
     pub policy_decision_id: Option<String>,
+}
+
+/// FR-EVT-005: Security violation event payload [§2.6.6.7.11]
+///
+/// Emitted when ACE validators detect a security violation such as:
+/// - Prompt injection [HSK-ACE-VAL-101]
+/// - Cloud leakage [§2.6.6.7.11.5]
+/// - Sensitivity violation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrEvt005SecurityViolation {
+    /// Type of security violation (prompt_injection, cloud_leakage, etc.)
+    pub violation_type: String,
+    /// Human-readable description of the violation
+    pub description: String,
+    /// Source reference where violation was detected (if applicable)
+    pub source_id: Option<String>,
+    /// The pattern or content that triggered the violation
+    pub trigger: String,
+    /// Guard/validator that detected the violation
+    pub guard_name: String,
+    /// Action taken (blocked, poisoned, etc.)
+    pub action_taken: String,
+    /// Job state transition triggered (e.g., "poisoned")
+    pub job_state_transition: Option<String>,
 }
 
 #[derive(Error, Debug)]

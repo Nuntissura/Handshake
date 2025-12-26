@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::str::FromStr;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -309,6 +310,54 @@ impl JobState {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum JobKind {
+    DocEdit,
+    SheetTransform,
+    CanvasCluster,
+    AsrTranscribe,
+    WorkflowRun,
+    /// Backward-compatible terminal execution job kind.
+    TerminalExec,
+    /// Backward-compatible document summarize/test kinds.
+    DocSummarize,
+    DocTest,
+}
+
+impl JobKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            JobKind::DocEdit => "doc_edit",
+            JobKind::SheetTransform => "sheet_transform",
+            JobKind::CanvasCluster => "canvas_cluster",
+            JobKind::AsrTranscribe => "asr_transcribe",
+            JobKind::WorkflowRun => "workflow_run",
+            JobKind::TerminalExec => "term_exec",
+            JobKind::DocSummarize => "doc_summarize",
+            JobKind::DocTest => "doc_test",
+        }
+    }
+}
+
+impl FromStr for JobKind {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "doc_edit" => Ok(JobKind::DocEdit),
+            "sheet_transform" => Ok(JobKind::SheetTransform),
+            "canvas_cluster" => Ok(JobKind::CanvasCluster),
+            "asr_transcribe" => Ok(JobKind::AsrTranscribe),
+            "workflow_run" => Ok(JobKind::WorkflowRun),
+            "term_exec" | "terminal_exec" => Ok(JobKind::TerminalExec),
+            "doc_summarize" => Ok(JobKind::DocSummarize),
+            "doc_test" => Ok(JobKind::DocTest),
+            _ => Err(StorageError::Validation("invalid job kind")),
+        }
+    }
+}
+
 impl TryFrom<&str> for JobState {
     type Error = StorageError;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
@@ -390,12 +439,24 @@ impl TryFrom<&str> for SafetyMode {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct JobMetrics {
+    #[serde(default)]
     pub duration_ms: u64,
+    #[serde(default)]
     pub total_tokens: u32,
+    #[serde(default)]
     pub input_tokens: u32,
+    #[serde(default)]
     pub output_tokens: u32,
+    #[serde(default)]
+    pub tokens_planner: u32,
+    #[serde(default)]
+    pub tokens_executor: u32,
+    #[serde(default)]
     pub entities_read: u32,
+    #[serde(default)]
     pub entities_written: u32,
+    #[serde(default)]
+    pub validators_run_count: u32,
 }
 
 impl JobMetrics {
@@ -405,8 +466,11 @@ impl JobMetrics {
             total_tokens: 0,
             input_tokens: 0,
             output_tokens: 0,
+            tokens_planner: 0,
+            tokens_executor: 0,
             entities_read: 0,
             entities_written: 0,
+            validators_run_count: 0,
         }
     }
 }
@@ -416,7 +480,7 @@ pub struct AiJob {
     pub job_id: Uuid,
     pub trace_id: Uuid,
     pub workflow_run_id: Option<Uuid>,
-    pub job_kind: String,
+    pub job_kind: JobKind,
     pub state: JobState,
     pub error_message: Option<String>,
     pub protocol_id: String,
@@ -437,7 +501,7 @@ pub struct AiJob {
 #[derive(Clone, Debug)]
 pub struct NewAiJob {
     pub trace_id: Uuid,
-    pub job_kind: String,
+    pub job_kind: JobKind,
     pub protocol_id: String,
     pub profile_id: String,
     pub capability_profile_id: String,

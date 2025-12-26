@@ -17,6 +17,11 @@
 //! 10. PromptInjectionGuard - Injection pattern detection
 //! 11. JobBoundaryRoutingGuard - Job routing invariant enforcement
 //! 12. LocalPayloadGuard - Encrypted local storage validation
+//!
+//! **Hardened Security Enforcement (§2.6.6.7.11.0):**
+//! - [HSK-ACE-VAL-100] Content Awareness: Validators MUST resolve raw UTF-8 content
+//! - [HSK-ACE-VAL-101] Atomic Poisoning: Injection triggers JobState::Poisoned
+//! - [HSK-ACE-VAL-102] NFC Normalization: Scans use NFC-normalized, case-folded text
 
 pub mod artifact;
 pub mod boundary;
@@ -32,8 +37,134 @@ pub mod payload;
 pub mod promotion;
 
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use uuid::Uuid;
 
-use crate::ace::{AceError, QueryPlan, RetrievalTrace};
+use crate::ace::{AceError, QueryPlan, RetrievalTrace, SourceRef};
+
+// ============================================================================
+// Content Resolution Types [HSK-ACE-VAL-100]
+// ============================================================================
+
+/// Sensitivity level for content classification per §2.6.6.7.11.5
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SensitivityLevel {
+    Low,
+    #[default]
+    Medium,
+    High,
+    /// Unknown sensitivity MUST default to block per mandate
+    Unknown,
+}
+
+/// Classification metadata for leakage checks per §2.6.6.7.11.5
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContentClassification {
+    /// Sensitivity level of the content
+    pub sensitivity: SensitivityLevel,
+    /// Whether the content can be exported to cloud tiers
+    pub exportable: bool,
+    /// Whether this is a composite (bundle/dataset_slice) requiring recursive checks
+    pub is_composite: bool,
+    /// Member refs for recursive classification (bundles, dataset slices)
+    pub member_refs: Vec<SourceRef>,
+}
+
+impl Default for ContentClassification {
+    fn default() -> Self {
+        Self {
+            // Default to Unknown which MUST block per §2.6.6.7.11.5
+            sensitivity: SensitivityLevel::Unknown,
+            exportable: false,
+            is_composite: false,
+            member_refs: Vec::new(),
+        }
+    }
+}
+
+/// Content resolver for validators requiring raw UTF-8 access [HSK-ACE-VAL-100]
+///
+/// Validators MUST NOT operate on hashes or handles alone. This trait provides
+/// the mechanism to resolve actual content for security scanning.
+#[async_trait]
+pub trait ContentResolver: Send + Sync {
+    /// Resolve raw UTF-8 content for a SourceRef
+    ///
+    /// Returns the full text content that MUST be scanned by security validators.
+    async fn resolve_content(&self, source_ref: &SourceRef) -> Result<String, AceError>;
+
+    /// Resolve classification metadata for a SourceRef per §2.6.6.7.11.5
+    ///
+    /// For composite refs (bundles, dataset_slices), returns member_refs for recursive checks.
+    async fn resolve_classification(
+        &self,
+        source_ref: &SourceRef,
+    ) -> Result<ContentClassification, AceError>;
+
+    /// Batch resolve content for multiple SourceRefs (optimization)
+    async fn resolve_content_batch(
+        &self,
+        source_refs: &[SourceRef],
+    ) -> Result<Vec<(SourceRef, String)>, AceError> {
+        let mut results = Vec::with_capacity(source_refs.len());
+        for source_ref in source_refs {
+            let content = self.resolve_content(source_ref).await?;
+            results.push((source_ref.clone(), content));
+        }
+        Ok(results)
+    }
+}
+
+/// Retrieved snippet with resolved content for security scanning
+#[derive(Debug, Clone)]
+pub struct ResolvedSnippet {
+    /// The source reference
+    pub source_ref: SourceRef,
+    /// Raw UTF-8 content (resolved, not just a hash)
+    pub content: String,
+    /// Classification metadata
+    pub classification: ContentClassification,
+}
+
+/// Result of security validation with detailed violation info
+#[derive(Debug, Clone)]
+pub struct SecurityValidationResult {
+    /// Whether validation passed
+    pub passed: bool,
+    /// Detected violations (empty if passed)
+    pub violations: Vec<SecurityViolation>,
+}
+
+/// A security violation detected by validators
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecurityViolation {
+    /// Violation type identifier
+    pub violation_type: SecurityViolationType,
+    /// Human-readable description
+    pub description: String,
+    /// Source ref where violation was detected (if applicable)
+    pub source_ref: Option<SourceRef>,
+    /// The pattern or content that triggered the violation
+    pub trigger: String,
+}
+
+/// Types of security violations per §2.6.6.7.11
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecurityViolationType {
+    /// Prompt injection detected [§2.6.6.7.11.6]
+    PromptInjection,
+    /// Cloud leakage attempted [§2.6.6.7.11.5]
+    CloudLeakage,
+    /// High sensitivity content exposure
+    SensitivityViolation,
+    /// Unknown sensitivity defaulted to block
+    UnknownSensitivity,
+    /// Non-exportable content attempted export
+    ExportViolation,
+}
 
 /// HSK-TRAIT-002: ACE Runtime Validator (§2.6.6.7.14.11)
 ///
@@ -141,6 +272,180 @@ impl ValidatorPipeline {
     /// Get validator names for logging
     pub fn validator_names(&self) -> Vec<&str> {
         self.validators.iter().map(|v| v.name()).collect()
+    }
+
+    /// Validate trace with content resolution [HSK-ACE-VAL-100]
+    ///
+    /// This method MUST be used for security-critical validation to ensure
+    /// content is actually scanned, not just metadata.
+    pub async fn validate_trace_with_resolver(
+        &self,
+        trace: &RetrievalTrace,
+        resolver: &dyn ContentResolver,
+    ) -> Result<SecurityValidationResult, AceError> {
+        let mut violations = Vec::new();
+
+        // First run standard trace validation
+        for validator in &self.validators {
+            if let Err(e) = validator.validate_trace(trace).await {
+                // Convert AceError to SecurityViolation
+                let violation = match &e {
+                    AceError::PromptInjectionDetected { pattern } => SecurityViolation {
+                        violation_type: SecurityViolationType::PromptInjection,
+                        description: format!("Prompt injection detected: {}", pattern),
+                        source_ref: None,
+                        trigger: pattern.to_string(),
+                    },
+                    AceError::CloudLeakageBlocked { reason } => SecurityViolation {
+                        violation_type: SecurityViolationType::CloudLeakage,
+                        description: format!("Cloud leakage blocked: {}", reason),
+                        source_ref: None,
+                        trigger: reason.clone(),
+                    },
+                    _ => SecurityViolation {
+                        violation_type: SecurityViolationType::SensitivityViolation,
+                        description: e.to_string(),
+                        source_ref: None,
+                        trigger: String::new(),
+                    },
+                };
+                violations.push(violation);
+            }
+        }
+
+        // Then perform content-aware security scans
+        let content_violations = self.scan_resolved_content(trace, resolver).await?;
+        violations.extend(content_violations);
+
+        Ok(SecurityValidationResult {
+            passed: violations.is_empty(),
+            violations,
+        })
+    }
+
+    /// Scan resolved content for security violations [HSK-ACE-VAL-100]
+    async fn scan_resolved_content(
+        &self,
+        trace: &RetrievalTrace,
+        resolver: &dyn ContentResolver,
+    ) -> Result<Vec<SecurityViolation>, AceError> {
+        let mut violations = Vec::new();
+
+        // Extract all SourceRefs from spans
+        let source_refs: Vec<SourceRef> =
+            trace.spans.iter().map(|s| s.source_ref.clone()).collect();
+
+        // Resolve and scan each source
+        for source_ref in &source_refs {
+            // Resolve content
+            let content = resolver.resolve_content(source_ref).await?;
+
+            // Scan for prompt injection using NFC-normalized text [HSK-ACE-VAL-102]
+            if let Some(pattern) = injection::PromptInjectionGuard::scan_for_injection_nfc(&content)
+            {
+                violations.push(SecurityViolation {
+                    violation_type: SecurityViolationType::PromptInjection,
+                    description: format!(
+                        "Prompt injection pattern '{}' detected in resolved content",
+                        pattern
+                    ),
+                    source_ref: Some(source_ref.clone()),
+                    trigger: pattern.to_string(),
+                });
+            }
+
+            // Check classification for leakage [§2.6.6.7.11.5]
+            let classification = resolver.resolve_classification(source_ref).await?;
+
+            // Unknown sensitivity MUST block
+            if classification.sensitivity == SensitivityLevel::Unknown {
+                violations.push(SecurityViolation {
+                    violation_type: SecurityViolationType::UnknownSensitivity,
+                    description: "Content has unknown sensitivity level - blocked by default"
+                        .to_string(),
+                    source_ref: Some(source_ref.clone()),
+                    trigger: "unknown_sensitivity".to_string(),
+                });
+            }
+
+            // High sensitivity content cannot be exported
+            if classification.sensitivity == SensitivityLevel::High && !classification.exportable {
+                violations.push(SecurityViolation {
+                    violation_type: SecurityViolationType::SensitivityViolation,
+                    description: "High sensitivity content cannot be included in retrieval"
+                        .to_string(),
+                    source_ref: Some(source_ref.clone()),
+                    trigger: "high_sensitivity".to_string(),
+                });
+            }
+
+            // Recursive check for composites
+            if classification.is_composite {
+                let mut visited = HashSet::new();
+                visited.insert(source_ref.source_id);
+                let composite_violations = self
+                    .check_composite_recursive(&classification.member_refs, resolver, &mut visited)
+                    .await?;
+                violations.extend(composite_violations);
+            }
+        }
+
+        Ok(violations)
+    }
+
+    /// Recursive classification check for composite refs [§2.6.6.7.11.5]
+    fn check_composite_recursive<'a>(
+        &'a self,
+        member_refs: &'a [SourceRef],
+        resolver: &'a dyn ContentResolver,
+        visited: &'a mut HashSet<Uuid>,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<Vec<SecurityViolation>, AceError>> + Send + 'a>,
+    > {
+        Box::pin(async move {
+            let mut violations = Vec::new();
+
+            for member_ref in member_refs {
+                // Prevent cycles
+                if visited.contains(&member_ref.source_id) {
+                    continue;
+                }
+                visited.insert(member_ref.source_id);
+
+                let classification = resolver.resolve_classification(member_ref).await?;
+
+                // Check member classification
+                if classification.sensitivity == SensitivityLevel::Unknown {
+                    violations.push(SecurityViolation {
+                        violation_type: SecurityViolationType::UnknownSensitivity,
+                        description: "Composite member has unknown sensitivity".to_string(),
+                        source_ref: Some(member_ref.clone()),
+                        trigger: "unknown_sensitivity".to_string(),
+                    });
+                }
+
+                if classification.sensitivity == SensitivityLevel::High
+                    && !classification.exportable
+                {
+                    violations.push(SecurityViolation {
+                        violation_type: SecurityViolationType::SensitivityViolation,
+                        description: "Composite member has high sensitivity".to_string(),
+                        source_ref: Some(member_ref.clone()),
+                        trigger: "high_sensitivity".to_string(),
+                    });
+                }
+
+                // Recurse into nested composites
+                if classification.is_composite {
+                    let nested = self
+                        .check_composite_recursive(&classification.member_refs, resolver, visited)
+                        .await?;
+                    violations.extend(nested);
+                }
+            }
+
+            Ok(violations)
+        })
     }
 }
 

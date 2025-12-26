@@ -1,5 +1,5 @@
 pub use crate::capabilities::{CapabilityProfile, CapabilityRegistry, RegistryError};
-pub use crate::storage::{AiJob, WorkflowRun};
+pub use crate::storage::{AiJob, JobKind, JobState, WorkflowRun};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

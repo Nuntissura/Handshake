@@ -228,7 +228,7 @@ mod tests {
     use super::*;
     use crate::flight_recorder::{EventFilter, RecorderError};
     use crate::storage::sqlite::SqliteDatabase;
-    use crate::storage::{AccessMode, JobMetrics, NewAiJob, SafetyMode};
+    use crate::storage::{AccessMode, JobKind, JobMetrics, NewAiJob, SafetyMode};
     use async_trait::async_trait;
     use std::error::Error;
     use std::sync::Mutex;
@@ -316,7 +316,7 @@ mod tests {
         let job = db
             .create_ai_job(NewAiJob {
                 trace_id,
-                job_kind: "test".into(),
+                job_kind: JobKind::WorkflowRun,
                 protocol_id: "proto".into(),
                 profile_id: "profile".into(),
                 capability_profile_id: "cap".into(),

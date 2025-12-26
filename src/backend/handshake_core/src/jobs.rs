@@ -1,6 +1,6 @@
 use crate::{
     flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType},
-    storage::{AccessMode, AiJob, JobMetrics, NewAiJob, SafetyMode, StorageError},
+    storage::{AccessMode, AiJob, JobKind, JobMetrics, NewAiJob, SafetyMode, StorageError},
     AppState,
 };
 use serde_json::{json, Value};
@@ -15,7 +15,7 @@ pub enum JobError {
 
 pub async fn create_job(
     state: &AppState,
-    job_kind: &str,
+    job_kind: JobKind,
     protocol_id: &str,
     capability_profile_id: &str,
     job_inputs: Option<Value>,
@@ -24,7 +24,7 @@ pub async fn create_job(
         .storage
         .create_ai_job(NewAiJob {
             trace_id: Uuid::new_v4(),
-            job_kind: job_kind.to_string(),
+            job_kind: job_kind.clone(),
             protocol_id: protocol_id.to_string(),
             profile_id: "default".to_string(),
             capability_profile_id: capability_profile_id.to_string(),
@@ -44,7 +44,7 @@ pub async fn create_job(
         FlightRecorderEventType::System,
         FlightRecorderActor::Agent,
         job.trace_id,
-        json!({ "kind": job.job_kind, "status": job.state.as_str() }),
+        json!({ "kind": job.job_kind.as_str(), "status": job.state.as_str() }),
     )
     .with_job_id(job.job_id.to_string());
     let _ = state.flight_recorder.record_event(event).await;

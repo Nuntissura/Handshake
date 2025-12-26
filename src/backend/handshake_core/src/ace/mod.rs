@@ -887,6 +887,9 @@ pub use validators::{
     CacheKeyGuard,
     CloudLeakageGuard,
     CompactionSchemaGuard,
+    // Content-aware validation types [HSK-ACE-VAL-100]
+    ContentClassification,
+    ContentResolver,
     ContextDeterminismGuard,
     ContextPackFreshnessGuard,
     IndexDriftGuard,
@@ -894,7 +897,12 @@ pub use validators::{
     LocalPayloadGuard,
     MemoryPromotionGuard,
     PromptInjectionGuard,
+    ResolvedSnippet,
     RetrievalBudgetGuard,
+    SecurityValidationResult,
+    SecurityViolation,
+    SecurityViolationType,
+    SensitivityLevel,
     ValidatorPipeline,
 };
 

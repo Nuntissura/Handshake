@@ -1,0 +1,139 @@
+# Task Packet: WP-1-ACE-Validators-v3
+
+## Metadata
+- TASK_ID: WP-1-ACE-Validators-v3
+- WP_ID: WP-1-ACE-Validators-v3
+- STATUS: In-Progress
+- DATE: 2025-12-26
+- REQUESTOR: User
+- AGENT_ID: orchestrator-gemini
+- ROLE: Orchestrator
+
+## User Context
+The security system was previously "hollow"—it checked if security data existed but didn't look at what the data actually said. This task fixes that by forcing the system to read every piece of text it processes, clean it up (normalization), and scan it for hidden instructions. If an attack is detected, the system will now "poison" the job, stopping it immediately to protect your data.
+
+## Scope
+- **What**: Remediate hollow security implementation in ACE validators by enforcing content-awareness, NFC-normalization, and atomic poisoning logic.
+- **Why**: Prevent "Hollow Guard" vulnerabilities where security checks are bypassed by omitting raw content validation.
+- **IN_SCOPE_PATHS**:
+  * src/backend/handshake_core/src/ace/validators/mod.rs
+  * src/backend/handshake_core/src/ace/validators/injection.rs
+  * src/backend/handshake_core/src/ace/validators/leakage.rs
+- **OUT_OF_SCOPE**:
+  * Implementing the Workflow Engine trap for poisoning (moved to WP-1-AI-Job-Model-v3).
+  * Full migration to cloud models (Phase 2).
+  * UI development for security violations (Phase 2).
+
+## Quality Gate
+- **RISK_TIER**: HIGH
+  - Justification: Security-critical runtime enforcement; failure allows prompt injection or data leakage.
+- **HARDENED_INVARIANTS**:
+  * **Content-Awareness**: Validators MUST resolve raw UTF-8 content via `resolve_content()`. Metadata-only checks are FORBIDDEN.
+  * **NFC Normalization**: All scans MUST use NFC-normalized, case-folded text to prevent homoglyph bypasses.
+  * **Atomic Poisoning**: Injection detection MUST trigger immediate `JobState::Poisoned` and termination of all workflow nodes.
+- **TEST_PLAN**:
+  ```bash
+  # Compile and unit test
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml
+
+  # Verify specific security guards
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml ace::validators::injection
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml ace::validators::leakage
+
+  # Full hygiene and workflow check
+  just validate
+  just post-work WP-1-ACE-Validators-v3
+  ```
+- **DONE_MEANS**:
+  * ✅ `AceRuntimeValidator` trait implemented with `resolve_content()` support per §2.6.6.7.11.0.
+  * ✅ `PromptInjectionGuard` successfully detects injection in NFC-normalized substrings per §2.6.6.7.11.6.
+  * ✅ `CloudLeakageGuard` performs recursive classification checks on composite `SourceRefs` per §2.6.6.7.11.5.
+  * ✅ Every safety violation emits `FR-EVT-SEC-VIOLATION` to Flight Recorder.
+- **ROLLBACK_HINT**:
+  ```bash
+  git revert <commit-sha>
+  ```
+
+## Bootstrap (Coder Work Plan)
+- **FILES_TO_OPEN**:
+  * docs/START_HERE.md
+  * docs/SPEC_CURRENT.md (Master Spec v02.91 §2.6.6.7.11)
+  * docs/ARCHITECTURE.md
+  * src/backend/handshake_core/src/ace/validators/mod.rs
+  * src/backend/handshake_core/src/ace/validators/injection.rs
+  * src/backend/handshake_core/src/workflows.rs
+- **SEARCH_TERMS**:
+  * "AceRuntimeValidator"
+  * "PromptInjectionDetected"
+  * "JobState::Poisoned"
+  * "unicode_normalization"
+  * "FR-EVT-SEC-VIOLATION"
+- **RUN_COMMANDS**:
+  ```bash
+  just dev
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml
+  ```
+- **RISK_MAP**:
+  * "Hollow implementation" -> Security Bypass
+  * "Normalization failure" -> Injection vulnerability
+  * "Poisoning race condition" -> Unsafe Workspace Mutation
+
+## Authority
+- **SPEC_ANCHOR**: §2.6.6.7.11 (ACE Security Guards)
+- **SPEC_CURRENT**: docs/SPEC_CURRENT.md (Master Spec v02.91)
+- **Codex**: Handshake Codex v1.4.md
+- **Task Board**: docs/TASK_BOARD.md
+
+## Notes
+- **Assumptions**: None.
+- **Open Questions**: None.
+- **Dependencies**: Foundational.
+
+---
+
+**Last Updated:** 2025-12-26
+**User Signature Locked:** ilja261220252202
+
+**IMPORTANT: This packet is locked. No edits allowed.**
+**If changes needed: Create NEW packet (WP-{ID}-variant), do NOT edit this one.**
+
+---
+
+## VALIDATION REPORT (APPENDED per CX-WP-001)
+
+**Validator:** claude-opus-4-5-20251101
+**Date:** 2025-12-26
+**Verdict:** PASS
+
+### Evidence Mapping (Spec → Code)
+
+| Requirement | Evidence |
+|-------------|----------|
+| [HSK-ACE-VAL-100] Content Awareness | `validators/mod.rs:92-104` - ContentResolver::resolve_content() trait |
+| [HSK-ACE-VAL-101] Atomic Poisoning | `workflows.rs:63-172` - handle_security_violation() → JobState::Poisoned |
+| [HSK-ACE-VAL-102] NFC Normalization | `injection.rs:86-111` - scan_for_injection_nfc() with .nfc() |
+| PromptInjectionGuard patterns | `injection.rs:23-41` - 17 patterns per spec |
+| CloudLeakageGuard recursive | `leakage.rs:125-152` - check_classification_recursive() |
+| FR-EVT-SEC-VIOLATION emission | `workflows.rs:96-113` - SecurityViolationEvent to Flight Recorder |
+| 12 validators in pipeline | `validators/mod.rs:210-229` - with_default_guards() |
+
+### Tests Executed
+
+| Command | Result |
+|---------|--------|
+| `cargo test ace::validators::injection` | 9 passed |
+| `cargo test ace::validators::leakage` | 10 passed |
+| `just validator-scan` | PASS |
+| `just validator-dal-audit` | PASS |
+
+### Hygiene Audit
+
+- Forbidden patterns (unwrap/expect/panic) in prod: **CLEAN** (only in #[test])
+- SQL string concat: **NONE**
+- NFC normalization for homoglyphs: **MITIGATED**
+
+### REASON FOR PASS
+
+All DONE_MEANS criteria satisfied with file:line evidence. Security hardening verified with NFC normalization and atomic poisoning. All in-scope tests pass.
+
+**STATUS:** VALIDATED

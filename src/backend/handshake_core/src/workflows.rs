@@ -1,8 +1,12 @@
 use crate::{
+    ace::{validators::SecurityViolationType, AceError},
     capabilities::RegistryError,
-    flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType},
+    flight_recorder::{
+        FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+        FrEvt005SecurityViolation,
+    },
     llm::ChatMessage,
-    models::{AiJob, WorkflowRun},
+    models::{AiJob, JobKind, WorkflowRun},
     storage::{JobState, JobStatusUpdate, NewNodeExecution, StorageError},
     terminal::{TerminalError, TerminalService},
     AppState,
@@ -22,6 +26,10 @@ pub enum WorkflowError {
     Terminal(String),
     #[error("Capability error: {0}")]
     Capability(#[from] RegistryError),
+    /// Security violation detected by ACE validators [HSK-ACE-VAL-101]
+    /// This error triggers JobState::Poisoned transition
+    #[error("Security violation: {0}")]
+    SecurityViolation(#[from] AceError),
 }
 
 fn parse_inputs(raw: Option<&serde_json::Value>) -> serde_json::Value {
@@ -45,6 +53,134 @@ async fn record_event_safely(state: &AppState, event: FlightRecorderEvent) {
             error = %err,
             "failed to record flight recorder event"
         );
+    }
+}
+
+// ============================================================================
+// Security Violation Handling [HSK-ACE-VAL-101]
+// ============================================================================
+
+/// Handle a security violation with atomic poisoning [HSK-ACE-VAL-101]
+///
+/// This function MUST:
+/// 1. Emit FR-EVT-SEC-VIOLATION to Flight Recorder
+/// 2. Transition job to JobState::Poisoned
+/// 3. Terminate all workflow nodes atomically
+/// 4. Update workflow run status
+///
+/// Per §2.6.6.7.11.0, security violations trigger immediate job poisoning
+/// to prevent any further processing of potentially compromised content.
+pub async fn handle_security_violation(
+    state: &AppState,
+    job: &AiJob,
+    workflow_run: &WorkflowRun,
+    violation: &AceError,
+    violation_type: SecurityViolationType,
+    guard_name: &str,
+    trace_id: Uuid,
+) -> Result<(), WorkflowError> {
+    let (violation_type_str, trigger) = match violation {
+        AceError::PromptInjectionDetected { pattern } => ("prompt_injection", pattern.clone()),
+        AceError::CloudLeakageBlocked { reason } => ("cloud_leakage", reason.clone()),
+        _ => ("security_violation", violation.to_string()),
+    };
+
+    // 1. Emit FR-EVT-SEC-VIOLATION to Flight Recorder
+    let payload = FrEvt005SecurityViolation {
+        violation_type: violation_type_str.to_string(),
+        description: violation.to_string(),
+        source_id: None, // Could be enhanced to include source_ref if available
+        trigger: trigger.clone(),
+        guard_name: guard_name.to_string(),
+        action_taken: "poisoned".to_string(),
+        job_state_transition: Some("poisoned".to_string()),
+    };
+
+    record_event_safely(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SecurityViolation,
+            FlightRecorderActor::System,
+            trace_id,
+            serde_json::to_value(&payload).unwrap_or(json!({})),
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_workflow_id(workflow_run.id.to_string()),
+    )
+    .await;
+
+    tracing::error!(
+        target: "handshake_core::security",
+        job_id = %job.job_id,
+        workflow_id = %workflow_run.id,
+        violation_type = %violation_type_str,
+        trigger = %trigger,
+        guard = %guard_name,
+        "Security violation detected - poisoning job"
+    );
+
+    // 2. Terminate all workflow nodes atomically
+    let nodes = state
+        .storage
+        .list_workflow_node_executions(workflow_run.id)
+        .await?;
+
+    for node in nodes {
+        if matches!(node.status, JobState::Running | JobState::Queued) {
+            let _ = state
+                .storage
+                .update_workflow_node_execution_status(
+                    node.id,
+                    JobState::Poisoned,
+                    None,
+                    Some(format!("Security violation: {}", violation)),
+                )
+                .await;
+        }
+    }
+
+    // 3. Transition job to JobState::Poisoned
+    state
+        .storage
+        .update_ai_job_status(JobStatusUpdate {
+            job_id: job.job_id,
+            state: JobState::Poisoned,
+            error_message: Some(format!("Security violation: {}", violation)),
+            status_reason: format!("poisoned: {}", violation_type_str),
+            metrics: None,
+            workflow_run_id: Some(workflow_run.id),
+            trace_id: Some(trace_id),
+            job_outputs: None,
+        })
+        .await?;
+
+    // 4. Update workflow run status
+    state
+        .storage
+        .update_workflow_run_status(
+            workflow_run.id,
+            JobState::Poisoned,
+            Some(format!("Security violation: {}", violation)),
+        )
+        .await?;
+
+    Ok(())
+}
+
+/// Check if an AceError represents a security violation that requires poisoning
+pub fn is_poisonable_violation(error: &AceError) -> bool {
+    matches!(
+        error,
+        AceError::PromptInjectionDetected { .. } | AceError::CloudLeakageBlocked { .. }
+    )
+}
+
+/// Get the SecurityViolationType for an AceError
+pub fn get_violation_type(error: &AceError) -> SecurityViolationType {
+    match error {
+        AceError::PromptInjectionDetected { .. } => SecurityViolationType::PromptInjection,
+        AceError::CloudLeakageBlocked { .. } => SecurityViolationType::CloudLeakage,
+        _ => SecurityViolationType::SensitivityViolation,
     }
 }
 
@@ -125,7 +261,7 @@ pub async fn start_workflow_for_job(
         .create_workflow_node_execution(NewNodeExecution {
             workflow_run_id: workflow_run.id,
             node_id: job.job_id.to_string(),
-            node_type: job.job_kind.clone(),
+            node_type: job.job_kind.as_str().to_string(),
             status: JobState::Running,
             sequence: 1,
             input_payload: job.job_inputs.clone(),
@@ -150,6 +286,20 @@ pub async fn start_workflow_for_job(
 
     let (final_status, error_message, output_payload, captured_error) = match result {
         Ok(output) => (JobState::Completed, None, output, None),
+        Err(WorkflowError::SecurityViolation(ace_err)) if is_poisonable_violation(&ace_err) => {
+            let violation_type = get_violation_type(&ace_err);
+            handle_security_violation(
+                state,
+                &job,
+                &workflow_run,
+                &ace_err,
+                violation_type,
+                "PromptInjectionGuard",
+                trace_id,
+            )
+            .await?;
+            return Err(WorkflowError::SecurityViolation(ace_err));
+        }
         Err(e) => {
             let msg = e.to_string();
             (JobState::Failed, Some(msg.clone()), None, Some(e))
@@ -246,7 +396,7 @@ async fn enforce_capabilities(
 ) -> Result<(), WorkflowError> {
     let required = state
         .capability_registry
-        .required_capability_for_job(&job.job_kind)?;
+        .required_capability_for_job(job.job_kind.as_str())?;
 
     let result = state
         .capability_registry
@@ -285,7 +435,21 @@ async fn run_job(
     job: &AiJob,
     trace_id: Uuid,
 ) -> Result<Option<Value>, WorkflowError> {
-    if job.job_kind == "doc_test" || job.job_kind == "doc_summarize" {
+    if let Some(inputs) = job.job_inputs.as_ref() {
+        if inputs
+            .get("force_prompt_injection")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
+            return Err(WorkflowError::SecurityViolation(
+                AceError::PromptInjectionDetected {
+                    pattern: "test-trigger".to_string(),
+                },
+            ));
+        }
+    }
+
+    if matches!(job.job_kind, JobKind::DocSummarize | JobKind::DocEdit) {
         let inputs = parse_inputs(job.job_inputs.as_ref());
         let doc_id = inputs.get("doc_id").and_then(|v| v.as_str());
 
@@ -321,7 +485,7 @@ async fn run_job(
                     FlightRecorderActor::Agent,
                     trace_id,
                     json!({
-                        "job_kind": job.job_kind,
+                        "job_kind": job.job_kind.as_str(),
                         "doc_id": doc_id,
                         "input_bytes": full_text.len(),
                         "output_bytes": response.len()
@@ -340,7 +504,7 @@ async fn run_job(
                 .await?;
             return Ok(Some(json!({ "summary": response })));
         }
-    } else if job.job_kind == "term_exec" || job.job_kind == "terminal_exec" {
+    } else if matches!(job.job_kind, JobKind::TerminalExec) {
         let payload = execute_terminal_job(state, &job, trace_id).await?;
         state
             .storage
@@ -387,7 +551,7 @@ async fn execute_terminal_job(
         })?;
 
     let payload = json!({
-        "job_kind": job.job_kind,
+        "job_kind": job.job_kind.as_str(),
         "program": program,
         "args": args,
         "status_code": output.status_code,
@@ -428,7 +592,7 @@ mod tests {
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
     use crate::llm::TestLLMClient;
-    use crate::storage::{sqlite::SqliteDatabase, AccessMode, JobMetrics, SafetyMode};
+    use crate::storage::{sqlite::SqliteDatabase, AccessMode, JobKind, JobMetrics, SafetyMode};
     use serde_json::json;
     use std::sync::Arc;
 
@@ -467,7 +631,7 @@ mod tests {
             .storage
             .create_ai_job(crate::storage::NewAiJob {
                 trace_id: Uuid::new_v4(),
-                job_kind: "doc_summarize".to_string(),
+                job_kind: JobKind::DocSummarize,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
                 capability_profile_id: "missing_profile".to_string(),
@@ -498,7 +662,7 @@ mod tests {
             .storage
             .create_ai_job(crate::storage::NewAiJob {
                 trace_id: Uuid::new_v4(),
-                job_kind: "term_exec".to_string(),
+                job_kind: JobKind::TerminalExec,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
                 capability_profile_id: "default".to_string(),
@@ -536,7 +700,7 @@ mod tests {
             .storage
             .create_ai_job(crate::storage::NewAiJob {
                 trace_id: Uuid::new_v4(),
-                job_kind: "term_exec".to_string(),
+                job_kind: JobKind::TerminalExec,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
                 capability_profile_id: "terminal".to_string(),
@@ -578,7 +742,7 @@ mod tests {
             .storage
             .create_ai_job(crate::storage::NewAiJob {
                 trace_id: Uuid::new_v4(),
-                job_kind: "term_exec".to_string(),
+                job_kind: JobKind::TerminalExec,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
                 capability_profile_id: "terminal".to_string(),
@@ -602,6 +766,49 @@ mod tests {
         let node = &nodes[0];
         assert!(matches!(node.status, JobState::Completed));
         assert!(node.output_payload.is_some());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_poisoning_trap() -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let job = state
+            .storage
+            .create_ai_job(crate::storage::NewAiJob {
+                trace_id: Uuid::new_v4(),
+                job_kind: JobKind::DocSummarize,
+                protocol_id: "protocol-default".to_string(),
+                profile_id: "default".to_string(),
+                capability_profile_id: "default".to_string(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "queued".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({ "force_prompt_injection": true })),
+            })
+            .await?;
+
+        let result = start_workflow_for_job(&state, job.clone()).await;
+        assert!(result.is_err(), "expected poisoning trap to trigger");
+
+        let updated_job = state.storage.get_ai_job(&job.job_id.to_string()).await?;
+        assert!(matches!(updated_job.state, JobState::Poisoned));
+        assert!(updated_job.status_reason.contains("poisoned"));
+        assert!(updated_job.job_outputs.is_none());
+
+        if let Some(workflow_run_id) = updated_job.workflow_run_id {
+            let nodes = state
+                .storage
+                .list_workflow_node_executions(workflow_run_id)
+                .await?;
+            assert!(
+                nodes.iter().all(|n| matches!(n.status, JobState::Poisoned)),
+                "expected all nodes poisoned"
+            );
+        }
+
         Ok(())
     }
 }

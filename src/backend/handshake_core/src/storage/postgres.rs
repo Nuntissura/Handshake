@@ -1,6 +1,6 @@
 use super::{
     AccessMode, AiJob, Block, BlockUpdate, Canvas, CanvasEdge, CanvasGraph, CanvasNode,
-    DefaultStorageGuard, Document, EntityRef, JobMetrics, JobState, JobStatusUpdate,
+    DefaultStorageGuard, Document, EntityRef, JobKind, JobMetrics, JobState, JobStatusUpdate,
     MutationMetadata, NewAiJob, NewBlock, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument,
     NewNodeExecution, NewWorkspace, PlannedOperation, SafetyMode, StorageError, StorageGuard,
     StorageResult, WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
@@ -12,6 +12,7 @@ use sqlx::{
     postgres::{PgPool, PgPoolOptions, PgRow},
     Row,
 };
+use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -151,7 +152,7 @@ fn map_ai_job(row: PgRow) -> StorageResult<AiJob> {
             .map(|id| Uuid::parse_str(&id))
             .transpose()
             .map_err(|_| StorageError::Validation("invalid workflow_run_id uuid"))?,
-        job_kind: row.get("job_kind"),
+        job_kind: JobKind::from_str(row.get::<String, _>("job_kind").as_str())?,
         state: JobState::try_from(row.get::<String, _>("status").as_str())?,
         error_message: row.get("error_message"),
         protocol_id: row.get("protocol_id"),
@@ -1045,7 +1046,7 @@ impl super::Database for PostgresDatabase {
         .bind(&id)
         .bind(job.trace_id.to_string())
         .bind(Option::<String>::None)
-        .bind(&job.job_kind)
+        .bind(job.job_kind.as_str())
         .bind(JobState::Queued.as_str())
         .bind(&job.status_reason)
         .bind(&job.protocol_id)

@@ -1,10 +1,10 @@
 #[allow(unused_imports)]
 use super::{
     postgres::PostgresDatabase, sqlite::SqliteDatabase, AccessMode, BlockUpdate,
-    DefaultStorageGuard, EntityRef, GuardError, JobMetrics, JobState, JobStatusUpdate, NewAiJob,
-    NewBlock, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewNodeExecution, NewWorkspace,
-    OperationType, PlannedOperation, SafetyMode, StorageError, StorageGuard, StorageResult,
-    WriteContext,
+    DefaultStorageGuard, EntityRef, GuardError, JobKind, JobMetrics, JobState, JobStatusUpdate,
+    NewAiJob, NewBlock, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewNodeExecution,
+    NewWorkspace, OperationType, PlannedOperation, SafetyMode, StorageError, StorageGuard,
+    StorageResult, WriteContext,
 };
 use chrono::{Duration, Utc};
 use serde_json::json;
@@ -197,7 +197,7 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
     let job = db
         .create_ai_job(NewAiJob {
             trace_id: Uuid::new_v4(),
-            job_kind: "test".into(),
+            job_kind: JobKind::WorkflowRun,
             protocol_id: "p1".into(),
             profile_id: "profile1".into(),
             capability_profile_id: "cap1".into(),
@@ -221,7 +221,7 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
         })
         .await?;
     let job_loaded = db.get_ai_job(&job.job_id.to_string()).await?;
-    assert_eq!(job_loaded.job_kind, "test");
+    assert!(matches!(job_loaded.job_kind, JobKind::WorkflowRun));
 
     db.update_ai_job_status(JobStatusUpdate {
         job_id: job.job_id,
@@ -283,7 +283,7 @@ async fn workflow_node_execution_persists_inputs_and_outputs() -> StorageResult<
     let job = db
         .create_ai_job(NewAiJob {
             trace_id: Uuid::new_v4(),
-            job_kind: "test".into(),
+            job_kind: JobKind::WorkflowRun,
             protocol_id: "p1".into(),
             profile_id: "profile1".into(),
             capability_profile_id: "cap1".into(),
@@ -344,7 +344,7 @@ async fn stalled_workflows_are_detected_by_heartbeat() -> StorageResult<()> {
     let job = db
         .create_ai_job(NewAiJob {
             trace_id: Uuid::new_v4(),
-            job_kind: "test".into(),
+            job_kind: JobKind::WorkflowRun,
             protocol_id: "p1".into(),
             profile_id: "profile1".into(),
             capability_profile_id: "cap1".into(),

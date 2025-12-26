@@ -1,6 +1,6 @@
 use super::{
     AccessMode, AiJob, Block, BlockUpdate, Canvas, CanvasEdge, CanvasGraph, CanvasNode,
-    DefaultStorageGuard, Document, EntityRef, JobMetrics, JobState, JobStatusUpdate,
+    DefaultStorageGuard, Document, EntityRef, JobKind, JobMetrics, JobState, JobStatusUpdate,
     MutationMetadata, NewAiJob, NewBlock, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument,
     NewNodeExecution, NewWorkspace, PlannedOperation, SafetyMode, StorageError, StorageGuard,
     StorageResult, WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde_json::Value;
 use sqlx::{sqlite::SqlitePoolOptions, Row, SqlitePool};
+use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -44,6 +45,7 @@ struct AiJobRow {
 impl SqliteDatabase {
     fn map_ai_job_row(&self, row: AiJobRow) -> StorageResult<AiJob> {
         let job_state = JobState::try_from(row.status.as_str())?;
+        let job_kind = JobKind::from_str(row.job_kind.as_str())?;
         let access_mode = AccessMode::try_from(row.access_mode.as_str())?;
         let safety_mode = SafetyMode::try_from(row.safety_mode.as_str())?;
         let entity_refs: Vec<EntityRef> = serde_json::from_str(&row.entity_refs)?;
@@ -62,7 +64,7 @@ impl SqliteDatabase {
                 .map(Uuid::parse_str)
                 .transpose()
                 .map_err(|_| StorageError::Validation("invalid workflow_run_id uuid"))?,
-            job_kind: row.job_kind,
+            job_kind,
             state: job_state,
             error_message: row.error_message,
             protocol_id: row.protocol_id,
@@ -1174,7 +1176,7 @@ impl super::Database for SqliteDatabase {
         let planned_ops_json = serde_json::to_string(&job.planned_operations)?;
         let id_str = id.to_string();
         let trace_id = job.trace_id.to_string();
-        let job_kind = job.job_kind;
+        let job_kind = job.job_kind.as_str().to_string();
         let status_reason = job.status_reason;
         let protocol_id = job.protocol_id;
         let profile_id = job.profile_id;

@@ -191,6 +191,11 @@ impl CapabilityRegistry {
         ];
 
         let job_requirements = HashMap::from([
+            ("doc_edit".to_string(), "doc.summarize".to_string()),
+            ("sheet_transform".to_string(), "doc.summarize".to_string()),
+            ("canvas_cluster".to_string(), "doc.summarize".to_string()),
+            ("asr_transcribe".to_string(), "doc.summarize".to_string()),
+            ("workflow_run".to_string(), "doc.summarize".to_string()),
             ("doc_summarize".to_string(), "doc.summarize".to_string()),
             ("doc_test".to_string(), "doc.summarize".to_string()),
             ("term_exec".to_string(), "term.exec".to_string()),
@@ -198,6 +203,11 @@ impl CapabilityRegistry {
         ]);
 
         let job_profiles = HashMap::from([
+            ("doc_edit".to_string(), "default".to_string()),
+            ("sheet_transform".to_string(), "default".to_string()),
+            ("canvas_cluster".to_string(), "default".to_string()),
+            ("asr_transcribe".to_string(), "default".to_string()),
+            ("workflow_run".to_string(), "default".to_string()),
             ("doc_summarize".to_string(), "default".to_string()),
             ("doc_test".to_string(), "default".to_string()),
             ("term_exec".to_string(), "terminal".to_string()),

@@ -1,6 +1,6 @@
 use crate::{
     jobs::{create_job, JobError},
-    models::{AiJob, WorkflowRun},
+    models::{AiJob, JobKind, WorkflowRun},
     workflows::{start_workflow_for_job, WorkflowError},
     AppState,
 };
@@ -11,6 +11,7 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
+use std::str::FromStr;
 
 #[derive(Deserialize)]
 pub struct CreateJobRequest {
@@ -54,9 +55,11 @@ async fn create_new_job(
     State(state): State<AppState>,
     Json(payload): Json<CreateJobRequest>,
 ) -> Result<Json<WorkflowRun>, String> {
+    let job_kind = JobKind::from_str(payload.job_kind.as_str()).map_err(|e| e.to_string())?;
+
     let capability_profile_id = state
         .capability_registry
-        .profile_for_job_kind(&payload.job_kind)
+        .profile_for_job_kind(job_kind.as_str())
         .map_err(|e| e.to_string())?;
 
     let job_inputs = payload
@@ -66,7 +69,7 @@ async fn create_new_job(
 
     let job = create_job(
         &state,
-        &payload.job_kind,
+        job_kind,
         &payload.protocol_id,
         // Server-enforced capability profile to prevent client-side escalation.
         capability_profile_id.as_str(),

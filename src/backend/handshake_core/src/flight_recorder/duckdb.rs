@@ -279,6 +279,7 @@ impl DuckDbFlightRecorder {
                 "llm_inference" => super::FlightRecorderEventType::LlmInference,
                 "diagnostic" => super::FlightRecorderEventType::Diagnostic,
                 "capability_action" => super::FlightRecorderEventType::CapabilityAction,
+                "security_violation" => super::FlightRecorderEventType::SecurityViolation,
                 _ => super::FlightRecorderEventType::System,
             };
 

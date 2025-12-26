@@ -4,11 +4,17 @@
 //! - If model_tier=Cloud, MUST scan all artifact_handles and SourceRefs
 //! - MUST block if any item has exportable=false or sensitivity=high
 //! - MUST default to Block if sensitivity is unknown or metadata missing
+//!
+//! **Hardened Security Enforcement:**
+//! - [HSK-ACE-VAL-100] Content Awareness: MUST resolve actual classification, not rely on markers
+//! - Recursive checks for composite refs (bundles, dataset_slices)
 
 use async_trait::async_trait;
+use std::collections::HashSet;
+use uuid::Uuid;
 
-use super::AceRuntimeValidator;
-use crate::ace::{AceError, QueryPlan, RetrievalTrace};
+use super::{AceRuntimeValidator, ContentClassification, ContentResolver, SensitivityLevel};
+use crate::ace::{AceError, QueryPlan, RetrievalTrace, SourceRef};
 
 /// Marker in trace warnings indicating non-exportable artifact detected
 pub const NON_EXPORTABLE_WARNING: &str = "leakage:non_exportable";
@@ -66,6 +72,110 @@ impl CloudLeakageGuard {
         warning
             .strip_prefix(prefix)
             .map(|rest| rest.trim_start_matches(':').to_string())
+    }
+
+    // ========================================================================
+    // Content-Aware Validation Methods [HSK-ACE-VAL-100]
+    // ========================================================================
+
+    /// Check classification for a single SourceRef [HSK-ACE-VAL-100]
+    ///
+    /// Returns an error if the classification indicates leakage risk.
+    pub fn check_classification(
+        source_ref: &SourceRef,
+        classification: &ContentClassification,
+    ) -> Result<(), AceError> {
+        // Unknown sensitivity MUST default to block per mandate
+        if classification.sensitivity == SensitivityLevel::Unknown {
+            return Err(AceError::CloudLeakageBlocked {
+                reason: format!(
+                    "Unknown sensitivity for source '{}' - blocking by default",
+                    source_ref.source_id
+                ),
+            });
+        }
+
+        // High sensitivity with non-exportable MUST block
+        if classification.sensitivity == SensitivityLevel::High && !classification.exportable {
+            return Err(AceError::CloudLeakageBlocked {
+                reason: format!(
+                    "High-sensitivity non-exportable content in source '{}'",
+                    source_ref.source_id
+                ),
+            });
+        }
+
+        // Non-exportable content MUST block for cloud tier
+        if !classification.exportable {
+            return Err(AceError::CloudLeakageBlocked {
+                reason: format!(
+                    "Non-exportable content in source '{}'",
+                    source_ref.source_id
+                ),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Recursive classification check for composite refs per §2.6.6.7.11.5
+    ///
+    /// This method MUST be called for bundles and dataset_slices to ensure
+    /// all member items are also checked for leakage risk.
+    pub fn check_classification_recursive<'a>(
+        source_ref: &'a SourceRef,
+        resolver: &'a dyn ContentResolver,
+        visited: &'a mut HashSet<Uuid>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), AceError>> + Send + 'a>>
+    {
+        Box::pin(async move {
+            // Prevent cycles
+            if visited.contains(&source_ref.source_id) {
+                return Ok(());
+            }
+            visited.insert(source_ref.source_id);
+
+            // Resolve classification
+            let classification = resolver.resolve_classification(source_ref).await?;
+
+            // Check this ref
+            Self::check_classification(source_ref, &classification)?;
+
+            // Recursively check members if composite
+            if classification.is_composite {
+                for member_ref in &classification.member_refs {
+                    Self::check_classification_recursive(member_ref, resolver, visited).await?;
+                }
+            }
+
+            Ok(())
+        })
+    }
+
+    /// Validate all SourceRefs in a trace with content resolution [HSK-ACE-VAL-100]
+    ///
+    /// This method resolves actual classification data rather than relying on
+    /// pre-populated warning markers.
+    pub async fn validate_trace_with_resolver(
+        &self,
+        trace: &RetrievalTrace,
+        resolver: &dyn ContentResolver,
+    ) -> Result<(), AceError> {
+        let mut visited = HashSet::new();
+
+        // Check all spans
+        for span in &trace.spans {
+            Self::check_classification_recursive(&span.source_ref, resolver, &mut visited).await?;
+        }
+
+        // Check all selected evidence
+        for evidence in &trace.selected {
+            if let crate::ace::CandidateRef::Source(source_ref) = &evidence.candidate_ref {
+                Self::check_classification_recursive(source_ref, resolver, &mut visited).await?;
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -259,5 +369,93 @@ mod tests {
 
         let result = guard.validate_trace(&trace).await;
         assert!(matches!(result, Err(AceError::CloudLeakageBlocked { .. })));
+    }
+
+    // ========================================================================
+    // Content-Aware Classification Tests [HSK-ACE-VAL-100]
+    // ========================================================================
+
+    /// T-ACE-VAL-100: check_classification blocks unknown sensitivity
+    #[test]
+    fn test_check_classification_unknown_blocks() {
+        let source_ref = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let classification = ContentClassification {
+            sensitivity: SensitivityLevel::Unknown,
+            exportable: true,
+            is_composite: false,
+            member_refs: Vec::new(),
+        };
+
+        let result = CloudLeakageGuard::check_classification(&source_ref, &classification);
+        assert!(matches!(
+            result,
+            Err(AceError::CloudLeakageBlocked { reason }) if reason.contains("Unknown sensitivity")
+        ));
+    }
+
+    /// T-ACE-VAL-100: check_classification blocks high sensitivity non-exportable
+    #[test]
+    fn test_check_classification_high_sensitivity_non_exportable() {
+        let source_ref = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let classification = ContentClassification {
+            sensitivity: SensitivityLevel::High,
+            exportable: false,
+            is_composite: false,
+            member_refs: Vec::new(),
+        };
+
+        let result = CloudLeakageGuard::check_classification(&source_ref, &classification);
+        assert!(matches!(
+            result,
+            Err(AceError::CloudLeakageBlocked { reason }) if reason.contains("High-sensitivity")
+        ));
+    }
+
+    /// T-ACE-VAL-100: check_classification blocks non-exportable
+    #[test]
+    fn test_check_classification_non_exportable() {
+        let source_ref = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let classification = ContentClassification {
+            sensitivity: SensitivityLevel::Medium,
+            exportable: false,
+            is_composite: false,
+            member_refs: Vec::new(),
+        };
+
+        let result = CloudLeakageGuard::check_classification(&source_ref, &classification);
+        assert!(matches!(
+            result,
+            Err(AceError::CloudLeakageBlocked { reason }) if reason.contains("Non-exportable")
+        ));
+    }
+
+    /// T-ACE-VAL-100: check_classification allows low sensitivity exportable
+    #[test]
+    fn test_check_classification_allows_safe_content() {
+        let source_ref = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let classification = ContentClassification {
+            sensitivity: SensitivityLevel::Low,
+            exportable: true,
+            is_composite: false,
+            member_refs: Vec::new(),
+        };
+
+        let result = CloudLeakageGuard::check_classification(&source_ref, &classification);
+        assert!(result.is_ok());
+    }
+
+    /// T-ACE-VAL-100: check_classification allows medium sensitivity exportable
+    #[test]
+    fn test_check_classification_allows_medium_exportable() {
+        let source_ref = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let classification = ContentClassification {
+            sensitivity: SensitivityLevel::Medium,
+            exportable: true,
+            is_composite: false,
+            member_refs: Vec::new(),
+        };
+
+        let result = CloudLeakageGuard::check_classification(&source_ref, &classification);
+        assert!(result.is_ok());
     }
 }
