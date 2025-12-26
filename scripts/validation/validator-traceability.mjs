@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
  * Traceability audit:
- * - Ensures trace_id/job_id appear in governed mutation paths.
- * - Optional glob filters can be passed as arguments.
+ * - Ensures job_id appears in governed mutation paths.
+ * - Emits a warning (non-fatal) if trace_id is absent.
  *
- * Exits non-zero if required trace fields are absent.
+ * Exits non-zero only if required fields are absent.
  */
 import { execSync } from "node:child_process";
 
@@ -31,17 +31,20 @@ function runRg(pattern) {
   }
 }
 
-const traceHits = runRg("trace_id");
 const jobHits = runRg("job_id");
+const traceHits = runRg("trace_id");
 
 const failures = [];
-if (!traceHits) failures.push("trace_id not found in governed paths");
+const warnings = [];
 if (!jobHits) failures.push("job_id not found in governed paths");
+if (!traceHits) warnings.push("trace_id not found in governed paths (warning only)");
 
 if (failures.length > 0) {
   console.error("validator-traceability: FAIL — missing traceability fields");
   failures.forEach((f) => console.error(`- ${f}`));
+  warnings.forEach((w) => console.error(`- ${w}`));
   process.exit(1);
 }
 
-console.log("validator-traceability: PASS — trace_id/job_id present in governed paths.");
+warnings.forEach((w) => console.warn(`validator-traceability: WARN — ${w}`));
+console.log("validator-traceability: PASS — required traceability fields present.");

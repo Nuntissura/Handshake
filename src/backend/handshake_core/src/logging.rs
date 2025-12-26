@@ -1,9 +1,15 @@
-use std::{fs, path::PathBuf};
+use std::{fs, io, path::PathBuf};
 
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 pub fn init_logging() {
-    let root_dir = repo_root();
+    let root_dir = match repo_root() {
+        Ok(path) => path,
+        Err(err) => {
+            tracing::error!(target: "handshake_core", error = %err, "failed to resolve repo root for logging");
+            return;
+        }
+    };
     let log_dir = root_dir.join("data").join("logs");
     let log_dir_result = fs::create_dir_all(&log_dir);
 
@@ -40,20 +46,15 @@ pub fn init_logging() {
         .init();
 
     if let Err(err) = log_dir_result {
-        tracing::error!(
-            target: "handshake_core",
-            "failed to create log directory {:?}: {}",
-            log_dir,
-            err
-        );
+        tracing::error!(target: "handshake_core", log_dir = %log_dir.display(), error = %err, "failed to create log directory");
     }
 }
 
-fn repo_root() -> PathBuf {
+fn repo_root() -> Result<PathBuf, io::Error> {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(|p| p.parent())
         .and_then(|p| p.parent())
         .map(PathBuf::from)
-        .expect("failed to resolve repo root")
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "failed to resolve repo root"))
 }

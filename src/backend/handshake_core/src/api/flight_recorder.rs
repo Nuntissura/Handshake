@@ -1,15 +1,33 @@
 use crate::AppState;
-use axum::{extract::State, routing::get, Json, Router};
+use axum::{
+    extract::{Query, State},
+    routing::get,
+    Json, Router,
+};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FlightEvent {
+    pub event_id: String,
+    pub trace_id: String,
     pub timestamp: String,
+    pub actor: String,
+    pub actor_id: String,
     pub event_type: String,
     pub job_id: Option<String>,
     pub workflow_id: Option<String>,
     pub payload: Value,
+}
+
+#[derive(Deserialize, Debug, Default)]
+pub struct EventFilter {
+    pub job_id: Option<String>,
+    pub trace_id: Option<Uuid>,
+    pub from: Option<DateTime<Utc>>,
+    pub to: Option<DateTime<Utc>>,
 }
 
 pub fn routes(state: AppState) -> Router {
@@ -19,35 +37,37 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn list_events(State(state): State<AppState>) -> Result<Json<Vec<FlightEvent>>, String> {
-    let conn = state.fr_pool.lock().map_err(|e| e.to_string())?;
+async fn list_events(
+    State(state): State<AppState>,
+    Query(filter): Query<EventFilter>,
+) -> Result<Json<Vec<FlightEvent>>, String> {
+    let internal_filter = crate::flight_recorder::EventFilter {
+        job_id: filter.job_id,
+        trace_id: filter.trace_id,
+        from: filter.from,
+        to: filter.to,
+    };
 
-    let mut stmt = conn
-        .prepare("SELECT timestamp, event_type, job_id, workflow_id, payload FROM events ORDER BY timestamp DESC LIMIT 100")
+    let events = state
+        .flight_recorder
+        .list_events(internal_filter)
+        .await
         .map_err(|e| e.to_string())?;
 
-    let event_iter = stmt
-        .query_map([], |row| {
-            let payload_str: String = row.get(4)?;
-            let payload: Value = match serde_json::from_str(&payload_str) {
-                Ok(val) => val,
-                Err(_) => Value::Null,
-            };
-
-            Ok(FlightEvent {
-                timestamp: row.get(0)?,
-                event_type: row.get(1)?,
-                job_id: row.get(2)?,
-                workflow_id: row.get(3)?,
-                payload,
-            })
+    let api_events = events
+        .into_iter()
+        .map(|e| FlightEvent {
+            event_id: e.event_id.to_string(),
+            trace_id: e.trace_id.to_string(),
+            timestamp: e.timestamp.to_rfc3339(),
+            actor: e.actor.to_string(),
+            actor_id: e.actor_id,
+            event_type: e.event_type.to_string(),
+            job_id: e.job_id,
+            workflow_id: e.workflow_id,
+            payload: e.payload,
         })
-        .map_err(|e| e.to_string())?;
+        .collect();
 
-    let mut events = Vec::new();
-    for event in event_iter {
-        events.push(event.map_err(|e| e.to_string())?);
-    }
-
-    Ok(Json(events))
+    Ok(Json(api_events))
 }

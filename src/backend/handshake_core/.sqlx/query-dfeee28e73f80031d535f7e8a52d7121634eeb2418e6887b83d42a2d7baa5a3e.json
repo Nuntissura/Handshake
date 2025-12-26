@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                UPDATE ai_jobs\n                SET error_message = $1,\n                    updated_at = $2\n                WHERE id = (SELECT job_id FROM workflow_runs WHERE id = $3)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "dfeee28e73f80031d535f7e8a52d7121634eeb2418e6887b83d42a2d7baa5a3e"
+}

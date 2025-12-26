@@ -92,11 +92,108 @@ This document is **complete, standalone, and implementable by a fresh model** fo
 - **Targeted audits**: storage DAL (trait boundary, SQL portability, migration numbering, dual-backend readiness), LLM boundary, determinism/traceability (trace_id/job_id in mutations), security/RCE guardrails, git/build hygiene
 - **Binary verdict**: PASS (evidence complete, audits clean, tests pass) appends validation report to packet and moves to Done; FAIL (gaps found) documents violations and returns to Orchestrator/Coder
 
-### Tool Agent (Mechanical Execution)
-- **Executes allowed commands** (tests, scans, formatters, linters, file searches) under an allowlist defined in the packet's Tooling section
+### Tool Agent (Mechanical Execution via Typed Workflows)
+- **Executes allowed commands** (tests, scans, formatters, linters, file searches) as **typed workflow invocations** (not raw shell)
 - **Works within bounds**: respects IN_SCOPE_PATHS, honors OUT_OF_SCOPE, respects RISK_TIER constraints (no exploratory changes)
-- **Returns deterministic logs**: command + output + exit code; logs attached to packet's VALIDATION section for reproducibility
-- **Reduces context churn**: keeps Coder/Validator prompts shorter by executing mechanical operations independently
+- **Returns artifact handles**: tools output references (handles), not embedded content; Coder/Validator fetch on-demand
+- **Enables token efficiency**: prompt references handles instead of embedding 50KB of logs; 95%+ token savings on tool-heavy tasks
+- **Reuses workflows**: tool invocations use subworkflow templates (test_suite, build_pack, validator_scan_pack) across all packets; zero duplication
+- **Reduces context churn**: keeps Coder/Validator prompts tiny by using artifact references instead of raw output
+
+## Cross-Domain Composition Macros (Reusable Workflow Patterns)
+
+Instead of designing workflows for each domain, use these **4 universal composition macros** that apply to any large project:
+
+### Macro 1: Ingest → Normalize → Index → Enrich → Present
+
+**Applies to**: Data ingestion, format conversion, multi-source consolidation
+
+**Packet pattern**:
+- **DONE_MEANS**:
+  1. Raw data ingested into standard entity format
+  2. Normalized to canonical schema (no domain-specific quirks)
+  3. Indexed for search/retrieval
+  4. Enriched with computed properties (summaries, classifications)
+  5. Presented in multiple views (API, UI, export)
+
+**Tool Agent workflow template**: `ingest_pack`
+- Inputs: source type, entity format, normalization rules
+- Outputs: entity handle, index handle, enrichment handle
+- Error workflow: emit diagnostic (format mismatch, schema violation, index failure)
+
+**Example packets**: WP-1-CSV-Ingestion, WP-2-Email-Thread-Ingestion, WP-3-Log-Aggregation
+
+---
+
+### Macro 2: Extract → Compute → Visualize → Export
+
+**Applies to**: Data analytics, reporting, metric generation
+
+**Packet pattern**:
+- **DONE_MEANS**:
+  1. Data extracted from source (subset query, filter)
+  2. Computed metrics/aggregations applied
+  3. Visualized in at least one format (table, chart, graph)
+  4. Exported in canonical format (JSON, CSV, PDF)
+
+**Tool Agent workflow template**: `analytics_pack`
+- Inputs: extraction filter, computation rules, visualization type
+- Outputs: extraction handle, computation handle, visualization handle, export handle
+- Error workflow: emit diagnostic (query failed, computation timeout, export format error)
+
+**Example packets**: WP-4-Revenue-Dashboard, WP-5-Performance-Report, WP-6-Audit-Export
+
+---
+
+### Macro 3: Detect → Suggest → Gate → Apply
+
+**Applies to**: Decision workflows, approval chains, safe mutations
+
+**Packet pattern**:
+- **DONE_MEANS**:
+  1. Condition/anomaly detected via rule, threshold, or ML
+  2. Suggestion generated (action, parameter, reason)
+  3. Gated by validator (human or automated check)
+  4. Applied only after gate passes
+
+**Tool Agent workflow template**: `decision_pack`
+- Inputs: detection rules, suggestion algorithm, gate criteria
+- Outputs: detection handle, suggestion handle, gate verdict, execution handle
+- Error workflow: emit diagnostic (detection failed, suggestion generation failed, gate rejected)
+
+**Example packets**: WP-7-Calendar-Conflict-Detection, WP-8-Cost-Anomaly-Alert, WP-9-Approval-Chain
+
+---
+
+### Macro 4: Observe → Diagnose → Bundle → Repair
+
+**Applies to**: Debugging, incident response, post-mortem analysis
+
+**Packet pattern**:
+- **DONE_MEANS**:
+  1. Symptoms observed (logs, metrics, errors)
+  2. Root cause diagnosed (dependency traces, state inspection)
+  3. Debug bundle created (artifacts, snapshots, reproduction steps)
+  4. Repair steps proposed (rollback, patch, workaround)
+
+**Tool Agent workflow template**: `diagnostic_pack`
+- Inputs: symptom filters, diagnostic rules, repair knowledge base
+- Outputs: observation handle, diagnosis handle, bundle handle, repair plan handle
+- Error workflow: emit diagnostic (trace collection failed, diagnosis inconclusive, bundle export failed)
+
+**Example packets**: WP-10-Failed-Job-Debugging, WP-11-Memory-Leak-Investigation, WP-12-Schema-Corruption-Recovery
+
+---
+
+### Why These Macros Scale
+
+1. **Reusability**: Every new feature maps to one of 4 patterns; no new workflow design needed
+2. **Consistency**: All packets using same macro have same structure, same validation gates, same evidence model
+3. **Tool reuse**: `ingest_pack` template used for CSV, email, logs, URLs, etc. (parameterized by input type)
+4. **Error handling**: Each macro has standard error workflows (no custom failure handling per domain)
+5. **Token efficiency**: Tool Agent learns 4 workflow templates; invocation is parameterized
+
+---
 
 ## End-to-End Flow (6 Stages)
 
@@ -186,6 +283,141 @@ Backlog → Ready-for-Dev → In-Progress → Ready-for-Validation → Done (VAL
 - Downstream packets remain BLOCKED until upstream STATUS is VALIDATED
 - `just validator-phase-gate {PHASE}` prevents phase closure if blockers unresolved
 
+---
+
+## Dependency Graph Resolution Algorithm
+
+**When should a new packet be created vs. added to existing packet?** Use this algorithm:
+
+### Decision Tree
+
+```
+User prompt arrives with new requirement.
+
+1. DOES IT MODIFY CODE IN EXISTING PACKET?
+   ├─ YES → Is the packet still In-Progress (not yet VALIDATED)?
+   │        ├─ YES → Add to existing packet as variant (WP-{id}-v2, new signature)
+   │        └─ NO → Create new packet (WP-{id+1})
+   └─ NO → Proceed to step 2
+
+2. IS IT A DEPENDENCY OF OTHER WORK?
+   ├─ YES → Create new packet; other packets reference it as blocker
+   │        Packet status starts as "Ready-for-Dev"
+   └─ NO → Proceed to step 3
+
+3. DOES IT REQUIRE SIGNIFICANT NEW FILES/MODULES?
+   ├─ YES → Create new packet (separates concerns)
+   └─ NO → Could be part of existing packet (consolidate if same phase)
+
+4. IS IT PART OF PHASE N CLOSURE GATES?
+   ├─ YES → Create new packet; list in TASK_BOARD Phase N section
+   └─ NO → Create new packet or consolidate (estimate effort)
+```
+
+### Dependency Graph Representation
+
+In `docs/TASK_BOARD.md`, explicitly list dependency edges:
+
+```markdown
+## Phase 1 Closure Gates (BLOCKING)
+
+### Storage Backend Portability (Sequential)
+1. WP-1-Storage-Abstraction-Layer
+   - Blocker: None (foundational)
+   - Blocked: WP-1-AppState-Refactoring, WP-1-Migration-Framework
+
+2. WP-1-AppState-Refactoring
+   - Blocker: WP-1-Storage-Abstraction-Layer (MUST complete first)
+   - Blocked: WP-1-Dual-Backend-Tests
+
+3. WP-1-Migration-Framework
+   - Blocker: None (can start independently)
+   - Blocked: WP-1-Dual-Backend-Tests
+
+4. WP-1-Dual-Backend-Tests
+   - Blocker: WP-1-Storage-Abstraction-Layer + WP-1-Migration-Framework
+   - Blocked: None (closure gate)
+```
+
+### Circular Dependency Detection
+
+**Script** `scripts/validation/validator-dependency-graph.mjs`:
+```javascript
+// Detect cycles in packet dependencies
+const packets = readTaskBoard();
+const graph = buildDependencyGraph(packets);
+const cycles = detectCycles(graph);
+
+if (cycles.length > 0) {
+  console.error("❌ Circular dependency detected:");
+  cycles.forEach(cycle => {
+    console.error(`  ${cycle.join(" → ")} → ${cycle[0]}`);
+  });
+  process.exit(1);
+}
+```
+
+### Dependency Conflict Resolution
+
+| Conflict | Resolution |
+|----------|-----------|
+| Two independent packets modify same file | Split changes into separate packets; one depends on other for file initialization |
+| Packet A needs output from Packet B, but B isn't started | Mark A as BLOCKED until B is VALIDATED |
+| Three packets all depend on foundational WP-0 | WP-0 is Phase 0 closure gate; nothing proceeds until WP-0 is VALIDATED |
+| User adds new requirement during WP-5-A implementation | Check if it modifies WP-5-A scope: if yes → WP-5-A-v2 (new signature); if no → new WP-5-B |
+
+---
+
+## Concurrent Packet Execution Rules
+
+**Multiple Coders working in parallel on different packets.** How to prevent conflicts?
+
+### Non-Conflicting (Parallel OK)
+- ✅ WP-1-Storage-Abstraction-Layer (modifies src/storage/) + WP-2-UI-Frontend (modifies app/src/) → No conflict
+- ✅ WP-3-Auth (modifies src/api/auth.rs) + WP-4-Logging (modifies src/logging.rs) → No conflict
+- ✅ Same file but different functions: WP-5-Feature-A adds `fn feature_a()` + WP-6-Feature-B adds `fn feature_b()` in same file → Git merge conflict-free if functions don't interact
+
+### Conflicting (Serialize or Risk)
+- ❌ WP-7-Database-Schema-v1 (adds columns) + WP-8-Database-Schema-v2 (modifies same columns) → Serialize: WP-8 blocked until WP-7 VALIDATED
+- ❌ WP-9-API-Contract (changes endpoint signature) + WP-10-Client (calls that endpoint) → Serialize: WP-10 blocked until WP-9 VALIDATED
+- ❌ Both WP-11 and WP-12 modify configuration structure → Coordinate via Task Board; one becomes dependency
+
+### Conflict Detection Rule
+
+**Orchestrator runs before allowing parallel packets**:
+```bash
+# Extract IN_SCOPE_PATHS from each packet
+paths_wp1=$(grep -A 10 "^IN_SCOPE_PATHS:" docs/task_packets/WP-{id1}.md | grep "^  -" | awk '{print $2}')
+paths_wp2=$(grep -A 10 "^IN_SCOPE_PATHS:" docs/task_packets/WP-{id2}.md | grep "^  -" | awk '{print $2}')
+
+# Check for overlaps
+overlap=$(comm -12 <(echo "$paths_wp1" | sort) <(echo "$paths_wp2" | sort))
+
+if [ -n "$overlap" ]; then
+  echo "⚠️  Conflict: Both packets modify:"
+  echo "$overlap"
+  echo "Create dependency or split packets"
+  exit 1
+fi
+```
+
+### Merge Strategy
+
+When parallel packets complete:
+
+1. **Test each independently**: WP-1 tests PASS, WP-2 tests PASS
+2. **Test combined**: Run all tests together (integration check)
+3. **Merge sequentially**: WP-1 → main, then WP-2 → main (or both → feature branch → main if high confidence)
+4. **Re-validate if any conflicts**: Validator re-runs critical audits if merge required fixups
+
+### SLA for Parallel Work
+
+- Limit: Max 3 concurrent packets touching overlapping modules
+- Retry: If merge fails, revert one packet; coordinate rebase
+- Gate: Both packets must be VALIDATED before merging concurrently
+
+---
+
 ## Signature Pause (Alignment & Enrichment)
 - **Orchestrator proposes**: SPEC_ANCHORs or enrichment needed, 5-10 DONE_MEANS (measurable), TEST_PLAN commands, IN/OUT scope, RISK_TIER, validator audit scope, rollback plan, variant triggers.
 - **User validates**: interpretation accuracy, feasibility of commands, scope realism, risk acceptance, cost/benefit.
@@ -201,6 +433,89 @@ Backlog → Ready-for-Dev → In-Progress → Ready-for-Validation → Done (VAL
   Locked: DONE_MEANS, TEST_PLAN, IN_SCOPE_PATHS, OUT_OF_SCOPE, validator checks.
   ```
 - Any change after signature => create `WP-{id}-v2` with a new signature.
+
+---
+
+## Spec Enrichment Rules (Drift Prevention)
+
+**When is spec enrichment valid? When is it scope creep?** Use this decision matrix:
+
+### Decision Matrix: Valid Enrichment vs. Scope Creep
+
+| Scenario | Valid? | Reason | Action |
+|----------|--------|--------|--------|
+| **Clarifying existing anchor** (e.g., "A3.2.1 OAuth: what counts as 'authenticated'?") | ✅ Yes | Removes ambiguity; doesn't change requirement | Enrich → create v1.1 → run validator-spec-regression → obtain signature |
+| **Adding missing anchor** (user says "we also need rate limiting" but spec doesn't cover it) | ✅ Yes | New requirement, not change to existing | Enrich → add A5.1.2 Rate Limiting → run validator-spec-regression → obtain signature |
+| **Rewriting existing anchor** (e.g., "A3.2.1 said 'email auth only', now add social login") | ❌ No | Changes requirement after user signed off on DONE_MEANS | Escalate to user; new signature required; check if existing packets affected |
+| **Changing DONE_MEANS after signature** (Orchestrator adds new checkpoint mid-work) | ❌ No | Violates Signature Lock principle; scope creep | Create WP-{id}-v2 with new signature; don't modify original |
+| **Adding out-of-scope requirement as "nice-to-have"** (packet says "no caching", user asks for "optional Redis support") | ❌ No | Introduces uncertainty; optional features are scope creep | Document in packet OUT_OF_SCOPE; create separate WP if needed |
+| **Removing anchor** (spec v1.0 required feature X, now X is obsolete) | ✅ Yes | Spec evolution; old anchor becomes "deprecated" | Create v2.0 with deprecation notice; run validator-spec-regression; check dependent packets |
+
+### Spec Enrichment Process
+
+**When enrichment is needed** (before packet creation):
+
+1. **Intake phase**: Orchestrator identifies gap (requirement not covered by current spec)
+2. **Enrich spec**: Create new spec version (e.g., v1.0 → v1.1 or v1.0 → v2.0 if breaking)
+3. **Run validator-spec-regression**: Ensure all previous anchors still exist (no accidental deletions)
+4. **Obtain signature**: User validates enrichment doesn't change existing intent; provides signature
+5. **Update SPEC_CURRENT.md**: Point to new spec version
+6. **Create packet**: Now reference new anchors with confidence
+7. **Log in SIGNATURE_AUDIT.md**: Timestamp, user, version, enrichment scope
+
+### Spec Versioning Strategy
+
+**Minor enrichment** (v1.0 → v1.1): Clarifications, new anchors, no anchor changes
+- Old packets remain valid (old anchors still exist)
+- No validator-spec-regression needed (backward compatible)
+- Example: v1.0 has "User Authentication", v1.1 adds "Multi-Factor Auth" without changing auth baseline
+
+**Major enrichment** (v1.0 → v2.0): Rewrites, anchor changes, removals
+- Old packets may be invalid (anchors removed or changed)
+- **Validator-spec-regression REQUIRED** before publishing
+- Example: v1.0 specified SQLite only, v2.0 introduces pluggable storage (trait changes)
+
+### Red Flags (Probable Scope Creep)
+
+- Enrichment is proposed **during implementation** (sign says "this feature is harder, let's also add...")
+- Enrichment is "optional" or "nice-to-have"
+- User never saw enrichment before signature (Orchestrator enriched unilaterally)
+- Enrichment changes DONE_MEANS of existing packet (should create -v2)
+- Enrichment removes existing anchor without deprecation notice
+
+---
+
+## Spec Version Migration (Breaking Changes)
+
+When spec changes significantly (v1.0 → v2.0), existing packets may reference old anchors. Use this process:
+
+### Pre-Migration: Audit Impact
+```bash
+# Find all packets referencing v1.0 anchors
+grep -r "v1.0" docs/task_packets/ | wc -l
+
+# Identify anchors that will be removed/renamed
+grep "^A2.3" docs/Master_Spec_v1.0.md > old_anchors.txt
+grep "^A2.3" docs/Master_Spec_v2.0.md > new_anchors.txt
+diff old_anchors.txt new_anchors.txt  # Shows gaps
+```
+
+### During Migration: Anchor Mapping
+Create `docs/SPEC_MIGRATION_v1_to_v2.md`:
+```markdown
+## Anchor Mapping (v1.0 → v2.0)
+
+- A2.3.1 (old: "SQLite Storage") → A2.4.1 (new: "Pluggable Storage Trait")
+- A2.3.2 (old: "Direct SQL") → DEPRECATED (no replacement; SQL access now via trait only)
+- A3.2.1 (old: "Auth") → A3.2.1 (unchanged)
+```
+
+### Post-Migration: Packet Updates
+- Old packets **remain valid** if referenced anchor exists (even if moved)
+- Old packets **become invalid** if anchor removed (escalate to Orchestrator)
+- Create new anchor deprecation period (3 phases): DEPRECATED → REMOVED → gone
+
+---
 
 ## Templates (Copy, then fill)
 
@@ -334,6 +649,106 @@ Packet Update:
 | "DB is behind trait" | A2.3.12.3 | src/storage/mod.rs:45-120 | cargo test -p core storage_tests |
 | "No pool leaks" | A2.3.12.3 | src/api/*.rs imports checked | rg "SqlPool" src/api |
 ```
+
+### Evidence Validation Patterns (Beyond Code)
+
+**Not all DONE_MEANS have code evidence.** Use these patterns for non-code requirements:
+
+#### Pattern 1: Performance Metrics
+**DONE_MEANS**: "API response time < 200ms for user queries"
+
+**Evidence**:
+```markdown
+Evidence Type: Performance Benchmark
+- Metric: response_time_p99
+- Baseline (before): 450ms
+- Target (after): <200ms
+- Actual (after): 185ms ✅ PASS
+- Benchmark command: `jq '.response_time_p99' perf_results.json`
+- Proof of removability: Revert performance optimization → benchmark shows >200ms ✅
+- File evidence: src/api/handlers/user_queries.rs:45-60 (caching implementation)
+```
+
+#### Pattern 2: UI/UX Accessibility
+**DONE_MEANS**: "All interactive elements keyboard-accessible (WCAG 2.1 AA)"
+
+**Evidence**:
+```markdown
+Evidence Type: Accessibility Audit
+- Tool: axe DevTools / Pa11y
+- Violations before: 5 (2 critical)
+- Violations after: 0 ✅ PASS
+- Test command: `pa11y --standard WCAG2AA https://app/feature`
+- Proof of removability: Remove keyboard event handlers → audit fails ✅
+- File evidence: app/src/components/FeatureForm.tsx:12-45 (onKeyDown handlers)
+- Screenshot: app_accessibility_audit_2025-12-25.png
+```
+
+#### Pattern 3: Documentation Completeness
+**DONE_MEANS**: "API endpoint documented with request/response examples"
+
+**Evidence**:
+```markdown
+Evidence Type: Documentation Audit
+- Files: docs/api/v1/users.md + src/main.rs doc comments
+- Completeness checklist:
+  ✓ Endpoint URL and method
+  ✓ Required headers + authentication
+  ✓ Request body schema (with example)
+  ✓ Response body schema (with example)
+  ✓ Error codes (documented in src/errors.rs)
+  ✓ Rate limits (documented)
+- Proof of removability: Remove doc comments → CI check fails (missing docs) ✅
+- File evidence: docs/api/v1/users.md:1-50, src/api/handlers.rs:100-120
+```
+
+#### Pattern 4: User Feedback / Acceptance
+**DONE_MEANS**: "Feature meets user acceptance criteria (approved by stakeholder)"
+
+**Evidence**:
+```markdown
+Evidence Type: User Sign-Off
+- Stakeholder: product-manager@company.com
+- Sign-off timestamp: 2025-12-25 14:30:00 UTC
+- Acceptance criteria met: ✅ All 5 acceptance criteria verified
+  ✓ Feature works as demoed
+  ✓ No blocking bugs
+  ✓ Performance acceptable
+  ✓ UX meets expectations
+  ✓ Ready for production
+- Sign-off reference: Jira HSK-1234 comment #42
+- Proof: Signed change log in docs/FEATURE_ACCEPTANCE.md
+```
+
+#### Pattern 5: Security Scan Results
+**DONE_MEANS**: "No critical vulnerabilities; all dependencies CVSS <7.0"
+
+**Evidence**:
+```markdown
+Evidence Type: Security Audit
+- Scanner: cargo audit + npm audit
+- Vulnerabilities before: 3 critical, 2 high
+- Vulnerabilities after: 0 critical, 0 high ✅ PASS
+- Command: `cargo audit --deny warnings && npm audit --audit-level high`
+- Dependencies updated: Cargo.toml:15, package.json:23-27
+- Proof of removability: Revert dependency updates → scan fails ✅
+```
+
+#### Pattern 6: Schema/Contract Compliance
+**DONE_MEANS**: "API response matches OpenAPI 3.0 schema"
+
+**Evidence**:
+```markdown
+Evidence Type: Schema Validation
+- Tool: swagger-cli validator
+- Schema file: docs/openapi-3.0.yaml
+- Valid schemas: 12/12 ✅ PASS
+- Command: `swagger-cli validate docs/openapi-3.0.yaml`
+- Implementation evidence: src/api/handlers/*.rs lines match response types
+- Proof of removability: Change response struct → schema validation fails ✅
+```
+
+---
 
 ### Signature Audit Entry (project root)
 ```
@@ -1286,6 +1701,130 @@ just validator-{custom}          → domain-specific checks
 - Logging: trace IDs in mutations, no secrets (CX-104)
 - Traceability: job_id, request_id correlation
 
+### Validator Evidence Aggregation Format
+
+When **multiple validators** run on a single packet, aggregate findings into a single VALIDATION REPORT:
+
+**Aggregation Strategy**:
+
+```markdown
+## VALIDATION REPORT - WP-{id}
+
+### Executive Summary
+- Verdict: PASS | FAIL
+- Validators run: 6 (pre-flight, spec-extraction, hygiene, custom-audits: 3)
+- Failures: 0 | {N} critical, {M} warnings
+- Time: 5m 32s
+
+### Per-Validator Results
+
+#### Validator 1: Pre-Flight Checks
+Status: ✅ PASS
+- Packet completeness: ✅ (all 10 fields)
+- Spec match: ✅ (v1.0 anchors valid)
+- USER_SIGNATURE: ✅ (alice_25121512345, not reused)
+- Bootstrap present: ✅
+
+#### Validator 2: Evidence Extraction & Verification
+Status: ✅ PASS
+- DONE_MEANS extracted: 5
+- Evidence mapping: 5/5 complete (100%)
+- Test proof collected: 5/5
+- Code removability verified: 5/5 ✅
+
+#### Validator 3: Hygiene Gates
+Status: ⚠️  WARNING (non-blocking)
+- Forbidden patterns: ✅ (0 found)
+- Git cleanliness: ✅
+- Coverage: 78% (below 80%, but documented waiver CX-EXC-001)
+- Codex violations: ✅ (0)
+
+#### Validator 4: Storage DAL Audit (custom)
+Status: ✅ PASS
+- Trait isolation: ✅
+- SQL portability check: ✅ (no SQLite-specific syntax outside storage/)
+- Migration numbering: ✅ (migration_001.sql, migration_002.sql)
+- Schema immutability: ✅
+
+#### Validator 5: Security Audit (custom)
+Status: ✅ PASS
+- RCE guardrails: ✅
+- Input validation: ✅
+- Secret detection: ✅ (0 secrets found)
+- Dependency audit: ✅ (0 critical vulnerabilities)
+
+#### Validator 6: Git Hygiene (custom)
+Status: ✅ PASS
+- .gitignore coverage: ✅
+- Artifacts committed: ✅ (0)
+- Commit message format: ✅
+
+### Aggregation Logic
+
+**Verdict is PASS if and only if**:
+- Pre-flight: PASS
+- Evidence extraction: PASS
+- All custom auditors: PASS
+- Hygiene gates: PASS or WARNING (FAIL allowed with documented waiver)
+- Any FAIL from any validator → overall FAIL
+
+**Verdict is FAIL if**:
+- Any required validator returns FAIL
+- Evidence gaps found (pre-flight or extraction)
+- Codex violation (non-waiverable)
+- Critical security issue found
+
+### Conflict Resolution
+
+When validators disagree:
+
+| Scenario | Resolution |
+|----------|-----------|
+| Storage auditor says ✅ PASS; Security auditor says ❌ FAIL | Overall = FAIL; rework required |
+| Hygiene auditor says WARNING (low coverage); Pre-flight says PASS | Overall = PASS IF waiver approved |
+| Evidence extraction says FAIL (missing proof); Coder says "it's there" | Overall = FAIL; require evidence resubmission |
+
+### Validator Report Template
+
+```markdown
+VALIDATION REPORT - WP-{id}
+
+Verdict: PASS | FAIL
+
+Scope:
+- Packet: docs/task_packets/WP-{id}.md
+- Spec: {SPEC_CURRENT version}
+- Coders: {names}
+
+Validators Executed (in order):
+1. pre-flight-check (built-in)
+2. spec-extraction (built-in)
+3. hygiene-gates (built-in)
+4. validator-dal-audit (custom)
+5. validator-security (custom)
+
+Findings Summary:
+- Total validators: 5
+- PASS: 5
+- FAIL: 0
+- WARNING: 0
+- Blockers: None
+
+Test Results:
+- TEST_PLAN executed: {N} commands
+- All PASS: ✅
+- Coverage: {X}% (threshold: 80%)
+- Removability checks: {Y}/Y PASS
+
+Risks/Gaps:
+- None
+
+Approval:
+- Validator: {name}
+- Timestamp: {ISO 8601}
+- Signature: {validator_signature} (optional)
+```
+
 ---
 
 ## Verdict (Binary: PASS or FAIL)
@@ -1718,6 +2257,832 @@ git commit -m "test"
 5. Merge
 
 If all tests pass, infrastructure is ready.
+
+---
+
+---
+
+## Tool Agent: Mechanical Workflow Orchestration & Token Efficiency
+
+The Tool Agent executes mechanical operations (tests, scans, format checks, grep, curl, etc.) **as typed workflow invocations**, not raw shell commands. This enables **token efficiency** and **reusable tool pipelines** across all task packets.
+
+### Problem Without Typed Workflows
+
+**Token Bloat from Embedded Outputs:**
+```
+Prompt 1: "Run these 5 test commands" (1KB)
+Tool outputs: 50KB of test logs → embedded in next prompt
+Prompt 2: "Here's test output... run next commands" (51KB)
+Tool outputs: 40KB of build logs → embedded in next prompt
+Prompt 3: "Here's build output... run grep" (41KB)
+...
+Total tokens: ~150KB of raw I/O → ~750K tokens for prompting (4:1 expansion)
+```
+
+**Result**: For a 10-command task, Coder/Validator prompts bloat to 50KB+. Context rot, token waste, repeated parsing.
+
+### Solution: Artifact Handle Discipline
+
+**With Typed Workflows + Handles:**
+```
+Prompt 1: "Invoke workflow 'test_and_build_WP' with inputs {module: api, tests: auth_integration}" (1KB)
+
+Tool Agent executes:
+  node_1: cargo test → outputs handle "test_run_001" (log stored separately)
+  node_2: cargo build → outputs handle "build_001"
+  node_3: grep search → outputs handle "grep_001"
+
+Response: {handles: [test_run_001, build_001, grep_001], status: SUCCESS} (0.5KB)
+
+Prompt 2: "Validate using artifact handles; test_run_001 = {status: PASSED, count: 8}" (1KB)
+(Validator fetches handles on-demand, not embedded in prompt)
+
+Total tokens: ~2.5KB actual prompts → ~12K tokens
+Reduction: 97.3% token savings vs embedded logs
+```
+
+### Core Pattern: Workflow Spec Instead of Shell Commands
+
+**Old BOOTSTRAP (text commands):**
+```
+RUN_COMMANDS:
+- cargo test -p api auth_integration
+- cargo build --manifest-path src/Cargo.toml
+- grep "bcrypt" src/services/jwt.rs
+```
+
+**New BOOTSTRAP (typed workflow):**
+```json
+{
+  "tooling": {
+    "workflow": "test_and_build_WP",
+    "template": "api_test_pack",
+    "inputs": {
+      "package": "api",
+      "test_target": "auth_integration",
+      "build_manifest": "src/Cargo.toml",
+      "search_terms": ["bcrypt"]
+    },
+    "outputs": {
+      "test_results": {"handle_pattern": "test_run_*", "required": true},
+      "build_log": {"handle_pattern": "build_*", "required": true},
+      "grep_results": {"handle_pattern": "grep_*", "required": false}
+    },
+    "constraints": {
+      "timeout_sec": 600,
+      "output_size_limit_mb": 100,
+      "allowed_tools": ["cargo", "grep", "rg"]
+    }
+  }
+}
+```
+
+**Benefits:**
+1. **Reusable**: same "api_test_pack" template used in 100 packets, zero duplication
+2. **Deterministic**: typed inputs/outputs, no ambiguity
+3. **Token-efficient**: outputs are handles, not embedded content
+4. **Debuggable**: Tool Agent can replay, replay-from-pin, etc.
+5. **Auditable**: full workflow spec in packet, reproducible
+
+### Tool Agent Capability Catalog Pattern
+
+**Define once. Reuse 100 times.** A formal registry of all available workflows ensures:
+- No tool duplication across packets
+- Consistent versioning and capability metadata
+- Fast capability lookup (which workflows can solve this problem?)
+- Lineage tracking (which packets depend on which workflows?)
+
+#### Capability Catalog Format
+
+Create `docs/TOOL_AGENT_CATALOG.md`:
+
+```markdown
+# Tool Agent Capability Catalog v1.0
+
+## Workflow Families
+
+### Testing & Validation Family
+**Purpose**: Execute tests, coverage checks, linting, format validation
+
+| Workflow ID | Name | Inputs | Outputs | Error Workflow | Version | Status |
+|---|---|---|---|---|---|---|
+| api_test_pack | API Test & Build | package, test_target, build_manifest, search_terms | test_results, build_log, grep_results | emit_diagnostic_bundle | 1.0 | Stable |
+| backend_validation_pack | Backend Validator | repo_path, lint_rules, test_threshold | lint_report, test_report, coverage_report | notify_failures | 1.0 | Stable |
+| validator_scan_pack | Forbidden Pattern Scanner | scan_paths, forbidden_patterns, severity_level | scan_results, violation_details | escalate_critical | 1.2 | Stable |
+
+### Data Processing Family
+**Purpose**: Ingest, normalize, transform, export data
+
+| Workflow ID | Name | Inputs | Outputs | Error Workflow | Version | Status |
+|---|---|---|---|---|---|---|
+| ingest_pack | Ingest & Normalize | source_type, entity_format, rules | entity_handle, index_handle, enrichment_handle | fallback_ingestion | 1.0 | Stable |
+| analytics_pack | Extract-Compute-Visualize | extraction_filter, computation_rules, viz_type | extraction_handle, computation_handle, viz_handle, export_handle | diagnostic_analytics | 1.0 | Stable |
+
+### Decision & Approval Family
+**Purpose**: Detect conditions, suggest actions, gate approvals
+
+| Workflow ID | Name | Inputs | Outputs | Error Workflow | Version | Status |
+|---|---|---|---|---|---|---|
+| decision_pack | Detect-Suggest-Gate | detection_rules, suggestion_algo, gate_criteria | detection_handle, suggestion_handle, gate_verdict, execution_handle | escalate_gate_failure | 1.0 | Stable |
+
+### Debugging & Recovery Family
+**Purpose**: Diagnose failures, bundle artifacts, propose repairs
+
+| Workflow ID | Name | Inputs | Outputs | Error Workflow | Version | Status |
+|---|---|---|---|---|---|---|
+| diagnostic_pack | Observe-Diagnose-Bundle | symptom_filters, diagnostic_rules, repair_kb | observation_handle, diagnosis_handle, bundle_handle, repair_handle | escalate_inconclusive | 1.0 | Stable |
+
+## Capability Inheritance Model
+
+When a workflow calls another workflow (subworkflow), capabilities cascade:
+
+```
+Parent Packet: WP-1-Storage-Layer (RISK_TIER: HIGH, needs security audit)
+  ├─ Invokes: backend_validation_pack
+  │   Inherited capabilities:
+  │   - Test execution (restricted to IN_SCOPE_PATHS)
+  │   - Forbidden pattern scanning (inherits severity level)
+  │   - Lint rules (inherits codex rules)
+  │
+  └─ Validator applies MOST_RESTRICTIVE rule:
+      - If parent = HIGH risk, child = MEDIUM risk → child inherits HIGH
+      - If parent forbids "unwrap()", child cannot use it either
+      - Capability constraint propagates down the call tree
+```
+
+## Workflow Versioning
+
+- **v1.0**: Initial stable release (feature complete)
+- **v1.1+**: Backwards-compatible enhancements (new optional input, new optional output)
+- **v2.0+**: Breaking changes (input/output schema change, required new capability)
+
+**Migration**: When workflow version changes:
+```bash
+# Packets referencing workflow_v1.0 continue working
+# Orchestrator can optionally upgrade to v2.0 (requires re-validation)
+grep -r "api_test_pack" docs/task_packets/ | wc -l  # Find all users
+
+# Create deprecation notice
+echo "api_test_pack@1.0 deprecated as of Phase 3; v2.0 available"
+
+# Migrate packets at phase boundary (not mid-implementation)
+```
+
+## Workflow Dependency Graph
+
+Workflows can depend on other workflows:
+
+```
+validator_scan_pack (depends on)
+  └─ backend_validation_pack
+     └─ api_test_pack
+```
+
+When validator_scan_pack runs, it transitively gains capabilities from its dependencies.
+
+---
+
+### Subworkflow Templates (Reusable Tool Pipelines)
+
+Instead of repeating commands in every packet, define templates once and reuse:
+
+**Template 1: api_test_pack**
+```
+test_and_build_WP:
+  - Input: package, test_target, build_manifest
+  - Nodes:
+    - run_cargo_tests(package, test_target) → handle "test_run_*"
+    - run_cargo_build(build_manifest) → handle "build_*"
+    - run_clippy(package) → handle "clippy_*"
+    - check_coverage(package, threshold: 80) → handle "coverage_*"
+  - Error workflow: if any node fails, emit diagnostic bundle + suggest fix
+  - Output: all handles + summary (PASSED/FAILED/NEEDS_REVIEW)
+```
+
+**Usage in Packet 1:**
+```json
+{"workflow": "test_and_build_WP", "inputs": {package: "api", test_target: "auth"}}
+```
+
+**Usage in Packet 2:**
+```json
+{"workflow": "test_and_build_WP", "inputs": {package: "api", test_target: "storage"}}
+```
+
+**Packet 3-100:** same template, different inputs. Zero command duplication. Every execution tracked with handles.
+
+**Template 2: backend_validation_pack**
+```
+backend_full_validation_WP:
+  - Nodes:
+    - lint_check (cargo clippy) → handle "clippy_*"
+    - format_check (cargo fmt --check) → handle "fmt_*"
+    - deny_check (cargo deny) → handle "deny_*"
+    - test_suite (all tests) → handle "test_*"
+  - Output: all handles + summary
+  - Reusable across: Rust backend, system code, utilities
+```
+
+**Template 3: validator_scan_pack**
+```
+validator_comprehensive_scan_WP:
+  - Nodes:
+    - forbidden_patterns_scan → handle "scan_forbidden_*"
+    - error_code_audit → handle "audit_errors_*"
+    - coverage_check → handle "coverage_report_*"
+    - security_scan → handle "security_*"
+  - Output: all handles + PASS/FAIL verdict
+  - Used in: every validator audit
+```
+
+### Error Workflows (Token-Efficient Failure Handling)
+
+**Without error workflows** (token wasteful):
+- Tool fails: raw error message sent to Coder
+- Coder parses 50KB error log
+- Tries to understand failure context
+- Prompts inflate with raw debugging info
+
+**With error workflows** (token efficient):
+```
+on_failure handler:
+  - Capture error + context
+  - Generate Diagnostic struct: {error_code, location, possible_causes}
+  - Generate Debug Bundle: {logs_handle, context_handle, env_handle}
+  - Generate Repair Suggestion: {suggestion_WP, estimated_fix_time}
+
+Output to Coder: {diagnostic: {...}, debug_bundle_handle: "debug_001", suggestion: {...}} (1KB)
+```
+
+**Result**: Coder gets structured error + handle to debug bundle, not raw logs. Token savings: 98%.
+
+### Evidence Validation via Handles
+
+**Old VALIDATION (embedded logs):**
+```
+Command: cargo test -p api auth_integration
+Result: PASSED (8/8 cases)
+  ✓ login_valid_credentials
+  ✓ login_invalid_password
+  ...
+[output repeated, taking 5KB in packet]
+```
+
+**New VALIDATION (handles):**
+```
+VALIDATION:
+  test_suite_execution:
+    - workflow_id: "exec_12345"
+    - workflow_spec: "api_test_pack"
+    - test_results_handle: "test_run_001"
+    - test_results_summary: {status: PASSED, passed: 8, failed: 0, skipped: 0}
+    - build_log_handle: "build_001"
+    - build_status: SUCCESS
+
+  execution_proof:
+    - command_executed: "cargo test -p api auth_integration" (sha256: abc123)
+    - output_hash: "def456" (contents verified against test_run_001 handle)
+    - timestamp: 2025-12-25T10:00:00Z
+    - reproducible: true (can replay from handle)
+
+  validator_checks:
+    - evidence_complete: PASS (all handles present)
+    - tests_executable: PASS (can replay test_run_001)
+    - output_size: PASS (under limit)
+```
+
+**Benefit**: Validator audits via handles, fetches artifacts on-demand, prompt stays tiny (0.5KB).
+
+### Token Efficiency: The Math
+
+**For a Medium Task (8 test commands + 2 builds):**
+
+| Approach | Command I/O | Prompt Size | Total Tokens | Notes |
+|----------|------------|------------|--------------|-------|
+| Raw shell (embedded) | 300KB | 150KB | 750K | Every output embedded in next prompt |
+| Artifact handles | 300KB | 1.5KB | 7.5K | Outputs are handles, fetched on-demand |
+| **Savings** | — | **99%** | **99%** | 100x token reduction |
+
+**For Large Task (30 validator audits + 10 tests):**
+
+| Approach | Total Tokens |
+|----------|--------------|
+| Raw shell | 2M+ |
+| Artifact handles | 20K |
+| **Savings** | **99%** |
+
+### Implementation: From Raw Shell to Typed Workflows
+
+**Phase 0: Define Workflow Specs (Days 1-2)**
+1. Create `WorkflowSpec` schema (JSON typed format)
+2. Define 5 base templates: test_pack, build_pack, validator_pack, formatter_pack, security_pack
+3. Update BOOTSTRAP section to reference workflows instead of listing commands
+
+**Phase 1: Implement Artifact Handles (Days 3-4)**
+1. Extend Tool Agent to output handles instead of embedding content
+2. Create handle storage: `artifacts/{exec_id}/{handle_id}/content`
+3. Update VALIDATION section to store handles + summary (not full logs)
+
+**Phase 2: Error Workflows (Days 5-6)**
+1. Define error_workflow node: captures failure → emits diagnostic + bundle handle
+2. Integrate into all templates: on_failure triggers error workflow
+3. Coder receives structured error (diagnostic struct + handle)
+
+**Phase 3: Pinned Fixtures (Days 7-8)**
+1. Allow "pin output" on any workflow node
+2. Store pinned handles in packet
+3. Validator can replay from pinned (deterministic, no re-execution)
+
+**Phase 4: Cross-Domain Composition (Days 9-12)**
+1. Define domain packs (IngestPack, ExportPack, API-TestPack)
+2. Subworkflows can call subworkflows (call_workflow node)
+3. Build complex pipelines by composing templates
+
+### Template Definition Format
+
+```yaml
+# templates/api_test_pack.yaml
+name: api_test_pack
+description: "Test, build, lint for API modules"
+version: "1.0"
+
+inputs:
+  package: string        # e.g., "api"
+  test_target: string    # e.g., "auth_integration"
+  build_manifest: string # e.g., "src/Cargo.toml"
+
+outputs:
+  test_results:
+    type: artifact_handle
+    pattern: "test_run_*"
+    required: true
+    validator: must contain {status, passed, failed, skipped}
+
+  build_log:
+    type: artifact_handle
+    pattern: "build_*"
+    required: true
+
+  clippy_report:
+    type: artifact_handle
+    pattern: "clippy_*"
+    required: false
+
+workflow:
+  - node: run_tests
+    tool: cargo
+    args: ["test", "-p", "{package}", "--test", "{test_target}"]
+    outputs: {handle: "test_run_{timestamp}"}
+    on_failure: trigger error_workflow
+
+  - node: run_build
+    tool: cargo
+    args: ["build", "--manifest-path", "{build_manifest}"]
+    outputs: {handle: "build_{timestamp}"}
+    on_failure: trigger error_workflow
+
+  - node: run_clippy
+    tool: cargo
+    args: ["clippy", "-p", "{package}"]
+    outputs: {handle: "clippy_{timestamp}"}
+    on_failure: log_warning (non-blocking)
+
+constraints:
+  timeout_sec: 600
+  output_size_limit_mb: 500
+  allowed_tools: [cargo, grep, rg, curl]
+
+error_workflow: emit_diagnostic_bundle
+```
+
+### How BOOTSTRAP + Workflow Spec Reduces Prompt Size
+
+**BOOTSTRAP with workflow template:**
+```json
+{
+  "BOOTSTRAP": {
+    "FILES_TO_OPEN": ["src/api/handlers/auth.rs", "tests/integration/auth_test.rs"],
+    "SEARCH_TERMS": ["LoginRequest", "validate_jwt", "Bearer"],
+    "WORKFLOW": {
+      "template": "api_test_pack",
+      "inputs": {package: "api", test_target: "auth_integration"}
+    },
+    "WORKFLOW_VERSION": "1.0",
+    "EXPECTED_OUTPUTS": ["test_results", "build_log"],
+    "RISK_MAP": [
+      {failure: "Test fails", impact: "logic error", mitigation: "review test code"},
+      {failure: "Build fails", impact: "compilation error", mitigation: "fix syntax"}
+    ]
+  }
+}
+```
+
+**Coder receives:**
+- Files to read (concrete paths, no bloat)
+- Search terms (keywords, not full code)
+- Workflow spec (1 line, fully reusable)
+- Risk map (structured, easy to parse)
+
+**Coder invokes workflow:**
+```
+Tool Agent: invoke api_test_pack(package: "api", test_target: "auth_integration")
+Returns: {test_results: handle_001, build_log: handle_002, status: PASSED}
+```
+
+**Coder updates VALIDATION:**
+```
+VALIDATION:
+  workflow_execution: api_test_pack
+  outputs: {test_results: handle_001, build_log: handle_002}
+  status: PASSED
+```
+
+**Validator audits via handles:**
+- Fetch handle_001 → verify test counts, pass/fail
+- Fetch handle_002 → verify build succeeded
+- **No embedding of logs, no context bloat**
+
+### Token Budget Tracking
+
+Add to your project's CI/CD:
+
+```bash
+# Measure prompt sizes before/after token optimization
+echo "Prompt size (raw shell mode): $(wc -c < prompt_before.txt)"     # Expected: 50-100KB
+echo "Prompt size (typed workflows): $(wc -c < prompt_after.txt)"     # Expected: 1-5KB
+echo "Token reduction: $(( (1 - $(wc -c < prompt_after.txt) / $(wc -c < prompt_before.txt)) * 100 ))%"
+
+# Expected: 95-99% reduction for tool-heavy tasks
+```
+
+#### Token Budget Per-Packet Tracking
+
+Define **token budgets** per packet phase. Enforce in CI/CD:
+
+```bash
+# scripts/ci/token-budget-check.sh
+# Measure actual token usage per packet; warn if exceed budget
+
+WP_ID=$1
+PHASE=$(echo $WP_ID | cut -d'-' -f1)  # WP-1-... → WP-1
+
+# Define phase budgets (adjust based on typical prompts)
+declare -A BUDGETS=(
+  ["WP-0"]=5000      # Foundation: small scope
+  ["WP-1"]=15000     # Phase 1: ~5 packets, each up to 3K tokens
+  ["WP-2"]=20000     # Phase 2: larger features
+  ["WP-3"]=25000     # Phase 3: complex features
+)
+
+BUDGET=${BUDGETS[$PHASE]:-20000}
+
+# Estimate tokens: prompt_bytes / 4 (rough approximation)
+# More precise: count tokens via API or tokenizer library
+ACTUAL=$(cat docs/task_packets/$WP_ID.md | wc -c)
+TOKENS=$((ACTUAL / 4))
+
+echo "Packet $WP_ID:"
+echo "  Budget: $BUDGET tokens"
+echo "  Actual: $TOKENS tokens"
+echo "  Status: $([ $TOKENS -le $BUDGET ] && echo '✅ PASS' || echo '❌ EXCEED')"
+
+[ $TOKENS -le $BUDGET ] && exit 0 || exit 1
+```
+
+#### Phase-Level Token Budget Tracking
+
+Track cumulative token usage across all packets in a phase:
+
+```markdown
+## Phase 1 Token Budget (Master Spec v1.0)
+
+| WP-ID | Prompt Size | Tokens (est.) | Budget | Status | Savings |
+|---|---|---|---|---|---|
+| WP-1-Storage-Layer | 2.1KB | 525 | 3K | ✅ 83% under | 96% (vs 15KB embedded) |
+| WP-1-AppState-Refactor | 1.8KB | 450 | 3K | ✅ 85% under | 95% |
+| WP-1-Migration-Framework | 2.3KB | 575 | 3K | ✅ 81% under | 97% |
+| WP-1-Dual-Backend-Tests | 2.5KB | 625 | 3K | ✅ 79% under | 96% |
+| **Phase 1 Total** | **9.7KB** | **2,175 tokens** | **12K budget** | ✅ PASS | **96% avg savings** |
+
+**Projection**:
+- Phase 1 (4 packets): 2.2K tokens
+- Phase 2 (6 packets est.): 3.3K tokens
+- Phase 3 (8 packets est.): 4.4K tokens
+- **Total project**: 10K tokens (vs 500K with embedded logs)
+```
+
+#### Evidence of Token Savings
+
+Compare before/after for same packet:
+
+```markdown
+## Token Efficiency Evidence (WP-1-Storage-Layer)
+
+### BEFORE: Embedded logs in prompt
+
+Prompt content:
+```
+WP-1-Storage-Layer
+Implement storage trait...
+[Full 50KB test output embedded]
+[Full 40KB build logs embedded]
+[Full 15KB grep results embedded]
+...
+```
+**Total prompt**: 145KB → ~725K tokens
+
+Metadata: cargo test output = 50 test cases × 1000 bytes = 50KB
+          cargo build output = 40KB
+          ripgrep results = 15KB
+
+### AFTER: Artifact handles only
+
+Prompt content:
+```json
+{
+  "WP_ID": "WP-1-Storage-Layer",
+  "DONE_MEANS": 5,
+  "TEST_PLAN": 3,
+  "BOOTSTRAP": {
+    "workflow": "backend_validation_pack",
+    "outputs": {
+      "test_results": "handle_test_001",
+      "build_log": "handle_build_001",
+      "grep_results": "handle_grep_001"
+    }
+  },
+  "VALIDATION": {
+    "test_results_summary": {status: PASSED, count: 8},
+    "build_status": "SUCCESS"
+  }
+}
+```
+**Total prompt**: 2.1KB → ~10K tokens
+
+**Savings**: 145KB → 2.1KB = 98.6% reduction
+**Token savings**: 725K → 10K = 98.6% reduction (72.5x smaller)
+```
+
+#### Token Budget Alerts
+
+In your CI/CD, fail the build if:
+- Single packet exceeds phase budget by >10%
+- Phase total exceeds cumulative budget by >10%
+- Average savings < 90% vs embedded logs baseline
+
+```yaml
+# .github/workflows/token-budget-check.yml
+name: Token Budget Check
+
+on: [pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check token budgets
+        run: |
+          for wp in docs/task_packets/WP-*.md; do
+            bash scripts/ci/token-budget-check.sh "$(basename $wp .md)" || exit 1
+          done
+      - name: Report phase budgets
+        if: always()
+        run: bash scripts/ci/phase-token-report.sh
+```
+
+---
+
+## Incident Recovery & Rollback Workflows
+
+**When production breaks or a packet implementation causes issues**, use these systematic recovery patterns.
+
+### Rapid Assessment (First 5 Minutes)
+
+1. **Identify the breaking packet**:
+   - Check recent commits: `git log --oneline | head -10 | grep WP-`
+   - Find the WP_ID from commit message
+   - Locate packet: `docs/task_packets/WP-{id}.md`
+
+2. **Check ROLLBACK_HINT**:
+   ```markdown
+   ROLLBACK_HINT: git revert {commit-sha}
+   # Or:
+   ROLLBACK_HINT:
+   - Drop migration: `sqlx migrate revert`
+   - Restart service: `systemctl restart api`
+   - Verify: `curl http://localhost:3000/health`
+   ```
+
+3. **Execute immediate rollback**:
+   ```bash
+   git revert {commit-sha} --no-edit
+   git push origin main
+   # Or manually execute ROLLBACK_HINT steps
+   ```
+
+### Post-Incident Packet (WP-INCIDENT-*)
+
+Create a special task packet to investigate and document the failure:
+
+```markdown
+# Task Packet: WP-INCIDENT-2025-12-25-API-Crash
+
+## What
+Investigation of production API crash triggered by WP-1-Auth-v2 at 2025-12-25 14:30 UTC.
+Rollback executed; root cause analysis required to prevent recurrence.
+
+## Why
+- Breaking change: OAuth token validation broke existing Bearer token format
+- Impact: All API calls returned 401; services downstream degraded
+- Discovery: Alerts fired at 14:31 UTC; rollback completed at 14:35 UTC
+- Recurrence risk: HIGH (similar code pattern in WP-2-Session-Management)
+
+## IN_SCOPE_PATHS
+- src/api/middleware/auth.rs (token validation logic)
+- tests/integration/auth_test.rs (missing test case)
+- docs/SPEC_CURRENT.md (clarify token format guarantee)
+
+## OUT_OF_SCOPE
+- Other middleware (separate audit)
+- UI login flows (QA responsibility)
+
+## DONE_MEANS
+1. Root cause identified and documented (design flaw or test gap?)
+2. Proof: code review shows missing backward compatibility check
+3. Proof: gap in TEST_PLAN (new format but no old format test)
+4. Preventive: Add test case for old token format (removability: without test, no backward compat guarantee)
+5. Update spec (A3.2.1) to clarify token versioning strategy
+6. Post-mortem: 1-page summary with timeline and improvements
+
+## TEST_PLAN
+- `git diff {revert-commit}...HEAD src/api/middleware/auth.rs` (show what changed)
+- `grep -r "Bearer\|OAuth" tests/ | grep -v ".git"` (identify related tests)
+- Create new test case: `test_legacy_token_format_still_valid()`
+- Run full test suite after fix: `cargo test -p api auth_integration`
+
+## BOOTSTRAP
+FILES_TO_OPEN:
+- docs/task_packets/WP-1-Auth-v2.md (original packet)
+- src/api/middleware/auth.rs (breaking code)
+- tests/integration/auth_test.rs (test gaps)
+- Incident alert log (timestamps, error messages)
+
+SEARCH_TERMS:
+- "Bearer", "token_format", "legacy", "backward"
+
+RUN_COMMANDS:
+- git log --oneline --grep="WP-1-Auth-v2"
+- git show {commit-sha} -- src/api/middleware/auth.rs
+- cargo test -p api auth -- --nocapture
+
+## RISK_TIER
+HIGH (post-incident analysis; changes to critical auth code)
+
+## ROLLBACK_HINT
+Investigation packet; no rollback. But if findings suggest another rollback needed:
+- Revert both WP-1-Auth-v2 + WP-2-Session-Mgmt (dependent)
+- Restart services
+- Verify API health
+```
+
+### Incident Packet Validation (Special Protocol)
+
+**Incident packets skip normal pre-work gate** (they're reactive), but **require enhanced auditing**:
+
+1. **Root Cause Analysis Checklist**:
+   - [ ] Timeline documented (when issue started, when detected, when rolled back)
+   - [ ] Affected packets identified (which WPs depend on this code?)
+   - [ ] Gap analysis (what was missing: test, design review, spec clarity?)
+   - [ ] Proof of gap (show the test that should have caught it)
+
+2. **Preventive Action Checklist**:
+   - [ ] Code fix implemented
+   - [ ] New test added (removability: failing without fix)
+   - [ ] Spec updated or clarified
+   - [ ] Similar code patterns audited (grep for risky patterns)
+   - [ ] All dependent packets re-validated
+
+3. **Validation Report for Incident**:
+   ```markdown
+   VALIDATION REPORT - WP-INCIDENT-2025-12-25-API-Crash
+
+   Verdict: PASS (investigation complete; preventive measures confirmed)
+
+   Root Cause: Token validation middleware didn't support legacy Bearer format
+
+   Evidence:
+   - Gap: no test case for backward compatibility (src/api/middleware/auth_test.rs)
+   - Proof: test_legacy_token_format_still_valid() fails without fix
+   - Fix applied: src/api/middleware/auth.rs:45-60 (format detection logic)
+   - New test: tests/integration/auth_test.rs:102-120 (backward compat guarantee)
+
+   Prevention:
+   - Spec updated (A3.2.1): "API must maintain token format compatibility for 2 major versions"
+   - Custom auditor added: validator-backward-compat.mjs (checks removability for all auth tests)
+   - Similar patterns audited: grep "parse.*token" src/ (found 3 more locations, all fixed)
+
+   Dependent packets affected: WP-2-Session-Management (required re-validation, passed)
+
+   SLA impact:
+   - Incident duration: 5 minutes (14:30-14:35 UTC)
+   - Recovery time: 8 minutes (rollback + verification)
+   - Post-mortem: 2 hours (root cause + fix + testing)
+   ```
+
+### Systematic Incident Prevention
+
+Add these validators to catch issues **before** production:
+
+1. **Backward Compatibility Auditor**:
+   ```javascript
+   // scripts/validation/validator-backward-compat.mjs
+   // Ensure code changes maintain compatibility with previous version
+
+   - Check: auth tests include legacy format tests
+   - Check: API responses include version markers
+   - Check: migrations are reversible
+   - Check: config schema additions are optional (not breaking)
+   ```
+
+2. **Risk Assessment Auditor**:
+   ```javascript
+   // scripts/validation/validator-risk-assessment.mjs
+   // Identify HIGH/CRITICAL risk changes
+
+   - Middleware changes: HIGH risk (auth, logging, rate limiting)
+   - Database schema: CRITICAL risk (migrations)
+   - API contract: CRITICAL risk (breaking clients)
+   - Third-party libs: HIGH risk (version bumps)
+   ```
+
+3. **Test Coverage Auditor (Stricter for HIGH Risk)**:
+   ```javascript
+   // scripts/validation/validator-test-coverage.mjs
+   // Require >90% coverage for HIGH risk, >85% for MEDIUM
+
+   - If RISK_TIER = HIGH: coverage_threshold = 90%
+   - If RISK_TIER = MEDIUM: coverage_threshold = 80%
+   - If RISK_TIER = LOW: coverage_threshold = 70%
+   ```
+
+### Incident Postmortem Template
+
+After every incident, create a postmortem document:
+
+```markdown
+# Postmortem: WP-1-Auth-v2 Production Incident
+
+## Timeline
+- 2025-12-25 14:30:00 UTC: API crash detected; 401 errors on all endpoints
+- 14:31:00 UTC: Alert fired; on-call engineer notified
+- 14:32:00 UTC: Root cause identified (auth middleware)
+- 14:35:00 UTC: Rollback deployed; API recovered
+- 14:40:00 UTC: All health checks passing
+
+## Root Cause
+WP-1-Auth-v2 changed token format from JWT (old) to PASETO (new), breaking legacy clients.
+Original TEST_PLAN only tested new format; no test for old format backward compatibility.
+
+## Impact
+- Duration: 5 minutes
+- Services affected: API + 3 dependent microservices
+- User-visible: Yes (web app showed 401 errors)
+- Data loss: No
+
+## Why Incident Occurred
+
+| Aspect | Issue | Prevention |
+|--------|-------|-----------|
+| Code review | New format not flagged as breaking | Require 2+ reviewers for auth changes |
+| Testing | Missing backward compatibility test | Custom validator: test_legacy_formats.mjs |
+| Spec clarity | Token versioning strategy unclear | Update spec A3.2.1 with version guarantee |
+| Pre-prod validation | No staging env test | Add RISK_TIER=CRITICAL → stage first |
+
+## Immediate Actions (Completed)
+- [x] Rollback WP-1-Auth-v2
+- [x] Added backward compatibility test
+- [x] Updated spec (A3.2.1)
+- [x] Re-validated dependent packets
+
+## Follow-Up Actions
+- [ ] Increase test coverage threshold for auth (85% → 95%)
+- [ ] Create custom validator for backward compatibility checks
+- [ ] Require RISK_TIER=CRITICAL → staging + extended QA
+- [ ] Review all token-related code patterns (WP-2-Session, WP-3-MFA)
+
+## Lessons Learned
+1. **Always test backward compatibility** for breaking changes
+2. **Mark spec invariants** (token versioning is a guarantee, not implementation detail)
+3. **Staging environment essential** for CRITICAL risk packets
+4. **Test removability** should include "removing new feature" tests, not just "adding feature" tests
+
+---
+
+Prepared by: {Validator name}
+Date: 2025-12-25 16:00:00 UTC
+Signed: {signature}
+```
 
 ---
 

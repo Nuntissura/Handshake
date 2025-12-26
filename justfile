@@ -73,15 +73,20 @@ create-task-packet wp-id:
 
 # Pre-work validation - run before starting implementation [CX-587, CX-620]
 pre-work wp-id:
+	@just gate-check {{wp-id}}
 	@node scripts/validation/pre-work-check.mjs {{wp-id}}
 
 # Post-work validation - run before commit [CX-623, CX-651]
 post-work wp-id:
+	@just gate-check {{wp-id}}
 	@node scripts/validation/post-work-check.mjs {{wp-id}}
 
 # Full workflow validation for a work packet
 validate-workflow wp-id:
 	@echo "Running full workflow validation for {{wp-id}}..."
+	@echo ""
+	@echo "Step 0: Gate Check"
+	@just gate-check {{wp-id}}
 	@echo ""
 	@echo "Step 1: Pre-work check"
 	@just pre-work {{wp-id}}
@@ -96,6 +101,11 @@ validate-workflow wp-id:
 	@just post-work {{wp-id}}
 	@echo ""
 	@echo "✅ Full workflow validation passed for {{wp-id}}"
+
+# Gate check (protocol-aligned)
+gate-check wp-id:
+	@node scripts/validation/gate-check.mjs {{wp-id}}
+
 # Validator helpers (protocol-aligned)
 validator-scan:
 	@node scripts/validation/validator-scan.mjs

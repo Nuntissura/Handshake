@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO ai_jobs (\n                id, job_kind, status, protocol_id, profile_id,\n                capability_profile_id, access_mode, safety_mode,\n                created_at, updated_at, is_pinned\n            )\n            VALUES ($1, 'test', $2, 'proto', 'profile', 'cap', 'read', 'safe', $3, $4, $5)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "4302cf7120f55a2988276ed970a4fb18ecc9578851c995ff81aa35b4d1214393"
+}

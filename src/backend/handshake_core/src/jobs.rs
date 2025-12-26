@@ -1,13 +1,16 @@
-use crate::{flight_recorder::log_event, models::AiJob, AppState};
-use serde_json::json;
-use serde_json::Value;
+use crate::{
+    flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType},
+    storage::{AccessMode, AiJob, JobMetrics, NewAiJob, SafetyMode, StorageError},
+    AppState,
+};
+use serde_json::{json, Value};
 use thiserror::Error;
 use uuid::Uuid;
 
 #[derive(Error, Debug)]
 pub enum JobError {
-    #[error("Database error: {0}")]
-    Sqlx(#[from] sqlx::Error),
+    #[error("Storage error: {0}")]
+    Storage(#[from] StorageError),
 }
 
 pub async fn create_job(
@@ -17,58 +20,34 @@ pub async fn create_job(
     capability_profile_id: &str,
     job_inputs: Option<Value>,
 ) -> Result<AiJob, JobError> {
-    let job_id = Uuid::new_v4().to_string();
-    let status = "queued".to_string();
-
-    let job_inputs = job_inputs.map(|value| value.to_string());
-
-    // These are hardcoded for now as per the task packet.
-    let profile_id = "default".to_string();
-    let capability_profile_id = capability_profile_id.to_string();
-    let access_mode = "default".to_string();
-    let safety_mode = "default".to_string();
-
-    let job = sqlx::query_as::<_, AiJob>(
-        r#"
-        INSERT INTO ai_jobs (id, job_kind, status, protocol_id, profile_id, capability_profile_id, access_mode, safety_mode, job_inputs)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING
-            id,
-            job_kind,
-            status,
-            error_message,
-            protocol_id,
-            profile_id,
-            capability_profile_id,
-            access_mode,
-            safety_mode,
+    let job = state
+        .storage
+        .create_ai_job(NewAiJob {
+            trace_id: Uuid::new_v4(),
+            job_kind: job_kind.to_string(),
+            protocol_id: protocol_id.to_string(),
+            profile_id: "default".to_string(),
+            capability_profile_id: capability_profile_id.to_string(),
+            access_mode: AccessMode::AnalysisOnly,
+            safety_mode: SafetyMode::Normal,
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            status_reason: "queued".to_string(),
+            metrics: JobMetrics::zero(),
             job_inputs,
-            job_outputs,
-            created_at,
-            updated_at
-        "#,
-    )
-    .bind(job_id)
-    .bind(job_kind)
-    .bind(status)
-    .bind(protocol_id)
-    .bind(profile_id)
-    .bind(capability_profile_id)
-    .bind(access_mode)
-    .bind(safety_mode)
-    .bind(job_inputs)
-    .fetch_one(&state.pool)
-    .await?;
+        })
+        .await?;
 
     // Log the creation event to the flight recorder.
     // We ignore the result for now; a logging failure shouldn't fail the job creation.
-    let _ = log_event(
-        state,
-        "job_created",
-        Some(&job.id),
-        None,
-        json!({ "kind": job.job_kind, "status": job.status }),
-    );
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::System,
+        FlightRecorderActor::Agent,
+        job.trace_id,
+        json!({ "kind": job.job_kind, "status": job.state.as_str() }),
+    )
+    .with_job_id(job.job_id.to_string());
+    let _ = state.flight_recorder.record_event(event).await;
 
     Ok(job)
 }

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT COUNT(*) as \"count!: i64\"\n            FROM ai_jobs\n            WHERE is_pinned = 0\n              AND status IN ('completed', 'failed')\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "count!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ab8cba84e6564bb28aba227ace1ac458192194be8911bac3b7739c58f30d6719"
+}

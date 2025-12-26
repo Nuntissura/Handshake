@@ -1,0 +1,1100 @@
+//! ACE Runtime Module (§2.6.6.7.14)
+//!
+//! Implements the Retrieval Correctness & Efficiency contract (ACE-RAG-001).
+//! This module provides:
+//! - QueryPlan and RetrievalTrace schemas
+//! - AceRuntimeValidator trait and 4 required Guards
+//! - Deterministic retrieval algorithms
+//!
+//! Spec Reference: Handshake_Master_Spec_v02.85 §2.6.6.7.14
+
+pub mod validators;
+
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use thiserror::Error;
+use uuid::Uuid;
+
+// ============================================================================
+// Error Types (ACE-001 through ACE-006)
+// ============================================================================
+
+/// ACE Runtime errors with stable error codes for debugging.
+/// See docs/RUNBOOK_DEBUG.md for error resolution guidance.
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub enum AceError {
+    #[error("ACE-001: Budget exceeded: {field} ({actual} > {max})")]
+    BudgetExceeded {
+        field: String,
+        actual: u32,
+        max: u32,
+    },
+
+    #[error("ACE-002: Context pack stale: pack_id={pack_id}, source_hash mismatch")]
+    ContextPackStale { pack_id: Uuid },
+
+    #[error("ACE-003: Index drift detected: {details}")]
+    IndexDrift { details: String },
+
+    #[error("ACE-004: Cache key missing in strict mode: stage={stage}")]
+    CacheKeyMissing { stage: String },
+
+    #[error("ACE-005: Query plan required but not provided")]
+    QueryPlanRequired,
+
+    #[error("ACE-006: Validation failed: {message}")]
+    ValidationFailed { message: String },
+
+    #[error("ACE-007: Provenance missing for evidence: {candidate_id}")]
+    ProvenanceMissing { candidate_id: String },
+
+    #[error("ACE-008: Truncation required but flag not set: span at {source_id}")]
+    TruncationFlagMissing { source_id: String },
+
+    #[error("ACE-009: Determinism violation: {reason}")]
+    DeterminismViolation { reason: String },
+
+    #[error("ACE-010: Inline delta exceeds limit: {actual} > {limit} chars")]
+    InlineDeltaExceeded { actual: u32, limit: u32 },
+
+    #[error("ACE-011: Compaction schema violation: {reason}")]
+    CompactionSchemaViolation { reason: String },
+
+    #[error("ACE-012: Memory promotion blocked: {reason}")]
+    MemoryPromotionBlocked { reason: String },
+
+    #[error("ACE-013: Cloud leakage blocked: {reason}")]
+    CloudLeakageBlocked { reason: String },
+
+    #[error("ACE-014: Prompt injection detected: pattern={pattern}")]
+    PromptInjectionDetected { pattern: String },
+
+    #[error("ACE-015: Job boundary violation: {field} changed from {original} to {current}")]
+    JobBoundaryViolation {
+        field: String,
+        original: String,
+        current: String,
+    },
+
+    #[error("ACE-016: Local payload violation: {reason}")]
+    LocalPayloadViolation { reason: String },
+}
+
+// ============================================================================
+// Core Types (foundational - to be extended in separate WPs)
+// ============================================================================
+
+/// SHA256 hash as hex string
+pub type Hash = String;
+
+/// Reference to a source document with its content hash for drift detection
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct SourceRef {
+    pub source_id: Uuid,
+    pub source_hash: Hash,
+}
+
+impl SourceRef {
+    pub fn new(source_id: Uuid, source_hash: Hash) -> Self {
+        Self {
+            source_id,
+            source_hash,
+        }
+    }
+
+    /// Create a canonical string representation for tie-breaking
+    pub fn canonical_id(&self) -> String {
+        format!("source:{}:{}", self.source_id, self.source_hash)
+    }
+}
+
+/// Reference to an entity in the knowledge graph
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct EntityRef {
+    pub entity_id: Uuid,
+    pub entity_type: String,
+}
+
+impl EntityRef {
+    pub fn new(entity_id: Uuid, entity_type: String) -> Self {
+        Self {
+            entity_id,
+            entity_type,
+        }
+    }
+
+    /// Create a canonical string representation for tie-breaking
+    pub fn canonical_id(&self) -> String {
+        format!("entity:{}:{}", self.entity_id, self.entity_type)
+    }
+}
+
+/// Handle to a stored artifact (ContextPack payload, etc.)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct ArtifactHandle {
+    pub artifact_id: Uuid,
+    pub path: String,
+}
+
+impl ArtifactHandle {
+    pub fn new(artifact_id: Uuid, path: String) -> Self {
+        Self { artifact_id, path }
+    }
+
+    /// Create a canonical string representation for tie-breaking
+    pub fn canonical_id(&self) -> String {
+        format!("artifact:{}:{}", self.artifact_id, self.path)
+    }
+}
+
+// ============================================================================
+// QueryPlan Types (§2.6.6.7.14.5)
+// ============================================================================
+
+/// Classification of query intent for routing decisions
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum QueryKind {
+    FactLookup,
+    Summarize,
+    Compare,
+    Transform,
+    Export,
+    #[default]
+    Unknown,
+}
+
+/// Determinism mode for retrieval operations
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum DeterminismMode {
+    /// Retrieval MUST be deterministic (or deterministic approximation with fixed seed)
+    #[default]
+    Strict,
+    /// Retrieval MAY be approximate, but candidate list and selection inputs are persisted
+    Replay,
+}
+
+/// Data store types for retrieval routing
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum StoreKind {
+    /// Mechanical compaction artifacts (preferred)
+    ContextPacks,
+    /// Knowledge graph (prefilter candidate entity sets)
+    KnowledgeGraph,
+    /// Shadow workspace lexical search (high-precision)
+    ShadowWsLexical,
+    /// Shadow workspace vector search (semantic recall)
+    ShadowWsVector,
+    /// Local web cache (only if cached or external fetch allowed)
+    LocalWebCache,
+    /// Bounded read escalation (resolve ambiguity)
+    BoundedReadOnly,
+}
+
+/// A step in the retrieval route
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RouteStep {
+    /// Which store to query
+    pub store: StoreKind,
+    /// Human-readable purpose (logged, not executed as code)
+    pub purpose: String,
+    /// Maximum candidates to retrieve from this step
+    pub max_candidates: u32,
+    /// If true, failure is a hard error, not a silent skip
+    pub required: bool,
+}
+
+impl RouteStep {
+    pub fn new(
+        store: StoreKind,
+        purpose: impl Into<String>,
+        max_candidates: u32,
+        required: bool,
+    ) -> Self {
+        Self {
+            store,
+            purpose: purpose.into(),
+            max_candidates,
+            required,
+        }
+    }
+}
+
+/// Budget constraints for retrieval operations (§2.6.6.7.14.5)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RetrievalBudgets {
+    /// Maximum total evidence tokens in final context
+    pub max_total_evidence_tokens: u32,
+    /// Maximum total snippets across all sources
+    pub max_snippets_total: u32,
+    /// Maximum snippets from a single source
+    pub max_snippets_per_source: u32,
+    /// Maximum candidates to consider total
+    pub max_candidates_total: u32,
+    /// Maximum tokens per bounded read
+    pub max_read_tokens: u32,
+    /// Maximum tool calls during retrieval
+    pub max_tool_calls: u32,
+    /// Maximum candidates for reranking
+    pub max_rerank_candidates: u32,
+    /// Character limit for inline tool delta output
+    pub tool_delta_inline_char_limit: u32,
+}
+
+impl Default for RetrievalBudgets {
+    fn default() -> Self {
+        Self {
+            max_total_evidence_tokens: 4000,
+            max_snippets_total: 20,
+            max_snippets_per_source: 3,
+            max_candidates_total: 100,
+            max_read_tokens: 500,
+            max_tool_calls: 5,
+            max_rerank_candidates: 50,
+            tool_delta_inline_char_limit: 2000,
+        }
+    }
+}
+
+impl RetrievalBudgets {
+    /// Compute a deterministic hash of the budgets for cache key
+    pub fn compute_hash(&self) -> Hash {
+        let json = serde_json::to_string(self).unwrap_or_default();
+        let mut hasher = Sha256::new();
+        hasher.update(json.as_bytes());
+        hex::encode(hasher.finalize())
+    }
+
+    /// Check if budgets are valid (non-zero where required)
+    pub fn validate(&self) -> Result<(), AceError> {
+        if self.max_total_evidence_tokens == 0 {
+            return Err(AceError::ValidationFailed {
+                message: "max_total_evidence_tokens must be > 0".to_string(),
+            });
+        }
+        if self.max_read_tokens == 0 {
+            return Err(AceError::ValidationFailed {
+                message: "max_read_tokens must be > 0".to_string(),
+            });
+        }
+        Ok(())
+    }
+}
+
+/// Minimum trust level for evidence
+#[derive(
+    Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Default, Hash,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum TrustLevel {
+    Low,
+    #[default]
+    Medium,
+    High,
+}
+
+/// Time range filter for retrieval
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct TimeRange {
+    pub start: Option<DateTime<Utc>>,
+    pub end: Option<DateTime<Utc>>,
+}
+
+/// Filters for retrieval operations (§2.6.6.7.14.5)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct RetrievalFilters {
+    /// Whether external web fetches are allowed
+    pub allow_external_fetch: bool,
+    /// Minimum trust level for evidence
+    pub trust_min: TrustLevel,
+    /// Allowlist of content tiers (None = all allowed)
+    pub content_tier_allowlist: Option<Vec<String>>,
+    /// Allowlist of consent profiles (None = all allowed)
+    pub consent_profile_allowlist: Option<Vec<String>>,
+    /// Allowlist of entity types (None = all allowed)
+    pub entity_types_allowlist: Option<Vec<String>>,
+    /// Time range filter
+    pub time_range: Option<TimeRange>,
+}
+
+impl RetrievalFilters {
+    /// Compute a deterministic hash of the filters for cache key
+    pub fn compute_hash(&self) -> Hash {
+        let json = serde_json::to_string(self).unwrap_or_default();
+        let mut hasher = Sha256::new();
+        hasher.update(json.as_bytes());
+        hex::encode(hasher.finalize())
+    }
+}
+
+/// Query plan for retrieval operations (§2.6.6.7.14.5)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryPlan {
+    /// Unique identifier for this plan
+    pub plan_id: Uuid,
+    /// When the plan was created
+    pub created_at: DateTime<Utc>,
+    /// The original query text
+    pub query_text: String,
+    /// Classification of query intent
+    pub query_kind: QueryKind,
+    /// Ordered list of retrieval steps
+    pub route: Vec<RouteStep>,
+    /// Budget constraints
+    pub budgets: RetrievalBudgets,
+    /// Filter constraints
+    pub filters: RetrievalFilters,
+    /// Determinism mode (strict or replay)
+    pub determinism_mode: DeterminismMode,
+    /// Policy identifier for this retrieval
+    pub policy_id: String,
+    /// Plan version for tracking changes
+    pub version: u32,
+}
+
+impl QueryPlan {
+    /// Create a new query plan
+    pub fn new(query_text: String, query_kind: QueryKind, policy_id: String) -> Self {
+        Self {
+            plan_id: Uuid::new_v4(),
+            created_at: Utc::now(),
+            query_text,
+            query_kind,
+            route: Vec::new(),
+            budgets: RetrievalBudgets::default(),
+            filters: RetrievalFilters::default(),
+            determinism_mode: DeterminismMode::Strict,
+            policy_id,
+            version: 1,
+        }
+    }
+
+    /// Create default routing policy per §2.6.6.7.14.6
+    pub fn with_default_route(mut self) -> Self {
+        self.route = vec![
+            RouteStep::new(
+                StoreKind::ContextPacks,
+                "Primary: mechanical compactions",
+                20,
+                false,
+            ),
+            RouteStep::new(
+                StoreKind::KnowledgeGraph,
+                "Secondary: entity prefilter",
+                50,
+                false,
+            ),
+            RouteStep::new(
+                StoreKind::ShadowWsLexical,
+                "Tertiary: high-precision lexical",
+                30,
+                false,
+            ),
+            RouteStep::new(
+                StoreKind::ShadowWsVector,
+                "Quaternary: semantic recall",
+                30,
+                false,
+            ),
+            RouteStep::new(StoreKind::LocalWebCache, "Cached web content", 10, false),
+            RouteStep::new(
+                StoreKind::BoundedReadOnly,
+                "Escalation: resolve ambiguity",
+                5,
+                false,
+            ),
+        ];
+        self
+    }
+
+    /// Compute normalized query hash per §2.6.6.7.14.6(B)
+    pub fn compute_normalized_query_hash(&self) -> Hash {
+        let normalized = normalize_query(&self.query_text);
+        let mut hasher = Sha256::new();
+        hasher.update(normalized.as_bytes());
+        hex::encode(hasher.finalize())
+    }
+}
+
+/// Normalize a query string per §2.6.6.7.14.6(B)
+/// - Trims leading/trailing whitespace
+/// - Collapses internal whitespace runs to single spaces
+/// - NFC normalizes unicode
+/// - Lowercases using Unicode casefold
+/// - Strips control characters (except whitespace-like ones which become spaces)
+///
+/// INVARIANT: Uses ASCII-only whitespace definition for collapse to ensure
+/// total determinism across all environments [CX-573E].
+pub fn normalize_query(query: &str) -> String {
+    use unicode_normalization::UnicodeNormalization;
+
+    // ASCII whitespace - fixed definition for deterministic behavior
+    fn is_ascii_ws(c: char) -> bool {
+        matches!(c, ' ' | '\t' | '\n' | '\r')
+    }
+
+    let lowercased: String = query
+        .nfc() // NFC normalize unicode
+        .map(|c| {
+            // Convert all Unicode whitespace/control chars to ASCII space
+            if c.is_whitespace() || c.is_control() {
+                ' '
+            } else {
+                c
+            }
+        })
+        .filter(|&c| c != '\0')
+        .collect::<String>()
+        .to_lowercase();
+
+    // Deterministic ASCII-only whitespace collapse (replaces split_whitespace)
+    let mut result = String::with_capacity(lowercased.len());
+    let mut prev_was_space = true; // Starts true to trim leading whitespace
+
+    for c in lowercased.chars() {
+        if is_ascii_ws(c) {
+            if !prev_was_space {
+                result.push(' ');
+                prev_was_space = true;
+            }
+        } else {
+            result.push(c);
+            prev_was_space = false;
+        }
+    }
+
+    // Trim trailing space if present
+    if result.ends_with(' ') {
+        result.pop();
+    }
+
+    result
+}
+
+// ============================================================================
+// RetrievalCandidate Types (§2.6.6.7.14.5)
+// ============================================================================
+
+/// Kind of candidate reference
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CandidateKind {
+    SourceRef,
+    EntityRef,
+    ArtifactHandle,
+}
+
+/// Scores for a retrieval candidate
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct CandidateScores {
+    /// Lexical (BM25/TF-IDF) score
+    pub lexical: Option<f64>,
+    /// Vector similarity score
+    pub vector: Option<f64>,
+    /// Graph traversal score
+    pub graph: Option<f64>,
+    /// ContextPack score (1.0 for fresh, 0.0 otherwise)
+    pub pack: Option<f64>,
+    /// Trust adjustment factor
+    pub trust_adjust: Option<f64>,
+}
+
+impl CandidateScores {
+    /// Compute base score per §2.6.6.7.14.6(D)
+    /// base_score = pack_score + trust_adjust + max(lexical, vector, graph)
+    pub fn compute_base_score(&self) -> f64 {
+        let pack = self.pack.unwrap_or(0.0);
+        let trust = self.trust_adjust.unwrap_or(0.0);
+        let max_retrieval = self
+            .lexical
+            .unwrap_or(0.0)
+            .max(self.vector.unwrap_or(0.0))
+            .max(self.graph.unwrap_or(0.0));
+        pack + trust + max_retrieval
+    }
+}
+
+/// Union type for candidate references
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum CandidateRef {
+    Source(SourceRef),
+    Entity(EntityRef),
+    Artifact(ArtifactHandle),
+}
+
+impl CandidateRef {
+    /// Get canonical ID string for tie-breaking
+    pub fn canonical_id(&self) -> String {
+        match self {
+            CandidateRef::Source(r) => r.canonical_id(),
+            CandidateRef::Entity(r) => r.canonical_id(),
+            CandidateRef::Artifact(r) => r.canonical_id(),
+        }
+    }
+}
+
+/// A candidate retrieved during search
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetrievalCandidate {
+    /// Stable identifier for this candidate
+    pub candidate_id: String,
+    /// Kind of reference
+    pub kind: CandidateKind,
+    /// The actual reference
+    pub candidate_ref: CandidateRef,
+    /// Which store produced this candidate
+    pub store: StoreKind,
+    /// Individual score components
+    pub scores: CandidateScores,
+    /// Computed base score (deterministic)
+    pub base_score: f64,
+    /// Stable tie-break key (canonical_id of ref)
+    pub tiebreak: String,
+}
+
+impl RetrievalCandidate {
+    /// Create a new candidate from a source reference
+    pub fn from_source(source: SourceRef, store: StoreKind, scores: CandidateScores) -> Self {
+        let tiebreak = source.canonical_id();
+        let base_score = scores.compute_base_score();
+        Self {
+            candidate_id: Uuid::new_v4().to_string(),
+            kind: CandidateKind::SourceRef,
+            candidate_ref: CandidateRef::Source(source),
+            store,
+            scores,
+            base_score,
+            tiebreak,
+        }
+    }
+
+    /// Create a new candidate from an entity reference
+    pub fn from_entity(entity: EntityRef, store: StoreKind, scores: CandidateScores) -> Self {
+        let tiebreak = entity.canonical_id();
+        let base_score = scores.compute_base_score();
+        Self {
+            candidate_id: Uuid::new_v4().to_string(),
+            kind: CandidateKind::EntityRef,
+            candidate_ref: CandidateRef::Entity(entity),
+            store,
+            scores,
+            base_score,
+            tiebreak,
+        }
+    }
+
+    /// Create a new candidate from an artifact handle
+    pub fn from_artifact(
+        artifact: ArtifactHandle,
+        store: StoreKind,
+        scores: CandidateScores,
+    ) -> Self {
+        let tiebreak = artifact.canonical_id();
+        let base_score = scores.compute_base_score();
+        Self {
+            candidate_id: Uuid::new_v4().to_string(),
+            kind: CandidateKind::ArtifactHandle,
+            candidate_ref: CandidateRef::Artifact(artifact),
+            store,
+            scores,
+            base_score,
+            tiebreak,
+        }
+    }
+}
+
+// ============================================================================
+// RetrievalTrace Types (§2.6.6.7.14.5)
+// ============================================================================
+
+/// Record of a route step taken during retrieval
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RouteTaken {
+    /// Which store was queried
+    pub store: StoreKind,
+    /// Reason for taking this route
+    pub reason: String,
+    /// Whether this was a cache hit
+    pub cache_hit: Option<bool>,
+}
+
+/// Reranking metadata
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RerankInfo {
+    /// Whether reranking was used
+    pub used: bool,
+    /// Reranking method identifier
+    pub method: String,
+    /// Hash of rerank inputs (candidate list)
+    pub inputs_hash: Hash,
+    /// Hash of rerank outputs (ordered list)
+    pub outputs_hash: Hash,
+}
+
+/// Diversity/de-duplication metadata
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DiversityInfo {
+    /// Whether diversity filtering was used
+    pub used: bool,
+    /// Diversity method identifier (e.g., "mmr")
+    pub method: String,
+    /// Lambda parameter for MMR
+    pub lambda: Option<f64>,
+}
+
+/// A selected evidence item
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SelectedEvidence {
+    /// Reference to the selected candidate
+    pub candidate_ref: CandidateRef,
+    /// Final rank after reranking/diversity
+    pub final_rank: u32,
+    /// Final score
+    pub final_score: f64,
+    /// Reason for selection
+    pub why: String,
+}
+
+/// An extracted span from a source
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpanExtraction {
+    /// Reference to the source
+    pub source_ref: SourceRef,
+    /// Selector used to extract the span
+    pub selector: String,
+    /// Start offset in characters
+    pub start: u32,
+    /// End offset in characters
+    pub end: u32,
+    /// Estimated token count
+    pub token_estimate: u32,
+}
+
+/// Complete trace of a retrieval operation (§2.6.6.7.14.5)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetrievalTrace {
+    /// Unique identifier for this trace
+    pub trace_id: Uuid,
+    /// Reference to the query plan used
+    pub query_plan_id: Uuid,
+    /// Normalized query hash for caching
+    pub normalized_query_hash: Hash,
+    /// Routes taken during retrieval
+    pub route_taken: Vec<RouteTaken>,
+    /// All candidates considered
+    pub candidates: Vec<RetrievalCandidate>,
+    /// Reranking metadata
+    pub rerank: RerankInfo,
+    /// Diversity metadata
+    pub diversity: DiversityInfo,
+    /// Final selected evidence
+    pub selected: Vec<SelectedEvidence>,
+    /// Extracted spans
+    pub spans: Vec<SpanExtraction>,
+    /// Budgets that were applied
+    pub budgets_applied: RetrievalBudgets,
+    /// Flags for truncated content
+    pub truncation_flags: Vec<String>,
+    /// Non-fatal warnings
+    pub warnings: Vec<String>,
+    /// Fatal errors (retrieval may have degraded)
+    pub errors: Vec<String>,
+}
+
+impl RetrievalTrace {
+    /// Create a new trace for a query plan
+    pub fn new(query_plan: &QueryPlan) -> Self {
+        Self {
+            trace_id: Uuid::new_v4(),
+            query_plan_id: query_plan.plan_id,
+            normalized_query_hash: query_plan.compute_normalized_query_hash(),
+            route_taken: Vec::new(),
+            candidates: Vec::new(),
+            rerank: RerankInfo::default(),
+            diversity: DiversityInfo::default(),
+            selected: Vec::new(),
+            spans: Vec::new(),
+            budgets_applied: query_plan.budgets.clone(),
+            truncation_flags: Vec::new(),
+            warnings: Vec::new(),
+            errors: Vec::new(),
+        }
+    }
+
+    /// Get total token estimate for all spans
+    pub fn total_span_tokens(&self) -> u32 {
+        self.spans.iter().map(|s| s.token_estimate).sum()
+    }
+
+    /// Get total selected evidence count
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+
+    /// Count snippets per source (for budget enforcement)
+    pub fn snippets_per_source(&self) -> std::collections::HashMap<Uuid, u32> {
+        let mut counts = std::collections::HashMap::new();
+        for span in &self.spans {
+            *counts.entry(span.source_ref.source_id).or_insert(0) += 1;
+        }
+        counts
+    }
+
+    /// Check if any span exceeds max_read_tokens without truncation flag
+    pub fn find_untruncated_oversized_spans(&self, max_tokens: u32) -> Vec<&SpanExtraction> {
+        self.spans
+            .iter()
+            .filter(|span| {
+                span.token_estimate > max_tokens
+                    && !self
+                        .truncation_flags
+                        .iter()
+                        .any(|f| f.contains(&span.source_ref.source_id.to_string()))
+            })
+            .collect()
+    }
+}
+
+// ============================================================================
+// CacheKey Types (§2.6.6.7.14.9)
+// ============================================================================
+
+/// Kind of cacheable artifact
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CacheKind {
+    RetrievalCandidates,
+    RerankOrder,
+    Spans,
+    PromptEnvelope,
+    ContextSnapshot,
+}
+
+/// Cache key for retrieval artifacts (§2.6.6.7.14.9)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CacheKey {
+    /// Kind of cached artifact
+    pub cache_kind: CacheKind,
+    /// Determinism mode
+    pub determinism_mode: DeterminismMode,
+    /// Policy identifier
+    pub policy_id: String,
+    /// Hash of normalized query
+    pub query_hash: Hash,
+    /// Hash of scope inputs
+    pub scope_inputs_hash: Hash,
+    /// Hash of budgets
+    pub budgets_hash: Hash,
+    /// Hash of filters
+    pub filters_hash: Hash,
+    /// Hash of toolchain (tool_id, tool_version, config_hash)
+    pub toolchain_hash: Hash,
+    /// Hash of sources (sorted source_id, source_hash pairs)
+    pub sources_hash: Hash,
+}
+
+impl CacheKey {
+    /// Create a cache key from a query plan
+    pub fn from_plan(
+        plan: &QueryPlan,
+        cache_kind: CacheKind,
+        scope_inputs_hash: Hash,
+        toolchain_hash: Hash,
+        sources_hash: Hash,
+    ) -> Self {
+        Self {
+            cache_kind,
+            determinism_mode: plan.determinism_mode,
+            policy_id: plan.policy_id.clone(),
+            query_hash: plan.compute_normalized_query_hash(),
+            scope_inputs_hash,
+            budgets_hash: plan.budgets.compute_hash(),
+            filters_hash: plan.filters.compute_hash(),
+            toolchain_hash,
+            sources_hash,
+        }
+    }
+
+    /// Compute a single hash representing this cache key
+    pub fn compute_full_hash(&self) -> Hash {
+        let json = serde_json::to_string(self).unwrap_or_default();
+        let mut hasher = Sha256::new();
+        hasher.update(json.as_bytes());
+        hex::encode(hasher.finalize())
+    }
+}
+
+// ============================================================================
+// ContextPack Types (§2.6.6.7.14.7) - foundational, extended in separate WP
+// ============================================================================
+
+/// Record of a built context pack
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextPackRecord {
+    /// Unique pack identifier
+    pub pack_id: Uuid,
+    /// Target entity or source
+    pub target: CandidateRef,
+    /// Handle to the pack artifact
+    pub pack_artifact: ArtifactHandle,
+    /// Hashes of underlying sources at build time
+    pub source_hashes: Vec<Hash>,
+    /// When the pack was created
+    pub created_at: DateTime<Utc>,
+    /// Builder metadata
+    pub builder: ContextPackBuilder,
+    /// Pack version
+    pub version: u32,
+}
+
+/// Builder metadata for a context pack
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextPackBuilder {
+    pub tool_id: String,
+    pub tool_version: String,
+    pub config_hash: Hash,
+}
+
+impl ContextPackRecord {
+    /// Check if the pack is stale by comparing source hashes
+    pub fn is_stale(&self, current_hashes: &[Hash]) -> bool {
+        if self.source_hashes.len() != current_hashes.len() {
+            return true;
+        }
+        for (old, new) in self.source_hashes.iter().zip(current_hashes.iter()) {
+            if old != new {
+                return true;
+            }
+        }
+        false
+    }
+}
+
+// ============================================================================
+// Re-exports
+// ============================================================================
+
+pub use validators::{
+    // Core trait and pipeline
+    AceRuntimeValidator,
+    // New 8 security guards (§2.6.6.7.11.1-8)
+    ArtifactHandleOnlyGuard,
+    // Original 4 guards (§2.6.6.7.14.11)
+    CacheKeyGuard,
+    CloudLeakageGuard,
+    CompactionSchemaGuard,
+    ContextDeterminismGuard,
+    ContextPackFreshnessGuard,
+    IndexDriftGuard,
+    JobBoundaryRoutingGuard,
+    LocalPayloadGuard,
+    MemoryPromotionGuard,
+    PromptInjectionGuard,
+    RetrievalBudgetGuard,
+    ValidatorPipeline,
+};
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// T-ACE-RAG-001: Query normalization determinism
+    /// Same input string variations (whitespace/unicode) MUST yield identical normalized_query_hash
+    #[test]
+    fn test_query_normalization_determinism() {
+        let variations = vec![
+            "  What is the capital of France?  ",
+            "what is the capital of france?",
+            "WHAT IS THE CAPITAL OF FRANCE?",
+            "What  is   the    capital     of      France?",
+            "What\tis\nthe\r\ncapital of France?",
+        ];
+
+        let expected = normalize_query(&variations[0]);
+        for variant in &variations {
+            let normalized = normalize_query(variant);
+            assert_eq!(
+                normalized, expected,
+                "Normalization mismatch: {:?} -> {:?} (expected {:?})",
+                variant, normalized, expected
+            );
+        }
+
+        // All should produce the same hash
+        let plan1 = QueryPlan::new(
+            variations[0].to_string(),
+            QueryKind::FactLookup,
+            "test".to_string(),
+        );
+        let plan2 = QueryPlan::new(
+            variations[1].to_string(),
+            QueryKind::FactLookup,
+            "test".to_string(),
+        );
+        assert_eq!(
+            plan1.compute_normalized_query_hash(),
+            plan2.compute_normalized_query_hash()
+        );
+    }
+
+    /// T-ACE-RAG-002: Strict ranking determinism
+    /// Under strict mode, identical inputs MUST yield identical candidate order
+    #[test]
+    fn test_strict_ranking_determinism() {
+        let source1 = SourceRef::new(Uuid::nil(), "hash1".to_string());
+        let source2 = SourceRef::new(
+            Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+            "hash2".to_string(),
+        );
+
+        let mut scores1 = CandidateScores::default();
+        scores1.lexical = Some(0.8);
+        scores1.pack = Some(1.0);
+
+        let mut scores2 = CandidateScores::default();
+        scores2.lexical = Some(0.8);
+        scores2.pack = Some(1.0);
+
+        let candidate1 = RetrievalCandidate::from_source(
+            source1.clone(),
+            StoreKind::ContextPacks,
+            scores1.clone(),
+        );
+        let candidate2 = RetrievalCandidate::from_source(
+            source2.clone(),
+            StoreKind::ContextPacks,
+            scores2.clone(),
+        );
+
+        // Same base scores, tiebreak by canonical_id
+        assert_eq!(candidate1.base_score, candidate2.base_score);
+        assert!(candidate1.tiebreak < candidate2.tiebreak); // Nil UUID < 00..001
+
+        // Sorting should be deterministic
+        let mut candidates = vec![candidate2.clone(), candidate1.clone()];
+        candidates.sort_by(|a, b| {
+            b.base_score
+                .partial_cmp(&a.base_score)
+                .unwrap()
+                .then_with(|| a.tiebreak.cmp(&b.tiebreak))
+        });
+        assert_eq!(candidates[0].tiebreak, candidate1.tiebreak);
+        assert_eq!(candidates[1].tiebreak, candidate2.tiebreak);
+    }
+
+    /// T-ACE-RAG-005: Budget enforcement
+    /// Evidence token ceilings and per-source caps MUST never be exceeded
+    #[test]
+    fn test_budget_validation() {
+        let mut budgets = RetrievalBudgets::default();
+        assert!(budgets.validate().is_ok());
+
+        // Zero max_total_evidence_tokens should fail
+        budgets.max_total_evidence_tokens = 0;
+        assert!(budgets.validate().is_err());
+
+        budgets.max_total_evidence_tokens = 4000;
+        budgets.max_read_tokens = 0;
+        assert!(budgets.validate().is_err());
+    }
+
+    #[test]
+    fn test_cache_key_hashing() {
+        let plan = QueryPlan::new(
+            "test query".to_string(),
+            QueryKind::FactLookup,
+            "policy1".to_string(),
+        );
+        let key1 = CacheKey::from_plan(
+            &plan,
+            CacheKind::RetrievalCandidates,
+            "scope1".to_string(),
+            "toolchain1".to_string(),
+            "sources1".to_string(),
+        );
+        let key2 = CacheKey::from_plan(
+            &plan,
+            CacheKind::RetrievalCandidates,
+            "scope1".to_string(),
+            "toolchain1".to_string(),
+            "sources1".to_string(),
+        );
+
+        // Same inputs -> same hash
+        assert_eq!(key1.compute_full_hash(), key2.compute_full_hash());
+
+        // Different inputs -> different hash
+        let key3 = CacheKey::from_plan(
+            &plan,
+            CacheKind::RetrievalCandidates,
+            "scope2".to_string(), // Different!
+            "toolchain1".to_string(),
+            "sources1".to_string(),
+        );
+        assert_ne!(key1.compute_full_hash(), key3.compute_full_hash());
+    }
+
+    #[test]
+    fn test_retrieval_trace_metrics() {
+        let plan = QueryPlan::new(
+            "test".to_string(),
+            QueryKind::FactLookup,
+            "policy".to_string(),
+        );
+        let mut trace = RetrievalTrace::new(&plan);
+
+        let source = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        trace.spans.push(SpanExtraction {
+            source_ref: source.clone(),
+            selector: "test".to_string(),
+            start: 0,
+            end: 100,
+            token_estimate: 50,
+        });
+        trace.spans.push(SpanExtraction {
+            source_ref: source.clone(),
+            selector: "test2".to_string(),
+            start: 100,
+            end: 200,
+            token_estimate: 75,
+        });
+
+        assert_eq!(trace.total_span_tokens(), 125);
+        let per_source = trace.snippets_per_source();
+        assert_eq!(per_source.get(&source.source_id), Some(&2));
+    }
+
+    #[test]
+    fn test_context_pack_staleness() {
+        let pack = ContextPackRecord {
+            pack_id: Uuid::new_v4(),
+            target: CandidateRef::Source(SourceRef::new(Uuid::new_v4(), "target".to_string())),
+            pack_artifact: ArtifactHandle::new(Uuid::new_v4(), "/path".to_string()),
+            source_hashes: vec!["hash1".to_string(), "hash2".to_string()],
+            created_at: Utc::now(),
+            builder: ContextPackBuilder {
+                tool_id: "builder".to_string(),
+                tool_version: "1.0".to_string(),
+                config_hash: "config".to_string(),
+            },
+            version: 1,
+        };
+
+        // Same hashes -> not stale
+        assert!(!pack.is_stale(&["hash1".to_string(), "hash2".to_string()]));
+
+        // Different hashes -> stale
+        assert!(pack.is_stale(&["hash1".to_string(), "hash3".to_string()]));
+
+        // Different count -> stale
+        assert!(pack.is_stale(&["hash1".to_string()]));
+    }
+}

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT COUNT(*) as count FROM ai_jobs\n            WHERE created_at > datetime('now', '-10 days')\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "count",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b16f23b6122b4b6ab0b456837e279b0f213ab828ee2a033d0b38564b4f102e51"
+}

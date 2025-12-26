@@ -1,8 +1,8 @@
 use axum::{extract::State, routing::get, Json, Router};
-use duckdb::Connection as DuckDbConnection;
 use handshake_core::{
     api,
     capabilities::CapabilityRegistry,
+    flight_recorder::{duckdb::DuckDbFlightRecorder, FlightRecorder},
     llm::{LLMClient, OllamaClient},
     logging,
     models::HealthResponse,
@@ -16,7 +16,7 @@ use handshake_core::{
 use std::{
     net::SocketAddr,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
@@ -39,14 +39,14 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let (storage, sqlite_pool) = init_storage().await?;
-    let fr_pool = init_flight_recorder().await?;
+    let storage = init_storage().await?;
+    let flight_recorder = init_flight_recorder().await?;
     let llm_client = init_llm_client()?;
     let capability_registry = Arc::new(CapabilityRegistry::new_default());
 
     let state = AppState {
-        storage,
-        fr_pool: fr_pool.clone(),
+        storage: storage.clone(),
+        flight_recorder: flight_recorder.clone(),
         llm_client,
         capability_registry,
     };
@@ -54,7 +54,11 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // Start Janitor background service [§2.3.11]
     // Configuration via environment or defaults
     let janitor_config = init_janitor_config();
-    let janitor = Arc::new(Janitor::new(sqlite_pool, fr_pool, janitor_config));
+    let janitor = Arc::new(Janitor::new(
+        storage,
+        flight_recorder.clone(),
+        janitor_config,
+    ));
     let _janitor_handle = janitor.spawn_background();
 
     let api_routes = api::routes(state.clone());
@@ -80,7 +84,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 /// - `JANITOR_INTERVAL_SECS`: Prune interval in seconds (default: 3600)
 /// - `JANITOR_RETENTION_DAYS`: Days to retain AI job results (default: 30)
 fn init_janitor_config() -> JanitorConfig {
-    use handshake_core::storage::retention::RetentionPolicy;
+    use handshake_core::storage::{ArtifactKind, RetentionPolicy};
 
     let dry_run = std::env::var("JANITOR_DRY_RUN")
         .map(|v| v.to_lowercase() == "true")
@@ -97,7 +101,7 @@ fn init_janitor_config() -> JanitorConfig {
         .unwrap_or(30);
 
     let policy = RetentionPolicy {
-        kind: handshake_core::storage::retention::ArtifactKind::Result,
+        kind: ArtifactKind::Result,
         window_days: retention_days,
         min_versions: 3,
     };
@@ -118,8 +122,7 @@ fn init_janitor_config() -> JanitorConfig {
     }
 }
 
-async fn init_storage() -> Result<(Arc<dyn Database>, sqlx::SqlitePool), Box<dyn std::error::Error>>
-{
+async fn init_storage() -> Result<Arc<dyn Database>, Box<dyn std::error::Error>> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let root_dir = manifest_dir
         .parent()
@@ -138,15 +141,11 @@ async fn init_storage() -> Result<(Arc<dyn Database>, sqlx::SqlitePool), Box<dyn
     let sqlite = SqliteDatabase::connect(&db_url, 5).await?;
     sqlite.run_migrations().await?;
 
-    // Clone pool before converting to Arc<dyn Database> for Janitor service
-    let pool = sqlite.pool().clone();
-
     tracing::info!(target: "handshake_core", db_url = %db_url, "database ready");
-    Ok((sqlite.into_arc(), pool))
+    Ok(sqlite.into_arc())
 }
 
-async fn init_flight_recorder() -> Result<Arc<Mutex<DuckDbConnection>>, Box<dyn std::error::Error>>
-{
+async fn init_flight_recorder() -> Result<Arc<dyn FlightRecorder>, Box<dyn std::error::Error>> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let root_dir = manifest_dir
         .parent()
@@ -161,23 +160,10 @@ async fn init_flight_recorder() -> Result<Arc<Mutex<DuckDbConnection>>, Box<dyn 
     // Flight recorder gets its own file
     let fr_db_path = data_dir.join("flight_recorder.db");
 
-    let conn = DuckDbConnection::open(&fr_db_path)?;
-
-    conn.execute_batch(
-        r#"
-        CREATE TABLE IF NOT EXISTS events (
-            timestamp DATETIME DEFAULT current_timestamp,
-            event_type TEXT NOT NULL,
-            job_id TEXT,
-            workflow_id TEXT,
-            payload JSON
-        );
-    "#,
-    )?;
-
+    let recorder = DuckDbFlightRecorder::new_on_path(&fr_db_path, 7)?;
     tracing::info!(target: "handshake_core", db_path = %fr_db_path.display(), "flight recorder ready");
 
-    Ok(Arc::new(Mutex::new(conn)))
+    Ok(Arc::new(recorder))
 }
 
 fn init_llm_client() -> Result<Arc<dyn LLMClient>, Box<dyn std::error::Error>> {

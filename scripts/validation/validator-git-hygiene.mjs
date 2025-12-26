@@ -10,14 +10,9 @@ import { execSync } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 
 const gitignorePath = ".gitignore";
-const requiredPatterns = [
-  "target/",
-  "node_modules/",
-  "*.pdb",
-  "*.dSYM",
-  ".DS_Store",
-  "Thumbs.db",
-];
+const requiredPatterns = ["target/", "node_modules/", "*.pdb", "*.dSYM", ".DS_Store", "Thumbs.db"];
+const artifactRegex =
+  /(\/|^)(target\/|node_modules\/)|\.pdb$|\.dSYM$|\.DS_Store$|Thumbs\.db$/;
 
 function fail(message, details = "") {
   console.error(`validator-git-hygiene: FAIL — ${message}`);
@@ -42,9 +37,8 @@ try {
   const out = execSync("git ls-files", { stdio: "pipe", encoding: "utf8" });
   committedArtifacts = out
     .split("\n")
-    .filter((line) =>
-      line.match(/(target\\/|node_modules\\/|\\.pdb$|\\.dSYM$|\\.DS_Store$|Thumbs\\.db$)/)
-    )
+    .filter((line) => artifactRegex.test(line))
+    .filter(Boolean)
     .join("\n");
 } catch (err) {
   fail(`git ls-files failed: ${err.message}`);
@@ -54,7 +48,6 @@ if (committedArtifacts.trim().length > 0) {
   fail(`committed build artifacts detected:\n${committedArtifacts}`);
 }
 
-// Check untracked large files (>10MB)
 let largeUntracked = "";
 try {
   const out = execSync("git ls-files --others --exclude-standard", {
@@ -70,7 +63,7 @@ try {
         offenders.push(`${f} (${(st.size / (1024 * 1024)).toFixed(1)}MB)`);
       }
     } catch {
-      // ignore missing
+      // ignore missing files
     }
   }
   largeUntracked = offenders.join("\n");

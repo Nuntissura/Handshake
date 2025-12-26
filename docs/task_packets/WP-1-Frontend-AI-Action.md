@@ -6,8 +6,8 @@
 - REQUESTOR: Orchestrator
 - AGENT_ID: Gemini (Orchestrator)
 - ROLE: Orchestrator
-- **Status:** In Progress
-- USER_SIGNATURE: <pending>
+- **Status:** Ready for Dev
+- USER_SIGNATURE: ilja
 
 ## Scope
 - **What**: Implement a UI element (e.g., a button) that, when clicked, triggers a network request to the backend's POST /api/jobs endpoint.
@@ -81,3 +81,32 @@
 - **Dependencies**: Resolution of HSK-P1-002-DEBUG.1 (Frontend TypeScript Build Failures).
 - **The final report is a critical part of this task.** The Orchestrator will use it to validate your work and to plan future refactoring and cleanup tasks based on your hygiene assessment. Please be thorough but concise in your observations.
 - **QUALITY_RUBRIC**: Your work will be evaluated against the standard Coder Performance & Quality Rubric (defined in Handshake Codex v0.8.md).
+
+---
+
+## VALIDATION REPORT — WP-1-Frontend-AI-Action
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Frontend-AI-Action.md (status: In Progress)
+- Spec: Handshake_Master_Spec_v02.84.md (Packet incorrectly references STALE v02.50)
+
+Files Checked:
+- app/src/components/DocumentView.tsx
+- app/src/lib/api.ts
+
+Findings:
+- **Evidence Mapping [CX-627]**: MISSING. No implementation report or mapping of requirements to code provided in the packet.
+- **Spec Regression**: References STALE Spec v02.50. MUST align with v02.84 interaction patterns.
+- **Traceability**: Implementation must prove that the UI sends the required `trace_id` and `protocol_id` expected by the backend `create_new_job` handler.
+
+Risks & Suggested Actions:
+- **RE-OPEN**. Coder must provide `EVIDENCE_MAPPING` and verify that the UI correctly invokes the capability-gated API.
+
+---
+
+**Last Updated:** 2025-12-25
+**User Signature Locked:** <pending>
+
+
+

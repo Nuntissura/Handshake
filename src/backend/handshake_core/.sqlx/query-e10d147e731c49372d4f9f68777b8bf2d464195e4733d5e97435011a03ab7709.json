@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                DELETE FROM ai_jobs\n                WHERE id IN (\n                    SELECT id FROM ai_jobs\n                    WHERE status IN ('completed', 'failed')\n                      AND created_at < $1\n                      AND is_pinned = 0\n                    ORDER BY created_at ASC\n                    LIMIT $2\n                )\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "e10d147e731c49372d4f9f68777b8bf2d464195e4733d5e97435011a03ab7709"
+}

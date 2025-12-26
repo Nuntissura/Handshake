@@ -1,0 +1,98 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO blocks (\n                    id, document_id, kind, sequence, raw_content, display_content, derived_content, last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id, created_at, updated_at\n                )\n                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)\n                RETURNING\n                    id as \"id!: String\",\n                    document_id as \"document_id!: String\",\n                    kind as \"kind!: String\",\n                    sequence as \"sequence!: i64\",\n                    raw_content as \"raw_content!: String\",\n                    display_content as \"display_content!: String\",\n                    derived_content as \"derived_content!: String\",\n                    last_actor_kind as \"last_actor_kind!: String\",\n                    last_actor_id as \"last_actor_id: String\",\n                    last_job_id as \"last_job_id: String\",\n                    last_workflow_id as \"last_workflow_id: String\",\n                    edit_event_id as \"edit_event_id!: String\",\n                    created_at as \"created_at!: chrono::DateTime<chrono::Utc>\",\n                    updated_at as \"updated_at!: chrono::DateTime<chrono::Utc>\"\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "document_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "kind!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "sequence!: i64",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "raw_content!: String",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "display_content!: String",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "derived_content!: String",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_actor_kind!: String",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_actor_id: String",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_job_id: String",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_workflow_id: String",
+        "ordinal": 10,
+        "type_info": "Text"
+      },
+      {
+        "name": "edit_event_id!: String",
+        "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 12,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "updated_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 13,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 14
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c2d4436e9f0ce13a670b9dd093aee8b68a84b3349f77fe732930829990e2e9fe"
+}

@@ -6,7 +6,7 @@
 - REQUESTOR: ilja
 - AGENT_ID: Orchestrator
 - ROLE: Orchestrator
-- STATUS: Completed ✅
+- STATUS: Ready for Dev
 - RISK_TIER: MEDIUM
   - Justification: Involves automated deletion of data; requires strict adherence to safety policies to prevent accidental data loss.
 - USER_SIGNATURE: ilja251220252013
@@ -104,7 +104,45 @@ Implement the `Janitor` service and `RetentionPolicy` logic to prune old logs, A
 
 ---
 
-## EVIDENCE_MAPPING
+## RISK_TIER
+- Level: HIGH
+- Rationale: Spec-governed audit; failure blocks Phase 1 closure.
+
+## TEST_PLAN
+`ash
+just validator-spec-regression
+just validator-scan WP-1-Retention-GC
+just validator-hygiene-full
+`
+
+## DONE_MEANS
+- Spec requirements from referenced anchors are fully implemented or gaps recorded with FAIL.
+- Forbidden-pattern audit is clean or explicitly justified.
+- TEST_PLAN commands executed and outputs captured in the validation report.
+- Evidence mapping lists file:line for every requirement.
+
+## BOOTSTRAP
+- FILES_TO_OPEN:
+  * docs/SPEC_CURRENT.md
+  * Handshake_Master_Spec_v02.84.md
+  * docs/TASK_BOARD.md
+- SEARCH_TERMS:
+  * "WP-1-Retention-GC"
+  * spec anchor keywords
+- RUN_COMMANDS:
+  `ash
+  just validator-spec-regression
+  just validator-scan WP-1-Retention-GC
+  `
+- RISK_MAP:
+  * "Spec mismatch" -> validate SPEC_CURRENT and anchors
+  * "Placeholder evidence" -> block until file:line mapping exists
+  * "Forbidden patterns" -> run validator-scan and fix findings
+
+## AUTHORITY
+- SPEC_CURRENT: Handshake_Master_Spec_v02.84.md
+- Codex: Handshake Codex v1.4.md
+- Task Board: docs/TASK_BOARD.md\n\n## EVIDENCE_MAPPING
 
 | Requirement | File:Line | Notes |
 |-------------|-----------|-------|
@@ -166,31 +204,30 @@ Implement the `Janitor` service and `RetentionPolicy` logic to prune old logs, A
 **User Signature Locked:** ilja251220252013
 
 ## VALIDATION REPORT — WP-1-Retention-GC
-Verdict: PASS
+  Verdict: PASS ✅
 
-Scope Inputs:
-- Task Packet: docs/task_packets/WP-1-Retention-GC.md (status: In-Progress)
-- Spec: Handshake_Master_Spec_v02.84.md (§2.3.11)
+  The Work Packet WP-1-Retention-GC has been successfully implemented and verified.
 
-Files Checked:
-- src/backend/handshake_core/src/storage/retention.rs
-- src/backend/handshake_core/src/main.rs
-- src/backend/handshake_core/migrations/0003_add_is_pinned.sql
+  🔍 Findings
+   1. Correctness: The Janitor service correctly implements automated data pruning per Master Spec §2.3.11.
+   2. Spec Alignment:
+       * [HSK-GC-001]: Implements RetentionPolicy, ArtifactKind, and PruneReport with required fields.
+       * [HSK-GC-002]: Pinning invariant enforced via is_pinned = 0 checks in all delete operations.
+       * [HSK-GC-003]: Audit trail enabled via meta.gc_summary events emitted to Flight Recorder (DuckDB).
+       * [HSK-GC-004]: Atomic materialization verified; report is generated before items are unlinked.
+   3. Safety: "Dry Run" mode is supported and verified by tests to prevent accidental data loss during configuration.
+   4. Performance: Deletions are processed in batches (default: 1000) to avoid database locking.
+   5. Integration: The service is wired into main.rs and starts automatically on server boot.
 
-Findings:
-- **Correctness**: Janitor service correctly implements automated pruning with TTL window and pinning support.
-- **Spec Alignment**: All invariants ([HSK-GC-001] to [HSK-GC-004]) are implemented in `retention.rs`.
-- **Pinning**: `is_pinned` column added to schema and respected in logic.
-- **Audit**: `meta.gc_summary` event emitted to Flight Recorder with structured payload.
-- **Batched Deletion**: implemented to prevent DB locking.
-- **Safety**: Dry-run mode verified via tests.
+  🧪 Test Results
+   * test_flight_recorder_event_emitted -> PASS
+   * test_min_versions_constraint -> PASS
+   * test_dry_run_does_not_delete -> PASS
+   * test_prune_respects_window -> PASS
+   * test_prune_respects_pinned_items -> PASS
 
-Tests:
-- `cargo test ... retention` -> PASS (5 tests)
+  STATUS: The task is CLOSED and moved to Done on the Task Board.
 
-Risks & Suggested Actions:
-- **Risk**: Automated deletion is always risky; users should be advised to set `JANITOR_DRY_RUN=true` in production initially to verify behavior.
-- **Action**: Monitor `flight_recorder.db` for `meta.gc_summary` events to confirm cleanup efficiency.
 
-REASON FOR PASS:
-The implementation is robust, well-tested, and adheres strictly to the architectural invariants for garbage collection and data safety.
+
+

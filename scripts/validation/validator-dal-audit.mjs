@@ -25,8 +25,8 @@ let failures = [];
 
 // CX-DBP-VAL-010: No direct DB access outside storage/
 {
-  const outPool = runRg("state\\.pool", [backendSrc], '--glob "!storage/**"');
-  const outSqlx = runRg("sqlx::query", [backendSrc], '--glob "!storage/**"');
+  const outPool = runRg("state\\.pool", [backendSrc], '--glob "!**/storage/**"');
+  const outSqlx = runRg("sqlx::query", [backendSrc], '--glob "!**/storage/**"');
   const hits = [outPool, outSqlx].filter(Boolean).join("\n");
   if (hits) {
     failures.push(`CX-DBP-VAL-010 (DB boundary) violations:\n${hits}`);
@@ -47,7 +47,7 @@ let failures = [];
 
 // CX-DBP-VAL-012: Trait boundary (concrete pool leakage)
 {
-  const out = runRg("SqlitePool", [backendSrc], '--glob "!storage/**"');
+  const out = runRg("SqlitePool", [backendSrc], '--glob "!**/storage/**"');
   if (out) {
     failures.push(`CX-DBP-VAL-012 (trait boundary) violations:\n${out}`);
   }
@@ -55,7 +55,7 @@ let failures = [];
 
 // CX-DBP-VAL-013: Migration hygiene (basic check: consecutive numbering)
 try {
-  const files = readdirSync(migrationsDir).filter((f) => f.match(/^\\d{4}_.+\\.sql$/));
+  const files = readdirSync(migrationsDir).filter((f) => f.match(/^\d{4}_.+\.sql$/));
   const nums = files.map((f) => parseInt(f.slice(0, 4), 10)).sort((a, b) => a - b);
   for (let i = 1; i < nums.length; i++) {
     if (nums[i] !== nums[i - 1] + 1) {
@@ -84,4 +84,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log("validator-dal-audit: PASS — DAL checks clean.");
+console.log("validator-dal-audit: PASS (DAL checks clean).");

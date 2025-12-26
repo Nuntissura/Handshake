@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                COUNT(*) as \"total!: i64\",\n                SUM(CASE WHEN is_pinned = 1 THEN 1 ELSE 0 END) as \"pinned!: i64\"\n            FROM ai_jobs\n            WHERE status IN ('completed', 'failed')\n              AND created_at < $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "total!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "pinned!: i64",
+        "ordinal": 1,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "eef48e2c9800b0ba40b68640ddb328226aa2d120ff13cb51a48063ee07ae17a3"
+}

@@ -1,14 +1,34 @@
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { FlightEvent, getEvents } from "../lib/api";
+
+type Filters = {
+  jobId: string;
+  traceId: string;
+  from: string;
+  to: string;
+};
+
+const defaultFilters: Filters = {
+  jobId: "",
+  traceId: "",
+  from: "",
+  to: "",
+};
 
 export function FlightRecorderView() {
   const [events, setEvents] = useState<FlightEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<Filters>(defaultFilters);
 
-  const fetchEvents = async () => {
+  const fetchEvents = async (useFilters: Filters = filters) => {
     try {
-      const data = await getEvents();
+      const data = await getEvents({
+        jobId: useFilters.jobId || undefined,
+        traceId: useFilters.traceId || undefined,
+        from: useFilters.from || undefined,
+        to: useFilters.to || undefined,
+      });
       setEvents(data);
       setError(null);
     } catch (err) {
@@ -20,39 +40,107 @@ export function FlightRecorderView() {
 
   useEffect(() => {
     fetchEvents();
-    const interval = setInterval(fetchEvents, 5000); // Poll every 5 seconds
+    const interval = setInterval(() => fetchEvents(), 5000); // Poll every 5 seconds
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    fetchEvents(filters);
+  };
+
+  const onReset = () => {
+    setFilters(defaultFilters);
+    setLoading(true);
+    fetchEvents(defaultFilters);
+  };
+
   if (loading && events.length === 0) {
-    return <div className="content-card"><p>Loading events...</p></div>;
+    return (
+      <div className="content-card">
+        <p>Loading events...</p>
+      </div>
+    );
   }
 
   if (error && events.length === 0) {
-    return <div className="content-card error"><p>Error: {error}</p></div>;
+    return (
+      <div className="content-card error">
+        <p>Error: {error}</p>
+      </div>
+    );
   }
 
   return (
     <div className="content-card flight-recorder">
       <h2>Flight Recorder</h2>
       <p className="muted">Chronological log of AI actions and job lifecycle events.</p>
-      
+
+      <form className="flight-recorder__filters" onSubmit={onSubmit}>
+        <label>
+          Job ID
+          <input
+            value={filters.jobId}
+            onChange={(e) => setFilters({ ...filters, jobId: e.target.value })}
+            placeholder="job-uuid"
+          />
+        </label>
+        <label>
+          Trace ID
+          <input
+            value={filters.traceId}
+            onChange={(e) => setFilters({ ...filters, traceId: e.target.value })}
+            placeholder="trace uuid"
+          />
+        </label>
+        <label>
+          From
+          <input
+            type="datetime-local"
+            value={filters.from}
+            onChange={(e) => setFilters({ ...filters, from: e.target.value })}
+          />
+        </label>
+        <label>
+          To
+          <input
+            type="datetime-local"
+            value={filters.to}
+            onChange={(e) => setFilters({ ...filters, to: e.target.value })}
+          />
+        </label>
+        <div className="flight-recorder__filter-actions">
+          <button type="submit">Apply</button>
+          <button type="button" onClick={onReset}>
+            Clear
+          </button>
+        </div>
+      </form>
+
       <div className="flight-recorder__table-container">
         <table className="flight-recorder__table">
           <thead>
             <tr>
               <th>Timestamp</th>
-              <th>Event Type</th>
+              <th>Event</th>
+              <th>Actor</th>
               <th>Job ID</th>
+              <th>Trace ID</th>
               <th>Payload</th>
             </tr>
           </thead>
           <tbody>
-            {events.map((event, i) => (
-              <tr key={i}>
+            {events.map((event) => (
+              <tr key={event.event_id}>
                 <td className="nowrap">{new Date(event.timestamp).toLocaleString()}</td>
-                <td><span className={`event-tag event-tag--${event.event_type}`}>{event.event_type}</span></td>
+                <td>
+                  <span className={`event-tag event-tag--${event.event_type}`}>{event.event_type}</span>
+                </td>
+                <td className="muted">{event.actor_id ?? event.actor}</td>
                 <td className="muted">{event.job_id || "-"}</td>
+                <td className="muted">{event.trace_id}</td>
                 <td>
                   <details>
                     <summary>View Data</summary>

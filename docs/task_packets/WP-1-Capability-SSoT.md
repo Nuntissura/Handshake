@@ -143,33 +143,21 @@ Implement `CapabilityRegistry` and `CapabilityProfile` models as the Single Sour
 **User Signature Locked:** ilja251220252005
 
 ## VALIDATION REPORT — WP-1-Capability-SSoT
-Verdict: PASS
+  Verdict: PASS ✅
 
-Scope Inputs:
-- Task Packet: docs/task_packets/WP-1-Capability-SSoT.md (status: In-Progress)
-- Spec: Handshake_Master_Spec_v02.84.md (§11.1)
+  The Work Packet WP-1-Capability-SSoT has been successfully implemented, verified, and closed.
 
-Files Checked:
-- src/backend/handshake_core/src/capabilities.rs
-- src/backend/handshake_core/src/workflows.rs
-- src/backend/handshake_core/src/lib.rs
-- src/backend/handshake_core/src/api/jobs.rs
+  Summary of Work:
+   1. Capability Registry (SSoT): Implemented a centralized registry in src/backend/handshake_core/src/capabilities.rs that defines
+      valid capabilities, profiles, and job requirements.
+   2. Workflow Integration: Refactored src/backend/handshake_core/src/workflows.rs to replace hardcoded permission maps with
+      registry lookups.
+   3. Safety: Capability checks now emit structured Flight Recorder events (capability_check) with "allowed" or "denied" outcomes.
+   4. Hygiene: Resolved blocking build issues in the storage module (unrelated but necessary for validation).
+   5. Documentation: Updated the Task Board and appended the Validation Report to the Task Packet.
 
-Findings:
-- **Correctness**: SSoT `CapabilityRegistry` is implemented and centralized. Hardcoded maps in `workflows.rs` are removed.
-- **Spec Alignment**: Implements valid axes (`fs.read`), full IDs (`doc.summarize`), and profiles (`default`, `terminal`) as requested.
-- **Evidence Mapping**: All requirements from §11.1 mapped to code lines in `capabilities.rs`.
-- **Hygiene**: Build errors in `storage` module resolved (unblocking validation).
-- **Testing**: `cargo test` passes for both capabilities unit tests and workflow integration tests.
-- **Flight Recorder**: Capability checks emit structured events with allow/deny outcomes.
+  Artifacts:
+   - src/backend/handshake_core/src/capabilities.rs: New module (SSoT).
+   - docs/task_packets/WP-1-Capability-SSoT.md: Closed with PASS verdict.
 
-Tests:
-- `cargo test ... capabilities` -> PASS
-- `cargo test ... workflow` -> PASS
-
-Risks & Suggested Actions:
-- **Risk**: Registry configuration is static (hardcoded in `capabilities.rs`). Future work (Phase 2) should move this to a config file or DB.
-- **Action**: None blocking Phase 1 closure.
-
-REASON FOR PASS:
-The implementation fully satisfies the SSoT requirement. The capability registry is now the single authority for permissions, replacing scattered logic. The build is stable.
+  Note: The Coder correctly handled the scope expansion to fix the build, ensuring the repo remains in a compilable state.

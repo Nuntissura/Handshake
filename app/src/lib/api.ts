@@ -134,7 +134,11 @@ export type WorkflowRun = {
 };
 
 export type FlightEvent = {
+  event_id: string;
+  trace_id: string;
   timestamp: string;
+  actor: string;
+  actor_id?: string;
   event_type: string;
   job_id?: string;
   workflow_id?: string;
@@ -212,9 +216,28 @@ export async function getHealth(): Promise<HealthResponse> {
   return request("/health");
 }
 
-export async function getEvents(): Promise<FlightEvent[]> {
-  // Primary path per task packet DONE_MEANS; /api/events remains as backend alias.
-  return request("/api/flight_recorder");
+export type FlightEventFilters = {
+  jobId?: string;
+  traceId?: string;
+  from?: string;
+  to?: string;
+};
+
+export async function getEvents(filters?: FlightEventFilters): Promise<FlightEvent[]> {
+  const toIso = (value: string) => {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+  };
+
+  const params = new URLSearchParams();
+  if (filters?.jobId) params.append("job_id", filters.jobId);
+  if (filters?.traceId) params.append("trace_id", filters.traceId);
+  if (filters?.from) params.append("from", toIso(filters.from));
+  if (filters?.to) params.append("to", toIso(filters.to));
+
+  const query = params.toString();
+  const path = query.length > 0 ? `/api/flight_recorder?${query}` : "/api/flight_recorder";
+  return request(path);
 }
 
 export type AiJob = {

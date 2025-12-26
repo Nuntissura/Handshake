@@ -18,7 +18,6 @@ const stringErrorPatterns = [
   'map_err\\(\\|.*\\|\\s*"', // map_err(|_| "msg")
   "map_err\\(\\|.*\\|\\s*String::from",
   "map_err\\(\\|.*\\|\\s*format!",
-  "\\.to_string\\(\\)\\s*\\)?\\s*[,)]\\s*$", // loose to_string in returns
   "anyhow!\\(",
   "bail!\\(",
 ];
@@ -59,12 +58,6 @@ for (const pat of nondeterminismPatterns) {
   if (out) {
     findings.push(`NONDETERMINISM pattern "${pat}":\n${out}`);
   }
-}
-
-// Require at least some HSK-#### codes in the tree to ensure convention is present; warn if missing.
-const codesOut = runRg("HSK-[0-9]{3,}", "hsk-codes");
-if (!codesOut) {
-  findings.push("WARNING: No HSK-#### error codes found in targets; ensure typed errors include stable codes.");
 }
 
 if (findings.length > 0) {

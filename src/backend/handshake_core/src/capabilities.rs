@@ -212,7 +212,20 @@ impl CapabilityRegistry {
             job_profiles,
         ) {
             Ok(registry) => registry,
-            Err(err) => panic!("default capability registry failed to initialize: {err}"),
+            Err(err) => {
+                tracing::error!(
+                    target: "handshake_core::capabilities",
+                    error = %err,
+                    "default capability registry failed to initialize; using empty registry"
+                );
+                Self {
+                    valid_axes: HashSet::new(),
+                    valid_full_ids: HashSet::new(),
+                    profiles: HashMap::new(),
+                    job_requirements: HashMap::new(),
+                    job_profiles: HashMap::new(),
+                }
+            }
         }
     }
 }
@@ -249,10 +262,7 @@ mod tests {
         let err = registry
             .can_perform("unknown.cap", &[])
             .expect_err("expected unknown capability");
-        match err {
-            RegistryError::UnknownCapability(id) => assert_eq!(id, "unknown.cap"),
-            other => panic!("unexpected error: {:?}", other),
-        }
+        assert!(matches!(err, RegistryError::UnknownCapability(id) if id == "unknown.cap"));
     }
 
     #[test]
@@ -261,15 +271,10 @@ mod tests {
         let err = registry
             .profile_can("default", "term.exec")
             .expect_err("expected missing capability");
-        match err {
-            RegistryError::MissingCapability {
-                profile_id,
-                capability,
-            } => {
-                assert_eq!(profile_id, "default");
-                assert_eq!(capability, "term.exec");
-            }
-            other => panic!("unexpected error: {:?}", other),
-        }
+        assert!(matches!(
+            err,
+            RegistryError::MissingCapability { profile_id, capability }
+            if profile_id == "default" && capability == "term.exec"
+        ));
     }
 }

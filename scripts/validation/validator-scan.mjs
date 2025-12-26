@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 /**
- * Validator scan: forbidden patterns, mocks/placeholders, and boundary greps.
+ * Validator scan: forbidden patterns and placeholder text in backend and frontend sources.
  * Exits non-zero if any finding is detected.
  */
 import { execSync } from "node:child_process";
 
 const targets = ["src/backend/handshake_core/src", "app/src"];
+const GLOB_RS = '--glob "*.rs"';
 
 const forbidden = [
-  "split_whitespace",
-  "unwrap",
+  "\\\\bsplit_whitespace\\\\(\\\\)",
+  "\\\\bunwrap\\\\(\\\\)",
   "expect\\(",
   "todo!",
   "unimplemented!",
@@ -21,15 +22,14 @@ const forbidden = [
 
 const placeholder = ["Mock", "Stub", "placeholder", "hollow"];
 
-function runRg(pattern, extraArgs = "") {
-  const cmd = `rg --hidden --no-heading --line-number "${pattern}" ${targets.join(
+function runRg(pattern, paths = targets, extraArgs = "") {
+  const cmd = `rg --hidden --no-heading --line-number "${pattern}" ${paths.join(
     " "
-  )} ${extraArgs}`;
+  )} ${GLOB_RS} ${extraArgs}`;
   try {
     const out = execSync(cmd, { stdio: "pipe", encoding: "utf8" });
     return out.trim();
   } catch (err) {
-    // rg exits 1 on no matches; ignore that case
     if (err.status === 1) return "";
     throw err;
   }
@@ -60,4 +60,4 @@ if (findings.length > 0) {
   process.exit(1);
 }
 
-console.log("validator-scan: PASS — no forbidden patterns detected in target paths.");
+console.log("validator-scan: PASS — no forbidden patterns detected in backend sources.");

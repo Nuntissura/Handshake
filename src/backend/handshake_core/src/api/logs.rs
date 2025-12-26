@@ -22,7 +22,21 @@ pub async fn tail_logs(
         None => 200,
     }
     .min(1000);
-    let log_path = repo_root()
+    let log_root = repo_root().map_err(|err| {
+        tracing::error!(
+            target: "handshake_core",
+            route = "/logs/tail",
+            error = %err,
+            "failed to resolve repo root for logs"
+        );
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "failed_to_read_logs",
+            }),
+        )
+    })?;
+    let log_path = log_root
         .join("data")
         .join("logs")
         .join("handshake_core.log");

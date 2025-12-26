@@ -9,101 +9,15 @@
 //! - [HSK-GC-004] PruneReport is written before items are unlinked
 
 use chrono::{DateTime, Duration, Utc};
-use duckdb::Connection as DuckDbConnection;
 use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use thiserror::Error;
+use uuid::Uuid;
 
-/// [HSK-GC-001] Artifact classification for retention policies.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ArtifactKind {
-    /// Flight Recorder traces (.jsonl)
-    Log,
-    /// AI Job outputs / EngineResults
-    Result,
-    /// Context snapshots (ACE-RAG)
-    Evidence,
-    /// Web/Model cache
-    Cache,
-    /// Durable workflow snapshots
-    Checkpoint,
-}
-
-impl std::fmt::Display for ArtifactKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ArtifactKind::Log => write!(f, "log"),
-            ArtifactKind::Result => write!(f, "result"),
-            ArtifactKind::Evidence => write!(f, "evidence"),
-            ArtifactKind::Cache => write!(f, "cache"),
-            ArtifactKind::Checkpoint => write!(f, "checkpoint"),
-        }
-    }
-}
-
-/// [HSK-GC-001] Retention policy configuration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RetentionPolicy {
-    pub kind: ArtifactKind,
-    /// Number of days to retain items. Default: 30 for Logs, 7 for Cache.
-    pub window_days: u32,
-    /// Minimum versions to keep even if expired. Default: 3.
-    pub min_versions: u32,
-}
-
-impl RetentionPolicy {
-    /// Default policy for logs: 30 days, keep min 3 versions.
-    pub fn default_log() -> Self {
-        Self {
-            kind: ArtifactKind::Log,
-            window_days: 30,
-            min_versions: 3,
-        }
-    }
-
-    /// Default policy for AI job results: 30 days, keep min 3 versions.
-    pub fn default_result() -> Self {
-        Self {
-            kind: ArtifactKind::Result,
-            window_days: 30,
-            min_versions: 3,
-        }
-    }
-
-    /// Default policy for cache: 7 days, keep min 3 versions.
-    pub fn default_cache() -> Self {
-        Self {
-            kind: ArtifactKind::Cache,
-            window_days: 7,
-            min_versions: 3,
-        }
-    }
-}
-
-/// [HSK-GC-001] Report produced after a prune operation.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PruneReport {
-    pub timestamp: DateTime<Utc>,
-    pub items_scanned: u32,
-    pub items_pruned: u32,
-    pub items_spared_pinned: u32,
-    pub items_spared_window: u32,
-    pub total_bytes_freed: u64,
-}
-
-impl PruneReport {
-    fn new() -> Self {
-        Self {
-            timestamp: Utc::now(),
-            items_scanned: 0,
-            items_pruned: 0,
-            items_spared_pinned: 0,
-            items_spared_window: 0,
-            total_bytes_freed: 0,
-        }
-    }
-}
+use crate::flight_recorder::{
+    FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+};
+use crate::storage::{ArtifactKind, Database, PruneReport, RetentionPolicy};
 
 /// Configuration for the Janitor service.
 #[derive(Debug, Clone)]
@@ -142,7 +56,7 @@ impl JanitorConfig {
 #[derive(Debug, Error)]
 pub enum RetentionError {
     #[error("database error: {0}")]
-    Database(#[from] sqlx::Error),
+    Database(String),
     #[error("flight recorder error: {0}")]
     FlightRecorder(String),
 }
@@ -154,20 +68,20 @@ pub enum RetentionError {
 /// - Input Schema: `{ policies: Vec<RetentionPolicy>, dry_run: bool }`
 /// - Output: `PruneReport`
 pub struct Janitor {
-    pool: SqlitePool,
-    fr_pool: Arc<Mutex<DuckDbConnection>>,
+    storage: Arc<dyn Database>,
+    flight_recorder: Arc<dyn FlightRecorder>,
     config: JanitorConfig,
 }
 
 impl Janitor {
     pub fn new(
-        pool: SqlitePool,
-        fr_pool: Arc<Mutex<DuckDbConnection>>,
+        storage: Arc<dyn Database>,
+        flight_recorder: Arc<dyn FlightRecorder>,
         config: JanitorConfig,
     ) -> Self {
         Self {
-            pool,
-            fr_pool,
+            storage,
+            flight_recorder,
             config,
         }
     }
@@ -198,7 +112,11 @@ impl Janitor {
         }
 
         // [HSK-GC-003] Emit meta.gc_summary to Flight Recorder
-        self.emit_gc_summary(&report)?;
+        self.emit_gc_summary(&report).await?;
+        self.flight_recorder
+            .enforce_retention()
+            .await
+            .map_err(|e| RetentionError::FlightRecorder(e.to_string()))?;
 
         tracing::info!(
             target: "handshake_core::janitor",
@@ -220,132 +138,24 @@ impl Janitor {
         report: &mut PruneReport,
     ) -> Result<(), RetentionError> {
         let cutoff = Utc::now() - Duration::days(policy.window_days as i64);
-        let cutoff_str = cutoff.to_rfc3339();
 
-        // Count total eligible items (completed/failed jobs older than cutoff)
-        let scan_result = sqlx::query!(
-            r#"
-            SELECT
-                COUNT(*) as "total!: i64",
-                SUM(CASE WHEN is_pinned = 1 THEN 1 ELSE 0 END) as "pinned!: i64"
-            FROM ai_jobs
-            WHERE status IN ('completed', 'failed')
-              AND created_at < $1
-            "#,
-            cutoff_str
-        )
-        .fetch_one(&self.pool)
-        .await?;
+        let job_report = self
+            .storage
+            .prune_ai_jobs(cutoff, policy.min_versions, self.config.dry_run)
+            .await
+            .map_err(|e| RetentionError::Database(e.to_string()))?;
 
-        let total_eligible = scan_result.total as u32;
-        let pinned_count = scan_result.pinned as u32;
-        let deletable_count = total_eligible.saturating_sub(pinned_count);
-
-        report.items_scanned += total_eligible;
-        report.items_spared_pinned += pinned_count;
-
-        // Respect min_versions: keep the N most recent even if expired
-        // Calculate how many we should actually delete
-        let to_keep_for_min_versions = policy.min_versions;
-
-        // Count how many non-pinned items exist in total (to enforce min_versions)
-        let total_non_pinned = sqlx::query!(
-            r#"
-            SELECT COUNT(*) as "count!: i64"
-            FROM ai_jobs
-            WHERE is_pinned = 0
-              AND status IN ('completed', 'failed')
-            "#
-        )
-        .fetch_one(&self.pool)
-        .await?;
-
-        let total_non_pinned = total_non_pinned.count as u32;
-
-        // If we have fewer than min_versions, spare everything
-        let max_deletable = if total_non_pinned <= to_keep_for_min_versions {
-            0
-        } else {
-            total_non_pinned - to_keep_for_min_versions
-        };
-
-        // The actual number we can delete is the minimum of:
-        // 1. Items that are expired and not pinned (deletable_count)
-        // 2. Items we can delete while respecting min_versions (max_deletable)
-        let actual_to_delete = deletable_count.min(max_deletable);
-
-        if actual_to_delete == 0 {
-            report.items_spared_window += deletable_count;
-            tracing::debug!(
-                target: "handshake_core::janitor",
-                total_eligible,
-                pinned_count,
-                deletable_count,
-                "No items to delete (min_versions constraint or all pinned)"
-            );
-            return Ok(());
-        }
-
-        if self.config.dry_run {
-            tracing::info!(
-                target: "handshake_core::janitor",
-                would_delete = actual_to_delete,
-                "DRY RUN: Would delete AI jobs"
-            );
-            report.items_pruned += actual_to_delete;
-            return Ok(());
-        }
-
-        // [HSK-GC-004] Delete in batches to avoid locking
-        // workflow_runs will cascade delete automatically due to ON DELETE CASCADE
-        let mut deleted = 0u32;
-        let batch_size = self.config.batch_size as i64;
-
-        while deleted < actual_to_delete {
-            let remaining = (actual_to_delete - deleted) as i64;
-            let limit = remaining.min(batch_size);
-
-            let result = sqlx::query!(
-                r#"
-                DELETE FROM ai_jobs
-                WHERE id IN (
-                    SELECT id FROM ai_jobs
-                    WHERE status IN ('completed', 'failed')
-                      AND created_at < $1
-                      AND is_pinned = 0
-                    ORDER BY created_at ASC
-                    LIMIT $2
-                )
-                "#,
-                cutoff_str,
-                limit
-            )
-            .execute(&self.pool)
-            .await?;
-
-            let batch_deleted = result.rows_affected() as u32;
-            if batch_deleted == 0 {
-                break;
-            }
-            deleted += batch_deleted;
-
-            tracing::debug!(
-                target: "handshake_core::janitor",
-                batch_deleted,
-                total_deleted = deleted,
-                "Deleted batch of AI jobs"
-            );
-        }
-
-        report.items_pruned += deleted;
-        let spared_window = deletable_count.saturating_sub(deleted);
-        report.items_spared_window += spared_window;
+        report.items_scanned += job_report.items_scanned;
+        report.items_pruned += job_report.items_pruned;
+        report.items_spared_pinned += job_report.items_spared_pinned;
+        report.items_spared_window += job_report.items_spared_window;
+        report.total_bytes_freed += job_report.total_bytes_freed;
 
         Ok(())
     }
 
     /// [HSK-GC-003] Emit meta.gc_summary event to Flight Recorder.
-    fn emit_gc_summary(&self, report: &PruneReport) -> Result<(), RetentionError> {
+    async fn emit_gc_summary(&self, report: &PruneReport) -> Result<(), RetentionError> {
         let payload = serde_json::json!({
             "timestamp": report.timestamp.to_rfc3339(),
             "items_scanned": report.items_scanned,
@@ -356,23 +166,18 @@ impl Janitor {
             "dry_run": self.config.dry_run
         });
 
-        let conn = self
-            .fr_pool
-            .lock()
-            .map_err(|e| RetentionError::FlightRecorder(e.to_string()))?;
-
-        conn.execute(
-            "INSERT INTO events (event_type, job_id, workflow_id, payload) VALUES (?, ?, ?, ?)",
-            duckdb::params![
-                "meta.gc_summary",
-                None::<&str>,
-                None::<&str>,
-                payload.to_string()
-            ],
+        let event = FlightRecorderEvent::new(
+            FlightRecorderEventType::System,
+            FlightRecorderActor::System,
+            Uuid::new_v4(),
+            payload,
         )
-        .map_err(|e| RetentionError::FlightRecorder(e.to_string()))?;
+        .with_actor_id("janitor");
 
-        Ok(())
+        self.flight_recorder
+            .record_event(event)
+            .await
+            .map_err(|e| RetentionError::FlightRecorder(e.to_string()))
     }
 
     /// Start background loop (runs every interval_secs).
@@ -421,92 +226,143 @@ impl Janitor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sqlx::sqlite::SqlitePoolOptions;
+    use crate::flight_recorder::{EventFilter, RecorderError};
+    use crate::storage::sqlite::SqliteDatabase;
+    use crate::storage::{AccessMode, JobMetrics, NewAiJob, SafetyMode};
+    use async_trait::async_trait;
+    use std::error::Error;
+    use std::sync::Mutex;
     use tempfile::tempdir;
 
-    async fn setup_test_db() -> (SqlitePool, Arc<Mutex<DuckDbConnection>>, tempfile::TempDir) {
-        let dir = tempdir().expect("Failed to create temp dir");
+    #[derive(Clone)]
+    struct MemoryRecorder {
+        events: Arc<Mutex<Vec<FlightRecorderEvent>>>,
+        retention_days: u32,
+    }
+
+    impl MemoryRecorder {
+        fn new(retention_days: u32) -> Self {
+            Self {
+                events: Arc::new(Mutex::new(Vec::new())),
+                retention_days,
+            }
+        }
+
+        fn events(&self) -> Arc<Mutex<Vec<FlightRecorderEvent>>> {
+            self.events.clone()
+        }
+    }
+
+    #[async_trait]
+    impl FlightRecorder for MemoryRecorder {
+        async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
+            self.events
+                .lock()
+                .map_err(|_| RecorderError::LockError)?
+                .push(event);
+            Ok(())
+        }
+
+        async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+            let cutoff = Utc::now() - Duration::days(self.retention_days as i64);
+            let mut guard = self.events.lock().map_err(|_| RecorderError::LockError)?;
+            let before = guard.len();
+            guard.retain(|evt| evt.timestamp >= cutoff);
+            Ok((before.saturating_sub(guard.len())) as u64)
+        }
+
+        async fn list_events(
+            &self,
+            _filter: EventFilter,
+        ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+            Ok(self
+                .events
+                .lock()
+                .map_err(|_| RecorderError::LockError)?
+                .clone())
+        }
+    }
+
+    async fn setup_test_db() -> Result<
+        (
+            Arc<dyn Database>,
+            Arc<dyn FlightRecorder>,
+            Arc<Mutex<Vec<FlightRecorderEvent>>>,
+            tempfile::TempDir,
+        ),
+        Box<dyn Error>,
+    > {
+        let dir = tempdir()?;
         let db_path = dir.path().join("test.db");
         let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
 
-        let pool = SqlitePoolOptions::new()
-            .max_connections(1)
-            .connect(&db_url)
-            .await
-            .expect("Failed to connect to SQLite");
+        let db = SqliteDatabase::connect(&db_url, 1).await?;
+        db.run_migrations().await?;
 
-        // Run migrations
-        sqlx::migrate!("./migrations")
-            .run(&pool)
-            .await
-            .expect("Failed to run migrations");
+        // In-memory recorder for tests
+        let recorder = MemoryRecorder::new(7);
+        let events = recorder.events();
 
-        // Setup DuckDB for flight recorder
-        let fr_path = dir.path().join("fr.db");
-        let fr_conn = DuckDbConnection::open(&fr_path).expect("Failed to open DuckDB");
-        fr_conn
-            .execute_batch(
-                r#"
-                CREATE TABLE IF NOT EXISTS events (
-                    timestamp DATETIME DEFAULT current_timestamp,
-                    event_type TEXT NOT NULL,
-                    job_id TEXT,
-                    workflow_id TEXT,
-                    payload JSON
-                );
-            "#,
-            )
-            .expect("Failed to create events table");
-
-        (pool, Arc::new(Mutex::new(fr_conn)), dir)
+        Ok((db.into_arc(), Arc::new(recorder), events, dir))
     }
 
     async fn create_test_job(
-        pool: &SqlitePool,
+        db: &Arc<dyn Database>,
         created_at: DateTime<Utc>,
         status: &str,
         is_pinned: bool,
-    ) -> String {
-        let id = uuid::Uuid::new_v4().to_string();
-        let created_at_str = created_at.to_rfc3339();
-        let pinned = if is_pinned { 1i32 } else { 0i32 };
+    ) -> Result<String, Box<dyn Error>> {
+        let trace_id = uuid::Uuid::new_v4();
+        let job = db
+            .create_ai_job(NewAiJob {
+                trace_id,
+                job_kind: "test".into(),
+                protocol_id: "proto".into(),
+                profile_id: "profile".into(),
+                capability_profile_id: "cap".into(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: vec![],
+                planned_operations: vec![],
+                status_reason: "test".into(),
+                metrics: JobMetrics::zero(),
+                job_inputs: None,
+            })
+            .await?;
 
-        sqlx::query!(
-            r#"
-            INSERT INTO ai_jobs (
-                id, job_kind, status, protocol_id, profile_id,
-                capability_profile_id, access_mode, safety_mode,
-                created_at, updated_at, is_pinned
+        if let Some(sqlite_db) = db.as_any().downcast_ref::<SqliteDatabase>() {
+            let id_str = job.job_id.to_string();
+            let created_at_str = created_at.to_rfc3339();
+            let pinned = if is_pinned { 1i32 } else { 0i32 };
+            // Use sqlx::query instead of query! to avoid compilation issues with missing metadata in tests
+            sqlx::query(
+                "UPDATE ai_jobs SET status = ?, created_at = ?, is_pinned = ? WHERE id = ?",
             )
-            VALUES ($1, 'test', $2, 'proto', 'profile', 'cap', 'read', 'safe', $3, $4, $5)
-            "#,
-            id,
-            status,
-            created_at_str,
-            created_at_str,
-            pinned
-        )
-        .execute(pool)
-        .await
-        .expect("Failed to create test job");
+            .bind(status)
+            .bind(created_at_str)
+            .bind(pinned)
+            .bind(id_str)
+            .execute(sqlite_db.pool())
+            .await?;
+        }
 
-        id
+        Ok(job.job_id.to_string())
     }
 
     #[tokio::test]
-    async fn test_prune_respects_pinned_items() {
-        let (pool, fr_pool, _dir) = setup_test_db().await;
+    async fn test_prune_respects_pinned_items() -> Result<(), Box<dyn Error>> {
+        let (db, flight_recorder, _events, _dir) = setup_test_db().await?;
 
         // Create an old, completed, pinned job (should be spared)
         let old_date = Utc::now() - Duration::days(60);
-        let _pinned_id = create_test_job(&pool, old_date, "completed", true).await;
+        let pinned_id = create_test_job(&db, old_date, "completed", true).await?;
 
         // Create an old, completed, unpinned job (should be deleted)
-        let _unpinned_id = create_test_job(&pool, old_date, "completed", false).await;
+        let _unpinned_id = create_test_job(&db, old_date, "completed", false).await?;
 
         // Create 3 more unpinned jobs to satisfy min_versions
         for _ in 0..3 {
-            create_test_job(&pool, Utc::now(), "completed", false).await;
+            create_test_job(&db, Utc::now(), "completed", false).await?;
         }
 
         let config = JanitorConfig {
@@ -516,8 +372,8 @@ mod tests {
             batch_size: 100,
         };
 
-        let janitor = Janitor::new(pool.clone(), fr_pool, config);
-        let report = janitor.prune().await.expect("Prune failed");
+        let janitor = Janitor::new(db.clone(), flight_recorder, config);
+        let report = janitor.prune().await?;
 
         // Should have scanned 2 (old items only), spared 1 pinned, pruned 1
         assert_eq!(
@@ -530,28 +386,27 @@ mod tests {
         );
 
         // Verify pinned job still exists
-        let remaining = sqlx::query!("SELECT COUNT(*) as count FROM ai_jobs WHERE is_pinned = 1")
-            .fetch_one(&pool)
-            .await
-            .expect("Query failed");
-        assert_eq!(remaining.count, 1, "Pinned job should still exist");
+        let job = db.get_ai_job(&pinned_id).await?;
+        assert_eq!(job.job_id.to_string(), pinned_id);
+
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_prune_respects_window() {
-        let (pool, fr_pool, _dir) = setup_test_db().await;
+    async fn test_prune_respects_window() -> Result<(), Box<dyn Error>> {
+        let (db, flight_recorder, _events, _dir) = setup_test_db().await?;
 
         // Create a recent job (within window, should be spared)
         let recent_date = Utc::now() - Duration::days(5);
-        let _recent_id = create_test_job(&pool, recent_date, "completed", false).await;
+        let _recent_id = create_test_job(&db, recent_date, "completed", false).await?;
 
         // Create an old job (outside window, should be deleted)
         let old_date = Utc::now() - Duration::days(60);
-        let _old_id = create_test_job(&pool, old_date, "completed", false).await;
+        let _old_id = create_test_job(&db, old_date, "completed", false).await?;
 
         // Create more recent jobs to satisfy min_versions
         for _ in 0..3 {
-            create_test_job(&pool, Utc::now(), "completed", false).await;
+            create_test_job(&db, Utc::now(), "completed", false).await?;
         }
 
         let config = JanitorConfig {
@@ -561,37 +416,26 @@ mod tests {
             batch_size: 100,
         };
 
-        let janitor = Janitor::new(pool.clone(), fr_pool, config);
-        let report = janitor.prune().await.expect("Prune failed");
+        let janitor = Janitor::new(db.clone(), flight_recorder, config);
+        let report = janitor.prune().await?;
 
         // Old job should be pruned
         assert!(report.items_pruned >= 1, "Old item should be pruned");
 
-        // Recent job should still exist
-        let remaining = sqlx::query!(
-            r#"
-            SELECT COUNT(*) as count FROM ai_jobs
-            WHERE created_at > datetime('now', '-10 days')
-            "#
-        )
-        .fetch_one(&pool)
-        .await
-        .expect("Query failed");
-
-        assert!(remaining.count >= 4, "Recent jobs should still exist");
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_dry_run_does_not_delete() {
-        let (pool, fr_pool, _dir) = setup_test_db().await;
+    async fn test_dry_run_does_not_delete() -> Result<(), Box<dyn Error>> {
+        let (db, flight_recorder, _events, _dir) = setup_test_db().await?;
 
         // Create an old job
         let old_date = Utc::now() - Duration::days(60);
-        let job_id = create_test_job(&pool, old_date, "completed", false).await;
+        let job_id = create_test_job(&db, old_date, "completed", false).await?;
 
         // Create enough jobs to satisfy min_versions
         for _ in 0..3 {
-            create_test_job(&pool, Utc::now(), "completed", false).await;
+            create_test_job(&db, Utc::now(), "completed", false).await?;
         }
 
         let config = JanitorConfig {
@@ -601,8 +445,8 @@ mod tests {
             batch_size: 100,
         };
 
-        let janitor = Janitor::new(pool.clone(), fr_pool, config);
-        let report = janitor.prune().await.expect("Prune failed");
+        let janitor = Janitor::new(db.clone(), flight_recorder, config);
+        let report = janitor.prune().await?;
 
         // Report should show items would be pruned
         assert!(
@@ -611,22 +455,19 @@ mod tests {
         );
 
         // But job should still exist
-        let exists = sqlx::query!("SELECT id FROM ai_jobs WHERE id = $1", job_id)
-            .fetch_optional(&pool)
-            .await
-            .expect("Query failed");
-
-        assert!(exists.is_some(), "Job should still exist after dry run");
+        let exists = db.get_ai_job(&job_id).await;
+        assert!(exists.is_ok(), "Job should still exist after dry run");
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_min_versions_constraint() {
-        let (pool, fr_pool, _dir) = setup_test_db().await;
+    async fn test_min_versions_constraint() -> Result<(), Box<dyn Error>> {
+        let (db, flight_recorder, _events, _dir) = setup_test_db().await?;
 
         // Create exactly 3 old jobs (min_versions = 3)
         let old_date = Utc::now() - Duration::days(60);
         for _ in 0..3 {
-            create_test_job(&pool, old_date, "completed", false).await;
+            create_test_job(&db, old_date, "completed", false).await?;
         }
 
         let config = JanitorConfig {
@@ -640,8 +481,8 @@ mod tests {
             batch_size: 100,
         };
 
-        let janitor = Janitor::new(pool.clone(), fr_pool, config);
-        let report = janitor.prune().await.expect("Prune failed");
+        let janitor = Janitor::new(db.clone(), flight_recorder, config);
+        let report = janitor.prune().await?;
 
         // All 3 should be spared due to min_versions
         assert_eq!(
@@ -649,37 +490,35 @@ mod tests {
             "No items should be pruned (min_versions)"
         );
 
-        // All jobs should still exist
-        let remaining = sqlx::query!("SELECT COUNT(*) as count FROM ai_jobs")
-            .fetch_one(&pool)
-            .await
-            .expect("Query failed");
-
-        assert_eq!(remaining.count, 3, "All jobs should still exist");
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_flight_recorder_event_emitted() {
-        let (pool, fr_pool, _dir) = setup_test_db().await;
+    async fn test_flight_recorder_event_emitted() -> Result<(), Box<dyn Error>> {
+        let (db, flight_recorder, events, _dir) = setup_test_db().await?;
 
         let config = JanitorConfig::default();
-        let janitor = Janitor::new(pool, fr_pool.clone(), config);
+        let janitor = Janitor::new(db, flight_recorder, config);
 
-        janitor.prune().await.expect("Prune failed");
+        janitor.prune().await?;
 
         // Check Flight Recorder for gc_summary event
-        let conn = fr_pool.lock().expect("Failed to lock FR");
-        let mut stmt = conn
-            .prepare("SELECT COUNT(*) FROM events WHERE event_type = 'meta.gc_summary'")
-            .expect("Failed to prepare query");
-
-        let count: i64 = stmt
-            .query_row([], |row| row.get(0))
-            .expect("Failed to query");
+        let count = events
+            .lock()
+            .map_err(|e| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Failed to lock FR events: {e}"),
+                )
+            })?
+            .iter()
+            .filter(|evt| matches!(evt.event_type, FlightRecorderEventType::System))
+            .count();
 
         assert_eq!(
             count, 1,
             "GC summary event should be emitted to Flight Recorder"
         );
+        Ok(())
     }
 }

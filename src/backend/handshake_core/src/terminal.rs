@@ -1,3 +1,4 @@
+use std::process::Stdio;
 use std::time::Duration;
 
 use thiserror::Error;
@@ -38,15 +39,21 @@ impl TerminalService {
 
         let mut command = Command::new(program);
         command.args(args);
+        command.kill_on_drop(true);
+        command.stdout(Stdio::piped());
+        command.stderr(Stdio::piped());
 
         let effective_timeout = match timeout_ms {
             Some(ms) => ms,
             None => 30_000,
         };
         let duration = Duration::from_millis(effective_timeout);
-        let output = timeout(duration, command.output())
-            .await
-            .map_err(|_| TerminalError::Timeout(duration.as_millis() as u64))??;
+        let output = match timeout(duration, command.spawn()?.wait_with_output()).await {
+            Ok(result) => result?,
+            Err(_) => {
+                return Err(TerminalError::Timeout(duration.as_millis() as u64));
+            }
+        };
 
         let status_code = match output.status.code() {
             Some(code) => code,

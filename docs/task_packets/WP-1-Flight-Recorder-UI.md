@@ -6,8 +6,21 @@
 - REQUESTOR: User
 - AGENT_ID: Gemini-2.0-Flash
 - ROLE: Orchestrator
-- **Status:** In Progress
-- USER_SIGNATURE: <pending>
+- **Status:** Ready for Dev
+- USER_SIGNATURE: ilja
+
+---
+
+## 🕵️ CODE ARCHAEOLOGY & ALIGNMENT NOTE
+**Reason:** Strategic Audit for Phase 1 closure.
+**Authority [CX-598]:** The Roadmap is only a pointer. The **Master Spec Main Body** (§1-6, §9-11) is the sole definition of "Done."
+**Procedure:** 
+1. Validator/Coder must search for Flight Recorder components and DuckDB wiring.
+2. Verify implementation matches **100% of the technical rules, schemas, and invariants** found in the Main Body (§11.5 Flight Recorder / §10.5 Operator Consoles).
+3. Surface-level compliance with roadmap bullets (§7.6.3.5) is insufficient. Implementation must support typed events, traceability fields, and DuckDB persistence.
+4. If 100% alignment exists -> **PASS**. Otherwise -> **FAIL**.
+
+---
 
 ## Scope
 - **What**: Implement a frontend view ("Job History" / "Flight Recorder") to visualize the AI events logged in DuckDB.
@@ -84,3 +97,55 @@
 - WP_STATUS: Completed
 - What changed: Added API route for `/api/flight_recorder` (alias `/api/events` retained), frontend view polls and renders events; navigation tab present.
 - Next step / handoff hint: Optional enhancements: add filters or pagination if log volume grows.
+
+---
+
+## VALIDATION REPORT — WP-1-Flight-Recorder-UI
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Flight-Recorder-UI.md (status: In Progress)
+- Spec: Handshake_Master_Spec_v02.84.md (Packet incorrectly references STALE v02.50)
+
+Files Checked:
+- app/src/components/FlightRecorderView.tsx
+- src/backend/handshake_core/src/api/flight_recorder.rs
+
+Findings:
+- **Spec Regression**: Packet references v02.50. MUST align with §11.5 of v02.84 (Event Shapes & Retention).
+- **Evidence Mapping [CX-627]**: MISSING. Coder has not mapped the UI implementation to specific spec requirements.
+- **Event Shape Compliance**: Implementation must be audited to ensure it correctly renders the `payload JSON` including the new traceability fields (`trace_id`, `actor_id`) required by the Red Hat Auditor protocol.
+- **Hygiene**: `post-work-check.mjs` (L59) is a legacy check and does not substitute for manual evidence-based validation.
+
+Risks & Suggested Actions:
+- **RE-OPEN**. Ensure the UI supports the full diagnostic schema defined in §11.4/11.5.
+- Add `EVIDENCE_MAPPING` to the task packet.
+
+---
+
+**Last Updated:** 2025-12-25
+**User Signature Locked:** <pending>
+
+
+## VALIDATION REPORT � WP-1-Flight-Recorder-UI
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Flight-Recorder-UI.md (status: Ready for Dev)
+- Spec: (not provided)
+
+Findings:
+- Packet incomplete [CX-573]: missing required fields (RISK_TIER, TEST_PLAN, DONE_MEANS, BOOTSTRAP, AUTHORITY); USER_SIGNATURE pending. Pre-flight gate blocks validation.
+- No implementation evidence provided; validation halted until packet completeness and evidence mapping exist.
+
+Hygiene / Forbidden Patterns:
+- Not run (blocked by pre-flight failure).
+
+Tests:
+- Not run (TEST_PLAN missing).
+
+Reason for FAIL:
+- Workflow pre-flight failed; WP returned to Ready for Dev pending packet completion and implementation evidence.
+
+
+

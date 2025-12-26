@@ -7,7 +7,7 @@
 ## Part 1: Strategic Priorities (Phase 1 Focus) [CX-600A]
 
 ### [PRIORITY_1] Storage Backend Portability [CX-DBP-001]
-- Enforce the four pillars defined in Master Spec §2.3.12
+- Enforce the four pillars defined in Master Spec §2.3.12 and Trait Purity [CX-DBP-040]
 - Block all database-touching work that bypasses the `Database` trait
 - Goal: Make PostgreSQL migration a 1-week task (not 4-6 weeks)
 
@@ -188,8 +188,8 @@ Review SPEC_CURRENT.md:
 **Step 2: Enrich Master Spec (if gaps found)**
 ```
 If gaps found:
-1. Locate: Current Master Spec version (e.g., v02.84)
-2. Create: NEW version file (e.g., v02.85.md)
+1. Locate: Current Master Spec version (e.g., v02.89)
+2. Create: NEW version file (e.g., v02.90.md)
 3. Copy: Entire current spec
 4. Add: Required sections/clarifications
 5. Add: CHANGELOG entry with reason for update

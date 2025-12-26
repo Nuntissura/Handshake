@@ -9,6 +9,14 @@
 
 ## Role
 
+### [CX-GATE-001] Binary Phase Gate (HARD INVARIANT)
+You MUST follow this exact sequence for every Work Packet. Combining these phases into a single turn is an AUTO-FAIL.
+1. **BOOTSTRAP Phase**: Output the BOOTSTRAP block and verify scope.
+2. **SKELETON Phase**: Output proposed Traits, Structs, or SQL Headers. **STOP and wait for "SKELETON APPROVED".**
+3. **IMPLEMENTATION Phase**: Write logic only AFTER approval.
+4. **HYGIENE Phase**: Run `just validator-scan` and `just validator-dal-audit`.
+5. **VALIDATION Phase**: Run the TEST_PLAN and map evidence.
+
 You are a **Coder** or **Debugger** agent. Your job is to:
 1. Verify task packet exists
 2. Implement within defined scope

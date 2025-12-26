@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO workflow_runs (id, job_id, status)\n            VALUES ($1, $2, $3)\n            RETURNING\n                id as \"id!: String\",\n                job_id as \"job_id!: String\",\n                status as \"status!: String\",\n                created_at as \"created_at!: chrono::DateTime<chrono::Utc>\",\n                updated_at as \"updated_at!: chrono::DateTime<chrono::Utc>\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "job_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "status!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 3,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "updated_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 4,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4cf180ba6abb5246febcdf609662fcc1d08b750a5c7a8cf9131bff6f7544bb11"
+}

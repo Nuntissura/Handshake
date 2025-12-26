@@ -4,16 +4,13 @@ use axum::{
     routing::{delete, get, post, put},
     Json, Router,
 };
-use chrono::Utc;
-use serde_json::Value;
-use sqlx::SqlitePool;
-use uuid::Uuid;
 
 use crate::{
     models::{
         BlockResponse, CreateDocumentRequest, CreateWorkspaceRequest, DocumentResponse,
         DocumentWithBlocksResponse, ErrorResponse, UpsertBlocksRequest, WorkspaceResponse,
     },
+    storage::{Block, NewBlock, NewDocument, NewWorkspace, StorageError, WriteContext},
     AppState,
 };
 
@@ -37,32 +34,27 @@ async fn create_workspace(
     State(state): State<AppState>,
     Json(payload): Json<CreateWorkspaceRequest>,
 ) -> Result<(StatusCode, Json<WorkspaceResponse>), (StatusCode, Json<ErrorResponse>)> {
-    let now = Utc::now();
-    let id = Uuid::new_v4().to_string();
+    let ctx = WriteContext::human(None);
+    let workspace = state
+        .storage
+        .create_workspace(
+            &ctx,
+            NewWorkspace {
+                name: payload.name.clone(),
+            },
+        )
+        .await
+        .map_err(map_storage_error)?;
 
-    sqlx::query!(
-        r#"
-        INSERT INTO workspaces (id, name, created_at, updated_at)
-        VALUES (?1, ?2, ?3, ?4)
-        "#,
-        id,
-        payload.name,
-        now,
-        now
-    )
-    .execute(&state.pool)
-    .await
-    .map_err(internal_error)?;
-
-    tracing::info!(target: "handshake_core", route = "/workspaces", status = "created", workspace_id = %id, "workspace created");
+    tracing::info!(target: "handshake_core", route = "/workspaces", status = "created", workspace_id = %workspace.id, "workspace created");
 
     Ok((
         StatusCode::CREATED,
         Json(WorkspaceResponse {
-            id,
-            name: payload.name,
-            created_at: now,
-            updated_at: now,
+            id: workspace.id,
+            name: workspace.name,
+            created_at: workspace.created_at,
+            updated_at: workspace.updated_at,
         }),
     ))
 }
@@ -70,20 +62,11 @@ async fn create_workspace(
 async fn list_workspaces(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<WorkspaceResponse>>, (StatusCode, Json<ErrorResponse>)> {
-    let rows = sqlx::query!(
-        r#"
-        SELECT
-            id as "id!: String",
-            name as "name!: String",
-            created_at as "created_at: chrono::DateTime<chrono::Utc>",
-            updated_at as "updated_at: chrono::DateTime<chrono::Utc>"
-        FROM workspaces
-        ORDER BY created_at ASC
-        "#
-    )
-    .fetch_all(&state.pool)
-    .await
-    .map_err(internal_error)?;
+    let rows = state
+        .storage
+        .list_workspaces()
+        .await
+        .map_err(map_storage_error)?;
 
     tracing::info!(target: "handshake_core", route = "/workspaces", status = "ok", count = rows.len(), "list workspaces");
 
@@ -104,22 +87,12 @@ async fn delete_workspace(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let exists = sqlx::query_scalar!(
-        r#"SELECT COUNT(1) as "count!: i64" FROM workspaces WHERE id = ?1"#,
-        workspace_id
-    )
-    .fetch_one(&state.pool)
-    .await
-    .map_err(internal_error)?;
-
-    if exists == 0 {
-        return Err(not_found("workspace_not_found"));
-    }
-
-    sqlx::query!(r#"DELETE FROM workspaces WHERE id = ?1"#, workspace_id)
-        .execute(&state.pool)
+    let ctx = WriteContext::human(None);
+    state
+        .storage
+        .delete_workspace(&ctx, &workspace_id)
         .await
-        .map_err(internal_error)?;
+        .map_err(map_storage_error)?;
 
     tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id", status = "deleted", workspace_id = %workspace_id, "workspace deleted");
 
@@ -131,36 +104,31 @@ async fn create_document(
     Path(workspace_id): Path<String>,
     Json(payload): Json<CreateDocumentRequest>,
 ) -> Result<(StatusCode, Json<DocumentResponse>), (StatusCode, Json<ErrorResponse>)> {
-    ensure_workspace(&state.pool, &workspace_id).await?;
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let ctx = WriteContext::human(None);
 
-    let now = Utc::now();
-    let id = Uuid::new_v4().to_string();
+    let document = state
+        .storage
+        .create_document(
+            &ctx,
+            NewDocument {
+                workspace_id: workspace_id.clone(),
+                title: payload.title.clone(),
+            },
+        )
+        .await
+        .map_err(map_storage_error)?;
 
-    sqlx::query!(
-        r#"
-        INSERT INTO documents (id, workspace_id, title, created_at, updated_at)
-        VALUES (?1, ?2, ?3, ?4, ?5)
-        "#,
-        id,
-        workspace_id,
-        payload.title,
-        now,
-        now
-    )
-    .execute(&state.pool)
-    .await
-    .map_err(internal_error)?;
-
-    tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id/documents", status = "created", workspace_id = %workspace_id, document_id = %id, "document created");
+    tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id/documents", status = "created", workspace_id = %workspace_id, document_id = %document.id, "document created");
 
     Ok((
         StatusCode::CREATED,
         Json(DocumentResponse {
-            id,
-            workspace_id,
-            title: payload.title,
-            created_at: now,
-            updated_at: now,
+            id: document.id,
+            workspace_id: document.workspace_id,
+            title: document.title,
+            created_at: document.created_at,
+            updated_at: document.updated_at,
         }),
     ))
 }
@@ -169,25 +137,13 @@ async fn list_documents(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
 ) -> Result<Json<Vec<DocumentResponse>>, (StatusCode, Json<ErrorResponse>)> {
-    ensure_workspace(&state.pool, &workspace_id).await?;
+    ensure_workspace_exists(&state, &workspace_id).await?;
 
-    let rows = sqlx::query!(
-        r#"
-        SELECT
-            id as "id!: String",
-            workspace_id as "workspace_id!: String",
-            title as "title!: String",
-            created_at as "created_at: chrono::DateTime<chrono::Utc>",
-            updated_at as "updated_at: chrono::DateTime<chrono::Utc>"
-        FROM documents
-        WHERE workspace_id = ?1
-        ORDER BY created_at ASC
-        "#,
-        workspace_id
-    )
-    .fetch_all(&state.pool)
-    .await
-    .map_err(internal_error)?;
+    let rows = state
+        .storage
+        .list_documents(&workspace_id)
+        .await
+        .map_err(map_storage_error)?;
 
     tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id/documents", status = "ok", workspace_id = %workspace_id, count = rows.len(), "list documents");
 
@@ -209,77 +165,28 @@ async fn get_document(
     State(state): State<AppState>,
     Path(document_id): Path<String>,
 ) -> Result<Json<DocumentWithBlocksResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let doc = sqlx::query!(
-        r#"
-        SELECT
-            id as "id!: String",
-            workspace_id as "workspace_id!: String",
-            title as "title!: String",
-            created_at as "created_at: chrono::DateTime<chrono::Utc>",
-            updated_at as "updated_at: chrono::DateTime<chrono::Utc>"
-        FROM documents
-        WHERE id = ?1
-        "#,
-        document_id
-    )
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(internal_error)?;
+    let document = state
+        .storage
+        .get_document(&document_id)
+        .await
+        .map_err(map_storage_error)?;
 
-    let doc = match doc {
-        Some(row) => row,
-        None => return Err(not_found("document_not_found")),
-    };
+    let blocks = state
+        .storage
+        .get_blocks(&document_id)
+        .await
+        .map_err(map_storage_error)?;
 
-    let blocks = sqlx::query!(
-        r#"
-        SELECT
-            id as "id!: String",
-            kind as "kind!: String",
-            sequence as "sequence!: i64",
-            raw_content as "raw_content!: String",
-            display_content as "display_content!: String",
-            derived_content as "derived_content!: String",
-            created_at as "created_at: chrono::DateTime<chrono::Utc>",
-            updated_at as "updated_at: chrono::DateTime<chrono::Utc>"
-        FROM blocks
-        WHERE document_id = ?1
-        ORDER BY sequence ASC
-        "#,
-        doc.id
-    )
-    .fetch_all(&state.pool)
-    .await
-    .map_err(internal_error)?;
+    tracing::info!(target: "handshake_core", route = "/documents/:document_id", status = "ok", document_id = %document.id, "get document");
 
-    tracing::info!(target: "handshake_core", route = "/documents/:document_id", status = "ok", document_id = %doc.id, "get document");
-
-    let blocks = blocks
-        .into_iter()
-        .map(|b| {
-            let derived = match serde_json::from_str(&b.derived_content) {
-                Ok(val) => val,
-                Err(_) => Value::Object(Default::default()),
-            };
-            BlockResponse {
-                id: b.id,
-                kind: b.kind,
-                sequence: b.sequence,
-                raw_content: b.raw_content,
-                display_content: b.display_content,
-                derived_content: derived,
-                created_at: b.created_at,
-                updated_at: b.updated_at,
-            }
-        })
-        .collect();
+    let blocks: Vec<BlockResponse> = blocks.into_iter().map(block_to_response).collect();
 
     Ok(Json(DocumentWithBlocksResponse {
-        id: doc.id,
-        workspace_id: doc.workspace_id,
-        title: doc.title,
-        created_at: doc.created_at,
-        updated_at: doc.updated_at,
+        id: document.id,
+        workspace_id: document.workspace_id,
+        title: document.title,
+        created_at: document.created_at,
+        updated_at: document.updated_at,
         blocks,
     }))
 }
@@ -288,22 +195,12 @@ async fn delete_document(
     State(state): State<AppState>,
     Path(document_id): Path<String>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let existing = sqlx::query_scalar!(
-        r#"SELECT COUNT(1) as "count!: i64" FROM documents WHERE id = ?1"#,
-        document_id
-    )
-    .fetch_one(&state.pool)
-    .await
-    .map_err(internal_error)?;
-
-    if existing == 0 {
-        return Err(not_found("document_not_found"));
-    }
-
-    sqlx::query!(r#"DELETE FROM documents WHERE id = ?1"#, document_id)
-        .execute(&state.pool)
+    let ctx = WriteContext::human(None);
+    state
+        .storage
+        .delete_document(&ctx, &document_id)
         .await
-        .map_err(internal_error)?;
+        .map_err(map_storage_error)?;
 
     tracing::info!(target: "handshake_core", route = "/documents/:document_id", status = "deleted", document_id = %document_id, "document deleted");
 
@@ -315,112 +212,85 @@ async fn replace_blocks(
     Path(document_id): Path<String>,
     Json(payload): Json<UpsertBlocksRequest>,
 ) -> Result<Json<Vec<BlockResponse>>, (StatusCode, Json<ErrorResponse>)> {
-    let doc = sqlx::query!(
-        r#"
-        SELECT
-            id as "id!: String",
-            workspace_id as "workspace_id!: String"
-        FROM documents
-        WHERE id = ?1
-        "#,
-        document_id
-    )
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(internal_error)?;
-
-    if doc.is_none() {
-        return Err(not_found("document_not_found"));
-    }
-
-    let mut tx = state.pool.begin().await.map_err(internal_error)?;
-
-    sqlx::query!(r#"DELETE FROM blocks WHERE document_id = ?1"#, document_id)
-        .execute(&mut *tx)
+    // Ensure document exists first to provide 404 instead of recreating.
+    let ctx = WriteContext::human(None);
+    let _doc = state
+        .storage
+        .get_document(&document_id)
         .await
-        .map_err(internal_error)?;
+        .map_err(map_storage_error)?;
 
-    let mut result_blocks = Vec::with_capacity(payload.blocks.len());
-    for incoming in payload.blocks.into_iter() {
-        let block_id = match incoming.id {
-            Some(id) => id,
-            None => Uuid::new_v4().to_string(),
-        };
-        let now = Utc::now();
-        let display_content = match incoming.display_content {
-            Some(content) => content,
-            None => incoming.raw_content.clone(),
-        };
-        let derived = match incoming.derived_content {
-            Some(val) => val,
-            None => Value::Object(Default::default()),
-        };
-        let derived_str = derived.to_string();
-
-        sqlx::query!(
-            r#"
-            INSERT INTO blocks (
-                id, document_id, kind, sequence, raw_content, display_content, derived_content, created_at, updated_at
-            )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
-            "#,
-            block_id,
-            document_id,
-            incoming.kind,
-            incoming.sequence,
-            incoming.raw_content,
-            display_content,
-            derived_str,
-            now,
-            now
-        )
-            .execute(&mut *tx)
-            .await
-            .map_err(internal_error)?;
-
-        result_blocks.push(BlockResponse {
-            id: block_id,
+    let incoming_blocks: Vec<NewBlock> = payload
+        .blocks
+        .into_iter()
+        .map(|incoming| NewBlock {
+            id: incoming.id,
+            document_id: document_id.clone(),
             kind: incoming.kind,
             sequence: incoming.sequence,
-            raw_content: incoming.raw_content,
-            display_content,
-            derived_content: derived,
-            created_at: now,
-            updated_at: now,
-        });
-    }
+            raw_content: incoming.raw_content.clone(),
+            display_content: incoming.display_content,
+            derived_content: incoming.derived_content,
+        })
+        .collect();
 
-    tx.commit().await.map_err(internal_error)?;
+    let result_blocks = state
+        .storage
+        .replace_blocks(&ctx, &document_id, incoming_blocks)
+        .await
+        .map_err(map_storage_error)?;
 
     tracing::info!(target: "handshake_core", route = "/documents/:document_id/blocks", status = "ok", document_id = %document_id, blocks = result_blocks.len(), "replace blocks");
 
-    Ok(Json(result_blocks))
+    Ok(Json(
+        result_blocks.into_iter().map(block_to_response).collect(),
+    ))
 }
 
-pub(super) async fn ensure_workspace(
-    pool: &SqlitePool,
-    workspace_id: &str,
-) -> Result<(), (StatusCode, Json<ErrorResponse>)> {
-    let exists = sqlx::query_scalar!(
-        r#"
-        SELECT COUNT(1) as "count!: i64"
-        FROM workspaces
-        WHERE id = ?1
-        "#,
-        workspace_id
-    )
-    .fetch_one(pool)
-    .await
-    .map_err(internal_error)?;
-
-    if exists == 0 {
-        Err(not_found("workspace_not_found"))
-    } else {
-        Ok(())
+fn block_to_response(block: Block) -> BlockResponse {
+    BlockResponse {
+        id: block.id,
+        kind: block.kind,
+        sequence: block.sequence,
+        raw_content: block.raw_content,
+        display_content: block.display_content,
+        derived_content: block.derived_content,
+        created_at: block.created_at,
+        updated_at: block.updated_at,
     }
 }
 
-pub(super) fn internal_error(err: impl std::fmt::Display) -> (StatusCode, Json<ErrorResponse>) {
+async fn ensure_workspace_exists(
+    state: &AppState,
+    workspace_id: &str,
+) -> Result<(), (StatusCode, Json<ErrorResponse>)> {
+    match state.storage.get_workspace(workspace_id).await {
+        Ok(Some(_)) => Ok(()),
+        Ok(None) => Err(not_found("workspace_not_found")),
+        Err(err) => Err(map_storage_error(err)),
+    }
+}
+
+fn map_storage_error(err: StorageError) -> (StatusCode, Json<ErrorResponse>) {
+    match err {
+        StorageError::NotFound(code) => not_found(code),
+        StorageError::Guard(_) | StorageError::Validation("HSK-403-SILENT-EDIT") => (
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "HSK-403-SILENT-EDIT",
+            }),
+        ),
+        StorageError::Validation(_) => (
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "bad_request",
+            }),
+        ),
+        _ => internal_error(err),
+    }
+}
+
+fn internal_error(err: impl std::fmt::Display) -> (StatusCode, Json<ErrorResponse>) {
     tracing::error!(target: "handshake_core", error = %err, "db_error");
     (
         StatusCode::INTERNAL_SERVER_ERROR,
@@ -428,6 +298,6 @@ pub(super) fn internal_error(err: impl std::fmt::Display) -> (StatusCode, Json<E
     )
 }
 
-pub(super) fn not_found(code: &'static str) -> (StatusCode, Json<ErrorResponse>) {
+fn not_found(code: &'static str) -> (StatusCode, Json<ErrorResponse>) {
     (StatusCode::NOT_FOUND, Json(ErrorResponse { error: code }))
 }

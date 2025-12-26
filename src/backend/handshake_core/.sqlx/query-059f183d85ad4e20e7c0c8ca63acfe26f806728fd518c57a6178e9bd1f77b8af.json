@@ -1,0 +1,128 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO ai_jobs (\n                id,\n                trace_id,\n                workflow_run_id,\n                job_kind,\n                status,\n                status_reason,\n                protocol_id,\n                profile_id,\n                capability_profile_id,\n                access_mode,\n                safety_mode,\n                entity_refs,\n                planned_operations,\n                metrics,\n                job_inputs,\n                created_at,\n                updated_at\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)\n            RETURNING\n                id as \"id!: String\",\n                trace_id as \"trace_id!: String\",\n                workflow_run_id as \"workflow_run_id?\",\n                job_kind as \"job_kind!: String\",\n                status as \"status!: String\",\n                status_reason as \"status_reason!: String\",\n                error_message as \"error_message?\",\n                protocol_id as \"protocol_id!: String\",\n                profile_id as \"profile_id!: String\",\n                capability_profile_id as \"capability_profile_id!: String\",\n                access_mode as \"access_mode!: String\",\n                safety_mode as \"safety_mode!: String\",\n                entity_refs as \"entity_refs!: String\",\n                planned_operations as \"planned_operations!: String\",\n                metrics as \"metrics!: String\",\n                job_inputs as \"job_inputs?\",\n                job_outputs as \"job_outputs?\",\n                created_at as \"created_at!: chrono::DateTime<chrono::Utc>\",\n                updated_at as \"updated_at!: chrono::DateTime<chrono::Utc>\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "trace_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "workflow_run_id?",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "job_kind!: String",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "status!: String",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "status_reason!: String",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "error_message?",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "protocol_id!: String",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "profile_id!: String",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "capability_profile_id!: String",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "access_mode!: String",
+        "ordinal": 10,
+        "type_info": "Text"
+      },
+      {
+        "name": "safety_mode!: String",
+        "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "entity_refs!: String",
+        "ordinal": 12,
+        "type_info": "Text"
+      },
+      {
+        "name": "planned_operations!: String",
+        "ordinal": 13,
+        "type_info": "Text"
+      },
+      {
+        "name": "metrics!: String",
+        "ordinal": 14,
+        "type_info": "Text"
+      },
+      {
+        "name": "job_inputs?",
+        "ordinal": 15,
+        "type_info": "Text"
+      },
+      {
+        "name": "job_outputs?",
+        "ordinal": 16,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 17,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "updated_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 18,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 17
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "059f183d85ad4e20e7c0c8ca63acfe26f806728fd518c57a6178e9bd1f77b8af"
+}

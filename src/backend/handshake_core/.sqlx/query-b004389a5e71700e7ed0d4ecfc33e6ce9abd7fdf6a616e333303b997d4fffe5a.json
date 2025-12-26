@@ -1,0 +1,86 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO canvas_edges (\n                    id, canvas_id, from_node_id, to_node_id, kind, last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id, created_at, updated_at\n                )\n                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)\n                RETURNING\n                    id as \"id!: String\",\n                    canvas_id as \"canvas_id!: String\",\n                    from_node_id as \"from_node_id!: String\",\n                    to_node_id as \"to_node_id!: String\",\n                    kind as \"kind!: String\",\n                    last_actor_kind as \"last_actor_kind!: String\",\n                    last_actor_id as \"last_actor_id: String\",\n                    last_job_id as \"last_job_id: String\",\n                    last_workflow_id as \"last_workflow_id: String\",\n                    edit_event_id as \"edit_event_id!: String\",\n                    created_at as \"created_at!: chrono::DateTime<chrono::Utc>\",\n                    updated_at as \"updated_at!: chrono::DateTime<chrono::Utc>\"\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "canvas_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "from_node_id!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "to_node_id!: String",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "kind!: String",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_actor_kind!: String",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_actor_id: String",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_job_id: String",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_workflow_id: String",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "edit_event_id!: String",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 10,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "updated_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 11,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 12
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b004389a5e71700e7ed0d4ecfc33e6ce9abd7fdf6a616e333303b997d4fffe5a"
+}

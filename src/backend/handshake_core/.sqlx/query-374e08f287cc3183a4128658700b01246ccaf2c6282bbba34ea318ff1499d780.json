@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            UPDATE blocks\n            SET kind = $1,\n                sequence = $2,\n                raw_content = $3,\n                display_content = $4,\n                derived_content = $5,\n                last_actor_kind = $6,\n                last_actor_id = $7,\n                last_job_id = $8,\n                last_workflow_id = $9,\n                edit_event_id = $10,\n                updated_at = $11\n            WHERE id = $12\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 12
+    },
+    "nullable": []
+  },
+  "hash": "374e08f287cc3183a4128658700b01246ccaf2c6282bbba34ea318ff1499d780"
+}

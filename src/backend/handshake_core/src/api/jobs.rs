@@ -99,35 +99,24 @@ async fn get_job(
 mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
+    use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
     use crate::llm::TestLLMClient;
-    use crate::storage::sqlite::SqliteDatabase;
+    use crate::storage::{sqlite::SqliteDatabase, JobState};
     use axum::extract::State;
-    use duckdb::Connection as DuckDbConnection;
     use serde_json::json;
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
 
     async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
         let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
         sqlite.run_migrations().await?;
 
-        let fr_conn = DuckDbConnection::open_in_memory()?;
-        fr_conn.execute_batch(
-            r#"
-                CREATE TABLE events (
-                    timestamp DATETIME DEFAULT current_timestamp,
-                    event_type TEXT NOT NULL,
-                    job_id TEXT,
-                    workflow_id TEXT,
-                    payload JSON
-                );
-            "#,
-        )?;
+        let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
 
         Ok(AppState {
             storage: sqlite.into_arc(),
-            fr_pool: Arc::new(Mutex::new(fr_conn)),
+            flight_recorder,
             llm_client: Arc::new(TestLLMClient {
-                response: "mock".to_string(),
+                response: "ok".into(),
             }),
             capability_registry: Arc::new(CapabilityRegistry::new_default()),
         })
@@ -175,8 +164,11 @@ mod tests {
         let response = create_new_job(State(state.clone()), Json(request)).await?;
         let workflow_run = response.0;
 
-        let job = state.storage.get_ai_job(&workflow_run.job_id).await?;
-        assert_eq!(job.status, "completed");
+        let job = state
+            .storage
+            .get_ai_job(&workflow_run.job_id.to_string())
+            .await?;
+        assert!(matches!(job.state, JobState::Completed));
 
         let outputs = job.job_outputs.as_ref().ok_or("missing job outputs")?;
         let stdout = outputs

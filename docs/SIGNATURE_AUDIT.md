@@ -24,7 +24,21 @@
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
 | ilja251225032800 | Orchestrator | 2025-12-25 03:28 | Strategic Pause: Spec enrichment for Phase 1 storage foundation | v02.85 | Enriched §2.3.12 Storage Backend Portability requirements |
+| ilja251220250328 | Orchestrator | 2025-12-25 03:28 | Spec Enrichment & WP creation foundation | v02.84 | Enriched §2.3.12.3 with Trait Contract |
+| ilja251220251542 | Orchestrator | 2025-12-25 15:42 | Delegation of WP-1-Storage-Abstraction-Layer to Coder | v02.84 | Coder assigned, work activated |
+| ilja251220251729 | Orchestrator | 2025-12-25 17:29 | Task packet activation: WP-1-Migration-Framework | v02.84 | Migration framework & SQL portability |
+| ilja251220251821 | Orchestrator | 2025-12-25 18:21 | Task packet activation: WP-1-Terminal-Integration-Baseline | v02.84 | Secure terminal execution baseline |
+| ilja251220252005 | Orchestrator | 2025-12-25 20:05 | Task packet activation: WP-1-Capability-SSoT | v02.84 | Centralized Capability Registry SSoT |
+| ilja251220252013 | Orchestrator | 2025-12-25 20:13 | Task packet activation: WP-1-Retention-GC | v02.84 | Data retention and garbage collection |
 | ilja251225041500 | Orchestrator | 2025-12-25 04:15 | Task packet creation: WP-1-Storage-Abstraction-Layer | v02.85 | Spec already enriched; Coder ready for work |
+| ilja251220252304 | Orchestrator | 2025-12-25 23:04 | Spec Enrichment v02.85 (ACE-RAG-001 Normative Traits) | v02.85 | Enriched §2.6.6.7.14.11 with AceRuntimeValidator trait |
+| ilja251220252310 | Orchestrator | 2025-12-25 23:10 | Spec Enrichment v02.85 (Mutation Traceability Normative Traits) | v02.85 | Enriched §2.9.3 with StorageGuard trait and Persistence Schema |
+| ilja251220250037 | Orchestrator | 2025-12-26 00:37 | Spec Enrichment v02.86 (Flight Recorder Normative Traits) | v02.86 | Enriched §11.5 with FlightRecorder trait and FR-EVT schemas |
+| ilja261220250045 | Orchestrator | 2025-12-26 00:45 | Spec Enrichment v02.87 (LLM Core Normative Traits) | v02.87 | Enriched §4.2 with LlmClient trait and completion schemas |
+| ilja261220250149 | Orchestrator | 2025-12-26 01:49 | Spec Enrichment v02.88 (AI Job Model Normative Traits) | v02.88 | Enriched §2.6.6.2.8 with normative AiJob and JobMetrics structs |
+| ilja261220250312 | Orchestrator | 2025-12-26 03:12 | Task packet activation: WP-1-Workflow-Engine-v2 | v02.90 | Mandates node-level persistence and recovery state machine |
+| ilja261220250259 | Orchestrator | 2025-12-26 02:59 | Spec Enrichment v02.90 (Storage Purity & Workflow Persistence) | v02.90 | Enriched §2.3.12.3 (Trait Purity), §2.3.11.2 (Janitor Decoupling), §2.6.1 (Workflow Persistence) |
+| ilja261220250201 | Orchestrator | 2025-12-26 02:01 | Spec Enrichment v02.89 (ACE Security Guard Requirements) | v02.89 | Enriched §2.6.6.7.11 with normative requirements for 8 missing guards |
 
 ---
 

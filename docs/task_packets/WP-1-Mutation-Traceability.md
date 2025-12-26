@@ -1,78 +1,100 @@
-# Work Packet: WP-1-Mutation-Traceability
+# Task Packet: WP-1-Mutation-Traceability
 
-**Status:** READY FOR DEV 🔴  
-**Authority:** Master Spec §2.9.3 Mutation Traceability (No Silent Edits)  
-**USER_SIGNATURE:** <pending>
-
----
-
-## Executive Summary
-Implement mutation traceability and storage guard to enforce “No Silent Edits”: all RAW mutations must carry actor/job/workflow metadata and be blocked for AI writes without approval context.
-
-**Current State:**
-- No enforced MutationMetadata fields; storage guard not implemented.
-
-**End State:**
-- MutationMetadata schema persisted (last_actor_kind/id, last_job_id, last_workflow_id, edit_event_id).
-- StorageGuard trait implemented; AI writes without job/approval fail with typed error (HSK-403-SILENT-EDIT).
-- Tests covering human/AI/system writes; storage guard enforced in mutation paths.
-
-**Effort:** 10-14 hours  
-**Phase 1 Blocking:** YES (Spec §2.9.3)
-
----
-
-## Technical Contract (LAW)
-Governed by Master Spec §2.9.3:
-- Add MutationMetadata columns to content tables (blocks, canvas_nodes, canvas_edges, workspaces, documents).
-- Implement StorageGuard trait; validate AI writes require job/approval context.
-- Enforce check: if last_actor_kind == 'AI' then last_job_id NOT NULL.
-
----
+## Metadata
+- TASK_ID: WP-1-Mutation-Traceability
+- DATE: 2025-12-25
+- REQUESTOR: User
+- AGENT_ID: orchestrator-gemini
+- ROLE: Orchestrator
+- STATUS: Done
+- RISK_TIER: HIGH
+- USER_SIGNATURE: ilja251220252310
 
 ## Scope
-### In Scope
-1) Schema changes (or logic) to persist MutationMetadata.
-2) StorageGuard implementation; integrate into mutation paths.
-3) Tests for human/AI/system writes, silent edit rejection, and valid metadata persistence.
-
-### Out of Scope
-- UI surfacing of metadata (Phase 2).
-- Historical backfill of older edits (Phase 2).
-
----
+- **What**: Implement mutation traceability and storage guard to enforce “No Silent Edits” per §2.9.3.
+- **Why**: Ensure all RAW mutations carry actor/job/workflow metadata and are blocked for AI writes without approval context.
+- **IN_SCOPE_PATHS**:
+  * src/backend/handshake_core/src/storage/mod.rs
+  * src/backend/handshake_core/src/storage/sqlite.rs
+  * src/backend/handshake_core/src/storage/postgres.rs
+  * src/backend/handshake_core/src/models.rs
+  * src/backend/handshake_core/migrations/
+- **OUT_OF_SCOPE**:
+  * UI surfacing of metadata (Phase 2).
+  * Historical backfill of older edits (Phase 2).
 
 ## Quality Gate
-- **RISK_TIER:** HIGH (Safety)
-- **DONE_MEANS:**
-  - MutationMetadata persisted per §2.9.3; guard enforces “No Silent Edits”.
-  - AI writes without job/approval → typed error HSK-403-SILENT-EDIT.
-  - Tests cover human/AI/system writes; guard applied to mutation handlers.
-  - No forbidden patterns (unwrap/expect/panic/dbg/Value in domain).
-- **TEST_PLAN:**
-  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`
-  - `just validator-spec-regression`
-  - `just validator-hygiene-full`
-  - `just validator-error-codes`
+- **RISK_TIER**: HIGH
+  - Justification: Core safety invariant; failure allows silent AI edits.
+- **TEST_PLAN**:
+  ```bash
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml
+  just validator-spec-regression
+  just validator-scan WP-1-Mutation-Traceability
+  just validator-hygiene-full
+  just validator-error-codes
+  ```
+- **DONE_MEANS**:
+  * ✅ `MutationMetadata` struct matches §2.9.3 in v02.85.
+  * ✅ Database tables (blocks, canvas, documents) updated with §2.9.3.1 columns and `CHECK` constraint.
+  * ✅ `StorageGuard` trait implemented and integrated into all mutation paths per §2.9.3.2.
+  * ✅ AI writes without job/approval context fail with `HSK-403-SILENT-EDIT`.
+  * ✅ Unit and integration tests cover Human, AI, and System write scenarios.
+  * ✅ No forbidden patterns (unwrap/expect/panic/dbg/Value in domain).
+
+## ROLLBACK_HINT
+```bash
+git revert <commit-sha>
+```
+
+## BOOTSTRAP (Coder Work Plan)
+- **FILES_TO_OPEN**:
+  * docs/START_HERE.md
+  * docs/SPEC_CURRENT.md
+  * Handshake_Master_Spec_v02.85.md
+  * src/backend/handshake_core/src/storage/mod.rs
+  * src/backend/handshake_core/src/storage/sqlite.rs
+- **SEARCH_TERMS**:
+  * "MutationMetadata"
+  * "StorageGuard"
+  * "last_actor_kind"
+  * "CHECK (last_actor_kind"
+- **RUN_COMMANDS**:
+  ```bash
+  just dev
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml
+  ```
+- **RISK_MAP**:
+  * "Silent edits -> safety breach" -> Storage layer
+  * "Missing metadata -> audit gap" -> Storage layer
+  * "Schema mismatch -> runtime failure" -> Database layer
+
+## Authority
+- **SPEC_ANCHOR**: §2.9.3 (Mutation Traceability)
+- **SPEC_CURRENT**: Handshake_Master_Spec_v02.85.md
+- **Codex**: Handshake Codex v1.4.md
+- **Task Board**: docs/TASK_BOARD.md
+
+## Notes
+- **Assumptions**: None.
+- **Open Questions**: None.
+- **Dependencies**: Foundational.
 
 ---
 
-## BOOTSTRAP
-- **FILES_TO_OPEN:** docs/SPEC_CURRENT.md; Handshake_Master_Spec_v02.84.md (§2.9.3); src/backend/handshake_core/src/storage; src/backend/handshake_core/src/api; src/backend/handshake_core/src/workflows.rs
-- **SEARCH_TERMS:** "MutationMetadata", "StorageGuard", "SilentEdit", "last_actor", "job_id", "workflow_id"
-- **RUN_COMMANDS:** cargo test; just validator-spec-regression; just validator-hygiene-full
-- **RISK_MAP:** "Silent edits -> safety breach"; "Missing metadata -> audit gap"; "Schema mismatch -> runtime failure"
+## HISTORY
+
+### VALIDATION REPORT — WP-1-Mutation-Traceability (2025-12-25)
+Verdict: PASS ✅
+
+I have verified the remediation of the compilation blockers and hygiene issues for WP-1-Mutation-Traceability. The implementation now correctly satisfies the "No Silent Edits" invariant defined in §2.9.3 of the Master Spec v02.85.
+
+Findings:
+1. Mutation Traceability (§2.9.3): Persisted in DB tables with mandatory columns and SQL CHECK constraints.
+2. Storage Guard (§2.9.3.2): DefaultStorageGuard implemented and integrated. Rejects AI writes without context (HSK-403-SILENT-EDIT).
+3. Hygiene & Build: cargo test passes (54 tests). Forbidden patterns removed from production paths.
 
 ---
 
-## Success Metrics
-| Metric | Target | Verification |
-|--------|--------|--------------|
-| Guard blocks AI without context | 100% | Unit/integration tests |
-| Metadata persisted | All mutation paths | Tests + code evidence |
-| Typed errors | HSK-403-SILENT-EDIT used | Code evidence |
-
----
-
-**Last Updated:** 2025-12-25  
-**User Signature Locked:** <pending>
+**Last Updated:** 2025-12-25
+**User Signature Locked:** ilja251220252310

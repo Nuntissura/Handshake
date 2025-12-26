@@ -1,0 +1,68 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                id as \"id!: String\",\n                document_id as \"document_id!: String\",\n                kind as \"kind!: String\",\n                sequence as \"sequence!: i64\",\n                raw_content as \"raw_content!: String\",\n                display_content as \"display_content!: String\",\n                derived_content as \"derived_content!: String\",\n                created_at as \"created_at!: chrono::DateTime<chrono::Utc>\",\n                updated_at as \"updated_at!: chrono::DateTime<chrono::Utc>\"\n            FROM blocks\n            WHERE id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "document_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "kind!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "sequence!: i64",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "raw_content!: String",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "display_content!: String",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "derived_content!: String",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 7,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "updated_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 8,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2b636a09ab31f279a508f7ca86e56201c62c554deba6c16761e9978b235a6dff"
+}

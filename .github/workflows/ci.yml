@@ -79,6 +79,48 @@ jobs:
       - name: Rust tests
         run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml
 
+  backend-storage:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [sqlite, postgres]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: handshake_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d handshake_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Configure SQLite env
+        if: matrix.backend == 'sqlite'
+        run: echo "DATABASE_URL=sqlite::memory:" >> $GITHUB_ENV
+
+      - name: Configure Postgres env
+        if: matrix.backend == 'postgres'
+        run: |
+          echo "POSTGRES_TEST_URL=postgres://postgres:postgres@localhost:5432/handshake_test" >> $GITHUB_ENV
+          echo "DATABASE_URL=postgres://postgres:postgres@localhost:5432/handshake_test" >> $GITHUB_ENV
+
+      - name: Storage conformance tests
+        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance
+
   secret_scan:
     runs-on: ubuntu-latest
     steps:
