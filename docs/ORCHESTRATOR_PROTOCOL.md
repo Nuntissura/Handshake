@@ -37,6 +37,11 @@
 - Block upstream WP work until blocker is VALIDATED
 - Document dependency chain in TASK_BOARD
 
+### [PRIORITY_7] Hardened Security Enforcement [CX-VAL-HARD]
+- **Zero-Hollow implementation:** Reject any validator that only checks metadata; content-awareness is MANDATORY.
+- **Strict Evidence Mapping:** Every security guard must cite the specific substring/offset that triggered the violation.
+- **Deterministic Normalization:** All security scanning must occur on NFC-normalized, case-folded text to prevent bypasses.
+
 ### Risk Management Focus [CX-600B]
 - **Anti-Vibe Guard:** Audit every Coder submission for placeholders, unwrap(), generic JSON blobs
 - **Security Gates:** Prioritize WP-1-Security-Gates (MEX runtime integrity)
@@ -177,24 +182,24 @@ Does Master Spec Main Body clearly cover this requirement?
 ### 2.5.2 Enrichment Workflow ✋ BLOCKING
 
 **Step 1: Identify gaps in Master Spec Main Body**
-```
-Review SPEC_CURRENT.md:
-- Does Main Body cover what Coder will implement?
-- Are there roadmap items that should be Main Body?
-- Are there implicit requirements not documented?
-- Does spec define acceptance criteria?
-```
+Orchestrator MUST perform a "Technical Refinement Audit" and present the results to the user.
 
-**Step 2: Enrich Master Spec (if gaps found)**
-```
+**Step 1.1: The Technical Refinement Block (MANDATORY)**
+Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block containing:
+- **Gaps Identified:** Specific sections/logic missing in the current Master Spec.
+- **Interaction with flight recorder: Specific event IDs and telemetry triggers:** Specific event IDs, telemetry triggers, and log data structures.
+- **red team advisory: Architectural risks and security failure modes:** Specific architectural risks and security failure modes.
+- **proposed Spec Enrichment: The EXACT normative text to be added to the Master Spec:** The verbatim technical rules and logic to be inserted into the spec.
+- **primitives:** Specific Traits, Structs, or Enums that must be implemented.
+
+**Step 2: Enrich Master Spec (after user approval)**
 If gaps found:
-1. Locate: Current Master Spec version (e.g., v02.89)
-2. Create: NEW version file (e.g., v02.90.md)
+1. Locate: Current Master Spec version (e.g., v02.91)
+2. Create: NEW version file (e.g., v02.92.md)
 3. Copy: Entire current spec
-4. Add: Required sections/clarifications
+4. Add: Required sections/clarifications (using the Proposed Spec Enrichment text)
 5. Add: CHANGELOG entry with reason for update
 6. Update: docs/SPEC_CURRENT.md to point to new version
-```
 
 **Step 3: Update all workflow files to reference new spec**
 
@@ -214,6 +219,8 @@ Orchestrator MUST update these files to point to new spec version:
 grep -r "Master Spec v02" docs/*.md docs/task_packets/*.md
 # Should all show v02.85 (or latest), no orphaned older versions in active files
 ```
+
+**Rule:** Requesting a USER_SIGNATURE without first presenting the Technical Refinement Block is a **CRITICAL PROTOCOL VIOLATION**.
 
 ### 2.5.3 Signature Gate (One-Time Use) ✋ BLOCKING
 
@@ -554,6 +561,7 @@ Every task packet MUST include all 10 fields in this exact structure:
 | **OUT_OF_SCOPE** | Coder knows what NOT to change | Explicit list of deferred work, related tasks, refactoring NOT included |
 | **TEST_PLAN** | Coder knows how to validate | EXACT bash commands (cargo test, pnpm test, just ai-review, etc.); no placeholders |
 | **DONE_MEANS** | Coder knows success criteria | Concrete checklist (3-8 items); 1:1 mapped to SPEC_ANCHOR; no "works well" vagueness |
+| **HARDENED_INVARIANTS** | Security-critical requirements | Mandatory for RISK_TIER: HIGH. Includes: Content-Awareness, NFC Normalization, Atomic Poisoning. |
 | **ROLLBACK_HINT** | Coder knows how to undo | `git revert {commit}` OR explicit undo steps (if multi-step changes) |
 | **BOOTSTRAP** | Coder knows where to start | 4 sub-fields (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP) |
 

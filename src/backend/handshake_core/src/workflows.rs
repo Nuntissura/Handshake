@@ -3,7 +3,7 @@ use crate::{
     capabilities::RegistryError,
     flight_recorder::{
         FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
-        FrEvt005SecurityViolation,
+        FrEvt005SecurityViolation, FrEvt006WorkflowRecovery,
     },
     llm::ChatMessage,
     models::{AiJob, JobKind, WorkflowRun},
@@ -78,11 +78,20 @@ pub async fn handle_security_violation(
     violation_type: SecurityViolationType,
     guard_name: &str,
     trace_id: Uuid,
+    offset: Option<usize>,
+    context: Option<String>,
 ) -> Result<(), WorkflowError> {
-    let (violation_type_str, trigger) = match violation {
-        AceError::PromptInjectionDetected { pattern } => ("prompt_injection", pattern.clone()),
-        AceError::CloudLeakageBlocked { reason } => ("cloud_leakage", reason.clone()),
-        _ => ("security_violation", violation.to_string()),
+    let violation_type_str = match violation_type {
+        SecurityViolationType::PromptInjection => "prompt_injection",
+        SecurityViolationType::CloudLeakage => "cloud_leakage",
+        SecurityViolationType::SensitivityViolation => "sensitivity_violation",
+        SecurityViolationType::UnknownSensitivity => "unknown_sensitivity",
+        SecurityViolationType::ExportViolation => "export_violation",
+    };
+    let trigger = match violation {
+        AceError::PromptInjectionDetected { pattern, .. } => pattern.clone(),
+        AceError::CloudLeakageBlocked { reason } => reason.clone(),
+        _ => violation.to_string(),
     };
 
     // 1. Emit FR-EVT-SEC-VIOLATION to Flight Recorder
@@ -92,6 +101,8 @@ pub async fn handle_security_violation(
         source_id: None, // Could be enhanced to include source_ref if available
         trigger: trigger.clone(),
         guard_name: guard_name.to_string(),
+        offset,
+        context: context.clone(),
         action_taken: "poisoned".to_string(),
         job_state_transition: Some("poisoned".to_string()),
     };
@@ -116,6 +127,8 @@ pub async fn handle_security_violation(
         violation_type = %violation_type_str,
         trigger = %trigger,
         guard = %guard_name,
+        offset = ?offset,
+        context = ?context,
         "Security violation detected - poisoning job"
     );
 
@@ -187,25 +200,28 @@ pub fn get_violation_type(error: &AceError) -> SecurityViolationType {
 pub async fn mark_stalled_workflows(
     state: &AppState,
     threshold_secs: u64,
+    is_startup_recovery: bool,
 ) -> Result<Vec<WorkflowRun>, WorkflowError> {
     let stalled = state.storage.find_stalled_workflows(threshold_secs).await?;
 
     for run in &stalled {
-        let _ = state
+        let reason = if is_startup_recovery {
+            "stalled (startup recovery: heartbeat timeout)"
+        } else {
+            "stalled (heartbeat timeout)"
+        };
+
+        state
             .storage
-            .update_workflow_run_status(
-                run.id,
-                JobState::Stalled,
-                Some("stalled (heartbeat timeout)".to_string()),
-            )
+            .update_workflow_run_status(run.id, JobState::Stalled, Some(reason.to_string()))
             .await?;
 
-        let _ = state
+        state
             .storage
             .update_ai_job_status(JobStatusUpdate {
                 job_id: run.job_id,
                 state: JobState::Stalled,
-                error_message: Some("workflow stalled (heartbeat timeout)".to_string()),
+                error_message: Some(reason.to_string()),
                 status_reason: "stalled".to_string(),
                 metrics: None,
                 workflow_run_id: Some(run.id),
@@ -213,6 +229,29 @@ pub async fn mark_stalled_workflows(
                 job_outputs: None,
             })
             .await?;
+
+        if is_startup_recovery {
+            let payload = FrEvt006WorkflowRecovery {
+                workflow_id: run.id.to_string(),
+                job_id: run.job_id.to_string(),
+                previous_state: run.status.as_str().to_string(),
+                new_state: "stalled".to_string(),
+                reason: reason.to_string(),
+            };
+
+            record_event_safely(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::WorkflowRecovery,
+                    FlightRecorderActor::System,
+                    Uuid::new_v4(),
+                    serde_json::to_value(&payload).unwrap_or(json!({})),
+                )
+                .with_job_id(run.job_id.to_string())
+                .with_workflow_id(run.id.to_string()),
+            )
+            .await;
+        }
     }
 
     Ok(stalled)
@@ -225,7 +264,7 @@ pub async fn start_workflow_for_job(
     let trace_id = derive_trace_id(&job, None);
 
     // Opportunistically mark any stale running workflows as stalled before starting a new one.
-    let _ = mark_stalled_workflows(state, 30).await?;
+    let _ = mark_stalled_workflows(state, 30, false).await?;
 
     if let Err(err) = enforce_capabilities(state, &job, trace_id).await {
         state
@@ -288,6 +327,12 @@ pub async fn start_workflow_for_job(
         Ok(output) => (JobState::Completed, None, output, None),
         Err(WorkflowError::SecurityViolation(ace_err)) if is_poisonable_violation(&ace_err) => {
             let violation_type = get_violation_type(&ace_err);
+            let (offset, context) = match &ace_err {
+                AceError::PromptInjectionDetected {
+                    offset, context, ..
+                } => (Some(*offset), Some(context.clone())),
+                _ => (None, None),
+            };
             handle_security_violation(
                 state,
                 &job,
@@ -296,6 +341,8 @@ pub async fn start_workflow_for_job(
                 violation_type,
                 "PromptInjectionGuard",
                 trace_id,
+                offset,
+                context,
             )
             .await?;
             return Err(WorkflowError::SecurityViolation(ace_err));
@@ -444,6 +491,8 @@ async fn run_job(
             return Err(WorkflowError::SecurityViolation(
                 AceError::PromptInjectionDetected {
                     pattern: "test-trigger".to_string(),
+                    offset: 0,
+                    context: "test-trigger".to_string(),
                 },
             ));
         }
@@ -808,6 +857,65 @@ mod tests {
                 "expected all nodes poisoned"
             );
         }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_mark_stalled_workflows() -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+
+        // 1. Create a job and a "Running" workflow run with an old heartbeat
+        let job = state
+            .storage
+            .create_ai_job(crate::storage::NewAiJob {
+                trace_id: Uuid::new_v4(),
+                job_kind: JobKind::DocSummarize,
+                protocol_id: "p1".into(),
+                profile_id: "default".into(),
+                capability_profile_id: "default".into(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "running".into(),
+                metrics: JobMetrics::zero(),
+                job_inputs: None,
+            })
+            .await?;
+
+        let old_heartbeat = Utc::now() - chrono::Duration::seconds(60);
+        let run = state
+            .storage
+            .create_workflow_run(job.job_id, JobState::Running, Some(old_heartbeat))
+            .await?;
+
+        // 2. Run recovery
+        let recovered = mark_stalled_workflows(&state, 30, true).await?;
+
+        assert_eq!(recovered.len(), 1);
+        assert_eq!(recovered[0].id, run.id);
+
+        // 3. Verify states
+        let updated_job = state.storage.get_ai_job(&job.job_id.to_string()).await?;
+        assert!(matches!(updated_job.state, JobState::Stalled));
+
+        // 4. Verify Flight Recorder event
+        let events = state
+            .flight_recorder
+            .list_events(crate::flight_recorder::EventFilter::default())
+            .await?;
+        let recovery_event = events
+            .iter()
+            .find(|e| e.event_type == FlightRecorderEventType::WorkflowRecovery);
+
+        assert!(
+            recovery_event.is_some(),
+            "Recovery event not found in Flight Recorder"
+        );
+        let event = recovery_event.unwrap();
+        assert_eq!(event.actor, FlightRecorderActor::System);
+        assert_eq!(event.workflow_id, Some(run.id.to_string()));
 
         Ok(())
     }

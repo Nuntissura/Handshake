@@ -21,6 +21,7 @@ CREATE TABLE ai_jobs_new (
     metrics TEXT NOT NULL DEFAULT '{"duration_ms":0,"total_tokens":0,"input_tokens":0,"output_tokens":0,"tokens_planner":0,"tokens_executor":0,"entities_read":0,"entities_written":0,"validators_run_count":0}',
     job_inputs TEXT,
     job_outputs TEXT,
+    is_pinned INTEGER NOT NULL DEFAULT 0, -- Re-add is_pinned column [HSK-GC-002]
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -43,6 +44,7 @@ INSERT INTO ai_jobs_new (
     metrics,
     job_inputs,
     job_outputs,
+    is_pinned, -- Include is_pinned
     created_at,
     updated_at
 )
@@ -68,11 +70,15 @@ SELECT
     END as metrics,
     job_inputs,
     job_outputs,
+    COALESCE(is_pinned, 0) as is_pinned, -- Carry over is_pinned
     created_at,
     updated_at
 FROM ai_jobs;
 
 DROP TABLE ai_jobs;
 ALTER TABLE ai_jobs_new RENAME TO ai_jobs;
+
+-- Re-create the index lost during table recreation
+CREATE INDEX IF NOT EXISTS idx_ai_jobs_gc ON ai_jobs(status, created_at, is_pinned);
 
 PRAGMA foreign_keys = ON;

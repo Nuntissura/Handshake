@@ -203,7 +203,7 @@ impl DuckDbFlightRecorder {
             params.push(Box::new(to.to_rfc3339()));
         }
 
-        let mut query = String::from("SELECT event_id, trace_id, timestamp, actor, actor_id, event_type, job_id, workflow_id, model_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events");
+        let mut query = String::from("SELECT event_id, trace_id, strftime(CAST(timestamp AS TIMESTAMP), '%Y-%m-%dT%H:%M:%S.%fZ'), actor, actor_id, event_type, job_id, workflow_id, model_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events");
         if !conditions.is_empty() {
             query.push_str(" WHERE ");
             query.push_str(&conditions.join(" AND "));
@@ -280,6 +280,7 @@ impl DuckDbFlightRecorder {
                 "diagnostic" => super::FlightRecorderEventType::Diagnostic,
                 "capability_action" => super::FlightRecorderEventType::CapabilityAction,
                 "security_violation" => super::FlightRecorderEventType::SecurityViolation,
+                "workflow_recovery" => super::FlightRecorderEventType::WorkflowRecovery,
                 _ => super::FlightRecorderEventType::System,
             };
 

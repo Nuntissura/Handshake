@@ -41,7 +41,7 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - **[WP-1-Metrics-Traces]** / FAIL: OTel metrics/traces + validator pack. [READY FOR DEV]
 - **[WP-1-Operator-Consoles-v1]** / FAIL: Timeline/Jobs/Problems/Evidence UI. [READY FOR DEV]
 - **[WP-1-Security-Gates]** / FAIL: Terminal/RCE guardrails. [READY FOR DEV]
-- **[WP-1-Workflow-Engine-v2]** / FAIL: Crash-recovery policy not enforced on restart; stalled detection only runs when starting new jobs (Spec §2.6.1 requires restart detection + durable node history). [READY FOR DEV]
+- **[WP-1-Workflow-Engine-v2]** / FAIL (SUPERSEDED by v3): Crash-recovery policy not enforced on restart. [READY FOR DEV]
 - **[WP-1-AI-Job-Model-v2]** / FAIL (SUPERSEDED by v3): Job model diverges from spec §2.6.6.2.8. [READY FOR DEV]
 - **[WP-1-ACE-Validators-v2]** / FAIL (SUPERSEDED by v3): Guards rely on pre-populated warnings. [READY FOR DEV]
 
@@ -49,7 +49,8 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 
 
 ## Done
-- **[WP-1-ACE-Validators-v3]** - Hardened Security (Content-Aware, Normalization, Poisoning). [VALIDATED]
+- **[WP-1-Workflow-Engine-v3]** - Mandatory Startup Recovery Loop (§2.6.1). [VALIDATED]
+- **[WP-1-ACE-Validators-v3]** - Remediating CX-VAL-HARD (Substring offsets/context). [VALIDATED]
 - **[WP-1-AI-Job-Model-v3]** - Hardened Job Model (Enums, Metrics Integrity, Poisoning Trap). [VALIDATED]
 - **[WP-1-Storage-Abstraction-Layer-v2]** [VALIDATED]
 - **[WP-1-LLM-Core]** [VALIDATED]

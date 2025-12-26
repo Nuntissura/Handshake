@@ -1,4 +1,4 @@
-//! PromptInjectionGuard (§2.6.6.7.11.6)
+//! PromptInjectionGuard (A2.6.6.7.11.6)
 //!
 //! Detects and blocks prompt injection attempts:
 //! - MUST scan all retrieved_snippet blocks for injection patterns
@@ -8,7 +8,7 @@
 //! **Hardened Security Enforcement:**
 //! - [HSK-ACE-VAL-100] Content Awareness: MUST scan raw UTF-8 content, not metadata
 //! - [HSK-ACE-VAL-102] NFC Normalization: All scans use NFC-normalized, case-folded text
-//!                     to prevent homoglyph bypasses (e.g., Cyrillic "а" vs ASCII "a")
+//!                     to prevent homoglyph bypasses (e.g., Cyrillic "Dų" vs ASCII "a")
 
 use async_trait::async_trait;
 use unicode_normalization::UnicodeNormalization;
@@ -16,7 +16,7 @@ use unicode_normalization::UnicodeNormalization;
 use super::AceRuntimeValidator;
 use crate::ace::{AceError, QueryPlan, RetrievalTrace};
 
-/// Known injection patterns to scan for (per §2.6.6.7.11.6)
+/// Known injection patterns to scan for (per A2.6.6.7.11.6)
 ///
 /// These patterns are matched against NFC-normalized, case-folded text to prevent
 /// bypasses using Unicode homoglyphs or case variations.
@@ -48,11 +48,18 @@ pub const JOB_POISONED_MARKER: &str = "job_state:poisoned";
 
 /// PromptInjectionGuard blocks prompt injection attacks.
 ///
-/// Per §2.6.6.7.11.6:
+/// Per A2.6.6.7.11.6:
 /// - Scan all retrieved_snippet blocks for injection patterns
 /// - Detection triggers JobState::Poisoned transition
 /// - Patterns: "ignore previous", "new instructions", "system command", "developer mode"
 pub struct PromptInjectionGuard;
+
+/// Evidence captured when an injection pattern is found
+pub struct InjectionMatch {
+    pub pattern: String,
+    pub offset: usize,
+    pub context: String,
+}
 
 impl PromptInjectionGuard {
     /// Scan text for injection patterns (case-insensitive)
@@ -73,7 +80,7 @@ impl PromptInjectionGuard {
     /// Scan text for injection patterns using NFC-normalized, case-folded text [HSK-ACE-VAL-102]
     ///
     /// This method MUST be used for all security-critical scanning to prevent bypasses
-    /// using Unicode homoglyphs (e.g., Cyrillic "а" vs ASCII "a").
+    /// using Unicode homoglyphs (e.g., Cyrillic "Dų" vs ASCII "a").
     ///
     /// The normalization process:
     /// 1. NFC normalize Unicode to canonical form
@@ -83,7 +90,7 @@ impl PromptInjectionGuard {
     ///
     /// This ensures that visually similar but semantically different characters
     /// are normalized to a common form before pattern matching.
-    pub fn scan_for_injection_nfc(text: &str) -> Option<&'static str> {
+    pub fn scan_for_injection_nfc(text: &str) -> Option<InjectionMatch> {
         // NFC normalize and case-fold
         let normalized: String = text
             .nfc()
@@ -103,8 +110,15 @@ impl PromptInjectionGuard {
         let collapsed = Self::collapse_whitespace(&normalized);
 
         for pattern in INJECTION_PATTERNS {
-            if collapsed.contains(pattern) {
-                return Some(pattern);
+            if let Some(byte_idx) = collapsed.find(pattern) {
+                let offset = collapsed[..byte_idx].chars().count();
+                let pattern_len = pattern.chars().count();
+                let context = Self::extract_context(&collapsed, offset, pattern_len, 10);
+                return Some(InjectionMatch {
+                    pattern: pattern.to_string(),
+                    offset,
+                    context,
+                });
             }
         }
         None
@@ -135,14 +149,23 @@ impl PromptInjectionGuard {
         result
     }
 
+    fn extract_context(text: &str, offset: usize, pattern_len: usize, window: usize) -> String {
+        let start = offset.saturating_sub(window);
+        let end = (offset + pattern_len + window).min(text.chars().count());
+        text.chars()
+            .skip(start)
+            .take(end.saturating_sub(start))
+            .collect()
+    }
+
     /// Scan multiple text fragments for injection patterns [HSK-ACE-VAL-100]
     ///
     /// Scans all provided text fragments and returns the first detected pattern.
     /// All fragments are NFC-normalized before scanning.
-    pub fn scan_multiple_for_injection(texts: &[&str]) -> Option<(&'static str, usize)> {
+    pub fn scan_multiple_for_injection(texts: &[&str]) -> Option<(InjectionMatch, usize)> {
         for (idx, text) in texts.iter().enumerate() {
-            if let Some(pattern) = Self::scan_for_injection_nfc(text) {
-                return Some((pattern, idx));
+            if let Some(found) = Self::scan_for_injection_nfc(text) {
+                return Some((found, idx));
             }
         }
         None
@@ -184,13 +207,26 @@ impl AceRuntimeValidator for PromptInjectionGuard {
                 .find_map(|w| Self::extract_pattern(w))
                 .unwrap_or_else(|| "unknown pattern".to_string());
 
-            // This MUST trigger JobState::Poisoned per §2.6.6.7.11.6
+            // This MUST trigger JobState::Poisoned per A2.6.6.7.11.6
             // The error is returned; caller is responsible for state transition
-            return Err(AceError::PromptInjectionDetected { pattern });
+            let match_data = Self::scan_for_injection_nfc(&pattern).unwrap_or_else(|| {
+                let context = pattern.chars().take(40).collect();
+                InjectionMatch {
+                    pattern: pattern.clone(),
+                    offset: 0,
+                    context,
+                }
+            });
+
+            return Err(AceError::PromptInjectionDetected {
+                pattern,
+                offset: match_data.offset,
+                context: match_data.context,
+            });
         }
 
         // Check trace errors for injection mentions
-        let injection_errors: Vec<_> = trace
+        let injection_errors: Vec<String> = trace
             .errors
             .iter()
             .filter(|e| {
@@ -201,11 +237,22 @@ impl AceRuntimeValidator for PromptInjectionGuard {
                         .iter()
                         .any(|p| e.to_lowercase().contains(p))
             })
+            .cloned()
             .collect();
 
         if !injection_errors.is_empty() {
+            let joined_errors = injection_errors.join("; ");
+            let match_data = Self::scan_for_injection_nfc(&joined_errors);
+            let (offset, context) = if let Some(found) = match_data {
+                (found.offset, found.context)
+            } else {
+                (0, joined_errors.chars().take(40).collect())
+            };
+
             return Err(AceError::PromptInjectionDetected {
-                pattern: format!("errors: {:?}", injection_errors),
+                pattern: joined_errors,
+                offset,
+                context,
             });
         }
 
@@ -237,7 +284,8 @@ mod tests {
         let result = guard.validate_trace(&trace).await;
         assert!(matches!(
             result,
-            Err(AceError::PromptInjectionDetected { pattern }) if pattern.contains("ignore previous")
+            Err(AceError::PromptInjectionDetected { pattern, .. })
+                if pattern.contains("ignore previous")
         ));
     }
 
@@ -356,6 +404,13 @@ mod tests {
                 "Pattern '{}' should be detected with NFC",
                 pattern
             );
+            let evidence = detected.unwrap();
+            assert_eq!(evidence.pattern, *pattern);
+            assert!(
+                !evidence.context.is_empty(),
+                "Expected context snippet for pattern '{}'",
+                pattern
+            );
         }
     }
 
@@ -365,9 +420,13 @@ mod tests {
         let fragments = vec!["Hello world", "ignore previous", "Goodbye"];
         let result = PromptInjectionGuard::scan_multiple_for_injection(&fragments);
         assert!(result.is_some());
-        let (pattern, idx) = result.unwrap();
-        assert_eq!(pattern, "ignore previous");
+        let (found, idx) = result.unwrap();
+        assert_eq!(found.pattern, "ignore previous");
         assert_eq!(idx, 1);
+        assert!(
+            !found.context.is_empty(),
+            "Expected context around detected pattern"
+        );
 
         // No injection in fragments
         let clean_fragments = vec!["Hello", "World", "Test"];

@@ -1,7 +1,7 @@
 # START_HERE
 
 ## Canonical sources
-- **Spec:** `docs/SPEC_CURRENT.md` (points to the current Handshake master spec, currently v02.90).
+- **Spec:** `docs/SPEC_CURRENT.md` (points to the current Handshake master spec, currently v02.92).
 - **Governance guardrails:** `Handshake Codex v0.8` (repo root) + `docs/TASK_BOARD.md` + task packets. Handshake logger is for milestones/hard bugs when requested.
 - **Architecture & debug:** `docs/ARCHITECTURE.md` and `docs/RUNBOOK_DEBUG.md`.
 

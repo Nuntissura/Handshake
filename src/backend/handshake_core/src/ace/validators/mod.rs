@@ -148,6 +148,10 @@ pub struct SecurityViolation {
     pub source_ref: Option<SourceRef>,
     /// The pattern or content that triggered the violation
     pub trigger: String,
+    /// Character offset of the trigger within normalized content (if available)
+    pub offset: Option<usize>,
+    /// Context snippet (~20 chars) surrounding the trigger (if available)
+    pub context: Option<String>,
 }
 
 /// Types of security violations per §2.6.6.7.11
@@ -290,23 +294,33 @@ impl ValidatorPipeline {
             if let Err(e) = validator.validate_trace(trace).await {
                 // Convert AceError to SecurityViolation
                 let violation = match &e {
-                    AceError::PromptInjectionDetected { pattern } => SecurityViolation {
+                    AceError::PromptInjectionDetected {
+                        pattern,
+                        offset,
+                        context,
+                    } => SecurityViolation {
                         violation_type: SecurityViolationType::PromptInjection,
                         description: format!("Prompt injection detected: {}", pattern),
                         source_ref: None,
                         trigger: pattern.to_string(),
+                        offset: Some(*offset),
+                        context: Some(context.clone()),
                     },
                     AceError::CloudLeakageBlocked { reason } => SecurityViolation {
                         violation_type: SecurityViolationType::CloudLeakage,
                         description: format!("Cloud leakage blocked: {}", reason),
                         source_ref: None,
                         trigger: reason.clone(),
+                        offset: None,
+                        context: None,
                     },
                     _ => SecurityViolation {
                         violation_type: SecurityViolationType::SensitivityViolation,
                         description: e.to_string(),
                         source_ref: None,
                         trigger: String::new(),
+                        offset: None,
+                        context: None,
                     },
                 };
                 violations.push(violation);
@@ -341,8 +355,8 @@ impl ValidatorPipeline {
             let content = resolver.resolve_content(source_ref).await?;
 
             // Scan for prompt injection using NFC-normalized text [HSK-ACE-VAL-102]
-            if let Some(pattern) = injection::PromptInjectionGuard::scan_for_injection_nfc(&content)
-            {
+            if let Some(found) = injection::PromptInjectionGuard::scan_for_injection_nfc(&content) {
+                let pattern = found.pattern.clone();
                 violations.push(SecurityViolation {
                     violation_type: SecurityViolationType::PromptInjection,
                     description: format!(
@@ -350,7 +364,9 @@ impl ValidatorPipeline {
                         pattern
                     ),
                     source_ref: Some(source_ref.clone()),
-                    trigger: pattern.to_string(),
+                    trigger: pattern,
+                    offset: Some(found.offset),
+                    context: Some(found.context.clone()),
                 });
             }
 
@@ -365,6 +381,8 @@ impl ValidatorPipeline {
                         .to_string(),
                     source_ref: Some(source_ref.clone()),
                     trigger: "unknown_sensitivity".to_string(),
+                    offset: None,
+                    context: None,
                 });
             }
 
@@ -376,6 +394,8 @@ impl ValidatorPipeline {
                         .to_string(),
                     source_ref: Some(source_ref.clone()),
                     trigger: "high_sensitivity".to_string(),
+                    offset: None,
+                    context: None,
                 });
             }
 
@@ -421,6 +441,8 @@ impl ValidatorPipeline {
                         description: "Composite member has unknown sensitivity".to_string(),
                         source_ref: Some(member_ref.clone()),
                         trigger: "unknown_sensitivity".to_string(),
+                        offset: None,
+                        context: None,
                     });
                 }
 
@@ -432,6 +454,8 @@ impl ValidatorPipeline {
                         description: "Composite member has high sensitivity".to_string(),
                         source_ref: Some(member_ref.clone()),
                         trigger: "high_sensitivity".to_string(),
+                        offset: None,
+                        context: None,
                     });
                 }
 

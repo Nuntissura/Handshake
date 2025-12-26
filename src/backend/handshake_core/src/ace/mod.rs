@@ -67,8 +67,14 @@ pub enum AceError {
     #[error("ACE-013: Cloud leakage blocked: {reason}")]
     CloudLeakageBlocked { reason: String },
 
-    #[error("ACE-014: Prompt injection detected: pattern={pattern}")]
-    PromptInjectionDetected { pattern: String },
+    #[error(
+        "ACE-014: Prompt injection detected: pattern={pattern}, offset={offset}, context={context}"
+    )]
+    PromptInjectionDetected {
+        pattern: String,
+        offset: usize,
+        context: String,
+    },
 
     #[error("ACE-015: Job boundary violation: {field} changed from {original} to {current}")]
     JobBoundaryViolation {

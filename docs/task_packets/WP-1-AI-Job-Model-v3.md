@@ -3,7 +3,7 @@
 ## Metadata
 - TASK_ID: WP-1-AI-Job-Model-v3
 - WP_ID: WP-1-AI-Job-Model-v3
-- STATUS: Ready-for-Dev
+- STATUS: Done
 - DATE: 2025-12-26
 - REQUESTOR: User
 - AGENT_ID: orchestrator-gemini

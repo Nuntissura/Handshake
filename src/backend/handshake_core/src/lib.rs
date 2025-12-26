@@ -11,8 +11,7 @@ pub mod terminal;
 pub mod tokenization;
 pub mod workflows;
 
-use duckdb::Connection as DuckDbConnection;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::flight_recorder::FlightRecorder;
 use crate::llm::LLMClient;

@@ -11,7 +11,7 @@ use handshake_core::{
         sqlite::SqliteDatabase,
         Database,
     },
-    AppState,
+    workflows, AppState,
 };
 use std::{
     net::SocketAddr,
@@ -50,6 +50,26 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         llm_client,
         capability_registry,
     };
+
+    // [HSK-WF-003] Startup Recovery Loop
+    // Scan for and mark 'Running' workflows > 30s old as 'Stalled'.
+    // Executed non-blockingly but initiated before server start.
+    let recovery_state = state.clone();
+    tokio::spawn(async move {
+        tracing::info!(target: "handshake_core::recovery", "Starting boot-time workflow recovery scan...");
+        match workflows::mark_stalled_workflows(&recovery_state, 30, true).await {
+            Ok(recovered) => {
+                if !recovered.is_empty() {
+                    tracing::info!(target: "handshake_core::recovery", count = recovered.len(), "Workflow recovery complete");
+                } else {
+                    tracing::info!(target: "handshake_core::recovery", "No workflows required recovery");
+                }
+            }
+            Err(err) => {
+                tracing::error!(target: "handshake_core::recovery", error = %err, "Workflow recovery failed");
+            }
+        }
+    });
 
     // Start Janitor background service [§2.3.11]
     // Configuration via environment or defaults

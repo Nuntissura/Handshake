@@ -36,6 +36,8 @@ pub enum FlightRecorderEventType {
     CapabilityAction,
     /// FR-EVT-SEC-VIOLATION: Security violation detected by ACE validators [§2.6.6.7.11]
     SecurityViolation,
+    /// FR-EVT-WF-RECOVERY: Workflow recovery initiated [§2.6.1]
+    WorkflowRecovery,
 }
 
 impl fmt::Display for FlightRecorderEventType {
@@ -46,6 +48,7 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::Diagnostic => write!(f, "diagnostic"),
             FlightRecorderEventType::CapabilityAction => write!(f, "capability_action"),
             FlightRecorderEventType::SecurityViolation => write!(f, "security_violation"),
+            FlightRecorderEventType::WorkflowRecovery => write!(f, "workflow_recovery"),
         }
     }
 }
@@ -214,10 +217,26 @@ pub struct FrEvt005SecurityViolation {
     pub trigger: String,
     /// Guard/validator that detected the violation
     pub guard_name: String,
+    /// Character offset of the detected trigger (if available)
+    pub offset: Option<usize>,
+    /// Context snippet around the trigger (if available)
+    pub context: Option<String>,
     /// Action taken (blocked, poisoned, etc.)
     pub action_taken: String,
     /// Job state transition triggered (e.g., "poisoned")
     pub job_state_transition: Option<String>,
+}
+
+/// FR-EVT-006: Workflow recovery event payload [§2.6.1]
+///
+/// Emitted when the system recovers an interrupted workflow at startup.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrEvt006WorkflowRecovery {
+    pub workflow_id: String,
+    pub job_id: String,
+    pub previous_state: String,
+    pub new_state: String,
+    pub reason: String,
 }
 
 #[derive(Error, Debug)]
