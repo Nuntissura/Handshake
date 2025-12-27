@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { FlightEvent, getEvents } from "../lib/api";
+import { FlightEvent, getEvents, SecurityViolationPayload } from "../lib/api";
 
 type Filters = {
   jobId: string;
@@ -55,6 +55,17 @@ export function FlightRecorderView() {
     setFilters(defaultFilters);
     setLoading(true);
     fetchEvents(defaultFilters);
+  };
+
+  const toggleTraceFilter = (traceId: string) => {
+    if (filters.traceId === traceId) {
+      onReset();
+    } else {
+      const newFilters = { ...filters, traceId };
+      setFilters(newFilters);
+      setLoading(true);
+      fetchEvents(newFilters);
+    }
   };
 
   if (loading && events.length === 0) {
@@ -132,23 +143,48 @@ export function FlightRecorderView() {
             </tr>
           </thead>
           <tbody>
-            {events.map((event) => (
-              <tr key={event.event_id}>
-                <td className="nowrap">{new Date(event.timestamp).toLocaleString()}</td>
-                <td>
-                  <span className={`event-tag event-tag--${event.event_type}`}>{event.event_type}</span>
-                </td>
-                <td className="muted">{event.actor_id ?? event.actor}</td>
-                <td className="muted">{event.job_id || "-"}</td>
-                <td className="muted">{event.trace_id}</td>
-                <td>
-                  <details>
-                    <summary>View Data</summary>
-                    <pre className="event-payload">{JSON.stringify(event.payload, null, 2)}</pre>
-                  </details>
-                </td>
-              </tr>
-            ))}
+            {events.map((event) => {
+              const isSecurityViolation = event.event_type === "security_violation";
+              const rowClass = isSecurityViolation ? "flight-recorder__row--violation" : "";
+              const payload = event.payload as Partial<SecurityViolationPayload>;
+
+              return (
+                <tr key={event.event_id} className={rowClass}>
+                  <td className="nowrap">{new Date(event.timestamp).toLocaleString()}</td>
+                  <td>
+                    <span className={`event-tag event-tag--${event.event_type}`}>{event.event_type}</span>
+                  </td>
+                  <td className="muted">{event.actor_id ?? event.actor}</td>
+                  <td className="muted">{event.job_id || "-"}</td>
+                  <td 
+                    className="muted clickable" 
+                    title="Filter by this trace"
+                    onClick={() => toggleTraceFilter(event.trace_id)}
+                  >
+                    {event.trace_id}
+                  </td>
+                  <td>
+                    {isSecurityViolation && payload.trigger && (
+                      <div className="violation-context">
+                        <strong>Trigger:</strong> <code>{payload.trigger}</code>
+                        {payload.offset !== undefined && (
+                          <span> | <strong>Offset:</strong> {payload.offset}</span>
+                        )}
+                        {payload.context && (
+                          <div className="violation-snippet">
+                            <strong>Snippet:</strong> <code>...{payload.context}...</code>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <details>
+                      <summary>View Data</summary>
+                      <pre className="event-payload">{JSON.stringify(event.payload, null, 2)}</pre>
+                    </details>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

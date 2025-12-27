@@ -23,7 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
-| ilja261220252337 | Orchestrator | 2025-12-26 23:37 | Spec Enrichment v02.93 & Task activation (WP-1-Workflow-Engine-v3) | v02.93 | Mandates boot-time recovery loop in main.rs |
+| ilja271220250057 | Orchestrator | 2025-12-27 00:57 | Spec Enrichment v02.93 (Startup Recovery) | v02.93 | Authorizes normative HSK-WF-003 |
+| ilja261220252337 | Orchestrator | 2025-12-26 23:37 | (INVALID - REUSED BY ERROR) | v02.93 | Signature rejected; used for multiple artifacts in one turn |
 | ilja261220252215 | Orchestrator | 2025-12-26 22:15 | Spec Enrichment v02.92 (AI Job Model Hardening) | v02.92 | Enriched §2.6.6.2.8 with Strict Enum Mapping and Metrics Integrity |
 | ilja261220252202 | Orchestrator | 2025-12-26 22:02 | Spec Enrichment v02.91 (Hardened Security Enforcement) | v02.91 | Enriched §2.6.6.7.11 with Content Awareness, Atomic Poisoning, and NFC Normalization |
 | ilja251225032800 | Orchestrator | 2025-12-25 03:28 | Strategic Pause: Spec enrichment for Phase 1 storage foundation | v02.85 | Enriched §2.3.12 Storage Backend Portability requirements |

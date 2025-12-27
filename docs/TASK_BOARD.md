@@ -6,7 +6,8 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 
 
 ## Ready for Dev
-- **[WP-1-Flight-Recorder-UI]** / FAIL: DuckDB log store + UI wiring. [READY FOR DEV]
+- **[WP-1-AppState-Refactoring-v2]** - Enforcing Trait Purity (§2.3.12.3). [READY FOR DEV]
+- **[WP-1-Flight-Recorder-UI]** / FAIL (SUPERSEDED by v2): DuckDB log store + UI wiring. [READY FOR DEV]
 - **[WP-1-Operator-Consoles]** / FAIL: Timeline, Jobs, Problems, Evidence UI. [READY FOR DEV]
 - **[WP-1-Metrics-OTel]** / FAIL: OpenTelemetry instrumentation. [READY FOR DEV]
 - **[WP-1-Diagnostic-Pipe]** / FAIL: DIAG-SCHEMA fingerprinting and grouping. [READY FOR DEV]
@@ -36,19 +37,16 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - **[WP-1-Debug-Bundle]** / FAIL: Redacted repro packets (A7.6.3.5). [READY FOR DEV]
 - **[WP-1-Workspace-Bundle]** / FAIL: Backup/transfer export. [READY FOR DEV]
 - **[WP-1-Semantic-Catalog]** / FAIL: Implement SemanticCatalog per A2.6.7. [READY FOR DEV]
-- **[WP-1-AppState-Refactoring]** / FAIL: One Storage API boundary (A2.3.12). [READY FOR DEV]
 - **[WP-1-MCP-End-to-End]** / FAIL: MCP capability/logging chain. [READY FOR DEV]
 - **[WP-1-Metrics-Traces]** / FAIL: OTel metrics/traces + validator pack. [READY FOR DEV]
 - **[WP-1-Operator-Consoles-v1]** / FAIL: Timeline/Jobs/Problems/Evidence UI. [READY FOR DEV]
 - **[WP-1-Security-Gates]** / FAIL: Terminal/RCE guardrails. [READY FOR DEV]
-- **[WP-1-Workflow-Engine-v2]** / FAIL (SUPERSEDED by v3): Crash-recovery policy not enforced on restart. [READY FOR DEV]
-- **[WP-1-AI-Job-Model-v2]** / FAIL (SUPERSEDED by v3): Job model diverges from spec §2.6.6.2.8. [READY FOR DEV]
-- **[WP-1-ACE-Validators-v2]** / FAIL (SUPERSEDED by v3): Guards rely on pre-populated warnings. [READY FOR DEV]
 
 ## In Progress
 
 
 ## Done
+- **[WP-1-Flight-Recorder-UI-v2]** - Upgrading Observation Surface (§11.5). [VALIDATED]
 - **[WP-1-Workflow-Engine-v3]** - Mandatory Startup Recovery Loop (§2.6.1). [VALIDATED]
 - **[WP-1-ACE-Validators-v3]** - Remediating CX-VAL-HARD (Substring offsets/context). [VALIDATED]
 - **[WP-1-AI-Job-Model-v3]** - Hardened Job Model (Enums, Metrics Integrity, Poisoning Trap). [VALIDATED]
@@ -64,3 +62,10 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - **[WP-1-Tokenization-Service]** [VALIDATED]
 
 ## Blocked
+
+---
+
+## Superseded (Archive)
+- **[WP-1-Workflow-Engine-v2]** - Superseded by v3 (Audit remediation).
+- **[WP-1-AI-Job-Model-v2]** - Superseded by v3 (Spec alignment §2.6.6.2.8).
+- **[WP-1-ACE-Validators-v2]** - Superseded by v3 (Hardened security remediation).

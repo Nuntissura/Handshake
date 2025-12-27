@@ -69,6 +69,10 @@ const template = `# Task Packet: ${WP_ID}
   pnpm -C app run lint
   cargo clippy --all-targets --all-features
   just ai-review  # Required for MEDIUM/HIGH
+  
+  # Final hygiene (clean external target dir before self-eval/commit)
+  just cargo-clean
+  just post-work ${WP_ID}
   \`\`\`
 - **DONE_MEANS**:
   * {Specific measurable criterion 1}

@@ -347,6 +347,15 @@ Create work packets aligned with enriched, user-approved spec
 7. Include signature reference in work packet authority
 8. Keep audit trail complete for all enrichments
 
+### 2.5.7 Automated Gate Enforcement (Orchestrator Gates)
+
+To physically prevent the merging of Refinement, Signature, and Creation phases, the Orchestrator MUST use the code-enforced turn lock:
+
+1. **Record Refinement:** Immediately after presenting a Technical Refinement Block, the Orchestrator MUST run `just record-refinement {wp-id}`.
+2. **Mandatory Turn Boundary:** The Orchestrator MUST STOP and wait for a NEW turn.
+3. **Record Signature:** Only in a new turn can the Orchestrator run `just record-signature {wp-id} {signature}`.
+4. **Hard Block:** The `scripts/validation/orchestrator_gates.mjs` script will return an error if Step 1 and Step 3 occur in the same turn. This error is a **Hard Stop**; the Orchestrator must not attempt to bypass it via manual file writes.
+
 ---
 
 ## Part 3: Role & Critical Rules
@@ -762,6 +771,7 @@ OUT_OF_SCOPE:
 - ✅ Each command is literal (can be copy-pasted)
 - ✅ Commands are in logical order (build → test → review)
 - ✅ `just post-work WP-{ID}` is ALWAYS included (Step 10 of CODER_PROTOCOL)
+- ✅ `just cargo-clean` (uses ../Cargo Target/handshake-cargo-target) is listed before post-work/self-eval to flush Cargo artifacts outside the repo
 
 ❌ **Incomplete TEST_PLAN:**
 ```markdown
@@ -787,6 +797,9 @@ TEST_PLAN:
 
   # AI review (HIGH tier)
   just ai-review
+
+  # External Cargo target hygiene (keeps repo/mirror slim)
+  just cargo-clean
 
   # Post-work validation
   just post-work WP-1-Storage-Abstraction-Layer
@@ -1983,6 +1996,7 @@ Use this template for ANY SLA-triggered escalation:
 - [ ] Every DONE_MEANS maps 1:1 to SPEC_ANCHOR requirement
 - [ ] RISK_TIER assigned (LOW/MEDIUM/HIGH)
 - [ ] TEST_PLAN includes all applicable commands
+- [ ] TEST_PLAN lists `just cargo-clean` (external `../Cargo Target/handshake-cargo-target`) before post-work/self-eval
 - [ ] BOOTSTRAP has 5-15 FILES_TO_OPEN
 - [ ] BOOTSTRAP has 10-20 SEARCH_TERMS
 - [ ] BOOTSTRAP has RISK_MAP (3-8 failure modes)

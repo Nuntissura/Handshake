@@ -21,6 +21,10 @@ docs-check:
 fmt:
 	cd src/backend/handshake_core; cargo fmt
 
+# Clean Cargo artifacts in the external target dir (../Cargo Target/handshake-cargo-target)
+cargo-clean:
+	cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Cargo Target/handshake-cargo-target"
+
 # Full hygiene pass: docs, lint, tests, fmt, clippy
 validate:
 	just docs-check
@@ -65,6 +69,14 @@ ai-review:
 	node scripts/ai-review-gemini.mjs
 
 # === Workflow Enforcement Commands (Codex v0.8) ===
+
+# Record a technical refinement for a work packet [CX-585A]
+record-refinement wp-id detail="":
+	@node scripts/validation/orchestrator_gates.mjs refine {{wp-id}} "{{detail}}"
+
+# Record a user signature for a work packet [CX-585C]
+record-signature wp-id signature:
+	@node scripts/validation/orchestrator_gates.mjs sign {{wp-id}} {{signature}}
 
 # Create new task packet from template [CX-580]
 create-task-packet wp-id:

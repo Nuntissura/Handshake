@@ -137,12 +137,23 @@ export type FlightEvent = {
   event_id: string;
   trace_id: string;
   timestamp: string;
-  actor: string;
-  actor_id?: string;
-  event_type: string;
+  actor: "human" | "agent" | "system";
+  actor_id: string;
+  event_type: "system" | "llm_inference" | "diagnostic" | "capability_action" | "security_violation" | "workflow_recovery";
   job_id?: string;
   workflow_id?: string;
+  model_id?: string;
   payload: unknown;
+};
+
+export type SecurityViolationPayload = {
+  violation_type: string;
+  description: string;
+  trigger: string;
+  guard_name: string;
+  offset?: number;
+  context?: string;
+  action_taken: string;
 };
 
 export async function listWorkspaces(): Promise<Workspace[]> {

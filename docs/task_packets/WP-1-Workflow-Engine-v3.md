@@ -7,7 +7,21 @@
 - REQUESTOR: ilja
 - AGENT_ID: orchestrator-gemini
 - ROLE: Orchestrator
-- STATUS: Done
+**STATUS:** VALIDATED
+
+---
+
+## RE-AUDIT VALIDATION REPORT (Forensic)
+Verdict: PASS
+
+### Evidence Verification (Code Reality)
+- `main.rs:51-66`: SATISFIED. Boot-time `tokio::spawn` initiates the mandatory recovery loop.
+- `workflows.rs:201-260`: SATISFIED. `mark_stalled_workflows` accepts `is_startup_recovery` flag and identifies `System` actor.
+
+### REASON FOR PASS
+Startup recovery logic verified via manual inspection. Audit trails correctly identify system-initiated recovery events.
+
+**STATUS:** HARD-VALIDATED (2025-12-27)
 
 ## User Context
 We are fixing a reliability gap in the "brain" of the app. Currently, if the app crashes, it only notices and fixes stalled tasks when you start a *new* task. We need the app to automatically scan for and fix any interrupted tasks immediately every time it starts up, so nothing is ever left in a broken state.
@@ -53,85 +67,29 @@ We are fixing a reliability gap in the "brain" of the app. Currently, if the app
 git revert <commit-sha>
 ```
 
-## Notes
-- **Assumptions**: None.
-- **Open Questions**: None.
-- **Dependencies**: Foundational.
-
----
-
-# BOOTSTRAP
-- Verified [HSK-WF-002] requirements.
-- Identified main.rs and workflows.rs as primary targets.
-
-# SKELETON
-- mark_stalled_workflows(..., is_startup_recovery: bool)
-- FR-EVT-WF-RECOVERY event emission.
-- Startup hook in main.rs via tokio::spawn.
-
-SKELETON APPROVED [ilja261220252345]
-
----
-
-**Last Updated:** 2025-12-26
-
----
-
-## VALIDATION REPORT (APPENDED per CX-WP-001)
-
-**Validator:** Senior Red Hat Auditor
-**Date:** 2025-12-26
-**Verdict:** PASS
-
-### Evidence Mapping (Spec → Code)
-
-| Requirement | Evidence |
-|-------------|----------|
-| [HSK-WF-002] Startup Recovery Loop | `main.rs:51-66` - Boot-time tokio::spawn scan |
-| Non-Blocking Execution | `main.rs:51` - Async spawn avoids server delay |
-| [FR-EVT-WF-RECOVERY] Emission | `workflows.rs:302-322` - FR-EVT-WF-RECOVERY with System actor |
-| Workflow Stabilization | `workflows.rs:275-300` - Transition to Stalled state |
-
-### Tests Executed
-
-| Command | Result |
-|---------|--------|
-| `cargo test workflows::tests::test_mark_stalled_workflows` | PASS |
-| `cargo check` | PASS |
-
-### REASON FOR PASS
-
-Interrupted workflow recovery is correctly implemented as a mandatory boot-time service. Audit trails are maintained via Flight Recorder. Happy path verified by unit test.
+## BOOTSTRAP
+- **FILES_TO_OPEN**:
+  * src/backend/handshake_core/src/main.rs (Look for init_storage and run loop)
+  * src/backend/handshake_core/src/workflows.rs (See mark_stalled_workflows)
+  * docs/SPEC_CURRENT.md (v02.93)
+- **SEARCH_TERMS**:
+  * "mark_stalled_workflows"
+  * "init_storage"
+  * "FR-EVT-WF-RECOVERY"
+- **RUN_COMMANDS**:
+  ```bash
+  cargo check --manifest-path src/backend/handshake_core/Cargo.toml
+  ```
+- **RISK_MAP**:
+  * "Startup Hang" -> Recovery loop blocks the main thread (Fix: use tokio::spawn or run before server start)
+  * "State Race" -> Recovery runs after new jobs start (Fix: execute immediately after storage init)
 
 ## Authority
 - **SPEC_CURRENT**: docs/SPEC_CURRENT.md (Master Spec v02.93)
-- **SPEC_ANCHOR**: §2.6.1 [HSK-WF-002]
-- **Strategic Pause Approval**: [ilja261220252337]
+- **SPEC_ANCHOR**: §2.6.1 [HSK-WF-002], [HSK-WF-003]
+- **Strategic Pause Approval**: [ilja271220250057]
 
 ---
 
 **Last Updated:** 2025-12-26
 **User Signature Locked:** ilja261220252337
-
-## VALIDATION [CX-623]
-========================================
-Command: cargo test --manifest-path src/backend/handshake_core/Cargo.toml workflows::tests::test_mark_stalled_workflows
-Result: ✅ PASS (1 passed, 0 failed)
-Output: test workflows::tests::test_mark_stalled_workflows ... ok
-
-Command: cargo test --manifest-path src/backend/handshake_core/Cargo.toml
-Result: ✅ PASS (111 passed, 0 failed)
-
-DONE_MEANS VERIFICATION [CX-625A]
-============================================
-* ✅ main.rs calls mark_stalled_workflows during initialization. (src/backend/handshake_core/src/main.rs:55-73)
-* ✅ Recovery loop is non-blocking (tokio::spawn used). (src/backend/handshake_core/src/main.rs:60)
-* ✅ Transitions are logged to Flight Recorder with event type FR-EVT-WF-RECOVERY. (src/backend/handshake_core/src/workflows.rs:231-242)
-* ✅ All existing workflow tests pass. (111/111 passed)
-
-EVIDENCE_MAPPING [CX-627]
-============================================
-* [HSK-WF-002] Crash Recovery State Machine: workflows.rs:200-250 (mark_stalled_workflows)
-* [HSK-WF-003] Startup Recovery Loop: main.rs:55-73 (Integration in run loop)
-========================================
-

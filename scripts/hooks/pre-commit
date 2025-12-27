@@ -5,7 +5,7 @@
 set -e
 
 echo ""
-echo "🔒 Pre-commit validation (Codex v0.8)..."
+echo "dY"' Pre-commit validation (Codex v0.8)..."
 echo ""
 
 # Extract WP_ID from commit message (if in env)
@@ -15,20 +15,33 @@ echo ""
 # Check 1: Ensure files are staged
 STAGED_FILES=$(git diff --cached --name-only)
 if [ -z "$STAGED_FILES" ]; then
-  echo "❌ No files staged for commit"
+  echo "ƒ?O No files staged for commit"
   exit 1
 fi
 
-echo "✅ Files staged for commit"
+echo "ƒo. Files staged for commit"
 echo ""
 
-# Check 2: Run codex-check to enforce hard invariants
-echo "Running codex-check (hard invariants)..."
-if just codex-check; then
-  echo "✅ Codex check passed"
+# Check 2: Clean Cargo artifacts (external target dir to avoid repo bloat)
+echo "Cleaning Cargo artifacts (external target dir)..."
+if just cargo-clean; then
+  echo "ƒo. Cargo target cleaned at ../Cargo Target/handshake-cargo-target"
 else
   echo ""
-  echo "❌ Codex check FAILED"
+  echo "ƒ?O Cargo clean failed"
+  echo "Ensure cargo is installed and rerun: just cargo-clean"
+  exit 1
+fi
+
+echo ""
+
+# Check 3: Run codex-check to enforce hard invariants
+echo "Running codex-check (hard invariants)..."
+if just codex-check; then
+  echo "ƒo. Codex check passed"
+else
+  echo ""
+  echo "ƒ?O Codex check FAILED"
   echo ""
   echo "Fix codex violations before committing."
   echo "See: Handshake Codex v0.8.md"
@@ -37,26 +50,26 @@ fi
 
 echo ""
 
-# Check 3: Ensure no placeholder values in staged files
+# Check 4: Ensure no placeholder values in staged files
 echo "Checking for placeholder values..."
 PLACEHOLDERS=$(git diff --cached | grep -E '\{[a-z_]+\}' || true)
 if [ -n "$PLACEHOLDERS" ]; then
-  echo "⚠️  WARNING: Placeholder values detected in staged changes:"
+  echo "ƒsÿ‹,?  WARNING: Placeholder values detected in staged changes:"
   echo "$PLACEHOLDERS"
   echo ""
   echo "Ensure all {placeholder} values are replaced with actual values."
   echo "Proceeding with commit (warning only)..."
 else
-  echo "✅ No placeholders detected"
+  echo "ƒo. No placeholders detected"
 fi
 
 echo ""
 
-# Check 4: Verify logger has recent entries (traceability)
+# Check 5: Verify logger has recent entries (traceability)
 echo "Checking logger traceability..."
 LOGGER_FILES=$(find . -maxdepth 1 -name "Handshake_logger_*.md" | sort -r | head -1)
 if [ -z "$LOGGER_FILES" ]; then
-  echo "⚠️  WARNING: No logger file found"
+  echo "ƒsÿ‹,?  WARNING: No logger file found"
   echo "Consider adding a logger entry for traceability."
   echo "Proceeding with commit (warning only)..."
 else
@@ -66,17 +79,17 @@ else
   AGE=$((NOW - LOGGER_MODIFIED))
 
   if [ $AGE -gt 86400 ]; then
-    echo "⚠️  WARNING: Logger not updated recently (>24h)"
+    echo "ƒsÿ‹,?  WARNING: Logger not updated recently (>24h)"
     echo "Consider adding a logger entry for this work."
     echo "Proceeding with commit (warning only)..."
   else
-    echo "✅ Logger recently updated"
+    echo "ƒo. Logger recently updated"
   fi
 fi
 
 echo ""
 
-# Check 5: Lint/format check for staged files
+# Check 6: Lint/format check for staged files
 echo "Running quick lint check on staged files..."
 
 # Check if any .rs files are staged
@@ -84,12 +97,12 @@ RUST_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.rs$' || t
 if [ -n "$RUST_FILES" ]; then
   echo "Checking Rust formatting..."
   if cd src/backend/handshake_core && cargo fmt -- --check; then
-    echo "✅ Rust files formatted"
+    echo "ƒo. Rust files formatted"
     cd - > /dev/null
   else
     cd - > /dev/null
     echo ""
-    echo "❌ Rust files not formatted"
+    echo "ƒ?O Rust files not formatted"
     echo "Run: cd src/backend/handshake_core && cargo fmt"
     exit 1
   fi
@@ -100,19 +113,19 @@ TS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|
 if [ -n "$TS_FILES" ]; then
   echo "Checking TypeScript/JavaScript linting..."
   if cd app && pnpm run lint --quiet; then
-    echo "✅ Frontend files pass lint"
+    echo "ƒo. Frontend files pass lint"
     cd - > /dev/null
   else
     cd - > /dev/null
     echo ""
-    echo "❌ Frontend lint failed"
+    echo "ƒ?O Frontend lint failed"
     echo "Run: pnpm -C app run lint"
     exit 1
   fi
 fi
 
 echo ""
-echo "✅ Pre-commit validation passed"
+echo "ƒo. Pre-commit validation passed"
 echo ""
 echo "Reminder: After commit, ensure you've run:"
 echo "  - just post-work WP-{ID}  (if working on a task packet)"

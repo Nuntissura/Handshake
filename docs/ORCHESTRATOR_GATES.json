@@ -1,0 +1,32 @@
+{
+  "gate_logs": [
+    {
+      "wpId": "WP-1-Semantic-Catalog",
+      "type": "REFINEMENT",
+      "data": "HSK-SEM-001 Schema & HSK-SEM-002 Invariants",
+      "timestamp": "2025-12-27T00:38:57.064Z",
+      "turn_token": "dhkcw"
+    },
+    {
+      "wpId": "WP-1-Semantic-Catalog",
+      "type": "REFINEMENT",
+      "data": "HSK-SEM-001 Schema & HSK-SEM-002 Invariants",
+      "timestamp": "2025-12-27T00:44:18.294Z",
+      "turn_token": "dp8e7o"
+    },
+    {
+      "wpId": "WP-1-AppState-Refactoring-v2",
+      "type": "REFINEMENT",
+      "data": "Enforce CX-DBP-040 Trait Purity Invariant",
+      "timestamp": "2025-12-27T00:46:03.580Z",
+      "turn_token": "zw6yu"
+    },
+    {
+      "wpId": "ORCH-PROTOCOL-ENFORCEMENT",
+      "type": "REFINEMENT",
+      "data": "HSK-GATE-001 Turn Lock & HSK-GATE-002 Recovery",
+      "timestamp": "2025-12-27T00:53:54.712Z",
+      "turn_token": "ymloxsb"
+    }
+  ]
+}

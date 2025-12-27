@@ -153,3 +153,19 @@ SKELETON APPROVED [ilja261220252345]
 All DONE_MEANS criteria satisfied with high-fidelity evidence (offsets/context). Security guards hardened against "hollow" reporting. Process gates documented.
 
 **STATUS:** VALIDATED
+
+---
+
+## RE-AUDIT VALIDATION REPORT (Forensic)
+Verdict: PASS
+
+### Evidence Verification (Code Reality)
+- `ace/mod.rs:71-76`: SATISFIED. `AceError::PromptInjectionDetected` carries `offset: usize` and `context: String`.
+- `injection.rs:93-135`: SATISFIED. `scan_for_injection_nfc` returns `InjectionMatch` with accurate character offsets and context extraction.
+- `validators/mod.rs:142-154`: SATISFIED. `SecurityViolation` struct expanded with high-fidelity evidence fields.
+- `workflows.rs:73-131`: SATISFIED. `handle_security_violation` propagates forensic evidence to Flight Recorder.
+
+### REASON FOR PASS
+Code implementation verified via manual inspection of character offset and context window logic. High-fidelity evidence mapping is correctly synchronized across the stack.
+
+**STATUS:** HARD-VALIDATED (2025-12-27)

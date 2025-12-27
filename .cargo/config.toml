@@ -1,0 +1,4 @@
+[build]
+# Keep Cargo artifacts outside the repo to avoid bloating the workspace/Git mirror.
+# NOTE: This points to a sibling directory dedicated to this repo (no other files).
+target-dir = "../Cargo Target/handshake-cargo-target"

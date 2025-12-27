@@ -4,7 +4,7 @@ The current authoritative Master Specification is:
 
 **Handshake_Master_Spec_v02.93.md**
 
-(Updated: 2025-12-26 - Enriched §2.6.1 with Mandatory Startup Recovery [ilja261220252337])
+(Updated: 2025-12-26 - Enriched §2.6.1 with Mandatory Startup Recovery [ilja271220250057])
 
 ---
 

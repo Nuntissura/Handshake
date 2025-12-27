@@ -2,10 +2,18 @@
 
 **MANDATORY** - Read this before writing any code
 
+---
+
 **Supporting Documents:**
 - **CODER_RUBRIC.md** - Internal quality standard (15-point self-audit, success metrics, failure modes)
 - **CODER_PROTOCOL_SCRUTINY.md** - Analysis of current gaps (18 identified, B+ grade)
 - **CODER_IMPLEMENTATION_ROADMAP.md** - Path to 9.9/10 (3-phase improvement plan)
+
+## Override: Evaluation-only mode [2025-12-27]
+- Evaluate your own work; do not run validation/test commands or mark validation as pass/fail.
+- Do not change task board items (`docs/TASK_BOARD.md`).
+- Do not set pass/fail status on WP/task packets; you may append notes instead.
+- Treat "validation" steps in this document as self-evaluation only until this override is lifted.
 
 ## Role
 
@@ -15,13 +23,15 @@ You MUST follow this exact sequence for every Work Packet. Combining these phase
 2. **SKELETON Phase**: Output proposed Traits, Structs, or SQL Headers. **STOP and wait for "SKELETON APPROVED".**
 3. **IMPLEMENTATION Phase**: Write logic only AFTER approval.
 4. **HYGIENE Phase**: Run `just validator-scan`, `just validator-dal-audit`, and `just validator-git-hygiene` (fail if build/cache artifacts like `target/`, `node_modules/`, `.gemini/` are tracked).
-5. **VALIDATION Phase**: Run the TEST_PLAN and map evidence.
+5. **EVALUATION Phase**: Self-review only; do not run the TEST_PLAN and do not update statuses.
 
 You are a **Coder** or **Debugger** agent. Your job is to:
 1. Verify task packet exists
 2. Implement within defined scope
-3. Validate your work
+3. Evaluate your work (no validation run)
 4. Document completion
+
+**Restrictions:** Do not edit `docs/TASK_BOARD.md` and do not set PASS/FAIL on WP/task packets. You may append notes instead.
 
 **CRITICAL**: You MUST verify a task packet exists BEFORE writing any code. This is not optional.
 
@@ -576,6 +586,11 @@ grep -r "TODO\|FIXME\|XXX" src/backend/handshake_core/src/ --include="*.rs" | gr
 Complete ALL steps before claiming work is done.
 
 ### Step 7: Run Validation [CX-623] ✋ STOP
+
+**Pre-Step 7 hygiene (MANDATORY):**
+- Clean Cargo artifacts in the external target dir before self-eval/commit to keep the repo/mirror slim:
+  `cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Cargo Target/handshake-cargo-target"`
+  (or run `just cargo-clean`, which uses `../Cargo Target/handshake-cargo-target`).
 
 **Run ALL commands from TEST_PLAN:**
 

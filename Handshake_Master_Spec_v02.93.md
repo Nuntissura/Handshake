@@ -36,7 +36,7 @@
 
 # Handshake Master Spec v02.93
 
-(Updated: 2025-12-26 - Enriched §2.6.1 with Mandatory Startup Recovery [ilja261220252337])
+(Updated: 2025-12-26 - Enriched §2.6.1 with Mandatory Startup Recovery [ilja271220250057])
 
 **Status:** Normative (Design Locked for Phase 1 Alignment)
 **Version:** v02.93
@@ -51,7 +51,7 @@
 
 | Version | Date | Author | Changes | Approval |
 |---------|------|--------|---------|----------|
-| v02.93 | 2025-12-26 | Orchestrator | Enriched §2.6.1 with Mandatory Startup Recovery (non-blocking loop in main.rs) | ilja261220252337 |
+| v02.93 | 2025-12-26 | Orchestrator | Enriched §2.6.1 with Mandatory Startup Recovery (non-blocking loop in main.rs) | ilja271220250057 |
 | v02.92 | 2025-12-26 | Orchestrator | Enriched §2.6.6.2.8 with AI Job Model Hardening (Strict Enum Mapping, Metrics Integrity) | ilja261220252215 |
 | v02.91 | 2025-12-26 | Orchestrator | Enriched §2.6.6.7.11 with Hardened Security Enforcement (Content Awareness, Atomic Poisoning, NFC Normalization) | ilja261220252202 |
 | v02.89 | 2025-12-26 | Orchestrator | Enriched §2.6.6.7.11 with ACE Security Guard Normative Requirements | ilja261220250201 |

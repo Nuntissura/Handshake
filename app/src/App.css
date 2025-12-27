@@ -264,6 +264,35 @@ body {
   color: var(--hs-color-text-subtle);
 }
 
+.clickable {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.clickable:hover {
+  color: var(--hs-color-accent);
+}
+
+.flight-recorder__row--violation {
+  background-color: var(--hs-color-error-bg) !important;
+  border-left: 4px solid var(--hs-color-error-text);
+}
+
+.violation-context {
+  margin-bottom: 8px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 6px;
+  font-size: 13px;
+  border: 1px solid rgba(185, 28, 28, 0.2);
+}
+
+.violation-snippet {
+  margin-top: 4px;
+  font-style: italic;
+  color: var(--hs-color-error-text);
+}
+
 .debug-panel {
   max-height: 260px;
   overflow: hidden;

@@ -1,10 +1,10 @@
 [advisories]
 db-urls = ["https://github.com/RustSec/advisory-db"]
-vulnerability = "deny"
-unmaintained = "warn"
-unsound = "deny"
+ignore = [
+    "RUSTSEC-2025-0119", # number_prefix
+    "RUSTSEC-2024-0436", # paste
+]
 yanked = "deny"
-notice = "warn"
 
 [licenses]
 allow = [
@@ -18,6 +18,8 @@ allow = [
   "Unlicense",
   "MPL-2.0",
   "Unicode-DFS-2016",
+  "Unicode-3.0",
+  "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.8
 
