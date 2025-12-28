@@ -63,3 +63,18 @@
 - **SPEC_CURRENT**: docs/SPEC_CURRENT.md
 - **Master Spec**: Handshake_Master_Spec_v02.90.md (§2.3.12 storage portability, §11.7.4 build hygiene)
 - **Task Board**: docs/TASK_BOARD.md (Done)
+
+## VALIDATION REPORT — 2025-12-27 (Revalidation)
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Storage-Foundation.md (STATUS: Validated)
+- Spec: Packet references Handshake_Master_Spec_v02.90; docs/SPEC_CURRENT.md now points to Handshake_Master_Spec_v02.93.
+- Codex: Handshake Codex v1.4.md
+
+Findings:
+- Spec regression gate [CX-573B]/[CX-406]: Packet/spec pointer is stale (v02.90). Current SPEC_CURRENT is v02.93, so storage foundation requirements and evidence must be rechecked against the updated Main Body before claiming Done.
+- Forbidden Pattern Audit [CX-573E]: Not run (blocked by spec misalignment).
+- Tests/commands: Not run in this pass (blocked).
+
+REASON FOR FAIL: Re-anchor storage foundation DONE_MEANS to Master Spec v02.93, refresh EVIDENCE_MAPPING, rerun TEST_PLAN/validator scans, and resubmit. Status must return to Ready for Dev until revalidated.

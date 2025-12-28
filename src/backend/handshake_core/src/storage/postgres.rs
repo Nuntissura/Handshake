@@ -49,15 +49,6 @@ impl PostgresDatabase {
     pub fn into_arc(self) -> Arc<dyn super::Database> {
         Arc::new(self)
     }
-
-    pub fn pool(&self) -> &PgPool {
-        &self.pool
-    }
-
-    pub async fn run_migrations(&self) -> StorageResult<()> {
-        sqlx::migrate!("./migrations").run(&self.pool).await?;
-        Ok(())
-    }
 }
 
 fn map_workspace(row: PgRow) -> Workspace {
@@ -219,6 +210,11 @@ fn map_workflow_node_execution(row: PgRow) -> StorageResult<WorkflowNodeExecutio
 impl super::Database for PostgresDatabase {
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+
+    async fn run_migrations(&self) -> StorageResult<()> {
+        sqlx::migrate!("./migrations").run(&self.pool).await?;
+        Ok(())
     }
 
     async fn ping(&self) -> StorageResult<()> {

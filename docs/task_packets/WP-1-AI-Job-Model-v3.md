@@ -49,7 +49,7 @@ This task hardens the "Job Model"—the system that tracks what the AI is doing.
   just post-work WP-1-AI-Job-Model-v3
   ```
 - **DONE_MEANS**:
-  * ✅ `AiJob`, `JobKind`, `JobMetrics`, and `JobState` match §2.6.6.2.8 in v02.92 exactly.
+  * ✅ `AiJob`, `JobKind`, `JobMetrics`, and `JobState` match §2.6.6.2.8 in v02.93 exactly.
   * ✅ Database schema (0006 or 0008) enforces `NOT NULL` for all metric columns.
   * ✅ `jobs.rs` updated to use `JobKind` enum for creation.
   * ✅ `workflows.rs` implements the `Poisoned` state trap per §2.6.6.7.11.0.
@@ -62,7 +62,7 @@ This task hardens the "Job Model"—the system that tracks what the AI is doing.
 ## Bootstrap (Coder Work Plan)
 - **FILES_TO_OPEN**:
   * docs/START_HERE.md
-  * docs/SPEC_CURRENT.md (Master Spec v02.92 §2.6.6.2.8)
+  * docs/SPEC_CURRENT.md (Master Spec v02.93 §2.6.6.2.8)
   * src/backend/handshake_core/src/storage/mod.rs
   * src/backend/handshake_core/src/models.rs
   * src/backend/handshake_core/src/workflows.rs
@@ -84,7 +84,7 @@ This task hardens the "Job Model"—the system that tracks what the AI is doing.
 
 ## Authority
 - **SPEC_ANCHOR**: §2.6.6.2.8 (Normative Rust Types)
-- **SPEC_CURRENT**: docs/SPEC_CURRENT.md (Master Spec v02.92)
+- **SPEC_CURRENT**: docs/SPEC_CURRENT.md (Master Spec v02.93)
 - **Codex**: Handshake Codex v1.4.md
 - **Task Board**: docs/TASK_BOARD.md
 
@@ -141,3 +141,44 @@ This task hardens the "Job Model"—the system that tracks what the AI is doing.
 All DONE_MEANS criteria satisfied with file:line evidence. JobKind enum enforced with validated FromStr. Metrics integrity guaranteed by NOT NULL constraints. Poisoning trap verified by dedicated test.
 
 **STATUS:** VALIDATED
+
+## VALIDATION REPORT — 2025-12-27 (Revalidation)
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-AI-Job-Model-v3.md (STATUS: Done/Validated)
+- Spec: Packet references Handshake_Master_Spec_v02.92 (A2.6.6.2.8); docs/SPEC_CURRENT.md now points to Handshake_Master_Spec_v02.93.
+- Codex: Handshake Codex v1.4.md
+
+Findings:
+- Spec regression gate [CX-573B]/[CX-406]: Packet/spec pointer is stale (v02.92). Current SPEC_CURRENT is v02.93, so alignment with the latest Main Body cannot be confirmed without re-enrichment and refreshed evidence mapping.
+- Forbidden Pattern Audit [CX-573E]: Not run (blocked by spec misalignment).
+- Tests/commands: Not run in this pass (blocked).
+
+REASON FOR FAIL: Re-anchor the AI Job Model requirements to Master Spec v02.93, update DONE_MEANS/EVIDENCE_MAPPING, rerun the TEST_PLAN and validator scans, and resubmit. Status must revert to Ready for Dev until revalidated.
+
+## VALIDATION REPORT — 2025-12-27 (Revalidation, Spec v02.93)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-AI-Job-Model-v3.md (STATUS: Done)
+- Spec: Handshake_Master_Spec_v02.93 (§2.6.6.2.8 Normative Rust Types)
+- Codex: Handshake Codex v1.4.md
+
+Files Checked:
+- src/backend/handshake_core/src/storage/mod.rs:313-359 (JobKind enum + validated FromStr), 440-476 (JobMetrics defaults), 479-499 (AiJob struct fields)
+- src/backend/handshake_core/migrations/0008_expand_ai_job_model.sql (metrics NOT NULL/default enforcement)
+- src/backend/handshake_core/src/workflows.rs:326-379 (poisoning trap handling AceError with JobState::Poisoned + FR logging)
+
+Findings:
+- Spec alignment: JobKind/JobState/AccessMode/SafetyMode enums and AiJob struct fields satisfy §2.6.6.2.8; metrics zeroed at init and persisted via NOT NULL defaults.
+- Atomic poisoning trap routes AceError to JobState::Poisoned with Flight Recorder event emission.
+- Forbidden Pattern Audit [CX-573E]: PASS (validator-scan; only unwraps in tests).
+- Zero Placeholder Policy [CX-573D]: PASS; no stubs or hollow implementations in production paths.
+
+Tests:
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml storage::tests` (PASS; warnings: unused imports in retention/tests)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml workflows::tests::test_poisoning_trap` (PASS; same warnings)
+- `node scripts/validation/validator-scan.mjs` (PASS)
+
+REASON FOR PASS: AI Job Model conforms to Master Spec v02.93 §2.6.6.2.8 with strict enums, NOT NULL metrics, and poisoning trap; targeted tests and validator scan passed.

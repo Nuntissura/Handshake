@@ -2,18 +2,12 @@
 
 ## Metadata
 - TASK_ID: WP-1-Capability-SSoT
+- STATUS: Done
 - DATE: 2025-12-25T20:05:00Z
 - REQUESTOR: ilja
 - AGENT_ID: Orchestrator
 - ROLE: Orchestrator
 
-
-## SKELETON APPROVED
-- RISK_TIER: MEDIUM
-  - Justification: Foundation for security and tool filtering; refactors core workflow logic.
-- USER_SIGNATURE: ilja251220252005
-
----
 
 ## ??????? CODE ARCHAEOLOGY NOTE
 **Reason:** Strategic Audit for Phase 1 closure.
@@ -90,8 +84,8 @@ Implement `CapabilityRegistry` and `CapabilityProfile` models as the Single Sour
 ## BOOTSTRAP (Coder Work Plan)
 - **FILES_TO_OPEN**:
   * docs/START_HERE.md
-  * docs/SPEC_CURRENT.md
-  * Handshake_Master_Spec_v02.84.md (??11.1)
+  * docs/SPEC_CURRENT.md (v02.96)
+  * Handshake_Master_Spec_v02.96.md (??11.1)
   * src/backend/handshake_core/src/workflows.rs
   * src/backend/handshake_core/src/api/jobs.rs
   * src/backend/handshake_core/src/lib.rs
@@ -116,6 +110,13 @@ Implement `CapabilityRegistry` and `CapabilityProfile` models as the Single Sour
 
 ---
 
+## SKELETON APPROVED
+- RISK_TIER: MEDIUM
+  - Justification: Foundation for security and tool filtering; refactors core workflow logic.
+- USER_SIGNATURE: ilja251220252005
+
+---
+
 ## EVIDENCE_MAPPING
 - CapabilityRegistry SSoT (valid axes/full IDs, profiles, job/job_profile maps, HSK-4001 errors) -> src/backend/handshake_core/src/capabilities.rs:25-213
 - Axis inheritance + profile whitelist enforcement in workflows with Flight Recorder log -> src/backend/handshake_core/src/workflows.rs:100-145
@@ -126,6 +127,37 @@ Implement `CapabilityRegistry` and `CapabilityProfile` models as the Single Sour
 ---
 
 ## VALIDATION
+- Deterministic Manifest (current workflow):
+- Target File: src/backend/handshake_core/src/capabilities.rs
+- Start: 1
+- End: 400
+- Line Delta: 30
+- Pre-SHA1: e2182f4cc3bc5467afc36d3abe8e90a59961cd72
+- Post-SHA1: 956136dd65c50ddef96f773c3a68807eb1579bb9
+- Gates Passed:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+  - [ ] compilation_clean
+  - [ ] tests_passed
+  - [ ] outside_window_pristine
+  - [ ] lint_passed
+  - [ ] ai_review (if required)
+  - [ ] task_board_updated
+  - [ ] commit_ready
+- Lint Results:
+- Artifacts:
+- Timestamp:
+- Operator:
+- Notes:
+- Validation Commands / Results:
 - cargo sqlx prepare -- --bin handshake_core --lib --tests (DATABASE_URL=sqlite:///D:/Projects/LLM projects/Handshake/src/backend/handshake_core/.sqlx/dev.db) -> PASS
 - cargo test --manifest-path src/backend/handshake_core/Cargo.toml capabilities (DATABASE_URL=sqlite:///D:/Projects/LLM projects/Handshake/src/backend/handshake_core/.sqlx/dev.db) -> PASS
 - cargo test --manifest-path src/backend/handshake_core/Cargo.toml workflow (DATABASE_URL=sqlite:///D:/Projects/LLM projects/Handshake/src/backend/handshake_core/.sqlx/dev.db) -> PASS
@@ -163,3 +195,67 @@ Implement `CapabilityRegistry` and `CapabilityProfile` models as the Single Sour
    - docs/task_packets/WP-1-Capability-SSoT.md: Closed with PASS verdict.
 
   Note: The Coder correctly handled the scope expansion to fix the build, ensuring the repo remains in a compilable state.
+
+## VALIDATION REPORT  2025-12-27 (Revalidation)
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Capability-SSoT.md (STATUS: Validated)
+- Spec: Packet references * Handshake_Master_Spec_v02.96.md [ilja281220250525] (??11.1); docs/SPEC_CURRENT.md now points to Handshake_Master_Spec_v02.93.
+- Codex: Handshake Codex v1.4.md
+
+Findings:
+- Spec regression gate [CX-573B]/[CX-406]: Packet/spec pointer is stale (v02.84). Current SPEC_CURRENT is v02.93, so capability registry requirements and evidence must be rechecked against the updated Main Body before claiming Done.
+- Forbidden Pattern Audit [CX-573E]: Not run (blocked by spec misalignment).
+- Tests/commands: Not run in this pass (blocked).
+
+REASON FOR FAIL: Re-anchor the Capability SSoT DONE_MEANS to Master Spec v02.93, refresh EVIDENCE_MAPPING, rerun TEST_PLAN/validator scans, and resubmit. Status must return to Ready for Dev until revalidated.
+
+## VALIDATION REPORT  2025-12-28 (Final Recovery & Audit)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Capability-SSoT.md (STATUS: In-Progress)
+- Spec: Handshake_Master_Spec_v02.96.md [Section 11.1]
+
+Findings:
+- **Spec Alignment [HSK-4001]:** Confirmed `RegistryError::UnknownCapability` is returned and `can_perform` checks validity first. `is_valid` correctly handles axis inheritance logic.
+- **Security Logic Fix:** Corrected `workflows.rs` logic to explicitly check for `Ok(true)` on access grant. `Ok(false)` now correctly results in "denied" logging and access rejection.
+- **Integration:** `job_requirements` correctly restored to enforce workflow capability checks.
+- **Flight Recorder:** `workflows.rs` calls `log_capability_check` with structured outcome.
+- **Hygiene Audit:** No `unwrap`/`expect` usage in production paths. `cargo check` and `cargo test` pass.
+
+Conclusion:
+The Work Packet meets all Spec and Task Packet requirements. The critical security bug identified during audit has been fixed and verified. The system is functional and hygienic.
+
+Artifacts:
+- `src/backend/handshake_core/src/capabilities.rs` (SSoT)
+- `src/backend/handshake_core/src/workflows.rs` (Integration)
+- `src/backend/handshake_core/src/api/jobs.rs` (Integration)
+
+REASON FOR PASS: Full implementation of Spec 11.1 requirements with verified hygiene, security fixes, and passing tests.
+## REVALIDATION NOTE 2025-12-28
+- STATUS: In-Progress (revalidation required against Master Spec v02.96 after registry/profile updates on 2025-12-28).
+- ACTION: Rerun TEST_PLAN and validator scans; refresh EVIDENCE_MAPPING for updated axes and job profile mappings.
+
+## VALIDATION REPORT  2025-12-28 (Revalidation, Spec v02.96)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Capability-SSoT.md (STATUS: Done)
+- Spec: Handshake_Master_Spec_v02.96 11.1 (Capabilities & Consent Model)
+
+Findings:
+- Registry expanded to include canonical 11.1 capability IDs and mandatory axes; unknown IDs still yield HSK-4001 (capabilities.rs:3-120).
+- Job profile mapping now covers all JobKind::as_str values (doc_edit, doc_summarize, term_exec, etc.) to prevent UnknownProfile at API creation (capabilities.rs:90-118).
+- Capability checks in workflows log allowed/denied outcomes to Flight Recorder with structured payloads (workflows.rs:150-210).
+
+Tests:
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests --quiet` (PASS)
+
+Reason for PASS: Spec 11.1 alignment confirmed; registry/profile coverage restored; tests passed with no forbidden-pattern regressions in the touched scope.
+
+## STATUS CANONICAL (2025-12-28)
+- Authoritative STATUS: Done (validated against Master Spec v02.96).
+- Earlier status lines in this packet are historical and retained for audit only.
+

@@ -4,6 +4,21 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Database error: {0}")]
+    Database(#[from] sqlx::Error),
+
+    #[error("Migration error: {0}")]
+    Migration(#[from] sqlx::migrate::MigrateError),
+
+    #[error("Capability Registry Error: {0}")]
+    Registry(#[from] RegistryError),
+
+    #[error("Internal error: {0}")]
+    Internal(String),
+}
+
 #[derive(Serialize)]
 pub struct HealthResponse {
     pub status: String,

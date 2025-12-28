@@ -8,7 +8,7 @@
 //! **Hardened Security Enforcement:**
 //! - [HSK-ACE-VAL-100] Content Awareness: MUST scan raw UTF-8 content, not metadata
 //! - [HSK-ACE-VAL-102] NFC Normalization: All scans use NFC-normalized, case-folded text
-//!                     to prevent homoglyph bypasses (e.g., Cyrillic "Dų" vs ASCII "a")
+//!   to prevent homoglyph bypasses (e.g., Cyrillic "Dų" vs ASCII "a")
 
 use async_trait::async_trait;
 use unicode_normalization::UnicodeNormalization;
@@ -69,12 +69,10 @@ impl PromptInjectionGuard {
     /// homoglyph bypasses.
     pub fn scan_for_injection(text: &str) -> Option<&'static str> {
         let text_lower = text.to_lowercase();
-        for pattern in INJECTION_PATTERNS {
-            if text_lower.contains(pattern) {
-                return Some(pattern);
-            }
-        }
-        None
+        INJECTION_PATTERNS
+            .iter()
+            .find(|pattern| text_lower.contains(*pattern))
+            .copied()
     }
 
     /// Scan text for injection patterns using NFC-normalized, case-folded text [HSK-ACE-VAL-102]

@@ -58,7 +58,7 @@
 [CX-215] DOCS_LOCAL_STAGING: `/docs_local/` SHOULD be treated as staging/drafts. Assistants MUST NOT treat `/docs_local/` as canonical onboarding/debugging guidance unless a document is explicitly promoted into `/docs/`.
 [CX-216] PAST_WORK_INDEX: `/docs/` SHOULD include a `PAST_WORK_INDEX.md` (or equivalent) that links to older root-level specs/logs and `/docs_local/` drafts, so future maintainers can find prior work quickly without guesswork.
 
-[CX-217] TASK_BOARD: `/docs/TASK_BOARD.md` MUST exist and serve as the high-level, at-a-glance status tracker for all project Work Packets (WPs). It is maintained by the Orchestrator.
+[CX-217] TASK_BOARD: `/docs/TASK_BOARD.md` MUST exist and serve as the high-level, at-a-glance status tracker. It is a shared state file managed by the active agent: Orchestrator (Ready for Dev/Blocked), Coder (In Progress), Validator (Done).
 
 [CX-210] NEW_TOP_DIR_DOC: When new top-level directories are added with user approval, they SHOULD be documented in a future codex version.
 

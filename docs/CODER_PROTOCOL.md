@@ -9,6 +9,12 @@
 - **CODER_PROTOCOL_SCRUTINY.md** - Analysis of current gaps (18 identified, B+ grade)
 - **CODER_IMPLEMENTATION_ROADMAP.md** - Path to 9.9/10 (3-phase improvement plan)
 
+## Deterministic Validation (COR-701 carryover, current workflow)
+- Each task packet MUST retain the manifest template in `## Validation` (target_file, start/end, line_delta, pre/post SHA1, gates checklist). Keep it ASCII-only.
+- Before coding, run `just pre-work WP-{ID}` to confirm the manifest template is present; do not strip fields.
+- After coding, `just post-work WP-{ID}` is the deterministic gate: it enforces manifest completeness, SHA1s, window bounds, and required gates (anchors_present, rails/structure untouched, line_delta match, canonical path, concurrency check). Fill the manifest with real values before running.
+- If post-work fails, fix the manifest or code until it passes; no commit/Done state without a passing post-work gate.
+
 ## Override: Evaluation-only mode [2025-12-27]
 - Evaluate your own work; do not run validation/test commands or mark validation as pass/fail.
 - Do not change task board items (`docs/TASK_BOARD.md`).
@@ -16,6 +22,24 @@
 - Treat "validation" steps in this document as self-evaluation only until this override is lifted.
 
 ## Role
+
+### Task State Management (Shared Responsibility)
+
+Task state is managed by the agent currently holding the "ball":
+1. **Orchestrator**: Creates WP -> Adds to `Ready for Dev`.
+2. **Coder**: Starts work -> Moves to `In Progress` (during BOOTSTRAP).
+3. **Validator**: Approves work -> Moves to `Done` (during VALIDATION).
+4. **Orchestrator**: Escalation/Blocker -> Moves to `Blocked`.
+
+**Coder Mandate:** You are responsible for advancing the Task Board to `In Progress`. Rushing to code without updating the board is a protocol violation.
+
+### Board Integrity Check ✋
+When updating the board, ensure these 5 fixed sections exist (DO NOT delete them even if empty):
+- `## Ready for Dev`
+- `## In Progress`
+- `## Done`
+- `## Blocked`
+- `## Superseded (Archive)`
 
 ### [CX-GATE-001] Binary Phase Gate (HARD INVARIANT)
 You MUST follow this exact sequence for every Work Packet. Combining these phases into a single turn is an AUTO-FAIL.
@@ -218,10 +242,13 @@ I cannot start without a complete packet.
 
 ---
 
-### Step 3: Update Task Board [CX-585]
+### Step 3: Update Task Board [CX-585] ✋ STOP
+
+**MANDATORY:** You are now the "ball holder". Move the task to **In Progress** to signal active implementation.
 
 **Update `docs/TASK_BOARD.md`:**
-- Move WP-{ID} to "In Progress"
+- Move WP-{ID} from `## Ready for Dev` to `## In Progress`
+- Ensure the board maintains all 5 fixed sections (§ Board Integrity Check).
 
 **Verify file updated:**
 ```bash

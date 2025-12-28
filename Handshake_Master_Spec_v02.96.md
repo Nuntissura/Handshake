@@ -34,13 +34,13 @@
 
 
 
-# Handshake Master Spec v02.93
+# Handshake Master Spec v02.96
 
-(Updated: 2025-12-26 - Enriched §2.6.1 with Mandatory Startup Recovery [ilja271220250057])
+(Updated: 2025-12-28 - Reconciled §11.3.4 with Trait Purity [ilja281220250525])
 
 **Status:** Normative (Design Locked for Phase 1 Alignment)
-**Version:** v02.93
-**Date:** 2025-12-26
+**Version:** v02.96
+**Date:** 2025-12-28
 **Author:** Handshake Architecture Group (HAG) / AI Orchestrator
 
 **Purpose:** Complete reference combining product vision, Diary governance, extraction pipeline, Phase 1 closure requirements, technical supply-chain gate specs, and the formal Spec Integrity Audit Protocol (§11.11).
@@ -51,6 +51,9 @@
 
 | Version | Date | Author | Changes | Approval |
 |---------|------|--------|---------|----------|
+| v02.96 | 2025-12-28 | Orchestrator | Reconciled §11.3.4 signatures to use `&dyn Database` instead of `SqlitePool` | ilja281220250525 |
+| v02.95 | 2025-12-28 | Orchestrator | Enriched §4.6.1 with Tokenizer Trait definition (unified interface) | ilja281220250435 |
+| v02.94 | 2025-12-28 | Orchestrator | Enriched §2.3.12.5 with Mandatory Storage Audit (sqlx/SqlitePool leakage check) | ilja281220250353 |
 | v02.93 | 2025-12-26 | Orchestrator | Enriched §2.6.1 with Mandatory Startup Recovery (non-blocking loop in main.rs) | ilja271220250057 |
 | v02.92 | 2025-12-26 | Orchestrator | Enriched §2.6.6.2.8 with AI Job Model Hardening (Strict Enum Mapping, Metrics Integrity) | ilja261220252215 |
 | v02.91 | 2025-12-26 | Orchestrator | Enriched §2.6.6.7.11 with Hardened Security Enforcement (Content Awareness, Atomic Poisoning, NFC Normalization) | ilja261220252202 |
@@ -3093,6 +3096,9 @@ Phase 1 CANNOT close without completing four foundational work packets:
 
 1. **WP-1-Storage-Abstraction-Layer**
    - Establish trait-based storage API
+   - **MANDATORY AUDIT**: The codebase MUST be scanned for `sqlx::` and `SqlitePool` references.
+     - **Acceptance Criteria**: Zero occurrences allowed outside of `src/backend/handshake_core/src/storage/`.
+     - **Evidence**: `grep -r "sqlx::" src/ | grep -v "src/storage"` must return empty.
    - Audit all database access for compliance
    - Force all DB operations through storage module
 
@@ -28956,7 +28962,7 @@ The Rust MCP dispatcher handles notifications:
 ```rust
 async fn handle_notification(
     notif: jsonrpc::Notification,
-    pool: &SqlitePool,
+    storage: &dyn Database,
     duckdb: &DuckDbHandle,
 ) -> anyhow::Result<()> {
     match notif.method.as_str() {
@@ -28966,22 +28972,9 @@ async fn handle_notification(
             let message = notif.params["message"].as_str().unwrap_or("");
 
             // 1) Resolve job_id from token
-            if let Some(job_id) = find_job_by_token(pool, token).await? {
-                // 2) Update progress snapshot in SQLite
-                sqlx::query!(
-                    r#"INSERT INTO job_progress_snapshots
-                          (job_id, progress_token, progress_pct, message, updated_at)
-                       VALUES (?1, ?2, ?3, ?4, strftime('%s','now'))
-                       ON CONFLICT(job_id, progress_token)
-                       DO UPDATE SET
-                          progress_pct = excluded.progress_pct,
-                          message = excluded.message,
-                          updated_at = excluded.updated_at"#,
-                    job_id,
-                    token,
-                    progress,
-                    message,
-                ).execute(pool).await?;
+            if let Some(job_id) = storage.find_job_by_token(token).await? {
+                // 2) Update progress snapshot via trait
+                storage.update_job_progress(&job_id, token, progress, message).await?;
 
                 // 3) Append event to Flight Recorder (DuckDB)
                 log_progress_to_flight_recorder(
@@ -28999,38 +28992,23 @@ async fn handle_notification(
 }
 ```
 
-`find_job_by_token` is a simple query against `ai_jobs.mcp_progress_token`.
+`find_job_by_token` and `update_job_progress` are implemented by the storage provider.
 
 #### Crash + restart behavior
 
 On startup, the host inspects SQLite:
 
 ```rust
-async fn reconcile_jobs_after_restart(pool: &SqlitePool) -> anyhow::Result<()> {
-    let running_jobs = sqlx::query!(
-        r#"SELECT job_id, mcp_server_id, mcp_progress_token
-           FROM ai_jobs
-           WHERE status = 'running'"#
-    )
-    .fetch_all(pool)
-    .await?;
+async fn reconcile_jobs_after_restart(storage: &dyn Database) -> anyhow::Result<()> {
+    // 1) Find interrupted jobs
+    let running_jobs = storage.get_interrupted_jobs().await?;
 
-    for row in running_jobs {
-        // On Tauri restart, sidecars are typically gone; assume interruption.
-        sqlx::query!(
-            r#"UPDATE ai_jobs
-               SET status = 'interrupted',
-                   error_code = 'host_restart',
-                   error_message = 'Coordinator restarted; MCP sidecar state unknown',
-                   updated_at = strftime('%s','now')
-             WHERE job_id = ?1"#,
-            row.job_id,
-        )
-        .execute(pool)
-        .await?;
+    for job in running_jobs {
+        // 2) Mark as interrupted via trait
+        storage.update_ai_job_status(&job.job_id, "interrupted").await?;
 
-        // Task Ledger entry in DuckDB: outcome=Failed/Cancelled with reason=host_restart
-        log_task_outcome_restart(&row.job_id)?;
+        // 3) Task Ledger entry in DuckDB: outcome=Failed/Cancelled with reason=host_restart
+        log_task_outcome_restart(&job.job_id)?;
     }
 
     Ok(())

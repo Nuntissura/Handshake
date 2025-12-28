@@ -1,9 +1,9 @@
 # Handshake Project: Start Here
 
-Authority: Master Spec v02.93
+Authority: Master Spec v02.96
 ---## Canonical sources
-- **Spec:** `docs/SPEC_CURRENT.md` (points to the current Handshake master spec, currently v02.92).
-- **Governance guardrails:** `Handshake Codex v0.8` (repo root) + `docs/TASK_BOARD.md` + task packets. Handshake logger is for milestones/hard bugs when requested.
+- **Spec:** `docs/SPEC_CURRENT.md` (points to the current Handshake master spec, currently v02.96).
+- **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `docs/TASK_BOARD.md` + task packets. Handshake logger is for milestones/hard bugs when requested.
 - **Architecture & debug:** `docs/ARCHITECTURE.md` and `docs/RUNBOOK_DEBUG.md`.
 
 ## AI Agent Workflow (Mandatory for AI-Autonomous Operation)

@@ -43,9 +43,36 @@ Copy this into each new task packet and fill all fields.
 - Open questions (if any):
 
 ## Validation
-- Command:
-- Result:
-- Notes:
+- **Target File**: `path/to/file`
+- **Start**: <line>
+- **End**: <line>
+- **Line Delta**: <adds - dels>
+- **Pre-SHA1**: `<hash>`
+- **Post-SHA1**: `<hash>`
+- **Gates Passed**:
+  - [ ] anchors_present
+  - [ ] window_matches_plan
+  - [ ] rails_untouched_outside_window
+  - [ ] filename_canonical_and_openable
+  - [ ] pre_sha1_captured
+  - [ ] post_sha1_captured
+  - [ ] line_delta_equals_expected
+  - [ ] all_links_resolvable
+  - [ ] manifest_written_and_path_returned
+  - [ ] current_file_matches_preimage
+  - [ ] compilation_clean
+  - [ ] tests_passed
+  - [ ] outside_window_pristine
+  - [ ] lint_passed
+  - [ ] ai_review (if required)
+  - [ ] task_board_updated
+  - [ ] commit_ready
+  - [ ] other:
+- **Lint Results**: <suite + pass/fail summary>
+- **Artifacts**: <paths if any>
+- **Timestamp**:
+- **Operator**:
+- **Notes**:
 
 ## Status / Handoff
 - Current WP_STATUS:

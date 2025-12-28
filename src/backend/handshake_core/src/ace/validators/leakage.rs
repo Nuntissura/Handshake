@@ -37,12 +37,6 @@ pub const CLOUD_TIER_MARKER: &str = "model_tier:cloud";
 pub struct CloudLeakageGuard;
 
 impl CloudLeakageGuard {
-    /// Check if trace indicates cloud tier is active
-    fn is_cloud_tier(trace: &RetrievalTrace) -> bool {
-        trace.warnings.iter().any(|w| w.contains(CLOUD_TIER_MARKER))
-            || trace.errors.iter().any(|e| e.contains(CLOUD_TIER_MARKER))
-    }
-
     /// Check for non-exportable content
     fn has_non_exportable_warning(trace: &RetrievalTrace) -> bool {
         trace

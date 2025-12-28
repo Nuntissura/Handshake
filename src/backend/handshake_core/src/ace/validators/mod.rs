@@ -414,6 +414,10 @@ impl ValidatorPipeline {
     }
 
     /// Recursive classification check for composite refs [§2.6.6.7.11.5]
+    // This async helper recurses on nested composites; keeping `&self` makes the
+    // call sites consistent with other pipeline helpers even though it is only
+    // used for recursion.
+    #[allow(clippy::only_used_in_recursion)]
     fn check_composite_recursive<'a>(
         &'a self,
         member_refs: &'a [SourceRef],

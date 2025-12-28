@@ -1,12 +1,15 @@
 # Handshake Project Task Board (Phase 1: EXHAUSTIVE STRATEGIC AUDIT)
 
-This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Phase 1 cannot close until every item below is validated.
+This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Phase 1 cannot close until every item below is validated against Master Spec v02.96.
 
 ---
 
 
 ## Ready for Dev
-- **[WP-1-AppState-Refactoring-v2]** - Enforcing Trait Purity (§2.3.12.3). [READY FOR DEV]
+- **[WP-1-Flight-Recorder]** / FAIL: Spec drift vs SPEC_CURRENT v02.94; recheck A11.5 retention/telemetry. [READY FOR DEV]
+- **[WP-1-ACE-Runtime]** / FAIL: Spec drift vs SPEC_CURRENT v02.94; refresh ACE-RAG-001 evidence. [READY FOR DEV]
+- **[WP-1-Mutation-Traceability]** / FAIL: Spec drift vs SPEC_CURRENT v02.94; revalidate A2.9.3. [READY FOR DEV]
+- **[WP-1-Dual-Backend-Tests]** / FAIL: Missing STATUS/SPEC_CURRENT; re-anchor to v02.94 A2.3.12. [READY FOR DEV]
 - **[WP-1-Flight-Recorder-UI]** / FAIL (SUPERSEDED by v2): DuckDB log store + UI wiring. [READY FOR DEV]
 - **[WP-1-Operator-Consoles]** / FAIL: Timeline, Jobs, Problems, Evidence UI. [READY FOR DEV]
 - **[WP-1-Metrics-OTel]** / FAIL: OpenTelemetry instrumentation. [READY FOR DEV]
@@ -46,26 +49,24 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 
 
 ## Done
-- **[WP-1-Flight-Recorder-UI-v2]** - Upgrading Observation Surface (§11.5). [VALIDATED]
-- **[WP-1-Workflow-Engine-v3]** - Mandatory Startup Recovery Loop (§2.6.1). [VALIDATED]
-- **[WP-1-ACE-Validators-v3]** - Remediating CX-VAL-HARD (Substring offsets/context). [VALIDATED]
+- **[WP-1-Capability-SSoT]** - Centralized Capability Registry SSoT (A11.1). [VALIDATED]
+- **[WP-1-Flight-Recorder-v2]** - Upgrading Observation Surface (A11.5). [VALIDATED]
+- **[WP-1-Tokenization-Service-v2]** - Normative Tokenizer Trait (A4.6.1) with panic-free fallback. [VALIDATED]
+- **[WP-1-Storage-Foundation-v2]** - Enforcing Trait Purity (A2.3.12.3) and Mandatory Audit. [VALIDATED]
+- **[WP-1-Flight-Recorder-UI-v2]** - Upgrading Observation Surface (A11.5). [VALIDATED]
+- **[WP-1-Workflow-Engine-v3]** - Mandatory Startup Recovery Loop (A2.6.1). [VALIDATED]
+- **[WP-1-ACE-Validators-v3]** - Runtime Validators hardened (A2.6.6.7.11). [VALIDATED]
 - **[WP-1-AI-Job-Model-v3]** - Hardened Job Model (Enums, Metrics Integrity, Poisoning Trap). [VALIDATED]
 - **[WP-1-Storage-Abstraction-Layer-v2]** [VALIDATED]
-- **[WP-1-LLM-Core]** [VALIDATED]
-- **[WP-1-Flight-Recorder]** [VALIDATED]
-- **[WP-1-ACE-Runtime]** [VALIDATED]
-- **[WP-1-Mutation-Traceability]** [VALIDATED]
-- **[WP-1-Dual-Backend-Tests]** [VALIDATED]
-- **[WP-1-Capability-SSoT]** [VALIDATED]
-- **[WP-1-Storage-Foundation]** [VALIDATED]
+- **[WP-1-LLM-Core]** - LLM Core Adapter (A4.2.3). [VALIDATED]
 - **[WP-1-Gate-Check-Tool]** [VALIDATED]
-- **[WP-1-Tokenization-Service]** [VALIDATED]
-
+- **[WP-1-AppState-Refactoring-v2]** - Enforcing Trait Purity (A2.3.12.3). [VALIDATED]
 ## Blocked
 
 ---
 
 ## Superseded (Archive)
+- **[WP-1-Flight-Recorder]** - Superseded by v2 (Spec alignment §11.5).
 - **[WP-1-Workflow-Engine-v2]** - Superseded by v3 (Audit remediation).
 - **[WP-1-AI-Job-Model-v2]** - Superseded by v3 (Spec alignment §2.6.6.2.8).
 - **[WP-1-ACE-Validators-v2]** - Superseded by v3 (Hardened security remediation).

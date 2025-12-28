@@ -14,13 +14,13 @@ pub mod workflows;
 use std::sync::Arc;
 
 use crate::flight_recorder::FlightRecorder;
-use crate::llm::LLMClient;
+use crate::llm::LlmClient;
 use crate::storage::Database;
 
 #[derive(Clone)]
 pub struct AppState {
     pub storage: Arc<dyn Database>,
     pub flight_recorder: Arc<dyn FlightRecorder>,
-    pub llm_client: Arc<dyn LLMClient>,
+    pub llm_client: Arc<dyn LlmClient>,
     pub capability_registry: Arc<capabilities::CapabilityRegistry>,
 }

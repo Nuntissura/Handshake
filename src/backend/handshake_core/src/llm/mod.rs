@@ -252,10 +252,7 @@ impl LLMClient for OllamaClient {
 
         let status = response.status();
         if !status.is_success() {
-            let error_text = match response.text().await {
-                Ok(text) => text,
-                Err(_) => String::new(),
-            };
+            let error_text: String = response.text().await.unwrap_or_default();
             return Err(format!("Ollama error ({}): {}", status, error_text));
         }
 

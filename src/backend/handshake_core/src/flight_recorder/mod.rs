@@ -5,6 +5,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
+use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
 
 pub mod duckdb;
@@ -162,6 +163,39 @@ impl FlightRecorderEvent {
             ));
         }
         Ok(())
+    }
+
+    /// Normalize all string content in payload to NFC form.
+    /// Required by HARDENED_INVARIANTS: Content-Awareness [§11.5].
+    /// Prevents Unicode bypass attacks by ensuring consistent text representation.
+    pub fn normalize_payload(&mut self) {
+        self.payload = normalize_json_value(&self.payload);
+        // Also normalize string fields that could contain user-provided content
+        self.actor_id = self.actor_id.nfc().collect();
+        if let Some(ref job_id) = self.job_id {
+            self.job_id = Some(job_id.nfc().collect());
+        }
+        if let Some(ref workflow_id) = self.workflow_id {
+            self.workflow_id = Some(workflow_id.nfc().collect());
+        }
+        if let Some(ref model_id) = self.model_id {
+            self.model_id = Some(model_id.nfc().collect());
+        }
+        self.wsids = self.wsids.iter().map(|s| s.nfc().collect()).collect();
+    }
+}
+
+/// Recursively normalize all string values in a JSON Value to NFC form.
+fn normalize_json_value(value: &Value) -> Value {
+    match value {
+        Value::String(s) => Value::String(s.nfc().collect()),
+        Value::Array(arr) => Value::Array(arr.iter().map(normalize_json_value).collect()),
+        Value::Object(obj) => Value::Object(
+            obj.iter()
+                .map(|(k, v)| (k.nfc().collect(), normalize_json_value(v)))
+                .collect(),
+        ),
+        other => other.clone(),
     }
 }
 

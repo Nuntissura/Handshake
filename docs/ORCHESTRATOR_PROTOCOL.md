@@ -52,6 +52,11 @@
 
 ---
 
+## Deterministic Manifest & Gate (current workflow, COR-701 discipline)
+- Every task packet MUST keep the deterministic manifest template in `## Validation` (target_file, start/end, line_delta, pre/post SHA1, gates checklist). Packets must stay ASCII-only.
+- Orchestrator ensures new packets are created from `docs/TASK_PACKET_TEMPLATE.md` without stripping the manifest; reject packet creation/revision that removes it.
+- `just pre-work WP-{ID}` must pass before handoff (template present), and `just post-work WP-{ID}` is the mandatory deterministic gate before Done/commit (enforces manifest completeness, SHA1s, window bounds, gates).
+
 ## Part 2: Pre-Orchestration Checklist [CX-600]
 
 **Complete ALL steps before creating task packets.**
@@ -189,7 +194,10 @@ Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block contain
 - **Gaps Identified:** Specific sections/logic missing in the current Master Spec.
 - **Interaction with flight recorder: Specific event IDs and telemetry triggers:** Specific event IDs, telemetry triggers, and log data structures.
 - **red team advisory: Architectural risks and security failure modes:** Specific architectural risks and security failure modes.
-- **proposed Spec Enrichment: The EXACT normative text to be added to the Master Spec:** The verbatim technical rules and logic to be inserted into the spec.
+- **proposed Spec Enrichment: The FULL, VERBATIM normative text to be added to the Master Spec:**
+    - **CRITICAL:** Summaries are FORBIDDEN.
+    - **CRITICAL:** You MUST output the exact Markdown text (headings, rules, code blocks) that will be inserted.
+    - **CRITICAL:** The user must be able to copy-paste this text directly into the Master Spec if they chose to do so manually.
 - **primitives:** Specific Traits, Structs, or Enums that must be implemented.
 
 **Step 2: Enrich Master Spec (after user approval)**
@@ -1254,17 +1262,29 @@ Begin implementation when ready.
 
 ---
 
-## Task State Management (BLOCKING ✋)
+## Task State Management (Shared Responsibility)
 
-The Orchestrator is the sole maintainer of task state.
+Task state is managed by the agent currently holding the "ball":
+1. **Orchestrator**: Creates WP -> Adds to `Ready for Dev`.
+2. **Coder**: Starts work -> Moves to `In Progress` (during BOOTSTRAP).
+3. **Validator**: Approves work -> Moves to `Done` (during VALIDATION).
+4. **Orchestrator**: Escalation/Blocker -> Moves to `Blocked`.
+
+### Orchestrator Board Integrity Check ✋
+When updating the board, the Orchestrator MUST ensure these 5 fixed sections exist (DO NOT delete them even if empty):
+- `## Ready for Dev`
+- `## In Progress`
+- `## Done`
+- `## Blocked`
+- `## Superseded (Archive)`
 
 ### Step 1: Update Task Packet STATUS
 
-When a task's state changes (e.g., from `Ready-for-Dev` to `In-Progress`, or to `Done`), you MUST edit the corresponding task packet markdown file to update the `STATUS` field in the metadata.
+When a task's state changes (e.g., from `Ready-for-Dev` to `In-Progress`, or to `Done`), the active agent MUST edit the corresponding task packet markdown file to update the `STATUS` field in the metadata.
 
 ### Step 2: Update the Task Board
 
-Immediately after updating the packet's status, you MUST also edit `docs/TASK_BOARD.md` to move the `WP-ID` to the correct column (e.g., move from "Ready for Dev" to "In Progress").
+Immediately after updating the packet's status, the active agent MUST also edit `docs/TASK_BOARD.md` to move the `WP-ID` to the correct column.
 
 **This two-step process ensures both the detailed ticket and the high-level board are always in sync.**
 
@@ -1644,7 +1664,7 @@ DONE_MEANS (mapped):
 ```markdown
 # Handshake Project Task Board
 
-This board is maintained by the Orchestrator.
+This board is a shared state file updated by the active agent (Orchestrator, Coder, Validator).
 Updated whenever WP status changes.
 
 ---
@@ -1684,6 +1704,10 @@ Storage Backend Portability Foundation (Sequential):
 ## Blocked
 
 - [WP_ID]: {Reason for block}
+
+## Superseded (Archive)
+
+- [WP_ID]: {Reason for archival}
 ```
 
 ### 6.2 Status Values (CX-625)

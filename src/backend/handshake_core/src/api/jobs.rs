@@ -59,7 +59,7 @@ async fn create_new_job(
 
     let capability_profile_id = state
         .capability_registry
-        .profile_for_job_kind(job_kind.as_str())
+        .profile_for_job(job_kind.as_str())
         .map_err(|e| e.to_string())?;
 
     let job_inputs = payload
@@ -72,7 +72,7 @@ async fn create_new_job(
         job_kind,
         &payload.protocol_id,
         // Server-enforced capability profile to prevent client-side escalation.
-        capability_profile_id.as_str(),
+        capability_profile_id.id.as_str(),
         job_inputs,
     )
     .await
@@ -103,8 +103,8 @@ mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
-    use crate::llm::TestLLMClient;
-    use crate::storage::{sqlite::SqliteDatabase, JobState};
+    use crate::llm::ollama::InMemoryLlmClient;
+    use crate::storage::{sqlite::SqliteDatabase, Database, JobState};
     use axum::extract::State;
     use serde_json::json;
     use std::sync::Arc;
@@ -118,10 +118,8 @@ mod tests {
         Ok(AppState {
             storage: sqlite.into_arc(),
             flight_recorder,
-            llm_client: Arc::new(TestLLMClient {
-                response: "ok".into(),
-            }),
-            capability_registry: Arc::new(CapabilityRegistry::new_default()),
+            llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
+            capability_registry: Arc::new(CapabilityRegistry::new()),
         })
     }
 

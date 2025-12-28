@@ -932,7 +932,7 @@ mod tests {
             "What\tis\nthe\r\ncapital of France?",
         ];
 
-        let expected = normalize_query(&variations[0]);
+        let expected = normalize_query(variations[0]);
         for variant in &variations {
             let normalized = normalize_query(variant);
             assert_eq!(
@@ -969,13 +969,17 @@ mod tests {
             "hash2".to_string(),
         );
 
-        let mut scores1 = CandidateScores::default();
-        scores1.lexical = Some(0.8);
-        scores1.pack = Some(1.0);
+        let scores1 = CandidateScores {
+            lexical: Some(0.8),
+            pack: Some(1.0),
+            ..Default::default()
+        };
 
-        let mut scores2 = CandidateScores::default();
-        scores2.lexical = Some(0.8);
-        scores2.pack = Some(1.0);
+        let scores2 = CandidateScores {
+            lexical: Some(0.8),
+            pack: Some(1.0),
+            ..Default::default()
+        };
 
         let candidate1 = RetrievalCandidate::from_source(
             source1.clone(),
@@ -993,7 +997,7 @@ mod tests {
         assert!(candidate1.tiebreak < candidate2.tiebreak); // Nil UUID < 00..001
 
         // Sorting should be deterministic
-        let mut candidates = vec![candidate2.clone(), candidate1.clone()];
+        let mut candidates = [candidate2.clone(), candidate1.clone()];
         candidates.sort_by(|a, b| {
             b.base_score
                 .partial_cmp(&a.base_score)

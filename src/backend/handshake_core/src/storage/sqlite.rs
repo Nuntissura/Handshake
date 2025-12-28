@@ -19,6 +19,14 @@ pub struct SqliteDatabase {
     guard: Arc<dyn StorageGuard>,
 }
 
+#[cfg(test)]
+impl SqliteDatabase {
+    /// Expose pool for test-only SQL adjustments (kept out of production interfaces).
+    pub fn pool(&self) -> &SqlitePool {
+        &self.pool
+    }
+}
+
 #[derive(sqlx::FromRow)]
 struct AiJobRow {
     id: String,
@@ -162,21 +170,17 @@ impl SqliteDatabase {
     pub fn into_arc(self) -> Arc<dyn super::Database> {
         Arc::new(self)
     }
-
-    pub fn pool(&self) -> &SqlitePool {
-        &self.pool
-    }
-
-    pub async fn run_migrations(&self) -> StorageResult<()> {
-        sqlx::migrate!("./migrations").run(&self.pool).await?;
-        Ok(())
-    }
 }
 
 #[async_trait]
 impl super::Database for SqliteDatabase {
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+
+    async fn run_migrations(&self) -> StorageResult<()> {
+        sqlx::migrate!("./migrations").run(&self.pool).await?;
+        Ok(())
     }
 
     async fn ping(&self) -> StorageResult<()> {
@@ -1642,11 +1646,7 @@ impl super::Database for SqliteDatabase {
 
         let total_non_pinned = total_non_pinned.count as u32;
 
-        let max_deletable = if total_non_pinned <= min_versions {
-            0
-        } else {
-            total_non_pinned - min_versions
-        };
+        let max_deletable = total_non_pinned.saturating_sub(min_versions);
 
         let actual_to_delete = deletable_count.min(max_deletable);
 

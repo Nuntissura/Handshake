@@ -34,7 +34,7 @@
   just validator-hygiene-full
   ```
 - **DONE_MEANS**:
-  * ??? `LlmClient` trait implemented per ??4.2.3.1 in v02.87.
+  * ??? `LlmClient` trait implemented per ??4.2.3.1 in v02.93.
   * ??? `CompletionRequest` and `CompletionResponse` structs match ??4.2.3.1 exactly.
   * ??? Ollama adapter correctly executes requests and parses usage metadata.
   * ??? Budget enforcement verified: returns `HSK-402-BUDGET-EXCEEDED` on overflow.
@@ -50,7 +50,7 @@ git revert <commit-sha>
 - **FILES_TO_OPEN**:
   * docs/START_HERE.md
   * docs/SPEC_CURRENT.md
-  * Handshake_Master_Spec_v02.87.md
+  * Handshake_Master_Spec_v02.93.md
   * src/backend/handshake_core/src/llm.rs
 - **SEARCH_TERMS**:
   * "LlmClient"
@@ -69,7 +69,7 @@ git revert <commit-sha>
 
 ## Authority
 - **SPEC_ANCHOR**: ??4.2.3 (LLM Client Adapter)
-- **SPEC_CURRENT**: Handshake_Master_Spec_v02.87.md
+- **SPEC_CURRENT**: Handshake_Master_Spec_v02.93.md
 - **Codex**: Handshake Codex v1.4.md
 - **Task Board**: docs/TASK_BOARD.md
 
@@ -117,3 +117,43 @@ The implementation now fulfills the mandatory observability requirements of ??4.
 
 **Last Updated:** 2025-12-26
 **User Signature Locked:** ilja261220250045
+
+## VALIDATION REPORT — 2025-12-27 (Revalidation)
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-LLM-Core.md (STATUS: Validated)
+- Spec: Packet references Handshake_Master_Spec_v02.87; docs/SPEC_CURRENT.md now points to Handshake_Master_Spec_v02.93.
+- Codex: Handshake Codex v1.4.md
+
+Findings:
+- Spec regression gate [CX-573B]/[CX-406]: Packet/spec pointer is stale (v02.87). Current SPEC_CURRENT is v02.93, so LLM Core requirements and evidence must be rechecked against the updated Main Body before claiming Done.
+- Forbidden Pattern Audit [CX-573E]: Not run (blocked by spec misalignment).
+- Tests/commands: Not run in this pass (blocked).
+
+REASON FOR FAIL: Re-anchor LLM Core DONE_MEANS to Master Spec v02.93, refresh EVIDENCE_MAPPING, rerun TEST_PLAN/validator scans, and resubmit. Status must return to Ready for Dev until revalidated.
+
+## VALIDATION REPORT — 2025-12-27 (Revalidation, Spec v02.93)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-LLM-Core.md (STATUS: Done)
+- Spec: Handshake_Master_Spec_v02.93 (§4.2.3 LLM Client Adapter)
+- Codex: Handshake Codex v1.4.md
+
+Files Checked:
+- src/backend/handshake_core/src/llm/mod.rs:15-126 (LlmClient trait; CompletionRequest/Response; TokenUsage; ModelProfile)
+- src/backend/handshake_core/src/llm/mod.rs:159-180 (HSK-402 BudgetExceeded error)
+- src/backend/handshake_core/src/llm/ollama.rs:24-236 (OllamaAdapter budget enforcement, FR-EVT-002 emission)
+
+Findings:
+- Spec alignment: Completion types and LlmClient trait match §4.2.3; budget enforcement returns HSK-402-BUDGET-EXCEEDED on overflow; rate-limit surfaces HSK-429.
+- Observability: Ollama adapter emits FR-EVT-002 with hashes, usage, and latency; uses shared Flight Recorder.
+- Forbidden Pattern Audit [CX-573E]: PASS (validator-scan).
+- Zero Placeholder Policy [CX-573D]: PASS; no stubs.
+
+Tests:
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` (PASS; warnings: unused imports, deprecated helper)
+- `just validator-scan` (PASS)
+
+REASON FOR PASS: LLM core complies with Spec v02.93 §4.2.3 with strict enums/traits, budget enforcement, and Flight Recorder observability; targeted tests and validator scan passed.

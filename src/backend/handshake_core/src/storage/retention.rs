@@ -8,7 +8,9 @@
 //! - [HSK-GC-003] Every GC run emits meta.gc_summary to Flight Recorder
 //! - [HSK-GC-004] PruneReport is written before items are unlinked
 
-use chrono::{DateTime, Duration, Utc};
+#[cfg(test)]
+use chrono::DateTime;
+use chrono::{Duration, Utc};
 use std::sync::Arc;
 use thiserror::Error;
 use uuid::Uuid;
@@ -504,12 +506,7 @@ mod tests {
         // Check Flight Recorder for gc_summary event
         let count = events
             .lock()
-            .map_err(|e| {
-                std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Failed to lock FR events: {e}"),
-                )
-            })?
+            .map_err(|e| std::io::Error::other(format!("Failed to lock FR events: {e}")))?
             .iter()
             .filter(|evt| matches!(evt.event_type, FlightRecorderEventType::System))
             .count();

@@ -3,13 +3,12 @@ use handshake_core::{
     api,
     capabilities::CapabilityRegistry,
     flight_recorder::{duckdb::DuckDbFlightRecorder, FlightRecorder},
-    llm::{LLMClient, OllamaClient},
+    llm::{ollama::OllamaAdapter, LlmClient},
     logging,
     models::HealthResponse,
     storage::{
+        self,
         retention::{Janitor, JanitorConfig},
-        sqlite::SqliteDatabase,
-        Database,
     },
     workflows, AppState,
 };
@@ -39,10 +38,12 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let storage = init_storage().await?;
+    let storage = storage::init_storage()
+        .await
+        .map_err(|e| format!("failed to initialize storage: {}", e))?;
     let flight_recorder = init_flight_recorder().await?;
-    let llm_client = init_llm_client()?;
-    let capability_registry = Arc::new(CapabilityRegistry::new_default());
+    let llm_client = init_llm_client(flight_recorder.clone())?;
+    let capability_registry = Arc::new(CapabilityRegistry::new());
 
     let state = AppState {
         storage: storage.clone(),
@@ -142,29 +143,6 @@ fn init_janitor_config() -> JanitorConfig {
     }
 }
 
-async fn init_storage() -> Result<Arc<dyn Database>, Box<dyn std::error::Error>> {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root_dir = manifest_dir
-        .parent()
-        .and_then(Path::parent)
-        .and_then(Path::parent)
-        .map(Path::to_path_buf)
-        .ok_or("failed to resolve repo root")?;
-    let data_dir = root_dir.join("data");
-    if !data_dir.exists() {
-        std::fs::create_dir_all(&data_dir)?;
-    }
-
-    let db_path = data_dir.join("handshake.db");
-    let db_url = format!("sqlite://{}", db_path.to_string_lossy());
-
-    let sqlite = SqliteDatabase::connect(&db_url, 5).await?;
-    sqlite.run_migrations().await?;
-
-    tracing::info!(target: "handshake_core", db_url = %db_url, "database ready");
-    Ok(sqlite.into_arc())
-}
-
 async fn init_flight_recorder() -> Result<Arc<dyn FlightRecorder>, Box<dyn std::error::Error>> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let root_dir = manifest_dir
@@ -186,15 +164,22 @@ async fn init_flight_recorder() -> Result<Arc<dyn FlightRecorder>, Box<dyn std::
     Ok(Arc::new(recorder))
 }
 
-fn init_llm_client() -> Result<Arc<dyn LLMClient>, Box<dyn std::error::Error>> {
+fn init_llm_client(
+    flight_recorder: Arc<dyn FlightRecorder>,
+) -> Result<Arc<dyn LlmClient>, Box<dyn std::error::Error>> {
     let url = std::env::var("OLLAMA_URL")
         .map_err(|_| "OLLAMA_URL not configured; LLM client cannot be initialized")?;
     let model = match std::env::var("OLLAMA_MODEL") {
         Ok(val) => val,
         Err(_) => "llama3".to_string(),
     };
-    tracing::info!(target: "handshake_core", url = %url, model = %model, "using Ollama LLM client");
-    Ok(Arc::new(OllamaClient::new(url, model)))
+    tracing::info!(target: "handshake_core", url = %url, model = %model, "using Ollama LLM adapter");
+    Ok(Arc::new(OllamaAdapter::new(
+        url,
+        model,
+        8192,
+        flight_recorder,
+    )))
 }
 
 async fn health(State(state): State<AppState>) -> Json<HealthResponse> {

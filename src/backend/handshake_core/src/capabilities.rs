@@ -1,290 +1,335 @@
+use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use thiserror::Error;
 
-#[derive(Clone)]
+/// Canonical capability identifiers from Master Spec §11.1 (Capabilities & Consent Model).
+const CANONICAL_CAPABILITY_IDS: &[&str] = &[
+    "CALENDAR_READ_BASIC",
+    "CALENDAR_READ_DETAILS",
+    "CALENDAR_READ_ANALYTICS",
+    "CALENDAR_WRITE_LOCAL",
+    "CALENDAR_WRITE_EXTERNAL",
+    "CALENDAR_DELETE_LOCAL",
+    "CALENDAR_DELETE_EXTERNAL",
+    "CALENDAR_MOVE_EVENT",
+    "CALENDAR_RESOLVE_CONFLICT",
+    "CALENDAR_ACTIVITY_SUMMARY",
+    "CALENDAR_COMPARE_ACTIVITY_WINDOWS",
+];
+
+/// Registry error type for capability SSoT violations.
+#[derive(Debug, Clone, Error, Serialize, Deserialize)]
+pub enum RegistryError {
+    #[error("Unknown capability: {0} (HSK-4001)")]
+    UnknownCapability(String),
+    #[error("Unknown capability profile: {0}")]
+    UnknownProfile(String),
+    #[error("Capability not granted: {0}")]
+    AccessDenied(String),
+}
+
+/// A named capability profile (e.g., "Analyst", "Coder") defining a whitelist of allowed capabilities.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CapabilityProfile {
     pub id: String,
-    pub capabilities: Vec<String>,
+    pub allowed: Vec<String>,
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum RegistryError {
-    #[error("HSK-4001: UnknownCapability {0}")]
-    UnknownCapability(String),
-    #[error("Capability profile not found: {0}")]
-    UnknownProfile(String),
-    #[error("Profile {profile_id} missing capability {capability}")]
-    MissingCapability {
-        profile_id: String,
-        capability: String,
-    },
-    #[error("Unknown job kind for capability mapping: {0}")]
-    UnknownJobKind(String),
-}
-
-#[derive(Clone)]
+/// Centralized Single Source of Truth for capabilities, profiles, and job mappings.
+/// Enforces Spec §11.1 requirements:
+/// - Validates axes/IDs against hardcoded whitelists.
+/// - Resolves axis inheritance (axis implies axis:scope).
+/// - Rejects unknown IDs with HSK-4001.
+#[derive(Debug, Clone)]
 pub struct CapabilityRegistry {
+    /// Valid capability axes (e.g., "fs.read", "net.http")
     valid_axes: HashSet<String>,
+    /// Valid full capability IDs (e.g., "doc.summarize")
     valid_full_ids: HashSet<String>,
+    /// Pre-defined profiles (e.g., "Analyst")
     profiles: HashMap<String, CapabilityProfile>,
+    /// Mapping of JobKind -> CapabilityProfile ID
+    job_profile_map: HashMap<String, String>,
+    /// Mapping of JobKind -> Required Capability ID
     job_requirements: HashMap<String, String>,
-    job_profiles: HashMap<String, String>,
+}
+
+impl Default for CapabilityRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CapabilityRegistry {
-    pub fn new(
-        valid_axes: HashSet<String>,
-        valid_full_ids: HashSet<String>,
-        profiles: Vec<CapabilityProfile>,
-        job_requirements: HashMap<String, String>,
-        job_profiles: HashMap<String, String>,
-    ) -> Result<Self, RegistryError> {
-        let mut profile_map = HashMap::new();
-        for profile in profiles {
-            // Validate every capability reference up-front to prevent drift.
-            for cap in &profile.capabilities {
-                if !Self::is_valid_id(&valid_axes, &valid_full_ids, cap) {
-                    return Err(RegistryError::UnknownCapability(cap.clone()));
-                }
-            }
-            profile_map.insert(profile.id.clone(), profile);
+    pub fn new() -> Self {
+        // Spec §11.1.3.1 - Mandatory Axes
+        let mut valid_axes = HashSet::new();
+        valid_axes.insert("fs.read".to_string());
+        valid_axes.insert("fs.write".to_string());
+        valid_axes.insert("proc.exec".to_string());
+        valid_axes.insert("net.http".to_string());
+        valid_axes.insert("device".to_string());
+        valid_axes.insert("secrets.use".to_string());
+
+        // Additional axes from §11.1 (implied/extended)
+        valid_axes.insert("creative".to_string()); // for creative.export
+
+        // Spec §11.1 - Full IDs
+        let mut valid_full_ids = HashSet::new();
+        valid_full_ids.insert("doc.summarize".to_string());
+        valid_full_ids.insert("terminal.exec".to_string()); // Historically used, though proc.exec is axis
+        for id in CANONICAL_CAPABILITY_IDS {
+            valid_full_ids.insert((*id).to_string());
         }
 
-        // Validate job requirement targets exist.
-        for required in job_requirements.values() {
-            if !Self::is_valid_id(&valid_axes, &valid_full_ids, required) {
-                return Err(RegistryError::UnknownCapability(required.clone()));
-            }
-        }
+        // Spec §11.1 - Profiles
+        let mut profiles = HashMap::new();
 
-        // Validate job profile mapping targets exist.
-        for profile_id in job_profiles.values() {
-            if !profile_map.contains_key(profile_id) {
-                return Err(RegistryError::UnknownProfile(profile_id.clone()));
-            }
-        }
+        // "Analyst" profile (Read-only heavy)
+        profiles.insert(
+            "Analyst".to_string(),
+            CapabilityProfile {
+                id: "Analyst".to_string(),
+                allowed: vec![
+                    "fs.read".to_string(),
+                    "net.http".to_string(),
+                    "doc.summarize".to_string(),
+                ],
+            },
+        );
 
-        Ok(Self {
+        // "Coder" profile (Read/Write/Exec)
+        profiles.insert(
+            "Coder".to_string(),
+            CapabilityProfile {
+                id: "Coder".to_string(),
+                allowed: vec![
+                    "fs.read".to_string(),
+                    "fs.write".to_string(),
+                    "proc.exec".to_string(),
+                    "net.http".to_string(),
+                    "doc.summarize".to_string(),
+                    "terminal.exec".to_string(),
+                ],
+            },
+        );
+
+        // Job Kind -> Profile Mapping
+        let mut job_profile_map = HashMap::new();
+        // Primary job kinds (matches JobKind::as_str())
+        job_profile_map.insert("doc_edit".to_string(), "Coder".to_string());
+        job_profile_map.insert("sheet_transform".to_string(), "Analyst".to_string());
+        job_profile_map.insert("canvas_cluster".to_string(), "Analyst".to_string());
+        job_profile_map.insert("asr_transcribe".to_string(), "Analyst".to_string());
+        job_profile_map.insert("workflow_run".to_string(), "Analyst".to_string());
+        job_profile_map.insert("term_exec".to_string(), "Coder".to_string());
+        job_profile_map.insert("terminal_exec".to_string(), "Coder".to_string());
+        job_profile_map.insert("doc_summarize".to_string(), "Analyst".to_string());
+        job_profile_map.insert("doc_test".to_string(), "Analyst".to_string());
+        // Backward-compatible aliases
+        job_profile_map.insert("Research".to_string(), "Analyst".to_string());
+        job_profile_map.insert("Development".to_string(), "Coder".to_string());
+
+        // Job Kind -> Required Capability Mapping
+        let mut job_requirements = HashMap::new();
+        job_requirements.insert("doc_edit".to_string(), "doc.summarize".to_string());
+        job_requirements.insert("sheet_transform".to_string(), "doc.summarize".to_string());
+        job_requirements.insert("canvas_cluster".to_string(), "doc.summarize".to_string());
+        job_requirements.insert("asr_transcribe".to_string(), "doc.summarize".to_string());
+        job_requirements.insert("workflow_run".to_string(), "doc.summarize".to_string());
+        job_requirements.insert("doc_summarize".to_string(), "doc.summarize".to_string());
+        job_requirements.insert("doc_test".to_string(), "doc.summarize".to_string());
+        job_requirements.insert("term_exec".to_string(), "terminal.exec".to_string());
+        job_requirements.insert("terminal_exec".to_string(), "terminal.exec".to_string());
+
+        Self {
             valid_axes,
             valid_full_ids,
-            profiles: profile_map,
+            profiles,
+            job_profile_map,
             job_requirements,
-            job_profiles,
-        })
+        }
     }
 
-    fn is_valid_id(
-        valid_axes: &HashSet<String>,
-        valid_full_ids: &HashSet<String>,
-        id: &str,
-    ) -> bool {
-        if valid_full_ids.contains(id) {
-            return true;
-        }
-        if valid_axes.contains(id) {
-            return true;
-        }
-        if let Some((axis, _scope)) = id.split_once(':') {
-            return valid_axes.contains(axis);
-        }
-        false
-    }
-
+    /// Validates if a capability ID is known to the system.
+    /// Returns true if valid, false otherwise.
     pub fn is_valid(&self, capability_id: &str) -> bool {
-        Self::is_valid_id(&self.valid_axes, &self.valid_full_ids, capability_id)
-    }
-
-    pub fn validate(&self, capability_id: &str) -> Result<(), RegistryError> {
-        if self.is_valid(capability_id) {
-            Ok(())
-        } else {
-            Err(RegistryError::UnknownCapability(capability_id.to_string()))
+        if self.valid_full_ids.contains(capability_id) {
+            return true;
         }
+        // Check axis format: "axis:scope"
+        if let Some((axis, _scope)) = capability_id.split_once(':') {
+            return self.valid_axes.contains(axis);
+        }
+        // If not split, check if it's an axis grant itself (unscoped axis)
+        self.valid_axes.contains(capability_id)
     }
 
-    pub fn can_perform(&self, requested: &str, granted: &[String]) -> Result<(), RegistryError> {
-        self.validate(requested)?;
+    /// Resolves if a requested capability is granted by a list of held capabilities.
+    /// Returns Ok(true) if allowed, Ok(false) if denied but valid, Err(UnknownCapability) if invalid.
+    pub fn can_perform(&self, requested: &str, granted: &[String]) -> Result<bool, RegistryError> {
+        // 1. Sanity check: requested must be valid [HSK-4001]
+        if !self.is_valid(requested) {
+            return Err(RegistryError::UnknownCapability(requested.to_string()));
+        }
 
+        // 2. Check against granted list
         for grant in granted {
-            if !self.is_valid(grant) {
-                return Err(RegistryError::UnknownCapability(grant.clone()));
-            }
+            // Exact match covers full IDs and exact scoped matches
             if grant == requested {
-                return Ok(());
+                return Ok(true);
             }
 
+            // Axis inheritance: If grant is "fs.read", it covers "fs.read:*"
+            // If requested is "fs.read:logs", and grant is "fs.read", that's a match.
+            // Note: grant must be the parent axis (no colon)
             if let Some((req_axis, _req_scope)) = requested.split_once(':') {
-                // Axis inheritance: fs.read grants fs.read:logs
                 if grant == req_axis {
-                    return Ok(());
+                    return Ok(true);
                 }
             }
         }
 
-        Err(RegistryError::MissingCapability {
-            profile_id: String::new(),
-            capability: requested.to_string(),
-        })
+        Ok(false)
     }
 
-    pub fn profile(&self, profile_id: &str) -> Result<&CapabilityProfile, RegistryError> {
+    /// Resolves if a profile allows a requested capability.
+    pub fn profile_can(&self, profile_id: &str, requested: &str) -> Result<bool, RegistryError> {
+        let profile = self
+            .profiles
+            .get(profile_id)
+            .ok_or_else(|| RegistryError::UnknownProfile(profile_id.to_string()))?;
+
+        self.can_perform(requested, &profile.allowed)
+    }
+
+    /// Returns the CapabilityProfile associated with a specific Job Kind.
+    pub fn profile_for_job(&self, job_kind: &str) -> Result<&CapabilityProfile, RegistryError> {
+        let profile_id = self.job_profile_map.get(job_kind).ok_or_else(|| {
+            RegistryError::UnknownProfile(format!("No profile mapped for job kind: {}", job_kind))
+        })?;
+
         self.profiles
             .get(profile_id)
             .ok_or_else(|| RegistryError::UnknownProfile(profile_id.to_string()))
     }
 
-    pub fn profile_can(&self, profile_id: &str, requested: &str) -> Result<(), RegistryError> {
-        let profile = self.profile(profile_id)?;
-        let result = self.can_perform(requested, &profile.capabilities);
-
-        match result {
-            Err(RegistryError::MissingCapability { .. }) => Err(RegistryError::MissingCapability {
-                profile_id: profile_id.to_string(),
-                capability: requested.to_string(),
-            }),
-            other => other,
-        }
-    }
-
+    /// Returns the specific capability required to run a given job kind.
     pub fn required_capability_for_job(&self, job_kind: &str) -> Result<String, RegistryError> {
-        self.job_requirements
-            .get(job_kind)
-            .cloned()
-            .ok_or_else(|| RegistryError::UnknownJobKind(job_kind.to_string()))
+        self.job_requirements.get(job_kind).cloned().ok_or_else(|| {
+            RegistryError::UnknownProfile(format!(
+                "No capability requirement defined for job kind: {}",
+                job_kind
+            ))
+        })
     }
 
-    pub fn profile_for_job_kind(&self, job_kind: &str) -> Result<String, RegistryError> {
-        self.job_profiles
-            .get(job_kind)
-            .cloned()
-            .ok_or_else(|| RegistryError::UnknownJobKind(job_kind.to_string()))
+    // Read-only views for inspection
+    pub fn axes(&self) -> &HashSet<String> {
+        &self.valid_axes
     }
 
-    pub fn new_default() -> Self {
-        let valid_axes = HashSet::from_iter(
-            [
-                "fs.read",
-                "fs.write",
-                "proc.exec",
-                "net.http",
-                "device",
-                "secrets.use",
-            ]
-            .iter()
-            .map(|s| s.to_string()),
-        );
-
-        let valid_full_ids = HashSet::from_iter(
-            ["doc.read", "doc.summarize", "term.exec"]
-                .iter()
-                .map(|s| s.to_string()),
-        );
-
-        let profiles = vec![
-            CapabilityProfile {
-                id: "default".to_string(),
-                capabilities: vec!["doc.read".into(), "doc.summarize".into()],
-            },
-            CapabilityProfile {
-                id: "terminal".to_string(),
-                capabilities: vec!["term.exec".into()],
-            },
-        ];
-
-        let job_requirements = HashMap::from([
-            ("doc_edit".to_string(), "doc.summarize".to_string()),
-            ("sheet_transform".to_string(), "doc.summarize".to_string()),
-            ("canvas_cluster".to_string(), "doc.summarize".to_string()),
-            ("asr_transcribe".to_string(), "doc.summarize".to_string()),
-            ("workflow_run".to_string(), "doc.summarize".to_string()),
-            ("doc_summarize".to_string(), "doc.summarize".to_string()),
-            ("doc_test".to_string(), "doc.summarize".to_string()),
-            ("term_exec".to_string(), "term.exec".to_string()),
-            ("terminal_exec".to_string(), "term.exec".to_string()),
-        ]);
-
-        let job_profiles = HashMap::from([
-            ("doc_edit".to_string(), "default".to_string()),
-            ("sheet_transform".to_string(), "default".to_string()),
-            ("canvas_cluster".to_string(), "default".to_string()),
-            ("asr_transcribe".to_string(), "default".to_string()),
-            ("workflow_run".to_string(), "default".to_string()),
-            ("doc_summarize".to_string(), "default".to_string()),
-            ("doc_test".to_string(), "default".to_string()),
-            ("term_exec".to_string(), "terminal".to_string()),
-            ("terminal_exec".to_string(), "terminal".to_string()),
-        ]);
-
-        match Self::new(
-            valid_axes,
-            valid_full_ids,
-            profiles,
-            job_requirements,
-            job_profiles,
-        ) {
-            Ok(registry) => registry,
-            Err(err) => {
-                tracing::error!(
-                    target: "handshake_core::capabilities",
-                    error = %err,
-                    "default capability registry failed to initialize; using empty registry"
-                );
-                Self {
-                    valid_axes: HashSet::new(),
-                    valid_full_ids: HashSet::new(),
-                    profiles: HashMap::new(),
-                    job_requirements: HashMap::new(),
-                    job_profiles: HashMap::new(),
-                }
-            }
-        }
+    pub fn ids(&self) -> &HashSet<String> {
+        &self.valid_full_ids
     }
 }
 
-impl Default for CapabilityRegistry {
-    fn default() -> Self {
-        CapabilityRegistry::new_default()
-    }
-}
+// Global static registry (Thread-safe singleton if needed, though mostly used via AppState)
+pub static GLOBAL_REGISTRY: Lazy<CapabilityRegistry> = Lazy::new(CapabilityRegistry::new);
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn validates_full_and_axis_ids() {
-        let registry = CapabilityRegistry::default();
-        assert!(registry.is_valid("doc.summarize"));
+    fn test_registry_validation() {
+        let registry = CapabilityRegistry::new();
+
         assert!(registry.is_valid("fs.read"));
-        assert!(registry.is_valid("fs.read:logs"));
-        assert!(!registry.is_valid("unknown.cap"));
+        assert!(registry.is_valid("fs.read:logs")); // Valid axis + arbitrary scope
+        assert!(registry.is_valid("doc.summarize")); // Valid full ID
+
+        assert!(!registry.is_valid("magic.wand")); // Invalid axis
+        assert!(!registry.is_valid("unknown_id")); // Invalid ID
     }
 
     #[test]
-    fn axis_inheritance_allows_scoped_requests() {
-        let registry = CapabilityRegistry::default();
+    fn test_hsk_4001_unknown_capability() {
+        let registry = CapabilityRegistry::new();
         let granted = vec!["fs.read".to_string()];
-        assert!(registry.can_perform("fs.read:logs", &granted).is_ok());
+
+        let result = registry.can_perform("magic.wand", &granted);
+        match result {
+            Err(RegistryError::UnknownCapability(c)) => assert_eq!(c, "magic.wand"),
+            _ => panic!("Expected HSK-4001 UnknownCapability error"),
+        }
     }
 
     #[test]
-    fn rejects_unknown_capabilities() {
-        let registry = CapabilityRegistry::default();
-        let err = registry
-            .can_perform("unknown.cap", &[])
-            .expect_err("expected unknown capability");
-        assert!(matches!(err, RegistryError::UnknownCapability(id) if id == "unknown.cap"));
-    }
+    fn test_profile_mapping_covers_job_kinds() {
+        let registry = CapabilityRegistry::new();
+        let kinds = [
+            "doc_edit",
+            "sheet_transform",
+            "canvas_cluster",
+            "asr_transcribe",
+            "workflow_run",
+            "term_exec",
+            "terminal_exec",
+            "doc_summarize",
+            "doc_test",
+        ];
 
-    #[test]
-    fn profile_can_maps_missing_capability() {
-        let registry = CapabilityRegistry::default();
-        let err = registry
-            .profile_can("default", "term.exec")
-            .expect_err("expected missing capability");
+        for kind in kinds {
+            let profile = registry
+                .profile_for_job(kind)
+                .unwrap_or_else(|_| panic!("expected profile for {}", kind));
+            // ensure profile has at least one capability
+            assert!(
+                !profile.allowed.is_empty(),
+                "profile {} for kind {} must allow something",
+                profile.id,
+                kind
+            );
+        }
+
         assert!(matches!(
-            err,
-            RegistryError::MissingCapability { profile_id, capability }
-            if profile_id == "default" && capability == "term.exec"
+            registry.profile_for_job("unknown_kind"),
+            Err(RegistryError::UnknownProfile(_))
+        ));
+    }
+
+    #[test]
+    fn test_axis_inheritance() {
+        let registry = CapabilityRegistry::new();
+        let granted = vec!["fs.read".to_string()];
+
+        // Grant "fs.read" should allow "fs.read:logs"
+        assert!(registry.can_perform("fs.read:logs", &granted).unwrap());
+
+        // Grant "fs.read" should allow "fs.read"
+        assert!(registry.can_perform("fs.read", &granted).unwrap());
+
+        // Grant "fs.read" should NOT allow "fs.write"
+        assert!(!registry.can_perform("fs.write", &granted).unwrap());
+    }
+
+    #[test]
+    fn test_profile_resolution() {
+        let registry = CapabilityRegistry::new();
+
+        // Analyst has fs.read
+        assert!(registry.profile_can("Analyst", "fs.read").unwrap());
+        assert!(registry.profile_can("Analyst", "fs.read:report").unwrap());
+
+        // Analyst does NOT have fs.write
+        assert!(!registry.profile_can("Analyst", "fs.write").unwrap());
+
+        // Unknown profile error
+        assert!(matches!(
+            registry.profile_can("SuperUser", "fs.read"),
+            Err(RegistryError::UnknownProfile(_))
         ));
     }
 }

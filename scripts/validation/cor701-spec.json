@@ -1,0 +1,35 @@
+{
+  "requiredFields": [
+    "target_file",
+    "start",
+    "end",
+    "pre_sha1",
+    "post_sha1",
+    "line_delta",
+    "gates_passed"
+  ],
+  "requiredGates": [
+    "anchors_present",
+    "window_matches_plan",
+    "rails_untouched_outside_window",
+    "filename_canonical_and_openable",
+    "pre_sha1_captured",
+    "post_sha1_captured",
+    "line_delta_equals_expected",
+    "all_links_resolvable",
+    "manifest_written_and_path_returned",
+    "current_file_matches_preimage"
+  ],
+  "gateErrorCodes": {
+    "anchors_present": "C701-G01",
+    "window_matches_plan": "C701-G02",
+    "rails_untouched_outside_window": "C701-G04",
+    "filename_canonical_and_openable": "C701-G06",
+    "pre_sha1_captured": "C701-G05",
+    "post_sha1_captured": "C701-G05",
+    "line_delta_equals_expected": "C701-G05",
+    "all_links_resolvable": "C701-G05",
+    "manifest_written_and_path_returned": "C701-G05",
+    "current_file_matches_preimage": "C701-G08"
+  }
+}

@@ -25,6 +25,11 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
   - USER_SIGNATURE present and unchanged.
   Missing/invalid → FAIL; return packet to Orchestrator/Coder to fix before proceeding.
 
+## Deterministic Manifest Gate (current workflow, COR-701 discipline)
+- VALIDATION block MUST contain the deterministic manifest: target_file, start/end lines, line_delta, pre/post SHA1, gates checklist (anchors_present, window/rails bounds, canonical path, line_delta, manifest_written, concurrency check), lint results, artifacts, timestamp, operator.
+- Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
+- Require evidence that `just post-work WP-{ID}` ran and passed (this gate enforces the manifest + SHA1/gate checks). If absent or failing, verdict = FAIL until fixed.
+
 ## Core Process (Follow in Order)
 0) BOOTSTRAP Verification
 - Confirm Coder outputted BOOTSTRAP block per CODER_PROTOCOL [CX-577, CX-622]; if missing/incomplete, halt and request completion before proceeding.

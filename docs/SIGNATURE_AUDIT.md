@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja281220250525 | Orchestrator | 2025-12-28 05:25 | Spec Enrichment v02.96 (Reconcile §7.6.3 SqlitePool) | v02.96 | Reconciled legacy signatures with Trait Purity invariant |
+| ilja281220250519 | Orchestrator | 2025-12-28 05:19 | Task packet creation: WP-1-Flight-Recorder-v2 | v02.95 | Infrastructure for durable audit logging (§11.5) |
 | ilja271220250057 | Orchestrator | 2025-12-27 00:57 | Spec Enrichment v02.93 (Startup Recovery) | v02.93 | Authorizes normative HSK-WF-003 |
 | ilja261220252337 | Orchestrator | 2025-12-26 23:37 | (INVALID - REUSED BY ERROR) | v02.93 | Signature rejected; used for multiple artifacts in one turn |
 | ilja261220252215 | Orchestrator | 2025-12-26 22:15 | Spec Enrichment v02.92 (AI Job Model Hardening) | v02.92 | Enriched §2.6.6.2.8 with Strict Enum Mapping and Metrics Integrity |
@@ -42,6 +44,8 @@
 | ilja261220250149 | Orchestrator | 2025-12-26 01:49 | Spec Enrichment v02.88 (AI Job Model Normative Traits) | v02.88 | Enriched §2.6.6.2.8 with normative AiJob and JobMetrics structs |
 | ilja261220250312 | Orchestrator | 2025-12-26 03:12 | Task packet activation: WP-1-Workflow-Engine-v2 | v02.90 | Mandates node-level persistence and recovery state machine |
 | ilja261220250259 | Orchestrator | 2025-12-26 02:59 | Spec Enrichment v02.90 (Storage Purity & Workflow Persistence) | v02.90 | Enriched §2.3.12.3 (Trait Purity), §2.3.11.2 (Janitor Decoupling), §2.6.1 (Workflow Persistence) |
+| ilja281220250353 | Orchestrator | 2025-12-28 03:53 | Spec Enrichment v02.94 (Storage Audit) & WP-1-Storage-Foundation-v2 | v02.94 | Enriched §2.3.12.5 with Mandatory Audit requirement |
+| ilja281220250435 | Orchestrator | 2025-12-28 04:35 | Spec Enrichment v02.95 (Tokenizer Trait) & WP-1-Tokenization-Service-v2 | v02.95 | Enriched §4.6.1 with Tokenizer Trait definition |
 | ilja261220250201 | Orchestrator | 2025-12-26 02:01 | Spec Enrichment v02.89 (ACE Security Guard Requirements) | v02.89 | Enriched §2.6.6.7.11 with normative requirements for 8 missing guards |
 
 ---

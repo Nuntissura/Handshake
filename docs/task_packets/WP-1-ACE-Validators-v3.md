@@ -82,7 +82,7 @@ The security system was previously "hollow"—it checked if security data existe
 
 ## Authority
 - **SPEC_ANCHOR**: §2.6.6.7.11 (ACE Security Guards)
-- **SPEC_CURRENT**: docs/SPEC_CURRENT.md (Master Spec v02.91)
+- **SPEC_CURRENT**: docs/SPEC_CURRENT.md (Master Spec v02.93)
 - **Codex**: Handshake Codex v1.4.md
 - **Task Board**: docs/TASK_BOARD.md
 
@@ -169,3 +169,44 @@ Verdict: PASS
 Code implementation verified via manual inspection of character offset and context window logic. High-fidelity evidence mapping is correctly synchronized across the stack.
 
 **STATUS:** HARD-VALIDATED (2025-12-27)
+
+## VALIDATION REPORT — 2025-12-27 (Revalidation)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-ACE-Validators-v3.md (STATUS: Done)
+- Spec: Handshake_Master_Spec_v02.93 (§2.6.6.7.11)
+- Codex: Handshake Codex v1.4.md
+
+Files Checked:
+- src/backend/handshake_core/src/ace/validators/mod.rs (content awareness + default pipeline of 12 guards)
+- src/backend/handshake_core/src/ace/validators/injection.rs (PromptInjectionGuard NFC normalization + offset/context capture)
+- src/backend/handshake_core/src/ace/validators/leakage.rs (CloudLeakageGuard recursive classification/exportable enforcement)
+- src/backend/handshake_core/src/workflows.rs:73-155 (handle_security_violation poison trap + FR-EVT-SEC-VIOLATION)
+
+Findings:
+- Spec alignment: Content Awareness [HSK-ACE-VAL-100], Atomic Poisoning [HSK-ACE-VAL-101], and NFC Normalization [HSK-ACE-VAL-102] implemented via content resolver + normalized scans and poisoning trap.
+- Pipeline includes all §2.6.6.7.11 guards; PromptInjectionGuard enforces substring patterns and triggers poisoning; CloudLeakageGuard blocks non-exportable/high-sensitivity refs recursively.
+- Forbidden Pattern Audit [CX-573E]: PASS for in-scope production paths (only unwraps in tests).
+- Zero Placeholder Policy [CX-573D]: PASS; no stubs or disabled paths in production code.
+
+Tests:
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml ace::validators::injection` (PASS)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml ace::validators::leakage` (PASS)
+
+REASON FOR PASS: Implementation conforms to Master Spec v02.93 §2.6.6.7.11 with content-aware scanning, NFC normalization, and atomic poisoning; targeted validator tests pass.
+
+## VALIDATION REPORT — 2025-12-27 (Revalidation)
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-ACE-Validators-v3.md (STATUS: Done/Validated)
+- Spec: Packet references Handshake_Master_Spec_v02.91 (A2.6.6.7.11); docs/SPEC_CURRENT.md now points to Handshake_Master_Spec_v02.93.
+- Codex: Handshake Codex v1.4.md
+
+Findings:
+- Spec regression gate [CX-573B]/[CX-406]: Packet/spec pointer is stale (v02.91). Current SPEC_CURRENT is v02.93, so alignment with the Main Body cannot be confirmed. This requires re-enrichment and evidence remapping before claiming Done.
+- Forbidden Pattern Audit [CX-573E]: Not run (blocked by spec misalignment).
+- Tests/commands: Not run in this pass (blocked).
+
+REASON FOR FAIL: Re-anchor the packet to Master Spec v02.93 (A2.6.6.7.11), update DONE_MEANS/EVIDENCE_MAPPING, rerun the TEST_PLAN and validator scans, then resubmit for validation. Until then, status must return to Ready for Dev.

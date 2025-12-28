@@ -93,3 +93,27 @@ git revert <commit-sha>
 
 **Last Updated:** 2025-12-26
 **User Signature Locked:** ilja261220252337
+
+## VALIDATION REPORT — 2025-12-27 (Revalidation)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Workflow-Engine-v3.md (STATUS: VALIDATED)
+- Spec: Handshake_Master_Spec_v02.93 (A2.6.1 [HSK-WF-002], [HSK-WF-003]) via docs/SPEC_CURRENT.md
+- Codex: Handshake Codex v1.4.md
+
+Files Checked:
+- src/backend/handshake_core/src/main.rs:54-80 (boot-time startup recovery spawn before server start)
+- src/backend/handshake_core/src/workflows.rs:200-273 (mark_stalled_workflows transitions and FR-EVT-WorkflowRecovery emission)
+- src/backend/handshake_core/src/workflows.rs:865-915 (test_mark_stalled_workflows)
+
+Findings:
+- Startup recovery runs non-blocking before API start and marks stale workflows/jobs as Stalled with workflow recovery events.
+- Forbidden Pattern Audit [CX-573E]: PASS for in-scope files (no unwrap/expect/todo!/panic!/split_whitespace in production paths).
+- Zero Placeholder Policy [CX-573D]: PASS; recovery logic is fully implemented (no stubs).
+- Spec alignment [CX-598]: Behaviour matches A2.6.1 and emits traceable recovery telemetry.
+
+Tests:
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml workflows::tests::test_mark_stalled_workflows` (PASS)
+
+REASON FOR PASS: Evidence confirms the startup recovery loop and supporting telemetry satisfy DONE_MEANS, and the targeted test from the TEST_PLAN passes.

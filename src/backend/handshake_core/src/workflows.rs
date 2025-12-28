@@ -5,7 +5,7 @@ use crate::{
         FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
         FrEvt005SecurityViolation, FrEvt006WorkflowRecovery,
     },
-    llm::ChatMessage,
+    llm::{CompletionRequest, LlmError},
     models::{AiJob, JobKind, WorkflowRun},
     storage::{JobState, JobStatusUpdate, NewNodeExecution, StorageError},
     terminal::{TerminalError, TerminalService},
@@ -21,7 +21,7 @@ pub enum WorkflowError {
     #[error("Storage error: {0}")]
     Storage(#[from] StorageError),
     #[error("LLM error: {0}")]
-    Llm(String),
+    Llm(#[from] LlmError),
     #[error("Terminal error: {0}")]
     Terminal(String),
     #[error("Capability error: {0}")]
@@ -70,6 +70,7 @@ async fn record_event_safely(state: &AppState, event: FlightRecorderEvent) {
 ///
 /// Per §2.6.6.7.11.0, security violations trigger immediate job poisoning
 /// to prevent any further processing of potentially compromised content.
+#[allow(clippy::too_many_arguments)] // Explicit args keep FR payload + state transitions clear
 pub async fn handle_security_violation(
     state: &AppState,
     job: &AiJob,
@@ -431,7 +432,9 @@ async fn log_capability_check(
             trace_id,
             payload,
         )
-        .with_job_id(job.job_id.to_string()),
+        .with_job_id(job.job_id.to_string())
+        .with_capability(capability_id.to_string())
+        .with_actor_id(job.capability_profile_id.clone()),
     )
     .await;
 }
@@ -450,7 +453,7 @@ async fn enforce_capabilities(
         .profile_can(&job.capability_profile_id, &required);
 
     match result {
-        Ok(_) => {
+        Ok(true) => {
             log_capability_check(
                 state,
                 job,
@@ -461,6 +464,20 @@ async fn enforce_capabilities(
             )
             .await;
             Ok(())
+        }
+        Ok(false) => {
+            log_capability_check(
+                state,
+                job,
+                &required,
+                &job.capability_profile_id,
+                "denied",
+                trace_id,
+            )
+            .await;
+            Err(WorkflowError::Capability(RegistryError::AccessDenied(
+                required,
+            )))
         }
         Err(err) => {
             log_capability_check(
@@ -510,22 +527,15 @@ async fn run_job(
                 .collect::<Vec<_>>()
                 .join("\n");
 
-            let messages = vec![
-                ChatMessage {
-                    role: "system".into(),
-                    content: "You are a helpful assistant that summarizes documents.".into(),
-                },
-                ChatMessage {
-                    role: "user".into(),
-                    content: format!("Please summarize the following document:\n\n{}", full_text),
-                },
-            ];
+            let prompt = format!("Please summarize the following document:\n\n{}", full_text);
 
-            let response = state
-                .llm_client
-                .chat(messages)
-                .await
-                .map_err(WorkflowError::Llm)?;
+            let req = CompletionRequest::new(
+                job.trace_id,
+                prompt,
+                state.llm_client.profile().model_id.clone(),
+            );
+
+            let response = state.llm_client.completion(req).await?;
 
             record_event_safely(
                 state,
@@ -537,7 +547,9 @@ async fn run_job(
                         "job_kind": job.job_kind.as_str(),
                         "doc_id": doc_id,
                         "input_bytes": full_text.len(),
-                        "output_bytes": response.len()
+                        "output_bytes": response.text.len(),
+                        "prompt_tokens": response.usage.prompt_tokens,
+                        "completion_tokens": response.usage.completion_tokens,
                     }),
                 )
                 .with_job_id(job.job_id.to_string()),
@@ -548,13 +560,13 @@ async fn run_job(
                 .storage
                 .set_job_outputs(
                     &job.job_id.to_string(),
-                    Some(json!({ "summary": response })),
+                    Some(json!({ "summary": response.text })),
                 )
                 .await?;
-            return Ok(Some(json!({ "summary": response })));
+            return Ok(Some(json!({ "summary": response.text })));
         }
     } else if matches!(job.job_kind, JobKind::TerminalExec) {
-        let payload = execute_terminal_job(state, &job, trace_id).await?;
+        let payload = execute_terminal_job(state, job, trace_id).await?;
         state
             .storage
             .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
@@ -640,8 +652,10 @@ mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
-    use crate::llm::TestLLMClient;
-    use crate::storage::{sqlite::SqliteDatabase, AccessMode, JobKind, JobMetrics, SafetyMode};
+    use crate::llm::ollama::InMemoryLlmClient;
+    use crate::storage::{
+        sqlite::SqliteDatabase, AccessMode, Database, JobKind, JobMetrics, SafetyMode,
+    };
     use serde_json::json;
     use std::sync::Arc;
 
@@ -654,10 +668,8 @@ mod tests {
         Ok(AppState {
             storage: sqlite.into_arc(),
             flight_recorder,
-            llm_client: Arc::new(TestLLMClient {
-                response: "ok".into(),
-            }),
-            capability_registry: Arc::new(CapabilityRegistry::new_default()),
+            llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
+            capability_registry: Arc::new(CapabilityRegistry::new()),
         })
     }
 
@@ -714,7 +726,7 @@ mod tests {
                 job_kind: JobKind::TerminalExec,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
-                capability_profile_id: "default".to_string(),
+                capability_profile_id: "Analyst".to_string(),
                 access_mode: AccessMode::AnalysisOnly,
                 safety_mode: SafetyMode::Normal,
                 entity_refs: Vec::new(),
@@ -752,7 +764,7 @@ mod tests {
                 job_kind: JobKind::TerminalExec,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
-                capability_profile_id: "terminal".to_string(),
+                capability_profile_id: "Coder".to_string(),
                 access_mode: AccessMode::AnalysisOnly,
                 safety_mode: SafetyMode::Normal,
                 entity_refs: Vec::new(),
@@ -794,7 +806,7 @@ mod tests {
                 job_kind: JobKind::TerminalExec,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
-                capability_profile_id: "terminal".to_string(),
+                capability_profile_id: "Coder".to_string(),
                 access_mode: AccessMode::AnalysisOnly,
                 safety_mode: SafetyMode::Normal,
                 entity_refs: Vec::new(),
@@ -828,7 +840,7 @@ mod tests {
                 job_kind: JobKind::DocSummarize,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
-                capability_profile_id: "default".to_string(),
+                capability_profile_id: "Analyst".to_string(),
                 access_mode: AccessMode::AnalysisOnly,
                 safety_mode: SafetyMode::Normal,
                 entity_refs: Vec::new(),
@@ -873,7 +885,7 @@ mod tests {
                 job_kind: JobKind::DocSummarize,
                 protocol_id: "p1".into(),
                 profile_id: "default".into(),
-                capability_profile_id: "default".into(),
+                capability_profile_id: "Analyst".into(),
                 access_mode: AccessMode::AnalysisOnly,
                 safety_mode: SafetyMode::Normal,
                 entity_refs: Vec::new(),

@@ -1,11 +1,12 @@
 #[allow(unused_imports)]
 use super::{
-    postgres::PostgresDatabase, sqlite::SqliteDatabase, AccessMode, BlockUpdate,
+    postgres::PostgresDatabase, sqlite::SqliteDatabase, AccessMode, BlockUpdate, Database,
     DefaultStorageGuard, EntityRef, GuardError, JobKind, JobMetrics, JobState, JobStatusUpdate,
     NewAiJob, NewBlock, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewNodeExecution,
     NewWorkspace, OperationType, PlannedOperation, SafetyMode, StorageError, StorageGuard,
     StorageResult, WriteContext,
 };
+#[cfg(test)]
 use chrono::{Duration, Utc};
 use serde_json::json;
 use std::sync::Arc;

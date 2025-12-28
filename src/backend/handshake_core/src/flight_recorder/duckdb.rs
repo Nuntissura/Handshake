@@ -165,11 +165,14 @@ impl DuckDbFlightRecorder {
     fn purge_retention(&self) -> Result<u64, RecorderError> {
         let conn = self.conn.lock().map_err(|_| RecorderError::LockError)?;
 
-        let mut stmt = conn
-            .prepare("DELETE FROM events WHERE timestamp < (CURRENT_TIMESTAMP - INTERVAL ? DAY)")
-            .map_err(|e| RecorderError::SinkError(e.to_string()))?;
-        let affected = stmt
-            .execute([self.retention_days as i32])
+        // DuckDB doesn't support parameterized INTERVAL, so we construct the query directly.
+        // retention_days is a u32 from trusted config, not user input.
+        let query = format!(
+            "DELETE FROM events WHERE timestamp < (CURRENT_TIMESTAMP - INTERVAL '{}' DAY)",
+            self.retention_days
+        );
+        let affected = conn
+            .execute(&query, [])
             .map_err(|e| RecorderError::SinkError(e.to_string()))?;
         Ok(affected as u64)
     }
@@ -203,7 +206,8 @@ impl DuckDbFlightRecorder {
             params.push(Box::new(to.to_rfc3339()));
         }
 
-        let mut query = String::from("SELECT event_id, trace_id, strftime(CAST(timestamp AS TIMESTAMP), '%Y-%m-%dT%H:%M:%S.%fZ'), actor, actor_id, event_type, job_id, workflow_id, model_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events");
+        // NOTE: Avoid provider-specific datetime formatting; use epoch seconds for portability.
+        let mut query = String::from("SELECT event_id, trace_id, EXTRACT(EPOCH FROM timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events");
         if !conditions.is_empty() {
             query.push_str(" WHERE ");
             query.push_str(&conditions.join(" AND "));
@@ -220,7 +224,7 @@ impl DuckDbFlightRecorder {
         struct RawEvent {
             event_id: String,
             trace_id: String,
-            timestamp: String,
+            timestamp_epoch: f64,
             actor: String,
             actor_id: String,
             event_type: String,
@@ -240,7 +244,7 @@ impl DuckDbFlightRecorder {
                 Ok(RawEvent {
                     event_id: row.get(0)?,
                     trace_id: row.get(1)?,
-                    timestamp: row.get(2)?,
+                    timestamp_epoch: row.get(2)?,
                     actor: row.get(3)?,
                     actor_id: row.get(4)?,
                     event_type: row.get(5)?,
@@ -265,9 +269,10 @@ impl DuckDbFlightRecorder {
                 .map_err(|e| RecorderError::InvalidEvent(format!("invalid event_id: {}", e)))?;
             let trace_id = uuid::Uuid::parse_str(&raw.trace_id)
                 .map_err(|e| RecorderError::InvalidEvent(format!("invalid trace_id: {}", e)))?;
-            let timestamp = chrono::DateTime::parse_from_rfc3339(&raw.timestamp)
-                .map_err(|e| RecorderError::InvalidEvent(format!("invalid timestamp: {}", e)))?
-                .with_timezone(&chrono::Utc);
+            let secs = raw.timestamp_epoch.trunc() as i64;
+            let nanos = ((raw.timestamp_epoch.fract()) * 1_000_000_000f64) as u32;
+            let timestamp = chrono::DateTime::from_timestamp(secs, nanos)
+                .ok_or_else(|| RecorderError::InvalidEvent("invalid timestamp".into()))?;
 
             let actor = match raw.actor.as_str() {
                 "human" => super::FlightRecorderActor::Human,
@@ -315,8 +320,11 @@ impl DuckDbFlightRecorder {
 
 #[async_trait]
 impl FlightRecorder for DuckDbFlightRecorder {
-    async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
+    async fn record_event(&self, mut event: FlightRecorderEvent) -> Result<(), RecorderError> {
         event.validate()?;
+        // HARDENED_INVARIANT: Apply NFC normalization to all string content
+        // before persistence to prevent Unicode bypass attacks [§11.5].
+        event.normalize_payload();
         self.insert_event(event)
     }
 
@@ -360,4 +368,298 @@ pub fn system_event(message: &str, component: &str) -> FlightRecorderEvent {
             "level": "info"
         }),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::flight_recorder::{EventFilter, FlightRecorderActor, FlightRecorderEventType};
+    use serde_json::json;
+    use uuid::Uuid;
+
+    /// Helper to create a test event with given trace_id.
+    fn test_event(trace_id: Uuid, job_id: Option<&str>) -> FlightRecorderEvent {
+        let mut event = FlightRecorderEvent::new(
+            FlightRecorderEventType::System,
+            FlightRecorderActor::System,
+            trace_id,
+            json!({
+                "component": "test",
+                "message": "test event",
+                "level": "info"
+            }),
+        );
+        if let Some(jid) = job_id {
+            event = event.with_job_id(jid);
+        }
+        event
+    }
+
+    #[tokio::test]
+    async fn test_record_and_list_events() {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7).expect("failed to create recorder");
+        let trace_id = Uuid::new_v4();
+
+        // Record an event
+        let event = test_event(trace_id, Some("job-123"));
+        recorder
+            .record_event(event)
+            .await
+            .expect("failed to record event");
+
+        // List all events (no filter)
+        let events = recorder
+            .list_events(EventFilter::default())
+            .await
+            .expect("failed to list events");
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].trace_id, trace_id);
+        assert_eq!(events[0].job_id, Some("job-123".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_query_by_trace_id() {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7).expect("failed to create recorder");
+
+        let trace_id_a = Uuid::new_v4();
+        let trace_id_b = Uuid::new_v4();
+
+        // Record two events with different trace IDs
+        recorder
+            .record_event(test_event(trace_id_a, Some("job-a")))
+            .await
+            .expect("failed to record event a");
+        recorder
+            .record_event(test_event(trace_id_b, Some("job-b")))
+            .await
+            .expect("failed to record event b");
+
+        // Query by trace_id_a
+        let filter = EventFilter {
+            trace_id: Some(trace_id_a),
+            ..Default::default()
+        };
+        let events = recorder
+            .list_events(filter)
+            .await
+            .expect("failed to list events");
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].trace_id, trace_id_a);
+        assert_eq!(events[0].job_id, Some("job-a".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_query_by_job_id() {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7).expect("failed to create recorder");
+
+        let trace_id = Uuid::new_v4();
+        recorder
+            .record_event(test_event(trace_id, Some("target-job")))
+            .await
+            .expect("failed to record event");
+        recorder
+            .record_event(test_event(Uuid::new_v4(), Some("other-job")))
+            .await
+            .expect("failed to record event");
+
+        let filter = EventFilter {
+            job_id: Some("target-job".to_string()),
+            ..Default::default()
+        };
+        let events = recorder
+            .list_events(filter)
+            .await
+            .expect("failed to list events");
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].job_id, Some("target-job".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_retention_purges_old_events() {
+        // Create recorder with 0-day retention (purge everything)
+        let recorder = DuckDbFlightRecorder::new_in_memory(0).expect("failed to create recorder");
+
+        // Record an event
+        recorder
+            .record_event(test_event(Uuid::new_v4(), None))
+            .await
+            .expect("failed to record event");
+
+        // Verify event exists
+        let before = recorder
+            .list_events(EventFilter::default())
+            .await
+            .expect("failed to list events");
+        assert_eq!(before.len(), 1);
+
+        // Enforce retention (0 days = purge all)
+        let purged = recorder
+            .enforce_retention()
+            .await
+            .expect("failed to enforce retention");
+        assert_eq!(purged, 1);
+
+        // Verify event is gone
+        let after = recorder
+            .list_events(EventFilter::default())
+            .await
+            .expect("failed to list events");
+        assert_eq!(after.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_nfc_normalization_applied() {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7).expect("failed to create recorder");
+        let trace_id = Uuid::new_v4();
+
+        // Create event with non-NFC string (NFD: é as e + combining acute accent)
+        // NFD form: "café" = "cafe\u{0301}" (e followed by combining acute accent)
+        // NFC form: "café" = "caf\u{00E9}" (single precomposed é character)
+        let nfd_string = "cafe\u{0301}"; // NFD form
+        let nfc_string = "caf\u{00E9}"; // NFC form (what we expect after normalization)
+
+        let event = FlightRecorderEvent::new(
+            FlightRecorderEventType::System,
+            FlightRecorderActor::System,
+            trace_id,
+            json!({
+                "message": nfd_string,
+                "nested": {
+                    "text": nfd_string
+                }
+            }),
+        );
+
+        recorder
+            .record_event(event)
+            .await
+            .expect("failed to record event");
+
+        let events = recorder
+            .list_events(EventFilter {
+                trace_id: Some(trace_id),
+                ..Default::default()
+            })
+            .await
+            .expect("failed to list events");
+
+        assert_eq!(events.len(), 1);
+
+        // Verify the payload was normalized to NFC
+        let payload = &events[0].payload;
+        assert_eq!(payload["message"].as_str().unwrap(), nfc_string);
+        assert_eq!(payload["nested"]["text"].as_str().unwrap(), nfc_string);
+    }
+
+    #[tokio::test]
+    async fn test_validation_rejects_nil_uuid() {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7).expect("failed to create recorder");
+
+        // Create event with nil event_id (invalid)
+        let mut event = test_event(Uuid::new_v4(), None);
+        event.event_id = Uuid::nil();
+
+        let result = recorder.record_event(event).await;
+        assert!(result.is_err());
+
+        if let Err(RecorderError::InvalidEvent(msg)) = result {
+            assert!(msg.contains("event_id"));
+        } else {
+            panic!("Expected InvalidEvent error");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_validation_rejects_nil_trace_id() {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7).expect("failed to create recorder");
+
+        // Create event with nil trace_id (invalid)
+        let mut event = test_event(Uuid::new_v4(), None);
+        event.trace_id = Uuid::nil();
+
+        let result = recorder.record_event(event).await;
+        assert!(result.is_err());
+
+        if let Err(RecorderError::InvalidEvent(msg)) = result {
+            assert!(msg.contains("trace_id"));
+        } else {
+            panic!("Expected InvalidEvent error");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_fr_evt_shapes_persisted() {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7).expect("failed to create recorder");
+        let trace_id = Uuid::new_v4();
+
+        // Test FR-EVT-001 System shape
+        let system_event = FlightRecorderEvent::new(
+            FlightRecorderEventType::System,
+            FlightRecorderActor::System,
+            trace_id,
+            json!({
+                "component": "workflow_engine",
+                "message": "Workflow started",
+                "level": "info",
+                "details": { "workflow_id": "wf-123" }
+            }),
+        )
+        .with_workflow_id("wf-123");
+
+        recorder
+            .record_event(system_event)
+            .await
+            .expect("failed to record system event");
+
+        // Test FR-EVT-002 LLM Inference shape
+        let llm_event = FlightRecorderEvent::new(
+            FlightRecorderEventType::LlmInference,
+            FlightRecorderActor::Agent,
+            trace_id,
+            json!({
+                "model_id": "llama3",
+                "input_tokens": 150,
+                "output_tokens": 50,
+                "latency_ms": 1200
+            }),
+        )
+        .with_model_id("llama3")
+        .with_job_id("job-456");
+
+        recorder
+            .record_event(llm_event)
+            .await
+            .expect("failed to record llm event");
+
+        // Query back by trace_id
+        let events = recorder
+            .list_events(EventFilter {
+                trace_id: Some(trace_id),
+                ..Default::default()
+            })
+            .await
+            .expect("failed to list events");
+
+        assert_eq!(events.len(), 2);
+
+        // Verify shapes are preserved
+        let system = events
+            .iter()
+            .find(|e| matches!(e.event_type, FlightRecorderEventType::System))
+            .unwrap();
+        assert_eq!(system.payload["component"], "workflow_engine");
+        assert_eq!(system.workflow_id, Some("wf-123".to_string()));
+
+        let llm = events
+            .iter()
+            .find(|e| matches!(e.event_type, FlightRecorderEventType::LlmInference))
+            .unwrap();
+        assert_eq!(llm.payload["model_id"], "llama3");
+        assert_eq!(llm.payload["input_tokens"], 150);
+        assert_eq!(llm.model_id, Some("llama3".to_string()));
+        assert_eq!(llm.job_id, Some("job-456".to_string()));
+    }
 }

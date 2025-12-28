@@ -105,12 +105,12 @@ impl AceRuntimeValidator for CacheKeyGuard {
         }
 
         // Verify rerank cache info if reranking was used
-        if trace.rerank.used {
-            if trace.rerank.inputs_hash.is_empty() || trace.rerank.outputs_hash.is_empty() {
-                return Err(AceError::CacheKeyMissing {
-                    stage: "rerank: inputs_hash or outputs_hash empty".to_string(),
-                });
-            }
+        if trace.rerank.used
+            && (trace.rerank.inputs_hash.is_empty() || trace.rerank.outputs_hash.is_empty())
+        {
+            return Err(AceError::CacheKeyMissing {
+                stage: "rerank: inputs_hash or outputs_hash empty".to_string(),
+            });
         }
 
         Ok(())

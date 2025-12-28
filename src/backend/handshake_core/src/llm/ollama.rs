@@ -226,6 +226,57 @@ impl LlmClient for OllamaAdapter {
     }
 }
 
+/// In-memory LLM client for unit testing without a real Ollama server.
+/// Uses the new LlmClient trait (completion-based API).
+#[cfg(any(test, feature = "test-utils"))]
+pub struct InMemoryLlmClient {
+    response: String,
+    usage: TokenUsage,
+    profile: ModelProfile,
+    latency_ms: u64,
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+impl InMemoryLlmClient {
+    /// Creates an in-memory client that returns the given response.
+    pub fn new(response: String) -> Self {
+        Self {
+            response,
+            usage: TokenUsage::default(),
+            profile: ModelProfile::new("in-memory-model".to_string(), 4096),
+            latency_ms: 0, // Zero latency for deterministic tests
+        }
+    }
+
+    /// Creates an in-memory client with specific usage metrics.
+    pub fn with_usage(mut self, usage: TokenUsage) -> Self {
+        self.usage = usage;
+        self
+    }
+
+    /// Sets the simulated latency for testing.
+    pub fn with_latency_ms(mut self, latency_ms: u64) -> Self {
+        self.latency_ms = latency_ms;
+        self
+    }
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+#[async_trait]
+impl LlmClient for InMemoryLlmClient {
+    async fn completion(&self, _req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        Ok(CompletionResponse {
+            text: self.response.clone(),
+            usage: self.usage.clone(),
+            latency_ms: self.latency_ms,
+        })
+    }
+
+    fn profile(&self) -> &ModelProfile {
+        &self.profile
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -237,7 +288,6 @@ mod tests {
     struct NoopRecorder;
 
     #[async_trait]
-
     impl FlightRecorder for NoopRecorder {
         async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
             Ok(())
@@ -249,7 +299,6 @@ mod tests {
 
         async fn list_events(
             &self,
-
             _filter: crate::flight_recorder::EventFilter,
         ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
             Ok(vec![])
@@ -301,56 +350,5 @@ mod tests {
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("\"model\":\"llama3.2\""));
         assert!(json.contains("\"num_predict\":100"));
-    }
-}
-
-/// In-memory LLM client for unit testing without a real Ollama server.
-/// Uses the new LlmClient trait (completion-based API).
-#[cfg(any(test, feature = "test-utils"))]
-pub struct InMemoryLlmClient {
-    response: String,
-    usage: TokenUsage,
-    profile: ModelProfile,
-    latency_ms: u64,
-}
-
-#[cfg(any(test, feature = "test-utils"))]
-impl InMemoryLlmClient {
-    /// Creates an in-memory client that returns the given response.
-    pub fn new(response: String) -> Self {
-        Self {
-            response,
-            usage: TokenUsage::default(),
-            profile: ModelProfile::new("in-memory-model".to_string(), 4096),
-            latency_ms: 0, // Zero latency for deterministic tests
-        }
-    }
-
-    /// Creates an in-memory client with specific usage metrics.
-    pub fn with_usage(mut self, usage: TokenUsage) -> Self {
-        self.usage = usage;
-        self
-    }
-
-    /// Sets the simulated latency for testing.
-    pub fn with_latency_ms(mut self, latency_ms: u64) -> Self {
-        self.latency_ms = latency_ms;
-        self
-    }
-}
-
-#[cfg(any(test, feature = "test-utils"))]
-#[async_trait]
-impl LlmClient for InMemoryLlmClient {
-    async fn completion(&self, _req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        Ok(CompletionResponse {
-            text: self.response.clone(),
-            usage: self.usage.clone(),
-            latency_ms: self.latency_ms,
-        })
-    }
-
-    fn profile(&self) -> &ModelProfile {
-        &self.profile
     }
 }

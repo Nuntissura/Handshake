@@ -43,10 +43,7 @@ impl TerminalService {
         command.stdout(Stdio::piped());
         command.stderr(Stdio::piped());
 
-        let effective_timeout = match timeout_ms {
-            Some(ms) => ms,
-            None => 30_000,
-        };
+        let effective_timeout = timeout_ms.unwrap_or(30_000);
         let duration = Duration::from_millis(effective_timeout);
         let output = match timeout(duration, command.spawn()?.wait_with_output()).await {
             Ok(result) => result?,
@@ -55,10 +52,7 @@ impl TerminalService {
             }
         };
 
-        let status_code = match output.status.code() {
-            Some(code) => code,
-            None => -1,
-        };
+        let status_code = output.status.code().unwrap_or(-1);
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();

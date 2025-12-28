@@ -106,3 +106,28 @@ Verdict: PASS
 UI successfully surfaces character-accurate evidence and provides mandatory trace-level navigation per Master Spec §11.5. Forensic data is correctly modeled and displayed.
 
 **STATUS:** VALIDATED
+
+## VALIDATION REPORT — 2025-12-27 (Revalidation)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Flight-Recorder-UI-v2.md (STATUS: Done)
+- Spec: Handshake_Master_Spec_v02.93 (A11.5, A10.5) via docs/SPEC_CURRENT.md
+- Codex: Handshake Codex v1.4.md
+
+Files Checked:
+- app/src/components/FlightRecorderView.tsx:60-191 (trace filter, security violation highlighting, context/offset rendering)
+- app/src/lib/api.ts:136-161 (FlightEvent and SecurityViolationPayload typing)
+- app/src/App.css:1-12 (violation row styling)
+
+Findings:
+- Trace ID filter toggles linkability and refreshes data; security violations render trigger/offset/context outside the JSON blob with red highlight.
+- Traceability fields (job_id, workflow_id, trace_id) are surfaced per DONE_MEANS.
+- Forbidden Pattern Audit [CX-573E]: PASS for in-scope files (no TODO/panic/unwrap/console.log).
+- Zero Placeholder Policy [CX-573D]: PASS; UI logic and typings are fully implemented without stubs.
+
+Tests:
+- `pnpm -C app run lint` (PASS)
+- `pnpm -C app run build` (PASS)
+
+REASON FOR PASS: UI meets A11.5/A10.5 requirements for evidence visibility and trace navigation; lint/build succeed.

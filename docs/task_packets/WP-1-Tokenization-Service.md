@@ -205,3 +205,18 @@ test result: ok. 9 passed; 0 failed
 
 **Last Updated:** 2025-12-25
 **User Signature Locked:** ilja251220251924
+
+## VALIDATION REPORT — 2025-12-27 (Revalidation)
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Tokenization-Service.md (STATUS: Validated)
+- Spec: Packet references Handshake_Master_Spec_v02.84 (??4.6); docs/SPEC_CURRENT.md now points to Handshake_Master_Spec_v02.93.
+- Codex: Handshake Codex v1.4.md
+
+Findings:
+- Spec regression gate [CX-573B]/[CX-406]: Packet/spec pointer is stale (v02.84). Current SPEC_CURRENT is v02.93, so tokenization requirements and evidence must be rechecked against the updated Main Body before claiming Done.
+- Forbidden Pattern Audit [CX-573E]: Not run (blocked by spec misalignment).
+- Tests/commands: Not run in this pass (blocked).
+
+REASON FOR FAIL: Re-anchor the Tokenization Service DONE_MEANS to Master Spec v02.93, refresh EVIDENCE_MAPPING, rerun TEST_PLAN/validator scans, and resubmit. Status must return to Ready for Dev until revalidated.

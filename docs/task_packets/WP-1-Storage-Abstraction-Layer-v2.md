@@ -86,6 +86,48 @@ git revert <commit-sha>
 **Last Updated:** 2025-12-26
 **User Signature Locked:** ilja261220250259
 
+## VALIDATION REPORT — 2025-12-27 (Revalidation, Spec v02.93)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Storage-Abstraction-Layer-v2.md (STATUS: Validated)
+- Spec: Handshake_Master_Spec_v02.93 (A2.3.12 Trait Purity)
+- Codex: Handshake Codex v1.4.md
+
+Files Checked:
+- src/backend/handshake_core/src/flight_recorder/duckdb.rs (portable epoch-based timestamp query; removed SQLite-only `strftime`)
+- src/backend/handshake_core/src/storage/sqlite.rs (test-only pool accessor; prod surfaces stay trait-pure)
+- src/backend/handshake_core/src/api/jobs.rs (tests import Database trait)
+- src/backend/handshake_core/src/workflows.rs (tests import Database trait)
+- src/backend/handshake_core/src/storage/tests.rs (tests import Database trait)
+
+Findings:
+- Spec alignment: DAL audit clean; storage abstraction remains backend-agnostic (no pool leakage in prod).
+- Portability: Flight Recorder query uses `EXTRACT(EPOCH FROM timestamp)`; validator DAL audit passes.
+- Forbidden Pattern Audit [CX-573E]: PASS (validator-scan).
+- Zero Placeholder Policy [CX-573D]: PASS; no stubs.
+
+Tests:
+- `just validator-dal-audit` (PASS)
+- `just validator-scan` (PASS)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` (PASS; warnings limited to unused imports/deprecated helper)
+
+REASON FOR PASS: Storage abstraction and flight recorder queries are portable under Spec v02.93; DAL audit and full test suite succeeded.
+
+## VALIDATION REPORT — 2025-12-27 (Revalidation)
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Storage-Abstraction-Layer-v2.md (STATUS: Validated)
+- Spec: Packet references Handshake_Master_Spec_v02.90; docs/SPEC_CURRENT.md now points to Handshake_Master_Spec_v02.93.
+- Codex: Handshake Codex v1.4.md
+
+Findings:
+- Spec regression gate [CX-573B]/[CX-406]: Packet/spec pointer is stale (v02.90). Current SPEC_CURRENT is v02.93, so storage abstraction requirements must be re-aligned and evidence remapped before treating this WP as Done.
+- Forbidden Pattern Audit [CX-573E]: Not run (blocked by spec misalignment).
+- Tests/commands: Not run in this pass (blocked).
+
+REASON FOR FAIL: Re-anchor storage abstraction DONE_MEANS to Master Spec v02.93 (A2.3.12), refresh EVIDENCE_MAPPING, rerun TEST_PLAN/validator scans, and resubmit. Status must return to Ready for Dev until revalidated.
 ## VALIDATION [CX-623]
 - **cargo check**: ??? PASS
 - **cargo test**: ??? PASS (97 tests passed)
@@ -132,3 +174,24 @@ The implementation successfully enforces the Storage Backend Portability Archite
 **User Signature Locked:** ilja261220250259
 
 
+## VALIDATION REPORT ƒ?" 2025-12-28 (Maintenance)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Storage-Abstraction-Layer-v2.md (STATUS: Validated)
+- Spec: Handshake_Master_Spec_v02.93 (A2.3.12 Trait Purity) via docs/SPEC_CURRENT.md
+- Codex: Handshake Codex v1.4.md
+
+Files Checked:
+- src/backend/handshake_core/src/storage/tests.rs (integration test harness visibility and import hygiene)
+
+Findings:
+- Removed crate-level `cfg(test)` gate to restore `storage::tests` utilities for integration conformance tests.
+- Guarded chrono imports with `cfg(test)` to prevent unused-import warnings while keeping helpers available for dual-backend runs.
+- Forbidden Pattern Audit [CX-573E]: PASS (no unwrap/expect/panic/todo/dbg/println in the adjusted scope; module remains test-only).
+- Zero Placeholder Policy [CX-573D]: PASS; harness functions remain fully implemented.
+
+Tests:
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --all-targets` (PASS; includes sqlite/postgres storage_conformance)
+
+REASON FOR PASS: Storage test utilities are now accessible to integration tests without warnings, and the full suite passes under Spec v02.93.
