@@ -31,10 +31,28 @@ pub enum StorageError {
     NotImplemented(&'static str),
     #[error("serialization error: {0}")]
     Serialization(String),
-    #[error(transparent)]
-    Database(#[from] sqlx::Error),
-    #[error(transparent)]
-    Migration(#[from] sqlx::migrate::MigrateError),
+    /// Opaque database error - hides provider-specific types [§2.3.12.3 Trait Purity]
+    #[error("database error: {0}")]
+    Database(String),
+    /// Opaque migration error - hides provider-specific types [§2.3.12.3 Trait Purity]
+    #[error("migration error: {0}")]
+    Migration(String),
+}
+
+// [§2.3.12.3] Manual From impl to convert sqlx::Error -> StorageError::Database
+// This preserves the error message while hiding the sqlx type from public API.
+impl From<sqlx::Error> for StorageError {
+    fn from(err: sqlx::Error) -> Self {
+        StorageError::Database(err.to_string())
+    }
+}
+
+// [§2.3.12.3] Manual From impl to convert MigrateError -> StorageError::Migration
+// This preserves the error message while hiding the sqlx::migrate type from public API.
+impl From<sqlx::migrate::MigrateError> for StorageError {
+    fn from(err: sqlx::migrate::MigrateError) -> Self {
+        StorageError::Migration(err.to_string())
+    }
 }
 
 impl From<serde_json::Error> for StorageError {
@@ -214,6 +232,12 @@ impl PruneReport {
             items_spared_window: 0,
             total_bytes_freed: 0,
         }
+    }
+}
+
+impl Default for PruneReport {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -791,5 +815,31 @@ pub trait Database: Send + Sync + std::any::Any {
         dry_run: bool,
     ) -> StorageResult<PruneReport>;
 
+    /// Run database migrations.
+    async fn run_migrations(&self) -> StorageResult<()>;
+
     fn as_any(&self) -> &dyn std::any::Any;
+}
+
+use std::sync::Arc;
+
+/// [CX-DBP-041] Initialize the storage backend based on environment configuration.
+/// Defaults to SQLite if DATABASE_URL is not provided or starts with sqlite://.
+pub async fn init_storage() -> Result<Arc<dyn Database>, StorageError> {
+    let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+        // Fallback to local sqlite file if not configured via env
+        "sqlite://data/handshake.db".to_string()
+    });
+
+    if db_url.starts_with("sqlite://") {
+        let db = sqlite::SqliteDatabase::connect(&db_url, 5).await?;
+        db.run_migrations().await?;
+        Ok(db.into_arc())
+    } else if db_url.starts_with("postgres://") || db_url.starts_with("postgresql://") {
+        let db = postgres::PostgresDatabase::connect(&db_url, 5).await?;
+        db.run_migrations().await?;
+        Ok(db.into_arc())
+    } else {
+        Err(StorageError::Validation("unsupported database protocol"))
+    }
 }
