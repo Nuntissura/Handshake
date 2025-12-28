@@ -8,11 +8,17 @@ use crate::{
     llm::{CompletionRequest, LlmError},
     models::{AiJob, JobKind, WorkflowRun},
     storage::{JobState, JobStatusUpdate, NewNodeExecution, StorageError},
-    terminal::{TerminalError, TerminalService},
+    terminal::{
+        config::TerminalConfig,
+        guards::{DefaultTerminalGuard, TerminalGuard},
+        redaction::PatternRedactor,
+        JobContext, TerminalMode, TerminalRequest, TerminalService,
+    },
     AppState,
 };
 use chrono::Utc;
 use serde_json::{json, Value};
+use std::{collections::HashMap, path::PathBuf};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -594,53 +600,87 @@ async fn execute_terminal_job(
             .collect(),
         None => Vec::new(),
     };
-    let timeout_ms = inputs
-        .get("timeout_ms")
-        .and_then(|v| v.as_u64())
-        .or(Some(30_000));
+    let timeout_ms = inputs.get("timeout_ms").and_then(|v| v.as_u64());
+    let max_output_bytes = inputs.get("max_output_bytes").and_then(|v| v.as_u64());
+    let cwd = inputs
+        .get("cwd")
+        .and_then(|v| v.as_str())
+        .map(PathBuf::from);
 
-    let output = TerminalService::run(program, &args, timeout_ms)
-        .await
-        .map_err(|e| match e {
-            TerminalError::Invalid(msg) | TerminalError::Exec(msg) => {
-                WorkflowError::Terminal(msg.to_string())
-            }
-            TerminalError::Timeout(ms) => {
-                WorkflowError::Terminal(format!("command timed out after {} ms", ms))
-            }
-            TerminalError::Io(ioe) => WorkflowError::Terminal(ioe.to_string()),
-        })?;
+    let mut env_overrides = HashMap::new();
+    if let Some(env) = inputs.get("env_overrides").and_then(|v| v.as_object()) {
+        for (k, v) in env.iter() {
+            let value = if v.is_null() {
+                None
+            } else {
+                v.as_str().map(|s| s.to_string())
+            };
+            env_overrides.insert(k.to_string(), value);
+        }
+    }
+
+    let job_id = Some(job.job_id.to_string());
+    let session_type =
+        crate::terminal::session::TerminalSessionType::derive(None, job_id.as_ref(), None);
+    let request = TerminalRequest {
+        command: program.to_string(),
+        args: args.clone(),
+        cwd,
+        mode: TerminalMode::NonInteractive,
+        timeout_ms,
+        max_output_bytes,
+        env_overrides,
+        capture_stdout: true,
+        capture_stderr: true,
+        stdin_chunks: Vec::new(),
+        idempotency_key: None,
+        job_context: JobContext {
+            job_id: job_id.clone(),
+            model_id: None,
+            session_id: None,
+            capability_profile_id: Some(job.capability_profile_id.clone()),
+            capability_id: Some("terminal.exec".to_string()),
+            wsids: Vec::new(),
+        },
+        granted_capabilities: Vec::new(),
+        requested_capability: Some("terminal.exec".to_string()),
+        session_type,
+        human_consent_obtained: false,
+    };
+
+    let cfg = TerminalConfig::with_defaults();
+    let guards: Vec<Box<dyn TerminalGuard>> = vec![Box::new(DefaultTerminalGuard)];
+    let redactor = PatternRedactor;
+
+    let output = TerminalService::run_command(
+        request,
+        &cfg,
+        state.capability_registry.as_ref(),
+        state.flight_recorder.as_ref(),
+        trace_id,
+        &redactor,
+        &guards,
+    )
+    .await
+    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
 
     let payload = json!({
         "job_kind": job.job_kind.as_str(),
         "program": program,
         "args": args,
-        "status_code": output.status_code,
+        "status_code": output.exit_code,
         "stdout": output.stdout,
-        "stderr": output.stderr
+        "stderr": output.stderr,
+        "timed_out": output.timed_out,
+        "truncated_bytes": output.truncated_bytes,
+        "duration_ms": output.duration_ms
     });
 
-    record_event_safely(
-        state,
-        FlightRecorderEvent::new(
-            FlightRecorderEventType::CapabilityAction,
-            FlightRecorderActor::Agent,
-            trace_id,
-            payload.clone(),
-        )
-        .with_job_id(job.job_id.to_string()),
-    )
-    .await;
-
-    state
-        .storage
-        .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
-        .await?;
-
-    if output.status_code != 0 {
+    if output.exit_code != 0 || output.timed_out {
         return Err(WorkflowError::Terminal(format!(
-            "command exited with code {}",
-            output.status_code
+            "command exited with code {}{}",
+            output.exit_code,
+            if output.timed_out { " (timed out)" } else { "" }
         )));
     }
 

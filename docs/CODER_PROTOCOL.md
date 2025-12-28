@@ -4,6 +4,28 @@
 
 ---
 
+## Spec Authority Rule [CX-598] (HARD INVARIANT)
+
+**The Roadmap (§7.6) is ONLY a pointer. The Master Spec Main Body (§1-6, §9-11) is the SOLE definition of "Done."**
+
+| Principle | Meaning |
+|-----------|---------|
+| **Roadmap = Pointer** | §7.6 lists WHAT to build and points to WHERE it's defined |
+| **Main Body = Truth** | §1-6, §9-11 define HOW it must be built (schemas, invariants, contracts) |
+| **No Debt** | Skipping Main Body requirements poisons the project and builds on rotten foundations |
+| **No Phase Closes** | Until EVERY MUST/SHOULD in the referenced Main Body sections is implemented |
+
+**Coder Obligations:**
+- Every SPEC_ANCHOR in a task packet MUST reference a Main Body section (not Roadmap)
+- If a roadmap item lacks Main Body detail, escalate to Orchestrator for spec enrichment BEFORE coding
+- Surface-level compliance with roadmap bullets is INSUFFICIENT - every line of Main Body text must be implemented
+- Do NOT assume "good enough" - the Main Body is the contract
+
+**Why This Matters:**
+Handshake is complex software. If we skip items or treat the roadmap as the requirement (instead of the pointer), we build on weak foundations. Technical debt compounds. Later phases inherit poison. The project fails.
+
+---
+
 **Supporting Documents:**
 - **CODER_RUBRIC.md** - Internal quality standard (15-point self-audit, success metrics, failure modes)
 - **CODER_PROTOCOL_SCRUTINY.md** - Analysis of current gaps (18 identified, B+ grade)

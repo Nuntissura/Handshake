@@ -17,7 +17,9 @@
       "Bash(just:*)",
       "Bash(cd:*)",
       "Bash(mkdir:*)",
-      "Bash(SQLX_OFFLINE=false cargo check:*)"
+      "Bash(SQLX_OFFLINE=false cargo check:*)",
+      "Bash(npm audit:*)",
+      "Bash(pnpm:*)"
     ]
   }
 }

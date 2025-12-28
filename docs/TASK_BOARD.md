@@ -1,5 +1,18 @@
 # Handshake Project Task Board (Phase 1: EXHAUSTIVE STRATEGIC AUDIT)
 
+## Spec Authority Rule [CX-598] (HARD INVARIANT)
+
+**The Roadmap (Section 7.6) is ONLY a pointer. The Master Spec Main Body (Sections 1-6, 9-11) is the SOLE definition of "Done."**
+
+| Principle | Enforcement |
+|-----------|-------------|
+| **Roadmap = Pointer** | Section 7.6.x items point to Main Body sections where requirements are defined |
+| **Main Body = Truth** | Every MUST/SHOULD in Sections 1-6, 9-11 must be implemented - no exceptions |
+| **No Debt** | Skipping requirements poisons the project; later phases inherit rotten foundations |
+| **No Phase Closes** | Until ALL referenced Main Body requirements are VALIDATED |
+
+**Why:** Handshake is complex software. Treating roadmap bullets as requirements (instead of pointers) leads to surface-level compliance, technical debt, and project failure.
+
 This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Phase 1 cannot close until every item below is validated against Master Spec v02.96.
 
 ---
@@ -20,11 +33,9 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - **[WP-1-ACE-Validators]** / FAIL: 12 Runtime Validators (A2.6.6.7.11). [READY FOR DEV]
 - **[WP-1-RAG-Iterative]** / FAIL: Snippet-first policy, search->read separation. [READY FOR DEV]
 - **[WP-1-Model-Profiles]** / FAIL: ModelProfile/Routing/SafetyProfile schema. [READY FOR DEV]
-- **[WP-1-Terminal-LAW]** / FAIL: Hardened execution, timeout, session binding. [READY FOR DEV]
 - **[WP-1-MEX-Safety-Gates]** / FAIL: Guard, Container, Quota engines. [READY FOR DEV]
 - **[WP-1-MEX-Observability]** / FAIL: Profiler, Monitor, Repo, Formatter engines. [READY FOR DEV]
 - **[WP-1-MEX-UX-Bridges]** / FAIL: Clipboard and Notifier capability actions. [READY FOR DEV]
-- **[WP-1-MEX-v1.2-Runtime]** / FAIL: Engine registry, Conformance Harness. [READY FOR DEV]
 - **[WP-1-MCP-Skeleton-Gate]** / FAIL: MCP transport, Gate middleware. [READY FOR DEV]
 - **[WP-1-AI-UX-Actions]** / FAIL: Command Palette: "Ask", "Summarize". [READY FOR DEV]
 - **[WP-1-AI-UX-Rewrite]** / FAIL: Rewrite selection, structured patches, Diff view. [READY FOR DEV]
@@ -43,12 +54,15 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - **[WP-1-MCP-End-to-End]** / FAIL: MCP capability/logging chain. [READY FOR DEV]
 - **[WP-1-Metrics-Traces]** / FAIL: OTel metrics/traces + validator pack. [READY FOR DEV]
 - **[WP-1-Operator-Consoles-v1]** / FAIL: Timeline/Jobs/Problems/Evidence UI. [READY FOR DEV]
-- **[WP-1-Security-Gates]** / FAIL: Terminal/RCE guardrails. [READY FOR DEV]
+
 
 ## In Progress
 
 
 ## Done
+- **[WP-1-MEX-v1.2-Runtime-v2]** - MEX v1.2 runtime contract (envelopes, gates, registry) per §6.3.0 + §11.8. [VALIDATED]
+- **[WP-1-Terminal-LAW-v2]** - Session types + AI isolation per §10.1. [VALIDATED]
+- **[WP-1-Security-Gates-v2]** - Terminal/RCE guardrails per §10.1. [VALIDATED]
 - **[WP-1-Capability-SSoT]** - Centralized Capability Registry SSoT (A11.1). [VALIDATED]
 - **[WP-1-Flight-Recorder-v2]** - Upgrading Observation Surface (A11.5). [VALIDATED]
 - **[WP-1-Tokenization-Service-v2]** - Normative Tokenizer Trait (A4.6.1) with panic-free fallback. [VALIDATED]
@@ -70,3 +84,6 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - **[WP-1-Workflow-Engine-v2]** - Superseded by v3 (Audit remediation).
 - **[WP-1-AI-Job-Model-v2]** - Superseded by v3 (Spec alignment §2.6.6.2.8).
 - **[WP-1-ACE-Validators-v2]** - Superseded by v3 (Hardened security remediation).
+- **[WP-1-Security-Gates]** - Superseded by v2 (Spec drift v02.84 → v02.96).
+- **[WP-1-Terminal-LAW]** - Superseded by v2 (Stale SPEC_ANCHOR, incomplete structure).
+- **[WP-1-MEX-v1.2-Runtime]** - Superseded by v2 (Stale SPEC_ANCHOR v02.84, no implementation).

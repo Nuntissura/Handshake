@@ -42,7 +42,7 @@ impl Default for TiktokenAdapter {
 
 fn vibe_estimate_count(text: &str) -> u32 {
     let char_count = text.chars().count() as u32;
-    (char_count + 3) / 4
+    char_count.div_ceil(4)
 }
 
 fn vibe_truncate(text: &str, limit: u32) -> String {

@@ -1,0 +1,30 @@
+{
+  "engine.spatial": {
+    "engine_id": "engine.spatial",
+    "determinism_ceiling": "d2",
+    "required_caps": ["fs.read", "fs.write"],
+    "required_gates": [
+      "G-SCHEMA",
+      "G-CAP",
+      "G-INTEGRITY",
+      "G-BUDGET",
+      "G-PROVENANCE",
+      "G-DET"
+    ],
+    "default_budget": {
+      "cpu_time_ms": 60000,
+      "wall_time_ms": 120000,
+      "memory_bytes": 268435456,
+      "output_bytes": 104857600
+    },
+    "ops": [
+      {
+        "name": "spatial.build_model",
+        "schema_ref": "poe-1.0",
+        "params_schema": "schemas/spatial.build_model.json",
+        "capabilities": ["fs.read", "fs.write", "proc.exec"],
+        "output_types": ["artifact.model3d"]
+      }
+    ]
+  }
+}

@@ -47,6 +47,9 @@
 | ilja281220250353 | Orchestrator | 2025-12-28 03:53 | Spec Enrichment v02.94 (Storage Audit) & WP-1-Storage-Foundation-v2 | v02.94 | Enriched §2.3.12.5 with Mandatory Audit requirement |
 | ilja281220250435 | Orchestrator | 2025-12-28 04:35 | Spec Enrichment v02.95 (Tokenizer Trait) & WP-1-Tokenization-Service-v2 | v02.95 | Enriched §4.6.1 with Tokenizer Trait definition |
 | ilja261220250201 | Orchestrator | 2025-12-26 02:01 | Spec Enrichment v02.89 (ACE Security Guard Requirements) | v02.89 | Enriched §2.6.6.7.11 with normative requirements for 8 missing guards |
+| ilja281220251500 | Orchestrator | 2025-12-28 15:00 | Task packet creation: WP-1-Security-Gates-20251228 | v02.96 | Terminal/RCE security gates per §10.1 |
+| ilja281220251700 | Orchestrator | 2025-12-28 17:00 | Task packet creation: WP-1-Terminal-LAW-v2 | v02.96 | Terminal LAW session types + AI isolation enforcement per §10.1 |
+| ilja281220251740 | Orchestrator | 2025-12-28 17:40 | Task packet creation: WP-1-MEX-v1.2-Runtime-v2 | v02.96 | MEX v1.2 runtime contract (envelopes, gates, registry, conformance) per §6.3.0 + §11.8 |
 
 ---
 

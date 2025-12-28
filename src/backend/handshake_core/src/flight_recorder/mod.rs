@@ -273,6 +273,28 @@ pub struct FrEvt006WorkflowRecovery {
     pub reason: String,
 }
 
+/// FR-EVT-007: Terminal command event payload [A10.1.1]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TerminalCommandEvent {
+    pub job_id: Option<String>,
+    pub model_id: Option<String>,
+    pub session_id: Option<String>,
+    pub wsids: Vec<String>,
+    pub capability_set: Vec<String>,
+    pub session_type: String,
+    pub human_consent_obtained: bool,
+    pub command: String,
+    pub cwd: String,
+    pub exit_code: i32,
+    pub duration_ms: u64,
+    pub timed_out: bool,
+    pub cancelled: bool,
+    pub truncated_bytes: u64,
+    pub capability_id: Option<String>,
+    pub redaction_applied: bool,
+    pub redacted_output: Option<String>,
+}
+
 #[derive(Error, Debug)]
 pub enum RecorderError {
     #[error("HSK-400-INVALID-EVENT: Event shape violation: {0}")]

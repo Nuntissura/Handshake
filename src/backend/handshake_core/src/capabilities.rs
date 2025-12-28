@@ -16,6 +16,7 @@ const CANONICAL_CAPABILITY_IDS: &[&str] = &[
     "CALENDAR_RESOLVE_CONFLICT",
     "CALENDAR_ACTIVITY_SUMMARY",
     "CALENDAR_COMPARE_ACTIVITY_WINDOWS",
+    "terminal.attach_human",
 ];
 
 /// Registry error type for capability SSoT violations.

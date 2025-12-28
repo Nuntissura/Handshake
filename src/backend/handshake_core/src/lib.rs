@@ -5,6 +5,7 @@ pub mod flight_recorder;
 pub mod jobs;
 pub mod llm;
 pub mod logging;
+pub mod mex;
 pub mod models;
 pub mod storage;
 pub mod terminal;
