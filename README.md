@@ -5,6 +5,12 @@ This repo contains both the Tauri desktop shell (React + TypeScript) and the Rus
 
 ---
 
+## 📜 [Project Vision & Technical Synthesis](./docs/Papers/HANDSHAKE_VISION_SYNTHESIS.md)
+
+*Explore the Handshake vision: A deep-dive into LLM architecture, deterministic governance, and the image descriptor pipeline.*
+
+---
+
 ## Repository layout
 
 - **Desktop app (Tauri + React + TS)**  
