@@ -4,7 +4,7 @@ use handshake_core::ace::ArtifactHandle;
 use handshake_core::capabilities::CapabilityRegistry;
 use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
 use handshake_core::mex::conformance::{
-    single_engine_registry, ConformanceCase, ConformanceHarness, StubEngineAdapter,
+    single_engine_registry, ConformanceCase, ConformanceHarness, TestEngineAdapter,
 };
 use handshake_core::mex::envelope::{
     BudgetSpec, DeterminismLevel, EvidencePolicy, OutputSpec, PlannedOperation, POE_SCHEMA_VERSION,
@@ -24,7 +24,7 @@ fn recorder() -> Arc<dyn handshake_core::flight_recorder::FlightRecorder> {
 fn conformance_harness_runs_all_cases() {
     let registry = single_engine_registry("engine.spatial");
     let capability_registry = CapabilityRegistry::new();
-    let adapter = Arc::new(StubEngineAdapter);
+    let adapter = Arc::new(TestEngineAdapter);
     let harness = ConformanceHarness::new(
         registry,
         capability_registry,

@@ -1,9 +1,9 @@
 use super::{
-    AccessMode, AiJob, Block, BlockUpdate, Canvas, CanvasEdge, CanvasGraph, CanvasNode,
-    DefaultStorageGuard, Document, EntityRef, JobKind, JobMetrics, JobState, JobStatusUpdate,
-    MutationMetadata, NewAiJob, NewBlock, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument,
-    NewNodeExecution, NewWorkspace, PlannedOperation, SafetyMode, StorageError, StorageGuard,
-    StorageResult, WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
+    AccessMode, AiJob, AiJobListFilter, Block, BlockUpdate, Canvas, CanvasEdge, CanvasGraph,
+    CanvasNode, DefaultStorageGuard, Document, EntityRef, JobKind, JobMetrics, JobState,
+    JobStatusUpdate, MutationMetadata, NewAiJob, NewBlock, NewCanvas, NewCanvasEdge, NewCanvasNode,
+    NewDocument, NewNodeExecution, NewWorkspace, PlannedOperation, SafetyMode, StorageError,
+    StorageGuard, StorageResult, WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
 };
 use async_trait::async_trait;
 use chrono::Utc;
@@ -12,7 +12,6 @@ use sqlx::{sqlite::SqlitePoolOptions, Row, SqlitePool};
 use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
-
 /// SQLite-backed implementation of the Database trait.
 pub struct SqliteDatabase {
     pool: SqlitePool,
@@ -1169,6 +1168,73 @@ impl super::Database for SqliteDatabase {
             Some(row) => self.map_ai_job_row(row),
             None => Err(StorageError::NotFound("ai_job")),
         }
+    }
+
+    async fn list_ai_jobs(&self, filter: AiJobListFilter) -> StorageResult<Vec<AiJob>> {
+        let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
+            r#"
+            SELECT
+                id as "id!: String",
+                trace_id as "trace_id!: String",
+                workflow_run_id as "workflow_run_id?",
+                job_kind as "job_kind!: String",
+                status as "status!: String",
+                status_reason as "status_reason!: String",
+                error_message as "error_message?",
+                protocol_id as "protocol_id!: String",
+                profile_id as "profile_id!: String",
+                capability_profile_id as "capability_profile_id!: String",
+                access_mode as "access_mode!: String",
+                safety_mode as "safety_mode!: String",
+                entity_refs as "entity_refs!: String",
+                planned_operations as "planned_operations!: String",
+                metrics as "metrics!: String",
+                job_inputs as "job_inputs?",
+                job_outputs as "job_outputs?",
+                created_at as "created_at!: chrono::DateTime<chrono::Utc>",
+                updated_at as "updated_at!: chrono::DateTime<chrono::Utc>"
+            FROM ai_jobs
+            "#,
+        );
+
+        let mut has_where = false;
+        let mut push_clause = |builder: &mut sqlx::QueryBuilder<sqlx::Sqlite>| {
+            if has_where {
+                builder.push(" AND ");
+            } else {
+                builder.push(" WHERE ");
+                has_where = true;
+            }
+        };
+
+        if let Some(status) = filter.status {
+            push_clause(&mut qb);
+            qb.push("status = ").push_bind(status.as_str());
+        }
+        if let Some(kind) = filter.job_kind {
+            push_clause(&mut qb);
+            qb.push("job_kind = ").push_bind(kind.as_str());
+        }
+        if let Some(from) = filter.from {
+            push_clause(&mut qb);
+            qb.push("created_at >= ").push_bind(from);
+        }
+        if let Some(to) = filter.to {
+            push_clause(&mut qb);
+            qb.push("created_at <= ").push_bind(to);
+        }
+
+        qb.push(" ORDER BY created_at DESC LIMIT ");
+        qb.push_bind(200_i64);
+
+        let rows = qb
+            .build_query_as::<AiJobRow>()
+            .fetch_all(&self.pool)
+            .await?;
+
+        rows.into_iter()
+            .map(|row| self.map_ai_job_row(row))
+            .collect()
     }
 
     async fn create_ai_job(&self, job: NewAiJob) -> StorageResult<AiJob> {

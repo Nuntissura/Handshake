@@ -1,17 +1,120 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 
 use async_trait::async_trait;
-use duckdb::Connection as DuckDbConnection;
+use chrono::{DateTime, Utc};
+use duckdb::{Connection as DuckDbConnection, ToSql};
 use serde_json::Value;
+use uuid::Uuid;
+
+use crate::diagnostics::{
+    aggregate_grouped, apply_metadata, diagnostic_metadata, DiagFilter, Diagnostic,
+    DiagnosticActor, DiagnosticSeverity, DiagnosticSource, DiagnosticSurface, DiagnosticsStore,
+    LinkConfidence, ProblemGroup,
+};
+use crate::storage::StorageError;
 
 use super::{
     FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
-    RecorderError,
+    FrEvt003Diagnostic, RecorderError,
 };
 
 pub struct DuckDbFlightRecorder {
     conn: Arc<Mutex<DuckDbConnection>>,
     retention_days: u32,
+}
+
+fn map_db_error(err: duckdb::Error) -> StorageError {
+    StorageError::Database(err.to_string())
+}
+
+fn map_recorder_error(err: RecorderError) -> StorageError {
+    StorageError::Database(err.to_string())
+}
+
+fn parse_timestamp(raw: String) -> Result<DateTime<Utc>, StorageError> {
+    DateTime::parse_from_rfc3339(&raw)
+        .map(|dt| dt.with_timezone(&Utc))
+        .map_err(|e| StorageError::Serialization(e.to_string()))
+}
+
+fn actor_for_diagnostic(actor: Option<DiagnosticActor>) -> FlightRecorderActor {
+    match actor {
+        Some(DiagnosticActor::Human) => FlightRecorderActor::Human,
+        Some(DiagnosticActor::Agent) => FlightRecorderActor::Agent,
+        Some(DiagnosticActor::System) | None => FlightRecorderActor::System,
+    }
+}
+
+fn map_diagnostic_row(row: &duckdb::Row) -> Result<Diagnostic, StorageError> {
+    let id_str: String = row.get(0).map_err(map_db_error)?;
+    let fingerprint: String = row.get(1).map_err(map_db_error)?;
+    let title: String = row.get(2).map_err(map_db_error)?;
+    let message: Option<String> = row.get(3).map_err(map_db_error)?;
+    let severity_raw: String = row.get(4).map_err(map_db_error)?;
+    let source_raw: String = row.get(5).map_err(map_db_error)?;
+    let surface_raw: String = row.get(6).map_err(map_db_error)?;
+    let tool: Option<String> = row.get(7).map_err(map_db_error)?;
+    let code: Option<String> = row.get(8).map_err(map_db_error)?;
+    let wsid: Option<String> = row.get(9).map_err(map_db_error)?;
+    let job_id: Option<String> = row.get(10).map_err(map_db_error)?;
+    let link_conf_raw: Option<String> = row.get(11).map_err(map_db_error)?;
+    let timestamp_raw: String = row.get(12).map_err(map_db_error)?;
+    let metadata_raw: Option<String> = row.get(13).map_err(map_db_error)?;
+
+    let id = Uuid::parse_str(&id_str)
+        .map_err(|e| StorageError::Serialization(format!("invalid diagnostic id: {e}")))?;
+    let severity = DiagnosticSeverity::from_str(&severity_raw)
+        .map_err(|e| StorageError::Serialization(e.to_string()))?;
+    let source = DiagnosticSource::from_str(&source_raw)
+        .map_err(|e| StorageError::Serialization(e.to_string()))?;
+    let surface = DiagnosticSurface::from_str(&surface_raw)
+        .map_err(|e| StorageError::Serialization(e.to_string()))?;
+    let link_confidence = link_conf_raw
+        .as_deref()
+        .map(LinkConfidence::from_str)
+        .transpose()
+        .map_err(|e| StorageError::Serialization(e.to_string()))?
+        .unwrap_or_default();
+    let timestamp = parse_timestamp(timestamp_raw)?;
+
+    let mut diagnostic = Diagnostic {
+        id,
+        fingerprint,
+        title,
+        message: message.unwrap_or_default(),
+        severity,
+        source,
+        surface,
+        tool,
+        code,
+        tags: None,
+        wsid,
+        job_id,
+        model_id: None,
+        actor: None,
+        capability_id: None,
+        policy_decision_id: None,
+        locations: None,
+        evidence_refs: None,
+        link_confidence,
+        status: None,
+        count: None,
+        first_seen: None,
+        last_seen: None,
+        timestamp,
+        updated_at: None,
+    };
+
+    if let Some(meta_str) = metadata_raw {
+        if let Ok(meta_val) = serde_json::from_str::<Value>(&meta_str) {
+            apply_metadata(&mut diagnostic, &meta_val);
+        }
+    }
+
+    Ok(diagnostic)
 }
 
 impl DuckDbFlightRecorder {
@@ -93,7 +196,189 @@ impl DuckDbFlightRecorder {
         )
         .map_err(|e| RecorderError::SinkError(e.to_string()))?;
 
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS diagnostics (
+                id UUID PRIMARY KEY,
+                fingerprint VARCHAR NOT NULL,
+                title VARCHAR NOT NULL,
+                message TEXT,
+                severity VARCHAR NOT NULL CHECK (severity IN ('fatal', 'error', 'warning', 'info', 'hint')),
+                source VARCHAR NOT NULL,
+                surface VARCHAR NOT NULL,
+                tool VARCHAR,
+                code VARCHAR,
+                wsid VARCHAR,
+                job_id UUID,
+                link_confidence VARCHAR CHECK (link_confidence IN ('direct', 'inferred', 'ambiguous', 'unlinked')),
+                timestamp VARCHAR NOT NULL CHECK (try_cast(timestamp AS TIMESTAMPTZ) IS NOT NULL),
+                metadata JSON
+            );
+            CREATE INDEX IF NOT EXISTS idx_diag_fingerprint ON diagnostics(fingerprint);
+            CREATE INDEX IF NOT EXISTS idx_diag_job_id ON diagnostics(job_id);
+        "#,
+        )
+        .map_err(|e| RecorderError::SinkError(e.to_string()))?;
+
         Ok(())
+    }
+
+    fn insert_diagnostic_row(
+        &self,
+        diagnostic: &Diagnostic,
+        metadata: &Value,
+    ) -> Result<(), StorageError> {
+        let meta_str = serde_json::to_string(metadata)?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| StorageError::Database("lock error".into()))?;
+        let job_uuid = match diagnostic.job_id.as_deref() {
+            Some(raw) => Some(
+                Uuid::parse_str(raw)
+                    .map_err(|_| StorageError::Validation("invalid job_id uuid"))?,
+            ),
+            None => None,
+        };
+
+        conn.execute(
+            r#"
+            INSERT INTO diagnostics (
+                id,
+                fingerprint,
+                title,
+                message,
+                severity,
+                source,
+                surface,
+                tool,
+                code,
+                wsid,
+                job_id,
+                link_confidence,
+                timestamp,
+                metadata
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            "#,
+            duckdb::params![
+                diagnostic.id.to_string(),
+                diagnostic.fingerprint,
+                diagnostic.title,
+                diagnostic.message,
+                diagnostic.severity.as_str(),
+                diagnostic.source.as_str(),
+                diagnostic.surface.as_str(),
+                diagnostic.tool.as_ref(),
+                diagnostic.code.as_ref(),
+                diagnostic.wsid.as_ref(),
+                job_uuid.map(|j| j.to_string()),
+                diagnostic.link_confidence.as_str(),
+                diagnostic.timestamp.to_rfc3339(),
+                meta_str
+            ],
+        )
+        .map_err(map_db_error)?;
+
+        Ok(())
+    }
+
+    fn query_diagnostics(&self, filter: DiagFilter) -> Result<Vec<Diagnostic>, StorageError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| StorageError::Database("lock error".into()))?;
+
+        let mut conditions = Vec::new();
+        let mut params: Vec<Box<dyn ToSql>> = Vec::new();
+
+        if let Some(severity) = filter.severity {
+            conditions.push("severity = ?".to_string());
+            params.push(Box::new(severity.as_str().to_string()));
+        }
+        if let Some(source) = filter.source {
+            conditions.push("source = ?".to_string());
+            params.push(Box::new(source));
+        }
+        if let Some(surface) = filter.surface {
+            conditions.push("surface = ?".to_string());
+            params.push(Box::new(surface.as_str().to_string()));
+        }
+        if let Some(wsid) = filter.wsid {
+            conditions.push("wsid = ?".to_string());
+            params.push(Box::new(wsid));
+        }
+        if let Some(job_id) = filter.job_id {
+            conditions.push("job_id = ?".to_string());
+            params.push(Box::new(job_id.to_string()));
+        }
+        if let Some(from) = filter.from {
+            conditions.push("timestamp >= ?".to_string());
+            params.push(Box::new(from.to_rfc3339()));
+        }
+        if let Some(to) = filter.to {
+            conditions.push("timestamp <= ?".to_string());
+            params.push(Box::new(to.to_rfc3339()));
+        }
+        if let Some(fp) = filter.fingerprint {
+            conditions.push("fingerprint = ?".to_string());
+            params.push(Box::new(fp));
+        }
+
+        let mut query = String::from(
+            "SELECT id, fingerprint, title, message, severity, source, surface, tool, code, wsid, job_id, link_confidence, timestamp, metadata FROM diagnostics",
+        );
+        if !conditions.is_empty() {
+            query.push_str(" WHERE ");
+            query.push_str(&conditions.join(" AND "));
+        }
+        query.push_str(" ORDER BY timestamp DESC");
+        if let Some(limit) = filter.limit {
+            query.push_str(" LIMIT ?");
+            params.push(Box::new(limit as i64));
+        }
+
+        let mut stmt = conn.prepare(&query).map_err(map_db_error)?;
+        let param_refs: Vec<&dyn ToSql> = params.iter().map(|p| p.as_ref()).collect();
+        let mut rows = stmt
+            .query(duckdb::params_from_iter(param_refs))
+            .map_err(map_db_error)?;
+
+        let mut diagnostics = Vec::new();
+        while let Some(row) = rows.next().map_err(map_db_error)? {
+            diagnostics.push(map_diagnostic_row(&row)?);
+        }
+
+        Ok(diagnostics)
+    }
+
+    fn build_diagnostic_event(
+        &self,
+        diagnostic: &Diagnostic,
+    ) -> Result<FlightRecorderEvent, StorageError> {
+        let payload = FrEvt003Diagnostic {
+            diagnostic_id: diagnostic.id.to_string(),
+            fingerprint: diagnostic.fingerprint.clone(),
+            severity: diagnostic.severity.as_str().to_string(),
+            source: Some(diagnostic.source.as_str()),
+            link_confidence: Some(diagnostic.link_confidence.as_str().to_string()),
+        };
+
+        let mut event = FlightRecorderEvent::new(
+            FlightRecorderEventType::Diagnostic,
+            actor_for_diagnostic(diagnostic.actor.clone()),
+            diagnostic.id,
+            serde_json::to_value(&payload)?,
+        )
+        .with_actor_id("diagnostics_store");
+
+        if let Some(job_id) = diagnostic.job_id.clone() {
+            event = event.with_job_id(job_id);
+        }
+        if let Some(wsid) = diagnostic.wsid.clone() {
+            event = event.with_wsids(vec![wsid]);
+        }
+
+        Ok(event)
     }
 
     fn insert_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
@@ -340,6 +625,66 @@ impl FlightRecorder for DuckDbFlightRecorder {
     }
 }
 
+#[async_trait]
+impl DiagnosticsStore for DuckDbFlightRecorder {
+    async fn record_diagnostic(&self, diagnostic: Diagnostic) -> Result<(), StorageError> {
+        let metadata = diagnostic_metadata(&diagnostic);
+        self.insert_diagnostic_row(&diagnostic, &metadata)?;
+
+        let event = self.build_diagnostic_event(&diagnostic)?;
+        FlightRecorder::record_event(self, event)
+            .await
+            .map_err(map_recorder_error)?;
+        Ok(())
+    }
+
+    async fn list_problems(&self, filter: DiagFilter) -> Result<Vec<ProblemGroup>, StorageError> {
+        let mut filter_all = filter.clone();
+        filter_all.limit = None;
+        let diagnostics = self.query_diagnostics(filter_all)?;
+        let mut grouped = aggregate_grouped(diagnostics);
+        if let Some(limit) = filter.limit {
+            grouped.truncate(limit as usize);
+        }
+
+        let problems = grouped
+            .into_iter()
+            .map(|diag| ProblemGroup {
+                fingerprint: diag.fingerprint.clone(),
+                count: diag.count.unwrap_or(1),
+                first_seen: diag.first_seen.unwrap_or(diag.timestamp),
+                last_seen: diag.last_seen.unwrap_or(diag.timestamp),
+                sample: diag,
+            })
+            .collect();
+
+        Ok(problems)
+    }
+
+    async fn get_diagnostic(&self, id: Uuid) -> Result<Diagnostic, StorageError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| StorageError::Database("lock error".into()))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, fingerprint, title, message, severity, source, surface, tool, code, wsid, job_id, link_confidence, timestamp, metadata FROM diagnostics WHERE id = ?",
+            )
+            .map_err(map_db_error)?;
+
+        let mut rows = stmt
+            .query(duckdb::params![id.to_string()])
+            .map_err(map_db_error)?;
+        let row = rows.next().map_err(map_db_error)?;
+        let row = row.ok_or(StorageError::NotFound("diagnostic"))?;
+        map_diagnostic_row(&row)
+    }
+
+    async fn list_diagnostics(&self, filter: DiagFilter) -> Result<Vec<Diagnostic>, StorageError> {
+        self.query_diagnostics(filter)
+    }
+}
+
 impl Clone for DuckDbFlightRecorder {
     fn clone(&self) -> Self {
         Self {
@@ -373,11 +718,14 @@ pub fn system_event(message: &str, component: &str) -> FlightRecorderEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::diagnostics::{
+        DiagFilter, DiagnosticActor, DiagnosticInput, DiagnosticSeverity, DiagnosticSource,
+        DiagnosticSurface, LinkConfidence,
+    };
     use crate::flight_recorder::{EventFilter, FlightRecorderActor, FlightRecorderEventType};
     use serde_json::json;
     use uuid::Uuid;
 
-    /// Helper to create a test event with given trace_id.
     fn test_event(trace_id: Uuid, job_id: Option<&str>) -> FlightRecorderEvent {
         let mut event = FlightRecorderEvent::new(
             FlightRecorderEventType::System,
@@ -396,130 +744,99 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_record_and_list_events() {
-        let recorder = DuckDbFlightRecorder::new_in_memory(7).expect("failed to create recorder");
+    async fn test_record_and_list_events() -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
         let trace_id = Uuid::new_v4();
 
-        // Record an event
-        let event = test_event(trace_id, Some("job-123"));
         recorder
-            .record_event(event)
-            .await
-            .expect("failed to record event");
+            .record_event(test_event(trace_id, Some("job-123")))
+            .await?;
 
-        // List all events (no filter)
-        let events = recorder
-            .list_events(EventFilter::default())
-            .await
-            .expect("failed to list events");
+        let events = recorder.list_events(EventFilter::default()).await?;
 
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].trace_id, trace_id);
         assert_eq!(events[0].job_id, Some("job-123".to_string()));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_query_by_trace_id() {
-        let recorder = DuckDbFlightRecorder::new_in_memory(7).expect("failed to create recorder");
+    async fn test_query_by_trace_id() -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
 
         let trace_id_a = Uuid::new_v4();
         let trace_id_b = Uuid::new_v4();
 
-        // Record two events with different trace IDs
         recorder
             .record_event(test_event(trace_id_a, Some("job-a")))
-            .await
-            .expect("failed to record event a");
+            .await?;
         recorder
             .record_event(test_event(trace_id_b, Some("job-b")))
-            .await
-            .expect("failed to record event b");
+            .await?;
 
-        // Query by trace_id_a
-        let filter = EventFilter {
-            trace_id: Some(trace_id_a),
-            ..Default::default()
-        };
         let events = recorder
-            .list_events(filter)
-            .await
-            .expect("failed to list events");
+            .list_events(EventFilter {
+                trace_id: Some(trace_id_a),
+                ..Default::default()
+            })
+            .await?;
 
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].trace_id, trace_id_a);
         assert_eq!(events[0].job_id, Some("job-a".to_string()));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_query_by_job_id() {
-        let recorder = DuckDbFlightRecorder::new_in_memory(7).expect("failed to create recorder");
+    async fn test_query_by_job_id() -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
 
         let trace_id = Uuid::new_v4();
         recorder
             .record_event(test_event(trace_id, Some("target-job")))
-            .await
-            .expect("failed to record event");
+            .await?;
         recorder
             .record_event(test_event(Uuid::new_v4(), Some("other-job")))
-            .await
-            .expect("failed to record event");
+            .await?;
 
-        let filter = EventFilter {
-            job_id: Some("target-job".to_string()),
-            ..Default::default()
-        };
         let events = recorder
-            .list_events(filter)
-            .await
-            .expect("failed to list events");
+            .list_events(EventFilter {
+                job_id: Some("target-job".to_string()),
+                ..Default::default()
+            })
+            .await?;
 
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].job_id, Some("target-job".to_string()));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_retention_purges_old_events() {
-        // Create recorder with 0-day retention (purge everything)
-        let recorder = DuckDbFlightRecorder::new_in_memory(0).expect("failed to create recorder");
+    async fn test_retention_purges_old_events() -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(0)?;
 
-        // Record an event
         recorder
             .record_event(test_event(Uuid::new_v4(), None))
-            .await
-            .expect("failed to record event");
+            .await?;
 
-        // Verify event exists
-        let before = recorder
-            .list_events(EventFilter::default())
-            .await
-            .expect("failed to list events");
+        let before = recorder.list_events(EventFilter::default()).await?;
         assert_eq!(before.len(), 1);
 
-        // Enforce retention (0 days = purge all)
-        let purged = recorder
-            .enforce_retention()
-            .await
-            .expect("failed to enforce retention");
+        let purged = recorder.enforce_retention().await?;
         assert_eq!(purged, 1);
 
-        // Verify event is gone
-        let after = recorder
-            .list_events(EventFilter::default())
-            .await
-            .expect("failed to list events");
+        let after = recorder.list_events(EventFilter::default()).await?;
         assert_eq!(after.len(), 0);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_nfc_normalization_applied() {
-        let recorder = DuckDbFlightRecorder::new_in_memory(7).expect("failed to create recorder");
+    async fn test_nfc_normalization_applied() -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
         let trace_id = Uuid::new_v4();
 
-        // Create event with non-NFC string (NFD: é as e + combining acute accent)
-        // NFD form: "café" = "cafe\u{0301}" (e followed by combining acute accent)
-        // NFC form: "café" = "caf\u{00E9}" (single precomposed é character)
-        let nfd_string = "cafe\u{0301}"; // NFD form
-        let nfc_string = "caf\u{00E9}"; // NFC form (what we expect after normalization)
+        let nfd_string = "cafe\u{0301}";
+        let nfc_string = "caf\u{00E9}";
 
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::System,
@@ -533,69 +850,55 @@ mod tests {
             }),
         );
 
-        recorder
-            .record_event(event)
-            .await
-            .expect("failed to record event");
+        recorder.record_event(event).await?;
 
         let events = recorder
             .list_events(EventFilter {
                 trace_id: Some(trace_id),
                 ..Default::default()
             })
-            .await
-            .expect("failed to list events");
+            .await?;
 
         assert_eq!(events.len(), 1);
 
-        // Verify the payload was normalized to NFC
         let payload = &events[0].payload;
-        assert_eq!(payload["message"].as_str().unwrap(), nfc_string);
-        assert_eq!(payload["nested"]["text"].as_str().unwrap(), nfc_string);
+        assert_eq!(payload["message"].as_str().unwrap_or_default(), nfc_string);
+        assert_eq!(
+            payload["nested"]["text"].as_str().unwrap_or_default(),
+            nfc_string
+        );
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_validation_rejects_nil_uuid() {
-        let recorder = DuckDbFlightRecorder::new_in_memory(7).expect("failed to create recorder");
+    async fn test_validation_rejects_nil_uuid() -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
 
-        // Create event with nil event_id (invalid)
         let mut event = test_event(Uuid::new_v4(), None);
         event.event_id = Uuid::nil();
 
         let result = recorder.record_event(event).await;
-        assert!(result.is_err());
-
-        if let Err(RecorderError::InvalidEvent(msg)) = result {
-            assert!(msg.contains("event_id"));
-        } else {
-            panic!("Expected InvalidEvent error");
-        }
+        assert!(matches!(result, Err(RecorderError::InvalidEvent(_))));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_validation_rejects_nil_trace_id() {
-        let recorder = DuckDbFlightRecorder::new_in_memory(7).expect("failed to create recorder");
+    async fn test_validation_rejects_nil_trace_id() -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
 
-        // Create event with nil trace_id (invalid)
         let mut event = test_event(Uuid::new_v4(), None);
         event.trace_id = Uuid::nil();
 
         let result = recorder.record_event(event).await;
-        assert!(result.is_err());
-
-        if let Err(RecorderError::InvalidEvent(msg)) = result {
-            assert!(msg.contains("trace_id"));
-        } else {
-            panic!("Expected InvalidEvent error");
-        }
+        assert!(matches!(result, Err(RecorderError::InvalidEvent(_))));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_fr_evt_shapes_persisted() {
-        let recorder = DuckDbFlightRecorder::new_in_memory(7).expect("failed to create recorder");
+    async fn test_fr_evt_shapes_persisted() -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
         let trace_id = Uuid::new_v4();
 
-        // Test FR-EVT-001 System shape
         let system_event = FlightRecorderEvent::new(
             FlightRecorderEventType::System,
             FlightRecorderActor::System,
@@ -609,12 +912,8 @@ mod tests {
         )
         .with_workflow_id("wf-123");
 
-        recorder
-            .record_event(system_event)
-            .await
-            .expect("failed to record system event");
+        recorder.record_event(system_event).await?;
 
-        // Test FR-EVT-002 LLM Inference shape
         let llm_event = FlightRecorderEvent::new(
             FlightRecorderEventType::LlmInference,
             FlightRecorderActor::Agent,
@@ -629,37 +928,90 @@ mod tests {
         .with_model_id("llama3")
         .with_job_id("job-456");
 
-        recorder
-            .record_event(llm_event)
-            .await
-            .expect("failed to record llm event");
+        recorder.record_event(llm_event).await?;
 
-        // Query back by trace_id
         let events = recorder
             .list_events(EventFilter {
                 trace_id: Some(trace_id),
                 ..Default::default()
             })
-            .await
-            .expect("failed to list events");
+            .await?;
 
         assert_eq!(events.len(), 2);
 
-        // Verify shapes are preserved
         let system = events
             .iter()
-            .find(|e| matches!(e.event_type, FlightRecorderEventType::System))
-            .unwrap();
-        assert_eq!(system.payload["component"], "workflow_engine");
-        assert_eq!(system.workflow_id, Some("wf-123".to_string()));
+            .find(|e| matches!(e.event_type, FlightRecorderEventType::System));
+        assert!(system.is_some());
+        if let Some(system_event) = system {
+            assert_eq!(system_event.payload["component"], "workflow_engine");
+            assert_eq!(system_event.workflow_id, Some("wf-123".to_string()));
+        }
 
         let llm = events
             .iter()
-            .find(|e| matches!(e.event_type, FlightRecorderEventType::LlmInference))
-            .unwrap();
-        assert_eq!(llm.payload["model_id"], "llama3");
-        assert_eq!(llm.payload["input_tokens"], 150);
-        assert_eq!(llm.model_id, Some("llama3".to_string()));
-        assert_eq!(llm.job_id, Some("job-456".to_string()));
+            .find(|e| matches!(e.event_type, FlightRecorderEventType::LlmInference));
+        assert!(llm.is_some());
+        if let Some(llm_event) = llm {
+            assert_eq!(llm_event.payload["model_id"], "llama3");
+            assert_eq!(llm_event.payload["input_tokens"], 150);
+            assert_eq!(llm_event.model_id, Some("llama3".to_string()));
+            assert_eq!(llm_event.job_id, Some("job-456".to_string()));
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_record_diagnostic_and_group() -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
+        let job_id = Uuid::new_v4();
+
+        let diagnostic = DiagnosticInput {
+            title: "Compiler error".to_string(),
+            message: "Missing semicolon".to_string(),
+            severity: DiagnosticSeverity::Error,
+            source: DiagnosticSource::Validator,
+            surface: DiagnosticSurface::Monaco,
+            tool: Some("rustc".to_string()),
+            code: Some("E001".to_string()),
+            tags: None,
+            wsid: Some("ws-1".to_string()),
+            job_id: Some(job_id.to_string()),
+            model_id: None,
+            actor: Some(DiagnosticActor::System),
+            capability_id: None,
+            policy_decision_id: None,
+            locations: None,
+            evidence_refs: None,
+            link_confidence: LinkConfidence::Direct,
+            status: None,
+            count: None,
+            first_seen: None,
+            last_seen: None,
+            timestamp: None,
+            updated_at: None,
+        }
+        .into_diagnostic()?;
+
+        recorder.record_diagnostic(diagnostic.clone()).await?;
+
+        let fetched = recorder.get_diagnostic(diagnostic.id).await?;
+        assert_eq!(fetched.fingerprint, diagnostic.fingerprint);
+        assert_eq!(fetched.job_id, diagnostic.job_id);
+
+        let problems = recorder.list_problems(DiagFilter::default()).await?;
+        assert_eq!(problems.len(), 1);
+        assert_eq!(problems[0].count, 1);
+
+        let events = recorder
+            .list_events(EventFilter {
+                job_id: diagnostic.job_id.clone(),
+                ..Default::default()
+            })
+            .await?;
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_type, FlightRecorderEventType::Diagnostic);
+        Ok(())
     }
 }

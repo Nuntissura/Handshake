@@ -143,6 +143,7 @@ export type FlightEvent = {
   job_id?: string;
   workflow_id?: string;
   model_id?: string;
+  wsids: string[];
   payload: unknown;
 };
 
@@ -154,6 +155,98 @@ export type SecurityViolationPayload = {
   offset?: number;
   context?: string;
   action_taken: string;
+};
+
+export type DiagnosticSeverity = "fatal" | "error" | "warning" | "info" | "hint";
+export type DiagnosticSource =
+  | "lsp"
+  | "terminal"
+  | "validator"
+  | "engine"
+  | "connector"
+  | "system"
+  | `plugin:${string}`
+  | `matcher:${string}`;
+export type DiagnosticSurface = "monaco" | "canvas" | "sheet" | "terminal" | "connector" | "system";
+export type LinkConfidence = "direct" | "inferred" | "ambiguous" | "unlinked";
+export type DiagnosticStatus = "open" | "acknowledged" | "muted" | "resolved";
+export type DiagnosticActor = "human" | "agent" | "system";
+
+export type DiagnosticRange = {
+  start_line: number;
+  start_column: number;
+  end_line: number;
+  end_column: number;
+};
+
+export type DiagnosticLocation = {
+  path?: string;
+  uri?: string;
+  wsid?: string;
+  entity_id?: string;
+  range?: DiagnosticRange;
+};
+
+export type ArtifactHashes = {
+  input_hash?: string;
+  output_hash?: string;
+  diff_hash?: string;
+};
+
+export type EvidenceRefs = {
+  fr_event_ids?: string[];
+  related_job_ids?: string[];
+  related_activity_span_ids?: string[];
+  related_session_span_ids?: string[];
+  artifact_hashes?: ArtifactHashes;
+};
+
+export type Diagnostic = {
+  id: string;
+  fingerprint: string;
+  title: string;
+  message: string;
+  severity: DiagnosticSeverity;
+  source: DiagnosticSource;
+  surface: DiagnosticSurface;
+  tool?: string | null;
+  code?: string | null;
+  tags?: string[] | null;
+  wsid?: string | null;
+  job_id?: string | null;
+  model_id?: string | null;
+  actor?: DiagnosticActor | null;
+  capability_id?: string | null;
+  policy_decision_id?: string | null;
+  locations?: DiagnosticLocation[] | null;
+  evidence_refs?: EvidenceRefs | null;
+  link_confidence: LinkConfidence;
+  status?: DiagnosticStatus | null;
+  count?: number | null;
+  first_seen?: string | null;
+  last_seen?: string | null;
+  timestamp: string;
+  updated_at?: string | null;
+};
+
+export type ProblemGroup = {
+  fingerprint: string;
+  count: number;
+  first_seen: string;
+  last_seen: string;
+  sample: Diagnostic;
+};
+
+export type DiagnosticFilters = {
+  severity?: DiagnosticSeverity;
+  source?: string;
+  surface?: DiagnosticSurface;
+  wsid?: string;
+  job_id?: string;
+  from?: string;
+  to?: string;
+  fingerprint?: string;
+  limit?: number;
 };
 
 export async function listWorkspaces(): Promise<Workspace[]> {
@@ -200,6 +293,74 @@ export async function getCanvas(canvasId: string): Promise<CanvasWithGraph> {
   return request(`/canvases/${canvasId}`);
 }
 
+export type DiagnosticInput = {
+  title: string;
+  message: string;
+  severity: DiagnosticSeverity;
+  source: DiagnosticSource;
+  surface: DiagnosticSurface;
+  tool?: string | null;
+  code?: string | null;
+  tags?: string[] | null;
+  wsid?: string | null;
+  job_id?: string | null;
+  model_id?: string | null;
+  actor?: DiagnosticActor | null;
+  capability_id?: string | null;
+  policy_decision_id?: string | null;
+  locations?: DiagnosticLocation[] | null;
+  evidence_refs?: EvidenceRefs | null;
+  link_confidence: LinkConfidence;
+  status?: DiagnosticStatus | null;
+  count?: number | null;
+  first_seen?: string | null;
+  last_seen?: string | null;
+  timestamp?: string | null;
+  updated_at?: string | null;
+};
+
+export async function listDiagnostics(filters?: DiagnosticFilters): Promise<Diagnostic[]> {
+  const params = new URLSearchParams();
+  if (filters?.severity) params.append("severity", filters.severity);
+  if (filters?.source) params.append("source", filters.source);
+  if (filters?.surface) params.append("surface", filters.surface);
+  if (filters?.wsid) params.append("wsid", filters.wsid);
+  if (filters?.job_id) params.append("job_id", filters.job_id);
+  if (filters?.from) params.append("from", new Date(filters.from).toISOString());
+  if (filters?.to) params.append("to", new Date(filters.to).toISOString());
+  if (filters?.fingerprint) params.append("fingerprint", filters.fingerprint);
+  if (filters?.limit) params.append("limit", filters.limit.toString());
+
+  const query = params.toString();
+  const path = query.length > 0 ? `/api/diagnostics?${query}` : "/api/diagnostics";
+  return request(path);
+}
+
+export async function listProblemGroups(filters?: DiagnosticFilters): Promise<ProblemGroup[]> {
+  const params = new URLSearchParams();
+  if (filters?.severity) params.append("severity", filters.severity);
+  if (filters?.source) params.append("source", filters.source);
+  if (filters?.surface) params.append("surface", filters.surface);
+  if (filters?.wsid) params.append("wsid", filters.wsid);
+  if (filters?.job_id) params.append("job_id", filters.job_id);
+  if (filters?.from) params.append("from", new Date(filters.from).toISOString());
+  if (filters?.to) params.append("to", new Date(filters.to).toISOString());
+  if (filters?.fingerprint) params.append("fingerprint", filters.fingerprint);
+  if (filters?.limit) params.append("limit", filters.limit.toString());
+
+  const query = params.toString();
+  const path = query.length > 0 ? `/api/diagnostics/problems?${query}` : "/api/diagnostics/problems";
+  return request(path);
+}
+
+export async function getDiagnostic(id: string): Promise<Diagnostic> {
+  return request(`/api/diagnostics/${encodeURIComponent(id)}`);
+}
+
+export async function createDiagnostic(input: DiagnosticInput): Promise<Diagnostic> {
+  return request("/api/diagnostics", { method: "POST", body: input });
+}
+
 export async function updateDocumentBlocks(documentId: string, blocks: BlockInput[]): Promise<Block[]> {
   return request(`/documents/${encodeURIComponent(documentId)}/blocks`, {
     method: "PUT",
@@ -232,6 +393,9 @@ export type FlightEventFilters = {
   traceId?: string;
   from?: string;
   to?: string;
+  actor?: "human" | "agent" | "system";
+  eventType?: FlightEvent["event_type"];
+  wsid?: string;
 };
 
 export async function getEvents(filters?: FlightEventFilters): Promise<FlightEvent[]> {
@@ -245,6 +409,9 @@ export async function getEvents(filters?: FlightEventFilters): Promise<FlightEve
   if (filters?.traceId) params.append("trace_id", filters.traceId);
   if (filters?.from) params.append("from", toIso(filters.from));
   if (filters?.to) params.append("to", toIso(filters.to));
+  if (filters?.actor) params.append("actor", filters.actor);
+  if (filters?.eventType) params.append("event_type", filters.eventType);
+  if (filters?.wsid) params.append("wsid", filters.wsid);
 
   const query = params.toString();
   const path = query.length > 0 ? `/api/flight_recorder?${query}` : "/api/flight_recorder";
@@ -252,17 +419,37 @@ export async function getEvents(filters?: FlightEventFilters): Promise<FlightEve
 }
 
 export type AiJob = {
-  id: string;
+  job_id: string;
+  trace_id: string;
+  workflow_run_id?: string | null;
   job_kind: string;
-  status: string;
-  error_message?: string;
+  state: string;
+  error_message?: string | null;
   protocol_id: string;
   profile_id: string;
   capability_profile_id: string;
   access_mode: string;
   safety_mode: string;
-  job_inputs?: string;
-  job_outputs?: string;
+  entity_refs: { entity_id: string; entity_kind: string }[];
+  planned_operations: {
+    op_type: string;
+    target: { entity_id: string; entity_kind: string };
+    description?: string | null;
+  }[];
+  metrics: {
+    duration_ms: number;
+    total_tokens: number;
+    input_tokens: number;
+    output_tokens: number;
+    tokens_planner: number;
+    tokens_executor: number;
+    entities_read: number;
+    entities_written: number;
+    validators_run_count: number;
+  };
+  status_reason: string;
+  job_inputs?: unknown;
+  job_outputs?: unknown;
   created_at: string;
   updated_at: string;
 };
@@ -280,4 +467,23 @@ export async function createJob(
 
 export async function getJob(jobId: string): Promise<AiJob> {
   return request(`/api/jobs/${encodeURIComponent(jobId)}`);
+}
+
+export type ListJobsFilters = {
+  status?: string;
+  job_kind?: string;
+  from?: string;
+  to?: string;
+};
+
+export async function listJobs(filters?: ListJobsFilters): Promise<AiJob[]> {
+  const params = new URLSearchParams();
+  if (filters?.status) params.append("status", filters.status);
+  if (filters?.job_kind) params.append("job_kind", filters.job_kind);
+  if (filters?.from) params.append("from", new Date(filters.from).toISOString());
+  if (filters?.to) params.append("to", new Date(filters.to).toISOString());
+
+  const query = params.toString();
+  const path = query.length > 0 ? `/api/jobs?${query}` : "/api/jobs";
+  return request(path);
 }

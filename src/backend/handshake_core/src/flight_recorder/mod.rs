@@ -220,8 +220,10 @@ pub struct FrEvt002LlmInference {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrEvt003Diagnostic {
     pub diagnostic_id: String,
+    pub fingerprint: String,
     pub severity: String,
     pub source: Option<String>,
+    pub link_confidence: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

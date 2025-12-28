@@ -707,7 +707,8 @@ mod tests {
 
         Ok(AppState {
             storage: sqlite.into_arc(),
-            flight_recorder,
+            flight_recorder: flight_recorder.clone(),
+            diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
             capability_registry: Arc::new(CapabilityRegistry::new()),
         })

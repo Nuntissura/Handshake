@@ -1,6 +1,7 @@
 pub mod ace;
 pub mod api;
 pub mod capabilities;
+pub mod diagnostics;
 pub mod flight_recorder;
 pub mod jobs;
 pub mod llm;
@@ -14,6 +15,7 @@ pub mod workflows;
 
 use std::sync::Arc;
 
+use crate::diagnostics::DiagnosticsStore;
 use crate::flight_recorder::FlightRecorder;
 use crate::llm::LlmClient;
 use crate::storage::Database;
@@ -22,6 +24,7 @@ use crate::storage::Database;
 pub struct AppState {
     pub storage: Arc<dyn Database>,
     pub flight_recorder: Arc<dyn FlightRecorder>,
+    pub diagnostics: Arc<dyn DiagnosticsStore>,
     pub llm_client: Arc<dyn LlmClient>,
     pub capability_registry: Arc<capabilities::CapabilityRegistry>,
 }

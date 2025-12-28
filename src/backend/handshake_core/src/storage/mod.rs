@@ -522,6 +522,14 @@ pub struct AiJob {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct AiJobListFilter {
+    pub status: Option<JobState>,
+    pub job_kind: Option<JobKind>,
+    pub from: Option<DateTime<Utc>>,
+    pub to: Option<DateTime<Utc>>,
+}
+
 #[derive(Clone, Debug)]
 pub struct NewAiJob {
     pub trace_id: Uuid,
@@ -765,6 +773,7 @@ pub trait Database: Send + Sync + std::any::Any {
 
     // AI Job operations (CX-DBP-021)
     async fn get_ai_job(&self, job_id: &str) -> StorageResult<AiJob>;
+    async fn list_ai_jobs(&self, filter: AiJobListFilter) -> StorageResult<Vec<AiJob>>;
     async fn create_ai_job(&self, job: NewAiJob) -> StorageResult<AiJob>;
     async fn update_ai_job_status(&self, update: JobStatusUpdate) -> StorageResult<AiJob>;
     async fn set_job_outputs(&self, job_id: &str, outputs: Option<Value>) -> StorageResult<()>;

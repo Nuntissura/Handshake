@@ -34,6 +34,19 @@
       "data": "Enforcing Trait Purity and Backend Encapsulation [CX-DBP-040, CX-DBP-041]",
       "timestamp": "2025-12-28T02:40:00.000Z",
       "turn_token": "ilja281220250240"
+    },
+    {
+      "wpId": "WP-1-Operator-Consoles-v1",
+      "type": "REFINEMENT",
+      "data": "Normative DuckDB schema and DiagnosticsStore trait [v02.97]",
+      "timestamp": "2025-12-28T19:17:38.074Z",
+      "turn_token": "65ca7d"
+    },
+    {
+      "wpId": "WP-1-Operator-Consoles-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja281220252016",
+      "timestamp": "2025-12-28T19:18:21.791Z"
     }
   ]
 }

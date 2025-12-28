@@ -190,10 +190,10 @@ impl ConformanceHarness {
 }
 
 /// Minimal in-memory adapter used for conformance harness.
-pub struct StubEngineAdapter;
+pub struct TestEngineAdapter;
 
 #[async_trait::async_trait]
-impl EngineAdapter for StubEngineAdapter {
+impl EngineAdapter for TestEngineAdapter {
     async fn invoke(&self, op: &PlannedOperation) -> Result<EngineResult, AdapterError> {
         let provenance = ProvenanceRecord {
             engine_id: op.engine_id.clone(),

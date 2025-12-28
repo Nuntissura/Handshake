@@ -261,10 +261,10 @@ mod tests {
         let granted = vec!["fs.read".to_string()];
 
         let result = registry.can_perform("magic.wand", &granted);
-        match result {
-            Err(RegistryError::UnknownCapability(c)) => assert_eq!(c, "magic.wand"),
-            _ => panic!("Expected HSK-4001 UnknownCapability error"),
-        }
+        assert!(matches!(
+            result,
+            Err(RegistryError::UnknownCapability(ref c)) if c == "magic.wand"
+        ));
     }
 
     #[test]
@@ -283,9 +283,13 @@ mod tests {
         ];
 
         for kind in kinds {
-            let profile = registry
-                .profile_for_job(kind)
-                .unwrap_or_else(|_| panic!("expected profile for {}", kind));
+            let profile = match registry.profile_for_job(kind) {
+                Ok(profile) => profile,
+                Err(err) => {
+                    assert!(false, "expected profile for {kind}, got error: {err}");
+                    continue;
+                }
+            };
             // ensure profile has at least one capability
             assert!(
                 !profile.allowed.is_empty(),
@@ -307,13 +311,22 @@ mod tests {
         let granted = vec!["fs.read".to_string()];
 
         // Grant "fs.read" should allow "fs.read:logs"
-        assert!(registry.can_perform("fs.read:logs", &granted).unwrap());
+        assert!(matches!(
+            registry.can_perform("fs.read:logs", &granted),
+            Ok(true)
+        ));
 
         // Grant "fs.read" should allow "fs.read"
-        assert!(registry.can_perform("fs.read", &granted).unwrap());
+        assert!(matches!(
+            registry.can_perform("fs.read", &granted),
+            Ok(true)
+        ));
 
         // Grant "fs.read" should NOT allow "fs.write"
-        assert!(!registry.can_perform("fs.write", &granted).unwrap());
+        assert!(matches!(
+            registry.can_perform("fs.write", &granted),
+            Ok(false)
+        ));
     }
 
     #[test]
@@ -321,11 +334,20 @@ mod tests {
         let registry = CapabilityRegistry::new();
 
         // Analyst has fs.read
-        assert!(registry.profile_can("Analyst", "fs.read").unwrap());
-        assert!(registry.profile_can("Analyst", "fs.read:report").unwrap());
+        assert!(matches!(
+            registry.profile_can("Analyst", "fs.read"),
+            Ok(true)
+        ));
+        assert!(matches!(
+            registry.profile_can("Analyst", "fs.read:report"),
+            Ok(true)
+        ));
 
         // Analyst does NOT have fs.write
-        assert!(!registry.profile_can("Analyst", "fs.write").unwrap());
+        assert!(matches!(
+            registry.profile_can("Analyst", "fs.write"),
+            Ok(false)
+        ));
 
         // Unknown profile error
         assert!(matches!(

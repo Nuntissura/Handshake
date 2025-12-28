@@ -21,7 +21,7 @@ export function JobResultPanel({ jobId, onDismiss }: Props) {
           setJob(data);
           setLoading(false);
           // If still running/queued, poll again
-          if (data.status === "running" || data.status === "queued") {
+          if (data.state === "running" || data.state === "queued") {
             setTimeout(fetchJob, 1000);
           }
         }
@@ -51,12 +51,16 @@ export function JobResultPanel({ jobId, onDismiss }: Props) {
   }
 
   let outputSummary: string | null = null;
-  if (job.status === "completed" && job.job_outputs) {
-    try {
-      const outputs = JSON.parse(job.job_outputs);
-      outputSummary = outputs.summary;
-    } catch {
-      outputSummary = "Failed to parse job outputs.";
+  if (job.state === "completed" && job.job_outputs) {
+    if (typeof job.job_outputs === "string") {
+      try {
+        const outputs = JSON.parse(job.job_outputs);
+        outputSummary = outputs.summary ?? JSON.stringify(outputs, null, 2);
+      } catch {
+        outputSummary = "Failed to parse job outputs.";
+      }
+    } else if (typeof job.job_outputs === "object") {
+      outputSummary = JSON.stringify(job.job_outputs, null, 2);
     }
   }
 
@@ -68,9 +72,9 @@ export function JobResultPanel({ jobId, onDismiss }: Props) {
       </div>
       <div className="job-result-content">
         <p>
-          <strong>Status:</strong> {job.status}
+          <strong>Status:</strong> {job.state}
         </p>
-        {loading && (job.status === "running" || job.status === "queued") && (
+        {loading && (job.state === "running" || job.state === "queued") && (
           <p className="muted">Processing...</p>
         )}
         {error && <p className="error">Error: {error}</p>}

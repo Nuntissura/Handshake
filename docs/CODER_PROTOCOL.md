@@ -37,11 +37,12 @@ Handshake is complex software. If we skip items or treat the roadmap as the requ
 - After coding, `just post-work WP-{ID}` is the deterministic gate: it enforces manifest completeness, SHA1s, window bounds, and required gates (anchors_present, rails/structure untouched, line_delta match, canonical path, concurrency check). Fill the manifest with real values before running.
 - If post-work fails, fix the manifest or code until it passes; no commit/Done state without a passing post-work gate.
 
-## Override: Evaluation-only mode [2025-12-27]
-- Evaluate your own work; do not run validation/test commands or mark validation as pass/fail.
-- Do not change task board items (`docs/TASK_BOARD.md`).
-- Do not set pass/fail status on WP/task packets; you may append notes instead.
-- Treat "validation" steps in this document as self-evaluation only until this override is lifted.
+## Active Workflow Adjustment [2025-12-28]
+- Run all TEST_PLAN commands (and any required hygiene checks) before handoff; no skipping validation.
+- Move the active WP from `Ready for Dev` to `In Progress` on `docs/TASK_BOARD.md` once you start.
+- Keep task packets clean: do NOT paste validation/evaluation reports or logs into the packet; status/notes only.
+- Validation reports belong to the validator/auditor, never the coder.
+- This adjustment supersedes any earlier "evaluation-only" guidance.
 
 ## Role
 
@@ -69,15 +70,15 @@ You MUST follow this exact sequence for every Work Packet. Combining these phase
 2. **SKELETON Phase**: Output proposed Traits, Structs, or SQL Headers. **STOP and wait for "SKELETON APPROVED".**
 3. **IMPLEMENTATION Phase**: Write logic only AFTER approval.
 4. **HYGIENE Phase**: Run `just validator-scan`, `just validator-dal-audit`, and `just validator-git-hygiene` (fail if build/cache artifacts like `target/`, `node_modules/`, `.gemini/` are tracked).
-5. **EVALUATION Phase**: Self-review only; do not run the TEST_PLAN and do not update statuses.
+5. **EVALUATION Phase**: Run the full TEST_PLAN and required hygiene commands, self-review, and prepare results for handoff (keep task packet free of validation logs).
 
 You are a **Coder** or **Debugger** agent. Your job is to:
 1. Verify task packet exists
 2. Implement within defined scope
-3. Evaluate your work (no validation run)
-4. Document completion
+3. Run validation (TEST_PLAN + hygiene) and self-review
+4. Document completion for handoff
 
-**Restrictions:** Do not edit `docs/TASK_BOARD.md` and do not set PASS/FAIL on WP/task packets. You may append notes instead.
+**Restrictions:** Keep task packets clean—do not embed validation/evaluation reports or logs. Use `docs/TASK_BOARD.md` to move the WP to `In Progress` when you start.
 
 **CRITICAL**: You MUST verify a task packet exists BEFORE writing any code. This is not optional.
 
@@ -655,7 +656,7 @@ cargo clippy --all-targets --all-features
 just validate
 ```
 
-**Document results:**
+**Document results for handoff (keep validation logs out of the task packet):**
 ```
 VALIDATION [CX-623]
 ========================================
@@ -685,7 +686,12 @@ Error: TypeError in JobsView component
 Fixing issue before claiming done...
 ```
 
-Fix issues, re-run tests, update VALIDATION block.
+Fix issues, re-run tests, update your handoff notes (not the task packet).
+
+Location/format for coder handoff notes:
+- File: `docs/messages history/WP-{ID}-coder-notes.md`
+- Contents: TEST_PLAN commands run, outcomes (PASS/FAIL), brief evidence pointers (file:line), and any waivers.
+- Validators/Auditors own validation reports and may append them to the task packet; coders MUST NOT.
 
 ---
 
@@ -718,7 +724,7 @@ cargo tarpaulin --out Html --output-dir coverage/
 
 **If coverage is LOW:**
 
-Document the reason in your VALIDATION block with one of these waivers:
+Document the reason in your handoff notes (not the task packet) with one of these waivers:
 
 **Waiver Template (use sparingly):**
 ```
@@ -784,10 +790,10 @@ Fix BLOCK issues, re-run `just ai-review` until PASS or WARN.
 
 ---
 
-### Step 9: Update Task Packet (validation + status) ✋ STOP
+### Step 9: Update Task Packet (status only; no validation logs) ✋ STOP
 
-- Append a `VALIDATION` block to the task packet with commands + outcomes from Step 7/8.
-- Set WP_STATUS/notes in the task packet to reflect current state (e.g., Completed/Blocked).
+- Update WP_STATUS/notes in the task packet to reflect current state (e.g., Completed/Blocked).
+- Do NOT paste validation/evaluation reports or test logs into the task packet; keep it clean.
 - Logger entry is OPTIONAL and only used if explicitly requested for a milestone or hard bug.
 
 ---
@@ -893,8 +899,8 @@ Ready for commit.
 2. Output BOOTSTRAP before first change [CX-622]
 3. Follow scope strictly
 4. Run all validation commands [CX-623]
-5. Document validation results
-6. Update task packet before commit (logger only if requested)
+5. Document validation results for handoff (outside the task packet)
+6. Update task packet status/notes only before commit (logger only if requested; no validation logs)
 7. Run `just post-work WP-{ID}` before claiming done
 
 ---
@@ -1013,11 +1019,11 @@ Now work is done.
 ### ❌ Mistake 4: No task packet update
 **Wrong:**
 ```
-[Requests commit without updating task packet validation/status]
+[Requests commit without updating task packet status/notes]
 ```
 **Right:**
 ```
-[Updates task packet with VALIDATION + current status]
+[Updates task packet status/notes (no validation logs)]
 [Then requests commit]
 ```
 
@@ -1031,7 +1037,7 @@ Now work is done.
 - ✅ Implementation within scope
 - ✅ All TEST_PLAN commands run and pass
 - ✅ AI review complete (if required)
-- ✅ Logger entry added with VALIDATION
+- ✅ Validation evidence captured for handoff (kept outside the task packet)
 - ✅ `just post-work WP-{ID}` passes
 - ✅ Commit message references WP-ID
 
@@ -1040,7 +1046,7 @@ Now work is done.
 - ❌ Work rejected at review for missing validation
 - ❌ Tests fail but you claim "done"
 - ❌ Scope creep (changed unrelated code)
-- ❌ No task packet validation/status recorded
+- ❌ No task packet status/notes recorded
 
 ---
 
@@ -1071,7 +1077,7 @@ git status
 - [CX-620]: MUST verify packet before coding
 - [CX-621]: MUST stop if no packet found
 - [CX-622]: MUST output BOOTSTRAP block
-- [CX-623]: MUST document validation
+ - [CX-623]: MUST document validation (in handoff notes; keep task packet clean)
 - [CX-572]: MUST NOT claim "OK" without tests
 - [CX-573]: MUST be traceable to WP_ID
 - [CX-650]: Task packet + task board are primary micro-log (logger only if requested)
@@ -1169,7 +1175,7 @@ This section defines what a PERFECT Coder looks like. Use this for self-evaluati
 
 **MUST verify DONE_MEANS:**
 - For each criterion: find file:line evidence
-- Append to VALIDATION block: "✅ {criterion} at {file:line}"
+- Capture in validation notes for handoff (outside the task packet): "✅ {criterion} at {file:line}"
 
 **Success:** All validation passes; evidence trail is complete
 
@@ -1178,8 +1184,8 @@ This section defines what a PERFECT Coder looks like. Use this for self-evaluati
 ### Responsibility 5: Completion Documentation [CX-573, CX-623]
 
 **MUST:**
-- [ ] Append VALIDATION block (test results + evidence)
-- [ ] Update STATUS if changed
+- [ ] Capture validation results + evidence for handoff (keep task packet free of validation logs)
+- [ ] Update STATUS if changed (packet notes/status only)
 - [ ] Update TASK_BOARD (move to "Done")
 - [ ] Write detailed commit message (references WP-ID)
 - [ ] Request commit with summary
@@ -1200,8 +1206,8 @@ Before requesting commit, verify ALL 13:
 - [ ] **6. AI Review:** PASS or WARN (no BLOCK) if MEDIUM/HIGH
 - [ ] **7. Post-Work:** `just post-work WP-{ID}` passes
 - [ ] **8. DONE_MEANS:** Every criterion has file:line evidence
-- [ ] **9. VALIDATION Block:** Appended with full test results
-- [ ] **10. Packet Status:** Updated if needed
+- [ ] **9. Validation Evidence:** Captured for handoff (outside task packet)
+- [ ] **10. Packet Status:** Updated if needed (no validation logs)
 - [ ] **11. TASK_BOARD:** Updated (moved to "Done")
 - [ ] **12. Commit Message:** Detailed, references WP-ID, includes validation
 - [ ] **13. Ready for Commit:** All 12 items verified
@@ -1238,7 +1244,7 @@ Stop immediately if ANY of these are true:
 2. ✅ **Scope boundaries are hard lines** — OUT_OF_SCOPE items are forbidden
 3. ✅ **Tests are proof, not optional** — No passing tests = no done work
 4. ✅ **DONE_MEANS are literal** — Each criterion must be verifiable yes/no
-5. ✅ **VALIDATION block is audit trail** — Future engineers will read it
+5. ✅ **Validation evidence (outside the task packet) is the audit trail** — keep logs for handoff, not in the packet
 6. ✅ **Task packet is source of truth** — Not Slack, not conversation, not memory
 7. ✅ **BOOTSTRAP output proves understanding** — If you can't explain FILES/SEARCH/RISK, you don't understand
 8. ✅ **Hard invariants are non-negotiable** — No exceptions, ever
@@ -1335,7 +1341,7 @@ Work is stuck (can't proceed without help)
 - ✅ All TEST_PLAN commands pass
 - ✅ AI review PASS or WARN (not BLOCK)
 - ✅ `just post-work` passes
-- ✅ VALIDATION block complete with evidence
+- ✅ Validation evidence captured for handoff (kept outside the task packet)
 - ✅ Commit message references WP-ID and includes validation
 
 ### You Failed If:

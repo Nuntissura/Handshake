@@ -3,6 +3,7 @@ use axum::{routing::get, Router};
 use crate::AppState;
 
 pub mod canvases;
+pub mod diagnostics;
 pub mod flight_recorder;
 pub mod jobs;
 pub mod logs;
@@ -14,6 +15,7 @@ pub fn routes(state: AppState) -> Router {
     let canvas_routes = canvases::routes(state.clone());
     let job_routes = jobs::routes(state.clone());
     let flight_recorder_routes = flight_recorder::routes(state.clone());
+    let diagnostics_routes = diagnostics::routes(state.clone());
     let log_routes = Router::new()
         .route("/logs/tail", get(logs::tail_logs))
         .with_state(state.clone());
@@ -22,5 +24,6 @@ pub fn routes(state: AppState) -> Router {
         .merge(canvas_routes)
         .merge(log_routes)
         .merge(job_routes)
+        .merge(diagnostics_routes)
         .merge(flight_recorder_routes)
 }

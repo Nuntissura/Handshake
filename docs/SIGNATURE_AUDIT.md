@@ -50,6 +50,8 @@
 | ilja281220251500 | Orchestrator | 2025-12-28 15:00 | Task packet creation: WP-1-Security-Gates-20251228 | v02.96 | Terminal/RCE security gates per §10.1 |
 | ilja281220251700 | Orchestrator | 2025-12-28 17:00 | Task packet creation: WP-1-Terminal-LAW-v2 | v02.96 | Terminal LAW session types + AI isolation enforcement per §10.1 |
 | ilja281220251740 | Orchestrator | 2025-12-28 17:40 | Task packet creation: WP-1-MEX-v1.2-Runtime-v2 | v02.96 | MEX v1.2 runtime contract (envelopes, gates, registry, conformance) per §6.3.0 + §11.8 |
+| ilja281220251911 | Orchestrator | 2025-12-28 19:11 | Task packet creation: WP-1-Operator-Consoles-v1 | v02.96 | Operator Consoles v1 per §10.5 + DIAG-SCHEMA §11.4 (Problems/Jobs/Timeline/Evidence) |
+| ilja281220252016 | Orchestrator | 2025-12-28 20:16 | Spec Enrichment v02.97 (Operator Consoles Technical Detail) | v02.97 | Added normative DuckDB schema and DiagnosticsStore trait |
 
 ---
 

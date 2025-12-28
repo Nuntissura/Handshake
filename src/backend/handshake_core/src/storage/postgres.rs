@@ -1,9 +1,9 @@
 use super::{
-    AccessMode, AiJob, Block, BlockUpdate, Canvas, CanvasEdge, CanvasGraph, CanvasNode,
-    DefaultStorageGuard, Document, EntityRef, JobKind, JobMetrics, JobState, JobStatusUpdate,
-    MutationMetadata, NewAiJob, NewBlock, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument,
-    NewNodeExecution, NewWorkspace, PlannedOperation, SafetyMode, StorageError, StorageGuard,
-    StorageResult, WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
+    AccessMode, AiJob, AiJobListFilter, Block, BlockUpdate, Canvas, CanvasEdge, CanvasGraph,
+    CanvasNode, DefaultStorageGuard, Document, EntityRef, JobKind, JobMetrics, JobState,
+    JobStatusUpdate, MutationMetadata, NewAiJob, NewBlock, NewCanvas, NewCanvasEdge, NewCanvasNode,
+    NewDocument, NewNodeExecution, NewWorkspace, PlannedOperation, SafetyMode, StorageError,
+    StorageGuard, StorageResult, WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
 };
 use async_trait::async_trait;
 use chrono::Utc;
@@ -985,6 +985,67 @@ impl super::Database for PostgresDatabase {
             Some(row) => map_ai_job(row),
             None => Err(StorageError::NotFound("ai_job")),
         }
+    }
+
+    async fn list_ai_jobs(&self, filter: AiJobListFilter) -> StorageResult<Vec<AiJob>> {
+        let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
+            r#"
+            SELECT
+                id,
+                trace_id,
+                workflow_run_id,
+                job_kind,
+                status,
+                status_reason,
+                error_message,
+                protocol_id,
+                profile_id,
+                capability_profile_id,
+                access_mode,
+                safety_mode,
+                entity_refs,
+                planned_operations,
+                metrics,
+                job_inputs,
+                job_outputs,
+                created_at,
+                updated_at
+            FROM ai_jobs
+            "#,
+        );
+
+        let mut has_where = false;
+        let mut push_clause = |builder: &mut sqlx::QueryBuilder<sqlx::Postgres>| {
+            if has_where {
+                builder.push(" AND ");
+            } else {
+                builder.push(" WHERE ");
+                has_where = true;
+            }
+        };
+
+        if let Some(status) = filter.status {
+            push_clause(&mut qb);
+            qb.push("status = ").push_bind(status.as_str());
+        }
+        if let Some(kind) = filter.job_kind {
+            push_clause(&mut qb);
+            qb.push("job_kind = ").push_bind(kind.as_str());
+        }
+        if let Some(from) = filter.from {
+            push_clause(&mut qb);
+            qb.push("created_at >= ").push_bind(from);
+        }
+        if let Some(to) = filter.to {
+            push_clause(&mut qb);
+            qb.push("created_at <= ").push_bind(to);
+        }
+
+        qb.push(" ORDER BY created_at DESC LIMIT ");
+        qb.push_bind(200_i64);
+
+        let rows = qb.build().fetch_all(&self.pool).await?;
+        rows.into_iter().map(map_ai_job).collect()
     }
 
     async fn create_ai_job(&self, job: NewAiJob) -> StorageResult<AiJob> {

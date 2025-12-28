@@ -2,6 +2,7 @@ use axum::{extract::State, routing::get, Json, Router};
 use handshake_core::{
     api,
     capabilities::CapabilityRegistry,
+    diagnostics::DiagnosticsStore,
     flight_recorder::{duckdb::DuckDbFlightRecorder, FlightRecorder},
     llm::{ollama::OllamaAdapter, LlmClient},
     logging,
@@ -41,13 +42,16 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let storage = storage::init_storage()
         .await
         .map_err(|e| format!("failed to initialize storage: {}", e))?;
-    let flight_recorder = init_flight_recorder().await?;
+    let recorder = init_flight_recorder().await?;
+    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
+    let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
     let llm_client = init_llm_client(flight_recorder.clone())?;
     let capability_registry = Arc::new(CapabilityRegistry::new());
 
     let state = AppState {
         storage: storage.clone(),
         flight_recorder: flight_recorder.clone(),
+        diagnostics,
         llm_client,
         capability_registry,
     };
@@ -143,7 +147,7 @@ fn init_janitor_config() -> JanitorConfig {
     }
 }
 
-async fn init_flight_recorder() -> Result<Arc<dyn FlightRecorder>, Box<dyn std::error::Error>> {
+async fn init_flight_recorder() -> Result<Arc<DuckDbFlightRecorder>, Box<dyn std::error::Error>> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let root_dir = manifest_dir
         .parent()

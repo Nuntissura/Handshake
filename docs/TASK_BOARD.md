@@ -24,9 +24,9 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - **[WP-1-Mutation-Traceability]** / FAIL: Spec drift vs SPEC_CURRENT v02.94; revalidate A2.9.3. [READY FOR DEV]
 - **[WP-1-Dual-Backend-Tests]** / FAIL: Missing STATUS/SPEC_CURRENT; re-anchor to v02.94 A2.3.12. [READY FOR DEV]
 - **[WP-1-Flight-Recorder-UI]** / FAIL (SUPERSEDED by v2): DuckDB log store + UI wiring. [READY FOR DEV]
-- **[WP-1-Operator-Consoles]** / FAIL: Timeline, Jobs, Problems, Evidence UI. [READY FOR DEV]
+- **[WP-1-Operator-Consoles]** - Superseded by v1 (comprehensive rewrite anchored to v02.96). [SUPERSEDED]
 - **[WP-1-Metrics-OTel]** / FAIL: OpenTelemetry instrumentation. [READY FOR DEV]
-- **[WP-1-Diagnostic-Pipe]** / FAIL: DIAG-SCHEMA fingerprinting and grouping. [READY FOR DEV]
+- **[WP-1-Diagnostic-Pipe]** - Absorbed into WP-1-Operator-Consoles-v1 (DIAG-SCHEMA is prerequisite). [SUPERSEDED]
 - **[WP-1-OSS-Governance]** / FAIL: Component Register, Copyleft isolation. [READY FOR DEV]
 - **[WP-1-Supply-Chain-MEX]** / FAIL: MEX v1.2 Security Gates (gitleaks, osv-scanner). [READY FOR DEV]
 - **[WP-1-ACE-Auditability]** / FAIL: ContextPlan, ContextSnapshot artifacts. [READY FOR DEV]
@@ -53,13 +53,13 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - **[WP-1-Semantic-Catalog]** / FAIL: Implement SemanticCatalog per A2.6.7. [READY FOR DEV]
 - **[WP-1-MCP-End-to-End]** / FAIL: MCP capability/logging chain. [READY FOR DEV]
 - **[WP-1-Metrics-Traces]** / FAIL: OTel metrics/traces + validator pack. [READY FOR DEV]
-- **[WP-1-Operator-Consoles-v1]** / FAIL: Timeline/Jobs/Problems/Evidence UI. [READY FOR DEV]
 
 
 ## In Progress
 
 
 ## Done
+- **[WP-1-Operator-Consoles-v1]** - Operator Consoles v1 per §10.5 + DIAG-SCHEMA §11.4 (Problems/Jobs/Timeline/Evidence). [VALIDATED]
 - **[WP-1-MEX-v1.2-Runtime-v2]** - MEX v1.2 runtime contract (envelopes, gates, registry) per §6.3.0 + §11.8. [VALIDATED]
 - **[WP-1-Terminal-LAW-v2]** - Session types + AI isolation per §10.1. [VALIDATED]
 - **[WP-1-Security-Gates-v2]** - Terminal/RCE guardrails per §10.1. [VALIDATED]
@@ -80,6 +80,8 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 ---
 
 ## Superseded (Archive)
+- **[WP-1-Operator-Consoles]** - Superseded by v1 (comprehensive rewrite anchored to v02.96 §10.5 + §11.4).
+- **[WP-1-Diagnostic-Pipe]** - Absorbed into WP-1-Operator-Consoles-v1 (DIAG-SCHEMA §11.4 is prerequisite component).
 - **[WP-1-Flight-Recorder]** - Superseded by v2 (Spec alignment §11.5).
 - **[WP-1-Workflow-Engine-v2]** - Superseded by v3 (Audit remediation).
 - **[WP-1-AI-Job-Model-v2]** - Superseded by v3 (Spec alignment §2.6.6.2.8).

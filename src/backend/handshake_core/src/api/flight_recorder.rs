@@ -19,6 +19,7 @@ pub struct FlightEvent {
     pub event_type: String,
     pub job_id: Option<String>,
     pub workflow_id: Option<String>,
+    pub wsids: Vec<String>,
     pub payload: Value,
 }
 
@@ -28,6 +29,9 @@ pub struct EventFilter {
     pub trace_id: Option<Uuid>,
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
+    pub actor: Option<String>,
+    pub event_type: Option<String>,
+    pub wsid: Option<String>,
 }
 
 pub fn routes(state: AppState) -> Router {
@@ -48,11 +52,21 @@ async fn list_events(
         to: filter.to,
     };
 
-    let events = state
+    let mut events = state
         .flight_recorder
         .list_events(internal_filter)
         .await
         .map_err(|e| e.to_string())?;
+
+    if let Some(actor) = filter.actor {
+        events.retain(|e| e.actor.to_string() == actor);
+    }
+    if let Some(kind) = filter.event_type {
+        events.retain(|e| e.event_type.to_string() == kind);
+    }
+    if let Some(wsid) = filter.wsid {
+        events.retain(|e| e.wsids.contains(&wsid));
+    }
 
     let api_events = events
         .into_iter()
@@ -65,6 +79,7 @@ async fn list_events(
             event_type: e.event_type.to_string(),
             job_id: e.job_id,
             workflow_id: e.workflow_id,
+            wsids: e.wsids,
             payload: e.payload,
         })
         .collect();

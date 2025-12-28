@@ -7,12 +7,22 @@ import { CanvasView } from "./components/CanvasView";
 import { DebugPanel } from "./components/DebugPanel";
 
 import { FlightRecorderView } from "./components/FlightRecorderView";
+import {
+  EvidenceDrawer,
+  EvidenceSelection,
+  JobsView,
+  ProblemsView,
+  TimelineView,
+} from "./components/operator";
 
 function App() {
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [selectedCanvasId, setSelectedCanvasId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<"workspace" | "flight-recorder">("workspace");
+  const [activeView, setActiveView] = useState<
+    "workspace" | "flight-recorder" | "problems" | "jobs" | "timeline"
+  >("workspace");
   const [refreshKey, setRefreshKey] = useState<number>(0);
+  const [selection, setSelection] = useState<EvidenceSelection | null>(null);
 
   return (
     <main className="app-shell">
@@ -35,6 +45,24 @@ function App() {
               onClick={() => setActiveView("flight-recorder")}
             >
               Flight Recorder
+            </button>
+            <button 
+              className={activeView === "problems" ? "active" : ""} 
+              onClick={() => setActiveView("problems")}
+            >
+              Problems
+            </button>
+            <button 
+              className={activeView === "jobs" ? "active" : ""} 
+              onClick={() => setActiveView("jobs")}
+            >
+              Jobs
+            </button>
+            <button 
+              className={activeView === "timeline" ? "active" : ""} 
+              onClick={() => setActiveView("timeline")}
+            >
+              Timeline
             </button>
           </div>
           <SystemStatus />
@@ -90,13 +118,33 @@ function App() {
                 </div>
               </div>
             </>
-          ) : (
+          ) : activeView === "flight-recorder" ? (
             <div className="content-panel content-panel--full">
               <FlightRecorderView />
+            </div>
+          ) : activeView === "problems" ? (
+            <div className="content-panel content-panel--full">
+              <ProblemsView onSelect={setSelection} />
+            </div>
+          ) : activeView === "jobs" ? (
+            <div className="content-panel content-panel--full">
+              <JobsView onSelect={setSelection} />
+            </div>
+          ) : (
+            <div className="content-panel content-panel--full">
+              <TimelineView onSelect={setSelection} />
             </div>
           )}
         </div>
       </div>
+      <EvidenceDrawer
+        selection={selection}
+        onClose={() => setSelection(null)}
+        onExport={(sel) => {
+          console.info("Debug Bundle export foundation triggered", sel);
+          setSelection(sel);
+        }}
+      />
     </main>
   );
 }

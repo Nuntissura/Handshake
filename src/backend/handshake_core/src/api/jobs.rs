@@ -1,14 +1,16 @@
 use crate::{
     jobs::{create_job, JobError},
     models::{AiJob, JobKind, WorkflowRun},
+    storage::JobState,
     workflows::{start_workflow_for_job, WorkflowError},
     AppState,
 };
 use axum::{
-    extract::{Path, State},
-    routing::{get, post},
+    extract::{Path, Query, State},
+    routing::get,
     Json, Router,
 };
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::str::FromStr;
@@ -44,7 +46,7 @@ impl From<WorkflowError> for ApiJobError {
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
-        .route("/jobs", post(create_new_job))
+        .route("/jobs", get(list_jobs).post(create_new_job))
         .route("/jobs/:id", get(get_job))
         .with_state(state)
 }
@@ -98,6 +100,45 @@ async fn get_job(
     Ok(Json(job))
 }
 
+#[derive(Deserialize, Default)]
+struct JobListFilters {
+    status: Option<String>,
+    job_kind: Option<String>,
+    from: Option<DateTime<Utc>>,
+    to: Option<DateTime<Utc>>,
+}
+
+async fn list_jobs(
+    State(state): State<AppState>,
+    Query(filters): Query<JobListFilters>,
+) -> Result<Json<Vec<AiJob>>, String> {
+    let status = filters
+        .status
+        .as_deref()
+        .map(JobState::try_from)
+        .transpose()
+        .map_err(|e| e.to_string())?;
+    let job_kind = filters
+        .job_kind
+        .as_deref()
+        .map(JobKind::from_str)
+        .transpose()
+        .map_err(|e| e.to_string())?;
+
+    let items = state
+        .storage
+        .list_ai_jobs(crate::storage::AiJobListFilter {
+            status,
+            job_kind,
+            from: filters.from,
+            to: filters.to,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(Json(items))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -117,7 +158,8 @@ mod tests {
 
         Ok(AppState {
             storage: sqlite.into_arc(),
-            flight_recorder,
+            flight_recorder: flight_recorder.clone(),
+            diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
             capability_registry: Arc::new(CapabilityRegistry::new()),
         })
