@@ -347,6 +347,8 @@ pub enum JobKind {
     /// Backward-compatible document summarize/test kinds.
     DocSummarize,
     DocTest,
+    /// Debug bundle export job [§10.5.6.8]
+    DebugBundleExport,
 }
 
 impl JobKind {
@@ -360,6 +362,7 @@ impl JobKind {
             JobKind::TerminalExec => "term_exec",
             JobKind::DocSummarize => "doc_summarize",
             JobKind::DocTest => "doc_test",
+            JobKind::DebugBundleExport => "debug_bundle_export",
         }
     }
 }
@@ -377,6 +380,7 @@ impl FromStr for JobKind {
             "term_exec" | "terminal_exec" => Ok(JobKind::TerminalExec),
             "doc_summarize" => Ok(JobKind::DocSummarize),
             "doc_test" => Ok(JobKind::DocTest),
+            "debug_bundle_export" => Ok(JobKind::DebugBundleExport),
             _ => Err(StorageError::Validation("invalid job kind")),
         }
     }

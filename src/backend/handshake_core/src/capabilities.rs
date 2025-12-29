@@ -17,6 +17,8 @@ const CANONICAL_CAPABILITY_IDS: &[&str] = &[
     "CALENDAR_ACTIVITY_SUMMARY",
     "CALENDAR_COMPARE_ACTIVITY_WINDOWS",
     "terminal.attach_human",
+    "export.debug_bundle",
+    "export.include_payloads",
 ];
 
 /// Registry error type for capability SSoT violations.
@@ -80,6 +82,8 @@ impl CapabilityRegistry {
         let mut valid_full_ids = HashSet::new();
         valid_full_ids.insert("doc.summarize".to_string());
         valid_full_ids.insert("terminal.exec".to_string()); // Historically used, though proc.exec is axis
+        valid_full_ids.insert("export.debug_bundle".to_string());
+        valid_full_ids.insert("export.include_payloads".to_string());
         for id in CANONICAL_CAPABILITY_IDS {
             valid_full_ids.insert((*id).to_string());
         }
@@ -96,6 +100,8 @@ impl CapabilityRegistry {
                     "fs.read".to_string(),
                     "net.http".to_string(),
                     "doc.summarize".to_string(),
+                    "export.debug_bundle".to_string(),
+                    "export.include_payloads".to_string(),
                 ],
             },
         );
@@ -128,6 +134,7 @@ impl CapabilityRegistry {
         job_profile_map.insert("terminal_exec".to_string(), "Coder".to_string());
         job_profile_map.insert("doc_summarize".to_string(), "Analyst".to_string());
         job_profile_map.insert("doc_test".to_string(), "Analyst".to_string());
+        job_profile_map.insert("debug_bundle_export".to_string(), "Analyst".to_string());
         // Backward-compatible aliases
         job_profile_map.insert("Research".to_string(), "Analyst".to_string());
         job_profile_map.insert("Development".to_string(), "Coder".to_string());
@@ -143,6 +150,10 @@ impl CapabilityRegistry {
         job_requirements.insert("doc_test".to_string(), "doc.summarize".to_string());
         job_requirements.insert("term_exec".to_string(), "terminal.exec".to_string());
         job_requirements.insert("terminal_exec".to_string(), "terminal.exec".to_string());
+        job_requirements.insert(
+            "debug_bundle_export".to_string(),
+            "export.debug_bundle".to_string(),
+        );
 
         Self {
             valid_axes,

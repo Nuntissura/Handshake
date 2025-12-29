@@ -5,11 +5,13 @@ import { WorkspaceSidebar } from "./components/WorkspaceSidebar";
 import { DocumentView } from "./components/DocumentView";
 import { CanvasView } from "./components/CanvasView";
 import { DebugPanel } from "./components/DebugPanel";
+import { BundleScopeInput } from "./lib/api";
 
 import { FlightRecorderView } from "./components/FlightRecorderView";
 import {
   EvidenceDrawer,
   EvidenceSelection,
+  DebugBundleExport,
   JobsView,
   ProblemsView,
   TimelineView,
@@ -23,6 +25,8 @@ function App() {
   >("workspace");
   const [refreshKey, setRefreshKey] = useState<number>(0);
   const [selection, setSelection] = useState<EvidenceSelection | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportScope, setExportScope] = useState<BundleScopeInput | null>(null);
 
   return (
     <main className="app-shell">
@@ -141,10 +145,23 @@ function App() {
         selection={selection}
         onClose={() => setSelection(null)}
         onExport={(sel) => {
-          console.info("Debug Bundle export foundation triggered", sel);
-          setSelection(sel);
+          let scope: BundleScopeInput | null = null;
+          if (sel.kind === "diagnostic") {
+            scope = { kind: "problem", problem_id: sel.diagnostic.id };
+          } else if (sel.kind === "event") {
+            scope = { kind: "job", job_id: sel.event.job_id ?? "" };
+          }
+          setExportScope(scope);
+          setExportOpen(true);
         }}
       />
+      {exportOpen && (
+        <DebugBundleExport
+          isOpen={exportOpen}
+          defaultScope={exportScope ?? { kind: "job", job_id: "" }}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
     </main>
   );
 }

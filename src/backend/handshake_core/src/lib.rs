@@ -1,5 +1,6 @@
 pub mod ace;
 pub mod api;
+pub mod bundles;
 pub mod capabilities;
 pub mod diagnostics;
 pub mod flight_recorder;

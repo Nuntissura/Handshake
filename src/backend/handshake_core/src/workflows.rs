@@ -1,9 +1,11 @@
 use crate::{
     ace::{validators::SecurityViolationType, AceError},
+    bundles::DebugBundleExporter,
+    bundles::{BundleScope, DebugBundleRequest, DefaultDebugBundleExporter, RedactionMode},
     capabilities::RegistryError,
     flight_recorder::{
         FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
-        FrEvt005SecurityViolation, FrEvt006WorkflowRecovery,
+        FrEvt006WorkflowRecovery, FrEvt008SecurityViolation,
     },
     llm::{CompletionRequest, LlmError},
     models::{AiJob, JobKind, WorkflowRun},
@@ -102,7 +104,7 @@ pub async fn handle_security_violation(
     };
 
     // 1. Emit FR-EVT-SEC-VIOLATION to Flight Recorder
-    let payload = FrEvt005SecurityViolation {
+    let payload = FrEvt008SecurityViolation {
         violation_type: violation_type_str.to_string(),
         description: violation.to_string(),
         source_id: None, // Could be enhanced to include source_ref if available
@@ -578,6 +580,106 @@ async fn run_job(
             .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
             .await?;
         return Ok(Some(payload));
+    } else if matches!(job.job_kind, JobKind::DebugBundleExport) {
+        let inputs = parse_inputs(job.job_inputs.as_ref());
+        let scope_value = inputs.get("scope").cloned().unwrap_or_else(|| {
+            json!({
+                "kind": "job",
+                "job_id": job.job_id.to_string()
+            })
+        });
+
+        let scope = match scope_value
+            .get("kind")
+            .and_then(|v| v.as_str())
+            .unwrap_or("job")
+        {
+            "problem" => scope_value
+                .get("problem_id")
+                .and_then(|v| v.as_str())
+                .map(|id| BundleScope::Problem {
+                    diagnostic_id: id.to_string(),
+                })
+                .ok_or_else(|| {
+                    WorkflowError::Terminal("scope.problem_id missing for bundle export".into())
+                })?,
+            "time_window" => {
+                let start = scope_value
+                    .get("time_range")
+                    .and_then(|r| r.get("start"))
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| WorkflowError::Terminal("time_range.start missing".into()))?;
+                let end = scope_value
+                    .get("time_range")
+                    .and_then(|r| r.get("end"))
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| WorkflowError::Terminal("time_range.end missing".into()))?;
+                let start_dt = chrono::DateTime::parse_from_rfc3339(start)
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+                    .with_timezone(&chrono::Utc);
+                let end_dt = chrono::DateTime::parse_from_rfc3339(end)
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+                    .with_timezone(&chrono::Utc);
+                BundleScope::TimeWindow {
+                    start: start_dt,
+                    end: end_dt,
+                    wsid: scope_value
+                        .get("wsid")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                }
+            }
+            "workspace" => scope_value
+                .get("wsid")
+                .and_then(|v| v.as_str())
+                .map(|wsid| BundleScope::Workspace {
+                    wsid: wsid.to_string(),
+                })
+                .ok_or_else(|| {
+                    WorkflowError::Terminal("wsid missing for workspace scope".into())
+                })?,
+            _ => scope_value
+                .get("job_id")
+                .and_then(|v| v.as_str())
+                .map(|jid| BundleScope::Job {
+                    job_id: jid.to_string(),
+                })
+                .unwrap_or(BundleScope::Job {
+                    job_id: job.job_id.to_string(),
+                }),
+        };
+
+        let redaction_mode = inputs
+            .get("redaction_mode")
+            .and_then(|v| v.as_str())
+            .unwrap_or("SAFE_DEFAULT");
+        let redaction_mode = match redaction_mode {
+            "WORKSPACE" | "workspace" => RedactionMode::Workspace,
+            "FULL_LOCAL" | "full_local" => RedactionMode::FullLocal,
+            _ => RedactionMode::SafeDefault,
+        };
+
+        let exporter = DefaultDebugBundleExporter::new(state.clone());
+        let manifest = exporter
+            .export(DebugBundleRequest {
+                scope,
+                redaction_mode,
+                output_path: None,
+                include_artifacts: inputs
+                    .get("include_artifacts")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false),
+            })
+            .await
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+        let manifest_value =
+            serde_json::to_value(&manifest).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        state
+            .storage
+            .set_job_outputs(&job.job_id.to_string(), Some(manifest_value.clone()))
+            .await?;
+        return Ok(Some(manifest_value));
     }
     Ok(None)
 }

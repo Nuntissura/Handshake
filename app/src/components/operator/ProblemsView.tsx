@@ -6,6 +6,7 @@ import {
   listProblemGroups,
 } from "../../lib/api";
 import { EvidenceSelection } from "./EvidenceDrawer";
+import { DebugBundleExport } from "./DebugBundleExport";
 
 type Props = {
   onSelect: (selection: EvidenceSelection) => void;
@@ -36,6 +37,8 @@ export const ProblemsView: React.FC<Props> = ({ onSelect }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [problems, setProblems] = useState<ProblemGroup[]>([]);
+  const [selectedProblem, setSelectedProblem] = useState<ProblemGroup | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const fetchProblems = async (override?: ProblemFilters) => {
     const active = override ?? filters;
@@ -80,6 +83,16 @@ export const ProblemsView: React.FC<Props> = ({ onSelect }) => {
           <p className="muted">
             Grouped diagnostics with fingerprint-based clustering. Filters align to DIAG-SCHEMA-001/003.
           </p>
+        </div>
+        <div className="card-actions">
+          <button
+            className="primary"
+            type="button"
+            disabled={!selectedProblem}
+            onClick={() => setExportOpen(true)}
+          >
+            Export Debug Bundle
+          </button>
         </div>
       </div>
 
@@ -189,7 +202,10 @@ export const ProblemsView: React.FC<Props> = ({ onSelect }) => {
               {problems.map((problem) => (
                 <tr
                   key={problem.fingerprint}
-                  onClick={() => onSelect({ kind: "diagnostic", diagnostic: problem.sample })}
+                  onClick={() => {
+                    setSelectedProblem(problem);
+                    onSelect({ kind: "diagnostic", diagnostic: problem.sample });
+                  }}
                   className="clickable-row"
                 >
                   <td>
@@ -210,6 +226,17 @@ export const ProblemsView: React.FC<Props> = ({ onSelect }) => {
             </tbody>
           </table>
         </div>
+      )}
+      {exportOpen && (
+        <DebugBundleExport
+          isOpen={exportOpen}
+          defaultScope={
+            selectedProblem
+              ? { kind: "problem", problem_id: selectedProblem.sample.id }
+              : { kind: "problem", problem_id: "" }
+          }
+          onClose={() => setExportOpen(false)}
+        />
       )}
     </div>
   );

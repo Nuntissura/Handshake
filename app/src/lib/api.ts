@@ -139,7 +139,14 @@ export type FlightEvent = {
   timestamp: string;
   actor: "human" | "agent" | "system";
   actor_id: string;
-  event_type: "system" | "llm_inference" | "diagnostic" | "capability_action" | "security_violation" | "workflow_recovery";
+  event_type:
+    | "system"
+    | "llm_inference"
+    | "diagnostic"
+    | "capability_action"
+    | "security_violation"
+    | "workflow_recovery"
+    | "debug_bundle_export";
   job_id?: string;
   workflow_id?: string;
   model_id?: string;
@@ -486,4 +493,64 @@ export async function listJobs(filters?: ListJobsFilters): Promise<AiJob[]> {
   const query = params.toString();
   const path = query.length > 0 ? `/api/jobs?${query}` : "/api/jobs";
   return request(path);
+}
+
+// Debug Bundle types
+export type BundleScopeInput =
+  | { kind: "problem"; problem_id: string }
+  | { kind: "job"; job_id: string }
+  | { kind: "time_window"; time_range: { start: string; end: string }; wsid?: string }
+  | { kind: "workspace"; wsid: string };
+
+export type BundleExportRequest = {
+  scope: BundleScopeInput;
+  redaction_mode: "SAFE_DEFAULT" | "WORKSPACE" | "FULL_LOCAL";
+};
+
+export type BundleExportResponse = {
+  export_job_id: string;
+  status: "queued" | "running" | "ready" | "failed";
+  estimated_size_bytes?: number | null;
+};
+
+export type BundleStatus = {
+  bundle_id: string;
+  status: "pending" | "ready" | "expired" | "failed";
+  manifest?: unknown;
+  error?: string | null;
+  expires_at?: string | null;
+};
+
+export type BundleValidationFinding = {
+  severity: "Error" | "Warning" | "Info";
+  code: string;
+  message: string;
+  file?: string | null;
+  path?: string | null;
+};
+
+export type BundleValidationResponse = {
+  valid: boolean;
+  findings: BundleValidationFinding[];
+};
+
+export async function exportDebugBundle(input: BundleExportRequest): Promise<BundleExportResponse> {
+  return request("/api/bundles/debug/export", { method: "POST", body: input });
+}
+
+export async function getBundleStatus(bundleId: string): Promise<BundleStatus> {
+  return request(`/api/bundles/debug/${encodeURIComponent(bundleId)}`);
+}
+
+export async function validateBundle(bundleId: string): Promise<BundleValidationResponse> {
+  return request(`/api/bundles/debug/${encodeURIComponent(bundleId)}`, { method: "POST" });
+}
+
+export async function downloadBundle(bundleId: string): Promise<Blob> {
+  const response = await fetch(`${BASE_URL}/api/bundles/debug/${encodeURIComponent(bundleId)}/download`);
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Download failed: ${text}`);
+  }
+  return response.blob();
 }

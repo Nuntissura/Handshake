@@ -35,10 +35,12 @@ pub enum FlightRecorderEventType {
     LlmInference,
     Diagnostic,
     CapabilityAction,
-    /// FR-EVT-SEC-VIOLATION: Security violation detected by ACE validators [§2.6.6.7.11]
+    /// FR-EVT-008: Security violation detected by ACE validators [A2.6.6.7.11]
     SecurityViolation,
-    /// FR-EVT-WF-RECOVERY: Workflow recovery initiated [§2.6.1]
+    /// FR-EVT-WF-RECOVERY: Workflow recovery initiated [A2.6.1]
     WorkflowRecovery,
+    /// FR-EVT-005: Debug Bundle export lifecycle event [?11.5]
+    DebugBundleExport,
 }
 
 impl fmt::Display for FlightRecorderEventType {
@@ -50,6 +52,7 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::CapabilityAction => write!(f, "capability_action"),
             FlightRecorderEventType::SecurityViolation => write!(f, "security_violation"),
             FlightRecorderEventType::WorkflowRecovery => write!(f, "workflow_recovery"),
+            FlightRecorderEventType::DebugBundleExport => write!(f, "debug_bundle_export"),
         }
     }
 }
@@ -235,14 +238,14 @@ pub struct FrEvt004CapabilityAction {
     pub policy_decision_id: Option<String>,
 }
 
-/// FR-EVT-005: Security violation event payload [§2.6.6.7.11]
+/// FR-EVT-008: Security violation event payload [§2.6.6.7.11]
 ///
 /// Emitted when ACE validators detect a security violation such as:
 /// - Prompt injection [HSK-ACE-VAL-101]
 /// - Cloud leakage [§2.6.6.7.11.5]
 /// - Sensitivity violation
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FrEvt005SecurityViolation {
+pub struct FrEvt008SecurityViolation {
     /// Type of security violation (prompt_injection, cloud_leakage, etc.)
     pub violation_type: String,
     /// Human-readable description of the violation
@@ -295,6 +298,19 @@ pub struct TerminalCommandEvent {
     pub capability_id: Option<String>,
     pub redaction_applied: bool,
     pub redacted_output: Option<String>,
+}
+
+/// FR-EVT-005: Debug Bundle export payload [?11.5]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FrEvt005DebugBundleExport {
+    pub bundle_id: String,
+    pub scope: String,
+    pub redaction_mode: String,
+    pub included_job_ids: Vec<String>,
+    pub included_diagnostic_ids: Vec<String>,
+    pub included_wsids: Vec<String>,
+    pub event_count: usize,
+    pub missing_evidence: Vec<serde_json::Value>,
 }
 
 #[derive(Error, Debug)]

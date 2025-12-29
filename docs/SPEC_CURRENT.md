@@ -2,9 +2,9 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.97.md**
+**Handshake_Master_Spec_v02.98.md**
 
-(Updated: 2025-12-28 - Added normative Diagnostic storage and trait signatures [ilja281220252016])
+(Updated: 2025-12-29 - Added normative Debug Bundle schemas, DebugBundleExporter trait, API endpoints, job profile, and frontend UI spec [ilja291220250100])
 
 ---
 

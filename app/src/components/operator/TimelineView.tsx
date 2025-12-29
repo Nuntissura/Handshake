@@ -1,6 +1,7 @@
 import React, { FormEvent, useEffect, useState } from "react";
 import { FlightEvent, getEvents } from "../../lib/api";
 import { EvidenceSelection } from "./EvidenceDrawer";
+import { DebugBundleExport } from "./DebugBundleExport";
 
 type Props = {
   onSelect: (selection: EvidenceSelection) => void;
@@ -30,6 +31,7 @@ export const TimelineView: React.FC<Props> = ({ onSelect }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pinnedSlices, setPinnedSlices] = useState<TimelineFilters[]>([]);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const fetchEvents = async (override?: TimelineFilters) => {
     const active = override ?? filters;
@@ -75,9 +77,14 @@ export const TimelineView: React.FC<Props> = ({ onSelect }) => {
             Flight Recorder events with filters for job, workspace, actor, and event types. Pin slices for bundle export.
           </p>
         </div>
-        <button className="secondary" onClick={pinSlice}>
-          Pin this slice
-        </button>
+        <div className="card-actions">
+          <button className="secondary" onClick={pinSlice}>
+            Pin this slice
+          </button>
+          <button className="primary" type="button" onClick={() => setExportOpen(true)}>
+            Export time range
+          </button>
+        </div>
       </div>
 
       <form className="filters-grid" onSubmit={onSubmit}>
@@ -194,6 +201,20 @@ export const TimelineView: React.FC<Props> = ({ onSelect }) => {
             </tbody>
           </table>
         </div>
+      )}
+      {exportOpen && (
+        <DebugBundleExport
+          isOpen={exportOpen}
+          defaultScope={{
+            kind: "time_window",
+            time_range: {
+              start: filters.from ? new Date(filters.from).toISOString() : new Date().toISOString(),
+              end: filters.to ? new Date(filters.to).toISOString() : new Date().toISOString(),
+            },
+            wsid: filters.wsid || undefined,
+          }}
+          onClose={() => setExportOpen(false)}
+        />
       )}
     </div>
   );

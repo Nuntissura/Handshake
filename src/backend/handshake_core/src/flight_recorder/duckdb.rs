@@ -571,6 +571,7 @@ impl DuckDbFlightRecorder {
                 "capability_action" => super::FlightRecorderEventType::CapabilityAction,
                 "security_violation" => super::FlightRecorderEventType::SecurityViolation,
                 "workflow_recovery" => super::FlightRecorderEventType::WorkflowRecovery,
+                "debug_bundle_export" => super::FlightRecorderEventType::DebugBundleExport,
                 _ => super::FlightRecorderEventType::System,
             };
 

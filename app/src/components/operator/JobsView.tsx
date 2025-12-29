@@ -8,6 +8,7 @@ import {
   listJobs,
 } from "../../lib/api";
 import { EvidenceSelection } from "./EvidenceDrawer";
+import { DebugBundleExport } from "./DebugBundleExport";
 
 type Props = {
   onSelect: (selection: EvidenceSelection) => void;
@@ -46,6 +47,7 @@ export const JobsView: React.FC<Props> = ({ onSelect }) => {
   const [events, setEvents] = useState<FlightEvent[]>([]);
   const [jobDiagnostics, setJobDiagnostics] = useState<Diagnostic[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>("summary");
+  const [exportOpen, setExportOpen] = useState(false);
 
   const fetchJobs = async (override?: JobFilters) => {
     const active = override ?? filters;
@@ -107,6 +109,16 @@ export const JobsView: React.FC<Props> = ({ onSelect }) => {
           <p className="muted">
             Jobs with inspector tabs for Summary, Timeline, Inputs/Outputs (hash-based), Diagnostics, and Policy.
           </p>
+        </div>
+        <div className="card-actions">
+          <button
+            className="primary"
+            type="button"
+            disabled={!selectedJob}
+            onClick={() => setExportOpen(true)}
+          >
+            Export Debug Bundle
+          </button>
         </div>
       </div>
 
@@ -307,6 +319,17 @@ export const JobsView: React.FC<Props> = ({ onSelect }) => {
             )}
           </div>
         </div>
+      )}
+      {exportOpen && (
+        <DebugBundleExport
+          isOpen={exportOpen}
+          defaultScope={
+            selectedJob
+              ? { kind: "job", job_id: selectedJob.job_id }
+              : { kind: "job", job_id: "" }
+          }
+          onClose={() => setExportOpen(false)}
+        />
       )}
     </div>
   );

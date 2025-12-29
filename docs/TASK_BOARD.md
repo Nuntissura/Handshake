@@ -48,7 +48,6 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - **[WP-1-Calendar-Lens]** / FAIL: Local ActivitySpan selection UI. [READY FOR DEV]
 - **[WP-1-Distillation]** / FAIL: Teacher metadata, Skill Bank schema. [READY FOR DEV]
 - **[WP-1-Governance-Hooks]** / FAIL: Diary RID mapping, CI compliance. [READY FOR DEV]
-- **[WP-1-Debug-Bundle]** / FAIL: Redacted repro packets (A7.6.3.5). [READY FOR DEV]
 - **[WP-1-Workspace-Bundle]** / FAIL: Backup/transfer export. [READY FOR DEV]
 - **[WP-1-Semantic-Catalog]** / FAIL: Implement SemanticCatalog per A2.6.7. [READY FOR DEV]
 - **[WP-1-MCP-End-to-End]** / FAIL: MCP capability/logging chain. [READY FOR DEV]
@@ -59,6 +58,7 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 
 
 ## Done
+- **[WP-1-Debug-Bundle-v2]** - Debug Bundle export per 10.5.6.5-12 (schemas, trait, API, redactor, UI). [VALIDATED]
 - **[WP-1-Operator-Consoles-v1]** - Operator Consoles v1 per §10.5 + DIAG-SCHEMA §11.4 (Problems/Jobs/Timeline/Evidence). [VALIDATED]
 - **[WP-1-MEX-v1.2-Runtime-v2]** - MEX v1.2 runtime contract (envelopes, gates, registry) per §6.3.0 + §11.8. [VALIDATED]
 - **[WP-1-Terminal-LAW-v2]** - Session types + AI isolation per §10.1. [VALIDATED]
@@ -89,3 +89,4 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - **[WP-1-Security-Gates]** - Superseded by v2 (Spec drift v02.84 → v02.96).
 - **[WP-1-Terminal-LAW]** - Superseded by v2 (Stale SPEC_ANCHOR, incomplete structure).
 - **[WP-1-MEX-v1.2-Runtime]** - Superseded by v2 (Stale SPEC_ANCHOR v02.84, no implementation).
+- **[WP-1-Debug-Bundle]** - Superseded by v2 (Stale SPEC_ANCHOR v02.84, comprehensive rewrite with 10.5.6.5-12 enrichment).
