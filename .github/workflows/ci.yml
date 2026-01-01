@@ -49,6 +49,8 @@ jobs:
           rg -n "Codex v0\\.5|Codex v0\\.6|Codex v0\\.7|Handshake Codex v0\\.5|Handshake Codex v0\\.6|Handshake Codex v0\\.7" docs && exit 1 || exit 0
           echo "SPEC_CURRENT must reference latest master spec..."
           node scripts/spec-current-check.mjs
+          echo "Task Board entries must be minimal..."
+          node scripts/validation/task-board-check.mjs
           echo "TODOs must include HSK issue tags..."
           rg -n --pcre2 "TODO(?!\\(HSK-\\d+\\))" app/src src/backend scripts --glob "!scripts/fixtures/**" --glob "!scripts/codex-check-test.mjs" && exit 1 || exit 0
 

@@ -43,6 +43,9 @@ validate:
 codex-check:
 	node scripts/validation/codex-check.mjs
 
+task-board-check:
+	node scripts/validation/task-board-check.mjs
+
 # Dependency cruise (frontend architecture)
 depcruise:
 	cd app; pnpm run depcruise
@@ -160,4 +163,3 @@ validator-gate-status wp-id:
 
 validator-gate-reset wp-id *confirm:
 	@node scripts/validation/validator_gates.mjs reset {{wp-id}} {{confirm}}
-
