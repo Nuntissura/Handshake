@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use once_cell::sync::Lazy;
 use serde::Serialize;
-use serde_json::{to_value, Value};
+use serde_json::{json, to_value, Value};
 use thiserror::Error;
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
@@ -228,6 +228,43 @@ impl Drop for CancelGuard {
     }
 }
 
+/// Emits a CapabilityAction audit event to the Flight Recorder.
+/// Per HSK-4001 audit requirement: every Allow/Deny must be recorded.
+async fn emit_capability_audit(
+    flight_recorder: &dyn FlightRecorder,
+    trace_id: Uuid,
+    capability_id: &str,
+    profile_id: Option<&str>,
+    job_id: Option<&str>,
+    outcome: &str,
+) -> Result<(), TerminalError> {
+    let payload = json!({
+        "capability_id": capability_id,
+        "profile_id": profile_id,
+        "job_id": job_id,
+        "outcome": outcome,
+    });
+
+    let mut event = FlightRecorderEvent::new(
+        FlightRecorderEventType::CapabilityAction,
+        FlightRecorderActor::Agent,
+        trace_id,
+        payload,
+    )
+    .with_capability(capability_id.to_string());
+
+    if let Some(pid) = profile_id {
+        event = event.with_actor_id(pid.to_string());
+    }
+    if let Some(jid) = job_id {
+        event = event.with_job_id(jid.to_string());
+    }
+
+    flight_recorder.record_event(event).await.map_err(|e| {
+        TerminalError::RedactionFailed(format!("HSK-TERM-006: audit event failed: {}", e))
+    })
+}
+
 pub struct TerminalService;
 
 impl TerminalService {
@@ -273,13 +310,98 @@ impl TerminalService {
             &default_guard
         };
 
-        guard.pre_exec(&mut req, cfg)?;
+        // Run pre_exec with audit on CapabilityDenied
+        // Clone capability info before mutable borrow
+        let pre_exec_cap_id = req
+            .requested_capability
+            .clone()
+            .unwrap_or_else(|| "terminal.exec".to_string());
+        let pre_exec_profile_id = req.job_context.capability_profile_id.clone();
+        let pre_exec_job_id = req.job_context.job_id.clone();
+        if let Err(e) = guard.pre_exec(&mut req, cfg) {
+            if matches!(e, TerminalError::CapabilityDenied(_)) {
+                emit_capability_audit(
+                    flight_recorder,
+                    trace_id,
+                    &pre_exec_cap_id,
+                    pre_exec_profile_id.as_deref(),
+                    pre_exec_job_id.as_deref(),
+                    "denied",
+                )
+                .await?;
+            }
+            return Err(e);
+        }
         let cwd = guard.validate_cwd(&req, cfg)?;
 
         let session = TerminalSession::from_request(&req);
 
-        guard.check_session_isolation(&req, &session, registry)?;
-        guard.check_capability(&req, registry)?;
+        // Determine if this is an AI-attaching-to-human scenario for audit purposes
+        let is_ai_context = req.job_context.job_id.is_some() || req.job_context.model_id.is_some();
+        let is_human_dev_session = matches!(session.session_type, TerminalSessionType::HumanDev);
+        let is_ai_attach_scenario = is_ai_context && is_human_dev_session;
+
+        // Check session isolation and emit audit event for attach_human if applicable
+        match guard.check_session_isolation(&req, &session, registry) {
+            Ok(()) => {
+                if is_ai_attach_scenario {
+                    emit_capability_audit(
+                        flight_recorder,
+                        trace_id,
+                        "terminal.attach_human",
+                        req.job_context.capability_profile_id.as_deref(),
+                        req.job_context.job_id.as_deref(),
+                        "allowed",
+                    )
+                    .await?;
+                }
+            }
+            Err(e) => {
+                if is_ai_attach_scenario {
+                    emit_capability_audit(
+                        flight_recorder,
+                        trace_id,
+                        "terminal.attach_human",
+                        req.job_context.capability_profile_id.as_deref(),
+                        req.job_context.job_id.as_deref(),
+                        "denied",
+                    )
+                    .await?;
+                }
+                return Err(e);
+            }
+        }
+
+        // Check capability and emit audit event
+        let capability_id = req
+            .requested_capability
+            .as_deref()
+            .unwrap_or("terminal.exec");
+        match guard.check_capability(&req, registry) {
+            Ok(()) => {
+                emit_capability_audit(
+                    flight_recorder,
+                    trace_id,
+                    capability_id,
+                    req.job_context.capability_profile_id.as_deref(),
+                    req.job_context.job_id.as_deref(),
+                    "allowed",
+                )
+                .await?;
+            }
+            Err(e) => {
+                emit_capability_audit(
+                    flight_recorder,
+                    trace_id,
+                    capability_id,
+                    req.job_context.capability_profile_id.as_deref(),
+                    req.job_context.job_id.as_deref(),
+                    "denied",
+                )
+                .await?;
+                return Err(e);
+            }
+        }
 
         let cancel_key = cancel_key(&req);
         let cancel_rx = register_cancel_receiver(cancel_key.clone())?;

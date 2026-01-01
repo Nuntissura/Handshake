@@ -1,5 +1,23 @@
 {
-  "validation_sessions": {},
+  "validation_sessions": {
+    "WP-1-Terminal-LAW-v3": {
+      "wpId": "WP-1-Terminal-LAW-v3",
+      "verdict": "PASS",
+      "status": "USER_ACKNOWLEDGED",
+      "started": "2026-01-01T22:58:19.533Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-01T22:58:19.534Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-01T23:07:20.225Z"
+        }
+      ]
+    }
+  },
   "archived_sessions": [
     {
       "wpId": "WP-1-Test-Gate",
@@ -14,6 +32,21 @@
         }
       ],
       "archived_at": "2026-01-01T17:49:05.856Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-Terminal-LAW-v3",
+      "verdict": "FAIL",
+      "status": "REPORT_PRESENTED",
+      "started": "2026-01-01T22:42:33.238Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-01-01T22:42:33.239Z"
+        }
+      ],
+      "archived_at": "2026-01-01T22:54:58.463Z",
       "archive_reason": "manual_reset"
     }
   ]

@@ -190,8 +190,15 @@ async fn flight_recorder_captures_session_type_and_consent(
     .await?;
 
     let events = recorder.list_events(EventFilter::default()).await?;
-    let payload = events
-        .last()
+    // Find the TerminalCommandEvent specifically (not CapabilityAction events)
+    let terminal_event = events.iter().find(|evt| {
+        evt.payload
+            .get("type")
+            .and_then(|v| v.as_str())
+            .map(|t| t == "terminal_command")
+            .unwrap_or(false)
+    });
+    let payload = terminal_event
         .and_then(|evt| evt.payload.as_object())
         .cloned()
         .unwrap_or_default();
