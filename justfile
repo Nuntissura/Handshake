@@ -46,6 +46,9 @@ codex-check:
 task-board-check:
 	node scripts/validation/task-board-check.mjs
 
+task-packet-claim-check:
+	node scripts/validation/task-packet-claim-check.mjs
+
 # Dependency cruise (frontend architecture)
 depcruise:
 	cd app; pnpm run depcruise

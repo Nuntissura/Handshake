@@ -1063,14 +1063,14 @@ When multiple Coders work in the repo concurrently, treat `IN_SCOPE_PATHS` as th
 - Lock set definition: for each in-progress WP, its lock set is the exact file paths listed under its task packet's `IN_SCOPE_PATHS`.
 - Hard rule: do NOT delegate/start a new WP if ANY `IN_SCOPE_PATHS` entry overlaps with ANY in-progress WP's `IN_SCOPE_PATHS`.
   - If overlap is required, this is a blocker: re-scope to avoid overlap OR sequence the work (mark WP BLOCKED: "File lock conflict").
-- Assignment required: every in-progress WP entry on the Task Board MUST include an assignee label (e.g., `ASSIGNED_TO: Coder-A` or `ASSIGNED_TO: Coder-B`) so ownership is unambiguous.
+- Task Board stays minimal: do NOT include assignee/model on the Task Board. The Coder claims the WP inside the task packet metadata (CODER_MODEL, CODER_REASONING_STRENGTH) when switching to In Progress.
 
 Blocking template (use when overlap is detected):
 ```
 ƒ?O BLOCKED: File lock conflict [CX-CONC-001]
 
 Candidate WP: {WP_ID}
-Conflicts with in-progress WP: {OTHER_WP_ID} (ASSIGNED_TO: {Coder})
+Conflicts with in-progress WP: {OTHER_WP_ID} (see task packet CODER_MODEL / CODER_REASONING_STRENGTH)
 
 Overlapping paths:
 - {path1}

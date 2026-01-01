@@ -26,8 +26,7 @@ function sectionKeyFromHeading(headingLine) {
 function checkLines(lines) {
   const doneRe = /^-\s+\*\*\[(WP-[^\]]+)\]\*\*\s+-\s+\[(VALIDATED|FAIL|OUTDATED_ONLY)\]\s*$/;
   const supersededRe = /^-\s+\*\*\[(WP-[^\]]+)\]\*\*\s+-\s+\[SUPERSEDED\]\s*$/;
-  const inProgressRe =
-    /^-\s+\*\*\[(WP-[^\]]+)\]\*\*\s+-\s+\[IN_PROGRESS\]\s+-\s+ASSIGNED_TO:\s+(Coder-A|Coder-B)\s*$/;
+  const inProgressRe = /^-\s+\*\*\[(WP-[^\]]+)\]\*\*\s+-\s+\[IN_PROGRESS\]\s*$/;
 
   let active = null;
   const violations = [];
@@ -60,7 +59,7 @@ function checkLines(lines) {
 
     if (active === "IN_PROGRESS" && !inProgressRe.test(line)) {
       violations.push(
-        `${TASK_BOARD_PATH}:${lineNumber}: In Progress entries must be \`- **[WP_ID]** - [IN_PROGRESS] - ASSIGNED_TO: Coder-A|Coder-B\`: ${line.trim()}`
+        `${TASK_BOARD_PATH}:${lineNumber}: In Progress entries must be \`- **[WP_ID]** - [IN_PROGRESS]\`: ${line.trim()}`
       );
     }
   }
@@ -73,4 +72,3 @@ function checkLines(lines) {
 const content = readTaskBoard();
 checkLines(content.split(/\r?\n/));
 console.log("task-board-check ok");
-

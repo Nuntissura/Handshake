@@ -51,6 +51,8 @@ jobs:
           node scripts/spec-current-check.mjs
           echo "Task Board entries must be minimal..."
           node scripts/validation/task-board-check.mjs
+          echo "In Progress task packets must include coder claim fields..."
+          node scripts/validation/task-packet-claim-check.mjs
           echo "TODOs must include HSK issue tags..."
           rg -n --pcre2 "TODO(?!\\(HSK-\\d+\\))" app/src src/backend scripts --glob "!scripts/fixtures/**" --glob "!scripts/codex-check-test.mjs" && exit 1 || exit 0
 

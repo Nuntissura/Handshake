@@ -19,6 +19,8 @@ Requirements:
 - REQUESTOR: {{REQUESTOR}}
 - AGENT_ID: {{AGENT_ID}}
 - ROLE: Orchestrator
+- CODER_MODEL: <unclaimed>
+- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
 - **Status:** Ready for Dev
 - RISK_TIER: LOW | MEDIUM | HIGH
 - USER_SIGNATURE: {{USER_SIGNATURE}}

@@ -242,7 +242,7 @@ Escalation template:
 ƒ?O BLOCKED: File lock conflict [CX-CONC-001]
 
 My WP: {WP_ID} (I am {Coder-A|Coder-B})
-Conflicts with: {OTHER_WP_ID} (ASSIGNED_TO: {Coder-A|Coder-B})
+Conflicts with: {OTHER_WP_ID} (see task packet CODER_MODEL / CODER_REASONING_STRENGTH)
 
 Overlapping paths:
 - {path1}
@@ -299,7 +299,7 @@ I cannot start without a complete packet.
 
 **Update `docs/TASK_BOARD.md`:**
 - Move WP-{ID} from `## Ready for Dev` to `## In Progress`
-- Add an assignee label to the WP entry: `ASSIGNED_TO: Coder-A` or `ASSIGNED_TO: Coder-B`
+- Do NOT add assignee/model to the Task Board. Claim the WP inside the task packet metadata (CODER_MODEL, CODER_REASONING_STRENGTH) when switching Status to In Progress.
 - Ensure the board maintains all 5 fixed sections (§ Board Integrity Check).
 
 **Verify file updated:**
