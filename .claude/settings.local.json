@@ -20,7 +20,10 @@
       "Bash(SQLX_OFFLINE=false cargo check:*)",
       "Bash(npm audit:*)",
       "Bash(pnpm:*)",
-      "Bash(node scripts/validation/gate-check.mjs:*)"
+      "Bash(node scripts/validation/gate-check.mjs:*)",
+      "Bash(git hash-object:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

@@ -87,10 +87,12 @@ Batch 4:
 
 
 
-Reworked work packets since revalidation;
+Reworked work packets since mass failed revalidation;
 
 - WP-1-Storage-Foundation-v3
 - WP-1-Workflow-Engine-v4
 - WP-1-Security-Gates-v3
 - WP-1-Gate-Check-Tool-v2
--WP-1-Tokenization-Service-v3
+- WP-1-Tokenization-Service-v3
+- WP-1-Flight-Recorder-v3
+- WP-1-OSS-Register-Enforcement-v1
