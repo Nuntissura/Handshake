@@ -4,7 +4,7 @@ use crate::{
     capabilities::RegistryError,
     flight_recorder::{
         FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
-        FrEvt006WorkflowRecovery, FrEvt008SecurityViolation,
+        FrEvt008SecurityViolation, FrEvtWorkflowRecovery,
     },
     llm::{CompletionRequest, LlmError},
     models::{AiJob, JobKind, WorkflowRun},
@@ -347,7 +347,7 @@ pub async fn mark_stalled_workflows(
             })
             .await?;
 
-        let payload = FrEvt006WorkflowRecovery {
+        let payload = FrEvtWorkflowRecovery {
             workflow_run_id: run.id.to_string(),
             job_id: Some(run.job_id.to_string()),
             from_state: run.status.as_str().to_string(),
@@ -654,6 +654,7 @@ async fn run_job(
 
             let response = state.llm_client.completion(req).await?;
 
+            let model_id = state.llm_client.profile().model_id.clone();
             record_event_safely(
                 state,
                 FlightRecorderEvent::new(
@@ -663,13 +664,16 @@ async fn run_job(
                     json!({
                         "job_kind": job.job_kind.as_str(),
                         "doc_id": doc_id,
+                        "model_id": model_id.clone(),
                         "input_bytes": full_text.len(),
                         "output_bytes": response.text.len(),
                         "prompt_tokens": response.usage.prompt_tokens,
                         "completion_tokens": response.usage.completion_tokens,
+                        "total_tokens": response.usage.total_tokens,
                     }),
                 )
-                .with_job_id(job.job_id.to_string()),
+                .with_job_id(job.job_id.to_string())
+                .with_model_id(model_id),
             )
             .await;
 
@@ -1232,7 +1236,7 @@ mod tests {
         assert_eq!(event.actor, FlightRecorderActor::System);
         assert_eq!(event.workflow_id, Some(run.id.to_string()));
 
-        let payload: FrEvt006WorkflowRecovery =
+        let payload: FrEvtWorkflowRecovery =
             serde_json::from_value(event.payload.clone()).map_err(|e| e.to_string())?;
         assert_eq!(payload.workflow_run_id, run.id.to_string());
         assert_eq!(payload.job_id, Some(job.job_id.to_string()));

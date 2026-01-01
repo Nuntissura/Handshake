@@ -3,7 +3,7 @@ use std::fmt;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 use thiserror::Error;
 use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
@@ -33,6 +33,8 @@ impl fmt::Display for FlightRecorderActor {
 pub enum FlightRecorderEventType {
     System,
     LlmInference,
+    TerminalCommand,
+    EditorEdit,
     Diagnostic,
     CapabilityAction,
     /// FR-EVT-008: Security violation detected by ACE validators [A2.6.6.7.11]
@@ -48,6 +50,8 @@ impl fmt::Display for FlightRecorderEventType {
         match self {
             FlightRecorderEventType::System => write!(f, "system"),
             FlightRecorderEventType::LlmInference => write!(f, "llm_inference"),
+            FlightRecorderEventType::TerminalCommand => write!(f, "terminal_command"),
+            FlightRecorderEventType::EditorEdit => write!(f, "editor_edit"),
             FlightRecorderEventType::Diagnostic => write!(f, "diagnostic"),
             FlightRecorderEventType::CapabilityAction => write!(f, "capability_action"),
             FlightRecorderEventType::SecurityViolation => write!(f, "security_violation"),
@@ -165,7 +169,39 @@ impl FlightRecorderEvent {
                 "actor_id must be present".to_string(),
             ));
         }
+        self.validate_payload()?;
         Ok(())
+    }
+
+    fn validate_payload(&self) -> Result<(), RecorderError> {
+        match self.event_type {
+            FlightRecorderEventType::TerminalCommand => {
+                validate_terminal_command_payload(&self.payload)
+            }
+            FlightRecorderEventType::EditorEdit => validate_editor_edit_payload(&self.payload),
+            FlightRecorderEventType::Diagnostic => validate_diagnostic_payload(&self.payload),
+            FlightRecorderEventType::DebugBundleExport => {
+                validate_debug_bundle_payload(&self.payload)
+            }
+            FlightRecorderEventType::WorkflowRecovery => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "workflow_recovery actor must be system".to_string(),
+                    ));
+                }
+                validate_workflow_recovery_payload(&self.payload)
+            }
+            FlightRecorderEventType::LlmInference => {
+                let model_id = self.model_id.as_deref().map(str::trim).unwrap_or("");
+                if model_id.is_empty() {
+                    return Err(RecorderError::InvalidEvent(
+                        "model_id must be present for llm_inference".to_string(),
+                    ));
+                }
+                validate_llm_inference_payload(&self.payload)
+            }
+            _ => Ok(()),
+        }
     }
 
     /// Normalize all string content in payload to NFC form.
@@ -202,6 +238,125 @@ fn normalize_json_value(value: &Value) -> Value {
     }
 }
 
+fn payload_object(payload: &Value) -> Result<&Map<String, Value>, RecorderError> {
+    payload
+        .as_object()
+        .ok_or_else(|| RecorderError::InvalidEvent("payload must be a JSON object".to_string()))
+}
+
+fn require_key<'a>(map: &'a Map<String, Value>, key: &str) -> Result<&'a Value, RecorderError> {
+    map.get(key)
+        .ok_or_else(|| RecorderError::InvalidEvent(format!("missing payload field: {key}")))
+}
+
+fn require_string(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    match require_key(map, key)? {
+        Value::String(value) if !value.trim().is_empty() => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be a non-empty string"
+        ))),
+    }
+}
+
+fn require_string_or_null(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    match require_key(map, key)? {
+        Value::String(_) | Value::Null => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be a string or null"
+        ))),
+    }
+}
+
+fn require_bool(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    match require_key(map, key)? {
+        Value::Bool(_) => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be a boolean"
+        ))),
+    }
+}
+
+fn require_number(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    match require_key(map, key)? {
+        Value::Number(_) => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be a number"
+        ))),
+    }
+}
+
+fn require_number_or_null(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    match require_key(map, key)? {
+        Value::Number(_) | Value::Null => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be a number or null"
+        ))),
+    }
+}
+
+fn require_array(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    match require_key(map, key)? {
+        Value::Array(_) => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be an array"
+        ))),
+    }
+}
+
+fn validate_terminal_command_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_string(map, "command")?;
+    require_string(map, "session_id")?;
+    require_string_or_null(map, "cwd")?;
+    require_number_or_null(map, "exit_code")?;
+    require_number_or_null(map, "duration_ms")?;
+    require_bool(map, "timed_out")?;
+    require_bool(map, "cancelled")?;
+    require_number(map, "truncated_bytes")?;
+    Ok(())
+}
+
+fn validate_diagnostic_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_string(map, "diagnostic_id")?;
+    Ok(())
+}
+
+fn validate_debug_bundle_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_string(map, "bundle_id")?;
+    require_string(map, "scope")?;
+    require_string(map, "redaction_mode")?;
+    Ok(())
+}
+
+fn validate_workflow_recovery_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_string(map, "workflow_run_id")?;
+    require_string(map, "from_state")?;
+    require_string(map, "to_state")?;
+    require_string(map, "reason")?;
+    require_string(map, "last_heartbeat_ts")?;
+    require_number(map, "threshold_secs")?;
+    Ok(())
+}
+
+fn validate_editor_edit_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_string(map, "editor_surface")?;
+    require_array(map, "ops")?;
+    Ok(())
+}
+
+fn validate_llm_inference_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_string(map, "model_id")?;
+    require_number(map, "prompt_tokens")?;
+    require_number(map, "completion_tokens")?;
+    require_number(map, "total_tokens")?;
+    Ok(())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrEvt001System {
     pub component: String,
@@ -211,10 +366,11 @@ pub struct FrEvt001System {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FrEvt002LlmInference {
+pub struct LlmInferenceEvent {
     pub model_id: String,
-    pub input_tokens: u64,
-    pub output_tokens: u64,
+    pub prompt_tokens: u64,
+    pub completion_tokens: u64,
+    pub total_tokens: u64,
     pub prompt_hash: Option<String>,
     pub response_hash: Option<String>,
     pub latency_ms: Option<u64>,
@@ -267,11 +423,11 @@ pub struct FrEvt008SecurityViolation {
     pub job_state_transition: Option<String>,
 }
 
-/// FR-EVT-006: Workflow recovery event payload [§2.6.1]
+/// FR-EVT-WF-RECOVERY: Workflow recovery event payload [§2.6.1]
 ///
 /// Emitted when the system recovers an interrupted workflow at startup.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FrEvt006WorkflowRecovery {
+pub struct FrEvtWorkflowRecovery {
     pub workflow_run_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub job_id: Option<String>,
@@ -282,7 +438,7 @@ pub struct FrEvt006WorkflowRecovery {
     pub threshold_secs: u64,
 }
 
-/// FR-EVT-007: Terminal command event payload [A10.1.1]
+/// FR-EVT-001: Terminal command event payload [A10.1.1]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TerminalCommandEvent {
     pub job_id: Option<String>,

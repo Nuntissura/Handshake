@@ -69,11 +69,11 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 
 (Concurrency: each in-progress WP entry MUST include `ASSIGNED_TO: Coder-A` or `ASSIGNED_TO: Coder-B`; in-progress WPs must have disjoint `IN_SCOPE_PATHS` per [CX-CONC-001].)
 
-- **[WP-1-Flight-Recorder-v3]** / READY: New refactor packet to align Flight Recorder event taxonomy/ingestion with SPEC_CURRENT v02.100 (addresses prior v2 revalidation FAIL + spec-to-code FR-EVT mismatch). ASSIGNED_TO: Coder-A
-- **[WP-1-OSS-Register-Enforcement-v1]** / IN PROGRESS: Backend unit test enforcing `docs/OSS_REGISTER.md` coverage + GPL/AGPL isolation rule. ASSIGNED_TO: Coder-B
+- **[WP-1-OSS-Register-Enforcement-v1]** / IMPLEMENTATION COMPLETE: Backend unit test enforcing `docs/OSS_REGISTER.md` coverage + GPL/AGPL isolation rule. Tests pass. ASSIGNED_TO: Coder-B. AWAITING VALIDATION.
 
 
 ## Done
+- **[WP-1-Flight-Recorder-v3]** - [VALIDATED]
 - **[WP-1-Tokenization-Service-v3]** - [VALIDATED]
 - **[WP-1-Security-Gates-v3]** - [VALIDATED]
 - **[WP-1-Gate-Check-Tool-v2]** - [VALIDATED]

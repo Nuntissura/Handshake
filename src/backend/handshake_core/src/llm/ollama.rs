@@ -6,12 +6,12 @@
 //! This adapter:
 //! - Translates CompletionRequest to Ollama's /api/generate endpoint
 //! - Enforces token budget via max_tokens
-//! - Emits Flight Recorder FR-EVT-002 events internally (§4.2.3.2 Observability Invariant)
+//! - Emits Flight Recorder llm_inference events internally (§4.2.3.2 Observability Invariant)
 
 use super::{CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage};
 use crate::flight_recorder::{
     FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
-    FrEvt002LlmInference,
+    LlmInferenceEvent,
 };
 use crate::tokenization::{
     AccuracyWarningEmitter, AsyncFlightRecorderEmitter, DisabledAccuracyWarningEmitter,
@@ -47,7 +47,7 @@ impl OllamaAdapter {
     /// * `base_url` - Ollama server URL (e.g., "http://localhost:11434")
     /// * `model_id` - Model to use (e.g., "llama3.2", "mistral")
     /// * `max_context_tokens` - Maximum context window size
-    /// * `flight_recorder` - Flight Recorder for FR-EVT-002 emission
+    /// * `flight_recorder` - Flight Recorder for llm_inference emission
     pub fn new(
         base_url: String,
         model_id: String,
@@ -92,14 +92,14 @@ impl OllamaAdapter {
         )
     }
 
-    /// Computes SHA-256 hash of content for FR-EVT-002.
+    /// Computes SHA-256 hash of content for llm_inference.
     fn compute_hash(content: &str) -> String {
         let mut hasher = Sha256::new();
         hasher.update(content.as_bytes());
         hex::encode(hasher.finalize())
     }
 
-    /// Emits FR-EVT-002 LlmInference event to Flight Recorder.
+    /// Emits llm_inference event to Flight Recorder.
     async fn emit_llm_inference_event(
         &self,
         req: &CompletionRequest,
@@ -107,10 +107,11 @@ impl OllamaAdapter {
         usage: &TokenUsage,
         latency_ms: u64,
     ) {
-        let payload = FrEvt002LlmInference {
+        let payload = LlmInferenceEvent {
             model_id: req.model_id.clone(),
-            input_tokens: usage.prompt_tokens as u64,
-            output_tokens: usage.completion_tokens as u64,
+            prompt_tokens: usage.prompt_tokens as u64,
+            completion_tokens: usage.completion_tokens as u64,
+            total_tokens: usage.total_tokens as u64,
             prompt_hash: Some(Self::compute_hash(&req.prompt)),
             response_hash: Some(Self::compute_hash(response_text)),
             latency_ms: Some(latency_ms),
@@ -130,7 +131,7 @@ impl OllamaAdapter {
                 target: "handshake_core::llm",
                 error = %e,
                 trace_id = %req.trace_id,
-                "Failed to record FR-EVT-002 LlmInference event"
+                "Failed to record llm_inference event"
             );
         }
     }
@@ -332,7 +333,7 @@ impl LlmClient for OllamaAdapter {
             total_tokens,
         };
 
-        // Emit FR-EVT-002 LlmInference event per §4.2.3.2 Observability Invariant
+        // Emit llm_inference event per §4.2.3.2 Observability Invariant
         self.emit_llm_inference_event(&req, &ollama_resp.response, &usage, latency_ms)
             .await;
 

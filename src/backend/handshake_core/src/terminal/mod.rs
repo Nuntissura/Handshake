@@ -457,7 +457,7 @@ impl TerminalEventEnvelope {
         }
 
         let mut event = FlightRecorderEvent::new(
-            FlightRecorderEventType::CapabilityAction,
+            FlightRecorderEventType::TerminalCommand,
             FlightRecorderActor::Agent,
             trace_id,
             payload,

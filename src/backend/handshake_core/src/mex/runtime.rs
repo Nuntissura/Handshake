@@ -110,7 +110,7 @@ impl MexRuntime {
         });
 
         let event = FlightRecorderEvent::new(
-            FlightRecorderEventType::Diagnostic,
+            FlightRecorderEventType::System,
             FlightRecorderActor::System,
             op.op_id, // reuse op_id as trace_id for linkage
             payload,

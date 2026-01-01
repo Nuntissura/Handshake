@@ -593,21 +593,31 @@ impl DuckDbFlightRecorder {
                 _ => super::FlightRecorderActor::System,
             };
 
-            let event_type = match raw.event_type.as_str() {
-                "llm_inference" => super::FlightRecorderEventType::LlmInference,
-                "diagnostic" => super::FlightRecorderEventType::Diagnostic,
-                "capability_action" => super::FlightRecorderEventType::CapabilityAction,
-                "security_violation" => super::FlightRecorderEventType::SecurityViolation,
-                "workflow_recovery" => super::FlightRecorderEventType::WorkflowRecovery,
-                "debug_bundle_export" => super::FlightRecorderEventType::DebugBundleExport,
-                _ => super::FlightRecorderEventType::System,
-            };
-
             let wsids: Vec<String> = raw
                 .wsids
                 .and_then(|s| serde_json::from_str(&s).ok())
                 .unwrap_or_default();
             let payload: Value = serde_json::from_str(&raw.payload).unwrap_or(Value::Null);
+            let payload_type = payload.get("type").and_then(|value| value.as_str());
+            // Back-compat mapping table for stored event_type strings -> enum variants.
+            let event_type = match raw.event_type.as_str() {
+                "terminal_command" => super::FlightRecorderEventType::TerminalCommand,
+                "editor_edit" => super::FlightRecorderEventType::EditorEdit,
+                "llm_inference" => super::FlightRecorderEventType::LlmInference,
+                "diagnostic" => super::FlightRecorderEventType::Diagnostic,
+                "debug_bundle_export" => super::FlightRecorderEventType::DebugBundleExport,
+                "workflow_recovery" => super::FlightRecorderEventType::WorkflowRecovery,
+                "security_violation" => super::FlightRecorderEventType::SecurityViolation,
+                "capability_action" => {
+                    if payload_type == Some("terminal_command") {
+                        super::FlightRecorderEventType::TerminalCommand
+                    } else {
+                        super::FlightRecorderEventType::CapabilityAction
+                    }
+                }
+                "system" => super::FlightRecorderEventType::System,
+                _ => super::FlightRecorderEventType::System,
+            };
 
             events.push(super::FlightRecorderEvent {
                 event_id,
@@ -635,6 +645,7 @@ impl DuckDbFlightRecorder {
 #[async_trait]
 impl FlightRecorder for DuckDbFlightRecorder {
     async fn record_event(&self, mut event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        // Validation gates ingestion only; stored events are not re-validated on read.
         event.validate()?;
         // HARDENED_INVARIANT: Apply NFC normalization to all string content
         // before persistence to prevent Unicode bypass attacks [§11.5].
@@ -949,8 +960,9 @@ mod tests {
             trace_id,
             json!({
                 "model_id": "llama3",
-                "input_tokens": 150,
-                "output_tokens": 50,
+                "prompt_tokens": 150,
+                "completion_tokens": 50,
+                "total_tokens": 200,
                 "latency_ms": 1200
             }),
         )
@@ -983,7 +995,7 @@ mod tests {
         assert!(llm.is_some());
         if let Some(llm_event) = llm {
             assert_eq!(llm_event.payload["model_id"], "llama3");
-            assert_eq!(llm_event.payload["input_tokens"], 150);
+            assert_eq!(llm_event.payload["prompt_tokens"], 150);
             assert_eq!(llm_event.model_id, Some("llama3".to_string()));
             assert_eq!(llm_event.job_id, Some("job-456".to_string()));
         }
