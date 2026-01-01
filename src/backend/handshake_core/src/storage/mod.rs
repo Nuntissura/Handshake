@@ -530,6 +530,7 @@ pub struct AiJob {
 pub struct AiJobListFilter {
     pub status: Option<JobState>,
     pub job_kind: Option<JobKind>,
+    pub wsid: Option<String>,
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
 }

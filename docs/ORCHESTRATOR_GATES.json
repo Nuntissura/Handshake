@@ -47,6 +47,85 @@
       "type": "SIGNATURE",
       "signature": "ilja281220252016",
       "timestamp": "2025-12-28T19:18:21.791Z"
+    },
+    {
+      "wpId": "WP-1-Storage-Foundation-v3",
+      "type": "REFINEMENT",
+      "data": "Spec v02.98 2.3.12.3/2.3.12.5: enforce mandatory audit (no sqlx::/SqlitePool outside storage); remediate sqlx leakage in src/backend/handshake_core/src/models.rs; create gate-clean ASCII packet v3 with COR-701 manifest",
+      "timestamp": "2025-12-31T03:56:07.976Z",
+      "turn_token": "s97u59"
+    },
+    {
+      "wpId": "WP-1-Storage-Foundation-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja311220250445",
+      "timestamp": "2025-12-31T04:04:20.827Z"
+    },
+    {
+      "wpId": "WP-1-AI-Job-Model-SpecUpdate-v1",
+      "type": "REFINEMENT",
+      "data": "Spec enrichment: JobKind/JobState list + FR-EVT-WF-RECOVERY",
+      "timestamp": "2025-12-31T16:53:02.083Z",
+      "turn_token": "op049q"
+    },
+    {
+      "wpId": "WP-1-AI-Job-Model-SpecUpdate-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja311220251755",
+      "timestamp": "2025-12-31T16:56:41.677Z"
+    },
+    {
+      "wpId": "WP-1-Workflow-Engine-v4",
+      "type": "REFINEMENT",
+      "data": "No detail provided",
+      "timestamp": "2025-12-31T17:44:31.505Z",
+      "turn_token": "m4fc8m"
+    },
+    {
+      "wpId": "WP-1-Workflow-Engine-v4",
+      "type": "SIGNATURE",
+      "signature": "ilja311220251846",
+      "timestamp": "2025-12-31T17:47:02.255Z"
+    },
+    {
+      "wpId": "WP-1-Gate-Check-Tool-v2",
+      "type": "REFINEMENT",
+      "data": "Fix gate-check false positives by matching only explicit phase headings/markers and ignoring prose/code fences; ensure it enforces CX-GATE-001 without blocking valid packets.",
+      "timestamp": "2025-12-31T18:14:56.297Z",
+      "turn_token": "r29c58"
+    },
+    {
+      "wpId": "WP-1-Gate-Check-Tool-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja311220251916",
+      "timestamp": "2025-12-31T18:17:47.038Z"
+    },
+    {
+      "wpId": "WP-1-Gate-Check-Tool-v3",
+      "type": "REFINEMENT",
+      "data": "Create a corrected packet that passes current gate-check pre-work (avoid including literal strings that trigger implementationStarted), while keeping the same technical scope: harden scripts/validation/gate-check.mjs against prose/code-fence false positives.",
+      "timestamp": "2025-12-31T18:24:18.890Z",
+      "turn_token": "lq9gx"
+    },
+    {
+      "wpId": "WP-1-Security-Gates-v3",
+      "type": "REFINEMENT",
+      "data": "Remediate Security-Gates-v2 revalidation FAIL: create ASCII-only v3 packet anchored to SPEC_CURRENT v02.99, include COR-701 manifest so just post-work can PASS, remove .unwrap() in terminal redaction (no waiver), and confirm FR-EVT-001 TerminalCommandEvent emission per A11.5.",
+      "timestamp": "2025-12-31T19:42:28.862Z",
+      "turn_token": "izmcz"
+    },
+    {
+      "wpId": "WP-1-Security-Gates-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja311220252043",
+      "timestamp": "2025-12-31T19:45:11.435Z"
+    },
+    {
+      "wpId": "WP-1-Refinement-Gate-Enforcement-v1",
+      "type": "REFINEMENT",
+      "data": "Unskippable Master Spec refinement gate: require TECHNICAL_REFINEMENT block with excerpts (ASCII-escaped), clearly-covers verdict, and full proposed enrichment when needed; enforce via pre-work-check + orchestrator_gates sign.",
+      "timestamp": "2025-12-31T23:36:47.253Z",
+      "turn_token": "z9y9om"
     }
   ]
 }

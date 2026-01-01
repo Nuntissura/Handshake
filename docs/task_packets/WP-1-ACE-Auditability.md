@@ -1,4 +1,4 @@
-﻿# Task Packet: WP-1-ACE-Auditability
+# Task Packet: WP-1-ACE-Auditability
 
 ## Metadata
 - TASK_ID: WP-1-ACE-Auditability
@@ -8,13 +8,13 @@
 
 ---
 
-## ðŸ•µï¸ CODE ARCHAEOLOGY & ALIGNMENT NOTE
+## 🕵️ CODE ARCHAEOLOGY & ALIGNMENT NOTE
 **Reason:** Strategic Audit for Phase 1 closure.
-**Authority [CX-598]:** The Roadmap is only a pointer. The **Master Spec Main Body** (Â§1-6, Â§9-11) is the sole definition of "Done."
+**Authority [CX-598]:** The Roadmap is only a pointer. The **Master Spec Main Body** (§1-6, §9-11) is the sole definition of "Done."
 **Procedure:** 
 1. Validator/Coder must search for ContextPlan and ContextSnapshot persistence.
-2. Verify implementation matches **100% of the technical rules, schemas, and invariants** found in the Main Body (Â§2.6.6.7.3 / Â§2.6.6.7.9).
-3. Surface-level compliance with roadmap bullets (Â§7.6.3.13) is insufficient. Every line of text in the Main Body section must be implemented.
+2. Verify implementation matches **100% of the technical rules, schemas, and invariants** found in the Main Body (§2.6.6.7.3 / §2.6.6.7.9).
+3. Surface-level compliance with roadmap bullets (§7.6.3.13) is insufficient. Every line of text in the Main Body section must be implemented.
 4. If 100% alignment exists -> **PASS**. Otherwise -> **FAIL**.
 
 ---
@@ -22,7 +22,7 @@
 ## SCOPE
 - **What**: Implement ContextPlan and per-call ContextSnapshot artifacts.
 - **Why**: Provide the necessary data artifacts for full AI transparency and bug reproduction.
-- **SPEC_ANCHOR**: Â§2.6.6.7.3, Â§2.6.6.7.9
+- **SPEC_ANCHOR**: §2.6.6.7.3, §2.6.6.7.9
 
 ## RISK_TIER
 - Level: HIGH
@@ -66,12 +66,12 @@ just validator-hygiene-full
 - [Requirement] -> [File:Line]
 
 
-## VALIDATION REPORT — WP-1-ACE-Auditability
+## VALIDATION REPORT � WP-1-ACE-Auditability
 Verdict: FAIL
 
 Scope Inputs:
 - Task Packet: docs/task_packets/WP-1-ACE-Auditability.md (status: Ready for Dev)
-- Spec: - **SPEC_ANCHOR**: Â§2.6.6.7.3, Â§2.6.6.7.9
+- Spec: - **SPEC_ANCHOR**: §2.6.6.7.3, §2.6.6.7.9
 
 Findings:
 - Packet incomplete [CX-573]: missing required fields (RISK_TIER, TEST_PLAN, DONE_MEANS, BOOTSTRAP, AUTHORITY); USER_SIGNATURE pending. Pre-flight gate blocks validation.
@@ -90,12 +90,12 @@ Reason for FAIL:
 
 
 
-## VALIDATION REPORT — WP-1-ACE-Auditability (2025-12-25)
+## VALIDATION REPORT � WP-1-ACE-Auditability (2025-12-25)
 Verdict: FAIL
 
 Scope Inputs:
 - Task Packet: docs/task_packets/WP-1-ACE-Auditability.md (status: Ready for Dev)
-- Spec: Handshake_Master_Spec_v02.84.md (§2.6.6.7.3 ContextPlan, §2.6.6.7.9 ContextSnapshot; roadmap §7.6.3.13 pointer)
+- Spec: Handshake_Master_Spec_v02.84.md (�2.6.6.7.3 ContextPlan, �2.6.6.7.9 ContextSnapshot; roadmap �7.6.3.13 pointer)
 
 Files Checked:
 - Repo search: rg -n "ContextPlan|ContextSnapshot" src app
@@ -116,4 +116,6 @@ Tests:
 - None present; TEST_PLAN not executed.
 
 Reason for FAIL:
-- ContextPlan/ContextSnapshot artifacts required by §2.6.6.7.3/§2.6.6.7.9 are absent; no code, storage, or tests implement auditability contract.
+- ContextPlan/ContextSnapshot artifacts required by �2.6.6.7.3/�2.6.6.7.9 are absent; no code, storage, or tests implement auditability contract.
+
+

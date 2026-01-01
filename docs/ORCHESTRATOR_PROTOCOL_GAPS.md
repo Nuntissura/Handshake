@@ -348,8 +348,8 @@ Packets still reference v02.85
 ```
 just orchestrator-check-spec-versions
 # Verifies:
-- All active task packets reference SPEC_CURRENT.md version
-- If packet version != SPEC_CURRENT version → Flag as requiring update
+- All active task packets record SPEC_BASELINE (provenance) and SPEC_TARGET (closure/revalidation target)
+- If SPEC_BASELINE != resolved SPEC_TARGET: flag drift and require explicit re-anchoring decision (do not auto-fail)
 - ORCHESTRATOR_PROTOCOL references current spec version
 - All protocol docs updated when spec changes
 ```
@@ -439,7 +439,7 @@ Migrations needed   | No      | No       | Yes
 IPC changes         | No      | No       | Yes
 Security impact     | None    | Low      | High
 Test coverage req   | Existing| +new 50% | +new 80%
-AI review          | Optional| Required | Required
+Manual review      | Optional| Required | Required
 Effort hours       | <4      | 4-20     | >20
 
 Rule: Take MAXIMUM tier across all dimensions

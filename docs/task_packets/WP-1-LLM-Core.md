@@ -157,3 +157,58 @@ Tests:
 - `just validator-scan` (PASS)
 
 REASON FOR PASS: LLM core complies with Spec v02.93 §4.2.3 with strict enums/traits, budget enforcement, and Flight Recorder observability; targeted tests and validator scan passed.
+
+---
+
+## REVALIDATION REPORT - WP-1-LLM-Core (2025-12-30)
+
+VALIDATION REPORT - WP-1-LLM-Core
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-LLM-Core.md
+- Spec Pointer: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.98.md (4.2.3 LLM Client Adapter; 11.5 Flight Recorder)
+- Codex: Handshake Codex v1.4.md
+- Validator Protocol: docs/VALIDATOR_PROTOCOL.md
+
+Commands (evidence):
+- just validator-spec-regression: PASS
+- node scripts/validation/gate-check.mjs WP-1-LLM-Core: FAIL ("SKELETON appears before BOOTSTRAP")
+- node scripts/validation/post-work-check.mjs WP-1-LLM-Core: FAIL (non-ASCII packet + missing COR-701 manifest fields/gates)
+- just validator-packet-complete WP-1-LLM-Core: FAIL (STATUS missing/invalid)
+
+Blocking Findings:
+1) Phase gate FAIL: `node scripts/validation/gate-check.mjs WP-1-LLM-Core` fails.
+   - '## SKELETON APPROVED' appears before '## BOOTSTRAP' (docs/task_packets/WP-1-LLM-Core.md:11 and docs/task_packets/WP-1-LLM-Core.md:49).
+2) Deterministic manifest gate FAIL: `node scripts/validation/post-work-check.mjs WP-1-LLM-Core` fails.
+   - Packet contains non-ASCII characters (count=12).
+   - No COR-701 manifest fields parsed (target_file/start/end/pre_sha1/post_sha1/line_delta), and required gates are missing/un-checked.
+3) Packet completeness gate FAIL: `just validator-packet-complete WP-1-LLM-Core` fails because the packet does not contain a canonical `**Status:**` marker.
+4) Spec mismatch: packet is anchored to Handshake_Master_Spec_v02.93.md, but docs/SPEC_CURRENT.md now requires Handshake_Master_Spec_v02.98.md.
+
+Spec-to-code spot-check (non-exhaustive; blocked by gates above):
+- Spec 4.2.3.1 defines CompletionRequest without trace_id (Handshake_Master_Spec_v02.98.md:10495); implementation adds trace_id: Uuid (src/backend/handshake_core/src/llm/mod.rs:44).
+- Spec 11.5 defines FR-EVT-002 as EditorEditEvent (Handshake_Master_Spec_v02.98.md:30812); code defines FrEvt002LlmInference (src/backend/handshake_core/src/flight_recorder/mod.rs:214) and emits FlightRecorderEventType::LlmInference (src/backend/handshake_core/src/flight_recorder/mod.rs:35), which has no matching event schema in v02.98 (rg \"llm_inference\" in spec -> no matches).
+
+Forbidden Pattern Audit (scoped to LLM files):
+- unwrap() found only in test code (src/backend/handshake_core/src/llm/ollama.rs:351).
+
+REASON FOR FAIL:
+- Required workflow gates (gate-check + COR-701 post-work-check) do not pass. Additionally, the implementation appears misaligned with current spec v02.98 (CompletionRequest fields; Flight Recorder event taxonomy).
+
+Required Remediation:
+- Create a NEW packet (recommended: WP-1-LLM-Core-v2) anchored to Handshake_Master_Spec_v02.98.md.
+- Ensure BOOTSTRAP and SKELETON headings exist and appear before any headings containing \"SKELETON\" (gate-check uses /#+ SKELETON/i).
+- Make the packet ASCII-only and include a COR-701 VALIDATION manifest that satisfies post-work-check.
+- Resolve spec/code alignment for CompletionRequest (trace_id) and Flight Recorder event IDs (requires code changes or explicit spec version bump).
+
+Task Board Update:
+- Move WP-1-LLM-Core from Done -> Ready for Dev (Revalidation FAIL).
+
+Packet Status Update (append-only):
+- **Status:** Ready for Dev
+
+Timestamp: 2025-12-30
+Validator: Codex CLI (Validator role)
+
+

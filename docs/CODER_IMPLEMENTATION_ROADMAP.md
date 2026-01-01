@@ -20,7 +20,7 @@
 | Gap 7: Test coverage checklist | MEDIUM | LOW | 8x | **P1** |
 | Gap 8: Scope conflict resolution | MEDIUM | MEDIUM | 6x | **P1** |
 | Gap 10: DONE_MEANS verification | MEDIUM | MEDIUM | 6x | **P1** |
-| Gap 11: AI review severity | MEDIUM | LOW | 6x | **P2** |
+| Gap 11: manual review severity | MEDIUM | LOW | 6x | **P2** |
 | Gap 12: Packet update clarity | MEDIUM | LOW | 6x | **P2** |
 | Gap 17: Ecosystem links | MEDIUM | LOW | 5x | **P2** |
 
@@ -82,7 +82,7 @@ These 5 items unlock clarity and prevent Coder blocks on packet completeness.
 
 **Deliverable:** 6 error scenarios with recovery steps:
 1. Test fails unexpectedly
-2. AI review blocks (hard invariant violation)
+2. manual review blocks (hard invariant violation)
 3. Scope conflict (can't proceed)
 4. Packet changed mid-work
 5. Post-work validation fails
@@ -98,7 +98,7 @@ These 5 items unlock clarity and prevent Coder blocks on packet completeness.
 
 ### P0-5: Validation Priority [Gap 5]
 
-**What:** Clear, numbered order: Tests FIRST, AI Review SECOND, Post-Work THIRD
+**What:** Clear, numbered order: Tests FIRST, Manual Review SECOND, Post-Work THIRD
 
 **Deliverable:** Decision flow chart + explicit rules
 
@@ -106,7 +106,7 @@ These 5 items unlock clarity and prevent Coder blocks on packet completeness.
 
 **Time:** 30 min
 
-**Outcome:** Coder never says "tests pass, so I'm done" and skips AI review; 100% clarity on order
+**Outcome:** Coder never says "tests pass, so I'm done" and skips manual review; 100% clarity on order
 
 ---
 
@@ -127,7 +127,7 @@ These 4 items add rigor and reduce false "done" claims.
 
 **Time:** 45 min
 
-**Outcome:** 50% fewer AI review blocks; Coder knows what to check before running ai-review
+**Outcome:** 50% fewer manual review blocks; Coder knows what to check before running manual review
 
 ---
 
@@ -177,7 +177,7 @@ These 4 items add rigor and reduce false "done" claims.
 
 These items are refinements (clarity, ecosystem context, governance rules).
 
-### P2-1: AI Review Severity Matrix [Gap 11]
+### P2-1: Manual Review Severity Matrix [Gap 11]
 
 **What:** Define PASS/WARN/BLOCK objectively (PASS: no issues; WARN: minor issues acceptable; BLOCK: critical, must fix)
 
@@ -248,7 +248,7 @@ These items are refinements (clarity, ecosystem context, governance rules).
 - **Result: 88 → 93/100**
 
 ### Week 3 (P2: Polish) — 2-3 hours
-- [ ] AI Review Severity Matrix (30 min)
+- [ ] Manual Review Severity Matrix (30 min)
 - [ ] Packet Update Clarity (20 min)
 - [ ] Ecosystem Links (20 min)
 - [ ] Miscellaneous Polish (1-2 hours)
@@ -261,17 +261,17 @@ These items are refinements (clarity, ecosystem context, governance rules).
 **After Week 1 (P0):** 88/100
 - Packet completeness is verifiable (no subjective decisions)
 - BOOTSTRAP format is crystal clear (never "incomplete" again)
-- Coder knows validation order (tests → AI review → post-work)
+- Coder knows validation order (tests → manual review → post-work)
 - Coder has error recovery playbook
 
 **After Week 2 (P1):** 93/100
-- Hard invariants are explained (50% fewer AI review blocks)
+- Hard invariants are explained (50% fewer manual review blocks)
 - Test coverage minimums are clear (no more "add tests" feedback)
 - Scope conflicts caught early (Orchestrator fixes scope, not Coder)
 - DONE_MEANS verified with file:line evidence
 
 **After Week 3 (P2):** 99/100 (9.9/10)
-- AI review severity is objective (WARN vs BLOCK clear)
+- manual review severity is objective (WARN vs BLOCK clear)
 - Governance rules are explicit (what Coder can/can't edit)
 - Ecosystem context is clear (understanding three-role system)
 - Polish complete (professional, clear, actionable)
@@ -307,7 +307,7 @@ These items are refinements (clarity, ecosystem context, governance rules).
 - BOOTSTRAP procedure forces upfront understanding
 - Error recovery procedures guide debugging
 - Validation procedures are crystal clear
-- Hard invariants are explained (fewer AI review surprises)
+- Hard invariants are explained (fewer manual review surprises)
 - Scope conflicts caught immediately (Orchestrator fixes, not Coder)
 - Result: Maximum productivity, minimum rework, clean commits
 

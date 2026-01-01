@@ -1,6 +1,5 @@
 use crate::{
     ace::{validators::SecurityViolationType, AceError},
-    bundles::DebugBundleExporter,
     bundles::{BundleScope, DebugBundleRequest, DefaultDebugBundleExporter, RedactionMode},
     capabilities::RegistryError,
     flight_recorder::{
@@ -19,9 +18,18 @@ use crate::{
     AppState,
 };
 use chrono::Utc;
+use once_cell::sync::Lazy;
 use serde_json::{json, Value};
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{
+        atomic::{AtomicBool, AtomicU8, Ordering},
+        Mutex,
+    },
+};
 use thiserror::Error;
+use tokio::sync::Notify;
 use uuid::Uuid;
 
 #[derive(Error, Debug)]
@@ -38,6 +46,102 @@ pub enum WorkflowError {
     /// This error triggers JobState::Poisoned transition
     #[error("Security violation: {0}")]
     SecurityViolation(#[from] AceError),
+}
+
+#[derive(Error, Debug)]
+pub enum StartupRecoveryError {
+    #[error("startup recovery failed: {reason}")]
+    Failed { reason: String },
+}
+
+struct StartupRecoveryGate {
+    enabled: AtomicBool,
+    status: AtomicU8,
+    failure_reason: Mutex<Option<String>>,
+    notify: Notify,
+}
+
+const STARTUP_GATE_DISABLED: u8 = 0;
+const STARTUP_GATE_IN_PROGRESS: u8 = 1;
+const STARTUP_GATE_COMPLETE: u8 = 2;
+const STARTUP_GATE_FAILED: u8 = 3;
+
+static STARTUP_RECOVERY_GATE: Lazy<StartupRecoveryGate> = Lazy::new(|| StartupRecoveryGate {
+    enabled: AtomicBool::new(false),
+    status: AtomicU8::new(STARTUP_GATE_DISABLED),
+    failure_reason: Mutex::new(None),
+    notify: Notify::new(),
+});
+
+pub fn enable_startup_recovery_gate() {
+    STARTUP_RECOVERY_GATE.enabled.store(true, Ordering::Release);
+    STARTUP_RECOVERY_GATE
+        .status
+        .store(STARTUP_GATE_IN_PROGRESS, Ordering::Release);
+    if let Ok(mut guard) = STARTUP_RECOVERY_GATE.failure_reason.lock() {
+        *guard = None;
+    }
+}
+
+pub fn mark_startup_recovery_complete() {
+    if !STARTUP_RECOVERY_GATE.enabled.load(Ordering::Acquire) {
+        return;
+    }
+    STARTUP_RECOVERY_GATE
+        .status
+        .store(STARTUP_GATE_COMPLETE, Ordering::Release);
+    STARTUP_RECOVERY_GATE.notify.notify_waiters();
+}
+
+pub fn mark_startup_recovery_failed(reason: String) {
+    if !STARTUP_RECOVERY_GATE.enabled.load(Ordering::Acquire) {
+        return;
+    }
+    if let Ok(mut guard) = STARTUP_RECOVERY_GATE.failure_reason.lock() {
+        *guard = Some(reason);
+    }
+    STARTUP_RECOVERY_GATE
+        .status
+        .store(STARTUP_GATE_FAILED, Ordering::Release);
+    STARTUP_RECOVERY_GATE.notify.notify_waiters();
+}
+
+pub async fn wait_for_startup_recovery() -> Result<(), StartupRecoveryError> {
+    if !STARTUP_RECOVERY_GATE.enabled.load(Ordering::Acquire) {
+        return Ok(());
+    }
+
+    loop {
+        let notified = STARTUP_RECOVERY_GATE.notify.notified();
+        match STARTUP_RECOVERY_GATE.status.load(Ordering::Acquire) {
+            STARTUP_GATE_COMPLETE => return Ok(()),
+            STARTUP_GATE_FAILED => {
+                let reason = STARTUP_RECOVERY_GATE
+                    .failure_reason
+                    .lock()
+                    .ok()
+                    .and_then(|guard| guard.as_ref().cloned())
+                    .unwrap_or_else(|| "unknown".to_string());
+                return Err(StartupRecoveryError::Failed { reason });
+            }
+            _ => {}
+        }
+        notified.await;
+    }
+}
+
+#[cfg(test)]
+pub fn reset_startup_recovery_gate_for_test() {
+    STARTUP_RECOVERY_GATE
+        .enabled
+        .store(false, Ordering::Release);
+    STARTUP_RECOVERY_GATE
+        .status
+        .store(STARTUP_GATE_DISABLED, Ordering::Release);
+    if let Ok(mut guard) = STARTUP_RECOVERY_GATE.failure_reason.lock() {
+        *guard = None;
+    }
+    STARTUP_RECOVERY_GATE.notify.notify_waiters();
 }
 
 fn parse_inputs(raw: Option<&serde_json::Value>) -> serde_json::Value {
@@ -211,14 +315,18 @@ pub async fn mark_stalled_workflows(
     threshold_secs: u64,
     is_startup_recovery: bool,
 ) -> Result<Vec<WorkflowRun>, WorkflowError> {
+    if !is_startup_recovery {
+        tracing::debug!(
+            target: "handshake_core::recovery",
+            "Skipping workflow recovery outside startup scan"
+        );
+        return Ok(Vec::new());
+    }
+
     let stalled = state.storage.find_stalled_workflows(threshold_secs).await?;
 
     for run in &stalled {
-        let reason = if is_startup_recovery {
-            "stalled (startup recovery: heartbeat timeout)"
-        } else {
-            "stalled (heartbeat timeout)"
-        };
+        let reason = "stalled (startup recovery: heartbeat timeout)";
 
         state
             .storage
@@ -239,28 +347,28 @@ pub async fn mark_stalled_workflows(
             })
             .await?;
 
-        if is_startup_recovery {
-            let payload = FrEvt006WorkflowRecovery {
-                workflow_id: run.id.to_string(),
-                job_id: run.job_id.to_string(),
-                previous_state: run.status.as_str().to_string(),
-                new_state: "stalled".to_string(),
-                reason: reason.to_string(),
-            };
+        let payload = FrEvt006WorkflowRecovery {
+            workflow_run_id: run.id.to_string(),
+            job_id: Some(run.job_id.to_string()),
+            from_state: run.status.as_str().to_string(),
+            to_state: "stalled".to_string(),
+            reason: reason.to_string(),
+            last_heartbeat_ts: run.last_heartbeat.to_rfc3339(),
+            threshold_secs,
+        };
 
-            record_event_safely(
-                state,
-                FlightRecorderEvent::new(
-                    FlightRecorderEventType::WorkflowRecovery,
-                    FlightRecorderActor::System,
-                    Uuid::new_v4(),
-                    serde_json::to_value(&payload).unwrap_or(json!({})),
-                )
-                .with_job_id(run.job_id.to_string())
-                .with_workflow_id(run.id.to_string()),
+        record_event_safely(
+            state,
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::WorkflowRecovery,
+                FlightRecorderActor::System,
+                Uuid::new_v4(),
+                serde_json::to_value(&payload).unwrap_or(json!({})),
             )
-            .await;
-        }
+            .with_job_id(run.job_id.to_string())
+            .with_workflow_id(run.id.to_string()),
+        )
+        .await;
     }
 
     Ok(stalled)
@@ -271,9 +379,6 @@ pub async fn start_workflow_for_job(
     job: AiJob,
 ) -> Result<WorkflowRun, WorkflowError> {
     let trace_id = derive_trace_id(&job, None);
-
-    // Opportunistically mark any stale running workflows as stalled before starting a new one.
-    let _ = mark_stalled_workflows(state, 30, false).await?;
 
     if let Err(err) = enforce_capabilities(state, &job, trace_id).await {
         state
@@ -330,7 +435,7 @@ pub async fn start_workflow_for_job(
     )
     .await;
 
-    let result = run_job(state, &job, trace_id).await;
+    let result = run_job(state, &job, workflow_run.id, trace_id).await;
 
     let (final_status, error_message, output_payload, captured_error) = match result {
         Ok(output) => (JobState::Completed, None, output, None),
@@ -454,57 +559,61 @@ async fn enforce_capabilities(
 ) -> Result<(), WorkflowError> {
     let required = state
         .capability_registry
-        .required_capability_for_job(job.job_kind.as_str())?;
+        .required_capabilities_for_job(job.job_kind.as_str())?;
 
-    let result = state
-        .capability_registry
-        .profile_can(&job.capability_profile_id, &required);
+    for capability_id in required {
+        let result = state
+            .capability_registry
+            .profile_can(&job.capability_profile_id, &capability_id);
 
-    match result {
-        Ok(true) => {
-            log_capability_check(
-                state,
-                job,
-                &required,
-                &job.capability_profile_id,
-                "allowed",
-                trace_id,
-            )
-            .await;
-            Ok(())
-        }
-        Ok(false) => {
-            log_capability_check(
-                state,
-                job,
-                &required,
-                &job.capability_profile_id,
-                "denied",
-                trace_id,
-            )
-            .await;
-            Err(WorkflowError::Capability(RegistryError::AccessDenied(
-                required,
-            )))
-        }
-        Err(err) => {
-            log_capability_check(
-                state,
-                job,
-                &required,
-                &job.capability_profile_id,
-                "denied",
-                trace_id,
-            )
-            .await;
-            Err(WorkflowError::Capability(err))
+        match result {
+            Ok(true) => {
+                log_capability_check(
+                    state,
+                    job,
+                    &capability_id,
+                    &job.capability_profile_id,
+                    "allowed",
+                    trace_id,
+                )
+                .await;
+            }
+            Ok(false) => {
+                log_capability_check(
+                    state,
+                    job,
+                    &capability_id,
+                    &job.capability_profile_id,
+                    "denied",
+                    trace_id,
+                )
+                .await;
+                return Err(WorkflowError::Capability(RegistryError::AccessDenied(
+                    capability_id,
+                )));
+            }
+            Err(err) => {
+                log_capability_check(
+                    state,
+                    job,
+                    &capability_id,
+                    &job.capability_profile_id,
+                    "denied",
+                    trace_id,
+                )
+                .await;
+                return Err(WorkflowError::Capability(err));
+            }
         }
     }
+
+    Ok(())
 }
 
 async fn run_job(
     state: &AppState,
     job: &AiJob,
+    workflow_run_id: Uuid,
     trace_id: Uuid,
 ) -> Result<Option<Value>, WorkflowError> {
     if let Some(inputs) = job.job_inputs.as_ref() {
@@ -660,16 +769,67 @@ async fn run_job(
         };
 
         let exporter = DefaultDebugBundleExporter::new(state.clone());
+        if redaction_mode != RedactionMode::SafeDefault {
+            let capability_id = "export.include_payloads";
+            let result = state
+                .capability_registry
+                .profile_can(&job.capability_profile_id, capability_id);
+            match result {
+                Ok(true) => {
+                    log_capability_check(
+                        state,
+                        job,
+                        capability_id,
+                        &job.capability_profile_id,
+                        "allowed",
+                        trace_id,
+                    )
+                    .await;
+                }
+                Ok(false) => {
+                    log_capability_check(
+                        state,
+                        job,
+                        capability_id,
+                        &job.capability_profile_id,
+                        "denied",
+                        trace_id,
+                    )
+                    .await;
+                    return Err(WorkflowError::Capability(RegistryError::AccessDenied(
+                        capability_id.to_string(),
+                    )));
+                }
+                Err(err) => {
+                    log_capability_check(
+                        state,
+                        job,
+                        capability_id,
+                        &job.capability_profile_id,
+                        "denied",
+                        trace_id,
+                    )
+                    .await;
+                    return Err(WorkflowError::Capability(err));
+                }
+            }
+        }
+
         let manifest = exporter
-            .export(DebugBundleRequest {
-                scope,
-                redaction_mode,
-                output_path: None,
-                include_artifacts: inputs
-                    .get("include_artifacts")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false),
-            })
+            .export_for_job(
+                DebugBundleRequest {
+                    scope,
+                    redaction_mode,
+                    output_path: None,
+                    include_artifacts: inputs
+                        .get("include_artifacts")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false),
+                },
+                job.job_id,
+                workflow_run_id,
+                trace_id,
+            )
             .await
             .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
 
@@ -796,7 +956,7 @@ mod tests {
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::storage::{
-        sqlite::SqliteDatabase, AccessMode, Database, JobKind, JobMetrics, SafetyMode,
+        sqlite::SqliteDatabase, AccessMode, Database, JobKind, JobMetrics, JobState, SafetyMode,
     };
     use serde_json::json;
     use std::sync::Arc;
@@ -1071,6 +1231,48 @@ mod tests {
         let event = recovery_event.unwrap();
         assert_eq!(event.actor, FlightRecorderActor::System);
         assert_eq!(event.workflow_id, Some(run.id.to_string()));
+
+        let payload: FrEvt006WorkflowRecovery =
+            serde_json::from_value(event.payload.clone()).map_err(|e| e.to_string())?;
+        assert_eq!(payload.workflow_run_id, run.id.to_string());
+        assert_eq!(payload.job_id, Some(job.job_id.to_string()));
+        assert_eq!(payload.from_state, JobState::Running.as_str());
+        assert_eq!(payload.to_state, "stalled");
+        assert_eq!(payload.threshold_secs, 30);
+        assert_eq!(payload.last_heartbeat_ts, run.last_heartbeat.to_rfc3339());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_startup_recovery_blocks_job_acceptance() -> Result<(), Box<dyn std::error::Error>>
+    {
+        reset_startup_recovery_gate_for_test();
+        let state = setup_state().await?;
+        enable_startup_recovery_gate();
+
+        let create_future = crate::jobs::create_job(
+            &state,
+            JobKind::DocSummarize,
+            "protocol-default",
+            "Analyst",
+            None,
+            Vec::new(),
+        );
+        tokio::pin!(create_future);
+
+        let timeout_result =
+            tokio::time::timeout(std::time::Duration::from_millis(50), &mut create_future).await;
+        assert!(
+            timeout_result.is_err(),
+            "create_job completed before startup recovery gate released"
+        );
+
+        mark_startup_recovery_complete();
+        let job_result = create_future.await;
+        reset_startup_recovery_gate_for_test();
+        let job = job_result?;
+        assert!(matches!(job.state, JobState::Queued));
 
         Ok(())
     }

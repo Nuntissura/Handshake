@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use unicode_normalization::UnicodeNormalization;
+use uuid::Uuid;
 
 use super::TerminalRequest;
 
@@ -58,9 +59,13 @@ impl TerminalSession {
             .map(|c| c.nfc().collect::<String>())
             .collect();
 
+        let session_id = job_context
+            .session_id
+            .or_else(|| Some(Uuid::new_v4().to_string()));
+
         TerminalSession {
             session_type: req.session_type,
-            session_id: job_context.session_id,
+            session_id,
             job_id: job_context.job_id,
             wsids: job_context.wsids,
             capability_set,

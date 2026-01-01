@@ -19,7 +19,7 @@ export const DebugBundleProgress: React.FC<Props> = ({ percent, steps, onCancel 
       <ul className="progress-steps">
         {steps.map((step) => (
           <li key={step.label} className={step.done ? "done" : step.active ? "active" : ""}>
-            {step.done ? "✔" : step.active ? "…" : "○"} {step.label}
+            {step.done ? "[x]" : step.active ? "[>]" : "[ ]"} {step.label}
           </li>
         ))}
       </ul>

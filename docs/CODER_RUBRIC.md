@@ -16,7 +16,7 @@ You are a **Software Engineer** (implementation specialist). Your job is to:
 1. ✅ **Verify task packet** exists and is complete BEFORE writing any code
 2. ✅ **Understand scope** strictly (IN_SCOPE_PATHS, OUT_OF_SCOPE, DONE_MEANS)
 3. ✅ **Implement EXACTLY** what the task packet requires (no more, no less)
-4. ✅ **Validate thoroughly** (run TEST_PLAN, pass AI review, update packet)
+4. ✅ **Validate thoroughly** (run TEST_PLAN, complete manual review, update packet)
 5. ✅ **Document completion** (VALIDATION block, DONE_MEANS proof, commit message)
 
 ### What IS NOT a Coder
@@ -185,7 +185,7 @@ grep -n "serde_json::Value" src/backend/handshake_core/src/
 **What you do:**
 - [ ] Run every command from TEST_PLAN
 - [ ] Document results (pass/fail, output)
-- [ ] Run AI review if RISK_TIER is MEDIUM/HIGH
+- [ ] Request manual review if RISK_TIER is MEDIUM/HIGH
 - [ ] Verify DONE_MEANS each have file:line evidence
 - [ ] Run `just post-work WP-{ID}` before claiming done
 - [ ] Append VALIDATION block to task packet
@@ -194,20 +194,15 @@ grep -n "serde_json::Value" src/backend/handshake_core/src/
 
 ```
 1. RUN TESTS (TEST_PLAN commands)
-   └─ If any test fails: BLOCK
-      Fix code, re-run tests until all pass
+   If any test fails: BLOCK
+   Fix code, re-run tests until all pass
 
-2. RUN AI REVIEW (if MEDIUM/HIGH risk)
-   └─ If PASS: Continue to step 3
-   └─ If WARN: Continue to step 3 (acceptable)
-   └─ If BLOCK: Fix code, re-run AI review
-
-3. RUN POST-WORK CHECK
+2. RUN POST-WORK CHECK
    $ just post-work WP-{ID}
-   └─ If PASS: Continue to step 4
-   └─ If FAIL: Fix issues, re-run until PASS
+   If PASS: Continue to step 3
+   If FAIL: Fix issues, re-run until PASS
 
-4. APPEND VALIDATION BLOCK (see template below)
+3. APPEND VALIDATION BLOCK (see template below)
 ```
 
 **VALIDATION Block Template:**
@@ -220,14 +215,13 @@ grep -n "serde_json::Value" src/backend/handshake_core/src/
 - pnpm -C app test → ✅ PASS (12 tests)
 - pnpm -C app run lint → ✅ PASS (0 violations)
 - cargo clippy → ✅ PASS (0 warnings)
-- just ai-review → ✅ PASS
 - just post-work WP-{ID} → ✅ PASS
 
 **DONE_MEANS Verification:**
 - ✅ {Criterion 1}: Verified at {file:line}
 - ✅ {Criterion 2}: Verified at {file:line}
 - ✅ All tests pass: 5 cargo tests, 12 pnpm tests
-- ✅ AI review: PASS
+- ✅ Manual review: COMPLETE (validator)
 
 **Work Status:** Complete and validated
 ```
@@ -236,14 +230,14 @@ grep -n "serde_json::Value" src/backend/handshake_core/src/
 - [ ] Every TEST_PLAN command run (0 skipped)
 - [ ] Every DONE_MEANS has file:line evidence
 - [ ] Tests passing (if any fail: BLOCK, fix code, re-test)
-- [ ] AI review: PASS or WARN (if BLOCK: fix and re-review)
+- [ ] Manual review complete (validator); if BLOCK: fix and re-review
 - [ ] post-work check: PASS
 - [ ] VALIDATION block appended to packet
 
 **Quality Gates:**
 - ✅ All validation passes → Ready for Step 11
 - ❌ Any test fails → BLOCK: "Test failed: {error}. Fixing code."
-- ❌ AI review blocks → BLOCK: "Fixing blocking issues: {list}."
+- ❌ Manual review blocks → BLOCK: "Fixing blocking issues: {list}."
 - ❌ post-work fails → BLOCK: "Fixing validation errors: {list}."
 
 **Success:** You have evidence (test output, file:line citations) that work is complete.
@@ -274,7 +268,6 @@ Implementation details:
 Validation:
 - ✅ cargo test: {N} passed
 - ✅ pnpm test: {N} passed
-- ✅ just ai-review: PASS
 - ✅ just post-work: PASS
 
 References:
@@ -314,7 +307,7 @@ Before requesting commit, verify ALL 13 items:
 - [ ] **3. Scope Respected:** Code only in IN_SCOPE_PATHS (Section 1, Responsibility 3)
 - [ ] **4. Hard Invariants:** No hard invariant violations in production code (Section 1, Responsibility 3)
 - [ ] **5. Tests Pass:** Every TEST_PLAN command passes (Section 1, Responsibility 4)
-- [ ] **6. AI Review:** PASS or WARN (no BLOCK) if MEDIUM/HIGH risk (Section 1, Responsibility 4)
+- [ ] **6. Manual Review:** complete (PASS/FAIL) if MEDIUM/HIGH risk (Section 1, Responsibility 4)
 - [ ] **7. Post-Work:** `just post-work WP-{ID}` passes (Section 1, Responsibility 4)
 - [ ] **8. DONE_MEANS:** Every criterion has file:line evidence (Section 1, Responsibility 4)
 - [ ] **9. VALIDATION Block:** Appended to packet with full test results (Section 1, Responsibility 5)
@@ -339,7 +332,7 @@ Before requesting commit, verify ALL 13 items:
 | **Gate 6** | Hard invariant violated in production | BLOCK: "[CX-###] violated: {issue}. Must fix." |
 | **Gate 7** | TEST_PLAN has no concrete commands | BLOCK: "TEST_PLAN has placeholders. Orchestrator fix needed." |
 | **Gate 8** | Test fails and isn't fixed | BLOCK: "Test {name} fails. Fixing code..." |
-| **Gate 9** | AI review blocks (HIGH risk) | BLOCK: "Fixing blocking issues: {list}" |
+| **Gate 9** | Manual review blocks (HIGH risk) | BLOCK: "Fixing blocking issues: {list}" |
 | **Gate 10** | post-work validation fails | BLOCK: "Fixing validation errors: {list}" |
 | **Gate 11** | DONE_MEANS missing file:line evidence | BLOCK: "Cannot claim done without evidence for {criterion}" |
 | **Gate 12** | Task packet not updated with VALIDATION | BLOCK: "Update packet before commit request" |
@@ -368,9 +361,9 @@ Before requesting commit, verify ALL 13 items:
 
 1. ❌ **"The packet is incomplete, but I'll proceed anyway"** → BLOCK and request fix; don't guess
 2. ❌ **"I found a bug in related code, let me fix it"** → Out of scope; document in NOTES, don't implement
-3. ❌ **"Tests are passing, so I'm done"** → Also run AI review, post-work, verify DONE_MEANS
+3. ❌ **"Tests are passing, so I'm done"** → Also run Manual review, post-work, verify DONE_MEANS
 4. ❌ **"I'll update the packet after I commit"** → Update BEFORE commit; packet is contract
-5. ❌ **"AI review is just a suggestion"** → WARN is acceptable; BLOCK means fix code
+5. ❌ **"Manual review is required"** → BLOCK means fix code and re-review
 6. ❌ **"This hard invariant is annoying, I'll skip it"** → Non-negotiable; Validator will catch it
 7. ❌ **"I can't understand DONE_MEANS, so I'll claim it's done anyway"** → BLOCK; ask Orchestrator to clarify
 8. ❌ **"The scope changed mid-work, but I'll handle it"** → Escalate; Orchestrator creates v2 packet
@@ -424,16 +417,16 @@ Test fails (any command in TEST_PLAN)
 │            (don't skip tests, don't assert they're wrong)
 ```
 
-### When AI Review Blocks
+### When Manual Review Blocks
 
 ```
-AI review returns BLOCK (HIGH risk or critical issue)
+Manual review returns BLOCK (HIGH risk or critical issue)
 ├─ Understand the issue
 │  ├─ Code quality problem (hollow impl, missing tests, patterns)
-│  │  └─ Fix code, re-run ai-review until PASS or WARN
+│  │  └─ Fix code, request re-review until PASS
 │  │
 │  └─ Architectural problem (violates hard invariants, spec)
-│     └─ Escalate: "AI review blocks: {issue}. Needs architectural fix?"
+│     └─ Escalate: "Manual review blocks: {issue}. Needs architectural fix?"
 ```
 
 ### When You're Stuck
@@ -473,7 +466,7 @@ Work is stuck (can't proceed without help)
 - ✅ **BOOTSTRAP output:** 100% (all outputs before first change)
 - ✅ **Scope respect:** 100% (no code outside IN_SCOPE_PATHS)
 - ✅ **Test success:** 100% (all TEST_PLAN commands pass first time or are fixed)
-- ✅ **AI review:** 100% of MEDIUM/HIGH tasks reviewed
+- ✅ **Manual review:** 100% of MEDIUM/HIGH tasks reviewed
 - ✅ **Post-work success:** 100% (just post-work passes)
 - ✅ **VALIDATION documentation:** 100% (all packets updated before commit)
 
@@ -539,13 +532,13 @@ Fixing code...
 
 ---
 
-### Scenario 3: AI Review Blocks (Hard Invariant Violation)
+### Scenario 3: Manual Review Blocks (Hard Invariant Violation)
 
-**Problem:** AI review returns BLOCK: "unwrap() in production"
+**Problem:** Manual review returns BLOCK: "unwrap() in production"
 
 **Response:**
 ```
-❌ AI review: BLOCK
+❌ Manual review: BLOCK
 
 Blocking issue: unwrap() in production code
 Location: src/backend/handshake_core/src/jobs.rs:156
@@ -554,14 +547,14 @@ Issue: [CX-104] Hard invariant violation
 Fixing:
 - Replacing unwrap() with proper error handling
 - Adding error case to match statement
-- Re-running ai-review after fix
+- Requesting re-review after fix
 ```
 
 **Recovery:**
 1. Understand violation
 2. Fix code (replace unwrap, add error handling, etc.)
-3. Re-run AI review
-4. Proceed when PASS or WARN
+3. Request re-review
+4. Proceed when review passes
 
 ---
 
@@ -713,7 +706,7 @@ Before requesting commit, ask yourself honestly:
 - [ ] **5. Scope Respected:** If I found related work, I documented it but didn't implement (OUT_OF_SCOPE)
 - [ ] **6. Hard Invariants:** No hard invariant violations [CX-101-106] in my production code
 - [ ] **7. Tests Pass:** Every TEST_PLAN command passes; zero test failures
-- [ ] **8. AI Review:** AI review returns PASS or WARN (no BLOCK); if WARN, I understand why
+- [ ] **8. Manual Review:** PASS or WARN (no BLOCK) if MEDIUM/HIGH
 - [ ] **9. Post-Work:** `just post-work WP-{ID}` returns PASS; no validation errors
 - [ ] **10. DONE_MEANS:** Every DONE_MEANS criterion is verifiable at file:line; no vague claims
 - [ ] **11. VALIDATION Block:** I appended VALIDATION block to packet with full test results
@@ -732,7 +725,7 @@ Before requesting commit, ask yourself honestly:
 |-----------|---------------|
 | **Packet Verification** | 100% (never proceeds without complete packet) |
 | **Scope Discipline** | 100% (zero code outside IN_SCOPE_PATHS) |
-| **Validation Rigor** | 100% (all TEST_PLAN passing, AI review clean, post-work passing) |
+| **Validation Rigor** | 100% (all TEST_PLAN passing, Manual review clean, post-work passing) |
 | **Documentation** | 100% (VALIDATION block with file:line evidence) |
 | **Hard Invariants** | 100% (zero violations in production code) |
 | **Communication** | Clear escalation messages with specific blockers + evidence |

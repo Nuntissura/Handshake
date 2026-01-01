@@ -180,10 +180,10 @@ export type DiagnosticStatus = "open" | "acknowledged" | "muted" | "resolved";
 export type DiagnosticActor = "human" | "agent" | "system";
 
 export type DiagnosticRange = {
-  start_line: number;
-  start_column: number;
-  end_line: number;
-  end_column: number;
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
 };
 
 export type DiagnosticLocation = {
@@ -396,11 +396,13 @@ export async function getHealth(): Promise<HealthResponse> {
 }
 
 export type FlightEventFilters = {
+  eventId?: string;
   jobId?: string;
   traceId?: string;
   from?: string;
   to?: string;
   actor?: "human" | "agent" | "system";
+  surface?: string;
   eventType?: FlightEvent["event_type"];
   wsid?: string;
 };
@@ -412,11 +414,13 @@ export async function getEvents(filters?: FlightEventFilters): Promise<FlightEve
   };
 
   const params = new URLSearchParams();
+  if (filters?.eventId) params.append("event_id", filters.eventId);
   if (filters?.jobId) params.append("job_id", filters.jobId);
   if (filters?.traceId) params.append("trace_id", filters.traceId);
   if (filters?.from) params.append("from", toIso(filters.from));
   if (filters?.to) params.append("to", toIso(filters.to));
   if (filters?.actor) params.append("actor", filters.actor);
+  if (filters?.surface) params.append("surface", filters.surface);
   if (filters?.eventType) params.append("event_type", filters.eventType);
   if (filters?.wsid) params.append("wsid", filters.wsid);
 
@@ -479,6 +483,7 @@ export async function getJob(jobId: string): Promise<AiJob> {
 export type ListJobsFilters = {
   status?: string;
   job_kind?: string;
+  wsid?: string;
   from?: string;
   to?: string;
 };
@@ -487,6 +492,7 @@ export async function listJobs(filters?: ListJobsFilters): Promise<AiJob[]> {
   const params = new URLSearchParams();
   if (filters?.status) params.append("status", filters.status);
   if (filters?.job_kind) params.append("job_kind", filters.job_kind);
+  if (filters?.wsid) params.append("wsid", filters.wsid);
   if (filters?.from) params.append("from", new Date(filters.from).toISOString());
   if (filters?.to) params.append("to", new Date(filters.to).toISOString());
 
@@ -509,7 +515,7 @@ export type BundleExportRequest = {
 
 export type BundleExportResponse = {
   export_job_id: string;
-  status: "queued" | "running" | "ready" | "failed";
+  status: "queued" | "running";
   estimated_size_bytes?: number | null;
 };
 
@@ -543,7 +549,7 @@ export async function getBundleStatus(bundleId: string): Promise<BundleStatus> {
 }
 
 export async function validateBundle(bundleId: string): Promise<BundleValidationResponse> {
-  return request(`/api/bundles/debug/${encodeURIComponent(bundleId)}`, { method: "POST" });
+  return request(`/api/bundles/debug/${encodeURIComponent(bundleId)}/validate`, { method: "POST" });
 }
 
 export async function downloadBundle(bundleId: string): Promise<Blob> {

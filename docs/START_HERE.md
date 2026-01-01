@@ -1,8 +1,8 @@
 # Handshake Project: Start Here
 
-Authority: Master Spec v02.96
+Authority: Master Spec v02.99
 ---## Canonical sources
-- **Spec:** `docs/SPEC_CURRENT.md` (points to the current Handshake master spec, currently v02.96).
+- **Spec:** `docs/SPEC_CURRENT.md` (points to the current Handshake master spec, currently v02.99).
 - **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `docs/TASK_BOARD.md` + task packets. Handshake logger is for milestones/hard bugs when requested.
 - **Architecture & debug:** `docs/ARCHITECTURE.md` and `docs/RUNBOOK_DEBUG.md`.
 
@@ -32,7 +32,7 @@ just pre-work WP-{ID}
 # Coder: Verify work complete before commit
 just post-work WP-{ID}
 
-# Full workflow validation (pre-work + validate + ai-review + post-work)
+# Full workflow validation (pre-work + validate + post-work)
 just validate-workflow WP-{ID}
 ```
 
@@ -84,17 +84,14 @@ just validate
 just new-react-component <ComponentName>
 just new-api-endpoint <endpoint_name>
 
-# AI review (requires gemini CLI)
-just ai-review
-
-# Git hook (auto-run AI review on commit)
+# Git hook (pre-commit checks)
 git config core.hooksPath scripts/hooks
 ```
 If additional setup (DB seed, env) is required: TBD (HSK-1001) — document once known.
 
 For task packets: include scope, expected behavior, in-scope paths, DONE_MEANS, BOOTSTRAP block (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP), and these commands.
 
-CI expectation: run `just validate`; AI review is local (`just ai-review`) and the output must be recorded in the task packet (logger only if requested).
+CI expectation: run `just validate`; manual validator review is required for MEDIUM/HIGH risk work.
 
 ## Bug triage map (jump into RUNBOOK_DEBUG)
 - UI/frontend: see `docs/RUNBOOK_DEBUG.md#ui-and-shell` (app React + Tauri window lifecycle).

@@ -19,7 +19,8 @@
 ### [PRIORITY_3] Deterministic Enforcement [CX-585A/C]
 - Spec-Version Lock: Master Spec immutable during phase execution
 - Signature Gate: Zero implementation without technical refinement pause
-- If spec change needed: Create NEW task packet (WP-{ID}-SpecUpdate), don't modify existing
+- If spec change needed: run the Spec Enrichment workflow (new spec version file + update `docs/SPEC_CURRENT.md`) under a one-time user signature and record it in `docs/SIGNATURE_AUDIT.md`. Do NOT edit locked task packets to "catch up" to the new spec; keep history immutable and create a NEW remediation WP only if new-spec deltas require new code changes.
+- Historical completion policy: if Validator returns **OUTDATED_ONLY** (baseline-correct but spec evolved), keep the WP archived as Done/Validated history and create a NEW remediation WP only if current-spec deltas are actually needed. Do not churn the original WP back into Ready for Dev for drift-only.
 
 ### [PRIORITY_4] Phase 1 Closure Gate [CX-585D]
 - Phase 1 only closes when ALL WPs in phase are VALIDATED (not just "done")
@@ -576,7 +577,7 @@ Every task packet MUST include all 10 fields in this exact structure:
 | **SCOPE** | Coder knows what to change | 1-2 sentence description + rationale (Business/technical WHY) |
 | **IN_SCOPE_PATHS** | Coder knows which files to modify | EXACT file paths or directories (5-20 entries); no vague patterns like "backend" |
 | **OUT_OF_SCOPE** | Coder knows what NOT to change | Explicit list of deferred work, related tasks, refactoring NOT included |
-| **TEST_PLAN** | Coder knows how to validate | EXACT bash commands (cargo test, pnpm test, just ai-review, etc.); no placeholders |
+| **TEST_PLAN** | Coder knows how to validate | EXACT bash commands (cargo test, pnpm test, etc.); no placeholders |
 | **DONE_MEANS** | Coder knows success criteria | Concrete checklist (3-8 items); 1:1 mapped to SPEC_ANCHOR; no "works well" vagueness |
 | **HARDENED_INVARIANTS** | Security-critical requirements | Mandatory for RISK_TIER: HIGH. Includes: Content-Awareness, NFC Normalization, Atomic Poisoning. |
 | **ROLLBACK_HINT** | Coder knows how to undo | `git revert {commit}` OR explicit undo steps (if multi-step changes) |
@@ -641,20 +642,20 @@ Every task packet MUST include all 10 fields in this exact structure:
 **What "complete" means:**
 - ✅ RISK_TIER is LOW, MEDIUM, or HIGH
 - ✅ Justification provided (why this tier, not lower)
-- ✅ Matches TEST_PLAN complexity (HIGH tier → include `just ai-review`)
+- ? Matches TEST_PLAN complexity; note manual review requirement for MEDIUM/HIGH in DONE_MEANS or NOTES
 
 **Example:**
 ```markdown
 ## Quality Gate
 - **RISK_TIER**: HIGH
   - Justification: Cross-module refactor (AppState, jobs, workflows); includes migration
-  - Requires: cargo test + pnpm test + just ai-review
+  - Requires: cargo test + pnpm test; manual review required
 ```
 
 **Why it matters:**
-- LOW tier: Coder skips AI review
-- MEDIUM tier: Coder runs AI review
-- HIGH tier: Coder must pass AI review (no WARN/BLOCK)
+- LOW tier: Manual review optional
+- MEDIUM tier: Manual review required
+- HIGH tier: Manual review required (blocker if issues remain)
 
 ---
 
@@ -774,8 +775,8 @@ OUT_OF_SCOPE:
 
 **What "complete" means:**
 - ✅ For LOW tier: At least 2-3 commands (cargo test, lint)
-- ✅ For MEDIUM tier: 4-5 commands (add `just ai-review`)
-- ✅ For HIGH tier: 5-6 commands (add `just ai-review`, stricter checks)
+- ✅ For MEDIUM tier: 4-5 commands (manual review noted separately)
+- ✅ For HIGH tier: 5-6 commands (manual review noted separately, stricter checks)
 - ✅ Each command is literal (can be copy-pasted)
 - ✅ Commands are in logical order (build → test → review)
 - ✅ `just post-work WP-{ID}` is ALWAYS included (Step 10 of CODER_PROTOCOL)
@@ -803,8 +804,6 @@ TEST_PLAN:
   pnpm -C app run lint
   cargo clippy --all-targets --all-features
 
-  # AI review (HIGH tier)
-  just ai-review
 
   # External Cargo target hygiene (keeps repo/mirror slim)
   just cargo-clean
@@ -817,7 +816,7 @@ TEST_PLAN:
 **Why it matters:**
 - Coder runs EVERY command in TEST_PLAN before claiming done (Step 7 of CODER_PROTOCOL)
 - Exact commands prevent misinterpretation
-- Order matters: compile first, then test, then review
+- Order matters: compile first, then test, then post-work
 - `just post-work` is the final gate before commit
 
 ---
@@ -833,7 +832,7 @@ TEST_PLAN:
 - ✅ 3-8 items, each testable
 - ✅ Each item maps to SPEC_ANCHOR: "per §2.3.12.1 storage API requirement"
 - ✅ Uses MUST/SHOULD language from spec
-- ✅ Includes validation success: "All tests pass", "AI review passes"
+- ✅ Includes validation success: "All tests pass", "manual review complete"
 - ✅ Each item has YES/NO answer (not subjective)
 
 ❌ **Incomplete DONE_MEANS:**
@@ -853,7 +852,7 @@ DONE_MEANS:
   * ✅ PostgresDatabase stub created with method signatures (§2.3.12.3)
   * ✅ All existing tests pass (5 units + 3 integration tests)
   * ✅ All NEW tests pass (2 trait tests + 2 sqlite impl tests)
-  * ✅ `just ai-review` returns PASS or WARN (no BLOCK)
+  * ✅ manual review complete (PASS/FAIL); unresolved blockers must be fixed
   * ✅ `just post-work WP-1-Storage-Abstraction-Layer` returns PASS
 ```
 
@@ -1046,6 +1045,32 @@ Complete ALL steps before delegating. If any step fails, STOP and fix it.
 # Verify blocker status in TASK_BOARD
 grep -A5 "## Blocked" docs/TASK_BOARD.md
 ```
+
+**NEW: Concurrency / File-Lock Conflict Check (multi-coder sessions) [CX-CONC-001]**
+
+When multiple Coders work in the repo concurrently, treat `IN_SCOPE_PATHS` as the exclusive file lock set for that WP.
+
+- Lock source of truth: `docs/TASK_BOARD.md` -> `## In Progress` list of WP_IDs.
+- Lock set definition: for each in-progress WP, its lock set is the exact file paths listed under its task packet's `IN_SCOPE_PATHS`.
+- Hard rule: do NOT delegate/start a new WP if ANY `IN_SCOPE_PATHS` entry overlaps with ANY in-progress WP's `IN_SCOPE_PATHS`.
+  - If overlap is required, this is a blocker: re-scope to avoid overlap OR sequence the work (mark WP BLOCKED: "File lock conflict").
+- Assignment required: every in-progress WP entry on the Task Board MUST include an assignee label (e.g., `ASSIGNED_TO: Coder-A` or `ASSIGNED_TO: Coder-B`) so ownership is unambiguous.
+
+Blocking template (use when overlap is detected):
+```
+ƒ?O BLOCKED: File lock conflict [CX-CONC-001]
+
+Candidate WP: {WP_ID}
+Conflicts with in-progress WP: {OTHER_WP_ID} (ASSIGNED_TO: {Coder})
+
+Overlapping paths:
+- {path1}
+- {path2}
+
+Action required:
+1) Re-scope candidate WP to avoid overlap, OR
+2) Sequence work: wait until {OTHER_WP_ID} is VALIDATED and leaves In Progress.
+```
 - [ ] If this WP has a blocker: Is blocker VALIDATED? ✅
 - [ ] If blocker is not VALIDATED: Mark new WP as BLOCKED (don't proceed yet)
 - [ ] If blocker failed validation (FAIL): Escalate; don't create this WP until blocker fixed
@@ -1132,7 +1157,6 @@ Use this template:
   cargo test --manifest-path src/backend/handshake_core/Cargo.toml
   pnpm -C app test
   pnpm -C app run lint
-  just ai-review  # If MEDIUM/HIGH
   ```
 - **DONE_MEANS**:
   * {Specific criterion 1}
@@ -1168,7 +1192,9 @@ Use this template:
   * "{3-8 failure modes}" -> "{affected subsystem}"
 
 ## Authority
-- **SPEC_CURRENT**: docs/SPEC_CURRENT.md
+- **SPEC_BASELINE**: Handshake_Master_Spec_vXX.XX.md (spec at packet creation time; provenance)
+- **SPEC_TARGET**: docs/SPEC_CURRENT.md (binding spec for closure/revalidation; resolved at validation time)
+- **SPEC_ANCHOR**: {master spec section(s) / anchors}
 - **Codex**: Handshake Codex v0.8.md
 - **Task Board**: docs/TASK_BOARD.md
 - **Logger**: (optional) latest Handshake_logger_* if requested for milestone/hard bug
@@ -1620,7 +1646,7 @@ DONE_MEANS (mapped):
 3. **RUN_COMMANDS (startup + validation)**
    - Dev environment startup (`just dev`)
    - Test commands (`cargo test`, `pnpm test`)
-   - Validation commands (`just validate`, `just ai-review`)
+   - Validation commands (`just validate`) + manual review requirement
 
 4. **RISK_MAP (3-8 failure modes)**
    - Specific failure mode

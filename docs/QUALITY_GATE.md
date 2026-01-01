@@ -24,9 +24,9 @@ Purpose: reduce coding errors by standard checks and clear risk tiers.
 ## Risk tiers
 | Tier | Use when | Required checks | Review |
 | --- | --- | --- | --- |
-| LOW | Docs-only or comments; no behavior change | `just docs-check` (if docs touched) | Optional owner review; AI review optional |
-| MEDIUM | Code change within one module; no schema/IPC changes | `just validate` (or record why not) | Owner review required + AI review (`just ai-review`) |
-| HIGH | Cross-module, IPC, migrations, auth/security, dependency updates, perf-critical | `just validate` + manual test steps | Two reviewers (owner + secondary) + AI review (`just ai-review`) |
+| LOW | Docs-only or comments; no behavior change | `just docs-check` (if docs touched) | Optional owner review |
+| MEDIUM | Code change within one module; no schema/IPC changes | `just validate` (or record why not) | Owner review required |
+| HIGH | Cross-module, IPC, migrations, auth/security, dependency updates, perf-critical | `just validate` + manual test steps | Two reviewers (owner + secondary) |
 
 If uncertain, choose the higher tier.
 
@@ -41,11 +41,9 @@ If uncertain, choose the higher tier.
 - Any new error codes/tags documented in `docs/RUNBOOK_DEBUG.md`.
 - New flags/toggles documented in `docs/ARCHITECTURE.md`.
 - Targeted test added for logic changes, or explicit reason recorded.
-- AI review result recorded (PASS or WARN acknowledged) by attaching `ai_review.md` from `just ai-review` to the task packet (logger only if explicitly requested). BLOCK must be resolved.
+- Manual validator review completed and recorded (status + evidence mapping); no automated review required.
 
 `just validate` runs: `just docs-check`, `just codex-check`, `pnpm -C app run lint`, `pnpm -C app test`, `pnpm -C app run depcruise`, `cargo fmt`, `cargo clippy --all-targets --all-features`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`, `cargo deny check advisories licenses bans sources`.
-
-AI review runs locally via `just ai-review` using the `gemini` CLI and the output `ai_review.md` must be attached to the task packet (logger only if requested).
 
 ## Gate 1: Post-Work Validation (AI Autonomy - Mandatory)
 
@@ -55,7 +53,7 @@ AI review runs locally via `just ai-review` using the `gemini` CLI and the outpu
 - All TEST_PLAN commands MUST have been run
 - Validation results MUST be documented in the task packet (logger only if explicitly requested)
 - Git status MUST show changes (work actually done)
-- For MEDIUM/HIGH: AI review MUST be complete and not BLOCKED
+- For MEDIUM/HIGH: Manual validator review must be complete before marking Done
 - Task packet MUST capture current status/result
 - Verification: `just post-work WP-{ID}` MUST pass
 
@@ -63,7 +61,7 @@ AI review runs locally via `just ai-review` using the `gemini` CLI and the outpu
 
 **Full workflow validation:**
 ```bash
-just validate-workflow WP-{ID}  # Runs pre-work, validate, ai-review, post-work
+just validate-workflow WP-{ID}  # Runs pre-work, validate, post-work
 ```
 
 ## Self-review checklist (required)

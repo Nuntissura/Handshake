@@ -154,3 +154,54 @@ Reason for PASS: Trait + DuckDB implementation align with §11.5 (event schema, 
 ## STATUS CANONICAL (2025-12-28)
 - Authoritative STATUS: Done (validated against Master Spec v02.96).
 - Earlier status lines in this packet are historical and retained for audit only.
+
+---
+
+## REVALIDATION REPORT - WP-1-Flight-Recorder-v2 (2025-12-30)
+
+VALIDATION REPORT - WP-1-Flight-Recorder-v2
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Flight-Recorder-v2.md
+- Spec Pointer: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.98.md (11.5 Flight Recorder Event Shapes & Retention)
+- Codex: Handshake Codex v1.4.md
+- Validator Protocol: docs/VALIDATOR_PROTOCOL.md
+
+Commands (evidence):
+- just cargo-clean: PASS
+- just validator-spec-regression: PASS
+- just validator-packet-complete WP-1-Flight-Recorder-v2: FAIL (STATUS missing/invalid)
+- node scripts/validation/gate-check.mjs WP-1-Flight-Recorder-v2: FAIL (Implementation detected without SKELETON APPROVED marker.)
+- node scripts/validation/post-work-check.mjs WP-1-Flight-Recorder-v2: FAIL (non-ASCII packet + missing COR-701 manifest fields/gates)
+
+Blocking Findings:
+1) Phase gate FAIL: missing SKELETON APPROVED marker (gate-check).
+2) Deterministic manifest gate FAIL (COR-701): post-work-check fails because:
+   - packet contains non-ASCII bytes (count=28)
+   - no COR-701 manifest fields parsed (target_file/start/end/pre_sha1/post_sha1/line_delta) and required gates are missing/un-checked
+3) Spec mismatch: packet references Handshake_Master_Spec_v02.96.md, but docs/SPEC_CURRENT.md now requires Handshake_Master_Spec_v02.98.md.
+
+Spec-to-code spot-check (non-exhaustive; blocked by gates above):
+- Spec 11.5 defines FR-EVT-002 as EditorEditEvent (Handshake_Master_Spec_v02.98.md:30812).
+- Code defines FrEvt002LlmInference (src/backend/handshake_core/src/flight_recorder/mod.rs:214) and FlightRecorderEventType::LlmInference (src/backend/handshake_core/src/flight_recorder/mod.rs:35), which does not match the v02.98 FR-EVT-002 schema.
+
+REASON FOR FAIL:
+- Required workflow gates (gate-check + COR-701 post-work-check) do not pass, and the packet is anchored to a non-current spec version.
+
+Required Remediation:
+- Create a NEW packet (recommended: WP-1-Flight-Recorder-v3) anchored to Handshake_Master_Spec_v02.98.md (ASCII-only).
+- Follow phase gate: BOOTSTRAP -> SKELETON -> (Validator issues "SKELETON APPROVED") -> IMPLEMENTATION -> VALIDATION.
+- Provide a full COR-701 deterministic manifest so `just post-work` can pass.
+- Reconcile Flight Recorder FR-EVT schema numbering/types to match v02.98 (requires code changes or an explicit spec version bump).
+
+Task Board Update:
+- Move WP-1-Flight-Recorder-v2 from Done -> Ready for Dev (Revalidation FAIL).
+
+Packet Status Update (append-only):
+- **Status:** Ready for Dev
+
+Timestamp: 2025-12-30
+Validator: Codex CLI (Validator role)
+
+

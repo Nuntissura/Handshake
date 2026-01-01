@@ -6,12 +6,108 @@
 
 import fs from 'fs';
 import path from 'path';
+import {
+  defaultRefinementPath,
+  resolveSpecCurrent,
+  validateRefinementFile,
+} from './validation/refinement-check.mjs';
 
 const WP_ID = process.argv[2];
 
 if (!WP_ID || !WP_ID.startsWith('WP-')) {
   console.error('❌ Usage: node create-task-packet.mjs WP-{phase}-{name}');
   console.error('Example: node create-task-packet.mjs WP-1-Job-Cancel');
+  process.exit(1);
+}
+
+// HARD GATE: Technical Refinement must exist and be signed before packet creation.
+const refinementsDir = path.join('docs', 'refinements');
+if (!fs.existsSync(refinementsDir)) {
+  fs.mkdirSync(refinementsDir, { recursive: true });
+}
+
+const refinementPath = defaultRefinementPath(WP_ID);
+let userSignature = '';
+
+if (!fs.existsSync(refinementPath)) {
+  const refinementTemplatePath = path.join('docs', 'REFINEMENT_TEMPLATE.md');
+  if (!fs.existsSync(refinementTemplatePath)) {
+    console.error(`Missing refinement template: ${refinementTemplatePath}`);
+    process.exit(1);
+  }
+
+  let resolved = null;
+  try {
+    resolved = resolveSpecCurrent();
+  } catch {
+    // Still create a scaffold deterministically; validation will fail until SPEC_CURRENT is resolvable.
+  }
+
+  const ts = new Date().toISOString();
+  const raw = fs.readFileSync(refinementTemplatePath, 'utf8');
+  const filled = raw
+    .split('{{WP_ID}}').join(WP_ID)
+    .split('{{DATE_ISO}}').join(ts)
+    .split('{{SPEC_TARGET_RESOLVED}}').join(resolved ? resolved.specFileName : 'Handshake_Master_Spec_vXX.XX.md')
+    .split('{{SPEC_TARGET_SHA1}}').join(resolved ? resolved.sha1 : '<fill>');
+
+  fs.writeFileSync(refinementPath, filled, 'utf8');
+
+  console.error('BLOCKED: Technical Refinement must be completed BEFORE task packet creation.');
+  console.error(`Created refinement scaffold: ${refinementPath}`);
+  console.error('Next steps:');
+  console.error(`1) Fill ${refinementPath} (ASCII-only; token-in-window per SPEC_ANCHOR)`);
+  console.error('2) Present refinement to the user (do NOT ask for signature in the same turn)');
+  console.error(`3) Run: just record-refinement ${WP_ID}`);
+  console.error(`4) After user review in a NEW turn, run: just record-signature ${WP_ID} {usernameDDMMYYYYHHMM}`);
+  console.error(`5) Re-run: node scripts/create-task-packet.mjs ${WP_ID}`);
+  process.exit(2);
+}
+
+const refinementValidation = validateRefinementFile(refinementPath, { expectedWpId: WP_ID, requireSignature: true });
+if (!refinementValidation.ok) {
+  console.error(`BLOCKED: Refinement is not approved/signed: ${refinementPath}`);
+  refinementValidation.errors.forEach((e) => console.error(`- ${e}`));
+  console.error('Next steps:');
+  console.error(`- Ensure ${refinementPath} is complete.`);
+  console.error(`- Run: just record-refinement ${WP_ID}`);
+  console.error(`- After user review, run: just record-signature ${WP_ID} {usernameDDMMYYYYHHMM}`);
+  process.exit(1);
+}
+
+userSignature = refinementValidation.parsed.signature;
+
+// Gate: signature must be recorded in ORCHESTRATOR_GATES.json (prevents manual bypass).
+try {
+  const gatesPath = path.join('docs', 'ORCHESTRATOR_GATES.json');
+  const gates = JSON.parse(fs.readFileSync(gatesPath, 'utf8'));
+  const logs = Array.isArray(gates.gate_logs) ? gates.gate_logs : [];
+  const lastSig = [...logs].reverse().find((l) => l.wpId === WP_ID && l.type === 'SIGNATURE');
+  if (!lastSig) {
+    console.error(`BLOCKED: No signature record found for ${WP_ID} in ${gatesPath}.`);
+    console.error(`Run: just record-signature ${WP_ID} ${userSignature}`);
+    process.exit(1);
+  }
+  if (lastSig.signature !== userSignature) {
+    console.error(`BLOCKED: Signature mismatch between refinement (${userSignature}) and gate log (${lastSig.signature}).`);
+    process.exit(1);
+  }
+} catch {
+  console.error('BLOCKED: Unable to verify signature in docs/ORCHESTRATOR_GATES.json.');
+  process.exit(1);
+}
+
+// Gate: signature must be present in SIGNATURE_AUDIT.md (protocol requirement).
+try {
+  const auditPath = path.join('docs', 'SIGNATURE_AUDIT.md');
+  const audit = fs.readFileSync(auditPath, 'utf8');
+  if (!audit.includes(`| ${userSignature} |`)) {
+    console.error(`BLOCKED: Signature not found in ${auditPath}.`);
+    console.error(`Run: just record-signature ${WP_ID} ${userSignature} (this appends to the audit log).`);
+    process.exit(1);
+  }
+} catch {
+  console.error('BLOCKED: Unable to verify signature in docs/SIGNATURE_AUDIT.md.');
   process.exit(1);
 }
 
@@ -35,100 +131,39 @@ if (fs.existsSync(filePath)) {
 // Get current timestamp
 const timestamp = new Date().toISOString();
 
-// Template content
-const template = `# Task Packet: ${WP_ID}
+// Template content (canonical)
+const templatePath = path.join('docs', 'TASK_PACKET_TEMPLATE.md');
+if (!fs.existsSync(templatePath)) {
+  console.error(`ƒ?O Missing template: ${templatePath}`);
+  process.exit(1);
+}
 
-## Metadata
-- TASK_ID: ${WP_ID}
-- STATUS: Backlog
-- DATE: ${timestamp}
-- REQUESTOR: {user or source}
-- AGENT_ID: {orchestrator agent ID}
-- ROLE: Orchestrator
+const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+const templateLines = rawTemplate.split('\n');
+const templateStartIdx = templateLines.findIndex((line) => line.startsWith('# Task Packet:'));
+const templateBody = templateStartIdx === -1
+  ? rawTemplate
+  : templateLines.slice(templateStartIdx).join('\n');
 
-## Scope
-- **What**: {1-2 sentence description of what needs to be done}
-- **Why**: {Business/technical rationale for this work}
-- **IN_SCOPE_PATHS**:
-  * {specific file or directory that will be modified}
-  * {another specific path}
-- **OUT_OF_SCOPE**:
-  * {what should NOT be changed in this task}
-  * {work deferred to future tasks}
+  let specBaseline = 'Handshake_Master_Spec_vXX.XX.md';
+  try {
+    const specCurrent = fs.readFileSync(path.join('docs', 'SPEC_CURRENT.md'), 'utf8');
+    const m = specCurrent.match(/Handshake_Master_Spec_v[0-9.]+\.md/);
+    if (m) specBaseline = m[0];
+  } catch {
+    // Leave placeholder if SPEC_CURRENT cannot be read or parsed.
+  }
 
-## Quality Gate
-- **RISK_TIER**: {LOW | MEDIUM | HIGH}
-  - LOW: Docs-only or comments; no behavior change
-  - MEDIUM: Code change within one module; no schema/IPC changes
-  - HIGH: Cross-module, IPC, migrations, auth/security, dependency updates
-- **TEST_PLAN**:
-  \`\`\`bash
-  # Commands coder MUST run before claiming done:
-  cargo test --manifest-path src/backend/handshake_core/Cargo.toml
-  pnpm -C app test
-  pnpm -C app run lint
-  cargo clippy --all-targets --all-features
-  just ai-review  # Required for MEDIUM/HIGH
-  
-  # Final hygiene (clean external target dir before self-eval/commit)
-  just cargo-clean
-  just post-work ${WP_ID}
-  \`\`\`
-- **DONE_MEANS**:
-  * {Specific measurable criterion 1}
-  * {Specific measurable criterion 2}
-  * All tests pass
-  * Validation commands complete successfully
-- **ROLLBACK_HINT**:
-  \`\`\`bash
-  git revert <commit-sha>
-  # OR: Specific undo steps if needed
-  \`\`\`
+const fill = (text, token, value) => text.split(token).join(value);
 
-## Bootstrap (Coder Work Plan)
-- **FILES_TO_OPEN**:
-  * docs/START_HERE.md
-  * docs/SPEC_CURRENT.md
-  * docs/ARCHITECTURE.md
-  * {5-10 implementation-specific files the coder should inspect}
-- **SEARCH_TERMS**:
-  * "{key symbol or function name}"
-  * "{error message if debugging}"
-  * "{feature name}"
-  * "{5-20 exact strings to grep}"
-- **RUN_COMMANDS**:
-  \`\`\`bash
-  just dev  # Start development environment
-  cargo test --manifest-path src/backend/handshake_core/Cargo.toml
-  pnpm -C app test
-  \`\`\`
-- **RISK_MAP**:
-  * "{potential failure mode 1}" -> "{affected subsystem}"
-  * "{potential failure mode 2}" -> "{affected subsystem}"
-  * "{3-8 identified risks}" -> "{where they impact}"
-
-## Authority
-- **SPEC_CURRENT**: docs/SPEC_CURRENT.md
-- **Codex**: Handshake Codex v0.8.md
-- **Task Board**: docs/TASK_BOARD.md
-- **Logger**: (optional; milestones/hard bugs only)
-- **ADRs**: {if relevant to this work}
-
-## Notes
-- **Assumptions**: {Mark any assumptions as "ASSUMPTION: ..."}
-- **Open Questions**: {Questions that need resolution before or during work}
-- **Dependencies**: {Other work this depends on, if any}
-
-## Validation
-- Command:
-- Result:
-- Notes:
-
-## Status / Handoff
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
-`;
+let template = templateBody;
+template = fill(template, '{{WP_ID}}', WP_ID);
+template = fill(template, '{{DATE_ISO}}', timestamp);
+template = fill(template, '{{SPEC_BASELINE}}', specBaseline);
+template = fill(template, '{{REQUESTOR}}', '{user or source}');
+template = fill(template, '{{AGENT_ID}}', '{orchestrator agent ID}');
+template = fill(template, '{{USER_SIGNATURE}}', userSignature);
+template = fill(template, '{{SPEC_ANCHOR}}', '<fill>');
 
 // Write the file
 fs.writeFileSync(filePath, template, 'utf8');
@@ -143,9 +178,9 @@ console.log('4. Delegate to coder with packet path');
 console.log('');
 console.log('Template fields to complete:');
 console.log('- Metadata: REQUESTOR, AGENT_ID');
-console.log('- Scope: What, Why, IN_SCOPE_PATHS, OUT_OF_SCOPE');
+console.log('- SCOPE: What, Why, IN_SCOPE_PATHS, OUT_OF_SCOPE');
 console.log('- RISK_TIER: Choose LOW/MEDIUM/HIGH');
 console.log('- TEST_PLAN: List specific commands');
 console.log('- DONE_MEANS: Define success criteria');
 console.log('- BOOTSTRAP: Fill in FILES_TO_OPEN, SEARCH_TERMS, RISK_MAP');
-console.log('- Authority: Update Task Board / optional logger reference');
+console.log('- AUTHORITY: Fill SPEC_ANCHOR; keep SPEC_BASELINE as provenance');

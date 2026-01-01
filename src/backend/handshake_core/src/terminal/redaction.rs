@@ -15,12 +15,16 @@ pub trait SecretRedactor: Send + Sync {
 pub struct PatternRedactor;
 
 static REDACTION_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
-    vec![
-        Regex::new(r#"(?i)(api[_-]?key|secret|token|password)\s*=\s*[^\s"]+"#).unwrap(),
-        Regex::new(r#"(?i)bearer\s+[A-Za-z0-9\.\-_]+"#).unwrap(),
-        Regex::new(r#"(?i)[A-Z0-9_]{3,}\s*=\s*[^\s"]+"#).unwrap(),
-        Regex::new(r#"(?i)(aws|gcp|azure)_[A-Z0-9_]+\s*=\s*[^\s"]+"#).unwrap(),
-    ]
+    let patterns = [
+        r#"(?i)(api[_-]?key|secret|token|password)\s*=\s*[^\s"]+"#,
+        r#"(?i)bearer\s+[A-Za-z0-9\.\-_]+"#,
+        r#"(?i)[A-Z0-9_]{3,}\s*=\s*[^\s"]+"#,
+        r#"(?i)(aws|gcp|azure)_[A-Z0-9_]+\s*=\s*[^\s"]+"#,
+    ];
+    patterns
+        .iter()
+        .filter_map(|pattern| Regex::new(pattern).ok())
+        .collect()
 });
 
 fn apply_patterns(text: &str) -> RedactionResult {

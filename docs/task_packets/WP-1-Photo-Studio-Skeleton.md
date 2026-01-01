@@ -113,3 +113,5 @@ Tests:
 
 Reason for FAIL:
 - Photo Studio skeleton is absent.
+
+

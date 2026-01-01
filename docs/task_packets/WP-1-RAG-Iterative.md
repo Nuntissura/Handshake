@@ -115,3 +115,5 @@ Tests:
 
 Reason for FAIL:
 - Iterative RAG contract absent; no code, logging, or tests per §2.6.6.7.5.2.
+
+

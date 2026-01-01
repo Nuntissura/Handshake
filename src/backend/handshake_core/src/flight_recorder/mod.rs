@@ -39,7 +39,7 @@ pub enum FlightRecorderEventType {
     SecurityViolation,
     /// FR-EVT-WF-RECOVERY: Workflow recovery initiated [A2.6.1]
     WorkflowRecovery,
-    /// FR-EVT-005: Debug Bundle export lifecycle event [?11.5]
+    /// FR-EVT-005: Debug Bundle export lifecycle event [11.5]
     DebugBundleExport,
 }
 
@@ -223,10 +223,11 @@ pub struct FrEvt002LlmInference {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrEvt003Diagnostic {
     pub diagnostic_id: String,
-    pub fingerprint: String,
-    pub severity: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wsid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub severity: Option<String>,
     pub source: Option<String>,
-    pub link_confidence: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -271,11 +272,14 @@ pub struct FrEvt008SecurityViolation {
 /// Emitted when the system recovers an interrupted workflow at startup.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrEvt006WorkflowRecovery {
-    pub workflow_id: String,
-    pub job_id: String,
-    pub previous_state: String,
-    pub new_state: String,
+    pub workflow_run_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub job_id: Option<String>,
+    pub from_state: String,
+    pub to_state: String,
     pub reason: String,
+    pub last_heartbeat_ts: String,
+    pub threshold_secs: u64,
 }
 
 /// FR-EVT-007: Terminal command event payload [A10.1.1]
@@ -300,7 +304,7 @@ pub struct TerminalCommandEvent {
     pub redacted_output: Option<String>,
 }
 
-/// FR-EVT-005: Debug Bundle export payload [?11.5]
+/// FR-EVT-005: Debug Bundle export payload [11.5]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrEvt005DebugBundleExport {
     pub bundle_id: String,
@@ -325,6 +329,7 @@ pub enum RecorderError {
 
 #[derive(Debug, Clone, Default)]
 pub struct EventFilter {
+    pub event_id: Option<Uuid>,
     pub job_id: Option<String>,
     pub trace_id: Option<Uuid>,
     pub from: Option<DateTime<Utc>>,

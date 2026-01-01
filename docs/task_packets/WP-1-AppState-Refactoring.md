@@ -88,3 +88,5 @@ Risks & Suggested Actions:
 - Remove `sqlite_pool` exposure from the Database trait and any public surfaces; keep pool access internal to storage implementations.
 - Provide backend-neutral init (select backend via config) and add portability tests (dual-backend) to demonstrate A2.3.12 compliance.
 - Re-run TEST_PLAN (`cargo test`, `just validator-dal-audit`, `just validator-hygiene-full`) and provide file:line evidence that all handlers rely solely on `Arc<dyn Database>`.
+
+

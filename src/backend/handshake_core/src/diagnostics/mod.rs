@@ -95,8 +95,12 @@ impl DiagnosticSource {
             DiagnosticSource::Matcher(name) => format!("matcher:{name}"),
         }
     }
+}
 
-    pub fn from_str(raw: &str) -> Result<Self, DiagnosticError> {
+impl FromStr for DiagnosticSource {
+    type Err = DiagnosticError;
+
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
         if let Some(rest) = raw.strip_prefix("plugin:") {
             return Ok(DiagnosticSource::Plugin(rest.to_string()));
         }
@@ -158,19 +162,14 @@ impl FromStr for DiagnosticSurface {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum LinkConfidence {
     Direct,
     Inferred,
     Ambiguous,
+    #[default]
     Unlinked,
-}
-
-impl Default for LinkConfidence {
-    fn default() -> Self {
-        LinkConfidence::Unlinked
-    }
 }
 
 impl LinkConfidence {
@@ -274,9 +273,13 @@ impl FromStr for DiagnosticActor {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DiagnosticRange {
+    #[serde(rename = "startLine", alias = "start_line")]
     pub start_line: i32,
+    #[serde(rename = "startColumn", alias = "start_column")]
     pub start_column: i32,
+    #[serde(rename = "endLine", alias = "end_line")]
     pub end_line: i32,
+    #[serde(rename = "endColumn", alias = "end_column")]
     pub end_column: i32,
 }
 
@@ -523,15 +526,15 @@ fn normalize_locations(locations: Vec<DiagnosticLocation>) -> Vec<DiagnosticLoca
             "{}|{}|{}|{}",
             a.path.as_deref().unwrap_or(""),
             a.uri.as_deref().unwrap_or(""),
-            a.wsid.as_deref().unwrap_or(""),
-            a.entity_id.as_deref().unwrap_or("")
+            a.entity_id.as_deref().unwrap_or(""),
+            a.wsid.as_deref().unwrap_or("")
         );
         let b_key = format!(
             "{}|{}|{}|{}",
             b.path.as_deref().unwrap_or(""),
             b.uri.as_deref().unwrap_or(""),
-            b.wsid.as_deref().unwrap_or(""),
-            b.entity_id.as_deref().unwrap_or("")
+            b.entity_id.as_deref().unwrap_or(""),
+            b.wsid.as_deref().unwrap_or("")
         );
         a_key.cmp(&b_key)
     });
@@ -539,59 +542,87 @@ fn normalize_locations(locations: Vec<DiagnosticLocation>) -> Vec<DiagnosticLoca
     normalized
 }
 
-fn canonicalize_locations(locations: Option<&Vec<DiagnosticLocation>>) -> Vec<Value> {
+fn canonicalize_locations(locations: Option<&Vec<DiagnosticLocation>>) -> Value {
     let Some(list) = locations else {
-        return Vec::new();
+        return Value::Null;
     };
 
-    list.iter()
+    if list.is_empty() {
+        return Value::Array(Vec::new());
+    }
+
+    let mut sortable: Vec<(String, Value)> = list
+        .iter()
         .map(|loc| {
+            let normalized_path = loc.path.as_ref().map(|p| normalize_path(p));
+            let normalized_uri = loc.uri.as_ref().map(|u| u.nfc().collect::<String>());
+            let normalized_entity_id = loc.entity_id.as_ref().map(|e| e.nfc().collect::<String>());
+            let normalized_wsid = loc.wsid.as_ref().map(|w| w.nfc().collect::<String>());
+
             let mut map = Map::new();
             map.insert(
                 "path".to_string(),
-                loc.path
+                normalized_path
                     .as_ref()
-                    .map(|p| Value::String(normalize_path(p)))
+                    .map(|p| Value::String(p.clone()))
                     .unwrap_or(Value::Null),
             );
             map.insert(
                 "uri".to_string(),
-                loc.uri
+                normalized_uri
                     .as_ref()
-                    .map(|u| Value::String(u.nfc().collect()))
-                    .unwrap_or(Value::Null),
-            );
-            map.insert(
-                "wsid".to_string(),
-                loc.wsid
-                    .as_ref()
-                    .map(|w| Value::String(w.nfc().collect()))
+                    .map(|u| Value::String(u.clone()))
                     .unwrap_or(Value::Null),
             );
             map.insert(
                 "entity_id".to_string(),
-                loc.entity_id
+                normalized_entity_id
                     .as_ref()
-                    .map(|e| Value::String(e.nfc().collect()))
+                    .map(|e| Value::String(e.clone()))
+                    .unwrap_or(Value::Null),
+            );
+            map.insert(
+                "wsid".to_string(),
+                normalized_wsid
+                    .as_ref()
+                    .map(|w| Value::String(w.clone()))
                     .unwrap_or(Value::Null),
             );
 
-            if let Some(range) = loc.range.as_ref() {
+            let range_key = if let Some(range) = loc.range.as_ref() {
                 let mut range_map = Map::new();
                 range_map.insert("startLine".to_string(), Value::from(range.start_line));
                 range_map.insert("startColumn".to_string(), Value::from(range.start_column));
                 range_map.insert("endLine".to_string(), Value::from(range.end_line));
                 range_map.insert("endColumn".to_string(), Value::from(range.end_column));
                 map.insert("range".to_string(), Value::Object(range_map));
+                format!(
+                    "{}:{}:{}:{}",
+                    range.start_line, range.start_column, range.end_line, range.end_column
+                )
             } else {
                 map.insert("range".to_string(), Value::Null);
-            }
+                String::new()
+            };
 
-            Value::Object(map)
+            let sort_key = format!(
+                "{}|{}|{}|{}|{}",
+                normalized_path.as_deref().unwrap_or(""),
+                normalized_uri.as_deref().unwrap_or(""),
+                normalized_entity_id.as_deref().unwrap_or(""),
+                normalized_wsid.as_deref().unwrap_or(""),
+                range_key
+            );
+
+            (sort_key, Value::Object(map))
         })
-        .collect()
+        .collect();
+
+    sortable.sort_by(|a, b| a.0.cmp(&b.0));
+    Value::Array(sortable.into_iter().map(|(_, v)| v).collect())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn canonical_tuple(
     source: &DiagnosticSource,
     surface: &DiagnosticSurface,
@@ -624,10 +655,7 @@ fn canonical_tuple(
         Value::String(severity.as_str().to_string()),
     );
     map.insert("title".to_string(), Value::String(title.to_string()));
-    map.insert(
-        "locations".to_string(),
-        Value::Array(canonicalize_locations(locations)),
-    );
+    map.insert("locations".to_string(), canonicalize_locations(locations));
     map.insert(
         "capability_id".to_string(),
         capability_id
@@ -645,6 +673,7 @@ fn canonical_tuple(
 }
 
 /// Deterministic fingerprint per DIAG-SCHEMA-003.
+#[allow(clippy::too_many_arguments)]
 pub fn compute_fingerprint(
     source: &DiagnosticSource,
     surface: &DiagnosticSurface,
@@ -936,6 +965,63 @@ mod tests {
         let diag_a = input_a.into_diagnostic()?;
         let diag_b = input_b.into_diagnostic()?;
 
+        assert_eq!(diag_a.fingerprint, diag_b.fingerprint);
+        Ok(())
+    }
+
+    #[test]
+    fn fingerprint_is_location_order_independent() -> Result<(), DiagnosticError> {
+        let loc_a = DiagnosticLocation {
+            path: Some("C:\\path\\to\\a.rs".to_string()),
+            uri: None,
+            wsid: Some("ws-123".to_string()),
+            entity_id: None,
+            range: None,
+        };
+        let loc_b = DiagnosticLocation {
+            path: Some("C:\\path\\to\\b.rs".to_string()),
+            uri: None,
+            wsid: Some("ws-123".to_string()),
+            entity_id: None,
+            range: Some(DiagnosticRange {
+                start_line: 10,
+                start_column: 1,
+                end_line: 10,
+                end_column: 5,
+            }),
+        };
+
+        let base = DiagnosticInput {
+            title: "Title".to_string(),
+            message: "Message".to_string(),
+            severity: DiagnosticSeverity::Error,
+            source: DiagnosticSource::Validator,
+            surface: DiagnosticSurface::Monaco,
+            tool: None,
+            code: None,
+            tags: None,
+            wsid: Some("ws-123".to_string()),
+            job_id: None,
+            model_id: None,
+            actor: None,
+            capability_id: None,
+            policy_decision_id: None,
+            locations: Some(vec![loc_a.clone(), loc_b.clone()]),
+            evidence_refs: None,
+            link_confidence: LinkConfidence::Unlinked,
+            status: None,
+            count: None,
+            first_seen: None,
+            last_seen: None,
+            timestamp: None,
+            updated_at: None,
+        };
+
+        let mut swapped = base.clone();
+        swapped.locations = Some(vec![loc_b, loc_a]);
+
+        let diag_a = base.into_diagnostic()?;
+        let diag_b = swapped.into_diagnostic()?;
         assert_eq!(diag_a.fingerprint, diag_b.fingerprint);
         Ok(())
     }

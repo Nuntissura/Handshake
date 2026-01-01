@@ -78,7 +78,7 @@
 
 **What ORCHESTRATOR does:** Part 3.5 Field 7 requires:
 - For LOW tier: At least 2-3 commands (cargo test, lint)
-- For MEDIUM tier: 4-5 commands (add `just ai-review`)
+- For MEDIUM tier: 4-5 commands (add `manual review`)
 - For HIGH tier: 5-6 commands (add stricter checks)
 - Every command literal (copy-paste ready)
 
@@ -92,7 +92,7 @@
 - CODER_PROTOCOL has "If Blocked" section (lines 403-451) but only 3 scenarios
 - No recovery procedures for common Coder mistakes:
   - Tests fail, how to debug?
-  - AI review blocks, how to understand the issue?
+  - manual review blocks, how to understand the issue?
   - Scope creep happened, how to fix?
   - Task packet conflicts with implementation, what to do?
 
@@ -134,20 +134,20 @@
 
 **Problem:**
 - Step 7 says "If tests FAIL... Fix issues before claiming done"
-- But for MEDIUM/HIGH risk, Coder must also run AI review (Step 8)
+- But for MEDIUM/HIGH risk, Coder must also run manual review (Step 8)
 - What if:
-  - AI review blocks? Do tests take precedence?
-  - AI review suggests refactoring that's out of scope?
-  - Test passes but AI review blocks?
+  - manual review blocks? Do tests take precedence?
+  - manual review suggests refactoring that's out of scope?
+  - Test passes but manual review blocks?
 
 **Evidence:**
 - CODER_PROTOCOL Step 7 (lines 236-246): Shows test failure response
-- CODER_PROTOCOL Step 8 (lines 250-284): Shows AI review failure response
-- But no decision tree: what if tests pass but AI review blocks?
+- CODER_PROTOCOL Step 8 (lines 250-284): Shows manual review failure response
+- But no decision tree: what if tests pass but manual review blocks?
 - VALIDATOR_PROTOCOL line 66: "Coder runs TEST_PLAN; Validator spot-checks" (implies tests are primary)
 - VALIDATOR_PROTOCOL line 127: "Every requirement mapped to evidence" (code must work AND meet spec)
 
-**Impact:** Coder confused about validation priority; might skip tests if AI review passes
+**Impact:** Coder confused about validation priority; might skip tests if manual review passes
 
 **What ORCHESTRATOR does:** Not explicitly defined, but Part 8 (Pre-Delegation Checklist) prioritizes:
 1. SPEC_ANCHOR correctness (foundation)
@@ -157,7 +157,7 @@
 
 **Fix needed:** Add validation priority decision tree:
 1. TEST_PLAN must PASS (primary)
-2. AI review must PASS or WARN (secondary; BLOCK = fix code)
+2. manual review must PASS or WARN (secondary; BLOCK = fix code)
 3. Both passing = work is done
 
 ---
@@ -253,7 +253,7 @@
 
 ## HIGH-PRIORITY ISSUES (Impact validation + code quality)
 
-### Issue 2.1: AI Review Severity Unclear [CX-573A ambiguity]
+### Issue 2.1: Manual Review Severity Unclear [CX-573A ambiguity]
 
 **Problem:**
 - Step 8 shows PASS/WARN/BLOCK outcomes
@@ -263,12 +263,12 @@
 
 **Evidence:**
 - CODER_PROTOCOL Step 8 (lines 250-284): Shows outcomes but no criteria
-- VALIDATOR_PROTOCOL line 66-68: Mentions test coverage enforcement but not AI review severity
-- No link between AI review output and code quality standards
+- VALIDATOR_PROTOCOL line 66-68: Mentions test coverage enforcement but not manual review severity
+- No link between manual review output and code quality standards
 
 **Impact:** Coder might accept partial WARN (some issues unaddressed); Validator expects stricter standards
 
-**Fix needed:** Add AI Review Severity Matrix:
+**Fix needed:** Add Manual Review Severity Matrix:
 - PASS: All checks OK
 - WARN: Minor issues (deprecated patterns, test coverage <80%), acceptable to continue
 - BLOCK: Critical issues (security, spec violation, hollow code), must fix before proceeding
@@ -348,7 +348,7 @@
 
 **Problem:**
 - Step 7: Run validation, document results
-- Step 8: AI review
+- Step 8: manual review
 - Step 9: Update packet
 - Step 10: `just post-work` check
 - Step 11: Update board + request commit
@@ -365,7 +365,7 @@
 **What ORCHESTRATOR does:** Part 4 Step 4 (Verification) runs `just pre-work` AFTER packet creation, before delegation
 
 **Fix needed:** Clarify sequence:
-1. Tests + AI review pass (Step 7-8)
+1. Tests + manual review pass (Step 7-8)
 2. Update packet with VALIDATION (Step 9)
 3. Run `just post-work` (Step 10)
 4. If post-work fails: fix issues, re-test, re-update packet
@@ -541,7 +541,7 @@
 - ✅ BOOTSTRAP block output (all 4 fields present)
 - ✅ Implementation within IN_SCOPE_PATHS
 - ✅ All TEST_PLAN commands pass
-- ✅ AI review PASS or WARN (not BLOCK)
+- ✅ manual review PASS or WARN (not BLOCK)
 - ✅ `just post-work` passes
 - ✅ Task packet updated with VALIDATION
 - ✅ Commit message includes WP-ID
@@ -624,7 +624,7 @@
 2. **Missing Error Recovery:** When tests fail/AI blocks, Coder has no debug playbook
 3. **Scope Ambiguity:** Unclear boundaries lead to scope creep or stalling
 4. **Isolated Protocol:** Coder doesn't know Orchestrator expectations or Validator rules
-5. **Validation Ambiguity:** Unclear priority (tests vs. AI review) leads to partial fixes
+5. **Validation Ambiguity:** Unclear priority (tests vs. manual review) leads to partial fixes
 6. **Missing Escalation Template:** Blocks are ad-hoc; unclear what action needed
 
 ---

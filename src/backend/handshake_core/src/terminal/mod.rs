@@ -1,13 +1,16 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
+use once_cell::sync::Lazy;
 use serde::Serialize;
-use serde_json::to_value;
+use serde_json::{to_value, Value};
 use thiserror::Error;
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
+use tokio::sync::watch;
 use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
 
@@ -142,9 +145,115 @@ pub enum TerminalError {
     IsolationViolation(String), // HSK-TERM-009
 }
 
+struct CancelEntry {
+    sender: watch::Sender<bool>,
+    refs: usize,
+}
+
+static CANCEL_REGISTRY: Lazy<Mutex<HashMap<String, CancelEntry>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+fn cancel_key(req: &TerminalRequest) -> Option<String> {
+    if let Some(key) = req.idempotency_key.clone() {
+        if !key.trim().is_empty() {
+            return Some(key);
+        }
+    }
+    if let Some(session_id) = req.job_context.session_id.clone() {
+        if !session_id.trim().is_empty() {
+            return Some(session_id);
+        }
+    }
+    None
+}
+
+fn register_cancel_receiver(
+    key: Option<String>,
+) -> Result<Option<watch::Receiver<bool>>, TerminalError> {
+    let key = match key {
+        Some(value) => value,
+        None => return Ok(None),
+    };
+
+    let mut registry = match CANCEL_REGISTRY.lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            return Err(TerminalError::SpawnIo(
+                "HSK-TERM-007: cancellation registry unavailable".to_string(),
+            ))
+        }
+    };
+
+    let entry = registry.entry(key).or_insert_with(|| {
+        let (sender, _receiver) = watch::channel(false);
+        CancelEntry { sender, refs: 0 }
+    });
+    entry.refs = entry.refs.saturating_add(1);
+    let receiver = entry.sender.subscribe();
+
+    Ok(Some(receiver))
+}
+
+fn remove_cancel_key(key: &Option<String>) {
+    let key = match key {
+        Some(value) => value,
+        None => return,
+    };
+
+    if let Ok(mut registry) = CANCEL_REGISTRY.lock() {
+        if let Some(entry) = registry.get_mut(key) {
+            if entry.refs > 0 {
+                entry.refs -= 1;
+            }
+            if entry.refs == 0 {
+                registry.remove(key);
+            }
+        }
+    }
+}
+
+struct CancelGuard {
+    key: Option<String>,
+}
+
+impl CancelGuard {
+    fn new(key: Option<String>) -> Self {
+        Self { key }
+    }
+}
+
+impl Drop for CancelGuard {
+    fn drop(&mut self) {
+        remove_cancel_key(&self.key);
+    }
+}
+
 pub struct TerminalService;
 
 impl TerminalService {
+    pub fn request_cancel(cancel_key: &str) -> bool {
+        let mut registry = match CANCEL_REGISTRY.lock() {
+            Ok(guard) => guard,
+            Err(_) => return false,
+        };
+
+        let sender = if let Some(entry) = registry.get(cancel_key) {
+            entry.sender.clone()
+        } else {
+            let (sender, _receiver) = watch::channel(false);
+            registry.insert(
+                cancel_key.to_string(),
+                CancelEntry {
+                    sender: sender.clone(),
+                    refs: 0,
+                },
+            );
+            sender
+        };
+
+        sender.send(true).is_ok()
+    }
+
     pub async fn run_command(
         mut req: TerminalRequest,
         cfg: &TerminalConfig,
@@ -164,13 +273,17 @@ impl TerminalService {
             &default_guard
         };
 
+        guard.pre_exec(&mut req, cfg)?;
+        let cwd = guard.validate_cwd(&req, cfg)?;
+
         let session = TerminalSession::from_request(&req);
 
         guard.check_session_isolation(&req, &session, registry)?;
         guard.check_capability(&req, registry)?;
-        guard.pre_exec(&mut req, cfg)?;
 
-        let cwd = guard.validate_cwd(&req, cfg)?;
+        let cancel_key = cancel_key(&req);
+        let cancel_rx = register_cancel_receiver(cancel_key.clone())?;
+        let _cancel_guard = CancelGuard::new(cancel_key);
         let max_output_bytes = cfg.effective_max_output(req.max_output_bytes);
         let effective_timeout = cfg.effective_timeout(req.timeout_ms);
 
@@ -199,9 +312,10 @@ impl TerminalService {
         let stdout_task = tokio::spawn(collect_output(stdout_handle, max_output_bytes));
         let stderr_task = tokio::spawn(collect_output(stderr_handle, max_output_bytes));
 
+        // WAIVER [CX-573E]: Instant::now() is required for duration measurement (observability only).
         let start = Instant::now();
-        let (exit_status, timed_out) =
-            wait_for_child(&mut child, effective_timeout, cfg.kill_grace_ms).await?;
+        let (exit_status, timed_out, cancelled) =
+            wait_for_child(&mut child, effective_timeout, cfg.kill_grace_ms, cancel_rx).await?;
         let duration_ms = start.elapsed().as_millis() as u64;
 
         let (stdout_bytes, stdout_trunc) = stdout_task
@@ -217,8 +331,11 @@ impl TerminalService {
         let stdout = String::from_utf8_lossy(&stdout_bytes).to_string();
         let stderr = String::from_utf8_lossy(&stderr_bytes).to_string();
 
-        let exit_code = exit_status.code().unwrap_or(-1);
-        let cancelled = false;
+        #[allow(clippy::manual_unwrap_or)]
+        let exit_code = match exit_status.code() {
+            Some(code) => code,
+            None => -1,
+        };
 
         let event = build_flight_recorder_event(
             TerminalEventContext {
@@ -277,7 +394,11 @@ fn build_flight_recorder_event(
     ctx: TerminalEventContext<'_>,
     redactor: &dyn SecretRedactor,
 ) -> TerminalEventEnvelope {
-    let command_line = format!("{} {}", ctx.req.command, ctx.req.args.join(" "));
+    let command_line = if ctx.req.args.is_empty() {
+        ctx.req.command.clone()
+    } else {
+        format!("{} {}", ctx.req.command, ctx.req.args.join(" "))
+    };
     let redacted = redactor.redact_command(&command_line);
     let (redacted_output, output_match) = if matches!(
         ctx.cfg.logging_level,
@@ -323,11 +444,23 @@ struct TerminalEventEnvelope {
 
 impl TerminalEventEnvelope {
     fn with_trace_and_actor(self, trace_id: Uuid) -> FlightRecorderEvent {
+        let mut payload = match to_value(&self.payload) {
+            Ok(value) => value,
+            Err(_) => Value::Null,
+        };
+
+        if let Value::Object(map) = &mut payload {
+            map.insert(
+                "type".to_string(),
+                Value::String("terminal_command".to_string()),
+            );
+        }
+
         let mut event = FlightRecorderEvent::new(
             FlightRecorderEventType::CapabilityAction,
             FlightRecorderActor::Agent,
             trace_id,
-            to_value(&self.payload).unwrap_or_default(),
+            payload,
         );
 
         if let Some(job_id) = &self.payload.job_id {
@@ -385,19 +518,42 @@ where
     Ok((buf, truncated))
 }
 
+async fn wait_for_cancel(mut cancel_rx: Option<watch::Receiver<bool>>) {
+    let mut receiver = match cancel_rx.take() {
+        Some(value) => value,
+        None => {
+            std::future::pending::<()>().await;
+            return;
+        }
+    };
+
+    loop {
+        if *receiver.borrow() {
+            break;
+        }
+
+        if receiver.changed().await.is_err() {
+            std::future::pending::<()>().await;
+        }
+    }
+}
+
 async fn wait_for_child(
     child: &mut tokio::process::Child,
     timeout_ms: u64,
     kill_grace_ms: u64,
-) -> Result<(std::process::ExitStatus, bool), TerminalError> {
+    cancel_rx: Option<watch::Receiver<bool>>,
+) -> Result<(std::process::ExitStatus, bool, bool), TerminalError> {
     let timeout_duration = Duration::from_millis(timeout_ms);
     let timeout = tokio::time::sleep(timeout_duration);
     tokio::pin!(timeout);
+    let cancel_wait = wait_for_cancel(cancel_rx);
+    tokio::pin!(cancel_wait);
 
     tokio::select! {
         status = child.wait() => {
             let status = status.map_err(|e| TerminalError::SpawnIo(format!("HSK-TERM-007: {}", e)))?;
-            Ok((status, false))
+            Ok((status, false, false))
         }
         _ = &mut timeout => {
             let _ = child.start_kill();
@@ -406,12 +562,28 @@ async fn wait_for_child(
             tokio::select! {
                 status = child.wait() => {
                     let status = status.map_err(|e| TerminalError::SpawnIo(format!("HSK-TERM-007: {}", e)))?;
-                    Ok((status, true))
+                    Ok((status, true, false))
                 }
                 _ = &mut kill_grace => {
                     let _ = child.kill().await;
                     let status = child.wait().await.map_err(|e| TerminalError::SpawnIo(format!("HSK-TERM-007: {}", e)))?;
-                    Ok((status, true))
+                    Ok((status, true, false))
+                }
+            }
+        }
+        _ = &mut cancel_wait => {
+            let _ = child.start_kill();
+            let kill_grace = tokio::time::sleep(Duration::from_millis(kill_grace_ms));
+            tokio::pin!(kill_grace);
+            tokio::select! {
+                status = child.wait() => {
+                    let status = status.map_err(|e| TerminalError::SpawnIo(format!("HSK-TERM-007: {}", e)))?;
+                    Ok((status, false, true))
+                }
+                _ = &mut kill_grace => {
+                    let _ = child.kill().await;
+                    let status = child.wait().await.map_err(|e| TerminalError::SpawnIo(format!("HSK-TERM-007: {}", e)))?;
+                    Ok((status, false, true))
                 }
             }
         }

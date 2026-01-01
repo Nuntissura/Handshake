@@ -15,13 +15,13 @@
 | Gap 2 | BOOTSTRAP format undefined | HIGH | LOW | 10x | **P0** |
 | Gap 3 | TEST_PLAN completeness check missing | HIGH | MEDIUM | 8x | **P0** |
 | Gap 4 | No error recovery procedures | HIGH | MEDIUM | 8x | **P0** |
-| Gap 5 | Validation priority unclear (tests vs AI review) | HIGH | LOW | 10x | **P0** |
+| Gap 5 | Validation priority unclear (tests vs manual review) | HIGH | LOW | 10x | **P0** |
 | Gap 6 | Hard invariant enforcement guide missing | MEDIUM | MEDIUM | 7x | **P1** |
 | Gap 7 | Test coverage minimums undefined | MEDIUM | LOW | 8x | **P1** |
 | Gap 8 | Scope conflict resolution missing | MEDIUM | MEDIUM | 6x | **P1** |
 | Gap 9 | VALIDATION block format inconsistent | MEDIUM | LOW | 7x | **P1** |
 | Gap 10 | No DONE_MEANS verification procedure | MEDIUM | MEDIUM | 6x | **P1** |
-| Gap 11 | AI review severity criteria missing | MEDIUM | LOW | 6x | **P2** |
+| Gap 11 | manual review severity criteria missing | MEDIUM | LOW | 6x | **P2** |
 | Gap 12 | Task packet update procedure vague | MEDIUM | LOW | 6x | **P2** |
 | Gap 13 | Rollback verification missing | LOW | MEDIUM | 4x | **P2** |
 | Gap 14 | Post-work checklist sequence unclear | LOW | LOW | 5x | **P2** |
@@ -175,7 +175,7 @@ pnpm -C app test
 **Current State:**
 ```
 Step 7 shows test failure message but no recovery steps
-Step 8 shows AI review blocks but no debug playbook
+Step 8 shows manual review blocks but no debug playbook
 No guidance on: scope conflicts, incomplete packets, packets changed mid-work
 ```
 
@@ -204,20 +204,20 @@ Add new section after "If Blocked" section:
 3. Fix code, re-run test
 4. Document in packet NOTES: "Test {name} initially failed at {location}; fixed by {change}"
 
-### Error 2: AI Review Blocks (Critical Issue)
+### Error 2: Manual Review Blocks (Critical Issue)
 
-**Prevention:** Review code for hard invariants before running ai-review
+**Prevention:** Review code for hard invariants before running manual review
 
 **Recovery if error occurs:**
-1. Read AI review output carefully
+1. Read manual review output carefully
 2. Identify issue type:
    - Hard invariant violation? → Fix code (unwrap, println, etc.)
    - Security issue? → Fix immediately (Validator will reject)
    - Test coverage? → Add tests or document waiver
    - Hollow code? → Implement full logic, not stubs
 
-3. Fix code, re-run ai-review
-4. Document in packet NOTES: "AI review block {issue}; fixed by {change}"
+3. Fix code, re-run manual review
+4. Document in packet NOTES: "manual review block {issue}; fixed by {change}"
 
 ### Error 3: Scope Conflict (Can't Proceed)
 
@@ -295,16 +295,16 @@ Add new section after "If Blocked" section:
 
 ---
 
-### P0-5: Validation Priority (Tests vs AI Review) [Gap 5]
+### P0-5: Validation Priority (Tests vs Manual Review) [Gap 5]
 
 **What:** Define clear order of validation gates
 
 **Current State:**
 ```
 Step 7: Run tests
-Step 8: Run AI review
-But no clear rule: what if tests pass but AI blocks?
-Coder might think "tests pass, so I'm done" and skip AI review
+Step 8: Run manual review
+But no clear rule: what if tests pass but manual review blocks?
+Coder might think "tests pass, so I'm done" and skip manual review
 ```
 
 **Fix (30 minutes):**
@@ -321,7 +321,7 @@ Add to CODER_PROTOCOL Step 6 & 7:
    - All commands must return 0 (success)
    - If any test fails: BLOCK, fix code, re-test
 
-2. **AI REVIEW** (secondary gate)
+2. **MANUAL REVIEW** (secondary gate)
    - For MEDIUM/HIGH risk: must run
    - If PASS: continue
    - If WARN: continue (acceptable)
@@ -334,7 +334,7 @@ Add to CODER_PROTOCOL Step 6 & 7:
 
 **CRITICAL:** Do not claim "done" if any gate fails.
 - Tests must pass first (no exceptions)
-- AI review must pass or warn (not block)
+- manual review must pass or warn (not block)
 - Post-work must pass (no exceptions)
 ```
 
@@ -453,7 +453,7 @@ grep -r "// TODO" src/backend/handshake_core/src/ \
 
 **Where:** Add as new section after "Hard invariants to respect" (line 188)
 
-**Impact:** 89 → 91/100 (removes 50% of AI review blocks due to hard invariant violations)
+**Impact:** 89 → 91/100 (removes 50% of manual review blocks due to hard invariant violations)
 
 ---
 
@@ -617,7 +617,7 @@ IF any criterion has no file:line evidence:
 
 ---
 
-### P2-2: AI Review Severity Matrix [Gap 11]
+### P2-2: Manual Review Severity Matrix [Gap 11]
 
 **What:** Define what PASS/WARN/BLOCK mean objectively
 
@@ -626,7 +626,7 @@ IF any criterion has no file:line evidence:
 Add to CODER_PROTOCOL Step 8:
 
 ```markdown
-### AI Review Severity Matrix
+### Manual Review Severity Matrix
 
 **PASS: All checks OK**
 - No issues found
@@ -640,7 +640,7 @@ Add to CODER_PROTOCOL Step 8:
   - Pattern not matching (different but valid approach)
   - Code style minor (not enforced)
 - Action: Acknowledge warning, continue
-- Note in packet NOTES: "AI review warned: {issue}, acceptable because {reason}"
+- Note in packet NOTES: "manual review noted: {issue}, acceptable because {reason}"
 
 **BLOCK: Critical issues, must fix before proceeding**
 - Examples:
@@ -649,13 +649,13 @@ Add to CODER_PROTOCOL Step 8:
   - Spec requirement not met
   - Test coverage <60%
   - Hollow code (stub implementation, no logic)
-- Action: Fix code, re-run ai-review
+- Action: Fix code, re-run manual review
 - Repeat until PASS or WARN
 ```
 
 **Where:** Insert after Step 8 blocking check (before line 284)
 
-**Impact:** 95 → 96/100 (reduces AI review confusion; Coder knows when to stop)
+**Impact:** 95 → 96/100 (reduces manual review confusion; Coder knows when to stop)
 
 ---
 
@@ -680,7 +680,7 @@ You are part of a three-role system:
 ### YOU (CODER) implement the task
 - Reads: CODER_PROTOCOL [CX-620-625] (this file)
 - Provides: Implementation + validation proof
-- Verifies: All TEST_PLAN commands pass, AI review clean, DONE_MEANS met
+- Verifies: All TEST_PLAN commands pass, manual review clean, DONE_MEANS met
 
 ### VALIDATOR reviews your work
 - Reads: VALIDATOR_PROTOCOL [CX-570-579]
@@ -779,7 +779,7 @@ Your job is to implement it, not revise it.
 - **Result: 88 → 93/100**
 
 ### Phase 3 (P2 - Week 3): Polish [93 → 99]
-- [ ] AI Review Severity Matrix (30 min)
+- [ ] Manual Review Severity Matrix (30 min)
 - [ ] Ecosystem Links (20 min)
 - [ ] Packet Update Clarity (20 min)
 - [ ] Plus additional polish items (branching strategy, placeholder consistency, etc.)
@@ -791,12 +791,12 @@ Your job is to implement it, not revise it.
 
 **Current Problems (B+ = 82):**
 - 40% of validation failures due to incomplete packets (could Orchestrator catch earlier?)
-- 30% of AI review blocks preventable (unclear hard invariants)
+- 30% of manual review blocks preventable (unclear hard invariants)
 - 20% of Coder blocks due to vague scope (escalation takes 2-3 days)
 
 **After Fixes (A+ = 99):**
 - 0% packet incompleteness (Coder can verify immediately)
-- <5% preventable AI review blocks (clear guidance)
+- <5% preventable manual review blocks (clear guidance)
 - <5% scope ambiguity (clear resolution procedure)
 - <10% escalation rate (clear communication templates)
 

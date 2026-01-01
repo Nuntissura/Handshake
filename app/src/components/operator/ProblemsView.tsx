@@ -1,8 +1,11 @@
 import React, { FormEvent, useEffect, useState } from "react";
 import {
+  Diagnostic,
   DiagnosticSeverity,
+  DiagnosticStatus,
   DiagnosticSurface,
   ProblemGroup,
+  listDiagnostics,
   listProblemGroups,
 } from "../../lib/api";
 import { EvidenceSelection } from "./EvidenceDrawer";
@@ -38,7 +41,21 @@ export const ProblemsView: React.FC<Props> = ({ onSelect }) => {
   const [error, setError] = useState<string | null>(null);
   const [problems, setProblems] = useState<ProblemGroup[]>([]);
   const [selectedProblem, setSelectedProblem] = useState<ProblemGroup | null>(null);
+  const [rawInstances, setRawInstances] = useState<Diagnostic[]>([]);
+  const [rawLoading, setRawLoading] = useState(false);
+  const [statusByFingerprint, setStatusByFingerprint] = useState<Record<string, DiagnosticStatus>>({});
   const [exportOpen, setExportOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("handshake.problems.statusByFingerprint");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, DiagnosticStatus>;
+      setStatusByFingerprint(parsed);
+    } catch {
+      setStatusByFingerprint({});
+    }
+  }, []);
 
   const fetchProblems = async (override?: ProblemFilters) => {
     const active = override ?? filters;
@@ -69,6 +86,31 @@ export const ProblemsView: React.FC<Props> = ({ onSelect }) => {
     fetchProblems();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const selectedFingerprint = selectedProblem?.fingerprint;
+  useEffect(() => {
+    if (!selectedFingerprint) {
+      setRawInstances([]);
+      return;
+    }
+    setRawLoading(true);
+    listDiagnostics({ fingerprint: selectedFingerprint, limit: 200 })
+      .then(setRawInstances)
+      .catch(() => setRawInstances([]))
+      .finally(() => setRawLoading(false));
+  }, [selectedFingerprint]);
+
+  const setProblemStatus = (fingerprint: string, status: DiagnosticStatus) => {
+    setStatusByFingerprint((prev) => {
+      const next = { ...prev, [fingerprint]: status };
+      try {
+        localStorage.setItem("handshake.problems.statusByFingerprint", JSON.stringify(next));
+      } catch {
+        // ignore localStorage failures
+      }
+      return next;
+    });
+  };
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -189,6 +231,7 @@ export const ProblemsView: React.FC<Props> = ({ onSelect }) => {
             <thead>
               <tr>
                 <th>Severity</th>
+                <th>Status</th>
                 <th>Title</th>
                 <th>Source</th>
                 <th>Surface</th>
@@ -199,32 +242,87 @@ export const ProblemsView: React.FC<Props> = ({ onSelect }) => {
               </tr>
             </thead>
             <tbody>
-              {problems.map((problem) => (
-                <tr
-                  key={problem.fingerprint}
-                  onClick={() => {
-                    setSelectedProblem(problem);
-                    onSelect({ kind: "diagnostic", diagnostic: problem.sample });
-                  }}
-                  className="clickable-row"
-                >
-                  <td>
-                    <span className={`chip chip--${problem.sample.severity}`}>{problem.sample.severity}</span>
-                  </td>
-                  <td>
-                    <strong>{problem.sample.title}</strong>
-                    <div className="muted small">{problem.sample.message}</div>
-                  </td>
-                  <td className="muted">{problem.sample.source}</td>
-                  <td className="muted">{problem.sample.surface}</td>
-                  <td className="muted">{problem.sample.link_confidence}</td>
-                  <td>{problem.count}</td>
-                  <td className="muted">{new Date(problem.first_seen).toLocaleString()}</td>
-                  <td className="muted">{new Date(problem.last_seen).toLocaleString()}</td>
-                </tr>
-              ))}
+              {problems.map((problem) => {
+                const status = statusByFingerprint[problem.fingerprint] ?? "open";
+                return (
+                  <tr
+                    key={problem.fingerprint}
+                    onClick={() => {
+                      setSelectedProblem(problem);
+                      onSelect({ kind: "diagnostic", diagnostic: problem.sample });
+                    }}
+                    className="clickable-row"
+                  >
+                    <td>
+                      <span className={`chip chip--${problem.sample.severity}`}>{problem.sample.severity}</span>
+                    </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <select
+                        value={status}
+                        onChange={(e) => setProblemStatus(problem.fingerprint, e.target.value as DiagnosticStatus)}
+                      >
+                        <option value="open">open</option>
+                        <option value="acknowledged">ack</option>
+                        <option value="muted">mute</option>
+                        <option value="resolved">resolved</option>
+                      </select>
+                    </td>
+                    <td>
+                      <strong>{problem.sample.title}</strong>
+                      <div className="muted small">{problem.sample.message}</div>
+                    </td>
+                    <td className="muted">{problem.sample.source}</td>
+                    <td className="muted">{problem.sample.surface}</td>
+                    <td className="muted">{problem.sample.link_confidence}</td>
+                    <td>{problem.count}</td>
+                    <td className="muted">{new Date(problem.first_seen).toLocaleString()}</td>
+                    <td className="muted">{new Date(problem.last_seen).toLocaleString()}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {selectedProblem && (
+        <div className="content-card">
+          <h3>Raw instances</h3>
+          <p className="muted small">Fingerprint: {selectedProblem.fingerprint}</p>
+          {rawLoading ? (
+            <p className="muted">Loading instances...</p>
+          ) : rawInstances.length === 0 ? (
+            <p className="muted">No instances found for this fingerprint.</p>
+          ) : (
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>Severity</th>
+                    <th>Job</th>
+                    <th>Message</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rawInstances.map((diag) => (
+                    <tr
+                      key={diag.id}
+                      className="clickable-row"
+                      onClick={() => onSelect({ kind: "diagnostic", diagnostic: diag })}
+                    >
+                      <td className="muted">{new Date(diag.timestamp).toLocaleString()}</td>
+                      <td>
+                        <span className={`chip chip--${diag.severity}`}>{diag.severity}</span>
+                      </td>
+                      <td className="muted small">{diag.job_id ?? "n/a"}</td>
+                      <td className="muted small">{diag.message}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
       {exportOpen && (

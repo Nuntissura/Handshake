@@ -39,9 +39,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let storage = storage::init_storage()
-        .await
-        .map_err(|e| format!("failed to initialize storage: {}", e))?;
+    let storage = storage::init_storage().await?;
     let recorder = init_flight_recorder().await?;
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
@@ -59,6 +57,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // [HSK-WF-003] Startup Recovery Loop
     // Scan for and mark 'Running' workflows > 30s old as 'Stalled'.
     // Executed non-blockingly but initiated before server start.
+    workflows::enable_startup_recovery_gate();
     let recovery_state = state.clone();
     tokio::spawn(async move {
         tracing::info!(target: "handshake_core::recovery", "Starting boot-time workflow recovery scan...");
@@ -69,9 +68,11 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                 } else {
                     tracing::info!(target: "handshake_core::recovery", "No workflows required recovery");
                 }
+                workflows::mark_startup_recovery_complete();
             }
             Err(err) => {
                 tracing::error!(target: "handshake_core::recovery", error = %err, "Workflow recovery failed");
+                workflows::mark_startup_recovery_failed(err.to_string());
             }
         }
     });
@@ -171,8 +172,12 @@ async fn init_flight_recorder() -> Result<Arc<DuckDbFlightRecorder>, Box<dyn std
 fn init_llm_client(
     flight_recorder: Arc<dyn FlightRecorder>,
 ) -> Result<Arc<dyn LlmClient>, Box<dyn std::error::Error>> {
-    let url = std::env::var("OLLAMA_URL")
-        .map_err(|_| "OLLAMA_URL not configured; LLM client cannot be initialized")?;
+    let url = std::env::var("OLLAMA_URL").map_err(|err| {
+        std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("OLLAMA_URL not configured; LLM client cannot be initialized ({err})"),
+        )
+    })?;
     let model = match std::env::var("OLLAMA_MODEL") {
         Ok(val) => val,
         Err(_) => "llama3".to_string(),

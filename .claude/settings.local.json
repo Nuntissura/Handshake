@@ -19,7 +19,8 @@
       "Bash(mkdir:*)",
       "Bash(SQLX_OFFLINE=false cargo check:*)",
       "Bash(npm audit:*)",
-      "Bash(pnpm:*)"
+      "Bash(pnpm:*)",
+      "Bash(node scripts/validation/gate-check.mjs:*)"
     ]
   }
 }

@@ -1,4 +1,4 @@
-﻿# Task Packet: WP-1-Debug-Bundle
+# Task Packet: WP-1-Debug-Bundle
 
 ## Metadata
 - TASK_ID: WP-1-Debug-Bundle
@@ -64,7 +64,7 @@ just validator-hygiene-full
 - [Requirement] -> [File:Line]
 
 
-## VALIDATION REPORT — WP-1-Debug-Bundle
+## VALIDATION REPORT � WP-1-Debug-Bundle
 Verdict: FAIL
 
 Scope Inputs:
@@ -83,6 +83,8 @@ Tests:
 
 Reason for FAIL:
 - Workflow pre-flight failed; WP returned to Ready for Dev pending packet completion and implementation evidence.
+
+
 
 
 

@@ -1032,6 +1032,14 @@ impl super::Database for PostgresDatabase {
             push_clause(&mut qb);
             qb.push("job_kind = ").push_bind(kind.as_str());
         }
+        if let Some(wsid) = filter.wsid {
+            push_clause(&mut qb);
+            qb.push(
+                "EXISTS (SELECT 1 FROM jsonb_array_elements(entity_refs::jsonb) AS elem WHERE elem->>'entity_kind' = 'workspace' AND elem->>'entity_id' = ",
+            )
+            .push_bind(wsid)
+            .push(")");
+        }
         if let Some(from) = filter.from {
             push_clause(&mut qb);
             qb.push("created_at >= ").push_bind(from);

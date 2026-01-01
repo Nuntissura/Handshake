@@ -7,6 +7,10 @@
 
 import fs from 'fs';
 import path from 'path';
+import {
+  defaultRefinementPath,
+  validateRefinementFile,
+} from './refinement-check.mjs';
 
 const WP_ID = process.argv[2];
 
@@ -32,12 +36,13 @@ const taskPacketFiles = fs.readdirSync(taskPacketDir)
   .filter((f) => f.includes(WP_ID) && f.endsWith('.md'));
 
 let packetContent = '';
+let packetPath = '';
 
 if (taskPacketFiles.length === 0) {
   errors.push(`No task packet file found for ${WP_ID} in docs/task_packets/`);
   console.log('FAIL: No task packet file');
 } else {
-  const packetPath = path.join(taskPacketDir, taskPacketFiles[0]);
+  packetPath = path.join(taskPacketDir, taskPacketFiles[0]);
   packetContent = fs.readFileSync(packetPath, 'utf8');
   console.log(`PASS: Found ${taskPacketFiles[0]}`);
 
@@ -52,13 +57,75 @@ if (taskPacketFiles.length === 0) {
     'BOOTSTRAP',
   ];
 
-  const missingFields = requiredFields.filter((field) => !packetContent.includes(field));
+  const lowerContent = packetContent.toLowerCase();
+  const missingFields = requiredFields.filter((field) => !lowerContent.includes(field.toLowerCase()));
 
   if (missingFields.length > 0) {
     errors.push(`Task packet missing fields: ${missingFields.join(', ')}`);
     console.log(`FAIL: Missing ${missingFields.join(', ')}`);
   } else {
     console.log('PASS: All required fields present');
+  }
+
+  // Check 2.5: Spec provenance/target fields (non-blocking; backward compatible)
+  const hasLegacySpec = /SPEC_CURRENT/i.test(packetContent);
+  const hasSpecBaseline = /SPEC_BASELINE/i.test(packetContent);
+  const hasSpecTarget = /SPEC_TARGET/i.test(packetContent);
+  if (!hasLegacySpec && !(hasSpecBaseline && hasSpecTarget)) {
+    warnings.push('Spec reference missing: include SPEC_BASELINE (provenance) and SPEC_TARGET (closure target), or legacy SPEC_CURRENT.');
+  }
+
+  // Check 2.6: Canonical Status field (governance invariant)
+  const statusLine = (packetContent.match(/^\s*-\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1]
+    || (packetContent.match(/^\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1]
+    || (packetContent.match(/^\s*Status:\s*(.+)\s*$/mi) || [])[1]
+    || '';
+  const statusNorm = statusLine.trim().toLowerCase();
+  if (!statusLine) {
+    errors.push('Missing canonical **Status:** field');
+  }
+
+  const isDoneLike = /\b(done|validated|complete)\b/i.test(statusLine);
+  const requiresRefinementGate = !isDoneLike; // pre-work implies active work; enforce unless explicitly Done/Validated.
+
+  // Check 2.7: Technical Refinement gate (unskippable for active packets)
+  if (requiresRefinementGate) {
+    console.log('\nCheck 2.7: Technical Refinement gate');
+
+    const refinementFile = (packetContent.match(/^\s*-\s*REFINEMENT_FILE\s*:\s*(.+)\s*$/mi) || [])[1]?.trim()
+      || defaultRefinementPath(WP_ID);
+
+    const refinementValidation = validateRefinementFile(refinementFile, { expectedWpId: WP_ID, requireSignature: true });
+    if (!refinementValidation.ok) {
+      errors.push(`Technical refinement gate failed (see ${refinementFile})`);
+      refinementValidation.errors.forEach((e) => errors.push(`  - ${e}`));
+    } else {
+      console.log('PASS: Refinement file exists and is approved/signed');
+    }
+
+    const packetSig = (packetContent.match(/^\s*-\s*USER_SIGNATURE\s*:\s*(.+)\s*$/mi) || [])[1]?.trim()
+      || (packetContent.match(/^\s*\*\*User Signature Locked:\*\*\s*(.+)\s*$/mi) || [])[1]?.trim()
+      || (packetContent.match(/^\s*User Signature Locked:\s*(.+)\s*$/mi) || [])[1]?.trim()
+      || '';
+
+    if (!packetSig || /<pending>/i.test(packetSig)) {
+      errors.push('USER_SIGNATURE missing or <pending> (active packets must be locked before work starts)');
+    } else if (refinementValidation.ok && refinementValidation.parsed.signature && packetSig !== refinementValidation.parsed.signature) {
+      errors.push(`USER_SIGNATURE mismatch: packet has ${packetSig}, refinement has ${refinementValidation.parsed.signature}`);
+    }
+
+    // Protocol requirement: signature must be present in SIGNATURE_AUDIT.md
+    try {
+      const auditPath = path.join('docs', 'SIGNATURE_AUDIT.md');
+      const audit = fs.readFileSync(auditPath, 'utf8');
+      if (packetSig && !audit.includes(`| ${packetSig} |`)) {
+        errors.push(`USER_SIGNATURE not found in docs/SIGNATURE_AUDIT.md (${packetSig})`);
+      }
+    } catch {
+      warnings.push('Could not verify signature against docs/SIGNATURE_AUDIT.md');
+    }
+  } else {
+    console.log('\nCheck 2.7: Technical Refinement gate (skipped for Done/Validated packets)');
   }
 
   // Check 3: Deterministic manifest template present
@@ -68,7 +135,8 @@ if (taskPacketFiles.length === 0) {
     console.log('FAIL: Missing VALIDATION section');
   } else {
     const lower = packetContent.toLowerCase();
-    const fieldMissing = spec.requiredFields.filter((f) => !lower.includes(f.replace(/_/g, ' ')));
+    const lowerNorm = lower.replace(/[-_]/g, ' ');
+    const fieldMissing = spec.requiredFields.filter((f) => !lowerNorm.includes(f.replace(/_/g, ' ')));
     if (fieldMissing.length > 0) {
       errors.push(`Validation manifest missing fields: ${fieldMissing.join(', ')}`);
       console.log(`FAIL: Validation manifest missing fields: ${fieldMissing.join(', ')}`);

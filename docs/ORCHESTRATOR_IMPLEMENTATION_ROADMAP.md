@@ -272,7 +272,7 @@ These 3 items add rigor and auditability.
 | IPC changes | No | No | Yes |
 | Security impact | None | Low | High |
 | Test new code | Existing | +50% | +80% |
-| AI review required | Optional | Required | Required |
+| Manual review required | Optional | Required | Required |
 | Effort hours | <4 | 4-20 | >20 |
 
 **Rule: Take MAXIMUM tier across dimensions**

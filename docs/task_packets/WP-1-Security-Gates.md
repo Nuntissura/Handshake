@@ -102,3 +102,5 @@ Tests:
 
 Risks & Suggested Actions:
 - Add deny-by-default allowlist, cwd sandbox to workspace root, max_output limits, kill_grace handling, and pre-exec secret scan. Log gate decisions to Flight Recorder with typed error codes. Add tests for allowed/blocked/timeout scenarios and rerun TEST_PLAN.
+
+

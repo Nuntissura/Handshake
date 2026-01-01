@@ -10,4 +10,4 @@ Mapping of contributing agents/models for traceability.
 | AGENT_SHARED | Shared Contracts | TBD | TBD | Handles `src/shared/` schemas/types |
 | AGENT_DOCS | Docs Reviewer | TBD | TBD | Handles `/docs/` navigation pack updates |
 | AGENT_CI | CI/Hygiene | TBD | TBD | Handles `just validate`/CI workflows |
-| AGENT_VALIDATOR | Validator/Reviewer | Gemini CLI (local) | TBD | Runs `just ai-review` and validates changes |
+| AGENT_VALIDATOR | Validator/Reviewer | Manual review | TBD | Performs evidence-based validation and review |

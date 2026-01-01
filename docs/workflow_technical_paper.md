@@ -81,7 +81,6 @@ This document is **complete, standalone, and implementable by a fresh model** fo
 - **Refuses to start** without a complete task packet; performs scope adequacy check (can I identify all affected files? Are boundaries clear? Are there unexpected dependencies?)
 - **Outputs BOOTSTRAP** (FILES_TO_OPEN 5-15, SEARCH_TERMS 10-20, RUN_COMMANDS 3-6, RISK_MAP 3-8) before first code change; moves WP to In Progress on Task Board
 - **Implements strictly within IN_SCOPE_PATHS**, honoring DONE_MEANS and OUT_OF_SCOPE; enforces hard invariants (zero speculative requirements, no TODO placeholders without tracking IDs)
-- **Validation order**: TEST_PLAN commands (cargo test, pnpm test, curl, etc.), then `just ai-review` for MEDIUM/HIGH risk, then `just post-work WP-{id}`. Each DONE_MEANS must have file:line evidence and test proof
 - **Updates packet** with VALIDATION block (Command, Result, Notes), maintains Task Board sync, prepares commit message referencing WP_ID; no commits without passing post-work gate
 
 ### Validator (Senior Engineer / Lead Auditor)
@@ -227,7 +226,6 @@ Instead of designing workflows for each domain, use these **4 universal composit
 - Outputs BOOTSTRAP block before first change (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP)
 - Implements strictly within IN_SCOPE_PATHS, honoring DONE_MEANS and OUT_OF_SCOPE (no speculative requirements)
 - Executes TEST_PLAN commands (copy-paste-ready bash commands from packet)
-- For MEDIUM/HIGH risk: runs `just ai-review`
 - Records validation evidence in packet's VALIDATION block (Command, Result, Notes)
 - Runs `just post-work WP-{id}` (gates on completion)
 - Updates packet STATUS to Ready-for-Validation + updates Task Board atomically
@@ -536,7 +534,7 @@ Create `docs/SPEC_MIGRATION_v1_to_v2.md`:
 - TEST_PLAN:
   - {command 1}
   - {command 2}
-  - {ai-review if medium/high}
+  - {manual review if medium/high}
 - BOOTSTRAP (Coder work plan):
   - FILES_TO_OPEN: 5-15 files
   - SEARCH_TERMS: 10-20 grep strings
@@ -778,7 +776,6 @@ validate-workflow WP_ID:
   just pre-work {{WP_ID}}
   just validator-scan
   just validator-spec-regression
-  just ai-review
   just post-work {{WP_ID}}
 ```
 
@@ -794,7 +791,7 @@ validate-workflow WP_ID:
 **Post-Work Gate (Gate 1)**: `post-work-check.mjs`
 - Verifies VALIDATION section has outcomes recorded (Command, Result, Notes)
 - If TEST_PLAN lists test commands, validates they're documented with results
-- For MEDIUM/HIGH risk: verifies `ai-review` completed and not BLOCKED
+- For MEDIUM/HIGH risk: verifies `manual review` completed and not BLOCKED
 - Checks git diff shows actual changes (work was done)
 - Exit 0: work validated, safe to commit; Exit 1: incomplete, return to Coder
 - **Purpose**: prevents merge until validation evidence present
@@ -1061,7 +1058,7 @@ fi
    - Packet creation workflow
 2. Create `docs/CODER_PROTOCOL.md` (copy template + customize, ~30KB)
    - Pre-coding checklist (scope adequacy)
-   - Validation order (TEST_PLAN → ai-review → post-work)
+   - Validation order (TEST_PLAN → manual review → post-work)
    - Evidence recording format
 3. Create `docs/VALIDATOR_PROTOCOL.md` (copy template + customize, ~20KB)
    - Pre-flight checks
@@ -1189,7 +1186,7 @@ Blocks: WP-2-Authorization-Roles, WP-3-Session-Management
 ## RISK_TIER
 MEDIUM
 - Why: Security-sensitive (passwords, tokens), but single module (no IPC yet)
-- Triggers: ai-review required, security audit in validator
+- Triggers: manual review required, security audit in validator
 - Rollback: `git revert <sha>`; feature flag gated, can be disabled in config
 
 ## ROLLBACK_HINT
@@ -1244,7 +1241,7 @@ Result: 2 (passwords are hashed)
 Command: grep "println\|dbg\|password" src/services/jwt.rs | grep -v test
 Result: 0 (no password logging in production)
 
-ai-review: PASSED (security review)
+manual review: PASSED (security review)
 ```
 
 ## Signature & Enrichment Log
@@ -1255,7 +1252,7 @@ ai-review: PASSED (security review)
 ### User-Orchestrator Collaboration Notes:
 - **Clarified**: User confirmed email+password only (OAuth deferred). DONE_MEANS expanded to include Bearer token validation in subsequent requests.
 - **Spec Enrichment**: Spec section A3.2.1 already covers this fully; no enrichment needed.
-- **Rubric Adjustments**: Added requirement 5 (Bearer token validation in API). TEST_PLAN now includes curl test of authenticated request. ai-review added for MEDIUM risk (security).
+- **Rubric Adjustments**: Added requirement 5 (Bearer token validation in API). TEST_PLAN now includes curl test of authenticated request. manual review added for MEDIUM risk (security).
 - **Risks Acknowledged**: User approved MEDIUM risk; rollback plan is git revert + restart. Security audit required before merge.
 
 ### Locked Intent:
@@ -1608,8 +1605,7 @@ Result: [output]
 ```
 Record in packet VALIDATION block.
 
-### Step 4: For MEDIUM/HIGH Risk: ai-review
-Run `just ai-review` (e.g., Gemini CLI) to audit code changes.
+### Step 4: For MEDIUM/HIGH Risk: manual review
 Record pass/fail in VALIDATION block.
 
 ### Step 5: Post-Work Gate

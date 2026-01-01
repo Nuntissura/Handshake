@@ -259,3 +259,53 @@ Reason for PASS: Spec 11.1 alignment confirmed; registry/profile coverage restor
 - Authoritative STATUS: Done (validated against Master Spec v02.96).
 - Earlier status lines in this packet are historical and retained for audit only.
 
+---
+
+## REVALIDATION REPORT - WP-1-Capability-SSoT (2025-12-30)
+
+VALIDATION REPORT - WP-1-Capability-SSoT
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Capability-SSoT.md
+- Spec Pointer: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.98.md (11.1 Capabilities & Consent Model)
+- Codex: Handshake Codex v1.4.md
+- Validator Protocol: docs/VALIDATOR_PROTOCOL.md
+
+Commands (evidence):
+- just validator-spec-regression: PASS
+- node scripts/validation/gate-check.mjs WP-1-Capability-SSoT: PASS
+- just validator-packet-complete WP-1-Capability-SSoT: FAIL (STATUS missing/invalid)
+- just post-work WP-1-Capability-SSoT: FAIL (C701-G05 post_sha1 mismatch for src/backend/handshake_core/src/capabilities.rs)
+- git hash-object src/backend/handshake_core/src/capabilities.rs: 91ec38a7468eea1d0bc51c7344d27672c2ef653f
+
+Blocking Findings:
+1) Deterministic manifest gate FAIL: `just post-work WP-1-Capability-SSoT` reports `post_sha1 mismatch` (C701-G05) for `src/backend/handshake_core/src/capabilities.rs`.
+   - Packet manifest Post-SHA1: 956136dd65c50ddef96f773c3a68807eb1579bb9 (docs/task_packets/WP-1-Capability-SSoT.md:136)
+   - Current file SHA1: 91ec38a7468eea1d0bc51c7344d27672c2ef653f (git hash-object)
+2) Packet completeness gate FAIL: `just validator-packet-complete WP-1-Capability-SSoT` fails because the packet does not contain a canonical `**Status:**` marker.
+3) Spec mismatch: packet validation history is anchored to Handshake_Master_Spec_v02.96.md, but docs/SPEC_CURRENT.md now requires Handshake_Master_Spec_v02.98.md.
+
+Spec-to-code spot-check (non-exhaustive; recorded for follow-up):
+- Spec 11.1 audit requirement: capability checks MUST be logged with capability_id/actor_id/job_id/decision_outcome (Handshake_Master_Spec_v02.98.md:29183).
+  - Current capability logging payload uses keys {capability_id, profile_id, job_id, outcome} (src/backend/handshake_core/src/workflows.rs:432) and overwrites FlightRecorderEvent.actor_id with capability_profile_id (src/backend/handshake_core/src/workflows.rs:506).
+
+REASON FOR FAIL:
+- `just post-work WP-1-Capability-SSoT` does not pass, so the COR-701 deterministic manifest does not match the current code state.
+
+Required Remediation:
+- Create a NEW packet (recommended: WP-1-Capability-SSoT-v2) anchored to Handshake_Master_Spec_v02.98.md, and capture a fresh COR-701 manifest so `just post-work` passes.
+- Ensure the packet includes `**Status:** {Ready for Dev|In Progress|Done}` (validator-packet-complete) and remains ASCII-only.
+- Reconcile the 11.1 audit logging field names (decision_outcome) and actor_id semantics in a follow-up WP (code change required; not performed in this revalidation).
+
+Task Board Update:
+- Move WP-1-Capability-SSoT from Done -> Ready for Dev (Revalidation FAIL).
+
+Packet Status Update (append-only):
+- **Status:** Ready for Dev
+
+Timestamp: 2025-12-30
+Validator: Codex CLI (Validator role)
+
+
+

@@ -1,6 +1,9 @@
 use crate::{
     flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType},
-    storage::{AccessMode, AiJob, JobKind, JobMetrics, NewAiJob, SafetyMode, StorageError},
+    storage::{
+        AccessMode, AiJob, EntityRef, JobKind, JobMetrics, NewAiJob, SafetyMode, StorageError,
+    },
+    workflows::{self, StartupRecoveryError},
     AppState,
 };
 use serde_json::{json, Value};
@@ -11,6 +14,8 @@ use uuid::Uuid;
 pub enum JobError {
     #[error("Storage error: {0}")]
     Storage(#[from] StorageError),
+    #[error("Startup recovery gate: {0}")]
+    StartupRecovery(#[from] StartupRecoveryError),
 }
 
 pub async fn create_job(
@@ -19,7 +24,10 @@ pub async fn create_job(
     protocol_id: &str,
     capability_profile_id: &str,
     job_inputs: Option<Value>,
+    entity_refs: Vec<EntityRef>,
 ) -> Result<AiJob, JobError> {
+    workflows::wait_for_startup_recovery().await?;
+
     let job = state
         .storage
         .create_ai_job(NewAiJob {
@@ -30,7 +38,7 @@ pub async fn create_job(
             capability_profile_id: capability_profile_id.to_string(),
             access_mode: AccessMode::AnalysisOnly,
             safety_mode: SafetyMode::Normal,
-            entity_refs: Vec::new(),
+            entity_refs,
             planned_operations: Vec::new(),
             status_reason: "queued".to_string(),
             metrics: JobMetrics::zero(),

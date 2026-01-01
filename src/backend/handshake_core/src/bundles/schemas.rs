@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ManifestScope {
@@ -39,9 +40,49 @@ pub struct BundleManifestFile {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MissingEvidence {
-    pub kind: String,
+    pub kind: MissingEvidenceKind,
     pub id: String,
-    pub reason: String,
+    pub reason: MissingEvidenceReason,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MissingEvidenceKind {
+    Job,
+    Diagnostic,
+    Event,
+    Artifact,
+}
+
+impl MissingEvidenceKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MissingEvidenceKind::Job => "job",
+            MissingEvidenceKind::Diagnostic => "diagnostic",
+            MissingEvidenceKind::Event => "event",
+            MissingEvidenceKind::Artifact => "artifact",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MissingEvidenceReason {
+    RetentionExpired,
+    Redacted,
+    AccessDenied,
+    NotFound,
+}
+
+impl MissingEvidenceReason {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MissingEvidenceReason::RetentionExpired => "retention_expired",
+            MissingEvidenceReason::Redacted => "redacted",
+            MissingEvidenceReason::AccessDenied => "access_denied",
+            MissingEvidenceReason::NotFound => "not_found",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,6 +100,7 @@ pub struct BundleManifest {
     pub files: Vec<BundleManifestFile>,
     pub included: IncludedCounts,
     pub missing_evidence: Vec<MissingEvidence>,
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub bundle_hash: String,
 }
 
@@ -133,7 +175,7 @@ pub struct BundleJob {
     pub job_id: String,
     pub job_kind: String,
     pub protocol_id: String,
-    pub status: String,
+    pub status: BundleJobStatus,
     pub created_at: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub started_at: Option<DateTime<Utc>>,
@@ -166,11 +208,33 @@ pub struct BundleJob {
 
 pub type BundleJobs = Vec<BundleJob>;
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BundleJobStatus {
+    Queued,
+    Running,
+    Completed,
+    Failed,
+    Cancelled,
+}
+
+impl BundleJobStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            BundleJobStatus::Queued => "queued",
+            BundleJobStatus::Running => "running",
+            BundleJobStatus::Completed => "completed",
+            BundleJobStatus::Failed => "failed",
+            BundleJobStatus::Cancelled => "cancelled",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BundleDiagnostic {
     pub id: String,
     pub fingerprint: String,
-    pub severity: String,
+    pub severity: BundleDiagnosticSeverity,
     pub source: String,
     pub surface: String,
     pub code: String,
@@ -189,7 +253,7 @@ pub struct BundleDiagnostic {
     pub line_start: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub line_end: Option<u32>,
-    pub link_confidence: String,
+    pub link_confidence: BundleLinkConfidence,
     pub evidence_refs: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub occurrence_count: Option<u32>,
@@ -197,6 +261,46 @@ pub struct BundleDiagnostic {
     pub first_seen: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_seen: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum BundleDiagnosticSeverity {
+    Error,
+    Warning,
+    Info,
+    Hint,
+}
+
+impl BundleDiagnosticSeverity {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            BundleDiagnosticSeverity::Error => "error",
+            BundleDiagnosticSeverity::Warning => "warning",
+            BundleDiagnosticSeverity::Info => "info",
+            BundleDiagnosticSeverity::Hint => "hint",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BundleLinkConfidence {
+    Direct,
+    Inferred,
+    Ambiguous,
+    Unlinked,
+}
+
+impl BundleLinkConfidence {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            BundleLinkConfidence::Direct => "direct",
+            BundleLinkConfidence::Inferred => "inferred",
+            BundleLinkConfidence::Ambiguous => "ambiguous",
+            BundleLinkConfidence::Unlinked => "unlinked",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -224,14 +328,20 @@ pub struct AvailableCounts {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExpiredEvidence {
-    pub jobs: Vec<ExpiredItem>,
-    pub diagnostics: Vec<ExpiredItem>,
+    pub jobs: Vec<ExpiredJob>,
+    pub diagnostics: Vec<ExpiredDiagnostic>,
     pub event_ranges: Vec<ExpiredRange>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExpiredItem {
+pub struct ExpiredJob {
     pub job_id: String,
+    pub expired_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExpiredDiagnostic {
+    pub diagnostic_id: String,
     pub expired_at: DateTime<Utc>,
 }
 
@@ -246,7 +356,15 @@ pub struct ExpiredRange {
 pub struct EvidenceGap {
     pub kind: String,
     pub description: String,
-    pub impact: String,
+    pub impact: ImpactLevel,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ImpactLevel {
+    High,
+    Medium,
+    Low,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -261,7 +379,7 @@ pub struct RedactionSummary {
     pub files_scanned: u32,
     pub files_redacted: u32,
     pub total_redactions: u32,
-    pub by_category: serde_json::Map<String, serde_json::Value>,
+    pub by_category: HashMap<String, u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -277,8 +395,16 @@ pub struct RedactionLogEntry {
 pub struct PolicyDecision {
     pub item_kind: String,
     pub item_id: String,
-    pub decision: String,
+    pub decision: PolicyDecisionOutcome,
     pub reason: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum PolicyDecisionOutcome {
+    Include,
+    Exclude,
+    Redact,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

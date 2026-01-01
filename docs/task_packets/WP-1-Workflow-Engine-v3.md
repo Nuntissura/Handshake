@@ -117,3 +117,54 @@ Tests:
 - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml workflows::tests::test_mark_stalled_workflows` (PASS)
 
 REASON FOR PASS: Evidence confirms the startup recovery loop and supporting telemetry satisfy DONE_MEANS, and the targeted test from the TEST_PLAN passes.
+
+---
+
+## VALIDATION REPORT - 2025-12-30 (Revalidation, Batch 5)
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Workflow-Engine-v3.md
+- Spec (SPEC_CURRENT): docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.98.md
+- Protocol: docs/VALIDATOR_PROTOCOL.md
+
+Commands Run:
+- just validator-spec-regression: PASS
+- just cargo-clean: PASS (Removed 0 files)
+- just gate-check WP-1-Workflow-Engine-v3: FAIL (Implementation detected without SKELETON APPROVED marker)
+- node scripts/validation/post-work-check.mjs WP-1-Workflow-Engine-v3: FAIL (non-ASCII + missing COR-701 validation manifest fields/gates)
+- just validator-packet-complete WP-1-Workflow-Engine-v3: FAIL (STATUS missing/invalid; requires canonical **Status:** Ready for Dev / In Progress / Done)
+- just post-work WP-1-Workflow-Engine-v3: FAIL (blocked at gate-check)
+
+Blocking Findings:
+- Phase gate violation [CX-GATE-001]: gate-check fails because implementation is present without a prior "SKELETON APPROVED" marker in this packet.
+- Deterministic manifest gate (COR-701): post-work-check reports missing required manifest fields (target_file, start, end, pre_sha1, post_sha1, line_delta) and missing/unchecked gates (C701-G01, C701-G02, C701-G04, C701-G05, C701-G06, C701-G08).
+- ASCII-only requirement: post-work-check reports non-ASCII characters in the task packet.
+  - NON_ASCII_COUNT=7 (sample: Line 30 Col 88 U+00A7, Line 60 Col 5 U+2705, Line 97 Col 22 U+2014)
+- Spec mismatch: this packet asserts Master Spec v02.93, but docs/SPEC_CURRENT.md points to v02.98. Prior PASS claims are not valid against the current spec.
+
+Spec-to-Code Findings (v02.98):
+- [HSK-WF-003] Startup Recovery Loop requirement includes: "This recovery MUST occur before the system begins accepting new AI jobs." (Handshake_Master_Spec_v02.98.md:4932).
+  - Current code spawns the recovery scan and then starts the server without awaiting recovery completion (src/backend/handshake_core/src/main.rs:60-99). This does not prove the required ordering.
+
+Manual Spot-Checks (evidence only; does not override the failures above):
+- Recovery scan is initiated with threshold 30s + startup flag: src/backend/handshake_core/src/main.rs:60-75 and src/backend/handshake_core/src/workflows.rs:208-266.
+- Startup recovery emits WorkflowRecovery as System: src/backend/handshake_core/src/workflows.rs:241-262.
+
+REASON FOR FAIL:
+- Blocking process gates (phase gate + COR-701 manifest + ASCII-only + STATUS marker) fail; spec alignment to v02.98 is not demonstrated.
+- Additionally, [HSK-WF-003] ordering ("before accepting new AI jobs") is not proven by the current startup flow.
+
+Required Fixes:
+1) Bring this packet back into protocol: include proper BOOTSTRAP/SKELETON/IMPLEMENTATION/HYGIENE/VALIDATION sections and obtain explicit "SKELETON APPROVED" before implementation evidence.
+2) Make the task packet ASCII-only (remove/replace non-ASCII characters; rerun post-work-check until clean).
+3) Add a COR-701 validation manifest (target_file/start/end/pre_sha1/post_sha1/line_delta + gates checklist) and ensure `just post-work WP-1-Workflow-Engine-v3` passes.
+4) Re-anchor DONE_MEANS + evidence mapping to Handshake_Master_Spec_v02.98.md.
+5) Address [HSK-WF-003] ordering by adding an explicit barrier so startup recovery completes (or is otherwise enforced) before new AI jobs are accepted; revalidate with evidence.
+
+**Status:** Ready for Dev
+
+Addendum (2025-12-30):
+- The canonical **Status:** line above addresses the earlier status-marker failure, but packet completeness still fails because the required user signature field is missing.
+
+

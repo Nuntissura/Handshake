@@ -116,3 +116,5 @@ Tests:
 
 Reason for FAIL:
 - Supply-chain MEX gates are incomplete (only gitleaks action present); osv/syft integration, logging, and governance per §11.7.5 are missing.
+
+

@@ -1,7 +1,7 @@
 use crate::{
     jobs::{create_job, JobError},
     models::{AiJob, JobKind, WorkflowRun},
-    storage::JobState,
+    storage::{EntityRef, JobState},
     workflows::{start_workflow_for_job, WorkflowError},
     AppState,
 };
@@ -69,6 +69,23 @@ async fn create_new_job(
         .clone()
         .or_else(|| payload.doc_id.as_ref().map(|id| json!({ "doc_id": id })));
 
+    let mut entity_refs: Vec<EntityRef> = Vec::new();
+    if let Some(doc_id) = payload.doc_id.as_deref() {
+        let doc = state
+            .storage
+            .get_document(doc_id)
+            .await
+            .map_err(|e| e.to_string())?;
+        entity_refs.push(EntityRef {
+            entity_id: doc.workspace_id,
+            entity_kind: "workspace".to_string(),
+        });
+        entity_refs.push(EntityRef {
+            entity_id: doc.id,
+            entity_kind: "document".to_string(),
+        });
+    }
+
     let job = create_job(
         &state,
         job_kind,
@@ -76,6 +93,7 @@ async fn create_new_job(
         // Server-enforced capability profile to prevent client-side escalation.
         capability_profile_id.id.as_str(),
         job_inputs,
+        entity_refs,
     )
     .await
     .map_err(|e| e.to_string())?;
@@ -104,6 +122,7 @@ async fn get_job(
 struct JobListFilters {
     status: Option<String>,
     job_kind: Option<String>,
+    wsid: Option<String>,
     from: Option<DateTime<Utc>>,
     to: Option<DateTime<Utc>>,
 }
@@ -130,6 +149,7 @@ async fn list_jobs(
         .list_ai_jobs(crate::storage::AiJobListFilter {
             status,
             job_kind,
+            wsid: filters.wsid,
             from: filters.from,
             to: filters.to,
         })

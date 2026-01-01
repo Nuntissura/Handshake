@@ -34,13 +34,13 @@
 
 
 
-# Handshake Master Spec v02.96
+# Handshake Master Spec v02.99
 
-(Updated: 2025-12-28 - Reconciled §11.3.4 with Trait Purity [ilja281220250525])
+(Updated: 2025-12-31 - Expanded AI Job Model JobKind/JobState and added FR-EVT-WF-RECOVERY [ilja311220251755])
 
 **Status:** Normative (Design Locked for Phase 1 Alignment)
-**Version:** v02.96
-**Date:** 2025-12-28
+**Version:** v02.99
+**Date:** 2025-12-31
 **Author:** Handshake Architecture Group (HAG) / AI Orchestrator
 
 **Purpose:** Complete reference combining product vision, Diary governance, extraction pipeline, Phase 1 closure requirements, technical supply-chain gate specs, and the formal Spec Integrity Audit Protocol (§11.11).
@@ -51,6 +51,9 @@
 
 | Version | Date | Author | Changes | Approval |
 |---------|------|--------|---------|----------|
+| v02.99 | 2025-12-31 | Orchestrator | Expanded AI Job Model JobKind/JobState lists, added canonical JobKind strings, and defined FR-EVT-WF-RECOVERY. | ilja311220251755 |
+| v02.98 | 2025-12-29 | Orchestrator | Added normative Debug Bundle schemas, DebugBundleExporter trait (HSK-TRAIT-005), API endpoints, job profile, redactor integration, determinism rules, and frontend UI spec (§10.5.6.5-12) | ilja291220250100 |
+| v02.97 | 2025-12-28 | Orchestrator | Added normative DuckDB schema and DiagnosticsStore trait signatures (§11.4.2+) | ilja281220252016 |
 | v02.96 | 2025-12-28 | Orchestrator | Reconciled §11.3.4 signatures to use `&dyn Database` instead of `SqlitePool` | ilja281220250525 |
 | v02.95 | 2025-12-28 | Orchestrator | Enriched §4.6.1 with Tokenizer Trait definition (unified interface) | ilja281220250435 |
 | v02.94 | 2025-12-28 | Orchestrator | Enriched §2.3.12.5 with Mandatory Storage Audit (sqlx/SqlitePool leakage check) | ilja281220250353 |
@@ -5282,10 +5285,16 @@ pub struct AiJob {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub enum JobKind {
     DocEdit,
+    DocRewrite,
+    DocSummarize,
     SheetTransform,
     CanvasCluster,
     AsrTranscribe,
     WorkflowRun,
+    DebugBundleExport,
+    TerminalExec,
+    DocIngest,
+    DistillationEval,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -5306,6 +5315,7 @@ pub struct JobMetrics {
 pub enum JobState {
     Queued, 
     Running, 
+    Stalled,
     AwaitingValidation, 
     AwaitingUser, 
     Completed, 
@@ -5322,6 +5332,27 @@ pub enum AccessMode {
     ApplyScoped,
 }
 ```
+
+##### 2.6.6.2.8.1 JobKind Canonical Strings (Normative)
+
+The canonical storage/API strings for JobKind are:
+
+- doc_edit
+- doc_rewrite
+- doc_summarize
+- sheet_transform
+- canvas_cluster
+- asr_transcribe
+- workflow_run
+- debug_bundle_export
+- terminal_exec
+- doc_ingest
+- distillation_eval
+
+Implementations MUST reject any other value at parse time.
+
+Legacy alias (only if needed for backward compatibility):
+- term_exec MAY be accepted as an alias for terminal_exec, but MUST be normalized to terminal_exec on write.
 
 ---
 
@@ -5364,6 +5395,7 @@ AI jobs follow a state machine aligned with the workflow engine's run model.
 |-------|-------------|
 | `queued` | Job created; capability and basic schema checks passed |
 | `running` | Workflow run has started; nodes executing |
+| `stalled` | Workflow run lost heartbeat or crash detected; system marks it during recovery scan; MUST emit FR-EVT-WF-RECOVERY with actor=system; no edits committed |
 | `awaiting_validation` | Mechanical operations ready; validators must approve/reject |
 | `awaiting_user` | Validators require human decision (e.g., risky large diff); UI shows preview |
 | `completed` | All validators passed, user accepted; changes committed, provenance written |
@@ -5376,6 +5408,8 @@ AI jobs follow a state machine aligned with the workflow engine's run model.
 
 - Changes to workspace artefacts MUST only be applied when the job transitions to `completed` or `completed_with_issues`.
 - Failed/cancelled/poisoned jobs MUST NOT commit edits; they may still produce logs and previews.
+- Only the startup recovery loop (HSK-WF-003) may transition Running -> Stalled.
+- Stalled jobs MUST NOT commit edits; they may be resumed or marked failed/cancelled only via explicit operator action or policy.
 
 ---
 
@@ -22248,6 +22282,7 @@ Documents master specification version history, maps independent subsection vers
 
 | Version | Date | Description | Owner | Maturity |
 |---------|------|-------------|-------|----------|
+| **v02.99** | 2025-12-31 | Expanded AI Job Model JobKind/JobState lists, added canonical JobKind strings, and defined FR-EVT-WF-RECOVERY. | Orchestrator | Normative |
 | **v02.68** | 2025-12-23 | Integrated Mechanical Extension v1.2 (Tool Bus contract + conformance + §11.8 verbatim import) and updated roadmap (§7.6) with MEX v1.2 sequencing across Phases 1–4; updated subsection version mapping. | PM/Architect | Normative |
 | **v02.52** | 2025-12-20 | Updated roadmap (§7.6) to implement ACE-RAG-001 cleanly (QueryPlan/Trace plumbing in Phase 1; ContextPacks/caching/drift/conformance in Phase 2; transcript selectors in Phase 3; multi-user governance in Phase 4). | PM/Architect | Normative |
 | **v02.51** | 2025-12-19 | Added §2.6.6.7.14 ACE-RAG-001 Retrieval Correctness & Efficiency (QueryPlan, Semantic Catalog, ContextPacks, RetrievalTrace, caching, drift, validators, conformance); extended ACE runtime + Index Doctor. | PM/Architect | Normative |
@@ -22290,6 +22325,12 @@ Some subsections maintain independent version numbers due to separate evolution 
 
 **When in doubt:** Refer to Master version (v02.52) as the authoritative integration point.
 ### 8.7.3 Change Log (Recent)
+
+#### v02.99 (2025-12-31)
+**Updated:**
+- A2.6.6.2.8: expanded JobKind/JobState lists and added canonical JobKind strings.
+- A2.6.6.3.2/3.3: defined stalled state and constraints.
+- A11.5: added FR-EVT-WF-RECOVERY event shape.
 
 #### v02.68 (2025-12-23)
 **Updated:**
@@ -26549,6 +26590,836 @@ The bundle MUST contain a prompt that includes:
 - Policy notes (allowed/blocked)
 - What evidence is missing due to retention/redaction
 
+#### 10.5.6.5 Bundle File Schemas (Normative)
+
+All bundle files MUST conform to the schemas defined below. Schema violations MUST cause VAL-BUNDLE-001 to fail.
+
+**v02.98 note:** Added normative file schemas, Rust trait, API endpoints, job profile, and frontend UI spec for Debug Bundle export [ilja291220250100].
+
+##### 10.5.6.5.1 `bundle_manifest.json`
+
+```typescript
+interface BundleManifest {
+  // Identity
+  schema_version: "1.0";
+  bundle_id: string;                    // uuid v4
+  bundle_kind: "debug_bundle";
+  created_at: string;                   // RFC3339 UTC
+
+  // Scope
+  scope: {
+    kind: "problem" | "job" | "time_window" | "workspace";
+    problem_id?: string;                // when kind=problem
+    job_id?: string;                    // when kind=job
+    time_range?: {                      // when kind=time_window
+      start: string;                    // RFC3339
+      end: string;                      // RFC3339
+    };
+    wsid?: string;                      // always present if scoped to workspace
+  };
+
+  // Redaction
+  redaction_mode: "SAFE_DEFAULT" | "WORKSPACE" | "FULL_LOCAL";
+
+  // Provenance
+  workflow_run_id: string;
+  job_id: string;                       // export job itself
+  exporter_version: string;             // semver
+  platform: {
+    os: string;
+    arch: string;
+    app_version: string;
+    build_hash: string;
+  };
+
+  // Content inventory
+  files: Array<{
+    path: string;                       // relative path in bundle
+    sha256: string;                     // hex-encoded
+    size_bytes: number;
+    redacted: boolean;                  // true if content was redacted
+  }>;
+
+  // Completeness
+  included: {
+    job_count: number;
+    diagnostic_count: number;
+    event_count: number;
+  };
+  missing_evidence: Array<{
+    kind: "job" | "diagnostic" | "event" | "artifact";
+    id: string;
+    reason: "retention_expired" | "redacted" | "access_denied" | "not_found";
+  }>;
+
+  // Validation
+  bundle_hash: string;                  // sha256 of normalized ZIP
+}
+```
+
+##### 10.5.6.5.2 `env.json`
+
+Environment context with mandatory redaction.
+
+```typescript
+interface BundleEnv {
+  // Safe to include
+  app_version: string;
+  build_hash: string;
+  platform: { os: string; arch: string; };
+  rust_version: string;
+  node_version?: string;
+
+  // Workspace context (IDs only, no paths)
+  wsid?: string;
+  workspace_name?: string;              // redacted if contains PII
+
+  // Runtime config (safe subset)
+  config: {
+    model_runtime: string;              // e.g., "ollama"
+    default_model?: string;             // e.g., "llama3"
+    flight_recorder_retention_days: number;
+    // NO secrets, NO paths, NO env vars
+  };
+
+  // Feature flags (names only)
+  feature_flags: string[];
+
+  // Redaction note
+  redaction_note: string;               // e.g., "Paths, env vars, and secrets removed per SAFE_DEFAULT policy"
+}
+```
+
+**Redaction rules for `env.json`:**
+- MUST NOT include: file paths, environment variables, API keys, tokens, database URLs
+- MUST redact workspace paths to `[WORKSPACE_PATH]`
+- MUST redact user home paths to `[HOME]`
+
+##### 10.5.6.5.3 `jobs.json` / `job.json`
+
+```typescript
+// job.json when scope.kind = "job"
+// jobs.json when scope.kind = "time_window" | "workspace" | "problem"
+
+interface BundleJob {
+  job_id: string;
+  job_kind: string;
+  protocol_id: string;
+  status: "queued" | "running" | "completed" | "failed" | "cancelled";
+
+  // Timestamps
+  created_at: string;
+  started_at?: string;
+  ended_at?: string;
+
+  // Profile
+  profile_id: string;
+  capability_profile_id: string;
+
+  // Context (IDs only in SAFE_DEFAULT)
+  wsid?: string;
+  doc_id?: string;
+
+  // Inputs/Outputs as hashes (SAFE_DEFAULT) or previews (WORKSPACE)
+  inputs_hash: string;
+  outputs_hash?: string;
+  inputs_preview?: string;              // first 200 chars, redacted
+  outputs_preview?: string;             // first 200 chars, redacted
+
+  // Error (if failed)
+  error?: {
+    code: string;
+    message: string;                    // redacted for secrets
+    diagnostic_id?: string;
+  };
+
+  // Metrics
+  metrics?: {
+    duration_ms?: number;
+    tokens_in?: number;
+    tokens_out?: number;
+    model_name?: string;
+  };
+
+  // Links
+  workflow_run_id?: string;
+  parent_job_id?: string;
+  diagnostic_ids: string[];
+  event_ids: string[];                  // FR event IDs for this job
+}
+
+type BundleJobs = BundleJob[];
+```
+
+##### 10.5.6.5.4 `diagnostics.jsonl`
+
+One JSON object per line, conforming to DIAG-SCHEMA-001 with redaction applied.
+
+```typescript
+interface BundleDiagnostic {
+  // Core identity (from DIAG-SCHEMA-001)
+  id: string;
+  fingerprint: string;
+  severity: "error" | "warning" | "info" | "hint";
+  source: string;
+  surface: string;
+  code: string;
+  title: string;
+  message: string;                      // redacted for secrets/PII
+
+  // Timestamps
+  created_at: string;
+
+  // Correlation
+  wsid?: string;
+  job_id?: string;
+  workflow_run_id?: string;
+
+  // Location (paths redacted to relative)
+  file_path?: string;                   // relative to workspace root or [EXTERNAL]
+  line_start?: number;
+  line_end?: number;
+
+  // Evidence
+  link_confidence: "direct" | "inferred" | "ambiguous" | "unlinked";
+  evidence_refs: string[];              // artifact hashes or IDs
+
+  // Grouping context
+  occurrence_count?: number;            // if grouped
+  first_seen?: string;
+  last_seen?: string;
+}
+```
+
+##### 10.5.6.5.5 `trace.jsonl`
+
+Flight Recorder event slice. One JSON object per line.
+
+```typescript
+// Each line is a FlightRecorderEvent (see FR-EVT-* schemas)
+// with the following redaction applied:
+
+// SAFE_DEFAULT:
+// - payload fields replaced with hashes
+// - paths replaced with [PATH]
+// - env vars replaced with [ENV]
+
+// WORKSPACE:
+// - paths kept relative to workspace
+// - payload previews (first 500 chars)
+
+// FULL_LOCAL:
+// - full payloads (requires explicit policy)
+```
+
+**Slice extraction rules:**
+- If scope.kind = "job": all events with matching `job_id`
+- If scope.kind = "problem": all events linked to the diagnostic + its job (if any)
+- If scope.kind = "time_window": all events in range, up to 10,000 events (paginate if more)
+- If scope.kind = "workspace": all events for wsid in last 24h, up to 10,000 events
+
+##### 10.5.6.5.6 `retention_report.json`
+
+```typescript
+interface RetentionReport {
+  report_generated_at: string;          // RFC3339
+
+  retention_policy: {
+    flight_recorder_days: number;       // default 7
+    diagnostics_days: number;           // default 30
+    job_metadata_days: number;          // default 30
+  };
+
+  // What was available
+  available: {
+    jobs: number;
+    diagnostics: number;
+    events: number;
+  };
+
+  // What was lost to retention
+  expired: {
+    jobs: Array<{ job_id: string; expired_at: string }>;
+    diagnostics: Array<{ diagnostic_id: string; expired_at: string }>;
+    event_ranges: Array<{ start: string; end: string; count: number }>;
+  };
+
+  // Gaps in evidence
+  evidence_gaps: Array<{
+    kind: string;
+    description: string;
+    impact: "high" | "medium" | "low";
+  }>;
+}
+```
+
+##### 10.5.6.5.7 `redaction_report.json`
+
+```typescript
+interface RedactionReport {
+  redaction_mode: "SAFE_DEFAULT" | "WORKSPACE" | "FULL_LOCAL";
+  report_generated_at: string;
+
+  // Detectors used
+  detectors: Array<{
+    id: string;                         // e.g., "secret_api_key"
+    version: string;
+    patterns_count: number;
+  }>;
+
+  // Redaction summary
+  summary: {
+    files_scanned: number;
+    files_redacted: number;
+    total_redactions: number;
+    by_category: Record<string, number>; // e.g., { "api_key": 3, "path": 12 }
+  };
+
+  // Redaction log (locations, not content)
+  redactions: Array<{
+    file: string;                       // bundle-relative path
+    location: string;                   // e.g., "$.jobs[0].inputs_preview"
+    category: string;                   // e.g., "api_key", "path", "pii"
+    detector_id: string;
+    replacement: string;                // e.g., "[REDACTED:api_key]"
+  }>;
+
+  // Policy decisions
+  policy_decisions: Array<{
+    item_kind: string;
+    item_id: string;
+    decision: "include" | "exclude" | "redact";
+    reason: string;
+  }>;
+}
+```
+
+##### 10.5.6.5.8 `repro.md`
+
+```markdown
+# Reproduction Steps
+
+## Environment
+- App Version: {{app_version}}
+- Build: {{build_hash}}
+- Platform: {{os}} / {{arch}}
+- Workspace: {{wsid}}
+
+## Timeline
+- First observed: {{first_seen}}
+- Last observed: {{last_seen}}
+- Occurrence count: {{count}}
+
+## Steps to Reproduce
+{{#if steps_known}}
+1. {{step_1}}
+2. {{step_2}}
+...
+{{else}}
+Steps to reproduce are unknown. The following context may help:
+- User action that triggered: {{trigger_action}}
+- Active document/surface: {{active_context}}
+{{/if}}
+
+## Expected Behavior
+{{expected}}
+
+## Actual Behavior
+{{actual}}
+
+## Related Artifacts
+- Job ID: {{job_id}}
+- Diagnostic ID: {{diagnostic_id}}
+- See `trace.jsonl` for full event sequence
+```
+
+##### 10.5.6.5.9 `coder_prompt.md`
+
+```markdown
+# Debug Bundle for LLM Coder
+
+## Issue Summary
+**Title:** {{diagnostic.title}}
+**Severity:** {{diagnostic.severity}}
+**Code:** {{diagnostic.code}}
+
+## Message
+{{diagnostic.message}}
+
+## Context
+- **Workspace ID:** {{wsid}}
+- **Job ID:** {{job_id}}
+- **Diagnostic ID:** {{diagnostic_id}}
+- **Time Range:** {{time_range.start}} to {{time_range.end}}
+
+## Version Information
+- App: {{env.app_version}} ({{env.build_hash}})
+- Platform: {{env.platform.os}} / {{env.platform.arch}}
+- Model Runtime: {{env.config.model_runtime}}
+
+## What Failed
+{{#if job}}
+Job `{{job.job_kind}}` ({{job.job_id}}) ended with status `{{job.status}}`.
+{{#if job.error}}
+Error: {{job.error.code}} - {{job.error.message}}
+{{/if}}
+{{/if}}
+
+## Steps to Reproduce
+See `repro.md` for detailed reproduction steps.
+
+## Expected vs Actual
+- **Expected:** {{expected_behavior}}
+- **Actual:** {{actual_behavior}}
+
+## Evidence Files
+| File | Description |
+|------|-------------|
+| `jobs.json` | Job metadata and status |
+| `diagnostics.jsonl` | Normalized diagnostics ({{diagnostic_count}} entries) |
+| `trace.jsonl` | Flight Recorder events ({{event_count}} entries) |
+| `env.json` | Environment context (redacted) |
+| `retention_report.json` | Evidence availability |
+| `redaction_report.json` | What was redacted |
+
+## Key IDs for Investigation
+- Diagnostic ID: `{{diagnostic_id}}`
+- Job ID: `{{job_id}}`
+- Workflow Run ID: `{{workflow_run_id}}`
+- Event IDs: {{#each event_ids}}`{{this}}`{{#unless @last}}, {{/unless}}{{/each}}
+
+## Policy Notes
+{{#if policy_notes}}
+{{#each policy_notes}}
+- {{this}}
+{{/each}}
+{{else}}
+No policy restrictions applied.
+{{/if}}
+
+## Missing Evidence
+{{#if missing_evidence.length}}
+The following evidence is unavailable:
+{{#each missing_evidence}}
+- **{{kind}}** `{{id}}`: {{reason}}
+{{/each}}
+{{else}}
+All requested evidence is included.
+{{/if}}
+
+## Instructions for Coder
+1. Start by reading this prompt and understanding the issue
+2. Examine `jobs.json` for the failing job's context
+3. Search `diagnostics.jsonl` for related errors
+4. Trace the event sequence in `trace.jsonl`
+5. Check `retention_report.json` for any evidence gaps
+6. Propose a fix based on the evidence
+```
+
+#### 10.5.6.6 DebugBundleExporter Trait (Normative Rust)
+
+```rust
+/// HSK-TRAIT-005: Debug Bundle Exporter
+///
+/// Normative contract for debug bundle export operations.
+/// Implementations MUST:
+/// - Apply redaction per the requested mode
+/// - Emit FR-EVT-005 on export completion
+/// - Run as a capability-gated job
+/// - Produce deterministic output for identical inputs
+#[async_trait]
+pub trait DebugBundleExporter: Send + Sync {
+    /// Export a debug bundle for the given scope.
+    ///
+    /// # Arguments
+    /// * `request` - Export parameters including scope and redaction mode
+    ///
+    /// # Returns
+    /// * `Ok(manifest)` - Bundle manifest on success
+    /// * `Err(BundleExportError)` - On failure (partial exports recorded in error)
+    async fn export(
+        &self,
+        request: DebugBundleRequest,
+    ) -> Result<DebugBundleManifest, BundleExportError>;
+
+    /// Validate an existing bundle for VAL-BUNDLE-001 compliance.
+    ///
+    /// # Arguments
+    /// * `bundle_path` - Path to bundle ZIP or directory
+    ///
+    /// # Returns
+    /// * `Ok(report)` - Validation results with pass/fail and findings
+    async fn validate(
+        &self,
+        bundle_path: &Path,
+    ) -> Result<BundleValidationReport, BundleExportError>;
+
+    /// List items available for export in the given scope.
+    /// Used to populate export UI.
+    async fn list_exportable(
+        &self,
+        filter: ExportableFilter,
+    ) -> Result<ExportableInventory, BundleExportError>;
+}
+
+#[derive(Debug, Clone)]
+pub struct DebugBundleRequest {
+    pub scope: BundleScope,
+    pub redaction_mode: RedactionMode,
+    pub output_path: Option<PathBuf>,   // None = temp dir
+    pub include_artifacts: bool,         // Include referenced artifact hashes
+}
+
+#[derive(Debug, Clone)]
+pub enum BundleScope {
+    Problem { diagnostic_id: String },
+    Job { job_id: String },
+    TimeWindow { start: DateTime<Utc>, end: DateTime<Utc>, wsid: Option<String> },
+    Workspace { wsid: String },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RedactionMode {
+    SafeDefault,    // Maximum redaction, safe to share
+    Workspace,      // Local context included, secrets still redacted
+    FullLocal,      // Full payloads, requires explicit policy
+}
+
+#[derive(Debug, ThisError)]
+pub enum BundleExportError {
+    #[error("HSK-400-INVALID-SCOPE: Invalid export scope: {0}")]
+    InvalidScope(String),
+
+    #[error("HSK-403-CAPABILITY: Missing capability: {0}")]
+    CapabilityDenied(String),
+
+    #[error("HSK-404-NOT-FOUND: {kind} not found: {id}")]
+    NotFound { kind: String, id: String },
+
+    #[error("HSK-409-POLICY: Export blocked by policy: {0}")]
+    PolicyDenied(String),
+
+    #[error("HSK-500-EXPORT: Export failed: {0}")]
+    ExportFailed(String),
+
+    #[error("HSK-500-IO: IO error: {0}")]
+    IoError(#[from] std::io::Error),
+}
+
+#[derive(Debug, Clone)]
+pub struct BundleValidationReport {
+    pub valid: bool,
+    pub schema_version: String,
+    pub findings: Vec<ValidationFinding>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ValidationFinding {
+    pub severity: FindingSeverity,
+    pub code: String,
+    pub message: String,
+    pub file: Option<String>,
+    pub path: Option<String>,   // JSON path within file
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum FindingSeverity {
+    Error,      // Fails validation
+    Warning,    // Passes but notable
+    Info,       // Informational
+}
+```
+
+#### 10.5.6.7 API Endpoints
+
+##### POST `/api/bundles/debug/export`
+
+Initiate a debug bundle export. Runs as a job.
+
+**Request:**
+```typescript
+interface ExportRequest {
+  scope: {
+    kind: "problem" | "job" | "time_window" | "workspace";
+    problem_id?: string;
+    job_id?: string;
+    time_range?: { start: string; end: string };
+    wsid?: string;
+  };
+  redaction_mode: "SAFE_DEFAULT" | "WORKSPACE" | "FULL_LOCAL";
+}
+```
+
+**Response (202 Accepted):**
+```typescript
+interface ExportResponse {
+  export_job_id: string;        // Job ID for tracking
+  status: "queued" | "running";
+  estimated_size_bytes?: number;
+}
+```
+
+##### GET `/api/bundles/debug/:bundle_id`
+
+Get bundle manifest and status.
+
+**Response (200 OK):**
+```typescript
+interface BundleStatus {
+  bundle_id: string;
+  status: "pending" | "ready" | "expired" | "failed";
+  manifest?: BundleManifest;    // Present when status=ready
+  error?: string;               // Present when status=failed
+  expires_at?: string;          // RFC3339, when bundle will be deleted
+}
+```
+
+##### GET `/api/bundles/debug/:bundle_id/download`
+
+Download bundle as ZIP.
+
+**Response:** `application/zip` stream with `Content-Disposition: attachment`
+
+##### GET `/api/bundles/debug/exportable`
+
+List items available for export.
+
+**Query params:** `wsid`, `start`, `end`, `limit`
+
+**Response:**
+```typescript
+interface ExportableInventory {
+  jobs: Array<{ job_id: string; job_kind: string; status: string; created_at: string }>;
+  diagnostics: Array<{ diagnostic_id: string; severity: string; title: string }>;
+  time_range: { earliest: string; latest: string };
+}
+```
+
+##### POST `/api/bundles/debug/:bundle_id/validate`
+
+Run VAL-BUNDLE-001 on a bundle.
+
+**Response:**
+```typescript
+interface ValidationResponse {
+  valid: boolean;
+  findings: ValidationFinding[];
+}
+```
+
+#### 10.5.6.8 Job Profile `debug_bundle_export_v0`
+
+```typescript
+const DEBUG_BUNDLE_EXPORT_PROFILE = {
+  profile_id: "debug_bundle_export_v0",
+  job_kind: "debug_bundle_export",
+  protocol_id: "hsk.bundle.export.v0",
+
+  // Required capabilities
+  capabilities_required: [
+    "export.debug_bundle",      // Core export capability
+    "fr.read",                  // Read Flight Recorder
+    "diagnostics.read",         // Read diagnostics
+    "jobs.read",                // Read job metadata
+  ],
+
+  // Optional capabilities (for enhanced modes)
+  capabilities_optional: [
+    "export.include_payloads",  // For WORKSPACE/FULL_LOCAL modes
+    "fs.write",                 // For custom output path
+  ],
+
+  // Constraints
+  constraints: {
+    max_bundle_size_mb: 100,
+    max_events: 10000,
+    max_jobs: 1000,
+    max_diagnostics: 1000,
+    timeout_seconds: 300,
+  },
+
+  // Status transitions
+  status_transitions: [
+    "queued -> running",
+    "running -> completed",
+    "running -> failed",
+    "queued -> cancelled",
+    "running -> cancelled",
+  ],
+};
+```
+
+#### 10.5.6.9 Secret Redactor Integration
+
+##### Pattern Registry
+
+The Secret Redactor MUST check for the following pattern categories:
+
+| Category | Pattern ID | Examples |
+|----------|------------|----------|
+| API Keys | `secret_api_key` | `sk-...`, `api_...`, Bearer tokens |
+| AWS | `secret_aws` | `AKIA...`, AWS secret keys |
+| Database URLs | `secret_db_url` | `postgres://`, `mysql://`, connection strings |
+| Private Keys | `secret_private_key` | `-----BEGIN RSA PRIVATE KEY-----` |
+| Passwords | `secret_password` | `password=`, `passwd:`, credential patterns |
+| Tokens | `secret_token` | JWT tokens, OAuth tokens, session tokens |
+| PII Email | `pii_email` | Email address patterns |
+| PII Phone | `pii_phone` | Phone number patterns |
+| File Paths | `path_absolute` | Absolute paths (`C:\`, `/Users/`, `/home/`) |
+| Env Vars | `env_var` | `$VAR`, `${VAR}`, `%VAR%` |
+
+##### Redaction Output Format
+
+Redacted content MUST be replaced with: `[REDACTED:<category>:<detector_id>]`
+
+Examples:
+- `[REDACTED:api_key:secret_api_key]`
+- `[REDACTED:path:path_absolute]`
+- `[REDACTED:pii:pii_email]`
+
+##### Integration with Guard Engine
+
+The Secret Redactor SHOULD delegate pattern detection to the Guard engine (`engine.guard.secret_scan`) when available, falling back to built-in patterns.
+
+#### 10.5.6.10 Determinism & Hashing
+
+##### ZIP Normalization
+
+To ensure deterministic bundle hashes, ZIP creation MUST:
+1. Sort entries alphabetically by path
+2. Use fixed modification timestamps (Unix epoch 0 or bundle creation time)
+3. Use DEFLATE compression level 6 (consistent)
+4. Exclude OS-specific metadata (uid/gid, extended attributes)
+
+##### Hash Algorithm
+
+All hashes in bundles MUST use SHA-256, hex-encoded lowercase.
+
+##### Bundle Hash Computation
+
+`bundle_hash` in manifest = SHA-256 of:
+1. Serialize manifest WITHOUT the `bundle_hash` field
+2. Concatenate `\n` + SHA-256 of each file in sorted order
+3. Hash the result
+
+```
+bundle_hash = sha256(
+  json(manifest_without_hash) + "\n" +
+  files.sorted_by(path).map(f => f.sha256).join("\n")
+)
+```
+
+#### 10.5.6.11 Frontend UI Specification
+
+##### Export Triggers
+
+Debug Bundle export MUST be accessible from:
+1. **Evidence Drawer** - "Export Debug Bundle" button
+2. **Jobs View** - Context menu on job row -> "Export Debug Bundle"
+3. **Problems View** - Context menu on problem row -> "Export Debug Bundle"
+4. **Timeline View** - "Export time range" action after selecting a range
+
+##### Export Modal Flow
+
+```
++---------------------------------------------+
+| Export Debug Bundle                      [X]|
++---------------------------------------------+
+|                                             |
+| Scope: [Job: abc-123 v]                     |
+|                                             |
+| Redaction Mode:                             |
+| (*) Safe Default (recommended)              |
+|     Removes all secrets, PII, and paths     |
+| ( ) Workspace                               |
+|     Includes local context, redacts secrets |
+| ( ) Full Local (requires policy)            |
+|     Full payloads - do not share externally |
+|                                             |
+| Estimated size: ~2.4 MB                     |
+| Events: 847 | Jobs: 1 | Diagnostics: 3      |
+|                                             |
++---------------------------------------------+
+|                    [Cancel]  [Export]       |
++---------------------------------------------+
+```
+
+##### Progress Display
+
+```
++---------------------------------------------+
+| Exporting Debug Bundle...                   |
++---------------------------------------------+
+| [============--------] 60%                  |
+|                                             |
+| [x] Collecting job metadata                 |
+| [x] Collecting diagnostics                  |
+| [>] Extracting Flight Recorder events...    |
+| [ ] Applying redaction                      |
+| [ ] Generating coder prompt                 |
+| [ ] Creating ZIP                            |
++---------------------------------------------+
+|                              [Cancel]       |
++---------------------------------------------+
+```
+
+##### Completion
+
+```
++---------------------------------------------+
+| [x] Debug Bundle Ready                      |
++---------------------------------------------+
+|                                             |
+| Bundle ID: dbg-20251229-abc123              |
+| Size: 2.4 MB                                |
+| Files: 9                                    |
+| Redactions applied: 47                      |
+|                                             |
+| The bundle will expire in 24 hours.         |
+|                                             |
++---------------------------------------------+
+|       [Copy Path]  [Open Folder]  [Done]    |
++---------------------------------------------+
+```
+
+#### 10.5.6.12 VAL-BUNDLE-001: Debug Bundle Completeness (Expanded)
+
+The validator MUST check:
+
+1. **Required files present:**
+   - `bundle_manifest.json`
+   - `env.json`
+   - `jobs.json` OR `job.json`
+   - `trace.jsonl`
+   - `diagnostics.jsonl`
+   - `retention_report.json`
+   - `redaction_report.json`
+   - `repro.md`
+   - `coder_prompt.md`
+
+2. **Schema compliance:**
+   - Each file parses without error
+   - Required fields present per section 10.5.6.5.x schemas
+   - Enum values are valid
+
+3. **Internal consistency:**
+   - All `job_id` references in `coder_prompt.md` exist in `jobs.json`
+   - All `diagnostic_id` references exist in `diagnostics.jsonl`
+   - All `event_id` references exist in `trace.jsonl`
+   - `files` array in manifest matches actual bundle contents
+   - All file hashes match actual content
+
+4. **Redaction compliance:**
+   - If `redaction_mode = SAFE_DEFAULT`:
+     - No absolute paths in any file
+     - No matches for secret patterns
+     - No PII patterns
+   - `redaction_report.json` lists all redactions applied
+
+5. **Missing evidence accounting:**
+   - Every item in `missing_evidence` has a valid `reason`
+   - `retention_report.json` aligns with `missing_evidence`
+
 ### 10.5.6A Workspace Bundle Export (v0)
 
 #### 10.5.6A.1 Purpose
@@ -29805,6 +30676,45 @@ S-02. The Problems index MAY be recomputed; raw instances MUST remain queryable 
 S-03. Retention policy MUST be visible in the Operator Consoles (see §10.5).  
 S-04. Debug Bundle export MUST include a retention summary and any missing evidence due to retention.
 
+#### 11.4.2 Storage Schema (DuckDB)
+
+The system MUST maintain a `diagnostics` table in the DuckDB sink for analytical queries.
+
+```sql
+CREATE TABLE diagnostics (
+    id              UUID PRIMARY KEY,
+    fingerprint     VARCHAR NOT NULL,
+    title           VARCHAR NOT NULL,
+    message         TEXT,
+    severity        ENUM('fatal', 'error', 'warning', 'info', 'hint'),
+    source          VARCHAR NOT NULL,
+    surface         VARCHAR NOT NULL,
+    tool            VARCHAR,
+    code            VARCHAR,
+    wsid            VARCHAR,
+    job_id          UUID,
+    link_confidence ENUM('direct', 'inferred', 'ambiguous', 'unlinked'),
+    timestamp       TIMESTAMP NOT NULL,
+    metadata        JSON
+);
+
+CREATE INDEX idx_diag_fingerprint ON diagnostics(fingerprint);
+CREATE INDEX idx_diag_job_id ON diagnostics(job_id);
+```
+
+#### 11.4.3 Diagnostics Store Trait (Rust)
+
+```rust
+#[async_trait]
+pub trait DiagnosticsStore: Send + Sync {
+    /// Inserts a diagnostic and emits FR-EVT-003.
+    async fn record_diagnostic(&self, diag: Diagnostic) -> Result<(), StorageError>;
+    
+    /// Returns grouped diagnostics with counts.
+    async fn list_problems(&self, filter: DiagFilter) -> Result<Vec<ProblemGroup>, StorageError>;
+}
+```
+
 ### 11.4.1 Validators (minimum set)
 
 Validators are deterministic checks that MUST pass for a compliant implementation.
@@ -30011,6 +30921,26 @@ interface DebugBundleExportEvent extends FlightRecorderEventBase {
   missing_evidence?: { kind: string; reason: string }[];
 }
 ```
+
+- **FR-EVT-WF-RECOVERY (WorkflowRecoveryEvent)**
+
+```ts
+interface WorkflowRecoveryEvent extends FlightRecorderEventBase {
+  type: 'workflow_recovery';
+
+  workflow_run_id: string;
+  job_id?: string;
+
+  from_state: 'running';
+  to_state: 'stalled';
+
+  reason: string;
+  last_heartbeat_ts: string; // RFC3339
+  threshold_secs: number;
+}
+```
+
+FR-EVT-WF-RECOVERY MUST be emitted when HSK-WF-003 transitions a workflow run from Running to Stalled. The actor MUST be 'system'.
 
 
 ## 11.6 Plugin/Matcher Precedence Rules

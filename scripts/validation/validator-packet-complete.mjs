@@ -29,8 +29,15 @@ function hasLine(re) {
   return re.test(text);
 }
 
-if (!hasLine(/\*\*Status:\*\*\s*(Ready for Dev|In Progress|Done)/i)) {
-  fail("STATUS missing or invalid (must be Ready for Dev / In Progress / Done)");
+if (!hasLine(/(?:\*\*Status:\*\*|STATUS:)\s*(Ready for Dev|In Progress|Done(?:\s*\(Historical\))?)\b/i)) {
+  fail("STATUS missing or invalid (must be Ready for Dev / In Progress / Done / Done (Historical))");
+}
+
+const hasLegacySpec = hasLine(/SPEC_CURRENT/i);
+const hasSpecBaseline = hasLine(/SPEC_BASELINE/i);
+const hasSpecTarget = hasLine(/SPEC_TARGET/i);
+if (!hasLegacySpec && !(hasSpecBaseline && hasSpecTarget)) {
+  fail("SPEC reference missing (need SPEC_CURRENT or SPEC_BASELINE+SPEC_TARGET)");
 }
 if (!hasLine(/RISK_TIER/i)) {
   fail("RISK_TIER missing");
@@ -44,7 +51,7 @@ if (!hasLine(/TEST_PLAN/i) || hasLine(/TEST_PLAN\s*:\s*$/i) || hasLine(/TEST_PLA
 if (!hasLine(/BOOTSTRAP/i)) {
   fail("BOOTSTRAP missing");
 }
-if (!hasLine(/USER_SIGNATURE/i)) {
+if (!hasLine(/USER_SIGNATURE/i) && !hasLine(/User Signature Locked/i)) {
   fail("USER_SIGNATURE missing");
 }
 

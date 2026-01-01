@@ -314,3 +314,49 @@ SKELETON APPROVED [ilja281220251500]
 
 **IMPORTANT: This packet is locked. No edits allowed.**
 **If changes needed: Create NEW packet (WP-1-Security-Gates-v3), do NOT edit this one.**
+
+---
+
+## REVALIDATION REPORT - WP-1-Security-Gates-v2
+Verdict: FAIL
+
+Revalidated: 2025-12-30
+Validator: Codex CLI (Validator role)
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Security-Gates-v2.md
+- Spec Pointer: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.98.md
+
+Commands (evidence):
+- just cargo-clean (PASS)
+- just validator-spec-regression (PASS)
+- just post-work WP-1-Security-Gates-v2 (FAIL: COR-701 manifest)
+
+Blocking Findings:
+1) Deterministic manifest gate FAIL: `just post-work WP-1-Security-Gates-v2` fails with:
+   - "Task packet contains non-ASCII characters (manifest must be ASCII)"
+   - "Manifest missing required field: target_file/start/end/pre_sha1/post_sha1/line_delta"
+2) Spec mismatch: packet text references Handshake_Master_Spec_v02.96.md but docs/SPEC_CURRENT.md requires Handshake_Master_Spec_v02.98.md.
+3) Forbidden pattern present in an in-scope file: src/backend/handshake_core/src/terminal/redaction.rs:19-22 contains `.unwrap()` (no waiver recorded in packet).
+4) TASK_BOARD previously marked the WP as Done; WP moved back to Ready for Dev.
+
+Evidence Mapping (spot-check only; non-exhaustive due to blocking gates above):
+- TerminalConfig defaults: src/backend/handshake_core/src/terminal/config.rs:23-25
+- Capability check before exec: src/backend/handshake_core/src/terminal/mod.rs:170
+- CWD enforcement: src/backend/handshake_core/src/terminal/guards.rs:98-124
+- Output bounding: src/backend/handshake_core/src/terminal/mod.rs:354
+- Timeout + kill_grace enforcement: src/backend/handshake_core/src/terminal/mod.rs:389
+- Flight Recorder payload: src/backend/handshake_core/src/flight_recorder/mod.rs:284
+
+Tests:
+- Not rerun in this revalidation batch (no waiver recorded for revalidation; verdict remains FAIL regardless due to blocking gates).
+
+Required Remediation:
+- Create NEW packet: WP-1-Security-Gates-v3 (ASCII-only) and reference Handshake_Master_Spec_v02.98.md.
+- Provide a full COR-701 deterministic manifest (target_file/start/end/pre_sha1/post_sha1/line_delta + gates checklist) so `just post-work` can pass.
+- Remove `.unwrap()` usage in redaction patterns or obtain an explicit user waiver and record it (validator protocol forbids unwrap/expect in governed paths).
+- Re-run TEST_PLAN commands and include evidence in the new packet.
+
+Status Update: Ready for Dev (Revalidation FAIL)
+
+

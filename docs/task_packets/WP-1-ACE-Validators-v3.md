@@ -210,3 +210,50 @@ Findings:
 - Tests/commands: Not run in this pass (blocked).
 
 REASON FOR FAIL: Re-anchor the packet to Master Spec v02.93 (A2.6.6.7.11), update DONE_MEANS/EVIDENCE_MAPPING, rerun the TEST_PLAN and validator scans, then resubmit for validation. Until then, status must return to Ready for Dev.
+
+---
+
+## VALIDATION REPORT - 2025-12-30 (Revalidation, Batch 5)
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-ACE-Validators-v3.md
+- Spec (SPEC_CURRENT): docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.98.md
+- Protocol: docs/VALIDATOR_PROTOCOL.md
+
+Commands Run:
+- just validator-spec-regression: PASS
+- just cargo-clean: PASS (Removed 0 files)
+- just gate-check WP-1-ACE-Validators-v3: PASS (Workflow sequence verified)
+- node scripts/validation/post-work-check.mjs WP-1-ACE-Validators-v3: FAIL (non-ASCII + missing COR-701 validation manifest fields/gates)
+- just validator-packet-complete WP-1-ACE-Validators-v3: FAIL (STATUS missing/invalid; requires canonical **Status:** Ready for Dev / In Progress / Done)
+- just post-work WP-1-ACE-Validators-v3: FAIL (post-work-check failure)
+
+Blocking Findings:
+- Deterministic manifest gate (COR-701): post-work-check reports missing required manifest fields (target_file, start, end, pre_sha1, post_sha1, line_delta) and missing/unchecked gates (C701-G01, C701-G02, C701-G04, C701-G05, C701-G06, C701-G08).
+- ASCII-only requirement: post-work-check reports non-ASCII characters in the task packet.
+  - NON_ASCII_COUNT=16 (sample: Line 13 Col 44 U+2014, Line 50 Col 5 U+2705, Line 124 Col 28 U+2192)
+- Packet completeness: validator-packet-complete cannot find a valid canonical status marker (**Status:** Ready for Dev / In Progress / Done).
+- Spec mismatch: this packet asserts Master Spec v02.93 (and earlier v02.91), but docs/SPEC_CURRENT.md points to v02.98. Spec-to-code alignment is not established against the current spec.
+- Internal inconsistency: this packet already contains a prior "Verdict: FAIL" section requiring return to Ready for Dev, but TASK_BOARD currently lists it as Done/[VALIDATED].
+
+Manual Spot-Checks (evidence only; does not override the failures above):
+- [HSK-ACE-VAL-100] Content Awareness: content resolution + scanning entrypoint exists (src/backend/handshake_core/src/ace/validators/mod.rs:285-338 and src/backend/handshake_core/src/ace/validators/mod.rs:340-413).
+- [HSK-ACE-VAL-102] Normalization: NFC + lowercase scan helper exists (src/backend/handshake_core/src/ace/validators/injection.rs:23-41 and src/backend/handshake_core/src/ace/validators/injection.rs:91-105).
+- [HSK-ACE-VAL-101] Atomic poisoning: handle_security_violation poisons nodes/job and emits SecurityViolation as System (src/backend/handshake_core/src/workflows.rs:81-189), invoked on PromptInjectionDetected (src/backend/handshake_core/src/workflows.rs:336-356).
+
+REASON FOR FAIL:
+- Blocking process gates (COR-701 manifest + ASCII-only + STATUS marker) fail; spec alignment to v02.98 is not demonstrated.
+
+Required Fixes:
+1) Make the task packet ASCII-only (remove/replace non-ASCII characters; rerun post-work-check until clean).
+2) Add a COR-701 validation manifest (target_file/start/end/pre_sha1/post_sha1/line_delta + gates checklist) and ensure `just post-work WP-1-ACE-Validators-v3` passes.
+3) Re-anchor DONE_MEANS + evidence mapping to Handshake_Master_Spec_v02.98.md and revalidate against v02.98 requirements.
+4) Add a canonical `**Status:**` marker and ensure TASK_BOARD matches packet status.
+
+**Status:** Ready for Dev
+
+Addendum (2025-12-30):
+- The canonical **Status:** line above addresses the earlier status-marker failure, but packet completeness still fails because the required user signature field is missing.
+
+

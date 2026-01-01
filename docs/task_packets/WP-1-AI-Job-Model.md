@@ -1,4 +1,4 @@
-﻿# Task Packet: WP-1-AI-Job-Model
+# Task Packet: WP-1-AI-Job-Model
 
 ## Metadata
 - TASK_ID: WP-1-AI-Job-Model
@@ -8,13 +8,13 @@
 
 ---
 
-## ðŸ•µï¸ CODE ARCHAEOLOGY NOTE
+## 🕵️ CODE ARCHAEOLOGY NOTE
 **Reason:** Strategic Audit for Phase 1 closure.
-**Authority [CX-598]:** The Roadmap is only a pointer. The **Master Spec Main Body** (Â§1-6, Â§9-11) is the sole definition of "Done."
+**Authority [CX-598]:** The Roadmap is only a pointer. The **Master Spec Main Body** (§1-6, §9-11) is the sole definition of "Done."
 **Procedure:** 
 1. Validator must check `models.rs` and `storage/mod.rs`.
-2. Verify implementation matches **100% of the technical rules, schemas, and invariants** found in the Main Body (Â§2.6.6 AI Job Model).
-3. Surface-level compliance with roadmap bullets (Â§7.6.3.2) is insufficient. Every line of text in the Main Body section must be implemented.
+2. Verify implementation matches **100% of the technical rules, schemas, and invariants** found in the Main Body (§2.6.6 AI Job Model).
+3. Surface-level compliance with roadmap bullets (§7.6.3.2) is insufficient. Every line of text in the Main Body section must be implemented.
 4. If 100% alignment exists -> **PASS**. Otherwise -> **FAIL**.
 
 ---
@@ -22,7 +22,7 @@
 ## SCOPE
 - **What**: Implement the global AI Job Model in the backend.
 - **Why**: Ensure all AI actions are structured, traceable, and governed.
-- **SPEC_ANCHOR**: Â§7.6.3.2, Â§2.6.6
+- **SPEC_ANCHOR**: §7.6.3.2, §2.6.6
 
 ## RISK_TIER
 - Level: HIGH
@@ -65,12 +65,12 @@ just validator-hygiene-full
 - [Requirement] -> [File:Line]
 
 
-## VALIDATION REPORT — WP-1-AI-Job-Model
+## VALIDATION REPORT � WP-1-AI-Job-Model
 Verdict: FAIL
 
 Scope Inputs:
 - Task Packet: docs/task_packets/WP-1-AI-Job-Model.md (status: Ready for Dev)
-- Spec: - **SPEC_ANCHOR**: Â§7.6.3.2, Â§2.6.6
+- Spec: - **SPEC_ANCHOR**: §7.6.3.2, §2.6.6
 
 Findings:
 - Packet incomplete [CX-573]: missing required fields (RISK_TIER, TEST_PLAN, DONE_MEANS, BOOTSTRAP, AUTHORITY); USER_SIGNATURE pending. Pre-flight gate blocks validation.
@@ -89,12 +89,12 @@ Reason for FAIL:
 
 
 
-## VALIDATION REPORT — WP-1-AI-Job-Model (2025-12-25)
+## VALIDATION REPORT � WP-1-AI-Job-Model (2025-12-25)
 Verdict: FAIL
 
 Scope Inputs:
 - Task Packet: docs/task_packets/WP-1-AI-Job-Model.md (status: Ready for Dev)
-- Spec: Handshake_Master_Spec_v02.84.md (§2.6.6 AI Job Model)
+- Spec: Handshake_Master_Spec_v02.84.md (�2.6.6 AI Job Model)
 
 Files Checked:
 - src/backend/handshake_core/src/models.rs
@@ -119,4 +119,6 @@ Tests:
 - None executed; no targeted tests present.
 
 Reason for FAIL:
-- AI Job Model per §2.6.6 is largely unimplemented: missing required fields, traceability, policy/logging integration, and tests.
+- AI Job Model per �2.6.6 is largely unimplemented: missing required fields, traceability, policy/logging integration, and tests.
+
+

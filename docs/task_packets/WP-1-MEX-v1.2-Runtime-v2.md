@@ -253,3 +253,50 @@ cargo test --manifest-path src/backend/handshake_core/Cargo.toml
 
 **STATUS Update:** PASS (Validated)
 
+---
+
+## REVALIDATION REPORT - WP-1-MEX-v1.2-Runtime-v2
+Verdict: FAIL
+
+Revalidated: 2025-12-30
+Validator: Codex CLI (Validator role)
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-MEX-v1.2-Runtime-v2.md
+- Spec Pointer: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.98.md
+
+Commands (evidence):
+- just cargo-clean (PASS)
+- just validator-spec-regression (PASS)
+- just post-work WP-1-MEX-v1.2-Runtime-v2 (FAIL: phase gate)
+
+Blocking Findings:
+1) Deterministic manifest gate FAIL: `just post-work WP-1-MEX-v1.2-Runtime-v2` reports "GATE FAIL: Implementation detected without SKELETON APPROVED marker."
+2) Spec mismatch: packet references Handshake_Master_Spec_v02.96.md but docs/SPEC_CURRENT.md requires Handshake_Master_Spec_v02.98.md.
+3) ASCII gate FAIL (packet): non-ASCII bytes detected (count=72). Even if phase gate is fixed, `just post-work` will fail ASCII enforcement.
+4) Board/packet mismatch: packet metadata STATUS is "Ready-for-Dev" (non-canonical) while TASK_BOARD previously marked the WP as Done; WP moved back to Ready for Dev.
+
+Evidence Mapping (spot-check only; non-exhaustive due to blocking gates above):
+- PlannedOperation: src/backend/handshake_core/src/mex/envelope.rs:60
+- EngineResult: src/backend/handshake_core/src/mex/envelope.rs:126
+- GateDenial: src/backend/handshake_core/src/mex/gates.rs:17
+- Global gate labels present: src/backend/handshake_core/src/mex/gates.rs:47,85,128,153,192,224
+- Artifact-first inline limit (32KB): src/backend/handshake_core/src/mex/gates.rs:134
+- Gate pipeline enforced before execution: src/backend/handshake_core/src/mex/runtime.rs:74-76
+
+Forbidden Pattern Audit (scoped):
+- `rg "unwrap(|expect(|todo!|unimplemented!|dbg!|println!|eprintln!(" src/backend/handshake_core/src/mex` -> no matches
+
+Tests:
+- Not rerun in this revalidation batch (no waiver recorded for revalidation; verdict remains FAIL regardless due to blocking gates).
+
+Required Remediation:
+- Create NEW packet: WP-1-MEX-v1.2-Runtime-v3 (ASCII-only) and reference Handshake_Master_Spec_v02.98.md.
+- Follow phase gate: BOOTSTRAP -> SKELETON -> (Validator issues "SKELETON APPROVED") -> IMPLEMENTATION -> VALIDATION.
+- Provide a full COR-701 deterministic manifest (target_file/start/end/pre_sha1/post_sha1/line_delta + gates checklist) so `just post-work` can pass.
+- Re-run TEST_PLAN commands and include evidence in the new packet.
+
+Status Update: Ready for Dev (Revalidation FAIL)
+
+
+

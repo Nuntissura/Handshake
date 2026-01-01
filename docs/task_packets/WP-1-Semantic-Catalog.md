@@ -125,3 +125,5 @@ Tests:
 Risks & Suggested Actions:
 - Add full Semantic Catalog implementation per A2.6.7: typed structs (tools/agents/routing_rules with version/timestamps), loader from `assets/semantic_catalog.json`, capability-gated resolution, and typed error codes. Create the assets file with schema-aligned entries.
 - Integrate capability checks with `CapabilityRegistry` and add unit tests for load + resolution + gating. Provide evidence mapping (file:line) and rerun TEST_PLAN for re-validation.
+
+

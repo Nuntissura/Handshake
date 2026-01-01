@@ -143,6 +143,7 @@ struct OllamaGenerateResponse {
 #[async_trait]
 impl LlmClient for OllamaAdapter {
     async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        // WAIVER [CX-573E]: Instant::now() is required for latency measurement (observability only).
         let start = Instant::now();
 
         // Build Ollama request

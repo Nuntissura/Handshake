@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   AiJob,
   Diagnostic,
   FlightEvent,
+  getJob,
   getEvents,
   listDiagnostics,
   listJobs,
@@ -12,11 +13,13 @@ import { DebugBundleExport } from "./DebugBundleExport";
 
 type Props = {
   onSelect: (selection: EvidenceSelection) => void;
+  focusJobId?: string | null;
 };
 
 type JobFilters = {
   status: string;
   job_kind: string;
+  wsid: string;
   from: string;
   to: string;
 };
@@ -24,21 +27,43 @@ type JobFilters = {
 const defaultFilters: JobFilters = {
   status: "",
   job_kind: "",
+  wsid: "",
   from: "",
   to: "",
 };
 
 type Tab = "summary" | "timeline" | "io" | "diagnostics" | "policy";
 
-function hashString(value: string): string {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
-  }
-  return hash.toString(16);
+function stableStringify(value: unknown): string {
+  const seen = new WeakSet<object>();
+  const normalize = (input: unknown): unknown => {
+    if (!input || typeof input !== "object") return input;
+    if (seen.has(input as object)) return "[Circular]";
+    seen.add(input as object);
+
+    if (Array.isArray(input)) return input.map(normalize);
+
+    const record = input as Record<string, unknown>;
+    const keys = Object.keys(record).sort();
+    const out: Record<string, unknown> = {};
+    for (const key of keys) {
+      out[key] = normalize(record[key]);
+    }
+    return out;
+  };
+
+  return JSON.stringify(normalize(value));
 }
 
-export const JobsView: React.FC<Props> = ({ onSelect }) => {
+async function sha256Hex(value: string): Promise<string> {
+  const data = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export const JobsView: React.FC<Props> = ({ onSelect, focusJobId }) => {
   const [filters, setFilters] = useState<JobFilters>(defaultFilters);
   const [jobs, setJobs] = useState<AiJob[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +73,8 @@ export const JobsView: React.FC<Props> = ({ onSelect }) => {
   const [jobDiagnostics, setJobDiagnostics] = useState<Diagnostic[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>("summary");
   const [exportOpen, setExportOpen] = useState(false);
+  const [inputsHash, setInputsHash] = useState("n/a");
+  const [outputsHash, setOutputsHash] = useState("n/a");
 
   const fetchJobs = async (override?: JobFilters) => {
     const active = override ?? filters;
@@ -56,6 +83,7 @@ export const JobsView: React.FC<Props> = ({ onSelect }) => {
       const data = await listJobs({
         status: active.status || undefined,
         job_kind: active.job_kind || undefined,
+        wsid: active.wsid || undefined,
         from: active.from || undefined,
         to: active.to || undefined,
       });
@@ -74,6 +102,17 @@ export const JobsView: React.FC<Props> = ({ onSelect }) => {
   }, []);
 
   useEffect(() => {
+    if (!focusJobId) return;
+    getJob(focusJobId)
+      .then((job) => {
+        setSelectedJob(job);
+        setJobs((prev) => (prev.some((j) => j.job_id === job.job_id) ? prev : [job, ...prev]));
+        setActiveTab("summary");
+      })
+      .catch(() => {});
+  }, [focusJobId]);
+
+  useEffect(() => {
     if (!selectedJob) return;
     getEvents({ jobId: selectedJob.job_id })
       .then(setEvents)
@@ -83,23 +122,49 @@ export const JobsView: React.FC<Props> = ({ onSelect }) => {
       .catch(() => setJobDiagnostics([]));
   }, [selectedJob]);
 
-  const activeJobInputsHash = useMemo(() => {
-    if (!selectedJob?.job_inputs) return "n/a";
-    const normalized =
-      typeof selectedJob.job_inputs === "string"
-        ? selectedJob.job_inputs
-        : JSON.stringify(selectedJob.job_inputs);
-    return hashString(normalized);
-  }, [selectedJob]);
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!selectedJob?.job_inputs) {
+        setInputsHash("n/a");
+        return;
+      }
+      const normalized =
+        typeof selectedJob.job_inputs === "string"
+          ? selectedJob.job_inputs
+          : stableStringify(selectedJob.job_inputs);
+      const hash = await sha256Hex(normalized);
+      if (!cancelled) setInputsHash(hash);
+    };
+    run().catch(() => {
+      if (!cancelled) setInputsHash("error");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedJob?.job_inputs]);
 
-  const activeJobOutputsHash = useMemo(() => {
-    if (!selectedJob?.job_outputs) return "n/a";
-    const normalized =
-      typeof selectedJob.job_outputs === "string"
-        ? selectedJob.job_outputs
-        : JSON.stringify(selectedJob.job_outputs);
-    return hashString(normalized);
-  }, [selectedJob]);
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!selectedJob?.job_outputs) {
+        setOutputsHash("n/a");
+        return;
+      }
+      const normalized =
+        typeof selectedJob.job_outputs === "string"
+          ? selectedJob.job_outputs
+          : stableStringify(selectedJob.job_outputs);
+      const hash = await sha256Hex(normalized);
+      if (!cancelled) setOutputsHash(hash);
+    };
+    run().catch(() => {
+      if (!cancelled) setOutputsHash("error");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedJob?.job_outputs]);
 
   return (
     <div className="content-card">
@@ -137,6 +202,14 @@ export const JobsView: React.FC<Props> = ({ onSelect }) => {
             placeholder="job kind"
             value={filters.job_kind}
             onChange={(e) => setFilters({ ...filters, job_kind: e.target.value })}
+          />
+        </label>
+        <label>
+          Workspace
+          <input
+            placeholder="wsid"
+            value={filters.wsid}
+            onChange={(e) => setFilters({ ...filters, wsid: e.target.value })}
           />
         </label>
         <label>
@@ -263,8 +336,8 @@ export const JobsView: React.FC<Props> = ({ onSelect }) => {
                         Hashes provide stable references without leaking payloads. Use Debug Bundle to fetch full content.
                       </p>
                       <ul className="meta-list">
-                        <li>Inputs hash: {activeJobInputsHash}</li>
-                        <li>Outputs hash: {activeJobOutputsHash}</li>
+                        <li>Inputs hash: {inputsHash}</li>
+                        <li>Outputs hash: {outputsHash}</li>
                       </ul>
                     </div>
                   )}

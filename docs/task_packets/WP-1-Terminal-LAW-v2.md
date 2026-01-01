@@ -246,3 +246,53 @@ The work satisfies 100% of the **Terminal Experience LAW (§10.1)** requirements
 - **Closure Reason**: WP-1-Terminal-LAW-v2 closed successfully. All isolation rules and audit linkage requirements implemented and verified with integration tests.
 - **User Signature Locked**: ilja281220251700
 
+---
+
+## REVALIDATION REPORT - WP-1-Terminal-LAW-v2
+Verdict: FAIL
+
+Revalidated: 2025-12-30
+Validator: Codex CLI (Validator role)
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Terminal-LAW-v2.md
+- Spec Pointer: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.98.md
+
+Commands (evidence):
+- just cargo-clean (PASS)
+- just validator-spec-regression (PASS)
+- just post-work WP-1-Terminal-LAW-v2 (FAIL: phase gate)
+
+Blocking Findings:
+1) Deterministic manifest gate FAIL: `just post-work WP-1-Terminal-LAW-v2` reports "GATE FAIL: Implementation detected without SKELETON APPROVED marker."
+2) Spec mismatch: packet references Handshake_Master_Spec_v02.96.md but docs/SPEC_CURRENT.md requires Handshake_Master_Spec_v02.98.md.
+3) ASCII gate FAIL (packet): non-ASCII bytes detected (count=15). Even if phase gate is fixed, `just post-work` will fail ASCII enforcement.
+4) Packet accuracy issue: IN_SCOPE_PATHS lists `src/backend/handshake_core/src/terminal.rs` but it does not exist in the repo (`Test-Path src/backend/handshake_core/src/terminal.rs` -> False).
+5) TASK_BOARD previously marked the WP as Done; WP moved back to Ready for Dev.
+
+Evidence Mapping (spot-check only; non-exhaustive due to blocking gates above):
+- TerminalSessionType enum: src/backend/handshake_core/src/terminal/session.rs:8
+- TerminalSession struct: src/backend/handshake_core/src/terminal/session.rs:41
+- Session isolation guard: src/backend/handshake_core/src/terminal/guards.rs:64-96
+- TerminalRequest includes session_type + consent: src/backend/handshake_core/src/terminal/mod.rs:61
+- Capability string present: src/backend/handshake_core/src/capabilities.rs:19
+- Flight Recorder event includes session_type: src/backend/handshake_core/src/flight_recorder/mod.rs:284
+- Session isolation tests present: src/backend/handshake_core/tests/terminal_session_tests.rs:75,98,127
+
+Forbidden Pattern Audit (scoped to in-scope files):
+- `rg "unwrap(|expect(|todo!|unimplemented!("` across session.rs/guards.rs/terminal/mod.rs/flight_recorder/mod.rs/capabilities.rs -> no matches
+
+Tests:
+- Not rerun in this revalidation batch (no waiver recorded for revalidation; verdict remains FAIL regardless due to blocking gates).
+
+Required Remediation:
+- Create NEW packet: WP-1-Terminal-LAW-v3 (ASCII-only) and reference Handshake_Master_Spec_v02.98.md.
+- Follow phase gate: BOOTSTRAP -> SKELETON -> (Validator issues "SKELETON APPROVED") -> IMPLEMENTATION -> VALIDATION.
+- Provide a full COR-701 deterministic manifest (target_file/start/end/pre_sha1/post_sha1/line_delta + gates checklist) so `just post-work` can pass.
+- Correct IN_SCOPE_PATHS to match real files (terminal/mod.rs, etc.).
+- Re-run TEST_PLAN commands and include evidence in the new packet.
+
+Status Update: Ready for Dev (Revalidation FAIL)
+
+
+

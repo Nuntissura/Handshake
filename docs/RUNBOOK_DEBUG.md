@@ -33,4 +33,3 @@
 - cargo-deny: run `cargo deny check advisories licenses bans sources` (install via `cargo install cargo-deny` if needed).
 - gitleaks: rerun in CI or locally with `gitleaks detect --source .` if installed.
 - todo-policy: `rg -n --pcre2 "TODO(?!\\(HSK-\\d+\\))" app/src src/backend scripts` to find non-tagged TODOs.
-- ai-review: run `just ai-review` locally with the `gemini` CLI and attach `ai_review.md` to the task packet/logger.

@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2025-12-25
+**Updated:** 2025-12-31
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,11 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja311220252043 | Orchestrator | 2025-12-31 20:43 | Task packet creation: WP-1-Security-Gates-v3 | v02.99 | Remediation: protocol-clean packet (ASCII + COR-701 manifest) and remove unwrap in terminal redaction; revalidate against SPEC_CURRENT v02.99. |
+| ilja311220251916 | Orchestrator | 2025-12-31 19:16 | Task packet creation: WP-1-Gate-Check-Tool-v2 | v02.99 | Remediation: harden gate-check to avoid false positives and unblock pre/post-work. |
+| ilja311220251846 | Orchestrator | 2025-12-31 18:46 | Task packet creation: WP-1-Workflow-Engine-v4 | v02.99 | Protocol clean revalidation for HSK-WF-003 ordering and FR-EVT-WF-RECOVERY emission. |
+| ilja311220251755 | Orchestrator | 2025-12-31 17:55 | Spec Enrichment v02.99 (JobKind/JobState alignment + FR-EVT-WF-RECOVERY) | v02.99 | Approved AI Job Model enum expansion and workflow recovery event definition. |
+| ilja311220250445 | Orchestrator | 2025-12-31 04:45 | Task packet creation: WP-1-Storage-Foundation-v3 | v02.98 | No spec enrichment; remediation for mandatory storage audit failure (sqlx leakage outside storage). |
 | ilja281220250525 | Orchestrator | 2025-12-28 05:25 | Spec Enrichment v02.96 (Reconcile §7.6.3 SqlitePool) | v02.96 | Reconciled legacy signatures with Trait Purity invariant |
 | ilja281220250519 | Orchestrator | 2025-12-28 05:19 | Task packet creation: WP-1-Flight-Recorder-v2 | v02.95 | Infrastructure for durable audit logging (§11.5) |
 | ilja271220250057 | Orchestrator | 2025-12-27 00:57 | Spec Enrichment v02.93 (Startup Recovery) | v02.93 | Authorizes normative HSK-WF-003 |

@@ -112,8 +112,8 @@ mod tests {
     }
 
     #[test]
-    fn write_zip_is_deterministic() {
-        let dir = tempdir().expect("temp dir");
+    fn write_zip_is_deterministic() -> Result<(), BundleExportError> {
+        let dir = tempdir()?;
         let path = dir.path().join("bundle.zip");
         let files = vec![
             BundleFileEntry {
@@ -127,10 +127,11 @@ mod tests {
                 redacted: false,
             },
         ];
-        write_deterministic_zip(&path, &files).expect("zip write");
-        let first = std::fs::read(&path).expect("read zip");
-        write_deterministic_zip(&path, &files).expect("zip rewrite");
-        let second = std::fs::read(&path).expect("read zip again");
+        write_deterministic_zip(&path, &files)?;
+        let first = std::fs::read(&path)?;
+        write_deterministic_zip(&path, &files)?;
+        let second = std::fs::read(&path)?;
         assert_eq!(first, second, "zip output must be deterministic");
+        Ok(())
     }
 }

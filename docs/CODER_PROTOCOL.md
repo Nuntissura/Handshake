@@ -54,6 +54,8 @@ Task state is managed by the agent currently holding the "ball":
 3. **Validator**: Approves work -> Moves to `Done` (during VALIDATION).
 4. **Orchestrator**: Escalation/Blocker -> Moves to `Blocked`.
 
+**Historical Done rule:** If a packet is marked `**Status:** Done (Historical)` (or the board marks it as historical/outdated-only), do not reopen or modify it. If new-spec work is required, request a NEW remediation WP variant from the Orchestrator.
+
 **Coder Mandate:** You are responsible for advancing the Task Board to `In Progress`. Rushing to code without updating the board is a protocol violation.
 
 ### Board Integrity Check ✋
@@ -223,6 +225,28 @@ If my understanding is correct, I'll proceed to Step 2. Otherwise, clarify neede
 cat docs/task_packets/WP-{ID}-*.md
 ```
 
+**Concurrency (multi-coder sessions) [CX-CONC-001] - STOP if conflict**
+
+When two Coders work in this repo concurrently, no two in-progress Work Packets may touch the same files.
+
+- Treat `IN_SCOPE_PATHS` as the exclusive file lock set for the WP.
+- Before editing any code, open `docs/TASK_BOARD.md` -> `## In Progress`, then open each listed WP packet and compare `IN_SCOPE_PATHS` to your WP.
+- If ANY overlap exists: STOP and escalate (do not edit any code).
+
+Escalation template:
+```
+ƒ?O BLOCKED: File lock conflict [CX-CONC-001]
+
+My WP: {WP_ID} (I am {Coder-A|Coder-B})
+Conflicts with: {OTHER_WP_ID} (ASSIGNED_TO: {Coder-A|Coder-B})
+
+Overlapping paths:
+- {path1}
+- {path2}
+
+I will not edit any code until the Orchestrator re-scopes or sequences the work.
+```
+
 **Verify packet includes ALL 10 required fields:**
 - [ ] TASK_ID and WP_ID
 - [ ] STATUS (ensure it is `Ready-for-Dev` or `In-Progress`)
@@ -271,6 +295,7 @@ I cannot start without a complete packet.
 
 **Update `docs/TASK_BOARD.md`:**
 - Move WP-{ID} from `## Ready for Dev` to `## In Progress`
+- Add an assignee label to the WP entry: `ASSIGNED_TO: Coder-A` or `ASSIGNED_TO: Coder-B`
 - Ensure the board maintains all 5 fixed sections (§ Board Integrity Check).
 
 **Verify file updated:**
@@ -440,7 +465,7 @@ Do NOT claim work is done until all DONE_MEANS are verifiable.
 
 ## Hard Invariant Enforcement Guide [CX-100-106]
 
-**Purpose:** Know what each hard invariant means and how to verify compliance before AI review.
+**Purpose:** Know what each hard invariant means and how to verify compliance before handoff.
 
 ---
 
@@ -450,7 +475,7 @@ Do NOT claim work is done until all DONE_MEANS are verifiable.
 
 **Why:** Centralized control over authentication, rate limiting, cost tracking, and model switching.
 
-**Grep command to check (run before `just ai-review`):**
+**Grep command to check (run before `just post-work`):**
 ```bash
 # Should find nothing in jobs/features (only in llm/)
 grep -r "reqwest\|http::" src/backend/handshake_core/src/jobs/ src/backend/handshake_core/src/api/
@@ -583,9 +608,9 @@ grep -r "TODO\|FIXME\|XXX\|HACK" src/backend/handshake_core/src/ --include="*.rs
 
 ---
 
-### Summary: What to Check Before Running AI Review
+### Summary: What to Check Before Handoff
 
-Run these commands before `just ai-review` to catch violations early:
+Run these commands before `just post-work` to catch violations early:
 
 ```bash
 # [CX-101] LLM calls only through module
@@ -601,7 +626,7 @@ grep -r "println!\|eprintln!" src/backend/handshake_core/src/ --include="*.rs"
 grep -r "TODO\|FIXME\|XXX" src/backend/handshake_core/src/ --include="*.rs" | grep -v "TODO(HSK-"
 ```
 
-**Result:** If any commands return matches, fix violations before proceeding to AI review.
+**Result:** If any commands return matches, fix violations before proceeding to post-work.
 
 ---
 
@@ -615,13 +640,7 @@ grep -r "TODO\|FIXME\|XXX" src/backend/handshake_core/src/ --include="*.rs" | gr
    ├─ YES → Continue to step 2
    └─ NO → BLOCK: Fix code, re-test until all pass
 
-2️⃣ RUN AI REVIEW (Secondary Gate, MEDIUM/HIGH risk only)
-   ↓ Result: PASS, WARN, or BLOCK?
-   ├─ PASS → Continue to step 3
-   ├─ WARN → Continue to step 3 (acceptable, document reason)
-   └─ BLOCK → Fix code, re-run until PASS or WARN
-
-3️⃣ RUN POST-WORK (Final Gate)
+2️⃣ RUN POST-WORK (Final Gate)
    ↓ `just post-work WP-{ID}` passes?
    ├─ YES → Work is complete, proceed to commit
    └─ NO → BLOCK: Fix validation errors, re-run until PASS
@@ -697,7 +716,7 @@ Location/format for coder handoff notes:
 
 ### Step 7.5: Test Coverage Verification [CX-572A-COVERAGE]
 
-**Purpose:** Ensure test coverage meets minimum thresholds per RISK_TIER before AI review.
+**Purpose:** Ensure test coverage meets minimum thresholds per RISK_TIER before post-work.
 
 **Coverage Minimums by Risk Tier:**
 
@@ -748,47 +767,15 @@ Risk Assessment:
 Approved by: {orchestrator decision or team agreement}
 ```
 
-**Rule:** Do NOT proceed to AI review if coverage below threshold AND no approved waiver.
+**Rule:** Do NOT proceed to post-work if coverage below threshold AND no approved waiver.
 
 ---
 
-### Step 8: AI Review [CX-573A] ✋ STOP
+### Step 8: Manual Review Handoff (Validator) ?o< STOP
 
 **For MEDIUM/HIGH RISK_TIER:**
-```bash
-just ai-review
-```
-
-**Check result in `ai_review.md`:**
-
-**If PASS:**
-```
-✅ AI review: PASS
-```
-
-**If WARN:**
-```
-⚠️ AI review: WARN
-
-Warnings:
-1. {Warning description}
-
-Acknowledged. Warnings are acceptable for this work.
-```
-
-**If BLOCK:**
-```
-❌ AI review: BLOCK
-
-Blocking issues:
-1. {Issue description}
-
-Fixing issues before proceeding...
-```
-
-Fix BLOCK issues, re-run `just ai-review` until PASS or WARN.
-
----
+- Prepare a clean handoff for manual validator review (evidence pointers, DONE_MEANS mapping, and validation results).
+- No automated review is required or expected.
 
 ### Step 9: Update Task Packet (status only; no validation logs) ✋ STOP
 
@@ -844,7 +831,6 @@ VALIDATION SUMMARY:
 - pnpm test: ✅ PASS (Y tests)
 - pnpm lint: ✅ PASS
 - cargo clippy: ✅ PASS (0 warnings)
-- just ai-review: ✅ PASS
 - just post-work: ✅ PASS
 
 FILES_CHANGED:
@@ -871,7 +857,6 @@ Users can now cancel running jobs via API.
 
 ✅ cargo test: 5 passed
 ✅ pnpm test: 12 passed
-✅ just ai-review: PASS
 
 🤖 Generated with Claude Code
 Co-Authored-By: {Your model} <noreply@anthropic.com>
@@ -938,11 +923,11 @@ Errors:
 I'm fixing these issues. Work is not complete until tests pass.
 ```
 
-**Scenario**: AI review blocks
+**Scenario**: Manual review blocks
 
 **Response**:
 ```
-❌ AI review: BLOCK [CX-573A]
+❌ Manual review: BLOCK [CX-573A]
 
 Blocking issues:
 1. No tests added for new endpoint
@@ -952,7 +937,7 @@ Fixing:
 1. Adding test_cancel_job() and test_cancel_nonexistent_job()
 2. Moving HTTP to api layer
 
-Re-running ai-review after fixes...
+Requesting re-review after fixes...
 ```
 
 ---
@@ -1007,7 +992,6 @@ $ cargo test
 $ pnpm test
 ✅ 12 passed
 
-$ just ai-review
 ✅ PASS
 
 $ just post-work WP-1-Job-Cancel
@@ -1036,7 +1020,7 @@ Now work is done.
 - ✅ BOOTSTRAP block output
 - ✅ Implementation within scope
 - ✅ All TEST_PLAN commands run and pass
-- ✅ AI review complete (if required)
+- ✅ Manual review complete (if required)
 - ✅ Validation evidence captured for handoff (kept outside the task packet)
 - ✅ `just post-work WP-{ID}` passes
 - ✅ Commit message references WP-ID
@@ -1063,8 +1047,6 @@ cat docs/task_packets/WP-{ID}-*.md
 # Run validation
 just validate
 
-# AI review (MEDIUM/HIGH)
-just ai-review
 
 # Post-work check
 just post-work WP-{ID}
@@ -1170,7 +1152,7 @@ This section defines what a PERFECT Coder looks like. Use this for self-evaluati
 
 **MUST follow order:**
 1. **RUN TESTS** (all TEST_PLAN commands pass)
-2. **RUN AI REVIEW** (if MEDIUM/HIGH risk → PASS or WARN)
+2. **RUN MANUAL REVIEW** (if MEDIUM/HIGH risk → PASS or WARN)
 3. **RUN POST-WORK** (`just post-work WP-{ID}` passes)
 
 **MUST verify DONE_MEANS:**
@@ -1203,7 +1185,7 @@ Before requesting commit, verify ALL 13:
 - [ ] **3. Scope Respected:** Code only in IN_SCOPE_PATHS
 - [ ] **4. Hard Invariants:** No violations in production code
 - [ ] **5. Tests Pass:** Every TEST_PLAN command passes
-- [ ] **6. AI Review:** PASS or WARN (no BLOCK) if MEDIUM/HIGH
+- [ ] **6. Manual Review:** PASS or WARN (no BLOCK) if MEDIUM/HIGH
 - [ ] **7. Post-Work:** `just post-work WP-{ID}` passes
 - [ ] **8. DONE_MEANS:** Every criterion has file:line evidence
 - [ ] **9. Validation Evidence:** Captured for handoff (outside task packet)
@@ -1228,7 +1210,7 @@ Stop immediately if ANY of these are true:
 | **6** | Hard invariant violated in production | BLOCK: Fix violation |
 | **7** | TEST_PLAN has placeholders | BLOCK: Orchestrator fix needed |
 | **8** | Test fails and isn't fixed | BLOCK: Fix code, re-test |
-| **9** | AI review blocks (HIGH risk) | BLOCK: Fix code, re-run |
+| **9** | Manual review blocks (HIGH risk) | BLOCK: Fix code, re-run |
 | **10** | post-work validation fails | BLOCK: Fix errors, re-run |
 | **11** | DONE_MEANS missing evidence | BLOCK: Cannot claim done |
 | **12** | Task packet not updated | BLOCK: Update before commit |
@@ -1255,9 +1237,9 @@ Stop immediately if ANY of these are true:
 
 1. ❌ "Packet incomplete, but I'll proceed anyway" → BLOCK and request fix
 2. ❌ "Found a bug in related code, let me fix it" → Document in NOTES, don't implement
-3. ❌ "Tests passing, so I'm done" → Also run AI review and post-work
+3. ❌ "Tests passing, so I'm done" → Also complete post-work and request manual review
 4. ❌ "I'll update packet after I commit" → Update BEFORE commit
-5. ❌ "AI review is just a suggestion" → WARN is acceptable; BLOCK means fix code
+5. ❌ "Manual review is required" → BLOCK means fix code and re-review
 6. ❌ "This hard invariant is annoying, I'll skip it" → Non-negotiable; Validator will catch it
 7. ❌ "I can't understand DONE_MEANS, so I'll claim it's done anyway" → BLOCK; ask Orchestrator
 8. ❌ "Scope changed mid-work, I'll handle it" → Escalate; Orchestrator creates v2 packet
@@ -1307,16 +1289,16 @@ Test fails (any TEST_PLAN command)
 │         B) Escalate: "My changes break {test}. Scope issue?"
 ```
 
-### When AI Review Blocks
+### When Manual Review Blocks
 
 ```
-AI review returns BLOCK
+Manual review returns BLOCK
 ├─ Understand the issue
 │  ├─ Code quality problem (hollow impl, missing tests)
-│  │  └─ Fix code, re-run ai-review until PASS/WARN
+│  │  └─ Fix code and request re-review
 │  │
 │  └─ Architectural problem (violates hard invariants)
-│     └─ Escalate: "AI blocks: {issue}. Needs architectural fix?"
+│     └─ Escalate: "Manual review blocks: {issue}. Needs architectural fix?"
 ```
 
 ### When You're Stuck
@@ -1339,7 +1321,7 @@ Work is stuck (can't proceed without help)
 - ✅ BOOTSTRAP block output (all 4 fields)
 - ✅ Implementation within IN_SCOPE_PATHS
 - ✅ All TEST_PLAN commands pass
-- ✅ AI review PASS or WARN (not BLOCK)
+- ✅ Manual review completed (PASS)
 - ✅ `just post-work` passes
 - ✅ Validation evidence captured for handoff (kept outside the task packet)
 - ✅ Commit message references WP-ID and includes validation
@@ -1349,7 +1331,7 @@ Work is stuck (can't proceed without help)
 - ❌ Started coding without packet
 - ❌ Tests fail but you claim "done"
 - ❌ Scope creep (changed unrelated code)
-- ❌ AI review blocks but you skipped it
+- ❌ Manual review required but you skipped it
 - ❌ Task packet not updated before commit
 
 ---
@@ -1381,15 +1363,15 @@ Work is stuck (can't proceed without help)
 
 ---
 
-### Scenario 3: AI Review Blocks
+### Scenario 3: Manual Review Blocks
 
 **Response:** Understand and fix
 
 **Recovery:**
-1. Read AI output
+1. Read review feedback
 2. Identify issue (hard invariant, security, test coverage, hollow code)
 3. Fix code
-4. Re-run ai-review until PASS or WARN
+4. Request re-review after fixes
 
 ---
 
@@ -1451,7 +1433,7 @@ Work is stuck (can't proceed without help)
 - [ ] BOOTSTRAP Completeness Checklist (4 sub-fields with minimums)
 - [ ] TEST_PLAN Completeness Check (verify concrete commands)
 - [ ] Error Recovery Procedures (6 common mistakes + solutions)
-- [ ] Validation Priority Sequence (Tests → AI Review → Post-Work)
+- [ ] Validation Priority Sequence (Tests → Manual Review → Post-Work)
 - **Effort:** 3-4 hours | **All items IMPLEMENTED ✅**
 
 ### Phase 2 (P1): Quality Systems [88 → 93/100]
@@ -1462,7 +1444,7 @@ Work is stuck (can't proceed without help)
 - **Effort:** 2-3 hours | **All items IMPLEMENTED ✅**
 
 ### Phase 3 (P2): Polish [93 → 99/100]
-- [ ] AI Review Severity Matrix (PASS/WARN/BLOCK criteria)
+- [ ] Manual Review Severity Matrix (PASS/WARN/BLOCK criteria)
 - [ ] Packet Update Clarity (what you can/can't edit)
 - [ ] Ecosystem Links (understanding three-role system)
 - [ ] Miscellaneous Polish (branching strategy, consistency, clarity)
@@ -1487,7 +1469,7 @@ Work is stuck (can't proceed without help)
 - **Grade: A (93/100)**
 
 **After Phase 3 (P2) - Designed**
-- AI review severity objective
+- Manual review severity objective
 - Governance rules explicit
 - Ecosystem context clear
 - Polish complete

@@ -131,3 +131,49 @@ Tests:
 - `pnpm -C app run build` (PASS)
 
 REASON FOR PASS: UI meets A11.5/A10.5 requirements for evidence visibility and trace navigation; lint/build succeed.
+
+---
+
+## VALIDATION REPORT - 2025-12-30 (Revalidation, Batch 5)
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Flight-Recorder-UI-v2.md
+- Spec (SPEC_CURRENT): docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.98.md
+- Protocol: docs/VALIDATOR_PROTOCOL.md
+
+Commands Run:
+- just validator-spec-regression: PASS
+- just cargo-clean: PASS (Removed 0 files)
+- just gate-check WP-1-Flight-Recorder-UI-v2: FAIL (Implementation detected without SKELETON APPROVED marker)
+- node scripts/validation/post-work-check.mjs WP-1-Flight-Recorder-UI-v2: FAIL (non-ASCII + missing COR-701 validation manifest fields/gates)
+- just validator-packet-complete WP-1-Flight-Recorder-UI-v2: FAIL (STATUS missing/invalid; requires canonical **Status:** Ready for Dev / In Progress / Done)
+- just post-work WP-1-Flight-Recorder-UI-v2: FAIL (blocked at gate-check)
+
+Blocking Findings:
+- Phase gate violation [CX-GATE-001]: gate-check fails because implementation is present without a prior "SKELETON APPROVED" marker in this packet.
+- Deterministic manifest gate (COR-701): post-work-check reports missing required manifest fields (target_file, start, end, pre_sha1, post_sha1, line_delta) and missing/unchecked gates (C701-G01, C701-G02, C701-G04, C701-G05, C701-G06, C701-G08).
+- ASCII-only requirement: post-work-check reports non-ASCII characters in the task packet.
+  - NON_ASCII_COUNT=18 (sample: Line 16 Col 59 U+00A7, Line 47 Col 5 U+2705, Line 91 Col 22 U+2014, Line 94 Col 28 U+2192)
+- Spec mismatch: this packet asserts Master Spec v02.93, but docs/SPEC_CURRENT.md points to v02.98. Prior PASS claims are not valid against the current spec.
+
+Manual Spot-Checks (evidence only; does not override the failures above):
+- Trace filter clickability: app/src/components/FlightRecorderView.tsx:60-69 and app/src/components/FlightRecorderView.tsx:159-165.
+- Security violation highlighting + offset/context rendering: app/src/components/FlightRecorderView.tsx:147-178 and app/src/App.css:280-298.
+- Event typing includes security_violation and payload fields offset/context: app/src/lib/api.ts:136-165.
+
+REASON FOR FAIL:
+- Blocking process gates (phase gate + COR-701 manifest + ASCII-only + STATUS marker) fail; spec alignment to v02.98 is not demonstrated.
+
+Required Fixes:
+1) Bring this packet back into protocol: include proper BOOTSTRAP/SKELETON/IMPLEMENTATION/HYGIENE/VALIDATION sections and obtain explicit "SKELETON APPROVED" before implementation evidence.
+2) Make the task packet ASCII-only (remove/replace non-ASCII characters; rerun post-work-check until clean).
+3) Add a COR-701 validation manifest (target_file/start/end/pre_sha1/post_sha1/line_delta + gates checklist) and ensure `just post-work WP-1-Flight-Recorder-UI-v2` passes.
+4) Re-anchor DONE_MEANS + evidence mapping to Handshake_Master_Spec_v02.98.md and revalidate against v02.98 requirements.
+
+**Status:** Ready for Dev
+
+Addendum (2025-12-30):
+- The canonical **Status:** line above addresses the earlier status-marker failure, but packet completeness still fails because the required user signature field is missing/pending.
+
+

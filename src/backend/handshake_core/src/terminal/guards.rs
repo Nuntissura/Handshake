@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use crate::capabilities::CapabilityRegistry;
+use regex::Regex;
 
 use super::{config::TerminalConfig, TerminalError, TerminalRequest};
 
@@ -42,10 +43,11 @@ impl TerminalGuard for DefaultTerminalGuard {
         req: &TerminalRequest,
         registry: &CapabilityRegistry,
     ) -> Result<(), TerminalError> {
-        let capability = req
-            .requested_capability
-            .as_deref()
-            .unwrap_or("terminal.exec");
+        #[allow(clippy::manual_unwrap_or)]
+        let capability = match req.requested_capability.as_deref() {
+            Some(value) => value,
+            None => "terminal.exec",
+        };
         if capability.trim().is_empty() {
             return Err(TerminalError::CapabilityDenied(
                 "HSK-TERM-002: requested capability missing".to_string(),
@@ -105,6 +107,14 @@ impl TerminalGuard for DefaultTerminalGuard {
             .canonicalize()
             .map_err(|e| TerminalError::CwdViolation(format!("HSK-TERM-003: {}", e)))?;
 
+        if let Some(cwd) = &req.cwd {
+            if cwd.is_absolute() {
+                return Err(TerminalError::CwdViolation(
+                    "HSK-TERM-003: cwd must be workspace-relative".to_string(),
+                ));
+            }
+        }
+
         let target = if let Some(cwd) = &req.cwd {
             root.join(cwd)
         } else {
@@ -121,7 +131,60 @@ impl TerminalGuard for DefaultTerminalGuard {
             ));
         }
 
+        if !cfg.allowed_cwd_roots.is_empty() {
+            let mut allowed = false;
+            for allowed_root in cfg.allowed_cwd_roots.iter() {
+                if allowed_root.is_absolute() {
+                    return Err(TerminalError::CwdViolation(
+                        "HSK-TERM-003: allowed cwd roots must be workspace-relative".to_string(),
+                    ));
+                }
+                let allowed_path = root
+                    .join(allowed_root)
+                    .canonicalize()
+                    .map_err(|e| TerminalError::CwdViolation(format!("HSK-TERM-003: {}", e)))?;
+                if resolved.starts_with(&allowed_path) {
+                    allowed = true;
+                    break;
+                }
+            }
+
+            if !allowed {
+                return Err(TerminalError::CwdViolation(
+                    "HSK-TERM-003: cwd not in allowed roots".to_string(),
+                ));
+            }
+        }
+
         Ok(resolved)
+    }
+
+    fn pre_exec(
+        &self,
+        req: &mut TerminalRequest,
+        cfg: &TerminalConfig,
+    ) -> Result<(), TerminalError> {
+        let command_line = if req.args.is_empty() {
+            req.command.clone()
+        } else {
+            format!("{} {}", req.command, req.args.join(" "))
+        };
+
+        if matches_any(&cfg.denied_command_patterns, &command_line)? {
+            return Err(TerminalError::CapabilityDenied(
+                "HSK-TERM-002: command denied by policy".to_string(),
+            ));
+        }
+
+        if !cfg.allowed_command_patterns.is_empty()
+            && !matches_any(&cfg.allowed_command_patterns, &command_line)?
+        {
+            return Err(TerminalError::CapabilityDenied(
+                "HSK-TERM-002: command not allowed by policy".to_string(),
+            ));
+        }
+
+        Ok(())
     }
 }
 
@@ -149,4 +212,16 @@ impl DefaultTerminalGuard {
             .can_perform(capability, &req.granted_capabilities)
             .map_err(|e| TerminalError::CapabilityDenied(format!("HSK-TERM-002: {}", e)))
     }
+}
+
+fn matches_any(patterns: &[String], command_line: &str) -> Result<bool, TerminalError> {
+    for pattern in patterns {
+        let regex = Regex::new(pattern).map_err(|e| {
+            TerminalError::CapabilityDenied(format!("HSK-TERM-002: invalid command pattern: {}", e))
+        })?;
+        if regex.is_match(command_line) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }

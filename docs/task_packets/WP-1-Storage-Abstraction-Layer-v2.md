@@ -195,3 +195,53 @@ Tests:
 - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --all-targets` (PASS; includes sqlite/postgres storage_conformance)
 
 REASON FOR PASS: Storage test utilities are now accessible to integration tests without warnings, and the full suite passes under Spec v02.93.
+
+---
+
+## VALIDATION REPORT - 2025-12-30 (Revalidation, Batch 6)
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Storage-Abstraction-Layer-v2.md
+- Spec (SPEC_CURRENT): docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.98.md
+- Protocol: docs/VALIDATOR_PROTOCOL.md
+
+Commands Run:
+- just validator-spec-regression: PASS
+- just cargo-clean: PASS (Removed 0 files)
+- just gate-check WP-1-Storage-Abstraction-Layer-v2: FAIL (SKELETON appears before BOOTSTRAP)
+- node scripts/validation/post-work-check.mjs WP-1-Storage-Abstraction-Layer-v2: FAIL (non-ASCII + missing COR-701 validation manifest fields/gates)
+- just validator-packet-complete WP-1-Storage-Abstraction-Layer-v2: FAIL (STATUS missing/invalid; requires canonical **Status:** Ready for Dev / In Progress / Done)
+- just post-work WP-1-Storage-Abstraction-Layer-v2: FAIL (blocked at gate-check)
+- just validator-dal-audit: PASS
+
+Blocking Findings:
+- Phase gate violation [CX-GATE-001]: gate-check fails because the packet declares "SKELETON APPROVED" before BOOTSTRAP (docs/task_packets/WP-1-Storage-Abstraction-Layer-v2.md:12).
+- Deterministic manifest gate (COR-701): post-work-check reports missing required manifest fields (target_file, start, end, pre_sha1, post_sha1, line_delta) and missing/unchecked gates (C701-G01, C701-G02, C701-G04, C701-G05, C701-G06, C701-G08).
+- ASCII-only requirement: post-work-check reports non-ASCII characters in the task packet.
+  - NON_ASCII_COUNT=3 (sample: Line 89 Col 22 U+2014, Line 177 Col 22 U+0192)
+- Spec mismatch: packet cites Master Spec v02.90/v02.93, but docs/SPEC_CURRENT.md points to v02.98. Prior PASS claims are not valid against the current spec.
+- Internal inconsistency: this packet already contains an older "Verdict: FAIL" section (docs/task_packets/WP-1-Storage-Abstraction-Layer-v2.md:118) but TASK_BOARD currently lists it as Done/[VALIDATED].
+
+Spec-to-Code Findings (v02.98, spot-check):
+- [CX-DBP-040] Trait purity requirement (Handshake_Master_Spec_v02.98.md:3005-3008) appears satisfied in current code:
+  - AppState exposes trait objects only: src/backend/handshake_core/src/lib.rs:25-31.
+  - Database trait has no pool-returning methods: src/backend/handshake_core/src/storage/mod.rs:723-836.
+  - init_storage returns Arc<dyn Database>: src/backend/handshake_core/src/storage/mod.rs:840-858.
+  - Janitor consumes Arc<dyn Database> and Arc<dyn FlightRecorder>: src/backend/handshake_core/src/storage/retention.rs:71-86.
+- This evidence does not override the blocking packet gate failures above.
+
+REASON FOR FAIL:
+- Blocking process gates (phase gate + COR-701 manifest + ASCII-only + packet completeness) fail; spec alignment to v02.98 is not demonstrated.
+
+Required Fixes:
+1) Fix the packet phase ordering so BOOTSTRAP precedes SKELETON and SKELETON APPROVED is only issued after a valid skeleton.
+2) Make the task packet ASCII-only (remove/replace non-ASCII characters; rerun post-work-check until clean).
+3) Add a COR-701 validation manifest (target_file/start/end/pre_sha1/post_sha1/line_delta + gates checklist) and ensure `just post-work WP-1-Storage-Abstraction-Layer-v2` passes.
+4) Re-anchor DONE_MEANS + evidence mapping to Handshake_Master_Spec_v02.98.md (2.3.12.1-2.3.12.3) and rerun the TEST_PLAN commands.
+5) Reconcile TASK_BOARD status with packet status history (no Done while any FAIL exists).
+
+**Status:** Ready for Dev
+USER_SIGNATURE: ilja261220250259
+
+

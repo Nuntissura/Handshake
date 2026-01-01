@@ -1215,6 +1215,14 @@ impl super::Database for SqliteDatabase {
             push_clause(&mut qb);
             qb.push("job_kind = ").push_bind(kind.as_str());
         }
+        if let Some(wsid) = filter.wsid {
+            push_clause(&mut qb);
+            qb.push(
+                "EXISTS (SELECT 1 FROM json_each(entity_refs) AS elem WHERE json_extract(elem.value, '$.entity_kind') = 'workspace' AND json_extract(elem.value, '$.entity_id') = ",
+            )
+            .push_bind(wsid)
+            .push(")");
+        }
         if let Some(from) = filter.from {
             push_clause(&mut qb);
             qb.push("created_at >= ").push_bind(from);

@@ -18,6 +18,9 @@ const CANONICAL_CAPABILITY_IDS: &[&str] = &[
     "CALENDAR_COMPARE_ACTIVITY_WINDOWS",
     "terminal.attach_human",
     "export.debug_bundle",
+    "fr.read",
+    "diagnostics.read",
+    "jobs.read",
     "export.include_payloads",
 ];
 
@@ -54,8 +57,8 @@ pub struct CapabilityRegistry {
     profiles: HashMap<String, CapabilityProfile>,
     /// Mapping of JobKind -> CapabilityProfile ID
     job_profile_map: HashMap<String, String>,
-    /// Mapping of JobKind -> Required Capability ID
-    job_requirements: HashMap<String, String>,
+    /// Mapping of JobKind -> Required Capability IDs
+    job_requirements: HashMap<String, Vec<String>>,
 }
 
 impl Default for CapabilityRegistry {
@@ -101,6 +104,9 @@ impl CapabilityRegistry {
                     "net.http".to_string(),
                     "doc.summarize".to_string(),
                     "export.debug_bundle".to_string(),
+                    "fr.read".to_string(),
+                    "diagnostics.read".to_string(),
+                    "jobs.read".to_string(),
                     "export.include_payloads".to_string(),
                 ],
             },
@@ -141,18 +147,41 @@ impl CapabilityRegistry {
 
         // Job Kind -> Required Capability Mapping
         let mut job_requirements = HashMap::new();
-        job_requirements.insert("doc_edit".to_string(), "doc.summarize".to_string());
-        job_requirements.insert("sheet_transform".to_string(), "doc.summarize".to_string());
-        job_requirements.insert("canvas_cluster".to_string(), "doc.summarize".to_string());
-        job_requirements.insert("asr_transcribe".to_string(), "doc.summarize".to_string());
-        job_requirements.insert("workflow_run".to_string(), "doc.summarize".to_string());
-        job_requirements.insert("doc_summarize".to_string(), "doc.summarize".to_string());
-        job_requirements.insert("doc_test".to_string(), "doc.summarize".to_string());
-        job_requirements.insert("term_exec".to_string(), "terminal.exec".to_string());
-        job_requirements.insert("terminal_exec".to_string(), "terminal.exec".to_string());
+        job_requirements.insert("doc_edit".to_string(), vec!["doc.summarize".to_string()]);
+        job_requirements.insert(
+            "sheet_transform".to_string(),
+            vec!["doc.summarize".to_string()],
+        );
+        job_requirements.insert(
+            "canvas_cluster".to_string(),
+            vec!["doc.summarize".to_string()],
+        );
+        job_requirements.insert(
+            "asr_transcribe".to_string(),
+            vec!["doc.summarize".to_string()],
+        );
+        job_requirements.insert(
+            "workflow_run".to_string(),
+            vec!["doc.summarize".to_string()],
+        );
+        job_requirements.insert(
+            "doc_summarize".to_string(),
+            vec!["doc.summarize".to_string()],
+        );
+        job_requirements.insert("doc_test".to_string(), vec!["doc.summarize".to_string()]);
+        job_requirements.insert("term_exec".to_string(), vec!["terminal.exec".to_string()]);
+        job_requirements.insert(
+            "terminal_exec".to_string(),
+            vec!["terminal.exec".to_string()],
+        );
         job_requirements.insert(
             "debug_bundle_export".to_string(),
-            "export.debug_bundle".to_string(),
+            vec![
+                "export.debug_bundle".to_string(),
+                "fr.read".to_string(),
+                "diagnostics.read".to_string(),
+                "jobs.read".to_string(),
+            ],
         );
 
         Self {
@@ -227,8 +256,11 @@ impl CapabilityRegistry {
             .ok_or_else(|| RegistryError::UnknownProfile(profile_id.to_string()))
     }
 
-    /// Returns the specific capability required to run a given job kind.
-    pub fn required_capability_for_job(&self, job_kind: &str) -> Result<String, RegistryError> {
+    /// Returns the required capabilities to run a given job kind.
+    pub fn required_capabilities_for_job(
+        &self,
+        job_kind: &str,
+    ) -> Result<Vec<String>, RegistryError> {
         self.job_requirements.get(job_kind).cloned().ok_or_else(|| {
             RegistryError::UnknownProfile(format!(
                 "No capability requirement defined for job kind: {}",
@@ -297,8 +329,7 @@ mod tests {
             let profile = match registry.profile_for_job(kind) {
                 Ok(profile) => profile,
                 Err(err) => {
-                    assert!(false, "expected profile for {kind}, got error: {err}");
-                    continue;
+                    unreachable!("expected profile for {kind}, got error: {err}");
                 }
             };
             // ensure profile has at least one capability

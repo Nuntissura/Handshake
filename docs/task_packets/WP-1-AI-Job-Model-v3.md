@@ -182,3 +182,51 @@ Tests:
 - `node scripts/validation/validator-scan.mjs` (PASS)
 
 REASON FOR PASS: AI Job Model conforms to Master Spec v02.93 §2.6.6.2.8 with strict enums, NOT NULL metrics, and poisoning trap; targeted tests and validator scan passed.
+
+---
+
+## VALIDATION REPORT - 2025-12-30 (Revalidation, Batch 6)
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-AI-Job-Model-v3.md
+- Spec (SPEC_CURRENT): docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.98.md
+- Protocol: docs/VALIDATOR_PROTOCOL.md
+
+Commands Run:
+- just validator-spec-regression: PASS
+- just cargo-clean: PASS (Removed 0 files)
+- just gate-check WP-1-AI-Job-Model-v3: FAIL (Implementation detected without SKELETON APPROVED marker)
+- node scripts/validation/post-work-check.mjs WP-1-AI-Job-Model-v3: FAIL (non-ASCII + missing COR-701 validation manifest fields/gates)
+- just validator-packet-complete WP-1-AI-Job-Model-v3: FAIL (STATUS missing/invalid; requires canonical **Status:** Ready for Dev / In Progress / Done)
+- just post-work WP-1-AI-Job-Model-v3: FAIL (blocked at gate-check)
+
+Blocking Findings:
+- Phase gate violation [CX-GATE-001]: gate-check fails because implementation is present without a prior "SKELETON APPROVED" marker in this packet.
+- Deterministic manifest gate (COR-701): post-work-check reports missing required manifest fields (target_file, start, end, pre_sha1, post_sha1, line_delta) and missing/unchecked gates (C701-G01, C701-G02, C701-G04, C701-G05, C701-G06, C701-G08).
+- ASCII-only requirement: post-work-check reports non-ASCII characters in the task packet.
+  - NON_ASCII_COUNT=17 (sample: Line 13 Col 34 U+2014, Line 52 Col 5 U+2705, Line 112 Col 28 U+2192)
+- Spec mismatch: this packet asserts Master Spec v02.93, but docs/SPEC_CURRENT.md points to v02.98. Prior PASS claims are not valid against the current spec.
+- Internal inconsistency: this packet already contains an older "Verdict: FAIL" section (docs/task_packets/WP-1-AI-Job-Model-v3.md:146) but TASK_BOARD currently lists it as Done/[VALIDATED].
+
+Spec-to-Code Findings (v02.98, spot-check):
+- Normative Rust types are defined (AiJob/JobMetrics/JobKind/JobState/AccessMode) in src/backend/handshake_core/src/storage/mod.rs:307-553.
+- Spec requires the normative JobState variants (Handshake_Master_Spec_v02.98.md:5307-5318) but current code adds JobState::Stalled (src/backend/handshake_core/src/storage/mod.rs:307-318), which is not present in the v02.98 normative list.
+- Spec defines a normative JobKind set (Handshake_Master_Spec_v02.98.md:5284-5291); current code includes additional variants (src/backend/handshake_core/src/storage/mod.rs:339-352). Some variants appear needed by other v02.98 sections (e.g., debug_bundle_export job profile), but alignment is not evidenced/mapped in this packet for v02.98.
+- Metrics NOT NULL/default enforcement exists in the migration: src/backend/handshake_core/migrations/0008_expand_ai_job_model.sql:6-27 (metrics TEXT NOT NULL DEFAULT ... at line 21).
+- Zeroed metrics at job init is enforced in create_job: src/backend/handshake_core/src/jobs.rs:18-41 (metrics: JobMetrics::zero()).
+
+REASON FOR FAIL:
+- Blocking process gates (phase gate + COR-701 manifest + ASCII-only + packet completeness) fail; spec alignment to v02.98 is not demonstrated.
+
+Required Fixes:
+1) Bring this packet back into protocol: include proper BOOTSTRAP/SKELETON/IMPLEMENTATION/HYGIENE/VALIDATION sections and obtain explicit "SKELETON APPROVED" before implementation evidence.
+2) Make the task packet ASCII-only (remove/replace non-ASCII characters; rerun post-work-check until clean).
+3) Add a COR-701 validation manifest (target_file/start/end/pre_sha1/post_sha1/line_delta + gates checklist) and ensure `just post-work WP-1-AI-Job-Model-v3` passes.
+4) Re-anchor DONE_MEANS + evidence mapping to Handshake_Master_Spec_v02.98.md (2.6.6.2.8) and explicitly map any JobKind/JobState deviations or reconcile them.
+5) Reconcile TASK_BOARD status with packet status history (no Done while any FAIL exists).
+
+**Status:** Ready for Dev
+USER_SIGNATURE: ilja261220252215
+
+

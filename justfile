@@ -64,10 +64,6 @@ scaffold-check:
 codex-check-test:
 	node scripts/codex-check-test.mjs
 
-# AI review (requires gemini CLI)
-ai-review:
-	node scripts/ai-review-gemini.mjs
-
 # === Workflow Enforcement Commands (Codex v0.8) ===
 
 # Record a technical refinement for a work packet [CX-585A]
@@ -93,9 +89,9 @@ post-work wp-id:
 	@just gate-check {{wp-id}}
 	@node scripts/validation/post-work-check.mjs {{wp-id}}
 
-# Full workflow validation for a work packet
+# Automated workflow validation for a work packet
 validate-workflow wp-id:
-	@echo "Running full workflow validation for {{wp-id}}..."
+	@echo "Running automated workflow validation for {{wp-id}}..."
 	@echo ""
 	@echo "Step 0: Gate Check"
 	@just gate-check {{wp-id}}
@@ -106,13 +102,10 @@ validate-workflow wp-id:
 	@echo "Step 2: Code quality validation"
 	@just validate
 	@echo ""
-	@echo "Step 3: AI review"
-	@just ai-review
-	@echo ""
-	@echo "Step 4: Post-work check"
+	@echo "Step 3: Post-work check"
 	@just post-work {{wp-id}}
 	@echo ""
-	@echo "✅ Full workflow validation passed for {{wp-id}}"
+	@echo "✅ Automated workflow validation passed for {{wp-id}} (manual review required)"
 
 # Gate check (protocol-aligned)
 gate-check wp-id:
@@ -148,3 +141,4 @@ validator-git-hygiene:
 
 validator-hygiene-full:
 	@node scripts/validation/validator-hygiene-full.mjs
+

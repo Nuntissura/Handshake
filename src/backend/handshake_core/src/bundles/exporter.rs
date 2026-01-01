@@ -14,18 +14,20 @@ use uuid::Uuid;
 
 use crate::bundles::redactor::SecretRedactor;
 use crate::bundles::schemas::{
-    AvailableCounts, BundleDiagnostic, BundleEnv, BundleJob, BundleJobError, BundleJobMetrics,
-    BundleManifest, BundleManifestFile, EvidenceGap, ExpiredEvidence, ExportableDiagnostic,
-    ExportableFilter, ExportableInventory, ExportableJob, ExportableRange, IncludedCounts,
-    ManifestScope, MissingEvidence, PlatformInfo, PlatformInfoMinimal, RedactionLogEntry,
-    RedactionMode, RedactionReport, RetentionPolicy, RetentionReport, ScopeKind, TimeRange,
+    AvailableCounts, BundleDiagnostic, BundleDiagnosticSeverity, BundleEnv, BundleJob,
+    BundleJobError, BundleJobMetrics, BundleJobStatus, BundleLinkConfidence, BundleManifest,
+    BundleManifestFile, EvidenceGap, ExpiredEvidence, ExportableDiagnostic, ExportableFilter,
+    ExportableInventory, ExportableJob, ExportableRange, ImpactLevel, IncludedCounts,
+    ManifestScope, MissingEvidence, MissingEvidenceKind, MissingEvidenceReason, PlatformInfo,
+    PlatformInfoMinimal, RedactionLogEntry, RedactionMode, RedactionReport, RetentionPolicy,
+    RetentionReport, ScopeKind, TimeRange,
 };
 use crate::bundles::templates::{render_coder_prompt, render_repro_md};
 use crate::bundles::validator::ValBundleValidator;
 use crate::bundles::zip::{
     compute_bundle_hash, sha256_hex, write_deterministic_zip, BundleFileEntry,
 };
-use crate::diagnostics::{DiagFilter, Diagnostic};
+use crate::diagnostics::{DiagFilter, Diagnostic, DiagnosticSeverity, LinkConfidence};
 use crate::flight_recorder::{
     EventFilter, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
     FrEvt005DebugBundleExport,
@@ -35,6 +37,24 @@ use crate::AppState;
 
 static BUNDLE_STORE: Lazy<Mutex<HashMap<String, PathBuf>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
+
+#[derive(Debug, Clone)]
+struct ExportProvenance {
+    bundle_id: String,
+    workflow_run_id: String,
+    trace_id: Uuid,
+}
+
+impl ExportProvenance {
+    fn standalone() -> Self {
+        let bundle_id = Uuid::new_v4().to_string();
+        Self {
+            bundle_id,
+            workflow_run_id: Uuid::new_v4().to_string(),
+            trace_id: Uuid::new_v4(),
+        }
+    }
+}
 
 pub fn bundle_path(bundle_id: &str) -> Option<PathBuf> {
     BUNDLE_STORE
@@ -67,16 +87,17 @@ fn preview_json(value: &Option<Value>, max_len: usize) -> Option<String> {
     }
 }
 
-fn job_status_from_state(state: &JobState) -> String {
+fn job_status_from_state(state: &JobState) -> BundleJobStatus {
     match state {
-        JobState::Queued => "queued",
-        JobState::Running | JobState::AwaitingUser | JobState::AwaitingValidation => "running",
-        JobState::Completed | JobState::CompletedWithIssues => "completed",
-        JobState::Failed | JobState::Poisoned => "failed",
-        JobState::Cancelled => "cancelled",
-        JobState::Stalled => "running",
+        JobState::Queued => BundleJobStatus::Queued,
+        JobState::Running
+        | JobState::AwaitingUser
+        | JobState::AwaitingValidation
+        | JobState::Stalled => BundleJobStatus::Running,
+        JobState::Completed | JobState::CompletedWithIssues => BundleJobStatus::Completed,
+        JobState::Failed | JobState::Poisoned => BundleJobStatus::Failed,
+        JobState::Cancelled => BundleJobStatus::Cancelled,
     }
-    .to_string()
 }
 
 fn job_matches_wsid(job: &AiJob, wsid: &str) -> bool {
@@ -198,6 +219,25 @@ impl DefaultDebugBundleExporter {
         Self { state }
     }
 
+    pub async fn export_for_job(
+        &self,
+        request: DebugBundleRequest,
+        export_job_id: Uuid,
+        workflow_run_id: Uuid,
+        trace_id: Uuid,
+    ) -> Result<BundleManifest, BundleExportError> {
+        export_impl(
+            self,
+            request,
+            ExportProvenance {
+                bundle_id: export_job_id.to_string(),
+                workflow_run_id: workflow_run_id.to_string(),
+                trace_id,
+            },
+        )
+        .await
+    }
+
     fn default_output_path(bundle_id: &str) -> PathBuf {
         PathBuf::from("data")
             .join("bundles")
@@ -290,9 +330,9 @@ impl DefaultDebugBundleExporter {
                     Ok(diag) => vec![diag],
                     Err(StorageError::NotFound(_)) => {
                         missing.push(MissingEvidence {
-                            kind: "diagnostic".to_string(),
+                            kind: MissingEvidenceKind::Diagnostic,
                             id: diagnostic_id.clone(),
-                            reason: "not_found".to_string(),
+                            reason: MissingEvidenceReason::NotFound,
                         });
                         Vec::new()
                     }
@@ -308,9 +348,11 @@ impl DefaultDebugBundleExporter {
                 let parsed = Uuid::parse_str(job_id).map_err(|_| {
                     BundleExportError::InvalidScope("job_id must be a UUID".to_string())
                 })?;
-                let mut filter = DiagFilter::default();
-                filter.job_id = Some(parsed);
-                filter.limit = Some(1000);
+                let filter = DiagFilter {
+                    job_id: Some(parsed),
+                    limit: Some(1000),
+                    ..Default::default()
+                };
                 self.state
                     .diagnostics
                     .list_diagnostics(filter)
@@ -318,11 +360,13 @@ impl DefaultDebugBundleExporter {
                     .map_err(|e| BundleExportError::ExportFailed(e.to_string()))?
             }
             BundleScope::TimeWindow { start, end, wsid } => {
-                let mut filter = DiagFilter::default();
-                filter.from = Some(*start);
-                filter.to = Some(*end);
-                filter.wsid = wsid.clone();
-                filter.limit = Some(1000);
+                let filter = DiagFilter {
+                    from: Some(*start),
+                    to: Some(*end),
+                    wsid: wsid.clone(),
+                    limit: Some(1000),
+                    ..Default::default()
+                };
                 self.state
                     .diagnostics
                     .list_diagnostics(filter)
@@ -330,11 +374,14 @@ impl DefaultDebugBundleExporter {
                     .map_err(|e| BundleExportError::ExportFailed(e.to_string()))?
             }
             BundleScope::Workspace { wsid } => {
-                let mut filter = DiagFilter::default();
-                filter.from = Some(Utc::now() - Duration::hours(24));
-                filter.to = Some(Utc::now());
-                filter.wsid = Some(wsid.clone());
-                filter.limit = Some(1000);
+                let now = Utc::now();
+                let filter = DiagFilter {
+                    from: Some(now - Duration::hours(24)),
+                    to: Some(now),
+                    wsid: Some(wsid.clone()),
+                    limit: Some(1000),
+                    ..Default::default()
+                };
                 self.state
                     .diagnostics
                     .list_diagnostics(filter)
@@ -433,9 +480,9 @@ impl DefaultDebugBundleExporter {
             match self.state.storage.get_ai_job(&job_id).await {
                 Ok(job) => jobs.push(job),
                 Err(StorageError::NotFound(_)) => missing.push(MissingEvidence {
-                    kind: "job".to_string(),
+                    kind: MissingEvidenceKind::Job,
                     id: job_id,
-                    reason: "not_found".to_string(),
+                    reason: MissingEvidenceReason::NotFound,
                 }),
                 Err(err) => {
                     return Err(BundleExportError::ExportFailed(format!(
@@ -526,10 +573,26 @@ impl DefaultDebugBundleExporter {
             }
         }
 
+        let severity = match diagnostic.severity {
+            DiagnosticSeverity::Fatal | DiagnosticSeverity::Error => {
+                BundleDiagnosticSeverity::Error
+            }
+            DiagnosticSeverity::Warning => BundleDiagnosticSeverity::Warning,
+            DiagnosticSeverity::Info => BundleDiagnosticSeverity::Info,
+            DiagnosticSeverity::Hint => BundleDiagnosticSeverity::Hint,
+        };
+
+        let link_confidence = match diagnostic.link_confidence {
+            LinkConfidence::Direct => BundleLinkConfidence::Direct,
+            LinkConfidence::Inferred => BundleLinkConfidence::Inferred,
+            LinkConfidence::Ambiguous => BundleLinkConfidence::Ambiguous,
+            LinkConfidence::Unlinked => BundleLinkConfidence::Unlinked,
+        };
+
         BundleDiagnostic {
             id: diagnostic.id.to_string(),
             fingerprint: diagnostic.fingerprint.clone(),
-            severity: diagnostic.severity.as_str().to_string(),
+            severity,
             source: diagnostic.source.as_str(),
             surface: diagnostic.surface.as_str().to_string(),
             code: diagnostic.code.clone().unwrap_or_else(|| "n/a".to_string()),
@@ -542,7 +605,7 @@ impl DefaultDebugBundleExporter {
             file_path,
             line_start,
             line_end,
-            link_confidence: diagnostic.link_confidence.as_str().to_string(),
+            link_confidence,
             evidence_refs,
             occurrence_count: diagnostic.count.map(|c| c as u32),
             first_seen: diagnostic.first_seen,
@@ -683,9 +746,9 @@ impl DefaultDebugBundleExporter {
             evidence_gaps: missing
                 .iter()
                 .map(|m| EvidenceGap {
-                    kind: m.kind.clone(),
-                    description: format!("{} missing ({})", m.id, m.reason),
-                    impact: "medium".to_string(),
+                    kind: m.kind.as_str().to_string(),
+                    description: format!("{} missing ({})", m.id, m.reason.as_str()),
+                    impact: ImpactLevel::Medium,
                 })
                 .collect(),
         }
@@ -703,8 +766,10 @@ impl DefaultDebugBundleExporter {
         report
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn emit_fr_event(
         &self,
+        trace_id: Uuid,
         bundle_id: &str,
         scope: &ManifestScope,
         redaction_mode: RedactionMode,
@@ -713,21 +778,37 @@ impl DefaultDebugBundleExporter {
         event_count: usize,
         missing: &[MissingEvidence],
     ) {
+        let scope_kind = match scope.kind {
+            ScopeKind::Problem => "problem",
+            ScopeKind::Job => "job",
+            ScopeKind::TimeWindow => "time_window",
+            ScopeKind::Workspace => "workspace",
+        };
+
+        let redaction_mode = match redaction_mode {
+            RedactionMode::SafeDefault => "SAFE_DEFAULT",
+            RedactionMode::Workspace => "WORKSPACE",
+            RedactionMode::FullLocal => "FULL_LOCAL",
+        };
+
         let payload = FrEvt005DebugBundleExport {
             bundle_id: bundle_id.to_string(),
-            scope: format!("{:?}", scope.kind).to_lowercase(),
-            redaction_mode: format!("{:?}", redaction_mode).to_uppercase(),
+            scope: scope_kind.to_string(),
+            redaction_mode: redaction_mode.to_string(),
             included_job_ids: jobs.iter().map(|j| j.job_id.clone()).collect(),
             included_diagnostic_ids: diagnostics.iter().map(|d| d.id.clone()).collect(),
             included_wsids: scope.wsid.clone().into_iter().collect::<Vec<String>>(),
             event_count,
-            missing_evidence: missing.iter().map(|m| json!(m)).collect(),
+            missing_evidence: missing
+                .iter()
+                .map(|m| json!({ "kind": m.kind.as_str(), "reason": m.reason.as_str() }))
+                .collect(),
         };
 
         let mut event = FlightRecorderEvent::new(
             FlightRecorderEventType::DebugBundleExport,
             FlightRecorderActor::Agent,
-            Uuid::new_v4(),
+            trace_id,
             json!(payload),
         )
         .with_job_id(bundle_id.to_string());
@@ -743,357 +824,477 @@ impl DefaultDebugBundleExporter {
     }
 }
 
+async fn export_impl(
+    exporter: &DefaultDebugBundleExporter,
+    request: DebugBundleRequest,
+    provenance: ExportProvenance,
+) -> Result<BundleManifest, BundleExportError> {
+    let ExportProvenance {
+        bundle_id,
+        workflow_run_id,
+        trace_id,
+    } = provenance;
+
+    let output_dir = request
+        .output_path
+        .clone()
+        .unwrap_or_else(|| DefaultDebugBundleExporter::default_output_path(&bundle_id));
+    fs::create_dir_all(&output_dir)?;
+
+    let mut scope = exporter.build_manifest_scope(&request.scope);
+    let redactor = SecretRedactor::new();
+
+    let (diagnostics_raw, mut missing_evidence) =
+        exporter.collect_diagnostics(&request.scope).await?;
+    let mut events_raw = exporter
+        .collect_events(&request.scope, &diagnostics_raw)
+        .await?;
+    events_raw.sort_by(|a, b| {
+        a.timestamp
+            .cmp(&b.timestamp)
+            .then_with(|| a.event_id.cmp(&b.event_id))
+    });
+
+    let max_events_limit = matches!(
+        &request.scope,
+        BundleScope::TimeWindow { .. } | BundleScope::Workspace { .. }
+    );
+    let truncated_event_count = if max_events_limit && events_raw.len() > 10_000 {
+        let original = events_raw.len();
+        events_raw.truncate(10_000);
+        Some(original - 10_000)
+    } else {
+        None
+    };
+
+    let (jobs_raw, missing_jobs) = exporter
+        .collect_jobs(&request.scope, &diagnostics_raw, &events_raw)
+        .await?;
+    missing_evidence.extend(missing_jobs);
+
+    let present_event_ids: HashSet<String> =
+        events_raw.iter().map(|e| e.event_id.to_string()).collect();
+
+    let mut candidate_event_ids: Vec<String> = Vec::new();
+    for diagnostic in &diagnostics_raw {
+        if let Some(ids) = diagnostic
+            .evidence_refs
+            .as_ref()
+            .and_then(|refs| refs.fr_event_ids.as_ref())
+        {
+            candidate_event_ids.extend(ids.clone());
+        }
+    }
+
+    let mut event_ids_for_prompt: Vec<String> = Vec::new();
+    for event_id in candidate_event_ids {
+        if present_event_ids.contains(&event_id) {
+            event_ids_for_prompt.push(event_id);
+        }
+    }
+    event_ids_for_prompt.sort();
+    event_ids_for_prompt.dedup();
+    if event_ids_for_prompt.is_empty() {
+        event_ids_for_prompt = events_raw
+            .iter()
+            .take(25)
+            .map(|e| e.event_id.to_string())
+            .collect();
+    }
+    if event_ids_for_prompt.len() > 50 {
+        event_ids_for_prompt.truncate(50);
+    }
+
+    let mut diagnostics: Vec<BundleDiagnostic> = diagnostics_raw
+        .iter()
+        .map(|d| exporter.map_diagnostic(d))
+        .collect();
+    diagnostics.sort_by(|a, b| a.id.cmp(&b.id));
+
+    let mut jobs: Vec<BundleJob> = jobs_raw
+        .iter()
+        .map(|j| exporter.map_job(j, &diagnostics, &events_raw, request.redaction_mode))
+        .collect();
+    jobs.sort_by(|a, b| a.job_id.cmp(&b.job_id));
+
+    if scope.wsid.is_none() {
+        scope.wsid = diagnostics_raw
+            .iter()
+            .filter_map(|d| d.wsid.clone())
+            .next()
+            .or_else(|| jobs.iter().filter_map(|j| j.wsid.clone()).next());
+    }
+
+    let env = exporter.build_env(scope.wsid.clone(), request.redaction_mode);
+
+    let timeline = if diagnostics_raw.is_empty() {
+        None
+    } else {
+        let mut timestamps: Vec<DateTime<Utc>> =
+            diagnostics_raw.iter().map(|d| d.timestamp).collect();
+        timestamps.sort();
+        Some((
+            *timestamps.first().unwrap_or(&Utc::now()),
+            *timestamps.last().unwrap_or(&Utc::now()),
+            diagnostics_raw.len(),
+        ))
+    };
+
+    let available_counts = AvailableCounts {
+        jobs: jobs.len() as u32,
+        diagnostics: diagnostics.len() as u32,
+        events: events_raw.len() as u32,
+    };
+    let mut retention_report =
+        exporter.build_retention_report(available_counts.clone(), &missing_evidence);
+    if let Some(truncated) = truncated_event_count {
+        retention_report.evidence_gaps.push(EvidenceGap {
+            kind: "event_limit".to_string(),
+            description: format!(
+                "{} events omitted due to max_events=10000 constraint",
+                truncated
+            ),
+            impact: ImpactLevel::Low,
+        });
+    }
+
+    // Prepare file payloads (JSON structures)
+    let mut files: Vec<BundleFileEntry> = Vec::new();
+    let mut redaction_logs: Vec<RedactionLogEntry> = Vec::new();
+
+    // env.json
+    let (env_value, logs_env) = redactor.redact_value(
+        &serde_json::to_value(&env).unwrap_or(Value::Null),
+        request.redaction_mode,
+        "$.env",
+    );
+    redaction_logs.extend(
+        logs_env
+            .into_iter()
+            .map(|mut log| {
+                log.file = "env.json".to_string();
+                log
+            })
+            .collect::<Vec<_>>(),
+    );
+    let env_bytes = serde_json::to_vec_pretty(&env_value)
+        .map_err(|e| BundleExportError::ExportFailed(format!("serialize env.json: {}", e)))?;
+    files.push(BundleFileEntry {
+        path: "env.json".to_string(),
+        bytes: env_bytes,
+        redacted: true,
+    });
+
+    let jobs_file_name = if matches!(scope.kind, ScopeKind::Job) {
+        "job.json"
+    } else {
+        "jobs.json"
+    };
+
+    // jobs.json / job.json
+    let (jobs_value, logs_jobs) = redactor.redact_value(
+        &serde_json::to_value(&jobs).unwrap_or(Value::Null),
+        request.redaction_mode,
+        "$.jobs",
+    );
+    redaction_logs.extend(
+        logs_jobs
+            .into_iter()
+            .map(|mut log| {
+                log.file = jobs_file_name.to_string();
+                log
+            })
+            .collect::<Vec<_>>(),
+    );
+    let jobs_bytes = serde_json::to_vec_pretty(&jobs_value).map_err(|e| {
+        BundleExportError::ExportFailed(format!("serialize {}: {}", jobs_file_name, e))
+    })?;
+    files.push(BundleFileEntry {
+        path: jobs_file_name.to_string(),
+        bytes: jobs_bytes,
+        redacted: true,
+    });
+
+    // diagnostics.jsonl
+    let mut diag_lines = Vec::new();
+    for (idx, diagnostic) in diagnostics.iter().enumerate() {
+        let (value, diag_logs) = redactor.redact_value(
+            &serde_json::to_value(diagnostic).unwrap_or(Value::Null),
+            request.redaction_mode,
+            &format!("$[{idx}]"),
+        );
+        redaction_logs.extend(
+            diag_logs
+                .into_iter()
+                .map(|mut log| {
+                    log.file = "diagnostics.jsonl".to_string();
+                    log
+                })
+                .collect::<Vec<_>>(),
+        );
+        let line = serde_json::to_string(&value).map_err(|e| {
+            BundleExportError::ExportFailed(format!("serialize diagnostics entry: {}", e))
+        })?;
+        diag_lines.push(line);
+    }
+    let diagnostics_bytes = diag_lines.join("\n").into_bytes();
+    files.push(BundleFileEntry {
+        path: "diagnostics.jsonl".to_string(),
+        bytes: diagnostics_bytes,
+        redacted: true,
+    });
+
+    // trace.jsonl
+    let mut trace_lines = Vec::new();
+    for (idx, event) in events_raw.iter().enumerate() {
+        let mut event_value = serde_json::to_value(event).unwrap_or(Value::Null);
+        if let Some(obj) = event_value.as_object_mut() {
+            if let Some(payload) = obj.remove("payload") {
+                let replacement = match request.redaction_mode {
+                    RedactionMode::SafeDefault => {
+                        Value::String(format!("[REDACTED:payload_hash:{}]", hash_value(&payload)))
+                    }
+                    RedactionMode::Workspace => {
+                        let preview = serde_json::to_string(&payload).unwrap_or_default();
+                        Value::String(preview.chars().take(500).collect())
+                    }
+                    RedactionMode::FullLocal => payload,
+                };
+                obj.insert("payload".to_string(), replacement);
+            }
+        }
+        let (value, event_logs) =
+            redactor.redact_value(&event_value, request.redaction_mode, &format!("$[{idx}]"));
+        redaction_logs.extend(
+            event_logs
+                .into_iter()
+                .map(|mut log| {
+                    log.file = "trace.jsonl".to_string();
+                    log
+                })
+                .collect::<Vec<_>>(),
+        );
+        let line = serde_json::to_string(&value).map_err(|e| {
+            BundleExportError::ExportFailed(format!("serialize trace entry: {}", e))
+        })?;
+        trace_lines.push(line);
+    }
+    let trace_bytes = trace_lines.join("\n").into_bytes();
+    files.push(BundleFileEntry {
+        path: "trace.jsonl".to_string(),
+        bytes: trace_bytes,
+        redacted: true,
+    });
+
+    // retention_report.json
+    let retention_bytes = serde_json::to_vec_pretty(&retention_report).map_err(|e| {
+        BundleExportError::ExportFailed(format!("serialize retention_report: {}", e))
+    })?;
+    files.push(BundleFileEntry {
+        path: "retention_report.json".to_string(),
+        bytes: retention_bytes,
+        redacted: false,
+    });
+
+    // repro.md
+    let repro_content = render_repro_md(
+        &env,
+        &scope,
+        timeline,
+        jobs.first(),
+        diagnostics.first(),
+        false,
+    );
+    let (repro_value, repro_logs) = redactor.redact_value(
+        &Value::String(repro_content),
+        request.redaction_mode,
+        "$.repro",
+    );
+    let repro_redacted = !repro_logs.is_empty();
+    redaction_logs.extend(
+        repro_logs
+            .into_iter()
+            .map(|mut log| {
+                log.file = "repro.md".to_string();
+                log
+            })
+            .collect::<Vec<_>>(),
+    );
+    files.push(BundleFileEntry {
+        path: "repro.md".to_string(),
+        bytes: repro_value.as_str().unwrap_or_default().as_bytes().to_vec(),
+        redacted: repro_redacted,
+    });
+
+    // coder_prompt.md
+    let coder_prompt = render_coder_prompt(
+        diagnostics.first(),
+        &env,
+        &scope,
+        jobs.first(),
+        jobs_file_name,
+        &missing_evidence,
+        events_raw.len(),
+        diagnostics.len(),
+        &event_ids_for_prompt,
+    );
+    let (prompt_value, prompt_logs) = redactor.redact_value(
+        &Value::String(coder_prompt),
+        request.redaction_mode,
+        "$.coder_prompt",
+    );
+    let prompt_redacted = !prompt_logs.is_empty();
+    redaction_logs.extend(
+        prompt_logs
+            .into_iter()
+            .map(|mut log| {
+                log.file = "coder_prompt.md".to_string();
+                log
+            })
+            .collect::<Vec<_>>(),
+    );
+    files.push(BundleFileEntry {
+        path: "coder_prompt.md".to_string(),
+        bytes: prompt_value
+            .as_str()
+            .unwrap_or_default()
+            .as_bytes()
+            .to_vec(),
+        redacted: prompt_redacted,
+    });
+
+    // redaction_report.json (must include all redactions across bundle files)
+    let redaction_report =
+        exporter.build_redaction_report(request.redaction_mode, &redactor, &redaction_logs, 6);
+    let redaction_bytes = serde_json::to_vec_pretty(&redaction_report).map_err(|e| {
+        BundleExportError::ExportFailed(format!("serialize redaction_report: {}", e))
+    })?;
+    files.push(BundleFileEntry {
+        path: "redaction_report.json".to_string(),
+        bytes: redaction_bytes,
+        redacted: false,
+    });
+
+    // bundle_manifest.json (constructed after hashes)
+    let mut file_hashes: Vec<(String, String)> = Vec::new();
+    for entry in &files {
+        let hash = sha256_hex(&entry.bytes);
+        file_hashes.push((entry.path.clone(), hash));
+    }
+
+    let manifest = BundleManifest {
+        schema_version: "1.0".to_string(),
+        bundle_id: bundle_id.clone(),
+        bundle_kind: "debug_bundle".to_string(),
+        created_at: Utc::now(),
+        scope: scope.clone(),
+        redaction_mode: request.redaction_mode,
+        workflow_run_id,
+        job_id: bundle_id.clone(),
+        exporter_version: "0.1.0".to_string(),
+        platform: PlatformInfo {
+            os: std::env::consts::OS.to_string(),
+            arch: std::env::consts::ARCH.to_string(),
+            app_version: "0.1.0".to_string(),
+            build_hash: "unknown".to_string(),
+        },
+        files: files
+            .iter()
+            .map(|f| BundleManifestFile {
+                path: f.path.clone(),
+                sha256: sha256_hex(&f.bytes),
+                size_bytes: f.bytes.len() as u64,
+                redacted: f.redacted,
+            })
+            .collect(),
+        included: IncludedCounts {
+            job_count: jobs.len() as u32,
+            diagnostic_count: diagnostics.len() as u32,
+            event_count: events_raw.len() as u32,
+        },
+        missing_evidence: missing_evidence.clone(),
+        bundle_hash: String::new(),
+    };
+
+    let mut manifest_with_hash = manifest.clone();
+    let bundle_hash = compute_bundle_hash(&manifest, &file_hashes);
+    manifest_with_hash.bundle_hash = bundle_hash.clone();
+
+    let manifest_bytes = serde_json::to_vec_pretty(&manifest_with_hash).map_err(|e| {
+        BundleExportError::ExportFailed(format!("serialize bundle_manifest: {}", e))
+    })?;
+    let manifest_entry = BundleFileEntry {
+        path: "bundle_manifest.json".to_string(),
+        bytes: manifest_bytes,
+        redacted: false,
+    };
+
+    let mut all_files = files.clone();
+    all_files.push(manifest_entry);
+
+    // write files to disk for download/status
+    for entry in &all_files {
+        let full_path = output_dir.join(&entry.path);
+        if let Some(parent) = full_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let mut file = fs::File::create(&full_path)?;
+        file.write_all(&entry.bytes)?;
+    }
+
+    // Build zip
+    let zip_path = output_dir.join(format!("{}.zip", bundle_id));
+    write_deterministic_zip(&zip_path, &all_files)?;
+
+    // emit FR event
+    exporter.emit_fr_event(
+        trace_id,
+        &bundle_id,
+        &scope,
+        request.redaction_mode,
+        &jobs,
+        &diagnostics,
+        events_raw.len(),
+        &missing_evidence,
+    );
+
+    exporter.store_bundle_location(&bundle_id, output_dir.clone());
+
+    Ok(manifest_with_hash)
+}
+
 #[async_trait]
 impl DebugBundleExporter for DefaultDebugBundleExporter {
     async fn export(
         &self,
         request: DebugBundleRequest,
     ) -> Result<BundleManifest, BundleExportError> {
-        let bundle_id = Uuid::new_v4().to_string();
-        let output_dir = request
-            .output_path
-            .clone()
-            .unwrap_or_else(|| Self::default_output_path(&bundle_id));
-        fs::create_dir_all(&output_dir)?;
-
-        let mut scope = self.build_manifest_scope(&request.scope);
-        let redactor = SecretRedactor::new();
-        let (diagnostics_raw, mut missing_evidence) =
-            self.collect_diagnostics(&request.scope).await?;
-        let mut events_raw = self
-            .collect_events(&request.scope, &diagnostics_raw)
-            .await?;
-        events_raw.sort_by(|a, b| {
-            a.timestamp
-                .cmp(&b.timestamp)
-                .then_with(|| a.event_id.cmp(&b.event_id))
-        });
-        let (jobs_raw, missing_jobs) = self
-            .collect_jobs(&request.scope, &diagnostics_raw, &events_raw)
-            .await?;
-        missing_evidence.extend(missing_jobs);
-
-        let mut diagnostics: Vec<BundleDiagnostic> = diagnostics_raw
-            .iter()
-            .map(|d| self.map_diagnostic(d))
-            .collect();
-        diagnostics.sort_by(|a, b| a.id.cmp(&b.id));
-
-        let mut jobs: Vec<BundleJob> = jobs_raw
-            .iter()
-            .map(|j| self.map_job(j, &diagnostics, &events_raw, request.redaction_mode))
-            .collect();
-        jobs.sort_by(|a, b| a.job_id.cmp(&b.job_id));
-
-        if scope.wsid.is_none() {
-            scope.wsid = diagnostics_raw
-                .iter()
-                .filter_map(|d| d.wsid.clone())
-                .next()
-                .or_else(|| jobs.iter().filter_map(|j| j.wsid.clone()).next());
-        }
-
-        let env = self.build_env(scope.wsid.clone(), request.redaction_mode);
-
-        let timeline = if diagnostics_raw.is_empty() {
-            None
-        } else {
-            let mut timestamps: Vec<DateTime<Utc>> =
-                diagnostics_raw.iter().map(|d| d.timestamp).collect();
-            timestamps.sort();
-            Some((
-                *timestamps.first().unwrap_or(&Utc::now()),
-                *timestamps.last().unwrap_or(&Utc::now()),
-                diagnostics_raw.len(),
-            ))
-        };
-
-        let available_counts = AvailableCounts {
-            jobs: jobs.len() as u32,
-            diagnostics: diagnostics.len() as u32,
-            events: events_raw.len() as u32,
-        };
-        let retention_report =
-            self.build_retention_report(available_counts.clone(), &missing_evidence);
-
-        // Prepare file payloads (JSON structures)
-        let mut files: Vec<BundleFileEntry> = Vec::new();
-        let mut redaction_logs: Vec<RedactionLogEntry> = Vec::new();
-
-        // env.json
-        let (env_value, logs_env) = redactor.redact_value(
-            &serde_json::to_value(&env).unwrap_or(Value::Null),
-            request.redaction_mode,
-            "$.env",
-        );
-        redaction_logs.extend(
-            logs_env
-                .into_iter()
-                .map(|mut log| {
-                    log.file = "env.json".to_string();
-                    log
-                })
-                .collect::<Vec<_>>(),
-        );
-        let env_bytes = serde_json::to_vec_pretty(&env_value)
-            .map_err(|e| BundleExportError::ExportFailed(format!("serialize env.json: {}", e)))?;
-        files.push(BundleFileEntry {
-            path: "env.json".to_string(),
-            bytes: env_bytes,
-            redacted: true,
-        });
-
-        // jobs.json
-        let (jobs_value, logs_jobs) = redactor.redact_value(
-            &serde_json::to_value(&jobs).unwrap_or(Value::Null),
-            request.redaction_mode,
-            "$.jobs",
-        );
-        redaction_logs.extend(
-            logs_jobs
-                .into_iter()
-                .map(|mut log| {
-                    log.file = "jobs.json".to_string();
-                    log
-                })
-                .collect::<Vec<_>>(),
-        );
-        let jobs_bytes = serde_json::to_vec_pretty(&jobs_value)
-            .map_err(|e| BundleExportError::ExportFailed(format!("serialize jobs.json: {}", e)))?;
-        files.push(BundleFileEntry {
-            path: "jobs.json".to_string(),
-            bytes: jobs_bytes,
-            redacted: true,
-        });
-
-        // diagnostics.jsonl
-        let mut diag_lines = Vec::new();
-        for (idx, diagnostic) in diagnostics.iter().enumerate() {
-            let (value, diag_logs) = redactor.redact_value(
-                &serde_json::to_value(diagnostic).unwrap_or(Value::Null),
-                request.redaction_mode,
-                &format!("$[{idx}]"),
-            );
-            redaction_logs.extend(
-                diag_logs
-                    .into_iter()
-                    .map(|mut log| {
-                        log.file = "diagnostics.jsonl".to_string();
-                        log
-                    })
-                    .collect::<Vec<_>>(),
-            );
-            let line = serde_json::to_string(&value).map_err(|e| {
-                BundleExportError::ExportFailed(format!("serialize diagnostics entry: {}", e))
-            })?;
-            diag_lines.push(line);
-        }
-        let diagnostics_bytes = diag_lines.join("\n").into_bytes();
-        files.push(BundleFileEntry {
-            path: "diagnostics.jsonl".to_string(),
-            bytes: diagnostics_bytes,
-            redacted: true,
-        });
-
-        // trace.jsonl
-        let mut trace_lines = Vec::new();
-        for (idx, event) in events_raw.iter().enumerate() {
-            let mut event_value = serde_json::to_value(event).unwrap_or(Value::Null);
-            if let Some(obj) = event_value.as_object_mut() {
-                if let Some(payload) = obj.remove("payload") {
-                    let replacement = match request.redaction_mode {
-                        RedactionMode::SafeDefault => Value::String(format!(
-                            "[REDACTED:payload_hash:{}]",
-                            hash_value(&payload)
-                        )),
-                        RedactionMode::Workspace => {
-                            let preview = serde_json::to_string(&payload).unwrap_or_default();
-                            Value::String(preview.chars().take(500).collect())
-                        }
-                        RedactionMode::FullLocal => payload,
-                    };
-                    obj.insert("payload".to_string(), replacement);
-                }
-            }
-            let (value, event_logs) =
-                redactor.redact_value(&event_value, request.redaction_mode, &format!("$[{idx}]"));
-            redaction_logs.extend(
-                event_logs
-                    .into_iter()
-                    .map(|mut log| {
-                        log.file = "trace.jsonl".to_string();
-                        log
-                    })
-                    .collect::<Vec<_>>(),
-            );
-            let line = serde_json::to_string(&value).map_err(|e| {
-                BundleExportError::ExportFailed(format!("serialize trace entry: {}", e))
-            })?;
-            trace_lines.push(line);
-        }
-        let trace_bytes = trace_lines.join("\n").into_bytes();
-        files.push(BundleFileEntry {
-            path: "trace.jsonl".to_string(),
-            bytes: trace_bytes,
-            redacted: true,
-        });
-
-        // retention_report.json
-        let retention_bytes = serde_json::to_vec_pretty(&retention_report).map_err(|e| {
-            BundleExportError::ExportFailed(format!("serialize retention_report: {}", e))
-        })?;
-        files.push(BundleFileEntry {
-            path: "retention_report.json".to_string(),
-            bytes: retention_bytes,
-            redacted: false,
-        });
-
-        // redaction_report.json
-        let redaction_report =
-            self.build_redaction_report(request.redaction_mode, &redactor, &redaction_logs, 4);
-        let redaction_bytes = serde_json::to_vec_pretty(&redaction_report).map_err(|e| {
-            BundleExportError::ExportFailed(format!("serialize redaction_report: {}", e))
-        })?;
-        files.push(BundleFileEntry {
-            path: "redaction_report.json".to_string(),
-            bytes: redaction_bytes,
-            redacted: false,
-        });
-
-        // repro.md
-        let repro_content = render_repro_md(
-            &env,
-            &scope,
-            timeline.map(|(f, l, c)| (f, l, c)),
-            jobs.get(0),
-            diagnostics.get(0),
-            false,
-        );
-        files.push(BundleFileEntry {
-            path: "repro.md".to_string(),
-            bytes: repro_content.into_bytes(),
-            redacted: false,
-        });
-
-        // coder_prompt.md
-        let coder_prompt = render_coder_prompt(
-            diagnostics.get(0),
-            &env,
-            &scope,
-            jobs.get(0),
-            &missing_evidence,
-            events_raw.len(),
-        );
-        files.push(BundleFileEntry {
-            path: "coder_prompt.md".to_string(),
-            bytes: coder_prompt.into_bytes(),
-            redacted: false,
-        });
-
-        // bundle_manifest.json (constructed after hashes)
-        let mut file_hashes: Vec<(String, String)> = Vec::new();
-        for entry in &files {
-            let hash = sha256_hex(&entry.bytes);
-            file_hashes.push((entry.path.clone(), hash));
-        }
-
-        let manifest = BundleManifest {
-            schema_version: "1.0".to_string(),
-            bundle_id: bundle_id.clone(),
-            bundle_kind: "debug_bundle".to_string(),
-            created_at: Utc::now(),
-            scope: scope.clone(),
-            redaction_mode: request.redaction_mode,
-            workflow_run_id: Uuid::new_v4().to_string(),
-            job_id: Uuid::new_v4().to_string(),
-            exporter_version: "0.1.0".to_string(),
-            platform: PlatformInfo {
-                os: std::env::consts::OS.to_string(),
-                arch: std::env::consts::ARCH.to_string(),
-                app_version: "0.1.0".to_string(),
-                build_hash: "unknown".to_string(),
-            },
-            files: files
-                .iter()
-                .map(|f| BundleManifestFile {
-                    path: f.path.clone(),
-                    sha256: sha256_hex(&f.bytes),
-                    size_bytes: f.bytes.len() as u64,
-                    redacted: f.redacted,
-                })
-                .collect(),
-            included: IncludedCounts {
-                job_count: jobs.len() as u32,
-                diagnostic_count: diagnostics.len() as u32,
-                event_count: events_raw.len() as u32,
-            },
-            missing_evidence: missing_evidence.clone(),
-            bundle_hash: String::new(),
-        };
-
-        let mut manifest_with_hash = manifest.clone();
-        let bundle_hash = compute_bundle_hash(&manifest, &file_hashes);
-        manifest_with_hash.bundle_hash = bundle_hash.clone();
-
-        let manifest_bytes = serde_json::to_vec_pretty(&manifest_with_hash).map_err(|e| {
-            BundleExportError::ExportFailed(format!("serialize bundle_manifest: {}", e))
-        })?;
-        let manifest_entry = BundleFileEntry {
-            path: "bundle_manifest.json".to_string(),
-            bytes: manifest_bytes,
-            redacted: false,
-        };
-
-        let mut all_files = files.clone();
-        all_files.push(manifest_entry);
-
-        // write files to disk for download/status
-        for entry in &all_files {
-            let full_path = output_dir.join(&entry.path);
-            if let Some(parent) = full_path.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            let mut file = fs::File::create(&full_path)?;
-            file.write_all(&entry.bytes)?;
-        }
-
-        // Build zip
-        let zip_path = output_dir.join(format!("{}.zip", bundle_id));
-        write_deterministic_zip(&zip_path, &all_files)?;
-
-        // emit FR event
-        self.emit_fr_event(
-            &bundle_id,
-            &scope,
-            request.redaction_mode,
-            &jobs,
-            &diagnostics,
-            events_raw.len(),
-            &missing_evidence,
-        );
-
-        self.store_bundle_location(&bundle_id, output_dir.clone());
-
-        Ok(manifest_with_hash)
+        export_impl(self, request, ExportProvenance::standalone()).await
     }
 
     async fn validate(
         &self,
         bundle_path: &Path,
     ) -> Result<crate::bundles::validator::BundleValidationReport, BundleExportError> {
-        let validator = ValBundleValidator::default();
-        validator.validate_dir(bundle_path)
+        let validator = ValBundleValidator;
+        if bundle_path.is_file() {
+            validator.validate_zip(bundle_path)
+        } else {
+            validator.validate_dir(bundle_path)
+        }
     }
 
     async fn list_exportable(
         &self,
         filter: ExportableFilter,
     ) -> Result<ExportableInventory, BundleExportError> {
-        let mut diag_filter = DiagFilter::default();
-        diag_filter.wsid = filter.wsid.clone();
-        diag_filter.from = filter.start;
-        diag_filter.to = filter.end;
-        diag_filter.limit = filter.limit.or(Some(50));
+        let diag_filter = DiagFilter {
+            wsid: filter.wsid.clone(),
+            from: filter.start,
+            to: filter.end,
+            limit: filter.limit.or(Some(50)),
+            ..Default::default()
+        };
         let diagnostics = self
             .state
             .diagnostics
@@ -1125,7 +1326,7 @@ impl DebugBundleExporter for DefaultDebugBundleExporter {
             .map(|job| ExportableJob {
                 job_id: job.job_id.to_string(),
                 job_kind: job.job_kind.as_str().to_string(),
-                status: job_status_from_state(&job.state),
+                status: job_status_from_state(&job.state).as_str().to_string(),
                 created_at: job.created_at,
             })
             .collect();

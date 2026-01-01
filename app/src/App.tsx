@@ -27,6 +27,8 @@ function App() {
   const [selection, setSelection] = useState<EvidenceSelection | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportScope, setExportScope] = useState<BundleScopeInput | null>(null);
+  const [focusJobId, setFocusJobId] = useState<string | null>(null);
+  const [timelineNav, setTimelineNav] = useState<{ job_id?: string; wsid?: string; event_id?: string } | null>(null);
 
   return (
     <main className="app-shell">
@@ -58,13 +60,19 @@ function App() {
             </button>
             <button 
               className={activeView === "jobs" ? "active" : ""} 
-              onClick={() => setActiveView("jobs")}
+              onClick={() => {
+                setFocusJobId(null);
+                setActiveView("jobs");
+              }}
             >
               Jobs
             </button>
             <button 
               className={activeView === "timeline" ? "active" : ""} 
-              onClick={() => setActiveView("timeline")}
+              onClick={() => {
+                setTimelineNav(null);
+                setActiveView("timeline");
+              }}
             >
               Timeline
             </button>
@@ -132,11 +140,11 @@ function App() {
             </div>
           ) : activeView === "jobs" ? (
             <div className="content-panel content-panel--full">
-              <JobsView onSelect={setSelection} />
+              <JobsView onSelect={setSelection} focusJobId={focusJobId} />
             </div>
           ) : (
             <div className="content-panel content-panel--full">
-              <TimelineView onSelect={setSelection} />
+              <TimelineView onSelect={setSelection} navigation={timelineNav} />
             </div>
           )}
         </div>
@@ -153,6 +161,14 @@ function App() {
           }
           setExportScope(scope);
           setExportOpen(true);
+        }}
+        onNavigateToJob={(jobId) => {
+          setActiveView("jobs");
+          setFocusJobId(jobId);
+        }}
+        onNavigateToTimeline={(nav) => {
+          setActiveView("timeline");
+          setTimelineNav({ ...nav });
         }}
       />
       {exportOpen && (

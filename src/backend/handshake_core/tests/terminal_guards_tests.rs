@@ -8,7 +8,7 @@ use handshake_core::terminal::config::TerminalConfig;
 use handshake_core::terminal::guards::{DefaultTerminalGuard, TerminalGuard};
 use handshake_core::terminal::redaction::PatternRedactor;
 use handshake_core::terminal::{
-    JobContext, TerminalMode, TerminalRequest, TerminalService, TerminalSessionType,
+    JobContext, TerminalError, TerminalMode, TerminalRequest, TerminalService, TerminalSessionType,
 };
 use tempfile::tempdir;
 use uuid::Uuid;
@@ -128,6 +128,129 @@ async fn blocks_cwd_escape() {
     .await;
 
     assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn blocks_absolute_cwd() {
+    let dir = tempdir().unwrap();
+    let workspace_root = dir.path().to_path_buf();
+    let absolute_cwd = workspace_root.join("abs");
+    std::fs::create_dir_all(&absolute_cwd).unwrap();
+
+    let (cmd, args) = echo_command("abs");
+    let request = default_request(cmd, args, Some(absolute_cwd));
+    let (cfg, registry, recorder, guards, redactor) = default_deps(workspace_root);
+
+    let result = TerminalService::run_command(
+        request,
+        &cfg,
+        &registry,
+        recorder.as_ref(),
+        Uuid::new_v4(),
+        &redactor,
+        &guards,
+    )
+    .await;
+
+    assert!(matches!(result, Err(TerminalError::CwdViolation(_))));
+}
+
+#[tokio::test]
+async fn allows_cwd_within_allowed_roots() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempdir()?;
+    let workspace_root = dir.path().to_path_buf();
+    std::fs::create_dir_all(workspace_root.join("allowed"))?;
+
+    let (cmd, args) = echo_command("allowed");
+    let request = default_request(cmd, args, Some(PathBuf::from("allowed")));
+    let (mut cfg, registry, recorder, guards, redactor) = default_deps(workspace_root);
+    cfg.allowed_cwd_roots = vec![PathBuf::from("allowed")];
+
+    let result = TerminalService::run_command(
+        request,
+        &cfg,
+        &registry,
+        recorder.as_ref(),
+        Uuid::new_v4(),
+        &redactor,
+        &guards,
+    )
+    .await?;
+
+    assert!(result.stdout.to_lowercase().contains("allowed"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn blocks_cwd_outside_allowed_roots() {
+    let dir = tempdir().unwrap();
+    let workspace_root = dir.path().to_path_buf();
+    std::fs::create_dir_all(workspace_root.join("allowed")).unwrap();
+    std::fs::create_dir_all(workspace_root.join("other")).unwrap();
+
+    let (cmd, args) = echo_command("blocked");
+    let request = default_request(cmd, args, Some(PathBuf::from("other")));
+    let (mut cfg, registry, recorder, guards, redactor) = default_deps(workspace_root);
+    cfg.allowed_cwd_roots = vec![PathBuf::from("allowed")];
+
+    let result = TerminalService::run_command(
+        request,
+        &cfg,
+        &registry,
+        recorder.as_ref(),
+        Uuid::new_v4(),
+        &redactor,
+        &guards,
+    )
+    .await;
+
+    assert!(matches!(result, Err(TerminalError::CwdViolation(_))));
+}
+
+#[tokio::test]
+async fn denies_command_matching_denylist() {
+    let dir = tempdir().unwrap();
+    let workspace_root = dir.path().to_path_buf();
+    let (cmd, args) = echo_command("nope");
+    let request = default_request(cmd, args, None);
+    let (mut cfg, registry, recorder, guards, redactor) = default_deps(workspace_root);
+    cfg.denied_command_patterns = vec![String::from("(?i)echo")];
+
+    let result = TerminalService::run_command(
+        request,
+        &cfg,
+        &registry,
+        recorder.as_ref(),
+        Uuid::new_v4(),
+        &redactor,
+        &guards,
+    )
+    .await;
+
+    assert!(matches!(result, Err(TerminalError::CapabilityDenied(_))));
+}
+
+#[tokio::test]
+async fn denies_command_without_allowlist_match() {
+    let dir = tempdir().unwrap();
+    let workspace_root = dir.path().to_path_buf();
+    let (cmd, args) = echo_command("blocked");
+    let request = default_request(cmd, args, None);
+    let (mut cfg, registry, recorder, guards, redactor) = default_deps(workspace_root);
+    cfg.allowed_command_patterns = vec![String::from("(?i)git")];
+
+    let result = TerminalService::run_command(
+        request,
+        &cfg,
+        &registry,
+        recorder.as_ref(),
+        Uuid::new_v4(),
+        &redactor,
+        &guards,
+    )
+    .await;
+
+    assert!(matches!(result, Err(TerminalError::CapabilityDenied(_))));
 }
 
 #[tokio::test]

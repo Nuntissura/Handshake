@@ -4,7 +4,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use duckdb::{Connection as DuckDbConnection, ToSql};
 use serde_json::Value;
 use uuid::Uuid;
@@ -35,9 +35,33 @@ fn map_recorder_error(err: RecorderError) -> StorageError {
 }
 
 fn parse_timestamp(raw: String) -> Result<DateTime<Utc>, StorageError> {
-    DateTime::parse_from_rfc3339(&raw)
-        .map(|dt| dt.with_timezone(&Utc))
-        .map_err(|e| StorageError::Serialization(e.to_string()))
+    if let Ok(dt) = DateTime::parse_from_rfc3339(raw.trim()) {
+        return Ok(dt.with_timezone(&Utc));
+    }
+
+    let trimmed = raw.trim();
+    let formats = [
+        "%Y-%m-%d %H:%M:%S%.f",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S%.f",
+        "%Y-%m-%dT%H:%M:%S",
+    ];
+    for fmt in formats {
+        if let Ok(naive) = NaiveDateTime::parse_from_str(trimmed, fmt) {
+            return Ok(DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc));
+        }
+    }
+
+    Err(StorageError::Serialization(format!(
+        "unparseable timestamp: {trimmed}"
+    )))
+}
+
+fn format_duckdb_timestamp(timestamp: DateTime<Utc>) -> String {
+    timestamp
+        .naive_utc()
+        .format("%Y-%m-%d %H:%M:%S%.f")
+        .to_string()
 }
 
 fn actor_for_diagnostic(actor: Option<DiagnosticActor>) -> FlightRecorderActor {
@@ -203,15 +227,15 @@ impl DuckDbFlightRecorder {
                 fingerprint VARCHAR NOT NULL,
                 title VARCHAR NOT NULL,
                 message TEXT,
-                severity VARCHAR NOT NULL CHECK (severity IN ('fatal', 'error', 'warning', 'info', 'hint')),
+                severity ENUM('fatal', 'error', 'warning', 'info', 'hint'),
                 source VARCHAR NOT NULL,
                 surface VARCHAR NOT NULL,
                 tool VARCHAR,
                 code VARCHAR,
                 wsid VARCHAR,
                 job_id UUID,
-                link_confidence VARCHAR CHECK (link_confidence IN ('direct', 'inferred', 'ambiguous', 'unlinked')),
-                timestamp VARCHAR NOT NULL CHECK (try_cast(timestamp AS TIMESTAMPTZ) IS NOT NULL),
+                link_confidence ENUM('direct', 'inferred', 'ambiguous', 'unlinked'),
+                timestamp TIMESTAMP NOT NULL,
                 metadata JSON
             );
             CREATE INDEX IF NOT EXISTS idx_diag_fingerprint ON diagnostics(fingerprint);
@@ -273,7 +297,7 @@ impl DuckDbFlightRecorder {
                 diagnostic.wsid.as_ref(),
                 job_uuid.map(|j| j.to_string()),
                 diagnostic.link_confidence.as_str(),
-                diagnostic.timestamp.to_rfc3339(),
+                format_duckdb_timestamp(diagnostic.timestamp),
                 meta_str
             ],
         )
@@ -313,11 +337,11 @@ impl DuckDbFlightRecorder {
         }
         if let Some(from) = filter.from {
             conditions.push("timestamp >= ?".to_string());
-            params.push(Box::new(from.to_rfc3339()));
+            params.push(Box::new(format_duckdb_timestamp(from)));
         }
         if let Some(to) = filter.to {
             conditions.push("timestamp <= ?".to_string());
-            params.push(Box::new(to.to_rfc3339()));
+            params.push(Box::new(format_duckdb_timestamp(to)));
         }
         if let Some(fp) = filter.fingerprint {
             conditions.push("fingerprint = ?".to_string());
@@ -325,13 +349,13 @@ impl DuckDbFlightRecorder {
         }
 
         let mut query = String::from(
-            "SELECT id, fingerprint, title, message, severity, source, surface, tool, code, wsid, job_id, link_confidence, timestamp, metadata FROM diagnostics",
+            "SELECT id, fingerprint, title, message, CAST(severity AS VARCHAR) AS severity, source, surface, tool, code, wsid, job_id, CAST(link_confidence AS VARCHAR) AS link_confidence, CAST(timestamp AS VARCHAR) AS timestamp, metadata FROM diagnostics",
         );
         if !conditions.is_empty() {
             query.push_str(" WHERE ");
             query.push_str(&conditions.join(" AND "));
         }
-        query.push_str(" ORDER BY timestamp DESC");
+        query.push_str(" ORDER BY diagnostics.timestamp DESC");
         if let Some(limit) = filter.limit {
             query.push_str(" LIMIT ?");
             params.push(Box::new(limit as i64));
@@ -345,7 +369,7 @@ impl DuckDbFlightRecorder {
 
         let mut diagnostics = Vec::new();
         while let Some(row) = rows.next().map_err(map_db_error)? {
-            diagnostics.push(map_diagnostic_row(&row)?);
+            diagnostics.push(map_diagnostic_row(row)?);
         }
 
         Ok(diagnostics)
@@ -357,10 +381,9 @@ impl DuckDbFlightRecorder {
     ) -> Result<FlightRecorderEvent, StorageError> {
         let payload = FrEvt003Diagnostic {
             diagnostic_id: diagnostic.id.to_string(),
-            fingerprint: diagnostic.fingerprint.clone(),
-            severity: diagnostic.severity.as_str().to_string(),
+            wsid: diagnostic.wsid.clone(),
+            severity: Some(diagnostic.severity.as_str().to_string()),
             source: Some(diagnostic.source.as_str()),
-            link_confidence: Some(diagnostic.link_confidence.as_str().to_string()),
         };
 
         let mut event = FlightRecorderEvent::new(
@@ -470,6 +493,11 @@ impl DuckDbFlightRecorder {
 
         let mut conditions = Vec::new();
         let mut params: Vec<Box<dyn duckdb::ToSql>> = Vec::new();
+
+        if let Some(event_id) = filter.event_id {
+            conditions.push("event_id = ?".to_string());
+            params.push(Box::new(event_id.to_string()));
+        }
 
         if let Some(job_id) = filter.job_id {
             conditions.push("job_id = ?".to_string());
@@ -669,7 +697,7 @@ impl DiagnosticsStore for DuckDbFlightRecorder {
             .map_err(|_| StorageError::Database("lock error".into()))?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, fingerprint, title, message, severity, source, surface, tool, code, wsid, job_id, link_confidence, timestamp, metadata FROM diagnostics WHERE id = ?",
+                "SELECT id, fingerprint, title, message, CAST(severity AS VARCHAR) AS severity, source, surface, tool, code, wsid, job_id, CAST(link_confidence AS VARCHAR) AS link_confidence, CAST(timestamp AS VARCHAR) AS timestamp, metadata FROM diagnostics WHERE id = ?",
             )
             .map_err(map_db_error)?;
 
@@ -678,7 +706,7 @@ impl DiagnosticsStore for DuckDbFlightRecorder {
             .map_err(map_db_error)?;
         let row = rows.next().map_err(map_db_error)?;
         let row = row.ok_or(StorageError::NotFound("diagnostic"))?;
-        map_diagnostic_row(&row)
+        map_diagnostic_row(row)
     }
 
     async fn list_diagnostics(&self, filter: DiagFilter) -> Result<Vec<Diagnostic>, StorageError> {

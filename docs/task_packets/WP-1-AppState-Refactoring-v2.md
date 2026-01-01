@@ -138,3 +138,51 @@ Implementation correctly enforces Trait Purity per [CX-DBP-040]:
 - API handlers consume trait-based APIs exclusively
 
 **REASON FOR PASS:** All DONE_MEANS criteria verified with file:line evidence. Implementation aligns with Master Spec v02.93 §2.3.12.3 [CX-DBP-040]. No forbidden patterns in production code.
+
+---
+
+## VALIDATION REPORT - 2025-12-30 (Revalidation, Batch 6)
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-AppState-Refactoring-v2.md
+- Spec (SPEC_CURRENT): docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.98.md
+- Protocol: docs/VALIDATOR_PROTOCOL.md
+
+Commands Run:
+- just validator-spec-regression: PASS
+- just cargo-clean: PASS (Removed 0 files)
+- just gate-check WP-1-AppState-Refactoring-v2: FAIL (Implementation detected without SKELETON APPROVED marker)
+- node scripts/validation/post-work-check.mjs WP-1-AppState-Refactoring-v2: FAIL (non-ASCII + missing COR-701 validation manifest fields/gates)
+- just validator-packet-complete WP-1-AppState-Refactoring-v2: FAIL (STATUS missing/invalid; requires canonical **Status:** Ready for Dev / In Progress / Done)
+- just post-work WP-1-AppState-Refactoring-v2: FAIL (blocked at gate-check)
+- just validator-dal-audit: PASS
+
+Blocking Findings:
+- Phase gate violation [CX-GATE-001]: gate-check fails because implementation is present without a prior "SKELETON APPROVED" marker in this packet.
+- Deterministic manifest gate (COR-701): post-work-check reports missing required manifest fields (target_file, start, end, pre_sha1, post_sha1, line_delta) and missing/unchecked gates (C701-G01, C701-G02, C701-G04, C701-G05, C701-G06, C701-G08).
+- ASCII-only requirement: post-work-check reports non-ASCII characters in the task packet.
+  - NON_ASCII_COUNT=10 (sample: Line 48 Col 5 U+2705, Line 17 Col 173 U+00A7)
+- Spec mismatch: this packet asserts Master Spec v02.93, but docs/SPEC_CURRENT.md points to v02.98. Prior PASS claims are not valid against the current spec.
+
+Spec-to-Code Findings (v02.98, spot-check):
+- [CX-DBP-040] Trait purity requirement (Handshake_Master_Spec_v02.98.md:3005-3008) appears satisfied in current code:
+  - AppState exposes trait objects only: src/backend/handshake_core/src/lib.rs:25-31.
+  - Database trait has no pool-returning methods: src/backend/handshake_core/src/storage/mod.rs:723-836.
+  - init_storage returns Arc<dyn Database>: src/backend/handshake_core/src/storage/mod.rs:840-858.
+  - Janitor consumes Arc<dyn Database> and Arc<dyn FlightRecorder>: src/backend/handshake_core/src/storage/retention.rs:71-86.
+- This evidence does not override the blocking packet gate failures above.
+
+REASON FOR FAIL:
+- Blocking process gates (phase gate + COR-701 manifest + ASCII-only + packet completeness) fail; spec alignment to v02.98 is not demonstrated.
+
+Required Fixes:
+1) Bring this packet back into protocol: include proper BOOTSTRAP/SKELETON/IMPLEMENTATION/HYGIENE/VALIDATION sections and obtain explicit "SKELETON APPROVED" before implementation evidence.
+2) Make the task packet ASCII-only (remove/replace non-ASCII characters; rerun post-work-check until clean).
+3) Add a COR-701 validation manifest (target_file/start/end/pre_sha1/post_sha1/line_delta + gates checklist) and ensure `just post-work WP-1-AppState-Refactoring-v2` passes.
+4) Re-anchor DONE_MEANS + evidence mapping to Handshake_Master_Spec_v02.98.md (2.3.12.1-2.3.12.3) and rerun the TEST_PLAN commands.
+
+**Status:** Ready for Dev
+USER_SIGNATURE: ilja281220250309
+
+

@@ -89,3 +89,5 @@ Tests:
 
 Risks & Suggested Actions:
 - Implement MCP gate per A11.3: transport handler, capability metadata propagation, deny-by-default allowlists, typed errors, and structured logging to Flight Recorder. Add targeted tests for allowed/denied paths. Provide evidence mapping and re-run TEST_PLAN.
+
+

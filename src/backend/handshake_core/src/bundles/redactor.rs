@@ -1,6 +1,7 @@
 use chrono::Utc;
 use regex::Regex;
 use serde_json::Value;
+use std::collections::HashMap;
 
 use crate::bundles::schemas::{
     PolicyDecision, RedactionDetector, RedactionLogEntry, RedactionMode, RedactionReport,
@@ -36,10 +37,15 @@ impl SecretRedactor {
         add(
             "secret_api_key",
             "api_key",
-            r"(?i)sk-[a-z0-9]{10,}",
+            r"(?i)(sk-[a-z0-9]{10,}|api_[a-z0-9]{10,}|bearer\s+[a-z0-9\-\._~\+\/]+=*)",
             &mut patterns,
         );
-        add("secret_aws", "aws", r"AKIA[0-9A-Z]{16}", &mut patterns);
+        add(
+            "secret_aws",
+            "aws",
+            r"(?i)(AKIA[0-9A-Z]{16}|aws_secret_access_key\s*[:=]\s*[A-Za-z0-9/+=]{20,})",
+            &mut patterns,
+        );
         add(
             "secret_db_url",
             "db_url",
@@ -55,7 +61,7 @@ impl SecretRedactor {
         add(
             "secret_password",
             "password",
-            r"(?i)password\s*[:=]\s*[^\s]+",
+            r"(?i)(password|passwd)\s*[:=]\s*[^\s]+",
             &mut patterns,
         );
         add(
@@ -70,11 +76,16 @@ impl SecretRedactor {
             r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
             &mut patterns,
         );
-        add("pii_phone", "pii", r"\+?\d[\d\s\-()]{8,}", &mut patterns);
+        add(
+            "pii_phone",
+            "pii",
+            r"\+?\d[\d\-()]{0,4}\s[\d\s\-()]{6,}\d",
+            &mut patterns,
+        );
         add(
             "path_absolute",
             "path",
-            r"([A-Z]:\\[^\s]+|/[^\s]+)",
+            r#"([A-Z]:\\[^\s"']+|/(Users|home)/[^\s"']+)"#,
             &mut patterns,
         );
         add(
@@ -170,14 +181,9 @@ impl SecretRedactor {
         mode: RedactionMode,
         files_scanned: u32,
     ) -> RedactionReport {
-        let mut by_category = serde_json::Map::new();
+        let mut by_category: HashMap<String, u32> = HashMap::new();
         for log in logs {
-            let counter = by_category
-                .entry(log.category.clone())
-                .or_insert_with(|| Value::Number(0u64.into()));
-            if let Some(n) = counter.as_u64() {
-                *counter = Value::Number((n + 1).into());
-            }
+            *by_category.entry(log.category.clone()).or_insert(0) += 1;
         }
 
         let detectors = self

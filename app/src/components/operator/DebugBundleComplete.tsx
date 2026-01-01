@@ -2,6 +2,8 @@ import React from "react";
 
 type Props = {
   bundleId: string;
+  bundlePath?: string;
+  expiresAt?: string;
   onCopyPath?: () => void;
   onOpenFolder?: () => void;
   onDone?: () => void;
@@ -12,13 +14,18 @@ type Props = {
 
 export const DebugBundleComplete: React.FC<Props> = ({
   bundleId,
+  bundlePath,
+  expiresAt,
   onCopyPath,
   onOpenFolder,
   onDone,
-  redactionsApplied = 0,
+  redactionsApplied,
   fileCount = 9,
   sizeLabel = "n/a",
 }) => {
+  const redactionsLabel = typeof redactionsApplied === "number" ? redactionsApplied.toString() : "n/a";
+  const expiresLabel = expiresAt ? new Date(expiresAt).toLocaleString() : null;
+
   return (
     <div className="content-card">
       <div className="card-header">
@@ -27,10 +34,15 @@ export const DebugBundleComplete: React.FC<Props> = ({
       </div>
       <ul className="meta-list">
         <li>Files: {fileCount}</li>
-        <li>Redactions applied: {redactionsApplied}</li>
+        <li>Redactions applied: {redactionsLabel}</li>
         <li>Estimated size: {sizeLabel}</li>
+        {expiresLabel && <li>Expires at: {expiresLabel}</li>}
       </ul>
-      <p className="muted small">The bundle is stored locally and can be downloaded or shared.</p>
+      {bundlePath ? (
+        <p className="muted small">Path: {bundlePath}</p>
+      ) : (
+        <p className="muted small">The bundle is stored locally.</p>
+      )}
       <div className="drawer-actions">
         <button className="secondary" onClick={onCopyPath} disabled={!onCopyPath}>
           Copy Path

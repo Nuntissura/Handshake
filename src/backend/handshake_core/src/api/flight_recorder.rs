@@ -25,11 +25,13 @@ pub struct FlightEvent {
 
 #[derive(Deserialize, Debug, Default)]
 pub struct EventFilter {
+    pub event_id: Option<Uuid>,
     pub job_id: Option<String>,
     pub trace_id: Option<Uuid>,
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
     pub actor: Option<String>,
+    pub surface: Option<String>,
     pub event_type: Option<String>,
     pub wsid: Option<String>,
 }
@@ -46,6 +48,7 @@ async fn list_events(
     Query(filter): Query<EventFilter>,
 ) -> Result<Json<Vec<FlightEvent>>, String> {
     let internal_filter = crate::flight_recorder::EventFilter {
+        event_id: filter.event_id,
         job_id: filter.job_id,
         trace_id: filter.trace_id,
         from: filter.from,
@@ -66,6 +69,35 @@ async fn list_events(
     }
     if let Some(wsid) = filter.wsid {
         events.retain(|e| e.wsids.contains(&wsid));
+    }
+    if let Some(surface) = filter.surface {
+        let target = surface.as_str();
+        let mut filtered = Vec::new();
+        for event in events {
+            let surface_match = match event.event_type {
+                crate::flight_recorder::FlightRecorderEventType::Diagnostic => {
+                    let diag_id = event
+                        .payload
+                        .get("diagnostic_id")
+                        .and_then(|v| v.as_str())
+                        .and_then(|raw| Uuid::parse_str(raw).ok());
+
+                    match diag_id {
+                        Some(id) => match state.diagnostics.get_diagnostic(id).await {
+                            Ok(diag) => diag.surface.as_str() == target,
+                            Err(_) => false,
+                        },
+                        None => false,
+                    }
+                }
+                _ => target == "system",
+            };
+
+            if surface_match {
+                filtered.push(event);
+            }
+        }
+        events = filtered;
     }
 
     let api_events = events

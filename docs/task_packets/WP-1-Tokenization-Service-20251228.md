@@ -143,3 +143,56 @@ Reason for PASS: Tokenizer behavior matches §4.6.1 requirements with panic-free
 - Earlier status lines in this packet are historical and retained for audit only.
 **Last Updated:** 2025-12-28
 **User Signature Locked:** ilja281220250435
+
+---
+
+## REVALIDATION REPORT - WP-1-Tokenization-Service-20251228 (2025-12-30)
+
+VALIDATION REPORT - WP-1-Tokenization-Service-20251228
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Tokenization-Service-20251228.md (Task Packet title refers to "WP-1-Tokenization-Service-v2")
+- Spec Pointer: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.98.md (4.6 Tokenization Service)
+- Codex: Handshake Codex v1.4.md
+- Validator Protocol: docs/VALIDATOR_PROTOCOL.md
+
+Commands (evidence):
+- just cargo-clean: PASS
+- just validator-spec-regression: PASS
+- just validator-packet-complete WP-1-Tokenization-Service-20251228: FAIL (STATUS missing/invalid)
+- node scripts/validation/gate-check.mjs WP-1-Tokenization-Service-20251228: FAIL (Implementation detected without SKELETON APPROVED marker.)
+- node scripts/validation/post-work-check.mjs WP-1-Tokenization-Service-20251228: FAIL (non-ASCII packet + missing COR-701 manifest fields/gates)
+
+Blocking Findings:
+1) Phase gate FAIL: missing SKELETON APPROVED marker (gate-check).
+2) Deterministic manifest gate FAIL (COR-701): post-work-check fails because:
+   - packet contains non-ASCII bytes (count=30)
+   - no COR-701 manifest fields parsed (target_file/start/end/pre_sha1/post_sha1/line_delta) and required gates are missing/un-checked
+3) Spec mismatch: packet references Handshake_Master_Spec_v02.96.md, but docs/SPEC_CURRENT.md now requires Handshake_Master_Spec_v02.98.md.
+
+Spec-to-code spot-check (non-exhaustive; blocked by gates above):
+- Spec defines `TokenizationService` with synchronous methods (Handshake_Master_Spec_v02.98.md:5545).
+- Spec requires SentencePiece for Llama3/Mistral (Handshake_Master_Spec_v02.98.md:5557).
+- Code defines an async `Tokenizer` trait (src/backend/handshake_core/src/tokenization.rs:23) and provides no SentencePiece implementation (only TiktokenAdapter and VibeTokenizer).
+- Code routes all non-"gpt-*" models to the heuristic fallback (src/backend/handshake_core/src/tokenization.rs:178), which does not satisfy the "Required Implementations" list in v02.98.
+
+REASON FOR FAIL:
+- Required workflow gates (gate-check + COR-701 post-work-check) do not pass, and the implementation does not match the current Master Spec tokenization contract (v02.98).
+
+Required Remediation:
+- Create a NEW packet (recommended: WP-1-Tokenization-Service-v3) anchored to Handshake_Master_Spec_v02.98.md (ASCII-only) and ensure the runnable WP_ID matches the packet filename for `just post-work`.
+- Follow phase gate: BOOTSTRAP -> SKELETON -> (Validator issues "SKELETON APPROVED") -> IMPLEMENTATION -> VALIDATION.
+- Provide a full COR-701 deterministic manifest so `just post-work` can pass.
+- Align the implementation to Spec v02.98 TokenizationService requirements, including SentencePiece support for Ollama/Llama/Mistral models (code change required; not performed in this revalidation).
+
+Task Board Update:
+- Move Tokenization Service from Done -> Ready for Dev (Revalidation FAIL).
+
+Packet Status Update (append-only):
+- **Status:** Ready for Dev
+
+Timestamp: 2025-12-30
+Validator: Codex CLI (Validator role)
+
+

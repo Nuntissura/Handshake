@@ -11,7 +11,7 @@ This document is intended to be copied into other projects as a starting point. 
 - Added ownership + agent registry so reviews and traceability have a target.
 - Introduced a Quality Gate with risk tiers and required validation commands.
 - Added scaffolding scripts and enforcement checks to reduce structure drift.
-- Added local, CLI-based AI review (Gemini) as a required review artifact.
+- Standardized manual validator review as the required review artifact.
 
 ## Why we did it (rationale)
 - Determinism: reduce guesswork about where to look and how to act.
@@ -45,7 +45,7 @@ This document is intended to be copied into other projects as a starting point. 
 - Orchestrator: builds task packets; may not have repo access.
 - Coder: implements changes; runs local checks; updates docs if needed.
 - Debugger: triages issues; uses `RUNBOOK_DEBUG`.
-- Validator: runs `just ai-review`, checks diffs vs codex/spec.
+- Validator: performs manual evidence-based review against codex/spec.
 - Owner/Reviewer: required review sign-off per `OWNERSHIP.md`.
 
 ## Task lifecycle (deterministic flow)
@@ -55,7 +55,7 @@ This document is intended to be copied into other projects as a starting point. 
 4) Coder reads `docs/ARCHITECTURE.md` or `docs/RUNBOOK_DEBUG.md` based on type.
 5) Implement change using scaffolds if adding components/endpoints.
 6) Run required commands from `docs/QUALITY_GATE.md`.
-7) Run `just ai-review` and attach `ai_review.md` to the task packet (logger only if requested).
+7) Validator performs manual review and records evidence in the packet or validation report.
 8) Update `docs/ARCHITECTURE.md` or `docs/RUNBOOK_DEBUG.md` if new entrypoints or repeatable failures were added.
 9) Reviewer validates against codex + required checks.
 
@@ -64,7 +64,6 @@ Keep the authoritative commands in `docs/START_HERE.md` and the task packet. Sta
 - `just validate` (docs check + lint/tests + depcruise + fmt/clippy + deny)
 - `just codex-check`
 - `just scaffold-check`
-- `just ai-review`
 
 If `just` is unavailable, run the explicit commands directly.
 
@@ -74,24 +73,14 @@ Use scaffolds for new components/endpoints to avoid drift:
 - `just new-api-endpoint <endpoint_name>`
 - `just scaffold-check` to verify output
 
-## AI review (local, CLI-only)
-Run `just ai-review` which calls `scripts/ai-review-gemini.mjs`.
-- Requires local `gemini` CLI (set `GEMINI_CLI` if not on PATH).
-- Writes `ai_review.json` and `ai_review.md`.
-- `ai_review.md` must be attached to the task packet (logger only if requested).
-- BLOCK decisions block merge; WARN must be acknowledged.
-
-Why CLI-only:
-- API keys may be unavailable or blocked; local CLI keeps the workflow usable.
-- CLI runs with full local context and avoids CI secrets management.
-- Produces a consistent review artifact for traceability.
+## Manual review (required)
+Validator performs a manual evidence-based review against the codex/spec and records a PASS/FAIL verdict with evidence mapping.
 
 ## Git hook (optional but recommended)
-Enable a pre-commit hook that runs the AI review automatically:
+Enable a pre-commit hook for local hygiene checks:
 ```
 git config core.hooksPath scripts/hooks
 ```
-Reason: ensures the AI review is not forgotten before commits. This runs `node scripts/ai-review-gemini.mjs` on every commit attempt.
 
 ## Validation and enforcement (defaults)
 These checks are designed to run in CI or locally:
@@ -118,11 +107,11 @@ Task Board + task packet act as the micro-log; the Handshake logger is for miles
 3) Populate `docs/ARCHITECTURE.md` with real entrypoints.
 4) Add `docs/RUNBOOK_DEBUG.md` with log locations and first-5-minutes flow.
 5) Add scaffolding scripts and wire `justfile` targets.
-6) Add local AI review (`scripts/ai-review-gemini.mjs`) and require `ai_review.md`.
+6) Require manual validator review and evidence mapping.
 7) Add CI jobs for lint/tests/depcruise/deny/gitleaks as available.
 8) Add ownership and agent registry rows for the team/roles.
 
 ## Optional extensions
-- Use Claude or other models as secondary reviewers for high-risk changes.
+- Use optional automated review tooling as a secondary reviewer for high-risk changes.
 - Add custom lint rules or architecture tests for deeper enforcement.
 - Add a `KNOWN_DEVIATIONS` section in the codex for intentional layout drift.

@@ -142,3 +142,52 @@ Tests:
 - `node scripts/validation/gate-check.mjs WP-1-Gate-Check-Tool` (PASS)
 
 REASON FOR PASS: Gate enforcement remains operational and integrated into workflow commands, satisfying CX-GATE-001.
+
+---
+
+## REVALIDATION REPORT - WP-1-Gate-Check-Tool (2025-12-30)
+
+VALIDATION REPORT - WP-1-Gate-Check-Tool
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Gate-Check-Tool.md
+- Spec Anchor: docs/VALIDATOR_PROTOCOL.md (CX-GATE-001 Binary Phase Gate)
+- Codex: Handshake Codex v1.4.md
+- Validator Protocol: docs/VALIDATOR_PROTOCOL.md
+
+Commands (evidence):
+- just validator-spec-regression: PASS
+- node scripts/validation/gate-check.mjs WP-1-Gate-Check-Tool: FAIL ("SKELETON APPROVED marker must follow SKELETON")
+- node scripts/validation/post-work-check.mjs WP-1-Gate-Check-Tool: FAIL (non-ASCII packet + missing COR-701 manifest fields/gates)
+- just validator-packet-complete WP-1-Gate-Check-Tool: PASS
+
+Blocking Findings:
+1) Phase gate FAIL: `node scripts/validation/gate-check.mjs WP-1-Gate-Check-Tool` fails due to an unanchored APPROVAL regex match.
+   - First "SKELETON APPROVED" occurrence is in prose (docs/task_packets/WP-1-Gate-Check-Tool.md:18) before the SKELETON section (docs/task_packets/WP-1-Gate-Check-Tool.md:79).
+   - gate-check uses pattern /SKELETON APPROVED/i (not anchored to headings), so prose can trip ordering (scripts/validation/gate-check.mjs:23-26).
+2) Deterministic manifest gate FAIL: `node scripts/validation/post-work-check.mjs WP-1-Gate-Check-Tool` fails.
+   - Packet contains non-ASCII characters (count=3).
+   - No COR-701 manifest fields parsed (target_file/start/end/pre_sha1/post_sha1/line_delta), and required gates are missing/un-checked.
+
+Impact / Risk:
+- gate-check is wired into `just pre-work` and `just post-work` (justfile:87-95). False positives can block otherwise-valid work packets and create "process FAIL" cascades.
+
+REASON FOR FAIL:
+- Required workflow gates (gate-check + COR-701 post-work-check) do not pass. Additionally, the current gate-check regex strategy can misclassify packets due to matching prose.
+
+Required Remediation:
+- Create a NEW packet (recommended: WP-1-Gate-Check-Tool-v2) anchored to current Validator Protocol and include a COR-701 VALIDATION manifest.
+- Harden scripts/validation/gate-check.mjs to match only explicit headings/markers (e.g., '^## BOOTSTRAP', '^## SKELETON', and a dedicated 'SKELETON APPROVED' marker line) and avoid matching prose (code change required; not performed in this revalidation).
+- Make the packet ASCII-only so post-work-check can pass.
+
+Task Board Update:
+- Move WP-1-Gate-Check-Tool from Done -> Ready for Dev (Revalidation FAIL).
+
+Packet Status Update (append-only):
+- **Status:** Ready for Dev
+
+Timestamp: 2025-12-30
+Validator: Codex CLI (Validator role)
+
+

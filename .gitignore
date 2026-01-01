@@ -6,6 +6,7 @@ src/**/target/
 # Build artifacts (Node)
 node_modules/
 */node_modules/
+.npm-cache/
 pnpm-lock.yaml
 yarn.lock
 package-lock.json

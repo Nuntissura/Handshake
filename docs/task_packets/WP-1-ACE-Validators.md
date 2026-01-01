@@ -1,4 +1,4 @@
-﻿# Task Packet: WP-1-ACE-Validators
+# Task Packet: WP-1-ACE-Validators
 
 ## Metadata
 - TASK_ID: WP-1-ACE-Validators
@@ -8,13 +8,13 @@
 
 ---
 
-## ðŸ•µï¸ CODE ARCHAEOLOGY NOTE
+## 🕵️ CODE ARCHAEOLOGY NOTE
 **Reason:** Strategic Audit for Phase 1 closure.
-**Authority [CX-598]:** The Roadmap is only a pointer. The **Master Spec Main Body** (Â§1-6, Â§9-11) is the sole definition of "Done."
+**Authority [CX-598]:** The Roadmap is only a pointer. The **Master Spec Main Body** (§1-6, §9-11) is the sole definition of "Done."
 **Procedure:** 
-1. Validator must search for the 12 runtime validators defined in Â§2.6.6.7.11.
-2. Verify implementation matches **100% of the technical rules, schemas, and invariants** found in the Main Body (Â§2.6.6.7.11 Validators).
-3. Surface-level compliance with roadmap bullets (Â§7.6.3.13) is insufficient. Every line of text in the Main Body section must be implemented.
+1. Validator must search for the 12 runtime validators defined in §2.6.6.7.11.
+2. Verify implementation matches **100% of the technical rules, schemas, and invariants** found in the Main Body (§2.6.6.7.11 Validators).
+3. Surface-level compliance with roadmap bullets (§7.6.3.13) is insufficient. Every line of text in the Main Body section must be implemented.
 4. If 100% alignment exists -> **PASS**. Otherwise -> **FAIL**.
 
 ---
@@ -22,7 +22,7 @@
 ## SCOPE
 - **What**: Implement the 12 mandatory ACE Runtime Validators.
 - **Why**: Enforce security, determinism, and data safety at the runtime level.
-- **SPEC_ANCHOR**: Â§2.6.6.7.11, Â§7.6.3.13
+- **SPEC_ANCHOR**: §2.6.6.7.11, §7.6.3.13
 
 ## RISK_TIER
 - Level: HIGH
@@ -66,12 +66,12 @@ just validator-hygiene-full
 - [Requirement] -> [File:Line]
 
 
-## VALIDATION REPORT — WP-1-ACE-Validators
+## VALIDATION REPORT � WP-1-ACE-Validators
 Verdict: FAIL
 
 Scope Inputs:
 - Task Packet: docs/task_packets/WP-1-ACE-Validators.md (status: Ready for Dev)
-- Spec: - **SPEC_ANCHOR**: Â§2.6.6.7.11, Â§7.6.3.13
+- Spec: - **SPEC_ANCHOR**: §2.6.6.7.11, §7.6.3.13
 
 Findings:
 - Packet incomplete [CX-573]: missing required fields (RISK_TIER, TEST_PLAN, DONE_MEANS, BOOTSTRAP, AUTHORITY); USER_SIGNATURE pending. Pre-flight gate blocks validation.
@@ -90,16 +90,16 @@ Reason for FAIL:
 
 
 
-## VALIDATION REPORT — WP-1-ACE-Validators (2025-12-25)
+## VALIDATION REPORT � WP-1-ACE-Validators (2025-12-25)
 Verdict: FAIL
 
 Scope Inputs:
 - Task Packet: docs/task_packets/WP-1-ACE-Validators.md (status: Ready for Dev)
-- Spec: Handshake_Master_Spec_v02.84.md (§2.6.6.7.11 ACE Runtime Validators; roadmap §7.6.3.13 pointer)
+- Spec: Handshake_Master_Spec_v02.84.md (�2.6.6.7.11 ACE Runtime Validators; roadmap �7.6.3.13 pointer)
 
 Files Checked:
 - Repo search: rg -n "Validator|validator" src/backend/handshake_core/src
-- Handshake_Master_Spec_v02.84.md (§2.6.6.7.11)
+- Handshake_Master_Spec_v02.84.md (�2.6.6.7.11)
 
 Spec Requirements (excerpted):
 - 12 runtime validators (e.g., Budget, Capability, Provenance, Safety, Determinism, ContextPackFreshness, IndexDrift, CacheKey, etc.) enforced in ACE runtime with typed errors and logging.
@@ -117,4 +117,6 @@ Tests:
 - None present; TEST_PLAN not executed.
 
 Reason for FAIL:
-- Required ACE runtime validators are absent; no code, wiring, or tests implement §2.6.6.7.11.
+- Required ACE runtime validators are absent; no code, wiring, or tests implement �2.6.6.7.11.
+
+

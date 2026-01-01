@@ -5,27 +5,32 @@ import { DebugBundleExport } from "./DebugBundleExport";
 
 type Props = {
   onSelect: (selection: EvidenceSelection) => void;
+  navigation?: { job_id?: string; wsid?: string; event_id?: string } | null;
 };
 
 type TimelineFilters = {
+  event_id: string;
   job_id: string;
   wsid: string;
   actor: "" | "human" | "agent" | "system";
+  surface: string;
   event_type: "" | FlightEvent["event_type"];
   from: string;
   to: string;
 };
 
 const defaultFilters: TimelineFilters = {
+  event_id: "",
   job_id: "",
   wsid: "",
   actor: "",
+  surface: "",
   event_type: "",
   from: "",
   to: "",
 };
 
-export const TimelineView: React.FC<Props> = ({ onSelect }) => {
+export const TimelineView: React.FC<Props> = ({ onSelect, navigation }) => {
   const [filters, setFilters] = useState<TimelineFilters>(defaultFilters);
   const [events, setEvents] = useState<FlightEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,9 +43,11 @@ export const TimelineView: React.FC<Props> = ({ onSelect }) => {
     setLoading(true);
     try {
       const data = await getEvents({
+        eventId: active.event_id || undefined,
         jobId: active.job_id || undefined,
         wsid: active.wsid || undefined,
         actor: active.actor || undefined,
+        surface: active.surface || undefined,
         eventType: active.event_type || undefined,
         from: active.from || undefined,
         to: active.to || undefined,
@@ -58,6 +65,19 @@ export const TimelineView: React.FC<Props> = ({ onSelect }) => {
     fetchEvents();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!navigation) return;
+    const next: TimelineFilters = {
+      ...defaultFilters,
+      job_id: navigation.job_id ?? "",
+      wsid: navigation.wsid ?? "",
+      event_id: navigation.event_id ?? "",
+    };
+    setFilters(next);
+    fetchEvents(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation]);
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -117,6 +137,14 @@ export const TimelineView: React.FC<Props> = ({ onSelect }) => {
           </select>
         </label>
         <label>
+          Surface
+          <input
+            value={filters.surface}
+            onChange={(e) => setFilters({ ...filters, surface: e.target.value })}
+            placeholder="monaco, canvas, terminal, system"
+          />
+        </label>
+        <label>
           Event Types
           <input
             value={filters.event_type}
@@ -161,7 +189,7 @@ export const TimelineView: React.FC<Props> = ({ onSelect }) => {
           <ul>
             {pinnedSlices.map((slice, idx) => (
               <li key={idx} className="muted small">
-                job_id={slice.job_id || "any"}, wsid={slice.wsid || "any"}, actor={slice.actor || "any"}, event={slice.event_type || "any"}
+                job_id={slice.job_id || "any"}, wsid={slice.wsid || "any"}, actor={slice.actor || "any"}, surface={slice.surface || "any"}, event={slice.event_type || "any"}
               </li>
             ))}
           </ul>

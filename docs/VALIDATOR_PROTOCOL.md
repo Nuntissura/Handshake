@@ -21,7 +21,8 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
   - DONE_MEANS concrete (no “tbd”/empty).
   - TEST_PLAN commands present (no placeholders).
   - BOOTSTRAP present (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP).
-  - SPEC reference present and matches docs/SPEC_CURRENT.md version.
+  - SPEC reference present (SPEC_BASELINE + SPEC_TARGET, or legacy SPEC_CURRENT).
+  - Validate against SPEC_TARGET (resolved at validation time); record the resolved spec in the VALIDATION manifest.
   - USER_SIGNATURE present and unchanged.
   Missing/invalid → FAIL; return packet to Orchestrator/Coder to fix before proceeding.
 
@@ -39,7 +40,11 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
 - List every MUST/SHOULD from the task packet DONE_MEANS + referenced spec sections (MAIN-BODY FIRST; roadmap alone is insufficient; include A1-6 and A9-11 if governing; include tokenization A4.6, storage portability A2.3.12, determinism/repro/error-code conventions when applicable).
 - Definition of “requirement”: any sentence/bullet containing MUST/SHOULD/SHALL or numbered checklist items. Roadmap is a pointer; Master Spec body is the authority.
 - Copy identifiers (anchors, bullet labels) to keep traceability. No assumptions from memory.
-- Spec ref consistency: ensure the packet’s referenced spec version exists and matches docs/SPEC_CURRENT.md; if divergent, FAIL and request spec alignment or explicit version bump.
+- Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually docs/SPEC_CURRENT.md).
+- Resolve SPEC_TARGET at validation time (docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md) and validate DONE_MEANS/evidence against the resolved spec.
+- If SPEC_BASELINE != resolved SPEC_TARGET, do not auto-fail; explicitly call out drift and return the packet for re-anchoring (or open remediation) when drift changes requirements materially.
+- If a WP is correct for its SPEC_BASELINE but SPEC_TARGET has evolved, use a distinct verdict: **OUTDATED_ONLY** (historically done; no protocol/code regression proven). Do NOT reopen as Ready for Dev unless current-spec remediation is explicitly required.
+- Spec changes are governed via Spec Enrichment (new spec version file + `docs/SPEC_CURRENT.md` update) under a one-time user signature recorded in `docs/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
 
 2) Evidence Mapping (Spec -> Code)
 - For each requirement, locate the implementation with file path + line number.
@@ -183,6 +188,6 @@ Task Packet Update (APPEND-ONLY):
 ## Non-Negotiables
 - Evidence over intuition; speculative language is prohibited [CX-588].
 - [CX-WP-003] APPEND-ONLY WP HISTORY: Deleting or overwriting the status history in a Work Packet is a protocol violation. All verdicts must be appended.
-- Automated ai-review scripts are insufficient; manual evidence-based validation is required.
+- Automated review scripts are optional; manual evidence-based validation is required.
 - If a check cannot be performed (env/tools unavailable), report as FAIL with reason—do not assume OK.
 - No “pass with debt” for hard invariants, security, traceability, or spec alignment; either fix or obtain explicit user waiver per protocol.

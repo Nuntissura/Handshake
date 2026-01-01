@@ -116,3 +116,5 @@ Tests:
 
 Reason for FAIL:
 - OTel/diagnostics stack per §5.3/§7.6.3.6 is absent.
+
+

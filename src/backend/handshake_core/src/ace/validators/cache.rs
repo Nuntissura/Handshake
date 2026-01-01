@@ -21,19 +21,25 @@ pub struct CacheKeyGuard;
 
 impl CacheKeyGuard {
     /// Check if a query plan has all required fields for cache key computation
-    fn can_compute_cache_key(plan: &QueryPlan) -> Result<(), String> {
+    fn can_compute_cache_key(plan: &QueryPlan) -> Result<(), AceError> {
         // Required fields for cache key
         if plan.policy_id.is_empty() {
-            return Err("policy_id is empty".to_string());
+            return Err(AceError::CacheKeyMissing {
+                stage: "query_plan: policy_id is empty".to_string(),
+            });
         }
 
         if plan.query_text.is_empty() {
-            return Err("query_text is empty".to_string());
+            return Err(AceError::CacheKeyMissing {
+                stage: "query_plan: query_text is empty".to_string(),
+            });
         }
 
         // Route must be non-empty for meaningful caching
         if plan.route.is_empty() {
-            return Err("route is empty".to_string());
+            return Err(AceError::CacheKeyMissing {
+                stage: "query_plan: route is empty".to_string(),
+            });
         }
 
         Ok(())
@@ -64,11 +70,7 @@ impl AceRuntimeValidator for CacheKeyGuard {
     async fn validate_plan(&self, plan: &QueryPlan) -> Result<(), AceError> {
         // In strict mode, we require all cache key fields to be present
         if plan.determinism_mode == DeterminismMode::Strict {
-            if let Err(reason) = Self::can_compute_cache_key(plan) {
-                return Err(AceError::CacheKeyMissing {
-                    stage: format!("query_plan: {}", reason),
-                });
-            }
+            Self::can_compute_cache_key(plan)?;
         }
 
         // In replay mode, we're more lenient but still want basic validation
