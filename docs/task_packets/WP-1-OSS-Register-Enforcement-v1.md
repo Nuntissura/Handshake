@@ -7,7 +7,7 @@
 - REQUESTOR: ilja
 - AGENT_ID: Codex CLI (Orchestrator)
 - ROLE: Orchestrator
-- **Status:** Ready for Dev
+- **Status:** Done
 - RISK_TIER: HIGH
 - RISK_TIER_JUSTIFICATION: This gate prevents OSS register drift and copyleft (GPL/AGPL) in-process contamination, which is a Phase 1 closure and distribution-risk blocker.
 - USER_SIGNATURE: ilja010120261528
@@ -121,45 +121,118 @@ git revert <commit-sha>
 - Notes:
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- SKELETON APPROVED received 2026-01-01
+- Updated docs/OSS_REGISTER.md: Added IntegrationMode column to all tables, added all 429 Cargo.lock transitive deps
+- Created src/backend/handshake_core/tests/oss_register_enforcement_tests.rs with 5 tests
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- cargo test oss_register_enforcement: 5 passed
+- cargo test (full): 157 passed
+- just validator-scan: PASS
+- just cargo-clean: 6.0GiB removed
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+### Manifest Entry 1: docs/OSS_REGISTER.md
+- **Target File**: `docs/OSS_REGISTER.md`
+- **Start**: 1
+- **End**: 461
+- **Line Delta**: 378
+- **Pre-SHA1**: `e4cb58703342563d22881c5b2e72073ce49a68b3`
+- **Post-SHA1**: `56844d12956c6fe917459a9c6c603e8b28dbab59`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+### Manifest Entry 2: src/backend/handshake_core/tests/oss_register_enforcement_tests.rs
+- **Target File**: `src/backend/handshake_core/tests/oss_register_enforcement_tests.rs`
+- **Start**: 1
+- **End**: 314
+- **Line Delta**: 314
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `7eaf8e5068375641c164ce6e47240badfc5b5ff2`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Lint Results**: validator-scan PASS
+- **Artifacts**: None
+- **Timestamp**: 2026-01-01T15:30:00Z
+- **Operator**: Coder-B (Claude Opus 4.5)
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.100.md
+- **Notes**: New file creation for test; full register update for IntegrationMode column
 
 ## STATUS_HANDOFF
-- (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
+- Current WP_STATUS: Implementation complete, tests passing
 - What changed in this update:
-- Next step / handoff hint:
+  - docs/OSS_REGISTER.md: Added IntegrationMode column per S11.7.4.4, added all 429 Cargo.lock packages
+  - src/backend/handshake_core/tests/oss_register_enforcement_tests.rs: New file with 5 enforcement tests
+- Next step / handoff hint: Ready for Validator review
 
 ## EVIDENCE
-- (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+### Test Run: cargo test oss_register_enforcement
+```
+running 5 tests
+test oss_register_enforcement::test_no_gpl_agpl_present ... ok
+test oss_register_enforcement::test_register_format_valid ... ok
+test oss_register_enforcement::test_copyleft_isolation ... ok
+test oss_register_enforcement::test_package_json_coverage ... ok
+test oss_register_enforcement::test_cargo_lock_coverage ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+```
+
+### Test Run: cargo test (full backend)
+```
+test result: ok. 157 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+```
+
+### Hygiene: just validator-scan
+```
+validator-scan: PASS - no forbidden patterns detected in backend sources.
+```
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+## WAIVERS GRANTED [CX-573F] (APPEND-ONLY)
+- [WAIVER-2026-01-01-WORKFLOW-ROLLOUT] Coders not yet aligned to new branch/worktree workflow; allowed for this WP only. Approver: ilja. Expires: on WP closure.
+
+## VALIDATION_REPORTS
+- VALIDATION REPORT - WP-1-OSS-Register-Enforcement-v1
+  - Verdict: PASS
+  - Spec checked:
+    - Handshake_Master_Spec_v02.100.md:33905 (11.10.4 OSS Register Enforcement)
+    - Handshake_Master_Spec_v02.100.md:30995 (11.7.4.3 Copyleft isolation rule)
+    - Handshake_Master_Spec_v02.100.md:31000 (11.7.4.4 OSS Component Register requirement)
+  - Evidence mapping (requirements -> code/docs):
+    - OSS register contains IntegrationMode column with canonical values:
+      - docs/OSS_REGISTER.md:11
+    - Deterministic enforcement test exists and is strict:
+      - src/backend/handshake_core/tests/oss_register_enforcement_tests.rs:47 (strict header + allowed IntegrationMode values)
+      - src/backend/handshake_core/tests/oss_register_enforcement_tests.rs:225 (Cargo.lock coverage)
+      - src/backend/handshake_core/tests/oss_register_enforcement_tests.rs:246 (package.json deps+devDeps coverage)
+      - src/backend/handshake_core/tests/oss_register_enforcement_tests.rs:267 (GPL/AGPL must be external_process)
+  - Commands executed (validator):
+    - just cargo-clean: PASS
+    - just validator-spec-regression: PASS
+    - cargo test --manifest-path src/backend/handshake_core/Cargo.toml oss_register_enforcement: PASS (5 tests)
+    - cargo test --manifest-path src/backend/handshake_core/Cargo.toml: PASS
+    - just validator-scan: PASS
+    - just post-work WP-1-OSS-Register-Enforcement-v1: PASS (staged-only; warning about unrelated unstaged changes)
+  - REASON FOR PASS:
+    - DONE_MEANS satisfied with direct evidence and passing TEST_PLAN commands; deterministic post-work gate passes for the staged WP diff set.
