@@ -3,7 +3,7 @@
     "WP-1-Terminal-LAW-v3": {
       "wpId": "WP-1-Terminal-LAW-v3",
       "verdict": "PASS",
-      "status": "USER_ACKNOWLEDGED",
+      "status": "COMMITTED",
       "started": "2026-01-01T22:58:19.533Z",
       "gates": [
         {
@@ -14,8 +14,17 @@
         {
           "gate": "USER_ACKNOWLEDGED",
           "timestamp": "2026-01-01T23:07:20.225Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-01T23:07:57.288Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-01T23:08:15.221Z"
         }
-      ]
+      ],
+      "completed": "2026-01-01T23:08:15.222Z"
     }
   },
   "archived_sessions": [
