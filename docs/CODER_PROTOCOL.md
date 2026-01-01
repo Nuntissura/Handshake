@@ -2,6 +2,14 @@
 
 **MANDATORY** - Read this before writing any code
 
+## Safety: Data-Loss Prevention (HARD RULE)
+- This repo is **not** a disposable workspace. Untracked files may be critical work (e.g., WPs/refinements).
+- **Do not** run destructive commands that can delete/overwrite work unless the user explicitly authorizes it in the same turn:
+  - `git clean -fd` / `git clean -xdf`
+  - `git reset --hard`
+  - `rm` / `del` / `Remove-Item` on non-temp paths
+- If a cleanup/reset is ever requested, first make it reversible: `git stash push -u -m "SAFETY: before <operation>"`, then show the user exactly what would be deleted (`git clean -nd`) and get explicit approval.
+
 ---
 
 ## Spec Authority Rule [CX-598] (HARD INVARIANT)

@@ -1,6 +1,15 @@
 # VALIDATOR_PROTOCOL [CX-570-573]
 
-**MANDATORY** - Red Hat Auditor must read this to perform evidence-based validation
+**MANDATORY** - Validator must read this before performing any Validator actions (audit, review, remediation, or repo operations)
+
+## Global Safety: Data-Loss Prevention (HARD RULE)
+- Applies to **all** Validator work (audit, review, remediation, docs edits, and repo operations).
+- This repo is **not** a disposable workspace. Untracked files may be critical work (e.g., WPs/refinements).
+- **Do not** run destructive commands that can delete/overwrite work unless the user explicitly authorizes it in the same turn:
+  - `git clean -fd` / `git clean -xdf`
+  - `git reset --hard`
+  - `rm` / `del` / `Remove-Item` on non-temp paths
+- If a cleanup/reset is ever requested, first make it reversible: `git stash push -u -m "SAFETY: before <operation>"`, then show the user exactly what would be deleted (`git clean -nd`) and get explicit approval.
 
 ---
 
