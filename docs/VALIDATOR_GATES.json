@@ -1,0 +1,20 @@
+{
+  "validation_sessions": {},
+  "archived_sessions": [
+    {
+      "wpId": "WP-1-Test-Gate",
+      "verdict": "PASS",
+      "status": "REPORT_PRESENTED",
+      "started": "2026-01-01T17:48:45.779Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-01T17:48:45.779Z"
+        }
+      ],
+      "archived_at": "2026-01-01T17:49:05.856Z",
+      "archive_reason": "manual_reset"
+    }
+  ]
+}

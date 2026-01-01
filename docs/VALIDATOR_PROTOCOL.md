@@ -151,8 +151,78 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
 - PASS: Every requirement mapped to evidence, hygiene clean, tests verified (or explicitly waived by user), DAL audit clean when applicable, phase-gate satisfied when progressing.
 - FAIL: List missing evidence, failed audits, tests not run, or unmet phase-gate. No partial passes.
 
+## Validation Gate Sequence [CX-VAL-GATE] (MECHANICAL PAUSES REQUIRED)
+
+The validation process MUST halt at these gates. **No automation may skip these pauses.**
+State is tracked in `docs/VALIDATOR_GATES.json`. Gates enforce minimum time intervals to prevent automation momentum.
+
+### Gate 1: REPORT PRESENTATION (Blocking)
+1. Validator completes all checks and generates the full VALIDATION REPORT.
+2. Validator **outputs the entire report to chat** using the Report Template.
+3. Validator runs: `just validator-gate-present {WP_ID} {PASS|FAIL}`
+4. **HALT.** Validator MUST NOT proceed until user acknowledges.
+
+### Gate 2: USER ACKNOWLEDGMENT (Blocking)
+1. User explicitly acknowledges the report (e.g., "proceed", "approved", "continue").
+2. If user requests changes or disputes findings → return to validation, re-run checks, regenerate report.
+3. Validator runs: `just validator-gate-acknowledge {WP_ID}`
+4. **Only after explicit acknowledgment** may Validator proceed to Gate 3.
+
+### Gate 3: WP APPEND (Blocking)
+1. Validator appends the VALIDATION REPORT to `docs/task_packets/{WP_ID}.md` (APPEND-ONLY per [CX-WP-001]).
+2. Validator runs: `just validator-gate-append {WP_ID}`
+3. Validator confirms append completed and shows the user the appended section.
+4. **HALT.** If verdict was FAIL → STOP HERE. No commit.
+
+### Gate 4: COMMIT (PASS only)
+1. **Only if verdict = PASS** and user has acknowledged, Validator may commit.
+2. Validator runs: `just validator-gate-commit {WP_ID}`
+3. Commit message format: `docs: validation PASS [WP-{ID}]` or `feat: implement {feature} [WP-{ID}]`
+4. Validator confirms commit hash to user.
+
+### Gate Commands
+```
+just validator-gate-present {WP_ID} {PASS|FAIL}  # Gate 1: Record report shown
+just validator-gate-acknowledge {WP_ID}           # Gate 2: Record user ack
+just validator-gate-append {WP_ID}                # Gate 3: Record WP append
+just validator-gate-commit {WP_ID}                # Gate 4: Unlock commit (PASS only)
+just validator-gate-status {WP_ID}                # Check current gate state
+just validator-gate-reset {WP_ID} --confirm       # Reset gates (archives old session)
+```
+
+**Violations:** Skipping any gate, auto-committing without user acknowledgment, or appending before showing the report = PROTOCOL VIOLATION [CX-VAL-GATE-FAIL]. Gate commands will fail if sequence is violated.
+
+```
+FLOW DIAGRAM:
+
+  [Run all checks] ──► [Generate Report] ──► GATE 1: SHOW IN CHAT ──► HALT
+                                                                        │
+                                            ◄──────────────────────────┘
+                                            User reviews report
+                                                   │
+                                            User says "proceed"
+                                                   │
+                                                   ▼
+                                           GATE 2: ACKNOWLEDGED ──► HALT
+                                                                     │
+                                            ◄────────────────────────┘
+                                                   │
+                                                   ▼
+                                           GATE 3: APPEND TO WP
+                                                   │
+                                           ┌───────┴───────┐
+                                           │               │
+                                        FAIL?           PASS?
+                                           │               │
+                                           ▼               ▼
+                                         STOP        GATE 4: COMMIT
+                                      (no commit)          │
+                                                           ▼
+                                                      git commit
+```
+
 ## Merge/Commit Authority (per Codex [CX-505])
-- After issuing PASS, the Validator is responsible for merging/committing the WP to `main`. Coders must not merge their own work.
+- After issuing PASS **and completing all validation gates**, the Validator is responsible for merging/committing the WP to `main`. Coders must not merge their own work.
 
 ## Report Template
 ```

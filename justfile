@@ -142,3 +142,22 @@ validator-git-hygiene:
 validator-hygiene-full:
 	@node scripts/validation/validator-hygiene-full.mjs
 
+# Validator Gate Commands [CX-VAL-GATE] - Mechanical enforcement of validation sequence
+validator-gate-present wp-id verdict:
+	@node scripts/validation/validator_gates.mjs present-report {{wp-id}} {{verdict}}
+
+validator-gate-acknowledge wp-id:
+	@node scripts/validation/validator_gates.mjs acknowledge {{wp-id}}
+
+validator-gate-append wp-id:
+	@node scripts/validation/validator_gates.mjs append {{wp-id}}
+
+validator-gate-commit wp-id:
+	@node scripts/validation/validator_gates.mjs commit {{wp-id}}
+
+validator-gate-status wp-id:
+	@node scripts/validation/validator_gates.mjs status {{wp-id}}
+
+validator-gate-reset wp-id *confirm:
+	@node scripts/validation/validator_gates.mjs reset {{wp-id}} {{confirm}}
+
