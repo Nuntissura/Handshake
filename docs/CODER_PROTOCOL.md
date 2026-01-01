@@ -40,9 +40,10 @@ Handshake is complex software. If we skip items or treat the roadmap as the requ
 ## Active Workflow Adjustment [2025-12-28]
 - Run all TEST_PLAN commands (and any required hygiene checks) before handoff; no skipping validation.
 - Move the active WP from `Ready for Dev` to `In Progress` on `docs/TASK_BOARD.md` once you start.
-- Keep task packets clean: do NOT paste validation/evaluation reports or logs into the packet; status/notes only.
-- Validation reports belong to the validator/auditor, never the coder.
-- This adjustment supersedes any earlier "evaluation-only" guidance.
+- **Evidence Management:** You MAY append test logs, command outputs, and proof of work to the `## EVIDENCE` section of the task packet.
+- **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
+- **Status Updates:** Update the `## STATUS_HANDOFF` section to reflect progress (e.g., "Implementation complete, tests passing").
+- **Branch Discipline (preferred):** Do all work on a WP branch (e.g., `feat/WP-{ID}`), optionally via `git worktree`. You MAY commit freely to your WP branch. You MUST NOT merge to `main`; the Validator performs the final merge/commit after PASS (per Codex [CX-505]).
 
 ## Role
 
@@ -80,7 +81,7 @@ You are a **Coder** or **Debugger** agent. Your job is to:
 3. Run validation (TEST_PLAN + hygiene) and self-review
 4. Document completion for handoff
 
-**Restrictions:** Keep task packets clean—do not embed validation/evaluation reports or logs. Use `docs/TASK_BOARD.md` to move the WP to `In Progress` when you start.
+**Restrictions:** You may append raw logs/evidence to `## EVIDENCE`, but **NEVER** write a verdict or validation report. Use `docs/TASK_BOARD.md` to move the WP to `In Progress` when you start.
 
 **CRITICAL**: You MUST verify a task packet exists BEFORE writing any code. This is not optional.
 
@@ -229,6 +230,9 @@ cat docs/task_packets/WP-{ID}-*.md
 
 When two Coders work in this repo concurrently, no two in-progress Work Packets may touch the same files.
 
+- **Strict Isolation (preferred):** Work in a dedicated branch/worktree (`feat/WP-{ID}`) so parallel work does not collide.
+- **Low-friction rule:** Local uncommitted changes outside your WP are allowed during development, but when handing off for Validator merge/commit you MUST stage ONLY your WP's files (per `IN_SCOPE_PATHS`) so `just post-work {WP_ID}` can validate the staged diff deterministically.
+- **Waiver boundary [CX-573F]:** A user waiver is only required if the Validator cannot isolate the staged diff to the WP scope (or if out-of-scope files must be included intentionally).
 - Treat `IN_SCOPE_PATHS` as the exclusive file lock set for the WP.
 - Before editing any code, open `docs/TASK_BOARD.md` -> `## In Progress`, then open each listed WP packet and compare `IN_SCOPE_PATHS` to your WP.
 - If ANY overlap exists: STOP and escalate (do not edit any code).
@@ -675,24 +679,17 @@ cargo clippy --all-targets --all-features
 just validate
 ```
 
-**Document results for handoff (keep validation logs out of the task packet):**
+**Document results for handoff (append to ## EVIDENCE in the task packet):**
 ```
-VALIDATION [CX-623]
-========================================
+## EVIDENCE
 Command: cargo test --manifest-path src/backend/handshake_core/Cargo.toml
-Result: ✅ PASS (5 passed, 0 failed)
+Result: PASS (5 passed, 0 failed)
 Output: [relevant output]
 
 Command: pnpm -C app test
-Result: ✅ PASS (12 passed, 0 failed)
+Result: PASS (12 passed, 0 failed)
 Output: [relevant output]
-
-Command: pnpm -C app run lint
-Result: ✅ PASS (no violations)
-
-Command: cargo clippy
-Result: ⚠️ 1 warning (ApiJobError unused - will fix)
-========================================
+...
 ```
 
 **If tests FAIL:**
@@ -705,12 +702,9 @@ Error: TypeError in JobsView component
 Fixing issue before claiming done...
 ```
 
-Fix issues, re-run tests, update your handoff notes (not the task packet).
+Fix issues, re-run tests, update your evidence in `## EVIDENCE`.
 
-Location/format for coder handoff notes:
-- File: `docs/messages history/WP-{ID}-coder-notes.md`
-- Contents: TEST_PLAN commands run, outcomes (PASS/FAIL), brief evidence pointers (file:line), and any waivers.
-- Validators/Auditors own validation reports and may append them to the task packet; coders MUST NOT.
+**Rule:** Do NOT write verdicts (PASS/FAIL) in `## VALIDATION_REPORTS`. Only provide raw evidence in `## EVIDENCE`.
 
 ---
 
@@ -777,10 +771,11 @@ Approved by: {orchestrator decision or team agreement}
 - Prepare a clean handoff for manual validator review (evidence pointers, DONE_MEANS mapping, and validation results).
 - No automated review is required or expected.
 
-### Step 9: Update Task Packet (status only; no validation logs) ✋ STOP
+### Step 9: Update Task Packet (status and evidence only) ✋ STOP
 
-- Update WP_STATUS/notes in the task packet to reflect current state (e.g., Completed/Blocked).
-- Do NOT paste validation/evaluation reports or test logs into the task packet; keep it clean.
+- Update WP_STATUS in the task packet to reflect current state (e.g., Completed/Blocked).
+- Append logs/output to `## EVIDENCE`.
+- Do NOT write to `## VALIDATION_REPORTS`.
 - Logger entry is OPTIONAL and only used if explicitly requested for a milestone or hard bug.
 
 ---
@@ -1021,7 +1016,7 @@ Now work is done.
 - ✅ Implementation within scope
 - ✅ All TEST_PLAN commands run and pass
 - ✅ Manual review complete (if required)
-- ✅ Validation evidence captured for handoff (kept outside the task packet)
+- ✅ Validation evidence captured in `## EVIDENCE` (logs/outputs)
 - ✅ `just post-work WP-{ID}` passes
 - ✅ Commit message references WP-ID
 
@@ -1030,7 +1025,7 @@ Now work is done.
 - ❌ Work rejected at review for missing validation
 - ❌ Tests fail but you claim "done"
 - ❌ Scope creep (changed unrelated code)
-- ❌ No task packet status/notes recorded
+- ❌ Wrote a verdict in `## VALIDATION_REPORTS` (Validator only)
 
 ---
 
@@ -1157,16 +1152,16 @@ This section defines what a PERFECT Coder looks like. Use this for self-evaluati
 
 **MUST verify DONE_MEANS:**
 - For each criterion: find file:line evidence
-- Capture in validation notes for handoff (outside the task packet): "✅ {criterion} at {file:line}"
+- Capture in `## EVIDENCE` section: "Checked {criterion} at {file:line}"
 
-**Success:** All validation passes; evidence trail is complete
+**Success:** All validation passes; evidence trail is complete in the packet
 
 ---
 
 ### Responsibility 5: Completion Documentation [CX-573, CX-623]
 
 **MUST:**
-- [ ] Capture validation results + evidence for handoff (keep task packet free of validation logs)
+- [ ] Capture logs/evidence in `## EVIDENCE` (do NOT write verdicts in `## VALIDATION_REPORTS`)
 - [ ] Update STATUS if changed (packet notes/status only)
 - [ ] Update TASK_BOARD (move to "Done")
 - [ ] Write detailed commit message (references WP-ID)
@@ -1188,7 +1183,7 @@ Before requesting commit, verify ALL 13:
 - [ ] **6. Manual Review:** PASS or WARN (no BLOCK) if MEDIUM/HIGH
 - [ ] **7. Post-Work:** `just post-work WP-{ID}` passes
 - [ ] **8. DONE_MEANS:** Every criterion has file:line evidence
-- [ ] **9. Validation Evidence:** Captured for handoff (outside task packet)
+- [ ] **9. Validation Evidence:** Captured in `## EVIDENCE` (no verdicts)
 - [ ] **10. Packet Status:** Updated if needed (no validation logs)
 - [ ] **11. TASK_BOARD:** Updated (moved to "Done")
 - [ ] **12. Commit Message:** Detailed, references WP-ID, includes validation
@@ -1226,7 +1221,7 @@ Stop immediately if ANY of these are true:
 2. ✅ **Scope boundaries are hard lines** — OUT_OF_SCOPE items are forbidden
 3. ✅ **Tests are proof, not optional** — No passing tests = no done work
 4. ✅ **DONE_MEANS are literal** — Each criterion must be verifiable yes/no
-5. ✅ **Validation evidence (outside the task packet) is the audit trail** — keep logs for handoff, not in the packet
+5. ✅ **Validation evidence is the audit trail** — keep logs in `## EVIDENCE` (no verdicts)
 6. ✅ **Task packet is source of truth** — Not Slack, not conversation, not memory
 7. ✅ **BOOTSTRAP output proves understanding** — If you can't explain FILES/SEARCH/RISK, you don't understand
 8. ✅ **Hard invariants are non-negotiable** — No exceptions, ever
@@ -1323,7 +1318,7 @@ Work is stuck (can't proceed without help)
 - ✅ All TEST_PLAN commands pass
 - ✅ Manual review completed (PASS)
 - ✅ `just post-work` passes
-- ✅ Validation evidence captured for handoff (kept outside the task packet)
+- ✅ Validation evidence captured in `## EVIDENCE`
 - ✅ Commit message references WP-ID and includes validation
 
 ### You Failed If:

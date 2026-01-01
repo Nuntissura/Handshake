@@ -126,6 +126,54 @@
       "data": "Unskippable Master Spec refinement gate: require TECHNICAL_REFINEMENT block with excerpts (ASCII-escaped), clearly-covers verdict, and full proposed enrichment when needed; enforce via pre-work-check + orchestrator_gates sign.",
       "timestamp": "2025-12-31T23:36:47.253Z",
       "turn_token": "z9y9om"
+    },
+    {
+      "wpId": "WP-1-Tokenization-Service-v3",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Tokenization-Service-v3.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.99.md",
+      "spec_target_sha1": "55c240a47d9bb04194155c6da19701e2ff9137a6",
+      "timestamp": "2026-01-01T01:13:29.301Z",
+      "turn_token": "1767230009301"
+    },
+    {
+      "wpId": "WP-1-Tokenization-Service-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja010120260219",
+      "timestamp": "2026-01-01T01:20:12.520Z",
+      "refinement_path": "docs/refinements/WP-1-Tokenization-Service-v3.md"
+    },
+    {
+      "wpId": "WP-1-Flight-Recorder-v3",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Flight-Recorder-v3.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.100.md",
+      "spec_target_sha1": "76e8e6e8259b64a6dc4aed5cf2afb754ff1f3aed",
+      "timestamp": "2026-01-01T13:41:39.317Z",
+      "turn_token": "1767274899318"
+    },
+    {
+      "wpId": "WP-1-Flight-Recorder-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja010120261446",
+      "timestamp": "2026-01-01T13:50:02.281Z",
+      "refinement_path": "docs/refinements/WP-1-Flight-Recorder-v3.md"
+    },
+    {
+      "wpId": "WP-1-OSS-Register-Enforcement-v1",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-OSS-Register-Enforcement-v1.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.100.md",
+      "spec_target_sha1": "76e8e6e8259b64a6dc4aed5cf2afb754ff1f3aed",
+      "timestamp": "2026-01-01T14:24:33.400Z",
+      "turn_token": "1767277473400"
+    },
+    {
+      "wpId": "WP-1-OSS-Register-Enforcement-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja010120261528",
+      "timestamp": "2026-01-01T14:29:13.055Z",
+      "refinement_path": "docs/refinements/WP-1-OSS-Register-Enforcement-v1.md"
     }
   ]
 }

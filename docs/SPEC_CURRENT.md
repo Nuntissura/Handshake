@@ -2,9 +2,9 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.99.md**
+**Handshake_Master_Spec_v02.100.md**
 
-(Updated: 2025-12-31 - Expanded AI Job Model JobKind/JobState and added FR-EVT-WF-RECOVERY [ilja311220251755])
+(Updated: 2026-01-01 - Added sync/async bridge requirement for Tokenization Service telemetry [ilja010120260602])
 
 ---
 

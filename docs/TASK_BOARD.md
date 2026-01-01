@@ -15,6 +15,8 @@
 
 This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Phase 1 cannot close until every item below is validated against Master Spec v02.99.
 
+**TASK_BOARD entry format (go-forward):** `- **[WP_ID]** - {VALIDATION_STATUS}`. Keep details (failure reasons, commands, evidence) in the task packet to avoid drift/noise.
+
 ---
 
 
@@ -24,8 +26,6 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - **[WP-1-Terminal-LAW-v2]** / FAIL (revalidation): `just post-work WP-1-Terminal-LAW-v2` fails phase gate (missing "SKELETON APPROVED" marker); SPEC_CURRENT mismatch (packet v02.96 vs repo v02.99); packet contains non-ASCII bytes. [READY FOR DEV]
 - **[WP-1-Capability-SSoT]** / FAIL (revalidation): `just post-work WP-1-Capability-SSoT` fails (C701-G05 post_sha1 mismatch) for `src/backend/handshake_core/src/capabilities.rs`. [READY FOR DEV]
 - **[WP-1-LLM-Core]** / FAIL (revalidation): `just post-work WP-1-LLM-Core` fails phase gate (SKELETON appears before BOOTSTRAP); packet non-ASCII + missing COR-701 manifest. [READY FOR DEV]
-- **[WP-1-Flight-Recorder-v2]** / FAIL (revalidation): `node scripts/validation/gate-check.mjs WP-1-Flight-Recorder-v2` fails (missing SKELETON APPROVED marker); `node scripts/validation/post-work-check.mjs WP-1-Flight-Recorder-v2` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.96 not v02.99. [READY FOR DEV]
-- **[WP-1-Tokenization-Service-20251228]** / FAIL (revalidation) (Tokenization-Service-v2): `node scripts/validation/gate-check.mjs WP-1-Tokenization-Service-20251228` fails (missing SKELETON APPROVED marker); `node scripts/validation/post-work-check.mjs WP-1-Tokenization-Service-20251228` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.96 not v02.99. [READY FOR DEV]
 - **[WP-1-Flight-Recorder-UI-v2]** / FAIL (revalidation): `just gate-check WP-1-Flight-Recorder-UI-v2` fails (missing "SKELETON APPROVED" marker); `node scripts/validation/post-work-check.mjs WP-1-Flight-Recorder-UI-v2` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99; user signature field missing/pending. [READY FOR DEV]
 - **[WP-1-ACE-Validators-v3]** / FAIL (revalidation): `just post-work WP-1-ACE-Validators-v3` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99; user signature field missing; TASK_BOARD was inconsistent with packet status history. [READY FOR DEV]
 - **[WP-1-AI-Job-Model-v3]** / FAIL (revalidation): `just post-work WP-1-AI-Job-Model-v3` fails phase gate (missing "SKELETON APPROVED" marker); `node scripts/validation/post-work-check.mjs WP-1-AI-Job-Model-v3` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99; packet already contains a prior FAIL section; spec updated in v02.99 to include Stalled and expanded JobKind, revalidate against new list. [READY FOR DEV]
@@ -69,13 +69,18 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 
 (Concurrency: each in-progress WP entry MUST include `ASSIGNED_TO: Coder-A` or `ASSIGNED_TO: Coder-B`; in-progress WPs must have disjoint `IN_SCOPE_PATHS` per [CX-CONC-001].)
 
+- **[WP-1-Flight-Recorder-v3]** / READY: New refactor packet to align Flight Recorder event taxonomy/ingestion with SPEC_CURRENT v02.100 (addresses prior v2 revalidation FAIL + spec-to-code FR-EVT mismatch). ASSIGNED_TO: Coder-A
+- **[WP-1-OSS-Register-Enforcement-v1]** / IN PROGRESS: Backend unit test enforcing `docs/OSS_REGISTER.md` coverage + GPL/AGPL isolation rule. ASSIGNED_TO: Coder-B
+
+
 ## Done
-- **[WP-1-Security-Gates-v3]** - Remediation: protocol-clean packet (ASCII + COR-701 manifest) anchored to SPEC_CURRENT v02.99; terminal security gates revalidated per A10.1 and FR-EVT-001; `just post-work WP-1-Security-Gates-v3` passes. [VALIDATED]
-- **[WP-1-Gate-Check-Tool-v2]** - Hardened `scripts/validation/gate-check.mjs` to ignore prose/fenced code blocks and require explicit markers; `just post-work WP-1-Gate-Check-Tool-v2` passes. [VALIDATED]
-- **[WP-1-Workflow-Engine-v4]** - Startup recovery gate enforced (HSK-WF-003 ordering) + FR-EVT-WF-RECOVERY payload aligned to SPEC_CURRENT v02.99; `just post-work WP-1-Workflow-Engine-v4` passes. [VALIDATED]
-- **[WP-1-Debug-Bundle-v3]** - Remediation: Debug Bundle export conforms to SPEC_CURRENT v02.99 (10.5.6.1-12, 11.5 FR-EVT-005) and has a protocol-valid validation report. [VALIDATED]
-- **[WP-1-Validator-Error-Codes-v1]** - Remediation: `just validator-error-codes` passes (stringly errors removed; nondeterminism uses require waiver markers). [VALIDATED]
-- **[WP-1-Storage-Foundation-v3]** - Remediation: `src/backend/handshake_core/src/models.rs` no longer leaks `sqlx::...` types; mandatory audit passes (no `sqlx::`/`SqlitePool` references outside storage); `cargo test` and storage DAL audit pass. [VALIDATED]
+- **[WP-1-Tokenization-Service-v3]** - [VALIDATED]
+- **[WP-1-Security-Gates-v3]** - [VALIDATED]
+- **[WP-1-Gate-Check-Tool-v2]** - [VALIDATED]
+- **[WP-1-Workflow-Engine-v4]** - [VALIDATED]
+- **[WP-1-Debug-Bundle-v3]** - [VALIDATED]
+- **[WP-1-Validator-Error-Codes-v1]** - [VALIDATED]
+- **[WP-1-Storage-Foundation-v3]** - [VALIDATED]
 
 
 
@@ -84,19 +89,21 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 ---
 
 ## Superseded (Archive)
-- **[WP-1-Storage-Foundation-20251228]** - Superseded by WP-1-Storage-Foundation-v3 (packet fails gates; spec drift; repo fails mandatory audit). [SUPERSEDED]
-- **[WP-1-Gate-Check-Tool]** - Superseded by WP-1-Gate-Check-Tool-v2 (remediation: false positives blocking valid packets). [SUPERSEDED]
-- **[WP-1-Operator-Consoles-v1]** - Superseded by v2 (revalidation vs v02.99; remediation in progress). [SUPERSEDED]
-- **[WP-1-Operator-Consoles]** - Superseded by v1 (comprehensive rewrite anchored to v02.96 §10.5 + §11.4).
-- **[WP-1-Diagnostic-Pipe]** - Absorbed into WP-1-Operator-Consoles-v1 (DIAG-SCHEMA §11.4 is prerequisite component).
-- **[WP-1-Flight-Recorder]** - Superseded by v2 (Spec alignment §11.5).
-- **[WP-1-Workflow-Engine-v3]** - Superseded by v4 (protocol clean packet aligned to v02.99 and HSK-WF-003 ordering).
-- **[WP-1-Workflow-Engine-v2]** - Superseded by v3 (Audit remediation).
-- **[WP-1-AI-Job-Model-v2]** - Superseded by v3 (Spec alignment §2.6.6.2.8).
-- **[WP-1-ACE-Validators-v2]** - Superseded by v3 (Hardened security remediation).
-- **[WP-1-Security-Gates]** - Superseded by v2 (Spec drift v02.84 → v02.96).
-- **[WP-1-Security-Gates-v2]** - Superseded by v3 (revalidation FAIL: non-ASCII packet, missing COR-701 manifest fields, spec drift, unwrap in terminal/redaction.rs).
-- **[WP-1-Terminal-LAW]** - Superseded by v2 (Stale SPEC_ANCHOR, incomplete structure).
-- **[WP-1-MEX-v1.2-Runtime]** - Superseded by v2 (Stale SPEC_ANCHOR v02.84, no implementation).
-- **[WP-1-Debug-Bundle-v2]** - INVALIDATED: Spec-to-code mismatches vs v02.99 (schemas/VAL-BUNDLE-001/API/FR-EVT-005) and missing protocol-valid validation report; superseded by WP-1-Debug-Bundle-v3. [SUPERSEDED]
-- **[WP-1-Debug-Bundle]** - Superseded by v2 (Stale SPEC_ANCHOR v02.84, comprehensive rewrite with 10.5.6.5-12 enrichment).
+- **[WP-1-Tokenization-Service-20251228]** - [SUPERSEDED]
+- **[WP-1-Storage-Foundation-20251228]** - [SUPERSEDED]
+- **[WP-1-Gate-Check-Tool]** - [SUPERSEDED]
+- **[WP-1-Operator-Consoles-v1]** - [SUPERSEDED]
+- **[WP-1-Operator-Consoles]** - [SUPERSEDED]
+- **[WP-1-Diagnostic-Pipe]** - [SUPERSEDED]
+- **[WP-1-Flight-Recorder]** - [SUPERSEDED]
+- **[WP-1-Flight-Recorder-v2]** - [SUPERSEDED by WP-1-Flight-Recorder-v3]
+- **[WP-1-Workflow-Engine-v3]** - [SUPERSEDED]
+- **[WP-1-Workflow-Engine-v2]** - [SUPERSEDED]
+- **[WP-1-AI-Job-Model-v2]** - [SUPERSEDED]
+- **[WP-1-ACE-Validators-v2]** - [SUPERSEDED]
+- **[WP-1-Security-Gates]** - [SUPERSEDED]
+- **[WP-1-Security-Gates-v2]** - [SUPERSEDED]
+- **[WP-1-Terminal-LAW]** - [SUPERSEDED]
+- **[WP-1-MEX-v1.2-Runtime]** - [SUPERSEDED]
+- **[WP-1-Debug-Bundle-v2]** - [SUPERSEDED]
+- **[WP-1-Debug-Bundle]** - [SUPERSEDED]

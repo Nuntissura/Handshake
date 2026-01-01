@@ -30,7 +30,7 @@ const refinementPath = defaultRefinementPath(WP_ID);
 let userSignature = '';
 
 if (!fs.existsSync(refinementPath)) {
-  const refinementTemplatePath = path.join('docs', 'REFINEMENT_TEMPLATE.md');
+  const refinementTemplatePath = path.join('docs', 'templates', 'REFINEMENT_TEMPLATE.md');
   if (!fs.existsSync(refinementTemplatePath)) {
     console.error(`Missing refinement template: ${refinementTemplatePath}`);
     process.exit(1);
@@ -132,7 +132,7 @@ if (fs.existsSync(filePath)) {
 const timestamp = new Date().toISOString();
 
 // Template content (canonical)
-const templatePath = path.join('docs', 'TASK_PACKET_TEMPLATE.md');
+const templatePath = path.join('docs', 'templates', 'TASK_PACKET_TEMPLATE.md');
 if (!fs.existsSync(templatePath)) {
   console.error(`ƒ?O Missing template: ${templatePath}`);
   process.exit(1);

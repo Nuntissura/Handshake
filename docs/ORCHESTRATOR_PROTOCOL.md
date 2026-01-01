@@ -55,8 +55,13 @@
 
 ## Deterministic Manifest & Gate (current workflow, COR-701 discipline)
 - Every task packet MUST keep the deterministic manifest template in `## Validation` (target_file, start/end, line_delta, pre/post SHA1, gates checklist). Packets must stay ASCII-only.
-- Orchestrator ensures new packets are created from `docs/TASK_PACKET_TEMPLATE.md` without stripping the manifest; reject packet creation/revision that removes it.
+- Orchestrator ensures new packets are created from `docs/templates/TASK_PACKET_TEMPLATE.md` without stripping the manifest; reject packet creation/revision that removes it.
 - `just pre-work WP-{ID}` must pass before handoff (template present), and `just post-work WP-{ID}` is the mandatory deterministic gate before Done/commit (enforces manifest completeness, SHA1s, window bounds, gates).
+
+## Branching & Concurrency (preferred; low-friction)
+- Default: one WP = one feature branch (e.g., `feat/WP-{ID}`).
+- When multiple Coders work concurrently, prefer `git worktree` per active WP (separate working directories) to prevent collisions.
+- Coders may commit freely on their WP branch. The Validator performs the final merge/commit to `main` after PASS (per Codex [CX-505]).
 
 ## Part 2: Pre-Orchestration Checklist [CX-600]
 
@@ -200,6 +205,8 @@ Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block contain
     - **CRITICAL:** You MUST output the exact Markdown text (headings, rules, code blocks) that will be inserted.
     - **CRITICAL:** The user must be able to copy-paste this text directly into the Master Spec if they chose to do so manually.
 - **primitives:** Specific Traits, Structs, or Enums that must be implemented.
+
+**Non-negotiable presentation rule:** The Technical Refinement Block MUST be pasted into the Orchestrator's chat message for user review (not only written to a file). The Orchestrator MUST NOT proceed to signature or packet creation until the user explicitly approves the refinement in-chat (e.g., `APPROVE REFINEMENT {WP_ID}`) or requests edits.
 
 **Step 2: Enrich Master Spec (after user approval)**
 If gaps found:
@@ -364,6 +371,8 @@ To physically prevent the merging of Refinement, Signature, and Creation phases,
 2. **Mandatory Turn Boundary:** The Orchestrator MUST STOP and wait for a NEW turn.
 3. **Record Signature:** Only in a new turn can the Orchestrator run `just record-signature {wp-id} {signature}`.
 4. **Hard Block:** The `scripts/validation/orchestrator_gates.mjs` script will return an error if Step 1 and Step 3 occur in the same turn. This error is a **Hard Stop**; the Orchestrator must not attempt to bypass it via manual file writes.
+
+### 2.6 Work Packet Lifecycle
 
 ---
 
@@ -1111,19 +1120,19 @@ When blocker VALIDATEs, I'll move this to READY FOR DEV.
 
 **1. Check for ID collision:**
 ```bash
-ls docs/task_packets/WP-{phase}-{name}-*.md
+ls docs/task_packets/WP-{phase}-{name}*.md
 ```
-*Always append a unique suffix (e.g., date or short hash) to the WP ID to ensure a fresh file.*
-*Example: WP-1-Terminal-Exec-20251219*
+*Do NOT use date/time stamps in WP IDs. If the base WP ID already exists, create a revision packet using `-v{N}`.*
+*Example: `WP-1-Tokenization-Service-v3`*
 
 **2. Use template generator:**
 ```bash
-just create-task-packet "WP-{phase}-{name}-{suffix}"
+just create-task-packet "WP-{phase}-{name}-v{N}"
 ```
 *If script fails -> STOP. Resolve collision.*
 
 **3. Fill details (Update only):**
-Edit `docs/task_packets/WP-{ID}-{Name}.md` to fill placeholders.
+Edit `docs/task_packets/WP-{ID}.md` to fill placeholders.
 
 Use this template:
 ```markdown
@@ -1262,7 +1271,7 @@ Fix errors, then re-run `just pre-work`.
 
 off message format:**
 ```
-Task Packet: docs/task_packets/WP-{ID}-{Name}.md
+Task Packet: docs/task_packets/WP-{ID}.md
 WP_ID: WP-{ID}
 RISK_TIER: {LOW|MEDIUM|HIGH}
 
@@ -1677,7 +1686,7 @@ DONE_MEANS (mapped):
 **When to create variant packets:**
 - WP-1-Storage-Abstraction-Layer (original, locked)
 - WP-1-Storage-Abstraction-Layer-v2 (changes needed, new packet)
-- OR: WP-1-Storage-Abstraction-Layer-20251225-1630 (date/time variant)
+- OR: WP-1-Storage-Abstraction-Layer-v3 (next revision; no date/time stamps)
 
 ---
 
@@ -1717,23 +1726,23 @@ Storage Backend Portability Foundation (Sequential):
 
 ## In Progress
 
-- [WP_ID]: {Brief description}
+- **[WP_ID]** - {VALIDATION_STATUS}
 
 ## Ready for Dev
 
-- [WP_ID]: {Brief description}
+- **[WP_ID]** - {VALIDATION_STATUS}
 
 ## Done
 
-- [WP_ID]: {Brief description}
+- **[WP_ID]** - {VALIDATION_STATUS}
 
 ## Blocked
 
-- [WP_ID]: {Reason for block}
+- **[WP_ID]** - BLOCKED: {Reason for block}
 
 ## Superseded (Archive)
 
-- [WP_ID]: {Reason for archival}
+- **[WP_ID]** - SUPERSEDED: {Reason for archival}
 ```
 
 ### 6.2 Status Values (CX-625)

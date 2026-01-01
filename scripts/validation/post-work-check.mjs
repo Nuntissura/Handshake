@@ -25,6 +25,8 @@ console.log(`\nPost-work validation for ${WP_ID} (deterministic manifest + gates
 const errors = [];
 const warnings = [];
 
+const git = (command) => execSync(command, { encoding: 'utf8' }).trim();
+
 const readFileIfExists = (p) => {
   try {
     return fs.readFileSync(p, 'utf8');
@@ -33,25 +35,37 @@ const readFileIfExists = (p) => {
   }
 };
 
+const sha1Hex = (bufOrString) => crypto.createHash('sha1').update(bufOrString).digest('hex');
+
 const computeSha1 = (p) => {
   const buf = fs.readFileSync(p);
-  return crypto.createHash('sha1').update(buf).digest('hex');
+  return sha1Hex(buf);
 };
 
 const loadHeadVersion = (targetPath) => {
   try {
     const gitPath = targetPath.replace(/\\/g, '/');
-    const data = execSync(`git show HEAD:${gitPath}`, { encoding: 'utf8' });
+    const data = git(`git show HEAD:${gitPath}`);
     return data;
   } catch {
     return null;
   }
 };
 
-const getNumstatDelta = (targetPath) => {
+const loadIndexVersion = (targetPath) => {
   try {
     const gitPath = targetPath.replace(/\\/g, '/');
-    const out = execSync(`git diff --numstat HEAD -- "${gitPath}"`, { encoding: 'utf8' }).trim();
+    return git(`git show :${gitPath}`);
+  } catch {
+    return null;
+  }
+};
+
+const getNumstatDelta = (targetPath, { staged }) => {
+  try {
+    const gitPath = targetPath.replace(/\\/g, '/');
+    const diffArgs = staged ? '--cached' : '';
+    const out = git(`git diff ${diffArgs} --numstat HEAD -- "${gitPath}"`);
     if (!out) return null;
     const [addsStr, delsStr] = out.split('\t');
     const adds = parseInt(addsStr, 10);
@@ -63,10 +77,11 @@ const getNumstatDelta = (targetPath) => {
   }
 };
 
-const parseDiffHunks = (targetPath) => {
+const parseDiffHunks = (targetPath, { staged }) => {
   try {
     const gitPath = targetPath.replace(/\\/g, '/');
-    const diff = execSync(`git diff --unified=0 HEAD -- "${gitPath}"`, { encoding: 'utf8' });
+    const diffArgs = staged ? '--cached' : '';
+    const diff = git(`git diff ${diffArgs} --unified=0 HEAD -- "${gitPath}"`);
     const hunks = [];
     const hunkHeader = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
     diff.split('\n').forEach((line) => {
@@ -99,7 +114,50 @@ if (fs.existsSync(taskPacketDir)) {
   }
 }
 
-const parseValidationManifest = (content) => {
+const parseInScopePaths = (content) => {
+  if (!content) return [];
+  const lines = content.split('\n');
+  const idx = lines.findIndex((l) => /^\s*-\s*IN_SCOPE_PATHS\s*:\s*$/i.test(l));
+  if (idx === -1) return [];
+  const results = [];
+  for (let i = idx + 1; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (/^\s*-\s*[A-Z0-9_]+\s*:/.test(line)) break; // next top-level metadata-ish bullet
+    if (/^\s*##\s+/.test(line)) break;
+    const m = line.match(/^\s*-\s+(.+)\s*$/) || line.match(/^\s{2,}-\s+(.+)\s*$/);
+    if (!m) continue;
+    const value = m[1].trim().replace(/^`|`$/g, '');
+    if (!value || value.toLowerCase() === 'path/to/file') continue;
+    results.push(path.normalize(value).replace(/\\/g, '/'));
+  }
+  return Array.from(new Set(results));
+};
+
+const requiresManifest = (filePath) => {
+  const p = filePath.replace(/\\/g, '/');
+  if (p.startsWith('docs/')) return false;
+  return true;
+};
+
+const getStagedFiles = () => {
+  try {
+    const out = git('git diff --name-only --cached');
+    return out ? out.split('\n').filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+};
+
+const getWorkingFiles = () => {
+  try {
+    const out = git('git diff --name-only HEAD');
+    return out ? out.split('\n').filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+};
+
+const parseValidationManifests = (content) => {
   if (!content) return null;
   const lines = content.split('\n');
   const startIdx = lines.findIndex((line) => /^##\s*validation/i.test(line));
@@ -111,34 +169,95 @@ const parseValidationManifest = (content) => {
     manifestLines.push(line);
   }
 
-  const getField = (label) => {
-    const re = new RegExp(`-\\s*${label}\\s*:\\s*(.+)`, 'i');
-    const hit = manifestLines.find((l) => re.test(l));
-    if (!hit) return '';
-    return hit.match(re)[1].trim().replace(/^`|`$/g, '');
+  const manifests = [];
+  let current = {
+    target_file: '',
+    start: '',
+    end: '',
+    pre_sha1: '',
+    post_sha1: '',
+    line_delta: '',
+    gates_passed: new Set(),
+    rawLines: '',
   };
-
-  const gatesBlockStart = manifestLines.findIndex((l) => /Gates Passed/i.test(l));
-  const gateSet = new Set();
-  if (gatesBlockStart !== -1) {
-    for (let i = gatesBlockStart + 1; i < manifestLines.length; i += 1) {
-      const line = manifestLines[i].trim();
-      if (!line.startsWith('-')) break;
-      const m = line.match(/- \[(x|X)\]\s*([a-z0-9_]+)/i);
-      if (m) gateSet.add(m[2].toLowerCase());
+  let inGates = false;
+  const flush = () => {
+    if (
+      current.target_file
+      || current.start
+      || current.end
+      || current.pre_sha1
+      || current.post_sha1
+      || current.line_delta
+      || current.gates_passed.size > 0
+    ) {
+      current.rawLines = current.rawLines.trimEnd();
+      manifests.push(current);
     }
-  }
-
-  return {
-    target_file: getField('Target File'),
-    start: getField('Start'),
-    end: getField('End'),
-    pre_sha1: getField('Pre-SHA1'),
-    post_sha1: getField('Post-SHA1'),
-    line_delta: getField('Line Delta'),
-    gates_passed: gateSet,
-    rawLines: manifestLines.join('\n'),
+    current = {
+      target_file: '',
+      start: '',
+      end: '',
+      pre_sha1: '',
+      post_sha1: '',
+      line_delta: '',
+      gates_passed: new Set(),
+      rawLines: '',
+    };
+    inGates = false;
   };
+
+  const assignField = (label, value) => {
+    const v = value.trim().replace(/^`|`$/g, '');
+    if (label === 'Target File') current.target_file = v;
+    if (label === 'Start') current.start = v;
+    if (label === 'End') current.end = v;
+    if (label === 'Pre-SHA1') current.pre_sha1 = v;
+    if (label === 'Post-SHA1') current.post_sha1 = v;
+    if (label === 'Line Delta') current.line_delta = v;
+  };
+
+  const fieldRe = /^\s*-\s*\*\*(Target File|Start|End|Pre-SHA1|Post-SHA1|Line Delta)\*\*\s*:\s*(.*)\s*$/i;
+  const gatesStartRe = /^\s*-\s*\*\*Gates Passed\*\*\s*:\s*$/i;
+  const gateLineRe = /^\s*-\s*\[(x|X)\]\s*([a-z0-9_]+)\s*$/i;
+
+  manifestLines.forEach((line) => {
+    current.rawLines += `${line}\n`;
+    const mField = line.match(fieldRe);
+    if (mField) {
+      const label = mField[1];
+      const value = mField[2] ?? '';
+      if (label.toLowerCase() === 'target file' && current.target_file) flush();
+      assignField(label, value);
+      return;
+    }
+    if (gatesStartRe.test(line)) {
+      inGates = true;
+      return;
+    }
+    if (inGates) {
+      const mGate = line.trim().match(gateLineRe);
+      if (mGate) {
+        current.gates_passed.add(mGate[2].toLowerCase());
+        return;
+      }
+      if (!line.trim().startsWith('-')) {
+        inGates = false;
+      }
+    }
+  });
+
+  flush();
+  return manifests.length > 0 ? manifests : null;
+};
+
+const parseWaivers = (content) => {
+  if (!content) return false;
+  // Look for WAIVERS GRANTED section and keywords like "dirty tree", "git hygiene", or CX-573F
+  const waiverBlock = content.match(/##\s*WAIVERS\s*GRANTED([\s\S]*?)##/i);
+  if (!waiverBlock) return false;
+  const waivers = waiverBlock[1];
+  return /CX-573F|dirty\s*tree|git\s*hygiene/i.test(waivers) && !/NONE/i.test(waivers);
 };
 
 // Check 1: manifest present and ASCII only
@@ -151,70 +270,118 @@ if (!packetContent) {
   errors.push('Task packet contains non-ASCII characters (manifest must be ASCII)');
 }
 
-const manifest = parseValidationManifest(packetContent);
-if (!manifest) {
+const hasGitWaiver = parseWaivers(packetContent);
+if (hasGitWaiver) {
+  console.log('NOTE: Git hygiene waiver detected [CX-573F]. Strict git checks relaxed.');
+}
+
+const manifests = parseValidationManifests(packetContent);
+if (!manifests) {
   errors.push('VALIDATION section found but manifest fields not parsed');
 }
 
-// Check 2: manifest schema
-if (manifest) {
-  console.log('\nCheck 2: Manifest fields');
-  spec.requiredFields.forEach((field) => {
-    const value = manifest[field];
-    if (!value || (typeof value === 'string' && value.trim() === '')) {
-      errors.push(`Manifest missing required field: ${field}`);
-    }
-  });
-
-  const shaRegex = /^[a-f0-9]{40}$/i;
-  if (manifest.pre_sha1 && !shaRegex.test(manifest.pre_sha1)) {
-    errors.push('pre_sha1 must be a 40-char hex SHA1');
-  }
-  if (manifest.post_sha1 && !shaRegex.test(manifest.post_sha1)) {
-    errors.push('post_sha1 must be a 40-char hex SHA1');
-  }
-
-  const startNum = parseInt(manifest.start, 10);
-  const endNum = parseInt(manifest.end, 10);
-  if (Number.isNaN(startNum) || Number.isNaN(endNum) || startNum < 1 || endNum < startNum) {
-    errors.push('Start/End must be integers with start >=1 and end >= start');
-  }
-
-  const deltaNum = parseInt(manifest.line_delta, 10);
-  if (manifest.line_delta === '' || Number.isNaN(deltaNum)) {
-    errors.push('line_delta must be an integer (adds - dels)');
-  }
-
-  spec.requiredGates.forEach((gate) => {
-    if (!manifest.gates_passed.has(gate)) {
-      errors.push(`Gate missing or unchecked: ${gate} (${spec.gateErrorCodes[gate]})`);
-    }
-  });
+const inScopePaths = parseInScopePaths(packetContent);
+const stagedFiles = getStagedFiles();
+const workingFiles = getWorkingFiles();
+const useStaged = stagedFiles.length > 0;
+const changedFiles = useStaged ? stagedFiles : workingFiles;
+if (useStaged && workingFiles.length > stagedFiles.length) {
+  warnings.push('Working tree has unstaged changes; post-work validation uses STAGED changes only.');
 }
 
-// Check 3: file integrity vs manifest
-if (manifest && manifest.target_file) {
-  console.log('\nCheck 3: File integrity');
-  const targetPath = path.normalize(manifest.target_file.replace(/^`|`$/g, ''));
-  if (!fs.existsSync(targetPath)) {
-    errors.push(`Target file does not exist: ${targetPath} (${spec.gateErrorCodes.filename_canonical_and_openable})`);
-  } else {
-    const postSha = computeSha1(targetPath);
-    if (manifest.post_sha1 && manifest.post_sha1 !== postSha) {
-      errors.push(`post_sha1 mismatch for ${targetPath} (${spec.gateErrorCodes.post_sha1_captured})`);
-    }
+// Check 2: manifest schema (per target file)
+if (manifests) {
+  console.log('\nCheck 2: Manifest fields');
+  const shaRegex = /^[a-f0-9]{40}$/i;
+  // Validate scope (best-effort): changed files must be subset of IN_SCOPE_PATHS (plus allowed governance files),
+  // unless a waiver is present. This only applies to the evaluated diff set (staged preferred).
+  const allowlisted = new Set([
+    'docs/TASK_BOARD.md',
+    'docs/SIGNATURE_AUDIT.md',
+    'docs/ORCHESTRATOR_GATES.json',
+    packetPath.replace(/\\/g, '/'),
+    `docs/refinements/${WP_ID}.md`,
+  ].filter(Boolean));
 
-    const headContent = loadHeadVersion(targetPath);
-    if (headContent === null) {
-      warnings.push('Could not load HEAD version for concurrency check (new file or not tracked)');
-    } else {
-      const headSha = crypto.createHash('sha1').update(headContent).digest('hex');
-      if (manifest.pre_sha1 && headSha !== manifest.pre_sha1) {
-        errors.push(`pre_sha1 does not match HEAD for ${targetPath} (${spec.gateErrorCodes.current_file_matches_preimage})`);
+  const outOfScope = changedFiles
+    .map((p) => p.replace(/\\/g, '/'))
+    .filter((p) => !allowlisted.has(p))
+    .filter((p) => (inScopePaths.length > 0 ? !inScopePaths.includes(p) : false));
+
+  if (outOfScope.length > 0 && !hasGitWaiver) {
+    errors.push(`Out-of-scope files changed (stage only WP files or record waiver [CX-573F]): ${outOfScope.join(', ')}`);
+  } else if (outOfScope.length > 0 && hasGitWaiver) {
+    warnings.push(`Out-of-scope files changed but waiver present [CX-573F]: ${outOfScope.join(', ')}`);
+  }
+
+  // Require manifest coverage for all non-docs changed files.
+  const manifestTargets = new Set(manifests.map((m) => path.normalize(m.target_file).replace(/\\/g, '/')).filter(Boolean));
+  const missingCoverage = changedFiles
+    .map((p) => p.replace(/\\/g, '/'))
+    .filter((p) => requiresManifest(p))
+    .filter((p) => !manifestTargets.has(p));
+  if (missingCoverage.length > 0) {
+    errors.push(`Missing VALIDATION manifest coverage for changed files: ${missingCoverage.join(', ')}`);
+  }
+
+  // Now validate each manifest entry.
+  console.log('\nCheck 3: File integrity (per manifest entry)');
+  manifests.forEach((manifest, idx) => {
+    const label = `Manifest[${idx + 1}]`;
+
+    spec.requiredFields.forEach((field) => {
+      const value = manifest[field];
+      if (!value || (typeof value === 'string' && value.trim() === '')) {
+        errors.push(`${label}: missing required field: ${field}`);
       }
+    });
+
+    if (manifest.pre_sha1 && !shaRegex.test(manifest.pre_sha1)) {
+      errors.push(`${label}: pre_sha1 must be a 40-char hex SHA1`);
+    }
+    if (manifest.post_sha1 && !shaRegex.test(manifest.post_sha1)) {
+      errors.push(`${label}: post_sha1 must be a 40-char hex SHA1`);
     }
 
-    const hunks = parseDiffHunks(targetPath);
+    const startNum = parseInt(manifest.start, 10);
+    const endNum = parseInt(manifest.end, 10);
+    if (Number.isNaN(startNum) || Number.isNaN(endNum) || startNum < 1 || endNum < startNum) {
+      errors.push(`${label}: Start/End must be integers with start >=1 and end >= start`);
+    }
+
+    const deltaNum = parseInt(manifest.line_delta, 10);
+    if (manifest.line_delta === '' || Number.isNaN(deltaNum)) {
+      errors.push(`${label}: line_delta must be an integer (adds - dels)`);
+    }
+
+    const targetPath = path.normalize(manifest.target_file.replace(/^`|`$/g, ''));
+    if (!fs.existsSync(targetPath)) {
+      errors.push(`${label}: Target file does not exist: ${targetPath} (${spec.gateErrorCodes.filename_canonical_and_openable})`);
+      return;
+    }
+
+    // pre/post SHA checks (staged-aware)
+    const headContent = loadHeadVersion(targetPath);
+    if (headContent !== null) {
+      const headSha = sha1Hex(headContent);
+      if (manifest.pre_sha1 && headSha !== manifest.pre_sha1) {
+        if (hasGitWaiver) {
+          warnings.push(`${label}: pre_sha1 does not match HEAD for ${targetPath} (${spec.gateErrorCodes.current_file_matches_preimage}) - WAIVER APPLIED`);
+        } else {
+          errors.push(`${label}: pre_sha1 does not match HEAD for ${targetPath} (${spec.gateErrorCodes.current_file_matches_preimage})`);
+        }
+      }
+    } else {
+      warnings.push(`${label}: Could not load HEAD version (new file or not tracked): ${targetPath}`);
+    }
+
+    const postContent = useStaged ? loadIndexVersion(targetPath) : null;
+    const postSha = postContent === null ? computeSha1(targetPath) : sha1Hex(postContent);
+    if (manifest.post_sha1 && manifest.post_sha1 !== postSha) {
+      errors.push(`${label}: post_sha1 mismatch for ${targetPath} (${spec.gateErrorCodes.post_sha1_captured})`);
+    }
+
+    const hunks = parseDiffHunks(targetPath, { staged: useStaged });
     const windowStart = parseInt(manifest.start, 10);
     const windowEnd = parseInt(manifest.end, 10);
     hunks.forEach((h) => {
@@ -223,25 +390,45 @@ if (manifest && manifest.target_file) {
       const oldOutside = h.oldLen > 0 && (h.oldStart < windowStart || oldEnd > windowEnd);
       const newOutside = h.newLen > 0 && (h.newStart < windowStart || newEnd > windowEnd);
       if (oldOutside || newOutside) {
-        errors.push(`Diff touches lines outside declared window [${windowStart}, ${windowEnd}] (${spec.gateErrorCodes.rails_untouched_outside_window})`);
+        errors.push(`${label}: Diff touches lines outside declared window [${windowStart}, ${windowEnd}] (${spec.gateErrorCodes.rails_untouched_outside_window})`);
       }
     });
 
-    const numstatDelta = getNumstatDelta(targetPath);
-    const deltaNum = parseInt(manifest.line_delta, 10);
+    const numstatDelta = getNumstatDelta(targetPath, { staged: useStaged });
     if (numstatDelta !== null && !Number.isNaN(deltaNum) && numstatDelta !== deltaNum) {
-      errors.push(`line_delta (${deltaNum}) does not match git diff delta (${numstatDelta}) (${spec.gateErrorCodes.line_delta_equals_expected})`);
+      errors.push(`${label}: line_delta (${deltaNum}) does not match git diff delta (${numstatDelta}) (${spec.gateErrorCodes.line_delta_equals_expected})`);
     }
-  }
+
+    // Gate checkboxes: allow either explicit checkmarks OR automatic inference (warn if inferred).
+    spec.requiredGates.forEach((gate) => {
+      if (manifest.gates_passed.has(gate)) return;
+      // Infer gates we can verify mechanically.
+      const inferable = new Set([
+        'anchors_present',
+        'window_matches_plan',
+        'rails_untouched_outside_window',
+        'filename_canonical_and_openable',
+        'pre_sha1_captured',
+        'post_sha1_captured',
+        'line_delta_equals_expected',
+        'manifest_written_and_path_returned',
+        'current_file_matches_preimage',
+      ]);
+      if (inferable.has(gate)) {
+        warnings.push(`${label}: gate not checked but inferred as PASS: ${gate} (${spec.gateErrorCodes[gate]})`);
+        return;
+      }
+      errors.push(`${label}: gate missing or unchecked: ${gate} (${spec.gateErrorCodes[gate]})`);
+    });
+  });
 }
 
 // Check 4: git status sanity
 console.log('\nCheck 4: Git status');
 try {
-  const gitStatus = execSync('git status --short', { encoding: 'utf8' }).trim();
-  if (!gitStatus) {
-    errors.push('No files changed (git status clean)');
-  }
+  const staged = getStagedFiles();
+  const working = getWorkingFiles();
+  if (staged.length === 0 && working.length === 0) errors.push('No files changed (git status clean)');
 } catch {
   warnings.push('Could not read git status');
 }

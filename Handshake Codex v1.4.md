@@ -157,6 +157,11 @@
 
 [CX-504] USER_EXPERTISE: The human user of this session is NOT a coder or software engineer. All communication from AI agents (Orchestrator, Coder, etc.) MUST be presented in clear, non-technical language, explaining every step and providing analogies suitable for a non-expert audience, unless explicitly instructed otherwise by the user. Every Task Packet MUST include a "User Context" non-technical explainer.
 
+[CX-505] WORKFLOW_BRANCHING: The STANDARD workflow is Feature Branching.
+- Agents SHOULD create and work in `feat/WP-{ID}`.
+- Direct editing of `main` is discouraged for non-trivial work (requires Waiver).
+- **Validator Authority:** Upon issuing a PASS verdict, the Validator Agent is responsible for performing the final git commit or merge to `main`. Coders MUST NOT merge their own work.
+
 [CX-654] USER_CONTEXT_INVARIANT (HARD): In any Work Packet (Task Packet), the "User Context" or "Non-Technical Explainer" section MUST NEVER be rewritten or deleted. It can only be APPENDED to. This ensures the user's original intent and oversight are preserved for the duration of the task.
 
 ### 6.2 Task Intake and Clarification
@@ -257,7 +262,9 @@ BOOTSTRAP
 
 ### 6.9 Orchestrator Task Packet Protocol (AI Autonomy - Mandatory)
 
-[CX-580] ORCH_PACKET_REQUIRED: Orchestrators MUST create a task packet before delegating work to coder/debugger agents. The packet MUST be written to `docs/task_packets/WP-{ID}-{name}.md` OR embedded in the handoff message with full structure.
+[CX-580] ORCH_PACKET_REQUIRED: Orchestrators MUST create a task packet before delegating work to coder/debugger agents. The packet MUST be written to `docs/task_packets/{WP_ID}.md` OR embedded in the handoff message with full structure.
+
+[CX-580C] ORCH_WP_ID_NAMING (HARD): Work Packet IDs and filenames MUST NOT include date/time stamps. Use `WP-{phase}-{name}` and, if a revision is required, `WP-{phase}-{name}-v{N}` (e.g., `WP-1-Tokenization-Service-v3`).
 
 [CX-580A] ORCH_NO_CODING_BLOCK (HARD): The Orchestrator role is **STRICTLY FORBIDDEN** from modifying `src/`, `app/`, `tests/`, or `scripts/`. This is an absolute constraint; no automated response or work can override this.
 
@@ -287,6 +294,8 @@ BOOTSTRAP
 
 [CX-585] ORCH_TASK_BOARD_UPDATE: The orchestrator SHOULD update `docs/TASK_BOARD.md` upon creating a task packet. Logger entries for task creation are OPTIONAL and generally discouraged to avoid noise.
 
+[CX-585F] TASK_BOARD_ENTRY_FORMAT (HARD): `docs/TASK_BOARD.md` entries MUST be minimal and MUST include only the WP identifier and the current validation verdict (e.g., `FAIL`, `VALIDATED`, `OUTDATED_ONLY`). Detailed failure reasons belong in the task packet (and/or validator report), not in the Task Board.
+
 [CX-585A] MANDATORY_SPEC_REFINEMENT (THE STRATEGIC PAUSE): The Orchestrator MUST use the "Refinement Loop" to ensure the Master Spec reflects the detailed design/requirements of the task BEFORE delegation.
 - **Spec-Version Lock:** The Orchestrator is **FORBIDDEN** from outputting a final Task Packet for delegation unless it has **first** created a new version of the Master Spec (`v02.xx+1`) that explicitly defines the technical approach (env vars, signatures, constraints).
 - **The Strategic Pause:** This pause exists to allow the user (non-coder) to enrich the Main Body, especially if methods or software choices deviate from the original plan. Document these shifts in the Main Body for hygiene and provenance.
@@ -300,6 +309,8 @@ BOOTSTRAP
 [CX-585D] THE_STRATEGIC_PAUSE: The mandatory pause during the Refinement Loop exists to prevent "automation momentum". It allows the human co-author to enrich topics, change direction, and validate the technical approach before code is written.
 
 [CX-585E] MAIN_BODY_ENRICHMENT_MANDATORY: Technical details (schemas, API signatures, error codes, logic invariants) MUST be documented in the **Main Body** of the Master Spec (Sections 1-6 or 9-11). The **Roadmap** (Section 7.6) is reserved for high-level scheduling and MUST point to the relevant Main Body section for implementation details. Task Packets MUST reference the Main Body sections as their primary authority.
+
+[CX-585G] REFINEMENT_BLOCK_IN_CHAT (HARD): Before requesting any USER_SIGNATURE or delegating work, the Orchestrator MUST paste the full Technical Refinement Block into the chat for explicit user review/approval. Writing it only to disk (e.g., `docs/refinements/*.md`) is insufficient.
 
 [CX-586] ORCH_AUTHORITY_DOCS: Packets MUST include pointers to: `docs/START_HERE.md`, `docs/SPEC_CURRENT.md`, `docs/ARCHITECTURE.md`, `docs/RUNBOOK_DEBUG.md`, `docs/QUALITY_GATE.md` (logger pointer OPTIONAL, only if logger will be used for this WP).
 

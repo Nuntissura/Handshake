@@ -13,8 +13,14 @@ use crate::flight_recorder::{
     FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
     FrEvt002LlmInference,
 };
+use crate::tokenization::{
+    AccuracyWarningEmitter, AsyncFlightRecorderEmitter, DisabledAccuracyWarningEmitter,
+    OllamaTokenizerConfigCache, SentencePieceTokenizerCache, TiktokenAdapter, TokenizationRouter,
+    TokenizationWithTrace, TokenizerConfigFetcher, TokenizerError, VibeTokenizer,
+};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 // WAIVER [CX-573E]: Instant::now() is required for latency measurement per §4.2.3.2.
@@ -30,6 +36,8 @@ pub struct OllamaAdapter {
     profile: ModelProfile,
     client: reqwest::Client,
     flight_recorder: Arc<dyn FlightRecorder>,
+    tokenization: TokenizationWithTrace,
+    tokenizer_config_cache: Arc<OllamaTokenizerConfigCache>,
 }
 
 impl OllamaAdapter {
@@ -46,11 +54,29 @@ impl OllamaAdapter {
         max_context_tokens: u32,
         flight_recorder: Arc<dyn FlightRecorder>,
     ) -> Self {
+        let client = reqwest::Client::new();
+        let config_fetcher = Arc::new(OllamaTokenizerConfigClient::new(
+            base_url.clone(),
+            client.clone(),
+        ));
+        let tokenizer_config_cache = Arc::new(OllamaTokenizerConfigCache::new(config_fetcher));
+        let sentencepiece_cache = SentencePieceTokenizerCache::default();
+        let router = Arc::new(TokenizationRouter::new_with_ollama_config(
+            Arc::new(TiktokenAdapter::default()),
+            Arc::new(VibeTokenizer),
+            sentencepiece_cache,
+            tokenizer_config_cache.clone(),
+        ));
+        let accuracy_emitter = build_accuracy_emitter(flight_recorder.clone());
+        let tokenization = TokenizationWithTrace::new(router, accuracy_emitter);
+
         Self {
             base_url,
             profile: ModelProfile::new(model_id, max_context_tokens).with_streaming(true),
-            client: reqwest::Client::new(),
+            client,
             flight_recorder,
+            tokenization,
+            tokenizer_config_cache,
         }
     }
 
@@ -110,6 +136,64 @@ impl OllamaAdapter {
     }
 }
 
+#[derive(Clone)]
+pub struct OllamaTokenizerConfigClient {
+    base_url: String,
+    client: reqwest::Client,
+}
+
+impl OllamaTokenizerConfigClient {
+    pub fn new(base_url: String, client: reqwest::Client) -> Self {
+        Self { base_url, client }
+    }
+}
+
+#[async_trait]
+impl TokenizerConfigFetcher for OllamaTokenizerConfigClient {
+    async fn fetch_show(&self, model: &str) -> Result<Value, TokenizerError> {
+        let url = format!("{}/api/show", self.base_url);
+        let response = self
+            .client
+            .post(&url)
+            .json(&OllamaShowRequest {
+                name: model.to_string(),
+            })
+            .send()
+            .await
+            .map_err(|err| TokenizerError::TokenizerConfigFetchFailed(err.to_string()))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(TokenizerError::TokenizerConfigFetchFailed(format!(
+                "Ollama /api/show error ({}): {}",
+                status, error_text
+            )));
+        }
+
+        response
+            .json::<Value>()
+            .await
+            .map_err(|err| TokenizerError::TokenizerConfigParseFailed(err.to_string()))
+    }
+}
+
+fn build_accuracy_emitter(
+    flight_recorder: Arc<dyn FlightRecorder>,
+) -> Arc<dyn AccuracyWarningEmitter> {
+    match AsyncFlightRecorderEmitter::try_new(flight_recorder) {
+        Ok(emitter) => Arc::new(emitter),
+        Err(err) => {
+            tracing::error!(
+                target: "handshake_core::tokenization",
+                error = %err,
+                "Accuracy warning emitter unavailable"
+            );
+            Arc::new(DisabledAccuracyWarningEmitter::new(err.to_string()))
+        }
+    }
+}
+
 /// Ollama /api/generate request format.
 #[derive(Serialize)]
 struct OllamaGenerateRequest {
@@ -128,6 +212,12 @@ struct OllamaOptions {
     temperature: f32,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     stop: Vec<String>,
+}
+
+/// Ollama /api/show request format.
+#[derive(Serialize)]
+struct OllamaShowRequest {
+    name: String,
 }
 
 /// Ollama /api/generate response format.
@@ -193,10 +283,41 @@ impl LlmClient for OllamaAdapter {
 
         let latency_ms = start.elapsed().as_millis() as u64;
 
-        // Extract token usage
-        let prompt_tokens = ollama_resp.prompt_eval_count.unwrap_or(0);
-        let completion_tokens = ollama_resp.eval_count.unwrap_or(0);
+        if let Err(err) = self.tokenizer_config_cache.refresh(&req.model_id).await {
+            tracing::warn!(
+                target: "handshake_core::llm",
+                error = %err,
+                model = %req.model_id,
+                "Failed to refresh Ollama tokenizer config"
+            );
+        }
+
+        let prompt_tokens = self
+            .tokenization
+            .count_tokens_with_trace(&req.prompt, &req.model_id, req.trace_id)
+            .map_err(|err| LlmError::ProviderError(format!("Tokenization failed: {}", err)))?;
+        let completion_tokens = self
+            .tokenization
+            .count_tokens_with_trace(&ollama_resp.response, &req.model_id, req.trace_id)
+            .map_err(|err| LlmError::ProviderError(format!("Tokenization failed: {}", err)))?;
         let total_tokens = prompt_tokens + completion_tokens;
+
+        if let (Some(provider_prompt), Some(provider_completion)) =
+            (ollama_resp.prompt_eval_count, ollama_resp.eval_count)
+        {
+            if provider_prompt != prompt_tokens || provider_completion != completion_tokens {
+                tracing::debug!(
+                    target: "handshake_core::llm",
+                    trace_id = %req.trace_id,
+                    model = %req.model_id,
+                    provider_prompt_tokens = provider_prompt,
+                    provider_completion_tokens = provider_completion,
+                    tokenization_prompt_tokens = prompt_tokens,
+                    tokenization_completion_tokens = completion_tokens,
+                    "Provider token counts differ from TokenizationService counts"
+                );
+            }
+        }
 
         // Budget enforcement per §4.2.3.2
         if let Some(max_tokens) = req.max_tokens {

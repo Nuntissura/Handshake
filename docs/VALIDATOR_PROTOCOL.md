@@ -107,7 +107,12 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
 - Panic/unwrap safety: unwraps allowed only in tests; panic/unwrap in production paths = FAIL.
 - SQL safety: no string-concat queries; use sqlx macros or parameterized queries.
 - Build hygiene: flag large/untracked build artifacts or missing .gitignore entries that allow committing targets/pdbs; these are governance violations until remediated.
-- Git hygiene: verify .gitignore covers build artifacts (target/, *.pdb, node_modules, platform-specific); if repo bloat or missing ignores detected, verdict = FAIL until remediated (no "pass with debt").
+- **Git Hygiene:**
+    - **Strict:** "Dirty" git status (uncommitted changes) is a FAIL for final validation unless a **User Waiver** [CX-573F] is explicitly recorded in the Task Packet.
+    - **Artifacts:** FAIL if *ignored* build artifacts (e.g., `target/`, `node_modules/`) are tracked or committed.
+    - **Scope:** Ensure changes are restricted to the WP's `IN_SCOPE_PATHS`.
+    - **Low-friction rule (preferred):** Validator stages ONLY the WP changes, then runs `just post-work {WP_ID}`; the post-work gate validates STAGED changes first, so unrelated local dirt does not block as long as it is not staged.
+
 
 7.1) Git & Build Hygiene Audit (execute when any build artifacts/.gitignore risk is suspected)
 - Check .gitignore coverage for: target/, node_modules/, *.pdb, *.dSYM, .DS_Store, Thumbs.db. Missing entries = FAIL until added.
@@ -145,6 +150,9 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
 ## Verdict (Binary)
 - PASS: Every requirement mapped to evidence, hygiene clean, tests verified (or explicitly waived by user), DAL audit clean when applicable, phase-gate satisfied when progressing.
 - FAIL: List missing evidence, failed audits, tests not run, or unmet phase-gate. No partial passes.
+
+## Merge/Commit Authority (per Codex [CX-505])
+- After issuing PASS, the Validator is responsible for merging/committing the WP to `main`. Coders must not merge their own work.
 
 ## Report Template
 ```

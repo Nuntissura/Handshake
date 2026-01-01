@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2025-12-31
+**Updated:** 2026-01-01
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,10 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja010120261528 | Orchestrator | 2026-01-01 15:28 | Task packet creation: WP-1-OSS-Register-Enforcement-v1 | v02.100 | Approved after Technical Refinement (see docs/refinements/WP-1-OSS-Register-Enforcement-v1.md ). |
+| ilja010120261446 | Orchestrator | 2026-01-01 14:46 | Task packet creation: WP-1-Flight-Recorder-v3 | v02.100 | Approved after Technical Refinement (see docs/refinements/WP-1-Flight-Recorder-v3.md ). |
+| ilja010120260602 | Orchestrator | 2026-01-01 06:02 | Spec Enrichment v02.100 (TokenizationService sync/async bridge) | v02.100 | Approved update to Handshake_Master_Spec_v02.100.md changelog + docs/SPEC_CURRENT.md for the TokenizationService telemetry sync/async bridge requirement. |
+| ilja010120260219 | Orchestrator | 2026-01-01 02:19 | Task packet creation: WP-1-Tokenization-Service-v3 | v02.99 | Approved after Technical Refinement (see docs/refinements/WP-1-Tokenization-Service-v3.md ). |
 | ilja311220252043 | Orchestrator | 2025-12-31 20:43 | Task packet creation: WP-1-Security-Gates-v3 | v02.99 | Remediation: protocol-clean packet (ASCII + COR-701 manifest) and remove unwrap in terminal redaction; revalidate against SPEC_CURRENT v02.99. |
 | ilja311220251916 | Orchestrator | 2025-12-31 19:16 | Task packet creation: WP-1-Gate-Check-Tool-v2 | v02.99 | Remediation: harden gate-check to avoid false positives and unblock pre/post-work. |
 | ilja311220251846 | Orchestrator | 2025-12-31 18:46 | Task packet creation: WP-1-Workflow-Engine-v4 | v02.99 | Protocol clean revalidation for HSK-WF-003 ordering and FR-EVT-WF-RECOVERY emission. |

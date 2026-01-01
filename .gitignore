@@ -33,6 +33,7 @@ Thumbs.db
 # Assistant tool caches
 .gemini/
 .claude/
+.codex_tmp_*
 
 # Existing project entries
 data/

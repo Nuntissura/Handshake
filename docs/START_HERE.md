@@ -104,8 +104,8 @@ CI expectation: run `just validate`; manual validator review is required for MED
 - Debug runbook: `docs/RUNBOOK_DEBUG.md`
 - Current spec + governance: `docs/SPEC_CURRENT.md`
 - Quality gate (risk tiers + required checks): `docs/QUALITY_GATE.md`
-- Task packet template: `docs/TASK_PACKET_TEMPLATE.md`
-- Workflow template for reuse: `docs/AI_WORKFLOW_TEMPLATE.md`
+- Task packet template: `docs/templates/TASK_PACKET_TEMPLATE.md`
+- Workflow template for reuse: `docs/templates/AI_WORKFLOW_TEMPLATE.md`
 
 ## Past work
 Pointer to prior specs/logs/notes: `docs/PAST_WORK_INDEX.md`
