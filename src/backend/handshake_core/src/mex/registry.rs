@@ -72,6 +72,12 @@ impl MexRegistry {
         self.engines.get(engine_id)
     }
 
+    pub fn get_operation(&self, engine_id: &str, operation: &str) -> Option<&OperationSpec> {
+        self.engines
+            .get(engine_id)
+            .and_then(|engine| engine.ops.iter().find(|op| op.name == operation))
+    }
+
     pub fn engines(&self) -> impl Iterator<Item = &EngineSpec> {
         self.engines.values()
     }

@@ -344,8 +344,15 @@ async fn redacts_secrets_in_logged_command() -> Result<(), Box<dyn std::error::E
         .list_events(EventFilter::default())
         .await
         .unwrap_or_default();
-    let payload = events
-        .last()
+    // Find the TerminalCommandEvent specifically (not CapabilityAction events)
+    let terminal_event = events.iter().find(|evt| {
+        evt.payload
+            .get("type")
+            .and_then(|v| v.as_str())
+            .map(|t| t == "terminal_command")
+            .unwrap_or(false)
+    });
+    let payload = terminal_event
         .and_then(|evt| evt.payload.get("command").cloned())
         .unwrap_or_default();
 
@@ -354,4 +361,145 @@ async fn redacts_secrets_in_logged_command() -> Result<(), Box<dyn std::error::E
     assert!(command_str.contains("***REDACTED***"));
 
     Ok(())
+}
+
+#[tokio::test]
+async fn emits_capability_audit_on_allowed() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempdir()?;
+    let workspace_root = dir.path().to_path_buf();
+    let (cmd, args) = echo_command("audit-allowed");
+    let request = default_request(cmd, args, None);
+    let (cfg, registry, recorder, guards, redactor) = default_deps(workspace_root);
+
+    let _ = TerminalService::run_command(
+        request,
+        &cfg,
+        &registry,
+        recorder.as_ref(),
+        Uuid::new_v4(),
+        &redactor,
+        &guards,
+    )
+    .await?;
+
+    let events = recorder
+        .list_events(EventFilter::default())
+        .await
+        .unwrap_or_default();
+
+    // Find CapabilityAction event with "allowed" outcome
+    let audit_event = events.iter().find(|evt| {
+        evt.payload
+            .get("outcome")
+            .and_then(|v| v.as_str())
+            .map(|o| o == "allowed")
+            .unwrap_or(false)
+    });
+
+    assert!(
+        audit_event.is_some(),
+        "Expected CapabilityAction audit event with outcome=allowed"
+    );
+    let payload = audit_event.unwrap().payload.as_object().unwrap();
+    assert_eq!(
+        payload.get("capability_id").and_then(|v| v.as_str()),
+        Some("terminal.exec")
+    );
+    assert_eq!(
+        payload.get("profile_id").and_then(|v| v.as_str()),
+        Some("Coder")
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn emits_capability_audit_on_denied() {
+    let dir = tempdir().unwrap();
+    let workspace_root = dir.path().to_path_buf();
+    let (cmd, args) = echo_command("audit-denied");
+    let request = default_request(cmd, args, None);
+    let (mut cfg, registry, recorder, guards, redactor) = default_deps(workspace_root);
+    cfg.allowed_command_patterns = vec![String::from("(?i)git")]; // Deny echo
+
+    let _ = TerminalService::run_command(
+        request,
+        &cfg,
+        &registry,
+        recorder.as_ref(),
+        Uuid::new_v4(),
+        &redactor,
+        &guards,
+    )
+    .await;
+
+    let events = recorder
+        .list_events(EventFilter::default())
+        .await
+        .unwrap_or_default();
+
+    // Find CapabilityAction event with "denied" outcome
+    let audit_event = events.iter().find(|evt| {
+        evt.payload
+            .get("outcome")
+            .and_then(|v| v.as_str())
+            .map(|o| o == "denied")
+            .unwrap_or(false)
+    });
+
+    assert!(
+        audit_event.is_some(),
+        "Expected CapabilityAction audit event with outcome=denied"
+    );
+    let payload = audit_event.unwrap().payload.as_object().unwrap();
+    assert_eq!(
+        payload.get("capability_id").and_then(|v| v.as_str()),
+        Some("terminal.exec")
+    );
+}
+
+#[tokio::test]
+async fn emits_attach_human_audit_on_denied() {
+    use handshake_core::terminal::TerminalSessionType;
+
+    let dir = tempdir().unwrap();
+    let workspace_root = dir.path().to_path_buf();
+    let (cfg, registry, recorder, guards, redactor) = default_deps(workspace_root);
+
+    let (cmd, args) = echo_command("attach-denied");
+    // Create a request that simulates AI trying to attach to human session without capability
+    let mut request = default_request(cmd, args, None);
+    request.session_type = TerminalSessionType::HumanDev;
+    request.job_context.session_id = Some("human-session-123".to_string());
+    // AI context markers
+    request.job_context.job_id = Some("ai-job-456".to_string());
+    // No terminal.attach_human capability granted
+
+    let _ = TerminalService::run_command(
+        request,
+        &cfg,
+        &registry,
+        recorder.as_ref(),
+        Uuid::new_v4(),
+        &redactor,
+        &guards,
+    )
+    .await;
+
+    let events = recorder
+        .list_events(EventFilter::default())
+        .await
+        .unwrap_or_default();
+
+    // Find CapabilityAction event for attach_human with "denied" outcome
+    let audit_event = events.iter().find(|evt| {
+        let cap_id = evt.payload.get("capability_id").and_then(|v| v.as_str());
+        let outcome = evt.payload.get("outcome").and_then(|v| v.as_str());
+        cap_id == Some("terminal.attach_human") && outcome == Some("denied")
+    });
+
+    assert!(
+        audit_event.is_some(),
+        "Expected CapabilityAction audit event for terminal.attach_human with outcome=denied"
+    );
 }

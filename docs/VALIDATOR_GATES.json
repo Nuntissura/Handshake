@@ -1,5 +1,58 @@
 {
-  "validation_sessions": {},
+  "validation_sessions": {
+    "WP-1-Terminal-LAW-v3": {
+      "wpId": "WP-1-Terminal-LAW-v3",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-01-01T22:58:19.533Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-01T22:58:19.534Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-01T23:07:20.225Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-01T23:07:57.288Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-01T23:08:15.221Z"
+        }
+      ],
+      "completed": "2026-01-01T23:08:15.222Z"
+    },
+    "WP-1-MEX-v1.2-Runtime-v3": {
+      "wpId": "WP-1-MEX-v1.2-Runtime-v3",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-01-02T00:33:21.398Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-02T00:33:21.399Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-02T00:34:28.380Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-02T00:34:58.289Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-02T00:35:09.776Z"
+        }
+      ],
+      "completed": "2026-01-02T00:35:09.776Z"
+    }
+  },
   "archived_sessions": [
     {
       "wpId": "WP-1-Test-Gate",
@@ -14,6 +67,21 @@
         }
       ],
       "archived_at": "2026-01-01T17:49:05.856Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-Terminal-LAW-v3",
+      "verdict": "FAIL",
+      "status": "REPORT_PRESENTED",
+      "started": "2026-01-01T22:42:33.238Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-01-01T22:42:33.239Z"
+        }
+      ],
+      "archived_at": "2026-01-01T22:54:58.463Z",
       "archive_reason": "manual_reset"
     }
   ]

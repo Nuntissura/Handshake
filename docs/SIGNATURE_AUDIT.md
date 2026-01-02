@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja010120262219 | Orchestrator | 2026-01-01 22:19 | Task packet creation: WP-1-MEX-v1.2-Runtime-v3 | v02.100 | Approved after Technical Refinement (see docs/refinements/WP-1-MEX-v1.2-Runtime-v3.md ). |
+| ilja010120262218 | Orchestrator | 2026-01-01 22:18 | Task packet creation: WP-1-Terminal-LAW-v3 | v02.100 | Approved after Technical Refinement (see docs/refinements/WP-1-Terminal-LAW-v3.md ). |
 | ilja010120261528 | Orchestrator | 2026-01-01 15:28 | Task packet creation: WP-1-OSS-Register-Enforcement-v1 | v02.100 | Approved after Technical Refinement (see docs/refinements/WP-1-OSS-Register-Enforcement-v1.md ). |
 | ilja010120261446 | Orchestrator | 2026-01-01 14:46 | Task packet creation: WP-1-Flight-Recorder-v3 | v02.100 | Approved after Technical Refinement (see docs/refinements/WP-1-Flight-Recorder-v3.md ). |
 | ilja010120260602 | Orchestrator | 2026-01-01 06:02 | Spec Enrichment v02.100 (TokenizationService sync/async bridge) | v02.100 | Approved update to Handshake_Master_Spec_v02.100.md changelog + docs/SPEC_CURRENT.md for the TokenizationService telemetry sync/async bridge requirement. |

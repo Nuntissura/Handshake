@@ -169,8 +169,8 @@ mod oss_register_enforcement {
     /// Parse Cargo.lock [[package]] blocks, extract "name" field (ALL packages).
     fn parse_cargo_lock_packages() -> HashSet<String> {
         let path = cargo_lock_path();
-        let content =
-            fs::read_to_string(&path).expect(&format!("HSK-OSS-000: Cannot read {:?}", path));
+        let content = fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("HSK-OSS-000: Cannot read {:?}: {}", path, e));
 
         content
             .lines()
@@ -186,8 +186,8 @@ mod oss_register_enforcement {
     /// Parse package.json dependencies + devDependencies keys.
     fn parse_package_json_deps() -> HashSet<String> {
         let path = package_json_path();
-        let content =
-            fs::read_to_string(&path).expect(&format!("HSK-OSS-000: Cannot read {:?}", path));
+        let content = fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("HSK-OSS-000: Cannot read {:?}: {}", path, e));
 
         let json: serde_json::Value =
             serde_json::from_str(&content).expect("HSK-OSS-000: Invalid JSON in package.json");

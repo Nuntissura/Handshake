@@ -2,6 +2,14 @@
 
 **MANDATORY** - Lead Architect must read this to manage Phase progression and maintain governance invariants
 
+## Safety: Data-Loss Prevention (HARD RULE)
+- This repo is **not** a disposable workspace. Untracked files may be critical work (e.g., WPs/refinements).
+- **Do not** run destructive commands that can delete/overwrite work unless the user explicitly authorizes it in the same turn:
+  - `git clean -fd` / `git clean -xdf`
+  - `git reset --hard`
+  - `rm` / `del` / `Remove-Item` on non-temp paths
+- If a cleanup/reset is ever requested, first make it reversible: `git stash push -u -m "SAFETY: before <operation>"`, then show the user exactly what would be deleted (`git clean -nd`) and get explicit approval.
+
 ---
 
 ## Part 1: Strategic Priorities (Phase 1 Focus) [CX-600A]
@@ -60,8 +68,16 @@
 
 ## Branching & Concurrency (preferred; low-friction)
 - Default: one WP = one feature branch (e.g., `feat/WP-{ID}`).
-- When multiple Coders work concurrently, prefer `git worktree` per active WP (separate working directories) to prevent collisions.
+- **Concurrency rule (MANDATORY when >1 Coder is active):** use `git worktree` per active WP (separate working directories) to prevent collisions and accidental loss of uncommitted work.
+  - Orchestrator sets up worktrees and assigns each Coder a dedicated working directory.
+  - Coders MUST NOT share a single working tree when working concurrently.
 - Coders may commit freely on their WP branch. The Validator performs the final merge/commit to `main` after PASS (per Codex [CX-505]).
+
+## Safety Commit Gate (HARD RULE; prevents untracked WP loss)
+- Immediately after creating a WP task packet + refinement and obtaining `USER_SIGNATURE`, create a **checkpoint commit on the WP branch** that includes:
+  - `docs/task_packets/WP-{ID}.md`
+  - `docs/refinements/WP-{ID}.md`
+- Rationale: untracked/uncommitted packets/refinements are vulnerable to accidental deletion (e.g., a mistaken cleanup). A checkpoint commit makes the WP recoverable deterministically.
 
 ## Part 2: Pre-Orchestration Checklist [CX-600]
 
@@ -1063,14 +1079,14 @@ When multiple Coders work in the repo concurrently, treat `IN_SCOPE_PATHS` as th
 - Lock set definition: for each in-progress WP, its lock set is the exact file paths listed under its task packet's `IN_SCOPE_PATHS`.
 - Hard rule: do NOT delegate/start a new WP if ANY `IN_SCOPE_PATHS` entry overlaps with ANY in-progress WP's `IN_SCOPE_PATHS`.
   - If overlap is required, this is a blocker: re-scope to avoid overlap OR sequence the work (mark WP BLOCKED: "File lock conflict").
-- Assignment required: every in-progress WP entry on the Task Board MUST include an assignee label (e.g., `ASSIGNED_TO: Coder-A` or `ASSIGNED_TO: Coder-B`) so ownership is unambiguous.
+- Task Board stays minimal: do NOT include assignee/model on the Task Board. The Coder claims the WP inside the task packet metadata (CODER_MODEL, CODER_REASONING_STRENGTH) when switching to In Progress.
 
 Blocking template (use when overlap is detected):
 ```
 ƒ?O BLOCKED: File lock conflict [CX-CONC-001]
 
 Candidate WP: {WP_ID}
-Conflicts with in-progress WP: {OTHER_WP_ID} (ASSIGNED_TO: {Coder})
+Conflicts with in-progress WP: {OTHER_WP_ID} (see task packet CODER_MODEL / CODER_REASONING_STRENGTH)
 
 Overlapping paths:
 - {path1}

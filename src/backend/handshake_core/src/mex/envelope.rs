@@ -68,7 +68,7 @@ pub struct PlannedOperation {
     pub capabilities_requested: Vec<String>,
     pub budget: BudgetSpec,
     pub determinism: DeterminismLevel,
-    pub evidence_policy: EvidencePolicy,
+    pub evidence_policy: Option<EvidencePolicy>,
     pub output_spec: OutputSpec,
 }
 

@@ -2,6 +2,14 @@
 
 **MANDATORY** - Read this before writing any code
 
+## Safety: Data-Loss Prevention (HARD RULE)
+- This repo is **not** a disposable workspace. Untracked files may be critical work (e.g., WPs/refinements).
+- **Do not** run destructive commands that can delete/overwrite work unless the user explicitly authorizes it in the same turn:
+  - `git clean -fd` / `git clean -xdf`
+  - `git reset --hard`
+  - `rm` / `del` / `Remove-Item` on non-temp paths
+- If a cleanup/reset is ever requested, first make it reversible: `git stash push -u -m "SAFETY: before <operation>"`, then show the user exactly what would be deleted (`git clean -nd`) and get explicit approval.
+
 ---
 
 ## Spec Authority Rule [CX-598] (HARD INVARIANT)
@@ -44,6 +52,7 @@ Handshake is complex software. If we skip items or treat the roadmap as the requ
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
 - **Status Updates:** Update the `## STATUS_HANDOFF` section to reflect progress (e.g., "Implementation complete, tests passing").
 - **Branch Discipline (preferred):** Do all work on a WP branch (e.g., `feat/WP-{ID}`), optionally via `git worktree`. You MAY commit freely to your WP branch. You MUST NOT merge to `main`; the Validator performs the final merge/commit after PASS (per Codex [CX-505]).
+- **Concurrency rule (MANDATORY when >1 Coder is active):** work only in the dedicated `git worktree` directory assigned to your WP. Do NOT share a single working tree with another active WP.
 
 ## Role
 
@@ -242,7 +251,7 @@ Escalation template:
 ƒ?O BLOCKED: File lock conflict [CX-CONC-001]
 
 My WP: {WP_ID} (I am {Coder-A|Coder-B})
-Conflicts with: {OTHER_WP_ID} (ASSIGNED_TO: {Coder-A|Coder-B})
+Conflicts with: {OTHER_WP_ID} (see task packet CODER_MODEL / CODER_REASONING_STRENGTH)
 
 Overlapping paths:
 - {path1}
@@ -299,7 +308,7 @@ I cannot start without a complete packet.
 
 **Update `docs/TASK_BOARD.md`:**
 - Move WP-{ID} from `## Ready for Dev` to `## In Progress`
-- Add an assignee label to the WP entry: `ASSIGNED_TO: Coder-A` or `ASSIGNED_TO: Coder-B`
+- Do NOT add assignee/model to the Task Board. Claim the WP inside the task packet metadata (CODER_MODEL, CODER_REASONING_STRENGTH) when switching Status to In Progress.
 - Ensure the board maintains all 5 fixed sections (§ Board Integrity Check).
 
 **Verify file updated:**

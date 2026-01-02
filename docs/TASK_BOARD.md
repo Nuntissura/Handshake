@@ -15,15 +15,17 @@
 
 This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Phase 1 cannot close until every item below is validated against Master Spec v02.99.
 
-**TASK_BOARD entry format (go-forward):** `- **[WP_ID]** - {VALIDATION_STATUS}`. Keep details (failure reasons, commands, evidence) in the task packet to avoid drift/noise.
+**Task Board entry format (enforced for In Progress/Done/Superseded via `just task-board-check`):**
+- In Progress: `- **[WP_ID]** - [IN_PROGRESS]`
+- Done: `- **[WP_ID]** - [VALIDATED|FAIL|OUTDATED_ONLY]`
+- Superseded: `- **[WP_ID]** - [SUPERSEDED]`
+Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the task packet to avoid drift/noise.
 
 ---
 
 
 ## Ready for Dev
 - **[WP-1-Operator-Consoles-v2]** / FAIL (revalidation): `just post-work WP-1-Operator-Consoles-v2` fails (C701-G05 post_sha1 mismatch, C701-G04 window drift) for `src/backend/handshake_core/src/flight_recorder/duckdb.rs`. [READY FOR DEV]
-- **[WP-1-MEX-v1.2-Runtime-v2]** / FAIL (revalidation): `just post-work WP-1-MEX-v1.2-Runtime-v2` fails phase gate (missing "SKELETON APPROVED" marker); SPEC_CURRENT mismatch (packet v02.96 vs repo v02.99); packet contains non-ASCII bytes. [READY FOR DEV]
-- **[WP-1-Terminal-LAW-v2]** / FAIL (revalidation): `just post-work WP-1-Terminal-LAW-v2` fails phase gate (missing "SKELETON APPROVED" marker); SPEC_CURRENT mismatch (packet v02.96 vs repo v02.99); packet contains non-ASCII bytes. [READY FOR DEV]
 - **[WP-1-Capability-SSoT]** / FAIL (revalidation): `just post-work WP-1-Capability-SSoT` fails (C701-G05 post_sha1 mismatch) for `src/backend/handshake_core/src/capabilities.rs`. [READY FOR DEV]
 - **[WP-1-LLM-Core]** / FAIL (revalidation): `just post-work WP-1-LLM-Core` fails phase gate (SKELETON appears before BOOTSTRAP); packet non-ASCII + missing COR-701 manifest. [READY FOR DEV]
 - **[WP-1-Flight-Recorder-UI-v2]** / FAIL (revalidation): `just gate-check WP-1-Flight-Recorder-UI-v2` fails (missing "SKELETON APPROVED" marker); `node scripts/validation/post-work-check.mjs WP-1-Flight-Recorder-UI-v2` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99; user signature field missing/pending. [READY FOR DEV]
@@ -67,7 +69,7 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 
 ## In Progress
 
-(Concurrency: each in-progress WP entry MUST include `ASSIGNED_TO: Coder-A` or `ASSIGNED_TO: Coder-B`; in-progress WPs must have disjoint `IN_SCOPE_PATHS` per [CX-CONC-001].)
+Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
 
 ## Done
@@ -80,6 +82,8 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - **[WP-1-Debug-Bundle-v3]** - [VALIDATED]
 - **[WP-1-Validator-Error-Codes-v1]** - [VALIDATED]
 - **[WP-1-Storage-Foundation-v3]** - [VALIDATED]
+- **[WP-1-Terminal-LAW-v3]** - [VALIDATED]
+- **[WP-1-MEX-v1.2-Runtime-v3]** - [VALIDATED]
 
 
 
@@ -95,13 +99,15 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - **[WP-1-Operator-Consoles]** - [SUPERSEDED]
 - **[WP-1-Diagnostic-Pipe]** - [SUPERSEDED]
 - **[WP-1-Flight-Recorder]** - [SUPERSEDED]
-- **[WP-1-Flight-Recorder-v2]** - [SUPERSEDED by WP-1-Flight-Recorder-v3]
+- **[WP-1-Flight-Recorder-v2]** - [SUPERSEDED]
 - **[WP-1-Workflow-Engine-v3]** - [SUPERSEDED]
 - **[WP-1-Workflow-Engine-v2]** - [SUPERSEDED]
 - **[WP-1-AI-Job-Model-v2]** - [SUPERSEDED]
 - **[WP-1-ACE-Validators-v2]** - [SUPERSEDED]
 - **[WP-1-Security-Gates]** - [SUPERSEDED]
 - **[WP-1-Security-Gates-v2]** - [SUPERSEDED]
+- **[WP-1-Terminal-LAW-v2]** - [SUPERSEDED]
+- **[WP-1-MEX-v1.2-Runtime-v2]** - [SUPERSEDED]
 - **[WP-1-Terminal-LAW]** - [SUPERSEDED]
 - **[WP-1-MEX-v1.2-Runtime]** - [SUPERSEDED]
 - **[WP-1-Debug-Bundle-v2]** - [SUPERSEDED]
