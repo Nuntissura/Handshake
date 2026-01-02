@@ -92,6 +92,32 @@ try {
     console.error(`BLOCKED: Signature mismatch between refinement (${userSignature}) and gate log (${lastSig.signature}).`);
     process.exit(1);
   }
+
+  // HARD GATE: worktree + coder assignment must be recorded AFTER signature and BEFORE packet creation.
+  const lastPrepare = [...logs].reverse().find((l) => l.wpId === WP_ID && l.type === 'PREPARE');
+  if (!lastPrepare) {
+    console.error(`BLOCKED: WP branch/worktree + coder assignment not recorded for ${WP_ID}.`);
+    console.error('Required workflow (stop-work gate):');
+    console.error(`1) Create WP worktree: just worktree-add ${WP_ID}`);
+    console.error(`2) Record assignment: just record-prepare ${WP_ID} {Coder-A|Coder-B}`);
+    process.exit(1);
+  }
+  try {
+    const sigTs = Date.parse(lastSig.timestamp);
+    const prepTs = Date.parse(lastPrepare.timestamp);
+    if (!Number.isNaN(sigTs) && !Number.isNaN(prepTs) && prepTs <= sigTs) {
+      console.error(`BLOCKED: PREPARE record must occur after SIGNATURE for ${WP_ID}.`);
+      console.error(`- signature_ts=${lastSig.timestamp}`);
+      console.error(`- prepare_ts=${lastPrepare.timestamp}`);
+      console.error(`Re-run: just record-prepare ${WP_ID} {Coder-A|Coder-B}`);
+      process.exit(1);
+    }
+  } catch {
+    // If timestamps are unparsable, treat as blocked to preserve determinism.
+    console.error(`BLOCKED: Unable to verify PREPARE ordering for ${WP_ID}.`);
+    console.error(`Re-run: just record-prepare ${WP_ID} {Coder-A|Coder-B}`);
+    process.exit(1);
+  }
 } catch {
   console.error('BLOCKED: Unable to verify signature in docs/ORCHESTRATOR_GATES.json.');
   process.exit(1);

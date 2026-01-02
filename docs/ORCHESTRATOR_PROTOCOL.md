@@ -73,6 +73,13 @@
   - Coders MUST NOT share a single working tree when working concurrently.
 - Coders may commit freely on their WP branch. The Validator performs the final merge/commit to `main` after PASS (per Codex [CX-505]).
 
+## Stop-Work Gate: Worktree + Assignment Before Packet Creation (HARD RULE)
+- After a refinement is signed (`just record-signature WP-{ID} ...`), the Orchestrator MUST:
+  1) Create the WP branch/worktree (`just worktree-add WP-{ID}`), and
+  2) Record coder assignment (`just record-prepare WP-{ID} {Coder-A|Coder-B}`),
+  before creating the task packet (`just create-task-packet WP-{ID}`).
+- Rationale: prevents packet creation in an unassigned/shared working tree and forces a clean handoff to the correct work directory.
+
 ## Safety Commit Gate (HARD RULE; prevents untracked WP loss)
 - Immediately after creating a WP task packet + refinement and obtaining `USER_SIGNATURE`, create a **checkpoint commit on the WP branch** that includes:
   - `docs/task_packets/WP-{ID}.md`

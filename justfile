@@ -85,6 +85,10 @@ record-refinement wp-id detail="":
 record-signature wp-id signature:
 	@node scripts/validation/orchestrator_gates.mjs sign {{wp-id}} {{signature}}
 
+# Record WP preparation (branch/worktree + coder assignment) after signature and before packet creation.
+record-prepare wp-id coder_id branch="" worktree_dir="":
+	@node scripts/validation/orchestrator_gates.mjs prepare {{wp-id}} {{coder_id}} {{branch}} {{worktree_dir}}
+
 # Create new task packet from template [CX-580]
 create-task-packet wp-id:
 	@echo "Creating task packet: {{wp-id}}..."

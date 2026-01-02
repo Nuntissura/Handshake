@@ -22,7 +22,8 @@ function saveState(state) {
 
 const action = process.argv[2];
 const wpId = process.argv[3];
-const data = process.argv[4];
+const argvData = process.argv.slice(4);
+const data = argvData[0];
 
 const state = loadState();
 
@@ -78,6 +79,43 @@ function v2ResolveLastRefinement() {
 function v2ResolveLastSignature() {
     const logs = state.gate_logs.filter((l) => l.wpId === wpId);
     return [...logs].reverse().find((l) => l.type === 'SIGNATURE') || null;
+}
+
+function v2ResolveLastPrepare() {
+    const logs = state.gate_logs.filter((l) => l.wpId === wpId);
+    return [...logs].reverse().find((l) => l.type === 'PREPARE') || null;
+}
+
+function v2NormalizeBranch(branch) {
+    if (!branch) return '';
+    return branch.replace(/^refs\/heads\//, '').trim();
+}
+
+function v2WorktreeListPorcelain() {
+    try {
+        return execSync('git worktree list --porcelain', { encoding: 'utf8' });
+    } catch (e) {
+        v2Fail('Failed to read git worktree list (is this a git repo?)', [String(e?.message || e)]);
+    }
+}
+
+function v2WorktreeHasBranch(branch) {
+    const needle = `branch refs/heads/${branch}`;
+    const out = v2WorktreeListPorcelain();
+    return out.split(/\r?\n/).some((line) => line.trim() === needle);
+}
+
+function v2AssertBranchExists(branch) {
+    const normalized = v2NormalizeBranch(branch);
+    if (!normalized) v2Fail('Branch is required for prepare step');
+    try {
+        execSync(`git show-ref --verify --quiet "refs/heads/${normalized}"`);
+    } catch {
+        v2Fail('Branch does not exist locally; create it first.', [
+            `branch=${normalized}`,
+            `Suggested: just worktree-add ${wpId} main ${normalized}`,
+        ]);
+    }
 }
 
 if (action === 'refine') {
@@ -216,12 +254,62 @@ if (action === 'sign') {
     saveState(state);
 
     console.log(`[ORCHESTRATOR GATE] Signature recorded for ${wpId}.`);
-    console.log('[GATE UNLOCKED] You may now create the Task Packet.');
+    console.log('[GATE PARTIAL] Signature recorded. Next, you MUST create a WP branch/worktree and record assignment before creating the Task Packet.');
+    console.log(`[NEXT] 1) Create WP worktree: just worktree-add ${wpId}`);
+    console.log(`[NEXT] 2) Record assignment: just record-prepare ${wpId} {Coder-A|Coder-B} (optional: {branch} {worktree_dir})`);
+    console.log(`[NEXT] 3) Then create packet: just create-task-packet ${wpId}`);
+    process.exit(0);
+}
+
+if (action === 'prepare') {
+    v2AssertWpId(wpId);
+
+    const coderId = (argvData[0] || '').trim();
+    const branch = v2NormalizeBranch((argvData[1] || `feat/${wpId}`).trim());
+    const worktreeDir = (argvData[2] || `../wt-${wpId}`).trim();
+
+    if (!coderId) {
+        v2Fail('Missing coder assignment. Usage: just record-prepare WP-... Coder-A [branch] [worktree_dir]');
+    }
+
+    const lastSignature = v2ResolveLastSignature();
+    if (!lastSignature) {
+        v2Fail(`No signature recorded for ${wpId}. Run: just record-signature ${wpId} {usernameDDMMYYYYHHMM}`);
+    }
+
+    const lastPrepare = v2ResolveLastPrepare();
+    if (lastPrepare) {
+        console.warn(`[GATE WARNING] A prepare record already exists for ${wpId}; appending a new prepare entry.`);
+    }
+
+    v2AssertBranchExists(branch);
+    if (!v2WorktreeHasBranch(branch)) {
+        v2Fail('WP worktree not found for branch (required before task packet creation).', [
+            `branch=${branch}`,
+            'Create it first with: just worktree-add ' + wpId,
+        ]);
+    }
+
+    state.gate_logs.push({
+        wpId,
+        type: 'PREPARE',
+        coder_id: coderId,
+        branch,
+        worktree_dir: worktreeDir.replace(/\\/g, '/'),
+        timestamp: new Date().toISOString(),
+    });
+    saveState(state);
+
+    console.log(`[ORCHESTRATOR GATE] Prepared ${wpId} for development.`);
+    console.log(`- coder_id: ${coderId}`);
+    console.log(`- branch: ${branch}`);
+    console.log(`- worktree_dir: ${worktreeDir}`);
+    console.log('[NEXT] Create packet: just create-task-packet ' + wpId);
     process.exit(0);
 }
 
 if (action !== 'refine' && action !== 'sign') {
-    v2Fail('Unknown action. Expected: refine|sign');
+    v2Fail('Unknown action. Expected: refine|sign|prepare');
 }
 
 if (action === 'refine') {
