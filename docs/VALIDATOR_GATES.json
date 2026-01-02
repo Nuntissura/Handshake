@@ -25,6 +25,32 @@
         }
       ],
       "completed": "2026-01-01T23:08:15.222Z"
+    },
+    "WP-1-MEX-v1.2-Runtime-v3": {
+      "wpId": "WP-1-MEX-v1.2-Runtime-v3",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-01-02T00:33:21.398Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-02T00:33:21.399Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-02T00:34:28.380Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-02T00:34:58.289Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-02T00:35:09.776Z"
+        }
+      ],
+      "completed": "2026-01-02T00:35:09.776Z"
     }
   },
   "archived_sessions": [
