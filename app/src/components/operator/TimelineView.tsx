@@ -1,11 +1,12 @@
 import React, { FormEvent, useEffect, useState } from "react";
-import { FlightEvent, getEvents } from "../../lib/api";
+import { BundleScopeInput, FlightEvent, getEvents } from "../../lib/api";
 import { EvidenceSelection } from "./EvidenceDrawer";
 import { DebugBundleExport } from "./DebugBundleExport";
 
 type Props = {
   onSelect: (selection: EvidenceSelection) => void;
   navigation?: { job_id?: string; wsid?: string; event_id?: string } | null;
+  onTimeWindowChange?: (window: { start: string; end: string; wsid?: string } | null) => void;
 };
 
 type TimelineFilters = {
@@ -19,6 +20,22 @@ type TimelineFilters = {
   to: string;
 };
 
+type PinnedSliceQuery = {
+  time_range: { start: string; end: string };
+  wsid: string | null;
+  job_id: string | null;
+  actor: TimelineFilters["actor"] | null;
+  surface: string | null;
+  event_type: TimelineFilters["event_type"] | null;
+  event_id: string | null;
+};
+
+type PinnedSlice = {
+  slice_id: string;
+  pinned_at: string;
+  query: PinnedSliceQuery;
+};
+
 const defaultFilters: TimelineFilters = {
   event_id: "",
   job_id: "",
@@ -30,13 +47,77 @@ const defaultFilters: TimelineFilters = {
   to: "",
 };
 
-export const TimelineView: React.FC<Props> = ({ onSelect, navigation }) => {
+const PINNED_SLICES_STORAGE_KEY = "handshake.timeline.pinnedSlices.v1";
+
+function stableStringify(value: unknown): string {
+  const seen = new WeakSet<object>();
+  const normalize = (input: unknown): unknown => {
+    if (!input || typeof input !== "object") return input;
+    if (seen.has(input as object)) return "[Circular]";
+    seen.add(input as object);
+
+    if (Array.isArray(input)) return input.map(normalize);
+
+    const record = input as Record<string, unknown>;
+    const keys = Object.keys(record).sort();
+    const out: Record<string, unknown> = {};
+    for (const key of keys) {
+      out[key] = normalize(record[key]);
+    }
+    return out;
+  };
+
+  return JSON.stringify(normalize(value));
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const data = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function toIsoFromLocal(value: string): string | null {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function activeTimeWindowFromFilters(filters: TimelineFilters): { start: string; end: string; wsid?: string } | null {
+  if (!filters.from || !filters.to) return null;
+  const start = toIsoFromLocal(filters.from);
+  const end = toIsoFromLocal(filters.to);
+  if (!start || !end) return null;
+  if (new Date(start).getTime() > new Date(end).getTime()) return null;
+
+  const wsid = filters.wsid.trim();
+  return wsid.length > 0 ? { start, end, wsid } : { start, end };
+}
+
+function normalizePinnedSliceQuery(filters: TimelineFilters, timeWindow: { start: string; end: string }): PinnedSliceQuery {
+  const wsid = filters.wsid.trim();
+  const job_id = filters.job_id.trim();
+  const surface = filters.surface.trim();
+  const event_id = filters.event_id.trim();
+
+  return {
+    time_range: { start: timeWindow.start, end: timeWindow.end },
+    wsid: wsid.length > 0 ? wsid : null,
+    job_id: job_id.length > 0 ? job_id : null,
+    actor: filters.actor || null,
+    surface: surface.length > 0 ? surface : null,
+    event_type: filters.event_type || null,
+    event_id: event_id.length > 0 ? event_id : null,
+  };
+}
+
+export const TimelineView: React.FC<Props> = ({ onSelect, navigation, onTimeWindowChange }) => {
   const [filters, setFilters] = useState<TimelineFilters>(defaultFilters);
   const [events, setEvents] = useState<FlightEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pinnedSlices, setPinnedSlices] = useState<TimelineFilters[]>([]);
-  const [exportOpen, setExportOpen] = useState(false);
+  const [pinnedSlices, setPinnedSlices] = useState<PinnedSlice[]>([]);
+  const [exportScope, setExportScope] = useState<BundleScopeInput | null>(null);
 
   const fetchEvents = async (override?: TimelineFilters) => {
     const active = override ?? filters;
@@ -67,6 +148,26 @@ export const TimelineView: React.FC<Props> = ({ onSelect, navigation }) => {
   }, []);
 
   useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PINNED_SLICES_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as PinnedSlice[];
+      if (!Array.isArray(parsed)) return;
+      setPinnedSlices(parsed);
+    } catch {
+      setPinnedSlices([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PINNED_SLICES_STORAGE_KEY, JSON.stringify(pinnedSlices));
+    } catch {
+      // ignore localStorage failures
+    }
+  }, [pinnedSlices]);
+
+  useEffect(() => {
     if (!navigation) return;
     const next: TimelineFilters = {
       ...defaultFilters,
@@ -79,13 +180,42 @@ export const TimelineView: React.FC<Props> = ({ onSelect, navigation }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation]);
 
+  useEffect(() => {
+    onTimeWindowChange?.(activeTimeWindowFromFilters(filters));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.from, filters.to, filters.wsid]);
+
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     fetchEvents();
   };
 
-  const pinSlice = () => {
-    setPinnedSlices((prev) => [...prev, filters]);
+  const timeWindow = activeTimeWindowFromFilters(filters);
+
+  const pinSlice = async () => {
+    if (!timeWindow) {
+      setError("Set a valid From/To window before pinning a slice.");
+      return;
+    }
+
+    const query = normalizePinnedSliceQuery(filters, timeWindow);
+    const sliceId = await sha256Hex(stableStringify(query));
+    const pinned: PinnedSlice = { slice_id: sliceId, pinned_at: new Date().toISOString(), query };
+    setPinnedSlices((prev) => (prev.some((p) => p.slice_id === pinned.slice_id) ? prev : [pinned, ...prev]));
+  };
+
+  const exportCurrentWindow = () => {
+    if (!timeWindow) {
+      setError("Set a valid From/To window before exporting a time-window bundle.");
+      return;
+    }
+
+    setExportScope({ kind: "time_window", time_range: { start: timeWindow.start, end: timeWindow.end }, wsid: timeWindow.wsid });
+  };
+
+  const exportPinnedSlice = (slice: PinnedSlice) => {
+    const wsid = slice.query.wsid ?? undefined;
+    setExportScope({ kind: "time_window", time_range: slice.query.time_range, wsid });
   };
 
   return (
@@ -98,10 +228,10 @@ export const TimelineView: React.FC<Props> = ({ onSelect, navigation }) => {
           </p>
         </div>
         <div className="card-actions">
-          <button className="secondary" onClick={pinSlice}>
+          <button className="secondary" onClick={pinSlice} disabled={!timeWindow}>
             Pin this slice
           </button>
-          <button className="primary" type="button" onClick={() => setExportOpen(true)}>
+          <button className="primary" type="button" onClick={exportCurrentWindow} disabled={!timeWindow}>
             Export time range
           </button>
         </div>
@@ -186,13 +316,48 @@ export const TimelineView: React.FC<Props> = ({ onSelect, navigation }) => {
       {pinnedSlices.length > 0 && (
         <div className="pinned-slices">
           <h4>Pinned slices</h4>
-          <ul>
-            {pinnedSlices.map((slice, idx) => (
-              <li key={idx} className="muted small">
-                job_id={slice.job_id || "any"}, wsid={slice.wsid || "any"}, actor={slice.actor || "any"}, surface={slice.surface || "any"}, event={slice.event_type || "any"}
-              </li>
-            ))}
-          </ul>
+          <p className="muted small">
+            Export uses time window (+wsid) only; actor/surface/event_type filters are UI-only until Debug Bundle contract expands in a separate WP.
+          </p>
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Slice ID</th>
+                  <th>Window</th>
+                  <th>WSID</th>
+                  <th>UI Filters</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {pinnedSlices.map((slice) => (
+                  <tr key={slice.slice_id}>
+                    <td className="muted small">{slice.slice_id}</td>
+                    <td className="muted small">
+                      {new Date(slice.query.time_range.start).toLocaleString()} - {new Date(slice.query.time_range.end).toLocaleString()}
+                    </td>
+                    <td className="muted small">{slice.query.wsid ?? "any"}</td>
+                    <td className="muted small">
+                      job_id={slice.query.job_id ?? "any"}, actor={slice.query.actor ?? "any"}, surface={slice.query.surface ?? "any"}, event={slice.query.event_type ?? "any"}
+                    </td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <button className="secondary" type="button" onClick={() => exportPinnedSlice(slice)}>
+                        Export
+                      </button>{" "}
+                      <button
+                        className="secondary"
+                        type="button"
+                        onClick={() => setPinnedSlices((prev) => prev.filter((p) => p.slice_id !== slice.slice_id))}
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -230,18 +395,11 @@ export const TimelineView: React.FC<Props> = ({ onSelect, navigation }) => {
           </table>
         </div>
       )}
-      {exportOpen && (
+      {exportScope && (
         <DebugBundleExport
-          isOpen={exportOpen}
-          defaultScope={{
-            kind: "time_window",
-            time_range: {
-              start: filters.from ? new Date(filters.from).toISOString() : new Date().toISOString(),
-              end: filters.to ? new Date(filters.to).toISOString() : new Date().toISOString(),
-            },
-            wsid: filters.wsid || undefined,
-          }}
-          onClose={() => setExportOpen(false)}
+          isOpen={true}
+          defaultScope={exportScope}
+          onClose={() => setExportScope(null)}
         />
       )}
     </div>

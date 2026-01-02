@@ -25,10 +25,10 @@ function App() {
   >("workspace");
   const [refreshKey, setRefreshKey] = useState<number>(0);
   const [selection, setSelection] = useState<EvidenceSelection | null>(null);
-  const [exportOpen, setExportOpen] = useState(false);
   const [exportScope, setExportScope] = useState<BundleScopeInput | null>(null);
   const [focusJobId, setFocusJobId] = useState<string | null>(null);
   const [timelineNav, setTimelineNav] = useState<{ job_id?: string; wsid?: string; event_id?: string } | null>(null);
+  const [timelineWindow, setTimelineWindow] = useState<{ start: string; end: string; wsid?: string } | null>(null);
 
   return (
     <main className="app-shell">
@@ -144,7 +144,11 @@ function App() {
             </div>
           ) : (
             <div className="content-panel content-panel--full">
-              <TimelineView onSelect={setSelection} navigation={timelineNav} />
+              <TimelineView
+                onSelect={setSelection}
+                navigation={timelineNav}
+                onTimeWindowChange={setTimelineWindow}
+              />
             </div>
           )}
         </div>
@@ -152,16 +156,8 @@ function App() {
       <EvidenceDrawer
         selection={selection}
         onClose={() => setSelection(null)}
-        onExport={(sel) => {
-          let scope: BundleScopeInput | null = null;
-          if (sel.kind === "diagnostic") {
-            scope = { kind: "problem", problem_id: sel.diagnostic.id };
-          } else if (sel.kind === "event") {
-            scope = { kind: "job", job_id: sel.event.job_id ?? "" };
-          }
-          setExportScope(scope);
-          setExportOpen(true);
-        }}
+        timelineWindow={timelineWindow ?? undefined}
+        onExportScope={(scope) => setExportScope(scope)}
         onNavigateToJob={(jobId) => {
           setActiveView("jobs");
           setFocusJobId(jobId);
@@ -171,11 +167,11 @@ function App() {
           setTimelineNav({ ...nav });
         }}
       />
-      {exportOpen && (
+      {exportScope && (
         <DebugBundleExport
-          isOpen={exportOpen}
-          defaultScope={exportScope ?? { kind: "job", job_id: "" }}
-          onClose={() => setExportOpen(false)}
+          isOpen={true}
+          defaultScope={exportScope}
+          onClose={() => setExportScope(null)}
         />
       )}
     </main>
