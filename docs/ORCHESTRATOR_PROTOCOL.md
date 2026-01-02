@@ -68,8 +68,16 @@
 
 ## Branching & Concurrency (preferred; low-friction)
 - Default: one WP = one feature branch (e.g., `feat/WP-{ID}`).
-- When multiple Coders work concurrently, prefer `git worktree` per active WP (separate working directories) to prevent collisions.
+- **Concurrency rule (MANDATORY when >1 Coder is active):** use `git worktree` per active WP (separate working directories) to prevent collisions and accidental loss of uncommitted work.
+  - Orchestrator sets up worktrees and assigns each Coder a dedicated working directory.
+  - Coders MUST NOT share a single working tree when working concurrently.
 - Coders may commit freely on their WP branch. The Validator performs the final merge/commit to `main` after PASS (per Codex [CX-505]).
+
+## Safety Commit Gate (HARD RULE; prevents untracked WP loss)
+- Immediately after creating a WP task packet + refinement and obtaining `USER_SIGNATURE`, create a **checkpoint commit on the WP branch** that includes:
+  - `docs/task_packets/WP-{ID}.md`
+  - `docs/refinements/WP-{ID}.md`
+- Rationale: untracked/uncommitted packets/refinements are vulnerable to accidental deletion (e.g., a mistaken cleanup). A checkpoint commit makes the WP recoverable deterministically.
 
 ## Part 2: Pre-Orchestration Checklist [CX-600]
 

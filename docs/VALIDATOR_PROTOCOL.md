@@ -10,6 +10,7 @@
   - `git reset --hard`
   - `rm` / `del` / `Remove-Item` on non-temp paths
 - If a cleanup/reset is ever requested, first make it reversible: `git stash push -u -m "SAFETY: before <operation>"`, then show the user exactly what would be deleted (`git clean -nd`) and get explicit approval.
+- **Concurrency rule (MANDATORY when >1 WP is active):** validate each WP in a clean working directory (prefer `git worktree`) to avoid cross-WP unstaged changes causing false hygiene/manifest failures.
 
 ---
 
