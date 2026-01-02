@@ -51,6 +51,32 @@
         }
       ],
       "completed": "2026-01-02T00:35:09.776Z"
+    },
+    "WP-1-Operator-Consoles-v3": {
+      "wpId": "WP-1-Operator-Consoles-v3",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-01-02T23:05:20.810Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-02T23:05:20.811Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-02T23:08:57.522Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-02T23:14:22.267Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-02T23:14:45.071Z"
+        }
+      ],
+      "completed": "2026-01-02T23:14:45.072Z"
     }
   },
   "archived_sessions": [

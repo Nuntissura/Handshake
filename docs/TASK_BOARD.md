@@ -69,7 +69,6 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 ## In Progress
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
-- **[WP-1-Operator-Consoles-v3]** - [IN_PROGRESS]
 
 
 ## Done
@@ -84,6 +83,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Storage-Foundation-v3]** - [VALIDATED]
 - **[WP-1-Terminal-LAW-v3]** - [VALIDATED]
 - **[WP-1-MEX-v1.2-Runtime-v3]** - [VALIDATED]
+- **[WP-1-Operator-Consoles-v3]** - [VALIDATED]
 
 
 

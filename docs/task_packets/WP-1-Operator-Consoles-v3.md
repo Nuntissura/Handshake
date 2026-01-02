@@ -361,3 +361,67 @@ SKELETON_APPROVED_BY: ilja020120262232
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - WP-1-Operator-Consoles-v3 (2026-01-03)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Operator-Consoles-v3.md (Status: In Progress)
+- Refinement: docs/refinements/WP-1-Operator-Consoles-v3.md (approved/signed)
+- Spec target resolved: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.100.md
+
+Commit / Diff:
+- Commit reviewed: 063de0ac (feat: operator consoles time-window exports [WP-1-Operator-Consoles-v3])
+- Files changed:
+  - app/src/App.tsx
+  - app/src/components/operator/EvidenceDrawer.tsx
+  - app/src/components/operator/TimelineView.tsx
+  - app/src/lib/api.ts
+  - src/backend/handshake_core/src/api/flight_recorder.rs
+  - docs/TASK_BOARD.md
+  - docs/task_packets/WP-1-Operator-Consoles-v3.md
+
+Pre-Flight / Gates:
+- just pre-work WP-1-Operator-Consoles-v3: PASS
+- Phase gate: sequence respected; SKELETON marker present:
+  - docs/task_packets/WP-1-Operator-Consoles-v3.md:206 (SKELETON APPROVED)
+
+Spec / DONE_MEANS requirements -> evidence mapping (selected MUST items):
+- Timeline MUST support "pin this slice" (stable query) for bundle export (Handshake_Master_Spec_v02.100.md:26481):
+  - Time-window is required; no guessed windows: app/src/components/operator/TimelineView.tsx:193
+  - Deterministic pinned query + stable slice_id (sha256 over stable-stringified query): app/src/components/operator/TimelineView.tsx:52
+  - Export maps to Debug Bundle time_window (+ optional wsid) only: app/src/components/operator/TimelineView.tsx:207
+  - Disclaimer shown that UI-only filters are not applied to export scope: app/src/components/operator/TimelineView.tsx:316
+- Evidence Drawer MUST provide correlation explanation + Export Debug Bundle entrypoint (Handshake_Master_Spec_v02.100.md:26492):
+  - Rule-based correlation explanation (deterministic; no lookups): app/src/components/operator/EvidenceDrawer.tsx:19
+  - Event export defaults to time_window using current Timeline window; disables when window absent; job export is explicit secondary: app/src/components/operator/EvidenceDrawer.tsx:293
+  - Raw JSON redacted-by-default for diagnostics and events: app/src/components/operator/EvidenceDrawer.tsx:257 and app/src/components/operator/EvidenceDrawer.tsx:337
+- Evidence Drawer requires linked entities (job/wsid/spans) and policy/capability IDs when present (Handshake_Master_Spec_v02.100.md:26492):
+  - Flight Recorder API returns model_id/activity_span_id/session_span_id/capability_id/policy_decision_id: src/backend/handshake_core/src/api/flight_recorder.rs:12
+  - Frontend type surfaces those fields: app/src/lib/api.ts:136
+- App wiring: Timeline window propagates to Evidence Drawer export behavior:
+  - Timeline emits active window: app/src/components/operator/TimelineView.tsx:183
+  - App stores and passes window: app/src/App.tsx:31 and app/src/App.tsx:156
+
+Forbidden Patterns (Codex CX-573E / Validator Protocol 2B):
+- just validator-scan: PASS
+- Spot check rg on touched files for split_whitespace/unwrap/expect/todo!/unimplemented!/dbg!/println!/eprintln!: no matches
+
+Tests / Commands (Validator re-run):
+- just validator-spec-regression: PASS
+- just cargo-clean: PASS
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml: PASS
+- pnpm -C app run lint: PASS
+- pnpm -C app test: PASS
+
+Deterministic Manifest (COR-701):
+- Packet contains per-file manifests for all changed non-doc files: docs/task_packets/WP-1-Operator-Consoles-v3.md:227
+- Independent verification of just post-work (must be run against a staged diff):
+  - Created an isolated validation worktree at pre-change HEAD (4e57fd93), applied 063de0ac as staged changes (cherry-pick -n), then ran:
+    - just post-work WP-1-Operator-Consoles-v3: PASS
+
+Hygiene / Notes:
+- Sandbox note: some Node child-process spawns (cmd.exe) required escalated execution for validator scripts/tests in this environment; commands above were re-run and passed with full outputs available in console history.
+
+REASON FOR PASS:
+- DONE_MEANS requirements for the changed surfaces are met with direct evidence (file:line), forbidden-pattern scan is clean, required tests/lint pass, and COR-701 post-work determinism gate passes for the staged WP diff in a clean validation worktree.
