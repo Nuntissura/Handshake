@@ -372,3 +372,48 @@ SKELETON APPROVED
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT — WP-1-MEX-v1.2-Runtime-v3
+Verdict: PASS
+
+WP Artifacts
+- Task packet present: `docs/task_packets/WP-1-MEX-v1.2-Runtime-v3.md:1`
+- Refinement present + signed: `docs/refinements/WP-1-MEX-v1.2-Runtime-v3.md:1`
+- Spec target resolved: `docs/SPEC_CURRENT.md:5` -> `Handshake_Master_Spec_v02.100.md`
+
+Scope / Diff Integrity
+- Commit validated: `0ed7878` (`feat: audit capability checks and enforce MEX evidence [WP-1-MEX-v1.2-Runtime-v3]`)
+- Files changed in `0ed7878` match packet IN_SCOPE + packet file:
+  - `docs/task_packets/WP-1-MEX-v1.2-Runtime-v3.md`
+  - `src/backend/handshake_core/src/mex/conformance.rs`
+  - `src/backend/handshake_core/src/mex/envelope.rs`
+  - `src/backend/handshake_core/src/mex/gates.rs`
+  - `src/backend/handshake_core/src/mex/registry.rs`
+  - `src/backend/handshake_core/src/mex/runtime.rs`
+  - `src/backend/handshake_core/tests/mex_tests.rs`
+- Working tree clean on the validation branch after verification.
+
+Spec / DONE_MEANS Requirements -> Evidence Mapping
+- Schema discrimination (`schema_version="poe-1.0"`): Spec `Handshake_Master_Spec_v02.100.md:20065`; implemented in `src/backend/handshake_core/src/mex/envelope.rs:8` and enforced by `src/backend/handshake_core/src/mex/gates.rs` (SchemaGate).
+- Artifact-first size rule (>32KB not inlined): Spec `Handshake_Master_Spec_v02.100.md:16786` and `Handshake_Master_Spec_v02.100.md:31664`; enforced by `src/backend/handshake_core/src/mex/gates.rs:177`.
+- Required global gates exist and run: Spec `Handshake_Master_Spec_v02.100.md:16796`; pipeline includes `G-SCHEMA/G-CAP/G-INTEGRITY/G-BUDGET/G-PROVENANCE/G-DET` in `src/backend/handshake_core/src/mex/conformance.rs:52`.
+- Gate outcomes logged + visible on denial: Spec `Handshake_Master_Spec_v02.100.md:16804`; PASS/DENY logged in `src/backend/handshake_core/src/mex/runtime.rs` (`record_gate_outcome`), and denials record Diagnostics via `DiagnosticsStore` (`record_denial_diagnostic`).
+- HSK-4001 UnknownCapability: Spec `Handshake_Master_Spec_v02.100.md:29228`; enforced in `src/backend/handshake_core/src/mex/gates.rs:145`.
+- Capability audit (allow/deny recorded): Spec `Handshake_Master_Spec_v02.100.md:29229`; emitted as `FlightRecorderEventType::CapabilityAction` per capability in `src/backend/handshake_core/src/mex/runtime.rs:89` and `src/backend/handshake_core/src/mex/runtime.rs:241`.
+- D0/D1 evidence required in results: Spec `Handshake_Master_Spec_v02.100.md:16794`; enforced post-execution in `src/backend/handshake_core/src/mex/runtime.rs:128` (records Diagnostic and returns `MexRuntimeError::EvidenceMissing`).
+- FR-EVT-003 Diagnostic linkage: Spec `Handshake_Master_Spec_v02.100.md:30882`; validated by tests asserting diagnostic events (see `src/backend/handshake_core/tests/mex_tests.rs`).
+
+Quality Gate (Packet TEST_PLAN) - Re-run Results
+- `just pre-work WP-1-MEX-v1.2-Runtime-v3`: PASS
+- `just validator-spec-regression`: PASS
+- `cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml -- --check`: PASS
+- `cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features -- -D warnings`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`: PASS (mex tests include `d0_missing_evidence_records_diagnostic`)
+- Forbidden-pattern scan (`rg ... src/backend/handshake_core/src/mex`): PASS (no matches; `rg` exit code 1)
+- Supply chain: `powershell -NoProfile -Command "cd src/backend/handshake_core; cargo deny check advisories licenses bans sources"`: PASS with warnings (existing allowlist + duplicate crate warnings; command exit code 0)
+- `just cargo-clean`: completed
+- `just post-work WP-1-MEX-v1.2-Runtime-v3`: PASS when run in the required pre-commit state (reconstructed in a dedicated worktree from `0bfc894` and applying `0ed7878` as staged changes). Note: running post-work on a clean post-commit tree fails by design because there is no diff to validate.
+
+Deterministic Manifest (COR-701)
+- Packet contains per-file manifest blocks for all changed non-doc files: `docs/task_packets/WP-1-MEX-v1.2-Runtime-v3.md:230` onward.
+- `just post-work` PASS confirms SHA1s/windows/gates are consistent for the staged diff.
