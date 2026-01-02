@@ -75,6 +75,10 @@ scaffold-check:
 codex-check-test:
 	node scripts/codex-check-test.mjs
 
+# Close a WP branch after it has been merged into main.
+close-wp-branch wp-id remote="":
+	node scripts/close-wp-branch.mjs {{wp-id}} {{remote}}
+
 # === Workflow Enforcement Commands (Codex v0.8) ===
 
 # Record a technical refinement for a work packet [CX-585A]

@@ -234,6 +234,12 @@ FLOW DIAGRAM:
 ## Merge/Commit Authority (per Codex [CX-505])
 - After issuing PASS **and completing all validation gates**, the Validator is responsible for merging/committing the WP to `main`. Coders must not merge their own work.
 
+## Post-Merge Cleanup (reduces branch confusion)
+- After a WP is merged into `main`, the Validator SHOULD delete the local WP branch pointer to avoid leaving stale branches:
+  - `just close-wp-branch WP-{ID}`
+- If the repo uses a remote backup (e.g., GitHub) and the WP branch was pushed, the Validator MAY also delete the remote WP branch after `main` is pushed:
+  - `just close-wp-branch WP-{ID} --remote`
+
 ## Report Template
 ```
 VALIDATION REPORT — {WP_ID}
