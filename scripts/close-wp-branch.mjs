@@ -98,7 +98,9 @@ function main() {
     ]);
   }
 
-  runGitInherit(["branch", "-d", branch]);
+  // The upstream safety check in `git branch -d` can block deletion even when the branch
+  // is already merged into `main`. We already proved ancestry, so force-delete the pointer.
+  runGitInherit(["branch", "-D", branch]);
 
   if (remote) {
     const remoteName = "origin";
@@ -111,4 +113,3 @@ function main() {
 }
 
 main();
-
