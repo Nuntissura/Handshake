@@ -19,7 +19,12 @@ pub struct FlightEvent {
     pub event_type: String,
     pub job_id: Option<String>,
     pub workflow_id: Option<String>,
+    pub model_id: Option<String>,
     pub wsids: Vec<String>,
+    pub activity_span_id: Option<String>,
+    pub session_span_id: Option<String>,
+    pub capability_id: Option<String>,
+    pub policy_decision_id: Option<String>,
     pub payload: Value,
 }
 
@@ -111,7 +116,12 @@ async fn list_events(
             event_type: e.event_type.to_string(),
             job_id: e.job_id,
             workflow_id: e.workflow_id,
+            model_id: e.model_id,
             wsids: e.wsids,
+            activity_span_id: e.activity_span_id,
+            session_span_id: e.session_span_id,
+            capability_id: e.capability_id,
+            policy_decision_id: e.policy_decision_id,
             payload: e.payload,
         })
         .collect();

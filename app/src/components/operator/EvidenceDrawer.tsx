@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { createDiagnostic, Diagnostic, FlightEvent, getJob } from "../../lib/api";
+import { BundleScopeInput, createDiagnostic, Diagnostic, FlightEvent, getJob } from "../../lib/api";
 
 export type EvidenceSelection =
   | { kind: "diagnostic"; diagnostic: Diagnostic }
@@ -8,12 +8,51 @@ export type EvidenceSelection =
 type Props = {
   selection: EvidenceSelection | null;
   onClose: () => void;
-  onExport?: (selection: EvidenceSelection) => void;
+  onExportScope?: (scope: BundleScopeInput) => void;
+  timelineWindow?: { start: string; end: string; wsid?: string } | null;
   onNavigateToJob?: (jobId: string) => void;
   onNavigateToTimeline?: (nav: { job_id?: string; wsid?: string; event_id?: string }) => void;
 };
 
 type InnerProps = Omit<Props, "selection"> & { selection: EvidenceSelection };
+
+function correlationExplanationForDiagnostic(diagnostic: Diagnostic): string[] {
+  switch (diagnostic.link_confidence) {
+    case "direct": {
+      const parts: string[] = ["Direct: diagnostic links to concrete entities."];
+      if (diagnostic.job_id) parts.push(`Includes job_id (${diagnostic.job_id}).`);
+      const frCount = diagnostic.evidence_refs?.fr_event_ids?.length ?? 0;
+      if (frCount > 0) parts.push(`Includes ${frCount} Flight Recorder event id(s).`);
+      return parts;
+    }
+    case "inferred":
+      return [
+        "Inferred: diagnostic is not directly linked to a single entity.",
+        "Link was inferred via deterministic correlation rules (time window / wsid / source / actor / location).",
+      ];
+    case "ambiguous": {
+      const candidates = diagnostic.evidence_refs?.related_job_ids ?? [];
+      if (candidates.length > 0) {
+        return [
+          "Ambiguous: diagnostic matches multiple candidates; UI must not present this as a certain link.",
+          `Candidates: ${candidates.join(", ")}`,
+        ];
+      }
+      return ["Ambiguous: diagnostic matches multiple candidates; candidate list is not available."];
+    }
+    case "unlinked":
+    default:
+      return ["Unlinked: no viable correlation candidates were identified."];
+  }
+}
+
+function correlationExplanationForEvent(event: FlightEvent): string[] {
+  const parts: string[] = [];
+  if (event.job_id) parts.push(`Event includes job_id (${event.job_id}).`);
+  if (event.wsids.length > 0) parts.push(`Event includes wsid(s): ${event.wsids.join(", ")}.`);
+  if (parts.length === 0) parts.push("Event is not directly linked to a job or workspace id.");
+  return parts;
+}
 
 function redactMessage(message: string, visibleChars = 180): string {
   if (message.length <= visibleChars) return message;
@@ -45,7 +84,8 @@ function redactJsonValue(value: unknown, visibleChars = 180, depth = 0): unknown
 const EvidenceDrawerInner: React.FC<InnerProps> = ({
   selection,
   onClose,
-  onExport,
+  onExportScope,
+  timelineWindow,
   onNavigateToJob,
   onNavigateToTimeline,
 }) => {
@@ -171,6 +211,7 @@ const EvidenceDrawerInner: React.FC<InnerProps> = ({
 
   if (selection.kind === "diagnostic") {
     const diagnostic = selection.diagnostic;
+    const correlationExplanation = correlationExplanationForDiagnostic(diagnostic);
     return (
       <aside className="evidence-drawer">
         <div className="drawer-header">
@@ -197,6 +238,7 @@ const EvidenceDrawerInner: React.FC<InnerProps> = ({
               <li>Policy Decision: {diagnostic.policy_decision_id ?? "n/a"}</li>
               <li>Link Confidence: {diagnostic.link_confidence}</li>
             </ul>
+            <p className="muted small">{correlationExplanation.join(" ")}</p>
           </div>
           <div>
             <h4>Evidence</h4>
@@ -236,8 +278,8 @@ const EvidenceDrawerInner: React.FC<InnerProps> = ({
           </button>
           <button
             className="primary"
-            onClick={() => onExport && onExport(selection)}
-            disabled={!onExport}
+            onClick={() => onExportScope && onExportScope({ kind: "problem", problem_id: diagnostic.id })}
+            disabled={!onExportScope}
           >
             Export Debug Bundle
           </button>
@@ -247,6 +289,15 @@ const EvidenceDrawerInner: React.FC<InnerProps> = ({
   }
 
   const event = selection.event;
+  const eventCorrelation = correlationExplanationForEvent(event);
+  const hasTimelineWindow = Boolean(timelineWindow?.start && timelineWindow?.end);
+  const timeWindowScope: BundleScopeInput | null = hasTimelineWindow
+    ? {
+        kind: "time_window",
+        time_range: { start: timelineWindow!.start, end: timelineWindow!.end },
+        wsid: timelineWindow?.wsid,
+      }
+    : null;
   return (
     <aside className="evidence-drawer">
       <div className="drawer-header">
@@ -268,7 +319,18 @@ const EvidenceDrawerInner: React.FC<InnerProps> = ({
             <li>Timestamp: {new Date(event.timestamp).toLocaleString()}</li>
             <li>Actor ID: {event.actor_id}</li>
             <li>Workflow ID: {event.workflow_id ?? "n/a"}</li>
+            <li>Model ID: {event.model_id ?? "n/a"}</li>
+            <li>Activity Span: {event.activity_span_id ?? "n/a"}</li>
+            <li>Session Span: {event.session_span_id ?? "n/a"}</li>
+            <li>Capability: {event.capability_id ?? "n/a"}</li>
+            <li>Policy Decision: {event.policy_decision_id ?? "n/a"}</li>
           </ul>
+          <p className="muted small">{eventCorrelation.join(" ")}</p>
+          {!hasTimelineWindow && (
+            <p className="muted small">
+              Set a Timeline time window (From/To) to export a time-window bundle for this event.
+            </p>
+          )}
         </div>
         <div>
           <h4>Payload</h4>
@@ -298,11 +360,20 @@ const EvidenceDrawerInner: React.FC<InnerProps> = ({
         </button>
         <button
           className="primary"
-          onClick={() => onExport && onExport(selection)}
-          disabled={!onExport}
+          onClick={() => timeWindowScope && onExportScope && onExportScope(timeWindowScope)}
+          disabled={!onExportScope || !timeWindowScope}
         >
-          Export Debug Bundle
+          Export Debug Bundle (Time Window)
         </button>
+        {event.job_id && (
+          <button
+            className="secondary"
+            onClick={() => onExportScope && onExportScope({ kind: "job", job_id: event.job_id ?? "" })}
+            disabled={!onExportScope}
+          >
+            Export Debug Bundle (Job)
+          </button>
+        )}
       </div>
     </aside>
   );

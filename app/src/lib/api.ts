@@ -151,6 +151,10 @@ export type FlightEvent = {
   workflow_id?: string;
   model_id?: string;
   wsids: string[];
+  activity_span_id?: string;
+  session_span_id?: string;
+  capability_id?: string;
+  policy_decision_id?: string;
   payload: unknown;
 };
 

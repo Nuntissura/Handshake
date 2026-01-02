@@ -25,7 +25,6 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 
 
 ## Ready for Dev
-- **[WP-1-Operator-Consoles-v2]** / FAIL (revalidation): `just post-work WP-1-Operator-Consoles-v2` fails (C701-G05 post_sha1 mismatch, C701-G04 window drift) for `src/backend/handshake_core/src/flight_recorder/duckdb.rs`. [READY FOR DEV]
 - **[WP-1-Capability-SSoT]** / FAIL (revalidation): `just post-work WP-1-Capability-SSoT` fails (C701-G05 post_sha1 mismatch) for `src/backend/handshake_core/src/capabilities.rs`. [READY FOR DEV]
 - **[WP-1-LLM-Core]** / FAIL (revalidation): `just post-work WP-1-LLM-Core` fails phase gate (SKELETON appears before BOOTSTRAP); packet non-ASCII + missing COR-701 manifest. [READY FOR DEV]
 - **[WP-1-Flight-Recorder-UI-v2]** / FAIL (revalidation): `just gate-check WP-1-Flight-Recorder-UI-v2` fails (missing "SKELETON APPROVED" marker); `node scripts/validation/post-work-check.mjs WP-1-Flight-Recorder-UI-v2` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99; user signature field missing/pending. [READY FOR DEV]
@@ -84,6 +83,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Storage-Foundation-v3]** - [VALIDATED]
 - **[WP-1-Terminal-LAW-v3]** - [VALIDATED]
 - **[WP-1-MEX-v1.2-Runtime-v3]** - [VALIDATED]
+- **[WP-1-Operator-Consoles-v3]** - [VALIDATED]
 
 
 
@@ -95,6 +95,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Tokenization-Service-20251228]** - [SUPERSEDED]
 - **[WP-1-Storage-Foundation-20251228]** - [SUPERSEDED]
 - **[WP-1-Gate-Check-Tool]** - [SUPERSEDED]
+- **[WP-1-Operator-Consoles-v2]** - [SUPERSEDED]
 - **[WP-1-Operator-Consoles-v1]** - [SUPERSEDED]
 - **[WP-1-Operator-Consoles]** - [SUPERSEDED]
 - **[WP-1-Diagnostic-Pipe]** - [SUPERSEDED]

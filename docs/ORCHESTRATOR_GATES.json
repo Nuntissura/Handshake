@@ -174,6 +174,30 @@
       "signature": "ilja010120261528",
       "timestamp": "2026-01-01T14:29:13.055Z",
       "refinement_path": "docs/refinements/WP-1-OSS-Register-Enforcement-v1.md"
+    },
+    {
+      "wpId": "WP-1-Operator-Consoles-v3",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Operator-Consoles-v3.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.100.md",
+      "spec_target_sha1": "76e8e6e8259b64a6dc4aed5cf2afb754ff1f3aed",
+      "timestamp": "2026-01-02T21:30:54.680Z",
+      "turn_token": "1767389454681"
+    },
+    {
+      "wpId": "WP-1-Operator-Consoles-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja020120262232",
+      "timestamp": "2026-01-02T21:34:39.105Z",
+      "refinement_path": "docs/refinements/WP-1-Operator-Consoles-v3.md"
+    },
+    {
+      "wpId": "WP-1-Operator-Consoles-v3",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Operator-Consoles-v3",
+      "worktree_dir": "../wt-WP-1-Operator-Consoles-v3",
+      "timestamp": "2026-01-02T21:34:57.845Z"
     }
   ]
 }
