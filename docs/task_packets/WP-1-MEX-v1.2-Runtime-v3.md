@@ -206,44 +206,169 @@ git revert <commit-sha>
 SKELETON APPROVED
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Updated MEX envelopes so `PlannedOperation.evidence_policy` is optional and gate checks can deny D0/D1 without policy.
+- Hardened gates: capability allowlist derived from registry engine+operation, HSK-4001 recorded via `GateDenial.code`, and evidence policy check handles `Option`.
+- MexRuntime now accepts DiagnosticsStore, logs gate outcomes, emits per-capability CapabilityAction events, and enforces D0/D1 evidence presence post-execution.
+- Conformance harness and registry test data updated for operation-level capabilities; tests expanded for gate outcomes, capability audit, and missing evidence diagnostics.
 
 ## HYGIENE
-- (Coder fills after implementation; commands run + outcomes summary.)
+- just pre-work WP-1-MEX-v1.2-Runtime-v3: PASS
+- just validator-spec-regression: PASS
+- cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml -- --check: PASS (after cargo fmt)
+- cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features -- -D warnings: PASS
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml: PASS
+- rg "unwrap\\(|expect\\(|todo!\\(|unimplemented!\\(|dbg!\\(|println!\\(|eprintln!\\(" src/backend/handshake_core/src/mex: no matches
+- powershell -NoProfile -Command "cd src/backend/handshake_core; cargo deny check advisories licenses bans sources": PASS with existing warnings
+- just validator-scan: PASS
+- just validator-dal-audit: PASS
+- just validator-git-hygiene: PASS
+- just cargo-clean: completed
+- just post-work WP-1-MEX-v1.2-Runtime-v3: PASS (staged)
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'.)
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+### Manifest Entry 1: src/backend/handshake_core/src/mex/conformance.rs
+- **Target File**: `src/backend/handshake_core/src/mex/conformance.rs`
+- **Start**: 9
+- **End**: 269
+- **Line Delta**: 17
+- **Pre-SHA1**: `3327e23f83baa6f799f0bad737e8e1df2be24d2b`
+- **Post-SHA1**: `cfaf8216574977d64e89618b1495010fcc5c7fe4`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+### Manifest Entry 2: src/backend/handshake_core/src/mex/envelope.rs
+- **Target File**: `src/backend/handshake_core/src/mex/envelope.rs`
+- **Start**: 71
+- **End**: 71
+- **Line Delta**: 0
+- **Pre-SHA1**: `56bfea135ee129b1931bab56fd4f5d454c4ac0bb`
+- **Post-SHA1**: `6c79e90b9e0c0e6cc028a0893f237ca8d8415482`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+### Manifest Entry 3: src/backend/handshake_core/src/mex/gates.rs
+- **Target File**: `src/backend/handshake_core/src/mex/gates.rs`
+- **Start**: 2
+- **End**: 295
+- **Line Delta**: 55
+- **Pre-SHA1**: `c438dda21834960518ce3ab09eda9f8d05fc0842`
+- **Post-SHA1**: `751efb1da8f957f0a5c30d6f84470a1af111bbf7`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+### Manifest Entry 4: src/backend/handshake_core/src/mex/registry.rs
+- **Target File**: `src/backend/handshake_core/src/mex/registry.rs`
+- **Start**: 75
+- **End**: 80
+- **Line Delta**: 6
+- **Pre-SHA1**: `51ceda6bf0046c9d3b04320ff16bdb5e6c72ea2c`
+- **Post-SHA1**: `c88330fadb871b8ee2c5493315316b2b0b227b6a`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+### Manifest Entry 5: src/backend/handshake_core/src/mex/runtime.rs
+- **Target File**: `src/backend/handshake_core/src/mex/runtime.rs`
+- **Start**: 8
+- **End**: 305
+- **Line Delta**: 190
+- **Pre-SHA1**: `3fc2b0a9189a74b873154c55288aaf19d3f703a2`
+- **Post-SHA1**: `893af22eb951c1162bf9cfa5cf5dbc76f2176774`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+### Manifest Entry 6: src/backend/handshake_core/tests/mex_tests.rs
+- **Target File**: `src/backend/handshake_core/tests/mex_tests.rs`
+- **Start**: 5
+- **End**: 399
+- **Line Delta**: 277
+- **Pre-SHA1**: `92efae1254eefbf47a2f2b1078bb30f7d160c840`
+- **Post-SHA1**: `9f6fefc7ab57455565651042ca9c3425d1ae91c8`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Lint Results**: cargo fmt --check PASS; cargo clippy PASS
+- **Artifacts**: None
+- **Timestamp**: 2026-01-02T01:18:28.1388571+01:00
+- **Operator**: Codex CLI (Coder-A)
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.100.md
+- **Notes**: Window/start/end and SHA1 values computed from `git diff --unified=0` and `git show HEAD:` vs working tree.
 
 ## STATUS_HANDOFF
-- Current WP_STATUS:
+- Current WP_STATUS: Implementation complete; post-work PASS
 - What changed in this update:
-- Next step / handoff hint:
+  - Capability audit events emitted per requested capability with allow/deny outcomes.
+  - D0/D1 evidence enforcement returns error and records diagnostics when evidence is missing.
+  - MEX tests expanded to cover capability audit and missing evidence diagnostics.
+- Next step / handoff hint: Stage only MEX scope files + this packet and commit for validator review.
 
 ## EVIDENCE
-- (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+- just pre-work WP-1-MEX-v1.2-Runtime-v3: PASS
+- just validator-spec-regression: PASS
+- cargo fmt --check: PASS (after cargo fmt)
+- cargo clippy --all-targets --all-features -- -D warnings: PASS
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml: PASS (120 + 2 + 5 + 5 + 2 + 13 + 5 + 4 + 5 tests)
+- rg unwrap/expect/todo/unimplemented/dbg/println/eprintln in mex: no matches
+- pwsh not available; ran powershell -NoProfile -Command "cd src/backend/handshake_core; cargo deny check advisories licenses bans sources"
+- cargo deny check advisories licenses bans sources: PASS with existing warnings (license-not-encountered + duplicate crates)
+- just validator-scan: PASS
+- just validator-dal-audit: PASS
+- just validator-git-hygiene: PASS
+- just cargo-clean: completed
+- just post-work WP-1-MEX-v1.2-Runtime-v3: PASS (staged)
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)

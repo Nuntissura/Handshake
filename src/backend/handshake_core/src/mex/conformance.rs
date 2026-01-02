@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::ace::ArtifactHandle;
 use crate::capabilities::CapabilityRegistry;
+use crate::diagnostics::DiagnosticsStore;
 use crate::flight_recorder::FlightRecorder;
 use crate::mex::envelope::{
     BudgetSpec, DeterminismLevel, EngineResult, EngineStatus, EvidencePolicy, OutputSpec,
@@ -14,7 +15,7 @@ use crate::mex::envelope::{
 use crate::mex::gates::{
     BudgetGate, CapabilityGate, DetGate, GatePipeline, IntegrityGate, ProvenanceGate, SchemaGate,
 };
-use crate::mex::registry::{EngineSpec, MexRegistry};
+use crate::mex::registry::{EngineSpec, MexRegistry, OperationSpec};
 use crate::mex::runtime::{AdapterError, EngineAdapter, MexRuntime, MexRuntimeError};
 use tokio::runtime::Runtime;
 
@@ -44,6 +45,7 @@ impl ConformanceHarness {
         registry: MexRegistry,
         capability_registry: CapabilityRegistry,
         flight_recorder: Arc<dyn FlightRecorder>,
+        diagnostics: Arc<dyn DiagnosticsStore>,
         adapter: Arc<dyn EngineAdapter>,
         engine_id: &str,
     ) -> Self {
@@ -56,8 +58,8 @@ impl ConformanceHarness {
             Box::new(DetGate),
         ]);
 
-        let runtime =
-            MexRuntime::new(registry, flight_recorder, gates).with_adapter(engine_id, adapter);
+        let runtime = MexRuntime::new(registry, flight_recorder, diagnostics, gates)
+            .with_adapter(engine_id, adapter);
 
         Self { runtime }
     }
@@ -93,10 +95,10 @@ impl ConformanceHarness {
                 output_bytes: Some(8 * 1024 * 1024),
             },
             determinism: DeterminismLevel::D2,
-            evidence_policy: EvidencePolicy {
+            evidence_policy: Some(EvidencePolicy {
                 required: true,
                 notes: Some("Conformance evidence".to_string()),
-            },
+            }),
             output_spec: OutputSpec {
                 expected_types: vec!["artifact.document".to_string()],
                 max_bytes: Some(8 * 1024 * 1024),
@@ -168,7 +170,7 @@ impl ConformanceHarness {
     fn case_provenance(&self, engine_id: &str) -> ConformanceResult {
         let mut op = self.base_operation(engine_id);
         op.determinism = DeterminismLevel::D0;
-        op.evidence_policy.required = false;
+        op.evidence_policy = None;
         let (passed, notes) = self.run_case(op, Some("provenance"));
         ConformanceResult {
             case: ConformanceCase::ProvenanceCompleteness,
@@ -249,7 +251,22 @@ pub fn single_engine_registry(engine_id: &str) -> MexRegistry {
             memory_bytes: Some(256 * 1024 * 1024),
             output_bytes: Some(16 * 1024 * 1024),
         },
-        ops: vec![],
+        ops: vec![
+            OperationSpec {
+                name: "conformance.test".to_string(),
+                schema_ref: Some(POE_SCHEMA_VERSION.to_string()),
+                params_schema: None,
+                capabilities: vec!["fs.read".to_string(), "fs.write".to_string()],
+                output_types: vec!["artifact.document".to_string()],
+            },
+            OperationSpec {
+                name: "spatial.build_model".to_string(),
+                schema_ref: Some(POE_SCHEMA_VERSION.to_string()),
+                params_schema: None,
+                capabilities: vec!["fs.read".to_string(), "fs.write".to_string()],
+                output_types: vec!["artifact.model3d".to_string()],
+            },
+        ],
     };
 
     let mut map = HashMap::new();

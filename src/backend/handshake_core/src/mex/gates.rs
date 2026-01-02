@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 
-use crate::capabilities::CapabilityRegistry;
+use crate::capabilities::{CapabilityRegistry, RegistryError};
 use crate::mex::envelope::{DeterminismLevel, PlannedOperation, POE_SCHEMA_VERSION};
 use crate::mex::registry::MexRegistry;
 
@@ -17,6 +17,7 @@ pub enum DenialSeverity {
 pub struct GateDenial {
     pub gate: String,
     pub reason: String,
+    pub code: Option<String>,
     pub details: Option<Value>,
     pub severity: DenialSeverity,
 }
@@ -52,6 +53,7 @@ impl Gate for SchemaGate {
             return Err(GateDenial {
                 gate: self.name().to_string(),
                 reason: "Invalid schema_version (expected poe-1.0)".to_string(),
+                code: None,
                 details: Some(Value::String(op.schema_version.clone())),
                 severity: DenialSeverity::Error,
             });
@@ -61,6 +63,7 @@ impl Gate for SchemaGate {
             return Err(GateDenial {
                 gate: self.name().to_string(),
                 reason: "operation and engine_id must be non-empty".to_string(),
+                code: None,
                 details: None,
                 severity: DenialSeverity::Error,
             });
@@ -85,31 +88,71 @@ impl Gate for CapabilityGate {
         "G-CAP"
     }
 
-    fn check(&self, op: &PlannedOperation, _registry: &MexRegistry) -> Result<(), GateDenial> {
+    fn check(&self, op: &PlannedOperation, registry: &MexRegistry) -> Result<(), GateDenial> {
         if op.capabilities_requested.is_empty() {
             return Err(GateDenial {
                 gate: self.name().to_string(),
                 reason: "No capabilities requested; default-deny".to_string(),
+                code: None,
                 details: None,
                 severity: DenialSeverity::Error,
             });
         }
 
+        let engine_spec = registry
+            .get_engine(&op.engine_id)
+            .ok_or_else(|| GateDenial {
+                gate: self.name().to_string(),
+                reason: "Engine not registered in MexRegistry".to_string(),
+                code: None,
+                details: Some(Value::String(op.engine_id.clone())),
+                severity: DenialSeverity::Error,
+            })?;
+
+        let operation_spec = registry
+            .get_operation(&op.engine_id, &op.operation)
+            .ok_or_else(|| GateDenial {
+                gate: self.name().to_string(),
+                reason: "Operation not registered for engine".to_string(),
+                code: None,
+                details: Some(json!({
+                    "engine_id": op.engine_id.clone(),
+                    "operation": op.operation.clone(),
+                })),
+                severity: DenialSeverity::Error,
+            })?;
+
+        let mut allowed_caps = engine_spec.required_caps.clone();
+        allowed_caps.extend(operation_spec.capabilities.iter().cloned());
+        allowed_caps.sort();
+        allowed_caps.dedup();
+
         for cap in &op.capabilities_requested {
-            match self.registry.can_perform(cap, &op.capabilities_requested) {
+            match self.registry.can_perform(cap, &allowed_caps) {
                 Ok(true) => {}
                 Ok(false) => {
                     return Err(GateDenial {
                         gate: self.name().to_string(),
                         reason: "Capability not granted".to_string(),
+                        code: None,
                         details: Some(Value::String(cap.clone())),
                         severity: DenialSeverity::Error,
-                    })
+                    });
+                }
+                Err(RegistryError::UnknownCapability(_)) => {
+                    return Err(GateDenial {
+                        gate: self.name().to_string(),
+                        reason: "Unknown capability".to_string(),
+                        code: Some("HSK-4001".to_string()),
+                        details: Some(Value::String(cap.clone())),
+                        severity: DenialSeverity::Error,
+                    });
                 }
                 Err(err) => {
                     return Err(GateDenial {
                         gate: self.name().to_string(),
                         reason: format!("Capability check failed: {err}"),
+                        code: None,
                         details: Some(Value::String(cap.clone())),
                         severity: DenialSeverity::Error,
                     });
@@ -136,6 +179,7 @@ impl Gate for IntegrityGate {
                 return Err(GateDenial {
                     gate: self.name().to_string(),
                     reason: "Inline params exceed 32KB; use artifact handles".to_string(),
+                    code: None,
                     details: Some(Value::Number(serde_json::Number::from(raw.len() as u64))),
                     severity: DenialSeverity::Error,
                 });
@@ -163,6 +207,7 @@ impl Gate for BudgetGate {
             return Err(GateDenial {
                 gate: self.name().to_string(),
                 reason: "Missing budget caps (cpu/wall/memory/output)".to_string(),
+                code: None,
                 details: None,
                 severity: DenialSeverity::Error,
             });
@@ -175,6 +220,7 @@ impl Gate for BudgetGate {
                 return Err(GateDenial {
                     gate: self.name().to_string(),
                     reason: "output_spec exceeds budgeted output_bytes".to_string(),
+                    code: None,
                     details: Some(Value::Number(serde_json::Number::from(spec_max))),
                     severity: DenialSeverity::Error,
                 });
@@ -193,12 +239,18 @@ impl Gate for ProvenanceGate {
     }
 
     fn check(&self, op: &PlannedOperation, _registry: &MexRegistry) -> Result<(), GateDenial> {
+        let evidence_required = op
+            .evidence_policy
+            .as_ref()
+            .map(|policy| policy.required)
+            .unwrap_or(false);
         if matches!(op.determinism, DeterminismLevel::D0 | DeterminismLevel::D1)
-            && !op.evidence_policy.required
+            && !evidence_required
         {
             return Err(GateDenial {
                 gate: self.name().to_string(),
                 reason: "Evidence policy missing for D0/D1 operation".to_string(),
+                code: None,
                 details: None,
                 severity: DenialSeverity::Error,
             });
@@ -208,6 +260,7 @@ impl Gate for ProvenanceGate {
             return Err(GateDenial {
                 gate: self.name().to_string(),
                 reason: "Provenance requires explicit capabilities granted".to_string(),
+                code: None,
                 details: None,
                 severity: DenialSeverity::Error,
             });
@@ -229,6 +282,7 @@ impl Gate for DetGate {
             return Err(GateDenial {
                 gate: self.name().to_string(),
                 reason: "Engine not registered in MexRegistry".to_string(),
+                code: None,
                 details: Some(Value::String(op.engine_id.clone())),
                 severity: DenialSeverity::Error,
             });
@@ -238,6 +292,7 @@ impl Gate for DetGate {
             return Err(GateDenial {
                 gate: self.name().to_string(),
                 reason: "Determinism level exceeds engine ceiling".to_string(),
+                code: None,
                 details: Some(Value::String(format!(
                     "requested={:?}, ceiling={:?}",
                     op.determinism, engine_spec.determinism_ceiling
