@@ -7,6 +7,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import {
   defaultRefinementPath,
   validateRefinementFile,
@@ -123,6 +124,23 @@ if (taskPacketFiles.length === 0) {
       }
     } catch {
       warnings.push('Could not verify signature against docs/SIGNATURE_AUDIT.md');
+    }
+
+    // Safety checkpoint gate: packet + refinement must be committed before development starts.
+    // This prevents untracked/uncommitted WP artifacts from being lost during accidental clean/reset operations.
+    console.log('\nCheck 2.8: WP checkpoint commit gate');
+    try {
+      execSync(`git cat-file -e HEAD:${packetPath.replace(/\\/g, '/')}`, { stdio: 'ignore' });
+    } catch {
+      errors.push(`Task packet is not committed yet (checkpoint required): ${packetPath.replace(/\\/g, '/')}`);
+      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} docs/SIGNATURE_AUDIT.md docs/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
+    }
+
+    try {
+      execSync(`git cat-file -e HEAD:${refinementFile.replace(/\\/g, '/')}`, { stdio: 'ignore' });
+    } catch {
+      errors.push(`Refinement file is not committed yet (checkpoint required): ${refinementFile.replace(/\\/g, '/')}`);
+      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} docs/SIGNATURE_AUDIT.md docs/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
     }
   } else {
     console.log('\nCheck 2.7: Technical Refinement gate (skipped for Done/Validated packets)');
