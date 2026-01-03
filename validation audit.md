@@ -96,3 +96,6 @@ Reworked work packets since mass failed revalidation;
 - WP-1-Tokenization-Service-v3
 - WP-1-Flight-Recorder-v3
 - WP-1-OSS-Register-Enforcement-v1
+- WP-1-MEX-v1.2-Runtime-v3
+- WP-1-Terminal-LAW-v3
+- WP-1-Operator-Consoles-v3
