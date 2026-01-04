@@ -4,7 +4,7 @@ use handshake_core::{
     capabilities::CapabilityRegistry,
     diagnostics::DiagnosticsStore,
     flight_recorder::{duckdb::DuckDbFlightRecorder, FlightRecorder},
-    llm::{ollama::OllamaAdapter, LlmClient},
+    llm::{ollama::OllamaAdapter, DisabledLlmClient, LlmClient},
     logging,
     models::HealthResponse,
     storage::{
@@ -17,6 +17,7 @@ use std::{
     net::SocketAddr,
     path::{Path, PathBuf},
     sync::Arc,
+    time::Duration,
 };
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
@@ -43,7 +44,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let recorder = init_flight_recorder().await?;
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
-    let llm_client = init_llm_client(flight_recorder.clone())?;
+    let llm_client = init_llm_client(flight_recorder.clone()).await;
     let capability_registry = Arc::new(CapabilityRegistry::new());
 
     let state = AppState {
@@ -169,26 +170,68 @@ async fn init_flight_recorder() -> Result<Arc<DuckDbFlightRecorder>, Box<dyn std
     Ok(Arc::new(recorder))
 }
 
-fn init_llm_client(
-    flight_recorder: Arc<dyn FlightRecorder>,
-) -> Result<Arc<dyn LlmClient>, Box<dyn std::error::Error>> {
-    let url = std::env::var("OLLAMA_URL").map_err(|err| {
-        std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            format!("OLLAMA_URL not configured; LLM client cannot be initialized ({err})"),
-        )
-    })?;
-    let model = match std::env::var("OLLAMA_MODEL") {
-        Ok(val) => val,
-        Err(_) => "llama3".to_string(),
+async fn init_llm_client(flight_recorder: Arc<dyn FlightRecorder>) -> Arc<dyn LlmClient> {
+    let base_url =
+        std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
+    let base_url = base_url.trim_end_matches('/').to_string();
+
+    let model = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "llama3".to_string());
+
+    let client = match reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+    {
+        Ok(client) => client,
+        Err(err) => {
+            let reason = format!("Ollama detection client init failed: {err}");
+            tracing::warn!(
+                target: "handshake_core::llm",
+                error = %reason,
+                base_url = %base_url,
+                model = %model,
+                "Ollama disabled (cannot build HTTP client)"
+            );
+            return Arc::new(DisabledLlmClient::new(model, reason));
+        }
     };
-    tracing::info!(target: "handshake_core", url = %url, model = %model, "using Ollama LLM adapter");
-    Ok(Arc::new(OllamaAdapter::new(
-        url,
-        model,
-        8192,
-        flight_recorder,
-    )))
+
+    let tags_url = format!("{}/api/tags", base_url);
+    match client.get(&tags_url).send().await {
+        Ok(resp) if resp.status().is_success() => {
+            tracing::info!(
+                target: "handshake_core::llm",
+                url = %base_url,
+                model = %model,
+                "Ollama available; enabling Ollama LLM adapter"
+            );
+            Arc::new(OllamaAdapter::new(base_url, model, 8192, flight_recorder))
+        }
+        Ok(resp) => {
+            let reason = format!(
+                "Ollama detection failed: GET {tags_url} returned {}",
+                resp.status()
+            );
+            tracing::warn!(
+                target: "handshake_core::llm",
+                error = %reason,
+                url = %base_url,
+                model = %model,
+                "Ollama disabled (tags endpoint not healthy)"
+            );
+            Arc::new(DisabledLlmClient::new(model, reason))
+        }
+        Err(err) => {
+            let reason = format!("Ollama detection failed: GET {tags_url} error: {err}");
+            tracing::warn!(
+                target: "handshake_core::llm",
+                error = %reason,
+                url = %base_url,
+                model = %model,
+                "Ollama disabled (tags endpoint unreachable)"
+            );
+            Arc::new(DisabledLlmClient::new(model, reason))
+        }
+    }
 }
 
 async fn health(State(state): State<AppState>) -> Json<HealthResponse> {

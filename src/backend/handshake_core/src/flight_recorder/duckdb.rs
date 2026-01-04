@@ -959,11 +959,17 @@ mod tests {
             FlightRecorderActor::Agent,
             trace_id,
             json!({
+                "type": "llm_inference",
+                "trace_id": trace_id.to_string(),
                 "model_id": "llama3",
-                "prompt_tokens": 150,
-                "completion_tokens": 50,
-                "total_tokens": 200,
-                "latency_ms": 1200
+                "token_usage": {
+                    "prompt_tokens": 150,
+                    "completion_tokens": 50,
+                    "total_tokens": 200
+                },
+                "latency_ms": 1200,
+                "prompt_hash": null,
+                "response_hash": null
             }),
         )
         .with_model_id("llama3")
@@ -995,7 +1001,9 @@ mod tests {
         assert!(llm.is_some());
         if let Some(llm_event) = llm {
             assert_eq!(llm_event.payload["model_id"], "llama3");
-            assert_eq!(llm_event.payload["prompt_tokens"], 150);
+            assert_eq!(llm_event.payload["type"], "llm_inference");
+            assert_eq!(llm_event.payload["trace_id"], trace_id.to_string());
+            assert_eq!(llm_event.payload["token_usage"]["prompt_tokens"], 150);
             assert_eq!(llm_event.model_id, Some("llama3".to_string()));
             assert_eq!(llm_event.job_id, Some("job-456".to_string()));
         }

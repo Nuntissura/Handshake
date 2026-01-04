@@ -72,6 +72,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 ## Done
+- **[WP-1-LLM-Core-v3]** - [VALIDATED]
 - **[WP-1-Flight-Recorder-v3]** - [VALIDATED]
 - **[WP-1-OSS-Register-Enforcement-v1]** - [VALIDATED]
 - **[WP-1-Tokenization-Service-v3]** - [VALIDATED]
