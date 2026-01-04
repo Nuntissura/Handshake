@@ -184,6 +184,43 @@ if (action === 'sign') {
         v2Fail(`Refinement is not complete; cannot sign: ${refinementPath}`, refinementValidation.errors);
     }
 
+    // HARD GATE: Do not consume a one-time signature for WP packet approval if refinement requires enrichment.
+    try {
+        const refinementContent = fs.readFileSync(refinementPath, 'utf8');
+        const m = refinementContent.match(/^\s*-\s*ENRICHMENT_NEEDED\s*:\s*(YES|NO)\s*$/mi);
+        const enrichmentNeeded = (m?.[1] || '').toUpperCase();
+        if (enrichmentNeeded === 'YES') {
+            v2Fail('Refinement declares ENRICHMENT_NEEDED=YES; packet signature is forbidden.', [
+                'Run the spec enrichment workflow first (new spec version + update docs/SPEC_CURRENT.md).',
+                'Then create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).',
+            ]);
+        }
+    } catch (e) {
+        v2Fail(`Failed to read refinement file: ${refinementPath}`, [String(e?.message || e)]);
+    }
+
+    // HARD GATE: signature requires explicit user approval evidence in the refinement file.
+    // This is intentionally deterministic (not time-based) to prevent "sleep" bypass.
+    try {
+        const refinementContent = fs.readFileSync(refinementPath, "utf8");
+        const approvalEvidence = v2GetSingleField(refinementContent, "USER_APPROVAL_EVIDENCE");
+        const expected = `APPROVE REFINEMENT ${wpId}`;
+        if (!approvalEvidence || approvalEvidence === "<pending>") {
+            v2Fail("Missing USER_APPROVAL_EVIDENCE in refinement; cannot consume one-time signature.", [
+                `Add a line to ${refinementPath.replace(/\\/g, "/")} under METADATA:`,
+                `- USER_APPROVAL_EVIDENCE: ${expected}`,
+            ]);
+        }
+        if (approvalEvidence !== expected) {
+            v2Fail("Invalid USER_APPROVAL_EVIDENCE in refinement; cannot consume one-time signature.", [
+                `Expected: ${expected}`,
+                `Got: ${approvalEvidence}`,
+            ]);
+        }
+    } catch (e) {
+        v2Fail(`Failed to verify USER_APPROVAL_EVIDENCE in refinement: ${refinementPath}`, [String(e?.message || e)]);
+    }
+
     // Refinement must not already be signed.
     try {
         const existing = fs.readFileSync(refinementPath, 'utf8');

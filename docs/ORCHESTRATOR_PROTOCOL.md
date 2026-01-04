@@ -231,6 +231,13 @@ Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block contain
 
 **Non-negotiable presentation rule:** The Technical Refinement Block MUST be pasted into the Orchestrator's chat message for user review (not only written to a file). The Orchestrator MUST NOT proceed to signature or packet creation until the user explicitly approves the refinement in-chat (e.g., `APPROVE REFINEMENT {WP_ID}`) or requests edits.
 
+**Deterministic approval evidence (repo-enforced):**
+- Before consuming a one-time signature, the refinement file MUST contain: - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT {WP_ID} (exact match). This prevents signature-by-momentum and makes the approval step mechanically checkable.
+
+
+**Hard enforcement rule (procedure; repo-enforced):**
+- If the refinement concludes **ENRICHMENT_NEEDED=YES** (or otherwise identifies unresolved ambiguity requiring new normative text), the Orchestrator MUST STOP. Do NOT record a WP packet signature and do NOT create/lock a task packet. Complete Spec Enrichment first (new spec version + update `docs/SPEC_CURRENT.md`), then create a NEW WP variant anchored to the updated spec with a fresh one-time signature.
+
 **Step 2: Enrich Master Spec (after user approval)**
 If gaps found:
 1. Locate: Current Master Spec version (e.g., v02.91)
@@ -249,7 +256,9 @@ Orchestrator MUST update these files to point to new spec version:
 - docs/ORCHESTRATOR_PROTOCOL.md: Update spec version references
 - docs/START_HERE.md: Update spec version references
 - docs/ARCHITECTURE.md: Update spec anchors if changed
-- All task packets: Update spec references
+- docs/SPEC_CURRENT.md: Point to the new spec (authoritative)
+
+Do NOT mass-edit historical/signed task packets to "catch up" to new governance/spec. Signed packets are immutable; create new variants/remediation WPs instead.
 ```
 
 **Verification:**

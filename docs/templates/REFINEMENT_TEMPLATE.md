@@ -16,6 +16,7 @@ Requirements (HARD):
 - SPEC_TARGET_SHA1: {{SPEC_TARGET_SHA1}}
 - USER_REVIEW_STATUS: PENDING
 - USER_SIGNATURE: <pending>
+- USER_APPROVAL_EVIDENCE: <pending> (must equal: APPROVE REFINEMENT {{WP_ID}})
 
 ### REQUIRED SECTIONS (per ORCHESTRATOR_PROTOCOL Part 2.5.2)
 
@@ -39,6 +40,8 @@ Requirements (HARD):
 - No ambiguity: [ ] PASS
 - CLEARLY_COVERS_VERDICT: PENDING
 - CLEARLY_COVERS_REASON: <fill>
+- AMBIGUITY_FOUND: PENDING (YES | NO)
+- AMBIGUITY_REASON: <fill; write NONE if AMBIGUITY_FOUND=NO>
 
 ### ENRICHMENT
 - ENRICHMENT_NEEDED: PENDING
@@ -46,7 +49,7 @@ Requirements (HARD):
 
 #### PROPOSED_SPEC_ENRICHMENT (VERBATIM) (required if ENRICHMENT_NEEDED=YES)
 ```md
-<paste the full normative Markdown text to be inserted into the Master Spec>
+<not applicable; ENRICHMENT_NEEDED=NO>
 ```
 
 ### SPEC_ANCHORS (REQUIRED: one or more)
