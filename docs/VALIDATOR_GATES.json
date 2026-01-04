@@ -81,7 +81,7 @@
     "WP-1-LLM-Core-v3": {
       "wpId": "WP-1-LLM-Core-v3",
       "verdict": "PASS",
-      "status": "WP_APPENDED",
+      "status": "COMMITTED",
       "started": "2026-01-04T03:18:33.194Z",
       "gates": [
         {
@@ -96,8 +96,13 @@
         {
           "gate": "WP_APPENDED",
           "timestamp": "2026-01-04T03:22:36.464Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-04T03:22:48.767Z"
         }
-      ]
+      ],
+      "completed": "2026-01-04T03:22:48.768Z"
     }
   },
   "archived_sessions": [
