@@ -77,6 +77,25 @@ if (!refinementValidation.ok) {
 
 userSignature = refinementValidation.parsed.signature;
 
+// HARD GATE: if refinement indicates enrichment is needed, do not create a task packet.
+try {
+  const refinementContent = fs.readFileSync(refinementPath, 'utf8');
+  const m = refinementContent.match(/^\s*-\s*ENRICHMENT_NEEDED\s*:\s*(YES|NO)\s*$/mi);
+  const enrichmentNeeded = (m?.[1] || '').toUpperCase();
+  if (enrichmentNeeded === 'YES') {
+    console.error(`BLOCKED: ${WP_ID} refinement declares ENRICHMENT_NEEDED=YES.`);
+    console.error('Do NOT create/lock a WP packet while enrichment is required.');
+    console.error('Next steps (spec-agnostic):');
+    console.error('- Run the spec enrichment workflow (new spec version file + update docs/SPEC_CURRENT.md).');
+    console.error('- Create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).');
+    process.exit(1);
+  }
+} catch {
+  // If refinement cannot be read, earlier validation would have failed; keep defensive behavior deterministic.
+  console.error(`BLOCKED: Unable to read refinement file: ${refinementPath}`);
+  process.exit(1);
+}
+
 // Gate: signature must be recorded in ORCHESTRATOR_GATES.json (prevents manual bypass).
 try {
   const gatesPath = path.join('docs', 'ORCHESTRATOR_GATES.json');

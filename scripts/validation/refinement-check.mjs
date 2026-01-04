@@ -63,6 +63,57 @@ function extractFencedBlockAfterLabel(lines, label) {
   return { found: true, body: bodyLines.join('\n').trim() };
 }
 
+function extractFencedBlockAfterHeading(lines, heading) {
+  const headingIdx = lines.findIndex((l) => new RegExp(`^#{2,6}\\s+${heading}\\b`, 'i').test(l));
+  if (headingIdx === -1) return { found: false, body: '' };
+
+  // Limit scan to the heading's section (until the next Markdown heading).
+  const sectionStart = headingIdx + 1;
+  let sectionEnd = lines.length;
+  for (let j = sectionStart; j < lines.length; j += 1) {
+    if (/^#{1,6}\s+\S/.test(lines[j])) {
+      sectionEnd = j;
+      break;
+    }
+  }
+
+  let i = sectionStart;
+  while (i < sectionEnd && lines[i].trim() === '') i += 1;
+  if (i >= sectionEnd) return { found: true, body: '' };
+
+  // Find the first fence within the section.
+  for (; i < sectionEnd; i += 1) {
+    const fenceStart = lines[i].trim();
+    const fenceRe = /^```([a-z0-9_-]+)?\s*$/i;
+    const m = fenceStart.match(fenceRe);
+    if (!m) continue;
+
+    const bodyLines = [];
+    i += 1;
+    for (; i < sectionEnd; i += 1) {
+      if (lines[i].trim() === '```') break;
+      bodyLines.push(lines[i]);
+    }
+    return { found: true, body: bodyLines.join('\n').trim() };
+  }
+
+  return { found: true, body: '' };
+}
+
+function looksLikeNotApplicableBlock(s) {
+  const v = (s || '').trim();
+  if (!v) return true;
+  return /^<not applicable(\s*;\s*ENRICHMENT_NEEDED\s*=\s*NO)?>\s*$/i.test(v);
+}
+
+function looksLikePlaceholderEnrichment(s) {
+  const v = (s || '').trim();
+  if (!v) return true;
+  if (/^<paste/i.test(v)) return true;
+  if (v.includes('<paste')) return true;
+  return false;
+}
+
 function parseAnchors(content) {
   const lines = content.split('\n');
   const anchors = [];
@@ -167,33 +218,49 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
   const enrichmentNeeded = getSingleField(content, 'ENRICHMENT_NEEDED');
   if (!/^(YES|NO)$/i.test(enrichmentNeeded || '')) {
     errors.push('ENRICHMENT_NEEDED must be YES or NO (no PENDING placeholders)');
-  } else if (/^NO$/i.test(enrichmentNeeded)) {
+  }
+
+  // Deterministic cross-field consistency: "clearly covers" vs "enrichment needed"
+  if (/^PASS$/i.test(clearlyVerdict) && /^YES$/i.test(enrichmentNeeded)) {
+    errors.push('Inconsistent refinement: CLEARLY_COVERS_VERDICT=PASS requires ENRICHMENT_NEEDED=NO');
+  }
+  if (/^FAIL$/i.test(clearlyVerdict) && /^NO$/i.test(enrichmentNeeded)) {
+    errors.push('Inconsistent refinement: CLEARLY_COVERS_VERDICT=FAIL requires ENRICHMENT_NEEDED=YES');
+  }
+
+  // Optional, but if present it must be consistent (prevents "PASS but ambiguous" procedure failures).
+  const ambiguityFoundLinePresent = /^\s*-\s*AMBIGUITY_FOUND\s*:/mi.test(content);
+  const ambiguityFound = ambiguityFoundLinePresent ? getSingleField(content, 'AMBIGUITY_FOUND') : '';
+  if (ambiguityFoundLinePresent && !/^(YES|NO)$/i.test(ambiguityFound || '')) {
+    errors.push('AMBIGUITY_FOUND must be YES or NO (no PENDING placeholders)');
+  }
+  if (/^YES$/i.test(ambiguityFound)) {
+    if (!/^FAIL$/i.test(clearlyVerdict)) {
+      errors.push('AMBIGUITY_FOUND=YES requires CLEARLY_COVERS_VERDICT=FAIL');
+    }
+    if (!/^YES$/i.test(enrichmentNeeded)) {
+      errors.push('AMBIGUITY_FOUND=YES requires ENRICHMENT_NEEDED=YES');
+    }
+  }
+
+  // Proposed spec enrichment block: enforce consistency when present.
+  const lines = content.split('\n');
+  const proposedViaLabel = extractFencedBlockAfterLabel(lines, 'PROPOSED_SPEC_ENRICHMENT (VERBATIM) (required if ENRICHMENT_NEEDED=YES)');
+  const proposedViaHeading = extractFencedBlockAfterHeading(lines, 'PROPOSED_SPEC_ENRICHMENT');
+  const proposedFound = proposedViaLabel.found || proposedViaHeading.found;
+  const proposedBody = (proposedViaLabel.found ? proposedViaLabel.body : '') || (proposedViaHeading.found ? proposedViaHeading.body : '') || '';
+
+  if (/^NO$/i.test(enrichmentNeeded)) {
     const reasonNo = getSingleField(content, 'REASON_NO_ENRICHMENT');
     if (isPlaceholderValue(reasonNo)) {
       errors.push('REASON_NO_ENRICHMENT is required when ENRICHMENT_NEEDED=NO');
     }
-  } else if (/^YES$/i.test(enrichmentNeeded)) {
-    const lines = content.split('\n');
-    const block = extractFencedBlockAfterLabel(lines, 'PROPOSED_SPEC_ENRICHMENT (VERBATIM) (required if ENRICHMENT_NEEDED=YES)');
-    // If label parsing fails due to label mismatch, fallback: look for heading then ```md block.
-    let proposed = '';
-    if (block.found) proposed = block.body;
-    if (!proposed) {
-      const idx = lines.findIndex((l) => /^####\s+PROPOSED_SPEC_ENRICHMENT\b/i.test(l));
-      if (idx !== -1) {
-        const after = lines.slice(idx + 1);
-        const fenceIdx = after.findIndex((l) => l.trim().startsWith('```'));
-        if (fenceIdx !== -1) {
-          const b = [];
-          for (let i = fenceIdx + 1; i < after.length; i += 1) {
-            if (after[i].trim() === '```') break;
-            b.push(after[i]);
-          }
-          proposed = b.join('\n').trim();
-        }
-      }
+
+    if (proposedFound && !looksLikeNotApplicableBlock(proposedBody)) {
+      errors.push('PROPOSED_SPEC_ENRICHMENT must be "<not applicable; ENRICHMENT_NEEDED=NO>" when ENRICHMENT_NEEDED=NO');
     }
-    if (!proposed || /^<paste/i.test(proposed) || proposed.includes('<paste')) {
+  } else if (/^YES$/i.test(enrichmentNeeded)) {
+    if (!proposedFound || looksLikeNotApplicableBlock(proposedBody) || looksLikePlaceholderEnrichment(proposedBody)) {
       errors.push('PROPOSED_SPEC_ENRICHMENT must contain full verbatim Markdown when ENRICHMENT_NEEDED=YES');
     }
   }
@@ -231,6 +298,22 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
 
     if (isPlaceholderValue(a.excerpt)) errors.push(`ANCHOR ${n}: EXCERPT_ASCII_ESCAPED must be filled`);
   });
+  // Optional but recommended: explicit user approval evidence line.
+  // Enforced only when requireSignature=true to avoid blocking the initial refinement recording step.
+  if (requireSignature) {
+    const approvalPresent = /^\s*-\s*USER_APPROVAL_EVIDENCE\s*:/mi.test(content);
+    if (approvalPresent) {
+      const approvalEvidence = getSingleField(content, 'USER_APPROVAL_EVIDENCE');
+      if (isPlaceholderValue(approvalEvidence)) {
+        errors.push('USER_APPROVAL_EVIDENCE must be set (not <pending>) before signature/packet creation');
+      } else {
+        const expected = 'APPROVE REFINEMENT ' + wpId;
+        if (approvalEvidence !== expected) {
+          errors.push('USER_APPROVAL_EVIDENCE must equal ' + expected);
+        }
+      }
+    }
+  }
 
   const reviewStatus = getSingleField(content, 'USER_REVIEW_STATUS');
   const signature = getSingleField(content, 'USER_SIGNATURE');
