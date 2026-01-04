@@ -198,6 +198,30 @@
       "branch": "feat/WP-1-Operator-Consoles-v3",
       "worktree_dir": "../wt-WP-1-Operator-Consoles-v3",
       "timestamp": "2026-01-02T21:34:57.845Z"
+    },
+    {
+      "wpId": "WP-1-Spec-Enrichment-LLM-Core-v1",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Spec-Enrichment-LLM-Core-v1.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.100.md",
+      "spec_target_sha1": "4f292613d6dd355ece3ad9133ce3001e5f5ea576",
+      "timestamp": "2026-01-04T00:06:00.581Z",
+      "turn_token": "1767485160582"
+    },
+    {
+      "wpId": "WP-1-Spec-Enrichment-LLM-Core-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja040120260108",
+      "timestamp": "2026-01-04T00:09:58.843Z",
+      "refinement_path": "docs/refinements/WP-1-Spec-Enrichment-LLM-Core-v1.md"
+    },
+    {
+      "wpId": "WP-1-Spec-Enrichment-LLM-Core-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Spec-Enrichment-LLM-Core-v1",
+      "worktree_dir": "../wt-WP-1-Spec-Enrichment-LLM-Core-v1",
+      "timestamp": "2026-01-04T00:10:06.882Z"
     }
   ]
 }

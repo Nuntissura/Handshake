@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja040120260108 | Orchestrator | 2026-01-04 01:08 | Task packet creation: WP-1-Spec-Enrichment-LLM-Core-v1 | v02.100 | Approved after Technical Refinement (see docs/refinements/WP-1-Spec-Enrichment-LLM-Core-v1.md ). |
 | ilja020120262232 | Orchestrator | 2026-01-02 22:32 | Task packet creation: WP-1-Operator-Consoles-v3 | v02.100 | Approved after Technical Refinement (see docs/refinements/WP-1-Operator-Consoles-v3.md ). |
 | ilja010120262219 | Orchestrator | 2026-01-01 22:19 | Task packet creation: WP-1-MEX-v1.2-Runtime-v3 | v02.100 | Approved after Technical Refinement (see docs/refinements/WP-1-MEX-v1.2-Runtime-v3.md ). |
 | ilja010120262218 | Orchestrator | 2026-01-01 22:18 | Task packet creation: WP-1-Terminal-LAW-v3 | v02.100 | Approved after Technical Refinement (see docs/refinements/WP-1-Terminal-LAW-v3.md ). |
