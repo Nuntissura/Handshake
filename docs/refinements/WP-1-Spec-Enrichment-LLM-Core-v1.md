@@ -3,8 +3,8 @@
 ### METADATA
 - WP_ID: WP-1-Spec-Enrichment-LLM-Core-v1
 - CREATED_AT: 2026-01-04T01:05:55.6859528+01:00
-- SPEC_TARGET_RESOLVED: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.100.md
-- SPEC_TARGET_SHA1: 4f292613d6dd355ece3ad9133ce3001e5f5ea576
+- SPEC_TARGET_RESOLVED: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.101.md
+- SPEC_TARGET_SHA1: f35e1ea4cb1e74541c542ef1aadeee62128dab1e
 - USER_REVIEW_STATUS: APPROVED
 - USER_SIGNATURE: ilja040120260108
 
@@ -81,37 +81,37 @@ Validation requirement: the Flight Recorder MUST reject `llm_inference` events m
 ### SPEC_ANCHORS (REQUIRED: one or more)
 
 #### ANCHOR 1
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.100.md 4.2.3.1 (LlmClient Trait)
-- CONTEXT_START_LINE: 10512
-- CONTEXT_END_LINE: 10538
-- CONTEXT_TOKEN: pub struct CompletionRequest {
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.101.md 4.2.3.1.1 (Traceability Addendum)
+- CONTEXT_START_LINE: 10565
+- CONTEXT_END_LINE: 10590
+- CONTEXT_TOKEN: #### 4.2.3.1.1 Traceability Addendum (Normative)
 - EXCERPT_ASCII_ESCAPED:
   ```text
-  pub struct CompletionRequest {
-      pub prompt: String,
-      pub model_id: String,
-      pub max_tokens: Option<u32>,
-      pub temperature: f32,
-      pub stop_sequences: Vec<String>,
-  }
+  #### 4.2.3.1.1 Traceability Addendum (Normative)
+
+  To satisfy the traceability and observability requirements, every LLM completion MUST be attributable to a non-nil trace_id.
   ```
 
 #### ANCHOR 2
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.100.md 4.2.3.2 (Implementation Requirements)
-- CONTEXT_START_LINE: 10560
-- CONTEXT_END_LINE: 10572
-- CONTEXT_TOKEN: Every call MUST emit a Flight Recorder event
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.101.md 11.5.2 (FR-EVT-006 LlmInferenceEvent)
+- CONTEXT_START_LINE: 30950
+- CONTEXT_END_LINE: 30990
+- CONTEXT_TOKEN: #### 11.5.2 FR-EVT-006 (LlmInferenceEvent)
 - EXCERPT_ASCII_ESCAPED:
   ```text
-  3.  Observability: Every call MUST emit a Flight Recorder event (Section 11.5) containing trace_id, model_id, and TokenUsage.
+  #### 11.5.2 FR-EVT-006 (LlmInferenceEvent)
+
+  interface LlmInferenceEvent extends FlightRecorderEventBase {
+    type: 'llm_inference';
+  }
   ```
 
 #### ANCHOR 3
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.100.md 11.5 (Flight Recorder Event Shapes)
-- CONTEXT_START_LINE: 30766
-- CONTEXT_END_LINE: 30780
-- CONTEXT_TOKEN: Trace Invariant:
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.101.md 11.5 (Trace Invariant)
+- CONTEXT_START_LINE: 30786
+- CONTEXT_END_LINE: 30792
+- CONTEXT_TOKEN: **Trace Invariant:**
 - EXCERPT_ASCII_ESCAPED:
   ```text
-  - Trace Invariant: Every AI action MUST emit a unique trace_id which links the Job, the RAG QueryPlan, and the final result.
+  - **Trace Invariant:** Every AI action MUST emit a unique trace_id which links the Job, the RAG QueryPlan, and the final result.
   ```
