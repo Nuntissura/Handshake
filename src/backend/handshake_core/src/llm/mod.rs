@@ -166,6 +166,32 @@ pub enum LlmError {
     ProviderError(String),
 }
 
+/// LLM client used when the provider is unavailable at startup.
+pub struct DisabledLlmClient {
+    reason: String,
+    profile: ModelProfile,
+}
+
+impl DisabledLlmClient {
+    pub fn new(model_id: String, reason: String) -> Self {
+        Self {
+            reason,
+            profile: ModelProfile::new(model_id, 0),
+        }
+    }
+}
+
+#[async_trait]
+impl LlmClient for DisabledLlmClient {
+    async fn completion(&self, _req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        Err(LlmError::ProviderError(self.reason.clone()))
+    }
+
+    fn profile(&self) -> &ModelProfile {
+        &self.profile
+    }
+}
+
 // =============================================================================
 // TESTS
 // =============================================================================

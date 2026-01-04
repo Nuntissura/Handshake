@@ -350,10 +350,53 @@ fn validate_editor_edit_payload(payload: &Value) -> Result<(), RecorderError> {
 
 fn validate_llm_inference_payload(payload: &Value) -> Result<(), RecorderError> {
     let map = payload_object(payload)?;
+
+    match require_key(map, "type")? {
+        Value::String(value) if value == "llm_inference" => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field type must equal \"llm_inference\"".to_string(),
+            ));
+        }
+    }
+
+    match require_key(map, "trace_id")? {
+        Value::String(value) => {
+            let trace_id = Uuid::parse_str(value).map_err(|_| {
+                RecorderError::InvalidEvent(
+                    "payload field trace_id must be a UUID string".to_string(),
+                )
+            })?;
+            if trace_id == Uuid::nil() {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field trace_id must be a non-nil UUID".to_string(),
+                ));
+            }
+        }
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field trace_id must be a UUID string".to_string(),
+            ));
+        }
+    }
+
     require_string(map, "model_id")?;
-    require_number(map, "prompt_tokens")?;
-    require_number(map, "completion_tokens")?;
-    require_number(map, "total_tokens")?;
+
+    let token_usage = require_key(map, "token_usage")?;
+    let token_usage_map = payload_object(token_usage)?;
+    require_number(token_usage_map, "prompt_tokens")?;
+    require_number(token_usage_map, "completion_tokens")?;
+    require_number(token_usage_map, "total_tokens")?;
+
+    if map.contains_key("latency_ms") {
+        require_number_or_null(map, "latency_ms")?;
+    }
+    if map.contains_key("prompt_hash") {
+        require_string_or_null(map, "prompt_hash")?;
+    }
+    if map.contains_key("response_hash") {
+        require_string_or_null(map, "response_hash")?;
+    }
     Ok(())
 }
 
@@ -366,11 +409,19 @@ pub struct FrEvt001System {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LlmInferenceEvent {
-    pub model_id: String,
+pub struct LlmInferenceTokenUsage {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
     pub total_tokens: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LlmInferenceEvent {
+    #[serde(rename = "type")]
+    pub event_type: String,
+    pub trace_id: Uuid,
+    pub model_id: String,
+    pub token_usage: LlmInferenceTokenUsage,
     pub prompt_hash: Option<String>,
     pub response_hash: Option<String>,
     pub latency_ms: Option<u64>,
@@ -506,4 +557,100 @@ pub trait FlightRecorder: Send + Sync {
         &self,
         filter: EventFilter,
     ) -> Result<Vec<FlightRecorderEvent>, RecorderError>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn valid_llm_inference_payload() -> Value {
+        json!({
+            "type": "llm_inference",
+            "trace_id": Uuid::new_v4().to_string(),
+            "model_id": "llama3.2",
+            "token_usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 5,
+                "total_tokens": 15
+            },
+            "latency_ms": null,
+            "prompt_hash": null,
+            "response_hash": null
+        })
+    }
+
+    #[test]
+    fn test_llm_inference_payload_validation_requires_trace_id_and_model_id() {
+        let mut payload = valid_llm_inference_payload();
+        assert!(validate_llm_inference_payload(&payload).is_ok());
+
+        let removed = match payload.as_object_mut() {
+            Some(map) => map.remove("trace_id"),
+            None => {
+                unreachable!("payload must be object");
+            }
+        };
+        assert!(removed.is_some());
+        assert!(matches!(
+            validate_llm_inference_payload(&payload),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        {
+            match payload.as_object_mut() {
+                Some(map) => {
+                    map.insert("trace_id".to_string(), json!(Uuid::new_v4().to_string()));
+                }
+                None => {
+                    unreachable!("payload must be object");
+                }
+            }
+        }
+
+        let removed = match payload.as_object_mut() {
+            Some(map) => map.remove("model_id"),
+            None => {
+                unreachable!("payload must be object");
+            }
+        };
+        assert!(removed.is_some());
+        assert!(matches!(
+            validate_llm_inference_payload(&payload),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+    }
+
+    #[test]
+    fn test_llm_inference_payload_validation_requires_token_usage_object() {
+        let mut payload = valid_llm_inference_payload();
+        assert!(validate_llm_inference_payload(&payload).is_ok());
+
+        let removed = match payload.as_object_mut() {
+            Some(map) => map.remove("token_usage"),
+            None => {
+                unreachable!("payload must be object");
+            }
+        };
+        assert!(removed.is_some());
+        assert!(matches!(
+            validate_llm_inference_payload(&payload),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        {
+            match payload.as_object_mut() {
+                Some(map) => {
+                    map.insert("token_usage".to_string(), json!({"prompt_tokens": 10}));
+                }
+                None => {
+                    unreachable!("payload must be object");
+                }
+            }
+        }
+        assert!(matches!(
+            validate_llm_inference_payload(&payload),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+    }
 }

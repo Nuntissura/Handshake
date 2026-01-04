@@ -27,7 +27,6 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 ## Ready for Dev
 - **[WP-1-Capability-SSoT]** / FAIL (revalidation): `just post-work WP-1-Capability-SSoT` fails (C701-G05 post_sha1 mismatch) for `src/backend/handshake_core/src/capabilities.rs`. [READY FOR DEV]
 - **[WP-1-LLM-Core]** / FAIL (revalidation): `just post-work WP-1-LLM-Core` fails phase gate (SKELETON appears before BOOTSTRAP); packet non-ASCII + missing COR-701 manifest. [READY FOR DEV]
-- **[WP-1-LLM-Core-v3]** / NEW: protocol-clean packet for LLM core remediation vs SPEC_CURRENT v02.101 (FR-EVT-006 schema + token accounting + /api/tags startup detection). [READY FOR DEV]
 - **[WP-1-Flight-Recorder-UI-v2]** / FAIL (revalidation): `just gate-check WP-1-Flight-Recorder-UI-v2` fails (missing "SKELETON APPROVED" marker); `node scripts/validation/post-work-check.mjs WP-1-Flight-Recorder-UI-v2` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99; user signature field missing/pending. [READY FOR DEV]
 - **[WP-1-ACE-Validators-v3]** / FAIL (revalidation): `just post-work WP-1-ACE-Validators-v3` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99; user signature field missing; TASK_BOARD was inconsistent with packet status history. [READY FOR DEV]
 - **[WP-1-AI-Job-Model-v3]** / FAIL (revalidation): `just post-work WP-1-AI-Job-Model-v3` fails phase gate (missing "SKELETON APPROVED" marker); `node scripts/validation/post-work-check.mjs WP-1-AI-Job-Model-v3` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99; packet already contains a prior FAIL section; spec updated in v02.99 to include Stalled and expanded JobKind, revalidate against new list. [READY FOR DEV]
@@ -73,6 +72,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 ## Done
+- **[WP-1-LLM-Core-v3]** - [VALIDATED]
 - **[WP-1-Flight-Recorder-v3]** - [VALIDATED]
 - **[WP-1-OSS-Register-Enforcement-v1]** - [VALIDATED]
 - **[WP-1-Tokenization-Service-v3]** - [VALIDATED]

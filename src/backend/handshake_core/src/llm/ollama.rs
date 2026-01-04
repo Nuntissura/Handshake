@@ -11,7 +11,7 @@
 use super::{CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage};
 use crate::flight_recorder::{
     FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
-    LlmInferenceEvent,
+    LlmInferenceEvent, LlmInferenceTokenUsage,
 };
 use crate::tokenization::{
     AccuracyWarningEmitter, AsyncFlightRecorderEmitter, DisabledAccuracyWarningEmitter,
@@ -108,10 +108,14 @@ impl OllamaAdapter {
         latency_ms: u64,
     ) {
         let payload = LlmInferenceEvent {
+            event_type: "llm_inference".to_string(),
+            trace_id: req.trace_id,
             model_id: req.model_id.clone(),
-            prompt_tokens: usage.prompt_tokens as u64,
-            completion_tokens: usage.completion_tokens as u64,
-            total_tokens: usage.total_tokens as u64,
+            token_usage: LlmInferenceTokenUsage {
+                prompt_tokens: usage.prompt_tokens as u64,
+                completion_tokens: usage.completion_tokens as u64,
+                total_tokens: usage.total_tokens as u64,
+            },
             prompt_hash: Some(Self::compute_hash(&req.prompt)),
             response_hash: Some(Self::compute_hash(response_text)),
             latency_ms: Some(latency_ms),
@@ -234,6 +238,17 @@ struct OllamaGenerateResponse {
 #[async_trait]
 impl LlmClient for OllamaAdapter {
     async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        if req.trace_id == uuid::Uuid::nil() {
+            return Err(LlmError::ProviderError(
+                "trace_id must be a non-nil UUID".to_string(),
+            ));
+        }
+        if req.model_id.trim().is_empty() {
+            return Err(LlmError::ProviderError(
+                "model_id must be a non-empty string".to_string(),
+            ));
+        }
+
         // WAIVER [CX-573E]: Instant::now() is required for latency measurement (observability only).
         let start = Instant::now();
 
@@ -293,40 +308,47 @@ impl LlmClient for OllamaAdapter {
             );
         }
 
-        let prompt_tokens = self
+        let tokenization_prompt_tokens = self
             .tokenization
             .count_tokens_with_trace(&req.prompt, &req.model_id, req.trace_id)
             .map_err(|err| LlmError::ProviderError(format!("Tokenization failed: {}", err)))?;
-        let completion_tokens = self
+        let tokenization_completion_tokens = self
             .tokenization
             .count_tokens_with_trace(&ollama_resp.response, &req.model_id, req.trace_id)
             .map_err(|err| LlmError::ProviderError(format!("Tokenization failed: {}", err)))?;
-        let total_tokens = prompt_tokens + completion_tokens;
+        let tokenization_total_tokens = tokenization_prompt_tokens + tokenization_completion_tokens;
 
-        if let (Some(provider_prompt), Some(provider_completion)) =
-            (ollama_resp.prompt_eval_count, ollama_resp.eval_count)
-        {
-            if provider_prompt != prompt_tokens || provider_completion != completion_tokens {
-                tracing::debug!(
-                    target: "handshake_core::llm",
-                    trace_id = %req.trace_id,
-                    model = %req.model_id,
-                    provider_prompt_tokens = provider_prompt,
-                    provider_completion_tokens = provider_completion,
-                    tokenization_prompt_tokens = prompt_tokens,
-                    tokenization_completion_tokens = completion_tokens,
-                    "Provider token counts differ from TokenizationService counts"
-                );
-            }
-        }
+        let (prompt_tokens, completion_tokens, total_tokens) =
+            match (ollama_resp.prompt_eval_count, ollama_resp.eval_count) {
+                (Some(provider_prompt_tokens), Some(provider_completion_tokens)) => {
+                    if provider_prompt_tokens != tokenization_prompt_tokens
+                        || provider_completion_tokens != tokenization_completion_tokens
+                    {
+                        tracing::debug!(
+                            target: "handshake_core::llm",
+                            trace_id = %req.trace_id,
+                            model = %req.model_id,
+                            provider_prompt_tokens = provider_prompt_tokens,
+                            provider_completion_tokens = provider_completion_tokens,
+                            tokenization_prompt_tokens = tokenization_prompt_tokens,
+                            tokenization_completion_tokens = tokenization_completion_tokens,
+                            "Provider token counts differ from TokenizationService counts"
+                        );
+                    }
+                    (
+                        provider_prompt_tokens,
+                        provider_completion_tokens,
+                        provider_prompt_tokens + provider_completion_tokens,
+                    )
+                }
+                _ => (
+                    tokenization_prompt_tokens,
+                    tokenization_completion_tokens,
+                    tokenization_total_tokens,
+                ),
+            };
 
         // Budget enforcement per §4.2.3.2
-        if let Some(max_tokens) = req.max_tokens {
-            if total_tokens > max_tokens {
-                return Err(LlmError::BudgetExceeded(total_tokens));
-            }
-        }
-
         let usage = TokenUsage {
             prompt_tokens,
             completion_tokens,
@@ -336,6 +358,12 @@ impl LlmClient for OllamaAdapter {
         // Emit llm_inference event per §4.2.3.2 Observability Invariant
         self.emit_llm_inference_event(&req, &ollama_resp.response, &usage, latency_ms)
             .await;
+
+        if let Some(max_tokens) = req.max_tokens {
+            if completion_tokens > max_tokens {
+                return Err(LlmError::BudgetExceeded(completion_tokens));
+            }
+        }
 
         Ok(CompletionResponse {
             text: ollama_resp.response,
@@ -405,7 +433,7 @@ mod tests {
     use super::*;
     use crate::flight_recorder::{FlightRecorder, FlightRecorderEvent, RecorderError};
     use async_trait::async_trait;
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
 
     #[derive(Clone)]
     struct NoopRecorder;
@@ -430,6 +458,38 @@ mod tests {
 
     fn noop_recorder() -> Arc<dyn FlightRecorder> {
         Arc::new(NoopRecorder)
+    }
+
+    #[derive(Clone, Default)]
+    struct CapturingRecorder {
+        events: Arc<Mutex<Vec<FlightRecorderEvent>>>,
+    }
+
+    #[async_trait]
+    impl FlightRecorder for CapturingRecorder {
+        async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
+            let mut events = match self.events.lock() {
+                Ok(events) => events,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            events.push(event);
+            Ok(())
+        }
+
+        async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+            Ok(0)
+        }
+
+        async fn list_events(
+            &self,
+            _filter: crate::flight_recorder::EventFilter,
+        ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+            let events = match self.events.lock() {
+                Ok(events) => events,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            Ok(events.clone())
+        }
     }
 
     #[test]
@@ -473,5 +533,46 @@ mod tests {
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("\"model\":\"llama3.2\""));
         assert!(json.contains("\"num_predict\":100"));
+    }
+
+    #[tokio::test]
+    async fn test_llm_inference_payload_matches_fr_evt_006() {
+        let recorder = CapturingRecorder::default();
+        let adapter = OllamaAdapter::default_local("llama3.2", Arc::new(recorder.clone()));
+
+        let trace_id = uuid::Uuid::new_v4();
+        let req = CompletionRequest::new(trace_id, "Hello".to_string(), "llama3.2".to_string());
+        let usage = TokenUsage {
+            prompt_tokens: 10,
+            completion_tokens: 5,
+            total_tokens: 15,
+        };
+
+        adapter
+            .emit_llm_inference_event(&req, "World", &usage, 123)
+            .await;
+
+        let events = match recorder.events.lock() {
+            Ok(events) => events,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        assert_eq!(events.len(), 1);
+
+        let event = &events[0];
+        assert!(matches!(
+            event.event_type,
+            FlightRecorderEventType::LlmInference
+        ));
+        assert_eq!(event.trace_id, trace_id);
+        assert_eq!(event.model_id.as_deref(), Some("llama3.2"));
+
+        assert_eq!(event.payload["type"], "llm_inference");
+        assert_eq!(event.payload["trace_id"], trace_id.to_string());
+        assert_eq!(event.payload["model_id"], "llama3.2");
+        assert_eq!(event.payload["token_usage"]["prompt_tokens"], 10);
+        assert_eq!(event.payload["token_usage"]["completion_tokens"], 5);
+        assert_eq!(event.payload["token_usage"]["total_tokens"], 15);
+
+        assert!(event.validate().is_ok());
     }
 }
