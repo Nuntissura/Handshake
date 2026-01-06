@@ -262,6 +262,14 @@
       "signature": "ilja060120262333",
       "timestamp": "2026-01-06T22:39:37.958Z",
       "refinement_path": "docs/refinements/WP-1-Dual-Backend-Tests-v2.md"
+    },
+    {
+      "wpId": "WP-1-Dual-Backend-Tests-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Dual-Backend-Tests-v2",
+      "worktree_dir": "../wt-WP-1-Dual-Backend-Tests-v2",
+      "timestamp": "2026-01-06T22:40:56.793Z"
     }
   ]
 }
