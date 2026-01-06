@@ -246,6 +246,22 @@
       "branch": "feat/WP-1-LLM-Core-v3",
       "worktree_dir": "../wt-WP-1-LLM-Core-v3",
       "timestamp": "2026-01-04T01:40:03.233Z"
+    },
+    {
+      "wpId": "WP-1-Dual-Backend-Tests-v2",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Dual-Backend-Tests-v2.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.101.md",
+      "spec_target_sha1": "648dfd52b7cd0ad8183b9a037746473b875fa2c8",
+      "timestamp": "2026-01-06T22:31:40.680Z",
+      "turn_token": "1767738700681"
+    },
+    {
+      "wpId": "WP-1-Dual-Backend-Tests-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja060120262333",
+      "timestamp": "2026-01-06T22:39:37.958Z",
+      "refinement_path": "docs/refinements/WP-1-Dual-Backend-Tests-v2.md"
     }
   ]
 }
