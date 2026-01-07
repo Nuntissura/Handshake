@@ -107,7 +107,7 @@
     "WP-1-Dual-Backend-Tests-v2": {
       "wpId": "WP-1-Dual-Backend-Tests-v2",
       "verdict": "PASS",
-      "status": "WP_APPENDED",
+      "status": "COMMITTED",
       "started": "2026-01-07T22:07:33.072Z",
       "gates": [
         {
@@ -122,8 +122,13 @@
         {
           "gate": "WP_APPENDED",
           "timestamp": "2026-01-07T22:11:06.009Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-07T22:12:11.304Z"
         }
-      ]
+      ],
+      "completed": "2026-01-07T22:12:11.304Z"
     }
   },
   "archived_sessions": [
