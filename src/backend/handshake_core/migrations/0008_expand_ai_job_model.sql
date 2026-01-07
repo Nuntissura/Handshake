@@ -1,9 +1,12 @@
 -- Harden AI Job model: enforce non-null metrics and preserve enum mapping
--- Implements WP-1-AI-Job-Model-v3 (v02.92 A2.6.6.2.8)
+-- Implements WP-1-AI-Job-Model-v3 (v02.92 A2.6.6.2.8)
+-- Portable rebuild: avoid sqlite-only PRAGMA and keep Postgres-compatible DDL.
 
-PRAGMA foreign_keys = OFF;
+ALTER TABLE workflow_node_executions RENAME TO workflow_node_executions_old;
+ALTER TABLE workflow_runs RENAME TO workflow_runs_old;
+ALTER TABLE ai_jobs RENAME TO ai_jobs_old;
 
-CREATE TABLE ai_jobs_new (
+CREATE TABLE ai_jobs (
     id TEXT PRIMARY KEY NOT NULL,
     trace_id TEXT NOT NULL,
     workflow_run_id TEXT,
@@ -26,7 +29,7 @@ CREATE TABLE ai_jobs_new (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO ai_jobs_new (
+INSERT INTO ai_jobs (
     id,
     trace_id,
     workflow_run_id,
@@ -73,12 +76,94 @@ SELECT
     COALESCE(is_pinned, 0) as is_pinned, -- Carry over is_pinned
     created_at,
     updated_at
-FROM ai_jobs;
+FROM ai_jobs_old;
 
-DROP TABLE ai_jobs;
-ALTER TABLE ai_jobs_new RENAME TO ai_jobs;
+CREATE TABLE workflow_runs (
+    id TEXT PRIMARY KEY NOT NULL,
+    job_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    last_heartbeat TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (job_id) REFERENCES ai_jobs(id) ON DELETE CASCADE
+);
 
--- Re-create the index lost during table recreation
-CREATE INDEX IF NOT EXISTS idx_ai_jobs_gc ON ai_jobs(status, created_at, is_pinned);
+INSERT INTO workflow_runs (
+    id,
+    job_id,
+    status,
+    last_heartbeat,
+    created_at,
+    updated_at
+)
+SELECT
+    id,
+    job_id,
+    status,
+    COALESCE(last_heartbeat, CURRENT_TIMESTAMP),
+    created_at,
+    updated_at
+FROM workflow_runs_old;
 
-PRAGMA foreign_keys = ON;
+CREATE TABLE workflow_node_executions (
+    id TEXT PRIMARY KEY NOT NULL,
+    workflow_run_id TEXT NOT NULL,
+    node_id TEXT NOT NULL,
+    node_type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    sequence INTEGER NOT NULL,
+    input_payload TEXT NULL,
+    output_payload TEXT NULL,
+    error_message TEXT NULL,
+    started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finished_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (workflow_run_id) REFERENCES workflow_runs(id) ON DELETE CASCADE
+);
+
+INSERT INTO workflow_node_executions (
+    id,
+    workflow_run_id,
+    node_id,
+    node_type,
+    status,
+    sequence,
+    input_payload,
+    output_payload,
+    error_message,
+    started_at,
+    finished_at,
+    created_at,
+    updated_at
+)
+SELECT
+    id,
+    workflow_run_id,
+    node_id,
+    node_type,
+    status,
+    sequence,
+    input_payload,
+    output_payload,
+    error_message,
+    started_at,
+    finished_at,
+    created_at,
+    updated_at
+FROM workflow_node_executions_old;
+
+-- Drop legacy indexes to avoid name collisions, then re-create on new tables.
+DROP INDEX IF EXISTS idx_ai_jobs_gc;
+DROP INDEX IF EXISTS idx_wne_run_sequence;
+DROP INDEX IF EXISTS idx_wne_run_node;
+DROP INDEX IF EXISTS idx_wne_status;
+
+CREATE INDEX idx_ai_jobs_gc ON ai_jobs(status, created_at, is_pinned);
+CREATE INDEX idx_wne_run_sequence ON workflow_node_executions (workflow_run_id, sequence);
+CREATE INDEX idx_wne_run_node ON workflow_node_executions (workflow_run_id, node_id);
+CREATE INDEX idx_wne_status ON workflow_node_executions (status);
+
+DROP TABLE workflow_node_executions_old;
+DROP TABLE workflow_runs_old;
+DROP TABLE ai_jobs_old;
