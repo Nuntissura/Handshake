@@ -107,7 +107,7 @@
     "WP-1-ACE-Validators-v4": {
       "wpId": "WP-1-ACE-Validators-v4",
       "verdict": "PASS",
-      "status": "WP_APPENDED",
+      "status": "COMMITTED",
       "started": "2026-01-07T16:03:06.014Z",
       "gates": [
         {
@@ -122,8 +122,13 @@
         {
           "gate": "WP_APPENDED",
           "timestamp": "2026-01-07T16:17:03.714Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-07T16:27:43.247Z"
         }
-      ]
+      ],
+      "completed": "2026-01-07T16:27:43.248Z"
     }
   },
   "archived_sessions": [
