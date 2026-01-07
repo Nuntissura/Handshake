@@ -9,7 +9,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: GPT-5 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Ready for Validation
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja060120262333
 
@@ -142,6 +142,7 @@ git revert HEAD
 ## IMPLEMENTATION
 - Updated migration `src/backend/handshake_core/migrations/0008_expand_ai_job_model.sql` to remove sqlite-only PRAGMA and rebuild tables with portable DDL (rename old tables, create new tables, reinsert data).
 - Dropped and re-created AI job/workflow indexes in the migration to avoid name collisions across backends during rebuild.
+- Updated `src/backend/handshake_core/src/storage/postgres.rs` mapping to coerce Postgres TIMESTAMP/INT4/FLOAT4 columns into chrono DateTime/Utc, i64, and f64.
 - Focused on executing hygiene checks and the TEST_PLAN to validate SQLite/Postgres coverage.
 
 ## HYGIENE
@@ -152,6 +153,11 @@ git revert HEAD
 - Ran `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance` with POSTGRES_TEST_URL set; postgres test failed due to connection timeout.
 - Ran `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance` after confirming local Postgres service running (POSTGRES_TEST_URL removed in shell).
 - Attempted `docker compose -f docker-compose.test.yml up -d` via `C:\Program Files\Docker\Docker\resources\bin\docker.exe`; docker engine returned a 500 error.
+- Ran `docker compose -f docker-compose.test.yml up -d` after reboot; container started successfully.
+- Updated Postgres row mapping to coerce TIMESTAMP/INT4/FLOAT4 to chrono DateTime/Utc, i64, and f64.
+- Ran `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance` with POSTGRES_TEST_URL set; sqlite + postgres tests pass.
+- Ran `just cargo-clean`.
+- Ran `just post-work WP-1-Dual-Backend-Tests-v2`.
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
@@ -159,9 +165,9 @@ git revert HEAD
 - **Target File**: `src/backend/handshake_core/migrations/0008_expand_ai_job_model.sql`
 - **Start**: 1
 - **End**: 159
-- **Line Delta**: 95 - 10
-- **Pre-SHA1**: `0e04cd656fe5a62aa97b35f934f973a8b6c632c2`
-- **Post-SHA1**: `9f330ce7d4ede8b267b6518d1864304746d70692`
+- **Line Delta**: 85
+- **Pre-SHA1**: `9092d57a3592ec833f605d1f37d7e78fff8fdb90`
+- **Post-SHA1**: `9b60fa1a9927cb4f81afd78cbddbf3508f7a502f`
 - **Gates Passed**:
   - [ ] anchors_present
   - [ ] window_matches_plan
@@ -170,7 +176,31 @@ git revert HEAD
   - [ ] pre_sha1_captured
   - [ ] post_sha1_captured
   - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
+  - [x] all_links_resolvable
+  - [ ] manifest_written_and_path_returned
+  - [ ] current_file_matches_preimage
+- **Lint Results**:
+- **Artifacts**:
+- **Timestamp**:
+- **Operator**:
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.101.md
+- **Notes**:
+
+- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Start**: 1
+- **End**: 230
+- **Line Delta**: 20
+- **Pre-SHA1**: `9dc66305473972a222d06e2cbe7df2128263f9fa`
+- **Post-SHA1**: `f86127385e821297d8e1ba0b457bfce4df36fed0`
+- **Gates Passed**:
+  - [ ] anchors_present
+  - [ ] window_matches_plan
+  - [ ] rails_untouched_outside_window
+  - [ ] filename_canonical_and_openable
+  - [ ] pre_sha1_captured
+  - [ ] post_sha1_captured
+  - [ ] line_delta_equals_expected
+  - [x] all_links_resolvable
   - [ ] manifest_written_and_path_returned
   - [ ] current_file_matches_preimage
 - **Lint Results**:
@@ -181,14 +211,13 @@ git revert HEAD
 - **Notes**:
 
 ## STATUS_HANDOFF
-- Current WP_STATUS: In Progress (blocked on Docker compose: Docker Desktop engine error; WSL features enabled but require reboot; virtualization disabled in firmware)
+- Current WP_STATUS: Ready for Validation (docker compose running; storage conformance passes; post-work complete)
 - What changed in this update:
-  - Updated migration 0008 to remove sqlite-only PRAGMA and rebuild tables with portable DDL; added index drop/recreate to avoid collisions.
-  - Re-ran storage conformance with local Postgres service running; sqlite and postgres tests ran and reported ok.
-  - Docker compose still blocked by Docker engine error; WSL features enabled but pending reboot.
+  - Mapped Postgres TIMESTAMP/INT4/FLOAT4 columns to chrono DateTime/Utc, i64, and f64 in storage/postgres.rs to avoid decode panics.
+  - Docker compose test Postgres container runs; storage conformance passes with POSTGRES_TEST_URL set.
+  - Re-ran storage conformance after Postgres mapping fixes; sqlite and postgres tests pass.
 - Next step / handoff hint:
-  - After reboot + virtualization enabled + WSL active, start Docker Desktop, stop local Postgres service (port 5432), run `docker compose -f docker-compose.test.yml up -d`, set `POSTGRES_TEST_URL`, re-run storage conformance, then `just cargo-clean` and `just post-work WP-1-Dual-Backend-Tests-v2`.
-  - If Docker remains blocked, document waiver and keep WP blocked until Docker tests can run.
+- Request validator review of the storage conformance results and manifest; no further coder steps pending.
 
 ## EVIDENCE
 - Command: just validator-scan
@@ -292,6 +321,52 @@ git revert HEAD
   time="2026-01-07T03:34:19+01:00" level=warning msg="D:\Projects\LLM projects\wt-WP-1-Dual-Backend-Tests-v2\docker-compose.test.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
   unable to get image 'postgres:16-alpine': request returned 500 Internal Server Error for API route and version http://%2F%2F.%2Fpipe%2FdockerDesktopLinuxEngine/v1.51/images/postgres:16-alpine/json, check if the server supports the requested API version
   ```
+- Command: docker compose -f docker-compose.test.yml up -d
+  Output:
+  ```text
+  time="2026-01-07T19:12:19+01:00" level=warning msg="D:\\Projects\\LLM projects\\wt-WP-1-Dual-Backend-Tests-v2\\docker-compose.test.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+  Container wt-wp-1-dual-backend-tests-v2-postgres-1  Running
+  ```
+- Command: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance (POSTGRES_TEST_URL unset)
+  Output (excerpt):
+  ```text
+  running 2 tests
+  test postgres_storage_conformance ... ok
+  test sqlite_storage_conformance ... ok
+  test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+  ```
+- Command: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance (POSTGRES_TEST_URL=postgres://postgres:postgres@localhost:5432/handshake_test)
+  Output (excerpt):
+  ```text
+  running 2 tests
+  test sqlite_storage_conformance ... ok
+  test postgres_storage_conformance ... ok
+  test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.86s
+  ```
+- Command: just post-work WP-1-Dual-Backend-Tests-v2
+  Output (excerpt):
+  ```text
+  Post-work validation PASSED with warnings
+  ```
+
+## VALIDATION [CX-623]
+
+**Commands Run:**
+- just pre-work WP-1-Dual-Backend-Tests-v2 -> PASS
+- docker compose -f docker-compose.test.yml up -d -> PASS (container running)
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance (POSTGRES_TEST_URL unset) -> PASS (2 tests)
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance (POSTGRES_TEST_URL set) -> PASS (2 tests)
+- just cargo-clean -> PASS
+- just post-work WP-1-Dual-Backend-Tests-v2 -> PASS (warnings noted in EVIDENCE)
+
+**DONE_MEANS Verification:**
+- Spec alignment (Pillar 4 / CX-DBP-013, CX-DBP-030): `.github/workflows/ci.yml:89` and `src/backend/handshake_core/tests/storage_conformance.rs:7`.
+- Local sqlite storage conformance passes: `docs/task_packets/WP-1-Dual-Backend-Tests-v2.md:330`.
+- Local postgres storage conformance passes with POSTGRES_TEST_URL: `docs/task_packets/WP-1-Dual-Backend-Tests-v2.md:338`.
+- CI backend-storage matrix enforces sqlite/postgres: `.github/workflows/ci.yml:89`.
+- Post-work gate passes: `docs/task_packets/WP-1-Dual-Backend-Tests-v2.md:346`.
+
+**Work Status:** Ready for Validation
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
