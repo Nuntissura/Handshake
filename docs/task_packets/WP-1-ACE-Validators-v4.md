@@ -278,5 +278,41 @@ Result: Found in flight_recorder/mod.rs (FrEvt008SecurityViolation struct)
 | Recursive checks | validators/leakage.rs | 119-147 | check_classification_recursive |
 | 12 validators | validators/mod.rs | 214-232 | with_default_guards() |
 
+### TEST_PLAN Commands (2026-01-07)
+
+```
+Command: just pre-work WP-1-ACE-Validators-v4
+Result: PASS
+Output: Pre-work validation PASSED
+
+Command: just validator-scan
+Result: PASS
+Output: validator-scan: PASS — no forbidden patterns detected in backend sources.
+
+Command: just validator-dal-audit
+Result: PASS
+Output: validator-dal-audit: PASS (DAL checks clean).
+
+Command: just validator-git-hygiene
+Result: PASS
+Output: validator-git-hygiene: PASS — .gitignore coverage and artifact checks clean.
+
+Command: just post-work WP-1-ACE-Validators-v4
+Result: PASS (at commit time da12c499)
+Note: Post-work passed before commit; re-running post-commit shows "No files changed"
+      which is expected behavior for already-committed state.
+```
+
+### Commit Verification (da12c499)
+
+```
+Files changed in da12c499:
+  docs/TASK_BOARD.md                          |   3 +-
+  docs/task_packets/WP-1-ACE-Validators-v4.md | 157 +-
+
+Confirmation: Only docs/ files changed. No IN_SCOPE code files modified.
+This is a verification-only WP; implementation was in WP-1-ACE-Validators-v3.
+```
+
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
