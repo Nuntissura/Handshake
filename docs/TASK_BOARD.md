@@ -28,7 +28,6 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 - **[WP-1-Capability-SSoT]** / FAIL (revalidation): `just post-work WP-1-Capability-SSoT` fails (C701-G05 post_sha1 mismatch) for `src/backend/handshake_core/src/capabilities.rs`. [READY FOR DEV]
 - **[WP-1-LLM-Core]** / FAIL (revalidation): `just post-work WP-1-LLM-Core` fails phase gate (SKELETON appears before BOOTSTRAP); packet non-ASCII + missing COR-701 manifest. [READY FOR DEV]
 - **[WP-1-Flight-Recorder-UI-v2]** / FAIL (revalidation): `just gate-check WP-1-Flight-Recorder-UI-v2` fails (missing "SKELETON APPROVED" marker); `node scripts/validation/post-work-check.mjs WP-1-Flight-Recorder-UI-v2` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99; user signature field missing/pending. [READY FOR DEV]
-- **[WP-1-ACE-Validators-v4]** - ACE runtime validators + enforcement invariants (2.6.6.7.11; HSK-ACE-VAL-100..102). [READY FOR DEV]
 - **[WP-1-ACE-Validators-v3]** - Superseded by WP-1-ACE-Validators-v4. [SUPERSEDED]
 - **[WP-1-AI-Job-Model-v3]** / FAIL (revalidation): `just post-work WP-1-AI-Job-Model-v3` fails phase gate (missing "SKELETON APPROVED" marker); `node scripts/validation/post-work-check.mjs WP-1-AI-Job-Model-v3` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99; packet already contains a prior FAIL section; spec updated in v02.99 to include Stalled and expanded JobKind, revalidate against new list. [READY FOR DEV]
 - **[WP-1-AppState-Refactoring-v2]** / FAIL (revalidation): `just post-work WP-1-AppState-Refactoring-v2` fails phase gate (missing "SKELETON APPROVED" marker); `node scripts/validation/post-work-check.mjs WP-1-AppState-Refactoring-v2` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99. [READY FOR DEV]
@@ -70,6 +69,8 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 ## In Progress
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
+
+- **[WP-1-ACE-Validators-v4]** - [IN_PROGRESS]
 
 
 ## Done
