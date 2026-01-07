@@ -34,6 +34,7 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 - **[WP-1-Flight-Recorder]** / FAIL: Spec drift vs SPEC_CURRENT v02.94; recheck A11.5 retention/telemetry. [READY FOR DEV]
 - **[WP-1-ACE-Runtime]** / FAIL: Spec drift vs SPEC_CURRENT v02.94; refresh ACE-RAG-001 evidence. [READY FOR DEV]
 - **[WP-1-Mutation-Traceability]** / FAIL: Spec drift vs SPEC_CURRENT v02.94; revalidate A2.9.3. [READY FOR DEV]
+- **[WP-1-Dual-Backend-Tests-v2]** / FAIL (validation): Deterministic manifest gate incomplete; see task packet VALIDATION_REPORTS. [READY FOR DEV]
 - **[WP-1-Dual-Backend-Tests]** - Superseded by WP-1-Dual-Backend-Tests-v2. [SUPERSEDED]
 - **[WP-1-Flight-Recorder-UI]** / FAIL (SUPERSEDED by v2): DuckDB log store + UI wiring. [READY FOR DEV]
 - **[WP-1-Operator-Consoles]** - Superseded by v1 (comprehensive rewrite anchored to v02.96). [SUPERSEDED]
@@ -67,8 +68,6 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 
 
 ## In Progress
-
-- **[WP-1-Dual-Backend-Tests-v2]** - [IN_PROGRESS]
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
