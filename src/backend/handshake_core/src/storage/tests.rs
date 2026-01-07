@@ -80,6 +80,8 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
                 raw_content: "hello".into(),
                 display_content: None,
                 derived_content: Some(json!({"k": 1})),
+                sensitivity: None,
+                exportable: None,
             },
         )
         .await?;
@@ -118,6 +120,8 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
                     raw_content: "b1".into(),
                     display_content: None,
                     derived_content: None,
+                    sensitivity: None,
+                    exportable: None,
                 },
                 NewBlock {
                     id: Some(Uuid::new_v4().to_string()),
@@ -127,6 +131,8 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
                     raw_content: "b2".into(),
                     display_content: Some("b2".into()),
                     derived_content: Some(json!({"k": 3})),
+                    sensitivity: None,
+                    exportable: None,
                 },
             ],
         )

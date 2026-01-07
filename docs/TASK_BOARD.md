@@ -70,10 +70,9 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
-- **[WP-1-ACE-Validators-v4]** - [IN_PROGRESS]
-
 
 ## Done
+- **[WP-1-ACE-Validators-v4]** - [FAIL]
 - **[WP-1-LLM-Core-v3]** - [VALIDATED]
 - **[WP-1-Flight-Recorder-v3]** - [VALIDATED]
 - **[WP-1-OSS-Register-Enforcement-v1]** - [VALIDATED]

@@ -103,6 +103,27 @@
         }
       ],
       "completed": "2026-01-04T03:22:48.768Z"
+    },
+    "WP-1-ACE-Validators-v4": {
+      "wpId": "WP-1-ACE-Validators-v4",
+      "verdict": "FAIL",
+      "status": "WP_APPENDED",
+      "started": "2026-01-07T06:49:23.038Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-01-07T06:49:23.040Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-07T06:53:41.819Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-07T06:57:33.294Z"
+        }
+      ]
     }
   },
   "archived_sessions": [
@@ -157,6 +178,29 @@
         }
       ],
       "archived_at": "2026-01-04T03:17:46.622Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-ACE-Validators-v4",
+      "verdict": "FAIL",
+      "status": "WP_APPENDED",
+      "started": "2026-01-07T03:45:11.384Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-01-07T03:45:11.384Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-07T03:53:04.425Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-07T03:54:17.185Z"
+        }
+      ],
+      "archived_at": "2026-01-07T06:10:40.353Z",
       "archive_reason": "manual_reset"
     }
   ]

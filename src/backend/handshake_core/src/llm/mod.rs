@@ -117,6 +117,19 @@ pub struct TokenUsage {
     pub total_tokens: u32,
 }
 
+/// Model deployment tier for security gating [§2.6.6.7.11.5].
+///
+/// CloudLeakageGuard only enforces leakage restrictions for Cloud tier models.
+/// Local models are trusted and not subject to cloud export restrictions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ModelTier {
+    /// Local/on-premise model - no cloud leakage restrictions
+    #[default]
+    Local,
+    /// Cloud-hosted model - subject to CloudLeakageGuard restrictions
+    Cloud,
+}
+
 /// Model capabilities and limits.
 ///
 /// Per §4.2.3.1.
@@ -128,6 +141,8 @@ pub struct ModelProfile {
     pub max_context_tokens: u32,
     /// Whether the model supports streaming responses.
     pub supports_streaming: bool,
+    /// Deployment tier for security gating [HSK-ACE-VAL-100]
+    pub model_tier: ModelTier,
 }
 
 impl ModelProfile {
@@ -137,12 +152,19 @@ impl ModelProfile {
             model_id,
             max_context_tokens,
             supports_streaming: false,
+            model_tier: ModelTier::Local,
         }
     }
 
     /// Builder: set streaming support.
     pub fn with_streaming(mut self, supports_streaming: bool) -> Self {
         self.supports_streaming = supports_streaming;
+        self
+    }
+
+    /// Builder: set model tier for security gating.
+    pub fn with_tier(mut self, tier: ModelTier) -> Self {
+        self.model_tier = tier;
         self
     }
 }

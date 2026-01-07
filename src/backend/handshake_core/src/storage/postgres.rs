@@ -95,6 +95,7 @@ fn map_canvas_edge(row: PgRow) -> CanvasEdge {
 fn map_block(row: PgRow) -> StorageResult<Block> {
     let derived_raw: String = row.get("derived_content");
     let derived = serde_json::from_str(&derived_raw)?;
+    let exportable_int: Option<i32> = row.get("exportable");
     Ok(Block {
         id: row.get("id"),
         document_id: row.get("document_id"),
@@ -105,6 +106,8 @@ fn map_block(row: PgRow) -> StorageResult<Block> {
         derived_content: derived,
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
+        sensitivity: row.get("sensitivity"),
+        exportable: exportable_int.map(|v| v != 0),
     })
 }
 
@@ -406,7 +409,8 @@ impl super::Database for PostgresDatabase {
     async fn get_blocks(&self, doc_id: &str) -> StorageResult<Vec<Block>> {
         let rows = sqlx::query(
             r#"
-            SELECT id, document_id, kind, sequence, raw_content, display_content, derived_content, created_at, updated_at
+            SELECT id, document_id, kind, sequence, raw_content, display_content, derived_content,
+                   created_at, updated_at, sensitivity, exportable
             FROM blocks
             WHERE document_id = $1
             ORDER BY sequence ASC
@@ -424,7 +428,8 @@ impl super::Database for PostgresDatabase {
     async fn get_block(&self, block_id: &str) -> StorageResult<Block> {
         let row = sqlx::query(
             r#"
-            SELECT id, document_id, kind, sequence, raw_content, display_content, derived_content, created_at, updated_at
+            SELECT id, document_id, kind, sequence, raw_content, display_content, derived_content,
+                   created_at, updated_at, sensitivity, exportable
             FROM blocks
             WHERE id = $1
             "#,
@@ -455,14 +460,17 @@ impl super::Database for PostgresDatabase {
             .derived_content
             .unwrap_or_else(|| Value::Object(Default::default()))
             .to_string();
+        let exportable_int: Option<i32> = block.exportable.map(|v| if v { 1 } else { 0 });
 
         let row = sqlx::query(
             r#"
             INSERT INTO blocks (
-                id, document_id, kind, sequence, raw_content, display_content, derived_content, created_at, updated_at
+                id, document_id, kind, sequence, raw_content, display_content, derived_content,
+                created_at, updated_at, sensitivity, exportable
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING id, document_id, kind, sequence, raw_content, display_content, derived_content, created_at, updated_at
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            RETURNING id, document_id, kind, sequence, raw_content, display_content, derived_content,
+                      created_at, updated_at, sensitivity, exportable
             "#,
         )
         .bind(&id)
@@ -474,6 +482,8 @@ impl super::Database for PostgresDatabase {
         .bind(&derived_content)
         .bind(now)
         .bind(now)
+        .bind(&block.sensitivity)
+        .bind(exportable_int)
         .fetch_one(&self.pool)
         .await?;
 
@@ -621,14 +631,17 @@ impl super::Database for PostgresDatabase {
                 .derived_content
                 .unwrap_or_else(|| Value::Object(Default::default()))
                 .to_string();
+            let exportable_int: Option<i32> = block.exportable.map(|v| if v { 1 } else { 0 });
 
             let row = sqlx::query(
                 r#"
                 INSERT INTO blocks (
-                    id, document_id, kind, sequence, raw_content, display_content, derived_content, created_at, updated_at
+                    id, document_id, kind, sequence, raw_content, display_content, derived_content,
+                    created_at, updated_at, sensitivity, exportable
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                RETURNING id, document_id, kind, sequence, raw_content, display_content, derived_content, created_at, updated_at
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                RETURNING id, document_id, kind, sequence, raw_content, display_content, derived_content,
+                          created_at, updated_at, sensitivity, exportable
                 "#,
             )
             .bind(&id)
@@ -640,6 +653,8 @@ impl super::Database for PostgresDatabase {
             .bind(&derived_content)
             .bind(now)
             .bind(now)
+            .bind(&block.sensitivity)
+            .bind(exportable_int)
             .fetch_one(&mut *tx)
             .await?;
 

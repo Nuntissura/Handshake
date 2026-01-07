@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n                INSERT INTO blocks (\n                    id, document_id, kind, sequence, raw_content, display_content, derived_content, last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id, created_at, updated_at\n                )\n                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)\n                RETURNING\n                    id as \"id!: String\",\n                    document_id as \"document_id!: String\",\n                    kind as \"kind!: String\",\n                    sequence as \"sequence!: i64\",\n                    raw_content as \"raw_content!: String\",\n                    display_content as \"display_content!: String\",\n                    derived_content as \"derived_content!: String\",\n                    last_actor_kind as \"last_actor_kind!: String\",\n                    last_actor_id as \"last_actor_id: String\",\n                    last_job_id as \"last_job_id: String\",\n                    last_workflow_id as \"last_workflow_id: String\",\n                    edit_event_id as \"edit_event_id!: String\",\n                    created_at as \"created_at!: chrono::DateTime<chrono::Utc>\",\n                    updated_at as \"updated_at!: chrono::DateTime<chrono::Utc>\"\n                ",
+  "query": "\n            INSERT INTO blocks (\n                id, document_id, kind, sequence, raw_content, display_content, derived_content, last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id, created_at, updated_at\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)\n            RETURNING\n                id as \"id!: String\",\n                document_id as \"document_id!: String\",\n                kind as \"kind!: String\",\n                sequence as \"sequence!: i64\",\n                raw_content as \"raw_content!: String\",\n                display_content as \"display_content!: String\",\n                derived_content as \"derived_content!: String\",\n                last_actor_kind as \"last_actor_kind!: String\",\n                last_actor_id as \"last_actor_id: String\",\n                last_job_id as \"last_job_id: String\",\n                last_workflow_id as \"last_workflow_id: String\",\n                edit_event_id as \"edit_event_id!: String\",\n                created_at as \"created_at!: chrono::DateTime<chrono::Utc>\",\n                updated_at as \"updated_at!: chrono::DateTime<chrono::Utc>\",\n                sensitivity as \"sensitivity: String\",\n                exportable as \"exportable: i32\"\n            ",
   "describe": {
     "columns": [
       {
@@ -72,6 +72,16 @@
         "name": "updated_at!: chrono::DateTime<chrono::Utc>",
         "ordinal": 13,
         "type_info": "Datetime"
+      },
+      {
+        "name": "sensitivity: String",
+        "ordinal": 14,
+        "type_info": "Text"
+      },
+      {
+        "name": "exportable: i32",
+        "ordinal": 15,
+        "type_info": "Integer"
       }
     ],
     "parameters": {
@@ -91,8 +101,10 @@
       true,
       false,
       false,
-      false
+      false,
+      true,
+      true
     ]
   },
-  "hash": "c2d4436e9f0ce13a670b9dd093aee8b68a84b3349f77fe732930829990e2e9fe"
+  "hash": "d68da21376aad6460e921b3ce5009fd50296bd944a644cece104831393bed49e"
 }

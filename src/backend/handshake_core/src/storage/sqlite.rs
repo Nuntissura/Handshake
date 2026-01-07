@@ -437,7 +437,9 @@ impl super::Database for SqliteDatabase {
                 display_content as "display_content!: String",
                 derived_content as "derived_content!: String",
                 created_at as "created_at!: chrono::DateTime<chrono::Utc>",
-                updated_at as "updated_at!: chrono::DateTime<chrono::Utc>"
+                updated_at as "updated_at!: chrono::DateTime<chrono::Utc>",
+                sensitivity as "sensitivity: String",
+                exportable as "exportable: i32"
             FROM blocks
             WHERE document_id = $1
             ORDER BY sequence ASC
@@ -460,6 +462,8 @@ impl super::Database for SqliteDatabase {
                     derived_content: derived,
                     created_at: row.created_at,
                     updated_at: row.updated_at,
+                    sensitivity: row.sensitivity,
+                    exportable: row.exportable.map(|v| v != 0),
                 })
             })
             .collect()
@@ -477,7 +481,9 @@ impl super::Database for SqliteDatabase {
                 display_content as "display_content!: String",
                 derived_content as "derived_content!: String",
                 created_at as "created_at!: chrono::DateTime<chrono::Utc>",
-                updated_at as "updated_at!: chrono::DateTime<chrono::Utc>"
+                updated_at as "updated_at!: chrono::DateTime<chrono::Utc>",
+                sensitivity as "sensitivity: String",
+                exportable as "exportable: i32"
             FROM blocks
             WHERE id = $1
             "#,
@@ -499,6 +505,8 @@ impl super::Database for SqliteDatabase {
                     derived_content: derived,
                     created_at: row.created_at,
                     updated_at: row.updated_at,
+                    sensitivity: row.sensitivity,
+                    exportable: row.exportable.map(|v| v != 0),
                 })
             }
             None => Err(StorageError::NotFound("block")),
@@ -542,7 +550,9 @@ impl super::Database for SqliteDatabase {
                 last_workflow_id as "last_workflow_id: String",
                 edit_event_id as "edit_event_id!: String",
                 created_at as "created_at!: chrono::DateTime<chrono::Utc>",
-                updated_at as "updated_at!: chrono::DateTime<chrono::Utc>"
+                updated_at as "updated_at!: chrono::DateTime<chrono::Utc>",
+                sensitivity as "sensitivity: String",
+                exportable as "exportable: i32"
             "#,
             id,
             block.document_id,
@@ -573,6 +583,8 @@ impl super::Database for SqliteDatabase {
             derived_content: derived,
             created_at: row.created_at,
             updated_at: row.updated_at,
+            sensitivity: row.sensitivity,
+            exportable: row.exportable.map(|v| v != 0),
         })
     }
 
@@ -717,7 +729,9 @@ impl super::Database for SqliteDatabase {
                     last_workflow_id as "last_workflow_id: String",
                     edit_event_id as "edit_event_id!: String",
                     created_at as "created_at!: chrono::DateTime<chrono::Utc>",
-                    updated_at as "updated_at!: chrono::DateTime<chrono::Utc>"
+                    updated_at as "updated_at!: chrono::DateTime<chrono::Utc>",
+                    sensitivity as "sensitivity: String",
+                    exportable as "exportable: i32"
                 "#,
                 id,
                 document_id,
@@ -748,6 +762,8 @@ impl super::Database for SqliteDatabase {
                 derived_content: derived,
                 created_at: row.created_at,
                 updated_at: row.updated_at,
+                sensitivity: row.sensitivity,
+                exportable: row.exportable.map(|v| v != 0),
             });
         }
 

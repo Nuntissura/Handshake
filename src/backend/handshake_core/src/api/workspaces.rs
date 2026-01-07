@@ -231,6 +231,8 @@ async fn replace_blocks(
             raw_content: incoming.raw_content.clone(),
             display_content: incoming.display_content,
             derived_content: incoming.derived_content,
+            sensitivity: None,
+            exportable: None,
         })
         .collect();
 

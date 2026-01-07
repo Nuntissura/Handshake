@@ -141,7 +141,9 @@ const requiresManifest = (filePath) => {
 
 const getStagedFiles = () => {
   try {
-    const out = git('git diff --name-only --cached');
+    // --diff-filter=d excludes deleted files (they cannot have manifest entries since
+    // the file doesn't exist on disk for SHA1 verification and End>=Start>=1 fails)
+    const out = git('git diff --name-only --cached --diff-filter=d');
     return out ? out.split('\n').filter(Boolean) : [];
   } catch {
     return [];
@@ -150,7 +152,8 @@ const getStagedFiles = () => {
 
 const getWorkingFiles = () => {
   try {
-    const out = git('git diff --name-only HEAD');
+    // --diff-filter=d excludes deleted files (same rationale as above)
+    const out = git('git diff --name-only HEAD --diff-filter=d');
     return out ? out.split('\n').filter(Boolean) : [];
   } catch {
     return [];

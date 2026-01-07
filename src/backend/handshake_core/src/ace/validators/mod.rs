@@ -42,6 +42,8 @@ use std::collections::HashSet;
 use uuid::Uuid;
 
 use crate::ace::{AceError, QueryPlan, RetrievalTrace, SourceRef};
+use crate::llm::ModelTier;
+use crate::storage::{Block, Database};
 
 // ============================================================================
 // Content Resolution Types [HSK-ACE-VAL-100]
@@ -126,6 +128,204 @@ pub struct ResolvedSnippet {
     pub content: String,
     /// Classification metadata
     pub classification: ContentClassification,
+}
+
+// ============================================================================
+// Storage-backed Content Resolver [HSK-ACE-VAL-100]
+// ============================================================================
+
+use std::sync::Arc;
+
+/// Storage-backed content resolver for ACE validators [HSK-ACE-VAL-100]
+///
+/// Resolves raw UTF-8 content and classification metadata from the storage layer.
+/// Used by validators to scan actual content rather than hashes/handles.
+pub struct StorageContentResolver {
+    db: Arc<dyn Database>,
+}
+
+impl StorageContentResolver {
+    /// Create a new StorageContentResolver with the given database
+    pub fn new(db: Arc<dyn Database>) -> Self {
+        Self { db }
+    }
+
+    /// Convert storage Block sensitivity string to SensitivityLevel
+    fn parse_sensitivity(sensitivity: Option<&str>) -> SensitivityLevel {
+        match sensitivity {
+            Some("low") => SensitivityLevel::Low,
+            Some("medium") => SensitivityLevel::Medium,
+            Some("high") => SensitivityLevel::High,
+            // NULL or unknown -> Unknown (which MUST block per mandate)
+            _ => SensitivityLevel::Unknown,
+        }
+    }
+
+    /// Build classification from Block data
+    fn build_classification(block: &Block) -> ContentClassification {
+        ContentClassification {
+            sensitivity: Self::parse_sensitivity(block.sensitivity.as_deref()),
+            // NULL or true = exportable; false = non-exportable
+            exportable: block.exportable.unwrap_or(true),
+            // Blocks are not composite; composite refs (bundles) not yet implemented
+            is_composite: false,
+            member_refs: Vec::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl ContentResolver for StorageContentResolver {
+    async fn resolve_content(&self, source_ref: &SourceRef) -> Result<String, AceError> {
+        // SourceRef.source_id is the block UUID
+        let block_id = source_ref.source_id.to_string();
+        let block = self.db.get_block(&block_id).await.map_err(|e| {
+            AceError::ValidationFailed {
+                message: format!("Failed to resolve content for block {}: {}", block_id, e),
+            }
+        })?;
+        Ok(block.raw_content)
+    }
+
+    async fn resolve_classification(
+        &self,
+        source_ref: &SourceRef,
+    ) -> Result<ContentClassification, AceError> {
+        let block_id = source_ref.source_id.to_string();
+        let block = self.db.get_block(&block_id).await.map_err(|e| {
+            AceError::ValidationFailed {
+                message: format!(
+                    "Failed to resolve classification for block {}: {}",
+                    block_id, e
+                ),
+            }
+        })?;
+        Ok(Self::build_classification(&block))
+    }
+}
+
+// ============================================================================
+// Security Scan API [HSK-ACE-VAL-100]
+// ============================================================================
+
+/// Scan content for security violations before Cloud model calls [HSK-ACE-VAL-100]
+///
+/// This function performs content-aware security scanning:
+/// 1. Resolves raw UTF-8 content from storage
+/// 2. Scans for prompt injection using NFC-normalized text [HSK-ACE-VAL-102]
+/// 3. Checks classification (sensitivity, exportable) for CloudLeakageGuard
+///
+/// Returns `Err(AceError::PromptInjectionDetected)` if injection found,
+/// `Err(AceError::CloudLeakageBlocked)` if leakage violation detected,
+/// or `Ok(())` if content is safe to use.
+pub async fn scan_content_for_security(
+    source_refs: &[SourceRef],
+    resolver: &dyn ContentResolver,
+    model_tier: ModelTier,
+) -> Result<(), AceError> {
+    for source_ref in source_refs {
+        // 1. Resolve raw content
+        let content = resolver.resolve_content(source_ref).await?;
+
+        // 2. Scan for prompt injection [HSK-ACE-VAL-102]
+        if let Some(found) = injection::PromptInjectionGuard::scan_for_injection_nfc(&content) {
+            return Err(AceError::PromptInjectionDetected {
+                pattern: found.pattern,
+                offset: found.offset,
+                context: found.context,
+            });
+        }
+
+        // 3. Check classification for cloud leakage [§2.6.6.7.11.5]
+        // Only enforce blocking for Cloud tier; Local tier logs but doesn't block
+        if model_tier == ModelTier::Cloud {
+            let classification = resolver.resolve_classification(source_ref).await?;
+
+            // Unknown sensitivity MUST block for Cloud
+            if classification.sensitivity == SensitivityLevel::Unknown {
+                return Err(AceError::CloudLeakageBlocked {
+                    reason: format!(
+                        "Content has unknown sensitivity - blocked for cloud model (source: {})",
+                        source_ref.source_id
+                    ),
+                });
+            }
+
+            // High sensitivity non-exportable content blocked
+            if classification.sensitivity == SensitivityLevel::High && !classification.exportable {
+                return Err(AceError::CloudLeakageBlocked {
+                    reason: format!(
+                        "High sensitivity non-exportable content blocked (source: {})",
+                        source_ref.source_id
+                    ),
+                });
+            }
+
+            // Non-exportable content blocked for cloud
+            if !classification.exportable {
+                return Err(AceError::CloudLeakageBlocked {
+                    reason: format!(
+                        "Non-exportable content blocked for cloud model (source: {})",
+                        source_ref.source_id
+                    ),
+                });
+            }
+
+            // Recursive check for composites
+            if classification.is_composite {
+                let mut visited = HashSet::new();
+                visited.insert(source_ref.source_id);
+                check_composite_leakage(&classification.member_refs, resolver, &mut visited).await?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Recursive leakage check for composite refs (bundles, dataset_slices) [§2.6.6.7.11.5]
+fn check_composite_leakage<'a>(
+    member_refs: &'a [SourceRef],
+    resolver: &'a dyn ContentResolver,
+    visited: &'a mut HashSet<Uuid>,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), AceError>> + Send + 'a>> {
+    Box::pin(async move {
+        for member_ref in member_refs {
+            // Prevent cycles
+            if visited.contains(&member_ref.source_id) {
+                continue;
+            }
+            visited.insert(member_ref.source_id);
+
+            let classification = resolver.resolve_classification(member_ref).await?;
+
+            // Check member classification
+            if classification.sensitivity == SensitivityLevel::Unknown {
+                return Err(AceError::CloudLeakageBlocked {
+                    reason: format!(
+                        "Composite member has unknown sensitivity (source: {})",
+                        member_ref.source_id
+                    ),
+                });
+            }
+
+            if !classification.exportable {
+                return Err(AceError::CloudLeakageBlocked {
+                    reason: format!(
+                        "Composite member is non-exportable (source: {})",
+                        member_ref.source_id
+                    ),
+                });
+            }
+
+            // Recurse into nested composites
+            if classification.is_composite {
+                check_composite_leakage(&classification.member_refs, resolver, visited).await?;
+            }
+        }
+
+        Ok(())
+    })
 }
 
 /// Result of security validation with detailed violation info
@@ -499,6 +699,105 @@ pub use leakage::CloudLeakageGuard;
 pub use payload::LocalPayloadGuard;
 pub use promotion::MemoryPromotionGuard;
 
+// Re-exports - Content Resolution [HSK-ACE-VAL-100]
+// StorageContentResolver and scan_content_for_security are exported at module level
+
+// ============================================================================
+// QueryPlan/RetrievalTrace Builders [§2.6.6.7.14.5]
+// ============================================================================
+
+use sha2::{Digest, Sha256};
+
+use crate::ace::{
+    CandidateRef, CandidateScores, QueryKind, RetrievalCandidate, RouteTaken, SelectedEvidence,
+    SpanExtraction, StoreKind,
+};
+
+/// Build QueryPlan from document blocks [§2.6.6.7.14.5]
+///
+/// Returns `Err(AceError::ValidationFailed)` if any block has invalid UUID.
+/// MUST NOT skip invalid UUIDs per content-awareness invariant.
+pub fn build_query_plan_from_blocks(
+    blocks: &[Block],
+    query_text: &str,
+    policy_id: &str,
+) -> Result<QueryPlan, AceError> {
+    // Validate ALL blocks have valid UUIDs first (fail-fast)
+    for block in blocks {
+        Uuid::parse_str(&block.id).map_err(|_| AceError::ValidationFailed {
+            message: format!("Block has invalid UUID: {}", block.id),
+        })?;
+    }
+
+    let plan = QueryPlan::new(
+        query_text.to_string(),
+        QueryKind::Summarize,
+        policy_id.to_string(),
+    );
+
+    Ok(plan)
+}
+
+/// Build RetrievalTrace from blocks with SHA256 hashes [§2.6.6.7.14.5]
+///
+/// Returns `Err(AceError::ValidationFailed)` if any block has invalid UUID.
+/// MUST NOT skip invalid UUIDs per content-awareness invariant.
+pub fn build_retrieval_trace_from_blocks(
+    blocks: &[Block],
+    plan: &QueryPlan,
+) -> Result<RetrievalTrace, AceError> {
+    let mut trace = RetrievalTrace::new(plan);
+
+    for (i, block) in blocks.iter().enumerate() {
+        // MUST fail on invalid UUID - enforced by returning Result
+        let source_id = Uuid::parse_str(&block.id).map_err(|_| AceError::ValidationFailed {
+            message: format!("Block has invalid UUID: {}", block.id),
+        })?;
+
+        // Compute SHA256 hash of raw_content
+        let mut hasher = Sha256::new();
+        hasher.update(block.raw_content.as_bytes());
+        let source_hash = hex::encode(hasher.finalize());
+
+        let source_ref = SourceRef::new(source_id, source_hash);
+
+        // Build candidate
+        let candidate = RetrievalCandidate::from_source(
+            source_ref.clone(),
+            StoreKind::ShadowWsLexical,
+            CandidateScores::default(),
+        );
+        trace.candidates.push(candidate);
+
+        // Build selected evidence (all selected for doc summarization)
+        trace.selected.push(SelectedEvidence {
+            candidate_ref: CandidateRef::Source(source_ref.clone()),
+            final_rank: i as u32,
+            final_score: 1.0,
+            why: "doc_summarization_full_retrieval".to_string(),
+        });
+
+        // Build span
+        let token_estimate = (block.raw_content.len() / 4) as u32; // ~4 chars/token
+        trace.spans.push(SpanExtraction {
+            source_ref,
+            selector: format!("block:{}", block.id),
+            start: 0,
+            end: block.raw_content.len() as u32,
+            token_estimate,
+        });
+    }
+
+    // Route taken
+    trace.route_taken.push(RouteTaken {
+        store: StoreKind::ShadowWsLexical,
+        reason: "doc_summarization_block_retrieval".to_string(),
+        cache_hit: Some(false),
+    });
+
+    Ok(trace)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -549,5 +848,107 @@ mod tests {
         // Default plan should pass all validators
         let result = pipeline.validate_plan(&plan).await;
         assert!(result.is_ok(), "Unexpected error: {:?}", result);
+    }
+
+    #[test]
+    fn test_build_query_plan_fails_on_invalid_uuid() {
+        use crate::storage::Block;
+
+        let blocks = vec![Block {
+            id: "not-a-valid-uuid".to_string(),
+            document_id: "doc-1".to_string(),
+            kind: "paragraph".to_string(),
+            sequence: 1,
+            raw_content: "Test content".to_string(),
+            display_content: "Test content".to_string(),
+            derived_content: serde_json::json!({}),
+            sensitivity: None,
+            exportable: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        }];
+
+        let result = build_query_plan_from_blocks(&blocks, "test query", "test_policy");
+        assert!(result.is_err(), "Expected error for invalid UUID");
+        let err = result.unwrap_err();
+        assert!(
+            matches!(err, AceError::ValidationFailed { .. }),
+            "Expected ValidationFailed error"
+        );
+    }
+
+    #[test]
+    fn test_build_retrieval_trace_computes_sha256() {
+        use crate::storage::Block;
+
+        let block_id = Uuid::new_v4().to_string();
+        let blocks = vec![Block {
+            id: block_id.clone(),
+            document_id: "doc-1".to_string(),
+            kind: "paragraph".to_string(),
+            sequence: 1,
+            raw_content: "Test content for hashing".to_string(),
+            display_content: "Test content for hashing".to_string(),
+            derived_content: serde_json::json!({}),
+            sensitivity: None,
+            exportable: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        }];
+
+        let plan = QueryPlan::new(
+            "test query".to_string(),
+            QueryKind::Summarize,
+            "test_policy".to_string(),
+        );
+
+        let result = build_retrieval_trace_from_blocks(&blocks, &plan);
+        assert!(result.is_ok(), "Expected successful trace build");
+
+        let trace = result.unwrap();
+        assert_eq!(trace.spans.len(), 1);
+        assert_eq!(trace.candidates.len(), 1);
+        assert_eq!(trace.selected.len(), 1);
+
+        // Verify SHA256 hash is computed (64 hex chars)
+        let source_hash = &trace.spans[0].source_ref.source_hash;
+        assert_eq!(source_hash.len(), 64, "SHA256 hash should be 64 hex chars");
+
+        // Verify hash is correct for "Test content for hashing"
+        let expected_hash = {
+            use sha2::{Digest, Sha256};
+            let mut hasher = Sha256::new();
+            hasher.update(b"Test content for hashing");
+            hex::encode(hasher.finalize())
+        };
+        assert_eq!(source_hash, &expected_hash);
+    }
+
+    #[test]
+    fn test_build_retrieval_trace_fails_on_invalid_uuid() {
+        use crate::storage::Block;
+
+        let blocks = vec![Block {
+            id: "invalid-uuid".to_string(),
+            document_id: "doc-1".to_string(),
+            kind: "paragraph".to_string(),
+            sequence: 1,
+            raw_content: "Test content".to_string(),
+            display_content: "Test content".to_string(),
+            derived_content: serde_json::json!({}),
+            sensitivity: None,
+            exportable: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        }];
+
+        let plan = QueryPlan::new(
+            "test query".to_string(),
+            QueryKind::Summarize,
+            "test_policy".to_string(),
+        );
+
+        let result = build_retrieval_trace_from_blocks(&blocks, &plan);
+        assert!(result.is_err(), "Expected error for invalid UUID");
     }
 }
