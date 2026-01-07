@@ -131,6 +131,7 @@ Complete ALL steps before writing code. If any step fails, STOP and request help
 - [ ] Task packet path mentioned (e.g., `docs/task_packets/WP-*.md`)
 - [ ] WP_ID in handoff message
 - [ ] "Orchestrator checklist complete" confirmation
+- [ ] Packet is an official task packet in `docs/task_packets/` (NOT a stub in `docs/task_packets/stubs/`)
 
 **Verification methods (try in order):**
 
@@ -154,6 +155,8 @@ Missing:
 
 Orchestrator: Please create task packet using:
   just create-task-packet WP-{ID}
+
+If only a stub exists (e.g., `docs/task_packets/stubs/WP-{ID}.md`), it must be activated into an official task packet first (refinement + USER_SIGNATURE + `just create-task-packet`).
 
 I cannot write code without a task packet.
 ```

@@ -21,6 +21,10 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - Superseded: `- **[WP_ID]** - [SUPERSEDED]`
 Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the task packet to avoid drift/noise.
 
+**Backlog stubs (pre-activation):**
+- Track not-yet-activated work as STUB items (no USER_SIGNATURE yet). Details live in `docs/task_packets/stubs/`.
+- Stubs MUST be activated into official task packets before any coding starts (see `docs/ORCHESTRATOR_PROTOCOL.md`).
+
 ---
 
 
@@ -64,6 +68,10 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 - **[WP-1-Semantic-Catalog]** / FAIL: Implement SemanticCatalog per A2.6.7. [READY FOR DEV]
 - **[WP-1-MCP-End-to-End]** / FAIL: MCP capability/logging chain. [READY FOR DEV]
 - **[WP-1-Metrics-Traces]** / FAIL: OTel metrics/traces + validator pack. [READY FOR DEV]
+
+## Stub Backlog (Not Activated)
+- **[WP-1-Spec-Router-Session-Log]** - [STUB]
+- **[WP-1-Dev-Experience-ADRs]** - [STUB]
 
 
 ## In Progress

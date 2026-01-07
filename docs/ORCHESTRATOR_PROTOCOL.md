@@ -295,6 +295,18 @@ grep -r "Master Spec v02" docs/*.md docs/task_packets/*.md
 
 **Orchestrator MUST request USER_SIGNATURE before creating work packets.**
 
+#### Work Packet Stubs (Backlog) [CX-585C]
+
+A **Work Packet Stub** is an optional planning artifact used to track Roadmap/Main Body work before activation.
+
+- Stubs are legitimate backlog items, but they are NOT executable task packets/work packets.
+- Stubs MUST live in `docs/task_packets/stubs/` and should be listed on `docs/TASK_BOARD.md` under a STUB section.
+- Stubs MUST NOT be handed off to Coder/Validator and MUST NOT be used to start implementation.
+- Stubs do not require USER_SIGNATURE, a refinement file, or deterministic gates.
+- Stub template: `docs/templates/TASK_PACKET_STUB_TEMPLATE.md`
+
+Activation rule (mandatory): Before any coding starts, activate the stub by following the normal workflow (in-chat Technical Refinement Block -> USER_SIGNATURE -> `docs/refinements/WP-*.md` -> `just create-task-packet WP-*` -> move TASK_BOARD entry out of STUB).
+
 **Signature format:** `{username}{DDMMYYYYHHMM}`
 
 Example: `ilja251225032800` (ilja + 25/12/2025 03:28:00)
