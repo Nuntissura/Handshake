@@ -28,6 +28,15 @@ const warnings = [];
 const gitTrim = (command) => execSync(command, { encoding: 'utf8' }).trim();
 const gitBuffer = (command) => execSync(command);
 
+const resolveMergeBase = () => {
+  try {
+    const base = gitTrim('git merge-base main HEAD');
+    return base || null;
+  } catch {
+    return null;
+  }
+};
+
 const readFileIfExists = (p) => {
   try {
     return fs.readFileSync(p, 'utf8');
@@ -77,14 +86,19 @@ const sha1VariantsForWorktreeFile = (p) => {
 // Use LF-normalized hash for worktree reads to avoid CRLF-based false negatives on Windows.
 const computeSha1 = (p) => sha1VariantsForWorktreeFile(p).lf;
 
-const loadHeadVersion = (targetPath) => {
+const MERGE_BASE = resolveMergeBase();
+
+const loadGitVersion = (rev, targetPath) => {
   try {
     const gitPath = targetPath.replace(/\\/g, '/');
-    const data = gitBuffer(`git show HEAD:${gitPath}`);
-    return data;
+    return gitBuffer(`git show ${rev}:${gitPath}`);
   } catch {
     return null;
   }
+};
+
+const loadHeadVersion = (targetPath) => {
+  return loadGitVersion('HEAD', targetPath);
 };
 
 const loadIndexVersion = (targetPath) => {
@@ -424,6 +438,20 @@ if (manifests) {
       if (manifest.pre_sha1 && manifest.pre_sha1 !== head.lf) {
         if (manifest.pre_sha1 === head.crlf) {
           warnings.push(`${label}: pre_sha1 matches CRLF-normalized HEAD for ${targetPath}; prefer LF blob SHA1=${head.lf}`);
+        } else if (MERGE_BASE) {
+          const baseContent = loadGitVersion(MERGE_BASE, targetPath);
+          const base = baseContent ? sha1VariantsForGitBlob(baseContent) : null;
+          const matchesBase = base && (manifest.pre_sha1 === base.lf || manifest.pre_sha1 === base.crlf);
+          if (matchesBase) {
+            warnings.push(`${label}: pre_sha1 matches merge-base(${MERGE_BASE}) for ${targetPath} (common after WP commits); prefer LF blob SHA1=${base.lf}`);
+          } else if (hasGitWaiver) {
+            warnings.push(`${label}: pre_sha1 does not match HEAD for ${targetPath} (${spec.gateErrorCodes.current_file_matches_preimage}) - WAIVER APPLIED`);
+            warnings.push(`${label}: expected pre_sha1 (HEAD LF blob) = ${head.lf}`);
+          } else {
+            errors.push(`${label}: pre_sha1 does not match HEAD for ${targetPath} (${spec.gateErrorCodes.current_file_matches_preimage})`);
+            errors.push(`${label}: expected pre_sha1 (HEAD LF blob) = ${head.lf}`);
+            if (base) errors.push(`${label}: expected pre_sha1 (merge-base LF blob) = ${base.lf}`);
+          }
         } else if (hasGitWaiver) {
           warnings.push(`${label}: pre_sha1 does not match HEAD for ${targetPath} (${spec.gateErrorCodes.current_file_matches_preimage}) - WAIVER APPLIED`);
           warnings.push(`${label}: expected pre_sha1 (LF blob) = ${head.lf}`);
