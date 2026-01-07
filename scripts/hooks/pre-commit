@@ -95,14 +95,25 @@ echo "Running quick lint check on staged files..."
 # Check if any .rs files are staged
 RUST_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.rs$' || true)
 if [ -n "$RUST_FILES" ]; then
-  echo "Checking Rust formatting..."
-  if cd src/backend/handshake_core && cargo fmt -- --check; then
-    echo "ƒo. Rust files formatted"
-    cd - > /dev/null
+  echo "Checking Rust formatting (staged files only)..."
+  RUSTFMT_FAILED=0
+  while IFS= read -r file; do
+    if [ -z "$file" ]; then
+      continue
+    fi
+    if [ ! -f "$file" ]; then
+      continue
+    fi
+    if ! rustfmt --edition 2021 --check "$file"; then
+      RUSTFMT_FAILED=1
+    fi
+  done <<< "$RUST_FILES"
+
+  if [ $RUSTFMT_FAILED -eq 0 ]; then
+    echo "ƒo. Rust staged files formatted"
   else
-    cd - > /dev/null
     echo ""
-    echo "ƒ?O Rust files not formatted"
+    echo "ƒ?O Rust staged files not formatted"
     echo "Run: cd src/backend/handshake_core && cargo fmt"
     exit 1
   fi
