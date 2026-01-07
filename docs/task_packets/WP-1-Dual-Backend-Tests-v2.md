@@ -9,7 +9,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: GPT-5 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** Ready for Validation
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja060120262333
 
@@ -398,7 +398,7 @@ SKELETON APPROVED
 - CI backend-storage matrix enforces sqlite/postgres: `.github/workflows/ci.yml:89`.
 - Post-work gate passes: `docs/task_packets/WP-1-Dual-Backend-Tests-v2.md:346`.
 
-**Work Status:** Ready for Validation
+**Work Status:** Done
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
@@ -447,3 +447,49 @@ Action Required to Unblock:
 1) Update the deterministic manifest gate checkboxes to `[x]` for all required gates (COR-701) for each Target File entry.
 2) Record the full `just post-work WP-1-Dual-Backend-Tests-v2` warning list verbatim in EVIDENCE.
 3) Re-run `just post-work WP-1-Dual-Backend-Tests-v2` after edits and ensure it passes without relying on inferred/unchecked gates.
+
+### 2026-01-07 VALIDATION REPORT - WP-1-Dual-Backend-Tests-v2 (Final Pass)
+Verdict: PASS (with waivers noted)
+Validated_at: 2026-01-07
+
+Scope Inputs:
+- Task Packet: `docs/task_packets/WP-1-Dual-Backend-Tests-v2.md` (Status: Done)
+- Refinement: `docs/refinements/WP-1-Dual-Backend-Tests-v2.md` (APPROVED; USER_SIGNATURE ilja060120262333)
+- Spec Target: `docs/SPEC_CURRENT.md` -> Handshake_Master_Spec_v02.101.md
+- Spec Anchors: `Handshake_Master_Spec_v02.101.md:2954` (CX-DBP-013) and `Handshake_Master_Spec_v02.101.md:3118` (CX-DBP-030 / WP-1-Dual-Backend-Tests)
+
+Files Checked:
+- `Handshake_Master_Spec_v02.101.md`
+- `docs/SPEC_CURRENT.md`
+- `docs/TASK_BOARD.md`
+- `docs/VALIDATOR_GATES.json`
+- `docs/task_packets/WP-1-Dual-Backend-Tests-v2.md`
+- `docs/refinements/WP-1-Dual-Backend-Tests-v2.md`
+- `.github/workflows/ci.yml`
+- `src/backend/handshake_core/src/storage/tests.rs`
+- `src/backend/handshake_core/tests/storage_conformance.rs`
+- `src/backend/handshake_core/migrations/0008_expand_ai_job_model.sql`
+- `src/backend/handshake_core/src/storage/postgres.rs`
+
+Findings (Spec Alignment Evidence):
+- PASS: CI dual-backend matrix exists and blocks merge on failure (CX-DBP-013): `.github/workflows/ci.yml:89`, `.github/workflows/ci.yml:94`, `.github/workflows/ci.yml:105`, `.github/workflows/ci.yml:125`.
+- PASS: Storage conformance is backend-parameterized via POSTGRES_TEST_URL: `src/backend/handshake_core/src/storage/tests.rs:25`.
+- PASS: Postgres decode hardening prevents TIMESTAMP/INT4/FLOAT4 decode panics: `src/backend/handshake_core/src/storage/postgres.rs:54`, `src/backend/handshake_core/src/storage/postgres.rs:95`, `src/backend/handshake_core/src/storage/postgres.rs:209`, `src/backend/handshake_core/src/storage/postgres.rs:219`, `src/backend/handshake_core/src/storage/postgres.rs:224`.
+- PASS: Migration 0008 is portable (no sqlite-only PRAGMA; rebuild pattern): `src/backend/handshake_core/migrations/0008_expand_ai_job_model.sql:5`, `src/backend/handshake_core/migrations/0008_expand_ai_job_model.sql:9`, `src/backend/handshake_core/migrations/0008_expand_ai_job_model.sql:157`, `src/backend/handshake_core/migrations/0008_expand_ai_job_model.sql:169`.
+
+Hygiene:
+- just validator-scan: PASS
+- just validator-dal-audit: PASS
+
+Tests (run in this validation session):
+- just cargo-clean: PASS
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance (POSTGRES_TEST_URL unset): PASS
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance (POSTGRES_TEST_URL set): PASS
+- just post-work WP-1-Dual-Backend-Tests-v2: PASS with warnings (see EVIDENCE)
+
+Waivers / Residual Warnings:
+- WAIVED: docs/VALIDATOR_GATES.json out-of-scope warning (WP-1-Dual-Backend-Tests-v2-VALGATES-001).
+- WAIVED: C701-G08 pre_sha1 mismatch warnings for 0008 migration and postgres.rs (WP-1-Dual-Backend-Tests-v2-C701-001).
+
+REASON FOR PASS:
+- Meets CX-DBP-013 and CX-DBP-030 requirements: dual-backend test infrastructure exists, runs on both SQLite and Postgres, and the conformance suite passes against both backends with CI configured to run both variants.

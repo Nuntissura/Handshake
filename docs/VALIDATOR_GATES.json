@@ -106,22 +106,22 @@
     },
     "WP-1-Dual-Backend-Tests-v2": {
       "wpId": "WP-1-Dual-Backend-Tests-v2",
-      "verdict": "FAIL",
+      "verdict": "PASS",
       "status": "WP_APPENDED",
-      "started": "2026-01-07T19:16:52.209Z",
+      "started": "2026-01-07T22:07:33.072Z",
       "gates": [
         {
           "gate": "REPORT_PRESENTED",
-          "verdict": "FAIL",
-          "timestamp": "2026-01-07T19:16:52.209Z"
+          "verdict": "PASS",
+          "timestamp": "2026-01-07T22:07:33.073Z"
         },
         {
           "gate": "USER_ACKNOWLEDGED",
-          "timestamp": "2026-01-07T19:17:07.469Z"
+          "timestamp": "2026-01-07T22:07:48.678Z"
         },
         {
           "gate": "WP_APPENDED",
-          "timestamp": "2026-01-07T19:20:16.212Z"
+          "timestamp": "2026-01-07T22:11:06.009Z"
         }
       ]
     }
@@ -178,6 +178,44 @@
         }
       ],
       "archived_at": "2026-01-04T03:17:46.622Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-Dual-Backend-Tests-v2",
+      "verdict": "FAIL",
+      "status": "WP_APPENDED",
+      "started": "2026-01-07T19:16:52.209Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-01-07T19:16:52.209Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-07T19:17:07.469Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-07T19:20:16.212Z"
+        }
+      ],
+      "archived_at": "2026-01-07T21:08:44.860Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-Dual-Backend-Tests-v2",
+      "verdict": "FAIL",
+      "status": "REPORT_PRESENTED",
+      "started": "2026-01-07T21:10:36.929Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-01-07T21:10:36.929Z"
+        }
+      ],
+      "archived_at": "2026-01-07T22:07:28.284Z",
       "archive_reason": "manual_reset"
     }
   ]
