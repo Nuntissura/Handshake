@@ -6,7 +6,7 @@ use super::{
     StorageGuard, StorageResult, WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
 };
 use async_trait::async_trait;
-use chrono::Utc;
+use chrono::{NaiveDateTime, Utc};
 use serde_json::Value;
 use sqlx::{
     postgres::{PgPool, PgPoolOptions, PgRow},
@@ -55,8 +55,8 @@ fn map_workspace(row: PgRow) -> Workspace {
     Workspace {
         id: row.get("id"),
         name: row.get("name"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
+        created_at: map_timestamp(&row, "created_at"),
+        updated_at: map_timestamp(&row, "updated_at"),
     }
 }
 
@@ -65,8 +65,8 @@ fn map_document(row: PgRow) -> Document {
         id: row.get("id"),
         workspace_id: row.get("workspace_id"),
         title: row.get("title"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
+        created_at: map_timestamp(&row, "created_at"),
+        updated_at: map_timestamp(&row, "updated_at"),
     }
 }
 
@@ -75,8 +75,8 @@ fn map_canvas(row: PgRow) -> Canvas {
         id: row.get("id"),
         workspace_id: row.get("workspace_id"),
         title: row.get("title"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
+        created_at: map_timestamp(&row, "created_at"),
+        updated_at: map_timestamp(&row, "updated_at"),
     }
 }
 
@@ -87,8 +87,8 @@ fn map_canvas_edge(row: PgRow) -> CanvasEdge {
         from_node_id: row.get("from_node_id"),
         to_node_id: row.get("to_node_id"),
         kind: row.get("kind"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
+        created_at: map_timestamp(&row, "created_at"),
+        updated_at: map_timestamp(&row, "updated_at"),
     }
 }
 
@@ -100,12 +100,12 @@ fn map_block(row: PgRow) -> StorageResult<Block> {
         id: row.get("id"),
         document_id: row.get("document_id"),
         kind: row.get("kind"),
-        sequence: row.get("sequence"),
+        sequence: map_i64_from_i32(&row, "sequence"),
         raw_content: row.get("raw_content"),
         display_content: row.get("display_content"),
         derived_content: derived,
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
+        created_at: map_timestamp(&row, "created_at"),
+        updated_at: map_timestamp(&row, "updated_at"),
         sensitivity: row.get("sensitivity"),
         exportable: exportable_int.map(|v| v != 0),
     })
@@ -118,11 +118,11 @@ fn map_canvas_node(row: PgRow) -> StorageResult<CanvasNode> {
         id: row.get("id"),
         canvas_id: row.get("canvas_id"),
         kind: row.get("kind"),
-        position_x: row.get("position_x"),
-        position_y: row.get("position_y"),
+        position_x: map_f64_from_f32(&row, "position_x"),
+        position_y: map_f64_from_f32(&row, "position_y"),
         data,
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
+        created_at: map_timestamp(&row, "created_at"),
+        updated_at: map_timestamp(&row, "updated_at"),
     })
 }
 
@@ -162,8 +162,8 @@ fn map_ai_job(row: PgRow) -> StorageResult<AiJob> {
         status_reason: row.get("status_reason"),
         job_inputs,
         job_outputs,
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
+        created_at: map_timestamp(&row, "created_at"),
+        updated_at: map_timestamp(&row, "updated_at"),
     })
 }
 
@@ -174,9 +174,9 @@ fn map_workflow_run(row: PgRow) -> StorageResult<WorkflowRun> {
         job_id: Uuid::parse_str(row.get::<String, _>("job_id").as_str())
             .map_err(|_| StorageError::Validation("invalid workflow_run job_id"))?,
         status: JobState::try_from(row.get::<String, _>("status").as_str())?,
-        last_heartbeat: row.get("last_heartbeat"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
+        last_heartbeat: map_timestamp(&row, "last_heartbeat"),
+        created_at: map_timestamp(&row, "created_at"),
+        updated_at: map_timestamp(&row, "updated_at"),
     })
 }
 
@@ -198,15 +198,35 @@ fn map_workflow_node_execution(row: PgRow) -> StorageResult<WorkflowNodeExecutio
         node_id: row.get("node_id"),
         node_type: row.get("node_type"),
         status: JobState::try_from(row.get::<String, _>("status").as_str())?,
-        sequence: row.get("sequence"),
+        sequence: map_i64_from_i32(&row, "sequence"),
         input_payload,
         output_payload,
         error_message: row.get("error_message"),
-        started_at: row.get("started_at"),
-        finished_at: row.get("finished_at"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
+        started_at: map_timestamp(&row, "started_at"),
+        finished_at: map_optional_timestamp(&row, "finished_at"),
+        created_at: map_timestamp(&row, "created_at"),
+        updated_at: map_timestamp(&row, "updated_at"),
     })
+}
+
+fn map_timestamp(row: &PgRow, column: &str) -> chrono::DateTime<Utc> {
+    let value: NaiveDateTime = row.get(column);
+    value.and_utc()
+}
+
+fn map_optional_timestamp(row: &PgRow, column: &str) -> Option<chrono::DateTime<Utc>> {
+    row.get::<Option<NaiveDateTime>, _>(column)
+        .map(|value| value.and_utc())
+}
+
+fn map_i64_from_i32(row: &PgRow, column: &str) -> i64 {
+    let value: i32 = row.get(column);
+    value as i64
+}
+
+fn map_f64_from_f32(row: &PgRow, column: &str) -> f64 {
+    let value: f32 = row.get(column);
+    value as f64
 }
 
 #[async_trait]

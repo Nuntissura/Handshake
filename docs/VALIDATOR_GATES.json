@@ -129,6 +129,32 @@
         }
       ],
       "completed": "2026-01-07T16:27:43.248Z"
+    },
+    "WP-1-Dual-Backend-Tests-v2": {
+      "wpId": "WP-1-Dual-Backend-Tests-v2",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-01-07T22:07:33.072Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-07T22:07:33.073Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-07T22:07:48.678Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-07T22:11:06.009Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-07T22:12:11.304Z"
+        }
+      ],
+      "completed": "2026-01-07T22:12:11.304Z"
     }
   },
   "archived_sessions": [
@@ -221,6 +247,44 @@
         }
       ],
       "archived_at": "2026-01-07T16:02:15.295Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-Dual-Backend-Tests-v2",
+      "verdict": "FAIL",
+      "status": "WP_APPENDED",
+      "started": "2026-01-07T19:16:52.209Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-01-07T19:16:52.209Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-07T19:17:07.469Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-07T19:20:16.212Z"
+        }
+      ],
+      "archived_at": "2026-01-07T21:08:44.860Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-Dual-Backend-Tests-v2",
+      "verdict": "FAIL",
+      "status": "REPORT_PRESENTED",
+      "started": "2026-01-07T21:10:36.929Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-01-07T21:10:36.929Z"
+        }
+      ],
+      "archived_at": "2026-01-07T22:07:28.284Z",
       "archive_reason": "manual_reset"
     }
   ]
