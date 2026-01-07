@@ -8,8 +8,8 @@
 - AGENT_ID: CodexCLI-GPT-5.2
 - ROLE: Orchestrator
 - CODER_MODEL: Claude Code
-- CODER_REASONING_STRENGTH: HIGH (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja070120260018
 
