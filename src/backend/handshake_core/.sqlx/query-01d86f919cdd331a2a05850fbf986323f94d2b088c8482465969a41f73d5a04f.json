@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                id as \"id!: String\",\n                document_id as \"document_id!: String\",\n                kind as \"kind!: String\",\n                sequence as \"sequence!: i64\",\n                raw_content as \"raw_content!: String\",\n                display_content as \"display_content!: String\",\n                derived_content as \"derived_content!: String\",\n                created_at as \"created_at!: chrono::DateTime<chrono::Utc>\",\n                updated_at as \"updated_at!: chrono::DateTime<chrono::Utc>\"\n            FROM blocks\n            WHERE document_id = $1\n            ORDER BY sequence ASC\n            ",
+  "query": "\n            SELECT\n                id as \"id!: String\",\n                document_id as \"document_id!: String\",\n                kind as \"kind!: String\",\n                sequence as \"sequence!: i64\",\n                raw_content as \"raw_content!: String\",\n                display_content as \"display_content!: String\",\n                derived_content as \"derived_content!: String\",\n                created_at as \"created_at!: chrono::DateTime<chrono::Utc>\",\n                updated_at as \"updated_at!: chrono::DateTime<chrono::Utc>\",\n                sensitivity as \"sensitivity: String\",\n                exportable as \"exportable: i32\"\n            FROM blocks\n            WHERE document_id = $1\n            ORDER BY sequence ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -47,6 +47,16 @@
         "name": "updated_at!: chrono::DateTime<chrono::Utc>",
         "ordinal": 8,
         "type_info": "Datetime"
+      },
+      {
+        "name": "sensitivity: String",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "exportable: i32",
+        "ordinal": 10,
+        "type_info": "Integer"
       }
     ],
     "parameters": {
@@ -61,8 +71,10 @@
       false,
       false,
       false,
-      false
+      false,
+      true,
+      true
     ]
   },
-  "hash": "f789dae0d76c3127278897e19b2c75b6f1d3c45db155a25aacf06ed99086c691"
+  "hash": "01d86f919cdd331a2a05850fbf986323f94d2b088c8482465969a41f73d5a04f"
 }

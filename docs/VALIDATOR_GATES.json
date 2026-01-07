@@ -103,6 +103,32 @@
         }
       ],
       "completed": "2026-01-04T03:22:48.768Z"
+    },
+    "WP-1-ACE-Validators-v4": {
+      "wpId": "WP-1-ACE-Validators-v4",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-01-07T16:03:06.014Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-07T16:03:06.016Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-07T16:15:52.260Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-07T16:17:03.714Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-07T16:27:43.247Z"
+        }
+      ],
+      "completed": "2026-01-07T16:27:43.248Z"
     }
   },
   "archived_sessions": [
@@ -157,6 +183,44 @@
         }
       ],
       "archived_at": "2026-01-04T03:17:46.622Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-ACE-Validators-v4",
+      "verdict": "FAIL",
+      "status": "WP_APPENDED",
+      "started": "2026-01-07T03:45:11.384Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-01-07T03:45:11.384Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-07T03:53:04.425Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-07T03:54:17.185Z"
+        }
+      ],
+      "archived_at": "2026-01-07T06:10:40.353Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-ACE-Validators-v4",
+      "verdict": "FAIL",
+      "status": "REPORT_PRESENTED",
+      "started": "2026-01-07T15:41:16.689Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-01-07T15:41:16.690Z"
+        }
+      ],
+      "archived_at": "2026-01-07T16:02:15.295Z",
       "archive_reason": "manual_reset"
     }
   ]

@@ -397,6 +397,87 @@ fn validate_llm_inference_payload(payload: &Value) -> Result<(), RecorderError> 
     if map.contains_key("response_hash") {
         require_string_or_null(map, "response_hash")?;
     }
+
+    // [§2.6.6.7.12] Optional ACE validation sub-object
+    // Present for DocSummarize/DocEdit jobs that run through ValidatorPipeline
+    if let Some(ace_val) = map.get("ace_validation") {
+        validate_ace_validation_payload(ace_val)?;
+    }
+
+    Ok(())
+}
+
+/// Validate the ace_validation sub-object per §2.6.6.7.12
+fn validate_ace_validation_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+
+    // Required fields for ACE validation
+    require_string(map, "scope_document_id")?;
+    require_string(map, "scope_inputs_hash")?;
+    require_string(map, "determinism_mode")?;
+
+    // Candidate/selected arrays
+    require_array(map, "candidate_ids")?;
+    require_array(map, "candidate_hashes")?;
+    require_array(map, "selected_ids")?;
+    require_array(map, "selected_hashes")?;
+
+    // Truncation/compaction
+    require_bool(map, "truncation_applied")?;
+    require_array(map, "truncation_flags")?;
+    require_bool(map, "compaction_applied")?;
+
+    // QueryPlan fields
+    require_string(map, "query_plan_id")?;
+    require_string(map, "query_plan_hash")?;
+    require_string(map, "normalized_query_hash")?;
+
+    // RetrievalTrace fields
+    require_string(map, "retrieval_trace_id")?;
+    require_string(map, "retrieval_trace_hash")?;
+
+    // Rerank metadata (optional, can be null)
+    // These are validated as string_or_null since they may be None
+    if map.contains_key("rerank_method") {
+        require_string_or_null(map, "rerank_method")?;
+    }
+    if map.contains_key("rerank_inputs_hash") {
+        require_string_or_null(map, "rerank_inputs_hash")?;
+    }
+    if map.contains_key("rerank_outputs_hash") {
+        require_string_or_null(map, "rerank_outputs_hash")?;
+    }
+
+    // Diversity metadata (optional)
+    if map.contains_key("diversity_method") {
+        require_string_or_null(map, "diversity_method")?;
+    }
+    if map.contains_key("diversity_lambda") {
+        require_number_or_null(map, "diversity_lambda")?;
+    }
+
+    // Cache markers
+    require_array(map, "cache_markers")?;
+
+    // Drift flags and degraded mode
+    require_array(map, "drift_flags")?;
+    require_bool(map, "degraded_mode")?;
+
+    // Phase 2 fields (null for now)
+    // context_snapshot_id, context_snapshot_hash can be null
+    // artifact_handles is an array (empty for Phase 1)
+    require_array(map, "artifact_handles")?;
+
+    // Validation results
+    require_array(map, "guards_passed")?;
+    require_array(map, "guards_failed")?;
+    require_array(map, "violation_codes")?;
+    require_string(map, "outcome")?;
+
+    // Model tier and timing
+    require_string(map, "model_tier")?;
+    require_number(map, "validation_duration_ms")?;
+
     Ok(())
 }
 

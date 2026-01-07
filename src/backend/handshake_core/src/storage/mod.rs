@@ -89,6 +89,11 @@ pub struct NewDocument {
     pub title: String,
 }
 
+/// Document block with content and classification metadata.
+///
+/// Classification fields support ACE runtime validators [HSK-ACE-VAL-100]:
+/// - `sensitivity`: Content sensitivity level ("low"|"medium"|"high"|"unknown")
+/// - `exportable`: Whether content can be sent to cloud models
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Block {
     pub id: String,
@@ -100,6 +105,12 @@ pub struct Block {
     pub derived_content: Value,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    /// Content sensitivity level [HSK-ACE-VAL-100]
+    /// Values: "low", "medium", "high", "unknown" (NULL treated as "unknown")
+    pub sensitivity: Option<String>,
+    /// Whether content can be exported to cloud models [HSK-ACE-VAL-100]
+    /// NULL or true = exportable, false = local-only
+    pub exportable: Option<bool>,
 }
 
 #[derive(Clone, Debug)]
@@ -111,6 +122,10 @@ pub struct NewBlock {
     pub raw_content: String,
     pub display_content: Option<String>,
     pub derived_content: Option<Value>,
+    /// Content sensitivity level [HSK-ACE-VAL-100]
+    pub sensitivity: Option<String>,
+    /// Whether content can be exported to cloud models [HSK-ACE-VAL-100]
+    pub exportable: Option<bool>,
 }
 
 #[derive(Clone, Debug)]

@@ -1,5 +1,12 @@
 use crate::{
-    ace::{validators::SecurityViolationType, AceError},
+    ace::{
+        validators::{
+            build_query_plan_from_blocks, build_retrieval_trace_from_blocks,
+            scan_content_for_security, SecurityViolationType, StorageContentResolver,
+            ValidatorPipeline,
+        },
+        AceError, CandidateRef, SourceRef,
+    },
     bundles::{BundleScope, DebugBundleRequest, DefaultDebugBundleExporter, RedactionMode},
     capabilities::RegistryError,
     flight_recorder::{
@@ -19,6 +26,7 @@ use crate::{
 };
 use chrono::Utc;
 use once_cell::sync::Lazy;
+use sha2::{Digest, Sha256};
 use serde_json::{json, Value};
 use std::{
     collections::HashMap,
@@ -297,7 +305,10 @@ pub async fn handle_security_violation(
 pub fn is_poisonable_violation(error: &AceError) -> bool {
     matches!(
         error,
-        AceError::PromptInjectionDetected { .. } | AceError::CloudLeakageBlocked { .. }
+        AceError::PromptInjectionDetected { .. }
+            | AceError::CloudLeakageBlocked { .. }
+            | AceError::ValidationFailed { .. }
+            | AceError::BudgetExceeded { .. }
     )
 }
 
@@ -638,23 +649,204 @@ async fn run_job(
 
         if let Some(doc_id) = doc_id {
             let blocks = state.storage.get_blocks(doc_id).await?;
+            let model_tier = state.llm_client.profile().model_tier;
+
+            // [§2.6.6.7.14.5] Build QueryPlan and RetrievalTrace
+            // MUST fail on invalid UUIDs - returns Result
+            let plan = build_query_plan_from_blocks(&blocks, "summarize document", "doc_summarization")
+                .map_err(WorkflowError::SecurityViolation)?;
+            let trace = build_retrieval_trace_from_blocks(&blocks, &plan)
+                .map_err(WorkflowError::SecurityViolation)?;
+
+            // WAIVER [CX-573F]: Instant::now() for observability per §2.6.6.7.12
+            let validation_start = std::time::Instant::now();
+
+            // [§2.6.6.7.14.11] Run ValidatorPipeline
+            let pipeline = ValidatorPipeline::with_default_guards();
+            let plan_result = pipeline.validate_plan(&plan).await;
+            let trace_result = pipeline.validate_trace(&trace).await;
+
+            // Collect validation results
+            let mut guards_passed = Vec::new();
+            let mut guards_failed = Vec::new();
+            let mut violation_codes = Vec::new();
+
+            match &plan_result {
+                Ok(()) => guards_passed.push("plan_validation".to_string()),
+                Err(e) => {
+                    guards_failed.push("plan_validation".to_string());
+                    violation_codes.push(format!("{:?}", e));
+                }
+            }
+
+            match &trace_result {
+                Ok(()) => guards_passed.push("trace_validation".to_string()),
+                Err(e) => {
+                    guards_failed.push("trace_validation".to_string());
+                    violation_codes.push(format!("{:?}", e));
+                }
+            }
+
+            // [HSK-ACE-VAL-100] Content-aware security scan
+            let resolver = StorageContentResolver::new(state.storage.clone());
+            let source_refs: Vec<SourceRef> = trace
+                .spans
+                .iter()
+                .map(|s| s.source_ref.clone())
+                .collect();
+
+            match scan_content_for_security(&source_refs, &resolver, model_tier).await {
+                Ok(()) => guards_passed.push("content_security".to_string()),
+                Err(e) => {
+                    guards_failed.push("content_security".to_string());
+                    violation_codes.push(format!("{:?}", e));
+                }
+            }
+
+            let validation_duration_ms = validation_start.elapsed().as_millis() as u64;
+
+            // [HSK-ACE-VAL-101] Poison job on security violation
+            if !violation_codes.is_empty() {
+                state
+                    .storage
+                    .update_ai_job_status(JobStatusUpdate {
+                        job_id: job.job_id,
+                        state: JobState::Poisoned,
+                        error_message: Some(format!("Security violation: {:?}", violation_codes)),
+                        status_reason: "ACE validator triggered".into(),
+                        metrics: None,
+                        workflow_run_id: job.workflow_run_id,
+                        trace_id: Some(job.trace_id),
+                        job_outputs: None,
+                    })
+                    .await?;
+                return Err(WorkflowError::SecurityViolation(AceError::ValidationFailed {
+                    message: violation_codes.join("; "),
+                }));
+            }
+
+            // Build prompt and full text
             let full_text = blocks
-                .into_iter()
-                .map(|b| b.raw_content)
+                .iter()
+                .map(|b| b.raw_content.as_str())
                 .collect::<Vec<_>>()
                 .join("\n");
 
             let prompt = format!("Please summarize the following document:\n\n{}", full_text);
 
+            // Compute hashes for logging
+            let prompt_envelope_hash = {
+                let mut h = Sha256::new();
+                h.update(prompt.as_bytes());
+                hex::encode(h.finalize())
+            };
+
+            let scope_inputs_hash = {
+                let scope_json = serde_json::to_string(&job.job_inputs)
+                    .map_err(|e| WorkflowError::SecurityViolation(AceError::ValidationFailed {
+                        message: format!("job_inputs serialization failed: {}", e),
+                    }))?;
+                let mut h = Sha256::new();
+                h.update(scope_json.as_bytes());
+                hex::encode(h.finalize())
+            };
+
+            let query_plan_hash = {
+                let plan_json = serde_json::to_string(&plan)
+                    .map_err(|e| WorkflowError::SecurityViolation(AceError::ValidationFailed {
+                        message: format!("QueryPlan serialization failed: {}", e),
+                    }))?;
+                let mut h = Sha256::new();
+                h.update(plan_json.as_bytes());
+                hex::encode(h.finalize())
+            };
+
+            let retrieval_trace_hash = {
+                let trace_json = serde_json::to_string(&trace)
+                    .map_err(|e| WorkflowError::SecurityViolation(AceError::ValidationFailed {
+                        message: format!("RetrievalTrace serialization failed: {}", e),
+                    }))?;
+                let mut h = Sha256::new();
+                h.update(trace_json.as_bytes());
+                hex::encode(h.finalize())
+            };
+
+            // Extract candidate/selected IDs and hashes
+            let candidate_ids: Vec<String> = trace
+                .candidates
+                .iter()
+                .map(|c| c.candidate_id.clone())
+                .collect();
+            let candidate_hashes: Vec<String> = trace
+                .candidates
+                .iter()
+                .filter_map(|c| match &c.candidate_ref {
+                    CandidateRef::Source(s) => Some(s.source_hash.clone()),
+                    _ => None,
+                })
+                .collect();
+            let selected_ids: Vec<String> = trace
+                .selected
+                .iter()
+                .filter_map(|s| match &s.candidate_ref {
+                    CandidateRef::Source(src) => Some(src.source_id.to_string()),
+                    _ => None,
+                })
+                .collect();
+            let selected_hashes: Vec<String> = trace
+                .selected
+                .iter()
+                .filter_map(|s| match &s.candidate_ref {
+                    CandidateRef::Source(src) => Some(src.source_hash.clone()),
+                    _ => None,
+                })
+                .collect();
+
+            // Cache markers from route_taken
+            let cache_markers: Vec<Value> = trace
+                .route_taken
+                .iter()
+                .map(|r| {
+                    json!({
+                        "stage": format!("{:?}", r.store),
+                        "cache_hit": r.cache_hit
+                    })
+                })
+                .collect();
+
+            // Drift flags from warnings
+            let drift_flags: Vec<String> = trace
+                .warnings
+                .iter()
+                .filter(|w| w.contains("drift"))
+                .cloned()
+                .collect();
+
             let req = CompletionRequest::new(
                 job.trace_id,
-                prompt,
+                prompt.clone(),
                 state.llm_client.profile().model_id.clone(),
             );
 
             let response = state.llm_client.completion(req).await?;
 
+            // Compute response hash
+            let response_hash = {
+                let mut h = Sha256::new();
+                h.update(response.text.as_bytes());
+                hex::encode(h.finalize())
+            };
+
             let model_id = state.llm_client.profile().model_id.clone();
+            let outcome = if !violation_codes.is_empty() {
+                "poisoned"
+            } else if !guards_failed.is_empty() {
+                "blocked"
+            } else {
+                "passed"
+            };
+
+            // Build extended LlmInference payload with §2.6.6.7.12 ACE validation fields
             record_event_safely(
                 state,
                 FlightRecorderEvent::new(
@@ -662,14 +854,88 @@ async fn run_job(
                     FlightRecorderActor::Agent,
                     trace_id,
                     json!({
-                        "job_kind": job.job_kind.as_str(),
-                        "doc_id": doc_id,
+                        // Existing LlmInference required fields
+                        "type": "llm_inference",
+                        "trace_id": trace_id.to_string(),
                         "model_id": model_id.clone(),
-                        "input_bytes": full_text.len(),
-                        "output_bytes": response.text.len(),
-                        "prompt_tokens": response.usage.prompt_tokens,
-                        "completion_tokens": response.usage.completion_tokens,
-                        "total_tokens": response.usage.total_tokens,
+                        "token_usage": {
+                            "prompt_tokens": response.usage.prompt_tokens,
+                            "completion_tokens": response.usage.completion_tokens,
+                            "total_tokens": response.usage.total_tokens
+                        },
+                        "latency_ms": response.latency_ms,
+                        "prompt_hash": prompt_envelope_hash,
+                        "response_hash": response_hash,
+
+                        // §2.6.6.7.12 ACE validation fields
+                        "ace_validation": {
+                            // scope inputs + hashes
+                            "scope_document_id": doc_id,
+                            "scope_inputs_hash": scope_inputs_hash,
+
+                            // determinism mode
+                            "determinism_mode": format!("{:?}", plan.determinism_mode),
+
+                            // candidate source IDs/hashes
+                            "candidate_ids": candidate_ids,
+                            "candidate_hashes": candidate_hashes,
+                            "candidate_list_artifact_ref": Value::Null,  // Phase 2
+
+                            // selected IDs/hashes
+                            "selected_ids": selected_ids,
+                            "selected_hashes": selected_hashes,
+
+                            // truncation/compaction decisions
+                            "truncation_applied": !trace.truncation_flags.is_empty(),
+                            "truncation_flags": trace.truncation_flags.clone(),
+                            "compaction_applied": false,
+
+                            // QueryPlan ID + hash
+                            "query_plan_id": plan.plan_id.to_string(),
+                            "query_plan_hash": query_plan_hash,
+
+                            // normalized_query_hash
+                            "normalized_query_hash": trace.normalized_query_hash.clone(),
+
+                            // RetrievalTrace ID + hash
+                            "retrieval_trace_id": trace.trace_id.to_string(),
+                            "retrieval_trace_hash": retrieval_trace_hash,
+
+                            // rerank metadata
+                            "rerank_method": if trace.rerank.used { Some(trace.rerank.method.clone()) } else { None::<String> },
+                            "rerank_inputs_hash": if trace.rerank.used { Some(trace.rerank.inputs_hash.clone()) } else { None::<String> },
+                            "rerank_outputs_hash": if trace.rerank.used { Some(trace.rerank.outputs_hash.clone()) } else { None::<String> },
+
+                            // diversity metadata
+                            "diversity_method": if trace.diversity.used { Some(trace.diversity.method.clone()) } else { None::<String> },
+                            "diversity_lambda": trace.diversity.lambda,
+
+                            // cache hit/miss markers
+                            "cache_markers": cache_markers,
+
+                            // drift flags + degraded marker
+                            "drift_flags": drift_flags,
+                            "degraded_mode": !trace.errors.is_empty(),
+
+                            // ContextSnapshot (Phase 2)
+                            "context_snapshot_id": Value::Null,
+                            "context_snapshot_hash": Value::Null,
+
+                            // artifact handles (Phase 2)
+                            "artifact_handles": Vec::<String>::new(),
+
+                            // validation results
+                            "guards_passed": guards_passed,
+                            "guards_failed": guards_failed,
+                            "violation_codes": violation_codes,
+                            "outcome": outcome,
+
+                            // model tier
+                            "model_tier": format!("{:?}", model_tier),
+
+                            // timing
+                            "validation_duration_ms": validation_duration_ms
+                        }
                     }),
                 )
                 .with_job_id(job.job_id.to_string())
@@ -1277,6 +1543,96 @@ mod tests {
         reset_startup_recovery_gate_for_test();
         let job = job_result?;
         assert!(matches!(job.state, JobState::Queued));
+
+        Ok(())
+    }
+
+    /// Integration test: run_job MUST invoke validate_trace and reject budget violations.
+    /// This test creates a trace that EXCEEDS max_total_evidence_tokens budget.
+    /// RetrievalBudgetGuard.validate_trace will detect this and return AceError::BudgetExceeded.
+    #[tokio::test]
+    async fn run_job_rejects_budget_exceeded() -> Result<(), Box<dyn std::error::Error>> {
+        use crate::storage::{NewBlock, NewDocument, NewWorkspace, WriteContext};
+
+        let state = setup_state().await?;
+        let ctx = WriteContext::human(None);
+
+        // Create workspace
+        let workspace = state
+            .storage
+            .create_workspace(&ctx, NewWorkspace { name: "test-ws".into() })
+            .await?;
+
+        // Create document
+        let document = state
+            .storage
+            .create_document(
+                &ctx,
+                NewDocument {
+                    workspace_id: workspace.id.clone(),
+                    title: "Large Doc".into(),
+                },
+            )
+            .await?;
+
+        // Create block with large content: 20000 chars = ~5000 tokens (exceeds 4000 budget)
+        let large_content = "X".repeat(20000);
+        let _block = state
+            .storage
+            .create_block(
+                &ctx,
+                NewBlock {
+                    id: None,
+                    document_id: document.id.clone(),
+                    kind: "paragraph".into(),
+                    sequence: 1,
+                    raw_content: large_content,
+                    display_content: None,
+                    derived_content: None,
+                    sensitivity: None,
+                    exportable: None,
+                },
+            )
+            .await?;
+
+        // Create DocSummarize job targeting the large document
+        let job = state
+            .storage
+            .create_ai_job(crate::storage::NewAiJob {
+                trace_id: Uuid::new_v4(),
+                job_kind: JobKind::DocSummarize,
+                protocol_id: "protocol-default".to_string(),
+                profile_id: "default".to_string(),
+                capability_profile_id: "Analyst".to_string(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "queued".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({ "doc_id": document.id })),
+            })
+            .await?;
+        let job_id = job.job_id;
+
+        // Run workflow - should fail with budget exceeded
+        let result = start_workflow_for_job(&state, job).await;
+        assert!(result.is_err(), "expected budget exceeded error");
+
+        let err_str = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_str.contains("BudgetExceeded") || err_str.contains("max_total_evidence_tokens"),
+            "expected BudgetExceeded error, got: {}",
+            err_str
+        );
+
+        // Verify job is poisoned
+        let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+        assert!(
+            matches!(updated_job.state, JobState::Poisoned),
+            "expected job state Poisoned, got {:?}",
+            updated_job.state
+        );
 
         Ok(())
     }
