@@ -25,7 +25,8 @@ console.log(`\nPost-work validation for ${WP_ID} (deterministic manifest + gates
 const errors = [];
 const warnings = [];
 
-const git = (command) => execSync(command, { encoding: 'utf8' }).trim();
+const gitTrim = (command) => execSync(command, { encoding: 'utf8' }).trim();
+const gitBuffer = (command) => execSync(command);
 
 const readFileIfExists = (p) => {
   try {
@@ -37,15 +38,49 @@ const readFileIfExists = (p) => {
 
 const sha1Hex = (bufOrString) => crypto.createHash('sha1').update(bufOrString).digest('hex');
 
-const computeSha1 = (p) => {
-  const buf = fs.readFileSync(p);
-  return sha1Hex(buf);
+const normalizeLf = (text) => text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+const normalizeCrlf = (text) => normalizeLf(text).replace(/\n/g, '\r\n');
+
+const isLikelyText = (buf) => !buf.includes(0);
+
+const sha1VariantsForText = (text) => {
+  const lf = normalizeLf(text);
+  return {
+    lf: sha1Hex(lf),
+    crlf: sha1Hex(normalizeCrlf(lf)),
+  };
 };
+
+const sha1VariantsForGitBlob = (buf) => {
+  const lf = sha1Hex(buf);
+  if (!isLikelyText(buf)) {
+    return { lf, crlf: lf };
+  }
+
+  const txt = buf.toString('utf8');
+  const { crlf } = sha1VariantsForText(txt);
+  return { lf, crlf };
+};
+
+const sha1VariantsForWorktreeFile = (p) => {
+  const buf = fs.readFileSync(p);
+  const raw = sha1Hex(buf);
+  if (!isLikelyText(buf)) {
+    return { raw, lf: raw, crlf: raw };
+  }
+
+  const txt = buf.toString('utf8');
+  const { lf, crlf } = sha1VariantsForText(txt);
+  return { raw, lf, crlf };
+};
+
+// Use LF-normalized hash for worktree reads to avoid CRLF-based false negatives on Windows.
+const computeSha1 = (p) => sha1VariantsForWorktreeFile(p).lf;
 
 const loadHeadVersion = (targetPath) => {
   try {
     const gitPath = targetPath.replace(/\\/g, '/');
-    const data = git(`git show HEAD:${gitPath}`);
+    const data = gitBuffer(`git show HEAD:${gitPath}`);
     return data;
   } catch {
     return null;
@@ -55,7 +90,7 @@ const loadHeadVersion = (targetPath) => {
 const loadIndexVersion = (targetPath) => {
   try {
     const gitPath = targetPath.replace(/\\/g, '/');
-    return git(`git show :${gitPath}`);
+    return gitBuffer(`git show :${gitPath}`);
   } catch {
     return null;
   }
@@ -65,7 +100,7 @@ const getNumstatDelta = (targetPath, { staged }) => {
   try {
     const gitPath = targetPath.replace(/\\/g, '/');
     const diffArgs = staged ? '--cached' : '';
-    const out = git(`git diff ${diffArgs} --numstat HEAD -- "${gitPath}"`);
+    const out = gitTrim(`git diff ${diffArgs} --numstat HEAD -- "${gitPath}"`);
     if (!out) return null;
     const [addsStr, delsStr] = out.split('\t');
     const adds = parseInt(addsStr, 10);
@@ -81,7 +116,7 @@ const parseDiffHunks = (targetPath, { staged }) => {
   try {
     const gitPath = targetPath.replace(/\\/g, '/');
     const diffArgs = staged ? '--cached' : '';
-    const diff = git(`git diff ${diffArgs} --unified=0 HEAD -- "${gitPath}"`);
+    const diff = gitTrim(`git diff ${diffArgs} --unified=0 HEAD -- "${gitPath}"`);
     const hunks = [];
     const hunkHeader = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
     diff.split('\n').forEach((line) => {
@@ -143,7 +178,7 @@ const getStagedFiles = () => {
   try {
     // --diff-filter=d excludes deleted files (they cannot have manifest entries since
     // the file doesn't exist on disk for SHA1 verification and End>=Start>=1 fails)
-    const out = git('git diff --name-only --cached --diff-filter=d');
+    const out = gitTrim('git diff --name-only --cached --diff-filter=d');
     return out ? out.split('\n').filter(Boolean) : [];
   } catch {
     return [];
@@ -153,7 +188,7 @@ const getStagedFiles = () => {
 const getWorkingFiles = () => {
   try {
     // --diff-filter=d excludes deleted files (same rationale as above)
-    const out = git('git diff --name-only HEAD --diff-filter=d');
+    const out = gitTrim('git diff --name-only HEAD --diff-filter=d');
     return out ? out.split('\n').filter(Boolean) : [];
   } catch {
     return [];
@@ -289,7 +324,25 @@ const workingFiles = getWorkingFiles();
 const useStaged = stagedFiles.length > 0;
 const changedFiles = useStaged ? stagedFiles : workingFiles;
 if (useStaged && workingFiles.length > stagedFiles.length) {
-  warnings.push('Working tree has unstaged changes; post-work validation uses STAGED changes only.');
+  // Avoid warning noise for validator-only governance state.
+  const stagedSet = new Set(stagedFiles.map((p) => p.replace(/\\/g, '/')));
+  const allowlistedUnstaged = new Set([
+    'docs/TASK_BOARD.md',
+    'docs/SIGNATURE_AUDIT.md',
+    'docs/ORCHESTRATOR_GATES.json',
+    'docs/VALIDATOR_GATES.json',
+    packetPath.replace(/\\/g, '/'),
+    `docs/refinements/${WP_ID}.md`,
+  ].filter(Boolean));
+
+  const hasRelevantUnstaged = workingFiles
+    .map((p) => p.replace(/\\/g, '/'))
+    .filter((p) => !stagedSet.has(p))
+    .some((p) => !allowlistedUnstaged.has(p));
+
+  if (hasRelevantUnstaged) {
+    warnings.push('Working tree has unstaged changes; post-work validation uses STAGED changes only.');
+  }
 }
 
 // Check 2: manifest schema (per target file)
@@ -302,6 +355,7 @@ if (manifests) {
     'docs/TASK_BOARD.md',
     'docs/SIGNATURE_AUDIT.md',
     'docs/ORCHESTRATOR_GATES.json',
+    'docs/VALIDATOR_GATES.json',
     packetPath.replace(/\\/g, '/'),
     `docs/refinements/${WP_ID}.md`,
   ].filter(Boolean));
@@ -366,12 +420,16 @@ if (manifests) {
     // pre/post SHA checks (staged-aware)
     const headContent = loadHeadVersion(targetPath);
     if (headContent !== null) {
-      const headSha = sha1Hex(headContent);
-      if (manifest.pre_sha1 && headSha !== manifest.pre_sha1) {
-        if (hasGitWaiver) {
+      const head = sha1VariantsForGitBlob(headContent);
+      if (manifest.pre_sha1 && manifest.pre_sha1 !== head.lf) {
+        if (manifest.pre_sha1 === head.crlf) {
+          warnings.push(`${label}: pre_sha1 matches CRLF-normalized HEAD for ${targetPath}; prefer LF blob SHA1=${head.lf}`);
+        } else if (hasGitWaiver) {
           warnings.push(`${label}: pre_sha1 does not match HEAD for ${targetPath} (${spec.gateErrorCodes.current_file_matches_preimage}) - WAIVER APPLIED`);
+          warnings.push(`${label}: expected pre_sha1 (LF blob) = ${head.lf}`);
         } else {
           errors.push(`${label}: pre_sha1 does not match HEAD for ${targetPath} (${spec.gateErrorCodes.current_file_matches_preimage})`);
+          errors.push(`${label}: expected pre_sha1 (LF blob) = ${head.lf}`);
         }
       }
     } else {
@@ -379,9 +437,18 @@ if (manifests) {
     }
 
     const postContent = useStaged ? loadIndexVersion(targetPath) : null;
-    const postSha = postContent === null ? computeSha1(targetPath) : sha1Hex(postContent);
-    if (manifest.post_sha1 && manifest.post_sha1 !== postSha) {
-      errors.push(`${label}: post_sha1 mismatch for ${targetPath} (${spec.gateErrorCodes.post_sha1_captured})`);
+    const post = postContent === null
+      ? sha1VariantsForWorktreeFile(targetPath)
+      : sha1VariantsForGitBlob(postContent);
+    const expectedPost = postContent === null ? post.lf : post.lf;
+    if (manifest.post_sha1 && manifest.post_sha1 !== expectedPost) {
+      const acceptable = new Set([post.crlf, post.raw].filter(Boolean));
+      if (acceptable.has(manifest.post_sha1)) {
+        warnings.push(`${label}: post_sha1 matches non-canonical EOL variant for ${targetPath}; prefer LF blob SHA1=${expectedPost}`);
+      } else {
+        errors.push(`${label}: post_sha1 mismatch for ${targetPath} (${spec.gateErrorCodes.post_sha1_captured})`);
+        errors.push(`${label}: expected post_sha1 (LF) = ${expectedPost}`);
+      }
     }
 
     const hunks = parseDiffHunks(targetPath, { staged: useStaged });

@@ -108,6 +108,10 @@ post-work wp-id:
 	@just gate-check {{wp-id}}
 	@node scripts/validation/post-work-check.mjs {{wp-id}}
 
+# Helper: compute deterministic COR-701 Pre/Post SHA1 for a file.
+cor701-sha file:
+	@node scripts/validation/cor701-sha.mjs {{file}}
+
 # Automated workflow validation for a work packet
 validate-workflow wp-id:
 	@echo "Running automated workflow validation for {{wp-id}}..."
