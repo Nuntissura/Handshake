@@ -241,7 +241,7 @@ git revert <commit-sha>
 - **End**: 955
 - **Line Delta**: 401
 - **Pre-SHA1**: `7c8c35d9583d445cf7f8192e8a7e8ee10038841f`
-- **Post-SHA1**: `1a680968215c7538001338584c0a91fadf826719`
+- **Post-SHA1**: `b931a52d6579569c5e1d6e461158ccd62d0d4973`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -260,7 +260,7 @@ git revert <commit-sha>
 - **End**: 1640
 - **Line Delta**: 356
 - **Pre-SHA1**: `2d23d66ac96ed11150e6d268043597228068ac25`
-- **Post-SHA1**: `646068da94db56242b0dbb7448447f0cf93ef835`
+- **Post-SHA1**: `989d3cf9e775bb8a6b9a3e3433935adfc58fed42`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -279,7 +279,7 @@ git revert <commit-sha>
 - **End**: 640
 - **Line Delta**: 61
 - **Pre-SHA1**: `fcc3c315c1902477121e01aeb4f1752d3babd145`
-- **Post-SHA1**: `f42e8826b975c2d2775b247fd5c357b311f71311`
+- **Post-SHA1**: `3feabf834e3c80796cb9089d60f07295df21e64b`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -298,7 +298,7 @@ git revert <commit-sha>
 - **End**: 738
 - **Line Delta**: 81
 - **Pre-SHA1**: `38b36f722d417af9a07d2ed511335ad27be6bc8c`
-- **Post-SHA1**: `064dc53fb2d43793b7b4a25b808156355eb6faa7`
+- **Post-SHA1**: `5e88e564a0b116a512a2357851cdff9c6a6866bc`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -317,7 +317,7 @@ git revert <commit-sha>
 - **End**: 875
 - **Line Delta**: 15
 - **Pre-SHA1**: `75f84e7ba47b8b21b94f129ab9b23c770c874b9d`
-- **Post-SHA1**: `c4117528af695e40c348c6a080f3b1b8bb0aa543`
+- **Post-SHA1**: `9cc120ac584797a6712231c3c09ea451e468d79e`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -336,7 +336,7 @@ git revert <commit-sha>
 - **End**: 1792
 - **Line Delta**: 16
 - **Pre-SHA1**: `2037e0a87d891369a5ed1df2ac0463ebb53bb373`
-- **Post-SHA1**: `182c440a157e71200e7d310d1699d7f9d45dcece`
+- **Post-SHA1**: `4c3a91a27e8d38bf8e565d076d187f6ce2a637bc`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -355,7 +355,7 @@ git revert <commit-sha>
 - **End**: 1448
 - **Line Delta**: 15
 - **Pre-SHA1**: `5947e846938e31f16950736e55f728942f2fc8fc`
-- **Post-SHA1**: `3f0d2d78c9705f4502cfd44ebf5cd3146f228f66`
+- **Post-SHA1**: `e78d7e9d5a09493a2f26a779aacdd355af154320`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -374,7 +374,7 @@ git revert <commit-sha>
 - **End**: 386
 - **Line Delta**: 6
 - **Pre-SHA1**: `53ff235d9132821086e3c8137f8b69377cd6558a`
-- **Post-SHA1**: `d88a8110c6f8a64fa001f0f8f22517d12f30294d`
+- **Post-SHA1**: `b4df1dd96e32ad4fd14345b94483ad098ca3be55`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -393,7 +393,7 @@ git revert <commit-sha>
 - **End**: 306
 - **Line Delta**: 2
 - **Pre-SHA1**: `be0715d82517430d86cf3185cd1d544c902bc2b3`
-- **Post-SHA1**: `173d79cdb9fcd48d593d85c67e57dae996a4366a`
+- **Post-SHA1**: `d56cba5d6def1d97f308ecc5e3212e69d536531d`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -412,7 +412,7 @@ git revert <commit-sha>
 - **End**: 275
 - **Line Delta**: 22
 - **Pre-SHA1**: `ffc1d15c870e63fdb7e84e3354454a190388cac1`
-- **Post-SHA1**: `4f220a17e59e3e0218c521663290a626a636d7da`
+- **Post-SHA1**: `6b6f1709b4196bf43d47b8d74fa32815de1aa5ff`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -431,7 +431,7 @@ git revert <commit-sha>
 - **End**: 8
 - **Line Delta**: 7
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `895f0c9372086c30d561d289b1c6f44fd25b38b2`
+- **Post-SHA1**: `093b06720f376ed7a34b5e4c30191be9935d2db1`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -450,7 +450,7 @@ git revert <commit-sha>
 - **End**: 81
 - **Line Delta**: 80
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `69be4083b9a956ca6c9dad839fa2a0b0a4077ef2`
+- **Post-SHA1**: `375e29728f35fc4a5bbe62a371c25bc1de24de04`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -469,7 +469,7 @@ git revert <commit-sha>
 - **End**: 129
 - **Line Delta**: 0
 - **Pre-SHA1**: `7cbbf2f9217e17711887b896ea9e4c1f07eaf0b8`
-- **Post-SHA1**: `c18a0645f301eff03128580bfac408afaafcb8df`
+- **Post-SHA1**: `1d99bab6b48bc670c8ba587be53f17f5c8dc328f`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -488,7 +488,7 @@ git revert <commit-sha>
 - **End**: 81
 - **Line Delta**: 80
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `6fb69a4a7945d01604b994d40600faf22461584f`
+- **Post-SHA1**: `177c3fb4d5625b4e6f9f99ec9c1067ac4e9a1c6c`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -507,7 +507,7 @@ git revert <commit-sha>
 - **End**: 129
 - **Line Delta**: 0
 - **Pre-SHA1**: `643421ac577f11b967788b6ee0c970796e3f23fd`
-- **Post-SHA1**: `63b2a9052ddfb692fa5bddbc33652e36ca77e74b`
+- **Post-SHA1**: `4c8ef8f6cc4b679a958c72c802c36bc1d887700e`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -526,7 +526,7 @@ git revert <commit-sha>
 - **End**: 129
 - **Line Delta**: 0
 - **Pre-SHA1**: `f7e572538d19b8c294f18f118bfc61a3ab8b6d10`
-- **Post-SHA1**: `d3681eb1f48a3aace6115b7e4bdd39c25e511b91`
+- **Post-SHA1**: `ffb786ebbcca5c09b984f7fa478b857e5070a0c0`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -545,7 +545,7 @@ git revert <commit-sha>
 - **End**: 111
 - **Line Delta**: 110
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `14d47ba9a2773f143362c6bd72c84e7060f78747`
+- **Post-SHA1**: `ee969d518913ae368a1b9d963777ba958640e172`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -564,7 +564,7 @@ git revert <commit-sha>
 - **End**: 111
 - **Line Delta**: 110
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `62f1163017381c8fe07a85e663da81cc67b59f59`
+- **Post-SHA1**: `c23741e6207541051f57a3ac974451d3b598c009`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -583,7 +583,7 @@ git revert <commit-sha>
 - **End**: 161
 - **Line Delta**: 3
 - **Pre-SHA1**: `aea767e267ccfcaf9242408f11cba8f632906182`
-- **Post-SHA1**: `2e5bfd33509ecd5cd9fd71ccecb6e34f6276159c`
+- **Post-SHA1**: `47d8127e777e4a3f51c8432a038dc2aa445e7df2`
 - **Change Justification**: Minimal fix to handle deleted files in coverage check. SQLx `cargo sqlx prepare` deletes obsolete query cache files, but the original script required manifest coverage for all changed files including deletions. Deleted files cannot have valid manifest entries (file doesn't exist on disk for SHA1 verification, End>=Start>=1 constraint fails). The `--diff-filter=d` flag excludes deleted files from coverage check, which is the correct behavior.
 - **Gates Passed**:
   - [x] anchors_present
@@ -871,3 +871,54 @@ REASON FOR FAIL:
 
 Status:
 - WP remains In Progress; remediation required before revalidation.
+
+### 2026-01-07 VALIDATION REPORT - WP-1-ACE-Validators-v4 (Final Pass)
+Verdict: PASS (with waivers noted)
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-ACE-Validators-v4.md (status: In Progress)
+- Spec: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.101.md (Section 2.6.6.7.11-2.6.6.7.12)
+
+Files Checked:
+- Handshake_Master_Spec_v02.101.md
+- docs/SPEC_CURRENT.md
+- docs/TASK_BOARD.md
+- docs/task_packets/WP-1-ACE-Validators-v4.md
+- src/backend/handshake_core/src/workflows.rs
+- src/backend/handshake_core/src/ace/validators/mod.rs
+- src/backend/handshake_core/src/ace/validators/injection.rs
+- src/backend/handshake_core/src/ace/validators/leakage.rs
+- src/backend/handshake_core/src/flight_recorder/mod.rs
+- src/backend/handshake_core/src/llm/ollama.rs
+
+Findings:
+- PASS: Runtime ValidatorPipeline invocation and content scan using StorageContentResolver (src/backend/handshake_core/src/workflows.rs:654-706; src/backend/handshake_core/src/ace/validators/mod.rs:179-279).
+- PASS: Content-awareness invariant enforced (invalid UUID -> ValidationFailed; SHA256 source_hash) (src/backend/handshake_core/src/ace/validators/mod.rs:720-789).
+- PASS: NFC-normalized injection scanning (src/backend/handshake_core/src/ace/validators/injection.rs:91-108).
+- PASS: Atomic poisoning behavior (src/backend/handshake_core/src/workflows.rs:183-280).
+- PASS: Section 2.6.6.7.12 logging payload emitted and validated (src/backend/handshake_core/src/workflows.rs:849-938; src/backend/handshake_core/src/flight_recorder/mod.rs:351-438).
+- PASS: ModelTier env wiring present (src/backend/handshake_core/src/llm/ollama.rs:98-109).
+- PASS: Removal-guard test present (src/backend/handshake_core/src/workflows.rs:1550-1605).
+- WAIVED: validator-error-codes flags Instant::now in workflows.rs:661-662; covered by WAIVER-ACE-VAL-V4-002 (user approved).
+
+Tests:
+- just cargo-clean: PASS
+- just pre-work WP-1-ACE-Validators-v4: PASS
+- cargo check --manifest-path src/backend/handshake_core/Cargo.toml: PASS (required escalated access for external Cargo target dir)
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml: PASS
+- just validator-scan: PASS
+- just validator-dal-audit: PASS
+- just validator-spec-regression: PASS
+- just validator-error-codes: FAIL (waived)
+- just validator-coverage-gaps: PASS
+- just validator-traceability: PASS
+- just validator-git-hygiene: PASS
+- just validator-phase-gate Phase-1: FAIL (global phase progression blocked; not WP-specific)
+- just post-work WP-1-ACE-Validators-v4: PASS with warnings (pre_sha1 mismatches waived; docs/VALIDATOR_GATES.json out-of-scope waiver)
+
+Risks & Suggested Actions:
+- Phase-1 progression remains blocked by 37 Ready-for-Dev items (global).
+- Post-work pre_sha1 warnings indicate post-work should be run before commit for cleaner manifests.
+
+REASON FOR PASS:
+- All 2.6.6.7.11/2.6.6.7.12 requirements are implemented and tested with required runtime integration, content-awareness, poisoning behavior, logging, and guard invocation. Remaining failures are waived or global (phase gate), not WP-specific.
