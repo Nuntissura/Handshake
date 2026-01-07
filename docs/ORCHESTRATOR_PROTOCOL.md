@@ -73,6 +73,27 @@
   - Coders MUST NOT share a single working tree when working concurrently.
 - Coders may commit freely on their WP branch. The Validator performs the final merge/commit to `main` after PASS (per Codex [CX-505]).
 
+## Worktree + Branch Gate [CX-WT-001] (BLOCKING)
+
+Orchestrator work MUST be performed from the correct worktree directory and branch.
+
+Source of truth:
+- `docs/ROLE_WORKTREES.md` (default role worktrees/branches)
+- The assigned WP worktree/branch for the WP being orchestrated
+
+Required verification (run at session start and whenever context is unclear):
+- `pwd`
+- `git rev-parse --show-toplevel`
+- `git rev-parse --abbrev-ref HEAD`
+- `git worktree list`
+
+If the required worktree/branch does not exist:
+- STOP and request explicit user authorization to create it (Codex [CX-108]).
+- Only after authorization, create it using the commands in `docs/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
+
+Coder worktree rule:
+- CODER agents must work only in WP-assigned worktrees/branches recorded via `just record-prepare` (writes `docs/ORCHESTRATOR_GATES.json`).
+
 ## Stop-Work Gate: Worktree + Assignment Before Packet Creation (HARD RULE)
 - After a refinement is signed (`just record-signature WP-{ID} ...`), the Orchestrator MUST:
   1) Create the WP branch/worktree (`just worktree-add WP-{ID}`), and

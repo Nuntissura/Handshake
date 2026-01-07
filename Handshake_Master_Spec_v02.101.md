@@ -5344,6 +5344,7 @@ The canonical storage/API strings for JobKind are:
 - canvas_cluster
 - asr_transcribe
 - workflow_run
+- spec_router
 - debug_bundle_export
 - terminal_exec
 - doc_ingest
@@ -5492,6 +5493,8 @@ Each profile:
 | Canvas | (Future) | Visual canvases | `create_nodes`, `cluster_nodes`, `reposition_nodes` |
 | ASR | (ASR Profile section) | Audio/Media | `transcribe_segment`, `align_transcript` |
 | Distillation | Section 9 (Continuous Local Skill Distillation) | Skill Bank entries, checkpoints, eval runs | `select_examples`, `run_teacher`, `run_student`, `score`, `create_checkpoint`, `evaluate_and_promote` |
+| Spec Router | 2.6.8 | Specs, refinements, work packets | `spec_route`, `spec_refine`, `spec_bind_packets` |
+| Capability Registry Build | 11.1.6 | Capability registry | `extract_capabilities`, `validate_registry`, `publish_registry` |
 
 **Distillation profile integration**
 - Distillation jobs extend the global AI Job Model with fields for model/tokenizer metadata, context refs, reward features, lineage (parent_checkpoint_id), and data_signature/job_ids_json.
@@ -5540,6 +5543,44 @@ pub enum LayerScope {
 
 **Invariant:** All `doc_rewrite` and `doc_summarize` jobs MUST include a valid `DocsAiJobProfile` in their `job_inputs` JSON payload.
 
+##### 2.6.6.6.5 Spec Router Job Profile (Normative)
+
+The `SpecRouterJobProfile` governs prompt-to-spec routing, refinement orchestration, and creation of Task Board and Work Packet artifacts.
+
+```rust
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SpecRouterJobProfile {
+    /// Prompt artifact to route
+    pub prompt_ref: ArtifactHandle,
+    /// SpecIntent identifier
+    pub spec_intent_id: String,
+    /// Optional operator override for governance mode
+    pub mode_override: Option<GovernanceMode>,
+    /// Workspace and project context
+    pub workspace_id: Uuid,
+    pub project_id: Option<Uuid>,
+    /// Workflow context for safety behavior (e.g., git workflows)
+    pub workflow_context: WorkflowContext,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkflowContext {
+    pub version_control: VersionControl,
+    pub repo_root: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum VersionControl {
+    None,
+    Git,
+}
+```
+
+**Invariants:**
+- Spec Router jobs MUST emit SpecIntent and SpecRouterDecision artifacts and link them to the job.
+- If `workflow_context.version_control == Git`, the router MUST require a safety commit gate before execution; otherwise it MUST NOT create a safety commit.
+- If the router selects GOV_STRICT or GOV_STANDARD, it MUST create or update a Task Board item and Work Packet and append a SpecSessionLog entry (2.6.8.8).
+
 ### 2.6.7 Semantic Catalog Registry (Normative)
 
 The `SemanticCatalog` resolves abstract tool requests (e.g., "summarize this") to concrete engine operations based on the user's capability profile.
@@ -5566,6 +5607,350 @@ pub struct ToolEntry {
 ```
 
 **Invariant:** The Catalog MUST be loaded from `assets/semantic_catalog.json` at startup. Catalog resolution MUST filter tools against the user's `CapabilityRegistry` grants.
+
+---
+
+### 2.6.8 Prompt-to-Spec Governance Pipeline (Normative)
+
+**Why**
+Handshake must turn a single prompt into a durable spec that can withstand professional scrutiny, technical review, safety, and red-team analysis, while still allowing low-friction tasks.
+
+**What**
+Defines governance modes, routing, artifacts, and state machines that convert prompts into spec templates, refinements, and work packets with explicit capability binding.
+
+**Scope**
+Applies to any prompt that requests a spec or multi-step work. Every prompt emits a minimal `SpecIntent` record, even in GOV_LIGHT.
+
+#### 2.6.8.1 Capability Inventory and Registry (Normative)
+
+The router and gate system require a canonical inventory of surfaces, runtimes, and mechanical engines. This section enumerates the capability groups already specified elsewhere; details live in the referenced sections.
+
+```rust
+pub struct CapabilityRegistry {
+    pub entries: Vec<CapabilityRegistryEntry>,
+}
+
+pub struct CapabilityRegistryEntry {
+    pub capability_id: String,
+    pub kind: CapabilityKind,
+    pub display_name: String,
+    pub section_ref: String,
+    pub required_capabilities: Vec<String>,
+    pub default_governance_mode: GovernanceMode,
+    pub risk_class: RiskClass,
+    pub tags: Vec<String>,
+}
+
+pub enum CapabilityKind {
+    Surface,
+    Engine,
+    Runtime,
+    Integration,
+    Model,
+    Workflow,
+}
+
+pub enum RiskClass {
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+```
+
+Canonical capability groups (sourced):
+- Surfaces and clones: Docs (Notion-like / Word-like) (7.1.1, 2.5.10), Canvas (Milanote-like) (7.1.2, 2.5.6), Sheets (Excel-like) (2.2.1.13, 2.5.10), Terminal (10.1, 11.7.1), Monaco editor (10.2, 11.7.2), Calendar (10.4, 11.9), Mail surface and workflow DSL (10.3.9, 11.7.3), Kanban/Calendar/Timeline views (7.1.4), Console surfaces and inspectors (10.5.5), Project Brain (RAG interface) (2.5.8), Thinking Pipeline (Docs <-> Canvas <-> Workflows) (2.5.9), Canvas typography and font packs (10.6).
+- Tool inventories: Photo Studio tool inventory and integrated tool ecosystem (10.10.4, 10.10.5).
+- Governance and runtime: Workflow engine and AI Job Model (2.1.4, 2.6), ACE runtime (2.6.6.7), Flight Recorder (2.1.5, 2.8.1.4, 11.5), Capability and Consent Model (11.1), Governance Runtime (2.8), Knowledge Graph + Shadow Workspace + RAG (2.1.2, 2.3.8, 2.5.8), MCP integration (11.3), Connectors (2.1.7).
+- Model runtimes and growth: Local inference servers and runtime strategy (4.2 to 4.3), local model runtimes (4.3.6), cloud model fallback under the same rules (2.5.10), ComfyUI/SDXL image generation (4.3.8, 10.10.5.2), Taste Engine and LoRA adapters (2.1.9, 2.3.11.3), Distillation pipeline (Section 9).
+- Document ingestion and speech: Docling subsystem (6.1), ASR subsystem (6.2).
+- Creative runtime: Atelier and Lens role runtime (6.3.3.5, 6.3.3.5.7).
+- Mechanical Tool Bus (6.3, 11.8) engine set (22 engines, canonical IDs):
+  - Engineering and manufacturing: `engine.spatial`, `engine.machinist`, `engine.physics`, `engine.simulation`, `engine.hardware`.
+  - Creative studio: `engine.director`, `engine.composer`, `engine.artist`, `engine.publisher`.
+  - Food and safety: `engine.sous_chef`, `engine.food_safety`.
+  - Logistics and archive: `engine.logistics`, `engine.archivist`, `engine.librarian`.
+  - Data and analytics: `engine.analyst`, `engine.wrangler`, `engine.dba`.
+  - Governance and system: `engine.sovereign`, `engine.guide`, `engine.context`, `engine.version`, `engine.sandbox`.
+
+Registry generation (normative):
+- The CapabilityRegistry is generated from the Master Spec and the mechanical engine registry (`mechanical_engines.json`) into `assets/capability_registry.json`, using an AI-assisted extraction job (local or cloud model allowed) with schema validation and human review.
+- The Spec Router derives a `CapabilitySnapshot` per prompt by merging registry entries with workspace settings and the current Task Board/Work Packet state.
+- The registry version used for routing MUST be stored in SpecIntent or SpecRouterDecision.
+
+**Invariant:** the registry is append-only per version and is indexed for the Spec Router and RAG. Any new capability or tool must add a registry entry with a `section_ref`.
+
+#### 2.6.8.2 Governance Modes (Normative)
+
+```rust
+pub enum GovernanceMode {
+    GovStrict,
+    GovStandard,
+    GovLight,
+}
+```
+
+- GOV_STRICT: Full artifacts (Spec, Refinement, Work Packet, Task Board item), signature required, all gates required.
+- GOV_STANDARD: Spec + light refinement + Work Packet required, reduced gates, validator review required.
+- GOV_LIGHT: SpecIntent + output artifact only, optional Work Packet and Task Board, minimal gates.
+
+**Invariant:** capability and consent checks (11.1), ACE runtime validators (2.6.6.7.11), and Flight Recorder logging are always on regardless of mode.
+**Invariant:** Atelier Lens (role claim + glance) is always active for ingestion and spec routing; mode selection MUST NOT disable it except by explicit LAW override.
+
+#### 2.6.8.3 Mode Selection Policy (Normative)
+
+Inputs:
+
+```
+ModeSelectionInput
+- prompt_type
+- scope_estimate (hours, days, weeks)
+- cross_surface_count
+- external_integration (bool)
+- data_sensitivity (none|low|medium|high)
+- irreversible_ops (bool)
+- security_or_policy_change (bool)
+- new_engine_or_connector (bool)
+- cloud_model_usage (bool)
+- version_control (none|git)
+- operator_mode_override (optional)
+```
+
+Deterministic selection:
+
+```
+if operator_mode_override set -> use override
+if security_or_policy_change or new_engine_or_connector -> GOV_STRICT
+if data_sensitivity == high or irreversible_ops -> GOV_STRICT
+score = 0
+score += (scope_estimate >= 3 days) ? 3 : (scope_estimate >= 1 day) ? 2 : 0
+score += (cross_surface_count >= 3) ? 2 : (cross_surface_count == 2) ? 1 : 0
+score += external_integration ? 2 : 0
+score += cloud_model_usage ? 1 : 0
+score += (prompt_type in {spec.project, spec.integration, spec.workflow}) ? 2 : 0
+if score >= 5 -> GOV_STRICT
+else if score >= 3 -> GOV_STANDARD
+else -> GOV_LIGHT
+```
+
+Thresholds are policy parameters and MAY be tuned during implementation; the GovernanceModePolicy (11.1.4) is the source of truth.
+
+Safety commit requirement:
+- If version_control == git and governance_mode in {GOV_STRICT, GOV_STANDARD}, set safety_commit_required = true.
+- Otherwise safety_commit_required = false.
+
+#### 2.6.8.4 Gate Matrix (Normative)
+
+Gate codes:
+
+- G-CODEX: codex/protocol compliance.
+- G-REFINE: refinement present and signed (USER_SIGNATURE).
+- G-SAFETY-COMMIT: safety commit gate (git workflows only).
+- G-TASKBOARD: Task Board entry and status.
+- G-WORKPACKET: Work Packet present, claimed, and scoped.
+- G-WORKTREE: worktree concurrency check.
+- G-PRE: pre-work validation (inputs, scope, dependencies).
+- G-POST: post-work validation (artifacts, summaries, status updates).
+- G-ORCH: orchestrator gates.
+- G-VALIDATOR: validator gates.
+- G-QUALITY: quality gate.
+
+Matrix:
+
+| Gate | GOV_STRICT | GOV_STANDARD | GOV_LIGHT | Notes |
+|------|-----------|--------------|----------|------|
+| G-CODEX | Required | Required | Advisory | Maps to codex-check |
+| G-REFINE | Required | Required | Optional | Requires USER_SIGNATURE when present |
+| G-SAFETY-COMMIT | Required | Advisory | Skip | Only when version_control == Git |
+| G-TASKBOARD | Required | Required | Optional | Task board entry for multi-step work |
+| G-WORKPACKET | Required | Required | Optional | Work Packet for multi-step work |
+| G-WORKTREE | Required | Advisory | Skip | Only relevant for concurrent work packets |
+| G-PRE | Required | Required | Advisory | Pre-work-check |
+| G-POST | Required | Required | Advisory | Post-work-check |
+| G-ORCH | Required | Required | Optional | Orchestrator gates |
+| G-VALIDATOR | Required | Required | Optional | Validator gates |
+| G-QUALITY | Required | Required | Optional | Quality gate |
+
+**Invariant:** all gate outcomes must emit Flight Recorder events with gate_id, mode, and decision.
+
+#### 2.6.8.5 Prompt-to-Spec Router (Normative)
+
+Spec routing runs as an AI Job profile (`spec_router`) defined in 2.6.6.6.5 and is bound to the policy schema in 11.1.5.
+If workflow_context.version_control == Git, Spec Router MUST require Version/Repo capabilities; otherwise those capabilities MUST remain disabled.
+
+Spec intent and routing schemas:
+
+```rust
+pub struct SpecIntent {
+    pub spec_id: String,
+    pub prompt_ref: ArtifactHandle,
+    pub prompt_type: PromptType,
+    pub detected_capabilities: Vec<String>,
+    pub risk_flags: Vec<String>,
+    pub requested_outputs: Vec<String>,
+    pub capability_registry_version: String,
+    pub created_at: DateTime<Utc>,
+}
+
+pub struct SpecRouterDecision {
+    pub spec_id: String,
+    pub governance_mode: GovernanceMode,
+    pub spec_template_id: String,
+    pub required_roles: Vec<String>,
+    pub required_gates: Vec<String>,
+    pub work_packet_required: bool,
+    pub task_board_required: bool,
+    pub workflow_context: WorkflowContext,
+    pub safety_commit_required: bool,
+    pub capability_registry_version: String,
+}
+
+pub enum PromptType {
+    SpecProject,
+    SpecFeature,
+    SpecIntegration,
+    SpecWorkflow,
+    SpecResearch,
+    SpecCreativeImage,
+    SpecOperationalUpdate,
+    SpecDiary,
+    SpecQuickTask,
+}
+```
+
+Template mapping (prototype):
+
+| Prompt type | Spec template | Default mode | Work packet |
+|------------|----------------|--------------|------------|
+| SpecProject | ProjectSpec | GOV_STRICT | Required |
+| SpecFeature | FeatureSpec | GOV_STANDARD | Required |
+| SpecIntegration | IntegrationSpec | GOV_STRICT | Required |
+| SpecWorkflow | WorkflowSpec | GOV_STANDARD | Required |
+| SpecResearch | ResearchSpec | GOV_STANDARD | Optional |
+| SpecCreativeImage | CreativeSceneSpec | GOV_LIGHT | Optional |
+| SpecOperationalUpdate | OpsUpdateSpec | GOV_LIGHT | Optional |
+| SpecDiary | DiaryEntrySpec | GOV_LIGHT | Optional |
+| SpecQuickTask | QuickSpec | GOV_LIGHT | Optional |
+
+Note: SpecCreativeImage MUST route through Atelier Lens (always-on) and MAY emit ConceptRecipe or RoleDeliverableBundle references alongside the spec artifact.
+
+Router flow:
+
+```mermaid
+flowchart TD
+  A[Prompt] --> B[Classify Prompt]
+  B --> C[Lookup Capabilities]
+  C --> D[Mode Selection Policy]
+  D --> E[Select Spec Template]
+  E --> F[Draft Spec Artifact]
+  F --> G{Governance Mode}
+  G -->|GOV_LIGHT| H[Emit Spec + Optional Work Packet]
+  G -->|GOV_STANDARD| I[Refinement Loop + Validator Review]
+  G -->|GOV_STRICT| J[Refinement Loop + USER_SIGNATURE + Safety Commit (git only)]
+  I --> K[Create Work Packet + Task Board Item (Spec Session Log)]
+  J --> K
+  K --> L[Execute Workflow + Gates]
+  L --> M[Validation + Quality Gate]
+  M --> N[Update Spec Status + Archive]
+```
+
+#### 2.6.8.6 Spec Lifecycle State Machine (Normative)
+
+```mermaid
+stateDiagram-v2
+  [*] --> Draft
+  Draft --> Refining : refine
+  Refining --> Signed : user_signature
+  Signed --> Approved : validator_pass
+  Approved --> InExecution : work_packet_start
+  InExecution --> Validated : quality_gate_pass
+  Validated --> Archived : finalize
+  Draft --> Cancelled
+  Refining --> Cancelled
+  Signed --> Cancelled
+  Approved --> Cancelled
+  InExecution --> Paused
+  Paused --> InExecution
+  Validated --> Superseded
+```
+
+#### 2.6.8.7 Spec Artifact and Work Packet Binding (Normative)
+
+```rust
+pub struct SpecArtifact {
+    pub spec_id: String,
+    pub spec_template_id: String,
+    pub version: String,
+    pub artifact_ref: ArtifactHandle,
+    pub status: SpecStatus,
+    pub refinement_refs: Vec<ArtifactHandle>,
+    pub approvals: Vec<ApprovalRef>,
+}
+
+pub enum SpecStatus {
+    Draft,
+    Refining,
+    Signed,
+    Approved,
+    InExecution,
+    Validated,
+    Archived,
+    Cancelled,
+    Superseded,
+}
+
+pub struct WorkPacketBinding {
+    pub spec_id: String,
+    pub task_board_id: String,
+    pub work_packet_id: String,
+    pub refinement_ref: ArtifactHandle,
+    pub signature_ref: Option<ArtifactHandle>,
+    pub mode: GovernanceMode,
+    pub workflow_context: WorkflowContext,
+    pub capability_registry_version: String,
+}
+```
+
+Rules:
+- WorkPacketBinding is required for GOV_STRICT and GOV_STANDARD when scope > 1 day or cross_surface_count >= 2.
+- GOV_LIGHT may omit WorkPacketBinding but must still emit SpecIntent and SpecArtifact.
+
+#### 2.6.8.8 Spec Session Log (Task Board + Work Packets) (Normative)
+
+Task Board items and Work Packets together form a Spec Session Log that runs in parallel to the Flight Recorder. Flight Recorder remains the authoritative system log; the Spec Session Log captures human-facing planning state and is used for context offload.
+
+```rust
+pub struct SpecSessionLogEntry {
+    pub entry_id: String,
+    pub spec_id: String,
+    pub task_board_id: String,
+    pub work_packet_id: Option<String>,
+    pub event_type: String,
+    pub governance_mode: GovernanceMode,
+    pub actor: String,
+    pub timestamp: DateTime<Utc>,
+    pub summary: String,
+    pub linked_artifacts: Vec<ArtifactHandle>,
+}
+```
+
+Rules:
+- Every Task Board or Work Packet change MUST emit a SpecSessionLogEntry stored in the workspace and indexed for RAG.
+- The Spec Session Log MUST NOT replace Flight Recorder; it is a parallel, human-facing ledger.
+- Spec Session Log entries MUST reference the same spec_id and work_packet_id used in SpecIntent and WorkPacketBinding.
+- SpecSessionLogEntry.entry_id MUST be unique within the workspace.
+- SpecSessionLogEntry.governance_mode MUST match the active mode at the time of the event; mode transitions require a dedicated entry.
+
+#### 2.6.8.9 Integration Hooks (Normative)
+
+- Flight Recorder logs every router decision, refinement pass, signature, gate outcome, and spec status change.
+- Calendar integration creates review windows for GOV_STRICT specs and binds ActivitySpans to spec_id.
+- Monaco provides diff review for spec refinements and implementation deltas.
+- Canvas hosts dependency maps and stakeholder views for long-running specs.
+- Tables (Excel-like) hold gate matrices, risk registers, and test matrices per spec_id.
+- ACE runtime consumes SpecIntent and SpecArtifact as ContextSnapshot inputs for subsequent jobs.
+- Operator Consoles include a dedicated Spec Session Log view; entries deep-link to Flight Recorder traces for the same spec_id.
+- Atelier Lens runs on all ingested artifacts and spec-router inputs; claim/glance results are visible in Lens surfaces regardless of governance mode.
 
 ---
 
@@ -19686,6 +20071,7 @@ This section covers how to actually build Handshake efficiently.
 **v02.49 note:** Additive roadmap entries are tagged `[ADD v02.49]` (no rewrites of existing bullets; Phase 0 remains closed).
 **v02.52 note:** Additive roadmap entries are tagged `[ADD v02.52]` (no rewrites of existing bullets; Phase 0 remains closed).
 **v02.63 note:** Additive roadmap entries are tagged `[ADD v02.63]` (reconciliation of orphans; no rewrites of prior bullets).
+**v02.101 note:** Additive roadmap entries are tagged `[ADD v02.101]` (no rewrites of existing bullets; Phase 0 remains closed).
 
 
 **Why**  
@@ -19843,7 +20229,7 @@ Stand up a stable “Hello, workspace” application that matches the high-level
 
 **Goal**  
 Deliver the **first real Handshake**: a single-user, local-first workspace where documents and canvases are editable, AI assistance is available, and every AI action is traceable through the AI Job Model, Workflow Engine, Flight Recorder, and capability system. Debug tools for AI behaviour and workflows are mandatory.
-Ship with the default local LLM runtime (Ollama), hardened document/canvas editors (Tiptap/BlockNote and Excalidraw), and initial mechanical/observability tooling so the MVP loop exercises the full AI Job + Workflow + Flight Recorder stack end-to-end.
+Ship with the default local LLM runtime (Ollama), hardened document/canvas editors (Tiptap/BlockNote and Excalidraw), always-on Atelier Lens, and a prompt-to-spec router that creates Task Board and Work Packet session logs. Git workflows must trigger safety commit behavior while non-git workflows must not.
 
 - [ADD v02.52] ACE-RAG-001 groundwork: make retrieval planning/tracing/budgeting a first-class runtime contract in MVP (QueryPlan + RetrievalTrace + strict budgets + cache keys). ContextPacks/drift/caching effectiveness ship in Phase 2.
 - [ADD v02.52] Add: Minimum viable export to prevent lock-in and enable reproducible debugging (bundles).
@@ -20012,8 +20398,13 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
    
 17. **[ADD v02.79] Photo Studio v0 (skeleton surface + governance wiring)**  
    - [ADD v02.79] Import JPEG/PNG/TIFF as Assets; generate thumbnails/previews as artifacts (no binaries in prompts/logs).  
-   - [ADD v02.79] Minimal “edit recipe” placeholder stored as versioned sidecar (even if only exposure/WB placeholders).  
+   - [ADD v02.79] Minimal "edit recipe" placeholder stored as versioned sidecar (even if only exposure/WB placeholders).  
    - [ADD v02.79] Export via governed job path (artifact + export record; no direct file mutation).  
+18. **[ADD v02.101] Spec Router and governance session log (MVP)**  
+   - Implement `spec_router` job_kind and SpecRouterJobProfile with policy-bound mode selection.  
+   - Emit SpecIntent and SpecRouterDecision artifacts with `capability_registry_version`.  
+   - Auto-create or update Task Board and Work Packet entries for GOV_STRICT/GOV_STANDARD and append Spec Session Log entries.  
+   - Enforce git-only safety commit behavior for git workflows; non-git workflows must not attempt a commit.  
 **Vertical slice (core loop)**- Start the app and open a sample document.  
 - Select text and trigger “Rewrite selection”.  
 - See the updated text in the document.  
@@ -20024,9 +20415,10 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - Save, restart, reopen; typography selection persists.
 - Export Canvas to PNG/SVG; exported result preserves the chosen font.
 - Export a deliverable PDF (Typst + qpdf); exported result is reproducible (byte-stable or stable hash policy).
-- [ADD v02.52] Trigger “Ask about this document” (RAG-aware Q&A) and verify Evidence view exposes QueryPlan + RetrievalTrace ids/hashes and bounded spans (with truncation flags if budgets hit).
+- [ADD v02.52] Trigger "Ask about this document" (RAG-aware Q&A) and verify Evidence view exposes QueryPlan + RetrievalTrace ids/hashes and bounded spans (with truncation flags if budgets hit).
 - [ADD v02.52] Export a Workspace Bundle for a non-trivial workspace and verify: manifest + doc/canvas/table snapshots + export report.
 - [ADD v02.52] Export a Debug Bundle for one AI job and verify required files + SAFE_DEFAULT redaction mode.
+- [ADD v02.101] Run Spec Router on a prompt, verify SpecIntent/SpecRouterDecision artifacts, Task Board + Work Packet creation, and a Spec Session Log entry; if the workspace is git-backed, verify safety commit behavior.
 
 13. **[ADD v02.36] ACE Runtime (MVP) + Validator Pack (CI-gated)**  
    - For every AI job: emit and persist **ContextPlan** and per-call **ContextSnapshot** artifacts.  
@@ -20107,8 +20499,11 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - Secret/resource leakage or runaway jobs if Guard/Container/Quota are absent or unenforced.
 - MCP Gate and MCP-ready job/log plumbing are bolted on too late, forcing breaking changes to job/log schemas or inconsistent consent/logging across tools.
 
+- [ADD v02.101] Prompt-to-spec routing is not policy-bound, causing governance drift or inconsistent artifacts; mitigated by Spec Router policy schema and session log.
+- [ADD v02.101] Safety commit logic applied outside git workflows can destroy non-git state; mitigated by explicit VersionControl gating and policy rules.
 
-- [ADD v02.36] “Auditable AI” is non-real without enforced ContextPlan/ContextSnapshot + runtime validators (not just logging).
+
+- [ADD v02.36] "Auditable AI" is non-real without enforced ContextPlan/ContextSnapshot + runtime validators (not just logging).
 - [ADD v02.36] Terminal is a capability-bypass vector unless fully routed through Gate/Workflow/Flight Recorder (Terminal LAW).
 - [ADD v02.38] Canvas editor choice (Excalidraw) may constrain deterministic font loading/text editing; validate compatibility with §10.6 before implementing typography acceptance criteria.
 
@@ -20155,6 +20550,9 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - Workflow/Job completeness: mandatory fields (job_kind/profile_id/layer_scope/EntityRef) recorded; idempotency keys honored; retries capped; crash/restart yields resumed or failed runs with clear status.
 - Capability model is default-deny across AI/mechanical/terminal/Monaco; approvals cached with TTL; allow/deny decisions logged in Flight Recorder.
 - Retention/redaction defaults enforced: FR/log retention windows applied; redacted output retention window honored; env/secret scrubbing verified.
+- [ADD v02.101] Spec Router produces SpecIntent + SpecRouterDecision artifacts with pinned capability_registry_version; Task Board and Work Packet entries are created/updated and visible in a Spec Session Log view.
+- [ADD v02.101] Git workflows require safety commit before execution; non-git workflows skip the safety commit step by policy.
+- [ADD v02.101] Atelier Lens claim/glance runs on all ingested artifacts by default; disable only via LAW override.
 - **[ADD v02.63] Model profile clarity:** Runtime integration documents and ships a concrete ModelProfile/Routing/SafetyProfile schema for MVP models (id, role, safety policy, routing notes) and evidence of usage in jobs.
 - Terminal LAW (minimal slice): run_command defaults to policy mode with timeout (~180s), kill_grace, and max_output_bytes (~1–2MB); approvals UI present; sessions bound to workspace; executions logged in Flight Recorder.
 - CI gates: lint/format/test and health script enforced in CI; fail if logging/FR hooks are missing.
@@ -20270,8 +20668,10 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - Wire Atelier validators (ATELIER-VAL-001..005) to plan save/compile; auto-fill defaults rather than prompting.
 - Acceptance: plans can be authored, validated, compiled, and exported with provenance linking to input references; connector-specific filtering occurs only at Display/Export boundaries.
 
-- [ADD v02.52] Any Atelier job step that consults workspace evidence MUST emit QueryPlan/Trace and obey RetrievalBudgets (no “hidden retrieval” inside compilers).
+- [ADD v02.52] Any Atelier job step that consults workspace evidence MUST emit QueryPlan/Trace and obey RetrievalBudgets (no "hidden retrieval" inside compilers).
 - [ADD v02.52] Workspace/Debug Bundles may include Atelier artifacts **only if policy allows**; filtering remains Display/Export-only.
+
+- [ADD v02.101] Atelier Lens claim/glance is always-on for ingested artifacts and Spec Router inputs; disable only via LAW override.
 
 
 - [ADD v02.67] Implement Lens surfaces: Role Claims Panel, Role Glances Grid, Role Bundle Viewer (with evidence highlights) and Deliverables Browser for `RoleDeliverableBundle`.
@@ -26574,6 +26974,65 @@ MUST:
 SHOULD:
 - Support bundle scopes: `problem`, `job`, `time-window`, `workspace`.
 
+#### 10.5.5.9 Spec Session Log
+
+MUST:
+- Render a dedicated view of Spec Session Log entries (Task Board + Work Packet events) keyed by `spec_id`.
+- Provide filters: spec_id, task_board_id, work_packet_id, actor, time range, governance_mode.
+- Deep-link to SpecIntent, SpecRouterDecision, WorkPacketBinding, and related Flight Recorder events.
+- Show the current status for linked Task Board items and Work Packets.
+
+SHOULD:
+- Provide a timeline mode that overlays Spec Session Log entries with the Flight Recorder timeline.
+- Show mode transitions (GOV_LIGHT/GOV_STANDARD/GOV_STRICT) and safety commit status (git workflows only).
+
+MUST NOT:
+- Allow manual edits to Task Board or Work Packet data outside the governed workflow/job runtime.
+
+Layout (suggested):
+- Left rail: filters (spec_id, work_packet_id, governance_mode, time range).
+- Main table: timestamp, event_type, actor, summary, task_board_id, work_packet_id, governance_mode.
+- Detail drawer: linked SpecIntent, SpecRouterDecision, WorkPacketBinding, and artifact handles.
+
+Wireframe (ASCII):
+```
++----------------------+--------------------------------------------------------------+
+| Filters              | Spec Session Log                                              |
+| - spec_id            | +----------------------+---------------------------------------+ |
+| - work_packet_id     | | timestamp            | summary                               | |
+| - governance_mode    | | event_type           | actor                                 | |
+| - time range         | | task_board_id        | work_packet_id                         | |
+| - actor              | | governance_mode      | linked_artifacts (count)               | |
+|                      | +----------------------+---------------------------------------+ |
++----------------------+--------------------------------------------------------------+
+| Detail Drawer (linked SpecIntent, SpecRouterDecision, bindings, artifacts)   |
++-------------------------------------------------------------------------------+
+```
+
+Data contracts (normative):
+```
+SpecSessionLogQuery
+- spec_id?: string
+- task_board_id?: string
+- work_packet_id?: string
+- governance_mode?: GovernanceMode
+- actor?: string
+- time_range?: {start: Timestamp, end: Timestamp}
+
+SpecSessionLogViewRow
+- entry_id: string
+- timestamp: Timestamp
+- event_type: string
+- actor: string
+- summary: string
+- spec_id: string
+- task_board_id: string
+- work_packet_id?: string
+- governance_mode: GovernanceMode
+- linked_artifacts?: ArtifactHandle[]
+- link_refs?: {spec_intent_id?: string, spec_router_decision_id?: string, work_packet_id?: string}
+```
+
 ### 10.5.6 Debug Bundle (export artifact)
 
 #### 10.5.6.1 Goals
@@ -29248,6 +29707,7 @@ Centralized, single-source definitions for cross-cutting contracts that all Prod
   - **Hard Invariant:** Any request for a Capability ID not defined in the Registry MUST be rejected with error `HSK-4001: UnknownCapability`. Ad-hoc or "magic string" capabilities are strictly forbidden.
   - **Audit Requirement:** Every capability check (Allow or Deny) MUST be recorded as a Flight Recorder event, capturing: `capability_id`, `actor_id`, `job_id` (if applicable), and `decision_outcome`.
   - **Profile Schema:** `CapabilityProfile` objects (e.g. 'Analyst', 'Coder') MUST be defined solely as whitelists of IDs from the `CapabilityRegistry`.
+  - **Registry Generation:** `CapabilityRegistry` MUST be generated from the Master Spec and `mechanical_engines.json` into `assets/capability_registry.json` using an AI-assisted extraction job (local or cloud model allowed) with schema validation and human review; Spec Router and policy evaluation MUST pin `capability_registry_version` in their outputs.
 - Redaction/safety propagation:
   - Content classification + redaction flags flow from data layer to plugin/tool calls and AI jobs; cloud routing MUST honor projection/redaction defaults per surface (mail/calendar/doc).
 - Based on TERM-CAP: axes (model, workspace, command class/action type, time scope), approval types (per-job, per-model-per-workspace), visible “Capabilities” UI, revocation without restart, escalation flow with job/model/workspace/command context, decisions logged to Flight Recorder.
@@ -29341,6 +29801,99 @@ impl CapabilityRegistry {
     }
 }
 ```
+
+### 11.1.4 Governance Mode Policy (Normative)
+
+This schema binds capability/consent decisions to governance mode selection and is referenced by Spec Router and ACE policy decisions.
+
+```rust
+pub struct GovernanceModePolicy {
+    pub policy_id: String,
+    pub default_mode: GovernanceMode,
+    pub allowed_modes: Vec<GovernanceMode>,
+    pub strict_score_threshold: i32,
+    pub standard_score_threshold: i32,
+    pub gate_matrix_ref: String,
+}
+
+pub struct GovernancePolicyDecision {
+    pub policy_id: String,
+    pub governance_mode: GovernanceMode,
+    pub safety_commit_required: bool,
+    pub capability_registry_version: String,
+}
+```
+
+Rules:
+- Policy decisions MUST be logged to Flight Recorder with `policy_id` and `governance_mode`.
+- The policy decision MUST be referenced by `policy_profile_id` in ContextSnapshot (2.6.6.7.3).
+
+[MODE-SELECTION POLICY TBD]
+- Final thresholds and scoring weights are defined during implementation in Handshake software.
+- This spec defines parameter names, invariants, and logging requirements only.
+
+### 11.1.5 Spec Router Policy (Normative)
+
+```rust
+pub struct SpecRouterPolicy {
+    pub policy_id: String,
+    pub template_rules: Vec<SpecTemplateRule>,
+    pub required_roles_by_template: Vec<SpecRoleRule>,
+    pub required_gates_by_mode: Vec<SpecGateRule>,
+    pub git_workflow_policy: GitWorkflowPolicy,
+    pub atelier_always_on: bool,
+}
+
+pub struct GitWorkflowPolicy {
+    pub require_safety_commit: bool,
+    pub allowed_vcs: Vec<VersionControl>,
+}
+
+pub struct SpecTemplateRule {
+    pub prompt_type: PromptType,
+    pub spec_template_id: String,
+    pub default_mode: GovernanceMode,
+}
+
+pub struct SpecRoleRule {
+    pub spec_template_id: String,
+    pub required_roles: Vec<String>,
+}
+
+pub struct SpecGateRule {
+    pub governance_mode: GovernanceMode,
+    pub required_gates: Vec<String>,
+}
+```
+
+Rules:
+- `atelier_always_on` MUST default to true; disabling requires explicit LAW override.
+- If `git_workflow_policy.require_safety_commit == true`, Spec Router MUST require safety commit only when `version_control == Git`.
+- Spec Router MUST emit `SpecRouterDecision` with `capability_registry_version` and the policy_id used.
+- For GOV_STRICT and GOV_STANDARD, Spec Router MUST create or update Task Board and Work Packet entries and append Spec Session Log entries.
+
+### 11.1.6 Capability Registry Generation Workflow (Normative)
+
+The CapabilityRegistry is generated by an AI-assisted extraction workflow (local or cloud model allowed) and then validated and reviewed before publish. The workflow runs as a governed job (job_kind=workflow_run, profile_id=capability_registry_build).
+
+Inputs:
+- Master spec (Handshake_Master_Spec_v*).
+- `mechanical_engines.json`.
+- Previous `assets/capability_registry.json` (optional).
+- Capability registry schema (JSON Schema).
+
+Workflow:
+1. Extract: run AI-assisted extraction to produce `capability_registry_draft.json`. The job MUST record model_id, policy decision, and prompt hashes in Flight Recorder. Cloud model usage MUST obey CloudLeakageGuard and use redacted or derived inputs only.
+2. Validate: run schema validation and integrity checks (unique capability_id, valid section_ref, required_capabilities present, risk_class set).
+3. Diff: produce `capability_registry_diff.json` against the previous registry (if any).
+4. Review: require human approval; record decision in Flight Recorder with reviewer_id and diff hash.
+5. Publish: write `assets/capability_registry.json`, bump registry version, and log a publish event.
+
+Artifacts:
+- `capability_registry_draft.json`
+- `capability_registry_diff.json`
+- `capability_registry_review.json`
+- `assets/capability_registry.json`
 
 ---
 

@@ -12,6 +12,30 @@
 
 ---
 
+## Worktree + Branch Gate [CX-WT-001] (BLOCKING)
+
+You MUST operate from the correct working directory and branch for the WP you are implementing before making any repo changes.
+
+Source of truth (Coder role):
+- The WP assignment from the Orchestrator (WP branch + WP worktree directory).
+- The Orchestrator's recorded assignment in `docs/ORCHESTRATOR_GATES.json` (`PREPARE` entry contains `branch` + `worktree_dir`).
+
+You do NOT have a default "coder worktree". The Operator's personal worktree is not a coder worktree.
+
+Required verification (run at session start and whenever context is unclear):
+- `pwd`
+- `git rev-parse --show-toplevel`
+- `git rev-parse --abbrev-ref HEAD`
+- `git worktree list`
+
+If you do not have a WP worktree assignment yet:
+- STOP and escalate to the Orchestrator to create/record the WP worktree (`just worktree-add WP-{ID}` + `just record-prepare ...`) before you continue.
+
+If the assigned WP worktree/branch does not exist locally:
+- STOP and request the Orchestrator/Operator to create it (Codex [CX-108]); do not create ad-hoc worktrees yourself.
+
+---
+
 ## Spec Authority Rule [CX-598] (HARD INVARIANT)
 
 **The Roadmap (§7.6) is ONLY a pointer. The Master Spec Main Body (§1-6, §9-11) is the SOLE definition of "Done."**
