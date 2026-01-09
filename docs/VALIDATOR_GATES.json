@@ -155,6 +155,32 @@
         }
       ],
       "completed": "2026-01-07T22:12:11.304Z"
+    },
+    "WP-1-Storage-Abstraction-Layer-v3": {
+      "wpId": "WP-1-Storage-Abstraction-Layer-v3",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-01-09T21:20:42.207Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-09T21:20:42.208Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-09T21:25:02.463Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-09T21:33:06.762Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-09T22:05:46.021Z"
+        }
+      ],
+      "completed": "2026-01-09T22:05:46.021Z"
     }
   },
   "archived_sessions": [

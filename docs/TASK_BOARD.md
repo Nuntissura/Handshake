@@ -45,7 +45,6 @@ Entry format (recommended):
 
 ## Ready for Dev
 - **[WP-1-Capability-SSoT]** / FAIL (revalidation): `just post-work WP-1-Capability-SSoT` fails (C701-G05 post_sha1 mismatch) for `src/backend/handshake_core/src/capabilities.rs`. [READY FOR DEV]
-- **[WP-1-Storage-Abstraction-Layer-v3]** / READY (revalidation): Re-anchor to SPEC_CURRENT v02.103 + COR-701 packet format; run mandatory audit (CX-DBP-030). [READY FOR DEV]
 - **[WP-1-Migration-Framework]** / FAIL (revalidation): Phase 1 closure prerequisite (CX-DBP-030); revalidate against SPEC_CURRENT (packet has historical status/spec drift vs current governance gates). [READY FOR DEV]
 - **[WP-1-Flight-Recorder-UI-v2]** / FAIL (revalidation): `just gate-check WP-1-Flight-Recorder-UI-v2` fails (missing "SKELETON APPROVED" marker); `node scripts/validation/post-work-check.mjs WP-1-Flight-Recorder-UI-v2` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99; user signature field missing/pending. [READY FOR DEV]
 - **[WP-1-AI-Job-Model-v3]** / FAIL (revalidation): `just post-work WP-1-AI-Job-Model-v3` fails phase gate (missing "SKELETON APPROVED" marker); `node scripts/validation/post-work-check.mjs WP-1-AI-Job-Model-v3` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99; packet already contains a prior FAIL section; spec updated in v02.99 to include Stalled and expanded JobKind, revalidate against new list. [READY FOR DEV]
@@ -102,6 +101,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Debug-Bundle-v3]** - [VALIDATED]
 - **[WP-1-Validator-Error-Codes-v1]** - [VALIDATED]
 - **[WP-1-Storage-Foundation-v3]** - [VALIDATED]
+- **[WP-1-Storage-Abstraction-Layer-v3]** - [VALIDATED]
 - **[WP-1-Dual-Backend-Tests-v2]** - [VALIDATED]
 - **[WP-1-Terminal-LAW-v3]** - [VALIDATED]
 - **[WP-1-MEX-v1.2-Runtime-v3]** - [VALIDATED]
