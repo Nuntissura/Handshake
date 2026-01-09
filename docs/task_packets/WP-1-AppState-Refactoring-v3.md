@@ -134,51 +134,149 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - `AppState` continues to expose only `storage: Arc<dyn Database>` (no raw pools on the AppState surface).
+  - `Database` trait remains backend-agnostic (no backend pool accessors; no `SqlitePool`/`DuckDbConnection` types in the trait surface).
 - Open questions:
+  - None. Next step is to run the audits in TEST_PLAN and capture evidence; remediate only if any violations are found.
 - Notes:
+  - Initial grep audits show no `state.pool`/`state.fr_pool` access outside `src/backend/handshake_core/src/storage/` and no forbidden pool identifiers in `src/backend/handshake_core/src/lib.rs`.
+
+SKELETON APPROVED
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Ran revalidation audits per TEST_PLAN (grep audits + `just validator-dal-audit`).
+- No code changes required based on the audit evidence recorded in `## EVIDENCE`.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Ran: `just validator-scan`, `just validator-dal-audit`, `just validator-git-hygiene`.
+- Ran: `just cargo-clean`.
+- Skipped: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` (no non-doc file changes in this WP; TEST_PLAN conditional).
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `src/backend/handshake_core/src/lib.rs`
+- **Start**: 24
+- **End**: 32
+- **Line Delta**: 0
+- **Pre-SHA1**: `06feb3889dec4667bbeb8a1c3192e61df096acd8`
+- **Post-SHA1**: `06feb3889dec4667bbeb8a1c3192e61df096acd8`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Target File**: `src/backend/handshake_core/src/storage/mod.rs`
+- **Start**: 738
+- **End**: 851
+- **Line Delta**: 0
+- **Pre-SHA1**: `e189a0045bec8b6d990637ae34548095658adcde`
+- **Post-SHA1**: `e189a0045bec8b6d990637ae34548095658adcde`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 - **Lint Results**:
 - **Artifacts**:
 - **Timestamp**:
 - **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.103.md
 - **Notes**:
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: In Progress (bootstrap claim; no code changes yet)
-- What changed in this update: Claimed WP and set packet status to In Progress.
-- Next step / handoff hint: Output SKELETON proposal for approval (CX-GATE-001), then audit/fix any remaining pool leakage paths.
+- Current WP_STATUS: In Progress (implementation complete; awaiting Validator review/status-sync)
+- What changed in this update: Recorded SKELETON approval, captured audit evidence, and filled COR-701 manifest (no non-doc file changes).
+- Next step / handoff hint: Validator can merge bootstrap claim commit `fc2ae8ab` into `main` and status-sync `docs/TASK_BOARD.md` on `main`.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+
+- Command: just pre-work WP-1-AppState-Refactoring-v3
+  Output:
+  ```text
+  Checking Phase Gate for WP-1-AppState-Refactoring-v3...
+  ? GATE PASS: Workflow sequence verified.
+
+  Pre-work validation for WP-1-AppState-Refactoring-v3...
+
+  Check 1: Task packet file exists
+  PASS: Found WP-1-AppState-Refactoring-v3.md
+
+  Check 2: Task packet structure
+  PASS: All required fields present
+
+  Check 2.7: Technical Refinement gate
+  PASS: Refinement file exists and is approved/signed
+
+  Check 2.8: WP checkpoint commit gate
+
+  Check 3: Deterministic manifest template
+  PASS: Manifest fields present
+  PASS: Gates checklist present
+
+  ==================================================
+  Pre-work validation PASSED
+
+  You may proceed with implementation.
+  ```
+
+- Command: rg -n "\\bstate\\.pool\\b|\\bstate\\.fr_pool\\b" src/backend/handshake_core/src (excluding src/backend/handshake_core/src/storage/)
+  Output:
+  ```text
+  (no hits)
+  ```
+
+- Command: rg -n "\\bSqlitePool\\b|\\bDuckDbConnection\\b|\\bfr_pool\\b|\\bsqlite_pool\\b" src/backend/handshake_core/src/lib.rs
+  Output:
+  ```text
+  (no hits)
+  ```
+
+- Command: rg -n "\\bSqlitePool\\b|\\bDuckDbConnection\\b" src/backend/handshake_core/src/storage/mod.rs
+  Output:
+  ```text
+  (no hits)
+  ```
+
+- Command: just validator-dal-audit
+  Output:
+  ```text
+  validator-dal-audit: PASS (DAL checks clean).
+  ```
+
+- Command: just validator-scan
+  Output:
+  ```text
+  validator-scan: PASS - no forbidden patterns detected in backend sources.
+  ```
+
+- Command: just validator-git-hygiene
+  Output:
+  ```text
+  validator-git-hygiene: PASS - .gitignore coverage and artifact checks clean.
+  ```
+
+- Command: just cargo-clean
+  Output:
+  ```text
+  cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir \"../Cargo Target/handshake-cargo-target\"
+       Removed 0 files
+  ```
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
