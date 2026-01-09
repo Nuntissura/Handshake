@@ -100,7 +100,7 @@ Format:
 | WP-1-Security-Gates | docs/task_packets/WP-1-Security-Gates-v3.md | Done: WP-1-Security-Gates-v3 | active=WP-1-Security-Gates-v3; supersedes: WP-1-Security-Gates, WP-1-Security-Gates-v2 |
 | WP-1-Semantic-Catalog | docs/task_packets/WP-1-Semantic-Catalog.md | Ready for Dev: WP-1-Semantic-Catalog |  |
 | WP-1-Spec-Router-Session-Log | docs/task_packets/stubs/WP-1-Spec-Router-Session-Log.md | Stub Backlog (Not Activated): WP-1-Spec-Router-Session-Log | stub |
-| WP-1-Storage-Abstraction-Layer | docs/task_packets/WP-1-Storage-Abstraction-Layer.md | Ready for Dev: WP-1-Storage-Abstraction-Layer |  |
+| WP-1-Storage-Abstraction-Layer | docs/task_packets/WP-1-Storage-Abstraction-Layer-v3.md | Ready for Dev: WP-1-Storage-Abstraction-Layer-v3 | active=WP-1-Storage-Abstraction-Layer-v3; supersedes: WP-1-Storage-Abstraction-Layer, WP-1-Storage-Abstraction-Layer-v2 |
 | WP-1-Storage-Foundation | docs/task_packets/WP-1-Storage-Foundation-v3.md | Done: WP-1-Storage-Foundation-v3 | active=WP-1-Storage-Foundation-v3; supersedes: WP-1-Storage-Foundation-20251228 |
 | WP-1-Supply-Chain-MEX | docs/task_packets/WP-1-Supply-Chain-MEX.md | Ready for Dev: WP-1-Supply-Chain-MEX |  |
 | WP-1-Terminal-LAW | docs/task_packets/WP-1-Terminal-LAW-v3.md | Done: WP-1-Terminal-LAW-v3 | active=WP-1-Terminal-LAW-v3; supersedes: WP-1-Terminal-LAW, WP-1-Terminal-LAW-v2 |
