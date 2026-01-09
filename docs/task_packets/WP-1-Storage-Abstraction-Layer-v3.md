@@ -8,9 +8,9 @@
 - REQUESTOR: ilja
 - AGENT_ID: orchestrator-codex-cli
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja090120261951
 
@@ -118,8 +118,16 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - (a) Audit-only; no code changes expected.
+  - Re-verify invariants against SPEC_CURRENT:
+    - [CX-DBP-010] One Storage API: all DB access stays behind `src/backend/handshake_core/src/storage/` via `Arc<dyn Database>`.
+    - [CX-DBP-040] Trait purity: `crate::storage::Database` exposes no backend-specific pool types/accessors.
+    - [CX-DBP-030] Mandatory audit: zero `sqlx::` / `SqlitePool` references outside `src/backend/handshake_core/src/storage/`.
 - Open questions:
+  - None if audits remain clean. If any out-of-scope hits are found, stop and request scope expansion before changing code.
 - Notes:
+  - Expected touched files (docs-only): `docs/task_packets/WP-1-Storage-Abstraction-Layer-v3.md` (SKELETON + EVIDENCE/HYGIENE/STATUS_HANDOFF updates).
+  - No trait/signature changes planned (including `Database`); no pool-leak removals expected based on initial scans.
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)
@@ -157,9 +165,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress (SKELETON pending approval)
+- What changed in this update: Claimed CODER_MODEL + CODER_REASONING_STRENGTH; filled SKELETON (audit-only).
+- Next step / handoff hint: Await "SKELETON APPROVED"; then append audit command outputs to ## EVIDENCE and proceed through HYGIENE/EVALUATION per TEST_PLAN (no code changes expected).
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
