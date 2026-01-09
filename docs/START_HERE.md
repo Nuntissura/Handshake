@@ -1,8 +1,10 @@
 # Handshake Project: Start Here
 
-Authority: Master Spec v02.99
----## Canonical sources
-- **Spec:** `docs/SPEC_CURRENT.md` (points to the current Handshake master spec, currently v02.99).
+Authority: Master Spec (see `docs/SPEC_CURRENT.md`, currently v02.103)
+---
+## Canonical sources
+- **Spec:** `docs/SPEC_CURRENT.md` (points to the current Handshake master spec, currently v02.103).
+- **WP Traceability:** `docs/WP_TRACEABILITY_REGISTRY.md` (Base WP → Active Packet mapping; resolves `-vN` revisions without putting WP IDs into the Master Spec).
 - **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `docs/TASK_BOARD.md` + task packets. Handshake logger is for milestones/hard bugs when requested.
 - **Architecture & debug:** `docs/ARCHITECTURE.md` and `docs/RUNBOOK_DEBUG.md`.
 
@@ -54,7 +56,7 @@ just validate-workflow WP-{ID}
 - `docs_local/` — staging/non-canonical notes and diaries.
 - `log_archive/` — historical logger drops.
 - `docs/OWNERSHIP.md` — path/area owners for routing reviews.
-- Root files: `Handshake_Master_Spec_v*.md`, `Handshake Codex v0.8`, `Handshake_logger_*`, phase/plan docs.
+- Root files: `Handshake_Master_Spec_v*.md`, `Handshake Codex v1.4.md`, `Handshake_logger_*`, phase/plan docs.
 - `docs/ORCHESTRATOR_PROTOCOL.md` and `docs/CODER_PROTOCOL.md` — AI agent workflow protocols.
 
 ## How to run

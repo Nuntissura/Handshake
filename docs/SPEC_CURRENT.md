@@ -2,9 +2,9 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.101.md**
+**Handshake_Master_Spec_v02.103.md**
 
-(Updated: 2026-01-04 - Clarified LLM completion trace_id transport + added FR-EVT-006 llm_inference event shape [ilja040120260108])
+(Updated: 2026-01-08 - Intent audit vs roadmap + ANS-001 roadmap pointer + phase-closure preamble + Task Board/stub sync [ilja080120262313])
 
 ---
 

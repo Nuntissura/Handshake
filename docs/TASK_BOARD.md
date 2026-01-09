@@ -24,29 +24,38 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 **Backlog stubs (pre-activation):**
 - Track not-yet-activated work as STUB items (no USER_SIGNATURE yet). Details live in `docs/task_packets/stubs/`.
 - Stubs MUST be activated into official task packets before any coding starts (see `docs/ORCHESTRATOR_PROTOCOL.md`).
+- Base WP ↔ packet revision mapping (v2/v3/v4) is tracked in `docs/WP_TRACEABILITY_REGISTRY.md`.
+
+---
+
+## Active (Cross-Branch Status)
+
+This section exists to keep the Operator's **main-branch** Task Board up to date when multiple Coders are working in separate WP branches/worktrees.
+
+Rules:
+- This section is informational for visibility across branches (who is working on what).
+- Do NOT use `[IN_PROGRESS]` here (that token is reserved for the script-checked `## In Progress` list).
+- Validator maintains this section on `main` via small docs-only "status sync" commits.
+
+Entry format (recommended):
+- `- **[WP_ID]** - [ACTIVE] - branch: feat/WP-{ID} - coder: <name/model> - last_sync: YYYY-MM-DD`
 
 ---
 
 
 ## Ready for Dev
 - **[WP-1-Capability-SSoT]** / FAIL (revalidation): `just post-work WP-1-Capability-SSoT` fails (C701-G05 post_sha1 mismatch) for `src/backend/handshake_core/src/capabilities.rs`. [READY FOR DEV]
-- **[WP-1-LLM-Core]** / FAIL (revalidation): `just post-work WP-1-LLM-Core` fails phase gate (SKELETON appears before BOOTSTRAP); packet non-ASCII + missing COR-701 manifest. [READY FOR DEV]
+- **[WP-1-Storage-Abstraction-Layer]** / FAIL (revalidation): Phase 1 closure prerequisite (CX-DBP-030); revalidate against SPEC_CURRENT (legacy packet formatting/spec baseline likely fails current gates). [READY FOR DEV]
+- **[WP-1-Migration-Framework]** / FAIL (revalidation): Phase 1 closure prerequisite (CX-DBP-030); revalidate against SPEC_CURRENT (packet has historical status/spec drift vs current governance gates). [READY FOR DEV]
 - **[WP-1-Flight-Recorder-UI-v2]** / FAIL (revalidation): `just gate-check WP-1-Flight-Recorder-UI-v2` fails (missing "SKELETON APPROVED" marker); `node scripts/validation/post-work-check.mjs WP-1-Flight-Recorder-UI-v2` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99; user signature field missing/pending. [READY FOR DEV]
-- **[WP-1-ACE-Validators-v3]** - Superseded by WP-1-ACE-Validators-v4. [SUPERSEDED]
 - **[WP-1-AI-Job-Model-v3]** / FAIL (revalidation): `just post-work WP-1-AI-Job-Model-v3` fails phase gate (missing "SKELETON APPROVED" marker); `node scripts/validation/post-work-check.mjs WP-1-AI-Job-Model-v3` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99; packet already contains a prior FAIL section; spec updated in v02.99 to include Stalled and expanded JobKind, revalidate against new list. [READY FOR DEV]
 - **[WP-1-AppState-Refactoring-v2]** / FAIL (revalidation): `just post-work WP-1-AppState-Refactoring-v2` fails phase gate (missing "SKELETON APPROVED" marker); `node scripts/validation/post-work-check.mjs WP-1-AppState-Refactoring-v2` fails (non-ASCII packet + missing COR-701 manifest). Packet references v02.93 not v02.99. [READY FOR DEV]
-- **[WP-1-Flight-Recorder]** / FAIL: Spec drift vs SPEC_CURRENT v02.94; recheck A11.5 retention/telemetry. [READY FOR DEV]
 - **[WP-1-ACE-Runtime]** / FAIL: Spec drift vs SPEC_CURRENT v02.94; refresh ACE-RAG-001 evidence. [READY FOR DEV]
 - **[WP-1-Mutation-Traceability]** / FAIL: Spec drift vs SPEC_CURRENT v02.94; revalidate A2.9.3. [READY FOR DEV]
-- **[WP-1-Dual-Backend-Tests]** - Superseded by WP-1-Dual-Backend-Tests-v2. [SUPERSEDED]
-- **[WP-1-Flight-Recorder-UI]** / FAIL (SUPERSEDED by v2): DuckDB log store + UI wiring. [READY FOR DEV]
-- **[WP-1-Operator-Consoles]** - Superseded by v1 (comprehensive rewrite anchored to v02.96). [SUPERSEDED]
 - **[WP-1-Metrics-OTel]** / FAIL: OpenTelemetry instrumentation. [READY FOR DEV]
-- **[WP-1-Diagnostic-Pipe]** - Absorbed into WP-1-Operator-Consoles-v1 (DIAG-SCHEMA is prerequisite). [SUPERSEDED]
 - **[WP-1-OSS-Governance]** / FAIL: Component Register, Copyleft isolation. [READY FOR DEV]
 - **[WP-1-Supply-Chain-MEX]** / FAIL: MEX v1.2 Security Gates (gitleaks, osv-scanner). [READY FOR DEV]
 - **[WP-1-ACE-Auditability]** / FAIL: ContextPlan, ContextSnapshot artifacts. [READY FOR DEV]
-- **[WP-1-ACE-Validators]** / FAIL: 12 Runtime Validators (A2.6.6.7.11). [READY FOR DEV]
 - **[WP-1-RAG-Iterative]** / FAIL: Snippet-first policy, search->read separation. [READY FOR DEV]
 - **[WP-1-Model-Profiles]** / FAIL: ModelProfile/Routing/SafetyProfile schema. [READY FOR DEV]
 - **[WP-1-MEX-Safety-Gates]** / FAIL: Guard, Container, Quota engines. [READY FOR DEV]
@@ -72,6 +81,8 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 ## Stub Backlog (Not Activated)
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
 - **[WP-1-Dev-Experience-ADRs]** - [STUB]
+- **[WP-1-Global-Silent-Edit-Guard]** - [STUB]
+- **[WP-1-Response-Behavior-ANS-001]** - [STUB]
 
 
 ## In Progress
@@ -115,7 +126,12 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Workflow-Engine-v3]** - [SUPERSEDED]
 - **[WP-1-Workflow-Engine-v2]** - [SUPERSEDED]
 - **[WP-1-AI-Job-Model-v2]** - [SUPERSEDED]
+- **[WP-1-ACE-Validators]** - [SUPERSEDED]
 - **[WP-1-ACE-Validators-v2]** - [SUPERSEDED]
+- **[WP-1-ACE-Validators-v3]** - [SUPERSEDED]
+- **[WP-1-Dual-Backend-Tests]** - [SUPERSEDED]
+- **[WP-1-Flight-Recorder-UI]** - [SUPERSEDED]
+- **[WP-1-LLM-Core]** - [SUPERSEDED]
 - **[WP-1-Security-Gates]** - [SUPERSEDED]
 - **[WP-1-Security-Gates-v2]** - [SUPERSEDED]
 - **[WP-1-Terminal-LAW-v2]** - [SUPERSEDED]

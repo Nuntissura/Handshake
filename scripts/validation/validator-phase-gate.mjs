@@ -8,8 +8,35 @@ const phase = process.argv[2] || "Phase-1";
 const taskBoardPath = "docs/TASK_BOARD.md";
 
 function fail(msg) {
-  console.error(`validator-phase-gate: FAIL — ${msg}`);
+  console.error(`validator-phase-gate: FAIL - ${msg}`);
   process.exit(1);
+}
+
+function extractSectionLines(board, headingText) {
+  const lines = board.split(/\r?\n/);
+  const headingRe = new RegExp(`^##\\s+${headingText}\\s*$`, "i");
+
+  const startIndex = lines.findIndex((line) => headingRe.test(line.trimEnd()));
+  if (startIndex === -1) return null;
+
+  const section = [];
+  for (let index = startIndex + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (line.startsWith("## ")) break;
+    section.push(line);
+  }
+
+  return section;
+}
+
+function countWpEntries(sectionLines) {
+  const wpEntryRe = /^-\s+\*\*\[(WP-[^\]]+)\]\*\*/;
+  const ids = new Set();
+  for (const line of sectionLines) {
+    const match = line.match(wpEntryRe);
+    if (match) ids.add(match[1]);
+  }
+  return ids.size;
 }
 
 function main() {
@@ -20,12 +47,19 @@ function main() {
     fail(`cannot read ${taskBoardPath}: ${err.message}`);
   }
 
-  const readyMatches = (board.match(/Ready for Dev/gi) || []).length;
-  if (readyMatches > 0) {
-    fail(`Task Board still has ${readyMatches} "Ready for Dev" item(s); phase progression for ${phase} is blocked.`);
+  const readyForDevLines = extractSectionLines(board, "Ready for Dev");
+  if (!readyForDevLines) {
+    fail(`missing "## Ready for Dev" section in ${taskBoardPath}`);
   }
 
-  console.log(`validator-phase-gate: PASS — no Ready-for-Dev items detected for ${phase}.`);
+  const readyCount = countWpEntries(readyForDevLines);
+  if (readyCount > 0) {
+    fail(
+      `Task Board still has ${readyCount} Ready for Dev item(s); phase progression for ${phase} is blocked.`
+    );
+  }
+
+  console.log(`validator-phase-gate: PASS - no Ready for Dev items detected for ${phase}.`);
 }
 
 main();

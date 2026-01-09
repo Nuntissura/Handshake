@@ -249,7 +249,7 @@ grep -n "serde_json::Value" src/backend/handshake_core/src/
 **What you do:**
 - [ ] Append VALIDATION block to task packet
 - [ ] Update task packet STATUS (if changed during implementation)
-- [ ] Update TASK_BOARD (move WP from "In Progress" to "Done")
+- [ ] Notify Validator for validation/merge (Validator updates `main` TASK_BOARD to Done on PASS/FAIL)
 - [ ] Write detailed commit message (reference WP-ID)
 - [ ] Request commit with summary
 

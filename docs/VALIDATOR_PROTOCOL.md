@@ -25,6 +25,8 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
   - Required verification (run at session start and whenever context is unclear): `pwd`, `git rev-parse --show-toplevel`, `git rev-parse --abbrev-ref HEAD`, `git worktree list`.
   - If the required worktree/branch does not exist: STOP and request explicit user authorization to create it (Codex [CX-108]); only after authorization, create it using the commands in `docs/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
 - Inputs required: task packet (STATUS not empty), docs/SPEC_CURRENT.md, applicable spec slices, current diff.
+- WP Traceability check (blocking when variants exist): confirm the task packet under review is the **Active Packet** for its Base WP per `docs/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).
+- When running Validator commands/scripts, use the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
 - If a WP exists only as a stub (e.g., `docs/task_packets/stubs/WP-*.md`) and no official packet exists in `docs/task_packets/`, STOP and return FAIL [CX-573] (not yet activated for validation).
 - If task packet is missing or incomplete, return FAIL with reason [CX-573].
 - Preserve User Context sections in packets (do not edit/remove) [CX-654].
@@ -40,6 +42,24 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
   - Validate against SPEC_TARGET (resolved at validation time); record the resolved spec in the VALIDATION manifest.
   - USER_SIGNATURE present and unchanged.
   Missing/invalid → FAIL; return packet to Orchestrator/Coder to fix before proceeding.
+
+## Status Sync Commits (Operator Visibility, Multi-Branch)
+
+When multiple Coders work in separate WP branches/worktrees, branch-local Task Boards drift. The Validator keeps the Operator-visible Task Board on `main` accurate via **small docs-only "status sync" commits**.
+
+### Bootstrap Status Sync (Coder starts WP)
+1. Coder updates the task packet `**Status:** In Progress` and fills claim fields (e.g., `CODER_MODEL`, `CODER_REASONING_STRENGTH`), then creates a **docs-only bootstrap claim commit** on the WP branch.
+2. Coder sends the Validator: `WP_ID`, bootstrap commit SHA, and branch/worktree name.
+3. Validator verifies the bootstrap commit is **docs-only**:
+   - Allowed: `docs/task_packets/{WP_ID}.md` (and other governance docs only if explicitly requested).
+   - Forbidden: any changes under `src/`, `app/`, `tests/`, or `scripts/` (treat as FAIL; do not merge).
+4. Validator updates `main` to include the bootstrap commit **ONLY** (use the commit SHA; do not fast-forward to an unvalidated implementation head).
+5. Validator updates `docs/TASK_BOARD.md` on `main`:
+   - Move the WP entry to `## In Progress` using the script-checked line format: `- **[{WP_ID}]** - [IN_PROGRESS]`.
+   - Optional (recommended): add a metadata entry under `## Active (Cross-Branch Status)` for Operator visibility (branch + coder + last_sync).
+6. Announce status sync in chat (no verdict implied).
+
+**Rule:** Status sync commits are not validation verdicts. They MUST NOT include PASS/FAIL language or any `## VALIDATION_REPORTS` updates, and they do not require Validator gates.
 
 ## Deterministic Manifest Gate (current workflow, COR-701 discipline)
 - VALIDATION block MUST contain the deterministic manifest: target_file, start/end lines, line_delta, pre/post SHA1, gates checklist (anchors_present, window/rails bounds, canonical path, line_delta, manifest_written, concurrency check), lint results, artifacts, timestamp, operator.
@@ -280,8 +300,8 @@ Task Packet Update (APPEND-ONLY):
 - [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL) MUST be APPENDED to the end of the `docs/task_packets/{WP_ID}.md` file. OVERWRITING IS FORBIDDEN.
 - [CX-WP-002] CLOSURE REASONS: The append block MUST contain a "REASON FOR {VERDICT}" section explaining exactly why the WP was closed or failed, linking back to specific findings.
 - STATUS update in docs/task_packets/{WP_ID}.md: PASS/FAIL with reasons, actionables, and further risks. APPEND the full Validation Report using the template below. **DO NOT OVERWRITE User Context or previous history [CX-654].**
-- TASK_BOARD update: when PASS and all criteria met (no acknowledged debt), move WP to Done; if FAIL, mark status accordingly. No "pass with debt" for architectural invariants.
-- Board consistency: if packet STATUS and TASK_BOARD disagree, reconcile before declaring PASS; unresolved mismatch = FAIL pending correction.
+- TASK_BOARD update (on `main`): after PASS/FAIL and all criteria met (no acknowledged debt), move the WP entry from `## In Progress` to `## Done` using the enforced status tokens (`[VALIDATED]`, `[FAIL]`, `[OUTDATED_ONLY]`). Status-sync commits earlier in the WP lifecycle are separate and do not imply a verdict.
+- Board consistency (on `main`): task packet `**Status:**` is source of truth; reconcile the Task Board to match packet reality before declaring PASS. Unresolved mismatch = FAIL pending correction.
 ```
 
 ## Non-Negotiables

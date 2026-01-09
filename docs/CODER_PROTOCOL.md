@@ -58,6 +58,15 @@ Handshake is complex software. If we skip items or treat the roadmap as the requ
 
 ---
 
+## WP Traceability Registry (Base WP vs Packet Revisions)
+
+Handshake uses **Base WP IDs** for stable planning, and **packet revisions** (`-v{N}`) when packets are remediated after audits/spec drift.
+
+**Rule (blocking if ambiguous):**
+- Before you start implementation, confirm the **Active Packet** for your Base WP in `docs/WP_TRACEABILITY_REGISTRY.md`.
+- If more than one task packet exists for the same Base WP and the registry does not clearly identify the Active Packet, STOP and escalate to the Orchestrator (governance-blocked).
+- Run `just pre-work` / `just post-work` using the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
+
 **Supporting Documents:**
 - **CODER_RUBRIC.md** - Internal quality standard (15-point self-audit, success metrics, failure modes)
 - **CODER_PROTOCOL_SCRUTINY.md** - Analysis of current gaps (18 identified, B+ grade)
@@ -72,7 +81,7 @@ Handshake is complex software. If we skip items or treat the roadmap as the requ
 
 ## Active Workflow Adjustment [2025-12-28]
 - Run all TEST_PLAN commands (and any required hygiene checks) before handoff; no skipping validation.
-- Move the active WP from `Ready for Dev` to `In Progress` on `docs/TASK_BOARD.md` once you start.
+- At start: set the task packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH`, and make a docs-only bootstrap commit on your WP branch (so the Validator can status-sync `main`).
 - **Evidence Management:** You MAY append test logs, command outputs, and proof of work to the `## EVIDENCE` section of the task packet.
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
 - **Status Updates:** Update the `## STATUS_HANDOFF` section to reflect progress (e.g., "Implementation complete, tests passing").
@@ -85,16 +94,17 @@ Handshake is complex software. If we skip items or treat the roadmap as the requ
 
 Task state is managed by the agent currently holding the "ball":
 1. **Orchestrator**: Creates WP -> Adds to `Ready for Dev`.
-2. **Coder**: Starts work -> Moves to `In Progress` (during BOOTSTRAP).
-3. **Validator**: Approves work -> Moves to `Done` (during VALIDATION).
-4. **Orchestrator**: Escalation/Blocker -> Moves to `Blocked`.
+2. **Coder**: Starts work -> Updates task packet to `In Progress` + pushes a docs-only bootstrap commit.
+3. **Validator**: Status-syncs `docs/TASK_BOARD.md` on `main` (updates `## Active (Cross-Branch Status)` for Operator visibility).
+4. **Validator**: Approves work -> Moves to `Done` (during VALIDATION).
+5. **Orchestrator**: Escalation/Blocker -> Moves to `Blocked`.
 
 **Historical Done rule:** If a packet is marked `**Status:** Done (Historical)` (or the board marks it as historical/outdated-only), do not reopen or modify it. If new-spec work is required, request a NEW remediation WP variant from the Orchestrator.
 
-**Coder Mandate:** You are responsible for advancing the Task Board to `In Progress`. Rushing to code without updating the board is a protocol violation.
+**Coder Mandate:** You are responsible for updating the task packet to `In Progress` (with claim fields) and producing the bootstrap commit. Operator-visible Task Board updates on `main` are handled by the Validator via status-sync commits.
 
 ### Board Integrity Check ✋
-When updating the board, ensure these 5 fixed sections exist (DO NOT delete them even if empty):
+If you are explicitly instructed to update the board, ensure these 5 fixed sections exist (DO NOT delete them even if empty):
 - `## Ready for Dev`
 - `## In Progress`
 - `## Done`
@@ -115,7 +125,7 @@ You are a **Coder** or **Debugger** agent. Your job is to:
 3. Run validation (TEST_PLAN + hygiene) and self-review
 4. Document completion for handoff
 
-**Restrictions:** You may append raw logs/evidence to `## EVIDENCE`, but **NEVER** write a verdict or validation report. Use `docs/TASK_BOARD.md` to move the WP to `In Progress` when you start.
+**Restrictions:** You may append raw logs/evidence to `## EVIDENCE`, but **NEVER** write a verdict or validation report. Do not rely on branch-local `docs/TASK_BOARD.md` for cross-branch visibility; the Validator maintains the Operator-visible board on `main`.
 
 **CRITICAL**: You MUST verify a task packet exists BEFORE writing any code. This is not optional.
 
@@ -271,7 +281,7 @@ When two Coders work in this repo concurrently, no two in-progress Work Packets 
 - **Low-friction rule:** Local uncommitted changes outside your WP are allowed during development, but when handing off for Validator merge/commit you MUST stage ONLY your WP's files (per `IN_SCOPE_PATHS`) so `just post-work {WP_ID}` can validate the staged diff deterministically.
 - **Waiver boundary [CX-573F]:** A user waiver is only required if the Validator cannot isolate the staged diff to the WP scope (or if out-of-scope files must be included intentionally).
 - Treat `IN_SCOPE_PATHS` as the exclusive file lock set for the WP.
-- Before editing any code, open `docs/TASK_BOARD.md` -> `## In Progress`, then open each listed WP packet and compare `IN_SCOPE_PATHS` to your WP.
+- Before editing any code, consult the Operator-visible Task Board on `main` (recommended: `git show main:docs/TASK_BOARD.md`) and review `## Active (Cross-Branch Status)`; open each listed WP packet and compare `IN_SCOPE_PATHS` to your WP.
 - If ANY overlap exists: STOP and escalate (do not edit any code).
 
 Escalation template:
@@ -330,19 +340,27 @@ I cannot start without a complete packet.
 
 ---
 
-### Step 3: Update Task Board [CX-585] ✋ STOP
+### Step 3: Bootstrap Claim Commit (Status Sync) [CX-217] ✋ STOP
 
-**MANDATORY:** You are now the "ball holder". Move the task to **In Progress** to signal active implementation.
+Goal: make "work started" visible to the Operator on `main` **without** blocking your local `just validate` workflow.
 
-**Update `docs/TASK_BOARD.md`:**
-- Move WP-{ID} from `## Ready for Dev` to `## In Progress`
-- Do NOT add assignee/model to the Task Board. Claim the WP inside the task packet metadata (CODER_MODEL, CODER_REASONING_STRENGTH) when switching Status to In Progress.
-- Ensure the board maintains all 5 fixed sections (§ Board Integrity Check).
+**MANDATORY in your task packet (before any code changes):**
+- Set task packet `**Status:** In Progress`
+- Fill `CODER_MODEL` and `CODER_REASONING_STRENGTH`
+- Update `## STATUS_HANDOFF` with a 1-line "Started" note
 
-**Verify file updated:**
+**Then create a docs-only bootstrap commit on your WP branch:**
 ```bash
-grep "WP-{ID}" docs/TASK_BOARD.md
+git status -sb
+git add docs/task_packets/WP-{ID}.md
+git commit -m "docs: bootstrap claim [WP-{ID}]"
 ```
+
+**Notify the Validator** with the commit hash. The Validator will:
+- Merge the docs-only bootstrap claim commit into `main` (commit SHA only; do not fast-forward to unvalidated implementation)
+- Update `docs/TASK_BOARD.md` on `main` (move WP to `## In Progress`; optionally add metadata under `## Active (Cross-Branch Status)`)
+
+**Do NOT edit `docs/TASK_BOARD.md` for cross-branch visibility in your WP branch** unless the Validator explicitly asks. (Validator maintains the Operator-visible `main` board; `## In Progress` lines are script-checked.)
 
 ---
 
@@ -845,14 +863,15 @@ Fix errors, re-run `just post-work`.
 
 ---
 
-### Step 11: Update Task Board & Request Commit
+### Step 11: Status Sync & Request Validator Review
 
-**1. Update `docs/TASK_BOARD.md`:**
-- Move WP-{ID} to "Done"
+**1. Update task packet handoff:**
+- Ensure `## STATUS_HANDOFF` says: "Implementation complete; `just post-work` PASS; ready for validation"
+- Do NOT write verdicts or edit `## VALIDATION_REPORTS`
 
 **2. Output final summary:**
 ```
-✅ Work complete and validated [CX-623]
+✅ Work complete; ready for validation [CX-623]
 ========================================
 
 WP_ID: WP-{phase}-{name}
@@ -894,7 +913,7 @@ Users can now cancel running jobs via API.
 Co-Authored-By: {Your model} <noreply@anthropic.com>
 ```
 
-Ready for commit.
+Ready for Validator review.
 ========================================
 ```
 
@@ -1200,7 +1219,7 @@ This section defines what a PERFECT Coder looks like. Use this for self-evaluati
 **MUST:**
 - [ ] Capture logs/evidence in `## EVIDENCE` (do NOT write verdicts in `## VALIDATION_REPORTS`)
 - [ ] Update STATUS if changed (packet notes/status only)
-- [ ] Update TASK_BOARD (move to "Done")
+- [ ] Notify Validator for validation/merge (Validator updates `main` TASK_BOARD to Done on PASS/FAIL)
 - [ ] Write detailed commit message (references WP-ID)
 - [ ] Request commit with summary
 
@@ -1222,7 +1241,7 @@ Before requesting commit, verify ALL 13:
 - [ ] **8. DONE_MEANS:** Every criterion has file:line evidence
 - [ ] **9. Validation Evidence:** Captured in `## EVIDENCE` (no verdicts)
 - [ ] **10. Packet Status:** Updated if needed (no validation logs)
-- [ ] **11. TASK_BOARD:** Updated (moved to "Done")
+- [ ] **11. Status Sync:** Validator notified; `## STATUS_HANDOFF` updated (Validator updates `main` Task Board)
 - [ ] **12. Commit Message:** Detailed, references WP-ID, includes validation
 - [ ] **13. Ready for Commit:** All 12 items verified
 

@@ -127,9 +127,9 @@ just validator-spec-regression
 - [ ] Blocked WPs have documented reason + ETA for unblocking
 
 **CLARIFICATION:** Orchestrator's role is to:
-1. **CHECK** that TASK_BOARD correctly reflects packet status (is it in sync?)
-2. **UPDATE** TASK_BOARD when Validator gives approval (move WP to Done + mark VALIDATED)
-3. **RECORD** the validation verdict (PASS/FAIL) and timestamp
+1. **CHECK** that the Operator-visible TASK_BOARD on `main` correctly reflects packet status (is it in sync?)
+2. **UPDATE** TASK_BOARD planning states (Ready for Dev/Blocked/Stub Backlog) and supersedence; Validator status-syncs `main` for In Progress/Done
+3. **RECORD** governance actions (signature usage, spec pointer updates, mapping decisions) — Orchestrator does NOT issue validation verdicts
 
 Orchestrator does NOT do validation (Validator does). Orchestrator just tracks status.
 
@@ -301,6 +301,7 @@ A **Work Packet Stub** is an optional planning artifact used to track Roadmap/Ma
 
 - Stubs are legitimate backlog items, but they are NOT executable task packets/work packets.
 - Stubs MUST live in `docs/task_packets/stubs/` and should be listed on `docs/TASK_BOARD.md` under a STUB section.
+- If a Base WP has multiple packets (or a stub + official packet), the Base WP → Active Packet mapping MUST be recorded in `docs/WP_TRACEABILITY_REGISTRY.md`.
 - Stubs MUST NOT be handed off to Coder/Validator and MUST NOT be used to start implementation.
 - Stubs do not require USER_SIGNATURE, a refinement file, or deterministic gates.
 - Stub template: `docs/templates/TASK_PACKET_STUB_TEMPLATE.md`
@@ -549,9 +550,11 @@ Mark packet with ERRATA note but keep it active (no v2 needed).
 
 ### Error 3: TASK_BOARD Out of Sync with Packets
 
-**Problem:** TASK_BOARD shows "Ready for Dev" but WP file shows "In Progress".
+**Problem:** Operator-visible TASK_BOARD (on `main`) shows an incorrect state vs. the task packet `**Status:**` field (common in multi-branch worktrees).
 
-**Prevention:** Update TASK_BOARD IMMEDIATELY (within 1 hour) when WP status changes.
+**Prevention:** Use docs-only status-sync commits:
+- Coder produces a docs-only bootstrap claim commit when starting (task packet set to `In Progress` with claim fields).
+- Validator mirrors that to `main` by updating `docs/TASK_BOARD.md` -> `## Active (Cross-Branch Status)` (and later moves items on PASS/FAIL).
 
 **Recovery if error occurs:**
 1. Compare TASK_BOARD status vs. each WP's STATUS field
@@ -561,8 +564,8 @@ Mark packet with ERRATA note but keep it active (no v2 needed).
    ```
 
 2. Identify discrepancies
-3. Update TASK_BOARD to match packets (packets are source of truth)
-4. Log in decision log: "Synced TASK_BOARD: was {X days} out of sync"
+3. Update `main` TASK_BOARD to match packet reality (task packets are source of truth)
+4. Log in decision log (optional): "Status-sync: TASK_BOARD was {X days} out of sync"
 5. Review: Why did sync break? What to do differently?
 
 ---
@@ -1124,11 +1127,11 @@ grep -A5 "## Blocked" docs/TASK_BOARD.md
 
 When multiple Coders work in the repo concurrently, treat `IN_SCOPE_PATHS` as the exclusive file lock set for that WP.
 
-- Lock source of truth: `docs/TASK_BOARD.md` -> `## In Progress` list of WP_IDs.
+- Lock source of truth: Operator-visible Task Board on `main` (recommended: `git show main:docs/TASK_BOARD.md`) -> `## In Progress` (and `## Active (Cross-Branch Status)` if present).
 - Lock set definition: for each in-progress WP, its lock set is the exact file paths listed under its task packet's `IN_SCOPE_PATHS`.
 - Hard rule: do NOT delegate/start a new WP if ANY `IN_SCOPE_PATHS` entry overlaps with ANY in-progress WP's `IN_SCOPE_PATHS`.
   - If overlap is required, this is a blocker: re-scope to avoid overlap OR sequence the work (mark WP BLOCKED: "File lock conflict").
-- Task Board stays minimal: do NOT include assignee/model on the Task Board. The Coder claims the WP inside the task packet metadata (CODER_MODEL, CODER_REASONING_STRENGTH) when switching to In Progress.
+- Task Board stays minimal: `## In Progress` uses script-checked lines only. Claim details live in the task packet metadata (CODER_MODEL, CODER_REASONING_STRENGTH); optional branch/coder metadata may be tracked under `## Active (Cross-Branch Status)` on `main`.
 
 Blocking template (use when overlap is detected):
 ```
@@ -1753,6 +1756,11 @@ DONE_MEANS (mapped):
 - WP-1-Storage-Abstraction-Layer-v2 (changes needed, new packet)
 - OR: WP-1-Storage-Abstraction-Layer-v3 (next revision; no date/time stamps)
 
+**Traceability rule (mandatory when variants exist):**
+- Treat `WP-1-Storage-Abstraction-Layer` as the **Base WP ID**.
+- If you create `...-v{N}`, update `docs/WP_TRACEABILITY_REGISTRY.md` so the Base WP maps to the single Active Packet, and mark the older packet(s) as Superseded on `docs/TASK_BOARD.md`.
+- When instructing Coders/Validators to run `just pre-work` / `just post-work`, always provide the **Active Packet WP_ID** (often includes `-vN`) to avoid ambiguous matches.
+
 ---
 
 ## Part 6: Task Board Maintenance [CX-625-630]
@@ -1822,18 +1830,17 @@ Storage Backend Portability Foundation (Sequential):
 
 ### 6.3 Orchestrator Responsibilities for TASK_BOARD
 
-**Update TASK_BOARD IMMEDIATELY when:**
+**Ensure TASK_BOARD is updated IMMEDIATELY when:**
 1. New WP created → Move to "Ready for Dev"
-2. Coder starts work → Move to "In Progress"
+2. Coder starts work → Ensure the Coder has produced a docs-only bootstrap claim commit; Validator status-syncs `main` (updates `## In Progress`; optionally also `## Active (Cross-Branch Status)`).
 3. Blocker discovered → Move to "Blocked" + document reason
-4. Validator approves → Move to "Done"
+4. Validator approves → Validator moves to "Done" (Orchestrator verifies TASK_BOARD reflects reality)
 5. Dependency unblocked → Move blocked WP to "Ready for Dev"
 
 **Keep TASK_BOARD in sync with reality:**
 ```
 Never let TASK_BOARD drift from actual WP status.
-If WP file shows STATUS: In-Progress but TASK_BOARD shows Ready-for-Dev → FAIL.
-Orchestrator must maintain consistency immediately.
+If the Operator-visible Task Board on `main` does not reflect packet reality, the Validator must run a docs-only status-sync commit to correct it.
 ```
 
 ### 6.4 Phase Gate Status Tracking [CX-609]
@@ -2143,7 +2150,7 @@ Use this template for ANY SLA-triggered escalation:
 5. **Close phase without all WPs VALIDATED** — "Done" ≠ "VALIDATED"
 6. **Skip pre-orchestration checklist** — All 14 items must pass
 7. **Invent requirements** — Task packets point to SPEC_ANCHOR, period
-8. **Let TASK_BOARD drift** — Update immediately when WP status changes
+8. **Let TASK_BOARD drift** — Ensure TASK_BOARD on `main` is status-synced when WP status changes (Validator: In Progress/Done; Orchestrator: planning states)
 9. **Lump multiple features in one WP** — One WP per requirement
 10. **Leave dependencies undocumented** — TASK_BOARD must show all blocking relationships
 
@@ -2155,7 +2162,7 @@ Use this template for ANY SLA-triggered escalation:
 4. **Document dependencies explicitly** — TASK_BOARD shows blockers
 5. **Maintain Phase Gate visibility** — Keep status current
 6. **Run pre-orchestration checklist** — Verify spec, board, supply chain
-7. **Update TASK_BOARD immediately** — Don't let status drift
+7. **Keep TASK_BOARD on `main` in sync** — Validator status-syncs In Progress/Done; Orchestrator maintains planning states
 8. **Provide complete BOOTSTRAP** — Coder needs 5-15 files, 10-20 terms, risk map
 9. **Create variant packets for changes** — Never edit locked packets
 10. **Enforce blocking rules** — Don't assign downstream work prematurely

@@ -62,7 +62,10 @@
 [CX-215] DOCS_LOCAL_STAGING: `/docs_local/` SHOULD be treated as staging/drafts. Assistants MUST NOT treat `/docs_local/` as canonical onboarding/debugging guidance unless a document is explicitly promoted into `/docs/`.
 [CX-216] PAST_WORK_INDEX: `/docs/` SHOULD include a `PAST_WORK_INDEX.md` (or equivalent) that links to older root-level specs/logs and `/docs_local/` drafts, so future maintainers can find prior work quickly without guesswork.
 
-[CX-217] TASK_BOARD: `/docs/TASK_BOARD.md` MUST exist and serve as the high-level, at-a-glance status tracker. It is a shared state file managed by the active agent: Orchestrator (Ready for Dev/Blocked), Coder (In Progress), Validator (Done).
+[CX-217] TASK_BOARD: `/docs/TASK_BOARD.md` MUST exist and serve as the high-level, at-a-glance status tracker.
+- Orchestrator manages planning states (Ready for Dev/Blocked; Stub Backlog).
+- Coders manage execution state in the **task packet** (set `**Status:** In Progress` + claim fields) and produce a docs-only bootstrap commit early.
+- Validator maintains the Operator-visible `main` Task Board via docs-only "status sync" commits (update `## In Progress`; optionally also update `## Active (Cross-Branch Status)` for branch/coder visibility).
 
 [CX-210] NEW_TOP_DIR_DOC: When new top-level directories are added with user approval, they SHOULD be documented in a future codex version.
 
@@ -269,6 +272,9 @@ BOOTSTRAP
 [CX-580] ORCH_PACKET_REQUIRED: Orchestrators MUST create a task packet before delegating work to coder/debugger agents. The packet MUST be written to `docs/task_packets/{WP_ID}.md` OR embedded in the handoff message with full structure.
 
 [CX-580C] ORCH_WP_ID_NAMING (HARD): Work Packet IDs and filenames MUST NOT include date/time stamps. Use `WP-{phase}-{name}` and, if a revision is required, `WP-{phase}-{name}-v{N}` (e.g., `WP-1-Tokenization-Service-v3`).
+Legacy note: historical packets may contain date-coded IDs created before this invariant; do not create new date-stamped packet IDs. All new revisions MUST use `-v{N}`.
+
+[CX-580D] WP_TRACEABILITY_REGISTRY (HARD): Base WP IDs are stable planning identifiers; when multiple packet revisions exist for the same Base WP, the Orchestrator MUST record the mapping (Base WP → Active Packet) in `docs/WP_TRACEABILITY_REGISTRY.md`. Coders and Validators MUST consult the registry; if the mapping is missing or ambiguous, work is BLOCKED until resolved.
 
 [CX-580A] ORCH_NO_CODING_BLOCK (HARD): The Orchestrator role is **STRICTLY FORBIDDEN** from modifying `src/`, `app/`, `tests/`, or `scripts/`. This is an absolute constraint; no automated response or work can override this.
 
@@ -486,14 +492,14 @@ BOOTSTRAP
 2. Verify task packet exists [CX-620]
 3. **Extract Verbatim Spec** [CX-624]
 4. **Propose Skeleton/Interface** [CX-625]
-5. Update `docs/TASK_BOARD.md` to "In Progress"
+5. Set task packet `**Status:** In Progress` + claim fields and create a docs-only bootstrap claim commit (Validator status-syncs `main`)
 6. Output BOOTSTRAP block [CX-622]
 7. Implement within scope
 8. **Run Anti-Vibe Verification [CX-628]** (Search for `split_whitespace`, `unwrap`, etc.)
 9. **Enforce Block-Over-Placeholder [CX-629]**
 10. Run validation (`just post-work {WP_ID}`)
 11. **Map Evidence to Spec** [CX-627]
-12. Update `docs/TASK_BOARD.md` to "Done"
+12. Request Validator validation/merge (Validator updates `main` Task Board to Done on PASS/FAIL)
 
 **If you are a Reviewer/Validator:**
 1. Verify task packet exists for the work

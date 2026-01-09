@@ -93,16 +93,16 @@ Is user request clearly covered in Master Spec Main Body?
 ---
 
 ### Pillar 3: Task Board Maintenance (SSOT)
-**What:** Keep `docs/TASK_BOARD.md` as the single source of truth for all work status
+**What:** Keep `docs/TASK_BOARD.md` (on `main`) as the Operator-visible status tracker; task packets are the source of truth for execution state
 **Quality Standard:** TASK_BOARD matches reality; never drifts from actual packet statuses
-**Enforcement:** Update TASK_BOARD IMMEDIATELY (within same session/1 hour) when any WP status changes
+**Enforcement:** Ensure the Operator-visible Task Board on `main` is updated within the same session/1 hour when any WP status changes (Validator status-sync for In Progress/Done)
 **Success Metric:** Validator opens TASK_BOARD and can see accurate phase progression without reading 20 packets
 
 **Perfect Orchestrator Behavior:**
 - ✅ Updates TASK_BOARD when WP created (move to "Ready for Dev")
-- ✅ Updates TASK_BOARD when Coder starts (move to "In Progress" after BOOTSTRAP output)
+- ✅ Ensures Coder produces a docs-only bootstrap claim commit when starting; Validator status-syncs `main` (move to "In Progress")
 - ✅ Updates TASK_BOARD when blocker discovered (move to "Blocked" with reason + ETA)
-- ✅ Updates TASK_BOARD when Validator approves (move to "Done" + mark VALIDATED)
+- ✅ Ensures Validator status-syncs `main` on PASS/FAIL (move to "Done" + mark VALIDATED/FAIL)
 - ✅ Updates TASK_BOARD when dependency resolved (move blocked WP to "Ready for Dev")
 - ✅ Maintains Phase Gate Status section showing closure criteria
 - ✅ Keeps "dependencies" field current for each WP
@@ -110,18 +110,18 @@ Is user request clearly covered in Master Spec Main Body?
 
 **Synchronization Rule:** TASK_BOARD and packet STATUS must always agree.
 ```
-If WP file says: STATUS: In-Progress
-But TASK_BOARD shows: Ready for Dev
-→ This is a FAIL. Update immediately and log the discrepancy.
+If task packet says: Status: In Progress
+But the Operator-visible TASK_BOARD on `main` shows: Ready for Dev
+→ This is a FAIL. Validator must status-sync `main` immediately.
 ```
 
 **Status Values Reference:**
 | Status | Symbol | When to Use | Owner |
 |--------|--------|-------------|-------|
 | READY FOR DEV | 🔴 | Packet complete, awaiting Coder | Orchestrator sets |
-| IN PROGRESS | 🟠 | Coder working (output BOOTSTRAP) | Orchestrator sets |
+| IN PROGRESS | 🟠 | Coder working (output BOOTSTRAP) | Validator sets (status-sync from packet) |
 | BLOCKED | 🟡 | Waiting for dependency/clarification | Orchestrator sets |
-| DONE | ✅ | Validator approved (merged to main) | Orchestrator sets |
+| DONE | ✅ | Validator approved (merged to main) | Validator sets |
 | GAP | 🟡 | Not yet created as packet | Orchestrator tracks |
 
 **Never Forget:**
@@ -526,7 +526,7 @@ Problem: Packet says STATUS: In-Progress
          Validator gets confused
 Result: Governance ambiguity; unclear who owns status
 
-Prevention: Update TASK_BOARD immediately (within 1 hour) when packet status changes
+Prevention: Ensure the Operator-visible TASK_BOARD on `main` is status-synced within 1 hour of packet status changes (Validator handles In Progress/Done via docs-only status-sync commits)
 ```
 
 ❌ **Gotcha 7: Assigning blocked WP**
@@ -749,16 +749,16 @@ A perfect Orchestrator is:
 
 ### Failure Mode 3: TASK_BOARD Drift
 **Symptom:** TASK_BOARD status doesn't match packet STATUS field
-**Root Cause:** Orchestrator forgot to update TASK_BOARD after packet change
+**Root Cause:** Operator-visible TASK_BOARD on `main` drifted from packet status (status-sync missed in a multi-branch workflow)
 **Impact:** Validator confused; unclear if WP is truly blocked/done
 **Recovery:**
 1. Identify discrepancy
 2. Compare packet STATUS vs. TASK_BOARD entry
-3. Update TASK_BOARD to match (and verify it's correct)
+3. Update TASK_BOARD on `main` to match (Validator status-sync commit) and verify it is correct
 4. Document the discrepancy (why did it happen?)
 5. Add to memory items (don't repeat)
 
-**Prevention:** Update TASK_BOARD within 1 hour of packet status change
+**Prevention:** Ensure TASK_BOARD on `main` is status-synced within 1 hour of packet status change (Validator status-sync for In Progress/Done)
 
 ---
 

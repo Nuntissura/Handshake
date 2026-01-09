@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-01-01
+**Updated:** 2026-01-08
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja080120262313 | Orchestrator | 2026-01-08 23:13 | Spec update: v02.103 intent audit + roadmap/taskboard/stubs sync | v02.103 | Added roadmap pointer for ANS-001 response behavior contract; clarified phase closure preamble; updated SPEC_CURRENT + TASK_BOARD + stubs. |
+| ilja080120262305 | Orchestrator | 2026-01-08 23:05 | Spec update: v02.102 roadmap audit + governance sync | v02.102 | Approved roadmap additions + TASK_BOARD/stub updates; updates `docs/SPEC_CURRENT.md` pointer. |
 | ilja070120260018 | Orchestrator | 2026-01-07 00:18 | Task packet creation: WP-1-ACE-Validators-v4 | v02.101 | Approved after Technical Refinement (see docs/refinements/WP-1-ACE-Validators-v4.md ). |
 | ilja070120260227 | Validator | 2026-01-07 02:27 | Scope expansion approval: WP-1-ACE-Validators-v4 | v02.101 | User-approved scope expansion recorded in packet/refinement. |
 | ilja070120261338 | Validator | 2026-01-07 13:38 | Waiver approval: WAIVER-ACE-VAL-V4-002/003 | v02.101 | User approved nondeterminism waivers for Instant::now and Utc::now in ACE logging. |

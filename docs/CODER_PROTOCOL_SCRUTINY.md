@@ -484,7 +484,7 @@
 
 **Impact:** Coder unsure how to checkpoint progress; might lose work
 
-**What ORCHESTRATOR does:** TASK_BOARD tracks "In Progress" status (Part 6.2, line 1673)
+**What governance does now:** task packet STATUS is source of truth; Validator status-syncs the Operator-visible Task Board on `main` (see `docs/VALIDATOR_PROTOCOL.md`).
 
 **Fix needed:** Document: "After significant progress, update task packet STATUS to 'In-Progress' and commit intermediate work with WIP notation"
 

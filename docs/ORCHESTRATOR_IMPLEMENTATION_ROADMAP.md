@@ -155,12 +155,12 @@ Recovery: "Oops, can't undo. Governance violation."
 4. Update TASK_BOARD to reference active version
 
 ### Error 3: TASK_BOARD Out of Sync with Packets
-**Prevention:** Update TASK_BOARD within 1 hour of packet status change
+**Prevention:** Use docs-only status-sync commits (Coder bootstrap claim commit + Validator updates TASK_BOARD on `main` within 1 hour of packet status changes)
 **If error occurs:**
-1. Compare TASK_BOARD status vs. packet STATUS field
+1. Compare Operator-visible TASK_BOARD on `main` vs. packet STATUS field
 2. Identify discrepancies
-3. Update TASK_BOARD to match packets (source of truth)
-4. Log in decision log: "Synced TASK_BOARD; was X days out of sync"
+3. Update TASK_BOARD on `main` to match packet reality (task packets are source of truth)
+4. Log in decision log (optional): "Status-sync: TASK_BOARD was X days out of sync"
 5. Review: Why did sync break? (What to do differently?)
 
 ### Error 4: Blocker Status Missed in Step 1

@@ -7,6 +7,7 @@ Requirements:
 - Use SPEC_BASELINE for provenance (spec at creation time).
 - Use SPEC_TARGET as the authoritative spec for closure/revalidation (usually docs/SPEC_CURRENT.md).
 - WP_ID and filename MUST NOT include date/time stamps; use `-v{N}` for revisions (e.g., `WP-1-Tokenization-Service-v3`).
+- If multiple packets exist for the same Base WP, update `docs/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet).
 
 ---
 
@@ -15,6 +16,7 @@ Requirements:
 ## METADATA
 - TASK_ID: {{WP_ID}}
 - WP_ID: {{WP_ID}}
+- BASE_WP_ID: {{WP_ID}} (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: {{DATE_ISO}}
 - REQUESTOR: {{REQUESTOR}}
 - AGENT_ID: {{AGENT_ID}}
@@ -66,6 +68,7 @@ git revert <commit-sha>
 - SPEC_ANCHOR: {{SPEC_ANCHOR}}
 - Codex: Handshake Codex v1.4.md
 - Task Board: docs/TASK_BOARD.md
+- WP Traceability: docs/WP_TRACEABILITY_REGISTRY.md
 
 ## BOOTSTRAP
 - FILES_TO_OPEN:

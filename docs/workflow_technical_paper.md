@@ -74,14 +74,14 @@ This document is **complete, standalone, and implementable by a fresh model** fo
 - **Pre-orchestration gates**: verify spec currency and regression, task board freshness, supply chain health (`cargo deny`, `npm audit`), governance file currency, dependency chains
 - **Signature pause protocol**: before packet creation, propose DONE_MEANS (5-10 measurable checkpoints), TEST_PLAN commands, IN/OUT scope (exact file paths), RISK_TIER with justification, validator audit scope, rollback plan, packet variant triggers
 - **Packet creation** (via `just create-task-packet WP-{id}`): fill all 10 required fields with zero placeholders; enforce SPEC_ANCHOR references; scope to exact files (not globs); one requirement per packet
-- **Verification before delegation**: run `just pre-work WP-{id}` (blocks on failure); update `docs/TASK_BOARD.md` and packet STATUS in lockstep; lock packets with USER_SIGNATURE
+- **Verification before delegation**: run `just pre-work WP-{id}` (blocks on failure); ensure `docs/TASK_BOARD.md` reflects Ready for Dev; lock packets with USER_SIGNATURE
 - **Handoff**: provide packet path, WP_ID, RISK_TIER, authority docs (SPEC_CURRENT, protocols), and readiness confirmation; maintain SLAs (no downstream work until blockers are VALIDATED)
 
 ### Coder / Debugger
 - **Refuses to start** without a complete task packet; performs scope adequacy check (can I identify all affected files? Are boundaries clear? Are there unexpected dependencies?)
-- **Outputs BOOTSTRAP** (FILES_TO_OPEN 5-15, SEARCH_TERMS 10-20, RUN_COMMANDS 3-6, RISK_MAP 3-8) before first code change; moves WP to In Progress on Task Board
+- **Outputs BOOTSTRAP** (FILES_TO_OPEN 5-15, SEARCH_TERMS 10-20, RUN_COMMANDS 3-6, RISK_MAP 3-8) before first code change; sets task packet Status: In Progress and creates a docs-only bootstrap claim commit (Validator status-syncs `main`)
 - **Implements strictly within IN_SCOPE_PATHS**, honoring DONE_MEANS and OUT_OF_SCOPE; enforces hard invariants (zero speculative requirements, no TODO placeholders without tracking IDs)
-- **Updates packet** with VALIDATION block (Command, Result, Notes), maintains Task Board sync, prepares commit message referencing WP_ID; no commits without passing post-work gate
+- **Updates packet** with evidence/status handoff and prepares commit message referencing WP_ID; Validator maintains the Operator-visible Task Board on `main`
 
 ### Validator (Senior Engineer / Lead Auditor)
 - **Blocks merges** unless evidence proves alignment with spec, codex, and packet; preserves collaboration context in packets
@@ -1582,7 +1582,7 @@ SEARCH_TERMS: [read packet SEARCH_TERMS]
 RUN_COMMANDS: [read packet RUN_COMMANDS]
 RISK_MAP: [read packet RISK_MAP]
 ```
-Mark WP STATUS → `In-Progress` in Task Board
+Set task packet Status: In Progress + claim fields and create a docs-only bootstrap claim commit (Validator status-syncs `main`)
 
 ### Step 2: Implement Strictly Within Scope
 - Only modify files in IN_SCOPE_PATHS
@@ -1613,9 +1613,9 @@ Run `just post-work WP-{id}` (verifies VALIDATION results recorded)
 - Exit 0: work validated, safe to commit
 - Exit 1: incomplete, return to implementation
 
-### Step 6: Update Task Board
-- Mark WP STATUS → `Ready-for-Validation`
-- Update Task Board entry in lockstep
+### Step 6: Status Sync (Task Board)
+- Mark task packet STATUS for handoff (e.g., `Implementation complete; awaiting validation`)
+- Notify Validator; Validator status-syncs the Operator-visible Task Board on `main` and moves the WP to Done on PASS/FAIL
 
 ### Step 7: Prepare Commit
 Commit message format:
@@ -2138,16 +2138,16 @@ validate(wpId, process.cwd());
 **Symptoms**: Packet STATUS = "Done" but Task Board shows "Ready-for-Dev"
 
 **Causes**:
-1. Coder updated packet but forgot Task Board
-2. Validator updated Task Board but forgot packet
-3. Manual edit error
+1. Packet STATUS changed but Operator-visible Task Board on `main` was not status-synced
+2. Task Board was edited directly without matching packet reality
+3. Multi-branch/worktree drift (local board differs from `main`)
 
 **Fix**:
-1. Atomicity rule: **ALWAYS update both packet and Task Board together**
-2. If out of sync: align them now
+1. Source-of-truth rule: packet STATUS is authoritative.
+2. Validator performs a docs-only status-sync commit on `main`:
    - Read current packet STATUS
-   - Update Task Board entry to match
-   - Verify with: `grep "WP-1-Feature" docs/TASK_BOARD.md` matches packet STATUS
+   - Update Task Board entry on `main` to match
+   - Verify with: `git show main:docs/TASK_BOARD.md | rg "WP-1-Feature"` matches packet reality
 
 ### "Phase gate blocked; can't close Phase 1"
 

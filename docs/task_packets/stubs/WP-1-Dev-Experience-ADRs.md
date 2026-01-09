@@ -40,5 +40,5 @@
 - [ ] Obtain USER_SIGNATURE for the WP.
 - [ ] Create `docs/refinements/WP-1-Dev-Experience-ADRs.md` (approved/signed).
 - [ ] Create official task packet via `just create-task-packet WP-1-Dev-Experience-ADRs` (in `docs/task_packets/`).
-- [ ] Move Task Board entry out of STUB into Ready for Dev / In Progress as appropriate.
+- [ ] Move Task Board entry out of STUB into Ready for Dev (In Progress is handled via Validator status-sync when work begins).
 

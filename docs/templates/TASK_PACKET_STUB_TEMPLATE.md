@@ -7,6 +7,7 @@ Rules:
 - No refinement file is required for stubs.
 - Coder/Validator MUST NOT start work from a stub.
 - When activating a stub into a real WP, follow `docs/ORCHESTRATOR_PROTOCOL.md` (Technical Refinement Block + USER_SIGNATURE + refinement + `just create-task-packet`).
+- If a Base WP later gains multiple packets (revisions), record Base WP -> Active Packet in `docs/WP_TRACEABILITY_REGISTRY.md`.
 
 ---
 
@@ -14,6 +15,7 @@ Rules:
 
 ## STUB_METADATA
 - WP_ID: {{WP_ID}}
+- BASE_WP_ID: {{WP_ID}} (stable ID without `-vN`; equals WP_ID for stubs; if WP_ID includes `-vN`, override to the base ID)
 - CREATED_AT: {{DATE_ISO}}
 - STUB_STATUS: STUB (NOT READY FOR DEV)
 - SPEC_TARGET: docs/SPEC_CURRENT.md
