@@ -201,6 +201,7 @@ SKELETON APPROVED
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
 - Current WP_STATUS: In Progress (implementation complete; awaiting Validator review/status-sync)
 - What changed in this update: Recorded SKELETON approval, captured audit evidence, and filled COR-701 manifest (no non-doc file changes).
+- Post-work gate: PASS (`just post-work WP-1-AppState-Refactoring-v3`; output recorded in `## EVIDENCE`)
 - Next step / handoff hint: Validator can merge bootstrap claim commit `fc2ae8ab` into `main` and status-sync `docs/TASK_BOARD.md` on `main`.
 
 ## EVIDENCE
@@ -276,6 +277,30 @@ SKELETON APPROVED
   ```text
   cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir \"../Cargo Target/handshake-cargo-target\"
        Removed 0 files
+  ```
+
+- Command: just post-work WP-1-AppState-Refactoring-v3
+  Output:
+  ```text
+  Checking Phase Gate for WP-1-AppState-Refactoring-v3...
+  ? GATE PASS: Workflow sequence verified.
+
+  Post-work validation for WP-1-AppState-Refactoring-v3 (deterministic manifest + gates)...
+
+  Check 1: Validation manifest present
+  warning: in the working copy of 'docs/task_packets/WP-1-AppState-Refactoring-v3.md', LF will be replaced by CRLF the next time Git touches it
+
+  Check 2: Manifest fields
+
+  Check 3: File integrity (per manifest entry)
+
+  Check 4: Git status
+  warning: in the working copy of 'docs/task_packets/WP-1-AppState-Refactoring-v3.md', LF will be replaced by CRLF the next time Git touches it
+
+  ==================================================
+  Post-work validation PASSED
+
+  You may proceed with commit.
   ```
 
 ## VALIDATION_REPORTS
