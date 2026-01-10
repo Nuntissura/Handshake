@@ -67,6 +67,14 @@ Handshake uses **Base WP IDs** for stable planning, and **packet revisions** (`-
 - If more than one task packet exists for the same Base WP and the registry does not clearly identify the Active Packet, STOP and escalate to the Orchestrator (governance-blocked).
 - Run `just pre-work` / `just post-work` using the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
 
+## Variant Packet Lineage Audit [CX-580E] (BLOCKING)
+
+If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet includes `## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]`.
+
+**Why:** A `-v{N}` packet is not allowed to “forget” requirements from earlier versions. The Lineage Audit is the Orchestrator’s proof that the Base WP’s Roadmap pointer and Master Spec Main Body requirements are fully translated into the current repo state.
+
+**Blocking rule:** If the Lineage Audit is missing/unclear, STOP and escalate to the Orchestrator. Do NOT proceed to implement “just the v{N} diff” without a complete audit.
+
 **Supporting Documents:**
 - **CODER_RUBRIC.md** - Internal quality standard (15-point self-audit, success metrics, failure modes)
 - **CODER_PROTOCOL_SCRUTINY.md** - Analysis of current gaps (18 identified, B+ grade)

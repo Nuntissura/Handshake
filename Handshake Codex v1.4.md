@@ -276,6 +276,8 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 
 [CX-580D] WP_TRACEABILITY_REGISTRY (HARD): Base WP IDs are stable planning identifiers; when multiple packet revisions exist for the same Base WP, the Orchestrator MUST record the mapping (Base WP → Active Packet) in `docs/WP_TRACEABILITY_REGISTRY.md`. Coders and Validators MUST consult the registry; if the mapping is missing or ambiguous, work is BLOCKED until resolved.
 
+[CX-580E] WP_LINEAGE_AUDIT_VARIANTS (HARD): When creating a revision packet (`-v{N}`) for a Base WP, the Orchestrator MUST perform and record a **Lineage Audit** that proves the Base WP (and ALL its prior packet versions) are a correct translation of: Roadmap pointer → Master Spec Main Body → repo code. The audit MUST validate that no requirements were lost/forgotten across versions and that the current repo state satisfies every governing Main Body MUST/SHOULD for that Base WP. If the audit is missing or incomplete, delegation is BLOCKED.
+
 [CX-580A] ORCH_NO_CODING_BLOCK (HARD): The Orchestrator role is **STRICTLY FORBIDDEN** from modifying `src/`, `app/`, `tests/`, or `scripts/`. This is an absolute constraint; no automated response or work can override this.
 
 [CX-580B] ORCH_NO_ROLE_SWITCH (HARD): The Orchestrator role is **STRICTLY FORBIDDEN** from switching to the Coder role. The Orchestrator's turn ends immediately upon task delegation. No automated response or work can override this constraint.
@@ -304,7 +306,7 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 
 [CX-585] ORCH_TASK_BOARD_UPDATE: The orchestrator SHOULD update `docs/TASK_BOARD.md` upon creating a task packet. Logger entries for task creation are OPTIONAL and generally discouraged to avoid noise.
 
-[CX-585F] TASK_BOARD_ENTRY_FORMAT (HARD): `docs/TASK_BOARD.md` entries MUST be minimal and MUST include only the WP identifier and the current validation verdict (e.g., `FAIL`, `VALIDATED`, `OUTDATED_ONLY`). Detailed failure reasons belong in the task packet (and/or validator report), not in the Task Board.
+[CX-585F] TASK_BOARD_ENTRY_FORMAT (HARD): `docs/TASK_BOARD.md` entries MUST be minimal in all non-planning states. Specifically: entries in `## In Progress`, `## Done`, and `## Superseded (Archive)` MUST include only the WP identifier and the current status token (e.g., `[IN_PROGRESS]`, `[VALIDATED]`, `[FAIL]`, `[OUTDATED_ONLY]`, `[SUPERSEDED]`). Planning/backlog lists (e.g., `## Ready for Dev`) MAY contain additional notes temporarily, but final verdict reasoning MUST live in the task packet / validator report (not the Task Board).
 
 [CX-585A] MANDATORY_SPEC_REFINEMENT (THE STRATEGIC PAUSE): The Orchestrator MUST use the "Refinement Loop" to ensure the Master Spec reflects the detailed design/requirements of the task BEFORE delegation.
 - **Spec-Version Lock:** The Orchestrator is **FORBIDDEN** from outputting a final Task Packet for delegation unless it has **first** created a new version of the Master Spec (`v02.xx+1`) that explicitly defines the technical approach (env vars, signatures, constraints).

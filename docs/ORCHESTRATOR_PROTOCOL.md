@@ -1761,6 +1761,45 @@ DONE_MEANS (mapped):
 - If you create `...-v{N}`, update `docs/WP_TRACEABILITY_REGISTRY.md` so the Base WP maps to the single Active Packet, and mark the older packet(s) as Superseded on `docs/TASK_BOARD.md`.
 - When instructing Coders/Validators to run `just pre-work` / `just post-work`, always provide the **Active Packet WP_ID** (often includes `-vN`) to avoid ambiguous matches.
 
+### 5.7 Variant Lineage Audit (ALL versions) [CX-580E] (BLOCKING)
+
+When you create a revision packet (`-v{N}`) for a Base WP, you MUST include a **Lineage Audit** inside the new packet before delegation.
+
+**Goal:** Prevent “spec→packet→code” gaps caused by version churn. A `-v{N}` packet is NOT allowed to validate only “what changed in v{N}”; it must prove the **entire Base WP requirement** is satisfied in the repo as of SPEC_TARGET.
+
+**MANDATORY:** Add `## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]` to the new packet and include, at minimum:
+- `BASE_WP_ID` and the new `WP_ID` being created.
+- Roadmap pointer(s) (if applicable) AND the governing Master Spec Main Body anchors for “Done”.
+- `SPEC_TARGET` resolved at creation time (from `docs/SPEC_CURRENT.md`).
+- A list of ALL known prior packet files for the Base WP (v1/v2/...) and their statuses (Superseded/FAIL/Historical/etc.).
+- A requirement map showing every governing Main Body MUST/SHOULD translated to current repo evidence:
+  - `SPEC_ANCHOR` (exact clause ID)
+  - Code evidence (`path:line` in the repo)
+  - Provenance (introducing commit via `git blame`, or explicit “present before v{N}”)
+  - If anything is missing: declare GAP and STOP (create a remediation WP or initiate spec enrichment).
+
+**Suggested commands (examples):**
+- `cat docs/SPEC_CURRENT.md`
+- `rg -n "<forbidden symbols>" src/`
+- `git blame -n -L <line>,<line> <path>`
+- `git log --oneline --decorate -- <path>`
+
+**Template (copy into the packet):**
+```markdown
+## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]
+- BASE_WP_ID: WP-1-...
+- WP_ID: WP-1-...-vN
+- SPEC_TARGET: Handshake_Master_Spec_vXX.XXX.md (from docs/SPEC_CURRENT.md)
+- Roadmap pointer: §7.6.x (pointer only; Main Body is authority)
+- Prior packets:
+  - docs/task_packets/WP-1-....md (status: ...)
+  - docs/task_packets/WP-1-....-v2.md (status: ...)
+
+| SPEC_ANCHOR | Main Body requirement (MUST/SHOULD) | Repo evidence (path:line) | Introduced (commit) | Notes |
+|---|---|---|---|---|
+| A?.?.? | ... | ... | ... | ... |
+```
+
 ---
 
 ## Part 6: Task Board Maintenance [CX-625-630]
