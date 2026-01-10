@@ -63,7 +63,7 @@ Format:
 | WP-1-AI-UX-Actions | docs/task_packets/WP-1-AI-UX-Actions.md | Ready for Dev: WP-1-AI-UX-Actions |  |
 | WP-1-AI-UX-Rewrite | docs/task_packets/WP-1-AI-UX-Rewrite.md | Ready for Dev: WP-1-AI-UX-Rewrite |  |
 | WP-1-AI-UX-Summarize-Display | docs/task_packets/WP-1-AI-UX-Summarize-Display.md | Ready for Dev: WP-1-AI-UX-Summarize-Display |  |
-| WP-1-AppState-Refactoring | docs/task_packets/WP-1-AppState-Refactoring-v3.md | Ready for Dev: WP-1-AppState-Refactoring-v3 | active=WP-1-AppState-Refactoring-v3; supersedes: WP-1-AppState-Refactoring, WP-1-AppState-Refactoring-v2 |
+| WP-1-AppState-Refactoring | docs/task_packets/WP-1-AppState-Refactoring-v3.md | Done: WP-1-AppState-Refactoring-v3 | active=WP-1-AppState-Refactoring-v3; supersedes: WP-1-AppState-Refactoring, WP-1-AppState-Refactoring-v2 |
 | WP-1-Atelier-Lens | docs/task_packets/WP-1-Atelier-Lens.md | Ready for Dev: WP-1-Atelier-Lens |  |
 | WP-1-Calendar-Lens | docs/task_packets/WP-1-Calendar-Lens.md | Ready for Dev: WP-1-Calendar-Lens |  |
 | WP-1-Canvas-Typography | docs/task_packets/WP-1-Canvas-Typography.md | Ready for Dev: WP-1-Canvas-Typography |  |
