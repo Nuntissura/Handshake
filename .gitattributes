@@ -1,0 +1,4 @@
+.gitattributes text eol=lf
+docs/task_packets/WP-1-AppState-Refactoring-v3.md text eol=lf
+docs/refinements/WP-1-AppState-Refactoring-v3.md text eol=lf
+docs/VALIDATOR_GATES.json text eol=lf

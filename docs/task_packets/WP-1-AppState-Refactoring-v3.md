@@ -37,6 +37,7 @@
   - src/backend/handshake_core/src/api/logs.rs
   - src/backend/handshake_core/src/api/paths.rs
   - src/backend/handshake_core/src/api/workspaces.rs
+  - .gitattributes
   - docs/task_packets/WP-1-AppState-Refactoring-v3.md
   - docs/refinements/WP-1-AppState-Refactoring-v3.md
   - docs/TASK_BOARD.md
@@ -179,6 +180,23 @@ SKELETON APPROVED
 - **Line Delta**: 0
 - **Pre-SHA1**: `e189a0045bec8b6d990637ae34548095658adcde`
 - **Post-SHA1**: `e189a0045bec8b6d990637ae34548095658adcde`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Target File**: `.gitattributes`
+- **Start**: 1
+- **End**: 4
+- **Line Delta**: 4
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `c28054853382463cf1c8bd32fc5a0e4c7938bd3b`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
