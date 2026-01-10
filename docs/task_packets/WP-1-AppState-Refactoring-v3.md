@@ -10,7 +10,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja090120262335
 
@@ -345,3 +345,60 @@ SKELETON APPROVED
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### 2026-01-10 VALIDATION REPORT - WP-1-AppState-Refactoring-v3
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-AppState-Refactoring-v3.md (status: Done)
+- Spec: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.103.md
+  - 2.3.12.1 [CX-DBP-010] (Pillar 1: One Storage API)
+  - 2.3.12.3 [CX-DBP-040] (Trait Purity + AppState contract)
+  - 2.3.12.5 [CX-DBP-030] (Phase 1 closure prerequisites)
+- Codex: Handshake Codex v1.4.md
+- Protocol: docs/VALIDATOR_PROTOCOL.md
+
+Files Checked:
+- docs/task_packets/WP-1-AppState-Refactoring-v3.md
+- docs/refinements/WP-1-AppState-Refactoring-v3.md
+- docs/SPEC_CURRENT.md
+- Handshake_Master_Spec_v02.103.md
+- docs/WP_TRACEABILITY_REGISTRY.md
+- docs/TASK_BOARD.md
+- src/backend/handshake_core/src/lib.rs
+- src/backend/handshake_core/src/storage/mod.rs
+
+Findings:
+- [CX-DBP-030] AppState refactoring requirement (spec: Handshake_Master_Spec_v02.103.md:3056):
+  - PASS: AppState exposes only `storage: Arc<dyn Database>`; no `SqlitePool`/`DuckDbConnection`/`fr_pool`/`sqlite_pool` on the AppState surface (src/backend/handshake_core/src/lib.rs:25).
+- [CX-DBP-010] One Storage API:
+  - PASS: no `state.pool` / `state.fr_pool` usage outside `src/backend/handshake_core/src/storage/` (rg audit; run 2026-01-10).
+- [CX-DBP-040] Trait Purity Invariant:
+  - PASS: `Database` trait surface exposes no backend-specific pool types/accessors (src/backend/handshake_core/src/storage/mod.rs:739).
+- Storage DAL Audit (CX-DBP-VAL-010..014):
+  - PASS: validator-dal-audit clean (just validator-dal-audit; run 2026-01-10).
+- Forbidden Patterns [CX-573E]:
+  - PASS: validator-scan clean (just validator-scan; run 2026-01-10).
+- Spec integrity regression check:
+  - PASS: validator-spec-regression clean (just validator-spec-regression; run 2026-01-10).
+- [CX-580E] Variant lineage audit (ALL versions):
+  - PASS: prior packets (v1/v2) were reviewed against SPEC_TARGET and current repo state; no requirement regressions or "lost" work across versions.
+  - Notes:
+    - v1 (docs/task_packets/WP-1-AppState-Refactoring.md) recorded historical FAIL due to a concrete pool accessor leakage (`sqlite_pool()`); current repo state no longer has this trait impurity.
+    - v2 (docs/task_packets/WP-1-AppState-Refactoring-v2.md) contains historical PASS but later governance/spec drift failures; v3 revalidates under current gates and SPEC_CURRENT.
+
+Tests / Commands:
+- just pre-work WP-1-AppState-Refactoring-v3: PASS (run 2026-01-10).
+- rg audits (pool surface + state.pool usage): PASS (run 2026-01-10).
+- just validator-dal-audit: PASS (run 2026-01-10).
+- just validator-spec-regression: PASS (run 2026-01-10).
+- just validator-scan: PASS (run 2026-01-10).
+- just validator-git-hygiene: PASS (run 2026-01-10).
+- just cargo-clean: PASS (run 2026-01-10).
+- just post-work WP-1-AppState-Refactoring-v3: PASS (run 2026-01-10).
+- cargo test: NOT RUN (no non-doc file changes; conditional in TEST_PLAN).
+
+REASON FOR PASS:
+- Current repo state meets the Master Spec AppState storage boundary contract (no concrete pool types exposed on AppState; trait object storage used).
+- Storage boundary and trait purity invariants remain enforced; DAL audits and forbidden pattern scans are clean.
+- v3 packet resolves historical gate/spec drift by revalidating against SPEC_CURRENT with deterministic gates (pre-work/post-work PASS).
