@@ -194,8 +194,8 @@ SKELETON APPROVED
 - **Target File**: `.gitattributes`
 - **Start**: 1
 - **End**: 4
-- **Line Delta**: 4
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Line Delta**: 0
+- **Pre-SHA1**: `c28054853382463cf1c8bd32fc5a0e4c7938bd3b`
 - **Post-SHA1**: `c28054853382463cf1c8bd32fc5a0e4c7938bd3b`
 - **Gates Passed**:
   - [x] anchors_present
@@ -314,6 +314,28 @@ SKELETON APPROVED
 
   Check 4: Git status
   warning: in the working copy of 'docs/task_packets/WP-1-AppState-Refactoring-v3.md', LF will be replaced by CRLF the next time Git touches it
+
+  ==================================================
+  Post-work validation PASSED
+
+  You may proceed with commit.
+  ```
+
+- Command: just post-work WP-1-AppState-Refactoring-v3 (after LF line-ending fix)
+  Output:
+  ```text
+  Checking Phase Gate for WP-1-AppState-Refactoring-v3...
+  ? GATE PASS: Workflow sequence verified.
+
+  Post-work validation for WP-1-AppState-Refactoring-v3 (deterministic manifest + gates)...
+
+  Check 1: Validation manifest present
+
+  Check 2: Manifest fields
+
+  Check 3: File integrity (per manifest entry)
+
+  Check 4: Git status
 
   ==================================================
   Post-work validation PASSED
