@@ -12,7 +12,8 @@ Authority: Master Spec section 2.3.12 (CX-DBP-011, CX-DBP-022) and Handshake Cod
 ## LAW: Migration Framework Usage
 - Run migrations via `sqlx::migrate!("./migrations").run(&pool)` in the storage bootstrap.
 - Rely on sqlx’s `_sqlx_migrations` tracking; do not create or maintain a manual `schema_version` table.
-- Migrations must be idempotent-safe to re-run; avoid side effects that break on repeated execution.
+- Migrations must be replay-safe (heavy per-file): re-running the same migration file MUST NOT error (do not rely solely on `_sqlx_migrations`).
+- Phase 1 requires concrete down migrations: for every `000X_name.sql` up migration, provide `000X_name.down.sql` and validate up+down in tests/CI.
 
 ## LAW: Validation Before Merge
 - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`

@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja120120260049 | Orchestrator | 2026-01-12 00:49 | Task packet creation: WP-1-Migration-Framework-v2 | v02.106 | Approved after Technical Refinement (see docs/refinements/WP-1-Migration-Framework-v2.md ). |
+| ilja110120262355 | Orchestrator | 2026-01-11 23:55 | Spec update: v02.106 migration governance (heavy per-file replay safety + Phase 1 down migrations) | v02.106 | Clarified CX-DBP-022 (replay-safe migrations) and required concrete down migrations; updated migration acceptance criteria. |
 | ilja110120260038 | Orchestrator | 2026-01-11 00:38 | Spec update: v02.105 Roadmap Coverage Matrix phase allocation + roadmap sync | v02.105 | Phase 0 closed: removed P0 allocations; removed UNSCHEDULED; updated roadmap text to reference/enforce the matrix. |
 | ilja100120262214 | Orchestrator | 2026-01-10 22:14 | Spec update: v02.104 Roadmap Coverage Matrix (section-level determinism) | v02.104 | Added §7.6.1 Coverage Matrix + hard rules; updated docs/SPEC_CURRENT.md and role protocols/codex for enforcement. |
 | ilja090120262335 | Orchestrator | 2026-01-09 23:35 | Task packet creation: WP-1-AppState-Refactoring-v3 | v02.103 | Approved after Technical Refinement (see docs/refinements/WP-1-AppState-Refactoring-v3.md ). |

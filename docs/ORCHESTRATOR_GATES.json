@@ -342,6 +342,22 @@
       "branch": "feat/WP-1-AppState-Refactoring-v3",
       "worktree_dir": "../wt-WP-1-AppState-Refactoring-v3",
       "timestamp": "2026-01-09T22:37:32.926Z"
+    },
+    {
+      "wpId": "WP-1-Migration-Framework-v2",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Migration-Framework-v2.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md",
+      "spec_target_sha1": "ffa0e7b5469d2ccba2c56ef62be9cbd4be4256a3",
+      "timestamp": "2026-01-11T23:43:52.503Z",
+      "turn_token": "1768175032504"
+    },
+    {
+      "wpId": "WP-1-Migration-Framework-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja120120260049",
+      "timestamp": "2026-01-11T23:55:08.787Z",
+      "refinement_path": "docs/refinements/WP-1-Migration-Framework-v2.md"
     }
   ]
 }

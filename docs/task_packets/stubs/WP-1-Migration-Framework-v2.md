@@ -6,7 +6,7 @@
 - WP_ID: WP-1-Migration-Framework-v2
 - BASE_WP_ID: WP-1-Migration-Framework
 - Created: 2026-01-11
-- SPEC_TARGET: docs/SPEC_CURRENT.md (currently Handshake_Master_Spec_v02.105.md)
+- SPEC_TARGET: docs/SPEC_CURRENT.md (currently Handshake_Master_Spec_v02.106.md)
 
 ## Why this stub exists
 This is an additive remediation stub for `WP-1-Migration-Framework`.
