@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-01-08
+**Updated:** 2026-01-11
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja110120260038 | Orchestrator | 2026-01-11 00:38 | Spec update: v02.105 Roadmap Coverage Matrix phase allocation + roadmap sync | v02.105 | Phase 0 closed: removed P0 allocations; removed UNSCHEDULED; updated roadmap text to reference/enforce the matrix. |
+| ilja100120262214 | Orchestrator | 2026-01-10 22:14 | Spec update: v02.104 Roadmap Coverage Matrix (section-level determinism) | v02.104 | Added §7.6.1 Coverage Matrix + hard rules; updated docs/SPEC_CURRENT.md and role protocols/codex for enforcement. |
 | ilja090120262335 | Orchestrator | 2026-01-09 23:35 | Task packet creation: WP-1-AppState-Refactoring-v3 | v02.103 | Approved after Technical Refinement (see docs/refinements/WP-1-AppState-Refactoring-v3.md ). |
 | ilja090120261951 | Orchestrator | 2026-01-09 19:51 | Task packet creation: WP-1-Storage-Abstraction-Layer-v3 | v02.103 | Approved after Technical Refinement (see docs/refinements/WP-1-Storage-Abstraction-Layer-v3.md ). |
 | ilja080120262313 | Orchestrator | 2026-01-08 23:13 | Spec update: v02.103 intent audit + roadmap/taskboard/stubs sync | v02.103 | Added roadmap pointer for ANS-001 response behavior contract; clarified phase closure preamble; updated SPEC_CURRENT + TASK_BOARD + stubs. |

@@ -23,6 +23,7 @@
 - "Done" = 100% implementation of Main Body text, NOT just roadmap bullets
 - Reject any Work Packet that treats the Main Body as optional
 - Extract ALL MUST/SHOULD from spec section; map each to evidence (file:line)
+- Enforce Roadmap Coverage Matrix completeness (Spec §7.6.1; Codex [CX-598A]) so Main Body sections cannot be silently omitted from planning
 
 ### [PRIORITY_3] Deterministic Enforcement [CX-585A/C]
 - Spec-Version Lock: Master Spec immutable during phase execution

@@ -70,6 +70,12 @@ git revert <commit-sha>
 - Task Board: docs/TASK_BOARD.md
 - WP Traceability: docs/WP_TRACEABILITY_REGISTRY.md
 
+## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]
+- Required when `WP_ID` includes `-v{N}`.
+- List every prior packet for `BASE_WP_ID` (filenames/paths) and state what is preserved vs changed.
+- Hard rule: Do not drop prior requirements; carry them forward explicitly.
+- If this is not a revision packet, write: `N/A`.
+
 ## BOOTSTRAP
 - FILES_TO_OPEN:
   - docs/START_HERE.md

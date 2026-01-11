@@ -50,6 +50,7 @@ If the assigned WP worktree/branch does not exist locally:
 **Coder Obligations:**
 - Every SPEC_ANCHOR in a task packet MUST reference a Main Body section (not Roadmap)
 - If a roadmap item lacks Main Body detail, escalate to Orchestrator for spec enrichment BEFORE coding
+- Roadmap Coverage Matrix (Spec §7.6.1; Codex [CX-598A]): if you discover a Main Body section that is missing/unscheduled in the matrix for the work you are doing, STOP and escalate (do not “implement around” governance drift)
 - Surface-level compliance with roadmap bullets is INSUFFICIENT - every line of Main Body text must be implemented
 - Do NOT assume "good enough" - the Main Body is the contract
 

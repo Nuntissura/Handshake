@@ -32,6 +32,7 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
 - If task packet is missing or incomplete, return FAIL with reason [CX-573].
 - Preserve User Context sections in packets (do not edit/remove) [CX-654].
 - Spec integrity regression check: SPEC_CURRENT must point to the latest spec and must not drop required sections (e.g., storage portability A2.3.12). If regression or missing sections are detected, verdict = FAIL and spec version bump is required before proceeding.
+- Roadmap Coverage Matrix gate (Spec §7.6.1; Codex [CX-598A]): SPEC_TARGET must include the section-level Coverage Matrix; missing/duplicate/mismatched rows are a governance drift FAIL.
 - External build hygiene: Cargo target dir is pinned outside the repo at `../Cargo Target/handshake-cargo-target`; run `cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Cargo Target/handshake-cargo-target"` before validation/commit to prevent workspace bloat (FAIL if skipped).
 - Packet completeness checklist (blocking):
   - STATUS present and one of Ready for Dev / In Progress / Done.

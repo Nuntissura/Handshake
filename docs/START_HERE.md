@@ -1,9 +1,9 @@
 # Handshake Project: Start Here
 
-Authority: Master Spec (see `docs/SPEC_CURRENT.md`, currently v02.103)
+Authority: Master Spec (see `docs/SPEC_CURRENT.md`, currently v02.105)
 ---
 ## Canonical sources
-- **Spec:** `docs/SPEC_CURRENT.md` (points to the current Handshake master spec, currently v02.103).
+- **Spec:** `docs/SPEC_CURRENT.md` (points to the current Handshake master spec, currently v02.105).
 - **WP Traceability:** `docs/WP_TRACEABILITY_REGISTRY.md` (Base WP → Active Packet mapping; resolves `-vN` revisions without putting WP IDs into the Master Spec).
 - **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `docs/TASK_BOARD.md` + task packets. Handshake logger is for milestones/hard bugs when requested.
 - **Architecture & debug:** `docs/ARCHITECTURE.md` and `docs/RUNBOOK_DEBUG.md`.
