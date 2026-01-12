@@ -235,15 +235,21 @@ async fn init_llm_client(flight_recorder: Arc<dyn FlightRecorder>) -> Arc<dyn Ll
 }
 
 async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
-    let db_status = match state.storage.ping().await {
-        Ok(_) => "ok",
+    let (db_status, migration_version) = match state.storage.ping().await {
+        Ok(_) => match state.storage.migration_version().await {
+            Ok(version) => ("ok", Some(version)),
+            Err(err) => {
+                tracing::error!(target: "handshake_core", route = "/health", error = %err, "db migration version check error");
+                ("error", None)
+            }
+        },
         Err(err) => {
             tracing::error!(target: "handshake_core", route = "/health", error = %err, "db check error");
-            "error"
+            ("error", None)
         }
     };
 
-    let response = build_health_response(db_status);
+    let response = build_health_response(db_status, migration_version);
     tracing::info!(
         target: "handshake_core",
         route = "/health",
@@ -255,7 +261,7 @@ async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
     Json(response)
 }
 
-fn build_health_response(db_status: &str) -> HealthResponse {
+fn build_health_response(db_status: &str, migration_version: Option<i64>) -> HealthResponse {
     let overall_status = if db_status == "ok" { "ok" } else { "error" };
 
     HealthResponse {
@@ -263,6 +269,7 @@ fn build_health_response(db_status: &str) -> HealthResponse {
         component: "handshake_core",
         version: env!("CARGO_PKG_VERSION"),
         db_status: db_status.to_string(),
+        migration_version,
     }
 }
 
@@ -272,16 +279,18 @@ mod tests {
 
     #[test]
     fn health_response_ok_sets_status_ok() {
-        let response = build_health_response("ok");
+        let response = build_health_response("ok", Some(9));
         assert_eq!(response.status, "ok");
         assert_eq!(response.component, "handshake_core");
         assert_eq!(response.db_status, "ok");
+        assert_eq!(response.migration_version, Some(9));
     }
 
     #[test]
     fn health_response_error_maps_to_overall_error() {
-        let response = build_health_response("error");
+        let response = build_health_response("error", None);
         assert_eq!(response.status, "error");
         assert_eq!(response.db_status, "error");
+        assert_eq!(response.migration_version, None);
     }
 }

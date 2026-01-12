@@ -1,0 +1,2 @@
+-- No-op rollback.
+-- Replay-safe normalization: final `ai_jobs` schema is created in `0002_create_ai_core_tables.sql`.

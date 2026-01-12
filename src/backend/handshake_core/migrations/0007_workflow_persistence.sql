@@ -1,9 +1,8 @@
 -- Add heartbeat tracking for workflow runs (crash recovery)
-ALTER TABLE workflow_runs
-ADD COLUMN last_heartbeat TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+-- NOTE: Replay-safe normalization: `workflow_runs.last_heartbeat` is created in `0002_create_ai_core_tables.sql`.
 
 -- Durable per-node execution history
-CREATE TABLE workflow_node_executions (
+CREATE TABLE IF NOT EXISTS workflow_node_executions (
     id TEXT PRIMARY KEY NOT NULL,
     workflow_run_id TEXT NOT NULL,
     node_id TEXT NOT NULL,
@@ -20,6 +19,6 @@ CREATE TABLE workflow_node_executions (
     FOREIGN KEY (workflow_run_id) REFERENCES workflow_runs(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_wne_run_sequence ON workflow_node_executions (workflow_run_id, sequence);
-CREATE INDEX idx_wne_run_node ON workflow_node_executions (workflow_run_id, node_id);
-CREATE INDEX idx_wne_status ON workflow_node_executions (status);
+CREATE INDEX IF NOT EXISTS idx_wne_run_sequence ON workflow_node_executions (workflow_run_id, sequence);
+CREATE INDEX IF NOT EXISTS idx_wne_run_node ON workflow_node_executions (workflow_run_id, node_id);
+CREATE INDEX IF NOT EXISTS idx_wne_status ON workflow_node_executions (status);

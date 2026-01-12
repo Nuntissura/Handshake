@@ -240,6 +240,15 @@ impl super::Database for PostgresDatabase {
         Ok(())
     }
 
+    async fn migration_version(&self) -> StorageResult<i64> {
+        let version = sqlx::query_scalar::<_, i64>(
+            "SELECT COALESCE(MAX(version), 0) FROM _sqlx_migrations WHERE success = TRUE",
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(version)
+    }
+
     async fn ping(&self) -> StorageResult<()> {
         sqlx::query("SELECT 1").execute(&self.pool).await?;
         Ok(())

@@ -55,13 +55,32 @@ let failures = [];
 
 // CX-DBP-VAL-013: Migration hygiene (basic check: consecutive numbering)
 try {
-  const files = readdirSync(migrationsDir).filter((f) => f.match(/^\d{4}_.+\.sql$/));
-  const nums = files.map((f) => parseInt(f.slice(0, 4), 10)).sort((a, b) => a - b);
+  const allFiles = readdirSync(migrationsDir);
+
+  // Only treat `000X_name.sql` as versioned ups; ignore `*.down.sql` in numbering checks.
+  const upFiles = allFiles.filter(
+    (f) => /^\d{4}_.+\.sql$/.test(f) && !f.endsWith(".down.sql"),
+  );
+
+  const nums = upFiles.map((f) => parseInt(f.slice(0, 4), 10)).sort((a, b) => a - b);
   for (let i = 1; i < nums.length; i++) {
     if (nums[i] !== nums[i - 1] + 1) {
-      failures.push(`CX-DBP-VAL-013 (migration hygiene): numbering gap between ${nums[i - 1]} and ${nums[i]}`);
+      failures.push(
+        `CX-DBP-VAL-013 (migration hygiene): numbering gap between ${nums[i - 1]} and ${nums[i]}`,
+      );
       break;
     }
+  }
+
+  // Phase 1 requirement (spec v02.106 CX-DBP-022): every up migration must have a matching down file.
+  const fileSet = new Set(allFiles);
+  const missingDown = upFiles
+    .map((up) => up.replace(/\.sql$/, ".down.sql"))
+    .filter((down) => !fileSet.has(down));
+  if (missingDown.length > 0) {
+    failures.push(
+      `CX-DBP-VAL-013 (migration hygiene): missing down migrations for:\n${missingDown.join("\n")}`,
+    );
   }
 } catch (err) {
   failures.push(`CX-DBP-VAL-013 (migration hygiene): failed to read migrations dir: ${err.message}`);

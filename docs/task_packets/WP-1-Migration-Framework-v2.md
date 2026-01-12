@@ -22,16 +22,32 @@
 - What: Upgrade the migration framework to meet Master Spec v02.106 [CX-DBP-022]: (1) enforce heavy per-file replay-safe migrations (tracking-independent) and (2) require concrete down migrations in Phase 1, with tests proving both on SQLite and PostgreSQL.
 - Why: Non-idempotent migrations can brick startup and block Phase 1 closure; Phase 1 acceptance criteria now requires forward/backward fixture tests (up+down) and replay-safety (spec [CX-DBP-022], Phase 1 closure [CX-DBP-030]).
 - IN_SCOPE_PATHS:
-  - src/backend/handshake_core/migrations/*.sql
-  - src/backend/handshake_core/migrations/*.down.sql (new)
-  - src/backend/handshake_core/src/storage/sqlite.rs (migration runner)
-  - src/backend/handshake_core/src/storage/postgres.rs (migration runner)
-  - src/backend/handshake_core/src/storage/mod.rs (migration version surfacing)
-  - src/backend/handshake_core/src/storage/tests.rs (add migration replay/down harness)
-  - src/backend/handshake_core/src/models.rs (health response migration version)
-  - src/backend/handshake_core/src/main.rs (health response migration version)
+  - src/backend/handshake_core/migrations/0001_init.sql
+  - src/backend/handshake_core/migrations/0002_create_ai_core_tables.sql
+  - src/backend/handshake_core/migrations/0003_add_is_pinned.sql
+  - src/backend/handshake_core/migrations/0004_mutation_traceability.sql
+  - src/backend/handshake_core/migrations/0005_add_canvas_traceability.sql
+  - src/backend/handshake_core/migrations/0006_expand_ai_job_model.sql
+  - src/backend/handshake_core/migrations/0007_workflow_persistence.sql
+  - src/backend/handshake_core/migrations/0008_expand_ai_job_model.sql
+  - src/backend/handshake_core/migrations/0009_add_block_classification.sql
+  - src/backend/handshake_core/migrations/0001_init.down.sql
+  - src/backend/handshake_core/migrations/0002_create_ai_core_tables.down.sql
+  - src/backend/handshake_core/migrations/0003_add_is_pinned.down.sql
+  - src/backend/handshake_core/migrations/0004_mutation_traceability.down.sql
+  - src/backend/handshake_core/migrations/0005_add_canvas_traceability.down.sql
+  - src/backend/handshake_core/migrations/0006_expand_ai_job_model.down.sql
+  - src/backend/handshake_core/migrations/0007_workflow_persistence.down.sql
+  - src/backend/handshake_core/migrations/0008_expand_ai_job_model.down.sql
+  - src/backend/handshake_core/migrations/0009_add_block_classification.down.sql
+  - src/backend/handshake_core/src/storage/sqlite.rs
+  - src/backend/handshake_core/src/storage/postgres.rs
+  - src/backend/handshake_core/src/storage/mod.rs
+  - src/backend/handshake_core/src/storage/tests.rs
+  - src/backend/handshake_core/src/models.rs
+  - src/backend/handshake_core/src/main.rs
   - docs/MIGRATION_GUIDE.md (reference; update only if required)
-  - scripts/validation/validator-dal-audit.mjs (ignore .down.sql for numbering; enforce down presence)
+  - scripts/validation/validator-dal-audit.mjs
 - OUT_OF_SCOPE:
   - New product features or schema expansions not required by existing migrations
   - Production rollback tooling/UI (down migrations are for dev/test/CI only in Phase 1)
@@ -155,29 +171,481 @@ SKELETON APPROVED
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+
+- **Target File**: `scripts/validation/validator-dal-audit.mjs`
+- **Start**: 1
+- **End**: 106
+- **Line Delta**: 19
+- **Pre-SHA1**: `33ad98a08a3c671f6f5557602ede092eb26543da`
+- **Post-SHA1**: `f4ad5550367de1c6cd67fbd3829bbf368b642020`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0001_init.down.sql`
+- **Start**: 1
+- **End**: 8
+- **Line Delta**: 8
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `ede168595415ddf871420b71754272760861240b`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0001_init.sql`
+- **Start**: 1
+- **End**: 89
+- **Line Delta**: 32
+- **Pre-SHA1**: `5457f16c03f143699f85085563f2dbb8250f7668`
+- **Post-SHA1**: `0d984c97b12b2fdc832ee27c8f0c773103ccd233`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0002_create_ai_core_tables.down.sql`
+- **Start**: 1
+- **End**: 4
+- **Line Delta**: 4
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `22c277d28fb7ddc23adcaa0abeeeb6161cd4238e`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0002_create_ai_core_tables.sql`
+- **Start**: 1
+- **End**: 36
+- **Line Delta**: 11
+- **Pre-SHA1**: `af17f6e0bc4017d7c33ee67c68935a70fa6528af`
+- **Post-SHA1**: `84db1ceb7c4edafff63c4a5a90ab9357638d9672`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0003_add_is_pinned.down.sql`
+- **Start**: 1
+- **End**: 2
+- **Line Delta**: 2
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `0ca6c2b44b16ea047f2ed918718c6f45d48419d7`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0003_add_is_pinned.sql`
+- **Start**: 1
+- **End**: 99999
+- **Line Delta**: -1
+- **Pre-SHA1**: `032fcb40245aafe2aba81278be8088b020f32c38`
+- **Post-SHA1**: `2d8a1571e08ba944c7254fac30745d29ffa30b0e`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0004_mutation_traceability.down.sql`
+- **Start**: 1
+- **End**: 2
+- **Line Delta**: 2
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `2a481e6a7a74c1cfc9d1077ab69f2ee5634d9cfe`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0004_mutation_traceability.sql`
+- **Start**: 1
+- **End**: 99999
+- **Line Delta**: -34
+- **Pre-SHA1**: `69f7be710bb44265277d6644430aff241350530d`
+- **Post-SHA1**: `22bf17d1a17e68705796338b23a64637be996b71`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0005_add_canvas_traceability.down.sql`
+- **Start**: 1
+- **End**: 2
+- **Line Delta**: 2
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `2a481e6a7a74c1cfc9d1077ab69f2ee5634d9cfe`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0005_add_canvas_traceability.sql`
+- **Start**: 1
+- **End**: 99999
+- **Line Delta**: -5
+- **Pre-SHA1**: `d6ac7ea4eff094b816d75549ed38d3804194dc03`
+- **Post-SHA1**: `fbaf79e49eb55899adef211e29886f981c30568c`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0006_expand_ai_job_model.down.sql`
+- **Start**: 1
+- **End**: 2
+- **Line Delta**: 2
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `a24f1ee5d73b82565b1a17c0cc15d0f3921e43ab`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0006_expand_ai_job_model.sql`
+- **Start**: 1
+- **End**: 99999
+- **Line Delta**: -17
+- **Pre-SHA1**: `f4294bed0f78b80fe2216d75f9b88ce29bdb47ef`
+- **Post-SHA1**: `b338655191a390d1eba47fdd834053937e2b41b6`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0007_workflow_persistence.down.sql`
+- **Start**: 1
+- **End**: 3
+- **Line Delta**: 3
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `fff91dc46d6df562d724b84deee99db5fccbfe79`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0007_workflow_persistence.sql`
+- **Start**: 1
+- **End**: 99999
+- **Line Delta**: -1
+- **Pre-SHA1**: `8059321f4d6a816daeff84d0aabb14c51d6669d3`
+- **Post-SHA1**: `0ef44f69f75d821ff336ff9587cde12a09820a93`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0008_expand_ai_job_model.down.sql`
+- **Start**: 1
+- **End**: 2
+- **Line Delta**: 2
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `b527220e7097fdd1d2771f3b33af851bc2f6aa37`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0008_expand_ai_job_model.sql`
+- **Start**: 1
+- **End**: 99999
+- **Line Delta**: -165
+- **Pre-SHA1**: `9b60fa1a9927cb4f81afd78cbddbf3508f7a502f`
+- **Post-SHA1**: `f16da50a8bf84258f831db91c51a6e2d08a35dad`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0009_add_block_classification.down.sql`
+- **Start**: 1
+- **End**: 2
+- **Line Delta**: 2
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `0c5e7428b29c91bb8c7ffebe3d7acdd9ad1d5468`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/migrations/0009_add_block_classification.sql`
+- **Start**: 1
+- **End**: 99999
+- **Line Delta**: -2
+- **Pre-SHA1**: `093b06720f376ed7a34b5e4c30191be9935d2db1`
+- **Post-SHA1**: `a82b7baa252c1fae7fa39a05356c339b6b2fe692`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/src/main.rs`
+- **Start**: 1
+- **End**: 296
+- **Line Delta**: 9
+- **Pre-SHA1**: `e5d93df58235bc1e818fcb6bad658cd791d90dbf`
+- **Post-SHA1**: `2fada41a399ed952873c6e4e1c26e288810000a4`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/src/models.rs`
+- **Start**: 1
+- **End**: 143
+- **Line Delta**: 1
+- **Pre-SHA1**: `6898f215475ced6a5286a10d33cd828a0f7c10f2`
+- **Post-SHA1**: `31316f5d7276ab8603060156e35cfe0172197302`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/src/storage/mod.rs`
+- **Start**: 1
+- **End**: 877
+- **Line Delta**: 3
+- **Pre-SHA1**: `e189a0045bec8b6d990637ae34548095658adcde`
+- **Post-SHA1**: `4ea008e4be730428b80af37fda36381ed1138183`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Start**: 1
+- **End**: 1476
+- **Line Delta**: 9
+- **Pre-SHA1**: `7545659a9199c1862b813f10b237289b26675c3b`
+- **Post-SHA1**: `58925914acaedf65f51ac7ad57ec5ccc537bde34`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/src/storage/sqlite.rs`
+- **Start**: 1
+- **End**: 1800
+- **Line Delta**: 9
+- **Pre-SHA1**: `3519696704fbcc28144e6e01521acdffb487af05`
+- **Post-SHA1**: `ce22857f61a116397666d8e6792a6770d3d2b3c2`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
+
+- **Target File**: `src/backend/handshake_core/src/storage/tests.rs`
+- **Start**: 1
+- **End**: 629
+- **Line Delta**: 244
+- **Pre-SHA1**: `aaad1bcc3db73c3cef830ccf4d7ea0ce53392f1b`
+- **Post-SHA1**: `b46768a8d2f724fb21f02b612963ff5933032b24`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
