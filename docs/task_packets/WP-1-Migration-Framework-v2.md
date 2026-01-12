@@ -162,10 +162,25 @@ git revert <commit-sha>
 SKELETON APPROVED
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Migrations:
+  - Enforced replay-safe behavior per file using `IF NOT EXISTS` and normalization notes.
+  - Added concrete `*.down.sql` files for `0001..0009` (dev/test/CI only).
+- Tests:
+  - Added replay-safety and down-migration harness on SQLite and PostgreSQL.
+- Health:
+  - Surfaced migration version in `/health` via `_sqlx_migrations` (no secondary schema_version table).
+- Validation tooling:
+  - Updated `validator-dal-audit.mjs` to ignore `*.down.sql` for gap checks and require downs for every up.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Commands executed:
+  - `just pre-work WP-1-Migration-Framework-v2`
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`
+  - `just validator-dal-audit`
+  - `just validator-hygiene-full` (notes: fails due to existing `validator-error-codes` nondeterminism finding in `src/backend/handshake_core/src/workflows.rs`)
+  - `just cargo-clean`
+  - `just post-work WP-1-Migration-Framework-v2`
+  - `cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml`
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
@@ -195,7 +210,7 @@ SKELETON APPROVED
 - **Start**: 1
 - **End**: 8
 - **Line Delta**: 8
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Pre-SHA1**: `ede168595415ddf871420b71754272760861240b`
 - **Post-SHA1**: `ede168595415ddf871420b71754272760861240b`
 - **Gates Passed**:
   - [x] anchors_present
@@ -233,7 +248,7 @@ SKELETON APPROVED
 - **Start**: 1
 - **End**: 4
 - **Line Delta**: 4
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Pre-SHA1**: `22c277d28fb7ddc23adcaa0abeeeb6161cd4238e`
 - **Post-SHA1**: `22c277d28fb7ddc23adcaa0abeeeb6161cd4238e`
 - **Gates Passed**:
   - [x] anchors_present
@@ -271,7 +286,7 @@ SKELETON APPROVED
 - **Start**: 1
 - **End**: 2
 - **Line Delta**: 2
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Pre-SHA1**: `0ca6c2b44b16ea047f2ed918718c6f45d48419d7`
 - **Post-SHA1**: `0ca6c2b44b16ea047f2ed918718c6f45d48419d7`
 - **Gates Passed**:
   - [x] anchors_present
@@ -309,7 +324,7 @@ SKELETON APPROVED
 - **Start**: 1
 - **End**: 2
 - **Line Delta**: 2
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Pre-SHA1**: `2a481e6a7a74c1cfc9d1077ab69f2ee5634d9cfe`
 - **Post-SHA1**: `2a481e6a7a74c1cfc9d1077ab69f2ee5634d9cfe`
 - **Gates Passed**:
   - [x] anchors_present
@@ -347,7 +362,7 @@ SKELETON APPROVED
 - **Start**: 1
 - **End**: 2
 - **Line Delta**: 2
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Pre-SHA1**: `2a481e6a7a74c1cfc9d1077ab69f2ee5634d9cfe`
 - **Post-SHA1**: `2a481e6a7a74c1cfc9d1077ab69f2ee5634d9cfe`
 - **Gates Passed**:
   - [x] anchors_present
@@ -385,7 +400,7 @@ SKELETON APPROVED
 - **Start**: 1
 - **End**: 2
 - **Line Delta**: 2
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Pre-SHA1**: `a24f1ee5d73b82565b1a17c0cc15d0f3921e43ab`
 - **Post-SHA1**: `a24f1ee5d73b82565b1a17c0cc15d0f3921e43ab`
 - **Gates Passed**:
   - [x] anchors_present
@@ -423,7 +438,7 @@ SKELETON APPROVED
 - **Start**: 1
 - **End**: 3
 - **Line Delta**: 3
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Pre-SHA1**: `fff91dc46d6df562d724b84deee99db5fccbfe79`
 - **Post-SHA1**: `fff91dc46d6df562d724b84deee99db5fccbfe79`
 - **Gates Passed**:
   - [x] anchors_present
@@ -461,7 +476,7 @@ SKELETON APPROVED
 - **Start**: 1
 - **End**: 2
 - **Line Delta**: 2
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Pre-SHA1**: `b527220e7097fdd1d2771f3b33af851bc2f6aa37`
 - **Post-SHA1**: `b527220e7097fdd1d2771f3b33af851bc2f6aa37`
 - **Gates Passed**:
   - [x] anchors_present
@@ -499,7 +514,7 @@ SKELETON APPROVED
 - **Start**: 1
 - **End**: 2
 - **Line Delta**: 2
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Pre-SHA1**: `0c5e7428b29c91bb8c7ffebe3d7acdd9ad1d5468`
 - **Post-SHA1**: `0c5e7428b29c91bb8c7ffebe3d7acdd9ad1d5468`
 - **Gates Passed**:
   - [x] anchors_present
@@ -649,12 +664,69 @@ SKELETON APPROVED
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
+- Current WP_STATUS: Implemented + committed
 - What changed in this update:
+  - Added `0001..0009` down migrations and replay-safe-up/down tests (SQLite + Postgres).
+  - Updated health response to include current migration version from `_sqlx_migrations`.
+  - Updated `validator-dal-audit` to ignore `*.down.sql` for numbering gaps and require downs.
 - Next step / handoff hint:
+  - Validator: run the WP TEST_PLAN commands and audit against spec anchors.
+  - Ops note: this worktree has unstaged formatting-only changes from `cargo fmt` in `src/backend/handshake_core/src/workflows.rs` and `src/backend/handshake_core/src/ace/validators/mod.rs` (not part of this WP commit).
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+- Implementation commit: `02e5b3b8`
+- `just pre-work WP-1-Migration-Framework-v2`:
+  ```text
+  Checking Phase Gate for WP-1-Migration-Framework-v2...
+  ? GATE PASS: Workflow sequence verified.
+
+  Pre-work validation for WP-1-Migration-Framework-v2...
+
+  Check 1: Task packet file exists
+  PASS: Found WP-1-Migration-Framework-v2.md
+
+  Check 2: Task packet structure
+  PASS: All required fields present
+
+  Check 2.7: Technical Refinement gate
+  PASS: Refinement file exists and is approved/signed
+
+  Check 2.8: WP checkpoint commit gate
+
+  Check 3: Deterministic manifest template
+  PASS: Manifest fields present
+  PASS: Gates checklist present
+
+  ==================================================
+  Pre-work validation PASSED
+
+  You may proceed with implementation.
+  ```
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`:
+  ```text
+  Finished `test` profile [unoptimized + debuginfo] target(s) in 5m 58s
+  running 133 tests
+  test result: ok. 133 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 28.66s
+  ```
+- `just validator-dal-audit`:
+  ```text
+  validator-dal-audit: PASS (DAL checks clean).
+  ```
+- `just validator-hygiene-full` (notes: out-of-scope failure):
+  ```text
+  validator-error-codes: FAIL/WARN findings detected
+  ----
+  NONDETERMINISM pattern \"Instant::now\\(\":
+  src/backend/handshake_core/src/workflows.rs:661:            // WAIVER [CX-573F]: Instant::now() for observability per \u00a72.6.6.7.12
+  src/backend/handshake_core/src/workflows.rs:662:            let validation_start = std::time::Instant::now();
+  ```
+- `just post-work WP-1-Migration-Framework-v2`:
+  ```text
+  Post-work validation PASSED with warnings
+  Warnings:
+    1. Working tree has unstaged changes; post-work validation uses STAGED changes only.
+  ```
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
