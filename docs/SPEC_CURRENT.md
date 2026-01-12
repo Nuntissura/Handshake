@@ -2,9 +2,9 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.106.md**
+**Handshake_Master_Spec_v02.107.md**
 
-(Updated: 2026-01-11 - Migration governance: heavy per-file replay-safe migrations (tracking-independent) + Phase 1 requires concrete down migrations; roadmap migration acceptance criteria updated [ilja110120262355])
+(Updated: 2026-01-12 - Governance Kernel integrated into Master Spec (A7.5.4) + Cross-Tool Interaction Map (A6.0.1) + Local-First Agentic/MCP stance (A7.2.5); roadmap matrix/Phase 1 pointers updated [ilja120120260452])
 
 ---
 
