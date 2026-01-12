@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-01-11
+**Updated:** 2026-01-12
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja120120260452 | Orchestrator | 2026-01-12 04:52 | Spec update: v02.107 governance kernel + cross-tool interaction map + local-first agentic/MCP posture | v02.107 | Integrated Governance Kernel (A7.5.4) + Cross-Tool Interaction Map (A6.0.1) + Local-First Agentic/MCP stance (A7.2.5); updated roadmap matrix/Phase 1 pointers. |
 | ilja120120260049 | Orchestrator | 2026-01-12 00:49 | Task packet creation: WP-1-Migration-Framework-v2 | v02.106 | Approved after Technical Refinement (see docs/refinements/WP-1-Migration-Framework-v2.md ). |
 | ilja110120262355 | Orchestrator | 2026-01-11 23:55 | Spec update: v02.106 migration governance (heavy per-file replay safety + Phase 1 down migrations) | v02.106 | Clarified CX-DBP-022 (replay-safe migrations) and required concrete down migrations; updated migration acceptance criteria. |
 | ilja110120260038 | Orchestrator | 2026-01-11 00:38 | Spec update: v02.105 Roadmap Coverage Matrix phase allocation + roadmap sync | v02.105 | Phase 0 closed: removed P0 allocations; removed UNSCHEDULED; updated roadmap text to reference/enforce the matrix. |

@@ -49,6 +49,9 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 
 
 ## Stub Backlog (Not Activated)
+- **[WP-1-Governance-Kernel-Conformance-v1]** - [STUB]
+- **[WP-1-Cross-Tool-Interaction-Conformance-v1]** - [STUB]
+- **[WP-1-LocalFirst-Agentic-MCP-Posture-v1]** - [STUB]
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
 - **[WP-1-Dev-Experience-ADRs]** - [STUB]
 - **[WP-1-Global-Silent-Edit-Guard]** - [STUB]
