@@ -26,8 +26,12 @@
   - src/backend/handshake_core/migrations/*.down.sql (new)
   - src/backend/handshake_core/src/storage/sqlite.rs (migration runner)
   - src/backend/handshake_core/src/storage/postgres.rs (migration runner)
+  - src/backend/handshake_core/src/storage/mod.rs (migration version surfacing)
   - src/backend/handshake_core/src/storage/tests.rs (add migration replay/down harness)
+  - src/backend/handshake_core/src/models.rs (health response migration version)
+  - src/backend/handshake_core/src/main.rs (health response migration version)
   - docs/MIGRATION_GUIDE.md (reference; update only if required)
+  - scripts/validation/validator-dal-audit.mjs (ignore .down.sql for numbering; enforce down presence)
 - OUT_OF_SCOPE:
   - New product features or schema expansions not required by existing migrations
   - Production rollback tooling/UI (down migrations are for dev/test/CI only in Phase 1)
@@ -138,6 +142,8 @@ git revert <commit-sha>
 - Notes:
   - Do not edit historical/locked packets; this v2 packet is the only executable authority for the Base WP once activated in WP_TRACEABILITY_REGISTRY.
   - Treat down migrations as potentially destructive and keep them restricted to test/dev/CI usage in Phase 1.
+
+SKELETON APPROVED
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)
