@@ -9,8 +9,133 @@ use super::{
 #[cfg(test)]
 use chrono::{Duration, Utc};
 use serde_json::json;
+#[cfg(test)]
+use sqlx::{Connection, Row};
 use std::sync::Arc;
 use uuid::Uuid;
+
+#[cfg(test)]
+fn postgres_test_url() -> Option<String> {
+    std::env::var("POSTGRES_TEST_URL").ok()
+}
+
+#[cfg(test)]
+async fn sqlite_user_table_names(conn: &mut sqlx::SqliteConnection) -> StorageResult<Vec<String>> {
+    let rows = sqlx::query(
+        r#"
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name NOT LIKE 'sqlite_%'
+          AND name != '_sqlx_migrations'
+        ORDER BY name
+        "#,
+    )
+    .fetch_all(conn)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| row.get::<String, _>("name"))
+        .collect())
+}
+
+#[cfg(test)]
+async fn sqlite_schema_fingerprint(
+    conn: &mut sqlx::SqliteConnection,
+) -> StorageResult<Vec<String>> {
+    let rows = sqlx::query(
+        r#"
+        SELECT type, name, tbl_name, COALESCE(sql, '') as sql
+        FROM sqlite_master
+        WHERE name NOT LIKE 'sqlite_%'
+          AND name != '_sqlx_migrations'
+        ORDER BY type, name
+        "#,
+    )
+    .fetch_all(conn)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            let kind = row.get::<String, _>("type");
+            let name = row.get::<String, _>("name");
+            let table = row.get::<String, _>("tbl_name");
+            let sql = row.get::<String, _>("sql");
+            format!("{kind}|{name}|{table}|{sql}")
+        })
+        .collect())
+}
+
+#[cfg(test)]
+async fn postgres_schema_fingerprint(conn: &mut sqlx::PgConnection) -> StorageResult<Vec<String>> {
+    let mut fingerprint = Vec::new();
+
+    let column_rows = sqlx::query(
+        r#"
+        SELECT table_name, column_name, data_type, is_nullable, COALESCE(column_default, '') as column_default
+        FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name <> '_sqlx_migrations'
+        ORDER BY table_name, ordinal_position
+        "#,
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+
+    for row in column_rows {
+        let table_name = row.get::<String, _>("table_name");
+        let column_name = row.get::<String, _>("column_name");
+        let data_type = row.get::<String, _>("data_type");
+        let is_nullable = row.get::<String, _>("is_nullable");
+        let column_default = row.get::<String, _>("column_default");
+        fingerprint.push(format!(
+            "COL|{table_name}|{column_name}|{data_type}|{is_nullable}|{column_default}"
+        ));
+    }
+
+    let index_rows = sqlx::query(
+        r#"
+        SELECT indexname, indexdef
+        FROM pg_indexes
+        WHERE schemaname = current_schema()
+          AND tablename <> '_sqlx_migrations'
+        ORDER BY indexname
+        "#,
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+
+    for row in index_rows {
+        let indexname = row.get::<String, _>("indexname");
+        let indexdef = row.get::<String, _>("indexdef");
+        fingerprint.push(format!("IDX|{indexname}|{indexdef}"));
+    }
+
+    Ok(fingerprint)
+}
+
+#[cfg(test)]
+async fn postgres_user_table_names(conn: &mut sqlx::PgConnection) -> StorageResult<Vec<String>> {
+    let rows = sqlx::query(
+        r#"
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = current_schema()
+          AND table_type = 'BASE TABLE'
+          AND table_name <> '_sqlx_migrations'
+        ORDER BY table_name
+        "#,
+    )
+    .fetch_all(&mut *conn)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| row.get::<String, _>("table_name"))
+        .collect())
+}
 
 /// Build an in-memory SQLite backend for test validation.
 #[allow(dead_code)]
@@ -381,5 +506,124 @@ async fn stalled_workflows_are_detected_by_heartbeat() -> StorageResult<()> {
     db.heartbeat_workflow(run.id, Utc::now()).await?;
     let after = db.find_stalled_workflows(60).await?;
     assert!(!after.iter().any(|r| r.id == run.id));
+    Ok(())
+}
+
+#[tokio::test]
+async fn migrations_are_replay_safe_sqlite() -> StorageResult<()> {
+    let migrator = sqlx::migrate!("./migrations");
+    let mut conn = sqlx::SqliteConnection::connect("sqlite::memory:").await?;
+
+    migrator.run(&mut conn).await?;
+    let before = sqlite_schema_fingerprint(&mut conn).await?;
+
+    sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
+        .execute(&mut conn)
+        .await?;
+
+    migrator.run(&mut conn).await?;
+    let after = sqlite_schema_fingerprint(&mut conn).await?;
+
+    assert_eq!(before, after);
+    Ok(())
+}
+
+#[tokio::test]
+async fn migrations_can_undo_to_baseline_sqlite() -> StorageResult<()> {
+    let migrator = sqlx::migrate!("./migrations");
+    let mut conn = sqlx::SqliteConnection::connect("sqlite::memory:").await?;
+
+    migrator.run(&mut conn).await?;
+    migrator.undo(&mut conn, 0).await?;
+
+    let tables = sqlite_user_table_names(&mut conn).await?;
+    assert!(tables.is_empty());
+
+    let applied_count_row = sqlx::query("SELECT COUNT(*) as count FROM _sqlx_migrations")
+        .fetch_one(&mut conn)
+        .await?;
+    let applied_count = applied_count_row.get::<i64, _>("count");
+    assert_eq!(applied_count, 0);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn migrations_are_replay_safe_postgres() -> StorageResult<()> {
+    let Some(url) = postgres_test_url() else {
+        return Ok(());
+    };
+
+    let mut conn = sqlx::PgConnection::connect(&url).await?;
+    let schema = format!("wp1_mig_{}", Uuid::new_v4().simple());
+
+    sqlx::query(&format!("CREATE SCHEMA {schema}"))
+        .execute(&mut conn)
+        .await?;
+    sqlx::query(&format!("SET search_path TO {schema}"))
+        .execute(&mut conn)
+        .await?;
+
+    let migrator = sqlx::migrate!("./migrations");
+
+    migrator.run(&mut conn).await?;
+    let before = postgres_schema_fingerprint(&mut conn).await?;
+
+    sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
+        .execute(&mut conn)
+        .await?;
+
+    migrator.run(&mut conn).await?;
+    let after = postgres_schema_fingerprint(&mut conn).await?;
+
+    assert_eq!(before, after);
+
+    sqlx::query("SET search_path TO public")
+        .execute(&mut conn)
+        .await?;
+    sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
+        .execute(&mut conn)
+        .await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn migrations_can_undo_to_baseline_postgres() -> StorageResult<()> {
+    let Some(url) = postgres_test_url() else {
+        return Ok(());
+    };
+
+    let mut conn = sqlx::PgConnection::connect(&url).await?;
+    let schema = format!("wp1_mig_{}", Uuid::new_v4().simple());
+
+    sqlx::query(&format!("CREATE SCHEMA {schema}"))
+        .execute(&mut conn)
+        .await?;
+    sqlx::query(&format!("SET search_path TO {schema}"))
+        .execute(&mut conn)
+        .await?;
+
+    let migrator = sqlx::migrate!("./migrations");
+
+    migrator.run(&mut conn).await?;
+    migrator.undo(&mut conn, 0).await?;
+
+    let tables = postgres_user_table_names(&mut conn).await?;
+    assert!(tables.is_empty());
+
+    let applied_count_row = sqlx::query("SELECT COUNT(*) as count FROM _sqlx_migrations")
+        .fetch_one(&mut conn)
+        .await?;
+    let applied_count = applied_count_row.get::<i64, _>("count");
+    assert_eq!(applied_count, 0);
+
+    sqlx::query("SET search_path TO public")
+        .execute(&mut conn)
+        .await?;
+    sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
+        .execute(&mut conn)
+        .await?;
+
     Ok(())
 }

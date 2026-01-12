@@ -1,0 +1,2 @@
+-- No-op rollback.
+-- Replay-safe normalization: `ai_jobs.is_pinned` is created in `0002_create_ai_core_tables.sql`.

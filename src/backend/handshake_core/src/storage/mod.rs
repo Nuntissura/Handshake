@@ -847,6 +847,9 @@ pub trait Database: Send + Sync + std::any::Any {
     /// Run database migrations.
     async fn run_migrations(&self) -> StorageResult<()>;
 
+    /// Returns the current schema migration version from `_sqlx_migrations`.
+    async fn migration_version(&self) -> StorageResult<i64>;
+
     fn as_any(&self) -> &dyn std::any::Any;
 }
 

@@ -22,6 +22,7 @@ pub struct HealthResponse {
     pub component: &'static str,
     pub version: &'static str,
     pub db_status: String,
+    pub migration_version: Option<i64>,
 }
 
 #[derive(Deserialize)]
