@@ -358,6 +358,14 @@
       "signature": "ilja120120260049",
       "timestamp": "2026-01-11T23:55:08.787Z",
       "refinement_path": "docs/refinements/WP-1-Migration-Framework-v2.md"
+    },
+    {
+      "wpId": "WP-1-Migration-Framework-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Migration-Framework-v2",
+      "worktree_dir": "../wt-WP-1-Migration-Framework-v2",
+      "timestamp": "2026-01-12T00:02:48.122Z"
     }
   ]
 }
