@@ -39,6 +39,7 @@ Rules:
 
 Entry format (recommended):
 - `- **[WP_ID]** - [ACTIVE] - branch: feat/WP-{ID} - coder: <name/model> - last_sync: YYYY-MM-DD`
+- **[WP-1-Migration-Framework-v2]** - [ACTIVE] - branch: feat/WP-1-Migration-Framework-v2 - coder: GPT-5.2 (Codex CLI) - last_sync: 2026-01-12
 
 ---
 
@@ -47,7 +48,6 @@ Entry format (recommended):
 
 A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `docs/task_packets/` (not a stub).
 
-- **[WP-1-Migration-Framework-v2]** - [READY_FOR_DEV]
 
 ## Stub Backlog (Not Activated)
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
@@ -89,6 +89,7 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 ## In Progress
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
+- **[WP-1-Migration-Framework-v2]** - [IN_PROGRESS]
 
 
 ## Done
