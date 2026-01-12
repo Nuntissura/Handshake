@@ -730,3 +730,76 @@ SKELETON APPROVED
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT — WP-1-Migration-Framework-v2
+Verdict: PASS
+
+Validated commit(s):
+- Code: `02e5b3b8`
+- Packet: `0e20fc33`
+
+Spec:
+- Target: `Handshake_Master_Spec_v02.106.md`
+- Anchors: §2.3.12.4 [CX-DBP-022], §2.3.12.4.1 [CX-DBP-022A], §2.3.12.4.2 [CX-DBP-022B], and Phase 1 acceptance criteria bullet “Migrations validated …”
+
+Files Checked:
+- `src/backend/handshake_core/migrations/0001_init.sql`
+- `src/backend/handshake_core/migrations/0001_init.down.sql`
+- `src/backend/handshake_core/migrations/0002_create_ai_core_tables.sql`
+- `src/backend/handshake_core/migrations/0002_create_ai_core_tables.down.sql`
+- `src/backend/handshake_core/migrations/0003_add_is_pinned.sql`
+- `src/backend/handshake_core/migrations/0003_add_is_pinned.down.sql`
+- `src/backend/handshake_core/migrations/0004_mutation_traceability.sql`
+- `src/backend/handshake_core/migrations/0004_mutation_traceability.down.sql`
+- `src/backend/handshake_core/migrations/0005_add_canvas_traceability.sql`
+- `src/backend/handshake_core/migrations/0005_add_canvas_traceability.down.sql`
+- `src/backend/handshake_core/migrations/0006_expand_ai_job_model.sql`
+- `src/backend/handshake_core/migrations/0006_expand_ai_job_model.down.sql`
+- `src/backend/handshake_core/migrations/0007_workflow_persistence.sql`
+- `src/backend/handshake_core/migrations/0007_workflow_persistence.down.sql`
+- `src/backend/handshake_core/migrations/0008_expand_ai_job_model.sql`
+- `src/backend/handshake_core/migrations/0008_expand_ai_job_model.down.sql`
+- `src/backend/handshake_core/migrations/0009_add_block_classification.sql`
+- `src/backend/handshake_core/migrations/0009_add_block_classification.down.sql`
+- `src/backend/handshake_core/src/main.rs`
+- `src/backend/handshake_core/src/models.rs`
+- `src/backend/handshake_core/src/storage/mod.rs`
+- `src/backend/handshake_core/src/storage/sqlite.rs`
+- `src/backend/handshake_core/src/storage/postgres.rs`
+- `src/backend/handshake_core/src/storage/tests.rs`
+- `scripts/validation/validator-dal-audit.mjs`
+- `docs/MIGRATION_GUIDE.md`
+- `docs/refinements/WP-1-Migration-Framework-v2.md`
+- `docs/SPEC_CURRENT.md`
+- `docs/WP_TRACEABILITY_REGISTRY.md`
+- `docs/TASK_BOARD.md`
+
+Findings:
+- [CX-DBP-022] Replay-safe, tracking-independent migrations:
+  - Idempotent DDL patterns used (e.g., `CREATE TABLE IF NOT EXISTS …`): `src/backend/handshake_core/migrations/0001_init.sql:3`, `src/backend/handshake_core/migrations/0002_create_ai_core_tables.sql:3`.
+  - Replay-safety validated by explicitly dropping `_sqlx_migrations` and re-running: `src/backend/handshake_core/src/storage/tests.rs:513` (SQLite), `src/backend/handshake_core/src/storage/tests.rs:552` (Postgres), `src/backend/handshake_core/src/storage/tests.rs:520`, `src/backend/handshake_core/src/storage/tests.rs:572`.
+- [CX-DBP-022B] Concrete down migrations:
+  - Down files exist for every up migration (0001..0009) and undo-to-baseline tests validate reversibility: `src/backend/handshake_core/src/storage/tests.rs:532` (SQLite), `src/backend/handshake_core/src/storage/tests.rs:592` (Postgres).
+  - Example downs: `src/backend/handshake_core/migrations/0001_init.down.sql:3`, `src/backend/handshake_core/migrations/0002_create_ai_core_tables.down.sql:3`.
+- Migration version surfaced in health check:
+  - `/health` includes `migration_version`: `src/backend/handshake_core/src/main.rs:238`, `src/backend/handshake_core/src/models.rs:25`.
+  - Version sourced from `_sqlx_migrations` (no manual schema_version table): `src/backend/handshake_core/src/storage/mod.rs:851`, `src/backend/handshake_core/src/storage/sqlite.rs:185`, `src/backend/handshake_core/src/storage/sqlite.rs:187`, `src/backend/handshake_core/src/storage/postgres.rs:243`, `src/backend/handshake_core/src/storage/postgres.rs:245`.
+- Migration hygiene gate updated to align with Phase 1 down-migration mandate:
+  - Ignore `*.down.sql` for numbering continuity and require matching down per up: `scripts/validation/validator-dal-audit.mjs:61`, `scripts/validation/validator-dal-audit.mjs:82`.
+
+Forbidden Patterns:
+- PASS: No panic/unwrap in production paths (unwrap occurrences observed were inside test blocks only).
+
+Tests (Validator-run):
+- `node scripts/validation/validator-dal-audit.mjs`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`: PASS
+- Postgres migration tests executed with `POSTGRES_TEST_URL` set (local docker Postgres):
+  - `storage::tests::migrations_are_replay_safe_postgres`: PASS
+  - `storage::tests::migrations_can_undo_to_baseline_postgres`: PASS
+
+Risks & Suggested Actions:
+- Migration history rewrite: several later migrations are now no-op with “replay-safe normalization” comments; any pre-existing dev DBs created with older versions of these migrations may require reset. Confirm expectations for non-ephemeral environments.
+- CI: ensure Postgres test provisioning sets `POSTGRES_TEST_URL` so Postgres migration tests are not silently skipped.
+
+REASON FOR PASS:
+- All hard requirements from spec v02.106 [CX-DBP-022] are satisfied and were re-verified by validator-run DAL audit and SQLite+Postgres test runs.
