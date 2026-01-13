@@ -2,9 +2,9 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.109.md**
+**Handshake_Master_Spec_v02.110.md**
 
-(Updated: 2026-01-13 - Inlined the full Governance Pack Template Volume (codex + role protocols + governance artifacts + mechanical hard-gate tooling) as project-agnostic templates; added missing governance templates (ROLE_WORKTREES, OSS_REGISTER); expanded `docs/PROJECT_INVARIANTS.md` placeholders for layout paths [ilja130120260124])
+(Updated: 2026-01-13 - Fix Governance Pack template drift: `docs/VALIDATOR_GATES.json` template now uses the `validation_sessions` + `archived_sessions` schema (matches `scripts/validation/validator_gates.mjs`) [ilja130120260438])
 
 ---
 
