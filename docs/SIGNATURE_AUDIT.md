@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-01-12
+**Updated:** 2026-01-13
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja130120260124 | Orchestrator | 2026-01-13 01:24 | Spec update: v02.109 Governance Pack Template Volume + PROJECT_INVARIANTS requirement | v02.109 | Inlined the full Governance Pack Template Volume (codex + role protocols + governance artifacts + mechanical hard-gate tooling) as project-agnostic templates; added missing governance templates (`docs/ROLE_WORKTREES.md`, `docs/OSS_REGISTER.md`); expanded PROJECT_INVARIANTS layout placeholders and removed remaining hardcoded paths in templates. |
+| ilja120120262149 | Orchestrator | 2026-01-12 21:49 | Spec update: v02.108 governance pack + role mailbox + spec authoring rubric + trinity enforcement | v02.108 | Added Role Mailbox (always-on repo export + transcription), Spec Authoring Rubric, Trinity required roles in Spec Router policy (A11.1.5.1), and Governance Pack instantiation spec (A7.5.4.8). |
 | ilja120120260452 | Orchestrator | 2026-01-12 04:52 | Spec update: v02.107 governance kernel + cross-tool interaction map + local-first agentic/MCP posture | v02.107 | Integrated Governance Kernel (A7.5.4) + Cross-Tool Interaction Map (A6.0.1) + Local-First Agentic/MCP stance (A7.2.5); updated roadmap matrix/Phase 1 pointers. |
 | ilja120120260049 | Orchestrator | 2026-01-12 00:49 | Task packet creation: WP-1-Migration-Framework-v2 | v02.106 | Approved after Technical Refinement (see docs/refinements/WP-1-Migration-Framework-v2.md ). |
 | ilja110120262355 | Orchestrator | 2026-01-11 23:55 | Spec update: v02.106 migration governance (heavy per-file replay safety + Phase 1 down migrations) | v02.106 | Clarified CX-DBP-022 (replay-safe migrations) and required concrete down migrations; updated migration acceptance criteria. |

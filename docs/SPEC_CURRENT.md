@@ -2,9 +2,9 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.107.md**
+**Handshake_Master_Spec_v02.109.md**
 
-(Updated: 2026-01-12 - Governance Kernel integrated into Master Spec (A7.5.4) + Cross-Tool Interaction Map (A6.0.1) + Local-First Agentic/MCP stance (A7.2.5); roadmap matrix/Phase 1 pointers updated [ilja120120260452])
+(Updated: 2026-01-13 - Inlined the full Governance Pack Template Volume (codex + role protocols + governance artifacts + mechanical hard-gate tooling) as project-agnostic templates; added missing governance templates (ROLE_WORKTREES, OSS_REGISTER); expanded `docs/PROJECT_INVARIANTS.md` placeholders for layout paths [ilja130120260124])
 
 ---
 
