@@ -2,9 +2,9 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.110.md**
+**Handshake_Master_Spec_v02.111.md**
 
-(Updated: 2026-01-13 - Fix Governance Pack template drift: `docs/VALIDATOR_GATES.json` template now uses the `validation_sessions` + `archived_sessions` schema (matches `scripts/validation/validator_gates.mjs`) [ilja130120260438])
+(Updated: 2026-01-13 - Inlined missing high-signal governance docs into the Governance Pack Template Volume: role rubrics, migration law, and moved-template shims [ilja130120260459])
 
 ---
 
