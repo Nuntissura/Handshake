@@ -497,6 +497,239 @@ SKELETON APPROVED
 - 2026-01-15: Ran `just cargo-clean` (exit code 0).
 - 2026-01-15: Captured staged Pre/Post SHA1 via `just cor701-sha` for all changed non-`docs/` files (see `## VALIDATION`).
 
+### 2026-01-15 Command Outputs (Coder)
+
+#### `just cargo-clean`
+```text
+cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Cargo Target/handshake-cargo-target"
+     Removed 0 files
+```
+
+#### `just test` (excerpt: head + tail)
+```text
+cd src/backend/handshake_core; cargo test
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.58s
+     Running unittests src\lib.rs (D:\Projects\LLM projects\wt-WP-1-Role-Mailbox-v1\../Cargo Target/handshake-cargo-target\debug\deps\handshake_core-164c8daf83140bca.exe)
+
+running 136 tests
+test ace::tests::test_budget_validation ... ok
+test ace::tests::test_context_pack_staleness ... ok
+test ace::tests::test_strict_ranking_determinism ... ok
+test ace::tests::test_query_normalization_determinism ... ok
+test ace::tests::test_retrieval_trace_metrics ... ok
+test ace::validators::boundary::tests::test_boundary_guard_error_detection ... ok
+test ace::validators::boundary::tests::test_boundary_guard_layer_scope_changed ... ok
+
+test flight_recorder::duckdb::tests::test_record_diagnostic_and_group ... ok
+test flight_recorder::duckdb::tests::test_query_by_job_id ... ok
+test workflows::tests::run_job_rejects_budget_exceeded ... ok
+test flight_recorder::duckdb::tests::test_retention_purges_old_events ... ok
+test workflows::tests::workflow_persists_node_history_and_outputs ... ok
+test api::jobs::tests::create_job_allows_terminal_when_authorized ... ok
+test workflows::tests::terminal_job_runs_when_authorized ... ok
+test workflows::tests::test_mark_stalled_workflows ... ok
+test storage::retention::tests::test_flight_recorder_event_emitted ... ok
+test storage::retention::tests::test_min_versions_constraint ... ok
+test storage::retention::tests::test_dry_run_does_not_delete ... ok
+test storage::retention::tests::test_prune_respects_window ... ok
+test storage::retention::tests::test_prune_respects_pinned_items ... ok
+
+test result: ok. 136 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 31.56s
+
+     Running unittests src\main.rs (D:\Projects\LLM projects\wt-WP-1-Role-Mailbox-v1\../Cargo Target/handshake-cargo-target\debug\deps\handshake_core-32651611cd0c42e0.exe)
+
+running 2 tests
+test tests::health_response_error_maps_to_overall_error ... ok
+test tests::health_response_ok_sets_status_ok ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\mex_tests.rs (D:\Projects\LLM projects\wt-WP-1-Role-Mailbox-v1\../Cargo Target/handshake-cargo-target\debug\deps\mex_tests-bd3c0b5013672624.exe)
+
+running 5 tests
+test runtime_executes_with_gates_and_adapter ... ok
+test gate_denial_records_diagnostic_and_event ... ok
+test gate_pass_logs_outcome ... ok
+test d0_missing_evidence_records_diagnostic ... ok
+test conformance_harness_runs_all_cases ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+
+     Running tests\oss_register_enforcement_tests.rs (D:\Projects\LLM projects\wt-WP-1-Role-Mailbox-v1\../Cargo Target/handshake-cargo-target\debug\deps\oss_register_enforcement_tests-2104c5af13df9d2c.exe)
+
+running 5 tests
+test oss_register_enforcement::test_register_format_valid ... ok
+test oss_register_enforcement::test_copyleft_isolation ... ok
+test oss_register_enforcement::test_no_gpl_agpl_present ... ok
+test oss_register_enforcement::test_package_json_coverage ... ok
+test oss_register_enforcement::test_cargo_lock_coverage ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\role_mailbox_tests.rs (D:\Projects\LLM projects\wt-WP-1-Role-Mailbox-v1\../Cargo Target/handshake-cargo-target\debug\deps\role_mailbox_tests-71536373f94e5bd7.exe)
+
+running 3 tests
+test role_mailbox_export_empty_is_deterministic ... ok
+test role_mailbox_idempotency_key_is_deduped ... ok
+test role_mailbox_create_message_emits_events_and_export ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.27s
+
+     Running tests\storage_conformance.rs (D:\Projects\LLM projects\wt-WP-1-Role-Mailbox-v1\../Cargo Target/handshake-cargo-target\debug\deps\storage_conformance-362b6898e9a84ac2.exe)
+
+running 2 tests
+test postgres_storage_conformance ... ok
+test sqlite_storage_conformance ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\terminal_guards_tests.rs (D:\Projects\LLM projects\wt-WP-1-Role-Mailbox-v1\../Cargo Target/handshake-cargo-target\debug\deps\terminal_guards_tests-25e907154d115b24.exe)
+
+running 13 tests
+test blocks_absolute_cwd ... ok
+test blocks_cwd_escape ... ok
+test denies_command_without_allowlist_match ... ok
+test blocks_cwd_outside_allowed_roots ... ok
+test denies_command_matching_denylist ... ok
+test emits_capability_audit_on_denied ... ok
+test emits_attach_human_audit_on_denied ... ok
+test allows_cwd_inside_workspace ... ok
+test allows_cwd_within_allowed_roots ... ok
+test flags_truncation_when_output_exceeds_limit ... ok
+test enforces_timeout_and_kill_grace ... ok
+test emits_capability_audit_on_allowed ... ok
+test redacts_secrets_in_logged_command ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+
+     Running tests\terminal_session_tests.rs (D:\Projects\LLM projects\wt-WP-1-Role-Mailbox-v1\../Cargo Target/handshake-cargo-target\debug\deps\terminal_session_tests-259f68007122eb5c.exe)
+
+running 5 tests
+test redaction_handles_non_utf8_output ... ok
+test blocks_ai_from_human_session_without_attach_capability ... ok
+test allows_ai_with_attach_capability_and_logged_consent ... ok
+test flight_recorder_captures_session_type_and_consent ... ok
+test cancels_inflight_command ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+
+     Running tests\tokenization_service_tests.rs (D:\Projects\LLM projects\wt-WP-1-Role-Mailbox-v1\../Cargo Target/handshake-cargo-target\debug\deps\tokenization_service_tests-f6ff2820350507f8.exe)
+
+running 4 tests
+test map_ollama_show_sentencepiece_config ... ok
+test map_ollama_show_tiktoken_config ... ok
+test tokenization_emits_warning_on_fallback ... ok
+test tokenization_uses_ollama_tiktoken_config_without_warning ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+
+     Running tests\tokenization_tests.rs (D:\Projects\LLM projects\wt-WP-1-Role-Mailbox-v1\../Cargo Target/handshake-cargo-target\debug\deps\tokenization_tests-5680d81dec15a573.exe)
+
+running 5 tests
+test vibe_handles_unknown_model_consistently ... ok
+test router_uses_fallback_for_unknown_models ... ok
+test tiktoken_falls_back_to_cl100k_base ... ok
+test truncate_respects_limit_without_panic ... ok
+test tiktoken_counts_gpt4o ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s
+
+   Doc-tests handshake_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+#### `just lint`
+```text
+cd app; pnpm run lint
+
+> app@0.1.0 lint D:\Projects\LLM projects\wt-WP-1-Role-Mailbox-v1\app
+> eslint src --ext .ts,.tsx
+
+cd src/backend/handshake_core; cargo clippy --all-targets --all-features
+   Compiling handshake_core v0.1.0 (D:\Projects\LLM projects\wt-WP-1-Role-Mailbox-v1\src\backend\handshake_core)
+warning: this function has too many arguments (10/7)
+    --> src\role_mailbox.rs:1160:5
+     |
+1160 | /     async fn emit_fr_message_created(
+1161 | |         &self,
+1162 | |         context: &RoleMailboxContext,
+1163 | |         thread_id: &str,
+...    |
+1170 | |         idempotency_key: &str,
+1171 | |     ) -> Result<(), RoleMailboxError> {
+     | |_____________________________________^
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.91.0/index.html#too_many_arguments
+     = note: `#[warn(clippy::too_many_arguments)]` on by default
+
+warning: `handshake_core` (lib) generated 1 warning
+warning: `handshake_core` (lib test) generated 1 warning (1 duplicate)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 27.46s
+```
+
+#### `just validator-error-codes`
+```text
+validator-error-codes: PASS - no stringly errors or nondeterminism patterns detected.
+```
+
+#### `just role-mailbox-export-check`
+```text
+? ROLE_MAILBOX_EXPORT_GATE PASS
+```
+
+#### `just post-work WP-1-Role-Mailbox-v1`
+```text
+Checking Phase Gate for WP-1-Role-Mailbox-v1...
+? GATE PASS: Workflow sequence verified.
+
+Post-work validation for WP-1-Role-Mailbox-v1 (deterministic manifest + gates)...
+
+Check 1: Validation manifest present
+NOTE: Git hygiene waiver detected [CX-573F]. Strict git checks relaxed.
+warning: in the working copy of 'docs/task_packets/WP-1-Role-Mailbox-v1.md', CRLF will be replaced by LF the next time Git touches it
+
+Check 2: Manifest fields
+
+Check 3: File integrity (per manifest entry)
+fatal: path 'scripts/validation/role_mailbox_export_check.mjs' exists on disk, but not in 'ec15b1ab01ad67dd5d25f30aee5066cf5364d083'
+fatal: path 'src/backend/handshake_core/src/api/role_mailbox.rs' exists on disk, but not in 'ec15b1ab01ad67dd5d25f30aee5066cf5364d083'
+fatal: path 'src/backend/handshake_core/src/role_mailbox.rs' exists on disk, but not in 'ec15b1ab01ad67dd5d25f30aee5066cf5364d083'
+fatal: path 'src/backend/handshake_core/tests/role_mailbox_tests.rs' exists on disk, but not in 'ec15b1ab01ad67dd5d25f30aee5066cf5364d083'
+
+Check 4: Git status
+warning: in the working copy of 'docs/task_packets/WP-1-Role-Mailbox-v1.md', CRLF will be replaced by LF the next time Git touches it
+
+==================================================
+Post-work validation PASSED with warnings
+
+Warnings:
+  1. Manifest[1]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for justfile (common after WP commits); prefer LF blob SHA1=6ead0240c2fe0115923fe5e5f7affc12e6f39c99
+  2. Manifest[1]: post_sha1 matches non-canonical EOL variant for justfile; prefer LF blob SHA1=fd204f6daa9734368f283110cad7feca09545f49
+  3. Manifest[2]: pre_sha1 does not match HEAD for scripts\\validation\\role_mailbox_export_check.mjs (C701-G08) - WAIVER APPLIED
+  4. Manifest[2]: expected pre_sha1 (HEAD LF blob) = b260ec45274ea3f6eae5604499bc92ab55382d22
+  5. Manifest[3]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\\backend\\handshake_core\\src\\ace\\validators\\mod.rs (common after WP commits); prefer LF blob SHA1=7914738cbcfb2c4df1bf2c7687957491d3d0eb18
+  6. Manifest[4]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\\backend\\handshake_core\\src\\api\\mod.rs (common after WP commits); prefer LF blob SHA1=656648da77a0865e7ed896e1385388ebf8be4c76
+  7. Manifest[4]: post_sha1 matches non-canonical EOL variant for src\\backend\\handshake_core\\src\\api\\mod.rs; prefer LF blob SHA1=5dd3beb3b10dcbe36e0d44f6fd8e8132320683ea
+  8. Manifest[5]: pre_sha1 does not match HEAD for src\\backend\\handshake_core\\src\\api\\role_mailbox.rs (C701-G08) - WAIVER APPLIED
+  9. Manifest[5]: expected pre_sha1 (HEAD LF blob) = 18e9bb423009b44249c94bcae75ea99c8cdf2eb2
+  10. Manifest[6]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\\backend\\handshake_core\\src\\flight_recorder\\duckdb.rs (common after WP commits); prefer LF blob SHA1=5f89f1151c72624685723f0a30df66cdb683ad83
+  11. Manifest[6]: post_sha1 matches non-canonical EOL variant for src\\backend\\handshake_core\\src\\flight_recorder\\duckdb.rs; prefer LF blob SHA1=07de9b8ff43f2c477d6b5408c052702db85008fd
+  12. Manifest[7]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\\backend\\handshake_core\\src\\flight_recorder\\mod.rs (common after WP commits); prefer LF blob SHA1=e4ac6b2a03eba2f492329cd4c7a5ea33b09de60c
+  13. Manifest[8]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\\backend\\handshake_core\\src\\lib.rs (common after WP commits); prefer LF blob SHA1=06feb3889dec4667bbeb8a1c3192e61df096acd8
+  14. Manifest[8]: post_sha1 matches non-canonical EOL variant for src\\backend\\handshake_core\\src\\lib.rs; prefer LF blob SHA1=2fea95813f93a5937a4237919ecbe5d1cd76f13f
+  15. Manifest[9]: pre_sha1 does not match HEAD for src\\backend\\handshake_core\\src\\role_mailbox.rs (C701-G08) - WAIVER APPLIED
+  16. Manifest[9]: expected pre_sha1 (HEAD LF blob) = dfc37c834faf3125052c133e9f21459d9e51774a
+  17. Manifest[10]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\\backend\\handshake_core\\src\\workflows.rs (common after WP commits); prefer LF blob SHA1=2a31c42f64b8a1dd7384fd624ef3689be1f288b6
+  18. Manifest[11]: pre_sha1 does not match HEAD for src\\backend\\handshake_core\\tests\\role_mailbox_tests.rs (C701-G08) - WAIVER APPLIED
+  19. Manifest[11]: expected pre_sha1 (HEAD LF blob) = fb58331c64fe59defe2a9a6df06597a56105a4a2
+
+You may proceed with commit.
+? ROLE_MAILBOX_EXPORT_GATE PASS
+```
+
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
 
