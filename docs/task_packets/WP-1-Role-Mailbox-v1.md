@@ -481,13 +481,13 @@ SKELETON APPROVED
   - [x] current_file_matches_preimage
 
 ## STATUS_HANDOFF
-- Current WP_STATUS: Implementation updated; ready for `just post-work WP-1-Role-Mailbox-v1`.
+- Current WP_STATUS: Evidence updated (command outputs + post-work output recorded); ready for Validator review.
 - What changed in this update:
   - RoleMailbox now reuses the FlightRecorder DuckDB connection (avoids file-lock conflicts on Windows and matches "same flight_recorder.db" spec requirement).
   - RoleMailbox `create_message` no longer holds a sync lock across an `.await` (axum handler Send-safety).
   - RoleMailbox export creates the `docs/ROLE_MAILBOX/threads/` directory before writing thread JSONL.
   - `Instant::now()` usage is annotated with `WAIVER [CX-573E]` for validator-error-codes allowlisting; waiver recorded above.
-- Next step / handoff hint: Stage this task packet update and run `just post-work WP-1-Role-Mailbox-v1`.
+- Next step / handoff hint: Validator: review `## EVIDENCE` + `## VALIDATION` and re-run your validation suite for this WP.
 
 ## EVIDENCE
 - 2026-01-15: Ran `just test` (exit code 0).
