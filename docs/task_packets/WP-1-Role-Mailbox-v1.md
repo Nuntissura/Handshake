@@ -708,22 +708,22 @@ Post-work validation PASSED with warnings
 Warnings:
   1. Manifest[1]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for justfile (common after WP commits); prefer LF blob SHA1=6ead0240c2fe0115923fe5e5f7affc12e6f39c99
   2. Manifest[1]: post_sha1 matches non-canonical EOL variant for justfile; prefer LF blob SHA1=fd204f6daa9734368f283110cad7feca09545f49
-  3. Manifest[2]: pre_sha1 does not match HEAD for scripts\\validation\\role_mailbox_export_check.mjs (C701-G08) - WAIVER APPLIED
+  3. Manifest[2]: pre_sha1 does not match HEAD for scripts\validation\role_mailbox_export_check.mjs (C701-G08) - WAIVER APPLIED
   4. Manifest[2]: expected pre_sha1 (HEAD LF blob) = b260ec45274ea3f6eae5604499bc92ab55382d22
-  5. Manifest[3]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\\backend\\handshake_core\\src\\ace\\validators\\mod.rs (common after WP commits); prefer LF blob SHA1=7914738cbcfb2c4df1bf2c7687957491d3d0eb18
-  6. Manifest[4]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\\backend\\handshake_core\\src\\api\\mod.rs (common after WP commits); prefer LF blob SHA1=656648da77a0865e7ed896e1385388ebf8be4c76
-  7. Manifest[4]: post_sha1 matches non-canonical EOL variant for src\\backend\\handshake_core\\src\\api\\mod.rs; prefer LF blob SHA1=5dd3beb3b10dcbe36e0d44f6fd8e8132320683ea
-  8. Manifest[5]: pre_sha1 does not match HEAD for src\\backend\\handshake_core\\src\\api\\role_mailbox.rs (C701-G08) - WAIVER APPLIED
+  5. Manifest[3]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\backend\handshake_core\src\ace\validators\mod.rs (common after WP commits); prefer LF blob SHA1=7914738cbcfb2c4df1bf2c7687957491d3d0eb18
+  6. Manifest[4]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\backend\handshake_core\src\api\mod.rs (common after WP commits); prefer LF blob SHA1=656648da77a0865e7ed896e1385388ebf8be4c76
+  7. Manifest[4]: post_sha1 matches non-canonical EOL variant for src\backend\handshake_core\src\api\mod.rs; prefer LF blob SHA1=5dd3beb3b10dcbe36e0d44f6fd8e8132320683ea
+  8. Manifest[5]: pre_sha1 does not match HEAD for src\backend\handshake_core\src\api\role_mailbox.rs (C701-G08) - WAIVER APPLIED
   9. Manifest[5]: expected pre_sha1 (HEAD LF blob) = 18e9bb423009b44249c94bcae75ea99c8cdf2eb2
-  10. Manifest[6]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\\backend\\handshake_core\\src\\flight_recorder\\duckdb.rs (common after WP commits); prefer LF blob SHA1=5f89f1151c72624685723f0a30df66cdb683ad83
-  11. Manifest[6]: post_sha1 matches non-canonical EOL variant for src\\backend\\handshake_core\\src\\flight_recorder\\duckdb.rs; prefer LF blob SHA1=07de9b8ff43f2c477d6b5408c052702db85008fd
-  12. Manifest[7]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\\backend\\handshake_core\\src\\flight_recorder\\mod.rs (common after WP commits); prefer LF blob SHA1=e4ac6b2a03eba2f492329cd4c7a5ea33b09de60c
-  13. Manifest[8]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\\backend\\handshake_core\\src\\lib.rs (common after WP commits); prefer LF blob SHA1=06feb3889dec4667bbeb8a1c3192e61df096acd8
-  14. Manifest[8]: post_sha1 matches non-canonical EOL variant for src\\backend\\handshake_core\\src\\lib.rs; prefer LF blob SHA1=2fea95813f93a5937a4237919ecbe5d1cd76f13f
-  15. Manifest[9]: pre_sha1 does not match HEAD for src\\backend\\handshake_core\\src\\role_mailbox.rs (C701-G08) - WAIVER APPLIED
+  10. Manifest[6]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\backend\handshake_core\src\flight_recorder\duckdb.rs (common after WP commits); prefer LF blob SHA1=5f89f1151c72624685723f0a30df66cdb683ad83
+  11. Manifest[6]: post_sha1 matches non-canonical EOL variant for src\backend\handshake_core\src\flight_recorder\duckdb.rs; prefer LF blob SHA1=07de9b8ff43f2c477d6b5408c052702db85008fd
+  12. Manifest[7]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\backend\handshake_core\src\flight_recorder\mod.rs (common after WP commits); prefer LF blob SHA1=e4ac6b2a03eba2f492329cd4c7a5ea33b09de60c
+  13. Manifest[8]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\backend\handshake_core\src\lib.rs (common after WP commits); prefer LF blob SHA1=06feb3889dec4667bbeb8a1c3192e61df096acd8
+  14. Manifest[8]: post_sha1 matches non-canonical EOL variant for src\backend\handshake_core\src\lib.rs; prefer LF blob SHA1=2fea95813f93a5937a4237919ecbe5d1cd76f13f
+  15. Manifest[9]: pre_sha1 does not match HEAD for src\backend\handshake_core\src\role_mailbox.rs (C701-G08) - WAIVER APPLIED
   16. Manifest[9]: expected pre_sha1 (HEAD LF blob) = dfc37c834faf3125052c133e9f21459d9e51774a
-  17. Manifest[10]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\\backend\\handshake_core\\src\\workflows.rs (common after WP commits); prefer LF blob SHA1=2a31c42f64b8a1dd7384fd624ef3689be1f288b6
-  18. Manifest[11]: pre_sha1 does not match HEAD for src\\backend\\handshake_core\\tests\\role_mailbox_tests.rs (C701-G08) - WAIVER APPLIED
+  17. Manifest[10]: pre_sha1 matches merge-base(ec15b1ab01ad67dd5d25f30aee5066cf5364d083) for src\backend\handshake_core\src\workflows.rs (common after WP commits); prefer LF blob SHA1=2a31c42f64b8a1dd7384fd624ef3689be1f288b6
+  18. Manifest[11]: pre_sha1 does not match HEAD for src\backend\handshake_core\tests\role_mailbox_tests.rs (C701-G08) - WAIVER APPLIED
   19. Manifest[11]: expected pre_sha1 (HEAD LF blob) = fb58331c64fe59defe2a9a6df06597a56105a4a2
 
 You may proceed with commit.
