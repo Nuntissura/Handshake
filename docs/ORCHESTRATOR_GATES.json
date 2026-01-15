@@ -366,6 +366,24 @@
       "branch": "feat/WP-1-Migration-Framework-v2",
       "worktree_dir": "../wt-WP-1-Migration-Framework-v2",
       "timestamp": "2026-01-12T00:02:48.122Z"
+    },
+    {
+      "wpId": "WP-1-Role-Mailbox-v1",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Role-Mailbox-v1.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.111.md",
+      "spec_target_sha1": "6437fb6849f9c53d9330e8ec987cbe1ab3574a14",
+      "timestamp": "2026-01-13T05:11:40.401Z",
+      "turn_token": "1768281100401"
+    },
+    {
+      "wpId": "WP-1-Role-Mailbox-v1",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Role-Mailbox-v1.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.112.md",
+      "spec_target_sha1": "6418250deb1fea1fce63ace65c22657e0398a113",
+      "timestamp": "2026-01-15T01:45:55.113Z",
+      "turn_token": "1768441555114"
     }
   ]
 }

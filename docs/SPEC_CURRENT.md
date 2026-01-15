@@ -2,9 +2,9 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.111.md**
+**Handshake_Master_Spec_v02.112.md**
 
-(Updated: 2026-01-13 - Inlined missing high-signal governance docs into the Governance Pack Template Volume: role rubrics, migration law, and moved-template shims [ilja130120260459])
+(Updated: 2026-01-15 - Role Mailbox hardening: dedicated FR-EVT-GOV-MAILBOX schemas + leak-safe repo export + RoleMailboxExportGate mechanical gate [ilja150120260214])
 
 ---
 

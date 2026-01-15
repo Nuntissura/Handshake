@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-01-13
+**Updated:** 2026-01-15
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja150120260214 | Orchestrator | 2026-01-15 02:14 | Spec update: v02.112 Role Mailbox hardening (dedicated FR event schemas + leak-safe export + mechanical gate) | v02.112 | Defined FR-EVT-GOV-MAILBOX payload schemas, required schema validation at ingestion, and added RoleMailboxExportGate requirements to prevent `docs/ROLE_MAILBOX/` from becoming a secret leak path. |
 | ilja130120260459 | Orchestrator | 2026-01-13 04:59 | Spec update: v02.111 template volume - add rubrics + migration guide + moved-template shims | v02.111 | Inlined `docs/CODER_RUBRIC.md`, `docs/ORCHESTRATOR_RUBRIC.md`, `docs/MIGRATION_GUIDE.md`, and shim pointers (`docs/*_TEMPLATE.md`) into the Governance Pack Template Volume for project-agnostic export. |
 | ilja130120260438 | Orchestrator | 2026-01-13 04:38 | Spec update: v02.110 fix VALIDATOR_GATES template drift | v02.110 | Fixed Governance Pack template drift: `docs/VALIDATOR_GATES.json` now uses the `validation_sessions` + `archived_sessions` schema (matches `scripts/validation/validator_gates.mjs`). |
 | ilja130120260124 | Orchestrator | 2026-01-13 01:24 | Spec update: v02.109 Governance Pack Template Volume + PROJECT_INVARIANTS requirement | v02.109 | Inlined the full Governance Pack Template Volume (codex + role protocols + governance artifacts + mechanical hard-gate tooling) as project-agnostic templates; added missing governance templates (`docs/ROLE_WORKTREES.md`, `docs/OSS_REGISTER.md`); expanded PROJECT_INVARIANTS layout placeholders and removed remaining hardcoded paths in templates. |
@@ -149,6 +150,6 @@ grep -r "Strategic Pause approval \[" docs/task_packets/ | awk -F'[' '{print $NF
 
 ---
 
-**Last Updated:** 2025-12-25
+**Last Updated:** 2026-01-15
 **Version:** 1.0
 **Maintained By:** Orchestrator Agent
