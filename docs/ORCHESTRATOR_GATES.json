@@ -384,6 +384,21 @@
       "spec_target_sha1": "6418250deb1fea1fce63ace65c22657e0398a113",
       "timestamp": "2026-01-15T01:45:55.113Z",
       "turn_token": "1768441555114"
+    },
+    {
+      "wpId": "WP-1-Role-Mailbox-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja150120260254",
+      "timestamp": "2026-01-15T02:19:55.758Z",
+      "refinement_path": "docs/refinements/WP-1-Role-Mailbox-v1.md"
+    },
+    {
+      "wpId": "WP-1-Role-Mailbox-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Role-Mailbox-v1",
+      "worktree_dir": "../wt-WP-1-Role-Mailbox-v1",
+      "timestamp": "2026-01-15T02:19:56.253Z"
     }
   ]
 }
