@@ -179,11 +179,13 @@ impl ContentResolver for StorageContentResolver {
     async fn resolve_content(&self, source_ref: &SourceRef) -> Result<String, AceError> {
         // SourceRef.source_id is the block UUID
         let block_id = source_ref.source_id.to_string();
-        let block = self.db.get_block(&block_id).await.map_err(|e| {
-            AceError::ValidationFailed {
+        let block = self
+            .db
+            .get_block(&block_id)
+            .await
+            .map_err(|e| AceError::ValidationFailed {
                 message: format!("Failed to resolve content for block {}: {}", block_id, e),
-            }
-        })?;
+            })?;
         Ok(block.raw_content)
     }
 
@@ -192,14 +194,16 @@ impl ContentResolver for StorageContentResolver {
         source_ref: &SourceRef,
     ) -> Result<ContentClassification, AceError> {
         let block_id = source_ref.source_id.to_string();
-        let block = self.db.get_block(&block_id).await.map_err(|e| {
-            AceError::ValidationFailed {
+        let block = self
+            .db
+            .get_block(&block_id)
+            .await
+            .map_err(|e| AceError::ValidationFailed {
                 message: format!(
                     "Failed to resolve classification for block {}: {}",
                     block_id, e
                 ),
-            }
-        })?;
+            })?;
         Ok(Self::build_classification(&block))
     }
 }
@@ -275,7 +279,8 @@ pub async fn scan_content_for_security(
             if classification.is_composite {
                 let mut visited = HashSet::new();
                 visited.insert(source_ref.source_id);
-                check_composite_leakage(&classification.member_refs, resolver, &mut visited).await?;
+                check_composite_leakage(&classification.member_refs, resolver, &mut visited)
+                    .await?;
             }
         }
     }

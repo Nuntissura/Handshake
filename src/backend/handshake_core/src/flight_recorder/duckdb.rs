@@ -607,6 +607,11 @@ impl DuckDbFlightRecorder {
                 "diagnostic" => super::FlightRecorderEventType::Diagnostic,
                 "debug_bundle_export" => super::FlightRecorderEventType::DebugBundleExport,
                 "workflow_recovery" => super::FlightRecorderEventType::WorkflowRecovery,
+                "gov_mailbox_message_created" => {
+                    super::FlightRecorderEventType::GovMailboxMessageCreated
+                }
+                "gov_mailbox_exported" => super::FlightRecorderEventType::GovMailboxExported,
+                "gov_mailbox_transcribed" => super::FlightRecorderEventType::GovMailboxTranscribed,
                 "security_violation" => super::FlightRecorderEventType::SecurityViolation,
                 "capability_action" => {
                     if payload_type == Some("terminal_command") {
@@ -662,6 +667,10 @@ impl FlightRecorder for DuckDbFlightRecorder {
         filter: super::EventFilter,
     ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
         self.query_events(filter)
+    }
+
+    fn duckdb_connection(&self) -> Option<Arc<Mutex<DuckDbConnection>>> {
+        Some(self.conn.clone())
     }
 }
 

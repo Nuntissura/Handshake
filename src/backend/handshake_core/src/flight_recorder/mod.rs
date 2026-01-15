@@ -1,5 +1,9 @@
-use std::fmt;
+use std::{
+    fmt,
+    sync::{Arc, Mutex},
+};
 
+use ::duckdb::Connection as DuckDbConnection;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -41,6 +45,12 @@ pub enum FlightRecorderEventType {
     SecurityViolation,
     /// FR-EVT-WF-RECOVERY: Workflow recovery initiated [A2.6.1]
     WorkflowRecovery,
+    /// FR-EVT-GOV-MAILBOX-001: Role mailbox message created [11.5.3]
+    GovMailboxMessageCreated,
+    /// FR-EVT-GOV-MAILBOX-002: Role mailbox export updated [11.5.3]
+    GovMailboxExported,
+    /// FR-EVT-GOV-MAILBOX-003: Role mailbox transcription link created [11.5.3]
+    GovMailboxTranscribed,
     /// FR-EVT-005: Debug Bundle export lifecycle event [11.5]
     DebugBundleExport,
 }
@@ -56,6 +66,11 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::CapabilityAction => write!(f, "capability_action"),
             FlightRecorderEventType::SecurityViolation => write!(f, "security_violation"),
             FlightRecorderEventType::WorkflowRecovery => write!(f, "workflow_recovery"),
+            FlightRecorderEventType::GovMailboxMessageCreated => {
+                write!(f, "gov_mailbox_message_created")
+            }
+            FlightRecorderEventType::GovMailboxExported => write!(f, "gov_mailbox_exported"),
+            FlightRecorderEventType::GovMailboxTranscribed => write!(f, "gov_mailbox_transcribed"),
             FlightRecorderEventType::DebugBundleExport => write!(f, "debug_bundle_export"),
         }
     }
@@ -191,6 +206,15 @@ impl FlightRecorderEvent {
                 }
                 validate_workflow_recovery_payload(&self.payload)
             }
+            FlightRecorderEventType::GovMailboxMessageCreated => {
+                validate_gov_mailbox_message_created_payload(&self.payload)
+            }
+            FlightRecorderEventType::GovMailboxExported => {
+                validate_gov_mailbox_exported_payload(&self.payload)
+            }
+            FlightRecorderEventType::GovMailboxTranscribed => {
+                validate_gov_mailbox_transcribed_payload(&self.payload)
+            }
             FlightRecorderEventType::LlmInference => {
                 let model_id = self.model_id.as_deref().map(str::trim).unwrap_or("");
                 if model_id.is_empty() {
@@ -249,6 +273,22 @@ fn require_key<'a>(map: &'a Map<String, Value>, key: &str) -> Result<&'a Value, 
         .ok_or_else(|| RecorderError::InvalidEvent(format!("missing payload field: {key}")))
 }
 
+fn require_exact_keys(map: &Map<String, Value>, allowed: &[&str]) -> Result<(), RecorderError> {
+    for key in map.keys() {
+        if !allowed.contains(&key.as_str()) {
+            return Err(RecorderError::InvalidEvent(format!(
+                "unexpected payload field: {key}"
+            )));
+        }
+    }
+
+    for key in allowed {
+        require_key(map, key)?;
+    }
+
+    Ok(())
+}
+
 fn require_string(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
     match require_key(map, key)? {
         Value::String(value) if !value.trim().is_empty() => Ok(()),
@@ -263,6 +303,19 @@ fn require_string_or_null(map: &Map<String, Value>, key: &str) -> Result<(), Rec
         Value::String(_) | Value::Null => Ok(()),
         _ => Err(RecorderError::InvalidEvent(format!(
             "payload field {key} must be a string or null"
+        ))),
+    }
+}
+
+fn require_string_or_null_nonempty(
+    map: &Map<String, Value>,
+    key: &str,
+) -> Result<(), RecorderError> {
+    match require_key(map, key)? {
+        Value::Null => Ok(()),
+        Value::String(value) if !value.trim().is_empty() => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be a non-empty string or null"
         ))),
     }
 }
@@ -299,6 +352,36 @@ fn require_array(map: &Map<String, Value>, key: &str) -> Result<(), RecorderErro
         Value::Array(_) => Ok(()),
         _ => Err(RecorderError::InvalidEvent(format!(
             "payload field {key} must be an array"
+        ))),
+    }
+}
+
+fn require_string_array<'a>(
+    map: &'a Map<String, Value>,
+    key: &str,
+) -> Result<Vec<&'a str>, RecorderError> {
+    match require_key(map, key)? {
+        Value::Array(items) => {
+            if items.is_empty() {
+                return Err(RecorderError::InvalidEvent(format!(
+                    "payload field {key} must be a non-empty array"
+                )));
+            }
+            let mut out = Vec::with_capacity(items.len());
+            for (idx, item) in items.iter().enumerate() {
+                match item {
+                    Value::String(value) if !value.trim().is_empty() => out.push(value.as_str()),
+                    _ => {
+                        return Err(RecorderError::InvalidEvent(format!(
+                            "payload field {key}[{idx}] must be a non-empty string"
+                        )))
+                    }
+                }
+            }
+            Ok(out)
+        }
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be an array of strings"
         ))),
     }
 }
@@ -345,6 +428,307 @@ fn validate_editor_edit_payload(payload: &Value) -> Result<(), RecorderError> {
     let map = payload_object(payload)?;
     require_string(map, "editor_surface")?;
     require_array(map, "ops")?;
+    Ok(())
+}
+
+fn require_sha256_hex(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    let value = match require_key(map, key)? {
+        Value::String(value) if !value.trim().is_empty() => value,
+        _ => {
+            return Err(RecorderError::InvalidEvent(format!(
+                "payload field {key} must be a non-empty string"
+            )))
+        }
+    };
+
+    let value = value.trim();
+    if value.len() != 64 || !value.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be a 64-char hex sha256"
+        )));
+    }
+
+    Ok(())
+}
+
+fn require_fixed_string(
+    map: &Map<String, Value>,
+    key: &str,
+    expected: &str,
+) -> Result<(), RecorderError> {
+    match require_key(map, key)? {
+        Value::String(value) if value == expected => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must equal \"{expected}\""
+        ))),
+    }
+}
+
+fn is_safe_id(value: &str, max_len: usize) -> bool {
+    let value = value.trim();
+    if value.is_empty() || value.len() > max_len {
+        return false;
+    }
+    value
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+fn is_safe_token(value: &str, max_len: usize) -> bool {
+    let value = value.trim();
+    if value.is_empty() || value.len() > max_len {
+        return false;
+    }
+    value.chars().all(|c| {
+        c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == ':' || c == '.' || c == '/'
+    })
+}
+
+fn validate_role_id_string(value: &str) -> Result<(), RecorderError> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Err(RecorderError::InvalidEvent(
+            "role id must be a non-empty string".to_string(),
+        ));
+    }
+
+    match value {
+        "operator" | "orchestrator" | "coder" | "validator" => Ok(()),
+        _ => {
+            let suffix = value
+                .strip_prefix("advisory:")
+                .ok_or_else(|| RecorderError::InvalidEvent("invalid role id".to_string()))?;
+            if is_safe_id(suffix, 64) {
+                Ok(())
+            } else {
+                Err(RecorderError::InvalidEvent(
+                    "invalid advisory role id suffix".to_string(),
+                ))
+            }
+        }
+    }
+}
+
+fn validate_mailbox_message_type(value: &str) -> Result<(), RecorderError> {
+    match value {
+        "clarification_request"
+        | "clarification_response"
+        | "scope_risk"
+        | "scope_change_proposal"
+        | "scope_change_approval"
+        | "waiver_proposal"
+        | "waiver_approval"
+        | "validation_finding"
+        | "handoff"
+        | "blocker"
+        | "tooling_request"
+        | "tooling_result"
+        | "fyi" => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field message_type has invalid value: {value}"
+        ))),
+    }
+}
+
+fn validate_gov_mailbox_message_created_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    let allowed = [
+        "type",
+        "spec_id",
+        "work_packet_id",
+        "governance_mode",
+        "thread_id",
+        "message_id",
+        "from_role",
+        "to_roles",
+        "message_type",
+        "body_ref",
+        "body_sha256",
+        "idempotency_key",
+    ];
+    require_exact_keys(map, &allowed)?;
+
+    if map.contains_key("body") || map.contains_key("body_text") || map.contains_key("raw_body") {
+        return Err(RecorderError::InvalidEvent(
+            "forbidden inline body field in mailbox payload".to_string(),
+        ));
+    }
+
+    require_fixed_string(map, "type", "gov_mailbox_message_created")?;
+    require_string_or_null_nonempty(map, "spec_id")?;
+    require_string_or_null_nonempty(map, "work_packet_id")?;
+
+    match require_key(map, "governance_mode")? {
+        Value::String(value)
+            if matches!(value.as_str(), "gov_strict" | "gov_standard" | "gov_light") => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field governance_mode must be one of: gov_strict, gov_standard, gov_light"
+                    .to_string(),
+            ))
+        }
+    }
+
+    match require_key(map, "thread_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field thread_id must be a safe id".to_string(),
+            ))
+        }
+    }
+    match require_key(map, "message_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field message_id must be a safe id".to_string(),
+            ))
+        }
+    }
+
+    let from_role = match require_key(map, "from_role")? {
+        Value::String(value) => value,
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field from_role must be a string".to_string(),
+            ))
+        }
+    };
+    validate_role_id_string(from_role)?;
+
+    let to_roles = require_string_array(map, "to_roles")?;
+    for role in to_roles {
+        validate_role_id_string(role)?;
+    }
+
+    let message_type = match require_key(map, "message_type")? {
+        Value::String(value) if !value.trim().is_empty() => value.as_str(),
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field message_type must be a non-empty string".to_string(),
+            ))
+        }
+    };
+    validate_mailbox_message_type(message_type)?;
+
+    match require_key(map, "body_ref")? {
+        Value::String(value) if is_safe_token(value, 512) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field body_ref must be a bounded artifact handle string".to_string(),
+            ))
+        }
+    }
+    require_sha256_hex(map, "body_sha256")?;
+
+    match require_key(map, "idempotency_key")? {
+        Value::String(value) if is_safe_token(value, 256) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field idempotency_key must be a bounded string token".to_string(),
+            ))
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_gov_mailbox_exported_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    let allowed = [
+        "type",
+        "export_root",
+        "export_manifest_sha256",
+        "thread_count",
+        "message_count",
+    ];
+    require_exact_keys(map, &allowed)?;
+
+    if map.contains_key("body") || map.contains_key("body_text") || map.contains_key("raw_body") {
+        return Err(RecorderError::InvalidEvent(
+            "forbidden inline body field in mailbox payload".to_string(),
+        ));
+    }
+
+    require_fixed_string(map, "type", "gov_mailbox_exported")?;
+    require_fixed_string(map, "export_root", "docs/ROLE_MAILBOX/")?;
+    require_sha256_hex(map, "export_manifest_sha256")?;
+
+    match require_key(map, "thread_count")? {
+        Value::Number(value) if value.as_u64().is_some() => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field thread_count must be an integer".to_string(),
+            ))
+        }
+    }
+    match require_key(map, "message_count")? {
+        Value::Number(value) if value.as_u64().is_some() => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field message_count must be an integer".to_string(),
+            ))
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_gov_mailbox_transcribed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    let allowed = [
+        "type",
+        "thread_id",
+        "message_id",
+        "transcription_target_kind",
+        "target_ref",
+        "target_sha256",
+    ];
+    require_exact_keys(map, &allowed)?;
+
+    if map.contains_key("body") || map.contains_key("body_text") || map.contains_key("raw_body") {
+        return Err(RecorderError::InvalidEvent(
+            "forbidden inline body field in mailbox payload".to_string(),
+        ));
+    }
+
+    require_fixed_string(map, "type", "gov_mailbox_transcribed")?;
+
+    match require_key(map, "thread_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field thread_id must be a safe id".to_string(),
+            ))
+        }
+    }
+    match require_key(map, "message_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field message_id must be a safe id".to_string(),
+            ))
+        }
+    }
+
+    match require_key(map, "transcription_target_kind")? {
+        Value::String(value) if is_safe_token(value, 64) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field transcription_target_kind must be a bounded string".to_string(),
+            ))
+        }
+    }
+    match require_key(map, "target_ref")? {
+        Value::String(value) if is_safe_token(value, 512) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field target_ref must be a bounded artifact handle string".to_string(),
+            ))
+        }
+    }
+    require_sha256_hex(map, "target_sha256")?;
+
     Ok(())
 }
 
@@ -629,6 +1013,12 @@ pub trait FlightRecorder: Send + Sync {
     /// Records a canonical event. MUST validate shape against FR-EVT schemas.
     async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError>;
 
+    /// If backed by DuckDB, returns the shared connection so subsystems can create additional tables
+    /// in the existing `data/flight_recorder.db` file.
+    fn duckdb_connection(&self) -> Option<Arc<Mutex<DuckDbConnection>>> {
+        None
+    }
+
     /// Enforces the 7-day retention policy (purge old events).
     /// Returns the number of events purged.
     async fn enforce_retention(&self) -> Result<u64, RecorderError>;
@@ -644,6 +1034,8 @@ pub trait FlightRecorder: Send + Sync {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    const DUMMY_SHA256: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
     fn valid_llm_inference_payload() -> Value {
         json!({
@@ -731,6 +1123,123 @@ mod tests {
         }
         assert!(matches!(
             validate_llm_inference_payload(&payload),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+    }
+
+    fn valid_mailbox_message_created_payload() -> Value {
+        json!({
+            "type": "gov_mailbox_message_created",
+            "spec_id": "spec-1",
+            "work_packet_id": "WP-1-Role-Mailbox-v1",
+            "governance_mode": "gov_strict",
+            "thread_id": "550e8400-e29b-41d4-a716-446655440000",
+            "message_id": "550e8400-e29b-41d4-a716-446655440001",
+            "from_role": "coder",
+            "to_roles": ["validator"],
+            "message_type": "handoff",
+            "body_ref": "artifact:550e8400-e29b-41d4-a716-446655440002:/data/role_mailbox/bodies/abc",
+            "body_sha256": DUMMY_SHA256,
+            "idempotency_key": "550e8400-e29b-41d4-a716-446655440003",
+        })
+    }
+
+    #[test]
+    fn test_role_mailbox_message_created_payload_strict_validation() {
+        let payload = valid_mailbox_message_created_payload();
+        assert!(validate_gov_mailbox_message_created_payload(&payload).is_ok());
+
+        // Missing key
+        let mut missing = payload.clone();
+        missing.as_object_mut().unwrap().remove("thread_id");
+        assert!(matches!(
+            validate_gov_mailbox_message_created_payload(&missing),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        // Extra key
+        let mut extra = payload.clone();
+        extra
+            .as_object_mut()
+            .unwrap()
+            .insert("extra".to_string(), json!(1));
+        assert!(matches!(
+            validate_gov_mailbox_message_created_payload(&extra),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        // Invalid governance_mode enum
+        let mut invalid_enum = payload.clone();
+        invalid_enum
+            .as_object_mut()
+            .unwrap()
+            .insert("governance_mode".to_string(), json!("invalid"));
+        assert!(matches!(
+            validate_gov_mailbox_message_created_payload(&invalid_enum),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        // Forbidden body field
+        let mut forbidden = payload.clone();
+        forbidden
+            .as_object_mut()
+            .unwrap()
+            .insert("body".to_string(), json!("leak"));
+        assert!(matches!(
+            validate_gov_mailbox_message_created_payload(&forbidden),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+    }
+
+    fn valid_mailbox_exported_payload() -> Value {
+        json!({
+            "type": "gov_mailbox_exported",
+            "export_root": "docs/ROLE_MAILBOX/",
+            "export_manifest_sha256": DUMMY_SHA256,
+            "thread_count": 0,
+            "message_count": 0,
+        })
+    }
+
+    #[test]
+    fn test_role_mailbox_exported_payload_validation() {
+        let payload = valid_mailbox_exported_payload();
+        assert!(validate_gov_mailbox_exported_payload(&payload).is_ok());
+
+        let mut bad_root = payload.clone();
+        bad_root
+            .as_object_mut()
+            .unwrap()
+            .insert("export_root".to_string(), json!("docs/ROLE_MAILBOX"));
+        assert!(matches!(
+            validate_gov_mailbox_exported_payload(&bad_root),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+    }
+
+    fn valid_mailbox_transcribed_payload() -> Value {
+        json!({
+            "type": "gov_mailbox_transcribed",
+            "thread_id": "550e8400-e29b-41d4-a716-446655440000",
+            "message_id": "550e8400-e29b-41d4-a716-446655440001",
+            "transcription_target_kind": "task_packet",
+            "target_ref": "artifact:550e8400-e29b-41d4-a716-446655440004:/docs/task_packets/WP-1-Role-Mailbox-v1.md",
+            "target_sha256": DUMMY_SHA256,
+        })
+    }
+
+    #[test]
+    fn test_role_mailbox_transcribed_payload_validation() {
+        let payload = valid_mailbox_transcribed_payload();
+        assert!(validate_gov_mailbox_transcribed_payload(&payload).is_ok());
+
+        let mut bad_sha = payload.clone();
+        bad_sha
+            .as_object_mut()
+            .unwrap()
+            .insert("target_sha256".to_string(), json!("not-a-sha"));
+        assert!(matches!(
+            validate_gov_mailbox_transcribed_payload(&bad_sha),
             Err(RecorderError::InvalidEvent(_))
         ));
     }

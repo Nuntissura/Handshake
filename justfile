@@ -107,6 +107,7 @@ pre-work wp-id:
 post-work wp-id:
 	@just gate-check {{wp-id}}
 	@node scripts/validation/post-work-check.mjs {{wp-id}}
+	@just role-mailbox-export-check
 
 # Helper: compute deterministic COR-701 Pre/Post SHA1 for a file.
 cor701-sha file:
@@ -133,6 +134,10 @@ validate-workflow wp-id:
 # Gate check (protocol-aligned)
 gate-check wp-id:
 	@node scripts/validation/gate-check.mjs {{wp-id}}
+
+# Role Mailbox export gate (RoleMailboxExportGate) [2.6.8.10]
+role-mailbox-export-check:
+	@node scripts/validation/role_mailbox_export_check.mjs
 
 # Validator helpers (protocol-aligned)
 validator-scan:

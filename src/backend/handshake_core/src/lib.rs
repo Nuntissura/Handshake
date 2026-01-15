@@ -9,6 +9,7 @@ pub mod llm;
 pub mod logging;
 pub mod mex;
 pub mod models;
+pub mod role_mailbox;
 pub mod storage;
 pub mod terminal;
 pub mod tokenization;

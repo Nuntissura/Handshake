@@ -26,8 +26,8 @@ use crate::{
 };
 use chrono::Utc;
 use once_cell::sync::Lazy;
-use sha2::{Digest, Sha256};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
     path::PathBuf,
@@ -188,7 +188,7 @@ async fn record_event_safely(state: &AppState, event: FlightRecorderEvent) {
 /// 3. Terminate all workflow nodes atomically
 /// 4. Update workflow run status
 ///
-/// Per §2.6.6.7.11.0, security violations trigger immediate job poisoning
+/// Per ┬º2.6.6.7.11.0, security violations trigger immediate job poisoning
 /// to prevent any further processing of potentially compromised content.
 #[allow(clippy::too_many_arguments)] // Explicit args keep FR payload + state transitions clear
 pub async fn handle_security_violation(
@@ -651,17 +651,18 @@ async fn run_job(
             let blocks = state.storage.get_blocks(doc_id).await?;
             let model_tier = state.llm_client.profile().model_tier;
 
-            // [§2.6.6.7.14.5] Build QueryPlan and RetrievalTrace
+            // [┬º2.6.6.7.14.5] Build QueryPlan and RetrievalTrace
             // MUST fail on invalid UUIDs - returns Result
-            let plan = build_query_plan_from_blocks(&blocks, "summarize document", "doc_summarization")
-                .map_err(WorkflowError::SecurityViolation)?;
+            let plan =
+                build_query_plan_from_blocks(&blocks, "summarize document", "doc_summarization")
+                    .map_err(WorkflowError::SecurityViolation)?;
             let trace = build_retrieval_trace_from_blocks(&blocks, &plan)
                 .map_err(WorkflowError::SecurityViolation)?;
 
-            // WAIVER [CX-573F]: Instant::now() for observability per §2.6.6.7.12
+            // WAIVER [CX-573E]: Instant::now() for observability per ┬º2.6.6.7.12
             let validation_start = std::time::Instant::now();
 
-            // [§2.6.6.7.14.11] Run ValidatorPipeline
+            // [┬º2.6.6.7.14.11] Run ValidatorPipeline
             let pipeline = ValidatorPipeline::with_default_guards();
             let plan_result = pipeline.validate_plan(&plan).await;
             let trace_result = pipeline.validate_trace(&trace).await;
@@ -689,11 +690,8 @@ async fn run_job(
 
             // [HSK-ACE-VAL-100] Content-aware security scan
             let resolver = StorageContentResolver::new(state.storage.clone());
-            let source_refs: Vec<SourceRef> = trace
-                .spans
-                .iter()
-                .map(|s| s.source_ref.clone())
-                .collect();
+            let source_refs: Vec<SourceRef> =
+                trace.spans.iter().map(|s| s.source_ref.clone()).collect();
 
             match scan_content_for_security(&source_refs, &resolver, model_tier).await {
                 Ok(()) => guards_passed.push("content_security".to_string()),
@@ -720,9 +718,11 @@ async fn run_job(
                         job_outputs: None,
                     })
                     .await?;
-                return Err(WorkflowError::SecurityViolation(AceError::ValidationFailed {
-                    message: violation_codes.join("; "),
-                }));
+                return Err(WorkflowError::SecurityViolation(
+                    AceError::ValidationFailed {
+                        message: violation_codes.join("; "),
+                    },
+                ));
             }
 
             // Build prompt and full text
@@ -742,30 +742,33 @@ async fn run_job(
             };
 
             let scope_inputs_hash = {
-                let scope_json = serde_json::to_string(&job.job_inputs)
-                    .map_err(|e| WorkflowError::SecurityViolation(AceError::ValidationFailed {
+                let scope_json = serde_json::to_string(&job.job_inputs).map_err(|e| {
+                    WorkflowError::SecurityViolation(AceError::ValidationFailed {
                         message: format!("job_inputs serialization failed: {}", e),
-                    }))?;
+                    })
+                })?;
                 let mut h = Sha256::new();
                 h.update(scope_json.as_bytes());
                 hex::encode(h.finalize())
             };
 
             let query_plan_hash = {
-                let plan_json = serde_json::to_string(&plan)
-                    .map_err(|e| WorkflowError::SecurityViolation(AceError::ValidationFailed {
+                let plan_json = serde_json::to_string(&plan).map_err(|e| {
+                    WorkflowError::SecurityViolation(AceError::ValidationFailed {
                         message: format!("QueryPlan serialization failed: {}", e),
-                    }))?;
+                    })
+                })?;
                 let mut h = Sha256::new();
                 h.update(plan_json.as_bytes());
                 hex::encode(h.finalize())
             };
 
             let retrieval_trace_hash = {
-                let trace_json = serde_json::to_string(&trace)
-                    .map_err(|e| WorkflowError::SecurityViolation(AceError::ValidationFailed {
+                let trace_json = serde_json::to_string(&trace).map_err(|e| {
+                    WorkflowError::SecurityViolation(AceError::ValidationFailed {
                         message: format!("RetrievalTrace serialization failed: {}", e),
-                    }))?;
+                    })
+                })?;
                 let mut h = Sha256::new();
                 h.update(trace_json.as_bytes());
                 hex::encode(h.finalize())
@@ -846,7 +849,7 @@ async fn run_job(
                 "passed"
             };
 
-            // Build extended LlmInference payload with §2.6.6.7.12 ACE validation fields
+            // Build extended LlmInference payload with ┬º2.6.6.7.12 ACE validation fields
             record_event_safely(
                 state,
                 FlightRecorderEvent::new(
@@ -867,7 +870,7 @@ async fn run_job(
                         "prompt_hash": prompt_envelope_hash,
                         "response_hash": response_hash,
 
-                        // §2.6.6.7.12 ACE validation fields
+                        // ┬º2.6.6.7.12 ACE validation fields
                         "ace_validation": {
                             // scope inputs + hashes
                             "scope_document_id": doc_id,
@@ -1560,7 +1563,12 @@ mod tests {
         // Create workspace
         let workspace = state
             .storage
-            .create_workspace(&ctx, NewWorkspace { name: "test-ws".into() })
+            .create_workspace(
+                &ctx,
+                NewWorkspace {
+                    name: "test-ws".into(),
+                },
+            )
             .await?;
 
         // Create document
