@@ -9,8 +9,8 @@
 - AGENT_ID: CodexCLI-GPT-5.2 (Orchestrator)
 - ROLE: Orchestrator
 - CODER_MODEL: GPT-5.2 (Codex CLI)
-- CODER_REASONING_STRENGTH: HIGH (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja150120260254
 
@@ -161,6 +161,8 @@
   - src/backend/handshake_core/tests/role_mailbox_tests.rs
   - docs/ROLE_MAILBOX/index.json
   - docs/ROLE_MAILBOX/export_manifest.json
+  - scripts/validation/role_mailbox_export_check.mjs
+  - justfile
   Note: app changes are optional; keep them minimal and prefer backend-only in this WP.
 - OUT_OF_SCOPE:
   - Full mail client features (see Master Spec 10.3 / 11.7.3)
