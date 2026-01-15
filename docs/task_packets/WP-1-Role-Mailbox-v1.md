@@ -8,8 +8,8 @@
 - REQUESTOR: Operator (ilja)
 - AGENT_ID: CodexCLI-GPT-5.2 (Orchestrator)
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH (LOW | MEDIUM | HIGH | EXTRA_HIGH)
 - **Status:** Ready for Dev
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja150120260254
