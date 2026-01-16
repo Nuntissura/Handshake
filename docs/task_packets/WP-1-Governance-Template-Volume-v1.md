@@ -46,6 +46,13 @@
   - Editing `Handshake Codex v1.4.md`, `AGENTS.md`, or any role protocol files in this repo (exporter consumes canonical templates; does not change them)
   - Implementing the full multi-model governance runtime beyond export/materialize (separate WPs)
 
+## HARDENED_INVARIANTS (RISK_TIER=HIGH)
+- Path safety: refuse absolute paths and any `..` segments in template relpaths; enforce export-root confinement (no writes outside the selected directory).
+- Overwrite safety: default-deny overwriting existing non-empty export dirs; require explicit operator confirmation/flag for overwrite mode.
+- Leakage safety: never log/export secrets; avoid emitting absolute filesystem paths unless explicitly required by ExportRecord semantics; prefer relative paths in logs/manifests.
+- Determinism: stable file write order; deterministic bytes (avoid OS-dependent path separators/line endings); fail if any `{{...}}` placeholder remains unresolved.
+- Source-of-truth: exporter MUST read templates from the Master Spec Template Volume markers (7.5.4.9.3), not from the repo working tree, to prevent drift.
+
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
 - NONE
@@ -81,6 +88,12 @@ git revert <commit-sha>
 ## AUTHORITY
 - SPEC_BASELINE: Handshake_Master_Spec_v02.112.md (recorded_at: 2026-01-16T02:33:10.494Z)
 - SPEC_TARGET: docs/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
+- ORCHESTRATOR_AUTHORITY_DOCS:
+  - docs/START_HERE.md
+  - docs/SPEC_CURRENT.md
+  - docs/ARCHITECTURE.md
+  - docs/RUNBOOK_DEBUG.md
+  - docs/QUALITY_GATE.md
 - SPEC_ANCHOR:
   - Handshake_Master_Spec_v02.112.md 7.5.4.8 (Governance Pack: Project-Specific Instantiation) (HARD)
   - Handshake_Master_Spec_v02.112.md 7.5.4.9 (Governance Pack: Template Volume) (HARD)
