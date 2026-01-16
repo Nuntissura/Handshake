@@ -18,6 +18,7 @@ const CANONICAL_CAPABILITY_IDS: &[&str] = &[
     "CALENDAR_COMPARE_ACTIVITY_WINDOWS",
     "terminal.attach_human",
     "export.debug_bundle",
+    "export.governance_pack",
     "fr.read",
     "diagnostics.read",
     "jobs.read",
@@ -86,6 +87,7 @@ impl CapabilityRegistry {
         valid_full_ids.insert("doc.summarize".to_string());
         valid_full_ids.insert("terminal.exec".to_string()); // Historically used, though proc.exec is axis
         valid_full_ids.insert("export.debug_bundle".to_string());
+        valid_full_ids.insert("export.governance_pack".to_string());
         valid_full_ids.insert("export.include_payloads".to_string());
         for id in CANONICAL_CAPABILITY_IDS {
             valid_full_ids.insert((*id).to_string());
@@ -128,6 +130,19 @@ impl CapabilityRegistry {
             },
         );
 
+        // "Operator" profile (Read/Write export to LocalFile)
+        profiles.insert(
+            "Operator".to_string(),
+            CapabilityProfile {
+                id: "Operator".to_string(),
+                allowed: vec![
+                    "fs.read".to_string(),
+                    "fs.write".to_string(),
+                    "export.governance_pack".to_string(),
+                ],
+            },
+        );
+
         // Job Kind -> Profile Mapping
         let mut job_profile_map = HashMap::new();
         // Primary job kinds (matches JobKind::as_str())
@@ -141,6 +156,7 @@ impl CapabilityRegistry {
         job_profile_map.insert("doc_summarize".to_string(), "Analyst".to_string());
         job_profile_map.insert("doc_test".to_string(), "Analyst".to_string());
         job_profile_map.insert("debug_bundle_export".to_string(), "Analyst".to_string());
+        job_profile_map.insert("governance_pack_export".to_string(), "Operator".to_string());
         // Backward-compatible aliases
         job_profile_map.insert("Research".to_string(), "Analyst".to_string());
         job_profile_map.insert("Development".to_string(), "Coder".to_string());
@@ -181,6 +197,14 @@ impl CapabilityRegistry {
                 "fr.read".to_string(),
                 "diagnostics.read".to_string(),
                 "jobs.read".to_string(),
+            ],
+        );
+        job_requirements.insert(
+            "governance_pack_export".to_string(),
+            vec![
+                "fs.read".to_string(),
+                "fs.write".to_string(),
+                "export.governance_pack".to_string(),
             ],
         );
 
