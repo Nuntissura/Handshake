@@ -29,6 +29,7 @@
 - What: Implement deterministic export/rendering of the inlined Governance Pack Template Volume (spec 7.5.4.9.3) into a concrete governance repo directory, with all placeholders resolved from project invariants (spec 7.5.4.8/7.5.4.9.1) and with safety constraints (no path traversal; default-deny overwrites).
 - Why: Handshake must be able to generate the same strict multi-role governance workflow (codex + protocols + gates + task board + scripts) for arbitrary projects without Handshake-hardcoding, so future projects can reuse this governance/mechanical-gates system.
 - IN_SCOPE_PATHS:
+  - src/backend/handshake_core/src/capabilities.rs
   - src/backend/handshake_core/src/api/mod.rs
   - src/backend/handshake_core/src/api/governance_pack.rs
   - src/backend/handshake_core/src/flight_recorder/mod.rs
