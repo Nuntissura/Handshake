@@ -25,7 +25,7 @@
   - .github/workflows/ci.yml
   - scripts/hooks/pre-commit
   - scripts/validation/ci-traceability-check.mjs
-  - scripts/validation/governance-reference.mjs (new; optional SSoT helper)
+  - scripts/validation/governance-reference.mjs
   - docs/task_packets/README.md
   - docs/ORCHESTRATOR_PROTOCOL.md
   - justfile
@@ -132,47 +132,166 @@ git revert <commit-sha>
   - scripts/hooks/pre-commit messaging must use the resolver when available; on resolver failure, fall back to pointing at docs/SPEC_CURRENT.md.
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Added a Governance Reference resolver sourced from docs/SPEC_CURRENT.md (scripts/validation/governance-reference.mjs).
+- Updated scripts/validation/ci-traceability-check.mjs to derive the required codex filename from docs/SPEC_CURRENT.md and require that resolved file exists.
+- Updated scripts/hooks/pre-commit messaging to reference the resolved Governance Reference (fallback: docs/SPEC_CURRENT.md if resolver fails).
+- Updated .github/workflows/ci.yml doc drift scan to exclude locked history (docs/task_packets/**, docs/refinements/**) while still scanning docs/task_packets/README.md.
+- Removed stale "Codex v0.8" references from in-scope docs and justfile comments.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Commands executed (see TEST_PLAN; recorded as exit codes only):
+  - just pre-work WP-1-Governance-Kernel-Conformance-v1 -> exit code 0
+  - node scripts/validation/ci-traceability-check.mjs -> exit code 0
+  - just codex-check -> exit code 0
+  - rg drift scan (Handshake Codex v0.8.md / Codex v0.8) across in-scope surfaces -> exit code 1 (no matches)
+  - just cargo-clean -> exit code 0
+  - just post-work WP-1-Governance-Kernel-Conformance-v1 -> exit code 0 (warning: new file not present in HEAD)
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+
+### Manifest Entry 1: .github/workflows/ci.yml
+- **Target File**: `.github/workflows/ci.yml`
+- **Start**: 1
+- **End**: 99999
+- **Line Delta**: 1
+- **Pre-SHA1**: `172de3c127b08269e3bfb921165f141d84daf1fa`
+- **Post-SHA1**: `705864ed9f3ea9e7b0b284b2c8c607fa6057631a`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: N/A (YAML workflow change)
+- **Artifacts**: None
+- **Timestamp**: 2026-01-16
+- **Operator**: Coder-2 (GPT-5.2)
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.112.md
+- **Notes**: Doc drift scan excludes locked history (docs/task_packets/**, docs/refinements/**) while still scanning docs/task_packets/README.md.
+
+### Manifest Entry 2: scripts/hooks/pre-commit
+- **Target File**: `scripts/hooks/pre-commit`
+- **Start**: 1
+- **End**: 99999
+- **Line Delta**: 12
+- **Pre-SHA1**: `049236cb75d5462a8e2b844a12fb6a1a0059cd7a`
+- **Post-SHA1**: `91eaca800ed76205cb2c10c5667e380909a8bf9b`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: N/A (bash hook messaging change)
+- **Artifacts**: None
+- **Timestamp**: 2026-01-16
+- **Operator**: Coder-2 (GPT-5.2)
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.112.md
+- **Notes**: Hook messaging references resolved Governance Reference (fallback: docs/SPEC_CURRENT.md if resolver fails).
+
+### Manifest Entry 3: scripts/validation/ci-traceability-check.mjs
+- **Target File**: `scripts/validation/ci-traceability-check.mjs`
+- **Start**: 1
+- **End**: 99999
+- **Line Delta**: 21
+- **Pre-SHA1**: `870b83e5ec54cf46b85fdb81e914eb0c318251be`
+- **Post-SHA1**: `f79b0c4d32304fbe4bb000ffeca7bd6bb0bd0346`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: N/A (node script change)
+- **Artifacts**: None
+- **Timestamp**: 2026-01-16
+- **Operator**: Coder-2 (GPT-5.2)
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.112.md
+- **Notes**: Derives Governance Reference from docs/SPEC_CURRENT.md and fails if resolved codex file is missing.
+
+### Manifest Entry 4: scripts/validation/governance-reference.mjs
+- **Target File**: `scripts/validation/governance-reference.mjs`
+- **Start**: 1
+- **End**: 99999
+- **Line Delta**: 97
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `605636be40fd911c589359a94b1207609f454b23`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: N/A (new node script)
+- **Artifacts**: None
+- **Timestamp**: 2026-01-16
+- **Operator**: Coder-2 (GPT-5.2)
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.112.md
+- **Notes**: SSoT resolver for Governance Reference (docs/SPEC_CURRENT.md).
+
+### Manifest Entry 5: justfile
+- **Target File**: `justfile`
+- **Start**: 1
+- **End**: 99999
+- **Line Delta**: 0
+- **Pre-SHA1**: `ca54c9591c1aaabcec31acfae49c80d5823e6b13`
+- **Post-SHA1**: `1b8f94e741fd193f2b9921f062361701e6a371a6`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: N/A (comment change only)
+- **Artifacts**: None
+- **Timestamp**: 2026-01-16
+- **Operator**: Coder-2 (GPT-5.2)
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.112.md
+- **Notes**: Remove stale "Codex v0.8" label from governance command surface comments.
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: In Progress
-- What changed in this update: SKELETON approved; beginning implementation in assigned worktree/branch.
-- Next step / handoff hint: Implement resolver + update CI/hook/docs messaging; then run TEST_PLAN and fill COR-701 manifests for non-doc files.
+- Current WP_STATUS: Implementation complete; ready for Validator review.
+- What changed in this update:
+  - Removed/neutralized stale Codex v0.8 references in CI/hook/docs surfaces in scope.
+  - Updated CI traceability to resolve Governance Reference via docs/SPEC_CURRENT.md (no legacy codex hardcode).
+  - Normalized IN_SCOPE_PATHS entry for scripts/validation/governance-reference.mjs (removed trailing commentary so post-work scope gate matches exact path).
+- Next step / handoff hint: Validator review against DONE_MEANS + Master Spec anchors; merge when ready.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+- Evidence summary (minimal; ASCII-only):
+  - CI traceability check banner now prints resolved Governance Reference filename from docs/SPEC_CURRENT.md.
+  - Pre-commit hook banner now prints resolved Governance Reference filename when resolver is available.
+  - In-scope drift scan (Codex v0.8) returned no matches (see HYGIENE entry for exit code).
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)

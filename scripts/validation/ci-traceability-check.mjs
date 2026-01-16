@@ -8,7 +8,20 @@
 import { execSync } from 'child_process';
 import fs from 'fs';
 
-console.log('\ndY"? CI Traceability Check (Codex v0.8)...\n');
+import { resolveGovernanceReference } from './governance-reference.mjs';
+
+let governanceRef = null;
+try {
+  governanceRef = resolveGovernanceReference();
+} catch {
+  governanceRef = null;
+}
+
+const bannerRef = governanceRef
+  ? `Governance Reference: ${governanceRef.codexFilename}`
+  : 'Governance Reference: UNRESOLVED (see docs/SPEC_CURRENT.md)';
+
+console.log(`\ndY"? CI Traceability Check (${bannerRef})...\n`);
 
 let errors = [];
 let warnings = [];
@@ -103,13 +116,21 @@ if (loggerFiles.length === 0) {
   console.log(`  ℹ️  Logger present: ${loggerFiles[0]} (milestones/hard bugs only)`);
 }
 
-// Check 4: Codex v0.8 exists
-console.log('\nCheck 4: Codex v0.8 exists');
-if (!fs.existsSync('Handshake Codex v0.8.md')) {
-  errors.push('Handshake Codex v0.8.md not found in repository root');
-  console.log('ƒ?O FAIL: Codex v0.8 missing');
-} else {
-  console.log('  ƒo. Handshake Codex v0.8.md exists');
+// Check 4: Governance Reference exists (derived from docs/SPEC_CURRENT.md)
+console.log('\nCheck 4: Governance Reference exists (from docs/SPEC_CURRENT.md)');
+try {
+  const ref = governanceRef || resolveGovernanceReference();
+  if (!fs.existsSync(ref.codexPathAbs)) {
+    errors.push(
+      `Governance Reference file not found: ${ref.codexFilename} (resolved from docs/SPEC_CURRENT.md)`
+    );
+    console.log(`ƒ?O FAIL: Governance Reference missing: ${ref.codexFilename}`);
+  } else {
+    console.log(`  ƒo. ${ref.codexFilename} exists`);
+  }
+} catch (err) {
+  errors.push(`Could not resolve Governance Reference from docs/SPEC_CURRENT.md: ${err.message}`);
+  console.log('ƒ?O FAIL: Could not resolve Governance Reference from docs/SPEC_CURRENT.md');
 }
 
 // Check 5: Protocol files exist
@@ -148,6 +169,6 @@ if (errors.length === 0 && warnings.length === 0) {
     warnings.forEach((warn, i) => console.log(`  ${i + 1}. ${warn}`));
   }
   console.log('\nFix these issues to pass CI traceability check.');
-  console.log('See: Handshake Codex v0.8.md');
+  console.log('See: docs/SPEC_CURRENT.md');
   process.exit(1);
 }

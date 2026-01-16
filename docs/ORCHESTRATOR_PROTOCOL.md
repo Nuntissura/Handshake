@@ -1273,7 +1273,7 @@ Use this template:
 - **SPEC_BASELINE**: Handshake_Master_Spec_vXX.XX.md (spec at packet creation time; provenance)
 - **SPEC_TARGET**: docs/SPEC_CURRENT.md (binding spec for closure/revalidation; resolved at validation time)
 - **SPEC_ANCHOR**: {master spec section(s) / anchors}
-- **Codex**: Handshake Codex v0.8.md
+- **Codex**: Handshake Codex v1.4.md (see docs/SPEC_CURRENT.md)
 - **Task Board**: docs/TASK_BOARD.md
 - **Logger**: (optional) latest Handshake_logger_* if requested for milestone/hard bug
 - **ADRs**: {if relevant}
@@ -1357,7 +1357,7 @@ Authority docs:
 - docs/START_HERE.md
 - docs/SPEC_CURRENT.md
 - docs/ARCHITECTURE.md
-- Handshake Codex v0.8.md
+- Handshake Codex v1.4.md
 
 ✅ Orchestrator checklist complete. Task packet WP-{ID} created and verified.
 

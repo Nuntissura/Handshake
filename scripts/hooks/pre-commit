@@ -5,7 +5,19 @@
 set -e
 
 echo ""
-echo "dY"' Pre-commit validation (Codex v0.8)..."
+GOV_REF_FILE=""
+if command -v node >/dev/null 2>&1; then
+  GOV_REF_FILE="$(node scripts/validation/governance-reference.mjs --print-file 2>/dev/null || true)"
+fi
+
+GOV_REF_LABEL="(unresolved; see docs/SPEC_CURRENT.md)"
+GOV_REF_SEE="docs/SPEC_CURRENT.md"
+if [ -n "$GOV_REF_FILE" ]; then
+  GOV_REF_LABEL="$GOV_REF_FILE"
+  GOV_REF_SEE="$GOV_REF_FILE"
+fi
+
+echo "Pre-commit validation (Governance Reference: ${GOV_REF_LABEL})..."
 echo ""
 
 # Extract WP_ID from commit message (if in env)
@@ -44,7 +56,7 @@ else
   echo "ƒ?O Codex check FAILED"
   echo ""
   echo "Fix codex violations before committing."
-  echo "See: Handshake Codex v0.8.md"
+  echo "See: ${GOV_REF_SEE}"
   exit 1
 fi
 

@@ -60,9 +60,8 @@ just validate-workflow WP-{ID}
 
 ## See Also
 
-- [Handshake Codex v0.8](../../Handshake%20Codex%20v0.8.md) - Governance rules
+- [Handshake Codex v1.4](../../Handshake%20Codex%20v1.4.md) - Governance rules
 - [ORCHESTRATOR_PROTOCOL.md](../ORCHESTRATOR_PROTOCOL.md) - Orchestrator checklist
 - [CODER_PROTOCOL.md](../CODER_PROTOCOL.md) - Coder checklist
 - [QUALITY_GATE.md](../QUALITY_GATE.md) - Gate 0 and Gate 1 requirements
-
 
