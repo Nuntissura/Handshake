@@ -10,7 +10,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** Ready for Dev
+- **Status:** In Progress
 - RISK_TIER: MEDIUM
 - USER_SIGNATURE: ilja160120262149
 
@@ -120,8 +120,16 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - scripts/validation/governance-reference.mjs
+    - Export: resolveGovernanceReference(): { codexFilename, codexPathAbs, specCurrentPathAbs }
+    - CLI: --print-file | --print-path | --json
 - Open questions:
+  - None.
 - Notes:
+  - Single source of truth is docs/SPEC_CURRENT.md ("Governance Reference" value).
+  - scripts/validation/ci-traceability-check.mjs must fail if resolved codex file is missing (no v0.8 hardcode).
+  - .github/workflows/ci.yml drift scan must exclude docs/task_packets/** and docs/refinements/**, but still scan docs/task_packets/README.md.
+  - scripts/hooks/pre-commit messaging must use the resolver when available; on resolver failure, fall back to pointing at docs/SPEC_CURRENT.md.
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)
@@ -159,9 +167,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress
+- What changed in this update: SKELETON approved; beginning implementation in assigned worktree/branch.
+- Next step / handoff hint: Implement resolver + update CI/hook/docs messaging; then run TEST_PLAN and fill COR-701 manifests for non-doc files.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
