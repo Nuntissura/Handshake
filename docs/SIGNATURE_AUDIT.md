@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja160120262149 | Orchestrator | 2026-01-16 21:49 | Task packet creation: WP-1-Governance-Kernel-Conformance-v1 | v02.112 | Approved after Technical Refinement (see docs/refinements/WP-1-Governance-Kernel-Conformance-v1.md ). |
+| ilja160120260327 | Orchestrator | 2026-01-16 03:27 | Task packet creation: WP-1-Governance-Template-Volume-v1 | v02.112 | Approved after Technical Refinement (see docs/refinements/WP-1-Governance-Template-Volume-v1.md ). |
 | ilja150120260254 | Orchestrator | 2026-01-15 02:54 | Task packet creation: WP-1-Role-Mailbox-v1 | v02.112 | Approved after Technical Refinement (see docs/refinements/WP-1-Role-Mailbox-v1.md ). |
 | ilja150120260214 | Orchestrator | 2026-01-15 02:14 | Spec update: v02.112 Role Mailbox hardening (dedicated FR event schemas + leak-safe export + mechanical gate) | v02.112 | Defined FR-EVT-GOV-MAILBOX payload schemas, required schema validation at ingestion, and added RoleMailboxExportGate requirements to prevent `docs/ROLE_MAILBOX/` from becoming a secret leak path. |
 | ilja130120260459 | Orchestrator | 2026-01-13 04:59 | Spec update: v02.111 template volume - add rubrics + migration guide + moved-template shims | v02.111 | Inlined `docs/CODER_RUBRIC.md`, `docs/ORCHESTRATOR_RUBRIC.md`, `docs/MIGRATION_GUIDE.md`, and shim pointers (`docs/*_TEMPLATE.md`) into the Governance Pack Template Volume for project-agnostic export. |
