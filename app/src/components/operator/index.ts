@@ -6,3 +6,4 @@ export type { EvidenceSelection } from "./EvidenceDrawer";
 export { DebugBundleExport } from "./DebugBundleExport";
 export { DebugBundleProgress } from "./DebugBundleProgress";
 export { DebugBundleComplete } from "./DebugBundleComplete";
+export { GovernancePackExport } from "./GovernancePackExport";

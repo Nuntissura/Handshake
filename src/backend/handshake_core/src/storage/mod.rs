@@ -364,6 +364,8 @@ pub enum JobKind {
     DocTest,
     /// Debug bundle export job [§10.5.6.8]
     DebugBundleExport,
+    /// Governance Pack export job [Spec 7.5.4.9, 2.3.10]
+    GovernancePackExport,
 }
 
 impl JobKind {
@@ -378,6 +380,7 @@ impl JobKind {
             JobKind::DocSummarize => "doc_summarize",
             JobKind::DocTest => "doc_test",
             JobKind::DebugBundleExport => "debug_bundle_export",
+            JobKind::GovernancePackExport => "governance_pack_export",
         }
     }
 }
@@ -396,6 +399,7 @@ impl FromStr for JobKind {
             "doc_summarize" => Ok(JobKind::DocSummarize),
             "doc_test" => Ok(JobKind::DocTest),
             "debug_bundle_export" => Ok(JobKind::DebugBundleExport),
+            "governance_pack_export" => Ok(JobKind::GovernancePackExport),
             _ => Err(StorageError::Validation("invalid job kind")),
         }
     }

@@ -606,6 +606,7 @@ impl DuckDbFlightRecorder {
                 "llm_inference" => super::FlightRecorderEventType::LlmInference,
                 "diagnostic" => super::FlightRecorderEventType::Diagnostic,
                 "debug_bundle_export" => super::FlightRecorderEventType::DebugBundleExport,
+                "governance_pack_export" => super::FlightRecorderEventType::GovernancePackExport,
                 "workflow_recovery" => super::FlightRecorderEventType::WorkflowRecovery,
                 "gov_mailbox_message_created" => {
                     super::FlightRecorderEventType::GovMailboxMessageCreated

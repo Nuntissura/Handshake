@@ -53,6 +53,8 @@ pub enum FlightRecorderEventType {
     GovMailboxTranscribed,
     /// FR-EVT-005: Debug Bundle export lifecycle event [11.5]
     DebugBundleExport,
+    /// Governance Pack export lifecycle event [Spec 2.3.10]
+    GovernancePackExport,
 }
 
 impl fmt::Display for FlightRecorderEventType {
@@ -72,6 +74,7 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::GovMailboxExported => write!(f, "gov_mailbox_exported"),
             FlightRecorderEventType::GovMailboxTranscribed => write!(f, "gov_mailbox_transcribed"),
             FlightRecorderEventType::DebugBundleExport => write!(f, "debug_bundle_export"),
+            FlightRecorderEventType::GovernancePackExport => write!(f, "governance_pack_export"),
         }
     }
 }
@@ -197,6 +200,9 @@ impl FlightRecorderEvent {
             FlightRecorderEventType::Diagnostic => validate_diagnostic_payload(&self.payload),
             FlightRecorderEventType::DebugBundleExport => {
                 validate_debug_bundle_payload(&self.payload)
+            }
+            FlightRecorderEventType::GovernancePackExport => {
+                validate_governance_pack_export_payload(&self.payload)
             }
             FlightRecorderEventType::WorkflowRecovery => {
                 if self.actor != FlightRecorderActor::System {
@@ -410,6 +416,193 @@ fn validate_debug_bundle_payload(payload: &Value) -> Result<(), RecorderError> {
     require_string(map, "bundle_id")?;
     require_string(map, "scope")?;
     require_string(map, "redaction_mode")?;
+    Ok(())
+}
+
+fn validate_governance_pack_export_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_string(map, "export_id")?;
+    require_string(map, "created_at")?;
+
+    match require_key(map, "actor")? {
+        Value::String(value) => match value.as_str() {
+            "HUMAN_DEV" | "AI_JOB" | "PLUGIN_TOOL" => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field actor must be one of HUMAN_DEV|AI_JOB|PLUGIN_TOOL".to_string(),
+                ))
+            }
+        },
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field actor must be a string".to_string(),
+            ))
+        }
+    }
+
+    require_string_or_null(map, "job_id")?;
+    require_array(map, "source_entity_refs")?;
+    require_array(map, "source_hashes")?;
+    require_string(map, "export_format")?;
+    require_bool(map, "redactions_applied")?;
+    require_string(map, "policy_id")?;
+    require_array(map, "output_artifact_handles")?;
+    require_array(map, "materialized_paths")?;
+    require_array(map, "warnings")?;
+    require_array(map, "errors")?;
+
+    // determinism_level must be a strict enum.
+    match require_key(map, "determinism_level")? {
+        Value::String(value) => {
+            match value.as_str() {
+                "bitwise" | "structural" | "best_effort" => {}
+                _ => return Err(RecorderError::InvalidEvent(
+                    "payload field determinism_level must be one of bitwise|structural|best_effort"
+                        .to_string(),
+                )),
+            }
+        }
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field determinism_level must be a string".to_string(),
+            ))
+        }
+    }
+
+    // exporter object (engine_id, engine_version, config_hash)
+    let exporter = require_key(map, "exporter")?;
+    let exporter = payload_object(exporter)?;
+    require_string(exporter, "engine_id")?;
+    require_string(exporter, "engine_version")?;
+    require_sha256_hex(exporter, "config_hash")?;
+
+    // export_target must match ExportTarget::LocalFile { path: PathBuf }
+    let target = require_key(map, "export_target")?;
+    let target = payload_object(target)?;
+    require_fixed_string(target, "type", "local_file")?;
+    require_string(target, "path")?;
+
+    // source_entity_refs[] objects
+    match require_key(map, "source_entity_refs")? {
+        Value::Array(items) if !items.is_empty() => {
+            for (idx, item) in items.iter().enumerate() {
+                let obj = payload_object(item).map_err(|_| {
+                    RecorderError::InvalidEvent(format!(
+                        "payload field source_entity_refs[{idx}] must be an object"
+                    ))
+                })?;
+                require_string(obj, "entity_id")?;
+                require_string(obj, "entity_kind")?;
+            }
+        }
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field source_entity_refs must be a non-empty array".to_string(),
+            ))
+        }
+    }
+
+    // source_hashes[] must be sha256 hex strings.
+    match require_key(map, "source_hashes")? {
+        Value::Array(items) if !items.is_empty() => {
+            for (idx, item) in items.iter().enumerate() {
+                let value = match item {
+                    Value::String(value) => value.trim(),
+                    _ => {
+                        return Err(RecorderError::InvalidEvent(format!(
+                            "payload field source_hashes[{idx}] must be a string"
+                        )))
+                    }
+                };
+                if value.len() != 64 || !value.chars().all(|c| c.is_ascii_hexdigit()) {
+                    return Err(RecorderError::InvalidEvent(format!(
+                        "payload field source_hashes[{idx}] must be a 64-char hex sha256"
+                    )));
+                }
+            }
+        }
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field source_hashes must be a non-empty array".to_string(),
+            ))
+        }
+    }
+
+    // output_artifact_handles[] must be non-empty and have (artifact_id, path).
+    match require_key(map, "output_artifact_handles")? {
+        Value::Array(items) if !items.is_empty() => {
+            for (idx, item) in items.iter().enumerate() {
+                let obj = payload_object(item).map_err(|_| {
+                    RecorderError::InvalidEvent(format!(
+                        "payload field output_artifact_handles[{idx}] must be an object"
+                    ))
+                })?;
+                require_string(obj, "artifact_id")?;
+                require_string(obj, "path")?;
+            }
+        }
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field output_artifact_handles must be a non-empty array".to_string(),
+            ))
+        }
+    }
+
+    // materialized_paths[] must be root-relative, normalized, and sorted.
+    let mut last: Option<&str> = None;
+    match require_key(map, "materialized_paths")? {
+        Value::Array(items) if !items.is_empty() => {
+            for (idx, item) in items.iter().enumerate() {
+                let path = match item {
+                    Value::String(value) if !value.trim().is_empty() => value.as_str(),
+                    _ => {
+                        return Err(RecorderError::InvalidEvent(format!(
+                            "payload field materialized_paths[{idx}] must be a non-empty string"
+                        )))
+                    }
+                };
+
+                if path.contains('\\') {
+                    return Err(RecorderError::InvalidEvent(format!(
+                        "payload field materialized_paths[{idx}] must use '/' separators"
+                    )));
+                }
+                if path.starts_with('/') || path.contains(':') {
+                    return Err(RecorderError::InvalidEvent(format!(
+                        "payload field materialized_paths[{idx}] must be root-relative"
+                    )));
+                }
+                if path.split('/').any(|c| c == "..") {
+                    return Err(RecorderError::InvalidEvent(format!(
+                        "payload field materialized_paths[{idx}] must not contain '..'"
+                    )));
+                }
+                if let Some(prev) = last {
+                    if path < prev {
+                        return Err(RecorderError::InvalidEvent(
+                            "payload field materialized_paths must be sorted".to_string(),
+                        ));
+                    }
+                }
+                last = Some(path);
+            }
+        }
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field materialized_paths must be a non-empty array".to_string(),
+            ))
+        }
+    }
+
+    // display_projection_ref is optional (null or object).
+    if let Some(value) = map.get("display_projection_ref") {
+        if !value.is_null() && !value.is_object() {
+            return Err(RecorderError::InvalidEvent(
+                "payload field display_projection_ref must be an object or null".to_string(),
+            ));
+        }
+    }
+
     Ok(())
 }
 
@@ -1033,9 +1226,60 @@ pub trait FlightRecorder: Send + Sync {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ace::ArtifactHandle;
+    use crate::governance_pack::{
+        DeterminismLevel, ExportActor, ExportRecord, ExportTarget, ExporterInfo,
+    };
+    use crate::storage::EntityRef;
     use serde_json::json;
+    use std::path::PathBuf;
 
     const DUMMY_SHA256: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+
+    #[test]
+    fn test_governance_pack_export_event_accepts_export_record_payload() {
+        let export_id = Uuid::new_v4();
+        let record = ExportRecord {
+            export_id,
+            created_at: Utc::now(),
+            actor: ExportActor::AiJob,
+            job_id: None,
+            source_entity_refs: vec![EntityRef {
+                entity_id: "Handshake_Master_Spec_v02.112.md".to_string(),
+                entity_kind: "master_spec".to_string(),
+            }],
+            source_hashes: vec![DUMMY_SHA256.to_string()],
+            display_projection_ref: None,
+            export_format: "governance_pack_template_volume".to_string(),
+            exporter: ExporterInfo {
+                engine_id: "handshake.governance_pack_export".to_string(),
+                engine_version: "0.1.0".to_string(),
+                config_hash: DUMMY_SHA256.to_string(),
+            },
+            determinism_level: DeterminismLevel::Bitwise,
+            export_target: ExportTarget::LocalFile {
+                path: PathBuf::from("C:\\\\export"),
+            },
+            policy_id: "SAFE_DEFAULT".to_string(),
+            redactions_applied: false,
+            output_artifact_handles: vec![ArtifactHandle::new(
+                Uuid::new_v4(),
+                "gov_pack_template_volume".to_string(),
+            )],
+            materialized_paths: vec!["docs/START_HERE.md".to_string()],
+            warnings: Vec::new(),
+            errors: Vec::new(),
+        };
+
+        let payload = serde_json::to_value(&record).expect("serialize ExportRecord");
+        let event = FlightRecorderEvent::new(
+            FlightRecorderEventType::GovernancePackExport,
+            FlightRecorderActor::Agent,
+            Uuid::new_v4(),
+            payload,
+        );
+        assert!(event.validate().is_ok());
+    }
 
     fn valid_llm_inference_payload() -> Value {
         json!({

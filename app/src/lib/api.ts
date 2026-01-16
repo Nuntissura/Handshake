@@ -146,7 +146,8 @@ export type FlightEvent = {
     | "capability_action"
     | "security_violation"
     | "workflow_recovery"
-    | "debug_bundle_export";
+    | "debug_bundle_export"
+    | "governance_pack_export";
   job_id?: string;
   workflow_id?: string;
   model_id?: string;
@@ -563,4 +564,42 @@ export async function downloadBundle(bundleId: string): Promise<Blob> {
     throw new Error(`Download failed: ${text}`);
   }
   return response.blob();
+}
+
+// Governance Pack export types
+export type ExportTarget = { type: "local_file"; path: string };
+
+export type GovernancePackInvariants = {
+  project_code: string;
+  project_display_name: string;
+  project_prefix?: string;
+  issue_prefix: string;
+  language_layout_profile_id: string;
+  frontend_root_dir: string;
+  frontend_src_dir: string;
+  backend_root_dir: string;
+  backend_crate_name: string;
+  codex_version?: string;
+  master_spec_filename?: string;
+  cargo_target_dir_name?: string;
+  node_package_manager?: string;
+  default_base_branch?: string;
+  additional_placeholders?: Record<string, string>;
+};
+
+export type GovernancePackExportRequest = {
+  export_target: ExportTarget;
+  overwrite?: boolean;
+  invariants: GovernancePackInvariants;
+};
+
+export type GovernancePackExportResponse = {
+  export_job_id: string;
+  status: "queued" | "running";
+};
+
+export async function exportGovernancePack(
+  input: GovernancePackExportRequest,
+): Promise<GovernancePackExportResponse> {
+  return request("/api/governance_pack/export", { method: "POST", body: input });
 }

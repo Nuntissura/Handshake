@@ -13,6 +13,7 @@ use crate::{
         FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
         FrEvt008SecurityViolation, FrEvtWorkflowRecovery,
     },
+    governance_pack::{export_governance_pack, GovernancePackExportRequest},
     llm::{CompletionRequest, LlmError},
     models::{AiJob, JobKind, WorkflowRun},
     storage::{JobState, JobStatusUpdate, NewNodeExecution, StorageError},
@@ -1113,6 +1114,42 @@ async fn run_job(
             .set_job_outputs(&job.job_id.to_string(), Some(manifest_value.clone()))
             .await?;
         return Ok(Some(manifest_value));
+    } else if matches!(job.job_kind, JobKind::GovernancePackExport) {
+        let inputs = parse_inputs(job.job_inputs.as_ref());
+        let request: GovernancePackExportRequest =
+            serde_json::from_value(inputs).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+        let outcome = export_governance_pack(&request, Some(job.job_id))
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+        let export_record_value = serde_json::to_value(&outcome.export_record)
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+        record_event_safely(
+            state,
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::GovernancePackExport,
+                FlightRecorderActor::Agent,
+                trace_id,
+                export_record_value.clone(),
+            )
+            .with_job_id(job.job_id.to_string())
+            .with_capability("export.governance_pack"),
+        )
+        .await;
+
+        let payload = json!({
+            "export_id": outcome.export_record.export_id,
+            "templates_written": outcome.templates_written,
+            "materialized_paths": outcome.export_record.materialized_paths,
+            "export_record": export_record_value,
+        });
+
+        state
+            .storage
+            .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
+            .await?;
+        return Ok(Some(payload));
     }
     Ok(None)
 }

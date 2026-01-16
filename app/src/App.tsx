@@ -12,6 +12,7 @@ import {
   EvidenceDrawer,
   EvidenceSelection,
   DebugBundleExport,
+  GovernancePackExport,
   JobsView,
   ProblemsView,
   TimelineView,
@@ -26,6 +27,7 @@ function App() {
   const [refreshKey, setRefreshKey] = useState<number>(0);
   const [selection, setSelection] = useState<EvidenceSelection | null>(null);
   const [exportScope, setExportScope] = useState<BundleScopeInput | null>(null);
+  const [governancePackExportOpen, setGovernancePackExportOpen] = useState(false);
   const [focusJobId, setFocusJobId] = useState<string | null>(null);
   const [timelineNav, setTimelineNav] = useState<{ job_id?: string; wsid?: string; event_id?: string } | null>(null);
   const [timelineWindow, setTimelineWindow] = useState<{ start: string; end: string; wsid?: string } | null>(null);
@@ -76,6 +78,7 @@ function App() {
             >
               Timeline
             </button>
+            <button onClick={() => setGovernancePackExportOpen(true)}>Gov Pack Export</button>
           </div>
           <SystemStatus />
         </header>
@@ -172,6 +175,12 @@ function App() {
           isOpen={true}
           defaultScope={exportScope}
           onClose={() => setExportScope(null)}
+        />
+      )}
+      {governancePackExportOpen && (
+        <GovernancePackExport
+          isOpen={true}
+          onClose={() => setGovernancePackExportOpen(false)}
         />
       )}
     </main>

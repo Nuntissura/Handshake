@@ -8,9 +8,9 @@
 - REQUESTOR: Operator (ilja)
 - AGENT_ID: CodexCLI-GPT-5.2 (Orchestrator)
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja160120260327
 
@@ -29,6 +29,7 @@
 - What: Implement deterministic export/rendering of the inlined Governance Pack Template Volume (spec 7.5.4.9.3) into a concrete governance repo directory, with all placeholders resolved from project invariants (spec 7.5.4.8/7.5.4.9.1) and with safety constraints (no path traversal; default-deny overwrites).
 - Why: Handshake must be able to generate the same strict multi-role governance workflow (codex + protocols + gates + task board + scripts) for arbitrary projects without Handshake-hardcoding, so future projects can reuse this governance/mechanical-gates system.
 - IN_SCOPE_PATHS:
+  - src/backend/handshake_core/src/capabilities.rs
   - src/backend/handshake_core/src/api/mod.rs
   - src/backend/handshake_core/src/api/governance_pack.rs
   - src/backend/handshake_core/src/flight_recorder/mod.rs
@@ -164,47 +165,397 @@ git revert <commit-sha>
   - Source-of-truth for exported templates is the current Master Spec Template Volume block (do not export from the repo working tree to avoid drift).
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Backend:
+  - Added `governance_pack` module that extracts the Template Volume from the current Master Spec (between `GOV_PACK_TEMPLATE_VOLUME_BEGIN/END`), parses `###### Template File:` headers + ```` fences, and writes rendered templates in deterministic order.
+  - Placeholder policy: scans for all `{{TOKEN}}` occurrences in Template Volume, requires coverage for every token, and hard-errors with `{token, template_file}`; also fails if any placeholder remains post-render.
+  - Path/materialize policy: `ExportTarget::LocalFile { path: PathBuf }` (absolute) with traversal-safe confinement via canonicalized export root + canonicalized parent dirs; atomic file writes (temp + fsync + rename).
+  - Export audit: emits `governance_pack_export` Flight Recorder event with ExportRecord-shaped payload meeting Spec 2.3.10.2 normative minimum; `materialized_paths[]` is root-relative + normalized + sorted.
+- Jobs/API:
+  - Added `JobKind::GovernancePackExport` + capability SSoT mapping (`export.governance_pack`) and a server-enforced profile for the job kind.
+  - Added `POST /api/governance_pack/export` that queues `governance_pack_export` jobs and starts workflow execution.
+- Frontend:
+  - Added operator modal `GovernancePackExport` to collect export directory + invariants and poll job status.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- TEST_PLAN run (exit codes recorded; no manual verdicts):
+  - `just pre-work WP-1-Governance-Template-Volume-v1` (exit 0)
+  - `cd src/backend/handshake_core; cargo fmt` (exit 0)
+  - `cd src/backend/handshake_core; cargo clippy --all-targets --all-features` (exit 0; clippy warning: `clippy::too_many_arguments` in `src/backend/handshake_core/src/role_mailbox.rs`)
+  - `cd src/backend/handshake_core; cargo test` (exit 0)
+  - `cd app; pnpm run lint` (exit 0)
+  - `cd app; pnpm test` (exit 0)
+  - `just cargo-clean` (exit 0; ran twice during remediation)
+  - `just post-work WP-1-Governance-Template-Volume-v1` (exit 0; warnings: HEAD not available for new files)
+  - Remediation follow-up: `cd src/backend/handshake_core; cargo test` (exit 0)
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- (Mechanical manifest for audit; values captured from staged files via `just cor701-sha`. This is not an official validation verdict.)
+- **Target File**: `app/src/App.tsx`
+- **Start**: 1
+- **End**: 190
+- **Line Delta**: 9
+- **Pre-SHA1**: `82e65f87f74b8a95c1e6619d2221b3badd7a5cbb`
+- **Post-SHA1**: `50c415c179aae23dfcca113539a1d0147972cc45`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/components/operator/GovernancePackExport.tsx`
+- **Start**: 1
+- **End**: 327
+- **Line Delta**: 327
+- **Pre-SHA1**: `078b92fb805217b40fa365ee2eab05a90a34aba5`
+- **Post-SHA1**: `078b92fb805217b40fa365ee2eab05a90a34aba5`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/components/operator/index.ts`
+- **Start**: 1
+- **End**: 9
+- **Line Delta**: 1
+- **Pre-SHA1**: `97cb741c3889c10d6ba267f1926ca4a1e8ae52e4`
+- **Post-SHA1**: `5580c1547e919a234e8c1b89b980fa148f22b572`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/lib/api.ts`
+- **Start**: 1
+- **End**: 605
+- **Line Delta**: 39
+- **Pre-SHA1**: `d83e63ea14721b7013620dfe0350b3370db9134d`
+- **Post-SHA1**: `7eb2fc9abbab5b991dbd159045dbf09896be2ea8`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/api/governance_pack.rs`
+- **Start**: 1
+- **End**: 61
+- **Line Delta**: 61
+- **Pre-SHA1**: `f2ee0030f236da58db7d991fb741a676fedb9ba0`
+- **Post-SHA1**: `f2ee0030f236da58db7d991fb741a676fedb9ba0`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/api/mod.rs`
+- **Start**: 1
+- **End**: 38
+- **Line Delta**: 3
+- **Pre-SHA1**: `68de38634a659ca0f4ccbb51b0563e2da8d117be`
+- **Post-SHA1**: `47997872f7716ef6ad03601ecac4cf91d851f3da`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/capabilities.rs`
+- **Start**: 1
+- **End**: 424
+- **Line Delta**: 24
+- **Pre-SHA1**: `a2b86ba4a6baf679113876e45272b4932331d544`
+- **Post-SHA1**: `50ce284d3463aff3b2b3f80042038ef2cb3755b6`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- **Start**: 1
+- **End**: 1076
+- **Line Delta**: 1
+- **Pre-SHA1**: `1a2d8278f3c5313465a77797e26bf61421180d0a`
+- **Post-SHA1**: `41b29b4b24497715dd003bbc9c6698c7024a2e3a`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 1
+- **End**: 1490
+- **Line Delta**: 51
+- **Pre-SHA1**: `984409ff277bde04f63782235703b15407627ed8`
+- **Post-SHA1**: `ee10486cbd46eac5ee903dbfc9adf43afb07ee6b`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/governance_pack.rs`
+- **Start**: 1
+- **End**: 960
+- **Line Delta**: 0
+- **Pre-SHA1**: `318e0d64dd24261f788bd41cfe489ca27c9c69d6`
+- **Post-SHA1**: `76e50c11fe79e068d24a29b6dee98ff94e39e28f`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/lib.rs`
+- **Start**: 1
+- **End**: 33
+- **Line Delta**: 1
+- **Pre-SHA1**: `38ec385ac8ea343823b713c9f481c1bc3b6a6d53`
+- **Post-SHA1**: `e4fddce7b3897b10eec75f382f0035d7a04b5c56`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/storage/mod.rs`
+- **Start**: 1
+- **End**: 881
+- **Line Delta**: 4
+- **Pre-SHA1**: `4ea008e4be730428b80af37fda36381ed1138183`
+- **Post-SHA1**: `1e17697dd2d2f5935e645cb7323853c4ed24a630`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1
+- **End**: 1684
+- **Line Delta**: 37
+- **Pre-SHA1**: `9156a2645aee05fc819a3103eb63c974ce927415`
+- **Post-SHA1**: `c521e4dc8878f7fa8f51b56b47ba2290b7c290e1`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.112.md
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: Implementation complete; ready for Validator audit.
+- What changed in this update: Implemented Governance Pack Template Volume export job + API + UI + Flight Recorder audit event.
+- Next step / handoff hint: Commit staged changes and send the commit SHA + `feat/WP-1-Governance-Template-Volume-v1` + `D:\\Projects\\LLM projects\\wt-WP-1-Governance-Template-Volume-v1` to Operator/Validator.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+- VALIDATION REPORT - WP-1-Governance-Template-Volume-v1
+  - Verdict: FAIL
+  - Scope Inputs:
+    - Task Packet: `docs/task_packets/WP-1-Governance-Template-Volume-v1.md` (**Status:** In Progress)
+    - Spec Target (resolved from `docs/SPEC_CURRENT.md`): `Handshake_Master_Spec_v02.112.md`
+    - Worktree/Branch validated: `D:\Projects\LLM projects\wt-WP-1-Governance-Template-Volume-v1` (`feat/WP-1-Governance-Template-Volume-v1`)
+  - Files Checked:
+    - `docs/SPEC_CURRENT.md`
+    - `docs/TASK_BOARD.md`
+    - `docs/task_packets/WP-1-Governance-Template-Volume-v1.md`
+    - `Handshake_Master_Spec_v02.112.md` (Template Volume markers)
+    - `src/backend/handshake_core/src/governance_pack.rs`
+    - Forbidden-pattern scan scope: `src/backend/handshake_core/src/**`, `app/src/**`
+  - Findings (FAIL Blockers):
+    - Git hygiene gate: FAIL (dirty worktree; uncommitted changes present per `git status -sb` in the WP worktree).
+    - Forbidden Pattern Audit [CX-573E]: FAIL (production-path `expect`/`unwrap` introduced in exporter code with no waiver recorded):
+      - `src/backend/handshake_core/src/governance_pack.rs:284` (`Regex::new(...).expect(...)`)
+      - `src/backend/handshake_core/src/governance_pack.rs:614` (`Regex::new(...).expect(...)`)
+      - `src/backend/handshake_core/src/governance_pack.rs:661` (`Regex::new(...).expect(...)`)
+      - `src/backend/handshake_core/src/governance_pack.rs:665` (`cap.get(0).expect(...)`)
+      - `src/backend/handshake_core/src/governance_pack.rs:666` (`cap.get(1).expect(...)`)
+      - `src/backend/handshake_core/src/governance_pack.rs:685` (`Regex::new(...).expect(...)`)
+    - Deterministic manifest / post-work gate: FAIL (packet `## VALIDATION` checkboxes remain unchecked; no recorded passing `just post-work WP-1-Governance-Template-Volume-v1` output).
+    - Template fence parsing mismatch vs 4+ backtick contract: FAIL
+      - Opening fence accepts 4+ via `starts_with("````")` (`src/backend/handshake_core/src/governance_pack.rs:317`)
+      - Closing fence requires exactly `trim() == "````"` (`src/backend/handshake_core/src/governance_pack.rs:329`)
+      - This will fail any template bodies that use 5+ backticks.
+    - Missing-placeholder evidence attribution: FAIL (scan-phase error reports `template_file` as the spec path, not the concrete template path):
+      - `src/backend/handshake_core/src/governance_pack.rs:593` (`template_file: spec_path...`)
+  - Tests:
+    - Validator did not run tests due to the hard blockers above (dirty tree + forbidden patterns).
+    - Coder-reported commands exist under `## HYGIENE`, but outputs + `just post-work` evidence are not captured in `## EVIDENCE`.
+  - Commands executed (validator):
+    - `git status -sb` (WP worktree)
+    - `rg -n "unwrap\\(|expect\\(|todo!\\(|unimplemented!\\(|dbg!\\(|println!\\(|eprintln!\\(|panic!\\(" src/backend/handshake_core/src app/src`
+    - `rg -n "GOV_PACK_TEMPLATE_VOLUME_BEGIN" Handshake_Master_Spec_v02.112.md`
+    - `rg -n "GOV_PACK_TEMPLATE_VOLUME_END" Handshake_Master_Spec_v02.112.md`
+  - Remediation required (handoff to coder):
+    - Commit the current implementation changes (clean `git status -sb`).
+    - Remove all production-path `expect`/`unwrap` in the new exporter code; replace with typed error propagation (or record an explicit waiver in `## WAIVERS GRANTED` with justification + scope + expiry).
+    - Fix template parsing to support 4+ backticks and require matching-length closing fences (and allow optional info string on opening fence).
+    - Track `token -> template rel_path` so `MissingPlaceholder { token, template_file }` reports the actual template file containing the missing token.
+    - Run full `## QUALITY_GATE` TEST_PLAN including `just cargo-clean` and `just post-work WP-1-Governance-Template-Volume-v1`, and capture outputs under `## EVIDENCE` (complete the deterministic manifest checkboxes).
+  - REASON FOR FAIL:
+    - The WP is not in a validatable/shippable state: uncommitted changes, forbidden patterns in new production code without waivers, and missing required deterministic-manifest/post-work evidence.
+
+- VALIDATION REPORT - WP-1-Governance-Template-Volume-v1
+  - Verdict: PASS
+  - Scope Inputs:
+    - Task Packet: `docs/task_packets/WP-1-Governance-Template-Volume-v1.md` (**Status:** Done)
+    - Spec Target (resolved from `docs/SPEC_CURRENT.md`): `Handshake_Master_Spec_v02.112.md`
+      - Anchors validated: 7.5.4.8, 7.5.4.9.1-7.5.4.9.3, 2.3.10.1-2.3.10.3
+    - Worktree/Branch validated: `D:\Projects\LLM projects\wt-WP-1-Governance-Template-Volume-v1` (`feat/WP-1-Governance-Template-Volume-v1` @ `e6a7cdccf03ddb170e1fe8c566efbb7495b893c6`)
+  - Files Checked:
+    - `docs/SPEC_CURRENT.md`
+    - `docs/TASK_BOARD.md`
+    - `docs/WP_TRACEABILITY_REGISTRY.md`
+    - `docs/task_packets/WP-1-Governance-Template-Volume-v1.md`
+    - `Handshake_Master_Spec_v02.112.md`
+    - `Justfile`
+    - `scripts/validation/validator-scan.mjs`
+    - `scripts/validation/post-work-check.mjs`
+    - `src/backend/handshake_core/src/governance_pack.rs`
+    - `src/backend/handshake_core/src/workflows.rs`
+    - `src/backend/handshake_core/src/capabilities.rs`
+    - `src/backend/handshake_core/src/api/mod.rs`
+    - `src/backend/handshake_core/src/api/governance_pack.rs`
+    - `src/backend/handshake_core/src/storage/mod.rs`
+    - `src/backend/handshake_core/src/flight_recorder/mod.rs`
+    - `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+    - `app/src/lib/api.ts`
+    - `app/src/components/operator/GovernancePackExport.tsx`
+    - `app/src/components/operator/index.ts`
+    - `app/src/App.tsx`
+  - Findings:
+    - Exporter reads template volume from Master Spec markers (7.5.4.9.3):
+      - `src/backend/handshake_core/src/governance_pack.rs:17`
+      - `src/backend/handshake_core/src/governance_pack.rs:303`
+    - Deterministic export + placeholder policy (7.5.4.8, 7.5.4.9):
+      - Deterministic write order: `src/backend/handshake_core/src/governance_pack.rs:228`
+      - Reject unresolved placeholders after render: `src/backend/handshake_core/src/governance_pack.rs:703`
+      - Placeholder map + token scan: `src/backend/handshake_core/src/governance_pack.rs:405`
+    - Path safety + overwrite safety (HARDENED_INVARIANTS):
+      - Absolute export root required: `src/backend/handshake_core/src/governance_pack.rs:202`
+      - Default deny overwrite for non-empty export dir: `src/backend/handshake_core/src/governance_pack.rs:391`
+      - Block absolute/`..` traversal: `src/backend/handshake_core/src/governance_pack.rs:718`
+      - Export-root confinement + atomic file writes: `src/backend/handshake_core/src/governance_pack.rs:742`
+    - ExportRecord/Flight Recorder event strict validation (2.3.10.1-2.3.10.3):
+      - ExportRecord.actor serializes as `AI_JOB` (fix for prior FAIL): `src/backend/handshake_core/src/governance_pack.rs:78`
+      - GovernancePackExport payload validator requires `AI_JOB`: `src/backend/handshake_core/src/flight_recorder/mod.rs:422`
+      - Workflow records `governance_pack_export` event: `src/backend/handshake_core/src/workflows.rs:1128`
+      - DuckDB ingestion validates event before persistence: `src/backend/handshake_core/src/flight_recorder/duckdb.rs:653`
+      - Regression test covering actor casing + validator acceptance: `src/backend/handshake_core/src/flight_recorder/mod.rs:1240`
+    - Operator UX:
+      - Backend route: `src/backend/handshake_core/src/api/governance_pack.rs:17`
+      - Capability enforcement for job kind: `src/backend/handshake_core/src/capabilities.rs:133`
+      - Frontend API: `app/src/lib/api.ts:601`
+      - Frontend modal: `app/src/components/operator/GovernancePackExport.tsx:24`
+      - App hook: `app/src/App.tsx:81`
+  - Hygiene:
+    - Git status: clean at validation target commit (prior to validator gate file updates).
+  - Forbidden Patterns:
+    - `just validator-scan` reports FAIL due to false positives:
+      - `expect(...)` occurs in a unit test: `src/backend/handshake_core/src/flight_recorder/mod.rs:1274` (inside `#[test]` at `src/backend/handshake_core/src/flight_recorder/mod.rs:1240`)
+      - `placeholder` keyword hits are expected in template placeholder code paths (not mocks/stubs).
+    - Spot-check: no `unwrap/expect` in production exporter path: `src/backend/handshake_core/src/governance_pack.rs` (verified via `rg`).
+  - Storage DAL Audit:
+    - PASS: `just validator-dal-audit`
+  - Tests:
+    - PASS: `just cargo-clean`
+    - PASS: `just validator-spec-regression`
+    - FAIL (expected on clean tree): `just post-work WP-1-Governance-Template-Volume-v1` (fails when no staged/working changes; pre-commit PASS is recorded in `## HYGIENE`)
+    - PASS: `cd src/backend/handshake_core; cargo fmt -- --check`
+    - PASS: `cd src/backend/handshake_core; cargo clippy --all-targets --all-features` (warn: clippy::too_many_arguments in `src/backend/handshake_core/src/role_mailbox.rs:1160`)
+    - PASS: `cd src/backend/handshake_core; cargo test`
+    - PASS: `cd app; pnpm run lint`
+    - PASS: `cd app; pnpm test`
+  - Risks & Suggested Actions:
+    - Optional hardening: treat Flight Recorder write failure as a job failure for `governance_pack_export` (currently best-effort via `record_event_safely`).
+    - Improve `scripts/validation/validator-scan.mjs` to reduce false positives (tests + template placeholder code).
+  - REASON FOR PASS:
+    - The prior `ExportRecord.actor` casing mismatch (ai_job vs AI_JOB) is fixed and covered by a regression test; end-to-end hygiene/tests are passing; exporter enforces deterministic ordering and placeholder/path safety per packet DONE_MEANS and spec anchors.
