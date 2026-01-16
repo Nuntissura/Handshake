@@ -295,3 +295,49 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT — WP-1-Governance-Kernel-Conformance-v1 (2026-01-16)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: `docs/task_packets/WP-1-Governance-Kernel-Conformance-v1.md` (WP_STATUS at `docs/task_packets/WP-1-Governance-Kernel-Conformance-v1.md:282`)
+- Spec Target: `docs/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.112.md` (`docs/SPEC_CURRENT.md:5`)
+- Governance Reference: `Handshake Codex v1.4.md` (`docs/SPEC_CURRENT.md:13`)
+- Worktree/Branch: `D:\Projects\LLM projects\wt-WP-1-Governance-Kernel-Conformance-v1` / `feat/WP-1-Governance-Kernel-Conformance-v1`
+- Implementation commits reviewed: `400a48ab` (implementation) + `cebe5255` (traceability sync)
+
+Files Checked:
+- `docs/SPEC_CURRENT.md`
+- `docs/WP_TRACEABILITY_REGISTRY.md`
+- `docs/TASK_BOARD.md`
+- `docs/task_packets/WP-1-Governance-Kernel-Conformance-v1.md`
+- `docs/task_packets/README.md`
+- `docs/ORCHESTRATOR_PROTOCOL.md`
+- `.github/workflows/ci.yml`
+- `scripts/validation/governance-reference.mjs`
+- `scripts/validation/ci-traceability-check.mjs`
+- `scripts/hooks/pre-commit`
+- `justfile`
+
+Findings (evidence):
+- SSoT confirmed: Governance Reference is sourced from `docs/SPEC_CURRENT.md` (`docs/SPEC_CURRENT.md:11-13`).
+- Resolver parses the Governance Reference filename from `docs/SPEC_CURRENT.md` and returns filename + abs path (`scripts/validation/governance-reference.mjs:47-60`).
+- CI traceability check imports resolver and requires the resolved codex file exists (`scripts/validation/ci-traceability-check.mjs:11-24`, `scripts/validation/ci-traceability-check.mjs:119-130`).
+- Pre-commit hook prints the resolved Governance Reference when Node is available, else points developers to `docs/SPEC_CURRENT.md` (`scripts/hooks/pre-commit:8-20`, `scripts/hooks/pre-commit:58-59`).
+- CI doc drift scan excludes locked history (`docs/task_packets/**`, `docs/refinements/**`) while still scanning `docs/task_packets/README.md` (`.github/workflows/ci.yml:48-50`).
+- In-scope legacy references removed: validation grep found no `Handshake Codex v0.8.md` / `Codex v0.8` matches across the declared surfaces (coder hygiene step, corroborated by validator spot-check).
+- Task Board and traceability registry are consistent for this WP (`docs/WP_TRACEABILITY_REGISTRY.md:81`, `docs/TASK_BOARD.md:97`).
+- Orchestrator protocol authority snippet references the correct Codex (`docs/ORCHESTRATOR_PROTOCOL.md:1272-1276`).
+- Task packet README links to the correct Codex (`docs/task_packets/README.md:63`).
+- `justfile` governance command header is non-stale (`justfile:82`).
+
+Tests:
+- `node scripts/validation/ci-traceability-check.mjs` -> PASS (exit 0)
+- `just codex-check` -> PASS (exit 0)
+
+REASON FOR PASS:
+- Removes the hard-coded legacy governance reference dependency by deriving the required Codex filename from `docs/SPEC_CURRENT.md` and enforcing file existence in CI/hook tooling, preventing recurring drift/CI failures while keeping historical task packet/refinement history immutable.
+
+Risks & Suggested Actions:
+- If `docs/SPEC_CURRENT.md` governance-reference formatting changes (marker or bold filename), the resolver will hard-fail; this is acceptable for governance enforcement but may warrant a future micro-test asserting the parser contract.
+- Closure work (validator-owned): after merge to `main`, move `WP-1-Governance-Kernel-Conformance-v1` on `docs/TASK_BOARD.md` from `## In Progress` to `## Done` with `[VALIDATED]` per protocol.
