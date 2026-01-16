@@ -10,7 +10,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja150120260254
 
@@ -760,3 +760,36 @@ Required Fixes Before Revalidation:
 - Fix build/Send-safety for role mailbox API path (start at `src/backend/handshake_core/src/api/role_mailbox.rs:43` and `src/backend/handshake_core/src/role_mailbox.rs:529`).
 - Fill VALIDATION manifest (per-file entries) and re-run `just post-work WP-1-Role-Mailbox-v1`.
 - Resolve `Instant::now()` finding or record an explicit [CX-573F] waiver under WAIVERS GRANTED, then re-run `just validator-error-codes`.
+
+### 2026-01-16 VALIDATION REPORT - WP-1-Role-Mailbox-v1
+
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: `docs/task_packets/WP-1-Role-Mailbox-v1.md:1` (Status: Done at `docs/task_packets/WP-1-Role-Mailbox-v1.md:13`)
+- Spec: `docs/SPEC_CURRENT.md:1` -> `Handshake_Master_Spec_v02.112.md:52` (Role Mailbox `Handshake_Master_Spec_v02.112.md:5987`; Export/Gate `Handshake_Master_Spec_v02.112.md:6111` / `Handshake_Master_Spec_v02.112.md:6184`; FR schemas `Handshake_Master_Spec_v02.112.md:46421`)
+
+Repo State:
+- Worktree: `D:\Projects\LLM projects\wt-WP-1-Role-Mailbox-v1`
+- Branch: `feat/WP-1-Role-Mailbox-v1`
+- HEAD: `cd8aa9e0`
+- Git status: clean
+
+Commands Run (Validator):
+- PASS: `just gate-check WP-1-Role-Mailbox-v1`; `just pre-work WP-1-Role-Mailbox-v1`; `just cargo-clean`; `just test`; `just lint`; `just validator-scan`; `just validator-spec-regression`; `just validator-dal-audit`; `just validator-traceability`; `just validator-git-hygiene`; `just validator-coverage-gaps`; `just validator-error-codes`; `just role-mailbox-export-check`
+- PASS (packet evidence): `just post-work WP-1-Role-Mailbox-v1` (see `## EVIDENCE`, `docs/task_packets/WP-1-Role-Mailbox-v1.md:683`)
+
+Findings (selected evidence):
+- FR mailbox schemas: payload shape validation implemented at `src/backend/handshake_core/src/flight_recorder/mod.rs:533` / `src/backend/handshake_core/src/flight_recorder/mod.rs:636` / `src/backend/handshake_core/src/flight_recorder/mod.rs:677`, and forbids inline body fields at `src/backend/handshake_core/src/flight_recorder/mod.rs:553` / `src/backend/handshake_core/src/flight_recorder/mod.rs:649` / `src/backend/handshake_core/src/flight_recorder/mod.rs:691`.
+- Governance-critical transcription link requirement enforced on create at `src/backend/handshake_core/src/role_mailbox.rs:517` and in export gate at `scripts/validation/role_mailbox_export_check.mjs:475`.
+- Deterministic export encoding implemented at `src/backend/handshake_core/src/role_mailbox.rs:1592` and mechanically verified by `scripts/validation/role_mailbox_export_check.mjs` (canonical JSON/JSONL, forbidden-field scan, ordering, sha256 manifest).
+- Spec Session Log persisted at `src/backend/handshake_core/src/role_mailbox.rs:404` and appended for mailbox events at `src/backend/handshake_core/src/role_mailbox.rs:1103`.
+
+Waivers:
+- WP-1-Role-Mailbox-v1-WAIVER-001 recorded at `docs/task_packets/WP-1-Role-Mailbox-v1.md:171`; code annotation present at `src/backend/handshake_core/src/workflows.rs:662`.
+
+REASON FOR PASS:
+- All required WP TEST_PLAN commands and validator audits passed (or are verified via recorded evidence for pre-commit-only gates), and spot-checks confirm the governance-critical invariants (no inline body fields; deterministic export; transcription-link requirement; strict FR schema validation).
+
+Risks & Suggested Actions:
+- Non-blocking: clippy warns `clippy::too_many_arguments` at `src/backend/handshake_core/src/role_mailbox.rs:1160`; consider refactor if signature grows.

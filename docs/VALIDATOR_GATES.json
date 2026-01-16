@@ -207,6 +207,32 @@
         }
       ],
       "completed": "2026-01-10T03:42:50.894Z"
+    },
+    "WP-1-Role-Mailbox-v1": {
+      "wpId": "WP-1-Role-Mailbox-v1",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-01-15T17:15:12.478Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-15T17:15:12.491Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-16T01:18:38.524Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-16T01:21:15.431Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-16T01:22:02.961Z"
+        }
+      ],
+      "completed": "2026-01-16T01:22:02.961Z"
     }
   },
   "archived_sessions": [
