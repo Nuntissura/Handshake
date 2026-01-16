@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja160120262314 | Orchestrator | 2026-01-16 23:14 | Task packet creation: WP-1-Editor-Hardening-v2 | v02.112 | Approved after Technical Refinement (see docs/refinements/WP-1-Editor-Hardening-v2.md ). |
+| ilja160120262149 | Orchestrator | 2026-01-16 21:49 | Task packet creation: WP-1-Governance-Kernel-Conformance-v1 | v02.112 | Approved after Technical Refinement (see docs/refinements/WP-1-Governance-Kernel-Conformance-v1.md ). |
 | ilja160120260327 | Orchestrator | 2026-01-16 03:27 | Task packet creation: WP-1-Governance-Template-Volume-v1 | v02.112 | Approved after Technical Refinement (see docs/refinements/WP-1-Governance-Template-Volume-v1.md ). |
 | ilja150120260254 | Orchestrator | 2026-01-15 02:54 | Task packet creation: WP-1-Role-Mailbox-v1 | v02.112 | Approved after Technical Refinement (see docs/refinements/WP-1-Role-Mailbox-v1.md ). |
 | ilja150120260214 | Orchestrator | 2026-01-15 02:14 | Spec update: v02.112 Role Mailbox hardening (dedicated FR event schemas + leak-safe export + mechanical gate) | v02.112 | Defined FR-EVT-GOV-MAILBOX payload schemas, required schema validation at ingestion, and added RoleMailboxExportGate requirements to prevent `docs/ROLE_MAILBOX/` from becoming a secret leak path. |
