@@ -186,6 +186,7 @@ git revert <commit-sha>
   - `cd app; pnpm test` (exit 0)
   - `just cargo-clean` (exit 0; ran twice during remediation)
   - `just post-work WP-1-Governance-Template-Volume-v1` (exit 0; warnings: HEAD not available for new files)
+  - Remediation follow-up: `cd src/backend/handshake_core; cargo test` (exit 0)
 
 ## VALIDATION
 - (Mechanical manifest for audit; values captured from staged files via `just cor701-sha`. This is not an official validation verdict.)
@@ -211,7 +212,7 @@ git revert <commit-sha>
 - **Start**: 1
 - **End**: 327
 - **Line Delta**: 327
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Pre-SHA1**: `078b92fb805217b40fa365ee2eab05a90a34aba5`
 - **Post-SHA1**: `078b92fb805217b40fa365ee2eab05a90a34aba5`
 - **Gates Passed**:
   - [x] anchors_present
@@ -265,7 +266,7 @@ git revert <commit-sha>
 - **Start**: 1
 - **End**: 61
 - **Line Delta**: 61
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Pre-SHA1**: `f2ee0030f236da58db7d991fb741a676fedb9ba0`
 - **Post-SHA1**: `f2ee0030f236da58db7d991fb741a676fedb9ba0`
 - **Gates Passed**:
   - [x] anchors_present
@@ -335,10 +336,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
 - **Start**: 1
-- **End**: 1439
-- **Line Delta**: 193
-- **Pre-SHA1**: `3a68719fc0b81befe6dbf67a32821c567c9da26c`
-- **Post-SHA1**: `984409ff277bde04f63782235703b15407627ed8`
+- **End**: 1490
+- **Line Delta**: 51
+- **Pre-SHA1**: `984409ff277bde04f63782235703b15407627ed8`
+- **Post-SHA1**: `ee10486cbd46eac5ee903dbfc9adf43afb07ee6b`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -354,9 +355,9 @@ git revert <commit-sha>
 - **Target File**: `src/backend/handshake_core/src/governance_pack.rs`
 - **Start**: 1
 - **End**: 960
-- **Line Delta**: 960
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
-- **Post-SHA1**: `318e0d64dd24261f788bd41cfe489ca27c9c69d6`
+- **Line Delta**: 0
+- **Pre-SHA1**: `318e0d64dd24261f788bd41cfe489ca27c9c69d6`
+- **Post-SHA1**: `76e50c11fe79e068d24a29b6dee98ff94e39e28f`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan

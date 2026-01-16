@@ -1226,9 +1226,60 @@ pub trait FlightRecorder: Send + Sync {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ace::ArtifactHandle;
+    use crate::governance_pack::{
+        DeterminismLevel, ExportActor, ExportRecord, ExportTarget, ExporterInfo,
+    };
+    use crate::storage::EntityRef;
     use serde_json::json;
+    use std::path::PathBuf;
 
     const DUMMY_SHA256: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+
+    #[test]
+    fn test_governance_pack_export_event_accepts_export_record_payload() {
+        let export_id = Uuid::new_v4();
+        let record = ExportRecord {
+            export_id,
+            created_at: Utc::now(),
+            actor: ExportActor::AiJob,
+            job_id: None,
+            source_entity_refs: vec![EntityRef {
+                entity_id: "Handshake_Master_Spec_v02.112.md".to_string(),
+                entity_kind: "master_spec".to_string(),
+            }],
+            source_hashes: vec![DUMMY_SHA256.to_string()],
+            display_projection_ref: None,
+            export_format: "governance_pack_template_volume".to_string(),
+            exporter: ExporterInfo {
+                engine_id: "handshake.governance_pack_export".to_string(),
+                engine_version: "0.1.0".to_string(),
+                config_hash: DUMMY_SHA256.to_string(),
+            },
+            determinism_level: DeterminismLevel::Bitwise,
+            export_target: ExportTarget::LocalFile {
+                path: PathBuf::from("C:\\\\export"),
+            },
+            policy_id: "SAFE_DEFAULT".to_string(),
+            redactions_applied: false,
+            output_artifact_handles: vec![ArtifactHandle::new(
+                Uuid::new_v4(),
+                "gov_pack_template_volume".to_string(),
+            )],
+            materialized_paths: vec!["docs/START_HERE.md".to_string()],
+            warnings: Vec::new(),
+            errors: Vec::new(),
+        };
+
+        let payload = serde_json::to_value(&record).expect("serialize ExportRecord");
+        let event = FlightRecorderEvent::new(
+            FlightRecorderEventType::GovernancePackExport,
+            FlightRecorderActor::Agent,
+            Uuid::new_v4(),
+            payload,
+        );
+        assert!(event.validate().is_ok());
+    }
 
     fn valid_llm_inference_payload() -> Value {
         json!({
