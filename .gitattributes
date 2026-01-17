@@ -1,4 +1,6 @@
 .gitattributes text eol=lf
+*.md text eol=lf
+*.mjs text eol=lf
 Handshake_Master_Spec_v*.md text eol=lf
 docs/SPEC_CURRENT.md text eol=lf
 docs/START_HERE.md text eol=lf
