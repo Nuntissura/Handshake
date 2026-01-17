@@ -776,6 +776,41 @@ impl super::Database for SqliteDatabase {
             });
         }
 
+        let doc_metadata = self.guard.validate_write(ctx, document_id).await?;
+        let doc_actor_kind = doc_metadata.actor_kind.as_str();
+        let doc_actor_id = doc_metadata.actor_id.clone();
+        let doc_actor_id_ref = doc_actor_id.as_deref();
+        let doc_job_id = doc_metadata.job_id.map(|id| id.to_string());
+        let doc_workflow_id = doc_metadata.workflow_id.map(|id| id.to_string());
+        let doc_edit_event_id = doc_metadata.edit_event_id.to_string();
+        let doc_updated_at = doc_metadata.timestamp;
+
+        let updated = sqlx::query(
+            r#"
+            UPDATE documents
+            SET last_actor_kind = $1,
+                last_actor_id = $2,
+                last_job_id = $3,
+                last_workflow_id = $4,
+                edit_event_id = $5,
+                updated_at = $6
+            WHERE id = $7
+            "#,
+        )
+        .bind(doc_actor_kind)
+        .bind(doc_actor_id_ref)
+        .bind(doc_job_id)
+        .bind(doc_workflow_id)
+        .bind(doc_edit_event_id)
+        .bind(doc_updated_at)
+        .bind(document_id)
+        .execute(&mut *tx)
+        .await?;
+
+        if updated.rows_affected() == 0 {
+            return Err(StorageError::NotFound("document"));
+        }
+
         tx.commit().await?;
         Ok(inserted)
     }
@@ -1132,6 +1167,41 @@ impl super::Database for SqliteDatabase {
             });
         }
 
+        let canvas_metadata = self.guard.validate_write(ctx, canvas_id).await?;
+        let canvas_actor_kind = canvas_metadata.actor_kind.as_str();
+        let canvas_actor_id = canvas_metadata.actor_id.clone();
+        let canvas_actor_id_ref = canvas_actor_id.as_deref();
+        let canvas_job_id = canvas_metadata.job_id.map(|id| id.to_string());
+        let canvas_workflow_id = canvas_metadata.workflow_id.map(|id| id.to_string());
+        let canvas_edit_event_id = canvas_metadata.edit_event_id.to_string();
+        let canvas_updated_at = canvas_metadata.timestamp;
+
+        let updated = sqlx::query(
+            r#"
+            UPDATE canvases
+            SET last_actor_kind = $1,
+                last_actor_id = $2,
+                last_job_id = $3,
+                last_workflow_id = $4,
+                edit_event_id = $5,
+                updated_at = $6
+            WHERE id = $7
+            "#,
+        )
+        .bind(canvas_actor_kind)
+        .bind(canvas_actor_id_ref)
+        .bind(canvas_job_id)
+        .bind(canvas_workflow_id)
+        .bind(canvas_edit_event_id)
+        .bind(canvas_updated_at)
+        .bind(canvas_id)
+        .execute(&mut *tx)
+        .await?;
+
+        if updated.rows_affected() == 0 {
+            return Err(StorageError::NotFound("canvas"));
+        }
+
         tx.commit().await?;
 
         Ok(CanvasGraph {
@@ -1140,7 +1210,7 @@ impl super::Database for SqliteDatabase {
                 workspace_id: canvas_row.workspace_id,
                 title: canvas_row.title,
                 created_at: canvas_row.created_at,
-                updated_at: canvas_row.updated_at,
+                updated_at: canvas_updated_at,
             },
             nodes: inserted_nodes,
             edges: inserted_edges,

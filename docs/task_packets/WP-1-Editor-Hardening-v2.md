@@ -125,51 +125,224 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - Frontend `app/src/lib/api.ts`: extend `request()` to accept extra headers; introduce a small `WriteContext` shape for write calls:
+    - `actor_kind: "HUMAN" | "AI" | "SYSTEM"` (default to `"HUMAN"` when omitted)
+    - `actor_id?: string`
+    - `job_id?: string` (UUID; required when `actor_kind === "AI"`)
+    - `workflow_id?: string` (UUID; required when `actor_kind === "AI"`; this is the WorkflowRun id returned by `createJob`)
+  - Frontend write APIs:
+    - `updateDocumentBlocks(documentId, blocks, ctx?: WriteContext)` sets headers on the PUT `/documents/:id/blocks` call.
+    - `updateCanvasGraph(canvasId, nodes, edges, ctx?: WriteContext)` sets headers on the PUT `/canvases/:id` call.
+    - (Optional for parity) `createWorkspace/createDocument/createCanvas/deleteDocument/deleteCanvas/deleteWorkspace` accept `ctx?: WriteContext` and forward headers, but default behaviour remains human.
+  - Backend write-context extraction (in `src/backend/handshake_core/src/api/workspaces.rs` + `src/backend/handshake_core/src/api/canvases.rs`):
+    - Add `headers: HeaderMap` extractor to write handlers.
+    - Add a small helper `write_context_from_headers(&HeaderMap) -> Result<WriteContext, StorageError>` (or `Result<WriteContext, (StatusCode, Json<ErrorResponse>)>` per-handler) that:
+      - Reads `x-hsk-actor-kind`, `x-hsk-actor-id`, `x-hsk-job-id`, `x-hsk-workflow-id`.
+      - If `x-hsk-actor-kind == "AI"`: constructs `WriteContext::ai(...)` and does **not** silently downgrade if IDs are missing (let the guard reject deterministically).
+      - Otherwise constructs a HUMAN or SYSTEM context (no job/workflow IDs).
+    - Replace all `WriteContext::human(None)` in API write paths with derived ctx (this is required by the packet regression grep).
+  - Backend AI-context sanity (to satisfy the "valid AI job" expectation in Spec 2.9.3):
+    - When `actor_kind == AI`, validate `job_id` is parseable and resolves via `state.storage.get_ai_job(job_id_str)`; validate `job.workflow_run_id == workflow_id` when both exist.
+    - On mismatch/not-found/invalid, return a deterministic `403` with `HSK-403-SILENT-EDIT` (no downgrade to HUMAN).
+
+- API contract changes (editor write endpoints):
+  - New optional headers accepted on editor persistence endpoints:
+    - `x-hsk-actor-kind: HUMAN|AI|SYSTEM`
+    - `x-hsk-actor-id: <string>` (optional)
+    - `x-hsk-job-id: <uuid>` (required iff actor-kind is AI)
+    - `x-hsk-workflow-id: <uuid>` (required iff actor-kind is AI)
+  - Error contract (already implemented in API mappers):
+    - If storage guard blocks an AI write without required context, respond `403` with JSON `{ "error": "HSK-403-SILENT-EDIT" }`.
+
+- Where `HSK-403-SILENT-EDIT` is enforced end-to-end:
+  1. Frontend calls `updateDocumentBlocks` / `updateCanvasGraph` with `WriteContext` headers (or defaults to HUMAN when omitted).
+  2. Backend handler derives a `WriteContext` (HUMAN/AI/SYSTEM) from headers and passes it into storage methods.
+  3. Storage methods call `StorageGuard::validate_write(ctx, resource_id)` and persist `MutationMetadata` (`last_actor_kind`, `last_job_id`, `last_workflow_id`, `edit_event_id`).
+  4. `DefaultStorageGuard` rejects AI writes with missing `job_id`/`workflow_id` by emitting `StorageError::Guard("HSK-403-SILENT-EDIT")`.
+  5. API `map_storage_error` in `workspaces.rs` / `canvases.rs` maps that to HTTP 403 + `{error:"HSK-403-SILENT-EDIT"}`.
+  6. UI catches the 403 and surfaces it (inline error + optional `createDiagnostic({ code: "HSK-403-SILENT-EDIT", ... })` for Operator visibility).
+
 - Open questions:
+  - Frontend source of `workflow_id` for AI writes: use `createJob()` response `WorkflowRun.id` (store alongside `job_id`), or fetch via `getJob(job_id)` to obtain `workflow_run_id`.
+  - Header naming: keep `x-hsk-*` vs `x-handshake-*` (no existing precedent found in repo; must pick one and use consistently).
+  - Actor identity: is `actor_id` required/meaningful yet, or should it remain unset for HUMAN until auth/session exists?
+
 - Notes:
+  - Traceability gate resolved; Validator replied `SKELETON APPROVED`.
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Backend: derive `WriteContext` from `x-hsk-*` headers in `src/backend/handshake_core/src/api/workspaces.rs` and `src/backend/handshake_core/src/api/canvases.rs`; AI writes require valid `job_id` + `workflow_id` and never downgrade to HUMAN.
+- Backend: map guard/missing-context to HTTP 403 `{ "error": "HSK-403-SILENT-EDIT" }` for deterministic enforcement.
+- Storage: persist `MutationMetadata` onto parent rows (documents, canvases) in `src/backend/handshake_core/src/storage/sqlite.rs` and `src/backend/handshake_core/src/storage/postgres.rs` so editor-triggered writes update `last_actor_kind/last_job_id/last_workflow_id/edit_event_id/updated_at`.
+- Frontend: add `WriteContext` + header plumbing in `app/src/lib/api.ts`; update `updateDocumentBlocks` / `updateCanvasGraph` to accept optional context and forward `x-hsk-*` headers.
+- UI: surface `HSK-403-SILENT-EDIT` save failures via `createDiagnostic` in `app/src/components/DocumentView.tsx` and `app/src/components/CanvasView.tsx`.
+- Tests: add targeted backend tests in `src/backend/handshake_core/src/api/workspaces.rs` for missing AI context -> 403 and valid AI context -> persisted metadata.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Followed packet TEST_PLAN commands (see `## EVIDENCE` for outputs).
+- Kept new SQLite parent-row UPDATEs as runtime `sqlx::query(...).bind(...)` to avoid `SQLX_OFFLINE` query-macro metadata requirements.
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- Spec Target Resolved: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.112.md
+- Operator: ilja
+
+- **Target File**: `app/src/components/CanvasView.tsx`
+- **Start**: 8
+- **End**: 952
+- **Line Delta**: 14
+- **Pre-SHA1**: `651c81fba4e4d4841cd6fa7754b72ea1a0d77c6d`
+- **Post-SHA1**: `65bd0ba432f00018050862f9301a1d74a699a964`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/components/DocumentView.tsx`
+- **Start**: 9
+- **End**: 146
+- **Line Delta**: 16
+- **Pre-SHA1**: `c85bd153c5ed336f4a14ebaccc2c54c94e09050a`
+- **Post-SHA1**: `654169a94269ddfc4e890a38c3fac0bf32badb82`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/lib/api.ts`
+- **Start**: 6
+- **End**: 417
+- **Line Delta**: 28
+- **Pre-SHA1**: `d83e63ea14721b7013620dfe0350b3370db9134d`
+- **Post-SHA1**: `b84e88acc12f7ca198925b16c55b234a0541ca9a`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/api/canvases.rs`
+- **Start**: 3
+- **End**: 238
+- **Line Delta**: 80
+- **Pre-SHA1**: `db28d0d90f0d1c1bed64b9ae222669b19b74d0da`
+- **Post-SHA1**: `94aaa26348bb7c49fc9df920129cb6dfc9b5a5e7`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/api/workspaces.rs`
+- **Start**: 3
+- **End**: 619
+- **Line Delta**: 314
+- **Pre-SHA1**: `31e951450c1ebceda3d27bc068e99150399fbb63`
+- **Post-SHA1**: `08029f76c3e5fea6f38137e9e1192e6810b8dd35`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Start**: 713
+- **End**: 1049
+- **Line Delta**: 70
+- **Pre-SHA1**: `58925914acaedf65f51ac7ad57ec5ccc537bde34`
+- **Post-SHA1**: `e96e79bbeda0c49d4f80279d852c67bdc4e077c2`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/storage/sqlite.rs`
+- **Start**: 779
+- **End**: 1213
+- **Line Delta**: 70
+- **Pre-SHA1**: `ce22857f61a116397666d8e6792a6770d3d2b3c2`
+- **Post-SHA1**: `52cc689c18200dcf93ae23a08c6fb2f8a5edad95`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 
 ## STATUS_HANDOFF
-- (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
+- Current WP_STATUS: Implementation complete; ready for Validator validation.
 - What changed in this update:
+  - Editor write paths now pass header-derived `WriteContext` (HUMAN/AI/SYSTEM) into storage.
+  - Deterministic rejection for AI writes missing/invalid context via `HSK-403-SILENT-EDIT` (API + UI diagnostics).
+  - Parent entities (documents/canvases) now receive `MutationMetadata` updates on editor-triggered persistence.
 - Next step / handoff hint:
+  - Validator: review using `## VALIDATION` manifest + `## EVIDENCE` outputs; confirm DONE_MEANS.
 
 ## EVIDENCE
-- (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+- Command: just pre-work WP-1-Editor-Hardening-v2
+  Exit code: 0
+
+- Command: rg -n "WriteContext::human\\(None\\)" src/backend/handshake_core/src/api
+  Output: (no matches)
+
+- Command: pnpm -C app run lint
+  Exit code: 0
+
+- Command: pnpm -C app test
+  Exit code: 0
+  Summary: Test Files: 5; Tests: 8
+
+- Command: cargo test --manifest-path src/backend/handshake_core/Cargo.toml
+  Exit code: 0
+
+- Command: just cargo-clean
+  Exit code: 0
+
+- Command: just post-work WP-1-Editor-Hardening-v2
+  Exit code: 0
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)

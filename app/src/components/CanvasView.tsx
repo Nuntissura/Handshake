@@ -5,6 +5,7 @@ import {
   CanvasNode,
   CanvasNodeInput,
   CanvasWithGraph,
+  createDiagnostic,
   getCanvas,
   deleteCanvas,
   updateCanvasGraph,
@@ -113,8 +114,22 @@ export function CanvasView({ canvasId, onDeleted }: Props) {
       setLastSavedAt(new Date().toLocaleTimeString());
       logEvent({ type: "canvas-save", targetId: canvasId, result: "ok" });
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to save canvas");
+      const message = err instanceof Error ? err.message : "Failed to save canvas";
+      setSaveError(message);
       logEvent({ type: "canvas-save", targetId: canvasId, result: "error", message: String(err) });
+      if (message.includes("HSK-403-SILENT-EDIT")) {
+        void createDiagnostic({
+          title: "HSK-403-SILENT-EDIT Canvas write blocked",
+          message,
+          severity: "error",
+          source: "system",
+          surface: "system",
+          code: "HSK-403-SILENT-EDIT",
+          wsid: canvas.workspace_id,
+          actor: "system",
+          link_confidence: "unlinked",
+        }).catch(() => {});
+      }
     } finally {
       setIsSaving(false);
     }
@@ -935,4 +950,3 @@ function isNotFound(err: unknown): boolean {
   const message = err instanceof Error ? err.message : String(err);
   return message.toLowerCase().includes("not_found") || message.includes("404");
 }
-

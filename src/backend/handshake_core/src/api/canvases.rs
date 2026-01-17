@@ -1,11 +1,12 @@
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     routing::{get, post},
     Json, Router,
 };
 use serde::Deserialize;
 use serde_json::Value;
+use uuid::Uuid;
 
 use crate::{
     models::{
@@ -14,7 +15,7 @@ use crate::{
     },
     storage::{
         CanvasEdge, CanvasGraph, CanvasNode, NewCanvas, NewCanvasEdge, NewCanvasNode, StorageError,
-        WriteContext,
+        WriteActorKind, WriteContext,
     },
     AppState,
 };
@@ -32,6 +33,76 @@ pub fn routes(state: AppState) -> Router {
                 .delete(delete_canvas),
         )
         .with_state(state)
+}
+
+const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
+const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
+const HSK_HEADER_JOB_ID: &str = "x-hsk-job-id";
+const HSK_HEADER_WORKFLOW_ID: &str = "x-hsk-workflow-id";
+
+fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
+    headers
+        .get(name)
+        .and_then(|value| value.to_str().ok())
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+}
+
+fn parse_actor_kind(raw: Option<&str>) -> Result<WriteActorKind, StorageError> {
+    let Some(value) = raw else {
+        return Ok(WriteActorKind::Human);
+    };
+
+    let normalized = value.trim().to_ascii_uppercase();
+    match normalized.as_str() {
+        "HUMAN" => Ok(WriteActorKind::Human),
+        "AI" => Ok(WriteActorKind::Ai),
+        "SYSTEM" => Ok(WriteActorKind::System),
+        _ => Err(StorageError::Validation("invalid_actor_kind")),
+    }
+}
+
+fn parse_uuid(raw: Option<&str>) -> Option<Uuid> {
+    raw.and_then(|value| Uuid::parse_str(value.trim()).ok())
+}
+
+async fn write_context_from_headers(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<WriteContext, StorageError> {
+    let actor_kind = parse_actor_kind(header_str(headers, HSK_HEADER_ACTOR_KIND))?;
+    let actor_id = header_str(headers, HSK_HEADER_ACTOR_ID).map(ToOwned::to_owned);
+
+    match actor_kind {
+        WriteActorKind::Human => Ok(WriteContext::human(actor_id)),
+        WriteActorKind::System => Ok(WriteContext::system(actor_id)),
+        WriteActorKind::Ai => {
+            let job_id = parse_uuid(header_str(headers, HSK_HEADER_JOB_ID));
+            let workflow_id = parse_uuid(header_str(headers, HSK_HEADER_WORKFLOW_ID));
+
+            if job_id.is_none() || workflow_id.is_none() {
+                return Ok(WriteContext::ai(actor_id, job_id, workflow_id));
+            }
+
+            let job_id = job_id.expect("checked above");
+            let workflow_id = workflow_id.expect("checked above");
+
+            let job = state.storage.get_ai_job(&job_id.to_string()).await;
+            match job {
+                Ok(job) => {
+                    if job.workflow_run_id != Some(workflow_id) {
+                        return Err(StorageError::Guard("HSK-403-SILENT-EDIT"));
+                    }
+                }
+                Err(StorageError::NotFound(_)) => {
+                    return Err(StorageError::Guard("HSK-403-SILENT-EDIT"));
+                }
+                Err(err) => return Err(err),
+            }
+
+            Ok(WriteContext::ai(actor_id, Some(job_id), Some(workflow_id)))
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -60,8 +131,11 @@ struct IncomingCanvasEdge {
 async fn delete_canvas(
     State(state): State<AppState>,
     Path(canvas_id): Path<String>,
+    headers: HeaderMap,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let ctx = WriteContext::human(None);
+    let ctx = write_context_from_headers(&state, &headers)
+        .await
+        .map_err(map_storage_error)?;
     state
         .storage
         .delete_canvas(&ctx, &canvas_id)
@@ -76,10 +150,13 @@ async fn delete_canvas(
 async fn create_canvas(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: HeaderMap,
     Json(payload): Json<CreateCanvasRequest>,
 ) -> Result<(StatusCode, Json<CanvasResponse>), (StatusCode, Json<ErrorResponse>)> {
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = WriteContext::human(None);
+    let ctx = write_context_from_headers(&state, &headers)
+        .await
+        .map_err(map_storage_error)?;
 
     let canvas = state
         .storage
@@ -153,9 +230,12 @@ async fn get_canvas(
 async fn update_canvas_graph(
     State(state): State<AppState>,
     Path(canvas_id): Path<String>,
+    headers: HeaderMap,
     Json(payload): Json<UpdateCanvasGraphRequest>,
 ) -> Result<Json<CanvasWithGraphResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let ctx = WriteContext::human(None);
+    let ctx = write_context_from_headers(&state, &headers)
+        .await
+        .map_err(map_storage_error)?;
     let graph = state
         .storage
         .update_canvas_graph(

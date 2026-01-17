@@ -710,6 +710,40 @@ impl super::Database for PostgresDatabase {
             inserted.push(map_block(row)?);
         }
 
+        let doc_metadata = self.guard.validate_write(ctx, document_id).await?;
+        let doc_actor_kind = doc_metadata.actor_kind.as_str();
+        let doc_actor_id = doc_metadata.actor_id.clone();
+        let doc_job_id = doc_metadata.job_id.map(|v| v.to_string());
+        let doc_workflow_id = doc_metadata.workflow_id.map(|v| v.to_string());
+        let doc_edit_event_id = doc_metadata.edit_event_id.to_string();
+        let doc_updated_at = doc_metadata.timestamp;
+
+        let updated = sqlx::query(
+            r#"
+            UPDATE documents
+            SET last_actor_kind = $1,
+                last_actor_id = $2,
+                last_job_id = $3,
+                last_workflow_id = $4,
+                edit_event_id = $5,
+                updated_at = $6
+            WHERE id = $7
+            "#,
+        )
+        .bind(doc_actor_kind)
+        .bind(doc_actor_id)
+        .bind(doc_job_id)
+        .bind(doc_workflow_id)
+        .bind(doc_edit_event_id)
+        .bind(doc_updated_at)
+        .bind(document_id)
+        .execute(&mut *tx)
+        .await?;
+
+        if updated.rows_affected() == 0 {
+            return Err(StorageError::NotFound("document"));
+        }
+
         tx.commit().await?;
         Ok(inserted)
     }
@@ -839,7 +873,7 @@ impl super::Database for PostgresDatabase {
         nodes: Vec<NewCanvasNode>,
         edges: Vec<NewCanvasEdge>,
     ) -> StorageResult<CanvasGraph> {
-        self.guard.validate_write(ctx, canvas_id).await?;
+        let canvas_metadata = self.guard.validate_write(ctx, canvas_id).await?;
         let mut tx = self.pool.begin().await?;
 
         let canvas_row = sqlx::query(
@@ -973,10 +1007,46 @@ impl super::Database for PostgresDatabase {
             inserted_edges.push(map_canvas_edge(row));
         }
 
+        let canvas_actor_kind = canvas_metadata.actor_kind.as_str();
+        let canvas_actor_id = canvas_metadata.actor_id.clone();
+        let canvas_job_id = canvas_metadata.job_id.map(|v| v.to_string());
+        let canvas_workflow_id = canvas_metadata.workflow_id.map(|v| v.to_string());
+        let canvas_edit_event_id = canvas_metadata.edit_event_id.to_string();
+        let canvas_updated_at = canvas_metadata.timestamp;
+
+        let updated = sqlx::query(
+            r#"
+            UPDATE canvases
+            SET last_actor_kind = $1,
+                last_actor_id = $2,
+                last_job_id = $3,
+                last_workflow_id = $4,
+                edit_event_id = $5,
+                updated_at = $6
+            WHERE id = $7
+            "#,
+        )
+        .bind(canvas_actor_kind)
+        .bind(canvas_actor_id)
+        .bind(canvas_job_id)
+        .bind(canvas_workflow_id)
+        .bind(canvas_edit_event_id)
+        .bind(canvas_updated_at)
+        .bind(canvas_id)
+        .execute(&mut *tx)
+        .await?;
+
+        if updated.rows_affected() == 0 {
+            return Err(StorageError::NotFound("canvas"));
+        }
+
         tx.commit().await?;
 
+        let mut canvas = map_canvas(canvas_row);
+        canvas.updated_at = canvas_updated_at;
+
         Ok(CanvasGraph {
-            canvas: map_canvas(canvas_row),
+            canvas,
             nodes: inserted_nodes,
             edges: inserted_edges,
         })
