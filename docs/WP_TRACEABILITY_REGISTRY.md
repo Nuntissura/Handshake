@@ -72,7 +72,7 @@ Format:
 | WP-1-Dev-Experience-ADRs | docs/task_packets/stubs/WP-1-Dev-Experience-ADRs.md | Stub Backlog (Not Activated): WP-1-Dev-Experience-ADRs | stub |
 | WP-1-Distillation | docs/task_packets/stubs/WP-1-Distillation-v2.md | Stub Backlog (Not Activated): WP-1-Distillation-v2 | stub (remediation); supersedes: WP-1-Distillation |
 | WP-1-Dual-Backend-Tests | docs/task_packets/WP-1-Dual-Backend-Tests-v2.md | Done: WP-1-Dual-Backend-Tests-v2 | active=WP-1-Dual-Backend-Tests-v2; supersedes: WP-1-Dual-Backend-Tests |
-| WP-1-Editor-Hardening | docs/task_packets/WP-1-Editor-Hardening-v2.md | In Progress: WP-1-Editor-Hardening-v2 | active=WP-1-Editor-Hardening-v2; activated from stub docs/task_packets/stubs/WP-1-Editor-Hardening-v2.md; supersedes: WP-1-Editor-Hardening |
+| WP-1-Editor-Hardening | docs/task_packets/WP-1-Editor-Hardening-v2.md | Done: WP-1-Editor-Hardening-v2 | active=WP-1-Editor-Hardening-v2; activated from stub docs/task_packets/stubs/WP-1-Editor-Hardening-v2.md; supersedes: WP-1-Editor-Hardening |
 | WP-1-Flight-Recorder | docs/task_packets/WP-1-Flight-Recorder-v3.md | Done: WP-1-Flight-Recorder-v3 | active=WP-1-Flight-Recorder-v3; supersedes: WP-1-Flight-Recorder, WP-1-Flight-Recorder-v2 |
 | WP-1-Flight-Recorder-UI | docs/task_packets/stubs/WP-1-Flight-Recorder-UI-v3.md | Stub Backlog (Not Activated): WP-1-Flight-Recorder-UI-v3 | stub (remediation); supersedes: WP-1-Flight-Recorder-UI-v2, WP-1-Flight-Recorder-UI |
 | WP-1-Gate-Check-Tool | docs/task_packets/WP-1-Gate-Check-Tool-v2.md | Done: WP-1-Gate-Check-Tool-v2 | active=WP-1-Gate-Check-Tool-v2; supersedes: WP-1-Gate-Check-Tool |
