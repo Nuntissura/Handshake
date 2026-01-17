@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-01-15
+**Updated:** 2026-01-17
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja170120260225 | Orchestrator | 2026-01-17 02:25 | Spec update: v02.113 governance workflow hardening (per-WP validator gates + activation traceability) | v02.113 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.113`. |
 | ilja160120262149 | Orchestrator | 2026-01-16 21:49 | Task packet creation: WP-1-Governance-Kernel-Conformance-v1 | v02.112 | Approved after Technical Refinement (see docs/refinements/WP-1-Governance-Kernel-Conformance-v1.md ). |
 | ilja160120260327 | Orchestrator | 2026-01-16 03:27 | Task packet creation: WP-1-Governance-Template-Volume-v1 | v02.112 | Approved after Technical Refinement (see docs/refinements/WP-1-Governance-Template-Volume-v1.md ). |
 | ilja150120260254 | Orchestrator | 2026-01-15 02:54 | Task packet creation: WP-1-Role-Mailbox-v1 | v02.112 | Approved after Technical Refinement (see docs/refinements/WP-1-Role-Mailbox-v1.md ). |

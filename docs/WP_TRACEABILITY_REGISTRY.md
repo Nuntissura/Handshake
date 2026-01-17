@@ -80,6 +80,7 @@ Format:
 | WP-1-Governance-Hooks | docs/task_packets/stubs/WP-1-Governance-Hooks-v2.md | Stub Backlog (Not Activated): WP-1-Governance-Hooks-v2 | stub (remediation); supersedes: WP-1-Governance-Hooks |
 | WP-1-Governance-Kernel-Conformance | docs/task_packets/WP-1-Governance-Kernel-Conformance-v1.md | In Progress: WP-1-Governance-Kernel-Conformance-v1 | active=WP-1-Governance-Kernel-Conformance-v1; activated from stub docs/task_packets/stubs/WP-1-Governance-Kernel-Conformance-v1.md |
 | WP-1-Governance-Template-Volume | docs/task_packets/WP-1-Governance-Template-Volume-v1.md | In Progress: WP-1-Governance-Template-Volume-v1 | active=WP-1-Governance-Template-Volume-v1; activated from stub docs/task_packets/stubs/WP-1-Governance-Template-Volume-v1.md |
+| WP-1-Governance-Workflow-Mirror | docs/task_packets/stubs/WP-1-Governance-Workflow-Mirror-v1.md | Stub Backlog (Not Activated): WP-1-Governance-Workflow-Mirror-v1 | stub (new); mirror repo governance workflow in Handshake runtime per v02.113 |
 | WP-1-LLM-Core | docs/task_packets/WP-1-LLM-Core-v3.md | Done: WP-1-LLM-Core-v3 | active=WP-1-LLM-Core-v3; supersedes: WP-1-LLM-Core |
 | WP-1-MCP-End-to-End | docs/task_packets/stubs/WP-1-MCP-End-to-End-v2.md | Stub Backlog (Not Activated): WP-1-MCP-End-to-End-v2 | stub (remediation); supersedes: WP-1-MCP-End-to-End |
 | WP-1-MCP-Skeleton-Gate | docs/task_packets/stubs/WP-1-MCP-Skeleton-Gate-v2.md | Stub Backlog (Not Activated): WP-1-MCP-Skeleton-Gate-v2 | stub (remediation); supersedes: WP-1-MCP-Skeleton-Gate |
