@@ -112,6 +112,7 @@ await import("../spec-current-check.mjs");
 // 5) Task board guard: keep Done/Superseded minimal and machine-checkable.
 await import("./task-board-check.mjs");
 await import("./task-packet-claim-check.mjs");
+await import("./wp-activation-traceability-check.mjs");
 await import("./worktree-concurrency-check.mjs");
 
 console.log("codex-check ok");

@@ -127,7 +127,8 @@ Why: creates a forced alignment pause and prevents autonomous drift.
 
 ### 3.8 Gate state logs (machine-readable)
 - `docs/ORCHESTRATOR_GATES.json`: log of REFINE/SIGN/PREPARE events.
-- `docs/VALIDATOR_GATES.json`: log of validation gate sequence (present -> acknowledge -> append -> commit).
+- `docs/validator_gates/{WP_ID}.json`: log of validation gate sequence (present -> acknowledge -> append -> commit).
+- (Legacy) `docs/VALIDATOR_GATES.json`: read-only archive of older validation sessions.
 
 Why: provides deterministic, machine-checkable proof that the workflow was followed.
 
@@ -205,7 +206,7 @@ Validator uses both:
 - Manual evidence audit (open files, map to file:line, re-run tests as needed)
 - Mechanical validator scripts (scan, traceability, error-codes, DAL audit, git hygiene, etc.)
 
-Additionally, Validator uses a mechanical gate sequence (writes to `docs/VALIDATOR_GATES.json`):
+Additionally, Validator uses a mechanical gate sequence (writes per WP to `docs/validator_gates/{WP_ID}.json`):
 1. `just validator-gate-present {WP_ID} {PASS|FAIL}`
 2. (After user acknowledgment) `just validator-gate-acknowledge {WP_ID}`
 3. Append report to packet: `just validator-gate-append {WP_ID}`
@@ -230,7 +231,7 @@ This table is intentionally explicit because these commands are the "mechanical 
 | `just cor701-sha <file>` | `scripts/validation/cor701-sha.mjs` | git blobs (HEAD/INDEX) + worktree file | none |
 | `just task-board-check` | `scripts/validation/task-board-check.mjs` | `docs/TASK_BOARD.md` | none |
 | `just task-packet-claim-check` | `scripts/validation/task-packet-claim-check.mjs` | `docs/task_packets/*.md` | none |
-| `just validator-gate-*` | `scripts/validation/validator_gates.mjs` | `docs/VALIDATOR_GATES.json`, (append gate checks packet exists) | `docs/VALIDATOR_GATES.json` |
+| `just validator-gate-*` | `scripts/validation/validator_gates.mjs` | `docs/validator_gates/{WP_ID}.json` (or legacy `docs/VALIDATOR_GATES.json` for older sessions), (append gate checks packet exists) | `docs/validator_gates/{WP_ID}.json` |
 
 Momentum/anti-bypass notes (current implementation):
 - Orchestrator signature recording blocks if signature is recorded too soon after refinement (anti-momentum timer) and if USER_APPROVAL_EVIDENCE is missing/mismatched.
@@ -468,7 +469,8 @@ Generated from repo file listing; grouped by directory. This is the "no file lef
 - `docs/START_HERE.md`
 - `docs/TASK_BOARD.md`
 - `docs/TASK_PACKET_TEMPLATE.md` (compat shim; canonical under `docs/templates/`)
-- `docs/VALIDATOR_GATES.json`
+- `docs/validator_gates/{WP_ID}.json`
+- (Legacy) `docs/VALIDATOR_GATES.json`
 - `docs/VALIDATOR_PROTOCOL.md`
 - `docs/WP_TRACEABILITY_REGISTRY.md`
 - `docs/workflow_technical_paper.md`

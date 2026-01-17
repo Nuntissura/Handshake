@@ -102,6 +102,7 @@ Format:
 | WP-1-Response-Behavior-ANS-001 | docs/task_packets/stubs/WP-1-Response-Behavior-ANS-001.md | Stub Backlog (Not Activated): WP-1-Response-Behavior-ANS-001 | stub |
 | WP-1-Security-Gates | docs/task_packets/WP-1-Security-Gates-v3.md | Done: WP-1-Security-Gates-v3 | active=WP-1-Security-Gates-v3; supersedes: WP-1-Security-Gates, WP-1-Security-Gates-v2 |
 | WP-1-Semantic-Catalog | docs/task_packets/stubs/WP-1-Semantic-Catalog-v2.md | Stub Backlog (Not Activated): WP-1-Semantic-Catalog-v2 | stub (remediation); supersedes: WP-1-Semantic-Catalog |
+| WP-1-Spec-Enrichment-LLM-Core | docs/task_packets/WP-1-Spec-Enrichment-LLM-Core-v1.md | Ready for Dev: WP-1-Spec-Enrichment-LLM-Core-v1 | active=WP-1-Spec-Enrichment-LLM-Core-v1 |
 | WP-1-Spec-Router-Session-Log | docs/task_packets/stubs/WP-1-Spec-Router-Session-Log.md | Stub Backlog (Not Activated): WP-1-Spec-Router-Session-Log | stub |
 | WP-1-Storage-Abstraction-Layer | docs/task_packets/WP-1-Storage-Abstraction-Layer-v3.md | Done: WP-1-Storage-Abstraction-Layer-v3 | active=WP-1-Storage-Abstraction-Layer-v3; supersedes: WP-1-Storage-Abstraction-Layer, WP-1-Storage-Abstraction-Layer-v2 |
 | WP-1-Storage-Foundation | docs/task_packets/WP-1-Storage-Foundation-v3.md | Done: WP-1-Storage-Foundation-v3 | active=WP-1-Storage-Foundation-v3; supersedes: WP-1-Storage-Foundation-20251228 |

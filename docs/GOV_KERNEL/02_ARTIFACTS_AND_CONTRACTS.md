@@ -41,7 +41,8 @@ This kernel assumes these stable locations:
   - `docs/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet)
   - `docs/SIGNATURE_AUDIT.md` (append-only signature log)
   - `docs/ORCHESTRATOR_PROTOCOL.md`, `docs/CODER_PROTOCOL.md`, `docs/VALIDATOR_PROTOCOL.md`
-  - `docs/ORCHESTRATOR_GATES.json`, `docs/VALIDATOR_GATES.json` (gate state)
+  - `docs/ORCHESTRATOR_GATES.json` (Orchestrator gate state)
+  - `docs/validator_gates/{WP_ID}.json` (Validator gate state; legacy archive: `docs/VALIDATOR_GATES.json`)
   - `docs/templates/` (canonical templates)
   - `docs/refinements/` (approved refinements)
   - `docs/task_packets/` (activated packets)
@@ -166,12 +167,14 @@ Contract:
 Failure modes:
 - Gate scripts fail due to format drift; new models produce incompatible packets/refinements.
 
-### C9) Gate state (`docs/ORCHESTRATOR_GATES.json`, `docs/VALIDATOR_GATES.json`)
+### C9) Gate state (`docs/ORCHESTRATOR_GATES.json`, `docs/validator_gates/{WP_ID}.json`)
 Purpose:
 - Stores the state machine for role-specific gates (refine/sign/prepare; validate/acknowledge/commit, etc.).
 
 Contract:
 - JSON is treated as authoritative gate state.
+- Validator gate state MUST be stored per WP to avoid cross-WP merge conflicts (`docs/validator_gates/{WP_ID}.json`).
+- (Legacy) `docs/VALIDATOR_GATES.json` is treated as a read-only archive for older sessions.
 - Must be append-only in effect: state transitions are logged with timestamps and immutable evidence links.
 
 Failure modes:
@@ -187,4 +190,3 @@ Contract:
 
 Failure modes:
 - Work can be started without real Operator authorization; approvals can be disputed.
-

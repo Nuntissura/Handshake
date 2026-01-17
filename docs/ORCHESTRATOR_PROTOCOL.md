@@ -307,7 +307,9 @@ A **Work Packet Stub** is an optional planning artifact used to track Roadmap/Ma
 - Stubs do not require USER_SIGNATURE, a refinement file, or deterministic gates.
 - Stub template: `docs/templates/TASK_PACKET_STUB_TEMPLATE.md`
 
-Activation rule (mandatory): Before any coding starts, activate the stub by following the normal workflow (in-chat Technical Refinement Block -> USER_SIGNATURE -> `docs/refinements/WP-*.md` -> `just create-task-packet WP-*` -> move TASK_BOARD entry out of STUB).
+Activation rule (mandatory): Before any coding starts, activate the stub by following the normal workflow (in-chat Technical Refinement Block -> USER_SIGNATURE -> `docs/refinements/WP-*.md` -> `just create-task-packet WP-*` -> update `docs/WP_TRACEABILITY_REGISTRY.md` Base→Active mapping -> move TASK_BOARD entry out of STUB).
+
+Mechanical enforcement note: `just codex-check` includes a WP activation traceability guard and will BLOCK commits when an activated packet exists but the registry/Task Board still treats it as a stub.
 
 **Signature format:** `{username}{DDMMYYYYHHMM}`
 

@@ -349,10 +349,13 @@ if (useStaged && workingFiles.length > stagedFiles.length) {
     `docs/refinements/${WP_ID}.md`,
   ].filter(Boolean));
 
+  const isAllowlistedUnstaged = (p) =>
+    allowlistedUnstaged.has(p) || p.startsWith('docs/validator_gates/');
+
   const hasRelevantUnstaged = workingFiles
     .map((p) => p.replace(/\\/g, '/'))
     .filter((p) => !stagedSet.has(p))
-    .some((p) => !allowlistedUnstaged.has(p));
+    .some((p) => !isAllowlistedUnstaged(p));
 
   if (hasRelevantUnstaged) {
     warnings.push('Working tree has unstaged changes; post-work validation uses STAGED changes only.');
