@@ -79,7 +79,7 @@ codex-check-test:
 close-wp-branch wp-id remote="":
 	node scripts/close-wp-branch.mjs {{wp-id}} {{remote}}
 
-# === Workflow Enforcement Commands (Codex v0.8) ===
+# === Workflow Enforcement Commands (see docs/SPEC_CURRENT.md) ===
 
 # Record a technical refinement for a work packet [CX-585A]
 record-refinement wp-id detail="":

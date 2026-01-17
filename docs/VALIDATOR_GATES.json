@@ -259,6 +259,32 @@
         }
       ],
       "completed": "2026-01-16T22:03:49.336Z"
+    },
+    "WP-1-Governance-Kernel-Conformance-v1": {
+      "wpId": "WP-1-Governance-Kernel-Conformance-v1",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-01-16T23:35:29.722Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-16T23:35:29.723Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-16T23:43:11.067Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-16T23:43:17.542Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-16T23:46:27.897Z"
+        }
+      ],
+      "completed": "2026-01-16T23:46:27.898Z"
     }
   },
   "archived_sessions": [

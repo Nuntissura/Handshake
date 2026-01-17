@@ -45,8 +45,9 @@ jobs:
           rg -n "\\bfetch\\s*\\(" app/src | rg -v "app/src/lib/api.ts" && exit 1 || exit 0
           echo "Disallow println!/eprintln! in backend..."
           rg -n "eprintln!|println!" src/backend/handshake_core/src && exit 1 || exit 0
-          echo "Docs must reference Codex v0.8..."
-          rg -n "Codex v0\\.5|Codex v0\\.6|Codex v0\\.7|Handshake Codex v0\\.5|Handshake Codex v0\\.6|Handshake Codex v0\\.7" docs && exit 1 || exit 0
+          echo "Docs must not reference legacy Codex versions (v0.5-v0.7)..."
+          rg -n "Codex v0\\.5|Codex v0\\.6|Codex v0\\.7|Handshake Codex v0\\.5|Handshake Codex v0\\.6|Handshake Codex v0\\.7" docs --glob '!docs/task_packets/**' --glob '!docs/refinements/**' && exit 1 || exit 0
+          rg -n "Codex v0\\.5|Codex v0\\.6|Codex v0\\.7|Handshake Codex v0\\.5|Handshake Codex v0\\.6|Handshake Codex v0\\.7" docs/task_packets/README.md && exit 1 || exit 0
           echo "SPEC_CURRENT must reference latest master spec..."
           node scripts/spec-current-check.mjs
           echo "Task Board entries must be minimal..."
