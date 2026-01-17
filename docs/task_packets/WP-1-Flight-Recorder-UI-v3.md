@@ -8,9 +8,9 @@
 - REQUESTOR: ilja
 - AGENT_ID: orchestrator-codex-cli
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: MEDIUM
 - USER_SIGNATURE: ilja170120262341
 - SUPERSEDES: WP-1-Flight-Recorder-UI-v2 (protocol drift; v3 is protocol-clean remediation)
@@ -127,8 +127,21 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - `FlightRecorderUiFilters` (draft inputs; empty string = unset): `jobId`, `traceId`, `eventId`, `wsid`, `actor`, `eventType`, `from`, `to`.
+  - `AppliedFilters` (polling contract): snapshot of the last submitted filters; polling always uses this snapshot (prevents stale-closure polling bug).
+  - `emitNavFailure(action, reason, context)` (best-effort): uses `createDiagnostic()` with `code="VAL-NAV-001"` and includes `wsid`, `job_id`, and `fr_event_ids` (when applicable).
+  - `redactJsonValue(value)` (safe-by-default): truncates long strings; redacts keys matching `(token|secret|password|api[_-]?key)`; caps depth/array sizes.
+  - `focusEvent(event_id)` (deterministic): sets selected row and calls `scrollIntoView()`, falling back to filtering by `event_id` if needed.
+  - Deep-link representation (within Timeline UI scope): a copyable link target string generated from current filters (no App-level routing changes in scope).
 - Open questions:
+  - `diagnostic_id` discovery: event payload key(s) to read (plan: support `diagnostic_id` and `diagnosticId`; always provide copyable target even if no navigation).
+  - `wsids` is an array in `FlightEvent`; Timeline filter input is a single `wsid` string (plan: quick-link uses first wsid; also render all wsids as clickable chips).
+  - Poll cadence: keep 5s polling but avoid emitting repeated VAL-NAV-001 diagnostics on each poll (plan: emit at most once per filter-submit when zero results and an id filter is set).
 - Notes:
+  - IN_SCOPE limitation: cross-surface navigation wiring in `app/src/App.tsx` is out-of-scope; deep links will be implemented as Timeline filters/focus plus copyable targets (allowed by DONE_MEANS).
+  - Security events: add no new secret-leak paths; payload rendering is redacted-by-default, with explicit opt-in for raw view.
+  - Styling: `app/src/App.css` currently lacks `.flight-recorder__*` styles; this WP will add them and ensure security violations are visually prominent.
+  - Worktree hygiene: the worktree currently reports an unrelated dirty file (`docs/refinements/WP-1-LLM-Core-v3.md`) due to historical mixed newline bytes; resolve via a separate normalization commit or an explicit validator waiver before implementation/hygiene gates.
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)
