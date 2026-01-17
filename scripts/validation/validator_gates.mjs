@@ -30,11 +30,14 @@ function stateFilePath(wpId) {
     return path.join(STATE_DIR, `${wpId}.json`);
 }
 
-function normalizeWpState(wpId, raw) {
+function normalizeState(raw) {
+    const validation_sessions =
+        raw?.validation_sessions && typeof raw.validation_sessions === 'object'
+            ? raw.validation_sessions
+            : {};
+
     return {
-        schema_version: 1,
-        wpId,
-        active_session: raw?.active_session || null,
+        validation_sessions,
         archived_sessions: Array.isArray(raw?.archived_sessions) ? raw.archived_sessions : [],
     };
 }
@@ -44,7 +47,8 @@ function loadWpState(wpId) {
 
     const perFile = stateFilePath(wpId);
     if (fs.existsSync(perFile)) {
-        return normalizeWpState(wpId, JSON.parse(fs.readFileSync(perFile, 'utf8')));
+        const raw = JSON.parse(fs.readFileSync(perFile, 'utf8'));
+        return normalizeState(raw);
     }
 
     // Back-compat: if a legacy global ledger exists, read state for this WP_ID only.
@@ -55,21 +59,29 @@ function loadWpState(wpId) {
             ? legacy.archived_sessions.filter((s) => s?.wpId === wpId)
             : [];
 
-        if (session || archived.length > 0) {
-            return normalizeWpState(wpId, {
-                active_session: session,
-                archived_sessions: archived,
-            });
-        }
+        return normalizeState({
+            validation_sessions: session ? { [wpId]: session } : {},
+            archived_sessions: archived,
+        });
     }
 
-    return normalizeWpState(wpId, {});
+    return normalizeState({});
 }
 
 function saveWpState(wpId, state) {
     ensureStateDir();
     const perFile = stateFilePath(wpId);
-    const toWrite = normalizeWpState(wpId, state);
+
+    const session = state?.validation_sessions?.[wpId] || null;
+    const archived = Array.isArray(state?.archived_sessions)
+        ? state.archived_sessions.filter((s) => s?.wpId === wpId)
+        : [];
+
+    const toWrite = normalizeState({
+        validation_sessions: session ? { [wpId]: session } : {},
+        archived_sessions: archived,
+    });
+
     fs.writeFileSync(perFile, `${JSON.stringify(toWrite, null, 2)}\n`);
 }
 
@@ -85,13 +97,13 @@ function success(msg, details = []) {
 }
 
 function assertWpId(id) {
-    if (!id || !id.startsWith('WP-')) {
+    if (!id || !/^WP-[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id)) {
         fail('Expected WP_ID like WP-1-Feature-Name-v1');
     }
 }
 
-function getSession(state) {
-    return state.active_session || null;
+function getSession(state, wpId) {
+    return state?.validation_sessions?.[wpId] || null;
 }
 
 function checkMomentum(session, gateName) {
@@ -127,7 +139,7 @@ if (action === 'present-report') {
         fail('Verdict must be PASS or FAIL', [`Received: ${extraArg}`]);
     }
 
-    const existing = getSession(state);
+    const existing = getSession(state, wpId);
     if (existing && existing.status === 'COMMITTED') {
         fail(`${wpId} already has a committed validation session`, [
             'Create a new WP variant (e.g., WP-1-Feature-v2) for re-validation'
@@ -135,7 +147,7 @@ if (action === 'present-report') {
     }
 
     // Start new session or reset if re-presenting
-    state.active_session = {
+    state.validation_sessions[wpId] = {
         wpId,
         verdict,
         status: 'REPORT_PRESENTED',
@@ -164,7 +176,7 @@ if (action === 'acknowledge') {
     assertWpId(wpId);
 
     const state = loadWpState(wpId);
-    const session = getSession(state);
+    const session = getSession(state, wpId);
     if (!session) {
         fail(`No validation session for ${wpId}`, [
             `Run: just validator-gate-present ${wpId} {PASS|FAIL}`
@@ -201,7 +213,7 @@ if (action === 'append') {
     assertWpId(wpId);
 
     const state = loadWpState(wpId);
-    const session = getSession(state);
+    const session = getSession(state, wpId);
     if (!session) {
         fail(`No validation session for ${wpId}`);
     }
@@ -251,7 +263,7 @@ if (action === 'commit') {
     assertWpId(wpId);
 
     const state = loadWpState(wpId);
-    const session = getSession(state);
+    const session = getSession(state, wpId);
     if (!session) {
         fail(`No validation session for ${wpId}`);
     }
@@ -295,7 +307,7 @@ if (action === 'status') {
     assertWpId(wpId);
 
     const state = loadWpState(wpId);
-    const session = getSession(state);
+    const session = getSession(state, wpId);
     if (!session) {
         console.log(`[VALIDATOR GATE STATUS] No session for ${wpId}`);
         console.log('  Gates: (none)');
@@ -336,7 +348,7 @@ if (action === 'reset') {
     }
 
     const state = loadWpState(wpId);
-    const session = getSession(state);
+    const session = getSession(state, wpId);
     if (!session) {
         console.log(`[VALIDATOR GATE] No session to reset for ${wpId}`);
         process.exit(0);
@@ -349,7 +361,7 @@ if (action === 'reset') {
         archive_reason: 'manual_reset'
     });
 
-    state.active_session = null;
+    delete state.validation_sessions[wpId];
     saveWpState(wpId, state);
 
     success(`Session reset for ${wpId}`, [
