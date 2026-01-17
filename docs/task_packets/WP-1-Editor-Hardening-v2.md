@@ -10,7 +10,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja160120262314
 
@@ -346,3 +346,61 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - WP-1-Editor-Hardening-v2 (2026-01-17)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: `docs/task_packets/WP-1-Editor-Hardening-v2.md`
+- Spec Target: `docs/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.112.md` (anchors: 2.2.0, 2.9.3)
+- Governance Reference: `Handshake Codex v1.4.md` (per `docs/SPEC_CURRENT.md`)
+- Worktree/Branch: `D:\Projects\LLM projects\wt-WP-1-Editor-Hardening-v2` / `feat/WP-1-Editor-Hardening-v2`
+- Commit validated: `26e0faaf03d21fd97a2473971766e31b84f2b0d1`
+
+Files Checked:
+- `app/src/lib/api.ts`
+- `app/src/components/DocumentView.tsx`
+- `app/src/components/CanvasView.tsx`
+- `src/backend/handshake_core/src/api/workspaces.rs`
+- `src/backend/handshake_core/src/api/canvases.rs`
+- `src/backend/handshake_core/src/storage/mod.rs`
+- `src/backend/handshake_core/src/storage/sqlite.rs`
+- `src/backend/handshake_core/src/storage/postgres.rs`
+
+Findings (requirements -> evidence):
+- Tool integration principle (single workspace graph; no shadow writes) is preserved: editor persistence continues to hit the same `/documents/:id/blocks` and `/canvases/:id` workspace entities; no new tool-specific schema introduced (Spec 2.2.0).
+- Traceability + silent edit block enforced at persistence boundary (Spec 2.9.3):
+  - Missing/invalid AI context results in deterministic guard failure `HSK-403-SILENT-EDIT` (guard logic: `src/backend/handshake_core/src/storage/mod.rs:720-724`; header parsing keeps AI kind: `src/backend/handshake_core/src/api/workspaces.rs:77-83`, `src/backend/handshake_core/src/api/canvases.rs:79-85`).
+  - Guard errors map to HTTP 403 + `{ "error": "HSK-403-SILENT-EDIT" }` (`src/backend/handshake_core/src/api/workspaces.rs:365-373`, `src/backend/handshake_core/src/api/canvases.rs:322-330`).
+  - Parent entities receive MutationMetadata updates for editor-triggered writes:
+    - Documents (SQLite): `src/backend/handshake_core/src/storage/sqlite.rs:779-815`
+    - Documents (Postgres): `src/backend/handshake_core/src/storage/postgres.rs:713-749`
+    - Canvases (SQLite): `src/backend/handshake_core/src/storage/sqlite.rs:1170-1204`
+    - Canvases (Postgres): `src/backend/handshake_core/src/storage/postgres.rs:1010-1037`
+- Frontend write-context plumbing exists (headers are forwarded on write calls):
+  - Header builder: `app/src/lib/api.ts:18-25`
+  - Document persistence forwards optional context: `app/src/lib/api.ts:396-406`
+  - Canvas persistence forwards optional context: `app/src/lib/api.ts:408-418`
+- UI surfaces the block with diagnostics on 403:
+  - Document editor: `app/src/components/DocumentView.tsx:133-145`
+  - Canvas editor: `app/src/components/CanvasView.tsx:120-131`
+- Targeted backend tests exist to guard the new behavior:
+  - Missing AI context -> 403: `src/backend/handshake_core/src/api/workspaces.rs:426-469`
+  - Valid AI context -> metadata persisted: `src/backend/handshake_core/src/api/workspaces.rs:471-618`
+
+Test Verification (validator-run spot checks):
+- `just pre-work WP-1-Editor-Hardening-v2` -> PASS
+- `pnpm -C app run lint` -> PASS
+- `pnpm -C app test` -> PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` -> PASS
+- `just codex-check` -> PASS
+
+Storage DAL Audit (CX-DBP-VAL-010..014):
+- No direct DB pool access was introduced in API handlers; queries remain in storage layer; `sqlx::query` usage in API is limited to `#[cfg(test)]` validation tests (`src/backend/handshake_core/src/api/workspaces.rs:571-615`).
+- Dual-backend readiness preserved: storage changes implemented in both SQLite and Postgres modules (see files checked above).
+
+REASON FOR PASS:
+- Editor write paths now propagate/derive `WriteContext` and enforce the "No Silent Edits" invariant deterministically at the storage boundary, with traceability metadata persisted and a regression test that fails if the enforcement is removed (Spec 2.2.0, 2.9.3).
+
+Closure Notes:
+- Task Board + traceability registry MUST be updated on `main` after merge: move `WP-1-Editor-Hardening-v2` to `## Done` as `[VALIDATED]` (packet status is now Done).
