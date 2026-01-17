@@ -10,7 +10,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: MEDIUM
 - USER_SIGNATURE: ilja160120262149
 
@@ -130,6 +130,8 @@ git revert <commit-sha>
   - scripts/validation/ci-traceability-check.mjs must fail if resolved codex file is missing (no v0.8 hardcode).
   - .github/workflows/ci.yml drift scan must exclude docs/task_packets/** and docs/refinements/**, but still scan docs/task_packets/README.md.
   - scripts/hooks/pre-commit messaging must use the resolver when available; on resolver failure, fall back to pointing at docs/SPEC_CURRENT.md.
+
+SKELETON APPROVED
 
 ## IMPLEMENTATION
 - Added a Governance Reference resolver sourced from docs/SPEC_CURRENT.md (scripts/validation/governance-reference.mjs).
