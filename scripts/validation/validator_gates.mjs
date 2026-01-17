@@ -16,18 +16,73 @@
 import fs from 'fs';
 import path from 'path';
 
-const STATE_FILE = 'docs/VALIDATOR_GATES.json';
+const LEGACY_STATE_FILE = 'docs/VALIDATOR_GATES.json';
+const STATE_DIR = path.join('docs', 'validator_gates');
 const MIN_GATE_INTERVAL_SECONDS = 5; // Minimum time between gates to prevent automation momentum
 
-function loadState() {
-    if (!fs.existsSync(STATE_FILE)) {
-        return { validation_sessions: {} };
+function ensureStateDir() {
+    if (!fs.existsSync(STATE_DIR)) {
+        fs.mkdirSync(STATE_DIR, { recursive: true });
     }
-    return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
 }
 
-function saveState(state) {
-    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+function stateFilePath(wpId) {
+    return path.join(STATE_DIR, `${wpId}.json`);
+}
+
+function normalizeState(raw) {
+    const validation_sessions =
+        raw?.validation_sessions && typeof raw.validation_sessions === 'object'
+            ? raw.validation_sessions
+            : {};
+
+    return {
+        validation_sessions,
+        archived_sessions: Array.isArray(raw?.archived_sessions) ? raw.archived_sessions : [],
+    };
+}
+
+function loadWpState(wpId) {
+    ensureStateDir();
+
+    const perFile = stateFilePath(wpId);
+    if (fs.existsSync(perFile)) {
+        const raw = JSON.parse(fs.readFileSync(perFile, 'utf8'));
+        return normalizeState(raw);
+    }
+
+    // Back-compat: if a legacy global ledger exists, read state for this WP_ID only.
+    if (fs.existsSync(LEGACY_STATE_FILE)) {
+        const legacy = JSON.parse(fs.readFileSync(LEGACY_STATE_FILE, 'utf8'));
+        const session = legacy?.validation_sessions?.[wpId] || null;
+        const archived = Array.isArray(legacy?.archived_sessions)
+            ? legacy.archived_sessions.filter((s) => s?.wpId === wpId)
+            : [];
+
+        return normalizeState({
+            validation_sessions: session ? { [wpId]: session } : {},
+            archived_sessions: archived,
+        });
+    }
+
+    return normalizeState({});
+}
+
+function saveWpState(wpId, state) {
+    ensureStateDir();
+    const perFile = stateFilePath(wpId);
+
+    const session = state?.validation_sessions?.[wpId] || null;
+    const archived = Array.isArray(state?.archived_sessions)
+        ? state.archived_sessions.filter((s) => s?.wpId === wpId)
+        : [];
+
+    const toWrite = normalizeState({
+        validation_sessions: session ? { [wpId]: session } : {},
+        archived_sessions: archived,
+    });
+
+    fs.writeFileSync(perFile, `${JSON.stringify(toWrite, null, 2)}\n`);
 }
 
 function fail(msg, details = []) {
@@ -42,13 +97,13 @@ function success(msg, details = []) {
 }
 
 function assertWpId(id) {
-    if (!id || !id.startsWith('WP-')) {
+    if (!id || !/^WP-[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id)) {
         fail('Expected WP_ID like WP-1-Feature-Name-v1');
     }
 }
 
 function getSession(state, wpId) {
-    return state.validation_sessions[wpId] || null;
+    return state?.validation_sessions?.[wpId] || null;
 }
 
 function checkMomentum(session, gateName) {
@@ -72,13 +127,12 @@ const action = process.argv[2];
 const wpId = process.argv[3];
 const extraArg = process.argv[4];
 
-const state = loadState();
-
 // =============================================================================
 // ACTION: present-report {WP_ID} {PASS|FAIL}
 // =============================================================================
 if (action === 'present-report') {
     assertWpId(wpId);
+    const state = loadWpState(wpId);
     const verdict = extraArg?.toUpperCase();
 
     if (verdict !== 'PASS' && verdict !== 'FAIL') {
@@ -104,7 +158,7 @@ if (action === 'present-report') {
             timestamp: new Date().toISOString()
         }]
     };
-    saveState(state);
+    saveWpState(wpId, state);
 
     success(`Gate 1 PASSED: Report presented for ${wpId}`, [
         `Verdict: ${verdict}`,
@@ -121,6 +175,7 @@ if (action === 'present-report') {
 if (action === 'acknowledge') {
     assertWpId(wpId);
 
+    const state = loadWpState(wpId);
     const session = getSession(state, wpId);
     if (!session) {
         fail(`No validation session for ${wpId}`, [
@@ -141,7 +196,7 @@ if (action === 'acknowledge') {
         gate: 'USER_ACKNOWLEDGED',
         timestamp: new Date().toISOString()
     });
-    saveState(state);
+    saveWpState(wpId, state);
 
     success(`Gate 2 PASSED: User acknowledged report for ${wpId}`, [
         '',
@@ -157,6 +212,7 @@ if (action === 'acknowledge') {
 if (action === 'append') {
     assertWpId(wpId);
 
+    const state = loadWpState(wpId);
     const session = getSession(state, wpId);
     if (!session) {
         fail(`No validation session for ${wpId}`);
@@ -182,7 +238,7 @@ if (action === 'append') {
         gate: 'WP_APPENDED',
         timestamp: new Date().toISOString()
     });
-    saveState(state);
+    saveWpState(wpId, state);
 
     if (session.verdict === 'FAIL') {
         success(`Gate 3 PASSED: Report appended to ${wpId}`, [
@@ -206,6 +262,7 @@ if (action === 'append') {
 if (action === 'commit') {
     assertWpId(wpId);
 
+    const state = loadWpState(wpId);
     const session = getSession(state, wpId);
     if (!session) {
         fail(`No validation session for ${wpId}`);
@@ -233,7 +290,7 @@ if (action === 'commit') {
         timestamp: new Date().toISOString()
     });
     session.completed = new Date().toISOString();
-    saveState(state);
+    saveWpState(wpId, state);
 
     success(`Gate 4 PASSED: ${wpId} cleared for commit`, [
         '',
@@ -249,6 +306,7 @@ if (action === 'commit') {
 if (action === 'status') {
     assertWpId(wpId);
 
+    const state = loadWpState(wpId);
     const session = getSession(state, wpId);
     if (!session) {
         console.log(`[VALIDATOR GATE STATUS] No session for ${wpId}`);
@@ -289,6 +347,7 @@ if (action === 'reset') {
         ]);
     }
 
+    const state = loadWpState(wpId);
     const session = getSession(state, wpId);
     if (!session) {
         console.log(`[VALIDATOR GATE] No session to reset for ${wpId}`);
@@ -296,7 +355,6 @@ if (action === 'reset') {
     }
 
     // Archive old session
-    if (!state.archived_sessions) state.archived_sessions = [];
     state.archived_sessions.push({
         ...session,
         archived_at: new Date().toISOString(),
@@ -304,7 +362,7 @@ if (action === 'reset') {
     });
 
     delete state.validation_sessions[wpId];
-    saveState(state);
+    saveWpState(wpId, state);
 
     success(`Session reset for ${wpId}`, [
         'Previous session archived',

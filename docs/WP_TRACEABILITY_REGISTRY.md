@@ -80,6 +80,7 @@ Format:
 | WP-1-Governance-Hooks | docs/task_packets/stubs/WP-1-Governance-Hooks-v2.md | Stub Backlog (Not Activated): WP-1-Governance-Hooks-v2 | stub (remediation); supersedes: WP-1-Governance-Hooks |
 | WP-1-Governance-Kernel-Conformance | docs/task_packets/WP-1-Governance-Kernel-Conformance-v1.md | Done: WP-1-Governance-Kernel-Conformance-v1 | active=WP-1-Governance-Kernel-Conformance-v1; activated from stub docs/task_packets/stubs/WP-1-Governance-Kernel-Conformance-v1.md |
 | WP-1-Governance-Template-Volume | docs/task_packets/WP-1-Governance-Template-Volume-v1.md | Done: WP-1-Governance-Template-Volume-v1 | active=WP-1-Governance-Template-Volume-v1; activated from stub docs/task_packets/stubs/WP-1-Governance-Template-Volume-v1.md |
+| WP-1-Governance-Workflow-Mirror | docs/task_packets/stubs/WP-1-Governance-Workflow-Mirror-v1.md | Stub Backlog (Not Activated): WP-1-Governance-Workflow-Mirror-v1 | stub (new); mirror repo governance workflow in Handshake runtime per v02.113 |
 | WP-1-LLM-Core | docs/task_packets/WP-1-LLM-Core-v3.md | Done: WP-1-LLM-Core-v3 | active=WP-1-LLM-Core-v3; supersedes: WP-1-LLM-Core |
 | WP-1-MCP-End-to-End | docs/task_packets/stubs/WP-1-MCP-End-to-End-v2.md | Stub Backlog (Not Activated): WP-1-MCP-End-to-End-v2 | stub (remediation); supersedes: WP-1-MCP-End-to-End |
 | WP-1-MCP-Skeleton-Gate | docs/task_packets/stubs/WP-1-MCP-Skeleton-Gate-v2.md | Stub Backlog (Not Activated): WP-1-MCP-Skeleton-Gate-v2 | stub (remediation); supersedes: WP-1-MCP-Skeleton-Gate |
@@ -102,6 +103,7 @@ Format:
 | WP-1-Response-Behavior-ANS-001 | docs/task_packets/stubs/WP-1-Response-Behavior-ANS-001.md | Stub Backlog (Not Activated): WP-1-Response-Behavior-ANS-001 | stub |
 | WP-1-Security-Gates | docs/task_packets/WP-1-Security-Gates-v3.md | Done: WP-1-Security-Gates-v3 | active=WP-1-Security-Gates-v3; supersedes: WP-1-Security-Gates, WP-1-Security-Gates-v2 |
 | WP-1-Semantic-Catalog | docs/task_packets/stubs/WP-1-Semantic-Catalog-v2.md | Stub Backlog (Not Activated): WP-1-Semantic-Catalog-v2 | stub (remediation); supersedes: WP-1-Semantic-Catalog |
+| WP-1-Spec-Enrichment-LLM-Core | docs/task_packets/WP-1-Spec-Enrichment-LLM-Core-v1.md | Done: WP-1-Spec-Enrichment-LLM-Core-v1 | active=WP-1-Spec-Enrichment-LLM-Core-v1 |
 | WP-1-Spec-Router-Session-Log | docs/task_packets/stubs/WP-1-Spec-Router-Session-Log.md | Stub Backlog (Not Activated): WP-1-Spec-Router-Session-Log | stub |
 | WP-1-Storage-Abstraction-Layer | docs/task_packets/WP-1-Storage-Abstraction-Layer-v3.md | Done: WP-1-Storage-Abstraction-Layer-v3 | active=WP-1-Storage-Abstraction-Layer-v3; supersedes: WP-1-Storage-Abstraction-Layer, WP-1-Storage-Abstraction-Layer-v2 |
 | WP-1-Storage-Foundation | docs/task_packets/WP-1-Storage-Foundation-v3.md | Done: WP-1-Storage-Foundation-v3 | active=WP-1-Storage-Foundation-v3; supersedes: WP-1-Storage-Foundation-20251228 |

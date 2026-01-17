@@ -191,7 +191,8 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 ## Validation Gate Sequence [CX-VAL-GATE] (MECHANICAL PAUSES REQUIRED)
 
 The validation process MUST halt at these gates. **No automation may skip these pauses.**
-State is tracked in `docs/VALIDATOR_GATES.json`. Gates enforce minimum time intervals to prevent automation momentum.
+State is tracked per WP in `docs/validator_gates/{WP_ID}.json`. Gates enforce minimum time intervals to prevent automation momentum.
+(Legacy: `docs/VALIDATOR_GATES.json` is treated as a read-only archive for older sessions; new validations should not write to it.)
 
 ### Gate 1: REPORT PRESENTATION (Blocking)
 1. Validator completes all checks and generates the full VALIDATION REPORT.

@@ -2,9 +2,9 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.112.md**
+**Handshake_Master_Spec_v02.113.md**
 
-(Updated: 2026-01-15 - Role Mailbox hardening: dedicated FR-EVT-GOV-MAILBOX schemas + leak-safe repo export + RoleMailboxExportGate mechanical gate [ilja150120260214])
+(Updated: 2026-01-17 - Governance workflow hardening: per-WP validator gate state + stub activation traceability + governance gate/WP Flight Recorder events [ilja170120260225])
 
 ---
 

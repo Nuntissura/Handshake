@@ -1,4 +1,6 @@
 .gitattributes text eol=lf
+*.md text eol=lf
+*.mjs text eol=lf
 Handshake_Master_Spec_v*.md text eol=lf
 docs/SPEC_CURRENT.md text eol=lf
 docs/START_HERE.md text eol=lf
@@ -11,6 +13,7 @@ docs/RUNBOOK_DEBUG.md text eol=lf
 docs/PAST_WORK_INDEX.md text eol=lf
 docs/ORCHESTRATOR_GATES.json text eol=lf
 docs/VALIDATOR_GATES.json text eol=lf
+docs/validator_gates/*.json text eol=lf
 docs/task_packets/*.md text eol=lf
 docs/task_packets/stubs/*.md text eol=lf
 docs/refinements/*.md text eol=lf

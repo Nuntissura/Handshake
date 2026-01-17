@@ -81,6 +81,7 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 - **[WP-1-Calendar-Lens-v2]** - [STUB]
 - **[WP-1-Distillation-v2]** - [STUB]
 - **[WP-1-Governance-Hooks-v2]** - [STUB]
+- **[WP-1-Governance-Workflow-Mirror-v1]** - [STUB]
 - **[WP-1-Workspace-Bundle-v2]** - [STUB]
 - **[WP-1-Semantic-Catalog-v2]** - [STUB]
 - **[WP-1-MCP-End-to-End-v2]** - [STUB]
@@ -90,6 +91,9 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 ## In Progress
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
+
+- **[WP-1-Governance-Template-Volume-v1]** - [IN_PROGRESS]
+- **[WP-1-Governance-Kernel-Conformance-v1]** - [IN_PROGRESS]
 
 
 ## Done

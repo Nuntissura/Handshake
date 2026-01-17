@@ -170,7 +170,7 @@ Required state machine:
 4. `commit <WP_ID>` (PASS only; unlocks commit)
 
 Required properties:
-- Gate state stored in a deterministic JSON state file (example: `docs/VALIDATOR_GATES.json`).
+- Gate state stored in a deterministic JSON state file (example: `docs/validator_gates/{WP_ID}.json`; legacy archive: `docs/VALIDATOR_GATES.json`).
 - Anti-momentum interval between gate transitions.
 - FAIL verdict must permanently block the commit gate for that WP_ID (must create new WP variant to re-pass).
 
@@ -182,4 +182,3 @@ These checks are not always required for kernel conformance, but they harden por
 - **Worktree concurrency check**: detect multiple active WPs in one worktree (project-defined heuristic).
 - **Spec-current check**: ensures `docs/SPEC_CURRENT.md` points to the newest spec version by version parsing policy.
 - **Codex check**: detects forbidden patterns (architecture violations, unsafe APIs, debug prints) and codex drift across docs.
-
