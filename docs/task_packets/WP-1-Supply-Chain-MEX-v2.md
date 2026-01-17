@@ -42,7 +42,10 @@
 
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- NONE
+- WAIVER_ID: WAIVER-WP-1-Supply-Chain-MEX-v2-001
+  - Date: 2026-01-17
+  - Scope: Workflow phase-gate breach (BOOTSTRAP + SKELETON drafted in the same turn).
+  - Justification: User explicitly waived this breach for this WP and noted it will be recorded.
 
 ## QUALITY_GATE
 ### TEST_PLAN
@@ -216,13 +219,21 @@ Next: Write SKELETON and stop for approval (no implementation before SKELETON AP
       - `engine.supply_chain.vuln`
       - `engine.supply_chain.sbom`
       - `engine.supply_chain.license`
+    - CI job -> tool mapping (Spec 11.7.5 + tech.gates.supply_chain):
+      - `secret_scan` -> `gitleaks`
+      - `vuln_scan` -> `osv-scanner`
+      - `sbom_generate` -> `syft`
+      - `license_scan` -> `scancode` (aligns with CI-gated job list; no cargo-deny substitution)
     - CI job -> engine/operation mapping (Spec 11.7.5.9.4.4 + 11.7.5):
-      - `vuln_scan` -> `engine.supply_chain.vuln` / operation `vuln_scan`
-      - `sbom_generate` -> `engine.supply_chain.sbom` / operation `sbom_generate`
-      - `license_scan` -> `engine.supply_chain.license` / operation `license_scan`
-      - `secret_scan` remains a CI job invoking gitleaks, but will be routed through `TerminalService::run_command` in a dedicated integration test/harness so FR-EVT-001 is emitted.
+      - `secret_scan` -> `engine.guard.secret_scan` / operation `secret_scan` (gitleaks; CI runs this path so FR-EVT-001 + artifacts/provenance are emitted by the real scan, not only by tests)
+      - `vuln_scan` -> `engine.supply_chain.vuln` / operation `vuln_scan` (osv-scanner)
+      - `sbom_generate` -> `engine.supply_chain.sbom` / operation `sbom_generate` (syft)
+      - `license_scan` -> `engine.supply_chain.license` / operation `license_scan` (scancode)
+    - Params (close release-mode + allowlist requirements):
+      - `params.release_mode: bool` (default false). CI sets true on release/tag promotion; adapters enforce Spec hard-fail policy only when true.
+      - `params.allowlists: { ... }` (optional). Allowlists are versioned in `src/backend/handshake_core/src/mex/supply_chain.rs` defaults and hashed into provenance (`config_hash`); CI uses defaults unless it passes an explicit override.
     - `pub struct SupplyChainEngineAdapter { ... }` implementing `mex::runtime::EngineAdapter`
-      - External tool execution: `terminal::TerminalService::run_command` (emits FR-EVT-001 TerminalCommandEvent; redaction enabled; requested_capability=proc.exec)
+      - External tool execution: `terminal::TerminalService::run_command` (emits FR-EVT-001 TerminalCommandEvent; redaction enabled; requested_capability=`proc.exec:<tool_allowlist>`)
       - Outputs:
         - SupplyChainReport artifact (JSON file on disk) -> `ArtifactHandle`
         - Evidence artifacts (raw tool reports) -> `ArtifactHandle` list
@@ -233,26 +244,36 @@ Next: Write SKELETON and stop for approval (no implementation before SKELETON AP
         - On policy-triggered hard fail, record a `DiagnosticSeverity::Fatal` diagnostic (BLOCK) and ensure FR-EVT-003 Diagnostic event is present/linkable; do not embed raw secrets or large report blobs in diagnostic/FR payloads.
 
   - `src/backend/handshake_core/mechanical_engines.json` (registry):
+    - Add `engine.guard.secret_scan` entry with:
+      - `determinism_ceiling`: `d1` (D0/D1 only; evidence required)
+      - `required_caps` (scoped per Spec): `fs.read:inputs`, `fs.write:artifacts`
+      - `ops`:
+        - `secret_scan`:
+          - `capabilities`: `fs.read:inputs`, `fs.write:artifacts`, `proc.exec:gitleaks`
+          - `output_types`: `artifact.dataset` (gitleaks report JSON)
     - Add `engine.supply_chain.vuln|sbom|license` entries with:
       - `determinism_ceiling`: `d1` (D0/D1 only; evidence required)
-      - `required_caps`: `proc.exec`, `fs.read:inputs`
-      - `ops`: `vuln_scan`, `sbom_generate`, `license_scan` with appropriate caps + output_types (report artifacts)
+      - `required_caps` (scoped per Spec): `fs.read:inputs`, `fs.write:artifacts`
+      - `ops`:
+        - `vuln_scan`:
+          - `capabilities`: `fs.read:inputs`, `fs.write:artifacts`, `proc.exec:osv-scanner`
+          - `output_types`: `artifact.dataset` (SupplyChainReport JSON)
+        - `sbom_generate`:
+          - `capabilities`: `fs.read:inputs`, `fs.write:artifacts`, `proc.exec:syft`
+          - `output_types`: `artifact.dataset` (SupplyChainReport JSON)
+        - `license_scan`:
+          - `capabilities`: `fs.read:inputs`, `fs.write:artifacts`, `proc.exec:scancode`
+          - `output_types`: `artifact.dataset` (SupplyChainReport JSON)
 
   - `.github/workflows/ci.yml` (validator jobs):
-    - Add jobs: `vuln_scan`, `sbom_generate`, `license_scan`.
-    - Each job uploads artifacts: SupplyChainReport JSON + raw tool outputs + Flight Recorder DuckDB file.
+    - Ensure job set matches Spec CI-gated jobs: `secret_scan`, `vuln_scan`, `sbom_generate`, `license_scan`.
+    - Replace the current `secret_scan` GitHub Action-only invocation: CI runs the MEX path that executes the scanners so FR-EVT-001 + artifacts/provenance are produced by the same command that enforces the gate.
+    - Each job uploads artifacts: `artifact.dataset` report(s) + raw tool outputs (as evidence artifacts) + Flight Recorder DuckDB file.
 
   - `src/backend/handshake_core/tests/mex_tests.rs` (conformance):
     - Add tests that assert:
       - mechanical_engines.json declares required supply-chain engine IDs
       - supply-chain invocation produces FR-EVT-001 + system event (+ FR-EVT-003 when policy triggers)
-
-- Open questions:
-  - Release-mode detection: is this driven by CI context (tags) or an explicit `PlannedOperation.params.release_mode: bool`? (Spec requires release-build hard fail but does not define the switch mechanism.)
-  - Tool choices per job:
-    - `vuln_scan`: `osv-scanner` only, or also `pnpm audit` and/or `cargo deny advisories`?
-    - `license_scan`: `cargo-deny licenses` only (Rust), or also `scancode-toolkit` (full repo)?
-  - Allowlist/versioning: where should allowlists live (and how are they versioned) without adding new in-scope files?
 
 - Notes:
   - `docs/START_HERE.md` contains an outdated SPEC_CURRENT version string ("v02.111"); OUT_OF_SCOPE forbids updating it in this WP.
