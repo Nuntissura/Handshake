@@ -3,13 +3,34 @@ const BASE_URL = "http://127.0.0.1:37501";
 type FetchOptions = {
   method?: string;
   body?: unknown;
+  headers?: Record<string, string>;
 };
+
+export type WriteActorKind = "HUMAN" | "AI" | "SYSTEM";
+
+export type WriteContext = {
+  actor_kind?: WriteActorKind;
+  actor_id?: string;
+  job_id?: string;
+  workflow_id?: string;
+};
+
+function writeContextHeaders(ctx?: WriteContext): Record<string, string> | undefined {
+  if (!ctx) return undefined;
+  const headers: Record<string, string> = {};
+  if (ctx.actor_kind) headers["x-hsk-actor-kind"] = ctx.actor_kind;
+  if (ctx.actor_id) headers["x-hsk-actor-id"] = ctx.actor_id;
+  if (ctx.job_id) headers["x-hsk-job-id"] = ctx.job_id;
+  if (ctx.workflow_id) headers["x-hsk-workflow-id"] = ctx.workflow_id;
+  return headers;
+}
 
 async function request<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {
     method: options.method ?? "GET",
     headers: {
       "Content-Type": "application/json",
+      ...(options.headers ?? {}),
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
@@ -373,10 +394,15 @@ export async function createDiagnostic(input: DiagnosticInput): Promise<Diagnost
   return request("/api/diagnostics", { method: "POST", body: input });
 }
 
-export async function updateDocumentBlocks(documentId: string, blocks: BlockInput[]): Promise<Block[]> {
+export async function updateDocumentBlocks(
+  documentId: string,
+  blocks: BlockInput[],
+  ctx?: WriteContext,
+): Promise<Block[]> {
   return request(`/documents/${encodeURIComponent(documentId)}/blocks`, {
     method: "PUT",
     body: { blocks },
+    headers: writeContextHeaders(ctx),
   });
 }
 
@@ -384,10 +410,12 @@ export async function updateCanvasGraph(
   canvasId: string,
   nodes: CanvasNodeInput[],
   edges: CanvasEdgeInput[],
+  ctx?: WriteContext,
 ): Promise<CanvasWithGraph> {
   return request(`/canvases/${encodeURIComponent(canvasId)}`, {
     method: "PUT",
     body: { nodes, edges },
+    headers: writeContextHeaders(ctx),
   });
 }
 

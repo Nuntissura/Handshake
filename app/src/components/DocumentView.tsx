@@ -6,6 +6,7 @@ import {
   DocumentWithBlocks,
   WorkflowRun,
   createJob,
+  createDiagnostic,
   deleteDocument,
   getDocument,
   updateDocumentBlocks,
@@ -126,8 +127,23 @@ export function DocumentView({ documentId, onDeleted }: Props) {
                   });
                   logEvent({ type: "doc-save", targetId: documentId, result: "ok" });
                 } catch (err) {
-                  setSaveError(err instanceof Error ? err.message : "Failed to save");
+                  const message = err instanceof Error ? err.message : "Failed to save";
+                  setSaveError(message);
                   logEvent({ type: "doc-save", targetId: documentId, result: "error", message: String(err) });
+                  if (message.includes("HSK-403-SILENT-EDIT")) {
+                    void createDiagnostic({
+                      title: "HSK-403-SILENT-EDIT Editor write blocked",
+                      message,
+                      severity: "error",
+                      source: "system",
+                      surface: "system",
+                      code: "HSK-403-SILENT-EDIT",
+                      wsid: doc.workspace_id,
+                      job_id: activeJobId,
+                      actor: "system",
+                      link_confidence: "unlinked",
+                    }).catch(() => {});
+                  }
                 } finally {
                   setIsSaving(false);
                 }
