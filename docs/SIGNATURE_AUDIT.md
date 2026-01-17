@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja170120262249 | Orchestrator | 2026-01-17 22:49 | Task packet creation: WP-1-Supply-Chain-MEX-v2 | v02.113 | Approved after Technical Refinement (see docs/refinements/WP-1-Supply-Chain-MEX-v2.md ). |
 | ilja170120260225 | Orchestrator | 2026-01-17 02:25 | Spec update: v02.113 governance workflow hardening (per-WP validator gates + activation traceability) | v02.113 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.113`. |
 | ilja160120262314 | Orchestrator | 2026-01-16 23:14 | Task packet creation: WP-1-Editor-Hardening-v2 | v02.112 | Approved after Technical Refinement (see docs/refinements/WP-1-Editor-Hardening-v2.md ). |
 | ilja160120262149 | Orchestrator | 2026-01-16 21:49 | Task packet creation: WP-1-Governance-Kernel-Conformance-v1 | v02.112 | Approved after Technical Refinement (see docs/refinements/WP-1-Governance-Kernel-Conformance-v1.md ). |
