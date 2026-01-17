@@ -8,9 +8,9 @@
 - REQUESTOR: ilja
 - AGENT_ID: orchestrator-codex-cli
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: gpt-5.2
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja170120262249
 - SUPERSEDES: WP-1-Supply-Chain-MEX (historical FAIL; v2 is protocol-clean remediation)
@@ -147,10 +147,116 @@ git revert <commit-sha>
   - "Missing/incorrect CI wiring" -> "gates not enforced; must add CI jobs per Spec and ensure hard-fail conditions block promotion"
   - "Incorrect Diagnostic/FR linking" -> "operator cannot debug; must ensure FR-EVT-001/003 correlation and include diagnostic_id in system events"
 
+### CODER_BOOTSTRAP_OUTPUT
+BOOTSTRAP [CX-577, CX-622]
+========================================
+WP_ID: WP-1-Supply-Chain-MEX-v2
+RISK_TIER: HIGH
+TASK_TYPE: FEATURE
+
+FILES_TO_OPEN (done):
+- docs/START_HERE.md
+- docs/SPEC_CURRENT.md
+- docs/CODER_PROTOCOL.md
+- docs/refinements/WP-1-Supply-Chain-MEX-v2.md
+- docs/task_packets/WP-1-Supply-Chain-MEX-v2.md
+- docs/task_packets/WP-1-Supply-Chain-MEX.md
+- docs/WP_TRACEABILITY_REGISTRY.md
+- .github/workflows/ci.yml
+- src/backend/handshake_core/mechanical_engines.json
+- src/backend/handshake_core/src/mex/mod.rs
+- src/backend/handshake_core/src/mex/registry.rs
+- src/backend/handshake_core/src/mex/runtime.rs
+- src/backend/handshake_core/src/mex/gates.rs
+- src/backend/handshake_core/src/flight_recorder/mod.rs
+- src/backend/handshake_core/src/terminal/mod.rs
+- src/backend/handshake_core/tests/mex_tests.rs
+
+SEARCH_TERMS (done):
+- "engine.supply_chain"
+- "SupplyChainReport"
+- "tech.gates.supply_chain"
+- "secret_scan"
+- "vuln_scan"
+- "sbom_generate"
+- "license_scan"
+- "FR-EVT-001"
+- "TerminalCommandEvent"
+- "FR-EVT-003"
+- "DiagnosticEvent"
+
+RUN_COMMANDS (done):
+- just pre-work WP-1-Supply-Chain-MEX-v2
+- rg -n "SupplyChainReport|engine.supply_chain|tech.gates.supply_chain|secret_scan|vuln_scan|sbom_generate|license_scan|FR-EVT-001|TerminalCommandEvent|FR-EVT-003|DiagnosticEvent" -S ...
+
+RUN_COMMANDS (planned, per TEST_PLAN):
+- just cargo-clean
+- just fmt
+- just lint
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml
+- just deny
+- just cargo-clean
+- just post-work WP-1-Supply-Chain-MEX-v2
+
+RISK_MAP (confirmed):
+- Secrets leak into logs/artifacts -> terminal redaction + gitleaks --redact + diagnostics/FR payloads reference artifacts only (no raw secret strings)
+- Scanner non-determinism -> capture tool versions + advisory DB versions (when available) into provenance and report findings; treat as D0/D1 (evidence required)
+- Missing/incorrect CI wiring -> add CI jobs vuln_scan/sbom_generate/license_scan and ensure failure semantics match hard-fail policy
+- Incorrect Diagnostic/FR linking -> always record Diagnostic (FR-EVT-003) and include diagnostic_id in supply-chain system events
+
+Next: Write SKELETON and stop for approval (no implementation before SKELETON APPROVED).
+========================================
+
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - New module: `src/backend/handshake_core/src/mex/supply_chain.rs`
+    - `pub enum SupplyChainReportKind { Vuln, #[serde(rename = "SBOM")] Sbom, License }`
+    - `pub struct SupplyChainReport { kind: SupplyChainReportKind, engine_version: String, timestamp: chrono::DateTime<chrono::Utc>, findings: serde_json::Value }`
+    - Engine IDs (Spec 11.7.5):
+      - `engine.supply_chain.vuln`
+      - `engine.supply_chain.sbom`
+      - `engine.supply_chain.license`
+    - CI job -> engine/operation mapping (Spec 11.7.5.9.4.4 + 11.7.5):
+      - `vuln_scan` -> `engine.supply_chain.vuln` / operation `vuln_scan`
+      - `sbom_generate` -> `engine.supply_chain.sbom` / operation `sbom_generate`
+      - `license_scan` -> `engine.supply_chain.license` / operation `license_scan`
+      - `secret_scan` remains a CI job invoking gitleaks, but will be routed through `TerminalService::run_command` in a dedicated integration test/harness so FR-EVT-001 is emitted.
+    - `pub struct SupplyChainEngineAdapter { ... }` implementing `mex::runtime::EngineAdapter`
+      - External tool execution: `terminal::TerminalService::run_command` (emits FR-EVT-001 TerminalCommandEvent; redaction enabled; requested_capability=proc.exec)
+      - Outputs:
+        - SupplyChainReport artifact (JSON file on disk) -> `ArtifactHandle`
+        - Evidence artifacts (raw tool reports) -> `ArtifactHandle` list
+        - ProvenanceRecord populated with engine_id, engine_version (tool versions), inputs, outputs, granted caps
+      - Flight Recorder:
+        - Emit a `FlightRecorderEventType::System` event for each supply-chain op with: engine_id, operation, op_id, tool identity/version, input/output artifact handles, and diagnostic_id when present.
+      - Diagnostics:
+        - On policy-triggered hard fail, record a `DiagnosticSeverity::Fatal` diagnostic (BLOCK) and ensure FR-EVT-003 Diagnostic event is present/linkable; do not embed raw secrets or large report blobs in diagnostic/FR payloads.
+
+  - `src/backend/handshake_core/mechanical_engines.json` (registry):
+    - Add `engine.supply_chain.vuln|sbom|license` entries with:
+      - `determinism_ceiling`: `d1` (D0/D1 only; evidence required)
+      - `required_caps`: `proc.exec`, `fs.read:inputs`
+      - `ops`: `vuln_scan`, `sbom_generate`, `license_scan` with appropriate caps + output_types (report artifacts)
+
+  - `.github/workflows/ci.yml` (validator jobs):
+    - Add jobs: `vuln_scan`, `sbom_generate`, `license_scan`.
+    - Each job uploads artifacts: SupplyChainReport JSON + raw tool outputs + Flight Recorder DuckDB file.
+
+  - `src/backend/handshake_core/tests/mex_tests.rs` (conformance):
+    - Add tests that assert:
+      - mechanical_engines.json declares required supply-chain engine IDs
+      - supply-chain invocation produces FR-EVT-001 + system event (+ FR-EVT-003 when policy triggers)
+
 - Open questions:
+  - Release-mode detection: is this driven by CI context (tags) or an explicit `PlannedOperation.params.release_mode: bool`? (Spec requires release-build hard fail but does not define the switch mechanism.)
+  - Tool choices per job:
+    - `vuln_scan`: `osv-scanner` only, or also `pnpm audit` and/or `cargo deny advisories`?
+    - `license_scan`: `cargo-deny licenses` only (Rust), or also `scancode-toolkit` (full repo)?
+  - Allowlist/versioning: where should allowlists live (and how are they versioned) without adding new in-scope files?
+
 - Notes:
+  - `docs/START_HERE.md` contains an outdated SPEC_CURRENT version string ("v02.111"); OUT_OF_SCOPE forbids updating it in this WP.
+  - No implementation changes will be made until SKELETON APPROVED (CX-GATE-001).
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)
@@ -188,9 +294,13 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
+- Current WP_STATUS: Started (BOOTSTRAP + SKELETON drafted; awaiting approval)
 - What changed in this update:
+  - Claimed WP in task packet metadata (CODER_MODEL + CODER_REASONING_STRENGTH; Status -> In Progress)
+  - Added CODER_BOOTSTRAP_OUTPUT block
+  - Drafted SKELETON proposal (interfaces/types/contracts + CI job plan)
 - Next step / handoff hint:
+  - Run `just gate-check WP-1-Supply-Chain-MEX-v2` to confirm phase markers, then wait for "SKELETON APPROVED"
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
