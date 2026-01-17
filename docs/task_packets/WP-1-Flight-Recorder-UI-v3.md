@@ -141,7 +141,7 @@ git revert <commit-sha>
   - IN_SCOPE limitation: cross-surface navigation wiring in `app/src/App.tsx` is out-of-scope; deep links will be implemented as Timeline filters/focus plus copyable targets (allowed by DONE_MEANS).
   - Security events: add no new secret-leak paths; payload rendering is redacted-by-default, with explicit opt-in for raw view.
   - Styling: `app/src/App.css` currently lacks `.flight-recorder__*` styles; this WP will add them and ensure security violations are visually prominent.
-  - Worktree hygiene: the worktree currently reports an unrelated dirty file (`docs/refinements/WP-1-LLM-Core-v3.md`) due to historical mixed newline bytes; resolve via a separate normalization commit or an explicit validator waiver before implementation/hygiene gates.
+  - Worktree hygiene: resolved via docs-only newline normalization commit `6ed8b877` for `docs/refinements/WP-1-LLM-Core-v3.md` (explicit Operator authorization) to avoid cross-WP contamination.
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)
