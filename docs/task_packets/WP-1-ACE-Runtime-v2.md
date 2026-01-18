@@ -274,7 +274,68 @@ git revert <commit-sha>
 - Next step / handoff hint: Validator to run `just validator-spec-regression`, `just validator-error-codes`, `just validator-hygiene-full` and verify DONE_MEANS criteria
 
 ## EVIDENCE
-- (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+
+### E1: pre-work validation (2026-01-18)
+```
+$ just pre-work WP-1-ACE-Runtime-v2
+Checking Phase Gate for WP-1-ACE-Runtime-v2...
+? GATE PASS: Workflow sequence verified.
+
+Pre-work validation for WP-1-ACE-Runtime-v2...
+
+Check 1: Task packet file exists
+PASS: Found WP-1-ACE-Runtime-v2.md
+
+Check 2: Task packet structure
+PASS: All required fields present
+
+Check 2.7: Technical Refinement gate
+PASS: Refinement file exists and is approved/signed
+
+Check 2.8: WP checkpoint commit gate
+
+Check 3: Deterministic manifest template
+PASS: Manifest fields present
+PASS: Gates checklist present
+
+==================================================
+Pre-work validation PASSED
+```
+
+### E2: T-ACE-RAG-001b Unicode casefold test (2026-01-18)
+```
+$ cargo test ace::tests::test_unicode_casefold_correctness -- --nocapture
+running 1 test
+test ace::tests::test_unicode_casefold_correctness ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 141 filtered out
+```
+
+### E3: T-ACE-RAG-003 Replay persistence test (2026-01-18)
+```
+$ cargo test ace::tests::test_replay_persistence_correctness -- --nocapture
+running 1 test
+test ace::tests::test_replay_persistence_correctness ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 141 filtered out
+```
+
+### E4: All ACE tests passing (2026-01-18)
+```
+$ cargo test ace::
+running 81 tests
+test ace::tests::test_budget_validation ... ok
+test ace::tests::test_context_pack_staleness ... ok
+test ace::tests::test_strict_ranking_determinism ... ok
+test ace::tests::test_unicode_casefold_correctness ... ok
+test ace::tests::test_query_normalization_determinism ... ok
+test ace::tests::test_retrieval_trace_metrics ... ok
+test ace::tests::test_cache_key_hashing ... ok
+test ace::tests::test_replay_persistence_correctness ... ok
+[...all validator tests pass...]
+
+test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 61 filtered out
+```
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
