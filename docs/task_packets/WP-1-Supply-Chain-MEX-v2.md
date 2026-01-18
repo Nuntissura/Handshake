@@ -10,7 +10,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: gpt-5.2
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja170120262249
 - SUPERSEDES: WP-1-Supply-Chain-MEX (historical FAIL; v2 is protocol-clean remediation)
@@ -424,3 +424,72 @@ SKELETON APPROVED
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - WP-1-Supply-Chain-MEX-v2 (2026-01-18)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: `docs/task_packets/WP-1-Supply-Chain-MEX-v2.md` (**Status:** Done)
+- Spec Target: `docs/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.113.md`
+- Spec Anchors:
+  - `Handshake_Master_Spec_v02.113.md:35290`
+  - `Handshake_Master_Spec_v02.113.md:35295`
+  - `Handshake_Master_Spec_v02.113.md:35579`
+  - `Handshake_Master_Spec_v02.113.md:39043`
+  - `Handshake_Master_Spec_v02.113.md:47007`
+- Waivers:
+  - `WAIVER-WP-1-Supply-Chain-MEX-v2-001` (workflow phase-gate breach: BOOTSTRAP+SKELETON combined)
+- Active Packet mapping: `docs/WP_TRACEABILITY_REGISTRY.md:110`
+- Worktree/Branch: `D:\Projects\LLM projects\wt-WP-1-Supply-Chain-MEX-v2` / `feat/WP-1-Supply-Chain-MEX-v2`
+- Commit reviewed: `93cd0cc4`
+
+Files Checked:
+- `docs/task_packets/WP-1-Supply-Chain-MEX-v2.md`
+- `docs/refinements/WP-1-Supply-Chain-MEX-v2.md`
+- `docs/WP_TRACEABILITY_REGISTRY.md`
+- `docs/SPEC_CURRENT.md`
+- `Handshake_Master_Spec_v02.113.md`
+- `.github/workflows/ci.yml`
+- `src/backend/handshake_core/mechanical_engines.json`
+- `src/backend/handshake_core/src/mex/mod.rs`
+- `src/backend/handshake_core/src/mex/supply_chain.rs`
+- `src/backend/handshake_core/tests/mex_tests.rs`
+
+Findings:
+- Requirement (CI-gated validator jobs + tool mapping): satisfied
+  - Jobs exist: `.github/workflows/ci.yml:138` (secret_scan), `:174` (vuln_scan), `:210` (sbom_generate), `:246` (license_scan)
+  - Tools pinned: `.github/workflows/ci.yml:10`
+- Requirement (Engine IDs + scoped capabilities in registry): satisfied
+  - Registry entries: `src/backend/handshake_core/mechanical_engines.json:30`, `:57`, `:84`, `:111`
+  - Scoped capabilities per op: `src/backend/handshake_core/mechanical_engines.json:30`
+- Requirement (SupplyChainReport schema): satisfied at `src/backend/handshake_core/src/mex/supply_chain.rs:23`
+- Requirement (FR-EVT-001 TerminalCommandEvent): satisfied
+  - Tool execution routed via TerminalService: `src/backend/handshake_core/src/mex/supply_chain.rs:135`
+  - Tests assert TerminalCommand event: `src/backend/handshake_core/tests/mex_tests.rs:812`, `src/backend/handshake_core/tests/mex_tests.rs:635`
+- Requirement (release-mode hard-fail policy + diagnostic linkage): satisfied
+  - release_mode parsed from params: `src/backend/handshake_core/src/mex/supply_chain.rs:273`
+  - HIGH vuln release-mode fail path covered: `src/backend/handshake_core/tests/mex_tests.rs:635`
+  - UNKNOWN license release-mode fail path covered: `src/backend/handshake_core/tests/mex_tests.rs:731`
+
+Tests:
+- `just pre-work WP-1-Supply-Chain-MEX-v2`: PASS
+- `just cargo-clean`: PASS
+- `cargo fmt --check` (validator equivalent of `just fmt`): PASS
+- `just lint`: PASS (warnings only)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`: PASS
+- `cd src/backend/handshake_core; cargo deny check advisories licenses bans sources`: PASS
+- `just validator-spec-regression`: PASS
+- `just validator-coverage-gaps`: PASS
+- `just validator-scan`: FAIL due to pre-existing backend hits (not introduced by this WP diff)
+- `just post-work WP-1-Supply-Chain-MEX-v2`: cannot be re-run post-commit (script expects a non-clean diff); coder recorded a pre-commit run in `## EVIDENCE`.
+
+Notes:
+- `.github/workflows/ci.yml` currently triggers on branch pushes/PRs only (`.github/workflows/ci.yml:4`) and does not run on tags; the `HSK_RELEASE_MODE` tag detection in these jobs is therefore not exercised by GitHub Actions trigger filters yet.
+- `just deny` from repo root fails due to missing top-level `Cargo.toml`; use `cd src/backend/handshake_core` for cargo-deny until the recipe is fixed.
+
+REASON FOR PASS:
+- Supply-chain engines/job IDs/tool mappings are implemented and exercised with evidence + Flight Recorder logging, and the release-mode BLOCK policy is enforced (and unit-tested) per `Handshake_Master_Spec_v02.113.md:35296` / `:47007`.
+
+Risks & Suggested Actions:
+- Add tag triggers for CI (or a separate release workflow) if release promotion is intended to be tag-driven, so `HSK_RELEASE_MODE` paths are exercised in CI for real releases.
+- Consider making `validator-scan` diff-scoped/baselined to avoid unrelated pre-existing hits masking WP-specific findings.
