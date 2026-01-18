@@ -8,9 +8,9 @@
 - REQUESTOR: User
 - AGENT_ID: CodexCLI-GPT-5.2 (Orchestrator)
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja180120261630
 
@@ -157,9 +157,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress
+- What changed in this update: Bootstrap claim (packet claimed by coder; ready for SKELETON).
+- Next step / handoff hint: Provide SKELETON proposal for StorageGuard/mutation metadata enforcement; no code changes yet.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
