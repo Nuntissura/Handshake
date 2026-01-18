@@ -214,7 +214,7 @@ git revert <commit-sha>
 - **End**: 1322
 - **Line Delta**: 204
 - **Pre-SHA1**: `dbaa52678d143cd718fbbcaf84e7a80428d0545f`
-- **Post-SHA1**: `c431dd4448de6e9b184a3f9fe6ec84ba64d3764f`
+- **Post-SHA1**: `917e5c75a06f8246ea0425b1de2d8fbaa1d99458`
 - **Change Summary**: Updated spec ref v02.85 to v02.113; Fixed normalize_query for casefold and strip; Added T-ACE-RAG-001b casefold test; Added T-ACE-RAG-003 replay persistence test; Removed forbidden patterns (expect/unwrap); Updated re-exports
 - **Gates Passed**:
   - [x] anchors_present
@@ -234,7 +234,7 @@ git revert <commit-sha>
 - **End**: 1265
 - **Line Delta**: 306
 - **Pre-SHA1**: `8d265514d658595afede656d72d11fbb3b87f89f`
-- **Post-SHA1**: `19d8f072eb560c32ecb7078f3a47542cd1e2aa4d`
+- **Post-SHA1**: `727f75c0d3eb801ae0e081f8b3d1a7d4f0b26590`
 - **Change Summary**: Added AceValidationPayload struct for FR logging; Added CacheMarker struct; Added ValidatorPipeline validate_and_log method; Added WAIVER [CX-573E] for Instant::now()
 - **Gates Passed**:
   - [x] anchors_present
