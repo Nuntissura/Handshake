@@ -37,7 +37,12 @@
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
 - [CX-106 AUTHORIZATION] 2026-01-18: Operator authorized top-level `assets/` directory + capability registry artifact files for WP-1-Capability-SSoT-v2 (evidence: "AUTHORIZE top-level assets/ dir + capability registry artifact files for WP-1-Capability-SSoT-v2").
-- NONE (other than the CX-106 authorization above)
+- WAIVER-SCOPE-EXPAND-WP-1-Capability-SSoT-v2-001 [CX-573F]
+  - Date: 2026-01-18
+  - Scope: Expand IN_SCOPE_PATHS beyond this packet as needed to satisfy DONE_MEANS (incl. additional capability-check call sites across the codebase and any supporting files).
+  - Justification: Operator explicitly waived out-of-scope gating to unblock implementation and complete full “every capability check” audit-field alignment.
+  - Approver: Operator (chat waiver: “i waive out of scope” / “i waive the scope, it is allowed”)
+  - Expiry: On WP closure (validation complete).
 
 ## QUALITY_GATE
 ### TEST_PLAN
