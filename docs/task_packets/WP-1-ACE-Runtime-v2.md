@@ -211,11 +211,11 @@ git revert <commit-sha>
 ### Manifest Entry 3: ace/mod.rs
 - **Target File**: `src/backend/handshake_core/src/ace/mod.rs`
 - **Start**: 1
-- **End**: 1326
-- **Line Delta**: 208
+- **End**: 1322
+- **Line Delta**: 204
 - **Pre-SHA1**: `dbaa52678d143cd718fbbcaf84e7a80428d0545f`
-- **Post-SHA1**: `657e8f39eb4cac2cffe29df0787325dc850b8b3a`
-- **Change Summary**: Updated spec ref v02.85 to v02.113; Fixed normalize_query for casefold and strip; Added T-ACE-RAG-001b casefold test; Added T-ACE-RAG-003 replay persistence test; Updated re-exports
+- **Post-SHA1**: `c431dd4448de6e9b184a3f9fe6ec84ba64d3764f`
+- **Change Summary**: Updated spec ref v02.85 to v02.113; Fixed normalize_query for casefold and strip; Added T-ACE-RAG-001b casefold test; Added T-ACE-RAG-003 replay persistence test; Removed forbidden patterns (expect/unwrap); Updated re-exports
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -231,11 +231,11 @@ git revert <commit-sha>
 ### Manifest Entry 4: ace/validators/mod.rs
 - **Target File**: `src/backend/handshake_core/src/ace/validators/mod.rs`
 - **Start**: 1
-- **End**: 1256
-- **Line Delta**: 297
+- **End**: 1265
+- **Line Delta**: 306
 - **Pre-SHA1**: `8d265514d658595afede656d72d11fbb3b87f89f`
-- **Post-SHA1**: `127cb08c866ebb70592ea629d25b1d2476fa936a`
-- **Change Summary**: Added AceValidationPayload struct for FR logging; Added CacheMarker struct; Added ValidatorPipeline validate_and_log method
+- **Post-SHA1**: `19d8f072eb560c32ecb7078f3a47542cd1e2aa4d`
+- **Change Summary**: Added AceValidationPayload struct for FR logging; Added CacheMarker struct; Added ValidatorPipeline validate_and_log method; Added WAIVER [CX-573E] for Instant::now()
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -262,13 +262,15 @@ git revert <commit-sha>
      - Updated spec reference v02.85 -> v02.113 (line 9)
      - Fixed normalize_query() to use true Unicode casefold (caseless::default_case_fold_str) and strip non-whitespace control chars (lines 437-487)
      - Added test_unicode_casefold_correctness test proving casefold (lines 974-1015)
-     - Added test_replay_persistence_correctness (T-ACE-RAG-003) test (lines 1173-1324)
+     - Added test_replay_persistence_correctness (T-ACE-RAG-003) test (lines 1171-1321)
+     - Removed forbidden patterns: replaced expect()/unwrap() with `?` operator and infallible Uuid::from_u128()
      - Updated re-exports for AceValidationPayload, CacheMarker (lines 893-922)
   3. **ace/validators/mod.rs**:
      - Added AceValidationPayload struct for FR logging (lines 709-763)
      - Added CacheMarker struct (lines 766-771)
      - Added AceValidationPayload::from_plan_and_trace() builder (lines 773-917)
      - Added ValidatorPipeline::validate_and_log() method (lines 925-985)
+     - Added WAIVER [CX-573E] for Instant::now() timing instrumentation (line 950)
 - Next step / handoff hint: Validator to run `just validator-spec-regression`, `just validator-error-codes`, `just validator-hygiene-full` and verify DONE_MEANS criteria
 
 ## EVIDENCE
