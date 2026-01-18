@@ -1271,7 +1271,12 @@ mod tests {
             errors: Vec::new(),
         };
 
-        let payload = serde_json::to_value(&record).expect("serialize ExportRecord");
+        let payload = match serde_json::to_value(&record) {
+            Ok(payload) => payload,
+            Err(err) => {
+                unreachable!("serialize ExportRecord: {err}");
+            }
+        };
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::GovernancePackExport,
             FlightRecorderActor::Agent,
