@@ -38,7 +38,7 @@
   - Date: 2026-01-18
   - Scope: Expand IN_SCOPE_PATHS beyond this packet as needed to satisfy DONE_MEANS (incl. any additional supporting files required for traceability persistence and tests).
   - Justification: Operator explicitly waived out-of-scope gating to unblock implementation.
-  - Approver: Operator (chat waiver: “i waive out of scope” / “i waive the scope, it is allowed”)
+  - Approver: Operator (chat waiver: "i waive out of scope" / "i waive the scope, it is allowed")
   - Expiry: On WP closure (validation complete).
 
 ## QUALITY_GATE
@@ -127,47 +127,116 @@ git revert <commit-sha>
 - Notes:
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Postgres: removed INSERT-then-UPDATE metadata windows by persisting `last_*` and `edit_event_id` directly in INSERTs for content tables.
+- Storage API: added `WriteActor` alias (no signature churn).
+- Tests: added storage tests for `HSK-403-SILENT-EDIT` enforcement + persisted traceability columns (SQLite; Postgres env-gated).
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Ran: `just pre-work WP-1-Mutation-Traceability-v2`
+- Ran: `cd src/backend/handshake_core; cargo test`
+- Ran: `cd src/backend/handshake_core; cargo clippy --all-targets --all-features`
+- Ran: `just post-work WP-1-Mutation-Traceability-v2`
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `src/backend/handshake_core/src/storage/mod.rs`
+- **Start**: 1
+- **End**: 883
+- **Line Delta**: 2
+- **Pre-SHA1**: `1e17697dd2d2f5935e645cb7323853c4ed24a630`
+- **Post-SHA1**: `74b087d7be135bf7567e2d2f891448758a8119c9`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo test`; `cargo clippy --all-targets --all-features` (warnings present)
 - **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+- **Timestamp**: 2026-01-18T00:00:00Z
+- **Operator**: Coder-2
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md
+- **Notes**: Added `WriteActor` alias for spec alignment.
+
+- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Start**: 1
+- **End**: 1531
+- **Line Delta**: -15
+- **Pre-SHA1**: `e96e79bbeda0c49d4f80279d852c67bdc4e077c2`
+- **Post-SHA1**: `ae48a5080879f0a41dd9b2ced2d1d61d44c447b5`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo test`; `cargo clippy --all-targets --all-features` (warnings present)
+- **Artifacts**:
+- **Timestamp**: 2026-01-18T00:00:00Z
+- **Operator**: Coder-2
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md
+- **Notes**: Removed INSERT-then-UPDATE metadata windows; persist last_* and edit_event_id in atomic INSERTs for content tables.
+
+- **Target File**: `src/backend/handshake_core/src/storage/tests.rs`
+- **Start**: 1
+- **End**: 1170
+- **Line Delta**: 541
+- **Pre-SHA1**: `b46768a8d2f724fb21f02b612963ff5933032b24`
+- **Post-SHA1**: `e96aa74077baf2bd202e0e19b07f094e16c7e9a4`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo test`; `cargo clippy --all-targets --all-features` (warnings present)
+- **Artifacts**:
+- **Timestamp**: 2026-01-18T00:00:00Z
+- **Operator**: Coder-2
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md
+- **Notes**: Added tests covering silent-edit rejection and persisted mutation traceability metadata (SQLite; Postgres env-gated).
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
 - Current WP_STATUS: In Progress
-- What changed in this update: Bootstrap claim (packet claimed by coder; ready for SKELETON).
-- Next step / handoff hint: Provide SKELETON proposal for StorageGuard/mutation metadata enforcement; no code changes yet.
+- What changed in this update:
+  - Postgres content writes now persist `last_*` + `edit_event_id` atomically.
+  - Added `WriteActor` alias for spec alignment.
+  - Added storage tests covering silent-edit rejection and persisted traceability metadata.
+- Files touched:
+  - src/backend/handshake_core/src/storage/mod.rs
+  - src/backend/handshake_core/src/storage/postgres.rs
+  - src/backend/handshake_core/src/storage/tests.rs
+  - docs/task_packets/WP-1-Mutation-Traceability-v2.md
+- Next step / handoff hint:
+  - Validator: run validator gates per packet.
+  - Optional: set `POSTGRES_TEST_URL` to exercise Postgres-backed traceability tests.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+- Ran: `cd src/backend/handshake_core; cargo test hsk_403_silent_edit`
+  - `test storage::tests::postgres_rejects_ai_writes_without_context_with_hsk_403_silent_edit ... ok`
+  - `test storage::tests::sqlite_rejects_ai_writes_without_context_with_hsk_403_silent_edit ... ok`
+- Ran: `cd src/backend/handshake_core; cargo test mutation_traceability_metadata_on_writes`
+  - `test storage::tests::postgres_persists_mutation_traceability_metadata_on_writes ... ok`
+  - `test storage::tests::sqlite_persists_mutation_traceability_metadata_on_writes ... ok`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)

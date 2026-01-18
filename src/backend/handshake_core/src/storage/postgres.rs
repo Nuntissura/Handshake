@@ -21,6 +21,13 @@ pub struct PostgresDatabase {
     guard: Arc<dyn StorageGuard>,
 }
 
+#[cfg(test)]
+impl PostgresDatabase {
+    pub fn pool(&self) -> &PgPool {
+        &self.pool
+    }
+}
+
 impl PostgresDatabase {
     pub async fn connect(db_url: &str, max_connections: u32) -> StorageResult<Self> {
         let guard: Arc<dyn StorageGuard> = Arc::new(DefaultStorageGuard);
@@ -280,8 +287,18 @@ impl super::Database for PostgresDatabase {
 
         let row = sqlx::query(
             r#"
-            INSERT INTO workspaces (id, name, created_at, updated_at)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO workspaces (
+                id,
+                name,
+                created_at,
+                updated_at,
+                last_actor_kind,
+                last_actor_id,
+                last_job_id,
+                last_workflow_id,
+                edit_event_id
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING id, name, created_at, updated_at
             "#,
         )
@@ -289,27 +306,12 @@ impl super::Database for PostgresDatabase {
         .bind(&workspace.name)
         .bind(now)
         .bind(now)
-        .fetch_one(&self.pool)
-        .await?;
-
-        sqlx::query(
-            r#"
-            UPDATE workspaces
-            SET last_actor_kind = $1,
-                last_actor_id = $2,
-                last_job_id = $3,
-                last_workflow_id = $4,
-                edit_event_id = $5
-            WHERE id = $6
-            "#,
-        )
         .bind(actor_kind)
-        .bind(actor_id)
+        .bind(&actor_id)
         .bind(job_id)
         .bind(workflow_id)
         .bind(edit_event_id)
-        .bind(&id)
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await?;
 
         Ok(map_workspace(row))
@@ -387,8 +389,19 @@ impl super::Database for PostgresDatabase {
 
         let row = sqlx::query(
             r#"
-            INSERT INTO documents (id, workspace_id, title, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO documents (
+                id,
+                workspace_id,
+                title,
+                created_at,
+                updated_at,
+                last_actor_kind,
+                last_actor_id,
+                last_job_id,
+                last_workflow_id,
+                edit_event_id
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING id, workspace_id, title, created_at, updated_at
             "#,
         )
@@ -397,27 +410,12 @@ impl super::Database for PostgresDatabase {
         .bind(&doc.title)
         .bind(now)
         .bind(now)
-        .fetch_one(&self.pool)
-        .await?;
-
-        sqlx::query(
-            r#"
-            UPDATE documents
-            SET last_actor_kind = $1,
-                last_actor_id = $2,
-                last_job_id = $3,
-                last_workflow_id = $4,
-                edit_event_id = $5
-            WHERE id = $6
-            "#,
-        )
         .bind(actor_kind)
-        .bind(actor_id)
+        .bind(&actor_id)
         .bind(job_id)
         .bind(workflow_id)
         .bind(edit_event_id)
-        .bind(&id)
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await?;
 
         Ok(map_document(row))
@@ -494,10 +492,24 @@ impl super::Database for PostgresDatabase {
         let row = sqlx::query(
             r#"
             INSERT INTO blocks (
-                id, document_id, kind, sequence, raw_content, display_content, derived_content,
-                created_at, updated_at, sensitivity, exportable
+                id,
+                document_id,
+                kind,
+                sequence,
+                raw_content,
+                display_content,
+                derived_content,
+                created_at,
+                updated_at,
+                sensitivity,
+                exportable,
+                last_actor_kind,
+                last_actor_id,
+                last_job_id,
+                last_workflow_id,
+                edit_event_id
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
             RETURNING id, document_id, kind, sequence, raw_content, display_content, derived_content,
                       created_at, updated_at, sensitivity, exportable
             "#,
@@ -513,27 +525,12 @@ impl super::Database for PostgresDatabase {
         .bind(now)
         .bind(&block.sensitivity)
         .bind(exportable_int)
-        .fetch_one(&self.pool)
-        .await?;
-
-        sqlx::query(
-            r#"
-            UPDATE blocks
-            SET last_actor_kind = $1,
-                last_actor_id = $2,
-                last_job_id = $3,
-                last_workflow_id = $4,
-                edit_event_id = $5
-            WHERE id = $6
-            "#,
-        )
         .bind(actor_kind)
-        .bind(actor_id)
+        .bind(&actor_id)
         .bind(job_id)
         .bind(workflow_id)
         .bind(edit_event_id)
-        .bind(&id)
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await?;
 
         map_block(row)
@@ -665,10 +662,24 @@ impl super::Database for PostgresDatabase {
             let row = sqlx::query(
                 r#"
                 INSERT INTO blocks (
-                    id, document_id, kind, sequence, raw_content, display_content, derived_content,
-                    created_at, updated_at, sensitivity, exportable
+                    id,
+                    document_id,
+                    kind,
+                    sequence,
+                    raw_content,
+                    display_content,
+                    derived_content,
+                    created_at,
+                    updated_at,
+                    sensitivity,
+                    exportable,
+                    last_actor_kind,
+                    last_actor_id,
+                    last_job_id,
+                    last_workflow_id,
+                    edit_event_id
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
                 RETURNING id, document_id, kind, sequence, raw_content, display_content, derived_content,
                           created_at, updated_at, sensitivity, exportable
                 "#,
@@ -684,27 +695,12 @@ impl super::Database for PostgresDatabase {
             .bind(now)
             .bind(&block.sensitivity)
             .bind(exportable_int)
-            .fetch_one(&mut *tx)
-            .await?;
-
-            sqlx::query(
-                r#"
-                UPDATE blocks
-                SET last_actor_kind = $1,
-                    last_actor_id = $2,
-                    last_job_id = $3,
-                    last_workflow_id = $4,
-                    edit_event_id = $5
-                WHERE id = $6
-                "#,
-            )
             .bind(actor_kind)
-            .bind(actor_id)
+            .bind(&actor_id)
             .bind(job_id)
             .bind(workflow_id)
             .bind(edit_event_id)
-            .bind(&id)
-            .execute(&mut *tx)
+            .fetch_one(&mut *tx)
             .await?;
 
             inserted.push(map_block(row)?);
@@ -760,8 +756,19 @@ impl super::Database for PostgresDatabase {
 
         let row = sqlx::query(
             r#"
-            INSERT INTO canvases (id, workspace_id, title, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO canvases (
+                id,
+                workspace_id,
+                title,
+                created_at,
+                updated_at,
+                last_actor_kind,
+                last_actor_id,
+                last_job_id,
+                last_workflow_id,
+                edit_event_id
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING id, workspace_id, title, created_at, updated_at
             "#,
         )
@@ -770,27 +777,12 @@ impl super::Database for PostgresDatabase {
         .bind(&canvas.title)
         .bind(now)
         .bind(now)
-        .fetch_one(&self.pool)
-        .await?;
-
-        sqlx::query(
-            r#"
-            UPDATE canvases
-            SET last_actor_kind = $1,
-                last_actor_id = $2,
-                last_job_id = $3,
-                last_workflow_id = $4,
-                edit_event_id = $5
-            WHERE id = $6
-            "#,
-        )
         .bind(actor_kind)
-        .bind(actor_id)
+        .bind(&actor_id)
         .bind(job_id)
         .bind(workflow_id)
         .bind(edit_event_id)
-        .bind(&id)
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await?;
 
         Ok(map_canvas(row))
@@ -915,9 +907,21 @@ impl super::Database for PostgresDatabase {
             let row = sqlx::query(
                 r#"
                 INSERT INTO canvas_nodes (
-                    id, canvas_id, kind, position_x, position_y, data, created_at, updated_at
+                    id,
+                    canvas_id,
+                    kind,
+                    position_x,
+                    position_y,
+                    data,
+                    created_at,
+                    updated_at,
+                    last_actor_kind,
+                    last_actor_id,
+                    last_job_id,
+                    last_workflow_id,
+                    edit_event_id
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                 RETURNING id, canvas_id, kind, position_x, position_y, data, created_at, updated_at
                 "#,
             )
@@ -929,27 +933,12 @@ impl super::Database for PostgresDatabase {
             .bind(&data)
             .bind(now)
             .bind(now)
-            .fetch_one(&mut *tx)
-            .await?;
-
-            sqlx::query(
-                r#"
-                UPDATE canvas_nodes
-                SET last_actor_kind = $1,
-                    last_actor_id = $2,
-                    last_job_id = $3,
-                    last_workflow_id = $4,
-                    edit_event_id = $5
-                WHERE id = $6
-                "#,
-            )
             .bind(actor_kind)
-            .bind(actor_id)
+            .bind(&actor_id)
             .bind(job_id)
             .bind(workflow_id)
             .bind(edit_event_id)
-            .bind(&id)
-            .execute(&mut *tx)
+            .fetch_one(&mut *tx)
             .await?;
 
             inserted_nodes.push(map_canvas_node(row)?);
@@ -968,9 +957,20 @@ impl super::Database for PostgresDatabase {
             let row = sqlx::query(
                 r#"
                 INSERT INTO canvas_edges (
-                    id, canvas_id, from_node_id, to_node_id, kind, created_at, updated_at
+                    id,
+                    canvas_id,
+                    from_node_id,
+                    to_node_id,
+                    kind,
+                    created_at,
+                    updated_at,
+                    last_actor_kind,
+                    last_actor_id,
+                    last_job_id,
+                    last_workflow_id,
+                    edit_event_id
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 RETURNING id, canvas_id, from_node_id, to_node_id, kind, created_at, updated_at
                 "#,
             )
@@ -981,27 +981,12 @@ impl super::Database for PostgresDatabase {
             .bind(&edge.kind)
             .bind(now)
             .bind(now)
-            .fetch_one(&mut *tx)
-            .await?;
-
-            sqlx::query(
-                r#"
-                UPDATE canvas_edges
-                SET last_actor_kind = $1,
-                    last_actor_id = $2,
-                    last_job_id = $3,
-                    last_workflow_id = $4,
-                    edit_event_id = $5
-                WHERE id = $6
-                "#,
-            )
             .bind(actor_kind)
-            .bind(actor_id)
+            .bind(&actor_id)
             .bind(job_id)
             .bind(workflow_id)
             .bind(edit_event_id)
-            .bind(&id)
-            .execute(&mut *tx)
+            .fetch_one(&mut *tx)
             .await?;
 
             inserted_edges.push(map_canvas_edge(row));

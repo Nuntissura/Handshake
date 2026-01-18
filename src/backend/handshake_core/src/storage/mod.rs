@@ -627,6 +627,8 @@ pub enum WriteActorKind {
     System,
 }
 
+pub type WriteActor = WriteActorKind;
+
 impl WriteActorKind {
     pub fn as_str(&self) -> &'static str {
         match self {
