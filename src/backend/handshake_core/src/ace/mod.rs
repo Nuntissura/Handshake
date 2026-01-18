@@ -1019,10 +1019,7 @@ mod tests {
     #[test]
     fn test_strict_ranking_determinism() {
         let source1 = SourceRef::new(Uuid::nil(), "hash1".to_string());
-        let source2 = SourceRef::new(
-            Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
-            "hash2".to_string(),
-        );
+        let source2 = SourceRef::new(Uuid::from_u128(1), "hash2".to_string());
 
         let scores1 = CandidateScores {
             lexical: Some(0.8),
@@ -1056,7 +1053,7 @@ mod tests {
         candidates.sort_by(|a, b| {
             b.base_score
                 .partial_cmp(&a.base_score)
-                .unwrap()
+                .unwrap_or(std::cmp::Ordering::Equal)
                 .then_with(|| a.tiebreak.cmp(&b.tiebreak))
         });
         assert_eq!(candidates[0].tiebreak, candidate1.tiebreak);
@@ -1175,15 +1172,15 @@ mod tests {
     /// Under replay mode, replay MUST re-use persisted candidate list + rerank order
     /// and produce identical selected ids/hashes.
     #[test]
-    fn test_replay_persistence_correctness() {
+    fn test_replay_persistence_correctness() -> Result<(), Box<dyn std::error::Error>> {
         use sha2::{Digest, Sha256};
 
         // Helper to compute trace hash
-        fn compute_trace_hash(trace: &RetrievalTrace) -> String {
-            let json = serde_json::to_string(trace).unwrap();
+        fn compute_trace_hash(trace: &RetrievalTrace) -> Result<String, serde_json::Error> {
+            let json = serde_json::to_string(trace)?;
             let mut hasher = Sha256::new();
             hasher.update(json.as_bytes());
-            hex::encode(hasher.finalize())
+            Ok(hex::encode(hasher.finalize()))
         }
 
         // 1. Create QueryPlan in Replay mode
@@ -1197,9 +1194,9 @@ mod tests {
         // 2. Build RetrievalTrace with candidates and rerank info
         let mut trace = RetrievalTrace::new(&plan);
 
-        // Use fixed UUIDs for deterministic testing
-        let uuid1 = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
-        let uuid2 = Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap();
+        // Use fixed UUIDs for deterministic testing (infallible from_u128)
+        let uuid1 = Uuid::from_u128(1);
+        let uuid2 = Uuid::from_u128(2);
 
         let source1 = SourceRef::new(uuid1, "hash_source1".to_string());
         let source2 = SourceRef::new(uuid2, "hash_source2".to_string());
@@ -1262,21 +1259,19 @@ mod tests {
             .iter()
             .map(|c| c.candidate_id.clone())
             .collect();
-        let original_selected_refs: Vec<_> = trace
-            .selected
-            .iter()
-            .map(|s| serde_json::to_string(&s.candidate_ref).unwrap())
-            .collect();
+        let mut original_selected_refs = Vec::new();
+        for s in &trace.selected {
+            original_selected_refs.push(serde_json::to_string(&s.candidate_ref)?);
+        }
         let original_rerank_inputs = trace.rerank.inputs_hash.clone();
         let original_rerank_outputs = trace.rerank.outputs_hash.clone();
-        let original_trace_hash = compute_trace_hash(&trace);
+        let original_trace_hash = compute_trace_hash(&trace)?;
 
         // 4. Serialize (simulating persistence to Flight Recorder / storage)
-        let serialized = serde_json::to_string(&trace).expect("Trace must serialize");
+        let serialized = serde_json::to_string(&trace)?;
 
         // 5. Deserialize (simulating replay load)
-        let replayed: RetrievalTrace =
-            serde_json::from_str(&serialized).expect("Trace must deserialize");
+        let replayed: RetrievalTrace = serde_json::from_str(&serialized)?;
 
         // 6. Verify candidate IDs are IDENTICAL
         let replayed_candidate_ids: Vec<_> = replayed
@@ -1290,11 +1285,10 @@ mod tests {
         );
 
         // 7. Verify selected evidence refs are IDENTICAL
-        let replayed_selected_refs: Vec<_> = replayed
-            .selected
-            .iter()
-            .map(|s| serde_json::to_string(&s.candidate_ref).unwrap())
-            .collect();
+        let mut replayed_selected_refs = Vec::new();
+        for s in &replayed.selected {
+            replayed_selected_refs.push(serde_json::to_string(&s.candidate_ref)?);
+        }
         assert_eq!(
             original_selected_refs, replayed_selected_refs,
             "T-ACE-RAG-003: Selected evidence refs must be identical after replay"
@@ -1311,7 +1305,7 @@ mod tests {
         );
 
         // 9. Verify full trace hash is IDENTICAL
-        let replayed_trace_hash = compute_trace_hash(&replayed);
+        let replayed_trace_hash = compute_trace_hash(&replayed)?;
         assert_eq!(
             original_trace_hash, replayed_trace_hash,
             "T-ACE-RAG-003: Full trace hash must be identical after replay"
@@ -1322,5 +1316,7 @@ mod tests {
             replayed.query_plan_id, trace.query_plan_id,
             "T-ACE-RAG-003: Query plan ID must be preserved"
         );
+
+        Ok(())
     }
 }

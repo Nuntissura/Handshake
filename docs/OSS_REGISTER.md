@@ -29,6 +29,7 @@
 | sha2 | MIT/Apache-2.0 | embedded_lib | Runtime | SHA-256 hashing |
 | hex | MIT/Apache-2.0 | embedded_lib | Runtime | Hex encoding |
 | unicode-normalization | MIT/Apache-2.0 | embedded_lib | Runtime | Unicode NFC normalization |
+| caseless | MIT | embedded_lib | Runtime | Unicode caseless matching (casefold) |
 | tiktoken-rs | MIT | embedded_lib | Runtime | OpenAI tokenizer (optional) |
 | tokenizers | Apache-2.0 | embedded_lib | Runtime | HuggingFace tokenizers (optional) |
 | regex | MIT/Apache-2.0 | embedded_lib | Runtime | Regular expressions |
