@@ -688,6 +688,311 @@ impl Default for ValidatorPipeline {
     }
 }
 
+// ============================================================================
+// Flight Recorder ACE Validation Payload [§2.6.6.7.14.12]
+// ============================================================================
+
+/// ACE validation payload for Flight Recorder logging per §2.6.6.7.14.12.
+///
+/// This struct represents the `ace_validation` sub-object that MUST be included
+/// in `llm_inference` events for retrieval-backed model calls.
+///
+/// Required fields per spec:
+/// - QueryPlan (id + hash)
+/// - normalized_query_hash
+/// - RetrievalTrace (id + hash)
+/// - cache hits/misses per stage
+/// - rerank metadata (method + inputs_hash + outputs_hash)
+/// - diversity metadata (method + lambda)
+/// - per-source caps enforcement outcomes
+/// - drift detection flags and any degraded-mode marker
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AceValidationPayload {
+    // Scope identification
+    pub scope_document_id: String,
+    pub scope_inputs_hash: String,
+    pub determinism_mode: String,
+
+    // Candidate tracking
+    pub candidate_ids: Vec<String>,
+    pub candidate_hashes: Vec<String>,
+    pub selected_ids: Vec<String>,
+    pub selected_hashes: Vec<String>,
+
+    // Truncation/compaction
+    pub truncation_applied: bool,
+    pub truncation_flags: Vec<String>,
+    pub compaction_applied: bool,
+
+    // QueryPlan fields
+    pub query_plan_id: String,
+    pub query_plan_hash: String,
+    pub normalized_query_hash: String,
+
+    // RetrievalTrace fields
+    pub retrieval_trace_id: String,
+    pub retrieval_trace_hash: String,
+
+    // Rerank metadata (optional)
+    pub rerank_method: Option<String>,
+    pub rerank_inputs_hash: Option<String>,
+    pub rerank_outputs_hash: Option<String>,
+
+    // Diversity metadata (optional)
+    pub diversity_method: Option<String>,
+    pub diversity_lambda: Option<f64>,
+
+    // Cache markers (per stage)
+    pub cache_markers: Vec<CacheMarker>,
+
+    // Drift flags and degraded mode
+    pub drift_flags: Vec<String>,
+    pub degraded_mode: bool,
+
+    // Artifact handles (Phase 2)
+    pub artifact_handles: Vec<String>,
+
+    // Validation results
+    pub guards_passed: Vec<String>,
+    pub guards_failed: Vec<String>,
+    pub violation_codes: Vec<String>,
+    pub outcome: String, // "pass" | "fail" | "degraded"
+
+    // Model tier and timing
+    pub model_tier: String,
+    pub validation_duration_ms: u64,
+}
+
+/// Cache hit/miss marker for a retrieval stage
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CacheMarker {
+    pub stage: String,
+    pub cache_hit: bool,
+}
+
+impl AceValidationPayload {
+    /// Build an ACE validation payload from a QueryPlan and RetrievalTrace.
+    ///
+    /// This method MUST be called after validation to capture the complete
+    /// validation state for Flight Recorder logging per §2.6.6.7.14.12.
+    pub fn from_plan_and_trace(
+        plan: &QueryPlan,
+        trace: &RetrievalTrace,
+        scope_document_id: String,
+        guards_passed: Vec<String>,
+        guards_failed: Vec<String>,
+        violation_codes: Vec<String>,
+        model_tier: &str,
+        validation_duration_ms: u64,
+    ) -> Self {
+        use sha2::{Digest, Sha256};
+
+        // Compute plan hash
+        let plan_json = serde_json::to_string(plan).unwrap_or_default();
+        let mut hasher = Sha256::new();
+        hasher.update(plan_json.as_bytes());
+        let query_plan_hash = hex::encode(hasher.finalize());
+
+        // Compute trace hash
+        let trace_json = serde_json::to_string(trace).unwrap_or_default();
+        let mut hasher = Sha256::new();
+        hasher.update(trace_json.as_bytes());
+        let retrieval_trace_hash = hex::encode(hasher.finalize());
+
+        // Compute scope inputs hash (plan + document scope)
+        let scope_inputs = format!("{}:{}", scope_document_id, plan.policy_id);
+        let mut hasher = Sha256::new();
+        hasher.update(scope_inputs.as_bytes());
+        let scope_inputs_hash = hex::encode(hasher.finalize());
+
+        // Extract candidate/selected ids and hashes
+        let candidate_ids: Vec<_> = trace
+            .candidates
+            .iter()
+            .map(|c| c.candidate_id.clone())
+            .collect();
+        let candidate_hashes: Vec<_> = trace
+            .candidates
+            .iter()
+            .map(|c| {
+                let json = serde_json::to_string(c).unwrap_or_default();
+                let mut hasher = Sha256::new();
+                hasher.update(json.as_bytes());
+                hex::encode(hasher.finalize())
+            })
+            .collect();
+        let selected_ids: Vec<_> = trace
+            .selected
+            .iter()
+            .map(|s| format!("{:?}", s.candidate_ref))
+            .collect();
+        let selected_hashes: Vec<_> = trace
+            .selected
+            .iter()
+            .map(|s| {
+                let json = serde_json::to_string(s).unwrap_or_default();
+                let mut hasher = Sha256::new();
+                hasher.update(json.as_bytes());
+                hex::encode(hasher.finalize())
+            })
+            .collect();
+
+        // Build cache markers from route_taken
+        let cache_markers: Vec<_> = trace
+            .route_taken
+            .iter()
+            .map(|r| CacheMarker {
+                stage: format!("{:?}", r.store),
+                cache_hit: r.cache_hit.unwrap_or(false),
+            })
+            .collect();
+
+        // Extract drift flags from warnings
+        let drift_flags: Vec<_> = trace
+            .warnings
+            .iter()
+            .filter(|w| {
+                w.contains("drift")
+                    || w.contains("hash_mismatch")
+                    || w.contains("provenance")
+                    || w.contains("stale")
+            })
+            .cloned()
+            .collect();
+
+        // Determine outcome
+        let outcome = if guards_failed.is_empty() && violation_codes.is_empty() {
+            if drift_flags.is_empty() {
+                "pass"
+            } else {
+                "degraded"
+            }
+        } else {
+            "fail"
+        };
+
+        Self {
+            scope_document_id,
+            scope_inputs_hash,
+            determinism_mode: format!("{:?}", plan.determinism_mode).to_lowercase(),
+            candidate_ids,
+            candidate_hashes,
+            selected_ids,
+            selected_hashes,
+            truncation_applied: !trace.truncation_flags.is_empty(),
+            truncation_flags: trace.truncation_flags.clone(),
+            compaction_applied: trace
+                .candidates
+                .iter()
+                .any(|c| c.store == crate::ace::StoreKind::ContextPacks),
+            query_plan_id: plan.plan_id.to_string(),
+            query_plan_hash,
+            normalized_query_hash: trace.normalized_query_hash.clone(),
+            retrieval_trace_id: trace.trace_id.to_string(),
+            retrieval_trace_hash,
+            rerank_method: if trace.rerank.used {
+                Some(trace.rerank.method.clone())
+            } else {
+                None
+            },
+            rerank_inputs_hash: if trace.rerank.used {
+                Some(trace.rerank.inputs_hash.clone())
+            } else {
+                None
+            },
+            rerank_outputs_hash: if trace.rerank.used {
+                Some(trace.rerank.outputs_hash.clone())
+            } else {
+                None
+            },
+            diversity_method: if trace.diversity.used {
+                Some(trace.diversity.method.clone())
+            } else {
+                None
+            },
+            diversity_lambda: trace.diversity.lambda,
+            cache_markers,
+            drift_flags,
+            degraded_mode: outcome == "degraded",
+            artifact_handles: Vec::new(), // Phase 2
+            guards_passed,
+            guards_failed,
+            violation_codes,
+            outcome: outcome.to_string(),
+            model_tier: model_tier.to_string(),
+            validation_duration_ms,
+        }
+    }
+
+    /// Convert to serde_json::Value for inclusion in Flight Recorder events.
+    pub fn to_json_value(&self) -> serde_json::Value {
+        serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
+    }
+}
+
+impl ValidatorPipeline {
+    /// Validate plan and trace, returning an AceValidationPayload for Flight Recorder.
+    ///
+    /// This method runs all validators and captures the results in a format
+    /// suitable for logging to Flight Recorder per §2.6.6.7.14.12.
+    ///
+    /// The returned payload should be included in the `ace_validation` field
+    /// of `llm_inference` events.
+    pub async fn validate_and_log(
+        &self,
+        plan: &QueryPlan,
+        trace: &RetrievalTrace,
+        scope_document_id: String,
+        model_tier: &str,
+    ) -> (Vec<AceError>, AceValidationPayload) {
+        use std::time::Instant;
+
+        let start = Instant::now();
+        let mut guards_passed = Vec::new();
+        let mut guards_failed = Vec::new();
+        let mut violation_codes = Vec::new();
+        let mut errors = Vec::new();
+
+        // Run all validators and collect results
+        for validator in &self.validators {
+            let name = validator.name().to_string();
+
+            // Validate plan
+            if let Err(e) = validator.validate_plan(plan).await {
+                guards_failed.push(format!("{}:plan", name));
+                violation_codes.push(format!("{}", e));
+                errors.push(e);
+            } else {
+                guards_passed.push(format!("{}:plan", name));
+            }
+
+            // Validate trace
+            if let Err(e) = validator.validate_trace(trace).await {
+                guards_failed.push(format!("{}:trace", name));
+                violation_codes.push(format!("{}", e));
+                errors.push(e);
+            } else {
+                guards_passed.push(format!("{}:trace", name));
+            }
+        }
+
+        let validation_duration_ms = start.elapsed().as_millis() as u64;
+
+        let payload = AceValidationPayload::from_plan_and_trace(
+            plan,
+            trace,
+            scope_document_id,
+            guards_passed,
+            guards_failed,
+            violation_codes,
+            model_tier,
+            validation_duration_ms,
+        );
+
+        (errors, payload)
+    }
+}
+
 // Re-exports - Original 4 guards
 pub use budget::RetrievalBudgetGuard;
 pub use cache::CacheKeyGuard;

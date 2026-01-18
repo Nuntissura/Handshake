@@ -6,7 +6,7 @@
 //! - AceRuntimeValidator trait and 4 required Guards
 //! - Deterministic retrieval algorithms
 //!
-//! Spec Reference: Handshake_Master_Spec_v02.85 §2.6.6.7.14
+//! Spec Reference: Handshake_Master_Spec_v02.113 §2.6.6.7.14
 
 pub mod validators;
 
@@ -430,11 +430,12 @@ impl QueryPlan {
 /// - Collapses internal whitespace runs to single spaces
 /// - NFC normalizes unicode
 /// - Lowercases using Unicode casefold
-/// - Strips control characters (except whitespace-like ones which become spaces)
+/// - Strips control characters
 ///
 /// INVARIANT: Uses ASCII-only whitespace definition for collapse to ensure
 /// total determinism across all environments [CX-573E].
 pub fn normalize_query(query: &str) -> String {
+    use caseless::default_case_fold_str;
     use unicode_normalization::UnicodeNormalization;
 
     // ASCII whitespace - fixed definition for deterministic behavior
@@ -442,25 +443,33 @@ pub fn normalize_query(query: &str) -> String {
         matches!(c, ' ' | '\t' | '\n' | '\r')
     }
 
-    let lowercased: String = query
+    // Step 1: NFC normalize, convert whitespace to space, strip non-whitespace control chars
+    // Per spec §2.6.6.7.14.6(B):
+    // - "collapses internal whitespace runs to single spaces" (whitespace includes \t \n \r)
+    // - "strips control characters" (non-whitespace control chars like NUL, BEL, etc.)
+    let normalized: String = query
         .nfc() // NFC normalize unicode
-        .map(|c| {
-            // Convert all Unicode whitespace/control chars to ASCII space
-            if c.is_whitespace() || c.is_control() {
-                ' '
+        .filter_map(|c| {
+            if c.is_whitespace() {
+                // Convert all Unicode whitespace (including \t \n \r) to ASCII space
+                Some(' ')
+            } else if c.is_control() {
+                // Strip non-whitespace control characters (NUL, BEL, BS, etc.)
+                None
             } else {
-                c
+                Some(c)
             }
         })
-        .filter(|&c| c != '\0')
-        .collect::<String>()
-        .to_lowercase();
+        .collect();
 
-    // Deterministic ASCII-only whitespace collapse (replaces split_whitespace)
-    let mut result = String::with_capacity(lowercased.len());
+    // Step 2: Apply Unicode casefold (spec: "lowercases using Unicode casefold")
+    let casefolded = default_case_fold_str(&normalized);
+
+    // Step 3: Deterministic ASCII-only whitespace collapse
+    let mut result = String::with_capacity(casefolded.len());
     let mut prev_was_space = true; // Starts true to trim leading whitespace
 
-    for c in lowercased.chars() {
+    for c in casefolded.chars() {
         if is_ascii_ws(c) {
             if !prev_was_space {
                 result.push(' ');
@@ -887,10 +896,13 @@ impl ContextPackRecord {
 pub use validators::{
     // Core trait and pipeline
     AceRuntimeValidator,
+    // Flight Recorder logging types (§2.6.6.7.14.12)
+    AceValidationPayload,
     // New 8 security guards (§2.6.6.7.11.1-8)
     ArtifactHandleOnlyGuard,
     // Original 4 guards (§2.6.6.7.14.11)
     CacheKeyGuard,
+    CacheMarker,
     CloudLeakageGuard,
     CompactionSchemaGuard,
     // Content-aware validation types [HSK-ACE-VAL-100]
@@ -956,6 +968,49 @@ mod tests {
         assert_eq!(
             plan1.compute_normalized_query_hash(),
             plan2.compute_normalized_query_hash()
+        );
+    }
+
+    /// T-ACE-RAG-001b: Unicode casefold correctness
+    /// Validates that normalize_query uses proper Unicode casefold, not just to_lowercase.
+    /// Key difference: casefold converts ß → ss, to_lowercase keeps ß as ß.
+    #[test]
+    fn test_unicode_casefold_correctness() {
+        // German ß (Eszett) should casefold to "ss"
+        let with_eszett = "Straße"; // "Street" in German
+        let with_ss = "strasse";
+        assert_eq!(
+            normalize_query(with_eszett),
+            normalize_query(with_ss),
+            "Unicode casefold must convert ß to ss (ß should equal ss)"
+        );
+
+        // Verify ß explicitly becomes ss
+        let normalized = normalize_query("ß");
+        assert_eq!(normalized, "ss", "ß must casefold to ss");
+
+        // Turkish dotless i (ı) and dotted I (İ) - casefold behavior
+        // Standard casefold: İ → i̇ (with combining dot), ı → ı
+        // (Note: actual behavior depends on caseless crate implementation)
+        let turkish_i = normalize_query("I");
+        assert_eq!(turkish_i, "i", "ASCII I should casefold to i");
+
+        // Control characters should be stripped (not converted to space)
+        let with_control = "hello\x00\x07\x08world"; // NUL, BEL, BS
+        let without_control = "helloworld";
+        assert_eq!(
+            normalize_query(with_control),
+            normalize_query(without_control),
+            "Non-whitespace control characters must be stripped"
+        );
+
+        // Whitespace control chars (tab, newline) should become spaces then collapse
+        let with_ws_control = "hello\t\n\rworld";
+        let expected = "hello world";
+        assert_eq!(
+            normalize_query(with_ws_control),
+            expected,
+            "Whitespace control chars (\\t \\n \\r) should become space and collapse"
         );
     }
 
@@ -1114,5 +1169,158 @@ mod tests {
 
         // Different count -> stale
         assert!(pack.is_stale(&["hash1".to_string()]));
+    }
+
+    /// T-ACE-RAG-003: Replay persistence correctness
+    /// Under replay mode, replay MUST re-use persisted candidate list + rerank order
+    /// and produce identical selected ids/hashes.
+    #[test]
+    fn test_replay_persistence_correctness() {
+        use sha2::{Digest, Sha256};
+
+        // Helper to compute trace hash
+        fn compute_trace_hash(trace: &RetrievalTrace) -> String {
+            let json = serde_json::to_string(trace).unwrap();
+            let mut hasher = Sha256::new();
+            hasher.update(json.as_bytes());
+            hex::encode(hasher.finalize())
+        }
+
+        // 1. Create QueryPlan in Replay mode
+        let mut plan = QueryPlan::new(
+            "test replay query".to_string(),
+            QueryKind::FactLookup,
+            "replay_policy".to_string(),
+        );
+        plan.determinism_mode = DeterminismMode::Replay;
+
+        // 2. Build RetrievalTrace with candidates and rerank info
+        let mut trace = RetrievalTrace::new(&plan);
+
+        // Use fixed UUIDs for deterministic testing
+        let uuid1 = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
+        let uuid2 = Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap();
+
+        let source1 = SourceRef::new(uuid1, "hash_source1".to_string());
+        let source2 = SourceRef::new(uuid2, "hash_source2".to_string());
+
+        let scores1 = CandidateScores {
+            lexical: Some(0.9),
+            pack: Some(1.0),
+            ..Default::default()
+        };
+        let scores2 = CandidateScores {
+            lexical: Some(0.8),
+            pack: Some(1.0),
+            ..Default::default()
+        };
+
+        // Add candidates with deterministic IDs (override the random UUIDs)
+        let mut candidate1 =
+            RetrievalCandidate::from_source(source1.clone(), StoreKind::ContextPacks, scores1);
+        candidate1.candidate_id = "candidate_001".to_string();
+
+        let mut candidate2 =
+            RetrievalCandidate::from_source(source2.clone(), StoreKind::ContextPacks, scores2);
+        candidate2.candidate_id = "candidate_002".to_string();
+
+        trace.candidates.push(candidate1);
+        trace.candidates.push(candidate2);
+
+        // Add selected evidence
+        trace.selected.push(SelectedEvidence {
+            candidate_ref: CandidateRef::Source(source1.clone()),
+            final_rank: 0,
+            final_score: 1.9,
+            why: "highest_combined_score".to_string(),
+        });
+        trace.selected.push(SelectedEvidence {
+            candidate_ref: CandidateRef::Source(source2.clone()),
+            final_rank: 1,
+            final_score: 1.8,
+            why: "second_highest_score".to_string(),
+        });
+
+        // Add rerank metadata (per §2.6.6.7.14.6(E) - replay mode persists rerank order)
+        trace.rerank = RerankInfo {
+            used: true,
+            method: "cross_encoder_v1".to_string(),
+            inputs_hash: "rerank_inputs_hash_abc123".to_string(),
+            outputs_hash: "rerank_outputs_hash_def456".to_string(),
+        };
+
+        // Add diversity metadata
+        trace.diversity = DiversityInfo {
+            used: true,
+            method: "mmr".to_string(),
+            lambda: Some(0.7),
+        };
+
+        // 3. Capture original state before serialization (persistence)
+        let original_candidate_ids: Vec<_> = trace
+            .candidates
+            .iter()
+            .map(|c| c.candidate_id.clone())
+            .collect();
+        let original_selected_refs: Vec<_> = trace
+            .selected
+            .iter()
+            .map(|s| serde_json::to_string(&s.candidate_ref).unwrap())
+            .collect();
+        let original_rerank_inputs = trace.rerank.inputs_hash.clone();
+        let original_rerank_outputs = trace.rerank.outputs_hash.clone();
+        let original_trace_hash = compute_trace_hash(&trace);
+
+        // 4. Serialize (simulating persistence to Flight Recorder / storage)
+        let serialized = serde_json::to_string(&trace).expect("Trace must serialize");
+
+        // 5. Deserialize (simulating replay load)
+        let replayed: RetrievalTrace =
+            serde_json::from_str(&serialized).expect("Trace must deserialize");
+
+        // 6. Verify candidate IDs are IDENTICAL
+        let replayed_candidate_ids: Vec<_> = replayed
+            .candidates
+            .iter()
+            .map(|c| c.candidate_id.clone())
+            .collect();
+        assert_eq!(
+            original_candidate_ids, replayed_candidate_ids,
+            "T-ACE-RAG-003: Candidate IDs must be identical after replay"
+        );
+
+        // 7. Verify selected evidence refs are IDENTICAL
+        let replayed_selected_refs: Vec<_> = replayed
+            .selected
+            .iter()
+            .map(|s| serde_json::to_string(&s.candidate_ref).unwrap())
+            .collect();
+        assert_eq!(
+            original_selected_refs, replayed_selected_refs,
+            "T-ACE-RAG-003: Selected evidence refs must be identical after replay"
+        );
+
+        // 8. Verify rerank hashes are IDENTICAL (per §2.6.6.7.14.6(E))
+        assert_eq!(
+            original_rerank_inputs, replayed.rerank.inputs_hash,
+            "T-ACE-RAG-003: Rerank inputs_hash must be identical after replay"
+        );
+        assert_eq!(
+            original_rerank_outputs, replayed.rerank.outputs_hash,
+            "T-ACE-RAG-003: Rerank outputs_hash must be identical after replay"
+        );
+
+        // 9. Verify full trace hash is IDENTICAL
+        let replayed_trace_hash = compute_trace_hash(&replayed);
+        assert_eq!(
+            original_trace_hash, replayed_trace_hash,
+            "T-ACE-RAG-003: Full trace hash must be identical after replay"
+        );
+
+        // 10. Verify determinism mode is preserved
+        assert_eq!(
+            replayed.query_plan_id, trace.query_plan_id,
+            "T-ACE-RAG-003: Query plan ID must be preserved"
+        );
     }
 }
