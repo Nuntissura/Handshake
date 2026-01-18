@@ -10,7 +10,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: MEDIUM
 - USER_SIGNATURE: ilja170120262341
 - SUPERSEDES: WP-1-Flight-Recorder-UI-v2 (protocol drift; v3 is protocol-clean remediation)
@@ -323,3 +323,63 @@ REASON FOR FAIL:
 
 Suggested Actions:
 - Add a vitest test that verifies `event_id -> Timeline focus` for `FlightRecorderView` (and ideally a failure path that emits VAL-NAV-001). Re-run `pnpm -C app test`.
+
+### VALIDATION REPORT - WP-1-Flight-Recorder-UI-v3 (2026-01-18 revalidation)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: `docs/task_packets/WP-1-Flight-Recorder-UI-v3.md` (**Status:** Done)
+- Spec Target: `docs/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.113.md`
+- Spec Anchors:
+  - `Handshake_Master_Spec_v02.113.md:35191`
+  - `Handshake_Master_Spec_v02.113.md:41809`
+  - `Handshake_Master_Spec_v02.113.md:46286`
+  - `Handshake_Master_Spec_v02.113.md:6708`
+- Active Packet mapping: `docs/WP_TRACEABILITY_REGISTRY.md:77`
+- Worktree/Branch: `D:\Projects\LLM projects\wt-WP-1-Flight-Recorder-UI-v3` / `feat/WP-1-Flight-Recorder-UI-v3`
+- Commits reviewed: `00ea400c` (required tests), `f1727cdc` (implementation)
+
+Files Checked:
+- `docs/task_packets/WP-1-Flight-Recorder-UI-v3.md`
+- `docs/refinements/WP-1-Flight-Recorder-UI-v3.md`
+- `docs/WP_TRACEABILITY_REGISTRY.md`
+- `docs/SPEC_CURRENT.md`
+- `Handshake_Master_Spec_v02.113.md`
+- `app/src/components/FlightRecorderView.tsx`
+- `app/src/lib/api.ts`
+- `app/src/App.css`
+- `app/src/App.test.tsx`
+
+Findings:
+- Requirement (Timeline filters + /api/flight_recorder params): satisfied
+  - URL->filters: `app/src/components/FlightRecorderView.tsx:93`
+  - filters->URL: `app/src/components/FlightRecorderView.tsx:113`
+  - filters->API: `app/src/components/FlightRecorderView.tsx:53`, `app/src/lib/api.ts:443`
+- Requirement (VAL-NAV-001 no silent failures): satisfied
+  - Best-effort diagnostic emission: `app/src/components/FlightRecorderView.tsx:67`
+  - No-results + missing event_id notice + de-spam: `app/src/components/FlightRecorderView.tsx:203`
+- Requirement (event_id -> Timeline focus): satisfied
+  - focus/scroll in UI: `app/src/components/FlightRecorderView.tsx:271`, `app/src/components/FlightRecorderView.tsx:301`
+  - test coverage: `app/src/App.test.tsx:90`, `app/src/App.test.tsx:117`
+- Requirement (FR-EVT-SEC-VIOLATION visibility intent / security_violation prominence + safe-by-default payload): satisfied
+  - UI prominence: `app/src/components/FlightRecorderView.tsx:497`, `app/src/App.css:280`
+
+Tests:
+- `just pre-work WP-1-Flight-Recorder-UI-v3`: PASS
+- `pnpm -C app run lint`: PASS
+- `pnpm -C app run build`: PASS
+- `pnpm -C app test`: PASS
+- `just cargo-clean`: PASS
+- `just validator-spec-regression`: PASS
+- `just validator-coverage-gaps`: PASS
+- `just validator-scan`: FAIL due to pre-existing backend hits (out-of-scope for this WP diff)
+- `just post-work WP-1-Flight-Recorder-UI-v3`: cannot be re-run post-commit (script expects a non-clean diff); coder recorded a pre-commit PASS in `## EVIDENCE`.
+
+Hygiene:
+- Worktree is clean aside from `docs/validator_gates/WP-1-Flight-Recorder-UI-v3.json` (local validator gate state; not part of the WP diff).
+
+REASON FOR PASS:
+- `Handshake_Master_Spec_v02.113.md:46286` required test coverage for `event_id -> Timeline focus` is present, and deep-link failures are non-silent (visible notice + best-effort `VAL-NAV-001` diagnostic).
+
+Risks & Suggested Actions:
+- Consider making `validator-scan` diff-scoped or adding baseline suppressions so unrelated backend hits do not create recurring noise for frontend-only WPs.
