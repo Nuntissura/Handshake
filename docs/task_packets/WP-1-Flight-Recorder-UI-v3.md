@@ -126,6 +126,8 @@ git revert <commit-sha>
   - "API query mismatch" -> "filters look like they work but return wrong rows; ensure query param names match backend"
 
 ## SKELETON
+SKELETON APPROVED
+
 - Proposed interfaces/types/contracts:
   - `FlightRecorderUiFilters` (draft inputs; empty string = unset): `jobId`, `traceId`, `eventId`, `wsid`, `actor`, `eventType`, `from`, `to`.
   - `AppliedFilters` (polling contract): snapshot of the last submitted filters; polling always uses this snapshot (prevents stale-closure polling bug).
