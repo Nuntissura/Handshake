@@ -360,10 +360,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
 - **Start**: 1
-- **End**: 1510
-- **Line Delta**: 2
-- **Pre-SHA1**: `57ea7d1edf5dd69e4623f6222b96e60ccd744188`
-- **Post-SHA1**: `57c902d88e89c18c6668fac6d445e09952af298c`
+- **End**: 1519
+- **Line Delta**: 9
+- **Pre-SHA1**: `57c902d88e89c18c6668fac6d445e09952af298c`
+- **Post-SHA1**: `c997f54569dfb39175e2f2358f5e1a6511e8d04f`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
