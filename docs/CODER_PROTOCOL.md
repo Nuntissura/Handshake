@@ -26,7 +26,16 @@ Required verification (run at session start and whenever context is unclear):
 - `pwd`
 - `git rev-parse --show-toplevel`
 - `git rev-parse --abbrev-ref HEAD`
+- `git status -sb`
 - `git worktree list`
+
+**Chat requirement (MANDATORY):** paste the literal command outputs into chat as a single block named `HARD_GATE_OUTPUT` so Operator/Validator can verify you are in the correct repo/worktree/branch without follow-ups.
+
+Template:
+```text
+HARD_GATE_OUTPUT [CX-WT-001]
+<paste the verbatim outputs for the commands above, in order>
+```
 
 If you do not have a WP worktree assignment yet:
 - STOP and escalate to the Orchestrator to create/record the WP worktree (`just worktree-add WP-{ID}` + `just record-prepare ...`) before you continue.

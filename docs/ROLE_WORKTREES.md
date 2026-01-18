@@ -27,6 +27,7 @@ Notes:
 - `pwd`
 - `git rev-parse --show-toplevel`
 - `git rev-parse --abbrev-ref HEAD`
+- `git status -sb`
 - `git worktree list`
 
 ## Creation Commands (only if explicitly authorized in the same turn)

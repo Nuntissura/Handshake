@@ -86,6 +86,7 @@ Required verification (run at session start and whenever context is unclear):
 - `pwd`
 - `git rev-parse --show-toplevel`
 - `git rev-parse --abbrev-ref HEAD`
+- `git status -sb`
 - `git worktree list`
 
 If the required worktree/branch does not exist:
