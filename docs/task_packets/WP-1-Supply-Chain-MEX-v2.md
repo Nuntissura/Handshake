@@ -46,6 +46,8 @@
   - Date: 2026-01-17
   - Scope: Workflow phase-gate breach (BOOTSTRAP + SKELETON drafted in the same turn).
   - Justification: User explicitly waived this breach for this WP and noted it will be recorded.
+  - Approver: ilja
+  - Expiry: WP-1-Supply-Chain-MEX-v2 validation complete.
 
 ## QUALITY_GATE
 ### TEST_PLAN
@@ -211,6 +213,7 @@ Next: Write SKELETON and stop for approval (no implementation before SKELETON AP
 ========================================
 
 ## SKELETON
+SKELETON APPROVED
 - Proposed interfaces/types/contracts:
   - New module: `src/backend/handshake_core/src/mex/supply_chain.rs`
     - `pub enum SupplyChainReportKind { Vuln, #[serde(rename = "SBOM")] Sbom, License }`
