@@ -1,0 +1,31 @@
+{
+  "validation_sessions": {
+    "WP-1-Supply-Chain-MEX-v2": {
+      "wpId": "WP-1-Supply-Chain-MEX-v2",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-01-18T03:04:15.651Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-18T03:04:15.654Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-18T03:08:35.375Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-18T03:15:55.873Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-18T03:30:05.475Z"
+        }
+      ],
+      "completed": "2026-01-18T03:30:05.475Z"
+    }
+  },
+  "archived_sessions": []
+}

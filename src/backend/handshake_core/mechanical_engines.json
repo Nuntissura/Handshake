@@ -26,5 +26,113 @@
         "output_types": ["artifact.model3d"]
       }
     ]
+  },
+  "engine.guard.secret_scan": {
+    "engine_id": "engine.guard.secret_scan",
+    "determinism_ceiling": "d1",
+    "required_caps": ["fs.read:inputs", "fs.write:artifacts"],
+    "required_gates": [
+      "G-SCHEMA",
+      "G-CAP",
+      "G-INTEGRITY",
+      "G-BUDGET",
+      "G-PROVENANCE",
+      "G-DET"
+    ],
+    "default_budget": {
+      "cpu_time_ms": 120000,
+      "wall_time_ms": 300000,
+      "memory_bytes": 536870912,
+      "output_bytes": 104857600
+    },
+    "ops": [
+      {
+        "name": "secret_scan",
+        "schema_ref": "poe-1.0",
+        "capabilities": ["fs.read:inputs", "fs.write:artifacts", "proc.exec:gitleaks"],
+        "output_types": ["artifact.dataset"]
+      }
+    ]
+  },
+  "engine.supply_chain.vuln": {
+    "engine_id": "engine.supply_chain.vuln",
+    "determinism_ceiling": "d1",
+    "required_caps": ["fs.read:inputs", "fs.write:artifacts"],
+    "required_gates": [
+      "G-SCHEMA",
+      "G-CAP",
+      "G-INTEGRITY",
+      "G-BUDGET",
+      "G-PROVENANCE",
+      "G-DET"
+    ],
+    "default_budget": {
+      "cpu_time_ms": 300000,
+      "wall_time_ms": 600000,
+      "memory_bytes": 1073741824,
+      "output_bytes": 104857600
+    },
+    "ops": [
+      {
+        "name": "vuln_scan",
+        "schema_ref": "poe-1.0",
+        "capabilities": ["fs.read:inputs", "fs.write:artifacts", "proc.exec:osv-scanner"],
+        "output_types": ["artifact.dataset"]
+      }
+    ]
+  },
+  "engine.supply_chain.sbom": {
+    "engine_id": "engine.supply_chain.sbom",
+    "determinism_ceiling": "d1",
+    "required_caps": ["fs.read:inputs", "fs.write:artifacts"],
+    "required_gates": [
+      "G-SCHEMA",
+      "G-CAP",
+      "G-INTEGRITY",
+      "G-BUDGET",
+      "G-PROVENANCE",
+      "G-DET"
+    ],
+    "default_budget": {
+      "cpu_time_ms": 300000,
+      "wall_time_ms": 600000,
+      "memory_bytes": 1073741824,
+      "output_bytes": 209715200
+    },
+    "ops": [
+      {
+        "name": "sbom_generate",
+        "schema_ref": "poe-1.0",
+        "capabilities": ["fs.read:inputs", "fs.write:artifacts", "proc.exec:syft"],
+        "output_types": ["artifact.dataset"]
+      }
+    ]
+  },
+  "engine.supply_chain.license": {
+    "engine_id": "engine.supply_chain.license",
+    "determinism_ceiling": "d1",
+    "required_caps": ["fs.read:inputs", "fs.write:artifacts"],
+    "required_gates": [
+      "G-SCHEMA",
+      "G-CAP",
+      "G-INTEGRITY",
+      "G-BUDGET",
+      "G-PROVENANCE",
+      "G-DET"
+    ],
+    "default_budget": {
+      "cpu_time_ms": 300000,
+      "wall_time_ms": 900000,
+      "memory_bytes": 1073741824,
+      "output_bytes": 209715200
+    },
+    "ops": [
+      {
+        "name": "license_scan",
+        "schema_ref": "poe-1.0",
+        "capabilities": ["fs.read:inputs", "fs.write:artifacts", "proc.exec:scancode"],
+        "output_types": ["artifact.dataset"]
+      }
+    ]
   }
 }

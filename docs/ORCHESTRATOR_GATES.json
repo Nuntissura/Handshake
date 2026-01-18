@@ -473,6 +473,38 @@
       "timestamp": "2026-01-16T22:17:57.323Z"
     },
     {
+      "wpId": "WP-1-Supply-Chain-MEX-v2",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Supply-Chain-MEX-v2.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md",
+      "spec_target_sha1": "cf2f5305fc8eec517d577d87365bd9c072a99b0f",
+      "timestamp": "2026-01-17T21:33:31.626Z",
+      "turn_token": "1768685611627"
+    },
+    {
+      "wpId": "WP-1-Supply-Chain-MEX-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja170120262249",
+      "timestamp": "2026-01-17T22:00:44.102Z",
+      "refinement_path": "docs/refinements/WP-1-Supply-Chain-MEX-v2.md"
+    },
+    {
+      "wpId": "WP-1-Supply-Chain-MEX-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Supply-Chain-MEX-v2",
+      "worktree_dir": "D:/Projects/LLM",
+      "timestamp": "2026-01-17T22:04:40.835Z"
+    },
+    {
+      "wpId": "WP-1-Supply-Chain-MEX-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Supply-Chain-MEX-v2",
+      "worktree_dir": "../wt-WP-1-Supply-Chain-MEX-v2",
+      "timestamp": "2026-01-17T22:05:15.831Z"
+    },
+    {
       "wpId": "WP-1-Flight-Recorder-UI-v3",
       "type": "REFINEMENT",
       "refinement_path": "docs/refinements/WP-1-Flight-Recorder-UI-v3.md",
