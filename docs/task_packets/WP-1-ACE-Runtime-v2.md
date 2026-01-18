@@ -42,6 +42,12 @@
   - Justification: Operator explicitly waived out-of-scope gating to unblock implementation.
   - Approver: Operator (chat waiver: "i waive out of scope" / "i waive the scope, it is allowed")
   - Expiry: On WP closure (validation complete).
+- WAIVER-NONDETERMINISM-WP-1-ACE-Runtime-v2-002 [CX-573E]
+  - Date: 2026-01-18
+  - Scope: `src/backend/handshake_core/src/ace/validators/mod.rs:951` - `Instant::now()` call
+  - Justification: Timing-only instrumentation for Flight Recorder latency metrics; does not affect validation logic or determinism of ACE guard outcomes.
+  - Code marker: `// WAIVER [CX-573E]: timing-only instrumentation for FR latency metrics; no determinism impact`
+  - Expiry: On WP closure (validation complete).
 
 ## QUALITY_GATE
 ### TEST_PLAN
@@ -248,11 +254,31 @@ git revert <commit-sha>
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
 
+### Manifest Entry 5: flight_recorder/mod.rs (cherry-pick gate-unblock)
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 1
+- **End**: 1501
+- **Line Delta**: 11
+- **Pre-SHA1**: `ee10486cbd46eac5ee903dbfc9adf43afb07ee6b`
+- **Post-SHA1**: `6cc6375588b4cad93103fca66324a4c97e284060`
+- **Change Summary**: Cherry-pick Coder2 gate-unblock commits (9190e673, f8237f90) - removed expect() from ExportRecord serialization
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
 - **Lint Results**: cargo clippy passed (warnings present)
 - **Artifacts**: Cargo.lock updated with caseless v0.2.2
 - **Timestamp**: 2026-01-18
 - **Spec Target Resolved**: docs/SPEC_CURRENT.md to Handshake_Master_Spec_v02.113.md
-- **Notes**: Waiver WAIVER-SCOPE-EXPAND-WP-1-ACE-Runtime-v2-001 covers Cargo.toml and Cargo.lock changes
+- **Notes**: Waiver WAIVER-SCOPE-EXPAND-WP-1-ACE-Runtime-v2-001 covers Cargo.toml, Cargo.lock, and flight_recorder/mod.rs changes
 
 ## STATUS_HANDOFF
 - Current WP_STATUS: Implementation Complete - Ready for Validation

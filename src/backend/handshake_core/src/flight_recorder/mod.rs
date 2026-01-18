@@ -1237,7 +1237,8 @@ mod tests {
     const DUMMY_SHA256: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
     #[test]
-    fn test_governance_pack_export_event_accepts_export_record_payload() {
+    fn test_governance_pack_export_event_accepts_export_record_payload(
+    ) -> Result<(), serde_json::Error> {
         let export_id = Uuid::new_v4();
         let record = ExportRecord {
             export_id,
@@ -1271,7 +1272,7 @@ mod tests {
             errors: Vec::new(),
         };
 
-        let payload = serde_json::to_value(&record).expect("serialize ExportRecord");
+        let payload = serde_json::to_value(&record)?;
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::GovernancePackExport,
             FlightRecorderActor::Agent,
@@ -1279,6 +1280,7 @@ mod tests {
             payload,
         );
         assert!(event.validate().is_ok());
+        Ok(())
     }
 
     fn valid_llm_inference_payload() -> Value {
@@ -1395,7 +1397,11 @@ mod tests {
 
         // Missing key
         let mut missing = payload.clone();
-        missing.as_object_mut().unwrap().remove("thread_id");
+        if let Some(obj) = missing.as_object_mut() {
+            obj.remove("thread_id");
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
         assert!(matches!(
             validate_gov_mailbox_message_created_payload(&missing),
             Err(RecorderError::InvalidEvent(_))
@@ -1403,10 +1409,11 @@ mod tests {
 
         // Extra key
         let mut extra = payload.clone();
-        extra
-            .as_object_mut()
-            .unwrap()
-            .insert("extra".to_string(), json!(1));
+        if let Some(obj) = extra.as_object_mut() {
+            obj.insert("extra".to_string(), json!(1));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
         assert!(matches!(
             validate_gov_mailbox_message_created_payload(&extra),
             Err(RecorderError::InvalidEvent(_))
@@ -1414,10 +1421,11 @@ mod tests {
 
         // Invalid governance_mode enum
         let mut invalid_enum = payload.clone();
-        invalid_enum
-            .as_object_mut()
-            .unwrap()
-            .insert("governance_mode".to_string(), json!("invalid"));
+        if let Some(obj) = invalid_enum.as_object_mut() {
+            obj.insert("governance_mode".to_string(), json!("invalid"));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
         assert!(matches!(
             validate_gov_mailbox_message_created_payload(&invalid_enum),
             Err(RecorderError::InvalidEvent(_))
@@ -1425,10 +1433,11 @@ mod tests {
 
         // Forbidden body field
         let mut forbidden = payload.clone();
-        forbidden
-            .as_object_mut()
-            .unwrap()
-            .insert("body".to_string(), json!("leak"));
+        if let Some(obj) = forbidden.as_object_mut() {
+            obj.insert("body".to_string(), json!("leak"));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
         assert!(matches!(
             validate_gov_mailbox_message_created_payload(&forbidden),
             Err(RecorderError::InvalidEvent(_))
@@ -1451,10 +1460,11 @@ mod tests {
         assert!(validate_gov_mailbox_exported_payload(&payload).is_ok());
 
         let mut bad_root = payload.clone();
-        bad_root
-            .as_object_mut()
-            .unwrap()
-            .insert("export_root".to_string(), json!("docs/ROLE_MAILBOX"));
+        if let Some(obj) = bad_root.as_object_mut() {
+            obj.insert("export_root".to_string(), json!("docs/ROLE_MAILBOX"));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
         assert!(matches!(
             validate_gov_mailbox_exported_payload(&bad_root),
             Err(RecorderError::InvalidEvent(_))
@@ -1478,10 +1488,11 @@ mod tests {
         assert!(validate_gov_mailbox_transcribed_payload(&payload).is_ok());
 
         let mut bad_sha = payload.clone();
-        bad_sha
-            .as_object_mut()
-            .unwrap()
-            .insert("target_sha256".to_string(), json!("not-a-sha"));
+        if let Some(obj) = bad_sha.as_object_mut() {
+            obj.insert("target_sha256".to_string(), json!("not-a-sha"));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
         assert!(matches!(
             validate_gov_mailbox_transcribed_payload(&bad_sha),
             Err(RecorderError::InvalidEvent(_))
