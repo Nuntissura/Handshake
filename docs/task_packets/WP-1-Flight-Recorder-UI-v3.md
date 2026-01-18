@@ -26,6 +26,8 @@
   - app/src/components/FlightRecorderView.tsx
   - app/src/lib/api.ts
   - app/src/App.css
+  - app/src/App.test.tsx
+- Scope note: `app/src/App.test.tsx` added to satisfy spec-required test coverage for Timeline deep-link focus behavior (Handshake_Master_Spec_v02.113.md:46286).
 - OUT_OF_SCOPE:
   - Any backend changes in `src/backend/**` (including MEX/supply-chain work).
   - Any CI changes (including `.github/workflows/ci.yml`).
@@ -151,12 +153,14 @@ SKELETON APPROVED
 - Prevented silent deep-link failures: visible notice + best-effort Diagnostic emission (`VAL-NAV-001`) for no-results, missing event_id in results, and clipboard failures.
 - Rendered payloads redacted-by-default with explicit per-event opt-in "Reveal raw (unsafe)" and redacted security_violation context snippet.
 - Added Flight Recorder UI styles and made security_violation rows/tags prominent.
+- Added vitest coverage for `event_id` deep-link focus (row selection + scrollIntoView) and `VAL-NAV-001` emission when `event_id` is missing from returned results (`app/src/App.test.tsx`).
 
 ## HYGIENE
 - Ran: `just pre-work WP-1-Flight-Recorder-UI-v3`
 - Ran: `pnpm -C app install` (node_modules for lint/build in this worktree)
 - Ran: `pnpm -C app run lint`
 - Ran: `pnpm -C app run build`
+- Ran: `pnpm -C app test`
 - Ran: `just cargo-clean`
 - Updated COR-701 manifest inputs via `just cor701-sha` for the touched app files.
 
@@ -166,9 +170,9 @@ SKELETON APPROVED
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
 - **Target File**: `app/src/components/FlightRecorderView.tsx`
 - **Start**: 1
-- **End**: 643
-- **Line Delta**: 461
-- **Pre-SHA1**: `4517ed73504b7c1233e5393fcc9d85e58dcda77b`
+- **End**: 1
+- **Line Delta**: 0
+- **Pre-SHA1**: `df5b55c3810092e1fd716115fc042243b4ce8ccf`
 - **Post-SHA1**: `df5b55c3810092e1fd716115fc042243b4ce8ccf`
 - **Gates Passed**:
   - [x] anchors_present
@@ -183,11 +187,29 @@ SKELETON APPROVED
   - [x] current_file_matches_preimage
 
 - **Target File**: `app/src/App.css`
-- **Start**: 300
-- **End**: 548
-- **Line Delta**: 249
-- **Pre-SHA1**: `c813053097e10a284974e45af75a642455621c83`
+- **Start**: 1
+- **End**: 1
+- **Line Delta**: 0
+- **Pre-SHA1**: `dfce683c0d45d8ede2f1068268b0bf717edbb864`
 - **Post-SHA1**: `dfce683c0d45d8ede2f1068268b0bf717edbb864`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/App.test.tsx`
+- **Start**: 74
+- **End**: 149
+- **Line Delta**: 65
+- **Pre-SHA1**: `8f99cb6fc3436c4411ab7e099d25dbc991a40d84`
+- **Post-SHA1**: `6813345820463a576713dac767cb0e2278dd4cdd`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -204,16 +226,19 @@ SKELETON APPROVED
   - `pnpm -C app run lint` (exit code 0)
 - **Artifacts**:
   - `pnpm -C app run build` (exit code 0)
+- **Test Results**:
+  - `pnpm -C app test` (exit code 0)
 - **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md
 - **Notes**:
   - Evidence content is recorded as ASCII-only (avoid pasting ANSI/unicode output into this packet).
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: Implemented; ready for Validator review.
+- Current WP_STATUS: Remediation complete; ready for Validator re-review.
 - What changed in this update:
   - Added Timeline filters + deep links + redacted payload UI in `app/src/components/FlightRecorderView.tsx`.
   - Added Timeline styles + security_violation prominence in `app/src/App.css`.
+  - Added spec-required deep-link focus tests in `app/src/App.test.tsx` (Handshake_Master_Spec_v02.113.md:46286).
 - Next step / handoff hint:
   - Validator: review DONE_MEANS and proceed with merge if acceptable.
 
@@ -223,8 +248,78 @@ SKELETON APPROVED
   - `just pre-work WP-1-Flight-Recorder-UI-v3` (exit code 0)
   - `pnpm -C app run lint` (exit code 0)
   - `pnpm -C app run build` (exit code 0)
+  - `pnpm -C app test` (exit code 0)
   - `just cargo-clean` (exit code 0)
   - `just post-work WP-1-Flight-Recorder-UI-v3` (exit code 0)
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - WP-1-Flight-Recorder-UI-v3 (2026-01-18)
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: `docs/task_packets/WP-1-Flight-Recorder-UI-v3.md` (**Status:** In Progress)
+- Spec Target: `docs/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.113.md`
+- Spec Anchors:
+  - `Handshake_Master_Spec_v02.113.md:35191`
+  - `Handshake_Master_Spec_v02.113.md:41809`
+  - `Handshake_Master_Spec_v02.113.md:46286`
+  - `Handshake_Master_Spec_v02.113.md:6708`
+- Active Packet mapping: `docs/WP_TRACEABILITY_REGISTRY.md:77`
+- Worktree/Branch: `D:\Projects\LLM projects\wt-WP-1-Flight-Recorder-UI-v3` / `feat/WP-1-Flight-Recorder-UI-v3`
+- Commits reviewed: `f1727cdc` (implementation), `be976117` (skeleton marker), `6b769dd2` (packet), `731af6a0` (checkpoint)
+
+Files Checked:
+- `docs/task_packets/WP-1-Flight-Recorder-UI-v3.md`
+- `docs/refinements/WP-1-Flight-Recorder-UI-v3.md`
+- `docs/WP_TRACEABILITY_REGISTRY.md`
+- `docs/SPEC_CURRENT.md`
+- `Handshake_Master_Spec_v02.113.md`
+- `app/src/components/FlightRecorderView.tsx`
+- `app/src/lib/api.ts`
+- `app/src/App.css`
+- `app/src/App.tsx`
+- `app/src/components/operator/TimelineView.tsx`
+- `app/src/components/operator/JobsView.tsx`
+- `app/src/components/operator/ProblemsView.tsx`
+
+Findings:
+- Requirement (Timeline filters + /api/flight_recorder params): satisfied
+  - UI filters: `app/src/components/FlightRecorderView.tsx:379`
+  - UI->API mapping: `app/src/components/FlightRecorderView.tsx:53`
+  - Backend query param mapping: `app/src/lib/api.ts:443`
+- Requirement (Deep links / deterministic targets): satisfied (Timeline/FlightRecorderView surface)
+  - URL -> filters: `app/src/components/FlightRecorderView.tsx:90`
+  - filters -> URL: `app/src/components/FlightRecorderView.tsx:113`
+  - event_id focus/scroll: `app/src/components/FlightRecorderView.tsx:271`, `app/src/components/FlightRecorderView.tsx:301`
+  - copy link target: `app/src/components/FlightRecorderView.tsx:329`, `app/src/components/FlightRecorderView.tsx:463`
+  - diagnostic_id extraction + copy target: `app/src/components/FlightRecorderView.tsx:162`, `app/src/components/FlightRecorderView.tsx:592`
+- Requirement (VAL-NAV-001 no silent failures): satisfied (best-effort Diagnostic + visible notice + de-spam)
+  - Diagnostic emission: `app/src/components/FlightRecorderView.tsx:67`
+  - No-results/missing-event: `app/src/components/FlightRecorderView.tsx:203`
+- Requirement (FR-EVT-SEC-VIOLATION visible + safe-by-default): satisfied
+  - Security violation prominence: `app/src/components/FlightRecorderView.tsx:496`, `app/src/App.css:280`
+  - Redaction + unsafe toggle/warning: `app/src/components/FlightRecorderView.tsx:135`, `app/src/components/FlightRecorderView.tsx:612`, `app/src/App.css:517`
+- Requirement (VAL-NAV-001 required tests): NOT satisfied
+  - Spec requires test coverage: `Handshake_Master_Spec_v02.113.md:46286` ("event_id -> Timeline focus")
+  - App tests pass, but do not cover FlightRecorderView/timeline focus or VAL-NAV-001 behavior.
+
+Tests:
+- `just pre-work WP-1-Flight-Recorder-UI-v3`: PASS
+- `pnpm -C app run lint`: PASS
+- `pnpm -C app run build`: PASS
+- `pnpm -C app test`: PASS (5 test files, 8 tests)
+- `just cargo-clean`: PASS
+- `node scripts/validation/gate-check.mjs WP-1-Flight-Recorder-UI-v3`: PASS
+- `just validator-coverage-gaps`: PASS (tests detected)
+- `just validator-scan`: FAIL due to out-of-scope pre-existing hits in backend (not caused by this WP diff)
+
+Hygiene:
+- Worktree clean at validation time.
+
+REASON FOR FAIL:
+- `Handshake_Master_Spec_v02.113.md:46286` requires a test suite to cover `event_id -> Timeline focus`; no such targeted test exists for this feature.
+
+Suggested Actions:
+- Add a vitest test that verifies `event_id -> Timeline focus` for `FlightRecorderView` (and ideally a failure path that emits VAL-NAV-001). Re-run `pnpm -C app test`.
