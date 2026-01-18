@@ -53,6 +53,13 @@
   - Approver: Operator (chat waiver: "i waive out of scope" / "i waive the scope, it is allowed")
   - Expiry: On WP closure (validation complete).
 
+- WAIVER-SCOPE-EXPAND-WP-1-Capability-SSoT-v2-002 [CX-573F SCOPE-EXPAND]
+  - Date: 2026-01-18
+  - Scope: Explicitly expand capability-check call site coverage (Terminal + MEX) to satisfy "Every capability check (Allow or Deny) MUST be recorded" (Master Spec v02.113 11.1 [HSK-4001] Audit Requirement). Minimum call sites: src/backend/handshake_core/src/terminal/mod.rs, src/backend/handshake_core/src/terminal/guards.rs, src/backend/handshake_core/src/mex/runtime.rs, src/backend/handshake_core/src/mex/gates.rs.
+  - Justification: Validator requested scope alignment so the WP can satisfy the spec's global capability-check audit invariant across all runtime gates, not only the registry core.
+  - Approver: Operator (instruction in chat to expand IN_SCOPE_PATHS and record this waiver)
+  - Expiry: End of Phase 1
+
 ## QUALITY_GATE
 ### TEST_PLAN
 ```bash
@@ -353,10 +360,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
 - **Start**: 1
-- **End**: 1508
-- **Line Delta**: 18
-- **Pre-SHA1**: `ee10486cbd46eac5ee903dbfc9adf43afb07ee6b`
-- **Post-SHA1**: `57ea7d1edf5dd69e4623f6222b96e60ccd744188`
+- **End**: 1510
+- **Line Delta**: 2
+- **Pre-SHA1**: `57ea7d1edf5dd69e4623f6222b96e60ccd744188`
+- **Post-SHA1**: `57c902d88e89c18c6668fac6d445e09952af298c`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan

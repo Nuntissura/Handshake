@@ -1255,7 +1255,8 @@ mod tests {
     const DUMMY_SHA256: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
     #[test]
-    fn test_governance_pack_export_event_accepts_export_record_payload() {
+    fn test_governance_pack_export_event_accepts_export_record_payload(
+    ) -> Result<(), serde_json::Error> {
         let export_id = Uuid::new_v4();
         let record = ExportRecord {
             export_id,
@@ -1289,7 +1290,7 @@ mod tests {
             errors: Vec::new(),
         };
 
-        let payload = serde_json::to_value(&record).expect("serialize ExportRecord");
+        let payload = serde_json::to_value(&record)?;
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::GovernancePackExport,
             FlightRecorderActor::Agent,
@@ -1297,6 +1298,7 @@ mod tests {
             payload,
         );
         assert!(event.validate().is_ok());
+        Ok(())
     }
 
     fn valid_llm_inference_payload() -> Value {
