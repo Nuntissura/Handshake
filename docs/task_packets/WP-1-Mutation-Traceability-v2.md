@@ -34,7 +34,12 @@
 
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- NONE
+- WAIVER-SCOPE-EXPAND-WP-1-Mutation-Traceability-v2-001 [CX-573F]
+  - Date: 2026-01-18
+  - Scope: Expand IN_SCOPE_PATHS beyond this packet as needed to satisfy DONE_MEANS (incl. any additional supporting files required for traceability persistence and tests).
+  - Justification: Operator explicitly waived out-of-scope gating to unblock implementation.
+  - Approver: Operator (chat waiver: “i waive out of scope” / “i waive the scope, it is allowed”)
+  - Expiry: On WP closure (validation complete).
 
 ## QUALITY_GATE
 ### TEST_PLAN
