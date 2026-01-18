@@ -80,12 +80,12 @@ async fn write_context_from_headers(
             let job_id = parse_uuid(header_str(headers, HSK_HEADER_JOB_ID));
             let workflow_id = parse_uuid(header_str(headers, HSK_HEADER_WORKFLOW_ID));
 
-            if job_id.is_none() || workflow_id.is_none() {
-                return Ok(WriteContext::ai(actor_id, job_id, workflow_id));
-            }
-
-            let job_id = job_id.expect("checked above");
-            let workflow_id = workflow_id.expect("checked above");
+            let (job_id, workflow_id) = match (job_id, workflow_id) {
+                (Some(job_id), Some(workflow_id)) => (job_id, workflow_id),
+                (job_id, workflow_id) => {
+                    return Ok(WriteContext::ai(actor_id, job_id, workflow_id))
+                }
+            };
 
             let job = state.storage.get_ai_job(&job_id.to_string()).await;
             match job {

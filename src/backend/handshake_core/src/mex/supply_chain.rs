@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use thiserror::Error;
 use uuid::Uuid;
 
 use crate::ace::ArtifactHandle;
@@ -86,6 +87,42 @@ impl Default for SupplyChainAllowlists {
             license_scan: LicenseScanAllowlist::default(),
         }
     }
+}
+
+#[derive(Debug, Error)]
+enum SupplyChainError {
+    #[error("SUPPLY_CHAIN_INVALID_ARTIFACT_PATH: invalid artifact path {path}")]
+    InvalidArtifactPath { path: PathBuf },
+    #[error("SUPPLY_CHAIN_IO_CREATE_DIR: mkdir {dir}: {source}")]
+    CreateDir {
+        dir: PathBuf,
+        source: std::io::Error,
+    },
+    #[error("SUPPLY_CHAIN_IO_READ: read {path}: {source}")]
+    ReadFile {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    #[error("SUPPLY_CHAIN_IO_WRITE: write {path}: {source}")]
+    WriteFile {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    #[error("SUPPLY_CHAIN_JSON_PARSE: invalid json in {path}: {source}")]
+    InvalidJson {
+        path: PathBuf,
+        source: serde_json::Error,
+    },
+    #[error("SUPPLY_CHAIN_JSON_SERIALIZE: json serialization failed: {source}")]
+    JsonSerialize { source: serde_json::Error },
+    #[error("SUPPLY_CHAIN_ALLOWLISTS_OVERRIDE_INVALID: invalid allowlists override: {source}")]
+    InvalidAllowlistsOverride { source: serde_json::Error },
+    #[error("SUPPLY_CHAIN_TOOL_OUTPUT_MISSING: tool={tool} missing={path}")]
+    ToolOutputMissing { tool: &'static str, path: PathBuf },
+    #[error("SUPPLY_CHAIN_TOOL_INVOCATION_FAILED: tool={tool}")]
+    ToolInvocationFailed { tool: &'static str },
+    #[error("SUPPLY_CHAIN_TOOL_RUN_FAILED: tool={tool} error={message}")]
+    ToolRunnerFailed { tool: &'static str, message: String },
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
@@ -231,10 +268,18 @@ impl SupplyChainEngineAdapter {
 
     fn ensure_parent_dir(&self, abs_path: &Path) -> Result<(), String> {
         let Some(parent) = abs_path.parent() else {
-            return Err(format!("invalid artifact path {}", abs_path.display()));
+            return Err(SupplyChainError::InvalidArtifactPath {
+                path: abs_path.to_path_buf(),
+            }
+            .to_string());
         };
-        fs::create_dir_all(parent)
-            .map_err(|err| format!("mkdir {} failed: {err}", parent.display()))
+        fs::create_dir_all(parent).map_err(|source| {
+            SupplyChainError::CreateDir {
+                dir: parent.to_path_buf(),
+                source,
+            }
+            .to_string()
+        })
     }
 
     fn read_bytes(&self, abs_path: &Path) -> Vec<u8> {
@@ -242,26 +287,46 @@ impl SupplyChainEngineAdapter {
     }
 
     fn read_json_file(&self, abs_path: &Path) -> Result<Value, String> {
-        let bytes = fs::read(abs_path)
-            .map_err(|err| format!("read {} failed: {err}", abs_path.display()))?;
-        serde_json::from_slice(&bytes)
-            .map_err(|err| format!("invalid json in {}: {err}", abs_path.display()))
+        let bytes = fs::read(abs_path).map_err(|source| {
+            SupplyChainError::ReadFile {
+                path: abs_path.to_path_buf(),
+                source,
+            }
+            .to_string()
+        })?;
+        serde_json::from_slice(&bytes).map_err(|source| {
+            SupplyChainError::InvalidJson {
+                path: abs_path.to_path_buf(),
+                source,
+            }
+            .to_string()
+        })
     }
 
     fn write_json_file(&self, abs_path: &Path, value: &Value) -> Result<Vec<u8>, String> {
         let bytes = serde_json::to_vec_pretty(value)
-            .map_err(|err| format!("json serialize failed: {err}"))?;
+            .map_err(|source| SupplyChainError::JsonSerialize { source }.to_string())?;
         self.ensure_parent_dir(abs_path)?;
-        fs::write(abs_path, &bytes)
-            .map_err(|err| format!("write {} failed: {err}", abs_path.display()))?;
+        fs::write(abs_path, &bytes).map_err(|source| {
+            SupplyChainError::WriteFile {
+                path: abs_path.to_path_buf(),
+                source,
+            }
+            .to_string()
+        })?;
         Ok(bytes)
     }
 
     fn write_text_file(&self, abs_path: &Path, text: &str) -> Result<Vec<u8>, String> {
         let bytes = text.as_bytes().to_vec();
         self.ensure_parent_dir(abs_path)?;
-        fs::write(abs_path, &bytes)
-            .map_err(|err| format!("write {} failed: {err}", abs_path.display()))?;
+        fs::write(abs_path, &bytes).map_err(|source| {
+            SupplyChainError::WriteFile {
+                path: abs_path.to_path_buf(),
+                source,
+            }
+            .to_string()
+        })?;
         Ok(bytes)
     }
 
@@ -285,7 +350,7 @@ impl SupplyChainEngineAdapter {
             return Ok(self.allowlists.clone());
         };
         serde_json::from_value(value.clone())
-            .map_err(|err| format!("invalid allowlists override: {err}"))
+            .map_err(|source| SupplyChainError::InvalidAllowlistsOverride { source }.to_string())
     }
 
     fn base_terminal_request(op: &PlannedOperation, requested_capability: &str) -> TerminalRequest {
@@ -662,9 +727,25 @@ impl EngineAdapter for SupplyChainEngineAdapter {
                 ];
 
                 async {
-                    let result = self.tool_runner.run(req, op.op_id).await?;
+                    let result = self
+                        .tool_runner
+                        .run(req, op.op_id)
+                        .await
+                        .map_err(|message| {
+                            SupplyChainError::ToolRunnerFailed {
+                                tool: kind.tool(),
+                                message,
+                            }
+                            .to_string()
+                        })?;
                     if !report_abs.exists() {
-                        Err("gitleaks did not produce report file".to_string())
+                        Err(
+                            SupplyChainError::ToolOutputMissing {
+                                tool: kind.tool(),
+                                path: report_abs.clone(),
+                            }
+                            .to_string(),
+                        )
                     } else {
                         let report_json = self.read_json_file(&report_abs)?;
                         let (count, filtered) =
@@ -756,7 +837,9 @@ impl EngineAdapter for SupplyChainEngineAdapter {
                 }
 
                 if !ran {
-                    Err("osv-scanner invocation failed".to_string())
+                    Err(
+                        SupplyChainError::ToolInvocationFailed { tool: kind.tool() }.to_string(),
+                    )
                 } else {
                     if !report_abs.exists() {
                         if let Some(result) = &last_result {
@@ -766,7 +849,13 @@ impl EngineAdapter for SupplyChainEngineAdapter {
                         }
                     }
                     if !report_abs.exists() {
-                        Err("osv-scanner did not produce report file".to_string())
+                        Err(
+                            SupplyChainError::ToolOutputMissing {
+                                tool: kind.tool(),
+                                path: report_abs.clone(),
+                            }
+                            .to_string(),
+                        )
                     } else {
                         let report_json = self.read_json_file(&report_abs)?;
                         let (vulns, high) =
@@ -879,7 +968,9 @@ impl EngineAdapter for SupplyChainEngineAdapter {
                 }
 
                 if !ran {
-                    Err("syft invocation failed".to_string())
+                    Err(
+                        SupplyChainError::ToolInvocationFailed { tool: kind.tool() }.to_string(),
+                    )
                 } else {
                     if !sbom_abs.exists() {
                         if let Some(result) = &last_result {
@@ -889,7 +980,13 @@ impl EngineAdapter for SupplyChainEngineAdapter {
                         }
                     }
                     if !sbom_abs.exists() {
-                        Err("syft did not produce sbom file".to_string())
+                        Err(
+                            SupplyChainError::ToolOutputMissing {
+                                tool: kind.tool(),
+                                path: sbom_abs.clone(),
+                            }
+                            .to_string(),
+                        )
                     } else {
                         let sbom_bytes = self.read_bytes(&sbom_abs);
                         let sbom_sha256 = sha256_hex(&sbom_bytes);
@@ -948,9 +1045,25 @@ impl EngineAdapter for SupplyChainEngineAdapter {
                 ];
 
                 async {
-                    let result = self.tool_runner.run(req, op.op_id).await?;
+                    let result = self
+                        .tool_runner
+                        .run(req, op.op_id)
+                        .await
+                        .map_err(|message| {
+                            SupplyChainError::ToolRunnerFailed {
+                                tool: kind.tool(),
+                                message,
+                            }
+                            .to_string()
+                        })?;
                     if !report_abs.exists() {
-                        Err("scancode did not produce report file".to_string())
+                        Err(
+                            SupplyChainError::ToolOutputMissing {
+                                tool: kind.tool(),
+                                path: report_abs.clone(),
+                            }
+                            .to_string(),
+                        )
                     } else {
                         let report_json = self.read_json_file(&report_abs)?;
                         let (unknown_present, tokens) = Self::unknown_license_in_scancode(

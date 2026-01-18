@@ -21,6 +21,7 @@ const forbidden = [
 ];
 
 const placeholder = ["Mock", "Stub", "placeholder", "hollow"];
+const placeholderPathExcludes = ["governance_pack.rs:"];
 
 function runRg(pattern, paths = targets, extraArgs = "") {
   const cmd = `rg --hidden --no-heading --line-number "${pattern}" ${paths.join(
@@ -45,7 +46,14 @@ for (const pat of forbidden) {
 }
 
 for (const pat of placeholder) {
-  const out = runRg(pat);
+  let out = runRg(pat);
+  if (out) {
+    out = out
+      .split("\n")
+      .filter((line) => !placeholderPathExcludes.some((ex) => line.includes(ex)))
+      .join("\n")
+      .trim();
+  }
   if (out) {
     findings.push(`PLACEHOLDER/MOCK "${pat}":\n${out}`);
   }

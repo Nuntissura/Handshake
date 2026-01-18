@@ -20,6 +20,30 @@ fn postgres_test_url() -> Option<String> {
 }
 
 #[cfg(test)]
+fn assert_metadata_matches_ctx(
+    row_actor_kind: &str,
+    row_actor_id: Option<String>,
+    row_job_id: Option<String>,
+    row_workflow_id: Option<String>,
+    row_edit_event_id: &str,
+    ctx: &WriteContext,
+) {
+    assert_eq!(row_actor_kind, ctx.actor_kind.as_str());
+    assert_eq!(row_actor_id.as_deref(), ctx.actor_id.as_deref());
+
+    let expected_job_id = ctx.job_id.map(|v| v.to_string());
+    let expected_workflow_id = ctx.workflow_id.map(|v| v.to_string());
+    assert_eq!(row_job_id.as_deref(), expected_job_id.as_deref());
+    assert_eq!(row_workflow_id.as_deref(), expected_workflow_id.as_deref());
+
+    assert_ne!(row_edit_event_id, NIL_EDIT_EVENT_ID);
+    let Ok(parsed) = Uuid::parse_str(row_edit_event_id) else {
+        unreachable!("edit_event_id must be valid UUID");
+    };
+    assert_ne!(parsed, Uuid::nil());
+}
+
+#[cfg(test)]
 async fn sqlite_user_table_names(conn: &mut sqlx::SqliteConnection) -> StorageResult<Vec<String>> {
     let rows = sqlx::query(
         r#"
