@@ -527,6 +527,30 @@
       "branch": "feat/WP-1-Flight-Recorder-UI-v3",
       "worktree_dir": "../wt-WP-1-Flight-Recorder-UI-v3",
       "timestamp": "2026-01-17T22:45:40.807Z"
+    },
+    {
+      "wpId": "WP-1-ACE-Runtime-v2",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-ACE-Runtime-v2.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md",
+      "spec_target_sha1": "cf2f5305fc8eec517d577d87365bd9c072a99b0f",
+      "timestamp": "2026-01-18T15:57:00.809Z",
+      "turn_token": "1768751820810"
+    },
+    {
+      "wpId": "WP-1-ACE-Runtime-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja180120261659",
+      "timestamp": "2026-01-18T16:02:45.549Z",
+      "refinement_path": "docs/refinements/WP-1-ACE-Runtime-v2.md"
+    },
+    {
+      "wpId": "WP-1-ACE-Runtime-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-3",
+      "branch": "feat/WP-1-ACE-Runtime-v2",
+      "worktree_dir": "../wt-WP-1-ACE-Runtime-v2",
+      "timestamp": "2026-01-18T16:02:49.869Z"
     }
   ]
 }
