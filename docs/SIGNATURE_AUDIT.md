@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja180120261630 | Orchestrator | 2026-01-18 16:30 | Task packet creation: WP-1-Mutation-Traceability-v2 | v02.113 | Approved after Technical Refinement (see docs/refinements/WP-1-Mutation-Traceability-v2.md ). |
 | ilja170120262341 | Orchestrator | 2026-01-17 23:41 | Task packet creation: WP-1-Flight-Recorder-UI-v3 | v02.113 | Approved after Technical Refinement (see docs/refinements/WP-1-Flight-Recorder-UI-v3.md ). |
 | ilja170120262249 | Orchestrator | 2026-01-17 22:49 | Task packet creation: WP-1-Supply-Chain-MEX-v2 | v02.113 | Approved after Technical Refinement (see docs/refinements/WP-1-Supply-Chain-MEX-v2.md ). |
 | ilja170120260225 | Orchestrator | 2026-01-17 02:25 | Spec update: v02.113 governance workflow hardening (per-WP validator gates + activation traceability) | v02.113 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.113`. |
