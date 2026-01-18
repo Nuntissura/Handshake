@@ -471,6 +471,30 @@
       "branch": "feat/WP-1-Editor-Hardening-v2",
       "worktree_dir": "../wt-WP-1-Editor-Hardening-v2",
       "timestamp": "2026-01-16T22:17:57.323Z"
+    },
+    {
+      "wpId": "WP-1-Flight-Recorder-UI-v3",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Flight-Recorder-UI-v3.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md",
+      "spec_target_sha1": "cf2f5305fc8eec517d577d87365bd9c072a99b0f",
+      "timestamp": "2026-01-17T22:40:14.340Z",
+      "turn_token": "1768689614341"
+    },
+    {
+      "wpId": "WP-1-Flight-Recorder-UI-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja170120262341",
+      "timestamp": "2026-01-17T22:45:32.120Z",
+      "refinement_path": "docs/refinements/WP-1-Flight-Recorder-UI-v3.md"
+    },
+    {
+      "wpId": "WP-1-Flight-Recorder-UI-v3",
+      "type": "PREPARE",
+      "coder_id": "Coder-B",
+      "branch": "feat/WP-1-Flight-Recorder-UI-v3",
+      "worktree_dir": "../wt-WP-1-Flight-Recorder-UI-v3",
+      "timestamp": "2026-01-17T22:45:40.807Z"
     }
   ]
 }
