@@ -297,6 +297,255 @@ body {
   color: var(--hs-color-error-text);
 }
 
+.nowrap {
+  white-space: nowrap;
+}
+
+.flight-recorder__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.flight-recorder__filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+.flight-recorder__filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hs-color-text-subtle);
+}
+
+.flight-recorder__filters input,
+.flight-recorder__filters select {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--hs-color-surface);
+  color: var(--hs-color-text);
+  font-family: inherit;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.flight-recorder__filters input:focus,
+.flight-recorder__filters select:focus {
+  outline: 2px solid var(--hs-color-accent);
+}
+
+.flight-recorder__filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.flight-recorder__header button,
+.flight-recorder__filter-actions button,
+.flight-recorder__payload-actions button {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--hs-color-surface);
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--hs-color-text);
+}
+
+.flight-recorder__header button:hover:not(:disabled),
+.flight-recorder__filter-actions button:hover:not(:disabled),
+.flight-recorder__payload-actions button:hover:not(:disabled) {
+  background: var(--hs-color-accent-soft);
+  border-color: var(--hs-color-accent);
+}
+
+.flight-recorder__header button:disabled,
+.flight-recorder__filter-actions button:disabled,
+.flight-recorder__payload-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.flight-recorder__header button.secondary,
+.flight-recorder__filter-actions button.secondary,
+.flight-recorder__payload-actions button.secondary {
+  background: var(--hs-color-bg);
+}
+
+.flight-recorder__notice {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  background: var(--hs-color-accent-soft);
+  color: var(--hs-color-text);
+  font-size: 14px;
+}
+
+.flight-recorder__notice--error {
+  border-color: rgba(185, 28, 28, 0.25);
+  background: var(--hs-color-error-bg);
+  color: var(--hs-color-error-text);
+}
+
+.flight-recorder__table-container {
+  margin-top: 12px;
+  border: 1px solid var(--hs-color-border);
+  border-radius: 12px;
+  overflow: auto;
+  max-height: 520px;
+}
+
+.flight-recorder__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.flight-recorder__table th {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--hs-color-border);
+  font-size: 13px;
+  color: var(--hs-color-text-subtle);
+  background: var(--hs-color-bg);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.flight-recorder__table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--hs-color-border);
+  vertical-align: top;
+}
+
+.flight-recorder__row--selected {
+  outline: 2px solid var(--hs-color-accent);
+  outline-offset: -2px;
+}
+
+.flight-recorder__row--selected:not(.flight-recorder__row--violation) {
+  background: var(--hs-color-accent-soft);
+}
+
+.flight-recorder__wsids {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.id-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--hs-color-border);
+  background: var(--hs-color-bg);
+  color: var(--hs-color-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.id-chip:hover {
+  border-color: var(--hs-color-accent);
+  background: var(--hs-color-accent-soft);
+}
+
+.id-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--hs-color-accent);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.id-link:hover {
+  color: #1d4ed8;
+}
+
+.event-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+  background: var(--hs-color-border);
+  color: var(--hs-color-text);
+}
+
+.event-tag--security {
+  background: var(--hs-color-error-bg);
+  color: var(--hs-color-error-text);
+}
+
+.event-tag--diagnostic {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.flight-recorder__payload-details {
+  margin-top: 6px;
+}
+
+.flight-recorder__payload-details summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--hs-color-text);
+}
+
+.flight-recorder__payload-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.flight-recorder__payload-warning {
+  margin: 10px 0 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #c05621;
+  font-size: 13px;
+}
+
+.event-payload {
+  margin: 10px 0 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--hs-color-border);
+  background: var(--hs-color-bg);
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.flight-recorder__diag-link {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
 .debug-panel {
   max-height: 260px;
   overflow: hidden;

@@ -146,47 +146,85 @@ SKELETON APPROVED
   - Worktree hygiene: resolved via docs-only newline normalization commit `6ed8b877` for `docs/refinements/WP-1-LLM-Core-v3.md` (explicit Operator authorization) to avoid cross-WP contamination.
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Updated `FlightRecorderView` with draft/applied Timeline filters (job_id/trace_id/event_id/wsid/actor/event_type/from/to) and URL query sync for deep links.
+- Added deterministic deep-link targets: clickable IDs apply filters; event_id focuses/selects; diagnostic_id provides a copyable Problems target.
+- Prevented silent deep-link failures: visible notice + best-effort Diagnostic emission (`VAL-NAV-001`) for no-results, missing event_id in results, and clipboard failures.
+- Rendered payloads redacted-by-default with explicit per-event opt-in "Reveal raw (unsafe)" and redacted security_violation context snippet.
+- Added Flight Recorder UI styles and made security_violation rows/tags prominent.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Ran: `just pre-work WP-1-Flight-Recorder-UI-v3`
+- Ran: `pnpm -C app install` (node_modules for lint/build in this worktree)
+- Ran: `pnpm -C app run lint`
+- Ran: `pnpm -C app run build`
+- Ran: `just cargo-clean`
+- Updated COR-701 manifest inputs via `just cor701-sha` for the touched app files.
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `app/src/components/FlightRecorderView.tsx`
+- **Start**: 1
+- **End**: 643
+- **Line Delta**: 461
+- **Pre-SHA1**: `4517ed73504b7c1233e5393fcc9d85e58dcda77b`
+- **Post-SHA1**: `df5b55c3810092e1fd716115fc042243b4ce8ccf`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/App.css`
+- **Start**: 300
+- **End**: 548
+- **Line Delta**: 249
+- **Pre-SHA1**: `c813053097e10a284974e45af75a642455621c83`
+- **Post-SHA1**: `dfce683c0d45d8ede2f1068268b0bf717edbb864`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
 - **Lint Results**:
+  - `pnpm -C app run lint` (exit code 0)
 - **Artifacts**:
-- **Timestamp**:
-- **Operator**:
+  - `pnpm -C app run build` (exit code 0)
 - **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md
 - **Notes**:
+  - Evidence content is recorded as ASCII-only (avoid pasting ANSI/unicode output into this packet).
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
+- Current WP_STATUS: Implemented; ready for Validator review.
 - What changed in this update:
+  - Added Timeline filters + deep links + redacted payload UI in `app/src/components/FlightRecorderView.tsx`.
+  - Added Timeline styles + security_violation prominence in `app/src/App.css`.
 - Next step / handoff hint:
+  - Validator: review DONE_MEANS and proceed with merge if acceptable.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+- Commands (exit codes only; logs omitted to keep packet ASCII-only):
+  - `just pre-work WP-1-Flight-Recorder-UI-v3` (exit code 0)
+  - `pnpm -C app run lint` (exit code 0)
+  - `pnpm -C app run build` (exit code 0)
+  - `just cargo-clean` (exit code 0)
+  - `just post-work WP-1-Flight-Recorder-UI-v3` (exit code 0)
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
