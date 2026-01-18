@@ -189,7 +189,13 @@ git revert <commit-sha>
   - Artifacts: `capability_registry_draft.json`, `capability_registry_diff.json`, `capability_registry_review.json`, `assets/capability_registry.json`
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE. Keep packet ASCII-only.)
+- Commands run (see ## EVIDENCE for raw output):
+  - `just pre-work WP-1-Capability-SSoT-v2`
+  - `node -e "JSON.parse(...capability_registry_*.json...)"` (draft/diff/review/publish)
+  - `cd src/backend/handshake_core; cargo test capabilities`
+  - `cd src/backend/handshake_core; cargo test workflows`
+  - `just cargo-clean`
+  - `just post-work WP-1-Capability-SSoT-v2`
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
@@ -471,11 +477,313 @@ git revert <commit-sha>
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
 - Current WP_STATUS: In Progress
-- What changed in this update: Implemented capability registry enforcement + audit logging standardization and added deterministic manifest entries for all changed non-doc files.
-- Next step / handoff hint: Run `just post-work WP-1-Capability-SSoT-v2` and proceed to commit once the gate is clean.
+- What changed in this update: Appended command output evidence to packet (pre-work, JSON validity, targeted tests, cargo-clean, post-work).
+- Next step / handoff hint: Validator can review branch `feat/WP-1-Capability-SSoT-v2` at commits `3a6a1446`, `9190e673`, `f8237f90`.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+
+- `just pre-work WP-1-Capability-SSoT-v2`
+  ```text
+  Checking Phase Gate for WP-1-Capability-SSoT-v2...
+  ? GATE PASS: Workflow sequence verified.
+
+  Pre-work validation for WP-1-Capability-SSoT-v2...
+
+  Check 1: Task packet file exists
+  PASS: Found WP-1-Capability-SSoT-v2.md
+
+  Check 2: Task packet structure
+  PASS: All required fields present
+
+  Check 2.7: Technical Refinement gate
+  PASS: Refinement file exists and is approved/signed
+
+  Check 2.8: WP checkpoint commit gate
+
+  Check 3: Deterministic manifest template
+  PASS: Manifest fields present
+  PASS: Gates checklist present
+
+  ==================================================
+  Pre-work validation PASSED
+
+  You may proceed with implementation.
+  ```
+
+- JSON validity checks (Spec 11.1.6 artifacts)
+  ```text
+  draft: ok
+  diff: ok
+  review: ok
+  publish: ok
+  ```
+
+- `cd src/backend/handshake_core; cargo test capabilities`
+  ```text
+      Blocking waiting for file lock on build directory
+     Compiling libduckdb-sys v1.4.3
+     Compiling duckdb v1.4.3
+     Compiling handshake_core v0.1.0 (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\src\backend\handshake_core)
+  warning: method `report_kind` is never used
+     --> src\mex\supply_chain.rs:186:8
+      |
+  157 | impl ScanJobKind {
+      | ---------------- method in this implementation
+  ...
+  186 |     fn report_kind(&self) -> Option<SupplyChainReportKind> {
+      |        ^^^^^^^^^^^
+      |
+      = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+  warning: `handshake_core` (lib) generated 1 warning
+  warning: unused import: `std::collections::HashMap`
+   --> tests\mex_tests.rs:1:5
+    |
+  1 | use std::collections::HashMap;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+  warning: `handshake_core` (lib test) generated 1 warning (1 duplicate)
+  warning: `handshake_core` (test "mex_tests") generated 1 warning (run `cargo fix --test "mex_tests"` to apply 1 suggestion)
+      Finished `test` profile [unoptimized + debuginfo] target(s) in 4m 50s
+       Running unittests src\lib.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\handshake_core-5dd732fb932afe68.exe)
+
+  running 5 tests
+  test capabilities::tests::test_profile_resolution ... ok
+  test capabilities::tests::test_profile_mapping_covers_job_kinds ... ok
+  test capabilities::tests::test_hsk_4001_unknown_capability ... ok
+  test capabilities::tests::test_registry_validation ... ok
+  test capabilities::tests::test_axis_inheritance ... ok
+
+  test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 135 filtered out; finished in 0.00s
+
+       Running unittests src\bin\capability_registry_workflow.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\capability_registry_workflow-30e2e86fc5a9ef20.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+       Running unittests src\main.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\handshake_core-87af97aa94b6a8c2.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+       Running tests\mex_tests.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\mex_tests-a9990ebae2c1d2ca.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+       Running tests\oss_register_enforcement_tests.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\oss_register_enforcement_tests-3403cd69594fb3e5.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+       Running tests\role_mailbox_tests.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\role_mailbox_tests-f33b6113a10e8ed5.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+       Running tests\storage_conformance.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\storage_conformance-1fbbbe7ec5a888b7.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+       Running tests\terminal_guards_tests.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\terminal_guards_tests-69541acad933fd8c.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+       Running tests\terminal_session_tests.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\terminal_session_tests-e2a40d85a64dd4ce.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+       Running tests\tokenization_service_tests.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\tokenization_service_tests-1eb114deb0d8934d.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+       Running tests\tokenization_tests.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\tokenization_tests-70b1e08b13c44419.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+  ```
+
+- `cd src/backend/handshake_core; cargo test workflows`
+  ```text
+      Blocking waiting for file lock on build directory
+     Compiling libduckdb-sys v1.4.3
+     Compiling duckdb v1.4.3
+     Compiling handshake_core v0.1.0 (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\src\backend\handshake_core)
+  warning: method `report_kind` is never used
+     --> src\mex\supply_chain.rs:186:8
+      |
+  157 | impl ScanJobKind {
+      | ---------------- method in this implementation
+  ...
+  186 |     fn report_kind(&self) -> Option<SupplyChainReportKind> {
+      |        ^^^^^^^^^^^
+      |
+      = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+  warning: `handshake_core` (lib) generated 1 warning
+  warning: unused import: `std::collections::HashMap`
+   --> tests\mex_tests.rs:1:5
+    |
+  1 | use std::collections::HashMap;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+  warning: `handshake_core` (lib test) generated 1 warning (1 duplicate)
+  warning: `handshake_core` (test "mex_tests") generated 1 warning (run `cargo fix --test "mex_tests"` to apply 1 suggestion)
+      Finished `test` profile [unoptimized + debuginfo] target(s) in 5m 42s
+       Running unittests src\lib.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\handshake_core-5dd732fb932afe68.exe)
+
+  running 9 tests
+  test storage::tests::stalled_workflows_are_detected_by_heartbeat ... ok
+  test workflows::tests::terminal_job_enforces_capability ... ok
+  test workflows::tests::job_fails_when_missing_required_capability ... ok
+  test workflows::tests::test_poisoning_trap ... ok
+  test workflows::tests::run_job_rejects_budget_exceeded ... ok
+  test workflows::tests::test_startup_recovery_blocks_job_acceptance ... ok
+  test workflows::tests::workflow_persists_node_history_and_outputs ... ok
+  test workflows::tests::terminal_job_runs_when_authorized ... ok
+  test workflows::tests::test_mark_stalled_workflows ... ok
+
+  test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 131 filtered out; finished in 0.83s
+
+       Running unittests src\bin\capability_registry_workflow.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\capability_registry_workflow-30e2e86fc5a9ef20.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+       Running unittests src\main.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\handshake_core-87af97aa94b6a8c2.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+       Running tests\mex_tests.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\mex_tests-a9990ebae2c1d2ca.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+       Running tests\oss_register_enforcement_tests.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\oss_register_enforcement_tests-3403cd69594fb3e5.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+       Running tests\role_mailbox_tests.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\role_mailbox_tests-f33b6113a10e8ed5.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+       Running tests\storage_conformance.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\storage_conformance-1fbbbe7ec5a888b7.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+       Running tests\terminal_guards_tests.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\terminal_guards_tests-69541acad933fd8c.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+       Running tests\terminal_session_tests.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\terminal_session_tests-e2a40d85a64dd4ce.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+       Running tests\tokenization_service_tests.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\tokenization_service_tests-1eb114deb0d8934d.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+       Running tests\tokenization_tests.rs (D:\Projects\LLM projects\wt-WP-1-Capability-SSoT-v2\../Cargo Target/handshake-cargo-target\debug\deps\tokenization_tests-70b1e08b13c44419.exe)
+
+  running 0 tests
+
+  test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+  ```
+
+- `just cargo-clean`
+  ```text
+  cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Cargo Target/handshake-cargo-target"
+      Blocking waiting for file lock on build directory
+       Removed 741 files, 7.0GiB total
+  ```
+
+- `just post-work WP-1-Capability-SSoT-v2`
+  ```text
+  Checking Phase Gate for WP-1-Capability-SSoT-v2...
+  ? GATE PASS: Workflow sequence verified.
+
+  Post-work validation for WP-1-Capability-SSoT-v2 (deterministic manifest + gates)...
+
+  Check 1: Validation manifest present
+  NOTE: Git hygiene waiver detected [CX-573F]. Strict git checks relaxed.
+
+  Check 2: Manifest fields
+
+  Check 3: File integrity (per manifest entry)
+  fatal: path 'assets/capability_registry.json' exists on disk, but not in 'edf750d4e182cdb459761c6ad6f1fd7cec613acf'
+  fatal: path 'capability_registry_diff.json' exists on disk, but not in 'edf750d4e182cdb459761c6ad6f1fd7cec613acf'
+  fatal: path 'capability_registry_draft.json' exists on disk, but not in 'edf750d4e182cdb459761c6ad6f1fd7cec613acf'
+  fatal: path 'capability_registry_review.json' exists on disk, but not in 'edf750d4e182cdb459761c6ad6f1fd7cec613acf'
+  fatal: path 'src/backend/handshake_core/schemas/capability_registry.schema.json' exists on disk, but not in 'edf750d4e182cdb459761c6ad6f1fd7cec613acf'
+  fatal: path 'src/backend/handshake_core/src/bin/capability_registry_workflow.rs' exists on disk, but not in 'edf750d4e182cdb459761c6ad6f1fd7cec613acf'
+
+  Check 4: Git status
+
+  ==================================================
+  Post-work validation PASSED with warnings
+
+  Warnings:
+    1. Manifest[1]: pre_sha1 does not match HEAD for assets\\capability_registry.json (C701-G08) - WAIVER APPLIED
+    2. Manifest[1]: expected pre_sha1 (HEAD LF blob) = 3608110366ffd1b93944aaf2f5232a319e755cf4
+    3. Manifest[2]: pre_sha1 does not match HEAD for capability_registry_diff.json (C701-G08) - WAIVER APPLIED
+    4. Manifest[2]: expected pre_sha1 (HEAD LF blob) = 821008bc027a685740d1d7fe5da8592166de2afd
+    5. Manifest[3]: pre_sha1 does not match HEAD for capability_registry_draft.json (C701-G08) - WAIVER APPLIED
+    6. Manifest[3]: expected pre_sha1 (HEAD LF blob) = 3608110366ffd1b93944aaf2f5232a319e755cf4
+    7. Manifest[4]: pre_sha1 does not match HEAD for capability_registry_review.json (C701-G08) - WAIVER APPLIED
+    8. Manifest[4]: expected pre_sha1 (HEAD LF blob) = 73da10ea1bf1b619f1d316e9615c1fef4214d8c1
+    9. Manifest[5]: pre_sha1 matches merge-base(edf750d4e182cdb459761c6ad6f1fd7cec613acf) for src\\backend\\handshake_core\\Cargo.lock (common after WP commits); prefer LF blob SHA1=5593f6381e5a819fd9dc599780be0e9a52ffff7a
+    10. Manifest[6]: pre_sha1 matches merge-base(edf750d4e182cdb459761c6ad6f1fd7cec613acf) for src\\backend\\handshake_core\\Cargo.toml (common after WP commits); prefer LF blob SHA1=e437bd6391dc446bf9e578e23bc55394382778ec
+    11. Manifest[7]: pre_sha1 does not match HEAD for src\\backend\\handshake_core\\schemas\\capability_registry.schema.json (C701-G08) - WAIVER APPLIED
+    12. Manifest[7]: expected pre_sha1 (HEAD LF blob) = 2ab749611e1cf362d6c061a557c94d0d9cdcdd04
+    13. Manifest[8]: pre_sha1 does not match HEAD for src\\backend\\handshake_core\\src\\bin\\capability_registry_workflow.rs (C701-G08) - WAIVER APPLIED
+    14. Manifest[8]: expected pre_sha1 (HEAD LF blob) = d3355868b0a5a0ef5a8d5edf186b6592352a6c96
+    15. Manifest[9]: pre_sha1 matches merge-base(edf750d4e182cdb459761c6ad6f1fd7cec613acf) for src\\backend\\handshake_core\\src\\capabilities.rs (common after WP commits); prefer LF blob SHA1=50ce284d3463aff3b2b3f80042038ef2cb3755b6
+    16. Manifest[10]: pre_sha1 does not match HEAD for src\\backend\\handshake_core\\src\\flight_recorder\\mod.rs (C701-G08) - WAIVER APPLIED
+    17. Manifest[10]: expected pre_sha1 (HEAD LF blob) = c997f54569dfb39175e2f2358f5e1a6511e8d04f
+    18. Manifest[11]: pre_sha1 matches merge-base(edf750d4e182cdb459761c6ad6f1fd7cec613acf) for src\\backend\\handshake_core\\src\\mex\\gates.rs (common after WP commits); prefer LF blob SHA1=aa364b977e63676a5c62c88537c6ca317ad1c294
+    19. Manifest[12]: pre_sha1 matches merge-base(edf750d4e182cdb459761c6ad6f1fd7cec613acf) for src\\backend\\handshake_core\\src\\mex\\runtime.rs (common after WP commits); prefer LF blob SHA1=4d7e7c3d06d0cbe750a57a2123841c7b5b739e1d
+    20. Manifest[13]: pre_sha1 matches merge-base(edf750d4e182cdb459761c6ad6f1fd7cec613acf) for src\\backend\\handshake_core\\src\\terminal\\guards.rs (common after WP commits); prefer LF blob SHA1=a409e8ecb4b96fbfc52cb7fbddb7234740c6fde2
+    21. Manifest[14]: pre_sha1 matches merge-base(edf750d4e182cdb459761c6ad6f1fd7cec613acf) for src\\backend\\handshake_core\\src\\terminal\\mod.rs (common after WP commits); prefer LF blob SHA1=b3c681167aa6b94c13f00f71c545ba9eefd4980e
+    22. Manifest[15]: pre_sha1 matches merge-base(edf750d4e182cdb459761c6ad6f1fd7cec613acf) for src\\backend\\handshake_core\\src\\workflows.rs (common after WP commits); prefer LF blob SHA1=c521e4dc8878f7fa8f51b56b47ba2290b7c290e1
+
+  You may proceed with commit.
+  ? ROLE_MAILBOX_EXPORT_GATE PASS
+  ```
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
