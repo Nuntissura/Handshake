@@ -527,6 +527,30 @@
       "branch": "feat/WP-1-Flight-Recorder-UI-v3",
       "worktree_dir": "../wt-WP-1-Flight-Recorder-UI-v3",
       "timestamp": "2026-01-17T22:45:40.807Z"
+    },
+    {
+      "wpId": "WP-1-Metrics-Mock-Tokens",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Metrics-Mock-Tokens.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md",
+      "spec_target_sha1": "cf2f5305fc8eec517d577d87365bd9c072a99b0f",
+      "timestamp": "2026-01-18T22:22:35.934Z",
+      "turn_token": "1768774955935"
+    },
+    {
+      "wpId": "WP-1-Metrics-Mock-Tokens",
+      "type": "SIGNATURE",
+      "signature": "ilja180120262320",
+      "timestamp": "2026-01-18T22:27:56.010Z",
+      "refinement_path": "docs/refinements/WP-1-Metrics-Mock-Tokens.md"
+    },
+    {
+      "wpId": "WP-1-Metrics-Mock-Tokens",
+      "type": "PREPARE",
+      "coder_id": "Coder-4",
+      "branch": "feat/WP-1-Metrics-Mock-Tokens",
+      "worktree_dir": "../wt-WP-1-Metrics-Mock-Tokens",
+      "timestamp": "2026-01-18T22:28:13.253Z"
     }
   ]
 }
