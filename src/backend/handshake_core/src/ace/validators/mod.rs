@@ -947,8 +947,7 @@ impl ValidatorPipeline {
     ) -> (Vec<AceError>, AceValidationPayload) {
         use std::time::Instant;
 
-        // WAIVER [CX-573E]: Instant::now() is timing-only instrumentation for Flight Recorder
-        // latency metrics; does not affect validation logic or determinism.
+        // WAIVER [CX-573E]: timing-only instrumentation for FR latency metrics; no determinism impact
         let start = Instant::now();
         let mut guards_passed = Vec::new();
         let mut guards_failed = Vec::new();
