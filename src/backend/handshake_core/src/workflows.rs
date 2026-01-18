@@ -539,15 +539,15 @@ async fn log_capability_check(
     state: &AppState,
     job: &AiJob,
     capability_id: &str,
-    profile_id: &str,
-    outcome: &str,
+    decision_outcome: &str,
     trace_id: Uuid,
 ) {
+    let actor_id = "workflow_engine";
     let payload = json!({
         "capability_id": capability_id,
-        "profile_id": profile_id,
-        "job_id": job.job_id,
-        "outcome": outcome,
+        "actor_id": actor_id,
+        "job_id": job.job_id.to_string(),
+        "decision_outcome": decision_outcome,
     });
     record_event_safely(
         state,
@@ -559,7 +559,7 @@ async fn log_capability_check(
         )
         .with_job_id(job.job_id.to_string())
         .with_capability(capability_id.to_string())
-        .with_actor_id(job.capability_profile_id.clone()),
+        .with_actor_id(actor_id),
     )
     .await;
 }
@@ -580,40 +580,16 @@ async fn enforce_capabilities(
 
         match result {
             Ok(true) => {
-                log_capability_check(
-                    state,
-                    job,
-                    &capability_id,
-                    &job.capability_profile_id,
-                    "allowed",
-                    trace_id,
-                )
-                .await;
+                log_capability_check(state, job, &capability_id, "allow", trace_id).await;
             }
             Ok(false) => {
-                log_capability_check(
-                    state,
-                    job,
-                    &capability_id,
-                    &job.capability_profile_id,
-                    "denied",
-                    trace_id,
-                )
-                .await;
+                log_capability_check(state, job, &capability_id, "deny", trace_id).await;
                 return Err(WorkflowError::Capability(RegistryError::AccessDenied(
                     capability_id,
                 )));
             }
             Err(err) => {
-                log_capability_check(
-                    state,
-                    job,
-                    &capability_id,
-                    &job.capability_profile_id,
-                    "denied",
-                    trace_id,
-                )
-                .await;
+                log_capability_check(state, job, &capability_id, "deny", trace_id).await;
                 return Err(WorkflowError::Capability(err));
             }
         }
@@ -1050,40 +1026,16 @@ async fn run_job(
                 .profile_can(&job.capability_profile_id, capability_id);
             match result {
                 Ok(true) => {
-                    log_capability_check(
-                        state,
-                        job,
-                        capability_id,
-                        &job.capability_profile_id,
-                        "allowed",
-                        trace_id,
-                    )
-                    .await;
+                    log_capability_check(state, job, capability_id, "allow", trace_id).await;
                 }
                 Ok(false) => {
-                    log_capability_check(
-                        state,
-                        job,
-                        capability_id,
-                        &job.capability_profile_id,
-                        "denied",
-                        trace_id,
-                    )
-                    .await;
+                    log_capability_check(state, job, capability_id, "deny", trace_id).await;
                     return Err(WorkflowError::Capability(RegistryError::AccessDenied(
                         capability_id.to_string(),
                     )));
                 }
                 Err(err) => {
-                    log_capability_check(
-                        state,
-                        job,
-                        capability_id,
-                        &job.capability_profile_id,
-                        "denied",
-                        trace_id,
-                    )
-                    .await;
+                    log_capability_check(state, job, capability_id, "deny", trace_id).await;
                     return Err(WorkflowError::Capability(err));
                 }
             }

@@ -28,7 +28,7 @@ const CANONICAL_CAPABILITY_IDS: &[&str] = &[
 /// Registry error type for capability SSoT violations.
 #[derive(Debug, Clone, Error, Serialize, Deserialize)]
 pub enum RegistryError {
-    #[error("Unknown capability: {0} (HSK-4001)")]
+    #[error("HSK-4001: UnknownCapability: {0}")]
     UnknownCapability(String),
     #[error("Unknown capability profile: {0}")]
     UnknownProfile(String),
@@ -232,18 +232,18 @@ impl CapabilityRegistry {
     }
 
     /// Resolves if a requested capability is granted by a list of held capabilities.
-    /// Returns Ok(true) if allowed, Ok(false) if denied but valid, Err(UnknownCapability) if invalid.
-    pub fn can_perform(&self, requested: &str, granted: &[String]) -> Result<bool, RegistryError> {
-        // 1. Sanity check: requested must be valid [HSK-4001]
+    /// Returns true if allowed, false if denied or unknown.
+    pub fn can_perform(&self, requested: &str, granted: &[String]) -> bool {
+        // 1. Sanity check: requested must be valid
         if !self.is_valid(requested) {
-            return Err(RegistryError::UnknownCapability(requested.to_string()));
+            return false;
         }
 
         // 2. Check against granted list
         for grant in granted {
             // Exact match covers full IDs and exact scoped matches
             if grant == requested {
-                return Ok(true);
+                return true;
             }
 
             // Axis inheritance: If grant is "fs.read", it covers "fs.read:*"
@@ -251,12 +251,30 @@ impl CapabilityRegistry {
             // Note: grant must be the parent axis (no colon)
             if let Some((req_axis, _req_scope)) = requested.split_once(':') {
                 if grant == req_axis {
-                    return Ok(true);
+                    return true;
                 }
             }
         }
 
-        Ok(false)
+        false
+    }
+
+    /// Enforcement wrapper for `can_perform` that preserves the HSK-4001 UnknownCapability
+    /// hard invariant at the policy/enforcement boundary.
+    ///
+    /// - Unknown capability => Err(HSK-4001: UnknownCapability)
+    /// - Known-but-denied => Ok(false)
+    /// - Allowed => Ok(true)
+    pub fn enforce_can_perform(
+        &self,
+        requested: &str,
+        granted: &[String],
+    ) -> Result<bool, RegistryError> {
+        if !self.is_valid(requested) {
+            return Err(RegistryError::UnknownCapability(requested.to_string()));
+        }
+
+        Ok(self.can_perform(requested, granted))
     }
 
     /// Resolves if a profile allows a requested capability.
@@ -266,7 +284,7 @@ impl CapabilityRegistry {
             .get(profile_id)
             .ok_or_else(|| RegistryError::UnknownProfile(profile_id.to_string()))?;
 
-        self.can_perform(requested, &profile.allowed)
+        self.enforce_can_perform(requested, &profile.allowed)
     }
 
     /// Returns the CapabilityProfile associated with a specific Job Kind.
@@ -327,11 +345,15 @@ mod tests {
         let registry = CapabilityRegistry::new();
         let granted = vec!["fs.read".to_string()];
 
-        let result = registry.can_perform("magic.wand", &granted);
-        assert!(matches!(
-            result,
-            Err(RegistryError::UnknownCapability(ref c)) if c == "magic.wand"
-        ));
+        assert!(!registry.can_perform("magic.wand", &granted));
+
+        let err = registry
+            .enforce_can_perform("magic.wand", &granted)
+            .expect_err("expected UnknownCapability");
+        assert!(
+            err.to_string().contains("HSK-4001: UnknownCapability"),
+            "unexpected error string: {err}"
+        );
     }
 
     #[test]
@@ -377,22 +399,13 @@ mod tests {
         let granted = vec!["fs.read".to_string()];
 
         // Grant "fs.read" should allow "fs.read:logs"
-        assert!(matches!(
-            registry.can_perform("fs.read:logs", &granted),
-            Ok(true)
-        ));
+        assert!(registry.can_perform("fs.read:logs", &granted));
 
         // Grant "fs.read" should allow "fs.read"
-        assert!(matches!(
-            registry.can_perform("fs.read", &granted),
-            Ok(true)
-        ));
+        assert!(registry.can_perform("fs.read", &granted));
 
         // Grant "fs.read" should NOT allow "fs.write"
-        assert!(matches!(
-            registry.can_perform("fs.write", &granted),
-            Ok(false)
-        ));
+        assert!(!registry.can_perform("fs.write", &granted));
     }
 
     #[test]

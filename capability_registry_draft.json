@@ -1,0 +1,438 @@
+{
+  "entries": [
+    {
+      "capability_id": "CALENDAR_ACTIVITY_SUMMARY",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Calendar Activity Summary",
+      "kind": "surface",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.9",
+      "tags": [
+        "calendar",
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "CALENDAR_COMPARE_ACTIVITY_WINDOWS",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Calendar Compare Activity Windows",
+      "kind": "surface",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.9",
+      "tags": [
+        "calendar",
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "CALENDAR_DELETE_EXTERNAL",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Calendar Delete External",
+      "kind": "surface",
+      "required_capabilities": [],
+      "risk_class": "high",
+      "section_ref": "11.9",
+      "tags": [
+        "calendar",
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "CALENDAR_DELETE_LOCAL",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Calendar Delete Local",
+      "kind": "surface",
+      "required_capabilities": [],
+      "risk_class": "high",
+      "section_ref": "11.9",
+      "tags": [
+        "calendar",
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "CALENDAR_MOVE_EVENT",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Calendar Move Event",
+      "kind": "surface",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.9",
+      "tags": [
+        "calendar",
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "CALENDAR_READ_ANALYTICS",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Calendar Read Analytics",
+      "kind": "surface",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.9",
+      "tags": [
+        "calendar",
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "CALENDAR_READ_BASIC",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Calendar Read Basic",
+      "kind": "surface",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.9",
+      "tags": [
+        "calendar",
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "CALENDAR_READ_DETAILS",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Calendar Read Details",
+      "kind": "surface",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.9",
+      "tags": [
+        "calendar",
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "CALENDAR_RESOLVE_CONFLICT",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Calendar Resolve Conflict",
+      "kind": "surface",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.9",
+      "tags": [
+        "calendar",
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "CALENDAR_WRITE_EXTERNAL",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Calendar Write External",
+      "kind": "surface",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.9",
+      "tags": [
+        "calendar",
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "CALENDAR_WRITE_LOCAL",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Calendar Write Local",
+      "kind": "surface",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.9",
+      "tags": [
+        "calendar",
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "creative",
+      "default_governance_mode": "gov_light",
+      "display_name": "Creative",
+      "kind": "runtime",
+      "required_capabilities": [],
+      "risk_class": "low",
+      "section_ref": "11.1",
+      "tags": [
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "device",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Device",
+      "kind": "runtime",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.1",
+      "tags": [
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "diagnostics.read",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Diagnostics Read",
+      "kind": "runtime",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.5",
+      "tags": [
+        "capability",
+        "observability"
+      ]
+    },
+    {
+      "capability_id": "doc.summarize",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Doc Summarize",
+      "kind": "surface",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "7.1.1",
+      "tags": [
+        "capability",
+        "docs"
+      ]
+    },
+    {
+      "capability_id": "engine.guard.secret_scan",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Engine Guard Secret Scan",
+      "kind": "engine",
+      "required_capabilities": [
+        "fs.read:inputs",
+        "fs.write:artifacts",
+        "proc.exec:gitleaks"
+      ],
+      "risk_class": "medium",
+      "section_ref": "11.8",
+      "tags": [
+        "capability",
+        "engine",
+        "mechanical_engine"
+      ]
+    },
+    {
+      "capability_id": "engine.spatial",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Engine Spatial",
+      "kind": "engine",
+      "required_capabilities": [
+        "fs.read",
+        "fs.write",
+        "proc.exec"
+      ],
+      "risk_class": "medium",
+      "section_ref": "11.8",
+      "tags": [
+        "capability",
+        "engine",
+        "mechanical_engine"
+      ]
+    },
+    {
+      "capability_id": "engine.supply_chain.license",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Engine Supply Chain License",
+      "kind": "engine",
+      "required_capabilities": [
+        "fs.read:inputs",
+        "fs.write:artifacts",
+        "proc.exec:scancode"
+      ],
+      "risk_class": "medium",
+      "section_ref": "11.8",
+      "tags": [
+        "capability",
+        "engine",
+        "mechanical_engine"
+      ]
+    },
+    {
+      "capability_id": "engine.supply_chain.sbom",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Engine Supply Chain Sbom",
+      "kind": "engine",
+      "required_capabilities": [
+        "fs.read:inputs",
+        "fs.write:artifacts",
+        "proc.exec:syft"
+      ],
+      "risk_class": "medium",
+      "section_ref": "11.8",
+      "tags": [
+        "capability",
+        "engine",
+        "mechanical_engine"
+      ]
+    },
+    {
+      "capability_id": "engine.supply_chain.vuln",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Engine Supply Chain Vuln",
+      "kind": "engine",
+      "required_capabilities": [
+        "fs.read:inputs",
+        "fs.write:artifacts",
+        "proc.exec:osv-scanner"
+      ],
+      "risk_class": "medium",
+      "section_ref": "11.8",
+      "tags": [
+        "capability",
+        "engine",
+        "mechanical_engine"
+      ]
+    },
+    {
+      "capability_id": "export.debug_bundle",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Export Debug Bundle",
+      "kind": "workflow",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.5",
+      "tags": [
+        "capability",
+        "workflow"
+      ]
+    },
+    {
+      "capability_id": "export.governance_pack",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Export Governance Pack",
+      "kind": "workflow",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.5",
+      "tags": [
+        "capability",
+        "workflow"
+      ]
+    },
+    {
+      "capability_id": "export.include_payloads",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Export Include Payloads",
+      "kind": "workflow",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.5",
+      "tags": [
+        "capability",
+        "workflow"
+      ]
+    },
+    {
+      "capability_id": "fr.read",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Fr Read",
+      "kind": "runtime",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.5",
+      "tags": [
+        "capability",
+        "observability"
+      ]
+    },
+    {
+      "capability_id": "fs.read",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Fs Read",
+      "kind": "runtime",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.1",
+      "tags": [
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "fs.write",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Fs Write",
+      "kind": "runtime",
+      "required_capabilities": [],
+      "risk_class": "high",
+      "section_ref": "11.1",
+      "tags": [
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "jobs.read",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Jobs Read",
+      "kind": "runtime",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "2.6",
+      "tags": [
+        "capability",
+        "jobs"
+      ]
+    },
+    {
+      "capability_id": "net.http",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Net Http",
+      "kind": "runtime",
+      "required_capabilities": [],
+      "risk_class": "high",
+      "section_ref": "11.1",
+      "tags": [
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "proc.exec",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Proc Exec",
+      "kind": "runtime",
+      "required_capabilities": [],
+      "risk_class": "high",
+      "section_ref": "11.1",
+      "tags": [
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "secrets.use",
+      "default_governance_mode": "gov_strict",
+      "display_name": "Secrets Use",
+      "kind": "runtime",
+      "required_capabilities": [],
+      "risk_class": "critical",
+      "section_ref": "11.1",
+      "tags": [
+        "capability"
+      ]
+    },
+    {
+      "capability_id": "terminal.attach_human",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Terminal Attach Human",
+      "kind": "surface",
+      "required_capabilities": [],
+      "risk_class": "high",
+      "section_ref": "11.7.1",
+      "tags": [
+        "capability",
+        "terminal"
+      ]
+    },
+    {
+      "capability_id": "terminal.exec",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Terminal Exec",
+      "kind": "surface",
+      "required_capabilities": [],
+      "risk_class": "high",
+      "section_ref": "11.7.1",
+      "tags": [
+        "capability",
+        "terminal"
+      ]
+    }
+  ]
+}

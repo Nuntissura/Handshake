@@ -128,7 +128,7 @@ impl Gate for CapabilityGate {
         allowed_caps.dedup();
 
         for cap in &op.capabilities_requested {
-            match self.registry.can_perform(cap, &allowed_caps) {
+            match self.registry.enforce_can_perform(cap, &allowed_caps) {
                 Ok(true) => {}
                 Ok(false) => {
                     return Err(GateDenial {
@@ -142,8 +142,8 @@ impl Gate for CapabilityGate {
                 Err(RegistryError::UnknownCapability(_)) => {
                     return Err(GateDenial {
                         gate: self.name().to_string(),
-                        reason: "Unknown capability".to_string(),
-                        code: Some("HSK-4001".to_string()),
+                        reason: RegistryError::UnknownCapability(cap.clone()).to_string(),
+                        code: Some("HSK-4001: UnknownCapability".to_string()),
                         details: Some(Value::String(cap.clone())),
                         severity: DenialSeverity::Error,
                     });

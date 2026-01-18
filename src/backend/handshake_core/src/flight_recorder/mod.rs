@@ -230,6 +230,9 @@ impl FlightRecorderEvent {
                 }
                 validate_llm_inference_payload(&self.payload)
             }
+            FlightRecorderEventType::CapabilityAction => {
+                validate_capability_action_payload(&self.payload)
+            }
             _ => Ok(()),
         }
     }
@@ -402,6 +405,21 @@ fn validate_terminal_command_payload(payload: &Value) -> Result<(), RecorderErro
     require_bool(map, "timed_out")?;
     require_bool(map, "cancelled")?;
     require_number(map, "truncated_bytes")?;
+    Ok(())
+}
+
+fn validate_capability_action_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+
+    require_exact_keys(
+        map,
+        &["capability_id", "actor_id", "job_id", "decision_outcome"],
+    )?;
+    require_string(map, "capability_id")?;
+    require_string(map, "actor_id")?;
+    require_string_or_null_nonempty(map, "job_id")?;
+    require_string(map, "decision_outcome")?;
+
     Ok(())
 }
 
