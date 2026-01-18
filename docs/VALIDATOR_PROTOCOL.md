@@ -23,6 +23,32 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
 - [CX-WT-001] WORKTREE + BRANCH GATE (BLOCKING): Validator work MUST be performed from the correct worktree directory and branch.
   - Source of truth: `docs/ROLE_WORKTREES.md` (default role worktrees/branches) and the assigned WP worktree/branch.
   - Required verification (run at session start and whenever context is unclear): `pwd`, `git rev-parse --show-toplevel`, `git rev-parse --abbrev-ref HEAD`, `git status -sb`, `git worktree list`.
+  - **Chat requirement (MANDATORY):** paste the literal command outputs into chat as a `HARD_GATE_OUTPUT` block and immediately follow with `HARD_GATE_REASON` + `HARD_GATE_NEXT_ACTIONS` blocks so Operator/Validator can verify context and the stop/proceed decision without follow-ups.
+  - Template:
+    ```text
+    HARD_GATE_OUTPUT [CX-WT-001]
+    <paste the verbatim outputs for the commands above, in order>
+    
+    HARD_GATE_REASON [CX-WT-001]
+    - Prevent edits in the wrong repo/worktree directory.
+    - Prevent accidental work on the wrong branch (e.g., `main`/role branches).
+    - Enforce WP isolation: one WP == one worktree + branch.
+    - Avoid cross-WP contamination of unstaged changes and commits.
+    - Ensure deterministic handoff: Operator/Validator can verify state without back-and-forth.
+    - Provide a verifiable snapshot for audits and validation evidence.
+    - Catch missing/mispointed worktrees early (before any changes).
+    - Ensure `git worktree list` topology matches concurrency expectations.
+    - Prevent using the Operator's personal worktree as a Coder worktree.
+    - Ensure the Orchestrator's assignment is actually in effect locally.
+    - Bind Coder work to `docs/ORCHESTRATOR_GATES.json` `PREPARE` records (`branch`, `worktree_dir`).
+    - Keep role-governed defaults consistent with `docs/ROLE_WORKTREES.md`.
+    - Reduce risk of data loss from wrong-directory "cleanup"/stashing mistakes.
+    - Make failures actionable: mismatch => STOP + escalate, not "guess and proceed".
+    
+    HARD_GATE_NEXT_ACTIONS [CX-WT-001]
+    - If correct (repo/worktree/branch match the assignment): proceed to BOOTSTRAP / packet steps.
+    - If incorrect/uncertain: STOP; ask Orchestrator/Operator to provide/create the correct WP worktree/branch and ensure `PREPARE` is recorded in `docs/ORCHESTRATOR_GATES.json`.
+    ```
   - If the required worktree/branch does not exist: STOP and request explicit user authorization to create it (Codex [CX-108]); only after authorization, create it using the commands in `docs/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
 - Inputs required: task packet (STATUS not empty), docs/SPEC_CURRENT.md, applicable spec slices, current diff.
 - WP Traceability check (blocking when variants exist): confirm the task packet under review is the **Active Packet** for its Base WP per `docs/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).

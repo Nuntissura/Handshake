@@ -30,6 +30,15 @@ Notes:
 - `git status -sb`
 - `git worktree list`
 
+Why this gate exists (CX-WT-001):
+- Prevent work in the wrong directory/branch (especially accidental `main` or role-branch edits).
+- Enforce WP isolation via dedicated worktrees/branches (no shared working trees across active WPs).
+- Provide a verifiable snapshot for Operator/Validator using `docs/ROLE_WORKTREES.md` + `docs/ORCHESTRATOR_GATES.json` (`PREPARE` entries).
+
+Next actions (CX-WT-001):
+- If correct: proceed with the next protocol step (BOOTSTRAP / packet work).
+- If incorrect/uncertain: STOP and ask Orchestrator/Operator to provide/create the correct worktree/branch (and record `PREPARE` in `docs/ORCHESTRATOR_GATES.json` for WP work).
+
 ## Creation Commands (only if explicitly authorized in the same turn)
 
 From the main repo working tree:

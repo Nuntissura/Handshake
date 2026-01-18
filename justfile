@@ -48,6 +48,35 @@ codex-check:
 worktree-add wp-id base="main" branch="" dir="":
 	node scripts/worktree-add.mjs {{wp-id}} {{base}} {{branch}} {{dir}}
 
+# Hard gate helper: Worktree + Branch Gate [CX-WT-001]
+hard-gate-wt-001:
+	@echo 'HARD_GATE_OUTPUT [CX-WT-001]'
+	@pwd
+	@git rev-parse --show-toplevel
+	@git rev-parse --abbrev-ref HEAD
+	@git status -sb
+	@git worktree list
+	@echo ''
+	@echo 'HARD_GATE_REASON [CX-WT-001]'
+	@echo '- Prevent edits in the wrong repo/worktree directory.'
+	@echo '- Prevent accidental work on the wrong branch (e.g., `main`/role branches).'
+	@echo '- Enforce WP isolation: one WP == one worktree + branch.'
+	@echo '- Avoid cross-WP contamination of unstaged changes and commits.'
+	@echo '- Ensure deterministic handoff: Operator/Validator can verify state without back-and-forth.'
+	@echo '- Provide a verifiable snapshot for audits and validation evidence.'
+	@echo '- Catch missing/mispointed worktrees early (before any changes).'
+	@echo '- Ensure `git worktree list` topology matches concurrency expectations.'
+	@echo '- Prevent using the Operator''s personal worktree as a Coder worktree.'
+	@echo '- Ensure the Orchestrator''s assignment is actually in effect locally.'
+	@echo '- Bind Coder work to `docs/ORCHESTRATOR_GATES.json` `PREPARE` records (`branch`, `worktree_dir`).'
+	@echo '- Keep role-governed defaults consistent with `docs/ROLE_WORKTREES.md`.'
+	@echo '- Reduce risk of data loss from wrong-directory "cleanup"/stashing mistakes.'
+	@echo '- Make failures actionable: mismatch => STOP + escalate, not "guess and proceed".'
+	@echo ''
+	@echo 'HARD_GATE_NEXT_ACTIONS [CX-WT-001]'
+	@echo '- If correct (repo/worktree/branch match the assignment): proceed to BOOTSTRAP / packet steps.'
+	@echo '- If incorrect/uncertain: STOP; ask Orchestrator/Operator to provide/create the correct WP worktree/branch and ensure `PREPARE` is recorded in `docs/ORCHESTRATOR_GATES.json`.'
+
 task-board-check:
 	node scripts/validation/task-board-check.mjs
 
