@@ -19,26 +19,37 @@
 - Rule: Task packet creation is blocked until refinement is complete and signed.
 
 ## SCOPE
-- What: Remediate capability SSoT enforcement + capability-check audit logging to align with Master Spec v02.113 Section 11.1 ([HSK-4001]), and clear the prior revalidation FAIL drivers (COR-701 manifest mismatch and audit-field drift).
+- What: Remediate capability SSoT enforcement + capability-check audit logging to align with Master Spec v02.113 Section 11.1 ([HSK-4001]), including the 11.1.6 capability registry artifact workflow (draft/validate/diff/review/publish), and clear the prior revalidation FAIL drivers (COR-701 manifest mismatch and audit-field drift).
 - Why: Capability checks are a security boundary; incorrect UnknownCapability handling and/or missing audit fields breaks governance invariants and blocks Phase-1 gates (pre-work/post-work).
 - IN_SCOPE_PATHS:
   - src/backend/handshake_core/src/capabilities.rs
   - src/backend/handshake_core/src/workflows.rs
+  - capability_registry_draft.json
+  - capability_registry_diff.json
+  - capability_registry_review.json
+  - assets/capability_registry.json
 - OUT_OF_SCOPE:
-  - Top-level directory creation without explicit Operator approval (Codex [CX-106])
+  - Top-level directory creation other than `assets/` (Codex [CX-106])
   - Changes to Master Spec or Codex/protocol files
   - Frontend/UI changes (app/)
   - Unrelated workflow/job kinds not required for this WP's DONE_MEANS
 
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- NONE
+- [CX-106 AUTHORIZATION] 2026-01-18: Operator authorized top-level `assets/` directory + capability registry artifact files for WP-1-Capability-SSoT-v2 (evidence: "AUTHORIZE top-level assets/ dir + capability registry artifact files for WP-1-Capability-SSoT-v2").
+- NONE (other than the CX-106 authorization above)
 
 ## QUALITY_GATE
 ### TEST_PLAN
 ```bash
 # Run before handoff:
 just pre-work WP-1-Capability-SSoT-v2
+
+# Capability registry artifacts (Master Spec v02.113 11.1.6)
+node -e "JSON.parse(require('fs').readFileSync('capability_registry_draft.json','utf8')); console.log('draft: ok')"
+node -e "JSON.parse(require('fs').readFileSync('capability_registry_diff.json','utf8')); console.log('diff: ok')"
+node -e "JSON.parse(require('fs').readFileSync('capability_registry_review.json','utf8')); console.log('review: ok')"
+node -e "JSON.parse(require('fs').readFileSync('assets/capability_registry.json','utf8')); console.log('publish: ok')"
 
 # Targeted unit tests
 cd src/backend/handshake_core
@@ -56,6 +67,7 @@ just post-work WP-1-Capability-SSoT-v2
 - `just post-work WP-1-Capability-SSoT-v2` passes (no COR-701 manifest mismatches).
 - Unknown capability IDs are rejected with error code `HSK-4001: UnknownCapability` (Master Spec 11.1 [HSK-4001]).
 - Every capability check (allow/deny) emits a Flight Recorder event capturing: `capability_id`, `actor_id`, `job_id` (if applicable), and `decision_outcome` (Master Spec 11.1 audit requirement).
+- Capability registry workflow artifacts exist and are valid JSON per Master Spec 11.1.6: `capability_registry_draft.json`, `capability_registry_diff.json`, `capability_registry_review.json`, and `assets/capability_registry.json`.
 - Deterministic manifest entries exist for every changed non-doc file (correct Start/End/LineDelta/PreSHA1/PostSHA1).
 
 ### ROLLBACK_HINT
@@ -66,7 +78,7 @@ git revert <commit-sha>
 ## AUTHORITY
 - SPEC_BASELINE: Handshake_Master_Spec_v02.113.md (recorded_at: 2026-01-18T15:01:56.223Z)
 - SPEC_TARGET: docs/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.113.md 11.1 ([HSK-4001]) and 11.1.3.1-11.1.3.2
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.113.md 11.1 ([HSK-4001]), 11.1.3.1-11.1.3.2, 11.1.6
 - Codex: Handshake Codex v1.4.md
 - Task Board: docs/TASK_BOARD.md
 - WP Traceability: docs/WP_TRACEABILITY_REGISTRY.md
@@ -82,6 +94,7 @@ git revert <commit-sha>
   - Axis inheritance behavior (axis-only grant allows axis:scope) per 11.1.3.1.
 - Changed / added in this revision:
   - Re-anchor to Master Spec v02.113 (11.1) and require audit-field alignment (`decision_outcome` + actor_id semantics).
+  - Include Master Spec v02.113 11.1.6 capability registry artifact workflow (draft/diff/review/publish).
   - Replace prior packet's failing deterministic manifest with a fresh COR-701 manifest that matches the actual code state post-fix.
 
 ## BOOTSTRAP
