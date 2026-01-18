@@ -490,7 +490,7 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
             r#"
             SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
             FROM workspaces
-            WHERE id = ?1
+            WHERE id = ?
             "#,
         )
         .bind(&workspace.id)
@@ -519,7 +519,7 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
             r#"
             SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
             FROM documents
-            WHERE id = ?1
+            WHERE id = ?
             "#,
         )
         .bind(&document.id)
@@ -555,7 +555,7 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
             r#"
             SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
             FROM blocks
-            WHERE id = ?1
+            WHERE id = ?
             "#,
         )
         .bind(&block.id)
@@ -615,7 +615,7 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
             r#"
             SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
             FROM canvases
-            WHERE id = ?1
+            WHERE id = ?
             "#,
         )
         .bind(&canvas.id)
@@ -634,7 +634,7 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
             r#"
             SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
             FROM canvas_nodes
-            WHERE id = ?1
+            WHERE id = ?
             "#,
         )
         .bind(&node_a_id)
@@ -653,7 +653,7 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
             r#"
             SELECT last_actor_kind, last_actor_id, last_job_id, last_workflow_id, edit_event_id
             FROM canvas_edges
-            WHERE id = ?1
+            WHERE id = ?
             "#,
         )
         .bind(&edge_id)

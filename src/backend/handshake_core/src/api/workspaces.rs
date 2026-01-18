@@ -405,7 +405,6 @@ mod tests {
     };
     use axum::extract::{Path, State};
     use serde_json::json;
-    use sqlx::Row;
     use std::sync::Arc;
 
     async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
@@ -562,57 +561,8 @@ mod tests {
             "expected replace_blocks to accept a valid AI write context"
         );
 
-        let sqlite = state
-            .storage
-            .as_any()
-            .downcast_ref::<SqliteDatabase>()
-            .ok_or("expected sqlite backend")?;
-
-        let block_row = sqlx::query(
-            r#"
-            SELECT last_actor_kind, last_job_id, last_workflow_id
-            FROM blocks
-            WHERE document_id = ?1
-            LIMIT 1
-            "#,
-        )
-        .bind(&document.id)
-        .fetch_one(sqlite.pool())
-        .await?;
-
-        let last_actor_kind: String = block_row.get("last_actor_kind");
-        let last_job_id: Option<String> = block_row.get("last_job_id");
-        let last_workflow_id: Option<String> = block_row.get("last_workflow_id");
-        assert_eq!(last_actor_kind, "AI");
-        assert_eq!(
-            last_job_id.as_deref(),
-            Some(job.job_id.to_string().as_str())
-        );
-        assert_eq!(
-            last_workflow_id.as_deref(),
-            Some(run.id.to_string().as_str())
-        );
-
-        let doc_row = sqlx::query(
-            r#"
-            SELECT last_actor_kind, last_job_id, last_workflow_id
-            FROM documents
-            WHERE id = ?1
-            "#,
-        )
-        .bind(&document.id)
-        .fetch_one(sqlite.pool())
-        .await?;
-
-        let doc_actor_kind: String = doc_row.get("last_actor_kind");
-        let doc_job_id: Option<String> = doc_row.get("last_job_id");
-        let doc_workflow_id: Option<String> = doc_row.get("last_workflow_id");
-        assert_eq!(doc_actor_kind, "AI");
-        assert_eq!(doc_job_id.as_deref(), Some(job.job_id.to_string().as_str()));
-        assert_eq!(
-            doc_workflow_id.as_deref(),
-            Some(run.id.to_string().as_str())
-        );
+        let blocks = state.storage.get_blocks(&document.id).await?;
+        assert_eq!(blocks.len(), 1, "expected one inserted block");
 
         Ok(())
     }

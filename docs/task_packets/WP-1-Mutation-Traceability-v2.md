@@ -214,9 +214,9 @@ git revert <commit-sha>
 - **Target File**: `src/backend/handshake_core/src/storage/tests.rs`
 - **Start**: 1
 - **End**: 1052
-- **Line Delta**: 2
-- **Pre-SHA1**: `e96aa74077baf2bd202e0e19b07f094e16c7e9a4`
-- **Post-SHA1**: `b1b7fa19e1d391f04b4789081dc4566a7f7e55e0`
+- **Line Delta**: 0
+- **Pre-SHA1**: `b1b7fa19e1d391f04b4789081dc4566a7f7e55e0`
+- **Post-SHA1**: `42116cffcd11ee1e30836f0d0cb2341ed1610c08`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -261,10 +261,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/api/workspaces.rs`
 - **Start**: 1
-- **End**: 547
-- **Line Delta**: 0
-- **Pre-SHA1**: `08029f76c3e5fea6f38137e9e1192e6810b8dd35`
-- **Post-SHA1**: `f08bcc5faafc48a0a078a6c2892c1ffbbb3de448`
+- **End**: 619
+- **Line Delta**: -50
+- **Pre-SHA1**: `f08bcc5faafc48a0a078a6c2892c1ffbbb3de448`
+- **Post-SHA1**: `04953858abf84376480a7b47f34a3e55c4166f9a`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -388,6 +388,39 @@ git revert <commit-sha>
 - Ran: `cd src/backend/handshake_core; cargo test mutation_traceability_metadata_on_writes`
   - `test storage::tests::postgres_persists_mutation_traceability_metadata_on_writes ... ok`
   - `test storage::tests::sqlite_persists_mutation_traceability_metadata_on_writes ... ok`
+- Ran: `just validator-dal-audit`
+  - `validator-dal-audit: PASS (DAL checks clean).`
+- Ran: `just post-work WP-1-Mutation-Traceability-v2` (pre-commit)
+  ```text
+  Checking Phase Gate for WP-1-Mutation-Traceability-v2...
+  ? GATE PASS: Workflow sequence verified.
+  
+  Post-work validation for WP-1-Mutation-Traceability-v2 (deterministic manifest + gates)...
+  
+  Check 1: Validation manifest present
+  NOTE: Git hygiene waiver detected [CX-573F]. Strict git checks relaxed.
+  
+  Check 2: Manifest fields
+  
+  Check 3: File integrity (per manifest entry)
+  
+  Check 4: Git status
+  
+  ==================================================
+  Post-work validation PASSED with warnings
+  
+  Warnings:
+    1. Out-of-scope files changed but waiver present [CX-573F]: src/backend/handshake_core/src/api/workspaces.rs, src/backend/handshake_core/src/storage/tests.rs
+    2. Manifest[1]: pre_sha1 matches merge-base(579307517ecc2bed9d0081a6a197b356127799f2) for src\backend\handshake_core\src\storage\mod.rs (common after WP commits); prefer LF blob SHA1=1e17697dd2d2f5935e645cb7323853c4ed24a630
+    3. Manifest[2]: pre_sha1 matches merge-base(579307517ecc2bed9d0081a6a197b356127799f2) for src\backend\handshake_core\src\storage\postgres.rs (common after WP commits); prefer LF blob SHA1=e96e79bbeda0c49d4f80279d852c67bdc4e077c2
+    4. Manifest[4]: pre_sha1 matches merge-base(579307517ecc2bed9d0081a6a197b356127799f2) for src\backend\handshake_core\src\flight_recorder\mod.rs (common after WP commits); prefer LF blob SHA1=ee10486cbd46eac5ee903dbfc9adf43afb07ee6b
+    5. Manifest[6]: pre_sha1 matches merge-base(579307517ecc2bed9d0081a6a197b356127799f2) for src\backend\handshake_core\src\api\canvases.rs (common after WP commits); prefer LF blob SHA1=94aaa26348bb7c49fc9df920129cb6dfc9b5a5e7
+    6. Manifest[7]: pre_sha1 matches merge-base(579307517ecc2bed9d0081a6a197b356127799f2) for src\backend\handshake_core\src\mex\supply_chain.rs (common after WP commits); prefer LF blob SHA1=0c7f4a283d67ca9a5f4dec6d07ac1f5678385cc9
+    7. Manifest[8]: pre_sha1 matches merge-base(579307517ecc2bed9d0081a6a197b356127799f2) for scripts\validation\validator-scan.mjs (common after WP commits); prefer LF blob SHA1=4d20e520f160e168269f25d90db95b5e69830d3f
+  
+  You may proceed with commit.
+  ? ROLE_MAILBOX_EXPORT_GATE PASS
+  ```
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
