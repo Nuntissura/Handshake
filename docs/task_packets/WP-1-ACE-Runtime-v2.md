@@ -8,9 +8,9 @@
 - REQUESTOR: User
 - AGENT_ID: CodexCLI-GPT-5.2 (Orchestrator)
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: Claude Opus 4.5 (claude-opus-4-5-20250114)
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja180120261659
 
