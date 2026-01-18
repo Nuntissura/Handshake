@@ -8,6 +8,12 @@ on:
 permissions:
   contents: read
 
+env:
+  GITLEAKS_VERSION: "8.18.4"
+  OSV_SCANNER_VERSION: "1.7.0"
+  SYFT_VERSION: "0.105.0"
+  SCANCODE_TOOLKIT_VERSION: "32.2.1"
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -135,8 +141,141 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Gitleaks scan
-        uses: gitleaks/gitleaks-action@v2
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Go toolchain
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.4"
+
+      - name: Install gitleaks (pinned)
+        run: |
+          set -euo pipefail
+          go install github.com/gitleaks/gitleaks/v8@v${GITLEAKS_VERSION}
+          GOPATH_BIN="$(go env GOPATH)/bin"
+          echo "$GOPATH_BIN" >> "$GITHUB_PATH"
+          export PATH="$GOPATH_BIN:$PATH"
+          gitleaks version
+
+      - name: Run supply-chain MEX (secret_scan)
+        env:
+          HSK_RELEASE_MODE: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test mex_tests ci_secret_scan_runs_via_terminal_service -- --ignored
+
+      - name: Upload supply-chain artifacts + Flight Recorder
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mex_supply_chain_secret_scan
+          path: data/mex_supply_chain
+          if-no-files-found: warn
+
+  vuln_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Go toolchain
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.4"
+
+      - name: Install osv-scanner (pinned)
+        run: |
+          set -euo pipefail
+          go install github.com/google/osv-scanner/cmd/osv-scanner@v${OSV_SCANNER_VERSION}
+          GOPATH_BIN="$(go env GOPATH)/bin"
+          echo "$GOPATH_BIN" >> "$GITHUB_PATH"
+          export PATH="$GOPATH_BIN:$PATH"
+          osv-scanner --version
+
+      - name: Run supply-chain MEX (vuln_scan)
+        env:
+          HSK_RELEASE_MODE: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test mex_tests ci_vuln_scan_runs_via_terminal_service -- --ignored
+
+      - name: Upload supply-chain artifacts + Flight Recorder
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mex_supply_chain_vuln_scan
+          path: data/mex_supply_chain
+          if-no-files-found: warn
+
+  sbom_generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Go toolchain
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.4"
+
+      - name: Install syft (pinned)
+        run: |
+          set -euo pipefail
+          go install github.com/anchore/syft/cmd/syft@v${SYFT_VERSION}
+          GOPATH_BIN="$(go env GOPATH)/bin"
+          echo "$GOPATH_BIN" >> "$GITHUB_PATH"
+          export PATH="$GOPATH_BIN:$PATH"
+          syft version
+
+      - name: Run supply-chain MEX (sbom_generate)
+        env:
+          HSK_RELEASE_MODE: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test mex_tests ci_sbom_generate_runs_via_terminal_service -- --ignored
+
+      - name: Upload supply-chain artifacts + Flight Recorder
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mex_supply_chain_sbom_generate
+          path: data/mex_supply_chain
+          if-no-files-found: warn
+
+  license_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install scancode-toolkit (pinned)
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install "scancode-toolkit==${SCANCODE_TOOLKIT_VERSION}"
+          scancode --version
+
+      - name: Run supply-chain MEX (license_scan)
+        env:
+          HSK_RELEASE_MODE: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test mex_tests ci_license_scan_runs_via_terminal_service -- --ignored
+
+      - name: Upload supply-chain artifacts + Flight Recorder
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mex_supply_chain_license_scan
+          path: data/mex_supply_chain
+          if-no-files-found: warn
 
   dependency_audit:
     runs-on: ubuntu-latest
