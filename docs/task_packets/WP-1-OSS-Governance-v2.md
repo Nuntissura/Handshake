@@ -164,29 +164,50 @@ SKELETON APPROVED
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+
+### Manifest Entry 1: docs/OSS_REGISTER.md
+- **Target File**: `docs/OSS_REGISTER.md`
+- **Start**: 1
+- **End**: 461
+- **Line Delta**: 0
+- **Pre-SHA1**: `086fb4516c1d1e492cbc88f567018751c61473a0`
+- **Post-SHA1**: `5a0d295da4d8d663537c6a8b98a979c60b0d06ee`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+### Manifest Entry 2: src/backend/handshake_core/tests/oss_register_enforcement_tests.rs
+- **Target File**: `src/backend/handshake_core/tests/oss_register_enforcement_tests.rs`
+- **Start**: 1
+- **End**: 314
+- **Line Delta**: -23
+- **Pre-SHA1**: `33cce89476d9c1ddb719a90eb15733351b833df7`
+- **Post-SHA1**: `e2e7bc802b7019b7c938441629411af9dde1a764`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `just fmt`, `just lint`
+- **Artifacts**: None (repo-tracked)
+- **Timestamp**: 2026-01-19T00:00:00Z
+- **Operator**: Codex CLI (CODER)
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md
+- **Notes**: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml oss_register_enforcement`
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
