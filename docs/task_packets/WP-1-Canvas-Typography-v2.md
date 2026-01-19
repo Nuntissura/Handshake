@@ -57,6 +57,7 @@ cargo test
 
 # Full deterministic gates:
 cd ../..
+just cargo-clean
 just post-work WP-1-Canvas-Typography-v2
 ```
 
