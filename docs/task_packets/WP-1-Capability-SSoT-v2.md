@@ -557,9 +557,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: In Progress
-- What changed in this update: Appended command output evidence to packet (pre-work, JSON validity, targeted tests, cargo-clean, post-work).
-- Next step / handoff hint: Validator can review branch `feat/WP-1-Capability-SSoT-v2` at commits `3a6a1446`, `9190e673`, `f8237f90`.
+- Current WP_STATUS: Remediation complete; ready for Validator re-review.
+- What changed in this update: Re-synced COR-701 manifest Pre-SHA1 values to HEAD; added required VALIDATION metadata (operator/timestamp/lint/tests/artifacts); appended clean post-work output to ## EVIDENCE.
+- Next step / handoff hint: Validator can review branch `feat/WP-1-Capability-SSoT-v2` and include docs-only commits `5f1433e3`, `3b55c7ec`, `2659f671` in main status-sync/activation.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
