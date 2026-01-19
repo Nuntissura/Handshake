@@ -66,7 +66,7 @@ Format:
 | WP-1-AppState-Refactoring | docs/task_packets/WP-1-AppState-Refactoring-v3.md | Done: WP-1-AppState-Refactoring-v3 | active=WP-1-AppState-Refactoring-v3; supersedes: WP-1-AppState-Refactoring, WP-1-AppState-Refactoring-v2 |
 | WP-1-Atelier-Lens | docs/task_packets/stubs/WP-1-Atelier-Lens-v2.md | Stub Backlog (Not Activated): WP-1-Atelier-Lens-v2 | stub (remediation); supersedes: WP-1-Atelier-Lens |
 | WP-1-Calendar-Lens | docs/task_packets/stubs/WP-1-Calendar-Lens-v2.md | Stub Backlog (Not Activated): WP-1-Calendar-Lens-v2 | stub (remediation); supersedes: WP-1-Calendar-Lens |
-| WP-1-Canvas-Typography | docs/task_packets/stubs/WP-1-Canvas-Typography-v2.md | Stub Backlog (Not Activated): WP-1-Canvas-Typography-v2 | stub (remediation); supersedes: WP-1-Canvas-Typography |
+| WP-1-Canvas-Typography | docs/task_packets/WP-1-Canvas-Typography-v2.md | In Progress: WP-1-Canvas-Typography-v2 | active=WP-1-Canvas-Typography-v2; activated from stub docs/task_packets/stubs/WP-1-Canvas-Typography-v2.md; supersedes: WP-1-Canvas-Typography |
 | WP-1-Capability-SSoT | docs/task_packets/stubs/WP-1-Capability-SSoT-v2.md | Stub Backlog (Not Activated): WP-1-Capability-SSoT-v2 | stub (remediation); supersedes: WP-1-Capability-SSoT |
 | WP-1-Debug-Bundle | docs/task_packets/WP-1-Debug-Bundle-v3.md | Done: WP-1-Debug-Bundle-v3 | active=WP-1-Debug-Bundle-v3; supersedes: WP-1-Debug-Bundle, WP-1-Debug-Bundle-v2 |
 | WP-1-Dev-Experience-ADRs | docs/task_packets/stubs/WP-1-Dev-Experience-ADRs.md | Stub Backlog (Not Activated): WP-1-Dev-Experience-ADRs | stub |
