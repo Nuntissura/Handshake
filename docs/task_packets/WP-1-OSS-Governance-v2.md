@@ -258,3 +258,61 @@ You may proceed with commit.
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - WP-1-OSS-Governance-v2
+Verdict: PASS
+Validated At: 2026-01-19
+Validator: Codex CLI (ROLE=VALIDATOR)
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-OSS-Governance-v2.md
+- Spec (resolved via docs/SPEC_CURRENT.md): Handshake_Master_Spec_v02.113.md
+- Spec anchors used:
+  - Handshake_Master_Spec_v02.113.md:46642 (11.7.4.3 Copyleft isolation rule)
+  - Handshake_Master_Spec_v02.113.md:46764 (11.7.5.7.1 Register schema required columns)
+  - Handshake_Master_Spec_v02.113.md:49552 (11.10.4 (2) OSS Register Enforcement)
+
+Files Checked:
+- docs/task_packets/WP-1-OSS-Governance-v2.md
+- docs/OSS_REGISTER.md
+- src/backend/handshake_core/tests/oss_register_enforcement_tests.rs
+- docs/SPEC_CURRENT.md
+- Handshake_Master_Spec_v02.113.md
+- docs/WP_TRACEABILITY_REGISTRY.md
+- scripts/validation/post-work-check.mjs (read-only; gate behavior reference)
+
+Findings (evidence-based):
+- Register schema compliance (11.7.5.7.1):
+  - Spec required columns listed at Handshake_Master_Spec_v02.113.md:46764.
+  - Register tables use 10-column schema header in docs/OSS_REGISTER.md:11 and docs/OSS_REGISTER.md:434.
+  - Backend test enforces exact header + column count == 10 via HEADER_PATTERN at src/backend/handshake_core/tests/oss_register_enforcement_tests.rs:47 and cols.len() check at src/backend/handshake_core/tests/oss_register_enforcement_tests.rs:124.
+- Dependency coverage enforcement (11.10.4 (2)):
+  - Spec requires a backend unit test for Cargo.lock + package.json coverage at Handshake_Master_Spec_v02.113.md:49552.
+  - Coverage checks implemented:
+    - Cargo.lock coverage: src/backend/handshake_core/tests/oss_register_enforcement_tests.rs:232
+    - package.json coverage (dependencies + devDependencies): src/backend/handshake_core/tests/oss_register_enforcement_tests.rs:250
+- Copyleft isolation enforcement (11.7.4.3 + 11.10.4 (2)):
+  - Spec rule at Handshake_Master_Spec_v02.113.md:46642 (GPL/AGPL not linked into binary; isolation required).
+  - Test flags copyleft via is_copyleft_license at src/backend/handshake_core/tests/oss_register_enforcement_tests.rs:63 and enforces GPL/AGPL => external_process at src/backend/handshake_core/tests/oss_register_enforcement_tests.rs:268.
+- Traceability (active packet mapping):
+  - Base WP mapped to active packet at docs/WP_TRACEABILITY_REGISTRY.md:98.
+
+Hygiene / Forbidden Pattern Audit:
+- Validator scan/hygiene: PASS (just validator-hygiene-full)
+- Note: this test file uses expect()/panic! for hard-fail behavior in tests; no TODO/UNIMPLEMENTED placeholders were found in the changed test file.
+
+Tests (validator-run):
+- just pre-work WP-1-OSS-Governance-v2: PASS
+- just validator-hygiene-full: PASS
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Cargo Target/handshake-cargo-target" oss_register_enforcement: PASS (4 tests)
+
+Workflow / Gates:
+- Coder provided pre-commit post-work evidence under docs/task_packets/WP-1-OSS-Governance-v2.md:221 showing:
+  - just post-work WP-1-OSS-Governance-v2: PASS with warnings (merge-base pre_sha advisory from scripts/validation/post-work-check.mjs).
+- Validator Gate state recorded in docs/validator_gates/WP-1-OSS-Governance-v2.json (Gate 1: report presented; Gate 2: user acknowledged).
+
+REASON FOR PASS:
+- WP meets DONE_MEANS: OSS register schema migrated to Spec 11.7.5.7.1 required columns and enforcement test now validates coverage + copyleft isolation per Spec 11.10.4 (2), with validator-run tests passing and no protocol-blocking hygiene/traceability issues detected.
+
+Residual Risk / Follow-ups:
+- None required for this WP. (Pre-existing warnings from unrelated modules observed during compilation are out of WP scope.)
