@@ -1265,3 +1265,61 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATOR_REPORT (2026-01-19)
+
+VALIDATION REPORT - WP-1-Capability-SSoT-v2
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Capability-SSoT-v2.md (status: In Progress)
+- Spec Target Resolved: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md
+- Spec anchors validated: Handshake_Master_Spec_v02.113.md 11.1 ([HSK-4001]), 11.1.3.1-11.1.3.2, 11.1.6
+
+Files Checked:
+- docs/task_packets/WP-1-Capability-SSoT-v2.md
+- docs/SPEC_CURRENT.md
+- Handshake_Master_Spec_v02.113.md
+- src/backend/handshake_core/src/capabilities.rs
+- src/backend/handshake_core/src/workflows.rs
+- src/backend/handshake_core/src/terminal/mod.rs
+- src/backend/handshake_core/src/terminal/guards.rs
+- src/backend/handshake_core/src/mex/runtime.rs
+- src/backend/handshake_core/src/flight_recorder/mod.rs
+- src/backend/handshake_core/src/capability_registry_workflow.rs
+- src/backend/handshake_core/src/bin/capability_registry_workflow.rs
+- src/backend/handshake_core/src/api/workspaces.rs
+- docs/validator_gates/WP-1-Capability-SSoT-v2.json
+
+Findings:
+- HSK-4001 UnknownCapability enforced: src/backend/handshake_core/src/capabilities.rs:31, src/backend/handshake_core/src/capabilities.rs:268; unit test coverage: src/backend/handshake_core/src/capabilities.rs:344
+- Audit payload keys enforced exactly (capability_id, actor_id, job_id, decision_outcome): src/backend/handshake_core/src/flight_recorder/mod.rs:411
+- Workflow capability checks emit allow/deny events: src/backend/handshake_core/src/workflows.rs:542, src/backend/handshake_core/src/workflows.rs:571
+- Terminal capability checks emit allow/deny events: src/backend/handshake_core/src/terminal/mod.rs:231, src/backend/handshake_core/src/terminal/mod.rs:369
+- MEX capability checks emit allow/deny events: src/backend/handshake_core/src/mex/runtime.rs:83, src/backend/handshake_core/src/mex/runtime.rs:241
+- 11.1.6 workflow implemented (extract/validate/diff/review/publish) + artifacts: src/backend/handshake_core/src/capability_registry_workflow.rs:548
+- DAL audit: sqlx::query usage in src/backend/handshake_core/src/api/workspaces.rs is within #[cfg(test)] and not used in production handlers.
+
+Forbidden Patterns (scoped scan):
+- No .unwrap( / .expect( / split_whitespace / todo! / unimplemented! / dbg! / println! / panic! hits in: src/backend/handshake_core/src/capabilities.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/terminal/mod.rs, src/backend/handshake_core/src/terminal/guards.rs, src/backend/handshake_core/src/mex/runtime.rs, src/backend/handshake_core/src/flight_recorder/mod.rs, src/backend/handshake_core/src/capability_registry_workflow.rs.
+
+Deterministic Manifest:
+- Manifest coverage re-checked vs merge-base(edf750d4e182cdb459761c6ad6f1fd7cec613acf) non-doc diff set: no missing Target File entries in packet (COR-701 driver cleared).
+- Note: just post-work WP-1-Capability-SSoT-v2 is a staged-change gate and reports FAIL when nothing is staged (error: \"No files changed\"); the packet contains passing post-work evidence for the implementation.
+
+Tests:
+- just pre-work WP-1-Capability-SSoT-v2 (PASS)
+- node JSON.parse for draft/diff/review/publish artifacts (PASS)
+- cargo test capabilities (PASS; warnings only)
+- cargo test workflows (PASS; warnings only)
+- just validator-packet-complete WP-1-Capability-SSoT-v2 (PASS)
+
+Risks & Suggested Actions:
+- Merge-base behind main (edf750d4...) may cause conflicts on merge to main; sync/resolve as needed.
+- Non-blocking warnings observed during tests (dead_code, unused_imports).
+
+REASON FOR PASS:
+- All MUST requirements in Handshake_Master_Spec_v02.113.md 11.1/11.1.3/11.1.6 are evidenced in code, required tests pass, and COR-701 manifest coverage matches the actual non-doc diff set.
+
+Task Packet Update (APPEND-ONLY):
+- This report appended under ## VALIDATION_REPORTS. Status line at top not overwritten.
