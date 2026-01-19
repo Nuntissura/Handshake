@@ -4,6 +4,8 @@ use std::{
     sync::Mutex,
 };
 
+mod fonts;
+
 use tauri::{Manager, WindowEvent};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -64,8 +66,11 @@ fn orchestrator_workdir() -> PathBuf {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            let _ = fonts::fonts_bootstrap_pack(app.handle().clone(), None);
+            let _ = fonts::fonts_list(app.handle().clone());
             let state = OrchestratorState::default();
             state.spawn(orchestrator_workdir())?;
             app.manage(state);
@@ -77,7 +82,14 @@ pub fn run() {
                 state.kill();
             }
         })
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            fonts::fonts_bootstrap_pack,
+            fonts::fonts_rebuild_manifest,
+            fonts::fonts_list,
+            fonts::fonts_import,
+            fonts::fonts_remove,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

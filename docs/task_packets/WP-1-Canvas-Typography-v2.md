@@ -1,0 +1,2018 @@
+# Task Packet: WP-1-Canvas-Typography-v2
+
+## METADATA
+- TASK_ID: WP-1-Canvas-Typography-v2
+- WP_ID: WP-1-Canvas-Typography-v2
+- BASE_WP_ID: WP-1-Canvas-Typography (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
+- DATE: 2026-01-19T00:42:13.879Z
+- REQUESTOR: ilja
+- AGENT_ID: CodexCLI-GPT-5.2 (Orchestrator)
+- ROLE: Orchestrator
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** Done
+- RISK_TIER: HIGH
+- EFFORT_ESTIMATE_HOURS: 24
+- USER_SIGNATURE: ilja190120260138
+
+## TECHNICAL_REFINEMENT (MASTER SPEC)
+- REFINEMENT_FILE: docs/refinements/WP-1-Canvas-Typography-v2.md
+- Rule: Task packet creation is blocked until refinement is complete and signed.
+
+## SCOPE
+- What: Implement Canvas typography + offline Font Packs (Design Pack 40) and backend-owned Font Registry plumbing (Tauri) plus deterministic frontend font loading (FontFace) per Master Spec v02.113.
+- Why: Phase 1 requires offline font packs, a safe font registry/import mechanism, narrow CSP/asset protocol scope, and deterministic typography rendering (no flash of fallback) for Canvas.
+- IN_SCOPE_PATHS:
+  - app/package.json
+  - app/pnpm-lock.yaml
+  - app/src-tauri/Cargo.lock
+  - app/src-tauri/Cargo.toml
+  - app/src-tauri/capabilities/default.json
+  - app/src-tauri/resources/fonts/design-pack-40/THIRD_PARTY_NOTICES
+  - app/src-tauri/resources/fonts/design-pack-40/alegreya/Alegreya(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/alegreya/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/alegreyasans/AlegreyaSans-Regular.ttf
+  - app/src-tauri/resources/fonts/design-pack-40/alegreyasans/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/architectsdaughter/ArchitectsDaughter-Regular.ttf
+  - app/src-tauri/resources/fonts/design-pack-40/architectsdaughter/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/archivonarrow/ArchivoNarrow(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/archivonarrow/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/biorhyme/BioRhyme(wdth,wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/biorhyme/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/chivo/Chivo(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/chivo/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/cormorant/Cormorant(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/cormorant/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/dmsans/DMSans(opsz,wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/dmsans/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/eczar/Eczar(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/eczar/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/firasans/FiraSans-Regular.ttf
+  - app/src-tauri/resources/fonts/design-pack-40/firasans/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/fraunces/Fraunces(SOFT,WONK,opsz,wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/fraunces/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/ibmplexsans/IBMPlexSans(wdth,wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/ibmplexsans/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/inconsolata/Inconsolata(wdth,wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/inconsolata/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/inknutantiqua/InknutAntiqua-Regular.ttf
+  - app/src-tauri/resources/fonts/design-pack-40/inknutantiqua/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/inter/Inter(opsz,wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/inter/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/jetbrainsmono/JetBrainsMono(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/jetbrainsmono/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/karla/Karla(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/karla/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/lato/Lato-Regular.ttf
+  - app/src-tauri/resources/fonts/design-pack-40/lato/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/librebaskerville/LibreBaskerville(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/librebaskerville/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/librefranklin/LibreFranklin(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/librefranklin/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/lora/Lora(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/lora/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/manrope/Manrope(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/manrope/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/merriweather/Merriweather(opsz,wdth,wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/merriweather/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/montserrat/Montserrat(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/montserrat/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/opensans/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/opensans/OpenSans(wdth,wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/outfit/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/outfit/Outfit(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/playfairdisplay/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/playfairdisplay/PlayfairDisplay(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/plusjakartasans/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/plusjakartasans/PlusJakartaSans(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/poppins/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/poppins/Poppins-Regular.ttf
+  - app/src-tauri/resources/fonts/design-pack-40/prozalibre/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/prozalibre/ProzaLibre-Regular.ttf
+  - app/src-tauri/resources/fonts/design-pack-40/ptsans/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/ptsans/PT_Sans-Web-Regular.ttf
+  - app/src-tauri/resources/fonts/design-pack-40/rubik/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/rubik/Rubik(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/sourcesans3/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/sourcesans3/SourceSans3(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/sourceserif4/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/sourceserif4/SourceSerif4(opsz,wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/spacegrotesk/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/spacegrotesk/SpaceGrotesk(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/spacemono/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/spacemono/SpaceMono-Regular.ttf
+  - app/src-tauri/resources/fonts/design-pack-40/spectral/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/spectral/Spectral-Regular.ttf
+  - app/src-tauri/resources/fonts/design-pack-40/syne/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/syne/Syne(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/urbanist/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/urbanist/Urbanist(wght).ttf
+  - app/src-tauri/resources/fonts/design-pack-40/worksans/OFL.txt
+  - app/src-tauri/resources/fonts/design-pack-40/worksans/WorkSans(wght).ttf
+  - app/src-tauri/src/fonts.rs
+  - app/src-tauri/src/lib.rs
+  - app/src-tauri/tauri.conf.json
+  - app/src/App.tsx
+  - app/src/components/CanvasView.tsx
+  - app/src/components/FontManagerView.tsx
+  - app/src/lib/fonts.ts
+- OUT_OF_SCOPE:
+  - Any changes in `src/backend/**` (owned by concurrent backend WPs).
+  - Any changes in `tests/` or `scripts/`.
+  - Any root-level Cargo workspace dependency changes (`Cargo.toml`, root `Cargo.lock`).
+
+## WAIVERS GRANTED
+- (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
+- WAIVER-PACKET-IMMUTABILITY-WP-1-Canvas-Typography-v2-001 [CX-640-650]
+  - Date: 2026-01-19
+  - Scope: Allow edits to signed packet WP-1-Canvas-Typography-v2 to patch protocol compliance gaps (TEST_PLAN includes just cargo-clean; add Dependencies + Effort estimate).
+  - Justification: Operator explicit override signature ilja190120260239.
+
+## Dependencies
+- Depends on: NONE (can start independently)
+- Blocks: NONE
+- Notes: If changes to `src/backend/**` become necessary, STOP and escalate to Orchestrator (out of scope in this packet).
+
+## QUALITY_GATE
+### TEST_PLAN
+```bash
+# Run before handoff:
+just pre-work WP-1-Canvas-Typography-v2
+
+# Coder (development):
+cd app
+pnpm run lint
+pnpm test
+
+cd src-tauri
+cargo fmt
+cargo clippy --all-targets --all-features
+cargo test
+
+# Full deterministic gates:
+cd ../..
+just cargo-clean
+just post-work WP-1-Canvas-Typography-v2
+```
+
+### DONE_MEANS
+- `just pre-work WP-1-Canvas-Typography-v2` passes.
+- `just post-work WP-1-Canvas-Typography-v2` passes.
+- Master Spec v02.113 font pack + registry requirements are implemented:
+  - Fonts served only from `{APP_DATA}/fonts/`; Design Pack 40 is available offline and is bootstrapped from embedded resources to `{APP_DATA}/fonts/bundled/` on first run.
+  - Tauri asset protocol + CSP are narrowed to the fonts directory (`asset:` and `http://asset.localhost` where required; no broad weakening).
+  - Font Manager UI (or system settings) provides Import Font action for `.ttf/.otf/.woff2`.
+  - Backend moves imports to `{APP_DATA}/fonts/user/`, dedupes by sha256, and updates/returns `manifest.json` (schemaVersion=1) with path constraints.
+  - Frontend loads fonts via `invoke("fonts_list")` + `convertFileSrc` + `FontFace`, awaits `document.fonts.ready`, and avoids fallback flash.
+  - Font family/name handling prevents CSS injection (sanitization per spec).
+- Licensing artifacts exist for bundled fonts: per-font license files + `THIRD_PARTY_NOTICES` per spec.
+
+### ROLLBACK_HINT
+```bash
+git revert <commit-sha>
+```
+
+## AUTHORITY
+- SPEC_BASELINE: Handshake_Master_Spec_v02.113.md (recorded_at: 2026-01-19T00:42:13.879Z)
+- SPEC_TARGET: docs/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.113.md 11.10.2; and 10.6.1 (Font Packs + Canvas Typography Support Spec v0.1) including Licensing/Packaging, Backend Commands+Manifest, Frontend Loading, Tauri Config, Acceptance Criteria
+- Codex: Handshake Codex v1.4.md
+- Task Board: docs/TASK_BOARD.md
+- WP Traceability: docs/WP_TRACEABILITY_REGISTRY.md
+
+## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]
+- Required when `WP_ID` includes `-v{N}`.
+- List every prior packet for `BASE_WP_ID` (filenames/paths) and state what is preserved vs changed.
+- Hard rule: Do not drop prior requirements; carry them forward explicitly.
+- Prior packets:
+  - `docs/task_packets/WP-1-Canvas-Typography.md` (prior packet; failed validation due to protocol/packet completeness gaps).
+  - `docs/task_packets/stubs/WP-1-Canvas-Typography-v2.md` (remediation stub; activation pointer).
+- Preserved requirements:
+  - Offline Design Pack 40, backend-owned Font Registry/import, deterministic loading (FontFace / document.fonts.ready), CSP/asset protocol narrow scope, and licensing artifacts.
+- Changes in v2:
+  - Re-anchored to `Handshake_Master_Spec_v02.113.md` main-body sections (11.10.2 and 10.6.1) with a signed Technical Refinement Block.
+  - Packet fields completed (scope paths, test plan, done means, bootstrap) to satisfy pre-work gate.
+
+## BOOTSTRAP
+- FILES_TO_OPEN:
+  - docs/START_HERE.md
+  - docs/SPEC_CURRENT.md
+  - docs/ARCHITECTURE.md
+  - docs/task_packets/WP-1-Canvas-Typography-v2.md
+  - docs/refinements/WP-1-Canvas-Typography-v2.md
+  - Handshake_Master_Spec_v02.113.md
+  - app/src-tauri/tauri.conf.json
+  - app/src-tauri/src/lib.rs
+  - app/src-tauri/src/main.rs
+  - app/src/components/CanvasView.tsx
+- SEARCH_TERMS:
+  - "fonts_bootstrap_pack"
+  - "fonts_rebuild_manifest"
+  - "fonts_list"
+  - "fonts_import"
+  - "fonts_remove"
+  - "convertFileSrc"
+  - "FontFace"
+  - "document.fonts.ready"
+  - "assetProtocol"
+  - "font-src"
+  - "THIRD_PARTY_NOTICES"
+- RUN_COMMANDS:
+  ```bash
+  just pre-work WP-1-Canvas-Typography-v2
+  cd app; pnpm test
+  cd src-tauri; cargo test
+  ```
+- RISK_MAP:
+  - "CSP widening" -> "WebView attack surface increase; violates spec security posture"
+  - "Path traversal" -> "Font import escape from {APP_DATA}/fonts/**"
+  - "CSS injection" -> "Malicious font family names can inject style rules"
+  - "Licensing gaps" -> "Bundled fonts shipped without required license artifacts"
+
+## SKELETON
+- Proposed interfaces/types/contracts:
+  - Rust (Tauri): `Manifest` (schemaVersion=1, generatedAt, packVersion, fonts[]), `FontRecord`, `FontWeight`, `FontLicense`, `ImportResult`
+  - Rust (Tauri commands): `fonts_bootstrap_pack`, `fonts_rebuild_manifest`, `fonts_list`, `fonts_import`, `fonts_remove`
+  - TS (frontend): `FontManifest`, `FontRecord`, `FontWeight`, `FontsImportResult`, `loadFontFaces()`, `preloadCanvasFonts()`
+- Open questions:
+  - Canvas font selection UI for all 40 families vs Excalidraw fontFamily mapping (deferred; loader + registry are in place)
+- Notes:
+  - Asset protocol is enabled and scoped to `$APPDATA/fonts/**` (fonts only)
+
+SKELETON APPROVED
+
+## IMPLEMENTATION
+- Bundled Design Pack 40 as Tauri resources with license artifacts:
+  - `app/src-tauri/resources/fonts/design-pack-40/` (40 `.ttf` files + per-font `OFL.txt` + `THIRD_PARTY_NOTICES`)
+- Implemented backend-owned Font Registry commands in the Tauri shell:
+  - `app/src-tauri/src/fonts.rs` implements the spec command set and writes `{APP_DATA}/fonts/cache/manifest.json`
+  - `app/src-tauri/src/lib.rs` registers commands and bootstraps the pack on startup
+- Configured security posture for font loading:
+  - `app/src-tauri/tauri.conf.json` enables `assetProtocol` scoped to `$APPDATA/fonts/**` and adds narrow CSP `font-src` for `asset:` / `http://asset.localhost`
+  - `app/src-tauri/tauri.conf.json` bundles `resources/` for offline fonts
+- Added Font Manager UI + deterministic frontend loading:
+  - `app/src/components/FontManagerView.tsx` provides Import/Remove + listing and on-demand preview loads via `FontFace`
+  - `app/src/lib/fonts.ts` wraps `invoke()` and implements `FontFace` loading with in-memory caching
+  - `app/src/components/CanvasView.tsx` preloads a small default set and awaits `document.fonts.ready` before rendering Canvas
+- Added dialog capability wiring for Import Font:
+  - `app/package.json` adds `@tauri-apps/plugin-dialog`
+  - `app/src-tauri/Cargo.toml` adds `tauri-plugin-dialog` and enables `tauri` feature `protocol-asset`
+  - `app/src-tauri/capabilities/default.json` adds `dialog:default`
+
+## HYGIENE
+- Commands run (per TEST_PLAN):
+  - `just pre-work WP-1-Canvas-Typography-v2`
+  - `cd app; pnpm run lint`
+  - `cd app; pnpm test`
+  - `cd app/src-tauri; cargo fmt`
+  - `cd app/src-tauri; cargo clippy --all-targets --all-features`
+  - `cd app/src-tauri; cargo test`
+  - `just cargo-clean`
+  - `just post-work WP-1-Canvas-Typography-v2`
+- Notes:
+  - Tauri requires enabling the `protocol-asset` feature when `assetProtocol` is enabled in `tauri.conf.json`
+
+## VALIDATION
+- (Deterministic per-file manifest for `just post-work`.)
+
+- **Target File**: `app/package.json`
+- **Start**: 18
+- **End**: 18
+- **Pre-SHA1**: `6be099ac17a38999f60e321d2f448fa3dfceaefc`
+- **Post-SHA1**: `7fbbf0794cd756531b6d650265494a313bc34950`
+- **Line Delta**: 1
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/pnpm-lock.yaml`
+- **Start**: 17
+- **End**: 3736
+- **Pre-SHA1**: `76612b9bccee26f7d2bf59d396d8210a7970e86e`
+- **Post-SHA1**: `296595929639d568cf2eaaa9c0708f4ad8df5719`
+- **Line Delta**: 10
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/Cargo.lock`
+- **Start**: 54
+- **End**: 4223
+- **Pre-SHA1**: `b1845d969f22a136b0b8ef5a1ca97fa285ffd79f`
+- **Post-SHA1**: `e37c8777740f5184771ffa22485170115ed5a991`
+- **Line Delta**: 85
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/Cargo.toml`
+- **Start**: 1
+- **End**: 31
+- **Pre-SHA1**: `7398af1132a120c757e6a9a9dad9c830b6611f21`
+- **Post-SHA1**: `d5c19676e2a24a418605c04cda107eeecc513f04`
+- **Line Delta**: 6
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/capabilities/default.json`
+- **Start**: 8
+- **End**: 8
+- **Pre-SHA1**: `032c1fbf338de5bdbd8cd1228a24bf51d68b9f89`
+- **Post-SHA1**: `22b2cb8eae09a56e772dd17615782020f035e160`
+- **Line Delta**: 1
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/THIRD_PARTY_NOTICES`
+- **Start**: 1
+- **End**: 286
+- **Pre-SHA1**: `4b846234efc13cfe7e752101090668c305a9eb57`
+- **Post-SHA1**: `4b846234efc13cfe7e752101090668c305a9eb57`
+- **Line Delta**: 286
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/alegreya/Alegreya(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `3e6e4a47f4600884a6cca3c6a9a7d358799d9f2c`
+- **Post-SHA1**: `3e6e4a47f4600884a6cca3c6a9a7d358799d9f2c`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/alegreya/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `0aa38713bd4474f66abd3a85b4690637219b6696`
+- **Post-SHA1**: `0aa38713bd4474f66abd3a85b4690637219b6696`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/alegreyasans/AlegreyaSans-Regular.ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `5e8ee7ef7a27fc4608c6f27f78ce65070157c569`
+- **Post-SHA1**: `5e8ee7ef7a27fc4608c6f27f78ce65070157c569`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/alegreyasans/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `50c4edc5c487aaf1f4ede4fcfdd7fd3986a62049`
+- **Post-SHA1**: `50c4edc5c487aaf1f4ede4fcfdd7fd3986a62049`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/architectsdaughter/ArchitectsDaughter-Regular.ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `ce9a7a67e012fad5a82a6ed5c62ae4633d675a9a`
+- **Post-SHA1**: `ce9a7a67e012fad5a82a6ed5c62ae4633d675a9a`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/architectsdaughter/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `6de7ddf44942a89ece2f3f6dea091fe41379aa6c`
+- **Post-SHA1**: `6de7ddf44942a89ece2f3f6dea091fe41379aa6c`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/archivonarrow/ArchivoNarrow(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `9270e5dd855c67385212bdd624e9cd1f2a5ffe8a`
+- **Post-SHA1**: `9270e5dd855c67385212bdd624e9cd1f2a5ffe8a`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/archivonarrow/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `20b5f76465990c023ade952465f933b798ac8e14`
+- **Post-SHA1**: `20b5f76465990c023ade952465f933b798ac8e14`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/biorhyme/BioRhyme(wdth,wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `fec249081cac2e70898af91d6549fa1fbbad7855`
+- **Post-SHA1**: `fec249081cac2e70898af91d6549fa1fbbad7855`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/biorhyme/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `99064e81cffd19ecc9e9275d61116c7447cd2e2c`
+- **Post-SHA1**: `99064e81cffd19ecc9e9275d61116c7447cd2e2c`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/chivo/Chivo(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `a5c5856787e1cb4ffdd7ee8c59027c23af8c0475`
+- **Post-SHA1**: `a5c5856787e1cb4ffdd7ee8c59027c23af8c0475`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/chivo/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `e11c3296d042082f50f107ddc3b766695194051f`
+- **Post-SHA1**: `e11c3296d042082f50f107ddc3b766695194051f`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/cormorant/Cormorant(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `6c7140d9322af42c415ed88a6609788d9b0b42a0`
+- **Post-SHA1**: `6c7140d9322af42c415ed88a6609788d9b0b42a0`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/cormorant/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `7ad65d4614d7ab5c002ebf254f18db56979ae85c`
+- **Post-SHA1**: `7ad65d4614d7ab5c002ebf254f18db56979ae85c`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/dmsans/DMSans(opsz,wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `7e47b9a429a493edc94b4e12fd1a8f0122e4a196`
+- **Post-SHA1**: `7e47b9a429a493edc94b4e12fd1a8f0122e4a196`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/dmsans/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `da67665e95663579cd634c5f1d48147ec4a1a1a0`
+- **Post-SHA1**: `da67665e95663579cd634c5f1d48147ec4a1a1a0`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/eczar/Eczar(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `29c4b17e8da868449cb00649c26d4622ff139229`
+- **Post-SHA1**: `29c4b17e8da868449cb00649c26d4622ff139229`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/eczar/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `1db806e0a73a47b80744842d737e2a98d5cd28d8`
+- **Post-SHA1**: `1db806e0a73a47b80744842d737e2a98d5cd28d8`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/firasans/FiraSans-Regular.ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `84f881473fff39fee5fec71f8896a536326c2c77`
+- **Post-SHA1**: `84f881473fff39fee5fec71f8896a536326c2c77`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/firasans/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `21460eb1a01df6f8e2696247e5fb7173f8be7d3a`
+- **Post-SHA1**: `21460eb1a01df6f8e2696247e5fb7173f8be7d3a`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/fraunces/Fraunces(SOFT,WONK,opsz,wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `be0892e8a942dd56dc7f26235f5af8c01f676d4d`
+- **Post-SHA1**: `be0892e8a942dd56dc7f26235f5af8c01f676d4d`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/fraunces/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `6b423eeae14983d491c0307f355a521f1b317e5d`
+- **Post-SHA1**: `6b423eeae14983d491c0307f355a521f1b317e5d`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/ibmplexsans/IBMPlexSans(wdth,wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `105e2a899b781c6a6d8e0de1864a494e7ea5c2ae`
+- **Post-SHA1**: `105e2a899b781c6a6d8e0de1864a494e7ea5c2ae`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/ibmplexsans/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `0ae1afdcc6d9bc8ed3195c89cbcba5fcd3dda1db`
+- **Post-SHA1**: `0ae1afdcc6d9bc8ed3195c89cbcba5fcd3dda1db`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/inconsolata/Inconsolata(wdth,wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `9bdaae0be9424459bef02e6eccb9badbea3bd643`
+- **Post-SHA1**: `9bdaae0be9424459bef02e6eccb9badbea3bd643`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/inconsolata/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `532a1523da8c698fe7c51f39388df5db69e682ac`
+- **Post-SHA1**: `532a1523da8c698fe7c51f39388df5db69e682ac`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/inknutantiqua/InknutAntiqua-Regular.ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `1a88e116fab0387cee7eedd54b5a67e3b235e768`
+- **Post-SHA1**: `1a88e116fab0387cee7eedd54b5a67e3b235e768`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/inknutantiqua/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `83e950981447a2511386519d322cbe61512a62a0`
+- **Post-SHA1**: `83e950981447a2511386519d322cbe61512a62a0`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/inter/Inter(opsz,wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `97d4f3722d62c6cc5340bf6220ada3d64ca367b1`
+- **Post-SHA1**: `97d4f3722d62c6cc5340bf6220ada3d64ca367b1`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/inter/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `cdd01b7e68db81d663f1c3820b6f7c40028900dd`
+- **Post-SHA1**: `cdd01b7e68db81d663f1c3820b6f7c40028900dd`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/jetbrainsmono/JetBrainsMono(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `bef242b36d905170007caed53cd6a07775dbfb82`
+- **Post-SHA1**: `bef242b36d905170007caed53cd6a07775dbfb82`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/jetbrainsmono/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `ac0b4e9eac2171ebe70fab9abbc2294e0cd46944`
+- **Post-SHA1**: `ac0b4e9eac2171ebe70fab9abbc2294e0cd46944`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/karla/Karla(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `d96122d6b46f29eb39527703e20a429af1b57e66`
+- **Post-SHA1**: `d96122d6b46f29eb39527703e20a429af1b57e66`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/karla/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `0e046bb392c27b9284daf90a989391b51f5bc360`
+- **Post-SHA1**: `0e046bb392c27b9284daf90a989391b51f5bc360`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/lato/Lato-Regular.ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `29eb192629b0bbb41a7b7f49ab2aec82d4261921`
+- **Post-SHA1**: `29eb192629b0bbb41a7b7f49ab2aec82d4261921`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/lato/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `76897b37e127e2332a1a79aab2e0d6f30ccdc47a`
+- **Post-SHA1**: `76897b37e127e2332a1a79aab2e0d6f30ccdc47a`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/librebaskerville/LibreBaskerville(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `43d8d1bb48c8aacd1f3210c75100799e8f55d7cb`
+- **Post-SHA1**: `43d8d1bb48c8aacd1f3210c75100799e8f55d7cb`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/librebaskerville/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `39cc0ceb0da0218fed93ab73e21db2432f9a4b21`
+- **Post-SHA1**: `39cc0ceb0da0218fed93ab73e21db2432f9a4b21`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/librefranklin/LibreFranklin(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `dda4547856d24172831c12454862d3a2e343d322`
+- **Post-SHA1**: `dda4547856d24172831c12454862d3a2e343d322`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/librefranklin/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `009a31e933244d6835169e9832f998699e7c3983`
+- **Post-SHA1**: `009a31e933244d6835169e9832f998699e7c3983`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/lora/Lora(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `2b770fae41c7e1ee781ed458bd3df94e3dc0fce3`
+- **Post-SHA1**: `2b770fae41c7e1ee781ed458bd3df94e3dc0fce3`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/lora/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `ab2ab106f272cbda28040912339aacc462d87419`
+- **Post-SHA1**: `ab2ab106f272cbda28040912339aacc462d87419`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/manrope/Manrope(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `c44909e751e226f188c3112e011617e6d2ce2408`
+- **Post-SHA1**: `c44909e751e226f188c3112e011617e6d2ce2408`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/manrope/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `5b50f74932f120512afa0c1e61772c7b119f3a4b`
+- **Post-SHA1**: `5b50f74932f120512afa0c1e61772c7b119f3a4b`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/merriweather/Merriweather(opsz,wdth,wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `68c5d358e22fa845ce0856d1d27bb53ce3d5c711`
+- **Post-SHA1**: `68c5d358e22fa845ce0856d1d27bb53ce3d5c711`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/merriweather/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `fada6bdfcb3dbaf64a884b41beb4b97a5bec5ec9`
+- **Post-SHA1**: `fada6bdfcb3dbaf64a884b41beb4b97a5bec5ec9`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/montserrat/Montserrat(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `071f7ef85781d3df3e9611d8a25fb677e08b9c76`
+- **Post-SHA1**: `071f7ef85781d3df3e9611d8a25fb677e08b9c76`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/montserrat/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `c6e5a0782514a498ac406c73aee2c0fe4170188b`
+- **Post-SHA1**: `c6e5a0782514a498ac406c73aee2c0fe4170188b`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/opensans/OFL.txt`
+- **Start**: 1
+- **End**: 92
+- **Pre-SHA1**: `e717ed41a45cefd0683806c1d0cf317b1c6e2748`
+- **Post-SHA1**: `e717ed41a45cefd0683806c1d0cf317b1c6e2748`
+- **Line Delta**: 92
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/opensans/OpenSans(wdth,wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `5d6a27e51031a826cea0b09c0311a16c4d3f3982`
+- **Post-SHA1**: `5d6a27e51031a826cea0b09c0311a16c4d3f3982`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/outfit/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `511f83d0f91295c07861ca6308599199126848bf`
+- **Post-SHA1**: `511f83d0f91295c07861ca6308599199126848bf`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/outfit/Outfit(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `79d17fecaebca7d8229cbbeb3796859fcbcfdbd4`
+- **Post-SHA1**: `79d17fecaebca7d8229cbbeb3796859fcbcfdbd4`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/playfairdisplay/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `e997375e22668c444135764f63ddae74fc617985`
+- **Post-SHA1**: `e997375e22668c444135764f63ddae74fc617985`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/playfairdisplay/PlayfairDisplay(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `a0e3babd3c318e1b14fd3e43b9570153a5b194fe`
+- **Post-SHA1**: `a0e3babd3c318e1b14fd3e43b9570153a5b194fe`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/plusjakartasans/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `06a13446af986261b9604de9c012035fd95b193d`
+- **Post-SHA1**: `06a13446af986261b9604de9c012035fd95b193d`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/plusjakartasans/PlusJakartaSans(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `c1944a75be1fe04f2484038968cfa7b08383ed31`
+- **Post-SHA1**: `c1944a75be1fe04f2484038968cfa7b08383ed31`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/poppins/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `525d837a484cdc20696e1afea410d34c971432bf`
+- **Post-SHA1**: `525d837a484cdc20696e1afea410d34c971432bf`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/poppins/Poppins-Regular.ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `86a425be5a919d86729b85b2bc1d07da5ce413d4`
+- **Post-SHA1**: `86a425be5a919d86729b85b2bc1d07da5ce413d4`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/prozalibre/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `6355d458af2fc3bee286f819d95d767d17dcf46d`
+- **Post-SHA1**: `6355d458af2fc3bee286f819d95d767d17dcf46d`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/prozalibre/ProzaLibre-Regular.ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `f2c9725b40d649587370325f59793b6a69fd7ee5`
+- **Post-SHA1**: `f2c9725b40d649587370325f59793b6a69fd7ee5`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/ptsans/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `1b2333fad2e465cb8408ba246c7f8009826e3898`
+- **Post-SHA1**: `1b2333fad2e465cb8408ba246c7f8009826e3898`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/ptsans/PT_Sans-Web-Regular.ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `5654d490b5ed8cfdf865eea9c59ba5ef15e5f9ce`
+- **Post-SHA1**: `5654d490b5ed8cfdf865eea9c59ba5ef15e5f9ce`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/rubik/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `34166dfbc9a332eca0bc53acbb919b351d8ce7a2`
+- **Post-SHA1**: `34166dfbc9a332eca0bc53acbb919b351d8ce7a2`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/rubik/Rubik(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `3b7d0fe762b8d409f8c3b8dd48d35ef2e9a0b8ff`
+- **Post-SHA1**: `3b7d0fe762b8d409f8c3b8dd48d35ef2e9a0b8ff`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/sourcesans3/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `986c1e1d1f3b5101e7293bf6432986a50151873b`
+- **Post-SHA1**: `986c1e1d1f3b5101e7293bf6432986a50151873b`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/sourcesans3/SourceSans3(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `98e4029dc4496f469672746496ad0d8a20c253a6`
+- **Post-SHA1**: `98e4029dc4496f469672746496ad0d8a20c253a6`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/sourceserif4/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `17b71d6585988842924ddfe2f90bae19bd91c524`
+- **Post-SHA1**: `17b71d6585988842924ddfe2f90bae19bd91c524`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/sourceserif4/SourceSerif4(opsz,wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `59526d925dcdab0d4b5c7ded24a50f86493c2cb8`
+- **Post-SHA1**: `59526d925dcdab0d4b5c7ded24a50f86493c2cb8`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/spacegrotesk/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `e6f1aedf7c9e5b554e715b49567c62d63edb0954`
+- **Post-SHA1**: `e6f1aedf7c9e5b554e715b49567c62d63edb0954`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/spacegrotesk/SpaceGrotesk(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `dc03dcd18b41fb1d43c192aaa8519b0a33cde8b6`
+- **Post-SHA1**: `dc03dcd18b41fb1d43c192aaa8519b0a33cde8b6`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/spacemono/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `5f44a2350b1884469fee1910aab9f3ad3b9bbc26`
+- **Post-SHA1**: `5f44a2350b1884469fee1910aab9f3ad3b9bbc26`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/spacemono/SpaceMono-Regular.ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `2d6f2aad0983dbd94c546ff29e474f7b01a782f3`
+- **Post-SHA1**: `2d6f2aad0983dbd94c546ff29e474f7b01a782f3`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/spectral/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `275d73b63232cc3029df1987fb74892c61ca55da`
+- **Post-SHA1**: `275d73b63232cc3029df1987fb74892c61ca55da`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/spectral/Spectral-Regular.ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `ebe00acfa7061ceae902a2c0d8a88f0717152103`
+- **Post-SHA1**: `ebe00acfa7061ceae902a2c0d8a88f0717152103`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/syne/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `97faf674d365150af7c940d973be0b79e48b1e91`
+- **Post-SHA1**: `97faf674d365150af7c940d973be0b79e48b1e91`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/syne/Syne(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `050a3e3f6b7b203e7a05f34eb9fd19754e6614c0`
+- **Post-SHA1**: `050a3e3f6b7b203e7a05f34eb9fd19754e6614c0`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/urbanist/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `a5acdf4da1ecdbf4c60d318774dd85085dc33561`
+- **Post-SHA1**: `a5acdf4da1ecdbf4c60d318774dd85085dc33561`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/urbanist/Urbanist(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `c4e0e27da8547b8300e408a5146cfe526aeaf34c`
+- **Post-SHA1**: `c4e0e27da8547b8300e408a5146cfe526aeaf34c`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/worksans/OFL.txt`
+- **Start**: 1
+- **End**: 93
+- **Pre-SHA1**: `bb5e9d5fa2266b0331fa77c2f9ba51259831cd60`
+- **Post-SHA1**: `bb5e9d5fa2266b0331fa77c2f9ba51259831cd60`
+- **Line Delta**: 93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/resources/fonts/design-pack-40/worksans/WorkSans(wght).ttf`
+- **Start**: 1
+- **End**: 1
+- **Pre-SHA1**: `2a4021bb80127d9bc52d7167fdcbbddc80400809`
+- **Post-SHA1**: `2a4021bb80127d9bc52d7167fdcbbddc80400809`
+- **Line Delta**: 0
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/src/fonts.rs`
+- **Start**: 1
+- **End**: 559
+- **Pre-SHA1**: `ca8d1cedbdadcd33f3df2a6f4a72b5c1e0648616`
+- **Post-SHA1**: `ca8d1cedbdadcd33f3df2a6f4a72b5c1e0648616`
+- **Line Delta**: 559
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/src/lib.rs`
+- **Start**: 7
+- **End**: 92
+- **Pre-SHA1**: `8587dc859f8f5f862ce5874084d415be40a1fc68`
+- **Post-SHA1**: `ca93c34812d5db88c5f570e3609e6574548015c5`
+- **Line Delta**: 12
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src-tauri/tauri.conf.json`
+- **Start**: 21
+- **End**: 34
+- **Pre-SHA1**: `8da29440fec5c68a2c950b372d404be8e6361adb`
+- **Post-SHA1**: `1d8dd1a2bc8105d47172513b1bdbfb9fad39c42e`
+- **Line Delta**: 8
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/App.tsx`
+- **Start**: 8
+- **End**: 143
+- **Pre-SHA1**: `50c415c179aae23dfcca113539a1d0147972cc45`
+- **Post-SHA1**: `7d7a8db8bd7c4f89d0bde853d9da03c696e7e790`
+- **Line Delta**: 8
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/components/CanvasView.tsx`
+- **Start**: 27
+- **End**: 261
+- **Pre-SHA1**: `65bd0ba432f00018050862f9301a1d74a699a964`
+- **Post-SHA1**: `6d04b8d9de33a365388533ebbe7bef9b3b6db9dd`
+- **Line Delta**: 29
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/components/FontManagerView.tsx`
+- **Start**: 1
+- **End**: 217
+- **Pre-SHA1**: `2a311df8f536315e5898eefebbac56fd2032081d`
+- **Post-SHA1**: `2a311df8f536315e5898eefebbac56fd2032081d`
+- **Line Delta**: 217
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/lib/fonts.ts`
+- **Start**: 1
+- **End**: 97
+- **Pre-SHA1**: `6b3823c65beeab482a079e10673b1f6932141934`
+- **Post-SHA1**: `6b3823c65beeab482a079e10673b1f6932141934`
+- **Line Delta**: 97
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+## STATUS_HANDOFF
+- (Use this to list touched files and summarize work done without claiming a validation verdict.)
+- Current WP_STATUS: Ready for Validator review
+- What changed in this update:
+  - Offline Design Pack 40 resources added (fonts + licenses + THIRD_PARTY_NOTICES)
+  - Font Registry commands + manifest generation implemented in Tauri (Rust)
+  - CSP + asset protocol scoped to `{APP_DATA}/fonts/**` and bundle resources enabled
+  - Font Manager UI + deterministic FontFace loading integrated into Canvas
+- Next step / handoff hint:
+  - Run `just post-work WP-1-Canvas-Typography-v2` and have Validator audit spec anchors 10.6.1 / 11.10.2 against these files
+
+## EVIDENCE
+- (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+
+## VALIDATION_REPORTS
+- (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - WP-1-Canvas-Typography-v2
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Canvas-Typography-v2.md (Status: Done)
+- SPEC_TARGET: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md
+- Spec Anchors: 11.10.2 and 10.6.1 (verbatim import), including Design Pack 40 list (10.6.1 section 4.1), Backend commands (10.6.1 section 7.1), and Manifest schema (10.6.1 section 7.2)
+
+Files Checked:
+- docs/SPEC_CURRENT.md
+- docs/TASK_BOARD.md
+- docs/task_packets/WP-1-Canvas-Typography-v2.md
+- Handshake_Master_Spec_v02.113.md
+- app/src-tauri/src/fonts.rs
+- app/src-tauri/src/lib.rs
+- app/src-tauri/tauri.conf.json
+- app/src-tauri/resources/fonts/design-pack-40/THIRD_PARTY_NOTICES
+- app/src/lib/fonts.ts
+- app/src/components/CanvasView.tsx
+- app/src/components/FontManagerView.tsx
+- app/src/App.tsx
+
+Findings (Spec -> Evidence):
+- Spec anchor present: Handshake_Master_Spec_v02.113.md:49526 (11.10.2 Canvas Typography & Font Registry); Handshake_Master_Spec_v02.113.md:42944 (10.6.1 heading); Design Pack 40 list at Handshake_Master_Spec_v02.113.md:43003.
+- Runtime root: fonts are served from {APP_DATA}/fonts via backend-owned path resolution (app/src-tauri/src/fonts.rs:71-79) and runtime dir creation (app/src-tauri/src/fonts.rs:95-104).
+- Bootstrap: Design Pack 40 copied from embedded resources into {APP_DATA}/fonts/bundled on startup (app/src-tauri/src/lib.rs:72-73; app/src-tauri/src/fonts.rs:229-271, 438-469).
+- Tauri security: asset protocol scope narrowed to "$APPDATA/fonts/**" and CSP font-src allows asset: http://asset.localhost (app/src-tauri/tauri.conf.json:21-27).
+- Backend commands required by spec are implemented and registered (app/src-tauri/src/lib.rs:85-92; app/src-tauri/src/fonts.rs:438-568).
+- Manifest schema: schemaVersion=1 with camelCase serialization (app/src-tauri/src/fonts.rs:16, 20-57, 412-418).
+- Import: allowlist ttf/otf/woff2/woff, size limit, sha256 dedupe, copy into user/, rebuild manifest (app/src-tauri/src/fonts.rs:109-111, 488-533).
+- Remove: deletes only from user/ by sha256 id and rebuilds manifest (app/src-tauri/src/fonts.rs:536-569).
+- Frontend loading: invoke("fonts_list") + convertFileSrc + FontFace, await document.fonts.ready (app/src/lib/fonts.ts:1, 57, 72-89).
+- Canvas avoids fallback flash: waits for preloadCanvasFonts before rendering (app/src/components/CanvasView.tsx:42-44, 102-125, 259-262).
+- CSS injection guard: font family sanitization for CSS use (app/src/lib/fonts.ts:31-40).
+- Import UI present: Font Manager provides Import Font action (app/src/components/FontManagerView.tsx:38-46, 92-93) and refresh bootstraps bundled pack (app/src/components/FontManagerView.tsx:24-26).
+- Licensing/pack contents: THIRD_PARTY_NOTICES includes PackVersion and SPDX/Source/SHA256/LicenseFile per family; verified 40 families (Family lines at app/src-tauri/resources/fonts/design-pack-40/THIRD_PARTY_NOTICES:7..280; count=40).
+
+Tests (Validator-run):
+- just pre-work WP-1-Canvas-Typography-v2: PASS
+- cd app; pnpm run lint: PASS
+- cd app; pnpm test: PASS
+- cd app/src-tauri; cargo fmt --check: PASS
+- cd app/src-tauri; cargo clippy --all-targets --all-features: PASS
+- cd app/src-tauri; cargo test: PASS
+- just validator-spec-regression: PASS
+- just validator-git-hygiene: PASS
+- just post-work WP-1-Canvas-Typography-v2: PASS (note: warnings about new files missing in HEAD are expected during first-add; waiver detection is triggered by the WAIVERS template line containing "[CX-573F]")
+
+REASON FOR PASS:
+- All MUST requirements in Handshake_Master_Spec_v02.113.md 11.10.2 and 10.6.1 (pack contents, bootstrap, commands, manifest, frontend loading, CSP/asset scope, licensing) are evidenced above and validator-run checks passed.

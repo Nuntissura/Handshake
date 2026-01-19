@@ -24,6 +24,7 @@ import {
 } from "@excalidraw/excalidraw/element/types";
 import { BinaryFileData, BinaryFiles, DataURL } from "@excalidraw/excalidraw/types";
 import { logEvent } from "../state/debugEvents";
+import { preloadCanvasFonts } from "../lib/fonts";
 
 type Props = {
   canvasId: string | null;
@@ -38,6 +39,8 @@ export function CanvasView({ canvasId, onDeleted }: Props) {
   const [canvas, setCanvas] = useState<CanvasWithGraph | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fontsReady, setFontsReady] = useState(true);
+  const [fontsError, setFontsError] = useState<string | null>(null);
   const [initialElements, setInitialElements] = useState<readonly ExcalidrawElement[] | null>(null);
   const [initialFiles, setInitialFiles] = useState<BinaryFiles | null>(null);
   const [elements, setElements] = useState<readonly ExcalidrawElement[] | null>(null);
@@ -58,6 +61,8 @@ export function CanvasView({ canvasId, onDeleted }: Props) {
       setFiles(null);
       setDeleteError(null);
       setIsDeleting(false);
+      setFontsReady(true);
+      setFontsError(null);
       return;
     }
     const load = async () => {
@@ -89,6 +94,28 @@ export function CanvasView({ canvasId, onDeleted }: Props) {
     };
     void load();
   }, [canvasId, onDeleted]);
+
+  useEffect(() => {
+    let active = true;
+    if (!canvasId) return () => {};
+
+    setFontsReady(false);
+    setFontsError(null);
+
+    preloadCanvasFonts()
+      .catch((err) => {
+        if (!active) return;
+        setFontsError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (!active) return;
+        setFontsReady(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [canvasId]);
 
   const stats = useMemo(() => {
     return {
@@ -229,7 +256,9 @@ export function CanvasView({ canvasId, onDeleted }: Props) {
       />
 
       <div className="canvas-editor">
-        {initialElements && (
+        {!fontsReady && <p className="muted">Loading fonts...</p>}
+        {fontsError && <p className="muted">Font error: {fontsError}</p>}
+        {initialElements && fontsReady && (
           <ExcalidrawCanvas
             initialElements={initialElements}
             initialFiles={initialFiles ?? undefined}
