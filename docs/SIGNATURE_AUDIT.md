@@ -23,7 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
-| ilja190120260239 | Orchestrator | 2026-01-19 02:39 | Override: edit locked task packet WP-1-Canvas-Typography-v2 | v02.113 | Approved in-chat override to waive packet immutability (CX-640-650); add missing TEST_PLAN step: just cargo-clean. |
+| ilja190120260239 | Orchestrator | 2026-01-19 02:39 | Override: edit locked task packet WP-1-Canvas-Typography-v2 | v02.113 | Approved in-chat override to waive packet immutability (CX-640-650) for WP-1-Canvas-Typography-v2: add TEST_PLAN just cargo-clean; add Dependencies + Effort estimate; record waiver in packet. |
 | ilja190120260138 | Orchestrator | 2026-01-19 01:38 | Task packet creation: WP-1-Canvas-Typography-v2 | v02.113 | Approved after Technical Refinement (see docs/refinements/WP-1-Canvas-Typography-v2.md ). |
 | ilja180120261630 | Orchestrator | 2026-01-18 16:30 | Task packet creation: WP-1-Mutation-Traceability-v2 | v02.113 | Approved after Technical Refinement (see docs/refinements/WP-1-Mutation-Traceability-v2.md ). |
 | ilja170120262341 | Orchestrator | 2026-01-17 23:41 | Task packet creation: WP-1-Flight-Recorder-UI-v3 | v02.113 | Approved after Technical Refinement (see docs/refinements/WP-1-Flight-Recorder-UI-v3.md ). |

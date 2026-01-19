@@ -12,6 +12,7 @@
 - CODER_REASONING_STRENGTH: HIGH
 - **Status:** Ready for Dev
 - RISK_TIER: HIGH
+- EFFORT_ESTIMATE_HOURS: 24
 - USER_SIGNATURE: ilja190120260138
 
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
@@ -37,7 +38,15 @@
 
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- NONE
+- WAIVER-PACKET-IMMUTABILITY-WP-1-Canvas-Typography-v2-001 [CX-640-650]
+  - Date: 2026-01-19
+  - Scope: Allow edits to signed packet WP-1-Canvas-Typography-v2 to patch protocol compliance gaps (TEST_PLAN includes just cargo-clean; add Dependencies + Effort estimate).
+  - Justification: Operator explicit override signature ilja190120260239.
+
+## Dependencies
+- Depends on: NONE (can start independently)
+- Blocks: NONE
+- Notes: If changes to `src/backend/**` become necessary, STOP and escalate to Orchestrator (out of scope in this packet).
 
 ## QUALITY_GATE
 ### TEST_PLAN
