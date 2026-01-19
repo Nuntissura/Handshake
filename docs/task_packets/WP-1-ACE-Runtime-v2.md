@@ -493,3 +493,50 @@ You may proceed with commit.
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATOR_REPORT (2026-01-19)
+
+VALIDATION REPORT - WP-1-ACE-Runtime-v2
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-ACE-Runtime-v2.md (status: In Progress)
+- Spec: Handshake_Master_Spec_v02.113.md 2.6.6.7.14.5, 2.6.6.7.14.6(B), 2.6.6.7.14.11, 2.6.6.7.14.12, 2.6.6.7.14.13
+
+Files Checked:
+- src/backend/handshake_core/src/ace/mod.rs
+- src/backend/handshake_core/src/ace/validators/mod.rs
+- src/backend/handshake_core/src/flight_recorder/mod.rs
+- src/backend/handshake_core/Cargo.toml
+- src/backend/handshake_core/Cargo.lock
+- src/backend/handshake_core/src/api/canvases.rs
+- src/backend/handshake_core/src/api/workspaces.rs
+- src/backend/handshake_core/src/mex/supply_chain.rs
+- scripts/validation/validator-scan.mjs
+- docs/task_packets/WP-1-ACE-Runtime-v2.md
+- docs/refinements/WP-1-ACE-Runtime-v2.md
+
+Findings:
+- QueryPlan/RetrievalTrace present: src/backend/handshake_core/src/ace/mod.rs:341, src/backend/handshake_core/src/ace/mod.rs:694
+- Deterministic normalized_query_hash + normalization: src/backend/handshake_core/src/ace/mod.rs:420, src/backend/handshake_core/src/ace/mod.rs:437
+- AceRuntimeValidator trait + payload: src/backend/handshake_core/src/ace/validators/mod.rs:384, src/backend/handshake_core/src/ace/validators/mod.rs:710
+- Conformance tests present: src/backend/handshake_core/src/ace/mod.rs:1020, src/backend/handshake_core/src/ace/mod.rs:1175
+- Packet completeness: just validator-packet-complete WP-1-ACE-Runtime-v2 (PASS)
+- Spec regression: just validator-spec-regression (PASS)
+- Hygiene: just validator-hygiene-full (PASS)
+- Post-work evidence in packet: docs/task_packets/WP-1-ACE-Runtime-v2.md:460 (PASSED with warnings)
+
+Forbidden Patterns:
+- Manual audit on changed .rs files vs merge-base: no split_whitespace( / unwrap( / expect( / todo! / panic! hits.
+
+Tests:
+- just cargo-clean (PASS)
+- cargo test (PASS)
+- cargo clippy --all-targets --all-features (PASS with warnings only)
+
+Risks & Suggested Actions:
+- Non-blocking clippy warnings exist (dead_code, too_many_arguments, assertions_on_constants, etc). Consider cleanup in follow-up WP.
+- validator-scan.mjs patterns include escaped sequences like "\\\\bunwrap\\\\(\\\\)" and may miss unwrap/split_whitespace detections; treat automated scan as best-effort until fixed.
+
+Task Packet Update (APPEND-ONLY):
+- This report appended under ## VALIDATION_REPORTS. Metadata Status line not overwritten.
