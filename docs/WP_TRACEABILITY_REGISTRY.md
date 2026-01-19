@@ -84,6 +84,7 @@ Format:
 | WP-1-LLM-Core | docs/task_packets/WP-1-LLM-Core-v3.md | Done: WP-1-LLM-Core-v3 | active=WP-1-LLM-Core-v3; supersedes: WP-1-LLM-Core |
 | WP-1-MCP-End-to-End | docs/task_packets/stubs/WP-1-MCP-End-to-End-v2.md | Stub Backlog (Not Activated): WP-1-MCP-End-to-End-v2 | stub (remediation); supersedes: WP-1-MCP-End-to-End |
 | WP-1-MCP-Skeleton-Gate | docs/task_packets/stubs/WP-1-MCP-Skeleton-Gate-v2.md | Stub Backlog (Not Activated): WP-1-MCP-Skeleton-Gate-v2 | stub (remediation); supersedes: WP-1-MCP-Skeleton-Gate |
+| WP-1-Metrics-Mock-Tokens | docs/task_packets/WP-1-Metrics-Mock-Tokens.md | Done: WP-1-Metrics-Mock-Tokens | active=WP-1-Metrics-Mock-Tokens (no -vN revision); new packet |
 | WP-1-Metrics-OTel | docs/task_packets/stubs/WP-1-Metrics-OTel-v2.md | Stub Backlog (Not Activated): WP-1-Metrics-OTel-v2 | stub (remediation); supersedes: WP-1-Metrics-OTel |
 | WP-1-Metrics-Traces | docs/task_packets/stubs/WP-1-Metrics-Traces-v2.md | Stub Backlog (Not Activated): WP-1-Metrics-Traces-v2 | stub (remediation); supersedes: WP-1-Metrics-Traces |
 | WP-1-MEX-Observability | docs/task_packets/stubs/WP-1-MEX-Observability-v2.md | Stub Backlog (Not Activated): WP-1-MEX-Observability-v2 | stub (remediation); supersedes: WP-1-MEX-Observability |

@@ -117,6 +117,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Flight-Recorder-UI-v3]** - [VALIDATED]
 - **[WP-1-Supply-Chain-MEX-v2]** - [VALIDATED]
 - **[WP-1-Mutation-Traceability-v2]** - [VALIDATED]
+- **[WP-1-Metrics-Mock-Tokens]** - [VALIDATED]
 
 
 
