@@ -132,10 +132,23 @@ git revert <commit-sha>
   - "Non-deterministic register edits" -> "Unstable diffs; hard to review and validate"
 
 ## SKELETON
+SKELETON APPROVED
 - Proposed interfaces/types/contracts:
-  - Update register row parsing in `oss_register_enforcement_tests.rs` to use the new columns:
-    - `component_id`, `name`, `upstream_ref`, `license`, `integration_mode_default`, `capabilities_required`, `pinning_policy`, `compliance_notes`, `test_fixture`, `used_by_modules`.
-  - Define a strict header constant for the new schema and enforce column count == 10.
+  - OSS Register schema (Spec v02.113 11.7.5.7.1):
+    - All OSS tables in `docs/OSS_REGISTER.md` use the same 10-column Markdown header (exact match, case + order):
+      - `| component_id | name | upstream_ref | license | integration_mode_default | capabilities_required | pinning_policy | compliance_notes | test_fixture | used_by_modules |`
+    - Data rows MUST have exactly 10 cells (preserve empty cells; do not drop them during parsing).
+    - `integration_mode_default` values are restricted to: `embedded_lib`, `external_process`, `external_service`.
+    - `name` is the dependency coverage key (case-insensitive):
+      - Rust: `src/backend/handshake_core/Cargo.lock` [[package]] `name`
+      - NPM: `app/package.json` dependency keys (dependencies + devDependencies)
+    - Copyleft isolation (Spec 11.7.4.3 + 11.10.4 item 2):
+      - Treat a row as copyleft if `license` matches `\bAGPL\b|\bGPL\b` (case-insensitive; do not match LGPL/MPL).
+      - Copyleft rows MUST have `integration_mode_default == external_process`.
+  - Enforcement test contract (`src/backend/handshake_core/tests/oss_register_enforcement_tests.rs`):
+    - Replace legacy `HEADER_PATTERN` (5 columns) with the v02.113 schema header (10 columns).
+    - Update `RegisterEntry` to parse and retain at minimum: `name`, `license`, `integration_mode_default` (optionally `component_id` for diagnostics).
+    - Update Markdown row splitting to preserve empty cells (e.g., `trim_matches('|').split('|')`), then enforce `cols.len() == 10`.
 - Open questions:
   - None.
 - Notes:
