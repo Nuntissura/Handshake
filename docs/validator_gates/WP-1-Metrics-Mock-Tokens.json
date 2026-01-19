@@ -1,0 +1,75 @@
+{
+  "validation_sessions": {
+    "WP-1-Metrics-Mock-Tokens": {
+      "wpId": "WP-1-Metrics-Mock-Tokens",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-01-19T01:49:58.762Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-19T01:49:58.762Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-19T01:52:32.634Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-19T01:57:47.433Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-19T01:59:31.034Z"
+        }
+      ],
+      "completed": "2026-01-19T01:59:31.034Z"
+    }
+  },
+  "archived_sessions": [
+    {
+      "wpId": "WP-1-Metrics-Mock-Tokens",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-01-19T00:00:43.181Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-19T00:00:43.182Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-19T00:06:10.958Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-19T00:12:51.248Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-19T00:15:15.202Z"
+        }
+      ],
+      "completed": "2026-01-19T00:15:15.203Z",
+      "archived_at": "2026-01-19T01:31:30.343Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-Metrics-Mock-Tokens",
+      "verdict": "FAIL",
+      "status": "REPORT_PRESENTED",
+      "started": "2026-01-19T01:31:38.314Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-01-19T01:31:38.315Z"
+        }
+      ],
+      "archived_at": "2026-01-19T01:49:52.423Z",
+      "archive_reason": "manual_reset"
+    }
+  ]
+}
