@@ -267,27 +267,36 @@ fn validate_integrity(doc: &CapabilityRegistryDocument) -> CapabilityRegistryWor
 }
 
 fn display_name_for(capability_id: &str) -> String {
-    let mut s: String = capability_id
-        .chars()
-        .map(|c| match c {
+    let mut words = Vec::new();
+    let mut current = String::new();
+
+    let push_word = |words: &mut Vec<String>, current: &mut String| {
+        if current.is_empty() {
+            return;
+        }
+        if current.chars().all(|c| c.is_ascii_uppercase() || c == '-') {
+            words.push(current.to_ascii_lowercase());
+        } else {
+            words.push(std::mem::take(current));
+        }
+        current.clear();
+    };
+
+    for ch in capability_id.chars() {
+        let normalized = match ch {
             '.' | ':' | '_' => ' ',
             other => other,
-        })
-        .collect();
-    s = s
-        .split_whitespace()
-        .map(|w| {
-            if w.chars().all(|c| c.is_ascii_uppercase() || c == '-') {
-                w.to_ascii_lowercase()
-            } else {
-                w.to_string()
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ");
+        };
+        if normalized.is_whitespace() {
+            push_word(&mut words, &mut current);
+        } else {
+            current.push(normalized);
+        }
+    }
+    push_word(&mut words, &mut current);
 
     let mut out = String::new();
-    for (idx, word) in s.split_whitespace().enumerate() {
+    for (idx, word) in words.iter().enumerate() {
         if idx > 0 {
             out.push(' ');
         }
@@ -297,6 +306,7 @@ fn display_name_for(capability_id: &str) -> String {
             out.push_str(chars.as_str());
         }
     }
+
     out
 }
 

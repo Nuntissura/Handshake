@@ -1544,15 +1544,15 @@ mod tests {
             .flight_recorder
             .list_events(crate::flight_recorder::EventFilter::default())
             .await?;
-        let recovery_event = events
+        let event = events
             .iter()
-            .find(|e| e.event_type == FlightRecorderEventType::WorkflowRecovery);
-
-        assert!(
-            recovery_event.is_some(),
-            "Recovery event not found in Flight Recorder"
-        );
-        let event = recovery_event.unwrap();
+            .find(|e| e.event_type == FlightRecorderEventType::WorkflowRecovery)
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Recovery event not found in Flight Recorder",
+                )
+            })?;
         assert_eq!(event.actor, FlightRecorderActor::System);
         assert_eq!(event.workflow_id, Some(run.id.to_string()));
 

@@ -30,6 +30,7 @@
   - src/backend/handshake_core/src/mex/gates.rs
   - src/backend/handshake_core/src/flight_recorder/mod.rs
   - src/backend/handshake_core/src/bin/capability_registry_workflow.rs
+  - src/backend/handshake_core/src/capability_registry_workflow.rs
   - src/backend/handshake_core/schemas/capability_registry.schema.json
   - src/backend/handshake_core/Cargo.toml
   - src/backend/handshake_core/Cargo.lock
@@ -457,9 +458,9 @@ git revert <commit-sha>
 - **Target File**: `src/backend/handshake_core/src/workflows.rs`
 - **Start**: 1
 - **End**: 1698
-- **Line Delta**: 62
+- **Line Delta**: 0
 - **Pre-SHA1**: `83d8b38f1001a3add7238097bfebfadf023f5b7c`
-- **Post-SHA1**: `83d8b38f1001a3add7238097bfebfadf023f5b7c`
+- **Post-SHA1**: `9a65516f84419b3fe7f733641fd7f49e418930e4`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -492,10 +493,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/capability_registry_workflow.rs`
 - **Start**: 1
-- **End**: 745
-- **Line Delta**: 745
+- **End**: 755
+- **Line Delta**: 10
 - **Pre-SHA1**: `9655df880d77e1c5bff66e0e6691a4e0d69b85f4`
-- **Post-SHA1**: `9655df880d77e1c5bff66e0e6691a4e0d69b85f4`
+- **Post-SHA1**: `e05cd984ea6e86e1a03afcbb3fa41363eb0a3b8b`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -545,7 +546,7 @@ git revert <commit-sha>
   - [x] current_file_matches_preimage
 
 - **Operator**: ilja
-- **Timestamp**: 2026-01-19T02:06:53.275Z
+- **Timestamp**: 2026-01-19T03:41:52.721Z
 - **Lint Results**:
   - N/A (not required by this WP's TEST_PLAN)
 - **Artifacts**:
@@ -1161,6 +1162,49 @@ git revert <commit-sha>
   ==================================================
   Post-work validation PASSED
   
+  You may proceed with commit.
+  ? ROLE_MAILBOX_EXPORT_GATE PASS
+  ```
+
+- Forbidden pattern audit (in-scope)
+  - `rg -n "\bsplit_whitespace\b" src/backend/handshake_core/src/capability_registry_workflow.rs; if ($LASTEXITCODE -eq 1) { "no matches" }`
+    ```text
+    no matches
+    ```
+  - `rg -n "\.unwrap\(\)" src/backend/handshake_core/src/workflows.rs; if ($LASTEXITCODE -eq 1) { "no matches" }`
+    ```text
+    no matches
+    ```
+
+- `cd src/backend/handshake_core; cargo test capabilities` (re-run after forbidden-pattern remediation)
+  ```text
+  test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 135 filtered out; finished in 0.00s
+  ```
+
+- `cd src/backend/handshake_core; cargo test workflows` (re-run after forbidden-pattern remediation)
+  ```text
+  test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 131 filtered out; finished in 0.73s
+  ```
+
+- `just post-work WP-1-Capability-SSoT-v2` (after forbidden-pattern remediation)
+  ```text
+  Checking Phase Gate for WP-1-Capability-SSoT-v2...
+  ? GATE PASS: Workflow sequence verified.
+
+  Post-work validation for WP-1-Capability-SSoT-v2 (deterministic manifest + gates)...
+
+  Check 1: Validation manifest present
+  NOTE: Git hygiene waiver detected [CX-573F]. Strict git checks relaxed.
+
+  Check 2: Manifest fields
+
+  Check 3: File integrity (per manifest entry)
+
+  Check 4: Git status
+
+  ==================================================
+  Post-work validation PASSED
+
   You may proceed with commit.
   ? ROLE_MAILBOX_EXPORT_GATE PASS
   ```
