@@ -365,6 +365,42 @@ git revert <commit-sha>
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
 
+- **Target File**: `src/backend/handshake_core/src/api/canvases.rs`
+- **Start**: 1
+- **End**: 311
+- **Line Delta**: 0
+- **Pre-SHA1**: `94aaa26348bb7c49fc9df920129cb6dfc9b5a5e7`
+- **Post-SHA1**: `8d95977f68225f9ad495e46a61cc5535c194f744`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/api/workspaces.rs`
+- **Start**: 1
+- **End**: 547
+- **Line Delta**: 0
+- **Pre-SHA1**: `08029f76c3e5fea6f38137e9e1192e6810b8dd35`
+- **Post-SHA1**: `f08bcc5faafc48a0a078a6c2892c1ffbbb3de448`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
 - **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
 - **Start**: 1
 - **End**: 1519
@@ -407,6 +443,24 @@ git revert <commit-sha>
 - **Line Delta**: 1
 - **Pre-SHA1**: `3e3b7378719cd57a466108254c270557ca0ffc01`
 - **Post-SHA1**: `3e3b7378719cd57a466108254c270557ca0ffc01`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/mex/supply_chain.rs`
+- **Start**: 1
+- **End**: 1108
+- **Line Delta**: 113
+- **Pre-SHA1**: `0c7f4a283d67ca9a5f4dec6d07ac1f5678385cc9`
+- **Post-SHA1**: `f6ce0923456502ec05989138957c7c796588ac7c`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
