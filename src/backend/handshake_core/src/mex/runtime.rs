@@ -86,7 +86,7 @@ impl MexRuntime {
                 Ok(()) => {
                     if gate.name() == "G-CAP" {
                         for capability_id in &op.capabilities_requested {
-                            self.record_capability_action(&op, capability_id, "allowed")
+                            self.record_capability_action(&op, capability_id, "allow")
                                 .await?;
                         }
                     }
@@ -96,7 +96,7 @@ impl MexRuntime {
                 Err(denial) => {
                     if gate.name() == "G-CAP" {
                         if let Some(capability_id) = Self::denied_capability_id(&denial) {
-                            self.record_capability_action(&op, &capability_id, "denied")
+                            self.record_capability_action(&op, &capability_id, "deny")
                                 .await?;
                         }
                     }
@@ -242,14 +242,15 @@ impl MexRuntime {
         &self,
         op: &PlannedOperation,
         capability_id: &str,
-        outcome: &str,
+        decision_outcome: &str,
     ) -> Result<(), MexRuntimeError> {
+        let actor_id = "mex_runtime";
+        let job_id = op.op_id.to_string();
         let payload = json!({
             "capability_id": capability_id,
-            "action": "mex.capability_check",
-            "outcome": outcome,
-            "profile_id": null,
-            "policy_decision_id": null,
+            "actor_id": actor_id,
+            "job_id": job_id,
+            "decision_outcome": decision_outcome,
         });
 
         let event = FlightRecorderEvent::new(
@@ -259,7 +260,7 @@ impl MexRuntime {
             payload,
         )
         .with_job_id(op.op_id.to_string())
-        .with_actor_id("mex_runtime")
+        .with_actor_id(actor_id)
         .with_capability(capability_id.to_string());
 
         self.flight_recorder

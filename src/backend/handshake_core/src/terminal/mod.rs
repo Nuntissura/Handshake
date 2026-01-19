@@ -234,15 +234,15 @@ async fn emit_capability_audit(
     flight_recorder: &dyn FlightRecorder,
     trace_id: Uuid,
     capability_id: &str,
-    profile_id: Option<&str>,
     job_id: Option<&str>,
-    outcome: &str,
+    decision_outcome: &str,
 ) -> Result<(), TerminalError> {
+    let actor_id = "terminal_service";
     let payload = json!({
         "capability_id": capability_id,
-        "profile_id": profile_id,
+        "actor_id": actor_id,
         "job_id": job_id,
-        "outcome": outcome,
+        "decision_outcome": decision_outcome,
     });
 
     let mut event = FlightRecorderEvent::new(
@@ -251,11 +251,9 @@ async fn emit_capability_audit(
         trace_id,
         payload,
     )
+    .with_actor_id(actor_id)
     .with_capability(capability_id.to_string());
 
-    if let Some(pid) = profile_id {
-        event = event.with_actor_id(pid.to_string());
-    }
     if let Some(jid) = job_id {
         event = event.with_job_id(jid.to_string());
     }
@@ -316,7 +314,6 @@ impl TerminalService {
             .requested_capability
             .clone()
             .unwrap_or_else(|| "terminal.exec".to_string());
-        let pre_exec_profile_id = req.job_context.capability_profile_id.clone();
         let pre_exec_job_id = req.job_context.job_id.clone();
         if let Err(e) = guard.pre_exec(&mut req, cfg) {
             if matches!(e, TerminalError::CapabilityDenied(_)) {
@@ -324,9 +321,8 @@ impl TerminalService {
                     flight_recorder,
                     trace_id,
                     &pre_exec_cap_id,
-                    pre_exec_profile_id.as_deref(),
                     pre_exec_job_id.as_deref(),
-                    "denied",
+                    "deny",
                 )
                 .await?;
             }
@@ -349,9 +345,8 @@ impl TerminalService {
                         flight_recorder,
                         trace_id,
                         "terminal.attach_human",
-                        req.job_context.capability_profile_id.as_deref(),
                         req.job_context.job_id.as_deref(),
-                        "allowed",
+                        "allow",
                     )
                     .await?;
                 }
@@ -362,9 +357,8 @@ impl TerminalService {
                         flight_recorder,
                         trace_id,
                         "terminal.attach_human",
-                        req.job_context.capability_profile_id.as_deref(),
                         req.job_context.job_id.as_deref(),
-                        "denied",
+                        "deny",
                     )
                     .await?;
                 }
@@ -383,9 +377,8 @@ impl TerminalService {
                     flight_recorder,
                     trace_id,
                     capability_id,
-                    req.job_context.capability_profile_id.as_deref(),
                     req.job_context.job_id.as_deref(),
-                    "allowed",
+                    "allow",
                 )
                 .await?;
             }
@@ -394,9 +387,8 @@ impl TerminalService {
                     flight_recorder,
                     trace_id,
                     capability_id,
-                    req.job_context.capability_profile_id.as_deref(),
                     req.job_context.job_id.as_deref(),
-                    "denied",
+                    "deny",
                 )
                 .await?;
                 return Err(e);

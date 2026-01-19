@@ -405,6 +405,26 @@
 | crate.handshake_core.zerovec-derive | zerovec-derive | crates.io/zerovec-derive | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Zerovec derive |  | backend/handshake_core (transitive) |
 | crate.handshake_core.zlib-rs | zlib-rs | crates.io/zlib-rs | Zlib | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Zlib pure Rust |  | backend/handshake_core (transitive) |
 | crate.handshake_core.zopfli | zopfli | crates.io/zopfli | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Zopfli compression |  | backend/handshake_core (transitive) |
+| crate.handshake_core.anstream | anstream | crates.io/anstream | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ANSI stream formatting |  | backend/handshake_core (transitive) |
+| crate.handshake_core.anstyle | anstyle | crates.io/anstyle | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ANSI style types |  | backend/handshake_core (transitive) |
+| crate.handshake_core.anstyle-parse | anstyle-parse | crates.io/anstyle-parse | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ANSI style parsing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.anstyle-query | anstyle-query | crates.io/anstyle-query | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ANSI style querying |  | backend/handshake_core (transitive) |
+| crate.handshake_core.anstyle-wincon | anstyle-wincon | crates.io/anstyle-wincon | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows console styling |  | backend/handshake_core (transitive) |
+| crate.handshake_core.bytecount | bytecount | crates.io/bytecount | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Byte counting |  | backend/handshake_core (transitive) |
+| crate.handshake_core.caseless | caseless | crates.io/caseless | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Unicode case-insensitive comparisons |  | backend/handshake_core (direct) |
+| crate.handshake_core.clap | clap | crates.io/clap | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=CLI argument parsing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.clap_builder | clap_builder | crates.io/clap_builder | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=CLI argument parser builder |  | backend/handshake_core (transitive) |
+| crate.handshake_core.clap_derive | clap_derive | crates.io/clap_derive | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=CLI derive macros |  | backend/handshake_core (transitive) |
+| crate.handshake_core.clap_lex | clap_lex | crates.io/clap_lex | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=CLI lexer |  | backend/handshake_core (transitive) |
+| crate.handshake_core.colorchoice | colorchoice | crates.io/colorchoice | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Terminal color selection |  | backend/handshake_core (transitive) |
+| crate.handshake_core.fraction | fraction | crates.io/fraction | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Rational numbers |  | backend/handshake_core (transitive) |
+| crate.handshake_core.iso8601 | iso8601 | crates.io/iso8601 | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ISO 8601 parsing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.is_terminal_polyfill | is_terminal_polyfill | crates.io/is_terminal_polyfill | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Terminal detection polyfill |  | backend/handshake_core (transitive) |
+| crate.handshake_core.jsonschema | jsonschema | crates.io/jsonschema | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=JSON Schema validation |  | backend/handshake_core (direct) |
+| crate.handshake_core.num-cmp | num-cmp | crates.io/num-cmp | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Numeric comparison helpers |  | backend/handshake_core (transitive) |
+| crate.handshake_core.once_cell_polyfill | once_cell_polyfill | crates.io/once_cell_polyfill | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Once-cell polyfill |  | backend/handshake_core (transitive) |
+| crate.handshake_core.utf8parse | utf8parse | crates.io/utf8parse | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=UTF-8 parsing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.winreg | winreg | crates.io/winreg | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows registry access |  | backend/handshake_core (transitive) |
 
 ## Desktop Shell - `app/src-tauri/Cargo.toml`
 
@@ -420,6 +440,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | npm.excalidraw.excalidraw | @excalidraw/excalidraw | npmjs.com/@excalidraw/excalidraw | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=Canvas / whiteboard |  | app (frontend runtime) |
 | npm.tauri-apps.api | @tauri-apps/api | npmjs.com/@tauri-apps/api | MIT/Apache-2.0 | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=Tauri IPC and shell APIs |  | app (frontend runtime) |
+| npm.tauri-apps.plugin-dialog | @tauri-apps/plugin-dialog | npmjs.com/@tauri-apps/plugin-dialog | MIT/Apache-2.0 | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=Dialog bridge |  | app (frontend runtime) |
 | npm.tauri-apps.plugin-opener | @tauri-apps/plugin-opener | npmjs.com/@tauri-apps/plugin-opener | MIT/Apache-2.0 | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=Link/file opener bridge |  | app (frontend runtime) |
 | npm.tiptap.core | @tiptap/core | npmjs.com/@tiptap/core | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=Rich-text core |  | app (frontend runtime) |
 | npm.tiptap.extension-collaboration | @tiptap/extension-collaboration | npmjs.com/@tiptap/extension-collaboration | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=CRDT-backed editing |  | app (frontend runtime) |

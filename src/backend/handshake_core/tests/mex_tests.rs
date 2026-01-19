@@ -378,9 +378,12 @@ async fn gate_pass_logs_outcome() {
                 && event.capability_id.as_deref() == Some(capability_id)
                 && event.payload.get("capability_id").and_then(|v| v.as_str())
                     == Some(capability_id)
-                && event.payload.get("outcome").and_then(|v| v.as_str()) == Some("allowed")
-                && event.payload.get("action").and_then(|v| v.as_str())
-                    == Some("mex.capability_check")
+                && event
+                    .payload
+                    .get("decision_outcome")
+                    .and_then(|v| v.as_str())
+                    == Some("allow")
+                && event.payload.get("actor_id").and_then(|v| v.as_str()) == Some("mex_runtime")
         });
 
         assert!(
@@ -486,8 +489,12 @@ async fn gate_denial_records_diagnostic_and_event() {
         event.event_type == FlightRecorderEventType::CapabilityAction
             && event.capability_id.as_deref() == Some("magic.wand")
             && event.payload.get("capability_id").and_then(|v| v.as_str()) == Some("magic.wand")
-            && event.payload.get("outcome").and_then(|v| v.as_str()) == Some("denied")
-            && event.payload.get("action").and_then(|v| v.as_str()) == Some("mex.capability_check")
+            && event
+                .payload
+                .get("decision_outcome")
+                .and_then(|v| v.as_str())
+                == Some("deny")
+            && event.payload.get("actor_id").and_then(|v| v.as_str()) == Some("mex_runtime")
     });
     assert!(
         has_denied_capability,

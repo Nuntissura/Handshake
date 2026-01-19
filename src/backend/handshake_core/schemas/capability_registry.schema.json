@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "handshake:capability_registry.schema.json",
+  "title": "CapabilityRegistry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["entries"],
+  "properties": {
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/CapabilityRegistryEntry" }
+    }
+  },
+  "definitions": {
+    "CapabilityRegistryEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_id",
+        "kind",
+        "display_name",
+        "section_ref",
+        "required_capabilities",
+        "default_governance_mode",
+        "risk_class",
+        "tags"
+      ],
+      "properties": {
+        "capability_id": { "type": "string", "minLength": 1 },
+        "kind": {
+          "type": "string",
+          "enum": ["surface", "engine", "runtime", "integration", "model", "workflow"]
+        },
+        "display_name": { "type": "string", "minLength": 1 },
+        "section_ref": { "type": "string", "pattern": "^\\d+(\\.\\d+)*$" },
+        "required_capabilities": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "default_governance_mode": {
+          "type": "string",
+          "enum": ["gov_strict", "gov_standard", "gov_light"]
+        },
+        "risk_class": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+        "tags": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    }
+  }
+}

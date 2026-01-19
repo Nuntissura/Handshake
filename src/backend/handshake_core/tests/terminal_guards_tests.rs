@@ -3,7 +3,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use handshake_core::capabilities::CapabilityRegistry;
-use handshake_core::flight_recorder::{duckdb::DuckDbFlightRecorder, EventFilter, FlightRecorder};
+use handshake_core::flight_recorder::{
+    duckdb::DuckDbFlightRecorder, EventFilter, FlightRecorder, FlightRecorderEventType,
+};
 use handshake_core::terminal::config::TerminalConfig;
 use handshake_core::terminal::guards::{DefaultTerminalGuard, TerminalGuard};
 use handshake_core::terminal::redaction::PatternRedactor;
@@ -387,18 +389,15 @@ async fn emits_capability_audit_on_allowed() -> Result<(), Box<dyn std::error::E
         .await
         .unwrap_or_default();
 
-    // Find CapabilityAction event with "allowed" outcome
     let audit_event = events.iter().find(|evt| {
-        evt.payload
-            .get("outcome")
-            .and_then(|v| v.as_str())
-            .map(|o| o == "allowed")
-            .unwrap_or(false)
+        evt.event_type == FlightRecorderEventType::CapabilityAction
+            && evt.payload.get("capability_id").and_then(|v| v.as_str()) == Some("terminal.exec")
+            && evt.payload.get("decision_outcome").and_then(|v| v.as_str()) == Some("allow")
     });
 
     assert!(
         audit_event.is_some(),
-        "Expected CapabilityAction audit event with outcome=allowed"
+        "Expected CapabilityAction audit event with decision_outcome=allow"
     );
     let payload = audit_event.unwrap().payload.as_object().unwrap();
     assert_eq!(
@@ -406,8 +405,8 @@ async fn emits_capability_audit_on_allowed() -> Result<(), Box<dyn std::error::E
         Some("terminal.exec")
     );
     assert_eq!(
-        payload.get("profile_id").and_then(|v| v.as_str()),
-        Some("Coder")
+        payload.get("actor_id").and_then(|v| v.as_str()),
+        Some("terminal_service")
     );
 
     Ok(())
@@ -438,18 +437,15 @@ async fn emits_capability_audit_on_denied() {
         .await
         .unwrap_or_default();
 
-    // Find CapabilityAction event with "denied" outcome
     let audit_event = events.iter().find(|evt| {
-        evt.payload
-            .get("outcome")
-            .and_then(|v| v.as_str())
-            .map(|o| o == "denied")
-            .unwrap_or(false)
+        evt.event_type == FlightRecorderEventType::CapabilityAction
+            && evt.payload.get("capability_id").and_then(|v| v.as_str()) == Some("terminal.exec")
+            && evt.payload.get("decision_outcome").and_then(|v| v.as_str()) == Some("deny")
     });
 
     assert!(
         audit_event.is_some(),
-        "Expected CapabilityAction audit event with outcome=denied"
+        "Expected CapabilityAction audit event with decision_outcome=deny"
     );
     let payload = audit_event.unwrap().payload.as_object().unwrap();
     assert_eq!(
@@ -491,15 +487,15 @@ async fn emits_attach_human_audit_on_denied() {
         .await
         .unwrap_or_default();
 
-    // Find CapabilityAction event for attach_human with "denied" outcome
+    // Find CapabilityAction event for attach_human with decision_outcome=deny
     let audit_event = events.iter().find(|evt| {
         let cap_id = evt.payload.get("capability_id").and_then(|v| v.as_str());
-        let outcome = evt.payload.get("outcome").and_then(|v| v.as_str());
-        cap_id == Some("terminal.attach_human") && outcome == Some("denied")
+        let outcome = evt.payload.get("decision_outcome").and_then(|v| v.as_str());
+        cap_id == Some("terminal.attach_human") && outcome == Some("deny")
     });
 
     assert!(
         audit_event.is_some(),
-        "Expected CapabilityAction audit event for terminal.attach_human with outcome=denied"
+        "Expected CapabilityAction audit event for terminal.attach_human with decision_outcome=deny"
     );
 }

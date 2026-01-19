@@ -230,6 +230,9 @@ impl FlightRecorderEvent {
                 }
                 validate_llm_inference_payload(&self.payload)
             }
+            FlightRecorderEventType::CapabilityAction => {
+                validate_capability_action_payload(&self.payload)
+            }
             _ => Ok(()),
         }
     }
@@ -402,6 +405,21 @@ fn validate_terminal_command_payload(payload: &Value) -> Result<(), RecorderErro
     require_bool(map, "timed_out")?;
     require_bool(map, "cancelled")?;
     require_number(map, "truncated_bytes")?;
+    Ok(())
+}
+
+fn validate_capability_action_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+
+    require_exact_keys(
+        map,
+        &["capability_id", "actor_id", "job_id", "decision_outcome"],
+    )?;
+    require_string(map, "capability_id")?;
+    require_string(map, "actor_id")?;
+    require_string_or_null_nonempty(map, "job_id")?;
+    require_string(map, "decision_outcome")?;
+
     Ok(())
 }
 
@@ -1098,10 +1116,9 @@ pub struct FrEvt003Diagnostic {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrEvt004CapabilityAction {
     pub capability_id: String,
-    pub action: String,
-    pub outcome: String,
-    pub profile_id: Option<String>,
-    pub policy_decision_id: Option<String>,
+    pub actor_id: String,
+    pub job_id: Option<String>,
+    pub decision_outcome: String,
 }
 
 /// FR-EVT-008: Security violation event payload [§2.6.6.7.11]
@@ -1237,7 +1254,8 @@ mod tests {
     const DUMMY_SHA256: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
     #[test]
-    fn test_governance_pack_export_event_accepts_export_record_payload() {
+    fn test_governance_pack_export_event_accepts_export_record_payload(
+    ) -> Result<(), serde_json::Error> {
         let export_id = Uuid::new_v4();
         let record = ExportRecord {
             export_id,
@@ -1271,12 +1289,7 @@ mod tests {
             errors: Vec::new(),
         };
 
-        let payload = match serde_json::to_value(&record) {
-            Ok(payload) => payload,
-            Err(err) => {
-                unreachable!("serialize ExportRecord: {err}");
-            }
-        };
+        let payload = serde_json::to_value(&record)?;
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::GovernancePackExport,
             FlightRecorderActor::Agent,
@@ -1284,6 +1297,7 @@ mod tests {
             payload,
         );
         assert!(event.validate().is_ok());
+        Ok(())
     }
 
     fn valid_llm_inference_payload() -> Value {
@@ -1403,8 +1417,7 @@ mod tests {
         if let Some(obj) = missing.as_object_mut() {
             obj.remove("thread_id");
         } else {
-            assert!(false, "Expected JSON object payload");
-            return;
+            assert!(false, "expected payload to be a JSON object");
         }
         assert!(matches!(
             validate_gov_mailbox_message_created_payload(&missing),
@@ -1416,8 +1429,7 @@ mod tests {
         if let Some(obj) = extra.as_object_mut() {
             obj.insert("extra".to_string(), json!(1));
         } else {
-            assert!(false, "Expected JSON object payload");
-            return;
+            assert!(false, "expected payload to be a JSON object");
         }
         assert!(matches!(
             validate_gov_mailbox_message_created_payload(&extra),
@@ -1429,8 +1441,7 @@ mod tests {
         if let Some(obj) = invalid_enum.as_object_mut() {
             obj.insert("governance_mode".to_string(), json!("invalid"));
         } else {
-            assert!(false, "Expected JSON object payload");
-            return;
+            assert!(false, "expected payload to be a JSON object");
         }
         assert!(matches!(
             validate_gov_mailbox_message_created_payload(&invalid_enum),
@@ -1442,8 +1453,7 @@ mod tests {
         if let Some(obj) = forbidden.as_object_mut() {
             obj.insert("body".to_string(), json!("leak"));
         } else {
-            assert!(false, "Expected JSON object payload");
-            return;
+            assert!(false, "expected payload to be a JSON object");
         }
         assert!(matches!(
             validate_gov_mailbox_message_created_payload(&forbidden),
@@ -1470,8 +1480,7 @@ mod tests {
         if let Some(obj) = bad_root.as_object_mut() {
             obj.insert("export_root".to_string(), json!("docs/ROLE_MAILBOX"));
         } else {
-            assert!(false, "Expected JSON object payload");
-            return;
+            assert!(false, "expected payload to be a JSON object");
         }
         assert!(matches!(
             validate_gov_mailbox_exported_payload(&bad_root),
@@ -1499,8 +1508,7 @@ mod tests {
         if let Some(obj) = bad_sha.as_object_mut() {
             obj.insert("target_sha256".to_string(), json!("not-a-sha"));
         } else {
-            assert!(false, "Expected JSON object payload");
-            return;
+            assert!(false, "expected payload to be a JSON object");
         }
         assert!(matches!(
             validate_gov_mailbox_transcribed_payload(&bad_sha),

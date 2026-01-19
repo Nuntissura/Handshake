@@ -9,6 +9,10 @@ use crate::{
     },
     bundles::{BundleScope, DebugBundleRequest, DefaultDebugBundleExporter, RedactionMode},
     capabilities::RegistryError,
+    capability_registry_workflow::{
+        repo_root_from_manifest_dir, run_capability_registry_workflow,
+        CapabilityRegistryWorkflowParams,
+    },
     flight_recorder::{
         FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
         FrEvt008SecurityViolation, FrEvtWorkflowRecovery,
@@ -539,15 +543,15 @@ async fn log_capability_check(
     state: &AppState,
     job: &AiJob,
     capability_id: &str,
-    profile_id: &str,
-    outcome: &str,
+    decision_outcome: &str,
     trace_id: Uuid,
 ) {
+    let actor_id = "workflow_engine";
     let payload = json!({
         "capability_id": capability_id,
-        "profile_id": profile_id,
-        "job_id": job.job_id,
-        "outcome": outcome,
+        "actor_id": actor_id,
+        "job_id": job.job_id.to_string(),
+        "decision_outcome": decision_outcome,
     });
     record_event_safely(
         state,
@@ -559,7 +563,7 @@ async fn log_capability_check(
         )
         .with_job_id(job.job_id.to_string())
         .with_capability(capability_id.to_string())
-        .with_actor_id(job.capability_profile_id.clone()),
+        .with_actor_id(actor_id),
     )
     .await;
 }
@@ -580,40 +584,16 @@ async fn enforce_capabilities(
 
         match result {
             Ok(true) => {
-                log_capability_check(
-                    state,
-                    job,
-                    &capability_id,
-                    &job.capability_profile_id,
-                    "allowed",
-                    trace_id,
-                )
-                .await;
+                log_capability_check(state, job, &capability_id, "allow", trace_id).await;
             }
             Ok(false) => {
-                log_capability_check(
-                    state,
-                    job,
-                    &capability_id,
-                    &job.capability_profile_id,
-                    "denied",
-                    trace_id,
-                )
-                .await;
+                log_capability_check(state, job, &capability_id, "deny", trace_id).await;
                 return Err(WorkflowError::Capability(RegistryError::AccessDenied(
                     capability_id,
                 )));
             }
             Err(err) => {
-                log_capability_check(
-                    state,
-                    job,
-                    &capability_id,
-                    &job.capability_profile_id,
-                    "denied",
-                    trace_id,
-                )
-                .await;
+                log_capability_check(state, job, &capability_id, "deny", trace_id).await;
                 return Err(WorkflowError::Capability(err));
             }
         }
@@ -963,6 +943,64 @@ async fn run_job(
             .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
             .await?;
         return Ok(Some(payload));
+    } else if matches!(job.job_kind, JobKind::WorkflowRun) {
+        if job.profile_id == "capability_registry_build" {
+            let inputs = parse_inputs(job.job_inputs.as_ref());
+            let policy_decision_id = inputs
+                .get("policy_decision_id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| WorkflowError::Terminal("policy_decision_id is required".into()))?;
+            let model_id = inputs
+                .get("model_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "llama3".to_string());
+            let approve = inputs
+                .get("approve")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let reviewer_id = inputs
+                .get("reviewer_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
+            let repo_root = repo_root_from_manifest_dir()
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+            let params = CapabilityRegistryWorkflowParams {
+                trace_id,
+                policy_decision_id: policy_decision_id.to_string(),
+                model_id,
+                reviewer_id,
+                approve,
+                job_id: Some(job.job_id),
+                workflow_id: Some(workflow_run_id),
+            };
+
+            let artifacts = run_capability_registry_workflow(
+                &repo_root,
+                state.capability_registry.as_ref(),
+                state.flight_recorder.as_ref(),
+                params,
+            )
+            .await
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+            let payload = json!({
+                "profile_id": job.profile_id,
+                "draft_path": artifacts.draft_path.to_string_lossy(),
+                "diff_path": artifacts.diff_path.to_string_lossy(),
+                "review_path": artifacts.review_path.to_string_lossy(),
+                "published_path": artifacts.published_path.to_string_lossy(),
+                "draft_sha256": artifacts.draft_sha256,
+                "diff_sha256": artifacts.diff_sha256,
+                "capability_registry_version": artifacts.capability_registry_version,
+            });
+            state
+                .storage
+                .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
+                .await?;
+            return Ok(Some(payload));
+        }
     } else if matches!(job.job_kind, JobKind::DebugBundleExport) {
         let inputs = parse_inputs(job.job_inputs.as_ref());
         let scope_value = inputs.get("scope").cloned().unwrap_or_else(|| {
@@ -1050,40 +1088,16 @@ async fn run_job(
                 .profile_can(&job.capability_profile_id, capability_id);
             match result {
                 Ok(true) => {
-                    log_capability_check(
-                        state,
-                        job,
-                        capability_id,
-                        &job.capability_profile_id,
-                        "allowed",
-                        trace_id,
-                    )
-                    .await;
+                    log_capability_check(state, job, capability_id, "allow", trace_id).await;
                 }
                 Ok(false) => {
-                    log_capability_check(
-                        state,
-                        job,
-                        capability_id,
-                        &job.capability_profile_id,
-                        "denied",
-                        trace_id,
-                    )
-                    .await;
+                    log_capability_check(state, job, capability_id, "deny", trace_id).await;
                     return Err(WorkflowError::Capability(RegistryError::AccessDenied(
                         capability_id.to_string(),
                     )));
                 }
                 Err(err) => {
-                    log_capability_check(
-                        state,
-                        job,
-                        capability_id,
-                        &job.capability_profile_id,
-                        "denied",
-                        trace_id,
-                    )
-                    .await;
+                    log_capability_check(state, job, capability_id, "deny", trace_id).await;
                     return Err(WorkflowError::Capability(err));
                 }
             }
@@ -1530,15 +1544,15 @@ mod tests {
             .flight_recorder
             .list_events(crate::flight_recorder::EventFilter::default())
             .await?;
-        let recovery_event = events
+        let event = events
             .iter()
-            .find(|e| e.event_type == FlightRecorderEventType::WorkflowRecovery);
-
-        assert!(
-            recovery_event.is_some(),
-            "Recovery event not found in Flight Recorder"
-        );
-        let event = recovery_event.unwrap();
+            .find(|e| e.event_type == FlightRecorderEventType::WorkflowRecovery)
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Recovery event not found in Flight Recorder",
+                )
+            })?;
         assert_eq!(event.actor, FlightRecorderActor::System);
         assert_eq!(event.workflow_id, Some(run.id.to_string()));
 

@@ -209,7 +209,7 @@ impl DefaultTerminalGuard {
         }
 
         registry
-            .can_perform(capability, &req.granted_capabilities)
+            .enforce_can_perform(capability, &req.granted_capabilities)
             .map_err(|e| TerminalError::CapabilityDenied(format!("HSK-TERM-002: {}", e)))
     }
 }
