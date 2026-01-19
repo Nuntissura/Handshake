@@ -60,7 +60,7 @@ for (const pat of placeholder) {
 }
 
 if (findings.length > 0) {
-  console.error("validator-scan: FAIL — findings detected");
+  console.error("validator-scan: FAIL - findings detected");
   findings.forEach((f) => {
     console.error("----");
     console.error(f);
@@ -68,4 +68,4 @@ if (findings.length > 0) {
   process.exit(1);
 }
 
-console.log("validator-scan: PASS — no forbidden patterns detected in backend sources.");
+console.log("validator-scan: PASS - no forbidden patterns detected in backend sources.");

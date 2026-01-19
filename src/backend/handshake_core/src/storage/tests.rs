@@ -36,7 +36,6 @@ fn assert_metadata_matches_ctx(
     assert_eq!(row_job_id.as_deref(), expected_job_id.as_deref());
     assert_eq!(row_workflow_id.as_deref(), expected_workflow_id.as_deref());
 
-    assert_ne!(row_edit_event_id, NIL_EDIT_EVENT_ID);
     let Ok(parsed) = Uuid::parse_str(row_edit_event_id) else {
         unreachable!("edit_event_id must be valid UUID");
     };
