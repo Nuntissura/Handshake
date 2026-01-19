@@ -254,14 +254,94 @@ git revert <commit-sha>
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
 
-### Manifest Entry 5: flight_recorder/mod.rs (cherry-pick gate-unblock)
+### Manifest Entry 5: flight_recorder/mod.rs (cherry-pick db9df780)
 - **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
 - **Start**: 1
-- **End**: 1501
-- **Line Delta**: 11
+- **End**: 1495
+- **Line Delta**: -6
 - **Pre-SHA1**: `ee10486cbd46eac5ee903dbfc9adf43afb07ee6b`
-- **Post-SHA1**: `6cc6375588b4cad93103fca66324a4c97e284060`
-- **Change Summary**: Cherry-pick Coder2 gate-unblock commits (9190e673, f8237f90) - removed expect() from ExportRecord serialization
+- **Post-SHA1**: `0b5e057dd388499b4465a75a13fe4600a934bb7c`
+- **Change Summary**: Cherry-pick db9df780 gate-unblock - removed expect() from ExportRecord serialization
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+### Manifest Entry 6: validator-scan.mjs (cherry-pick db9df780)
+- **Target File**: `scripts/validation/validator-scan.mjs`
+- **Start**: 1
+- **End**: 71
+- **Line Delta**: 8
+- **Pre-SHA1**: `4d20e520f160e168269f25d90db95b5e69830d3f`
+- **Post-SHA1**: `788618cc15154daee7dc18dc9eae9c89e4ee850e`
+- **Change Summary**: Cherry-pick db9df780 - added allowlist for governance_pack placeholder handling
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+### Manifest Entry 7: api/canvases.rs (cherry-pick db9df780)
+- **Target File**: `src/backend/handshake_core/src/api/canvases.rs`
+- **Start**: 1
+- **End**: 351
+- **Line Delta**: 0
+- **Pre-SHA1**: `94aaa26348bb7c49fc9df920129cb6dfc9b5a5e7`
+- **Post-SHA1**: `8d95977f68225f9ad495e46a61cc5535c194f744`
+- **Change Summary**: Cherry-pick db9df780 - replaced expect() with proper error handling
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+### Manifest Entry 8: api/workspaces.rs (cherry-pick db9df780)
+- **Target File**: `src/backend/handshake_core/src/api/workspaces.rs`
+- **Start**: 1
+- **End**: 619
+- **Line Delta**: 0
+- **Pre-SHA1**: `08029f76c3e5fea6f38137e9e1192e6810b8dd35`
+- **Post-SHA1**: `f08bcc5faafc48a0a078a6c2892c1ffbbb3de448`
+- **Change Summary**: Cherry-pick db9df780 - replaced expect() with proper error handling
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+### Manifest Entry 9: mex/supply_chain.rs (cherry-pick db9df780)
+- **Target File**: `src/backend/handshake_core/src/mex/supply_chain.rs`
+- **Start**: 1
+- **End**: 1207
+- **Line Delta**: 113
+- **Pre-SHA1**: `0c7f4a283d67ca9a5f4dec6d07ac1f5678385cc9`
+- **Post-SHA1**: `f6ce0923456502ec05989138957c7c796588ac7c`
+- **Change Summary**: Cherry-pick db9df780 - replaced stringly errors with typed MexError
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -276,9 +356,9 @@ git revert <commit-sha>
 
 - **Lint Results**: cargo clippy passed (warnings present)
 - **Artifacts**: Cargo.lock updated with caseless v0.2.2
-- **Timestamp**: 2026-01-18
+- **Timestamp**: 2026-01-19
 - **Spec Target Resolved**: docs/SPEC_CURRENT.md to Handshake_Master_Spec_v02.113.md
-- **Notes**: Waiver WAIVER-SCOPE-EXPAND-WP-1-ACE-Runtime-v2-001 covers Cargo.toml, Cargo.lock, and flight_recorder/mod.rs changes
+- **Notes**: Waiver WAIVER-SCOPE-EXPAND-WP-1-ACE-Runtime-v2-001 covers all cherry-picked gate-unblock files
 
 ## STATUS_HANDOFF
 - Current WP_STATUS: Implementation Complete - Ready for Validation
@@ -361,6 +441,18 @@ test ace::tests::test_replay_persistence_correctness ... ok
 [...all validator tests pass...]
 
 test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 61 filtered out
+```
+
+### E5: validator-scan (2026-01-19)
+```
+$ just validator-scan
+validator-scan: PASS - no forbidden patterns detected in backend sources.
+```
+
+### E6: validator-error-codes (2026-01-19)
+```
+$ just validator-error-codes
+validator-error-codes: PASS - no stringly errors or nondeterminism patterns detected.
 ```
 
 ## VALIDATION_REPORTS
