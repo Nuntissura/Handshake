@@ -237,11 +237,11 @@ git revert <commit-sha>
 ### Manifest Entry 4: ace/validators/mod.rs
 - **Target File**: `src/backend/handshake_core/src/ace/validators/mod.rs`
 - **Start**: 1
-- **End**: 1265
-- **Line Delta**: 306
+- **End**: 1268
+- **Line Delta**: 3
 - **Pre-SHA1**: `8d265514d658595afede656d72d11fbb3b87f89f`
-- **Post-SHA1**: `727f75c0d3eb801ae0e081f8b3d1a7d4f0b26590`
-- **Change Summary**: Added AceValidationPayload struct for FR logging; Added CacheMarker struct; Added ValidatorPipeline validate_and_log method; Added WAIVER [CX-573E] for Instant::now()
+- **Post-SHA1**: `a12fb18b983b0aee923c442bc522912b38fb314d`
+- **Change Summary**: Added AceValidationPayload struct for FR logging; Added CacheMarker struct; Added ValidatorPipeline validate_and_log method; Added WAIVER [CX-573E] for Instant::now(); Removed unwrap() from retrieval trace test
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -257,11 +257,11 @@ git revert <commit-sha>
 ### Manifest Entry 5: flight_recorder/mod.rs (cherry-pick db9df780)
 - **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
 - **Start**: 1
-- **End**: 1495
-- **Line Delta**: -6
+- **End**: 1510
+- **Line Delta**: 15
 - **Pre-SHA1**: `ee10486cbd46eac5ee903dbfc9adf43afb07ee6b`
-- **Post-SHA1**: `0b5e057dd388499b4465a75a13fe4600a934bb7c`
-- **Change Summary**: Cherry-pick db9df780 gate-unblock - removed expect() from ExportRecord serialization
+- **Post-SHA1**: `6db16065d3e171555a5815d07f933c7c6532a6a5`
+- **Change Summary**: Cherry-pick db9df780 gate-unblock - removed expect() from ExportRecord serialization; Removed unwrap() from gov mailbox payload tests
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -453,6 +453,42 @@ validator-scan: PASS - no forbidden patterns detected in backend sources.
 ```
 $ just validator-error-codes
 validator-error-codes: PASS - no stringly errors or nondeterminism patterns detected.
+```
+
+### E7: post-work validation (2026-01-19)
+```
+$ just post-work WP-1-ACE-Runtime-v2
+Checking Phase Gate for WP-1-ACE-Runtime-v2...
+? GATE PASS: Workflow sequence verified.
+
+Post-work validation for WP-1-ACE-Runtime-v2 (deterministic manifest + gates)...
+
+Check 1: Validation manifest present
+NOTE: Git hygiene waiver detected [CX-573F]. Strict git checks relaxed.
+
+Check 2: Manifest fields
+
+Check 3: File integrity (per manifest entry)
+
+Check 4: Git status
+
+==================================================
+Post-work validation PASSED with warnings
+
+Warnings:
+  1. Out-of-scope files changed but waiver present [CX-573F]: src/backend/handshake_core/src/flight_recorder/mod.rs
+  2. Manifest[1]: pre_sha1 matches merge-base(579307517ecc2bed9d0081a6a197b356127799f2) for src\backend\handshake_core\Cargo.toml (common after WP commits); prefer LF blob SHA1=e437bd6391dc446bf9e578e23bc55394382778ec
+  3. Manifest[2]: pre_sha1 matches merge-base(579307517ecc2bed9d0081a6a197b356127799f2) for src\backend\handshake_core\Cargo.lock (common after WP commits); prefer LF blob SHA1=5593f6381e5a819fd9dc599780be0e9a52ffff7a
+  4. Manifest[3]: pre_sha1 matches merge-base(579307517ecc2bed9d0081a6a197b356127799f2) for src\backend\handshake_core\src\ace\mod.rs (common after WP commits); prefer LF blob SHA1=dbaa52678d143cd718fbbcaf84e7a80428d0545f
+  5. Manifest[4]: pre_sha1 matches merge-base(579307517ecc2bed9d0081a6a197b356127799f2) for src\backend\handshake_core\src\ace\validators\mod.rs (common after WP commits); prefer LF blob SHA1=8d265514d658595afede656d72d11fbb3b87f89f
+  6. Manifest[5]: pre_sha1 matches merge-base(579307517ecc2bed9d0081a6a197b356127799f2) for src\backend\handshake_core\src\flight_recorder\mod.rs (common after WP commits); prefer LF blob SHA1=ee10486cbd46eac5ee903dbfc9adf43afb07ee6b
+  7. Manifest[6]: pre_sha1 matches merge-base(579307517ecc2bed9d0081a6a197b356127799f2) for scripts\validation\validator-scan.mjs (common after WP commits); prefer LF blob SHA1=4d20e520f160e168269f25d90db95b5e69830d3f
+  8. Manifest[7]: pre_sha1 matches merge-base(579307517ecc2bed9d0081a6a197b356127799f2) for src\backend\handshake_core\src\api\canvases.rs (common after WP commits); prefer LF blob SHA1=94aaa26348bb7c49fc9df920129cb6dfc9b5a5e7
+  9. Manifest[8]: pre_sha1 matches merge-base(579307517ecc2bed9d0081a6a197b356127799f2) for src\backend\handshake_core\src\api\workspaces.rs (common after WP commits); prefer LF blob SHA1=08029f76c3e5fea6f38137e9e1192e6810b8dd35
+  10. Manifest[9]: pre_sha1 matches merge-base(579307517ecc2bed9d0081a6a197b356127799f2) for src\backend\handshake_core\src\mex\supply_chain.rs (common after WP commits); prefer LF blob SHA1=0c7f4a283d67ca9a5f4dec6d07ac1f5678385cc9
+
+You may proceed with commit.
+? ROLE_MAILBOX_EXPORT_GATE PASS
 ```
 
 ## VALIDATION_REPORTS

@@ -89,6 +89,7 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
+- **[WP-1-ACE-Runtime-v2]** - [IN_PROGRESS]
 
 ## Done
 - **[WP-1-Editor-Hardening-v2]** - [VALIDATED]

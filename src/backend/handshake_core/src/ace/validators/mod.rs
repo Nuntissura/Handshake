@@ -1213,10 +1213,13 @@ mod tests {
             "test_policy".to_string(),
         );
 
-        let result = build_retrieval_trace_from_blocks(&blocks, &plan);
-        assert!(result.is_ok(), "Expected successful trace build");
-
-        let trace = result.unwrap();
+        let trace = match build_retrieval_trace_from_blocks(&blocks, &plan) {
+            Ok(trace) => trace,
+            Err(err) => {
+                assert!(false, "Expected successful trace build: {err}");
+                return;
+            }
+        };
         assert_eq!(trace.spans.len(), 1);
         assert_eq!(trace.candidates.len(), 1);
         assert_eq!(trace.selected.len(), 1);
