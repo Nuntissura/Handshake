@@ -10,7 +10,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: gpt-5.2
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** Ready for Dev
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja190120260338
 - SUPERSEDES: WP-1-OSS-Governance (historical FAIL; v2 is protocol-clean remediation)
