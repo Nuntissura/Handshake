@@ -10,7 +10,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: MEDIUM
 - USER_SIGNATURE: ilja180120262320
 
@@ -33,7 +33,7 @@
 
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- NONE
+- WAIVER_ID: WP-1-Metrics-Mock-Tokens-VALSCAN-001 | Date: 2026-01-19 | Check Waived: `just validator-scan` (repo-wide baseline findings outside IN_SCOPE_PATHS) + post-work out-of-scope file warning for protocol gate state file | Scope: out-of-scope findings under `src/backend/handshake_core/src/api/**`, `src/backend/handshake_core/src/flight_recorder/mod.rs`, `src/backend/handshake_core/src/governance_pack.rs`; plus `docs/validator_gates/WP-1-Metrics-Mock-Tokens.json` (validator gates state) | Justification: baseline findings not introduced by this WP; validator gates state is protocol-required output; Validator still enforced scoped forbidden-pattern audit on `src/backend/handshake_core/src/llm/ollama.rs` | Approver: ilja | Expiry: WP-1-Metrics-Mock-Tokens closure.
 
 ## QUALITY_GATE
 ### TEST_PLAN
@@ -130,28 +130,28 @@ git revert <commit-sha>
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `src/backend/handshake_core/src/llm/ollama.rs`
+- **Start**: 410
+- **End**: 728
+- **Line Delta**: 90
+- **Pre-SHA1**: `508c2301c4910acacde99f03b3d148bc609cfeb9`
+- **Post-SHA1**: `9013b0396e3621175ac96a6fc1b82e54f0ee4333`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 - **Lint Results**:
 - **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
+- **Timestamp**: 2026-01-19T00:56:17.6681175Z
+- **Operator**: CodexCLI-GPT-5.2 (Validator)
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md
 - **Notes**:
 
 ## STATUS_HANDOFF
@@ -165,3 +165,107 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - WP-1-Metrics-Mock-Tokens (2026-01-19)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: `docs/task_packets/WP-1-Metrics-Mock-Tokens.md` (**Status:** Done)
+- Spec Target: `docs/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.113.md`
+- Spec Anchor: `Handshake_Master_Spec_v02.113.md 11.10.3 (Metrics & Tokens)`
+- Worktree/Branch: `D:\Projects\LLM projects\wt-WP-1-Metrics-Mock-Tokens` / `feat/WP-1-Metrics-Mock-Tokens`
+- Commit reviewed: N/A (changes staged, not committed yet)
+
+Files Checked:
+- `docs/SPEC_CURRENT.md`
+- `Handshake_Master_Spec_v02.113.md`
+- `docs/refinements/WP-1-Metrics-Mock-Tokens.md`
+- `docs/task_packets/WP-1-Metrics-Mock-Tokens.md`
+- `src/backend/handshake_core/src/llm/ollama.rs`
+- `src/backend/handshake_core/src/main.rs`
+- `scripts/validation/validator-scan.mjs`
+
+Findings:
+- SPEC 11.10.3 Token Accounting:
+  - Real Ollama calls prefer provider counts when present (`prompt_eval_count` + `eval_count`): `src/backend/handshake_core/src/llm/ollama.rs:346`
+  - Mocks emit deterministic values (10 tokens per word) by default: `src/backend/handshake_core/src/llm/ollama.rs:439` (word_count), `src/backend/handshake_core/src/llm/ollama.rs:458` (deterministic_usage), `src/backend/handshake_core/src/llm/ollama.rs:476` (completion uses override-or-deterministic)
+  - Override is respected (including explicit zeros): `src/backend/handshake_core/src/llm/ollama.rs:427` and `src/backend/handshake_core/src/llm/ollama.rs:477`
+- SPEC 11.10.3 Ollama Detection (startup /api/tags): implemented at `src/backend/handshake_core/src/main.rs:198`
+
+Forbidden Patterns:
+- Scoped audit (changed file): `src/backend/handshake_core/src/llm/ollama.rs` contains no `split_whitespace()`/`unwrap()`/`expect()`/`todo!`/`unimplemented!`/`dbg!`/`println!`/`panic!` introduction in the WP window.
+- Repo-wide `just validator-scan`: FAIL due to pre-existing expect()/placeholder findings in unrelated modules (not introduced by this WP diff).
+
+Tests:
+- `just pre-work WP-1-Metrics-Mock-Tokens`: PASS
+- `cd src/backend/handshake_core; cargo test`: PASS (warnings only)
+- `just cargo-clean`: PASS
+- `just post-work WP-1-Metrics-Mock-Tokens`: PASS
+- `just validator-spec-regression`: PASS
+- `just validator-scan`: FAIL (baseline findings outside WP scope)
+
+Coverage note:
+- New tests fail if deterministic usage logic is removed:
+  - `src/backend/handshake_core/src/llm/ollama.rs:685`
+  - `src/backend/handshake_core/src/llm/ollama.rs:705`
+
+REASON FOR PASS:
+- The mock LLM client now emits deterministic TokenUsage per `Handshake_Master_Spec_v02.113.md 11.10.3` while preserving provider-reported token counts for real Ollama calls, and the change is covered by targeted unit tests.
+
+SKELETON APPROVED
+(Operator-approved: ilja; recorded: 2026-01-19)
+
+### VALIDATION REPORT - WP-1-Metrics-Mock-Tokens (2026-01-19)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: `docs/task_packets/WP-1-Metrics-Mock-Tokens.md` (**Status:** Done)
+- Spec Target: `docs/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.113.md`
+- Spec Anchor: `Handshake_Master_Spec_v02.113.md 11.10.3 (Metrics & Tokens)`
+- Worktree/Branch: `D:\Projects\LLM projects\wt-WP-1-Metrics-Mock-Tokens` / `feat/WP-1-Metrics-Mock-Tokens`
+
+Files Checked:
+- `docs/SPEC_CURRENT.md`
+- `Handshake_Master_Spec_v02.113.md`
+- `docs/refinements/WP-1-Metrics-Mock-Tokens.md`
+- `docs/task_packets/WP-1-Metrics-Mock-Tokens.md`
+- `docs/TASK_BOARD.md`
+- `docs/WP_TRACEABILITY_REGISTRY.md`
+- `docs/validator_gates/WP-1-Metrics-Mock-Tokens.json`
+- `src/backend/handshake_core/src/llm/ollama.rs`
+- `src/backend/handshake_core/src/main.rs`
+- `scripts/validation/gate-check.mjs`
+- `scripts/validation/pre-work-check.mjs`
+- `scripts/validation/post-work-check.mjs`
+- `scripts/validation/validator-scan.mjs`
+
+Findings:
+- SPEC 11.10.3 Token Accounting:
+  - Real Ollama calls prefer provider counts when present (`prompt_eval_count` + `eval_count`): `src/backend/handshake_core/src/llm/ollama.rs:347`
+  - Mocks emit deterministic values (10 tokens per word) by default: `src/backend/handshake_core/src/llm/ollama.rs:439` (word_count), `src/backend/handshake_core/src/llm/ollama.rs:458` (deterministic_usage), `src/backend/handshake_core/src/llm/ollama.rs:477` (completion uses override-or-deterministic)
+  - Override is respected (including explicit zeros): `src/backend/handshake_core/src/llm/ollama.rs:427` and `src/backend/handshake_core/src/llm/ollama.rs:477`
+- SPEC 11.10.3 Ollama Detection (startup /api/tags): implemented at `src/backend/handshake_core/src/main.rs:198`
+
+Hygiene / Forbidden Patterns:
+- In-scope forbidden-pattern grep clean (no `split_whitespace()`/`unwrap()`/`expect()`/`todo!`/`unimplemented!`/`dbg!`/`println!`/`panic!`) in `src/backend/handshake_core/src/llm/ollama.rs`.
+- Repo-wide `just validator-scan`: FAIL due to baseline findings in unrelated modules; waived under `WP-1-Metrics-Mock-Tokens-VALSCAN-001`.
+
+Waivers:
+- `WP-1-Metrics-Mock-Tokens-VALSCAN-001` (see `## WAIVERS GRANTED`): repo-wide `just validator-scan` baseline findings + protocol gate-state file `docs/validator_gates/WP-1-Metrics-Mock-Tokens.json`.
+
+Tests / Commands:
+- `just gate-check WP-1-Metrics-Mock-Tokens`: PASS
+- `just pre-work WP-1-Metrics-Mock-Tokens`: PASS
+- `just cargo-clean`: PASS
+- `cd src/backend/handshake_core; cargo test`: PASS (warnings only)
+- `just post-work WP-1-Metrics-Mock-Tokens`: PASS (warnings only; out-of-scope gate state file, waived)
+- `just validator-spec-regression`: PASS
+- `just validator-scan`: FAIL (waived; baseline outside WP scope)
+
+Coverage note:
+- Removal-check coverage exists for the deterministic usage behavior:
+  - `src/backend/handshake_core/src/llm/ollama.rs:685`
+  - `src/backend/handshake_core/src/llm/ollama.rs:706`
+
+REASON FOR PASS:
+- The implementation satisfies `Handshake_Master_Spec_v02.113.md` §11.10.3 by emitting deterministic mock TokenUsage while preserving provider-reported token counts for real Ollama calls, and the behavior is covered by targeted tests.

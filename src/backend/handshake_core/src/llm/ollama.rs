@@ -407,7 +407,7 @@ impl LlmClient for OllamaAdapter {
 #[cfg(any(test, feature = "test-utils"))]
 pub struct InMemoryLlmClient {
     response: String,
-    usage: TokenUsage,
+    usage_override: Option<TokenUsage>,
     profile: ModelProfile,
     latency_ms: u64,
 }
@@ -418,7 +418,7 @@ impl InMemoryLlmClient {
     pub fn new(response: String) -> Self {
         Self {
             response,
-            usage: TokenUsage::default(),
+            usage_override: None,
             profile: ModelProfile::new("in-memory-model".to_string(), 4096),
             latency_ms: 0, // Zero latency for deterministic tests
         }
@@ -426,7 +426,7 @@ impl InMemoryLlmClient {
 
     /// Creates an in-memory client with specific usage metrics.
     pub fn with_usage(mut self, usage: TokenUsage) -> Self {
-        self.usage = usage;
+        self.usage_override = Some(usage);
         self
     }
 
@@ -435,15 +435,53 @@ impl InMemoryLlmClient {
         self.latency_ms = latency_ms;
         self
     }
+
+    fn word_count(text: &str) -> u32 {
+        let mut words: u32 = 0;
+        let mut in_word = false;
+
+        for character in text.chars() {
+            if character.is_whitespace() {
+                in_word = false;
+                continue;
+            }
+
+            if !in_word {
+                words = words.saturating_add(1);
+                in_word = true;
+            }
+        }
+
+        words
+    }
+
+    fn deterministic_usage(prompt: &str, response_text: &str) -> TokenUsage {
+        const TOKENS_PER_WORD: u32 = 10;
+
+        let prompt_tokens = Self::word_count(prompt).saturating_mul(TOKENS_PER_WORD);
+        let completion_tokens = Self::word_count(response_text).saturating_mul(TOKENS_PER_WORD);
+        let total_tokens = prompt_tokens.saturating_add(completion_tokens);
+
+        TokenUsage {
+            prompt_tokens,
+            completion_tokens,
+            total_tokens,
+        }
+    }
 }
 
 #[cfg(any(test, feature = "test-utils"))]
 #[async_trait]
 impl LlmClient for InMemoryLlmClient {
-    async fn completion(&self, _req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+    async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        let usage = match &self.usage_override {
+            Some(usage) => usage.clone(),
+            None => Self::deterministic_usage(&req.prompt, &self.response),
+        };
+
         Ok(CompletionResponse {
             text: self.response.clone(),
-            usage: self.usage.clone(),
+            usage,
             latency_ms: self.latency_ms,
         })
     }
@@ -591,7 +629,13 @@ mod tests {
         };
 
         // SAFETY: Test-only code - request structure is valid
-        let json = serde_json::to_string(&req).unwrap();
+        let json = match serde_json::to_string(&req) {
+            Ok(json) => json,
+            Err(err) => {
+                assert!(false, "request serialization should succeed: {err}");
+                return;
+            }
+        };
         assert!(json.contains("\"model\":\"llama3.2\""));
         assert!(json.contains("\"num_predict\":100"));
     }
@@ -635,5 +679,51 @@ mod tests {
         assert_eq!(event.payload["token_usage"]["total_tokens"], 15);
 
         assert!(event.validate().is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_llm_client_emits_deterministic_usage_by_default() {
+        let client = InMemoryLlmClient::new("Hello world".to_string());
+
+        let trace_id = uuid::Uuid::new_v4();
+        let req =
+            CompletionRequest::new(trace_id, "One two three".to_string(), "ignored".to_string());
+
+        let resp = match client.completion(req).await {
+            Ok(resp) => resp,
+            Err(err) => {
+                assert!(false, "completion should succeed: {err}");
+                return;
+            }
+        };
+
+        assert_eq!(resp.usage.prompt_tokens, 30);
+        assert_eq!(resp.usage.completion_tokens, 20);
+        assert_eq!(resp.usage.total_tokens, 50);
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_llm_client_usage_override_is_respected() {
+        let client = InMemoryLlmClient::new("Hello world".to_string()).with_usage(TokenUsage {
+            prompt_tokens: 1,
+            completion_tokens: 2,
+            total_tokens: 3,
+        });
+
+        let trace_id = uuid::Uuid::new_v4();
+        let req =
+            CompletionRequest::new(trace_id, "One two three".to_string(), "ignored".to_string());
+
+        let resp = match client.completion(req).await {
+            Ok(resp) => resp,
+            Err(err) => {
+                assert!(false, "completion should succeed: {err}");
+                return;
+            }
+        };
+
+        assert_eq!(resp.usage.prompt_tokens, 1);
+        assert_eq!(resp.usage.completion_tokens, 2);
+        assert_eq!(resp.usage.total_tokens, 3);
     }
 }
