@@ -18,12 +18,20 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; object-src 'none'; base-uri 'self'; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' http://127.0.0.1:37501; font-src 'self' asset: http://asset.localhost;",
+      "devCsp": "default-src 'self'; object-src 'none'; base-uri 'self'; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:37501 ws://localhost:1420 http://localhost:1420; font-src 'self' asset: http://asset.localhost;",
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "allow": ["$APPDATA/fonts/**"]
+        }
+      }
     }
   },
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": ["resources/"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
