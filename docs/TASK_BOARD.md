@@ -24,7 +24,7 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 **Backlog stubs (pre-activation):**
 - Track not-yet-activated work as STUB items (no USER_SIGNATURE yet). Details live in `docs/task_packets/stubs/`.
 - Stubs MUST be activated into official task packets before any coding starts (see `docs/ORCHESTRATOR_PROTOCOL.md`).
-- Base WP ↔ packet revision mapping (v2/v3/v4) is tracked in `docs/WP_TRACEABILITY_REGISTRY.md`.
+- Base WP ??? packet revision mapping (v2/v3/v4) is tracked in `docs/WP_TRACEABILITY_REGISTRY.md`.
 
 ---
 
@@ -47,7 +47,6 @@ Entry format (recommended):
 
 A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `docs/task_packets/` (not a stub).
 
-
 ## Stub Backlog (Not Activated)
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
@@ -60,7 +59,6 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 - **[WP-1-Capability-SSoT-v2]** - [STUB]
 - **[WP-1-AI-Job-Model-v4]** - [STUB]
 - **[WP-1-Metrics-OTel-v2]** - [STUB]
-- **[WP-1-OSS-Governance-v2]** - [STUB]
 - **[WP-1-ACE-Auditability-v2]** - [STUB]
 - **[WP-1-RAG-Iterative-v2]** - [STUB]
 - **[WP-1-Model-Profiles-v2]** - [STUB]
@@ -118,6 +116,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Metrics-Mock-Tokens]** - [VALIDATED]
 - **[WP-1-Canvas-Typography-v2]** - [VALIDATED]
 - **[WP-1-ACE-Runtime-v2]** - [VALIDATED]
+- **[WP-1-OSS-Governance-v2]** - [VALIDATED]
 
 
 

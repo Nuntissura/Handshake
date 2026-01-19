@@ -1,14 +1,14 @@
 //! OSS Register Enforcement Tests
 //!
-//! Per SPEC v02.100 §11.10.4.2:
-//! - Every crate in Cargo.lock MUST exist in docs/OSS_REGISTER.md
-//! - Every npm package in package.json (deps + devDeps) MUST exist in docs/OSS_REGISTER.md
-//! - GPL/AGPL entries MUST have IntegrationMode == "external_process"
+//! Per SPEC v02.113 11.10.4 (2) + 11.7.5.7.1:
+//! - Every crate in `src/backend/handshake_core/Cargo.lock` MUST exist in `docs/OSS_REGISTER.md`
+//! - Every npm package in `app/package.json` (dependencies + devDependencies) MUST exist in `docs/OSS_REGISTER.md`
+//! - GPL/AGPL entries MUST have `integration_mode_default == "external_process"`
 //!
 //! Error codes:
 //! - HSK-OSS-000: Path/file resolution error
 //! - HSK-OSS-001: Missing required table header
-//! - HSK-OSS-002: Invalid IntegrationMode value
+//! - HSK-OSS-002: Invalid integration_mode_default value
 //! - HSK-OSS-003: Cargo.lock package missing from register
 //! - HSK-OSS-004: package.json dependency missing from register
 //! - HSK-OSS-005: Copyleft isolation violation (GPL/AGPL not external_process)
@@ -44,7 +44,7 @@ mod oss_register_enforcement {
     //=== CONSTANTS ===
 
     /// Exact header pattern (column order matters)
-    const HEADER_PATTERN: &str = "| Component | License | IntegrationMode | Scope | Purpose |";
+    const HEADER_PATTERN: &str = "| component_id | name | upstream_ref | license | integration_mode_default | capabilities_required | pinning_policy | compliance_notes | test_fixture | used_by_modules |";
 
     const VALID_MODES: [&str; 3] = ["embedded_lib", "external_process", "external_service"];
 
@@ -52,24 +52,31 @@ mod oss_register_enforcement {
 
     #[derive(Debug, Clone)]
     struct RegisterEntry {
-        component: String,
+        component_id: String,
+        name: String,
         license: String,
-        integration_mode: String,
+        integration_mode_default: String,
     }
 
     //=== PARSERS ===
+
+    fn is_copyleft_license(license: &str) -> bool {
+        let license_upper = license.to_uppercase();
+        license_upper.contains("AGPL")
+            || (license_upper.contains("GPL") && !license_upper.contains("LGPL"))
+    }
 
     /// Parse OSS_REGISTER.md with strict format validation.
     ///
     /// Parsing rules:
     /// 1. Header detection: Line must EXACTLY match HEADER_PATTERN (after trim)
     /// 2. Separator rows: Lines matching `| --- | --- | ...` are skipped
-    /// 3. Data rows: Lines starting and ending with `|` MUST have exactly 5 columns
-    /// 4. IntegrationMode: Must be one of VALID_MODES
+    /// 3. Data rows: Lines starting and ending with `|` MUST have exactly 10 columns (including empty cells)
+    /// 4. integration_mode_default: Must be one of VALID_MODES
     ///
     /// Errors:
     /// - HSK-OSS-001: No header found
-    /// - HSK-OSS-002: Invalid IntegrationMode
+    /// - HSK-OSS-002: Invalid integration_mode_default
     /// - HSK-OSS-006: Row has wrong column count
     fn parse_oss_register() -> Result<Vec<RegisterEntry>, String> {
         let path = oss_register_path();
@@ -108,17 +115,16 @@ mod oss_register_enforcement {
 
             // Parse data rows
             if in_table && trimmed.starts_with('|') && trimmed.ends_with('|') {
-                // Split and filter empty parts from leading/trailing pipes
                 let cols: Vec<&str> = trimmed
+                    .trim_matches('|')
                     .split('|')
                     .map(|s| s.trim())
-                    .filter(|s| !s.is_empty())
                     .collect();
 
-                // Fail fast: row must have exactly 5 columns
-                if cols.len() != 5 {
+                // Fail fast: row must have exactly 10 columns
+                if cols.len() != 10 {
                     return Err(format!(
-                        "HSK-OSS-006: Row format error at line {}: expected 5 columns, found {}. \
+                        "HSK-OSS-006: Row format error at line {}: expected 10 columns, found {}. \
                          Row: '{}'",
                         line_num + 1,
                         cols.len(),
@@ -126,25 +132,27 @@ mod oss_register_enforcement {
                     ));
                 }
 
-                let component = cols[0].to_string();
-                let license = cols[1].to_string();
-                let integration_mode = cols[2].to_string();
+                let component_id = cols[0].to_string();
+                let name = cols[1].to_string();
+                let license = cols[3].to_string();
+                let integration_mode_default = cols[4].to_string();
 
-                // Validate IntegrationMode
-                if !VALID_MODES.contains(&integration_mode.as_str()) {
+                // Validate integration_mode_default
+                if !VALID_MODES.contains(&integration_mode_default.as_str()) {
                     return Err(format!(
-                        "HSK-OSS-002: Invalid IntegrationMode '{}' for component '{}' at line {}. \
+                        "HSK-OSS-002: Invalid integration_mode_default '{}' for name '{}' at line {}. \
                          Must be one of: embedded_lib, external_process, external_service",
-                        integration_mode,
-                        component,
+                        integration_mode_default,
+                        name,
                         line_num + 1
                     ));
                 }
 
                 entries.push(RegisterEntry {
-                    component,
+                    component_id,
+                    name,
                     license,
-                    integration_mode,
+                    integration_mode_default,
                 });
             }
         }
@@ -224,10 +232,7 @@ mod oss_register_enforcement {
     #[test]
     fn test_cargo_lock_coverage() {
         let register = parse_oss_register().expect("Register must be valid for coverage check");
-        let registered: HashSet<String> = register
-            .iter()
-            .map(|e| e.component.to_lowercase())
-            .collect();
+        let registered: HashSet<String> = register.iter().map(|e| e.name.to_lowercase()).collect();
         let cargo_deps = parse_cargo_lock_packages();
 
         let missing: Vec<&String> = cargo_deps
@@ -245,10 +250,7 @@ mod oss_register_enforcement {
     #[test]
     fn test_package_json_coverage() {
         let register = parse_oss_register().expect("Register must be valid for coverage check");
-        let registered: HashSet<String> = register
-            .iter()
-            .map(|e| e.component.to_lowercase())
-            .collect();
+        let registered: HashSet<String> = register.iter().map(|e| e.name.to_lowercase()).collect();
         let npm_deps = parse_package_json_deps();
 
         let missing: Vec<&String> = npm_deps
@@ -265,20 +267,17 @@ mod oss_register_enforcement {
 
     #[test]
     fn test_copyleft_isolation() {
-        // Per §11.10.4.2: GPL/AGPL MUST be external_process (not embedded_lib, not external_service)
+        // Per 11.10.4 (2): GPL/AGPL MUST be external_process (not embedded_lib, not external_service)
         let register = parse_oss_register().expect("Register must be valid for copyleft check");
 
         let violations: Vec<String> = register
             .iter()
-            .filter(|e| {
-                let license_upper = e.license.to_uppercase();
-                license_upper.starts_with("GPL") || license_upper.starts_with("AGPL")
-            })
-            .filter(|e| e.integration_mode != "external_process")
+            .filter(|e| is_copyleft_license(&e.license))
+            .filter(|e| e.integration_mode_default != "external_process")
             .map(|e| {
                 format!(
-                    "{} (license: {}) has IntegrationMode '{}' - must be 'external_process' per §11.10.4.2",
-                    e.component, e.license, e.integration_mode
+                    "{} (name: {}, license: {}) has integration_mode_default '{}' - must be 'external_process' per 11.10.4 (2)",
+                    e.component_id, e.name, e.license, e.integration_mode_default
                 )
             })
             .collect();
@@ -287,28 +286,6 @@ mod oss_register_enforcement {
             violations.is_empty(),
             "HSK-OSS-005: Copyleft isolation violations: {:?}",
             violations
-        );
-    }
-
-    #[test]
-    fn test_no_gpl_agpl_present() {
-        // Informational: verify current state has no GPL/AGPL components
-        let register = parse_oss_register().expect("Register must be valid");
-
-        let copyleft: Vec<&RegisterEntry> = register
-            .iter()
-            .filter(|e| {
-                let license_upper = e.license.to_uppercase();
-                license_upper.starts_with("GPL") || license_upper.starts_with("AGPL")
-            })
-            .collect();
-
-        // This test documents current state - if we add GPL/AGPL in future,
-        // test_copyleft_isolation will enforce the external_process rule
-        assert!(
-            copyleft.is_empty(),
-            "Found GPL/AGPL components (must be external_process): {:?}",
-            copyleft
         );
     }
 }

@@ -2,461 +2,460 @@
 
 **Authoritative Open Source Software Manifest**
 **Status:** ACTIVE
-**Updated:** 2026-01-01 (Added IntegrationMode column per SPEC v02.100 §11.7.4.4; added transitive deps from Cargo.lock)
+**Updated:** 2026-01-19 (Migrated register schema to Spec v02.113 11.7.5.7.1; aligned enforcement to 11.10.4 (2))
 
 > Scope: Captures all dependencies and dev/build tools declared in `Cargo.toml` (backend + Tauri) and `package.json` (frontend). Copyleft guard remains default-deny (GPL/AGPL only via `external_process`, none present today).
 
-## Backend Direct – `src/backend/handshake_core/Cargo.toml`
+## Backend Direct - `src/backend/handshake_core/Cargo.toml`
 
-| Component | License | IntegrationMode | Scope | Purpose |
-| --- | --- | --- | --- | --- |
-| axum | MIT | embedded_lib | Runtime | HTTP server (REST API) |
-| serde | MIT/Apache-2.0 | embedded_lib | Runtime | Serialization/Deserialization |
-| serde_json | MIT/Apache-2.0 | embedded_lib | Runtime | JSON handling |
-| tokio | MIT | embedded_lib | Runtime | Async runtime (macros, process, time) |
-| tower-http | MIT | embedded_lib | Runtime | HTTP middleware (CORS) |
-| sqlx | MIT | embedded_lib | Runtime | DB driver (SQLite, migrations, chrono) |
-| uuid | MIT/Apache-2.0 | embedded_lib | Runtime | UUID generation/serde |
-| chrono | MIT/Apache-2.0 | embedded_lib | Runtime | Time handling (serde/clock) |
-| tracing | MIT | embedded_lib | Runtime | Structured logging |
-| tracing-subscriber | MIT | embedded_lib | Runtime | Logging sinks/filters (fmt/json) |
-| tracing-appender | MIT | embedded_lib | Runtime | Log file appender |
-| thiserror | MIT/Apache-2.0 | embedded_lib | Runtime | Error derivations |
-| duckdb | MIT | embedded_lib | Runtime | Analytics / Flight Recorder (bundled) |
-| reqwest | MIT/Apache-2.0 | embedded_lib | Runtime | HTTP client (Ollama integration) |
-| async-trait | MIT/Apache-2.0 | embedded_lib | Runtime | Async trait support |
-| once_cell | MIT/Apache-2.0 | embedded_lib | Runtime | Lazy init (metric sinks, registries) |
-| sha2 | MIT/Apache-2.0 | embedded_lib | Runtime | SHA-256 hashing |
-| hex | MIT/Apache-2.0 | embedded_lib | Runtime | Hex encoding |
-| unicode-normalization | MIT/Apache-2.0 | embedded_lib | Runtime | Unicode NFC normalization |
-| caseless | MIT | embedded_lib | Runtime | Unicode caseless matching (casefold) |
-| tiktoken-rs | MIT | embedded_lib | Runtime | OpenAI tokenizer (optional) |
-| tokenizers | Apache-2.0 | embedded_lib | Runtime | HuggingFace tokenizers (optional) |
-| regex | MIT/Apache-2.0 | embedded_lib | Runtime | Regular expressions |
-| zip | MIT | embedded_lib | Runtime | ZIP archive handling |
-| tempfile | MIT/Apache-2.0 | embedded_lib | Dev | Temporary files for tests |
+| component_id | name | upstream_ref | license | integration_mode_default | capabilities_required | pinning_policy | compliance_notes | test_fixture | used_by_modules |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| crate.handshake_core.axum | axum | crates.io/axum | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=HTTP server (REST API) |  | backend/handshake_core (direct) |
+| crate.handshake_core.serde | serde | crates.io/serde | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Serialization/Deserialization |  | backend/handshake_core (direct) |
+| crate.handshake_core.serde_json | serde_json | crates.io/serde_json | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=JSON handling |  | backend/handshake_core (direct) |
+| crate.handshake_core.tokio | tokio | crates.io/tokio | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Async runtime (macros, process, time) |  | backend/handshake_core (direct) |
+| crate.handshake_core.tower-http | tower-http | crates.io/tower-http | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=HTTP middleware (CORS) |  | backend/handshake_core (direct) |
+| crate.handshake_core.sqlx | sqlx | crates.io/sqlx | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=DB driver (SQLite, migrations, chrono) |  | backend/handshake_core (direct) |
+| crate.handshake_core.uuid | uuid | crates.io/uuid | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=UUID generation/serde |  | backend/handshake_core (direct) |
+| crate.handshake_core.chrono | chrono | crates.io/chrono | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Time handling (serde/clock) |  | backend/handshake_core (direct) |
+| crate.handshake_core.tracing | tracing | crates.io/tracing | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Structured logging |  | backend/handshake_core (direct) |
+| crate.handshake_core.tracing-subscriber | tracing-subscriber | crates.io/tracing-subscriber | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Logging sinks/filters (fmt/json) |  | backend/handshake_core (direct) |
+| crate.handshake_core.tracing-appender | tracing-appender | crates.io/tracing-appender | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Log file appender |  | backend/handshake_core (direct) |
+| crate.handshake_core.thiserror | thiserror | crates.io/thiserror | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Error derivations |  | backend/handshake_core (direct) |
+| crate.handshake_core.duckdb | duckdb | crates.io/duckdb | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Analytics / Flight Recorder (bundled) |  | backend/handshake_core (direct) |
+| crate.handshake_core.reqwest | reqwest | crates.io/reqwest | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=HTTP client (Ollama integration) |  | backend/handshake_core (direct) |
+| crate.handshake_core.async-trait | async-trait | crates.io/async-trait | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Async trait support |  | backend/handshake_core (direct) |
+| crate.handshake_core.once_cell | once_cell | crates.io/once_cell | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Lazy init (metric sinks, registries) |  | backend/handshake_core (direct) |
+| crate.handshake_core.sha2 | sha2 | crates.io/sha2 | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=SHA-256 hashing |  | backend/handshake_core (direct) |
+| crate.handshake_core.hex | hex | crates.io/hex | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Hex encoding |  | backend/handshake_core (direct) |
+| crate.handshake_core.unicode-normalization | unicode-normalization | crates.io/unicode-normalization | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Unicode NFC normalization |  | backend/handshake_core (direct) |
+| crate.handshake_core.tiktoken-rs | tiktoken-rs | crates.io/tiktoken-rs | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=OpenAI tokenizer (optional) |  | backend/handshake_core (direct) |
+| crate.handshake_core.tokenizers | tokenizers | crates.io/tokenizers | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=HuggingFace tokenizers (optional) |  | backend/handshake_core (direct) |
+| crate.handshake_core.regex | regex | crates.io/regex | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Regular expressions |  | backend/handshake_core (direct) |
+| crate.handshake_core.zip | zip | crates.io/zip | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ZIP archive handling |  | backend/handshake_core (direct) |
+| crate.handshake_core.tempfile | tempfile | crates.io/tempfile | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Dev; purpose=Temporary files for tests |  | backend/handshake_core (direct) |
 
-## Backend Transitive – `src/backend/handshake_core/Cargo.lock`
+## Backend Transitive - `src/backend/handshake_core/Cargo.lock`
 
-| Component | License | IntegrationMode | Scope | Purpose |
-| --- | --- | --- | --- | --- |
-| adler2 | MIT/Apache-2.0 | embedded_lib | Runtime | Adler-32 checksum |
-| ahash | MIT/Apache-2.0 | embedded_lib | Runtime | Fast hashing |
-| aho-corasick | MIT/Apache-2.0 | embedded_lib | Runtime | String matching |
-| allocator-api2 | MIT/Apache-2.0 | embedded_lib | Runtime | Allocator API |
-| android_system_properties | MIT/Apache-2.0 | embedded_lib | Runtime | Android props |
-| anyhow | MIT/Apache-2.0 | embedded_lib | Runtime | Error handling |
-| arbitrary | MIT/Apache-2.0 | embedded_lib | Runtime | Fuzzing support |
-| arrayvec | MIT/Apache-2.0 | embedded_lib | Runtime | Stack arrays |
-| arrow | Apache-2.0 | embedded_lib | Runtime | Arrow columnar format |
-| arrow-arith | Apache-2.0 | embedded_lib | Runtime | Arrow arithmetic |
-| arrow-array | Apache-2.0 | embedded_lib | Runtime | Arrow arrays |
-| arrow-buffer | Apache-2.0 | embedded_lib | Runtime | Arrow buffers |
-| arrow-cast | Apache-2.0 | embedded_lib | Runtime | Arrow casting |
-| arrow-data | Apache-2.0 | embedded_lib | Runtime | Arrow data |
-| arrow-ord | Apache-2.0 | embedded_lib | Runtime | Arrow ordering |
-| arrow-row | Apache-2.0 | embedded_lib | Runtime | Arrow rows |
-| arrow-schema | Apache-2.0 | embedded_lib | Runtime | Arrow schemas |
-| arrow-select | Apache-2.0 | embedded_lib | Runtime | Arrow selection |
-| arrow-string | Apache-2.0 | embedded_lib | Runtime | Arrow strings |
-| atoi | MIT | embedded_lib | Runtime | String to int |
-| atomic-waker | MIT/Apache-2.0 | embedded_lib | Runtime | Atomic waker |
-| autocfg | MIT/Apache-2.0 | embedded_lib | Build | Auto-configuration |
-| axum-core | MIT | embedded_lib | Runtime | Axum core types |
-| base64 | MIT/Apache-2.0 | embedded_lib | Runtime | Base64 encoding |
-| base64ct | MIT/Apache-2.0 | embedded_lib | Runtime | Constant-time base64 |
-| bitflags | MIT/Apache-2.0 | embedded_lib | Runtime | Bit flags |
-| bit-set | MIT/Apache-2.0 | embedded_lib | Runtime | Bit sets |
-| bitvec | MIT | embedded_lib | Runtime | Bit vectors |
-| bit-vec | MIT/Apache-2.0 | embedded_lib | Runtime | Bit vector |
-| block-buffer | MIT/Apache-2.0 | embedded_lib | Runtime | Block buffer |
-| borsh | MIT/Apache-2.0 | embedded_lib | Runtime | Binary serialization |
-| borsh-derive | MIT/Apache-2.0 | embedded_lib | Runtime | Borsh derive |
-| bstr | MIT/Apache-2.0 | embedded_lib | Runtime | Byte strings |
-| bumpalo | MIT/Apache-2.0 | embedded_lib | Runtime | Bump allocator |
-| bytecheck | MIT | embedded_lib | Runtime | Byte validation |
-| bytecheck_derive | MIT | embedded_lib | Runtime | Bytecheck derive |
-| byteorder | MIT/Unlicense | embedded_lib | Runtime | Byte order |
-| bytes | MIT | embedded_lib | Runtime | Byte buffers |
-| cast | MIT/Apache-2.0 | embedded_lib | Runtime | Numeric casting |
-| cc | MIT/Apache-2.0 | embedded_lib | Build | C compiler |
-| cfg_aliases | MIT | embedded_lib | Build | Config aliases |
-| cfg-if | MIT/Apache-2.0 | embedded_lib | Runtime | Conditional compilation |
-| comfy-table | MIT | embedded_lib | Runtime | Table formatting |
-| concurrent-queue | MIT/Apache-2.0 | embedded_lib | Runtime | Concurrent queue |
-| console | MIT | embedded_lib | Runtime | Terminal console |
-| const-oid | MIT/Apache-2.0 | embedded_lib | Runtime | Const OID |
-| const-random | MIT/Apache-2.0 | embedded_lib | Runtime | Const random |
-| const-random-macro | MIT/Apache-2.0 | embedded_lib | Runtime | Const random macro |
-| core-foundation | MIT/Apache-2.0 | embedded_lib | Runtime | macOS core foundation |
-| core-foundation-sys | MIT/Apache-2.0 | embedded_lib | Runtime | Core foundation sys |
-| cpufeatures | MIT/Apache-2.0 | embedded_lib | Runtime | CPU features |
-| crc | MIT/Apache-2.0 | embedded_lib | Runtime | CRC checksums |
-| crc32fast | MIT/Apache-2.0 | embedded_lib | Runtime | Fast CRC32 |
-| crc-catalog | MIT/Apache-2.0 | embedded_lib | Runtime | CRC catalog |
-| crossbeam-channel | MIT/Apache-2.0 | embedded_lib | Runtime | Crossbeam channels |
-| crossbeam-deque | MIT/Apache-2.0 | embedded_lib | Runtime | Work-stealing deque |
-| crossbeam-epoch | MIT/Apache-2.0 | embedded_lib | Runtime | Epoch GC |
-| crossbeam-queue | MIT/Apache-2.0 | embedded_lib | Runtime | Concurrent queues |
-| crossbeam-utils | MIT/Apache-2.0 | embedded_lib | Runtime | Crossbeam utilities |
-| crunchy | MIT | embedded_lib | Runtime | Loop unrolling |
-| crypto-common | MIT/Apache-2.0 | embedded_lib | Runtime | Crypto common |
-| darling | MIT | embedded_lib | Runtime | Derive helpers |
-| darling_core | MIT | embedded_lib | Runtime | Darling core |
-| darling_macro | MIT | embedded_lib | Runtime | Darling macros |
-| der | MIT/Apache-2.0 | embedded_lib | Runtime | DER encoding |
-| deranged | MIT/Apache-2.0 | embedded_lib | Runtime | Ranged integers |
-| derive_arbitrary | MIT/Apache-2.0 | embedded_lib | Runtime | Arbitrary derive |
-| derive_builder | MIT/Apache-2.0 | embedded_lib | Runtime | Builder derive |
-| derive_builder_core | MIT/Apache-2.0 | embedded_lib | Runtime | Builder core |
-| derive_builder_macro | MIT/Apache-2.0 | embedded_lib | Runtime | Builder macro |
-| digest | MIT/Apache-2.0 | embedded_lib | Runtime | Digest traits |
-| displaydoc | MIT/Apache-2.0 | embedded_lib | Runtime | Display docs |
-| dotenvy | MIT | embedded_lib | Runtime | Dotenv loading |
-| either | MIT/Apache-2.0 | embedded_lib | Runtime | Either type |
-| encode_unicode | MIT/Apache-2.0 | embedded_lib | Runtime | Unicode encoding |
-| encoding_rs | MIT/Apache-2.0 | embedded_lib | Runtime | Character encoding |
-| equivalent | MIT/Apache-2.0 | embedded_lib | Runtime | Equivalence trait |
-| errno | MIT/Apache-2.0 | embedded_lib | Runtime | Errno handling |
-| esaxx-rs | MIT | embedded_lib | Runtime | ESA-XX suffix array |
-| etcetera | MIT/Apache-2.0 | embedded_lib | Runtime | XDG directories |
-| event-listener | MIT/Apache-2.0 | embedded_lib | Runtime | Event listener |
-| fallible-iterator | MIT/Apache-2.0 | embedded_lib | Runtime | Fallible iterators |
-| fallible-streaming-iterator | MIT/Apache-2.0 | embedded_lib | Runtime | Streaming iterators |
-| fancy-regex | MIT | embedded_lib | Runtime | Advanced regex |
-| fastrand | MIT/Apache-2.0 | embedded_lib | Runtime | Fast random |
-| filetime | MIT/Apache-2.0 | embedded_lib | Runtime | File times |
-| find-msvc-tools | MIT | embedded_lib | Build | MSVC tools |
-| flate2 | MIT/Apache-2.0 | embedded_lib | Runtime | Deflate compression |
-| flume | MIT/Apache-2.0 | embedded_lib | Runtime | Channel library |
-| fnv | MIT/Apache-2.0 | embedded_lib | Runtime | FNV hashing |
-| foldhash | MIT/Apache-2.0 | embedded_lib | Runtime | Folded hashing |
-| foreign-types | MIT/Apache-2.0 | embedded_lib | Runtime | Foreign types |
-| foreign-types-shared | MIT/Apache-2.0 | embedded_lib | Runtime | Foreign types shared |
-| form_urlencoded | MIT/Apache-2.0 | embedded_lib | Runtime | URL encoding |
-| funty | MIT | embedded_lib | Runtime | Fundamental types |
-| futures-channel | MIT/Apache-2.0 | embedded_lib | Runtime | Futures channel |
-| futures-core | MIT/Apache-2.0 | embedded_lib | Runtime | Futures core |
-| futures-executor | MIT/Apache-2.0 | embedded_lib | Runtime | Futures executor |
-| futures-intrusive | MIT/Apache-2.0 | embedded_lib | Runtime | Intrusive futures |
-| futures-io | MIT/Apache-2.0 | embedded_lib | Runtime | Futures I/O |
-| futures-sink | MIT/Apache-2.0 | embedded_lib | Runtime | Futures sink |
-| futures-task | MIT/Apache-2.0 | embedded_lib | Runtime | Futures task |
-| futures-util | MIT/Apache-2.0 | embedded_lib | Runtime | Futures utilities |
-| generic-array | MIT | embedded_lib | Runtime | Generic arrays |
-| getrandom | MIT/Apache-2.0 | embedded_lib | Runtime | Random bytes |
-| h2 | MIT | embedded_lib | Runtime | HTTP/2 |
-| half | MIT/Apache-2.0 | embedded_lib | Runtime | Half-precision floats |
-| handshake_core | MIT | embedded_lib | Runtime | This project |
-| hashbrown | MIT/Apache-2.0 | embedded_lib | Runtime | Hash tables |
-| hashlink | MIT/Apache-2.0 | embedded_lib | Runtime | Linked hash map |
-| heck | MIT/Apache-2.0 | embedded_lib | Runtime | Case conversion |
-| hkdf | MIT/Apache-2.0 | embedded_lib | Runtime | HKDF |
-| hmac | MIT/Apache-2.0 | embedded_lib | Runtime | HMAC |
-| home | MIT/Apache-2.0 | embedded_lib | Runtime | Home directory |
-| http | MIT/Apache-2.0 | embedded_lib | Runtime | HTTP types |
-| httparse | MIT/Apache-2.0 | embedded_lib | Runtime | HTTP parsing |
-| http-body | MIT | embedded_lib | Runtime | HTTP body |
-| http-body-util | MIT | embedded_lib | Runtime | HTTP body utils |
-| httpdate | MIT/Apache-2.0 | embedded_lib | Runtime | HTTP date |
-| hyper | MIT | embedded_lib | Runtime | HTTP client/server |
-| hyper-rustls | MIT/Apache-2.0 | embedded_lib | Runtime | Hyper TLS |
-| hyper-tls | MIT/Apache-2.0 | embedded_lib | Runtime | Hyper TLS native |
-| hyper-util | MIT | embedded_lib | Runtime | Hyper utilities |
-| iana-time-zone | MIT/Apache-2.0 | embedded_lib | Runtime | IANA time zones |
-| iana-time-zone-haiku | MIT/Apache-2.0 | embedded_lib | Runtime | Haiku time zones |
-| icu_collections | Unicode-3.0 | embedded_lib | Runtime | ICU collections |
-| icu_locale_core | Unicode-3.0 | embedded_lib | Runtime | ICU locale |
-| icu_normalizer | Unicode-3.0 | embedded_lib | Runtime | ICU normalizer |
-| icu_normalizer_data | Unicode-3.0 | embedded_lib | Runtime | ICU normalizer data |
-| icu_properties | Unicode-3.0 | embedded_lib | Runtime | ICU properties |
-| icu_properties_data | Unicode-3.0 | embedded_lib | Runtime | ICU properties data |
-| icu_provider | Unicode-3.0 | embedded_lib | Runtime | ICU provider |
-| ident_case | MIT/Apache-2.0 | embedded_lib | Runtime | Identifier case |
-| idna | MIT/Apache-2.0 | embedded_lib | Runtime | IDNA |
-| idna_adapter | MIT/Apache-2.0 | embedded_lib | Runtime | IDNA adapter |
-| indexmap | MIT/Apache-2.0 | embedded_lib | Runtime | Indexed map |
-| indicatif | MIT | embedded_lib | Runtime | Progress bars |
-| ipnet | MIT/Apache-2.0 | embedded_lib | Runtime | IP networks |
-| iri-string | MIT/Apache-2.0 | embedded_lib | Runtime | IRI strings |
-| itertools | MIT/Apache-2.0 | embedded_lib | Runtime | Iterator tools |
-| itoa | MIT/Apache-2.0 | embedded_lib | Runtime | Integer to string |
-| jobserver | MIT/Apache-2.0 | embedded_lib | Build | Job server |
-| js-sys | MIT/Apache-2.0 | embedded_lib | Runtime | JS bindings |
-| lazy_static | MIT/Apache-2.0 | embedded_lib | Runtime | Lazy statics |
-| lexical-core | MIT/Apache-2.0 | embedded_lib | Runtime | Lexical core |
-| lexical-parse-float | MIT/Apache-2.0 | embedded_lib | Runtime | Float parsing |
-| lexical-parse-integer | MIT/Apache-2.0 | embedded_lib | Runtime | Integer parsing |
-| lexical-util | MIT/Apache-2.0 | embedded_lib | Runtime | Lexical utilities |
-| lexical-write-float | MIT/Apache-2.0 | embedded_lib | Runtime | Float writing |
-| lexical-write-integer | MIT/Apache-2.0 | embedded_lib | Runtime | Integer writing |
-| libc | MIT/Apache-2.0 | embedded_lib | Runtime | C library bindings |
-| libduckdb-sys | MIT | embedded_lib | Runtime | DuckDB FFI |
-| libm | MIT/Apache-2.0 | embedded_lib | Runtime | Math library |
-| libredox | MIT | embedded_lib | Runtime | Redox syscalls |
-| libsqlite3-sys | MIT | embedded_lib | Runtime | SQLite FFI |
-| libz-rs-sys | Zlib | embedded_lib | Runtime | Zlib bindings |
-| linux-raw-sys | MIT/Apache-2.0 | embedded_lib | Runtime | Linux syscalls |
-| litemap | Unicode-3.0 | embedded_lib | Runtime | Literal map |
-| lock_api | MIT/Apache-2.0 | embedded_lib | Runtime | Lock API |
-| log | MIT/Apache-2.0 | embedded_lib | Runtime | Logging facade |
-| lru-slab | MIT | embedded_lib | Runtime | LRU slab |
-| macro_rules_attribute | MIT | embedded_lib | Runtime | Macro rules |
-| macro_rules_attribute-proc_macro | MIT | embedded_lib | Runtime | Macro rules proc |
-| matchers | MIT | embedded_lib | Runtime | Pattern matchers |
-| matchit | MIT/Apache-2.0 | embedded_lib | Runtime | URL matching |
-| md-5 | MIT/Apache-2.0 | embedded_lib | Runtime | MD5 hashing |
-| memchr | MIT/Unlicense | embedded_lib | Runtime | Byte search |
-| mime | MIT/Apache-2.0 | embedded_lib | Runtime | MIME types |
-| minimal-lexical | MIT/Apache-2.0 | embedded_lib | Runtime | Minimal lexical |
-| miniz_oxide | MIT/Zlib/Apache-2.0 | embedded_lib | Runtime | Miniz oxide |
-| mio | MIT | embedded_lib | Runtime | I/O library |
-| monostate | MIT/Apache-2.0 | embedded_lib | Runtime | Monostate |
-| monostate-impl | MIT/Apache-2.0 | embedded_lib | Runtime | Monostate impl |
-| native-tls | MIT/Apache-2.0 | embedded_lib | Runtime | Native TLS |
-| nom | MIT | embedded_lib | Runtime | Parser combinators |
-| nu-ansi-term | MIT | embedded_lib | Runtime | ANSI terminal |
-| num | MIT/Apache-2.0 | embedded_lib | Runtime | Numeric types |
-| number_prefix | MIT | embedded_lib | Runtime | Number prefix |
-| num-bigint | MIT/Apache-2.0 | embedded_lib | Runtime | Big integers |
-| num-bigint-dig | MIT/Apache-2.0 | embedded_lib | Runtime | Big integers dig |
-| num-complex | MIT/Apache-2.0 | embedded_lib | Runtime | Complex numbers |
-| num-conv | MIT/Apache-2.0 | embedded_lib | Runtime | Numeric conversion |
-| num-integer | MIT/Apache-2.0 | embedded_lib | Runtime | Integer traits |
-| num-iter | MIT/Apache-2.0 | embedded_lib | Runtime | Numeric iterators |
-| num-rational | MIT/Apache-2.0 | embedded_lib | Runtime | Rational numbers |
-| num-traits | MIT/Apache-2.0 | embedded_lib | Runtime | Numeric traits |
-| onig | MIT | embedded_lib | Runtime | Oniguruma regex |
-| onig_sys | MIT | embedded_lib | Runtime | Oniguruma FFI |
-| openssl | Apache-2.0 | embedded_lib | Runtime | OpenSSL bindings |
-| openssl-macros | MIT/Apache-2.0 | embedded_lib | Runtime | OpenSSL macros |
-| openssl-probe | MIT/Apache-2.0 | embedded_lib | Runtime | OpenSSL probe |
-| openssl-sys | MIT | embedded_lib | Runtime | OpenSSL FFI |
-| parking | MIT/Apache-2.0 | embedded_lib | Runtime | Thread parking |
-| parking_lot | MIT/Apache-2.0 | embedded_lib | Runtime | Parking lot |
-| parking_lot_core | MIT/Apache-2.0 | embedded_lib | Runtime | Parking lot core |
-| paste | MIT/Apache-2.0 | embedded_lib | Runtime | Macro pasting |
-| pem-rfc7468 | MIT/Apache-2.0 | embedded_lib | Runtime | PEM encoding |
-| percent-encoding | MIT/Apache-2.0 | embedded_lib | Runtime | Percent encoding |
-| pin-project-lite | MIT/Apache-2.0 | embedded_lib | Runtime | Pin project |
-| pin-utils | MIT/Apache-2.0 | embedded_lib | Runtime | Pin utilities |
-| pkcs1 | MIT/Apache-2.0 | embedded_lib | Runtime | PKCS#1 |
-| pkcs8 | MIT/Apache-2.0 | embedded_lib | Runtime | PKCS#8 |
-| pkg-config | MIT/Apache-2.0 | embedded_lib | Build | Pkg-config |
-| portable-atomic | MIT/Apache-2.0 | embedded_lib | Runtime | Portable atomics |
-| potential_utf | MIT/Apache-2.0 | embedded_lib | Runtime | Potential UTF |
-| powerfmt | MIT/Apache-2.0 | embedded_lib | Runtime | Power formatting |
-| ppv-lite86 | MIT/Apache-2.0 | embedded_lib | Runtime | SIMD vectors |
-| proc-macro2 | MIT/Apache-2.0 | embedded_lib | Build | Proc macros |
-| proc-macro-crate | MIT/Apache-2.0 | embedded_lib | Build | Proc macro crate |
-| ptr_meta | MIT | embedded_lib | Runtime | Pointer metadata |
-| ptr_meta_derive | MIT | embedded_lib | Runtime | Pointer meta derive |
-| quinn | MIT/Apache-2.0 | embedded_lib | Runtime | QUIC |
-| quinn-proto | MIT/Apache-2.0 | embedded_lib | Runtime | QUIC protocol |
-| quinn-udp | MIT/Apache-2.0 | embedded_lib | Runtime | QUIC UDP |
-| quote | MIT/Apache-2.0 | embedded_lib | Build | Quasi-quoting |
-| radium | MIT | embedded_lib | Runtime | Radium |
-| rand | MIT/Apache-2.0 | embedded_lib | Runtime | Random numbers |
-| rand_chacha | MIT/Apache-2.0 | embedded_lib | Runtime | ChaCha RNG |
-| rand_core | MIT/Apache-2.0 | embedded_lib | Runtime | RNG core |
-| rayon | MIT/Apache-2.0 | embedded_lib | Runtime | Parallel iteration |
-| rayon-cond | MIT/Apache-2.0 | embedded_lib | Runtime | Rayon conditional |
-| rayon-core | MIT/Apache-2.0 | embedded_lib | Runtime | Rayon core |
-| redox_syscall | MIT | embedded_lib | Runtime | Redox syscalls |
-| r-efi | MIT/Apache-2.0 | embedded_lib | Runtime | UEFI types |
-| regex-automata | MIT/Apache-2.0 | embedded_lib | Runtime | Regex automata |
-| regex-syntax | MIT/Apache-2.0 | embedded_lib | Runtime | Regex syntax |
-| rend | MIT | embedded_lib | Runtime | Rend |
-| ring | MIT | embedded_lib | Runtime | Crypto primitives |
-| rkyv | MIT | embedded_lib | Runtime | Zero-copy serialization |
-| rkyv_derive | MIT | embedded_lib | Runtime | Rkyv derive |
-| rsa | MIT/Apache-2.0 | embedded_lib | Runtime | RSA crypto |
-| rust_decimal | MIT | embedded_lib | Runtime | Decimal type |
-| rustc-hash | MIT/Apache-2.0 | embedded_lib | Runtime | Rustc hash |
-| rustix | MIT/Apache-2.0 | embedded_lib | Runtime | Unix APIs |
-| rustls | MIT/Apache-2.0 | embedded_lib | Runtime | TLS library |
-| rustls-pki-types | MIT/Apache-2.0 | embedded_lib | Runtime | PKI types |
-| rustls-webpki | ISC | embedded_lib | Runtime | WebPKI |
-| rustversion | MIT/Apache-2.0 | embedded_lib | Build | Rust version |
-| ryu | Apache-2.0/BSL-1.0 | embedded_lib | Runtime | Float to string |
-| schannel | MIT | embedded_lib | Runtime | Windows TLS |
-| scopeguard | MIT/Apache-2.0 | embedded_lib | Runtime | Scope guard |
-| seahash | MIT | embedded_lib | Runtime | SeaHash |
-| security-framework | MIT/Apache-2.0 | embedded_lib | Runtime | macOS security |
-| security-framework-sys | MIT/Apache-2.0 | embedded_lib | Runtime | Security framework sys |
-| serde_core | MIT/Apache-2.0 | embedded_lib | Runtime | Serde core |
-| serde_derive | MIT/Apache-2.0 | embedded_lib | Runtime | Serde derive |
-| serde_path_to_error | MIT/Apache-2.0 | embedded_lib | Runtime | Serde path error |
-| serde_urlencoded | MIT/Apache-2.0 | embedded_lib | Runtime | URL encoding |
-| sha1 | MIT/Apache-2.0 | embedded_lib | Runtime | SHA-1 |
-| sharded-slab | MIT | embedded_lib | Runtime | Sharded slab |
-| shlex | MIT/Apache-2.0 | embedded_lib | Runtime | Shell lexer |
-| signal-hook-registry | MIT/Apache-2.0 | embedded_lib | Runtime | Signal registry |
-| signature | MIT/Apache-2.0 | embedded_lib | Runtime | Crypto signatures |
-| simd-adler32 | MIT | embedded_lib | Runtime | SIMD Adler32 |
-| simdutf8 | MIT/Apache-2.0 | embedded_lib | Runtime | SIMD UTF-8 |
-| slab | MIT | embedded_lib | Runtime | Slab allocator |
-| smallvec | MIT/Apache-2.0 | embedded_lib | Runtime | Small vectors |
-| socket2 | MIT/Apache-2.0 | embedded_lib | Runtime | Socket utilities |
-| spin | MIT | embedded_lib | Runtime | Spinlocks |
-| spki | MIT/Apache-2.0 | embedded_lib | Runtime | SPKI |
-| spm_precompiled | MIT | embedded_lib | Runtime | SPM precompiled |
-| sqlx-core | MIT | embedded_lib | Runtime | SQLx core |
-| sqlx-macros | MIT | embedded_lib | Runtime | SQLx macros |
-| sqlx-macros-core | MIT | embedded_lib | Runtime | SQLx macros core |
-| sqlx-mysql | MIT | embedded_lib | Runtime | SQLx MySQL |
-| sqlx-postgres | MIT | embedded_lib | Runtime | SQLx Postgres |
-| sqlx-sqlite | MIT | embedded_lib | Runtime | SQLx SQLite |
-| stable_deref_trait | MIT/Apache-2.0 | embedded_lib | Runtime | Stable deref |
-| stringprep | MIT/Apache-2.0 | embedded_lib | Runtime | Stringprep |
-| strsim | MIT | embedded_lib | Runtime | String similarity |
-| strum | MIT | embedded_lib | Runtime | Enum utilities |
-| strum_macros | MIT | embedded_lib | Runtime | Strum macros |
-| subtle | BSD-3-Clause | embedded_lib | Runtime | Constant-time ops |
-| syn | MIT/Apache-2.0 | embedded_lib | Build | Syntax parsing |
-| sync_wrapper | Apache-2.0 | embedded_lib | Runtime | Sync wrapper |
-| synstructure | MIT | embedded_lib | Runtime | Syn structure |
-| system-configuration | MIT/Apache-2.0 | embedded_lib | Runtime | macOS config |
-| system-configuration-sys | MIT/Apache-2.0 | embedded_lib | Runtime | System config sys |
-| tap | MIT | embedded_lib | Runtime | Tap trait |
-| tar | MIT/Apache-2.0 | embedded_lib | Runtime | Tar archives |
-| thiserror-impl | MIT/Apache-2.0 | embedded_lib | Runtime | Thiserror impl |
-| thread_local | MIT/Apache-2.0 | embedded_lib | Runtime | Thread local |
-| time | MIT/Apache-2.0 | embedded_lib | Runtime | Time library |
-| time-core | MIT/Apache-2.0 | embedded_lib | Runtime | Time core |
-| time-macros | MIT/Apache-2.0 | embedded_lib | Runtime | Time macros |
-| tiny-keccak | CC0-1.0 | embedded_lib | Runtime | Keccak hashing |
-| tinystr | Unicode-3.0 | embedded_lib | Runtime | Tiny strings |
-| tinyvec | MIT/Apache-2.0/Zlib | embedded_lib | Runtime | Tiny vectors |
-| tinyvec_macros | MIT/Apache-2.0/Zlib | embedded_lib | Runtime | Tinyvec macros |
-| tokio-macros | MIT | embedded_lib | Runtime | Tokio macros |
-| tokio-native-tls | MIT | embedded_lib | Runtime | Tokio native TLS |
-| tokio-rustls | MIT/Apache-2.0 | embedded_lib | Runtime | Tokio rustls |
-| tokio-stream | MIT | embedded_lib | Runtime | Tokio streams |
-| tokio-util | MIT | embedded_lib | Runtime | Tokio utilities |
-| toml_datetime | MIT/Apache-2.0 | embedded_lib | Runtime | TOML datetime |
-| toml_edit | MIT/Apache-2.0 | embedded_lib | Runtime | TOML editing |
-| toml_parser | MIT/Apache-2.0 | embedded_lib | Runtime | TOML parser |
-| tower | MIT | embedded_lib | Runtime | Service abstraction |
-| tower-layer | MIT | embedded_lib | Runtime | Tower layers |
-| tower-service | MIT | embedded_lib | Runtime | Tower service |
-| tracing-attributes | MIT | embedded_lib | Runtime | Tracing attributes |
-| tracing-core | MIT | embedded_lib | Runtime | Tracing core |
-| tracing-log | MIT | embedded_lib | Runtime | Tracing log |
-| tracing-serde | MIT | embedded_lib | Runtime | Tracing serde |
-| try-lock | MIT | embedded_lib | Runtime | Try lock |
-| typenum | MIT/Apache-2.0 | embedded_lib | Runtime | Type-level numbers |
-| unicode_categories | MIT/Apache-2.0 | embedded_lib | Runtime | Unicode categories |
-| unicode-bidi | MIT/Apache-2.0 | embedded_lib | Runtime | Unicode bidi |
-| unicode-ident | MIT/Apache-2.0 | embedded_lib | Runtime | Unicode identifiers |
-| unicode-normalization-alignments | MIT/Apache-2.0 | embedded_lib | Runtime | Unicode alignments |
-| unicode-properties | MIT/Apache-2.0 | embedded_lib | Runtime | Unicode properties |
-| unicode-segmentation | MIT/Apache-2.0 | embedded_lib | Runtime | Unicode segmentation |
-| unicode-width | MIT/Apache-2.0 | embedded_lib | Runtime | Unicode width |
-| untrusted | ISC | embedded_lib | Runtime | Untrusted input |
-| url | MIT/Apache-2.0 | embedded_lib | Runtime | URL parsing |
-| utf8_iter | MIT/Apache-2.0 | embedded_lib | Runtime | UTF-8 iterator |
-| valuable | MIT | embedded_lib | Runtime | Valuable trait |
-| vcpkg | MIT/Apache-2.0 | embedded_lib | Build | Vcpkg integration |
-| version_check | MIT/Apache-2.0 | embedded_lib | Build | Version checking |
-| want | MIT | embedded_lib | Runtime | Want signaling |
-| wasi | MIT/Apache-2.0 | embedded_lib | Runtime | WASI bindings |
-| wasip2 | MIT/Apache-2.0 | embedded_lib | Runtime | WASI preview 2 |
-| wasite | MIT | embedded_lib | Runtime | Wasite |
-| wasm-bindgen | MIT/Apache-2.0 | embedded_lib | Runtime | WASM bindings |
-| wasm-bindgen-futures | MIT/Apache-2.0 | embedded_lib | Runtime | WASM futures |
-| wasm-bindgen-macro | MIT/Apache-2.0 | embedded_lib | Runtime | WASM macro |
-| wasm-bindgen-macro-support | MIT/Apache-2.0 | embedded_lib | Runtime | WASM macro support |
-| wasm-bindgen-shared | MIT/Apache-2.0 | embedded_lib | Runtime | WASM shared |
-| webpki-roots | MPL-2.0 | embedded_lib | Runtime | WebPKI roots |
-| web-sys | MIT/Apache-2.0 | embedded_lib | Runtime | Web APIs |
-| web-time | MIT/Apache-2.0 | embedded_lib | Runtime | Web time |
-| whoami | MIT/Apache-2.0 | embedded_lib | Runtime | User info |
-| windows_aarch64_gnullvm | MIT/Apache-2.0 | embedded_lib | Runtime | Windows ARM64 |
-| windows_aarch64_msvc | MIT/Apache-2.0 | embedded_lib | Runtime | Windows ARM64 MSVC |
-| windows_i686_gnu | MIT/Apache-2.0 | embedded_lib | Runtime | Windows i686 GNU |
-| windows_i686_gnullvm | MIT/Apache-2.0 | embedded_lib | Runtime | Windows i686 GNULLVM |
-| windows_i686_msvc | MIT/Apache-2.0 | embedded_lib | Runtime | Windows i686 MSVC |
-| windows_x86_64_gnu | MIT/Apache-2.0 | embedded_lib | Runtime | Windows x64 GNU |
-| windows_x86_64_gnullvm | MIT/Apache-2.0 | embedded_lib | Runtime | Windows x64 GNULLVM |
-| windows_x86_64_msvc | MIT/Apache-2.0 | embedded_lib | Runtime | Windows x64 MSVC |
-| windows-core | MIT/Apache-2.0 | embedded_lib | Runtime | Windows core |
-| windows-implement | MIT/Apache-2.0 | embedded_lib | Runtime | Windows implement |
-| windows-interface | MIT/Apache-2.0 | embedded_lib | Runtime | Windows interface |
-| windows-link | MIT/Apache-2.0 | embedded_lib | Runtime | Windows link |
-| windows-registry | MIT/Apache-2.0 | embedded_lib | Runtime | Windows registry |
-| windows-result | MIT/Apache-2.0 | embedded_lib | Runtime | Windows result |
-| windows-strings | MIT/Apache-2.0 | embedded_lib | Runtime | Windows strings |
-| windows-sys | MIT/Apache-2.0 | embedded_lib | Runtime | Windows sys |
-| windows-targets | MIT/Apache-2.0 | embedded_lib | Runtime | Windows targets |
-| winnow | MIT | embedded_lib | Runtime | Parser library |
-| wit-bindgen | MIT/Apache-2.0 | embedded_lib | Runtime | WIT bindings |
-| writeable | Unicode-3.0 | embedded_lib | Runtime | Writeable trait |
-| wyz | MIT | embedded_lib | Runtime | Utility macros |
-| xattr | MIT/Apache-2.0 | embedded_lib | Runtime | Extended attrs |
-| yoke | Unicode-3.0 | embedded_lib | Runtime | Yoke borrowing |
-| yoke-derive | Unicode-3.0 | embedded_lib | Runtime | Yoke derive |
-| zerocopy | BSD-2-Clause | embedded_lib | Runtime | Zero-copy parsing |
-| zerocopy-derive | BSD-2-Clause | embedded_lib | Runtime | Zerocopy derive |
-| zerofrom | Unicode-3.0 | embedded_lib | Runtime | Zerofrom |
-| zerofrom-derive | Unicode-3.0 | embedded_lib | Runtime | Zerofrom derive |
-| zeroize | MIT/Apache-2.0 | embedded_lib | Runtime | Memory zeroing |
-| zerotrie | Unicode-3.0 | embedded_lib | Runtime | Zero-copy trie |
-| zerovec | Unicode-3.0 | embedded_lib | Runtime | Zero-copy vectors |
-| zerovec-derive | Unicode-3.0 | embedded_lib | Runtime | Zerovec derive |
-| zlib-rs | Zlib | embedded_lib | Runtime | Zlib pure Rust |
-| zopfli | Apache-2.0 | embedded_lib | Runtime | Zopfli compression |
+| component_id | name | upstream_ref | license | integration_mode_default | capabilities_required | pinning_policy | compliance_notes | test_fixture | used_by_modules |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| crate.handshake_core.adler2 | adler2 | crates.io/adler2 | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Adler-32 checksum |  | backend/handshake_core (transitive) |
+| crate.handshake_core.ahash | ahash | crates.io/ahash | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Fast hashing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.aho-corasick | aho-corasick | crates.io/aho-corasick | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=String matching |  | backend/handshake_core (transitive) |
+| crate.handshake_core.allocator-api2 | allocator-api2 | crates.io/allocator-api2 | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Allocator API |  | backend/handshake_core (transitive) |
+| crate.handshake_core.android_system_properties | android_system_properties | crates.io/android_system_properties | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Android props |  | backend/handshake_core (transitive) |
+| crate.handshake_core.anyhow | anyhow | crates.io/anyhow | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Error handling |  | backend/handshake_core (transitive) |
+| crate.handshake_core.arbitrary | arbitrary | crates.io/arbitrary | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Fuzzing support |  | backend/handshake_core (transitive) |
+| crate.handshake_core.arrayvec | arrayvec | crates.io/arrayvec | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Stack arrays |  | backend/handshake_core (transitive) |
+| crate.handshake_core.arrow | arrow | crates.io/arrow | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Arrow columnar format |  | backend/handshake_core (transitive) |
+| crate.handshake_core.arrow-arith | arrow-arith | crates.io/arrow-arith | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Arrow arithmetic |  | backend/handshake_core (transitive) |
+| crate.handshake_core.arrow-array | arrow-array | crates.io/arrow-array | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Arrow arrays |  | backend/handshake_core (transitive) |
+| crate.handshake_core.arrow-buffer | arrow-buffer | crates.io/arrow-buffer | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Arrow buffers |  | backend/handshake_core (transitive) |
+| crate.handshake_core.arrow-cast | arrow-cast | crates.io/arrow-cast | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Arrow casting |  | backend/handshake_core (transitive) |
+| crate.handshake_core.arrow-data | arrow-data | crates.io/arrow-data | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Arrow data |  | backend/handshake_core (transitive) |
+| crate.handshake_core.arrow-ord | arrow-ord | crates.io/arrow-ord | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Arrow ordering |  | backend/handshake_core (transitive) |
+| crate.handshake_core.arrow-row | arrow-row | crates.io/arrow-row | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Arrow rows |  | backend/handshake_core (transitive) |
+| crate.handshake_core.arrow-schema | arrow-schema | crates.io/arrow-schema | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Arrow schemas |  | backend/handshake_core (transitive) |
+| crate.handshake_core.arrow-select | arrow-select | crates.io/arrow-select | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Arrow selection |  | backend/handshake_core (transitive) |
+| crate.handshake_core.arrow-string | arrow-string | crates.io/arrow-string | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Arrow strings |  | backend/handshake_core (transitive) |
+| crate.handshake_core.atoi | atoi | crates.io/atoi | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=String to int |  | backend/handshake_core (transitive) |
+| crate.handshake_core.atomic-waker | atomic-waker | crates.io/atomic-waker | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Atomic waker |  | backend/handshake_core (transitive) |
+| crate.handshake_core.autocfg | autocfg | crates.io/autocfg | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Build; purpose=Auto-configuration |  | backend/handshake_core (transitive) |
+| crate.handshake_core.axum-core | axum-core | crates.io/axum-core | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Axum core types |  | backend/handshake_core (transitive) |
+| crate.handshake_core.base64 | base64 | crates.io/base64 | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Base64 encoding |  | backend/handshake_core (transitive) |
+| crate.handshake_core.base64ct | base64ct | crates.io/base64ct | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Constant-time base64 |  | backend/handshake_core (transitive) |
+| crate.handshake_core.bitflags | bitflags | crates.io/bitflags | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Bit flags |  | backend/handshake_core (transitive) |
+| crate.handshake_core.bit-set | bit-set | crates.io/bit-set | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Bit sets |  | backend/handshake_core (transitive) |
+| crate.handshake_core.bitvec | bitvec | crates.io/bitvec | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Bit vectors |  | backend/handshake_core (transitive) |
+| crate.handshake_core.bit-vec | bit-vec | crates.io/bit-vec | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Bit vector |  | backend/handshake_core (transitive) |
+| crate.handshake_core.block-buffer | block-buffer | crates.io/block-buffer | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Block buffer |  | backend/handshake_core (transitive) |
+| crate.handshake_core.borsh | borsh | crates.io/borsh | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Binary serialization |  | backend/handshake_core (transitive) |
+| crate.handshake_core.borsh-derive | borsh-derive | crates.io/borsh-derive | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Borsh derive |  | backend/handshake_core (transitive) |
+| crate.handshake_core.bstr | bstr | crates.io/bstr | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Byte strings |  | backend/handshake_core (transitive) |
+| crate.handshake_core.bumpalo | bumpalo | crates.io/bumpalo | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Bump allocator |  | backend/handshake_core (transitive) |
+| crate.handshake_core.bytecheck | bytecheck | crates.io/bytecheck | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Byte validation |  | backend/handshake_core (transitive) |
+| crate.handshake_core.bytecheck_derive | bytecheck_derive | crates.io/bytecheck_derive | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Bytecheck derive |  | backend/handshake_core (transitive) |
+| crate.handshake_core.byteorder | byteorder | crates.io/byteorder | MIT/Unlicense | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Byte order |  | backend/handshake_core (transitive) |
+| crate.handshake_core.bytes | bytes | crates.io/bytes | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Byte buffers |  | backend/handshake_core (transitive) |
+| crate.handshake_core.cast | cast | crates.io/cast | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Numeric casting |  | backend/handshake_core (transitive) |
+| crate.handshake_core.cc | cc | crates.io/cc | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Build; purpose=C compiler |  | backend/handshake_core (transitive) |
+| crate.handshake_core.cfg_aliases | cfg_aliases | crates.io/cfg_aliases | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Build; purpose=Config aliases |  | backend/handshake_core (transitive) |
+| crate.handshake_core.cfg-if | cfg-if | crates.io/cfg-if | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Conditional compilation |  | backend/handshake_core (transitive) |
+| crate.handshake_core.comfy-table | comfy-table | crates.io/comfy-table | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Table formatting |  | backend/handshake_core (transitive) |
+| crate.handshake_core.concurrent-queue | concurrent-queue | crates.io/concurrent-queue | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Concurrent queue |  | backend/handshake_core (transitive) |
+| crate.handshake_core.console | console | crates.io/console | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Terminal console |  | backend/handshake_core (transitive) |
+| crate.handshake_core.const-oid | const-oid | crates.io/const-oid | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Const OID |  | backend/handshake_core (transitive) |
+| crate.handshake_core.const-random | const-random | crates.io/const-random | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Const random |  | backend/handshake_core (transitive) |
+| crate.handshake_core.const-random-macro | const-random-macro | crates.io/const-random-macro | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Const random macro |  | backend/handshake_core (transitive) |
+| crate.handshake_core.core-foundation | core-foundation | crates.io/core-foundation | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=macOS core foundation |  | backend/handshake_core (transitive) |
+| crate.handshake_core.core-foundation-sys | core-foundation-sys | crates.io/core-foundation-sys | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Core foundation sys |  | backend/handshake_core (transitive) |
+| crate.handshake_core.cpufeatures | cpufeatures | crates.io/cpufeatures | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=CPU features |  | backend/handshake_core (transitive) |
+| crate.handshake_core.crc | crc | crates.io/crc | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=CRC checksums |  | backend/handshake_core (transitive) |
+| crate.handshake_core.crc32fast | crc32fast | crates.io/crc32fast | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Fast CRC32 |  | backend/handshake_core (transitive) |
+| crate.handshake_core.crc-catalog | crc-catalog | crates.io/crc-catalog | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=CRC catalog |  | backend/handshake_core (transitive) |
+| crate.handshake_core.crossbeam-channel | crossbeam-channel | crates.io/crossbeam-channel | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Crossbeam channels |  | backend/handshake_core (transitive) |
+| crate.handshake_core.crossbeam-deque | crossbeam-deque | crates.io/crossbeam-deque | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Work-stealing deque |  | backend/handshake_core (transitive) |
+| crate.handshake_core.crossbeam-epoch | crossbeam-epoch | crates.io/crossbeam-epoch | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Epoch GC |  | backend/handshake_core (transitive) |
+| crate.handshake_core.crossbeam-queue | crossbeam-queue | crates.io/crossbeam-queue | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Concurrent queues |  | backend/handshake_core (transitive) |
+| crate.handshake_core.crossbeam-utils | crossbeam-utils | crates.io/crossbeam-utils | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Crossbeam utilities |  | backend/handshake_core (transitive) |
+| crate.handshake_core.crunchy | crunchy | crates.io/crunchy | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Loop unrolling |  | backend/handshake_core (transitive) |
+| crate.handshake_core.crypto-common | crypto-common | crates.io/crypto-common | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Crypto common |  | backend/handshake_core (transitive) |
+| crate.handshake_core.darling | darling | crates.io/darling | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Derive helpers |  | backend/handshake_core (transitive) |
+| crate.handshake_core.darling_core | darling_core | crates.io/darling_core | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Darling core |  | backend/handshake_core (transitive) |
+| crate.handshake_core.darling_macro | darling_macro | crates.io/darling_macro | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Darling macros |  | backend/handshake_core (transitive) |
+| crate.handshake_core.der | der | crates.io/der | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=DER encoding |  | backend/handshake_core (transitive) |
+| crate.handshake_core.deranged | deranged | crates.io/deranged | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Ranged integers |  | backend/handshake_core (transitive) |
+| crate.handshake_core.derive_arbitrary | derive_arbitrary | crates.io/derive_arbitrary | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Arbitrary derive |  | backend/handshake_core (transitive) |
+| crate.handshake_core.derive_builder | derive_builder | crates.io/derive_builder | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Builder derive |  | backend/handshake_core (transitive) |
+| crate.handshake_core.derive_builder_core | derive_builder_core | crates.io/derive_builder_core | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Builder core |  | backend/handshake_core (transitive) |
+| crate.handshake_core.derive_builder_macro | derive_builder_macro | crates.io/derive_builder_macro | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Builder macro |  | backend/handshake_core (transitive) |
+| crate.handshake_core.digest | digest | crates.io/digest | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Digest traits |  | backend/handshake_core (transitive) |
+| crate.handshake_core.displaydoc | displaydoc | crates.io/displaydoc | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Display docs |  | backend/handshake_core (transitive) |
+| crate.handshake_core.dotenvy | dotenvy | crates.io/dotenvy | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Dotenv loading |  | backend/handshake_core (transitive) |
+| crate.handshake_core.either | either | crates.io/either | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Either type |  | backend/handshake_core (transitive) |
+| crate.handshake_core.encode_unicode | encode_unicode | crates.io/encode_unicode | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Unicode encoding |  | backend/handshake_core (transitive) |
+| crate.handshake_core.encoding_rs | encoding_rs | crates.io/encoding_rs | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Character encoding |  | backend/handshake_core (transitive) |
+| crate.handshake_core.equivalent | equivalent | crates.io/equivalent | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Equivalence trait |  | backend/handshake_core (transitive) |
+| crate.handshake_core.errno | errno | crates.io/errno | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Errno handling |  | backend/handshake_core (transitive) |
+| crate.handshake_core.esaxx-rs | esaxx-rs | crates.io/esaxx-rs | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ESA-XX suffix array |  | backend/handshake_core (transitive) |
+| crate.handshake_core.etcetera | etcetera | crates.io/etcetera | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=XDG directories |  | backend/handshake_core (transitive) |
+| crate.handshake_core.event-listener | event-listener | crates.io/event-listener | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Event listener |  | backend/handshake_core (transitive) |
+| crate.handshake_core.fallible-iterator | fallible-iterator | crates.io/fallible-iterator | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Fallible iterators |  | backend/handshake_core (transitive) |
+| crate.handshake_core.fallible-streaming-iterator | fallible-streaming-iterator | crates.io/fallible-streaming-iterator | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Streaming iterators |  | backend/handshake_core (transitive) |
+| crate.handshake_core.fancy-regex | fancy-regex | crates.io/fancy-regex | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Advanced regex |  | backend/handshake_core (transitive) |
+| crate.handshake_core.fastrand | fastrand | crates.io/fastrand | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Fast random |  | backend/handshake_core (transitive) |
+| crate.handshake_core.filetime | filetime | crates.io/filetime | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=File times |  | backend/handshake_core (transitive) |
+| crate.handshake_core.find-msvc-tools | find-msvc-tools | crates.io/find-msvc-tools | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Build; purpose=MSVC tools |  | backend/handshake_core (transitive) |
+| crate.handshake_core.flate2 | flate2 | crates.io/flate2 | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Deflate compression |  | backend/handshake_core (transitive) |
+| crate.handshake_core.flume | flume | crates.io/flume | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Channel library |  | backend/handshake_core (transitive) |
+| crate.handshake_core.fnv | fnv | crates.io/fnv | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=FNV hashing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.foldhash | foldhash | crates.io/foldhash | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Folded hashing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.foreign-types | foreign-types | crates.io/foreign-types | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Foreign types |  | backend/handshake_core (transitive) |
+| crate.handshake_core.foreign-types-shared | foreign-types-shared | crates.io/foreign-types-shared | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Foreign types shared |  | backend/handshake_core (transitive) |
+| crate.handshake_core.form_urlencoded | form_urlencoded | crates.io/form_urlencoded | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=URL encoding |  | backend/handshake_core (transitive) |
+| crate.handshake_core.funty | funty | crates.io/funty | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Fundamental types |  | backend/handshake_core (transitive) |
+| crate.handshake_core.futures-channel | futures-channel | crates.io/futures-channel | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Futures channel |  | backend/handshake_core (transitive) |
+| crate.handshake_core.futures-core | futures-core | crates.io/futures-core | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Futures core |  | backend/handshake_core (transitive) |
+| crate.handshake_core.futures-executor | futures-executor | crates.io/futures-executor | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Futures executor |  | backend/handshake_core (transitive) |
+| crate.handshake_core.futures-intrusive | futures-intrusive | crates.io/futures-intrusive | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Intrusive futures |  | backend/handshake_core (transitive) |
+| crate.handshake_core.futures-io | futures-io | crates.io/futures-io | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Futures I/O |  | backend/handshake_core (transitive) |
+| crate.handshake_core.futures-sink | futures-sink | crates.io/futures-sink | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Futures sink |  | backend/handshake_core (transitive) |
+| crate.handshake_core.futures-task | futures-task | crates.io/futures-task | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Futures task |  | backend/handshake_core (transitive) |
+| crate.handshake_core.futures-util | futures-util | crates.io/futures-util | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Futures utilities |  | backend/handshake_core (transitive) |
+| crate.handshake_core.generic-array | generic-array | crates.io/generic-array | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Generic arrays |  | backend/handshake_core (transitive) |
+| crate.handshake_core.getrandom | getrandom | crates.io/getrandom | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Random bytes |  | backend/handshake_core (transitive) |
+| crate.handshake_core.h2 | h2 | crates.io/h2 | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=HTTP/2 |  | backend/handshake_core (transitive) |
+| crate.handshake_core.half | half | crates.io/half | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Half-precision floats |  | backend/handshake_core (transitive) |
+| crate.handshake_core.handshake_core | handshake_core | crates.io/handshake_core | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=This project |  | backend/handshake_core (transitive) |
+| crate.handshake_core.hashbrown | hashbrown | crates.io/hashbrown | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Hash tables |  | backend/handshake_core (transitive) |
+| crate.handshake_core.hashlink | hashlink | crates.io/hashlink | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Linked hash map |  | backend/handshake_core (transitive) |
+| crate.handshake_core.heck | heck | crates.io/heck | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Case conversion |  | backend/handshake_core (transitive) |
+| crate.handshake_core.hkdf | hkdf | crates.io/hkdf | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=HKDF |  | backend/handshake_core (transitive) |
+| crate.handshake_core.hmac | hmac | crates.io/hmac | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=HMAC |  | backend/handshake_core (transitive) |
+| crate.handshake_core.home | home | crates.io/home | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Home directory |  | backend/handshake_core (transitive) |
+| crate.handshake_core.http | http | crates.io/http | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=HTTP types |  | backend/handshake_core (transitive) |
+| crate.handshake_core.httparse | httparse | crates.io/httparse | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=HTTP parsing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.http-body | http-body | crates.io/http-body | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=HTTP body |  | backend/handshake_core (transitive) |
+| crate.handshake_core.http-body-util | http-body-util | crates.io/http-body-util | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=HTTP body utils |  | backend/handshake_core (transitive) |
+| crate.handshake_core.httpdate | httpdate | crates.io/httpdate | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=HTTP date |  | backend/handshake_core (transitive) |
+| crate.handshake_core.hyper | hyper | crates.io/hyper | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=HTTP client/server |  | backend/handshake_core (transitive) |
+| crate.handshake_core.hyper-rustls | hyper-rustls | crates.io/hyper-rustls | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Hyper TLS |  | backend/handshake_core (transitive) |
+| crate.handshake_core.hyper-tls | hyper-tls | crates.io/hyper-tls | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Hyper TLS native |  | backend/handshake_core (transitive) |
+| crate.handshake_core.hyper-util | hyper-util | crates.io/hyper-util | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Hyper utilities |  | backend/handshake_core (transitive) |
+| crate.handshake_core.iana-time-zone | iana-time-zone | crates.io/iana-time-zone | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=IANA time zones |  | backend/handshake_core (transitive) |
+| crate.handshake_core.iana-time-zone-haiku | iana-time-zone-haiku | crates.io/iana-time-zone-haiku | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Haiku time zones |  | backend/handshake_core (transitive) |
+| crate.handshake_core.icu_collections | icu_collections | crates.io/icu_collections | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ICU collections |  | backend/handshake_core (transitive) |
+| crate.handshake_core.icu_locale_core | icu_locale_core | crates.io/icu_locale_core | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ICU locale |  | backend/handshake_core (transitive) |
+| crate.handshake_core.icu_normalizer | icu_normalizer | crates.io/icu_normalizer | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ICU normalizer |  | backend/handshake_core (transitive) |
+| crate.handshake_core.icu_normalizer_data | icu_normalizer_data | crates.io/icu_normalizer_data | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ICU normalizer data |  | backend/handshake_core (transitive) |
+| crate.handshake_core.icu_properties | icu_properties | crates.io/icu_properties | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ICU properties |  | backend/handshake_core (transitive) |
+| crate.handshake_core.icu_properties_data | icu_properties_data | crates.io/icu_properties_data | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ICU properties data |  | backend/handshake_core (transitive) |
+| crate.handshake_core.icu_provider | icu_provider | crates.io/icu_provider | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ICU provider |  | backend/handshake_core (transitive) |
+| crate.handshake_core.ident_case | ident_case | crates.io/ident_case | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Identifier case |  | backend/handshake_core (transitive) |
+| crate.handshake_core.idna | idna | crates.io/idna | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=IDNA |  | backend/handshake_core (transitive) |
+| crate.handshake_core.idna_adapter | idna_adapter | crates.io/idna_adapter | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=IDNA adapter |  | backend/handshake_core (transitive) |
+| crate.handshake_core.indexmap | indexmap | crates.io/indexmap | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Indexed map |  | backend/handshake_core (transitive) |
+| crate.handshake_core.indicatif | indicatif | crates.io/indicatif | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Progress bars |  | backend/handshake_core (transitive) |
+| crate.handshake_core.ipnet | ipnet | crates.io/ipnet | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=IP networks |  | backend/handshake_core (transitive) |
+| crate.handshake_core.iri-string | iri-string | crates.io/iri-string | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=IRI strings |  | backend/handshake_core (transitive) |
+| crate.handshake_core.itertools | itertools | crates.io/itertools | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Iterator tools |  | backend/handshake_core (transitive) |
+| crate.handshake_core.itoa | itoa | crates.io/itoa | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Integer to string |  | backend/handshake_core (transitive) |
+| crate.handshake_core.jobserver | jobserver | crates.io/jobserver | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Build; purpose=Job server |  | backend/handshake_core (transitive) |
+| crate.handshake_core.js-sys | js-sys | crates.io/js-sys | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=JS bindings |  | backend/handshake_core (transitive) |
+| crate.handshake_core.lazy_static | lazy_static | crates.io/lazy_static | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Lazy statics |  | backend/handshake_core (transitive) |
+| crate.handshake_core.lexical-core | lexical-core | crates.io/lexical-core | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Lexical core |  | backend/handshake_core (transitive) |
+| crate.handshake_core.lexical-parse-float | lexical-parse-float | crates.io/lexical-parse-float | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Float parsing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.lexical-parse-integer | lexical-parse-integer | crates.io/lexical-parse-integer | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Integer parsing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.lexical-util | lexical-util | crates.io/lexical-util | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Lexical utilities |  | backend/handshake_core (transitive) |
+| crate.handshake_core.lexical-write-float | lexical-write-float | crates.io/lexical-write-float | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Float writing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.lexical-write-integer | lexical-write-integer | crates.io/lexical-write-integer | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Integer writing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.libc | libc | crates.io/libc | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=C library bindings |  | backend/handshake_core (transitive) |
+| crate.handshake_core.libduckdb-sys | libduckdb-sys | crates.io/libduckdb-sys | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=DuckDB FFI |  | backend/handshake_core (transitive) |
+| crate.handshake_core.libm | libm | crates.io/libm | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Math library |  | backend/handshake_core (transitive) |
+| crate.handshake_core.libredox | libredox | crates.io/libredox | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Redox syscalls |  | backend/handshake_core (transitive) |
+| crate.handshake_core.libsqlite3-sys | libsqlite3-sys | crates.io/libsqlite3-sys | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=SQLite FFI |  | backend/handshake_core (transitive) |
+| crate.handshake_core.libz-rs-sys | libz-rs-sys | crates.io/libz-rs-sys | Zlib | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Zlib bindings |  | backend/handshake_core (transitive) |
+| crate.handshake_core.linux-raw-sys | linux-raw-sys | crates.io/linux-raw-sys | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Linux syscalls |  | backend/handshake_core (transitive) |
+| crate.handshake_core.litemap | litemap | crates.io/litemap | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Literal map |  | backend/handshake_core (transitive) |
+| crate.handshake_core.lock_api | lock_api | crates.io/lock_api | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Lock API |  | backend/handshake_core (transitive) |
+| crate.handshake_core.log | log | crates.io/log | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Logging facade |  | backend/handshake_core (transitive) |
+| crate.handshake_core.lru-slab | lru-slab | crates.io/lru-slab | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=LRU slab |  | backend/handshake_core (transitive) |
+| crate.handshake_core.macro_rules_attribute | macro_rules_attribute | crates.io/macro_rules_attribute | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Macro rules |  | backend/handshake_core (transitive) |
+| crate.handshake_core.macro_rules_attribute-proc_macro | macro_rules_attribute-proc_macro | crates.io/macro_rules_attribute-proc_macro | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Macro rules proc |  | backend/handshake_core (transitive) |
+| crate.handshake_core.matchers | matchers | crates.io/matchers | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Pattern matchers |  | backend/handshake_core (transitive) |
+| crate.handshake_core.matchit | matchit | crates.io/matchit | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=URL matching |  | backend/handshake_core (transitive) |
+| crate.handshake_core.md-5 | md-5 | crates.io/md-5 | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=MD5 hashing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.memchr | memchr | crates.io/memchr | MIT/Unlicense | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Byte search |  | backend/handshake_core (transitive) |
+| crate.handshake_core.mime | mime | crates.io/mime | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=MIME types |  | backend/handshake_core (transitive) |
+| crate.handshake_core.minimal-lexical | minimal-lexical | crates.io/minimal-lexical | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Minimal lexical |  | backend/handshake_core (transitive) |
+| crate.handshake_core.miniz_oxide | miniz_oxide | crates.io/miniz_oxide | MIT/Zlib/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Miniz oxide |  | backend/handshake_core (transitive) |
+| crate.handshake_core.mio | mio | crates.io/mio | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=I/O library |  | backend/handshake_core (transitive) |
+| crate.handshake_core.monostate | monostate | crates.io/monostate | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Monostate |  | backend/handshake_core (transitive) |
+| crate.handshake_core.monostate-impl | monostate-impl | crates.io/monostate-impl | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Monostate impl |  | backend/handshake_core (transitive) |
+| crate.handshake_core.native-tls | native-tls | crates.io/native-tls | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Native TLS |  | backend/handshake_core (transitive) |
+| crate.handshake_core.nom | nom | crates.io/nom | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Parser combinators |  | backend/handshake_core (transitive) |
+| crate.handshake_core.nu-ansi-term | nu-ansi-term | crates.io/nu-ansi-term | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ANSI terminal |  | backend/handshake_core (transitive) |
+| crate.handshake_core.num | num | crates.io/num | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Numeric types |  | backend/handshake_core (transitive) |
+| crate.handshake_core.number_prefix | number_prefix | crates.io/number_prefix | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Number prefix |  | backend/handshake_core (transitive) |
+| crate.handshake_core.num-bigint | num-bigint | crates.io/num-bigint | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Big integers |  | backend/handshake_core (transitive) |
+| crate.handshake_core.num-bigint-dig | num-bigint-dig | crates.io/num-bigint-dig | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Big integers dig |  | backend/handshake_core (transitive) |
+| crate.handshake_core.num-complex | num-complex | crates.io/num-complex | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Complex numbers |  | backend/handshake_core (transitive) |
+| crate.handshake_core.num-conv | num-conv | crates.io/num-conv | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Numeric conversion |  | backend/handshake_core (transitive) |
+| crate.handshake_core.num-integer | num-integer | crates.io/num-integer | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Integer traits |  | backend/handshake_core (transitive) |
+| crate.handshake_core.num-iter | num-iter | crates.io/num-iter | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Numeric iterators |  | backend/handshake_core (transitive) |
+| crate.handshake_core.num-rational | num-rational | crates.io/num-rational | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Rational numbers |  | backend/handshake_core (transitive) |
+| crate.handshake_core.num-traits | num-traits | crates.io/num-traits | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Numeric traits |  | backend/handshake_core (transitive) |
+| crate.handshake_core.onig | onig | crates.io/onig | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Oniguruma regex |  | backend/handshake_core (transitive) |
+| crate.handshake_core.onig_sys | onig_sys | crates.io/onig_sys | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Oniguruma FFI |  | backend/handshake_core (transitive) |
+| crate.handshake_core.openssl | openssl | crates.io/openssl | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=OpenSSL bindings |  | backend/handshake_core (transitive) |
+| crate.handshake_core.openssl-macros | openssl-macros | crates.io/openssl-macros | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=OpenSSL macros |  | backend/handshake_core (transitive) |
+| crate.handshake_core.openssl-probe | openssl-probe | crates.io/openssl-probe | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=OpenSSL probe |  | backend/handshake_core (transitive) |
+| crate.handshake_core.openssl-sys | openssl-sys | crates.io/openssl-sys | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=OpenSSL FFI |  | backend/handshake_core (transitive) |
+| crate.handshake_core.parking | parking | crates.io/parking | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Thread parking |  | backend/handshake_core (transitive) |
+| crate.handshake_core.parking_lot | parking_lot | crates.io/parking_lot | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Parking lot |  | backend/handshake_core (transitive) |
+| crate.handshake_core.parking_lot_core | parking_lot_core | crates.io/parking_lot_core | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Parking lot core |  | backend/handshake_core (transitive) |
+| crate.handshake_core.paste | paste | crates.io/paste | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Macro pasting |  | backend/handshake_core (transitive) |
+| crate.handshake_core.pem-rfc7468 | pem-rfc7468 | crates.io/pem-rfc7468 | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=PEM encoding |  | backend/handshake_core (transitive) |
+| crate.handshake_core.percent-encoding | percent-encoding | crates.io/percent-encoding | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Percent encoding |  | backend/handshake_core (transitive) |
+| crate.handshake_core.pin-project-lite | pin-project-lite | crates.io/pin-project-lite | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Pin project |  | backend/handshake_core (transitive) |
+| crate.handshake_core.pin-utils | pin-utils | crates.io/pin-utils | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Pin utilities |  | backend/handshake_core (transitive) |
+| crate.handshake_core.pkcs1 | pkcs1 | crates.io/pkcs1 | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=PKCS#1 |  | backend/handshake_core (transitive) |
+| crate.handshake_core.pkcs8 | pkcs8 | crates.io/pkcs8 | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=PKCS#8 |  | backend/handshake_core (transitive) |
+| crate.handshake_core.pkg-config | pkg-config | crates.io/pkg-config | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Build; purpose=Pkg-config |  | backend/handshake_core (transitive) |
+| crate.handshake_core.portable-atomic | portable-atomic | crates.io/portable-atomic | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Portable atomics |  | backend/handshake_core (transitive) |
+| crate.handshake_core.potential_utf | potential_utf | crates.io/potential_utf | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Potential UTF |  | backend/handshake_core (transitive) |
+| crate.handshake_core.powerfmt | powerfmt | crates.io/powerfmt | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Power formatting |  | backend/handshake_core (transitive) |
+| crate.handshake_core.ppv-lite86 | ppv-lite86 | crates.io/ppv-lite86 | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=SIMD vectors |  | backend/handshake_core (transitive) |
+| crate.handshake_core.proc-macro2 | proc-macro2 | crates.io/proc-macro2 | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Build; purpose=Proc macros |  | backend/handshake_core (transitive) |
+| crate.handshake_core.proc-macro-crate | proc-macro-crate | crates.io/proc-macro-crate | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Build; purpose=Proc macro crate |  | backend/handshake_core (transitive) |
+| crate.handshake_core.ptr_meta | ptr_meta | crates.io/ptr_meta | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Pointer metadata |  | backend/handshake_core (transitive) |
+| crate.handshake_core.ptr_meta_derive | ptr_meta_derive | crates.io/ptr_meta_derive | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Pointer meta derive |  | backend/handshake_core (transitive) |
+| crate.handshake_core.quinn | quinn | crates.io/quinn | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=QUIC |  | backend/handshake_core (transitive) |
+| crate.handshake_core.quinn-proto | quinn-proto | crates.io/quinn-proto | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=QUIC protocol |  | backend/handshake_core (transitive) |
+| crate.handshake_core.quinn-udp | quinn-udp | crates.io/quinn-udp | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=QUIC UDP |  | backend/handshake_core (transitive) |
+| crate.handshake_core.quote | quote | crates.io/quote | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Build; purpose=Quasi-quoting |  | backend/handshake_core (transitive) |
+| crate.handshake_core.radium | radium | crates.io/radium | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Radium |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rand | rand | crates.io/rand | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Random numbers |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rand_chacha | rand_chacha | crates.io/rand_chacha | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=ChaCha RNG |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rand_core | rand_core | crates.io/rand_core | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=RNG core |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rayon | rayon | crates.io/rayon | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Parallel iteration |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rayon-cond | rayon-cond | crates.io/rayon-cond | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Rayon conditional |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rayon-core | rayon-core | crates.io/rayon-core | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Rayon core |  | backend/handshake_core (transitive) |
+| crate.handshake_core.redox_syscall | redox_syscall | crates.io/redox_syscall | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Redox syscalls |  | backend/handshake_core (transitive) |
+| crate.handshake_core.r-efi | r-efi | crates.io/r-efi | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=UEFI types |  | backend/handshake_core (transitive) |
+| crate.handshake_core.regex-automata | regex-automata | crates.io/regex-automata | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Regex automata |  | backend/handshake_core (transitive) |
+| crate.handshake_core.regex-syntax | regex-syntax | crates.io/regex-syntax | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Regex syntax |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rend | rend | crates.io/rend | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Rend |  | backend/handshake_core (transitive) |
+| crate.handshake_core.ring | ring | crates.io/ring | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Crypto primitives |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rkyv | rkyv | crates.io/rkyv | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Zero-copy serialization |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rkyv_derive | rkyv_derive | crates.io/rkyv_derive | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Rkyv derive |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rsa | rsa | crates.io/rsa | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=RSA crypto |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rust_decimal | rust_decimal | crates.io/rust_decimal | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Decimal type |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rustc-hash | rustc-hash | crates.io/rustc-hash | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Rustc hash |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rustix | rustix | crates.io/rustix | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Unix APIs |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rustls | rustls | crates.io/rustls | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=TLS library |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rustls-pki-types | rustls-pki-types | crates.io/rustls-pki-types | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=PKI types |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rustls-webpki | rustls-webpki | crates.io/rustls-webpki | ISC | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=WebPKI |  | backend/handshake_core (transitive) |
+| crate.handshake_core.rustversion | rustversion | crates.io/rustversion | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Build; purpose=Rust version |  | backend/handshake_core (transitive) |
+| crate.handshake_core.ryu | ryu | crates.io/ryu | Apache-2.0/BSL-1.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Float to string |  | backend/handshake_core (transitive) |
+| crate.handshake_core.schannel | schannel | crates.io/schannel | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows TLS |  | backend/handshake_core (transitive) |
+| crate.handshake_core.scopeguard | scopeguard | crates.io/scopeguard | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Scope guard |  | backend/handshake_core (transitive) |
+| crate.handshake_core.seahash | seahash | crates.io/seahash | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=SeaHash |  | backend/handshake_core (transitive) |
+| crate.handshake_core.security-framework | security-framework | crates.io/security-framework | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=macOS security |  | backend/handshake_core (transitive) |
+| crate.handshake_core.security-framework-sys | security-framework-sys | crates.io/security-framework-sys | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Security framework sys |  | backend/handshake_core (transitive) |
+| crate.handshake_core.serde_core | serde_core | crates.io/serde_core | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Serde core |  | backend/handshake_core (transitive) |
+| crate.handshake_core.serde_derive | serde_derive | crates.io/serde_derive | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Serde derive |  | backend/handshake_core (transitive) |
+| crate.handshake_core.serde_path_to_error | serde_path_to_error | crates.io/serde_path_to_error | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Serde path error |  | backend/handshake_core (transitive) |
+| crate.handshake_core.serde_urlencoded | serde_urlencoded | crates.io/serde_urlencoded | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=URL encoding |  | backend/handshake_core (transitive) |
+| crate.handshake_core.sha1 | sha1 | crates.io/sha1 | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=SHA-1 |  | backend/handshake_core (transitive) |
+| crate.handshake_core.sharded-slab | sharded-slab | crates.io/sharded-slab | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Sharded slab |  | backend/handshake_core (transitive) |
+| crate.handshake_core.shlex | shlex | crates.io/shlex | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Shell lexer |  | backend/handshake_core (transitive) |
+| crate.handshake_core.signal-hook-registry | signal-hook-registry | crates.io/signal-hook-registry | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Signal registry |  | backend/handshake_core (transitive) |
+| crate.handshake_core.signature | signature | crates.io/signature | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Crypto signatures |  | backend/handshake_core (transitive) |
+| crate.handshake_core.simd-adler32 | simd-adler32 | crates.io/simd-adler32 | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=SIMD Adler32 |  | backend/handshake_core (transitive) |
+| crate.handshake_core.simdutf8 | simdutf8 | crates.io/simdutf8 | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=SIMD UTF-8 |  | backend/handshake_core (transitive) |
+| crate.handshake_core.slab | slab | crates.io/slab | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Slab allocator |  | backend/handshake_core (transitive) |
+| crate.handshake_core.smallvec | smallvec | crates.io/smallvec | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Small vectors |  | backend/handshake_core (transitive) |
+| crate.handshake_core.socket2 | socket2 | crates.io/socket2 | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Socket utilities |  | backend/handshake_core (transitive) |
+| crate.handshake_core.spin | spin | crates.io/spin | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Spinlocks |  | backend/handshake_core (transitive) |
+| crate.handshake_core.spki | spki | crates.io/spki | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=SPKI |  | backend/handshake_core (transitive) |
+| crate.handshake_core.spm_precompiled | spm_precompiled | crates.io/spm_precompiled | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=SPM precompiled |  | backend/handshake_core (transitive) |
+| crate.handshake_core.sqlx-core | sqlx-core | crates.io/sqlx-core | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=SQLx core |  | backend/handshake_core (transitive) |
+| crate.handshake_core.sqlx-macros | sqlx-macros | crates.io/sqlx-macros | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=SQLx macros |  | backend/handshake_core (transitive) |
+| crate.handshake_core.sqlx-macros-core | sqlx-macros-core | crates.io/sqlx-macros-core | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=SQLx macros core |  | backend/handshake_core (transitive) |
+| crate.handshake_core.sqlx-mysql | sqlx-mysql | crates.io/sqlx-mysql | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=SQLx MySQL |  | backend/handshake_core (transitive) |
+| crate.handshake_core.sqlx-postgres | sqlx-postgres | crates.io/sqlx-postgres | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=SQLx Postgres |  | backend/handshake_core (transitive) |
+| crate.handshake_core.sqlx-sqlite | sqlx-sqlite | crates.io/sqlx-sqlite | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=SQLx SQLite |  | backend/handshake_core (transitive) |
+| crate.handshake_core.stable_deref_trait | stable_deref_trait | crates.io/stable_deref_trait | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Stable deref |  | backend/handshake_core (transitive) |
+| crate.handshake_core.stringprep | stringprep | crates.io/stringprep | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Stringprep |  | backend/handshake_core (transitive) |
+| crate.handshake_core.strsim | strsim | crates.io/strsim | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=String similarity |  | backend/handshake_core (transitive) |
+| crate.handshake_core.strum | strum | crates.io/strum | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Enum utilities |  | backend/handshake_core (transitive) |
+| crate.handshake_core.strum_macros | strum_macros | crates.io/strum_macros | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Strum macros |  | backend/handshake_core (transitive) |
+| crate.handshake_core.subtle | subtle | crates.io/subtle | BSD-3-Clause | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Constant-time ops |  | backend/handshake_core (transitive) |
+| crate.handshake_core.syn | syn | crates.io/syn | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Build; purpose=Syntax parsing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.sync_wrapper | sync_wrapper | crates.io/sync_wrapper | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Sync wrapper |  | backend/handshake_core (transitive) |
+| crate.handshake_core.synstructure | synstructure | crates.io/synstructure | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Syn structure |  | backend/handshake_core (transitive) |
+| crate.handshake_core.system-configuration | system-configuration | crates.io/system-configuration | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=macOS config |  | backend/handshake_core (transitive) |
+| crate.handshake_core.system-configuration-sys | system-configuration-sys | crates.io/system-configuration-sys | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=System config sys |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tap | tap | crates.io/tap | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tap trait |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tar | tar | crates.io/tar | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tar archives |  | backend/handshake_core (transitive) |
+| crate.handshake_core.thiserror-impl | thiserror-impl | crates.io/thiserror-impl | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Thiserror impl |  | backend/handshake_core (transitive) |
+| crate.handshake_core.thread_local | thread_local | crates.io/thread_local | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Thread local |  | backend/handshake_core (transitive) |
+| crate.handshake_core.time | time | crates.io/time | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Time library |  | backend/handshake_core (transitive) |
+| crate.handshake_core.time-core | time-core | crates.io/time-core | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Time core |  | backend/handshake_core (transitive) |
+| crate.handshake_core.time-macros | time-macros | crates.io/time-macros | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Time macros |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tiny-keccak | tiny-keccak | crates.io/tiny-keccak | CC0-1.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Keccak hashing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tinystr | tinystr | crates.io/tinystr | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tiny strings |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tinyvec | tinyvec | crates.io/tinyvec | MIT/Apache-2.0/Zlib | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tiny vectors |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tinyvec_macros | tinyvec_macros | crates.io/tinyvec_macros | MIT/Apache-2.0/Zlib | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tinyvec macros |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tokio-macros | tokio-macros | crates.io/tokio-macros | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tokio macros |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tokio-native-tls | tokio-native-tls | crates.io/tokio-native-tls | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tokio native TLS |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tokio-rustls | tokio-rustls | crates.io/tokio-rustls | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tokio rustls |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tokio-stream | tokio-stream | crates.io/tokio-stream | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tokio streams |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tokio-util | tokio-util | crates.io/tokio-util | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tokio utilities |  | backend/handshake_core (transitive) |
+| crate.handshake_core.toml_datetime | toml_datetime | crates.io/toml_datetime | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=TOML datetime |  | backend/handshake_core (transitive) |
+| crate.handshake_core.toml_edit | toml_edit | crates.io/toml_edit | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=TOML editing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.toml_parser | toml_parser | crates.io/toml_parser | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=TOML parser |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tower | tower | crates.io/tower | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Service abstraction |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tower-layer | tower-layer | crates.io/tower-layer | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tower layers |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tower-service | tower-service | crates.io/tower-service | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tower service |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tracing-attributes | tracing-attributes | crates.io/tracing-attributes | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tracing attributes |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tracing-core | tracing-core | crates.io/tracing-core | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tracing core |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tracing-log | tracing-log | crates.io/tracing-log | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tracing log |  | backend/handshake_core (transitive) |
+| crate.handshake_core.tracing-serde | tracing-serde | crates.io/tracing-serde | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Tracing serde |  | backend/handshake_core (transitive) |
+| crate.handshake_core.try-lock | try-lock | crates.io/try-lock | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Try lock |  | backend/handshake_core (transitive) |
+| crate.handshake_core.typenum | typenum | crates.io/typenum | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Type-level numbers |  | backend/handshake_core (transitive) |
+| crate.handshake_core.unicode_categories | unicode_categories | crates.io/unicode_categories | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Unicode categories |  | backend/handshake_core (transitive) |
+| crate.handshake_core.unicode-bidi | unicode-bidi | crates.io/unicode-bidi | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Unicode bidi |  | backend/handshake_core (transitive) |
+| crate.handshake_core.unicode-ident | unicode-ident | crates.io/unicode-ident | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Unicode identifiers |  | backend/handshake_core (transitive) |
+| crate.handshake_core.unicode-normalization-alignments | unicode-normalization-alignments | crates.io/unicode-normalization-alignments | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Unicode alignments |  | backend/handshake_core (transitive) |
+| crate.handshake_core.unicode-properties | unicode-properties | crates.io/unicode-properties | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Unicode properties |  | backend/handshake_core (transitive) |
+| crate.handshake_core.unicode-segmentation | unicode-segmentation | crates.io/unicode-segmentation | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Unicode segmentation |  | backend/handshake_core (transitive) |
+| crate.handshake_core.unicode-width | unicode-width | crates.io/unicode-width | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Unicode width |  | backend/handshake_core (transitive) |
+| crate.handshake_core.untrusted | untrusted | crates.io/untrusted | ISC | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Untrusted input |  | backend/handshake_core (transitive) |
+| crate.handshake_core.url | url | crates.io/url | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=URL parsing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.utf8_iter | utf8_iter | crates.io/utf8_iter | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=UTF-8 iterator |  | backend/handshake_core (transitive) |
+| crate.handshake_core.valuable | valuable | crates.io/valuable | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Valuable trait |  | backend/handshake_core (transitive) |
+| crate.handshake_core.vcpkg | vcpkg | crates.io/vcpkg | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Build; purpose=Vcpkg integration |  | backend/handshake_core (transitive) |
+| crate.handshake_core.version_check | version_check | crates.io/version_check | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Build; purpose=Version checking |  | backend/handshake_core (transitive) |
+| crate.handshake_core.want | want | crates.io/want | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Want signaling |  | backend/handshake_core (transitive) |
+| crate.handshake_core.wasi | wasi | crates.io/wasi | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=WASI bindings |  | backend/handshake_core (transitive) |
+| crate.handshake_core.wasip2 | wasip2 | crates.io/wasip2 | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=WASI preview 2 |  | backend/handshake_core (transitive) |
+| crate.handshake_core.wasite | wasite | crates.io/wasite | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Wasite |  | backend/handshake_core (transitive) |
+| crate.handshake_core.wasm-bindgen | wasm-bindgen | crates.io/wasm-bindgen | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=WASM bindings |  | backend/handshake_core (transitive) |
+| crate.handshake_core.wasm-bindgen-futures | wasm-bindgen-futures | crates.io/wasm-bindgen-futures | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=WASM futures |  | backend/handshake_core (transitive) |
+| crate.handshake_core.wasm-bindgen-macro | wasm-bindgen-macro | crates.io/wasm-bindgen-macro | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=WASM macro |  | backend/handshake_core (transitive) |
+| crate.handshake_core.wasm-bindgen-macro-support | wasm-bindgen-macro-support | crates.io/wasm-bindgen-macro-support | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=WASM macro support |  | backend/handshake_core (transitive) |
+| crate.handshake_core.wasm-bindgen-shared | wasm-bindgen-shared | crates.io/wasm-bindgen-shared | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=WASM shared |  | backend/handshake_core (transitive) |
+| crate.handshake_core.webpki-roots | webpki-roots | crates.io/webpki-roots | MPL-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=WebPKI roots |  | backend/handshake_core (transitive) |
+| crate.handshake_core.web-sys | web-sys | crates.io/web-sys | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Web APIs |  | backend/handshake_core (transitive) |
+| crate.handshake_core.web-time | web-time | crates.io/web-time | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Web time |  | backend/handshake_core (transitive) |
+| crate.handshake_core.whoami | whoami | crates.io/whoami | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=User info |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows_aarch64_gnullvm | windows_aarch64_gnullvm | crates.io/windows_aarch64_gnullvm | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows ARM64 |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows_aarch64_msvc | windows_aarch64_msvc | crates.io/windows_aarch64_msvc | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows ARM64 MSVC |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows_i686_gnu | windows_i686_gnu | crates.io/windows_i686_gnu | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows i686 GNU |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows_i686_gnullvm | windows_i686_gnullvm | crates.io/windows_i686_gnullvm | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows i686 GNULLVM |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows_i686_msvc | windows_i686_msvc | crates.io/windows_i686_msvc | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows i686 MSVC |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows_x86_64_gnu | windows_x86_64_gnu | crates.io/windows_x86_64_gnu | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows x64 GNU |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows_x86_64_gnullvm | windows_x86_64_gnullvm | crates.io/windows_x86_64_gnullvm | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows x64 GNULLVM |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows_x86_64_msvc | windows_x86_64_msvc | crates.io/windows_x86_64_msvc | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows x64 MSVC |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows-core | windows-core | crates.io/windows-core | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows core |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows-implement | windows-implement | crates.io/windows-implement | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows implement |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows-interface | windows-interface | crates.io/windows-interface | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows interface |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows-link | windows-link | crates.io/windows-link | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows link |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows-registry | windows-registry | crates.io/windows-registry | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows registry |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows-result | windows-result | crates.io/windows-result | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows result |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows-strings | windows-strings | crates.io/windows-strings | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows strings |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows-sys | windows-sys | crates.io/windows-sys | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows sys |  | backend/handshake_core (transitive) |
+| crate.handshake_core.windows-targets | windows-targets | crates.io/windows-targets | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Windows targets |  | backend/handshake_core (transitive) |
+| crate.handshake_core.winnow | winnow | crates.io/winnow | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Parser library |  | backend/handshake_core (transitive) |
+| crate.handshake_core.wit-bindgen | wit-bindgen | crates.io/wit-bindgen | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=WIT bindings |  | backend/handshake_core (transitive) |
+| crate.handshake_core.writeable | writeable | crates.io/writeable | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Writeable trait |  | backend/handshake_core (transitive) |
+| crate.handshake_core.wyz | wyz | crates.io/wyz | MIT | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Utility macros |  | backend/handshake_core (transitive) |
+| crate.handshake_core.xattr | xattr | crates.io/xattr | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Extended attrs |  | backend/handshake_core (transitive) |
+| crate.handshake_core.yoke | yoke | crates.io/yoke | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Yoke borrowing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.yoke-derive | yoke-derive | crates.io/yoke-derive | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Yoke derive |  | backend/handshake_core (transitive) |
+| crate.handshake_core.zerocopy | zerocopy | crates.io/zerocopy | BSD-2-Clause | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Zero-copy parsing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.zerocopy-derive | zerocopy-derive | crates.io/zerocopy-derive | BSD-2-Clause | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Zerocopy derive |  | backend/handshake_core (transitive) |
+| crate.handshake_core.zerofrom | zerofrom | crates.io/zerofrom | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Zerofrom |  | backend/handshake_core (transitive) |
+| crate.handshake_core.zerofrom-derive | zerofrom-derive | crates.io/zerofrom-derive | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Zerofrom derive |  | backend/handshake_core (transitive) |
+| crate.handshake_core.zeroize | zeroize | crates.io/zeroize | MIT/Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Memory zeroing |  | backend/handshake_core (transitive) |
+| crate.handshake_core.zerotrie | zerotrie | crates.io/zerotrie | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Zero-copy trie |  | backend/handshake_core (transitive) |
+| crate.handshake_core.zerovec | zerovec | crates.io/zerovec | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Zero-copy vectors |  | backend/handshake_core (transitive) |
+| crate.handshake_core.zerovec-derive | zerovec-derive | crates.io/zerovec-derive | Unicode-3.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Zerovec derive |  | backend/handshake_core (transitive) |
+| crate.handshake_core.zlib-rs | zlib-rs | crates.io/zlib-rs | Zlib | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Zlib pure Rust |  | backend/handshake_core (transitive) |
+| crate.handshake_core.zopfli | zopfli | crates.io/zopfli | Apache-2.0 | embedded_lib |  | pinned: src/backend/handshake_core/Cargo.lock | scope=Runtime; purpose=Zopfli compression |  | backend/handshake_core (transitive) |
 
-## Desktop Shell – `app/src-tauri/Cargo.toml`
+## Desktop Shell - `app/src-tauri/Cargo.toml`
 
-| Component | License | IntegrationMode | Scope | Purpose |
-| --- | --- | --- | --- | --- |
-| tauri | MIT/Apache-2.0 | embedded_lib | Runtime | Desktop shell / IPC bridge |
-| tauri-plugin-opener | MIT/Apache-2.0 | embedded_lib | Runtime | Safe "open" integration |
-| tauri-build | MIT/Apache-2.0 | embedded_lib | Build | Tauri build script support |
+| component_id | name | upstream_ref | license | integration_mode_default | capabilities_required | pinning_policy | compliance_notes | test_fixture | used_by_modules |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| crate.tauri.tauri | tauri | crates.io/tauri | MIT/Apache-2.0 | embedded_lib |  | pinned: app/src-tauri/Cargo.lock | scope=Runtime; purpose=Desktop shell / IPC bridge |  | app/src-tauri (desktop shell) |
+| crate.tauri.tauri-plugin-opener | tauri-plugin-opener | crates.io/tauri-plugin-opener | MIT/Apache-2.0 | embedded_lib |  | pinned: app/src-tauri/Cargo.lock | scope=Runtime; purpose=Safe "open" integration |  | app/src-tauri (desktop shell) |
+| crate.tauri.tauri-build | tauri-build | crates.io/tauri-build | MIT/Apache-2.0 | embedded_lib |  | pinned: app/src-tauri/Cargo.lock | scope=Build; purpose=Tauri build script support |  | app/src-tauri (desktop shell) |
 
-## Frontend Runtime – `app/package.json` dependencies
+## Frontend Runtime - `app/package.json` dependencies
 
-| Component | License | IntegrationMode | Scope | Purpose |
-| --- | --- | --- | --- | --- |
-| @excalidraw/excalidraw | MIT | embedded_lib | Runtime | Canvas / whiteboard |
-| @tauri-apps/api | MIT/Apache-2.0 | embedded_lib | Runtime | Tauri IPC and shell APIs |
-| @tauri-apps/plugin-opener | MIT/Apache-2.0 | embedded_lib | Runtime | Link/file opener bridge |
-| @tiptap/core | MIT | embedded_lib | Runtime | Rich-text core |
-| @tiptap/extension-collaboration | MIT | embedded_lib | Runtime | CRDT-backed editing |
-| @tiptap/react | MIT | embedded_lib | Runtime | React bindings for TipTap |
-| @tiptap/starter-kit | MIT | embedded_lib | Runtime | Default editor nodes/marks |
-| react | MIT | embedded_lib | Runtime | UI framework |
-| react-dom | MIT | embedded_lib | Runtime | React DOM renderer |
-| yjs | MIT | embedded_lib | Runtime | CRDT collaboration |
+| component_id | name | upstream_ref | license | integration_mode_default | capabilities_required | pinning_policy | compliance_notes | test_fixture | used_by_modules |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| npm.excalidraw.excalidraw | @excalidraw/excalidraw | npmjs.com/@excalidraw/excalidraw | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=Canvas / whiteboard |  | app (frontend runtime) |
+| npm.tauri-apps.api | @tauri-apps/api | npmjs.com/@tauri-apps/api | MIT/Apache-2.0 | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=Tauri IPC and shell APIs |  | app (frontend runtime) |
+| npm.tauri-apps.plugin-opener | @tauri-apps/plugin-opener | npmjs.com/@tauri-apps/plugin-opener | MIT/Apache-2.0 | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=Link/file opener bridge |  | app (frontend runtime) |
+| npm.tiptap.core | @tiptap/core | npmjs.com/@tiptap/core | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=Rich-text core |  | app (frontend runtime) |
+| npm.tiptap.extension-collaboration | @tiptap/extension-collaboration | npmjs.com/@tiptap/extension-collaboration | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=CRDT-backed editing |  | app (frontend runtime) |
+| npm.tiptap.react | @tiptap/react | npmjs.com/@tiptap/react | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=React bindings for TipTap |  | app (frontend runtime) |
+| npm.tiptap.starter-kit | @tiptap/starter-kit | npmjs.com/@tiptap/starter-kit | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=Default editor nodes/marks |  | app (frontend runtime) |
+| npm.react | react | npmjs.com/react | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=UI framework |  | app (frontend runtime) |
+| npm.react-dom | react-dom | npmjs.com/react-dom | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=React DOM renderer |  | app (frontend runtime) |
+| npm.yjs | yjs | npmjs.com/yjs | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Runtime; purpose=CRDT collaboration |  | app (frontend runtime) |
 
-## Frontend Tooling & Tests – `app/package.json` devDependencies
+## Frontend Tooling & Tests - `app/package.json` devDependencies
 
-| Component | License | IntegrationMode | Scope | Purpose |
-| --- | --- | --- | --- | --- |
-| @eslint/js | MIT | embedded_lib | Dev | ESLint config |
-| @tauri-apps/cli | MIT/Apache-2.0 | embedded_lib | Dev | Tauri CLI/build |
-| @testing-library/jest-dom | MIT | embedded_lib | Test | Jest DOM matchers |
-| @testing-library/react | MIT | embedded_lib | Test | React testing utilities |
-| @types/jsdom | MIT | embedded_lib | Dev | TypeScript types |
-| @types/react | MIT | embedded_lib | Dev | TypeScript types |
-| @types/react-dom | MIT | embedded_lib | Dev | TypeScript types |
-| @typescript-eslint/eslint-plugin | MIT | embedded_lib | Dev | ESLint rules for TS |
-| @typescript-eslint/parser | MIT | embedded_lib | Dev | ESLint parser for TS |
-| @vitejs/plugin-react | MIT | embedded_lib | Dev | Vite React plugin |
-| dependency-cruiser | MIT | embedded_lib | Dev | Dependency graph linting |
-| eslint | MIT | embedded_lib | Dev | Lint runner |
-| eslint-plugin-react-hooks | MIT | embedded_lib | Dev | Hooks lint rules |
-| globals | MIT | embedded_lib | Dev | Global definitions for ESLint |
-| jsdom | MIT | embedded_lib | Test | DOM emulation for tests |
-| typescript | Apache-2.0 | embedded_lib | Dev | TypeScript compiler |
-| vite | MIT | embedded_lib | Dev | Bundler |
-| vitest | MIT | embedded_lib | Test | Test runner |
+| component_id | name | upstream_ref | license | integration_mode_default | capabilities_required | pinning_policy | compliance_notes | test_fixture | used_by_modules |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| npm.eslint.js | @eslint/js | npmjs.com/@eslint/js | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Dev; purpose=ESLint config |  | app (frontend tooling/tests) |
+| npm.tauri-apps.cli | @tauri-apps/cli | npmjs.com/@tauri-apps/cli | MIT/Apache-2.0 | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Dev; purpose=Tauri CLI/build |  | app (frontend tooling/tests) |
+| npm.testing-library.jest-dom | @testing-library/jest-dom | npmjs.com/@testing-library/jest-dom | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Test; purpose=Jest DOM matchers |  | app (frontend tooling/tests) |
+| npm.testing-library.react | @testing-library/react | npmjs.com/@testing-library/react | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Test; purpose=React testing utilities |  | app (frontend tooling/tests) |
+| npm.types.jsdom | @types/jsdom | npmjs.com/@types/jsdom | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Dev; purpose=TypeScript types |  | app (frontend tooling/tests) |
+| npm.types.react | @types/react | npmjs.com/@types/react | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Dev; purpose=TypeScript types |  | app (frontend tooling/tests) |
+| npm.types.react-dom | @types/react-dom | npmjs.com/@types/react-dom | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Dev; purpose=TypeScript types |  | app (frontend tooling/tests) |
+| npm.typescript-eslint.eslint-plugin | @typescript-eslint/eslint-plugin | npmjs.com/@typescript-eslint/eslint-plugin | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Dev; purpose=ESLint rules for TS |  | app (frontend tooling/tests) |
+| npm.typescript-eslint.parser | @typescript-eslint/parser | npmjs.com/@typescript-eslint/parser | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Dev; purpose=ESLint parser for TS |  | app (frontend tooling/tests) |
+| npm.vitejs.plugin-react | @vitejs/plugin-react | npmjs.com/@vitejs/plugin-react | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Dev; purpose=Vite React plugin |  | app (frontend tooling/tests) |
+| npm.dependency-cruiser | dependency-cruiser | npmjs.com/dependency-cruiser | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Dev; purpose=Dependency graph linting |  | app (frontend tooling/tests) |
+| npm.eslint | eslint | npmjs.com/eslint | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Dev; purpose=Lint runner |  | app (frontend tooling/tests) |
+| npm.eslint-plugin-react-hooks | eslint-plugin-react-hooks | npmjs.com/eslint-plugin-react-hooks | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Dev; purpose=Hooks lint rules |  | app (frontend tooling/tests) |
+| npm.globals | globals | npmjs.com/globals | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Dev; purpose=Global definitions for ESLint |  | app (frontend tooling/tests) |
+| npm.jsdom | jsdom | npmjs.com/jsdom | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Test; purpose=DOM emulation for tests |  | app (frontend tooling/tests) |
+| npm.typescript | typescript | npmjs.com/typescript | Apache-2.0 | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Dev; purpose=TypeScript compiler |  | app (frontend tooling/tests) |
+| npm.vite | vite | npmjs.com/vite | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Dev; purpose=Bundler |  | app (frontend tooling/tests) |
+| npm.vitest | vitest | npmjs.com/vitest | MIT | embedded_lib |  | pinned: app/pnpm-lock.yaml | scope=Test; purpose=Test runner |  | app (frontend tooling/tests) |
 
 ## Governance & Enforcement
 
-1) **Copyleft isolation (§11.10.4.2):** GPL/AGPL components MUST use `external_process` integration mode (not `embedded_lib` or `external_service`). None present in current manifests.
+1) **Copyleft isolation (11.10.4 (2)):** GPL/AGPL components MUST be `external_process` (not `embedded_lib` or `external_service`). None present in current manifests.
 2) **Coverage rule:** Every dependency declared in `Cargo.lock`/`package.json` must appear in this register; update this file whenever dependencies change.
 3) **Security gate:** Supply-chain checks (e.g., `just validate`, `cargo deny`, npm audit equivalents) must be remediated within 48 hours or blocked at merge.
 4) **Evidence:** Register updates should cite the manifest/lock source in PR descriptions to keep provenance auditable.
-5) **Enforcement test:** `cargo test oss_register_enforcement` validates coverage and copyleft isolation per §11.10.4.2.
+5) **Enforcement test:** `cargo test --manifest-path src/backend/handshake_core/Cargo.toml oss_register_enforcement` validates coverage and copyleft isolation per 11.10.4 (2).

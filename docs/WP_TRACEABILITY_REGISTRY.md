@@ -22,14 +22,14 @@ This avoids retroactively embedding WP IDs into the Master Spec and prevents dri
 
 - **Active Packet**: The single packet file that is currently authoritative for implementation/validation of a Base WP.
 
-- **Superseded Packet**: A prior packet revision that is no longer authoritative. Superseded packets are immutable history; do not “catch them up”.
+- **Superseded Packet**: A prior packet revision that is no longer authoritative. Superseded packets are immutable history; do not ???catch them up???.
 
 ---
 
 ## Workflow (Deterministic)
 
 1. **Roadmap points to Base WP IDs** (not packet revisions).  
-2. **Task Board tracks WPs** (Base IDs and/or packet revisions). This registry resolves the Base WP → Active Packet mapping when `-vN` revisions exist.
+2. **Task Board tracks WPs** (Base IDs and/or packet revisions). This registry resolves the Base WP ??? Active Packet mapping when `-vN` revisions exist.
 3. **Task packets live in** `docs/task_packets/`. **Stubs live in** `docs/task_packets/stubs/`.
 4. If a packet must change due to audit/spec drift:
    - Create a **new packet revision** `...-v{N}` (do not edit locked history).
@@ -42,7 +42,7 @@ This avoids retroactively embedding WP IDs into the Master Spec and prevents dri
 
 - When running `just pre-work`, `just post-work`, `just gate-check`, validator scripts, etc., use the **Active Packet WP_ID** (the filename stem), not the Base WP ID.
   - Example: if Active Packet is `docs/task_packets/WP-1-Workflow-Engine-v4.md`, run `just pre-work WP-1-Workflow-Engine-v4`.
-- If the Active Packet is a stub under `docs/task_packets/stubs/`, it is **not executable**: activate it first (Technical Refinement Block → USER_SIGNATURE → create official task packet).
+- If the Active Packet is a stub under `docs/task_packets/stubs/`, it is **not executable**: activate it first (Technical Refinement Block ??? USER_SIGNATURE ??? create official task packet).
 
 ---
 
@@ -95,7 +95,7 @@ Format:
 | WP-1-Model-Profiles | docs/task_packets/stubs/WP-1-Model-Profiles-v2.md | Stub Backlog (Not Activated): WP-1-Model-Profiles-v2 | stub (remediation); supersedes: WP-1-Model-Profiles |
 | WP-1-Mutation-Traceability | docs/task_packets/WP-1-Mutation-Traceability-v2.md | Ready for Dev: WP-1-Mutation-Traceability-v2 | active=WP-1-Mutation-Traceability-v2; activated from stub docs/task_packets/stubs/WP-1-Mutation-Traceability-v2.md; supersedes: WP-1-Mutation-Traceability |
 | WP-1-Operator-Consoles | docs/task_packets/WP-1-Operator-Consoles-v3.md | Done: WP-1-Operator-Consoles-v3 | active=WP-1-Operator-Consoles-v3; supersedes: WP-1-Operator-Consoles, WP-1-Operator-Consoles-v1, WP-1-Operator-Consoles-v2 |
-| WP-1-OSS-Governance | docs/task_packets/stubs/WP-1-OSS-Governance-v2.md | Stub Backlog (Not Activated): WP-1-OSS-Governance-v2 | stub (remediation); supersedes: WP-1-OSS-Governance |
+| WP-1-OSS-Governance | docs/task_packets/WP-1-OSS-Governance-v2.md | Ready for Dev: WP-1-OSS-Governance-v2 | active=WP-1-OSS-Governance-v2; activated from stub docs/task_packets/stubs/WP-1-OSS-Governance-v2.md; supersedes: WP-1-OSS-Governance |
 | WP-1-OSS-Register-Enforcement | docs/task_packets/WP-1-OSS-Register-Enforcement-v1.md | Done: WP-1-OSS-Register-Enforcement-v1 | active=WP-1-OSS-Register-Enforcement-v1 |
 | WP-1-PDF-Pipeline | docs/task_packets/stubs/WP-1-PDF-Pipeline-v2.md | Stub Backlog (Not Activated): WP-1-PDF-Pipeline-v2 | stub (remediation); supersedes: WP-1-PDF-Pipeline |
 | WP-1-Photo-Studio | docs/task_packets/stubs/WP-1-Photo-Studio-v2.md | Stub Backlog (Not Activated): WP-1-Photo-Studio-v2 | stub (remediation); supersedes: WP-1-Photo-Studio |
