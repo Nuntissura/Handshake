@@ -218,5 +218,43 @@ SKELETON APPROVED
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 
+### Evidence: Post-work evidence
+- `git rev-parse HEAD` (implementation commit):
+```text
+86ce408be60f598a0a29a240666b7a02b86882fd
+```
+
+- `just cargo-clean`:
+```text
+cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Cargo Target/handshake-cargo-target"
+     Removed 1317 files, 6.4GiB total
+```
+
+- `just post-work WP-1-OSS-Governance-v2`:
+```text
+Checking Phase Gate for WP-1-OSS-Governance-v2...
+? GATE PASS: Workflow sequence verified.
+
+Post-work validation for WP-1-OSS-Governance-v2 (deterministic manifest + gates)...
+
+Check 1: Validation manifest present
+
+Check 2: Manifest fields
+
+Check 3: File integrity (per manifest entry)
+
+Check 4: Git status
+
+==================================================
+Post-work validation PASSED with warnings
+
+Warnings:
+  1. Manifest[1]: pre_sha1 matches merge-base(9fb57b2572b2ee933784e69e13da486337daae2c) for docs\\OSS_REGISTER.md (common after WP commits); prefer LF blob SHA1=086fb4516c1d1e492cbc88f567018751c61473a0
+  2. Manifest[2]: pre_sha1 matches merge-base(9fb57b2572b2ee933784e69e13da486337daae2c) for src\\backend\\handshake_core\\tests\\oss_register_enforcement_tests.rs (common after WP commits); prefer LF blob SHA1=33cce89476d9c1ddb719a90eb15733351b833df7
+
+You may proceed with commit.
+? ROLE_MAILBOX_EXPORT_GATE PASS
+```
+
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
