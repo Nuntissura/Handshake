@@ -10,7 +10,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja180120261630
 
@@ -424,3 +424,59 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - WP-1-Mutation-Traceability-v2 (2026-01-18)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: `docs/task_packets/WP-1-Mutation-Traceability-v2.md` (**Status:** In Progress; closed by this PASS report)
+- Refinement: `docs/refinements/WP-1-Mutation-Traceability-v2.md` (USER_SIGNATURE: ilja180120261630)
+- Spec Target: `docs/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.113.md`
+- Spec Anchors: `Handshake_Master_Spec_v02.113.md` 2.9.3 / 2.9.3.1 / 2.9.3.2 (excerpt windows recorded in refinement)
+- Waivers:
+  - `WAIVER-SCOPE-EXPAND-WP-1-Mutation-Traceability-v2-001` ([CX-573F])
+- Active Packet mapping: `docs/WP_TRACEABILITY_REGISTRY.md:95`
+- Worktree/Branch: `D:\Projects\LLM projects\wt-WP-1-Mutation-Traceability-v2` / `feat/WP-1-Mutation-Traceability-v2`
+- Commit reviewed: `0139918d`
+
+Files Checked:
+- `docs/task_packets/WP-1-Mutation-Traceability-v2.md`
+- `docs/refinements/WP-1-Mutation-Traceability-v2.md`
+- `docs/WP_TRACEABILITY_REGISTRY.md`
+- `docs/SPEC_CURRENT.md`
+- `Handshake_Master_Spec_v02.113.md`
+- `src/backend/handshake_core/src/storage/mod.rs`
+- `src/backend/handshake_core/src/storage/postgres.rs`
+- `src/backend/handshake_core/src/storage/tests.rs`
+- `src/backend/handshake_core/src/api/workspaces.rs`
+- `src/backend/handshake_core/src/api/canvases.rs`
+
+Findings:
+- Requirement (Silent edit block + stable error anchor): satisfied
+  - Guard reject: `src/backend/handshake_core/src/storage/mod.rs:729` (`GuardError::SilentEdit`)
+  - Error anchor: `src/backend/handshake_core/src/storage/mod.rs:692` (`HSK-403-SILENT-EDIT`)
+- Requirement (Traceability anchor `edit_event_id` generated on success): satisfied
+  - Field: `src/backend/handshake_core/src/storage/mod.rs:648`
+  - Generation: `src/backend/handshake_core/src/storage/mod.rs:737`
+- Requirement (Metadata persisted on DB writes): satisfied (spot-checked)
+  - Validation call in persistence path: `src/backend/handshake_core/src/storage/postgres.rs:477`
+  - Metadata binding in SQL: `src/backend/handshake_core/src/storage/postgres.rs:506` / `src/backend/handshake_core/src/storage/postgres.rs:510`
+- Storage DAL audit (CX-DBP-VAL-010..014): PASS (`just validator-dal-audit`)
+- Forbidden patterns scan: PASS (`just validator-scan`)
+- Error-codes / nondeterminism scan: PASS (`just validator-error-codes`)
+
+Tests:
+- `just pre-work WP-1-Mutation-Traceability-v2`: PASS
+- `just validator-spec-regression`: PASS
+- `just validator-dal-audit`: PASS
+- `just validator-scan`: PASS
+- `just validator-error-codes`: PASS
+- `just validator-hygiene-full`: PASS
+- `cd src/backend/handshake_core; cargo test hsk_403_silent_edit`: PASS (2 tests)
+- `cd src/backend/handshake_core; cargo test mutation_traceability_metadata_on_writes`: PASS (2 tests)
+
+Notes:
+- `just post-work WP-1-Mutation-Traceability-v2` is a pre-commit gate; it fails on a clean tree by design. Verified the pre-commit PASS output is recorded under `## EVIDENCE` in this packet.
+
+REASON FOR PASS:
+- The StorageGuard rejects AI writes without job/workflow context using the required stable error anchor (`HSK-403-SILENT-EDIT`), persists mutation traceability metadata (including `edit_event_id`), and all validator gates + targeted tests pass for this WP scope.

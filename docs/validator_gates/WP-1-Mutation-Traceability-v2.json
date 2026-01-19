@@ -1,0 +1,47 @@
+{
+  "validation_sessions": {
+    "WP-1-Mutation-Traceability-v2": {
+      "wpId": "WP-1-Mutation-Traceability-v2",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-01-18T23:44:33.004Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-18T23:44:33.005Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-18T23:46:29.055Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-18T23:49:08.568Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-19T00:07:03.935Z"
+        }
+      ],
+      "completed": "2026-01-19T00:07:03.936Z"
+    }
+  },
+  "archived_sessions": [
+    {
+      "wpId": "WP-1-Mutation-Traceability-v2",
+      "verdict": "FAIL",
+      "status": "REPORT_PRESENTED",
+      "started": "2026-01-18T22:17:07.728Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-01-18T22:17:07.729Z"
+        }
+      ],
+      "archived_at": "2026-01-18T23:31:18.396Z",
+      "archive_reason": "manual_reset"
+    }
+  ]
+}
