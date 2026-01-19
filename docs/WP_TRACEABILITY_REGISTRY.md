@@ -57,7 +57,7 @@ Format:
 | Base WP ID | Active Packet | Task Board | Notes |
 |-----------:|---------------|------------|-------|
 | WP-1-ACE-Auditability | docs/task_packets/stubs/WP-1-ACE-Auditability-v2.md | Stub Backlog (Not Activated): WP-1-ACE-Auditability-v2 | stub (remediation); supersedes: WP-1-ACE-Auditability |
-| WP-1-ACE-Runtime | docs/task_packets/stubs/WP-1-ACE-Runtime-v2.md | Stub Backlog (Not Activated): WP-1-ACE-Runtime-v2 | stub (remediation); supersedes: WP-1-ACE-Runtime |
+| WP-1-ACE-Runtime | docs/task_packets/WP-1-ACE-Runtime-v2.md | Ready for Dev: WP-1-ACE-Runtime-v2 | active=WP-1-ACE-Runtime-v2; activated from stub docs/task_packets/stubs/WP-1-ACE-Runtime-v2.md; supersedes: WP-1-ACE-Runtime |
 | WP-1-ACE-Validators | docs/task_packets/WP-1-ACE-Validators-v4.md | Done: WP-1-ACE-Validators-v4 | active=WP-1-ACE-Validators-v4; supersedes: WP-1-ACE-Validators, WP-1-ACE-Validators-v2, WP-1-ACE-Validators-v3 |
 | WP-1-AI-Job-Model | docs/task_packets/stubs/WP-1-AI-Job-Model-v4.md | Stub Backlog (Not Activated): WP-1-AI-Job-Model-v4 | stub (remediation); supersedes: WP-1-AI-Job-Model-v3, WP-1-AI-Job-Model-v2 |
 | WP-1-AI-UX-Actions | docs/task_packets/stubs/WP-1-AI-UX-Actions-v2.md | Stub Backlog (Not Activated): WP-1-AI-UX-Actions-v2 | stub (remediation); supersedes: WP-1-AI-UX-Actions |

@@ -1,0 +1,31 @@
+{
+  "validation_sessions": {
+    "WP-1-ACE-Runtime-v2": {
+      "wpId": "WP-1-ACE-Runtime-v2",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-01-19T05:05:22.838Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-19T05:05:22.840Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-19T05:05:41.790Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-19T05:06:57.684Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-19T05:07:13.724Z"
+        }
+      ],
+      "completed": "2026-01-19T05:07:13.725Z"
+    }
+  },
+  "archived_sessions": []
+}

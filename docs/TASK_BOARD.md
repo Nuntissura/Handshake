@@ -59,7 +59,6 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 - **[WP-1-Response-Behavior-ANS-001]** - [STUB]
 - **[WP-1-Capability-SSoT-v2]** - [STUB]
 - **[WP-1-AI-Job-Model-v4]** - [STUB]
-- **[WP-1-ACE-Runtime-v2]** - [STUB]
 - **[WP-1-Metrics-OTel-v2]** - [STUB]
 - **[WP-1-OSS-Governance-v2]** - [STUB]
 - **[WP-1-ACE-Auditability-v2]** - [STUB]
@@ -118,6 +117,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Mutation-Traceability-v2]** - [VALIDATED]
 - **[WP-1-Metrics-Mock-Tokens]** - [VALIDATED]
 - **[WP-1-Canvas-Typography-v2]** - [VALIDATED]
+- **[WP-1-ACE-Runtime-v2]** - [VALIDATED]
 
 
 
