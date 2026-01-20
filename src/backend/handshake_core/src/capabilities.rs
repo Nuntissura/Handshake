@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use thiserror::Error;
 
+pub const GOVERNANCE_PACK_EXPORT_PROTOCOL_ID: &str = "hsk.governance_pack.export.v0";
+
 /// Canonical capability identifiers from Master Spec §11.1 (Capabilities & Consent Model).
 const CANONICAL_CAPABILITY_IDS: &[&str] = &[
     "CALENDAR_READ_BASIC",
@@ -147,23 +149,26 @@ impl CapabilityRegistry {
         let mut job_profile_map = HashMap::new();
         // Primary job kinds (matches JobKind::as_str())
         job_profile_map.insert("doc_edit".to_string(), "Coder".to_string());
+        job_profile_map.insert("doc_rewrite".to_string(), "Coder".to_string());
         job_profile_map.insert("sheet_transform".to_string(), "Analyst".to_string());
         job_profile_map.insert("canvas_cluster".to_string(), "Analyst".to_string());
         job_profile_map.insert("asr_transcribe".to_string(), "Analyst".to_string());
         job_profile_map.insert("workflow_run".to_string(), "Analyst".to_string());
-        job_profile_map.insert("term_exec".to_string(), "Coder".to_string());
+        job_profile_map.insert("spec_router".to_string(), "Analyst".to_string());
+        job_profile_map.insert("debug_bundle_export".to_string(), "Analyst".to_string());
         job_profile_map.insert("terminal_exec".to_string(), "Coder".to_string());
         job_profile_map.insert("doc_summarize".to_string(), "Analyst".to_string());
-        job_profile_map.insert("doc_test".to_string(), "Analyst".to_string());
-        job_profile_map.insert("debug_bundle_export".to_string(), "Analyst".to_string());
-        job_profile_map.insert("governance_pack_export".to_string(), "Operator".to_string());
+        job_profile_map.insert("doc_ingest".to_string(), "Analyst".to_string());
+        job_profile_map.insert("distillation_eval".to_string(), "Analyst".to_string());
         // Backward-compatible aliases
+        job_profile_map.insert("term_exec".to_string(), "Coder".to_string());
         job_profile_map.insert("Research".to_string(), "Analyst".to_string());
         job_profile_map.insert("Development".to_string(), "Coder".to_string());
 
         // Job Kind -> Required Capability Mapping
         let mut job_requirements = HashMap::new();
         job_requirements.insert("doc_edit".to_string(), vec!["doc.summarize".to_string()]);
+        job_requirements.insert("doc_rewrite".to_string(), vec!["doc.summarize".to_string()]);
         job_requirements.insert(
             "sheet_transform".to_string(),
             vec!["doc.summarize".to_string()],
@@ -180,11 +185,11 @@ impl CapabilityRegistry {
             "workflow_run".to_string(),
             vec!["doc.summarize".to_string()],
         );
+        job_requirements.insert("spec_router".to_string(), vec!["doc.summarize".to_string()]);
         job_requirements.insert(
             "doc_summarize".to_string(),
             vec!["doc.summarize".to_string()],
         );
-        job_requirements.insert("doc_test".to_string(), vec!["doc.summarize".to_string()]);
         job_requirements.insert("term_exec".to_string(), vec!["terminal.exec".to_string()]);
         job_requirements.insert(
             "terminal_exec".to_string(),
@@ -199,13 +204,10 @@ impl CapabilityRegistry {
                 "jobs.read".to_string(),
             ],
         );
+        job_requirements.insert("doc_ingest".to_string(), vec!["doc.summarize".to_string()]);
         job_requirements.insert(
-            "governance_pack_export".to_string(),
-            vec![
-                "fs.read".to_string(),
-                "fs.write".to_string(),
-                "export.governance_pack".to_string(),
-            ],
+            "distillation_eval".to_string(),
+            vec!["doc.summarize".to_string()],
         );
 
         Self {
@@ -277,12 +279,15 @@ impl CapabilityRegistry {
         Ok(self.can_perform(requested, granted))
     }
 
+    pub fn profile_by_id(&self, profile_id: &str) -> Result<&CapabilityProfile, RegistryError> {
+        self.profiles
+            .get(profile_id)
+            .ok_or_else(|| RegistryError::UnknownProfile(profile_id.to_string()))
+    }
+
     /// Resolves if a profile allows a requested capability.
     pub fn profile_can(&self, profile_id: &str, requested: &str) -> Result<bool, RegistryError> {
-        let profile = self
-            .profiles
-            .get(profile_id)
-            .ok_or_else(|| RegistryError::UnknownProfile(profile_id.to_string()))?;
+        let profile = self.profile_by_id(profile_id)?;
 
         self.enforce_can_perform(requested, &profile.allowed)
     }
@@ -298,6 +303,18 @@ impl CapabilityRegistry {
             .ok_or_else(|| RegistryError::UnknownProfile(profile_id.to_string()))
     }
 
+    pub fn profile_for_job_request(
+        &self,
+        job_kind: &str,
+        protocol_id: &str,
+    ) -> Result<&CapabilityProfile, RegistryError> {
+        if job_kind == "workflow_run" && protocol_id == GOVERNANCE_PACK_EXPORT_PROTOCOL_ID {
+            return self.profile_by_id("Operator");
+        }
+
+        self.profile_for_job(job_kind)
+    }
+
     /// Returns the required capabilities to run a given job kind.
     pub fn required_capabilities_for_job(
         &self,
@@ -309,6 +326,22 @@ impl CapabilityRegistry {
                 job_kind
             ))
         })
+    }
+
+    pub fn required_capabilities_for_job_request(
+        &self,
+        job_kind: &str,
+        protocol_id: &str,
+    ) -> Result<Vec<String>, RegistryError> {
+        if job_kind == "workflow_run" && protocol_id == GOVERNANCE_PACK_EXPORT_PROTOCOL_ID {
+            return Ok(vec![
+                "fs.read".to_string(),
+                "fs.write".to_string(),
+                "export.governance_pack".to_string(),
+            ]);
+        }
+
+        self.required_capabilities_for_job(job_kind)
     }
 
     // Read-only views for inspection
@@ -361,14 +394,18 @@ mod tests {
         let registry = CapabilityRegistry::new();
         let kinds = [
             "doc_edit",
+            "doc_rewrite",
             "sheet_transform",
             "canvas_cluster",
             "asr_transcribe",
             "workflow_run",
-            "term_exec",
+            "spec_router",
+            "debug_bundle_export",
             "terminal_exec",
             "doc_summarize",
-            "doc_test",
+            "doc_ingest",
+            "distillation_eval",
+            "term_exec",
         ];
 
         for kind in kinds {
@@ -391,6 +428,49 @@ mod tests {
             registry.profile_for_job("unknown_kind"),
             Err(RegistryError::UnknownProfile(_))
         ));
+    }
+
+    #[test]
+    fn test_governance_pack_export_protocol_overrides() {
+        let registry = CapabilityRegistry::new();
+
+        let profile = match registry
+            .profile_for_job_request("workflow_run", GOVERNANCE_PACK_EXPORT_PROTOCOL_ID)
+        {
+            Ok(profile) => profile,
+            Err(err) => {
+                unreachable!("expected protocol-aware profile for governance pack export: {err}")
+            }
+        };
+        assert_eq!(profile.id, "Operator");
+
+        let required = match registry.required_capabilities_for_job_request(
+            "workflow_run",
+            GOVERNANCE_PACK_EXPORT_PROTOCOL_ID,
+        ) {
+            Ok(required) => required,
+            Err(err) => unreachable!(
+                "expected protocol-aware requirements for governance pack export: {err}"
+            ),
+        };
+        assert!(required.contains(&"fs.read".to_string()));
+        assert!(required.contains(&"fs.write".to_string()));
+        assert!(required.contains(&"export.governance_pack".to_string()));
+
+        let default_profile =
+            match registry.profile_for_job_request("workflow_run", "protocol-default") {
+                Ok(profile) => profile,
+                Err(err) => unreachable!("expected default workflow_run profile: {err}"),
+            };
+        assert_eq!(default_profile.id, "Analyst");
+
+        let default_required = match registry
+            .required_capabilities_for_job_request("workflow_run", "protocol-default")
+        {
+            Ok(required) => required,
+            Err(err) => unreachable!("expected default workflow_run requirements: {err}"),
+        };
+        assert_eq!(default_required, vec!["doc.summarize".to_string()]);
     }
 
     #[test]

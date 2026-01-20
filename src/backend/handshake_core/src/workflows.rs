@@ -8,7 +8,7 @@ use crate::{
         AceError, CandidateRef, SourceRef,
     },
     bundles::{BundleScope, DebugBundleRequest, DefaultDebugBundleExporter, RedactionMode},
-    capabilities::RegistryError,
+    capabilities::{RegistryError, GOVERNANCE_PACK_EXPORT_PROTOCOL_ID},
     capability_registry_workflow::{
         repo_root_from_manifest_dir, run_capability_registry_workflow,
         CapabilityRegistryWorkflowParams,
@@ -575,7 +575,7 @@ async fn enforce_capabilities(
 ) -> Result<(), WorkflowError> {
     let required = state
         .capability_registry
-        .required_capabilities_for_job(job.job_kind.as_str())?;
+        .required_capabilities_for_job_request(job.job_kind.as_str(), &job.protocol_id)?;
 
     for capability_id in required {
         let result = state
@@ -944,6 +944,44 @@ async fn run_job(
             .await?;
         return Ok(Some(payload));
     } else if matches!(job.job_kind, JobKind::WorkflowRun) {
+        if job.protocol_id == GOVERNANCE_PACK_EXPORT_PROTOCOL_ID {
+            let inputs = parse_inputs(job.job_inputs.as_ref());
+            let request: GovernancePackExportRequest = serde_json::from_value(inputs)
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+            let outcome = export_governance_pack(&request, Some(job.job_id))
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+            let export_record_value = serde_json::to_value(&outcome.export_record)
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+            record_event_safely(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::GovernancePackExport,
+                    FlightRecorderActor::Agent,
+                    trace_id,
+                    export_record_value.clone(),
+                )
+                .with_job_id(job.job_id.to_string())
+                .with_capability("export.governance_pack"),
+            )
+            .await;
+
+            let payload = json!({
+                "export_id": outcome.export_record.export_id,
+                "templates_written": outcome.templates_written,
+                "materialized_paths": outcome.export_record.materialized_paths,
+                "export_record": export_record_value,
+            });
+
+            state
+                .storage
+                .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
+                .await?;
+            return Ok(Some(payload));
+        }
+
         if job.profile_id == "capability_registry_build" {
             let inputs = parse_inputs(job.job_inputs.as_ref());
             let policy_decision_id = inputs
@@ -1128,42 +1166,6 @@ async fn run_job(
             .set_job_outputs(&job.job_id.to_string(), Some(manifest_value.clone()))
             .await?;
         return Ok(Some(manifest_value));
-    } else if matches!(job.job_kind, JobKind::GovernancePackExport) {
-        let inputs = parse_inputs(job.job_inputs.as_ref());
-        let request: GovernancePackExportRequest =
-            serde_json::from_value(inputs).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-
-        let outcome = export_governance_pack(&request, Some(job.job_id))
-            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-
-        let export_record_value = serde_json::to_value(&outcome.export_record)
-            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-
-        record_event_safely(
-            state,
-            FlightRecorderEvent::new(
-                FlightRecorderEventType::GovernancePackExport,
-                FlightRecorderActor::Agent,
-                trace_id,
-                export_record_value.clone(),
-            )
-            .with_job_id(job.job_id.to_string())
-            .with_capability("export.governance_pack"),
-        )
-        .await;
-
-        let payload = json!({
-            "export_id": outcome.export_record.export_id,
-            "templates_written": outcome.templates_written,
-            "materialized_paths": outcome.export_record.materialized_paths,
-            "export_record": export_record_value,
-        });
-
-        state
-            .storage
-            .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
-            .await?;
-        return Ok(Some(payload));
     }
     Ok(None)
 }

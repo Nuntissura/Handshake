@@ -353,34 +353,37 @@ impl JobState {
 #[serde(rename_all = "snake_case")]
 pub enum JobKind {
     DocEdit,
+    DocRewrite,
     SheetTransform,
     CanvasCluster,
     AsrTranscribe,
     WorkflowRun,
+    SpecRouter,
     /// Backward-compatible terminal execution job kind.
     TerminalExec,
-    /// Backward-compatible document summarize/test kinds.
+    /// Document summarization job kind.
     DocSummarize,
-    DocTest,
     /// Debug bundle export job [§10.5.6.8]
     DebugBundleExport,
-    /// Governance Pack export job [Spec 7.5.4.9, 2.3.10]
-    GovernancePackExport,
+    DocIngest,
+    DistillationEval,
 }
 
 impl JobKind {
     pub fn as_str(&self) -> &'static str {
         match self {
             JobKind::DocEdit => "doc_edit",
+            JobKind::DocRewrite => "doc_rewrite",
             JobKind::SheetTransform => "sheet_transform",
             JobKind::CanvasCluster => "canvas_cluster",
             JobKind::AsrTranscribe => "asr_transcribe",
             JobKind::WorkflowRun => "workflow_run",
-            JobKind::TerminalExec => "term_exec",
+            JobKind::SpecRouter => "spec_router",
+            JobKind::TerminalExec => "terminal_exec",
             JobKind::DocSummarize => "doc_summarize",
-            JobKind::DocTest => "doc_test",
             JobKind::DebugBundleExport => "debug_bundle_export",
-            JobKind::GovernancePackExport => "governance_pack_export",
+            JobKind::DocIngest => "doc_ingest",
+            JobKind::DistillationEval => "distillation_eval",
         }
     }
 }
@@ -391,15 +394,17 @@ impl FromStr for JobKind {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "doc_edit" => Ok(JobKind::DocEdit),
+            "doc_rewrite" => Ok(JobKind::DocRewrite),
             "sheet_transform" => Ok(JobKind::SheetTransform),
             "canvas_cluster" => Ok(JobKind::CanvasCluster),
             "asr_transcribe" => Ok(JobKind::AsrTranscribe),
             "workflow_run" => Ok(JobKind::WorkflowRun),
+            "spec_router" => Ok(JobKind::SpecRouter),
             "term_exec" | "terminal_exec" => Ok(JobKind::TerminalExec),
             "doc_summarize" => Ok(JobKind::DocSummarize),
-            "doc_test" => Ok(JobKind::DocTest),
             "debug_bundle_export" => Ok(JobKind::DebugBundleExport),
-            "governance_pack_export" => Ok(JobKind::GovernancePackExport),
+            "doc_ingest" => Ok(JobKind::DocIngest),
+            "distillation_eval" => Ok(JobKind::DistillationEval),
             _ => Err(StorageError::Validation("invalid job kind")),
         }
     }

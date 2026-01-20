@@ -1,6 +1,7 @@
 use axum::{extract::State, http::StatusCode, routing::post, Json, Router};
 use serde::Serialize;
 
+use crate::capabilities::GOVERNANCE_PACK_EXPORT_PROTOCOL_ID;
 use crate::governance_pack::GovernancePackExportRequest;
 use crate::jobs::create_job;
 use crate::models::JobKind;
@@ -24,10 +25,10 @@ async fn export_governance_pack(
     State(state): State<AppState>,
     Json(request): Json<GovernancePackExportRequest>,
 ) -> Result<(StatusCode, Json<GovernancePackExportResponse>), (StatusCode, String)> {
-    let job_kind = JobKind::GovernancePackExport;
+    let job_kind = JobKind::WorkflowRun;
     let capability_profile = state
         .capability_registry
-        .profile_for_job(job_kind.as_str())
+        .profile_for_job_request(job_kind.as_str(), GOVERNANCE_PACK_EXPORT_PROTOCOL_ID)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let job_inputs =
@@ -36,7 +37,7 @@ async fn export_governance_pack(
     let job = create_job(
         &state,
         job_kind,
-        "hsk.governance_pack.export.v0",
+        GOVERNANCE_PACK_EXPORT_PROTOCOL_ID,
         // Server-enforced capability profile to prevent client-side escalation.
         capability_profile.id.as_str(),
         Some(job_inputs),
