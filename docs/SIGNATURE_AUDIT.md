@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja200120260048 | Orchestrator | 2026-01-20 00:48 | Task packet creation: WP-1-AI-Job-Model-v4 | v02.113 | Approved after Technical Refinement (see docs/refinements/WP-1-AI-Job-Model-v4.md ). |
 | ilja190120260338 | Orchestrator | 2026-01-19 03:38 | Task packet creation: WP-1-OSS-Governance-v2 | v02.113 | Approved after Technical Refinement (see docs/refinements/WP-1-OSS-Governance-v2.md ). |
 | ilja190120260239 | Orchestrator | 2026-01-19 02:39 | Override: edit locked task packet WP-1-Canvas-Typography-v2 | v02.113 | Approved in-chat override to waive packet immutability (CX-640-650) for WP-1-Canvas-Typography-v2: add TEST_PLAN just cargo-clean; add Dependencies + Effort estimate; record waiver in packet. |
 | ilja190120260138 | Orchestrator | 2026-01-19 01:38 | Task packet creation: WP-1-Canvas-Typography-v2 | v02.113 | Approved after Technical Refinement (see docs/refinements/WP-1-Canvas-Typography-v2.md ). |
