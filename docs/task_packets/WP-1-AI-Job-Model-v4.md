@@ -10,7 +10,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja200120260048
 
@@ -395,3 +395,51 @@ Risks & Suggested Actions:
 
 REASON FOR FAIL:
 - Current feat/WP-1-AI-Job-Model-v4 contains only docs bootstrap/activation commits and does not implement the required spec-aligned JobKind changes; current code remains non-compliant with Handshake_Master_Spec_v02.113.md 2.6.6.2.8.1 canonical JobKind strings.
+
+### VALIDATOR_REPORT (2026-01-20)
+
+VALIDATION REPORT - WP-1-AI-Job-Model-v4
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-AI-Job-Model-v4.md (status: Done)
+- Spec Target Resolved: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md
+- Spec anchors validated: Handshake_Master_Spec_v02.113.md:5369, Handshake_Master_Spec_v02.113.md:5389
+- Commits validated: 054d2d39 (implementation), b3b4b0d7 (packet evidence)
+
+Files Checked:
+- docs/task_packets/WP-1-AI-Job-Model-v4.md
+- docs/refinements/WP-1-AI-Job-Model-v4.md
+- docs/WP_TRACEABILITY_REGISTRY.md
+- docs/TASK_BOARD.md
+- Handshake_Master_Spec_v02.113.md
+- src/backend/handshake_core/src/storage/mod.rs
+- src/backend/handshake_core/migrations/0010_normalize_ai_job_kind.sql
+- src/backend/handshake_core/src/capabilities.rs
+- src/backend/handshake_core/src/api/jobs.rs
+- src/backend/handshake_core/src/api/governance_pack.rs
+- src/backend/handshake_core/src/workflows.rs
+
+Findings:
+- JobKind canonical coverage + strict FromStr reject-unknown: src/backend/handshake_core/src/storage/mod.rs:354, src/backend/handshake_core/src/storage/mod.rs:391, src/backend/handshake_core/src/storage/mod.rs:408
+- Alias acceptance + canonical normalization on write (term_exec -> terminal_exec): src/backend/handshake_core/src/storage/mod.rs:382, src/backend/handshake_core/src/storage/mod.rs:403; terminal job creation uses canonical kind: src/backend/handshake_core/src/api/jobs.rs:221
+- Legacy row normalization migration (no stranded legacy strings): src/backend/handshake_core/migrations/0010_normalize_ai_job_kind.sql:8, src/backend/handshake_core/migrations/0010_normalize_ai_job_kind.sql:12, src/backend/handshake_core/migrations/0010_normalize_ai_job_kind.sql:16
+- Governance pack export uses canonical workflow_run + protocol-aware gating/dispatch (no client protocol escalation): src/backend/handshake_core/src/api/governance_pack.rs:28, src/backend/handshake_core/src/capabilities.rs:306, src/backend/handshake_core/src/capabilities.rs:331, src/backend/handshake_core/src/workflows.rs:578, src/backend/handshake_core/src/workflows.rs:947
+
+Hygiene:
+- Forbidden pattern grep on touched prod files: clean (no unwrap/expect/todo!/panic!/dbg!/println!/eprintln!/split_whitespace/placeholder/hollow).
+
+Storage DAL Audit:
+- just validator-dal-audit: PASS
+
+Tests (Validator-run):
+- cargo fmt --check: PASS
+- cargo test storage: PASS
+- cargo test workflows: PASS
+- cargo clippy --all-targets --all-features: PASS (warnings only; no deny)
+
+Risks & Suggested Actions:
+- Note: just post-work WP-1-AI-Job-Model-v4 is a pre-commit determinism gate; the pre-commit run output is recorded in ## EVIDENCE. Re-running it post-commit on a clean tree is expected to fail due to COR-701 preimage checks.
+
+REASON FOR PASS:
+- Implementation aligns JobKind storage/parsing with Handshake_Master_Spec_v02.113.md 2.6.6.2.8.1 (including term_exec alias normalization) and removes non-spec persisted kinds via deterministic migration, with tests + DAL audit passing.
