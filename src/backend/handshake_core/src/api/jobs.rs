@@ -218,7 +218,7 @@ mod tests {
         let (program, args) = terminal_command();
 
         let request = CreateJobRequest {
-            job_kind: "term_exec".to_string(),
+            job_kind: "terminal_exec".to_string(),
             protocol_id: "protocol-default".to_string(),
             doc_id: None,
             job_inputs: Some(json!({ "program": program, "args": args })),
