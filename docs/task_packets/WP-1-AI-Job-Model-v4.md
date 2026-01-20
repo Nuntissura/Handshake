@@ -8,9 +8,9 @@
 - REQUESTOR: ilja
 - AGENT_ID: codex-cli
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja200120260048
 
@@ -186,9 +186,9 @@ SKELETON APPROVED
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress
+- What changed in this update: Bootstrap claimed (coder fields filled; status set to In Progress).
+- Next step / handoff hint: Proceed with BOOTSTRAP -> SKELETON -> IMPLEMENTATION per docs/CODER_PROTOCOL.md.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
