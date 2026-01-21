@@ -8,9 +8,9 @@
 - REQUESTOR: User
 - AGENT_ID: codex-cli
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: claude-opus-4-5-20251101
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja210120262044
 
@@ -154,9 +154,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress (bootstrap claimed 2026-01-21)
+- What changed in this update: Coder claimed WP; beginning BOOTSTRAP phase
+- Next step / handoff hint: SKELETON phase - propose ToolInvocation primitives and Flight Recorder event emission points
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
