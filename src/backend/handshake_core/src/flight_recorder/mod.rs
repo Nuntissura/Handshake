@@ -405,6 +405,12 @@ fn validate_terminal_command_payload(payload: &Value) -> Result<(), RecorderErro
     require_bool(map, "timed_out")?;
     require_bool(map, "cancelled")?;
     require_number(map, "truncated_bytes")?;
+    if map.contains_key("stdout_ref") {
+        require_string_or_null(map, "stdout_ref")?;
+    }
+    if map.contains_key("stderr_ref") {
+        require_string_or_null(map, "stderr_ref")?;
+    }
     Ok(())
 }
 
@@ -1181,6 +1187,8 @@ pub struct TerminalCommandEvent {
     pub timed_out: bool,
     pub cancelled: bool,
     pub truncated_bytes: u64,
+    pub stdout_ref: Option<String>,
+    pub stderr_ref: Option<String>,
     pub capability_id: Option<String>,
     pub redaction_applied: bool,
     pub redacted_output: Option<String>,

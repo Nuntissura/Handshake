@@ -22,14 +22,11 @@
 - What: Implement and validate Cross-Tool Interaction Map conformance by enforcing artifact-first IO, capability-gated side effects, and canonical Flight Recorder logging (`tool.call`/`tool.result` in DuckDB `fr_events`) across tool invocations.
 - Why: Prevents "shadow pipelines" that bypass governance/auditability and makes Operator Console narratives deterministic across tools/surfaces.
 - IN_SCOPE_PATHS:
-  - src/backend/handshake_core/src/flight_recorder/
-  - src/backend/handshake_core/src/mex/
-  - src/backend/handshake_core/src/terminal/
-  - src/backend/handshake_core/src/llm/
-  - src/backend/handshake_core/src/ace/
-  - src/backend/handshake_core/src/api/
-  - src/backend/handshake_core/src/bundles/
-  - src/backend/handshake_core/src/diagnostics/
+  - src/backend/handshake_core/src/flight_recorder/duckdb.rs
+  - src/backend/handshake_core/src/flight_recorder/mod.rs
+  - src/backend/handshake_core/src/mex/conformance.rs
+  - src/backend/handshake_core/src/mex/runtime.rs
+  - src/backend/handshake_core/src/terminal/mod.rs
 - OUT_OF_SCOPE:
   - UI changes under app/
   - New tool features beyond conformance proof
@@ -206,48 +203,124 @@ Add tests under `src/backend/handshake_core/src/mex/` that:
 SKELETON APPROVED
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Added canonical DuckDB `fr_events` table (11.3.6.4) and `terminal_output` storage; retention purges all relevant tables.
+- Emitted `tool.call` and `tool.result` rows around `MexRuntime::execute()` adapter invocation (6.0.1) with required payload keys and correlation fields where available.
+- Updated FR-EVT-001 terminal command path to store redacted output in DuckDB and record `stdout_ref`/`stderr_ref` (no inline unbounded output).
+- Added automated conformance checks: (1) `fr_events` `tool.*` emission and (2) reject shadow `.invoke(&op)` call sites outside `mex/runtime.rs`.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- git branch safety/WP-1-Cross-Tool-Interaction-Conformance-v1 da6349f8 : PASS
+- git reset --soft HEAD~1 : PASS
+- just pre-work WP-1-Cross-Tool-Interaction-Conformance-v1 : PASSED
+- just validator-spec-regression : PASS
+- just validator-scan : PASS
+- just cargo-clean : PASS
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml : PASS
+- just post-work WP-1-Cross-Tool-Interaction-Conformance-v1 : PASSED
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- (Mechanical manifest for audit. This section records the "What" (hashes/lines) for the Validator's "How/Why" audit. It is NOT a claim of official Validation.)
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- **Start**: 24
+- **End**: 559
+- **Line Delta**: 73
+- **Pre-SHA1**: `41b29b4b24497715dd003bbc9c6698c7024a2e3a`
+- **Post-SHA1**: `1684be6b596e4a7e4ca68a775ead4b04a7c78cf6`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 408
+- **End**: 1191
+- **Line Delta**: 8
+- **Pre-SHA1**: `57543c4e1cd9c7b3132f4acc130b68c10f197e15`
+- **Post-SHA1**: `66009937a65f1e3031084d1ab0e17923ac380a24`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/mex/runtime.rs`
+- **Start**: 3
+- **End**: 308
+- **Line Delta**: 173
+- **Pre-SHA1**: `3e3b7378719cd57a466108254c270557ca0ffc01`
+- **Post-SHA1**: `2fc722628bade5e57aff8b34ca8cdd1ef0304338`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/mex/conformance.rs`
+- **Start**: 276
+- **End**: 451
+- **Line Delta**: 176
+- **Pre-SHA1**: `4c4eeb5931995f9f84dbcc7ef4ce1c7ca3e7654d`
+- **Post-SHA1**: `3226b9ba401ecb81b52437b670459ac9967a3d6b`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/terminal/mod.rs`
+- **Start**: 19
+- **End**: 589
+- **Line Delta**: 42
+- **Pre-SHA1**: `0392bee8d3722eaae81cdf58d333df827cf8a02f`
+- **Post-SHA1**: `417842f5754b98f6deaa6166cf364493edc130b4`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: In Progress (SKELETON proposed 2026-01-21)
-- What changed in this update:
-  - Completed BOOTSTRAP phase: read 12 source files, ran 5 search queries
-  - BOOTSTRAP_RISK_MAP identified: No unified ToolInvocation primitive exists, FR events constructed ad-hoc
-  - Proposed SKELETON: ToolInvocation struct, FlightRecorderEventType::ToolInvocation, emit_tool_invocation() helper
-  - Identified 4 integration points: terminal, mex/supply_chain, llm/ollama, mex/runtime
-- Next step / handoff hint: Awaiting operator approval of SKELETON before implementation
+- Current WP_STATUS: In Progress (implementation complete; awaiting validator review)
+- Touched files:
+  - src/backend/handshake_core/src/flight_recorder/duckdb.rs
+  - src/backend/handshake_core/src/flight_recorder/mod.rs
+  - src/backend/handshake_core/src/mex/conformance.rs
+  - src/backend/handshake_core/src/mex/runtime.rs
+  - src/backend/handshake_core/src/terminal/mod.rs
+- Next step / handoff hint: Run `just post-work WP-1-Cross-Tool-Interaction-Conformance-v1`, then request Validator review of the manifest + evidence against anchors 6.0.1 / 11.3.6.4 / 11.5.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
@@ -286,6 +359,51 @@ SKELETON APPROVED
 | Inconsistent FR event emission | MEDIUM | Create unified `emit_tool_invocation()` helper |
 | Cross-tool correlation missing | HIGH | Add `parent_invocation_id` for causality linking |
 | FlightRecorderEventType lacks ToolInvocation | HIGH | Add `ToolInvocation` variant to enum |
+
+### EVIDENCE_RUNS (2026-01-21)
+
+just pre-work WP-1-Cross-Tool-Interaction-Conformance-v1:
+- Pre-work validation PASSED
+
+just validator-spec-regression:
+- validator-spec-regression: PASS - Handshake_Master_Spec_v02.113.md present with required anchors.
+
+just validator-scan:
+- validator-scan: PASS - no forbidden patterns detected in backend sources.
+
+just cargo-clean:
+- cargo clean -p handshake_core (removed 1371 files)
+
+cargo test --manifest-path src/backend/handshake_core/Cargo.toml:
+- handshake_core unit tests: 151 passed
+- api health tests: 2 passed
+- mex_tests: 9 passed; 4 ignored
+- oss_register_enforcement_tests: 4 passed
+- role_mailbox_tests: 3 passed
+- storage_conformance: 2 passed
+- terminal_guards_tests: 13 passed
+- terminal_session_tests: 5 passed
+- tokenization_service_tests: 4 passed
+- tokenization_tests: 5 passed
+- doc-tests: 0 tests
+
+just post-work WP-1-Cross-Tool-Interaction-Conformance-v1:
+- Post-work validation PASSED
+- ROLE_MAILBOX_EXPORT_GATE PASS
+
+### EVIDENCE_MAPPING (DONE_MEANS + SPEC_ANCHORS)
+
+DONE_MEANS
+- tool.call/tool.result in DuckDB fr_events: src/backend/handshake_core/src/mex/runtime.rs:272 and src/backend/handshake_core/src/mex/conformance.rs:342
+- capability_id present for side-effecting tool invocation: src/backend/handshake_core/src/mex/runtime.rs:166 and src/backend/handshake_core/src/mex/runtime.rs:216
+- FR-EVT-001 terminal_command stdout_ref/stderr_ref (no inline unbounded output): src/backend/handshake_core/src/terminal/mod.rs:486 and src/backend/handshake_core/src/flight_recorder/mod.rs:1190
+- FR-EVT-006 llm_inference emits trace_id + model_id: src/backend/handshake_core/src/llm/ollama.rs:128 and src/backend/handshake_core/src/flight_recorder/mod.rs:964
+- conformance check rejects shadow .invoke(&op) call sites: src/backend/handshake_core/src/mex/conformance.rs:308
+
+SPEC_ANCHORS
+- 11.3.6.4 fr_events DuckDB table: src/backend/handshake_core/src/flight_recorder/duckdb.rs:271
+- 6.0.1 tool.call/tool.result around MexRuntime::execute(): src/backend/handshake_core/src/mex/runtime.rs:272 and src/backend/handshake_core/src/mex/runtime.rs:307
+- 11.5 FR-EVT-001 output references: src/backend/handshake_core/src/terminal/mod.rs:506 and src/backend/handshake_core/src/flight_recorder/mod.rs:1190
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)

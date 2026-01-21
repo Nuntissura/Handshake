@@ -26,6 +26,28 @@ pub struct DuckDbFlightRecorder {
     retention_days: u32,
 }
 
+pub(crate) fn store_terminal_output_redacted(
+    conn: &DuckDbConnection,
+    event_id: Uuid,
+    stdout_redacted: &str,
+    stderr_redacted: &str,
+) -> Result<(), RecorderError> {
+    conn.execute(
+        r#"
+        INSERT INTO terminal_output (
+            event_id,
+            ts_utc,
+            stdout_redacted,
+            stderr_redacted
+        ) VALUES (?, CURRENT_TIMESTAMP, ?, ?)
+    "#,
+        duckdb::params![event_id.to_string(), stdout_redacted, stderr_redacted],
+    )
+    .map_err(|e| RecorderError::SinkError(e.to_string()))?;
+
+    Ok(())
+}
+
 fn map_db_error(err: duckdb::Error) -> StorageError {
     StorageError::Database(err.to_string())
 }
@@ -240,6 +262,40 @@ impl DuckDbFlightRecorder {
             );
             CREATE INDEX IF NOT EXISTS idx_diag_fingerprint ON diagnostics(fingerprint);
             CREATE INDEX IF NOT EXISTS idx_diag_job_id ON diagnostics(job_id);
+        "#,
+        )
+        .map_err(|e| RecorderError::SinkError(e.to_string()))?;
+
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS fr_events (
+                event_id        BIGINT PRIMARY KEY,
+                ts_utc          TIMESTAMP NOT NULL,
+                session_id      TEXT,
+                task_id         TEXT,
+                job_id          TEXT,
+                workflow_run_id TEXT,
+                event_kind      TEXT NOT NULL,
+                source          TEXT NOT NULL,
+                level           TEXT,
+                message         TEXT,
+                payload         JSON
+            );
+            CREATE INDEX IF NOT EXISTS idx_fr_events_job_id ON fr_events(job_id);
+            CREATE INDEX IF NOT EXISTS idx_fr_events_kind ON fr_events(event_kind);
+        "#,
+        )
+        .map_err(|e| RecorderError::SinkError(e.to_string()))?;
+
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS terminal_output (
+                event_id UUID PRIMARY KEY,
+                ts_utc TIMESTAMP NOT NULL,
+                stdout_redacted TEXT,
+                stderr_redacted TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_terminal_output_ts ON terminal_output(ts_utc);
         "#,
         )
         .map_err(|e| RecorderError::SinkError(e.to_string()))?;
@@ -479,10 +535,27 @@ impl DuckDbFlightRecorder {
             "DELETE FROM events WHERE timestamp < (CURRENT_TIMESTAMP - INTERVAL '{}' DAY)",
             self.retention_days
         );
-        let affected = conn
+        let affected_events = conn
             .execute(&query, [])
             .map_err(|e| RecorderError::SinkError(e.to_string()))?;
-        Ok(affected as u64)
+
+        let fr_query = format!(
+            "DELETE FROM fr_events WHERE ts_utc < (CURRENT_TIMESTAMP - INTERVAL '{}' DAY)",
+            self.retention_days
+        );
+        let affected_fr_events = conn
+            .execute(&fr_query, [])
+            .map_err(|e| RecorderError::SinkError(e.to_string()))?;
+
+        let terminal_query = format!(
+            "DELETE FROM terminal_output WHERE ts_utc < (CURRENT_TIMESTAMP - INTERVAL '{}' DAY)",
+            self.retention_days
+        );
+        let affected_terminal_output = conn
+            .execute(&terminal_query, [])
+            .map_err(|e| RecorderError::SinkError(e.to_string()))?;
+
+        Ok((affected_events + affected_fr_events + affected_terminal_output) as u64)
     }
 
     fn query_events(

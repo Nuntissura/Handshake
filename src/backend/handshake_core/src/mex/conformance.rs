@@ -273,3 +273,179 @@ pub fn single_engine_registry(engine_id: &str) -> MexRegistry {
     map.insert(engine_id.to_string(), spec);
     MexRegistry::from_map(map)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::sync::Arc;
+
+    use serde_json::Value;
+    use uuid::Uuid;
+
+    use super::*;
+    use crate::capabilities::CapabilityRegistry;
+    use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
+    use crate::mex::gates::{
+        BudgetGate, CapabilityGate, DetGate, GatePipeline, IntegrityGate, ProvenanceGate,
+        SchemaGate,
+    };
+
+    fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                collect_rs_files(&path, out)?;
+            } else if path.extension().and_then(|s| s.to_str()) == Some("rs") {
+                out.push(path);
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_no_shadow_engine_adapter_invoke_call_sites() -> Result<(), Box<dyn std::error::Error>> {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let src_root = manifest_dir.join("src");
+        let allowed = src_root.join("mex").join("runtime.rs");
+
+        let mut files = Vec::new();
+        collect_rs_files(&src_root, &mut files)?;
+
+        let mut offenders = Vec::new();
+        let needle = format!(".invoke({})", "&op");
+        for file in files {
+            let content = fs::read_to_string(&file).unwrap_or_default();
+            if content.contains(&needle) && file != allowed {
+                offenders.push(
+                    file.strip_prefix(&manifest_dir)
+                        .unwrap_or(&file)
+                        .display()
+                        .to_string(),
+                );
+            }
+        }
+
+        if !offenders.is_empty() {
+            return Err(format!(
+                "Shadow EngineAdapter invoke call sites detected outside mex/runtime.rs: {}",
+                offenders.join(", ")
+            )
+            .into());
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_mex_runtime_emits_tool_call_and_result_in_fr_events(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
+        let registry = single_engine_registry("test_engine");
+        let capability_registry = CapabilityRegistry::new();
+        let gates = GatePipeline::new(vec![
+            Box::new(SchemaGate),
+            Box::new(CapabilityGate::new(capability_registry)),
+            Box::new(IntegrityGate),
+            Box::new(BudgetGate),
+            Box::new(ProvenanceGate),
+            Box::new(DetGate),
+        ]);
+
+        let runtime = MexRuntime::new(registry, recorder.clone(), recorder.clone(), gates)
+            .with_adapter("test_engine", Arc::new(TestEngineAdapter));
+
+        let op = PlannedOperation {
+            schema_version: POE_SCHEMA_VERSION.to_string(),
+            op_id: Uuid::new_v4(),
+            engine_id: "test_engine".to_string(),
+            engine_version_req: None,
+            operation: "conformance.test".to_string(),
+            inputs: vec![ArtifactHandle::new(
+                Uuid::new_v4(),
+                "/artifact/input".to_string(),
+            )],
+            params: serde_json::json!({"kind": "test"}),
+            capabilities_requested: vec!["fs.read".to_string(), "fs.write".to_string()],
+            budget: BudgetSpec {
+                cpu_time_ms: Some(1000),
+                wall_time_ms: Some(2000),
+                memory_bytes: Some(64 * 1024 * 1024),
+                output_bytes: Some(8 * 1024 * 1024),
+            },
+            determinism: DeterminismLevel::D2,
+            evidence_policy: None,
+            output_spec: OutputSpec {
+                expected_types: vec!["artifact.document".to_string()],
+                max_bytes: Some(8 * 1024 * 1024),
+            },
+        };
+
+        runtime.execute(op.clone()).await?;
+
+        let conn_handle = recorder.connection();
+        let conn = match conn_handle.lock() {
+            Ok(conn) => conn,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        let mut stmt = conn.prepare(
+            "SELECT event_kind, job_id, payload FROM fr_events WHERE job_id = ? ORDER BY event_id ASC",
+        )?;
+        let job_id = op.op_id.to_string();
+        let rows = stmt.query_map(duckdb::params![job_id.clone()], |row| {
+            let event_kind: String = row.get(0)?;
+            let job_id: Option<String> = row.get(1)?;
+            let payload: Option<String> = row.get(2)?;
+            Ok((event_kind, job_id, payload))
+        })?;
+
+        let mut kinds = Vec::new();
+        let mut payloads = Vec::new();
+        for row in rows {
+            let (kind, jid, payload_str) = row?;
+            assert_eq!(jid.as_deref(), Some(job_id.as_str()));
+            kinds.push(kind);
+            if let Some(payload_str) = payload_str {
+                payloads.push(serde_json::from_str::<Value>(&payload_str).unwrap_or(Value::Null));
+            }
+        }
+
+        assert!(
+            kinds.iter().any(|k| k == "tool.call"),
+            "expected tool.call in fr_events, got: {:?}",
+            kinds
+        );
+        assert!(
+            kinds.iter().any(|k| k == "tool.result"),
+            "expected tool.result in fr_events, got: {:?}",
+            kinds
+        );
+
+        let required = [
+            "tool_name",
+            "tool_version",
+            "inputs",
+            "outputs",
+            "status",
+            "duration_ms",
+            "error_code",
+            "job_id",
+            "workflow_run_id",
+            "trace_id",
+            "capability_id",
+        ];
+        for payload in payloads {
+            for key in required {
+                assert!(
+                    payload.get(key).is_some(),
+                    "missing required payload key: {} (payload={})",
+                    key,
+                    payload
+                );
+            }
+        }
+
+        Ok(())
+    }
+}
