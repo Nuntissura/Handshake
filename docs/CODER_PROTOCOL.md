@@ -65,6 +65,32 @@ If the assigned WP worktree/branch does not exist locally:
 
 ---
 
+## Gate Visibility Output [CX-GATE-UX-001] (MANDATORY)
+
+When you run any gate command (including: `just pre-work`, `just gate-check`, `just post-work`, validator gate helpers, or any deterministic checker that blocks progress), you MUST in the SAME TURN:
+
+1) Paste the literal output as:
+```text
+GATE_OUTPUT [CX-GATE-UX-001]
+<verbatim output>
+```
+
+2) State where you are in the protocol and what happens next:
+```text
+GATE_STATUS [CX-GATE-UX-001]
+- PHASE: BOOTSTRAP|SKELETON|IMPLEMENTATION|HYGIENE|HANDOFF
+- GATE_RAN: <exact command>
+- RESULT: PASS|FAIL|BLOCKED
+- WHY: <1-2 sentences>
+
+NEXT_COMMANDS [CX-GATE-UX-001]
+- <2-6 copy/paste commands max>
+```
+
+Rule: keep `NEXT_COMMANDS` limited to the immediate next step(s) (required to proceed or to unblock) to stay compatible with Codex [CX-513].
+
+---
+
 ## Spec Authority Rule [CX-598] (HARD INVARIANT)
 
 **The Roadmap (§7.6) is ONLY a pointer. The Master Spec Main Body (§1-6, §9-11) is the SOLE definition of "Done."**

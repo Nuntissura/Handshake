@@ -124,6 +124,30 @@ If the required worktree/branch does not exist:
 Coder worktree rule:
 - CODER agents must work only in WP-assigned worktrees/branches recorded via `just record-prepare` (writes `docs/ORCHESTRATOR_GATES.json`).
 
+## Gate Visibility Output [CX-GATE-UX-001] (MANDATORY)
+
+When you run any gate command (including: `just record-refinement`, `just record-signature`, `just record-prepare`, `just create-task-packet`, `just pre-work`, `just gate-check`, or any deterministic checker that blocks progress), you MUST in the SAME TURN:
+
+1) Paste the literal output as:
+```text
+GATE_OUTPUT [CX-GATE-UX-001]
+<verbatim output>
+```
+
+2) State where you are in the Orchestrator workflow and what happens next:
+```text
+GATE_STATUS [CX-GATE-UX-001]
+- PHASE: REFINEMENT|SIGNATURE|PREPARE|PACKET_CREATE|DELEGATION|STATUS_SYNC
+- GATE_RAN: <exact command>
+- RESULT: PASS|FAIL|BLOCKED
+- WHY: <1-2 sentences>
+
+NEXT_COMMANDS [CX-GATE-UX-001]
+- <2-6 copy/paste commands max>
+```
+
+Rule: keep `NEXT_COMMANDS` limited to the immediate next step(s) (required to proceed or to unblock) to stay compatible with Codex [CX-513].
+
 ## Stop-Work Gate: Worktree + Assignment Before Packet Creation (HARD RULE)
 - After a refinement is signed (`just record-signature WP-{ID} ...`), the Orchestrator MUST:
   1) Create the WP branch/worktree (`just worktree-add WP-{ID}`), and

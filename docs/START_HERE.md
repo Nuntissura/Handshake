@@ -1,9 +1,9 @@
 # Handshake Project: Start Here
 
-Authority: Master Spec (see `docs/SPEC_CURRENT.md`, currently v02.111)
+Authority: Master Spec (see `docs/SPEC_CURRENT.md`)
 ---
 ## Canonical sources
-- **Spec:** `docs/SPEC_CURRENT.md` (points to the current Handshake master spec, currently v02.111).
+- **Spec:** `docs/SPEC_CURRENT.md` (points to the current Handshake master spec).
 - **WP Traceability:** `docs/WP_TRACEABILITY_REGISTRY.md` (Base WP → Active Packet mapping; resolves `-vN` revisions without putting WP IDs into the Master Spec).
 - **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `docs/TASK_BOARD.md` + task packets. Handshake logger is for milestones/hard bugs when requested.
 - **Architecture & debug:** `docs/ARCHITECTURE.md` and `docs/RUNBOOK_DEBUG.md`.
@@ -41,6 +41,8 @@ just validate-workflow WP-{ID}
 **Gate 0 (Pre-Work):** Task packet MUST exist and pass `just pre-work WP-{ID}` before implementation starts. If blocked, STOP and request help.
 
 **Gate 1 (Post-Work):** All validation MUST pass `just post-work WP-{ID}` before commit. If blocked, fix issues and re-run.
+
+**Gate visibility (chat UX):** when a gate runs (or blocks), paste the verbatim output and immediately follow with a short phase/status + copy/paste next commands (see role protocols).
 
 **See:** `docs/QUALITY_GATE.md` for Gate 0 and Gate 1 requirements.
 
