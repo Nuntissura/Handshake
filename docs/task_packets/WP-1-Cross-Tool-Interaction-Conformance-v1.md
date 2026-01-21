@@ -116,98 +116,94 @@ git revert <commit-sha>
 ## SKELETON
 - Proposed interfaces/types/contracts:
 
-### 1. New Types in `flight_recorder/mod.rs`
+### 1. DuckDB `fr_events` table (Spec 11.3.6.4)
 
-```rust
-/// Tool invocation primitive for Cross-Tool Interaction Map (§6.3.0)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolInvocation {
-    /// Unique identifier for this tool invocation
-    pub invocation_id: Uuid,
-    /// Trace ID for request correlation (propagated from parent context)
-    pub trace_id: Uuid,
-    /// Parent invocation ID for causality chain (None if root invocation)
-    pub parent_invocation_id: Option<Uuid>,
-    /// Tool identifier (e.g., "terminal", "llm:ollama", "mex:supply_chain")
-    pub tool_id: String,
-    /// Operation name (e.g., "run_command", "completion", "secret_scan")
-    pub operation: String,
-    /// SHA256 hash of inputs for determinism verification
-    pub inputs_hash: Option<String>,
-    /// SHA256 hash of outputs for provenance tracking
-    pub outputs_hash: Option<String>,
-    /// Job ID if invocation is part of a job
-    pub job_id: Option<String>,
-    /// Capability ID if invocation required capability grant
-    pub capability_id: Option<String>,
-    /// Invocation start timestamp
-    pub started_at: DateTime<Utc>,
-    /// Invocation end timestamp (None if in-progress)
-    pub ended_at: Option<DateTime<Utc>>,
-    /// Outcome: succeeded, failed, denied
-    pub outcome: ToolInvocationOutcome,
-}
+Implement the canonical `fr_events` table in `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+as an additional table (do NOT replace the existing typed `events` table).
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum ToolInvocationOutcome {
-    Succeeded,
-    Failed,
-    Denied,
-    InProgress,
+```sql
+CREATE TABLE fr_events (
+    event_id        BIGINT PRIMARY KEY,
+    ts_utc          TIMESTAMP NOT NULL,
+    session_id      TEXT,
+    task_id         TEXT,
+    job_id          TEXT,
+    workflow_run_id TEXT,
+    event_kind      TEXT NOT NULL, -- "tool.call", "tool.result", "mcp.logging", ...
+    source          TEXT NOT NULL, -- "mex-runtime", "docling-mcp", "host", ...
+    level           TEXT,          -- "DEBUG", "INFO", "WARN", "ERROR"
+    message         TEXT,
+    payload         JSON
+);
+
+CREATE INDEX idx_fr_events_job_id ON fr_events(job_id);
+CREATE INDEX idx_fr_events_kind ON fr_events(event_kind);
+```
+
+Implementation detail (deterministic IDs):
+- Maintain a monotonic BIGINT `event_id` counter initialized from `MAX(fr_events.event_id)` on startup.
+- Increment per insert (thread-safe).
+- Apply retention to `fr_events` alongside `events`.
+
+### 2. MEX tool invocation logging (`tool.call` / `tool.result`)
+
+Implement in `src/backend/handshake_core/src/mex/runtime.rs` using `FlightRecorder::duckdb_connection()`.
+
+Trigger points:
+- Emit `tool.call` immediately before invoking the engine adapter.
+- Emit `tool.result` immediately after completion (success or error).
+
+Minimum payload keys for `tool.*` kinds (per refinement + DONE_MEANS):
+```json
+{
+  "tool_name": "mex:<engine_id>",
+  "tool_version": null,
+  "inputs": ["artifact:<uuid>:<path>"],
+  "outputs": ["artifact:<uuid>:<path>"],
+  "status": "success|error|timeout|skipped",
+  "duration_ms": 12,
+  "error_code": null,
+  "job_id": "<op_id>",
+  "workflow_run_id": null,
+  "trace_id": "<op_id>",
+  "capability_id": "fs.write"
 }
 ```
 
-### 2. New Event Type Variant
+Notes:
+- For `tool.call`, set `outputs: []`, `duration_ms: null`, `error_code: null`, `status: "success"` (call emitted).
+- For `tool.result`, set `status` to the actual outcome and include `duration_ms` and `error_code` when applicable.
 
-```rust
-// In FlightRecorderEventType enum, add:
-pub enum FlightRecorderEventType {
-    // ... existing variants ...
-    /// Tool invocation event for Cross-Tool Interaction Map conformance
-    ToolInvocation,
-}
-```
+### 3. Terminal FR-EVT-001 stdout/stderr references (no inline unbounded output)
 
-### 3. New Helper Functions
+Adjust `src/backend/handshake_core/src/flight_recorder/mod.rs` `TerminalCommandEvent` payload to include:
+- `stdout_ref?: string | null`
+- `stderr_ref?: string | null`
 
-```rust
-/// Build a ToolInvocation payload for Flight Recorder event emission.
-pub fn build_tool_invocation_payload(invocation: &ToolInvocation) -> Value;
+Store redacted stdout/stderr in DuckDB (new table owned by `DuckDbFlightRecorder`), and set refs like:
+- `stdout_ref = "duckdb:terminal_output:<event_id>:stdout"`
+- `stderr_ref = "duckdb:terminal_output:<event_id>:stderr"`
 
-/// Validate a ToolInvocation payload meets conformance requirements.
-pub fn validate_tool_invocation_payload(payload: &Value) -> Result<(), String>;
+### 4. Conformance checks (automated)
 
-/// Emit a tool invocation event to the Flight Recorder.
-pub async fn emit_tool_invocation(
-    recorder: &dyn FlightRecorder,
-    invocation: ToolInvocation,
-    actor: FlightRecorderActor,
-) -> Result<(), crate::storage::StorageError>;
-```
+Add tests under `src/backend/handshake_core/src/mex/` that:
+- Assert a representative `MexRuntime::execute()` writes both `tool.call` and `tool.result` rows into DuckDB `fr_events`.
+- Assert "no shadow pipelines" by failing if any `.invoke(` call sites exist outside `src/backend/handshake_core/src/mex/runtime.rs`.
 
-### 4. Integration Points (Modification Sites)
+### 5. Files to Modify (in-scope)
 
-| Module | Current Pattern | Proposed Change |
-|--------|-----------------|-----------------|
-| `terminal/mod.rs` | `build_flight_recorder_event()` emits `TerminalCommand` | Add `emit_tool_invocation()` call with tool_id="terminal" |
-| `mex/supply_chain.rs` | `emit_supply_chain_event()` emits `System` | Add `emit_tool_invocation()` call with tool_id="mex:{engine_id}" |
-| `llm/ollama.rs` | Emits `LlmInference` directly | Add `emit_tool_invocation()` call with tool_id="llm:ollama" |
-| `mex/runtime.rs` | MEX runtime orchestration | Add parent_invocation_id propagation for engine chains |
-
-### 5. Files to Modify
-
-1. `src/backend/handshake_core/src/flight_recorder/mod.rs` - Add ToolInvocation types and helpers
-2. `src/backend/handshake_core/src/terminal/mod.rs` - Add emit_tool_invocation() call
-3. `src/backend/handshake_core/src/mex/supply_chain.rs` - Add emit_tool_invocation() call
-4. `src/backend/handshake_core/src/llm/ollama.rs` - Add emit_tool_invocation() call
+1. `src/backend/handshake_core/src/flight_recorder/duckdb.rs` - add `fr_events` (and terminal output) tables + retention
+2. `src/backend/handshake_core/src/mex/runtime.rs` - emit `tool.call` + `tool.result` into `fr_events`
+3. `src/backend/handshake_core/src/mex/conformance.rs` - add conformance case(s)/tests for `fr_events` tool logging + no-shadow-pipelines audit
+4. `src/backend/handshake_core/src/flight_recorder/mod.rs` and `src/backend/handshake_core/src/terminal/mod.rs` - add stdout/stderr refs for FR-EVT-001
 
 - Open questions:
-  - Should `tool.call` and `tool.result` be separate events or combined in single ToolInvocation with outcome?
-  - Proposed: Single ToolInvocation emitted at completion with full lifecycle (started_at, ended_at, outcome)
+  - None (spec+packet DONE_MEANS require `tool.call` and `tool.result` rows in DuckDB `fr_events`).
 - Notes:
-  - Existing FR event types (TerminalCommand, LlmInference) remain for backward compatibility
-  - ToolInvocation provides unified cross-tool correlation layer
+  - Existing typed FR events remain (TerminalCommand, LlmInference, Diagnostic, etc.).
+  - This WP adds canonical `fr_events` rows for cross-tool invocation evidence.
+
+SKELETON APPROVED
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)
@@ -277,7 +273,7 @@ pub async fn emit_tool_invocation(
 | Search Term | Files Found | Key Observations |
 |-------------|-------------|------------------|
 | `FlightRecorderEvent` | 14 files | Central event type; ad-hoc construction in each module |
-| `ToolInvocation` | 1 file | Only as error variant `ToolInvocationFailed` — NO formal primitive |
+| `ToolInvocation` | 1 file | Only as error variant `ToolInvocationFailed` -- NO formal primitive |
 | `emit_flight_recorder` | 0 files | No standardized emit helper exists |
 | `build_flight_recorder_event` | 1 file | Only terminal has dedicated builder |
 | `tool_id` | 3 files | Used in ContextPackBuilder.tool_id |
