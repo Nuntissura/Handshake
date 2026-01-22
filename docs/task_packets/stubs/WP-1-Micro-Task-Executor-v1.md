@@ -6,14 +6,13 @@
 - WP_ID: WP-1-Micro-Task-Executor-v1
 - BASE_WP_ID: WP-1-Micro-Task-Executor
 - Created: 2026-01-22
-- SPEC_TARGET: docs/SPEC_CURRENT.md (currently Handshake_Master_Spec_v02.113.md)
-- SPEC_SOURCE_DRAFT: Handshake_Master_Spec_v02_115.md (v02.114 additions; not yet in SPEC_CURRENT)
+- SPEC_TARGET: docs/SPEC_CURRENT.md (currently Handshake_Master_Spec_v02.115.md)
 - SPEC_ORIGIN_VERSION: v02.114 (Micro-Task Executor Profile)
-- ROADMAP_SOURCE: Handshake_Master_Spec_v02_115.md §7.6.3 Phase 1 -> Mechanical Track / Distillation Track [ADD v02.114]
+- ROADMAP_SOURCE: Handshake_Master_Spec_v02.115.md §7.6.3 Phase 1 -> Mechanical Track / Distillation Track [ADD v02.114]
 - SPEC_ANCHOR_CANDIDATE:
-  - Handshake_Master_Spec_v02_115.md §7.6.3 Phase 1 (Micro-Task Executor bullets)
-  - Handshake_Master_Spec_v02_115.md §2.6.6.8 (Micro-Task Executor)
-  - Handshake_Master_Spec_v02_115.md §6.3 / §11.8 (Mechanical Tool Bus / MEX v1.2 envelopes and gates)
+  - Handshake_Master_Spec_v02.115.md §7.6.3 Phase 1 (Micro-Task Executor bullets)
+  - Handshake_Master_Spec_v02.115.md §2.6.6.8 (Micro-Task Executor)
+  - Handshake_Master_Spec_v02.115.md §6.3 / §11.8 (Mechanical Tool Bus / MEX v1.2 envelopes and gates)
 
 ## Roadmap fixed fields (copied from spec; draft)
 - Goal:
@@ -58,7 +57,7 @@
   - Execute one real WP through MT executor: generate MTs, run validations via tool bus, hit at least one escalation, and inspect ledger + FR evidence in Operator Consoles.
 
 ## Why this stub exists
-Handshake_Master_Spec_v02_115.md introduces the Micro-Task Executor Profile (v02.114; §2.6.6.8) and adds Phase 1 requirements tagged [ADD v02.114] for the deterministic MT loop + escalation candidate capture. This stub tracks the work to implement the loop, state persistence, escalation policy, and canonical logging so agentic refinement is replayable and safe.
+Handshake_Master_Spec_v02.115.md introduces the Micro-Task Executor Profile (v02.114; §2.6.6.8) and adds Phase 1 requirements tagged [ADD v02.114] for the deterministic MT loop + escalation candidate capture. This stub tracks the work to implement the loop, state persistence, escalation policy, and canonical logging so agentic refinement is replayable and safe.
 
 ## Scope sketch (draft)
 - In scope:

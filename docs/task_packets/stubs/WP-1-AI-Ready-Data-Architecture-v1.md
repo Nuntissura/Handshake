@@ -6,12 +6,11 @@
 - WP_ID: WP-1-AI-Ready-Data-Architecture-v1
 - BASE_WP_ID: WP-1-AI-Ready-Data-Architecture
 - Created: 2026-01-22
-- SPEC_TARGET: docs/SPEC_CURRENT.md (currently Handshake_Master_Spec_v02.113.md)
-- SPEC_SOURCE_DRAFT: Handshake_Master_Spec_v02_115.md (v02.115 additions; not yet in SPEC_CURRENT)
-- ROADMAP_SOURCE: Handshake_Master_Spec_v02_115.md §7.6.3 Phase 1 -> Mechanical Track [ADD v02.115]
+- SPEC_TARGET: docs/SPEC_CURRENT.md (currently Handshake_Master_Spec_v02.115.md)
+- ROADMAP_SOURCE: Handshake_Master_Spec_v02.115.md §7.6.3 Phase 1 -> Mechanical Track [ADD v02.115]
 - SPEC_ANCHOR_CANDIDATE:
-  - Handshake_Master_Spec_v02_115.md §7.6.3 Phase 1 (AI-Ready Data Architecture - Phase 1)
-  - Handshake_Master_Spec_v02_115.md §2.3.14 (AI-Ready Data Architecture)
+  - Handshake_Master_Spec_v02.115.md §7.6.3 Phase 1 (AI-Ready Data Architecture - Phase 1)
+  - Handshake_Master_Spec_v02.115.md §2.3.14 (AI-Ready Data Architecture)
 
 ## Roadmap fixed fields (copied from spec; draft)
 - Goal:
@@ -45,7 +44,7 @@
   - "Search workspace" over at least Monaco + Terminal + one docs surface, with trace drilldown and reproducible artifacts.
 
 ## Why this stub exists
-Handshake_Master_Spec_v02_115.md adds a new AI-Ready Data Architecture main-body section (§2.3.14) and Phase 1 roadmap requirements tagged [ADD v02.115]. This stub tracks the Phase 1 work needed to implement the minimum viable Bronze/Silver/Gold + hybrid retrieval + Flight Recorder evidence, so later RAG/ingestion work does not become a shadow pipeline.
+Handshake_Master_Spec_v02.115.md adds a new AI-Ready Data Architecture main-body section (§2.3.14) and Phase 1 roadmap requirements tagged [ADD v02.115]. This stub tracks the Phase 1 work needed to implement the minimum viable Bronze/Silver/Gold + hybrid retrieval + Flight Recorder evidence, so later RAG/ingestion work does not become a shadow pipeline.
 
 ## Scope sketch (draft)
 - In scope:

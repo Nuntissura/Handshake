@@ -2,9 +2,9 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.113.md**
+**Handshake_Master_Spec_v02.115.md**
 
-(Updated: 2026-01-17 - Governance workflow hardening: per-WP validator gate state + stub activation traceability + governance gate/WP Flight Recorder events [ilja170120260225])
+(Updated: 2026-01-22 - v02.114 Micro-Task Executor Profile + v02.115 AI-Ready Data Architecture + roadmap/cov matrix updates [ilja220120262330])
 
 ---
 

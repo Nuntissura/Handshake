@@ -1,10 +1,10 @@
 # Master Spec MVP + Roadmap Audit (v02.115)
 
 ## Scope
-- Spec scanned: `Handshake_Master_Spec_v02_115.md` (repo root; contains v02.114 + v02.115 updates)
+- Spec scanned: `Handshake_Master_Spec_v02.115.md` (repo root; contains v02.114 + v02.115 updates)
   - SHA1: `8ECA6D7D1F1F9060A1417E4E16841B66F5714A4E`
 - Governance artifacts consulted:
-  - `docs/SPEC_CURRENT.md` (still points to v02.113)
+  - `docs/SPEC_CURRENT.md` (updated to v02.115 in this change)
   - `docs/TASK_BOARD.md`
   - `docs/WP_TRACEABILITY_REGISTRY.md`
   - `docs/task_packets/stubs/`
@@ -25,24 +25,26 @@
 ### New Phase 1 items (spec pointers)
 
 1) **AI-Ready Data Architecture - Phase 1**
-- Spec: `Handshake_Master_Spec_v02_115.md:40059`
+- Spec: `Handshake_Master_Spec_v02.115.md:40059`
 - Roadmap text: **Mechanical Track (Phase 1)** entry tagged `[ADD v02.115]`
 - Coverage Matrix row exists:
-  - `Handshake_Master_Spec_v02_115.md:39481` (`2.3.14 | AI-Ready Data Architecture [ADD v02.115] | YES | P1, P2, P3, P4`)
+  - `Handshake_Master_Spec_v02.115.md:39481` (`2.3.14 | AI-Ready Data Architecture [ADD v02.115] | YES | P1, P2, P3, P4`)
 
 2) **Micro-Task Executor - Phase 1**
-- Spec: `Handshake_Master_Spec_v02_115.md:40096` .. `Handshake_Master_Spec_v02_115.md:40100`
+- Spec: `Handshake_Master_Spec_v02.115.md:40096` .. `Handshake_Master_Spec_v02.115.md:40100`
 - Roadmap text: Phase 1 Mechanical Track bullets tagged `[ADD v02.114]`
 - Distillation Track additions tied to MT escalation:
-  - `Handshake_Master_Spec_v02_115.md:40134` .. `Handshake_Master_Spec_v02_115.md:40136`
+  - `Handshake_Master_Spec_v02.115.md:40134` .. `Handshake_Master_Spec_v02.115.md:40136`
 
 ### Cross-check: roadmap item counts (v02.114 + v02.115)
 
 Counts extracted from the v02.115 roadmap sections:
-- `### 7.6.3 Phase 1` starts at `Handshake_Master_Spec_v02_115.md:39624`
-- `### 7.6.4 Phase 2` starts at `Handshake_Master_Spec_v02_115.md:40137`
-- `### 7.6.5 Phase 3` starts at `Handshake_Master_Spec_v02_115.md:40497`
-- `### 7.6.6 Phase 4` starts at `Handshake_Master_Spec_v02_115.md:40697`
+- `### 7.6.3 Phase 1` starts at `Handshake_Master_Spec_v02.115.md:39624`
+- `### 7.6.4 Phase 2` starts at `Handshake_Master_Spec_v02.115.md:40137`
+- `### 7.6.5 Phase 3` starts at `Handshake_Master_Spec_v02.115.md:40497`
+- `### 7.6.6 Phase 4` starts at `Handshake_Master_Spec_v02.115.md:40697`
+ 
+NOTE: these pointers are to `Handshake_Master_Spec_v02.115.md` (renamed from `_v02_115.md` for tooling compatibility).
 
 | Phase | MT Executor (v02.114) | AI-Ready Data (v02.115) | Total |
 |---|---:|---:|---:|
@@ -54,11 +56,11 @@ Counts extracted from the v02.115 roadmap sections:
 
 ### Cross-check: remediation markers (4)
 
-`Handshake_Master_Spec_v02_115.md` contains four `[REMEDIATION]` roadmap markers (existing subsystems extended):
-1) `Handshake_Master_Spec_v02_115.md:40065` - Flight Recorder: wire FR-EVT-DATA-001..015 (AI-Ready Data Architecture)
-2) `Handshake_Master_Spec_v02_115.md:40493` - Skill Bank: MT Executor LoRA feedback loop (schema extensions)
-3) `Handshake_Master_Spec_v02_115.md:40671` - Skill Bank: training data selection from retrieval quality signals (schema extensions)
-4) `Handshake_Master_Spec_v02_115.md:40693` - Skill Bank: MT Executor LoRA training automation (distillation infrastructure extension)
+`Handshake_Master_Spec_v02.115.md` contains four `[REMEDIATION]` roadmap markers (existing subsystems extended):
+1) `Handshake_Master_Spec_v02.115.md:40065` - Flight Recorder: wire FR-EVT-DATA-001..015 (AI-Ready Data Architecture)
+2) `Handshake_Master_Spec_v02.115.md:40493` - Skill Bank: MT Executor LoRA feedback loop (schema extensions)
+3) `Handshake_Master_Spec_v02.115.md:40671` - Skill Bank: training data selection from retrieval quality signals (schema extensions)
+4) `Handshake_Master_Spec_v02.115.md:40693` - Skill Bank: MT Executor LoRA training automation (distillation infrastructure extension)
 
 ### Cross-check: new Flight Recorder event IDs (spec)
 
@@ -85,7 +87,7 @@ WP Traceability registry updated:
 ## 2) Coverage Matrix integrity (v02.115)
 
 Coverage Matrix table header:
-- `Handshake_Master_Spec_v02_115.md:39468`
+- `Handshake_Master_Spec_v02.115.md:39468`
 
 Deterministic extraction summary (from the matrix table):
 - Matrix rows: 69
@@ -97,18 +99,18 @@ Notable change in v02.115:
 
 Risk / friction (addressed in this worktree):
 - The Coverage Matrix `Definitions` + Rule 1 now explicitly allow matrix rows for major sub-sections (`X.Y.Z`) when the matrix includes them (e.g., `2.3.14`).
-  - Definition: `Handshake_Master_Spec_v02_115.md:39449`
-  - Rule 1: `Handshake_Master_Spec_v02_115.md:39453`
+  - Definition: `Handshake_Master_Spec_v02.115.md:39449`
+  - Rule 1: `Handshake_Master_Spec_v02.115.md:39453`
 
 ---
 
 ## 3) Phase 1 fixed-field template check (v02.115)
 
 Phase 1 section bounds:
-- Start: `Handshake_Master_Spec_v02_115.md:39624` (`### 7.6.3 Phase 1`)
-- End: `Handshake_Master_Spec_v02_115.md:40136` (last Phase 1 line before `### 7.6.4 Phase 2`)
+- Start: `Handshake_Master_Spec_v02.115.md:39624` (`### 7.6.3 Phase 1`)
+- End: `Handshake_Master_Spec_v02.115.md:40136` (last Phase 1 line before `### 7.6.4 Phase 2`)
 
-Expected fixed fields (per `Handshake_Master_Spec_v02_115.md:39428`), in this order:
+Expected fixed fields (per `Handshake_Master_Spec_v02.115.md:39428`), in this order:
 1) Goal
 2) MUST deliver
 3) Key risks addressed in Phase n
@@ -120,21 +122,21 @@ Expected fixed fields (per `Handshake_Master_Spec_v02_115.md:39428`), in this or
 9) Explicitly OUT of scope
 
 Observed field headings / markers in Phase 1:
-- Goal: `Handshake_Master_Spec_v02_115.md:39626`
-- MUST deliver: `Handshake_Master_Spec_v02_115.md:39642`
-- Vertical slice: `Handshake_Master_Spec_v02_115.md:39807`
-- Key risks addressed in Phase 1: `Handshake_Master_Spec_v02_115.md:39908`
-- Acceptance criteria: `Handshake_Master_Spec_v02_115.md:39957`
-- Explicitly OUT of scope: `Handshake_Master_Spec_v02_115.md:40024`
-- Mechanical Track (Phase 1): `Handshake_Master_Spec_v02_115.md:40052`
-- Atelier Track (Phase 1): `Handshake_Master_Spec_v02_115.md:40102`
-- Distillation Track (Phase 1): `Handshake_Master_Spec_v02_115.md:40123`
+- Goal: `Handshake_Master_Spec_v02.115.md:39626`
+- MUST deliver: `Handshake_Master_Spec_v02.115.md:39642`
+- Vertical slice: `Handshake_Master_Spec_v02.115.md:39807`
+- Key risks addressed in Phase 1: `Handshake_Master_Spec_v02.115.md:39908`
+- Acceptance criteria: `Handshake_Master_Spec_v02.115.md:39957`
+- Explicitly OUT of scope: `Handshake_Master_Spec_v02.115.md:40024`
+- Mechanical Track (Phase 1): `Handshake_Master_Spec_v02.115.md:40052`
+- Atelier Track (Phase 1): `Handshake_Master_Spec_v02.115.md:40102`
+- Distillation Track (Phase 1): `Handshake_Master_Spec_v02.115.md:40123`
 
 Finding:
 - All fixed-field concepts are present, but Phase 1 does not currently follow the fixed-field *order*.
 
 Recommended roadmap remediation (Phase 1):
-- Reorder Phase 1 field blocks to match the fixed template order in `Handshake_Master_Spec_v02_115.md:39428`.
+- Reorder Phase 1 field blocks to match the fixed template order in `Handshake_Master_Spec_v02.115.md:39428`.
 
 ---
 
