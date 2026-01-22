@@ -407,3 +407,51 @@ SPEC_ANCHORS
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATOR_REPORT (2026-01-21)
+
+VALIDATION REPORT - WP-1-Cross-Tool-Interaction-Conformance-v1
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Cross-Tool-Interaction-Conformance-v1.md (status: In Progress)
+- Spec: Handshake_Master_Spec_v02.113.md 6.0.1, 11.3.6.4, 11.5
+- Commit under review: 5c3b3390
+
+Files Checked:
+- src/backend/handshake_core/src/flight_recorder/duckdb.rs
+- src/backend/handshake_core/src/flight_recorder/mod.rs
+- src/backend/handshake_core/src/mex/conformance.rs
+- src/backend/handshake_core/src/mex/runtime.rs
+- src/backend/handshake_core/src/terminal/mod.rs
+- src/backend/handshake_core/src/llm/ollama.rs
+- docs/task_packets/WP-1-Cross-Tool-Interaction-Conformance-v1.md
+- docs/refinements/WP-1-Cross-Tool-Interaction-Conformance-v1.md
+
+Findings:
+- Spec 11.3.6.4 (DuckDB canonical FR tables): DuckDB schema bootstrap creates `fr_events` (src/backend/handshake_core/src/flight_recorder/duckdb.rs:271).
+- Spec 6.0.1 (Cross-tool interaction conformance): MEX runtime records `tool.call` + `tool.result` into DuckDB `fr_events` (src/backend/handshake_core/src/mex/runtime.rs:172, src/backend/handshake_core/src/mex/runtime.rs:225).
+- Required payload keys enforced by test: `tool_name`, `tool_version`, `inputs`, `outputs`, `status`, `duration_ms`, `error_code`, `job_id`, `workflow_run_id`, `trace_id`, `capability_id` (src/backend/handshake_core/src/mex/conformance.rs:341, src/backend/handshake_core/src/mex/conformance.rs:425).
+- Capability evidence: `capability_id` is always present in tool.* payloads (src/backend/handshake_core/src/mex/runtime.rs:166, src/backend/handshake_core/src/mex/runtime.rs:216).
+- Spec 11.5 (FR-EVT-001 terminal output refs + bounded logging): terminal stdout/stderr stored as redacted DuckDB refs (`stdout_ref`/`stderr_ref`) with backing `terminal_output` table and payload validation (src/backend/handshake_core/src/terminal/mod.rs:486, src/backend/handshake_core/src/flight_recorder/duckdb.rs:292, src/backend/handshake_core/src/flight_recorder/mod.rs:408).
+- Spec 11.5 retention: retention purge covers `events`, `fr_events`, and `terminal_output` (src/backend/handshake_core/src/flight_recorder/duckdb.rs:529).
+- Spec 11.5 (FR-EVT-006 llm_inference): llm_inference emission includes `trace_id` and `model_id` (src/backend/handshake_core/src/llm/ollama.rs:128).
+- Conformance guard against "shadow pipelines": test fails on `.invoke(&op)` call sites outside `mex/runtime.rs` (src/backend/handshake_core/src/mex/conformance.rs:308).
+
+Forbidden Patterns:
+- just validator-scan: PASS (evidence recorded in this packet under EVIDENCE_RUNS).
+
+Tests:
+- just pre-work WP-1-Cross-Tool-Interaction-Conformance-v1: PASS (evidence recorded under EVIDENCE_RUNS).
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml: PASS (evidence recorded under EVIDENCE_RUNS).
+- just post-work WP-1-Cross-Tool-Interaction-Conformance-v1: PASS (evidence recorded under EVIDENCE_RUNS; includes ROLE_MAILBOX_EXPORT_GATE PASS).
+
+### REASON FOR PASS
+- DONE_MEANS satisfied with file:line evidence for tool.call/tool.result fr_events logging, capability_id correlation, Terminal FR-EVT-001 output refs, LLM FR-EVT-006 trace_id/model_id, and a conformance test that fails on shadow invocation.
+- Deterministic manifests and post-work gate passed (COR-701 discipline recorded in this packet).
+
+Risks & Suggested Actions:
+- Workflow note (non-blocking): `just post-work` currently depends on staged/working-tree changes; consider allowing it to validate committed diffs (HEAD) to avoid false FAIL on clean trees.
+
+Task Packet Update (APPEND-ONLY):
+- This report appended under ## VALIDATION_REPORTS. Metadata Status line not overwritten.
