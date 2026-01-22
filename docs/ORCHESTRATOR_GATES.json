@@ -743,6 +743,22 @@
       "signature": "ilja220120260926",
       "timestamp": "2026-01-22T08:41:01.200Z",
       "refinement_path": "docs/refinements/WP-1-Micro-Task-Executor-v1.md"
+    },
+    {
+      "wpId": "WP-1-Micro-Task-Executor-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Micro-Task-Executor-v1",
+      "worktree_dir": "D:/Projects/LLM",
+      "timestamp": "2026-01-22T08:43:23.814Z"
+    },
+    {
+      "wpId": "WP-1-Micro-Task-Executor-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Micro-Task-Executor-v1",
+      "worktree_dir": "../wt-WP-1-Micro-Task-Executor-v1",
+      "timestamp": "2026-01-22T08:43:52.397Z"
     }
   ]
 }
