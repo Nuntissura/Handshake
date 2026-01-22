@@ -47,10 +47,11 @@ Entry format (recommended):
 
 A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `docs/task_packets/` (not a stub).
 
+- **[WP-1-Cross-Tool-Interaction-Conformance-v1]** - [READY FOR DEV]
+
 ## Stub Backlog (Not Activated)
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
-- **[WP-1-Cross-Tool-Interaction-Conformance-v1]** - [STUB]
 - **[WP-1-LocalFirst-Agentic-MCP-Posture-v1]** - [STUB]
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
 - **[WP-1-Dev-Experience-ADRs]** - [STUB]

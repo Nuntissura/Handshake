@@ -1,0 +1,47 @@
+{
+  "validation_sessions": {
+    "WP-1-Cross-Tool-Interaction-Conformance-v1": {
+      "wpId": "WP-1-Cross-Tool-Interaction-Conformance-v1",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-01-21T23:42:08.821Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-21T23:42:08.822Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-21T23:47:23.675Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-21T23:55:57.136Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-01-22T00:05:06.039Z"
+        }
+      ],
+      "completed": "2026-01-22T00:05:06.040Z"
+    }
+  },
+  "archived_sessions": [
+    {
+      "wpId": "WP-1-Cross-Tool-Interaction-Conformance-v1",
+      "verdict": "FAIL",
+      "status": "REPORT_PRESENTED",
+      "started": "2026-01-21T22:22:59.116Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-01-21T22:22:59.117Z"
+        }
+      ],
+      "archived_at": "2026-01-21T23:42:08.492Z",
+      "archive_reason": "manual_reset"
+    }
+  ]
+}

@@ -16,8 +16,8 @@ use uuid::Uuid;
 
 use crate::capabilities::CapabilityRegistry;
 use crate::flight_recorder::{
-    FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
-    TerminalCommandEvent,
+    duckdb::store_terminal_output_redacted, FlightRecorder, FlightRecorderActor,
+    FlightRecorderEvent, FlightRecorderEventType, TerminalCommandEvent,
 };
 use crate::terminal::config::TerminalConfig;
 use crate::terminal::guards::{DefaultTerminalGuard, TerminalGuard};
@@ -461,16 +461,69 @@ impl TerminalService {
                 timed_out,
                 cancelled,
                 truncated_bytes,
-                cfg,
-                stdout: &stdout_bytes,
-                stderr: &stderr_bytes,
             },
             redactor,
         );
 
-        let record_result = flight_recorder
-            .record_event(event.with_trace_and_actor(trace_id))
-            .await;
+        let mut event = event.with_trace_and_actor(trace_id);
+
+        let (stdout_redacted, stdout_match, stderr_redacted, stderr_match) =
+            if cfg.redaction_enabled {
+                let stdout_res = redactor.redact_output(&stdout_bytes, &[]);
+                let stderr_res = redactor.redact_output(&[], &stderr_bytes);
+                (
+                    stdout_res.redacted,
+                    stdout_res.matched,
+                    stderr_res.redacted,
+                    stderr_res.matched,
+                )
+            } else {
+                (stdout.clone(), false, stderr.clone(), false)
+            };
+
+        let output_redaction_matched = stdout_match || stderr_match;
+
+        let mut stdout_ref: Value = Value::Null;
+        let mut stderr_ref: Value = Value::Null;
+        if let Some(conn) = flight_recorder.duckdb_connection() {
+            let conn = conn.lock().map_err(|_| {
+                TerminalError::RedactionFailed("HSK-TERM-006: duckdb lock error".to_string())
+            })?;
+
+            store_terminal_output_redacted(
+                &conn,
+                event.event_id,
+                &stdout_redacted,
+                &stderr_redacted,
+            )
+            .map_err(|e| {
+                TerminalError::RedactionFailed(format!(
+                    "HSK-TERM-006: failed to store terminal output: {}",
+                    e
+                ))
+            })?;
+
+            stdout_ref = Value::String(format!("duckdb:terminal_output:{}:stdout", event.event_id));
+            stderr_ref = Value::String(format!("duckdb:terminal_output:{}:stderr", event.event_id));
+        }
+
+        if let Value::Object(map) = &mut event.payload {
+            map.insert("stdout_ref".to_string(), stdout_ref);
+            map.insert("stderr_ref".to_string(), stderr_ref);
+
+            let prev = map
+                .get("redaction_applied")
+                .and_then(|value| value.as_bool())
+                .unwrap_or(false);
+            map.insert(
+                "redaction_applied".to_string(),
+                Value::Bool(prev || output_redaction_matched),
+            );
+        }
+
+        event.normalize_payload();
+
+        let record_result = flight_recorder.record_event(event).await;
         if let Err(err) = record_result {
             return Err(TerminalError::RedactionFailed(format!(
                 "HSK-TERM-006: failed to record event: {}",
@@ -499,9 +552,6 @@ struct TerminalEventContext<'a> {
     timed_out: bool,
     cancelled: bool,
     truncated_bytes: u64,
-    cfg: &'a TerminalConfig,
-    stdout: &'a [u8],
-    stderr: &'a [u8],
 }
 
 fn build_flight_recorder_event(
@@ -514,17 +564,7 @@ fn build_flight_recorder_event(
         format!("{} {}", ctx.req.command, ctx.req.args.join(" "))
     };
     let redacted = redactor.redact_command(&command_line);
-    let (redacted_output, output_match) = if matches!(
-        ctx.cfg.logging_level,
-        crate::terminal::config::TerminalLogLevel::CommandsPlusRedactedOutput
-    ) && ctx.cfg.redaction_enabled
-    {
-        let result = redactor.redact_output(ctx.stdout, ctx.stderr);
-        (Some(result.redacted), result.matched)
-    } else {
-        (None, false)
-    };
-    let redaction_applied = redacted.matched || output_match;
+    let redaction_applied = redacted.matched;
     TerminalEventEnvelope {
         payload: TerminalCommandEvent {
             job_id: ctx.session.job_id.clone(),
@@ -538,13 +578,15 @@ fn build_flight_recorder_event(
             timed_out: ctx.timed_out,
             cancelled: ctx.cancelled,
             truncated_bytes: ctx.truncated_bytes,
+            stdout_ref: None,
+            stderr_ref: None,
             capability_id: ctx
                 .req
                 .requested_capability
                 .clone()
                 .or_else(|| ctx.req.job_context.capability_id.clone()),
             redaction_applied,
-            redacted_output,
+            redacted_output: None,
             session_type: ctx.session.session_type.as_str().to_string(),
             human_consent_obtained: ctx.session.human_consent_obtained,
             capability_set: ctx.session.capability_set.clone(),

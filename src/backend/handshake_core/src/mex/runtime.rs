@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 
 use async_trait::async_trait;
-use serde_json::json;
+use serde_json::{json, Value};
 use thiserror::Error;
 
 use crate::diagnostics::{
@@ -80,6 +81,154 @@ impl MexRuntime {
         &self.registry
     }
 
+    fn artifact_refs(handles: &[crate::ace::ArtifactHandle]) -> Vec<String> {
+        handles.iter().map(|h| h.canonical_id()).collect()
+    }
+
+    fn record_tool_fr_event(
+        &self,
+        op: &PlannedOperation,
+        event_kind: &str,
+        level: &str,
+        message: &str,
+        payload: Value,
+    ) -> Result<(), MexRuntimeError> {
+        let Some(conn) = self.flight_recorder.duckdb_connection() else {
+            return Ok(());
+        };
+        let conn = conn
+            .lock()
+            .map_err(|_| MexRuntimeError::Logging("duckdb connection lock error".to_string()))?;
+
+        let next_id: i64 = conn
+            .prepare("SELECT COALESCE(MAX(event_id), 0) + 1 FROM fr_events")
+            .map_err(|e| MexRuntimeError::Logging(e.to_string()))?
+            .query_row([], |row| row.get(0))
+            .map_err(|e| MexRuntimeError::Logging(e.to_string()))?;
+
+        let payload_str =
+            serde_json::to_string(&payload).map_err(|e| MexRuntimeError::Logging(e.to_string()))?;
+
+        let source = format!("mex:{}", op.engine_id);
+        let job_id = op.op_id.to_string();
+        let workflow_run_id: Option<&str> = None;
+        let session_id: Option<&str> = None;
+        let task_id: Option<&str> = None;
+
+        conn.execute(
+            r#"
+            INSERT INTO fr_events (
+                event_id,
+                ts_utc,
+                session_id,
+                task_id,
+                job_id,
+                workflow_run_id,
+                event_kind,
+                source,
+                level,
+                message,
+                payload
+            ) VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        "#,
+            duckdb::params![
+                next_id,
+                session_id,
+                task_id,
+                job_id,
+                workflow_run_id,
+                event_kind,
+                source,
+                level,
+                message,
+                payload_str
+            ],
+        )
+        .map_err(|e| MexRuntimeError::Logging(e.to_string()))?;
+
+        Ok(())
+    }
+
+    fn record_tool_call(&self, op: &PlannedOperation) -> Result<(), MexRuntimeError> {
+        let capability_id = op.capabilities_requested.first().cloned();
+        let payload = json!({
+            "tool_name": format!("mex:{}", op.engine_id),
+            "tool_version": null,
+            "operation": op.operation,
+            "inputs": Self::artifact_refs(&op.inputs),
+            "outputs": [],
+            "status": "success",
+            "duration_ms": null,
+            "error_code": null,
+            "job_id": op.op_id.to_string(),
+            "workflow_run_id": null,
+            "trace_id": op.op_id.to_string(),
+            "capability_id": capability_id,
+            "capabilities": op.capabilities_requested,
+            "budget": op.budget,
+            "determinism": op.determinism,
+        });
+
+        self.record_tool_fr_event(op, "tool.call", "INFO", "tool invocation started", payload)
+    }
+
+    fn record_tool_result(
+        &self,
+        op: &PlannedOperation,
+        result: Option<&EngineResult>,
+        duration_ms: Option<u64>,
+        status: &str,
+        error_code: Option<String>,
+    ) -> Result<(), MexRuntimeError> {
+        let tool_version = result
+            .and_then(|r| r.provenance.engine_version.clone())
+            .unwrap_or_default();
+        let tool_version = if tool_version.trim().is_empty() {
+            Value::Null
+        } else {
+            Value::String(tool_version)
+        };
+
+        let outputs: Vec<String> = result
+            .map(|r| {
+                let mut out = Self::artifact_refs(&r.outputs);
+                out.extend(Self::artifact_refs(&r.evidence));
+                if let Some(logs) = &r.logs_ref {
+                    out.push(logs.canonical_id());
+                }
+                out
+            })
+            .unwrap_or_default();
+
+        let capability_id = op.capabilities_requested.first().cloned();
+        let payload = json!({
+            "tool_name": format!("mex:{}", op.engine_id),
+            "tool_version": tool_version,
+            "operation": op.operation,
+            "inputs": Self::artifact_refs(&op.inputs),
+            "outputs": outputs,
+            "status": status,
+            "duration_ms": duration_ms,
+            "error_code": error_code,
+            "job_id": op.op_id.to_string(),
+            "workflow_run_id": null,
+            "trace_id": op.op_id.to_string(),
+            "capability_id": capability_id,
+            "capabilities": op.capabilities_requested,
+            "budget": op.budget,
+            "determinism": op.determinism,
+        });
+
+        let level = if status == "success" { "INFO" } else { "ERROR" };
+        self.record_tool_fr_event(
+            op,
+            "tool.result",
+            level,
+            "tool invocation finished",
+            payload,
+        )
+    }
+
     pub async fn execute(&self, op: PlannedOperation) -> Result<EngineResult, MexRuntimeError> {
         for gate in self.gates.iter() {
             match gate.check(&op, &self.registry) {
@@ -120,18 +269,42 @@ impl MexRuntime {
             .get(&engine_id)
             .ok_or_else(|| MexRuntimeError::AdapterMissing(engine_id.clone()))?;
 
-        let mut result = adapter
-            .invoke(&op)
-            .await
-            .map_err(MexRuntimeError::Adapter)?;
+        self.record_tool_call(&op)?;
+
+        // WAIVER [CX-573E]: Instant::now() is required for duration measurement (observability only).
+        let start = Instant::now();
+        let invoke_result = adapter.invoke(&op).await;
+        let duration_ms = start.elapsed().as_millis() as u64;
+        let mut result = match invoke_result {
+            Ok(result) => result,
+            Err(err) => {
+                self.record_tool_result(
+                    &op,
+                    None,
+                    Some(duration_ms),
+                    "error",
+                    Some("MEX_ADAPTER_ERROR".to_string()),
+                )?;
+                return Err(MexRuntimeError::Adapter(err));
+            }
+        };
 
         if op.determinism.requires_evidence() && result.evidence.is_empty() {
             self.record_missing_evidence_diagnostic(&op).await?;
+            self.record_tool_result(
+                &op,
+                Some(&result),
+                Some(duration_ms),
+                "error",
+                Some("MEX_EVIDENCE_MISSING".to_string()),
+            )?;
             return Err(MexRuntimeError::EvidenceMissing(op.determinism));
         }
 
         // Attach engine_id to provenance if missing.
         result.provenance = result.provenance.with_engine_id(&engine_id);
+
+        self.record_tool_result(&op, Some(&result), Some(duration_ms), "success", None)?;
 
         Ok(result)
     }
