@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja220120260926 | Orchestrator | 2026-01-22 09:26 | Task packet creation: WP-1-Micro-Task-Executor-v1 | v02.115 | Approved after Technical Refinement (see docs/refinements/WP-1-Micro-Task-Executor-v1.md ). |
 | ilja210120262044 | Orchestrator | 2026-01-21 20:44 | Task packet creation: WP-1-Cross-Tool-Interaction-Conformance-v1 | v02.113 | Approved after Technical Refinement (see docs/refinements/WP-1-Cross-Tool-Interaction-Conformance-v1.md ). |
 | ilja200120260048 | Orchestrator | 2026-01-20 00:48 | Task packet creation: WP-1-AI-Job-Model-v4 | v02.113 | Approved after Technical Refinement (see docs/refinements/WP-1-AI-Job-Model-v4.md ). |
 | ilja190120260338 | Orchestrator | 2026-01-19 03:38 | Task packet creation: WP-1-OSS-Governance-v2 | v02.113 | Approved after Technical Refinement (see docs/refinements/WP-1-OSS-Governance-v2.md ). |
