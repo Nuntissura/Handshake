@@ -8,9 +8,9 @@
 - REQUESTOR: User
 - AGENT_ID: codex-cli
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: Claude Opus 4.5 (claude-opus-4-5-20251101)
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja220120260926
 
@@ -165,9 +165,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress (claimed by Coder-A / Opus 4.5)
+- What changed in this update: Bootstrap claim - starting implementation
+- Next step / handoff hint: BOOTSTRAP phase -> SKELETON phase
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
