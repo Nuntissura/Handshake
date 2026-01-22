@@ -60,6 +60,7 @@ Format:
 | WP-1-ACE-Runtime | docs/task_packets/WP-1-ACE-Runtime-v2.md | Ready for Dev: WP-1-ACE-Runtime-v2 | active=WP-1-ACE-Runtime-v2; activated from stub docs/task_packets/stubs/WP-1-ACE-Runtime-v2.md; supersedes: WP-1-ACE-Runtime |
 | WP-1-ACE-Validators | docs/task_packets/WP-1-ACE-Validators-v4.md | Done: WP-1-ACE-Validators-v4 | active=WP-1-ACE-Validators-v4; supersedes: WP-1-ACE-Validators, WP-1-ACE-Validators-v2, WP-1-ACE-Validators-v3 |
 | WP-1-AI-Job-Model | docs/task_packets/WP-1-AI-Job-Model-v4.md | Ready for Dev: WP-1-AI-Job-Model-v4 | active=WP-1-AI-Job-Model-v4; activated from stub docs/task_packets/stubs/WP-1-AI-Job-Model-v4.md; supersedes: WP-1-AI-Job-Model-v3, WP-1-AI-Job-Model-v2 |
+| WP-1-AI-Ready-Data-Architecture | docs/task_packets/stubs/WP-1-AI-Ready-Data-Architecture-v1.md | Stub Backlog (Not Activated): WP-1-AI-Ready-Data-Architecture-v1 | stub (spec v02.115); new roadmap item |
 | WP-1-AI-UX-Actions | docs/task_packets/stubs/WP-1-AI-UX-Actions-v2.md | Stub Backlog (Not Activated): WP-1-AI-UX-Actions-v2 | stub (remediation); supersedes: WP-1-AI-UX-Actions |
 | WP-1-AI-UX-Rewrite | docs/task_packets/stubs/WP-1-AI-UX-Rewrite-v2.md | Stub Backlog (Not Activated): WP-1-AI-UX-Rewrite-v2 | stub (remediation); supersedes: WP-1-AI-UX-Rewrite |
 | WP-1-AI-UX-Summarize-Display | docs/task_packets/stubs/WP-1-AI-UX-Summarize-Display-v2.md | Stub Backlog (Not Activated): WP-1-AI-UX-Summarize-Display-v2 | stub (remediation); supersedes: WP-1-AI-UX-Summarize-Display |
@@ -92,6 +93,7 @@ Format:
 | WP-1-MEX-Safety-Gates | docs/task_packets/stubs/WP-1-MEX-Safety-Gates-v2.md | Stub Backlog (Not Activated): WP-1-MEX-Safety-Gates-v2 | stub (remediation); supersedes: WP-1-MEX-Safety-Gates |
 | WP-1-MEX-UX-Bridges | docs/task_packets/stubs/WP-1-MEX-UX-Bridges-v2.md | Stub Backlog (Not Activated): WP-1-MEX-UX-Bridges-v2 | stub (remediation); supersedes: WP-1-MEX-UX-Bridges |
 | WP-1-MEX-v1.2-Runtime | docs/task_packets/WP-1-MEX-v1.2-Runtime-v3.md | Done: WP-1-MEX-v1.2-Runtime-v3 | active=WP-1-MEX-v1.2-Runtime-v3; supersedes: WP-1-MEX-v1.2-Runtime, WP-1-MEX-v1.2-Runtime-v2 |
+| WP-1-Micro-Task-Executor | docs/task_packets/stubs/WP-1-Micro-Task-Executor-v1.md | Stub Backlog (Not Activated): WP-1-Micro-Task-Executor-v1 | stub (spec v02.114); new roadmap item |
 | WP-1-Migration-Framework | docs/task_packets/WP-1-Migration-Framework-v2.md | Done: WP-1-Migration-Framework-v2 | active=WP-1-Migration-Framework-v2 (remediation); supersedes: WP-1-Migration-Framework |
 | WP-1-Model-Profiles | docs/task_packets/stubs/WP-1-Model-Profiles-v2.md | Stub Backlog (Not Activated): WP-1-Model-Profiles-v2 | stub (remediation); supersedes: WP-1-Model-Profiles |
 | WP-1-Mutation-Traceability | docs/task_packets/WP-1-Mutation-Traceability-v2.md | Ready for Dev: WP-1-Mutation-Traceability-v2 | active=WP-1-Mutation-Traceability-v2; activated from stub docs/task_packets/stubs/WP-1-Mutation-Traceability-v2.md; supersedes: WP-1-Mutation-Traceability |
