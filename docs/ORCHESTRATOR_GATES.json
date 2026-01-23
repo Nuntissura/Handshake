@@ -759,6 +759,30 @@
       "branch": "feat/WP-1-Micro-Task-Executor-v1",
       "worktree_dir": "../wt-WP-1-Micro-Task-Executor-v1",
       "timestamp": "2026-01-22T08:43:52.397Z"
+    },
+    {
+      "wpId": "WP-1-Dev-Experience-ADRs-v1",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Dev-Experience-ADRs-v1.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.115.md",
+      "spec_target_sha1": "61e500454062bacbe70578ada7989286c0742973",
+      "timestamp": "2026-01-23T20:41:51.298Z",
+      "turn_token": "1769200911299"
+    },
+    {
+      "wpId": "WP-1-Dev-Experience-ADRs-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja230120262310",
+      "timestamp": "2026-01-23T22:12:36.769Z",
+      "refinement_path": "docs/refinements/WP-1-Dev-Experience-ADRs-v1.md"
+    },
+    {
+      "wpId": "WP-1-Dev-Experience-ADRs-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-B",
+      "branch": "feat/WP-1-Dev-Experience-ADRs-v1",
+      "worktree_dir": "../wt-WP-1-Dev-Experience-ADRs-v1",
+      "timestamp": "2026-01-23T22:28:10.062Z"
     }
   ]
 }

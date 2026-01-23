@@ -71,7 +71,7 @@ Format:
 | WP-1-Capability-SSoT | docs/task_packets/WP-1-Capability-SSoT-v2.md | Ready for Dev: WP-1-Capability-SSoT-v2 | active=WP-1-Capability-SSoT-v2; activated from stub docs/task_packets/stubs/WP-1-Capability-SSoT-v2.md; supersedes: WP-1-Capability-SSoT |
 | WP-1-Cross-Tool-Interaction-Conformance | docs/task_packets/WP-1-Cross-Tool-Interaction-Conformance-v1.md | Ready for Dev: WP-1-Cross-Tool-Interaction-Conformance-v1 | active=WP-1-Cross-Tool-Interaction-Conformance-v1; activated from stub docs/task_packets/stubs/WP-1-Cross-Tool-Interaction-Conformance-v1.md |
 | WP-1-Debug-Bundle | docs/task_packets/WP-1-Debug-Bundle-v3.md | Done: WP-1-Debug-Bundle-v3 | active=WP-1-Debug-Bundle-v3; supersedes: WP-1-Debug-Bundle, WP-1-Debug-Bundle-v2 |
-| WP-1-Dev-Experience-ADRs | docs/task_packets/stubs/WP-1-Dev-Experience-ADRs.md | Stub Backlog (Not Activated): WP-1-Dev-Experience-ADRs | stub |
+| WP-1-Dev-Experience-ADRs | docs/task_packets/WP-1-Dev-Experience-ADRs-v1.md | Ready for Dev: WP-1-Dev-Experience-ADRs-v1 | active=WP-1-Dev-Experience-ADRs-v1; activated from stub docs/task_packets/stubs/WP-1-Dev-Experience-ADRs.md |
 | WP-1-Distillation | docs/task_packets/stubs/WP-1-Distillation-v2.md | Stub Backlog (Not Activated): WP-1-Distillation-v2 | stub (remediation); supersedes: WP-1-Distillation |
 | WP-1-Dual-Backend-Tests | docs/task_packets/WP-1-Dual-Backend-Tests-v2.md | Done: WP-1-Dual-Backend-Tests-v2 | active=WP-1-Dual-Backend-Tests-v2; supersedes: WP-1-Dual-Backend-Tests |
 | WP-1-Editor-Hardening | docs/task_packets/WP-1-Editor-Hardening-v2.md | Done: WP-1-Editor-Hardening-v2 | active=WP-1-Editor-Hardening-v2; activated from stub docs/task_packets/stubs/WP-1-Editor-Hardening-v2.md; supersedes: WP-1-Editor-Hardening |
