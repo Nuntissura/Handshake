@@ -91,7 +91,22 @@ just new-api-endpoint <endpoint_name>
 # Git hook (pre-commit checks)
 git config core.hooksPath scripts/hooks
 ```
-If additional setup (DB seed, env) is required: TBD (HSK-1001) — document once known.
+
+### Phase 1 prerequisite: Ollama (local model runtime)
+Phase 1 LLM-backed features require Ollama running locally.
+
+Windows setup (manual; run in your own terminal):
+1. Install Ollama: `winget install -e --id Ollama.Ollama`
+2. Start the server: `ollama serve` (or use `ollama run mistral` for a smoke run + model download)
+3. Verify the API: `irm http://localhost:11434/api/tags` (PowerShell) or `curl http://localhost:11434/api/tags`
+
+Handshake environment (optional overrides):
+- `OLLAMA_URL` (default: `http://localhost:11434`)
+- `OLLAMA_MODEL` (default: `llama3`)
+
+Troubleshooting:
+- Port conflict (11434): `netstat -ano | findstr 11434`
+- If `just dev` reports an Ollama preflight error, confirm `OLLAMA_URL` and that `ollama serve` is running.
 
 For task packets: include scope, expected behavior, in-scope paths, DONE_MEANS, BOOTSTRAP block (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP), and these commands.
 

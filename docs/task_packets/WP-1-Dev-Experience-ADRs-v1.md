@@ -24,9 +24,9 @@
 - IN_SCOPE_PATHS:
   - docs/START_HERE.md
   - justfile
-  - docs/adr/ADR-0002-runtime-selection-ollama.md (new)
-  - docs/adr/ADR-0003-db-layout-jobs-and-flight-recorder.md (new)
-  - docs/adr/ADR-0004-capability-model-shape.md (new)
+  - docs/adr/ADR-0002-runtime-selection-ollama.md
+  - docs/adr/ADR-0003-db-layout-jobs-and-flight-recorder.md
+  - docs/adr/ADR-0004-capability-model-shape.md
 - OUT_OF_SCOPE:
   - Committing any model weights (`*.gguf`, etc.) or other large artifacts to git.
   - Cross-platform installer work beyond Windows (Phase 1 machine is Windows).
@@ -133,29 +133,29 @@ git revert <commit-sha>
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `justfile`
+- **Start**: 1
+- **End**: 30
+- **Line Delta**: 4
+- **Pre-SHA1**: `d3c6873287c56df5ce2e80aaca718b642be7e786`
+- **Post-SHA1**: `403b73df8d06db47a2ccb99965f4344f6db6135b`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 - **Lint Results**:
 - **Artifacts**:
 - **Timestamp**:
 - **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.115.md
+- **Notes**: Added Ollama preflight to `just dev` and documented Phase 1 Ollama setup; created initial ADRs per scope.
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)

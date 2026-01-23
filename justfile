@@ -3,8 +3,12 @@ set dotenv-load := false
 # Powershell is present on Windows by default.
 set windows-shell := ["powershell.exe", "-NoLogo", "-NonInteractive", "-Command"]
 
-dev:
+dev: preflight-ollama
 	cd app; pnpm run tauri dev
+
+# Fail fast if Ollama is missing/unreachable (Phase 1 requirement; see docs/START_HERE.md).
+preflight-ollama:
+	node -e "const base=(process.env.OLLAMA_URL||'http://localhost:11434').replace(/\\/$/, ''); const url=base + '/api/tags'; const lib=url.startsWith('https://')?require('https'):require('http'); const req=lib.get(url, (res)=>{ const ok=!!res.statusCode && res.statusCode>=200 && res.statusCode<300; if(ok){ process.exit(0); } console.error('Ollama preflight failed: GET ' + url + ' returned ' + res.statusCode + '. Install Ollama (Windows: winget install -e --id Ollama.Ollama), then run \"ollama serve\" (or \"ollama run mistral\"), or set OLLAMA_URL.'); process.exit(1); }); req.on('error', (err)=>{ console.error('Ollama preflight failed: cannot reach ' + url + ' (' + err.message + '). Install Ollama (Windows: winget install -e --id Ollama.Ollama), then run \"ollama serve\" (or \"ollama run mistral\"), or set OLLAMA_URL.'); process.exit(1); });"
 
 lint:
 	cd app; pnpm run lint
