@@ -124,10 +124,20 @@ git revert <commit-sha>
 - Notes:
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Updated `docs/START_HERE.md` to replace Phase 1 runtime TBD with concrete Ollama install/run/verify steps and env overrides.
+- Updated `justfile` so `just dev` runs an Ollama preflight check (GET `${OLLAMA_URL}/api/tags`) and fails fast with a clear message when unreachable.
+- Added ADRs:
+  - `docs/adr/ADR-0002-runtime-selection-ollama.md`
+  - `docs/adr/ADR-0003-db-layout-jobs-and-flight-recorder.md`
+  - `docs/adr/ADR-0004-capability-model-shape.md`
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Commands run (see chat logs for verbatim output):
+  - `just validator-scan`
+  - `just validator-dal-audit`
+  - `just validator-git-hygiene`
+  - `just cargo-clean`
+  - `just post-work WP-1-Dev-Experience-ADRs-v1`
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
@@ -159,9 +169,15 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
+- Current WP_STATUS: Ready for validator review
 - What changed in this update:
+  - `docs/START_HERE.md` - Phase 1 Ollama setup steps + env overrides (replaces HSK-1001 TBD)
+  - `justfile` - add `preflight-ollama` and run it before `dev`
+  - `docs/adr/ADR-0002-runtime-selection-ollama.md` (new)
+  - `docs/adr/ADR-0003-db-layout-jobs-and-flight-recorder.md` (new)
+  - `docs/adr/ADR-0004-capability-model-shape.md` (new)
 - Next step / handoff hint:
+  - Validator: review commits `0ce4bb7e` (bootstrap claim) and `34b089df` (implementation), then proceed per VALIDATOR_PROTOCOL.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
