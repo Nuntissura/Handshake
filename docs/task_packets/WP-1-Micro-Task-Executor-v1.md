@@ -8,8 +8,8 @@
 - REQUESTOR: User
 - AGENT_ID: codex-cli
 - ROLE: Orchestrator
-- CODER_MODEL: Claude Opus 4.5 (claude-opus-4-5-20251101)
-- CODER_REASONING_STRENGTH: EXTRA_HIGH
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH
 - **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja220120260926
@@ -28,6 +28,7 @@
   - src/backend/handshake_core/src/ace/mod.rs
   - src/backend/handshake_core/src/mex/runtime.rs
   - src/backend/handshake_core/src/mex/envelope.rs
+  - src/backend/handshake_core/mechanical_engines.json
   - src/backend/handshake_core/src/storage/mod.rs
   - src/backend/handshake_core/src/storage/sqlite.rs
   - src/backend/handshake_core/src/storage/postgres.rs
@@ -126,8 +127,287 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - Dispatch: in `run_job(...)`, route `JobKind::WorkflowRun` + `profile_id == "micro_task_executor_v1"` -> `run_micro_task_executor_v1(state, job, workflow_run_id, trace_id)`; no impact to other profiles.
+  - Engine.shell (resolved): register `engine.shell` in `src/backend/handshake_core/mechanical_engines.json` so MEX `G-CAP` does not hard-deny validation ops. The registered op is `exec` with `schema_ref="poe-1.0"` and capability axis `proc.exec` to cover scoped `proc.exec:<tool>` requests.
+  - Validation pipeline (Tool Bus): build `PlannedOperation { schema_version:"poe-1.0", engine_id:"engine.shell", operation:"exec", ... }` per verify spec and execute via `MexRuntime` (no direct process execution in workflow code).
+  - MT definition generation: MT definitions are ALWAYS auto-generated from WP scope (no API surface for user-supplied MT definitions).
+  - Schema coverage commitment: implement Rust types mirroring the spec schemas for `MicroTaskDefinition` (+ MT-VAL-001..010), `ExecutionPolicy`/escalation, `CompletionSignal`, `ValidationExecution/ValidationResult`, `ProgressArtifact`, `RunLedger`, `EscalationRecord`, and `DistillationCandidate`.
+  - Hard-gate semantics (resolved): on HARD_GATE triggers (max_total_iterations, max_duration, escalation_exhausted), set phase to paused and await the specified human decision/signal (continue|abort) per the loop algorithm.
+  - Flight Recorder (resolved): implement emission for ALL FR-EVT-MT-001..017 when their triggers occur (no "minimum subset" shortcuts).
+  - Persistence (resolved): persist `mt_definitions`, `progress_artifact`, `run_ledger`, validation evidence, escalation records, and distillation candidates as artifact files (artifact-first), referenced by `ArtifactHandle`.
+
+- engine.shell registry entry (planned JSON shape):
+  ```json
+  {
+    "engine.shell": {
+      "engine_id": "engine.shell",
+      "determinism_ceiling": "d1",
+      "required_caps": ["fs.read", "fs.write"],
+      "required_gates": ["G-SCHEMA", "G-CAP", "G-INTEGRITY", "G-BUDGET", "G-PROVENANCE", "G-DET"],
+      "default_budget": { "cpu_time_ms": 60000, "wall_time_ms": 300000, "memory_bytes": 1073741824, "output_bytes": 10485760 },
+      "ops": [
+        {
+          "name": "exec",
+          "schema_ref": "poe-1.0",
+          "capabilities": ["proc.exec"],
+          "output_types": ["artifact.terminal_output"]
+        }
+      ]
+    }
+  }
+  ```
+
+- Rust type/signature sketch (spec-aligned; serde; before implementation):
+  ```rust
+  use chrono::{DateTime, Utc};
+  use serde::{Deserialize, Serialize};
+  use uuid::Uuid;
+
+  use crate::ace::ArtifactHandle;
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct MicroTaskExecutorInputs {
+      pub wp_id: String,
+      pub wp_scope: WorkPacketScope,
+      pub execution_policy: Option<ExecutionPolicy>,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct WorkPacketScope {
+      pub in_scope_paths: Vec<String>,
+      pub out_of_scope: Vec<String>,
+      pub done_means: Vec<String>,
+      pub test_plan: Vec<String>,
+      pub description: String,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct MicroTaskDefinition {
+      pub mt_id: String,
+      pub name: String,
+      pub scope: String,
+      pub files: FileAccessSpec,
+      pub actions: Vec<String>,
+      pub verify: Vec<VerificationSpec>,
+      pub done: Vec<DoneCriterion>,
+      pub depends_on: Vec<String>,
+      pub token_budget: u32,
+      pub task_tags: Vec<String>,
+      pub risk_level: RiskLevel,
+      pub notes: Option<String>,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct FileAccessSpec {
+      pub read: Vec<String>,
+      pub modify: Vec<String>,
+      pub create: Vec<String>,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub enum VerifyExpect {
+      #[serde(rename = "exit_0")]
+      Exit0,
+      #[serde(rename = "exit_nonzero")]
+      ExitNonzero,
+      #[serde(rename = "contains")]
+      Contains,
+      #[serde(rename = "not_contains")]
+      NotContains,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct VerificationSpec {
+      pub command: String,
+      pub expect: VerifyExpect,
+      pub pattern: Option<String>,
+      pub timeout_ms: u64,
+      pub blocking: bool,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub enum DoneVerification {
+      #[serde(rename = "automated")]
+      Automated,
+      #[serde(rename = "evidence_required")]
+      EvidenceRequired,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct DoneCriterion {
+      pub description: String,
+      pub verification: DoneVerification,
+      pub verify_ref: Option<usize>,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  #[serde(rename_all = "snake_case")]
+  pub enum RiskLevel {
+      Low,
+      Medium,
+      High,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct ProgressArtifact {
+      pub schema_version: String, // "1.0"
+      pub wp_id: String,
+      pub job_id: String,
+      pub created_at: DateTime<Utc>,
+      pub updated_at: DateTime<Utc>,
+      pub completed_at: Option<DateTime<Utc>>,
+      pub status: ProgressStatus,
+      pub policy: ExecutionPolicy,
+      pub learning_context: LearningContext,
+      pub current_state: CurrentExecutionState,
+      pub micro_tasks: Vec<MtProgressEntry>,
+      pub aggregate_stats: serde_json::Value, // AggregateStats (referenced but not defined in 2.6.6.8.11.1 excerpt)
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  #[serde(rename_all = "snake_case")]
+  pub enum ProgressStatus {
+      InProgress,
+      Completed,
+      CompletedWithIssues,
+      Failed,
+      Cancelled,
+      Paused,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct LearningContext {
+      pub skill_bank_snapshot_at_start: DateTime<Utc>,
+      pub loras_available: Vec<serde_json::Value>, // LoRAInfo[] (referenced but not defined in 2.6.6.8.11.1 excerpt)
+      pub pending_distillation_jobs: u32,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct CurrentExecutionState {
+      pub active_mt: Option<String>,
+      pub active_model_level: u32,
+      pub total_iterations: u32,
+      pub total_escalations: u32,
+      pub total_drop_backs: u32,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct MtProgressEntry {
+      pub mt_id: String,
+      pub name: String,
+      pub status: MtStatus,
+      pub iterations: Vec<IterationRecord>,
+      pub final_iteration: Option<u32>,
+      pub final_model_level: Option<u32>,
+      pub escalation_record_ref: Option<ArtifactHandle>,
+      pub summary_ref: Option<ArtifactHandle>,
+      pub evidence_refs: Vec<ArtifactHandle>,
+      pub distillation_candidate: Option<DistillationProgress>,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct DistillationProgress {
+      pub eligible: bool,
+      pub skill_log_entry_id: Option<String>,
+      pub task_type_tags: Vec<String>,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  #[serde(rename_all = "snake_case")]
+  pub enum MtStatus {
+      Pending,
+      InProgress,
+      Completed,
+      Failed,
+      Skipped,
+      Blocked,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct IterationRecord {
+      pub iteration: u32,
+      pub model_id: String,
+      pub lora_id: Option<String>,
+      pub escalation_level: u32,
+      pub started_at: DateTime<Utc>,
+      pub completed_at: DateTime<Utc>,
+      pub duration_ms: u64,
+      pub tokens_prompt: u32,
+      pub tokens_completion: u32,
+      pub claimed_complete: bool,
+      pub validation_passed: Option<bool>,
+      pub validation_evidence_ref: Option<ArtifactHandle>,
+      pub outcome: IterationOutcome,
+      pub error_summary: Option<String>,
+      pub context_snapshot_id: Uuid,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub enum IterationOutcome {
+      #[serde(rename = "SUCCESS")]
+      Success,
+      #[serde(rename = "RETRY")]
+      Retry,
+      #[serde(rename = "ESCALATE")]
+      Escalate,
+      #[serde(rename = "BLOCKED")]
+      Blocked,
+      #[serde(rename = "SKIPPED")]
+      Skipped,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct RunLedger {
+      pub ledger_id: Uuid,
+      pub wp_id: String,
+      pub job_id: String,
+      pub created_at: DateTime<Utc>,
+      pub steps: Vec<LedgerStep>,
+      pub resume_point: Option<String>,
+      pub resume_reason: Option<String>,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct LedgerStep {
+      pub step_id: String,
+      pub idempotency_key: String,
+      pub status: LedgerStatus,
+      pub started_at: Option<DateTime<Utc>>,
+      pub completed_at: Option<DateTime<Utc>>,
+      pub output_artifact_ref: Option<ArtifactHandle>,
+      pub error: Option<String>,
+      pub recoverable: bool,
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  #[serde(rename_all = "snake_case")]
+  pub enum LedgerStatus {
+      Pending,
+      InProgress,
+      Completed,
+      Failed,
+  }
+
+  // ExecutionPolicy / escalation / CompletionSignal / ValidationExecution/Result /
+  // EscalationRecord / DistillationCandidate follow the spec schemas and will be persisted as artifacts.
+  ```
+
+- MT validation rules enforced (MT-VAL-001..010):
+  - MT-VAL-001: `mt_id` unique within the Work Packet (ERROR).
+  - MT-VAL-002: `mt_id` matches `MT-[0-9]{3}` (ERROR).
+  - MT-VAL-003: all `depends_on` references resolve to existing MT IDs (ERROR).
+  - MT-VAL-004: dependency graph is acyclic (ERROR).
+  - MT-VAL-005: `files.modify` and `files.create` are within WP `IN_SCOPE_PATHS` (ERROR).
+  - MT-VAL-006: `token_budget` does not exceed model context window minus system overhead (ERROR).
+  - MT-VAL-007: at least one `verify` spec has `blocking=true` (WARNING).
+  - MT-VAL-008: each `done` criterion SHOULD map to a `verify` spec where applicable (WARNING).
+  - MT-VAL-009: `actions` list SHOULD be ordered by execution sequence (WARNING).
+  - MT-VAL-010: sum of all MT `token_budget` values SHOULD be estimable from WP scope (INFO).
 - Open questions:
+  - None (spec-critical items resolved in this skeleton update).
 - Notes:
+  - Implementation will avoid adding any public surface that accepts user-supplied MT definitions; MT definitions are always generated from WP scope.
+  - Implementation will not begin until Operator replies with `SKELETON APPROVED`.
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)
@@ -165,9 +445,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: In Progress (claimed by Coder-A / Opus 4.5)
-- What changed in this update: Bootstrap claim - starting implementation
-- Next step / handoff hint: BOOTSTRAP phase -> SKELETON phase
+- Current WP_STATUS: In Progress (claimed by CODER / GPT-5.2)
+- What changed in this update: SKELETON update - resolved engine.shell registration, full FR-EVT-MT-001..017 commitment, hard-gate semantics per spec, schema-to-Rust mapping sketch
+- Next step / handoff hint: Await `SKELETON APPROVED` -> IMPLEMENTATION phase
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
