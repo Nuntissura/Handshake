@@ -32,7 +32,7 @@
   - src/backend/handshake_core/src/storage/mod.rs
   - src/backend/handshake_core/src/storage/sqlite.rs
   - src/backend/handshake_core/src/storage/postgres.rs
-  - src/backend/handshake_core/tests/micro_task_executor_tests.rs (new)
+  - src/backend/handshake_core/tests/micro_task_executor_tests.rs
 - OUT_OF_SCOPE:
   - Any LoRA training, model promotion, or automated distillation job execution (Phase 2+ only).
   - MT parallel wave execution (Phase 4).
@@ -410,44 +410,151 @@ git revert <commit-sha>
   - Implementation will not begin until Operator replies with `SKELETON APPROVED`.
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Routed `JobKind::WorkflowRun` + `profile_id="micro_task_executor_v1"` into the Micro-Task Executor path in `src/backend/handshake_core/src/workflows.rs`.
+- Registered `engine.shell` in `src/backend/handshake_core/mechanical_engines.json` and implemented `ShellEngineAdapter` wiring in `src/backend/handshake_core/src/mex/runtime.rs` for Tool Bus validation execution.
+- Implemented the MicroTaskExecutionLoop MVP in `src/backend/handshake_core/src/workflows.rs`: MT generation from WP scope, per-iteration prompt compilation, validation via MEX (engine.shell exec), ProgressArtifact+RunLedger persistence, crash recovery, pause/resume, escalation chain + HARD_GATE pause semantics, and distillation candidate artifact capture.
+- Added/updated Flight Recorder support for FR-EVT-MT-001..017 in `src/backend/handshake_core/src/flight_recorder/mod.rs` and `src/backend/handshake_core/src/flight_recorder/duckdb.rs`.
+- Added integration tests covering completion, escalation/hard gate, and pause/resume + workflow recovery: `src/backend/handshake_core/tests/micro_task_executor_tests.rs`.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Commands executed (see console output; do not copy logs into this packet):
+  - `just pre-work WP-1-Micro-Task-Executor-v1`
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`
+  - `just validator-scan`
+  - `just validator-spec-regression`
+  - `just cargo-clean`
+  - `just post-work WP-1-Micro-Task-Executor-v1` (pending: requires VALIDATION manifest to be filled)
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `src/backend/handshake_core/mechanical_engines.json`
+- **Start**: 2
+- **End**: 28
+- **Line Delta**: 27
+- **Pre-SHA1**: `1a28eb02f2cd384a29a307f09367d6ab4cad065d`
+- **Post-SHA1**: `adcf990b326b4c52abd3b75ae528c115ea3ad52a`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- **Start**: 1
+- **End**: 1180
+- **Line Delta**: 31
+- **Pre-SHA1**: `1684be6b596e4a7e4ca68a775ead4b04a7c78cf6`
+- **Post-SHA1**: `74026c5abd314be17ac1a7b66e521264289cb9c4`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 48
+- **End**: 1007
+- **Line Delta**: 364
+- **Pre-SHA1**: `66009937a65f1e3031084d1ab0e17923ac380a24`
+- **Post-SHA1**: `33a1e8a88cbf07e4907a55cca612a62b8bae256f`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/mex/runtime.rs`
+- **Start**: 6
+- **End**: 792
+- **Line Delta**: 296
+- **Pre-SHA1**: `2fc722628bade5e57aff8b34ca8cdd1ef0304338`
+- **Post-SHA1**: `4a09fc697122485b7d87d87d452212ff794cb002`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 8
+- **End**: 3510
+- **Line Delta**: 2340
+- **Pre-SHA1**: `d81e1170997f846a0da1fee072c4fc310f902a68`
+- **Post-SHA1**: `9cd4731c130a87c316fe181416da42661684d583`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+- **Start**: 1
+- **End**: 295
+- **Line Delta**: 295
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `c9c61a9401ce94dff9538407cdfa4319d9d4055b`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
 - **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.115.md
-- **Notes**:
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
 - Current WP_STATUS: In Progress (claimed by CODER / GPT-5.2)
-- What changed in this update: SKELETON update - resolved engine.shell registration, full FR-EVT-MT-001..017 commitment, hard-gate semantics per spec, schema-to-Rust mapping sketch
-- Next step / handoff hint: Await `SKELETON APPROVED` -> IMPLEMENTATION phase
+- What changed in this update:
+  - Implemented the Micro-Task Executor profile backend path and its MEX validation plumbing.
+  - Added/updated Flight Recorder event types and DuckDB mapping for MT events.
+  - Added integration tests for the MT loop (completion, escalation/hard gate, pause/resume + workflow recovery).
+- Touched files (non-docs):
+  - `src/backend/handshake_core/mechanical_engines.json`
+  - `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+  - `src/backend/handshake_core/src/flight_recorder/mod.rs`
+  - `src/backend/handshake_core/src/mex/runtime.rs`
+  - `src/backend/handshake_core/src/workflows.rs`
+  - `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+- Next step / handoff hint:
+  - Run `just post-work WP-1-Micro-Task-Executor-v1` and then create the implementation commit for Validator review.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)

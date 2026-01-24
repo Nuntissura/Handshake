@@ -3,9 +3,12 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use async_trait::async_trait;
+use chrono::Utc;
 use serde_json::{json, Value};
 use thiserror::Error;
+use uuid::Uuid;
 
+use crate::capabilities::CapabilityRegistry;
 use crate::diagnostics::{
     DiagnosticActor, DiagnosticInput, DiagnosticSeverity, DiagnosticSource, DiagnosticSurface,
     DiagnosticsStore, LinkConfidence,
@@ -13,9 +16,17 @@ use crate::diagnostics::{
 use crate::flight_recorder::{
     FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
 };
-use crate::mex::envelope::{DeterminismLevel, EngineResult, PlannedOperation};
+use crate::mex::envelope::{
+    DeterminismLevel, EngineError, EngineResult, EngineStatus, PlannedOperation, ProvenanceRecord,
+};
 use crate::mex::gates::{DenialSeverity, GateDenial, GatePipeline};
 use crate::mex::registry::{MexRegistry, RegistryError};
+use crate::terminal::{
+    config::TerminalConfig,
+    guards::{DefaultTerminalGuard, TerminalGuard},
+    redaction::PatternRedactor,
+    JobContext, TerminalMode, TerminalRequest, TerminalService,
+};
 
 #[derive(Debug, Error)]
 pub enum AdapterError {
@@ -492,5 +503,290 @@ impl MexRuntime {
 impl From<RegistryError> for MexRuntimeError {
     fn from(err: RegistryError) -> Self {
         MexRuntimeError::Registry(err.to_string())
+    }
+}
+
+pub struct ShellEngineAdapter {
+    artifact_root: std::path::PathBuf,
+    capability_registry: Arc<CapabilityRegistry>,
+    flight_recorder: Arc<dyn FlightRecorder>,
+}
+
+impl ShellEngineAdapter {
+    pub fn new(
+        artifact_root: std::path::PathBuf,
+        capability_registry: Arc<CapabilityRegistry>,
+        flight_recorder: Arc<dyn FlightRecorder>,
+    ) -> Self {
+        Self {
+            artifact_root,
+            capability_registry,
+            flight_recorder,
+        }
+    }
+
+    fn rel_path_string(rel_path: &std::path::Path) -> String {
+        rel_path.to_string_lossy().replace('\\', "/")
+    }
+
+    fn artifact_handle_for_rel(&self, rel_path: &std::path::Path) -> crate::ace::ArtifactHandle {
+        crate::ace::ArtifactHandle::new(Uuid::new_v4(), Self::rel_path_string(rel_path))
+    }
+
+    fn error_artifact_rel(op: &PlannedOperation) -> std::path::PathBuf {
+        std::path::PathBuf::from("data")
+            .join("mex_shell")
+            .join("errors")
+            .join(format!("{}.txt", op.op_id))
+    }
+}
+
+#[async_trait]
+impl EngineAdapter for ShellEngineAdapter {
+    async fn invoke(&self, op: &PlannedOperation) -> Result<EngineResult, AdapterError> {
+        if op.engine_id != "engine.shell" || op.operation != "exec" {
+            return Err(AdapterError::Engine(format!(
+                "unsupported engine/operation: {}/{}",
+                op.engine_id, op.operation
+            )));
+        }
+
+        let params = op
+            .params
+            .as_object()
+            .ok_or_else(|| AdapterError::Engine("params must be an object".to_string()))?;
+        let command = params
+            .get("command")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| AdapterError::Engine("missing params.command".to_string()))?
+            .to_string();
+        let cwd = params
+            .get("cwd")
+            .and_then(|v| v.as_str())
+            .unwrap_or(".")
+            .to_string();
+        let timeout_ms = params
+            .get("timeout_ms")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(30_000);
+
+        let mut env_overrides = std::collections::HashMap::new();
+        if let Some(env) = params.get("env").and_then(|v| v.as_object()) {
+            for (k, v) in env {
+                if let Some(value) = v.as_str() {
+                    env_overrides.insert(k.clone(), Some(value.to_string()));
+                }
+            }
+        }
+
+        let (program, args): (String, Vec<String>) = if cfg!(windows) {
+            (
+                "cmd.exe".to_string(),
+                vec!["/C".to_string(), command.clone()],
+            )
+        } else {
+            ("bash".to_string(), vec!["-lc".to_string(), command.clone()])
+        };
+
+        let cfg = TerminalConfig::with_defaults();
+        let guards: Vec<Box<dyn TerminalGuard>> = vec![Box::new(DefaultTerminalGuard)];
+        let redactor = PatternRedactor;
+
+        let mut requested_capability = op.capabilities_requested.first().cloned();
+        if requested_capability.as_deref().map(|c| c.trim().is_empty()) == Some(true) {
+            requested_capability = None;
+        }
+
+        let job_id = Some(op.op_id.to_string());
+        let session_type =
+            crate::terminal::session::TerminalSessionType::derive(None, job_id.as_ref(), None);
+        let request = TerminalRequest {
+            command: program,
+            args,
+            cwd: Some(std::path::PathBuf::from(cwd.as_str())),
+            mode: TerminalMode::NonInteractive,
+            timeout_ms: Some(timeout_ms),
+            max_output_bytes: op.output_spec.max_bytes,
+            env_overrides,
+            capture_stdout: true,
+            capture_stderr: true,
+            stdin_chunks: Vec::new(),
+            idempotency_key: None,
+            job_context: JobContext {
+                job_id: job_id.clone(),
+                model_id: None,
+                session_id: None,
+                capability_profile_id: None,
+                capability_id: None,
+                wsids: Vec::new(),
+            },
+            granted_capabilities: op.capabilities_requested.clone(),
+            requested_capability,
+            session_type,
+            human_consent_obtained: false,
+        };
+
+        let started_at = Utc::now();
+        let output = match TerminalService::run_command(
+            request,
+            &cfg,
+            self.capability_registry.as_ref(),
+            self.flight_recorder.as_ref(),
+            op.op_id,
+            &redactor,
+            &guards,
+        )
+        .await
+        {
+            Ok(output) => output,
+            Err(err) => {
+                let ended_at = Utc::now();
+
+                let error_rel = Self::error_artifact_rel(op);
+                let error_abs = self.artifact_root.join(&error_rel);
+                if let Some(parent) = error_abs.parent() {
+                    std::fs::create_dir_all(parent).map_err(|e| {
+                        AdapterError::Engine(format!("failed to create {}: {e}", parent.display()))
+                    })?;
+                }
+                std::fs::write(&error_abs, err.to_string()).map_err(|e| {
+                    AdapterError::Engine(format!("failed to write {}: {e}", error_abs.display()))
+                })?;
+
+                let error_handle = self.artifact_handle_for_rel(&error_rel);
+                let status = match err {
+                    crate::terminal::TerminalError::CapabilityDenied(_)
+                    | crate::terminal::TerminalError::CwdViolation(_)
+                    | crate::terminal::TerminalError::IsolationViolation(_) => EngineStatus::Denied,
+                    _ => EngineStatus::Failed,
+                };
+
+                let provenance = ProvenanceRecord {
+                    engine_id: op.engine_id.clone(),
+                    engine_version: Some(env!("CARGO_PKG_VERSION").to_string()),
+                    implementation: Some("terminal_service".to_string()),
+                    determinism: op.determinism,
+                    config_hash: None,
+                    inputs: op.inputs.clone(),
+                    outputs: vec![error_handle.clone()],
+                    capabilities_granted: op.capabilities_requested.clone(),
+                    environment: None,
+                };
+
+                return Ok(EngineResult {
+                    op_id: op.op_id,
+                    status,
+                    started_at,
+                    ended_at,
+                    outputs: vec![error_handle.clone()],
+                    evidence: vec![error_handle.clone()],
+                    provenance,
+                    errors: vec![EngineError {
+                        code: "ENGINE_SHELL_TERMINAL_ERROR".to_string(),
+                        message: err.to_string(),
+                        details_ref: Some(error_handle),
+                    }],
+                    logs_ref: None,
+                });
+            }
+        };
+
+        let ended_at = Utc::now();
+
+        let artifact_dir_rel = std::path::PathBuf::from("data")
+            .join("mex_shell")
+            .join("ops")
+            .join(op.op_id.to_string());
+        let artifact_dir_abs = self.artifact_root.join(&artifact_dir_rel);
+        if let Some(parent) = artifact_dir_abs.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                AdapterError::Engine(format!("failed to create {}: {e}", parent.display()))
+            })?;
+        }
+        std::fs::create_dir_all(&artifact_dir_abs).map_err(|e| {
+            AdapterError::Engine(format!(
+                "failed to create {}: {e}",
+                artifact_dir_abs.display()
+            ))
+        })?;
+
+        let stdout_rel = artifact_dir_rel.join("stdout.txt");
+        let stderr_rel = artifact_dir_rel.join("stderr.txt");
+        let output_rel = artifact_dir_rel.join("terminal_output.json");
+
+        let stdout_abs = self.artifact_root.join(&stdout_rel);
+        let stderr_abs = self.artifact_root.join(&stderr_rel);
+        let output_abs = self.artifact_root.join(&output_rel);
+
+        std::fs::write(&stdout_abs, &output.stdout).map_err(|e| {
+            AdapterError::Engine(format!("failed to write {}: {e}", stdout_abs.display()))
+        })?;
+        std::fs::write(&stderr_abs, &output.stderr).map_err(|e| {
+            AdapterError::Engine(format!("failed to write {}: {e}", stderr_abs.display()))
+        })?;
+
+        let terminal_output_payload = json!({
+            "command": command,
+            "cwd": cwd,
+            "exit_code": output.exit_code,
+            "timed_out": output.timed_out,
+            "cancelled": output.cancelled,
+            "truncated_bytes": output.truncated_bytes,
+            "duration_ms": output.duration_ms,
+            "stdout_ref": Self::rel_path_string(&stdout_rel),
+            "stderr_ref": Self::rel_path_string(&stderr_rel),
+        });
+        let output_bytes = serde_json::to_vec_pretty(&terminal_output_payload)
+            .map_err(|e| AdapterError::Engine(e.to_string()))?;
+        std::fs::write(&output_abs, output_bytes).map_err(|e| {
+            AdapterError::Engine(format!("failed to write {}: {e}", output_abs.display()))
+        })?;
+
+        let stdout_handle = self.artifact_handle_for_rel(&stdout_rel);
+        let stderr_handle = self.artifact_handle_for_rel(&stderr_rel);
+        let output_handle = self.artifact_handle_for_rel(&output_rel);
+
+        let status = if output.exit_code == 0 && !output.timed_out && !output.cancelled {
+            EngineStatus::Succeeded
+        } else {
+            EngineStatus::Failed
+        };
+
+        let mut errors = Vec::new();
+        if status != EngineStatus::Succeeded {
+            errors.push(EngineError {
+                code: "ENGINE_SHELL_NONZERO_EXIT".to_string(),
+                message: format!("command exited with code {}", output.exit_code),
+                details_ref: Some(output_handle.clone()),
+            });
+        }
+
+        let provenance = ProvenanceRecord {
+            engine_id: op.engine_id.clone(),
+            engine_version: Some(env!("CARGO_PKG_VERSION").to_string()),
+            implementation: Some("terminal_service".to_string()),
+            determinism: op.determinism,
+            config_hash: None,
+            inputs: op.inputs.clone(),
+            outputs: vec![
+                output_handle.clone(),
+                stdout_handle.clone(),
+                stderr_handle.clone(),
+            ],
+            capabilities_granted: op.capabilities_requested.clone(),
+            environment: None,
+        };
+
+        Ok(EngineResult {
+            op_id: op.op_id,
+            status,
+            started_at,
+            ended_at,
+            outputs: vec![output_handle.clone()],
+            evidence: vec![stdout_handle, stderr_handle, output_handle.clone()],
+            provenance,
+            errors,
+            logs_ref: None,
+        })
     }
 }

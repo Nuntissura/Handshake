@@ -1,4 +1,31 @@
 {
+  "engine.shell": {
+    "engine_id": "engine.shell",
+    "determinism_ceiling": "d1",
+    "required_caps": ["fs.read", "fs.write"],
+    "required_gates": [
+      "G-SCHEMA",
+      "G-CAP",
+      "G-INTEGRITY",
+      "G-BUDGET",
+      "G-PROVENANCE",
+      "G-DET"
+    ],
+    "default_budget": {
+      "cpu_time_ms": 60000,
+      "wall_time_ms": 300000,
+      "memory_bytes": 1073741824,
+      "output_bytes": 10485760
+    },
+    "ops": [
+      {
+        "name": "exec",
+        "schema_ref": "poe-1.0",
+        "capabilities": ["proc.exec"],
+        "output_types": ["artifact.terminal_output"]
+      }
+    ]
+  },
   "engine.spatial": {
     "engine_id": "engine.spatial",
     "determinism_ceiling": "d2",

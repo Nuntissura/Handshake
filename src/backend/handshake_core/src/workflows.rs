@@ -5,7 +5,7 @@ use crate::{
             scan_content_for_security, SecurityViolationType, StorageContentResolver,
             ValidatorPipeline,
         },
-        AceError, CandidateRef, SourceRef,
+        AceError, ArtifactHandle, CandidateRef, SourceRef,
     },
     bundles::{BundleScope, DebugBundleRequest, DefaultDebugBundleExporter, RedactionMode},
     capabilities::{RegistryError, GOVERNANCE_PACK_EXPORT_PROTOCOL_ID},
@@ -19,6 +19,12 @@ use crate::{
     },
     governance_pack::{export_governance_pack, GovernancePackExportRequest},
     llm::{CompletionRequest, LlmError},
+    mex::runtime::ShellEngineAdapter,
+    mex::{
+        BudgetGate, BudgetSpec, CapabilityGate, DetGate, DeterminismLevel, EvidencePolicy,
+        GatePipeline, IntegrityGate, MexRegistry, MexRuntime, OutputSpec, PlannedOperation,
+        ProvenanceGate, SchemaGate, POE_SCHEMA_VERSION,
+    },
     models::{AiJob, JobKind, WorkflowRun},
     storage::{JobState, JobStatusUpdate, NewNodeExecution, StorageError},
     terminal::{
@@ -29,16 +35,19 @@ use crate::{
     },
     AppState,
 };
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
+    fs,
+    path::Path,
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, AtomicU8, Ordering},
-        Mutex,
+        Arc, Mutex,
     },
 };
 use thiserror::Error;
@@ -453,8 +462,15 @@ pub async fn start_workflow_for_job(
 
     let result = run_job(state, &job, workflow_run.id, trace_id).await;
 
-    let (final_status, error_message, output_payload, captured_error) = match result {
-        Ok(output) => (JobState::Completed, None, output, None),
+    let (final_status, error_message, status_reason, output_payload, captured_error) = match result
+    {
+        Ok(outcome) => (
+            outcome.state,
+            outcome.error_message.clone(),
+            outcome.status_reason.clone(),
+            outcome.output,
+            None,
+        ),
         Err(WorkflowError::SecurityViolation(ace_err)) if is_poisonable_violation(&ace_err) => {
             let violation_type = get_violation_type(&ace_err);
             let (offset, context) = match &ace_err {
@@ -479,7 +495,13 @@ pub async fn start_workflow_for_job(
         }
         Err(e) => {
             let msg = e.to_string();
-            (JobState::Failed, Some(msg.clone()), None, Some(e))
+            (
+                JobState::Failed,
+                Some(msg.clone()),
+                msg.clone(),
+                None,
+                Some(e),
+            )
         }
     };
 
@@ -504,9 +526,7 @@ pub async fn start_workflow_for_job(
             job_id: job.job_id,
             state: final_status.clone(),
             error_message: error_message.clone(),
-            status_reason: error_message
-                .clone()
-                .unwrap_or_else(|| "completed".to_string()),
+            status_reason,
             metrics: None,
             workflow_run_id: Some(workflow_run.id),
             trace_id: Some(trace_id),
@@ -537,6 +557,14 @@ pub async fn start_workflow_for_job(
     .await;
 
     captured_error.map_or(Ok(completed_run), Err)
+}
+
+#[derive(Debug, Clone)]
+struct RunJobOutcome {
+    state: JobState,
+    status_reason: String,
+    output: Option<Value>,
+    error_message: Option<String>,
 }
 
 async fn log_capability_check(
@@ -607,7 +635,7 @@ async fn run_job(
     job: &AiJob,
     workflow_run_id: Uuid,
     trace_id: Uuid,
-) -> Result<Option<Value>, WorkflowError> {
+) -> Result<RunJobOutcome, WorkflowError> {
     if let Some(inputs) = job.job_inputs.as_ref() {
         if inputs
             .get("force_prompt_injection")
@@ -934,7 +962,12 @@ async fn run_job(
                     Some(json!({ "summary": response.text })),
                 )
                 .await?;
-            return Ok(Some(json!({ "summary": response.text })));
+            return Ok(RunJobOutcome {
+                state: JobState::Completed,
+                status_reason: "completed".to_string(),
+                output: Some(json!({ "summary": response.text })),
+                error_message: None,
+            });
         }
     } else if matches!(job.job_kind, JobKind::TerminalExec) {
         let payload = execute_terminal_job(state, job, trace_id).await?;
@@ -942,8 +975,17 @@ async fn run_job(
             .storage
             .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
             .await?;
-        return Ok(Some(payload));
+        return Ok(RunJobOutcome {
+            state: JobState::Completed,
+            status_reason: "completed".to_string(),
+            output: Some(payload),
+            error_message: None,
+        });
     } else if matches!(job.job_kind, JobKind::WorkflowRun) {
+        if job.profile_id == "micro_task_executor_v1" {
+            return run_micro_task_executor_v1(state, job, workflow_run_id, trace_id).await;
+        }
+
         if job.protocol_id == GOVERNANCE_PACK_EXPORT_PROTOCOL_ID {
             let inputs = parse_inputs(job.job_inputs.as_ref());
             let request: GovernancePackExportRequest = serde_json::from_value(inputs)
@@ -979,7 +1021,12 @@ async fn run_job(
                 .storage
                 .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
                 .await?;
-            return Ok(Some(payload));
+            return Ok(RunJobOutcome {
+                state: JobState::Completed,
+                status_reason: "completed".to_string(),
+                output: Some(payload),
+                error_message: None,
+            });
         }
 
         if job.profile_id == "capability_registry_build" {
@@ -1037,7 +1084,12 @@ async fn run_job(
                 .storage
                 .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
                 .await?;
-            return Ok(Some(payload));
+            return Ok(RunJobOutcome {
+                state: JobState::Completed,
+                status_reason: "completed".to_string(),
+                output: Some(payload),
+                error_message: None,
+            });
         }
     } else if matches!(job.job_kind, JobKind::DebugBundleExport) {
         let inputs = parse_inputs(job.job_inputs.as_ref());
@@ -1165,9 +1217,2297 @@ async fn run_job(
             .storage
             .set_job_outputs(&job.job_id.to_string(), Some(manifest_value.clone()))
             .await?;
-        return Ok(Some(manifest_value));
+        return Ok(RunJobOutcome {
+            state: JobState::Completed,
+            status_reason: "completed".to_string(),
+            output: Some(manifest_value),
+            error_message: None,
+        });
     }
-    Ok(None)
+    Ok(RunJobOutcome {
+        state: JobState::Completed,
+        status_reason: "completed".to_string(),
+        output: None,
+        error_message: None,
+    })
+}
+
+// =============================================================================
+// Micro-Task Executor v1 (Spec §2.6.6.8)
+// =============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MicroTaskExecutorInputs {
+    pub wp_id: String,
+    pub wp_scope: WorkPacketScope,
+    #[serde(default)]
+    pub execution_policy: Option<ExecutionPolicy>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct WorkPacketScope {
+    pub in_scope_paths: Vec<String>,
+    #[serde(default)]
+    pub out_of_scope: Vec<String>,
+    pub done_means: Vec<String>,
+    pub test_plan: Vec<String>,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MicroTaskDefinition {
+    pub mt_id: String,
+    pub name: String,
+    pub scope: String,
+    pub files: FileAccessSpec,
+    pub actions: Vec<String>,
+    pub verify: Vec<VerificationSpec>,
+    pub done: Vec<DoneCriterion>,
+    #[serde(default)]
+    pub depends_on: Vec<String>,
+    pub token_budget: u32,
+    #[serde(default)]
+    pub task_tags: Vec<String>,
+    pub risk_level: RiskLevel,
+    #[serde(default)]
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct FileAccessSpec {
+    #[serde(default)]
+    pub read: Vec<String>,
+    #[serde(default)]
+    pub modify: Vec<String>,
+    #[serde(default)]
+    pub create: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum VerifyExpect {
+    #[serde(rename = "exit_0")]
+    Exit0,
+    #[serde(rename = "exit_nonzero")]
+    ExitNonzero,
+    #[serde(rename = "contains")]
+    Contains,
+    #[serde(rename = "not_contains")]
+    NotContains,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct VerificationSpec {
+    pub command: String,
+    pub expect: VerifyExpect,
+    #[serde(default)]
+    pub pattern: Option<String>,
+    pub timeout_ms: u64,
+    pub blocking: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum DoneVerification {
+    Automated,
+    EvidenceRequired,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DoneCriterion {
+    pub description: String,
+    pub verification: DoneVerification,
+    #[serde(default)]
+    pub verify_ref: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum RiskLevel {
+    Low,
+    Medium,
+    High,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ExecutionPolicy {
+    #[serde(default = "default_max_iterations_per_mt")]
+    pub max_iterations_per_mt: u32,
+    #[serde(default = "default_max_total_iterations")]
+    pub max_total_iterations: u32,
+    #[serde(default = "default_max_duration_ms")]
+    pub max_duration_ms: u64,
+    #[serde(default = "default_escalation_chain")]
+    pub escalation_chain: Vec<EscalationLevel>,
+    #[serde(default)]
+    pub cloud_escalation_allowed: bool,
+    #[serde(default)]
+    pub drop_back_strategy: DropBackStrategy,
+    #[serde(default)]
+    pub lora_selection: LoRASelectionStrategy,
+    #[serde(default)]
+    pub pause_points: Vec<String>,
+    #[serde(default = "default_enable_distillation")]
+    pub enable_distillation: bool,
+}
+
+impl Default for ExecutionPolicy {
+    fn default() -> Self {
+        Self {
+            max_iterations_per_mt: default_max_iterations_per_mt(),
+            max_total_iterations: default_max_total_iterations(),
+            max_duration_ms: default_max_duration_ms(),
+            escalation_chain: default_escalation_chain(),
+            cloud_escalation_allowed: false,
+            drop_back_strategy: DropBackStrategy::default(),
+            lora_selection: LoRASelectionStrategy::default(),
+            pause_points: Vec::new(),
+            enable_distillation: default_enable_distillation(),
+        }
+    }
+}
+
+fn default_max_iterations_per_mt() -> u32 {
+    5
+}
+
+fn default_max_total_iterations() -> u32 {
+    100
+}
+
+fn default_max_duration_ms() -> u64 {
+    3_600_000
+}
+
+fn default_enable_distillation() -> bool {
+    true
+}
+
+fn default_escalation_chain() -> Vec<EscalationLevel> {
+    vec![
+        EscalationLevel {
+            level: 0,
+            model_id: "qwen2.5-coder:7b".to_string(),
+            lora_id: None,
+            lora_selector: Some(LoraSelector::Auto),
+            is_cloud: false,
+            is_hard_gate: false,
+        },
+        EscalationLevel {
+            level: 1,
+            model_id: "qwen2.5-coder:7b".to_string(),
+            lora_id: None,
+            lora_selector: Some(LoraSelector::Alternate),
+            is_cloud: false,
+            is_hard_gate: false,
+        },
+        EscalationLevel {
+            level: 2,
+            model_id: "qwen2.5-coder:13b".to_string(),
+            lora_id: None,
+            lora_selector: Some(LoraSelector::Auto),
+            is_cloud: false,
+            is_hard_gate: false,
+        },
+        EscalationLevel {
+            level: 3,
+            model_id: "qwen2.5-coder:13b".to_string(),
+            lora_id: None,
+            lora_selector: Some(LoraSelector::Alternate),
+            is_cloud: false,
+            is_hard_gate: false,
+        },
+        EscalationLevel {
+            level: 4,
+            model_id: "qwen2.5-coder:32b".to_string(),
+            lora_id: None,
+            lora_selector: Some(LoraSelector::None),
+            is_cloud: false,
+            is_hard_gate: false,
+        },
+        EscalationLevel {
+            level: 5,
+            model_id: "HARD_GATE".to_string(),
+            lora_id: None,
+            lora_selector: Some(LoraSelector::None),
+            is_cloud: false,
+            is_hard_gate: true,
+        },
+    ]
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct EscalationLevel {
+    pub level: u32,
+    pub model_id: String,
+    #[serde(default)]
+    pub lora_id: Option<String>,
+    #[serde(default)]
+    pub lora_selector: Option<LoraSelector>,
+    pub is_cloud: bool,
+    pub is_hard_gate: bool,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum DropBackStrategy {
+    Always,
+    Never,
+    Smart,
+}
+
+impl Default for DropBackStrategy {
+    fn default() -> Self {
+        Self::Smart
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum LoRASelectionStrategy {
+    AutoByTaskTags,
+    Explicit,
+    None,
+}
+
+impl Default for LoRASelectionStrategy {
+    fn default() -> Self {
+        Self::AutoByTaskTags
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum LoraSelector {
+    Auto,
+    Alternate,
+    #[serde(rename = "none")]
+    None,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CompletionSignal {
+    pub claimed_complete: bool,
+    #[serde(default)]
+    pub evidence: Option<Vec<CompletionEvidence>>,
+    pub blocked: bool,
+    #[serde(default)]
+    pub blocked_reason: Option<String>,
+    #[serde(default)]
+    pub raw_block: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CompletionEvidence {
+    pub criterion: String,
+    pub evidence_location: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum ProgressStatus {
+    InProgress,
+    Completed,
+    CompletedWithIssues,
+    Failed,
+    Cancelled,
+    Paused,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum MTStatus {
+    Pending,
+    InProgress,
+    Completed,
+    Failed,
+    Skipped,
+    Blocked,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+enum IterationOutcome {
+    #[serde(rename = "SUCCESS")]
+    Success,
+    #[serde(rename = "RETRY")]
+    Retry,
+    #[serde(rename = "ESCALATE")]
+    Escalate,
+    #[serde(rename = "BLOCKED")]
+    Blocked,
+    #[serde(rename = "SKIPPED")]
+    Skipped,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ProgressArtifact {
+    pub schema_version: String,
+    pub wp_id: String,
+    pub job_id: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<DateTime<Utc>>,
+    pub status: ProgressStatus,
+    pub policy: ExecutionPolicy,
+    pub learning_context: LearningContext,
+    pub current_state: CurrentExecutionState,
+    pub micro_tasks: Vec<MTProgressEntry>,
+    pub aggregate_stats: AggregateStats,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct LearningContext {
+    pub skill_bank_snapshot_at_start: DateTime<Utc>,
+    #[serde(default)]
+    pub loras_available: Vec<LoRAInfo>,
+    pub pending_distillation_jobs: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct LoRAInfo {
+    pub lora_id: String,
+    #[serde(default)]
+    pub task_type_tags: Vec<String>,
+    #[serde(default)]
+    pub lora_version: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CurrentExecutionState {
+    #[serde(default)]
+    pub active_mt: Option<String>,
+    pub active_model_level: u32,
+    pub total_iterations: u32,
+    pub total_escalations: u32,
+    pub total_drop_backs: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MTProgressEntry {
+    pub mt_id: String,
+    pub name: String,
+    pub status: MTStatus,
+    #[serde(default)]
+    pub iterations: Vec<IterationRecord>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub final_iteration: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub final_model_level: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub escalation_record_ref: Option<ArtifactHandle>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary_ref: Option<ArtifactHandle>,
+    #[serde(default)]
+    pub evidence_refs: Vec<ArtifactHandle>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub distillation_candidate: Option<DistillationInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DistillationInfo {
+    pub eligible: bool,
+    #[serde(default)]
+    pub skill_log_entry_id: Option<String>,
+    #[serde(default)]
+    pub task_type_tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct IterationRecord {
+    pub iteration: u32,
+    pub model_id: String,
+    #[serde(default)]
+    pub lora_id: Option<String>,
+    pub escalation_level: u32,
+    pub started_at: DateTime<Utc>,
+    pub completed_at: DateTime<Utc>,
+    pub duration_ms: u64,
+    pub tokens_prompt: u32,
+    pub tokens_completion: u32,
+    pub claimed_complete: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub validation_passed: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub validation_evidence_ref: Option<ArtifactHandle>,
+    pub outcome: IterationOutcome,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_summary: Option<String>,
+    pub context_snapshot_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AggregateStats {
+    pub total_mts: u32,
+    pub completed_mts: u32,
+    pub failed_mts: u32,
+    pub skipped_mts: u32,
+    pub total_iterations: u32,
+    pub total_tokens_prompt: u32,
+    pub total_tokens_completion: u32,
+    pub total_duration_ms: u64,
+    pub escalation_count: u32,
+    pub drop_back_count: u32,
+    pub distillation_candidates_generated: u32,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum LedgerStepStatus {
+    Pending,
+    InProgress,
+    Completed,
+    Failed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct RunLedger {
+    pub ledger_id: Uuid,
+    pub wp_id: String,
+    pub job_id: String,
+    pub created_at: DateTime<Utc>,
+    pub steps: Vec<LedgerStep>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resume_point: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resume_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct LedgerStep {
+    pub step_id: String,
+    pub idempotency_key: String,
+    pub status: LedgerStepStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_artifact_ref: Option<ArtifactHandle>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    pub recoverable: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+struct MtValidationReport {
+    #[serde(default)]
+    pub errors: Vec<String>,
+    #[serde(default)]
+    pub warnings: Vec<String>,
+    #[serde(default)]
+    pub infos: Vec<String>,
+}
+
+impl MtValidationReport {
+    pub fn has_errors(&self) -> bool {
+        !self.errors.is_empty()
+    }
+}
+
+fn repo_root_for_artifacts() -> Result<PathBuf, WorkflowError> {
+    repo_root_from_manifest_dir().map_err(|e| WorkflowError::Terminal(e.to_string()))
+}
+
+fn micro_task_job_dir_rel(job_id: Uuid) -> PathBuf {
+    PathBuf::from("data")
+        .join("micro_task_executor")
+        .join(job_id.to_string())
+}
+
+fn rel_path_string(rel_path: &Path) -> String {
+    rel_path.to_string_lossy().replace('\\', "/")
+}
+
+fn artifact_handle_for_rel(rel_path: &Path) -> ArtifactHandle {
+    ArtifactHandle::new(Uuid::new_v4(), rel_path_string(rel_path))
+}
+
+fn write_bytes_atomic(abs_path: &Path, bytes: &[u8]) -> Result<(), WorkflowError> {
+    let Some(parent) = abs_path.parent() else {
+        return Err(WorkflowError::Terminal(format!(
+            "invalid path for atomic write: {}",
+            abs_path.display()
+        )));
+    };
+    fs::create_dir_all(parent).map_err(|e| {
+        WorkflowError::Terminal(format!("failed to create {}: {e}", parent.display()))
+    })?;
+
+    let tmp = abs_path.with_extension("tmp");
+    fs::write(&tmp, bytes)
+        .map_err(|e| WorkflowError::Terminal(format!("failed to write {}: {e}", tmp.display())))?;
+
+    if abs_path.exists() {
+        fs::remove_file(abs_path).map_err(|e| {
+            WorkflowError::Terminal(format!("failed to remove {}: {e}", abs_path.display()))
+        })?;
+    }
+    fs::rename(&tmp, abs_path).map_err(|e| {
+        WorkflowError::Terminal(format!(
+            "failed to rename {} -> {}: {e}",
+            tmp.display(),
+            abs_path.display()
+        ))
+    })?;
+    Ok(())
+}
+
+fn write_json_atomic<T: Serialize>(abs_path: &Path, value: &T) -> Result<(), WorkflowError> {
+    let bytes = serde_json::to_vec_pretty(value)
+        .map_err(|e| WorkflowError::Terminal(format!("json serialize error: {e}")))?;
+    write_bytes_atomic(abs_path, &bytes)
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let mut h = Sha256::new();
+    h.update(bytes);
+    hex::encode(h.finalize())
+}
+
+fn sha256_hex_str(value: &str) -> String {
+    sha256_hex(value.as_bytes())
+}
+
+fn idempotency_key(
+    mt_id: &str,
+    iteration: u32,
+    model_id: &str,
+    lora_id: Option<&str>,
+    prompt_hash: &str,
+) -> String {
+    let key = format!(
+        "mt_id={mt_id}\niteration={iteration}\nmodel_id={model_id}\nlora_id={}\nprompt_hash={prompt_hash}\n",
+        lora_id.unwrap_or("")
+    );
+    sha256_hex_str(&key)
+}
+
+fn extract_tag_block(text: &str, tag: &str) -> Option<String> {
+    let open = format!("<{tag}>");
+    let close = format!("</{tag}>");
+    let start = text.find(&open)? + open.len();
+    let end = text[start..].find(&close)? + start;
+    Some(text[start..end].trim().to_string())
+}
+
+fn parse_completion_signal(response: &str) -> CompletionSignal {
+    let mt_complete = extract_tag_block(response, "mt_complete");
+    let blocked = extract_tag_block(response, "blocked");
+
+    CompletionSignal {
+        claimed_complete: mt_complete.is_some(),
+        evidence: None,
+        blocked: blocked.is_some(),
+        blocked_reason: blocked.clone().filter(|s| !s.trim().is_empty()),
+        raw_block: mt_complete,
+    }
+}
+
+fn proc_exec_capability_for_command(command: &str) -> String {
+    let first = command
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .trim_matches('"')
+        .trim_matches('\'');
+    if first.is_empty() {
+        return "proc.exec".to_string();
+    }
+    let tool = first
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(first)
+        .trim_end_matches(".exe");
+    format!("proc.exec:{tool}")
+}
+
+fn generate_mt_definitions_from_scope(scope: &WorkPacketScope) -> Vec<MicroTaskDefinition> {
+    let mut read = scope.in_scope_paths.clone();
+    read.truncate(10);
+    let mut modify = scope.in_scope_paths.clone();
+    modify.truncate(5);
+
+    let mut verify: Vec<VerificationSpec> = scope
+        .test_plan
+        .iter()
+        .filter(|s| !s.trim().is_empty())
+        .take(3)
+        .map(|cmd| VerificationSpec {
+            command: cmd.trim().to_string(),
+            expect: VerifyExpect::Exit0,
+            pattern: None,
+            timeout_ms: 180_000,
+            blocking: true,
+        })
+        .collect();
+    if verify.is_empty() {
+        verify.push(VerificationSpec {
+            command: "cargo test --manifest-path src/backend/handshake_core/Cargo.toml".to_string(),
+            expect: VerifyExpect::Exit0,
+            pattern: None,
+            timeout_ms: 300_000,
+            blocking: true,
+        });
+    }
+
+    let mut done: Vec<DoneCriterion> = Vec::new();
+    done.push(DoneCriterion {
+        description: "All validation commands succeed".to_string(),
+        verification: DoneVerification::Automated,
+        verify_ref: Some(0),
+    });
+    for item in scope
+        .done_means
+        .iter()
+        .filter(|s| !s.trim().is_empty())
+        .take(7)
+    {
+        done.push(DoneCriterion {
+            description: item.trim().chars().take(200).collect(),
+            verification: DoneVerification::EvidenceRequired,
+            verify_ref: None,
+        });
+    }
+    if done.is_empty() {
+        done.push(DoneCriterion {
+            description: "Work Packet requirements are satisfied".to_string(),
+            verification: DoneVerification::EvidenceRequired,
+            verify_ref: None,
+        });
+    }
+
+    let mut actions: Vec<String> = vec![
+        scope.description.trim().chars().take(200).collect(),
+        "Implement required changes within scope".to_string(),
+        "Run validation and collect evidence".to_string(),
+    ];
+    actions.retain(|s| !s.trim().is_empty());
+
+    let task_tags = vec!["rust".to_string(), "handshake".to_string()];
+
+    vec![MicroTaskDefinition {
+        mt_id: "MT-001".to_string(),
+        name: "Execute Work Packet".to_string(),
+        scope: scope.description.trim().chars().take(500).collect(),
+        files: FileAccessSpec {
+            read,
+            modify,
+            create: Vec::new(),
+        },
+        actions,
+        verify,
+        done,
+        depends_on: Vec::new(),
+        token_budget: 2048,
+        task_tags,
+        risk_level: RiskLevel::High,
+        notes: None,
+    }]
+}
+
+fn validate_mt_definitions(
+    defs: &[MicroTaskDefinition],
+    scope: &WorkPacketScope,
+    model_max_context_tokens: u32,
+) -> MtValidationReport {
+    let mut report = MtValidationReport::default();
+
+    let mut ids = std::collections::HashSet::new();
+    for mt in defs {
+        // MT-VAL-001/002
+        if !ids.insert(mt.mt_id.clone()) {
+            report
+                .errors
+                .push(format!("MT-VAL-001 duplicate mt_id: {}", mt.mt_id));
+        }
+        let ok_pattern = mt.mt_id.len() == 6
+            && mt.mt_id.starts_with("MT-")
+            && mt.mt_id[3..].chars().all(|c| c.is_ascii_digit());
+        if !ok_pattern {
+            report
+                .errors
+                .push(format!("MT-VAL-002 invalid mt_id format: {}", mt.mt_id));
+        }
+
+        // Schema constraints
+        if mt.name.trim().is_empty() || mt.name.len() > 100 {
+            report
+                .errors
+                .push(format!("schema violation: name length for {}", mt.mt_id));
+        }
+        if mt.scope.trim().is_empty() || mt.scope.len() > 500 {
+            report
+                .errors
+                .push(format!("schema violation: scope length for {}", mt.mt_id));
+        }
+        if mt.actions.is_empty() || mt.actions.len() > 10 {
+            report
+                .errors
+                .push(format!("schema violation: actions count for {}", mt.mt_id));
+        }
+        if mt
+            .actions
+            .iter()
+            .any(|a| a.trim().is_empty() || a.len() > 200)
+        {
+            report.errors.push(format!(
+                "schema violation: actions item length for {}",
+                mt.mt_id
+            ));
+        }
+        if mt.verify.is_empty() || mt.verify.len() > 5 {
+            report
+                .errors
+                .push(format!("schema violation: verify count for {}", mt.mt_id));
+        }
+        if mt.done.is_empty() || mt.done.len() > 8 {
+            report
+                .errors
+                .push(format!("schema violation: done count for {}", mt.mt_id));
+        }
+        if mt.files.read.len() > 10 || mt.files.modify.len() > 5 || mt.files.create.len() > 3 {
+            report
+                .errors
+                .push(format!("schema violation: files.* limits for {}", mt.mt_id));
+        }
+        if mt.token_budget < 512 || mt.token_budget > 8192 {
+            report.errors.push(format!(
+                "schema violation: token_budget range for {}",
+                mt.mt_id
+            ));
+        }
+
+        // MT-VAL-003
+        for dep in &mt.depends_on {
+            if !defs.iter().any(|d| d.mt_id == *dep) {
+                report.errors.push(format!(
+                    "MT-VAL-003 depends_on unresolved: {} -> {}",
+                    mt.mt_id, dep
+                ));
+            }
+        }
+
+        // MT-VAL-005
+        for path in mt.files.modify.iter().chain(mt.files.create.iter()) {
+            if !scope.in_scope_paths.iter().any(|p| p == path) {
+                report.errors.push(format!(
+                    "MT-VAL-005 path out of scope: {} -> {}",
+                    mt.mt_id, path
+                ));
+            }
+        }
+
+        // MT-VAL-006
+        let max_allowed = model_max_context_tokens.saturating_sub(512);
+        if mt.token_budget > max_allowed {
+            report.errors.push(format!(
+                "MT-VAL-006 token_budget {} exceeds max_allowed {} for {}",
+                mt.token_budget, max_allowed, mt.mt_id
+            ));
+        }
+
+        // MT-VAL-007
+        if !mt.verify.iter().any(|v| v.blocking) {
+            report
+                .warnings
+                .push(format!("MT-VAL-007 no blocking verify for {}", mt.mt_id));
+        }
+
+        // MT-VAL-008
+        for (idx, criterion) in mt.done.iter().enumerate() {
+            if matches!(criterion.verification, DoneVerification::Automated) {
+                let ok = criterion
+                    .verify_ref
+                    .and_then(|v| mt.verify.get(v))
+                    .is_some();
+                if !ok {
+                    report.warnings.push(format!(
+                        "MT-VAL-008 done[{idx}] missing verify_ref for {}",
+                        mt.mt_id
+                    ));
+                }
+            }
+        }
+    }
+
+    // MT-VAL-004 (acyclic)
+    let mut visiting = std::collections::HashSet::new();
+    let mut visited = std::collections::HashSet::new();
+    let mut stack = Vec::new();
+    fn dfs(
+        mt_id: &str,
+        defs: &[MicroTaskDefinition],
+        visiting: &mut std::collections::HashSet<String>,
+        visited: &mut std::collections::HashSet<String>,
+        stack: &mut Vec<String>,
+    ) -> Option<Vec<String>> {
+        if visited.contains(mt_id) {
+            return None;
+        }
+        if visiting.contains(mt_id) {
+            let start = stack.iter().position(|s| s == mt_id).unwrap_or(0);
+            return Some(stack[start..].to_vec());
+        }
+        visiting.insert(mt_id.to_string());
+        stack.push(mt_id.to_string());
+        if let Some(mt) = defs.iter().find(|d| d.mt_id == mt_id) {
+            for dep in &mt.depends_on {
+                if let Some(cycle) = dfs(dep, defs, visiting, visited, stack) {
+                    return Some(cycle);
+                }
+            }
+        }
+        stack.pop();
+        visiting.remove(mt_id);
+        visited.insert(mt_id.to_string());
+        None
+    }
+
+    for mt in defs {
+        if let Some(cycle) = dfs(&mt.mt_id, defs, &mut visiting, &mut visited, &mut stack) {
+            report.errors.push(format!(
+                "MT-VAL-004 dependency cycle: {}",
+                cycle.join(" -> ")
+            ));
+            break;
+        }
+    }
+
+    report
+}
+
+fn compute_execution_waves(
+    defs: &[MicroTaskDefinition],
+) -> Result<Vec<Vec<String>>, WorkflowError> {
+    let mut indegree: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut edges: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+
+    for mt in defs {
+        indegree.entry(mt.mt_id.clone()).or_insert(0);
+        for dep in &mt.depends_on {
+            edges.entry(dep.clone()).or_default().push(mt.mt_id.clone());
+            *indegree.entry(mt.mt_id.clone()).or_insert(0) += 1;
+        }
+    }
+
+    let mut waves: Vec<Vec<String>> = Vec::new();
+    let mut remaining = indegree.clone();
+    loop {
+        let mut ready: Vec<String> = remaining
+            .iter()
+            .filter_map(|(k, v)| if *v == 0 { Some(k.clone()) } else { None })
+            .collect();
+        if ready.is_empty() {
+            break;
+        }
+        ready.sort();
+        for mt_id in &ready {
+            remaining.remove(mt_id);
+            if let Some(nexts) = edges.get(mt_id) {
+                for nxt in nexts {
+                    if let Some(v) = remaining.get_mut(nxt) {
+                        *v = v.saturating_sub(1);
+                    }
+                }
+            }
+        }
+        waves.push(ready);
+    }
+
+    if !remaining.is_empty() {
+        return Err(WorkflowError::Terminal(
+            "MT-VAL-004 dependency graph has a cycle".to_string(),
+        ));
+    }
+
+    Ok(waves)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ValidationStepOutcome {
+    pub command: String,
+    pub passed: bool,
+    pub blocking: bool,
+    pub op_id: Uuid,
+    pub engine_status: String,
+    pub outputs: Vec<ArtifactHandle>,
+    pub evidence: Vec<ArtifactHandle>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ValidationOutcome {
+    pub passed: bool,
+    pub steps: Vec<ValidationStepOutcome>,
+    pub evidence: Vec<ArtifactHandle>,
+}
+
+fn build_mex_runtime(state: &AppState, repo_root: &Path) -> Result<MexRuntime, WorkflowError> {
+    let registry_path = repo_root.join("src/backend/handshake_core/mechanical_engines.json");
+    let registry = MexRegistry::load_from_path(&registry_path)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let gates = GatePipeline::new(vec![
+        Box::new(SchemaGate),
+        Box::new(CapabilityGate::new((*state.capability_registry).clone())),
+        Box::new(IntegrityGate),
+        Box::new(BudgetGate),
+        Box::new(ProvenanceGate),
+        Box::new(DetGate),
+    ]);
+
+    Ok(MexRuntime::new(
+        registry,
+        state.flight_recorder.clone(),
+        state.diagnostics.clone(),
+        gates,
+    )
+    .with_adapter(
+        "engine.shell",
+        Arc::new(ShellEngineAdapter::new(
+            repo_root.to_path_buf(),
+            state.capability_registry.clone(),
+            state.flight_recorder.clone(),
+        )),
+    ))
+}
+
+async fn run_validation_via_mex(
+    mex_runtime: &MexRuntime,
+    repo_root: &Path,
+    verify: &[VerificationSpec],
+) -> Result<ValidationOutcome, WorkflowError> {
+    let mut all_evidence: Vec<ArtifactHandle> = Vec::new();
+    let mut steps: Vec<ValidationStepOutcome> = Vec::new();
+    let mut overall_passed = true;
+
+    for spec in verify {
+        let capability = proc_exec_capability_for_command(&spec.command);
+        let max_bytes = 10_485_760u64;
+        let wall_time_ms = spec.timeout_ms;
+
+        let op = PlannedOperation {
+            schema_version: POE_SCHEMA_VERSION.to_string(),
+            op_id: Uuid::new_v4(),
+            engine_id: "engine.shell".to_string(),
+            engine_version_req: None,
+            operation: "exec".to_string(),
+            inputs: Vec::new(),
+            params: json!({
+                "command": spec.command.clone(),
+                "cwd": ".",
+                "timeout_ms": wall_time_ms,
+                "env": {},
+            }),
+            capabilities_requested: vec![capability],
+            budget: BudgetSpec {
+                cpu_time_ms: None,
+                wall_time_ms: Some(wall_time_ms),
+                memory_bytes: None,
+                output_bytes: Some(max_bytes),
+            },
+            determinism: DeterminismLevel::D1,
+            evidence_policy: Some(EvidencePolicy {
+                required: true,
+                notes: Some("capture_stdout_stderr".to_string()),
+            }),
+            output_spec: OutputSpec {
+                expected_types: vec!["artifact.terminal_output".to_string()],
+                max_bytes: Some(max_bytes),
+            },
+        };
+
+        let op_id = op.op_id;
+        let result = mex_runtime
+            .execute(op)
+            .await
+            .map_err(|e| WorkflowError::Terminal(format!("MEX execute failed: {e}")))?;
+
+        let mut passed = false;
+        if let Some(output_handle) = result.outputs.first() {
+            let output_abs = repo_root.join(PathBuf::from(&output_handle.path));
+            if let Ok(raw) = fs::read_to_string(&output_abs) {
+                if let Ok(val) = serde_json::from_str::<Value>(&raw) {
+                    let exit_code = val.get("exit_code").and_then(|v| v.as_i64()).unwrap_or(-1);
+                    let timed_out = val
+                        .get("timed_out")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
+                    match spec.expect {
+                        VerifyExpect::Exit0 => {
+                            passed = exit_code == 0 && !timed_out;
+                        }
+                        VerifyExpect::ExitNonzero => {
+                            passed = exit_code != 0 || timed_out;
+                        }
+                        VerifyExpect::Contains => {
+                            if let (Some(pattern), Some(stdout_ref)) = (
+                                spec.pattern.as_deref(),
+                                val.get("stdout_ref").and_then(|v| v.as_str()),
+                            ) {
+                                let stdout_abs = repo_root.join(PathBuf::from(stdout_ref));
+                                let stdout = fs::read_to_string(stdout_abs).unwrap_or_default();
+                                passed = stdout.contains(pattern);
+                            }
+                        }
+                        VerifyExpect::NotContains => {
+                            if let (Some(pattern), Some(stdout_ref)) = (
+                                spec.pattern.as_deref(),
+                                val.get("stdout_ref").and_then(|v| v.as_str()),
+                            ) {
+                                let stdout_abs = repo_root.join(PathBuf::from(stdout_ref));
+                                let stdout = fs::read_to_string(stdout_abs).unwrap_or_default();
+                                passed = !stdout.contains(pattern);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if !passed && spec.blocking {
+            overall_passed = false;
+        }
+
+        all_evidence.extend(result.evidence.iter().cloned());
+
+        steps.push(ValidationStepOutcome {
+            command: spec.command.clone(),
+            passed,
+            blocking: spec.blocking,
+            op_id,
+            engine_status: format!("{:?}", result.status),
+            outputs: result.outputs.clone(),
+            evidence: result.evidence.clone(),
+        });
+    }
+
+    all_evidence.sort_by(|a, b| a.canonical_id().cmp(&b.canonical_id()));
+    all_evidence.dedup_by(|a, b| a.canonical_id() == b.canonical_id());
+
+    Ok(ValidationOutcome {
+        passed: overall_passed,
+        steps,
+        evidence: all_evidence,
+    })
+}
+
+async fn record_micro_task_event(
+    state: &AppState,
+    event_variant: FlightRecorderEventType,
+    event_type: &str,
+    event_name: &str,
+    trace_id: Uuid,
+    job_id: Uuid,
+    workflow_run_id: Uuid,
+    payload: Value,
+) {
+    let full_payload = json!({
+        "event_type": event_type,
+        "event_name": event_name,
+        "timestamp": Utc::now().to_rfc3339(),
+        "trace_id": trace_id.to_string(),
+        "job_id": job_id.to_string(),
+        "workflow_run_id": workflow_run_id.to_string(),
+        "payload": payload,
+    });
+
+    record_event_safely(
+        state,
+        FlightRecorderEvent::new(
+            event_variant,
+            FlightRecorderActor::Agent,
+            trace_id,
+            full_payload,
+        )
+        .with_job_id(job_id.to_string())
+        .with_workflow_id(workflow_run_id.to_string()),
+    )
+    .await;
+}
+
+fn init_progress_artifact(
+    wp_id: &str,
+    job_id: Uuid,
+    policy: ExecutionPolicy,
+    defs: &[MicroTaskDefinition],
+) -> ProgressArtifact {
+    let now = Utc::now();
+    let micro_tasks: Vec<MTProgressEntry> = defs
+        .iter()
+        .map(|mt| MTProgressEntry {
+            mt_id: mt.mt_id.clone(),
+            name: mt.name.clone(),
+            status: MTStatus::Pending,
+            iterations: Vec::new(),
+            final_iteration: None,
+            final_model_level: None,
+            escalation_record_ref: None,
+            summary_ref: None,
+            evidence_refs: Vec::new(),
+            distillation_candidate: None,
+        })
+        .collect();
+
+    let mut progress = ProgressArtifact {
+        schema_version: "1.0".to_string(),
+        wp_id: wp_id.to_string(),
+        job_id: job_id.to_string(),
+        created_at: now,
+        updated_at: now,
+        completed_at: None,
+        status: ProgressStatus::InProgress,
+        policy,
+        learning_context: LearningContext {
+            skill_bank_snapshot_at_start: now,
+            loras_available: Vec::new(),
+            pending_distillation_jobs: 0,
+        },
+        current_state: CurrentExecutionState {
+            active_mt: None,
+            active_model_level: 0,
+            total_iterations: 0,
+            total_escalations: 0,
+            total_drop_backs: 0,
+        },
+        micro_tasks,
+        aggregate_stats: AggregateStats {
+            total_mts: defs.len() as u32,
+            completed_mts: 0,
+            failed_mts: 0,
+            skipped_mts: 0,
+            total_iterations: 0,
+            total_tokens_prompt: 0,
+            total_tokens_completion: 0,
+            total_duration_ms: 0,
+            escalation_count: 0,
+            drop_back_count: 0,
+            distillation_candidates_generated: 0,
+        },
+    };
+
+    refresh_aggregate_stats(&mut progress);
+    progress
+}
+
+fn init_run_ledger(wp_id: &str, job_id: Uuid) -> RunLedger {
+    RunLedger {
+        ledger_id: Uuid::new_v4(),
+        wp_id: wp_id.to_string(),
+        job_id: job_id.to_string(),
+        created_at: Utc::now(),
+        steps: Vec::new(),
+        resume_point: None,
+        resume_reason: None,
+    }
+}
+
+fn refresh_aggregate_stats(progress: &mut ProgressArtifact) {
+    let mut completed = 0u32;
+    let mut failed = 0u32;
+    let mut skipped = 0u32;
+    let mut prompt_tokens = 0u32;
+    let mut completion_tokens = 0u32;
+    let mut duration_ms = 0u64;
+    let mut distillation_candidates = 0u32;
+
+    for mt in &progress.micro_tasks {
+        match mt.status {
+            MTStatus::Completed => completed += 1,
+            MTStatus::Failed | MTStatus::Blocked => failed += 1,
+            MTStatus::Skipped => skipped += 1,
+            _ => {}
+        }
+        if mt
+            .distillation_candidate
+            .as_ref()
+            .map(|d| d.eligible)
+            .unwrap_or(false)
+        {
+            distillation_candidates = distillation_candidates.saturating_add(1);
+        }
+        for it in &mt.iterations {
+            prompt_tokens = prompt_tokens.saturating_add(it.tokens_prompt);
+            completion_tokens = completion_tokens.saturating_add(it.tokens_completion);
+            duration_ms = duration_ms.saturating_add(it.duration_ms);
+        }
+    }
+
+    progress.aggregate_stats.total_mts = progress.micro_tasks.len() as u32;
+    progress.aggregate_stats.completed_mts = completed;
+    progress.aggregate_stats.failed_mts = failed;
+    progress.aggregate_stats.skipped_mts = skipped;
+    progress.aggregate_stats.total_iterations = progress.current_state.total_iterations;
+    progress.aggregate_stats.total_tokens_prompt = prompt_tokens;
+    progress.aggregate_stats.total_tokens_completion = completion_tokens;
+    progress.aggregate_stats.total_duration_ms = duration_ms;
+    progress.aggregate_stats.escalation_count = progress.current_state.total_escalations;
+    progress.aggregate_stats.drop_back_count = progress.current_state.total_drop_backs;
+    progress.aggregate_stats.distillation_candidates_generated = distillation_candidates;
+}
+
+async fn run_micro_task_executor_v1(
+    state: &AppState,
+    job: &AiJob,
+    workflow_run_id: Uuid,
+    trace_id: Uuid,
+) -> Result<RunJobOutcome, WorkflowError> {
+    let raw_inputs = parse_inputs(job.job_inputs.as_ref());
+    if raw_inputs.get("mt_definitions").is_some() || raw_inputs.get("mt_definitions_ref").is_some()
+    {
+        return Err(WorkflowError::Terminal(
+            "mt_definitions must not be provided; MT definitions are auto-generated from WP scope"
+                .to_string(),
+        ));
+    }
+
+    let inputs: MicroTaskExecutorInputs = serde_json::from_value(raw_inputs).map_err(|e| {
+        WorkflowError::Terminal(format!("invalid micro_task_executor_v1 inputs: {e}"))
+    })?;
+    let policy = inputs.execution_policy.unwrap_or_default();
+
+    if job.state == JobState::Cancelled {
+        record_micro_task_event(
+            state,
+            FlightRecorderEventType::MicroTaskLoopCancelled,
+            "FR-EVT-MT-011",
+            "micro_task_loop_cancelled",
+            trace_id,
+            job.job_id,
+            workflow_run_id,
+            json!({ "wp_id": inputs.wp_id }),
+        )
+        .await;
+
+        return Ok(RunJobOutcome {
+            state: JobState::Cancelled,
+            status_reason: "cancelled".to_string(),
+            output: Some(json!({ "wp_id": inputs.wp_id })),
+            error_message: None,
+        });
+    }
+
+    let mt_definitions = generate_mt_definitions_from_scope(&inputs.wp_scope);
+    let mt_validation = validate_mt_definitions(
+        &mt_definitions,
+        &inputs.wp_scope,
+        state.llm_client.profile().max_context_tokens,
+    );
+    if mt_validation.has_errors() {
+        return Ok(RunJobOutcome {
+            state: JobState::Failed,
+            status_reason: "mt_definitions_invalid".to_string(),
+            output: Some(json!({
+                "wp_id": inputs.wp_id,
+                "validation": mt_validation,
+            })),
+            error_message: Some("MicroTaskDefinition validation failed".to_string()),
+        });
+    }
+
+    let execution_waves = compute_execution_waves(&mt_definitions)?;
+
+    let repo_root = repo_root_for_artifacts()?;
+    let job_dir_rel = micro_task_job_dir_rel(job.job_id);
+    let job_dir_abs = repo_root.join(&job_dir_rel);
+    fs::create_dir_all(&job_dir_abs).map_err(|e| {
+        WorkflowError::Terminal(format!("failed to create {}: {e}", job_dir_abs.display()))
+    })?;
+
+    let mt_defs_rel = job_dir_rel.join("mt_definitions.json");
+    let mt_defs_abs = repo_root.join(&mt_defs_rel);
+    write_json_atomic(&mt_defs_abs, &mt_definitions)?;
+    let mt_definitions_ref = artifact_handle_for_rel(&mt_defs_rel);
+
+    let progress_rel = job_dir_rel.join("progress_artifact.json");
+    let progress_abs = repo_root.join(&progress_rel);
+    let run_ledger_rel = job_dir_rel.join("run_ledger.json");
+    let run_ledger_abs = repo_root.join(&run_ledger_rel);
+
+    let mut resumed_from_pause_mt: Option<String> = None;
+    let (mut progress, mut run_ledger, loaded_existing_state) = if progress_abs.exists()
+        && run_ledger_abs.exists()
+    {
+        let progress_bytes = fs::read(&progress_abs).map_err(|e| {
+            WorkflowError::Terminal(format!("failed to read {}: {e}", progress_abs.display()))
+        })?;
+        let progress: ProgressArtifact = serde_json::from_slice(&progress_bytes)
+            .map_err(|e| WorkflowError::Terminal(format!("invalid progress_artifact.json: {e}")))?;
+
+        let run_ledger_bytes = fs::read(&run_ledger_abs).map_err(|e| {
+            WorkflowError::Terminal(format!("failed to read {}: {e}", run_ledger_abs.display()))
+        })?;
+        let run_ledger: RunLedger = serde_json::from_slice(&run_ledger_bytes)
+            .map_err(|e| WorkflowError::Terminal(format!("invalid run_ledger.json: {e}")))?;
+
+        (progress, run_ledger, true)
+    } else {
+        let progress =
+            init_progress_artifact(&inputs.wp_id, job.job_id, policy.clone(), &mt_definitions);
+        let run_ledger = init_run_ledger(&inputs.wp_id, job.job_id);
+        write_json_atomic(&progress_abs, &progress)?;
+        write_json_atomic(&run_ledger_abs, &run_ledger)?;
+        (progress, run_ledger, false)
+    };
+
+    if loaded_existing_state && progress.status == ProgressStatus::Completed {
+        return Ok(RunJobOutcome {
+            state: JobState::Completed,
+            status_reason: "completed".to_string(),
+            output: Some(json!({
+                "wp_id": inputs.wp_id,
+                "mt_definitions_ref": mt_definitions_ref,
+                "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+            })),
+            error_message: None,
+        });
+    }
+
+    if loaded_existing_state && progress.status == ProgressStatus::Paused {
+        resumed_from_pause_mt = progress.current_state.active_mt.clone();
+        progress.status = ProgressStatus::InProgress;
+        progress.updated_at = Utc::now();
+        write_json_atomic(&progress_abs, &progress)?;
+        write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+        record_micro_task_event(
+            state,
+            FlightRecorderEventType::MicroTaskResumed,
+            "FR-EVT-MT-008",
+            "micro_task_resumed",
+            trace_id,
+            job.job_id,
+            workflow_run_id,
+            json!({ "wp_id": inputs.wp_id }),
+        )
+        .await;
+    }
+
+    if loaded_existing_state && progress.status == ProgressStatus::InProgress {
+        let mut steps_recovered = 0u32;
+        let mut steps_to_retry = 0u32;
+        for step in run_ledger.steps.iter_mut() {
+            if step.status != LedgerStepStatus::InProgress {
+                continue;
+            }
+
+            let output_rel = job_dir_rel
+                .join("step_outputs")
+                .join(&step.idempotency_key)
+                .join("output.json");
+            let output_abs = repo_root.join(&output_rel);
+            if output_abs.exists() {
+                step.status = LedgerStepStatus::Completed;
+                step.output_artifact_ref = Some(artifact_handle_for_rel(&output_rel));
+                steps_recovered = steps_recovered.saturating_add(1);
+            } else {
+                step.status = LedgerStepStatus::Pending;
+                step.error = Some("crash_recovery: reset in_progress -> pending".to_string());
+                steps_to_retry = steps_to_retry.saturating_add(1);
+            }
+        }
+
+        if steps_recovered > 0 || steps_to_retry > 0 {
+            run_ledger.resume_point = run_ledger
+                .steps
+                .iter()
+                .find(|s| {
+                    matches!(
+                        s.status,
+                        LedgerStepStatus::Pending | LedgerStepStatus::Failed
+                    )
+                })
+                .map(|s| s.step_id.clone());
+            run_ledger.resume_reason = Some("crash_recovery".to_string());
+            progress.updated_at = Utc::now();
+            write_json_atomic(&progress_abs, &progress)?;
+            write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+            let payload = json!({
+                "workflow_run_id": workflow_run_id.to_string(),
+                "job_id": job.job_id.to_string(),
+                "from_state": "stalled",
+                "to_state": "running",
+                "reason": format!(
+                    "micro_task_executor crash recovery: wp_id={} resume_point={:?} steps_recovered={} steps_to_retry={}",
+                    inputs.wp_id.as_str(),
+                    run_ledger.resume_point.as_ref(),
+                    steps_recovered,
+                    steps_to_retry
+                ),
+                "last_heartbeat_ts": progress.updated_at.to_rfc3339(),
+                "threshold_secs": 0,
+                "resume_point": run_ledger.resume_point,
+                "steps_recovered": steps_recovered,
+                "steps_to_retry": steps_to_retry,
+            });
+
+            record_event_safely(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::WorkflowRecovery,
+                    FlightRecorderActor::System,
+                    Uuid::new_v4(),
+                    payload,
+                )
+                .with_job_id(job.job_id.to_string())
+                .with_workflow_id(workflow_run_id.to_string()),
+            )
+            .await;
+        }
+    }
+
+    if !loaded_existing_state {
+        record_micro_task_event(
+            state,
+            FlightRecorderEventType::MicroTaskLoopStarted,
+            "FR-EVT-MT-001",
+            "micro_task_loop_started",
+            trace_id,
+            job.job_id,
+            workflow_run_id,
+            json!({
+                "wp_id": inputs.wp_id,
+                "total_mts": mt_definitions.len(),
+                "execution_policy": serde_json::to_value(&policy).unwrap_or(json!({})),
+                "mt_ids": mt_definitions.iter().map(|m| m.mt_id.clone()).collect::<Vec<_>>(),
+                "execution_waves": execution_waves,
+            }),
+        )
+        .await;
+    }
+
+    let mex_runtime = build_mex_runtime(state, &repo_root)?;
+
+    for wave in &execution_waves {
+        for mt_id in wave {
+            let mt = mt_definitions
+                .iter()
+                .find(|m| m.mt_id == *mt_id)
+                .ok_or_else(|| {
+                    WorkflowError::Terminal(format!("missing mt_definition for {mt_id}"))
+                })?;
+            let mt_progress_index = progress
+                .micro_tasks
+                .iter()
+                .position(|m| m.mt_id == *mt_id)
+                .ok_or_else(|| {
+                    WorkflowError::Terminal(format!("missing progress entry for {mt_id}"))
+                })?;
+            let continuing_active_mt =
+                progress.current_state.active_mt.as_deref() == Some(mt_id.as_str());
+
+            let current_mt_status = progress.micro_tasks[mt_progress_index].status;
+            if matches!(current_mt_status, MTStatus::Completed | MTStatus::Skipped) {
+                continue;
+            }
+
+            let resuming_this_mt = resumed_from_pause_mt.as_deref() == Some(mt_id.as_str());
+            if policy.pause_points.iter().any(|p| p == mt_id) && !resuming_this_mt {
+                record_micro_task_event(
+                    state,
+                    FlightRecorderEventType::MicroTaskPauseRequested,
+                    "FR-EVT-MT-007",
+                    "micro_task_pause_requested",
+                    trace_id,
+                    job.job_id,
+                    workflow_run_id,
+                    json!({ "wp_id": inputs.wp_id, "mt_id": mt.mt_id }),
+                )
+                .await;
+
+                progress.status = ProgressStatus::Paused;
+                progress.current_state.active_mt = Some(mt_id.clone());
+                progress.updated_at = Utc::now();
+                run_ledger.resume_reason = Some(format!("pause_point:{}", mt.mt_id));
+                write_json_atomic(&progress_abs, &progress)?;
+                write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                return Ok(RunJobOutcome {
+                    state: JobState::AwaitingUser,
+                    status_reason: "paused_user_gate".to_string(),
+                    output: Some(json!({
+                        "wp_id": inputs.wp_id,
+                        "reason": "pause_point",
+                        "mt_id": mt.mt_id,
+                        "mt_definitions_ref": mt_definitions_ref,
+                        "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                        "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                    })),
+                    error_message: None,
+                });
+            }
+            if resuming_this_mt {
+                resumed_from_pause_mt = None;
+            }
+
+            if !continuing_active_mt {
+                progress.current_state.active_model_level = 0;
+            }
+
+            progress.micro_tasks[mt_progress_index].status = MTStatus::InProgress;
+            progress.current_state.active_mt = Some(mt_id.clone());
+            progress.updated_at = Utc::now();
+            write_json_atomic(&progress_abs, &progress)?;
+
+            let mut escalation_level: u32 = progress.current_state.active_model_level;
+            let mut false_completion_streak: u32 = 0;
+            let mut iteration: u32 = progress.micro_tasks[mt_progress_index]
+                .iterations
+                .iter()
+                .filter(|r| r.escalation_level == escalation_level)
+                .map(|r| r.iteration)
+                .max()
+                .unwrap_or(0)
+                .saturating_add(1);
+            if iteration == 0 {
+                iteration = 1;
+            }
+
+            loop {
+                if progress.current_state.total_iterations >= policy.max_total_iterations {
+                    record_micro_task_event(
+                        state,
+                        FlightRecorderEventType::MicroTaskHardGate,
+                        "FR-EVT-MT-006",
+                        "micro_task_hard_gate",
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        json!({ "wp_id": inputs.wp_id, "reason": "max_total_iterations", "mt_id": mt.mt_id }),
+                    )
+                    .await;
+
+                    progress.status = ProgressStatus::Paused;
+                    progress.updated_at = Utc::now();
+                    write_json_atomic(&progress_abs, &progress)?;
+                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                    return Ok(RunJobOutcome {
+                        state: JobState::AwaitingUser,
+                        status_reason: "paused_hard_gate".to_string(),
+                        output: Some(json!({
+                            "wp_id": inputs.wp_id,
+                            "reason": "max_total_iterations",
+                            "mt_definitions_ref": mt_definitions_ref,
+                            "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                            "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                        })),
+                        error_message: None,
+                    });
+                }
+
+                let elapsed_ms = Utc::now()
+                    .signed_duration_since(progress.created_at)
+                    .num_milliseconds()
+                    .max(0) as u64;
+                if elapsed_ms >= policy.max_duration_ms {
+                    record_micro_task_event(
+                        state,
+                        FlightRecorderEventType::MicroTaskHardGate,
+                        "FR-EVT-MT-006",
+                        "micro_task_hard_gate",
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        json!({ "wp_id": inputs.wp_id, "reason": "max_duration", "mt_id": mt.mt_id }),
+                    )
+                    .await;
+
+                    progress.status = ProgressStatus::Paused;
+                    progress.updated_at = Utc::now();
+                    write_json_atomic(&progress_abs, &progress)?;
+                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                    return Ok(RunJobOutcome {
+                        state: JobState::AwaitingUser,
+                        status_reason: "paused_hard_gate".to_string(),
+                        output: Some(json!({
+                            "wp_id": inputs.wp_id,
+                            "reason": "max_duration",
+                            "mt_definitions_ref": mt_definitions_ref,
+                            "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                            "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                        })),
+                        error_message: None,
+                    });
+                }
+
+                let Some(level_cfg) = policy.escalation_chain.get(escalation_level as usize) else {
+                    record_micro_task_event(
+                        state,
+                        FlightRecorderEventType::MicroTaskHardGate,
+                        "FR-EVT-MT-006",
+                        "micro_task_hard_gate",
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        json!({
+                            "wp_id": inputs.wp_id,
+                            "reason": "escalation_exhausted",
+                            "mt_id": mt.mt_id,
+                            "from_level": escalation_level,
+                        }),
+                    )
+                    .await;
+
+                    progress.status = ProgressStatus::Paused;
+                    progress.updated_at = Utc::now();
+                    write_json_atomic(&progress_abs, &progress)?;
+                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                    return Ok(RunJobOutcome {
+                        state: JobState::AwaitingUser,
+                        status_reason: "paused_hard_gate".to_string(),
+                        output: Some(json!({
+                            "wp_id": inputs.wp_id,
+                            "reason": "escalation_exhausted",
+                            "mt_definitions_ref": mt_definitions_ref,
+                            "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                            "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                        })),
+                        error_message: None,
+                    });
+                };
+
+                if level_cfg.is_cloud && !policy.cloud_escalation_allowed {
+                    record_micro_task_event(
+                        state,
+                        FlightRecorderEventType::MicroTaskHardGate,
+                        "FR-EVT-MT-006",
+                        "micro_task_hard_gate",
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        json!({
+                            "wp_id": inputs.wp_id,
+                            "reason": "cloud_escalation_disallowed",
+                            "mt_id": mt.mt_id,
+                            "from_level": escalation_level,
+                        }),
+                    )
+                    .await;
+
+                    progress.status = ProgressStatus::Paused;
+                    progress.updated_at = Utc::now();
+                    write_json_atomic(&progress_abs, &progress)?;
+                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                    return Ok(RunJobOutcome {
+                        state: JobState::AwaitingUser,
+                        status_reason: "paused_hard_gate".to_string(),
+                        output: Some(json!({
+                            "wp_id": inputs.wp_id,
+                            "reason": "cloud_escalation_disallowed",
+                            "mt_definitions_ref": mt_definitions_ref,
+                            "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                            "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                        })),
+                        error_message: None,
+                    });
+                }
+
+                if level_cfg.is_hard_gate || level_cfg.model_id == "HARD_GATE" {
+                    record_micro_task_event(
+                        state,
+                        FlightRecorderEventType::MicroTaskHardGate,
+                        "FR-EVT-MT-006",
+                        "micro_task_hard_gate",
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        json!({
+                            "wp_id": inputs.wp_id,
+                            "reason": "escalation_exhausted",
+                            "mt_id": mt.mt_id,
+                            "from_level": escalation_level,
+                        }),
+                    )
+                    .await;
+
+                    progress.status = ProgressStatus::Paused;
+                    progress.updated_at = Utc::now();
+                    write_json_atomic(&progress_abs, &progress)?;
+                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                    return Ok(RunJobOutcome {
+                        state: JobState::AwaitingUser,
+                        status_reason: "paused_hard_gate".to_string(),
+                        output: Some(json!({
+                            "wp_id": inputs.wp_id,
+                            "reason": "escalation_exhausted",
+                            "mt_definitions_ref": mt_definitions_ref,
+                            "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                            "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                        })),
+                        error_message: None,
+                    });
+                }
+
+                let model_id = level_cfg.model_id.clone();
+                let lora_id = level_cfg.lora_id.clone();
+
+                record_micro_task_event(
+                    state,
+                    FlightRecorderEventType::MicroTaskLoraSelection,
+                    "FR-EVT-MT-013",
+                    "micro_task_lora_selection",
+                    trace_id,
+                    job.job_id,
+                    workflow_run_id,
+                    json!({
+                        "wp_id": inputs.wp_id,
+                        "mt_id": mt.mt_id,
+                        "iteration": iteration,
+                        "model_id": model_id.clone(),
+                    }),
+                )
+                .await;
+
+                let context_snapshot_id = Uuid::new_v4();
+                let prompt = format!(
+                    "WP_ID: {wp_id}\nMT_ID: {mt_id}\nITERATION: {iteration}\nSCOPE: {scope}\nACTIONS:\n- {actions}\n\nReturn <mt_complete>...</mt_complete> when done.\n",
+                    wp_id = inputs.wp_id,
+                    mt_id = mt.mt_id,
+                    iteration = iteration,
+                    scope = mt.scope,
+                    actions = mt.actions.join("\n- ")
+                );
+                let prompt_hash = sha256_hex_str(&prompt);
+                let idempo = idempotency_key(
+                    &mt.mt_id,
+                    iteration,
+                    &model_id,
+                    lora_id.as_deref(),
+                    &prompt_hash,
+                );
+                let step_id = format!("{}_iter-{:03}", mt.mt_id, iteration);
+                let step_dir_rel = job_dir_rel.join("step_outputs").join(&idempo);
+                let prompt_rel = step_dir_rel.join("prompt.txt");
+                let response_rel = step_dir_rel.join("response.txt");
+                let output_rel = step_dir_rel.join("output.json");
+                let validation_rel = step_dir_rel.join("validation.json");
+
+                record_micro_task_event(
+                    state,
+                    FlightRecorderEventType::MicroTaskIterationStarted,
+                    "FR-EVT-MT-002",
+                    "micro_task_iteration_started",
+                    trace_id,
+                    job.job_id,
+                    workflow_run_id,
+                    json!({ "wp_id": inputs.wp_id, "mt_id": mt.mt_id, "iteration": iteration }),
+                )
+                .await;
+
+                let started_ts = Utc::now();
+
+                run_ledger.steps.push(LedgerStep {
+                    step_id: step_id.clone(),
+                    idempotency_key: idempo.clone(),
+                    status: LedgerStepStatus::InProgress,
+                    started_at: Some(started_ts),
+                    completed_at: None,
+                    output_artifact_ref: None,
+                    error: None,
+                    recoverable: true,
+                });
+                write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                write_bytes_atomic(&repo_root.join(&prompt_rel), prompt.as_bytes())?;
+
+                let response = state
+                    .llm_client
+                    .completion(CompletionRequest::new(
+                        trace_id,
+                        prompt.clone(),
+                        model_id.clone(),
+                    ))
+                    .await?;
+                let completed_ts = Utc::now();
+                let completion_signal = parse_completion_signal(&response.text);
+
+                let validation_outcome = if completion_signal.claimed_complete {
+                    Some(run_validation_via_mex(&mex_runtime, &repo_root, &mt.verify).await?)
+                } else {
+                    None
+                };
+                if let Some(out) = &validation_outcome {
+                    record_micro_task_event(
+                        state,
+                        FlightRecorderEventType::MicroTaskValidation,
+                        "FR-EVT-MT-012",
+                        "micro_task_validation",
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        json!({
+                            "wp_id": inputs.wp_id,
+                            "mt_id": mt.mt_id,
+                            "iteration": iteration,
+                            "passed": out.passed,
+                        }),
+                    )
+                    .await;
+                }
+                let validation_passed = validation_outcome
+                    .as_ref()
+                    .map(|v| v.passed)
+                    .unwrap_or(false);
+
+                let mut status_str = "RETRY";
+                let mut failure_category: Option<&str> = None;
+                let mut error_summary: Option<String> = None;
+
+                if completion_signal.blocked {
+                    status_str = "BLOCKED";
+                    failure_category = Some("blocked");
+                    error_summary = completion_signal.blocked_reason.clone();
+                } else if completion_signal.claimed_complete && validation_passed {
+                    status_str = "SUCCESS";
+                } else if completion_signal.claimed_complete && !validation_passed {
+                    false_completion_streak = false_completion_streak.saturating_add(1);
+                    failure_category = Some("validation_failed");
+                    error_summary = Some("validation_failed".to_string());
+                    if false_completion_streak >= 2 || iteration >= policy.max_iterations_per_mt {
+                        status_str = "ESCALATE";
+                    } else {
+                        status_str = "RETRY";
+                    }
+                } else if iteration >= policy.max_iterations_per_mt {
+                    status_str = "ESCALATE";
+                    failure_category = Some("max_iterations");
+                }
+
+                if !completion_signal.claimed_complete {
+                    false_completion_streak = 0;
+                }
+
+                let outcome_enum = match status_str {
+                    "SUCCESS" => IterationOutcome::Success,
+                    "ESCALATE" => IterationOutcome::Escalate,
+                    "BLOCKED" => IterationOutcome::Blocked,
+                    _ => IterationOutcome::Retry,
+                };
+
+                progress.current_state.total_iterations += 1;
+                progress.updated_at = Utc::now();
+
+                write_bytes_atomic(&repo_root.join(&response_rel), response.text.as_bytes())?;
+                if let Some(out) = &validation_outcome {
+                    write_json_atomic(&repo_root.join(&validation_rel), out)?;
+                }
+
+                let output_artifact_ref = artifact_handle_for_rel(&output_rel);
+                write_json_atomic(
+                    &repo_root.join(&output_rel),
+                    &json!({
+                        "step_id": step_id,
+                        "idempotency_key": idempo,
+                        "prompt_hash": prompt_hash,
+                        "context_snapshot_id": context_snapshot_id.to_string(),
+                        "prompt_snapshot_ref": artifact_handle_for_rel(&prompt_rel),
+                        "output_snapshot_ref": artifact_handle_for_rel(&response_rel),
+                        "validation_ref": if validation_outcome.is_some() { serde_json::to_value(artifact_handle_for_rel(&validation_rel)).ok() } else { None },
+                    }),
+                )?;
+
+                if let Some(step) = run_ledger.steps.last_mut() {
+                    step.status = LedgerStepStatus::Completed;
+                    step.completed_at = Some(completed_ts);
+                    step.output_artifact_ref = Some(output_artifact_ref.clone());
+                    step.error = None;
+                }
+
+                progress.micro_tasks[mt_progress_index]
+                    .iterations
+                    .push(IterationRecord {
+                        iteration,
+                        model_id: model_id.clone(),
+                        lora_id: lora_id.clone(),
+                        escalation_level,
+                        started_at: started_ts,
+                        completed_at: completed_ts,
+                        duration_ms: response.latency_ms,
+                        tokens_prompt: response.usage.prompt_tokens,
+                        tokens_completion: response.usage.completion_tokens,
+                        claimed_complete: completion_signal.claimed_complete,
+                        validation_passed: validation_outcome.as_ref().map(|v| v.passed),
+                        validation_evidence_ref: validation_outcome
+                            .as_ref()
+                            .map(|_| artifact_handle_for_rel(&validation_rel)),
+                        outcome: outcome_enum,
+                        error_summary: error_summary.clone(),
+                        context_snapshot_id,
+                    });
+                if let Some(out) = &validation_outcome {
+                    progress.micro_tasks[mt_progress_index]
+                        .evidence_refs
+                        .extend(out.evidence.clone());
+                }
+                progress.micro_tasks[mt_progress_index]
+                    .evidence_refs
+                    .push(output_artifact_ref.clone());
+
+                refresh_aggregate_stats(&mut progress);
+                write_json_atomic(&progress_abs, &progress)?;
+                write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                record_micro_task_event(
+                    state,
+                    FlightRecorderEventType::MicroTaskIterationComplete,
+                    "FR-EVT-MT-003",
+                    "micro_task_iteration_complete",
+                    trace_id,
+                    job.job_id,
+                    workflow_run_id,
+                    json!({
+                        "wp_id": inputs.wp_id,
+                        "mt_id": mt.mt_id,
+                        "iteration": iteration,
+                        "model": { "base": model_id.clone(), "lora": lora_id.clone(), "lora_version": null, "quantization": null, "context_window": state.llm_client.profile().max_context_tokens },
+                        "execution": { "tokens_prompt": response.usage.prompt_tokens, "tokens_completion": response.usage.completion_tokens, "duration_ms": response.latency_ms, "escalation_level": escalation_level },
+                        "outcome": { "claimed_complete": completion_signal.claimed_complete, "validation_passed": validation_outcome.as_ref().map(|v| v.passed), "status": status_str, "failure_category": failure_category, "error_summary": error_summary.clone() },
+                        "context_snapshot_id": context_snapshot_id.to_string(),
+                        "evidence_artifact_ref": serde_json::to_value(&output_artifact_ref).unwrap_or(Value::Null),
+                    }),
+                )
+                .await;
+
+                if status_str == "SUCCESS" {
+                    if escalation_level > 0
+                        && !matches!(policy.drop_back_strategy, DropBackStrategy::Never)
+                    {
+                        record_micro_task_event(
+                            state,
+                            FlightRecorderEventType::MicroTaskDropBack,
+                            "FR-EVT-MT-014",
+                            "micro_task_drop_back",
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            json!({ "wp_id": inputs.wp_id, "from_level": escalation_level, "to_level": 0 }),
+                        )
+                        .await;
+
+                        progress.current_state.total_drop_backs =
+                            progress.current_state.total_drop_backs.saturating_add(1);
+                        progress.current_state.active_model_level = 0;
+                    }
+
+                    progress.micro_tasks[mt_progress_index].status = MTStatus::Completed;
+                    progress.micro_tasks[mt_progress_index].final_iteration = Some(iteration);
+                    progress.micro_tasks[mt_progress_index].final_model_level =
+                        Some(escalation_level);
+                    progress.current_state.active_mt = None;
+                    progress.updated_at = Utc::now();
+                    refresh_aggregate_stats(&mut progress);
+                    write_json_atomic(&progress_abs, &progress)?;
+                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                    record_micro_task_event(
+                        state,
+                        FlightRecorderEventType::MicroTaskComplete,
+                        "FR-EVT-MT-004",
+                        "micro_task_complete",
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        json!({ "wp_id": inputs.wp_id, "mt_id": mt.mt_id }),
+                    )
+                    .await;
+                    break;
+                }
+
+                if status_str == "RETRY" {
+                    iteration = iteration.saturating_add(1);
+                    continue;
+                }
+
+                if completion_signal.blocked {
+                    record_micro_task_event(
+                        state,
+                        FlightRecorderEventType::MicroTaskBlocked,
+                        "FR-EVT-MT-017",
+                        "micro_task_blocked",
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        json!({
+                            "wp_id": inputs.wp_id,
+                            "mt_id": mt.mt_id,
+                            "reason": completion_signal.blocked_reason.clone().unwrap_or_else(|| "blocked".to_string()),
+                        }),
+                    )
+                    .await;
+                }
+
+                let from_level = escalation_level;
+                let to_level = escalation_level.saturating_add(1);
+                let (to_model, to_lora, to_is_cloud, to_is_hard_gate) =
+                    match policy.escalation_chain.get(to_level as usize) {
+                        Some(next) => (
+                            next.model_id.clone(),
+                            next.lora_id.clone(),
+                            next.is_cloud,
+                            next.is_hard_gate || next.model_id == "HARD_GATE",
+                        ),
+                        None => ("HARD_GATE".to_string(), None, false, true),
+                    };
+
+                let escalation_reason = if completion_signal.blocked {
+                    completion_signal
+                        .blocked_reason
+                        .clone()
+                        .unwrap_or_else(|| "blocked".to_string())
+                } else if completion_signal.claimed_complete && !validation_passed {
+                    "validation_failed".to_string()
+                } else {
+                    "max_iterations_per_mt".to_string()
+                };
+                let escalation_failure_category = if completion_signal.blocked {
+                    "blocked"
+                } else if completion_signal.claimed_complete && !validation_passed {
+                    "validation_failed"
+                } else {
+                    "max_iterations"
+                };
+
+                let escalation_record_rel = job_dir_rel.join("escalations").join(format!(
+                    "{}_from-{}_to-{}_{}.json",
+                    mt.mt_id,
+                    from_level,
+                    to_level,
+                    Uuid::new_v4()
+                ));
+                let escalation_record_abs = repo_root.join(&escalation_record_rel);
+                write_json_atomic(
+                    &escalation_record_abs,
+                    &json!({
+                        "schema_version": "1.0",
+                        "wp_id": inputs.wp_id,
+                        "job_id": job.job_id.to_string(),
+                        "mt_id": mt.mt_id,
+                        "from_level": from_level,
+                        "to_level": to_level,
+                        "from_model": model_id.clone(),
+                        "from_lora": lora_id.clone(),
+                        "to_model": to_model.clone(),
+                        "to_lora": to_lora.clone(),
+                        "reason": escalation_reason,
+                        "failure_category": escalation_failure_category,
+                        "last_step_id": step_id,
+                        "last_idempotency_key": idempo,
+                        "last_output_artifact_ref": output_artifact_ref,
+                    }),
+                )?;
+                let escalation_record_ref = artifact_handle_for_rel(&escalation_record_rel);
+                progress.micro_tasks[mt_progress_index].escalation_record_ref =
+                    Some(escalation_record_ref.clone());
+
+                let iterations_at_previous_level = progress.micro_tasks[mt_progress_index]
+                    .iterations
+                    .iter()
+                    .filter(|r| r.escalation_level == from_level)
+                    .count() as u32;
+
+                record_micro_task_event(
+                    state,
+                    FlightRecorderEventType::MicroTaskEscalated,
+                    "FR-EVT-MT-005",
+                    "micro_task_escalated",
+                    trace_id,
+                    job.job_id,
+                    workflow_run_id,
+                    json!({
+                        "wp_id": inputs.wp_id,
+                        "mt_id": mt.mt_id,
+                        "from_model": model_id,
+                        "from_lora": lora_id,
+                        "from_level": from_level,
+                        "to_model": to_model,
+                        "to_lora": to_lora,
+                        "to_level": to_level,
+                        "reason": escalation_reason,
+                        "failure_category": escalation_failure_category,
+                        "iterations_at_previous_level": iterations_at_previous_level,
+                        "escalation_record_ref": serde_json::to_value(&escalation_record_ref).unwrap_or(Value::Null),
+                    }),
+                )
+                .await;
+
+                if policy.enable_distillation {
+                    let candidate_rel = job_dir_rel.join("distillation_candidates").join(format!(
+                        "{}_from-{}_to-{}_{}.json",
+                        mt.mt_id,
+                        from_level,
+                        to_level,
+                        Uuid::new_v4()
+                    ));
+                    let candidate_abs = repo_root.join(&candidate_rel);
+                    write_json_atomic(
+                        &candidate_abs,
+                        &json!({
+                            "schema_version": "1.0",
+                            "wp_id": inputs.wp_id,
+                            "job_id": job.job_id.to_string(),
+                            "mt_id": mt.mt_id,
+                            "from_level": from_level,
+                            "to_level": to_level,
+                            "created_at": Utc::now().to_rfc3339(),
+                            "reason": escalation_failure_category,
+                            "escalation_record_ref": escalation_record_ref,
+                        }),
+                    )?;
+                    let candidate_ref = artifact_handle_for_rel(&candidate_rel);
+                    progress.micro_tasks[mt_progress_index].distillation_candidate =
+                        Some(DistillationInfo {
+                            eligible: true,
+                            skill_log_entry_id: None,
+                            task_type_tags: mt.task_tags.clone(),
+                        });
+                    record_micro_task_event(
+                        state,
+                        FlightRecorderEventType::MicroTaskDistillationCandidate,
+                        "FR-EVT-MT-015",
+                        "micro_task_distillation_candidate",
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        json!({
+                            "wp_id": inputs.wp_id,
+                            "mt_id": mt.mt_id,
+                            "candidate_ref": serde_json::to_value(&candidate_ref).unwrap_or(Value::Null),
+                        }),
+                    )
+                    .await;
+                }
+
+                progress.current_state.total_escalations =
+                    progress.current_state.total_escalations.saturating_add(1);
+                progress.current_state.active_model_level = to_level;
+                progress.updated_at = Utc::now();
+                refresh_aggregate_stats(&mut progress);
+                write_json_atomic(&progress_abs, &progress)?;
+                write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                if to_is_cloud && !policy.cloud_escalation_allowed {
+                    record_micro_task_event(
+                        state,
+                        FlightRecorderEventType::MicroTaskHardGate,
+                        "FR-EVT-MT-006",
+                        "micro_task_hard_gate",
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        json!({
+                            "wp_id": inputs.wp_id,
+                            "reason": "cloud_escalation_disallowed",
+                            "mt_id": mt.mt_id,
+                            "from_level": from_level,
+                            "to_level": to_level,
+                        }),
+                    )
+                    .await;
+
+                    progress.status = ProgressStatus::Paused;
+                    progress.updated_at = Utc::now();
+                    write_json_atomic(&progress_abs, &progress)?;
+                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                    return Ok(RunJobOutcome {
+                        state: JobState::AwaitingUser,
+                        status_reason: "paused_hard_gate".to_string(),
+                        output: Some(json!({
+                            "wp_id": inputs.wp_id,
+                            "reason": "cloud_escalation_disallowed",
+                            "mt_definitions_ref": mt_definitions_ref,
+                            "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                            "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                        })),
+                        error_message: None,
+                    });
+                }
+
+                if to_is_hard_gate {
+                    record_micro_task_event(
+                        state,
+                        FlightRecorderEventType::MicroTaskHardGate,
+                        "FR-EVT-MT-006",
+                        "micro_task_hard_gate",
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        json!({
+                            "wp_id": inputs.wp_id,
+                            "reason": "escalation_exhausted",
+                            "mt_id": mt.mt_id,
+                            "from_level": from_level,
+                            "to_level": to_level,
+                        }),
+                    )
+                    .await;
+
+                    progress.status = ProgressStatus::Paused;
+                    progress.updated_at = Utc::now();
+                    write_json_atomic(&progress_abs, &progress)?;
+                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                    return Ok(RunJobOutcome {
+                        state: JobState::AwaitingUser,
+                        status_reason: "paused_hard_gate".to_string(),
+                        output: Some(json!({
+                            "wp_id": inputs.wp_id,
+                            "reason": "escalation_exhausted",
+                            "mt_definitions_ref": mt_definitions_ref,
+                            "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                            "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                        })),
+                        error_message: None,
+                    });
+                }
+
+                false_completion_streak = 0;
+                escalation_level = to_level;
+                progress.current_state.active_model_level = escalation_level;
+                iteration = 1;
+                continue;
+            }
+        }
+    }
+
+    progress.status = ProgressStatus::Completed;
+    progress.completed_at = Some(Utc::now());
+    progress.updated_at = Utc::now();
+    refresh_aggregate_stats(&mut progress);
+    write_json_atomic(&progress_abs, &progress)?;
+    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+    record_micro_task_event(
+        state,
+        FlightRecorderEventType::MicroTaskLoopCompleted,
+        "FR-EVT-MT-009",
+        "micro_task_loop_completed",
+        trace_id,
+        job.job_id,
+        workflow_run_id,
+        json!({ "wp_id": inputs.wp_id }),
+    )
+    .await;
+
+    Ok(RunJobOutcome {
+        state: JobState::Completed,
+        status_reason: "completed".to_string(),
+        output: Some(json!({
+            "wp_id": inputs.wp_id,
+            "mt_definitions_ref": mt_definitions_ref,
+            "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+            "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+        })),
+        error_message: None,
+    })
 }
 
 async fn execute_terminal_job(

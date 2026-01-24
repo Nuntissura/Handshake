@@ -45,6 +45,24 @@ pub enum FlightRecorderEventType {
     SecurityViolation,
     /// FR-EVT-WF-RECOVERY: Workflow recovery initiated [A2.6.1]
     WorkflowRecovery,
+    /// FR-EVT-MT-001..017: Micro-Task Executor events [§2.6.6.8.12]
+    MicroTaskLoopStarted,
+    MicroTaskIterationStarted,
+    MicroTaskIterationComplete,
+    MicroTaskComplete,
+    MicroTaskEscalated,
+    MicroTaskHardGate,
+    MicroTaskPauseRequested,
+    MicroTaskResumed,
+    MicroTaskLoopCompleted,
+    MicroTaskLoopFailed,
+    MicroTaskLoopCancelled,
+    MicroTaskValidation,
+    MicroTaskLoraSelection,
+    MicroTaskDropBack,
+    MicroTaskDistillationCandidate,
+    MicroTaskSkipped,
+    MicroTaskBlocked,
     /// FR-EVT-GOV-MAILBOX-001: Role mailbox message created [11.5.3]
     GovMailboxMessageCreated,
     /// FR-EVT-GOV-MAILBOX-002: Role mailbox export updated [11.5.3]
@@ -68,6 +86,37 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::CapabilityAction => write!(f, "capability_action"),
             FlightRecorderEventType::SecurityViolation => write!(f, "security_violation"),
             FlightRecorderEventType::WorkflowRecovery => write!(f, "workflow_recovery"),
+            FlightRecorderEventType::MicroTaskLoopStarted => write!(f, "micro_task_loop_started"),
+            FlightRecorderEventType::MicroTaskIterationStarted => {
+                write!(f, "micro_task_iteration_started")
+            }
+            FlightRecorderEventType::MicroTaskIterationComplete => {
+                write!(f, "micro_task_iteration_complete")
+            }
+            FlightRecorderEventType::MicroTaskComplete => write!(f, "micro_task_complete"),
+            FlightRecorderEventType::MicroTaskEscalated => write!(f, "micro_task_escalated"),
+            FlightRecorderEventType::MicroTaskHardGate => write!(f, "micro_task_hard_gate"),
+            FlightRecorderEventType::MicroTaskPauseRequested => {
+                write!(f, "micro_task_pause_requested")
+            }
+            FlightRecorderEventType::MicroTaskResumed => write!(f, "micro_task_resumed"),
+            FlightRecorderEventType::MicroTaskLoopCompleted => {
+                write!(f, "micro_task_loop_completed")
+            }
+            FlightRecorderEventType::MicroTaskLoopFailed => write!(f, "micro_task_loop_failed"),
+            FlightRecorderEventType::MicroTaskLoopCancelled => {
+                write!(f, "micro_task_loop_cancelled")
+            }
+            FlightRecorderEventType::MicroTaskValidation => write!(f, "micro_task_validation"),
+            FlightRecorderEventType::MicroTaskLoraSelection => {
+                write!(f, "micro_task_lora_selection")
+            }
+            FlightRecorderEventType::MicroTaskDropBack => write!(f, "micro_task_drop_back"),
+            FlightRecorderEventType::MicroTaskDistillationCandidate => {
+                write!(f, "micro_task_distillation_candidate")
+            }
+            FlightRecorderEventType::MicroTaskSkipped => write!(f, "micro_task_skipped"),
+            FlightRecorderEventType::MicroTaskBlocked => write!(f, "micro_task_blocked"),
             FlightRecorderEventType::GovMailboxMessageCreated => {
                 write!(f, "gov_mailbox_message_created")
             }
@@ -198,6 +247,57 @@ impl FlightRecorderEvent {
             }
             FlightRecorderEventType::EditorEdit => validate_editor_edit_payload(&self.payload),
             FlightRecorderEventType::Diagnostic => validate_diagnostic_payload(&self.payload),
+            FlightRecorderEventType::MicroTaskLoopStarted => {
+                validate_micro_task_loop_started_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskIterationStarted => {
+                validate_micro_task_iteration_started_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskIterationComplete => {
+                validate_micro_task_iteration_complete_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskComplete => {
+                validate_micro_task_complete_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskEscalated => {
+                validate_micro_task_escalated_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskHardGate => {
+                validate_micro_task_hard_gate_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskPauseRequested => {
+                validate_micro_task_pause_requested_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskResumed => {
+                validate_micro_task_resumed_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskLoopCompleted => {
+                validate_micro_task_loop_completed_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskLoopFailed => {
+                validate_micro_task_loop_failed_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskLoopCancelled => {
+                validate_micro_task_loop_cancelled_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskValidation => {
+                validate_micro_task_validation_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskLoraSelection => {
+                validate_micro_task_lora_selection_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskDropBack => {
+                validate_micro_task_drop_back_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskDistillationCandidate => {
+                validate_micro_task_distillation_candidate_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskSkipped => {
+                validate_micro_task_skipped_payload(&self.payload)
+            }
+            FlightRecorderEventType::MicroTaskBlocked => {
+                validate_micro_task_blocked_payload(&self.payload)
+            }
             FlightRecorderEventType::DebugBundleExport => {
                 validate_debug_bundle_payload(&self.payload)
             }
@@ -638,6 +738,270 @@ fn validate_workflow_recovery_payload(payload: &Value) -> Result<(), RecorderErr
     require_string(map, "reason")?;
     require_string(map, "last_heartbeat_ts")?;
     require_number(map, "threshold_secs")?;
+    Ok(())
+}
+
+fn validate_micro_task_event_base<'a>(
+    payload: &'a Value,
+    expected_event_type: &str,
+    expected_event_name: &str,
+) -> Result<&'a Map<String, Value>, RecorderError> {
+    let map = payload_object(payload)?;
+    require_fixed_string(map, "event_type", expected_event_type)?;
+    require_fixed_string(map, "event_name", expected_event_name)?;
+    require_string(map, "timestamp")?;
+    require_string(map, "trace_id")?;
+    require_string(map, "job_id")?;
+    require_string(map, "workflow_run_id")?;
+    let inner = require_key(map, "payload")?;
+    payload_object(inner)
+}
+
+fn validate_micro_task_loop_started_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner =
+        validate_micro_task_event_base(payload, "FR-EVT-MT-001", "micro_task_loop_started")?;
+    require_string(inner, "wp_id")?;
+    require_number(inner, "total_mts")?;
+    require_array(inner, "mt_ids")?;
+    require_array(inner, "execution_waves")?;
+    let policy = require_key(inner, "execution_policy")?;
+    if !policy.is_object() {
+        return Err(RecorderError::InvalidEvent(
+            "payload field execution_policy must be an object".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_micro_task_iteration_started_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner =
+        validate_micro_task_event_base(payload, "FR-EVT-MT-002", "micro_task_iteration_started")?;
+    require_string(inner, "wp_id")?;
+    require_string(inner, "mt_id")?;
+    require_number(inner, "iteration")?;
+    Ok(())
+}
+
+fn validate_micro_task_iteration_complete_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner =
+        validate_micro_task_event_base(payload, "FR-EVT-MT-003", "micro_task_iteration_complete")?;
+    require_string(inner, "wp_id")?;
+    require_string(inner, "mt_id")?;
+    require_number(inner, "iteration")?;
+
+    let model = payload_object(require_key(inner, "model")?)?;
+    require_string(model, "base")?;
+    if let Some(value) = model.get("lora") {
+        if !value.is_null() {
+            require_string(model, "lora")?;
+        }
+    }
+    if let Some(value) = model.get("lora_version") {
+        if !value.is_null() {
+            require_string(model, "lora_version")?;
+        }
+    }
+    if let Some(value) = model.get("quantization") {
+        if !value.is_null() {
+            require_string(model, "quantization")?;
+        }
+    }
+    require_number(model, "context_window")?;
+
+    let execution = payload_object(require_key(inner, "execution")?)?;
+    require_number(execution, "tokens_prompt")?;
+    require_number(execution, "tokens_completion")?;
+    require_number(execution, "duration_ms")?;
+    require_number(execution, "escalation_level")?;
+
+    let outcome = payload_object(require_key(inner, "outcome")?)?;
+    require_bool(outcome, "claimed_complete")?;
+    if let Some(value) = outcome.get("validation_passed") {
+        if !value.is_boolean() && !value.is_null() {
+            return Err(RecorderError::InvalidEvent(
+                "payload field outcome.validation_passed must be a boolean or null".to_string(),
+            ));
+        }
+    }
+    match require_key(outcome, "status")? {
+        Value::String(value) => match value.as_str() {
+            "SUCCESS" | "RETRY" | "ESCALATE" | "BLOCKED" | "SKIPPED" => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field outcome.status must be one of SUCCESS|RETRY|ESCALATE|BLOCKED|SKIPPED"
+                        .to_string(),
+                ))
+            }
+        },
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field outcome.status must be a string".to_string(),
+            ))
+        }
+    }
+    if let Some(value) = outcome.get("failure_category") {
+        if !value.is_null() && !value.is_string() {
+            return Err(RecorderError::InvalidEvent(
+                "payload field outcome.failure_category must be a string or null".to_string(),
+            ));
+        }
+    }
+    if let Some(value) = outcome.get("error_summary") {
+        if !value.is_null() && !value.is_string() {
+            return Err(RecorderError::InvalidEvent(
+                "payload field outcome.error_summary must be a string or null".to_string(),
+            ));
+        }
+    }
+
+    require_string(inner, "context_snapshot_id")?;
+    if let Some(value) = inner.get("evidence_artifact_ref") {
+        if !value.is_null() && !value.is_object() {
+            return Err(RecorderError::InvalidEvent(
+                "payload field evidence_artifact_ref must be an object or null".to_string(),
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_micro_task_complete_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_micro_task_event_base(payload, "FR-EVT-MT-004", "micro_task_complete")?;
+    require_string(inner, "wp_id")?;
+    require_string(inner, "mt_id")?;
+    Ok(())
+}
+
+fn validate_micro_task_escalated_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_micro_task_event_base(payload, "FR-EVT-MT-005", "micro_task_escalated")?;
+    require_string(inner, "wp_id")?;
+    require_string(inner, "mt_id")?;
+    require_string(inner, "from_model")?;
+    if let Some(value) = inner.get("from_lora") {
+        if !value.is_null() {
+            require_string(inner, "from_lora")?;
+        }
+    }
+    require_number(inner, "from_level")?;
+    require_string(inner, "to_model")?;
+    if let Some(value) = inner.get("to_lora") {
+        if !value.is_null() {
+            require_string(inner, "to_lora")?;
+        }
+    }
+    require_number(inner, "to_level")?;
+    require_string(inner, "reason")?;
+    require_string(inner, "failure_category")?;
+    require_number(inner, "iterations_at_previous_level")?;
+    let record_ref = require_key(inner, "escalation_record_ref")?;
+    if !record_ref.is_object() {
+        return Err(RecorderError::InvalidEvent(
+            "payload field escalation_record_ref must be an object".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_micro_task_hard_gate_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_micro_task_event_base(payload, "FR-EVT-MT-006", "micro_task_hard_gate")?;
+    require_string(inner, "wp_id")?;
+    require_string(inner, "reason")?;
+    Ok(())
+}
+
+fn validate_micro_task_pause_requested_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner =
+        validate_micro_task_event_base(payload, "FR-EVT-MT-007", "micro_task_pause_requested")?;
+    require_string(inner, "wp_id")?;
+    require_string(inner, "mt_id")?;
+    Ok(())
+}
+
+fn validate_micro_task_resumed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_micro_task_event_base(payload, "FR-EVT-MT-008", "micro_task_resumed")?;
+    require_string(inner, "wp_id")?;
+    Ok(())
+}
+
+fn validate_micro_task_loop_completed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner =
+        validate_micro_task_event_base(payload, "FR-EVT-MT-009", "micro_task_loop_completed")?;
+    require_string(inner, "wp_id")?;
+    Ok(())
+}
+
+fn validate_micro_task_loop_failed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_micro_task_event_base(payload, "FR-EVT-MT-010", "micro_task_loop_failed")?;
+    require_string(inner, "wp_id")?;
+    Ok(())
+}
+
+fn validate_micro_task_loop_cancelled_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner =
+        validate_micro_task_event_base(payload, "FR-EVT-MT-011", "micro_task_loop_cancelled")?;
+    require_string(inner, "wp_id")?;
+    Ok(())
+}
+
+fn validate_micro_task_validation_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_micro_task_event_base(payload, "FR-EVT-MT-012", "micro_task_validation")?;
+    require_string(inner, "wp_id")?;
+    require_string(inner, "mt_id")?;
+    require_number(inner, "iteration")?;
+    require_bool(inner, "passed")?;
+    Ok(())
+}
+
+fn validate_micro_task_lora_selection_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner =
+        validate_micro_task_event_base(payload, "FR-EVT-MT-013", "micro_task_lora_selection")?;
+    require_string(inner, "wp_id")?;
+    require_string(inner, "mt_id")?;
+    require_number(inner, "iteration")?;
+    require_string(inner, "model_id")?;
+    Ok(())
+}
+
+fn validate_micro_task_drop_back_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_micro_task_event_base(payload, "FR-EVT-MT-014", "micro_task_drop_back")?;
+    require_string(inner, "wp_id")?;
+    require_number(inner, "from_level")?;
+    require_number(inner, "to_level")?;
+    Ok(())
+}
+
+fn validate_micro_task_distillation_candidate_payload(
+    payload: &Value,
+) -> Result<(), RecorderError> {
+    let inner = validate_micro_task_event_base(
+        payload,
+        "FR-EVT-MT-015",
+        "micro_task_distillation_candidate",
+    )?;
+    require_string(inner, "wp_id")?;
+    require_string(inner, "mt_id")?;
+    let candidate_ref = require_key(inner, "candidate_ref")?;
+    if !candidate_ref.is_object() {
+        return Err(RecorderError::InvalidEvent(
+            "payload field candidate_ref must be an object".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_micro_task_skipped_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_micro_task_event_base(payload, "FR-EVT-MT-016", "micro_task_skipped")?;
+    require_string(inner, "wp_id")?;
+    require_string(inner, "mt_id")?;
+    Ok(())
+}
+
+fn validate_micro_task_blocked_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_micro_task_event_base(payload, "FR-EVT-MT-017", "micro_task_blocked")?;
+    require_string(inner, "wp_id")?;
+    require_string(inner, "mt_id")?;
+    require_string(inner, "reason")?;
     Ok(())
 }
 

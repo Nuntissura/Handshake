@@ -678,6 +678,37 @@ impl DuckDbFlightRecorder {
                 "editor_edit" => super::FlightRecorderEventType::EditorEdit,
                 "llm_inference" => super::FlightRecorderEventType::LlmInference,
                 "diagnostic" => super::FlightRecorderEventType::Diagnostic,
+                "micro_task_loop_started" => super::FlightRecorderEventType::MicroTaskLoopStarted,
+                "micro_task_iteration_started" => {
+                    super::FlightRecorderEventType::MicroTaskIterationStarted
+                }
+                "micro_task_iteration_complete" => {
+                    super::FlightRecorderEventType::MicroTaskIterationComplete
+                }
+                "micro_task_complete" => super::FlightRecorderEventType::MicroTaskComplete,
+                "micro_task_escalated" => super::FlightRecorderEventType::MicroTaskEscalated,
+                "micro_task_hard_gate" => super::FlightRecorderEventType::MicroTaskHardGate,
+                "micro_task_pause_requested" => {
+                    super::FlightRecorderEventType::MicroTaskPauseRequested
+                }
+                "micro_task_resumed" => super::FlightRecorderEventType::MicroTaskResumed,
+                "micro_task_loop_completed" => {
+                    super::FlightRecorderEventType::MicroTaskLoopCompleted
+                }
+                "micro_task_loop_failed" => super::FlightRecorderEventType::MicroTaskLoopFailed,
+                "micro_task_loop_cancelled" => {
+                    super::FlightRecorderEventType::MicroTaskLoopCancelled
+                }
+                "micro_task_validation" => super::FlightRecorderEventType::MicroTaskValidation,
+                "micro_task_lora_selection" => {
+                    super::FlightRecorderEventType::MicroTaskLoraSelection
+                }
+                "micro_task_drop_back" => super::FlightRecorderEventType::MicroTaskDropBack,
+                "micro_task_distillation_candidate" => {
+                    super::FlightRecorderEventType::MicroTaskDistillationCandidate
+                }
+                "micro_task_skipped" => super::FlightRecorderEventType::MicroTaskSkipped,
+                "micro_task_blocked" => super::FlightRecorderEventType::MicroTaskBlocked,
                 "debug_bundle_export" => super::FlightRecorderEventType::DebugBundleExport,
                 "governance_pack_export" => super::FlightRecorderEventType::GovernancePackExport,
                 "workflow_recovery" => super::FlightRecorderEventType::WorkflowRecovery,
