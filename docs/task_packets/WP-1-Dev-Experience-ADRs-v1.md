@@ -146,9 +146,9 @@ git revert <commit-sha>
 - **Target File**: `justfile`
 - **Start**: 1
 - **End**: 30
-- **Line Delta**: 4
-- **Pre-SHA1**: `d3c6873287c56df5ce2e80aaca718b642be7e786`
-- **Post-SHA1**: `403b73df8d06db47a2ccb99965f4344f6db6135b`
+- **Line Delta**: 0
+- **Pre-SHA1**: `403b73df8d06db47a2ccb99965f4344f6db6135b`
+- **Post-SHA1**: `3011f90a1a4bd38a36f158f4d532ee94c1622bc9`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -181,6 +181,38 @@ git revert <commit-sha>
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+
+### 2026-01-24 - Remediation Evidence (Coder)
+Command: `just preflight-ollama`
+Output:
+```text
+node -e "const base=(process.env.OLLAMA_URL||'http://localhost:11434'); const normalized=base.endsWith('/')?base.slice(0,-1):base; const url=normalized + '/api/tags'; const lib=url.startsWith('https://')?require('https'):require('http'); const req=lib.get(url,(res)=>{ const ok=!!res.statusCode && res.statusCode>=200 && res.statusCode<300; if(ok){ process.exit(0); } console.error('Ollama preflight failed: GET ' + url + ' returned ' + res.statusCode + '. Install Ollama (Windows: winget install -e --id Ollama.Ollama), then run ollama serve (or ollama run mistral), or set OLLAMA_URL.'); process.exit(1); }); req.on('error',()=>{ console.error('Ollama preflight failed: cannot reach ' + url + '. Install Ollama (Windows: winget install -e --id Ollama.Ollama), then run ollama serve (or ollama run mistral), or set OLLAMA_URL.'); process.exit(1); }); req.setTimeout(3000, ()=>req.destroy(new Error('timeout')));"
+Ollama preflight failed: cannot reach http://localhost:11434/api/tags. Install Ollama (Windows: winget install -e --id Ollama.Ollama), then run ollama serve (or ollama run mistral), or set OLLAMA_URL.
+error: Recipe `preflight-ollama` failed on line 11 with exit code 1
+```
+
+Command: `just post-work WP-1-Dev-Experience-ADRs-v1`
+Output:
+```text
+Checking Phase Gate for WP-1-Dev-Experience-ADRs-v1...
+? GATE PASS: Workflow sequence verified.
+
+Post-work validation for WP-1-Dev-Experience-ADRs-v1 (deterministic manifest + gates)...
+
+Check 1: Validation manifest present
+
+Check 2: Manifest fields
+
+Check 3: File integrity (per manifest entry)
+
+Check 4: Git status
+
+==================================================
+Post-work validation PASSED
+
+You may proceed with commit.
+? ROLE_MAILBOX_EXPORT_GATE PASS
+```
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
