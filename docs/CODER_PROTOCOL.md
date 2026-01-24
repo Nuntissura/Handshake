@@ -140,6 +140,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 - Each task packet MUST retain the manifest template in `## Validation` (target_file, start/end, line_delta, pre/post SHA1, gates checklist). Keep it ASCII-only.
 - Before coding, run `just pre-work WP-{ID}` to confirm the manifest template is present; do not strip fields.
 - After coding, `just post-work WP-{ID}` is the deterministic gate: it enforces manifest completeness, SHA1s, window bounds, and required gates (anchors_present, rails/structure untouched, line_delta match, canonical path, concurrency check). Fill the manifest with real values before running.
+- IMPORTANT: `just post-work` validates the staged/working diff. Run it immediately before the handoff commit; running it after committing a clean tree will fail ("No files changed").
 - To fill `Pre-SHA1` / `Post-SHA1` deterministically, stage your changes and run `just cor701-sha path/to/file` (use the recommended values it prints).
 - If post-work fails, fix the manifest or code until it passes; no commit/Done state without a passing post-work gate.
 
@@ -178,7 +179,7 @@ If you are explicitly instructed to update the board, ensure these 5 fixed secti
 ### [CX-GATE-001] Binary Phase Gate (HARD INVARIANT)
 You MUST follow this exact sequence for every Work Packet. Combining these phases into a single turn is an AUTO-FAIL.
 1. **BOOTSTRAP Phase**: Output the BOOTSTRAP block and verify scope.
-2. **SKELETON Phase**: Output proposed Traits, Structs, or SQL Headers. **STOP and wait for "SKELETON APPROVED".**
+2. **SKELETON Phase**: Output proposed Traits, Structs, or SQL Headers. **STOP and wait for "SKELETON APPROVED".** After approval: update the task packet SKELETON section and create a docs-only checkpoint commit (before starting implementation changes).
 3. **IMPLEMENTATION Phase**: Write logic only AFTER approval.
 4. **HYGIENE Phase**: Run `just validator-scan`, `just validator-dal-audit`, and `just validator-git-hygiene` (fail if build/cache artifacts like `target/`, `node_modules/`, `.gemini/` are tracked).
 5. **EVALUATION Phase**: Run the full TEST_PLAN and required hygiene commands, self-review, and prepare results for handoff (keep task packet free of validation logs).
@@ -765,7 +766,7 @@ grep -r "TODO\|FIXME\|XXX" src/backend/handshake_core/src/ --include="*.rs" | gr
 
 2️⃣ RUN POST-WORK (Final Gate)
    ↓ `just post-work WP-{ID}` passes?
-   ├─ YES → Work is complete, proceed to commit
+   ├─ YES → Proceed to commit (post-work validates the staged diff for this commit; do not run it after committing a clean tree)
    └─ NO → BLOCK: Fix validation errors, re-run until PASS
 ```
 
@@ -1285,7 +1286,7 @@ This section defines what a PERFECT Coder looks like. Use this for self-evaluati
 - [ ] Update STATUS if changed (packet notes/status only)
 - [ ] Notify Validator for validation/merge (Validator updates `main` TASK_BOARD to Done on PASS/FAIL)
 - [ ] Write detailed commit message (references WP-ID)
-- [ ] Request commit with summary
+- [ ] Send Validator the WP branch commit SHA(s) + a short summary for validation/merge (Validator performs the final merge into `main`)
 
 **Success:** Work is documented for future engineers to understand and audit
 
