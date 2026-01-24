@@ -184,3 +184,52 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+---
+
+### 2026-01-24 - VALIDATION REPORT - WP-1-Dev-Experience-ADRs-v1 (RE-APPENDED)
+Verdict: FAIL
+
+Scope Inputs:
+- Task Packet: `docs/task_packets/WP-1-Dev-Experience-ADRs-v1.md` (status: In Progress)
+- Spec: `docs/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.115.md` (anchors per packet: 4.2.2.2; 2.6.6.6.3)
+
+Files Checked:
+- `docs/task_packets/WP-1-Dev-Experience-ADRs-v1.md`
+- `docs/START_HERE.md`
+- `justfile`
+- `docs/adr/ADR-0002-runtime-selection-ollama.md`
+- `docs/adr/ADR-0003-db-layout-jobs-and-flight-recorder.md`
+- `docs/adr/ADR-0004-capability-model-shape.md`
+
+Findings:
+- PASS (Docs): `docs/START_HERE.md:95` documents Phase 1 Ollama setup; env overrides at `docs/START_HERE.md:104-105`.
+- PASS (ADRs): ADRs exist at `docs/adr/ADR-0002-runtime-selection-ollama.md:1`, `docs/adr/ADR-0003-db-layout-jobs-and-flight-recorder.md:1`, `docs/adr/ADR-0004-capability-model-shape.md:1`.
+- FAIL (Dev preflight): `justfile:6` wires `dev: preflight-ollama`, but `justfile:10` `preflight-ollama` fails with a Node syntax error instead of a clear actionable "Ollama unreachable" message.
+  - Evidence (verbatim excerpt):
+    ```text
+    > just preflight-ollama
+    SyntaxError: Invalid regular expression flags
+    error: Recipe `preflight-ollama` failed ...
+    ```
+- NOTE (Deterministic gate): `just post-work WP-1-Dev-Experience-ADRs-v1` fails on a clean tree ("No files changed (git status clean)") by design; a PASS must be recorded pre-commit in `## EVIDENCE`.
+
+Tests / Commands Run:
+- `just pre-work WP-1-Dev-Experience-ADRs-v1`: PASS
+- `just preflight-ollama`: FAIL
+- `just post-work WP-1-Dev-Experience-ADRs-v1`: FAIL (clean tree)
+
+REASON FOR FAIL:
+- WP DONE_MEANS requires `just dev` (and/or a dedicated preflight target) to fail fast with a clear message when Ollama is missing/unreachable at `OLLAMA_URL`. Current `preflight-ollama` fails with a Node parse error, blocking dev with a misleading failure.
+
+Required Remediation (Coder):
+1. Fix `justfile` `preflight-ollama` to work under the repo's PowerShell `windows-shell` and to:
+   - exit 0 when Ollama is reachable
+   - exit nonzero with a clear actionable message when unreachable
+2. Paste verbatim outputs into `## EVIDENCE`:
+   - `just preflight-ollama`
+   - `just post-work WP-1-Dev-Experience-ADRs-v1` (run pre-commit)
+3. Commit remediation and request re-validation.
+
+Note:
+- This report is re-appended because the prior appended block was lost due to later packet edits. Append-only validation history is mandatory.
