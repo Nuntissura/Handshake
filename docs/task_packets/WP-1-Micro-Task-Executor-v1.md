@@ -419,11 +419,14 @@ git revert <commit-sha>
 ## HYGIENE
 - Commands executed (see console output; do not copy logs into this packet):
   - `just pre-work WP-1-Micro-Task-Executor-v1`
+  - `cargo fmt` (workspace: `src/backend/handshake_core`)
   - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`
   - `just validator-scan`
+  - `just validator-dal-audit`
+  - `just validator-git-hygiene`
   - `just validator-spec-regression`
   - `just cargo-clean`
-  - `just post-work WP-1-Micro-Task-Executor-v1` (pending: requires VALIDATION manifest to be filled)
+  - `just post-work WP-1-Micro-Task-Executor-v1`
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
@@ -541,7 +544,7 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: In Progress (claimed by CODER / GPT-5.2)
+- Current WP_STATUS: Implementation complete; ready for Validator review (commit: `c088bffe`)
 - What changed in this update:
   - Implemented the Micro-Task Executor profile backend path and its MEX validation plumbing.
   - Added/updated Flight Recorder event types and DuckDB mapping for MT events.
@@ -554,7 +557,7 @@ git revert <commit-sha>
   - `src/backend/handshake_core/src/workflows.rs`
   - `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
 - Next step / handoff hint:
-  - Run `just post-work WP-1-Micro-Task-Executor-v1` and then create the implementation commit for Validator review.
+  - Validator: review `c088bffe` on `feat/WP-1-Micro-Task-Executor-v1` and proceed with merge workflow.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
