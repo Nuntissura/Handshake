@@ -10,7 +10,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: MEDIUM
 - USER_SIGNATURE: ilja230120262310
 
@@ -265,3 +265,35 @@ Required Remediation (Coder):
 
 Note:
 - This report is re-appended because the prior appended block was lost due to later packet edits. Append-only validation history is mandatory.
+
+---
+
+### 2026-01-24 - VALIDATION REPORT - WP-1-Dev-Experience-ADRs-v1 (REVALIDATION)
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: `docs/task_packets/WP-1-Dev-Experience-ADRs-v1.md` (status: In Progress)
+- Spec: `docs/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.115.md` (anchors per packet: 4.2.2.2; 2.6.6.6.3)
+
+Files Checked:
+- `docs/task_packets/WP-1-Dev-Experience-ADRs-v1.md`
+- `docs/refinements/WP-1-Dev-Experience-ADRs-v1.md`
+- `docs/START_HERE.md`
+- `justfile`
+- `docs/adr/ADR-0002-runtime-selection-ollama.md`
+- `docs/adr/ADR-0003-db-layout-jobs-and-flight-recorder.md`
+- `docs/adr/ADR-0004-capability-model-shape.md`
+
+Findings:
+- PASS (Docs prerequisite): `docs/START_HERE.md:95` provides explicit Windows Ollama install/run/verify steps; env overrides documented at `docs/START_HERE.md:104`.
+- PASS (Fail-fast dev): `justfile:6` wires `dev: preflight-ollama`; `justfile:10` defines `preflight-ollama` with clear actionable error output when Ollama is unreachable.
+- PASS (ADRs): `docs/adr/ADR-0002-runtime-selection-ollama.md:1`, `docs/adr/ADR-0003-db-layout-jobs-and-flight-recorder.md:1`, `docs/adr/ADR-0004-capability-model-shape.md:1`.
+- PASS (No model weights committed): `git ls-files | rg "\\.(gguf|safetensors|pt|pth)$"` returned no matches during validation.
+- Forbidden Pattern Audit (in-scope): grep for `unwrap/expect/todo/panic/serde_json::Value/placeholder` showed only doc text describing directory placeholders (`docs/START_HERE.md:53-54`); no production-path placeholder/stub patterns introduced by this WP.
+
+Evidence:
+- `just preflight-ollama` behavior (actionable failure when Ollama is unreachable) is recorded verbatim in `## EVIDENCE` (Remediation Evidence block).
+- `just post-work WP-1-Dev-Experience-ADRs-v1` PASS output is recorded verbatim in `## EVIDENCE` (Remediation Evidence block).
+
+REASON FOR PASS:
+- WP DONE_MEANS are satisfied: Phase 1 Ollama setup is explicitly documented, `just dev` fails fast via a working `preflight-ollama` with actionable error output, required ADRs exist, and there is no evidence of model-weight files being committed.
