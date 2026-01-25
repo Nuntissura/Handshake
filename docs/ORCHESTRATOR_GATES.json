@@ -783,6 +783,15 @@
       "branch": "feat/WP-1-Dev-Experience-ADRs-v1",
       "worktree_dir": "../wt-WP-1-Dev-Experience-ADRs-v1",
       "timestamp": "2026-01-23T22:28:10.062Z"
+    },
+    {
+      "wpId": "WP-1-AI-Ready-Data-Architecture-v1",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-AI-Ready-Data-Architecture-v1.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.116.md",
+      "spec_target_sha1": "d3b23cd8492345f60bb76ce315dc70efc517604f",
+      "timestamp": "2026-01-25T17:26:13.747Z",
+      "turn_token": "1769361973762"
     }
   ]
 }

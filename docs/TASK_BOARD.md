@@ -53,6 +53,7 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
 - **[WP-1-AI-Ready-Data-Architecture-v1]** - [STUB]
+- **[WP-1-Locus-Work-Tracking-System-Phase1-v1]** - [STUB]
 - **[WP-1-LocalFirst-Agentic-MCP-Posture-v1]** - [STUB]
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
 - **[WP-1-Global-Silent-Edit-Guard]** - [STUB]
