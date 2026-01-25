@@ -60,7 +60,7 @@ Format:
 | WP-1-ACE-Runtime | docs/task_packets/WP-1-ACE-Runtime-v2.md | Ready for Dev: WP-1-ACE-Runtime-v2 | active=WP-1-ACE-Runtime-v2; activated from stub docs/task_packets/stubs/WP-1-ACE-Runtime-v2.md; supersedes: WP-1-ACE-Runtime |
 | WP-1-ACE-Validators | docs/task_packets/WP-1-ACE-Validators-v4.md | Done: WP-1-ACE-Validators-v4 | active=WP-1-ACE-Validators-v4; supersedes: WP-1-ACE-Validators, WP-1-ACE-Validators-v2, WP-1-ACE-Validators-v3 |
 | WP-1-AI-Job-Model | docs/task_packets/WP-1-AI-Job-Model-v4.md | Ready for Dev: WP-1-AI-Job-Model-v4 | active=WP-1-AI-Job-Model-v4; activated from stub docs/task_packets/stubs/WP-1-AI-Job-Model-v4.md; supersedes: WP-1-AI-Job-Model-v3, WP-1-AI-Job-Model-v2 |
-| WP-1-AI-Ready-Data-Architecture | docs/task_packets/stubs/WP-1-AI-Ready-Data-Architecture-v1.md | Stub Backlog (Not Activated): WP-1-AI-Ready-Data-Architecture-v1 | stub (spec v02.117) |
+| WP-1-AI-Ready-Data-Architecture | docs/task_packets/WP-1-AI-Ready-Data-Architecture-v1.md | Ready for Dev: WP-1-AI-Ready-Data-Architecture-v1 | active=WP-1-AI-Ready-Data-Architecture-v1; activated from stub docs/task_packets/stubs/WP-1-AI-Ready-Data-Architecture-v1.md |
 | WP-1-Locus-Work-Tracking-System-Phase1 | docs/task_packets/stubs/WP-1-Locus-Work-Tracking-System-Phase1-v1.md | Stub Backlog (Not Activated): WP-1-Locus-Work-Tracking-System-Phase1-v1 | stub (spec v02.116); new roadmap item |
 | WP-1-AI-UX-Actions | docs/task_packets/stubs/WP-1-AI-UX-Actions-v2.md | Stub Backlog (Not Activated): WP-1-AI-UX-Actions-v2 | stub (remediation); supersedes: WP-1-AI-UX-Actions |
 | WP-1-AI-UX-Rewrite | docs/task_packets/stubs/WP-1-AI-UX-Rewrite-v2.md | Stub Backlog (Not Activated): WP-1-AI-UX-Rewrite-v2 | stub (remediation); supersedes: WP-1-AI-UX-Rewrite |
