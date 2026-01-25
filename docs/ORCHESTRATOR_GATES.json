@@ -792,6 +792,21 @@
       "spec_target_sha1": "d3b23cd8492345f60bb76ce315dc70efc517604f",
       "timestamp": "2026-01-25T17:26:13.747Z",
       "turn_token": "1769361973762"
+    },
+    {
+      "wpId": "WP-1-AI-Ready-Data-Architecture-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja250120262250",
+      "timestamp": "2026-01-25T22:23:49.163Z",
+      "refinement_path": "docs/refinements/WP-1-AI-Ready-Data-Architecture-v1.md"
+    },
+    {
+      "wpId": "WP-1-AI-Ready-Data-Architecture-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-AI-Ready-Data-Architecture-v1",
+      "worktree_dir": "../wt-WP-1-AI-Ready-Data-Architecture-v1",
+      "timestamp": "2026-01-25T22:25:56.140Z"
     }
   ]
 }
