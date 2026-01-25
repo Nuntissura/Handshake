@@ -78,7 +78,9 @@ impl TerminalGuard for DefaultTerminalGuard {
             session.session_type,
             super::session::TerminalSessionType::HumanDev
         ) {
-            let allowed = self.capability_allowed("terminal.attach_human", req, registry)?;
+            let allowed = registry
+                .enforce_can_perform("terminal.attach_human", &req.granted_capabilities)
+                .map_err(|e| TerminalError::CapabilityDenied(format!("HSK-TERM-002: {}", e)))?;
             if !allowed {
                 return Err(TerminalError::IsolationViolation(
                     "HSK-TERM-009: AI cannot attach to human terminal without terminal.attach_human"
@@ -195,11 +197,19 @@ impl DefaultTerminalGuard {
         req: &TerminalRequest,
         registry: &CapabilityRegistry,
     ) -> Result<bool, TerminalError> {
+        let is_ai_context = req.job_context.job_id.is_some() || req.job_context.model_id.is_some();
+
         if let Some(profile_id) = &req.job_context.capability_profile_id {
             let allowed = registry
                 .profile_can(profile_id, capability)
                 .map_err(|e| TerminalError::CapabilityDenied(format!("HSK-TERM-002: {}", e)))?;
             return Ok(allowed);
+        }
+
+        if is_ai_context {
+            return Err(TerminalError::CapabilityDenied(
+                "HSK-TERM-002: missing capability_profile_id for AI context".to_string(),
+            ));
         }
 
         if req.granted_capabilities.is_empty() {

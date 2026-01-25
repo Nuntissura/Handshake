@@ -99,6 +99,19 @@ impl Gate for CapabilityGate {
             });
         }
 
+        let capability_profile_id = op
+            .capability_profile_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .ok_or_else(|| GateDenial {
+                gate: self.name().to_string(),
+                reason: "Missing capability_profile_id; default-deny".to_string(),
+                code: None,
+                details: None,
+                severity: DenialSeverity::Error,
+            })?;
+
         let engine_spec = registry
             .get_engine(&op.engine_id)
             .ok_or_else(|| GateDenial {
@@ -133,7 +146,7 @@ impl Gate for CapabilityGate {
                 Ok(false) => {
                     return Err(GateDenial {
                         gate: self.name().to_string(),
-                        reason: "Capability not granted".to_string(),
+                        reason: "Capability not allowlisted for engine/operation".to_string(),
                         code: None,
                         details: Some(Value::String(cap.clone())),
                         severity: DenialSeverity::Error,
@@ -151,13 +164,57 @@ impl Gate for CapabilityGate {
                 Err(err) => {
                     return Err(GateDenial {
                         gate: self.name().to_string(),
-                        reason: format!("Capability check failed: {err}"),
+                        reason: format!("Capability allowlist check failed: {err}"),
                         code: None,
                         details: Some(Value::String(cap.clone())),
                         severity: DenialSeverity::Error,
                     });
                 }
-            };
+            }
+
+            match self.registry.profile_can(capability_profile_id, cap) {
+                Ok(true) => {}
+                Ok(false) => {
+                    return Err(GateDenial {
+                        gate: self.name().to_string(),
+                        reason: "Capability not granted by capability_profile_id".to_string(),
+                        code: None,
+                        details: Some(json!({
+                            "capability_profile_id": capability_profile_id,
+                            "capability_id": cap,
+                        })),
+                        severity: DenialSeverity::Error,
+                    });
+                }
+                Err(RegistryError::UnknownCapability(_)) => {
+                    return Err(GateDenial {
+                        gate: self.name().to_string(),
+                        reason: RegistryError::UnknownCapability(cap.clone()).to_string(),
+                        code: Some("HSK-4001".to_string()),
+                        details: Some(Value::String(cap.clone())),
+                        severity: DenialSeverity::Error,
+                    });
+                }
+                Err(RegistryError::UnknownProfile(_)) => {
+                    return Err(GateDenial {
+                        gate: self.name().to_string(),
+                        reason: RegistryError::UnknownProfile(capability_profile_id.to_string())
+                            .to_string(),
+                        code: None,
+                        details: Some(Value::String(capability_profile_id.to_string())),
+                        severity: DenialSeverity::Error,
+                    });
+                }
+                Err(err) => {
+                    return Err(GateDenial {
+                        gate: self.name().to_string(),
+                        reason: format!("Capability profile check failed: {err}"),
+                        code: None,
+                        details: Some(Value::String(cap.clone())),
+                        severity: DenialSeverity::Error,
+                    });
+                }
+            }
         }
 
         Ok(())

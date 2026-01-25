@@ -154,6 +154,7 @@ impl CapabilityRegistry {
         job_profile_map.insert("canvas_cluster".to_string(), "Analyst".to_string());
         job_profile_map.insert("asr_transcribe".to_string(), "Analyst".to_string());
         job_profile_map.insert("workflow_run".to_string(), "Analyst".to_string());
+        job_profile_map.insert("micro_task_execution".to_string(), "Coder".to_string());
         job_profile_map.insert("spec_router".to_string(), "Analyst".to_string());
         job_profile_map.insert("debug_bundle_export".to_string(), "Analyst".to_string());
         job_profile_map.insert("terminal_exec".to_string(), "Coder".to_string());
@@ -184,6 +185,10 @@ impl CapabilityRegistry {
         job_requirements.insert(
             "workflow_run".to_string(),
             vec!["doc.summarize".to_string()],
+        );
+        job_requirements.insert(
+            "micro_task_execution".to_string(),
+            vec!["doc.summarize".to_string(), "terminal.exec".to_string()],
         );
         job_requirements.insert("spec_router".to_string(), vec!["doc.summarize".to_string()]);
         job_requirements.insert(
@@ -399,6 +404,7 @@ mod tests {
             "canvas_cluster",
             "asr_transcribe",
             "workflow_run",
+            "micro_task_execution",
             "spec_router",
             "debug_bundle_export",
             "terminal_exec",

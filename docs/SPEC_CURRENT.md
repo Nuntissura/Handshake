@@ -2,9 +2,9 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.115.md**
+**Handshake_Master_Spec_v02.116.md**
 
-(Updated: 2026-01-22 - v02.114 Micro-Task Executor Profile + v02.115 AI-Ready Data Architecture + roadmap/cov matrix updates [ilja220120262330])
+(Updated: 2026-01-24 - v02.116 micro_task_execution JobKind + MTE contract invariant [remediation])
 
 ---
 

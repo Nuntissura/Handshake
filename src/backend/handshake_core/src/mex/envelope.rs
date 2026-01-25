@@ -66,6 +66,10 @@ pub struct PlannedOperation {
     pub inputs: Vec<ArtifactHandle>,
     pub params: serde_json::Value,
     pub capabilities_requested: Vec<String>,
+    #[serde(default)]
+    pub capability_profile_id: Option<String>,
+    #[serde(default)]
+    pub human_consent_obtained: bool,
     pub budget: BudgetSpec,
     pub determinism: DeterminismLevel,
     pub evidence_policy: Option<EvidencePolicy>,

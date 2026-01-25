@@ -1,9 +1,10 @@
 use super::{
-    AccessMode, AiJob, AiJobListFilter, Block, BlockUpdate, Canvas, CanvasEdge, CanvasGraph,
-    CanvasNode, DefaultStorageGuard, Document, EntityRef, JobKind, JobMetrics, JobState,
-    JobStatusUpdate, MutationMetadata, NewAiJob, NewBlock, NewCanvas, NewCanvasEdge, NewCanvasNode,
-    NewDocument, NewNodeExecution, NewWorkspace, PlannedOperation, SafetyMode, StorageError,
-    StorageGuard, StorageResult, WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
+    validate_job_contract, AccessMode, AiJob, AiJobListFilter, Block, BlockUpdate, Canvas,
+    CanvasEdge, CanvasGraph, CanvasNode, DefaultStorageGuard, Document, EntityRef, JobKind,
+    JobMetrics, JobState, JobStatusUpdate, MutationMetadata, NewAiJob, NewBlock, NewCanvas,
+    NewCanvasEdge, NewCanvasNode, NewDocument, NewNodeExecution, NewWorkspace, PlannedOperation,
+    SafetyMode, StorageError, StorageGuard, StorageResult, WorkflowNodeExecution, WorkflowRun,
+    Workspace, WriteContext,
 };
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc};
@@ -1156,6 +1157,8 @@ impl super::Database for PostgresDatabase {
     }
 
     async fn create_ai_job(&self, job: NewAiJob) -> StorageResult<AiJob> {
+        validate_job_contract(&job.job_kind, &job.profile_id, &job.protocol_id)?;
+
         let id = Uuid::new_v4().to_string();
         let now = Utc::now();
         let job_inputs = job.job_inputs.clone().map(|value| value.to_string());

@@ -596,6 +596,11 @@ impl EngineAdapter for ShellEngineAdapter {
         if requested_capability.as_deref().map(|c| c.trim().is_empty()) == Some(true) {
             requested_capability = None;
         }
+        let capability_profile_id = op
+            .capability_profile_id
+            .as_ref()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty());
 
         let job_id = Some(op.op_id.to_string());
         let session_type =
@@ -616,14 +621,14 @@ impl EngineAdapter for ShellEngineAdapter {
                 job_id: job_id.clone(),
                 model_id: None,
                 session_id: None,
-                capability_profile_id: None,
-                capability_id: None,
+                capability_profile_id,
+                capability_id: requested_capability.clone(),
                 wsids: Vec::new(),
             },
-            granted_capabilities: op.capabilities_requested.clone(),
+            granted_capabilities: Vec::new(),
             requested_capability,
             session_type,
-            human_consent_obtained: false,
+            human_consent_obtained: op.human_consent_obtained,
         };
 
         let started_at = Utc::now();

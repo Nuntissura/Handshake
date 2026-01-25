@@ -88,6 +88,8 @@ impl ConformanceHarness {
             )],
             params: serde_json::json!({"kind": "test"}),
             capabilities_requested: vec!["fs.read".to_string(), "fs.write".to_string()],
+            capability_profile_id: Some("Coder".to_string()),
+            human_consent_obtained: false,
             budget: BudgetSpec {
                 cpu_time_ms: Some(1000),
                 wall_time_ms: Some(2000),
@@ -368,6 +370,8 @@ mod tests {
             )],
             params: serde_json::json!({"kind": "test"}),
             capabilities_requested: vec!["fs.read".to_string(), "fs.write".to_string()],
+            capability_profile_id: Some("Coder".to_string()),
+            human_consent_obtained: false,
             budget: BudgetSpec {
                 cpu_time_ms: Some(1000),
                 wall_time_ms: Some(2000),

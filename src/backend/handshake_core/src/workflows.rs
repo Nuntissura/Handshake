@@ -5,7 +5,9 @@ use crate::{
             scan_content_for_security, SecurityViolationType, StorageContentResolver,
             ValidatorPipeline,
         },
-        AceError, ArtifactHandle, CandidateRef, SourceRef,
+        AceError, ArtifactHandle, CandidateRef, CandidateScores, DeterminismMode, QueryKind,
+        QueryPlan, RetrievalCandidate, RetrievalTrace, RouteTaken, SelectedEvidence, SourceRef,
+        SpanExtraction, StoreKind,
     },
     bundles::{BundleScope, DebugBundleRequest, DefaultDebugBundleExporter, RedactionMode},
     capabilities::{RegistryError, GOVERNANCE_PACK_EXPORT_PROTOCOL_ID},
@@ -26,7 +28,7 @@ use crate::{
         ProvenanceGate, SchemaGate, POE_SCHEMA_VERSION,
     },
     models::{AiJob, JobKind, WorkflowRun},
-    storage::{JobState, JobStatusUpdate, NewNodeExecution, StorageError},
+    storage::{validate_job_contract, JobState, JobStatusUpdate, NewNodeExecution, StorageError},
     terminal::{
         config::TerminalConfig,
         guards::{DefaultTerminalGuard, TerminalGuard},
@@ -652,6 +654,27 @@ async fn run_job(
         }
     }
 
+    if matches!(job.job_kind, JobKind::WorkflowRun) && job.profile_id == "micro_task_executor_v1" {
+        return Ok(RunJobOutcome {
+            state: JobState::Poisoned,
+            status_reason: "invalid_job_contract".to_string(),
+            output: None,
+            error_message: Some(
+                "invalid job contract: legacy micro_task_executor_v1 jobs must use job_kind micro_task_execution (migration required)"
+                    .to_string(),
+            ),
+        });
+    }
+
+    if let Err(err) = validate_job_contract(&job.job_kind, &job.profile_id, &job.protocol_id) {
+        return Ok(RunJobOutcome {
+            state: JobState::Poisoned,
+            status_reason: "invalid_job_contract".to_string(),
+            output: None,
+            error_message: Some(err.to_string()),
+        });
+    }
+
     if matches!(job.job_kind, JobKind::DocSummarize | JobKind::DocEdit) {
         let inputs = parse_inputs(job.job_inputs.as_ref());
         let doc_id = inputs.get("doc_id").and_then(|v| v.as_str());
@@ -981,9 +1004,62 @@ async fn run_job(
             output: Some(payload),
             error_message: None,
         });
+    } else if matches!(job.job_kind, JobKind::MicroTaskExecution) {
+        let inputs = parse_inputs(job.job_inputs.as_ref());
+        let wp_id = inputs
+            .get("wp_id")
+            .and_then(|v| v.as_str())
+            .filter(|v| !v.trim().is_empty())
+            .unwrap_or("unknown")
+            .to_string();
+
+        let result = run_micro_task_executor_v1(state, job, workflow_run_id, trace_id).await;
+        match &result {
+            Ok(outcome) if matches!(outcome.state, JobState::Failed) => {
+                record_micro_task_event(
+                    state,
+                    FlightRecorderEventType::MicroTaskLoopFailed,
+                    "FR-EVT-MT-010",
+                    "micro_task_loop_failed",
+                    trace_id,
+                    job.job_id,
+                    workflow_run_id,
+                    json!({
+                        "wp_id": wp_id,
+                        "status_reason": outcome.status_reason,
+                        "error_message": outcome.error_message,
+                    }),
+                )
+                .await;
+            }
+            Err(err) => {
+                record_micro_task_event(
+                    state,
+                    FlightRecorderEventType::MicroTaskLoopFailed,
+                    "FR-EVT-MT-010",
+                    "micro_task_loop_failed",
+                    trace_id,
+                    job.job_id,
+                    workflow_run_id,
+                    json!({ "wp_id": wp_id, "error": err.to_string() }),
+                )
+                .await;
+            }
+            _ => {}
+        }
+
+        return result;
     } else if matches!(job.job_kind, JobKind::WorkflowRun) {
         if job.profile_id == "micro_task_executor_v1" {
-            return run_micro_task_executor_v1(state, job, workflow_run_id, trace_id).await;
+            return Ok(RunJobOutcome {
+                state: JobState::Poisoned,
+                status_reason: "invalid_job_contract".to_string(),
+                output: None,
+                error_message: Some(
+                    "invalid job contract: legacy micro_task_executor_v1 jobs must use job_kind micro_task_execution (migration required)"
+                        .to_string(),
+                ),
+            });
         }
 
         if job.protocol_id == GOVERNANCE_PACK_EXPORT_PROTOCOL_ID {
@@ -1602,6 +1678,8 @@ struct MTProgressEntry {
     pub evidence_refs: Vec<ArtifactHandle>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub distillation_candidate: Option<DistillationInfo>,
+    #[serde(default)]
+    pub pending_distillation_candidates: Vec<PendingDistillationCandidate>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1610,7 +1688,98 @@ struct DistillationInfo {
     #[serde(default)]
     pub skill_log_entry_id: Option<String>,
     #[serde(default)]
+    pub candidate_ref: Option<ArtifactHandle>,
+    #[serde(default)]
     pub task_type_tags: Vec<String>,
+    #[serde(default)]
+    pub data_trust_score: Option<f64>,
+    #[serde(default)]
+    pub distillation_eligible: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PendingDistillationCandidate {
+    pub skill_log_entry_id: String,
+    pub student_attempt: DistillationAttempt,
+    #[serde(default)]
+    pub task_type_tags: Vec<String>,
+    #[serde(default)]
+    pub contributing_factors: Vec<String>,
+    pub data_trust_score: f64,
+    pub distillation_eligible: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DistillationAttempt {
+    pub model_id: String,
+    #[serde(default)]
+    pub lora_id: Option<String>,
+    #[serde(default)]
+    pub lora_version: Option<String>,
+    pub prompt_snapshot_ref: ArtifactHandle,
+    pub output_snapshot_ref: ArtifactHandle,
+    pub outcome: String,
+    pub iterations: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MtLayerScope {
+    pub read: Vec<String>,
+    pub write: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MtIdsHashCount {
+    pub ids_hash: String,
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MtPromptEnvelopeHashes {
+    pub stable_prefix_hash: String,
+    pub variable_suffix_hash: String,
+    pub full_prompt_hash: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MtContextSnapshot {
+    pub context_snapshot_id: Uuid,
+    pub job_id: String,
+    pub step_id: String,
+    pub created_at: DateTime<Utc>,
+    pub determinism_mode: String,
+    pub model_tier: String,
+    pub model_id: String,
+    pub policy_profile_id: String,
+    pub layer_scope: MtLayerScope,
+    pub scope_inputs_hash: String,
+    pub retrieval_candidates: MtIdsHashCount,
+    pub selected_sources: MtIdsHashCount,
+    pub prompt_envelope_hashes: MtPromptEnvelopeHashes,
+    #[serde(default)]
+    pub artifact_handles: Vec<ArtifactHandle>,
+    #[serde(default)]
+    pub warnings: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_only_payload_ref: Option<ArtifactHandle>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MtContextFilesArtifact {
+    pub schema_version: String,
+    pub mt_id: String,
+    pub iteration: u32,
+    pub files: Vec<MtContextFile>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MtContextFile {
+    pub path: String,
+    pub source_id: Uuid,
+    pub source_hash: String,
+    pub token_estimate: u32,
+    pub truncated: bool,
+    pub content: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1759,6 +1928,17 @@ fn write_json_atomic<T: Serialize>(abs_path: &Path, value: &T) -> Result<(), Wor
     write_bytes_atomic(abs_path, &bytes)
 }
 
+fn write_json_atomic_with_hash<T: Serialize>(
+    abs_path: &Path,
+    value: &T,
+) -> Result<String, WorkflowError> {
+    let bytes = serde_json::to_vec_pretty(value)
+        .map_err(|e| WorkflowError::Terminal(format!("json serialize error: {e}")))?;
+    let hash = sha256_hex(&bytes);
+    write_bytes_atomic(abs_path, &bytes)?;
+    Ok(hash)
+}
+
 fn sha256_hex(bytes: &[u8]) -> String {
     let mut h = Sha256::new();
     h.update(bytes);
@@ -1767,6 +1947,307 @@ fn sha256_hex(bytes: &[u8]) -> String {
 
 fn sha256_hex_str(value: &str) -> String {
     sha256_hex(value.as_bytes())
+}
+
+fn deterministic_uuid_for_str(value: &str) -> Uuid {
+    let mut hasher = Sha256::new();
+    hasher.update(value.as_bytes());
+    let digest = hasher.finalize();
+
+    let mut bytes = [0u8; 16];
+    bytes.copy_from_slice(&digest[..16]);
+    // Set UUID variant + version bits (version 4-ish) for well-formed UUID strings.
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    Uuid::from_bytes(bytes)
+}
+
+fn estimate_tokens(text: &str) -> u32 {
+    // ~4 chars/token heuristic (matches ACE validators usage)
+    (text.len().saturating_add(3) / 4) as u32
+}
+
+fn truncate_to_token_budget(text: &str, budget_tokens: u32) -> (String, bool) {
+    let max_chars = (budget_tokens as usize).saturating_mul(4);
+    if text.len() <= max_chars {
+        return (text.to_string(), false);
+    }
+    let truncated: String = text.chars().take(max_chars).collect();
+    (truncated, true)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ShadowWsRegion {
+    start_line: usize,
+    end_line: usize,
+    score: u32,
+    center_line: usize,
+}
+
+fn build_mt_context_query_text(mt: &MicroTaskDefinition) -> String {
+    let mut query_text = String::new();
+    query_text.push_str(mt.scope.trim());
+    query_text.push('\n');
+
+    for action in &mt.actions {
+        let trimmed = action.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        query_text.push_str(trimmed);
+        query_text.push('\n');
+    }
+
+    for criterion in &mt.done {
+        let trimmed = criterion.description.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        query_text.push_str(trimmed);
+        query_text.push('\n');
+    }
+
+    query_text
+}
+
+fn build_mt_context_query_terms(query_text: &str) -> Vec<String> {
+    let normalized = crate::ace::normalize_query(query_text);
+    let mut terms: Vec<String> = normalized
+        .split_ascii_whitespace()
+        .filter(|t| t.len() >= 3)
+        .map(|t| t.to_string())
+        .collect();
+    terms.sort();
+    terms.dedup();
+    if terms.len() > 24 {
+        terms.truncate(24);
+    }
+    terms
+}
+
+fn shadow_ws_lexical_regions(
+    lines: &[&str],
+    query_terms: &[String],
+    max_results: usize,
+    neighbor_lines: usize,
+) -> Vec<ShadowWsRegion> {
+    if lines.is_empty() {
+        return Vec::new();
+    }
+
+    let mut scored_lines: Vec<(u32, usize)> = Vec::new();
+    for (idx, line) in lines.iter().enumerate() {
+        let normalized_line = crate::ace::normalize_query(line);
+        let mut score = 0u32;
+        for term in query_terms {
+            if normalized_line.contains(term) {
+                score = score.saturating_add(1);
+            }
+        }
+        if score > 0 {
+            scored_lines.push((score, idx));
+        }
+    }
+
+    let max_results = max_results.max(1);
+    scored_lines.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+
+    let mut regions: Vec<ShadowWsRegion> = Vec::new();
+    if scored_lines.is_empty() {
+        let end_line = (neighbor_lines.saturating_mul(2)).min(lines.len().saturating_sub(1));
+        regions.push(ShadowWsRegion {
+            start_line: 0,
+            end_line,
+            score: 0,
+            center_line: 0,
+        });
+    } else {
+        for (score, center_line) in scored_lines.into_iter().take(max_results) {
+            let start_line = center_line.saturating_sub(neighbor_lines);
+            let end_line = center_line
+                .saturating_add(neighbor_lines)
+                .min(lines.len() - 1);
+            regions.push(ShadowWsRegion {
+                start_line,
+                end_line,
+                score,
+                center_line,
+            });
+        }
+    }
+
+    regions.sort_by(|a, b| {
+        a.start_line
+            .cmp(&b.start_line)
+            .then_with(|| a.end_line.cmp(&b.end_line))
+            .then_with(|| a.center_line.cmp(&b.center_line))
+    });
+
+    let mut merged: Vec<ShadowWsRegion> = Vec::new();
+    for region in regions {
+        match merged.last_mut() {
+            Some(last) if region.start_line <= last.end_line.saturating_add(1) => {
+                last.end_line = last.end_line.max(region.end_line);
+                last.score = last.score.max(region.score);
+            }
+            _ => merged.push(region),
+        }
+    }
+    merged
+}
+
+enum ShadowWsLexicalOutcome {
+    Selected(ShadowWsLexicalSelection),
+    Skipped { warning: String },
+}
+
+struct ShadowWsLexicalSelection {
+    source_ref: SourceRef,
+    file: MtContextFile,
+    spans: Vec<SpanExtraction>,
+    match_score: u32,
+    warnings: Vec<String>,
+}
+
+fn retrieve_shadow_ws_lexical_for_file(
+    repo_root: &Path,
+    path: &str,
+    query_terms: &[String],
+    max_results: usize,
+    neighbor_lines: usize,
+    allowance_tokens: u32,
+    max_span_tokens: u32,
+) -> Result<ShadowWsLexicalOutcome, WorkflowError> {
+    let abs = repo_root.join(PathBuf::from(path));
+    let bytes = match fs::read(&abs) {
+        Ok(bytes) => bytes,
+        Err(_) => {
+            return Ok(ShadowWsLexicalOutcome::Skipped {
+                warning: format!("missing_or_unreadable_file:{path}"),
+            });
+        }
+    };
+
+    let source_hash = sha256_hex(&bytes);
+    let source_id = deterministic_uuid_for_str(path);
+    let source_ref = SourceRef::new(source_id, source_hash.clone());
+
+    let content = String::from_utf8_lossy(&bytes);
+    let lines: Vec<&str> = content.lines().collect();
+    if lines.is_empty() {
+        return Ok(ShadowWsLexicalOutcome::Skipped {
+            warning: format!("empty_file:{path}"),
+        });
+    }
+
+    let regions = shadow_ws_lexical_regions(&lines, query_terms, max_results, neighbor_lines);
+    if regions.is_empty() {
+        return Ok(ShadowWsLexicalOutcome::Skipped {
+            warning: format!("shadow_ws_lexical:no_regions:{path}"),
+        });
+    }
+
+    let mut line_offsets: Vec<u32> = Vec::with_capacity(lines.len() + 1);
+    let mut acc = 0u32;
+    for line in &lines {
+        line_offsets.push(acc);
+        acc = acc.saturating_add(line.chars().count() as u32);
+        acc = acc.saturating_add(1);
+    }
+    line_offsets.push(acc);
+
+    let mut warnings: Vec<String> = Vec::new();
+    if regions.len() == 1 && regions[0].score == 0 {
+        warnings.push(format!("shadow_ws_lexical:no_match:{path}"));
+    }
+
+    let mut spans: Vec<SpanExtraction> = Vec::new();
+    let mut parts: Vec<String> = Vec::new();
+    let mut tokens_used = 0u32;
+    let mut match_score = 0u32;
+    let mut truncated_any = false;
+
+    for (idx, region) in regions.iter().enumerate() {
+        if tokens_used >= allowance_tokens {
+            break;
+        }
+
+        let remaining = allowance_tokens.saturating_sub(tokens_used);
+        if remaining == 0 {
+            break;
+        }
+
+        let per_span_budget = remaining.min(max_span_tokens).max(1);
+        let raw_chunk = lines[region.start_line..=region.end_line].join("\n");
+        let (chunk, truncated) = truncate_to_token_budget(&raw_chunk, per_span_budget);
+        let chunk_tokens = estimate_tokens(&chunk);
+        if chunk_tokens == 0 {
+            continue;
+        }
+
+        tokens_used = tokens_used.saturating_add(chunk_tokens);
+        match_score = match_score.saturating_add(region.score);
+        truncated_any |= truncated;
+        if truncated {
+            warnings.push(format!(
+                "shadow_ws_lexical:truncated:{}:{}-{}",
+                path,
+                region.start_line + 1,
+                region.end_line + 1
+            ));
+        }
+
+        let selector = format!(
+            "shadow_ws_lexical:{}:{}-{}:{}",
+            path,
+            region.start_line + 1,
+            region.end_line + 1,
+            idx + 1
+        );
+
+        let start = line_offsets
+            .get(region.start_line)
+            .copied()
+            .unwrap_or_default();
+        let end = line_offsets
+            .get(region.end_line.saturating_add(1))
+            .copied()
+            .unwrap_or(acc);
+
+        spans.push(SpanExtraction {
+            source_ref: source_ref.clone(),
+            selector,
+            start,
+            end,
+            token_estimate: chunk_tokens,
+        });
+
+        parts.push(format!(
+            "/* chunk {} lines {}-{} */\n{}",
+            idx + 1,
+            region.start_line + 1,
+            region.end_line + 1,
+            chunk
+        ));
+    }
+
+    let snippet = parts.join("\n\n");
+    let file = MtContextFile {
+        path: path.to_string(),
+        source_id,
+        source_hash,
+        token_estimate: tokens_used,
+        truncated: truncated_any,
+        content: snippet,
+    };
+
+    Ok(ShadowWsLexicalOutcome::Selected(ShadowWsLexicalSelection {
+        source_ref,
+        file,
+        spans,
+        match_score,
+        warnings,
+    }))
 }
 
 fn idempotency_key(
@@ -1795,31 +2276,160 @@ fn parse_completion_signal(response: &str) -> CompletionSignal {
     let mt_complete = extract_tag_block(response, "mt_complete");
     let blocked = extract_tag_block(response, "blocked");
 
+    let evidence = mt_complete
+        .as_deref()
+        .and_then(|block| parse_completion_evidence(block));
+    let blocked_reason = blocked.as_ref().and_then(|block| {
+        block
+            .lines()
+            .map(str::trim)
+            .find_map(|line| line.strip_prefix("REASON:"))
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+    });
+
     CompletionSignal {
         claimed_complete: mt_complete.is_some(),
-        evidence: None,
+        evidence,
         blocked: blocked.is_some(),
-        blocked_reason: blocked.clone().filter(|s| !s.trim().is_empty()),
-        raw_block: mt_complete,
+        blocked_reason: blocked_reason.or_else(|| blocked.clone().filter(|s| !s.trim().is_empty())),
+        raw_block: mt_complete.or(blocked),
+    }
+}
+
+fn parse_completion_evidence(raw_block: &str) -> Option<Vec<CompletionEvidence>> {
+    fn split_once_any<'a>(s: &'a str, delims: &[&str]) -> Option<(&'a str, &'a str)> {
+        for delim in delims {
+            if let Some((left, right)) = s.split_once(delim) {
+                return Some((left, right));
+            }
+        }
+        None
+    }
+
+    let mut evidence = Vec::new();
+    for line in raw_block.lines() {
+        let line = line.trim();
+        if !line.starts_with('-') {
+            continue;
+        }
+        let rest = line.trim_start_matches('-').trim();
+        if rest.is_empty() {
+            continue;
+        }
+
+        let (criterion, after_criterion) = if rest.starts_with('"') {
+            let remainder = &rest[1..];
+            let end_quote = remainder.find('"')?;
+            let crit = &remainder[..end_quote];
+            let after = remainder[end_quote + 1..].trim();
+            (crit.trim(), after)
+        } else {
+            let (crit, after) = split_once_any(rest, &["→", "->", "=>"])?;
+            (crit.trim(), after.trim())
+        };
+
+        let (_maybe_label, loc) =
+            split_once_any(after_criterion, &["→", "->", "=>"]).unwrap_or(("", after_criterion));
+        let loc = loc.trim();
+        if criterion.is_empty() || loc.is_empty() {
+            continue;
+        }
+
+        evidence.push(CompletionEvidence {
+            criterion: criterion.to_string(),
+            evidence_location: loc.to_string(),
+        });
+    }
+
+    if evidence.is_empty() {
+        None
+    } else {
+        Some(evidence)
+    }
+}
+
+fn parse_first_shell_token(command: &str) -> Option<String> {
+    let mut iter = command.trim_start().chars().peekable();
+    let Some(_) = iter.peek() else {
+        return None;
+    };
+
+    let mut token = String::new();
+    let mut in_single = false;
+    let mut in_double = false;
+
+    while let Some(ch) = iter.next() {
+        if !in_single && !in_double && ch.is_whitespace() {
+            break;
+        }
+
+        match ch {
+            '\'' if !in_double => {
+                in_single = !in_single;
+            }
+            '"' if !in_single => {
+                in_double = !in_double;
+            }
+            '\\' if in_double => {
+                if let Some(next) = iter.next() {
+                    token.push(next);
+                }
+            }
+            _ => token.push(ch),
+        }
+    }
+
+    let token = token.trim();
+    if token.is_empty() {
+        None
+    } else {
+        Some(token.to_string())
     }
 }
 
 fn proc_exec_capability_for_command(command: &str) -> String {
-    let first = command
-        .split_whitespace()
-        .next()
-        .unwrap_or("")
-        .trim_matches('"')
-        .trim_matches('\'');
+    let Some(first) = parse_first_shell_token(command) else {
+        return "proc.exec".to_string();
+    };
     if first.is_empty() {
         return "proc.exec".to_string();
     }
     let tool = first
         .rsplit(['/', '\\'])
         .next()
-        .unwrap_or(first)
+        .unwrap_or(first.as_str())
         .trim_end_matches(".exe");
     format!("proc.exec:{tool}")
+}
+
+fn previous_output_summary_for_mt(
+    repo_root: &Path,
+    run_ledger: &RunLedger,
+    mt_id: &str,
+    budget_tokens: u32,
+) -> Option<String> {
+    let prefix = format!("{mt_id}_");
+    let step = run_ledger.steps.iter().rev().find(|s| {
+        s.step_id.starts_with(&prefix)
+            && matches!(s.status, LedgerStepStatus::Completed)
+            && s.output_artifact_ref.is_some()
+    })?;
+    let output_artifact_ref = step.output_artifact_ref.as_ref()?;
+
+    let output_abs = repo_root.join(PathBuf::from(&output_artifact_ref.path));
+    let raw = fs::read_to_string(output_abs).ok()?;
+    let val: Value = serde_json::from_str(&raw).ok()?;
+
+    let output_snapshot_path = val
+        .get("output_snapshot_ref")
+        .and_then(|v| v.get("path"))
+        .and_then(|v| v.as_str())?;
+    let response_abs = repo_root.join(PathBuf::from(output_snapshot_path));
+    let response_text = fs::read_to_string(response_abs).ok()?;
+
+    let (summary, _truncated) = truncate_to_token_budget(&response_text, budget_tokens);
+    Some(summary)
 }
 
 fn generate_mt_definitions_from_scope(scope: &WorkPacketScope) -> Vec<MicroTaskDefinition> {
@@ -2126,20 +2736,34 @@ fn compute_execution_waves(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct ValidationStepOutcome {
+struct VerifySpecResult {
+    pub spec_index: u32,
     pub command: String,
+    pub expected: String,
+    pub actual_exit_code: i64,
     pub passed: bool,
-    pub blocking: bool,
-    pub op_id: Uuid,
-    pub engine_status: String,
-    pub outputs: Vec<ArtifactHandle>,
-    pub evidence: Vec<ArtifactHandle>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stdout_ref: Option<ArtifactHandle>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stderr_ref: Option<ArtifactHandle>,
+    pub duration_ms: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct ValidationOutcome {
+struct ValidationResult {
     pub passed: bool,
-    pub steps: Vec<ValidationStepOutcome>,
+    pub spec_results: Vec<VerifySpecResult>,
+    pub evidence_artifact_ref: ArtifactHandle,
+    pub started_at: String,
+    pub completed_at: String,
+    pub total_duration_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ValidationEvidenceArtifact {
+    pub schema_version: String,
     pub evidence: Vec<ArtifactHandle>,
 }
 
@@ -2177,12 +2801,18 @@ async fn run_validation_via_mex(
     mex_runtime: &MexRuntime,
     repo_root: &Path,
     verify: &[VerificationSpec],
-) -> Result<ValidationOutcome, WorkflowError> {
+    capability_profile_id: &str,
+    evidence_artifact_rel: &Path,
+    evidence_artifact_ref: ArtifactHandle,
+) -> Result<ValidationResult, WorkflowError> {
+    let started_at = Utc::now().to_rfc3339();
+    let start = std::time::Instant::now();
+
     let mut all_evidence: Vec<ArtifactHandle> = Vec::new();
-    let mut steps: Vec<ValidationStepOutcome> = Vec::new();
+    let mut spec_results: Vec<VerifySpecResult> = Vec::new();
     let mut overall_passed = true;
 
-    for spec in verify {
+    for (spec_index, spec) in verify.iter().enumerate() {
         let capability = proc_exec_capability_for_command(&spec.command);
         let max_bytes = 10_485_760u64;
         let wall_time_ms = spec.timeout_ms;
@@ -2201,6 +2831,8 @@ async fn run_validation_via_mex(
                 "env": {},
             }),
             capabilities_requested: vec![capability],
+            capability_profile_id: Some(capability_profile_id.to_string()),
+            human_consent_obtained: false,
             budget: BudgetSpec {
                 cpu_time_ms: None,
                 wall_time_ms: Some(wall_time_ms),
@@ -2218,52 +2850,149 @@ async fn run_validation_via_mex(
             },
         };
 
-        let op_id = op.op_id;
         let result = mex_runtime
             .execute(op)
             .await
             .map_err(|e| WorkflowError::Terminal(format!("MEX execute failed: {e}")))?;
 
+        let expected = match spec.expect {
+            VerifyExpect::Exit0 => "exit_0".to_string(),
+            VerifyExpect::ExitNonzero => "exit_nonzero".to_string(),
+            VerifyExpect::Contains => match spec.pattern.as_deref() {
+                Some(pattern) => format!("contains:{pattern}"),
+                None => "contains:<missing_pattern>".to_string(),
+            },
+            VerifyExpect::NotContains => match spec.pattern.as_deref() {
+                Some(pattern) => format!("not_contains:{pattern}"),
+                None => "not_contains:<missing_pattern>".to_string(),
+            },
+        };
+
         let mut passed = false;
+        let mut actual_exit_code = -1i64;
+        let mut timed_out = false;
+        let mut duration_ms = 0u64;
+        let mut stdout_ref: Option<ArtifactHandle> = None;
+        let mut stderr_ref: Option<ArtifactHandle> = None;
+        let mut error: Option<String> = None;
+
+        let mut stdout_rel: Option<String> = None;
+        let mut stderr_rel: Option<String> = None;
+
         if let Some(output_handle) = result.outputs.first() {
             let output_abs = repo_root.join(PathBuf::from(&output_handle.path));
-            if let Ok(raw) = fs::read_to_string(&output_abs) {
-                if let Ok(val) = serde_json::from_str::<Value>(&raw) {
-                    let exit_code = val.get("exit_code").and_then(|v| v.as_i64()).unwrap_or(-1);
-                    let timed_out = val
-                        .get("timed_out")
-                        .and_then(|v| v.as_bool())
-                        .unwrap_or(false);
-                    match spec.expect {
-                        VerifyExpect::Exit0 => {
-                            passed = exit_code == 0 && !timed_out;
+            match fs::read_to_string(&output_abs) {
+                Ok(raw) => match serde_json::from_str::<Value>(&raw) {
+                    Ok(val) => {
+                        actual_exit_code =
+                            val.get("exit_code").and_then(|v| v.as_i64()).unwrap_or(-1);
+                        timed_out = val
+                            .get("timed_out")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+                        duration_ms = val.get("duration_ms").and_then(|v| v.as_u64()).unwrap_or(0);
+
+                        stdout_rel = val
+                            .get("stdout_ref")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
+                        stderr_rel = val
+                            .get("stderr_ref")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
+
+                        if let Some(stdout_rel) = stdout_rel.as_deref() {
+                            stdout_ref = result
+                                .evidence
+                                .iter()
+                                .find(|h| h.path == stdout_rel)
+                                .cloned()
+                                .or_else(|| Some(artifact_handle_for_rel(Path::new(stdout_rel))));
                         }
-                        VerifyExpect::ExitNonzero => {
-                            passed = exit_code != 0 || timed_out;
+                        if let Some(stderr_rel) = stderr_rel.as_deref() {
+                            stderr_ref = result
+                                .evidence
+                                .iter()
+                                .find(|h| h.path == stderr_rel)
+                                .cloned()
+                                .or_else(|| Some(artifact_handle_for_rel(Path::new(stderr_rel))));
                         }
-                        VerifyExpect::Contains => {
-                            if let (Some(pattern), Some(stdout_ref)) = (
-                                spec.pattern.as_deref(),
-                                val.get("stdout_ref").and_then(|v| v.as_str()),
-                            ) {
-                                let stdout_abs = repo_root.join(PathBuf::from(stdout_ref));
-                                let stdout = fs::read_to_string(stdout_abs).unwrap_or_default();
-                                passed = stdout.contains(pattern);
+
+                        match spec.expect {
+                            VerifyExpect::Exit0 => {
+                                passed = actual_exit_code == 0 && !timed_out;
                             }
-                        }
-                        VerifyExpect::NotContains => {
-                            if let (Some(pattern), Some(stdout_ref)) = (
-                                spec.pattern.as_deref(),
-                                val.get("stdout_ref").and_then(|v| v.as_str()),
-                            ) {
-                                let stdout_abs = repo_root.join(PathBuf::from(stdout_ref));
-                                let stdout = fs::read_to_string(stdout_abs).unwrap_or_default();
-                                passed = !stdout.contains(pattern);
+                            VerifyExpect::ExitNonzero => {
+                                passed = actual_exit_code != 0 || timed_out;
+                            }
+                            VerifyExpect::Contains => {
+                                if let Some(pattern) = spec.pattern.as_deref() {
+                                    if let Some(stdout_rel) = stdout_rel.as_deref() {
+                                        let stdout_abs = repo_root.join(PathBuf::from(stdout_rel));
+                                        match fs::read_to_string(stdout_abs) {
+                                            Ok(stdout) => {
+                                                passed = stdout.contains(pattern);
+                                            }
+                                            Err(e) => {
+                                                error.get_or_insert_with(|| {
+                                                    format!(
+                                                        "failed to read stdout ({stdout_rel}): {e}"
+                                                    )
+                                                });
+                                            }
+                                        }
+                                    } else {
+                                        error.get_or_insert_with(|| {
+                                            "missing stdout_ref for contains verification"
+                                                .to_string()
+                                        });
+                                    }
+                                } else {
+                                    error.get_or_insert_with(|| {
+                                        "missing pattern for contains verification".to_string()
+                                    });
+                                }
+                            }
+                            VerifyExpect::NotContains => {
+                                if let Some(pattern) = spec.pattern.as_deref() {
+                                    if let Some(stdout_rel) = stdout_rel.as_deref() {
+                                        let stdout_abs = repo_root.join(PathBuf::from(stdout_rel));
+                                        match fs::read_to_string(stdout_abs) {
+                                            Ok(stdout) => {
+                                                passed = !stdout.contains(pattern);
+                                            }
+                                            Err(e) => {
+                                                error.get_or_insert_with(|| {
+                                                    format!(
+                                                        "failed to read stdout ({stdout_rel}): {e}"
+                                                    )
+                                                });
+                                            }
+                                        }
+                                    } else {
+                                        error.get_or_insert_with(|| {
+                                            "missing stdout_ref for not_contains verification"
+                                                .to_string()
+                                        });
+                                    }
+                                } else {
+                                    error.get_or_insert_with(|| {
+                                        "missing pattern for not_contains verification".to_string()
+                                    });
+                                }
                             }
                         }
                     }
+                    Err(e) => {
+                        error = Some(format!("invalid terminal output JSON: {e}"));
+                    }
+                },
+                Err(e) => {
+                    error = Some(format!("failed to read terminal output artifact: {e}"));
                 }
             }
+        } else {
+            error = Some("missing terminal output artifact".to_string());
         }
 
         if !passed && spec.blocking {
@@ -2272,24 +3001,35 @@ async fn run_validation_via_mex(
 
         all_evidence.extend(result.evidence.iter().cloned());
 
-        steps.push(ValidationStepOutcome {
+        spec_results.push(VerifySpecResult {
+            spec_index: spec_index as u32,
             command: spec.command.clone(),
+            expected,
+            actual_exit_code,
             passed,
-            blocking: spec.blocking,
-            op_id,
-            engine_status: format!("{:?}", result.status),
-            outputs: result.outputs.clone(),
-            evidence: result.evidence.clone(),
+            stdout_ref,
+            stderr_ref,
+            duration_ms,
+            error,
         });
     }
 
     all_evidence.sort_by(|a, b| a.canonical_id().cmp(&b.canonical_id()));
     all_evidence.dedup_by(|a, b| a.canonical_id() == b.canonical_id());
 
-    Ok(ValidationOutcome {
-        passed: overall_passed,
-        steps,
+    let evidence_artifact = ValidationEvidenceArtifact {
+        schema_version: "1.0".to_string(),
         evidence: all_evidence,
+    };
+    write_json_atomic(&repo_root.join(evidence_artifact_rel), &evidence_artifact)?;
+
+    Ok(ValidationResult {
+        passed: overall_passed,
+        spec_results,
+        evidence_artifact_ref,
+        started_at,
+        completed_at: Utc::now().to_rfc3339(),
+        total_duration_ms: start.elapsed().as_millis() as u64,
     })
 }
 
@@ -2347,6 +3087,7 @@ fn init_progress_artifact(
             summary_ref: None,
             evidence_refs: Vec::new(),
             distillation_candidate: None,
+            pending_distillation_candidates: Vec::new(),
         })
         .collect();
 
@@ -2701,6 +3442,17 @@ async fn run_micro_task_executor_v1(
 
             let current_mt_status = progress.micro_tasks[mt_progress_index].status;
             if matches!(current_mt_status, MTStatus::Completed | MTStatus::Skipped) {
+                record_micro_task_event(
+                    state,
+                    FlightRecorderEventType::MicroTaskSkipped,
+                    "FR-EVT-MT-016",
+                    "micro_task_skipped",
+                    trace_id,
+                    job.job_id,
+                    workflow_run_id,
+                    json!({ "wp_id": inputs.wp_id, "mt_id": mt.mt_id }),
+                )
+                .await;
                 continue;
             }
 
@@ -2967,14 +3719,293 @@ async fn run_micro_task_executor_v1(
                 .await;
 
                 let context_snapshot_id = Uuid::new_v4();
-                let prompt = format!(
-                    "WP_ID: {wp_id}\nMT_ID: {mt_id}\nITERATION: {iteration}\nSCOPE: {scope}\nACTIONS:\n- {actions}\n\nReturn <mt_complete>...</mt_complete> when done.\n",
-                    wp_id = inputs.wp_id,
-                    mt_id = mt.mt_id,
+
+                // -------------------------------------------------------------------------
+                // Â§2.6.6.8.8 MT Context Compilation (ACE-integrated; PromptEnvelope + Snapshot)
+                // -------------------------------------------------------------------------
+
+                let mut mt_files: Vec<String> = mt
+                    .files
+                    .read
+                    .iter()
+                    .chain(mt.files.modify.iter())
+                    .cloned()
+                    .collect();
+                mt_files.sort();
+                mt_files.dedup();
+
+                let system_rules_budget = 300u32;
+                let iteration_context_budget = 200u32;
+                let mt_definition_budget = 500u32;
+                let previous_output_budget = if iteration > 1 { 200u32 } else { 0u32 };
+
+                let mut file_contents_budget = mt
+                    .token_budget
+                    .saturating_sub(system_rules_budget)
+                    .saturating_sub(iteration_context_budget)
+                    .saturating_sub(mt_definition_budget)
+                    .saturating_sub(previous_output_budget);
+
+                let completed_mts = progress
+                    .micro_tasks
+                    .iter()
+                    .filter(|m| matches!(m.status, MTStatus::Completed))
+                    .count();
+                let total_mts = progress.micro_tasks.len();
+
+                let previous_iter = progress.micro_tasks[mt_progress_index].iterations.last();
+                let previous_outcome = previous_iter
+                    .map(|r| match r.outcome {
+                        IterationOutcome::Success => "SUCCESS",
+                        IterationOutcome::Retry => "RETRY",
+                        IterationOutcome::Escalate => "ESCALATE",
+                        IterationOutcome::Blocked => "BLOCKED",
+                        IterationOutcome::Skipped => "SKIPPED",
+                    })
+                    .unwrap_or("FIRST_ATTEMPT");
+                let previous_error = previous_iter
+                    .and_then(|r| r.error_summary.clone())
+                    .unwrap_or_default();
+                let previous_output_summary = if iteration > 1 {
+                    previous_output_summary_for_mt(
+                        &repo_root,
+                        &run_ledger,
+                        &mt.mt_id,
+                        previous_output_budget,
+                    )
+                    .unwrap_or_default()
+                } else {
+                    String::new()
+                };
+
+                let system_rules_raw = r#"Follow the Work Packet scope and only modify allowed files.
+Do NOT output <mt_complete> unless ALL done criteria are satisfied with concrete file:line evidence.
+The completion claim is untrusted; validations will be run after completion is claimed."#;
+                let (system_rules, _) =
+                    truncate_to_token_budget(system_rules_raw, system_rules_budget);
+
+                let iteration_context_raw = format!(
+                    r#"**Loop:** Iteration {iteration} of {max_iterations}
+**MT:** {mt_id} - {mt_name}
+**Model:** {model_id} {lora_info}
+**Escalation Level:** {level} of {max_level}
+
+**Previous Outcome:** {previous_outcome}
+{previous_error_block}
+
+**Overall Progress:** {completed_mts} of {total_mts} MTs complete"#,
                     iteration = iteration,
-                    scope = mt.scope,
-                    actions = mt.actions.join("\n- ")
+                    max_iterations = policy.max_iterations_per_mt,
+                    mt_id = mt.mt_id,
+                    mt_name = mt.name,
+                    model_id = model_id,
+                    lora_info = lora_id
+                        .as_deref()
+                        .map(|l| format!("+ LoRA: {l}"))
+                        .unwrap_or_default(),
+                    level = escalation_level,
+                    max_level = policy.escalation_chain.len().saturating_sub(1),
+                    previous_outcome = previous_outcome,
+                    previous_error_block = if previous_error.trim().is_empty() {
+                        String::new()
+                    } else {
+                        format!("**Previous Error:**\n```\n{previous_error}\n```")
+                    },
+                    completed_mts = completed_mts,
+                    total_mts = total_mts
                 );
+                let (iteration_context, _) =
+                    truncate_to_token_budget(&iteration_context_raw, iteration_context_budget);
+
+                let mut mt_definition_raw = String::new();
+                mt_definition_raw.push_str("### Scope\n");
+                mt_definition_raw.push_str(mt.scope.trim());
+                mt_definition_raw.push_str("\n\n### Actions (in order)\n");
+                for (idx, action) in mt.actions.iter().enumerate() {
+                    mt_definition_raw.push_str(&format!("{}. {}\n", idx + 1, action));
+                }
+                mt_definition_raw.push_str("\n### Done Criteria\n");
+                for criterion in &mt.done {
+                    mt_definition_raw.push_str(&format!("- [ ] {}\n", criterion.description));
+                }
+                mt_definition_raw.push_str("\n### Verification Commands\n");
+                for spec in &mt.verify {
+                    mt_definition_raw.push_str(&format!("- `{}`\n", spec.command));
+                }
+                if let Some(notes) = mt.notes.as_deref() {
+                    if !notes.trim().is_empty() {
+                        mt_definition_raw.push_str("\n### Notes\n");
+                        mt_definition_raw.push_str(notes.trim());
+                        mt_definition_raw.push('\n');
+                    }
+                }
+                let (mt_definition, _) =
+                    truncate_to_token_budget(&mt_definition_raw, mt_definition_budget);
+
+                let completion_protocol = format!(
+                    r#"<mt_complete>
+MT_ID: {mt_id}
+EVIDENCE:
+- "{{done_criterion}}" -> {{file}}:{{line_start}}-{{line_end}}
+[one line per done criterion]
+</mt_complete>
+
+<blocked>
+REASON: {{specific reason}}
+NEED: {{what you need to unblock}}
+</blocked>"#,
+                    mt_id = mt.mt_id
+                );
+
+                let mut warnings: Vec<String> = Vec::new();
+                let mut selected_files: Vec<MtContextFile> = Vec::new();
+                let mut candidate_source_refs: Vec<SourceRef> = Vec::new();
+
+                let query_text = build_mt_context_query_text(mt);
+                let query_terms = build_mt_context_query_terms(&query_text);
+                let max_shadow_results = 10usize;
+                let neighbor_lines = 20usize;
+
+                let mut query_plan = QueryPlan::new(
+                    query_text,
+                    QueryKind::Transform,
+                    "mt_context_compilation".to_string(),
+                )
+                .with_default_route();
+                query_plan.determinism_mode = DeterminismMode::Replay;
+                query_plan.budgets.max_total_evidence_tokens = file_contents_budget.max(1);
+                query_plan.budgets.max_snippets_per_source = max_shadow_results as u32;
+                query_plan.budgets.max_snippets_total = (mt_files.len() as u32)
+                    .saturating_mul(max_shadow_results as u32)
+                    .max(1);
+                query_plan.budgets.max_candidates_total = (mt_files.len() as u32).max(1);
+                query_plan.budgets.max_read_tokens = 500;
+
+                let mut retrieval_trace = RetrievalTrace::new(&query_plan);
+                retrieval_trace.route_taken.push(RouteTaken {
+                    store: StoreKind::ContextPacks,
+                    reason: "prefer_context_packs=true; unavailable".to_string(),
+                    cache_hit: Some(false),
+                });
+                retrieval_trace.route_taken.push(RouteTaken {
+                    store: StoreKind::ShadowWsLexical,
+                    reason: "shadow_ws_lexical:deterministic_chunks".to_string(),
+                    cache_hit: Some(false),
+                });
+
+                let per_file_budget = if mt_files.is_empty() {
+                    0u32
+                } else {
+                    (file_contents_budget / (mt_files.len() as u32)).max(64)
+                };
+                for path in &mt_files {
+                    if file_contents_budget == 0 {
+                        warnings.push("file_contents_budget exhausted".to_string());
+                        break;
+                    }
+
+                    let allowance = file_contents_budget.min(per_file_budget);
+                    let outcome = retrieve_shadow_ws_lexical_for_file(
+                        &repo_root,
+                        path,
+                        &query_terms,
+                        max_shadow_results,
+                        neighbor_lines,
+                        allowance,
+                        query_plan.budgets.max_read_tokens,
+                    )?;
+
+                    match outcome {
+                        ShadowWsLexicalOutcome::Skipped { warning } => {
+                            warnings.push(warning.clone());
+                            retrieval_trace.warnings.push(warning);
+                            continue;
+                        }
+                        ShadowWsLexicalOutcome::Selected(selection) => {
+                            if selection.file.token_estimate == 0 {
+                                warnings.push(format!("shadow_ws_lexical:empty_snippet:{path}"));
+                                retrieval_trace
+                                    .warnings
+                                    .push(format!("shadow_ws_lexical:empty_snippet:{path}"));
+                                continue;
+                            }
+
+                            let mut scores = CandidateScores::default();
+                            scores.lexical = Some(selection.match_score as f64);
+
+                            retrieval_trace
+                                .candidates
+                                .push(RetrievalCandidate::from_source(
+                                    selection.source_ref.clone(),
+                                    StoreKind::ShadowWsLexical,
+                                    scores.clone(),
+                                ));
+
+                            retrieval_trace.selected.push(SelectedEvidence {
+                                candidate_ref: CandidateRef::Source(selection.source_ref.clone()),
+                                final_rank: retrieval_trace.selected.len() as u32,
+                                final_score: selection.match_score as f64,
+                                why: "mt_context_compilation_shadow_ws_lexical".to_string(),
+                            });
+
+                            if selection.file.truncated {
+                                retrieval_trace
+                                    .truncation_flags
+                                    .push(format!("truncated:{}", selection.source_ref.source_id));
+                            }
+
+                            retrieval_trace.spans.extend(selection.spans.clone());
+                            for w in selection.warnings {
+                                warnings.push(w.clone());
+                                retrieval_trace.warnings.push(w);
+                            }
+
+                            candidate_source_refs.push(selection.source_ref);
+                            file_contents_budget =
+                                file_contents_budget.saturating_sub(selection.file.token_estimate);
+                            selected_files.push(selection.file);
+                        }
+                    }
+                }
+
+                // [§2.6.6.8.8.1] Validate plan + trace via ACE Runtime validators.
+                // Treat failures as blocking for this iteration (do not proceed with unvalidated context).
+                let pipeline = ValidatorPipeline::with_default_guards();
+                pipeline
+                    .validate_plan(&query_plan)
+                    .await
+                    .map_err(WorkflowError::SecurityViolation)?;
+                pipeline
+                    .validate_trace(&retrieval_trace)
+                    .await
+                    .map_err(WorkflowError::SecurityViolation)?;
+
+                let mut files_section = String::new();
+                for file in &selected_files {
+                    files_section.push_str(&format!(
+                        "### {}\n```\n{}\n```\n\n",
+                        file.path, file.content
+                    ));
+                }
+
+                let previous_output_section = if iteration > 1 {
+                    let (prev, _) =
+                        truncate_to_token_budget(&previous_output_summary, previous_output_budget);
+                    format!("## PREVIOUS ITERATION\n```\n{prev}\n```\n")
+                } else {
+                    String::new()
+                };
+
+                let stable_prefix = format!(
+                    "## SYSTEM RULES\n{system_rules}\n\n## YOUR TASK\n{mt_definition}\n\n## COMPLETION PROTOCOL\n{completion_protocol}\n",
+                );
+                let variable_suffix = format!(
+                    "## MICRO-TASK CONTEXT\n{iteration_context}\n\n## FILES\n{files_section}\n\n{previous_output_section}\nBEGIN WORK:\n"
+                );
+                let prompt = format!("{stable_prefix}\n\n{variable_suffix}");
+
+                let stable_prefix_hash = sha256_hex_str(&stable_prefix);
+                let variable_suffix_hash = sha256_hex_str(&variable_suffix);
                 let prompt_hash = sha256_hex_str(&prompt);
                 let idempo = idempotency_key(
                     &mt.mt_id,
@@ -2986,9 +4017,116 @@ async fn run_micro_task_executor_v1(
                 let step_id = format!("{}_iter-{:03}", mt.mt_id, iteration);
                 let step_dir_rel = job_dir_rel.join("step_outputs").join(&idempo);
                 let prompt_rel = step_dir_rel.join("prompt.txt");
+                let context_files_rel = step_dir_rel.join("context_files.json");
+                let context_snapshot_rel = step_dir_rel.join("context_snapshot.json");
                 let response_rel = step_dir_rel.join("response.txt");
                 let output_rel = step_dir_rel.join("output.json");
                 let validation_rel = step_dir_rel.join("validation.json");
+                let validation_evidence_rel = step_dir_rel.join("validation_evidence.json");
+
+                let prompt_snapshot_ref = artifact_handle_for_rel(&prompt_rel);
+                let context_files_ref = artifact_handle_for_rel(&context_files_rel);
+                let context_snapshot_ref = artifact_handle_for_rel(&context_snapshot_rel);
+                let output_snapshot_ref = artifact_handle_for_rel(&response_rel);
+                let validation_ref = artifact_handle_for_rel(&validation_rel);
+                let validation_evidence_ref = artifact_handle_for_rel(&validation_evidence_rel);
+
+                let ace_query_plan_rel = step_dir_rel.join("ace_query_plan.json");
+                let ace_retrieval_trace_rel = step_dir_rel.join("ace_retrieval_trace.json");
+                let ace_query_plan_ref = artifact_handle_for_rel(&ace_query_plan_rel);
+                let ace_retrieval_trace_ref = artifact_handle_for_rel(&ace_retrieval_trace_rel);
+
+                write_json_atomic(&repo_root.join(&ace_query_plan_rel), &query_plan)?;
+                write_json_atomic(&repo_root.join(&ace_retrieval_trace_rel), &retrieval_trace)?;
+
+                let context_files_artifact = MtContextFilesArtifact {
+                    schema_version: "1.0".to_string(),
+                    mt_id: mt.mt_id.clone(),
+                    iteration,
+                    files: selected_files.clone(),
+                };
+                write_json_atomic(&repo_root.join(&context_files_rel), &context_files_artifact)?;
+
+                let mut candidate_ids: Vec<String> = candidate_source_refs
+                    .iter()
+                    .map(SourceRef::canonical_id)
+                    .collect();
+                candidate_ids.sort();
+                let candidate_ids_hash = sha256_hex_str(&candidate_ids.join("\n"));
+
+                let mut selected_ids: Vec<String> = selected_files
+                    .iter()
+                    .map(|f| SourceRef::new(f.source_id, f.source_hash.clone()).canonical_id())
+                    .collect();
+                selected_ids.sort();
+                let selected_ids_hash = sha256_hex_str(&selected_ids.join("\n"));
+
+                let scope_inputs_hash = {
+                    let scope_inputs = json!({
+                        "entity_refs": mt_files,
+                        "task_context": {
+                            "wp_id": inputs.wp_id,
+                            "mt_id": mt.mt_id,
+                            "scope": mt.scope,
+                            "actions": mt.actions,
+                        },
+                        "iteration_context": {
+                            "iteration": iteration,
+                            "escalation_level": escalation_level,
+                            "previous_outcome": previous_outcome,
+                        }
+                    });
+                    let json = serde_json::to_string(&scope_inputs).unwrap_or_default();
+                    sha256_hex_str(&json)
+                };
+
+                let model_tier = match state.llm_client.profile().model_tier {
+                    crate::llm::ModelTier::Cloud => "cloud",
+                    crate::llm::ModelTier::Local => "local",
+                }
+                .to_string();
+
+                let snapshot = MtContextSnapshot {
+                    context_snapshot_id,
+                    job_id: job.job_id.to_string(),
+                    step_id: step_id.clone(),
+                    created_at: Utc::now(),
+                    determinism_mode: "replay".to_string(),
+                    model_tier,
+                    model_id: model_id.clone(),
+                    policy_profile_id: job.capability_profile_id.clone(),
+                    layer_scope: MtLayerScope {
+                        read: vec![
+                            "raw".to_string(),
+                            "derived".to_string(),
+                            "display".to_string(),
+                        ],
+                        write: vec!["derived".to_string()],
+                    },
+                    scope_inputs_hash,
+                    retrieval_candidates: MtIdsHashCount {
+                        ids_hash: candidate_ids_hash.clone(),
+                        count: candidate_ids.len() as u32,
+                    },
+                    selected_sources: MtIdsHashCount {
+                        ids_hash: selected_ids_hash,
+                        count: selected_ids.len() as u32,
+                    },
+                    prompt_envelope_hashes: MtPromptEnvelopeHashes {
+                        stable_prefix_hash: stable_prefix_hash.clone(),
+                        variable_suffix_hash: variable_suffix_hash.clone(),
+                        full_prompt_hash: prompt_hash.clone(),
+                    },
+                    artifact_handles: vec![
+                        context_files_ref.clone(),
+                        ace_query_plan_ref,
+                        ace_retrieval_trace_ref,
+                    ],
+                    warnings,
+                    local_only_payload_ref: Some(prompt_snapshot_ref.clone()),
+                };
+                let context_snapshot_hash =
+                    write_json_atomic_with_hash(&repo_root.join(&context_snapshot_rel), &snapshot)?;
 
                 record_micro_task_event(
                     state,
@@ -3030,7 +4168,17 @@ async fn run_micro_task_executor_v1(
                 let completion_signal = parse_completion_signal(&response.text);
 
                 let validation_outcome = if completion_signal.claimed_complete {
-                    Some(run_validation_via_mex(&mex_runtime, &repo_root, &mt.verify).await?)
+                    Some(
+                        run_validation_via_mex(
+                            &mex_runtime,
+                            &repo_root,
+                            &mt.verify,
+                            &job.capability_profile_id,
+                            &validation_evidence_rel,
+                            validation_evidence_ref.clone(),
+                        )
+                        .await?,
+                    )
                 } else {
                     None
                 };
@@ -3106,11 +4254,19 @@ async fn run_micro_task_executor_v1(
                     &json!({
                         "step_id": step_id,
                         "idempotency_key": idempo,
-                        "prompt_hash": prompt_hash,
+                        "prompt_hash": prompt_hash.clone(),
                         "context_snapshot_id": context_snapshot_id.to_string(),
-                        "prompt_snapshot_ref": artifact_handle_for_rel(&prompt_rel),
-                        "output_snapshot_ref": artifact_handle_for_rel(&response_rel),
-                        "validation_ref": if validation_outcome.is_some() { serde_json::to_value(artifact_handle_for_rel(&validation_rel)).ok() } else { None },
+                        "context_snapshot_hash": context_snapshot_hash.clone(),
+                        "context_snapshot_ref": context_snapshot_ref.clone(),
+                        "context_files_ref": context_files_ref.clone(),
+                        "prompt_envelope_hashes": {
+                            "stable_prefix_hash": stable_prefix_hash.clone(),
+                            "variable_suffix_hash": variable_suffix_hash.clone(),
+                            "full_prompt_hash": prompt_hash.clone(),
+                        },
+                        "prompt_snapshot_ref": prompt_snapshot_ref.clone(),
+                        "output_snapshot_ref": output_snapshot_ref.clone(),
+                        "validation_ref": if validation_outcome.is_some() { Some(validation_ref.clone()) } else { None },
                     }),
                 )?;
 
@@ -3137,7 +4293,7 @@ async fn run_micro_task_executor_v1(
                         validation_passed: validation_outcome.as_ref().map(|v| v.passed),
                         validation_evidence_ref: validation_outcome
                             .as_ref()
-                            .map(|_| artifact_handle_for_rel(&validation_rel)),
+                            .map(|v| v.evidence_artifact_ref.clone()),
                         outcome: outcome_enum,
                         error_summary: error_summary.clone(),
                         context_snapshot_id,
@@ -3145,7 +4301,10 @@ async fn run_micro_task_executor_v1(
                 if let Some(out) = &validation_outcome {
                     progress.micro_tasks[mt_progress_index]
                         .evidence_refs
-                        .extend(out.evidence.clone());
+                        .push(out.evidence_artifact_ref.clone());
+                    progress.micro_tasks[mt_progress_index]
+                        .evidence_refs
+                        .push(validation_ref.clone());
                 }
                 progress.micro_tasks[mt_progress_index]
                     .evidence_refs
@@ -3171,12 +4330,102 @@ async fn run_micro_task_executor_v1(
                         "execution": { "tokens_prompt": response.usage.prompt_tokens, "tokens_completion": response.usage.completion_tokens, "duration_ms": response.latency_ms, "escalation_level": escalation_level },
                         "outcome": { "claimed_complete": completion_signal.claimed_complete, "validation_passed": validation_outcome.as_ref().map(|v| v.passed), "status": status_str, "failure_category": failure_category, "error_summary": error_summary.clone() },
                         "context_snapshot_id": context_snapshot_id.to_string(),
+                        "context_snapshot_hash": context_snapshot_hash.clone(),
+                        "context_snapshot_ref": serde_json::to_value(&context_snapshot_ref).unwrap_or(Value::Null),
+                        "context_files_ref": serde_json::to_value(&context_files_ref).unwrap_or(Value::Null),
+                        "prompt_envelope_hashes": {
+                            "stable_prefix_hash": stable_prefix_hash.clone(),
+                            "variable_suffix_hash": variable_suffix_hash.clone(),
+                            "full_prompt_hash": prompt_hash.clone(),
+                        },
                         "evidence_artifact_ref": serde_json::to_value(&output_artifact_ref).unwrap_or(Value::Null),
                     }),
                 )
                 .await;
 
                 if status_str == "SUCCESS" {
+                    if policy.enable_distillation {
+                        let pending = std::mem::take(
+                            &mut progress.micro_tasks[mt_progress_index]
+                                .pending_distillation_candidates,
+                        );
+                        if !pending.is_empty() {
+                            let teacher_iterations = progress.micro_tasks[mt_progress_index]
+                                .iterations
+                                .iter()
+                                .filter(|r| r.escalation_level == escalation_level)
+                                .count()
+                                as u32;
+                            let teacher_success = DistillationAttempt {
+                                model_id: model_id.clone(),
+                                lora_id: lora_id.clone(),
+                                lora_version: None,
+                                prompt_snapshot_ref: prompt_snapshot_ref.clone(),
+                                output_snapshot_ref: output_snapshot_ref.clone(),
+                                outcome: "VALIDATION_PASSED".to_string(),
+                                iterations: teacher_iterations,
+                            };
+
+                            for candidate in pending {
+                                let skill_log_entry_id = candidate.skill_log_entry_id.clone();
+                                let data_trust_score = candidate.data_trust_score;
+                                let distillation_eligible = candidate.distillation_eligible;
+                                let task_type_tags = candidate.task_type_tags.clone();
+
+                                let candidate_rel = job_dir_rel
+                                    .join("distillation_candidates")
+                                    .join(format!("{}_{}.json", mt.mt_id, skill_log_entry_id));
+                                let candidate_abs = repo_root.join(&candidate_rel);
+
+                                write_json_atomic(
+                                    &candidate_abs,
+                                    &json!({
+                                        "schema_version": "1.0",
+                                        "skill_log_entry_id": skill_log_entry_id,
+                                        "mt_id": mt.mt_id,
+                                        "wp_id": inputs.wp_id,
+                                        "student_attempt": candidate.student_attempt,
+                                        "teacher_success": teacher_success.clone(),
+                                        "task_type_tags": task_type_tags,
+                                        "contributing_factors": candidate.contributing_factors,
+                                        "data_trust_score": data_trust_score,
+                                        "distillation_eligible": distillation_eligible,
+                                    }),
+                                )?;
+
+                                let candidate_ref = artifact_handle_for_rel(&candidate_rel);
+                                progress.micro_tasks[mt_progress_index]
+                                    .evidence_refs
+                                    .push(candidate_ref.clone());
+                                progress.micro_tasks[mt_progress_index].distillation_candidate =
+                                    Some(DistillationInfo {
+                                        eligible: true,
+                                        skill_log_entry_id: Some(skill_log_entry_id),
+                                        candidate_ref: Some(candidate_ref.clone()),
+                                        task_type_tags: mt.task_tags.clone(),
+                                        data_trust_score: Some(data_trust_score),
+                                        distillation_eligible: Some(distillation_eligible),
+                                    });
+
+                                record_micro_task_event(
+                                    state,
+                                    FlightRecorderEventType::MicroTaskDistillationCandidate,
+                                    "FR-EVT-MT-015",
+                                    "micro_task_distillation_candidate",
+                                    trace_id,
+                                    job.job_id,
+                                    workflow_run_id,
+                                    json!({
+                                        "wp_id": inputs.wp_id,
+                                        "mt_id": mt.mt_id,
+                                        "candidate_ref": serde_json::to_value(&candidate_ref).unwrap_or(Value::Null),
+                                    }),
+                                )
+                                .await;
+                            }
+                        }
+                    }
+
                     if escalation_level > 0
                         && !matches!(policy.drop_back_strategy, DropBackStrategy::Never)
                     {
@@ -3324,8 +4573,8 @@ async fn run_micro_task_executor_v1(
                     json!({
                         "wp_id": inputs.wp_id,
                         "mt_id": mt.mt_id,
-                        "from_model": model_id,
-                        "from_lora": lora_id,
+                        "from_model": model_id.clone(),
+                        "from_lora": lora_id.clone(),
                         "from_level": from_level,
                         "to_model": to_model,
                         "to_lora": to_lora,
@@ -3339,50 +4588,34 @@ async fn run_micro_task_executor_v1(
                 .await;
 
                 if policy.enable_distillation {
-                    let candidate_rel = job_dir_rel.join("distillation_candidates").join(format!(
-                        "{}_from-{}_to-{}_{}.json",
-                        mt.mt_id,
-                        from_level,
-                        to_level,
-                        Uuid::new_v4()
-                    ));
-                    let candidate_abs = repo_root.join(&candidate_rel);
-                    write_json_atomic(
-                        &candidate_abs,
-                        &json!({
-                            "schema_version": "1.0",
-                            "wp_id": inputs.wp_id,
-                            "job_id": job.job_id.to_string(),
-                            "mt_id": mt.mt_id,
-                            "from_level": from_level,
-                            "to_level": to_level,
-                            "created_at": Utc::now().to_rfc3339(),
-                            "reason": escalation_failure_category,
-                            "escalation_record_ref": escalation_record_ref,
-                        }),
-                    )?;
-                    let candidate_ref = artifact_handle_for_rel(&candidate_rel);
-                    progress.micro_tasks[mt_progress_index].distillation_candidate =
-                        Some(DistillationInfo {
-                            eligible: true,
-                            skill_log_entry_id: None,
-                            task_type_tags: mt.task_tags.clone(),
-                        });
-                    record_micro_task_event(
-                        state,
-                        FlightRecorderEventType::MicroTaskDistillationCandidate,
-                        "FR-EVT-MT-015",
-                        "micro_task_distillation_candidate",
-                        trace_id,
-                        job.job_id,
-                        workflow_run_id,
-                        json!({
-                            "wp_id": inputs.wp_id,
-                            "mt_id": mt.mt_id,
-                            "candidate_ref": serde_json::to_value(&candidate_ref).unwrap_or(Value::Null),
-                        }),
-                    )
-                    .await;
+                    let student_outcome = if completion_signal.blocked {
+                        "ERROR"
+                    } else if completion_signal.claimed_complete && !validation_passed {
+                        "VALIDATION_FAILED"
+                    } else {
+                        "INCOMPLETE"
+                    };
+
+                    let pending = PendingDistillationCandidate {
+                        skill_log_entry_id: Uuid::new_v4().to_string(),
+                        student_attempt: DistillationAttempt {
+                            model_id: model_id.clone(),
+                            lora_id: lora_id.clone(),
+                            lora_version: None,
+                            prompt_snapshot_ref: prompt_snapshot_ref.clone(),
+                            output_snapshot_ref: output_snapshot_ref.clone(),
+                            outcome: student_outcome.to_string(),
+                            iterations: iterations_at_previous_level,
+                        },
+                        task_type_tags: mt.task_tags.clone(),
+                        contributing_factors: vec![escalation_failure_category.to_string()],
+                        data_trust_score: 0.8,
+                        distillation_eligible: true,
+                    };
+
+                    progress.micro_tasks[mt_progress_index]
+                        .pending_distillation_candidates
+                        .push(pending.clone());
                 }
 
                 progress.current_state.total_escalations =

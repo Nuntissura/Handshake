@@ -358,6 +358,7 @@ pub enum JobKind {
     CanvasCluster,
     AsrTranscribe,
     WorkflowRun,
+    MicroTaskExecution,
     SpecRouter,
     /// Backward-compatible terminal execution job kind.
     TerminalExec,
@@ -378,6 +379,7 @@ impl JobKind {
             JobKind::CanvasCluster => "canvas_cluster",
             JobKind::AsrTranscribe => "asr_transcribe",
             JobKind::WorkflowRun => "workflow_run",
+            JobKind::MicroTaskExecution => "micro_task_execution",
             JobKind::SpecRouter => "spec_router",
             JobKind::TerminalExec => "terminal_exec",
             JobKind::DocSummarize => "doc_summarize",
@@ -399,6 +401,7 @@ impl FromStr for JobKind {
             "canvas_cluster" => Ok(JobKind::CanvasCluster),
             "asr_transcribe" => Ok(JobKind::AsrTranscribe),
             "workflow_run" => Ok(JobKind::WorkflowRun),
+            "micro_task_execution" => Ok(JobKind::MicroTaskExecution),
             "spec_router" => Ok(JobKind::SpecRouter),
             "term_exec" | "terminal_exec" => Ok(JobKind::TerminalExec),
             "doc_summarize" => Ok(JobKind::DocSummarize),
@@ -408,6 +411,38 @@ impl FromStr for JobKind {
             _ => Err(StorageError::Validation("invalid job kind")),
         }
     }
+}
+
+pub fn validate_job_contract(
+    job_kind: &JobKind,
+    profile_id: &str,
+    protocol_id: &str,
+) -> StorageResult<()> {
+    const MICRO_TASK_EXECUTOR_V1_ID: &str = "micro_task_executor_v1";
+
+    let is_mte_profile = profile_id == MICRO_TASK_EXECUTOR_V1_ID;
+    let is_mte_protocol = protocol_id == MICRO_TASK_EXECUTOR_V1_ID;
+    let is_mte_kind = matches!(job_kind, JobKind::MicroTaskExecution);
+
+    if is_mte_kind && (!is_mte_profile || !is_mte_protocol) {
+        return Err(StorageError::Validation(
+            "invalid job contract: micro_task_execution requires micro_task_executor_v1 profile_id and protocol_id",
+        ));
+    }
+
+    if (is_mte_profile || is_mte_protocol) && (!is_mte_profile || !is_mte_protocol) {
+        return Err(StorageError::Validation(
+            "invalid job contract: micro_task_executor_v1 requires profile_id and protocol_id to match",
+        ));
+    }
+
+    if (is_mte_profile || is_mte_protocol) && !is_mte_kind {
+        return Err(StorageError::Validation(
+            "invalid job contract: micro_task_executor_v1 requires job_kind micro_task_execution",
+        ));
+    }
+
+    Ok(())
 }
 
 impl TryFrom<&str> for JobState {

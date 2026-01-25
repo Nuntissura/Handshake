@@ -101,7 +101,7 @@ fn human_target_request(command: String, args: Vec<String>) -> TerminalRequest {
             job_id: Some("job-attach".to_string()),
             model_id: None,
             session_id: Some("session-123".to_string()),
-            capability_profile_id: None,
+            capability_profile_id: Some("Coder".to_string()),
             capability_id: Some("terminal.exec".to_string()),
             wsids: vec!["ws-1".to_string()],
         },

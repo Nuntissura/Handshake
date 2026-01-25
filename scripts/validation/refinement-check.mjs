@@ -9,7 +9,7 @@ export function resolveSpecCurrent() {
     throw new Error(`Missing ${SPEC_CURRENT_PATH}`);
   }
   const specCurrent = fs.readFileSync(SPEC_CURRENT_PATH, 'utf8');
-  const m = specCurrent.match(/Handshake_Master_Spec_v[0-9.]+\.md/);
+  const m = specCurrent.match(/Handshake_Master_Spec_v[0-9._]+\.md/);
   if (!m) {
     throw new Error(`Could not resolve spec filename from ${SPEC_CURRENT_PATH}`);
   }

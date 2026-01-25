@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -278,6 +277,8 @@ async fn runtime_executes_with_gates_and_adapter() {
         inputs: vec![ArtifactHandle::new(Uuid::new_v4(), "/input".to_string())],
         params: serde_json::json!({"script_ref": "artifact://script"}),
         capabilities_requested: vec!["fs.read".to_string(), "fs.write".to_string()],
+        capability_profile_id: Some("Coder".to_string()),
+        human_consent_obtained: false,
         budget: BudgetSpec {
             cpu_time_ms: Some(1000),
             wall_time_ms: Some(2000),
@@ -331,6 +332,8 @@ async fn gate_pass_logs_outcome() {
         inputs: vec![ArtifactHandle::new(Uuid::new_v4(), "/input".to_string())],
         params: serde_json::json!({"script_ref": "artifact://script"}),
         capabilities_requested: vec!["fs.read".to_string(), "fs.write".to_string()],
+        capability_profile_id: Some("Coder".to_string()),
+        human_consent_obtained: false,
         budget: BudgetSpec {
             cpu_time_ms: Some(1000),
             wall_time_ms: Some(2000),
@@ -422,6 +425,8 @@ async fn gate_denial_records_diagnostic_and_event() {
         inputs: vec![ArtifactHandle::new(Uuid::new_v4(), "/input".to_string())],
         params: serde_json::json!({"script_ref": "artifact://script"}),
         capabilities_requested: vec!["magic.wand".to_string()],
+        capability_profile_id: Some("Coder".to_string()),
+        human_consent_obtained: false,
         budget: BudgetSpec {
             cpu_time_ms: Some(1000),
             wall_time_ms: Some(2000),
@@ -530,6 +535,8 @@ async fn d0_missing_evidence_records_diagnostic() {
         inputs: vec![ArtifactHandle::new(Uuid::new_v4(), "/input".to_string())],
         params: serde_json::json!({"script_ref": "artifact://script"}),
         capabilities_requested: vec!["fs.read".to_string(), "fs.write".to_string()],
+        capability_profile_id: Some("Coder".to_string()),
+        human_consent_obtained: false,
         budget: BudgetSpec {
             cpu_time_ms: Some(1000),
             wall_time_ms: Some(2000),
@@ -681,6 +688,8 @@ async fn supply_chain_vuln_release_mode_high_records_diagnostic_and_events() {
             "fs.write:artifacts".to_string(),
             "proc.exec:osv-scanner".to_string(),
         ],
+        capability_profile_id: Some("Coder".to_string()),
+        human_consent_obtained: false,
         budget: BudgetSpec {
             cpu_time_ms: Some(1000),
             wall_time_ms: Some(2000),
@@ -775,6 +784,8 @@ async fn supply_chain_license_release_mode_unknown_records_diagnostic() {
             "fs.write:artifacts".to_string(),
             "proc.exec:scancode".to_string(),
         ],
+        capability_profile_id: Some("Coder".to_string()),
+        human_consent_obtained: false,
         budget: BudgetSpec {
             cpu_time_ms: Some(1000),
             wall_time_ms: Some(2000),
@@ -849,6 +860,8 @@ async fn secret_scan_no_findings_emits_terminal_command_event() {
             "fs.write:artifacts".to_string(),
             "proc.exec:gitleaks".to_string(),
         ],
+        capability_profile_id: Some("Coder".to_string()),
+        human_consent_obtained: false,
         budget: BudgetSpec {
             cpu_time_ms: Some(1000),
             wall_time_ms: Some(2000),
@@ -964,6 +977,8 @@ async fn ci_secret_scan_runs_via_terminal_service() {
             "fs.write:artifacts".to_string(),
             "proc.exec:gitleaks".to_string(),
         ],
+        capability_profile_id: Some("Coder".to_string()),
+        human_consent_obtained: false,
         budget: BudgetSpec {
             cpu_time_ms: Some(120000),
             wall_time_ms: Some(300000),
@@ -1045,6 +1060,8 @@ async fn ci_vuln_scan_runs_via_terminal_service() {
             "fs.write:artifacts".to_string(),
             "proc.exec:osv-scanner".to_string(),
         ],
+        capability_profile_id: Some("Coder".to_string()),
+        human_consent_obtained: false,
         budget: BudgetSpec {
             cpu_time_ms: Some(300000),
             wall_time_ms: Some(600000),
@@ -1122,6 +1139,8 @@ async fn ci_sbom_generate_runs_via_terminal_service() {
             "fs.write:artifacts".to_string(),
             "proc.exec:syft".to_string(),
         ],
+        capability_profile_id: Some("Coder".to_string()),
+        human_consent_obtained: false,
         budget: BudgetSpec {
             cpu_time_ms: Some(300000),
             wall_time_ms: Some(600000),
@@ -1199,6 +1218,8 @@ async fn ci_license_scan_runs_via_terminal_service() {
             "fs.write:artifacts".to_string(),
             "proc.exec:scancode".to_string(),
         ],
+        capability_profile_id: Some("Coder".to_string()),
+        human_consent_obtained: false,
         budget: BudgetSpec {
             cpu_time_ms: Some(300000),
             wall_time_ms: Some(900000),

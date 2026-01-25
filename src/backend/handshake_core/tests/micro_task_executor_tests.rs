@@ -10,7 +10,7 @@ use handshake_core::llm::{
 };
 use handshake_core::storage::{
     sqlite::SqliteDatabase, AccessMode, Database, JobKind, JobMetrics, JobState, NewAiJob,
-    SafetyMode,
+    SafetyMode, StorageError,
 };
 use handshake_core::workflows::start_workflow_for_job;
 use handshake_core::AppState;
@@ -97,8 +97,8 @@ async fn micro_task_executor_completes_single_mt_and_emits_events(
         .storage
         .create_ai_job(NewAiJob {
             trace_id: Uuid::new_v4(),
-            job_kind: JobKind::WorkflowRun,
-            protocol_id: "protocol-default".to_string(),
+            job_kind: JobKind::MicroTaskExecution,
+            protocol_id: "micro_task_executor_v1".to_string(),
             profile_id: "micro_task_executor_v1".to_string(),
             capability_profile_id: "Coder".to_string(),
             access_mode: AccessMode::AnalysisOnly,
@@ -162,8 +162,8 @@ async fn micro_task_executor_escalates_and_hard_gates_after_budget_exhaustion(
         .storage
         .create_ai_job(NewAiJob {
             trace_id: Uuid::new_v4(),
-            job_kind: JobKind::WorkflowRun,
-            protocol_id: "protocol-default".to_string(),
+            job_kind: JobKind::MicroTaskExecution,
+            protocol_id: "micro_task_executor_v1".to_string(),
             profile_id: "micro_task_executor_v1".to_string(),
             capability_profile_id: "Coder".to_string(),
             access_mode: AccessMode::AnalysisOnly,
@@ -203,10 +203,101 @@ async fn micro_task_executor_escalates_and_hard_gates_after_budget_exhaustion(
         .any(|e| e.event_type == FlightRecorderEventType::MicroTaskEscalated));
     assert!(events
         .iter()
-        .any(|e| { e.event_type == FlightRecorderEventType::MicroTaskDistillationCandidate }));
+        .any(|e| e.event_type == FlightRecorderEventType::MicroTaskHardGate));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn micro_task_executor_generates_distillation_candidate_after_escalation_success(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![
+        "still working".to_string(),
+        r#"<mt_complete>
+MT_ID: MT-001
+EVIDENCE:
+- "done means placeholder" -> src/backend/handshake_core/src/workflows.rs:1-1
+</mt_complete>"#
+            .to_string(),
+    ]));
+    let state = setup_state(llm_client).await?;
+
+    let job = state
+        .storage
+        .create_ai_job(NewAiJob {
+            trace_id: Uuid::new_v4(),
+            job_kind: JobKind::MicroTaskExecution,
+            protocol_id: "micro_task_executor_v1".to_string(),
+            profile_id: "micro_task_executor_v1".to_string(),
+            capability_profile_id: "Coder".to_string(),
+            access_mode: AccessMode::AnalysisOnly,
+            safety_mode: SafetyMode::Normal,
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            status_reason: "queued".to_string(),
+            metrics: JobMetrics::zero(),
+            job_inputs: Some(json!({
+                "wp_id": "WP-TEST",
+                "wp_scope": default_wp_scope(vec!["exit 0".to_string()]),
+                "execution_policy": {
+                    "max_iterations_per_mt": 1,
+                    "max_total_iterations": 2,
+                    "enable_distillation": true,
+                }
+            })),
+        })
+        .await?;
+    let job_id = job.job_id;
+
+    start_workflow_for_job(&state, job).await?;
+
+    let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+    assert!(matches!(updated_job.state, JobState::Completed));
+
+    let events = state
+        .flight_recorder
+        .list_events(EventFilter {
+            job_id: Some(job_id.to_string()),
+            ..Default::default()
+        })
+        .await?;
+
     assert!(events
         .iter()
-        .any(|e| e.event_type == FlightRecorderEventType::MicroTaskHardGate));
+        .any(|e| e.event_type == FlightRecorderEventType::MicroTaskEscalated));
+    assert!(events
+        .iter()
+        .any(|e| e.event_type == FlightRecorderEventType::MicroTaskDistillationCandidate));
+
+    let repo_root = handshake_core::capability_registry_workflow::repo_root_from_manifest_dir()?;
+    let progress_path = repo_root
+        .join("data")
+        .join("micro_task_executor")
+        .join(job_id.to_string())
+        .join("progress_artifact.json");
+    let raw_progress = std::fs::read_to_string(&progress_path)?;
+    let progress: serde_json::Value = serde_json::from_str(&raw_progress)?;
+
+    let candidate_path = progress
+        .get("micro_tasks")
+        .and_then(|v| v.as_array())
+        .and_then(|arr| arr.first())
+        .and_then(|mt| mt.get("distillation_candidate"))
+        .and_then(|d| d.get("candidate_ref"))
+        .and_then(|h| h.get("path"))
+        .and_then(|v| v.as_str())
+        .expect("candidate_ref.path missing");
+
+    let candidate_abs = repo_root.join(candidate_path);
+    let raw_candidate = std::fs::read_to_string(&candidate_abs)?;
+    let candidate: serde_json::Value = serde_json::from_str(&raw_candidate)?;
+
+    assert!(candidate
+        .get("skill_log_entry_id")
+        .and_then(|v| v.as_str())
+        .is_some());
+    assert!(candidate.get("student_attempt").is_some());
+    assert!(candidate.get("teacher_success").is_some());
 
     Ok(())
 }
@@ -223,8 +314,8 @@ async fn micro_task_executor_resumes_from_pause_and_emits_workflow_recovery(
         .storage
         .create_ai_job(NewAiJob {
             trace_id: Uuid::new_v4(),
-            job_kind: JobKind::WorkflowRun,
-            protocol_id: "protocol-default".to_string(),
+            job_kind: JobKind::MicroTaskExecution,
+            protocol_id: "micro_task_executor_v1".to_string(),
             profile_id: "micro_task_executor_v1".to_string(),
             capability_profile_id: "Coder".to_string(),
             access_mode: AccessMode::AnalysisOnly,
@@ -290,6 +381,38 @@ async fn micro_task_executor_resumes_from_pause_and_emits_workflow_recovery(
     assert!(events
         .iter()
         .any(|e| e.event_type == FlightRecorderEventType::WorkflowRecovery));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn micro_task_executor_rejects_legacy_workflow_run_job_kind_contract(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    let result = state
+        .storage
+        .create_ai_job(NewAiJob {
+            trace_id: Uuid::new_v4(),
+            job_kind: JobKind::WorkflowRun,
+            protocol_id: "micro_task_executor_v1".to_string(),
+            profile_id: "micro_task_executor_v1".to_string(),
+            capability_profile_id: "Coder".to_string(),
+            access_mode: AccessMode::AnalysisOnly,
+            safety_mode: SafetyMode::Normal,
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            status_reason: "queued".to_string(),
+            metrics: JobMetrics::zero(),
+            job_inputs: Some(json!({
+                "wp_id": "WP-TEST",
+                "wp_scope": default_wp_scope(vec!["exit 0".to_string()]),
+            })),
+        })
+        .await;
+
+    assert!(matches!(result, Err(StorageError::Validation(_))));
 
     Ok(())
 }

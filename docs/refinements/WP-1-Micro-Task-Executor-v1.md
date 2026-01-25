@@ -12,8 +12,8 @@ Requirements (HARD):
 ### METADATA
 - WP_ID: WP-1-Micro-Task-Executor-v1
 - CREATED_AT: 2026-01-22
-- SPEC_TARGET_RESOLVED: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.115.md
-- SPEC_TARGET_SHA1: 61E500454062BACBE70578ADA7989286C0742973
+- SPEC_TARGET_RESOLVED: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.116.md
+- SPEC_TARGET_SHA1: d3b23cd8492345f60bb76ce315dc70efc517604f
 - USER_REVIEW_STATUS: APPROVED
 - USER_SIGNATURE: ilja220120260926
 - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT WP-1-Micro-Task-Executor-v1
@@ -69,9 +69,9 @@ Requirements (HARD):
 ### SPEC_ANCHORS (REQUIRED: one or more)
 
 #### ANCHOR 1
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.115.md 2.6.6.8 (Micro-Task Executor Profile)
-- CONTEXT_START_LINE: 9381
-- CONTEXT_END_LINE: 9393
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.116.md 2.6.6.8 (Micro-Task Executor Profile)
+- CONTEXT_START_LINE: 10456
+- CONTEXT_END_LINE: 10468
 - CONTEXT_TOKEN: #### 2.6.6.8 Micro-Task Executor Profile
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -91,9 +91,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 2
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.115.md 2.6.6.8.7.1 (MicroTaskExecutionLoop algorithm)
-- CONTEXT_START_LINE: 9946
-- CONTEXT_END_LINE: 9968
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.116.md 2.6.6.8.7.1 (MicroTaskExecutionLoop algorithm)
+- CONTEXT_START_LINE: 11035
+- CONTEXT_END_LINE: 11057
 - CONTEXT_TOKEN: ALGORITHM: MicroTaskExecutionLoop
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -122,9 +122,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 3
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.115.md 2.6.6.8.8 (MT context compilation uses ACE Runtime)
-- CONTEXT_START_LINE: 10196
-- CONTEXT_END_LINE: 10232
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.116.md 2.6.6.8.8 (MT context compilation uses ACE Runtime)
+- CONTEXT_START_LINE: 11278
+- CONTEXT_END_LINE: 11314
 - CONTEXT_TOKEN: ##### 2.6.6.8.8 Context Compilation
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -168,9 +168,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 4
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.115.md 2.6.6.8.9.1 (Default escalation chain)
-- CONTEXT_START_LINE: 10333
-- CONTEXT_END_LINE: 10347
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.116.md 2.6.6.8.9.1 (Default escalation chain)
+- CONTEXT_START_LINE: 11422
+- CONTEXT_END_LINE: 11436
 - CONTEXT_TOKEN: const DEFAULT_ESCALATION_CHAIN: EscalationLevel[] = [
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -193,9 +193,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 5
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.115.md 2.6.6.8.10.1 (ValidationExecution via Tool Bus)
-- CONTEXT_START_LINE: 10465
-- CONTEXT_END_LINE: 10499
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.116.md 2.6.6.8.10.1 (ValidationExecution via Tool Bus)
+- CONTEXT_START_LINE: 11554
+- CONTEXT_END_LINE: 11588
 - CONTEXT_TOKEN: interface ValidationExecution {
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -237,9 +237,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 6
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.115.md 2.6.6.8.10.3 (CompletionSignal parsing; claims untrusted)
-- CONTEXT_START_LINE: 10533
-- CONTEXT_END_LINE: 10567
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.116.md 2.6.6.8.10.3 (CompletionSignal parsing; claims untrusted)
+- CONTEXT_START_LINE: 11615
+- CONTEXT_END_LINE: 11649
 - CONTEXT_TOKEN: ###### 2.6.6.8.10.3 Completion Signal Parsing
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -281,9 +281,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 7
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.115.md 2.6.6.8.11.1 (ProgressArtifact schema)
-- CONTEXT_START_LINE: 10571
-- CONTEXT_END_LINE: 10615
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.116.md 2.6.6.8.11.1 (ProgressArtifact schema)
+- CONTEXT_START_LINE: 11660
+- CONTEXT_END_LINE: 11704
 - CONTEXT_TOKEN: interface ProgressArtifact {
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -336,9 +336,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 8
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.115.md 2.6.6.8.11.2 (RunLedger schema)
-- CONTEXT_START_LINE: 10674
-- CONTEXT_END_LINE: 10709
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.116.md 2.6.6.8.11.2 (RunLedger schema)
+- CONTEXT_START_LINE: 11761
+- CONTEXT_END_LINE: 11796
 - CONTEXT_TOKEN: interface RunLedger {
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -382,9 +382,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 9
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.115.md 2.6.6.8.11.3 (Crash recovery procedure + FR-EVT-WF-RECOVERY emission)
-- CONTEXT_START_LINE: 10712
-- CONTEXT_END_LINE: 10748
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.116.md 2.6.6.8.11.3 (Crash recovery procedure + FR-EVT-WF-RECOVERY emission)
+- CONTEXT_START_LINE: 11794
+- CONTEXT_END_LINE: 11830
 - CONTEXT_TOKEN: ###### 2.6.6.8.11.3 Crash Recovery Procedure
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -428,9 +428,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 10
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.115.md 2.6.6.8.12.1 (FR-EVT-MT event catalog)
-- CONTEXT_START_LINE: 10752
-- CONTEXT_END_LINE: 10777
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.116.md 2.6.6.8.12.1 (FR-EVT-MT event catalog)
+- CONTEXT_START_LINE: 11853
+- CONTEXT_END_LINE: 11878
 - CONTEXT_TOKEN: | FR-EVT-MT-012 |
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -462,9 +462,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 11
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.115.md 2.6.6.8.13.1 (DistillationCandidate schema)
-- CONTEXT_START_LINE: 10832
-- CONTEXT_END_LINE: 10876
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.116.md 2.6.6.8.13.1 (DistillationCandidate schema)
+- CONTEXT_START_LINE: 11921
+- CONTEXT_END_LINE: 11965
 - CONTEXT_TOKEN: interface DistillationCandidate {
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -516,9 +516,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 12
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.115.md 11.5.2 (FR-EVT-WF-RECOVERY schema)
-- CONTEXT_START_LINE: 51092
-- CONTEXT_END_LINE: 51110
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.116.md 11.5.2 (FR-EVT-WF-RECOVERY schema)
+- CONTEXT_START_LINE: 52238
+- CONTEXT_END_LINE: 52256
 - CONTEXT_TOKEN: interface WorkflowRecoveryEvent extends FlightRecorderEventBase {
 - EXCERPT_ASCII_ESCAPED:
   ```text

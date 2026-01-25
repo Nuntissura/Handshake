@@ -370,14 +370,14 @@ impl SupplyChainEngineAdapter {
                 job_id: Some(op.op_id.to_string()),
                 model_id: None,
                 session_id: None,
-                capability_profile_id: None,
-                capability_id: None,
+                capability_profile_id: op.capability_profile_id.clone(),
+                capability_id: Some(requested_capability.to_string()),
                 wsids: Vec::new(),
             },
-            granted_capabilities: op.capabilities_requested.clone(),
+            granted_capabilities: Vec::new(),
             requested_capability: Some(requested_capability.to_string()),
             session_type: crate::terminal::TerminalSessionType::AiJob,
-            human_consent_obtained: false,
+            human_consent_obtained: op.human_consent_obtained,
         }
     }
 
