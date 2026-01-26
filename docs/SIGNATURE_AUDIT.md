@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-01-15
+**Updated:** 2026-01-26
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja260120260248 | Validator | 2026-01-26 02:48 | Spec update: v02.119 non-normative AI UX notes (Command Palette shortcuts + global jobs UI model) | v02.119 | Non-normative; expected to evolve during UX/GUI iteration. |
 | ilja230120262310 | Orchestrator | 2026-01-23 23:10 | Task packet creation: WP-1-Dev-Experience-ADRs-v1 | v02.115 | Approved after Technical Refinement (see docs/refinements/WP-1-Dev-Experience-ADRs-v1.md ). |
 | ilja220120260926 | Orchestrator | 2026-01-22 09:26 | Task packet creation: WP-1-Micro-Task-Executor-v1 | v02.115 | Approved after Technical Refinement (see docs/refinements/WP-1-Micro-Task-Executor-v1.md ). |
 | ilja210120262044 | Orchestrator | 2026-01-21 20:44 | Task packet creation: WP-1-Cross-Tool-Interaction-Conformance-v1 | v02.113 | Approved after Technical Refinement (see docs/refinements/WP-1-Cross-Tool-Interaction-Conformance-v1.md ). |
@@ -168,6 +169,6 @@ grep -r "Strategic Pause approval \[" docs/task_packets/ | awk -F'[' '{print $NF
 
 ---
 
-**Last Updated:** 2026-01-15
+**Last Updated:** 2026-01-26
 **Version:** 1.0
 **Maintained By:** Orchestrator Agent

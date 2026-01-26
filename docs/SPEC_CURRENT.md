@@ -2,9 +2,9 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.116.md**
+**Handshake_Master_Spec_v02.119.md**
 
-(Updated: 2026-01-24 - v02.116 micro_task_execution JobKind + MTE contract invariant [remediation])
+(Updated: 2026-01-26 - v02.119 non-normative AI UX notes (Command Palette shortcuts + global jobs UI model; subject to change))
 
 ---
 
