@@ -702,9 +702,27 @@ git revert <commit-sha>
 - **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
 - **Start**: 1
 - **End**: 2598
-- **Line Delta**: 708
-- **Pre-SHA1**: `33a1e8a88cbf07e4907a55cca612a62b8bae256f`
-- **Post-SHA1**: `2cb6602880f20518f77ba59b44889299c1e383be`
+- **Line Delta**: 0
+- **Pre-SHA1**: `2cb6602880f20518f77ba59b44889299c1e383be`
+- **Post-SHA1**: `1ae6968a8762918b4f5eac3ce0ddcf69f3a711c5`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1
+- **End**: 5334
+- **Line Delta**: 61
+- **Pre-SHA1**: `752ffae100d803a47163ad807bb1d734e47e5800`
+- **Post-SHA1**: `e6528eb704a36dd5b817e75c83213370bff3a4b4`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -791,10 +809,28 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/tests/ai_ready_data_arch_tests.rs`
 - **Start**: 1
-- **End**: 329
-- **Line Delta**: 329
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
-- **Post-SHA1**: `17c6f8bcbc4a80dec06dc68b19a03d301293cad6`
+- **End**: 386
+- **Line Delta**: 57
+- **Pre-SHA1**: `17c6f8bcbc4a80dec06dc68b19a03d301293cad6`
+- **Post-SHA1**: `5ca87633112dd2d2e9c97c299dbce3a5cdc45224`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+- **Start**: 1
+- **End**: 447
+- **Line Delta**: 29
+- **Pre-SHA1**: `a2764e4993a27d0e07f0bc175a8e4ad59e49a89e`
+- **Post-SHA1**: `d72fd69702b3f6810eec62f8f39148bc5e288a3f`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -817,3 +853,108 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### 2026-01-26 - VALIDATION REPORT - WP-1-AI-Ready-Data-Architecture-v1
+Verdict: FAIL
+
+Scope Inputs:
+- Reviewed commit: 47d6c96fbf2ba7fe5d045803092d2169fbd7b0f8
+- Task Packet: docs/task_packets/WP-1-AI-Ready-Data-Architecture-v1.md (Status: In Progress)
+- Spec: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.118.md (anchors: 2.3.14.5/6/7.4/8.2-8.5/14.4/17.4, 11.5.5, 2.6.6.7.14.6)
+
+Files Checked:
+- Handshake_Master_Spec_v02.118.md
+- docs/task_packets/WP-1-AI-Ready-Data-Architecture-v1.md
+- docs/refinements/WP-1-AI-Ready-Data-Architecture-v1.md
+- src/backend/handshake_core/src/ai_ready_data/paths.rs
+- src/backend/handshake_core/src/ai_ready_data/chunking.rs
+- src/backend/handshake_core/src/ai_ready_data/pipeline.rs
+- src/backend/handshake_core/src/ai_ready_data/indexing.rs
+- src/backend/handshake_core/src/ai_ready_data/retrieval.rs
+- src/backend/handshake_core/src/flight_recorder/mod.rs
+- src/backend/handshake_core/src/flight_recorder/duckdb.rs
+- src/backend/handshake_core/migrations/0012_ai_ready_data_arch.sql
+- src/backend/handshake_core/src/storage/mod.rs
+- src/backend/handshake_core/tests/ai_ready_data_arch_tests.rs
+
+Findings (satisfied evidence):
+- Shadow Workspace root mapping implemented: src/backend/handshake_core/src/ai_ready_data/paths.rs:3, src/backend/handshake_core/src/ai_ready_data/paths.rs:32
+- Tree-sitter chunking present (Rust + TS/JS): src/backend/handshake_core/src/ai_ready_data/chunking.rs:101, src/backend/handshake_core/src/ai_ready_data/chunking.rs:112
+- DATA event types + validators added (strict key sets): src/backend/handshake_core/src/flight_recorder/mod.rs:37, src/backend/handshake_core/src/flight_recorder/mod.rs:671, src/backend/handshake_core/src/flight_recorder/mod.rs:971
+- DuckDB event_type parsing supports DATA strings: src/backend/handshake_core/src/flight_recorder/duckdb.rs:721
+- Query hashing posture enforced in AI-ready pipeline + tests ensure no plaintext query field:
+  - src/backend/handshake_core/src/ai_ready_data/pipeline.rs:1057
+  - src/backend/handshake_core/tests/ai_ready_data_arch_tests.rs:320
+  - src/backend/handshake_core/tests/ai_ready_data_arch_tests.rs:328
+- Migration introduces AI-ready tables: src/backend/handshake_core/migrations/0012_ai_ready_data_arch.sql:22
+- Storage trait extended for bronze/silver operations: src/backend/handshake_core/src/storage/mod.rs:846
+
+REASON FOR FAIL:
+1) Missing integration with the existing Shadow Workspace retrieval path (task packet intent: cover real runtime retrieval, not only an unused helper pipeline).
+   - No data_retrieval_executed / data_context_assembled emission exists in the current workflow retrieval codepath: 0 hits in src/backend/handshake_core/src/workflows.rs (as of commit reviewed).
+   - The only DATA retrieval/context emission path is AiReadyDataPipeline (src/backend/handshake_core/src/ai_ready_data/pipeline.rs:228, src/backend/handshake_core/src/ai_ready_data/pipeline.rs:1057), which currently has no call sites in runtime code (exported only at src/backend/handshake_core/src/lib.rs:2).
+
+2) Flight Recorder schema enforcement is too lenient for optional numeric fields (spec uses `?: number`; validator currently accepts null when present).
+   - Spec: optional confidence?: number at Handshake_Master_Spec_v02.118.md:52508; optional rerank_ms?: number at Handshake_Master_Spec_v02.118.md:52443.
+   - Code allows null: src/backend/handshake_core/src/flight_recorder/mod.rs:1054 (rerank_ms), src/backend/handshake_core/src/flight_recorder/mod.rs:1216 (confidence).
+
+Tests (Validator-run in WP worktree):
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml: PASS
+- cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml -- --check: PASS
+- cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features: PASS (warnings present)
+
+Risks & Suggested Actions:
+- Wire DATA-009/010 emission into the real ShadowWs retrieval/context assembly path (likely src/backend/handshake_core/src/workflows.rs) using normalized query hashing per src/backend/handshake_core/src/ace/mod.rs:437.
+- Tighten validators: change rerank_ms/confidence to reject null (use require_number when key present).
+- Process: update packet scope/waiver coverage if keeping docs/OSS_REGISTER.md and src/backend/handshake_core/.sqlx/** as required by the new deps/sqlx changes.
+
+### 2026-01-26 - VALIDATION REPORT - WP-1-AI-Ready-Data-Architecture-v1 (REVALIDATION)
+Verdict: PASS
+
+Scope Inputs:
+- Reviewed commit: 4c9975c00cd3b836bdcfc1ba4138b52a321d2825
+- Task Packet: docs/task_packets/WP-1-AI-Ready-Data-Architecture-v1.md (**Status:** In Progress)
+- Spec: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.118.md (key conformance points: DATA-009/010 runtime emission, query_hash-only privacy posture, strict payload validation)
+
+Files Checked:
+- docs/SPEC_CURRENT.md
+- Handshake_Master_Spec_v02.118.md
+- docs/task_packets/WP-1-AI-Ready-Data-Architecture-v1.md
+- docs/refinements/WP-1-AI-Ready-Data-Architecture-v1.md
+- src/backend/handshake_core/src/workflows.rs
+- src/backend/handshake_core/src/flight_recorder/mod.rs
+- src/backend/handshake_core/tests/ai_ready_data_arch_tests.rs
+- src/backend/handshake_core/tests/micro_task_executor_tests.rs
+
+Findings (satisfied evidence):
+1) ShadowWs runtime integration now emits the required DATA retrieval/context events:
+   - request_id sourced from QueryPlan.plan_id: src/backend/handshake_core/src/workflows.rs:3883
+   - data_retrieval_executed emitted with query_hash = RetrievalTrace.normalized_query_hash: src/backend/handshake_core/src/workflows.rs:3993
+   - data_context_assembled emitted and shares the same request_id: src/backend/handshake_core/src/workflows.rs:4041
+
+2) Privacy posture (hash-only) is enforced in runtime emission and tests:
+   - No plaintext query field is emitted in data_retrieval_executed payload: src/backend/handshake_core/src/workflows.rs:3993
+   - Pipeline/test coverage ensures query_hash matches sha256(normalize(query_text)) and no plaintext query leaks: src/backend/handshake_core/tests/ai_ready_data_arch_tests.rs:314
+
+3) Flight Recorder schema enforcement tightened per spec for optional numeric fields (reject null when present):
+   - rerank_ms: src/backend/handshake_core/src/flight_recorder/mod.rs:1053
+   - confidence: src/backend/handshake_core/src/flight_recorder/mod.rs:1215
+   - Test proofs: src/backend/handshake_core/tests/ai_ready_data_arch_tests.rs:333, src/backend/handshake_core/tests/ai_ready_data_arch_tests.rs:370
+
+4) End-to-end proof that ShadowWs micro-task workflow now emits both DATA events:
+   - src/backend/handshake_core/tests/micro_task_executor_tests.rs:153
+
+Mechanical Checks:
+- just validator-scan: PASS
+- just validator-spec-regression: PASS
+- just validator-dal-audit: PASS
+- just validator-git-hygiene: PASS
+- just validator-traceability: PASS
+
+Tests (Validator-run in WP worktree):
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml: PASS (warnings present)
+- cargo fmt --all -- --check (from src/backend/handshake_core): PASS
+- cargo clippy --all-targets --all-features (from src/backend/handshake_core): PASS (warnings present)
+
+Notes / Residual Risk (non-blocking):
+- Scope hygiene: src/backend/handshake_core/tests/micro_task_executor_tests.rs was modified to assert DATA emission; consider adding it to IN_SCOPE_PATHS or recording an explicit waiver if strict scoping is required for tests under src/backend/handshake_core/tests/.
