@@ -195,30 +195,617 @@ git revert <commit-sha>
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `src/backend/handshake_core/.gitignore`
+- **Start**: 1
+- **End**: 3
+- **Line Delta**: 1
+- **Pre-SHA1**: `e5736e1e6484dc30b070801ba5b03f5b5cada890`
+- **Post-SHA1**: `3079df40bde7977e94bd2796527623a51daaf62b`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.118.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 
+- **Target File**: `src/backend/handshake_core/.sqlx/query-1520f3e49e0b87a59bdf609eb0d335a6d91bbdc9bd850038c909c9d37813aa21.json`
+- **Start**: 1
+- **End**: 12
+- **Line Delta**: 12
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `0a0272a68552922a428c6fc24cf7c8b8a5c6f471`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/.sqlx/query-20a5f019ca56f0ca94a6eece13f050c4315b2b41adc6f65f91cab147445750ac.json`
+- **Start**: 1
+- **End**: 194
+- **Line Delta**: 194
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `cb1e0baf767101562de239cbb93fa96de717694f`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/.sqlx/query-288620813036d55ff86030d609f979083873e579e1cdf0d5f8abe7dbdf6dfadd.json`
+- **Start**: 1
+- **End**: 110
+- **Line Delta**: 110
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `aa9e119f49aa8a49da1d508fdb34b7446a52f498`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/.sqlx/query-5741f7c645f8786259a5eafb3df0225f21e0825d87010b8fab2ddc14f8a23b0e.json`
+- **Start**: 1
+- **End**: 194
+- **Line Delta**: 194
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `8ec9e223437bd2ca4c0401d732b99125d74e69f0`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/.sqlx/query-5bb844805a39ba1f1237cb0877e9a5e39642051bf8543e944fddbeb7e0c5393c.json`
+- **Start**: 1
+- **End**: 194
+- **Line Delta**: 194
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `5dca68b9ba2af2fee32716a611bd730f6f3e3796`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/.sqlx/query-5d2a0b569ea81015b2849184add5837a9ae17af773306e35aa5b6765514c8a1e.json`
+- **Start**: 1
+- **End**: 194
+- **Line Delta**: 194
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `00a10eea58acd3377ceaca28eab6e30dd4ecc035`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/.sqlx/query-660564921bf169d7355b724614f213f71f5aa77e46ca171df7ba1f125a233877.json`
+- **Start**: 1
+- **End**: 32
+- **Line Delta**: 32
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `792bb4a7f46b1c537079c73ae63139fef1f36e9e`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/.sqlx/query-8b2dab9dcb02ba7839a125045ed7f9688890001f90d20acd9ac2f6f3c8e9b0fa.json`
+- **Start**: 1
+- **End**: 12
+- **Line Delta**: 12
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `d36dde257ee9d90eb84e1e8f9073956d48f75924`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/.sqlx/query-8bd192b5a9f89d1fb3a625cf7d8647adc9eb506c461768505e4127cbec458452.json`
+- **Start**: 1
+- **End**: 12
+- **Line Delta**: 12
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `00bd32094701d7a335947ce9fe88b04c54e3ec56`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/.sqlx/query-a9b1d00eb0cda8b18fbf056ec04a044be21c2396b42a596c97c384ba49c34190.json`
+- **Start**: 1
+- **End**: 110
+- **Line Delta**: 110
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `3b7dbdd3f5943884cb22fd319db9f7deceb1a5f7`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/.sqlx/query-acc2c9328f08160177013e15899e56c0ff5c98284fefeac4e290c1621ae2d73a.json`
+- **Start**: 1
+- **End**: 62
+- **Line Delta**: 62
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `34fe2753a1518bfbe449b8319ef3cca6d32e96d6`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/.sqlx/query-d38feb7821a8fc9638120f9e592f6330813a7606507d24a47ae5cce711ac8caf.json`
+- **Start**: 1
+- **End**: 110
+- **Line Delta**: 110
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `1f98a3cc2178b1f16139af7e7179b709f1dbd458`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/.sqlx/query-eb373c67e2823e2ab6530fccd3bcd49316be7cdc06506f412acd1246138349d5.json`
+- **Start**: 1
+- **End**: 12
+- **Line Delta**: 12
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `b44da300bd5449e3b7a7de76c0ffd3ac59bca6d0`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/Cargo.lock`
+- **Start**: 1
+- **End**: 4821
+- **Line Delta**: 102
+- **Pre-SHA1**: `bee0328b6956b7c5e9faffe5ae29096282d53a5c`
+- **Post-SHA1**: `13fc0b040e20a83b62173e0bad81eafbc7ff2846`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/Cargo.toml`
+- **Start**: 1
+- **End**: 45
+- **Line Delta**: 4
+- **Pre-SHA1**: `36ff6a115d1f519ca63c0e18d4e0f22e53cac92b`
+- **Post-SHA1**: `eeb61a7a751e70d2facd9dbdae31389715e1d9ca`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/migrations/0012_ai_ready_data_arch.down.sql`
+- **Start**: 1
+- **End**: 5
+- **Line Delta**: 5
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `2b72188ac2ecd6f4853d77c3f8e48873153ed994`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/migrations/0012_ai_ready_data_arch.sql`
+- **Start**: 1
+- **End**: 78
+- **Line Delta**: 78
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `3d30adc86be7cfd818b492e14e6a6522ee76558c`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ai_ready_data/chunking.rs`
+- **Start**: 1
+- **End**: 369
+- **Line Delta**: 369
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `93b9e6cad299dd702044de424012b5774595cfbd`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ai_ready_data/embedding.rs`
+- **Start**: 1
+- **End**: 94
+- **Line Delta**: 94
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `be570281ab70df293e561a8c0ab5158339b193a6`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ai_ready_data/indexing.rs`
+- **Start**: 1
+- **End**: 166
+- **Line Delta**: 166
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `50c2c7de16bb678095336a96c19bc1b1f2022421`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ai_ready_data/mod.rs`
+- **Start**: 1
+- **End**: 41
+- **Line Delta**: 41
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `df3d5ccd8ed032cba663c3c2c6959f4038d2b524`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ai_ready_data/paths.rs`
+- **Start**: 1
+- **End**: 96
+- **Line Delta**: 96
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `ed188078787ff4dfd31c50bca04782b010d3b6ac`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ai_ready_data/pipeline.rs`
+- **Start**: 1
+- **End**: 1379
+- **Line Delta**: 1379
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `a604cea6eb1f714b0a022670ec8ad47cf490d6cf`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ai_ready_data/quality.rs`
+- **Start**: 1
+- **End**: 43
+- **Line Delta**: 43
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `e824a8b320ce20dda714660125677c42730a871f`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ai_ready_data/records.rs`
+- **Start**: 1
+- **End**: 255
+- **Line Delta**: 255
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `8fba3e073310111acabf51d77c2926a3962b283f`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ai_ready_data/retrieval.rs`
+- **Start**: 1
+- **End**: 201
+- **Line Delta**: 201
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `f6a50b87053dbaf3df6bd16fd6350155361ec540`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- **Start**: 1
+- **End**: 1203
+- **Line Delta**: 23
+- **Pre-SHA1**: `74026c5abd314be17ac1a7b66e521264289cb9c4`
+- **Post-SHA1**: `cdcc07e1ceb4877e7837660e57788791844bd1d3`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 1
+- **End**: 2598
+- **Line Delta**: 708
+- **Pre-SHA1**: `33a1e8a88cbf07e4907a55cca612a62b8bae256f`
+- **Post-SHA1**: `2cb6602880f20518f77ba59b44889299c1e383be`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/lib.rs`
+- **Start**: 1
+- **End**: 35
+- **Line Delta**: 1
+- **Pre-SHA1**: `16ee13bac7ed06e25865aa6fd72edcedd4d0027c`
+- **Post-SHA1**: `95112ff112450323fe0a7e1ccac00650cde77f3b`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/storage/mod.rs`
+- **Start**: 1
+- **End**: 974
+- **Line Delta**: 51
+- **Pre-SHA1**: `cf8dfbc0af01b2678c12a3d7ead7d5b228f88d4d`
+- **Post-SHA1**: `a93b2e02e73f861bf075e9a9a02f16bfb1a5e792`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Start**: 1
+- **End**: 2302
+- **Line Delta**: 768
+- **Pre-SHA1**: `398dda479680210845a77331c5288eadabbfdd71`
+- **Post-SHA1**: `c89b52efcdcb7e2bf8597fea208163079be42f28`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/storage/sqlite.rs`
+- **Start**: 1
+- **End**: 2647
+- **Line Delta**: 774
+- **Pre-SHA1**: `84bab7838d8366d273e0e3fee4e3f3c09027cf10`
+- **Post-SHA1**: `58c017cecd8275202c4728d27f4579da50b8db74`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/tests/ai_ready_data_arch_tests.rs`
+- **Start**: 1
+- **End**: 329
+- **Line Delta**: 329
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `17c6f8bcbc4a80dec06dc68b19a03d301293cad6`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
 - Current WP_STATUS: In Progress (BOOTSTRAP complete; awaiting SKELETON APPROVAL)

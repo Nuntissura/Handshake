@@ -73,6 +73,22 @@ pub enum FlightRecorderEventType {
     DebugBundleExport,
     /// Governance Pack export lifecycle event [Spec 2.3.10]
     GovernancePackExport,
+    /// FR-EVT-DATA-001..015: AI-Ready Data Architecture events [Â§11.5.5]
+    DataBronzeCreated,
+    DataSilverCreated,
+    DataSilverUpdated,
+    DataEmbeddingComputed,
+    DataEmbeddingModelChanged,
+    DataIndexUpdated,
+    DataIndexRebuilt,
+    DataValidationFailed,
+    DataRetrievalExecuted,
+    DataContextAssembled,
+    DataPollutionAlert,
+    DataQualityDegradation,
+    DataReembeddingTriggered,
+    DataRelationshipExtracted,
+    DataGoldenQueryFailed,
 }
 
 impl fmt::Display for FlightRecorderEventType {
@@ -124,6 +140,29 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::GovMailboxTranscribed => write!(f, "gov_mailbox_transcribed"),
             FlightRecorderEventType::DebugBundleExport => write!(f, "debug_bundle_export"),
             FlightRecorderEventType::GovernancePackExport => write!(f, "governance_pack_export"),
+            FlightRecorderEventType::DataBronzeCreated => write!(f, "data_bronze_created"),
+            FlightRecorderEventType::DataSilverCreated => write!(f, "data_silver_created"),
+            FlightRecorderEventType::DataSilverUpdated => write!(f, "data_silver_updated"),
+            FlightRecorderEventType::DataEmbeddingComputed => write!(f, "data_embedding_computed"),
+            FlightRecorderEventType::DataEmbeddingModelChanged => {
+                write!(f, "data_embedding_model_changed")
+            }
+            FlightRecorderEventType::DataIndexUpdated => write!(f, "data_index_updated"),
+            FlightRecorderEventType::DataIndexRebuilt => write!(f, "data_index_rebuilt"),
+            FlightRecorderEventType::DataValidationFailed => write!(f, "data_validation_failed"),
+            FlightRecorderEventType::DataRetrievalExecuted => write!(f, "data_retrieval_executed"),
+            FlightRecorderEventType::DataContextAssembled => write!(f, "data_context_assembled"),
+            FlightRecorderEventType::DataPollutionAlert => write!(f, "data_pollution_alert"),
+            FlightRecorderEventType::DataQualityDegradation => {
+                write!(f, "data_quality_degradation")
+            }
+            FlightRecorderEventType::DataReembeddingTriggered => {
+                write!(f, "data_reembedding_triggered")
+            }
+            FlightRecorderEventType::DataRelationshipExtracted => {
+                write!(f, "data_relationship_extracted")
+            }
+            FlightRecorderEventType::DataGoldenQueryFailed => write!(f, "data_golden_query_failed"),
         }
     }
 }
@@ -333,6 +372,51 @@ impl FlightRecorderEvent {
             FlightRecorderEventType::CapabilityAction => {
                 validate_capability_action_payload(&self.payload)
             }
+            FlightRecorderEventType::DataBronzeCreated => {
+                validate_data_bronze_created_payload(&self.payload)
+            }
+            FlightRecorderEventType::DataSilverCreated => {
+                validate_data_silver_created_payload(&self.payload)
+            }
+            FlightRecorderEventType::DataSilverUpdated => {
+                validate_data_silver_updated_payload(&self.payload)
+            }
+            FlightRecorderEventType::DataEmbeddingComputed => {
+                validate_data_embedding_computed_payload(&self.payload)
+            }
+            FlightRecorderEventType::DataEmbeddingModelChanged => {
+                validate_data_embedding_model_changed_payload(&self.payload)
+            }
+            FlightRecorderEventType::DataIndexUpdated => {
+                validate_data_index_updated_payload(&self.payload)
+            }
+            FlightRecorderEventType::DataIndexRebuilt => {
+                validate_data_index_rebuilt_payload(&self.payload)
+            }
+            FlightRecorderEventType::DataValidationFailed => {
+                validate_data_validation_failed_payload(&self.payload)
+            }
+            FlightRecorderEventType::DataRetrievalExecuted => {
+                validate_data_retrieval_executed_payload(&self.payload)
+            }
+            FlightRecorderEventType::DataContextAssembled => {
+                validate_data_context_assembled_payload(&self.payload)
+            }
+            FlightRecorderEventType::DataPollutionAlert => {
+                validate_data_pollution_alert_payload(&self.payload)
+            }
+            FlightRecorderEventType::DataQualityDegradation => {
+                validate_data_quality_degradation_payload(&self.payload)
+            }
+            FlightRecorderEventType::DataReembeddingTriggered => {
+                validate_data_reembedding_triggered_payload(&self.payload)
+            }
+            FlightRecorderEventType::DataRelationshipExtracted => {
+                validate_data_relationship_extracted_payload(&self.payload)
+            }
+            FlightRecorderEventType::DataGoldenQueryFailed => {
+                validate_data_golden_query_failed_payload(&self.payload)
+            }
             _ => Ok(()),
         }
     }
@@ -392,6 +476,26 @@ fn require_exact_keys(map: &Map<String, Value>, allowed: &[&str]) -> Result<(), 
     }
 
     for key in allowed {
+        require_key(map, key)?;
+    }
+
+    Ok(())
+}
+
+fn require_allowed_keys(
+    map: &Map<String, Value>,
+    required: &[&str],
+    optional: &[&str],
+) -> Result<(), RecorderError> {
+    for key in map.keys() {
+        if !required.contains(&key.as_str()) && !optional.contains(&key.as_str()) {
+            return Err(RecorderError::InvalidEvent(format!(
+                "unexpected payload field: {key}"
+            )));
+        }
+    }
+
+    for key in required {
         require_key(map, key)?;
     }
 
@@ -495,6 +599,31 @@ fn require_string_array<'a>(
     }
 }
 
+fn require_string_array_allow_empty<'a>(
+    map: &'a Map<String, Value>,
+    key: &str,
+) -> Result<Vec<&'a str>, RecorderError> {
+    match require_key(map, key)? {
+        Value::Array(items) => {
+            let mut out = Vec::with_capacity(items.len());
+            for (idx, item) in items.iter().enumerate() {
+                match item {
+                    Value::String(value) if !value.trim().is_empty() => out.push(value.as_str()),
+                    _ => {
+                        return Err(RecorderError::InvalidEvent(format!(
+                            "payload field {key}[{idx}] must be a non-empty string"
+                        )))
+                    }
+                }
+            }
+            Ok(out)
+        }
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be an array of strings"
+        ))),
+    }
+}
+
 fn validate_terminal_command_payload(payload: &Value) -> Result<(), RecorderError> {
     let map = payload_object(payload)?;
     require_string(map, "command")?;
@@ -532,6 +661,585 @@ fn validate_capability_action_payload(payload: &Value) -> Result<(), RecorderErr
 fn validate_diagnostic_payload(payload: &Value) -> Result<(), RecorderError> {
     let map = payload_object(payload)?;
     require_string(map, "diagnostic_id")?;
+    Ok(())
+}
+
+// =============================================================================
+// FR-EVT-DATA-* (AI-Ready Data Architecture) payload validators [Â§11.5.5]
+// =============================================================================
+
+fn validate_data_bronze_created_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "bronze_id",
+            "content_type",
+            "content_hash",
+            "size_bytes",
+            "ingestion_source",
+            "ingestion_method",
+        ],
+    )?;
+
+    require_fixed_string(map, "type", "data_bronze_created")?;
+    match require_key(map, "bronze_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field bronze_id must be a safe id".to_string(),
+            ))
+        }
+    }
+    require_string(map, "content_type")?;
+    require_sha256_hex(map, "content_hash")?;
+    require_number(map, "size_bytes")?;
+    match require_key(map, "ingestion_source")? {
+        Value::String(value) => match value.as_str() {
+            "user" | "connector" | "system" => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field ingestion_source must be one of user|connector|system"
+                        .to_string(),
+                ))
+            }
+        },
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field ingestion_source must be a string".to_string(),
+            ))
+        }
+    }
+    match require_key(map, "ingestion_method")? {
+        Value::String(value) => match value.as_str() {
+            "user_create" | "file_import" | "api_ingest" | "connector_sync" => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field ingestion_method must be one of user_create|file_import|api_ingest|connector_sync".to_string(),
+                ))
+            }
+        },
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field ingestion_method must be a string".to_string(),
+            ))
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_data_silver_created_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "silver_id",
+            "bronze_ref",
+            "chunk_index",
+            "total_chunks",
+            "token_count",
+            "chunking_strategy",
+            "processing_duration_ms",
+        ],
+    )?;
+
+    require_fixed_string(map, "type", "data_silver_created")?;
+    match require_key(map, "silver_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field silver_id must be a safe id".to_string(),
+            ))
+        }
+    }
+    match require_key(map, "bronze_ref")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field bronze_ref must be a safe id".to_string(),
+            ))
+        }
+    }
+    require_number(map, "chunk_index")?;
+    require_number(map, "total_chunks")?;
+    require_number(map, "token_count")?;
+    require_string(map, "chunking_strategy")?;
+    require_number(map, "processing_duration_ms")?;
+    Ok(())
+}
+
+fn validate_data_silver_updated_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "superseded_silver_id",
+            "new_silver_id",
+            "bronze_ref",
+            "chunking_strategy",
+            "processing_duration_ms",
+        ],
+    )?;
+
+    require_fixed_string(map, "type", "data_silver_updated")?;
+    match require_key(map, "superseded_silver_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field superseded_silver_id must be a safe id".to_string(),
+            ))
+        }
+    }
+    match require_key(map, "new_silver_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field new_silver_id must be a safe id".to_string(),
+            ))
+        }
+    }
+    match require_key(map, "bronze_ref")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field bronze_ref must be a safe id".to_string(),
+            ))
+        }
+    }
+    require_string(map, "chunking_strategy")?;
+    require_number(map, "processing_duration_ms")?;
+    Ok(())
+}
+
+fn validate_data_embedding_computed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "silver_id",
+            "model_id",
+            "model_version",
+            "dimensions",
+            "compute_latency_ms",
+            "was_truncated",
+        ],
+    )?;
+
+    require_fixed_string(map, "type", "data_embedding_computed")?;
+    match require_key(map, "silver_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field silver_id must be a safe id".to_string(),
+            ))
+        }
+    }
+    require_string(map, "model_id")?;
+    require_string(map, "model_version")?;
+    require_number(map, "dimensions")?;
+    require_number(map, "compute_latency_ms")?;
+    require_bool(map, "was_truncated")?;
+    Ok(())
+}
+
+fn validate_data_embedding_model_changed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "from_model_id",
+            "from_model_version",
+            "to_model_id",
+            "to_model_version",
+            "affected_silver_records",
+        ],
+    )?;
+
+    require_fixed_string(map, "type", "data_embedding_model_changed")?;
+    require_string(map, "from_model_id")?;
+    require_string(map, "from_model_version")?;
+    require_string(map, "to_model_id")?;
+    require_string(map, "to_model_version")?;
+    require_number(map, "affected_silver_records")?;
+    Ok(())
+}
+
+fn validate_data_index_updated_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "index_kind",
+            "update_kind",
+            "records_affected",
+            "duration_ms",
+        ],
+    )?;
+
+    require_fixed_string(map, "type", "data_index_updated")?;
+    match require_key(map, "index_kind")? {
+        Value::String(value) => match value.as_str() {
+            "vector" | "keyword" | "graph" => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field index_kind must be one of vector|keyword|graph".to_string(),
+                ))
+            }
+        },
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field index_kind must be a string".to_string(),
+            ))
+        }
+    }
+    match require_key(map, "update_kind")? {
+        Value::String(value) => match value.as_str() {
+            "insert" | "delete" | "update" => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field update_kind must be one of insert|delete|update".to_string(),
+                ))
+            }
+        },
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field update_kind must be a string".to_string(),
+            ))
+        }
+    }
+    require_number(map, "records_affected")?;
+    require_number(map, "duration_ms")?;
+    Ok(())
+}
+
+fn validate_data_index_rebuilt_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &["type", "index_kind", "records_indexed", "duration_ms"],
+    )?;
+
+    require_fixed_string(map, "type", "data_index_rebuilt")?;
+    match require_key(map, "index_kind")? {
+        Value::String(value) => match value.as_str() {
+            "vector" | "keyword" | "graph" => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field index_kind must be one of vector|keyword|graph".to_string(),
+                ))
+            }
+        },
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field index_kind must be a string".to_string(),
+            ))
+        }
+    }
+    require_number(map, "records_indexed")?;
+    require_number(map, "duration_ms")?;
+    Ok(())
+}
+
+fn validate_data_validation_failed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &["type", "silver_id", "failed_checks", "validator_version"],
+    )?;
+
+    require_fixed_string(map, "type", "data_validation_failed")?;
+    match require_key(map, "silver_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field silver_id must be a safe id".to_string(),
+            ))
+        }
+    }
+    require_string_array(map, "failed_checks")?;
+    require_string(map, "validator_version")?;
+    Ok(())
+}
+
+fn validate_data_retrieval_executed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_allowed_keys(
+        map,
+        &[
+            "type",
+            "request_id",
+            "query_hash",
+            "query_intent",
+            "weights",
+            "results",
+            "latency",
+            "reranking_used",
+        ],
+        &[],
+    )?;
+
+    require_fixed_string(map, "type", "data_retrieval_executed")?;
+    match require_key(map, "request_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field request_id must be a safe id".to_string(),
+            ))
+        }
+    }
+    require_sha256_hex(map, "query_hash")?;
+    match require_key(map, "query_intent")? {
+        Value::String(value) => match value.as_str() {
+            "factual_lookup"
+            | "code_search"
+            | "similarity_search"
+            | "relationship_query"
+            | "temporal_query" => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field query_intent must be one of factual_lookup|code_search|similarity_search|relationship_query|temporal_query".to_string(),
+                ))
+            }
+        },
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field query_intent must be a string".to_string(),
+            ))
+        }
+    }
+
+    let weights = payload_object(require_key(map, "weights")?)?;
+    require_exact_keys(weights, &["vector", "keyword", "graph"])?;
+    require_number(weights, "vector")?;
+    require_number(weights, "keyword")?;
+    require_number(weights, "graph")?;
+
+    let results = payload_object(require_key(map, "results")?)?;
+    require_exact_keys(
+        results,
+        &[
+            "vector_candidates",
+            "keyword_candidates",
+            "after_fusion",
+            "final_count",
+        ],
+    )?;
+    require_number(results, "vector_candidates")?;
+    require_number(results, "keyword_candidates")?;
+    require_number(results, "after_fusion")?;
+    require_number(results, "final_count")?;
+
+    let latency = payload_object(require_key(map, "latency")?)?;
+    require_allowed_keys(
+        latency,
+        &[
+            "embedding_ms",
+            "vector_search_ms",
+            "keyword_search_ms",
+            "total_ms",
+        ],
+        &["rerank_ms"],
+    )?;
+    require_number(latency, "embedding_ms")?;
+    require_number(latency, "vector_search_ms")?;
+    require_number(latency, "keyword_search_ms")?;
+    if latency.contains_key("rerank_ms") {
+        require_number_or_null(latency, "rerank_ms")?;
+    }
+    require_number(latency, "total_ms")?;
+    require_bool(map, "reranking_used")?;
+    Ok(())
+}
+
+fn validate_data_context_assembled_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "request_id",
+            "selected_chunks",
+            "context_size_tokens",
+        ],
+    )?;
+
+    require_fixed_string(map, "type", "data_context_assembled")?;
+    match require_key(map, "request_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field request_id must be a safe id".to_string(),
+            ))
+        }
+    }
+    require_number(map, "selected_chunks")?;
+    require_number(map, "context_size_tokens")?;
+    Ok(())
+}
+
+fn validate_data_pollution_alert_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "request_id",
+            "pollution_score",
+            "threshold",
+            "metrics",
+            "context_size_tokens",
+        ],
+    )?;
+
+    require_fixed_string(map, "type", "data_pollution_alert")?;
+    match require_key(map, "request_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field request_id must be a safe id".to_string(),
+            ))
+        }
+    }
+    require_number(map, "pollution_score")?;
+    require_number(map, "threshold")?;
+    let metrics = payload_object(require_key(map, "metrics")?)?;
+    require_exact_keys(
+        metrics,
+        &[
+            "task_relevance_score",
+            "drift_score",
+            "redundancy_score",
+            "stale_content_ratio",
+        ],
+    )?;
+    require_number(metrics, "task_relevance_score")?;
+    require_number(metrics, "drift_score")?;
+    require_number(metrics, "redundancy_score")?;
+    require_number(metrics, "stale_content_ratio")?;
+    require_number(map, "context_size_tokens")?;
+    Ok(())
+}
+
+fn validate_data_quality_degradation_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "metric_name",
+            "current_value",
+            "threshold",
+            "slo_target",
+        ],
+    )?;
+
+    require_fixed_string(map, "type", "data_quality_degradation")?;
+    match require_key(map, "metric_name")? {
+        Value::String(value) => match value.as_str() {
+            "mrr"
+            | "recall_at_10"
+            | "ndcg_at_5"
+            | "validation_pass_rate"
+            | "metadata_completeness"
+            | "p95_latency" => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field metric_name must be one of mrr|recall_at_10|ndcg_at_5|validation_pass_rate|metadata_completeness|p95_latency".to_string(),
+                ))
+            }
+        },
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field metric_name must be a string".to_string(),
+            ))
+        }
+    }
+    require_number(map, "current_value")?;
+    require_number(map, "threshold")?;
+    require_number(map, "slo_target")?;
+    Ok(())
+}
+
+fn validate_data_reembedding_triggered_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "model_id",
+            "model_version",
+            "affected_silver_records",
+        ],
+    )?;
+
+    require_fixed_string(map, "type", "data_reembedding_triggered")?;
+    require_string(map, "model_id")?;
+    require_string(map, "model_version")?;
+    require_number(map, "affected_silver_records")?;
+    Ok(())
+}
+
+fn validate_data_relationship_extracted_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_allowed_keys(
+        map,
+        &["type", "relationship_type", "source_id", "target_id"],
+        &["confidence"],
+    )?;
+
+    require_fixed_string(map, "type", "data_relationship_extracted")?;
+    require_string(map, "relationship_type")?;
+    match require_key(map, "source_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field source_id must be a safe id".to_string(),
+            ))
+        }
+    }
+    match require_key(map, "target_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field target_id must be a safe id".to_string(),
+            ))
+        }
+    }
+    if map.contains_key("confidence") {
+        require_number_or_null(map, "confidence")?;
+    }
+    Ok(())
+}
+
+fn validate_data_golden_query_failed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "query_hash",
+            "expected_ids",
+            "retrieved_ids",
+            "expected_mrr",
+            "actual_mrr",
+            "regression_from_baseline",
+        ],
+    )?;
+
+    require_fixed_string(map, "type", "data_golden_query_failed")?;
+    require_sha256_hex(map, "query_hash")?;
+    require_string_array_allow_empty(map, "expected_ids")?;
+    require_string_array_allow_empty(map, "retrieved_ids")?;
+    require_number(map, "expected_mrr")?;
+    require_number(map, "actual_mrr")?;
+    require_bool(map, "regression_from_baseline")?;
     Ok(())
 }
 

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            UPDATE ai_bronze_records\n            SET is_deleted = 1, deleted_at = $2\n            WHERE bronze_id = $1\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "1520f3e49e0b87a59bdf609eb0d335a6d91bbdc9bd850038c909c9d37813aa21"
+}

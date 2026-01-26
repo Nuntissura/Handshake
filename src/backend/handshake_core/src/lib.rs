@@ -1,4 +1,5 @@
 pub mod ace;
+pub mod ai_ready_data;
 pub mod api;
 pub mod bundles;
 pub mod capabilities;

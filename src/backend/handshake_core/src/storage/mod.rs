@@ -6,6 +6,11 @@ use std::str::FromStr;
 use thiserror::Error;
 use uuid::Uuid;
 
+use crate::ai_ready_data::records::{
+    BronzeRecord, EmbeddingModelRecord, EmbeddingRegistry, NewBronzeRecord, NewSilverRecord,
+    SilverRecord,
+};
+
 pub mod postgres;
 pub mod retention;
 pub mod sqlite;
@@ -836,6 +841,52 @@ pub trait Database: Send + Sync + std::any::Any {
         edges: Vec<NewCanvasEdge>,
     ) -> StorageResult<CanvasGraph>;
     async fn delete_canvas(&self, ctx: &WriteContext, canvas_id: &str) -> StorageResult<()>;
+
+    // AI-Ready Data Architecture (Â§2.3.14)
+    async fn create_ai_bronze_record(
+        &self,
+        ctx: &WriteContext,
+        record: NewBronzeRecord,
+    ) -> StorageResult<BronzeRecord>;
+    async fn get_ai_bronze_record(&self, bronze_id: &str) -> StorageResult<Option<BronzeRecord>>;
+    async fn list_ai_bronze_records(&self, workspace_id: &str) -> StorageResult<Vec<BronzeRecord>>;
+    async fn mark_ai_bronze_deleted(
+        &self,
+        ctx: &WriteContext,
+        bronze_id: &str,
+    ) -> StorageResult<()>;
+
+    async fn create_ai_silver_record(
+        &self,
+        ctx: &WriteContext,
+        record: NewSilverRecord,
+    ) -> StorageResult<SilverRecord>;
+    async fn get_ai_silver_record(&self, silver_id: &str) -> StorageResult<Option<SilverRecord>>;
+    async fn list_ai_silver_records_by_bronze(
+        &self,
+        bronze_id: &str,
+    ) -> StorageResult<Vec<SilverRecord>>;
+    async fn list_ai_silver_records(&self, workspace_id: &str) -> StorageResult<Vec<SilverRecord>>;
+    async fn supersede_ai_silver_record(
+        &self,
+        ctx: &WriteContext,
+        superseded_silver_id: &str,
+        new_silver_id: &str,
+    ) -> StorageResult<()>;
+
+    async fn upsert_ai_embedding_model(
+        &self,
+        ctx: &WriteContext,
+        model: EmbeddingModelRecord,
+    ) -> StorageResult<()>;
+    async fn list_ai_embedding_models(&self) -> StorageResult<Vec<EmbeddingModelRecord>>;
+    async fn set_ai_embedding_default_model(
+        &self,
+        ctx: &WriteContext,
+        model_id: &str,
+        model_version: &str,
+    ) -> StorageResult<()>;
+    async fn get_ai_embedding_registry(&self) -> StorageResult<Option<EmbeddingRegistry>>;
 
     // AI Job operations (CX-DBP-021)
     async fn get_ai_job(&self, job_id: &str) -> StorageResult<AiJob>;

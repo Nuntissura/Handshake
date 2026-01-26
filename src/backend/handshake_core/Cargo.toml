@@ -25,6 +25,10 @@ sha2 = "0.10"
 hex = "0.4"
 unicode-normalization = "0.1"
 caseless = "0.2"
+tree-sitter = "0.22"
+tree-sitter-rust = "0.21"
+tree-sitter-javascript = "0.21"
+tree-sitter-typescript = "0.21"
 tiktoken-rs = { version = "0.5", optional = true }
 # Disable the esaxx default feature to avoid static CRT conflicts on Windows.
 tokenizers = { version = "0.15", optional = true, default-features = false, features = ["onig", "progressbar"] }
