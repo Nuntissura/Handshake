@@ -502,10 +502,19 @@ export async function createJob(
   jobKind: string,
   protocolId: string,
   docId?: string,
+  jobInputs?: unknown,
 ): Promise<WorkflowRun> {
+  const body: Record<string, unknown> = {
+    job_kind: jobKind,
+    protocol_id: protocolId,
+  };
+
+  if (docId) body.doc_id = docId;
+  if (jobInputs !== undefined) body.job_inputs = jobInputs;
+
   return request("/api/jobs", {
     method: "POST",
-    body: { job_kind: jobKind, protocol_id: protocolId, doc_id: docId },
+    body,
   });
 }
 

@@ -4,7 +4,6 @@ import {
   Block,
   BlockInput,
   DocumentWithBlocks,
-  WorkflowRun,
   createJob,
   createDiagnostic,
   deleteDocument,
@@ -12,8 +11,9 @@ import {
   updateDocumentBlocks,
 } from "../lib/api";
 import { TiptapEditor } from "./TiptapEditor";
-import { JobResultPanel } from "./JobResultPanel";
 import { logEvent } from "../state/debugEvents";
+import { addJob } from "../state/aiJobs";
+import { CommandPalette, CommandPaletteAction } from "./CommandPalette";
 
 type Props = {
   documentId: string | null;
@@ -30,14 +30,19 @@ export function DocumentView({ documentId, onDeleted }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
-  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [jobStarting, setJobStarting] = useState(false);
+  const [jobError, setJobError] = useState<string | null>(null);
+  const [instructions, setInstructions] = useState("");
 
   useEffect(() => {
     if (!documentId) {
       setDoc(null);
       setError(null);
       setEditorContent(null);
-      setActiveJobId(null);
+      setPaletteOpen(false);
+      setJobError(null);
+      setInstructions("");
       return;
     }
     const load = async () => {
@@ -45,7 +50,9 @@ export function DocumentView({ documentId, onDeleted }: Props) {
       setError(null);
       setSaveError(null);
       setLastSavedAt(null);
-      setActiveJobId(null);
+      setPaletteOpen(false);
+      setJobError(null);
+      setInstructions("");
       try {
         const response = await getDocument(documentId);
         setDoc(response);
@@ -68,6 +75,28 @@ export function DocumentView({ documentId, onDeleted }: Props) {
     };
     void load();
   }, [documentId, onDeleted]);
+
+  useEffect(() => {
+    if (!documentId) return;
+    const handler = (event: KeyboardEvent) => {
+      if (paletteOpen) return;
+      const isModifier = event.metaKey || event.ctrlKey;
+      if (!isModifier) return;
+
+      const key = event.key.toLowerCase();
+      const open =
+        (key === "k" && !event.shiftKey && !event.altKey) || (key === "p" && event.shiftKey && !event.altKey);
+      if (!open) return;
+
+      event.preventDefault();
+      setPaletteOpen(true);
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => {
+      window.removeEventListener("keydown", handler);
+    };
+  }, [documentId, paletteOpen]);
 
   const blocksForDisplay = useMemo(() => doc?.blocks ?? [], [doc]);
 
@@ -99,6 +128,16 @@ export function DocumentView({ documentId, onDeleted }: Props) {
   }
 
   if (!doc) return null;
+
+  const paletteActions: CommandPaletteAction[] = [
+    {
+      id: "doc_summarize",
+      label: "Summarize document",
+      description: "Create a summary for this document as an AI job.",
+      keywords: ["summary", "summarize", "ai"],
+      disabled: jobStarting,
+    },
+  ];
 
   return (
     <div className="content-card">
@@ -139,7 +178,7 @@ export function DocumentView({ documentId, onDeleted }: Props) {
                       surface: "system",
                       code: "HSK-403-SILENT-EDIT",
                       wsid: doc.workspace_id,
-                      job_id: activeJobId,
+                      job_id: null,
                       actor: "system",
                       link_confidence: "unlinked",
                     }).catch(() => {});
@@ -153,31 +192,15 @@ export function DocumentView({ documentId, onDeleted }: Props) {
               {isSaving ? "Saving..." : "Save"}
             </button>
             <button
-              onClick={async () => {
-                if (!documentId) return;
-                try {
-                  const run: WorkflowRun = await createJob("doc_summarize", "doc-proto-001", documentId);
-                  setActiveJobId(run.job_id);
-                  logEvent({
-                    type: "ai-job",
-                    targetId: documentId,
-                    result: "ok",
-                    message: `job_id=${run.job_id}`,
-                  });
-                } catch (err) {
-                  const message = err instanceof Error ? err.message : "Failed to start AI job";
-                  logEvent({
-                    type: "ai-job",
-                    targetId: documentId,
-                    result: "error",
-                    message: String(err),
-                  });
-                  alert(`Failed to start job: ${message}`);
-                }
+              type="button"
+              onClick={() => {
+                setPaletteOpen(true);
+                setJobError(null);
               }}
-              disabled={isSaving || isDeleting || !!activeJobId || !documentId}
+              title="Ctrl/Cmd+K (or Ctrl/Cmd+Shift+P)"
+              disabled={isSaving || isDeleting}
             >
-              {activeJobId ? "Job Running..." : "Summarize"}
+              AI Actions
             </button>
             <button
               onClick={async () => {
@@ -239,11 +262,69 @@ export function DocumentView({ documentId, onDeleted }: Props) {
             </button>
           </div>
         </div>
-        
-        {activeJobId && (
-          <JobResultPanel 
-            jobId={activeJobId} 
-            onDismiss={() => setActiveJobId(null)} 
+
+        {paletteOpen && (
+          <CommandPalette
+            open={true}
+            title="Document actions"
+            actions={paletteActions}
+            onClose={() => {
+              setPaletteOpen(false);
+              setJobError(null);
+            }}
+            onAction={async (actionId) => {
+              if (actionId !== "doc_summarize") return;
+
+              setJobStarting(true);
+              setJobError(null);
+              try {
+                const trimmed = instructions.trim();
+                const jobInputs: Record<string, unknown> = {
+                  doc_id: documentId,
+                  selection: null,
+                  layer_scope: "Document",
+                };
+                if (trimmed.length > 0) jobInputs.instructions = trimmed;
+
+                const run = await createJob("doc_summarize", "doc-proto-001", documentId, jobInputs);
+                addJob({
+                  jobId: run.job_id,
+                  jobKind: "doc_summarize",
+                  protocolId: "doc-proto-001",
+                  docId: documentId,
+                  docTitle: doc.title,
+                  createdAt: Date.now(),
+                });
+                logEvent({ type: "ai-job", targetId: documentId, result: "ok", message: `job_id=${run.job_id}` });
+                setPaletteOpen(false);
+                setInstructions("");
+              } catch (err) {
+                const message = err instanceof Error ? err.message : "Failed to start AI job";
+                setJobError(message);
+                logEvent({ type: "ai-job", targetId: documentId, result: "error", message: String(err) });
+              } finally {
+                setJobStarting(false);
+              }
+            }}
+            footer={
+              <div className="command-palette-footer">
+                <label className="muted small" htmlFor="ai-instructions-input">
+                  Instructions (optional)
+                </label>
+                <input
+                  id="ai-instructions-input"
+                  className="command-palette__input"
+                  type="text"
+                  value={instructions}
+                  onChange={(event) => setInstructions(event.target.value)}
+                  placeholder="E.g., focus on action items, keep under 5 bullets..."
+                  autoFocus
+                  disabled={jobStarting}
+                />
+                <p className="muted small">Enter runs the selected action.</p>
+                {jobError && <p className="error">Error: {jobError}</p>}
+              </div>
+            }
           />
         )}
 

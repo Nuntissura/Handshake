@@ -7,6 +7,7 @@ import { CanvasView } from "./components/CanvasView";
 import { DebugPanel } from "./components/DebugPanel";
 import { FontManagerView } from "./components/FontManagerView";
 import { BundleScopeInput } from "./lib/api";
+import { AiJobsDrawer } from "./components/AiJobsDrawer";
 
 import { FlightRecorderView } from "./components/FlightRecorderView";
 import {
@@ -191,6 +192,7 @@ function App() {
           onClose={() => setGovernancePackExportOpen(false)}
         />
       )}
+      <AiJobsDrawer />
     </main>
   );
 }
