@@ -2,9 +2,9 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.117.md**
+**Handshake_Master_Spec_v02.118.md**
 
-(Updated: 2026-01-25 - v02.117 complete FR-EVT-DATA schemas in §11.5.5 (AI-Ready Data Architecture Phase 1; makes DATA schema-rejection requirement enforceable))
+(Updated: 2026-01-26 - v02.118 Tree-sitter parser requirement + Shadow Workspace root mapping + DATA-015 query_hash privacy clarification)
 
 ---
 

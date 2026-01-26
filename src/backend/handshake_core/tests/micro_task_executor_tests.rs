@@ -147,6 +147,35 @@ async fn micro_task_executor_completes_single_mt_and_emits_events(
         .iter()
         .any(|e| e.event_type == FlightRecorderEventType::MicroTaskLoopCompleted));
 
+    let retrieval_event = events
+        .iter()
+        .find(|e| e.event_type == FlightRecorderEventType::DataRetrievalExecuted)
+        .expect("data_retrieval_executed event");
+    let query_hash = retrieval_event
+        .payload
+        .get("query_hash")
+        .and_then(|v| v.as_str())
+        .expect("query_hash present");
+    assert_eq!(query_hash.len(), 64);
+    assert!(query_hash.chars().all(|c| c.is_ascii_hexdigit()));
+    assert!(retrieval_event.payload.get("query").is_none());
+
+    let context_event = events
+        .iter()
+        .find(|e| e.event_type == FlightRecorderEventType::DataContextAssembled)
+        .expect("data_context_assembled event");
+    let retrieval_request_id = retrieval_event
+        .payload
+        .get("request_id")
+        .and_then(|v| v.as_str())
+        .expect("retrieval request_id present");
+    let context_request_id = context_event
+        .payload
+        .get("request_id")
+        .and_then(|v| v.as_str())
+        .expect("context request_id present");
+    assert_eq!(retrieval_request_id, context_request_id);
+
     Ok(())
 }
 

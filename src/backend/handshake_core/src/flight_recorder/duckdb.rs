@@ -718,6 +718,29 @@ impl DuckDbFlightRecorder {
                 "gov_mailbox_exported" => super::FlightRecorderEventType::GovMailboxExported,
                 "gov_mailbox_transcribed" => super::FlightRecorderEventType::GovMailboxTranscribed,
                 "security_violation" => super::FlightRecorderEventType::SecurityViolation,
+                "data_bronze_created" => super::FlightRecorderEventType::DataBronzeCreated,
+                "data_silver_created" => super::FlightRecorderEventType::DataSilverCreated,
+                "data_silver_updated" => super::FlightRecorderEventType::DataSilverUpdated,
+                "data_embedding_computed" => super::FlightRecorderEventType::DataEmbeddingComputed,
+                "data_embedding_model_changed" => {
+                    super::FlightRecorderEventType::DataEmbeddingModelChanged
+                }
+                "data_index_updated" => super::FlightRecorderEventType::DataIndexUpdated,
+                "data_index_rebuilt" => super::FlightRecorderEventType::DataIndexRebuilt,
+                "data_validation_failed" => super::FlightRecorderEventType::DataValidationFailed,
+                "data_retrieval_executed" => super::FlightRecorderEventType::DataRetrievalExecuted,
+                "data_context_assembled" => super::FlightRecorderEventType::DataContextAssembled,
+                "data_pollution_alert" => super::FlightRecorderEventType::DataPollutionAlert,
+                "data_quality_degradation" => {
+                    super::FlightRecorderEventType::DataQualityDegradation
+                }
+                "data_reembedding_triggered" => {
+                    super::FlightRecorderEventType::DataReembeddingTriggered
+                }
+                "data_relationship_extracted" => {
+                    super::FlightRecorderEventType::DataRelationshipExtracted
+                }
+                "data_golden_query_failed" => super::FlightRecorderEventType::DataGoldenQueryFailed,
                 "capability_action" => {
                     if payload_type == Some("terminal_command") {
                         super::FlightRecorderEventType::TerminalCommand

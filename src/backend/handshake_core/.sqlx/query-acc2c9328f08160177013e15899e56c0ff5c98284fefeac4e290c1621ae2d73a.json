@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                model_id as \"model_id!: String\",\n                model_version as \"model_version!: String\",\n                dimensions as \"dimensions!: i64\",\n                max_input_tokens as \"max_input_tokens!: i64\",\n                content_types_json as \"content_types_json!: String\",\n                status as \"status!: String\",\n                introduced_at as \"introduced_at!: chrono::DateTime<chrono::Utc>\",\n                compatible_with_json as \"compatible_with_json!: String\"\n            FROM ai_embedding_models\n            ORDER BY model_id ASC, model_version ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "model_id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "model_version!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "dimensions!: i64",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "max_input_tokens!: i64",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "content_types_json!: String",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "status!: String",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "introduced_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 6,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "compatible_with_json!: String",
+        "ordinal": 7,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "acc2c9328f08160177013e15899e56c0ff5c98284fefeac4e290c1621ae2d73a"
+}

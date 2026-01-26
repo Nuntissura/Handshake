@@ -12,8 +12,8 @@ Requirements (HARD):
 ### METADATA
 - WP_ID: WP-1-AI-Ready-Data-Architecture-v1
 - CREATED_AT: 2026-01-25
-- SPEC_TARGET_RESOLVED: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.117.md
-- SPEC_TARGET_SHA1: 315a015dcfa3362f5aa9593f483a1d155d007323
+- SPEC_TARGET_RESOLVED: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.118.md
+- SPEC_TARGET_SHA1: eee766ed478513ffa48963c49367ec31ad47fa00
 - USER_REVIEW_STATUS: APPROVED
 - USER_SIGNATURE: ilja250120262250
 - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT WP-1-AI-Ready-Data-Architecture-v1
@@ -268,9 +268,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 7
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.117.md 2.3.14.7.4 (Model versioning + re-embedding)
-- CONTEXT_START_LINE: 3941
-- CONTEXT_END_LINE: 3949
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.118.md 2.3.14.7.4 (Model versioning + re-embedding)
+- CONTEXT_START_LINE: 3950
+- CONTEXT_END_LINE: 3960
 - CONTEXT_TOKEN: Model Versioning and Re-embedding
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -412,9 +412,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 11
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.117.md 2.3.14.17.4 (FR-EVT-DATA list)
-- CONTEXT_START_LINE: 4898
-- CONTEXT_END_LINE: 4917
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.118.md 2.3.14.17.4 (FR-EVT-DATA list)
+- CONTEXT_START_LINE: 4916
+- CONTEXT_END_LINE: 4930
 - CONTEXT_TOKEN: FR-EVT-DATA-015
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -440,9 +440,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 12
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.117.md 11.5.5 (DATA event schemas + validation requirements)
-- CONTEXT_START_LINE: 52518
-- CONTEXT_END_LINE: 52530
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.118.md 11.5.5 (DATA event schemas + validation requirements)
+- CONTEXT_START_LINE: 52525
+- CONTEXT_END_LINE: 52536
 - CONTEXT_TOKEN: Flight Recorder MUST reject DATA events
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -554,9 +554,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 13
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.117.md 2.6.6.7.14.6 (normalized_query_hash)
-- CONTEXT_START_LINE: 10209
-- CONTEXT_END_LINE: 10227
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.118.md 2.6.6.7.14.6 (normalized_query_hash)
+- CONTEXT_START_LINE: 10224
+- CONTEXT_END_LINE: 10236
 - CONTEXT_TOKEN: normalized_query_hash = sha256(normalize(query_text))
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -581,9 +581,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 14
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.117.md 7.6.3 Phase 1 (Roadmap pointer for Phase 1 scope)
-- CONTEXT_START_LINE: 41147
-- CONTEXT_END_LINE: 41155
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.118.md 7.6.3 Phase 1 (Roadmap pointer for Phase 1 scope)
+- CONTEXT_START_LINE: 41154
+- CONTEXT_END_LINE: 41162
 - CONTEXT_TOKEN: AI-Ready Data Architecture
 - EXCERPT_ASCII_ESCAPED:
   ```text

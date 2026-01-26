@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO ai_embedding_registry (\n                id, current_default_model_id, current_default_model_version, updated_at\n            )\n            VALUES ('global', $1, $2, $3)\n            ON CONFLICT (id) DO UPDATE SET\n                current_default_model_id = excluded.current_default_model_id,\n                current_default_model_version = excluded.current_default_model_version,\n                updated_at = excluded.updated_at\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "8b2dab9dcb02ba7839a125045ed7f9688890001f90d20acd9ac2f6f3c8e9b0fa"
+}

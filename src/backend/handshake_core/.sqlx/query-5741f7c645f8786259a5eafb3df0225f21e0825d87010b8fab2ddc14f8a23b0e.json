@@ -1,0 +1,194 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                silver_id as \"silver_id!: String\",\n                workspace_id as \"workspace_id!: String\",\n                bronze_ref as \"bronze_ref!: String\",\n                chunk_index as \"chunk_index!: i64\",\n                total_chunks as \"total_chunks!: i64\",\n                token_count as \"token_count!: i64\",\n                content_hash as \"content_hash!: String\",\n                byte_start as \"byte_start!: i64\",\n                byte_end as \"byte_end!: i64\",\n                line_start as \"line_start!: i64\",\n                line_end as \"line_end!: i64\",\n                chunk_artifact_path as \"chunk_artifact_path!: String\",\n                embedding_artifact_path as \"embedding_artifact_path!: String\",\n                embedding_model_id as \"embedding_model_id!: String\",\n                embedding_model_version as \"embedding_model_version!: String\",\n                embedding_dimensions as \"embedding_dimensions!: i64\",\n                embedding_compute_latency_ms as \"embedding_compute_latency_ms!: i64\",\n                chunking_strategy as \"chunking_strategy!: String\",\n                chunking_version as \"chunking_version!: String\",\n                processing_pipeline_version as \"processing_pipeline_version!: String\",\n                processed_at as \"processed_at!: chrono::DateTime<chrono::Utc>\",\n                processing_duration_ms as \"processing_duration_ms!: i64\",\n                metadata_json as \"metadata_json!: String\",\n                validation_status as \"validation_status!: String\",\n                validation_failed_checks_json as \"validation_failed_checks_json!: String\",\n                validated_at as \"validated_at!: chrono::DateTime<chrono::Utc>\",\n                validator_version as \"validator_version!: String\",\n                is_current as \"is_current!: i64\",\n                superseded_by as \"superseded_by: String\",\n                created_at as \"created_at!: chrono::DateTime<chrono::Utc>\"\n            FROM ai_silver_records\n            WHERE silver_id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "silver_id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "workspace_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "bronze_ref!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "chunk_index!: i64",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "total_chunks!: i64",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "token_count!: i64",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "content_hash!: String",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "byte_start!: i64",
+        "ordinal": 7,
+        "type_info": "Integer"
+      },
+      {
+        "name": "byte_end!: i64",
+        "ordinal": 8,
+        "type_info": "Integer"
+      },
+      {
+        "name": "line_start!: i64",
+        "ordinal": 9,
+        "type_info": "Integer"
+      },
+      {
+        "name": "line_end!: i64",
+        "ordinal": 10,
+        "type_info": "Integer"
+      },
+      {
+        "name": "chunk_artifact_path!: String",
+        "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "embedding_artifact_path!: String",
+        "ordinal": 12,
+        "type_info": "Text"
+      },
+      {
+        "name": "embedding_model_id!: String",
+        "ordinal": 13,
+        "type_info": "Text"
+      },
+      {
+        "name": "embedding_model_version!: String",
+        "ordinal": 14,
+        "type_info": "Text"
+      },
+      {
+        "name": "embedding_dimensions!: i64",
+        "ordinal": 15,
+        "type_info": "Integer"
+      },
+      {
+        "name": "embedding_compute_latency_ms!: i64",
+        "ordinal": 16,
+        "type_info": "Integer"
+      },
+      {
+        "name": "chunking_strategy!: String",
+        "ordinal": 17,
+        "type_info": "Text"
+      },
+      {
+        "name": "chunking_version!: String",
+        "ordinal": 18,
+        "type_info": "Text"
+      },
+      {
+        "name": "processing_pipeline_version!: String",
+        "ordinal": 19,
+        "type_info": "Text"
+      },
+      {
+        "name": "processed_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 20,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "processing_duration_ms!: i64",
+        "ordinal": 21,
+        "type_info": "Integer"
+      },
+      {
+        "name": "metadata_json!: String",
+        "ordinal": 22,
+        "type_info": "Text"
+      },
+      {
+        "name": "validation_status!: String",
+        "ordinal": 23,
+        "type_info": "Text"
+      },
+      {
+        "name": "validation_failed_checks_json!: String",
+        "ordinal": 24,
+        "type_info": "Text"
+      },
+      {
+        "name": "validated_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 25,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "validator_version!: String",
+        "ordinal": 26,
+        "type_info": "Text"
+      },
+      {
+        "name": "is_current!: i64",
+        "ordinal": 27,
+        "type_info": "Integer"
+      },
+      {
+        "name": "superseded_by: String",
+        "ordinal": 28,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 29,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "5741f7c645f8786259a5eafb3df0225f21e0825d87010b8fab2ddc14f8a23b0e"
+}

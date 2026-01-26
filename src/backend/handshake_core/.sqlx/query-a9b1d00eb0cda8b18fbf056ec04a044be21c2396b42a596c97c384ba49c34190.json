@@ -1,0 +1,110 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO ai_bronze_records (\n                bronze_id, workspace_id, content_hash, content_type, content_encoding, size_bytes,\n                original_filename, artifact_path, ingested_at, ingestion_source_type, ingestion_source_id,\n                ingestion_method, external_source_json, is_deleted, deleted_at, retention_policy\n            )\n            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,0,NULL,$14)\n            RETURNING\n                bronze_id as \"bronze_id!: String\",\n                workspace_id as \"workspace_id!: String\",\n                content_hash as \"content_hash!: String\",\n                content_type as \"content_type!: String\",\n                content_encoding as \"content_encoding!: String\",\n                size_bytes as \"size_bytes!: i64\",\n                original_filename as \"original_filename: String\",\n                artifact_path as \"artifact_path!: String\",\n                ingested_at as \"ingested_at!: chrono::DateTime<chrono::Utc>\",\n                ingestion_source_type as \"ingestion_source_type!: String\",\n                ingestion_source_id as \"ingestion_source_id: String\",\n                ingestion_method as \"ingestion_method!: String\",\n                external_source_json as \"external_source_json: String\",\n                is_deleted as \"is_deleted!: i64\",\n                deleted_at as \"deleted_at: chrono::DateTime<chrono::Utc>\",\n                retention_policy as \"retention_policy!: String\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "bronze_id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "workspace_id!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "content_hash!: String",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "content_type!: String",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "content_encoding!: String",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "size_bytes!: i64",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "original_filename: String",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "artifact_path!: String",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "ingested_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 8,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "ingestion_source_type!: String",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "ingestion_source_id: String",
+        "ordinal": 10,
+        "type_info": "Text"
+      },
+      {
+        "name": "ingestion_method!: String",
+        "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "external_source_json: String",
+        "ordinal": 12,
+        "type_info": "Text"
+      },
+      {
+        "name": "is_deleted!: i64",
+        "ordinal": 13,
+        "type_info": "Integer"
+      },
+      {
+        "name": "deleted_at: chrono::DateTime<chrono::Utc>",
+        "ordinal": 14,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "retention_policy!: String",
+        "ordinal": 15,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 14
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "a9b1d00eb0cda8b18fbf056ec04a044be21c2396b42a596c97c384ba49c34190"
+}

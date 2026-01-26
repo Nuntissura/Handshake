@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            UPDATE ai_silver_records\n            SET is_current = 0, superseded_by = $2\n            WHERE silver_id = $1\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "8bd192b5a9f89d1fb3a625cf7d8647adc9eb506c461768505e4127cbec458452"
+}

@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                current_default_model_id as \"current_default_model_id!: String\",\n                current_default_model_version as \"current_default_model_version!: String\",\n                updated_at as \"updated_at!: chrono::DateTime<chrono::Utc>\"\n            FROM ai_embedding_registry\n            WHERE id = 'global'\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "current_default_model_id!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "current_default_model_version!: String",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "updated_at!: chrono::DateTime<chrono::Utc>",
+        "ordinal": 2,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "660564921bf169d7355b724614f213f71f5aa77e46ca171df7ba1f125a233877"
+}

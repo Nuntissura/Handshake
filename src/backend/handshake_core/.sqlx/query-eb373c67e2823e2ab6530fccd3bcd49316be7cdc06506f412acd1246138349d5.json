@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO ai_embedding_models (\n                model_id, model_version, dimensions, max_input_tokens, content_types_json, status, introduced_at, compatible_with_json\n            )\n            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)\n            ON CONFLICT (model_id, model_version) DO UPDATE SET\n                dimensions = excluded.dimensions,\n                max_input_tokens = excluded.max_input_tokens,\n                content_types_json = excluded.content_types_json,\n                status = excluded.status,\n                compatible_with_json = excluded.compatible_with_json\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "eb373c67e2823e2ab6530fccd3bcd49316be7cdc06506f412acd1246138349d5"
+}

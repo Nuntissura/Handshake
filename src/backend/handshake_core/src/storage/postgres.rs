@@ -1,10 +1,11 @@
 use super::{
-    validate_job_contract, AccessMode, AiJob, AiJobListFilter, Block, BlockUpdate, Canvas,
-    CanvasEdge, CanvasGraph, CanvasNode, DefaultStorageGuard, Document, EntityRef, JobKind,
-    JobMetrics, JobState, JobStatusUpdate, MutationMetadata, NewAiJob, NewBlock, NewCanvas,
-    NewCanvasEdge, NewCanvasNode, NewDocument, NewNodeExecution, NewWorkspace, PlannedOperation,
-    SafetyMode, StorageError, StorageGuard, StorageResult, WorkflowNodeExecution, WorkflowRun,
-    Workspace, WriteContext,
+    validate_job_contract, AccessMode, AiJob, AiJobListFilter, Block, BlockUpdate, BronzeRecord,
+    Canvas, CanvasEdge, CanvasGraph, CanvasNode, DefaultStorageGuard, Document,
+    EmbeddingModelRecord, EmbeddingRegistry, EntityRef, JobKind, JobMetrics, JobState,
+    JobStatusUpdate, MutationMetadata, NewAiJob, NewBlock, NewBronzeRecord, NewCanvas,
+    NewCanvasEdge, NewCanvasNode, NewDocument, NewNodeExecution, NewSilverRecord, NewWorkspace,
+    PlannedOperation, SafetyMode, SilverRecord, StorageError, StorageGuard, StorageResult,
+    WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
 };
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc};
@@ -1048,6 +1049,773 @@ impl super::Database for PostgresDatabase {
             return Err(StorageError::NotFound("canvas"));
         }
         Ok(())
+    }
+
+    async fn create_ai_bronze_record(
+        &self,
+        ctx: &WriteContext,
+        record: NewBronzeRecord,
+    ) -> StorageResult<BronzeRecord> {
+        let now = Utc::now();
+        self.guard.validate_write(ctx, &record.bronze_id).await?;
+
+        let row = sqlx::query(
+            r#"
+            INSERT INTO ai_bronze_records (
+                bronze_id, workspace_id, content_hash, content_type, content_encoding, size_bytes,
+                original_filename, artifact_path, ingested_at, ingestion_source_type, ingestion_source_id,
+                ingestion_method, external_source_json, is_deleted, deleted_at, retention_policy
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,0,NULL,$14)
+            RETURNING
+                bronze_id,
+                workspace_id,
+                content_hash,
+                content_type,
+                content_encoding,
+                size_bytes,
+                original_filename,
+                artifact_path,
+                ingested_at,
+                ingestion_source_type,
+                ingestion_source_id,
+                ingestion_method,
+                external_source_json,
+                is_deleted,
+                deleted_at,
+                retention_policy
+            "#,
+        )
+        .bind(record.bronze_id)
+        .bind(record.workspace_id)
+        .bind(record.content_hash)
+        .bind(record.content_type)
+        .bind(record.content_encoding)
+        .bind(record.size_bytes as i64)
+        .bind(record.original_filename)
+        .bind(record.artifact_path)
+        .bind(now.naive_utc())
+        .bind(record.ingestion_source_type.as_str())
+        .bind(record.ingestion_source_id)
+        .bind(record.ingestion_method)
+        .bind(record.external_source_json)
+        .bind(record.retention_policy)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(BronzeRecord {
+            bronze_id: row.get("bronze_id"),
+            workspace_id: row.get("workspace_id"),
+            content_hash: row.get("content_hash"),
+            content_type: row.get("content_type"),
+            content_encoding: row.get("content_encoding"),
+            size_bytes: row.get::<i64, _>("size_bytes") as u64,
+            original_filename: row.get("original_filename"),
+            artifact_path: row.get("artifact_path"),
+            ingested_at: map_timestamp(&row, "ingested_at"),
+            ingestion_source_type: crate::ai_ready_data::records::IngestionSourceType::from_str(
+                row.get::<String, _>("ingestion_source_type").as_str(),
+            )
+            .map_err(|_| StorageError::Validation("invalid ingestion_source_type"))?,
+            ingestion_source_id: row.get("ingestion_source_id"),
+            ingestion_method: row.get("ingestion_method"),
+            external_source_json: row.get("external_source_json"),
+            is_deleted: map_i64_from_i32(&row, "is_deleted") != 0,
+            deleted_at: map_optional_timestamp(&row, "deleted_at"),
+            retention_policy: row.get("retention_policy"),
+        })
+    }
+
+    async fn get_ai_bronze_record(&self, bronze_id: &str) -> StorageResult<Option<BronzeRecord>> {
+        let row = sqlx::query(
+            r#"
+            SELECT
+                bronze_id,
+                workspace_id,
+                content_hash,
+                content_type,
+                content_encoding,
+                size_bytes,
+                original_filename,
+                artifact_path,
+                ingested_at,
+                ingestion_source_type,
+                ingestion_source_id,
+                ingestion_method,
+                external_source_json,
+                is_deleted,
+                deleted_at,
+                retention_policy
+            FROM ai_bronze_records
+            WHERE bronze_id = $1
+            "#,
+        )
+        .bind(bronze_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let Some(row) = row else {
+            return Ok(None);
+        };
+
+        Ok(Some(BronzeRecord {
+            bronze_id: row.get("bronze_id"),
+            workspace_id: row.get("workspace_id"),
+            content_hash: row.get("content_hash"),
+            content_type: row.get("content_type"),
+            content_encoding: row.get("content_encoding"),
+            size_bytes: row.get::<i64, _>("size_bytes") as u64,
+            original_filename: row.get("original_filename"),
+            artifact_path: row.get("artifact_path"),
+            ingested_at: map_timestamp(&row, "ingested_at"),
+            ingestion_source_type: crate::ai_ready_data::records::IngestionSourceType::from_str(
+                row.get::<String, _>("ingestion_source_type").as_str(),
+            )
+            .map_err(|_| StorageError::Validation("invalid ingestion_source_type"))?,
+            ingestion_source_id: row.get("ingestion_source_id"),
+            ingestion_method: row.get("ingestion_method"),
+            external_source_json: row.get("external_source_json"),
+            is_deleted: map_i64_from_i32(&row, "is_deleted") != 0,
+            deleted_at: map_optional_timestamp(&row, "deleted_at"),
+            retention_policy: row.get("retention_policy"),
+        }))
+    }
+
+    async fn list_ai_bronze_records(&self, workspace_id: &str) -> StorageResult<Vec<BronzeRecord>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                bronze_id,
+                workspace_id,
+                content_hash,
+                content_type,
+                content_encoding,
+                size_bytes,
+                original_filename,
+                artifact_path,
+                ingested_at,
+                ingestion_source_type,
+                ingestion_source_id,
+                ingestion_method,
+                external_source_json,
+                is_deleted,
+                deleted_at,
+                retention_policy
+            FROM ai_bronze_records
+            WHERE workspace_id = $1
+            ORDER BY ingested_at ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut out = Vec::with_capacity(rows.len());
+        for row in rows {
+            out.push(BronzeRecord {
+                bronze_id: row.get("bronze_id"),
+                workspace_id: row.get("workspace_id"),
+                content_hash: row.get("content_hash"),
+                content_type: row.get("content_type"),
+                content_encoding: row.get("content_encoding"),
+                size_bytes: row.get::<i64, _>("size_bytes") as u64,
+                original_filename: row.get("original_filename"),
+                artifact_path: row.get("artifact_path"),
+                ingested_at: map_timestamp(&row, "ingested_at"),
+                ingestion_source_type:
+                    crate::ai_ready_data::records::IngestionSourceType::from_str(
+                        row.get::<String, _>("ingestion_source_type").as_str(),
+                    )
+                    .map_err(|_| StorageError::Validation("invalid ingestion_source_type"))?,
+                ingestion_source_id: row.get("ingestion_source_id"),
+                ingestion_method: row.get("ingestion_method"),
+                external_source_json: row.get("external_source_json"),
+                is_deleted: map_i64_from_i32(&row, "is_deleted") != 0,
+                deleted_at: map_optional_timestamp(&row, "deleted_at"),
+                retention_policy: row.get("retention_policy"),
+            });
+        }
+
+        Ok(out)
+    }
+
+    async fn mark_ai_bronze_deleted(
+        &self,
+        ctx: &WriteContext,
+        bronze_id: &str,
+    ) -> StorageResult<()> {
+        self.guard.validate_write(ctx, bronze_id).await?;
+        let now = Utc::now();
+        let res = sqlx::query(
+            r#"
+            UPDATE ai_bronze_records
+            SET is_deleted = 1, deleted_at = $2
+            WHERE bronze_id = $1
+            "#,
+        )
+        .bind(bronze_id)
+        .bind(now.naive_utc())
+        .execute(&self.pool)
+        .await?;
+        if res.rows_affected() == 0 {
+            return Err(StorageError::NotFound("ai_bronze_record"));
+        }
+        Ok(())
+    }
+
+    async fn create_ai_silver_record(
+        &self,
+        ctx: &WriteContext,
+        record: NewSilverRecord,
+    ) -> StorageResult<SilverRecord> {
+        self.guard.validate_write(ctx, &record.silver_id).await?;
+        let now = Utc::now();
+
+        let row = sqlx::query(
+            r#"
+            INSERT INTO ai_silver_records (
+                silver_id, workspace_id, bronze_ref, chunk_index, total_chunks, token_count,
+                content_hash, byte_start, byte_end, line_start, line_end,
+                chunk_artifact_path, embedding_artifact_path, embedding_model_id, embedding_model_version,
+                embedding_dimensions, embedding_compute_latency_ms,
+                chunking_strategy, chunking_version, processing_pipeline_version,
+                processed_at, processing_duration_ms, metadata_json,
+                validation_status, validation_failed_checks_json, validated_at, validator_version,
+                is_current, superseded_by, created_at
+            )
+            VALUES (
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
+                $12,$13,$14,$15,$16,$17,
+                $18,$19,$20,
+                $21,$22,$23,
+                $24,$25,$26,$27,
+                1,NULL,$28
+            )
+            RETURNING
+                silver_id,
+                workspace_id,
+                bronze_ref,
+                chunk_index,
+                total_chunks,
+                token_count,
+                content_hash,
+                byte_start,
+                byte_end,
+                line_start,
+                line_end,
+                chunk_artifact_path,
+                embedding_artifact_path,
+                embedding_model_id,
+                embedding_model_version,
+                embedding_dimensions,
+                embedding_compute_latency_ms,
+                chunking_strategy,
+                chunking_version,
+                processing_pipeline_version,
+                processed_at,
+                processing_duration_ms,
+                metadata_json,
+                validation_status,
+                validation_failed_checks_json,
+                validated_at,
+                validator_version,
+                is_current,
+                superseded_by,
+                created_at
+            "#,
+        )
+        .bind(record.silver_id)
+        .bind(record.workspace_id)
+        .bind(record.bronze_ref)
+        .bind(record.chunk_index as i32)
+        .bind(record.total_chunks as i32)
+        .bind(record.token_count as i32)
+        .bind(record.content_hash)
+        .bind(record.byte_start as i64)
+        .bind(record.byte_end as i64)
+        .bind(record.line_start as i32)
+        .bind(record.line_end as i32)
+        .bind(record.chunk_artifact_path)
+        .bind(record.embedding_artifact_path)
+        .bind(record.embedding_model_id)
+        .bind(record.embedding_model_version)
+        .bind(record.embedding_dimensions as i32)
+        .bind(record.embedding_compute_latency_ms as i64)
+        .bind(record.chunking_strategy)
+        .bind(record.chunking_version)
+        .bind(record.processing_pipeline_version)
+        .bind(now.naive_utc())
+        .bind(record.processing_duration_ms as i64)
+        .bind(record.metadata_json)
+        .bind(record.validation_status.as_str())
+        .bind(record.validation_failed_checks_json)
+        .bind(now.naive_utc())
+        .bind(record.validator_version)
+        .bind(now.naive_utc())
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(SilverRecord {
+            silver_id: row.get("silver_id"),
+            workspace_id: row.get("workspace_id"),
+            bronze_ref: row.get("bronze_ref"),
+            chunk_index: map_i64_from_i32(&row, "chunk_index") as u32,
+            total_chunks: map_i64_from_i32(&row, "total_chunks") as u32,
+            token_count: map_i64_from_i32(&row, "token_count") as u32,
+            content_hash: row.get("content_hash"),
+            byte_start: row.get::<i64, _>("byte_start") as u64,
+            byte_end: row.get::<i64, _>("byte_end") as u64,
+            line_start: map_i64_from_i32(&row, "line_start") as u32,
+            line_end: map_i64_from_i32(&row, "line_end") as u32,
+            chunk_artifact_path: row.get("chunk_artifact_path"),
+            embedding_artifact_path: row.get("embedding_artifact_path"),
+            embedding_model_id: row.get("embedding_model_id"),
+            embedding_model_version: row.get("embedding_model_version"),
+            embedding_dimensions: map_i64_from_i32(&row, "embedding_dimensions") as u32,
+            embedding_compute_latency_ms: row.get::<i64, _>("embedding_compute_latency_ms") as u64,
+            chunking_strategy: row.get("chunking_strategy"),
+            chunking_version: row.get("chunking_version"),
+            processing_pipeline_version: row.get("processing_pipeline_version"),
+            processed_at: map_timestamp(&row, "processed_at"),
+            processing_duration_ms: row.get::<i64, _>("processing_duration_ms") as u64,
+            metadata_json: row.get("metadata_json"),
+            validation_status: crate::ai_ready_data::records::ValidationStatus::from_str(
+                row.get::<String, _>("validation_status").as_str(),
+            )
+            .map_err(|_| StorageError::Validation("invalid validation_status"))?,
+            validation_failed_checks_json: row.get("validation_failed_checks_json"),
+            validated_at: map_timestamp(&row, "validated_at"),
+            validator_version: row.get("validator_version"),
+            is_current: map_i64_from_i32(&row, "is_current") != 0,
+            superseded_by: row.get("superseded_by"),
+            created_at: map_timestamp(&row, "created_at"),
+        })
+    }
+
+    async fn get_ai_silver_record(&self, silver_id: &str) -> StorageResult<Option<SilverRecord>> {
+        let row = sqlx::query(
+            r#"
+            SELECT
+                silver_id,
+                workspace_id,
+                bronze_ref,
+                chunk_index,
+                total_chunks,
+                token_count,
+                content_hash,
+                byte_start,
+                byte_end,
+                line_start,
+                line_end,
+                chunk_artifact_path,
+                embedding_artifact_path,
+                embedding_model_id,
+                embedding_model_version,
+                embedding_dimensions,
+                embedding_compute_latency_ms,
+                chunking_strategy,
+                chunking_version,
+                processing_pipeline_version,
+                processed_at,
+                processing_duration_ms,
+                metadata_json,
+                validation_status,
+                validation_failed_checks_json,
+                validated_at,
+                validator_version,
+                is_current,
+                superseded_by,
+                created_at
+            FROM ai_silver_records
+            WHERE silver_id = $1
+            "#,
+        )
+        .bind(silver_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let Some(row) = row else {
+            return Ok(None);
+        };
+
+        Ok(Some(SilverRecord {
+            silver_id: row.get("silver_id"),
+            workspace_id: row.get("workspace_id"),
+            bronze_ref: row.get("bronze_ref"),
+            chunk_index: map_i64_from_i32(&row, "chunk_index") as u32,
+            total_chunks: map_i64_from_i32(&row, "total_chunks") as u32,
+            token_count: map_i64_from_i32(&row, "token_count") as u32,
+            content_hash: row.get("content_hash"),
+            byte_start: row.get::<i64, _>("byte_start") as u64,
+            byte_end: row.get::<i64, _>("byte_end") as u64,
+            line_start: map_i64_from_i32(&row, "line_start") as u32,
+            line_end: map_i64_from_i32(&row, "line_end") as u32,
+            chunk_artifact_path: row.get("chunk_artifact_path"),
+            embedding_artifact_path: row.get("embedding_artifact_path"),
+            embedding_model_id: row.get("embedding_model_id"),
+            embedding_model_version: row.get("embedding_model_version"),
+            embedding_dimensions: map_i64_from_i32(&row, "embedding_dimensions") as u32,
+            embedding_compute_latency_ms: row.get::<i64, _>("embedding_compute_latency_ms") as u64,
+            chunking_strategy: row.get("chunking_strategy"),
+            chunking_version: row.get("chunking_version"),
+            processing_pipeline_version: row.get("processing_pipeline_version"),
+            processed_at: map_timestamp(&row, "processed_at"),
+            processing_duration_ms: row.get::<i64, _>("processing_duration_ms") as u64,
+            metadata_json: row.get("metadata_json"),
+            validation_status: crate::ai_ready_data::records::ValidationStatus::from_str(
+                row.get::<String, _>("validation_status").as_str(),
+            )
+            .map_err(|_| StorageError::Validation("invalid validation_status"))?,
+            validation_failed_checks_json: row.get("validation_failed_checks_json"),
+            validated_at: map_timestamp(&row, "validated_at"),
+            validator_version: row.get("validator_version"),
+            is_current: map_i64_from_i32(&row, "is_current") != 0,
+            superseded_by: row.get("superseded_by"),
+            created_at: map_timestamp(&row, "created_at"),
+        }))
+    }
+
+    async fn list_ai_silver_records_by_bronze(
+        &self,
+        bronze_id: &str,
+    ) -> StorageResult<Vec<SilverRecord>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                silver_id,
+                workspace_id,
+                bronze_ref,
+                chunk_index,
+                total_chunks,
+                token_count,
+                content_hash,
+                byte_start,
+                byte_end,
+                line_start,
+                line_end,
+                chunk_artifact_path,
+                embedding_artifact_path,
+                embedding_model_id,
+                embedding_model_version,
+                embedding_dimensions,
+                embedding_compute_latency_ms,
+                chunking_strategy,
+                chunking_version,
+                processing_pipeline_version,
+                processed_at,
+                processing_duration_ms,
+                metadata_json,
+                validation_status,
+                validation_failed_checks_json,
+                validated_at,
+                validator_version,
+                is_current,
+                superseded_by,
+                created_at
+            FROM ai_silver_records
+            WHERE bronze_ref = $1
+            ORDER BY chunk_index ASC
+            "#,
+        )
+        .bind(bronze_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut out = Vec::with_capacity(rows.len());
+        for row in rows {
+            out.push(SilverRecord {
+                silver_id: row.get("silver_id"),
+                workspace_id: row.get("workspace_id"),
+                bronze_ref: row.get("bronze_ref"),
+                chunk_index: map_i64_from_i32(&row, "chunk_index") as u32,
+                total_chunks: map_i64_from_i32(&row, "total_chunks") as u32,
+                token_count: map_i64_from_i32(&row, "token_count") as u32,
+                content_hash: row.get("content_hash"),
+                byte_start: row.get::<i64, _>("byte_start") as u64,
+                byte_end: row.get::<i64, _>("byte_end") as u64,
+                line_start: map_i64_from_i32(&row, "line_start") as u32,
+                line_end: map_i64_from_i32(&row, "line_end") as u32,
+                chunk_artifact_path: row.get("chunk_artifact_path"),
+                embedding_artifact_path: row.get("embedding_artifact_path"),
+                embedding_model_id: row.get("embedding_model_id"),
+                embedding_model_version: row.get("embedding_model_version"),
+                embedding_dimensions: map_i64_from_i32(&row, "embedding_dimensions") as u32,
+                embedding_compute_latency_ms: row.get::<i64, _>("embedding_compute_latency_ms")
+                    as u64,
+                chunking_strategy: row.get("chunking_strategy"),
+                chunking_version: row.get("chunking_version"),
+                processing_pipeline_version: row.get("processing_pipeline_version"),
+                processed_at: map_timestamp(&row, "processed_at"),
+                processing_duration_ms: row.get::<i64, _>("processing_duration_ms") as u64,
+                metadata_json: row.get("metadata_json"),
+                validation_status: crate::ai_ready_data::records::ValidationStatus::from_str(
+                    row.get::<String, _>("validation_status").as_str(),
+                )
+                .map_err(|_| StorageError::Validation("invalid validation_status"))?,
+                validation_failed_checks_json: row.get("validation_failed_checks_json"),
+                validated_at: map_timestamp(&row, "validated_at"),
+                validator_version: row.get("validator_version"),
+                is_current: map_i64_from_i32(&row, "is_current") != 0,
+                superseded_by: row.get("superseded_by"),
+                created_at: map_timestamp(&row, "created_at"),
+            });
+        }
+
+        Ok(out)
+    }
+
+    async fn list_ai_silver_records(&self, workspace_id: &str) -> StorageResult<Vec<SilverRecord>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                silver_id,
+                workspace_id,
+                bronze_ref,
+                chunk_index,
+                total_chunks,
+                token_count,
+                content_hash,
+                byte_start,
+                byte_end,
+                line_start,
+                line_end,
+                chunk_artifact_path,
+                embedding_artifact_path,
+                embedding_model_id,
+                embedding_model_version,
+                embedding_dimensions,
+                embedding_compute_latency_ms,
+                chunking_strategy,
+                chunking_version,
+                processing_pipeline_version,
+                processed_at,
+                processing_duration_ms,
+                metadata_json,
+                validation_status,
+                validation_failed_checks_json,
+                validated_at,
+                validator_version,
+                is_current,
+                superseded_by,
+                created_at
+            FROM ai_silver_records
+            WHERE workspace_id = $1
+            ORDER BY created_at ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut out = Vec::with_capacity(rows.len());
+        for row in rows {
+            out.push(SilverRecord {
+                silver_id: row.get("silver_id"),
+                workspace_id: row.get("workspace_id"),
+                bronze_ref: row.get("bronze_ref"),
+                chunk_index: map_i64_from_i32(&row, "chunk_index") as u32,
+                total_chunks: map_i64_from_i32(&row, "total_chunks") as u32,
+                token_count: map_i64_from_i32(&row, "token_count") as u32,
+                content_hash: row.get("content_hash"),
+                byte_start: row.get::<i64, _>("byte_start") as u64,
+                byte_end: row.get::<i64, _>("byte_end") as u64,
+                line_start: map_i64_from_i32(&row, "line_start") as u32,
+                line_end: map_i64_from_i32(&row, "line_end") as u32,
+                chunk_artifact_path: row.get("chunk_artifact_path"),
+                embedding_artifact_path: row.get("embedding_artifact_path"),
+                embedding_model_id: row.get("embedding_model_id"),
+                embedding_model_version: row.get("embedding_model_version"),
+                embedding_dimensions: map_i64_from_i32(&row, "embedding_dimensions") as u32,
+                embedding_compute_latency_ms: row.get::<i64, _>("embedding_compute_latency_ms")
+                    as u64,
+                chunking_strategy: row.get("chunking_strategy"),
+                chunking_version: row.get("chunking_version"),
+                processing_pipeline_version: row.get("processing_pipeline_version"),
+                processed_at: map_timestamp(&row, "processed_at"),
+                processing_duration_ms: row.get::<i64, _>("processing_duration_ms") as u64,
+                metadata_json: row.get("metadata_json"),
+                validation_status: crate::ai_ready_data::records::ValidationStatus::from_str(
+                    row.get::<String, _>("validation_status").as_str(),
+                )
+                .map_err(|_| StorageError::Validation("invalid validation_status"))?,
+                validation_failed_checks_json: row.get("validation_failed_checks_json"),
+                validated_at: map_timestamp(&row, "validated_at"),
+                validator_version: row.get("validator_version"),
+                is_current: map_i64_from_i32(&row, "is_current") != 0,
+                superseded_by: row.get("superseded_by"),
+                created_at: map_timestamp(&row, "created_at"),
+            });
+        }
+
+        Ok(out)
+    }
+
+    async fn supersede_ai_silver_record(
+        &self,
+        ctx: &WriteContext,
+        superseded_silver_id: &str,
+        new_silver_id: &str,
+    ) -> StorageResult<()> {
+        self.guard.validate_write(ctx, superseded_silver_id).await?;
+        self.guard.validate_write(ctx, new_silver_id).await?;
+
+        let res = sqlx::query(
+            r#"
+            UPDATE ai_silver_records
+            SET is_current = 0, superseded_by = $2
+            WHERE silver_id = $1
+            "#,
+        )
+        .bind(superseded_silver_id)
+        .bind(new_silver_id)
+        .execute(&self.pool)
+        .await?;
+
+        if res.rows_affected() == 0 {
+            return Err(StorageError::NotFound("ai_silver_record"));
+        }
+
+        Ok(())
+    }
+
+    async fn upsert_ai_embedding_model(
+        &self,
+        ctx: &WriteContext,
+        model: EmbeddingModelRecord,
+    ) -> StorageResult<()> {
+        let key = format!("embedding_model:{}@{}", model.model_id, model.model_version);
+        self.guard.validate_write(ctx, &key).await?;
+
+        let content_types_json = serde_json::to_string(&model.content_types)?;
+        let compatible_with_json = serde_json::to_string(&model.compatible_with)?;
+
+        sqlx::query(
+            r#"
+            INSERT INTO ai_embedding_models (
+                model_id, model_version, dimensions, max_input_tokens, content_types_json, status, introduced_at, compatible_with_json
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+            ON CONFLICT (model_id, model_version) DO UPDATE SET
+                dimensions = excluded.dimensions,
+                max_input_tokens = excluded.max_input_tokens,
+                content_types_json = excluded.content_types_json,
+                status = excluded.status,
+                compatible_with_json = excluded.compatible_with_json
+            "#,
+        )
+        .bind(model.model_id)
+        .bind(model.model_version)
+        .bind(model.dimensions as i32)
+        .bind(model.max_input_tokens as i32)
+        .bind(content_types_json)
+        .bind(model.status.as_str())
+        .bind(model.introduced_at.naive_utc())
+        .bind(compatible_with_json)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn list_ai_embedding_models(&self) -> StorageResult<Vec<EmbeddingModelRecord>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                model_id,
+                model_version,
+                dimensions,
+                max_input_tokens,
+                content_types_json,
+                status,
+                introduced_at,
+                compatible_with_json
+            FROM ai_embedding_models
+            ORDER BY model_id ASC, model_version ASC
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut out = Vec::with_capacity(rows.len());
+        for row in rows {
+            let content_types_json: String = row.get("content_types_json");
+            let compatible_with_json: String = row.get("compatible_with_json");
+            let content_types: Vec<String> = serde_json::from_str(&content_types_json)?;
+            let compatible_with: Vec<String> = serde_json::from_str(&compatible_with_json)?;
+
+            out.push(EmbeddingModelRecord {
+                model_id: row.get("model_id"),
+                model_version: row.get("model_version"),
+                dimensions: map_i64_from_i32(&row, "dimensions") as u32,
+                max_input_tokens: map_i64_from_i32(&row, "max_input_tokens") as u32,
+                content_types,
+                status: crate::ai_ready_data::records::EmbeddingModelStatus::from_str(
+                    row.get::<String, _>("status").as_str(),
+                )
+                .map_err(|_| StorageError::Validation("invalid embedding model status"))?,
+                introduced_at: map_timestamp(&row, "introduced_at"),
+                compatible_with,
+            });
+        }
+
+        Ok(out)
+    }
+
+    async fn set_ai_embedding_default_model(
+        &self,
+        ctx: &WriteContext,
+        model_id: &str,
+        model_version: &str,
+    ) -> StorageResult<()> {
+        self.guard
+            .validate_write(ctx, "ai_embedding_registry")
+            .await?;
+        let now = Utc::now();
+
+        sqlx::query(
+            r#"
+            INSERT INTO ai_embedding_registry (
+                id, current_default_model_id, current_default_model_version, updated_at
+            )
+            VALUES ('global', $1, $2, $3)
+            ON CONFLICT (id) DO UPDATE SET
+                current_default_model_id = excluded.current_default_model_id,
+                current_default_model_version = excluded.current_default_model_version,
+                updated_at = excluded.updated_at
+            "#,
+        )
+        .bind(model_id)
+        .bind(model_version)
+        .bind(now.naive_utc())
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn get_ai_embedding_registry(&self) -> StorageResult<Option<EmbeddingRegistry>> {
+        let row = sqlx::query(
+            r#"
+            SELECT
+                current_default_model_id,
+                current_default_model_version,
+                updated_at
+            FROM ai_embedding_registry
+            WHERE id = 'global'
+            "#,
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let Some(row) = row else {
+            return Ok(None);
+        };
+
+        Ok(Some(EmbeddingRegistry {
+            current_default_model_id: row.get("current_default_model_id"),
+            current_default_model_version: row.get("current_default_model_version"),
+            updated_at: map_timestamp(&row, "updated_at"),
+        }))
     }
 
     async fn get_ai_job(&self, job_id: &str) -> StorageResult<AiJob> {
