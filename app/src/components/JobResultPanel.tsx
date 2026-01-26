@@ -1,43 +1,13 @@
-import { useEffect, useState } from "react";
-import { AiJob, getJob } from "../lib/api";
+import { AiJob } from "../lib/api";
 
 type Props = {
-  jobId: string;
+  job: AiJob | null;
+  loading?: boolean;
+  error?: string | null;
   onDismiss: () => void;
 };
 
-export function JobResultPanel({ jobId, onDismiss }: Props) {
-  const [job, setJob] = useState<AiJob | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    const fetchJob = async () => {
-      try {
-        setLoading(true);
-        const data = await getJob(jobId);
-        if (active) {
-          setJob(data);
-          setLoading(false);
-          // If still running/queued, poll again
-          if (data.state === "running" || data.state === "queued") {
-            setTimeout(fetchJob, 1000);
-          }
-        }
-      } catch (err) {
-        if (active) {
-          setError(err instanceof Error ? err.message : "Failed to load job");
-          setLoading(false);
-        }
-      }
-    };
-    fetchJob();
-    return () => {
-      active = false;
-    };
-  }, [jobId]);
-
+export function JobResultPanel({ job, loading = false, error = null, onDismiss }: Props) {
   if (!job) {
     return (
       <div className="job-result-panel">
@@ -45,7 +15,7 @@ export function JobResultPanel({ jobId, onDismiss }: Props) {
           <h3>AI Job</h3>
           <button onClick={onDismiss}>Close</button>
         </div>
-        <p className="muted">Loading job details...</p>
+        {error ? <p className="error">Error: {error}</p> : <p className="muted">Loading job details...</p>}
       </div>
     );
   }

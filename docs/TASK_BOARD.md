@@ -47,10 +47,13 @@ Entry format (recommended):
 
 A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `docs/task_packets/` (not a stub).
 
+- **[WP-1-Micro-Task-Executor-v1]** - [READY_FOR_DEV]
+- **[WP-1-AI-Ready-Data-Architecture-v1]** - [READY_FOR_DEV]
+- **[WP-1-AI-UX-Actions-v2]** - [READY_FOR_DEV]
 ## Stub Backlog (Not Activated)
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
-- **[WP-1-AI-Ready-Data-Architecture-v1]** - [STUB]
+- **[WP-1-Locus-Work-Tracking-System-Phase1-v1]** - [STUB]
 - **[WP-1-LocalFirst-Agentic-MCP-Posture-v1]** - [STUB]
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
 - **[WP-1-Global-Silent-Edit-Guard]** - [STUB]
@@ -63,7 +66,6 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 - **[WP-1-MEX-Observability-v2]** - [STUB]
 - **[WP-1-MEX-UX-Bridges-v2]** - [STUB]
 - **[WP-1-MCP-Skeleton-Gate-v2]** - [STUB]
-- **[WP-1-AI-UX-Actions-v2]** - [STUB]
 - **[WP-1-AI-UX-Rewrite-v2]** - [STUB]
 - **[WP-1-AI-UX-Summarize-Display-v2]** - [STUB]
 - **[WP-1-PDF-Pipeline-v2]** - [STUB]

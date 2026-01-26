@@ -6,7 +6,7 @@
 - WP_ID: WP-1-AI-Ready-Data-Architecture-v1
 - BASE_WP_ID: WP-1-AI-Ready-Data-Architecture
 - Created: 2026-01-22
-- SPEC_TARGET: docs/SPEC_CURRENT.md (currently Handshake_Master_Spec_v02.115.md)
+- SPEC_TARGET: docs/SPEC_CURRENT.md (currently Handshake_Master_Spec_v02.117.md)
 - ROADMAP_SOURCE: Handshake_Master_Spec_v02.115.md §7.6.3 Phase 1 -> Mechanical Track [ADD v02.115]
 - SPEC_ANCHOR_CANDIDATE:
   - Handshake_Master_Spec_v02.115.md §7.6.3 Phase 1 (AI-Ready Data Architecture - Phase 1)
