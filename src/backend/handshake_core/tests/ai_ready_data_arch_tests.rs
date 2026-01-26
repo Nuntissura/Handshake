@@ -9,7 +9,8 @@ use handshake_core::ai_ready_data::paths::ShadowWorkspacePaths;
 use handshake_core::ai_ready_data::pipeline::{AiReadyDataPipeline, DocIngestSpec};
 use handshake_core::ai_ready_data::retrieval::{HybridQuery, HybridRetrievalParams, HybridWeights};
 use handshake_core::flight_recorder::{
-    EventFilter, FlightRecorder, FlightRecorderEvent, FlightRecorderEventType, RecorderError,
+    EventFilter, FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+    RecorderError,
 };
 use handshake_core::storage::tests::sqlite_backend;
 use handshake_core::storage::{NewWorkspace, WriteContext};
@@ -326,4 +327,60 @@ async fn pipeline_hashes_query_in_retrieval_events() {
     assert!(!events
         .iter()
         .any(|event| json_contains_string(&event.payload, query_text)));
+}
+
+#[test]
+fn data_retrieval_executed_rejects_null_rerank_ms() {
+    let payload = serde_json::json!({
+        "type": "data_retrieval_executed",
+        "request_id": "req-1",
+        "query_hash": sha256_hex(b"query"),
+        "query_intent": "code_search",
+        "weights": {
+            "vector": 0.0,
+            "keyword": 1.0,
+            "graph": 0.0,
+        },
+        "results": {
+            "vector_candidates": 0,
+            "keyword_candidates": 1,
+            "after_fusion": 1,
+            "final_count": 1,
+        },
+        "latency": {
+            "embedding_ms": 0,
+            "vector_search_ms": 0,
+            "keyword_search_ms": 0,
+            "rerank_ms": serde_json::Value::Null,
+            "total_ms": 0,
+        },
+        "reranking_used": false,
+    });
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::DataRetrievalExecuted,
+        FlightRecorderActor::System,
+        Uuid::new_v4(),
+        payload,
+    );
+    assert!(event.validate().is_err());
+}
+
+#[test]
+fn data_relationship_extracted_rejects_null_confidence() {
+    let payload = serde_json::json!({
+        "type": "data_relationship_extracted",
+        "relationship_type": "depends_on",
+        "source_id": "src-1",
+        "target_id": "tgt-1",
+        "confidence": serde_json::Value::Null,
+    });
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::DataRelationshipExtracted,
+        FlightRecorderActor::System,
+        Uuid::new_v4(),
+        payload,
+    );
+    assert!(event.validate().is_err());
 }

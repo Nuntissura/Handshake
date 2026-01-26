@@ -3880,6 +3880,7 @@ NEED: {{what you need to unblock}}
                     .max(1);
                 query_plan.budgets.max_candidates_total = (mt_files.len() as u32).max(1);
                 query_plan.budgets.max_read_tokens = 500;
+                let request_id = query_plan.plan_id.to_string();
 
                 let mut retrieval_trace = RetrievalTrace::new(&query_plan);
                 retrieval_trace.route_taken.push(RouteTaken {
@@ -3898,6 +3899,7 @@ NEED: {{what you need to unblock}}
                 } else {
                     (file_contents_budget / (mt_files.len() as u32)).max(64)
                 };
+                let retrieval_start = std::time::Instant::now();
                 for path in &mt_files {
                     if file_contents_budget == 0 {
                         warnings.push("file_contents_budget exhausted".to_string());
@@ -3967,6 +3969,7 @@ NEED: {{what you need to unblock}}
                         }
                     }
                 }
+                let retrieval_elapsed_ms = retrieval_start.elapsed().as_millis() as u64;
 
                 // [§2.6.6.8.8.1] Validate plan + trace via ACE Runtime validators.
                 // Treat failures as blocking for this iteration (do not proceed with unvalidated context).
@@ -3980,6 +3983,42 @@ NEED: {{what you need to unblock}}
                     .await
                     .map_err(WorkflowError::SecurityViolation)?;
 
+                record_event_safely(
+                    state,
+                    FlightRecorderEvent::new(
+                        FlightRecorderEventType::DataRetrievalExecuted,
+                        FlightRecorderActor::System,
+                        trace_id,
+                        json!({
+                            "type": "data_retrieval_executed",
+                            "request_id": request_id.clone(),
+                            "query_hash": retrieval_trace.normalized_query_hash.clone(),
+                            "query_intent": "code_search",
+                            "weights": {
+                                "vector": 0.0,
+                                "keyword": 1.0,
+                                "graph": 0.0,
+                            },
+                            "results": {
+                                "vector_candidates": 0,
+                                "keyword_candidates": retrieval_trace.candidates.len(),
+                                "after_fusion": retrieval_trace.selected.len(),
+                                "final_count": retrieval_trace.selected.len(),
+                            },
+                            "latency": {
+                                "embedding_ms": 0,
+                                "vector_search_ms": 0,
+                                "keyword_search_ms": retrieval_elapsed_ms,
+                                "total_ms": retrieval_elapsed_ms,
+                            },
+                            "reranking_used": false,
+                        }),
+                    )
+                    .with_job_id(job.job_id.to_string())
+                    .with_workflow_id(workflow_run_id.to_string()),
+                )
+                .await;
+
                 let mut files_section = String::new();
                 for file in &selected_files {
                     files_section.push_str(&format!(
@@ -3987,6 +4026,28 @@ NEED: {{what you need to unblock}}
                         file.path, file.content
                     ));
                 }
+
+                let context_size_tokens: u64 = selected_files
+                    .iter()
+                    .map(|file| file.token_estimate as u64)
+                    .sum();
+                record_event_safely(
+                    state,
+                    FlightRecorderEvent::new(
+                        FlightRecorderEventType::DataContextAssembled,
+                        FlightRecorderActor::System,
+                        trace_id,
+                        json!({
+                            "type": "data_context_assembled",
+                            "request_id": request_id.clone(),
+                            "selected_chunks": retrieval_trace.spans.len(),
+                            "context_size_tokens": context_size_tokens,
+                        }),
+                    )
+                    .with_job_id(job.job_id.to_string())
+                    .with_workflow_id(workflow_run_id.to_string()),
+                )
+                .await;
 
                 let previous_output_section = if iteration > 1 {
                     let (prev, _) =

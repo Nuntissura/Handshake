@@ -1051,7 +1051,7 @@ fn validate_data_retrieval_executed_payload(payload: &Value) -> Result<(), Recor
     require_number(latency, "vector_search_ms")?;
     require_number(latency, "keyword_search_ms")?;
     if latency.contains_key("rerank_ms") {
-        require_number_or_null(latency, "rerank_ms")?;
+        require_number(latency, "rerank_ms")?;
     }
     require_number(latency, "total_ms")?;
     require_bool(map, "reranking_used")?;
@@ -1213,7 +1213,7 @@ fn validate_data_relationship_extracted_payload(payload: &Value) -> Result<(), R
         }
     }
     if map.contains_key("confidence") {
-        require_number_or_null(map, "confidence")?;
+        require_number(map, "confidence")?;
     }
     Ok(())
 }
