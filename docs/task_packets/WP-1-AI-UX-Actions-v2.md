@@ -8,9 +8,9 @@
 - REQUESTOR: User
 - AGENT_ID: codex-cli
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed> (assigned: Coder-B)
+- CODER_MODEL: <unclaimed>
 - CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** In Progress
+- **Status:** Ready for Dev
 - RISK_TIER: MEDIUM
 - USER_SIGNATURE: ilja260120260054
 
