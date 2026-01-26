@@ -442,3 +442,62 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### 2026-01-26 - VALIDATION REPORT - WP-1-AI-UX-Actions-v2
+Verdict: PASS
+
+Scope Inputs:
+- Reviewed commit: 7bb2f4aa72387489ec835aa23e5545e68dcaaaf7
+- Task Packet: docs/task_packets/WP-1-AI-UX-Actions-v2.md (Status: In Progress)
+- Spec: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.117.md
+  - Anchors: 2.5.10.3.1; 2.6.6.2.8.1; 11.5.2
+  - Invariant: DocsAiJobProfile required for doc_summarize job_inputs (Handshake_Master_Spec_v02.117.md:8831)
+
+Files Checked:
+- Handshake_Master_Spec_v02.117.md
+- docs/SPEC_CURRENT.md
+- docs/TASK_BOARD.md
+- docs/task_packets/WP-1-AI-UX-Actions-v2.md
+- docs/refinements/WP-1-AI-UX-Actions-v2.md
+- app/src/App.tsx
+- app/src/lib/api.ts
+- app/src/state/aiJobs.ts
+- app/src/components/AiJobsDrawer.tsx
+- app/src/components/CommandPalette.tsx
+- app/src/components/DocumentView.tsx
+- app/src/components/DocumentView.test.tsx
+- app/src/components/JobResultPanel.tsx
+
+Findings (satisfied evidence):
+- Command Palette entrypoint + shortcuts implemented:
+  - Hotkeys: app/src/components/DocumentView.tsx:83, app/src/components/DocumentView.tsx:88
+  - Button entrypoint: app/src/components/DocumentView.tsx:200
+- Summarize action creates job via API helper (no component-level fetches introduced):
+  - Job creation call: app/src/components/DocumentView.tsx:289
+  - API supports job_inputs: app/src/lib/api.ts:501, app/src/lib/api.ts:513
+- DocsAiJobProfile minimum fields included in job_inputs (spec invariant at Handshake_Master_Spec_v02.117.md:8831):
+  - app/src/components/DocumentView.tsx:282
+  - Test coverage asserts required fields: app/src/components/DocumentView.test.tsx:91, app/src/components/DocumentView.test.tsx:116
+- “Summarize opens a palette so instructions can be tweaked” implemented as optional allowlisted instructions field:
+  - UI input: app/src/components/DocumentView.tsx:311
+  - Field inclusion when non-empty: app/src/components/DocumentView.tsx:287
+- Global AI Jobs tracker UI treats backend as queue/source-of-truth and persists across reloads:
+  - Persistence + polling: app/src/state/aiJobs.ts:20, app/src/state/aiJobs.ts:116, app/src/state/aiJobs.ts:124
+  - Drawer uses tracker and starts polling: app/src/components/AiJobsDrawer.tsx:34
+  - Drawer mounted globally: app/src/App.tsx:195
+- Scope respected: no changes under src/backend/** in reviewed commit (frontend-only + docs packet updates).
+
+Tests (from packet evidence under ## EVIDENCE):
+- just pre-work WP-1-AI-UX-Actions-v2: PASS
+- pnpm -C app run lint: PASS
+- pnpm -C app test: PASS
+- just post-work WP-1-AI-UX-Actions-v2: PASS (expected warnings for new files not present in HEAD during the pre-commit phase)
+- just validate: recorded failure due to cargo deny running at repo root without a root Cargo.toml; reason captured in the packet as required by the TEST_PLAN.
+
+REASON FOR PASS:
+1) DONE_MEANS is satisfied with file:line evidence: Command Palette invocation (Ctrl/Cmd+K primary, Ctrl/Cmd+Shift+P fallback), doc_summarize allowlisted action, createJob call with DocsAiJobProfile-shaped job_inputs, and a global persisted job tracker UI.
+2) WP stayed within scope (frontend-only), preserving parallel-backend workstream isolation.
+
+Risks & Suggested Actions (non-blocking):
+- Polling is per-job; if many jobs are queued/running concurrently, request volume can grow (future improvement: batch or list-based polling).
+- Consider suppressing global hotkeys when focus is in text inputs/contenteditable if accidental palette opens become a UX issue.
