@@ -19,13 +19,16 @@
 - Rule: Task packet creation is blocked until refinement is complete and signed.
 
 ## SCOPE
-- What: Add a Command Palette-style UI entrypoint for explicit AI actions in the Document editor, starting with `doc_summarize` ("Summarize document") implemented via the existing `POST /api/jobs` contract (through `app/src/lib/api.ts`), and surface the resulting job state/output in the UI.
+- What: Add a Command Palette-style UI entrypoint for explicit AI actions in the Document editor, starting with `doc_summarize` ("Summarize document") implemented via the existing `POST /api/jobs` contract (through `app/src/lib/api.ts`), with job_inputs that include a `DocsAiJobProfile`, and surface the resulting job state/output in a global job tracker UI.
 - Why: Establish a stable, model-agnostic UX surface for invoking AI jobs (explicit actions) without coupling to the upcoming local/cloud/tool orchestration refactor; enables fast iteration on AI UX while preserving capability/logging/trace correlation paths.
 - IN_SCOPE_PATHS:
+  - app/src/App.tsx
   - app/src/components/DocumentView.tsx
   - app/src/components/TiptapEditor.tsx
   - app/src/components/JobResultPanel.tsx
+  - app/src/components/AiJobsDrawer.tsx (new; name may vary)
   - app/src/lib/api.ts
+  - app/src/state/aiJobs.ts (new; name may vary)
   - app/src/components/DocumentView.test.tsx (update/add as needed)
   - app/src/components/CommandPalette*.tsx (new; name may vary)
   - app/src/App.css (if styling needed)
@@ -64,9 +67,9 @@ just post-work WP-1-AI-UX-Actions-v2
 ```
 
 ### DONE_MEANS
-- A Command Palette UI can be opened from the Document editor surface (keyboard shortcut and/or button), and it lists "Summarize document" as an action.
-- Triggering "Summarize document" creates an AI job using `job_kind="doc_summarize"` and the existing protocol id used by the app (do not introduce new protocol ids in this WP), targeting the current document id.
-- The UI surfaces job progress and displays the job output via `JobResultPanel` (or a successor) once completed, and handles error states without crashing.
+- A Command Palette UI can be opened from the Document editor surface (button + `Ctrl/Cmd+K` primary and `Ctrl/Cmd+Shift+P` fallback), and it lists "Summarize document" as an action.
+- Triggering "Summarize document" creates an AI job using `job_kind="doc_summarize"` and the existing protocol id used by the app (do not introduce new protocol ids in this WP), targeting the current document id and sending `job_inputs` that include a valid `DocsAiJobProfile` per Master Spec 2.6.6.6.4 (min: `{ doc_id, selection: null, layer_scope: "Document" }`).
+- The app provides a global AI Jobs tracker UI (drawer/tray) that persists across document switches and displays queued/running/completed/failed jobs; selecting a job shows output via `JobResultPanel` (or a successor) and handles error states without crashing.
 - No direct `fetch` is introduced in components; API calls route through `app/src/lib/api.ts` helpers.
 - `just pre-work WP-1-AI-UX-Actions-v2` and `just post-work WP-1-AI-UX-Actions-v2` pass on the WP branch.
 
@@ -125,8 +128,35 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+- `app/src/state/aiJobs.ts` (new; name may vary): global in-memory job tracker store.
+  - Data model (session-only): `{ jobId, jobKind, docId, docTitle?, createdAt, protocolId }[]`.
+  - API: `addJob(entry)`, `removeJob(jobId)`, `subscribe(listener)`, `getSnapshot()`.
+  - Polling: only poll jobs whose backend `state` is `queued`/`running` (optionally only while the drawer is open).
+- `app/src/components/AiJobsDrawer.tsx` (new; name may vary): global AI Jobs tracker UI (drawer/tray).
+  - Persists across document switches (mounted at app shell, not inside `DocumentView`).
+  - Shows list of tracked jobs with live state; selecting a job renders `JobResultPanel jobId=...` for output/details.
+- `app/src/components/CommandPalette.tsx` (new): generic Command Palette modal.
+  - Props: `open: boolean`, `title?: string`, `actions: CommandPaletteAction[]`, `onAction(actionId)`, `onClose()`.
+  - Keyboard: `Enter` runs highlighted action, `ArrowUp/Down` navigates, `Escape` closes; filtering input filters by `label` + `keywords`.
+  - Accessibility: `role="dialog"`, `aria-modal="true"`, focus input on open, restore focus on close.
+- `CommandPaletteAction` (new type; colocated with component):
+  - `{ id: string; label: string; description?: string; keywords?: string[]; disabled?: boolean }`
+- `app/src/components/DocumentView.tsx` (update): "Summarize" becomes "AI Actions" (or keeps label) but opens the Command Palette.
+  - Action allowlist (local const): only `doc_summarize` for this WP (no user-provided job_kind strings).
+  - Hotkeys: support both `Ctrl/Cmd+K` (primary) and `Ctrl/Cmd+Shift+P` (fallback) to open palette while a document is selected.
+  - On action run: call `createJob("doc_summarize", "doc-proto-001", documentId, jobInputs)` immediately (backend is the queue) and add returned `job_id` to the global tracker store.
+  - `jobInputs` MUST include a valid `DocsAiJobProfile` per Master Spec 2.6.6.6.4 / invariant at Handshake_Master_Spec_v02.117.md:8831 (min: `{ doc_id: documentId, selection: null, layer_scope: "Document" }`).
+  - If adding a user-tweakable instructions field: keep it explicit/allowlisted (single string), and include it in `job_inputs` as additive metadata (backend may ignore today; still captured for traceability).
+- `app/src/lib/api.ts` (update): extend `createJob` to accept optional `job_inputs` while keeping the current API-layer pattern (no `fetch` in components).
+  - When sending `job_inputs`, still send `doc_id` in the request body so the backend can attach `entity_refs` for workspace/document.
+- `app/src/components/DocumentView.test.tsx` (update/add): verify palette opens (hotkey/button) and triggers `createJob` with current `documentId` and `job_inputs` containing the `DocsAiJobProfile` fields.
 - Open questions:
+- Should the global jobs drawer poll only while open (lower load) or always poll queued/running (better background freshness)?
+- Should the global job tracker list be session-only (in-memory) or persisted to localStorage for continuity across app reload?
 - Notes:
+- Frontend-only: do not touch `src/backend/**`.
+- Security/guardrail: palette uses a fixed allowlist of actions; no freeform `job_kind` strings from user input.
+- UI state hygiene: global job tracker is not cleared on document switch; palette state should reset on document switch to avoid stale action context.
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)
