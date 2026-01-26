@@ -807,6 +807,30 @@
       "branch": "feat/WP-1-AI-Ready-Data-Architecture-v1",
       "worktree_dir": "../wt-WP-1-AI-Ready-Data-Architecture-v1",
       "timestamp": "2026-01-25T22:25:56.140Z"
+    },
+    {
+      "wpId": "WP-1-AI-UX-Actions-v2",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-AI-UX-Actions-v2.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.117.md",
+      "spec_target_sha1": "315a015dcfa3362f5aa9593f483a1d155d007323",
+      "timestamp": "2026-01-25T23:43:27.372Z",
+      "turn_token": "1769384607373"
+    },
+    {
+      "wpId": "WP-1-AI-UX-Actions-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja260120260054",
+      "timestamp": "2026-01-26T00:01:14.536Z",
+      "refinement_path": "docs/refinements/WP-1-AI-UX-Actions-v2.md"
+    },
+    {
+      "wpId": "WP-1-AI-UX-Actions-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-B",
+      "branch": "feat/WP-1-AI-UX-Actions-v2",
+      "worktree_dir": "../wt-WP-1-AI-UX-Actions-v2",
+      "timestamp": "2026-01-26T00:01:27.432Z"
     }
   ]
 }

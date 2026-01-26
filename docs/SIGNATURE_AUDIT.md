@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja260120260054 | Orchestrator | 2026-01-26 00:54 | Task packet creation: WP-1-AI-UX-Actions-v2 | v02.117 | Approved after Technical Refinement (see docs/refinements/WP-1-AI-UX-Actions-v2.md ). |
 | ilja250120262250 | Orchestrator | 2026-01-25 22:50 | Task packet creation: WP-1-AI-Ready-Data-Architecture-v1 | v02.117 | Approved after Technical Refinement (see docs/refinements/WP-1-AI-Ready-Data-Architecture-v1.md ). |
 | ilja250120261843 | Orchestrator | 2026-01-25 18:43 | Spec Enrichment v02.117 (complete FR-EVT-DATA schemas in \u00A711.5.5) | v02.117 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.117`. Added missing schemas for FR-EVT-DATA-003/005/006/007/008/010/013/014. |
 | ilja230120262310 | Orchestrator | 2026-01-23 23:10 | Task packet creation: WP-1-Dev-Experience-ADRs-v1 | v02.115 | Approved after Technical Refinement (see docs/refinements/WP-1-Dev-Experience-ADRs-v1.md ). |
