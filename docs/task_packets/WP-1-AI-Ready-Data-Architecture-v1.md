@@ -107,7 +107,7 @@ git revert <commit-sha>
   - docs/START_HERE.md
   - docs/SPEC_CURRENT.md
   - docs/ARCHITECTURE.md
-  - Handshake_Master_Spec_v02.117.md
+  - Handshake_Master_Spec_v02.118.md
   - docs/refinements/WP-1-AI-Ready-Data-Architecture-v1.md
   - docs/task_packets/stubs/WP-1-AI-Ready-Data-Architecture-v1.md
   - src/backend/handshake_core/src/flight_recorder/mod.rs
@@ -147,8 +147,43 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
-- Open questions:
+  - `handshake_core::ai_ready_data` module tree (new):
+    - `paths` (Shadow Workspace root + Bronze/Silver/Gold path mapping)
+    - `chunking` (Tree-sitter AST-aware chunking for `code/*`; header-recursive for docs)
+    - `models` (Bronze/Silver/Embedding record types + deterministic IDs)
+    - `embeddings` (model registry/versioning + compatibility + re-embed triggers)
+    - `retrieval` (Hybrid query/config + adapter hooks for existing ACE routing)
+    - `quality` (QualitySLO thresholds + deterministic checks + event emission helpers)
+    - `storage` (SQLite metadata persistence + artifact path references)
+  - Shadow Workspace root mapping (Phase 1, normative; Spec v02.118):
+    - Root: `data/workspaces/{workspace_id}/workspace/`
+    - Bronze: `workspace/raw/` (immutable raw artifacts)
+    - Silver: `workspace/derived/` (chunks/embeddings/metadata artifacts)
+    - Gold: `workspace/indexes/`, `workspace/graph/` (index + graph artifacts)
+  - Deterministic chunking + IDs (Spec 2.3.14.6):
+    - Strategy IDs: `code_ast_treesitter_v1`, `document_header_recursive_v1`
+    - Chunk IDs derived from stable inputs (bronze_ref + strategy_id + chunk_index + byte/line range + content_hash)
+    - Chunk metadata MUST include file path + location (line/byte ranges) for traceability
+  - Tree-sitter requirement (Spec v02.118 hard requirement):
+    - Use Tree-sitter parsing (dedicated parser) to compute syntactic boundaries for `code/*` (no heuristic-only fallback for conformance)
+    - Initial grammars: Rust, Python, TypeScript/JavaScript, Go, SQL (expandable)
+  - Embedding model registry (Spec 2.3.14.7 + 2.3.14.7.4):
+    - Persist `(model_id, model_version, dimensions, is_default)` and track model used per Silver record
+    - Enforce compatibility: query embeddings and index embeddings MUST use the same model/version
+  - Hybrid retrieval config/interfaces (Spec 2.3.14.8.2-2.3.14.8.5):
+    - `VectorIndexConfig` (HNSW params), `KeywordIndexConfig` (BM25 params), `HybridQuery` weights + candidate counts
+    - Integrate with existing routing: `StoreKind::ShadowWsLexical` / `StoreKind::ShadowWsVector` without breaking flows
+  - Flight Recorder DATA events (Spec 11.5.5; FR-EVT-DATA-001..015):
+    - Add `FlightRecorderEventType` variants for DATA and strict payload validators (reject malformed events; reject unexpected keys)
+    - Privacy: DATA schemas MUST log `query_hash` only (use `QueryPlan::compute_normalized_query_hash()` / `RetrievalTrace.normalized_query_hash`); never log plaintext queries or embedding vectors
+- Storage + migrations:
+    - New SQLite tables for Bronze/Silver/model registry/embedding metadata (no vectors in telemetry; vectors never logged)
+    - Filesystem artifacts stored under the Shadow Workspace root; DB stores stable IDs + hashes + artifact refs
+- Locked decisions (implementation):
+  - Tree-sitter coverage (Phase 1 minimum): Rust + TypeScript/JavaScript; other languages best-effort. Parse failure: emit `data_validation_failed` and do not do heuristic chunking as a fallback (lexical retrieval may continue).
+  - Gold indexing format: file-based artifacts under `workspace/indexes/` and `workspace/graph/`; no DB-embedded vector index work in this WP unless explicitly required by the specific spec section being implemented.
 - Notes:
+  - Spec v02.118 deltas to enforce in code: Tree-sitter parser requirement, Shadow Workspace root mapping under `data/workspaces/{workspace_id}/workspace/`, and FR-EVT-DATA-015 logs `query_hash` (not plaintext).
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)
