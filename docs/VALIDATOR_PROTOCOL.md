@@ -83,6 +83,7 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 
 ### Bootstrap Status Sync (Coder starts WP)
 1. Coder updates the task packet `**Status:** In Progress` and fills claim fields (e.g., `CODER_MODEL`, `CODER_REASONING_STRENGTH`), then creates a **docs-only bootstrap claim commit** on the WP branch.
+   - **BOOTSTRAP/SKELETON separation (HARD):** the bootstrap turn/commit MUST NOT include any SKELETON content. Keep `## SKELETON` as placeholders until the Operator explicitly authorizes the SKELETON phase in a later turn (per [CX-GATE-001]).
 2. Coder sends the Validator: `WP_ID`, bootstrap commit SHA, and branch/worktree name.
 3. Validator verifies the bootstrap commit is **docs-only**:
    - Allowed: `docs/task_packets/{WP_ID}.md` (and other governance docs only if explicitly requested).
@@ -104,6 +105,7 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 0) BOOTSTRAP Verification
 - Confirm Coder outputted BOOTSTRAP block per CODER_PROTOCOL [CX-577, CX-622]; if missing/incomplete, halt and request completion before proceeding.
 - Verify BOOTSTRAP fields match task packet (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP).
+- Enforce [CX-GATE-001]: if the Coder included SKELETON content in the BOOTSTRAP turn, treat it as invalid phase merging; require a new, separate SKELETON turn/commit after explicit Operator authorization.
 
 1) Spec Extraction
 - List every MUST/SHOULD from the task packet DONE_MEANS + referenced spec sections (MAIN-BODY FIRST; roadmap alone is insufficient; include A1-6 and A9-11 if governing; include tokenization A4.6, storage portability A2.3.12, determinism/repro/error-code conventions when applicable).
