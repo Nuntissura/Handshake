@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-01-25
+**Updated:** 2026-01-26
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja260120260102 | Validator | 2026-01-26 01:02 | Spec Enrichment v02.118 (Tree-sitter parser requirement + Shadow Workspace root mapping + FR-EVT-DATA-015 query_hash privacy clarification) | v02.118 | Approved in-chat: "approved, treesitter now + out of scope work + enrich master spec...". |
 | ilja250120262250 | Orchestrator | 2026-01-25 22:50 | Task packet creation: WP-1-AI-Ready-Data-Architecture-v1 | v02.117 | Approved after Technical Refinement (see docs/refinements/WP-1-AI-Ready-Data-Architecture-v1.md ). |
 | ilja250120261843 | Orchestrator | 2026-01-25 18:43 | Spec Enrichment v02.117 (complete FR-EVT-DATA schemas in \u00A711.5.5) | v02.117 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.117`. Added missing schemas for FR-EVT-DATA-003/005/006/007/008/010/013/014. |
 | ilja230120262310 | Orchestrator | 2026-01-23 23:10 | Task packet creation: WP-1-Dev-Experience-ADRs-v1 | v02.115 | Approved after Technical Refinement (see docs/refinements/WP-1-Dev-Experience-ADRs-v1.md ). |

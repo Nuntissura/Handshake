@@ -22,6 +22,11 @@
 - What: Implement Phase 1 AI-Ready Data Architecture baseline per Master Spec Section 2.3.14: Bronze/Silver/Gold storage mapping, content-aware chunking, embedding model registry/versioning, hybrid retrieval config/interfaces, quality SLO metrics, and Flight Recorder DATA event schemas + validation enforcement (FR-EVT-DATA-001..015).
 - Why: Prevent a "shadow retrieval pipeline" by making retrieval artifacts reproducible, auditable, and visible in Flight Recorder; unblock Phase 1 roadmap item "AI-Ready Data Architecture" and downstream RAG features.
 - IN_SCOPE_PATHS:
+  - Handshake_Master_Spec_v02.118.md
+  - docs/SPEC_CURRENT.md
+  - docs/SIGNATURE_AUDIT.md
+  - docs/refinements/WP-1-AI-Ready-Data-Architecture-v1.md
+  - docs/task_packets/WP-1-AI-Ready-Data-Architecture-v1.md
   - src/backend/handshake_core/src/ai_ready_data/
   - src/backend/handshake_core/src/ace/mod.rs
   - src/backend/handshake_core/src/flight_recorder/mod.rs
@@ -36,11 +41,17 @@
 - OUT_OF_SCOPE:
   - Any Phase 2+ ingestion expansion (Docling pipelines, pack builders, cloud bundle sharing).
   - Any UI work that is not strictly required to view existing Flight Recorder events in Operator Consoles.
-  - Any spec edits (Master Spec is already enriched and locked at v02.117 for this WP).
+  - Any spec edits beyond the approved v02.118 enrichment (Tree-sitter chunking + Shadow Workspace root mapping + FR-EVT-DATA-015 query hashing).
 
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- NONE
+- Waiver ID: WP-1-AI-Ready-Data-Architecture-v1-WAIVER-001
+  - Date: 2026-01-26
+  - Policy: CX-573F
+  - Scope: Allow Master Spec enrichment (v02.118) + add Tree-sitter parsing deps (Cargo.toml/Cargo.lock) to satisfy AST-aware chunking determinism requirements.
+  - Justification: Master Spec requires AST-aware code chunking at syntactic boundaries; Tree-sitter is required to make boundaries deterministic and avoid heuristic-only splits.
+  - Granted By: Operator (ilja) USER_SIGNATURE ilja260120260102
+  - Expiry: On WP closure (validation complete).
 
 ## QUALITY_GATE
 ### TEST_PLAN
@@ -170,7 +181,7 @@ git revert <commit-sha>
 - **Artifacts**:
 - **Timestamp**:
 - **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.117.md
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.118.md
 - **Notes**:
 
 ## STATUS_HANDOFF
