@@ -2,9 +2,9 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.118.md**
+**Handshake_Master_Spec_v02.119.md**
 
-(Updated: 2026-01-26 - v02.118 Tree-sitter parser requirement + Shadow Workspace root mapping + DATA-015 query_hash privacy clarification)
+(Updated: 2026-01-26 - v02.119 non-normative AI UX notes (Command Palette shortcuts + global jobs UI model; subject to change))
 
 ---
 

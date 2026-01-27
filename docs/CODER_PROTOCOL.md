@@ -29,6 +29,8 @@ Required verification (run at session start and whenever context is unclear):
 - `git status -sb`
 - `git worktree list`
 
+**Tooling note (prevents "wrong files in wrong worktree"):** if you're using an agent/automation where each command runs in an isolated shell, directory changes (`cd` / `Set-Location`) may not persist between commands. Always re-assert the WP worktree context by using an explicit workdir or `git -C "<worktree_dir>" ...` style commands.
+
 **Chat requirement (MANDATORY):** paste the literal command outputs into chat as a `HARD_GATE_OUTPUT` block and immediately follow with `HARD_GATE_REASON` + `HARD_GATE_NEXT_ACTIONS` blocks so Operator/Validator can verify context and the stop/proceed decision without follow-ups.
 
 Template:
@@ -141,6 +143,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 - Before coding, run `just pre-work WP-{ID}` to confirm the manifest template is present; do not strip fields.
 - After coding, `just post-work WP-{ID}` is the deterministic gate: it enforces manifest completeness, SHA1s, window bounds, and required gates (anchors_present, rails/structure untouched, line_delta match, canonical path, concurrency check). Fill the manifest with real values before running.
 - IMPORTANT: `just post-work` validates the staged/working diff. Run it immediately before the handoff commit; running it after committing a clean tree will fail ("No files changed").
+- Handoff order (avoid the "clean tree" trap): run tests/hygiene -> stage ONLY in-scope files -> run `just post-work WP-{ID}` (PASS) -> commit immediately -> notify Validator with the PASS output and the commit SHA.
 - To fill `Pre-SHA1` / `Post-SHA1` deterministically, stage your changes and run `just cor701-sha path/to/file` (use the recommended values it prints).
 - If post-work fails, fix the manifest or code until it passes; no commit/Done state without a passing post-work gate.
 
@@ -179,7 +182,7 @@ If you are explicitly instructed to update the board, ensure these 5 fixed secti
 ### [CX-GATE-001] Binary Phase Gate (HARD INVARIANT)
 You MUST follow this exact sequence for every Work Packet. Combining these phases into a single turn is an AUTO-FAIL.
 1. **BOOTSTRAP Phase**: Output the BOOTSTRAP block and verify scope.
-2. **SKELETON Phase**: Output proposed Traits, Structs, or SQL Headers. **STOP and wait for "SKELETON APPROVED".** After approval: update the task packet SKELETON section and create a docs-only checkpoint commit (before starting implementation changes).
+2. **SKELETON Phase**: Update the task packet `## SKELETON` section with proposed Traits/Structs/SQL headers, output the SKELETON block, and create a docs-only skeleton checkpoint commit. **STOP and wait for "SKELETON APPROVED".** If changes are requested, revise `## SKELETON` and repeat the docs-only checkpoint commit before implementation.
 3. **IMPLEMENTATION Phase**: Write logic only AFTER approval.
 4. **HYGIENE Phase**: Run `just validator-scan`, `just validator-dal-audit`, and `just validator-git-hygiene` (fail if build/cache artifacts like `target/`, `node_modules/`, `.gemini/` are tracked).
 5. **EVALUATION Phase**: Run the full TEST_PLAN and required hygiene commands, self-review, and prepare results for handoff (keep task packet free of validation logs).
@@ -413,6 +416,7 @@ Goal: make "work started" visible to the Operator on `main` **without** blocking
 - Set task packet `**Status:** In Progress`
 - Fill `CODER_MODEL` and `CODER_REASONING_STRENGTH`
 - Update `## STATUS_HANDOFF` with a 1-line "Started" note
+- Do NOT add any SKELETON content yet (keep `## SKELETON` placeholders until the separate SKELETON phase turn/commit per [CX-GATE-001]).
 
 **Then create a docs-only bootstrap commit on your WP branch:**
 ```bash

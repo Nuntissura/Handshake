@@ -53,7 +53,9 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
   - **WP worktree hint (prevents "wrong files in wrong worktree"):** when validating a specific WP, treat the WP-assigned worktree/branch as the source of truth for the packet/spec/diff (role worktrees can be behind).
     - Locate the WP worktree/branch via `docs/ORCHESTRATOR_GATES.json` `PREPARE` (`branch`, `worktree_dir`) and confirm it exists in `git worktree list`.
     - Re-run key read-only checks inside the WP worktree (example): `git -C "<worktree_dir>" rev-parse --abbrev-ref HEAD` and `git -C "<worktree_dir>" status -sb`.
+    - **Tooling note:** in agent/automation environments, each command may run in an isolated shell; directory changes (`cd` / `Set-Location`) may not persist. Prefer explicit workdir or `git -C "<worktree_dir>" ...` so you cannot accidentally read/validate the wrong tree.
     - Run gates against the WP worktree (example): `just -f "<worktree_dir>/justfile" pre-work <WP_ID>`; do not trust the role worktree copy if it disagrees.
+    - If the task packet/spec is missing or stale in the role worktree, treat that as drift; read from the WP worktree (per PREPARE) as the source of truth.
     - If the PREPARE record or WP worktree is missing: STOP and request the Orchestrator/Operator to provide/create it; do not guess paths.
 - [CX-GATE-UX-001] GATE VISIBILITY OUTPUT (MANDATORY): when you run any gate command (including: `just gate-check`, `just pre-work`, `just post-work`, `just validator-gate-*`, or any deterministic checker that blocks progress), you MUST in the SAME TURN paste `GATE_OUTPUT [CX-GATE-UX-001]` and then provide `GATE_STATUS [CX-GATE-UX-001]` + `NEXT_COMMANDS [CX-GATE-UX-001]` (2-6 copy/paste commands max; immediate unblock/proceed only, per Codex [CX-513]).
 - Inputs required: task packet (STATUS not empty), docs/SPEC_CURRENT.md, applicable spec slices, current diff.
@@ -83,7 +85,8 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 
 ### Bootstrap Status Sync (Coder starts WP)
 1. Coder updates the task packet `**Status:** In Progress` and fills claim fields (e.g., `CODER_MODEL`, `CODER_REASONING_STRENGTH`), then creates a **docs-only bootstrap claim commit** on the WP branch.
-2. Coder sends the Validator: `WP_ID`, bootstrap commit SHA, and branch/worktree name.
+   - **BOOTSTRAP/SKELETON separation (HARD):** the bootstrap turn/commit MUST NOT include any SKELETON content. Keep `## SKELETON` as placeholders until the Operator explicitly authorizes the SKELETON phase in a later turn (per [CX-GATE-001]).
+2. Coder sends the Validator: `WP_ID`, bootstrap commit SHA, `branch`, `worktree_dir`, and current HEAD short SHA (and Coder ID if more than one Coder is active).
 3. Validator verifies the bootstrap commit is **docs-only**:
    - Allowed: `docs/task_packets/{WP_ID}.md` (and other governance docs only if explicitly requested).
    - Forbidden: any changes under `src/`, `app/`, `tests/`, or `scripts/` (treat as FAIL; do not merge).
@@ -99,11 +102,13 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - VALIDATION block MUST contain the deterministic manifest: target_file, start/end lines, line_delta, pre/post SHA1, gates checklist (anchors_present, window/rails bounds, canonical path, line_delta, manifest_written, concurrency check), lint results, artifacts, timestamp, operator.
 - Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
 - Require evidence that `just post-work WP-{ID}` ran and passed (this gate enforces the manifest + SHA1/gate checks). If absent or failing, verdict = FAIL until fixed.
+- Post-work sequencing note (echo from CODER_PROTOCOL): `just post-work` validates the staged diff for the NEXT commit; it is expected to fail on a clean tree after committing. Require the Coder's PASS `GATE_OUTPUT` and the commit SHA created immediately after that PASS.
 
 ## Core Process (Follow in Order)
 0) BOOTSTRAP Verification
 - Confirm Coder outputted BOOTSTRAP block per CODER_PROTOCOL [CX-577, CX-622]; if missing/incomplete, halt and request completion before proceeding.
 - Verify BOOTSTRAP fields match task packet (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP).
+- Enforce [CX-GATE-001]: if the Coder included SKELETON content in the BOOTSTRAP turn, treat it as invalid phase merging; require a new, separate SKELETON turn/commit after explicit Operator authorization.
 
 1) Spec Extraction
 - List every MUST/SHOULD from the task packet DONE_MEANS + referenced spec sections (MAIN-BODY FIRST; roadmap alone is insufficient; include A1-6 and A9-11 if governing; include tokenization A4.6, storage portability A2.3.12, determinism/repro/error-code conventions when applicable).
