@@ -855,6 +855,30 @@
       "branch": "feat/WP-1-Global-Silent-Edit-Guard",
       "worktree_dir": "../wt-WP-1-Global-Silent-Edit-Guard",
       "timestamp": "2026-01-28T15:54:27.241Z"
+    },
+    {
+      "wpId": "WP-1-Response-Behavior-ANS-001",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Response-Behavior-ANS-001.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.121.md",
+      "spec_target_sha1": "598f2e56a463e1ddf056d9f89249c5697b68c971",
+      "timestamp": "2026-01-28T19:47:09.297Z",
+      "turn_token": "1769629629297"
+    },
+    {
+      "wpId": "WP-1-Response-Behavior-ANS-001",
+      "type": "SIGNATURE",
+      "signature": "ilja280120261944",
+      "timestamp": "2026-01-28T19:59:18.758Z",
+      "refinement_path": "docs/refinements/WP-1-Response-Behavior-ANS-001.md"
+    },
+    {
+      "wpId": "WP-1-Response-Behavior-ANS-001",
+      "type": "PREPARE",
+      "coder_id": "Coder-B",
+      "branch": "feat/WP-1-Response-Behavior-ANS-001",
+      "worktree_dir": "../wt-WP-1-Response-Behavior-ANS-001",
+      "timestamp": "2026-01-28T19:59:27.976Z"
     }
   ]
 }

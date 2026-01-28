@@ -105,7 +105,7 @@ Format:
 | WP-1-Photo-Studio | docs/task_packets/stubs/WP-1-Photo-Studio-v2.md | Stub Backlog (Not Activated): WP-1-Photo-Studio-v2 | stub (remediation); supersedes: WP-1-Photo-Studio |
 | WP-1-RAG-Iterative | docs/task_packets/stubs/WP-1-RAG-Iterative-v2.md | Stub Backlog (Not Activated): WP-1-RAG-Iterative-v2 | stub (remediation); supersedes: WP-1-RAG-Iterative |
 | WP-1-Role-Mailbox | docs/task_packets/WP-1-Role-Mailbox-v1.md | Ready for Dev: WP-1-Role-Mailbox-v1 | active=WP-1-Role-Mailbox-v1; activated from stub docs/task_packets/stubs/WP-1-Role-Mailbox-v1.md |
-| WP-1-Response-Behavior-ANS-001 | docs/task_packets/stubs/WP-1-Response-Behavior-ANS-001.md | Stub Backlog (Not Activated): WP-1-Response-Behavior-ANS-001 | stub |
+| WP-1-Response-Behavior-ANS-001 | docs/task_packets/WP-1-Response-Behavior-ANS-001.md | Ready for Dev: WP-1-Response-Behavior-ANS-001 | active=WP-1-Response-Behavior-ANS-001; activated from stub docs/task_packets/stubs/WP-1-Response-Behavior-ANS-001.md |
 | WP-1-Security-Gates | docs/task_packets/WP-1-Security-Gates-v3.md | Done: WP-1-Security-Gates-v3 | active=WP-1-Security-Gates-v3; supersedes: WP-1-Security-Gates, WP-1-Security-Gates-v2 |
 | WP-1-Semantic-Catalog | docs/task_packets/stubs/WP-1-Semantic-Catalog-v2.md | Stub Backlog (Not Activated): WP-1-Semantic-Catalog-v2 | stub (remediation); supersedes: WP-1-Semantic-Catalog |
 | WP-1-Spec-Enrichment-LLM-Core | docs/task_packets/WP-1-Spec-Enrichment-LLM-Core-v1.md | Done: WP-1-Spec-Enrichment-LLM-Core-v1 | active=WP-1-Spec-Enrichment-LLM-Core-v1 |

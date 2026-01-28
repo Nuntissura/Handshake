@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja280120261944 | Orchestrator | 2026-01-28 19:44 | Task packet creation: WP-1-Response-Behavior-ANS-001 | v02.121 | Approved after Technical Refinement (see docs/refinements/WP-1-Response-Behavior-ANS-001.md ). |
 | ilja260120261908 | Orchestrator | 2026-01-26 19:08 | Spec Enrichment v02.121 (ANS-001: frontend session chat log + UI toggles + side-panel timeline + FR-EVT-RUNTIME-CHAT-101..103 + EXEC-060 compliance logging) | v02.121 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.121`. |
 | ilja280120261626 | Orchestrator | 2026-01-28 16:26 | Task packet creation: WP-1-Global-Silent-Edit-Guard | v02.120 | Approved after Technical Refinement (see docs/refinements/WP-1-Global-Silent-Edit-Guard.md ). |
 | ilja260120260248 | Validator | 2026-01-26 02:48 | Spec update: v02.119 non-normative AI UX notes (Command Palette shortcuts + global jobs UI model) | v02.119 | Non-normative; expected to evolve during UX/GUI iteration. |
