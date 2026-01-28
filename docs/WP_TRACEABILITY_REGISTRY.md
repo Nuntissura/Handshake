@@ -118,3 +118,8 @@ Format:
 | WP-1-Validator-Error-Codes | docs/task_packets/WP-1-Validator-Error-Codes-v1.md | Done: WP-1-Validator-Error-Codes-v1 | active=WP-1-Validator-Error-Codes-v1 |
 | WP-1-Workflow-Engine | docs/task_packets/WP-1-Workflow-Engine-v4.md | Done: WP-1-Workflow-Engine-v4 | active=WP-1-Workflow-Engine-v4; supersedes: WP-1-Workflow-Engine-v2, WP-1-Workflow-Engine-v3 |
 | WP-1-Workspace-Bundle | docs/task_packets/stubs/WP-1-Workspace-Bundle-v2.md | Stub Backlog (Not Activated): WP-1-Workspace-Bundle-v2 | stub (remediation); supersedes: WP-1-Workspace-Bundle |
+| WP-1-Model-Swap-Protocol | docs/task_packets/stubs/WP-1-Model-Swap-Protocol-v1.md | Stub Backlog (Not Activated): WP-1-Model-Swap-Protocol-v1 | stub (spec v02.120); new roadmap item |
+| WP-1-Work-Profiles | docs/task_packets/stubs/WP-1-Work-Profiles-v1.md | Stub Backlog (Not Activated): WP-1-Work-Profiles-v1 | stub (spec v02.120); new roadmap item |
+| WP-1-Cloud-Escalation-Consent | docs/task_packets/stubs/WP-1-Cloud-Escalation-Consent-v1.md | Stub Backlog (Not Activated): WP-1-Cloud-Escalation-Consent-v1 | stub (spec v02.120); new roadmap item |
+| WP-1-Inbox-Role-Mailbox-Alignment | docs/task_packets/stubs/WP-1-Inbox-Role-Mailbox-Alignment-v1.md | Stub Backlog (Not Activated): WP-1-Inbox-Role-Mailbox-Alignment-v1 | stub (spec v02.120); new roadmap item |
+| WP-1-Autonomous-Governance-Protocol | docs/task_packets/stubs/WP-1-Autonomous-Governance-Protocol-v1.md | Stub Backlog (Not Activated): WP-1-Autonomous-Governance-Protocol-v1 | stub (spec v02.120); new roadmap item |
