@@ -464,6 +464,7 @@ cat docs/RUNBOOK_DEBUG.md
 BOOTSTRAP [CX-577, CX-622]
 ========================================
 WP_ID: WP-{phase}-{name}
+TASK_PACKET: docs/task_packets/WP-{phase}-{name}.md
 RISK_TIER: {LOW|MEDIUM|HIGH}
 TASK_TYPE: {DEBUG|FEATURE|REFACTOR|HYGIENE}
 
@@ -499,6 +500,44 @@ RISK_MAP:
 - ✅ Understand the scope
 - ✅ Know what files to change
 - ✅ Have a validation plan
+
+---
+
+### Step 5.5: Output SKELETON Block + Skeleton Checkpoint Commit ✋ STOP
+
+**Purpose:** Make the proposed interfaces/types/contracts explicit and get approval before implementation (per [CX-GATE-001], [CX-625]).
+
+**In your task packet:**
+- Fill `## SKELETON` with proposed Traits/Structs/Interfaces and/or SQL headers (no logic).
+- Include any open questions/assumptions.
+
+**In chat, output:**
+
+```
+SKELETON [CX-625, CX-GATE-001]
+========================================
+WP_ID: WP-{phase}-{name}
+TASK_PACKET: docs/task_packets/WP-{phase}-{name}.md
+
+PROPOSED_CONTRACTS:
+- {Trait/Struct/Interface/SQL header proposal 1}
+- {Trait/Struct/Interface/SQL header proposal 2}
+
+OPEN_QUESTIONS:
+- {question 1, if any}
+
+STOP and wait for "SKELETON APPROVED".
+========================================
+```
+
+**Then create a docs-only skeleton checkpoint commit on your WP branch:**
+```bash
+git status -sb
+git add docs/task_packets/WP-{ID}.md
+git commit -m "docs: skeleton checkpoint [WP-{ID}]"
+```
+
+Notify the Validator with the commit hash and **STOP**. Do not implement any logic until the Validator issues "SKELETON APPROVED".
 
 ---
 
