@@ -8,9 +8,9 @@
 - REQUESTOR: ilja
 - AGENT_ID: orchestrator2
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: MEDIUM
 - USER_SIGNATURE: ilja280120261944
 
@@ -151,9 +151,9 @@ just post-work WP-1-Response-Behavior-ANS-001
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress (bootstrap claim)
+- What changed in this update: Claimed CODER_MODEL/CODER_REASONING_STRENGTH and set Status to In Progress.
+- Next step / handoff hint: Proceed to SKELETON phase for ANS-001 logging (Tauri commands + TS types) and request SKELETON APPROVED before implementation.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
