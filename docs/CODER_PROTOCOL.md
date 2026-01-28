@@ -80,7 +80,7 @@ GATE_OUTPUT [CX-GATE-UX-001]
 2) State where you are in the protocol and what happens next:
 ```text
 GATE_STATUS [CX-GATE-UX-001]
-- PHASE: BOOTSTRAP|SKELETON|IMPLEMENTATION|HYGIENE|HANDOFF
+- PHASE: BOOTSTRAP|SKELETON|IMPLEMENTATION|HYGIENE|POST_WORK|HANDOFF
 - GATE_RAN: <exact command>
 - RESULT: PASS|FAIL|BLOCKED
 - WHY: <1-2 sentences>
@@ -90,6 +90,20 @@ NEXT_COMMANDS [CX-GATE-UX-001]
 ```
 
 Rule: keep `NEXT_COMMANDS` limited to the immediate next step(s) (required to proceed or to unblock) to stay compatible with Codex [CX-513].
+
+## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
+
+In every Coder message (not only gate runs), include a short lifecycle marker so the Validator can see where you are in the WP lifecycle at a glance.
+
+Template:
+```text
+LIFECYCLE [CX-LIFE-001]
+- WP_ID: <WP-...>
+- STAGE: BOOTSTRAP|SKELETON|IMPLEMENTATION|HYGIENE|POST_WORK|HANDOFF
+- NEXT: <next stage or STOP>
+```
+
+Rule: when a gate command is run and `GATE_STATUS` is posted, `PHASE` MUST match `STAGE` (same token).
 
 ---
 

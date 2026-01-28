@@ -58,6 +58,20 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
     - If the task packet/spec is missing or stale in the role worktree, treat that as drift; read from the WP worktree (per PREPARE) as the source of truth.
     - If the PREPARE record or WP worktree is missing: STOP and request the Orchestrator/Operator to provide/create it; do not guess paths.
 - [CX-GATE-UX-001] GATE VISIBILITY OUTPUT (MANDATORY): when you run any gate command (including: `just gate-check`, `just pre-work`, `just post-work`, `just validator-gate-*`, or any deterministic checker that blocks progress), you MUST in the SAME TURN paste `GATE_OUTPUT [CX-GATE-UX-001]` and then provide `GATE_STATUS [CX-GATE-UX-001]` + `NEXT_COMMANDS [CX-GATE-UX-001]` (2-6 copy/paste commands max; immediate unblock/proceed only, per Codex [CX-513]).
+  - Template:
+    ```text
+    GATE_OUTPUT [CX-GATE-UX-001]
+    <verbatim output>
+
+    GATE_STATUS [CX-GATE-UX-001]
+    - PHASE: BOOTSTRAP|SKELETON|VALIDATION|STATUS_SYNC|MERGE
+    - GATE_RAN: <exact command>
+    - RESULT: PASS|FAIL|BLOCKED
+    - WHY: <1-2 sentences>
+
+    NEXT_COMMANDS [CX-GATE-UX-001]
+    - <2-6 copy/paste commands max>
+    ```
 - Inputs required: task packet (STATUS not empty), docs/SPEC_CURRENT.md, applicable spec slices, current diff.
 - WP Traceability check (blocking when variants exist): confirm the task packet under review is the **Active Packet** for its Base WP per `docs/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).
 - Variant Lineage Audit (blocking for `-v{N}` packets) [CX-580E]: validate that the Base WP and ALL prior packet versions are a correct translation of Roadmap pointer → Master Spec Main Body (SPEC_TARGET) → repo code. Do NOT validate only “what changed in v{N}”. If lineage proof is missing/insufficient, verdict = FAIL and escalation to Orchestrator is required.
@@ -78,6 +92,20 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
   - Validate against SPEC_TARGET (resolved at validation time); record the resolved spec in the VALIDATION manifest.
   - USER_SIGNATURE present and unchanged.
   Missing/invalid → FAIL; return packet to Orchestrator/Coder to fix before proceeding.
+
+## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
+
+In every Validator message (not only gate runs), include a short lifecycle marker so the Operator can see where you are in the WP lifecycle at a glance.
+
+Template:
+```text
+LIFECYCLE [CX-LIFE-001]
+- WP_ID: <WP-...>
+- STAGE: BOOTSTRAP|SKELETON|VALIDATION|STATUS_SYNC|MERGE
+- NEXT: <next stage or STOP>
+```
+
+Rule: when a gate command is run and `GATE_STATUS` is posted, `PHASE` MUST match `STAGE` (same token).
 
 ## Status Sync Commits (Operator Visibility, Multi-Branch)
 
