@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja280120261626 | Orchestrator | 2026-01-28 16:26 | Task packet creation: WP-1-Global-Silent-Edit-Guard | v02.120 | Approved after Technical Refinement (see docs/refinements/WP-1-Global-Silent-Edit-Guard.md ). |
 | ilja260120260248 | Validator | 2026-01-26 02:48 | Spec update: v02.119 non-normative AI UX notes (Command Palette shortcuts + global jobs UI model) | v02.119 | Non-normative; expected to evolve during UX/GUI iteration. |
 | ilja260120260102 | Validator | 2026-01-26 01:02 | Spec Enrichment v02.118 (Tree-sitter parser requirement + Shadow Workspace root mapping + FR-EVT-DATA-015 query_hash privacy clarification) | v02.118 | Approved in-chat: "approved, treesitter now + out of scope work + enrich master spec...". |
 | ilja260120260054 | Orchestrator | 2026-01-26 00:54 | Task packet creation: WP-1-AI-UX-Actions-v2 | v02.117 | Approved after Technical Refinement (see docs/refinements/WP-1-AI-UX-Actions-v2.md ). |
