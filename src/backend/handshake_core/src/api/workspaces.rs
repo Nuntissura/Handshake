@@ -7,6 +7,9 @@ use axum::{
 use uuid::Uuid;
 
 use crate::{
+    diagnostics::{
+        DiagnosticInput, DiagnosticSeverity, DiagnosticSource, DiagnosticSurface, LinkConfidence,
+    },
     models::{
         BlockResponse, CreateDocumentRequest, CreateWorkspaceRequest, DocumentResponse,
         DocumentWithBlocksResponse, ErrorResponse, UpsertBlocksRequest, WorkspaceResponse,
@@ -38,6 +41,14 @@ const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
 const HSK_HEADER_JOB_ID: &str = "x-hsk-job-id";
 const HSK_HEADER_WORKFLOW_ID: &str = "x-hsk-workflow-id";
 
+fn is_silent_edit(err: &StorageError) -> bool {
+    matches!(
+        err,
+        StorageError::Guard("HSK-403-SILENT-EDIT")
+            | StorageError::Validation("HSK-403-SILENT-EDIT")
+    )
+}
+
 fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
     headers
         .get(name)
@@ -62,6 +73,101 @@ fn parse_actor_kind(raw: Option<&str>) -> Result<WriteActorKind, StorageError> {
 
 fn parse_uuid(raw: Option<&str>) -> Option<Uuid> {
     raw.and_then(|value| Uuid::parse_str(value.trim()).ok())
+}
+
+async fn record_silent_edit_diagnostic(
+    state: &AppState,
+    headers: &HeaderMap,
+    wsid_hint: Option<&str>,
+    ctx_hint: Option<&WriteContext>,
+    err: &StorageError,
+    route_tag: &'static str,
+) {
+    if !is_silent_edit(err) {
+        return;
+    }
+
+    let ctx_job_id = ctx_hint.and_then(|ctx| ctx.job_id);
+    let header_job_id = parse_uuid(header_str(headers, HSK_HEADER_JOB_ID));
+    let job_id = ctx_job_id.or(header_job_id).map(|id| id.to_string());
+
+    let ctx_workflow_id = ctx_hint.and_then(|ctx| ctx.workflow_id);
+    let header_workflow_id = parse_uuid(header_str(headers, HSK_HEADER_WORKFLOW_ID));
+    let workflow_id = ctx_workflow_id.or(header_workflow_id);
+
+    let missing_context = ctx_hint.is_some_and(|ctx| {
+        ctx.actor_kind == WriteActorKind::Ai && (ctx.job_id.is_none() || ctx.workflow_id.is_none())
+    });
+
+    let failure_mode_tag = if missing_context {
+        "silent_edit:missing_context"
+    } else {
+        "silent_edit:context_invalid"
+    };
+
+    let message = if missing_context {
+        "AI write rejected by StorageGuard: missing required job/workflow context."
+    } else {
+        "AI write rejected by StorageGuard: job/workflow context invalid."
+    };
+
+    let mut tags = vec![
+        "hsk:guard".to_string(),
+        "hsk:silent_edit".to_string(),
+        failure_mode_tag.to_string(),
+        format!("route:{}", route_tag),
+    ];
+    if let Some(workflow_id) = workflow_id {
+        tags.push(format!("workflow_id:{}", workflow_id));
+    }
+
+    let input = DiagnosticInput {
+        title: "No Silent Edits: StorageGuard blocked AI write".to_string(),
+        message: message.to_string(),
+        severity: DiagnosticSeverity::Error,
+        source: DiagnosticSource::Engine,
+        surface: DiagnosticSurface::System,
+        tool: Some("storage_guard".to_string()),
+        code: Some("HSK-403-SILENT-EDIT".to_string()),
+        tags: Some(tags),
+        wsid: wsid_hint.map(str::to_string),
+        job_id,
+        model_id: None,
+        actor: None,
+        capability_id: None,
+        policy_decision_id: None,
+        locations: None,
+        evidence_refs: None,
+        link_confidence: LinkConfidence::Unlinked,
+        status: None,
+        count: None,
+        first_seen: None,
+        last_seen: None,
+        timestamp: None,
+        updated_at: None,
+    };
+
+    let diagnostic = match input.into_diagnostic() {
+        Ok(diagnostic) => diagnostic,
+        Err(error) => {
+            tracing::error!(
+                target: "handshake_core",
+                route = route_tag,
+                error = %error,
+                "failed to build silent-edit diagnostic"
+            );
+            return;
+        }
+    };
+
+    if let Err(error) = state.diagnostics.record_diagnostic(diagnostic).await {
+        tracing::error!(
+            target: "handshake_core",
+            route = route_tag,
+            error = %error,
+            "failed to record silent-edit diagnostic"
+        );
+    }
 }
 
 async fn write_context_from_headers(
@@ -108,10 +214,15 @@ async fn create_workspace(
     headers: HeaderMap,
     Json(payload): Json<CreateWorkspaceRequest>,
 ) -> Result<(StatusCode, Json<WorkspaceResponse>), (StatusCode, Json<ErrorResponse>)> {
-    let ctx = write_context_from_headers(&state, &headers)
-        .await
-        .map_err(map_storage_error)?;
-    let workspace = state
+    let ctx = match write_context_from_headers(&state, &headers).await {
+        Ok(ctx) => ctx,
+        Err(err) => {
+            record_silent_edit_diagnostic(&state, &headers, None, None, &err, "/workspaces").await;
+            return Err(map_storage_error(err));
+        }
+    };
+
+    let workspace = match state
         .storage
         .create_workspace(
             &ctx,
@@ -120,7 +231,14 @@ async fn create_workspace(
             },
         )
         .await
-        .map_err(map_storage_error)?;
+    {
+        Ok(workspace) => workspace,
+        Err(err) => {
+            record_silent_edit_diagnostic(&state, &headers, None, Some(&ctx), &err, "/workspaces")
+                .await;
+            return Err(map_storage_error(err));
+        }
+    };
 
     tracing::info!(target: "handshake_core", route = "/workspaces", status = "created", workspace_id = %workspace.id, "workspace created");
 
@@ -164,14 +282,34 @@ async fn delete_workspace(
     Path(workspace_id): Path<String>,
     headers: HeaderMap,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let ctx = write_context_from_headers(&state, &headers)
-        .await
-        .map_err(map_storage_error)?;
-    state
-        .storage
-        .delete_workspace(&ctx, &workspace_id)
-        .await
-        .map_err(map_storage_error)?;
+    let ctx = match write_context_from_headers(&state, &headers).await {
+        Ok(ctx) => ctx,
+        Err(err) => {
+            record_silent_edit_diagnostic(
+                &state,
+                &headers,
+                Some(&workspace_id),
+                None,
+                &err,
+                "/workspaces/:workspace_id",
+            )
+            .await;
+            return Err(map_storage_error(err));
+        }
+    };
+
+    if let Err(err) = state.storage.delete_workspace(&ctx, &workspace_id).await {
+        record_silent_edit_diagnostic(
+            &state,
+            &headers,
+            Some(&workspace_id),
+            Some(&ctx),
+            &err,
+            "/workspaces/:workspace_id",
+        )
+        .await;
+        return Err(map_storage_error(err));
+    }
 
     tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id", status = "deleted", workspace_id = %workspace_id, "workspace deleted");
 
@@ -185,11 +323,23 @@ async fn create_document(
     Json(payload): Json<CreateDocumentRequest>,
 ) -> Result<(StatusCode, Json<DocumentResponse>), (StatusCode, Json<ErrorResponse>)> {
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = write_context_from_headers(&state, &headers)
-        .await
-        .map_err(map_storage_error)?;
+    let ctx = match write_context_from_headers(&state, &headers).await {
+        Ok(ctx) => ctx,
+        Err(err) => {
+            record_silent_edit_diagnostic(
+                &state,
+                &headers,
+                Some(&workspace_id),
+                None,
+                &err,
+                "/workspaces/:workspace_id/documents",
+            )
+            .await;
+            return Err(map_storage_error(err));
+        }
+    };
 
-    let document = state
+    let document = match state
         .storage
         .create_document(
             &ctx,
@@ -199,7 +349,21 @@ async fn create_document(
             },
         )
         .await
-        .map_err(map_storage_error)?;
+    {
+        Ok(document) => document,
+        Err(err) => {
+            record_silent_edit_diagnostic(
+                &state,
+                &headers,
+                Some(&workspace_id),
+                Some(&ctx),
+                &err,
+                "/workspaces/:workspace_id/documents",
+            )
+            .await;
+            return Err(map_storage_error(err));
+        }
+    };
 
     tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id/documents", status = "created", workspace_id = %workspace_id, document_id = %document.id, "document created");
 
@@ -278,14 +442,34 @@ async fn delete_document(
     Path(document_id): Path<String>,
     headers: HeaderMap,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let ctx = write_context_from_headers(&state, &headers)
-        .await
-        .map_err(map_storage_error)?;
-    state
-        .storage
-        .delete_document(&ctx, &document_id)
-        .await
-        .map_err(map_storage_error)?;
+    let ctx = match write_context_from_headers(&state, &headers).await {
+        Ok(ctx) => ctx,
+        Err(err) => {
+            record_silent_edit_diagnostic(
+                &state,
+                &headers,
+                None,
+                None,
+                &err,
+                "/documents/:document_id",
+            )
+            .await;
+            return Err(map_storage_error(err));
+        }
+    };
+
+    if let Err(err) = state.storage.delete_document(&ctx, &document_id).await {
+        record_silent_edit_diagnostic(
+            &state,
+            &headers,
+            None,
+            Some(&ctx),
+            &err,
+            "/documents/:document_id",
+        )
+        .await;
+        return Err(map_storage_error(err));
+    }
 
     tracing::info!(target: "handshake_core", route = "/documents/:document_id", status = "deleted", document_id = %document_id, "document deleted");
 
@@ -299,15 +483,27 @@ async fn replace_blocks(
     Json(payload): Json<UpsertBlocksRequest>,
 ) -> Result<Json<Vec<BlockResponse>>, (StatusCode, Json<ErrorResponse>)> {
     // Ensure document exists first to provide 404 instead of recreating.
-    let _doc = state
+    let doc = state
         .storage
         .get_document(&document_id)
         .await
         .map_err(map_storage_error)?;
 
-    let ctx = write_context_from_headers(&state, &headers)
-        .await
-        .map_err(map_storage_error)?;
+    let ctx = match write_context_from_headers(&state, &headers).await {
+        Ok(ctx) => ctx,
+        Err(err) => {
+            record_silent_edit_diagnostic(
+                &state,
+                &headers,
+                Some(&doc.workspace_id),
+                None,
+                &err,
+                "/documents/:document_id/blocks",
+            )
+            .await;
+            return Err(map_storage_error(err));
+        }
+    };
 
     let incoming_blocks: Vec<NewBlock> = payload
         .blocks
@@ -325,11 +521,25 @@ async fn replace_blocks(
         })
         .collect();
 
-    let result_blocks = state
+    let result_blocks = match state
         .storage
         .replace_blocks(&ctx, &document_id, incoming_blocks)
         .await
-        .map_err(map_storage_error)?;
+    {
+        Ok(blocks) => blocks,
+        Err(err) => {
+            record_silent_edit_diagnostic(
+                &state,
+                &headers,
+                Some(&doc.workspace_id),
+                Some(&ctx),
+                &err,
+                "/documents/:document_id/blocks",
+            )
+            .await;
+            return Err(map_storage_error(err));
+        }
+    };
 
     tracing::info!(target: "handshake_core", route = "/documents/:document_id/blocks", status = "ok", document_id = %document_id, blocks = result_blocks.len(), "replace blocks");
 
@@ -397,7 +607,10 @@ fn not_found(code: &'static str) -> (StatusCode, Json<ErrorResponse>) {
 mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
-    use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
+    use crate::diagnostics::DiagFilter;
+    use crate::flight_recorder::{
+        duckdb::DuckDbFlightRecorder, EventFilter, FlightRecorderEventType,
+    };
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::storage::{
         sqlite::SqliteDatabase, AccessMode, Database, EntityRef, JobKind, JobMetrics, JobState,
@@ -457,13 +670,54 @@ mod tests {
         let mut headers = HeaderMap::new();
         headers.insert(HSK_HEADER_ACTOR_KIND, "AI".parse()?);
 
-        let result = replace_blocks(State(state), Path(document.id), headers, Json(payload)).await;
+        let result = replace_blocks(
+            State(state.clone()),
+            Path(document.id),
+            headers,
+            Json(payload),
+        )
+        .await;
 
         let Err((status, Json(err))) = result else {
             unreachable!("expected replace_blocks to be rejected");
         };
         assert_eq!(status, StatusCode::FORBIDDEN);
         assert_eq!(err.error, "HSK-403-SILENT-EDIT");
+
+        let diagnostics = state
+            .diagnostics
+            .list_diagnostics(DiagFilter::default())
+            .await?;
+        let silent_edit_diag = diagnostics
+            .into_iter()
+            .find(|diag| diag.code.as_deref() == Some("HSK-403-SILENT-EDIT"))
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "expected a recorded diagnostic for HSK-403-SILENT-EDIT",
+                )
+            })?;
+
+        let diagnostic_id = silent_edit_diag.id.to_string();
+        let events = state
+            .flight_recorder
+            .list_events(EventFilter::default())
+            .await?;
+        let maybe_event = events.iter().find(|event| {
+            event.event_type == FlightRecorderEventType::Diagnostic
+                && event.payload.get("diagnostic_id").and_then(|v| v.as_str())
+                    == Some(diagnostic_id.as_str())
+        });
+        assert!(
+            maybe_event.is_some(),
+            "expected FR-EVT-003 Diagnostic event with payload.diagnostic_id matching the recorded diagnostic"
+        );
+        if let Some(event) = maybe_event {
+            assert!(
+                event.payload.get("title").is_none() && event.payload.get("message").is_none(),
+                "FR-EVT-003 payload must not duplicate full diagnostic fields"
+            );
+        }
         Ok(())
     }
 

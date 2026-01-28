@@ -9,6 +9,9 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::{
+    diagnostics::{
+        DiagnosticInput, DiagnosticSeverity, DiagnosticSource, DiagnosticSurface, LinkConfidence,
+    },
     models::{
         CanvasEdgeResponse, CanvasNodeResponse, CanvasResponse, CanvasWithGraphResponse,
         CreateCanvasRequest, ErrorResponse,
@@ -40,6 +43,14 @@ const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
 const HSK_HEADER_JOB_ID: &str = "x-hsk-job-id";
 const HSK_HEADER_WORKFLOW_ID: &str = "x-hsk-workflow-id";
 
+fn is_silent_edit(err: &StorageError) -> bool {
+    matches!(
+        err,
+        StorageError::Guard("HSK-403-SILENT-EDIT")
+            | StorageError::Validation("HSK-403-SILENT-EDIT")
+    )
+}
+
 fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
     headers
         .get(name)
@@ -64,6 +75,101 @@ fn parse_actor_kind(raw: Option<&str>) -> Result<WriteActorKind, StorageError> {
 
 fn parse_uuid(raw: Option<&str>) -> Option<Uuid> {
     raw.and_then(|value| Uuid::parse_str(value.trim()).ok())
+}
+
+async fn record_silent_edit_diagnostic(
+    state: &AppState,
+    headers: &HeaderMap,
+    wsid_hint: Option<&str>,
+    ctx_hint: Option<&WriteContext>,
+    err: &StorageError,
+    route_tag: &'static str,
+) {
+    if !is_silent_edit(err) {
+        return;
+    }
+
+    let ctx_job_id = ctx_hint.and_then(|ctx| ctx.job_id);
+    let header_job_id = parse_uuid(header_str(headers, HSK_HEADER_JOB_ID));
+    let job_id = ctx_job_id.or(header_job_id).map(|id| id.to_string());
+
+    let ctx_workflow_id = ctx_hint.and_then(|ctx| ctx.workflow_id);
+    let header_workflow_id = parse_uuid(header_str(headers, HSK_HEADER_WORKFLOW_ID));
+    let workflow_id = ctx_workflow_id.or(header_workflow_id);
+
+    let missing_context = ctx_hint.is_some_and(|ctx| {
+        ctx.actor_kind == WriteActorKind::Ai && (ctx.job_id.is_none() || ctx.workflow_id.is_none())
+    });
+
+    let failure_mode_tag = if missing_context {
+        "silent_edit:missing_context"
+    } else {
+        "silent_edit:context_invalid"
+    };
+
+    let message = if missing_context {
+        "AI write rejected by StorageGuard: missing required job/workflow context."
+    } else {
+        "AI write rejected by StorageGuard: job/workflow context invalid."
+    };
+
+    let mut tags = vec![
+        "hsk:guard".to_string(),
+        "hsk:silent_edit".to_string(),
+        failure_mode_tag.to_string(),
+        format!("route:{}", route_tag),
+    ];
+    if let Some(workflow_id) = workflow_id {
+        tags.push(format!("workflow_id:{}", workflow_id));
+    }
+
+    let input = DiagnosticInput {
+        title: "No Silent Edits: StorageGuard blocked AI write".to_string(),
+        message: message.to_string(),
+        severity: DiagnosticSeverity::Error,
+        source: DiagnosticSource::Engine,
+        surface: DiagnosticSurface::System,
+        tool: Some("storage_guard".to_string()),
+        code: Some("HSK-403-SILENT-EDIT".to_string()),
+        tags: Some(tags),
+        wsid: wsid_hint.map(str::to_string),
+        job_id,
+        model_id: None,
+        actor: None,
+        capability_id: None,
+        policy_decision_id: None,
+        locations: None,
+        evidence_refs: None,
+        link_confidence: LinkConfidence::Unlinked,
+        status: None,
+        count: None,
+        first_seen: None,
+        last_seen: None,
+        timestamp: None,
+        updated_at: None,
+    };
+
+    let diagnostic = match input.into_diagnostic() {
+        Ok(diagnostic) => diagnostic,
+        Err(error) => {
+            tracing::error!(
+                target: "handshake_core",
+                route = route_tag,
+                error = %error,
+                "failed to build silent-edit diagnostic"
+            );
+            return;
+        }
+    };
+
+    if let Err(error) = state.diagnostics.record_diagnostic(diagnostic).await {
+        tracing::error!(
+            target: "handshake_core",
+            route = route_tag,
+            error = %error,
+            "failed to record silent-edit diagnostic"
+        );
+    }
 }
 
 async fn write_context_from_headers(
@@ -133,14 +239,34 @@ async fn delete_canvas(
     Path(canvas_id): Path<String>,
     headers: HeaderMap,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    let ctx = write_context_from_headers(&state, &headers)
-        .await
-        .map_err(map_storage_error)?;
-    state
-        .storage
-        .delete_canvas(&ctx, &canvas_id)
-        .await
-        .map_err(map_storage_error)?;
+    let ctx = match write_context_from_headers(&state, &headers).await {
+        Ok(ctx) => ctx,
+        Err(err) => {
+            record_silent_edit_diagnostic(
+                &state,
+                &headers,
+                None,
+                None,
+                &err,
+                "/canvases/:canvas_id",
+            )
+            .await;
+            return Err(map_storage_error(err));
+        }
+    };
+
+    if let Err(err) = state.storage.delete_canvas(&ctx, &canvas_id).await {
+        record_silent_edit_diagnostic(
+            &state,
+            &headers,
+            None,
+            Some(&ctx),
+            &err,
+            "/canvases/:canvas_id",
+        )
+        .await;
+        return Err(map_storage_error(err));
+    }
 
     tracing::info!(target: "handshake_core", route = "/canvases/:canvas_id", status = "deleted", canvas_id = %canvas_id, "canvas deleted");
 
@@ -154,11 +280,23 @@ async fn create_canvas(
     Json(payload): Json<CreateCanvasRequest>,
 ) -> Result<(StatusCode, Json<CanvasResponse>), (StatusCode, Json<ErrorResponse>)> {
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = write_context_from_headers(&state, &headers)
-        .await
-        .map_err(map_storage_error)?;
+    let ctx = match write_context_from_headers(&state, &headers).await {
+        Ok(ctx) => ctx,
+        Err(err) => {
+            record_silent_edit_diagnostic(
+                &state,
+                &headers,
+                Some(&workspace_id),
+                None,
+                &err,
+                "/workspaces/:workspace_id/canvases",
+            )
+            .await;
+            return Err(map_storage_error(err));
+        }
+    };
 
-    let canvas = state
+    let canvas = match state
         .storage
         .create_canvas(
             &ctx,
@@ -168,7 +306,21 @@ async fn create_canvas(
             },
         )
         .await
-        .map_err(map_storage_error)?;
+    {
+        Ok(canvas) => canvas,
+        Err(err) => {
+            record_silent_edit_diagnostic(
+                &state,
+                &headers,
+                Some(&workspace_id),
+                Some(&ctx),
+                &err,
+                "/workspaces/:workspace_id/canvases",
+            )
+            .await;
+            return Err(map_storage_error(err));
+        }
+    };
 
     tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id/canvases", status = "created", workspace_id = %workspace_id, canvas_id = %canvas.id, "canvas created");
 
@@ -233,10 +385,23 @@ async fn update_canvas_graph(
     headers: HeaderMap,
     Json(payload): Json<UpdateCanvasGraphRequest>,
 ) -> Result<Json<CanvasWithGraphResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let ctx = write_context_from_headers(&state, &headers)
-        .await
-        .map_err(map_storage_error)?;
-    let graph = state
+    let ctx = match write_context_from_headers(&state, &headers).await {
+        Ok(ctx) => ctx,
+        Err(err) => {
+            record_silent_edit_diagnostic(
+                &state,
+                &headers,
+                None,
+                None,
+                &err,
+                "/canvases/:canvas_id",
+            )
+            .await;
+            return Err(map_storage_error(err));
+        }
+    };
+
+    let graph = match state
         .storage
         .update_canvas_graph(
             &ctx,
@@ -264,7 +429,21 @@ async fn update_canvas_graph(
                 .collect(),
         )
         .await
-        .map_err(map_storage_error)?;
+    {
+        Ok(graph) => graph,
+        Err(err) => {
+            record_silent_edit_diagnostic(
+                &state,
+                &headers,
+                None,
+                Some(&ctx),
+                &err,
+                "/canvases/:canvas_id",
+            )
+            .await;
+            return Err(map_storage_error(err));
+        }
+    };
 
     tracing::info!(target: "handshake_core", route = "/canvases/:canvas_id", status = "ok", canvas_id = %canvas_id, nodes = graph.nodes.len(), edges = graph.edges.len(), "update canvas graph");
 
