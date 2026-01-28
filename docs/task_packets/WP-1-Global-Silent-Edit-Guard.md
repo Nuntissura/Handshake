@@ -311,3 +311,6 @@ Improvements & Future Proofing:
 
 ### REASON FOR PASS
 - DONE_MEANS met: silent-edit guard remains enforced with `HSK-403-SILENT-EDIT`, API routes record a Diagnostic on rejection, FR includes a link-only DiagnosticEvent referencing `diagnostic_id`, and a targeted automated test covers the behavior; `just test` + `just validator-scan` pass.
+
+### VALIDATOR_ADDENDUM (2026-01-28)
+- Spec resolved at commit time via `docs/SPEC_CURRENT.md`: Handshake_Master_Spec_v02.121.md (anchors unchanged for this WP).
