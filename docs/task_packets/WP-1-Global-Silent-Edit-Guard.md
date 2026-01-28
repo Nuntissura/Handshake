@@ -8,9 +8,9 @@
 - REQUESTOR: ilja
 - AGENT_ID: orchestrator-codex-cli
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: MEDIUM
 - USER_SIGNATURE: ilja280120261626
 
@@ -120,13 +120,58 @@ git revert <commit-sha>
   - "Job/workflow correlation wrong" -> "Events/diagnostics not attributable to the initiating job; hard to debug"
 
 ## SKELETON
-- Proposed interfaces/types/contracts:
-  - Use existing `crate::diagnostics::DiagnosticInput` + `DiagnosticsStore::record_diagnostic` for guard violations.
-  - Reuse existing `FR-EVT-003` emission path (DuckDbFlightRecorder implements DiagnosticsStore and emits DiagnosticEvent).
-- Open questions:
-  - Where is the best interception point to record diagnostics for StorageError::Guard: per-route handlers vs shared helper?
-  - Should workflow_id be recorded (message/tags) even though Diagnostic schema has no workflow_id field?
-- Notes:
+- Spec anchors (non-negotiable; do not weaken):
+  - No Silent Edits / StorageGuard contract: Handshake_Master_Spec_v02.120.md:15161 and Handshake_Master_Spec_v02.120.md:15203 (validate_write required; error code HSK-403-SILENT-EDIT).
+  - FR-EVT-003 requirement: Handshake_Master_Spec_v02.120.md:52864 (payload contains diagnostic_id only; no full diagnostic duplication).
+  - Existing guard behavior already correct; do not weaken: src/backend/handshake_core/src/storage/mod.rs:752 and src/backend/handshake_core/src/storage/mod.rs:765.
+
+- Interception strategy (single; avoids double-recording):
+  - Record the Diagnostic ONLY at the API error-to-HTTP boundary in the write routes in:
+    - src/backend/handshake_core/src/api/workspaces.rs
+    - src/backend/handshake_core/src/api/canvases.rs
+  - Do NOT record inside storage (guard) and do NOT record inside write_context_from_headers.
+  - Implementation pattern: on an error path, (1) detect silent edit precisely, (2) record Diagnostic best-effort, (3) return the existing HTTP 403 response.
+    - This yields exactly one Diagnostic insert per failing request:
+      - If write_context_from_headers rejects (mismatch/unknown job), we record there and the handler returns.
+      - If storage validate_write rejects (missing job/workflow), we record on that storage call error path.
+
+- Helpers to add (per module; small and local to avoid scope creep):
+  1) `fn is_silent_edit(err: &StorageError) -> bool`
+     - MUST match ONLY `StorageError::Guard("HSK-403-SILENT-EDIT")` (and optionally `StorageError::Validation("HSK-403-SILENT-EDIT")` if present).
+     - MUST NOT treat all `StorageError::Guard(_)` as silent edit (noise control).
+
+  2) `async fn record_silent_edit_diagnostic(state: &AppState, headers: &HeaderMap, wsid_hint: Option<&str>, ctx_hint: Option<&WriteContext>, err: &StorageError, route_tag: &'static str)`
+     - Builds `crate::diagnostics::DiagnosticInput` with:
+       - severity = `DiagnosticSeverity::Error`
+       - surface = `DiagnosticSurface::System`
+       - source = `DiagnosticSource::System` (or `Engine`; choose one and keep consistent)
+       - code = `Some("HSK-403-SILENT-EDIT".to_string())`
+       - title/message: stable strings (no request-unique IDs) to keep fingerprint stable and avoid noise.
+       - wsid: `wsid_hint.map(str::to_string)`
+       - job_id:
+         - Prefer `ctx_hint.and_then(|c| c.job_id).map(|id| id.to_string())`
+         - If ctx_hint is None (error before ctx exists), parse `x-hsk-job-id` best-effort from headers.
+       - workflow_id handling (Diagnostic has no workflow_id field):
+         - Recommended: add as a stable tag like `workflow_id:<uuid>` only if present, AND add a stable tag for failure mode:
+           - `silent_edit:missing_context` vs `silent_edit:context_mismatch`
+         - Open question: should we also embed workflow_id into message vs tags-only?
+       - tags (stable + non-duplicative): e.g. `["hsk:guard", "hsk:silent_edit", "route:<route_tag>", "..."]`
+     - Converts with `DiagnosticInput.into_diagnostic()?` and calls `state.diagnostics.record_diagnostic(diag).await`.
+     - MUST NOT emit FR-EVT-003 manually; DuckDbFlightRecorder already emits it when recording the Diagnostic.
+     - Failure handling: if record_diagnostic fails, log it (tracing) but still return the original 403 (do not fail open).
+
+- Route wiring plan (keep existing HTTP semantics):
+  - Replace `.map_err(map_storage_error)?` on write paths with explicit `match` blocks so we can `await` the diagnostic recording on the error path.
+  - On error:
+    - if `is_silent_edit(&err)` then `record_silent_edit_diagnostic(...).await` exactly once
+    - return `Err(map_storage_error(err))` (same 403 payload as today)
+
+- Test plan (must assert Diagnostic + FR-EVT-003 linkage; no payload duplication):
+  - Extend existing test: src/backend/handshake_core/src/api/workspaces.rs:425 `replace_blocks_rejects_ai_when_context_missing`
+    - After the 403 rejection:
+      - Assert `state.diagnostics.list_diagnostics(...)` returns a Diagnostic with `code == Some("HSK-403-SILENT-EDIT")`.
+      - Assert `state.flight_recorder.list_events(...)` contains a `FlightRecorderEventType::Diagnostic` event where `payload["diagnostic_id"] == diagnostic.id`.
+      - Do NOT assert the payload contains full diagnostic fields (spec forbids duplication; FR-EVT-003 is link-only).
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)
@@ -164,9 +209,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress
+- What changed in this update: Drafted SKELETON interception plan for recording Diagnostics on HSK-403-SILENT-EDIT (no implementation yet).
+- Next step / handoff hint: Await "SKELETON APPROVED" before implementing; then wire diagnostics recording into workspaces/canvases error paths and extend the existing API test.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
