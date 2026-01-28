@@ -102,7 +102,7 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - VALIDATION block MUST contain the deterministic manifest: target_file, start/end lines, line_delta, pre/post SHA1, gates checklist (anchors_present, window/rails bounds, canonical path, line_delta, manifest_written, concurrency check), lint results, artifacts, timestamp, operator.
 - Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
 - Require evidence that `just post-work WP-{ID}` ran and passed (this gate enforces the manifest + SHA1/gate checks). If absent or failing, verdict = FAIL until fixed.
-- Post-work sequencing note (echo from CODER_PROTOCOL): `just post-work` validates the staged diff for the NEXT commit; it is expected to fail on a clean tree after committing. Require the Coder's PASS `GATE_OUTPUT` and the commit SHA created immediately after that PASS.
+- Post-work sequencing note (echo from CODER_PROTOCOL): `just post-work` validates staged/working changes when present, and can also validate a clean tree by checking the last commit (HEAD^..HEAD) or a specific commit via `--rev <sha>`. Require the Coder's PASS `GATE_OUTPUT` plus the validated commit SHA/range shown in that output.
 
 ## Core Process (Follow in Order)
 0) BOOTSTRAP Verification
@@ -185,7 +185,7 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
     - **Strict:** "Dirty" git status (uncommitted changes) is a FAIL for final validation unless a **User Waiver** [CX-573F] is explicitly recorded in the Task Packet.
     - **Artifacts:** FAIL if *ignored* build artifacts (e.g., `target/`, `node_modules/`) are tracked or committed.
     - **Scope:** Ensure changes are restricted to the WP's `IN_SCOPE_PATHS`.
-    - **Low-friction rule (preferred):** Validator stages ONLY the WP changes, then runs `just post-work {WP_ID}`; the post-work gate validates STAGED changes first, so unrelated local dirt does not block as long as it is not staged.
+    - **Low-friction rule (preferred):** Validator stages ONLY the WP changes, then runs `just post-work {WP_ID}`; the post-work gate validates STAGED changes first, so unrelated local dirt does not block as long as it is not staged. If validating a clean handoff commit, run `just post-work {WP_ID} --rev <sha>`.
 
 
 7.1) Git & Build Hygiene Audit (execute when any build artifacts/.gitignore risk is suspected)

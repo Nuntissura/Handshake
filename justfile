@@ -136,10 +136,10 @@ pre-work wp-id:
 	@just gate-check {{wp-id}}
 	@node scripts/validation/pre-work-check.mjs {{wp-id}}
 
-# Post-work validation - run before commit [CX-623, CX-651]
-post-work wp-id:
+# Post-work validation - run before or after commit [CX-623, CX-651]
+post-work wp-id *args:
 	@just gate-check {{wp-id}}
-	@node scripts/validation/post-work-check.mjs {{wp-id}}
+	@node scripts/validation/post-work-check.mjs {{wp-id}} {{args}}
 	@just role-mailbox-export-check
 
 # Helper: compute deterministic COR-701 Pre/Post SHA1 for a file.

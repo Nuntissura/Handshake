@@ -10,12 +10,28 @@ import path from 'path';
 import crypto from 'crypto';
 import { execSync } from 'child_process';
 
-const WP_ID = process.argv[2];
+const usage = () => [
+  'Usage: node post-work-check.mjs WP-{ID} [options]',
+  '',
+  'Options:',
+  '  --rev <git-rev>         Validate a single commit (rev^..rev)',
+  '  --range <a>..<b>        Validate an explicit range (a..b)',
+  '  -h, --help              Show this help',
+].join('\n');
 
+const args = process.argv.slice(2);
+if (args.includes('-h') || args.includes('--help')) {
+  console.log(usage());
+  process.exit(0);
+}
+
+const WP_ID = args[0];
 if (!WP_ID) {
-  console.error('Usage: node post-work-check.mjs WP-{ID}');
+  console.error(usage());
   process.exit(1);
 }
+
+const cliArgs = args.slice(1);
 
 const SPEC_PATH = path.join('scripts', 'validation', 'cor701-spec.json');
 const spec = JSON.parse(fs.readFileSync(SPEC_PATH, 'utf8'));
@@ -88,6 +104,72 @@ const computeSha1 = (p) => sha1VariantsForWorktreeFile(p).lf;
 
 const MERGE_BASE = resolveMergeBase();
 
+const resolveFirstParent = (rev) => {
+  try {
+    const parents = gitTrim(`git show -s --pretty=%P ${rev}`);
+    const list = parents.split(/\s+/).map((p) => p.trim()).filter(Boolean);
+    return list.length > 0 ? list[0] : null;
+  } catch {
+    return null;
+  }
+};
+
+const parseRangeArg = (raw) => {
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed.includes('..')) return null;
+  const parts = trimmed.split('..');
+  if (parts.length !== 2) return null;
+  const [base, head] = parts.map((p) => p.trim()).filter(Boolean);
+  if (!base || !head) return null;
+  return { base, head };
+};
+
+const parseCli = (argv) => {
+  const parsed = { rev: null, range: null };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === '--rev') {
+      const rev = argv[i + 1];
+      if (!rev) {
+        console.error('Error: --rev requires a value.\n');
+        console.error(usage());
+        process.exit(1);
+      }
+      parsed.rev = rev;
+      i += 1;
+      continue;
+    }
+    if (arg === '--range') {
+      const raw = argv[i + 1];
+      if (!raw) {
+        console.error('Error: --range requires a value.\n');
+        console.error(usage());
+        process.exit(1);
+      }
+      const range = parseRangeArg(raw);
+      if (!range) {
+        console.error('Error: --range must be in the form <base>..<head>.\n');
+        console.error(usage());
+        process.exit(1);
+      }
+      parsed.range = range;
+      i += 1;
+      continue;
+    }
+    console.error(`Error: Unknown argument: ${arg}\n`);
+    console.error(usage());
+    process.exit(1);
+  }
+  if (parsed.rev && parsed.range) {
+    console.error('Error: Use only one of --rev or --range.\n');
+    console.error(usage());
+    process.exit(1);
+  }
+  return parsed;
+};
+
+const cli = parseCli(cliArgs);
+
 const loadGitVersion = (rev, targetPath) => {
   try {
     const gitPath = targetPath.replace(/\\/g, '/');
@@ -110,9 +192,19 @@ const loadIndexVersion = (targetPath) => {
   }
 };
 
-const getNumstatDelta = (targetPath, { staged }) => {
+const getNumstatDelta = (targetPath, { staged, baseRev, headRev }) => {
   try {
     const gitPath = targetPath.replace(/\\/g, '/');
+    if (baseRev && headRev) {
+      const out = gitTrim(`git diff --numstat ${baseRev} ${headRev} -- "${gitPath}"`);
+      if (!out) return null;
+      const [addsStr, delsStr] = out.split('\t');
+      const adds = parseInt(addsStr, 10);
+      const dels = parseInt(delsStr, 10);
+      if (Number.isNaN(adds) || Number.isNaN(dels)) return null;
+      return adds - dels;
+    }
+
     const diffArgs = staged ? '--cached' : '';
     const out = gitTrim(`git diff ${diffArgs} --numstat HEAD -- "${gitPath}"`);
     if (!out) return null;
@@ -126,11 +218,13 @@ const getNumstatDelta = (targetPath, { staged }) => {
   }
 };
 
-const parseDiffHunks = (targetPath, { staged }) => {
+const parseDiffHunks = (targetPath, { staged, baseRev, headRev }) => {
   try {
     const gitPath = targetPath.replace(/\\/g, '/');
     const diffArgs = staged ? '--cached' : '';
-    const diff = gitTrim(`git diff ${diffArgs} --unified=0 HEAD -- "${gitPath}"`);
+    const diff = baseRev && headRev
+      ? gitTrim(`git diff --unified=0 ${baseRev} ${headRev} -- "${gitPath}"`)
+      : gitTrim(`git diff ${diffArgs} --unified=0 HEAD -- "${gitPath}"`);
     const hunks = [];
     const hunkHeader = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
     diff.split('\n').forEach((line) => {
@@ -335,8 +429,64 @@ if (!manifests) {
 const inScopePaths = parseInScopePaths(packetContent);
 const stagedFiles = getStagedFiles();
 const workingFiles = getWorkingFiles();
-const useStaged = stagedFiles.length > 0;
-const changedFiles = useStaged ? stagedFiles : workingFiles;
+
+const getRangeFiles = (baseRev, headRev) => {
+  try {
+    const out = gitTrim(`git diff --name-only --diff-filter=d ${baseRev} ${headRev}`);
+    return out ? out.split('\n').filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+};
+
+const resolveEvaluation = () => {
+  if (cli.range) {
+    return { mode: 'range', baseRev: cli.range.base, headRev: cli.range.head, reason: 'explicit --range' };
+  }
+  if (cli.rev) {
+    const base = resolveFirstParent(cli.rev);
+    if (!base) {
+      errors.push(`Cannot determine parent commit for --rev ${cli.rev}; provide an explicit --range instead.`);
+      return { mode: 'range', baseRev: null, headRev: null, reason: 'invalid --rev' };
+    }
+    return { mode: 'range', baseRev: base, headRev: cli.rev, reason: 'single-commit --rev (rev^..rev)' };
+  }
+  if (stagedFiles.length > 0) return { mode: 'staged', baseRev: null, headRev: null, reason: 'staged changes present' };
+  if (workingFiles.length > 0) return { mode: 'worktree', baseRev: null, headRev: null, reason: 'working tree changes present' };
+
+  const head = 'HEAD';
+  const parent = resolveFirstParent(head);
+  if (parent) {
+    return { mode: 'range', baseRev: parent, headRev: head, reason: 'clean tree; validate last commit (HEAD^..HEAD)' };
+  }
+  if (MERGE_BASE) {
+    return { mode: 'range', baseRev: MERGE_BASE, headRev: head, reason: 'clean tree; fallback to merge-base(main, HEAD)..HEAD' };
+  }
+  errors.push('No staged/working changes and unable to resolve a git range (no parent commit and no merge-base).');
+  return { mode: 'range', baseRev: null, headRev: null, reason: 'no range available' };
+};
+
+const evaluation = resolveEvaluation();
+const useStaged = evaluation.mode === 'staged';
+const useRange = evaluation.mode === 'range' && evaluation.baseRev && evaluation.headRev;
+const rangeFiles = useRange ? getRangeFiles(evaluation.baseRev, evaluation.headRev) : [];
+const changedFiles = useStaged ? stagedFiles : (evaluation.mode === 'worktree' ? workingFiles : rangeFiles);
+
+const resolveRev = (rev) => {
+  try {
+    return gitTrim(`git rev-parse ${rev}`);
+  } catch {
+    return rev;
+  }
+};
+
+console.log(`\nDiff selection: ${evaluation.mode} (${evaluation.reason})`);
+if (useRange) {
+  const resolvedBase = resolveRev(evaluation.baseRev);
+  const resolvedHead = resolveRev(evaluation.headRev);
+  console.log(`Git range: ${resolvedBase}..${resolvedHead}`);
+}
+
 if (useStaged && workingFiles.length > stagedFiles.length) {
   // Avoid warning noise for validator-only governance state.
   const stagedSet = new Set(stagedFiles.map((p) => p.replace(/\\/g, '/')));
@@ -434,14 +584,16 @@ if (manifests) {
       return;
     }
 
-    // pre/post SHA checks (staged-aware)
-    const headContent = loadHeadVersion(targetPath);
-    if (headContent !== null) {
-      const head = sha1VariantsForGitBlob(headContent);
-      if (manifest.pre_sha1 && manifest.pre_sha1 !== head.lf) {
-        if (manifest.pre_sha1 === head.crlf) {
-          warnings.push(`${label}: pre_sha1 matches CRLF-normalized HEAD for ${targetPath}; prefer LF blob SHA1=${head.lf}`);
-        } else if (MERGE_BASE) {
+    // pre/post SHA checks (staged/worktree/range-aware)
+    const preRev = useRange ? evaluation.baseRev : 'HEAD';
+    const preContent = loadGitVersion(preRev, targetPath);
+    if (preContent !== null) {
+      const pre = sha1VariantsForGitBlob(preContent);
+      if (manifest.pre_sha1 && manifest.pre_sha1 !== pre.lf) {
+        if (manifest.pre_sha1 === pre.crlf) {
+          warnings.push(`${label}: pre_sha1 matches CRLF-normalized ${preRev} for ${targetPath}; prefer LF blob SHA1=${pre.lf}`);
+        } else if (!useRange && MERGE_BASE) {
+          // Back-compat behavior for staged/worktree mode: accept merge-base preimages as a warning.
           const baseContent = loadGitVersion(MERGE_BASE, targetPath);
           const base = baseContent ? sha1VariantsForGitBlob(baseContent) : null;
           const matchesBase = base && (manifest.pre_sha1 === base.lf || manifest.pre_sha1 === base.crlf);
@@ -449,25 +601,29 @@ if (manifests) {
             warnings.push(`${label}: pre_sha1 matches merge-base(${MERGE_BASE}) for ${targetPath} (common after WP commits); prefer LF blob SHA1=${base.lf}`);
           } else if (hasGitWaiver) {
             warnings.push(`${label}: pre_sha1 does not match HEAD for ${targetPath} (${spec.gateErrorCodes.current_file_matches_preimage}) - WAIVER APPLIED`);
-            warnings.push(`${label}: expected pre_sha1 (HEAD LF blob) = ${head.lf}`);
+            warnings.push(`${label}: expected pre_sha1 (HEAD LF blob) = ${pre.lf}`);
           } else {
             errors.push(`${label}: pre_sha1 does not match HEAD for ${targetPath} (${spec.gateErrorCodes.current_file_matches_preimage})`);
-            errors.push(`${label}: expected pre_sha1 (HEAD LF blob) = ${head.lf}`);
+            errors.push(`${label}: expected pre_sha1 (HEAD LF blob) = ${pre.lf}`);
             if (base) errors.push(`${label}: expected pre_sha1 (merge-base LF blob) = ${base.lf}`);
           }
         } else if (hasGitWaiver) {
-          warnings.push(`${label}: pre_sha1 does not match HEAD for ${targetPath} (${spec.gateErrorCodes.current_file_matches_preimage}) - WAIVER APPLIED`);
-          warnings.push(`${label}: expected pre_sha1 (LF blob) = ${head.lf}`);
+          warnings.push(`${label}: pre_sha1 does not match ${preRev} for ${targetPath} (${spec.gateErrorCodes.current_file_matches_preimage}) - WAIVER APPLIED`);
+          warnings.push(`${label}: expected pre_sha1 (LF blob) = ${pre.lf}`);
         } else {
-          errors.push(`${label}: pre_sha1 does not match HEAD for ${targetPath} (${spec.gateErrorCodes.current_file_matches_preimage})`);
-          errors.push(`${label}: expected pre_sha1 (LF blob) = ${head.lf}`);
+          errors.push(`${label}: pre_sha1 does not match ${preRev} for ${targetPath} (${spec.gateErrorCodes.current_file_matches_preimage})`);
+          errors.push(`${label}: expected pre_sha1 (LF blob) = ${pre.lf}`);
         }
       }
+    } else if (useRange) {
+      warnings.push(`${label}: Could not load ${preRev} version (new file or not tracked at ${preRev}): ${targetPath}`);
     } else {
       warnings.push(`${label}: Could not load HEAD version (new file or not tracked): ${targetPath}`);
     }
 
-    const postContent = useStaged ? loadIndexVersion(targetPath) : null;
+    const postContent = useStaged
+      ? loadIndexVersion(targetPath)
+      : (useRange ? loadGitVersion(evaluation.headRev, targetPath) : null);
     const post = postContent === null
       ? sha1VariantsForWorktreeFile(targetPath)
       : sha1VariantsForGitBlob(postContent);
@@ -482,7 +638,7 @@ if (manifests) {
       }
     }
 
-    const hunks = parseDiffHunks(targetPath, { staged: useStaged });
+    const hunks = parseDiffHunks(targetPath, { staged: useStaged, baseRev: useRange ? evaluation.baseRev : null, headRev: useRange ? evaluation.headRev : null });
     const windowStart = parseInt(manifest.start, 10);
     const windowEnd = parseInt(manifest.end, 10);
     hunks.forEach((h) => {
@@ -495,7 +651,7 @@ if (manifests) {
       }
     });
 
-    const numstatDelta = getNumstatDelta(targetPath, { staged: useStaged });
+    const numstatDelta = getNumstatDelta(targetPath, { staged: useStaged, baseRev: useRange ? evaluation.baseRev : null, headRev: useRange ? evaluation.headRev : null });
     if (numstatDelta !== null && !Number.isNaN(deltaNum) && numstatDelta !== deltaNum) {
       errors.push(`${label}: line_delta (${deltaNum}) does not match git diff delta (${numstatDelta}) (${spec.gateErrorCodes.line_delta_equals_expected})`);
     }
@@ -527,9 +683,13 @@ if (manifests) {
 // Check 4: git status sanity
 console.log('\nCheck 4: Git status');
 try {
-  const staged = getStagedFiles();
-  const working = getWorkingFiles();
-  if (staged.length === 0 && working.length === 0) errors.push('No files changed (git status clean)');
+  if (changedFiles.length === 0) {
+    if (useRange) {
+      errors.push(`No files changed in range ${evaluation.baseRev}..${evaluation.headRev}`);
+    } else {
+      errors.push('No files changed (git status clean)');
+    }
+  }
 } catch {
   warnings.push('Could not read git status');
 }

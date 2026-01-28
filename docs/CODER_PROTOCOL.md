@@ -142,8 +142,8 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 - Each task packet MUST retain the manifest template in `## Validation` (target_file, start/end, line_delta, pre/post SHA1, gates checklist). Keep it ASCII-only.
 - Before coding, run `just pre-work WP-{ID}` to confirm the manifest template is present; do not strip fields.
 - After coding, `just post-work WP-{ID}` is the deterministic gate: it enforces manifest completeness, SHA1s, window bounds, and required gates (anchors_present, rails/structure untouched, line_delta match, canonical path, concurrency check). Fill the manifest with real values before running.
-- IMPORTANT: `just post-work` validates the staged/working diff. Run it immediately before the handoff commit; running it after committing a clean tree will fail ("No files changed").
-- Handoff order (avoid the "clean tree" trap): run tests/hygiene -> stage ONLY in-scope files -> run `just post-work WP-{ID}` (PASS) -> commit immediately -> notify Validator with the PASS output and the commit SHA.
+- IMPORTANT: `just post-work` validates (a) staged changes if anything is staged, (b) working-tree changes if nothing staged but files are modified, or (c) the last commit (HEAD^..HEAD) if the tree is clean. This allows deterministic evidence even after committing.
+- Handoff order (low friction): run tests/hygiene -> stage ONLY in-scope files (including the updated task packet manifest) -> commit -> run `just post-work WP-{ID}` on the clean tree -> notify Validator with the PASS output and commit SHA.
 - To fill `Pre-SHA1` / `Post-SHA1` deterministically, stage your changes and run `just cor701-sha path/to/file` (use the recommended values it prints).
 - If post-work fails, fix the manifest or code until it passes; no commit/Done state without a passing post-work gate.
 
@@ -809,7 +809,7 @@ grep -r "TODO\|FIXME\|XXX" src/backend/handshake_core/src/ --include="*.rs" | gr
 
 2️⃣ RUN POST-WORK (Final Gate)
    ↓ `just post-work WP-{ID}` passes?
-   ├─ YES → Proceed to commit (post-work validates the staged diff for this commit; do not run it after committing a clean tree)
+   ├─ YES → Commit (if not already), then run `just post-work WP-{ID}` and paste PASS output + commit SHA
    └─ NO → BLOCK: Fix validation errors, re-run until PASS
 ```
 
