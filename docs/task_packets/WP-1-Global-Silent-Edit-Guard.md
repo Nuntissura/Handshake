@@ -174,47 +174,96 @@ git revert <commit-sha>
       - Do NOT assert the payload contains full diagnostic fields (spec forbids duplication; FR-EVT-003 is link-only).
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Added API-boundary recording for HSK-403-SILENT-EDIT that reuses existing DiagnosticsStore + DuckDB Flight Recorder emission path (no manual FR emit).
+- Kept StorageGuard semantics unchanged (validate_write still enforces No Silent Edits and returns StorageError::Guard("HSK-403-SILENT-EDIT")).
+- Extended the workspaces API rejection test to assert a Diagnostic is recorded and a Flight Recorder Diagnostic event exists with payload.diagnostic_id == Diagnostic.id (no payload duplication).
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Ran: `just pre-work WP-1-Global-Silent-Edit-Guard`
+- Ran: `just test`
+- Ran: `just lint`
+- Ran: `just cargo-clean`
+- Ran: `just validator-scan`
+- Ran: `just validator-dal-audit`
+- Ran: `just validator-git-hygiene`
+- Ran: `just post-work WP-1-Global-Silent-Edit-Guard`
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `src/backend/handshake_core/src/api/canvases.rs`
+- **Start**: 1
+- **End**: 530
+- **Line Delta**: 179
+- **Pre-SHA1**: `8d95977f68225f9ad495e46a61cc5535c194f744`
+- **Post-SHA1**: `57d9742766122e0a5d4122e337612f06a9259e97`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/api/workspaces.rs`
+- **Start**: 1
+- **End**: 823
+- **Line Delta**: 254
+- **Pre-SHA1**: `04953858abf84376480a7b47f34a3e55c4166f9a`
+- **Post-SHA1**: `78ef525e962e60d81e73c2379b9f16d4df676791`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.120.md
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
 - Current WP_STATUS: In Progress
-- What changed in this update: Drafted SKELETON interception plan for recording Diagnostics on HSK-403-SILENT-EDIT (no implementation yet).
-- Next step / handoff hint: Await "SKELETON APPROVED" before implementing; then wire diagnostics recording into workspaces/canvases error paths and extend the existing API test.
+- What changed in this update: Implemented API-boundary Diagnostic recording on HSK-403-SILENT-EDIT for workspaces/canvases, and updated the existing workspaces rejection test to assert Diagnostic + Diagnostic event linkage.
+- Touched files:
+  - src/backend/handshake_core/src/api/workspaces.rs
+  - src/backend/handshake_core/src/api/canvases.rs
+- Next step / handoff hint: Commit the staged diff on this branch and notify Validator for review/merge.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+- Command: `just pre-work WP-1-Global-Silent-Edit-Guard` (exit 0)
+  - Output (excerpt):
+    - Checking Phase Gate for WP-1-Global-Silent-Edit-Guard...
+    - Pre-work validation for WP-1-Global-Silent-Edit-Guard...
+
+- Command: `just test` (exit 0)
+  - Output (excerpt):
+    - running 151 tests
+    - test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+- Command: `just lint` (exit 0)
+  - Output (excerpt):
+    - > app@0.1.0 lint
+    - cd src/backend/handshake_core; cargo clippy --all-targets --all-features
+
+- Command: `just cargo-clean` (exit 0)
+  - Output:
+    - Removed 1799 files, 9.2GiB total
+
+- Command: `just post-work WP-1-Global-Silent-Edit-Guard` (exit 0)
+  - Output:
+    - Post-work validation for WP-1-Global-Silent-Edit-Guard (deterministic manifest + gates)...
+    - Post-work validation PASSED
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
