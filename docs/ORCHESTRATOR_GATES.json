@@ -831,6 +831,22 @@
       "branch": "feat/WP-1-AI-UX-Actions-v2",
       "worktree_dir": "../wt-WP-1-AI-UX-Actions-v2",
       "timestamp": "2026-01-26T00:01:27.432Z"
+    },
+    {
+      "wpId": "WP-1-Global-Silent-Edit-Guard",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Global-Silent-Edit-Guard.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.120.md",
+      "spec_target_sha1": "23df30111694202664fc65fe473106527ace5255",
+      "timestamp": "2026-01-28T15:17:11.075Z",
+      "turn_token": "1769613431076"
+    },
+    {
+      "wpId": "WP-1-Global-Silent-Edit-Guard",
+      "type": "SIGNATURE",
+      "signature": "ilja280120261626",
+      "timestamp": "2026-01-28T15:28:42.686Z",
+      "refinement_path": "docs/refinements/WP-1-Global-Silent-Edit-Guard.md"
     }
   ]
 }
