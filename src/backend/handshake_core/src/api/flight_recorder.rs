@@ -1,11 +1,12 @@
 use crate::AppState;
 use axum::{
     extract::{Query, State},
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -45,7 +46,104 @@ pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/flight_recorder", get(list_events))
         .route("/events", get(list_events)) // backward-compatible path
+        .route(
+            "/flight_recorder/runtime_chat_event",
+            post(record_runtime_chat_event),
+        )
         .with_state(state)
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeChatEventType {
+    RuntimeChatMessageAppended,
+    RuntimeChatAns001Validation,
+    RuntimeChatSessionClosed,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RuntimeChatEventV0_1 {
+    pub schema_version: String,
+    pub event_id: String,
+    pub ts_utc: String,
+    pub session_id: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub job_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub work_packet_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spec_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wsid: Option<String>,
+
+    #[serde(rename = "type")]
+    pub event_type: RuntimeChatEventType,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_role: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body_sha256: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ans001_sha256: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ans001_compliant: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub violation_clauses: Option<Vec<String>>,
+}
+
+async fn record_runtime_chat_event(
+    State(state): State<AppState>,
+    Json(event): Json<RuntimeChatEventV0_1>,
+) -> Result<Json<Value>, String> {
+    let trace_id = Uuid::parse_str(event.session_id.trim())
+        .map_err(|e| format!("invalid session_id UUID: {e}"))?;
+    if trace_id == Uuid::nil() {
+        return Err("invalid session_id UUID: nil".to_string());
+    }
+
+    let event_type = match event.event_type {
+        RuntimeChatEventType::RuntimeChatMessageAppended => {
+            crate::flight_recorder::FlightRecorderEventType::RuntimeChatMessageAppended
+        }
+        RuntimeChatEventType::RuntimeChatAns001Validation => {
+            crate::flight_recorder::FlightRecorderEventType::RuntimeChatAns001Validation
+        }
+        RuntimeChatEventType::RuntimeChatSessionClosed => {
+            crate::flight_recorder::FlightRecorderEventType::RuntimeChatSessionClosed
+        }
+    };
+
+    let payload = serde_json::to_value(&event).map_err(|e| e.to_string())?;
+    let mut fr_event = crate::flight_recorder::FlightRecorderEvent::new(
+        event_type,
+        crate::flight_recorder::FlightRecorderActor::System,
+        trace_id,
+        payload,
+    )
+    .with_actor_id("runtime_chat");
+
+    if let Some(job_id) = event.job_id {
+        fr_event = fr_event.with_job_id(job_id);
+    }
+    if let Some(wsid) = event.wsid {
+        fr_event = fr_event.with_wsids(vec![wsid]);
+    }
+
+    state
+        .flight_recorder
+        .record_event(fr_event)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(Json(json!({ "ok": true })))
 }
 
 async fn list_events(

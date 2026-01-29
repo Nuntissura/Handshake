@@ -5,6 +5,7 @@ use std::{
 };
 
 mod fonts;
+mod session_chat_log;
 
 use tauri::{Manager, WindowEvent};
 
@@ -71,6 +72,13 @@ pub fn run() {
         .setup(|app| {
             let _ = fonts::fonts_bootstrap_pack(app.handle().clone(), None);
             let _ = fonts::fonts_list(app.handle().clone());
+
+            let app_data_root = app
+                .path()
+                .app_data_dir()
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            app.manage(session_chat_log::SessionChatLogState::new(app_data_root));
+
             let state = OrchestratorState::default();
             state.spawn(orchestrator_workdir())?;
             app.manage(state);
@@ -89,6 +97,9 @@ pub fn run() {
             fonts::fonts_list,
             fonts::fonts_import,
             fonts::fonts_remove,
+            session_chat_log::session_chat_get_session_id,
+            session_chat_log::session_chat_append,
+            session_chat_log::session_chat_read,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

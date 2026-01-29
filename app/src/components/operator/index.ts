@@ -1,6 +1,7 @@
 export { ProblemsView } from "./ProblemsView";
 export { JobsView } from "./JobsView";
 export { TimelineView } from "./TimelineView";
+export { Ans001TimelineDrawer } from "./Ans001TimelineDrawer";
 export { EvidenceDrawer } from "./EvidenceDrawer";
 export type { EvidenceSelection } from "./EvidenceDrawer";
 export { DebugBundleExport } from "./DebugBundleExport";

@@ -992,6 +992,123 @@ body {
   margin-top: 12px;
 }
 
+.ans001-drawer {
+  position: fixed;
+  right: 24px;
+  top: 96px;
+  width: min(520px, 92vw);
+  max-height: 80vh;
+  overflow: auto;
+  background: var(--hs-color-surface);
+  border: 1px solid var(--hs-color-border);
+  border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);
+  padding: 16px;
+  z-index: 21;
+}
+
+.ans001-controls {
+  margin: 12px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.ans001-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.ans001-timeline__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ans001-timeline__row {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--hs-color-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--hs-color-bg);
+  cursor: pointer;
+  color: var(--hs-color-text);
+}
+
+.ans001-timeline__row:hover {
+  background: var(--hs-color-accent-soft);
+  border-color: var(--hs-color-accent);
+}
+
+.ans001-timeline__row.selected {
+  border-color: var(--hs-color-accent);
+}
+
+.ans001-timeline__row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ans001-pill {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--hs-color-border);
+  background: var(--hs-color-surface);
+  color: var(--hs-color-text-subtle);
+}
+
+.ans001-timeline__row-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--hs-color-text-subtle);
+  margin-top: 4px;
+}
+
+.ans001-timeline__row-content {
+  margin-top: 6px;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.ans001-detail {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hs-color-border);
+}
+
+.ans001-detail__content {
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--hs-color-border);
+  background: #0b1220;
+  color: #e2e8f0;
+  white-space: pre-wrap;
+}
+
+.ans001-json {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--hs-color-border);
+  background: #0b1220;
+  color: #e2e8f0;
+  white-space: pre;
+  overflow: auto;
+  max-height: 320px;
+}
+
 .small {
   font-size: 12px;
 }

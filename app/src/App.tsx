@@ -18,6 +18,7 @@ import {
   JobsView,
   ProblemsView,
   TimelineView,
+  Ans001TimelineDrawer,
 } from "./components/operator";
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
   const [focusJobId, setFocusJobId] = useState<string | null>(null);
   const [timelineNav, setTimelineNav] = useState<{ job_id?: string; wsid?: string; event_id?: string } | null>(null);
   const [timelineWindow, setTimelineWindow] = useState<{ start: string; end: string; wsid?: string } | null>(null);
+  const [ans001TimelineOpen, setAns001TimelineOpen] = useState(false);
 
   return (
     <main className="app-shell">
@@ -84,6 +86,7 @@ function App() {
               Timeline
             </button>
             <button onClick={() => setGovernancePackExportOpen(true)}>Gov Pack Export</button>
+            <button onClick={() => setAns001TimelineOpen(true)}>ANS-001 Timeline</button>
           </div>
           <SystemStatus />
         </header>
@@ -179,6 +182,7 @@ function App() {
           setTimelineNav({ ...nav });
         }}
       />
+      <Ans001TimelineDrawer isOpen={ans001TimelineOpen} onClose={() => setAns001TimelineOpen(false)} />
       {exportScope && (
         <DebugBundleExport
           isOpen={true}

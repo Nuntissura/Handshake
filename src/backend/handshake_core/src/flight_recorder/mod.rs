@@ -73,6 +73,10 @@ pub enum FlightRecorderEventType {
     DebugBundleExport,
     /// Governance Pack export lifecycle event [Spec 2.3.10]
     GovernancePackExport,
+    /// FR-EVT-RUNTIME-CHAT-101..103: Frontend conversation telemetry [11.5.10]
+    RuntimeChatMessageAppended,
+    RuntimeChatAns001Validation,
+    RuntimeChatSessionClosed,
     /// FR-EVT-DATA-001..015: AI-Ready Data Architecture events [Â§11.5.5]
     DataBronzeCreated,
     DataSilverCreated,
@@ -140,6 +144,15 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::GovMailboxTranscribed => write!(f, "gov_mailbox_transcribed"),
             FlightRecorderEventType::DebugBundleExport => write!(f, "debug_bundle_export"),
             FlightRecorderEventType::GovernancePackExport => write!(f, "governance_pack_export"),
+            FlightRecorderEventType::RuntimeChatMessageAppended => {
+                write!(f, "runtime_chat_message_appended")
+            }
+            FlightRecorderEventType::RuntimeChatAns001Validation => {
+                write!(f, "runtime_chat_ans001_validation")
+            }
+            FlightRecorderEventType::RuntimeChatSessionClosed => {
+                write!(f, "runtime_chat_session_closed")
+            }
             FlightRecorderEventType::DataBronzeCreated => write!(f, "data_bronze_created"),
             FlightRecorderEventType::DataSilverCreated => write!(f, "data_silver_created"),
             FlightRecorderEventType::DataSilverUpdated => write!(f, "data_silver_updated"),
@@ -343,6 +356,30 @@ impl FlightRecorderEvent {
             FlightRecorderEventType::GovernancePackExport => {
                 validate_governance_pack_export_payload(&self.payload)
             }
+            FlightRecorderEventType::RuntimeChatMessageAppended => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "runtime_chat_message_appended actor must be system".to_string(),
+                    ));
+                }
+                validate_runtime_chat_message_appended_payload(&self.payload)
+            }
+            FlightRecorderEventType::RuntimeChatAns001Validation => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "runtime_chat_ans001_validation actor must be system".to_string(),
+                    ));
+                }
+                validate_runtime_chat_ans001_validation_payload(&self.payload)
+            }
+            FlightRecorderEventType::RuntimeChatSessionClosed => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "runtime_chat_session_closed actor must be system".to_string(),
+                    ));
+                }
+                validate_runtime_chat_session_closed_payload(&self.payload)
+            }
             FlightRecorderEventType::WorkflowRecovery => {
                 if self.actor != FlightRecorderActor::System {
                     return Err(RecorderError::InvalidEvent(
@@ -531,6 +568,45 @@ fn require_string_or_null_nonempty(
             "payload field {key} must be a non-empty string or null"
         ))),
     }
+}
+
+fn require_rfc3339(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    let value = match require_key(map, key)? {
+        Value::String(value) if !value.trim().is_empty() => value.trim(),
+        _ => {
+            return Err(RecorderError::InvalidEvent(format!(
+                "payload field {key} must be a non-empty string"
+            )))
+        }
+    };
+
+    chrono::DateTime::parse_from_rfc3339(value).map_err(|e| {
+        RecorderError::InvalidEvent(format!("payload field {key} must be RFC3339: {e}"))
+    })?;
+
+    Ok(())
+}
+
+fn require_uuid_string_non_nil(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    let value = match require_key(map, key)? {
+        Value::String(value) if !value.trim().is_empty() => value.trim(),
+        _ => {
+            return Err(RecorderError::InvalidEvent(format!(
+                "payload field {key} must be a non-empty UUID string"
+            )))
+        }
+    };
+
+    let id = Uuid::parse_str(value).map_err(|e| {
+        RecorderError::InvalidEvent(format!("payload field {key} must be a UUID string: {e}"))
+    })?;
+    if id == Uuid::nil() {
+        return Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be a non-nil UUID"
+        )));
+    }
+
+    Ok(())
 }
 
 fn require_bool(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
@@ -1248,6 +1324,159 @@ fn validate_debug_bundle_payload(payload: &Value) -> Result<(), RecorderError> {
     require_string(map, "bundle_id")?;
     require_string(map, "scope")?;
     require_string(map, "redaction_mode")?;
+    Ok(())
+}
+
+const RUNTIME_CHAT_SCHEMA_VERSION_V0_1: &str = "hsk.fr.runtime_chat@0.1";
+
+fn validate_runtime_chat_role(map: &Map<String, Value>) -> Result<&str, RecorderError> {
+    match require_key(map, "role")? {
+        Value::String(value) if matches!(value.as_str(), "user" | "assistant") => {
+            Ok(value.as_str())
+        }
+        _ => Err(RecorderError::InvalidEvent(
+            "payload field role must be one of: user, assistant".to_string(),
+        )),
+    }
+}
+
+fn validate_runtime_chat_model_role(map: &Map<String, Value>) -> Result<(), RecorderError> {
+    match require_key(map, "model_role")? {
+        Value::String(value)
+            if matches!(
+                value.as_str(),
+                "frontend" | "orchestrator" | "worker" | "validator"
+            ) =>
+        {
+            Ok(())
+        }
+        _ => Err(RecorderError::InvalidEvent(
+            "payload field model_role must be one of: frontend, orchestrator, worker, validator"
+                .to_string(),
+        )),
+    }
+}
+
+fn validate_runtime_chat_message_appended_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_allowed_keys(
+        map,
+        &[
+            "schema_version",
+            "event_id",
+            "ts_utc",
+            "session_id",
+            "type",
+            "message_id",
+            "role",
+            "body_sha256",
+        ],
+        &[
+            "job_id",
+            "work_packet_id",
+            "spec_id",
+            "wsid",
+            "model_role",
+            "ans001_sha256",
+        ],
+    )?;
+
+    require_fixed_string(map, "schema_version", RUNTIME_CHAT_SCHEMA_VERSION_V0_1)?;
+    require_fixed_string(map, "event_id", "FR-EVT-RUNTIME-CHAT-101")?;
+    require_rfc3339(map, "ts_utc")?;
+    require_uuid_string_non_nil(map, "session_id")?;
+    require_fixed_string(map, "type", "runtime_chat_message_appended")?;
+
+    require_uuid_string_non_nil(map, "message_id")?;
+    let role = validate_runtime_chat_role(map)?;
+    if role == "assistant" {
+        validate_runtime_chat_model_role(map)?;
+    }
+    require_sha256_hex(map, "body_sha256")?;
+    if map.contains_key("ans001_sha256") {
+        require_sha256_hex(map, "ans001_sha256")?;
+    }
+
+    for key in ["job_id", "work_packet_id", "spec_id", "wsid"] {
+        if map.contains_key(key) {
+            require_string(map, key)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_runtime_chat_ans001_validation_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_allowed_keys(
+        map,
+        &[
+            "schema_version",
+            "event_id",
+            "ts_utc",
+            "session_id",
+            "type",
+            "message_id",
+            "role",
+            "model_role",
+            "ans001_compliant",
+            "violation_clauses",
+            "body_sha256",
+            "ans001_sha256",
+        ],
+        &["job_id", "work_packet_id", "spec_id", "wsid"],
+    )?;
+
+    require_fixed_string(map, "schema_version", RUNTIME_CHAT_SCHEMA_VERSION_V0_1)?;
+    require_fixed_string(map, "event_id", "FR-EVT-RUNTIME-CHAT-102")?;
+    require_rfc3339(map, "ts_utc")?;
+    require_uuid_string_non_nil(map, "session_id")?;
+    require_fixed_string(map, "type", "runtime_chat_ans001_validation")?;
+
+    require_uuid_string_non_nil(map, "message_id")?;
+    match validate_runtime_chat_role(map)? {
+        "assistant" => {}
+        other => {
+            return Err(RecorderError::InvalidEvent(format!(
+                "payload field role must be \"assistant\" for runtime_chat_ans001_validation (got {other})"
+            )))
+        }
+    }
+    validate_runtime_chat_model_role(map)?;
+    require_bool(map, "ans001_compliant")?;
+    require_string_array_allow_empty(map, "violation_clauses")?;
+    require_sha256_hex(map, "body_sha256")?;
+    require_sha256_hex(map, "ans001_sha256")?;
+
+    for key in ["job_id", "work_packet_id", "spec_id", "wsid"] {
+        if map.contains_key(key) {
+            require_string(map, key)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_runtime_chat_session_closed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_allowed_keys(
+        map,
+        &["schema_version", "event_id", "ts_utc", "session_id", "type"],
+        &["job_id", "work_packet_id", "spec_id", "wsid"],
+    )?;
+
+    require_fixed_string(map, "schema_version", RUNTIME_CHAT_SCHEMA_VERSION_V0_1)?;
+    require_fixed_string(map, "event_id", "FR-EVT-RUNTIME-CHAT-103")?;
+    require_rfc3339(map, "ts_utc")?;
+    require_uuid_string_non_nil(map, "session_id")?;
+    require_fixed_string(map, "type", "runtime_chat_session_closed")?;
+
+    for key in ["job_id", "work_packet_id", "spec_id", "wsid"] {
+        if map.contains_key(key) {
+            require_string(map, key)?;
+        }
+    }
+
     Ok(())
 }
 
