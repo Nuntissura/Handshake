@@ -711,6 +711,15 @@ impl DuckDbFlightRecorder {
                 "micro_task_blocked" => super::FlightRecorderEventType::MicroTaskBlocked,
                 "debug_bundle_export" => super::FlightRecorderEventType::DebugBundleExport,
                 "governance_pack_export" => super::FlightRecorderEventType::GovernancePackExport,
+                "runtime_chat_message_appended" => {
+                    super::FlightRecorderEventType::RuntimeChatMessageAppended
+                }
+                "runtime_chat_ans001_validation" => {
+                    super::FlightRecorderEventType::RuntimeChatAns001Validation
+                }
+                "runtime_chat_session_closed" => {
+                    super::FlightRecorderEventType::RuntimeChatSessionClosed
+                }
                 "workflow_recovery" => super::FlightRecorderEventType::WorkflowRecovery,
                 "gov_mailbox_message_created" => {
                     super::FlightRecorderEventType::GovMailboxMessageCreated

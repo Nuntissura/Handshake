@@ -168,7 +168,10 @@ export type FlightEvent = {
     | "security_violation"
     | "workflow_recovery"
     | "debug_bundle_export"
-    | "governance_pack_export";
+    | "governance_pack_export"
+    | "runtime_chat_message_appended"
+    | "runtime_chat_ans001_validation"
+    | "runtime_chat_session_closed";
   job_id?: string;
   workflow_id?: string;
   model_id?: string;
@@ -178,6 +181,35 @@ export type FlightEvent = {
   capability_id?: string;
   policy_decision_id?: string;
   payload: unknown;
+};
+
+export type RuntimeChatEventType =
+  | "runtime_chat_message_appended"
+  | "runtime_chat_ans001_validation"
+  | "runtime_chat_session_closed";
+
+export type RuntimeChatEventV0_1 = {
+  schema_version: "hsk.fr.runtime_chat@0.1";
+  event_id: string; // FR-EVT-RUNTIME-CHAT-1xx
+  ts_utc: string; // RFC3339
+  session_id: string;
+
+  job_id?: string;
+  work_packet_id?: string;
+  spec_id?: string;
+  wsid?: string;
+
+  type: RuntimeChatEventType;
+
+  message_id?: string;
+  role?: "user" | "assistant";
+  model_role?: "frontend" | "orchestrator" | "worker" | "validator";
+
+  body_sha256?: string;
+  ans001_sha256?: string;
+
+  ans001_compliant?: boolean;
+  violation_clauses?: string[];
 };
 
 export type SecurityViolationPayload = {
@@ -460,6 +492,10 @@ export async function getEvents(filters?: FlightEventFilters): Promise<FlightEve
   const query = params.toString();
   const path = query.length > 0 ? `/api/flight_recorder?${query}` : "/api/flight_recorder";
   return request(path);
+}
+
+export async function recordRuntimeChatEvent(event: RuntimeChatEventV0_1): Promise<void> {
+  await request("/api/flight_recorder/runtime_chat_event", { method: "POST", body: event });
 }
 
 export type AiJob = {

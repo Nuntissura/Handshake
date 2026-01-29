@@ -40,7 +40,7 @@ Rules:
 Entry format (recommended):
 - `- **[WP_ID]** - [ACTIVE] - branch: feat/WP-{ID} - coder: <name/model> - last_sync: YYYY-MM-DD`
 
-- **[WP-1-Response-Behavior-ANS-001]** - [ACTIVE] - branch: feat/WP-1-Response-Behavior-ANS-001 - coder: GPT-5.2 (Codex CLI) - last_sync: 2026-01-28
+ 
 
 ---
 
@@ -90,10 +90,11 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
-- **[WP-1-Response-Behavior-ANS-001]** - [IN_PROGRESS]
+ 
 
 
 ## Done
+- **[WP-1-Response-Behavior-ANS-001]** - [VALIDATED]
 - **[WP-1-Global-Silent-Edit-Guard]** - [VALIDATED]
 - **[WP-1-AI-Ready-Data-Architecture-v1]** - [VALIDATED]
 - **[WP-1-Micro-Task-Executor-v1]** - [VALIDATED]

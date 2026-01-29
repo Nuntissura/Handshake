@@ -61,6 +61,7 @@ dependencies = [
  "tauri-plugin-opener",
  "time",
  "ttf-parser",
+ "uuid",
  "walkdir",
 ]
 
