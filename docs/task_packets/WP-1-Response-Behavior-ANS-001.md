@@ -19,11 +19,18 @@
 - Rule: Task packet creation is blocked until refinement is complete and signed.
 
 ## SCOPE
-- What: Implement ANS-001 (Response Behavior Contract) capture + persistence for the `frontend` runtime model role, plus basic UI inspection (hide/show inline + side-panel timeline viewer).
-- Why: Provide deterministic operator inspection/debugging of the frontend model without relying on chat-as-state or consuming tokens to restate chat history.
+- What: Implement ANS-001 (Response Behavior Contract) capture + persistence for the `frontend` runtime model role, plus basic UI inspection (hide/show inline + side-panel timeline viewer), plus leak-safe runtime chat telemetry events (`FR-EVT-RUNTIME-CHAT-101..103`) per `Handshake_Master_Spec_v02.121.md` \u00A711.5.10 / `EXEC-060`.
+- Why: Provide deterministic operator inspection/debugging of the frontend model without relying on chat-as-state or consuming tokens to restate chat history, and emit leak-safe runtime telemetry for append + ANS-001 validation.
 - IN_SCOPE_PATHS:
   - app/src/**
   - app/src-tauri/**
+  - src/backend/handshake_core/src/api/flight_recorder.rs
+  - src/backend/handshake_core/src/api/mod.rs
+  - src/backend/handshake_core/src/flight_recorder/duckdb.rs
+  - src/backend/handshake_core/src/flight_recorder/mod.rs
+  - src/backend/handshake_core/tests/runtime_chat_events_tests.rs (new)
+- SCOPE_AMENDMENT (in-place edit):
+  - 2026-01-29: extended scope to include backend Flight Recorder runtime chat events (approval: `OVERRIDE: allow in-place edit (CX-573B, CX-585A/C)` + signature `ilja290120260236`).
 - OUT_OF_SCOPE:
   - src/backend/handshake_core/src/api/canvases.rs (owned by concurrent WP-1-Global-Silent-Edit-Guard)
   - src/backend/handshake_core/src/api/workspaces.rs (owned by concurrent WP-1-Global-Silent-Edit-Guard)
@@ -48,6 +55,10 @@ pnpm -C app build
 # Optional (if supported in environment):
 pnpm -C app tauri build
 
+just cargo-clean
+just test
+just lint
+
 just post-work WP-1-Response-Behavior-ANS-001
 ```
 
@@ -55,6 +66,10 @@ just post-work WP-1-Response-Behavior-ANS-001
 - For interactive chat sessions with runtime model role `frontend`, the runtime appends one JSON object per line to `{APP_DATA}/sessions/<session_id>/chat.jsonl` (append-only, crash-safe, no in-place edits) per spec `Handshake_Master_Spec_v02.121.md` \u00A72.10.4.
 - Entries include `schema_version: "hsk.session_chat_log@0.1"` and are ordered by `(turn_index, created_at_utc, message_id)` ascending.
 - For assistant messages with `model_role="frontend"`, the log entry includes `ans001` payload (or `null` only when response emission was blocked) and optional `ans001_validation` (leak-safe; no full content duplication).
+- Flight Recorder (append): On every user/assistant message appended to the runtime session chat log, the runtime emits `FR-EVT-RUNTIME-CHAT-101` (leak-safe; no inline body) per spec \u00A711.5.10.
+- Flight Recorder (EXEC-060): On every ANS-001 validation attempt for a `frontend` assistant message, the runtime emits `FR-EVT-RUNTIME-CHAT-102` containing `session_id`, `message_id`, `role`, `model_role`, `ans001_compliant`, `violation_clauses[]`, `body_sha256`, `ans001_sha256` (no inline content) per spec \u00A72.8.v02.13 (EXEC-060) and \u00A711.5.10.
+- Flight Recorder (session close): When the interactive chat session is closed, the runtime emits `FR-EVT-RUNTIME-CHAT-103` per spec \u00A711.5.10.
+- Flight Recorder (privacy): Events MUST NOT embed the `{APP_DATA}/sessions/<session_id>/chat.jsonl` filesystem path; store only `session_id` (spec \u00A711.5.10).
 - UI: ANS-001 payload is hidden inline by default, with per-message expand/collapse and a global show-inline toggle (default OFF) per spec \u00A72.7.1.7.
 - UI: a side-panel "ANS-001 Timeline" lists messages newest->oldest and can open the full ANS-001 payload for any assistant message (spec \u00A72.7.1.7 SHOULD).
 - Raw log is not censored/softened/rewritten; any redaction is export-only and MUST NOT write back into the session chat log (spec \u00A72.10.4).
@@ -90,25 +105,40 @@ just post-work WP-1-Response-Behavior-ANS-001
   - docs/ARCHITECTURE.md
   - docs/refinements/WP-1-Response-Behavior-ANS-001.md
   - docs/task_packets/WP-1-Response-Behavior-ANS-001.md
+  - Handshake_Master_Spec_v02.121.md
   - app/src/App.tsx
   - app/src/components/DebugPanel.tsx
   - app/src/components/operator/TimelineView.tsx
   - app/src-tauri/src/main.rs
   - app/src-tauri/src/lib.rs
+  - src/backend/handshake_core/src/api/flight_recorder.rs
+  - src/backend/handshake_core/src/api/mod.rs
+  - src/backend/handshake_core/src/flight_recorder/duckdb.rs
+  - src/backend/handshake_core/src/flight_recorder/mod.rs
 - SEARCH_TERMS:
   - "ANS-001"
   - "session"
   - "appDataDir"
   - "Timeline"
   - "Flight Recorder"
+  - "EXEC-060"
+  - "FR-EVT-RUNTIME-CHAT"
+  - "runtime_chat_message_appended"
+  - "runtime_chat_ans001_validation"
+  - "runtime_chat_session_closed"
+  - "hsk.fr.runtime_chat@0.1"
 - RUN_COMMANDS:
   ```bash
   pnpm -C app test
   pnpm -C app lint
+  just test
+  just lint
   ```
 - RISK_MAP:
   - "raw session chat log contains secrets" -> "ensure local-only storage under {APP_DATA}; no auto-upload"
   - "log growth / retention" -> "disk usage; rotation/retention policy deferred (out of scope for this WP)"
+  - "Flight Recorder telemetry leaks content" -> "leak-safe only: hashes/pointers; never inline bodies; never embed filesystem paths"
+  - "Flight Recorder runtime chat event schema mismatch" -> "treat as hard failure; validate payload shape and required keys; add test coverage"
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
