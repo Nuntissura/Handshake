@@ -621,3 +621,51 @@ just post-work WP-1-Response-Behavior-ANS-001
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+---
+
+VALIDATION REPORT — WP-1-Response-Behavior-ANS-001
+Verdict: PASS
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Response-Behavior-ANS-001.md (**Status:** In Progress at validation time)
+- Spec Target: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.122.md (anchors: §2.7.1.7, §2.10.4, §2.8.v02.13 (EXEC-060), §11.5.10)
+- Validated Commit: c69aab7c0b9236ca2894500d7945f2a32e9aff86 (feat/WP-1-Response-Behavior-ANS-001)
+
+Files Checked:
+- app/src-tauri/src/session_chat_log.rs
+- app/src-tauri/src/lib.rs
+- app/src/lib/sessionChat.ts
+- app/src/components/operator/Ans001TimelineDrawer.tsx
+- app/src/App.tsx
+- app/src/components/DebugPanel.tsx
+- app/src/lib/api.ts
+- app/src/lib/crypto.ts
+- src/backend/handshake_core/src/api/flight_recorder.rs
+- src/backend/handshake_core/src/flight_recorder/mod.rs
+- src/backend/handshake_core/src/flight_recorder/duckdb.rs
+- src/backend/handshake_core/tests/runtime_chat_events_tests.rs
+- docs/SPEC_CURRENT.md
+- Handshake_Master_Spec_v02.122.md
+
+Findings:
+- §2.10.4 (Frontend Session Chat Log): append-only JSONL at `{APP_DATA}/sessions/<session_id>/chat.jsonl` implemented via app data root state wiring in app/src-tauri/src/lib.rs:78 and path construction in app/src-tauri/src/session_chat_log.rs:105; schema_version constant in app/src-tauri/src/session_chat_log.rs:12.
+- §2.10.4 (Ordering): entries sorted by `(turn_index, created_at_utc, message_id)` ascending in app/src-tauri/src/session_chat_log.rs:265.
+- §2.10.4 (Write semantics): append-only open + write + sync in app/src-tauri/src/session_chat_log.rs:219 and app/src-tauri/src/session_chat_log.rs:224.
+- §2.10.4 / §2.7.1.7 (ANS-001 presence rules): runtime rejects ANS-001 fields on user role and restricts ANS-001 to frontend assistant messages in app/src-tauri/src/session_chat_log.rs:152 and app/src-tauri/src/session_chat_log.rs:182.
+- §2.7.1.7 (UI default hidden): global show-inline toggle is default OFF via localStorage default false in app/src/components/operator/Ans001TimelineDrawer.tsx:28; per-message expand/collapse in app/src/components/operator/Ans001TimelineDrawer.tsx:70; newest->oldest list in app/src/components/operator/Ans001TimelineDrawer.tsx:63; drawer reachable from app UI in app/src/App.tsx:89.
+- §11.5.10 / EXEC-060 (Leak-safe runtime telemetry event schema): TS types in app/src/lib/api.ts:186 and app/src/lib/api.ts:192; emission via recordRuntimeChatEvent() to `/api/flight_recorder/runtime_chat_event` in app/src/lib/api.ts:497; sample runtime emissions include required fields and hashes in app/src/components/DebugPanel.tsx:95 and app/src/components/DebugPanel.tsx:134; hashing uses stable canonical stringify + sha256 in app/src/lib/crypto.ts:1 and app/src/lib/crypto.ts:22.
+- Backend ingestion + validation: route + strict decode (`deny_unknown_fields`) in src/backend/handshake_core/src/api/flight_recorder.rs:50 and src/backend/handshake_core/src/api/flight_recorder.rs:65; actor must be system and payload keys strictly constrained in src/backend/handshake_core/src/flight_recorder/mod.rs:359 and src/backend/handshake_core/src/flight_recorder/mod.rs:1362; DuckDB mapper supports runtime chat event types in src/backend/handshake_core/src/flight_recorder/duckdb.rs:714.
+- Leak-safety enforcement tests: rejects unknown/leaky keys and path fields in src/backend/handshake_core/tests/runtime_chat_events_tests.rs:57 and src/backend/handshake_core/tests/runtime_chat_events_tests.rs:77; rejects invalid sha256 in src/backend/handshake_core/tests/runtime_chat_events_tests.rs:97.
+
+Tests:
+- Reported in handoff for c69aab7c: `pnpm -C app test`, `pnpm -C app lint`, `pnpm -C app build`, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`, `cargo check --manifest-path app/src-tauri/Cargo.toml` (all PASS).
+
+Hygiene:
+- WP worktree showed a local unstaged change after validation: `app/src-tauri/Cargo.lock` (must be cleaned/reverted before merge to avoid ambiguity).
+
+REASON FOR PASS:
+- All targeted normative requirements for §2.7.1.7, §2.10.4, §11.5.10, and EXEC-060 are implemented with direct file:line evidence above, and leak-safety is enforced by backend schema/validators plus negative tests.
+
+Risks & Suggested Actions:
+- §2.10.4 note: spec says `ans001` “MAY be null only when response emission was blocked”; runtime currently defaults missing frontend `ans001` to `null` (app/src-tauri/src/session_chat_log.rs:171). Ensure caller only omits ANS-001 when emission was actually blocked.
