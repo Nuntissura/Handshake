@@ -123,3 +123,5 @@ Format:
 | WP-1-Cloud-Escalation-Consent | docs/task_packets/stubs/WP-1-Cloud-Escalation-Consent-v1.md | Stub Backlog (Not Activated): WP-1-Cloud-Escalation-Consent-v1 | stub (spec v02.120); new roadmap item |
 | WP-1-Inbox-Role-Mailbox-Alignment | docs/task_packets/stubs/WP-1-Inbox-Role-Mailbox-Alignment-v1.md | Stub Backlog (Not Activated): WP-1-Inbox-Role-Mailbox-Alignment-v1 | stub (spec v02.120); new roadmap item |
 | WP-1-Autonomous-Governance-Protocol | docs/task_packets/stubs/WP-1-Autonomous-Governance-Protocol-v1.md | Stub Backlog (Not Activated): WP-1-Autonomous-Governance-Protocol-v1 | stub (spec v02.120); new roadmap item |
+| WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry | docs/task_packets/stubs/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1.md | Stub Backlog (Not Activated): WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 | stub (spec v02.122); new Phase 1 roadmap addition |
+| WP-1-Layerwise-Inference-Foundations | docs/task_packets/stubs/WP-1-Layerwise-Inference-Foundations-v1.md | Stub Backlog (Not Activated): WP-1-Layerwise-Inference-Foundations-v1 | stub (spec v02.122); new Phase 1 roadmap addition |

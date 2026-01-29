@@ -82,6 +82,8 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 - **[WP-1-Cloud-Escalation-Consent-v1]** - [STUB]
 - **[WP-1-Inbox-Role-Mailbox-Alignment-v1]** - [STUB]
 - **[WP-1-Autonomous-Governance-Protocol-v1]** - [STUB]
+- **[WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1]** - [STUB]
+- **[WP-1-Layerwise-Inference-Foundations-v1]** - [STUB]
 
 
 ## In Progress
