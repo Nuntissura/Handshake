@@ -108,8 +108,45 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - RolePack source (JSON): `assets/atelier_rolepack_digital_production_studio_v1.json`
+    - `AtelierRolePack { pack_id, pack_version, spec_id?, roles: AtelierRoleSpec[] }`
+    - `AtelierRoleSpec { role_id, department_id, display_name, aliases?, modes_supported?, content_profiles_supported?, claim_features?, extract_contracts: RoleContractSpec[], produce_contracts: RoleContractSpec[], allowed_models?, allowed_tools?, vocab_namespace?, proposal_policy? }`
+    - `RoleContractSpec { contract_id, kind: \"extract\"|\"produce\", schema_json, schema_sha256 (derived) }`
+  - Build/CI validator (Node): `scripts/validation/atelier_role_registry_check.mjs`
+    - Reads RolePack JSON and enforces:
+      - role_id set is append-only vs baseline
+      - contract_id -> schema_sha256 is immutable once published
+      - role_id uniqueness + safe-id format
+  - Runtime validator (Rust): `src/backend/handshake_core/src/ace/validators/role_registry_append_only.rs`
+    - `RoleId(String)` and `DepartmentId(String)` newtypes
+    - `RoleContractKind { Extract, Produce }`
+    - `RoleSpecEntry { role_id: RoleId, department_id: DepartmentId, display_name: String, aliases: Vec<String> }`
+    - `RoleContractSurface { contract_id: String, role_id: RoleId, kind: RoleContractKind, schema_sha256: String }`
+    - `RoleRegistrySnapshot { roles: Vec<RoleSpecEntry>, contracts: Vec<RoleContractSurface> }`
+    - `RoleRegistryViolation` enum:
+      - `RoleIdRemoved { role_id }`
+      - `ContractSurfaceDrift { contract_id, expected_sha256, got_sha256 }`
+      - `DuplicateRoleId { role_id }`
+      - `InvalidRoleId { role_id }`
+    - Canonical hashing API (no logic yet): `fn canonical_json_sha256(value: &serde_json::Value) -> String`
+    - Validator API (no logic yet): `RoleRegistryAppendOnlyValidator::validate(current: &RoleRegistrySnapshot, baseline: &RoleRegistrySnapshot) -> Result<(), RoleRegistryViolation>`
+  - Tests (Rust): `src/backend/handshake_core/tests/role_registry_append_only_tests.rs`
+    - Coverage targets:
+      - removing a previously published role_id fails
+      - changing schema_json for an existing contract_id fails (unless contract_id/version bumps)
+      - adding new role_id + new contract_id passes
+      - canonical hashing is stable and deterministic
+  - Hook (pre-commit): update `scripts/validation/codex-check.mjs` to run the role registry check (blocking)
 - Open questions:
+  - Baseline for \"previously declared\": compare against last validated snapshot in git (main branch file via git object), or store an explicit baseline snapshot file in-repo?
+  - role_id canonicalization: confirm the required mapping for the Digital Production Studio inventory (snake_case, allowed chars, max len).
+  - Contract surface definition: hash schema_json only, or include additional contract fields (evidence requirements / deliverable kinds) as part of the surface?
 - Notes:
+  - IN_SCOPE_PATHS include files currently missing in this worktree and will be created during IMPLEMENTATION after SKELETON APPROVED:
+    - `assets/atelier_rolepack_digital_production_studio_v1.json`
+    - `scripts/validation/atelier_role_registry_check.mjs`
+    - `src/backend/handshake_core/src/ace/validators/role_registry_append_only.rs`
+    - `src/backend/handshake_core/tests/role_registry_append_only_tests.rs`
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)
