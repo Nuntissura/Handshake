@@ -109,27 +109,57 @@ git revert <commit-sha>
 ## SKELETON
 - Proposed interfaces/types/contracts:
   - RolePack source (JSON): `assets/atelier_rolepack_digital_production_studio_v1.json`
-    - `AtelierRolePack { pack_id, pack_version, spec_id?, roles: AtelierRoleSpec[] }`
-    - `AtelierRoleSpec { role_id, department_id, display_name, aliases?, modes_supported?, content_profiles_supported?, claim_features?, extract_contracts: RoleContractSpec[], produce_contracts: RoleContractSpec[], allowed_models?, allowed_tools?, vocab_namespace?, proposal_policy? }`
-    - `RoleContractSpec { contract_id, kind: \"extract\"|\"produce\", schema_json, schema_sha256 (derived) }`
+    - `AtelierRolePack { pack_id: string, pack_version: string, spec_id: string, roles: AtelierRoleSpec[] }`
+    - `AtelierRoleSpec` (required keys per spec §6.3.3.5.7.1; fields are required but may allow empty list/string where appropriate):
+      - `role_id: string` (required; stable; never reused; lower_snake_case `[a-z0-9_]{1,64}`)
+      - `department_id: string` (required; lower_snake_case `[a-z0-9_]{1,64}`)
+      - `display_name: string` (required)
+      - `modes_supported: (\"representational\"|\"conceptual\")[]` (required; subset; must be non-empty)
+      - `content_profiles_supported: string[]` (required)
+      - `claim_features: string[]` (required)
+      - `extract_contracts: RoleContractSpec[]` (required)
+      - `produce_contracts: RoleContractSpec[]` (required)
+      - `allowed_models: string[]` (required)
+      - `allowed_tools: string[]` (required)
+      - `vocab_namespace: string` (required; may be empty string)
+      - `proposal_policy: \"disabled\"|\"queue_only\"|\"auto_accept_with_threshold\"` (required)
+      - `aliases: string[]` (required; rename aliases; may be empty; each alias must match `role_id` format)
+      - `lifecycle: \"active\"|\"deprecated\"` (required; explicit deprecation allowed; removal forbidden)
+    - `RoleContractSpec { contract_id: string, schema_json: object }`
+    - Contract id format (required per spec §6.3.3.5.7.1):
+      - Extraction: `ROLE:<role_id>:X:<ver>`
+      - Compose: `ROLE:<role_id>:C:<ver>`
+      - `<ver>` is a positive integer (u32). Any contract surface change requires a new `<ver>` (new `contract_id`).
   - Build/CI validator (Node): `scripts/validation/atelier_role_registry_check.mjs`
+    - Baseline strategy (locked): load baseline RolePack bytes from git:
+      - primary: `git show main:assets/atelier_rolepack_digital_production_studio_v1.json`
+      - fallback: `git show origin/main:assets/atelier_rolepack_digital_production_studio_v1.json`
+      - if neither exists: baseline is treated as empty (first publish), but internal invariants still apply
     - Reads RolePack JSON and enforces:
       - role_id set is append-only vs baseline
-      - contract_id -> schema_sha256 is immutable once published
+      - contract_id -> ContractSurfaceHash is immutable once published
       - role_id uniqueness + safe-id format
+      - contract_id format + version parse (X/C kind + u32 `<ver>`)
   - Runtime validator (Rust): `src/backend/handshake_core/src/ace/validators/role_registry_append_only.rs`
     - `RoleId(String)` and `DepartmentId(String)` newtypes
     - `RoleContractKind { Extract, Produce }`
-    - `RoleSpecEntry { role_id: RoleId, department_id: DepartmentId, display_name: String, aliases: Vec<String> }`
-    - `RoleContractSurface { contract_id: String, role_id: RoleId, kind: RoleContractKind, schema_sha256: String }`
+    - `RoleSpecEntry { role_id: RoleId, department_id: DepartmentId, display_name: String, aliases: Vec<String>, lifecycle: RoleLifecycle }`
+    - `ContractSurfaceHash([u8; 32])` (sha256)
+    - `RoleContractSurface { contract_id: String, role_id: RoleId, kind: RoleContractKind, version: u32, schema_hash: ContractSurfaceHash }`
+    - Contract surface hashing (locked per refinement primitives):
+      - `schema_hash = sha256(canonical_json_bytes(schema_json))`
+      - canonical JSON bytes: stable key ordering + no whitespace variance (deterministic)
     - `RoleRegistrySnapshot { roles: Vec<RoleSpecEntry>, contracts: Vec<RoleContractSurface> }`
     - `RoleRegistryViolation` enum:
       - `RoleIdRemoved { role_id }`
-      - `ContractSurfaceDrift { contract_id, expected_sha256, got_sha256 }`
+      - `ContractSurfaceDrift { contract_id, expected_hash, got_hash }`
       - `DuplicateRoleId { role_id }`
       - `InvalidRoleId { role_id }`
-    - Canonical hashing API (no logic yet): `fn canonical_json_sha256(value: &serde_json::Value) -> String`
+    - Canonical hashing API (no logic yet): `fn canonical_json_sha256(value: &serde_json::Value) -> ContractSurfaceHash`
     - Validator API (no logic yet): `RoleRegistryAppendOnlyValidator::validate(current: &RoleRegistrySnapshot, baseline: &RoleRegistrySnapshot) -> Result<(), RoleRegistryViolation>`
+    - Diagnostic + Flight Recorder requirement (locked per refinement):
+      - On append-only violation / drift, record a `Diagnostic` via `DiagnosticsStore::record_diagnostic` (source=Validator) with job/workflow correlation fields when available.
+      - DuckDB-backed diagnostics store (`DuckDbFlightRecorder`) emits FR-EVT-003 `FlightRecorderEventType::Diagnostic` with payload `{ diagnostic_id, wsid?, severity?, source? }` (no full diagnostic payload duplication).
   - Tests (Rust): `src/backend/handshake_core/tests/role_registry_append_only_tests.rs`
     - Coverage targets:
       - removing a previously published role_id fails
@@ -137,10 +167,7 @@ git revert <commit-sha>
       - adding new role_id + new contract_id passes
       - canonical hashing is stable and deterministic
   - Hook (pre-commit): update `scripts/validation/codex-check.mjs` to run the role registry check (blocking)
-- Open questions:
-  - Baseline for \"previously declared\": compare against last validated snapshot in git (main branch file via git object), or store an explicit baseline snapshot file in-repo?
-  - role_id canonicalization: confirm the required mapping for the Digital Production Studio inventory (snake_case, allowed chars, max len).
-  - Contract surface definition: hash schema_json only, or include additional contract fields (evidence requirements / deliverable kinds) as part of the surface?
+- Open questions: NONE (decisions locked in this SKELETON)
 - Notes:
   - IN_SCOPE_PATHS include files currently missing in this worktree and will be created during IMPLEMENTATION after SKELETON APPROVED:
     - `assets/atelier_rolepack_digital_production_studio_v1.json`
