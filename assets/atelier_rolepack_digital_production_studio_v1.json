@@ -1,0 +1,1907 @@
+{
+  "pack_id": "atelier_rolepack_digital_production_studio_v1",
+  "pack_version": "1",
+  "spec_id": "Handshake_Master_Spec_v02.123.md",
+  "roles": [
+    {
+      "role_id": "producer",
+      "department_id": "executive",
+      "display_name": "Producer",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:producer:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:producer:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "director",
+      "department_id": "executive",
+      "display_name": "Director (Keeper of Intent)",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:director:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:director:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "writer_narrative_architect",
+      "department_id": "thematic_psychological",
+      "display_name": "Writer / Narrative Architect",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:writer_narrative_architect:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:writer_narrative_architect:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "psychological_impact_consultant",
+      "department_id": "thematic_psychological",
+      "display_name": "Psychological Impact Consultant",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:psychological_impact_consultant:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:psychological_impact_consultant:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "symbolism_mythology_consultant",
+      "department_id": "thematic_psychological",
+      "display_name": "Symbolism & Mythology Consultant",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:symbolism_mythology_consultant:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:symbolism_mythology_consultant:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "mood_architect",
+      "department_id": "thematic_psychological",
+      "display_name": "Mood Architect",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:mood_architect:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:mood_architect:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "historian_world_builder",
+      "department_id": "context_culture",
+      "display_name": "Historian / World-Builder",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:historian_world_builder:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:historian_world_builder:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "cultural_anthropologist_trend_forecaster",
+      "department_id": "context_culture",
+      "display_name": "Cultural Anthropologist / Trend Forecaster",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:cultural_anthropologist_trend_forecaster:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:cultural_anthropologist_trend_forecaster:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "technology_specialist",
+      "department_id": "context_culture",
+      "display_name": "Technology Specialist",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:technology_specialist:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:technology_specialist:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "production_designer",
+      "department_id": "world_building",
+      "display_name": "Production Designer",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:production_designer:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:production_designer:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "set_dresser",
+      "department_id": "world_building",
+      "display_name": "Set Dresser",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:set_dresser:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:set_dresser:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "materials_specialist",
+      "department_id": "world_building",
+      "display_name": "Materials Specialist",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:materials_specialist:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:materials_specialist:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "director_of_photography",
+      "department_id": "visuals",
+      "display_name": "Director of Photography",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:director_of_photography:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:director_of_photography:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "cinematographer",
+      "department_id": "visuals",
+      "display_name": "Cinematographer",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:cinematographer:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:cinematographer:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "gaffer_lighting",
+      "department_id": "visuals",
+      "display_name": "Gaffer (Lighting)",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:gaffer_lighting:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:gaffer_lighting:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "camera_technician_lens_tech",
+      "department_id": "visuals",
+      "display_name": "Camera Technician / Lens Tech",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:camera_technician_lens_tech:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:camera_technician_lens_tech:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "fashion_stylist",
+      "department_id": "fashion_styling",
+      "display_name": "Fashion Stylist",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:fashion_stylist:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:fashion_stylist:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "hair_stylist",
+      "department_id": "fashion_styling",
+      "display_name": "Hair Stylist",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:hair_stylist:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:hair_stylist:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "makeup_artist",
+      "department_id": "fashion_styling",
+      "display_name": "Makeup Artist",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:makeup_artist:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:makeup_artist:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "model_talent",
+      "department_id": "fashion_styling",
+      "display_name": "Model / Talent",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:model_talent:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:model_talent:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "editor",
+      "department_id": "finishing",
+      "display_name": "Editor",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:editor:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:editor:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "vfx",
+      "department_id": "finishing",
+      "display_name": "VFX",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:vfx:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:vfx:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "color_grading",
+      "department_id": "finishing",
+      "display_name": "Color Grading",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:color_grading:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:color_grading:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "digital_imaging_technician",
+      "department_id": "finishing",
+      "display_name": "Digital Imaging Technician (DIT)",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:digital_imaging_technician:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:digital_imaging_technician:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "product_stylist",
+      "department_id": "special_modes",
+      "display_name": "Product Stylist",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:product_stylist:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:product_stylist:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "food_stylist",
+      "department_id": "special_modes",
+      "display_name": "Food Stylist",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:food_stylist:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:food_stylist:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "intimacy_coordinator",
+      "department_id": "special_modes",
+      "display_name": "Intimacy Coordinator",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:intimacy_coordinator:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:intimacy_coordinator:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "ui_ux_designer",
+      "department_id": "special_modes",
+      "display_name": "UI/UX Designer",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:ui_ux_designer:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:ui_ux_designer:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "information_architect",
+      "department_id": "special_modes",
+      "display_name": "Information Architect",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:information_architect:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:information_architect:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "interaction_designer",
+      "department_id": "special_modes",
+      "display_name": "Interaction Designer",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:interaction_designer:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:interaction_designer:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "brand_strategist",
+      "department_id": "special_modes",
+      "display_name": "Brand Strategist",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:brand_strategist:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:brand_strategist:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "typographer",
+      "department_id": "special_modes",
+      "display_name": "Typographer",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:typographer:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:typographer:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "graphic_designer",
+      "department_id": "special_modes",
+      "display_name": "Graphic Designer",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:graphic_designer:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:graphic_designer:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "layout_artist",
+      "department_id": "special_modes",
+      "display_name": "Layout Artist",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:layout_artist:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:layout_artist:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "architect",
+      "department_id": "special_modes",
+      "display_name": "Architect",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:architect:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:architect:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "interior_designer",
+      "department_id": "special_modes",
+      "display_name": "Interior Designer",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:interior_designer:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:interior_designer:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "furniture_object_designer",
+      "department_id": "special_modes",
+      "display_name": "Furniture/Object Designer",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:furniture_object_designer:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:furniture_object_designer:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    },
+    {
+      "role_id": "landscape_architect",
+      "department_id": "special_modes",
+      "display_name": "Landscape Architect",
+      "modes_supported": ["representational", "conceptual"],
+      "content_profiles_supported": ["default"],
+      "claim_features": ["docling.blocks", "image.frames", "ocr.text", "asr.transcript", "vlm.tags"],
+      "extract_contracts": [
+        {
+          "contract_id": "ROLE:landscape_architect:X:1",
+          "schema_json": {
+            "type": "role_extract_contract",
+            "contract_version": 1,
+            "extraction_schema": {
+              "type": "object",
+              "required": ["summary", "key_facts", "confidence"],
+              "properties": {
+                "summary": { "type": "string" },
+                "key_facts": { "type": "array", "items": { "type": "string" } },
+                "confidence": { "type": "number" }
+              }
+            },
+            "evidence_requirements": {
+              "required": true,
+              "kinds": ["quote", "block_ref", "frame_ref"]
+            },
+            "fact_mapping_rules": [{ "from": "extraction.key_facts[]", "to": "facts[]" }]
+          }
+        }
+      ],
+      "produce_contracts": [
+        {
+          "contract_id": "ROLE:landscape_architect:C:1",
+          "schema_json": {
+            "type": "role_produce_contract",
+            "contract_version": 1,
+            "deliverable_kinds": ["text"],
+            "deliverable_schema": {
+              "type": "object",
+              "required": ["body"],
+              "properties": { "body": { "type": "string" } }
+            }
+          }
+        }
+      ],
+      "allowed_models": ["llama3"],
+      "allowed_tools": ["validators", "mappers", "renderers", "exporters"],
+      "vocab_namespace": "",
+      "proposal_policy": "disabled"
+    }
+  ]
+}
