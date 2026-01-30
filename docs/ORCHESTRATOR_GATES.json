@@ -879,6 +879,22 @@
       "branch": "feat/WP-1-Response-Behavior-ANS-001",
       "worktree_dir": "../wt-WP-1-Response-Behavior-ANS-001",
       "timestamp": "2026-01-28T19:59:27.976Z"
+    },
+    {
+      "wpId": "WP-1-Role-Registry-AppendOnly-v1",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Role-Registry-AppendOnly-v1.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md",
+      "spec_target_sha1": "4d406dcc1a75570d2f17659e0ac40d68a22f211a",
+      "timestamp": "2026-01-30T20:25:39.817Z",
+      "turn_token": "1769804739829"
+    },
+    {
+      "wpId": "WP-1-Role-Registry-AppendOnly-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja300120262137",
+      "timestamp": "2026-01-30T20:38:07.563Z",
+      "refinement_path": "docs/refinements/WP-1-Role-Registry-AppendOnly-v1.md"
     }
   ]
 }
