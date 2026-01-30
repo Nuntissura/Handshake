@@ -64,7 +64,10 @@ process.chdir(repoRoot);
 // 1) Spec drift guard: SPEC_CURRENT must point to the latest master spec.
 await import("../spec-current-check.mjs");
 
-// 2) Frontend fetch guard: only the shared API client may call fetch.
+// 2) Role registry drift guard: role_id and contract surfaces are append-only.
+await import("./atelier_role_registry_check.mjs");
+
+// 3) Frontend fetch guard: only the shared API client may call fetch.
 {
   const tsFiles = listFilesRecursive(path.join(repoRoot, "app", "src")).filter((filePath) => {
     const ext = path.extname(filePath);
@@ -79,7 +82,7 @@ await import("../spec-current-check.mjs");
   }
 }
 
-// 3) Backend println/eprintln guard: disallow direct stdout logging in production code.
+// 4) Backend println/eprintln guard: disallow direct stdout logging in production code.
 {
   const rustFiles = listFilesRecursive(path.join(repoRoot, "src", "backend", "handshake_core", "src")).filter(
     (filePath) => path.extname(filePath) === ".rs"
@@ -92,7 +95,7 @@ await import("../spec-current-check.mjs");
   }
 }
 
-// 4) TODO tagging guard: TODOs must be annotated with HSK issue IDs.
+// 5) TODO tagging guard: TODOs must be annotated with HSK issue IDs.
 {
   const roots = [
     path.join(repoRoot, "src", "backend", "handshake_core", "src"),
@@ -109,7 +112,7 @@ await import("../spec-current-check.mjs");
   }
 }
 
-// 5) Task board guard: keep Done/Superseded minimal and machine-checkable.
+// 6) Task board guard: keep Done/Superseded minimal and machine-checkable.
 await import("./task-board-check.mjs");
 await import("./task-packet-claim-check.mjs");
 await import("./wp-activation-traceability-check.mjs");
