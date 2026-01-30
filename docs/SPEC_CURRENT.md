@@ -2,9 +2,9 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.122.md**
+**Handshake_Master_Spec_v02.123.md**
 
-(Updated: 2026-01-29 - v02.122)
+(Updated: 2026-01-30 - v02.123)
 
 ---
 

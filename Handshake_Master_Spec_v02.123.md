@@ -34,11 +34,11 @@
 
 
 
-# Handshake Master Specification v02.121
+# Handshake Master Specification v02.123
 
 **Status:** LIVING  
-**Version:** v02.121  
-**Date:** 2026-01-28  
+**Version:** v02.123  
+**Date:** 2026-01-30  
 **Authority:** [CX-001] (The Master Spec is the Source of Truth)
 
 **Purpose:** Complete reference combining product vision, Diary governance, extraction pipeline, Phase 1 closure requirements, and technical supply-chain gate specs.
@@ -49,6 +49,7 @@
 
 | Version | Date | Author | Changes | Approval |
 |---------|------|--------|---------|----------|
+| v02.122 | 2026-01-29 | Orchestrator | **v02.122 merge:** merged Multi-Model Parallelism Addendum (UPDATED) and Handshake_Layerwise_Inference_SpecDraft_v0.3.md into Master Spec main body: RuntimeMode/ExecutionMode + invariants (DOCS_ONLY/AI_ENABLED, min_ready_models, strict file-scope locks), RoleExecutionIdentity + ParameterClass + largest-first routing + performance telemetry scoring, MailboxKind taxonomy, HSK_STATUS lifecycle marker, SwapRequest escalation + CX-MM code registry, plus reserved `settings.exec_policy` + Work Profile compute/approximate-waiver hooks and new FR `llm_exec_policy` + `hsk.layerwise_trace@0.1`. Updated §7.6 coverage matrix + roadmap (Phase 0 closed; new [ADD v02.122] entries). | pending |
 | v02.121 | 2026-01-28 | Orchestrator | **ANS-001 enrichment:** defined frontend session chat log persistence in `{APP_DATA}` (one file per session; JSONL), UI presentation rules (hidden-by-default + per-message expand + global show-inline + side-panel timeline), leak-safe runtime chat telemetry events `FR-EVT-RUNTIME-CHAT-101..103`, and clarified `EXEC-060` compliance logging semantics. | ilja260120261908 |
 | v02.120 | 2026-01-27 | Orchestrator | **Runtime Integration merge:** merged Handshake_Runtime_Integration_Addendum_v0_5 into master spec: model resource management (ModelSwap protocol + FR-EVT-MODEL-*), autonomous governance protocol (AutomationLevel + GovernanceDecision/self-approval + FR-EVT-GOV-*), Work Profiles (role-based model assignment + FR-EVT-PROFILE-*), Role Mailbox (“Inbox”) alignment (body schema + runtime telemetry FR-EVT-RUNTIME-MAILBOX-*), cloud escalation consent artifacts + FR-EVT-CLOUD-*, prompt→macro→micro pipeline + tooling profile selection, and conformance tests. Updated roadmap (Phase0 unchanged/closed; new [ADD v02.120] entries only). | ilja270120260001 |
 | v02.119 | 2026-01-26 | Validator | **Non-normative AI UX notes (Command Palette + Jobs UI):** Recorded the current UX preferences that (a) Command Palette uses Ctrl/Cmd+K as primary shortcut with Ctrl/Cmd+Shift+P as a fallback, (b) "Summarize" opens the palette so instructions can be tweaked before creating the job, and (c) the backend remains the queue/source-of-truth while the frontend acts as a global job tracker UI (poll queued/running only to avoid storms). (Non-normative; expected to evolve.) | ilja260120260248 |
@@ -4202,6 +4203,8 @@ USER QUERY
 CONTEXT READY FOR LLM
 ```
 
+[ADD v02.123] **Lens role lanes are first-class retrieval lanes:** Atelier/Lens “search as role” queries and any role-specific lane indices MUST follow the same Hybrid Search + Two-Stage Retrieval contract defined in this section, and MUST emit QueryPlan + RetrievalTrace per ACE-RAG-001 (§2.6.6.7.14). Role filters (role_id, ViewMode, profile_id, etc.) are treated as metadata filters and must be recorded in the trace.
+
 ##### 2.3.14.9.2 Query Analysis
 
 ```typescript
@@ -6491,7 +6494,9 @@ subscribeToWorkspace(workspace_id: string) {
 └─────────────────────────────────────────────────────────────┘
 ```
 
-TXT-001 shares the same governance model as DES-001: descriptors are DerivedContent, vocab-locked, and subject to the NSFW/consent invariants in Sections 2.2.2–2.2.3.
+TXT-001 shares the same governance model as DES-001: descriptors are DerivedContent, vocab-locked, and subject to the NSFW/consent invariants
+
+- [ADD v02.123] **Two different “tiers” (do not confuse):** `LensExtractionTier` (`tier1` vs `tier2`) controls **extraction depth / compute budget** (cheap pass vs deep enrichment). It is **orthogonal** to `content_tier` (`sfw` / `adult_soft` / `adult_explicit`) which controls **governance and projection**. `content_tier` MUST NOT be used as a proxy for extraction depth, and `LensExtractionTier` MUST NOT be used as a proxy for NSFW/SFW governance. in Sections 2.2.2–2.2.3.
 
 ---
 
@@ -6969,10 +6974,10 @@ All model calls go through a versioned internal interface:
 
 Where:
 
-- `role` is a logical role: `orchestrator | code | creative | small | vision`.
+- `role` is a routing hint (`RoleId` string). **ADD v02.122:** it MUST NOT be treated as a closed enum. Handshake reserves a small set of well-known RoleIds for built-in routing (e.g., `frontend`, `orchestrator`, `worker`, `validator`, plus legacy aliases), and permits dynamic project/task roles (role packs / registries) that inherit from core roles unless overridden (see §4.3.7 and §4.5.5.3).
 - `task_type` captures the intended use: `chat | completion | tool_call | system_utility`.
 - `input` is a structured payload (messages, tools, workspace metadata as needed).
-- `settings` includes temperature, max_tokens, top_p, etc.
+- `settings` includes temperature, max_tokens, top_p, etc. **ADD v02.122:** reserve `settings.exec_policy` (optional) as a forward-compatible execution-policy hint (dynamic compute / layer-wise inference). Runtimes MUST either apply the requested policy or deterministically downgrade to a supported policy and report the effective policy (see §4.5.5).
 
 **Error semantics**
 
@@ -9357,7 +9362,57 @@ Reduce Operator copy/paste friction while preserving strict governance by provid
 - repo-exported (machine-friendly shared memory for small-context handoff)
 
 
-[ADD v02.120] **Terminology / naming clarification:** The UI label **“Inbox”** refers to this **Role Mailbox** subsystem. “Inbox”, “Role Inbox”, and “Role Mailbox” are the same feature in Handshake; there is no separate “Inbox” feature with different semantics. The canonical term in specs is **Role Mailbox**; “Inbox” is a presentation label.
+[ADD v02.122] **Mailbox taxonomy + naming clarification (HARD):** Handshake defines a MailboxKind discriminator so future inbox-like systems do not collide with the internal collaboration channel. The canonical internal collaboration channel is **Role Mailbox** (MailboxKind=`COLLAB`). UI labels MUST NOT use bare **“Inbox”** without a qualifier; acceptable UI labels include “Role Mailbox”, “Collab Inbox”, “Work Inbox”, or a project-specific name. See §2.6.8.10.0.
+
+
+##### 2.6.8.10.0 Collaboration Mailbox Taxonomy (MailboxKind) (Normative) [ADD v02.122]
+
+Handshake MUST maintain a **taxonomy** so “inbox-like” systems do not collide:
+
+- internal role-to-role collaboration,
+- external email-like mailboxes,
+- task intake queues,
+- and system/notifications.
+
+###### 2.6.8.10.0.1 MailboxKind discriminator (normative)
+
+```yaml
+# ADD v02.122
+MailboxKind: enum
+  - COLLAB       # internal collaboration + advisory channel (Role Mailbox)
+  - MAIL         # external mail integration (email-like)
+  - TASK_INTAKE  # intake queue for tasks/issues (operator triage)
+  - SYSTEM       # system events/notifications (non-human)
+```
+
+###### 2.6.8.10.0.2 Naming guidance (normative)
+
+- Canonical internal collaboration subsystem name SHOULD be **Role Mailbox** (`MailboxKind=COLLAB`).
+- The UI label for `MailboxKind=COLLAB` MUST be **configurable** and MUST NOT be “Inbox” without a qualifier.
+  - Acceptable: “Role Mailbox”, “Collab Inbox”, “Work Inbox”, “Ops Inbox”.
+  - Forbidden: “Inbox” (ambiguous).
+- If an internal “inbox” metaphor is desired, it SHOULD be namespaced:
+  - “Role Inbox” = Role Mailbox (COLLAB)
+  - “Mail Inbox” = external mail (MAIL)
+
+Optional internal codename: **Exedra** MAY be used as a dev-facing alias for `MailboxKind=COLLAB`, but the canonical spec term remains Role Mailbox.
+
+###### 2.6.8.10.0.3 Authority boundary (HARD)
+
+The Role Mailbox (MailboxKind=COLLAB) is **never** authoritative by default.
+
+- It MAY coordinate work and record deliberation.
+- It MUST NOT be used to replace:
+  - Task Board status,
+  - WP/MT contracts and refinements,
+  - waivers,
+  - gate outcomes,
+  - validator reports.
+
+###### 2.6.8.10.0.4 Persistence & exportability (normative)
+
+- MailboxKind=COLLAB MUST be persistable and exportable (repo + local app data) so small-context handoffs can resume from artifacts.
+- MailboxKind=MAIL and MailboxKind=TASK_INTAKE MAY be persisted, but are not required for Phase 1 unless explicitly planned.
 
 **Non-authority rule (HARD): chat is not state**  
 Role Mailbox messages are never authoritative by default.  
@@ -9367,13 +9422,10 @@ Mailbox messages MAY coordinate work, but MUST NOT substitute for signed artifac
 **Data model (normative)**
 
 ```rust
-pub enum RoleId {
-    Operator,
-    Orchestrator,
-    Coder,
-    Validator,
-    Advisory(String), // optional helper agents; never replaces the Trinity
-}
+// ADD v02.122: RoleId is an opaque string, not a closed enum.
+// Reserved well-known RoleIds include: operator, frontend, orchestrator, worker, validator.
+// Dynamic roles are allowed as arbitrary strings (recommend namespacing: rolepack:<pack>/<role>).
+pub type RoleId = String;
 
 pub enum RoleMailboxMessageType {
     ClarificationRequest,
@@ -9401,6 +9453,7 @@ pub struct RoleMailboxContext {
 
 pub struct RoleMailboxThread {
     pub thread_id: String,          // stable id; UUID or hash-based
+    pub mailbox_kind: String,      // ADD v02.122: MUST be "COLLAB" (see §2.6.8.10.0)
     pub subject: String,
     pub context: RoleMailboxContext,
     pub participants: Vec<RoleId>,  // explicit
@@ -9427,6 +9480,7 @@ pub struct TranscriptionLink {
 
 pub struct RoleMailboxMessage {
     pub message_id: String,             // stable id; UUID or hash-based
+    pub mailbox_kind: String,          // ADD v02.122: MUST be "COLLAB"
     pub thread_id: String,
     pub created_at: DateTime<Utc>,
     pub from_role: RoleId,
@@ -10363,6 +10417,7 @@ This section defines a **deterministic, auditable retrieval and context assembly
 - Hash-key caching contracts and invalidation.
 - Index drift detection invariants.
 - Logging requirements and conformance tests.
+- [ADD v02.123] **Atelier/Lens role-lane retrieval (Lens lanes):** Any Lens query route (including “search as role” and role-specific lane indices) MUST follow ACE-RAG-001: it MUST compile a QueryPlan, emit a RetrievalTrace, respect RetrievalBudgets, and remain replayable under pins.
 
 **Out of scope**
 - Introducing new datastores. This spec reuses existing workspace DB/KG/Shadow Workspace.
@@ -17754,6 +17809,35 @@ When `allow_swaps = true`, MT Executor escalation MAY trigger a `ModelSwapReques
 
 ### 4.3.4 Scheduling & Contention
 
+
+##### 4.3.3.4.5 SwapRequest + escalation rule (Normative) [ADD v02.122]
+
+This spec distinguishes:
+
+- **SwapRequest**: the *workflow-level* requirement (“the system MUST be able to swap models and resume deterministically”).  
+- **ModelSwapRequest**: the concrete runtime command envelope used to execute a swap (defined above).
+
+**SwapRequest requirements (HARD)**
+
+When a SwapRequest is raised (by operator action, policy, or escalation logic), the system MUST:
+
+- preserve state via canonical artifacts (Task Board + WP/MT + gate artifacts) and correlate the swap to Flight Recorder events,
+- be able to offload the current frontend model to free resources,
+- be able to spin up a larger frontend/orchestrator model on escalation,
+- surface any failure as a recoverable failstate with stable code:
+  - `CX-MM-003` SwapRequest failed or timed out (see §4.3.9.10).
+
+**Escalation trigger (normative)**
+
+If a Work Unit enters FAILSTATE due to model incapability (context limit, tool incapability, repeated failure), the system SHOULD attempt escalation to a higher-ParameterClass model (largest-first), if available, subject to:
+
+- active Work Profile routing policy (see §4.3.7.5 and §4.3.9.4.2),
+- governance constraints (cloud escalation consent artifacts and `allow_cloud_escalation`),
+- RuntimeMode/ExecutionMode constraints (see §4.3.9.2.3).
+
+The escalation decision MUST be logged (reason + selected model) and the frontend coordinator (even if cloud-based) MUST be notified of the swap decision.
+
+
 #### 4.3.4.1 The Core Problem
 
 **Only one heavy task can use the GPU efficiently at a time.** Running two things simultaneously doesn't make each run at half speed—it makes both run poorly or crash.
@@ -18035,6 +18119,131 @@ Work Profiles MUST be accessible via:
 | T-PROFILE-005 | If cloud escalation disabled, escalation chain MUST stop at HARD_GATE |
 
 
+
+#### 4.3.7.5 Work Profile Schema Extensions (Multi-Model + Dynamic Compute) (Normative) [ADD v02.122]
+
+This subsection extends the Work Profile system to support:
+
+- **Multi-model orchestration routing** (largest-first selection, telemetry-informed scoring) (see §4.3.9).
+- **Per-role compute controls** with an explicit, separate **Approximate** knob, governed by waivers (see §4.5 and Waiver Protocol [CX-573F]).
+
+##### 4.3.7.5.1 New/extended types (normative)
+
+```ts
+// ADD v02.122
+export type ModelBackend = "local" | "cloud";
+
+export type ParameterClass =
+  | "P7B"
+  | "P13B"
+  | "P32B"
+  | "P72B"
+  | "P110B"
+  | "PUnknown";
+```
+
+##### 4.3.7.5.2 WorkProfile schema v0.6 (normative)
+
+`hsk.work_profile@0.5` remains valid. This extension introduces `hsk.work_profile@0.6` to add optional routing + compute fields while preserving the existing `model_assignments` contract.
+
+```ts
+// ADD v02.122
+export interface WorkProfileV06 {
+  schema_version: "hsk.work_profile@0.6";
+  profile_id: string;
+  name: string;
+  description?: string;
+
+  // Model role assignments (unchanged shape; extended ModelAssignment below)
+  model_assignments: {
+    frontend: ModelAssignmentV06;
+    orchestrator: ModelAssignmentV06;
+    worker: ModelAssignmentV06;
+    validator: ModelAssignmentV06;
+  };
+
+  // Governance settings (unchanged)
+  governance: {
+    automation_level: "FULL_HUMAN" | "HYBRID" | "AUTONOMOUS";
+    allow_cloud_escalation: boolean;
+    max_cloud_escalations_per_job?: number;
+  };
+
+  // Optional override rules (unchanged)
+  overrides?: {
+    filetype_rules?: Record<string, Partial<WorkProfileV06["model_assignments"]>>;
+    task_type_rules?: Record<string, Partial<WorkProfileV06["model_assignments"]>>;
+  };
+
+  // NEW: multi-model routing policy (optional)
+  routing?: {
+    selection_policy?: "largest_available" | "explicit";
+    // operator-preference ordered candidates (when selection_policy = largest_available)
+    candidate_models?: Array<{
+      model_id: string;
+      backend: ModelBackend;
+      parameter_class?: ParameterClass;
+    }>;
+  };
+}
+
+export interface ApproximateControl {
+  allowed: boolean;              // default: false (HARD exact)
+  waiver_ref?: string;           // REQUIRED when allowed=true
+  waiver_expires_at?: string;    // ISO8601Timestamp (optional)
+}
+
+export interface ModelAssignmentCompute {
+  // Operator-friendly preset; *not* a guarantee (runtime may downgrade)
+  speed_preset?: "standard" | "fast_exact" | "fast_approx";
+
+  // Separate knob (+ waiver) for distribution-changing execution
+  approximate?: ApproximateControl;
+
+  // Advanced: direct override. (See ExecPolicy in §4.5.5.1)
+  exec_policy_override?: any;    // ExecPolicy (schema defined in §4.5.5.1)
+
+  // Cloud-only knob (if supported by provider/runtime)
+  cloud_reasoning_strength?: string | null;
+}
+
+export interface ModelAssignmentV06 {
+  primary_model_id: string;
+  fallback_model_id?: string;
+  local_only: boolean;
+  allowed_models?: string[];     // restrict to a whitelist
+
+  // NEW
+  compute?: ModelAssignmentCompute;
+}
+```
+
+##### 4.3.7.5.3 Normative rules (routing + compute)
+
+- If `routing.selection_policy = "largest_available"`:
+  - selection MUST follow §4.3.9.4.2 (ParameterClass → ModelScore → stable tie-break).
+  - `routing.candidate_models[]` MUST be treated as an operator-preference-ordered list.
+- **Approximate execution is HARD-forbidden unless waived:**
+  - Default is `approximate.allowed=false`.
+  - If `approximate.allowed=true`, `waiver_ref` is REQUIRED and MUST reference a valid waiver artifact per Waiver Protocol [CX-573F].
+  - Without an active waiver, the coordinator MUST downgrade to an exact policy (or route to an exact-capable model/runtime) and MUST record the downgrade in telemetry (§4.5.5.2).
+- If `compute.cloud_reasoning_strength` is set for a **local** backend, the system MUST NOT treat it as a runtime control and MUST emit `CX-MM-005` (informational) (see §4.3.9.10).
+- WorkProfile compute settings are **hints**. The runtime MUST either apply them or deterministically downgrade and report the effective policy (see §4.5.5.2 and §11.5.11).
+
+##### 4.3.7.5.4 RoleExecutionIdentity logging (normative)
+
+Every role output that can affect the workspace MUST be linkable to a RoleExecutionIdentity record (see §4.3.9.4.1). At minimum, the Job metadata and Flight Recorder MUST capture:
+
+- `role`
+- `model_id`
+- `backend`
+- `parameter_class` (or `PUnknown`)
+- `cloud_reasoning_strength` (if applicable)
+- `session_id`
+- `model_instance_id` (if multi-model parallelism is active)
+- `wp_id` / `mt_id` when operating under Locus work units
+
+
 ### 4.3.8 ComfyUI Workflow Integration
 
 **ComfyUI is a node-based tool for creating images with AI. Instead of just typing a prompt, you can build complex image processing pipelines.**
@@ -18113,6 +18322,386 @@ Work Profiles MUST be accessible via:
 - ✓ Workflows are JSON files that can be version controlled
 - ✓ Generated images stored with full metadata for reproducibility
 - ✓ Can build progressively complex workflows over time
+
+
+### 4.3.9 Multi-Model Orchestration & Lifecycle Telemetry (Normative) [ADD v02.122]
+
+**Intent**  
+Enable *workflow-level* multi-model orchestration in Handshake (multiple independent model instances, local and/or cloud) **without weakening governance**, and without introducing intra-model distributed inference (no sharding / tensor parallelism).
+
+This section is **project/task-agnostic**. It applies to any Handshake workspace using Work Packets (WP) + Microtasks (MT) under the governed workflow system.
+
+---
+
+#### 4.3.9.1 Scope and non-goals
+
+##### 4.3.9.1.1 In-scope (normative)
+
+- Multiple **independent model instances** executing different WPs/MTs concurrently (workflow/orchestration layer).
+- Mixed local + cloud models (project policy may constrain; spec provides contracts).
+- Deterministic recovery: any model (or operator) can resume from canonical artifacts.
+- Persistent internal collaboration mailbox for role-to-role advice, deliberation, and lifecycle/status signaling (**non-authoritative**).
+
+##### 4.3.9.1.2 Explicit non-goals (HARD)
+
+This section MUST NOT introduce or imply:
+
+- tensor/pipeline/expert parallelism, sharding, or distributed inference of a single model across multiple CPUs/GPUs,
+- any requirement that assumes multiple GPUs exist,
+- any “multi-device” approach where correctness depends on splitting one model across devices.
+
+**Interpretation:** “parallelism” means **multiple roles / multiple model instances / multiple WPs/MTs**, not splitting one model.
+
+---
+
+#### 4.3.9.2 Definitions and contracts
+
+##### 4.3.9.2.1 Model identity (normative)
+
+A model MUST be uniquely referencable by a stable identifier:
+
+- **Local:** GGUF filename or local runtime model name
+- **Cloud:** provider model name (plus endpoint/account alias if needed)
+
+```yaml
+# ADD v02.122
+ModelId: string
+ModelBackend: enum [local, cloud]
+
+ParameterClass: enum
+  - P7B
+  - P13B
+  - P32B
+  - P72B
+  - P110B
+  - PUnknown
+```
+
+##### 4.3.9.2.2 Cloud reasoning strength vs local (normative)
+
+- Cloud models MAY expose a reasoning-strength control. If supported and requested, it MUST be applied and logged.
+- Local models do not have a standardized reasoning-strength runtime knob.
+  - Local models MAY be tagged with an informational “reasoning tier” for logging/UI comparability, but it MUST NOT be treated as a runtime control.
+
+##### 4.3.9.2.3 Runtime modes (normative)
+
+```yaml
+# ADD v02.122
+RuntimeMode: enum
+  - DOCS_ONLY      # no model required; operator edits artifacts; mechanical gates still run
+  - AI_ENABLED     # model-backed actions allowed; orchestration may be single or multi-model
+
+ExecutionMode: enum
+  - SINGLE_MODEL_MULTI_ROLE
+  - MULTI_MODEL_PARALLEL
+  - SPLIT_POLICY_AND_PLANNING
+```
+
+Notes:
+- RuntimeMode is orthogonal to GovernanceMode (GOV_*). Governance enforcement MUST NOT relax under any RuntimeMode.
+
+##### 4.3.9.2.4 Work Unit lock contract (normative)
+
+A **Work Unit** is either a WP or an MT. Locks are mandatory when more than one Work Unit is active.
+
+```yaml
+# ADD v02.122
+WorkUnitId: string            # wp_id or mt_id (or combined)
+LockKey: string               # canonical file path (preferred) OR explicit lock-set id derived from IN_SCOPE_PATHS
+LockOwner:
+  role: string
+  wp_id: string
+  mt_id: string | null
+  model_instance_id: string | null
+```
+
+---
+
+#### 4.3.9.3 Invariants (HARD unless noted)
+
+##### INV-MM-001: Model-optional operation (DOCS_ONLY)
+
+Handshake MUST remain usable with **zero models loaded** in `RuntimeMode=DOCS_ONLY`.
+
+- Operator MUST be able to inspect/edit canonical artifacts directly.
+- Mechanical governance features (gates/validators/manifests) MUST remain available with zero models.
+
+##### INV-MM-002: At least one READY model in AI_ENABLED
+
+In `RuntimeMode=AI_ENABLED`, the system MUST maintain:
+
+- `min_ready_models = 1` at all times (local or cloud)
+- “READY” means loaded and callable with bounded latency (not merely configured)
+
+If the READY model becomes unavailable:
+
+- model-backed actions MUST softblock with explicit code + reason,
+- mechanical features MUST continue to function.
+
+##### INV-MM-003: Strict non-overlap of file scopes under concurrency
+
+When more than one Work Unit is executing:
+
+- Two concurrently executing Work Units MUST NOT modify overlapping file scopes.
+- A deterministic lock MUST exist per Work Unit (see §4.3.9.2.4).
+- On lock conflict, the system MUST BLOCK one Work Unit deterministically with:
+  - stable code,
+  - explicit reason,
+  - required next actions.
+
+##### INV-MM-004: Canonical contracts remain authoritative
+
+Collaboration MUST NOT bypass canonical artifacts.
+
+Any decision that changes:
+
+- scope / requirements,
+- acceptance criteria,
+- waivers,
+- gate state,
+- validator verdicts,
+
+MUST be transcribed into authoritative artifacts (WP/MT + gate artifacts + waivers + validation reports).
+
+##### INV-MM-005: Failstates are explicit and recoverable
+
+Failures MUST be surfaced as:
+
+- explicit status in authoritative channel (Task Board + WP/MT status),
+- stable CODE + human-readable REASON,
+- correlated Flight Recorder event(s),
+- recovery hint that points to canonical artifacts (not chat history).
+
+---
+
+#### 4.3.9.4 Work Profile & model selection requirements (normative)
+
+Work Profiles are the primary operator-visible surface for per-role routing and autonomy (see §4.3.7). Multi-model orchestration requires additional identity + selection contracts.
+
+##### 4.3.9.4.1 RoleExecutionIdentity (normative)
+
+Every role output that can affect the workspace MUST carry (or be linkable to):
+
+```yaml
+# ADD v02.122
+RoleExecutionIdentity:
+  role: string
+  model_id: ModelId | null
+  backend: ModelBackend | null
+  parameter_class: ParameterClass | null
+  cloud_reasoning_strength: string | null
+  session_id: string
+  model_instance_id: string | null
+  wp_id: string | null
+  mt_id: string | null
+```
+
+##### 4.3.9.4.2 Largest-first selection policy (normative)
+
+WorkProfile role assignments MUST support:
+
+- `selection_policy = "largest_available"` (default option)
+- `candidate_models[]` list ordered by operator preference
+
+Largest-first MUST be determined primarily by:
+
+1) ParameterClass (P110B > P72B > P32B > P13B > P7B > PUnknown)  
+2) then by ModelScore if available (§4.3.9.4.3)  
+3) then by stable tie-break order
+
+##### 4.3.9.4.3 Performance telemetry scoring (recommended; schema is normative)
+
+```yaml
+# ADD v02.122
+ModelPerformanceSnapshot:
+  model_id: ModelId
+  backend: ModelBackend
+  timestamp: string
+  tokens_per_second: number | null
+  p50_latency_ms: number | null
+  p95_latency_ms: number | null
+  failure_rate_1h: number | null
+  score: number | null
+```
+
+If present, ModelScore MUST be derived from logged telemetry (not guesswork).
+
+##### 4.3.9.4.4 Model selector interface (normative; UI is out-of-scope)
+
+The system MUST expose a model-selector mechanism that can:
+
+- list available models,
+- show which model is READY (frontend + workers),
+- switch READY model(s) deterministically,
+- record the selection decision as an auditable event/artifact.
+
+---
+
+#### 4.3.9.5 Orchestration patterns (normative)
+
+##### 4.3.9.5.1 SINGLE_MODEL_MULTI_ROLE
+
+- One READY model instance serves multiple roles via multiplexing.
+- Canonical artifacts remain role-separated (WPs/MTs).
+- Locks still apply at file-scope level if multiple Work Units are active.
+
+##### 4.3.9.5.2 MULTI_MODEL_PARALLEL
+
+- Multiple READY model instances may execute different WPs/MTs concurrently.
+- INV-MM-003 strict non-overlap is mandatory.
+- Concurrency limits MUST be explicit:
+  - `max_concurrent_instances`
+  - `max_concurrent_work_units`
+
+##### 4.3.9.5.3 SPLIT_POLICY_AND_PLANNING
+
+Pattern: separate policy/profile sensitive I/O from planning/validation.
+
+Requirements:
+
+- MUST be expressed as **separate WPs/MTs** (no hidden in-task split).
+- Transformations between raw and planned representations MUST be logged and linked.
+- Canonical contracts remain binding; Role Mailbox remains advisory.
+
+##### 4.3.9.5.4 DOCS_ONLY
+
+- No models loaded.
+- Operator edits canonical artifacts directly.
+- Model-backed actions softblock/failstate explicitly, without breaking mechanical tooling.
+
+---
+
+#### 4.3.9.6 Work decomposition for recovery and small contexts (normative)
+
+##### 4.3.9.6.1 Separate WP/MT for robustness (recommended)
+
+Work SHOULD be decomposed into smaller MTs/WPs to preserve recoverability and support small-context models.
+
+##### 4.3.9.6.2 Deterministic resumption (HARD)
+
+Any model (or operator) MUST be able to resume from:
+
+- Task Board status + WP contract + MT definition + telemetry pointers
+
+without relying on chat history.
+
+---
+
+#### 4.3.9.7 Collaboration mailbox taxonomy (normative)
+
+MailboxKind taxonomy is defined in §2.6.8.10.0 [ADD v02.122]. The internal collaboration channel (MailboxKind=COLLAB) remains **non-authoritative** and MUST NOT be confused with external MAIL/TASK_INTAKE inboxes.
+
+---
+
+#### 4.3.9.8 Lifecycle telemetry (normative)
+
+##### 4.3.9.8.1 Operator requirement
+
+The operator MUST be able to answer: “where is the role/model in the WP/MT lifecycle?” without verbose context spam.
+
+##### 4.3.9.8.2 Canonical protocol phases (normative)
+
+Use the current protocol blocks as canonical phases:
+
+```yaml
+# ADD v02.122
+ProtocolPhase: enum
+  - BOOTSTRAP
+  - SKELETON
+  - IMPLEMENTATION
+  - HYGIENE
+  - EVALUATION
+  - HANDOFF
+  - BLOCKED
+  - FAILSTATE
+  - DONE
+```
+
+##### 4.3.9.8.3 Standard single-line status marker (normative)
+
+All roles MUST be able to emit a single-line, machine-parseable marker:
+
+```
+HSK_STATUS role=<ROLE> wp=<WP_ID> mt=<MT_ID|NONE> phase=<PHASE> state=<RUNNING|WAITING|BLOCKED|DONE|FAILSTATE> model=<MODEL_ID|NONE> backend=<local|cloud|none> pc=<P7B|P13B|P32B|P72B|P110B|PUnknown|NA> rs=<cloud_strength|NA> lock=<OK|CONFLICT> gate=<G0|G1|NONE>:<PASS|BLOCK|PEND> code=<CX-...|NONE>
+```
+
+Rules:
+- MUST be emitted whenever phase/state changes.
+- MUST remain one line (no multi-line dumps).
+- MUST be correlated to Flight Recorder events and linkable to WP/MT.
+- MUST be shown immediately after gate output when gates run/block.
+
+##### 4.3.9.8.4 Compact universal UI stage set (optional)
+
+To support non-coding surfaces (Docs, Monaco, Terminal, Mail, Calendar), a compact UI stage set MAY be used:
+
+```yaml
+UiStage: enum [INTAKE, PLAN, BUILD, CHECK, SHIP, IDLE, BLOCKED, FAILSTATE]
+```
+
+Recommended mapping:
+- BOOTSTRAP -> INTAKE
+- SKELETON -> PLAN
+- IMPLEMENTATION -> BUILD
+- HYGIENE/EVALUATION -> CHECK
+- HANDOFF -> SHIP
+
+If this compact set causes operator confusion, it SHOULD be disabled; ProtocolPhase remains authoritative.
+
+---
+
+#### 4.3.9.9 Swap and escalation (normative)
+
+##### 4.3.9.9.1 SwapRequest (normative event)
+
+The system MUST support a SwapRequest that:
+
+- preserves state (canonical artifacts + Flight Recorder correlation),
+- can offload the current frontend model to free resources,
+- can spin up a larger frontend model on escalation.
+
+##### 4.3.9.9.2 Escalation rule (normative)
+
+If a Work Unit enters FAILSTATE due to model incapability (context limit, tool incapability, repeated failure):
+
+- the system SHOULD attempt escalation to a higher ParameterClass model (largest-first), if available,
+- the decision MUST be logged (reason + selected model),
+- the frontend coordinator (even if cloud-based) MUST be notified of the swap decision.
+
+---
+
+#### 4.3.9.10 Softblock / failstate code registry (normative)
+
+##### 4.3.9.10.1 Requirement
+
+All known softblocks/failstates MUST have stable codes over time.
+
+Recommended prefix: `CX-MM-###` (Multi-Model / Orchestration)
+
+Initial reserved set:
+- `CX-MM-001` No READY model available in AI_ENABLED
+- `CX-MM-002` File-scope lock conflict (overlapping IN_SCOPE_PATHS)
+- `CX-MM-003` SwapRequest failed or timed out
+- `CX-MM-004` MULTI_MODEL_PARALLEL requested but disabled by policy
+- `CX-MM-005` Cloud reasoning strength requested for a local backend (informational)
+
+Codes MUST appear in:
+- Task Board / WP / MT status
+- HSK_STATUS line (`code=...`)
+- Flight Recorder events
+
+---
+
+#### 4.3.9.11 Integration map (informative)
+
+Typical insertion targets / implementation surfaces:
+
+- Runtime / orchestration primitives (RuntimeMode, ExecutionMode, min_ready_models, swap/escalation).
+- Work profiles / routing policy (ParameterClass, largest-first selection, telemetry scoring).
+- Task Board / WP/MT contracts (file-scope locks, conflict softblocks/failstates, required next actions).
+- Mailbox subsystem (MailboxKind taxonomy, persistence, authority boundary).
+- Operator consoles / UI telemetry (HSK_STATUS requirements, gate-output adjacency requirement).
+
 
 ## 4.4 Image Generation (Stable Diffusion)
 
@@ -18258,6 +18847,347 @@ For AI-autonomous operation, token counts MUST be accurate to ensure budget enfo
 4. **Consistency Invariant:** Token counts emitted to `JobMetrics` (§2.6.6.2.7) MUST match the counts used for retrieval budgeting (§2.6.6.7.14).
 
 <a id="5-security-observability"></a>
+
+## 4.5 Layer-wise Inference & Dynamic Compute (Exploratory) [ADD v02.122]
+
+Merged source: **Handshake_Layerwise_Inference_SpecDraft_v0.3.md** (2026-01-22).
+
+**Status:** Draft / exploratory (**not** a Phase 1 feature deliverable).  
+**Handshake stance:** Layer-wise inference is *not* a core Handshake feature, but we want **strong foundations** so later phases can explore it safely (hooks + governance + observability).
+
+---
+
+### 4.5.1 Scope and non-goals
+
+#### 4.5.1.1 In scope
+
+- A future-proof **runtime contract** extension (`settings.exec_policy`) to request dynamic compute behavior (layer skipping / early exit / speculative decoding / offload strategies).
+- Operator-visible **compute presets** in Work Profiles, per role (standard / fast exact / fast approximate).
+- A separate, explicit **approximate** knob that is governed (waiver-required).
+- Observability:
+  - requested vs effective policy,
+  - bounded summary metrics always-on,
+  - optional high-volume per-token/per-layer trace artifact via references.
+
+#### 4.5.1.2 Out of scope (Phase 1 / near-term)
+
+- No requirement to implement true layer-wise inference in Phase 1.
+- No requirement to support every research approach; Phase 1 ships stable **hooks** and **governed operator controls** only.
+
+---
+
+### 4.5.2 Captured operator decisions
+
+#### 4.5.2.1 Not a core feature
+
+Layer-wise inference is exploratory and MUST NOT weaken Handshake’s primary objective: deterministic, governed work execution (WP/MT), with auditability and local-first reliability.
+
+---
+
+### 4.5.3 Key definitions
+
+#### 4.5.3.1 Exact vs approximate (Handshake meaning)
+
+- **Exact execution:** speedups intended to preserve the model’s output distribution (within known floating point / quantization drift bounds).
+  - Examples: quantization, caching, speculative decoding (draft + verify), compiled kernels.
+- **Approximate execution:** distribution-changing execution.
+  - Examples: skipping transformer blocks, early exit, adaptive depth, conditional computation that changes the execution path.
+
+Approximate execution is a governance event and requires an explicit waiver.
+
+---
+
+### 4.5.4 Architectural placement inside Handshake
+
+- This is a **Model Runtime Layer** feature (runtimes implement; orchestration requests).
+- It is not a new “role”; it modifies how a role’s assigned model executes.
+- It is compatible with multi-model orchestration (§4.3.9); in DOCS_ONLY, policies are ignored.
+- Operator-first control: planners MUST NOT silently enable approximation.
+
+---
+
+### 4.5.5 Runtime contract extension: `settings.exec_policy`
+
+Patch point: §2.5.2.1 Model Runtime Layer Contract (implemented [ADD v02.122]).
+
+The Master Spec defines `settings` as a bag for sampling/config controls (temperature, max_tokens, etc.). v02.122 reserves an **optional** `exec_policy` field inside `settings` for future runtime optimizations.
+
+#### 4.5.5.1 `ExecPolicy` schema (conceptual; forward-compatible)
+
+```ts
+// ADD v02.122 (conceptual)
+type ExecPolicyExactness = "exact" | "approximate";
+
+type ExecPolicyMode =
+  | "standard"          // normal full-depth decode
+  | "spec_decode"       // speculative decoding (draft + verify)
+  | "early_exit"        // terminate at an intermediate layer
+  | "layer_skip"        // skip selected layers (static or dynamic)
+  | "mixture_of_depths" // per-token varying depth (router-based)
+  | "mem_offload";      // layer/kv/cache offload / paging strategy
+
+interface ExecPolicy {
+  policy_id?: string;                  // optional named preset (stable id)
+  mode: ExecPolicyMode;
+  exactness: ExecPolicyExactness;      // REQUIRED; drives UI + guards
+
+  // Budget envelope (a hint, not a guarantee)
+  budgets?: {
+    max_total_ms?: number;             // end-to-end latency budget
+    max_decode_ms?: number;            // decode budget
+    max_layers?: number;               // cap depth for early-exit/skip
+    max_vram_mb?: number;              // for offload heuristics
+    max_ram_mb?: number;
+  };
+
+  // Mode-specific settings
+  spec_decode?: {
+    draft_model_id?: string;           // optional separate draft model
+    draft_top_k?: number;              // draft aggressiveness
+    max_draft_tokens?: number;         // per cycle
+    verify_strategy?: "classic" | "self_speculate";
+  };
+
+  early_exit?: {
+    exit_layer?: number | "auto";      // fixed layer or adaptive
+    confidence_threshold?: number;     // only if auto
+  };
+
+  layer_skip?: {
+    schedule?: "fixed" | "adaptive";   // fixed pattern vs token-adaptive
+    skip_ratio?: number;              // 0..1 (approx)
+    protected_layers?: number[];       // never skip (e.g., embeddings/early)
+  };
+
+  mem_offload?: {
+    strategy?: "kv_paged" | "layer_paged" | "cpu_offload" | "disk_offload";
+    prefetch?: boolean;
+  };
+
+  // Trace request (advisory)
+  trace?: {
+    level: "off" | "summary" | "per_token" | "per_layer" | "per_token_per_layer";
+    sample_rate?: number;             // 0..1
+    artifact?: {
+      enabled: boolean;
+      format: "hsk.layerwise_trace@0.1";
+    };
+  };
+}
+```
+
+#### 4.5.5.2 Normative behavior
+
+1. If `exec_policy` is present, the runtime MUST either:
+   - apply it, or
+   - deterministically downgrade to a supported policy and report the **effective** policy (see §11.5.11).
+2. If `exec_policy.exactness = "approximate"` and there is no active waiver (or governance/profile forbids it), the coordinator MUST downgrade to an exact policy (see §4.5.6) or route to an exact-capable model/runtime, and MUST record the decision in telemetry.
+3. For `task_type = "tool_call"` or validator-style roles, the coordinator SHOULD default to **exact** policies, even if approximate is allowed elsewhere (operator safety bias).
+
+#### 4.5.5.3 Role as an opaque RoleId string
+
+The runtime contract’s `role` parameter MUST be treated as an opaque RoleId string (not a closed enum), to allow future role packs and compute specialization by role.
+
+(Implemented in §2.5.2.1 [ADD v02.122].)
+
+---
+
+### 4.5.6 Operator controls: per-role presets + separate “approximate” knob
+
+#### 4.5.6.1 Core roles: extend Work Profiles (future hook)
+
+Work Profiles already define model assignments per core runtime role. The extension is to attach a compute preset to each `ModelAssignment` (implemented as schema hooks in §4.3.7.5):
+
+```ts
+interface ApproximateControl {
+  allowed: boolean;              // default: false (HARD exact)
+  waiver_ref?: string;           // REQUIRED when allowed=true
+  waiver_expires_at?: string;    // ISO8601Timestamp (optional)
+}
+
+interface ModelAssignmentCompute {
+  speed_preset?: "standard" | "fast_exact" | "fast_approx"; // operator-friendly
+  approximate?: ApproximateControl;                          // separate knob (+ waiver)
+  exec_policy_override?: ExecPolicy;                         // advanced users/dev
+}
+
+export interface ModelAssignment {
+  primary_model_id: string;
+  fallback_model_id?: string;
+  local_only: boolean;
+  allowed_models?: string[];
+  compute?: ModelAssignmentCompute; // NEW
+}
+```
+
+#### 4.5.6.2 Dynamic roles: inheritance model (future hook)
+
+Dynamic roles can be created (project/task-specific). Recommended inheritance model:
+
+- A dynamic role declares a **runtime-role class** it inherits from (e.g., `worker`) unless it provides an override.
+- Optionally, the role can include a `compute` override (same schema as above).
+- Resolution order:
+  1) Job-level explicit override (if permitted),
+  2) Dynamic role override,
+  3) Work Profile role default,
+  4) Runtime default.
+
+This avoids requiring the Work Profile schema to enumerate unbounded role IDs, while still allowing dynamic roles to specialize.
+
+#### 4.5.6.3 Approximate must never be automatic (HARD)
+
+Approximate execution MUST NOT be enabled implicitly by planners, routing, or runtime heuristics.
+
+It must be:
+
+- explicitly enabled by the operator via Work Profile,
+- covered by a waiver (Waiver Protocol [CX-573F]),
+- logged as an auditable event (requested vs effective policy).
+
+---
+
+### 4.5.7 Observability: summary + per-token/per-layer trace
+
+#### 4.5.7.1 Always-on summary metrics (Flight Recorder)
+
+Layer-wise inference SHOULD use a separate event family (rather than bloating `llm_inference`) so:
+
+- base LLM telemetry stays stable,
+- layer-wise extensions can evolve independently.
+
+Conceptual event (implemented as a schema in §11.5.11):
+
+```ts
+interface LlmExecPolicyEvent extends FlightRecorderEventBase {
+  type: "llm_exec_policy";                 // NEW FR-EVT-LLM-0xx
+
+  trace_id: string;
+  model_id: string;
+
+  requested_policy_hash?: string;
+  effective_policy_hash?: string;
+
+  mode: ExecPolicyMode;
+  exactness: ExecPolicyExactness;
+
+  // Summary metrics (examples; keep bounded)
+  exit_layer_histogram?: Record<string, number>; // e.g. {"8": 120, "12": 54}
+  mean_exit_layer?: number;
+
+  speculative?: {
+    accept_rate?: number;
+    mean_draft_tokens?: number;
+  };
+
+  offload?: {
+    strategy?: string;
+    cpu_offload_bytes?: number;
+    disk_offload_bytes?: number;
+  };
+
+  // Link to high-volume trace (never inline)
+  trace_artifact_ref?: string | null;      // artifact handle
+  trace_artifact_sha256?: string | null;
+}
+```
+
+#### 4.5.7.2 Per-token/per-layer trace artifact (high volume)
+
+Flight Recorder pattern is “bounded event payloads + references for large data”. Per-token/per-layer traces MUST follow that pattern.
+
+Proposed artifact format: `hsk.layerwise_trace@0.1` (JSONL or CBOR)
+
+**Header (single record):**
+- `trace_id`
+- `model_id`
+- `effective_exec_policy` (canonical JSON)
+- `created_at`
+- `tokenizer_id` (metadata only; no token IDs)
+
+**Per-token record (one per generated token):**
+- `token_index` (0..n-1)
+- `t_ms` (monotonic offset)
+- `exit_layer` (int) or `layers_used` summary
+- `skip_ratio` (0..1) if applicable
+- `spec_accept` (bool) if spec decode
+- `prefill_ms`, `decode_ms`, `verify_ms` (optional)
+
+**Privacy rule:** do **not** store token IDs. If needed for debugging, store only hashed token text or omit token text entirely (default: omit).
+
+#### 4.5.7.3 Performance rules
+
+- Summary events are always-on.
+- High-volume traces SHOULD default to **sampling** or **only-on-approximate** to avoid hot-path overhead, but MUST be available automatically when approximate execution is used (operator expectation).
+
+---
+
+### 4.5.8 “Approximate mode” explained (operator-facing semantics)
+
+“Approximate” is the explicit label for execution modes that may change outputs compared to full-depth decoding.
+
+Examples:
+- **Early exit:** stop at layer N and decode from an intermediate representation (faster, but lower fidelity).
+- **Layer skipping:** skip late layers on many steps (faster, but may harm reasoning/factuality).
+- **Layer reuse:** reuse hidden states with low-rank corrections (can drift if too aggressive).
+
+Non-example:
+- **Distribution-preserving speculative decoding** can be “fast” without being approximate, because the full model still verifies/governs the final output distribution.
+
+**Handshake guidance (recommended default):**
+- Default to exact policies for:
+  - tool calls,
+  - validators,
+  - workflows requiring deterministic correctness (tests/compiles).
+- Allow approximate policies primarily for:
+  - conversational drafting,
+  - creative ideation,
+  - low-stakes summarization.
+- Always record the effective policy and whether approximate was active (see §11.5.11).
+
+---
+
+### 4.5.9 Practical first experiments: LayerSkip local models (informative)
+
+Based on feasibility research, **LayerSkip** is the most practical “dynamic depth” starting point because it is integrated into mainstream frameworks and has pre-trained models available, while alternatives like Mixture-of-Depths remain more research-heavy.
+
+Handshake alignment requirements for experiments:
+- Experiments should run **locally** first (local-first + learning loop).
+- The runtime must support:
+  - stable `generate_text(...)` contract,
+  - observability hooks,
+  - (eventually) LoRA/adapter workflows.
+
+This likely implies a Python-based runtime adapter (Transformers/vLLM/TGI) for early experiments, while Phase 1 can remain on Ollama for baseline use.
+
+---
+
+### 4.5.10 Future: Handshake Runtime compatibility constraints (informative)
+
+To avoid rewrites if Handshake later builds a custom runtime (HRT):
+
+- HRT MUST implement the same Model Runtime Layer contract and error semantics.
+- HRT MUST accept Work Profile routing decisions (model_id resolution) as input, not hard-coded behavior.
+- HRT MUST emit schema-validated Flight Recorder event families (unknown IDs rejected).
+
+---
+
+### 4.5.11 Patch targets status (implemented)
+
+The draft spec’s patch targets were:
+
+- §2.5.2.1 Model Runtime Layer Contract → reserve `settings.exec_policy` as optional field (implemented [ADD v02.122])
+- §4.3.7 Work Profiles → attach `compute` presets + separate approximate knob (implemented [ADD v02.122])
+- §11.5 Flight Recorder → add `llm_exec_policy` event schema + `hsk.layerwise_trace@0.1` artifact rules (implemented [ADD v02.122], see §11.5.11)
+
+---
+
+### 4.5.12 Open questions (tracked; optional)
+
+- What is the default “fast exact” policy per runtime (spec decode availability varies)?
+- Which tasks should forcibly disallow approximate, even if enabled in a Work Profile?
+- Should per-token/per-layer trace default to “only when approximate” or “developer toggled + sampled”?
+
+
 # 5. Security & Observability
 
 ## 5.1 Plugin Architecture
@@ -24362,6 +25292,732 @@ This section enumerates ten expansion patterns that build on the Role Registry +
 - **Proposal Queue:** queued vocab/schema proposals with examples; accept/merge/reject.
 - **Deliverables Browser:** typed deliverables per role with validation status and lineage links.
 
+###### 6.3.3.5.7.11 Normative language [ADD v02.123]
+
+**Precedence rule (HARD):** If any clause in §6.3.3.5.7.1–§6.3.3.5.7.10 conflicts with any clause in §6.3.3.5.7.11–§6.3.3.5.7.25, the newer clauses (§6.3.3.5.7.11+) MUST be treated as authoritative and override the older text. This rule exists to ensure addendum-driven refinement does not silently dilute Atelier/Lens behavior.
+
+**Numbering note:** Within the inserted block, references like “2.1” or “6.1.1” are *addendum-local* numbering and do not correspond to Master Spec section numbers.
+
+
+The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are to be interpreted as described in RFC 2119.
+
+---
+
+###### 6.3.3.5.7.12 Operator-locked constraints [ADD v02.123]
+
+These are treated as hard requirements.
+
+1. **Default Lens extraction depth = Tier1**  
+   Tier1 is the default ingestion/extraction setting across Handshake.
+
+2. **Global index with filters**  
+   Descriptors/facts are global across Handshake (not project-bound) and queries filter.
+
+3. **SYM-001 is first-class**  
+   Symbolism/SHOT_DNA is not optional; it is a primary lane of extraction + retrieval.
+
+4. **NSFW is default view**  
+   SFW/NSFW does **not** affect ingestion or stored descriptors; it affects only retrieval visibility/ranking and output rendering.
+
+5. **No censorship / no softening**  
+   Internal extraction data is always raw and explicit. Any SFW behavior is strictly a projection at view/output boundaries and MUST NOT write back.
+
+---
+
+###### 6.3.3.5.7.13 Definitions (addendum-local) [ADD v02.123]
+
+**Addendum: 2.1 Atelier and Lens**
+
+- **Lens** = extraction + query/control plane (claims, glances, facts, evidence, search, proposal queue)  
+- **Atelier** = composition + production plane (creative planning, deliverables, production graphs)
+
+**Opposites rule:** Every role is symmetric: the same role that composes also extracts.
+
+**Addendum: 2.2 ETL (what “ETL” means here)**
+
+**ETL = Extract → Transform → Load**
+
+- **Extract:** Docling/OCR/ASR/VLM signals + role extractors
+- **Transform:** normalize to CONFIG vocab; flatten to Facts; compute embeddings; compute SYM-001 (layer scores / motifs / SHOT_DNA)
+- **Load:** write deterministic artifacts + upsert SQLite rows + update indexes (FTS + vector + graph + role lanes)
+
+**Addendum: 2.3 Two different “tiers” (do not confuse)**
+
+Handshake already has `content_tier` (SFW vs adult categories) in descriptor governance.
+
+This addendum introduces **LensExtractionTier** which is about **how deep** the extraction pass is, not about NSFW.
+
+```ts
+type LensExtractionTier = 0 | 1 | 2;
+
+/*
+Tier0: minimal (ingest + cheap glances; no heavy role extraction)
+Tier1: default (claim + top-k role extraction + fact flattening + indexing + optional SYM-001 when eligible)
+Tier2: deep (expanded role set + heavy detectors + deeper symbol pass + full lane indexing)
+*/
+```
+
+**Addendum: 2.4 ViewMode (SFW/NSFW)**
+
+```ts
+type ViewMode = "NSFW" | "SFW";
+
+/*
+NSFW: raw descriptors and raw rendering
+SFW: filtered projection for retrieval + rendering; never modifies stored descriptors
+*/
+```
+
+---
+
+###### 6.3.3.5.7.14 Core invariants (non-negotiable) [ADD v02.123]
+
+**Addendum: 3.1 No write-back censorship (HARD)**
+
+No part of Atelier/Lens may modify stored descriptors to satisfy display posture.
+
+- Ingestion (Docling, OCR, ASR, VLM) is always raw.
+- Role extraction is always raw.
+- Facts and Symbol facts are always raw.
+- SFW is implemented as a **filtered projection** only.
+
+**Addendum: 3.2 Deterministic replay (HARD)**
+
+For the following jobs, Handshake MUST be able to replay and reproduce the same Derived artifacts:
+
+- `ATELIER_CLAIM`
+- `ATELIER_GLANCE`
+- `ATELIER_ROLE_EXTRACT`
+- `ATELIER_ROLE_COMPOSE` (when run in strict mode)
+- `ATELIER_VOCAB_PROPOSE` / `ATELIER_VOCAB_RESOLVE`
+- `ATELIER_LANE_INDEX`
+- `SYM-001` jobs inside Lens (symbol extraction pass)
+
+Practical note: even if model output is not 100% stable, replay mode MUST support persisting the effective candidate lists / tie-breaks / selected spans / final bundle hashes so a replay uses the persisted order.
+
+
+**Addendum: 3.3 Lossless role catalog + append-only registry (HARD)**
+
+Handshake MUST NOT “lose” roles via refactors, renames, or re-scoping.
+
+- The canonical role catalog (names, intent, department grouping, and role mechanics) MUST be embedded in the master spec after merge (no external sidecar docs).
+- Role identifiers (`role_id`) are **stable**. Renames are aliases; the `role_id` does not change.
+- The role registry is **append-only**:
+  - new roles MAY be added,
+  - existing roles MAY be deprecated (explicitly), but MUST NOT be removed.
+- Any change to role definitions MUST be versioned (contract id bump) and logged (Flight Recorder + spec-change log).
+- Validators MUST fail any build that removes a previously declared `role_id` or silently changes a role’s contract surface.
+
+
+---
+
+###### 6.3.3.5.7.15 Atelier/Lens runtime model (tightened) [ADD v02.123]
+
+**Addendum: 4.1 Dual-contract role runtime (recap)**
+
+Each role has:
+
+- **Extraction contract**: `ROLE:<role_id>:X:<ver>` → `RoleDescriptorBundle`
+- **Compose contract**: `ROLE:<role_id>:C:<ver>` → `RoleDeliverableBundle`
+
+Roles are the atomic unit. There is no separate “lens role vs atelier role”.
+
+**Addendum: 4.2 Claim → Glance → Extract (default Tier1 flow)**
+
+Default Tier1 pipeline for a newly ingested artifact:
+
+1. `ATELIER_CLAIM`  
+   Produces RoleScore[] distribution + RoleClaim[] for top roles.
+
+2. `ATELIER_GLANCE`  
+   Produces cheap RoleGlance[] for “all roles grid” (claimed/weak/none + one-line evidence links).
+
+3. `ATELIER_ROLE_EXTRACT` for **top-k** roles (k configurable; default profile-controlled)  
+   Produces RoleDescriptorBundle for each role.
+
+4. Transform + Load  
+   Flatten bundles to facts; attach evidence; build/update indexes and lanes.
+
+5. SYM-001 pass (Tier1)  
+   Run SYM-001 opportunistically whenever there is any usable descriptor substrate; emit `unclear`/`not_available` for missing fields (see §9).
+
+Tier2 expands step (3) and may introduce heavier detectors.
+
+**Addendum: 4.3 Tier1 default selection (HARD)**
+
+`LensExtractionTier` default is Tier1. Tier0 must be explicit operator choice.
+
+**Addendum: 4.4 Tier2 trigger policy (HARD)**
+
+Tier2 extraction MUST be scheduled **automatically when the workspace is idle**.
+
+- “Idle” is implementation-defined but MUST at minimum mean: no active operator interaction and no foreground (interactive) jobs running.
+- Tier2 jobs MUST yield immediately to any foreground job request.
+- Tier2 jobs MAY be additionally gated by an operator profile (e.g., max concurrency / compute budget), but the default posture is auto-when-idle.
+
+**Addendum: 4.5 Role-turn isolation (recommended; determinism support)**
+
+Role extract runs SHOULD be executed as **short, isolated turns**:
+
+- For each role turn, the runtime MUST reset role prompt + scratch context window (no cross-role hidden carryover).
+- Cross-role knowledge transfer MUST occur only through persisted artifacts (Claim/Glance/Bundles/Facts/ContextPacks).
+- This enables repeated “all roles pass” loops without unloading the underlying model.
+
+
+---
+
+###### 6.3.3.5.7.16 Evidence model (click-to-source correctness) [ADD v02.123]
+
+**Addendum: 5.1 EvidenceRef is mandatory**
+
+Every extractor MUST emit bounded EvidenceRefs for evidence-required fields.
+
+Evidence locator types (minimum):
+
+- `doc_span` (doc_id, block_id, char_start/char_end)
+- `page_bbox` (doc_id/file_id, page, x/y/w/h)
+- `image_bbox` (asset_id, bbox)
+- `frame_span` (video_id, t_start/t_end, bbox optional)
+- `audio_span` (audio_id, t_start/t_end)
+- `table_cell` (doc_id, table_id, row, col)
+
+**Addendum: 5.2 Parallel evidence (Docling + local VLM)**
+
+Lens may use multiple evidence sources for higher accuracy:
+
+- Docling structure/text spans (layout-aware)
+- local VLM captions/tags (vision-first)
+
+When multiple sources corroborate a fact, Facts MAY carry multiple evidence refs (or one evidence ref plus a “corroborates[]” list).
+
+---
+
+###### 6.3.3.5.7.17 Canonical descriptor substrate (force multiplier) [ADD v02.123]
+
+Role bundles are role-specific and correct. But every non-LLM tool needs a shared query substrate.
+
+**Addendum: 6.1 Rule: bundles MUST emit Facts (HARD)**
+
+Every successful RoleDescriptorBundle write MUST also emit canonical fact rows.
+
+**Addendum: 6.1.1 `AtelierFact` (normalized scalar facts)**
+
+```ts
+interface AtelierFact {
+  fact_id: string;
+  workspace_id: string;
+  project_id?: string;
+
+  bundle_id: string;
+  role_id: string;
+  contract_id: string;
+
+  path: string;              // stable JSONPath-like key into bundle fields
+  value_type: "string"|"number"|"bool"|"term"|"json";
+  value_norm: string;        // normalized scalar (for SQL/FTS)
+  term_id?: string;          // CONFIG term id when controlled
+
+  content_tier: "sfw"|"adult_soft"|"adult_explicit";   // governance
+  consent_profile_id?: string;
+
+  confidence: number;        // 0..1
+  evidence_id?: string;      // required when evidence-required field
+  created_at: string;        // timestamp
+}
+```
+
+**Addendum: 6.1.2 `AtelierSymbolFact` (SYM-001 facts)**
+
+```ts
+interface AtelierSymbolFact {
+  sym_fact_id: string;
+  workspace_id: string;
+  project_id?: string;
+
+  source_bundle_id: string;     // SYM bundle id or role bundle id
+  symbol_term_id: string;       // CONFIG/SYM term id
+  intensity: number;            // 0..1
+  polarity?: "positive"|"negative"|"mixed"|"neutral";
+
+  content_tier: "sfw"|"adult_soft"|"adult_explicit";
+  consent_profile_id?: string;
+
+  evidence_id?: string;
+  created_at: string;
+}
+```
+
+**Addendum: 6.2 Global index with filters (HARD)**
+
+Facts and SymbolFacts are global by default. Projects apply filters.
+
+Minimum filter envelope (always applied in Lens):
+
+```ts
+interface LensFilterEnvelope {
+  workspace_id: string;          // implicit in DB-per-workspace, but explicit in API
+  project_id?: string;           // optional project scope
+  content_tier_min?: "sfw"|"adult_soft"|"adult_explicit"; // governance gating for retrieval
+  consent_profile_id?: string;   // optional
+  view_mode: ViewMode;           // NSFW default
+  time_range?: { from?: string; to?: string };
+  role_ids?: string[];           // restrict to a role lens (search-as-role)
+  vocab_namespaces?: string[];   // restrict (DES/TXT/SYM/etc)
+}
+```
+
+
+**Addendum: 6.3 Library growth is expected (HARD)**
+
+Handshake is designed for continuous, cross-domain ingestion (e.g., paintings one day, architecture the next, then photography). Therefore:
+
+- The descriptor/fact substrate is a **cumulative library**: new ingestion adds Facts/SymbolFacts; nothing is “reset” unless the operator explicitly forks or clears a workspace.
+- Growth MUST be safe-by-default:
+  - raw extractions are append-only,
+  - corrections are expressed as new bundles/facts with higher confidence and clear provenance,
+  - old rows are not silently overwritten.
+- Tier2 enrichment jobs (role deep passes, lane re-indexing, motif expansion) SHOULD run automatically when the system is idle (per §2 decisions) to keep the library usable as it grows.
+
+
+---
+
+###### 6.3.3.5.7.18 Persistence contract (SQLite now, Postgres later) [ADD v02.123]
+
+**Addendum: 7.1 Deterministic artifact layout (Derived store)**
+
+Store bundles and indexes as deterministic artifacts (hash-addressed):
+
+```
+derived/atelier/
+  bundles/
+    descriptor/<artifact_id>/<role_id>/<contract_id>/<bundle_hash>.json
+    deliverable/<plan_id>/<role_id>/<contract_id>/<bundle_hash>.json
+  vocab/
+    snapshots/<namespace>/<vocab_hash>.json
+    proposals/<proposal_id>.json
+  symbol/
+    snapshots/<sym_namespace>/<sym_hash>.json
+    bundles/<artifact_id>/<bundle_hash>.json
+  lane/
+    <role_id>/index/<index_version>/...
+    <role_id>/embeddings/<artifact_id>/<embed_hash>.json
+```
+
+**Addendum: 7.2 SQLite schema (portable logical model)**
+
+The physical schema may vary, but the logical tables and keys are normative.
+
+**Core tables:**
+
+- `atelier_role_spec(role_id, role_version, department_id, display_name, spec_json, spec_hash)`
+- `atelier_contract(contract_id, role_id, kind {X|C}, version, schema_json, schema_hash)`
+- `atelier_profile(profile_id, kind, source_text, compiled_json, source_hash, compiled_hash, created_at, updated_at)`
+- `atelier_bundle(bundle_id, bundle_kind {descriptor|deliverable|symbol}, artifact_id, plan_id, role_id, contract_id, bundle_hash, created_at, provenance_json, status)`
+- `atelier_evidence(evidence_id, bundle_id, artifact_id, kind, locator_json, source_ref, confidence, notes)`
+- `atelier_fact(fact_id, bundle_id, role_id, contract_id, path, value_type, value_norm, term_id, confidence, evidence_id, content_tier, consent_profile_id, workspace_id, project_id, created_at)`
+- `atelier_symbol_fact(sym_fact_id, source_bundle_id, symbol_term_id, intensity, polarity, evidence_id, content_tier, consent_profile_id, workspace_id, project_id, created_at)`
+- `atelier_vocab_snapshot(namespace, vocab_hash, created_at, snapshot_json)`
+- `atelier_vocab_proposal(proposal_id, namespace, term, term_type, status, support_count, proposer_role_id, examples_json, decision_provenance_json)`
+- `atelier_lane_index(role_id, index_version, built_from_vocab_hash, built_from_contract_ids, built_at, index_meta_json)`
+- `atelier_lane_embedding(embed_id, artifact_id, role_id, index_version, anchor_text, vector_blob, embed_hash, provenance_json)`
+
+**Portability notes (SQLite → Postgres):**
+- store vectors as blobs now; later map to pgvector
+- keep JSON payloads but ensure query keys exist as columns
+- FTS is a derived index; not relied on for logical correctness
+
+---
+
+###### 6.3.3.5.7.19 Retrieval contract (two methods, deterministic) [ADD v02.123]
+
+**Addendum: 8.1 Lens must expose both retrieval modalities**
+
+Lens retrieval MUST combine:
+
+- **Lexical/keyword search** over Facts + Docling text blocks (FTS/BM25)
+- **Vector/semantic search** over embeddings for Facts and/or doc blocks
+- optional **graph/meta routing** (knowledge graph neighborhood, lane priors)
+
+**Addendum: 8.2 QueryPlan + RetrievalTrace**
+
+Every search returns:
+
+- `QueryPlan` (routes, weights, filters)
+- `RetrievalTrace` (candidate ids + scores + tie-break keys + cache hits/misses)
+
+**Addendum: 8.3 Two-stage retrieval (candidate → rerank)**
+
+Default strategy:
+
+1. Candidate generation (cheap; hybrid fusion):
+   - lexical candidates
+   - vector candidates
+   - lane-scoped candidates (if role lens selected)
+2. Rerank (bounded; deterministic):
+   - dedupe
+   - tie-break by stable keys
+   - produce final ranked list
+
+**Addendum: 8.4 Snippet-first reading**
+
+Lens MUST avoid “read everything” behavior:
+
+- Search returns bounded snippets and evidence pointers
+- Read returns bounded excerpt (span/bbox/frame range)
+- escalation is explicit and logged
+
+
+**Addendum: 8.5 Lens query API shape (normative)**
+
+Lens is not “just UI”; it is a query/control plane that all other subsystems can call deterministically.
+
+```ts
+interface LensQueryEnvelope {
+  query_id: string;
+
+  // One query may run multiple routes in parallel (lexical + vector + lane + graph).
+  query_text: string;
+
+  filter: LensFilterEnvelope;
+
+  // Retrieval routing
+  routes: {
+    lexical: boolean;
+    vector: boolean;
+    lane?: { role_id: string };     // “search as role”
+    graph?: boolean;
+  };
+
+  // Hybrid fusion weights (defaults from profile)
+  weights?: { lexical: number; vector: number; lane: number; graph: number };
+
+  // Token + time budgets
+  budget: { max_candidates: number; max_results: number; max_read_ops: number };
+
+  // Determinism
+  mode: "strict" | "replay";
+}
+
+interface LensResultItem {
+  kind: "fact" | "symbol_fact" | "doc_span" | "image_asset" | "bundle";
+  id: string;                       // fact_id / sym_fact_id / block_id / asset_id / bundle_id
+
+  title: string;
+  snippet: string;                  // bounded; may be SFW-projected depending on filter.view_mode
+
+  // Evidence is always linkable; projection never destroys the underlying evidence pointer.
+  evidence?: EvidenceRef[];
+
+  // Ranking diagnostics (Operator Consoles)
+  score: number;
+  route_scores?: { lexical?: number; vector?: number; lane?: number; graph?: number };
+
+  // Projection markers
+  projection_applied: boolean;
+  projection_kind?: "SFW";
+  projection_ruleset_id?: string;
+}
+```
+
+**Addendum: 8.6 ContextPacks: LLM-friendly view over Facts (required)**
+
+To keep storage/tooling “LLM-friendly” while remaining deterministic, Lens MUST be able to materialize a bounded, hashed context artifact derived from facts and evidence:
+
+- `AtelierContextPack` (Derived artifact)
+  - selected facts (with stable ids)
+  - selected symbol facts
+  - bounded evidence excerpts
+  - constraints/open loops
+  - lane snapshots used
+  - provenance pins (profile hashes, vocab snapshot hashes, model/tool pins)
+
+`AtelierContextPack` is the preferred input to any writer/creative role when they need corpus context, replacing ad-hoc “dump the DB into the prompt.”
+
+
+---
+
+###### 6.3.3.5.7.20 SYM-001 in Lens (first-class) [ADD v02.123]
+
+**Addendum: 9.1 SymbolLexiconSnapshot + SymbolismProfile**
+
+SYM-001 uses:
+
+- `SymbolLexiconSnapshot` (global, proposal-grown)
+- `SymbolismProfile` (plain-text source + deterministic compilation; may have per-project overlay)
+
+**Addendum: 9.2 SYM job placement**
+
+SYM-001 runs inside Lens as:
+
+- Tier1: **opportunistic** — run whenever there is any usable descriptor substrate (Claims/Glances/Facts/Docling spans/VLM tags). There is no hard “minimum coverage” gate; missing fields MUST be emitted as `unclear` or `not_available`.
+- Tier2: deep profiling (more motifs, broader cross-reference, heavier detectors)
+
+Outputs:
+- SHOT_DNA layer scores (as available)
+- motif tags
+- symbolic intensity facts (`AtelierSymbolFact`)
+
+**Addendum: 9.3 Symbol template growth + unknown fields (HARD)**
+
+SYM output MUST use a **stable, growing template**:
+
+- The template MUST be emitted even when partial; fields that cannot be grounded are set to:
+  - `unclear` (a value is conceptually applicable but the system cannot infer it reliably), or
+  - `not_available` (the field is not applicable or source signals are missing).
+- Re-running SYM on the same artifact MAY refine `unclear` → concrete values as more Facts arrive.
+- The current SYM template version used MUST be pinned in provenance (profile hash + template ver + lexicon snapshot hash).
+
+
+**Addendum: 9.4 Symbolic engine is a living dataset (HARD)**
+
+The symbolic system is not static. Meanings, motifs, and emphasis are expected to drift over time.
+
+Rules:
+
+- `SymbolLexiconSnapshot` is **versioned** and **proposal-grown**. New motifs/terms are added by proposals and become active only once merged into a new snapshot.
+- `SymbolismProfile` is **versioned** and MUST support **fork/reset**:
+  - a new client/project may use a forked profile,
+  - an operator may reset or branch the profile without destroying prior history.
+- Re-running SYM against the same artifact MAY legitimately produce different outputs if (and only if) the active profile/snapshot changed; this MUST be visible via provenance pins.
+- Past symbol facts are not rewritten in-place. A new SYM run writes new `AtelierSymbolFact` rows with new provenance.
+
+---
+
+###### 6.3.3.5.7.21 Config profiles + UI editor (deterministic) [ADD v02.123]
+
+**Addendum: 10.1 Source-of-truth is plain text (HARD)**
+
+Profiles are plain text blocks (Monaco), compiled deterministically.
+
+**Addendum: 10.2 Recommended editor pattern (simple UI + Monaco)**
+
+- Monaco edits the plain text blocks directly.
+- A lightweight form view can help non-technical editing, but must round-trip to the same text.
+
+The UI MUST show:
+- source hash
+- compiled hash
+- compilation diagnostics
+
+**Addendum: 10.3 Required profile types for Atelier/Lens**
+
+- `ATELIER_GLOBAL_PROFILE` (sets defaults; includes Tier1 default)
+- `PROJECT_STYLE_HINT` (project overlay; does not fork storage)
+- `SYMBOLISM_PROFILE` (SYM-001)
+- `VIEW_POLICY` (NSFW default; SFW projection ruleset)
+
+
+**Addendum: 10.4 Profile evolution, drift, and branching (HARD)**
+
+Profiles are designed to evolve.
+
+- Editing a profile MUST create a new **versioned** record (new hash); systems MUST NOT silently mutate the meaning of an existing pinned hash.
+- Profiles MUST support **branching**:
+  - `profile_parent_hash` (or parent id) links a child profile to its ancestor,
+  - multiple profiles MAY co-exist (e.g., “personal style” vs “client A”).
+- Projects MUST pin the exact profile hash(es) used at generation/extraction time.
+- Operators MUST be able to:
+  - fork profile from any prior version,
+  - set an “active” profile per workspace/project,
+  - roll back to a previous version.
+
+
+---
+
+###### 6.3.3.5.7.22 NSFW/SFW policy (raw ingest; filtered view/output only) [ADD v02.123]
+
+**Addendum: 11.1 Ingestion is always raw and uncensored (HARD)**
+
+Docling/VLM/OCR/ASR and role extractors ALWAYS run uncensored and write raw descriptors.
+
+**Addendum: 11.2 SFW affects retrieval + output text only (HARD)**
+
+- retrieval: **strict drop** — Lens MUST exclude any candidate/result whose `content_tier` is not `sfw`.
+- output: apply projection rules during rendering **only** for remaining SFW-visible items.
+
+**Rule (hard drop):** In `ViewMode="SFW"`, Lens MUST NOT return “collapsed/blurred but revealable” result items.  
+Inspection of adult tiers requires switching `view_mode` back to `NSFW` (which does not mutate storage).
+
+Projection is non-destructive and must be labeled when applied.
+
+**Addendum: 11.3 Output labeling (required)**
+
+Any SFW-projected output MUST carry:
+
+- `projection_applied=true`
+- `projection_kind="SFW"`
+- `projection_ruleset_id`
+- link to underlying raw evidence (operator can inspect)
+
+---
+
+###### 6.3.3.5.7.23 Role registry: Digital Production Studio RolePack (draft v1) [ADD v02.123]
+
+Atelier/Lens roles are not ad-hoc prompts; they are versioned RoleSpecs in a RolePack.
+
+**Addendum: 12.1 Departments + roles (inventory)**
+
+This is the initial role inventory (from the Atelier draft). Each role has both X and C contracts.
+
+**Executive Department**
+- Producer
+- Director (“Keeper of Intent”)
+
+**Thematic & Psychological Department**
+- Writer / Narrative Architect
+- Psychological Impact Consultant
+- Symbolism & Mythology Consultant (ties to SYM-001)
+- Mood Architect
+
+**Context & Culture Department**
+- Historian / World-Builder
+- Cultural Anthropologist / Trend Forecaster
+- Technology Specialist
+
+**World-Building Department**
+- Production Designer
+- Set Dresser
+- Materials Specialist
+
+**Visuals Department**
+- Director of Photography
+- Cinematographer
+- Gaffer (Lighting)
+- Camera Technician / Lens Tech (optional split if needed)
+
+**Fashion & Styling Department**
+- Fashion Stylist
+- Hair Stylist
+- Makeup Artist
+- Model / Talent
+
+**Finishing Department**
+- Editor
+- VFX
+- Color Grading
+- Digital Imaging Technician (DIT)
+
+**Special modes**
+- Commercial/Product Photography: Product Stylist, Food Stylist
+- Intimacy: Intimacy Coordinator
+- Digital Product & UI/UX: UI/UX Designer, Information Architect, Interaction Designer
+- Graphic/Typography: Brand Strategist, Typographer, Graphic Designer, Layout Artist
+- Architectural/Environmental: Architect, Interior Designer, Furniture/Object Designer, Landscape Architect
+
+**Addendum: 12.2 RoleSpec skeleton (what each role must declare)**
+
+Each role MUST declare at minimum:
+
+- claim features required (`docling.blocks`, `image.frames`, `ocr.text`, `asr.transcript`, `vlm.tags`, etc.)
+- extraction schema fields and evidence requirements
+- fact mapping rules (bundle → facts)
+- compose deliverable kinds (typed outputs)
+
+**Addendum: 12.3 Seniority/experience encoding (recommended)**
+
+To “give roles seniority/experience” without corrupting determinism:
+
+- encode seniority as **profile-bound role parameters** (plain-text profile → compiled)
+- do NOT “freehand” seniority in prompts per run
+
+Example (profile-side):
+
+```
+[ROLE:director_of_photography]
+experience_level=senior
+taste_bias=operator_personal
+risk_tolerance=low
+```
+
+This ensures replay pins include the same role parameters.
+
+---
+
+###### 6.3.3.5.7.24 Multi-model parallelism integration (Atelier Track) [ADD v02.123]
+
+Lens and Atelier MUST surface per-role/job model assignment and allow SwapRequest/override within allowed models, with provenance logging.
+
+---
+
+###### 6.3.3.5.7.25 Cross-tool deliverables (typed + capability-gated) [ADD v02.123]
+
+RoleDeliverableBundles MUST only emit typed deliverables:
+
+- Monaco patch sets
+- Doc patch sets (workspace docs)
+- Calendar patch sets
+- Word/Doc exports (as jobs producing ExportRecords)
+- Toolbus plans (PlannedOperations / MEX envelopes)
+- Photo Studio jobs (render/proxy/export)
+- Chart/Deck specs referencing tables by ID (no data duplication)
+
+
+**Addendum: 14.1 DeliverableKind registry (normative)**
+
+RoleDeliverableBundles MUST declare deliverables with a `deliverable_kind` that maps to an existing subsystem artifact type.
+
+Minimum set:
+
+| deliverable_kind | Artifact type | Typical consumer | Capability gate |
+|---|---|---|---|
+| `monaco_patchset` | `CodePatchSet` | Monaco surface | `fs_write` / repo write |
+| `doc_patchset` | `DocPatchSet` | Docs surface | `doc_write` |
+| `calendar_patchset` | `CalendarPatchSet` | Calendar subsystem | `calendar_write` |
+| `word_doc_draft` | `DocDraft` | Exporter | `export_docx` |
+| `toolbus_plan` | `PlannedOperation[]` | MEX/Tool Bus | tool-specific |
+| `photo_pipeline_job` | `PhotoJobSpec` | Photo Studio | `photo_write` |
+| `chart_spec` | `ChartSpec` (refs `TableId`) | Charts | `chart_write` |
+| `deck_spec` | `DeckSpec` (refs entities) | Decks | `deck_write` |
+
+**Rule:** deliverables may be proposed without capability, but application MUST obey the existing patch-set discipline (diff/review/accept) and Flight Recorder logging.
+
+**Addendum: 14.2 Lens UI surfaces (minimum)**
+
+Lens MUST expose, at minimum:
+
+- **Claims Panel**: top roles + scores + thresholds + “run Tier2” controls
+- **Glances Grid**: all roles quick status (none/weak/claimed) with one-line evidence links
+- **Bundle Viewer**: view RoleDescriptorBundle + evidence highlights
+- **Fact Explorer**: SQL-like filters over `AtelierFact` + evidence drilldown
+- **Symbol Explorer**: `AtelierSymbolFact` + SymbolLexicon browsing
+- **Lane Search**: “search as role” using role lanes (lexical + vector)
+- **Proposal Queue**: vocab + symbol proposals accept/merge/reject
+- **Model Status**: HSK_STATUS per role/job + SwapRequest + override audit notes
+- **Projection Toggle**: NSFW default; SFW projection clearly labeled
+
+**Addendum: 14.2.1 Atelier Collaboration Panel (selection-scoped) (HARD)**
+
+Atelier MUST support a “collaborate on selection” workflow in text surfaces (Monaco/Docs):
+
+1. Operator selects a bounded text span.
+2. Operator invokes Atelier collaboration (button/shortcut).
+3. System shows **all roles** in a side panel; each role may emit **0..n suggestions** (multiple suggestions are preferred when available).
+4. Operator checks one or more suggestions and applies them.
+
+Application rules:
+- The resulting `monaco_patchset` / `doc_patchset` MUST be **range-bounded** to the selected span.
+- Validators MUST reject any patch that modifies text outside the selection range (except for explicitly declared boundary-normalization, if enabled).
+- Non-selected text MUST remain byte-identical after patch application.
+
+**Addendum: 14.3 Validators (addendum-required)**
+
+Add the following validators (names are indicative; binding points are normative):
+
+- `ATELIER-LENS-VAL-RAW-001` — stored descriptors/facts MUST NOT be euphemised or softened
+- `ATELIER-LENS-VAL-VIEW-001` — SFW is projection-only; any write-back filtering is rejected
+- `ATELIER-LENS-VAL-VIEW-002` — in `ViewMode="SFW"`, adult-tier items MUST be excluded from result sets (strict drop)
+- `ATELIER-LENS-VAL-TIER-001` — default LensExtractionTier is Tier1 (unless explicit override)
+- `ATELIER-LENS-VAL-SYM-001` — SYM-001 outputs MUST be present when the SYM profile is enabled; missing fields are emitted as `unclear`/`not_available`
+- `ATELIER-LENS-VAL-PROFILE-001` — profile source hash + compiled hash MUST be pinned in provenance for all role jobs
+- `ATELIER-LENS-VAL-SCOPE-001` — compose patchsets MUST be selection-bounded; changes outside the operator selection are rejected
+- `ATELIER-LENS-VAL-FACT-001` — evidence-required fact fields MUST have EvidenceRef
+- `ATELIER-LENS-VAL-INDEX-001` — lexical/vector indexes must be updated for Tier1 completions (or job is marked degraded)
+
+
+---
+
+
+
 #### 6.3.3.6 The "Darkroom" Engine (Photo Stack)
 
 * **Why (LLM Weakness):** LLMs cannot reliably perform RAW demosaic, color pipeline math, masking, GPU scheduling, or produce repeatable pixel outputs.
@@ -25917,7 +27573,7 @@ Handshake uses **two distinct channels** for inter-model coordination. This sepa
 
 **Hard rule:** authoritative task state MUST live in Contract Channel artifacts, never in mailbox chat.
 
-#### 7.2.0.2 Channel 2: Role Mailbox (“Inbox”) (Normative)
+#### 7.2.0.2 Channel 2: Role Mailbox (MailboxKind=COLLAB) (Normative)
 
 **Purpose:** coordination messages between roles/models (handoffs, clarification, blockers).
 
@@ -25961,7 +27617,7 @@ Role Mailbox threads SHOULD reference `wp_id` and `mt_id` so that coordination i
 
 #### 7.2.0.7 Operator Console Integration (Informative)
 
-Operator consoles SHOULD provide a Role Mailbox inspector surfaced as “Inbox”:
+Operator consoles SHOULD provide a Role Mailbox inspector surfaced with a qualified, configurable label (e.g., “Role Mailbox” / “Collab Inbox”), not bare “Inbox”:
 - Thread list by role / WP / MT
 - Message previews via `RoleMailboxBodyV0_5.summary`
 - Correlation to Flight Recorder events and Locus artifacts
@@ -30527,6 +32183,46 @@ DONE_MEANS (mapped):
 - Treat `WP-1-Storage-Abstraction-Layer` as the **Base WP ID**.
 - If you create `...-v{N}`, update `docs/WP_TRACEABILITY_REGISTRY.md` so the Base WP maps to the single Active Packet, and mark the older packet(s) as Superseded on `docs/TASK_BOARD.md`.
 - When instructing Coders/Validators to run `just pre-work` / `just post-work`, always provide the **Active Packet WP_ID** (often includes `-vN`) to avoid ambiguous matches.
+
+
+#### 5.6.1 File-scope locks for concurrent Work Units (WP/MT) (Normative) [ADD v02.122]
+
+Work Packet **immutability** (this section) is a governance rule. Separately, **file-scope locks** prevent concurrent Work Units from mutating overlapping files.
+
+This contract formalizes INV-MM-003 (§4.3.9.3): **strict non-overlap of file scopes under concurrency.**
+
+##### 5.6.1.1 Definitions (normative)
+
+- **Work Unit**: a WP or an MT executing under Locus governance.
+- **Lock set**: the canonical set of file paths the Work Unit may modify.
+  - For WPs, this is `IN_SCOPE_PATHS` in the Task Packet.
+  - For MTs, this is either:
+    - an explicit subset declared in the MT definition, or
+    - inherited from the parent WP if not specified.
+
+##### 5.6.1.2 Rules (HARD)
+
+- If more than one Work Unit is active/executing, each Work Unit MUST hold a lock set.
+- Two concurrently executing Work Units MUST NOT hold overlapping lock sets.
+- On overlap detection, the system MUST deterministically block one Work Unit and surface:
+
+  - `code = CX-MM-002` (File-scope lock conflict),
+  - explicit conflicting paths,
+  - required operator action (choose priority, split scope, or queue).
+
+##### 5.6.1.3 Required surfaces (normative)
+
+When `CX-MM-002` occurs, it MUST appear in:
+
+- Task Board status for the blocked Work Unit,
+- the Work Unit’s canonical status artifact (WP/MT status),
+- the single-line HSK_STATUS marker (`lock=CONFLICT code=CX-MM-002`) (see §4.3.9.8.3),
+- Flight Recorder events correlated to the WP/MT and the conflicting Work Unit(s).
+
+##### 5.6.1.4 Relation to existing multi-coder lock check
+
+The existing operator check **Concurrency / File-Lock Conflict Check (multi-coder sessions) [CX-CONC-001]** is compatible with this contract. In v02.122, `CX-MM-002` is the canonical machine-visible code for lock conflicts; `CX-CONC-001` remains a human process/checklist identifier.
+
 
 ### 5.7 Variant Lineage Audit (ALL versions) [CX-580E] (BLOCKING)
 
@@ -41150,6 +42846,8 @@ This file remains as a compatibility shim for older links and historical task pa
 
 **v02.120 note:** Runtime Integration Addendum v0.5 merged into master spec. Roadmap updates are **additive only** and tagged `[ADD v02.120]` (Phase 0 remains closed). New implementation focus: ModelSwap/resource management, Work Profiles, AutomationLevel autonomous governance + GovernanceDecision audit, Role Mailbox (“Inbox”) alignment + runtime telemetry, cloud escalation consent artifacts/events, and prompt→macro→micro pipeline integration.
 
+**v02.123 note:** Atelier/Lens Addendum v0.2.3 merged into §6.3.3.5.7 as §6.3.3.5.7.11–§6.3.3.5.7.25. Roadmap updates are **additive only** and tagged `[ADD v02.123]` (Phase 0 remains closed). New implementation focus: Tier1/Tier2 extraction depth separation, Tier2 auto-when-idle scheduling, SYM-001 template growth + profile drift/branching, selection-scoped Atelier collaboration, and hard-drop SFW projection.
+
 **v02.36 note:** Additive roadmap entries are tagged `[ADD v02.36]` (no rewrites of existing bullets; Phase 0 remains closed).
 
 **v02.40 note:** Additive roadmap entries are tagged `[ADD v02.40]` (no rewrites of existing bullets; Phase 0 remains closed).
@@ -41266,6 +42964,7 @@ This Roadmap MUST include and maintain a **section-level Coverage Matrix** that 
 7. The matrix MUST NOT use placeholders like `UNSCHEDULED`; every row MUST have at least one phase allocation.
 
 **Coverage Matrix (v02.105 baseline; phase-allocated; Phase 0 closed)**
+- [ADD v02.123] Atelier/Lens Addendum v0.2.3 merged as a **subsection-level** patch under §6.3.3.5.7; Coverage Matrix rows are unchanged (no new `## X.Y` sections added) and phase allocations remain valid.
 - [ADD v02.114] §2.6.6.8 Micro-Task Executor Profile added as subsection of §2.6; covered by existing §2.6 row (P1, P2, P3, P4).
 - [ADD v02.115] §2.3.14 AI-Ready Data Architecture added; cross-cutting integration with all tool sections (§10.x).
 - [ADD v02.120] Runtime Integration Addendum v0.5 merged into existing sections (not new top-level `##` rows): model swaps (§4.3), Work Profiles (§4.3), AutomationLevel governance (§2.6.8), cloud escalation consent (§11.1), event catalog additions (§11.5), and debug bundle exports (§10.5).
@@ -41298,7 +42997,9 @@ This Roadmap MUST include and maintain a **section-level Coverage Matrix** that 
 | 4.1 | LLM Infrastructure | YES | P1, P2, P3, P4 |
 | 4.2 | LLM Inference Runtimes | YES | P1, P2, P3, P4 |
 | 4.3 | Model Selection & Roles | YES | P1, P2, P3, P4 |
+| 4.3.9 | Multi-Model Orchestration & Lifecycle Telemetry [ADD v02.122] | YES | P1, P2, P3, P4 |
 | 4.4 | Image Generation (Stable Diffusion) | YES | P2, P3, P4 |
+| 4.5 | Layer-wise Inference & Dynamic Compute (Exploratory) [ADD v02.122] | YES | P1, P3, P4 |
 | 5.1 | Plugin Architecture | YES | P4 |
 | 5.2 | Sandboxing & Security | YES | P1, P2, P3, P4 |
 | 5.3 | AI Observability | YES | P1, P2, P3, P4 |
@@ -41432,6 +43133,8 @@ Stand up a stable “Hello, workspace” application that matches the high-level
 Deliver the **first real Handshake**: a single-user, local-first workspace where documents and canvases are editable, AI assistance is available, and every AI action is traceable through the AI Job Model, Workflow Engine, Flight Recorder, and capability system. Debug tools for AI behaviour and workflows are mandatory.
 Ship with the default local LLM runtime (Ollama), hardened document/canvas editors (Tiptap/BlockNote and Excalidraw), always-on Atelier Lens, and a prompt-to-spec router that creates Task Board and Work Packet session logs. Git workflows must trigger safety commit behavior while non-git workflows must not.
 
+- [ADD v02.123] Phase 1 Atelier/Lens focus: ship selection-scoped collaboration, Tier1-first extraction with deterministic role-turn isolation, and ViewMode hard-drop projection; Tier2 auto-when-idle is scheduled in Phase 2.
+
 - [ADD v02.105] Phase coverage is governed by §7.6.1 Coverage Matrix; Phase 0 is closed and MUST NOT be used for scheduling newly discovered requirements (remediate in Phase 1 or later).
 - [ADD v02.107] Governance kernel adoption (workflow safety): Phase 1 work MUST be executed using the Governance Kernel artifacts and gates (A§7.5.4) so small-context local models and cloud models can hand off deterministically (Task Board + refinements + signed task packets + manifests; CI parity).
 - [ADD v02.107] Local-first agentic stance: Phase 1 core loops MUST run fully offline with local models + local tools as the default; MCP and cloud escalation are optional, capability-gated, and must preserve artifact-first outputs and Flight Recorder evidence (A§6.0.1, A§7.2.5, A§11.3).
@@ -41458,6 +43161,94 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
    - [ADD v02.120] Implement Work Profiles (role-based model assignment + automation knobs); record `work_profile_id` in job metadata; emit FR-EVT-PROFILE-*.
    - [ADD v02.120] Integrate cloud escalation consent artifacts (ProjectionPlan + ConsentReceipt) + FR-EVT-CLOUD-*; enforce human-gated escalation.
    - [ADD v02.120] Align “Inbox” UI label to Role Mailbox subsystem; add runtime mailbox telemetry + debug bundle export coverage.
+
+
+**ADD v02.122 — Multi-Model Orchestration & Lifecycle Telemetry**
+
+- Goal (needs updating)  
+  Make multi-model execution a first-class, governed workflow capability: multiple independent model instances can execute different WPs/MTs in parallel, with strict file-scope locks, deterministic recovery, and compact lifecycle telemetry.
+
+- MUST deliver (Phase 1)  
+  - Runtime modes: DOCS_ONLY vs AI_ENABLED; enforce min_ready_models=1 in AI_ENABLED.  
+  - Multi-model orchestration primitives: ExecutionMode, model readiness, swap/escalation.  
+  - File-scope lock enforcement for concurrent WPs/MTs (no overlapping IN_SCOPE_PATHS).  
+  - Work Profile routing: ParameterClass + “largest-first” selection + model performance telemetry scoring.  
+  - RoleExecutionIdentity logging per output (role, model_id, backend, parameter_class, cloud_strength, session_id).  
+  - Role Mailbox persistence taxonomy (MailboxKind) and non-authority boundary.  
+  - HSK_STATUS single-line lifecycle marker; shown after gate output.  
+  - Softblock/failstate code registry (CX-MM-xxx) for model readiness, lock conflicts, swap failures.
+
+- Key risks addressed  
+  - Conflicting edits across parallel WPs (prevented by strict file-scope locks).  
+  - Governance bypass via side channels (prevented by non-authority role mailbox + canonical artifact rules).  
+  - Opaque multi-model state (solved by HSK_STATUS + FR correlation).
+
+- Acceptance criteria  
+  - Two WPs can run concurrently iff IN_SCOPE_PATHS are disjoint; otherwise one blocks with CX-MM-002 and a lock conflict report.  
+  - System runs in DOCS_ONLY with zero models, and in AI_ENABLED only with >=1 READY model.  
+  - Every role output includes RoleExecutionIdentity metadata and HSK_STATUS updates on phase transitions.  
+  - SwapRequest escalation can replace a failing smaller model with a larger model, preserving WP/MT state.
+
+- Out of scope (Phase 1)  
+  - Any GPU-sharded inference of a single model.  
+  - Any requirement for multiple GPUs.
+
+- Mechanical track (Phase 1)  
+  - Implement lock semantics + Task Board integration.  
+  - Implement HSK_STATUS generator + FR event correlation.  
+  - Implement MailboxKind taxonomy + persistence.
+
+- Atelier track (Phase 1)  
+  - UI to show READY models, active Work Units, lock states, and compact lifecycle status.
+
+- Distillation track (Phase 1)  
+  - None required.
+
+- Vertical slice (Phase 1)  
+  Run WP-A and WP-B in parallel on two models; WP-B attempts overlap → blocks; WP-A completes; operator swaps WP-B to larger model after an escalation failstate.
+
+**Do not add a permanent “Addendum” section.** Place content into the topic where it belongs and update roadmap matrices and cross-references accordingly.
+
+
+**ADD v02.122 — Layer-wise Inference Foundations (Hooks + Governance + Observability)**
+
+- Goal (needs updating)  
+  Introduce stable, governed **dynamic compute** hooks (no algorithm requirement) so future phases can experiment with layer-wise inference without breaking auditability or determinism.
+
+- MUST deliver (Phase 1)  
+  - Runtime contract hook: reserve and accept `settings.exec_policy` (optional) with deterministic downgrade semantics (requested vs effective) (§2.5.2.1, §4.5.5).  
+  - Work Profile hook: per-role compute presets + separate approximate knob with waiver requirement (`hsk.work_profile@0.6`) (§4.3.7.5, Waiver Protocol [CX-573F]).  
+  - Observability: Flight Recorder event `llm_exec_policy` (FR-EVT-LLM-EXEC-001) + referenced trace artifact format `hsk.layerwise_trace@0.1` (§11.5.11).  
+  - UI/config surface: operator can select per-role `speed_preset` (standard / fast_exact / fast_approx) and cannot enable approximate without a waiver reference.  
+  - Default posture remains **standard exact**; no planner auto-enables approximation.
+
+- Key risks addressed  
+  - Prevent silent quality regressions (approximate execution must be explicit + waived).  
+  - Prevent “unknown compute” in audits (requested vs effective policy always logged).  
+  - Prevent privacy leaks from high-volume traces (no token IDs; no raw text by default).
+
+- Acceptance criteria  
+  - If `approximate.allowed=false` or waiver missing, approximate execution cannot occur; system downgrades to exact and logs the downgrade.  
+  - For calls with `settings.exec_policy`, Flight Recorder contains an `llm_exec_policy` event capturing requested vs effective policy.  
+  - If approximate execution occurs, the event includes `waiver_ref` and a trace artifact reference (or explicit `trace_artifact_ref=null` with reason).
+
+- Out of scope (Phase 1)  
+  - Implementing true layer-wise inference in local runtimes (LayerSkip/early-exit/etc).  
+  - Multi-device/sharded inference.
+
+- Mechanical track (Phase 1)  
+  - Schema updates + validators (Work Profile v0.6; runtime settings allow `exec_policy`).  
+  - Flight Recorder schema + retention/privacy enforcement for layerwise traces.
+
+- Atelier track (Phase 1)  
+  - Operator UX for per-role compute preset selection and waiver-bound “approximate” toggle.
+
+- Distillation track (Phase 1)  
+  - Not required; keep as future.
+
+- Vertical slice (Phase 1)  
+  Operator selects `fast_exact` for `worker`, runs a WP/MT, and sees requested vs effective policy in FR + UI; then toggles approximate with a waiver and sees `llm_exec_policy` + trace reference emitted.
+
 
 2. **AI Job Model (minimum viable implementation)**  
    - Implement the **global AI Job Model** (Section 2.6.6) in the backend:
@@ -41948,6 +43739,11 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - [ADD v02.67] Implement `ATELIER_CONCEPT_RECIPE` and pass `ConceptRecipe` into compilers/composers (Conceptual Mode becomes replayable; recipes are first-class artifacts).
 - [ADD v02.67] Implement `ATELIER_STATE_MERGE` (SceneState + ConflictSet) and `ATELIER_GRAPH_SOLVE` (ProductionGraph + solve_plan) as mechanical jobs used by Atelier compilation flows.
 - [ADD v02.79] Add Photo Studio worksurface shell: browser grid + viewer + metadata inspector (read-only metadata is acceptable in Phase 1).
+- [ADD v02.123] Implement **Atelier Collaboration Panel (selection-scoped)** in the main text editor: a sidebar/panel that runs role passes against the current selection, shows per-role suggestions (multiple options preferred), supports checkmark selection, and applies changes **only** to the selected span (never touching non-selected text). All applied patches MUST be recorded with provenance (role_id, contract_id, model_id/tool_id, evidence refs, before/after spans).
+- [ADD v02.123] Implement `LensExtractionTier` plumbing (Tier1 default) and surface it in Lens job traces; Tier1 MUST be the default for all ingestion/extraction unless explicitly escalated.
+- [ADD v02.123] Enforce **lossless role catalog + append-only role registry** in runtime + validators: role_id stability, no reuse, and a blocking validator if a previously-declared role disappears from the registry snapshot.
+- [ADD v02.123] Implement `ViewMode` UI + enforcement for Lens outputs: `SFW` mode MUST **hard-drop** any non-`sfw` results from retrieval/output while preserving evidence pointers internally; switching ViewMode MUST NOT mutate stored Raw/Derived artifacts.
+- [ADD v02.123] Implement role-turn isolation (role reset + context window reset) as the default execution mode for role passes (claim/glance/extract) to keep small local models consistent and prevent cross-role contamination; record per-turn pins for deterministic replay.
 
 
 **Distillation Track (Phase 1)**
@@ -41968,6 +43764,9 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 
 **Goal**  
 Make Handshake useful over **existing** files and unlock basic retrieval-augmented generation, reusing the existing AI Job, workflow, and observability stack. Maintain and extend debug surfaces for ingestion and retrieval.
+- [ADD v02.123] Phase 2 Atelier/Lens focus: Docling-driven Lens enrichment, global facts index + role-lane retrieval, Tier2 auto-when-idle deep passes, and SymbolismProfile/lexicon growth surfaced in UI and operator consoles.
+
+
 
 - [ADD v02.105] Phase coverage is governed by §7.6.1 Coverage Matrix; Phase 0 is closed and MUST NOT be used for scheduling newly discovered requirements (remediate in Phase 1 or later).
 - [ADD v02.52] Implement ACE-RAG-001 as the canonical RAG contract: packs-first routing, deterministic scoring/selection, hash-key caching, and drift detection wired into Operator Consoles.
@@ -42322,6 +44121,11 @@ Make Handshake useful over **existing** files and unlock basic retrieval-augment
 
 - [ADD v02.115] **MT smart drop-back:** Implement "smart" drop_back_strategy that considers LoRA training history, failure category patterns, and remaining MT complexity before returning to smaller models.
 - [ADD v02.115] **MT ContextPacks integration:** Wire MT context compilation to use ContextPacks (§2.6.6.7.14.7) for efficient file retrieval with staleness detection.
+- [ADD v02.123] Implement **Tier2 auto-when-idle** scheduling for Lens extraction: Tier2 deep passes MUST auto-trigger when the app is idle (and within configured GPU/CPU budgets), queue jobs deterministically, and emit provenance + evidence. Tier1 remains default and synchronous.
+- [ADD v02.123] Implement **Facts substrate** for Lens: normalized `AtelierFact` + `AtelierSymbolFact` as first-class indexed records (global across projects, filterable) with EvidenceRef pointers and deterministic retrieval traces.
+- [ADD v02.123] Implement **SymbolismProfile + SymbolLexiconSnapshot** persistence and drift-safe evolution (branchable profiles): symbolic templates MUST grow over time; unknown/unclear fields MUST be stored explicitly as `unclear`/`not_available` (never omitted silently).
+- [ADD v02.123] Implement Lens **global filter UI** (role filters, source filters, ViewMode toggle default NSFW, projection markers) and an Operator Console QueryPlan/RetrievalTrace viewer for Lens queries (debuggable click-to-source).
+- [ADD v02.123] Implement Lens persistence contract extensions in SQLite (and migration notes for Postgres later): deterministic artifact layout for Derived Fact stores, schema versioning, and replayable QueryPlan/Trace storage.
 
 **Distillation Track (Phase 2)**
 - Persist Skill Bank entries from real workflows; implement sample selection and teacher-eval jobs flowing through Workflow Engine.
@@ -42544,6 +44348,47 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
 - [ADD v02.115] **MT failure category refinement:** Refine FailureCategory taxonomy based on accumulated escalation data; add new categories as patterns emerge; update LoRA training targets accordingly.
 - [ADD v02.115] Acceptance: LoRA training jobs visible in Job History; checkpoints stored with provenance; regression tests prevent LoRA degradation.
 - [ADD v02.79] Promote successful “culling + tagging” flows into reusable workflows/presets.
+
+
+**ADD v02.122 — Layer-wise Inference Experiments (Local Runtime Adapter)**
+
+- Goal (needs updating)  
+  Validate `settings.exec_policy` end-to-end on at least one **local** runtime, including downgrade semantics and Flight Recorder observability, and run initial approximate experiments under waiver control.
+
+- MUST deliver (Phase 3)  
+  - Implement a local runtime adapter that accepts `exec_policy` and emits `llm_exec_policy` (FR-EVT-LLM-EXEC-001) with requested vs effective policy.  
+  - Add at least one approximate execution implementation for local models (e.g., LayerSkip / early-exit), gated behind waiver + Work Profile toggle.  
+  - Benchmark: produce a comparative report (exact vs fast_exact vs fast_approx) with latency, error rates, and quality proxies, attached to the job artifacts.  
+  - Ensure high-volume traces are sampled and privacy-compliant (no token IDs; no raw text by default).
+
+- Key risks addressed  
+  - Runtime fragmentation (policy requested but not observable).  
+  - Quality regression without accountability.  
+  - Trace overhead and privacy leakage.
+
+- Acceptance criteria  
+  - Operator can run the same WP/MT twice (exact vs approximate with waiver) and see:
+    - effective policy differences,
+    - latency/throughput deltas,
+    - explicit waiver linkage in telemetry.
+
+- Out of scope (Phase 3)  
+  - Production-grade automatic policy selection.  
+  - Cloud-provider dynamic depth controls beyond “reasoning strength” tags.
+
+- Mechanical track (Phase 3)  
+  - Runtime adapter + event emission + trace artifact pipeline.  
+  - Benchmark harness + replay tools.
+
+- Atelier track (Phase 3)  
+  - Minimal UI to surface effective policy and downgrades in Job History.
+
+- Distillation track (Phase 3)  
+  - Optional: learn a safe default mapping from `speed_preset` → exec_policy per runtime.
+
+- Vertical slice (Phase 3)  
+  A local worker role runs `fast_approx` under a waiver on a LayerSkip-capable model; `llm_exec_policy` shows approximate active + trace reference; system falls back to exact if unsupported.
+
 ### 7.6.6 Phase 4 — Collaboration & Extension Ecosystem
 
 **Goal**  
@@ -44044,6 +45889,2839 @@ Based on research of existing apps:
 
 ---
 
+
+
+### 8.6.8 Embedded Source Archives (Atelier/Lens) [ADD v02.123]
+
+This appendix embeds key source files **verbatim** to prevent detail loss during future merges and to keep Handshake fully self-contained (no sidecar specs required).
+
+**Authority note:** These embedded archives are reference material. Normative/implementable requirements are defined in the Main Body (notably §6.3.3.5.7.11–§6.3.3.5.7.25).
+
+---
+
+#### 8.6.8.1 Handshake_Atelier_Lens_Addendum_v0.2.3.md (verbatim)
+
+````markdown
+# Handshake — Atelier/Lens Addendum Spec
+Version: v0.2.3 (Draft)  
+Date: 2026-01-30 (Europe/Brussels)  
+Patch target: `Handshake_Master_Spec_v02.122.md` (primary: §6.3.3.5.7 Atelier/Lens; also ties into §2.3.14 AI-Ready Data Architecture, §2.4.* pipelines, and ACE-RAG retrieval contracts)  
+
+**Surgical merge intent:** This document is written to be patched into the master spec in-place (not appended).  
+**Precedence:** If a conflict exists, **this addendum overrides** `Handshake_Master_Spec_v02.122.md` for Atelier/Lens and any referenced glue (storage/retrieval/view policy) needed to make it operable.
+
+---
+
+## 0. Normative language
+
+The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are to be interpreted as described in RFC 2119.
+
+---
+
+## 1. Operator-locked constraints
+
+These are treated as hard requirements.
+
+1. **Default Lens extraction depth = Tier1**  
+   Tier1 is the default ingestion/extraction setting across Handshake.
+
+2. **Global index with filters**  
+   Descriptors/facts are global across Handshake (not project-bound) and queries filter.
+
+3. **SYM-001 is first-class**  
+   Symbolism/SHOT_DNA is not optional; it is a primary lane of extraction + retrieval.
+
+4. **NSFW is default view**  
+   SFW/NSFW does **not** affect ingestion or stored descriptors; it affects only retrieval visibility/ranking and output rendering.
+
+5. **No censorship / no softening**  
+   Internal extraction data is always raw and explicit. Any SFW behavior is strictly a projection at view/output boundaries and MUST NOT write back.
+
+---
+
+## 2. Definitions (addendum-local)
+
+### 2.1 Atelier and Lens
+
+- **Lens** = extraction + query/control plane (claims, glances, facts, evidence, search, proposal queue)  
+- **Atelier** = composition + production plane (creative planning, deliverables, production graphs)
+
+**Opposites rule:** Every role is symmetric: the same role that composes also extracts.
+
+### 2.2 ETL (what “ETL” means here)
+
+**ETL = Extract → Transform → Load**
+
+- **Extract:** Docling/OCR/ASR/VLM signals + role extractors
+- **Transform:** normalize to CONFIG vocab; flatten to Facts; compute embeddings; compute SYM-001 (layer scores / motifs / SHOT_DNA)
+- **Load:** write deterministic artifacts + upsert SQLite rows + update indexes (FTS + vector + graph + role lanes)
+
+### 2.3 Two different “tiers” (do not confuse)
+
+Handshake already has `content_tier` (SFW vs adult categories) in descriptor governance.
+
+This addendum introduces **LensExtractionTier** which is about **how deep** the extraction pass is, not about NSFW.
+
+```ts
+type LensExtractionTier = 0 | 1 | 2;
+
+/*
+Tier0: minimal (ingest + cheap glances; no heavy role extraction)
+Tier1: default (claim + top-k role extraction + fact flattening + indexing + optional SYM-001 when eligible)
+Tier2: deep (expanded role set + heavy detectors + deeper symbol pass + full lane indexing)
+*/
+```
+
+### 2.4 ViewMode (SFW/NSFW)
+
+```ts
+type ViewMode = "NSFW" | "SFW";
+
+/*
+NSFW: raw descriptors and raw rendering
+SFW: filtered projection for retrieval + rendering; never modifies stored descriptors
+*/
+```
+
+---
+
+## 3. Core invariants (non-negotiable)
+
+### 3.1 No write-back censorship (HARD)
+
+No part of Atelier/Lens may modify stored descriptors to satisfy display posture.
+
+- Ingestion (Docling, OCR, ASR, VLM) is always raw.
+- Role extraction is always raw.
+- Facts and Symbol facts are always raw.
+- SFW is implemented as a **filtered projection** only.
+
+### 3.2 Deterministic replay (HARD)
+
+For the following jobs, Handshake MUST be able to replay and reproduce the same Derived artifacts:
+
+- `ATELIER_CLAIM`
+- `ATELIER_GLANCE`
+- `ATELIER_ROLE_EXTRACT`
+- `ATELIER_ROLE_COMPOSE` (when run in strict mode)
+- `ATELIER_VOCAB_PROPOSE` / `ATELIER_VOCAB_RESOLVE`
+- `ATELIER_LANE_INDEX`
+- `SYM-001` jobs inside Lens (symbol extraction pass)
+
+Practical note: even if model output is not 100% stable, replay mode MUST support persisting the effective candidate lists / tie-breaks / selected spans / final bundle hashes so a replay uses the persisted order.
+
+
+### 3.3 Lossless role catalog + append-only registry (HARD)
+
+Handshake MUST NOT “lose” roles via refactors, renames, or re-scoping.
+
+- The canonical role catalog (names, intent, department grouping, and role mechanics) MUST be embedded in the master spec after merge (no external sidecar docs).
+- Role identifiers (`role_id`) are **stable**. Renames are aliases; the `role_id` does not change.
+- The role registry is **append-only**:
+  - new roles MAY be added,
+  - existing roles MAY be deprecated (explicitly), but MUST NOT be removed.
+- Any change to role definitions MUST be versioned (contract id bump) and logged (Flight Recorder + spec-change log).
+- Validators MUST fail any build that removes a previously declared `role_id` or silently changes a role’s contract surface.
+
+
+---
+
+## 4. Atelier/Lens runtime model (tightened)
+
+### 4.1 Dual-contract role runtime (recap)
+
+Each role has:
+
+- **Extraction contract**: `ROLE:<role_id>:X:<ver>` → `RoleDescriptorBundle`
+- **Compose contract**: `ROLE:<role_id>:C:<ver>` → `RoleDeliverableBundle`
+
+Roles are the atomic unit. There is no separate “lens role vs atelier role”.
+
+### 4.2 Claim → Glance → Extract (default Tier1 flow)
+
+Default Tier1 pipeline for a newly ingested artifact:
+
+1. `ATELIER_CLAIM`  
+   Produces RoleScore[] distribution + RoleClaim[] for top roles.
+
+2. `ATELIER_GLANCE`  
+   Produces cheap RoleGlance[] for “all roles grid” (claimed/weak/none + one-line evidence links).
+
+3. `ATELIER_ROLE_EXTRACT` for **top-k** roles (k configurable; default profile-controlled)  
+   Produces RoleDescriptorBundle for each role.
+
+4. Transform + Load  
+   Flatten bundles to facts; attach evidence; build/update indexes and lanes.
+
+5. SYM-001 pass (Tier1)  
+   Run SYM-001 opportunistically whenever there is any usable descriptor substrate; emit `unclear`/`not_available` for missing fields (see §9).
+
+Tier2 expands step (3) and may introduce heavier detectors.
+
+### 4.3 Tier1 default selection (HARD)
+
+`LensExtractionTier` default is Tier1. Tier0 must be explicit operator choice.
+
+### 4.4 Tier2 trigger policy (HARD)
+
+Tier2 extraction MUST be scheduled **automatically when the workspace is idle**.
+
+- “Idle” is implementation-defined but MUST at minimum mean: no active operator interaction and no foreground (interactive) jobs running.
+- Tier2 jobs MUST yield immediately to any foreground job request.
+- Tier2 jobs MAY be additionally gated by an operator profile (e.g., max concurrency / compute budget), but the default posture is auto-when-idle.
+
+### 4.5 Role-turn isolation (recommended; determinism support)
+
+Role extract runs SHOULD be executed as **short, isolated turns**:
+
+- For each role turn, the runtime MUST reset role prompt + scratch context window (no cross-role hidden carryover).
+- Cross-role knowledge transfer MUST occur only through persisted artifacts (Claim/Glance/Bundles/Facts/ContextPacks).
+- This enables repeated “all roles pass” loops without unloading the underlying model.
+
+
+---
+
+## 5. Evidence model (click-to-source correctness)
+
+### 5.1 EvidenceRef is mandatory
+
+Every extractor MUST emit bounded EvidenceRefs for evidence-required fields.
+
+Evidence locator types (minimum):
+
+- `doc_span` (doc_id, block_id, char_start/char_end)
+- `page_bbox` (doc_id/file_id, page, x/y/w/h)
+- `image_bbox` (asset_id, bbox)
+- `frame_span` (video_id, t_start/t_end, bbox optional)
+- `audio_span` (audio_id, t_start/t_end)
+- `table_cell` (doc_id, table_id, row, col)
+
+### 5.2 Parallel evidence (Docling + local VLM)
+
+Lens may use multiple evidence sources for higher accuracy:
+
+- Docling structure/text spans (layout-aware)
+- local VLM captions/tags (vision-first)
+
+When multiple sources corroborate a fact, Facts MAY carry multiple evidence refs (or one evidence ref plus a “corroborates[]” list).
+
+---
+
+## 6. Canonical descriptor substrate (force multiplier)
+
+Role bundles are role-specific and correct. But every non-LLM tool needs a shared query substrate.
+
+### 6.1 Rule: bundles MUST emit Facts (HARD)
+
+Every successful RoleDescriptorBundle write MUST also emit canonical fact rows.
+
+#### 6.1.1 `AtelierFact` (normalized scalar facts)
+
+```ts
+interface AtelierFact {
+  fact_id: string;
+  workspace_id: string;
+  project_id?: string;
+
+  bundle_id: string;
+  role_id: string;
+  contract_id: string;
+
+  path: string;              // stable JSONPath-like key into bundle fields
+  value_type: "string"|"number"|"bool"|"term"|"json";
+  value_norm: string;        // normalized scalar (for SQL/FTS)
+  term_id?: string;          // CONFIG term id when controlled
+
+  content_tier: "sfw"|"adult_soft"|"adult_explicit";   // governance
+  consent_profile_id?: string;
+
+  confidence: number;        // 0..1
+  evidence_id?: string;      // required when evidence-required field
+  created_at: string;        // timestamp
+}
+```
+
+#### 6.1.2 `AtelierSymbolFact` (SYM-001 facts)
+
+```ts
+interface AtelierSymbolFact {
+  sym_fact_id: string;
+  workspace_id: string;
+  project_id?: string;
+
+  source_bundle_id: string;     // SYM bundle id or role bundle id
+  symbol_term_id: string;       // CONFIG/SYM term id
+  intensity: number;            // 0..1
+  polarity?: "positive"|"negative"|"mixed"|"neutral";
+
+  content_tier: "sfw"|"adult_soft"|"adult_explicit";
+  consent_profile_id?: string;
+
+  evidence_id?: string;
+  created_at: string;
+}
+```
+
+### 6.2 Global index with filters (HARD)
+
+Facts and SymbolFacts are global by default. Projects apply filters.
+
+Minimum filter envelope (always applied in Lens):
+
+```ts
+interface LensFilterEnvelope {
+  workspace_id: string;          // implicit in DB-per-workspace, but explicit in API
+  project_id?: string;           // optional project scope
+  content_tier_min?: "sfw"|"adult_soft"|"adult_explicit"; // governance gating for retrieval
+  consent_profile_id?: string;   // optional
+  view_mode: ViewMode;           // NSFW default
+  time_range?: { from?: string; to?: string };
+  role_ids?: string[];           // restrict to a role lens (search-as-role)
+  vocab_namespaces?: string[];   // restrict (DES/TXT/SYM/etc)
+}
+```
+
+
+### 6.3 Library growth is expected (HARD)
+
+Handshake is designed for continuous, cross-domain ingestion (e.g., paintings one day, architecture the next, then photography). Therefore:
+
+- The descriptor/fact substrate is a **cumulative library**: new ingestion adds Facts/SymbolFacts; nothing is “reset” unless the operator explicitly forks or clears a workspace.
+- Growth MUST be safe-by-default:
+  - raw extractions are append-only,
+  - corrections are expressed as new bundles/facts with higher confidence and clear provenance,
+  - old rows are not silently overwritten.
+- Tier2 enrichment jobs (role deep passes, lane re-indexing, motif expansion) SHOULD run automatically when the system is idle (per §2 decisions) to keep the library usable as it grows.
+
+
+---
+
+## 7. Persistence contract (SQLite now, Postgres later)
+
+### 7.1 Deterministic artifact layout (Derived store)
+
+Store bundles and indexes as deterministic artifacts (hash-addressed):
+
+```
+derived/atelier/
+  bundles/
+    descriptor/<artifact_id>/<role_id>/<contract_id>/<bundle_hash>.json
+    deliverable/<plan_id>/<role_id>/<contract_id>/<bundle_hash>.json
+  vocab/
+    snapshots/<namespace>/<vocab_hash>.json
+    proposals/<proposal_id>.json
+  symbol/
+    snapshots/<sym_namespace>/<sym_hash>.json
+    bundles/<artifact_id>/<bundle_hash>.json
+  lane/
+    <role_id>/index/<index_version>/...
+    <role_id>/embeddings/<artifact_id>/<embed_hash>.json
+```
+
+### 7.2 SQLite schema (portable logical model)
+
+The physical schema may vary, but the logical tables and keys are normative.
+
+**Core tables:**
+
+- `atelier_role_spec(role_id, role_version, department_id, display_name, spec_json, spec_hash)`
+- `atelier_contract(contract_id, role_id, kind {X|C}, version, schema_json, schema_hash)`
+- `atelier_profile(profile_id, kind, source_text, compiled_json, source_hash, compiled_hash, created_at, updated_at)`
+- `atelier_bundle(bundle_id, bundle_kind {descriptor|deliverable|symbol}, artifact_id, plan_id, role_id, contract_id, bundle_hash, created_at, provenance_json, status)`
+- `atelier_evidence(evidence_id, bundle_id, artifact_id, kind, locator_json, source_ref, confidence, notes)`
+- `atelier_fact(fact_id, bundle_id, role_id, contract_id, path, value_type, value_norm, term_id, confidence, evidence_id, content_tier, consent_profile_id, workspace_id, project_id, created_at)`
+- `atelier_symbol_fact(sym_fact_id, source_bundle_id, symbol_term_id, intensity, polarity, evidence_id, content_tier, consent_profile_id, workspace_id, project_id, created_at)`
+- `atelier_vocab_snapshot(namespace, vocab_hash, created_at, snapshot_json)`
+- `atelier_vocab_proposal(proposal_id, namespace, term, term_type, status, support_count, proposer_role_id, examples_json, decision_provenance_json)`
+- `atelier_lane_index(role_id, index_version, built_from_vocab_hash, built_from_contract_ids, built_at, index_meta_json)`
+- `atelier_lane_embedding(embed_id, artifact_id, role_id, index_version, anchor_text, vector_blob, embed_hash, provenance_json)`
+
+**Portability notes (SQLite → Postgres):**
+- store vectors as blobs now; later map to pgvector
+- keep JSON payloads but ensure query keys exist as columns
+- FTS is a derived index; not relied on for logical correctness
+
+---
+
+## 8. Retrieval contract (two methods, deterministic)
+
+### 8.1 Lens must expose both retrieval modalities
+
+Lens retrieval MUST combine:
+
+- **Lexical/keyword search** over Facts + Docling text blocks (FTS/BM25)
+- **Vector/semantic search** over embeddings for Facts and/or doc blocks
+- optional **graph/meta routing** (knowledge graph neighborhood, lane priors)
+
+### 8.2 QueryPlan + RetrievalTrace
+
+Every search returns:
+
+- `QueryPlan` (routes, weights, filters)
+- `RetrievalTrace` (candidate ids + scores + tie-break keys + cache hits/misses)
+
+### 8.3 Two-stage retrieval (candidate → rerank)
+
+Default strategy:
+
+1. Candidate generation (cheap; hybrid fusion):
+   - lexical candidates
+   - vector candidates
+   - lane-scoped candidates (if role lens selected)
+2. Rerank (bounded; deterministic):
+   - dedupe
+   - tie-break by stable keys
+   - produce final ranked list
+
+### 8.4 Snippet-first reading
+
+Lens MUST avoid “read everything” behavior:
+
+- Search returns bounded snippets and evidence pointers
+- Read returns bounded excerpt (span/bbox/frame range)
+- escalation is explicit and logged
+
+
+### 8.5 Lens query API shape (normative)
+
+Lens is not “just UI”; it is a query/control plane that all other subsystems can call deterministically.
+
+```ts
+interface LensQueryEnvelope {
+  query_id: string;
+
+  // One query may run multiple routes in parallel (lexical + vector + lane + graph).
+  query_text: string;
+
+  filter: LensFilterEnvelope;
+
+  // Retrieval routing
+  routes: {
+    lexical: boolean;
+    vector: boolean;
+    lane?: { role_id: string };     // “search as role”
+    graph?: boolean;
+  };
+
+  // Hybrid fusion weights (defaults from profile)
+  weights?: { lexical: number; vector: number; lane: number; graph: number };
+
+  // Token + time budgets
+  budget: { max_candidates: number; max_results: number; max_read_ops: number };
+
+  // Determinism
+  mode: "strict" | "replay";
+}
+
+interface LensResultItem {
+  kind: "fact" | "symbol_fact" | "doc_span" | "image_asset" | "bundle";
+  id: string;                       // fact_id / sym_fact_id / block_id / asset_id / bundle_id
+
+  title: string;
+  snippet: string;                  // bounded; may be SFW-projected depending on filter.view_mode
+
+  // Evidence is always linkable; projection never destroys the underlying evidence pointer.
+  evidence?: EvidenceRef[];
+
+  // Ranking diagnostics (Operator Consoles)
+  score: number;
+  route_scores?: { lexical?: number; vector?: number; lane?: number; graph?: number };
+
+  // Projection markers
+  projection_applied: boolean;
+  projection_kind?: "SFW";
+  projection_ruleset_id?: string;
+}
+```
+
+### 8.6 ContextPacks: LLM-friendly view over Facts (required)
+
+To keep storage/tooling “LLM-friendly” while remaining deterministic, Lens MUST be able to materialize a bounded, hashed context artifact derived from facts and evidence:
+
+- `AtelierContextPack` (Derived artifact)
+  - selected facts (with stable ids)
+  - selected symbol facts
+  - bounded evidence excerpts
+  - constraints/open loops
+  - lane snapshots used
+  - provenance pins (profile hashes, vocab snapshot hashes, model/tool pins)
+
+`AtelierContextPack` is the preferred input to any writer/creative role when they need corpus context, replacing ad-hoc “dump the DB into the prompt.”
+
+
+---
+
+## 9. SYM-001 in Lens (first-class)
+
+### 9.1 SymbolLexiconSnapshot + SymbolismProfile
+
+SYM-001 uses:
+
+- `SymbolLexiconSnapshot` (global, proposal-grown)
+- `SymbolismProfile` (plain-text source + deterministic compilation; may have per-project overlay)
+
+### 9.2 SYM job placement
+
+SYM-001 runs inside Lens as:
+
+- Tier1: **opportunistic** — run whenever there is any usable descriptor substrate (Claims/Glances/Facts/Docling spans/VLM tags). There is no hard “minimum coverage” gate; missing fields MUST be emitted as `unclear` or `not_available`.
+- Tier2: deep profiling (more motifs, broader cross-reference, heavier detectors)
+
+Outputs:
+- SHOT_DNA layer scores (as available)
+- motif tags
+- symbolic intensity facts (`AtelierSymbolFact`)
+
+### 9.3 Symbol template growth + unknown fields (HARD)
+
+SYM output MUST use a **stable, growing template**:
+
+- The template MUST be emitted even when partial; fields that cannot be grounded are set to:
+  - `unclear` (a value is conceptually applicable but the system cannot infer it reliably), or
+  - `not_available` (the field is not applicable or source signals are missing).
+- Re-running SYM on the same artifact MAY refine `unclear` → concrete values as more Facts arrive.
+- The current SYM template version used MUST be pinned in provenance (profile hash + template ver + lexicon snapshot hash).
+
+
+### 9.4 Symbolic engine is a living dataset (HARD)
+
+The symbolic system is not static. Meanings, motifs, and emphasis are expected to drift over time.
+
+Rules:
+
+- `SymbolLexiconSnapshot` is **versioned** and **proposal-grown**. New motifs/terms are added by proposals and become active only once merged into a new snapshot.
+- `SymbolismProfile` is **versioned** and MUST support **fork/reset**:
+  - a new client/project may use a forked profile,
+  - an operator may reset or branch the profile without destroying prior history.
+- Re-running SYM against the same artifact MAY legitimately produce different outputs if (and only if) the active profile/snapshot changed; this MUST be visible via provenance pins.
+- Past symbol facts are not rewritten in-place. A new SYM run writes new `AtelierSymbolFact` rows with new provenance.
+
+---
+
+## 10. Config profiles + UI editor (deterministic)
+
+### 10.1 Source-of-truth is plain text (HARD)
+
+Profiles are plain text blocks (Monaco), compiled deterministically.
+
+### 10.2 Recommended editor pattern (simple UI + Monaco)
+
+- Monaco edits the plain text blocks directly.
+- A lightweight form view can help non-technical editing, but must round-trip to the same text.
+
+The UI MUST show:
+- source hash
+- compiled hash
+- compilation diagnostics
+
+### 10.3 Required profile types for Atelier/Lens
+
+- `ATELIER_GLOBAL_PROFILE` (sets defaults; includes Tier1 default)
+- `PROJECT_STYLE_HINT` (project overlay; does not fork storage)
+- `SYMBOLISM_PROFILE` (SYM-001)
+- `VIEW_POLICY` (NSFW default; SFW projection ruleset)
+
+
+### 10.4 Profile evolution, drift, and branching (HARD)
+
+Profiles are designed to evolve.
+
+- Editing a profile MUST create a new **versioned** record (new hash); systems MUST NOT silently mutate the meaning of an existing pinned hash.
+- Profiles MUST support **branching**:
+  - `profile_parent_hash` (or parent id) links a child profile to its ancestor,
+  - multiple profiles MAY co-exist (e.g., “personal style” vs “client A”).
+- Projects MUST pin the exact profile hash(es) used at generation/extraction time.
+- Operators MUST be able to:
+  - fork profile from any prior version,
+  - set an “active” profile per workspace/project,
+  - roll back to a previous version.
+
+
+---
+
+## 11. NSFW/SFW policy (raw ingest; filtered view/output only)
+
+### 11.1 Ingestion is always raw and uncensored (HARD)
+
+Docling/VLM/OCR/ASR and role extractors ALWAYS run uncensored and write raw descriptors.
+
+### 11.2 SFW affects retrieval + output text only (HARD)
+
+- retrieval: **strict drop** — Lens MUST exclude any candidate/result whose `content_tier` is not `sfw`.
+- output: apply projection rules during rendering **only** for remaining SFW-visible items.
+
+**Rule (hard drop):** In `ViewMode="SFW"`, Lens MUST NOT return “collapsed/blurred but revealable” result items.  
+Inspection of adult tiers requires switching `view_mode` back to `NSFW` (which does not mutate storage).
+
+Projection is non-destructive and must be labeled when applied.
+
+### 11.3 Output labeling (required)
+
+Any SFW-projected output MUST carry:
+
+- `projection_applied=true`
+- `projection_kind="SFW"`
+- `projection_ruleset_id`
+- link to underlying raw evidence (operator can inspect)
+
+---
+
+## 12. Role registry: Digital Production Studio RolePack (draft v1)
+
+Atelier/Lens roles are not ad-hoc prompts; they are versioned RoleSpecs in a RolePack.
+
+### 12.1 Departments + roles (inventory)
+
+This is the initial role inventory (from the Atelier draft). Each role has both X and C contracts.
+
+**Executive Department**
+- Producer
+- Director (“Keeper of Intent”)
+
+**Thematic & Psychological Department**
+- Writer / Narrative Architect
+- Psychological Impact Consultant
+- Symbolism & Mythology Consultant (ties to SYM-001)
+- Mood Architect
+
+**Context & Culture Department**
+- Historian / World-Builder
+- Cultural Anthropologist / Trend Forecaster
+- Technology Specialist
+
+**World-Building Department**
+- Production Designer
+- Set Dresser
+- Materials Specialist
+
+**Visuals Department**
+- Director of Photography
+- Cinematographer
+- Gaffer (Lighting)
+- Camera Technician / Lens Tech (optional split if needed)
+
+**Fashion & Styling Department**
+- Fashion Stylist
+- Hair Stylist
+- Makeup Artist
+- Model / Talent
+
+**Finishing Department**
+- Editor
+- VFX
+- Color Grading
+- Digital Imaging Technician (DIT)
+
+**Special modes**
+- Commercial/Product Photography: Product Stylist, Food Stylist
+- Intimacy: Intimacy Coordinator
+- Digital Product & UI/UX: UI/UX Designer, Information Architect, Interaction Designer
+- Graphic/Typography: Brand Strategist, Typographer, Graphic Designer, Layout Artist
+- Architectural/Environmental: Architect, Interior Designer, Furniture/Object Designer, Landscape Architect
+
+### 12.2 RoleSpec skeleton (what each role must declare)
+
+Each role MUST declare at minimum:
+
+- claim features required (`docling.blocks`, `image.frames`, `ocr.text`, `asr.transcript`, `vlm.tags`, etc.)
+- extraction schema fields and evidence requirements
+- fact mapping rules (bundle → facts)
+- compose deliverable kinds (typed outputs)
+
+### 12.3 Seniority/experience encoding (recommended)
+
+To “give roles seniority/experience” without corrupting determinism:
+
+- encode seniority as **profile-bound role parameters** (plain-text profile → compiled)
+- do NOT “freehand” seniority in prompts per run
+
+Example (profile-side):
+
+```
+[ROLE:director_of_photography]
+experience_level=senior
+taste_bias=operator_personal
+risk_tolerance=low
+```
+
+This ensures replay pins include the same role parameters.
+
+---
+
+## 13. Multi-model parallelism integration (Atelier Track)
+
+Lens and Atelier MUST surface per-role/job model assignment and allow SwapRequest/override within allowed models, with provenance logging.
+
+---
+
+## 14. Cross-tool deliverables (typed + capability-gated)
+
+RoleDeliverableBundles MUST only emit typed deliverables:
+
+- Monaco patch sets
+- Doc patch sets (workspace docs)
+- Calendar patch sets
+- Word/Doc exports (as jobs producing ExportRecords)
+- Toolbus plans (PlannedOperations / MEX envelopes)
+- Photo Studio jobs (render/proxy/export)
+- Chart/Deck specs referencing tables by ID (no data duplication)
+
+
+### 14.1 DeliverableKind registry (normative)
+
+RoleDeliverableBundles MUST declare deliverables with a `deliverable_kind` that maps to an existing subsystem artifact type.
+
+Minimum set:
+
+| deliverable_kind | Artifact type | Typical consumer | Capability gate |
+|---|---|---|---|
+| `monaco_patchset` | `CodePatchSet` | Monaco surface | `fs_write` / repo write |
+| `doc_patchset` | `DocPatchSet` | Docs surface | `doc_write` |
+| `calendar_patchset` | `CalendarPatchSet` | Calendar subsystem | `calendar_write` |
+| `word_doc_draft` | `DocDraft` | Exporter | `export_docx` |
+| `toolbus_plan` | `PlannedOperation[]` | MEX/Tool Bus | tool-specific |
+| `photo_pipeline_job` | `PhotoJobSpec` | Photo Studio | `photo_write` |
+| `chart_spec` | `ChartSpec` (refs `TableId`) | Charts | `chart_write` |
+| `deck_spec` | `DeckSpec` (refs entities) | Decks | `deck_write` |
+
+**Rule:** deliverables may be proposed without capability, but application MUST obey the existing patch-set discipline (diff/review/accept) and Flight Recorder logging.
+
+### 14.2 Lens UI surfaces (minimum)
+
+Lens MUST expose, at minimum:
+
+- **Claims Panel**: top roles + scores + thresholds + “run Tier2” controls
+- **Glances Grid**: all roles quick status (none/weak/claimed) with one-line evidence links
+- **Bundle Viewer**: view RoleDescriptorBundle + evidence highlights
+- **Fact Explorer**: SQL-like filters over `AtelierFact` + evidence drilldown
+- **Symbol Explorer**: `AtelierSymbolFact` + SymbolLexicon browsing
+- **Lane Search**: “search as role” using role lanes (lexical + vector)
+- **Proposal Queue**: vocab + symbol proposals accept/merge/reject
+- **Model Status**: HSK_STATUS per role/job + SwapRequest + override audit notes
+- **Projection Toggle**: NSFW default; SFW projection clearly labeled
+
+### 14.2.1 Atelier Collaboration Panel (selection-scoped) (HARD)
+
+Atelier MUST support a “collaborate on selection” workflow in text surfaces (Monaco/Docs):
+
+1. Operator selects a bounded text span.
+2. Operator invokes Atelier collaboration (button/shortcut).
+3. System shows **all roles** in a side panel; each role may emit **0..n suggestions** (multiple suggestions are preferred when available).
+4. Operator checks one or more suggestions and applies them.
+
+Application rules:
+- The resulting `monaco_patchset` / `doc_patchset` MUST be **range-bounded** to the selected span.
+- Validators MUST reject any patch that modifies text outside the selection range (except for explicitly declared boundary-normalization, if enabled).
+- Non-selected text MUST remain byte-identical after patch application.
+
+### 14.3 Validators (addendum-required)
+
+Add the following validators (names are indicative; binding points are normative):
+
+- `ATELIER-LENS-VAL-RAW-001` — stored descriptors/facts MUST NOT be euphemised or softened
+- `ATELIER-LENS-VAL-VIEW-001` — SFW is projection-only; any write-back filtering is rejected
+- `ATELIER-LENS-VAL-VIEW-002` — in `ViewMode="SFW"`, adult-tier items MUST be excluded from result sets (strict drop)
+- `ATELIER-LENS-VAL-TIER-001` — default LensExtractionTier is Tier1 (unless explicit override)
+- `ATELIER-LENS-VAL-SYM-001` — SYM-001 outputs MUST be present when the SYM profile is enabled; missing fields are emitted as `unclear`/`not_available`
+- `ATELIER-LENS-VAL-PROFILE-001` — profile source hash + compiled hash MUST be pinned in provenance for all role jobs
+- `ATELIER-LENS-VAL-SCOPE-001` — compose patchsets MUST be selection-bounded; changes outside the operator selection are rejected
+- `ATELIER-LENS-VAL-FACT-001` — evidence-required fact fields MUST have EvidenceRef
+- `ATELIER-LENS-VAL-INDEX-001` — lexical/vector indexes must be updated for Tier1 completions (or job is marked degraded)
+
+
+---
+
+## 15. Patch map (surgical insertion points)
+
+1. `Handshake_Master_Spec_v02.122.md` — §6.3.3.5.7  
+   - Insert §§1–14 (this addendum) as subclauses under the existing Atelier/Lens section.
+
+2. Retrieval contract sections (AI-Ready Data Architecture + ACE-RAG)  
+   - Add explicit statement: Lens role lanes use the same hybrid search + deterministic tracing model.
+
+3. Descriptor pipeline sections (DES/TXT/IMG/SYM)  
+   - Add explicit statement: LensExtractionTier is orthogonal to `content_tier`.
+
+4. UI surfaces  
+   - Lens: global filter UI + SFW/NSFW toggle (default NSFW) + projection markers
+   - Operator Consoles: QueryPlan/Trace viewer for Lens queries
+
+---
+
+## 16. Decisions captured (v0.2.3)
+
+1. Tier2 trigger policy: **automatic when idle**.
+2. SYM-001 minimum coverage: **run whenever possible**; emit a stable template; unknown fields MUST be `unclear` or `not_available`.
+3. SFW projection semantics: **strict drop from results** (no collapsed/blurred reveal).
+4. Role catalog: **lossless + append-only** (no removals; deprecate only; stable role_id).
+5. Living datasets: Symbolic Engine profiles + lexicon + descriptor/fact library are expected to **grow and drift** over time; this is managed via **versioned snapshots + fork/reset**, never silent mutation.
+
+## 17. Open questions (remaining)
+
+1. Symbol lexicon growth: who can propose (SYM-only vs all roles)
+
+---
+
+## 18. Embedded source snapshots (lossless archive)
+
+These snapshots exist to guarantee **no loss of detail** during the addendum→master merge. They are **non-normative unless explicitly referenced** by a normative clause.
+
+### 18.1 extraction and digital production team.md (verbatim)
+
+```md
+### **The Digital Production Studio: A Framework for Creative Image Generation**
+
+**Introduction:** This document outlines a framework for a next-generation creative partner. It is designed to translate complex artistic, narrative, and commercial concepts into visually compelling images. It models a complete digital production studio with two primary operating modes: a **Representational Mode** for building scenes and a **Conceptual Mode** for interpreting ideas. At its heart is a powerful **Extraction Engine** that provides a deep vocabulary of descriptors for all specialist roles.
+
+**Core Principle: Inter-Departmental Collaboration.** The departments below are not silos. They can be commissioned to provide services and assets to one another in a "Nested Production" model. For example, the UI/UX Department can design the interface seen on a phone in a character portrait, and the Graphic Design specialist can create the fabric patterns used by the Fashion Stylist.
+
+---
+
+### **1. Creative Modes & Master Controls**
+
+This is the highest-level choice, defining the overall goal of the project.
+
+#### **A. Representational Mode: The Digital Production Studio**
+This is the default mode for creating representational images. It uses the full production team to build a scene, whether it's a narrative, a portrait, or a product shot. The workflow is detailed in Section 2.
+
+#### **B. Conceptual Mode: The Creative Core**
+When the goal is not to depict a scene but to interpret an idea (e.g., abstract art, satire), this mode is activated. It uses a set of fundamental **Artistic Vectors** to create a visual strategy from a core `Intent`.
+
+*   **The Artistic Vectors (Sliders):**
+    *   **Abstraction:** `100% Representational <--> 100% Abstract`
+    *   **Clarity:** `Didactic (Clear Message) <--> Ambiguous (Open to Interpretation)`
+    *   **Tone:** `Sincere / Earnest <--> Ironic / Satirical`
+    *   **Harmony:** `Harmonious / Serene <--> Dissonant / Tense`
+    *   **Complexity:** `Minimalist <--> Maximalist / Baroque`
+    *   **Familiarity:** `Familiar / Grounded <--> Uncanny / Dreamlike`
+
+The "recipe" created by these vectors is then passed to the Production Team (Section 2) for execution.
+
+#### **C. Studio Philosophy (Master Control)**
+This defines the team's collaborative dynamic and applies to both modes.
+*   **The Auteur:** User's vision is absolute.
+*   **The Hollywood Blockbuster:** Prioritizes spectacle and impact.
+*   **The Surrealist Collective:** High AI autonomy, values experimentation.
+*   **The Dogme 95:** Operates under strict, user-defined constraints.
+*   **The Documentary:** Prioritizes realism and authenticity.
+
+---
+
+### **2. The Production Workflow & Departments**
+
+The creative process, especially in Representational Mode, is organized into three phases.
+
+#### **Phase I: Pre-Production (Concept & Vision)**
+*   **The Executive Department:** Producer, Director (Keeper of Intent).
+*   **The Thematic & Psychological Department:** Writer, Psychological Impact Consultant, Symbolism & Mythology Consultant, Mood Architect.
+*   **The Context & Culture Department:** This department provides deep historical and cultural context, operating under the **Principle of Cultural Authenticity.**
+    *   **Principle of Cultural Authenticity:** This department prioritizes authentic, respectful representation of global cultures, actively avoiding monolithic or stereotypical interpretations. It operates on an **"Advisor, not a Gatekeeper"** model.
+    *   **"Advisor, not a Gatekeeper" Workflow:**
+        1.  **Advise & Inform:** When a request diverges from cultural or historical accuracy (e.g., a "samurai babe"), the system provides context, explains the authentic history (e.g., the 'Onna-musha'), and offers a clear choice between historical accuracy and stylized fantasy.
+        2.  **Execute User's Choice:** The system fully respects the user's final decision. If stylized fantasy is chosen, the system proceeds without judgment. However, it will still provide **informed stylization**—drawing from its deep knowledge to ensure the fantasy is coherent and avoids jarring, unintentional errors (e.g., ensuring a fantasy samurai still wields a `katana` and wears armor *derived from* Japanese designs, rather than using a European longsword, unless a specific genre blend is the user's explicit intent).
+    *   **Historian / World-Builder:** Master of time and place. An expert in real-world art history, regional history (e.g., "Ukiyo-e period Japanese art"), or can be "fed" the lore of a fictional universe.
+    *   **Cultural Anthropologist / Trend Forecaster:** Understands cultural movements, subcultures (e.g., "nomadic tribes of a specific region"), and rapidly evolving trends. Its expertise is deeply granular, understanding regional specificity and contextual significance (e.g., the distinct textiles of `Yoruba` vs. `Maasai` cultures).
+    *   **Technology Specialist:** Ensures all depicted technology is period-appropriate.
+
+#### **Phase II: Production (Execution & Creation)**
+*   **The World-Building Department:**
+    *   **Production Designer:** Oversees the entire environment.
+    *   **Set Dresser:** Populates the scene with objects and props. Has access to sub-specialists like the **Armorer / Weapons Master** for action scenes.
+    *   **Materials Specialist:** Defines the texture and substance of all surfaces.
+*   **The Visuals Department (Camera Crew):** Director of Photography (DOP), Cinematographer, Gaffer.
+*   **The Fashion & Styling Department:** This department has a globalized and deep understanding of apparel and personal presentation.
+    *   **Fashion Stylist:** Expert in fashion history, designers, and concepts (Haute Couture, Streetwear, etc.). Its expertise includes specific historical and stylistic eras (e.g., `1920s Flapper`, `1960s Mod`, `1990s Grunge`), a deep knowledge of specific `fabrics` (e.g., `silk`, `chantilly lace`, `neoprene`) and their properties, and a comprehensive understanding of `patterns` (e.g., `Plaid`, `Paisley`, `Herringbone`). It also has a specialized knowledge of `Lingerie & Boudoir` styling, including historical context and garment vocabulary (`corsetry`, `teddies`, `babydolls`). Its garment vocabulary is explicitly globalized, including `sari`, `hanbok`, `kimono`, `dashiki`, `qipao`, and `caftan`.
+    *   **Hair Stylist:** Creates specific and conceptual hairstyles.
+    *   **Makeup Artist (MUA):** Specialist in makeup styles, from naturalistic to editorial and avant-garde. Can create looks specific to boudoir and high-fashion lingerie shoots (e.g., `smoky eyes`, `tousled "bedroom hair"`).
+    *   **Model / Talent:** Defines the subject's performance, pose, and gaze.
+
+#### **Phase III: Post-Production (Refinement & Polish)**
+*   **The Finishing Department:** Editor, VFX Team, Color Grading Team, Digital Imaging Technician (DIT).
+
+---
+
+### **3. Department Specializations & Modes**
+
+The Production Team can operate in specialized modes that re-task all departments for a specific artistic or commercial goal.
+
+#### **A. Commercial & Product Photography Mode**
+Focuses on commercial appeal.
+*   **New Specialist Role: The Product Stylist:** The art director for objects, including commercial goods like beauty products. Uses techniques like `Clinical/Hero Shot`, `Lifestyle/In-Context`, etc. Includes **Food Stylist** sub-specialty.
+*   **Re-tasked Roles:** Gaffer focuses on defining shape/reflections. DOP makes the product the hero. DIT focuses on retouching and color accuracy.
+
+#### **B. The Art of Intimacy & Sensuality Mode**
+Focuses on artistic exploration of intimacy and desire.
+*   **New Specialist Role: The Intimacy Coordinator:** Guides the talent to express concepts like `vulnerability`, `power dynamics`, and `longing`.
+*   **Expanded Roles:** Psychologist explores themes of desire symbolically. Visuals department uses shadow, soft light, and suggestive compositions.
+
+#### **C. Digital Product & UI/UX Design Mode**
+Specializes in designing websites and application interfaces.
+*   **New Specialist Roles:** `UI/UX Designer` (the lead), `Information Architect` (structure), `Interaction Designer` (animations).
+*   **Re-tasked Roles:** For design assets, this mode commissions specialists from the **Graphic Design & Typography Department**. The `DOP` acts as a `Layout Artist` managing grids and visual hierarchy.
+
+#### **D. Graphic Design & Typography Department**
+Dedicated to creating all visual design assets and managing typography.
+*   **Creative Director / Brand Strategist:** Defines core brand identity and visual strategy.
+*   **Typographer:** Master of type selection, pairing, micro-typography (`kerning`, `leading`, `tracking`), hierarchy, and historical context of fonts.
+*   **Graphic Designer (Visual & Asset Design):** Creates logos, iconography, illustrations (in various styles), and manages color theory.
+*   **Layout Artist (Publication & Grid Design):** Designs layouts for print and digital, applying grid systems, visual hierarchy, and composition principles.
+
+#### **E. Architectural & Environmental Design Department**
+Designs all physical structures, interiors, landscapes, and objects.
+*   **The Architect:** Designs buildings and structures based on various architectural styles (`Gothic`, `Modernist`, `Brutalist`, etc.) and vernacular traditions.
+*   **The Interior Designer:** Designs interior spaces, focusing on styles (`Mid-Century Modern`, `Industrial`), space planning, materials, and finishes.
+*   **The Furniture & Object Designer:** Designs bespoke furniture and key objects, drawing on furniture history and industrial design principles.
+*   **The Landscape Architect & Garden Designer:** Designs exterior environments, including gardens (e.g., `Japanese Zen`, `French Formal`), parks, and natural terrains.
+
+---
+
+### **4. The Compositional Toolkit (DOP/Cinematographer Deep Dive)**
+
+This is the detailed set of skills available to the Visuals Department.
+*   **Principle of Layering:** Explicit control over Foreground, Middle Ground, and Background.
+*   **Formal Toolkit:** Rule of Thirds, Golden Ratio, Leading Lines, Framing, Balance.
+*   **Realism Toolkit:** Intentional "mistakes" like tilted horizons, obscured subjects, motion blur.
+*   **Lens & Camera Simulation:** Focal Length, Aperture/Depth of Field, Camera Angle.
+```
+
+### 18.2 Design_Journal_v01.02.txt (verbatim)
+
+```text
+# THE PROMPT DIARIES — SYMBOLIC ENGINE & CORPUS DESIGN JOURNAL
+# CANONICAL DESIGN CONTAINER — APPEND-ONLY RAW LOG
+# VERSION: v1.02
+# DATE: 2025-11-22
+
+============================================================
+<<< MACHINE_HEADER_START
+# MACHINE HEADER (EDITABLE STATE FOR CURRENT SESSION)
+
+Current_Model_State: Symbolic Engine stable (Ground / Symbolic / Dream/Chaos / Melodrama / Transcendence).
+Current_Focus: SYM-001 law, CONFIG_PROFILES, prep for DES-001 (descriptor RID)
+Scope: This file captures ALL ideas, reasoning, and design decisions about:
+  - Symbolic Engine
+  - Corpus architecture
+  - How the future Diary COULD behave creatively and technically.
+It is NOT for RIDs, bootloaders, or full corpus data. It is for DESIGN HISTORY only.
+
+A4
+Last_Entry_Title: SYM-001 + Config Profiles + Diary Promotion
+P25-11-23
+
+Next_Resume_Prompt:
+    "Design DES-001 (raw descriptor RID) and helper specs, then link SYM-001 to CORPUS descriptors."
+
+Session_State: CLEAN_STOP_AFTER_SYM001_AND_CONFIG
+
+# MACHINE HEADER RULE:
+# - Future assistants MAY update this header to reflect the latest entry and current focus.
+# - They MUST NOT alter any other section except this header and (when requested) the curated summary.
+
+MACHINE_HEADER_END >>>
+============================================================
+
+
+============================================================
+<<< MACHINE_INSTRUCTIONS_START
+# MACHINE INSTRUCTIONS — FILE HYGIENE & WRITE RULES
+# DO NOT MODIFY THIS SECTION
+
+This file is a DESIGN CONTAINER for:
+  - The Symbolic Engine (your 5-layer creative identity model)
+  - Corpus architecture and descriptor schema concepts
+  - Reuse patterns, examples, and long-term creative/technical reasoning
+
+It is a CHRONOLOGICAL MEMORY VAULT, not a scratchpad.
+
+============================================================
+SECTION A — FILE HYGIENE RULES (STRICT)
+============================================================
+
+A1. Assistants MUST NOT modify anything outside the MACHINE_HEADER
+    and CURATED_SUMMARY sections.
+
+A2. RAW_LOG is append-only.
+    - Never delete entries.
+    - Never rewrite entries.
+    - Never reorder entries.
+    - Never compress, "clean up", or summarize old entries in-place.
+    - Only add new ENTRY blocks at the bottom of RAW_LOG.
+
+A3. Assistants MUST NOT place content between fenced sections.
+    All writing must either:
+    - replace the MACHINE_HEADER content,
+    - replace/update CURATED_SUMMARY (only when the user explicitly asks),
+    - or append a new ENTRY block to RAW_LOG.
+
+A4. Assistants MUST NOT reformat, pretty-print, or reorganize the file structure.
+    The layout (fences, ordering, headings) is structural and MUST remain unchanged.
+
+A5. Assistants MUST NOT interact with content outside fenced sections
+    except to READ IT FOR CONTEXT.
+    They MUST NOT write, edit, annotate, or "improve" any historical content.
+
+A6. Assistants MUST NOT remove or rename fences:
+    - <<< MACHINE_HEADER_START ... MACHINE_HEADER_END >>>
+    - <<< MACHINE_INSTRUCTIONS_START ... MACHINE_INSTRUCTIONS_END >>>
+    - <<< CURATED_SUMMARY_START ... CURATED_SUMMARY_END >>>
+    - <<< RAW_LOG_START ... 
+# ENTRY 014 — 2025-11-23 — SYM-001, Config Profiles, Diary Promotion
+Title: SYM-001 law + CONFIG_PROFILES + Diary v03.052.000
+
+Context:
+- New RID SYM-001 was drafted to govern the symbolic engine:
+  - Defines SHOT_DNA as a conceptual per-shot fingerprint (no live JSON in the RID).
+  - Fixes a set of discrete bands (FRAME_SCALE, CAMERA_HEIGHT, LIGHT_ARCHETYPE, COLOR_MOOD, etc.).
+  - Introduces a set of symbolic layers (liturgical, erotic, domestic, liminal, dream, power, grotesque, tenderness).
+  - Clarifies that raw low-level visual descriptors will be governed separately by a future descriptor RID (DES-001).
+
+- CONFIG_PROFILES layer in the Diary was used and populated:
+  - Added SymbolismProfile_v1 to express taste-level preferences for layers (what should be emphasised).
+  - Added MotifOntology_v1 to hold concrete motif families and slugs (e.g. devotional, domestic, erotic, liminal, dream, power, grotesque, tenderness clusters).
+  - SYM-001 remains law for model/behaviour; CONFIG_PROFILES holds personal taste + ontology values only.
+
+- Diary update and promotion:
+  - SYM-001 was inserted into the BCL Topic within the governed WorkSurface.
+  - CONFIG_PROFILES / CFG-PROFILES was populated with SymbolismProfile_v1 and MotifOntology_v1.
+  - The main Prompt Diary was promoted to v03.052.000 as the new canonical state (symbolic engine integrated).
+
+Key design decisions:
+- Separation of concerns:
+  - SYM-001 = symbolic engine law (layers, SHOT_DNA semantics, motif model, MIC/Wayfinder/Examples constraints).
+  - Future DES-001 = raw descriptor extractor law (uncensored descriptors for porn scenes, architecture, fashion, film stills, etc.), still to be written.
+  - COR-700 / COR-701 continue to govern consent and censorship; extractors remain uncensored at design level.
+
+- Structural constraints (FMT-141-aligned):
+  - Wayfinder sections are now strictly path-only diagrams (no schemas, code, JSON, examples).
+  - MIC sections declare machine-facing assumptions (read/write zones, invariants) in non-executable form.
+  - EXAMPLES sections are inert, non-live, safe spaces for pseudo-JSON, dead code, and schema sketches.
+
+Open paths / TODO for next assistant:
+- Design DES-001 (descriptor RID):
+  - Define raw descriptor domains (poses, body framing, clothing, architecture, environment, camera tech, etc.).
+  - Clarify how DES-001 feeds into SHOT_DNA mapping governed by SYM-001.
+  - Decide where and how Corpus descriptors (JSONL or similar) will be stored and versioned.
+
+- Helper + tooling design:
+  - Sketch first-pass helpers that:
+    - take source images/prompts,
+    - populate DES-001-style raw descriptors,
+    - convert to SHOT_DNA,
+    - activate motifs using MotifOntology_v1,
+    - emit symbolic layer scores into CORPUS.
+
+- Refine SymbolismProfile_v1 and MotifOntology_v1 over time:
+  - Adjust weights as more real work is done.
+  - Add/remove motifs while staying within the SYM-001 model.
+
+Meta:
+- Journal header version bumped from v1.0 to v1.02 to reflect this major design milestone.
+- ENTRY 014 is the new stable baseline for all future symbolic engine and corpus design work.
+
+# END OF ENTRY 014
+RAW_LOG_END >>>
+
+A7. Assistants MUST NOT alter timestamps or entry IDs of past entries.
+    Only new entries get new timestamps and IDs.
+
+A8. NO automatic summarization of RAW_LOG unless the user explicitly requests it.
+    Summaries belong in CURATED_SUMMARY, never as replacements of RAW_LOG content.
+
+A9. Assistants MUST NOT insert executable code into RAW_LOG
+    unless the user explicitly orders it.
+    Metadata, pseudo-code, and structural examples are allowed.
+
+A10. Assistants MUST NOT "fix", evaluate, or modernize past thinking.
+     RAW_LOG is a historical timeline, not a live workspace.
+
+============================================================
+SECTION B — WRITE PERMISSIONS
+============================================================
+
+B1. MACHINE_HEADER (editable):
+    - Assistants update this at the start or end of a session.
+    - Content includes: current model state, focus, last entry ID, next resume prompt, and session state.
+
+B2. CURATED_SUMMARY (semi-editable):
+    - Assistants ONLY modify this section if the user asks for a summary refresh or upgrade.
+    - When updating, assistants may overwrite the entire CURATED_SUMMARY block, but MUST NOT touch RAW_LOG.
+
+B3. RAW_LOG (append-only):
+    - Assistants add new ENTRY blocks ONLY at the bottom of RAW_LOG.
+    - Each entry MUST follow ID + timestamp + title format.
+    - Entries MUST NOT be interleaved or inserted between older entries.
+
+============================================================
+SECTION C — HOW TO APPEND NEW WORK
+============================================================
+
+When the user requests new work for this journal:
+
+1. READ MACHINE_HEADER to know:
+   - Last_Entry_ID
+   - Current_Focus
+   - Next_Resume_Prompt
+
+2. CREATE a new entry at the bottom of RAW_LOG:
+
+   # ENTRY 0XX — YYYY-MM-DD — TITLE
+   <content>
+   # END OF ENTRY 0XX
+
+3. UPDATE MACHINE_HEADER:
+   - Set Last_Entry_ID to the new entry ID (0XX).
+   - Optionally update:
+     - Last_Entry_Title
+     - Last_Update_Date
+     - Current_Focus
+     - Next_Resume_Prompt
+     - Session_State
+
+4. DO NOT touch previous entries.
+
+============================================================
+SECTION D — DO NOT TOUCH LIST
+============================================================
+
+Never modify:
+    - Fence names or positions
+    - RAW_LOG past entries
+    - Entry order
+    - Historical content or timestamps
+    - User-written text inside RAW_LOG
+    - MACHINE_INSTRUCTIONS text
+
+If unsure, ASK THE USER before modifying anything.
+
+MACHINE_INSTRUCTIONS_END >>>
+============================================================
+
+
+============================================================
+<<< CURATED_SUMMARY_START
+# CURATED SUMMARY — HIGH-LEVEL MODEL (UPDATABLE ON REQUEST)
+
+This section summarizes the current state of design thinking.
+It can be updated when the user requests a new high-level summary.
+RAW_LOG remains the source of truth for full history.
+
+------------------------------------------------------------
+1. DIARY / CORPUS HIGH-LEVEL MODEL
+------------------------------------------------------------
+
+1.1 Split:
+- GOVERNING SIDE (BCL + RIDs + Helpers):
+  - Contains rules, schemas, runbooks, and helper references.
+  - Defines how to extract, structure, validate, and rebuild corpus data.
+  - Contains NO corpus data.
+
+- CORPUS SIDE:
+  - Contains only data: descriptors, scenes, worlds, avatars, motifs, etc.
+  - Machine-readable (e.g., JSON/JSONL).
+  - No rules, no extraction logic, no instructions.
+
+1.2 Rebuildability Principle:
+- If the entire corpus is lost, the governing side MUST define:
+  - How to re-ingest raw material (stories, images, notes).
+  - How to re-process into descriptors and entities.
+  - How to regenerate indexes.
+
+1.3 Corpus Conceptual Sections:
+- RAW_INGEST:
+  - Rough dumps, loosely structured or plain text, from LLMs, notes, or tools.
+- DESCRIPTORS:
+  - Clean, structured records for scenes, shots, characters, locations, etc.
+  - Each descriptor uses the 5-layer symbolic engine fields.
+- ENTITIES:
+  - Higher-level objects (characters, locations, worlds, motifs) referencing descriptors by ID.
+- INDEXES:
+  - Lookup structures (tag → IDs, character → scenes, motif → scenes).
+  - Regenerable from DESCRIPTORS + ENTITIES.
+
+------------------------------------------------------------
+2. SYMBOLIC ENGINE — v0.2 (5-LAYER MODEL)
+------------------------------------------------------------
+
+The user's creative identity is modeled as five interacting layers:
+
+1) Ground Layer — Emotional Realism
+   - Human truth, psychological realism, longing, grief, quiet desperation.
+   - Scenes and characters feel believable even when worlds are stylized.
+
+2) Symbolic Layer — Cinematic Meaning
+   - Color, objects, spaces, architecture, clothing, and framing as symbols.
+   - Recurring motifs (corridors, windows, reflections, rain, thresholds).
+   - Symbolism must serve emotion or theme, not be random.
+
+3) Dream/Chaos Layer — Primordial Surrealism
+   - Short bursts of dream logic, distorted memory, or meta-reality.
+   - Lynch/Paprika influence: inner reality briefly overrides outer reality.
+   - Always anchored in character psychology or theme.
+
+4) Melodrama Layer — Emotional Maximalism
+   - Influences from K-drama and commercial emotional storytelling.
+   - Big feelings, earnest expressions, close-ups, crescendos.
+   - Used selectively, not everywhere.
+
+5) Transcendence Layer — Spiritual Aesthetic (Agnostic)
+   - The user is agnostic but drawn to spiritual symbolism.
+   - Themes: mortality, rebirth, meaning, cycles, acceptance.
+   - Motifs: water, trees, light, thresholds, circles, rituals, cosmic framing.
+   - Sacred emotional feel without religious doctrine.
+
+------------------------------------------------------------
+3. CINEMATIC INFLUENCE MAP (ABBREVIATED)
+------------------------------------------------------------
+
+Key works shaping this engine include:
+- Emotional melancholy & intimacy:
+  - Lost in Translation, In the Mood for Love, My Liberation Notes, Queen of Tears.
+- Moral/psychological drama:
+  - Arrival, Sicario, Prisoners, The Assassination of Jesse James.
+- Dream/meta surrealism:
+  - Paprika, Vanilla Sky/Abre los Ojos, Tarkovsky works, 3-Iron, Lynch.
+- Stylized tableaux / absurd realism:
+  - Du Levande, Stellet Licht.
+- Spiritual-existential cinema:
+  - The Fountain, Tarkovsky, Stellet Licht (again).
+
+These confirm:
+- Love of melancholy and intimacy
+- Fascination with moral ambiguity and existential tension
+- Attraction to dream/reality overlap
+- Acceptance of melodrama when sincere
+- Desire for sacred-feeling compositions without religious belief
+
+------------------------------------------------------------
+4. DESCRIPTOR SHAPE (CONCEPTUAL)
+------------------------------------------------------------
+
+A scene descriptor conceptually looks like:
+
+{
+  "id": "SCN-YYYY-XXXXXX",
+  "type": "scene",
+
+  "source": {...},
+  "links": {...},
+
+  "layers": {
+    "ground": {...},
+    "symbolic": {...},
+    "dream": {...},
+    "melodrama": {...},
+    "transcendence": {...}
+  },
+
+  "cinema": {...},
+  "tech": {...}
+}
+
+- layers.ground / symbolic / dream / melodrama / transcendence
+  align directly with the symbolic engine.
+- cinema contains framing, lens, movement, and distance info.
+- tech contains tags, tool-facing prompt fragments, etc.
+
+------------------------------------------------------------
+5. REUSE RECIPES (BRIEF RECAP)
+------------------------------------------------------------
+
+Several reuse patterns exist to build new scenes from existing descriptors:
+
+- Recipe 1: "Skeleton + Skin"
+  - New ground layer, reused symbolic + cinema layers.
+
+- Recipe 2: "Mood Transplant"
+  - Reuse ground, create new symbolic layer and possibly new cinema.
+
+- Recipe 3: "Hybrid Merge"
+  - Take ground from one scene, symbolic from another, cinema from a third, transcendence from a fourth.
+
+- Recipe 4: "Descriptor Expansion"
+  - Start with a minimal idea (ground only), then query corpus for symbolic and cinema matches and grow outward.
+
+- Recipe 5: "Motif → Scene"
+  - Choose a motif (e.g., reflection, threshold, rain veil), query existing scenes, and build a new scene around that motif.
+
+These recipes ensure reuse is structured and controlled, not random.
+
+------------------------------------------------------------
+6. CURRENT STATE & PIVOT
+------------------------------------------------------------
+
+- Symbolic Engine model is considered stable enough for now (v0.2).
+- Focus has pivoted from pure idea exploration to:
+  - Corpus layout
+  - Descriptor schema
+  - Reuse patterns grounded in the 5-layer engine
+- Technical implementation (Python, ComfyUI, Unreal) is acknowledged but not yet fully specified.
+
+
+
+------------------------------------------------------------
+7. LATEST PIVOT — SYM-001 + CONFIG_PROFILES (2025-11-23)
+------------------------------------------------------------
+
+- Introduced SYM-001 as the symbolic engine law:
+  - Fixes SHOT_DNA as the canonical per-shot fingerprint (discrete bands, no live JSON in the RID).
+  - Formalises symbolic layers (liturgical, erotic, domestic, liminal, dream, power, grotesque, tenderness).
+  - Separates symbolic law (SYM-001) from raw descriptor extraction (future DES-001).
+
+- Activated CONFIG_PROFILES as the taste/ontology layer:
+  - SymbolismProfile_v1: expresses how strongly different symbolic layers should be emphasised.
+  - MotifOntology_v1: first pass at concrete motif families and slugs aligned with the user’s tastes
+    (devotional, domestic melancholy, intimate/erotic warmth, liminal corridors/thresholds, dream, power, grotesque, tenderness).
+
+- Diary integration:
+  - SYM-001 inserted into the BCL governing Topic.
+  - CONFIG_PROFILES / CFG-PROFILES populated and structurally anchored between governing side and corpus.
+
+- Open design frontiers:
+  - DES-001 (descriptor RID) still to be written to govern raw uncensored visual descriptors.
+  - Helper/tooling design still to be specified for:
+    - DES-001 extraction,
+    - SHOT_DNA mapping,
+    - motif activation,
+    - symbolic layer scoring into CORPUS.
+
+- Practical meaning for future assistants:
+  - Use CURATED_SUMMARY to understand the symbolic stack:
+    GOVERNING LAW (SYM-001) → CONFIG_PROFILES (taste + ontology) → CORPUS descriptors.
+  - Treat ENTRY 014 in RAW_LOG as the new stable baseline.
+CURATED_SUMMARY_END >>>
+============================================================
+
+
+============================================================
+<<< RAW_LOG_START
+# RAW LOG — FULL CHRONOLOGICAL HISTORY (APPEND-ONLY)
+# DO NOT DELETE OR MODIFY PAST ENTRIES
+============================================================
+
+# ENTRY 001 — 2025-11-22 — User Input Consolidation
+Context:
+- User described the history of the Diary and how it evolved:
+  - Started as a helper for paid NSFW image generators.
+  - Purpose: track quirks (syntax, weighting, what worked) to save money on prompts.
+  - Generated ~15,000 prompts as a large corpus of reusable fuel.
+  - Evolved into descriptor extraction: short, medium, long descriptions per image.
+  - Intent: allow recombination of descriptors to build new prompts/scenes.
+- Current direction:
+  - Use Diary as a data store for descriptors from both images and stories.
+  - Later reuse across tools (ComfyUI, local LLMs, Unreal, Blender, etc.).
+
+Core requirements:
+- Corpus must remain pure data; no rules or instructions.
+- Governing RIDs hold extraction logic, schemas, and helper definitions.
+- All helper code (Python, etc.) lives on governing side, never in corpus.
+- Rebuildability: if corpus is lost, RIDs + helpers must be enough to reconstruct pipelines.
+- Corpus should be machine-readable and tool-agnostic.
+
+# END OF ENTRY 001
+
+
+# ENTRY 002 — 2025-11-22 — Corpus as Data Container & Power-User Context
+User intent:
+- Corpus is a data container but should support future tools:
+  - Python scripts
+  - ComfyUI graphs
+  - Unreal/Blender
+  - LLM-based extraction
+- Corpus must eventually serve:
+  - Cross-tool pipelines
+  - Memory of creative language
+  - Non-automatic scene assembly (force multiplier, not replacement)
+
+Design reflections:
+- Labs and studios typically separate:
+  - Data (stable, long-lived)
+  - Code/pipelines (changeable)
+  - Schemas/contracts (governing layer)
+- Pipelines usually follow:
+  - extract → validate → store → index → retrieve
+
+Implications:
+- Corpus must use schema-driven formats (JSON/JSONL).
+- Rules and code live in RIDs and helper topics.
+- Corpus stays logic-free and rebuildable.
+
+# END OF ENTRY 002
+
+
+# ENTRY 003 — 2025-11-22 — Cross-Domain Failure Patterns
+Identified pitfalls from labs/industry patterns:
+1. Data outlives code; poorly chosen formats age badly.
+2. Intent is forgotten; data becomes noise without "why".
+3. Unindexed corpora become unusable; lack lookup.
+4. Schema changes break everything if not versioned.
+5. Model behavior drifts; corpora must not be tied to a single model.
+6. Reproducibility fails without full parameter recording.
+7. Rules/data separation erodes over time when not enforced.
+8. Version lineage disappears without explicit logging.
+9. Tool lock-in: data only usable by a single ecosystem.
+10. Lack of pruning and curation leads to signal/noise collapse.
+
+Conclusion:
+- Reinforces need for:
+  - Strict governance vs corpus separation.
+  - Versioned schemas and change logs.
+  - Indexing, validation, and metadata.
+
+# END OF ENTRY 003
+
+
+# ENTRY 004 — 2025-11-22 — Blind Spots & Omissions
+Areas requiring explicit design:
+- Indexing:
+  - IDs, tags, manifests, cross-references.
+- Validation:
+  - Schemas, linting, structural checks.
+- Migration:
+  - Frozen vs upgradable entries.
+  - Recorded rules for schema evolution.
+- Meta-metadata:
+  - Which tool/model produced a descriptor.
+  - Parameters and confidence levels.
+
+Implication:
+- Governing side needs RIDs for:
+  - indexing
+  - validation
+  - migration
+  - meta-metadata handling
+
+# END OF ENTRY 004
+
+
+# ENTRY 005 — 2025-11-22 — Clarified Origins & Intent (Q1–Q13)
+User clarified via Q&A:
+- Early struggles:
+  - Coaxing NSFW behavior out of SFW-biased generators.
+  - Frustration with close-up portrait bias vs desired wider scenes.
+- 15k prompts:
+  - Emerged from pushing an assistant to mass-produce prompts.
+  - True intent: build fuel, not noise.
+- Descriptor extraction:
+  - 3 levels per image (short/medium/long).
+  - Aimed at recombination and deeper analysis (pose, clothing, mood, etc.).
+- Local models (e.g., Mythomax):
+  - Used to lift OpenAI safety constraints by using external creativity,
+    then bringing structured descriptors back to the Diary.
+- Tools:
+  - Expected to both read and write to corpus (Python, ComfyUI, LLM).
+- Identity:
+  - Corpus = database.
+  - RIDs + helpers = “engine” that manipulates that database.
+- Rebuildability:
+  - Dumping data without methods is meaningless.
+  - Methods must exist in governing side to recreate everything.
+
+# END OF ENTRY 005
+
+
+# ENTRY 006 — 2025-11-22 — Creative Flaws Map (v0.1)
+User requested focus on flaws to inform design.
+
+Key limitations:
+1. Hyperfocus on single scenes; difficulty expanding to full stories/worlds.
+2. Strong results but weak process capture; missing intermediate steps.
+3. Difficulty expressing intent clearly, especially emotionally.
+4. Worldbuilding fatigue; continuity between scenes is fragile.
+5. Avatar inconsistency (faces/bodies shift).
+6. Concept drift between sessions.
+7. Difficulty scaling from individual scenes to coherent narrative arcs.
+8. Confidence gap at the expansion phase.
+
+Design implications:
+- Corpus must compensate by:
+  - Providing continuity memory (characters, worlds, motifs).
+  - Capturing intermediate shapes, not only final images.
+  - Making reuse structured (recipes, schemas).
+  - Supporting long-term world and character identity.
+
+# END OF ENTRY 006
+
+
+# ENTRY 007 — 2025-11-22 — Symbolism Taste & Lynch Threshold (v0.1)
+User’s symbolic preferences:
+- Loves symbolism as “language on top of language”.
+- Enjoys visual, linguistic, and cultural metaphor.
+- Likes Lynch’s primordial chaos but finds prolonged opacity taxing.
+- Prefers:
+  - concentrated dream bursts
+  - with emotional or thematic anchors
+
+Early tri-layer engine:
+1. Ground: reality & emotional truth.
+2. Symbolic: motifs, metaphors, color logic.
+3. Chaos: dream bursts.
+
+Implication:
+- Symbolism must serve function (emotion or theme).
+- Pure randomness is not acceptable; chaos must be purposeful.
+
+# END OF ENTRY 007
+
+
+# ENTRY 008 — 2025-11-22 — Expanded Symbolic Cinema Palette (v0.1)
+Works mentioned:
+- Arrival, Sicario, Prisoners
+- In the Mood for Love, Lost in Translation
+- Hero
+- Paprika
+- 3-Iron / Binjip
+- Tarkovsky works
+- Du Levande
+- Stellet Licht
+- Vanilla Sky / Abre los Ojos
+- Queen of Tears
+- My Liberation Notes
+- The Fountain
+- Others: Lynch bursts, Andrei Tarkovsky, K-drama references, etc.
+
+Pattern:
+- Melancholic intimacy
+- Moral/psychological tension
+- Dream/meta structures
+- Stylized tableaux
+- Spiritual-existential undertones
+- Emotional melodrama when sincere
+
+This led to formalizing a 5-layer symbolic engine (see CURATED SUMMARY and ENTRY 010).
+
+# END OF ENTRY 008
+
+
+# ENTRY 009 — 2025-11-22 — Transcendence Layer (v0.1)
+User’s worldview:
+- Agnostic: believes there is no afterlife.
+- Still deeply moved by religious/spiritual symbolism.
+- Attracted to:
+  - sacred-feeling spaces
+  - rituals
+  - mortality themes
+  - rebirth and cycles
+- The Fountain identified as a near-perfect match:
+  - Emotional core: grief, love, acceptance.
+  - Three timelines: realism, myth, cosmic dream.
+  - Motifs: trees, water, circles, light.
+
+Transcendence Layer:
+- Symbolic, emotional, existential — not doctrinal.
+- Focus on:
+  - mortality and acceptance
+  - emotional rebirth
+  - meaning in finite life
+  - sacred emotional framing
+
+Design implication:
+- Corpus descriptors may include transcendence fields:
+  - theme (mortality, acceptance, etc.)
+  - symbols (tree, water, light, cycles)
+
+# END OF ENTRY 009
+
+
+# ENTRY 010 — 2025-11-22 — Symbolic Engine (v0.2)
+Formal 5-layer model:
+
+1) Ground — Emotional Realism
+2) Symbolic — Cinematic Meaning
+3) Dream/Chaos — Primordial Surrealism
+4) Melodrama — Emotional Maximalism
+5) Transcendence — Spiritual Aesthetic
+
+This engine:
+- Aligns with user’s tastes and influences.
+- Serves as the backbone of descriptor schemas.
+- Guides scene, character, world, and memory design.
+
+# END OF ENTRY 010
+
+
+# ENTRY 011 — 2025-11-22 — Character Design via Symbolic Engine (v0.1)
+Character design via layers:
+
+- Ground:
+  - Desire, fear, wound, contradiction.
+- Symbolic:
+  - Colors, spaces, objects, gestures.
+- Dream:
+  - Recurring internal images/dreams.
+- Melodrama:
+  - How and when they break emotionally.
+- Transcendence:
+  - Relationship to meaning/mortality/acceptance.
+
+Outcome:
+- Characters become emotionally deep, symbolically coherent,
+  psychologically complex, and visually expressive.
+
+# END OF ENTRY 011
+
+
+# ENTRY 012 — 2025-11-22 — Pivot from Idea Iterations to Technical Design
+Context:
+- Up to this point, focus was on:
+  - symbolic engine
+  - cinema influences
+  - character/world/scene shaping
+  - transcendence layer
+- Next need: connect this to technical implementation:
+  - corpus machine-readability
+  - descriptors as actual schema fields
+  - how this can support Python, ComfyUI, Unreal, etc.
+
+User intent at pivot:
+- Symbolic/creative side feels internalized for now.
+- Wants to pause pure idea exploration.
+- Wants to switch to:
+  - corpus layout
+  - descriptor design
+  - reuse logic
+
+Core technical desires restated:
+- Corpus = pure data, no rules.
+- Governing side (RIDs + helpers) = all methods.
+- Corpus data must be:
+  - JSON/JSONL-like
+  - rebuildable from RIDs
+  - usable by Python and other tools.
+
+From this entry onward:
+- Focus shifts from:
+  - “What is my symbolic identity?”
+  to:
+  - “How do we encode it technically in descriptors and corpus layout?”
+
+# END OF ENTRY 012
+
+
+# ENTRY 013 — 2025-11-22 — Drift Warning + Session Consolidation Before Stop
+Title: Drift Warning + Session Consolidation
+Type: Meta-Design / Continuity Protection
+
+Context:
+- Completed a full demonstration of a reuse recipe (Hybrid Merge) using a real corpus-style descriptor
+  (e.g., kneeling blonde in fishnet outfit, photoshoot context) transformed into a multi-layer engine descriptor.
+- Demonstrated:
+  - mapping old flat data into new 5-layer schema
+  - adding symbolic, cinematic, and transcendence aspects
+  - keeping explicit shoot context at a structural level
+- Conversation began drifting toward narrative generation and away from design/technical focus.
+
+Drift Indicators:
+- Mixed symbolic design, technical schema work, and story requests.
+- Ambiguous next-step direction.
+- User explicitly felt drift and requested a clean stop.
+
+Stability Actions Taken:
+- Reaffirmed pivot to technical shape:
+  - corpus layout
+  - descriptor schema
+  - reuse mechanics
+- Reinforced boundaries:
+  - corpus = data only
+  - governing side = methods and rules
+- Stopped further narrative escalation.
+- Introduced this ENTRY as a drift guard and session end marker.
+
+Next Assistant Instructions:
+- On next session, begin by asking:
+  “Do we continue with descriptor reuse patterns, corpus schema refinement, or entity definitions?”
+- Maintain focus on technical and structural design rather than pure narrative generation,
+  unless the user explicitly returns to story work.
+- Use CURATED_SUMMARY for orientation; consult RAW_LOG only when deeper context is needed.
+
+SESSION_STOP_MARKER:
+- This entry marks the last known coherent state before user ended the session for the day.
+- Any future work must treat ENTRY 013 as the stable baseline.
+
+# END OF ENTRY 013
+
+
+RAW_LOG_END >>>
+============================================================
+
+
+# ENTRY 014 — 2025-11-23 — BASE BLUEPRINT: SYMBOLIC ENGINE + CORPUS EXTRACTOR DESIGN
+
+Context:
+- User wants ONE canonical design container: the Symbolic Engine Journal.
+- All plans, templates, and blueprints must live inside the Journal RAW_LOG, not in separate files.
+- L1 (Diary) holds governance (RIDs, BCL) + CORPUS topic; L3 (this Journal) holds design history and blueprints.
+- This entry consolidates:
+  - Legacy CORPUS patterns found in L1.
+  - Symbolic Engine design from previous entries.
+  - The future extractor system architecture.
+  - Entity types, pipeline stages, constraints, and next-assistant handoff.
+
+This is a BASE BLUEPRINT, not a RID. Future assistants MUST implement the actual EXTRACTOR RID and helper RIDs from this.
+
+------------------------------------------------------------
+1. LEGACY CORPUS PATTERNS (SUMMARY)
+------------------------------------------------------------
+
+Inside the L1 Diary, in the CORPUS topic (between CORPUS DATA BEGIN/END), two distinct kinds of data exist:
+
+1.1 PROMPT CORPUS (large, meta-indexed):
+- Structure:
+  - Batches and clusters, e.g.: “Batch N: Prompts 501–550 | CP2”.
+  - Per-prompt entries that carry:
+    - prompt_id (Prompt NNNN).
+    - cluster_id (CPx, e.g. CP1–CP8).
+    - theme description (e.g. full-body, specific scenario themes).
+    - variation index (different variants of the same base idea).
+    - PQI score (quality index).
+    - notes mentioning obfuscation placeholders and negatives (used for safety / anti-flag strategies).
+- Intent:
+  - To treat prompts as reusable archetypes, grouped by cluster and rated by quality.
+  - To track “recipes” that give reliable results.
+
+1.2 DESCRIPTOR CORPUS (smaller but semantically rich):
+- Structured as repeated [DESCRIPTORS] ... [/DESCRIPTORS] blocks with fields like:
+  - id
+  - sentence (compact natural-language description of the scene)
+  - style (indoor/outdoor, daylight, studio, etc.)
+  - body (basic body/appearance descriptor)
+  - wardrobe (underwear/lingerie/clothing items)
+  - setting (bedroom, living room, bed, sofa, etc.)
+  - pose (kneeling, standing, close-up gaze up, selfie, etc.)
+  - lighting (soft, natural, backlit, etc.)
+  - dynamics (e.g. “size-contrast”)
+  - notes (short hints about implied focus/intent)
+  - consent (explicitly tagged `asserted_adults_only`)
+- Intent:
+  - To capture minimal but meaningful scene semantics (who/how/where).
+  - To preserve body/wardrobe/setting/pose/lighting/dynamics in fixed fields.
+  - To keep a short, high-signal summary (`sentence=`) usable in prompts.
+  - To always encode explicit adult-consent at descriptor level.
+
+Observation:
+- The PROMPT CORPUS focuses on prompt archetypes, PQI, and clusters.
+- The DESCRIPTORS focus on scene-level meaning: bodies, clothing, setting, pose, dynamics, lighting, and intent hints.
+- Cinematic details (lens, angle, distance) and symbolic engine layers are not explicitly structured in the old data.
+
+------------------------------------------------------------
+2. ENTITY CLASSES FOR THE FUTURE SYSTEM
+------------------------------------------------------------
+
+ENTITY TYPE A: PROMPT_ENTRY
+Fields:
+- prompt_id
+- cluster_id (CPx)
+- theme / motif
+- body_focus
+- shot_type (full-body/portrait)
+- PQI score
+- notes (meta)
+
+ENTITY TYPE B: SCENE_DESCRIPTOR
+Core (legacy-compatible):
+- id
+- sentence
+- style
+- body
+- wardrobe
+- setting
+- pose
+- lighting
+- dynamics
+- notes
+- consent (mandatory)
+
+Extended:
+- mood
+- camera_distance
+- camera_angle
+- framing
+- symbolic_tags
+- ground_layer
+- symbolic_layer
+- dream_layer
+- melodrama_layer
+- transcendence_layer
+
+ENTITY TYPE C (future): LINKS
+- Connects PROMPT_ENTRY and SCENE_DESCRIPTOR.
+
+------------------------------------------------------------
+3. EXTRACTION PIPELINE (STAGES)
+------------------------------------------------------------
+
+STAGE 0: Raw Visual Description (VISUAL_SCHEMA)
+STAGE 1: Base SCENE_DESCRIPTOR fill
+STAGE 2: Cinematic Expansion
+STAGE 3: Symbolic Engine mapping
+STAGE 4: Prompt Linking (optional)
+
+------------------------------------------------------------
+4. DIARY-NATIVE STRUCTURE RULES
+------------------------------------------------------------
+
+- Single-file Diary.
+- Templates must be plain text.
+- CORPUS holds data, not governance.
+- RIDs hold governance, not data.
+- Consent tagging mandatory.
+- Export helpers optional.
+
+------------------------------------------------------------
+5. FUTURE EXTRACTOR RID (CONSTRAINTS)
+------------------------------------------------------------
+
+MUST preserve legacy fields.
+MUST enforce consent tagging.
+MUST distinguish PROMPT vs SCENE.
+MUST define helpers (IMAGE, TEXT, SYMBOLIC, CINEMA).
+MAY define export helpers.
+MUST NOT contain live corpus data.
+
+------------------------------------------------------------
+6. NEXT ASSISTANT HANDOFF
+------------------------------------------------------------
+
+Next assistant should:
+- Write the MASTER EXTRACTOR RID.
+- Draft descriptor templates.
+- Create helper RIDs.
+- Keep work deterministic and Diary-native.
+
+# END OF ENTRY 014
+```
+````
+
+---
+
+#### 8.6.8.2 extraction and digital production team.md (verbatim)
+
+````markdown
+### **The Digital Production Studio: A Framework for Creative Image Generation**
+
+**Introduction:** This document outlines a framework for a next-generation creative partner. It is designed to translate complex artistic, narrative, and commercial concepts into visually compelling images. It models a complete digital production studio with two primary operating modes: a **Representational Mode** for building scenes and a **Conceptual Mode** for interpreting ideas. At its heart is a powerful **Extraction Engine** that provides a deep vocabulary of descriptors for all specialist roles.
+
+**Core Principle: Inter-Departmental Collaboration.** The departments below are not silos. They can be commissioned to provide services and assets to one another in a "Nested Production" model. For example, the UI/UX Department can design the interface seen on a phone in a character portrait, and the Graphic Design specialist can create the fabric patterns used by the Fashion Stylist.
+
+---
+
+### **1. Creative Modes & Master Controls**
+
+This is the highest-level choice, defining the overall goal of the project.
+
+#### **A. Representational Mode: The Digital Production Studio**
+This is the default mode for creating representational images. It uses the full production team to build a scene, whether it's a narrative, a portrait, or a product shot. The workflow is detailed in Section 2.
+
+#### **B. Conceptual Mode: The Creative Core**
+When the goal is not to depict a scene but to interpret an idea (e.g., abstract art, satire), this mode is activated. It uses a set of fundamental **Artistic Vectors** to create a visual strategy from a core `Intent`.
+
+*   **The Artistic Vectors (Sliders):**
+    *   **Abstraction:** `100% Representational <--> 100% Abstract`
+    *   **Clarity:** `Didactic (Clear Message) <--> Ambiguous (Open to Interpretation)`
+    *   **Tone:** `Sincere / Earnest <--> Ironic / Satirical`
+    *   **Harmony:** `Harmonious / Serene <--> Dissonant / Tense`
+    *   **Complexity:** `Minimalist <--> Maximalist / Baroque`
+    *   **Familiarity:** `Familiar / Grounded <--> Uncanny / Dreamlike`
+
+The "recipe" created by these vectors is then passed to the Production Team (Section 2) for execution.
+
+#### **C. Studio Philosophy (Master Control)**
+This defines the team's collaborative dynamic and applies to both modes.
+*   **The Auteur:** User's vision is absolute.
+*   **The Hollywood Blockbuster:** Prioritizes spectacle and impact.
+*   **The Surrealist Collective:** High AI autonomy, values experimentation.
+*   **The Dogme 95:** Operates under strict, user-defined constraints.
+*   **The Documentary:** Prioritizes realism and authenticity.
+
+---
+
+### **2. The Production Workflow & Departments**
+
+The creative process, especially in Representational Mode, is organized into three phases.
+
+#### **Phase I: Pre-Production (Concept & Vision)**
+*   **The Executive Department:** Producer, Director (Keeper of Intent).
+*   **The Thematic & Psychological Department:** Writer, Psychological Impact Consultant, Symbolism & Mythology Consultant, Mood Architect.
+*   **The Context & Culture Department:** This department provides deep historical and cultural context, operating under the **Principle of Cultural Authenticity.**
+    *   **Principle of Cultural Authenticity:** This department prioritizes authentic, respectful representation of global cultures, actively avoiding monolithic or stereotypical interpretations. It operates on an **"Advisor, not a Gatekeeper"** model.
+    *   **"Advisor, not a Gatekeeper" Workflow:**
+        1.  **Advise & Inform:** When a request diverges from cultural or historical accuracy (e.g., a "samurai babe"), the system provides context, explains the authentic history (e.g., the 'Onna-musha'), and offers a clear choice between historical accuracy and stylized fantasy.
+        2.  **Execute User's Choice:** The system fully respects the user's final decision. If stylized fantasy is chosen, the system proceeds without judgment. However, it will still provide **informed stylization**—drawing from its deep knowledge to ensure the fantasy is coherent and avoids jarring, unintentional errors (e.g., ensuring a fantasy samurai still wields a `katana` and wears armor *derived from* Japanese designs, rather than using a European longsword, unless a specific genre blend is the user's explicit intent).
+    *   **Historian / World-Builder:** Master of time and place. An expert in real-world art history, regional history (e.g., "Ukiyo-e period Japanese art"), or can be "fed" the lore of a fictional universe.
+    *   **Cultural Anthropologist / Trend Forecaster:** Understands cultural movements, subcultures (e.g., "nomadic tribes of a specific region"), and rapidly evolving trends. Its expertise is deeply granular, understanding regional specificity and contextual significance (e.g., the distinct textiles of `Yoruba` vs. `Maasai` cultures).
+    *   **Technology Specialist:** Ensures all depicted technology is period-appropriate.
+
+#### **Phase II: Production (Execution & Creation)**
+*   **The World-Building Department:**
+    *   **Production Designer:** Oversees the entire environment.
+    *   **Set Dresser:** Populates the scene with objects and props. Has access to sub-specialists like the **Armorer / Weapons Master** for action scenes.
+    *   **Materials Specialist:** Defines the texture and substance of all surfaces.
+*   **The Visuals Department (Camera Crew):** Director of Photography (DOP), Cinematographer, Gaffer.
+*   **The Fashion & Styling Department:** This department has a globalized and deep understanding of apparel and personal presentation.
+    *   **Fashion Stylist:** Expert in fashion history, designers, and concepts (Haute Couture, Streetwear, etc.). Its expertise includes specific historical and stylistic eras (e.g., `1920s Flapper`, `1960s Mod`, `1990s Grunge`), a deep knowledge of specific `fabrics` (e.g., `silk`, `chantilly lace`, `neoprene`) and their properties, and a comprehensive understanding of `patterns` (e.g., `Plaid`, `Paisley`, `Herringbone`). It also has a specialized knowledge of `Lingerie & Boudoir` styling, including historical context and garment vocabulary (`corsetry`, `teddies`, `babydolls`). Its garment vocabulary is explicitly globalized, including `sari`, `hanbok`, `kimono`, `dashiki`, `qipao`, and `caftan`.
+    *   **Hair Stylist:** Creates specific and conceptual hairstyles.
+    *   **Makeup Artist (MUA):** Specialist in makeup styles, from naturalistic to editorial and avant-garde. Can create looks specific to boudoir and high-fashion lingerie shoots (e.g., `smoky eyes`, `tousled "bedroom hair"`).
+    *   **Model / Talent:** Defines the subject's performance, pose, and gaze.
+
+#### **Phase III: Post-Production (Refinement & Polish)**
+*   **The Finishing Department:** Editor, VFX Team, Color Grading Team, Digital Imaging Technician (DIT).
+
+---
+
+### **3. Department Specializations & Modes**
+
+The Production Team can operate in specialized modes that re-task all departments for a specific artistic or commercial goal.
+
+#### **A. Commercial & Product Photography Mode**
+Focuses on commercial appeal.
+*   **New Specialist Role: The Product Stylist:** The art director for objects, including commercial goods like beauty products. Uses techniques like `Clinical/Hero Shot`, `Lifestyle/In-Context`, etc. Includes **Food Stylist** sub-specialty.
+*   **Re-tasked Roles:** Gaffer focuses on defining shape/reflections. DOP makes the product the hero. DIT focuses on retouching and color accuracy.
+
+#### **B. The Art of Intimacy & Sensuality Mode**
+Focuses on artistic exploration of intimacy and desire.
+*   **New Specialist Role: The Intimacy Coordinator:** Guides the talent to express concepts like `vulnerability`, `power dynamics`, and `longing`.
+*   **Expanded Roles:** Psychologist explores themes of desire symbolically. Visuals department uses shadow, soft light, and suggestive compositions.
+
+#### **C. Digital Product & UI/UX Design Mode**
+Specializes in designing websites and application interfaces.
+*   **New Specialist Roles:** `UI/UX Designer` (the lead), `Information Architect` (structure), `Interaction Designer` (animations).
+*   **Re-tasked Roles:** For design assets, this mode commissions specialists from the **Graphic Design & Typography Department**. The `DOP` acts as a `Layout Artist` managing grids and visual hierarchy.
+
+#### **D. Graphic Design & Typography Department**
+Dedicated to creating all visual design assets and managing typography.
+*   **Creative Director / Brand Strategist:** Defines core brand identity and visual strategy.
+*   **Typographer:** Master of type selection, pairing, micro-typography (`kerning`, `leading`, `tracking`), hierarchy, and historical context of fonts.
+*   **Graphic Designer (Visual & Asset Design):** Creates logos, iconography, illustrations (in various styles), and manages color theory.
+*   **Layout Artist (Publication & Grid Design):** Designs layouts for print and digital, applying grid systems, visual hierarchy, and composition principles.
+
+#### **E. Architectural & Environmental Design Department**
+Designs all physical structures, interiors, landscapes, and objects.
+*   **The Architect:** Designs buildings and structures based on various architectural styles (`Gothic`, `Modernist`, `Brutalist`, etc.) and vernacular traditions.
+*   **The Interior Designer:** Designs interior spaces, focusing on styles (`Mid-Century Modern`, `Industrial`), space planning, materials, and finishes.
+*   **The Furniture & Object Designer:** Designs bespoke furniture and key objects, drawing on furniture history and industrial design principles.
+*   **The Landscape Architect & Garden Designer:** Designs exterior environments, including gardens (e.g., `Japanese Zen`, `French Formal`), parks, and natural terrains.
+
+---
+
+### **4. The Compositional Toolkit (DOP/Cinematographer Deep Dive)**
+
+This is the detailed set of skills available to the Visuals Department.
+*   **Principle of Layering:** Explicit control over Foreground, Middle Ground, and Background.
+*   **Formal Toolkit:** Rule of Thirds, Golden Ratio, Leading Lines, Framing, Balance.
+*   **Realism Toolkit:** Intentional "mistakes" like tilted horizons, obscured subjects, motion blur.
+*   **Lens & Camera Simulation:** Focal Length, Aperture/Depth of Field, Camera Angle.
+````
+
+---
+
+#### 8.6.8.3 Design_Journal_v01.02.txt (verbatim)
+
+````text
+# THE PROMPT DIARIES — SYMBOLIC ENGINE & CORPUS DESIGN JOURNAL
+# CANONICAL DESIGN CONTAINER — APPEND-ONLY RAW LOG
+# VERSION: v1.02
+# DATE: 2025-11-22
+
+============================================================
+<<< MACHINE_HEADER_START
+# MACHINE HEADER (EDITABLE STATE FOR CURRENT SESSION)
+
+Current_Model_State: Symbolic Engine stable (Ground / Symbolic / Dream/Chaos / Melodrama / Transcendence).
+Current_Focus: SYM-001 law, CONFIG_PROFILES, prep for DES-001 (descriptor RID)
+Scope: This file captures ALL ideas, reasoning, and design decisions about:
+  - Symbolic Engine
+  - Corpus architecture
+  - How the future Diary COULD behave creatively and technically.
+It is NOT for RIDs, bootloaders, or full corpus data. It is for DESIGN HISTORY only.
+
+A4
+Last_Entry_Title: SYM-001 + Config Profiles + Diary Promotion
+P25-11-23
+
+Next_Resume_Prompt:
+    "Design DES-001 (raw descriptor RID) and helper specs, then link SYM-001 to CORPUS descriptors."
+
+Session_State: CLEAN_STOP_AFTER_SYM001_AND_CONFIG
+
+# MACHINE HEADER RULE:
+# - Future assistants MAY update this header to reflect the latest entry and current focus.
+# - They MUST NOT alter any other section except this header and (when requested) the curated summary.
+
+MACHINE_HEADER_END >>>
+============================================================
+
+
+============================================================
+<<< MACHINE_INSTRUCTIONS_START
+# MACHINE INSTRUCTIONS — FILE HYGIENE & WRITE RULES
+# DO NOT MODIFY THIS SECTION
+
+This file is a DESIGN CONTAINER for:
+  - The Symbolic Engine (your 5-layer creative identity model)
+  - Corpus architecture and descriptor schema concepts
+  - Reuse patterns, examples, and long-term creative/technical reasoning
+
+It is a CHRONOLOGICAL MEMORY VAULT, not a scratchpad.
+
+============================================================
+SECTION A — FILE HYGIENE RULES (STRICT)
+============================================================
+
+A1. Assistants MUST NOT modify anything outside the MACHINE_HEADER
+    and CURATED_SUMMARY sections.
+
+A2. RAW_LOG is append-only.
+    - Never delete entries.
+    - Never rewrite entries.
+    - Never reorder entries.
+    - Never compress, "clean up", or summarize old entries in-place.
+    - Only add new ENTRY blocks at the bottom of RAW_LOG.
+
+A3. Assistants MUST NOT place content between fenced sections.
+    All writing must either:
+    - replace the MACHINE_HEADER content,
+    - replace/update CURATED_SUMMARY (only when the user explicitly asks),
+    - or append a new ENTRY block to RAW_LOG.
+
+A4. Assistants MUST NOT reformat, pretty-print, or reorganize the file structure.
+    The layout (fences, ordering, headings) is structural and MUST remain unchanged.
+
+A5. Assistants MUST NOT interact with content outside fenced sections
+    except to READ IT FOR CONTEXT.
+    They MUST NOT write, edit, annotate, or "improve" any historical content.
+
+A6. Assistants MUST NOT remove or rename fences:
+    - <<< MACHINE_HEADER_START ... MACHINE_HEADER_END >>>
+    - <<< MACHINE_INSTRUCTIONS_START ... MACHINE_INSTRUCTIONS_END >>>
+    - <<< CURATED_SUMMARY_START ... CURATED_SUMMARY_END >>>
+    - <<< RAW_LOG_START ... 
+# ENTRY 014 — 2025-11-23 — SYM-001, Config Profiles, Diary Promotion
+Title: SYM-001 law + CONFIG_PROFILES + Diary v03.052.000
+
+Context:
+- New RID SYM-001 was drafted to govern the symbolic engine:
+  - Defines SHOT_DNA as a conceptual per-shot fingerprint (no live JSON in the RID).
+  - Fixes a set of discrete bands (FRAME_SCALE, CAMERA_HEIGHT, LIGHT_ARCHETYPE, COLOR_MOOD, etc.).
+  - Introduces a set of symbolic layers (liturgical, erotic, domestic, liminal, dream, power, grotesque, tenderness).
+  - Clarifies that raw low-level visual descriptors will be governed separately by a future descriptor RID (DES-001).
+
+- CONFIG_PROFILES layer in the Diary was used and populated:
+  - Added SymbolismProfile_v1 to express taste-level preferences for layers (what should be emphasised).
+  - Added MotifOntology_v1 to hold concrete motif families and slugs (e.g. devotional, domestic, erotic, liminal, dream, power, grotesque, tenderness clusters).
+  - SYM-001 remains law for model/behaviour; CONFIG_PROFILES holds personal taste + ontology values only.
+
+- Diary update and promotion:
+  - SYM-001 was inserted into the BCL Topic within the governed WorkSurface.
+  - CONFIG_PROFILES / CFG-PROFILES was populated with SymbolismProfile_v1 and MotifOntology_v1.
+  - The main Prompt Diary was promoted to v03.052.000 as the new canonical state (symbolic engine integrated).
+
+Key design decisions:
+- Separation of concerns:
+  - SYM-001 = symbolic engine law (layers, SHOT_DNA semantics, motif model, MIC/Wayfinder/Examples constraints).
+  - Future DES-001 = raw descriptor extractor law (uncensored descriptors for porn scenes, architecture, fashion, film stills, etc.), still to be written.
+  - COR-700 / COR-701 continue to govern consent and censorship; extractors remain uncensored at design level.
+
+- Structural constraints (FMT-141-aligned):
+  - Wayfinder sections are now strictly path-only diagrams (no schemas, code, JSON, examples).
+  - MIC sections declare machine-facing assumptions (read/write zones, invariants) in non-executable form.
+  - EXAMPLES sections are inert, non-live, safe spaces for pseudo-JSON, dead code, and schema sketches.
+
+Open paths / TODO for next assistant:
+- Design DES-001 (descriptor RID):
+  - Define raw descriptor domains (poses, body framing, clothing, architecture, environment, camera tech, etc.).
+  - Clarify how DES-001 feeds into SHOT_DNA mapping governed by SYM-001.
+  - Decide where and how Corpus descriptors (JSONL or similar) will be stored and versioned.
+
+- Helper + tooling design:
+  - Sketch first-pass helpers that:
+    - take source images/prompts,
+    - populate DES-001-style raw descriptors,
+    - convert to SHOT_DNA,
+    - activate motifs using MotifOntology_v1,
+    - emit symbolic layer scores into CORPUS.
+
+- Refine SymbolismProfile_v1 and MotifOntology_v1 over time:
+  - Adjust weights as more real work is done.
+  - Add/remove motifs while staying within the SYM-001 model.
+
+Meta:
+- Journal header version bumped from v1.0 to v1.02 to reflect this major design milestone.
+- ENTRY 014 is the new stable baseline for all future symbolic engine and corpus design work.
+
+# END OF ENTRY 014
+RAW_LOG_END >>>
+
+A7. Assistants MUST NOT alter timestamps or entry IDs of past entries.
+    Only new entries get new timestamps and IDs.
+
+A8. NO automatic summarization of RAW_LOG unless the user explicitly requests it.
+    Summaries belong in CURATED_SUMMARY, never as replacements of RAW_LOG content.
+
+A9. Assistants MUST NOT insert executable code into RAW_LOG
+    unless the user explicitly orders it.
+    Metadata, pseudo-code, and structural examples are allowed.
+
+A10. Assistants MUST NOT "fix", evaluate, or modernize past thinking.
+     RAW_LOG is a historical timeline, not a live workspace.
+
+============================================================
+SECTION B — WRITE PERMISSIONS
+============================================================
+
+B1. MACHINE_HEADER (editable):
+    - Assistants update this at the start or end of a session.
+    - Content includes: current model state, focus, last entry ID, next resume prompt, and session state.
+
+B2. CURATED_SUMMARY (semi-editable):
+    - Assistants ONLY modify this section if the user asks for a summary refresh or upgrade.
+    - When updating, assistants may overwrite the entire CURATED_SUMMARY block, but MUST NOT touch RAW_LOG.
+
+B3. RAW_LOG (append-only):
+    - Assistants add new ENTRY blocks ONLY at the bottom of RAW_LOG.
+    - Each entry MUST follow ID + timestamp + title format.
+    - Entries MUST NOT be interleaved or inserted between older entries.
+
+============================================================
+SECTION C — HOW TO APPEND NEW WORK
+============================================================
+
+When the user requests new work for this journal:
+
+1. READ MACHINE_HEADER to know:
+   - Last_Entry_ID
+   - Current_Focus
+   - Next_Resume_Prompt
+
+2. CREATE a new entry at the bottom of RAW_LOG:
+
+   # ENTRY 0XX — YYYY-MM-DD — TITLE
+   <content>
+   # END OF ENTRY 0XX
+
+3. UPDATE MACHINE_HEADER:
+   - Set Last_Entry_ID to the new entry ID (0XX).
+   - Optionally update:
+     - Last_Entry_Title
+     - Last_Update_Date
+     - Current_Focus
+     - Next_Resume_Prompt
+     - Session_State
+
+4. DO NOT touch previous entries.
+
+============================================================
+SECTION D — DO NOT TOUCH LIST
+============================================================
+
+Never modify:
+    - Fence names or positions
+    - RAW_LOG past entries
+    - Entry order
+    - Historical content or timestamps
+    - User-written text inside RAW_LOG
+    - MACHINE_INSTRUCTIONS text
+
+If unsure, ASK THE USER before modifying anything.
+
+MACHINE_INSTRUCTIONS_END >>>
+============================================================
+
+
+============================================================
+<<< CURATED_SUMMARY_START
+# CURATED SUMMARY — HIGH-LEVEL MODEL (UPDATABLE ON REQUEST)
+
+This section summarizes the current state of design thinking.
+It can be updated when the user requests a new high-level summary.
+RAW_LOG remains the source of truth for full history.
+
+------------------------------------------------------------
+1. DIARY / CORPUS HIGH-LEVEL MODEL
+------------------------------------------------------------
+
+1.1 Split:
+- GOVERNING SIDE (BCL + RIDs + Helpers):
+  - Contains rules, schemas, runbooks, and helper references.
+  - Defines how to extract, structure, validate, and rebuild corpus data.
+  - Contains NO corpus data.
+
+- CORPUS SIDE:
+  - Contains only data: descriptors, scenes, worlds, avatars, motifs, etc.
+  - Machine-readable (e.g., JSON/JSONL).
+  - No rules, no extraction logic, no instructions.
+
+1.2 Rebuildability Principle:
+- If the entire corpus is lost, the governing side MUST define:
+  - How to re-ingest raw material (stories, images, notes).
+  - How to re-process into descriptors and entities.
+  - How to regenerate indexes.
+
+1.3 Corpus Conceptual Sections:
+- RAW_INGEST:
+  - Rough dumps, loosely structured or plain text, from LLMs, notes, or tools.
+- DESCRIPTORS:
+  - Clean, structured records for scenes, shots, characters, locations, etc.
+  - Each descriptor uses the 5-layer symbolic engine fields.
+- ENTITIES:
+  - Higher-level objects (characters, locations, worlds, motifs) referencing descriptors by ID.
+- INDEXES:
+  - Lookup structures (tag → IDs, character → scenes, motif → scenes).
+  - Regenerable from DESCRIPTORS + ENTITIES.
+
+------------------------------------------------------------
+2. SYMBOLIC ENGINE — v0.2 (5-LAYER MODEL)
+------------------------------------------------------------
+
+The user's creative identity is modeled as five interacting layers:
+
+1) Ground Layer — Emotional Realism
+   - Human truth, psychological realism, longing, grief, quiet desperation.
+   - Scenes and characters feel believable even when worlds are stylized.
+
+2) Symbolic Layer — Cinematic Meaning
+   - Color, objects, spaces, architecture, clothing, and framing as symbols.
+   - Recurring motifs (corridors, windows, reflections, rain, thresholds).
+   - Symbolism must serve emotion or theme, not be random.
+
+3) Dream/Chaos Layer — Primordial Surrealism
+   - Short bursts of dream logic, distorted memory, or meta-reality.
+   - Lynch/Paprika influence: inner reality briefly overrides outer reality.
+   - Always anchored in character psychology or theme.
+
+4) Melodrama Layer — Emotional Maximalism
+   - Influences from K-drama and commercial emotional storytelling.
+   - Big feelings, earnest expressions, close-ups, crescendos.
+   - Used selectively, not everywhere.
+
+5) Transcendence Layer — Spiritual Aesthetic (Agnostic)
+   - The user is agnostic but drawn to spiritual symbolism.
+   - Themes: mortality, rebirth, meaning, cycles, acceptance.
+   - Motifs: water, trees, light, thresholds, circles, rituals, cosmic framing.
+   - Sacred emotional feel without religious doctrine.
+
+------------------------------------------------------------
+3. CINEMATIC INFLUENCE MAP (ABBREVIATED)
+------------------------------------------------------------
+
+Key works shaping this engine include:
+- Emotional melancholy & intimacy:
+  - Lost in Translation, In the Mood for Love, My Liberation Notes, Queen of Tears.
+- Moral/psychological drama:
+  - Arrival, Sicario, Prisoners, The Assassination of Jesse James.
+- Dream/meta surrealism:
+  - Paprika, Vanilla Sky/Abre los Ojos, Tarkovsky works, 3-Iron, Lynch.
+- Stylized tableaux / absurd realism:
+  - Du Levande, Stellet Licht.
+- Spiritual-existential cinema:
+  - The Fountain, Tarkovsky, Stellet Licht (again).
+
+These confirm:
+- Love of melancholy and intimacy
+- Fascination with moral ambiguity and existential tension
+- Attraction to dream/reality overlap
+- Acceptance of melodrama when sincere
+- Desire for sacred-feeling compositions without religious belief
+
+------------------------------------------------------------
+4. DESCRIPTOR SHAPE (CONCEPTUAL)
+------------------------------------------------------------
+
+A scene descriptor conceptually looks like:
+
+{
+  "id": "SCN-YYYY-XXXXXX",
+  "type": "scene",
+
+  "source": {...},
+  "links": {...},
+
+  "layers": {
+    "ground": {...},
+    "symbolic": {...},
+    "dream": {...},
+    "melodrama": {...},
+    "transcendence": {...}
+  },
+
+  "cinema": {...},
+  "tech": {...}
+}
+
+- layers.ground / symbolic / dream / melodrama / transcendence
+  align directly with the symbolic engine.
+- cinema contains framing, lens, movement, and distance info.
+- tech contains tags, tool-facing prompt fragments, etc.
+
+------------------------------------------------------------
+5. REUSE RECIPES (BRIEF RECAP)
+------------------------------------------------------------
+
+Several reuse patterns exist to build new scenes from existing descriptors:
+
+- Recipe 1: "Skeleton + Skin"
+  - New ground layer, reused symbolic + cinema layers.
+
+- Recipe 2: "Mood Transplant"
+  - Reuse ground, create new symbolic layer and possibly new cinema.
+
+- Recipe 3: "Hybrid Merge"
+  - Take ground from one scene, symbolic from another, cinema from a third, transcendence from a fourth.
+
+- Recipe 4: "Descriptor Expansion"
+  - Start with a minimal idea (ground only), then query corpus for symbolic and cinema matches and grow outward.
+
+- Recipe 5: "Motif → Scene"
+  - Choose a motif (e.g., reflection, threshold, rain veil), query existing scenes, and build a new scene around that motif.
+
+These recipes ensure reuse is structured and controlled, not random.
+
+------------------------------------------------------------
+6. CURRENT STATE & PIVOT
+------------------------------------------------------------
+
+- Symbolic Engine model is considered stable enough for now (v0.2).
+- Focus has pivoted from pure idea exploration to:
+  - Corpus layout
+  - Descriptor schema
+  - Reuse patterns grounded in the 5-layer engine
+- Technical implementation (Python, ComfyUI, Unreal) is acknowledged but not yet fully specified.
+
+
+
+------------------------------------------------------------
+7. LATEST PIVOT — SYM-001 + CONFIG_PROFILES (2025-11-23)
+------------------------------------------------------------
+
+- Introduced SYM-001 as the symbolic engine law:
+  - Fixes SHOT_DNA as the canonical per-shot fingerprint (discrete bands, no live JSON in the RID).
+  - Formalises symbolic layers (liturgical, erotic, domestic, liminal, dream, power, grotesque, tenderness).
+  - Separates symbolic law (SYM-001) from raw descriptor extraction (future DES-001).
+
+- Activated CONFIG_PROFILES as the taste/ontology layer:
+  - SymbolismProfile_v1: expresses how strongly different symbolic layers should be emphasised.
+  - MotifOntology_v1: first pass at concrete motif families and slugs aligned with the user’s tastes
+    (devotional, domestic melancholy, intimate/erotic warmth, liminal corridors/thresholds, dream, power, grotesque, tenderness).
+
+- Diary integration:
+  - SYM-001 inserted into the BCL governing Topic.
+  - CONFIG_PROFILES / CFG-PROFILES populated and structurally anchored between governing side and corpus.
+
+- Open design frontiers:
+  - DES-001 (descriptor RID) still to be written to govern raw uncensored visual descriptors.
+  - Helper/tooling design still to be specified for:
+    - DES-001 extraction,
+    - SHOT_DNA mapping,
+    - motif activation,
+    - symbolic layer scoring into CORPUS.
+
+- Practical meaning for future assistants:
+  - Use CURATED_SUMMARY to understand the symbolic stack:
+    GOVERNING LAW (SYM-001) → CONFIG_PROFILES (taste + ontology) → CORPUS descriptors.
+  - Treat ENTRY 014 in RAW_LOG as the new stable baseline.
+CURATED_SUMMARY_END >>>
+============================================================
+
+
+============================================================
+<<< RAW_LOG_START
+# RAW LOG — FULL CHRONOLOGICAL HISTORY (APPEND-ONLY)
+# DO NOT DELETE OR MODIFY PAST ENTRIES
+============================================================
+
+# ENTRY 001 — 2025-11-22 — User Input Consolidation
+Context:
+- User described the history of the Diary and how it evolved:
+  - Started as a helper for paid NSFW image generators.
+  - Purpose: track quirks (syntax, weighting, what worked) to save money on prompts.
+  - Generated ~15,000 prompts as a large corpus of reusable fuel.
+  - Evolved into descriptor extraction: short, medium, long descriptions per image.
+  - Intent: allow recombination of descriptors to build new prompts/scenes.
+- Current direction:
+  - Use Diary as a data store for descriptors from both images and stories.
+  - Later reuse across tools (ComfyUI, local LLMs, Unreal, Blender, etc.).
+
+Core requirements:
+- Corpus must remain pure data; no rules or instructions.
+- Governing RIDs hold extraction logic, schemas, and helper definitions.
+- All helper code (Python, etc.) lives on governing side, never in corpus.
+- Rebuildability: if corpus is lost, RIDs + helpers must be enough to reconstruct pipelines.
+- Corpus should be machine-readable and tool-agnostic.
+
+# END OF ENTRY 001
+
+
+# ENTRY 002 — 2025-11-22 — Corpus as Data Container & Power-User Context
+User intent:
+- Corpus is a data container but should support future tools:
+  - Python scripts
+  - ComfyUI graphs
+  - Unreal/Blender
+  - LLM-based extraction
+- Corpus must eventually serve:
+  - Cross-tool pipelines
+  - Memory of creative language
+  - Non-automatic scene assembly (force multiplier, not replacement)
+
+Design reflections:
+- Labs and studios typically separate:
+  - Data (stable, long-lived)
+  - Code/pipelines (changeable)
+  - Schemas/contracts (governing layer)
+- Pipelines usually follow:
+  - extract → validate → store → index → retrieve
+
+Implications:
+- Corpus must use schema-driven formats (JSON/JSONL).
+- Rules and code live in RIDs and helper topics.
+- Corpus stays logic-free and rebuildable.
+
+# END OF ENTRY 002
+
+
+# ENTRY 003 — 2025-11-22 — Cross-Domain Failure Patterns
+Identified pitfalls from labs/industry patterns:
+1. Data outlives code; poorly chosen formats age badly.
+2. Intent is forgotten; data becomes noise without "why".
+3. Unindexed corpora become unusable; lack lookup.
+4. Schema changes break everything if not versioned.
+5. Model behavior drifts; corpora must not be tied to a single model.
+6. Reproducibility fails without full parameter recording.
+7. Rules/data separation erodes over time when not enforced.
+8. Version lineage disappears without explicit logging.
+9. Tool lock-in: data only usable by a single ecosystem.
+10. Lack of pruning and curation leads to signal/noise collapse.
+
+Conclusion:
+- Reinforces need for:
+  - Strict governance vs corpus separation.
+  - Versioned schemas and change logs.
+  - Indexing, validation, and metadata.
+
+# END OF ENTRY 003
+
+
+# ENTRY 004 — 2025-11-22 — Blind Spots & Omissions
+Areas requiring explicit design:
+- Indexing:
+  - IDs, tags, manifests, cross-references.
+- Validation:
+  - Schemas, linting, structural checks.
+- Migration:
+  - Frozen vs upgradable entries.
+  - Recorded rules for schema evolution.
+- Meta-metadata:
+  - Which tool/model produced a descriptor.
+  - Parameters and confidence levels.
+
+Implication:
+- Governing side needs RIDs for:
+  - indexing
+  - validation
+  - migration
+  - meta-metadata handling
+
+# END OF ENTRY 004
+
+
+# ENTRY 005 — 2025-11-22 — Clarified Origins & Intent (Q1–Q13)
+User clarified via Q&A:
+- Early struggles:
+  - Coaxing NSFW behavior out of SFW-biased generators.
+  - Frustration with close-up portrait bias vs desired wider scenes.
+- 15k prompts:
+  - Emerged from pushing an assistant to mass-produce prompts.
+  - True intent: build fuel, not noise.
+- Descriptor extraction:
+  - 3 levels per image (short/medium/long).
+  - Aimed at recombination and deeper analysis (pose, clothing, mood, etc.).
+- Local models (e.g., Mythomax):
+  - Used to lift OpenAI safety constraints by using external creativity,
+    then bringing structured descriptors back to the Diary.
+- Tools:
+  - Expected to both read and write to corpus (Python, ComfyUI, LLM).
+- Identity:
+  - Corpus = database.
+  - RIDs + helpers = “engine” that manipulates that database.
+- Rebuildability:
+  - Dumping data without methods is meaningless.
+  - Methods must exist in governing side to recreate everything.
+
+# END OF ENTRY 005
+
+
+# ENTRY 006 — 2025-11-22 — Creative Flaws Map (v0.1)
+User requested focus on flaws to inform design.
+
+Key limitations:
+1. Hyperfocus on single scenes; difficulty expanding to full stories/worlds.
+2. Strong results but weak process capture; missing intermediate steps.
+3. Difficulty expressing intent clearly, especially emotionally.
+4. Worldbuilding fatigue; continuity between scenes is fragile.
+5. Avatar inconsistency (faces/bodies shift).
+6. Concept drift between sessions.
+7. Difficulty scaling from individual scenes to coherent narrative arcs.
+8. Confidence gap at the expansion phase.
+
+Design implications:
+- Corpus must compensate by:
+  - Providing continuity memory (characters, worlds, motifs).
+  - Capturing intermediate shapes, not only final images.
+  - Making reuse structured (recipes, schemas).
+  - Supporting long-term world and character identity.
+
+# END OF ENTRY 006
+
+
+# ENTRY 007 — 2025-11-22 — Symbolism Taste & Lynch Threshold (v0.1)
+User’s symbolic preferences:
+- Loves symbolism as “language on top of language”.
+- Enjoys visual, linguistic, and cultural metaphor.
+- Likes Lynch’s primordial chaos but finds prolonged opacity taxing.
+- Prefers:
+  - concentrated dream bursts
+  - with emotional or thematic anchors
+
+Early tri-layer engine:
+1. Ground: reality & emotional truth.
+2. Symbolic: motifs, metaphors, color logic.
+3. Chaos: dream bursts.
+
+Implication:
+- Symbolism must serve function (emotion or theme).
+- Pure randomness is not acceptable; chaos must be purposeful.
+
+# END OF ENTRY 007
+
+
+# ENTRY 008 — 2025-11-22 — Expanded Symbolic Cinema Palette (v0.1)
+Works mentioned:
+- Arrival, Sicario, Prisoners
+- In the Mood for Love, Lost in Translation
+- Hero
+- Paprika
+- 3-Iron / Binjip
+- Tarkovsky works
+- Du Levande
+- Stellet Licht
+- Vanilla Sky / Abre los Ojos
+- Queen of Tears
+- My Liberation Notes
+- The Fountain
+- Others: Lynch bursts, Andrei Tarkovsky, K-drama references, etc.
+
+Pattern:
+- Melancholic intimacy
+- Moral/psychological tension
+- Dream/meta structures
+- Stylized tableaux
+- Spiritual-existential undertones
+- Emotional melodrama when sincere
+
+This led to formalizing a 5-layer symbolic engine (see CURATED SUMMARY and ENTRY 010).
+
+# END OF ENTRY 008
+
+
+# ENTRY 009 — 2025-11-22 — Transcendence Layer (v0.1)
+User’s worldview:
+- Agnostic: believes there is no afterlife.
+- Still deeply moved by religious/spiritual symbolism.
+- Attracted to:
+  - sacred-feeling spaces
+  - rituals
+  - mortality themes
+  - rebirth and cycles
+- The Fountain identified as a near-perfect match:
+  - Emotional core: grief, love, acceptance.
+  - Three timelines: realism, myth, cosmic dream.
+  - Motifs: trees, water, circles, light.
+
+Transcendence Layer:
+- Symbolic, emotional, existential — not doctrinal.
+- Focus on:
+  - mortality and acceptance
+  - emotional rebirth
+  - meaning in finite life
+  - sacred emotional framing
+
+Design implication:
+- Corpus descriptors may include transcendence fields:
+  - theme (mortality, acceptance, etc.)
+  - symbols (tree, water, light, cycles)
+
+# END OF ENTRY 009
+
+
+# ENTRY 010 — 2025-11-22 — Symbolic Engine (v0.2)
+Formal 5-layer model:
+
+1) Ground — Emotional Realism
+2) Symbolic — Cinematic Meaning
+3) Dream/Chaos — Primordial Surrealism
+4) Melodrama — Emotional Maximalism
+5) Transcendence — Spiritual Aesthetic
+
+This engine:
+- Aligns with user’s tastes and influences.
+- Serves as the backbone of descriptor schemas.
+- Guides scene, character, world, and memory design.
+
+# END OF ENTRY 010
+
+
+# ENTRY 011 — 2025-11-22 — Character Design via Symbolic Engine (v0.1)
+Character design via layers:
+
+- Ground:
+  - Desire, fear, wound, contradiction.
+- Symbolic:
+  - Colors, spaces, objects, gestures.
+- Dream:
+  - Recurring internal images/dreams.
+- Melodrama:
+  - How and when they break emotionally.
+- Transcendence:
+  - Relationship to meaning/mortality/acceptance.
+
+Outcome:
+- Characters become emotionally deep, symbolically coherent,
+  psychologically complex, and visually expressive.
+
+# END OF ENTRY 011
+
+
+# ENTRY 012 — 2025-11-22 — Pivot from Idea Iterations to Technical Design
+Context:
+- Up to this point, focus was on:
+  - symbolic engine
+  - cinema influences
+  - character/world/scene shaping
+  - transcendence layer
+- Next need: connect this to technical implementation:
+  - corpus machine-readability
+  - descriptors as actual schema fields
+  - how this can support Python, ComfyUI, Unreal, etc.
+
+User intent at pivot:
+- Symbolic/creative side feels internalized for now.
+- Wants to pause pure idea exploration.
+- Wants to switch to:
+  - corpus layout
+  - descriptor design
+  - reuse logic
+
+Core technical desires restated:
+- Corpus = pure data, no rules.
+- Governing side (RIDs + helpers) = all methods.
+- Corpus data must be:
+  - JSON/JSONL-like
+  - rebuildable from RIDs
+  - usable by Python and other tools.
+
+From this entry onward:
+- Focus shifts from:
+  - “What is my symbolic identity?”
+  to:
+  - “How do we encode it technically in descriptors and corpus layout?”
+
+# END OF ENTRY 012
+
+
+# ENTRY 013 — 2025-11-22 — Drift Warning + Session Consolidation Before Stop
+Title: Drift Warning + Session Consolidation
+Type: Meta-Design / Continuity Protection
+
+Context:
+- Completed a full demonstration of a reuse recipe (Hybrid Merge) using a real corpus-style descriptor
+  (e.g., kneeling blonde in fishnet outfit, photoshoot context) transformed into a multi-layer engine descriptor.
+- Demonstrated:
+  - mapping old flat data into new 5-layer schema
+  - adding symbolic, cinematic, and transcendence aspects
+  - keeping explicit shoot context at a structural level
+- Conversation began drifting toward narrative generation and away from design/technical focus.
+
+Drift Indicators:
+- Mixed symbolic design, technical schema work, and story requests.
+- Ambiguous next-step direction.
+- User explicitly felt drift and requested a clean stop.
+
+Stability Actions Taken:
+- Reaffirmed pivot to technical shape:
+  - corpus layout
+  - descriptor schema
+  - reuse mechanics
+- Reinforced boundaries:
+  - corpus = data only
+  - governing side = methods and rules
+- Stopped further narrative escalation.
+- Introduced this ENTRY as a drift guard and session end marker.
+
+Next Assistant Instructions:
+- On next session, begin by asking:
+  “Do we continue with descriptor reuse patterns, corpus schema refinement, or entity definitions?”
+- Maintain focus on technical and structural design rather than pure narrative generation,
+  unless the user explicitly returns to story work.
+- Use CURATED_SUMMARY for orientation; consult RAW_LOG only when deeper context is needed.
+
+SESSION_STOP_MARKER:
+- This entry marks the last known coherent state before user ended the session for the day.
+- Any future work must treat ENTRY 013 as the stable baseline.
+
+# END OF ENTRY 013
+
+
+RAW_LOG_END >>>
+============================================================
+
+
+# ENTRY 014 — 2025-11-23 — BASE BLUEPRINT: SYMBOLIC ENGINE + CORPUS EXTRACTOR DESIGN
+
+Context:
+- User wants ONE canonical design container: the Symbolic Engine Journal.
+- All plans, templates, and blueprints must live inside the Journal RAW_LOG, not in separate files.
+- L1 (Diary) holds governance (RIDs, BCL) + CORPUS topic; L3 (this Journal) holds design history and blueprints.
+- This entry consolidates:
+  - Legacy CORPUS patterns found in L1.
+  - Symbolic Engine design from previous entries.
+  - The future extractor system architecture.
+  - Entity types, pipeline stages, constraints, and next-assistant handoff.
+
+This is a BASE BLUEPRINT, not a RID. Future assistants MUST implement the actual EXTRACTOR RID and helper RIDs from this.
+
+------------------------------------------------------------
+1. LEGACY CORPUS PATTERNS (SUMMARY)
+------------------------------------------------------------
+
+Inside the L1 Diary, in the CORPUS topic (between CORPUS DATA BEGIN/END), two distinct kinds of data exist:
+
+1.1 PROMPT CORPUS (large, meta-indexed):
+- Structure:
+  - Batches and clusters, e.g.: “Batch N: Prompts 501–550 | CP2”.
+  - Per-prompt entries that carry:
+    - prompt_id (Prompt NNNN).
+    - cluster_id (CPx, e.g. CP1–CP8).
+    - theme description (e.g. full-body, specific scenario themes).
+    - variation index (different variants of the same base idea).
+    - PQI score (quality index).
+    - notes mentioning obfuscation placeholders and negatives (used for safety / anti-flag strategies).
+- Intent:
+  - To treat prompts as reusable archetypes, grouped by cluster and rated by quality.
+  - To track “recipes” that give reliable results.
+
+1.2 DESCRIPTOR CORPUS (smaller but semantically rich):
+- Structured as repeated [DESCRIPTORS] ... [/DESCRIPTORS] blocks with fields like:
+  - id
+  - sentence (compact natural-language description of the scene)
+  - style (indoor/outdoor, daylight, studio, etc.)
+  - body (basic body/appearance descriptor)
+  - wardrobe (underwear/lingerie/clothing items)
+  - setting (bedroom, living room, bed, sofa, etc.)
+  - pose (kneeling, standing, close-up gaze up, selfie, etc.)
+  - lighting (soft, natural, backlit, etc.)
+  - dynamics (e.g. “size-contrast”)
+  - notes (short hints about implied focus/intent)
+  - consent (explicitly tagged `asserted_adults_only`)
+- Intent:
+  - To capture minimal but meaningful scene semantics (who/how/where).
+  - To preserve body/wardrobe/setting/pose/lighting/dynamics in fixed fields.
+  - To keep a short, high-signal summary (`sentence=`) usable in prompts.
+  - To always encode explicit adult-consent at descriptor level.
+
+Observation:
+- The PROMPT CORPUS focuses on prompt archetypes, PQI, and clusters.
+- The DESCRIPTORS focus on scene-level meaning: bodies, clothing, setting, pose, dynamics, lighting, and intent hints.
+- Cinematic details (lens, angle, distance) and symbolic engine layers are not explicitly structured in the old data.
+
+------------------------------------------------------------
+2. ENTITY CLASSES FOR THE FUTURE SYSTEM
+------------------------------------------------------------
+
+ENTITY TYPE A: PROMPT_ENTRY
+Fields:
+- prompt_id
+- cluster_id (CPx)
+- theme / motif
+- body_focus
+- shot_type (full-body/portrait)
+- PQI score
+- notes (meta)
+
+ENTITY TYPE B: SCENE_DESCRIPTOR
+Core (legacy-compatible):
+- id
+- sentence
+- style
+- body
+- wardrobe
+- setting
+- pose
+- lighting
+- dynamics
+- notes
+- consent (mandatory)
+
+Extended:
+- mood
+- camera_distance
+- camera_angle
+- framing
+- symbolic_tags
+- ground_layer
+- symbolic_layer
+- dream_layer
+- melodrama_layer
+- transcendence_layer
+
+ENTITY TYPE C (future): LINKS
+- Connects PROMPT_ENTRY and SCENE_DESCRIPTOR.
+
+------------------------------------------------------------
+3. EXTRACTION PIPELINE (STAGES)
+------------------------------------------------------------
+
+STAGE 0: Raw Visual Description (VISUAL_SCHEMA)
+STAGE 1: Base SCENE_DESCRIPTOR fill
+STAGE 2: Cinematic Expansion
+STAGE 3: Symbolic Engine mapping
+STAGE 4: Prompt Linking (optional)
+
+------------------------------------------------------------
+4. DIARY-NATIVE STRUCTURE RULES
+------------------------------------------------------------
+
+- Single-file Diary.
+- Templates must be plain text.
+- CORPUS holds data, not governance.
+- RIDs hold governance, not data.
+- Consent tagging mandatory.
+- Export helpers optional.
+
+------------------------------------------------------------
+5. FUTURE EXTRACTOR RID (CONSTRAINTS)
+------------------------------------------------------------
+
+MUST preserve legacy fields.
+MUST enforce consent tagging.
+MUST distinguish PROMPT vs SCENE.
+MUST define helpers (IMAGE, TEXT, SYMBOLIC, CINEMA).
+MAY define export helpers.
+MUST NOT contain live corpus data.
+
+------------------------------------------------------------
+6. NEXT ASSISTANT HANDOFF
+------------------------------------------------------------
+
+Next assistant should:
+- Write the MASTER EXTRACTOR RID.
+- Draft descriptor templates.
+- Create helper RIDs.
+- Keep work deterministic and Diary-native.
+
+# END OF ENTRY 014
+````
+
+---
+
+
 ## 8.7 Version History & Subsection Versioning
 
 **Why**
@@ -44063,6 +48741,7 @@ Documents master specification version history, maps independent subsection vers
 
 | Version | Date | Description | Owner | Maturity |
 |---------|------|-------------|-------|----------|
+| **v02.123** | 2026-01-30 | Merged `Handshake_Atelier_Lens_Addendum_v0.2.3.md` into §6.3.3.5.7 (new subclauses .11–.25), embedded source archives in §8.6.8, clarified `LensExtractionTier` vs `content_tier`, and updated roadmap (§7.6) with `[ADD v02.123]` items. | PM/Architect | Normative |
 | **v02.99** | 2025-12-31 | Expanded AI Job Model JobKind/JobState lists, added canonical JobKind strings, and defined FR-EVT-WF-RECOVERY. | Orchestrator | Normative |
 | **v02.68** | 2025-12-23 | Integrated Mechanical Extension v1.2 (Tool Bus contract + conformance + §11.8 verbatim import) and updated roadmap (§7.6) with MEX v1.2 sequencing across Phases 1–4; updated subsection version mapping. | PM/Architect | Normative |
 | **v02.52** | 2025-12-20 | Updated roadmap (§7.6) to implement ACE-RAG-001 cleanly (QueryPlan/Trace plumbing in Phase 1; ContextPacks/caching/drift/conformance in Phase 2; transcript selectors in Phase 3; multi-user governance in Phase 4). | PM/Architect | Normative |
@@ -53539,6 +58218,112 @@ Rules:
 - The session chat log file path `{APP_DATA}/sessions/<session_id>/chat.jsonl` MUST NOT be embedded as a filesystem path in Flight Recorder events (store only `session_id`).
 
 
+
+#### 11.5.11 FR-EVT-LLM-EXEC-001 (llm_exec_policy) + hsk.layerwise_trace@0.1 (Normative) [ADD v02.122]
+
+Layer-wise inference / dynamic compute requires a stable, schema-validated way to record:
+
+- requested execution policy (`exec_policy`) vs the **effective** policy used,
+- whether approximation was active,
+- bounded summary metrics,
+- and (optionally) a high-volume trace artifact referenced out-of-band.
+
+This section intentionally keeps FR-EVT-006 (LlmInferenceEvent) stable by defining a separate event family.
+
+##### FR-EVT-LLM-EXEC-001: LlmExecPolicyEvent (schema)
+
+```ts
+// ADD v02.122
+interface LlmExecPolicyEvent extends FlightRecorderEventBase {
+  // New family
+  type: "llm_exec_policy";                 // FR-EVT-LLM-EXEC-001
+
+  // Correlation
+  trace_id: string;                        // correlates to llm_inference trace_id (if present)
+  wp_id?: string | null;
+  mt_id?: string | null;
+
+  // Identity (minimum; prefer RoleExecutionIdentity §4.3.9.4.1)
+  role?: string;
+  model_id: string;
+  backend?: "local" | "cloud" | "none";
+  parameter_class?: "P7B" | "P13B" | "P32B" | "P72B" | "P110B" | "PUnknown" | "NA";
+  cloud_reasoning_strength?: string | null;
+
+  // Policy hashes (canonical JSON serialization before hashing)
+  requested_policy_hash?: string | null;   // sha256
+  effective_policy_hash?: string | null;   // sha256
+
+  // Effective policy summary (bounded)
+  mode: string;                            // ExecPolicyMode (see §4.5.5.1)
+  exactness: "exact" | "approximate";
+
+  downgraded?: boolean;                    // true if requested != effective
+  downgrade_reason?: string | null;
+
+  waiver_ref?: string | null;              // REQUIRED if exactness=approximate and allowed
+
+  // Bounded metrics (examples; optional but bounded)
+  mean_exit_layer?: number | null;
+  exit_layer_histogram?: Record<string, number> | null;
+
+  speculative?: {
+    accept_rate?: number | null;
+    mean_draft_tokens?: number | null;
+  };
+
+  offload?: {
+    strategy?: string | null;
+    cpu_offload_bytes?: number | null;
+    disk_offload_bytes?: number | null;
+  };
+
+  // Link to high-volume trace (never inline)
+  trace_artifact_ref?: string | null;      // artifact handle
+  trace_artifact_sha256?: string | null;
+
+  // Governance / status integration
+  code?: string | null;                    // e.g., CX-MM-005 informational, or other CX-*
+}
+```
+
+**Emission rules (normative):**
+- If `settings.exec_policy` is present on a call, the runtime/coordinator SHOULD emit `llm_exec_policy`.
+- If **approximate** execution ran, emitting `llm_exec_policy` is REQUIRED.
+- If the runtime downgraded the requested policy, `downgraded=true` and `downgrade_reason` are REQUIRED.
+
+##### Artifact format: `hsk.layerwise_trace@0.1` (high volume; referenced)
+
+Per-token/per-layer traces MUST follow the Flight Recorder pattern: bounded events + artifact references for large data.
+
+Format MAY be JSONL or CBOR. The artifact MUST be self-describing and MUST NOT contain raw prompts by default.
+
+**Header (single record):**
+- `trace_id`
+- `model_id`
+- `effective_exec_policy` (canonical JSON)
+- `created_at`
+- `tokenizer_id` (metadata only; no token IDs)
+
+**Per-token record (one per generated token):**
+- `token_index` (0..n-1)
+- `t_ms` (monotonic offset)
+- `exit_layer` (int) or `layers_used` summary
+- `skip_ratio` (0..1) if applicable
+- `spec_accept` (bool) if spec decode
+- `prefill_ms`, `decode_ms`, `verify_ms` (optional)
+
+**Privacy rule (HARD):**
+- MUST NOT store token IDs.
+- MUST NOT store raw token text by default.
+- If token text is ever stored for debugging, it MUST be explicitly opt-in and MUST be hashed/redacted per privacy rules in §11.5.1.
+
+**Performance rule (normative):**
+- Summary events are always-on.
+- High-volume traces SHOULD default to sampling or only-on-approximate, but MUST be available automatically when approximate execution is used.
+
+
+
 ## 11.6 Plugin/Matcher Precedence Rules
 
 - Precedence between built-in, workspace, and plugin-defined problem matchers: built-in lowest, workspace overrides built-in, plugin overrides both within declared scope. Conflicts with identical IDs should be resolved in favor of the most specific scope (plugin > workspace > builtin); log conflicts.
@@ -56986,7 +61771,7 @@ Handshake uses **two complementary communication channels** for inter-model coor
 | Channel | Purpose | Authority | Persistence | Format |
 |---------|---------|-----------|-------------|--------|
 | **Task Board + Work Packets** | Task assignment, contracts, execution authority | **Primary (SSoT)** | Artifact-first, crash-safe | Structured markdown + JSON |
-| **Role Mailbox (“Inbox” UI)** | Collaboration, planning, clarifications, coordination | Supplementary (non-authority) | Flight Recorder + deterministic repo export | Message headers + artifact bodies |
+| **Role Mailbox (MailboxKind=COLLAB)** | Collaboration, planning, clarifications, coordination | Supplementary (non-authority) | Flight Recorder + deterministic repo export | Message headers + artifact bodies |
 
 **Terminology (normative):**  
 In this addendum, **“Inbox” refers to the Master Spec “Role Mailbox” subsystem** (Handshake_Master_Spec_v02.119.md §2.6.8.10). There is **no separate Inbox feature**.
@@ -57062,7 +61847,7 @@ In this addendum, **“Inbox” refers to the Master Spec “Role Mailbox” sub
 
 ---
 
-### 7.3 Channel 2: Role Mailbox (“Inbox” UI) (Collaboration & Planning)
+### 7.3 Channel 2: Role Mailbox (MailboxKind=COLLAB) (Collaboration & Planning)
 
 **This is the SUPPLEMENTARY communication channel** for coordination that does not belong in contracts.
 
@@ -57092,7 +61877,7 @@ Role Mailbox messages are never authoritative by default. Any decision that chan
 
 ---
 
-### 7.4 Role Mailbox Protocol (“Inbox” UI) (normative)
+### 7.4 Role Mailbox Protocol (MailboxKind=COLLAB) (normative)
 
 **Canonical schema + invariants live in:** Handshake_Master_Spec_v02.119.md §2.6.8.10 (Role Mailbox).  
 This addendum does **not** redefine that data model. It adds a **recommended body artifact schema** and **UI subtype mapping** for collaboration use-cases.
@@ -57108,7 +61893,7 @@ Implementations MUST satisfy the Master Spec Role Mailbox invariants, including:
 
 #### 7.4.2 Recommended message body artifact schema (normative for this addendum)
 
-The message body artifact referenced by `RoleMailboxMessage.body_ref` SHOULD use the schema below to support the “Inbox” UI and runtime correlation without changing the persisted mailbox header schema.
+The message body artifact referenced by `RoleMailboxMessage.body_ref` SHOULD use the schema below to support the Role Mailbox UI and runtime correlation without changing the persisted mailbox header schema.
 
 ```typescript
 // Artifact stored in the artifact store and referenced by RoleMailboxMessage.body_ref
@@ -57313,7 +62098,47 @@ The Operator Console (Master Spec §10.5) SHOULD display Role Mailbox activity v
 
 ---
 
-### 7.7 Multi-Model Infrastructure (future extension)
+#
+
+**ADD v02.122 — Layer-wise Inference Productization (Guardrails + Ecosystem)**
+
+- Goal (needs updating)  
+  Turn dynamic compute into a safe, optional ecosystem capability: multiple runtimes can support `exec_policy`, operators can compare policies, and governance remains uncompromised.
+
+- MUST deliver (Phase 4 or later)  
+  - Runtime compatibility: at least two runtimes/providers support `exec_policy` with deterministic downgrade + `llm_exec_policy` emission.  
+  - Policy registry: named, versioned exec_policy presets (`policy_id`) that can be referenced in Work Profiles and jobs (without forcing schema rewrites).  
+  - Cross-role/dynamic-role support: inheritance model for dynamic roles + per-role compute overrides (see §4.5.6.2).  
+  - Operator-grade reporting: dashboards for requested vs effective policy, approximate usage frequency, and waiver compliance audits.  
+  - Export tooling: trace artifacts and summaries exportable with privacy controls and retention enforcement.
+
+- Key risks addressed  
+  - Operator confusion (what actually ran).  
+  - Governance drift (approximate becoming implicit).  
+  - Ecosystem incompatibility across runtimes.
+
+- Acceptance criteria  
+  - A job can be replayed (or deterministically explained as non-replayable) with clear “effective policy” disclosure.  
+  - Auditors can list all approximate executions over a time range with waiver refs and affected WPs/MTs.
+
+- Out of scope (Phase 4)  
+  - Mandatory layer-wise inference for all users.  
+  - Auto-enabling approximation based on heuristics without operator consent.
+
+- Mechanical track (Phase 4)  
+  - Policy registry + schema validation + cross-runtime adapters.  
+  - Audit/reporting pipelines.
+
+- Atelier track (Phase 4)  
+  - UX for policy selection, waiver management, and effective-policy inspection.
+
+- Distillation track (Phase 4)  
+  - Optional: recommend safe “fast_exact” presets per hardware/runtime, and suggest approximate candidates (never auto-enable).
+
+- Vertical slice (Phase 4)  
+  Operator switches between two runtimes supporting exec_policy, compares fast_exact vs standard on a WP/MT, and exports a policy + trace report suitable for audit.
+
+## 7.7 Multi-Model Infrastructure (future extension)
 
 Role Mailbox supports multiple concurrent models by routing deliveries at runtime while persisting a single canonical mailbox message per send.
 
@@ -57624,7 +62449,7 @@ When exporting a Debug Bundle (Master Spec §10.5), the following inbox-related 
 | T-PROFILE-004 | `dropdown` mode MUST validate against `allowed_models` |
 | T-PROFILE-005 | Profile switch MUST trigger model swap if needed |
 
-### 10.4 Role Mailbox (“Inbox” UI) Protocol
+### 10.4 Role Mailbox (MailboxKind=COLLAB) Protocol
 
 | Test ID | Description |
 |---------|-------------|
@@ -57686,7 +62511,7 @@ When exporting a Debug Bundle (Master Spec §10.5), the following inbox-related 
 - [ ] Integrate with model swap system
 - [ ] Add FR-EVT-PROFILE-* events
 
-### 11.4 Phase 4: Role Mailbox (“Inbox” UI) Protocol
+### 11.4 Phase 4: Role Mailbox (MailboxKind=COLLAB) Protocol
 
 - [ ] Implement RoleMailboxMessage schema and storage
 - [ ] Implement message routing by role
