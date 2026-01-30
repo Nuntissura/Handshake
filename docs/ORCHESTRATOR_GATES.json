@@ -895,6 +895,14 @@
       "signature": "ilja300120262137",
       "timestamp": "2026-01-30T20:38:07.563Z",
       "refinement_path": "docs/refinements/WP-1-Role-Registry-AppendOnly-v1.md"
+    },
+    {
+      "wpId": "WP-1-Role-Registry-AppendOnly-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Role-Registry-AppendOnly-v1",
+      "worktree_dir": "../wt-WP-1-Role-Registry-AppendOnly-v1",
+      "timestamp": "2026-01-30T20:56:11.084Z"
     }
   ]
 }
