@@ -128,7 +128,7 @@ Format:
 | WP-1-Atelier-Collaboration-Panel | docs/task_packets/stubs/WP-1-Atelier-Collaboration-Panel-v1.md | Stub Backlog (Not Activated): WP-1-Atelier-Collaboration-Panel-v1 | stub (spec v02.123); new Phase 1 roadmap addition |
 | WP-1-Lens-Extraction-Tier | docs/task_packets/stubs/WP-1-Lens-Extraction-Tier-v1.md | Stub Backlog (Not Activated): WP-1-Lens-Extraction-Tier-v1 | stub (spec v02.123); new Phase 1 roadmap addition |
 | WP-1-Lens-ViewMode | docs/task_packets/stubs/WP-1-Lens-ViewMode-v1.md | Stub Backlog (Not Activated): WP-1-Lens-ViewMode-v1 | stub (spec v02.123); new Phase 1 roadmap addition |
-| WP-1-Role-Registry-AppendOnly | docs/task_packets/stubs/WP-1-Role-Registry-AppendOnly-v1.md | Stub Backlog (Not Activated): WP-1-Role-Registry-AppendOnly-v1 | stub (spec v02.123); new Phase 1 roadmap addition |
+| WP-1-Role-Registry-AppendOnly | docs/task_packets/WP-1-Role-Registry-AppendOnly-v1.md | Ready for Dev: WP-1-Role-Registry-AppendOnly-v1 | activated from stub docs/task_packets/stubs/WP-1-Role-Registry-AppendOnly-v1.md; active=WP-1-Role-Registry-AppendOnly-v1 |
 | WP-1-Role-Turn-Isolation | docs/task_packets/stubs/WP-1-Role-Turn-Isolation-v1.md | Stub Backlog (Not Activated): WP-1-Role-Turn-Isolation-v1 | stub (spec v02.123); new Phase 1 roadmap addition |
 | WP-1-Artifact-System-Foundations | docs/task_packets/stubs/WP-1-Artifact-System-Foundations-v1.md | Stub Backlog (Not Activated): WP-1-Artifact-System-Foundations-v1 | stub (spec v02.123); Phase 1 roadmap coverage (artifact system) |
 | WP-1-Git-Engine-Decision-Gate | docs/task_packets/stubs/WP-1-Git-Engine-Decision-Gate-v1.md | Stub Backlog (Not Activated): WP-1-Git-Engine-Decision-Gate-v1 | stub (spec v02.123); Phase 1 roadmap coverage (repo engine decision gate) |
