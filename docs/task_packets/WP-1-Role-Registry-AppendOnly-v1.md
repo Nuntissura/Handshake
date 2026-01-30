@@ -110,11 +110,11 @@ git revert <commit-sha>
 - Proposed interfaces/types/contracts:
   - RolePack source (JSON): `assets/atelier_rolepack_digital_production_studio_v1.json`
     - `AtelierRolePack { pack_id: string, pack_version: string, spec_id: string, roles: AtelierRoleSpec[] }`
-    - `AtelierRoleSpec` (required keys per spec §6.3.3.5.7.1; fields are required but may allow empty list/string where appropriate):
-      - `role_id: string` (required; stable; never reused; lower_snake_case `[a-z0-9_]{1,64}`)
-      - `department_id: string` (required; lower_snake_case `[a-z0-9_]{1,64}`)
+    - `AtelierRoleSpec` required keys (spec §6.3.3.5.7.1):
+      - `role_id: string` (required; stable; never reused)
+      - `department_id: string` (required)
       - `display_name: string` (required)
-      - `modes_supported: (\"representational\"|\"conceptual\")[]` (required; subset; must be non-empty)
+      - `modes_supported: (\"representational\"|\"conceptual\")[]` (required; subset)
       - `content_profiles_supported: string[]` (required)
       - `claim_features: string[]` (required)
       - `extract_contracts: RoleContractSpec[]` (required)
@@ -123,13 +123,14 @@ git revert <commit-sha>
       - `allowed_tools: string[]` (required)
       - `vocab_namespace: string` (required; may be empty string)
       - `proposal_policy: \"disabled\"|\"queue_only\"|\"auto_accept_with_threshold\"` (required)
-      - `aliases: string[]` (required; rename aliases; may be empty; each alias must match `role_id` format)
-      - `lifecycle: \"active\"|\"deprecated\"` (required; explicit deprecation allowed; removal forbidden)
+    - `AtelierRoleSpec` OPTIONAL extensions (NOT required by §6.3.3.5.7.1):
+      - `aliases?: string[]` (optional; anchored to Addendum: 3.3 \"Renames are aliases; role_id does not change\")
+      - `deprecated?: boolean` (optional; anchored to Addendum: 3.3 \"existing roles MAY be deprecated (explicitly)\")
     - `RoleContractSpec { contract_id: string, schema_json: object }`
     - Contract id format (required per spec §6.3.3.5.7.1):
       - Extraction: `ROLE:<role_id>:X:<ver>`
       - Compose: `ROLE:<role_id>:C:<ver>`
-      - `<ver>` is a positive integer (u32). Any contract surface change requires a new `<ver>` (new `contract_id`).
+      - Any contract surface change requires a new `<ver>` (new `contract_id`).
   - Build/CI validator (Node): `scripts/validation/atelier_role_registry_check.mjs`
     - Baseline strategy (locked): load baseline RolePack bytes from git:
       - primary: `git show main:assets/atelier_rolepack_digital_production_studio_v1.json`
@@ -138,14 +139,14 @@ git revert <commit-sha>
     - Reads RolePack JSON and enforces:
       - role_id set is append-only vs baseline
       - contract_id -> ContractSurfaceHash is immutable once published
-      - role_id uniqueness + safe-id format
-      - contract_id format + version parse (X/C kind + u32 `<ver>`)
+      - role_id uniqueness (no duplicates within a pack)
+      - contract_id format parse (ROLE:<role_id>:(X|C):<ver>)
   - Runtime validator (Rust): `src/backend/handshake_core/src/ace/validators/role_registry_append_only.rs`
     - `RoleId(String)` and `DepartmentId(String)` newtypes
     - `RoleContractKind { Extract, Produce }`
-    - `RoleSpecEntry { role_id: RoleId, department_id: DepartmentId, display_name: String, aliases: Vec<String>, lifecycle: RoleLifecycle }`
+    - `RoleSpecEntry { role_id: RoleId, department_id: DepartmentId, display_name: String, aliases: Vec<RoleId> }` (aliases default empty; populated from OPTIONAL Addendum 3.3 extension when present)
     - `ContractSurfaceHash([u8; 32])` (sha256)
-    - `RoleContractSurface { contract_id: String, role_id: RoleId, kind: RoleContractKind, version: u32, schema_hash: ContractSurfaceHash }`
+    - `RoleContractSurface { contract_id: String, role_id: RoleId, kind: RoleContractKind, version: String, schema_hash: ContractSurfaceHash }`
     - Contract surface hashing (locked per refinement primitives):
       - `schema_hash = sha256(canonical_json_bytes(schema_json))`
       - canonical JSON bytes: stable key ordering + no whitespace variance (deterministic)
