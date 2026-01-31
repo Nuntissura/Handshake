@@ -29,9 +29,13 @@
   - assets/atelier_rolepack_digital_production_studio_v1.json
   - scripts/validation/atelier_role_registry_check.mjs
   - scripts/validation/codex-check.mjs
+  - src/backend/handshake_core/src/ai_ready_data/records.rs
+  - src/backend/handshake_core/src/api/flight_recorder.rs
   - src/backend/handshake_core/src/lib.rs
   - src/backend/handshake_core/src/ace/validators/mod.rs
   - src/backend/handshake_core/src/ace/validators/role_registry_append_only.rs
+  - src/backend/handshake_core/src/mex/conformance.rs
+  - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/tests/role_registry_append_only_tests.rs
 - OUT_OF_SCOPE:
   - Expanding the role catalog beyond the Master Spec RolePack inventory (roles are defined by spec; this WP enforces drift controls).
@@ -110,7 +114,7 @@ git revert <commit-sha>
 - Proposed interfaces/types/contracts:
   - RolePack source (JSON): `assets/atelier_rolepack_digital_production_studio_v1.json`
     - `AtelierRolePack { pack_id: string, pack_version: string, spec_id: string, roles: AtelierRoleSpec[] }`
-    - `AtelierRoleSpec` required keys (spec §6.3.3.5.7.1):
+    - `AtelierRoleSpec` required keys (spec Section 6.3.3.5.7.1):
       - `role_id: string` (required; stable; never reused)
       - `department_id: string` (required)
       - `display_name: string` (required)
@@ -123,11 +127,11 @@ git revert <commit-sha>
       - `allowed_tools: string[]` (required)
       - `vocab_namespace: string` (required; may be empty string)
       - `proposal_policy: \"disabled\"|\"queue_only\"|\"auto_accept_with_threshold\"` (required)
-    - `AtelierRoleSpec` OPTIONAL extensions (NOT required by §6.3.3.5.7.1):
+    - `AtelierRoleSpec` OPTIONAL extensions (NOT required by Section 6.3.3.5.7.1):
       - `aliases?: string[]` (optional; anchored to Addendum: 3.3 \"Renames are aliases; role_id does not change\")
       - `deprecated?: boolean` (optional; anchored to Addendum: 3.3 \"existing roles MAY be deprecated (explicitly)\")
     - `RoleContractSpec { contract_id: string, schema_json: object }`
-    - Contract id format (required per spec §6.3.3.5.7.1):
+    - Contract id format (required per spec Section 6.3.3.5.7.1):
       - Extraction: `ROLE:<role_id>:X:<ver>`
       - Compose: `ROLE:<role_id>:C:<ver>`
       - Any contract surface change requires a new `<ver>` (new `contract_id`).
