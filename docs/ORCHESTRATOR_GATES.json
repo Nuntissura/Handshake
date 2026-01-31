@@ -903,6 +903,38 @@
       "branch": "feat/WP-1-Role-Registry-AppendOnly-v1",
       "worktree_dir": "../wt-WP-1-Role-Registry-AppendOnly-v1",
       "timestamp": "2026-01-30T20:56:11.084Z"
+    },
+    {
+      "wpId": "WP-1-Atelier-Collaboration-Panel-v1",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Atelier-Collaboration-Panel-v1.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md",
+      "spec_target_sha1": "4d406dcc1a75570d2f17659e0ac40d68a22f211a",
+      "timestamp": "2026-01-31T15:15:26.928Z",
+      "turn_token": "1769872526929"
+    },
+    {
+      "wpId": "WP-1-Atelier-Collaboration-Panel-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja310120261839",
+      "timestamp": "2026-01-31T17:40:05.463Z",
+      "refinement_path": "docs/refinements/WP-1-Atelier-Collaboration-Panel-v1.md"
+    },
+    {
+      "wpId": "WP-1-Atelier-Collaboration-Panel-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Atelier-Collaboration-Panel-v1",
+      "worktree_dir": "D:/Projects/LLM",
+      "timestamp": "2026-01-31T17:54:31.372Z"
+    },
+    {
+      "wpId": "WP-1-Atelier-Collaboration-Panel-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Atelier-Collaboration-Panel-v1",
+      "worktree_dir": "../wt-WP-1-Atelier-Collaboration-Panel-v1",
+      "timestamp": "2026-01-31T17:55:18.704Z"
     }
   ]
 }
