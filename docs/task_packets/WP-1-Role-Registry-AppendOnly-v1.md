@@ -187,32 +187,188 @@ git revert <commit-sha>
 - (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
+- (Mechanical manifest for audit. This section records the "What" (hashes/lines) for the Validator's "How/Why" audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- Range validated (for Pre-SHA1): `7e13c5c37823ea94b0cc7306383820c0567f0d08..HEAD`
+- **Target File**: `assets/atelier_rolepack_digital_production_studio_v1.json`
+- **Start**: 1
+- **End**: 1907
+- **Line Delta**: 1907
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `17d4468ef1776317c29d9b0875a467cf5e8287de`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `scripts/validation/atelier_role_registry_check.mjs`
+- **Start**: 1
+- **End**: 240
+- **Line Delta**: 240
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `e95294a6f27b0bced25df5667c9a0f2fbc29150d`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `scripts/validation/codex-check.mjs`
+- **Start**: 67
+- **End**: 115
+- **Line Delta**: 3
+- **Pre-SHA1**: `e59e79824cfda7034590bad79f061fc71aa053dd`
+- **Post-SHA1**: `e56343c938b34afe52095ca6026fca0aebffc8e9`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ace/validators/mod.rs`
+- **Start**: 37
+- **End**: 38
+- **Line Delta**: 1
+- **Pre-SHA1**: `a12fb18b983b0aee923c442bc522912b38fb314d`
+- **Post-SHA1**: `8ded388435c549b63390171146faefd2bcd79d4b`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ace/validators/role_registry_append_only.rs`
+- **Start**: 1
+- **End**: 434
+- **Line Delta**: 434
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `348f593fb41d7a80cbd835b6a7e7b2195c3ea738`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ai_ready_data/records.rs`
+- **Start**: 24
+- **End**: 141
+- **Line Delta**: 8
+- **Pre-SHA1**: `8fba3e073310111acabf51d77c2926a3962b283f`
+- **Post-SHA1**: `d74e7089e7b718c487da832abca31837bdfedb83`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/api/flight_recorder.rs`
+- **Start**: 1
+- **End**: 237
+- **Line Delta**: 42
+- **Pre-SHA1**: `ea1346b4984a634573fbc011744b69460b2899db`
+- **Post-SHA1**: `787ad782b29bcb62be07a75b565feecfd2269cfe`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/mex/conformance.rs`
+- **Start**: 333
+- **End**: 337
+- **Line Delta**: 0
+- **Pre-SHA1**: `3119e894c48280e29ece86a94eef93a5edaa80ab`
+- **Post-SHA1**: `056494c5fcfce2aefe301b803ee2bf05897c4914`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 2808
+- **End**: 3903
+- **Line Delta**: 2
+- **Pre-SHA1**: `e6528eb704a36dd5b817e75c83213370bff3a4b4`
+- **Post-SHA1**: `86cc7746ad4c75429b6b8cfd7351b92b71e8d159`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/tests/role_registry_append_only_tests.rs`
+- **Start**: 1
+- **End**: 221
+- **Line Delta**: 221
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `6411ebe7c38ea12fd220d99e64b90f459fedfae3`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
