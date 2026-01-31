@@ -10,7 +10,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: GPT-5.2 (planned Coder-A)
 - CODER_REASONING_STRENGTH: EXTRA_HIGH
-- **Status:** Ready for Dev
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja310120261839
 
@@ -201,9 +201,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress
+- What changed in this update: Bootstrapped (claimed WP; starting work)
+- Next step / handoff hint: Implement selection-scoped collaboration panel (per SKELETON APPROVED)
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
