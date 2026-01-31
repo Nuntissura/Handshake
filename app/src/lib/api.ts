@@ -55,6 +55,21 @@ async function request<T>(path: string, options: FetchOptions = {}): Promise<T> 
   return JSON.parse(text) as T;
 }
 
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export async function sha256HexUtf8(text: string): Promise<string> {
+  if (typeof crypto === "undefined" || !crypto.subtle) {
+    throw new Error("crypto.subtle is not available in this environment");
+  }
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return bytesToHex(new Uint8Array(digest));
+}
+
 export type Workspace = {
   id: string;
   name: string;
@@ -77,6 +92,52 @@ export type Block = {
   raw_content: string;
   display_content: string;
   derived_content: unknown;
+};
+
+export type SelectionRangeV1 = {
+  schema_version: "hsk.selection_range@v1";
+  surface: "docs";
+  coordinate_space: "doc_text_utf8_v1";
+  start_utf8: number;
+  end_utf8: number;
+  doc_preimage_sha256: string;
+  selection_preimage_sha256: string;
+};
+
+export type DocPatchOpV1 = {
+  op: "replace_range";
+  range_utf8: { start: number; end: number };
+  insert_text: string;
+};
+
+export type DocPatchsetV1 = {
+  schema_version: "hsk.doc_patchset@v1";
+  doc_id: string;
+  selection: SelectionRangeV1;
+  boundary_normalization: "disabled";
+  ops: DocPatchOpV1[];
+  summary?: string | null;
+};
+
+export type AtelierApplySuggestionV1 = {
+  role_id: string;
+  suggestion_id: string;
+  patchset: DocPatchsetV1;
+};
+
+export type AtelierApplyRequestV1 = {
+  doc_id: string;
+  selection: SelectionRangeV1;
+  suggestions_to_apply: AtelierApplySuggestionV1[];
+};
+
+export type AtelierRoleSummary = {
+  role_id: string;
+  display_name: string;
+};
+
+export type AtelierRolesResponse = {
+  roles: AtelierRoleSummary[];
 };
 
 export type BlockInput = {
@@ -424,6 +485,22 @@ export async function getDiagnostic(id: string): Promise<Diagnostic> {
 
 export async function createDiagnostic(input: DiagnosticInput): Promise<Diagnostic> {
   return request("/api/diagnostics", { method: "POST", body: input });
+}
+
+export async function getAtelierRoles(): Promise<AtelierRolesResponse> {
+  return request("/api/atelier/roles");
+}
+
+export async function applyAtelierPatchsets(
+  documentId: string,
+  body: AtelierApplyRequestV1,
+  ctx?: WriteContext,
+): Promise<Block[]> {
+  return request(`/documents/${encodeURIComponent(documentId)}/atelier/apply`, {
+    method: "POST",
+    body,
+    headers: writeContextHeaders(ctx),
+  });
 }
 
 export async function updateDocumentBlocks(

@@ -714,6 +714,46 @@ body {
   font-size: 14px;
 }
 
+.atelier-collab-panel__section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.atelier-collab-panel__role-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.atelier-collab-panel__role-name {
+  font-weight: 700;
+}
+
+.atelier-collab-panel__suggestions {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.atelier-collab-panel__suggestion-label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.atelier-collab-panel__footer {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .document-editor__header {
   display: flex;
   align-items: center;

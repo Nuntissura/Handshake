@@ -10,7 +10,7 @@ import {
   getDocument,
   updateDocumentBlocks,
 } from "../lib/api";
-import { TiptapEditor } from "./TiptapEditor";
+import { TiptapEditor, type TiptapSelectionInfo } from "./TiptapEditor";
 import { logEvent } from "../state/debugEvents";
 import { addJob } from "../state/aiJobs";
 import { CommandPalette, CommandPaletteAction } from "./CommandPalette";
@@ -36,7 +36,8 @@ export function DocumentView({ documentId, onDeleted }: Props) {
   const [jobError, setJobError] = useState<string | null>(null);
   const [instructions, setInstructions] = useState("");
   const [collabOpen, setCollabOpen] = useState(false);
-  const [selectionText, setSelectionText] = useState("");
+  const [selectionInfo, setSelectionInfo] = useState<TiptapSelectionInfo | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
     if (!documentId) {
@@ -47,7 +48,8 @@ export function DocumentView({ documentId, onDeleted }: Props) {
       setJobError(null);
       setInstructions("");
       setCollabOpen(false);
-      setSelectionText("");
+      setSelectionInfo(null);
+      setIsDirty(false);
       return;
     }
     const load = async () => {
@@ -59,7 +61,8 @@ export function DocumentView({ documentId, onDeleted }: Props) {
       setJobError(null);
       setInstructions("");
       setCollabOpen(false);
-      setSelectionText("");
+      setSelectionInfo(null);
+      setIsDirty(false);
       try {
         const response = await getDocument(documentId);
         setDoc(response);
@@ -171,6 +174,7 @@ export function DocumentView({ documentId, onDeleted }: Props) {
                     ...doc,
                     blocks: updated,
                   });
+                  setIsDirty(false);
                   logEvent({ type: "doc-save", targetId: documentId, result: "ok" });
                 } catch (err) {
                   const message = err instanceof Error ? err.message : "Failed to save";
@@ -214,7 +218,10 @@ export function DocumentView({ documentId, onDeleted }: Props) {
               onClick={() => {
                 setCollabOpen(true);
               }}
-              disabled={selectionText.trim().length === 0}
+              disabled={
+                isDirty || !selectionInfo || selectionInfo.text.trim().length === 0
+              }
+              title={isDirty ? "Save before collaborating on selection." : undefined}
             >
               Collaborate on selection
             </button>
@@ -228,6 +235,9 @@ export function DocumentView({ documentId, onDeleted }: Props) {
                   const refreshed = await getDocument(documentId);
                   setDoc(refreshed);
                   setEditorContent(blocksToTiptap(refreshed.blocks));
+                  setIsDirty(false);
+                  setSelectionInfo(null);
+                  setCollabOpen(false);
                   logEvent({ type: "doc-load", targetId: documentId, result: "ok" });
                 } catch (err) {
                   setSaveError(err instanceof Error ? err.message : "Failed to reload");
@@ -348,8 +358,11 @@ export function DocumentView({ documentId, onDeleted }: Props) {
           <div className="document-editor__main">
             <TiptapEditor
               initialContent={editorContent}
-              onChange={setEditorContent}
-              onSelectionChange={setSelectionText}
+              onChange={(next) => {
+                setEditorContent(next);
+                setIsDirty(true);
+              }}
+              onSelectionChange={setSelectionInfo}
             />
             <div className="document-editor__status">
               {lastSavedAt && <span className="muted">Saved at {lastSavedAt}</span>}
@@ -360,8 +373,16 @@ export function DocumentView({ documentId, onDeleted }: Props) {
           <AtelierCollaborationPanel
             open={collabOpen}
             onClose={() => setCollabOpen(false)}
-            selectionText={selectionText}
-            roles={["Writer", "Editor", "Fact Checker"]}
+            docId={documentId}
+            docText={blocksForDisplay.map((b) => b.raw_content).join("\n")}
+            selection={selectionInfo}
+            disabledReason={isDirty ? "Save before collaborating on selection." : null}
+            onAppliedBlocks={(updated) => {
+              setDoc({ ...doc, blocks: updated });
+              setEditorContent(blocksToTiptap(updated));
+              setIsDirty(false);
+              setCollabOpen(false);
+            }}
           />
         </div>
       </div>

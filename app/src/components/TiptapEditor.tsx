@@ -2,11 +2,17 @@ import { useEffect, useState } from "react";
 import { EditorContent, JSONContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 
+export type TiptapSelectionInfo = {
+  text: string;
+  startUtf8: number;
+  endUtf8: number;
+};
+
 type TiptapEditorProps = {
   initialContent: JSONContent | null;
   onChange: (doc: JSONContent) => void;
   readOnly?: boolean;
-  onSelectionChange?: (text: string) => void;
+  onSelectionChange?: (info: TiptapSelectionInfo) => void;
 };
 
 export function TiptapEditor({
@@ -46,7 +52,13 @@ export function TiptapEditor({
       refreshHandler();
       if (!onSelectionChange) return;
       const { from, to } = editor.state.selection;
-      onSelectionChange(editor.state.doc.textBetween(from, to, "\n"));
+      const doc = editor.state.doc;
+      const prefixText = doc.textBetween(0, from, "\n");
+      const selectionText = doc.textBetween(from, to, "\n");
+      const encoder = new TextEncoder();
+      const startUtf8 = encoder.encode(prefixText).length;
+      const endUtf8 = startUtf8 + encoder.encode(selectionText).length;
+      onSelectionChange({ text: selectionText, startUtf8, endUtf8 });
     };
 
     editor.on("selectionUpdate", selectionHandler);
