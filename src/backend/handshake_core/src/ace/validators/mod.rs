@@ -24,6 +24,7 @@
 //! - [HSK-ACE-VAL-102] NFC Normalization: Scans use NFC-normalized, case-folded text
 
 pub mod artifact;
+pub mod atelier_scope;
 pub mod boundary;
 pub mod budget;
 pub mod cache;

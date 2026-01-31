@@ -4,8 +4,15 @@ use axum::{
     routing::{delete, get, post, put},
     Json, Router,
 };
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use std::fs;
 use uuid::Uuid;
 
+use crate::ace::validators::atelier_scope::{
+    apply_selection_bounded_patchsets, sha256_hex, DocPatchsetV1, SelectionRangeV1,
+};
+use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
 use crate::{
     diagnostics::{
         DiagnosticInput, DiagnosticSeverity, DiagnosticSource, DiagnosticSurface, LinkConfidence,
@@ -32,6 +39,11 @@ pub fn routes(state: AppState) -> Router {
             get(get_document).delete(delete_document),
         )
         .route("/documents/:document_id/blocks", put(replace_blocks))
+        .route(
+            "/documents/:document_id/atelier/apply",
+            post(apply_atelier_patchsets),
+        )
+        .route("/atelier/roles", get(list_atelier_roles))
         .route("/workspaces/:workspace_id", delete(delete_workspace))
         .with_state(state)
 }
@@ -73,6 +85,66 @@ fn parse_actor_kind(raw: Option<&str>) -> Result<WriteActorKind, StorageError> {
 
 fn parse_uuid(raw: Option<&str>) -> Option<Uuid> {
     raw.and_then(|value| Uuid::parse_str(value.trim()).ok())
+}
+
+#[derive(Debug, Deserialize)]
+struct AtelierApplyRequestV1 {
+    pub doc_id: String,
+    pub selection: SelectionRangeV1,
+    pub suggestions_to_apply: Vec<AtelierSuggestionToApplyV1>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AtelierSuggestionToApplyV1 {
+    pub role_id: String,
+    pub suggestion_id: String,
+    pub patchset: DocPatchsetV1,
+}
+
+#[derive(Debug, Deserialize)]
+struct RolePackV1 {
+    pub roles: Vec<RolePackRoleV1>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RolePackRoleV1 {
+    pub role_id: String,
+    #[serde(default)]
+    pub display_name: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct AtelierRolesResponseV1 {
+    pub roles: Vec<AtelierRoleSummaryV1>,
+}
+
+#[derive(Debug, Serialize)]
+struct AtelierRoleSummaryV1 {
+    pub role_id: String,
+    pub display_name: String,
+}
+
+async fn list_atelier_roles(
+    State(_state): State<AppState>,
+) -> Result<Json<AtelierRolesResponseV1>, (StatusCode, Json<ErrorResponse>)> {
+    let repo_root = crate::api::paths::repo_root().map_err(internal_error)?;
+    let rolepack_path = repo_root
+        .join("assets")
+        .join("atelier_rolepack_digital_production_studio_v1.json");
+
+    let raw = fs::read_to_string(&rolepack_path).map_err(internal_error)?;
+    let parsed: RolePackV1 = serde_json::from_str(&raw).map_err(internal_error)?;
+
+    let roles = parsed
+        .roles
+        .into_iter()
+        .map(|role| AtelierRoleSummaryV1 {
+            role_id: role.role_id.clone(),
+            display_name: role.display_name.unwrap_or(role.role_id),
+        })
+        .collect();
+
+    Ok(Json(AtelierRolesResponseV1 { roles }))
 }
 
 async fn record_silent_edit_diagnostic(
@@ -206,6 +278,73 @@ async fn write_context_from_headers(
 
             Ok(WriteContext::ai(actor_id, Some(job_id), Some(workflow_id)))
         }
+    }
+}
+
+fn offset_to_line_col(text: &str, offset: usize) -> Result<(usize, usize), StorageError> {
+    if offset > text.len() || !text.is_char_boundary(offset) {
+        return Err(StorageError::Validation("invalid_selection_offset"));
+    }
+
+    let prefix = &text[..offset];
+    let mut line = 1usize;
+    let mut last_newline = None;
+    for (idx, ch) in prefix.char_indices() {
+        if ch == '\n' {
+            line += 1;
+            last_newline = Some(idx);
+        }
+    }
+
+    let col_start = match last_newline {
+        Some(idx) => idx + 1,
+        None => 0,
+    };
+    let col = text[col_start..offset].chars().count() + 1;
+    Ok((line, col))
+}
+
+async fn record_atelier_scope_violation_diagnostic(
+    state: &AppState,
+    doc: &crate::storage::Document,
+    message: &str,
+) {
+    let input = DiagnosticInput {
+        title: "Atelier selection scope violation".to_string(),
+        message: message.to_string(),
+        severity: DiagnosticSeverity::Error,
+        source: DiagnosticSource::Engine,
+        surface: DiagnosticSurface::System,
+        tool: Some("atelier_scope".to_string()),
+        code: Some("ATELIER-LENS-VAL-SCOPE-001".to_string()),
+        tags: Some(vec!["hsk:atelier".to_string(), "hsk:scope".to_string()]),
+        wsid: Some(doc.workspace_id.clone()),
+        job_id: None,
+        model_id: None,
+        actor: None,
+        capability_id: None,
+        policy_decision_id: None,
+        locations: None,
+        evidence_refs: None,
+        link_confidence: LinkConfidence::Unlinked,
+        status: None,
+        count: None,
+        first_seen: None,
+        last_seen: None,
+        timestamp: None,
+        updated_at: None,
+    };
+
+    let diagnostic = match input.into_diagnostic() {
+        Ok(diagnostic) => diagnostic,
+        Err(error) => {
+            tracing::error!(target: "handshake_core", error = %error, "failed to build atelier scope diagnostic");
+            return;
+        }
+    };
+
+    if let Err(error) = state.diagnostics.record_diagnostic(diagnostic).await {
+        tracing::error!(target: "handshake_core", error = %error, "failed to record atelier scope diagnostic");
     }
 }
 
@@ -542,6 +681,172 @@ async fn replace_blocks(
     };
 
     tracing::info!(target: "handshake_core", route = "/documents/:document_id/blocks", status = "ok", document_id = %document_id, blocks = result_blocks.len(), "replace blocks");
+
+    Ok(Json(
+        result_blocks.into_iter().map(block_to_response).collect(),
+    ))
+}
+
+async fn apply_atelier_patchsets(
+    State(state): State<AppState>,
+    Path(document_id): Path<String>,
+    headers: HeaderMap,
+    Json(payload): Json<AtelierApplyRequestV1>,
+) -> Result<Json<Vec<BlockResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    let doc = state
+        .storage
+        .get_document(&document_id)
+        .await
+        .map_err(map_storage_error)?;
+
+    if payload.doc_id != document_id {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "bad_request",
+            }),
+        ));
+    }
+
+    let ctx = match write_context_from_headers(&state, &headers).await {
+        Ok(ctx) => ctx,
+        Err(err) => {
+            record_silent_edit_diagnostic(
+                &state,
+                &headers,
+                Some(&doc.workspace_id),
+                None,
+                &err,
+                "/documents/:document_id/atelier/apply",
+            )
+            .await;
+            return Err(map_storage_error(err));
+        }
+    };
+
+    let blocks = state
+        .storage
+        .get_blocks(&document_id)
+        .await
+        .map_err(map_storage_error)?;
+
+    let mut sorted_blocks = blocks;
+    sorted_blocks.sort_by_key(|b| b.sequence);
+
+    let doc_text_before = sorted_blocks
+        .iter()
+        .map(|b| b.raw_content.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let patchsets: Vec<DocPatchsetV1> = payload
+        .suggestions_to_apply
+        .iter()
+        .map(|s| s.patchset.clone())
+        .collect();
+
+    let doc_text_after = match apply_selection_bounded_patchsets(
+        &doc_text_before,
+        &payload.selection,
+        patchsets.as_slice(),
+    ) {
+        Ok(value) => value,
+        Err(err) => {
+            record_atelier_scope_violation_diagnostic(&state, &doc, &err.to_string()).await;
+            return Err((
+                StatusCode::FORBIDDEN,
+                Json(ErrorResponse {
+                    error: "ATELIER-LENS-VAL-SCOPE-001",
+                }),
+            ));
+        }
+    };
+
+    let next_texts: Vec<&str> = doc_text_after.split('\n').collect();
+    let mut incoming_blocks: Vec<NewBlock> = Vec::with_capacity(next_texts.len());
+    for (idx, text) in next_texts.iter().enumerate() {
+        let existing = sorted_blocks.get(idx);
+        incoming_blocks.push(NewBlock {
+            id: existing.map(|b| b.id.to_string()),
+            document_id: document_id.clone(),
+            kind: existing
+                .map(|b| b.kind.clone())
+                .unwrap_or_else(|| "paragraph".to_string()),
+            sequence: idx as i64,
+            raw_content: (*text).to_string(),
+            display_content: Some((*text).to_string()),
+            derived_content: None,
+            sensitivity: None,
+            exportable: None,
+        });
+    }
+
+    let result_blocks = match state
+        .storage
+        .replace_blocks(&ctx, &document_id, incoming_blocks)
+        .await
+    {
+        Ok(blocks) => blocks,
+        Err(err) => {
+            record_silent_edit_diagnostic(
+                &state,
+                &headers,
+                Some(&doc.workspace_id),
+                Some(&ctx),
+                &err,
+                "/documents/:document_id/atelier/apply",
+            )
+            .await;
+            return Err(map_storage_error(err));
+        }
+    };
+
+    // Emit FR-EVT-002 editor_edit (selection-scoped apply) with hashes, no raw text.
+    let before_hash = sha256_hex(doc_text_before.as_bytes());
+    let after_hash = sha256_hex(doc_text_after.as_bytes());
+    let diff_hash = {
+        let patch_json = serde_json::to_string(&patchsets).unwrap_or_default();
+        sha256_hex(patch_json.as_bytes())
+    };
+
+    let (start_line, start_col) =
+        offset_to_line_col(&doc_text_before, payload.selection.start_utf8)
+            .map_err(map_storage_error)?;
+    let (end_line, end_col) = offset_to_line_col(&doc_text_before, payload.selection.end_utf8)
+        .map_err(map_storage_error)?;
+
+    let payload = json!({
+        "editor_surface": "monaco",
+        "document_uri": format!("hsk://documents/{}", document_id),
+        "path": null,
+        "before_hash": before_hash,
+        "after_hash": after_hash,
+        "diff_hash": diff_hash,
+        "ops": [
+            {
+                "range": {
+                    "startLine": start_line,
+                    "startColumn": start_col,
+                    "endLine": end_line,
+                    "endColumn": end_col
+                }
+            }
+        ]
+    });
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::EditorEdit,
+        FlightRecorderActor::Human,
+        Uuid::new_v4(),
+        payload,
+    )
+    .with_wsids(vec![doc.workspace_id.clone()]);
+
+    state
+        .flight_recorder
+        .record_event(event)
+        .await
+        .map_err(internal_error)?;
 
     Ok(Json(
         result_blocks.into_iter().map(block_to_response).collect(),
