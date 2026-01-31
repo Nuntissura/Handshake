@@ -35,6 +35,7 @@ pub mod injection;
 pub mod leakage;
 pub mod payload;
 pub mod promotion;
+pub mod role_registry_append_only;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

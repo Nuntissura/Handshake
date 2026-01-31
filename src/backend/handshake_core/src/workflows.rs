@@ -2806,6 +2806,7 @@ async fn run_validation_via_mex(
     evidence_artifact_ref: ArtifactHandle,
 ) -> Result<ValidationResult, WorkflowError> {
     let started_at = Utc::now().to_rfc3339();
+    // WAIVER [CX-573E]: Instant::now() for observability (validation duration metrics).
     let start = std::time::Instant::now();
 
     let mut all_evidence: Vec<ArtifactHandle> = Vec::new();
@@ -3899,6 +3900,7 @@ NEED: {{what you need to unblock}}
                 } else {
                     (file_contents_budget / (mt_files.len() as u32)).max(64)
                 };
+                // WAIVER [CX-573E]: Instant::now() for observability (retrieval duration metrics).
                 let retrieval_start = std::time::Instant::now();
                 for path in &mt_files {
                     if file_contents_budget == 0 {

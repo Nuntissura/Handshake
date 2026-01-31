@@ -1,6 +1,8 @@
+use crate::models::ErrorResponse;
 use crate::AppState;
 use axum::{
     extract::{Query, State},
+    http::StatusCode,
     routing::{get, post},
     Json, Router,
 };
@@ -9,6 +11,28 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::Value;
 use uuid::Uuid;
+
+type ApiError = (StatusCode, Json<ErrorResponse>);
+type ApiResult<T> = Result<T, ApiError>;
+
+fn invalid_event() -> ApiError {
+    (
+        StatusCode::BAD_REQUEST,
+        Json(ErrorResponse {
+            error: "HSK-400-INVALID-EVENT",
+        }),
+    )
+}
+
+fn db_error(err: impl std::fmt::Display) -> ApiError {
+    tracing::error!(target: "handshake_core", error = %err, "flight_recorder_db_error");
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(ErrorResponse {
+            error: "HSK-500-DB",
+        }),
+    )
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FlightEvent {
@@ -102,12 +126,11 @@ pub struct RuntimeChatEventV0_1 {
 async fn record_runtime_chat_event(
     State(state): State<AppState>,
     Json(event): Json<RuntimeChatEventV0_1>,
-) -> Result<Json<Value>, String> {
-    let trace_id = Uuid::parse_str(event.session_id.trim())
-        .map_err(|e| format!("invalid session_id UUID: {e}"))?;
-    if trace_id == Uuid::nil() {
-        return Err("invalid session_id UUID: nil".to_string());
-    }
+) -> ApiResult<Json<Value>> {
+    let trace_id = match Uuid::parse_str(event.session_id.trim()) {
+        Ok(parsed) if parsed != Uuid::nil() => parsed,
+        _ => return Err(invalid_event()),
+    };
 
     let event_type = match event.event_type {
         RuntimeChatEventType::RuntimeChatMessageAppended => {
@@ -121,7 +144,10 @@ async fn record_runtime_chat_event(
         }
     };
 
-    let payload = serde_json::to_value(&event).map_err(|e| e.to_string())?;
+    let payload = match serde_json::to_value(&event) {
+        Ok(value) => value,
+        Err(err) => return Err(db_error(err)),
+    };
     let mut fr_event = crate::flight_recorder::FlightRecorderEvent::new(
         event_type,
         crate::flight_recorder::FlightRecorderActor::System,
@@ -141,7 +167,10 @@ async fn record_runtime_chat_event(
         .flight_recorder
         .record_event(fr_event)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| match e {
+            crate::flight_recorder::RecorderError::InvalidEvent(_) => invalid_event(),
+            other => db_error(other),
+        })?;
 
     Ok(Json(json!({ "ok": true })))
 }
@@ -149,7 +178,7 @@ async fn record_runtime_chat_event(
 async fn list_events(
     State(state): State<AppState>,
     Query(filter): Query<EventFilter>,
-) -> Result<Json<Vec<FlightEvent>>, String> {
+) -> ApiResult<Json<Vec<FlightEvent>>> {
     let internal_filter = crate::flight_recorder::EventFilter {
         event_id: filter.event_id,
         job_id: filter.job_id,
@@ -162,7 +191,7 @@ async fn list_events(
         .flight_recorder
         .list_events(internal_filter)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(db_error)?;
 
     if let Some(actor) = filter.actor {
         events.retain(|e| e.actor.to_string() == actor);
@@ -191,6 +220,19 @@ async fn list_events(
                             Err(_) => false,
                         },
                         None => false,
+                    }
+                }
+                crate::flight_recorder::FlightRecorderEventType::TerminalCommand => {
+                    target == "system" || target == "terminal"
+                }
+                crate::flight_recorder::FlightRecorderEventType::EditorEdit => {
+                    if target == "system" {
+                        true
+                    } else {
+                        matches!(
+                            event.payload.get("editor_surface").and_then(|v| v.as_str()),
+                            Some(surface) if surface == target
+                        )
                     }
                 }
                 _ => target == "system",
