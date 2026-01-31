@@ -381,3 +381,49 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION_REPORT - 2026-01-31 - PASS
+
+Verdict: PASS
+
+REASON_FOR_PASS:
+- All required validator checks passed (pre-work, spec regression, forbidden-pattern scan, error-code scan, DAL audit, codex-check, lint, tests).
+- Deterministic manifest gate passed when invoked with the explicit range recorded in the packet's VALIDATION manifest (see POST_WORK note below).
+
+SCOPE_INPUTS:
+- Task Packet: docs/task_packets/WP-1-Role-Registry-AppendOnly-v1.md (Status: In Progress)
+- Spec (SPEC_CURRENT): Handshake_Master_Spec_v02.123.md (anchors per packet: Addendum 3.3, 6.3.3.5.7.1, 6.3.3.5.7.23)
+
+CONTEXT (verifiable):
+- Worktree: D:\Projects\LLM projects\wt-WP-1-Role-Registry-AppendOnly-v1
+- Branch: feat/WP-1-Role-Registry-AppendOnly-v1
+- HEAD: acc95825ae1b0366660248819de40527f37de017
+- merge-base(main,HEAD): 7e13c5c37823ea94b0cc7306383820c0567f0d08
+
+COMMANDS_RUN (validator):
+```bash
+just pre-work WP-1-Role-Registry-AppendOnly-v1
+just validator-spec-regression
+just validator-scan
+just validator-error-codes
+just validator-dal-audit
+just codex-check
+just lint
+just test
+just post-work WP-1-Role-Registry-AppendOnly-v1 --range 7e13c5c37823ea94b0cc7306383820c0567f0d08..HEAD
+```
+
+POST_WORK_NOTE (range selection, reproducibility):
+- `just post-work WP-1-Role-Registry-AppendOnly-v1` (no args) FAILS because it validates `HEAD^..HEAD`, but this WP's deterministic manifest is anchored to `merge-base(main,HEAD)..HEAD` (recorded in the packet's VALIDATION block as `7e13c5c3..HEAD`).
+- For reruns, use the explicit range command above so the manifest pre_sha1 checks match the same base revision.
+
+EVIDENCE_POINTERS (file:line):
+- Node drift validator wired into codex-check: scripts/validation/codex-check.mjs:68
+- Baseline strategy and git-show fallback: scripts/validation/atelier_role_registry_check.mjs:12,13,189
+- Append-only + drift enforcement: scripts/validation/atelier_role_registry_check.mjs:206-233
+- Rust validator entry points + canonical hashing: src/backend/handshake_core/src/ace/validators/role_registry_append_only.rs:179,191,298
+- Rust tests proving behavior: src/backend/handshake_core/tests/role_registry_append_only_tests.rs:43,61,84,126,162
+
+RISKS_AND_GAPS:
+- Task Board visibility: this WP is not listed under `## In Progress` in docs/TASK_BOARD.md; recommend a docs-only status sync on main after merge.
+- Packet TEST_PLAN includes `just post-work WP-1-Role-Registry-AppendOnly-v1` without `--range`; the POST_WORK_NOTE above is required to avoid a false-negative rerun.
