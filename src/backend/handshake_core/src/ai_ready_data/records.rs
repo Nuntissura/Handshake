@@ -21,14 +21,16 @@ impl IngestionSourceType {
 }
 
 impl FromStr for IngestionSourceType {
-    type Err = &'static str;
+    type Err = super::AiReadyDataError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "user" => Ok(IngestionSourceType::User),
             "connector" => Ok(IngestionSourceType::Connector),
             "system" => Ok(IngestionSourceType::System),
-            _ => Err("invalid ingestion_source_type"),
+            _ => Err(super::AiReadyDataError::InvalidInput(
+                "invalid ingestion_source_type",
+            )),
         }
     }
 }
@@ -56,7 +58,7 @@ impl IngestionMethod {
 }
 
 impl FromStr for IngestionMethod {
-    type Err = &'static str;
+    type Err = super::AiReadyDataError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
@@ -65,7 +67,9 @@ impl FromStr for IngestionMethod {
             "api_ingest" => Ok(IngestionMethod::ApiIngest),
             "connector_sync" => Ok(IngestionMethod::ConnectorSync),
             "system_generate" => Ok(IngestionMethod::SystemGenerate),
-            _ => Err("invalid ingestion_method"),
+            _ => Err(super::AiReadyDataError::InvalidInput(
+                "invalid ingestion_method",
+            )),
         }
     }
 }
@@ -91,7 +95,7 @@ impl ValidationStatus {
 }
 
 impl FromStr for ValidationStatus {
-    type Err = &'static str;
+    type Err = super::AiReadyDataError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
@@ -99,7 +103,9 @@ impl FromStr for ValidationStatus {
             "failed" => Ok(ValidationStatus::Failed),
             "warning" => Ok(ValidationStatus::Warning),
             "pending" => Ok(ValidationStatus::Pending),
-            _ => Err("invalid validation_status"),
+            _ => Err(super::AiReadyDataError::InvalidInput(
+                "invalid validation_status",
+            )),
         }
     }
 }
@@ -123,14 +129,16 @@ impl EmbeddingModelStatus {
 }
 
 impl FromStr for EmbeddingModelStatus {
-    type Err = &'static str;
+    type Err = super::AiReadyDataError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "active" => Ok(EmbeddingModelStatus::Active),
             "deprecated" => Ok(EmbeddingModelStatus::Deprecated),
             "retired" => Ok(EmbeddingModelStatus::Retired),
-            _ => Err("invalid embedding_model_status"),
+            _ => Err(super::AiReadyDataError::InvalidInput(
+                "invalid embedding_model_status",
+            )),
         }
     }
 }

@@ -103,10 +103,15 @@ async fn record_runtime_chat_event(
     State(state): State<AppState>,
     Json(event): Json<RuntimeChatEventV0_1>,
 ) -> Result<Json<Value>, String> {
-    let trace_id = Uuid::parse_str(event.session_id.trim())
-        .map_err(|e| format!("invalid session_id UUID: {e}"))?;
+    const ERR_INVALID_SESSION_ID_NIL: &str = "invalid session_id UUID: nil";
+
+    let trace_id = Uuid::parse_str(event.session_id.trim()).map_err(|e| {
+        let mut msg = "invalid session_id UUID: ".to_string();
+        msg.push_str(&e.to_string());
+        msg
+    })?;
     if trace_id == Uuid::nil() {
-        return Err("invalid session_id UUID: nil".to_string());
+        return Err(ERR_INVALID_SESSION_ID_NIL.to_string());
     }
 
     let event_type = match event.event_type {

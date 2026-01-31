@@ -330,11 +330,11 @@ mod tests {
         }
 
         if !offenders.is_empty() {
-            return Err(format!(
-                "Shadow EngineAdapter invoke call sites detected outside mex/runtime.rs: {}",
-                offenders.join(", ")
-            )
-            .into());
+            let mut msg =
+                "Shadow EngineAdapter invoke call sites detected outside mex/runtime.rs: "
+                    .to_string();
+            msg.push_str(&offenders.join(", "));
+            return Err(msg.into());
         }
 
         Ok(())
