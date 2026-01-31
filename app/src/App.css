@@ -626,6 +626,94 @@ body {
   gap: 8px;
 }
 
+.document-editor__body {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.document-editor__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.atelier-collab-panel {
+  width: min(360px, 42%);
+  max-height: 70vh;
+  overflow: auto;
+  border: 1px solid var(--hs-color-border);
+  border-radius: 12px;
+  background: var(--hs-color-bg);
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.atelier-collab-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.atelier-collab-panel__title {
+  margin: 0;
+  font-size: 15px;
+}
+
+.atelier-collab-panel__close {
+  border: 1px solid var(--hs-color-border);
+  border-radius: 8px;
+  padding: 4px 10px;
+  background: var(--hs-color-surface);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.atelier-collab-panel__close:hover:not(:disabled) {
+  background: var(--hs-color-accent-soft);
+  border-color: var(--hs-color-accent);
+}
+
+.atelier-collab-panel__section {
+  margin-top: 12px;
+}
+
+.atelier-collab-panel__section-title {
+  margin: 0 0 6px 0;
+  font-size: 13px;
+  color: var(--hs-color-text-subtle);
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.atelier-collab-panel__selection {
+  margin: 0;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px dashed var(--hs-color-border);
+  background: var(--hs-color-surface);
+  white-space: pre-wrap;
+  font-size: 13px;
+}
+
+.atelier-collab-panel__roles {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.atelier-collab-panel__role {
+  padding: 8px 10px;
+  border: 1px solid var(--hs-color-border);
+  border-radius: 10px;
+  background: var(--hs-color-surface);
+  font-size: 14px;
+}
+
 .document-editor__header {
   display: flex;
   align-items: center;

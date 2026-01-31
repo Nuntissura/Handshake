@@ -14,6 +14,7 @@ import { TiptapEditor } from "./TiptapEditor";
 import { logEvent } from "../state/debugEvents";
 import { addJob } from "../state/aiJobs";
 import { CommandPalette, CommandPaletteAction } from "./CommandPalette";
+import { AtelierCollaborationPanel } from "./AtelierCollaborationPanel";
 
 type Props = {
   documentId: string | null;
@@ -34,6 +35,8 @@ export function DocumentView({ documentId, onDeleted }: Props) {
   const [jobStarting, setJobStarting] = useState(false);
   const [jobError, setJobError] = useState<string | null>(null);
   const [instructions, setInstructions] = useState("");
+  const [collabOpen, setCollabOpen] = useState(false);
+  const [selectionText, setSelectionText] = useState("");
 
   useEffect(() => {
     if (!documentId) {
@@ -43,6 +46,8 @@ export function DocumentView({ documentId, onDeleted }: Props) {
       setPaletteOpen(false);
       setJobError(null);
       setInstructions("");
+      setCollabOpen(false);
+      setSelectionText("");
       return;
     }
     const load = async () => {
@@ -53,6 +58,8 @@ export function DocumentView({ documentId, onDeleted }: Props) {
       setPaletteOpen(false);
       setJobError(null);
       setInstructions("");
+      setCollabOpen(false);
+      setSelectionText("");
       try {
         const response = await getDocument(documentId);
         setDoc(response);
@@ -203,6 +210,15 @@ export function DocumentView({ documentId, onDeleted }: Props) {
               AI Actions
             </button>
             <button
+              type="button"
+              onClick={() => {
+                setCollabOpen(true);
+              }}
+              disabled={selectionText.trim().length === 0}
+            >
+              Collaborate on selection
+            </button>
+            <button
               onClick={async () => {
                 if (!documentId) return;
                 setLoading(true);
@@ -328,11 +344,25 @@ export function DocumentView({ documentId, onDeleted }: Props) {
           />
         )}
 
-        <TiptapEditor initialContent={editorContent} onChange={setEditorContent} />
-        <div className="document-editor__status">
-          {lastSavedAt && <span className="muted">Saved at {lastSavedAt}</span>}
-          {saveError && <span className="muted">Error: {saveError}</span>}
-          {deleteError && <span className="muted">Error: {deleteError}</span>}
+        <div className="document-editor__body">
+          <div className="document-editor__main">
+            <TiptapEditor
+              initialContent={editorContent}
+              onChange={setEditorContent}
+              onSelectionChange={setSelectionText}
+            />
+            <div className="document-editor__status">
+              {lastSavedAt && <span className="muted">Saved at {lastSavedAt}</span>}
+              {saveError && <span className="muted">Error: {saveError}</span>}
+              {deleteError && <span className="muted">Error: {deleteError}</span>}
+            </div>
+          </div>
+          <AtelierCollaborationPanel
+            open={collabOpen}
+            onClose={() => setCollabOpen(false)}
+            selectionText={selectionText}
+            roles={["Writer", "Editor", "Fact Checker"]}
+          />
         </div>
       </div>
 

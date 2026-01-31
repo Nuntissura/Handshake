@@ -6,9 +6,15 @@ type TiptapEditorProps = {
   initialContent: JSONContent | null;
   onChange: (doc: JSONContent) => void;
   readOnly?: boolean;
+  onSelectionChange?: (text: string) => void;
 };
 
-export function TiptapEditor({ initialContent, onChange, readOnly = false }: TiptapEditorProps) {
+export function TiptapEditor({
+  initialContent,
+  onChange,
+  readOnly = false,
+  onSelectionChange,
+}: TiptapEditorProps) {
   const [, forceSelectionRefresh] = useState(0);
   const editor = useEditor({
     extensions: [
@@ -35,14 +41,21 @@ export function TiptapEditor({ initialContent, onChange, readOnly = false }: Tip
 
   useEffect(() => {
     if (!editor) return;
-    const handler = () => forceSelectionRefresh((tick) => tick + 1);
-    editor.on("selectionUpdate", handler);
-    editor.on("transaction", handler);
-    return () => {
-      editor.off("selectionUpdate", handler);
-      editor.off("transaction", handler);
+    const refreshHandler = () => forceSelectionRefresh((tick) => tick + 1);
+    const selectionHandler = () => {
+      refreshHandler();
+      if (!onSelectionChange) return;
+      const { from, to } = editor.state.selection;
+      onSelectionChange(editor.state.doc.textBetween(from, to, "\n"));
     };
-  }, [editor]);
+
+    editor.on("selectionUpdate", selectionHandler);
+    editor.on("transaction", refreshHandler);
+    return () => {
+      editor.off("selectionUpdate", selectionHandler);
+      editor.off("transaction", refreshHandler);
+    };
+  }, [editor, onSelectionChange]);
 
   if (!editor) return null;
 
