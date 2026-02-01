@@ -72,6 +72,7 @@
 - **Concurrency rule (MANDATORY when >1 Coder is active):** use `git worktree` per active WP (separate working directories) to prevent collisions and accidental loss of uncommitted work.
   - Orchestrator sets up worktrees and assigns each Coder a dedicated working directory.
   - Coders MUST NOT share a single working tree when working concurrently.
+- **File-lock rule (MANDATORY when >1 WP is active):** treat each active WP's `IN_SCOPE_PATHS` as an exclusive file lock set. Do NOT activate/delegate a second WP whose `IN_SCOPE_PATHS` overlaps an in-progress WP. If overlap is required, sequence the work or re-scope (see [CX-CONC-001]).
 - Coders may commit freely on their WP branch. The Validator performs the final merge/commit to `main` after PASS (per Codex [CX-505]).
 
 ## Worktree + Branch Gate [CX-WT-001] (BLOCKING)
