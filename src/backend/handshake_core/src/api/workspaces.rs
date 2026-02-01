@@ -1336,10 +1336,10 @@ mod tests {
         let verified =
             verify_atelier_applied_suggestion_v1(&state, "doc-1", &patchset.selection, &incoming)
                 .await
-                .map_err(|(status, body)| {
+                .map_err(|(status, _body)| {
                     std::io::Error::new(
                         std::io::ErrorKind::Other,
-                        format!("expected verification to succeed, got status {status}: {body:?}"),
+                        format!("expected verification to succeed, got status {status}"),
                     )
                 })?;
 
