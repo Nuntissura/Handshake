@@ -77,6 +77,12 @@ pub enum FlightRecorderEventType {
     RuntimeChatMessageAppended,
     RuntimeChatAns001Validation,
     RuntimeChatSessionClosed,
+    /// FR-EVT-MODEL-001..005: Model swap events [11.5.6]
+    ModelSwapRequested,
+    ModelSwapCompleted,
+    ModelSwapFailed,
+    ModelSwapTimeout,
+    ModelSwapRollback,
     /// FR-EVT-DATA-001..015: AI-Ready Data Architecture events [Â§11.5.5]
     DataBronzeCreated,
     DataSilverCreated,
@@ -153,6 +159,11 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::RuntimeChatSessionClosed => {
                 write!(f, "runtime_chat_session_closed")
             }
+            FlightRecorderEventType::ModelSwapRequested => write!(f, "model_swap_requested"),
+            FlightRecorderEventType::ModelSwapCompleted => write!(f, "model_swap_completed"),
+            FlightRecorderEventType::ModelSwapFailed => write!(f, "model_swap_failed"),
+            FlightRecorderEventType::ModelSwapTimeout => write!(f, "model_swap_timeout"),
+            FlightRecorderEventType::ModelSwapRollback => write!(f, "model_swap_rollback"),
             FlightRecorderEventType::DataBronzeCreated => write!(f, "data_bronze_created"),
             FlightRecorderEventType::DataSilverCreated => write!(f, "data_silver_created"),
             FlightRecorderEventType::DataSilverUpdated => write!(f, "data_silver_updated"),
@@ -379,6 +390,46 @@ impl FlightRecorderEvent {
                     ));
                 }
                 validate_runtime_chat_session_closed_payload(&self.payload)
+            }
+            FlightRecorderEventType::ModelSwapRequested => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "model_swap_requested actor must be system".to_string(),
+                    ));
+                }
+                validate_model_swap_event_payload(&self.payload, "model_swap_requested")
+            }
+            FlightRecorderEventType::ModelSwapCompleted => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "model_swap_completed actor must be system".to_string(),
+                    ));
+                }
+                validate_model_swap_event_payload(&self.payload, "model_swap_completed")
+            }
+            FlightRecorderEventType::ModelSwapFailed => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "model_swap_failed actor must be system".to_string(),
+                    ));
+                }
+                validate_model_swap_event_payload(&self.payload, "model_swap_failed")
+            }
+            FlightRecorderEventType::ModelSwapTimeout => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "model_swap_timeout actor must be system".to_string(),
+                    ));
+                }
+                validate_model_swap_event_payload(&self.payload, "model_swap_timeout")
+            }
+            FlightRecorderEventType::ModelSwapRollback => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "model_swap_rollback actor must be system".to_string(),
+                    ));
+                }
+                validate_model_swap_event_payload(&self.payload, "model_swap_rollback")
             }
             FlightRecorderEventType::WorkflowRecovery => {
                 if self.actor != FlightRecorderActor::System {
@@ -1475,6 +1526,186 @@ fn validate_runtime_chat_session_closed_payload(payload: &Value) -> Result<(), R
         if map.contains_key(key) {
             require_string(map, key)?;
         }
+    }
+
+    Ok(())
+}
+
+// =============================================================================
+// FR-EVT-MODEL-001..005 (Model Swap) payload validators [11.5.6]
+// =============================================================================
+
+fn validate_model_swap_role(map: &Map<String, Value>) -> Result<(), RecorderError> {
+    match require_key(map, "role")? {
+        Value::String(value)
+            if matches!(
+                value.as_str(),
+                "frontend" | "orchestrator" | "worker" | "validator"
+            ) =>
+        {
+            Ok(())
+        }
+        _ => Err(RecorderError::InvalidEvent(
+            "payload field role must be one of: frontend, orchestrator, worker, validator"
+                .to_string(),
+        )),
+    }
+}
+
+fn require_sha256_hex_lowercase(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    let value = match require_key(map, key)? {
+        Value::String(value) if !value.trim().is_empty() => value.trim(),
+        _ => {
+            return Err(RecorderError::InvalidEvent(format!(
+                "payload field {key} must be a non-empty string"
+            )))
+        }
+    };
+
+    if value.len() != 64
+        || !value
+            .chars()
+            .all(|c| c.is_ascii_digit() || matches!(c, 'a'..='f'))
+    {
+        return Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be a 64-char lowercase hex sha256"
+        )));
+    }
+
+    Ok(())
+}
+
+fn validate_model_swap_event_payload(
+    payload: &Value,
+    expected_type: &str,
+) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_allowed_keys(
+        map,
+        &[
+            "type",
+            "request_id",
+            "current_model_id",
+            "target_model_id",
+            "role",
+            "reason",
+        ],
+        &[
+            "swap_strategy",
+            "max_vram_mb",
+            "max_ram_mb",
+            "timeout_ms",
+            "state_persist_refs",
+            "state_hash",
+            "context_compile_ref",
+            "wp_id",
+            "mt_id",
+            "outcome",
+            "error_summary",
+        ],
+    )?;
+
+    require_fixed_string(map, "type", expected_type)?;
+
+    match require_key(map, "request_id")? {
+        Value::String(value) if is_safe_token(value, 256) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field request_id must be a bounded string token".to_string(),
+            ))
+        }
+    }
+
+    for key in ["current_model_id", "target_model_id"] {
+        match require_key(map, key)? {
+            Value::String(value) if is_safe_token(value, 256) => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(format!(
+                    "payload field {key} must be a bounded string token"
+                )))
+            }
+        }
+    }
+
+    validate_model_swap_role(map)?;
+    require_string(map, "reason")?;
+
+    if map.contains_key("swap_strategy") {
+        match require_key(map, "swap_strategy")? {
+            Value::String(value)
+                if matches!(
+                    value.as_str(),
+                    "unload_reload" | "keep_hot_swap" | "disk_offload"
+                ) => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field swap_strategy must be one of: unload_reload, keep_hot_swap, disk_offload"
+                        .to_string(),
+                ))
+            }
+        }
+    }
+
+    for key in ["max_vram_mb", "max_ram_mb", "timeout_ms"] {
+        if map.contains_key(key) {
+            require_number(map, key)?;
+        }
+    }
+
+    if map.contains_key("state_persist_refs") {
+        let refs = require_string_array(map, "state_persist_refs")?;
+        for (idx, value) in refs.iter().enumerate() {
+            if !is_safe_token(value, 512) {
+                return Err(RecorderError::InvalidEvent(format!(
+                    "payload field state_persist_refs[{idx}] must be a bounded string token"
+                )));
+            }
+        }
+    }
+    if map.contains_key("state_hash") {
+        require_sha256_hex_lowercase(map, "state_hash")?;
+    }
+    if map.contains_key("context_compile_ref") {
+        match require_key(map, "context_compile_ref")? {
+            Value::String(value) if is_safe_token(value, 512) => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field context_compile_ref must be a bounded string token".to_string(),
+                ))
+            }
+        }
+    }
+
+    for key in ["wp_id", "mt_id"] {
+        if map.contains_key(key) {
+            match require_key(map, key)? {
+                Value::String(value) if is_safe_id(value, 128) => {}
+                _ => {
+                    return Err(RecorderError::InvalidEvent(format!(
+                        "payload field {key} must be a safe id"
+                    )))
+                }
+            }
+        }
+    }
+
+    if map.contains_key("outcome") {
+        match require_key(map, "outcome")? {
+            Value::String(value)
+                if matches!(
+                    value.as_str(),
+                    "success" | "failure" | "timeout" | "rollback"
+                ) => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field outcome must be one of: success, failure, timeout, rollback"
+                        .to_string(),
+                ))
+            }
+        }
+    }
+    if map.contains_key("error_summary") {
+        require_string(map, "error_summary")?;
     }
 
     Ok(())
