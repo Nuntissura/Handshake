@@ -26,6 +26,7 @@ Requirements:
 - **Status:** Ready for Dev
 - RISK_TIER: LOW | MEDIUM | HIGH
 - USER_SIGNATURE: {{USER_SIGNATURE}}
+- PACKET_FORMAT_VERSION: 2026-02-01
 
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 - REFINEMENT_FILE: docs/refinements/{{WP_ID}}.md
@@ -96,6 +97,22 @@ git revert <commit-sha>
 - Proposed interfaces/types/contracts:
 - Open questions:
 - Notes:
+
+## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
+- END_TO_END_CLOSURE_PLAN_APPLICABLE: YES | NO
+- TRUST_BOUNDARY: <fill> (examples: client->server, server->storage, job->apply)
+- SERVER_SOURCES_OF_TRUTH:
+  - <fill> (what the server loads/verifies instead of trusting the client)
+- REQUIRED_PROVENANCE_FIELDS:
+  - <fill> (role_id, contract_id, model_id/tool_id, evidence refs, before/after spans, etc.)
+- VERIFICATION_PLAN:
+  - <fill> (how provenance/audit is verified and recorded; include non-spoofable checks when required)
+- ERROR_TAXONOMY_PLAN:
+  - <fill> (distinct error classes: stale/mismatch vs spoof attempt vs true scope violation)
+- UI_GUARDRAILS:
+  - <fill> (prevent stale apply; preview before apply; disable conditions)
+- VALIDATOR_ASSERTIONS:
+  - <fill> (what the validator must prove; spec anchors; fields present; trust boundary enforced)
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)
