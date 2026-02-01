@@ -40,7 +40,40 @@ vi.mock("../lib/api", () => {
   const deleteDocument = vi.fn(async () => undefined);
   const updateDocumentBlocks = vi.fn(async (_id: string, blocks: BlockInput[]) => blocks);
   const createJob = vi.fn(async () => ({ job_id: "job-1" }));
+  const getJob = vi.fn(async () => ({
+    job_id: "job-1",
+    trace_id: "trace-1",
+    workflow_run_id: null,
+    job_kind: "doc_edit",
+    state: "completed",
+    protocol_id: "atelier-doc-suggest-v1",
+    profile_id: "Coder",
+    capability_profile_id: "Coder",
+    access_mode: "local",
+    safety_mode: "default",
+    entity_refs: [],
+    planned_operations: [],
+    metrics: {
+      duration_ms: 0,
+      total_tokens: 0,
+      input_tokens: 0,
+      output_tokens: 0,
+      tokens_planner: 0,
+      tokens_executor: 0,
+      entities_read: 0,
+      entities_written: 0,
+      validators_run_count: 0,
+    },
+    status_reason: "completed",
+    job_inputs: null,
+    job_outputs: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }));
   const createDiagnostic = vi.fn(async () => ({ id: "diag-1" }));
+  const getAtelierRoles = vi.fn(async () => ({ roles: [] }));
+  const applyAtelierPatchsets = vi.fn(async () => []);
+  const sha256HexUtf8 = vi.fn(async () => "0".repeat(64));
   const getDocument = vi.fn(async () => ({
     id: "doc-1",
     workspace_id: "w1",
@@ -58,7 +91,17 @@ vi.mock("../lib/api", () => {
       },
     ],
   }));
-  return { getDocument, updateDocumentBlocks, deleteDocument, createJob, createDiagnostic };
+  return {
+    getDocument,
+    updateDocumentBlocks,
+    deleteDocument,
+    createJob,
+    getJob,
+    createDiagnostic,
+    getAtelierRoles,
+    applyAtelierPatchsets,
+    sha256HexUtf8,
+  };
 });
 
 describe("DocumentView", () => {
