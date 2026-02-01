@@ -3,7 +3,7 @@
     "WP-1-Atelier-Collaboration-Panel-v1": {
       "wpId": "WP-1-Atelier-Collaboration-Panel-v1",
       "verdict": "PASS",
-      "status": "WP_APPENDED",
+      "status": "COMMITTED",
       "started": "2026-02-01T04:41:28.286Z",
       "gates": [
         {
@@ -18,8 +18,13 @@
         {
           "gate": "WP_APPENDED",
           "timestamp": "2026-02-01T12:18:17.919Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-02-01T12:18:39.803Z"
         }
-      ]
+      ],
+      "completed": "2026-02-01T12:18:39.804Z"
     }
   },
   "archived_sessions": []
