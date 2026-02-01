@@ -1808,12 +1808,21 @@ enum RiskLevel {
     High,
 }
 
+const EXEC_POLICY_EXT_SCHEMA_VERSION_V0_4: &str = "hsk.exec_policy_ext@0.4";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum ExecutionPolicyExtension {
-    ModelSwapPolicy(ModelSwapPolicy),
+    #[serde(rename = "model_swap_policy")]
+    ModelSwapPolicy(ExecutionPolicyExtensionModelSwapPolicyV0_4),
     #[serde(other)]
     Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ExecutionPolicyExtensionModelSwapPolicyV0_4 {
+    pub schema_version: String,
+    pub model_swap_policy: ModelSwapPolicy,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1855,7 +1864,8 @@ fn default_swap_timeout_ms() -> u64 {
 #[serde(rename_all = "snake_case")]
 enum ModelSwapFallbackStrategy {
     Abort,
-    Rollback,
+    ContinueWithCurrent,
+    EscalateToCloud,
 }
 
 impl Default for ModelSwapFallbackStrategy {
@@ -1911,7 +1921,12 @@ impl ExecutionPolicy {
             .iter()
             .rev()
             .find_map(|ext| match ext {
-                ExecutionPolicyExtension::ModelSwapPolicy(policy) => Some(policy.clone()),
+                ExecutionPolicyExtension::ModelSwapPolicy(ext)
+                    if ext.schema_version == EXEC_POLICY_EXT_SCHEMA_VERSION_V0_4 =>
+                {
+                    Some(ext.model_swap_policy.clone())
+                }
+                ExecutionPolicyExtension::ModelSwapPolicy(_) => None,
                 ExecutionPolicyExtension::Unknown => None,
             })
             .unwrap_or_default()
@@ -5371,7 +5386,7 @@ NEED: {{what you need to unblock}}
 
                         if matches!(
                             swap_policy.fallback_strategy,
-                            ModelSwapFallbackStrategy::Rollback
+                            ModelSwapFallbackStrategy::ContinueWithCurrent
                         ) {
                             record_event_safely(
                                 state,
@@ -5403,6 +5418,15 @@ NEED: {{what you need to unblock}}
                                 .with_workflow_id(workflow_run_id.to_string()),
                             )
                             .await;
+
+                            progress.current_state.active_model_level = from_level;
+                            progress.updated_at = Utc::now();
+                            write_json_atomic(&progress_abs, &progress)?;
+                            write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                            false_completion_streak = 0;
+                            iteration = 1;
+                            continue;
                         }
 
                         progress.status = ProgressStatus::Failed;
@@ -5462,7 +5486,7 @@ NEED: {{what you need to unblock}}
 
                         if matches!(
                             swap_policy.fallback_strategy,
-                            ModelSwapFallbackStrategy::Rollback
+                            ModelSwapFallbackStrategy::ContinueWithCurrent
                         ) {
                             record_event_safely(
                                 state,
@@ -5494,6 +5518,15 @@ NEED: {{what you need to unblock}}
                                 .with_workflow_id(workflow_run_id.to_string()),
                             )
                             .await;
+
+                            progress.current_state.active_model_level = from_level;
+                            progress.updated_at = Utc::now();
+                            write_json_atomic(&progress_abs, &progress)?;
+                            write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                            false_completion_streak = 0;
+                            iteration = 1;
+                            continue;
                         }
 
                         progress.status = ProgressStatus::Failed;
