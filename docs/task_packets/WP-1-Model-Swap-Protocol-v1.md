@@ -176,10 +176,10 @@ git revert <commit-sha>
 ### Manifest Entry 2: workflows.rs
 - **Target File**: `src/backend/handshake_core/src/workflows.rs`
 - **Start**: 1
-- **End**: 6238
-- **Line Delta**: 772
+- **End**: 6245
+- **Line Delta**: 779
 - **Pre-SHA1**: `6650634199179fdead7b86d80d05fe3284f7110a`
-- **Post-SHA1**: `d5f691a9dae7f63de5a0f9ff7e360aed0b27c659`
+- **Post-SHA1**: `fbeccc9d7d6c0aeb64a08dc98a87024e24722fa8`
 - **Change Summary**: Implemented ModelSwapRequest v0.4 persistence + state_hash verification, policy extension parsing (exec_policy_ext@0.4), and swap failure/timeout/rollback event emission.
 - **Gates Passed**:
   - [x] anchors_present
