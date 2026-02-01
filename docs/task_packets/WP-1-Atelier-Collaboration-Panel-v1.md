@@ -321,10 +321,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/api/workspaces.rs`
 - **Start**: 1
-- **End**: 1759
-- **Line Delta**: 936
+- **End**: 1757
+- **Line Delta**: 934
 - **Pre-SHA1**: `78ef525e962e60d81e73c2379b9f16d4df676791`
-- **Post-SHA1**: `a55eab342dfc4b52b129d937d38c0f82901ec6db`
+- **Post-SHA1**: `a3750ea7ab9247302476c326543bbc831ecc41d6`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan

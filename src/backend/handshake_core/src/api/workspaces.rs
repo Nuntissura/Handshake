@@ -1333,17 +1333,15 @@ mod tests {
             patchset: patchset.clone(),
         };
 
-        let verified = match verify_atelier_applied_suggestion_v1(
-            &state,
-            "doc-1",
-            &patchset.selection,
-            &incoming,
-        )
-        .await
-        {
-            Ok(value) => value,
-            Err((status, _)) => panic!("expected verification to succeed, got status {status}"),
-        };
+        let verified =
+            verify_atelier_applied_suggestion_v1(&state, "doc-1", &patchset.selection, &incoming)
+                .await
+                .map_err(|(status, body)| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("expected verification to succeed, got status {status}: {body:?}"),
+                    )
+                })?;
 
         assert_eq!(verified.role_id, "role-a");
         assert_eq!(verified.contract_id, "ROLE:role-a:C:1");
