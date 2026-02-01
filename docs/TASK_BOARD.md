@@ -90,7 +90,6 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 - **[WP-1-Role-Turn-Isolation-v1]** - [STUB]
 - **[WP-1-Artifact-System-Foundations-v1]** - [STUB]
 - **[WP-1-Git-Engine-Decision-Gate-v1]** - [STUB]
-- **[WP-1-Post-Work-Check-Noise-v1]** - [STUB]
 - **[WP-1-Retrieval-Trace-Bundle-Export-v1]** - [STUB]
 
 
