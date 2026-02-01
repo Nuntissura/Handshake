@@ -177,10 +177,10 @@ git revert <commit-sha>
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
 - **Target File**: `app/src/App.css`
 - **Start**: 1
-- **End**: 1555
-- **Line Delta**: 128
+- **End**: 1573
+- **Line Delta**: 146
 - **Pre-SHA1**: `70ed6ee27f439ec5cb4b1c3833601b2e116a38c3`
-- **Post-SHA1**: `39a993f6d759e53dd5898db5a9e950e225d21cb0`
+- **Post-SHA1**: `2c0c011c75e7b09edbb0d07b4b7ee31554bf2468`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -195,10 +195,10 @@ git revert <commit-sha>
 
 - **Target File**: `app/src/components/AtelierCollaborationPanel.tsx`
 - **Start**: 1
-- **End**: 307
-- **Line Delta**: 307
+- **End**: 409
+- **Line Delta**: 409
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `3e9a5dbc699ceed0e39846f95a4b9b2eec7723c3`
+- **Post-SHA1**: `2424899d24f9a2875b04af3bc495fec84f5d1994`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -267,10 +267,10 @@ git revert <commit-sha>
 
 - **Target File**: `app/src/lib/api.ts`
 - **Start**: 1
-- **End**: 755
-- **Line Delta**: 77
+- **End**: 756
+- **Line Delta**: 78
 - **Pre-SHA1**: `45af6603fa4578d99c451f17959576a3b27edb11`
-- **Post-SHA1**: `7842508ea864b63818a812f9bf89a5ff931a7dba`
+- **Post-SHA1**: `14a9485f1f6cff0203f8d592f2f3f855ffb80062`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -288,7 +288,7 @@ git revert <commit-sha>
 - **End**: 250
 - **Line Delta**: 250
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `f854db750291a51715990d5ff40c2a0ed94571b6`
+- **Post-SHA1**: `99a51b3c8c590fd5484cfe0ef7d3abd328260a7e`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -321,10 +321,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/api/workspaces.rs`
 - **Start**: 1
-- **End**: 1128
-- **Line Delta**: 305
+- **End**: 1759
+- **Line Delta**: 936
 - **Pre-SHA1**: `78ef525e962e60d81e73c2379b9f16d4df676791`
-- **Post-SHA1**: `691e4745d7940ce4a4cd661216d43f67595bd782`
+- **Post-SHA1**: `a55eab342dfc4b52b129d937d38c0f82901ec6db`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -339,10 +339,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/workflows.rs`
 - **Start**: 1
-- **End**: 5464
-- **Line Delta**: 128
+- **End**: 5465
+- **Line Delta**: 129
 - **Pre-SHA1**: `86cc7746ad4c75429b6b8cfd7351b92b71e8d159`
-- **Post-SHA1**: `8bde3dc5a570125a382ba61358478dc9fd89041e`
+- **Post-SHA1**: `6650634199179fdead7b86d80d05fe3284f7110a`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -376,11 +376,200 @@ git revert <commit-sha>
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
 - Current WP_STATUS: In Progress
-- What changed in this update: Bootstrapped (claimed WP; starting work)
-- Next step / handoff hint: Implement selection-scoped collaboration panel (per SKELETON APPROVED)
+- What changed in this update: Added non-spoofable applied-suggestion provenance (contract_id + source_job_id) and recorded applied provenance in FR-EVT-002; tightened UI apply rules (stale/selection mismatch prevention) + suggestion previews.
+- Next step / handoff hint: Stage/commit in-scope files and notify Validator; see `## EVIDENCE` for command outputs.
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+
+### 2026-02-01
+
+#### Frontend
+```text
+$ NO_COLOR=1 pnpm -C app test
+
+> app@0.1.0 test D:\Projects\LLM projects\wt-WP-1-Atelier-Collaboration-Panel-v1\app
+> vitest run
+
+
+ RUN  v4.0.15 D:/Projects/LLM projects/wt-WP-1-Atelier-Collaboration-Panel-v1/app
+
+ \u2713 src/components/CanvasSerialization.test.ts (1 test) 5ms
+ \u2713 src/components/DebugPanel.test.tsx (3 tests) 460ms
+     \u2713 renders healthy system status and recent events  420ms
+ \u2713 src/components/WorkspaceSidebar.test.tsx (2 tests) 215ms
+ \u2713 src/components/DocumentView.test.tsx (2 tests) 296ms
+ \u2713 src/App.test.tsx (3 tests) 256ms
+
+ Test Files  5 passed (5)
+      Tests  11 passed (11)
+   Start at  03:29:27
+   Duration  2.71s (transform 2.00s, setup 739ms, import 2.84s, tests 1.23s, environment 4.61s)
+```
+
+```text
+$ pnpm -C app lint
+
+> app@0.1.0 lint D:\Projects\LLM projects\wt-WP-1-Atelier-Collaboration-Panel-v1\app
+> eslint src --ext .ts,.tsx
+```
+
+#### Backend
+```text
+$ cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests -q
+
+running 154 tests
+....................................................................................... 87/154
+...................................................................
+test result: ok. 154 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.78s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 13 tests
+iiii.........
+test result: ok. 9 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.04s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.33s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.53s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 13 tests
+.............
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s
+
+warning: value assigned to `timed_out` is never read
+    --> src\\workflows.rs:3003:17
+     |
+3003 |         let mut timed_out = false;
+     |                 ^^^^^^^^^
+     |
+     = help: maybe it is overwritten before being read?
+     = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `stdout_rel` is never read
+    --> src\\workflows.rs:3009:17
+     |
+3009 |         let mut stdout_rel: Option<String> = None;
+     |                 ^^^^^^^^^^
+     |
+     = help: maybe it is overwritten before being read?
+
+warning: value assigned to `stderr_rel` is never read
+    --> src\\workflows.rs:3010:17
+     |
+3010 |         let mut stderr_rel: Option<String> = None;
+     |                 ^^^^^^^^^^
+     |
+     = help: maybe it is overwritten before being read?
+
+warning: method `report_kind` is never used
+   --> src\\mex\\supply_chain.rs:223:8
+    |
+194 | impl ScanJobKind {
+    | ---------------- method in this implementation
+...
+223 |     fn report_kind(&self) -> Option<SupplyChainReportKind> {
+    |        ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+```
+
+#### Determinism gate
+```text
+$ just post-work WP-1-Atelier-Collaboration-Panel-v1 --range 17608f01a0f1a966e65cc677e63be025c7f2118c..HEAD
+
+Checking Phase Gate for WP-1-Atelier-Collaboration-Panel-v1...
+? GATE PASS: Workflow sequence verified.
+
+Post-work validation for WP-1-Atelier-Collaboration-Panel-v1 (deterministic manifest + gates)...
+
+Check 1: Validation manifest present
+
+Diff selection: range (explicit --range)
+Git range: 17608f01a0f1a966e65cc677e63be025c7f2118c..77c7aeb682e1fb5c2b2bec869f97ca106f1ea779
+
+Check 2: Manifest fields
+
+Check 3: File integrity (per manifest entry)
+
+Check 4: Git status
+
+==================================================
+Post-work validation PASSED with warnings
+
+Warnings:
+  1. Manifest[2]: Could not load 17608f01a0f1a966e65cc677e63be025c7f2118c version (new file or not tracked at 17608f01a0f1a966e65cc677e63be025c7f2118c): app\\src\\components\\AtelierCollaborationPanel.tsx
+  2. Manifest[7]: Could not load 17608f01a0f1a966e65cc677e63be025c7f2118c version (new file or not tracked at 17608f01a0f1a966e65cc677e63be025c7f2118c): src\\backend\\handshake_core\\src\\ace\\validators\\atelier_scope.rs
+  3. Manifest[11]: Could not load 17608f01a0f1a966e65cc677e63be025c7f2118c version (new file or not tracked at 17608f01a0f1a966e65cc677e63be025c7f2118c): src\\backend\\handshake_core\\tests\\atelier_collaboration_panel_tests.rs
+
+You may proceed with commit.
+? ROLE_MAILBOX_EXPORT_GATE PASS
+warning: in the working copy of 'docs/task_packets/WP-1-Atelier-Collaboration-Panel-v1.md', CRLF will be replaced by LF the next time Git touches it
+fatal: path 'app/src/components/AtelierCollaborationPanel.tsx' exists on disk, but not in '17608f01a0f1a966e65cc677e63be025c7f2118c'
+fatal: path 'src/backend/handshake_core/src/ace/validators/atelier_scope.rs' exists on disk, but not in '17608f01a0f1a966e65cc677e63be025c7f2118c'
+fatal: path 'src/backend/handshake_core/tests/atelier_collaboration_panel_tests.rs' exists on disk, but not in '17608f01a0f1a966e65cc677e63be025c7f2118c'
+```
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)

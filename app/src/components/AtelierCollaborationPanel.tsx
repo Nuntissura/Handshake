@@ -16,6 +16,7 @@ import type { TiptapSelectionInfo } from "./TiptapEditor";
 type RoleSuggestionV1 = {
   suggestion_id: string;
   role_id: string;
+  contract_id?: string;
   title: string;
   rationale?: string | null;
   patchset: DocPatchsetV1;
@@ -52,6 +53,24 @@ function isRoleSuggestionsResponseV1(value: unknown): value is RoleSuggestionsRe
   if (!value || typeof value !== "object") return false;
   const obj = value as Record<string, unknown>;
   return obj.schema_version === "hsk.atelier.role_suggestions@v1" && Array.isArray(obj.by_role);
+}
+
+function selectionKey(selection: SelectionRangeV1): string {
+  return [
+    selection.schema_version,
+    selection.surface,
+    selection.coordinate_space,
+    String(selection.start_utf8),
+    String(selection.end_utf8),
+    selection.doc_preimage_sha256,
+    selection.selection_preimage_sha256,
+  ].join("|");
+}
+
+function firstInsertText(patchset: DocPatchsetV1): string {
+  const op = patchset.ops[0];
+  if (!op) return "";
+  return op.insert_text ?? "";
 }
 
 export function AtelierCollaborationPanel({
@@ -179,23 +198,87 @@ export function AtelierCollaborationPanel({
     return all;
   }, [suggestionsByRole]);
 
+  const selectedRoleSuggestions = useMemo(() => {
+    return allSuggestions.filter((s) => Boolean(selectedIds[s.suggestion_id]));
+  }, [allSuggestions, selectedIds]);
+
+  const selectedSelectionKey = useMemo(() => {
+    const first = selectedRoleSuggestions[0];
+    if (!first) return null;
+    return selectionKey(first.patchset.selection);
+  }, [selectedRoleSuggestions]);
+
+  const hasSelectionMismatch = useMemo(() => {
+    if (!selectedSelectionKey) return false;
+    return selectedRoleSuggestions.some(
+      (s) => selectionKey(s.patchset.selection) !== selectedSelectionKey,
+    );
+  }, [selectedRoleSuggestions, selectedSelectionKey]);
+
+  const docDirtyForSelected = useMemo(() => {
+    if (!docPreimageHash) return false;
+    return selectedRoleSuggestions.some(
+      (s) => s.patchset.selection.doc_preimage_sha256 !== docPreimageHash,
+    );
+  }, [docPreimageHash, selectedRoleSuggestions]);
+
+  const docDirtyForPanel = useMemo(() => {
+    if (!docPreimageHash) return false;
+    return allSuggestions.some((s) => s.patchset.selection.doc_preimage_sha256 !== docPreimageHash);
+  }, [allSuggestions, docPreimageHash]);
+
+  const missingSourceJobIdForSelected = useMemo(() => {
+    return selectedRoleSuggestions.some((s) => !s.source_job_id || s.source_job_id.trim().length === 0);
+  }, [selectedRoleSuggestions]);
+
+  const canApplySelected = useMemo(() => {
+    if (!open) return false;
+    if (!canOperate) return false;
+    if (applying) return false;
+    if (selectedRoleSuggestions.length === 0) return false;
+    if (hasSelectionMismatch) return false;
+    if (docDirtyForSelected) return false;
+    if (missingSourceJobIdForSelected) return false;
+    return true;
+  }, [
+    applying,
+    canOperate,
+    docDirtyForSelected,
+    hasSelectionMismatch,
+    missingSourceJobIdForSelected,
+    open,
+    selectedRoleSuggestions.length,
+  ]);
+
   const applySelected = async () => {
     setApplyError(null);
-    const selectedSuggestions: AtelierApplySuggestionV1[] = [];
 
-    for (const suggestion of allSuggestions) {
-      if (!selectedIds[suggestion.suggestion_id]) continue;
-      selectedSuggestions.push({
-        role_id: suggestion.role_id,
-        suggestion_id: suggestion.suggestion_id,
-        patchset: suggestion.patchset,
-      });
-    }
-
-    if (selectedSuggestions.length === 0) {
+    if (selectedRoleSuggestions.length === 0) {
       setApplyError("Select at least one suggestion to apply.");
       return;
     }
+
+    if (missingSourceJobIdForSelected) {
+      setApplyError("Missing source_job_id on selected suggestions. Regenerate suggestions.");
+      return;
+    }
+
+    if (hasSelectionMismatch) {
+      setApplyError("Selected suggestions were generated for different selections. Regenerate suggestions.");
+      return;
+    }
+
+    if (docDirtyForSelected) {
+      setApplyError("Document changed since suggestion generation. Save and regenerate suggestions.");
+      return;
+    }
+
+    const selectedSuggestions: AtelierApplySuggestionV1[] = selectedRoleSuggestions.map((s) => ({
+      role_id: s.role_id,
+      suggestion_id: s.suggestion_id,
+      source_job_id: s.source_job_id!,
+      patchset: s.patchset,
+    }));
 
     setApplying(true);
     try {
@@ -234,6 +317,9 @@ export function AtelierCollaborationPanel({
           <pre className="atelier-collab-panel__selection">{selectionPreview}</pre>
         )}
         {docHashError && <p className="error">Error: {docHashError}</p>}
+        {docDirtyForPanel && (
+          <p className="error">Document changed since suggestions were generated. Save and regenerate suggestions.</p>
+        )}
       </section>
 
       <section className="atelier-collab-panel__section">
@@ -265,24 +351,40 @@ export function AtelierCollaborationPanel({
                   {status && <p className="muted small">{status}</p>}
                   {suggestions.length > 0 && (
                     <ul className="atelier-collab-panel__suggestions">
-                      {suggestions.map((s) => (
-                        <li key={s.suggestion_id} className="atelier-collab-panel__suggestion">
-                          <label className="atelier-collab-panel__suggestion-label">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(selectedIds[s.suggestion_id])}
-                              onChange={(e) =>
-                                setSelectedIds((prev) => ({
-                                  ...prev,
-                                  [s.suggestion_id]: e.target.checked,
-                                }))
-                              }
-                              disabled={applying}
-                            />
-                            <span>{s.title}</span>
-                          </label>
-                        </li>
-                      ))}
+                      {suggestions.map((s) => {
+                        const fullPreview = firstInsertText(s.patchset).trim();
+                        const truncated = fullPreview.length > 200;
+                        const preview = truncated ? `${fullPreview.slice(0, 200)}…` : fullPreview;
+
+                        return (
+                          <li key={s.suggestion_id} className="atelier-collab-panel__suggestion">
+                            <label className="atelier-collab-panel__suggestion-label">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(selectedIds[s.suggestion_id])}
+                                onChange={(e) =>
+                                  setSelectedIds((prev) => ({
+                                    ...prev,
+                                    [s.suggestion_id]: e.target.checked,
+                                  }))
+                                }
+                                disabled={applying}
+                              />
+                              <span>{s.title}</span>
+                            </label>
+                            {s.contract_id && <p className="muted small">Contract: {s.contract_id}</p>}
+                            {fullPreview.length > 0 && (
+                              <pre className="atelier-collab-panel__suggestion-preview">{preview}</pre>
+                            )}
+                            {truncated && (
+                              <details className="atelier-collab-panel__suggestion-preview-details">
+                                <summary className="muted small">Show full preview</summary>
+                                <pre className="atelier-collab-panel__suggestion-preview">{fullPreview}</pre>
+                              </details>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </li>
@@ -296,7 +398,7 @@ export function AtelierCollaborationPanel({
         <button
           type="button"
           onClick={() => void applySelected()}
-          disabled={applying || allSuggestions.length === 0}
+          disabled={!canApplySelected}
         >
           {applying ? "Applying..." : "Apply selected"}
         </button>

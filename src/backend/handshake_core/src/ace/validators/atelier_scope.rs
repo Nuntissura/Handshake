@@ -17,7 +17,7 @@ pub enum AtelierScopeError {
     HashMismatch(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SelectionRangeV1 {
     pub schema_version: String,
     pub surface: String,
@@ -28,7 +28,7 @@ pub struct SelectionRangeV1 {
     pub selection_preimage_sha256: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DocPatchsetV1 {
     pub schema_version: String,
     pub doc_id: String,
@@ -39,13 +39,13 @@ pub struct DocPatchsetV1 {
     pub summary: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RangeUtf8 {
     pub start: usize,
     pub end: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum PatchOpV1 {
     ReplaceRange {

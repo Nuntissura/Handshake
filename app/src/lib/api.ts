@@ -122,6 +122,7 @@ export type DocPatchsetV1 = {
 export type AtelierApplySuggestionV1 = {
   role_id: string;
   suggestion_id: string;
+  source_job_id: string;
   patchset: DocPatchsetV1;
 };
 

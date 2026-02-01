@@ -698,6 +698,24 @@ body {
   font-size: 13px;
 }
 
+.atelier-collab-panel__suggestion-preview {
+  margin: 6px 0 0 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px dashed var(--hs-color-border);
+  background: var(--hs-color-surface);
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+
+.atelier-collab-panel__suggestion-preview-details {
+  margin-top: 4px;
+}
+
+.atelier-collab-panel__suggestion-preview-details > summary {
+  cursor: pointer;
+}
+
 .atelier-collab-panel__roles {
   list-style: none;
   padding: 0;

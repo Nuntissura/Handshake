@@ -1084,6 +1084,7 @@ async fn run_job(
                 let suggestion = json!({
                     "suggestion_id": Uuid::new_v4().to_string(),
                     "role_id": role_id.clone(),
+                    "contract_id": format!("ROLE:{role_id}:C:1"),
                     "title": "Suggested edit".to_string(),
                     "rationale": null,
                     "patchset": patchset,
