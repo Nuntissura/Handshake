@@ -967,6 +967,30 @@
       "signature": "ilja010220261515",
       "timestamp": "2026-02-01T14:18:47.475Z",
       "refinement_path": "docs/refinements/WP-1-AI-UX-Summarize-Display-v2.md"
+    },
+    {
+      "wpId": "WP-1-Model-Swap-Protocol-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Model-Swap-Protocol-v1",
+      "worktree_dir": "D:/Projects/LLM",
+      "timestamp": "2026-02-01T14:23:06.701Z"
+    },
+    {
+      "wpId": "WP-1-Model-Swap-Protocol-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Model-Swap-Protocol-v1",
+      "worktree_dir": "../wt-WP-1-Model-Swap-Protocol-v1",
+      "timestamp": "2026-02-01T14:23:32.625Z"
+    },
+    {
+      "wpId": "WP-1-AI-UX-Summarize-Display-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-B",
+      "branch": "feat/WP-1-AI-UX-Summarize-Display-v2",
+      "worktree_dir": "../wt-WP-1-AI-UX-Summarize-Display-v2",
+      "timestamp": "2026-02-01T14:23:39.726Z"
     }
   ]
 }

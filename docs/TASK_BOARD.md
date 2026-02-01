@@ -49,6 +49,9 @@ Entry format (recommended):
 
 A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `docs/task_packets/` (not a stub).
 
+- **[WP-1-Model-Swap-Protocol-v1]** - [READY_FOR_DEV]
+- **[WP-1-AI-UX-Summarize-Display-v2]** - [READY_FOR_DEV]
+
 ## Stub Backlog (Not Activated)
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
@@ -65,7 +68,6 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 - **[WP-1-MEX-UX-Bridges-v2]** - [STUB]
 - **[WP-1-MCP-Skeleton-Gate-v2]** - [STUB]
 - **[WP-1-AI-UX-Rewrite-v2]** - [STUB]
-- **[WP-1-AI-UX-Summarize-Display-v2]** - [STUB]
 - **[WP-1-PDF-Pipeline-v2]** - [STUB]
 - **[WP-1-Photo-Studio-v2]** - [STUB]
 - **[WP-1-Atelier-Lens-v2]** - [STUB]
@@ -77,7 +79,6 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 - **[WP-1-Semantic-Catalog-v2]** - [STUB]
 - **[WP-1-MCP-End-to-End-v2]** - [STUB]
 - **[WP-1-Metrics-Traces-v2]** - [STUB]
-- **[WP-1-Model-Swap-Protocol-v1]** - [STUB]
 - **[WP-1-Work-Profiles-v1]** - [STUB]
 - **[WP-1-Cloud-Escalation-Consent-v1]** - [STUB]
 - **[WP-1-Inbox-Role-Mailbox-Alignment-v1]** - [STUB]

@@ -64,7 +64,7 @@ Format:
 | WP-1-Locus-Work-Tracking-System-Phase1 | docs/task_packets/stubs/WP-1-Locus-Work-Tracking-System-Phase1-v1.md | Stub Backlog (Not Activated): WP-1-Locus-Work-Tracking-System-Phase1-v1 | stub (spec v02.116); new roadmap item |
 | WP-1-AI-UX-Actions | docs/task_packets/WP-1-AI-UX-Actions-v2.md | Ready for Dev: WP-1-AI-UX-Actions-v2 | active=WP-1-AI-UX-Actions-v2; activated from stub docs/task_packets/stubs/WP-1-AI-UX-Actions-v2.md; supersedes: WP-1-AI-UX-Actions |
 | WP-1-AI-UX-Rewrite | docs/task_packets/stubs/WP-1-AI-UX-Rewrite-v2.md | Stub Backlog (Not Activated): WP-1-AI-UX-Rewrite-v2 | stub (remediation); supersedes: WP-1-AI-UX-Rewrite |
-| WP-1-AI-UX-Summarize-Display | docs/task_packets/stubs/WP-1-AI-UX-Summarize-Display-v2.md | Stub Backlog (Not Activated): WP-1-AI-UX-Summarize-Display-v2 | stub (remediation); supersedes: WP-1-AI-UX-Summarize-Display |
+| WP-1-AI-UX-Summarize-Display | docs/task_packets/WP-1-AI-UX-Summarize-Display-v2.md | Ready for Dev: WP-1-AI-UX-Summarize-Display-v2 | active=WP-1-AI-UX-Summarize-Display-v2; activated from stub docs/task_packets/stubs/WP-1-AI-UX-Summarize-Display-v2.md; supersedes: WP-1-AI-UX-Summarize-Display |
 | WP-1-AppState-Refactoring | docs/task_packets/WP-1-AppState-Refactoring-v3.md | Done: WP-1-AppState-Refactoring-v3 | active=WP-1-AppState-Refactoring-v3; supersedes: WP-1-AppState-Refactoring, WP-1-AppState-Refactoring-v2 |
 | WP-1-Atelier-Lens | docs/task_packets/stubs/WP-1-Atelier-Lens-v2.md | Stub Backlog (Not Activated): WP-1-Atelier-Lens-v2 | stub (remediation); supersedes: WP-1-Atelier-Lens |
 | WP-1-Calendar-Lens | docs/task_packets/stubs/WP-1-Calendar-Lens-v2.md | Stub Backlog (Not Activated): WP-1-Calendar-Lens-v2 | stub (remediation); supersedes: WP-1-Calendar-Lens |
@@ -118,7 +118,7 @@ Format:
 | WP-1-Validator-Error-Codes | docs/task_packets/WP-1-Validator-Error-Codes-v1.md | Done: WP-1-Validator-Error-Codes-v1 | active=WP-1-Validator-Error-Codes-v1 |
 | WP-1-Workflow-Engine | docs/task_packets/WP-1-Workflow-Engine-v4.md | Done: WP-1-Workflow-Engine-v4 | active=WP-1-Workflow-Engine-v4; supersedes: WP-1-Workflow-Engine-v2, WP-1-Workflow-Engine-v3 |
 | WP-1-Workspace-Bundle | docs/task_packets/stubs/WP-1-Workspace-Bundle-v2.md | Stub Backlog (Not Activated): WP-1-Workspace-Bundle-v2 | stub (remediation); supersedes: WP-1-Workspace-Bundle |
-| WP-1-Model-Swap-Protocol | docs/task_packets/stubs/WP-1-Model-Swap-Protocol-v1.md | Stub Backlog (Not Activated): WP-1-Model-Swap-Protocol-v1 | stub (spec v02.120); new roadmap item |
+| WP-1-Model-Swap-Protocol | docs/task_packets/WP-1-Model-Swap-Protocol-v1.md | Ready for Dev: WP-1-Model-Swap-Protocol-v1 | active=WP-1-Model-Swap-Protocol-v1; activated from stub docs/task_packets/stubs/WP-1-Model-Swap-Protocol-v1.md; new roadmap item |
 | WP-1-Work-Profiles | docs/task_packets/stubs/WP-1-Work-Profiles-v1.md | Stub Backlog (Not Activated): WP-1-Work-Profiles-v1 | stub (spec v02.120); new roadmap item |
 | WP-1-Cloud-Escalation-Consent | docs/task_packets/stubs/WP-1-Cloud-Escalation-Consent-v1.md | Stub Backlog (Not Activated): WP-1-Cloud-Escalation-Consent-v1 | stub (spec v02.120); new roadmap item |
 | WP-1-Inbox-Role-Mailbox-Alignment | docs/task_packets/stubs/WP-1-Inbox-Role-Mailbox-Alignment-v1.md | Stub Backlog (Not Activated): WP-1-Inbox-Role-Mailbox-Alignment-v1 | stub (spec v02.120); new roadmap item |
