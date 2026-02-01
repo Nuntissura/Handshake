@@ -36,6 +36,7 @@ Rules:
 - This section is informational for visibility across branches (who is working on what).
 - Do NOT use `[IN_PROGRESS]` here (that token is reserved for the script-checked `## In Progress` list).
 - Validator maintains this section on `main` via small docs-only "status sync" commits.
+- Status sync commits MUST NOT move WPs to `## Done` or set `[VALIDATED|FAIL|OUTDATED_ONLY]` tokens; those require the canonical Validator report appended to the task packet `## VALIDATION_REPORTS`.
 
 Entry format (recommended):
 - `- **[WP_ID]** - [ACTIVE] - branch: feat/WP-{ID} - coder: <name/model> - last_sync: YYYY-MM-DD`
@@ -65,7 +66,6 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 - **[WP-1-MEX-UX-Bridges-v2]** - [STUB]
 - **[WP-1-MCP-Skeleton-Gate-v2]** - [STUB]
 - **[WP-1-AI-UX-Rewrite-v2]** - [STUB]
-- **[WP-1-AI-UX-Summarize-Display-v2]** - [STUB]
 - **[WP-1-PDF-Pipeline-v2]** - [STUB]
 - **[WP-1-Photo-Studio-v2]** - [STUB]
 - **[WP-1-Atelier-Lens-v2]** - [STUB]
@@ -77,7 +77,6 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 - **[WP-1-Semantic-Catalog-v2]** - [STUB]
 - **[WP-1-MCP-End-to-End-v2]** - [STUB]
 - **[WP-1-Metrics-Traces-v2]** - [STUB]
-- **[WP-1-Model-Swap-Protocol-v1]** - [STUB]
 - **[WP-1-Work-Profiles-v1]** - [STUB]
 - **[WP-1-Cloud-Escalation-Consent-v1]** - [STUB]
 - **[WP-1-Inbox-Role-Mailbox-Alignment-v1]** - [STUB]
@@ -96,9 +95,12 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
+- **[WP-1-Model-Swap-Protocol-v1]** - [IN_PROGRESS]
+- **[WP-1-AI-UX-Summarize-Display-v2]** - [IN_PROGRESS]
  
-
-
+  
+ 
+ 
 ## Done
 - **[WP-1-Atelier-Collaboration-Panel-v1]** - [VALIDATED]
 - **[WP-1-Response-Behavior-ANS-001]** - [VALIDATED]

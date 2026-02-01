@@ -47,6 +47,65 @@ if (taskPacketFiles.length === 0) {
   packetContent = fs.readFileSync(packetPath, 'utf8');
   console.log(`PASS: Found ${taskPacketFiles[0]}`);
 
+  // Check 1.5: Worktree + branch preflight (mechanical guard against wrong-worktree edits)
+  console.log('\nCheck 1.5: Worktree + branch preflight [CX-WT-001]');
+  const packetFormatVersion = (packetContent.match(/^\s*-\s*PACKET_FORMAT_VERSION\s*:\s*(.+)\s*$/mi) || [])[1]?.trim();
+  const enforceWorktreeGate = !!packetFormatVersion;
+
+  let currentBranch = '';
+  let currentTop = '';
+  try {
+    currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
+    currentTop = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
+  } catch {
+    warnings.push('Could not read current git branch/worktree (git rev-parse failed)');
+  }
+
+  let lastPrepare = null;
+  try {
+    const gatesPath = path.join('docs', 'ORCHESTRATOR_GATES.json');
+    const gates = JSON.parse(fs.readFileSync(gatesPath, 'utf8'));
+    const logs = Array.isArray(gates?.gate_logs) ? gates.gate_logs : [];
+    lastPrepare = [...logs].reverse().find((l) => l?.wpId === WP_ID && l?.type === 'PREPARE') || null;
+  } catch {
+    lastPrepare = null;
+  }
+
+  if (!lastPrepare) {
+    const msg = `Missing PREPARE record in docs/ORCHESTRATOR_GATES.json for ${WP_ID} (expected: just record-prepare ${WP_ID} {Coder-A|Coder-B} ...)`;
+    if (enforceWorktreeGate) {
+      errors.push(msg);
+      console.log('FAIL: ' + msg);
+    } else {
+      warnings.push(msg);
+      console.log('WARN: ' + msg);
+    }
+  } else {
+    const expectedBranch = (lastPrepare.branch || '').trim();
+    const expectedWorktreeDir = (lastPrepare.worktree_dir || '').trim();
+
+    if (expectedBranch && currentBranch && expectedBranch !== currentBranch) {
+      errors.push(
+        `Wrong branch for ${WP_ID}: expected ${expectedBranch} (from PREPARE), got ${currentBranch}`
+      );
+      console.log(`FAIL: Branch mismatch (expected ${expectedBranch}, got ${currentBranch})`);
+    } else if (expectedBranch && currentBranch) {
+      console.log(`PASS: Branch matches PREPARE (${currentBranch})`);
+    }
+
+    if (expectedWorktreeDir && currentTop) {
+      const expectedAbs = path.isAbsolute(expectedWorktreeDir)
+        ? path.resolve(expectedWorktreeDir)
+        : path.resolve(currentTop, expectedWorktreeDir);
+      const currentAbs = path.resolve(currentTop);
+      if (expectedAbs.toLowerCase() !== currentAbs.toLowerCase()) {
+        warnings.push(
+          `Worktree_dir mismatch for ${WP_ID}: PREPARE says ${expectedWorktreeDir} (resolves to ${expectedAbs}), current is ${currentAbs}`
+        );
+      }
+    }
+  }
+
   // Check 2: Packet has required fields
   console.log('\nCheck 2: Task packet structure');
   const requiredFields = [
@@ -74,6 +133,12 @@ if (taskPacketFiles.length === 0) {
   const hasSpecTarget = /SPEC_TARGET/i.test(packetContent);
   if (!hasLegacySpec && !(hasSpecBaseline && hasSpecTarget)) {
     warnings.push('Spec reference missing: include SPEC_BASELINE (provenance) and SPEC_TARGET (closure target), or legacy SPEC_CURRENT.');
+  }
+
+  // Check 2.5B: MERGE_BASE_SHA (recommended for deterministic multi-commit post-work)
+  const mergeBaseSha = (packetContent.match(/^\s*-\s*MERGE_BASE_SHA\s*:\s*([a-f0-9]{40})\s*$/mi) || [])[1]?.trim();
+  if (!mergeBaseSha) {
+    warnings.push('Packet missing MERGE_BASE_SHA; for multi-commit WPs prefer deterministic evidence: just post-work WP-{ID} --range <MERGE_BASE_SHA>..HEAD');
   }
 
   // Check 2.6: Canonical Status field (governance invariant)

@@ -271,7 +271,8 @@ BOOTSTRAP
 
 ### 6.9 Orchestrator Task Packet Protocol (AI Autonomy - Mandatory)
 
-[CX-580] ORCH_PACKET_REQUIRED: Orchestrators MUST create a task packet before delegating work to coder/debugger agents. The packet MUST be written to `docs/task_packets/{WP_ID}.md` OR embedded in the handoff message with full structure.
+[CX-580] ORCH_PACKET_REQUIRED: Orchestrators MUST create a task packet before delegating work that changes Handshake **product code** (`src/`, `app/`, `tests/`) to coder/debugger agents. The packet MUST be written to `docs/task_packets/{WP_ID}.md` OR embedded in the handoff message with full structure.
+Exception (Governance/Workflow): governance/workflow/tooling work that is strictly limited to `docs/`, `scripts/`, `justfile`, and `.github/` does **not** require a Work Packet or USER_SIGNATURE. In that case, delegation MUST still include: explicit scope (paths), rollback hint, and verification commands + outputs.
 
 [CX-580C] ORCH_WP_ID_NAMING (HARD): Work Packet IDs and filenames MUST NOT include date/time stamps. Use `WP-{phase}-{name}` and, if a revision is required, `WP-{phase}-{name}-v{N}` (e.g., `WP-1-Tokenization-Service-v3`).
 Legacy note: historical packets may contain date-coded IDs created before this invariant; do not create new date-stamped packet IDs. All new revisions MUST use `-v{N}`.
@@ -280,7 +281,8 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 
 [CX-580E] WP_LINEAGE_AUDIT_VARIANTS (HARD): When creating a revision packet (`-v{N}`) for a Base WP, the Orchestrator MUST perform and record a **Lineage Audit** that proves the Base WP (and ALL its prior packet versions) are a correct translation of: Roadmap pointer → Master Spec Main Body → repo code. The audit MUST validate that no requirements were lost/forgotten across versions and that the current repo state satisfies every governing Main Body MUST/SHOULD for that Base WP. If the audit is missing or incomplete, delegation is BLOCKED.
 
-[CX-580A] ORCH_NO_CODING_BLOCK (HARD): The Orchestrator role is **STRICTLY FORBIDDEN** from modifying `src/`, `app/`, `tests/`, or `scripts/`. This is an absolute constraint; no automated response or work can override this.
+[CX-580A] ORCH_NO_PRODUCT_CODING_BLOCK (HARD): The Orchestrator role is **STRICTLY FORBIDDEN** from modifying Handshake product code under `src/`, `app/`, or `tests/`. This is an absolute constraint; no automated response or work can override this.
+Clarification: `scripts/` is governance/workflow/tooling surface and MAY be modified by the Orchestrator when needed (e.g., validation gates, packet tooling), as long as no product code is modified and no gate is bypassed.
 
 [CX-580B] ORCH_NO_ROLE_SWITCH (HARD): The Orchestrator role is **STRICTLY FORBIDDEN** from switching to the Coder role. The Orchestrator's turn ends immediately upon task delegation. No automated response or work can override this constraint.
 
@@ -332,7 +334,12 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 
 ### 6.10 Coder Pre-Work Verification (AI Autonomy - Mandatory)
 
-[CX-620] CODER_PACKET_CHECK: Before writing any code, the coder agent MUST verify a task packet exists by checking:
+[CX-619] GOV_WORKFLOW_TASKS_NO_WP (EXCEPTION): If the task is governance/workflow/tooling-only and the planned diff is strictly limited to `docs/`, `scripts/`, `justfile`, and `.github/`, a Work Packet is OPTIONAL. In that case, the coder MUST:
+- Explicitly list the intended changed paths (must not include `src/`, `app/`, or `tests/`).
+- Provide a rollback hint.
+- Run verification commands appropriate to the change (at minimum: `node scripts/validation/codex-check.mjs`) and record outputs.
+
+[CX-620] CODER_PACKET_CHECK: Before writing any code in Handshake product code (`src/`, `app/`, `tests/`), the coder agent MUST verify a task packet exists by checking:
 1. File exists at `docs/task_packets/WP-*.md` (created recently), OR
 2. Orchestrator message includes complete TASK_PACKET block
 
@@ -350,7 +357,8 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 1. Run all commands from TEST_PLAN
 2. Document results in a VALIDATION block
 3. Include command + outcome for each check
-4. Run `just post-work {WP_ID}` to verify completeness
+4. For Work Packet work: run `just post-work {WP_ID}` to verify completeness.
+   For governance/workflow work without a Work Packet: run and record the agreed verification commands (at minimum: `node scripts/validation/codex-check.mjs`).
 
 [CX-627] EVIDENCE_MAPPING_REQUIREMENT: The coder's final report MUST include an `EVIDENCE_MAPPING` block mapping every "MUST" requirement from the Spec to specific lines of code.
 
@@ -384,6 +392,20 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 [CX-652] TASK_PACKET_VALIDATION: Before requesting commit, the coder MUST verify the task packet contains a VALIDATION block with commands run and outcomes, and that `docs/TASK_BOARD.md` reflects the current status.
 
 [CX-653] TASK_PACKET_UNIQUENESS: Each Work Packet MUST have its own task packet file (do not reuse an old file for a new WP). Status/notes/validation may be updated within that WP's file as the work progresses.
+
+[CX-655] VALIDATION_TAXONOMY_NO_COLLAPSE (HARD): Validation communications MUST NOT collapse distinct claims into a single "PASS" label. At minimum, keep these claims separate and explicit:
+- Deterministic manifest gate: `just post-work {WP_ID}` (this is **not** a test pass signal)
+- TEST_PLAN execution (exact commands + exit codes)
+- Spec conformance confirmation (DONE_MEANS + SPEC_ANCHOR -> evidence mapping)
+- Validator verdict: PASS | FAIL | OUTDATED_ONLY (only after the Validator reviews evidence and appends a report to the task packet)
+
+[CX-656] TASK_BOARD_VALIDATED_GUARD (HARD): `docs/TASK_BOARD.md` MUST NOT move a WP to `## Done` with `[VALIDATED]` unless an official Validator report is appended to the task packet under `## VALIDATION_REPORTS` and includes:
+- Explicit results for the validation taxonomy in [CX-655]
+- Evidence and artifact pointers recorded in the task packet (chat summaries are secondary)
+
+[CX-657] CANONICAL_EVIDENCE_IN_PACKET (HARD): Evidence mapping and artifact pointers MUST live in the task packet (`## EVIDENCE` / `## VALIDATION_REPORTS`). Chat outputs may mirror the evidence, but chat is not the canonical source of truth.
+
+[CX-658] TEST_PLAN_EXECUTABLE_AS_WRITTEN (HARD): The packet `TEST_PLAN` MUST be executable as written. If commands, ranges, or tool prerequisites need to change, the packet MUST be amended (append-only) before validation proceeds, so future reviewers can reproduce the outcome deterministically.
 
 ---
 

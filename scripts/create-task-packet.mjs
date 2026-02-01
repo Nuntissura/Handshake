@@ -6,6 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import {
   defaultRefinementPath,
   resolveSpecCurrent,
@@ -176,6 +177,14 @@ if (fs.existsSync(filePath)) {
 // Get current timestamp
 const timestamp = new Date().toISOString();
 
+let mergeBaseSha = '<fill>';
+try {
+  const out = execSync('git merge-base main HEAD', { encoding: 'utf8' }).trim();
+  if (/^[a-f0-9]{40}$/i.test(out)) mergeBaseSha = out.toLowerCase();
+} catch {
+  // Leave as <fill> if merge-base cannot be resolved (e.g., unusual repo state).
+}
+
 // Template content (canonical)
 const templatePath = path.join('docs', 'templates', 'TASK_PACKET_TEMPLATE.md');
 if (!fs.existsSync(templatePath)) {
@@ -204,6 +213,7 @@ const fill = (text, token, value) => text.split(token).join(value);
 let template = templateBody;
 template = fill(template, '{{WP_ID}}', WP_ID);
 template = fill(template, '{{DATE_ISO}}', timestamp);
+template = fill(template, '{{MERGE_BASE_SHA}}', mergeBaseSha);
 template = fill(template, '{{SPEC_BASELINE}}', specBaseline);
 template = fill(template, '{{REQUESTOR}}', '{user or source}');
 template = fill(template, '{{AGENT_ID}}', '{orchestrator agent ID}');

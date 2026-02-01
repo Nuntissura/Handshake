@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja010220261515 | Orchestrator | 2026-02-01 15:15 | Task packet creation: WP-1-AI-UX-Summarize-Display-v2 | v02.123 | Approved after Technical Refinement (see docs/refinements/WP-1-AI-UX-Summarize-Display-v2.md ). |
+| ilja010220261514 | Orchestrator | 2026-02-01 15:14 | Task packet creation: WP-1-Model-Swap-Protocol-v1 | v02.123 | Approved after Technical Refinement (see docs/refinements/WP-1-Model-Swap-Protocol-v1.md ). |
 | ilja310120261839 | Orchestrator | 2026-01-31 18:39 | Task packet creation: WP-1-Atelier-Collaboration-Panel-v1 | v02.123 | Approved after Technical Refinement (see docs/refinements/WP-1-Atelier-Collaboration-Panel-v1.md ). |
 | ilja300120262137 | Orchestrator | 2026-01-30 21:37 | Task packet creation: WP-1-Role-Registry-AppendOnly-v1 | v02.123 | Approved after Technical Refinement (see docs/refinements/WP-1-Role-Registry-AppendOnly-v1.md ). |
 | ilja290120260236 | Validator | 2026-01-29 02:36 | Override: extend scope of locked task packet WP-1-Response-Behavior-ANS-001 | v02.121 | Approved in-chat override: `OVERRIDE: allow in-place edit (CX-573B, CX-585A/C).` |

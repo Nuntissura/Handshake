@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 
 const TASK_BOARD_PATH = "docs/TASK_BOARD.md";
 
@@ -30,6 +31,7 @@ function checkLines(lines) {
 
   let active = null;
   const violations = [];
+  const doneEntries = [];
 
   for (let index = 0; index < lines.length; index += 1) {
     const lineNumber = index + 1;
@@ -49,6 +51,10 @@ function checkLines(lines) {
       );
       continue;
     }
+    if (active === "DONE") {
+      const m = line.match(doneRe);
+      if (m) doneEntries.push({ wpId: m[1], status: m[2], lineNumber });
+    }
 
     if (active === "SUPERSEDED" && !supersededRe.test(line)) {
       violations.push(
@@ -66,6 +72,33 @@ function checkLines(lines) {
 
   if (violations.length > 0) {
     fail("Task board format violations found", violations);
+  }
+
+  // Semantic guard: if a WP is marked Done on the task board and the packet is in the
+  // modern format (PACKET_FORMAT_VERSION present), it must include a Validator verdict line.
+  // This prevents "status sync" commits from marking VALIDATED without the canonical packet report.
+  const packetDir = path.join("docs", "task_packets");
+  const semanticViolations = [];
+  for (const entry of doneEntries) {
+    const packetPath = path.join(packetDir, `${entry.wpId}.md`);
+    if (!fs.existsSync(packetPath)) {
+      semanticViolations.push(
+        `${TASK_BOARD_PATH}:${entry.lineNumber}: Done WP has no task packet file: ${packetPath.replace(/\\/g, "/")}`
+      );
+      continue;
+    }
+    const packetText = fs.readFileSync(packetPath, "utf8");
+    const isModernPacket = /^\s*-\s*PACKET_FORMAT_VERSION\s*:/mi.test(packetText);
+    if (!isModernPacket) continue;
+    const hasVerdict = /^\s*Verdict\s*:\s*(PASS|FAIL|OUTDATED_ONLY)\b/mi.test(packetText);
+    if (!hasVerdict) {
+      semanticViolations.push(
+        `${TASK_BOARD_PATH}:${entry.lineNumber}: ${entry.wpId} is marked [${entry.status}] but task packet is missing a Validator verdict line (expected under ## VALIDATION_REPORTS).`
+      );
+    }
+  }
+  if (semanticViolations.length > 0) {
+    fail("Task board semantic violations found", semanticViolations);
   }
 }
 
