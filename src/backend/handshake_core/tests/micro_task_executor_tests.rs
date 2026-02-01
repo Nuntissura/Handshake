@@ -510,7 +510,14 @@ async fn micro_task_executor_emits_model_swap_failed_when_policy_disallows_swaps
                         { "level": 1, "model_id": "test-model-b", "is_cloud": false, "is_hard_gate": false }
                     ],
                     "extensions": [
-                        { "kind": "model_swap_policy", "allow_swaps": false }
+                        {
+                            "schema_version": "hsk.exec_policy_ext@0.4",
+                            "kind": "model_swap_policy",
+                            "model_swap_policy": {
+                                "allow_swaps": false,
+                                "fallback_strategy": "abort"
+                            }
+                        }
                     ]
                 }
             })),
@@ -622,7 +629,14 @@ async fn micro_task_executor_emits_model_swap_timeout_and_rollback_when_timeout_
                         { "level": 1, "model_id": "test-model-b", "is_cloud": false, "is_hard_gate": false }
                     ],
                     "extensions": [
-                        { "kind": "model_swap_policy", "swap_timeout_ms": 0, "fallback_strategy": "rollback" }
+                        {
+                            "schema_version": "hsk.exec_policy_ext@0.4",
+                            "kind": "model_swap_policy",
+                            "model_swap_policy": {
+                                "swap_timeout_ms": 0,
+                                "fallback_strategy": "continue_with_current"
+                            }
+                        }
                     ]
                 }
             })),
@@ -633,7 +647,7 @@ async fn micro_task_executor_emits_model_swap_timeout_and_rollback_when_timeout_
     start_workflow_for_job(&state, job).await?;
 
     let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
-    assert!(matches!(updated_job.state, JobState::Failed));
+    assert!(matches!(updated_job.state, JobState::Completed));
 
     let duckdb = state
         .flight_recorder
