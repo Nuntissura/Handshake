@@ -524,6 +524,15 @@ RISK_MAP:
 **In your task packet:**
 - Fill `## SKELETON` with proposed Traits/Structs/Interfaces and/or SQL headers (no logic).
 - Include any open questions/assumptions.
+- **If the WP includes cross-boundary changes** (e.g., UI/API/storage/events) **OR any governing spec/DONE_MEANS includes MUST record/audit/provenance:**
+  - Add an `END_TO_END_CLOSURE_PLAN` subsection inside `## SKELETON` that maps:
+    - Producer/output fields that must exist (where they come from)
+    - Transport schema changes (request/response types)
+    - Trust boundary: which inputs are untrusted; what the server verifies/derives from a source-of-truth (e.g., stored job output)
+    - Audit/event/log payload: what must be recorded (server-derived truth; do not trust client-provided provenance)
+    - Error taxonomy: stale input/hash mismatch vs invalid input vs scope violation vs provenance mismatch/spoof attempt
+    - Determinism: how `just post-work` will be run (range/rev) if the WP is multi-commit
+  - If any mapping is ambiguous, STOP and ask the Orchestrator before implementation.
 
 **In chat, output:**
 
@@ -566,6 +575,10 @@ Notify the Validator with the commit hash and **STOP**. Do not implement any log
 - Respect OUT_OF_SCOPE boundaries
 - Use existing patterns from ARCHITECTURE.md
 - Follow hard invariants [CX-100-106]
+- Treat client inputs as untrusted at trust boundaries; if audit/provenance is required, the server MUST verify/derive it from a source-of-truth (not client fields)
+- Remove or fully wire any new "plumbing" fields end-to-end (unused request/response fields are a STOP signal)
+- Keep error taxonomy distinct (stale input/hash mismatch vs true scope violation vs spoof/mismatch) so operator UX and diagnostics are actionable
+- For "apply" style actions, re-check prerequisites at click-time (dirty state, hashes/selection compatibility) and block stale operations
 
 ❌ **DO NOT:**
 - Change files outside IN_SCOPE_PATHS
@@ -963,6 +976,16 @@ Approved by: {orchestrator decision or team agreement}
 ```bash
 just post-work WP-{ID}
 ```
+
+**Multi-commit / agentic WP note (prevents false negatives):**
+- If the Orchestrator provides a MERGE_BASE_SHA (or the packet manifest is authored for base..HEAD rather than HEAD^..HEAD), run:
+  ```bash
+  just post-work WP-{ID} --range <MERGE_BASE_SHA>..HEAD
+  ```
+- If validating a specific clean handoff commit, prefer:
+  ```bash
+  just post-work WP-{ID} --rev <sha>
+  ```
 
 **MUST see:**
 ```
