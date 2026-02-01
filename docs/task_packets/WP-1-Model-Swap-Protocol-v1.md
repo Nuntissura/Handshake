@@ -29,6 +29,8 @@
   - src/backend/handshake_core/src/llm/ollama.rs
   - src/backend/handshake_core/src/flight_recorder/mod.rs
   - src/backend/handshake_core/src/workflows.rs
+  - src/backend/handshake_core/tests/micro_task_executor_tests.rs
+  - src/backend/handshake_core/tests/model_swap_events_tests.rs
   - src/backend/handshake_core/tests/ (new/updated tests for model swap protocol)
 - OUT_OF_SCOPE:
   - app/ UI changes (Operator Consoles)
@@ -148,32 +150,91 @@ git revert <commit-sha>
 - (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- (Mechanical manifest for audit. Records 'What' hashes/lines for Validator audit. NOT a claim of official Validation.)
+
+### Manifest Entry 1: flight_recorder/mod.rs
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 1
+- **End**: 2810
+- **Line Delta**: 231
+- **Pre-SHA1**: `287d23e31c1f2971ead4f672610c36cffe8cc70e`
+- **Post-SHA1**: `c7f920abf3faa138cfe4db2315487d2c9bb1356e`
+- **Change Summary**: Added FR-EVT-MODEL-001..005 event variants and payload validation helpers.
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md
+
+### Manifest Entry 2: workflows.rs
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1
+- **End**: 5660
+- **Line Delta**: 772
+- **Pre-SHA1**: `6650634199179fdead7b86d80d05fe3284f7110a`
+- **Post-SHA1**: `d5f691a9dae7f63de5a0f9ff7e360aed0b27c659`
+- **Change Summary**: Implemented ModelSwapRequest v0.4 persistence + state_hash verification, policy extension parsing (exec_policy_ext@0.4), and swap failure/timeout/rollback event emission.
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md
+
+### Manifest Entry 3: micro_task_executor_tests.rs
+- **Target File**: `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+- **Start**: 1
+- **End**: 739
+- **Line Delta**: 392
+- **Pre-SHA1**: `d72fd69702b3f6810eec62f8f39148bc5e288a3f`
+- **Post-SHA1**: `9d70ad49e4bf7116295ea516efaf54dc7716b2eb`
+- **Change Summary**: Added model swap telemetry tests for success, policy failure (abort), and timeout with continue_with_current rollback semantics.
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md
+
+### Manifest Entry 4: model_swap_events_tests.rs
+- **Target File**: `src/backend/handshake_core/tests/model_swap_events_tests.rs`
+- **Start**: 1
+- **End**: 71
+- **Line Delta**: 81
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `1ac07f7a6ed5065a4951945008cf9e562b1dc216`
+- **Change Summary**: Added Flight Recorder ingestion validation tests for FR-EVT-MODEL-001..005 canonical types.
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
