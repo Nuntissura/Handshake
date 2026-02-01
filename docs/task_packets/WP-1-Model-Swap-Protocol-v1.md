@@ -176,7 +176,7 @@ git revert <commit-sha>
 ### Manifest Entry 2: workflows.rs
 - **Target File**: `src/backend/handshake_core/src/workflows.rs`
 - **Start**: 1
-- **End**: 5660
+- **End**: 6238
 - **Line Delta**: 772
 - **Pre-SHA1**: `6650634199179fdead7b86d80d05fe3284f7110a`
 - **Post-SHA1**: `d5f691a9dae7f63de5a0f9ff7e360aed0b27c659`
@@ -218,7 +218,7 @@ git revert <commit-sha>
 ### Manifest Entry 4: model_swap_events_tests.rs
 - **Target File**: `src/backend/handshake_core/tests/model_swap_events_tests.rs`
 - **Start**: 1
-- **End**: 71
+- **End**: 82
 - **Line Delta**: 81
 - **Pre-SHA1**: `0000000000000000000000000000000000000000`
 - **Post-SHA1**: `1ac07f7a6ed5065a4951945008cf9e562b1dc216`
