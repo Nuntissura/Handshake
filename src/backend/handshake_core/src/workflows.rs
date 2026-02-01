@@ -1069,7 +1069,7 @@ async fn run_job(
                                         "invalid selection in job_inputs: {}",
                                         err
                                     )),
-                                })
+                                });
                             }
                         },
                         None => {
@@ -1080,7 +1080,7 @@ async fn run_job(
                                 error_message: Some(
                                     "missing selection in job_inputs for doc_edit".to_string(),
                                 ),
-                            })
+                            });
                         }
                     };
 
@@ -1095,7 +1095,7 @@ async fn run_job(
                                 status_reason: "invalid_job_inputs".to_string(),
                                 output: None,
                                 error_message: Some(err.to_string()),
-                            })
+                            });
                         }
                     };
 
@@ -1333,7 +1333,7 @@ async fn run_job(
                             error_message: Some(
                                 "missing selection in job_inputs for doc_edit".to_string(),
                             ),
-                        })
+                        });
                     }
                 };
 
@@ -5798,8 +5798,9 @@ mod tests {
     }
 
     #[test]
-    fn model_swap_state_persist_and_verify_v0_4_roundtrip() {
-        let tmp = tempfile::tempdir().expect("tempdir");
+    fn model_swap_state_persist_and_verify_v0_4_roundtrip() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let tmp = tempfile::tempdir()?;
         let job_id = Uuid::new_v4();
 
         let request = ModelSwapRequestV0_4 {
@@ -5826,28 +5827,34 @@ mod tests {
             metadata: None,
         };
 
-        let (state_path, state_hash) =
-            persist_model_swap_state_v0_4(tmp.path(), job_id, &request).expect("persist");
+        let (state_path, state_hash) = persist_model_swap_state_v0_4(tmp.path(), job_id, &request)?;
         assert!(state_path.exists(), "state_path should exist");
         assert!(
             is_sha256_hex_lowercase(&state_hash),
             "hash must be lowercase sha256"
         );
 
-        let raw = fs::read(&state_path).expect("read persisted state");
-        let json: Value = serde_json::from_slice(&raw).expect("valid json");
-        let map = json.as_object().expect("expected object");
+        let raw = fs::read(&state_path)?;
+        let json: Value = serde_json::from_slice(&raw)?;
+        let map = json.as_object().ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "expected payload to be a JSON object",
+            )
+        })?;
         assert!(
             !map.contains_key("state_hash"),
             "state must not embed state_hash"
         );
 
-        verify_model_swap_state_hash_v0_4(&state_path, &state_hash).expect("verify");
+        verify_model_swap_state_hash_v0_4(&state_path, &state_hash)?;
         let bad_hash = "1".repeat(64);
         assert!(
             verify_model_swap_state_hash_v0_4(&state_path, &bad_hash).is_err(),
             "expected hash mismatch to fail"
         );
+
+        Ok(())
     }
 
     #[tokio::test]
