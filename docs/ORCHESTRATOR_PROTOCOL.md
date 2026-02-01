@@ -2226,7 +2226,7 @@ Use this template for ANY SLA-triggered escalation:
 
 ## Part 8: Pre-Delegation Validation Checklist [CX-640]
 
-**Before handing off to Coder, Orchestrator MUST verify all 14 items:**
+**Before handing off to Coder, Orchestrator MUST verify all items below (and any applicable conditional items):**
 
 - [ ] SPEC_ANCHOR references Main Body (not Roadmap)
 - [ ] SPEC_ANCHOR in latest Master Spec version
@@ -2243,6 +2243,16 @@ Use this template for ANY SLA-triggered escalation:
 - [ ] USER_SIGNATURE locked with date/timestamp
 - [ ] Dependencies documented (blockers + what this blocks)
 - [ ] Effort estimate provided (hours)
+
+**Conditional (BLOCKING when applicable):**
+If the WP includes cross-boundary changes (e.g., UI/API/storage/events) OR any governing spec/DONE_MEANS includes MUST record/audit/provenance:
+
+- [ ] End-to-end closure plan captured (producer output → API schema → server-side verification/source-of-truth → audit event/log)
+- [ ] Trust boundary decision recorded (client-provided audit/provenance is UNTRUSTED unless explicitly waived; server derives/verifies)
+- [ ] No unused plumbing (any newly introduced request/response fields are used end-to-end or removed before delegation)
+- [ ] Error taxonomy planned (stale input/hash mismatch vs invalid input vs scope violation vs provenance mismatch/spoof attempt)
+- [ ] Deterministic `just post-work` plan is explicit for multi-commit WPs (record MERGE_BASE_SHA; include `--range MERGE_BASE_SHA..HEAD` in TEST_PLAN when needed)
+- [ ] UI/action guardrails included when applicable (re-check prerequisites at click-time; block stale apply rather than generating misleading diagnostics)
 
 **If ANY check fails:** Reject WP; request Orchestrator fix specific gaps.
 
