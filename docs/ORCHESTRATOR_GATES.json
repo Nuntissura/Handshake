@@ -935,6 +935,38 @@
       "branch": "feat/WP-1-Atelier-Collaboration-Panel-v1",
       "worktree_dir": "../wt-WP-1-Atelier-Collaboration-Panel-v1",
       "timestamp": "2026-01-31T17:55:18.704Z"
+    },
+    {
+      "wpId": "WP-1-Model-Swap-Protocol-v1",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Model-Swap-Protocol-v1.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md",
+      "spec_target_sha1": "4d406dcc1a75570d2f17659e0ac40d68a22f211a",
+      "timestamp": "2026-02-01T14:07:17.087Z",
+      "turn_token": "1769954837087"
+    },
+    {
+      "wpId": "WP-1-AI-UX-Summarize-Display-v2",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-AI-UX-Summarize-Display-v2.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md",
+      "spec_target_sha1": "4d406dcc1a75570d2f17659e0ac40d68a22f211a",
+      "timestamp": "2026-02-01T14:07:21.799Z",
+      "turn_token": "1769954841800"
+    },
+    {
+      "wpId": "WP-1-Model-Swap-Protocol-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja010220261514",
+      "timestamp": "2026-02-01T14:18:43.209Z",
+      "refinement_path": "docs/refinements/WP-1-Model-Swap-Protocol-v1.md"
+    },
+    {
+      "wpId": "WP-1-AI-UX-Summarize-Display-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja010220261515",
+      "timestamp": "2026-02-01T14:18:47.475Z",
+      "refinement_path": "docs/refinements/WP-1-AI-UX-Summarize-Display-v2.md"
     }
   ]
 }
