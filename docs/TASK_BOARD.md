@@ -48,6 +48,7 @@ Entry format (recommended):
 ## Ready for Dev
 
 A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `docs/task_packets/` (not a stub).
+- **[WP-1-Atelier-Collaboration-Panel-v1]** - [READY_FOR_DEV]
 
 ## Stub Backlog (Not Activated)
 - **[WP-1-Governance-Pack-v1]** - [STUB]
@@ -84,12 +85,12 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 - **[WP-1-Autonomous-Governance-Protocol-v1]** - [STUB]
 - **[WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1]** - [STUB]
 - **[WP-1-Layerwise-Inference-Foundations-v1]** - [STUB]
-- **[WP-1-Atelier-Collaboration-Panel-v1]** - [STUB]
 - **[WP-1-Lens-Extraction-Tier-v1]** - [STUB]
 - **[WP-1-Lens-ViewMode-v1]** - [STUB]
 - **[WP-1-Role-Turn-Isolation-v1]** - [STUB]
 - **[WP-1-Artifact-System-Foundations-v1]** - [STUB]
 - **[WP-1-Git-Engine-Decision-Gate-v1]** - [STUB]
+- **[WP-1-Post-Work-Check-Noise-v1]** - [STUB]
 - **[WP-1-Retrieval-Trace-Bundle-Export-v1]** - [STUB]
 
 
