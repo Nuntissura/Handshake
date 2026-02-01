@@ -1,0 +1,26 @@
+{
+  "validation_sessions": {
+    "WP-1-Atelier-Collaboration-Panel-v1": {
+      "wpId": "WP-1-Atelier-Collaboration-Panel-v1",
+      "verdict": "PASS",
+      "status": "WP_APPENDED",
+      "started": "2026-02-01T04:41:28.286Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-02-01T04:41:28.287Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-02-01T12:15:14.317Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-02-01T12:18:17.919Z"
+        }
+      ]
+    }
+  },
+  "archived_sessions": []
+}
