@@ -15,6 +15,7 @@ use handshake_core::storage::{
 use handshake_core::workflows::start_workflow_for_job;
 use handshake_core::AppState;
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 struct QueuedLlmClient {
@@ -327,6 +328,383 @@ EVIDENCE:
         .is_some());
     assert!(candidate.get("student_attempt").is_some());
     assert!(candidate.get("teacher_success").is_some());
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn micro_task_executor_emits_model_swap_events_on_model_change(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![
+        "still working".to_string(),
+        "done <mt_complete>yes</mt_complete>".to_string(),
+    ]));
+    let state = setup_state(llm_client).await?;
+
+    let job = state
+        .storage
+        .create_ai_job(NewAiJob {
+            trace_id: Uuid::new_v4(),
+            job_kind: JobKind::MicroTaskExecution,
+            protocol_id: "micro_task_executor_v1".to_string(),
+            profile_id: "micro_task_executor_v1".to_string(),
+            capability_profile_id: "Coder".to_string(),
+            access_mode: AccessMode::AnalysisOnly,
+            safety_mode: SafetyMode::Normal,
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            status_reason: "queued".to_string(),
+            metrics: JobMetrics::zero(),
+            job_inputs: Some(json!({
+                "wp_id": "WP-TEST",
+                "wp_scope": default_wp_scope(vec!["exit 0".to_string()]),
+                "execution_policy": {
+                    "max_iterations_per_mt": 1,
+                    "max_total_iterations": 2,
+                    "enable_distillation": false,
+                    "escalation_chain": [
+                        { "level": 0, "model_id": "test-model-a", "is_cloud": false, "is_hard_gate": false },
+                        { "level": 1, "model_id": "test-model-b", "is_cloud": false, "is_hard_gate": false }
+                    ]
+                }
+            })),
+        })
+        .await?;
+    let job_id = job.job_id;
+
+    start_workflow_for_job(&state, job).await?;
+
+    let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+    assert!(matches!(updated_job.state, JobState::Completed));
+
+    let duckdb = state
+        .flight_recorder
+        .duckdb_connection()
+        .expect("duckdb connection");
+    let conn = duckdb.lock().expect("duckdb mutex poisoned");
+
+    let mut stmt =
+        conn.prepare("SELECT event_type, payload FROM events WHERE job_id = ? ORDER BY timestamp")?;
+    let mut rows = stmt.query(duckdb::params![job_id.to_string()])?;
+
+    let mut requested_payload: Option<serde_json::Value> = None;
+    let mut completed_payload: Option<serde_json::Value> = None;
+
+    while let Some(row) = rows.next()? {
+        let event_type: String = row.get(0)?;
+        let payload_str: String = row.get(1)?;
+        let payload: serde_json::Value = serde_json::from_str(&payload_str)?;
+
+        if event_type == FlightRecorderEventType::ModelSwapRequested.to_string() {
+            requested_payload = Some(payload);
+        } else if event_type == FlightRecorderEventType::ModelSwapCompleted.to_string() {
+            completed_payload = Some(payload);
+        }
+    }
+
+    let requested = requested_payload.expect("model_swap_requested event");
+    let completed = completed_payload.expect("model_swap_completed event");
+
+    assert_eq!(
+        requested.get("type").and_then(|v| v.as_str()),
+        Some("model_swap_requested")
+    );
+    assert_eq!(
+        requested.get("current_model_id").and_then(|v| v.as_str()),
+        Some("test-model-a")
+    );
+    assert_eq!(
+        requested.get("target_model_id").and_then(|v| v.as_str()),
+        Some("test-model-b")
+    );
+
+    assert_eq!(
+        completed.get("type").and_then(|v| v.as_str()),
+        Some("model_swap_completed")
+    );
+    assert_eq!(
+        completed.get("outcome").and_then(|v| v.as_str()),
+        Some("success")
+    );
+
+    let state_hash = requested
+        .get("state_hash")
+        .and_then(|v| v.as_str())
+        .expect("state_hash present");
+    assert_eq!(state_hash.len(), 64);
+    assert!(state_hash
+        .chars()
+        .all(|c| c.is_ascii_digit() || matches!(c, 'a'..='f')));
+
+    let refs: Vec<&str> = requested
+        .get("state_persist_refs")
+        .and_then(|v| v.as_array())
+        .expect("state_persist_refs array")
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+
+    let request_rel = refs
+        .iter()
+        .find(|r| r.contains("/model_swap/request_"))
+        .expect("persisted request ref");
+    let state_rel = refs
+        .iter()
+        .find(|r| r.contains("/model_swap/swap_state_"))
+        .expect("persisted state ref");
+
+    let repo_root = handshake_core::capability_registry_workflow::repo_root_from_manifest_dir()?;
+    let request_path = repo_root.join(request_rel);
+    let state_path = repo_root.join(state_rel);
+    assert!(request_path.exists(), "persisted request must exist");
+    assert!(state_path.exists(), "persisted state must exist");
+
+    let raw_request = std::fs::read_to_string(&request_path)?;
+    let request_json: serde_json::Value = serde_json::from_str(&raw_request)?;
+    assert_eq!(
+        request_json.get("state_hash").and_then(|v| v.as_str()),
+        Some(state_hash)
+    );
+
+    let bytes = std::fs::read(&state_path)?;
+    let mut hasher = Sha256::new();
+    hasher.update(&bytes);
+    let actual_hash = hex::encode(hasher.finalize());
+    assert_eq!(actual_hash, state_hash);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn micro_task_executor_emits_model_swap_failed_when_policy_disallows_swaps(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![
+        "still working".to_string(),
+        "done <mt_complete>yes</mt_complete>".to_string(),
+    ]));
+    let state = setup_state(llm_client).await?;
+
+    let job = state
+        .storage
+        .create_ai_job(NewAiJob {
+            trace_id: Uuid::new_v4(),
+            job_kind: JobKind::MicroTaskExecution,
+            protocol_id: "micro_task_executor_v1".to_string(),
+            profile_id: "micro_task_executor_v1".to_string(),
+            capability_profile_id: "Coder".to_string(),
+            access_mode: AccessMode::AnalysisOnly,
+            safety_mode: SafetyMode::Normal,
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            status_reason: "queued".to_string(),
+            metrics: JobMetrics::zero(),
+            job_inputs: Some(json!({
+                "wp_id": "WP-TEST",
+                "wp_scope": default_wp_scope(vec!["exit 0".to_string()]),
+                "execution_policy": {
+                    "max_iterations_per_mt": 1,
+                    "max_total_iterations": 2,
+                    "enable_distillation": false,
+                    "escalation_chain": [
+                        { "level": 0, "model_id": "test-model-a", "is_cloud": false, "is_hard_gate": false },
+                        { "level": 1, "model_id": "test-model-b", "is_cloud": false, "is_hard_gate": false }
+                    ],
+                    "extensions": [
+                        { "kind": "model_swap_policy", "allow_swaps": false }
+                    ]
+                }
+            })),
+        })
+        .await?;
+    let job_id = job.job_id;
+
+    start_workflow_for_job(&state, job).await?;
+
+    let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+    assert!(matches!(updated_job.state, JobState::Failed));
+
+    let duckdb = state
+        .flight_recorder
+        .duckdb_connection()
+        .expect("duckdb connection");
+    let conn = duckdb.lock().expect("duckdb mutex poisoned");
+
+    let mut stmt =
+        conn.prepare("SELECT event_type, payload FROM events WHERE job_id = ? ORDER BY timestamp")?;
+    let mut rows = stmt.query(duckdb::params![job_id.to_string()])?;
+
+    let mut requested_payload: Option<serde_json::Value> = None;
+    let mut failed_payload: Option<serde_json::Value> = None;
+    let mut completed_payload: Option<serde_json::Value> = None;
+    let mut rollback_payload: Option<serde_json::Value> = None;
+
+    while let Some(row) = rows.next()? {
+        let event_type: String = row.get(0)?;
+        let payload_str: String = row.get(1)?;
+        let payload: serde_json::Value = serde_json::from_str(&payload_str)?;
+
+        if event_type == FlightRecorderEventType::ModelSwapRequested.to_string() {
+            requested_payload = Some(payload);
+        } else if event_type == FlightRecorderEventType::ModelSwapFailed.to_string() {
+            failed_payload = Some(payload);
+        } else if event_type == FlightRecorderEventType::ModelSwapCompleted.to_string() {
+            completed_payload = Some(payload);
+        } else if event_type == FlightRecorderEventType::ModelSwapRollback.to_string() {
+            rollback_payload = Some(payload);
+        }
+    }
+
+    let requested = requested_payload.expect("model_swap_requested event");
+    let failed = failed_payload.expect("model_swap_failed event");
+
+    assert_eq!(
+        requested.get("type").and_then(|v| v.as_str()),
+        Some("model_swap_requested")
+    );
+
+    assert_eq!(
+        failed.get("type").and_then(|v| v.as_str()),
+        Some("model_swap_failed")
+    );
+    assert_eq!(
+        failed.get("outcome").and_then(|v| v.as_str()),
+        Some("failure")
+    );
+    assert_eq!(
+        failed.get("error_summary").and_then(|v| v.as_str()),
+        Some("swap_disallowed_by_policy")
+    );
+
+    assert!(
+        completed_payload.is_none(),
+        "swap should not complete on policy failure"
+    );
+    assert!(
+        rollback_payload.is_none(),
+        "default fallback should not rollback"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn micro_task_executor_emits_model_swap_timeout_and_rollback_when_timeout_ms_zero(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![
+        "still working".to_string(),
+        "done <mt_complete>yes</mt_complete>".to_string(),
+    ]));
+    let state = setup_state(llm_client).await?;
+
+    let job = state
+        .storage
+        .create_ai_job(NewAiJob {
+            trace_id: Uuid::new_v4(),
+            job_kind: JobKind::MicroTaskExecution,
+            protocol_id: "micro_task_executor_v1".to_string(),
+            profile_id: "micro_task_executor_v1".to_string(),
+            capability_profile_id: "Coder".to_string(),
+            access_mode: AccessMode::AnalysisOnly,
+            safety_mode: SafetyMode::Normal,
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            status_reason: "queued".to_string(),
+            metrics: JobMetrics::zero(),
+            job_inputs: Some(json!({
+                "wp_id": "WP-TEST",
+                "wp_scope": default_wp_scope(vec!["exit 0".to_string()]),
+                "execution_policy": {
+                    "max_iterations_per_mt": 1,
+                    "max_total_iterations": 2,
+                    "enable_distillation": false,
+                    "escalation_chain": [
+                        { "level": 0, "model_id": "test-model-a", "is_cloud": false, "is_hard_gate": false },
+                        { "level": 1, "model_id": "test-model-b", "is_cloud": false, "is_hard_gate": false }
+                    ],
+                    "extensions": [
+                        { "kind": "model_swap_policy", "swap_timeout_ms": 0, "fallback_strategy": "rollback" }
+                    ]
+                }
+            })),
+        })
+        .await?;
+    let job_id = job.job_id;
+
+    start_workflow_for_job(&state, job).await?;
+
+    let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+    assert!(matches!(updated_job.state, JobState::Failed));
+
+    let duckdb = state
+        .flight_recorder
+        .duckdb_connection()
+        .expect("duckdb connection");
+    let conn = duckdb.lock().expect("duckdb mutex poisoned");
+
+    let mut stmt =
+        conn.prepare("SELECT event_type, payload FROM events WHERE job_id = ? ORDER BY timestamp")?;
+    let mut rows = stmt.query(duckdb::params![job_id.to_string()])?;
+
+    let mut requested_payload: Option<serde_json::Value> = None;
+    let mut timeout_payload: Option<serde_json::Value> = None;
+    let mut rollback_payload: Option<serde_json::Value> = None;
+    let mut completed_payload: Option<serde_json::Value> = None;
+
+    while let Some(row) = rows.next()? {
+        let event_type: String = row.get(0)?;
+        let payload_str: String = row.get(1)?;
+        let payload: serde_json::Value = serde_json::from_str(&payload_str)?;
+
+        if event_type == FlightRecorderEventType::ModelSwapRequested.to_string() {
+            requested_payload = Some(payload);
+        } else if event_type == FlightRecorderEventType::ModelSwapTimeout.to_string() {
+            timeout_payload = Some(payload);
+        } else if event_type == FlightRecorderEventType::ModelSwapRollback.to_string() {
+            rollback_payload = Some(payload);
+        } else if event_type == FlightRecorderEventType::ModelSwapCompleted.to_string() {
+            completed_payload = Some(payload);
+        }
+    }
+
+    let requested = requested_payload.expect("model_swap_requested event");
+    let timeout = timeout_payload.expect("model_swap_timeout event");
+    let rollback = rollback_payload.expect("model_swap_rollback event");
+
+    assert_eq!(
+        requested.get("type").and_then(|v| v.as_str()),
+        Some("model_swap_requested")
+    );
+
+    assert_eq!(
+        timeout.get("type").and_then(|v| v.as_str()),
+        Some("model_swap_timeout")
+    );
+    assert_eq!(
+        timeout.get("outcome").and_then(|v| v.as_str()),
+        Some("timeout")
+    );
+    assert_eq!(
+        timeout.get("error_summary").and_then(|v| v.as_str()),
+        Some("swap_timeout")
+    );
+
+    assert_eq!(
+        rollback.get("type").and_then(|v| v.as_str()),
+        Some("model_swap_rollback")
+    );
+    assert_eq!(
+        rollback.get("outcome").and_then(|v| v.as_str()),
+        Some("rollback")
+    );
+    assert_eq!(
+        rollback.get("error_summary").and_then(|v| v.as_str()),
+        Some("swap_timeout")
+    );
+
+    assert!(
+        completed_payload.is_none(),
+        "swap should not complete on timeout"
+    );
 
     Ok(())
 }
