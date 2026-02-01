@@ -23,6 +23,7 @@
 - What: Implement the ModelSwapRequest protocol (schema + runtime handling) and sequential model swaps, including persisted swap state + resume semantics and required FR-EVT-MODEL telemetry.
 - Why: Phase 1 requires deterministic model resource management for multi-model workflows; swaps must be auditable and safe to resume.
 - IN_SCOPE_PATHS:
+  - docs/task_packets/WP-1-Model-Swap-Protocol-v1.md
   - src/backend/handshake_core/src/mex/runtime.rs
   - src/backend/handshake_core/src/llm/mod.rs
   - src/backend/handshake_core/src/llm/ollama.rs

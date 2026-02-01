@@ -23,6 +23,7 @@
 - What: Make the AI Jobs "Job Inspector -> Summary" view leak-aware: default to hash-based IO display, and require explicit reveal for any output preview.
 - Why: The spec requires a Job Inspector with hash-based IO handling; summaries can contain sensitive content and must not be auto-rendered.
 - IN_SCOPE_PATHS:
+  - docs/task_packets/WP-1-AI-UX-Summarize-Display-v2.md
   - app/src/components/AiJobsDrawer.tsx
   - app/src/components/JobResultPanel.tsx (or renamed Job Inspector component)
   - app/src/state/aiJobs.ts
