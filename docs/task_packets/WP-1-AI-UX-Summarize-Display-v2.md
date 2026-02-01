@@ -8,9 +8,9 @@
 - REQUESTOR: ilja (Operator)
 - AGENT_ID: user_orchestrator (Codex CLI)
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: GPT-5.2
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: MEDIUM
 - USER_SIGNATURE: ilja010220261515
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -25,10 +25,11 @@
 - IN_SCOPE_PATHS:
   - docs/task_packets/WP-1-AI-UX-Summarize-Display-v2.md
   - app/src/components/AiJobsDrawer.tsx
-  - app/src/components/JobResultPanel.tsx (or renamed Job Inspector component)
+  - app/src/components/JobResultPanel.tsx
+  - app/src/components/JobResultPanel.test.tsx
   - app/src/state/aiJobs.ts
-  - app/src/lib/api.ts (hash helpers; if needed)
-  - app/src/components/DocumentView.tsx (only if needed for parity with Jobs Drawer)
+  - app/src/lib/api.ts
+  - app/src/components/DocumentView.tsx
 - OUT_OF_SCOPE:
   - Backend API changes unless strictly required (prefer using existing AiJob fields)
   - Writing summaries back into document blocks (persisted DerivedContent) as part of this WP
@@ -138,28 +139,52 @@ git revert <commit-sha>
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `app/src/components/JobResultPanel.tsx`
+- **Start**: 1
+- **End**: 139
+- **Line Delta**: 78
+- **Pre-SHA1**: `85261e65442853eb152614d4f92b0f6ded496087`
+- **Post-SHA1**: `23b9fdf7032d3182c1834a80372e7a7c94352a97`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 - **Lint Results**:
 - **Artifacts**:
 - **Timestamp**:
 - **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md
+- **Notes**:
+
+- **Target File**: `app/src/components/JobResultPanel.test.tsx`
+- **Start**: 1
+- **End**: 81
+- **Line Delta**: 81
+- **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
+- **Post-SHA1**: `c2e85b9af03a70f0f4164e718dc69ac76ed34f45`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**:
+- **Artifacts**:
+- **Timestamp**:
+- **Operator**:
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md
 - **Notes**:
 
 ## STATUS_HANDOFF
