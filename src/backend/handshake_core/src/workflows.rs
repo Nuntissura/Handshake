@@ -685,9 +685,13 @@ async fn run_job(
 
             // [┬º2.6.6.7.14.5] Build QueryPlan and RetrievalTrace
             // MUST fail on invalid UUIDs - returns Result
-            let plan =
-                build_query_plan_from_blocks(&blocks, "summarize document", "doc_summarization")
-                    .map_err(WorkflowError::SecurityViolation)?;
+            let (query_label, query_kind) = if matches!(job.job_kind, JobKind::DocEdit) {
+                ("edit selection", "doc_edit")
+            } else {
+                ("summarize document", "doc_summarization")
+            };
+            let plan = build_query_plan_from_blocks(&blocks, query_label, query_kind)
+                .map_err(WorkflowError::SecurityViolation)?;
             let trace = build_retrieval_trace_from_blocks(&blocks, &plan)
                 .map_err(WorkflowError::SecurityViolation)?;
 
@@ -764,7 +768,72 @@ async fn run_job(
                 .collect::<Vec<_>>()
                 .join("\n");
 
-            let prompt = format!("Please summarize the following document:\n\n{}", full_text);
+            let mut doc_edit_role_id: Option<String> = None;
+            let mut doc_edit_selection: Option<
+                crate::ace::validators::atelier_scope::SelectionRangeV1,
+            > = None;
+
+            let prompt = if matches!(job.job_kind, JobKind::DocEdit) {
+                let role_id = inputs
+                    .get("role_id")
+                    .and_then(|v| v.as_str())
+                    .filter(|v| !v.trim().is_empty())
+                    .unwrap_or("unknown")
+                    .to_string();
+
+                let selection_value = inputs.get("selection").cloned();
+                let selection: crate::ace::validators::atelier_scope::SelectionRangeV1 =
+                    match selection_value {
+                        Some(value) => match serde_json::from_value(value) {
+                            Ok(parsed) => parsed,
+                            Err(err) => {
+                                return Ok(RunJobOutcome {
+                                    state: JobState::Failed,
+                                    status_reason: "invalid_job_inputs".to_string(),
+                                    output: None,
+                                    error_message: Some(format!(
+                                        "invalid selection in job_inputs: {}",
+                                        err
+                                    )),
+                                })
+                            }
+                        },
+                        None => {
+                            return Ok(RunJobOutcome {
+                                state: JobState::Failed,
+                                status_reason: "invalid_job_inputs".to_string(),
+                                output: None,
+                                error_message: Some(
+                                    "missing selection in job_inputs for doc_edit".to_string(),
+                                ),
+                            })
+                        }
+                    };
+
+                let selection_text =
+                    match crate::ace::validators::atelier_scope::validate_selection_preimage(
+                        &full_text, &selection,
+                    ) {
+                        Ok(value) => value,
+                        Err(err) => {
+                            return Ok(RunJobOutcome {
+                                state: JobState::Failed,
+                                status_reason: "invalid_job_inputs".to_string(),
+                                output: None,
+                                error_message: Some(err.to_string()),
+                            })
+                        }
+                    };
+
+                doc_edit_role_id = Some(role_id.clone());
+                doc_edit_selection = Some(selection);
+
+                format!(
+                    "ROLE: {role_id}\n\nTASK: Propose an improved replacement for SELECTED_TEXT ONLY.\n- Do not edit anything outside SELECTED_TEXT.\n- Output ONLY the replacement text.\n\nSELECTED_TEXT:\n{selection_text}\n"
+                )
+            } else {
+                format!("Please summarize the following document:\n\n{}", full_text)
+            };
 
             // Compute hashes for logging
             let prompt_envelope_hash = {
@@ -974,21 +1043,81 @@ async fn run_job(
                     }),
                 )
                 .with_job_id(job.job_id.to_string())
-                .with_model_id(model_id),
+                .with_model_id(model_id.clone()),
             )
             .await;
 
+            let output = if matches!(job.job_kind, JobKind::DocEdit) {
+                let role_id = doc_edit_role_id.unwrap_or_else(|| "unknown".to_string());
+                let selection = match doc_edit_selection {
+                    Some(selection) => selection,
+                    None => {
+                        return Ok(RunJobOutcome {
+                            state: JobState::Failed,
+                            status_reason: "invalid_job_inputs".to_string(),
+                            output: None,
+                            error_message: Some(
+                                "missing selection in job_inputs for doc_edit".to_string(),
+                            ),
+                        })
+                    }
+                };
+
+                let selection_len_utf8 = selection.end_utf8.saturating_sub(selection.start_utf8);
+                let patchset = crate::ace::validators::atelier_scope::DocPatchsetV1 {
+                    schema_version: "hsk.doc_patchset@v1".to_string(),
+                    doc_id: doc_id.to_string(),
+                    selection: selection.clone(),
+                    boundary_normalization: "disabled".to_string(),
+                    ops: vec![
+                        crate::ace::validators::atelier_scope::PatchOpV1::ReplaceRange {
+                            range_utf8: crate::ace::validators::atelier_scope::RangeUtf8 {
+                                start: 0,
+                                end: selection_len_utf8,
+                            },
+                            insert_text: response.text.clone(),
+                        },
+                    ],
+                    summary: None,
+                };
+
+                let suggestion = json!({
+                    "suggestion_id": Uuid::new_v4().to_string(),
+                    "role_id": role_id.clone(),
+                    "contract_id": format!("ROLE:{role_id}:C:1"),
+                    "title": "Suggested edit".to_string(),
+                    "rationale": null,
+                    "patchset": patchset,
+                    "protocol_id": job.protocol_id.clone(),
+                    "source_job_id": job.job_id.to_string(),
+                    "source_trace_id": job.trace_id.to_string(),
+                    "source_model_id": model_id.clone(),
+                });
+
+                json!({
+                    "schema_version": "hsk.atelier.role_suggestions@v1",
+                    "doc_id": doc_id,
+                    "selection": selection,
+                    "by_role": [
+                        {
+                            "role_id": role_id,
+                            "suggestions": [suggestion]
+                        }
+                    ]
+                })
+            } else {
+                json!({ "summary": response.text })
+            };
+
             state
                 .storage
-                .set_job_outputs(
-                    &job.job_id.to_string(),
-                    Some(json!({ "summary": response.text })),
-                )
+                .set_job_outputs(&job.job_id.to_string(), Some(output.clone()))
                 .await?;
+
             return Ok(RunJobOutcome {
                 state: JobState::Completed,
                 status_reason: "completed".to_string(),
-                output: Some(json!({ "summary": response.text })),
+                output: Some(output),
                 error_message: None,
             });
         }

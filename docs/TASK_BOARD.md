@@ -101,6 +101,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 ## Done
+- **[WP-1-Atelier-Collaboration-Panel-v1]** - [VALIDATED]
 - **[WP-1-Response-Behavior-ANS-001]** - [VALIDATED]
 - **[WP-1-Global-Silent-Edit-Guard]** - [VALIDATED]
 - **[WP-1-AI-Ready-Data-Architecture-v1]** - [VALIDATED]

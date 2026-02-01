@@ -2,13 +2,25 @@ import { useEffect, useState } from "react";
 import { EditorContent, JSONContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 
+export type TiptapSelectionInfo = {
+  text: string;
+  startUtf8: number;
+  endUtf8: number;
+};
+
 type TiptapEditorProps = {
   initialContent: JSONContent | null;
   onChange: (doc: JSONContent) => void;
   readOnly?: boolean;
+  onSelectionChange?: (info: TiptapSelectionInfo) => void;
 };
 
-export function TiptapEditor({ initialContent, onChange, readOnly = false }: TiptapEditorProps) {
+export function TiptapEditor({
+  initialContent,
+  onChange,
+  readOnly = false,
+  onSelectionChange,
+}: TiptapEditorProps) {
   const [, forceSelectionRefresh] = useState(0);
   const editor = useEditor({
     extensions: [
@@ -35,14 +47,27 @@ export function TiptapEditor({ initialContent, onChange, readOnly = false }: Tip
 
   useEffect(() => {
     if (!editor) return;
-    const handler = () => forceSelectionRefresh((tick) => tick + 1);
-    editor.on("selectionUpdate", handler);
-    editor.on("transaction", handler);
-    return () => {
-      editor.off("selectionUpdate", handler);
-      editor.off("transaction", handler);
+    const refreshHandler = () => forceSelectionRefresh((tick) => tick + 1);
+    const selectionHandler = () => {
+      refreshHandler();
+      if (!onSelectionChange) return;
+      const { from, to } = editor.state.selection;
+      const doc = editor.state.doc;
+      const prefixText = doc.textBetween(0, from, "\n");
+      const selectionText = doc.textBetween(from, to, "\n");
+      const encoder = new TextEncoder();
+      const startUtf8 = encoder.encode(prefixText).length;
+      const endUtf8 = startUtf8 + encoder.encode(selectionText).length;
+      onSelectionChange({ text: selectionText, startUtf8, endUtf8 });
     };
-  }, [editor]);
+
+    editor.on("selectionUpdate", selectionHandler);
+    editor.on("transaction", refreshHandler);
+    return () => {
+      editor.off("selectionUpdate", selectionHandler);
+      editor.off("transaction", refreshHandler);
+    };
+  }, [editor, onSelectionChange]);
 
   if (!editor) return null;
 
