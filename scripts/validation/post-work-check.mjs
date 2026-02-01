@@ -259,6 +259,14 @@ if (fs.existsSync(taskPacketDir)) {
   }
 }
 
+const parseMergeBaseSha = (content) => {
+  if (!content) return null;
+  const m = content.match(/^\s*-\s*MERGE_BASE_SHA\s*:\s*([a-f0-9]{40})\s*$/mi);
+  return m ? m[1].toLowerCase() : null;
+};
+
+const PACKET_MERGE_BASE_SHA = parseMergeBaseSha(packetContent);
+
 const parseInScopePaths = (content) => {
   if (!content) return [];
   const lines = content.split('\n');
@@ -428,6 +436,48 @@ if (!manifests) {
   errors.push('VALIDATION section found but manifest fields not parsed');
 }
 
+const isModernPacket = /^\s*-\s*PACKET_FORMAT_VERSION\s*:/mi.test(packetContent);
+const extractSection = (content, heading) => {
+  if (!content) return null;
+  const lines = content.split('\n');
+  const headingRe = new RegExp(`^##\\s+${heading}\\s*$`, 'i');
+  const startIdx = lines.findIndex((l) => headingRe.test(l.trimEnd()));
+  if (startIdx === -1) return null;
+  const section = [];
+  for (let i = startIdx + 1; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (line.startsWith('## ')) break;
+    section.push(line);
+  }
+  return section.join('\n');
+};
+
+// Check 0: Canonical evidence must live in the packet for modern packets.
+// This is intentionally mechanical to keep validation reproducible.
+if (isModernPacket) {
+  const evidenceMapping = extractSection(packetContent, 'EVIDENCE_MAPPING');
+  if (!evidenceMapping) {
+    errors.push('Missing ## EVIDENCE_MAPPING section (required for modern packets)');
+  } else {
+    const hasFileLine = /\b(?:src\/|app\/|docs\/|scripts\/)[^`\s]*:\d+\b/i.test(evidenceMapping);
+    if (!hasFileLine) {
+      errors.push('EVIDENCE_MAPPING has no file:line evidence (add REQUIREMENT -> EVIDENCE: path:line entries)');
+    }
+  }
+
+  const evidence = extractSection(packetContent, 'EVIDENCE');
+  if (!evidence) {
+    errors.push('Missing ## EVIDENCE section (required for modern packets)');
+  } else {
+    const evidenceLines = evidence.split('\n');
+    const hasCommand = evidenceLines.some((l) => /COMMAND\s*:/i.test(l) && !/<paste>/i.test(l));
+    const hasExitCode = evidenceLines.some((l) => /EXIT_CODE\s*:\s*\d+/i.test(l));
+    if (!(hasCommand && hasExitCode)) {
+      errors.push('EVIDENCE must include at least one COMMAND + EXIT_CODE entry for modern packets');
+    }
+  }
+}
+
 const inScopePaths = parseInScopePaths(packetContent);
 const stagedFiles = getStagedFiles();
 const workingFiles = getWorkingFiles();
@@ -457,6 +507,19 @@ const resolveEvaluation = () => {
   if (workingFiles.length > 0) return { mode: 'worktree', baseRev: null, headRev: null, reason: 'working tree changes present' };
 
   const head = 'HEAD';
+  if (PACKET_MERGE_BASE_SHA) {
+    return { mode: 'range', baseRev: PACKET_MERGE_BASE_SHA, headRev: head, reason: 'clean tree; validate packet MERGE_BASE_SHA..HEAD' };
+  }
+  if (MERGE_BASE) {
+    try {
+      const headSha = gitTrim('git rev-parse HEAD');
+      if (MERGE_BASE !== headSha) {
+        return { mode: 'range', baseRev: MERGE_BASE, headRev: head, reason: 'clean tree; validate merge-base(main, HEAD)..HEAD' };
+      }
+    } catch {
+      // ignore
+    }
+  }
   const parent = resolveFirstParent(head);
   if (parent) {
     return { mode: 'range', baseRev: parent, headRev: head, reason: 'clean tree; validate last commit (HEAD^..HEAD)' };
@@ -700,16 +763,16 @@ try {
 console.log('\n' + '='.repeat(50));
 if (errors.length === 0) {
   if (warnings.length > 0) {
-    console.log('Post-work validation PASSED with warnings\n');
+    console.log('Post-work validation PASSED (deterministic manifest gate; not tests) with warnings\n');
     console.log('Warnings:');
     warnings.forEach((warn, i) => console.log(`  ${i + 1}. ${warn}`));
   } else {
-    console.log('Post-work validation PASSED');
+    console.log('Post-work validation PASSED (deterministic manifest gate; not tests)');
   }
   console.log('\nYou may proceed with commit.');
   process.exit(0);
 } else {
-  console.log('Post-work validation FAILED\n');
+  console.log('Post-work validation FAILED (deterministic manifest gate; not tests)\n');
   console.log('Errors:');
   errors.forEach((err, i) => console.log(`  ${i + 1}. ${err}`));
   if (warnings.length > 0) {

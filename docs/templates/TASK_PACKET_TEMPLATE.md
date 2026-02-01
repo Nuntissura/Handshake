@@ -18,6 +18,7 @@ Requirements:
 - WP_ID: {{WP_ID}}
 - BASE_WP_ID: {{WP_ID}} (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: {{DATE_ISO}}
+- MERGE_BASE_SHA: {{MERGE_BASE_SHA}} (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
 - REQUESTOR: {{REQUESTOR}}
 - AGENT_ID: {{AGENT_ID}}
 - ROLE: Orchestrator
@@ -51,7 +52,7 @@ Requirements:
 just pre-work {{WP_ID}}
 # ...task-specific commands...
 just cargo-clean
-just post-work {{WP_ID}}
+just post-work {{WP_ID}} --range {{MERGE_BASE_SHA}}..HEAD
 ```
 
 ### DONE_MEANS
@@ -154,8 +155,20 @@ git revert <commit-sha>
 - What changed in this update:
 - Next step / handoff hint:
 
+## EVIDENCE_MAPPING
+- (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
+- Format (repeat as needed):
+  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
+  - EVIDENCE: `path/to/file:line`
+
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+- Recommended evidence format (prevents chat truncation; enables audit):
+  - COMMAND: `<paste>`
+  - EXIT_CODE: `<int>`
+  - LOG_PATH: `.handshake/logs/{{WP_ID}}/<name>.log` (recommended; not committed)
+  - LOG_SHA256: `<hash>`
+  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)

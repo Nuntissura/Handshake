@@ -50,8 +50,54 @@ console.log(`Found ${commits.length} recent commits to check\n`);
 // Check 1: WP_ID references in commits
 console.log('Check 1: WP_ID references in commits');
 const wpIdPattern = /WP-[\w-]+/;
+const governanceOnlyPathAllowlist = [
+  p => p.startsWith('docs/'),
+  p => p.startsWith('scripts/'),
+  p => p.startsWith('.github/'),
+  p => p.startsWith('.claude/'),
+  p => p === 'justfile',
+  p => p === 'AGENTS.md',
+  p => p === 'Handshake Codex v1.4.md',
+  p => /^Handshake_Master_Spec_.*\.md$/.test(p),
+  p => /^Handshake_logger_.*\.md$/.test(p),
+];
+
+function isGovernanceOnlyPath(path) {
+  return governanceOnlyPathAllowlist.some(fn => fn(path));
+}
+
+function getCommitTouchedPaths(commitHash) {
+  try {
+    const output = execSync(
+      `git show --name-only --no-patch --pretty=format: ${commitHash}`,
+      { encoding: 'utf8' }
+    );
+    return output
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean);
+  } catch {
+    return null;
+  }
+}
+
+const commitIsGovernanceOnlyCache = new Map();
+function isGovernanceOnlyCommit(commitHash) {
+  if (commitIsGovernanceOnlyCache.has(commitHash)) {
+    return commitIsGovernanceOnlyCache.get(commitHash);
+  }
+  const touchedPaths = getCommitTouchedPaths(commitHash);
+  const isGovOnly =
+    Array.isArray(touchedPaths) &&
+    touchedPaths.every(isGovernanceOnlyPath);
+  commitIsGovernanceOnlyCache.set(commitHash, isGovOnly);
+  return isGovOnly;
+}
+
 const commitsWithWpId = commits.filter(c => wpIdPattern.test(c.subject));
-const commitsWithoutWpId = commits.filter(c => !wpIdPattern.test(c.subject));
+const commitsWithoutWpId = commits.filter(
+  c => !wpIdPattern.test(c.subject) && !isGovernanceOnlyCommit(c.hash)
+);
 
 console.log(`  ƒo. ${commitsWithWpId.length} commits reference WP_ID`);
 if (commitsWithoutWpId.length > 0) {
@@ -60,7 +106,7 @@ if (commitsWithoutWpId.length > 0) {
     console.log(`    - ${c.hash.slice(0, 7)}: ${c.subject}`);
   });
   warnings.push(
-    `${commitsWithoutWpId.length} commits without WP_ID reference`
+    `${commitsWithoutWpId.length} commits without WP_ID reference (non-governance)`
   );
 }
 

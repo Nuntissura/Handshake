@@ -16,6 +16,8 @@
 
 Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Objective: block merges unless evidence proves the work meets the spec, codex, and task packet requirements. Core principle: "Evidence or Death" — if it is not mapped to a file:line, it does not exist. No rubber-stamping.
 
+Governance/workflow/tooling note: changes limited to `docs/`, `scripts/`, `justfile`, and `.github/` are considered governance surface and may be maintained without creating a Work Packet, as long as no Handshake product code (`src/`, `app/`, `tests/`) is modified.
+
 ## Pre-Flight (Blocking)
 - [CX-GATE-001] BINARY PHASE GATE: Workflow MUST follow the sequence: BOOTSTRAP -> SKELETON -> IMPLEMENTATION -> HYGIENE -> VALIDATION. 
 - MERGING PHASES IS FORBIDDEN: Any response that combines these phases into a single turn is an AUTO-FAIL.
@@ -117,7 +119,8 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 2. Coder sends the Validator: `WP_ID`, bootstrap commit SHA, `branch`, `worktree_dir`, and current HEAD short SHA (and Coder ID if more than one Coder is active).
 3. Validator verifies the bootstrap commit is **docs-only**:
    - Allowed: `docs/task_packets/{WP_ID}.md` (and other governance docs only if explicitly requested).
-   - Forbidden: any changes under `src/`, `app/`, `tests/`, or `scripts/` (treat as FAIL; do not merge).
+   - Forbidden: any changes under `src/`, `app/`, or `tests/` (treat as FAIL; do not merge).
+   - Note: `scripts/` changes are governance/workflow/tooling and are allowed in general, but MUST NOT be included in a WP bootstrap status sync commit (keep bootstrap commits docs-only).
 4. Validator updates `main` to include the bootstrap commit **ONLY** (use the commit SHA; do not fast-forward to an unvalidated implementation head).
 5. Validator updates `docs/TASK_BOARD.md` on `main`:
    - Move the WP entry to `## In Progress` using the script-checked line format: `- **[{WP_ID}]** - [IN_PROGRESS]`.
@@ -130,10 +133,13 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - VALIDATION block MUST contain the deterministic manifest: target_file, start/end lines, line_delta, pre/post SHA1, gates checklist (anchors_present, window/rails bounds, canonical path, line_delta, manifest_written, concurrency check), lint results, artifacts, timestamp, operator.
 - Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
 - Require evidence that `just post-work WP-{ID}` ran and passed (this gate enforces the manifest + SHA1/gate checks). If absent or failing, verdict = FAIL until fixed.
-- Post-work sequencing note (echo from CODER_PROTOCOL): `just post-work` validates staged/working changes when present, and can also validate a clean tree by checking the last commit (HEAD^..HEAD) or a specific commit via `--rev <sha>`. Require the Coder's PASS `GATE_OUTPUT` plus the validated commit SHA/range shown in that output.
-- Multi-commit / agentic WP note (prevents false negatives): if the packet manifest/SHA1s are authored relative to a base (e.g., `main..HEAD`) rather than `HEAD^..HEAD`, require an explicit range and re-run:
-  - `just post-work WP-{ID} --range <merge_base_sha>..HEAD`
-  Do not accept a failing default `HEAD^..HEAD` run as evidence when a base mismatch is the likely cause; require the correct range/rev evidence.
+- Post-work sequencing note (echo from CODER_PROTOCOL): `just post-work` validates staged/working changes when present, and on a clean tree validates a deterministic range:
+  - If the task packet contains `MERGE_BASE_SHA`: `MERGE_BASE_SHA..HEAD`
+  - Else if `merge-base(main, HEAD)` differs from `HEAD`: `merge-base(main, HEAD)..HEAD`
+  - Else: the last commit (`HEAD^..HEAD`)
+  It can also validate a specific commit via `--rev <sha>`.
+  Require the Coder's PASS `GATE_OUTPUT` plus the validated commit SHA/range shown in that output.
+- Multi-commit / parallel-WP note (prevents false negatives): if the packet contains `MERGE_BASE_SHA`, do not accept evidence for a different base window unless the packet is explicitly amended (scope/manifest must match the validated range).
 
 ## Cross-Boundary + Audit/Provenance Verification (Conditional, BLOCKING when applicable)
 
@@ -349,6 +355,11 @@ FLOW DIAGRAM:
 VALIDATION REPORT — {WP_ID}
 Verdict: PASS | FAIL
 
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work {WP_ID}`; not tests): PASS | FAIL
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS | FAIL | NOT_RUN
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES | NO
+
 Scope Inputs:
 - Task Packet: docs/task_packets/{WP_ID}.md (status: {status})
 - Spec: {spec version/anchors}
@@ -379,7 +390,7 @@ Task Packet Update (APPEND-ONLY):
 - [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL) MUST be APPENDED to the end of the `docs/task_packets/{WP_ID}.md` file. OVERWRITING IS FORBIDDEN.
 - [CX-WP-002] CLOSURE REASONS: The append block MUST contain a "REASON FOR {VERDICT}" section explaining exactly why the WP was closed or failed, linking back to specific findings.
 - STATUS update in docs/task_packets/{WP_ID}.md: PASS/FAIL with reasons, actionables, and further risks. APPEND the full Validation Report using the template below. **DO NOT OVERWRITE User Context or previous history [CX-654].**
-- TASK_BOARD update (on `main`): after PASS/FAIL and all criteria met (no acknowledged debt), move the WP entry from `## In Progress` to `## Done` using the enforced status tokens (`[VALIDATED]`, `[FAIL]`, `[OUTDATED_ONLY]`). Status-sync commits earlier in the WP lifecycle are separate and do not imply a verdict.
+- TASK_BOARD update (on `main`): move the WP entry only after the canonical task packet has an appended Validation Report (under `## VALIDATION_REPORTS`) with the explicit Validation Claims above. Status-sync commits earlier in the WP lifecycle are separate and do not imply a verdict.
 - Board consistency (on `main`): task packet `**Status:**` is source of truth; reconcile the Task Board to match packet reality before declaring PASS. Unresolved mismatch = FAIL pending correction.
 ```
 

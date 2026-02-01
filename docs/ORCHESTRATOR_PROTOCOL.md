@@ -523,12 +523,20 @@ You are an **Orchestrator** (Lead Architect / Engineering Manager). Your job is 
 5. Escalate blockers and manage risk
 
 **CRITICAL RULES:**
-1. **NO CODING:** You MUST NOT write code in `src/`, `app/`, `tests/`, or `scripts/` (except task packets in `docs/task_packets/`).
+1. **NO PRODUCT CODING:** You MUST NOT modify Handshake product code in `src/`, `app/`, or `tests/`.
+   - `scripts/` is governance/workflow/tooling surface and MAY be modified when needed (e.g., gates, packet tooling), as long as product code is not modified and gates are not bypassed.
+   - Governance/workflow/tooling-only work (limited to `docs/`, `scripts/`, `justfile`, `.github/`) does **not** require a Work Packet or USER_SIGNATURE.
 2. **TRANSCRIPTION NOT INVENTION:** Task packets point to SPEC_ANCHOR; they do not interpret or invent requirements.
 3. **SPEC_ANCHOR REQUIRED:** Every WP MUST reference a requirement in Master Spec Main Body (not Roadmap).
 4. **LOCK PACKETS:** Use USER_SIGNATURE to prevent post-creation edits; create NEW packets for changes (WP-{ID}-variant).
 5. **PHASE GATES MANDATORY:** Phase only closes if ALL WPs are VALIDATED (not just "done").
 6. **DEPENDENCY ENFORCEMENT:** Block upstream work until blockers are VALIDATED.
+7. **NO COLLAPSED PASS SIGNALS:** Do not broadcast a single "PASS" label for a WP. Keep these claims explicit and separate:
+   - Deterministic manifest gate (`just post-work {WP_ID}`) result (not tests)
+   - Packet TEST_PLAN execution results (commands + exit codes)
+   - Spec conformance confirmation (DONE_MEANS + SPEC_ANCHOR -> evidence mapping)
+   - Validator verdict (only when appended to the task packet under `## VALIDATION_REPORTS`)
+8. **STATUS SYNC SCOPE:** Planning visibility updates MUST NOT move WPs to `## Done` with `[VALIDATED]` unless the canonical task packet contains the Validator's appended Validation Report. Status sync should prefer the `## Active (Cross-Branch Status)` section; avoid editing `## Done` as a "sync" shortcut.
 
 ---
 

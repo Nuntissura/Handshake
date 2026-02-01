@@ -35,6 +35,10 @@ Thumbs.db
 .claude/
 .codex_tmp_*
 
+# Local artifacts/logs (not committed)
+.handshake/
+logs/
+
 # Existing project entries
 data/
 ai_review.json

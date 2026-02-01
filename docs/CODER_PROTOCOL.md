@@ -12,6 +12,18 @@
 
 ---
 
+## Governance/Workflow Changes (No WP Required)
+
+If the assignment is governance/workflow/tooling-only and the planned diff is strictly limited to `docs/`, `scripts/`, `justfile`, and `.github/`, you MAY proceed without creating a Work Packet.
+
+Hard rules:
+- DO NOT modify Handshake product code in `src/`, `app/`, or `tests/`.
+- List the intended changed paths before editing.
+- Provide a rollback hint.
+- Run verification commands appropriate to the change (at minimum: `node scripts/validation/codex-check.mjs`) and record outputs.
+
+---
+
 ## Worktree + Branch Gate [CX-WT-001] (BLOCKING)
 
 You MUST operate from the correct working directory and branch for the WP you are implementing before making any repo changes.
@@ -156,7 +168,11 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 - Each task packet MUST retain the manifest template in `## Validation` (target_file, start/end, line_delta, pre/post SHA1, gates checklist). Keep it ASCII-only.
 - Before coding, run `just pre-work WP-{ID}` to confirm the manifest template is present; do not strip fields.
 - After coding, `just post-work WP-{ID}` is the deterministic gate: it enforces manifest completeness, SHA1s, window bounds, and required gates (anchors_present, rails/structure untouched, line_delta match, canonical path, concurrency check). Fill the manifest with real values before running.
-- IMPORTANT: `just post-work` validates (a) staged changes if anything is staged, (b) working-tree changes if nothing staged but files are modified, or (c) the last commit (HEAD^..HEAD) if the tree is clean. This allows deterministic evidence even after committing.
+- IMPORTANT: `just post-work` validates (a) staged changes if anything is staged, (b) working-tree changes if nothing staged but files are modified, or (c) on a clean tree it validates a deterministic range:
+  - If the task packet contains `MERGE_BASE_SHA`: `MERGE_BASE_SHA..HEAD`
+  - Else if `merge-base(main, HEAD)` differs from `HEAD`: `merge-base(main, HEAD)..HEAD`
+  - Else: the last commit (`HEAD^..HEAD`)
+  This allows deterministic evidence even after committing (and avoids false negatives on multi-commit WPs).
 - Handoff order (low friction): run tests/hygiene -> stage ONLY in-scope files (including the updated task packet manifest) -> commit -> run `just post-work WP-{ID}` on the clean tree -> notify Validator with the PASS output and commit SHA.
 - To fill `Pre-SHA1` / `Post-SHA1` deterministically, stage your changes and run `just cor701-sha path/to/file` (use the recommended values it prints).
 - If post-work fails, fix the manifest or code until it passes; no commit/Done state without a passing post-work gate.
@@ -964,7 +980,10 @@ Approved by: {orchestrator decision or team agreement}
 ### Step 9: Update Task Packet (status and evidence only) ✋ STOP
 
 - Update WP_STATUS in the task packet to reflect current state (e.g., Completed/Blocked).
-- Append logs/output to `## EVIDENCE`.
+- Append logs/output to `## EVIDENCE` (if output is long, redirect to a log file and record LOG_PATH + LOG_SHA256 + key proof lines).
+  - Recommended log location (not committed): `.handshake/logs/{WP_ID}/...`
+  - Keep retrieval deterministic: stable filenames + SHA256.
+- Append an `EVIDENCE_MAPPING` block into the task packet (canonical), mapping DONE_MEANS/SPEC_ANCHOR requirements to `path:line`.
 - Do NOT write to `## VALIDATION_REPORTS`.
 - Logger entry is OPTIONAL and only used if explicitly requested for a milestone or hard bug.
 
@@ -972,13 +991,14 @@ Approved by: {orchestrator decision or team agreement}
 
 ### Step 10: Post-Work Validation ✋ STOP
 
-**Run automated check:**
+**Run deterministic manifest gate (not tests):**
 ```bash
+# Run the exact command from the packet TEST_PLAN.
 just post-work WP-{ID}
 ```
 
-**Multi-commit / agentic WP note (prevents false negatives):**
-- If the Orchestrator provides a MERGE_BASE_SHA (or the packet manifest is authored for base..HEAD rather than HEAD^..HEAD), run:
+**Multi-commit / parallel-WP note (deterministic range):**
+- If the task packet contains a `MERGE_BASE_SHA`, prefer running:
   ```bash
   just post-work WP-{ID} --range <MERGE_BASE_SHA>..HEAD
   ```
@@ -989,7 +1009,7 @@ just post-work WP-{ID}
 
 **MUST see:**
 ```
-✅ Post-work validation PASSED
+✅ Post-work validation PASSED (deterministic manifest gate; not tests)
 
 You may proceed with commit request.
 ```
@@ -1011,7 +1031,7 @@ Fix errors, re-run `just post-work`.
 ### Step 11: Status Sync & Request Validator Review
 
 **1. Update task packet handoff:**
-- Ensure `## STATUS_HANDOFF` says: "Implementation complete; `just post-work` PASS; ready for validation"
+- Ensure `## STATUS_HANDOFF` says: "Implementation complete; GATES_PASS (post-work) PASS; TEST_PLAN results recorded; ready for validation"
 - Do NOT write verdicts or edit `## VALIDATION_REPORTS`
 
 **2. Output final summary:**
@@ -1027,7 +1047,7 @@ VALIDATION SUMMARY:
 - pnpm test: ✅ PASS (Y tests)
 - pnpm lint: ✅ PASS
 - cargo clippy: ✅ PASS (0 warnings)
-- just post-work: ✅ PASS
+- gates (post-work): ✅ PASS (deterministic manifest; not tests)
 
 FILES_CHANGED:
 - src/backend/handshake_core/src/api/jobs.rs
@@ -1191,7 +1211,7 @@ $ pnpm test
 ✅ PASS
 
 $ just post-work WP-1-Job-Cancel
-✅ Post-work validation PASSED
+✅ Post-work validation PASSED (deterministic manifest gate; not tests)
 
 Now work is done.
 ```
