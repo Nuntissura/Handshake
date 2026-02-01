@@ -48,7 +48,8 @@ const gitPath = path.normalize(targetArg).replace(/\\/g, '/');
 
 const tryGitBuffer = (command) => {
   try {
-    return execSync(command);
+    // Avoid noisy git stderr (e.g., "fatal: path ... not in HEAD") for expected lookups.
+    return execSync(command, { stdio: ['ignore', 'pipe', 'pipe'] });
   } catch {
     return null;
   }
@@ -56,7 +57,8 @@ const tryGitBuffer = (command) => {
 
 const tryGitTrim = (command) => {
   try {
-    return execSync(command, { encoding: 'utf8' }).trim();
+    // Avoid noisy git stderr (e.g., "fatal: path ... not in HEAD") for expected lookups.
+    return execSync(command, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   } catch {
     return '';
   }
