@@ -300,6 +300,7 @@ git revert <commit-sha>
 - Current WP_STATUS: Implementation complete on branch; ready for Validator review.
 - What changed in this update:
   - Commit `ce033773`: Implemented runtime model swap primitive + MT executor swap engine + tests.
+  - Commit `3e819d6a`: Updated this task packet (implementation/hygiene/manifest/evidence).
 - Next step / handoff hint:
   - Commit packet updates, then request Validator review.
 
@@ -311,6 +312,7 @@ git revert <commit-sha>
   - `data/wp_evidence/WP-1-Model-Swap-Protocol-v1/cargo_clippy.txt` sha256=D9E9557628C13C5F409E44CA479459E6F1EF3E6602B72CA194F8170CF08EBCED
   - `data/wp_evidence/WP-1-Model-Swap-Protocol-v1/just_cargo_clean.txt` sha256=28A9F9C94369CDF3EC0F1C50B8A06182A21559C7C0093EA509E91DDF31D71677
   - `data/wp_evidence/WP-1-Model-Swap-Protocol-v1/just_post_work_range.txt` sha256=DC6F507CB5EEB4D14A5D72453F9AD65D48FA7A4673B335D4A70162B6540F182B
+  - `data/wp_evidence/WP-1-Model-Swap-Protocol-v1/just_post_work_range_latest.txt` sha256=7254660124079B7E528CDA574565976620E12C82248896F106E5DD2115D1570B
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
