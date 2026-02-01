@@ -20,6 +20,7 @@ use crate::tokenization::{
     OllamaTokenizerConfigCache, SentencePieceTokenizerCache, TiktokenAdapter, TokenizationRouter,
     TokenizationWithTrace, TokenizerConfigFetcher, TokenizerError, VibeTokenizer,
 };
+use crate::workflows::{ModelSwapRequestV0_4, ModelSwapStrategy};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -28,6 +29,7 @@ use std::sync::Arc;
 // WAIVER [CX-573E]: Instant::now() is required for latency measurement per §4.2.3.2.
 // This is non-deterministic but necessary for observability metrics.
 use std::time::Instant;
+use tokio::time::{timeout, Duration};
 
 /// Ollama adapter implementing the LlmClient trait.
 ///
@@ -122,6 +124,45 @@ impl OllamaAdapter {
         let mut hasher = Sha256::new();
         hasher.update(content.as_bytes());
         hex::encode(hasher.finalize())
+    }
+
+    async fn generate_keep_alive(
+        &self,
+        model: &str,
+        keep_alive: Option<Value>,
+    ) -> Result<(), LlmError> {
+        let url = format!("{}/api/generate", self.base_url);
+        let req = OllamaGenerateRequest {
+            model: model.to_string(),
+            // Best-effort warm/unload without consuming tokens.
+            prompt: " ".to_string(),
+            stream: false,
+            options: Some(OllamaOptions {
+                num_predict: Some(0),
+                temperature: 0.0,
+                stop: Vec::new(),
+            }),
+            keep_alive,
+        };
+
+        let response = self
+            .client
+            .post(&url)
+            .json(&req)
+            .send()
+            .await
+            .map_err(|e| LlmError::ProviderError(e.to_string()))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(LlmError::ProviderError(format!(
+                "Ollama /api/generate error ({}): {}",
+                status, error_text
+            )));
+        }
+
+        Ok(())
     }
 
     /// Emits llm_inference event to Flight Recorder.
@@ -232,6 +273,8 @@ struct OllamaGenerateRequest {
     stream: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     options: Option<OllamaOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    keep_alive: Option<Value>,
 }
 
 /// Ollama options for generation.
@@ -287,6 +330,7 @@ impl LlmClient for OllamaAdapter {
                 temperature: req.temperature,
                 stop: req.stop_sequences.clone(),
             }),
+            keep_alive: None,
         };
 
         let url = format!("{}/api/generate", self.base_url);
@@ -395,6 +439,44 @@ impl LlmClient for OllamaAdapter {
             usage,
             latency_ms,
         })
+    }
+
+    async fn swap_model(&self, req: ModelSwapRequestV0_4) -> Result<(), LlmError> {
+        if req.timeout_ms == 0 {
+            return Err(LlmError::ProviderError(
+                "model swap timeout_ms must be non-zero".to_string(),
+            ));
+        }
+        if req.max_vram_mb == 0 || req.max_ram_mb == 0 {
+            return Err(LlmError::ProviderError(
+                "budget_exceeded: max_vram_mb/max_ram_mb must be non-zero".to_string(),
+            ));
+        }
+
+        let deadline = Duration::from_millis(req.timeout_ms);
+        let unload = Some(Value::String("0".to_string()));
+        let keep_hot = Some(Value::String("5m".to_string()));
+
+        timeout(deadline, async {
+            match req.swap_strategy {
+                ModelSwapStrategy::UnloadReload | ModelSwapStrategy::DiskOffload => {
+                    self.generate_keep_alive(req.current_model_id.as_str(), unload.clone())
+                        .await?;
+                    self.generate_keep_alive(req.target_model_id.as_str(), keep_hot.clone())
+                        .await?;
+                }
+                ModelSwapStrategy::KeepHotSwap => {
+                    self.generate_keep_alive(req.target_model_id.as_str(), keep_hot.clone())
+                        .await?;
+                }
+            }
+
+            Ok::<(), LlmError>(())
+        })
+        .await
+        .map_err(|_| LlmError::ProviderError("model swap timeout".to_string()))??;
+
+        Ok(())
     }
 
     fn profile(&self) -> &ModelProfile {
@@ -626,6 +708,7 @@ mod tests {
                 temperature: 0.7,
                 stop: vec!["###".to_string()],
             }),
+            keep_alive: None,
         };
 
         // SAFETY: Test-only code - request structure is valid

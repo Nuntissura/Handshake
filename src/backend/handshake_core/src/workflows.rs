@@ -191,7 +191,7 @@ const MODEL_SWAP_SCHEMA_VERSION_V0_4: &str = "hsk.model_swap@0.4";
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-enum ModelSwapRole {
+pub enum ModelSwapRole {
     Frontend,
     Orchestrator,
     Worker,
@@ -200,7 +200,7 @@ enum ModelSwapRole {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-enum ModelSwapPriority {
+pub enum ModelSwapPriority {
     Low,
     Normal,
     High,
@@ -209,7 +209,7 @@ enum ModelSwapPriority {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-enum ModelSwapStrategy {
+pub enum ModelSwapStrategy {
     UnloadReload,
     KeepHotSwap,
     DiskOffload,
@@ -217,7 +217,7 @@ enum ModelSwapStrategy {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-enum ModelSwapRequesterSubsystem {
+pub enum ModelSwapRequesterSubsystem {
     MtExecutor,
     Governance,
     Ui,
@@ -225,7 +225,7 @@ enum ModelSwapRequesterSubsystem {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-struct ModelSwapRequesterV0_4 {
+pub struct ModelSwapRequesterV0_4 {
     pub subsystem: ModelSwapRequesterSubsystem,
     #[serde(default)]
     pub job_id: Option<String>,
@@ -236,7 +236,7 @@ struct ModelSwapRequesterV0_4 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-struct ModelSwapRequestV0_4 {
+pub struct ModelSwapRequestV0_4 {
     pub schema_version: String,
     pub request_id: String,
 
@@ -281,6 +281,94 @@ struct PersistedModelSwapStateV0_4 {
     pub requester: ModelSwapRequesterV0_4,
     #[serde(default)]
     pub metadata: Option<BTreeMap<String, Value>>,
+}
+
+#[derive(Debug, Clone)]
+struct PendingModelSwapV0_4 {
+    request: ModelSwapRequestV0_4,
+    context_compile_rel: PathBuf,
+}
+
+fn model_swap_min_budgets_mb_for_model_id(model_id: &str) -> Option<(u64, u64)> {
+    match model_id {
+        "qwen2.5-coder:7b" => Some((4096, 16384)),
+        "qwen2.5-coder:13b" => Some((8192, 32768)),
+        "qwen2.5-coder:32b" => Some((24576, 65536)),
+        _ => None,
+    }
+}
+
+fn model_swap_strategy_str(strategy: ModelSwapStrategy) -> &'static str {
+    match strategy {
+        ModelSwapStrategy::UnloadReload => "unload_reload",
+        ModelSwapStrategy::KeepHotSwap => "keep_hot_swap",
+        ModelSwapStrategy::DiskOffload => "disk_offload",
+    }
+}
+
+async fn record_model_swap_event_v0_4(
+    state: &AppState,
+    event_type: FlightRecorderEventType,
+    trace_id: Uuid,
+    job_id: Uuid,
+    workflow_run_id: Uuid,
+    wp_id: &str,
+    mt_id: &str,
+    request: &ModelSwapRequestV0_4,
+    payload_type: &'static str,
+    outcome: Option<&'static str>,
+    error_summary: Option<&str>,
+) {
+    let mut payload = serde_json::Map::new();
+    payload.insert("type".to_string(), json!(payload_type));
+    payload.insert("request_id".to_string(), json!(request.request_id.clone()));
+    payload.insert(
+        "current_model_id".to_string(),
+        json!(request.current_model_id.clone()),
+    );
+    payload.insert(
+        "target_model_id".to_string(),
+        json!(request.target_model_id.clone()),
+    );
+    payload.insert("role".to_string(), json!("worker"));
+    payload.insert("reason".to_string(), json!(request.reason.clone()));
+    payload.insert(
+        "swap_strategy".to_string(),
+        json!(model_swap_strategy_str(request.swap_strategy)),
+    );
+    payload.insert("max_vram_mb".to_string(), json!(request.max_vram_mb));
+    payload.insert("max_ram_mb".to_string(), json!(request.max_ram_mb));
+    payload.insert("timeout_ms".to_string(), json!(request.timeout_ms));
+    payload.insert(
+        "state_persist_refs".to_string(),
+        json!(request.state_persist_refs.clone()),
+    );
+    payload.insert("state_hash".to_string(), json!(request.state_hash.clone()));
+    payload.insert(
+        "context_compile_ref".to_string(),
+        json!(request.context_compile_ref.clone()),
+    );
+    payload.insert("wp_id".to_string(), json!(wp_id));
+    payload.insert("mt_id".to_string(), json!(mt_id));
+    if let Some(outcome) = outcome {
+        payload.insert("outcome".to_string(), json!(outcome));
+    }
+    if let Some(error_summary) = error_summary {
+        payload.insert("error_summary".to_string(), json!(error_summary));
+    }
+
+    record_event_safely(
+        state,
+        FlightRecorderEvent::new(
+            event_type,
+            FlightRecorderActor::System,
+            trace_id,
+            Value::Object(payload),
+        )
+        .with_job_id(job_id.to_string())
+        .with_workflow_id(workflow_run_id.to_string()),
+    )
+    .await;
 }
 
 impl ModelSwapRequestV0_4 {
@@ -370,6 +458,70 @@ fn is_sha256_hex_lowercase(value: &str) -> bool {
             .all(|c| c.is_ascii_digit() || matches!(c, 'a'..='f'))
 }
 
+fn model_swap_state_ref_to_abs_path(
+    repo_root: &Path,
+    state_ref: &str,
+) -> Result<PathBuf, WorkflowError> {
+    let state_ref = state_ref.trim();
+    if state_ref.is_empty() {
+        return Err(WorkflowError::Terminal(
+            "invalid model swap state ref: empty".to_string(),
+        ));
+    }
+
+    let rel_path = if let Some(rest) = state_ref.strip_prefix("artifact:") {
+        let mut parts = rest.splitn(2, ':');
+        let _artifact_id = parts.next().unwrap_or_default();
+        let Some(path) = parts.next() else {
+            return Err(WorkflowError::Terminal(format!(
+                "invalid model swap state ref: expected artifact:<uuid>:<path>, got={state_ref}"
+            )));
+        };
+        path
+    } else {
+        state_ref
+    };
+
+    // Accept both "/data/..." and "data/..." forms.
+    let rel_path = rel_path.strip_prefix('/').unwrap_or(rel_path);
+    Ok(repo_root.join(rel_path))
+}
+
+fn compute_model_swap_state_hash_v0_4(
+    repo_root: &Path,
+    state_persist_refs: &[String],
+) -> Result<String, WorkflowError> {
+    if state_persist_refs.is_empty() {
+        return Err(WorkflowError::Terminal(
+            "invalid model swap state_persist_refs: must contain at least one ref".to_string(),
+        ));
+    }
+
+    let mut ref_hashes: Vec<(String, String)> = Vec::with_capacity(state_persist_refs.len());
+    for state_ref in state_persist_refs {
+        let abs_path = model_swap_state_ref_to_abs_path(repo_root, state_ref)?;
+        let bytes = fs::read(&abs_path).map_err(|e| {
+            WorkflowError::Terminal(format!(
+                "failed to read model swap state_persist_ref {} (resolved to {}): {e}",
+                state_ref,
+                abs_path.display()
+            ))
+        })?;
+        ref_hashes.push((state_ref.clone(), sha256_hex(&bytes)));
+    }
+
+    ref_hashes.sort_by(|(a, _), (b, _)| a.cmp(b));
+    let mut manifest = String::new();
+    for (state_ref, file_hash) in ref_hashes {
+        manifest.push_str(&state_ref);
+        manifest.push('\n');
+        manifest.push_str(&file_hash);
+        manifest.push('\n');
+    }
+
+    Ok(sha256_hex(manifest.as_bytes()))
+}
+
 fn persist_model_swap_state_v0_4(
     repo_root: &Path,
     job_id: Uuid,
@@ -402,7 +554,8 @@ fn persist_model_swap_state_v0_4(
     let state_rel = swap_dir_rel.join(format!("swap_state_{}.json", request.request_id));
     let state_abs = repo_root.join(&state_rel);
 
-    let state_hash = write_json_atomic_with_hash(&state_abs, &state)?;
+    write_json_atomic(&state_abs, &state)?;
+    let state_hash = compute_model_swap_state_hash_v0_4(repo_root, &state.state_persist_refs)?;
     if !is_sha256_hex_lowercase(&state_hash) {
         return Err(WorkflowError::Terminal(format!(
             "model swap state_hash was not lowercase sha256 hex: {state_hash}"
@@ -430,6 +583,7 @@ fn persist_model_swap_request_v0_4(
 }
 
 fn verify_model_swap_state_hash_v0_4(
+    repo_root: &Path,
     abs_state_path: &Path,
     expected_hash: &str,
 ) -> Result<(), WorkflowError> {
@@ -446,7 +600,13 @@ fn verify_model_swap_state_hash_v0_4(
             abs_state_path.display()
         ))
     })?;
-    let actual = sha256_hex(&bytes);
+    let state: PersistedModelSwapStateV0_4 = serde_json::from_slice(&bytes).map_err(|e| {
+        WorkflowError::Terminal(format!(
+            "invalid model swap state JSON {}: {e}",
+            abs_state_path.display()
+        ))
+    })?;
+    let actual = compute_model_swap_state_hash_v0_4(repo_root, &state.state_persist_refs)?;
     if actual != expected_hash {
         return Err(WorkflowError::Terminal(format!(
             "model swap state_hash mismatch: expected={expected_hash}, actual={actual}"
@@ -4012,6 +4172,8 @@ async fn run_micro_task_executor_v1(
                 iteration = 1;
             }
 
+            let mut pending_model_swap: Option<PendingModelSwapV0_4> = None;
+
             loop {
                 if progress.current_state.total_iterations >= policy.max_total_iterations {
                     record_micro_task_event(
@@ -4684,6 +4846,41 @@ NEED: {{what you need to unblock}}
                 let context_snapshot_hash =
                     write_json_atomic_with_hash(&repo_root.join(&context_snapshot_rel), &snapshot)?;
 
+                if let Some(pending) = pending_model_swap.take() {
+                    if pending.request.target_model_id == model_id {
+                        let context_compile_abs = repo_root.join(&pending.context_compile_rel);
+                        let context_compile_payload = json!({
+                            "schema_version": "1.0",
+                            "request_id": pending.request.request_id.clone(),
+                            "job_id": job.job_id.to_string(),
+                            "wp_id": inputs.wp_id.clone(),
+                            "mt_id": mt.mt_id.clone(),
+                            "created_at": Utc::now().to_rfc3339(),
+                            "target_model_id": model_id.clone(),
+                            "context_snapshot_ref": context_snapshot_ref.clone(),
+                            "context_snapshot_hash": context_snapshot_hash.clone(),
+                        });
+                        write_json_atomic(&context_compile_abs, &context_compile_payload)?;
+
+                        record_model_swap_event_v0_4(
+                            state,
+                            FlightRecorderEventType::ModelSwapCompleted,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            mt.mt_id.as_str(),
+                            &pending.request,
+                            "model_swap_completed",
+                            Some("success"),
+                            None,
+                        )
+                        .await;
+                    } else {
+                        pending_model_swap = Some(pending);
+                    }
+                }
+
                 record_micro_task_event(
                     state,
                     FlightRecorderEventType::MicroTaskIterationStarted,
@@ -5267,10 +5464,19 @@ NEED: {{what you need to unblock}}
                     .to_string();
 
                     let swap_dir_rel = job_dir_rel.join("model_swap");
-                    let request_rel = swap_dir_rel.join(format!("request_{}.json", &request_id));
-                    let state_rel = swap_dir_rel.join(format!("swap_state_{}.json", &request_id));
-                    let request_ref = rel_path_string(&request_rel);
-                    let state_ref = rel_path_string(&state_rel);
+                    let context_compile_rel =
+                        swap_dir_rel.join(format!("context_compile_{}.json", &request_id));
+                    let context_compile_ref = artifact_handle_for_rel(&context_compile_rel);
+
+                    let progress_snapshot_rel =
+                        swap_dir_rel.join(format!("progress_snapshot_{}.json", &request_id));
+                    let run_ledger_snapshot_rel =
+                        swap_dir_rel.join(format!("run_ledger_snapshot_{}.json", &request_id));
+                    write_json_atomic(&repo_root.join(&progress_snapshot_rel), &progress)?;
+                    write_json_atomic(&repo_root.join(&run_ledger_snapshot_rel), &run_ledger)?;
+
+                    let (max_vram_mb, max_ram_mb) =
+                        model_swap_min_budgets_mb_for_model_id(to_model.as_str()).unwrap_or((0, 0));
 
                     let mut swap_request = ModelSwapRequestV0_4 {
                         schema_version: MODEL_SWAP_SCHEMA_VERSION_V0_4.to_string(),
@@ -5282,17 +5488,15 @@ NEED: {{what you need to unblock}}
                         reason: "escalation".to_string(),
                         swap_strategy: ModelSwapStrategy::UnloadReload,
                         state_persist_refs: vec![
-                            rel_path_string(&progress_rel),
-                            rel_path_string(&run_ledger_rel),
-                            request_ref,
-                            state_ref,
+                            rel_path_string(&progress_snapshot_rel),
+                            rel_path_string(&run_ledger_snapshot_rel),
                             output_artifact_ref.canonical_id(),
                             context_snapshot_ref.canonical_id(),
                         ],
                         state_hash: "0".repeat(64),
-                        context_compile_ref: context_snapshot_ref.canonical_id(),
-                        max_vram_mb: 4096,
-                        max_ram_mb: 32768,
+                        context_compile_ref: context_compile_ref.canonical_id(),
+                        max_vram_mb,
+                        max_ram_mb,
                         timeout_ms: swap_policy.swap_timeout_ms,
                         requester: ModelSwapRequesterV0_4 {
                             subsystem: ModelSwapRequesterSubsystem::MtExecutor,
@@ -5306,35 +5510,25 @@ NEED: {{what you need to unblock}}
                     let (state_path, state_hash) =
                         persist_model_swap_state_v0_4(&repo_root, job.job_id, &swap_request)?;
                     swap_request.state_hash = state_hash;
-                    verify_model_swap_state_hash_v0_4(&state_path, &swap_request.state_hash)?;
+                    verify_model_swap_state_hash_v0_4(
+                        &repo_root,
+                        &state_path,
+                        &swap_request.state_hash,
+                    )?;
                     persist_model_swap_request_v0_4(&repo_root, job.job_id, &swap_request)?;
 
-                    record_event_safely(
+                    record_model_swap_event_v0_4(
                         state,
-                        FlightRecorderEvent::new(
-                            FlightRecorderEventType::ModelSwapRequested,
-                            FlightRecorderActor::System,
-                            trace_id,
-                            json!({
-                                "type": "model_swap_requested",
-                                "request_id": swap_request.request_id.clone(),
-                                "current_model_id": swap_request.current_model_id.clone(),
-                                "target_model_id": swap_request.target_model_id.clone(),
-                                "role": "worker",
-                                "reason": swap_request.reason.clone(),
-                                "swap_strategy": "unload_reload",
-                                "max_vram_mb": swap_request.max_vram_mb,
-                                "max_ram_mb": swap_request.max_ram_mb,
-                                "timeout_ms": swap_request.timeout_ms,
-                                "state_persist_refs": swap_request.state_persist_refs.clone(),
-                                "state_hash": swap_request.state_hash.clone(),
-                                "context_compile_ref": swap_request.context_compile_ref.clone(),
-                                "wp_id": inputs.wp_id.clone(),
-                                "mt_id": mt.mt_id.clone(),
-                            }),
-                        )
-                        .with_job_id(job.job_id.to_string())
-                        .with_workflow_id(workflow_run_id.to_string()),
+                        FlightRecorderEventType::ModelSwapRequested,
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        inputs.wp_id.as_str(),
+                        mt.mt_id.as_str(),
+                        &swap_request,
+                        "model_swap_requested",
+                        None,
+                        None,
                     )
                     .await;
 
@@ -5353,34 +5547,18 @@ NEED: {{what you need to unblock}}
                             "swap_limit_exceeded"
                         };
 
-                        record_event_safely(
+                        record_model_swap_event_v0_4(
                             state,
-                            FlightRecorderEvent::new(
-                                FlightRecorderEventType::ModelSwapFailed,
-                                FlightRecorderActor::System,
-                                trace_id,
-                                json!({
-                                    "type": "model_swap_failed",
-                                    "request_id": swap_request.request_id.clone(),
-                                    "current_model_id": swap_request.current_model_id.clone(),
-                                    "target_model_id": swap_request.target_model_id.clone(),
-                                    "role": "worker",
-                                    "reason": swap_request.reason.clone(),
-                                    "swap_strategy": "unload_reload",
-                                    "max_vram_mb": swap_request.max_vram_mb,
-                                    "max_ram_mb": swap_request.max_ram_mb,
-                                    "timeout_ms": swap_request.timeout_ms,
-                                    "state_persist_refs": swap_request.state_persist_refs.clone(),
-                                    "state_hash": swap_request.state_hash.clone(),
-                                    "context_compile_ref": swap_request.context_compile_ref.clone(),
-                                    "wp_id": inputs.wp_id.clone(),
-                                    "mt_id": mt.mt_id.clone(),
-                                    "outcome": "failure",
-                                    "error_summary": error_summary,
-                                }),
-                            )
-                            .with_job_id(job.job_id.to_string())
-                            .with_workflow_id(workflow_run_id.to_string()),
+                            FlightRecorderEventType::ModelSwapFailed,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            mt.mt_id.as_str(),
+                            &swap_request,
+                            "model_swap_failed",
+                            Some("failure"),
+                            Some(error_summary),
                         )
                         .await;
 
@@ -5388,34 +5566,98 @@ NEED: {{what you need to unblock}}
                             swap_policy.fallback_strategy,
                             ModelSwapFallbackStrategy::ContinueWithCurrent
                         ) {
-                            record_event_safely(
+                            record_model_swap_event_v0_4(
                                 state,
-                                FlightRecorderEvent::new(
-                                    FlightRecorderEventType::ModelSwapRollback,
-                                    FlightRecorderActor::System,
-                                    trace_id,
-                                    json!({
-                                        "type": "model_swap_rollback",
-                                        "request_id": swap_request.request_id.clone(),
-                                        "current_model_id": swap_request.current_model_id.clone(),
-                                        "target_model_id": swap_request.target_model_id.clone(),
-                                        "role": "worker",
-                                        "reason": swap_request.reason.clone(),
-                                        "swap_strategy": "unload_reload",
-                                        "max_vram_mb": swap_request.max_vram_mb,
-                                        "max_ram_mb": swap_request.max_ram_mb,
-                                        "timeout_ms": swap_request.timeout_ms,
-                                        "state_persist_refs": swap_request.state_persist_refs.clone(),
-                                        "state_hash": swap_request.state_hash.clone(),
-                                        "context_compile_ref": swap_request.context_compile_ref.clone(),
-                                        "wp_id": inputs.wp_id.clone(),
-                                        "mt_id": mt.mt_id.clone(),
-                                        "outcome": "rollback",
-                                        "error_summary": error_summary,
-                                    }),
-                                )
-                                .with_job_id(job.job_id.to_string())
-                                .with_workflow_id(workflow_run_id.to_string()),
+                                FlightRecorderEventType::ModelSwapRollback,
+                                trace_id,
+                                job.job_id,
+                                workflow_run_id,
+                                inputs.wp_id.as_str(),
+                                mt.mt_id.as_str(),
+                                &swap_request,
+                                "model_swap_rollback",
+                                Some("rollback"),
+                                Some(error_summary),
+                            )
+                            .await;
+
+                            progress.current_state.active_model_level = from_level;
+                            progress.updated_at = Utc::now();
+                            write_json_atomic(&progress_abs, &progress)?;
+                            write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                            false_completion_streak = 0;
+                            iteration = 1;
+                            continue;
+                        }
+
+                        progress.status = ProgressStatus::Failed;
+                        progress.updated_at = Utc::now();
+                        write_json_atomic(&progress_abs, &progress)?;
+                        write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                        let msg = format!("model swap failed: {error_summary}");
+                        return Ok(RunJobOutcome {
+                            state: JobState::Failed,
+                            status_reason: "model_swap_failed".to_string(),
+                            output: Some(json!({
+                                "wp_id": inputs.wp_id,
+                                "reason": error_summary,
+                                "mt_definitions_ref": mt_definitions_ref,
+                                "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                                "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                                "model_swap_request_id": swap_request.request_id,
+                            })),
+                            error_message: Some(msg),
+                        });
+                    }
+
+                    let budgets_ok = match model_swap_min_budgets_mb_for_model_id(
+                        swap_request.target_model_id.as_str(),
+                    ) {
+                        Some((min_vram_mb, min_ram_mb)) => {
+                            swap_request.max_vram_mb > 0
+                                && swap_request.max_ram_mb > 0
+                                && swap_request.max_vram_mb >= min_vram_mb
+                                && swap_request.max_ram_mb >= min_ram_mb
+                        }
+                        None => false,
+                    };
+
+                    if !budgets_ok {
+                        let error_summary = "budget_exceeded";
+
+                        record_model_swap_event_v0_4(
+                            state,
+                            FlightRecorderEventType::ModelSwapFailed,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            mt.mt_id.as_str(),
+                            &swap_request,
+                            "model_swap_failed",
+                            Some("failure"),
+                            Some(error_summary),
+                        )
+                        .await;
+
+                        if matches!(
+                            swap_policy.fallback_strategy,
+                            ModelSwapFallbackStrategy::ContinueWithCurrent
+                        ) {
+                            record_model_swap_event_v0_4(
+                                state,
+                                FlightRecorderEventType::ModelSwapRollback,
+                                trace_id,
+                                job.job_id,
+                                workflow_run_id,
+                                inputs.wp_id.as_str(),
+                                mt.mt_id.as_str(),
+                                &swap_request,
+                                "model_swap_rollback",
+                                Some("rollback"),
+                                Some(error_summary),
                             )
                             .await;
 
@@ -5453,34 +5695,18 @@ NEED: {{what you need to unblock}}
                     if swap_request.timeout_ms == 0 {
                         let error_summary = "swap_timeout";
 
-                        record_event_safely(
+                        record_model_swap_event_v0_4(
                             state,
-                            FlightRecorderEvent::new(
-                                FlightRecorderEventType::ModelSwapTimeout,
-                                FlightRecorderActor::System,
-                                trace_id,
-                                json!({
-                                    "type": "model_swap_timeout",
-                                    "request_id": swap_request.request_id.clone(),
-                                    "current_model_id": swap_request.current_model_id.clone(),
-                                    "target_model_id": swap_request.target_model_id.clone(),
-                                    "role": "worker",
-                                    "reason": swap_request.reason.clone(),
-                                    "swap_strategy": "unload_reload",
-                                    "max_vram_mb": swap_request.max_vram_mb,
-                                    "max_ram_mb": swap_request.max_ram_mb,
-                                    "timeout_ms": swap_request.timeout_ms,
-                                    "state_persist_refs": swap_request.state_persist_refs.clone(),
-                                    "state_hash": swap_request.state_hash.clone(),
-                                    "context_compile_ref": swap_request.context_compile_ref.clone(),
-                                    "wp_id": inputs.wp_id.clone(),
-                                    "mt_id": mt.mt_id.clone(),
-                                    "outcome": "timeout",
-                                    "error_summary": error_summary,
-                                }),
-                            )
-                            .with_job_id(job.job_id.to_string())
-                            .with_workflow_id(workflow_run_id.to_string()),
+                            FlightRecorderEventType::ModelSwapTimeout,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            mt.mt_id.as_str(),
+                            &swap_request,
+                            "model_swap_timeout",
+                            Some("timeout"),
+                            Some(error_summary),
                         )
                         .await;
 
@@ -5488,34 +5714,18 @@ NEED: {{what you need to unblock}}
                             swap_policy.fallback_strategy,
                             ModelSwapFallbackStrategy::ContinueWithCurrent
                         ) {
-                            record_event_safely(
+                            record_model_swap_event_v0_4(
                                 state,
-                                FlightRecorderEvent::new(
-                                    FlightRecorderEventType::ModelSwapRollback,
-                                    FlightRecorderActor::System,
-                                    trace_id,
-                                    json!({
-                                        "type": "model_swap_rollback",
-                                        "request_id": swap_request.request_id.clone(),
-                                        "current_model_id": swap_request.current_model_id.clone(),
-                                        "target_model_id": swap_request.target_model_id.clone(),
-                                        "role": "worker",
-                                        "reason": swap_request.reason.clone(),
-                                        "swap_strategy": "unload_reload",
-                                        "max_vram_mb": swap_request.max_vram_mb,
-                                        "max_ram_mb": swap_request.max_ram_mb,
-                                        "timeout_ms": swap_request.timeout_ms,
-                                        "state_persist_refs": swap_request.state_persist_refs.clone(),
-                                        "state_hash": swap_request.state_hash.clone(),
-                                        "context_compile_ref": swap_request.context_compile_ref.clone(),
-                                        "wp_id": inputs.wp_id.clone(),
-                                        "mt_id": mt.mt_id.clone(),
-                                        "outcome": "rollback",
-                                        "error_summary": error_summary,
-                                    }),
-                                )
-                                .with_job_id(job.job_id.to_string())
-                                .with_workflow_id(workflow_run_id.to_string()),
+                                FlightRecorderEventType::ModelSwapRollback,
+                                trace_id,
+                                job.job_id,
+                                workflow_run_id,
+                                inputs.wp_id.as_str(),
+                                mt.mt_id.as_str(),
+                                &swap_request,
+                                "model_swap_rollback",
+                                Some("rollback"),
+                                Some(error_summary),
                             )
                             .await;
 
@@ -5550,35 +5760,156 @@ NEED: {{what you need to unblock}}
                         });
                     }
 
-                    record_event_safely(
-                        state,
-                        FlightRecorderEvent::new(
-                            FlightRecorderEventType::ModelSwapCompleted,
-                            FlightRecorderActor::System,
-                            trace_id,
-                            json!({
-                                "type": "model_swap_completed",
-                                "request_id": swap_request.request_id.clone(),
-                                "current_model_id": swap_request.current_model_id.clone(),
-                                "target_model_id": swap_request.target_model_id.clone(),
-                                "role": "worker",
-                                "reason": swap_request.reason.clone(),
-                                "swap_strategy": "unload_reload",
-                                "max_vram_mb": swap_request.max_vram_mb,
-                                "max_ram_mb": swap_request.max_ram_mb,
-                                "timeout_ms": swap_request.timeout_ms,
-                                "state_persist_refs": swap_request.state_persist_refs.clone(),
-                                "state_hash": swap_request.state_hash.clone(),
-                                "context_compile_ref": swap_request.context_compile_ref.clone(),
-                                "wp_id": inputs.wp_id.clone(),
-                                "mt_id": mt.mt_id.clone(),
-                                "outcome": "success",
-                            }),
-                        )
-                        .with_job_id(job.job_id.to_string())
-                        .with_workflow_id(workflow_run_id.to_string()),
+                    match tokio::time::timeout(
+                        std::time::Duration::from_millis(swap_request.timeout_ms),
+                        state.llm_client.swap_model(swap_request.clone()),
                     )
-                    .await;
+                    .await
+                    {
+                        Ok(Ok(())) => {
+                            pending_model_swap = Some(PendingModelSwapV0_4 {
+                                request: swap_request.clone(),
+                                context_compile_rel: context_compile_rel.clone(),
+                            });
+                        }
+                        Ok(Err(err)) => {
+                            let error_summary = format!("runtime_failure: {err}");
+
+                            record_model_swap_event_v0_4(
+                                state,
+                                FlightRecorderEventType::ModelSwapFailed,
+                                trace_id,
+                                job.job_id,
+                                workflow_run_id,
+                                inputs.wp_id.as_str(),
+                                mt.mt_id.as_str(),
+                                &swap_request,
+                                "model_swap_failed",
+                                Some("failure"),
+                                Some(error_summary.as_str()),
+                            )
+                            .await;
+
+                            if matches!(
+                                swap_policy.fallback_strategy,
+                                ModelSwapFallbackStrategy::ContinueWithCurrent
+                            ) {
+                                record_model_swap_event_v0_4(
+                                    state,
+                                    FlightRecorderEventType::ModelSwapRollback,
+                                    trace_id,
+                                    job.job_id,
+                                    workflow_run_id,
+                                    inputs.wp_id.as_str(),
+                                    mt.mt_id.as_str(),
+                                    &swap_request,
+                                    "model_swap_rollback",
+                                    Some("rollback"),
+                                    Some(error_summary.as_str()),
+                                )
+                                .await;
+
+                                progress.current_state.active_model_level = from_level;
+                                progress.updated_at = Utc::now();
+                                write_json_atomic(&progress_abs, &progress)?;
+                                write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                                false_completion_streak = 0;
+                                iteration = 1;
+                                continue;
+                            }
+
+                            progress.status = ProgressStatus::Failed;
+                            progress.updated_at = Utc::now();
+                            write_json_atomic(&progress_abs, &progress)?;
+                            write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                            let msg = format!("model swap failed: {error_summary}");
+                            return Ok(RunJobOutcome {
+                                state: JobState::Failed,
+                                status_reason: "model_swap_failed".to_string(),
+                                output: Some(json!({
+                                    "wp_id": inputs.wp_id,
+                                    "reason": error_summary,
+                                    "mt_definitions_ref": mt_definitions_ref,
+                                    "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                                    "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                                    "model_swap_request_id": swap_request.request_id,
+                                })),
+                                error_message: Some(msg),
+                            });
+                        }
+                        Err(_) => {
+                            let error_summary = "swap_timeout";
+
+                            record_model_swap_event_v0_4(
+                                state,
+                                FlightRecorderEventType::ModelSwapTimeout,
+                                trace_id,
+                                job.job_id,
+                                workflow_run_id,
+                                inputs.wp_id.as_str(),
+                                mt.mt_id.as_str(),
+                                &swap_request,
+                                "model_swap_timeout",
+                                Some("timeout"),
+                                Some(error_summary),
+                            )
+                            .await;
+
+                            if matches!(
+                                swap_policy.fallback_strategy,
+                                ModelSwapFallbackStrategy::ContinueWithCurrent
+                            ) {
+                                record_model_swap_event_v0_4(
+                                    state,
+                                    FlightRecorderEventType::ModelSwapRollback,
+                                    trace_id,
+                                    job.job_id,
+                                    workflow_run_id,
+                                    inputs.wp_id.as_str(),
+                                    mt.mt_id.as_str(),
+                                    &swap_request,
+                                    "model_swap_rollback",
+                                    Some("rollback"),
+                                    Some(error_summary),
+                                )
+                                .await;
+
+                                progress.current_state.active_model_level = from_level;
+                                progress.updated_at = Utc::now();
+                                write_json_atomic(&progress_abs, &progress)?;
+                                write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                                false_completion_streak = 0;
+                                iteration = 1;
+                                continue;
+                            }
+
+                            progress.status = ProgressStatus::Failed;
+                            progress.updated_at = Utc::now();
+                            write_json_atomic(&progress_abs, &progress)?;
+                            write_json_atomic(&run_ledger_abs, &run_ledger)?;
+
+                            let msg = "model swap timeout".to_string();
+                            return Ok(RunJobOutcome {
+                                state: JobState::Failed,
+                                status_reason: "model_swap_timeout".to_string(),
+                                output: Some(json!({
+                                    "wp_id": inputs.wp_id,
+                                    "reason": error_summary,
+                                    "mt_definitions_ref": mt_definitions_ref,
+                                    "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                                    "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                                    "model_swap_request_id": swap_request.request_id,
+                                })),
+                                error_message: Some(msg),
+                            });
+                        }
+                    }
+
+                    // NOTE: ModelSwapCompleted is emitted after a fresh post-swap context compile
+                    // (right before the first inference on the target model).
                 }
 
                 false_completion_streak = 0;
@@ -5803,6 +6134,13 @@ mod tests {
         let tmp = tempfile::tempdir()?;
         let job_id = Uuid::new_v4();
 
+        let state_ref_rel = PathBuf::from("data").join("test_state.json");
+        let state_ref_abs = tmp.path().join(&state_ref_rel);
+        if let Some(parent) = state_ref_abs.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&state_ref_abs, b"hello")?;
+
         let request = ModelSwapRequestV0_4 {
             schema_version: MODEL_SWAP_SCHEMA_VERSION_V0_4.to_string(),
             request_id: "req-2".to_string(),
@@ -5812,7 +6150,7 @@ mod tests {
             priority: ModelSwapPriority::High,
             reason: "context_overflow".to_string(),
             swap_strategy: ModelSwapStrategy::UnloadReload,
-            state_persist_refs: vec!["artifact:locus_checkpoint.json".to_string()],
+            state_persist_refs: vec![rel_path_string(&state_ref_rel)],
             state_hash: "0".repeat(64),
             context_compile_ref: "artifact:ace_compile_job.json".to_string(),
             max_vram_mb: 4096,
@@ -5847,10 +6185,10 @@ mod tests {
             "state must not embed state_hash"
         );
 
-        verify_model_swap_state_hash_v0_4(&state_path, &state_hash)?;
+        verify_model_swap_state_hash_v0_4(tmp.path(), &state_path, &state_hash)?;
         let bad_hash = "1".repeat(64);
         assert!(
-            verify_model_swap_state_hash_v0_4(&state_path, &bad_hash).is_err(),
+            verify_model_swap_state_hash_v0_4(tmp.path(), &state_path, &bad_hash).is_err(),
             "expected hash mismatch to fail"
         );
 
