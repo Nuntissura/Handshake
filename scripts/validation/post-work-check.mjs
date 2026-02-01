@@ -173,7 +173,8 @@ const cli = parseCli(cliArgs);
 const loadGitVersion = (rev, targetPath) => {
   try {
     const gitPath = targetPath.replace(/\\/g, '/');
-    return gitBuffer(`git show ${rev}:${gitPath}`);
+    // Suppress git stderr for expected "missing preimage" lookups (new files at base/HEAD).
+    return execSync(`git show ${rev}:${gitPath}`, { stdio: ['ignore', 'pipe', 'pipe'] });
   } catch {
     return null;
   }
@@ -186,7 +187,8 @@ const loadHeadVersion = (targetPath) => {
 const loadIndexVersion = (targetPath) => {
   try {
     const gitPath = targetPath.replace(/\\/g, '/');
-    return gitBuffer(`git show :${gitPath}`);
+    // Suppress git stderr for expected "missing index preimage" lookups.
+    return execSync(`git show :${gitPath}`, { stdio: ['ignore', 'pipe', 'pipe'] });
   } catch {
     return null;
   }
