@@ -131,6 +131,17 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
 - Require evidence that `just post-work WP-{ID}` ran and passed (this gate enforces the manifest + SHA1/gate checks). If absent or failing, verdict = FAIL until fixed.
 - Post-work sequencing note (echo from CODER_PROTOCOL): `just post-work` validates staged/working changes when present, and can also validate a clean tree by checking the last commit (HEAD^..HEAD) or a specific commit via `--rev <sha>`. Require the Coder's PASS `GATE_OUTPUT` plus the validated commit SHA/range shown in that output.
+- Multi-commit / agentic WP note (prevents false negatives): if the packet manifest/SHA1s are authored relative to a base (e.g., `main..HEAD`) rather than `HEAD^..HEAD`, require an explicit range and re-run:
+  - `just post-work WP-{ID} --range <merge_base_sha>..HEAD`
+  Do not accept a failing default `HEAD^..HEAD` run as evidence when a base mismatch is the likely cause; require the correct range/rev evidence.
+
+## Cross-Boundary + Audit/Provenance Verification (Conditional, BLOCKING when applicable)
+
+If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the WP spans a trust boundary (e.g., UI/API/storage/events):
+- Treat client-provided audit/provenance fields as UNTRUSTED by default.
+- Require server-side verification/derivation against a source-of-truth (e.g., stored job output) unless the task packet contains an explicit user waiver.
+- Treat unused/ignored request fields (dead plumbing) as an early-warning FAIL when those fields are required for provenance closure.
+- Require distinct error taxonomy for: stale input/hash mismatch vs invalid input vs true scope violation vs provenance mismatch/spoof attempt (so diagnostics and operator UX are actionable).
 
 ## Core Process (Follow in Order)
 0) BOOTSTRAP Verification
