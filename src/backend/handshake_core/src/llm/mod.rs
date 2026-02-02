@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
 
+use crate::workflows::ModelSwapRequestV0_4;
+
 // Re-export primary types for convenient access
 pub use ollama::OllamaAdapter;
 
@@ -32,6 +34,17 @@ pub trait LlmClient: Send + Sync {
     /// Implementers MUST emit a Flight Recorder event with `trace_id`,
     /// `model_id`, and `TokenUsage` per §4.2.3.2.
     async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError>;
+
+    /// Swaps the active model in the underlying provider runtime (best-effort),
+    /// honoring the Model Swap Protocol budgets and timeout.
+    ///
+    /// Default implementation returns an "unsupported" provider error so that
+    /// non-Ollama clients can compile without implementing swap semantics.
+    async fn swap_model(&self, _req: ModelSwapRequestV0_4) -> Result<(), LlmError> {
+        Err(LlmError::ProviderError(
+            "HSK-501-UNSUPPORTED: model swap unsupported".to_string(),
+        ))
+    }
 
     /// Returns the model profile (capabilities, token limits).
     fn profile(&self) -> &ModelProfile;
