@@ -554,7 +554,7 @@ fn persist_model_swap_state_v0_4(
     let state_rel = swap_dir_rel.join(format!("swap_state_{}.json", request.request_id));
     let state_abs = repo_root.join(&state_rel);
 
-    write_json_atomic(&state_abs, &state)?;
+    write_json_atomic(repo_root, &state_abs, &state)?;
     let state_hash = compute_model_swap_state_hash_v0_4(repo_root, &state.state_persist_refs)?;
     if !is_sha256_hex_lowercase(&state_hash) {
         return Err(WorkflowError::Terminal(format!(
@@ -578,7 +578,7 @@ fn persist_model_swap_request_v0_4(
     let swap_dir_rel = job_dir_rel.join("model_swap");
     let request_rel = swap_dir_rel.join(format!("request_{}.json", request.request_id));
     let request_abs = repo_root.join(&request_rel);
-    write_json_atomic(&request_abs, request)?;
+    write_json_atomic(repo_root, &request_abs, request)?;
     Ok(request_abs)
 }
 
@@ -2544,50 +2544,30 @@ fn artifact_handle_for_rel(rel_path: &Path) -> ArtifactHandle {
     ArtifactHandle::new(Uuid::new_v4(), rel_path_string(rel_path))
 }
 
-fn write_bytes_atomic(abs_path: &Path, bytes: &[u8]) -> Result<(), WorkflowError> {
-    let Some(parent) = abs_path.parent() else {
-        return Err(WorkflowError::Terminal(format!(
-            "invalid path for atomic write: {}",
-            abs_path.display()
-        )));
-    };
-    fs::create_dir_all(parent).map_err(|e| {
-        WorkflowError::Terminal(format!("failed to create {}: {e}", parent.display()))
-    })?;
-
-    let tmp = abs_path.with_extension("tmp");
-    fs::write(&tmp, bytes)
-        .map_err(|e| WorkflowError::Terminal(format!("failed to write {}: {e}", tmp.display())))?;
-
-    if abs_path.exists() {
-        fs::remove_file(abs_path).map_err(|e| {
-            WorkflowError::Terminal(format!("failed to remove {}: {e}", abs_path.display()))
-        })?;
-    }
-    fs::rename(&tmp, abs_path).map_err(|e| {
-        WorkflowError::Terminal(format!(
-            "failed to rename {} -> {}: {e}",
-            tmp.display(),
-            abs_path.display()
-        ))
-    })?;
-    Ok(())
+fn write_bytes_atomic(root: &Path, abs_path: &Path, bytes: &[u8]) -> Result<(), WorkflowError> {
+    crate::storage::artifacts::write_file_atomic(root, abs_path, bytes, true)
+        .map_err(|e| WorkflowError::Terminal(format!("atomic write failed: {e}")))
 }
 
-fn write_json_atomic<T: Serialize>(abs_path: &Path, value: &T) -> Result<(), WorkflowError> {
+fn write_json_atomic<T: Serialize>(
+    root: &Path,
+    abs_path: &Path,
+    value: &T,
+) -> Result<(), WorkflowError> {
     let bytes = serde_json::to_vec_pretty(value)
         .map_err(|e| WorkflowError::Terminal(format!("json serialize error: {e}")))?;
-    write_bytes_atomic(abs_path, &bytes)
+    write_bytes_atomic(root, abs_path, &bytes)
 }
 
 fn write_json_atomic_with_hash<T: Serialize>(
+    root: &Path,
     abs_path: &Path,
     value: &T,
 ) -> Result<String, WorkflowError> {
     let bytes = serde_json::to_vec_pretty(value)
         .map_err(|e| WorkflowError::Terminal(format!("json serialize error: {e}")))?;
     let hash = sha256_hex(&bytes);
-    write_bytes_atomic(abs_path, &bytes)?;
+    write_bytes_atomic(root, abs_path, &bytes)?;
     Ok(hash)
 }
 
@@ -3674,7 +3654,11 @@ async fn run_validation_via_mex(
         schema_version: "1.0".to_string(),
         evidence: all_evidence,
     };
-    write_json_atomic(&repo_root.join(evidence_artifact_rel), &evidence_artifact)?;
+    write_json_atomic(
+        repo_root,
+        &repo_root.join(evidence_artifact_rel),
+        &evidence_artifact,
+    )?;
 
     Ok(ValidationResult {
         passed: overall_passed,
@@ -3912,7 +3896,7 @@ async fn run_micro_task_executor_v1(
 
     let mt_defs_rel = job_dir_rel.join("mt_definitions.json");
     let mt_defs_abs = repo_root.join(&mt_defs_rel);
-    write_json_atomic(&mt_defs_abs, &mt_definitions)?;
+    write_json_atomic(&repo_root, &mt_defs_abs, &mt_definitions)?;
     let mt_definitions_ref = artifact_handle_for_rel(&mt_defs_rel);
 
     let progress_rel = job_dir_rel.join("progress_artifact.json");
@@ -3941,8 +3925,8 @@ async fn run_micro_task_executor_v1(
         let progress =
             init_progress_artifact(&inputs.wp_id, job.job_id, policy.clone(), &mt_definitions);
         let run_ledger = init_run_ledger(&inputs.wp_id, job.job_id);
-        write_json_atomic(&progress_abs, &progress)?;
-        write_json_atomic(&run_ledger_abs, &run_ledger)?;
+        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
         (progress, run_ledger, false)
     };
 
@@ -3964,8 +3948,8 @@ async fn run_micro_task_executor_v1(
         resumed_from_pause_mt = progress.current_state.active_mt.clone();
         progress.status = ProgressStatus::InProgress;
         progress.updated_at = Utc::now();
-        write_json_atomic(&progress_abs, &progress)?;
-        write_json_atomic(&run_ledger_abs, &run_ledger)?;
+        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
         record_micro_task_event(
             state,
@@ -4017,8 +4001,8 @@ async fn run_micro_task_executor_v1(
                 .map(|s| s.step_id.clone());
             run_ledger.resume_reason = Some("crash_recovery".to_string());
             progress.updated_at = Utc::now();
-            write_json_atomic(&progress_abs, &progress)?;
-            write_json_atomic(&run_ledger_abs, &run_ledger)?;
+            write_json_atomic(&repo_root, &progress_abs, &progress)?;
+            write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
             let payload = json!({
                 "workflow_run_id": workflow_run_id.to_string(),
@@ -4128,8 +4112,8 @@ async fn run_micro_task_executor_v1(
                 progress.current_state.active_mt = Some(mt_id.clone());
                 progress.updated_at = Utc::now();
                 run_ledger.resume_reason = Some(format!("pause_point:{}", mt.mt_id));
-                write_json_atomic(&progress_abs, &progress)?;
-                write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                 return Ok(RunJobOutcome {
                     state: JobState::AwaitingUser,
@@ -4156,7 +4140,7 @@ async fn run_micro_task_executor_v1(
             progress.micro_tasks[mt_progress_index].status = MTStatus::InProgress;
             progress.current_state.active_mt = Some(mt_id.clone());
             progress.updated_at = Utc::now();
-            write_json_atomic(&progress_abs, &progress)?;
+            write_json_atomic(&repo_root, &progress_abs, &progress)?;
 
             let mut escalation_level: u32 = progress.current_state.active_model_level;
             let mut false_completion_streak: u32 = 0;
@@ -4190,8 +4174,8 @@ async fn run_micro_task_executor_v1(
 
                     progress.status = ProgressStatus::Paused;
                     progress.updated_at = Utc::now();
-                    write_json_atomic(&progress_abs, &progress)?;
-                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                    write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                    write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                     return Ok(RunJobOutcome {
                         state: JobState::AwaitingUser,
@@ -4226,8 +4210,8 @@ async fn run_micro_task_executor_v1(
 
                     progress.status = ProgressStatus::Paused;
                     progress.updated_at = Utc::now();
-                    write_json_atomic(&progress_abs, &progress)?;
-                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                    write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                    write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                     return Ok(RunJobOutcome {
                         state: JobState::AwaitingUser,
@@ -4263,8 +4247,8 @@ async fn run_micro_task_executor_v1(
 
                     progress.status = ProgressStatus::Paused;
                     progress.updated_at = Utc::now();
-                    write_json_atomic(&progress_abs, &progress)?;
-                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                    write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                    write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                     return Ok(RunJobOutcome {
                         state: JobState::AwaitingUser,
@@ -4300,8 +4284,8 @@ async fn run_micro_task_executor_v1(
 
                     progress.status = ProgressStatus::Paused;
                     progress.updated_at = Utc::now();
-                    write_json_atomic(&progress_abs, &progress)?;
-                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                    write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                    write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                     return Ok(RunJobOutcome {
                         state: JobState::AwaitingUser,
@@ -4337,8 +4321,8 @@ async fn run_micro_task_executor_v1(
 
                     progress.status = ProgressStatus::Paused;
                     progress.updated_at = Utc::now();
-                    write_json_atomic(&progress_abs, &progress)?;
-                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                    write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                    write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                     return Ok(RunJobOutcome {
                         state: JobState::AwaitingUser,
@@ -4754,8 +4738,16 @@ NEED: {{what you need to unblock}}
                 let ace_query_plan_ref = artifact_handle_for_rel(&ace_query_plan_rel);
                 let ace_retrieval_trace_ref = artifact_handle_for_rel(&ace_retrieval_trace_rel);
 
-                write_json_atomic(&repo_root.join(&ace_query_plan_rel), &query_plan)?;
-                write_json_atomic(&repo_root.join(&ace_retrieval_trace_rel), &retrieval_trace)?;
+                write_json_atomic(
+                    &repo_root,
+                    &repo_root.join(&ace_query_plan_rel),
+                    &query_plan,
+                )?;
+                write_json_atomic(
+                    &repo_root,
+                    &repo_root.join(&ace_retrieval_trace_rel),
+                    &retrieval_trace,
+                )?;
 
                 let context_files_artifact = MtContextFilesArtifact {
                     schema_version: "1.0".to_string(),
@@ -4763,7 +4755,11 @@ NEED: {{what you need to unblock}}
                     iteration,
                     files: selected_files.clone(),
                 };
-                write_json_atomic(&repo_root.join(&context_files_rel), &context_files_artifact)?;
+                write_json_atomic(
+                    &repo_root,
+                    &repo_root.join(&context_files_rel),
+                    &context_files_artifact,
+                )?;
 
                 let mut candidate_ids: Vec<String> = candidate_source_refs
                     .iter()
@@ -4843,8 +4839,11 @@ NEED: {{what you need to unblock}}
                     warnings,
                     local_only_payload_ref: Some(prompt_snapshot_ref.clone()),
                 };
-                let context_snapshot_hash =
-                    write_json_atomic_with_hash(&repo_root.join(&context_snapshot_rel), &snapshot)?;
+                let context_snapshot_hash = write_json_atomic_with_hash(
+                    &repo_root,
+                    &repo_root.join(&context_snapshot_rel),
+                    &snapshot,
+                )?;
 
                 if let Some(pending) = pending_model_swap.take() {
                     if pending.request.target_model_id == model_id {
@@ -4860,7 +4859,11 @@ NEED: {{what you need to unblock}}
                             "context_snapshot_ref": context_snapshot_ref.clone(),
                             "context_snapshot_hash": context_snapshot_hash.clone(),
                         });
-                        write_json_atomic(&context_compile_abs, &context_compile_payload)?;
+                        write_json_atomic(
+                            &repo_root,
+                            &context_compile_abs,
+                            &context_compile_payload,
+                        )?;
 
                         record_model_swap_event_v0_4(
                             state,
@@ -4905,9 +4908,9 @@ NEED: {{what you need to unblock}}
                     error: None,
                     recoverable: true,
                 });
-                write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
-                write_bytes_atomic(&repo_root.join(&prompt_rel), prompt.as_bytes())?;
+                write_bytes_atomic(&repo_root, &repo_root.join(&prompt_rel), prompt.as_bytes())?;
 
                 let response = state
                     .llm_client
@@ -4996,13 +4999,18 @@ NEED: {{what you need to unblock}}
                 progress.current_state.total_iterations += 1;
                 progress.updated_at = Utc::now();
 
-                write_bytes_atomic(&repo_root.join(&response_rel), response.text.as_bytes())?;
+                write_bytes_atomic(
+                    &repo_root,
+                    &repo_root.join(&response_rel),
+                    response.text.as_bytes(),
+                )?;
                 if let Some(out) = &validation_outcome {
-                    write_json_atomic(&repo_root.join(&validation_rel), out)?;
+                    write_json_atomic(&repo_root, &repo_root.join(&validation_rel), out)?;
                 }
 
                 let output_artifact_ref = artifact_handle_for_rel(&output_rel);
                 write_json_atomic(
+                    &repo_root,
                     &repo_root.join(&output_rel),
                     &json!({
                         "step_id": step_id,
@@ -5064,8 +5072,8 @@ NEED: {{what you need to unblock}}
                     .push(output_artifact_ref.clone());
 
                 refresh_aggregate_stats(&mut progress);
-                write_json_atomic(&progress_abs, &progress)?;
-                write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                 record_micro_task_event(
                     state,
@@ -5131,6 +5139,7 @@ NEED: {{what you need to unblock}}
                                 let candidate_abs = repo_root.join(&candidate_rel);
 
                                 write_json_atomic(
+                                    &repo_root,
                                     &candidate_abs,
                                     &json!({
                                         "schema_version": "1.0",
@@ -5206,8 +5215,8 @@ NEED: {{what you need to unblock}}
                     progress.current_state.active_mt = None;
                     progress.updated_at = Utc::now();
                     refresh_aggregate_stats(&mut progress);
-                    write_json_atomic(&progress_abs, &progress)?;
-                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                    write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                    write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                     record_micro_task_event(
                         state,
@@ -5286,6 +5295,7 @@ NEED: {{what you need to unblock}}
                 ));
                 let escalation_record_abs = repo_root.join(&escalation_record_rel);
                 write_json_atomic(
+                    &repo_root,
                     &escalation_record_abs,
                     &json!({
                         "schema_version": "1.0",
@@ -5376,8 +5386,8 @@ NEED: {{what you need to unblock}}
                 progress.current_state.active_model_level = to_level;
                 progress.updated_at = Utc::now();
                 refresh_aggregate_stats(&mut progress);
-                write_json_atomic(&progress_abs, &progress)?;
-                write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                 if to_is_cloud && !policy.cloud_escalation_allowed {
                     record_micro_task_event(
@@ -5400,8 +5410,8 @@ NEED: {{what you need to unblock}}
 
                     progress.status = ProgressStatus::Paused;
                     progress.updated_at = Utc::now();
-                    write_json_atomic(&progress_abs, &progress)?;
-                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                    write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                    write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                     return Ok(RunJobOutcome {
                         state: JobState::AwaitingUser,
@@ -5438,8 +5448,8 @@ NEED: {{what you need to unblock}}
 
                     progress.status = ProgressStatus::Paused;
                     progress.updated_at = Utc::now();
-                    write_json_atomic(&progress_abs, &progress)?;
-                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                    write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                    write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                     return Ok(RunJobOutcome {
                         state: JobState::AwaitingUser,
@@ -5472,8 +5482,16 @@ NEED: {{what you need to unblock}}
                         swap_dir_rel.join(format!("progress_snapshot_{}.json", &request_id));
                     let run_ledger_snapshot_rel =
                         swap_dir_rel.join(format!("run_ledger_snapshot_{}.json", &request_id));
-                    write_json_atomic(&repo_root.join(&progress_snapshot_rel), &progress)?;
-                    write_json_atomic(&repo_root.join(&run_ledger_snapshot_rel), &run_ledger)?;
+                    write_json_atomic(
+                        &repo_root,
+                        &repo_root.join(&progress_snapshot_rel),
+                        &progress,
+                    )?;
+                    write_json_atomic(
+                        &repo_root,
+                        &repo_root.join(&run_ledger_snapshot_rel),
+                        &run_ledger,
+                    )?;
 
                     let (max_vram_mb, max_ram_mb) =
                         model_swap_min_budgets_mb_for_model_id(to_model.as_str()).unwrap_or((0, 0));
@@ -5535,8 +5553,8 @@ NEED: {{what you need to unblock}}
                     progress.current_state.total_model_swaps =
                         progress.current_state.total_model_swaps.saturating_add(1);
                     progress.updated_at = Utc::now();
-                    write_json_atomic(&progress_abs, &progress)?;
-                    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                    write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                    write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                     let swap_limit_exceeded = swap_policy.max_swaps_per_job == 0
                         || progress.current_state.total_model_swaps > swap_policy.max_swaps_per_job;
@@ -5583,8 +5601,8 @@ NEED: {{what you need to unblock}}
 
                             progress.current_state.active_model_level = from_level;
                             progress.updated_at = Utc::now();
-                            write_json_atomic(&progress_abs, &progress)?;
-                            write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                            write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                            write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                             false_completion_streak = 0;
                             iteration = 1;
@@ -5593,8 +5611,8 @@ NEED: {{what you need to unblock}}
 
                         progress.status = ProgressStatus::Failed;
                         progress.updated_at = Utc::now();
-                        write_json_atomic(&progress_abs, &progress)?;
-                        write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                         let msg = format!("model swap failed: {error_summary}");
                         return Ok(RunJobOutcome {
@@ -5663,8 +5681,8 @@ NEED: {{what you need to unblock}}
 
                             progress.current_state.active_model_level = from_level;
                             progress.updated_at = Utc::now();
-                            write_json_atomic(&progress_abs, &progress)?;
-                            write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                            write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                            write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                             false_completion_streak = 0;
                             iteration = 1;
@@ -5673,8 +5691,8 @@ NEED: {{what you need to unblock}}
 
                         progress.status = ProgressStatus::Failed;
                         progress.updated_at = Utc::now();
-                        write_json_atomic(&progress_abs, &progress)?;
-                        write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                         let msg = format!("model swap failed: {error_summary}");
                         return Ok(RunJobOutcome {
@@ -5731,8 +5749,8 @@ NEED: {{what you need to unblock}}
 
                             progress.current_state.active_model_level = from_level;
                             progress.updated_at = Utc::now();
-                            write_json_atomic(&progress_abs, &progress)?;
-                            write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                            write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                            write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                             false_completion_streak = 0;
                             iteration = 1;
@@ -5741,8 +5759,8 @@ NEED: {{what you need to unblock}}
 
                         progress.status = ProgressStatus::Failed;
                         progress.updated_at = Utc::now();
-                        write_json_atomic(&progress_abs, &progress)?;
-                        write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                         let msg = "model swap timeout".to_string();
                         return Ok(RunJobOutcome {
@@ -5811,8 +5829,8 @@ NEED: {{what you need to unblock}}
 
                                 progress.current_state.active_model_level = from_level;
                                 progress.updated_at = Utc::now();
-                                write_json_atomic(&progress_abs, &progress)?;
-                                write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                                write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                                write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                                 false_completion_streak = 0;
                                 iteration = 1;
@@ -5821,8 +5839,8 @@ NEED: {{what you need to unblock}}
 
                             progress.status = ProgressStatus::Failed;
                             progress.updated_at = Utc::now();
-                            write_json_atomic(&progress_abs, &progress)?;
-                            write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                            write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                            write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                             let msg = format!("model swap failed: {error_summary}");
                             return Ok(RunJobOutcome {
@@ -5878,8 +5896,8 @@ NEED: {{what you need to unblock}}
 
                                 progress.current_state.active_model_level = from_level;
                                 progress.updated_at = Utc::now();
-                                write_json_atomic(&progress_abs, &progress)?;
-                                write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                                write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                                write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                                 false_completion_streak = 0;
                                 iteration = 1;
@@ -5888,8 +5906,8 @@ NEED: {{what you need to unblock}}
 
                             progress.status = ProgressStatus::Failed;
                             progress.updated_at = Utc::now();
-                            write_json_atomic(&progress_abs, &progress)?;
-                            write_json_atomic(&run_ledger_abs, &run_ledger)?;
+                            write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                            write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
                             let msg = "model swap timeout".to_string();
                             return Ok(RunJobOutcome {
@@ -5925,8 +5943,8 @@ NEED: {{what you need to unblock}}
     progress.completed_at = Some(Utc::now());
     progress.updated_at = Utc::now();
     refresh_aggregate_stats(&mut progress);
-    write_json_atomic(&progress_abs, &progress)?;
-    write_json_atomic(&run_ledger_abs, &run_ledger)?;
+    write_json_atomic(&repo_root, &progress_abs, &progress)?;
+    write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
     record_micro_task_event(
         state,

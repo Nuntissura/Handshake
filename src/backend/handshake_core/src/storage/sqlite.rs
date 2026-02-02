@@ -2603,6 +2603,7 @@ impl super::Database for SqliteDatabase {
 
         if dry_run {
             report.items_pruned += actual_to_delete;
+            report.items_spared_window += deletable_count.saturating_sub(actual_to_delete);
             return Ok(report);
         }
 

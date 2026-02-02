@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
-use std::io::{self, Write};
+use std::io;
 use std::path::{Component, Path, PathBuf};
 
 use chrono::{DateTime, Utc};
@@ -12,6 +12,11 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use crate::ace::ArtifactHandle;
+use crate::storage::artifacts::{
+    artifact_root_rel, bundle_index_content_hash, bundle_index_json, compute_entries_index,
+    materialize_local_dir, resolve_workspace_root, write_dir_artifact, ArtifactClassification,
+    ArtifactError, ArtifactLayer, ArtifactManifest, ArtifactPayloadKind, ArtifactWriteEntry,
+};
 use crate::storage::EntityRef;
 
 const TEMPLATE_VOLUME_BEGIN: &str = "<!-- GOV_PACK_TEMPLATE_VOLUME_BEGIN -->";
@@ -228,21 +233,23 @@ pub fn export_governance_pack(
     // Deterministic write order: resolved rel_path lexicographic.
     rendered.sort_by(|a, b| a.0.cmp(&b.0));
 
-    let mut materialized_paths: Vec<String> = Vec::with_capacity(rendered.len());
-    for (rel_path, body) in &rendered {
-        let target_path = export_root.join(Path::new(rel_path));
-        write_template_file_atomic(
-            &export_root,
-            &target_path,
-            body.as_bytes(),
-            request.overwrite,
-        )?;
-        materialized_paths.push(normalize_rel_path(rel_path));
-    }
-    materialized_paths.sort();
-
     let export_id = Uuid::new_v4();
     let created_at = Utc::now();
+
+    let artifact_id = export_id;
+    let artifact_entries: Vec<ArtifactWriteEntry> = rendered
+        .iter()
+        .map(|(rel_path, body)| ArtifactWriteEntry {
+            rel_path: rel_path.clone(),
+            bytes: body.as_bytes().to_vec(),
+        })
+        .collect();
+
+    let workspace_root = resolve_workspace_root().map_err(map_artifact_error)?;
+    let (artifact_index, artifact_size_bytes) =
+        compute_entries_index(&artifact_entries, &Vec::new()).map_err(map_artifact_error)?;
+    let artifact_index_json = bundle_index_json(&artifact_index).map_err(map_artifact_error)?;
+    let artifact_content_hash = bundle_index_content_hash(&artifact_index_json);
 
     let (spec_volume_sha256, invariants_sha256, config_hash) =
         compute_hashes(&spec_text, &placeholders);
@@ -252,6 +259,39 @@ pub fn export_governance_pack(
         engine_version: env!("CARGO_PKG_VERSION").to_string(),
         config_hash,
     };
+
+    let artifact_manifest = ArtifactManifest {
+        artifact_id,
+        layer: ArtifactLayer::L3,
+        kind: ArtifactPayloadKind::Report,
+        mime: "application/x-directory".to_string(),
+        filename_hint: Some("governance_pack_template_volume".to_string()),
+        created_at,
+        created_by_job_id: job_id,
+        source_entity_refs: vec![EntityRef {
+            entity_id: spec_path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| spec_path.to_string_lossy().to_string()),
+            entity_kind: "master_spec".to_string(),
+        }],
+        source_artifact_refs: Vec::new(),
+        content_hash: artifact_content_hash,
+        size_bytes: artifact_size_bytes,
+        classification: ArtifactClassification::Low,
+        exportable: true,
+        retention_ttl_days: None,
+        pinned: None,
+        hash_basis: Some("dir_index_v1".to_string()),
+        hash_exclude_paths: Vec::new(),
+    };
+
+    write_dir_artifact(&workspace_root, &artifact_manifest, &artifact_entries)
+        .map_err(map_artifact_error)?;
+
+    let materialized_paths =
+        materialize_local_dir(&export_root, &artifact_entries, request.overwrite)
+            .map_err(map_artifact_error)?;
 
     let export_record = ExportRecord {
         export_id,
@@ -269,16 +309,18 @@ pub fn export_governance_pack(
         display_projection_ref: None,
         export_format: "governance_pack_template_volume".to_string(),
         exporter,
-        determinism_level: DeterminismLevel::Bitwise,
+        determinism_level: DeterminismLevel::Structural,
         export_target: request.export_target.clone(),
         policy_id: "SAFE_DEFAULT".to_string(),
         redactions_applied: false,
         output_artifact_handles: vec![ArtifactHandle::new(
-            export_id,
-            "gov_pack_template_volume".to_string(),
+            artifact_id,
+            artifact_root_rel(ArtifactLayer::L3, artifact_id),
         )],
         materialized_paths,
-        warnings: Vec::new(),
+        warnings: vec![
+            "hash_basis: dir_index_v1 (sorted paths + sha256(bytes) + size_bytes)".to_string(),
+        ],
         errors: Vec::new(),
     };
 
@@ -286,6 +328,19 @@ pub fn export_governance_pack(
         export_record,
         templates_written: rendered.len(),
     })
+}
+
+fn map_artifact_error(err: ArtifactError) -> GovernancePackExportError {
+    match err {
+        ArtifactError::PathTraversalBlocked { path } => {
+            GovernancePackExportError::PathTraversalBlocked { path }
+        }
+        ArtifactError::RootEscape { path } => GovernancePackExportError::ExportRootEscape { path },
+        ArtifactError::Io(source) => GovernancePackExportError::Io(source),
+        other => {
+            GovernancePackExportError::Io(io::Error::new(io::ErrorKind::Other, other.to_string()))
+        }
+    }
 }
 
 fn resolve_master_spec_filename() -> Result<String, GovernancePackExportError> {
@@ -732,79 +787,6 @@ fn ensure_safe_rel_path(rel_path: &str) -> Result<(), GovernancePackExportError>
             _ => {}
         }
     }
-    Ok(())
-}
-
-fn normalize_rel_path(path: &str) -> String {
-    path.replace('\\', "/")
-}
-
-fn write_template_file_atomic(
-    export_root: &Path,
-    target_path: &Path,
-    bytes: &[u8],
-    overwrite: bool,
-) -> Result<(), GovernancePackExportError> {
-    let parent =
-        target_path
-            .parent()
-            .ok_or_else(|| GovernancePackExportError::InvalidTemplatePath {
-                template_file: target_path.to_string_lossy().to_string(),
-                reason: "missing parent directory".to_string(),
-            })?;
-
-    fs::create_dir_all(parent)?;
-    let export_root = fs::canonicalize(export_root)?;
-    let parent_canon = fs::canonicalize(parent)?;
-    if !parent_canon.starts_with(&export_root) {
-        return Err(GovernancePackExportError::ExportRootEscape {
-            path: target_path.to_string_lossy().to_string(),
-        });
-    }
-
-    // Atomic materialize: temp + fsync + rename (+ best-effort dir fsync).
-    let tmp_path = parent_canon.join(format!(".hsk_tmp_{}", Uuid::new_v4()));
-    let mut tmp_file = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&tmp_path)?;
-    tmp_file.write_all(bytes)?;
-    tmp_file.sync_all()?;
-    drop(tmp_file);
-
-    if !overwrite {
-        if target_path.exists() {
-            let _ = fs::remove_file(&tmp_path);
-            return Err(GovernancePackExportError::Io(io::Error::new(
-                io::ErrorKind::AlreadyExists,
-                "target already exists (overwrite=false)",
-            )));
-        }
-        if let Err(err) = fs::rename(&tmp_path, target_path) {
-            let _ = fs::remove_file(&tmp_path);
-            return Err(GovernancePackExportError::Io(err));
-        }
-    } else {
-        if target_path.exists() && target_path.is_dir() {
-            let _ = fs::remove_file(&tmp_path);
-            return Err(GovernancePackExportError::Io(io::Error::new(
-                io::ErrorKind::AlreadyExists,
-                "target path exists and is a directory",
-            )));
-        }
-        if target_path.exists() {
-            fs::remove_file(target_path)?;
-        }
-        if let Err(err) = fs::rename(&tmp_path, target_path) {
-            let _ = fs::remove_file(&tmp_path);
-            return Err(GovernancePackExportError::Io(err));
-        }
-    }
-
-    if let Ok(dir_handle) = fs::File::open(&parent_canon) {
-        let _ = dir_handle.sync_all();
-    }
-
     Ok(())
 }
 

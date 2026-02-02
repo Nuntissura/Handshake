@@ -10,15 +10,25 @@
 
 #[cfg(test)]
 use chrono::DateTime;
-use chrono::{Duration, Utc};
+use chrono::Duration;
+use serde::Serialize;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use thiserror::Error;
 use uuid::Uuid;
 
+use crate::ace::ArtifactHandle;
 use crate::flight_recorder::{
     FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
 };
+use crate::storage::artifacts::{
+    artifact_root_dir, artifact_root_rel, artifact_store_root, read_artifact_manifest,
+    resolve_workspace_root, write_file_artifact, ArtifactClassification, ArtifactLayer,
+    ArtifactManifest, ArtifactPayloadKind,
+};
 use crate::storage::{ArtifactKind, Database, PruneReport, RetentionPolicy};
+use sha2::{Digest, Sha256};
 
 /// Configuration for the Janitor service.
 #[derive(Debug, Clone)]
@@ -74,6 +84,14 @@ pub struct Janitor {
     config: JanitorConfig,
 }
 
+#[derive(Debug, Clone, Serialize)]
+struct DeletedArtifactRecord {
+    artifact_id: Uuid,
+    layer: ArtifactLayer,
+    reason: String,
+    size_bytes: u64,
+}
+
 impl Janitor {
     pub fn new(
         storage: Arc<dyn Database>,
@@ -93,15 +111,37 @@ impl Janitor {
     /// [HSK-GC-003]: Emits meta.gc_summary to Flight Recorder.
     /// [HSK-GC-004]: Writes PruneReport before unlinking.
     pub async fn prune(&self) -> Result<PruneReport, RetentionError> {
-        let mut report = PruneReport::new();
+        let workspace_root = resolve_workspace_root()
+            .map_err(|e| RetentionError::Database(format!("workspace root resolve failed: {e}")))?;
+        self.prune_in_workspace(&workspace_root).await
+    }
 
+    /// Run a single prune pass within an explicit workspace root.
+    ///
+    /// This avoids reliance on the process-global `HANDSHAKE_WORKSPACE_ROOT` environment variable
+    /// and is primarily intended for tests and callers that already have a workspace context.
+    pub async fn prune_in_workspace(
+        &self,
+        workspace_root: &Path,
+    ) -> Result<PruneReport, RetentionError> {
+        let mut report = PruneReport::new();
+        let now = report.timestamp;
+        let mut deleted_artifacts: Vec<DeletedArtifactRecord> = Vec::new();
+
+        // Phase 1 ordering (HSK-GC-004): materialize report artifact before deletions.
+        // 1) Plan pass (dry_run=true) to compute deterministic PruneReport.
+        // 2) Write PruneReport as an artifact.
+        // 3) Execute deletions (dry_run=false) if configured.
+        let mut planned: Vec<(RetentionPolicy, chrono::DateTime<chrono::Utc>)> = Vec::new();
         for policy in &self.config.policies {
+            let cutoff = now - Duration::days(policy.window_days as i64);
+            planned.push((policy.clone(), cutoff));
+
             match policy.kind {
                 ArtifactKind::Result => {
-                    self.prune_ai_jobs(policy, &mut report).await?;
+                    self.prune_ai_jobs_with_mode(policy, cutoff, true, &mut report)
+                        .await?;
                 }
-                // Other artifact kinds (Log, Evidence, Cache, Checkpoint) are
-                // out of scope for Phase 1 - they involve file system cleanup.
                 _ => {
                     tracing::debug!(
                         target: "handshake_core::janitor",
@@ -112,8 +152,39 @@ impl Janitor {
             }
         }
 
+        self.plan_ttl_artifact_gc(workspace_root, now, &mut report, &mut deleted_artifacts)?;
+        let gc_report_artifact =
+            self.write_prune_report_artifact(workspace_root, &report, &deleted_artifacts)?;
+
+        if !self.config.dry_run {
+            for (policy, cutoff) in planned {
+                match policy.kind {
+                    ArtifactKind::Result => {
+                        let _ = self
+                            .storage
+                            .prune_ai_jobs(cutoff, policy.min_versions, false)
+                            .await
+                            .map_err(|e| RetentionError::Database(e.to_string()))?;
+                    }
+                    _ => {}
+                }
+            }
+
+            for record in &deleted_artifacts {
+                let artifact_root =
+                    artifact_root_dir(workspace_root, record.layer, record.artifact_id);
+                fs::remove_dir_all(&artifact_root).map_err(|e| {
+                    RetentionError::Database(format!(
+                        "failed to delete artifact {}: {e}",
+                        artifact_root.to_string_lossy()
+                    ))
+                })?;
+            }
+        }
+
         // [HSK-GC-003] Emit meta.gc_summary to Flight Recorder
-        self.emit_gc_summary(&report).await?;
+        self.emit_gc_summary(&report, &gc_report_artifact, &deleted_artifacts)
+            .await?;
         self.flight_recorder
             .enforce_retention()
             .await
@@ -133,16 +204,16 @@ impl Janitor {
     }
 
     /// Prune AI jobs based on retention policy.
-    async fn prune_ai_jobs(
+    async fn prune_ai_jobs_with_mode(
         &self,
         policy: &RetentionPolicy,
+        cutoff: chrono::DateTime<chrono::Utc>,
+        dry_run: bool,
         report: &mut PruneReport,
     ) -> Result<(), RetentionError> {
-        let cutoff = Utc::now() - Duration::days(policy.window_days as i64);
-
         let job_report = self
             .storage
-            .prune_ai_jobs(cutoff, policy.min_versions, self.config.dry_run)
+            .prune_ai_jobs(cutoff, policy.min_versions, dry_run)
             .await
             .map_err(|e| RetentionError::Database(e.to_string()))?;
 
@@ -155,16 +226,81 @@ impl Janitor {
         Ok(())
     }
 
-    /// [HSK-GC-003] Emit meta.gc_summary event to Flight Recorder.
-    async fn emit_gc_summary(&self, report: &PruneReport) -> Result<(), RetentionError> {
+    fn write_prune_report_artifact(
+        &self,
+        workspace_root: &Path,
+        report: &PruneReport,
+        deleted_artifacts: &[DeletedArtifactRecord],
+    ) -> Result<ArtifactHandle, RetentionError> {
         let payload = serde_json::json!({
+            "timestamp": report.timestamp,
+            "items_scanned": report.items_scanned,
+            "items_pruned": report.items_pruned,
+            "items_spared_pinned": report.items_spared_pinned,
+            "items_spared_window": report.items_spared_window,
+            "total_bytes_freed": report.total_bytes_freed,
+            "deleted_artifacts": deleted_artifacts,
+        });
+
+        let payload_bytes = serde_json::to_vec_pretty(&payload)
+            .map_err(|e| RetentionError::Database(format!("serialize PruneReport: {e}")))?;
+
+        let mut h = Sha256::new();
+        h.update(&payload_bytes);
+        let content_hash = hex::encode(h.finalize());
+
+        let artifact_id = Uuid::new_v4();
+        let manifest = ArtifactManifest {
+            artifact_id,
+            layer: ArtifactLayer::L3,
+            kind: ArtifactPayloadKind::Report,
+            mime: "application/json".to_string(),
+            filename_hint: Some("gc_report.json".to_string()),
+            created_at: report.timestamp,
+            created_by_job_id: None,
+            source_entity_refs: vec![crate::storage::EntityRef {
+                entity_id: "janitor".to_string(),
+                entity_kind: "system".to_string(),
+            }],
+            source_artifact_refs: Vec::new(),
+            content_hash,
+            size_bytes: payload_bytes.len() as u64,
+            classification: ArtifactClassification::Low,
+            exportable: false,
+            retention_ttl_days: None,
+            pinned: None,
+            hash_basis: None,
+            hash_exclude_paths: Vec::new(),
+        };
+
+        write_file_artifact(&workspace_root, &manifest, &payload_bytes)
+            .map_err(|e| RetentionError::Database(e.to_string()))?;
+
+        Ok(ArtifactHandle::new(
+            artifact_id,
+            artifact_root_rel(ArtifactLayer::L3, artifact_id),
+        ))
+    }
+
+    /// [HSK-GC-003] Emit meta.gc_summary event to Flight Recorder.
+    async fn emit_gc_summary(
+        &self,
+        report: &PruneReport,
+        gc_report_artifact: &ArtifactHandle,
+        deleted_artifacts: &[DeletedArtifactRecord],
+    ) -> Result<(), RetentionError> {
+        let payload = serde_json::json!({
+            "event_type": "meta.gc_summary",
+            "event_name": "gc_summary",
             "timestamp": report.timestamp.to_rfc3339(),
             "items_scanned": report.items_scanned,
             "items_pruned": report.items_pruned,
             "items_spared_pinned": report.items_spared_pinned,
             "items_spared_window": report.items_spared_window,
             "total_bytes_freed": report.total_bytes_freed,
-            "dry_run": self.config.dry_run
+            "dry_run": self.config.dry_run,
+            "gc_report_artifact": gc_report_artifact,
+            "deleted_artifacts": deleted_artifacts,
         });
 
         let event = FlightRecorderEvent::new(
@@ -179,6 +315,77 @@ impl Janitor {
             .record_event(event)
             .await
             .map_err(|e| RetentionError::FlightRecorder(e.to_string()))
+    }
+
+    fn plan_ttl_artifact_gc(
+        &self,
+        workspace_root: &Path,
+        now: chrono::DateTime<chrono::Utc>,
+        report: &mut PruneReport,
+        deleted_artifacts: &mut Vec<DeletedArtifactRecord>,
+    ) -> Result<(), RetentionError> {
+        let layer = ArtifactLayer::L3;
+        let layer_root = artifact_store_root(workspace_root).join(layer.as_str());
+        if !layer_root.exists() || !layer_root.is_dir() {
+            return Ok(());
+        }
+
+        let mut candidates: Vec<(Uuid, ArtifactManifest, PathBuf)> = Vec::new();
+        for entry in fs::read_dir(&layer_root)
+            .map_err(|e| RetentionError::Database(format!("failed to read artifact store: {e}")))?
+        {
+            let entry = entry.map_err(|e| RetentionError::Database(e.to_string()))?;
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            let Ok(artifact_id) = Uuid::parse_str(name) else {
+                continue;
+            };
+
+            let manifest = read_artifact_manifest(workspace_root, layer, artifact_id)
+                .map_err(|e| RetentionError::Database(e.to_string()))?;
+            candidates.push((artifact_id, manifest, path));
+        }
+
+        candidates.sort_by(|a, b| a.0.to_string().cmp(&b.0.to_string()));
+
+        for (artifact_id, manifest, artifact_root) in candidates {
+            report.items_scanned = report.items_scanned.saturating_add(1);
+
+            if manifest.pinned.unwrap_or(false) {
+                report.items_spared_pinned = report.items_spared_pinned.saturating_add(1);
+                continue;
+            }
+
+            let Some(ttl_days) = manifest.retention_ttl_days else {
+                report.items_spared_window = report.items_spared_window.saturating_add(1);
+                continue;
+            };
+
+            let expires_at = manifest.created_at + Duration::days(ttl_days as i64);
+            if expires_at > now {
+                report.items_spared_window = report.items_spared_window.saturating_add(1);
+                continue;
+            }
+
+            let size_bytes = dir_size_bytes(&artifact_root).unwrap_or(0);
+            report.items_pruned = report.items_pruned.saturating_add(1);
+            report.total_bytes_freed = report.total_bytes_freed.saturating_add(size_bytes);
+
+            deleted_artifacts.push(DeletedArtifactRecord {
+                artifact_id,
+                layer,
+                reason: format!("expired_retention_ttl_days({ttl_days})"),
+                size_bytes,
+            });
+        }
+
+        Ok(())
     }
 
     /// Start background loop (runs every interval_secs).
@@ -224,6 +431,29 @@ impl Janitor {
     }
 }
 
+fn dir_size_bytes(root: &Path) -> std::io::Result<u64> {
+    if root.is_file() {
+        return Ok(fs::metadata(root)?.len());
+    }
+
+    let mut total = 0u64;
+    let mut stack = vec![root.to_path_buf()];
+
+    while let Some(dir) = stack.pop() {
+        for entry in fs::read_dir(&dir)? {
+            let entry = entry?;
+            let meta = entry.metadata()?;
+            if meta.is_dir() {
+                stack.push(entry.path());
+            } else if meta.is_file() {
+                total = total.saturating_add(meta.len());
+            }
+        }
+    }
+
+    Ok(total)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -231,6 +461,7 @@ mod tests {
     use crate::storage::sqlite::SqliteDatabase;
     use crate::storage::{AccessMode, JobKind, JobMetrics, NewAiJob, SafetyMode};
     use async_trait::async_trait;
+    use chrono::Utc;
     use std::error::Error;
     use std::sync::Mutex;
     use tempfile::tempdir;
@@ -290,11 +521,14 @@ mod tests {
             Arc<dyn FlightRecorder>,
             Arc<Mutex<Vec<FlightRecorderEvent>>>,
             tempfile::TempDir,
+            tempfile::TempDir,
         ),
         Box<dyn Error>,
     > {
-        let dir = tempdir()?;
-        let db_path = dir.path().join("test.db");
+        let workspace_dir = tempdir()?;
+
+        let db_dir = tempdir()?;
+        let db_path = db_dir.path().join("test.db");
         let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
 
         let db = SqliteDatabase::connect(&db_url, 1).await?;
@@ -304,7 +538,13 @@ mod tests {
         let recorder = MemoryRecorder::new(7);
         let events = recorder.events();
 
-        Ok((db.into_arc(), Arc::new(recorder), events, dir))
+        Ok((
+            db.into_arc(),
+            Arc::new(recorder),
+            events,
+            db_dir,
+            workspace_dir,
+        ))
     }
 
     async fn create_test_job(
@@ -352,7 +592,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_prune_respects_pinned_items() -> Result<(), Box<dyn Error>> {
-        let (db, flight_recorder, _events, _dir) = setup_test_db().await?;
+        let (db, flight_recorder, _events, _db_dir, workspace_dir) = setup_test_db().await?;
 
         // Create an old, completed, pinned job (should be spared)
         let old_date = Utc::now() - Duration::days(60);
@@ -374,7 +614,7 @@ mod tests {
         };
 
         let janitor = Janitor::new(db.clone(), flight_recorder, config);
-        let report = janitor.prune().await?;
+        let report = janitor.prune_in_workspace(workspace_dir.path()).await?;
 
         // Should have scanned 2 (old items only), spared 1 pinned, pruned 1
         assert_eq!(
@@ -395,7 +635,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_prune_respects_window() -> Result<(), Box<dyn Error>> {
-        let (db, flight_recorder, _events, _dir) = setup_test_db().await?;
+        let (db, flight_recorder, _events, _db_dir, workspace_dir) = setup_test_db().await?;
 
         // Create a recent job (within window, should be spared)
         let recent_date = Utc::now() - Duration::days(5);
@@ -418,7 +658,7 @@ mod tests {
         };
 
         let janitor = Janitor::new(db.clone(), flight_recorder, config);
-        let report = janitor.prune().await?;
+        let report = janitor.prune_in_workspace(workspace_dir.path()).await?;
 
         // Old job should be pruned
         assert!(report.items_pruned >= 1, "Old item should be pruned");
@@ -428,7 +668,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_dry_run_does_not_delete() -> Result<(), Box<dyn Error>> {
-        let (db, flight_recorder, _events, _dir) = setup_test_db().await?;
+        let (db, flight_recorder, _events, _db_dir, workspace_dir) = setup_test_db().await?;
 
         // Create an old job
         let old_date = Utc::now() - Duration::days(60);
@@ -447,7 +687,7 @@ mod tests {
         };
 
         let janitor = Janitor::new(db.clone(), flight_recorder, config);
-        let report = janitor.prune().await?;
+        let report = janitor.prune_in_workspace(workspace_dir.path()).await?;
 
         // Report should show items would be pruned
         assert!(
@@ -463,7 +703,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_min_versions_constraint() -> Result<(), Box<dyn Error>> {
-        let (db, flight_recorder, _events, _dir) = setup_test_db().await?;
+        let (db, flight_recorder, _events, _db_dir, workspace_dir) = setup_test_db().await?;
 
         // Create exactly 3 old jobs (min_versions = 3)
         let old_date = Utc::now() - Duration::days(60);
@@ -483,7 +723,7 @@ mod tests {
         };
 
         let janitor = Janitor::new(db.clone(), flight_recorder, config);
-        let report = janitor.prune().await?;
+        let report = janitor.prune_in_workspace(workspace_dir.path()).await?;
 
         // All 3 should be spared due to min_versions
         assert_eq!(
@@ -496,12 +736,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_flight_recorder_event_emitted() -> Result<(), Box<dyn Error>> {
-        let (db, flight_recorder, events, _dir) = setup_test_db().await?;
+        let (db, flight_recorder, events, _db_dir, workspace_dir) = setup_test_db().await?;
 
         let config = JanitorConfig::default();
         let janitor = Janitor::new(db, flight_recorder, config);
 
-        janitor.prune().await?;
+        janitor.prune_in_workspace(workspace_dir.path()).await?;
 
         // Check Flight Recorder for gc_summary event
         let count = events

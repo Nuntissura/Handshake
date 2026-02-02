@@ -2293,10 +2293,98 @@ impl super::Database for PostgresDatabase {
 
     async fn prune_ai_jobs(
         &self,
-        _cutoff: chrono::DateTime<chrono::Utc>,
-        _min_versions: u32,
-        _dry_run: bool,
+        cutoff: chrono::DateTime<chrono::Utc>,
+        min_versions: u32,
+        dry_run: bool,
     ) -> StorageResult<super::PruneReport> {
-        Err(StorageError::NotImplemented("postgres pruning"))
+        let mut report = super::PruneReport::new();
+
+        let scan_row = sqlx::query(
+            r#"
+            SELECT
+                COUNT(*) as total,
+                COALESCE(SUM(CASE WHEN is_pinned = 1 THEN 1 ELSE 0 END), 0) as pinned
+            FROM ai_jobs
+            WHERE status IN ('completed', 'failed')
+              AND created_at < $1
+            "#,
+        )
+        .bind(cutoff)
+        .fetch_one(&self.pool)
+        .await?;
+
+        let total_eligible: i64 = scan_row.get("total");
+        let pinned_count: i64 = scan_row.get("pinned");
+
+        let total_eligible = total_eligible.max(0) as u32;
+        let pinned_count = pinned_count.max(0) as u32;
+        let deletable_count = total_eligible.saturating_sub(pinned_count);
+
+        report.items_scanned += total_eligible;
+        report.items_spared_pinned += pinned_count;
+
+        let non_pinned_row = sqlx::query(
+            r#"
+            SELECT COUNT(*) as count
+            FROM ai_jobs
+            WHERE is_pinned = 0
+              AND status IN ('completed', 'failed')
+            "#,
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        let total_non_pinned: i64 = non_pinned_row.get("count");
+        let total_non_pinned = total_non_pinned.max(0) as u32;
+
+        let max_deletable = total_non_pinned.saturating_sub(min_versions);
+        let actual_to_delete = deletable_count.min(max_deletable);
+
+        if actual_to_delete == 0 {
+            report.items_spared_window += deletable_count;
+            return Ok(report);
+        }
+
+        if dry_run {
+            report.items_pruned += actual_to_delete;
+            report.items_spared_window += deletable_count.saturating_sub(actual_to_delete);
+            return Ok(report);
+        }
+
+        let mut deleted = 0u32;
+        let batch_size = 1000i64;
+
+        while deleted < actual_to_delete {
+            let remaining = (actual_to_delete - deleted) as i64;
+            let limit = remaining.min(batch_size);
+
+            let result = sqlx::query(
+                r#"
+                DELETE FROM ai_jobs
+                WHERE id IN (
+                    SELECT id FROM ai_jobs
+                    WHERE status IN ('completed', 'failed')
+                      AND created_at < $1
+                      AND is_pinned = 0
+                    ORDER BY created_at ASC
+                    LIMIT $2
+                )
+                "#,
+            )
+            .bind(cutoff)
+            .bind(limit)
+            .execute(&self.pool)
+            .await?;
+
+            let batch_deleted = result.rows_affected() as u32;
+            if batch_deleted == 0 {
+                break;
+            }
+            deleted += batch_deleted;
+        }
+
+        report.items_pruned += deleted;
+        report.items_spared_window += deletable_count.saturating_sub(deleted);
+        Ok(report)
     }
 }
