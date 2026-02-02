@@ -5,13 +5,13 @@
 - WP_ID: WP-1-Artifact-System-Foundations-v1
 - BASE_WP_ID: WP-1-Artifact-System-Foundations (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: 2026-02-02T13:12:29.598Z
-- MERGE_BASE_SHA: 4ff4952ac6447bdbdd775fcffc18dd9dae2b39a3 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: 4ff4952ac6447bdbdd775fcffc18dd9dae2b39a3
 - REQUESTOR: Operator (ilja)
 - AGENT_ID: user_orchestrator
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja020220261405
 - PACKET_FORMAT_VERSION: 2026-02-01
