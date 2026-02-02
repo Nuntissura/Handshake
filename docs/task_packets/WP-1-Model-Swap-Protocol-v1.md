@@ -316,3 +316,66 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT — WP-1-Model-Swap-Protocol-v1
+- Date: 2026-02-02
+- Validator: ROLE=VALIDATOR (external revalidation)
+- Verdict: PASS
+
+#### REASON FOR PASS
+- All normative requirements referenced in the packet (Master Spec v02.123 anchors §4.3.3.4.3–§4.3.3.4.4 and §11.5.6) have concrete implementation evidence and behavioral test coverage.
+- Swap completion is gated on a fresh post-swap context snapshot + compile artifact (prevents “telemetry-only completion”).
+- Hygiene gates and packet TEST_PLAN commands were executed; no forbidden patterns detected in backend sources.
+
+#### Scope Inputs
+- Task Packet: `docs/task_packets/WP-1-Model-Swap-Protocol-v1.md` (Status: In Progress; RISK_TIER: HIGH; USER_SIGNATURE: ilja010220261514)
+- Binding Spec: `docs/SPEC_CURRENT.md` → `Handshake_Master_Spec_v02.123.md`
+  - §4.3.3.4.3 ModelSwapRequest (Normative)
+  - §4.3.3.4.4 Model Swap Protocol (Normative)
+  - §11.5.6 FR-EVT-MODEL-001..005 (Normative)
+
+#### Evidence Mapping (Spec → Code)
+- §4.3.3.4.3 ModelSwapRequest (typed shape + validation)
+  - Schema/enums/struct: `src/backend/handshake_core/src/workflows.rs:190`
+  - Validation (schema_version, bounded ids/refs, sha256 lowercase hex): `src/backend/handshake_core/src/workflows.rs:374`
+- §4.3.3.4.4 Protocol steps 1–2 (persist state + emit requested)
+  - Persist helpers + state_hash derivation: `src/backend/handshake_core/src/workflows.rs:490`
+  - Persist + verify before swap continues: `src/backend/handshake_core/src/workflows.rs:5510`
+  - Emit requested: `src/backend/handshake_core/src/workflows.rs:5520`
+- §4.3.3.4.4 Protocol steps 3–4 (unload/offload + load target) + timeout enforcement
+  - Runtime primitive surface: `src/backend/handshake_core/src/llm/mod.rs:27`
+  - Provider implementation (Ollama): `src/backend/handshake_core/src/llm/ollama.rs:444`
+  - Workflow enforces timeout: `src/backend/handshake_core/src/workflows.rs:5763`
+- §4.3.3.4.4 Protocol steps 5–7 (fresh context compile + resume + completion/failure/rollback events)
+  - Completion emitted only after fresh context snapshot and compile artifact is written: `src/backend/handshake_core/src/workflows.rs:4849`
+  - Resume on new model level: `src/backend/handshake_core/src/workflows.rs:5915`
+- §11.5.6 FR-EVT-MODEL-001..005 ingestion validation
+  - Event variants: `src/backend/handshake_core/src/flight_recorder/mod.rs:80`
+  - Payload validator: `src/backend/handshake_core/src/flight_recorder/mod.rs:1578`
+
+#### Tests (Behavioral)
+- Model swap is not telemetry-only; runtime primitive must be invoked:
+  - `src/backend/handshake_core/tests/micro_task_executor_tests.rs:75`
+  - `src/backend/handshake_core/tests/micro_task_executor_tests.rs:459`
+- state_hash is recomputed from referenced artifacts and must match:
+  - `src/backend/handshake_core/tests/micro_task_executor_tests.rs:544`
+- Completion gating: compile artifact exists before ModelSwapCompleted is emitted:
+  - `src/backend/handshake_core/tests/micro_task_executor_tests.rs:564`
+- Timeout → rollback path:
+  - `src/backend/handshake_core/tests/micro_task_executor_tests.rs:868`
+- Flight Recorder ingestion validation: accept/reject payload shape:
+  - `src/backend/handshake_core/tests/model_swap_events_tests.rs:1`
+
+#### Validation Commands Executed
+- `just pre-work WP-1-Model-Swap-Protocol-v1`
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`
+- `cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features`
+- `just cargo-clean`
+- `just post-work WP-1-Model-Swap-Protocol-v1 --range 5e3781b3..HEAD`
+- `just validator-spec-regression`
+- `just validator-error-codes`
+- `just validator-dal-audit`
+- `just validator-scan`
+
+#### Non-Blocking Notes
+- `record_model_swap_event_v0_4` currently emits `"role": "worker"` rather than `request.role`; MT executor path is worker-only today, but other subsystems may need true role emission later (`src/backend/handshake_core/src/workflows.rs:309`).
