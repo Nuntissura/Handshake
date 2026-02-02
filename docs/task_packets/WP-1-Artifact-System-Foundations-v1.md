@@ -118,6 +118,7 @@ git revert <commit-sha>
   - `src/backend/handshake_core/src/storage/postgres.rs`: `prune_ai_jobs` is currently `NotImplemented`.
 
 ## SKELETON
+SKELETON APPROVED
 - Proposed interfaces/types/contracts:
   - `storage::ArtifactManifest` + `storage::ArtifactLayer` (spec 2.3.10.6): read/write `artifact.json` sidecars and validate recorded `content_hash` and `size_bytes`.
   - `storage::ArtifactStore` helper rooted at `<workspace_root>/.handshake/artifacts`:
