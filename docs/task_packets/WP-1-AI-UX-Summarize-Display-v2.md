@@ -8,9 +8,9 @@
 - REQUESTOR: ilja (Operator)
 - AGENT_ID: user_orchestrator (Codex CLI)
 - ROLE: Orchestrator
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: GPT-5.2
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: MEDIUM
 - USER_SIGNATURE: ilja010220261515
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -25,10 +25,11 @@
 - IN_SCOPE_PATHS:
   - docs/task_packets/WP-1-AI-UX-Summarize-Display-v2.md
   - app/src/components/AiJobsDrawer.tsx
-  - app/src/components/JobResultPanel.tsx (or renamed Job Inspector component)
+  - app/src/components/JobResultPanel.tsx
+  - app/src/components/JobResultPanel.test.tsx
   - app/src/state/aiJobs.ts
-  - app/src/lib/api.ts (hash helpers; if needed)
-  - app/src/components/DocumentView.tsx (only if needed for parity with Jobs Drawer)
+  - app/src/lib/api.ts
+  - app/src/components/DocumentView.tsx
 - OUT_OF_SCOPE:
   - Backend API changes unless strictly required (prefer using existing AiJob fields)
   - Writing summaries back into document blocks (persisted DerivedContent) as part of this WP
@@ -138,28 +139,52 @@ git revert <commit-sha>
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `app/src/components/JobResultPanel.tsx`
+- **Start**: 1
+- **End**: 139
+- **Line Delta**: 78
+- **Pre-SHA1**: `85261e65442853eb152614d4f92b0f6ded496087`
+- **Post-SHA1**: `23b9fdf7032d3182c1834a80372e7a7c94352a97`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 - **Lint Results**:
 - **Artifacts**:
 - **Timestamp**:
 - **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md
+- **Notes**:
+
+- **Target File**: `app/src/components/JobResultPanel.test.tsx`
+- **Start**: 1
+- **End**: 81
+- **Line Delta**: 81
+- **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
+- **Post-SHA1**: `c2e85b9af03a70f0f4164e718dc69ac76ed34f45`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**:
+- **Artifacts**:
+- **Timestamp**:
+- **Operator**:
+- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md
 - **Notes**:
 
 ## STATUS_HANDOFF
@@ -173,3 +198,50 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - WP-1-AI-UX-Summarize-Display-v2
+- Verdict: PASS
+- VALIDATED_AT: 2026-02-02T01:16:15.076Z
+- Worktree/Branch/Commit:
+  - Worktree: D:\Projects\LLM projects\wt-WP-1-AI-UX-Summarize-Display-v2
+  - Branch: feat/WP-1-AI-UX-Summarize-Display-v2
+  - Commit: 4b5c878057434edfbb9948d5015cf13b27ebbaf8
+- SPEC_TARGET_RESOLVED: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md
+- SPEC_ANCHORS (Handshake_Master_Spec_v02.123.md):
+  - 10.5.5.2 Jobs (lines 52973-52978)
+  - 10.5.6.5.3 jobs.json / job.json (BundleJob; SAFE_DEFAULT hashes vs previews) (lines 53274-53321)
+
+Scope Inputs
+- Task packet: docs/task_packets/WP-1-AI-UX-Summarize-Display-v2.md (Status: In Progress; RISK_TIER: MEDIUM; USER_SIGNATURE: ilja010220261515)
+- Refinement: docs/refinements/WP-1-AI-UX-Summarize-Display-v2.md (APPROVED; USER_APPROVAL_EVIDENCE present)
+
+Files Checked
+- Handshake_Master_Spec_v02.123.md
+- docs/SPEC_CURRENT.md
+- docs/refinements/WP-1-AI-UX-Summarize-Display-v2.md
+- docs/task_packets/WP-1-AI-UX-Summarize-Display-v2.md
+- app/src/components/JobResultPanel.tsx
+- app/src/components/JobResultPanel.test.tsx
+
+Commands Run (per TEST_PLAN)
+- just pre-work WP-1-AI-UX-Summarize-Display-v2
+- pnpm -C app run lint
+- pnpm -C app test
+- just cargo-clean
+- just post-work WP-1-AI-UX-Summarize-Display-v2
+
+Findings (Master Spec / DONE_MEANS mapping)
+- Spec 10.5.5.2 Jobs (Job Inspector includes Summary tab):
+  - Summary/detail view renders job status + job_id + trace_id: app/src/components/JobResultPanel.tsx:93, app/src/components/JobResultPanel.tsx:97, app/src/components/JobResultPanel.tsx:100
+- Spec 10.5.6.5.3 BundleJob SAFE_DEFAULT IO as hashes (previews are gated/explicit):
+  - Outputs are not auto-rendered; default is hash-first: app/src/components/JobResultPanel.tsx:109, app/src/components/JobResultPanel.tsx:111
+  - outputs_hash computed deterministically from job_outputs (stable key ordering) then sha256HexUtf8: app/src/components/JobResultPanel.tsx:4, app/src/components/JobResultPanel.tsx:20, app/src/components/JobResultPanel.tsx:37, app/src/components/JobResultPanel.tsx:49
+  - Explicit reveal required for preview (no preview by default): app/src/components/JobResultPanel.tsx:114, app/src/components/JobResultPanel.tsx:127
+  - Preview disabled in safety-sensitive context (strict safety mode): app/src/components/JobResultPanel.tsx:68, app/src/components/JobResultPanel.tsx:117, app/src/components/JobResultPanel.tsx:123
+  - Preview renders as plain text (<pre>), not HTML: app/src/components/JobResultPanel.tsx:132
+- Unit tests:
+  - SECRET not rendered by default; revealed only after click; hash shown: app/src/components/JobResultPanel.test.tsx:55, app/src/components/JobResultPanel.test.tsx:57, app/src/components/JobResultPanel.test.tsx:62
+  - Strict safety mode disables reveal; SECRET never rendered; hash shown: app/src/components/JobResultPanel.test.tsx:71, app/src/components/JobResultPanel.test.tsx:75, app/src/components/JobResultPanel.test.tsx:78
+
+Notes (non-blocking)
+- DONE_MEANS mentions unit coverage for running/failed states; the newly-added tests focus on leak-safety behavior (default hidden + strict mode gate) and do not explicitly assert running/failed render paths.
