@@ -110,11 +110,34 @@ git revert <commit-sha>
   - "non-canonical hashing" -> "non-verifiable evidence bundles / hash drift"
   - "GC deletes pinned" -> "irreversible data loss"
   - "GC fails to run / non-deterministic" -> "disk bloat and non-auditable cleanup"
+- OBSERVATIONS (current code reality):
+  - `src/backend/handshake_core/src/governance_pack.rs`: has `ExportRecord` and an atomic write helper (temp + fsync + rename) and emits sorted/normalized `materialized_paths[]`, but does not write artifacts to `.handshake/artifacts/...` yet (`output_artifact_handles[].path` is a placeholder).
+  - `src/backend/handshake_core/src/bundles/exporter.rs`: writes bundle files via `fs::File::create` (non-atomic) and does not emit `bundle_index.json`; current bundle hashing is not canonical BundleIndex-based.
+  - `src/backend/handshake_core/src/workflows.rs`: has a separate `write_bytes_atomic` helper (temp + rename, no fsync) and multiple ad-hoc artifact writes under `data/...`.
+  - `src/backend/handshake_core/src/storage/retention.rs`: janitor currently prunes only `ArtifactKind::Result` via `Database::prune_ai_jobs`; `PruneReport` is not materialized as an artifact before deletions; `meta.gc_summary` is emitted.
+  - `src/backend/handshake_core/src/storage/postgres.rs`: `prune_ai_jobs` is currently `NotImplemented`.
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - `storage::ArtifactManifest` + `storage::ArtifactLayer` (spec 2.3.10.6): read/write `artifact.json` sidecars and validate recorded `content_hash` and `size_bytes`.
+  - `storage::ArtifactStore` helper rooted at `<workspace_root>/.handshake/artifacts`:
+    - write file artifacts (`payload` file) and directory artifacts (`payload/` dir)
+    - compute SHA-256 content hashing for file and directory artifacts
+    - structural directory hashing uses a canonical index (sorted paths + per-item hashes + size_bytes)
+  - Shared LocalFile Materialize helper:
+    - traversal-safe relative paths (no absolute, no `..`, no `:`/backslashes)
+    - atomic writes (temp + fsync + rename) with best-effort dir fsync
+    - returns `ExportRecord.materialized_paths[]` as normalized, root-relative, sorted paths
+  - Bundle hashing (spec 2.3.10.7):
+    - emit `bundle_index.json` (sorted paths + per-item content_hash + size_bytes)
+    - set bundle content hash to SHA-256 over canonical BundleIndex (structural determinism)
+  - Migration strategy:
+    - keep `ace::ArtifactHandle { artifact_id, path }` unchanged in Phase 1
+    - treat `path` as a root-relative URI to `.handshake/artifacts/<layer>/<artifact_id>/`
 - Open questions:
+  - Workspace root for `.handshake/` resolution: use repo root via existing `repo_root_from_manifest_dir()` plumbing unless/until a per-workspace root is introduced.
 - Notes:
+  - Targeted de-duplication: replace ad-hoc atomic write helpers in `workflows.rs` and `governance_pack.rs` with the shared Materialize implementation.
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
