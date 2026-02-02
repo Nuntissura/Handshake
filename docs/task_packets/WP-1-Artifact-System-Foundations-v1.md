@@ -356,7 +356,7 @@ SKELETON APPROVED
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
   - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/WP-1-Artifact-System-Foundations-v1/cargo_test.log` (optional; not committed)
 
   - COMMAND: `<paste>`
