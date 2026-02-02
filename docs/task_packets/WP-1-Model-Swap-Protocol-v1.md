@@ -379,3 +379,5 @@ git revert <commit-sha>
 
 #### Non-Blocking Notes
 - `record_model_swap_event_v0_4` currently emits `"role": "worker"` rather than `request.role`; MT executor path is worker-only today, but other subsystems may need true role emission later (`src/backend/handshake_core/src/workflows.rs:309`).
+
+Verdict: PASS

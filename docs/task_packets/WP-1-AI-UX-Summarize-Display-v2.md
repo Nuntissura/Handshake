@@ -245,3 +245,5 @@ Findings (Master Spec / DONE_MEANS mapping)
 
 Notes (non-blocking)
 - DONE_MEANS mentions unit coverage for running/failed states; the newly-added tests focus on leak-safety behavior (default hidden + strict mode gate) and do not explicitly assert running/failed render paths.
+
+Verdict: PASS

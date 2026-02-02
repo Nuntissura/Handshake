@@ -1,4 +1,4 @@
-# Handshake Project Task Board (Phase 1: EXHAUSTIVE STRATEGIC AUDIT)
+﻿# Handshake Project Task Board (Phase 1: EXHAUSTIVE STRATEGIC AUDIT)
 
 ## Spec Authority Rule [CX-598] (HARD INVARIANT)
 
@@ -50,6 +50,8 @@ Entry format (recommended):
 
 A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `docs/task_packets/` (not a stub).
 
+- **[WP-1-Artifact-System-Foundations-v1]** - [READY_FOR_DEV]
+
 ## Stub Backlog (Not Activated)
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
@@ -86,7 +88,6 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 - **[WP-1-Lens-Extraction-Tier-v1]** - [STUB]
 - **[WP-1-Lens-ViewMode-v1]** - [STUB]
 - **[WP-1-Role-Turn-Isolation-v1]** - [STUB]
-- **[WP-1-Artifact-System-Foundations-v1]** - [STUB]
 - **[WP-1-Git-Engine-Decision-Gate-v1]** - [STUB]
 - **[WP-1-Retrieval-Trace-Bundle-Export-v1]** - [STUB]
 
@@ -95,13 +96,14 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
-- **[WP-1-Model-Swap-Protocol-v1]** - [IN_PROGRESS]
-- **[WP-1-AI-UX-Summarize-Display-v2]** - [IN_PROGRESS]
  
   
  
  
 ## Done
+- **[WP-1-Model-Swap-Protocol-v1]** - [VALIDATED]
+- **[WP-1-AI-UX-Summarize-Display-v2]** - [VALIDATED]
+
 - **[WP-1-Atelier-Collaboration-Panel-v1]** - [VALIDATED]
 - **[WP-1-Response-Behavior-ANS-001]** - [VALIDATED]
 - **[WP-1-Global-Silent-Edit-Guard]** - [VALIDATED]
