@@ -1,0 +1,31 @@
+{
+  "validation_sessions": {
+    "WP-1-AI-UX-Summarize-Display-v2": {
+      "wpId": "WP-1-AI-UX-Summarize-Display-v2",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-02-02T00:48:25.751Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-02-02T00:48:25.751Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-02-02T00:53:18.743Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-02-02T01:16:20.662Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-02-02T01:27:28.879Z"
+        }
+      ],
+      "completed": "2026-02-02T01:27:28.880Z"
+    }
+  },
+  "archived_sessions": []
+}

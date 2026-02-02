@@ -198,3 +198,50 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - WP-1-AI-UX-Summarize-Display-v2
+- Verdict: PASS
+- VALIDATED_AT: 2026-02-02T01:16:15.076Z
+- Worktree/Branch/Commit:
+  - Worktree: D:\Projects\LLM projects\wt-WP-1-AI-UX-Summarize-Display-v2
+  - Branch: feat/WP-1-AI-UX-Summarize-Display-v2
+  - Commit: 4b5c878057434edfbb9948d5015cf13b27ebbaf8
+- SPEC_TARGET_RESOLVED: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md
+- SPEC_ANCHORS (Handshake_Master_Spec_v02.123.md):
+  - 10.5.5.2 Jobs (lines 52973-52978)
+  - 10.5.6.5.3 jobs.json / job.json (BundleJob; SAFE_DEFAULT hashes vs previews) (lines 53274-53321)
+
+Scope Inputs
+- Task packet: docs/task_packets/WP-1-AI-UX-Summarize-Display-v2.md (Status: In Progress; RISK_TIER: MEDIUM; USER_SIGNATURE: ilja010220261515)
+- Refinement: docs/refinements/WP-1-AI-UX-Summarize-Display-v2.md (APPROVED; USER_APPROVAL_EVIDENCE present)
+
+Files Checked
+- Handshake_Master_Spec_v02.123.md
+- docs/SPEC_CURRENT.md
+- docs/refinements/WP-1-AI-UX-Summarize-Display-v2.md
+- docs/task_packets/WP-1-AI-UX-Summarize-Display-v2.md
+- app/src/components/JobResultPanel.tsx
+- app/src/components/JobResultPanel.test.tsx
+
+Commands Run (per TEST_PLAN)
+- just pre-work WP-1-AI-UX-Summarize-Display-v2
+- pnpm -C app run lint
+- pnpm -C app test
+- just cargo-clean
+- just post-work WP-1-AI-UX-Summarize-Display-v2
+
+Findings (Master Spec / DONE_MEANS mapping)
+- Spec 10.5.5.2 Jobs (Job Inspector includes Summary tab):
+  - Summary/detail view renders job status + job_id + trace_id: app/src/components/JobResultPanel.tsx:93, app/src/components/JobResultPanel.tsx:97, app/src/components/JobResultPanel.tsx:100
+- Spec 10.5.6.5.3 BundleJob SAFE_DEFAULT IO as hashes (previews are gated/explicit):
+  - Outputs are not auto-rendered; default is hash-first: app/src/components/JobResultPanel.tsx:109, app/src/components/JobResultPanel.tsx:111
+  - outputs_hash computed deterministically from job_outputs (stable key ordering) then sha256HexUtf8: app/src/components/JobResultPanel.tsx:4, app/src/components/JobResultPanel.tsx:20, app/src/components/JobResultPanel.tsx:37, app/src/components/JobResultPanel.tsx:49
+  - Explicit reveal required for preview (no preview by default): app/src/components/JobResultPanel.tsx:114, app/src/components/JobResultPanel.tsx:127
+  - Preview disabled in safety-sensitive context (strict safety mode): app/src/components/JobResultPanel.tsx:68, app/src/components/JobResultPanel.tsx:117, app/src/components/JobResultPanel.tsx:123
+  - Preview renders as plain text (<pre>), not HTML: app/src/components/JobResultPanel.tsx:132
+- Unit tests:
+  - SECRET not rendered by default; revealed only after click; hash shown: app/src/components/JobResultPanel.test.tsx:55, app/src/components/JobResultPanel.test.tsx:57, app/src/components/JobResultPanel.test.tsx:62
+  - Strict safety mode disables reveal; SECRET never rendered; hash shown: app/src/components/JobResultPanel.test.tsx:71, app/src/components/JobResultPanel.test.tsx:75, app/src/components/JobResultPanel.test.tsx:78
+
+Notes (non-blocking)
+- DONE_MEANS mentions unit coverage for running/failed states; the newly-added tests focus on leak-safety behavior (default hidden + strict mode gate) and do not explicitly assert running/failed render paths.
