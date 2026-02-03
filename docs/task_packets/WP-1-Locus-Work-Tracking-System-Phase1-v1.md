@@ -354,10 +354,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/workflows.rs`
 - **Start**: 1
-- **End**: 7716
-- **Line Delta**: 1116
+- **End**: 7717
+- **Line Delta**: 1117
 - **Pre-SHA1**: `2893f87593559afa3644edfd13b1f69f8d57899b`
-- **Post-SHA1**: `52d501ce9bec4df57b2ff4614f19fcc838c73e00`
+- **Post-SHA1**: `b53afda5cf934ac6eee48a81566fa4dd73bea6b1`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -386,7 +386,7 @@ git revert <commit-sha>
  - REQUIREMENT: "Task Board bidirectional sync implemented per spec 2.3.15.4/2.3.15.3"
    - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:189`
  - REQUIREMENT: "WorkPacketBinding enforcement implemented per spec 2.3.15.4"
-   - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:2000`
+   - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:2001`
  - REQUIREMENT: "Core mechanical operations implemented (create/update/gate/close WP; register/start/record/complete MT; deps)"
    - EVIDENCE: `src/backend/handshake_core/src/locus/sqlite_store.rs:159`
  - REQUIREMENT: "Flight Recorder validates Locus event families per spec 2.3.15.6"
