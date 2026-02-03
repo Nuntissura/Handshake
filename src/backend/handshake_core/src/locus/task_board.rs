@@ -21,7 +21,7 @@ pub struct TaskBoardSections {
 impl TaskBoardSections {
     pub fn entries_for_status_mut(&mut self, status: TaskBoardStatus) -> &mut Vec<TaskBoardEntry> {
         match status {
-            TaskBoardStatus::Stub => &mut self.stub,
+            TaskBoardStatus::Unknown => &mut self.stub,
             TaskBoardStatus::Ready => &mut self.ready,
             TaskBoardStatus::InProgress => &mut self.in_progress,
             TaskBoardStatus::Blocked => &mut self.blocked,
@@ -33,7 +33,7 @@ impl TaskBoardSections {
 
     pub fn entries_for_status(&self, status: TaskBoardStatus) -> &Vec<TaskBoardEntry> {
         match status {
-            TaskBoardStatus::Stub => &self.stub,
+            TaskBoardStatus::Unknown => &self.stub,
             TaskBoardStatus::Ready => &self.ready,
             TaskBoardStatus::InProgress => &self.in_progress,
             TaskBoardStatus::Blocked => &self.blocked,
@@ -62,7 +62,7 @@ fn status_for_heading(heading: &str) -> Option<TaskBoardStatus> {
         return Some(TaskBoardStatus::Done);
     }
     if title.to_ascii_lowercase().starts_with("stub backlog") {
-        return Some(TaskBoardStatus::Stub);
+        return Some(TaskBoardStatus::Unknown);
     }
     if title.to_ascii_lowercase().starts_with("superseded") {
         return Some(TaskBoardStatus::Cancelled);

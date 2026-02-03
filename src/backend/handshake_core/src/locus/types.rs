@@ -9,7 +9,8 @@ pub type VectorClock = Value;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum WorkPacketStatus {
-    Stub,
+    #[serde(rename = "stub")]
+    Unknown,
     Ready,
     InProgress,
     Blocked,
@@ -21,7 +22,8 @@ pub enum WorkPacketStatus {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TaskBoardStatus {
-    Stub,
+    #[serde(rename = "STUB")]
+    Unknown,
     Ready,
     InProgress,
     Blocked,

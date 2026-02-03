@@ -196,7 +196,7 @@ async fn execute_locus_sync_task_board(
 ) -> Result<Value, WorkflowError> {
     fn task_board_status_db(status: locus::TaskBoardStatus) -> &'static str {
         match status {
-            locus::TaskBoardStatus::Stub => "STUB",
+            locus::TaskBoardStatus::Unknown => "STUB",
             locus::TaskBoardStatus::Ready => "READY",
             locus::TaskBoardStatus::InProgress => "IN_PROGRESS",
             locus::TaskBoardStatus::Blocked => "BLOCKED",
@@ -208,7 +208,7 @@ async fn execute_locus_sync_task_board(
 
     fn work_packet_status_db(status: locus::TaskBoardStatus) -> &'static str {
         match status {
-            locus::TaskBoardStatus::Stub => "stub",
+            locus::TaskBoardStatus::Unknown => "stub",
             locus::TaskBoardStatus::Ready => "ready",
             locus::TaskBoardStatus::InProgress => "in_progress",
             locus::TaskBoardStatus::Blocked => "blocked",
@@ -226,13 +226,13 @@ async fn execute_locus_sync_task_board(
             "GATED" => locus::TaskBoardStatus::Gated,
             "DONE" => locus::TaskBoardStatus::Done,
             "CANCELLED" => locus::TaskBoardStatus::Cancelled,
-            _ => locus::TaskBoardStatus::Stub,
+            _ => locus::TaskBoardStatus::Unknown,
         }
     }
 
     fn default_task_board_token(status: locus::TaskBoardStatus) -> &'static str {
         match status {
-            locus::TaskBoardStatus::Stub => "STUB",
+            locus::TaskBoardStatus::Unknown => "STUB",
             locus::TaskBoardStatus::Ready => "READY_FOR_DEV",
             locus::TaskBoardStatus::InProgress => "IN_PROGRESS",
             locus::TaskBoardStatus::Blocked => "BLOCKED",
@@ -305,7 +305,7 @@ async fn execute_locus_sync_task_board(
         let pool = sqlite.pool();
 
         let statuses = [
-            locus::TaskBoardStatus::Stub,
+            locus::TaskBoardStatus::Unknown,
             locus::TaskBoardStatus::Ready,
             locus::TaskBoardStatus::InProgress,
             locus::TaskBoardStatus::Blocked,

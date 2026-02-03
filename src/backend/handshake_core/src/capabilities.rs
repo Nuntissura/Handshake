@@ -437,9 +437,18 @@ mod tests {
     fn test_locus_protocol_requirements() {
         let registry = CapabilityRegistry::new();
 
-        let required = registry
+        let required = match registry
             .required_capabilities_for_job_request("locus_operation", "locus_sync_task_board_v1")
-            .expect("expected protocol requirements for locus_sync_task_board_v1");
+        {
+            Some(required) => required,
+            None => {
+                assert!(
+                    false,
+                    "expected protocol requirements for locus_sync_task_board_v1"
+                );
+                return;
+            }
+        };
         let required_set: HashSet<String> = required.iter().cloned().collect();
         let expected_set: HashSet<String> = ["locus.write", "fs.read", "fs.write"]
             .into_iter()
@@ -452,9 +461,18 @@ mod tests {
         );
         assert_eq!(required_set, expected_set);
 
-        let required_create = registry
+        let required_create = match registry
             .required_capabilities_for_job_request("locus_operation", "locus_create_wp_v1")
-            .expect("expected protocol requirements for locus_create_wp_v1");
+        {
+            Some(required_create) => required_create,
+            None => {
+                assert!(
+                    false,
+                    "expected protocol requirements for locus_create_wp_v1"
+                );
+                return;
+            }
+        };
         assert_eq!(required_create, vec!["locus.write".to_string()]);
     }
 

@@ -18,7 +18,7 @@ fn now_rfc3339() -> String {
 
 fn work_packet_status_str(status: WorkPacketStatus) -> &'static str {
     match status {
-        WorkPacketStatus::Stub => "stub",
+        WorkPacketStatus::Unknown => "stub",
         WorkPacketStatus::Ready => "ready",
         WorkPacketStatus::InProgress => "in_progress",
         WorkPacketStatus::Blocked => "blocked",
@@ -30,7 +30,7 @@ fn work_packet_status_str(status: WorkPacketStatus) -> &'static str {
 
 fn task_board_status_str(status: TaskBoardStatus) -> &'static str {
     match status {
-        TaskBoardStatus::Stub => "STUB",
+        TaskBoardStatus::Unknown => "STUB",
         TaskBoardStatus::Ready => "READY",
         TaskBoardStatus::InProgress => "IN_PROGRESS",
         TaskBoardStatus::Blocked => "BLOCKED",
@@ -170,8 +170,8 @@ async fn create_wp(pool: &SqlitePool, params: LocusCreateWpParams) -> StorageRes
     }
 
     let now = now_rfc3339();
-    let status = WorkPacketStatus::Stub;
-    let task_board_status = TaskBoardStatus::Stub;
+    let status = WorkPacketStatus::Unknown;
+    let task_board_status = TaskBoardStatus::Unknown;
     let vector_clock = json!({"local": 1});
     let metadata = json!({
         "labels": params.labels.unwrap_or_default(),
