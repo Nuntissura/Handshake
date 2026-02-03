@@ -11,7 +11,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja020220261405
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -367,3 +367,69 @@ SKELETON APPROVED
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+---
+
+## VALIDATION REPORT - 2026-02-03 (Validator)
+Verdict: PASS
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Artifact-System-Foundations-v1`; not tests): PASS (`--rev 2317122e`)
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS (see waiver CX-573F-WP-1-ARTIFACT-001)
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: docs/task_packets/WP-1-Artifact-System-Foundations-v1.md (**Status:** Done)
+- Spec: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md (anchors: 2.3.10.1, 2.3.10.6-2.3.10.8, 2.3.11.0-2.3.11.2)
+- Codex: Handshake Codex v1.4.md
+- Protocol: docs/VALIDATOR_PROTOCOL.md
+
+Waivers Granted:
+- CX-573F-WP-1-ARTIFACT-001 (2026-02-03, approved by Operator ilja): post-work range `MERGE_BASE_SHA..HEAD` fails in this branch due to unrelated pre-existing docs changes in branch history; validated the single implementation commit via `just post-work WP-1-Artifact-System-Foundations-v1 --rev 2317122e` instead. Expiry: until merge of this WP.
+
+Commands Run (Validator):
+- just cargo-clean: PASS
+- just validator-spec-regression: PASS
+- just validator-dal-audit: PASS
+- just validator-hygiene-full: PASS
+- just validator-coverage-gaps: PASS
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml: PASS (EXIT_CODE=0)
+- just post-work WP-1-Artifact-System-Foundations-v1 --rev 2317122e: PASS
+
+Spec/DONE_MEANS Evidence (file:line):
+- 2.3.10.6 Artifact manifests + on-disk layout:
+  - On-disk root `.handshake/artifacts/<LAYER>/<artifact_id>/...`: src/backend/handshake_core/src/storage/mod.rs:325, src/backend/handshake_core/src/storage/mod.rs:453
+  - Manifest schema (ArtifactManifest): src/backend/handshake_core/src/storage/mod.rs:397
+  - File artifact write + hash validation + atomic write: src/backend/handshake_core/src/storage/mod.rs:695
+  - Directory artifact structural hashing + deterministic write order: src/backend/handshake_core/src/storage/mod.rs:728
+  - Read + validate content_hash for file/dir artifacts: src/backend/handshake_core/src/storage/mod.rs:772
+- 2.3.10.7 Bundles + canonical hashing:
+  - Canonical BundleIndex JSON + SHA-256 content_hash helper: src/backend/handshake_core/src/storage/mod.rs:583
+  - bundle_index.json emitted; bundle_hash derived from BundleIndex; persisted as L3 directory artifact: src/backend/handshake_core/src/bundles/exporter.rs:1222, src/backend/handshake_core/src/bundles/exporter.rs:1307
+- 2.3.10.8 + 2.3.11.0-2.3.11.2 Retention/pinning/GC:
+  - Data structures (ArtifactKind / RetentionPolicy / PruneReport): src/backend/handshake_core/src/storage/mod.rs:207
+  - Janitor decoupling (Arc<dyn Database>): src/backend/handshake_core/src/storage/retention.rs:81
+  - Report-before-delete ordering + meta.gc_summary emission: src/backend/handshake_core/src/storage/retention.rs:131
+  - TTL artifact GC excludes pinned items: src/backend/handshake_core/src/storage/retention.rs:360
+  - DB prune excludes pinned and respects min_versions (sqlite/postgres): src/backend/handshake_core/src/storage/sqlite.rs:2550, src/backend/handshake_core/src/storage/postgres.rs:2294
+- 2.3.11.2 Materialize semantics (atomic + traversal-safe; no ad-hoc bypass):
+  - Shared LocalFile materialize implementation: src/backend/handshake_core/src/storage/mod.rs:648
+  - Traversal and root-escape blocking: src/backend/handshake_core/src/storage/mod.rs:491, src/backend/handshake_core/src/storage/mod.rs:511
+  - Atomic temp+fsync+rename writer: src/backend/handshake_core/src/storage/mod.rs:528
+  - Workflow invocation (no ad-hoc "save as" bypass):
+    - Governance pack export runs inside workflow engine: src/backend/handshake_core/src/workflows.rs:1628
+    - Debug bundle export runs inside workflow engine: src/backend/handshake_core/src/workflows.rs:1733
+    - Server-enforced capability profiles for export jobs: src/backend/handshake_core/src/api/governance_pack.rs:28, src/backend/handshake_core/src/api/bundles.rs:144
+- Export auditability: ExportRecord.materialized_paths[] for LocalFile:
+  - materialize_local_dir returns normalized, sorted rel paths: src/backend/handshake_core/src/storage/mod.rs:669
+  - ExportRecord materialized_paths set (governance pack): src/backend/handshake_core/src/governance_pack.rs:296
+  - ExportRecord materialized_paths set (debug bundle): src/backend/handshake_core/src/bundles/exporter.rs:1470
+
+Tests:
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml: PASS (156 tests; EXIT_CODE=0). Note: warnings present (unused assignments in src/workflows.rs; dead_code in src/mex/supply_chain.rs).
+
+REASON FOR PASS:
+- Deterministic manifest gate and validator audits pass, cargo tests pass, and inspected code satisfies the packet DONE_MEANS and spec anchors for artifact layout, hashing, materialize atomicity/guards, and retention invariants.
+
+Timestamp: 2026-02-03
+Validator: codex-cli (Validator role)
