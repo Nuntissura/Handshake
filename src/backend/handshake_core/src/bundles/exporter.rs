@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::io::Write;
+use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -23,14 +23,20 @@ use crate::bundles::schemas::{
     RetentionReport, ScopeKind, TimeRange,
 };
 use crate::bundles::templates::{render_coder_prompt, render_repro_md};
-use crate::bundles::validator::ValBundleValidator;
-use crate::bundles::zip::{
-    compute_bundle_hash, sha256_hex, write_deterministic_zip, BundleFileEntry,
-};
+use crate::bundles::zip::{sha256_hex, BundleFileEntry};
 use crate::diagnostics::{DiagFilter, Diagnostic, DiagnosticSeverity, LinkConfidence};
 use crate::flight_recorder::{
     EventFilter, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
     FrEvt005DebugBundleExport,
+};
+use crate::governance_pack::{
+    DeterminismLevel, ExportActor, ExportRecord, ExportTarget, ExporterInfo,
+};
+use crate::storage::artifacts::{
+    artifact_root_rel, bundle_index_content_hash, bundle_index_json, compute_entries_index,
+    materialize_local_dir, resolve_workspace_root, write_dir_artifact, ArtifactClassification,
+    ArtifactError, ArtifactLayer, ArtifactManifest, ArtifactPayloadKind, ArtifactWriteEntry,
+    BundleIndexEntry,
 };
 use crate::storage::{AiJob, AiJobListFilter, JobState, StorageError};
 use crate::AppState;
@@ -38,11 +44,34 @@ use crate::AppState;
 static BUNDLE_STORE: Lazy<Mutex<HashMap<String, PathBuf>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
+fn deterministic_zip_bytes(files: &[BundleFileEntry]) -> Result<Vec<u8>, BundleExportError> {
+    let cursor = Cursor::new(Vec::<u8>::new());
+    let mut writer = zip::ZipWriter::new(cursor);
+    let timestamp = zip::DateTime::from_date_and_time(1980, 1, 1, 0, 0, 0)
+        .unwrap_or_else(|_| zip::DateTime::default());
+    let options = zip::write::FileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .compression_level(Some(6))
+        .last_modified_time(timestamp);
+
+    let mut sorted = files.to_vec();
+    sorted.sort_by(|a, b| a.path.cmp(&b.path));
+
+    for entry in sorted {
+        writer.start_file(entry.path, options)?;
+        writer.write_all(&entry.bytes)?;
+    }
+
+    let cursor = writer.finish()?;
+    Ok(cursor.into_inner())
+}
+
 #[derive(Debug, Clone)]
 struct ExportProvenance {
     bundle_id: String,
     workflow_run_id: String,
     trace_id: Uuid,
+    export_job_id: Option<Uuid>,
 }
 
 impl ExportProvenance {
@@ -52,6 +81,7 @@ impl ExportProvenance {
             bundle_id,
             workflow_run_id: Uuid::new_v4().to_string(),
             trace_id: Uuid::new_v4(),
+            export_job_id: None,
         }
     }
 }
@@ -233,6 +263,7 @@ impl DefaultDebugBundleExporter {
                 bundle_id: export_job_id.to_string(),
                 workflow_run_id: workflow_run_id.to_string(),
                 trace_id,
+                export_job_id: Some(export_job_id),
             },
         )
         .await
@@ -833,13 +864,26 @@ async fn export_impl(
         bundle_id,
         workflow_run_id,
         trace_id,
+        export_job_id,
     } = provenance;
 
-    let output_dir = request
-        .output_path
-        .clone()
-        .unwrap_or_else(|| DefaultDebugBundleExporter::default_output_path(&bundle_id));
+    let workspace_root = resolve_workspace_root().map_err(|e| {
+        BundleExportError::ExportFailed(format!("workspace root resolve failed: {e}"))
+    })?;
+
+    let output_dir = match request.output_path.clone() {
+        Some(path) => {
+            if !path.is_absolute() {
+                return Err(BundleExportError::Validation(
+                    "output_path must be an absolute directory path".to_string(),
+                ));
+            }
+            path
+        }
+        None => workspace_root.join(DefaultDebugBundleExporter::default_output_path(&bundle_id)),
+    };
     fs::create_dir_all(&output_dir)?;
+    let output_dir = fs::canonicalize(&output_dir)?;
 
     let mut scope = exporter.build_manifest_scope(&request.scope);
     let redactor = SecretRedactor::new();
@@ -1175,12 +1219,25 @@ async fn export_impl(
         redacted: false,
     });
 
-    // bundle_manifest.json (constructed after hashes)
-    let mut file_hashes: Vec<(String, String)> = Vec::new();
+    // Canonical BundleIndex (spec 2.3.10.7): sorted paths + per-item content_hash + size_bytes.
+    // Note: BundleIndex excludes bundle_manifest.json and bundle_index.json to avoid recursion and
+    // timestamp-based hash drift.
+    let mut index_entries: Vec<BundleIndexEntry> = Vec::with_capacity(files.len());
     for entry in &files {
-        let hash = sha256_hex(&entry.bytes);
-        file_hashes.push((entry.path.clone(), hash));
+        index_entries.push(BundleIndexEntry {
+            path: entry.path.clone(),
+            content_hash: sha256_hex(&entry.bytes),
+            size_bytes: entry.bytes.len() as u64,
+        });
     }
+    index_entries.sort_by(|a, b| a.path.cmp(&b.path));
+    let bundle_index_bytes = bundle_index_json(&index_entries).map_err(map_artifact_error)?;
+    let bundle_hash = bundle_index_content_hash(&bundle_index_bytes);
+    files.push(BundleFileEntry {
+        path: "bundle_index.json".to_string(),
+        bytes: bundle_index_bytes.clone(),
+        redacted: false,
+    });
 
     let manifest = BundleManifest {
         schema_version: "1.0".to_string(),
@@ -1213,14 +1270,10 @@ async fn export_impl(
             event_count: events_raw.len() as u32,
         },
         missing_evidence: missing_evidence.clone(),
-        bundle_hash: String::new(),
+        bundle_hash: bundle_hash.clone(),
     };
 
-    let mut manifest_with_hash = manifest.clone();
-    let bundle_hash = compute_bundle_hash(&manifest, &file_hashes);
-    manifest_with_hash.bundle_hash = bundle_hash.clone();
-
-    let manifest_bytes = serde_json::to_vec_pretty(&manifest_with_hash).map_err(|e| {
+    let manifest_bytes = serde_json::to_vec_pretty(&manifest).map_err(|e| {
         BundleExportError::ExportFailed(format!("serialize bundle_manifest: {}", e))
     })?;
     let manifest_entry = BundleFileEntry {
@@ -1232,19 +1285,74 @@ async fn export_impl(
     let mut all_files = files.clone();
     all_files.push(manifest_entry);
 
-    // write files to disk for download/status
-    for entry in &all_files {
-        let full_path = output_dir.join(&entry.path);
-        if let Some(parent) = full_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let mut file = fs::File::create(&full_path)?;
-        file.write_all(&entry.bytes)?;
-    }
+    // Persist the canonical bundle payload as an artifact inside the workspace.
+    let artifact_id = trace_id;
+    let artifact_entries: Vec<ArtifactWriteEntry> = all_files
+        .iter()
+        .map(|entry| ArtifactWriteEntry {
+            rel_path: entry.path.clone(),
+            bytes: entry.bytes.clone(),
+        })
+        .collect();
+
+    let mut hash_exclude_paths: Vec<String> = vec![
+        "bundle_manifest.json".to_string(),
+        "bundle_index.json".to_string(),
+    ];
+    hash_exclude_paths.sort();
+
+    let (_artifact_index, artifact_size_bytes) =
+        compute_entries_index(&artifact_entries, &hash_exclude_paths)
+            .map_err(map_artifact_error)?;
+    let artifact_manifest = ArtifactManifest {
+        artifact_id,
+        layer: ArtifactLayer::L3,
+        kind: ArtifactPayloadKind::Bundle,
+        mime: "application/x-directory".to_string(),
+        filename_hint: Some(format!("debug_bundle_{bundle_id}")),
+        created_at: Utc::now(),
+        created_by_job_id: export_job_id,
+        source_entity_refs: Vec::new(),
+        source_artifact_refs: Vec::new(),
+        content_hash: bundle_hash.clone(),
+        size_bytes: artifact_size_bytes,
+        classification: if request.redaction_mode == RedactionMode::FullLocal {
+            ArtifactClassification::High
+        } else {
+            ArtifactClassification::Medium
+        },
+        exportable: request.redaction_mode != RedactionMode::FullLocal,
+        retention_ttl_days: if request.redaction_mode == RedactionMode::FullLocal {
+            Some(30)
+        } else {
+            None
+        },
+        pinned: None,
+        hash_basis: Some("bundle_index_v1".to_string()),
+        hash_exclude_paths,
+    };
+
+    write_dir_artifact(&workspace_root, &artifact_manifest, &artifact_entries)
+        .map_err(map_artifact_error)?;
+
+    // Materialize payload to the LocalFile export target directory.
+    let mut materialized_paths =
+        materialize_local_dir(&output_dir, &artifact_entries, true).map_err(map_artifact_error)?;
 
     // Build zip
-    let zip_path = output_dir.join(format!("{}.zip", bundle_id));
-    write_deterministic_zip(&zip_path, &all_files)?;
+    let zip_name = format!("{}.zip", bundle_id);
+    let zip_bytes = deterministic_zip_bytes(&all_files)?;
+    materialize_local_dir(
+        &output_dir,
+        &[ArtifactWriteEntry {
+            rel_path: zip_name.clone(),
+            bytes: zip_bytes,
+        }],
+        true,
+    )
+    .map_err(map_artifact_error)?;
+    materialized_paths.push(zip_name);
+    materialized_paths.sort();
 
     // emit FR event
     exporter.emit_fr_event(
@@ -1260,7 +1368,481 @@ async fn export_impl(
 
     exporter.store_bundle_location(&bundle_id, output_dir.clone());
 
-    Ok(manifest_with_hash)
+    // Also record a canonical ExportRecord (re-uses GovernancePackExport event schema).
+    record_export_record(
+        exporter,
+        trace_id,
+        export_job_id,
+        &bundle_id,
+        &scope,
+        request.redaction_mode,
+        !redaction_logs.is_empty(),
+        &bundle_hash,
+        artifact_id,
+        &materialized_paths,
+        &output_dir,
+    );
+
+    Ok(manifest)
+}
+
+fn map_artifact_error(err: ArtifactError) -> BundleExportError {
+    match err {
+        ArtifactError::PathTraversalBlocked { path } => {
+            BundleExportError::Validation(format!("path traversal blocked: {path}"))
+        }
+        ArtifactError::RootEscape { path } => {
+            BundleExportError::Validation(format!("target escapes root: {path}"))
+        }
+        ArtifactError::MissingRetentionTtlDays { artifact_id, kind } => {
+            BundleExportError::Validation(format!(
+                "missing retention_ttl_days for high-sensitivity artifact: {artifact_id} ({kind:?})"
+            ))
+        }
+        ArtifactError::ContentHashMismatch => {
+            BundleExportError::Validation("content hash mismatch".to_string())
+        }
+        ArtifactError::InvalidSha256Hex { field } => {
+            BundleExportError::Validation(format!("invalid sha256 hex: {field}"))
+        }
+        ArtifactError::InvalidRelPath { path } => {
+            BundleExportError::Validation(format!("invalid path: {path}"))
+        }
+        ArtifactError::WorkspaceRootResolve(message) => {
+            BundleExportError::ExportFailed(format!("workspace root resolve failed: {message}"))
+        }
+        ArtifactError::Serialization(source) => {
+            BundleExportError::ExportFailed(format!("serialization error: {source}"))
+        }
+        ArtifactError::Io(source) => BundleExportError::IoError(source),
+    }
+}
+
+fn record_export_record(
+    exporter: &DefaultDebugBundleExporter,
+    trace_id: Uuid,
+    export_job_id: Option<Uuid>,
+    bundle_id: &str,
+    scope: &ManifestScope,
+    redaction_mode: RedactionMode,
+    redactions_applied: bool,
+    bundle_hash: &str,
+    artifact_id: Uuid,
+    materialized_paths: &[String],
+    output_dir: &Path,
+) {
+    let mut source_entity_refs: Vec<crate::storage::EntityRef> = Vec::new();
+    if let Some(wsid) = scope.wsid.clone() {
+        source_entity_refs.push(crate::storage::EntityRef {
+            entity_id: wsid,
+            entity_kind: "workspace".to_string(),
+        });
+    }
+    if let Some(job_id) = scope.job_id.clone() {
+        source_entity_refs.push(crate::storage::EntityRef {
+            entity_id: job_id,
+            entity_kind: "job".to_string(),
+        });
+    }
+    if let Some(problem_id) = scope.problem_id.clone() {
+        source_entity_refs.push(crate::storage::EntityRef {
+            entity_id: problem_id,
+            entity_kind: "problem".to_string(),
+        });
+    }
+    if source_entity_refs.is_empty() {
+        source_entity_refs.push(crate::storage::EntityRef {
+            entity_id: bundle_id.to_string(),
+            entity_kind: "debug_bundle".to_string(),
+        });
+    }
+
+    let policy_id = match redaction_mode {
+        RedactionMode::SafeDefault => "SAFE_DEFAULT",
+        RedactionMode::Workspace => "WORKSPACE",
+        RedactionMode::FullLocal => "FULL_LOCAL",
+    }
+    .to_string();
+
+    let config_hash =
+        sha256_hex(format!("handshake.debug_bundle_export.v1\npolicy_id={policy_id}\n").as_bytes());
+
+    let export_record = ExportRecord {
+        export_id: trace_id,
+        created_at: Utc::now(),
+        actor: ExportActor::HumanDev,
+        job_id: export_job_id,
+        source_entity_refs,
+        source_hashes: vec![bundle_hash.to_string()],
+        display_projection_ref: None,
+        export_format: "debug_bundle".to_string(),
+        exporter: ExporterInfo {
+            engine_id: "handshake.debug_bundle_export".to_string(),
+            engine_version: env!("CARGO_PKG_VERSION").to_string(),
+            config_hash,
+        },
+        determinism_level: DeterminismLevel::Structural,
+        export_target: ExportTarget::LocalFile {
+            path: output_dir.to_path_buf(),
+        },
+        policy_id,
+        redactions_applied,
+        output_artifact_handles: vec![crate::ace::ArtifactHandle::new(
+            artifact_id,
+            artifact_root_rel(ArtifactLayer::L3, artifact_id),
+        )],
+        materialized_paths: materialized_paths.to_vec(),
+        warnings: vec![
+            "hash_basis: bundle_index_v1 (sorted paths + sha256(bytes) + size_bytes; excludes bundle_manifest.json and bundle_index.json)".to_string(),
+        ],
+        errors: Vec::new(),
+    };
+
+    let payload = match serde_json::to_value(&export_record) {
+        Ok(value) => value,
+        Err(_) => return,
+    };
+
+    let mut event = FlightRecorderEvent::new(
+        FlightRecorderEventType::GovernancePackExport,
+        FlightRecorderActor::Agent,
+        trace_id,
+        payload,
+    )
+    .with_job_id(bundle_id.to_string());
+
+    if let Some(wsid) = scope.wsid.clone() {
+        event = event.with_wsids(vec![wsid]);
+    }
+
+    let recorder = exporter.state.flight_recorder.clone();
+    tokio::spawn(async move {
+        let _ = recorder.record_event(event).await;
+    });
+}
+
+fn validate_bundle_path(
+    bundle_path: &Path,
+) -> Result<crate::bundles::validator::BundleValidationReport, BundleExportError> {
+    if !bundle_path.exists() {
+        return Err(BundleExportError::Validation(format!(
+            "bundle path does not exist: {}",
+            bundle_path.display()
+        )));
+    }
+    if bundle_path.is_dir() {
+        validate_bundle_dir(bundle_path)
+    } else if bundle_path.is_file() {
+        validate_bundle_zip(bundle_path)
+    } else {
+        Err(BundleExportError::Validation(format!(
+            "unsupported bundle path type: {}",
+            bundle_path.display()
+        )))
+    }
+}
+
+fn validate_bundle_dir(
+    bundle_dir: &Path,
+) -> Result<crate::bundles::validator::BundleValidationReport, BundleExportError> {
+    let mut findings: Vec<ValidationFinding> = Vec::new();
+
+    let manifest_path = bundle_dir.join("bundle_manifest.json");
+    let manifest_bytes = fs::read(&manifest_path).map_err(BundleExportError::IoError)?;
+    let manifest: BundleManifest = serde_json::from_slice(&manifest_bytes).map_err(|e| {
+        BundleExportError::Validation(format!("bundle_manifest.json parse error: {e}"))
+    })?;
+
+    for required in [
+        "bundle_manifest.json",
+        "bundle_index.json",
+        "env.json",
+        "trace.jsonl",
+        "diagnostics.jsonl",
+        "retention_report.json",
+        "redaction_report.json",
+        "repro.md",
+        "coder_prompt.md",
+    ] {
+        if !bundle_dir.join(required).exists() {
+            findings.push(ValidationFinding {
+                severity: FindingSeverity::Error,
+                code: "VAL-BUNDLE-001:MISSING_FILE".to_string(),
+                message: format!("Missing required file `{required}`"),
+                file: Some(required.to_string()),
+                path: None,
+            });
+        }
+    }
+
+    let has_jobs_json = bundle_dir.join("jobs.json").exists();
+    let has_job_json = bundle_dir.join("job.json").exists();
+    if !has_jobs_json && !has_job_json {
+        findings.push(ValidationFinding {
+            severity: FindingSeverity::Error,
+            code: "VAL-BUNDLE-001:MISSING_FILE".to_string(),
+            message: "Missing required file `jobs.json` OR `job.json`".to_string(),
+            file: Some("jobs.json".to_string()),
+            path: None,
+        });
+    }
+
+    // Validate manifest.files entries.
+    for file_entry in &manifest.files {
+        let path = bundle_dir.join(&file_entry.path);
+        if !path.exists() {
+            findings.push(ValidationFinding {
+                severity: FindingSeverity::Error,
+                code: "VAL-BUNDLE-002:MISSING_FILE".to_string(),
+                message: format!("Manifest references missing file `{}`", file_entry.path),
+                file: Some(file_entry.path.clone()),
+                path: None,
+            });
+            continue;
+        }
+        let bytes = fs::read(&path).map_err(BundleExportError::IoError)?;
+        let actual_sha = sha256_hex(&bytes);
+        if actual_sha != file_entry.sha256 {
+            findings.push(ValidationFinding {
+                severity: FindingSeverity::Error,
+                code: "VAL-BUNDLE-002:HASH_MISMATCH".to_string(),
+                message: format!(
+                    "File sha256 mismatch for `{}` (expected {}, got {})",
+                    file_entry.path, file_entry.sha256, actual_sha
+                ),
+                file: Some(file_entry.path.clone()),
+                path: None,
+            });
+        }
+        if bytes.len() as u64 != file_entry.size_bytes {
+            findings.push(ValidationFinding {
+                severity: FindingSeverity::Error,
+                code: "VAL-BUNDLE-002:SIZE_MISMATCH".to_string(),
+                message: format!(
+                    "File size mismatch for `{}` (expected {}, got {})",
+                    file_entry.path,
+                    file_entry.size_bytes,
+                    bytes.len()
+                ),
+                file: Some(file_entry.path.clone()),
+                path: None,
+            });
+        }
+    }
+
+    // Canonical bundle hash: sha256(bundle_index.json bytes).
+    let bundle_index_path = bundle_dir.join("bundle_index.json");
+    if let Ok(index_bytes) = fs::read(&bundle_index_path) {
+        let computed = bundle_index_content_hash(&index_bytes);
+        if computed != manifest.bundle_hash {
+            findings.push(ValidationFinding {
+                severity: FindingSeverity::Error,
+                code: "VAL-BUNDLE-003:BUNDLE_HASH_MISMATCH".to_string(),
+                message: format!(
+                    "bundle_hash mismatch (expected {}, got {})",
+                    manifest.bundle_hash, computed
+                ),
+                file: Some("bundle_index.json".to_string()),
+                path: None,
+            });
+        }
+
+        if let Ok(index_entries) = serde_json::from_slice::<Vec<BundleIndexEntry>>(&index_bytes) {
+            // Enforce sorted index (lexicographic).
+            let mut last: Option<&str> = None;
+            for entry in &index_entries {
+                if let Some(prev) = last {
+                    if entry.path.as_str() < prev {
+                        findings.push(ValidationFinding {
+                            severity: FindingSeverity::Error,
+                            code: "VAL-BUNDLE-003:INDEX_NOT_SORTED".to_string(),
+                            message: "bundle_index.json entries must be sorted by path".to_string(),
+                            file: Some("bundle_index.json".to_string()),
+                            path: None,
+                        });
+                        break;
+                    }
+                }
+                last = Some(entry.path.as_str());
+
+                let path = bundle_dir.join(&entry.path);
+                if !path.exists() {
+                    findings.push(ValidationFinding {
+                        severity: FindingSeverity::Error,
+                        code: "VAL-BUNDLE-003:INDEX_MISSING_FILE".to_string(),
+                        message: format!(
+                            "bundle_index.json references missing file `{}`",
+                            entry.path
+                        ),
+                        file: Some(entry.path.clone()),
+                        path: None,
+                    });
+                    continue;
+                }
+                let bytes = fs::read(&path).map_err(BundleExportError::IoError)?;
+                let actual_sha = sha256_hex(&bytes);
+                if actual_sha != entry.content_hash {
+                    findings.push(ValidationFinding {
+                        severity: FindingSeverity::Error,
+                        code: "VAL-BUNDLE-003:INDEX_HASH_MISMATCH".to_string(),
+                        message: format!(
+                            "bundle_index.json content_hash mismatch for `{}` (expected {}, got {})",
+                            entry.path, entry.content_hash, actual_sha
+                        ),
+                        file: Some(entry.path.clone()),
+                        path: None,
+                    });
+                }
+                if bytes.len() as u64 != entry.size_bytes {
+                    findings.push(ValidationFinding {
+                        severity: FindingSeverity::Error,
+                        code: "VAL-BUNDLE-003:INDEX_SIZE_MISMATCH".to_string(),
+                        message: format!(
+                            "bundle_index.json size_bytes mismatch for `{}` (expected {}, got {})",
+                            entry.path,
+                            entry.size_bytes,
+                            bytes.len()
+                        ),
+                        file: Some(entry.path.clone()),
+                        path: None,
+                    });
+                }
+            }
+        }
+    }
+
+    let valid = !findings
+        .iter()
+        .any(|f| f.severity == FindingSeverity::Error);
+    Ok(crate::bundles::validator::BundleValidationReport {
+        valid,
+        schema_version: manifest.schema_version.clone(),
+        findings,
+    })
+}
+
+fn validate_bundle_zip(
+    bundle_zip: &Path,
+) -> Result<crate::bundles::validator::BundleValidationReport, BundleExportError> {
+    let mut findings: Vec<ValidationFinding> = Vec::new();
+
+    let file = fs::File::open(bundle_zip)?;
+    let mut archive = zip::ZipArchive::new(file)?;
+
+    let mut entries: HashSet<String> = HashSet::new();
+    let mut manifest_bytes: Option<Vec<u8>> = None;
+    let mut index_bytes: Option<Vec<u8>> = None;
+    for idx in 0..archive.len() {
+        let mut file = archive.by_index(idx)?;
+        if file.is_dir() {
+            continue;
+        }
+        entries.insert(file.name().to_string());
+        match file.name() {
+            "bundle_manifest.json" => {
+                let mut buf = Vec::new();
+                file.read_to_end(&mut buf)?;
+                manifest_bytes = Some(buf);
+            }
+            "bundle_index.json" => {
+                let mut buf = Vec::new();
+                file.read_to_end(&mut buf)?;
+                index_bytes = Some(buf);
+            }
+            _ => {}
+        }
+    }
+
+    let manifest_bytes = manifest_bytes.ok_or_else(|| {
+        BundleExportError::Validation("bundle_manifest.json missing from zip".to_string())
+    })?;
+    let manifest: BundleManifest = serde_json::from_slice(&manifest_bytes).map_err(|e| {
+        BundleExportError::Validation(format!("bundle_manifest.json parse error: {e}"))
+    })?;
+
+    let index_bytes = index_bytes.ok_or_else(|| {
+        BundleExportError::Validation("bundle_index.json missing from zip".to_string())
+    })?;
+    let computed = bundle_index_content_hash(&index_bytes);
+    if computed != manifest.bundle_hash {
+        findings.push(ValidationFinding {
+            severity: FindingSeverity::Error,
+            code: "VAL-BUNDLE-003:BUNDLE_HASH_MISMATCH".to_string(),
+            message: format!(
+                "bundle_hash mismatch (expected {}, got {})",
+                manifest.bundle_hash, computed
+            ),
+            file: Some("bundle_index.json".to_string()),
+            path: None,
+        });
+    }
+
+    // Validate manifest.files entries (hash/size) by reading each from the archive.
+    for file_entry in &manifest.files {
+        let mut file = match archive.by_name(&file_entry.path) {
+            Ok(f) => f,
+            Err(_) => {
+                findings.push(ValidationFinding {
+                    severity: FindingSeverity::Error,
+                    code: "VAL-BUNDLE-002:MISSING_FILE".to_string(),
+                    message: format!("Manifest references missing file `{}`", file_entry.path),
+                    file: Some(file_entry.path.clone()),
+                    path: None,
+                });
+                continue;
+            }
+        };
+        let mut buf: Vec<u8> = Vec::new();
+        file.read_to_end(&mut buf)?;
+        let actual_sha = sha256_hex(&buf);
+        if actual_sha != file_entry.sha256 {
+            findings.push(ValidationFinding {
+                severity: FindingSeverity::Error,
+                code: "VAL-BUNDLE-002:HASH_MISMATCH".to_string(),
+                message: format!(
+                    "File sha256 mismatch for `{}` (expected {}, got {})",
+                    file_entry.path, file_entry.sha256, actual_sha
+                ),
+                file: Some(file_entry.path.clone()),
+                path: None,
+            });
+        }
+        if buf.len() as u64 != file_entry.size_bytes {
+            findings.push(ValidationFinding {
+                severity: FindingSeverity::Error,
+                code: "VAL-BUNDLE-002:SIZE_MISMATCH".to_string(),
+                message: format!(
+                    "File size mismatch for `{}` (expected {}, got {})",
+                    file_entry.path,
+                    file_entry.size_bytes,
+                    buf.len()
+                ),
+                file: Some(file_entry.path.clone()),
+                path: None,
+            });
+        }
+    }
+
+    let has_jobs_json = entries.contains("jobs.json");
+    let has_job_json = entries.contains("job.json");
+    if !has_jobs_json && !has_job_json {
+        findings.push(ValidationFinding {
+            severity: FindingSeverity::Error,
+            code: "VAL-BUNDLE-001:MISSING_FILE".to_string(),
+            message: "Missing required file `jobs.json` OR `job.json`".to_string(),
+            file: Some("jobs.json".to_string()),
+            path: None,
+        });
+    }
+
+    let valid = !findings
+        .iter()
+        .any(|f| f.severity == FindingSeverity::Error);
+    Ok(crate::bundles::validator::BundleValidationReport {
+        valid,
+        schema_version: manifest.schema_version.clone(),
+        findings,
+    })
 }
 
 #[async_trait]
@@ -1276,12 +1858,7 @@ impl DebugBundleExporter for DefaultDebugBundleExporter {
         &self,
         bundle_path: &Path,
     ) -> Result<crate::bundles::validator::BundleValidationReport, BundleExportError> {
-        let validator = ValBundleValidator;
-        if bundle_path.is_file() {
-            validator.validate_zip(bundle_path)
-        } else {
-            validator.validate_dir(bundle_path)
-        }
+        validate_bundle_path(bundle_path)
     }
 
     async fn list_exportable(

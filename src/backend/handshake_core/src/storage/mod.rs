@@ -300,6 +300,573 @@ impl RetentionPolicy {
     }
 }
 
+/// Artifact system foundations (Phase 1): on-disk artifact store + manifests + hashing + LocalFile
+/// materialize helper.
+///
+/// Spec anchors:
+/// - 2.3.10.6 Artifact manifests + on-disk layout (normative)
+/// - 2.3.10.7 Bundles + canonical hashing (normative)
+/// - 2.3.11.2 Materialize rules (atomic + traversal-safe + no bypass)
+pub mod artifacts {
+    use std::fs;
+    use std::io::{self, Write};
+    use std::path::{Component, Path, PathBuf};
+
+    use chrono::{DateTime, Utc};
+    use serde::{Deserialize, Serialize};
+    use sha2::{Digest, Sha256};
+    use thiserror::Error;
+    use uuid::Uuid;
+
+    use crate::ace::ArtifactHandle;
+
+    use super::EntityRef;
+
+    const HANDSHAKE_DIR: &str = ".handshake";
+    const ARTIFACTS_DIR: &str = "artifacts";
+    const ARTIFACT_MANIFEST_FILENAME: &str = "artifact.json";
+
+    #[derive(Debug, Error)]
+    pub enum ArtifactError {
+        #[error("workspace root resolve failed: {0}")]
+        WorkspaceRootResolve(String),
+        #[error("invalid relative path: {path}")]
+        InvalidRelPath { path: String },
+        #[error("path traversal blocked: {path}")]
+        PathTraversalBlocked { path: String },
+        #[error("write blocked: target escapes root: {path}")]
+        RootEscape { path: String },
+        #[error("missing retention_ttl_days for high-sensitivity artifact: artifact_id={artifact_id} kind={kind:?}")]
+        MissingRetentionTtlDays {
+            artifact_id: Uuid,
+            kind: ArtifactPayloadKind,
+        },
+        #[error("invalid sha256 hex: {field}")]
+        InvalidSha256Hex { field: String },
+        #[error("content hash mismatch")]
+        ContentHashMismatch,
+        #[error("io error: {0}")]
+        Io(#[from] io::Error),
+        #[error("serialization error: {0}")]
+        Serialization(#[from] serde_json::Error),
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    pub enum ArtifactLayer {
+        #[serde(rename = "L1")]
+        L1,
+        #[serde(rename = "L2")]
+        L2,
+        #[serde(rename = "L3")]
+        L3,
+        #[serde(rename = "L4")]
+        L4,
+    }
+
+    impl ArtifactLayer {
+        pub fn as_str(&self) -> &'static str {
+            match self {
+                ArtifactLayer::L1 => "L1",
+                ArtifactLayer::L2 => "L2",
+                ArtifactLayer::L3 => "L3",
+                ArtifactLayer::L4 => "L4",
+            }
+        }
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "snake_case")]
+    pub enum ArtifactPayloadKind {
+        File,
+        ToolOutput,
+        Transcript,
+        DatasetSlice,
+        PromptPayload,
+        Report,
+        Bundle,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "snake_case")]
+    pub enum ArtifactClassification {
+        Low,
+        Medium,
+        High,
+    }
+
+    /// Spec 2.3.10.6 minimum schema (+ optional hash_basis fields for deterministic validation).
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct ArtifactManifest {
+        pub artifact_id: Uuid,
+        pub layer: ArtifactLayer,
+        pub kind: ArtifactPayloadKind,
+        pub mime: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub filename_hint: Option<String>,
+        pub created_at: DateTime<Utc>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub created_by_job_id: Option<Uuid>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub source_entity_refs: Vec<EntityRef>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub source_artifact_refs: Vec<ArtifactHandle>,
+        pub content_hash: String,
+        pub size_bytes: u64,
+        pub classification: ArtifactClassification,
+        pub exportable: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub retention_ttl_days: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub pinned: Option<bool>,
+        /// Optional but recommended for directory artifacts to enable deterministic content_hash
+        /// validation (hash basis and explicit excludes).
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub hash_basis: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        pub hash_exclude_paths: Vec<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct BundleIndexEntry {
+        pub path: String,
+        pub content_hash: String,
+        pub size_bytes: u64,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct ArtifactWriteEntry {
+        pub rel_path: String,
+        pub bytes: Vec<u8>,
+    }
+
+    pub fn resolve_workspace_root() -> Result<PathBuf, ArtifactError> {
+        if let Ok(value) = std::env::var("HANDSHAKE_WORKSPACE_ROOT") {
+            let trimmed = value.trim();
+            if !trimmed.is_empty() {
+                return Ok(PathBuf::from(trimmed));
+            }
+        }
+        crate::capability_registry_workflow::repo_root_from_manifest_dir()
+            .map_err(|e| ArtifactError::WorkspaceRootResolve(e.to_string()))
+    }
+
+    pub fn artifact_store_root(workspace_root: &Path) -> PathBuf {
+        workspace_root.join(HANDSHAKE_DIR).join(ARTIFACTS_DIR)
+    }
+
+    pub fn artifact_root_dir(
+        workspace_root: &Path,
+        layer: ArtifactLayer,
+        artifact_id: Uuid,
+    ) -> PathBuf {
+        artifact_store_root(workspace_root)
+            .join(layer.as_str())
+            .join(artifact_id.to_string())
+    }
+
+    pub fn artifact_root_rel(layer: ArtifactLayer, artifact_id: Uuid) -> String {
+        format!(
+            "{}/{}/{}/{}",
+            HANDSHAKE_DIR,
+            ARTIFACTS_DIR,
+            layer.as_str(),
+            artifact_id
+        )
+    }
+
+    fn sha256_hex(bytes: &[u8]) -> String {
+        let mut h = Sha256::new();
+        h.update(bytes);
+        hex::encode(h.finalize())
+    }
+
+    fn normalize_rel_path(input: &str) -> String {
+        input
+            .replace('\\', "/")
+            .trim_start_matches("./")
+            .trim_start_matches('/')
+            .to_string()
+    }
+
+    fn ensure_safe_rel_path(rel_path: &str) -> Result<(), ArtifactError> {
+        let path = Path::new(rel_path);
+        if path.is_absolute() {
+            return Err(ArtifactError::PathTraversalBlocked {
+                path: rel_path.to_string(),
+            });
+        }
+        for component in path.components() {
+            match component {
+                Component::ParentDir | Component::Prefix(_) | Component::RootDir => {
+                    return Err(ArtifactError::PathTraversalBlocked {
+                        path: rel_path.to_string(),
+                    })
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    fn ensure_root_escape_blocked(root: &Path, target_path: &Path) -> Result<(), ArtifactError> {
+        let root = fs::canonicalize(root)?;
+        let parent = target_path
+            .parent()
+            .ok_or_else(|| ArtifactError::InvalidRelPath {
+                path: target_path.to_string_lossy().to_string(),
+            })?;
+        fs::create_dir_all(parent)?;
+        let parent_canon = fs::canonicalize(parent)?;
+        if !parent_canon.starts_with(&root) {
+            return Err(ArtifactError::RootEscape {
+                path: target_path.to_string_lossy().to_string(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Atomic file write (temp + fsync + rename) with best-effort parent dir fsync.
+    pub fn write_file_atomic(
+        root: &Path,
+        target_path: &Path,
+        bytes: &[u8],
+        overwrite: bool,
+    ) -> Result<(), ArtifactError> {
+        ensure_root_escape_blocked(root, target_path)?;
+
+        let parent = target_path
+            .parent()
+            .ok_or_else(|| ArtifactError::InvalidRelPath {
+                path: target_path.to_string_lossy().to_string(),
+            })?;
+        let parent_canon = fs::canonicalize(parent)?;
+
+        let tmp_name = format!(".hsk_tmp_{}", Uuid::new_v4());
+        let tmp_path = parent_canon.join(tmp_name);
+        let mut tmp_file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&tmp_path)?;
+        tmp_file.write_all(bytes)?;
+        tmp_file.sync_all()?;
+        drop(tmp_file);
+
+        if !overwrite && target_path.exists() {
+            let _ = fs::remove_file(&tmp_path);
+            return Err(ArtifactError::Io(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                "target already exists (overwrite=false)",
+            )));
+        }
+        if overwrite && target_path.exists() {
+            if target_path.is_dir() {
+                let _ = fs::remove_file(&tmp_path);
+                return Err(ArtifactError::Io(io::Error::new(
+                    io::ErrorKind::AlreadyExists,
+                    "target path exists and is a directory",
+                )));
+            }
+            fs::remove_file(target_path)?;
+        }
+
+        if let Err(err) = fs::rename(&tmp_path, target_path) {
+            let _ = fs::remove_file(&tmp_path);
+            return Err(ArtifactError::Io(err));
+        }
+
+        if let Ok(dir_handle) = fs::File::open(&parent_canon) {
+            let _ = dir_handle.sync_all();
+        }
+        Ok(())
+    }
+
+    /// Deterministic, canonical BundleIndex (sorted paths + per-item content_hash + size_bytes).
+    pub fn canonical_bundle_index(mut entries: Vec<BundleIndexEntry>) -> Vec<BundleIndexEntry> {
+        entries.sort_by(|a, b| a.path.cmp(&b.path));
+        entries
+    }
+
+    pub fn bundle_index_json(entries: &[BundleIndexEntry]) -> Result<Vec<u8>, ArtifactError> {
+        let mut normalized: Vec<BundleIndexEntry> = Vec::with_capacity(entries.len());
+        for entry in entries {
+            if entry.path.trim().is_empty() {
+                return Err(ArtifactError::InvalidRelPath {
+                    path: entry.path.clone(),
+                });
+            }
+            let rel = normalize_rel_path(&entry.path);
+            ensure_safe_rel_path(&rel)?;
+            if rel.contains(':') {
+                return Err(ArtifactError::PathTraversalBlocked { path: rel });
+            }
+            normalized.push(BundleIndexEntry {
+                path: rel,
+                content_hash: entry.content_hash.clone(),
+                size_bytes: entry.size_bytes,
+            });
+        }
+        let normalized = canonical_bundle_index(normalized);
+        Ok(serde_json::to_vec(&normalized)?)
+    }
+
+    pub fn bundle_index_content_hash(bundle_index_json: &[u8]) -> String {
+        sha256_hex(bundle_index_json)
+    }
+
+    pub fn compute_entries_index(
+        entries: &[ArtifactWriteEntry],
+        exclude_paths: &[String],
+    ) -> Result<(Vec<BundleIndexEntry>, u64), ArtifactError> {
+        let mut index: Vec<BundleIndexEntry> = Vec::new();
+        let mut total_size: u64 = 0;
+
+        for entry in entries {
+            let rel = normalize_rel_path(&entry.rel_path);
+            if rel.trim().is_empty() {
+                return Err(ArtifactError::InvalidRelPath { path: rel });
+            }
+            ensure_safe_rel_path(&rel)?;
+            if rel.contains(':') {
+                return Err(ArtifactError::PathTraversalBlocked { path: rel });
+            }
+
+            total_size = total_size.saturating_add(entry.bytes.len() as u64);
+            if exclude_paths.iter().any(|p| normalize_rel_path(p) == rel) {
+                continue;
+            }
+            let content_hash = sha256_hex(&entry.bytes);
+            index.push(BundleIndexEntry {
+                path: rel,
+                content_hash,
+                size_bytes: entry.bytes.len() as u64,
+            });
+        }
+
+        Ok((canonical_bundle_index(index), total_size))
+    }
+
+    /// LocalFile materialize: writes a set of files into `export_root` (directory), enforcing
+    /// traversal-safe relative paths and atomic per-file writes.
+    pub fn materialize_local_dir(
+        export_root: &Path,
+        entries: &[ArtifactWriteEntry],
+        overwrite: bool,
+    ) -> Result<Vec<String>, ArtifactError> {
+        if !export_root.is_absolute() {
+            return Err(ArtifactError::InvalidRelPath {
+                path: export_root.to_string_lossy().to_string(),
+            });
+        }
+        fs::create_dir_all(export_root)?;
+        if !export_root.is_dir() {
+            return Err(ArtifactError::Io(io::Error::new(
+                io::ErrorKind::NotADirectory,
+                "export_root is not a directory",
+            )));
+        }
+        let export_root_canon = fs::canonicalize(export_root)?;
+
+        let mut materialized_paths: Vec<String> = Vec::with_capacity(entries.len());
+        for entry in entries {
+            let rel = normalize_rel_path(&entry.rel_path);
+            ensure_safe_rel_path(&rel)?;
+            if rel.contains(':') {
+                return Err(ArtifactError::PathTraversalBlocked { path: rel });
+            }
+
+            let target_path = export_root_canon.join(Path::new(&rel));
+            write_file_atomic(&export_root_canon, &target_path, &entry.bytes, overwrite)?;
+            materialized_paths.push(rel);
+        }
+
+        materialized_paths.sort();
+        Ok(materialized_paths)
+    }
+
+    pub fn write_artifact_manifest_atomic(
+        artifact_root: &Path,
+        manifest: &ArtifactManifest,
+    ) -> Result<(), ArtifactError> {
+        let manifest_path = artifact_root.join(ARTIFACT_MANIFEST_FILENAME);
+        let bytes = serde_json::to_vec_pretty(manifest)?;
+        write_file_atomic(artifact_root, &manifest_path, &bytes, false)
+    }
+
+    pub fn write_file_artifact(
+        workspace_root: &Path,
+        manifest: &ArtifactManifest,
+        payload_bytes: &[u8],
+    ) -> Result<(), ArtifactError> {
+        if matches!(manifest.kind, ArtifactPayloadKind::PromptPayload)
+            || matches!(manifest.classification, ArtifactClassification::High)
+        {
+            if manifest.retention_ttl_days.is_none() {
+                return Err(ArtifactError::MissingRetentionTtlDays {
+                    artifact_id: manifest.artifact_id,
+                    kind: manifest.kind,
+                });
+            }
+        }
+
+        let artifact_root = artifact_root_dir(workspace_root, manifest.layer, manifest.artifact_id);
+        fs::create_dir_all(&artifact_root)?;
+
+        // Validate hash fields match payload.
+        if manifest.content_hash != sha256_hex(payload_bytes) {
+            return Err(ArtifactError::ContentHashMismatch);
+        }
+        if manifest.size_bytes != payload_bytes.len() as u64 {
+            return Err(ArtifactError::ContentHashMismatch);
+        }
+
+        let payload_path = artifact_root.join("payload");
+        write_file_atomic(&artifact_root, &payload_path, payload_bytes, false)?;
+        write_artifact_manifest_atomic(&artifact_root, manifest)?;
+        Ok(())
+    }
+
+    pub fn write_dir_artifact(
+        workspace_root: &Path,
+        manifest: &ArtifactManifest,
+        entries: &[ArtifactWriteEntry],
+    ) -> Result<(), ArtifactError> {
+        if matches!(manifest.kind, ArtifactPayloadKind::PromptPayload)
+            || matches!(manifest.classification, ArtifactClassification::High)
+        {
+            if manifest.retention_ttl_days.is_none() {
+                return Err(ArtifactError::MissingRetentionTtlDays {
+                    artifact_id: manifest.artifact_id,
+                    kind: manifest.kind,
+                });
+            }
+        }
+
+        let artifact_root = artifact_root_dir(workspace_root, manifest.layer, manifest.artifact_id);
+        let payload_root = artifact_root.join("payload");
+        fs::create_dir_all(&payload_root)?;
+
+        // Validate hash fields match entries (structural hashing).
+        let (index, total_size) = compute_entries_index(entries, &manifest.hash_exclude_paths)?;
+        let index_json = bundle_index_json(&index)?;
+        let computed = bundle_index_content_hash(&index_json);
+        if manifest.content_hash != computed || manifest.size_bytes != total_size {
+            return Err(ArtifactError::ContentHashMismatch);
+        }
+
+        // Deterministic write order: lexicographic by normalized rel_path.
+        let mut write_entries: Vec<ArtifactWriteEntry> = entries.to_vec();
+        write_entries
+            .sort_by(|a, b| normalize_rel_path(&a.rel_path).cmp(&normalize_rel_path(&b.rel_path)));
+
+        for entry in &write_entries {
+            let rel = normalize_rel_path(&entry.rel_path);
+            ensure_safe_rel_path(&rel)?;
+            let target_path = payload_root.join(Path::new(&rel));
+            write_file_atomic(&payload_root, &target_path, &entry.bytes, false)?;
+        }
+
+        write_artifact_manifest_atomic(&artifact_root, manifest)?;
+        Ok(())
+    }
+
+    pub fn read_artifact_manifest(
+        workspace_root: &Path,
+        layer: ArtifactLayer,
+        artifact_id: Uuid,
+    ) -> Result<ArtifactManifest, ArtifactError> {
+        let artifact_root = artifact_root_dir(workspace_root, layer, artifact_id);
+        let manifest_path = artifact_root.join(ARTIFACT_MANIFEST_FILENAME);
+        let raw = fs::read_to_string(&manifest_path)?;
+        let manifest: ArtifactManifest = serde_json::from_str(&raw)?;
+        Ok(manifest)
+    }
+
+    pub fn validate_artifact_content_hash(
+        workspace_root: &Path,
+        layer: ArtifactLayer,
+        artifact_id: Uuid,
+    ) -> Result<(), ArtifactError> {
+        let manifest = read_artifact_manifest(workspace_root, layer, artifact_id)?;
+        let artifact_root = artifact_root_dir(workspace_root, layer, artifact_id);
+
+        let payload_path = artifact_root.join("payload");
+        let meta = fs::metadata(&payload_path)?;
+        if meta.is_file() {
+            let bytes = fs::read(payload_path)?;
+            if sha256_hex(&bytes) != manifest.content_hash
+                || bytes.len() as u64 != manifest.size_bytes
+            {
+                return Err(ArtifactError::ContentHashMismatch);
+            }
+            return Ok(());
+        }
+
+        if !meta.is_dir() {
+            return Err(ArtifactError::InvalidRelPath {
+                path: payload_path.to_string_lossy().to_string(),
+            });
+        }
+
+        let payload_root = payload_path;
+        let mut entries: Vec<ArtifactWriteEntry> = Vec::new();
+        collect_dir_entries(&payload_root, &payload_root, &mut entries)?;
+        let (index, total_size) = compute_entries_index(&entries, &manifest.hash_exclude_paths)?;
+        let index_json = bundle_index_json(&index)?;
+        let computed = bundle_index_content_hash(&index_json);
+        if computed != manifest.content_hash || total_size != manifest.size_bytes {
+            return Err(ArtifactError::ContentHashMismatch);
+        }
+        Ok(())
+    }
+
+    fn collect_dir_entries(
+        root: &Path,
+        dir: &Path,
+        out: &mut Vec<ArtifactWriteEntry>,
+    ) -> Result<(), ArtifactError> {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let ty = entry.file_type()?;
+            if ty.is_symlink() {
+                return Err(ArtifactError::InvalidRelPath {
+                    path: entry.path().to_string_lossy().to_string(),
+                });
+            }
+            let path = entry.path();
+            if ty.is_dir() {
+                collect_dir_entries(root, &path, out)?;
+                continue;
+            }
+            if !ty.is_file() {
+                continue;
+            }
+            let rel = path
+                .strip_prefix(root)
+                .map_err(|_| ArtifactError::InvalidRelPath {
+                    path: path.to_string_lossy().to_string(),
+                })?;
+            let rel = normalize_rel_path(&rel.to_string_lossy());
+            let bytes = fs::read(&path)?;
+            out.push(ArtifactWriteEntry {
+                rel_path: rel,
+                bytes,
+            });
+        }
+        Ok(())
+    }
+
+    pub fn normalize_materialized_path(path: &str) -> Result<String, ArtifactError> {
+        let rel = normalize_rel_path(path);
+        if rel.is_empty() || rel.contains(':') || rel.starts_with('/') {
+            return Err(ArtifactError::InvalidRelPath { path: rel });
+        }
+        if rel.split('/').any(|c| c == "..") {
+            return Err(ArtifactError::PathTraversalBlocked { path: rel });
+        }
+        Ok(rel)
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EntityRef {
     pub entity_id: String,
