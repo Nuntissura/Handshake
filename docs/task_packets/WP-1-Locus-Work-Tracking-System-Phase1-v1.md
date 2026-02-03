@@ -25,10 +25,18 @@
 - Why: Provide governance-aware, deterministic work tracking that integrates with Spec Router, MT Executor, Task Board, Task Packets, and Flight Recorder.
 - IN_SCOPE_PATHS:
   - src/backend/handshake_core/src/locus/**
+  - src/backend/handshake_core/src/locus/mod.rs
+  - src/backend/handshake_core/src/locus/sqlite_store.rs
+  - src/backend/handshake_core/src/locus/task_board.rs
+  - src/backend/handshake_core/src/locus/types.rs
   - src/backend/handshake_core/src/storage/**
+  - src/backend/handshake_core/src/storage/mod.rs
+  - src/backend/handshake_core/src/storage/sqlite.rs
   - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/src/mex/**
   - src/backend/handshake_core/src/flight_recorder/**
+  - src/backend/handshake_core/src/flight_recorder/duckdb.rs
+  - src/backend/handshake_core/src/flight_recorder/mod.rs
   - src/backend/handshake_core/src/capabilities.rs
   - src/backend/handshake_core/mechanical_engines.json
   - assets/capability_registry.json
@@ -162,32 +170,205 @@ git revert <commit-sha>
 - (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-`docs/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- (Mechanical manifest for audit. Enables `just post-work`. This section is NOT an official validation verdict.)
+
+- **Target File**: `assets/capability_registry.json`
+- **Start**: 1
+- **End**: 503
+- **Line Delta**: 65
+- **Pre-SHA1**: `3608110366ffd1b93944aaf2f5232a319e755cf4`
+- **Post-SHA1**: `ed2867907e26ac3739c7d1376d7d4d711cc06243`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/capabilities.rs`
+- **Start**: 1
+- **End**: 604
+- **Line Delta**: 81
+- **Pre-SHA1**: `5bca895d0a202f503ccc5200d1e8aac2bd56e617`
+- **Post-SHA1**: `62d7fb55123c0ae1c5e62b57ce147a6ecf122a4a`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- **Start**: 1
+- **End**: 1240
+- **Line Delta**: 28
+- **Pre-SHA1**: `0d51d61a439ddace9226aec28bd01f07e9ccb035`
+- **Post-SHA1**: `dc555b976a909e98402f7906b3dbfe3bac77220b`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 1
+- **End**: 3675
+- **Line Delta**: 617
+- **Pre-SHA1**: `c7f920abf3faa138cfe4db2315487d2c9bb1356e`
+- **Post-SHA1**: `38b6d0fc8b1cf7bdd74d2213b9c272aa79e30c19`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/locus/mod.rs`
+- **Start**: 1
+- **End**: 5
+- **Line Delta**: 5
+- **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
+- **Post-SHA1**: `e3a47c5cea8bba4bdb60865fe229a2ddcd7da9eb`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/locus/sqlite_store.rs`
+- **Start**: 1
+- **End**: 822
+- **Line Delta**: 822
+- **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
+- **Post-SHA1**: `fc428affaabd118ce51c9d237077e3ec437ad3b3`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/locus/task_board.rs`
+- **Start**: 1
+- **End**: 202
+- **Line Delta**: 202
+- **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
+- **Post-SHA1**: `d0c14fbc5edb5e3f06d90634eb0dc4fbb2721eff`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/locus/types.rs`
+- **Start**: 1
+- **End**: 462
+- **Line Delta**: 462
+- **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
+- **Post-SHA1**: `a130b449614f3c9eaa0b996648e953c7e6e962f9`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/storage/mod.rs`
+- **Start**: 1
+- **End**: 1544
+- **Line Delta**: 3
+- **Pre-SHA1**: `8d4536e8d5be6d31c380981ce326e4828b18e9e4`
+- **Post-SHA1**: `ca9da2989919de930b42c73f0917d0c092b98cc0`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/storage/sqlite.rs`
+- **Start**: 1
+- **End**: 2725
+- **Line Delta**: 77
+- **Pre-SHA1**: `6b4597ac725d3128685ab1b389384ca647503b7c`
+- **Post-SHA1**: `dcd3454d782f76d23c5dc9988e05e71a1776a548`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1
+- **End**: 7716
+- **Line Delta**: 1116
+- **Pre-SHA1**: `2893f87593559afa3644edfd13b1f69f8d57899b`
+- **Post-SHA1**: `52d501ce9bec4df57b2ff4614f19fcc838c73e00`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
@@ -200,6 +381,18 @@ git revert <commit-sha>
 - Format (repeat as needed):
   - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
   - EVIDENCE: `path/to/file:line`
+ - REQUIREMENT: "Locus storage schema exists for Phase 1 tracking per spec 2.3.15.5"
+   - EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:260`
+ - REQUIREMENT: "Task Board bidirectional sync implemented per spec 2.3.15.4/2.3.15.3"
+   - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:189`
+ - REQUIREMENT: "WorkPacketBinding enforcement implemented per spec 2.3.15.4"
+   - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:2000`
+ - REQUIREMENT: "Core mechanical operations implemented (create/update/gate/close WP; register/start/record/complete MT; deps)"
+   - EVIDENCE: `src/backend/handshake_core/src/locus/sqlite_store.rs:159`
+ - REQUIREMENT: "Flight Recorder validates Locus event families per spec 2.3.15.6"
+   - EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:2337`
+ - REQUIREMENT: "Capability registry updated: locus.read present in CapabilityRegistry SSoT"
+   - EVIDENCE: `assets/capability_registry.json:402`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
@@ -209,6 +402,12 @@ git revert <commit-sha>
   - LOG_PATH: `.handshake/logs/WP-1-Locus-Work-Tracking-System-Phase1-v1/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+ - COMMAND: `cargo check --manifest-path src/backend/handshake_core/Cargo.toml -q`
+   - EXIT_CODE: 0
+ - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib -q`
+   - EXIT_CODE: 0
+ - COMMAND: `node -e "JSON.parse(require('fs').readFileSync('assets/capability_registry.json','utf8')); console.log('capability_registry.json: ok')"`
+   - EXIT_CODE: 0
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
