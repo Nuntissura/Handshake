@@ -244,6 +244,7 @@ async fn execute_locus_sync_task_board(
 
     let dry_run = params.dry_run.unwrap_or(false);
     let sync_target = "docs/TASK_BOARD.md";
+    // WAIVER [CX-573E]: Instant::now() for observability (sync duration metrics).
     let sync_started_at = std::time::Instant::now();
 
     record_event_required(
