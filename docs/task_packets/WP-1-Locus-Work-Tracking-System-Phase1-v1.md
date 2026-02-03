@@ -192,10 +192,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/capabilities.rs`
 - **Start**: 1
-- **End**: 604
-- **Line Delta**: 81
+- **End**: 622
+- **Line Delta**: 99
 - **Pre-SHA1**: `5bca895d0a202f503ccc5200d1e8aac2bd56e617`
-- **Post-SHA1**: `62d7fb55123c0ae1c5e62b57ce147a6ecf122a4a`
+- **Post-SHA1**: `e53e3e2c96530828eaf75a3f62d862c522a7f083`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -267,7 +267,7 @@ git revert <commit-sha>
 - **End**: 822
 - **Line Delta**: 822
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `fc428affaabd118ce51c9d237077e3ec437ad3b3`
+- **Post-SHA1**: `731e36c3521a626c2e4634961942a8876fc7f2e0`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -285,7 +285,7 @@ git revert <commit-sha>
 - **End**: 202
 - **Line Delta**: 202
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `d0c14fbc5edb5e3f06d90634eb0dc4fbb2721eff`
+- **Post-SHA1**: `d0191f5ca5ca233afef59714dd8de131452c3bde`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -300,10 +300,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/locus/types.rs`
 - **Start**: 1
-- **End**: 462
-- **Line Delta**: 462
+- **End**: 464
+- **Line Delta**: 464
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `a130b449614f3c9eaa0b996648e953c7e6e962f9`
+- **Post-SHA1**: `1b6afa556fcf2ed68eeca33fcbb4b0cd2170caf1`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -357,7 +357,7 @@ git revert <commit-sha>
 - **End**: 7717
 - **Line Delta**: 1117
 - **Pre-SHA1**: `2893f87593559afa3644edfd13b1f69f8d57899b`
-- **Post-SHA1**: `b53afda5cf934ac6eee48a81566fa4dd73bea6b1`
+- **Post-SHA1**: `378da566327b8943cdaaa43217351662dcb5137a`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
