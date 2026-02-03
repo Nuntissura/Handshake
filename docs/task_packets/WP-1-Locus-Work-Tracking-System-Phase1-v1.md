@@ -5,7 +5,7 @@
 - WP_ID: WP-1-Locus-Work-Tracking-System-Phase1-v1
 - BASE_WP_ID: WP-1-Locus-Work-Tracking-System-Phase1 (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: 2026-02-03T07:53:09.870Z
-- MERGE_BASE_SHA: 85e20bf1071facd9b7e89e2777203f60b1b59b7c (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: 85e20bf1071facd9b7e89e2777203f60b1b59b7c
 - REQUESTOR: ilja (Operator)
 - AGENT_ID: user_orchestrator (Codex CLI)
 - ROLE: Orchestrator
