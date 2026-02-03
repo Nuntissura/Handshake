@@ -57,6 +57,9 @@ use thiserror::Error;
 use tokio::sync::Notify;
 use uuid::Uuid;
 
+#[path = "locus/mod.rs"]
+pub mod locus;
+
 #[derive(Error, Debug)]
 pub enum WorkflowError {
     #[error("Storage error: {0}")]
@@ -181,6 +184,478 @@ fn derive_trace_id(job: &AiJob, workflow_id: Option<&str>) -> Uuid {
     }
 
     job.job_id
+}
+
+async fn execute_locus_sync_task_board(
+    state: &AppState,
+    sqlite: &crate::storage::sqlite::SqliteDatabase,
+    job: &AiJob,
+    workflow_run_id: Uuid,
+    trace_id: Uuid,
+    params: locus::LocusSyncTaskBoardParams,
+) -> Result<Value, WorkflowError> {
+    fn task_board_status_db(status: locus::TaskBoardStatus) -> &'static str {
+        match status {
+            locus::TaskBoardStatus::Stub => "STUB",
+            locus::TaskBoardStatus::Ready => "READY",
+            locus::TaskBoardStatus::InProgress => "IN_PROGRESS",
+            locus::TaskBoardStatus::Blocked => "BLOCKED",
+            locus::TaskBoardStatus::Gated => "GATED",
+            locus::TaskBoardStatus::Done => "DONE",
+            locus::TaskBoardStatus::Cancelled => "CANCELLED",
+        }
+    }
+
+    fn work_packet_status_db(status: locus::TaskBoardStatus) -> &'static str {
+        match status {
+            locus::TaskBoardStatus::Stub => "stub",
+            locus::TaskBoardStatus::Ready => "ready",
+            locus::TaskBoardStatus::InProgress => "in_progress",
+            locus::TaskBoardStatus::Blocked => "blocked",
+            locus::TaskBoardStatus::Gated => "gated",
+            locus::TaskBoardStatus::Done => "done",
+            locus::TaskBoardStatus::Cancelled => "cancelled",
+        }
+    }
+
+    fn parse_task_board_status_db(value: &str) -> locus::TaskBoardStatus {
+        match value.trim() {
+            "READY" => locus::TaskBoardStatus::Ready,
+            "IN_PROGRESS" => locus::TaskBoardStatus::InProgress,
+            "BLOCKED" => locus::TaskBoardStatus::Blocked,
+            "GATED" => locus::TaskBoardStatus::Gated,
+            "DONE" => locus::TaskBoardStatus::Done,
+            "CANCELLED" => locus::TaskBoardStatus::Cancelled,
+            _ => locus::TaskBoardStatus::Stub,
+        }
+    }
+
+    fn default_task_board_token(status: locus::TaskBoardStatus) -> &'static str {
+        match status {
+            locus::TaskBoardStatus::Stub => "STUB",
+            locus::TaskBoardStatus::Ready => "READY_FOR_DEV",
+            locus::TaskBoardStatus::InProgress => "IN_PROGRESS",
+            locus::TaskBoardStatus::Blocked => "BLOCKED",
+            locus::TaskBoardStatus::Gated => "GATED",
+            locus::TaskBoardStatus::Done => "VALIDATED",
+            locus::TaskBoardStatus::Cancelled => "SUPERSEDED",
+        }
+    }
+
+    let dry_run = params.dry_run.unwrap_or(false);
+    let sync_target = "docs/TASK_BOARD.md";
+    let sync_started_at = std::time::Instant::now();
+
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::LocusSyncStarted,
+            FlightRecorderActor::Agent,
+            trace_id,
+            locus_event_payload(
+                job,
+                workflow_run_id,
+                trace_id,
+                &job.protocol_id,
+                "FR-EVT-SYNC-001",
+                "sync_started",
+                json!({
+                    "sync_target": sync_target,
+                    "dry_run": dry_run,
+                }),
+            ),
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_workflow_id(workflow_run_id.to_string()),
+    )
+    .await?;
+
+    let result: Result<
+        (
+            Value,
+            bool,
+            Vec<locus::task_board::TaskBoardEntry>,
+            u64,
+            u64,
+            u64,
+            u32,
+            Vec<(
+                String,
+                locus::TaskBoardStatus,
+                locus::TaskBoardStatus,
+                String,
+            )>,
+            Vec<String>,
+        ),
+        WorkflowError,
+    > = async {
+        let repo_root =
+            repo_root_from_manifest_dir().map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        let task_board_path = repo_root.join("docs").join("TASK_BOARD.md");
+
+        let task_board = fs::read_to_string(&task_board_path).map_err(|e| {
+            WorkflowError::Terminal(format!(
+                "failed to read Task Board {}: {e}",
+                task_board_path.display()
+            ))
+        })?;
+
+        let parsed = locus::task_board::parse_task_board(&task_board);
+        let pool = sqlite.pool();
+
+        let statuses = [
+            locus::TaskBoardStatus::Stub,
+            locus::TaskBoardStatus::Ready,
+            locus::TaskBoardStatus::InProgress,
+            locus::TaskBoardStatus::Blocked,
+            locus::TaskBoardStatus::Gated,
+            locus::TaskBoardStatus::Done,
+            locus::TaskBoardStatus::Cancelled,
+        ];
+
+        let mut unknown_wp_ids: Vec<String> = Vec::new();
+        let mut applied_updates = 0u32;
+        let mut before_map: std::collections::BTreeMap<String, (locus::TaskBoardStatus, String)> =
+            std::collections::BTreeMap::new();
+
+        for status in statuses {
+            for entry in parsed.entries_for_status(status) {
+                before_map.insert(entry.wp_id.clone(), (entry.status, entry.token.clone()));
+
+                let row = sqlx::query_as::<_, (String, String)>(
+                    "SELECT task_board_status, metadata FROM work_packets WHERE wp_id = $1",
+                )
+                .bind(&entry.wp_id)
+                .fetch_optional(pool)
+                .await
+                .map_err(crate::storage::StorageError::from)?;
+
+                let Some((db_task_board_status, metadata_raw)) = row else {
+                    unknown_wp_ids.push(entry.wp_id.clone());
+                    record_event_safely(
+                        state,
+                        FlightRecorderEvent::new(
+                            FlightRecorderEventType::Diagnostic,
+                            FlightRecorderActor::Agent,
+                            trace_id,
+                            json!({
+                                "diagnostic_id": "HSK-LOCUS-TB-UNKNOWN-WP",
+                                "wp_id": entry.wp_id.as_str(),
+                                "token": entry.token.as_str(),
+                                "task_board_status": task_board_status_db(entry.status),
+                                "protocol_id": job.protocol_id.as_str(),
+                            }),
+                        )
+                        .with_job_id(job.job_id.to_string())
+                        .with_workflow_id(workflow_run_id.to_string()),
+                    )
+                    .await;
+                    continue;
+                };
+
+                let prev_status = parse_task_board_status_db(&db_task_board_status);
+                let status_changed = prev_status != entry.status;
+
+                let mut metadata: Value =
+                    serde_json::from_str(&metadata_raw).unwrap_or_else(|_| json!({}));
+                if !metadata.is_object() {
+                    metadata = json!({});
+                }
+                let prev_token = metadata
+                    .get("task_board_token")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let token_changed = prev_token != entry.token.as_str();
+                if token_changed {
+                    metadata["task_board_token"] = Value::String(entry.token.clone());
+                }
+
+                if (status_changed || token_changed) && !dry_run {
+                    let now = Utc::now().to_rfc3339();
+                    let metadata = serde_json::to_string(&metadata)
+                        .map_err(crate::storage::StorageError::from)?;
+                    sqlx::query(
+                        r#"
+                        UPDATE work_packets
+                        SET
+                            version = version + 1,
+                            status = $1,
+                            task_board_status = $2,
+                            updated_at = $3,
+                            metadata = $4
+                        WHERE wp_id = $5
+                        "#,
+                    )
+                    .bind(work_packet_status_db(entry.status))
+                    .bind(task_board_status_db(entry.status))
+                    .bind(&now)
+                    .bind(metadata)
+                    .bind(&entry.wp_id)
+                    .execute(pool)
+                    .await
+                    .map_err(crate::storage::StorageError::from)?;
+
+                    applied_updates += 1;
+                } else if status_changed && dry_run {
+                    // In dry-run we still persist token into metadata for deterministic rewrite.
+                    // (No DB writes happen in dry-run.)
+                }
+            }
+        }
+
+        let mut canonical = locus::task_board::TaskBoardSections::default();
+        let mut after_map: std::collections::BTreeMap<String, (locus::TaskBoardStatus, String)> =
+            std::collections::BTreeMap::new();
+
+        let rows = sqlx::query_as::<_, (String, String, String)>(
+            "SELECT wp_id, task_board_status, metadata FROM work_packets",
+        )
+        .fetch_all(pool)
+        .await
+        .map_err(crate::storage::StorageError::from)?;
+
+        for (wp_id, task_board_status, metadata_raw) in rows {
+            let status = parse_task_board_status_db(&task_board_status);
+            let token = match serde_json::from_str::<Value>(&metadata_raw) {
+                Ok(val) => val
+                    .get("task_board_token")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| default_task_board_token(status).to_string()),
+                Err(_) => default_task_board_token(status).to_string(),
+            };
+            after_map.insert(wp_id.clone(), (status, token.clone()));
+            canonical
+                .entries_for_status_mut(status)
+                .push(locus::task_board::TaskBoardEntry {
+                    wp_id,
+                    token,
+                    status,
+                });
+        }
+
+        let mut entries_added: Vec<locus::task_board::TaskBoardEntry> = Vec::new();
+        for (wp_id, (status, token)) in after_map.iter() {
+            if !before_map.contains_key(wp_id) {
+                entries_added.push(locus::task_board::TaskBoardEntry {
+                    wp_id: wp_id.clone(),
+                    token: token.clone(),
+                    status: *status,
+                });
+            }
+        }
+
+        let entries_added_count = entries_added.len() as u64;
+        let entries_removed_count = before_map
+            .keys()
+            .filter(|wp_id| !after_map.contains_key(*wp_id))
+            .count() as u64;
+
+        let mut status_change_entries: Vec<(
+            String,
+            locus::TaskBoardStatus,
+            locus::TaskBoardStatus,
+            String,
+        )> = Vec::new();
+        for (wp_id, (before_status, _before_token)) in before_map.iter() {
+            let Some((after_status, after_token)) = after_map.get(wp_id) else {
+                continue;
+            };
+            if before_status != after_status {
+                status_change_entries.push((
+                    wp_id.clone(),
+                    *before_status,
+                    *after_status,
+                    after_token.clone(),
+                ));
+            }
+        }
+        let status_changes = status_change_entries.len() as u64;
+
+        let rewritten = locus::task_board::rewrite_task_board(&task_board, &canonical);
+        let would_write = rewritten != task_board;
+        if would_write && !dry_run {
+            write_bytes_atomic(&repo_root, &task_board_path, rewritten.as_bytes())?;
+        }
+
+        unknown_wp_ids.sort();
+        unknown_wp_ids.dedup();
+
+        let task_board_written = would_write && !dry_run;
+        let output = json!({
+            "dry_run": dry_run,
+            "applied_updates": applied_updates,
+            "unknown_wp_ids": unknown_wp_ids,
+            "task_board_written": task_board_written,
+            "entries_added": entries_added_count,
+            "entries_removed": entries_removed_count,
+            "status_changes": status_changes,
+        });
+
+        Ok((
+            output,
+            task_board_written,
+            entries_added,
+            entries_added_count,
+            entries_removed_count,
+            status_changes,
+            applied_updates,
+            status_change_entries,
+            unknown_wp_ids,
+        ))
+    }
+    .await;
+
+    match result {
+        Ok((
+            output,
+            task_board_written,
+            entries_added,
+            entries_added_count,
+            entries_removed_count,
+            status_changes,
+            applied_updates,
+            status_change_entries,
+            unknown_wp_ids,
+        )) => {
+            for (wp_id, from_status, to_status, token) in &status_change_entries {
+                record_event_required(
+                    state,
+                    FlightRecorderEvent::new(
+                        FlightRecorderEventType::LocusTaskBoardStatusChanged,
+                        FlightRecorderActor::Agent,
+                        trace_id,
+                        locus_event_payload(
+                            job,
+                            workflow_run_id,
+                            trace_id,
+                            &job.protocol_id,
+                            "FR-EVT-TB-003",
+                            "task_board_status_changed",
+                            json!({
+                                "wp_id": wp_id.as_str(),
+                                "from_status": task_board_status_db(*from_status),
+                                "to_status": task_board_status_db(*to_status),
+                                "token": token.as_str(),
+                            }),
+                        ),
+                    )
+                    .with_job_id(job.job_id.to_string())
+                    .with_workflow_id(workflow_run_id.to_string()),
+                )
+                .await?;
+            }
+
+            for entry in &entries_added {
+                record_event_required(
+                    state,
+                    FlightRecorderEvent::new(
+                        FlightRecorderEventType::LocusTaskBoardEntryAdded,
+                        FlightRecorderActor::Agent,
+                        trace_id,
+                        locus_event_payload(
+                            job,
+                            workflow_run_id,
+                            trace_id,
+                            &job.protocol_id,
+                            "FR-EVT-TB-001",
+                            "task_board_entry_added",
+                            json!({
+                                "wp_id": entry.wp_id.as_str(),
+                                "task_board_status": task_board_status_db(entry.status),
+                                "token": entry.token.as_str(),
+                            }),
+                        ),
+                    )
+                    .with_job_id(job.job_id.to_string())
+                    .with_workflow_id(workflow_run_id.to_string()),
+                )
+                .await?;
+            }
+
+            record_event_required(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::LocusTaskBoardSynced,
+                    FlightRecorderActor::Agent,
+                    trace_id,
+                    locus_event_payload(
+                        job,
+                        workflow_run_id,
+                        trace_id,
+                        &job.protocol_id,
+                        "FR-EVT-TB-002",
+                        "task_board_synced",
+                        json!({
+                            "dry_run": dry_run,
+                            "applied_updates": applied_updates,
+                            "unknown_wp_ids": unknown_wp_ids,
+                            "task_board_written": task_board_written,
+                            "entries_added": entries_added_count,
+                            "entries_removed": entries_removed_count,
+                            "status_changes": status_changes,
+                        }),
+                    ),
+                )
+                .with_job_id(job.job_id.to_string())
+                .with_workflow_id(workflow_run_id.to_string()),
+            )
+            .await?;
+
+            let duration_ms = sync_started_at.elapsed().as_millis() as u64;
+            record_event_required(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::LocusSyncCompleted,
+                    FlightRecorderActor::Agent,
+                    trace_id,
+                    locus_event_payload(
+                        job,
+                        workflow_run_id,
+                        trace_id,
+                        &job.protocol_id,
+                        "FR-EVT-SYNC-002",
+                        "sync_completed",
+                        json!({
+                            "sync_target": sync_target,
+                            "duration_ms": duration_ms,
+                        }),
+                    ),
+                )
+                .with_job_id(job.job_id.to_string())
+                .with_workflow_id(workflow_run_id.to_string()),
+            )
+            .await?;
+
+            Ok(output)
+        }
+        Err(err) => {
+            record_event_safely(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::LocusSyncFailed,
+                    FlightRecorderActor::Agent,
+                    trace_id,
+                    locus_event_payload(
+                        job,
+                        workflow_run_id,
+                        trace_id,
+                        &job.protocol_id,
+                        "FR-EVT-SYNC-003",
+                        "sync_failed",
+                        json!({
+                            "sync_target": sync_target,
+                            "error": err.to_string(),
+                        }),
+                    ),
+                )
+                .with_job_id(job.job_id.to_string())
+                .with_workflow_id(workflow_run_id.to_string()),
+            )
+            .await;
+            Err(err)
+        }
+    }
 }
 
 // ============================================================================
@@ -626,6 +1101,462 @@ async fn record_event_safely(state: &AppState, event: FlightRecorderEvent) {
     }
 }
 
+async fn record_event_required(
+    state: &AppState,
+    event: FlightRecorderEvent,
+) -> Result<(), WorkflowError> {
+    state
+        .flight_recorder
+        .record_event(event)
+        .await
+        .map_err(|e| WorkflowError::Terminal(format!("flight recorder rejected event: {e}")))
+}
+
+fn locus_event_payload(
+    job: &AiJob,
+    workflow_run_id: Uuid,
+    trace_id: Uuid,
+    protocol_id: &str,
+    event_id: &'static str,
+    event_name: &'static str,
+    inner_payload: Value,
+) -> Value {
+    json!({
+        "event_id": event_id,
+        "event_name": event_name,
+        "timestamp": Utc::now().to_rfc3339(),
+        "trace_id": trace_id.to_string(),
+        "job_id": job.job_id.to_string(),
+        "workflow_run_id": workflow_run_id.to_string(),
+        "protocol_id": protocol_id,
+        "payload": inner_payload,
+    })
+}
+
+async fn emit_locus_operation_event(
+    state: &AppState,
+    job: &AiJob,
+    workflow_run_id: Uuid,
+    trace_id: Uuid,
+    op: &locus::LocusOperation,
+    result: &Value,
+) -> Result<(), WorkflowError> {
+    fn gate_str(gate: locus::LocusGateKind) -> &'static str {
+        match gate {
+            locus::LocusGateKind::PreWork => "pre_work",
+            locus::LocusGateKind::PostWork => "post_work",
+        }
+    }
+
+    fn gate_status_str(status: locus::GateStatusKind) -> &'static str {
+        match status {
+            locus::GateStatusKind::Pending => "pending",
+            locus::GateStatusKind::Pass => "pass",
+            locus::GateStatusKind::Fail => "fail",
+            locus::GateStatusKind::Skip => "skip",
+        }
+    }
+
+    fn mt_outcome_str(outcome: locus::MicroTaskIterationOutcome) -> &'static str {
+        match outcome {
+            locus::MicroTaskIterationOutcome::Success => "SUCCESS",
+            locus::MicroTaskIterationOutcome::Retry => "RETRY",
+            locus::MicroTaskIterationOutcome::Escalate => "ESCALATE",
+            locus::MicroTaskIterationOutcome::Blocked => "BLOCKED",
+            locus::MicroTaskIterationOutcome::Skipped => "SKIPPED",
+        }
+    }
+
+    fn dep_type_str(kind: locus::DependencyType) -> &'static str {
+        match kind {
+            locus::DependencyType::Blocks => "blocks",
+            locus::DependencyType::BlockedBy => "blocked_by",
+            locus::DependencyType::Related => "related",
+            locus::DependencyType::ParentChild => "parent-child",
+            locus::DependencyType::DiscoveredFrom => "discovered-from",
+            locus::DependencyType::DuplicateOf => "duplicate-of",
+            locus::DependencyType::DependsOn => "depends-on",
+            locus::DependencyType::Implements => "implements",
+            locus::DependencyType::Tests => "tests",
+            locus::DependencyType::Documents => "documents",
+        }
+    }
+
+    let mut inner = serde_json::Map::new();
+    let (event_type, event_id, event_name) = match op {
+        locus::LocusOperation::CreateWp(params) => {
+            inner.insert("wp_id".to_string(), Value::String(params.wp_id.clone()));
+            inner.insert("version".to_string(), json!(1));
+            if let Some(status) = result.get("status").and_then(|v| v.as_str()) {
+                inner.insert("status".to_string(), Value::String(status.to_string()));
+            }
+            if let Some(task_board_status) =
+                result.get("task_board_status").and_then(|v| v.as_str())
+            {
+                inner.insert(
+                    "task_board_status".to_string(),
+                    Value::String(task_board_status.to_string()),
+                );
+            }
+            inner.insert("title".to_string(), Value::String(params.title.clone()));
+            (
+                FlightRecorderEventType::LocusWorkPacketCreated,
+                "FR-EVT-WP-001",
+                "work_packet_created",
+            )
+        }
+        locus::LocusOperation::UpdateWp(params) => {
+            inner.insert("wp_id".to_string(), Value::String(params.wp_id.clone()));
+            let updated_fields: Vec<Value> = params
+                .updates
+                .keys()
+                .map(|k| Value::String(k.to_string()))
+                .collect();
+            inner.insert("updated_fields".to_string(), Value::Array(updated_fields));
+            if let Some(updated_at) = result.get("updated_at").and_then(|v| v.as_str()) {
+                inner.insert(
+                    "updated_at".to_string(),
+                    Value::String(updated_at.to_string()),
+                );
+            }
+            if let Some(source) = &params.source {
+                inner.insert("source".to_string(), Value::String(source.clone()));
+            }
+            (
+                FlightRecorderEventType::LocusWorkPacketUpdated,
+                "FR-EVT-WP-002",
+                "work_packet_updated",
+            )
+        }
+        locus::LocusOperation::GateWp(params) => {
+            inner.insert("wp_id".to_string(), Value::String(params.wp_id.clone()));
+            inner.insert(
+                "gate".to_string(),
+                Value::String(gate_str(params.gate).to_string()),
+            );
+            inner.insert(
+                "gate_status".to_string(),
+                Value::String(gate_status_str(params.result.status).to_string()),
+            );
+            if let Some(notes) = params
+                .result
+                .notes
+                .as_ref()
+                .filter(|s| !s.trim().is_empty())
+            {
+                inner.insert("notes".to_string(), Value::String(notes.to_string()));
+            }
+            (
+                FlightRecorderEventType::LocusWorkPacketGated,
+                "FR-EVT-WP-003",
+                "work_packet_gated",
+            )
+        }
+        locus::LocusOperation::CloseWp(params) => {
+            inner.insert("wp_id".to_string(), Value::String(params.wp_id.clone()));
+            inner.insert("status".to_string(), Value::String("done".to_string()));
+            (
+                FlightRecorderEventType::LocusWorkPacketCompleted,
+                "FR-EVT-WP-004",
+                "work_packet_completed",
+            )
+        }
+        locus::LocusOperation::DeleteWp(params) => {
+            inner.insert("wp_id".to_string(), Value::String(params.wp_id.clone()));
+            inner.insert("status".to_string(), Value::String("cancelled".to_string()));
+            (
+                FlightRecorderEventType::LocusWorkPacketDeleted,
+                "FR-EVT-WP-005",
+                "work_packet_deleted",
+            )
+        }
+        locus::LocusOperation::RegisterMts(params) => {
+            inner.insert("wp_id".to_string(), Value::String(params.wp_id.clone()));
+            let mt_ids: Vec<Value> = params
+                .micro_tasks
+                .iter()
+                .map(|mt| Value::String(mt.mt_id.clone()))
+                .collect();
+            inner.insert("mt_ids".to_string(), Value::Array(mt_ids));
+            inner.insert("count".to_string(), json!(params.micro_tasks.len() as u64));
+            (
+                FlightRecorderEventType::LocusMicroTasksRegistered,
+                "FR-EVT-MT-001",
+                "micro_tasks_registered",
+            )
+        }
+        locus::LocusOperation::StartMt(params) => {
+            inner.insert("wp_id".to_string(), Value::String(params.wp_id.clone()));
+            inner.insert("mt_id".to_string(), Value::String(params.mt_id.clone()));
+            (
+                FlightRecorderEventType::LocusMtStarted,
+                "FR-EVT-MT-003",
+                "mt_started",
+            )
+        }
+        locus::LocusOperation::RecordIteration(params) => {
+            inner.insert("wp_id".to_string(), Value::String(params.wp_id.clone()));
+            inner.insert("mt_id".to_string(), Value::String(params.mt_id.clone()));
+            inner.insert("iteration".to_string(), json!(params.iteration.iteration));
+            inner.insert(
+                "model_id".to_string(),
+                Value::String(params.iteration.model_id.clone()),
+            );
+            if let Some(lora_id) = &params.iteration.lora_id {
+                inner.insert("lora_id".to_string(), Value::String(lora_id.clone()));
+            }
+            inner.insert(
+                "escalation_level".to_string(),
+                json!(params.iteration.escalation_level),
+            );
+            inner.insert(
+                "tokens_prompt".to_string(),
+                json!(params.iteration.tokens_prompt),
+            );
+            inner.insert(
+                "tokens_completion".to_string(),
+                json!(params.iteration.tokens_completion),
+            );
+            inner.insert(
+                "outcome".to_string(),
+                Value::String(mt_outcome_str(params.iteration.outcome).to_string()),
+            );
+            if let Some(validation_passed) = params.iteration.validation_passed {
+                inner.insert(
+                    "validation_passed".to_string(),
+                    Value::Bool(validation_passed),
+                );
+            }
+            inner.insert(
+                "duration_ms".to_string(),
+                json!(params.iteration.duration_ms),
+            );
+            inner.insert(
+                "output_artifact_ref".to_string(),
+                params.iteration.output_artifact_ref.clone(),
+            );
+            if let Some(ref value) = params.iteration.validation_artifact_ref {
+                inner.insert("validation_artifact_ref".to_string(), value.clone());
+            }
+            if let Some(error_summary) = params
+                .iteration
+                .error_summary
+                .as_ref()
+                .filter(|s| !s.trim().is_empty())
+            {
+                inner.insert(
+                    "error_summary".to_string(),
+                    Value::String(error_summary.clone()),
+                );
+            }
+            if let Some(failure_category) = params
+                .iteration
+                .failure_category
+                .as_ref()
+                .filter(|s| !s.trim().is_empty())
+            {
+                inner.insert(
+                    "failure_category".to_string(),
+                    Value::String(failure_category.clone()),
+                );
+            }
+            (
+                FlightRecorderEventType::LocusMtIterationCompleted,
+                "FR-EVT-MT-002",
+                "mt_iteration_completed",
+            )
+        }
+        locus::LocusOperation::CompleteMt(params) => {
+            inner.insert("wp_id".to_string(), Value::String(params.wp_id.clone()));
+            inner.insert("mt_id".to_string(), Value::String(params.mt_id.clone()));
+            inner.insert("final_iteration".to_string(), json!(params.final_iteration));
+            (
+                FlightRecorderEventType::LocusMtCompleted,
+                "FR-EVT-MT-004",
+                "mt_completed",
+            )
+        }
+        locus::LocusOperation::AddDependency(params) => {
+            inner.insert(
+                "dependency_id".to_string(),
+                Value::String(params.dependency_id.clone()),
+            );
+            inner.insert(
+                "from_wp_id".to_string(),
+                Value::String(params.from_wp_id.clone()),
+            );
+            inner.insert(
+                "to_wp_id".to_string(),
+                Value::String(params.to_wp_id.clone()),
+            );
+            inner.insert(
+                "type".to_string(),
+                Value::String(dep_type_str(params.kind).to_string()),
+            );
+            (
+                FlightRecorderEventType::LocusDependencyAdded,
+                "FR-EVT-DEP-001",
+                "dependency_added",
+            )
+        }
+        locus::LocusOperation::RemoveDependency(params) => {
+            inner.insert(
+                "dependency_id".to_string(),
+                Value::String(params.dependency_id.clone()),
+            );
+            (
+                FlightRecorderEventType::LocusDependencyRemoved,
+                "FR-EVT-DEP-002",
+                "dependency_removed",
+            )
+        }
+        locus::LocusOperation::QueryReady(params) => {
+            let result_count = result
+                .get("wp_ids")
+                .and_then(|v| v.as_array())
+                .map(|v| v.len() as u64)
+                .unwrap_or(0);
+            inner.insert(
+                "query_op".to_string(),
+                Value::String("query_ready".to_string()),
+            );
+            inner.insert("result_count".to_string(), json!(result_count));
+            if let Some(limit) = params.limit {
+                inner.insert("limit".to_string(), json!(limit));
+            }
+            (
+                FlightRecorderEventType::LocusWorkQueryExecuted,
+                "FR-EVT-QUERY-001",
+                "work_query_executed",
+            )
+        }
+        locus::LocusOperation::GetWpStatus(params) => {
+            inner.insert(
+                "query_op".to_string(),
+                Value::String("get_wp_status".to_string()),
+            );
+            inner.insert("result_count".to_string(), json!(1u64));
+            inner.insert("filters".to_string(), json!({ "wp_id": params.wp_id }));
+            (
+                FlightRecorderEventType::LocusWorkQueryExecuted,
+                "FR-EVT-QUERY-001",
+                "work_query_executed",
+            )
+        }
+        locus::LocusOperation::GetMtProgress(params) => {
+            inner.insert(
+                "query_op".to_string(),
+                Value::String("get_mt_progress".to_string()),
+            );
+            inner.insert("result_count".to_string(), json!(1u64));
+            inner.insert("filters".to_string(), json!({ "mt_id": params.mt_id }));
+            (
+                FlightRecorderEventType::LocusWorkQueryExecuted,
+                "FR-EVT-QUERY-001",
+                "work_query_executed",
+            )
+        }
+        locus::LocusOperation::SyncTaskBoard(_) => return Ok(()),
+    };
+
+    let payload = locus_event_payload(
+        job,
+        workflow_run_id,
+        trace_id,
+        &job.protocol_id,
+        event_id,
+        event_name,
+        Value::Object(inner),
+    );
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(event_type, FlightRecorderActor::Agent, trace_id, payload)
+            .with_job_id(job.job_id.to_string())
+            .with_workflow_id(workflow_run_id.to_string()),
+    )
+    .await?;
+
+    if let locus::LocusOperation::RecordIteration(params) = op {
+        match params.iteration.outcome {
+            locus::MicroTaskIterationOutcome::Escalate => {
+                let to_level = params.iteration.escalation_level;
+                let from_level = to_level.saturating_sub(1);
+                record_event_required(
+                    state,
+                    FlightRecorderEvent::new(
+                        FlightRecorderEventType::LocusMtEscalated,
+                        FlightRecorderActor::Agent,
+                        trace_id,
+                        locus_event_payload(
+                            job,
+                            workflow_run_id,
+                            trace_id,
+                            &job.protocol_id,
+                            "FR-EVT-MT-005",
+                            "mt_escalated",
+                            json!({
+                                "wp_id": params.wp_id.as_str(),
+                                "mt_id": params.mt_id.as_str(),
+                                "from_model": params.iteration.model_id.as_str(),
+                                "to_model": params.iteration.model_id.as_str(),
+                                "from_level": from_level,
+                                "to_level": to_level,
+                                "reason": "iteration outcome=ESCALATE",
+                            }),
+                        ),
+                    )
+                    .with_job_id(job.job_id.to_string())
+                    .with_workflow_id(workflow_run_id.to_string()),
+                )
+                .await?;
+            }
+            locus::MicroTaskIterationOutcome::Blocked => {
+                let failure_category = params
+                    .iteration
+                    .failure_category
+                    .as_ref()
+                    .filter(|s| !s.trim().is_empty())
+                    .map(String::as_str)
+                    .unwrap_or("blocked");
+                let error_summary = params
+                    .iteration
+                    .error_summary
+                    .as_ref()
+                    .filter(|s| !s.trim().is_empty())
+                    .map(String::as_str)
+                    .unwrap_or("mt blocked");
+                record_event_required(
+                    state,
+                    FlightRecorderEvent::new(
+                        FlightRecorderEventType::LocusMtFailed,
+                        FlightRecorderActor::Agent,
+                        trace_id,
+                        locus_event_payload(
+                            job,
+                            workflow_run_id,
+                            trace_id,
+                            &job.protocol_id,
+                            "FR-EVT-MT-006",
+                            "mt_failed",
+                            json!({
+                                "wp_id": params.wp_id.as_str(),
+                                "mt_id": params.mt_id.as_str(),
+                                "failure_category": failure_category,
+                                "error_summary": error_summary,
+                            }),
+                        ),
+                    )
+                    .with_job_id(job.job_id.to_string())
+                    .with_workflow_id(workflow_run_id.to_string()),
+                )
+                .await?;
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 // ============================================================================
 // Security Violation Handling [HSK-ACE-VAL-101]
 // ============================================================================
@@ -1066,6 +1997,145 @@ async fn enforce_capabilities(
     Ok(())
 }
 
+async fn enforce_work_packet_binding_if_required(
+    state: &AppState,
+    job: &AiJob,
+    workflow_run_id: Uuid,
+    trace_id: Uuid,
+) -> Result<Option<RunJobOutcome>, WorkflowError> {
+    let inputs = parse_inputs(job.job_inputs.as_ref());
+    let binding_required = inputs
+        .get("work_packet_binding_required")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+        || inputs.get("work_packet_binding").is_some();
+
+    if !binding_required {
+        return Ok(None);
+    }
+
+    let Some(binding) = inputs.get("work_packet_binding") else {
+        record_event_safely(
+            state,
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::Diagnostic,
+                FlightRecorderActor::Agent,
+                trace_id,
+                json!({
+                    "diagnostic_id": "HSK-LOCUS-WPB-MISSING",
+                    "reason": "work_packet_binding required but missing",
+                }),
+            )
+            .with_job_id(job.job_id.to_string())
+            .with_workflow_id(workflow_run_id.to_string()),
+        )
+        .await;
+        return Ok(Some(RunJobOutcome {
+            state: JobState::Poisoned,
+            status_reason: "missing_work_packet_binding".to_string(),
+            output: None,
+            error_message: Some("work_packet_binding required but missing".to_string()),
+        }));
+    };
+
+    if !binding.is_object() {
+        record_event_safely(
+            state,
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::Diagnostic,
+                FlightRecorderActor::Agent,
+                trace_id,
+                json!({
+                    "diagnostic_id": "HSK-LOCUS-WPB-INVALID",
+                    "reason": "work_packet_binding must be an object",
+                }),
+            )
+            .with_job_id(job.job_id.to_string())
+            .with_workflow_id(workflow_run_id.to_string()),
+        )
+        .await;
+        return Ok(Some(RunJobOutcome {
+            state: JobState::Poisoned,
+            status_reason: "invalid_work_packet_binding".to_string(),
+            output: None,
+            error_message: Some("work_packet_binding must be an object".to_string()),
+        }));
+    }
+
+    let wp_id = binding
+        .get("work_packet_id")
+        .and_then(|v| v.as_str())
+        .map(|v| v.trim())
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| StorageError::Validation("work_packet_binding.work_packet_id missing"))?;
+
+    if !wp_id.starts_with("WP-") || wp_id.len() > 128 {
+        record_event_safely(
+            state,
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::Diagnostic,
+                FlightRecorderActor::Agent,
+                trace_id,
+                json!({
+                    "diagnostic_id": "HSK-LOCUS-WPB-INVALID",
+                    "reason": "work_packet_binding.work_packet_id invalid format",
+                    "work_packet_id": wp_id,
+                }),
+            )
+            .with_job_id(job.job_id.to_string())
+            .with_workflow_id(workflow_run_id.to_string()),
+        )
+        .await;
+        return Ok(Some(RunJobOutcome {
+            state: JobState::Poisoned,
+            status_reason: "invalid_work_packet_id".to_string(),
+            output: None,
+            error_message: Some("invalid work_packet_binding.work_packet_id".to_string()),
+        }));
+    }
+
+    let sqlite = state
+        .storage
+        .as_any()
+        .downcast_ref::<crate::storage::sqlite::SqliteDatabase>()
+        .ok_or_else(|| WorkflowError::Storage(StorageError::NotImplemented("locus sqlite")))?;
+
+    let exists =
+        sqlx::query_scalar::<_, i64>("SELECT 1 FROM work_packets WHERE wp_id = $1 LIMIT 1")
+            .bind(wp_id)
+            .fetch_optional(sqlite.pool())
+            .await
+            .map_err(StorageError::from)?
+            .is_some();
+
+    if !exists {
+        record_event_safely(
+            state,
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::Diagnostic,
+                FlightRecorderActor::Agent,
+                trace_id,
+                json!({
+                    "diagnostic_id": "HSK-LOCUS-WPB-NOTFOUND",
+                    "reason": "work_packet_binding.work_packet_id does not exist in Locus",
+                    "work_packet_id": wp_id,
+                }),
+            )
+            .with_job_id(job.job_id.to_string())
+            .with_workflow_id(workflow_run_id.to_string()),
+        )
+        .await;
+        return Ok(Some(RunJobOutcome {
+            state: JobState::Poisoned,
+            status_reason: "invalid_work_packet_id".to_string(),
+            output: None,
+            error_message: Some("work_packet_binding.work_packet_id not found".to_string()),
+        }));
+    }
+
+    Ok(None)
+}
+
 async fn run_job(
     state: &AppState,
     job: &AiJob,
@@ -1107,6 +2177,12 @@ async fn run_job(
             output: None,
             error_message: Some(err.to_string()),
         });
+    }
+
+    if let Some(outcome) =
+        enforce_work_packet_binding_if_required(state, job, workflow_run_id, trace_id).await?
+    {
+        return Ok(outcome);
     }
 
     if matches!(job.job_kind, JobKind::DocSummarize | JobKind::DocEdit) {
@@ -1557,6 +2633,46 @@ async fn run_job(
         }
     } else if matches!(job.job_kind, JobKind::TerminalExec) {
         let payload = execute_terminal_job(state, job, trace_id).await?;
+        state
+            .storage
+            .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
+            .await?;
+        return Ok(RunJobOutcome {
+            state: JobState::Completed,
+            status_reason: "completed".to_string(),
+            output: Some(payload),
+            error_message: None,
+        });
+    } else if matches!(job.job_kind, JobKind::LocusOperation) {
+        let inputs = parse_inputs(job.job_inputs.as_ref());
+        let op = locus::sqlite_store::parse_locus_operation(&job.protocol_id, &inputs)?;
+        let op_for_event = op.clone();
+
+        let sqlite = state
+            .storage
+            .as_any()
+            .downcast_ref::<crate::storage::sqlite::SqliteDatabase>()
+            .ok_or_else(|| WorkflowError::Storage(StorageError::NotImplemented("locus sqlite")))?;
+
+        let payload = match op {
+            locus::LocusOperation::SyncTaskBoard(params) => {
+                execute_locus_sync_task_board(state, sqlite, job, workflow_run_id, trace_id, params)
+                    .await?
+            }
+            other => locus::sqlite_store::execute_sqlite_locus_operation(sqlite, other).await?,
+        };
+
+        if !matches!(op_for_event, locus::LocusOperation::SyncTaskBoard(_)) {
+            emit_locus_operation_event(
+                state,
+                job,
+                workflow_run_id,
+                trace_id,
+                &op_for_event,
+                &payload,
+            )
+            .await?;
+        }
         state
             .storage
             .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))

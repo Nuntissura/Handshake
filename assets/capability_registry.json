@@ -373,6 +373,71 @@
       ]
     },
     {
+      "capability_id": "locus.delete",
+      "default_governance_mode": "gov_strict",
+      "display_name": "Locus Delete",
+      "kind": "runtime",
+      "required_capabilities": [],
+      "risk_class": "critical",
+      "section_ref": "11.1",
+      "tags": [
+        "capability",
+        "locus"
+      ]
+    },
+    {
+      "capability_id": "locus.gate",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Locus Gate",
+      "kind": "runtime",
+      "required_capabilities": [],
+      "risk_class": "high",
+      "section_ref": "11.1",
+      "tags": [
+        "capability",
+        "locus"
+      ]
+    },
+    {
+      "capability_id": "locus.read",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Locus Read",
+      "kind": "runtime",
+      "required_capabilities": [],
+      "risk_class": "medium",
+      "section_ref": "11.1",
+      "tags": [
+        "capability",
+        "locus"
+      ]
+    },
+    {
+      "capability_id": "locus.sync",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Locus Sync",
+      "kind": "runtime",
+      "required_capabilities": [],
+      "risk_class": "high",
+      "section_ref": "11.1",
+      "tags": [
+        "capability",
+        "locus"
+      ]
+    },
+    {
+      "capability_id": "locus.write",
+      "default_governance_mode": "gov_standard",
+      "display_name": "Locus Write",
+      "kind": "runtime",
+      "required_capabilities": [],
+      "risk_class": "high",
+      "section_ref": "11.1",
+      "tags": [
+        "capability",
+        "locus"
+      ]
+    },
+    {
       "capability_id": "net.http",
       "default_governance_mode": "gov_standard",
       "display_name": "Net Http",

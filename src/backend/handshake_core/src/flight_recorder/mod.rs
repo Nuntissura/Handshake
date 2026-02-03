@@ -63,6 +63,32 @@ pub enum FlightRecorderEventType {
     MicroTaskDistillationCandidate,
     MicroTaskSkipped,
     MicroTaskBlocked,
+    /// FR-EVT-WP-001..005: Locus Work Packet events [§2.3.15.6]
+    LocusWorkPacketCreated,
+    LocusWorkPacketUpdated,
+    LocusWorkPacketGated,
+    LocusWorkPacketCompleted,
+    LocusWorkPacketDeleted,
+    /// FR-EVT-MT-001..006: Locus Micro-Task events [§2.3.15.6]
+    LocusMicroTasksRegistered,
+    LocusMtIterationCompleted,
+    LocusMtStarted,
+    LocusMtCompleted,
+    LocusMtEscalated,
+    LocusMtFailed,
+    /// FR-EVT-DEP-001..002: Locus dependency events [§2.3.15.6]
+    LocusDependencyAdded,
+    LocusDependencyRemoved,
+    /// FR-EVT-TB-001..003: Locus Task Board events [§2.3.15.6]
+    LocusTaskBoardEntryAdded,
+    LocusTaskBoardSynced,
+    LocusTaskBoardStatusChanged,
+    /// FR-EVT-SYNC-001..003: Locus sync lifecycle [§2.3.15.6]
+    LocusSyncStarted,
+    LocusSyncCompleted,
+    LocusSyncFailed,
+    /// FR-EVT-QUERY-001: Locus query executed [§2.3.15.6]
+    LocusWorkQueryExecuted,
     /// FR-EVT-GOV-MAILBOX-001: Role mailbox message created [11.5.3]
     GovMailboxMessageCreated,
     /// FR-EVT-GOV-MAILBOX-002: Role mailbox export updated [11.5.3]
@@ -143,6 +169,34 @@ impl fmt::Display for FlightRecorderEventType {
             }
             FlightRecorderEventType::MicroTaskSkipped => write!(f, "micro_task_skipped"),
             FlightRecorderEventType::MicroTaskBlocked => write!(f, "micro_task_blocked"),
+            FlightRecorderEventType::LocusWorkPacketCreated => write!(f, "work_packet_created"),
+            FlightRecorderEventType::LocusWorkPacketUpdated => write!(f, "work_packet_updated"),
+            FlightRecorderEventType::LocusWorkPacketGated => write!(f, "work_packet_gated"),
+            FlightRecorderEventType::LocusWorkPacketCompleted => write!(f, "work_packet_completed"),
+            FlightRecorderEventType::LocusWorkPacketDeleted => write!(f, "work_packet_deleted"),
+            FlightRecorderEventType::LocusMicroTasksRegistered => {
+                write!(f, "micro_tasks_registered")
+            }
+            FlightRecorderEventType::LocusMtIterationCompleted => {
+                write!(f, "mt_iteration_completed")
+            }
+            FlightRecorderEventType::LocusMtStarted => write!(f, "mt_started"),
+            FlightRecorderEventType::LocusMtCompleted => write!(f, "mt_completed"),
+            FlightRecorderEventType::LocusMtEscalated => write!(f, "mt_escalated"),
+            FlightRecorderEventType::LocusMtFailed => write!(f, "mt_failed"),
+            FlightRecorderEventType::LocusDependencyAdded => write!(f, "dependency_added"),
+            FlightRecorderEventType::LocusDependencyRemoved => write!(f, "dependency_removed"),
+            FlightRecorderEventType::LocusTaskBoardEntryAdded => {
+                write!(f, "task_board_entry_added")
+            }
+            FlightRecorderEventType::LocusTaskBoardSynced => write!(f, "task_board_synced"),
+            FlightRecorderEventType::LocusTaskBoardStatusChanged => {
+                write!(f, "task_board_status_changed")
+            }
+            FlightRecorderEventType::LocusSyncStarted => write!(f, "sync_started"),
+            FlightRecorderEventType::LocusSyncCompleted => write!(f, "sync_completed"),
+            FlightRecorderEventType::LocusSyncFailed => write!(f, "sync_failed"),
+            FlightRecorderEventType::LocusWorkQueryExecuted => write!(f, "work_query_executed"),
             FlightRecorderEventType::GovMailboxMessageCreated => {
                 write!(f, "gov_mailbox_message_created")
             }
@@ -360,6 +414,66 @@ impl FlightRecorderEvent {
             }
             FlightRecorderEventType::MicroTaskBlocked => {
                 validate_micro_task_blocked_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusWorkPacketCreated => {
+                validate_locus_work_packet_created_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusWorkPacketUpdated => {
+                validate_locus_work_packet_updated_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusWorkPacketGated => {
+                validate_locus_work_packet_gated_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusWorkPacketCompleted => {
+                validate_locus_work_packet_completed_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusWorkPacketDeleted => {
+                validate_locus_work_packet_deleted_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusMicroTasksRegistered => {
+                validate_locus_micro_tasks_registered_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusMtIterationCompleted => {
+                validate_locus_mt_iteration_completed_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusMtStarted => {
+                validate_locus_mt_started_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusMtCompleted => {
+                validate_locus_mt_completed_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusMtEscalated => {
+                validate_locus_mt_escalated_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusMtFailed => {
+                validate_locus_mt_failed_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusDependencyAdded => {
+                validate_locus_dependency_added_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusDependencyRemoved => {
+                validate_locus_dependency_removed_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusTaskBoardEntryAdded => {
+                validate_locus_task_board_entry_added_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusTaskBoardSynced => {
+                validate_locus_task_board_synced_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusTaskBoardStatusChanged => {
+                validate_locus_task_board_status_changed_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusSyncStarted => {
+                validate_locus_sync_started_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusSyncCompleted => {
+                validate_locus_sync_completed_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusSyncFailed => {
+                validate_locus_sync_failed_payload(&self.payload)
+            }
+            FlightRecorderEventType::LocusWorkQueryExecuted => {
+                validate_locus_work_query_executed_payload(&self.payload)
             }
             FlightRecorderEventType::DebugBundleExport => {
                 validate_debug_bundle_payload(&self.payload)
@@ -2170,6 +2284,509 @@ fn validate_micro_task_blocked_payload(payload: &Value) -> Result<(), RecorderEr
     require_string(inner, "wp_id")?;
     require_string(inner, "mt_id")?;
     require_string(inner, "reason")?;
+    Ok(())
+}
+
+fn validate_locus_event_base<'a>(
+    payload: &'a Value,
+    expected_event_id: &str,
+    expected_event_name: &str,
+) -> Result<&'a Map<String, Value>, RecorderError> {
+    let map = payload_object(payload)?;
+    require_allowed_keys(
+        map,
+        &["event_id", "event_name", "timestamp", "trace_id", "payload"],
+        &["job_id", "workflow_run_id", "protocol_id"],
+    )?;
+    require_fixed_string(map, "event_id", expected_event_id)?;
+    require_fixed_string(map, "event_name", expected_event_name)?;
+    require_rfc3339(map, "timestamp")?;
+    require_uuid_string_non_nil(map, "trace_id")?;
+    if map.contains_key("job_id") {
+        require_string(map, "job_id")?;
+    }
+    if map.contains_key("workflow_run_id") {
+        require_uuid_string_non_nil(map, "workflow_run_id")?;
+    }
+    if map.contains_key("protocol_id") {
+        require_string(map, "protocol_id")?;
+    }
+    let inner = require_key(map, "payload")?;
+    payload_object(inner)
+}
+
+fn validate_locus_wp_id(value: &Value) -> Result<(), RecorderError> {
+    match value {
+        Value::String(value) if value.starts_with("WP-") && is_safe_id(value, 128) => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(
+            "payload field wp_id must be a valid WP id".to_string(),
+        )),
+    }
+}
+
+fn validate_locus_mt_id(value: &Value) -> Result<(), RecorderError> {
+    match value {
+        Value::String(value) if is_safe_id(value, 128) => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(
+            "payload field mt_id must be a valid MT id".to_string(),
+        )),
+    }
+}
+
+fn validate_locus_work_packet_created_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-WP-001", "work_packet_created")?;
+    require_allowed_keys(
+        inner,
+        &["wp_id", "version"],
+        &["status", "task_board_status", "title"],
+    )?;
+    validate_locus_wp_id(require_key(inner, "wp_id")?)?;
+    require_number(inner, "version")?;
+    if inner.contains_key("status") {
+        require_string(inner, "status")?;
+    }
+    if inner.contains_key("task_board_status") {
+        require_string(inner, "task_board_status")?;
+    }
+    if inner.contains_key("title") {
+        require_string(inner, "title")?;
+    }
+    Ok(())
+}
+
+fn validate_locus_work_packet_updated_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-WP-002", "work_packet_updated")?;
+    require_allowed_keys(
+        inner,
+        &["wp_id", "updated_fields"],
+        &["version", "updated_at", "source"],
+    )?;
+    validate_locus_wp_id(require_key(inner, "wp_id")?)?;
+    match require_key(inner, "updated_fields")? {
+        Value::Array(values) => {
+            for value in values {
+                match value {
+                    Value::String(s) if !s.trim().is_empty() => {}
+                    _ => {
+                        return Err(RecorderError::InvalidEvent(
+                            "payload field updated_fields must be an array of strings".to_string(),
+                        ))
+                    }
+                }
+            }
+        }
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field updated_fields must be an array".to_string(),
+            ))
+        }
+    }
+    if inner.contains_key("version") {
+        require_number(inner, "version")?;
+    }
+    if inner.contains_key("updated_at") {
+        require_rfc3339(inner, "updated_at")?;
+    }
+    if inner.contains_key("source") {
+        require_string(inner, "source")?;
+    }
+    Ok(())
+}
+
+fn validate_locus_work_packet_gated_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-WP-003", "work_packet_gated")?;
+    require_allowed_keys(inner, &["wp_id", "gate", "gate_status"], &["notes"])?;
+    validate_locus_wp_id(require_key(inner, "wp_id")?)?;
+    match require_key(inner, "gate")? {
+        Value::String(value) => match value.as_str() {
+            "pre_work" | "post_work" => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field gate must be one of pre_work|post_work".to_string(),
+                ))
+            }
+        },
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field gate must be a string".to_string(),
+            ))
+        }
+    }
+    match require_key(inner, "gate_status")? {
+        Value::String(value) => match value.as_str() {
+            "pending" | "pass" | "fail" | "skip" => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field gate_status must be one of pending|pass|fail|skip".to_string(),
+                ))
+            }
+        },
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field gate_status must be a string".to_string(),
+            ))
+        }
+    }
+    if inner.contains_key("notes") {
+        require_string(inner, "notes")?;
+    }
+    Ok(())
+}
+
+fn validate_locus_work_packet_completed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-WP-004", "work_packet_completed")?;
+    require_allowed_keys(inner, &["wp_id"], &["status"])?;
+    validate_locus_wp_id(require_key(inner, "wp_id")?)?;
+    if inner.contains_key("status") {
+        require_string(inner, "status")?;
+    }
+    Ok(())
+}
+
+fn validate_locus_work_packet_deleted_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-WP-005", "work_packet_deleted")?;
+    require_allowed_keys(inner, &["wp_id"], &["status"])?;
+    validate_locus_wp_id(require_key(inner, "wp_id")?)?;
+    if inner.contains_key("status") {
+        require_string(inner, "status")?;
+    }
+    Ok(())
+}
+
+fn validate_locus_micro_tasks_registered_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-MT-001", "micro_tasks_registered")?;
+    require_allowed_keys(inner, &["wp_id", "mt_ids"], &["count"])?;
+    validate_locus_wp_id(require_key(inner, "wp_id")?)?;
+    match require_key(inner, "mt_ids")? {
+        Value::Array(values) => {
+            for value in values {
+                validate_locus_mt_id(value)?;
+            }
+        }
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field mt_ids must be an array".to_string(),
+            ))
+        }
+    }
+    if inner.contains_key("count") {
+        require_number(inner, "count")?;
+    }
+    Ok(())
+}
+
+fn validate_locus_mt_iteration_completed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-MT-002", "mt_iteration_completed")?;
+    require_allowed_keys(
+        inner,
+        &[
+            "wp_id",
+            "mt_id",
+            "iteration",
+            "model_id",
+            "escalation_level",
+            "tokens_prompt",
+            "tokens_completion",
+            "outcome",
+            "duration_ms",
+            "output_artifact_ref",
+        ],
+        &[
+            "lora_id",
+            "validation_passed",
+            "validation_artifact_ref",
+            "error_summary",
+            "failure_category",
+        ],
+    )?;
+    validate_locus_wp_id(require_key(inner, "wp_id")?)?;
+    validate_locus_mt_id(require_key(inner, "mt_id")?)?;
+    require_number(inner, "iteration")?;
+    require_string(inner, "model_id")?;
+    if inner.contains_key("lora_id") {
+        require_string(inner, "lora_id")?;
+    }
+    require_number(inner, "escalation_level")?;
+    require_number(inner, "tokens_prompt")?;
+    require_number(inner, "tokens_completion")?;
+    match require_key(inner, "outcome")? {
+        Value::String(value) => {
+            match value.as_str() {
+                "SUCCESS" | "RETRY" | "ESCALATE" | "BLOCKED" | "SKIPPED" => {}
+                _ => return Err(RecorderError::InvalidEvent(
+                    "payload field outcome must be one of SUCCESS|RETRY|ESCALATE|BLOCKED|SKIPPED"
+                        .to_string(),
+                )),
+            }
+        }
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field outcome must be a string".to_string(),
+            ))
+        }
+    }
+    if inner.contains_key("validation_passed") {
+        require_bool(inner, "validation_passed")?;
+    }
+    require_number(inner, "duration_ms")?;
+    let output = require_key(inner, "output_artifact_ref")?;
+    if !output.is_object() {
+        return Err(RecorderError::InvalidEvent(
+            "payload field output_artifact_ref must be an object".to_string(),
+        ));
+    }
+    if inner.contains_key("validation_artifact_ref") {
+        let value = require_key(inner, "validation_artifact_ref")?;
+        if !value.is_object() && !value.is_null() {
+            return Err(RecorderError::InvalidEvent(
+                "payload field validation_artifact_ref must be an object or null".to_string(),
+            ));
+        }
+    }
+    if inner.contains_key("error_summary") {
+        require_string(inner, "error_summary")?;
+    }
+    if inner.contains_key("failure_category") {
+        require_string(inner, "failure_category")?;
+    }
+    Ok(())
+}
+
+fn validate_locus_mt_started_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-MT-003", "mt_started")?;
+    require_allowed_keys(
+        inner,
+        &["wp_id", "mt_id"],
+        &["model_id", "lora_id", "escalation_level"],
+    )?;
+    validate_locus_wp_id(require_key(inner, "wp_id")?)?;
+    validate_locus_mt_id(require_key(inner, "mt_id")?)?;
+    if inner.contains_key("model_id") {
+        require_string(inner, "model_id")?;
+    }
+    if inner.contains_key("lora_id") {
+        require_string(inner, "lora_id")?;
+    }
+    if inner.contains_key("escalation_level") {
+        require_number(inner, "escalation_level")?;
+    }
+    Ok(())
+}
+
+fn validate_locus_mt_completed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-MT-004", "mt_completed")?;
+    require_allowed_keys(inner, &["wp_id", "mt_id"], &["final_iteration"])?;
+    validate_locus_wp_id(require_key(inner, "wp_id")?)?;
+    validate_locus_mt_id(require_key(inner, "mt_id")?)?;
+    if inner.contains_key("final_iteration") {
+        require_number(inner, "final_iteration")?;
+    }
+    Ok(())
+}
+
+fn validate_locus_mt_escalated_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-MT-005", "mt_escalated")?;
+    require_allowed_keys(
+        inner,
+        &["wp_id", "mt_id", "from_model", "to_model"],
+        &["from_lora", "to_lora", "from_level", "to_level", "reason"],
+    )?;
+    validate_locus_wp_id(require_key(inner, "wp_id")?)?;
+    validate_locus_mt_id(require_key(inner, "mt_id")?)?;
+    require_string(inner, "from_model")?;
+    require_string(inner, "to_model")?;
+    if inner.contains_key("from_lora") {
+        require_string(inner, "from_lora")?;
+    }
+    if inner.contains_key("to_lora") {
+        require_string(inner, "to_lora")?;
+    }
+    if inner.contains_key("from_level") {
+        require_number(inner, "from_level")?;
+    }
+    if inner.contains_key("to_level") {
+        require_number(inner, "to_level")?;
+    }
+    if inner.contains_key("reason") {
+        require_string(inner, "reason")?;
+    }
+    Ok(())
+}
+
+fn validate_locus_mt_failed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-MT-006", "mt_failed")?;
+    require_allowed_keys(
+        inner,
+        &["wp_id", "mt_id", "failure_category", "error_summary"],
+        &[],
+    )?;
+    validate_locus_wp_id(require_key(inner, "wp_id")?)?;
+    validate_locus_mt_id(require_key(inner, "mt_id")?)?;
+    require_string(inner, "failure_category")?;
+    require_string(inner, "error_summary")?;
+    Ok(())
+}
+
+fn validate_locus_dependency_added_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-DEP-001", "dependency_added")?;
+    require_allowed_keys(
+        inner,
+        &["dependency_id", "from_wp_id", "to_wp_id", "type"],
+        &[],
+    )?;
+    match require_key(inner, "dependency_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field dependency_id must be a safe id".to_string(),
+            ))
+        }
+    }
+    validate_locus_wp_id(require_key(inner, "from_wp_id")?)?;
+    validate_locus_wp_id(require_key(inner, "to_wp_id")?)?;
+    match require_key(inner, "type")? {
+        Value::String(value) => match value.as_str() {
+            "blocks" | "blocked_by" | "related" | "parent-child" | "discovered-from"
+            | "duplicate-of" | "depends-on" | "implements" | "tests" | "documents" => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field type must be a valid dependency type".to_string(),
+                ))
+            }
+        },
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field type must be a string".to_string(),
+            ))
+        }
+    }
+    Ok(())
+}
+
+fn validate_locus_dependency_removed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-DEP-002", "dependency_removed")?;
+    require_allowed_keys(inner, &["dependency_id"], &[])?;
+    match require_key(inner, "dependency_id")? {
+        Value::String(value) if is_safe_id(value, 128) => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(
+            "payload field dependency_id must be a safe id".to_string(),
+        )),
+    }
+}
+
+fn validate_locus_task_board_status(value: &Value) -> Result<(), RecorderError> {
+    match value {
+        Value::String(value) => match value.as_str() {
+            "STUB" | "READY" | "IN_PROGRESS" | "BLOCKED" | "GATED" | "DONE" | "CANCELLED" => Ok(()),
+            _ => Err(RecorderError::InvalidEvent(
+                "payload field task_board_status must be a valid TaskBoardStatus".to_string(),
+            )),
+        },
+        _ => Err(RecorderError::InvalidEvent(
+            "payload field task_board_status must be a string".to_string(),
+        )),
+    }
+}
+
+fn validate_locus_task_board_entry_added_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-TB-001", "task_board_entry_added")?;
+    require_allowed_keys(inner, &["wp_id", "task_board_status", "token"], &[])?;
+    validate_locus_wp_id(require_key(inner, "wp_id")?)?;
+    validate_locus_task_board_status(require_key(inner, "task_board_status")?)?;
+    require_string(inner, "token")?;
+    Ok(())
+}
+
+fn validate_locus_task_board_synced_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-TB-002", "task_board_synced")?;
+    require_allowed_keys(
+        inner,
+        &[
+            "dry_run",
+            "applied_updates",
+            "unknown_wp_ids",
+            "task_board_written",
+            "entries_added",
+            "entries_removed",
+            "status_changes",
+        ],
+        &[],
+    )?;
+    require_bool(inner, "dry_run")?;
+    require_number(inner, "applied_updates")?;
+    match require_key(inner, "unknown_wp_ids")? {
+        Value::Array(values) => {
+            for value in values {
+                validate_locus_wp_id(value)?;
+            }
+        }
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field unknown_wp_ids must be an array".to_string(),
+            ))
+        }
+    }
+    require_bool(inner, "task_board_written")?;
+    require_number(inner, "entries_added")?;
+    require_number(inner, "entries_removed")?;
+    require_number(inner, "status_changes")?;
+    Ok(())
+}
+
+fn validate_locus_task_board_status_changed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-TB-003", "task_board_status_changed")?;
+    require_allowed_keys(inner, &["wp_id", "from_status", "to_status", "token"], &[])?;
+    validate_locus_wp_id(require_key(inner, "wp_id")?)?;
+    validate_locus_task_board_status(require_key(inner, "from_status")?)?;
+    validate_locus_task_board_status(require_key(inner, "to_status")?)?;
+    require_string(inner, "token")?;
+    Ok(())
+}
+
+fn validate_locus_sync_started_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-SYNC-001", "sync_started")?;
+    require_allowed_keys(inner, &["sync_target"], &["dry_run"])?;
+    require_string(inner, "sync_target")?;
+    if inner.contains_key("dry_run") {
+        require_bool(inner, "dry_run")?;
+    }
+    Ok(())
+}
+
+fn validate_locus_sync_completed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-SYNC-002", "sync_completed")?;
+    require_allowed_keys(inner, &["sync_target"], &["duration_ms"])?;
+    require_string(inner, "sync_target")?;
+    if inner.contains_key("duration_ms") {
+        require_number(inner, "duration_ms")?;
+    }
+    Ok(())
+}
+
+fn validate_locus_sync_failed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-SYNC-003", "sync_failed")?;
+    require_allowed_keys(inner, &["sync_target", "error"], &[])?;
+    require_string(inner, "sync_target")?;
+    require_string(inner, "error")?;
+    Ok(())
+}
+
+fn validate_locus_work_query_executed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let inner = validate_locus_event_base(payload, "FR-EVT-QUERY-001", "work_query_executed")?;
+    require_allowed_keys(inner, &["query_op", "result_count"], &["filters", "limit"])?;
+    require_string(inner, "query_op")?;
+    require_number(inner, "result_count")?;
+    if inner.contains_key("filters") {
+        let value = require_key(inner, "filters")?;
+        if !value.is_object() && !value.is_null() {
+            return Err(RecorderError::InvalidEvent(
+                "payload field filters must be an object or null".to_string(),
+            ));
+        }
+    }
+    if inner.contains_key("limit") {
+        require_number(inner, "limit")?;
+    }
     Ok(())
 }
 
