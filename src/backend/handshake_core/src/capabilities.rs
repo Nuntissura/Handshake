@@ -440,11 +440,11 @@ mod tests {
         let required = match registry
             .required_capabilities_for_job_request("locus_operation", "locus_sync_task_board_v1")
         {
-            Some(required) => required,
-            None => {
+            Ok(required) => required,
+            Err(err) => {
                 assert!(
                     false,
-                    "expected protocol requirements for locus_sync_task_board_v1"
+                    "expected protocol requirements for locus_sync_task_board_v1, got error: {err}"
                 );
                 return;
             }
@@ -464,11 +464,11 @@ mod tests {
         let required_create = match registry
             .required_capabilities_for_job_request("locus_operation", "locus_create_wp_v1")
         {
-            Some(required_create) => required_create,
-            None => {
+            Ok(required_create) => required_create,
+            Err(err) => {
                 assert!(
                     false,
-                    "expected protocol requirements for locus_create_wp_v1"
+                    "expected protocol requirements for locus_create_wp_v1, got error: {err}"
                 );
                 return;
             }
