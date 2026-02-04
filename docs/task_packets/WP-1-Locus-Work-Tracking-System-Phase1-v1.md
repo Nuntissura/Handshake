@@ -130,16 +130,24 @@ git revert <commit-sha>
   - "schema drift" -> "missing FR event IDs / capability IDs causes hard-deny failures"
 
 ## SKELETON
-- Proposed interfaces/types/contracts:
-  - LocusStore (trait): persistence for WPs/MTs/dependencies/events
-  - LocusService: orchestrates operations + emits Flight Recorder events
-  - Locus operation job_kind: locus_operation + protocol_id locus_*_v1 (per spec 2.3.15.3 examples)
-- Open questions:
-  - Where is the authoritative home for Locus tables/migrations (existing storage layer vs dedicated module)?
-  - What is the minimal Phase 1 implementation for locus_search (basic keyword search per Phase 1 pointer vs full hybrid)?
-  - How to persist WPBronze/WPSilver (reuse existing AI-ready data medallion primitives vs new tables)?
-- Notes:
-  - Keep all artifacts deterministic (IDs, ordering, and Task Board sync behavior).
+- Goal (blocking): Restore the DAL boundary so `just validator-dal-audit` no longer flags CX-DBP-VAL-010/012, without changing Locus semantics.
+- Hard rule after refactor:
+  - Zero `sqlx::query*` and zero `SqlitePool` references in:
+    - `src/backend/handshake_core/src/workflows.rs`
+    - `src/backend/handshake_core/src/locus/*`
+- Pattern choice: Option B (minimal diff): keep existing downcast to `crate::storage::sqlite::SqliteDatabase`, but move all SQLx usage into `src/backend/handshake_core/src/storage/*`.
+- Proposed module move:
+  - Add `src/backend/handshake_core/src/storage/locus_sqlite.rs` (SQLite Locus DAL; owns all SQLx for Locus persistence).
+  - Move all functions that take `&SqlitePool` / call `sqlx::query*` from `src/backend/handshake_core/src/locus/sqlite_store.rs` into `src/backend/handshake_core/src/storage/locus_sqlite.rs` (semantics preserved; copy SQL verbatim).
+- Storage-facing API (no SQLite types exposed outside storage):
+  - `pub async fn execute_sqlite_locus_operation(sqlite: &SqliteDatabase, op: LocusOperation) -> StorageResult<Value>`
+  - `pub async fn locus_work_packet_exists(sqlite: &SqliteDatabase, wp_id: &str) -> StorageResult<bool>` (replaces workflows.rs:2105)
+  - `pub async fn locus_task_board_get_row(sqlite: &SqliteDatabase, wp_id: &str) -> StorageResult<Option<(String, String)>>` (replaces workflows.rs:326)
+  - `pub async fn locus_task_board_update_row(sqlite: &SqliteDatabase, wp_id: &str, status: &str, task_board_status: &str, updated_at: &str, metadata_json: &str) -> StorageResult<()>` (replaces workflows.rs:378)
+  - `pub async fn locus_task_board_list_rows(sqlite: &SqliteDatabase) -> StorageResult<Vec<(String, String, String)>>` (replaces workflows.rs:411)
+- Non-storage module outcomes:
+  - `src/backend/handshake_core/src/locus/sqlite_store.rs` becomes parse-only (`parse_locus_operation` stays; no SQLx/SqlitePool types).
+  - `src/backend/handshake_core/src/workflows.rs` uses the storage-layer DAL helpers for the 4 flagged call sites; no inline SQL remains.
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
