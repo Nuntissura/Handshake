@@ -13,7 +13,7 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const SPEC_CURRENT_REL = path.join("docs", "SPEC_CURRENT.md");
+const SPEC_CURRENT_REL = path.join(".GOV", "roles_shared", "SPEC_CURRENT.md");
 
 function tryGitRepoRoot() {
   try {
@@ -46,7 +46,12 @@ function extractBoldFilenameFromSection({ specCurrentText, sectionMarkerRe, spec
 
 export function resolveGovernanceReference(options = {}) {
   const repoRoot = options.repoRoot || tryGitRepoRoot() || process.cwd();
-  const specCurrentPathAbs = path.resolve(repoRoot, options.specCurrentPath || SPEC_CURRENT_REL);
+  let specCurrentPathAbs = path.resolve(repoRoot, options.specCurrentPath || SPEC_CURRENT_REL);
+  if (!options.specCurrentPath && !fs.existsSync(specCurrentPathAbs)) {
+    // Legacy compatibility bundle (should not be treated as governance SSoT).
+    const compat = path.resolve(repoRoot, "docs", "SPEC_CURRENT.md");
+    if (fs.existsSync(compat)) specCurrentPathAbs = compat;
+  }
   const specCurrentText = fs.readFileSync(specCurrentPathAbs, "utf8");
 
   const codexFilename = extractBoldFilenameFromSection({

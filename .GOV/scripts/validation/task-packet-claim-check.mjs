@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const TASK_PACKETS_DIR = path.join("docs", "task_packets");
+// Canonical governance workspace packets live under `/.GOV/task_packets/`.
+// `docs/` is a legacy product compatibility bundle and must not be treated as governance SSoT.
+const TASK_PACKETS_DIR = path.join(".GOV", "task_packets");
 
 function fail(message, details = []) {
   console.error(`[TASK_PACKET_CLAIM_CHECK] ${message}`);

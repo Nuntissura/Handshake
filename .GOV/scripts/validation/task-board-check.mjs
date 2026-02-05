@@ -77,7 +77,7 @@ function checkLines(lines) {
   // Semantic guard: if a WP is marked Done on the task board and the packet is in the
   // modern format (PACKET_FORMAT_VERSION present), it must include a Validator verdict line.
   // This prevents "status sync" commits from marking VALIDATED without the canonical packet report.
-  const packetDir = path.join("docs", "task_packets");
+  const packetDir = path.join(".GOV", "task_packets");
   const semanticViolations = [];
   for (const entry of doneEntries) {
     const packetPath = path.join(packetDir, `${entry.wpId}.md`);

@@ -154,6 +154,19 @@ if (taskPacketFiles.length === 0) {
   const isDoneLike = /\b(done|validated|complete)\b/i.test(statusLine);
   const requiresRefinementGate = !isDoneLike; // pre-work implies active work; enforce unless explicitly Done/Validated.
 
+  // Check 2.6A: Agentic mode flag (required for active packets in modern format)
+  const agenticModeRaw = (packetContent.match(/^\s*-\s*AGENTIC_MODE\s*:\s*(.+)\s*$/mi) || [])[1]?.trim() || '';
+  const agenticMode = agenticModeRaw.toUpperCase();
+  const isModernPacket = !!packetFormatVersion;
+
+  if (isModernPacket && requiresRefinementGate) {
+    if (!/^(YES|NO)$/.test(agenticMode)) {
+      errors.push('AGENTIC_MODE missing or invalid (expected YES|NO) for active packets');
+    }
+  } else if (isModernPacket && !agenticModeRaw) {
+    warnings.push('AGENTIC_MODE missing (expected YES|NO) for modern packets');
+  }
+
   // Check 2.7: Technical Refinement gate (unskippable for active packets)
   if (requiresRefinementGate) {
     console.log('\nCheck 2.7: Technical Refinement gate');

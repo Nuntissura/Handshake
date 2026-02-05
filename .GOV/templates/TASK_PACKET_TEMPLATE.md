@@ -22,6 +22,7 @@ Requirements:
 - REQUESTOR: {{REQUESTOR}}
 - AGENT_ID: {{AGENT_ID}}
 - ROLE: Orchestrator
+- AGENTIC_MODE: <pending> (YES | NO)
 - CODER_MODEL: <unclaimed>
 - CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
 - **Status:** Ready for Dev

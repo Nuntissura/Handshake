@@ -17,7 +17,7 @@ if (!wpId) {
     process.exit(1);
 }
 
-const wpPath = path.join(process.cwd(), 'docs', 'task_packets', `${wpId}.md`);
+const wpPath = path.join(process.cwd(), '.GOV', 'task_packets', `${wpId}.md`);
 if (!fs.existsSync(wpPath)) {
     console.error(`? GATE FAIL: Task Packet ${wpId}.md not found.`);
     process.exit(1);
