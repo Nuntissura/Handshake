@@ -67,14 +67,14 @@ if (!specCurrentCanonical.includes(latest)) {
 }
 
 // Compatibility bundle: `docs/SPEC_CURRENT.md` MAY exist for legacy product/runtime paths.
-// If it exists, keep it in sync so legacy behavior remains deterministic until the product
-// remediation WP removes runtime dependence on repo `docs/**`.
+// Governance tooling MUST NOT treat `docs/` as authoritative governance state.
+// Policy: `docs/` may be a frozen compatibility snapshot (read-only) until product remediation
+// removes runtime dependence on repo `docs/**`.
 const specCurrentCompatPath = path.join(repoRoot, "docs", "SPEC_CURRENT.md");
 if (fs.existsSync(specCurrentCompatPath)) {
   const specCurrentCompat = fs.readFileSync(specCurrentCompatPath, "utf8");
   if (!specCurrentCompat.includes(latest)) {
-    console.error(`docs/SPEC_CURRENT.md does not reference latest spec: ${latest}`);
-    process.exit(1);
+    console.warn(`WARN: docs/SPEC_CURRENT.md does not reference latest spec: ${latest}`);
   }
 }
 
