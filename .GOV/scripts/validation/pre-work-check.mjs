@@ -163,6 +163,32 @@ if (taskPacketFiles.length === 0) {
     if (!/^(YES|NO)$/.test(agenticMode)) {
       errors.push('AGENTIC_MODE missing or invalid (expected YES|NO) for active packets');
     }
+
+    if (agenticMode === 'YES') {
+      const orchModel = (packetContent.match(/^\s*-\s*ORCHESTRATOR_MODEL\s*:\s*(.+)\s*$/mi) || [])[1]?.trim() || '';
+      const orchStart = (packetContent.match(/^\s*-\s*ORCHESTRATION_STARTED_AT_UTC\s*:\s*(.+)\s*$/mi) || [])[1]?.trim() || '';
+
+      const isPlaceholder = (v) => {
+        const s = (v || '').trim();
+        if (!s) return true;
+        if (/^<pending>$/i.test(s)) return true;
+        if (/^<fill/i.test(s)) return true;
+        if (/^<unclaimed>$/i.test(s)) return true;
+        return false;
+      };
+
+      if (isPlaceholder(orchModel)) {
+        errors.push('ORCHESTRATOR_MODEL is required when AGENTIC_MODE=YES');
+      }
+      if (isPlaceholder(orchStart)) {
+        errors.push('ORCHESTRATION_STARTED_AT_UTC is required when AGENTIC_MODE=YES');
+      } else {
+        const rfc3339Utc = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+        if (!rfc3339Utc.test(orchStart)) {
+          errors.push(`ORCHESTRATION_STARTED_AT_UTC must be RFC3339 UTC (got: ${orchStart})`);
+        }
+      }
+    }
   } else if (isModernPacket && !agenticModeRaw) {
     warnings.push('AGENTIC_MODE missing (expected YES|NO) for modern packets');
   }

@@ -23,6 +23,8 @@ Requirements:
 - AGENT_ID: {{AGENT_ID}}
 - ROLE: Orchestrator
 - AGENTIC_MODE: <pending> (YES | NO)
+- ORCHESTRATOR_MODEL: <pending> (required if AGENTIC_MODE=YES)
+- ORCHESTRATION_STARTED_AT_UTC: <pending> (RFC3339 UTC; required if AGENTIC_MODE=YES)
 - CODER_MODEL: <unclaimed>
 - CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
 - **Status:** Ready for Dev
