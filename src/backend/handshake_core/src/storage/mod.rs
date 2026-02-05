@@ -11,6 +11,7 @@ use crate::ai_ready_data::records::{
     SilverRecord,
 };
 
+pub(crate) mod locus_sqlite;
 pub mod postgres;
 pub mod retention;
 pub mod sqlite;

@@ -188,7 +188,7 @@ fn derive_trace_id(job: &AiJob, workflow_id: Option<&str>) -> Uuid {
 
 async fn execute_locus_sync_task_board(
     state: &AppState,
-    sqlite: &crate::storage::sqlite::SqliteDatabase,
+    db: &dyn crate::storage::Database,
     job: &AiJob,
     workflow_run_id: Uuid,
     trace_id: Uuid,
@@ -241,6 +241,8 @@ async fn execute_locus_sync_task_board(
             locus::TaskBoardStatus::Cancelled => "SUPERSEDED",
         }
     }
+
+    crate::storage::locus_sqlite::ensure_locus_sqlite(db)?;
 
     let dry_run = params.dry_run.unwrap_or(false);
     let sync_target = "docs/TASK_BOARD.md";
@@ -302,7 +304,6 @@ async fn execute_locus_sync_task_board(
         })?;
 
         let parsed = locus::task_board::parse_task_board(&task_board);
-        let pool = sqlite.pool();
 
         let statuses = [
             locus::TaskBoardStatus::Unknown,
@@ -323,13 +324,11 @@ async fn execute_locus_sync_task_board(
             for entry in parsed.entries_for_status(status) {
                 before_map.insert(entry.wp_id.clone(), (entry.status, entry.token.clone()));
 
-                let row = sqlx::query_as::<_, (String, String)>(
-                    "SELECT task_board_status, metadata FROM work_packets WHERE wp_id = $1",
+                let row = crate::storage::locus_sqlite::locus_task_board_get_status_and_metadata(
+                    db,
+                    &entry.wp_id,
                 )
-                .bind(&entry.wp_id)
-                .fetch_optional(pool)
-                .await
-                .map_err(crate::storage::StorageError::from)?;
+                .await?;
 
                 let Some((db_task_board_status, metadata_raw)) = row else {
                     unknown_wp_ids.push(entry.wp_id.clone());
@@ -375,26 +374,15 @@ async fn execute_locus_sync_task_board(
                     let now = Utc::now().to_rfc3339();
                     let metadata = serde_json::to_string(&metadata)
                         .map_err(crate::storage::StorageError::from)?;
-                    sqlx::query(
-                        r#"
-                        UPDATE work_packets
-                        SET
-                            version = version + 1,
-                            status = $1,
-                            task_board_status = $2,
-                            updated_at = $3,
-                            metadata = $4
-                        WHERE wp_id = $5
-                        "#,
+                    crate::storage::locus_sqlite::locus_task_board_update_work_packet(
+                        db,
+                        work_packet_status_db(entry.status),
+                        task_board_status_db(entry.status),
+                        &now,
+                        &metadata,
+                        &entry.wp_id,
                     )
-                    .bind(work_packet_status_db(entry.status))
-                    .bind(task_board_status_db(entry.status))
-                    .bind(&now)
-                    .bind(metadata)
-                    .bind(&entry.wp_id)
-                    .execute(pool)
-                    .await
-                    .map_err(crate::storage::StorageError::from)?;
+                    .await?;
 
                     applied_updates += 1;
                 } else if status_changed && dry_run {
@@ -408,12 +396,7 @@ async fn execute_locus_sync_task_board(
         let mut after_map: std::collections::BTreeMap<String, (locus::TaskBoardStatus, String)> =
             std::collections::BTreeMap::new();
 
-        let rows = sqlx::query_as::<_, (String, String, String)>(
-            "SELECT wp_id, task_board_status, metadata FROM work_packets",
-        )
-        .fetch_all(pool)
-        .await
-        .map_err(crate::storage::StorageError::from)?;
+        let rows = crate::storage::locus_sqlite::locus_task_board_list_rows(db).await?;
 
         for (wp_id, task_board_status, metadata_raw) in rows {
             let status = parse_task_board_status_db(&task_board_status);
@@ -2095,19 +2078,9 @@ async fn enforce_work_packet_binding_if_required(
         }));
     }
 
-    let sqlite = state
-        .storage
-        .as_any()
-        .downcast_ref::<crate::storage::sqlite::SqliteDatabase>()
-        .ok_or_else(|| WorkflowError::Storage(StorageError::NotImplemented("locus sqlite")))?;
-
     let exists =
-        sqlx::query_scalar::<_, i64>("SELECT 1 FROM work_packets WHERE wp_id = $1 LIMIT 1")
-            .bind(wp_id)
-            .fetch_optional(sqlite.pool())
-            .await
-            .map_err(StorageError::from)?
-            .is_some();
+        crate::storage::locus_sqlite::locus_work_packet_exists(state.storage.as_ref(), wp_id)
+            .await?;
 
     if !exists {
         record_event_safely(
@@ -2649,18 +2622,22 @@ async fn run_job(
         let op = locus::sqlite_store::parse_locus_operation(&job.protocol_id, &inputs)?;
         let op_for_event = op.clone();
 
-        let sqlite = state
-            .storage
-            .as_any()
-            .downcast_ref::<crate::storage::sqlite::SqliteDatabase>()
-            .ok_or_else(|| WorkflowError::Storage(StorageError::NotImplemented("locus sqlite")))?;
-
         let payload = match op {
             locus::LocusOperation::SyncTaskBoard(params) => {
-                execute_locus_sync_task_board(state, sqlite, job, workflow_run_id, trace_id, params)
+                execute_locus_sync_task_board(
+                    state,
+                    state.storage.as_ref(),
+                    job,
+                    workflow_run_id,
+                    trace_id,
+                    params,
+                )
+                .await?
+            }
+            other => {
+                crate::storage::locus_sqlite::execute_locus_operation(state.storage.as_ref(), other)
                     .await?
             }
-            other => locus::sqlite_store::execute_sqlite_locus_operation(sqlite, other).await?,
         };
 
         if !matches!(op_for_event, locus::LocusOperation::SyncTaskBoard(_)) {
