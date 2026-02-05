@@ -33,7 +33,17 @@ Authoritative LAW: `Handshake Codex v1.4.md` ([CX-211], [CX-212]).
 
 ---
 
-## 3) Enforcement
+## 3) `.handshake/gov/` = Product-Owned Runtime Governance State (Default)
+
+Handshake runtime governance state MUST live in product-owned storage, not in repo governance folders.
+
+- Default location: `.handshake/gov/`
+- Configurable: YES (must remain deterministic and explicit)
+- Scope: **runtime governance state only** (not a mirror of repo governance)
+
+---
+
+## 4) Enforcement
 
 The repo MUST enforce (via CI/gates):
 - No product code references to `/.GOV/` (strings, paths, or file I/O).

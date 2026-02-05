@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-01-29
+**Updated:** 2026-02-05
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja050220260910 | Validator | 2026-02-05 09:10 | Spec Enrichment v02.124 (governance boundary + pack path update; runtime gov state dir `.handshake/gov/`) | v02.124 | Approved in-chat; signature provided by Operator. |
 | ilja020220261405 | Orchestrator | 2026-02-02 14:05 | Task packet creation: WP-1-Artifact-System-Foundations-v1 | v02.123 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Artifact-System-Foundations-v1.md ). |
 | ilja010220261515 | Orchestrator | 2026-02-01 15:15 | Task packet creation: WP-1-AI-UX-Summarize-Display-v2 | v02.123 | Approved after Technical Refinement (see .GOV/refinements/WP-1-AI-UX-Summarize-Display-v2.md ). |
 | ilja010220261514 | Orchestrator | 2026-02-01 15:14 | Task packet creation: WP-1-Model-Swap-Protocol-v1 | v02.123 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Model-Swap-Protocol-v1.md ). |
