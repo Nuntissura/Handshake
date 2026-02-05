@@ -30,6 +30,7 @@
   - src/backend/handshake_core/src/locus/task_board.rs
   - src/backend/handshake_core/src/locus/types.rs
   - src/backend/handshake_core/src/storage/**
+  - src/backend/handshake_core/src/storage/locus_sqlite.rs
   - src/backend/handshake_core/src/storage/mod.rs
   - src/backend/handshake_core/src/storage/sqlite.rs
   - src/backend/handshake_core/src/workflows.rs
@@ -272,10 +273,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/locus/sqlite_store.rs`
 - **Start**: 1
-- **End**: 822
-- **Line Delta**: 822
+- **End**: 61
+- **Line Delta**: 61
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `731e36c3521a626c2e4634961942a8876fc7f2e0`
+- **Post-SHA1**: `93213598b743263de25c0e52891a8c9f58b52d35`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -326,10 +327,28 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/storage/mod.rs`
 - **Start**: 1
-- **End**: 1544
-- **Line Delta**: 3
+- **End**: 1545
+- **Line Delta**: 4
 - **Pre-SHA1**: `8d4536e8d5be6d31c380981ce326e4828b18e9e4`
-- **Post-SHA1**: `ca9da2989919de930b42c73f0917d0c092b98cc0`
+- **Post-SHA1**: `bdebf6460660ffcf5a6efbc1609007f17abef1d1`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/storage/locus_sqlite.rs`
+- **Start**: 1
+- **End**: 854
+- **Line Delta**: 854
+- **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
+- **Post-SHA1**: `039c8f967d482d2a0568602e94bed658d478c90d`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -362,10 +381,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/workflows.rs`
 - **Start**: 1
-- **End**: 7717
-- **Line Delta**: 1117
+- **End**: 7694
+- **Line Delta**: 1094
 - **Pre-SHA1**: `2893f87593559afa3644edfd13b1f69f8d57899b`
-- **Post-SHA1**: `378da566327b8943cdaaa43217351662dcb5137a`
+- **Post-SHA1**: `3dc957091d65d3f93da13208277a53af9b969b70`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
