@@ -6,7 +6,7 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-NonInteractive", "-Command"
 dev: preflight-ollama
 	cd app; pnpm run tauri dev
 
-# Fail fast if Ollama is missing/unreachable (Phase 1 requirement; see docs/START_HERE.md).
+# Fail fast if Ollama is missing/unreachable (Phase 1 requirement; see .GOV/roles_shared/START_HERE.md).
 preflight-ollama:
 	node -e "const base=(process.env.OLLAMA_URL||'http://localhost:11434'); const normalized=base.endsWith('/')?base.slice(0,-1):base; const url=normalized + '/api/tags'; const lib=url.startsWith('https://')?require('https'):require('http'); const req=lib.get(url,(res)=>{ const ok=!!res.statusCode && res.statusCode>=200 && res.statusCode<300; if(ok){ process.exit(0); } console.error('Ollama preflight failed: GET ' + url + ' returned ' + res.statusCode + '. Install Ollama (Windows: winget install -e --id Ollama.Ollama), then run ollama serve (or ollama run mistral), or set OLLAMA_URL.'); process.exit(1); }); req.on('error',()=>{ console.error('Ollama preflight failed: cannot reach ' + url + '. Install Ollama (Windows: winget install -e --id Ollama.Ollama), then run ollama serve (or ollama run mistral), or set OLLAMA_URL.'); process.exit(1); }); req.setTimeout(3000, ()=>req.destroy(new Error('timeout')));"
 
@@ -19,7 +19,7 @@ test:
 
 # Fail if any required docs are missing (navigation pack + past work index)
 docs-check:
-	node -e "['docs/START_HERE.md', 'docs/SPEC_CURRENT.md', 'docs/ARCHITECTURE.md', 'docs/RUNBOOK_DEBUG.md', 'docs/PAST_WORK_INDEX.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
+	node -e "['.GOV/roles_shared/START_HERE.md', '.GOV/roles_shared/SPEC_CURRENT.md', '.GOV/roles_shared/ARCHITECTURE.md', '.GOV/roles_shared/RUNBOOK_DEBUG.md', '.GOV/roles_shared/PAST_WORK_INDEX.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
 
 # Format backend Rust
 fmt:
@@ -45,12 +45,12 @@ validate:
 
 # Codex guardrails: prevent direct fetch in components, println/eprintln in backend, and doc drift.
 codex-check:
-	node scripts/validation/codex-check.mjs
+	node .GOV/scripts/validation/codex-check.mjs
 
 # Worktrees (recommended when >1 WP active)
 # Creates a dedicated working directory for the WP branch.
 worktree-add wp-id base="main" branch="" dir="":
-	node scripts/worktree-add.mjs {{wp-id}} {{base}} {{branch}} {{dir}}
+	node .GOV/scripts/worktree-add.mjs {{wp-id}} {{base}} {{branch}} {{dir}}
 
 # Hard gate helper: Worktree + Branch Gate [CX-WT-001]
 hard-gate-wt-001:
@@ -72,20 +72,20 @@ hard-gate-wt-001:
 	@echo '- Ensure `git worktree list` topology matches concurrency expectations.'
 	@echo '- Prevent using the Operator''s personal worktree as a Coder worktree.'
 	@echo '- Ensure the Orchestrator''s assignment is actually in effect locally.'
-	@echo '- Bind Coder work to `docs/ORCHESTRATOR_GATES.json` `PREPARE` records (`branch`, `worktree_dir`).'
-	@echo '- Keep role-governed defaults consistent with `docs/ROLE_WORKTREES.md`.'
+	@echo '- Bind Coder work to `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` `PREPARE` records (`branch`, `worktree_dir`).'
+	@echo '- Keep role-governed defaults consistent with `.GOV/roles_shared/ROLE_WORKTREES.md`.'
 	@echo '- Reduce risk of data loss from wrong-directory "cleanup"/stashing mistakes.'
 	@echo '- Make failures actionable: mismatch => STOP + escalate, not "guess and proceed".'
 	@echo ''
 	@echo 'HARD_GATE_NEXT_ACTIONS [CX-WT-001]'
 	@echo '- If correct (repo/worktree/branch match the assignment): proceed to BOOTSTRAP / packet steps.'
-	@echo '- If incorrect/uncertain: STOP; ask Orchestrator/Operator to provide/create the correct WP worktree/branch and ensure `PREPARE` is recorded in `docs/ORCHESTRATOR_GATES.json`.'
+	@echo '- If incorrect/uncertain: STOP; ask Orchestrator/Operator to provide/create the correct WP worktree/branch and ensure `PREPARE` is recorded in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`.'
 
 task-board-check:
-	node scripts/validation/task-board-check.mjs
+	node .GOV/scripts/validation/task-board-check.mjs
 
 task-packet-claim-check:
-	node scripts/validation/task-packet-claim-check.mjs
+	node .GOV/scripts/validation/task-packet-claim-check.mjs
 
 # Dependency cruise (frontend architecture)
 depcruise:
@@ -97,54 +97,54 @@ deny:
 
 # Scaffolding
 new-react-component name:
-	node scripts/new-react-component.mjs {{name}}
+	node .GOV/scripts/new-react-component.mjs {{name}}
 
 new-api-endpoint name:
-	node scripts/new-api-endpoint.mjs {{name}}
+	node .GOV/scripts/new-api-endpoint.mjs {{name}}
 
 scaffold-check:
-	node scripts/scaffold-check.mjs
+	node .GOV/scripts/scaffold-check.mjs
 
 codex-check-test:
-	node scripts/codex-check-test.mjs
+	node .GOV/scripts/codex-check-test.mjs
 
 # Close a WP branch after it has been merged into main.
 close-wp-branch wp-id remote="":
-	node scripts/close-wp-branch.mjs {{wp-id}} {{remote}}
+	node .GOV/scripts/close-wp-branch.mjs {{wp-id}} {{remote}}
 
-# === Workflow Enforcement Commands (see docs/SPEC_CURRENT.md) ===
+# === Workflow Enforcement Commands (see .GOV/roles_shared/SPEC_CURRENT.md) ===
 
 # Record a technical refinement for a work packet [CX-585A]
 record-refinement wp-id detail="":
-	@node scripts/validation/orchestrator_gates.mjs refine {{wp-id}} "{{detail}}"
+	@node .GOV/scripts/validation/orchestrator_gates.mjs refine {{wp-id}} "{{detail}}"
 
 # Record a user signature for a work packet [CX-585C]
 record-signature wp-id signature:
-	@node scripts/validation/orchestrator_gates.mjs sign {{wp-id}} {{signature}}
+	@node .GOV/scripts/validation/orchestrator_gates.mjs sign {{wp-id}} {{signature}}
 
 # Record WP preparation (branch/worktree + coder assignment) after signature and before packet creation.
 record-prepare wp-id coder_id branch="" worktree_dir="":
-	@node scripts/validation/orchestrator_gates.mjs prepare {{wp-id}} {{coder_id}} {{branch}} {{worktree_dir}}
+	@node .GOV/scripts/validation/orchestrator_gates.mjs prepare {{wp-id}} {{coder_id}} {{branch}} {{worktree_dir}}
 
 # Create new task packet from template [CX-580]
 create-task-packet wp-id:
 	@echo "Creating task packet: {{wp-id}}..."
-	@node scripts/create-task-packet.mjs {{wp-id}}
+	@node .GOV/scripts/create-task-packet.mjs {{wp-id}}
 
 # Pre-work validation - run before starting implementation [CX-587, CX-620]
 pre-work wp-id:
 	@just gate-check {{wp-id}}
-	@node scripts/validation/pre-work-check.mjs {{wp-id}}
+	@node .GOV/scripts/validation/pre-work-check.mjs {{wp-id}}
 
 # Post-work validation - run before or after commit [CX-623, CX-651]
 post-work wp-id *args:
 	@just gate-check {{wp-id}}
-	@node scripts/validation/post-work-check.mjs {{wp-id}} {{args}}
+	@node .GOV/scripts/validation/post-work-check.mjs {{wp-id}} {{args}}
 	@just role-mailbox-export-check
 
 # Helper: compute deterministic COR-701 Pre/Post SHA1 for a file.
 cor701-sha file:
-	@node scripts/validation/cor701-sha.mjs {{file}}
+	@node .GOV/scripts/validation/cor701-sha.mjs {{file}}
 
 # Automated workflow validation for a work packet
 validate-workflow wp-id:
@@ -166,58 +166,58 @@ validate-workflow wp-id:
 
 # Gate check (protocol-aligned)
 gate-check wp-id:
-	@node scripts/validation/gate-check.mjs {{wp-id}}
+	@node .GOV/scripts/validation/gate-check.mjs {{wp-id}}
 
 # Role Mailbox export gate (RoleMailboxExportGate) [2.6.8.10]
 role-mailbox-export-check:
-	@node scripts/validation/role_mailbox_export_check.mjs
+	@node .GOV/scripts/validation/role_mailbox_export_check.mjs
 
 # Validator helpers (protocol-aligned)
 validator-scan:
-	@node scripts/validation/validator-scan.mjs
+	@node .GOV/scripts/validation/validator-scan.mjs
 
 validator-dal-audit:
-	@node scripts/validation/validator-dal-audit.mjs
+	@node .GOV/scripts/validation/validator-dal-audit.mjs
 
 validator-spec-regression:
-	@node scripts/validation/validator-spec-regression.mjs
+	@node .GOV/scripts/validation/validator-spec-regression.mjs
 
 validator-phase-gate phase="Phase-1":
-	@node scripts/validation/validator-phase-gate.mjs {{phase}}
+	@node .GOV/scripts/validation/validator-phase-gate.mjs {{phase}}
 
 validator-packet-complete wp-id:
-	@node scripts/validation/validator-packet-complete.mjs {{wp-id}}
+	@node .GOV/scripts/validation/validator-packet-complete.mjs {{wp-id}}
 
 validator-error-codes:
-	@node scripts/validation/validator-error-codes.mjs
+	@node .GOV/scripts/validation/validator-error-codes.mjs
 
 validator-coverage-gaps *targets:
-	@node scripts/validation/validator-coverage-gaps.mjs {{targets}}
+	@node .GOV/scripts/validation/validator-coverage-gaps.mjs {{targets}}
 
 validator-traceability *targets:
-	@node scripts/validation/validator-traceability.mjs {{targets}}
+	@node .GOV/scripts/validation/validator-traceability.mjs {{targets}}
 
 validator-git-hygiene:
-	@node scripts/validation/validator-git-hygiene.mjs
+	@node .GOV/scripts/validation/validator-git-hygiene.mjs
 
 validator-hygiene-full:
-	@node scripts/validation/validator-hygiene-full.mjs
+	@node .GOV/scripts/validation/validator-hygiene-full.mjs
 
 # Validator Gate Commands [CX-VAL-GATE] - Mechanical enforcement of validation sequence
 validator-gate-present wp-id verdict:
-	@node scripts/validation/validator_gates.mjs present-report {{wp-id}} {{verdict}}
+	@node .GOV/scripts/validation/validator_gates.mjs present-report {{wp-id}} {{verdict}}
 
 validator-gate-acknowledge wp-id:
-	@node scripts/validation/validator_gates.mjs acknowledge {{wp-id}}
+	@node .GOV/scripts/validation/validator_gates.mjs acknowledge {{wp-id}}
 
 validator-gate-append wp-id:
-	@node scripts/validation/validator_gates.mjs append {{wp-id}}
+	@node .GOV/scripts/validation/validator_gates.mjs append {{wp-id}}
 
 validator-gate-commit wp-id:
-	@node scripts/validation/validator_gates.mjs commit {{wp-id}}
+	@node .GOV/scripts/validation/validator_gates.mjs commit {{wp-id}}
 
 validator-gate-status wp-id:
-	@node scripts/validation/validator_gates.mjs status {{wp-id}}
+	@node .GOV/scripts/validation/validator_gates.mjs status {{wp-id}}
 
 validator-gate-reset wp-id *confirm:
-	@node scripts/validation/validator_gates.mjs reset {{wp-id}} {{confirm}}
+	@node .GOV/scripts/validation/validator_gates.mjs reset {{wp-id}} {{confirm}}

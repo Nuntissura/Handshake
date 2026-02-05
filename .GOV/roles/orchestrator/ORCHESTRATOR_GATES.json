@@ -1,0 +1,1029 @@
+{
+  "gate_logs": [
+    {
+      "wpId": "WP-1-Semantic-Catalog",
+      "type": "REFINEMENT",
+      "data": "HSK-SEM-001 Schema & HSK-SEM-002 Invariants",
+      "timestamp": "2025-12-27T00:38:57.064Z",
+      "turn_token": "dhkcw"
+    },
+    {
+      "wpId": "WP-1-Semantic-Catalog",
+      "type": "REFINEMENT",
+      "data": "HSK-SEM-001 Schema & HSK-SEM-002 Invariants",
+      "timestamp": "2025-12-27T00:44:18.294Z",
+      "turn_token": "dp8e7o"
+    },
+    {
+      "wpId": "WP-1-AppState-Refactoring-v2",
+      "type": "REFINEMENT",
+      "data": "Enforce CX-DBP-040 Trait Purity Invariant",
+      "timestamp": "2025-12-27T00:46:03.580Z",
+      "turn_token": "zw6yu"
+    },
+    {
+      "wpId": "ORCH-PROTOCOL-ENFORCEMENT",
+      "type": "REFINEMENT",
+      "data": "HSK-GATE-001 Turn Lock & HSK-GATE-002 Recovery",
+      "timestamp": "2025-12-27T00:53:54.712Z",
+      "turn_token": "ymloxsb"
+    },
+    {
+      "wpId": "WP-1-AppState-Refactoring-v2",
+      "type": "REFINEMENT",
+      "data": "Enforcing Trait Purity and Backend Encapsulation [CX-DBP-040, CX-DBP-041]",
+      "timestamp": "2025-12-28T02:40:00.000Z",
+      "turn_token": "ilja281220250240"
+    },
+    {
+      "wpId": "WP-1-Operator-Consoles-v1",
+      "type": "REFINEMENT",
+      "data": "Normative DuckDB schema and DiagnosticsStore trait [v02.97]",
+      "timestamp": "2025-12-28T19:17:38.074Z",
+      "turn_token": "65ca7d"
+    },
+    {
+      "wpId": "WP-1-Operator-Consoles-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja281220252016",
+      "timestamp": "2025-12-28T19:18:21.791Z"
+    },
+    {
+      "wpId": "WP-1-Storage-Foundation-v3",
+      "type": "REFINEMENT",
+      "data": "Spec v02.98 2.3.12.3/2.3.12.5: enforce mandatory audit (no sqlx::/SqlitePool outside storage); remediate sqlx leakage in src/backend/handshake_core/src/models.rs; create gate-clean ASCII packet v3 with COR-701 manifest",
+      "timestamp": "2025-12-31T03:56:07.976Z",
+      "turn_token": "s97u59"
+    },
+    {
+      "wpId": "WP-1-Storage-Foundation-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja311220250445",
+      "timestamp": "2025-12-31T04:04:20.827Z"
+    },
+    {
+      "wpId": "WP-1-AI-Job-Model-SpecUpdate-v1",
+      "type": "REFINEMENT",
+      "data": "Spec enrichment: JobKind/JobState list + FR-EVT-WF-RECOVERY",
+      "timestamp": "2025-12-31T16:53:02.083Z",
+      "turn_token": "op049q"
+    },
+    {
+      "wpId": "WP-1-AI-Job-Model-SpecUpdate-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja311220251755",
+      "timestamp": "2025-12-31T16:56:41.677Z"
+    },
+    {
+      "wpId": "WP-1-Workflow-Engine-v4",
+      "type": "REFINEMENT",
+      "data": "No detail provided",
+      "timestamp": "2025-12-31T17:44:31.505Z",
+      "turn_token": "m4fc8m"
+    },
+    {
+      "wpId": "WP-1-Workflow-Engine-v4",
+      "type": "SIGNATURE",
+      "signature": "ilja311220251846",
+      "timestamp": "2025-12-31T17:47:02.255Z"
+    },
+    {
+      "wpId": "WP-1-Gate-Check-Tool-v2",
+      "type": "REFINEMENT",
+      "data": "Fix gate-check false positives by matching only explicit phase headings/markers and ignoring prose/code fences; ensure it enforces CX-GATE-001 without blocking valid packets.",
+      "timestamp": "2025-12-31T18:14:56.297Z",
+      "turn_token": "r29c58"
+    },
+    {
+      "wpId": "WP-1-Gate-Check-Tool-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja311220251916",
+      "timestamp": "2025-12-31T18:17:47.038Z"
+    },
+    {
+      "wpId": "WP-1-Gate-Check-Tool-v3",
+      "type": "REFINEMENT",
+      "data": "Create a corrected packet that passes current gate-check pre-work (avoid including literal strings that trigger implementationStarted), while keeping the same technical scope: harden .GOV/scripts/validation/gate-check.mjs against prose/code-fence false positives.",
+      "timestamp": "2025-12-31T18:24:18.890Z",
+      "turn_token": "lq9gx"
+    },
+    {
+      "wpId": "WP-1-Security-Gates-v3",
+      "type": "REFINEMENT",
+      "data": "Remediate Security-Gates-v2 revalidation FAIL: create ASCII-only v3 packet anchored to SPEC_CURRENT v02.99, include COR-701 manifest so just post-work can PASS, remove .unwrap() in terminal redaction (no waiver), and confirm FR-EVT-001 TerminalCommandEvent emission per A11.5.",
+      "timestamp": "2025-12-31T19:42:28.862Z",
+      "turn_token": "izmcz"
+    },
+    {
+      "wpId": "WP-1-Security-Gates-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja311220252043",
+      "timestamp": "2025-12-31T19:45:11.435Z"
+    },
+    {
+      "wpId": "WP-1-Refinement-Gate-Enforcement-v1",
+      "type": "REFINEMENT",
+      "data": "Unskippable Master Spec refinement gate: require TECHNICAL_REFINEMENT block with excerpts (ASCII-escaped), clearly-covers verdict, and full proposed enrichment when needed; enforce via pre-work-check + orchestrator_gates sign.",
+      "timestamp": "2025-12-31T23:36:47.253Z",
+      "turn_token": "z9y9om"
+    },
+    {
+      "wpId": "WP-1-Tokenization-Service-v3",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Tokenization-Service-v3.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.99.md",
+      "spec_target_sha1": "55c240a47d9bb04194155c6da19701e2ff9137a6",
+      "timestamp": "2026-01-01T01:13:29.301Z",
+      "turn_token": "1767230009301"
+    },
+    {
+      "wpId": "WP-1-Tokenization-Service-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja010120260219",
+      "timestamp": "2026-01-01T01:20:12.520Z",
+      "refinement_path": ".GOV/refinements/WP-1-Tokenization-Service-v3.md"
+    },
+    {
+      "wpId": "WP-1-Flight-Recorder-v3",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Flight-Recorder-v3.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.100.md",
+      "spec_target_sha1": "76e8e6e8259b64a6dc4aed5cf2afb754ff1f3aed",
+      "timestamp": "2026-01-01T13:41:39.317Z",
+      "turn_token": "1767274899318"
+    },
+    {
+      "wpId": "WP-1-Flight-Recorder-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja010120261446",
+      "timestamp": "2026-01-01T13:50:02.281Z",
+      "refinement_path": ".GOV/refinements/WP-1-Flight-Recorder-v3.md"
+    },
+    {
+      "wpId": "WP-1-OSS-Register-Enforcement-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-OSS-Register-Enforcement-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.100.md",
+      "spec_target_sha1": "76e8e6e8259b64a6dc4aed5cf2afb754ff1f3aed",
+      "timestamp": "2026-01-01T14:24:33.400Z",
+      "turn_token": "1767277473400"
+    },
+    {
+      "wpId": "WP-1-OSS-Register-Enforcement-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja010120261528",
+      "timestamp": "2026-01-01T14:29:13.055Z",
+      "refinement_path": ".GOV/refinements/WP-1-OSS-Register-Enforcement-v1.md"
+    },
+    {
+      "wpId": "WP-1-Operator-Consoles-v3",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Operator-Consoles-v3.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.100.md",
+      "spec_target_sha1": "76e8e6e8259b64a6dc4aed5cf2afb754ff1f3aed",
+      "timestamp": "2026-01-02T21:30:54.680Z",
+      "turn_token": "1767389454681"
+    },
+    {
+      "wpId": "WP-1-Operator-Consoles-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja020120262232",
+      "timestamp": "2026-01-02T21:34:39.105Z",
+      "refinement_path": ".GOV/refinements/WP-1-Operator-Consoles-v3.md"
+    },
+    {
+      "wpId": "WP-1-Operator-Consoles-v3",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Operator-Consoles-v3",
+      "worktree_dir": "../wt-WP-1-Operator-Consoles-v3",
+      "timestamp": "2026-01-02T21:34:57.845Z"
+    },
+    {
+      "wpId": "WP-1-Spec-Enrichment-LLM-Core-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Spec-Enrichment-LLM-Core-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.100.md",
+      "spec_target_sha1": "4f292613d6dd355ece3ad9133ce3001e5f5ea576",
+      "timestamp": "2026-01-04T00:06:00.581Z",
+      "turn_token": "1767485160582"
+    },
+    {
+      "wpId": "WP-1-Spec-Enrichment-LLM-Core-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja040120260108",
+      "timestamp": "2026-01-04T00:09:58.843Z",
+      "refinement_path": ".GOV/refinements/WP-1-Spec-Enrichment-LLM-Core-v1.md"
+    },
+    {
+      "wpId": "WP-1-Spec-Enrichment-LLM-Core-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Spec-Enrichment-LLM-Core-v1",
+      "worktree_dir": "../wt-WP-1-Spec-Enrichment-LLM-Core-v1",
+      "timestamp": "2026-01-04T00:10:06.882Z"
+    },
+    {
+      "wpId": "WP-1-LLM-Core-v3",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-LLM-Core-v3.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.101.md",
+      "spec_target_sha1": "648dfd52b7cd0ad8183b9a037746473b875fa2c8",
+      "timestamp": "2026-01-04T00:21:08.122Z",
+      "turn_token": "1767486068123"
+    },
+    {
+      "wpId": "WP-1-LLM-Core-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja040120260217",
+      "timestamp": "2026-01-04T01:37:22.399Z",
+      "refinement_path": ".GOV/refinements/WP-1-LLM-Core-v3.md"
+    },
+    {
+      "wpId": "WP-1-LLM-Core-v3",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-LLM-Core-v3",
+      "worktree_dir": "../wt-WP-1-LLM-Core-v3",
+      "timestamp": "2026-01-04T01:40:03.233Z"
+    },
+    {
+      "wpId": "WP-1-Dual-Backend-Tests-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Dual-Backend-Tests-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.101.md",
+      "spec_target_sha1": "648dfd52b7cd0ad8183b9a037746473b875fa2c8",
+      "timestamp": "2026-01-06T22:31:40.680Z",
+      "turn_token": "1767738700681"
+    },
+    {
+      "wpId": "WP-1-Dual-Backend-Tests-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja060120262333",
+      "timestamp": "2026-01-06T22:39:37.958Z",
+      "refinement_path": ".GOV/refinements/WP-1-Dual-Backend-Tests-v2.md"
+    },
+    {
+      "wpId": "WP-1-Dual-Backend-Tests-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Dual-Backend-Tests-v2",
+      "worktree_dir": "../wt-WP-1-Dual-Backend-Tests-v2",
+      "timestamp": "2026-01-06T22:40:56.793Z"
+    },
+    {
+      "wpId": "WP-1-ACE-Validators-v4",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-ACE-Validators-v4.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.101.md",
+      "spec_target_sha1": "648dfd52b7cd0ad8183b9a037746473b875fa2c8",
+      "timestamp": "2026-01-06T23:16:28.937Z",
+      "turn_token": "1767741388938"
+    },
+    {
+      "wpId": "WP-1-ACE-Validators-v4",
+      "type": "SIGNATURE",
+      "signature": "ilja070120260018",
+      "timestamp": "2026-01-06T23:19:45.610Z",
+      "refinement_path": ".GOV/refinements/WP-1-ACE-Validators-v4.md"
+    },
+    {
+      "wpId": "WP-1-ACE-Validators-v4",
+      "type": "PREPARE",
+      "coder_id": "Coder-B",
+      "branch": "feat/WP-1-ACE-Validators-v4",
+      "worktree_dir": "../wt-WP-1-ACE-Validators-v4",
+      "timestamp": "2026-01-06T23:23:19.643Z"
+    },
+    {
+      "wpId": "WP-1-Storage-Abstraction-Layer-v3",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Storage-Abstraction-Layer-v3.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.103.md",
+      "spec_target_sha1": "82d96fe0f1bc34893a5a25d15b3927dd6dca5b73",
+      "timestamp": "2026-01-09T18:36:46.594Z",
+      "turn_token": "1767983806595"
+    },
+    {
+      "wpId": "WP-1-Storage-Abstraction-Layer-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja090120261951",
+      "timestamp": "2026-01-09T19:03:33.351Z",
+      "refinement_path": ".GOV/refinements/WP-1-Storage-Abstraction-Layer-v3.md"
+    },
+    {
+      "wpId": "WP-1-Storage-Abstraction-Layer-v3",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Storage-Abstraction-Layer-v3",
+      "worktree_dir": "../wt-WP-1-Storage-Abstraction-Layer-v3",
+      "timestamp": "2026-01-09T19:03:43.930Z"
+    },
+    {
+      "wpId": "WP-1-AppState-Refactoring-v3",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-AppState-Refactoring-v3.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.103.md",
+      "spec_target_sha1": "b90ccd962e44fe99e0de7c727166fc98248d7c4c",
+      "timestamp": "2026-01-09T22:34:07.082Z",
+      "turn_token": "1767998047083"
+    },
+    {
+      "wpId": "WP-1-AppState-Refactoring-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja090120262335",
+      "timestamp": "2026-01-09T22:37:19.173Z",
+      "refinement_path": ".GOV/refinements/WP-1-AppState-Refactoring-v3.md"
+    },
+    {
+      "wpId": "WP-1-AppState-Refactoring-v3",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-AppState-Refactoring-v3",
+      "worktree_dir": "../wt-WP-1-AppState-Refactoring-v3",
+      "timestamp": "2026-01-09T22:37:32.926Z"
+    },
+    {
+      "wpId": "WP-1-Migration-Framework-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Migration-Framework-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.106.md",
+      "spec_target_sha1": "ffa0e7b5469d2ccba2c56ef62be9cbd4be4256a3",
+      "timestamp": "2026-01-11T23:43:52.503Z",
+      "turn_token": "1768175032504"
+    },
+    {
+      "wpId": "WP-1-Migration-Framework-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja120120260049",
+      "timestamp": "2026-01-11T23:55:08.787Z",
+      "refinement_path": ".GOV/refinements/WP-1-Migration-Framework-v2.md"
+    },
+    {
+      "wpId": "WP-1-Migration-Framework-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Migration-Framework-v2",
+      "worktree_dir": "../wt-WP-1-Migration-Framework-v2",
+      "timestamp": "2026-01-12T00:02:48.122Z"
+    },
+    {
+      "wpId": "WP-1-Role-Mailbox-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Role-Mailbox-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.111.md",
+      "spec_target_sha1": "6437fb6849f9c53d9330e8ec987cbe1ab3574a14",
+      "timestamp": "2026-01-13T05:11:40.401Z",
+      "turn_token": "1768281100401"
+    },
+    {
+      "wpId": "WP-1-Role-Mailbox-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Role-Mailbox-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.112.md",
+      "spec_target_sha1": "6418250deb1fea1fce63ace65c22657e0398a113",
+      "timestamp": "2026-01-15T01:45:55.113Z",
+      "turn_token": "1768441555114"
+    },
+    {
+      "wpId": "WP-1-Role-Mailbox-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja150120260254",
+      "timestamp": "2026-01-15T02:19:55.758Z",
+      "refinement_path": ".GOV/refinements/WP-1-Role-Mailbox-v1.md"
+    },
+    {
+      "wpId": "WP-1-Role-Mailbox-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Role-Mailbox-v1",
+      "worktree_dir": "../wt-WP-1-Role-Mailbox-v1",
+      "timestamp": "2026-01-15T02:19:56.253Z"
+    },
+    {
+      "wpId": "WP-1-Governance-Template-Volume-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Governance-Template-Volume-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.112.md",
+      "spec_target_sha1": "33b50fe7d70381c3eb2a53871f673e1d442633e1",
+      "timestamp": "2026-01-16T02:24:51.952Z",
+      "turn_token": "1768530291952"
+    },
+    {
+      "wpId": "WP-1-Governance-Template-Volume-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja160120260327",
+      "timestamp": "2026-01-16T02:31:11.214Z",
+      "refinement_path": ".GOV/refinements/WP-1-Governance-Template-Volume-v1.md"
+    },
+    {
+      "wpId": "WP-1-Governance-Template-Volume-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Governance-Template-Volume-v1",
+      "worktree_dir": "../wt-WP-1-Governance-Template-Volume-v1",
+      "timestamp": "2026-01-16T02:31:59.931Z"
+    },
+    {
+      "wpId": "WP-1-Governance-Kernel-Conformance-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Governance-Kernel-Conformance-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.112.md",
+      "spec_target_sha1": "33b50fe7d70381c3eb2a53871f673e1d442633e1",
+      "timestamp": "2026-01-16T20:47:11.796Z",
+      "turn_token": "1768596431797"
+    },
+    {
+      "wpId": "WP-1-Governance-Kernel-Conformance-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja160120262149",
+      "timestamp": "2026-01-16T21:00:41.404Z",
+      "refinement_path": ".GOV/refinements/WP-1-Governance-Kernel-Conformance-v1.md"
+    },
+    {
+      "wpId": "WP-1-Governance-Kernel-Conformance-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-B",
+      "branch": "feat/WP-1-Governance-Kernel-Conformance-v1",
+      "worktree_dir": "../wt-WP-1-Governance-Kernel-Conformance-v1",
+      "timestamp": "2026-01-16T21:05:18.577Z"
+    },
+    {
+      "wpId": "WP-1-Editor-Hardening-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Editor-Hardening-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.112.md",
+      "spec_target_sha1": "33b50fe7d70381c3eb2a53871f673e1d442633e1",
+      "timestamp": "2026-01-16T22:08:50.769Z",
+      "turn_token": "1768601330770"
+    },
+    {
+      "wpId": "WP-1-Editor-Hardening-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja160120262314",
+      "timestamp": "2026-01-16T22:17:32.829Z",
+      "refinement_path": ".GOV/refinements/WP-1-Editor-Hardening-v2.md"
+    },
+    {
+      "wpId": "WP-1-Editor-Hardening-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Editor-Hardening-v2",
+      "worktree_dir": "../wt-WP-1-Editor-Hardening-v2",
+      "timestamp": "2026-01-16T22:17:57.323Z"
+    },
+    {
+      "wpId": "WP-1-Supply-Chain-MEX-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Supply-Chain-MEX-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md",
+      "spec_target_sha1": "cf2f5305fc8eec517d577d87365bd9c072a99b0f",
+      "timestamp": "2026-01-17T21:33:31.626Z",
+      "turn_token": "1768685611627"
+    },
+    {
+      "wpId": "WP-1-Supply-Chain-MEX-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja170120262249",
+      "timestamp": "2026-01-17T22:00:44.102Z",
+      "refinement_path": ".GOV/refinements/WP-1-Supply-Chain-MEX-v2.md"
+    },
+    {
+      "wpId": "WP-1-Supply-Chain-MEX-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Supply-Chain-MEX-v2",
+      "worktree_dir": "D:/Projects/LLM",
+      "timestamp": "2026-01-17T22:04:40.835Z"
+    },
+    {
+      "wpId": "WP-1-Supply-Chain-MEX-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Supply-Chain-MEX-v2",
+      "worktree_dir": "../wt-WP-1-Supply-Chain-MEX-v2",
+      "timestamp": "2026-01-17T22:05:15.831Z"
+    },
+    {
+      "wpId": "WP-1-Flight-Recorder-UI-v3",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Flight-Recorder-UI-v3.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md",
+      "spec_target_sha1": "cf2f5305fc8eec517d577d87365bd9c072a99b0f",
+      "timestamp": "2026-01-17T22:40:14.340Z",
+      "turn_token": "1768689614341"
+    },
+    {
+      "wpId": "WP-1-Flight-Recorder-UI-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja170120262341",
+      "timestamp": "2026-01-17T22:45:32.120Z",
+      "refinement_path": ".GOV/refinements/WP-1-Flight-Recorder-UI-v3.md"
+    },
+    {
+      "wpId": "WP-1-Flight-Recorder-UI-v3",
+      "type": "PREPARE",
+      "coder_id": "Coder-B",
+      "branch": "feat/WP-1-Flight-Recorder-UI-v3",
+      "worktree_dir": "../wt-WP-1-Flight-Recorder-UI-v3",
+      "timestamp": "2026-01-17T22:45:40.807Z"
+    },
+    {
+      "wpId": "WP-1-Capability-SSoT-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Capability-SSoT-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md",
+      "spec_target_sha1": "cf2f5305fc8eec517d577d87365bd9c072a99b0f",
+      "timestamp": "2026-01-18T14:47:18.856Z",
+      "turn_token": "1768747638857"
+    },
+    {
+      "wpId": "WP-1-Capability-SSoT-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja180120261552",
+      "timestamp": "2026-01-18T15:01:41.678Z",
+      "refinement_path": ".GOV/refinements/WP-1-Capability-SSoT-v2.md"
+    },
+    {
+      "wpId": "WP-1-Capability-SSoT-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-1",
+      "branch": "feat/WP-1-Capability-SSoT-v2",
+      "worktree_dir": "../wt-WP-1-Capability-SSoT-v2",
+      "timestamp": "2026-01-18T15:01:51.053Z"
+    },
+    {
+      "wpId": "WP-1-Mutation-Traceability-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Mutation-Traceability-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md",
+      "spec_target_sha1": "cf2f5305fc8eec517d577d87365bd9c072a99b0f",
+      "timestamp": "2026-01-18T15:23:17.903Z",
+      "turn_token": "1768749797904"
+    },
+    {
+      "wpId": "WP-1-Mutation-Traceability-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja180120261630",
+      "timestamp": "2026-01-18T15:33:35.244Z",
+      "refinement_path": ".GOV/refinements/WP-1-Mutation-Traceability-v2.md"
+    },
+    {
+      "wpId": "WP-1-Mutation-Traceability-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-2",
+      "branch": "feat/WP-1-Mutation-Traceability-v2",
+      "worktree_dir": "../wt-WP-1-Mutation-Traceability-v2",
+      "timestamp": "2026-01-18T15:34:13.723Z"
+    },
+    {
+      "wpId": "WP-1-ACE-Runtime-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-ACE-Runtime-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md",
+      "spec_target_sha1": "cf2f5305fc8eec517d577d87365bd9c072a99b0f",
+      "timestamp": "2026-01-18T15:57:00.809Z",
+      "turn_token": "1768751820810"
+    },
+    {
+      "wpId": "WP-1-ACE-Runtime-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja180120261659",
+      "timestamp": "2026-01-18T16:02:45.549Z",
+      "refinement_path": ".GOV/refinements/WP-1-ACE-Runtime-v2.md"
+    },
+    {
+      "wpId": "WP-1-ACE-Runtime-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-3",
+      "branch": "feat/WP-1-ACE-Runtime-v2",
+      "worktree_dir": "../wt-WP-1-ACE-Runtime-v2",
+      "timestamp": "2026-01-18T16:02:49.869Z"
+    },
+    {
+      "wpId": "WP-1-Metrics-Mock-Tokens",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Metrics-Mock-Tokens.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md",
+      "spec_target_sha1": "cf2f5305fc8eec517d577d87365bd9c072a99b0f",
+      "timestamp": "2026-01-18T22:22:35.934Z",
+      "turn_token": "1768774955935"
+    },
+    {
+      "wpId": "WP-1-Metrics-Mock-Tokens",
+      "type": "SIGNATURE",
+      "signature": "ilja180120262320",
+      "timestamp": "2026-01-18T22:27:56.010Z",
+      "refinement_path": ".GOV/refinements/WP-1-Metrics-Mock-Tokens.md"
+    },
+    {
+      "wpId": "WP-1-Metrics-Mock-Tokens",
+      "type": "PREPARE",
+      "coder_id": "Coder-4",
+      "branch": "feat/WP-1-Metrics-Mock-Tokens",
+      "worktree_dir": "../wt-WP-1-Metrics-Mock-Tokens",
+      "timestamp": "2026-01-18T22:28:13.253Z"
+    },
+    {
+      "wpId": "WP-1-Canvas-Typography-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Canvas-Typography-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md",
+      "spec_target_sha1": "cf2f5305fc8eec517d577d87365bd9c072a99b0f",
+      "timestamp": "2026-01-19T00:36:58.516Z",
+      "turn_token": "1768783018517"
+    },
+    {
+      "wpId": "WP-1-Canvas-Typography-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja190120260138",
+      "timestamp": "2026-01-19T00:41:59.777Z",
+      "refinement_path": ".GOV/refinements/WP-1-Canvas-Typography-v2.md"
+    },
+    {
+      "wpId": "WP-1-Canvas-Typography-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-5",
+      "branch": "feat/WP-1-Canvas-Typography-v2",
+      "worktree_dir": "../wt-WP-1-Canvas-Typography-v2",
+      "timestamp": "2026-01-19T00:42:06.004Z"
+    },
+    {
+      "wpId": "WP-1-OSS-Governance-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-OSS-Governance-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md",
+      "spec_target_sha1": "cf2f5305fc8eec517d577d87365bd9c072a99b0f",
+      "timestamp": "2026-01-19T03:26:03.259Z",
+      "turn_token": "1768793163260"
+    },
+    {
+      "wpId": "WP-1-OSS-Governance-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja190120260338",
+      "timestamp": "2026-01-19T03:26:31.223Z",
+      "refinement_path": ".GOV/refinements/WP-1-OSS-Governance-v2.md"
+    },
+    {
+      "wpId": "WP-1-OSS-Governance-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-OSS-Governance-v2",
+      "worktree_dir": "D:/Projects/LLM",
+      "timestamp": "2026-01-19T03:27:30.073Z"
+    },
+    {
+      "wpId": "WP-1-OSS-Governance-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-OSS-Governance-v2",
+      "worktree_dir": "../wt-WP-1-OSS-Governance-v2",
+      "timestamp": "2026-01-19T03:27:48.583Z"
+    },
+    {
+      "wpId": "WP-1-AI-Job-Model-v4",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-AI-Job-Model-v4.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md",
+      "spec_target_sha1": "cf2f5305fc8eec517d577d87365bd9c072a99b0f",
+      "timestamp": "2026-01-19T23:43:52.589Z",
+      "turn_token": "1768866232590"
+    },
+    {
+      "wpId": "WP-1-AI-Job-Model-v4",
+      "type": "SIGNATURE",
+      "signature": "ilja200120260048",
+      "timestamp": "2026-01-19T23:55:03.543Z",
+      "refinement_path": ".GOV/refinements/WP-1-AI-Job-Model-v4.md"
+    },
+    {
+      "wpId": "WP-1-AI-Job-Model-v4",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-AI-Job-Model-v4",
+      "worktree_dir": "../wt-WP-1-AI-Job-Model-v4",
+      "timestamp": "2026-01-19T23:59:30.845Z"
+    },
+    {
+      "wpId": "WP-1-Cross-Tool-Interaction-Conformance-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Cross-Tool-Interaction-Conformance-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.113.md",
+      "spec_target_sha1": "cf2f5305fc8eec517d577d87365bd9c072a99b0f",
+      "timestamp": "2026-01-21T19:37:18.201Z",
+      "turn_token": "1769024238202"
+    },
+    {
+      "wpId": "WP-1-Cross-Tool-Interaction-Conformance-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja210120262044",
+      "timestamp": "2026-01-21T19:47:11.318Z",
+      "refinement_path": ".GOV/refinements/WP-1-Cross-Tool-Interaction-Conformance-v1.md"
+    },
+    {
+      "wpId": "WP-1-Cross-Tool-Interaction-Conformance-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Cross-Tool-Interaction-Conformance-v1",
+      "worktree_dir": "../wt-WP-1-Cross-Tool-Interaction-Conformance-v1",
+      "timestamp": "2026-01-21T20:01:54.294Z"
+    },
+    {
+      "wpId": "WP-1-Micro-Task-Executor-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Micro-Task-Executor-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.115.md",
+      "spec_target_sha1": "61e500454062bacbe70578ada7989286c0742973",
+      "timestamp": "2026-01-22T04:29:09.463Z",
+      "turn_token": "1769056149464"
+    },
+    {
+      "wpId": "WP-1-Micro-Task-Executor-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja220120260926",
+      "timestamp": "2026-01-22T08:41:01.200Z",
+      "refinement_path": ".GOV/refinements/WP-1-Micro-Task-Executor-v1.md"
+    },
+    {
+      "wpId": "WP-1-Micro-Task-Executor-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Micro-Task-Executor-v1",
+      "worktree_dir": "D:/Projects/LLM",
+      "timestamp": "2026-01-22T08:43:23.814Z"
+    },
+    {
+      "wpId": "WP-1-Micro-Task-Executor-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Micro-Task-Executor-v1",
+      "worktree_dir": "../wt-WP-1-Micro-Task-Executor-v1",
+      "timestamp": "2026-01-22T08:43:52.397Z"
+    },
+    {
+      "wpId": "WP-1-Dev-Experience-ADRs-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Dev-Experience-ADRs-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.115.md",
+      "spec_target_sha1": "61e500454062bacbe70578ada7989286c0742973",
+      "timestamp": "2026-01-23T20:41:51.298Z",
+      "turn_token": "1769200911299"
+    },
+    {
+      "wpId": "WP-1-Dev-Experience-ADRs-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja230120262310",
+      "timestamp": "2026-01-23T22:12:36.769Z",
+      "refinement_path": ".GOV/refinements/WP-1-Dev-Experience-ADRs-v1.md"
+    },
+    {
+      "wpId": "WP-1-Dev-Experience-ADRs-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-B",
+      "branch": "feat/WP-1-Dev-Experience-ADRs-v1",
+      "worktree_dir": "../wt-WP-1-Dev-Experience-ADRs-v1",
+      "timestamp": "2026-01-23T22:28:10.062Z"
+    },
+    {
+      "wpId": "WP-1-AI-Ready-Data-Architecture-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-AI-Ready-Data-Architecture-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.116.md",
+      "spec_target_sha1": "d3b23cd8492345f60bb76ce315dc70efc517604f",
+      "timestamp": "2026-01-25T17:26:13.747Z",
+      "turn_token": "1769361973762"
+    },
+    {
+      "wpId": "WP-1-AI-Ready-Data-Architecture-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja250120262250",
+      "timestamp": "2026-01-25T22:23:49.163Z",
+      "refinement_path": ".GOV/refinements/WP-1-AI-Ready-Data-Architecture-v1.md"
+    },
+    {
+      "wpId": "WP-1-AI-Ready-Data-Architecture-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-AI-Ready-Data-Architecture-v1",
+      "worktree_dir": "../wt-WP-1-AI-Ready-Data-Architecture-v1",
+      "timestamp": "2026-01-25T22:25:56.140Z"
+    },
+    {
+      "wpId": "WP-1-AI-UX-Actions-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-AI-UX-Actions-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.117.md",
+      "spec_target_sha1": "315a015dcfa3362f5aa9593f483a1d155d007323",
+      "timestamp": "2026-01-25T23:43:27.372Z",
+      "turn_token": "1769384607373"
+    },
+    {
+      "wpId": "WP-1-AI-UX-Actions-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja260120260054",
+      "timestamp": "2026-01-26T00:01:14.536Z",
+      "refinement_path": ".GOV/refinements/WP-1-AI-UX-Actions-v2.md"
+    },
+    {
+      "wpId": "WP-1-AI-UX-Actions-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-B",
+      "branch": "feat/WP-1-AI-UX-Actions-v2",
+      "worktree_dir": "../wt-WP-1-AI-UX-Actions-v2",
+      "timestamp": "2026-01-26T00:01:27.432Z"
+    },
+    {
+      "wpId": "WP-1-Global-Silent-Edit-Guard",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Global-Silent-Edit-Guard.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.120.md",
+      "spec_target_sha1": "23df30111694202664fc65fe473106527ace5255",
+      "timestamp": "2026-01-28T15:17:11.075Z",
+      "turn_token": "1769613431076"
+    },
+    {
+      "wpId": "WP-1-Global-Silent-Edit-Guard",
+      "type": "SIGNATURE",
+      "signature": "ilja280120261626",
+      "timestamp": "2026-01-28T15:28:42.686Z",
+      "refinement_path": ".GOV/refinements/WP-1-Global-Silent-Edit-Guard.md"
+    },
+    {
+      "wpId": "WP-1-Global-Silent-Edit-Guard",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Global-Silent-Edit-Guard",
+      "worktree_dir": "../wt-WP-1-Global-Silent-Edit-Guard",
+      "timestamp": "2026-01-28T15:54:27.241Z"
+    },
+    {
+      "wpId": "WP-1-Response-Behavior-ANS-001",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Response-Behavior-ANS-001.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.121.md",
+      "spec_target_sha1": "598f2e56a463e1ddf056d9f89249c5697b68c971",
+      "timestamp": "2026-01-28T19:47:09.297Z",
+      "turn_token": "1769629629297"
+    },
+    {
+      "wpId": "WP-1-Response-Behavior-ANS-001",
+      "type": "SIGNATURE",
+      "signature": "ilja280120261944",
+      "timestamp": "2026-01-28T19:59:18.758Z",
+      "refinement_path": ".GOV/refinements/WP-1-Response-Behavior-ANS-001.md"
+    },
+    {
+      "wpId": "WP-1-Response-Behavior-ANS-001",
+      "type": "PREPARE",
+      "coder_id": "Coder-B",
+      "branch": "feat/WP-1-Response-Behavior-ANS-001",
+      "worktree_dir": "../wt-WP-1-Response-Behavior-ANS-001",
+      "timestamp": "2026-01-28T19:59:27.976Z"
+    },
+    {
+      "wpId": "WP-1-Role-Registry-AppendOnly-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Role-Registry-AppendOnly-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md",
+      "spec_target_sha1": "4d406dcc1a75570d2f17659e0ac40d68a22f211a",
+      "timestamp": "2026-01-30T20:25:39.817Z",
+      "turn_token": "1769804739829"
+    },
+    {
+      "wpId": "WP-1-Role-Registry-AppendOnly-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja300120262137",
+      "timestamp": "2026-01-30T20:38:07.563Z",
+      "refinement_path": ".GOV/refinements/WP-1-Role-Registry-AppendOnly-v1.md"
+    },
+    {
+      "wpId": "WP-1-Role-Registry-AppendOnly-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Role-Registry-AppendOnly-v1",
+      "worktree_dir": "../wt-WP-1-Role-Registry-AppendOnly-v1",
+      "timestamp": "2026-01-30T20:56:11.084Z"
+    },
+    {
+      "wpId": "WP-1-Atelier-Collaboration-Panel-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Atelier-Collaboration-Panel-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md",
+      "spec_target_sha1": "4d406dcc1a75570d2f17659e0ac40d68a22f211a",
+      "timestamp": "2026-01-31T15:15:26.928Z",
+      "turn_token": "1769872526929"
+    },
+    {
+      "wpId": "WP-1-Atelier-Collaboration-Panel-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja310120261839",
+      "timestamp": "2026-01-31T17:40:05.463Z",
+      "refinement_path": ".GOV/refinements/WP-1-Atelier-Collaboration-Panel-v1.md"
+    },
+    {
+      "wpId": "WP-1-Atelier-Collaboration-Panel-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Atelier-Collaboration-Panel-v1",
+      "worktree_dir": "D:/Projects/LLM",
+      "timestamp": "2026-01-31T17:54:31.372Z"
+    },
+    {
+      "wpId": "WP-1-Atelier-Collaboration-Panel-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Atelier-Collaboration-Panel-v1",
+      "worktree_dir": "../wt-WP-1-Atelier-Collaboration-Panel-v1",
+      "timestamp": "2026-01-31T17:55:18.704Z"
+    },
+    {
+      "wpId": "WP-1-Model-Swap-Protocol-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Model-Swap-Protocol-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md",
+      "spec_target_sha1": "4d406dcc1a75570d2f17659e0ac40d68a22f211a",
+      "timestamp": "2026-02-01T14:07:17.087Z",
+      "turn_token": "1769954837087"
+    },
+    {
+      "wpId": "WP-1-AI-UX-Summarize-Display-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-AI-UX-Summarize-Display-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md",
+      "spec_target_sha1": "4d406dcc1a75570d2f17659e0ac40d68a22f211a",
+      "timestamp": "2026-02-01T14:07:21.799Z",
+      "turn_token": "1769954841800"
+    },
+    {
+      "wpId": "WP-1-Model-Swap-Protocol-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja010220261514",
+      "timestamp": "2026-02-01T14:18:43.209Z",
+      "refinement_path": ".GOV/refinements/WP-1-Model-Swap-Protocol-v1.md"
+    },
+    {
+      "wpId": "WP-1-AI-UX-Summarize-Display-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja010220261515",
+      "timestamp": "2026-02-01T14:18:47.475Z",
+      "refinement_path": ".GOV/refinements/WP-1-AI-UX-Summarize-Display-v2.md"
+    },
+    {
+      "wpId": "WP-1-Model-Swap-Protocol-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Model-Swap-Protocol-v1",
+      "worktree_dir": "D:/Projects/LLM",
+      "timestamp": "2026-02-01T14:23:06.701Z"
+    },
+    {
+      "wpId": "WP-1-Model-Swap-Protocol-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Model-Swap-Protocol-v1",
+      "worktree_dir": "../wt-WP-1-Model-Swap-Protocol-v1",
+      "timestamp": "2026-02-01T14:23:32.625Z"
+    },
+    {
+      "wpId": "WP-1-AI-UX-Summarize-Display-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-B",
+      "branch": "feat/WP-1-AI-UX-Summarize-Display-v2",
+      "worktree_dir": "../wt-WP-1-AI-UX-Summarize-Display-v2",
+      "timestamp": "2026-02-01T14:23:39.726Z"
+    },
+    {
+      "wpId": "WP-1-Artifact-System-Foundations-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Artifact-System-Foundations-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md",
+      "spec_target_sha1": "4d406dcc1a75570d2f17659e0ac40d68a22f211a",
+      "timestamp": "2026-02-02T12:24:56.361Z",
+      "turn_token": "1770035096374"
+    },
+    {
+      "wpId": "WP-1-Artifact-System-Foundations-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja020220261405",
+      "timestamp": "2026-02-02T13:10:12.727Z",
+      "refinement_path": ".GOV/refinements/WP-1-Artifact-System-Foundations-v1.md"
+    },
+    {
+      "wpId": "WP-1-Artifact-System-Foundations-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Artifact-System-Foundations-v1",
+      "worktree_dir": "../wt-WP-1-Artifact-System-Foundations-v1",
+      "timestamp": "2026-02-02T13:10:50.293Z"
+    },
+    {
+      "wpId": "WP-1-Product-Governance-Snapshot-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Product-Governance-Snapshot-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md",
+      "spec_target_sha1": "3723a94e78d7d6274b85455b864af15c784d81e2",
+      "timestamp": "2026-02-05T04:24:57.717Z",
+      "turn_token": "1770265497718"
+    }
+  ]
+}

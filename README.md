@@ -5,7 +5,7 @@ This repo contains both the Tauri desktop shell (React + TypeScript) and the Rus
 
 ---
 
-## 📜 [Project Vision & Technical Synthesis](./docs/Papers/HANDSHAKE_VISION_SYNTHESIS.md)
+## [Project Vision & Technical Synthesis](./.GOV/Papers/HANDSHAKE_VISION_SYNTHESIS.md)
 
 *Explore the Handshake vision: A deep-dive into LLM architecture, deterministic governance, and the image descriptor pipeline.*
 
@@ -93,3 +93,4 @@ just lint
   - Frontend shell render test (App header / coordinator status).
 
 Use this README as the reference for how to run, test, and iterate on the current codebase.
+

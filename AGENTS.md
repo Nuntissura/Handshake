@@ -14,6 +14,7 @@
 
 ### Safety commit gate (prevents packet/refinement loss)
 - After creating a WP task packet + refinement and obtaining `USER_SIGNATURE`, create a checkpoint commit on the WP branch that includes:
-  - `docs/task_packets/WP-{ID}.md`
-  - `docs/refinements/WP-{ID}.md`
+  - `.GOV/task_packets/WP-{ID}.md`
+  - `.GOV/refinements/WP-{ID}.md`
 </INSTRUCTIONS>
+

@@ -12,7 +12,7 @@
 
 [CX-010] LAW_1: This codex (`Handshake Codex v1.4`) is the primary implementation + behaviour reference.
 [CX-011] LAW_2: The Handshake Master Spec (`Handshake_Master_Spec_*.md`) defines product intent and architecture; only provided slices are binding in a given session.
-[CX-012] LAW_3: Subsystem specs (L1 docs) in `/docs_local/` are binding when explicitly designated for a task.
+[CX-012] LAW_3: Subsystem specs (L1 docs) in `/.GOV/operator/docs_local/` are binding when explicitly designated for a task.
 [CX-013] LAW_4: Bootloaders (Micro-Logger, Diary, etc.) are additional behavioural LAW when either (a) the user declares the session bootloader-governed, or (b) a bootloader artefact is present in-session and not explicitly disabled.
 
 [CX-020] PRECEDENCE_PRODUCT: For product behaviour and high-level architecture, LAW_2 and relevant LAW_3 override this codex when conflict exists.
@@ -38,7 +38,7 @@
 
 [CX-108] HARD_GIT_WORKTREE_REWRITE_CONSENT (HARD): The assistant MUST NOT run git commands that rewrite/hide the on-disk working tree unless the user explicitly authorizes it in the same turn. This includes: `git stash`, `git checkout`, `git switch`, `git merge`, `git rebase`, `git reset`, and `git clean`.
 
-[CX-598] MAIN-BODY ALIGNMENT INVARIANT (HARD): A Phase or Work Packet is NOT DONE simply by checking off a Roadmap bullet. "Done" is defined as the 100% implementation of every technical rule, schema, and "LAW" block found in the Main Body (§1-6 or §9-11) that governs that roadmap item. This includes every line of text, idea, or constraint in the corresponding Main Body section. If a roadmap item is "checked" but the corresponding Main Body logic is missing, the task is BLOCKED. i as user do not declare a phase finished as everything in the roadmap is done, this means must deliverables as also every other line of text in that phase and the coresponding text, ideas or other in the master spec main body.
+[CX-598] MAIN-BODY ALIGNMENT INVARIANT (HARD): A Phase or Work Packet is NOT DONE simply by checking off a Roadmap bullet. "Done" is defined as the 100% implementation of every technical rule, schema, and "LAW" block found in the Main Body (Sections 1-6 or 9-11) that governs that roadmap item. This includes every line of text, idea, or constraint in the corresponding Main Body section. If a roadmap item is "checked" but the corresponding Main Body logic is missing, the task is BLOCKED. i as user do not declare a phase finished as everything in the roadmap is done, this means must deliverables as also every other line of text in that phase and the coresponding text, ideas or other in the master spec main body.
 
 [CX-598A] ROADMAP_COVERAGE_MATRIX (HARD): The Master Spec Roadmap (7.6.1) MUST maintain a section-level Coverage Matrix listing every non-Roadmap section number (all `## X.Y` headings outside 7.6 plus the top-level `# 9.` section), including whether it is Main Body authority (CX-598) and which phase(s) cover it. If the matrix is missing/incomplete/duplicated/out-of-date, planning and phase-closure claims are BLOCKED until the matrix is corrected via Spec Enrichment.
 
@@ -51,25 +51,33 @@
 [CX-200] ROOT_BACKEND: `/src/backend/` SHOULD host the backend (language-agnostic: Rust/Python/etc.): orchestrator, job engine, services.
 [CX-201] ROOT_FRONTEND: `/src/frontend/` SHOULD host the desktop UI (e.g. Tauri + React).
 [CX-202] ROOT_SHARED: `/src/shared/` SHOULD host shared types, DTOs, and protocol definitions.
-[CX-203] ROOT_DOCS_LOCAL: `/docs_local/` SHOULD host local design docs and subsystem (L1) specs.
+[CX-203] ROOT_DOCS_LOCAL: `/.GOV/operator/docs_local/` SHOULD host local design docs and subsystem (L1) specs.
 [CX-204] ROOT_ARCHIVE: `/archive/` SHOULD host experiments, throwaways, and dead ends only.
-[CX-205] ROOT_SCRIPTS: `/scripts/` SHOULD host dev/ops scripts (setup, run, tests, maintenance).
+[CX-205] ROOT_SCRIPTS: `/.GOV/scripts/` SHOULD host dev/ops scripts (setup, run, tests, maintenance).
 [CX-206] ROOT_TESTS: `/tests/` SHOULD host automated tests (unit, integration, end-to-end).
 [CX-207] ROOT_DOCS: Root `*.md` files SHOULD hold Master Spec, Codex, roadmap, and other high-level docs.
 
-[CX-208] ROOT_DOCS_CANONICAL: `/docs/` MUST contain canonical operational docs used for onboarding, navigation, and debugging.
-[CX-209] NAVIGATION_PACK_FILES: `/docs/` MUST include (at minimum): `START_HERE.md`, `SPEC_CURRENT.md`, `ARCHITECTURE.md`, `RUNBOOK_DEBUG.md`.
-[CX-213] TASK_PACKETS_DIR: `/docs/task_packets/` MUST exist and MUST contain task packet files for all active and recent work.
-[CX-214] ROOT_APP_CURRENT: If `/app/` exists, it SHOULD be treated as the primary application root (frontend in `/app/src/`, backend in `/app/src-tauri/`) unless `docs/ARCHITECTURE.md` explicitly states otherwise.
-[CX-215] DOCS_LOCAL_STAGING: `/docs_local/` SHOULD be treated as staging/drafts. Assistants MUST NOT treat `/docs_local/` as canonical onboarding/debugging guidance unless a document is explicitly promoted into `/docs/`.
-[CX-216] PAST_WORK_INDEX: `/docs/` SHOULD include a `PAST_WORK_INDEX.md` (or equivalent) that links to older root-level specs/logs and `/docs_local/` drafts, so future maintainers can find prior work quickly without guesswork.
+[CX-208] ROOT_DOCS_CANONICAL: `/.GOV/` MUST contain canonical operational docs used for onboarding, navigation, and debugging.
+[CX-209] NAVIGATION_PACK_FILES: `/.GOV/roles_shared/` MUST include (at minimum): `START_HERE.md`, `SPEC_CURRENT.md`, `ARCHITECTURE.md`, `RUNBOOK_DEBUG.md`.
+[CX-213] TASK_PACKETS_DIR: `/.GOV/task_packets/` MUST exist and MUST contain task packet files for all active and recent work.
+[CX-214] ROOT_APP_CURRENT: If `/app/` exists, it SHOULD be treated as the primary application root (frontend in `/app/src/`, backend in `/app/src-tauri/`) unless `.GOV/roles_shared/ARCHITECTURE.md` explicitly states otherwise.
+[CX-215] DOCS_LOCAL_STAGING: `/.GOV/operator/docs_local/` SHOULD be treated as staging/drafts. Assistants MUST NOT treat `/.GOV/operator/docs_local/` as canonical onboarding/debugging guidance unless a document is explicitly promoted into `/.GOV/`.
+[CX-216] PAST_WORK_INDEX: `/.GOV/roles_shared/` SHOULD include a `PAST_WORK_INDEX.md` (or equivalent) that links to older root-level specs/logs and `/.GOV/operator/docs_local/` drafts, so future maintainers can find prior work quickly without guesswork.
 
-[CX-217] TASK_BOARD: `/docs/TASK_BOARD.md` MUST exist and serve as the high-level, at-a-glance status tracker.
+[CX-217] TASK_BOARD: `/.GOV/roles_shared/TASK_BOARD.md` MUST exist and serve as the high-level, at-a-glance status tracker.
 - Orchestrator manages planning states (Ready for Dev/Blocked; Stub Backlog).
 - Coders manage execution state in the **task packet** (set `**Status:** In Progress` + claim fields) and produce a docs-only bootstrap commit early.
 - Validator maintains the Operator-visible `main` Task Board via docs-only "status sync" commits (update `## In Progress`; optionally also update `## Active (Cross-Branch Status)` for branch/coder visibility).
 
+[CX-218] ROLE_MAILBOX (GOV): `/.GOV/ROLE_MAILBOX/` contains leak-safe role exports (approvals/waivers/validation findings/tooling metadata) and MUST pass `just role-mailbox-export-check` when required by a role protocol or WP DONE_MEANS.
+
+[CX-219] AGENTIC_WRAPPER_PROTOCOLS: When running in multi-agent ("agentic") mode, roles MUST also follow their add-on protocols under `/.GOV/roles/<role>/agentic/AGENTIC_PROTOCOL.md` and maintain evidence per `/.GOV/roles_shared/EVIDENCE_LEDGER.md`.
+
 [CX-210] NEW_TOP_DIR_DOC: When new top-level directories are added with user approval, they SHOULD be documented in a future codex version.
+
+[CX-211] GOV_WORKSPACE_BOUNDARY (HARD): `/.GOV/` is the repo governance workspace (role protocols, gates, governance scripts, task packets, refinements, templates, operator materials). **Handshake product runtime** (code under `/src/`, `/app/`, `/tests/`) MUST NOT read from or write to `/.GOV/` under any circumstances.
+[CX-212] DOCS_COMPATIBILITY_BUNDLE: `docs/` MAY exist as a temporary compatibility bundle for legacy product/runtime paths. Governance workflow/tooling MUST NOT treat `docs/` as authoritative governance state; `/.GOV/` is canonical.
+[CX-212A] BOUNDARY_ENFORCEMENT: The repo MUST enforce the boundary via CI/gates: (1) forbid product code string/path references to `/.GOV/`; (2) post-remediation, also forbid runtime-critical reads of `docs/**`.
 
 [CX-220] BACKEND_JOBS: `/src/backend/jobs/` SHOULD contain job engine and concrete job implementations.
 [CX-221] BACKEND_LLM: `/src/backend/llm/` SHOULD contain LLM client abstractions and provider adapters.
@@ -116,16 +124,16 @@
 [CX-332] LOGGING_CONTEXT: Logs SHOULD include enough context (job IDs, doc IDs, user/session IDs where helpful) to debug issues.
 
 [CX-333] LOG_ATTRIBUTION: Work artefacts (task packets, task board entries, milestone logs, review notes, commit messages) SHOULD include a stable `AGENT_ID` and `ROLE` so "who did what" remains searchable months later.
-[CX-334] AGENT_REGISTRY: The repo SHOULD keep an `AGENT_REGISTRY` (`/docs/agents/AGENT_REGISTRY.md`) mapping `AGENT_ID` -> current model/tooling + responsibility; changes to mappings SHOULD be logged.
+[CX-334] AGENT_REGISTRY: The repo SHOULD keep an `AGENT_REGISTRY` (`/.GOV/agents/AGENT_REGISTRY.md`) mapping `AGENT_ID` -> current model/tooling + responsibility; changes to mappings SHOULD be logged.
 [CX-335] LOG_MODEL_LABELS_OPTIONAL: If model/vendor names are captured for convenience, they SHOULD be treated as secondary labels (not primary identifiers) and SHOULD live in structured metadata fields (not scattered through free text), subject to any active bootloader constraints.
 
 ### 4.4 Storage and Persistence
 
 [CX-340] STORAGE_LAYERED: DB/filesystem access SHOULD be centralised in storage modules under `/src/backend/storage/`.
 [CX-341] STORAGE_INDIRECT: Other modules SHOULD go through storage interfaces/services instead of raw DB drivers.
-[CX-342] STORAGE_DOCS: New core tables/collections SHOULD get a short note in `/docs_local/` when they affect core concepts.
+[CX-342] STORAGE_DOCS: New core tables/collections SHOULD get a short note in `/.GOV/operator/docs_local/` when they affect core concepts.
 
-[CX-343] DEBUG_ANCHORS: New errors SHOULD emit stable, searchable anchors (e.g., error codes like `HSK-####` or consistent log tags). `docs/RUNBOOK_DEBUG.md` SHOULD reference those anchors and the primary entrypoints for triage.
+[CX-343] DEBUG_ANCHORS: New errors SHOULD emit stable, searchable anchors (e.g., error codes like `HSK-####` or consistent log tags). `.GOV/roles_shared/RUNBOOK_DEBUG.md` SHOULD reference those anchors and the primary entrypoints for triage.
 
 ---
 
@@ -134,7 +142,7 @@
 [CX-400] SPEC_PRIMARY: When Master Spec or subsystem specs are provided, they are the primary reference for product and architecture.
 [CX-401] SPEC_OVERRULE_PRIORS: Provided specs SHOULD override model priors and generic "best practices" if they conflict.
 
-[CX-402] SPEC_CURRENT_POINTER: If multiple versions of the Master Spec exist in the repo, assistants MUST treat `docs/SPEC_CURRENT.md` as the canonical pointer to the current Master Spec for the active workline/session.
+[CX-402] SPEC_CURRENT_POINTER: If multiple versions of the Master Spec exist in the repo, assistants MUST treat `.GOV/roles_shared/SPEC_CURRENT.md` as the canonical pointer to the current Master Spec for the active workline/session.
 
 [CX-405] SPEC_PROPOSAL_GATE: Before applying any changes to the Master Spec (LAW_2) or Codex (LAW_1), the assistant MUST present a "Spec Proposal" summary to the user.
 
@@ -160,7 +168,7 @@
 ### 6.1 Role and Scope
 
 [CX-500] ROLE_PAIR_DEV: The assistant acts as a pair developer and spec enforcer for this repo.
-[CX-501] ROLE_OBEY_HARD: The assistant MUST obey the hard invariants in §2 unless the user explicitly suspends them for exploration.
+[CX-501] ROLE_OBEY_HARD: The assistant MUST obey the hard invariants in Section 2 unless the user explicitly suspends them for exploration.
 [CX-502] ROLE_OBEY_GUIDE: The assistant SHOULD follow the layout and behavioural guidance in this codex when reasonable.
 [CX-503] ROLE_AI_AUTONOMY: AI assistants are expected to operate autonomously within codex constraints. The human user may not have coding expertise and relies on deterministic workflow enforcement to ensure correctness.
 
@@ -205,7 +213,7 @@
 - PATCHES / CHANGES: concrete changes if relevant.
 - NEXT_STEPS: optional follow-up actions.
 
-[CX-551] DCR_OPTIONAL: The assistant SHOULD internally run a simple Draft → Critique → Refine loop for substantial or risky tasks; this MAY be skipped for small, mechanical edits.
+[CX-551] DCR_OPTIONAL: The assistant SHOULD internally run a simple Draft -> Critique -> Refine loop for substantial or risky tasks; this MAY be skipped for small, mechanical edits.
 [CX-552] SELF_CHECK_SOFT: Before finalising substantial answers, the assistant SHOULD briefly self-check for correctness vs artefacts/specs and for obvious gaps; explicit self-check commentary in the answer is OPTIONAL unless requested.
 [CX-553] RUBRIC_RESPECT: If the user provides a quality rubric/checklist, the assistant MUST respect it and SHOULD say that it followed it.
 [CX-554] NO_SCOPE_SWAP: The assistant MUST NOT silently change, narrow, or expand the user's requested task scope; if it proposes a different or smaller scope, it MUST state this explicitly.
@@ -237,7 +245,7 @@
 | **Hygiene & Best Practices** | Linter fails. Obvious "code smells" (e.g., very large functions, commented-out code, magic numbers) are introduced. | Code passes all linter checks. Follows general best practices for the language and framework. | Code not only passes checks but actively reduces technical debt (e.g., refactors a messy section, improves typing). |
 | **Reporting & Communication**| Report is missing, inaccurate, or does not provide the requested information for validation. | Report is accurate, complete, and provides all information requested in the task packet's `REPORTING` section. | Report provides extra insights, clearly explains complex trade-offs, and proactively identifies future risks or opportunities. |
 
-[CX-573C] VALIDATOR_PROTOCOL: The Validator role MUST follow `docs/VALIDATOR_PROTOCOL.md`. This requires evidence-based inspection (Spec-to-Code mapping, Hygiene Audit, Test Verification) and the production of a structured Validation Report. "Rubber-stamping" (approving without evidence) is strictly prohibited.
+[CX-573C] VALIDATOR_PROTOCOL: The Validator role MUST follow `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`. This requires evidence-based inspection (Spec-to-Code mapping, Hygiene Audit, Test Verification) and the production of a structured Validation Report. "Rubber-stamping" (approving without evidence) is strictly prohibited.
 
 [CX-573D] ZERO_PLACEHOLDER_POLICY (HARD): Production code under `/src/` MUST NOT contain "placeholder" logic, "hollow" structs, or "mock" implementations for core architectural invariants (Tokenization, Security Gates, Storage Guards). If an external dependency is missing, the task is BLOCKED, not "Baseline."
 
@@ -247,42 +255,42 @@
 
 ### 6.8 Bootstrap Navigation Protocol (Non-Negotiable)
 
-[CX-574] BOOTSTRAP_READ_SET: Before proposing changes, debugging, or reviewing, the assistant MUST read: `docs/START_HERE.md` and `docs/SPEC_CURRENT.md` (and the current logger if bootloader is active).
+[CX-574] BOOTSTRAP_READ_SET: Before proposing changes, debugging, or reviewing, the assistant MUST read: `.GOV/roles_shared/START_HERE.md` and `.GOV/roles_shared/SPEC_CURRENT.md` (and the current logger if bootloader is active).
 [CX-575] BOOTSTRAP_TASK_TYPE: The assistant MUST classify the task as one of: `DEBUG | FEATURE | REVIEW | REFACTOR | HYGIENE`.
 [CX-576] BOOTSTRAP_FOLLOWUP_READ: After classification, the assistant MUST read the matching guide:
-- DEBUG -> `docs/RUNBOOK_DEBUG.md`
-- FEATURE/REFACTOR -> `docs/ARCHITECTURE.md`
-- REVIEW -> `docs/ARCHITECTURE.md` + the diff/patch + validation instructions
+- DEBUG -> `.GOV/roles_shared/RUNBOOK_DEBUG.md`
+- FEATURE/REFACTOR -> `.GOV/roles_shared/ARCHITECTURE.md`
+- REVIEW -> `.GOV/roles_shared/ARCHITECTURE.md` + the diff/patch + validation instructions
 [CX-577] BOOTSTRAP_OUTPUT_BLOCK: The assistant's first response in the session MUST include a short BOOTSTRAP block with:
-- FILES_TO_OPEN: 5–15 concrete repo paths it will inspect first.
-- SEARCH_TERMS: 5–20 exact strings/symbols/error codes it will grep.
+- FILES_TO_OPEN: 5-15 concrete repo paths it will inspect first.
+- SEARCH_TERMS: 5-20 exact strings/symbols/error codes it will grep.
 - RUN_COMMANDS: the exact commands it will run (or `UNKNOWN` with explicit TODO placeholders).
-- RISK_MAP: 3–8 likely failure modes and which subsystem they map to.
+- RISK_MAP: 3-8 likely failure modes and which subsystem they map to.
 [CX-577A] BOOTSTRAP_TEMPLATE: The BOOTSTRAP block SHOULD follow this shape:
 ```
 BOOTSTRAP
-- FILES_TO_OPEN: docs/START_HERE.md; docs/SPEC_CURRENT.md; docs/ARCHITECTURE.md; docs/RUNBOOK_DEBUG.md; <feature/debug-specific paths>
+- FILES_TO_OPEN: .GOV/roles_shared/START_HERE.md; .GOV/roles_shared/SPEC_CURRENT.md; .GOV/roles_shared/ARCHITECTURE.md; .GOV/roles_shared/RUNBOOK_DEBUG.md; <feature/debug-specific paths>
 - SEARCH_TERMS: "<key symbol>"; "<error>"; "<command>"; "<feature name>"
 - RUN_COMMANDS: pnpm -C app tauri dev; pnpm -C app test; cargo test --manifest-path src/backend/handshake_core/Cargo.toml; (add task-specific)
 - RISK_MAP: "<risk> -> <subsystem>"; "<risk> -> <subsystem>"
 ```
-[CX-578] NAVIGATION_UPDATE_TRIGGER: When work uncovers new entrypoints, invariants, or a repeatable failure mode, the assistant MUST update the relevant doc in `/docs/` (START_HERE/ARCHITECTURE/RUNBOOK_DEBUG) as part of the same work packet/commit unless the user explicitly defers.
-[CX-579] NAVIGATION_GATE: For non-trivial repo-changing work, the reviewer MUST block completion if no `/docs/` navigation pointer was added/updated (or a clear justification is recorded).
+[CX-578] NAVIGATION_UPDATE_TRIGGER: When work uncovers new entrypoints, invariants, or a repeatable failure mode, the assistant MUST update the relevant doc in `/.GOV/roles_shared/` (START_HERE/ARCHITECTURE/RUNBOOK_DEBUG) as part of the same work packet/commit unless the user explicitly defers.
+[CX-579] NAVIGATION_GATE: For non-trivial repo-changing work, the reviewer MUST block completion if no `/.GOV/roles_shared/` navigation pointer was added/updated (or a clear justification is recorded).
 
 ### 6.9 Orchestrator Task Packet Protocol (AI Autonomy - Mandatory)
 
-[CX-580] ORCH_PACKET_REQUIRED: Orchestrators MUST create a task packet before delegating work that changes Handshake **product code** (`src/`, `app/`, `tests/`) to coder/debugger agents. The packet MUST be written to `docs/task_packets/{WP_ID}.md` OR embedded in the handoff message with full structure.
-Exception (Governance/Workflow): governance/workflow/tooling work that is strictly limited to `docs/`, `scripts/`, `justfile`, and `.github/` does **not** require a Work Packet or USER_SIGNATURE. In that case, delegation MUST still include: explicit scope (paths), rollback hint, and verification commands + outputs.
+[CX-580] ORCH_PACKET_REQUIRED: Orchestrators MUST create a task packet before delegating work that changes Handshake **product code** (`src/`, `app/`, `tests/`) to coder/debugger agents. The packet MUST be written to `.GOV/task_packets/{WP_ID}.md` OR embedded in the handoff message with full structure.
+Exception (Governance/Workflow): governance/workflow/tooling work that is strictly limited to `.GOV/`, `justfile`, and `.github/` does **not** require a Work Packet or USER_SIGNATURE. In that case, delegation MUST still include: explicit scope (paths), rollback hint, and verification commands + outputs.
 
 [CX-580C] ORCH_WP_ID_NAMING (HARD): Work Packet IDs and filenames MUST NOT include date/time stamps. Use `WP-{phase}-{name}` and, if a revision is required, `WP-{phase}-{name}-v{N}` (e.g., `WP-1-Tokenization-Service-v3`).
 Legacy note: historical packets may contain date-coded IDs created before this invariant; do not create new date-stamped packet IDs. All new revisions MUST use `-v{N}`.
 
-[CX-580D] WP_TRACEABILITY_REGISTRY (HARD): Base WP IDs are stable planning identifiers; when multiple packet revisions exist for the same Base WP, the Orchestrator MUST record the mapping (Base WP → Active Packet) in `docs/WP_TRACEABILITY_REGISTRY.md`. Coders and Validators MUST consult the registry; if the mapping is missing or ambiguous, work is BLOCKED until resolved.
+[CX-580D] WP_TRACEABILITY_REGISTRY (HARD): Base WP IDs are stable planning identifiers; when multiple packet revisions exist for the same Base WP, the Orchestrator MUST record the mapping (Base WP -> Active Packet) in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`. Coders and Validators MUST consult the registry; if the mapping is missing or ambiguous, work is BLOCKED until resolved.
 
-[CX-580E] WP_LINEAGE_AUDIT_VARIANTS (HARD): When creating a revision packet (`-v{N}`) for a Base WP, the Orchestrator MUST perform and record a **Lineage Audit** that proves the Base WP (and ALL its prior packet versions) are a correct translation of: Roadmap pointer → Master Spec Main Body → repo code. The audit MUST validate that no requirements were lost/forgotten across versions and that the current repo state satisfies every governing Main Body MUST/SHOULD for that Base WP. If the audit is missing or incomplete, delegation is BLOCKED.
+[CX-580E] WP_LINEAGE_AUDIT_VARIANTS (HARD): When creating a revision packet (`-v{N}`) for a Base WP, the Orchestrator MUST perform and record a **Lineage Audit** that proves the Base WP (and ALL its prior packet versions) are a correct translation of: Roadmap pointer -> Master Spec Main Body -> repo code. The audit MUST validate that no requirements were lost/forgotten across versions and that the current repo state satisfies every governing Main Body MUST/SHOULD for that Base WP. If the audit is missing or incomplete, delegation is BLOCKED.
 
 [CX-580A] ORCH_NO_PRODUCT_CODING_BLOCK (HARD): The Orchestrator role is **STRICTLY FORBIDDEN** from modifying Handshake product code under `src/`, `app/`, or `tests/`. This is an absolute constraint; no automated response or work can override this.
-Clarification: `scripts/` is governance/workflow/tooling surface and MAY be modified by the Orchestrator when needed (e.g., validation gates, packet tooling), as long as no product code is modified and no gate is bypassed.
+Clarification: `.GOV/scripts/` is governance/workflow/tooling surface and MAY be modified by the Orchestrator when needed (e.g., validation gates, packet tooling), as long as no product code is modified and no gate is bypassed.
 
 [CX-580B] ORCH_NO_ROLE_SWITCH (HARD): The Orchestrator role is **STRICTLY FORBIDDEN** from switching to the Coder role. The Orchestrator's turn ends immediately upon task delegation. No automated response or work can override this constraint.
 
@@ -304,18 +312,18 @@ Clarification: `scripts/` is governance/workflow/tooling surface and MAY be modi
 - Path to task packet file (if file-based) OR full packet content (if embedded)
 - WP_ID for traceability
 - RISK_TIER from packet
-- Explicit confirmation: "✅ Task packet {WP_ID} created and verified"
+- Explicit confirmation: "OK: Task packet {WP_ID} created and verified"
 
 [CX-584] ORCH_BLOCKING_RULE: If the orchestrator cannot create a complete packet (unclear requirements, missing context, ambiguous scope), it MUST STOP and request clarification from the user. The orchestrator MUST NOT delegate incomplete or ambiguous work.
 
-[CX-585] ORCH_TASK_BOARD_UPDATE: The orchestrator SHOULD update `docs/TASK_BOARD.md` upon creating a task packet. Logger entries for task creation are OPTIONAL and generally discouraged to avoid noise.
+[CX-585] ORCH_TASK_BOARD_UPDATE: The orchestrator SHOULD update `.GOV/roles_shared/TASK_BOARD.md` upon creating a task packet. Logger entries for task creation are OPTIONAL and generally discouraged to avoid noise.
 
-[CX-585F] TASK_BOARD_ENTRY_FORMAT (HARD): `docs/TASK_BOARD.md` entries MUST be minimal in all non-planning states. Specifically: entries in `## In Progress`, `## Done`, and `## Superseded (Archive)` MUST include only the WP identifier and the current status token (e.g., `[IN_PROGRESS]`, `[VALIDATED]`, `[FAIL]`, `[OUTDATED_ONLY]`, `[SUPERSEDED]`). Planning/backlog lists (e.g., `## Ready for Dev`) MAY contain additional notes temporarily, but final verdict reasoning MUST live in the task packet / validator report (not the Task Board).
+[CX-585F] TASK_BOARD_ENTRY_FORMAT (HARD): `.GOV/roles_shared/TASK_BOARD.md` entries MUST be minimal in all non-planning states. Specifically: entries in `## In Progress`, `## Done`, and `## Superseded (Archive)` MUST include only the WP identifier and the current status token (e.g., `[IN_PROGRESS]`, `[VALIDATED]`, `[FAIL]`, `[OUTDATED_ONLY]`, `[SUPERSEDED]`). Planning/backlog lists (e.g., `## Ready for Dev`) MAY contain additional notes temporarily, but final verdict reasoning MUST live in the task packet / validator report (not the Task Board).
 
 [CX-585A] MANDATORY_SPEC_REFINEMENT (THE STRATEGIC PAUSE): The Orchestrator MUST use the "Refinement Loop" to ensure the Master Spec reflects the detailed design/requirements of the task BEFORE delegation.
 - **Spec-Version Lock:** The Orchestrator is **FORBIDDEN** from outputting a final Task Packet for delegation unless it has **first** created a new version of the Master Spec (`v02.xx+1`) that explicitly defines the technical approach (env vars, signatures, constraints).
 - **The Strategic Pause:** This pause exists to allow the user (non-coder) to enrich the Main Body, especially if methods or software choices deviate from the original plan. Document these shifts in the Main Body for hygiene and provenance.
-- **Pointer Update:** `docs/SPEC_CURRENT.md` MUST point to this new version.
+- **Pointer Update:** `.GOV/roles_shared/SPEC_CURRENT.md` MUST point to this new version.
 - **Delegation Block:** If the Spec does not contain the exact requirements, delegation is BLOCKED. We do not "implement then specify"; we "specify then implement".
 
 [CX-585B] RED_HAT_REVIEW: During the "Proposed" phase, the Orchestrator MUST perform a "Red Hat" review (looking for risks, security flaws, architectural debt) and refine the task packet to address them.
@@ -326,25 +334,25 @@ Clarification: `scripts/` is governance/workflow/tooling surface and MAY be modi
 
 [CX-585E] MAIN_BODY_ENRICHMENT_MANDATORY: Technical details (schemas, API signatures, error codes, logic invariants) MUST be documented in the **Main Body** of the Master Spec (Sections 1-6 or 9-11). The **Roadmap** (Section 7.6) is reserved for high-level scheduling and MUST point to the relevant Main Body section for implementation details. Task Packets MUST reference the Main Body sections as their primary authority.
 
-[CX-585G] REFINEMENT_BLOCK_IN_CHAT (HARD): Before requesting any USER_SIGNATURE or delegating work, the Orchestrator MUST paste the full Technical Refinement Block into the chat for explicit user review/approval. Writing it only to disk (e.g., `docs/refinements/*.md`) is insufficient.
+[CX-585G] REFINEMENT_BLOCK_IN_CHAT (HARD): Before requesting any USER_SIGNATURE or delegating work, the Orchestrator MUST paste the full Technical Refinement Block into the chat for explicit user review/approval. Writing it only to disk (e.g., `.GOV/refinements/*.md`) is insufficient.
 
-[CX-586] ORCH_AUTHORITY_DOCS: Packets MUST include pointers to: `docs/START_HERE.md`, `docs/SPEC_CURRENT.md`, `docs/ARCHITECTURE.md`, `docs/RUNBOOK_DEBUG.md`, `docs/QUALITY_GATE.md` (logger pointer OPTIONAL, only if logger will be used for this WP).
+[CX-586] ORCH_AUTHORITY_DOCS: Packets MUST include pointers to: `.GOV/roles_shared/START_HERE.md`, `.GOV/roles_shared/SPEC_CURRENT.md`, `.GOV/roles_shared/ARCHITECTURE.md`, `.GOV/roles_shared/RUNBOOK_DEBUG.md`, `.GOV/roles_shared/QUALITY_GATE.md` (logger pointer OPTIONAL, only if logger will be used for this WP).
 
 [CX-587] ORCH_PRE_WORK_CHECK: Before delegating, the orchestrator SHOULD run (or instruct the coder to run): `just pre-work {WP_ID}` to verify the packet is complete and system is ready for work.
 
 ### 6.10 Coder Pre-Work Verification (AI Autonomy - Mandatory)
 
-[CX-619] GOV_WORKFLOW_TASKS_NO_WP (EXCEPTION): If the task is governance/workflow/tooling-only and the planned diff is strictly limited to `docs/`, `scripts/`, `justfile`, and `.github/`, a Work Packet is OPTIONAL. In that case, the coder MUST:
+[CX-619] GOV_WORKFLOW_TASKS_NO_WP (EXCEPTION): If the task is governance/workflow/tooling-only and the planned diff is strictly limited to `.GOV/`, `justfile`, and `.github/`, a Work Packet is OPTIONAL. In that case, the coder MUST:
 - Explicitly list the intended changed paths (must not include `src/`, `app/`, or `tests/`).
 - Provide a rollback hint.
-- Run verification commands appropriate to the change (at minimum: `node scripts/validation/codex-check.mjs`) and record outputs.
+- Run verification commands appropriate to the change (at minimum: `node .GOV/scripts/validation/codex-check.mjs`) and record outputs.
 
 [CX-620] CODER_PACKET_CHECK: Before writing any code in Handshake product code (`src/`, `app/`, `tests/`), the coder agent MUST verify a task packet exists by checking:
-1. File exists at `docs/task_packets/WP-*.md` (created recently), OR
+1. File exists at `.GOV/task_packets/WP-*.md` (created recently), OR
 2. Orchestrator message includes complete TASK_PACKET block
 
 [CX-621] CODER_BLOCKING_RULE: If no task packet is found, the coder MUST:
-1. Output: "❌ BLOCKED: No task packet found [CX-620]"
+1. Output: "BLOCKED: No task packet found [CX-620]"
 2. STOP all work immediately
 3. Request task packet from orchestrator or user
 4. DO NOT write any code until packet is verified
@@ -358,7 +366,7 @@ Clarification: `scripts/` is governance/workflow/tooling surface and MAY be modi
 2. Document results in a VALIDATION block
 3. Include command + outcome for each check
 4. For Work Packet work: run `just post-work {WP_ID}` to verify completeness.
-   For governance/workflow work without a Work Packet: run and record the agreed verification commands (at minimum: `node scripts/validation/codex-check.mjs`).
+   For governance/workflow work without a Work Packet: run and record the agreed verification commands (at minimum: `node .GOV/scripts/validation/codex-check.mjs`).
 
 [CX-627] EVIDENCE_MAPPING_REQUIREMENT: The coder's final report MUST include an `EVIDENCE_MAPPING` block mapping every "MUST" requirement from the Spec to specific lines of code.
 
@@ -371,12 +379,12 @@ Clarification: `scripts/` is governance/workflow/tooling surface and MAY be modi
 
 ### 6.12 Determinism Anchors (large-system hygiene)
 
-[CX-640] ANCHOR_ERRORS: New errors SHOULD include stable error codes (`HSK-####`) and/or log tags; these anchors SHOULD be referenced in `docs/RUNBOOK_DEBUG.md` when adding repeatable failures.
-[CX-641] OWNERSHIP_MAP: Area/module ownership SHOULD be captured in `/docs/OWNERSHIP.md` with paths, reviewers, and notes; packets SHOULD consult/update it when adding new surface area.
-[CX-642] PRIMITIVE_TESTS: New primitives/features SHOULD ship with at least one targeted test and a short invariant note (place in `docs/ARCHITECTURE.md` or inline doc comment); silence requires an explicit reason.
+[CX-640] ANCHOR_ERRORS: New errors SHOULD include stable error codes (`HSK-####`) and/or log tags; these anchors SHOULD be referenced in `.GOV/roles_shared/RUNBOOK_DEBUG.md` when adding repeatable failures.
+[CX-641] OWNERSHIP_MAP: Area/module ownership SHOULD be captured in `/.GOV/roles_shared/OWNERSHIP.md` with paths, reviewers, and notes; packets SHOULD consult/update it when adding new surface area.
+[CX-642] PRIMITIVE_TESTS: New primitives/features SHOULD ship with at least one targeted test and a short invariant note (place in `.GOV/roles_shared/ARCHITECTURE.md` or inline doc comment); silence requires an explicit reason.
 [CX-643] CI_GATE: Continuous integration SHOULD run `just validate` (or an equivalent subset) and block merge on failures.
-[CX-644] FLAGS: New interwoven features SHOULD use a feature flag or clearly documented toggle; note the flag/toggle location in `docs/ARCHITECTURE.md` or the relevant module doc.
-[CX-645] ERROR_CODES_REQUIRED: New errors SHOULD introduce stable error codes/log tags (e.g., `HSK-####`) and record them in `docs/RUNBOOK_DEBUG.md` when they become repeatable.
+[CX-644] FLAGS: New interwoven features SHOULD use a feature flag or clearly documented toggle; note the flag/toggle location in `.GOV/roles_shared/ARCHITECTURE.md` or the relevant module doc.
+[CX-645] ERROR_CODES_REQUIRED: New errors SHOULD introduce stable error codes/log tags (e.g., `HSK-####`) and record them in `.GOV/roles_shared/RUNBOOK_DEBUG.md` when they become repeatable.
 [CX-646] TEST_EXPECTATION: Logic changes SHOULD add or update at least one targeted test; if omitted, a written reason MUST be recorded in the review/task packet.
 [CX-647] REVIEW_REQUIRED: Repo-changing work SHOULD have a distinct reviewer role sign off, recording commands run and outcomes.
 [CX-648] SECRETS_AND_SUPPLY_CHAIN: CI SHOULD include secret scanning and dependency audit steps; assistants MUST avoid committing secrets and SHOULD pin critical dependencies/lockfiles.
@@ -385,11 +393,11 @@ Clarification: `scripts/` is governance/workflow/tooling surface and MAY be modi
 
 ### 6.13 Task Packets as Primary Log; Logger Milestone-Only
 
-[CX-650] TASK_LOG_PRIMARY: `docs/TASK_BOARD.md` + the task packet are the primary, mandatory micro-log for day-to-day work. Validation commands/outcomes and status updates MUST be recorded in the task packet. The Handshake logger is optional and reserved for milestones or hard bugs when explicitly requested.
+[CX-650] TASK_LOG_PRIMARY: `.GOV/roles_shared/TASK_BOARD.md` + the task packet are the primary, mandatory micro-log for day-to-day work. Validation commands/outcomes and status updates MUST be recorded in the task packet. The Handshake logger is optional and reserved for milestones or hard bugs when explicitly requested.
 
 [CX-651] LOGGER_USE_CASES: The Handshake logger SHOULD be used only when the user requests it or when recording major milestones/critical incidents. Routine Work Packet completion MUST NOT be blocked on a logger entry.
 
-[CX-652] TASK_PACKET_VALIDATION: Before requesting commit, the coder MUST verify the task packet contains a VALIDATION block with commands run and outcomes, and that `docs/TASK_BOARD.md` reflects the current status.
+[CX-652] TASK_PACKET_VALIDATION: Before requesting commit, the coder MUST verify the task packet contains a VALIDATION block with commands run and outcomes, and that `.GOV/roles_shared/TASK_BOARD.md` reflects the current status.
 
 [CX-653] TASK_PACKET_UNIQUENESS: Each Work Packet MUST have its own task packet file (do not reuse an old file for a new WP). Status/notes/validation may be updated within that WP's file as the work progresses.
 
@@ -399,7 +407,7 @@ Clarification: `scripts/` is governance/workflow/tooling surface and MAY be modi
 - Spec conformance confirmation (DONE_MEANS + SPEC_ANCHOR -> evidence mapping)
 - Validator verdict: PASS | FAIL | OUTDATED_ONLY (only after the Validator reviews evidence and appends a report to the task packet)
 
-[CX-656] TASK_BOARD_VALIDATED_GUARD (HARD): `docs/TASK_BOARD.md` MUST NOT move a WP to `## Done` with `[VALIDATED]` unless an official Validator report is appended to the task packet under `## VALIDATION_REPORTS` and includes:
+[CX-656] TASK_BOARD_VALIDATED_GUARD (HARD): `.GOV/roles_shared/TASK_BOARD.md` MUST NOT move a WP to `## Done` with `[VALIDATED]` unless an official Validator report is appended to the task packet under `## VALIDATION_REPORTS` and includes:
 - Explicit results for the validation taxonomy in [CX-655]
 - Evidence and artifact pointers recorded in the task packet (chat summaries are secondary)
 
@@ -418,8 +426,8 @@ Clarification: `scripts/` is governance/workflow/tooling surface and MAY be modi
 
 [CX-710] BOOTLOADER_STACK: Under a bootloader, the assistant MUST obey:
 - Bootloader rules for logging, timestamps, and schemas.
-- Hard invariants in §2.
-- Spec usage rules in §5.
+- Hard invariants in Section 2.
+- Spec usage rules in Section 5.
 
 [CX-720] BOOTLOADER_SCHEMA_NO_TOUCH: The assistant MUST NOT change bootloader schemas unless explicitly asked to edit the bootloader itself.
 [CX-721] BOOTLOADER_NO_FAKE: The assistant MUST NOT fabricate past log entries or fake history.
@@ -433,9 +441,9 @@ Clarification: `scripts/` is governance/workflow/tooling surface and MAY be modi
 [CX-800] DRIFT_AWARENESS: The assistant SHOULD assume the codex may occasionally lag behind the actual repo; when mismatch is detected, it SHOULD call it out instead of forcing the repo to match a clearly stale rule.
 [CX-801] KNOWN_DEVIATIONS_SECTION: A `KNOWN_DEVIATIONS` section MAY be added by the user to document intentional gaps between codex and reality; assistants SHOULD treat that section as overriding older conflicting rules.
 
-[CX-810] KNOWN_DEVIATION_APP_LAYOUT: The repo currently includes `/app/` (Tauri app). If codex layout guidance conflicts with observed `/app/src` + `/app/src-tauri`, assistants MUST follow the observed layout and document the deviation in `docs/ARCHITECTURE.md`.
-[CX-811] KNOWN_DEVIATION_MULTI_SPECS: The repo may contain multiple `Handshake_Master_Spec_v*.md` versions at root. `docs/SPEC_CURRENT.md` is the authoritative pointer for current work.
-[CX-812] KNOWN_DEVIATION_DOC_SPLIT: `/docs/` is canonical operational guidance; `/docs_local/` is staging/drafts; root-level `*.md` may contain governance/history.
+[CX-810] KNOWN_DEVIATION_APP_LAYOUT: The repo currently includes `/app/` (Tauri app). If codex layout guidance conflicts with observed `/app/src` + `/app/src-tauri`, assistants MUST follow the observed layout and document the deviation in `.GOV/roles_shared/ARCHITECTURE.md`.
+[CX-811] KNOWN_DEVIATION_MULTI_SPECS: The repo may contain multiple `Handshake_Master_Spec_v*.md` versions at root. `.GOV/roles_shared/SPEC_CURRENT.md` is the authoritative pointer for current work.
+[CX-812] KNOWN_DEVIATION_DOC_SPLIT: `/.GOV/` is canonical operational guidance; `/.GOV/operator/docs_local/` is staging/drafts; root-level `*.md` may contain governance/history.
 
 ---
 
@@ -443,7 +451,7 @@ Clarification: `scripts/` is governance/workflow/tooling surface and MAY be modi
 
 [CX-900] ENFORCEMENT_PURPOSE: For AI-autonomous operation, the workflow MUST be enforced by automated scripts and checks. Manual enforcement is insufficient when the human user lacks coding expertise.
 
-[CX-901] ENFORCEMENT_SCRIPTS: The repo MUST include enforcement scripts in `/scripts/validation/`:
+[CX-901] ENFORCEMENT_SCRIPTS: The repo MUST include enforcement scripts in `/.GOV/scripts/validation/`:
 - `pre-work-check.mjs` - Verifies task packet exists before work starts
 - `post-work-check.mjs` - Verifies task packet validation/status (logger only if requested)
 - `task-packet-check.mjs` - Validates packet structure
@@ -471,9 +479,9 @@ Clarification: `scripts/` is governance/workflow/tooling surface and MAY be modi
 3. Remediation steps to fix the issue
 4. AI agents MUST NOT override enforcement without explicit user permission
 
-[CX-906] ENFORCEMENT_PROTOCOLS: The repo MUST include protocol files in `docs/`:
-- `docs/ORCHESTRATOR_PROTOCOL.md` - Mandatory checklist for orchestrators
-- `docs/CODER_PROTOCOL.md` - Mandatory checklist for coders
+[CX-906] ENFORCEMENT_PROTOCOLS: The repo MUST include protocol files in `.GOV/roles/`:
+- `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` - Mandatory checklist for orchestrators
+- `.GOV/roles/coder/CODER_PROTOCOL.md` - Mandatory checklist for coders
 - These protocols MUST be read by AI agents before performing their respective roles
 
 ---
@@ -485,13 +493,13 @@ Clarification: `scripts/` is governance/workflow/tooling surface and MAY be modi
 
 [CX-960] CHANGE_SUMMARY_V08_1: v0.8 strengthens orchestrator and coder requirements from SHOULD to MUST for AI autonomy. Task packet creation [CX-580] and coder pre-work verification [CX-620] are now mandatory and blocking.
 
-[CX-961] CHANGE_SUMMARY_V08_2: v0.8 adds §9 "Automated Enforcement" defining required scripts, hooks, and CI checks to enforce workflow deterministically without relying on AI agent compliance alone.
+[CX-961] CHANGE_SUMMARY_V08_2: v0.8 adds Section 9 "Automated Enforcement" defining required scripts, hooks, and CI checks to enforce workflow deterministically without relying on AI agent compliance alone.
 
-[CX-962] CHANGE_SUMMARY_V08_3: v0.8 clarifies workflow traceability: `docs/TASK_BOARD.md` + task packets are the primary micro-log; the Handshake logger is optional for milestones/hard bugs when explicitly requested.
+[CX-962] CHANGE_SUMMARY_V08_3: v0.8 clarifies workflow traceability: `.GOV/roles_shared/TASK_BOARD.md` + task packets are the primary micro-log; the Handshake logger is optional for milestones/hard bugs when explicitly requested.
 
 [CX-963] CHANGE_SUMMARY_V08_4: v0.8 adds [CX-503] explicitly stating this codex is optimized for AI-autonomous operation where the human user may not have coding expertise.
 
-[CX-964] CHANGE_SUMMARY_V08_5: v0.8 adds [CX-213] requiring `docs/task_packets/` directory and [CX-906] requiring `docs/` protocol files for orchestrator/coder agents.
+[CX-964] CHANGE_SUMMARY_V08_5: v0.8 adds [CX-213] requiring `.GOV/task_packets/` directory and [CX-906] requiring `.GOV/roles/` protocol files for orchestrator/coder agents.
 
 [CX-965] CHANGE_SUMMARY_V11: v1.1 adds [CX-598] and [CX-599] Hard Invariants regarding Main-Body alignment and cross-phase governance continuity. Standardizes versioning metadata across document.
 
@@ -506,15 +514,15 @@ Clarification: `scripts/` is governance/workflow/tooling surface and MAY be modi
 ## SUMMARY FOR AI AGENTS
 
 **If you are an Orchestrator:**
-1. Read `docs/ORCHESTRATOR_PROTOCOL.md` FIRST
+1. Read `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` FIRST
 2. **Refine the Spec FIRST** [CX-585A]
-3. Create task packet (`just create-task-packet WP-{ID}`) — new file per WP
-4. Update `docs/TASK_BOARD.md` to "Ready for Dev"
+3. Create task packet (`just create-task-packet WP-{ID}`) - new file per WP
+4. Update `.GOV/roles_shared/TASK_BOARD.md` to "Ready for Dev"
 5. Verify (`just pre-work WP-{ID}`)
 6. Only then delegate to coder
 
 **If you are a Coder/Debugger:**
-1. Read `docs/CODER_PROTOCOL.md` FIRST
+1. Read `.GOV/roles/coder/CODER_PROTOCOL.md` FIRST
 2. Verify task packet exists [CX-620]
 3. **Extract Verbatim Spec** [CX-624]
 4. **Propose Skeleton/Interface** [CX-625]
@@ -536,3 +544,4 @@ Clarification: `scripts/` is governance/workflow/tooling surface and MAY be modi
 6. Block merge if workflow was bypassed or spec alignment is incomplete
 
 **Blocking rules apply.** If any MUST requirement is violated, work stops until fixed.
+

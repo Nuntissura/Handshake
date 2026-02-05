@@ -39,11 +39,11 @@ jobs:
 
       - name: Docs check
         run: |
-          test -s docs/START_HERE.md
-          test -s docs/SPEC_CURRENT.md
-          test -s docs/ARCHITECTURE.md
-          test -s docs/RUNBOOK_DEBUG.md
-          test -s docs/PAST_WORK_INDEX.md
+          test -s .GOV/roles_shared/START_HERE.md
+          test -s .GOV/roles_shared/SPEC_CURRENT.md
+          test -s .GOV/roles_shared/ARCHITECTURE.md
+          test -s .GOV/roles_shared/RUNBOOK_DEBUG.md
+          test -s .GOV/roles_shared/PAST_WORK_INDEX.md
 
       - name: Codex checks
         run: |
@@ -51,23 +51,25 @@ jobs:
           rg -n "\\bfetch\\s*\\(" app/src | rg -v "app/src/lib/api.ts" && exit 1 || exit 0
           echo "Disallow println!/eprintln! in backend..."
           rg -n "eprintln!|println!" src/backend/handshake_core/src && exit 1 || exit 0
+          echo "Hard boundary: product code must not reference .GOV/ ..."
+          rg -n "\\.GOV[/\\\\]" app/src src/backend/handshake_core/src src/backend/handshake_core/tests && exit 1 || exit 0
           echo "Docs must not reference legacy Codex versions (v0.5-v0.7)..."
-          rg -n "Codex v0\\.5|Codex v0\\.6|Codex v0\\.7|Handshake Codex v0\\.5|Handshake Codex v0\\.6|Handshake Codex v0\\.7" docs --glob '!docs/task_packets/**' --glob '!docs/refinements/**' && exit 1 || exit 0
-          rg -n "Codex v0\\.5|Codex v0\\.6|Codex v0\\.7|Handshake Codex v0\\.5|Handshake Codex v0\\.6|Handshake Codex v0\\.7" docs/task_packets/README.md && exit 1 || exit 0
+          rg -n "Codex v0\\.5|Codex v0\\.6|Codex v0\\.7|Handshake Codex v0\\.5|Handshake Codex v0\\.6|Handshake Codex v0\\.7" .GOV --glob '!.GOV/task_packets/**' --glob '!.GOV/refinements/**' && exit 1 || exit 0
+          rg -n "Codex v0\\.5|Codex v0\\.6|Codex v0\\.7|Handshake Codex v0\\.5|Handshake Codex v0\\.6|Handshake Codex v0\\.7" .GOV/task_packets/README.md && exit 1 || exit 0
           echo "SPEC_CURRENT must reference latest master spec..."
-          node scripts/spec-current-check.mjs
+          node .GOV/scripts/spec-current-check.mjs
           echo "Task Board entries must be minimal..."
-          node scripts/validation/task-board-check.mjs
+          node .GOV/scripts/validation/task-board-check.mjs
           echo "In Progress task packets must include coder claim fields..."
-          node scripts/validation/task-packet-claim-check.mjs
+          node .GOV/scripts/validation/task-packet-claim-check.mjs
           echo "TODOs must include HSK issue tags..."
-          rg -n --pcre2 "TODO(?!\\(HSK-\\d+\\))" app/src src/backend scripts --glob "!scripts/fixtures/**" --glob "!scripts/codex-check-test.mjs" && exit 1 || exit 0
+          rg -n --pcre2 "TODO(?!\\(HSK-\\d+\\))" app/src src/backend .GOV/scripts --glob "!.GOV/scripts/fixtures/**" --glob "!.GOV/scripts/codex-check-test.mjs" && exit 1 || exit 0
 
       - name: Git hygiene (build/cache artifacts)
-        run: node scripts/validation/validator-git-hygiene.mjs
+        run: node .GOV/scripts/validation/validator-git-hygiene.mjs
 
       - name: Codex check tests
-        run: node scripts/codex-check-test.mjs
+        run: node .GOV/scripts/codex-check-test.mjs
 
       - name: Frontend lint
         run: pnpm -C app run lint
@@ -322,4 +324,5 @@ jobs:
           node-version: "20"
 
       - name: Traceability check
-        run: node scripts/validation/ci-traceability-check.mjs
+        run: node .GOV/scripts/validation/ci-traceability-check.mjs
+

@@ -1,0 +1,26 @@
+{
+  "validation_sessions": {
+    "WP-1-Canvas-Typography-v2": {
+      "wpId": "WP-1-Canvas-Typography-v2",
+      "verdict": "PASS",
+      "status": "WP_APPENDED",
+      "started": "2026-01-19T03:47:32.330Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-01-19T03:47:32.331Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-01-19T04:11:19.223Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-01-19T04:27:41.366Z"
+        }
+      ]
+    }
+  },
+  "archived_sessions": []
+}
