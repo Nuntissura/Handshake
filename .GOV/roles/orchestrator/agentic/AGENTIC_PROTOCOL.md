@@ -6,6 +6,18 @@ It does not replace `/.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`; it adds
 
 ---
 
+## 0) Packet metadata (HARD)
+
+If a WP is run in agentic mode:
+- The task packet `## METADATA` MUST set:
+  - `AGENTIC_MODE: YES`
+  - `ORCHESTRATOR_MODEL: ...`
+  - `ORCHESTRATION_STARTED_AT_UTC: ...` (RFC3339 UTC)
+
+Rationale: makes multi-agent provenance auditable even if chat context is truncated.
+
+---
+
 ## 1) Single decision-maker rule (HARD)
 
 - The Orchestrator is the sole decision-maker.

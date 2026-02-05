@@ -32,6 +32,7 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUN
 
 - Assume you have limited context; do not infer missing spec or protocol text.
 - If a requirement is not visible in the packet/refinement/spec slice you have, STOP and ask.
+- If the packet `## METADATA` says `AGENTIC_MODE: YES`, verify `ORCHESTRATOR_MODEL` and `ORCHESTRATION_STARTED_AT_UTC` are present; if missing, STOP (agentic provenance is incomplete).
 
 ---
 

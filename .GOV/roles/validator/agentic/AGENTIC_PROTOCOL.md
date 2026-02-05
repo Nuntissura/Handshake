@@ -20,6 +20,7 @@ It does not replace `/.GOV/roles/validator/VALIDATOR_PROTOCOL.md`; it adds failu
 
 - If a gate is relevant, lack of literal output is a FAIL unless waived.
 - If the orchestrator says "gate passed", but cannot provide the output (or a verifiable hash + retrieval path), treat it as NOT RUN.
+- If the packet `## METADATA` says `AGENTIC_MODE: YES`, require `ORCHESTRATOR_MODEL` and `ORCHESTRATION_STARTED_AT_UTC` to be present before trusting any agentic relay narrative.
 
 Evidence ledger reference: `/.GOV/roles_shared/EVIDENCE_LEDGER.md`.
 
