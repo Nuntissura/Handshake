@@ -1,0 +1,1674 @@
+{
+  "schema_version": "hsk.product_governance_snapshot@0.1",
+  "spec": {
+    "spec_target": "Handshake_Master_Spec_v02.125.md",
+    "spec_sha1": "d16eb1eb5045e858112b2ce477f27aa0200621b0"
+  },
+  "git": {},
+  "inputs": [
+    {
+      "path": ".GOV/roles/orchestrator/ORCHESTRATOR_GATES.json",
+      "sha256": "2d8210ca4afd71f5b77bf1a77b1a11516a3aac51ad856e3df690641e7375c9fb"
+    },
+    {
+      "path": ".GOV/roles_shared/SIGNATURE_AUDIT.md",
+      "sha256": "5cb518f5dede0181b63328816ec9cffcc1dc31cb652bbd32cbad0f6f461849d5"
+    },
+    {
+      "path": ".GOV/roles_shared/SPEC_CURRENT.md",
+      "sha256": "caf1a0a1983397e24a55fc6ff22b1836a1317de3d9a40e83cb73d52f9f5f54b4"
+    },
+    {
+      "path": ".GOV/roles_shared/TASK_BOARD.md",
+      "sha256": "b2d69bfef467786ca38407a308695e62decc457a3947066206e04f45e016b188"
+    },
+    {
+      "path": ".GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md",
+      "sha256": "7865984ddeb99e0b0616b9f00956c6422c0fa2f15566634c2a3fa28aee066c7c"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-ACE-Runtime-v2.json",
+      "sha256": "1e7eb24bc1824514f602cbc03b0a9296bed61ebc636c1fbf07f7095616532733"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-AI-Job-Model-v4.json",
+      "sha256": "91a024580d991290d0bd45b76e42766e5faca640f877a912f58ac9c7c254fc55"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-AI-Ready-Data-Architecture-v1.json",
+      "sha256": "71268650e96cac26437e4af87edf38d505f71c75a489982ef7bafa9c0fe31b11"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-AI-UX-Actions-v2.json",
+      "sha256": "3f0dbc811649728114d649b6c62a08f91076405a4b40af9795d8800195632bc2"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-AI-UX-Summarize-Display-v2.json",
+      "sha256": "52e338d8fabb72e5c0271c3803a6ac940dfa61a1995f373997f282bc3758b839"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-Artifact-System-Foundations-v1.json",
+      "sha256": "7a21e23fe9e7308b68939d7defe27cbeb9c4168c321a7e0cdc06cab99fb43588"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-Atelier-Collaboration-Panel-v1.json",
+      "sha256": "9303b1043fe547613684b2ed908a587793481f6fec7c886d3ad2d93a67a67898"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-Canvas-Typography-v2.json",
+      "sha256": "380c2edb3455346703ee203655ed1dffd0a3fef541cad38989c8ef67ecee981c"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-Capability-SSoT-v2.json",
+      "sha256": "da2579a4205e4b3370da09cd1f2f9a20fad2d875c6c2b901ee365f6b89fdf4f6"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-Cross-Tool-Interaction-Conformance-v1.json",
+      "sha256": "494cd84b109a3cbce675e1a37df82588f98a2c23f8205479a3c2a43303d5cbb6"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-Flight-Recorder-UI-v3.json",
+      "sha256": "650101ac8c6fe2fd51568f86ea7a6b840795d8a80f7b01ad60a164db453eee60"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-Global-Silent-Edit-Guard.json",
+      "sha256": "129dcc9c56b42b2aa67f73f8aacf3223564ca7a753333b715cbc5eb747540fd8"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-Metrics-Mock-Tokens.json",
+      "sha256": "be8c1c113765d336f09cb103231fc166f320a56b5e4bca3d11c6642a4f9034ef"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-Model-Swap-Protocol-v1.json",
+      "sha256": "ad2ee96c705ef6ae441fe69218122149c3aae67a22d7f320c23c962e64f45995"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-Mutation-Traceability-v2.json",
+      "sha256": "f12cce5e4f90fa05419879646eaff6c2674be509dd3eaa92d2e576a74efc6600"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-OSS-Governance-v2.json",
+      "sha256": "952b12d0675b3bd34cf4a86d345d51a9490d8b6458f021400de6d70a3e67dad7"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-Response-Behavior-ANS-001.json",
+      "sha256": "47494cb86784a6257d73cc7b1fac2fa3c0a5a73769b7eecd634216043b83e109"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-Role-Registry-AppendOnly-v1.json",
+      "sha256": "9a52e6fbb82b90ebee68c0320f26490b277bb95f95b564ebb46f9ee323c9db46"
+    },
+    {
+      "path": ".GOV/validator_gates/WP-1-Supply-Chain-MEX-v2.json",
+      "sha256": "39b1eeb6c5b8a05adc64705a3d78df60d04b37640697e77260a751ba602dd4cd"
+    },
+    {
+      "path": "Handshake_Master_Spec_v02.125.md",
+      "sha256": "ca0ee3dc9d8aacc7a914096ed9c85d918891cb29c808f0a531386f491c34cc34"
+    }
+  ],
+  "task_board": {
+    "entries": [
+      {
+        "wp_id": "WP-1-ACE-Auditability",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-ACE-Auditability-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-ACE-Runtime",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-ACE-Runtime-v2",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-ACE-Validators",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-ACE-Validators-v2",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-ACE-Validators-v3",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-ACE-Validators-v4",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-AI-Job-Model-v2",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-AI-Job-Model-v3",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-AI-Job-Model-v4",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-AI-Ready-Data-Architecture-v1",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-AI-UX-Actions",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-AI-UX-Actions-v2",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-AI-UX-Rewrite",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-AI-UX-Rewrite-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-AI-UX-Summarize-Display",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-AI-UX-Summarize-Display-v2",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-AppState-Refactoring",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-AppState-Refactoring-v2",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-AppState-Refactoring-v3",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Artifact-System-Foundations-v1",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Atelier-Collaboration-Panel-v1",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Atelier-Lens",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Atelier-Lens-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Autonomous-Governance-Protocol-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Calendar-Lens",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Calendar-Lens-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Canvas-Typography",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Canvas-Typography-v2",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Capability-SSoT",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Capability-SSoT-v2",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Cloud-Escalation-Consent-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Cross-Tool-Interaction-Conformance-v1",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Debug-Bundle",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Debug-Bundle-v2",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Debug-Bundle-v3",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Dev-Experience-ADRs-v1",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Diagnostic-Pipe",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Distillation",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Distillation-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Dual-Backend-Tests",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Dual-Backend-Tests-v2",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Editor-Hardening",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Editor-Hardening-v2",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Flight-Recorder",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Flight-Recorder-UI",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Flight-Recorder-UI-v2",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Flight-Recorder-UI-v3",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Flight-Recorder-v2",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Flight-Recorder-v3",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Gate-Check-Tool",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Gate-Check-Tool-v2",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Git-Engine-Decision-Gate-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Global-Silent-Edit-Guard",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Global-Silent-Edit-Guard",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Governance-Hooks",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Governance-Hooks-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Governance-Kernel-Conformance-v1",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Governance-Pack-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Governance-Template-Volume-v1",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Governance-Workflow-Mirror-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Inbox-Role-Mailbox-Alignment-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-LLM-Core",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-LLM-Core-v3",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Layerwise-Inference-Foundations-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Lens-Extraction-Tier-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Lens-ViewMode-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-LocalFirst-Agentic-MCP-Posture-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Locus-Work-Tracking-System-Phase1-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-MCP-End-to-End",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-MCP-End-to-End-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-MCP-Skeleton-Gate",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-MCP-Skeleton-Gate-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-MEX-Observability",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-MEX-Observability-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-MEX-Safety-Gates",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-MEX-Safety-Gates-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-MEX-UX-Bridges",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-MEX-UX-Bridges-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-MEX-v1.2-Runtime",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-MEX-v1.2-Runtime-v2",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-MEX-v1.2-Runtime-v3",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Metrics-Mock-Tokens",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Metrics-OTel",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Metrics-OTel-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Metrics-Traces",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Metrics-Traces-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Micro-Task-Executor-v1",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Migration-Framework",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Migration-Framework-v2",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Model-Profiles",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Model-Profiles-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Model-Swap-Protocol-v1",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Mutation-Traceability",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Mutation-Traceability-v2",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-OSS-Governance",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-OSS-Governance-v2",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-OSS-Register-Enforcement-v1",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Operator-Consoles",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Operator-Consoles-v1",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Operator-Consoles-v2",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Operator-Consoles-v3",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-PDF-Pipeline",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-PDF-Pipeline-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Photo-Studio",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Photo-Studio-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Product-Governance-Snapshot-v2",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Product-Governance-Snapshot-v3",
+        "status_token": "IN_PROGRESS"
+      },
+      {
+        "wp_id": "WP-1-RAG-Iterative",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-RAG-Iterative-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Response-Behavior-ANS-001",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Retrieval-Trace-Bundle-Export-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Role-Mailbox-v1",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Role-Registry-AppendOnly-v1",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Role-Turn-Isolation-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Security-Gates",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Security-Gates-v2",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Security-Gates-v3",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Semantic-Catalog",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Semantic-Catalog-v2",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Spec-Authoring-Rubric-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Spec-Router-Session-Log",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Storage-Abstraction-Layer",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Storage-Abstraction-Layer-v2",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Storage-Abstraction-Layer-v3",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Storage-Foundation-20251228",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Storage-Foundation-v3",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Supply-Chain-MEX",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Supply-Chain-MEX-v2",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Terminal-LAW",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Terminal-LAW-v2",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Terminal-LAW-v3",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Tokenization-Service-20251228",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Tokenization-Service-v3",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Validator-Error-Codes-v1",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Work-Profiles-v1",
+        "status_token": "STUB"
+      },
+      {
+        "wp_id": "WP-1-Workflow-Engine-v2",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Workflow-Engine-v3",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Workflow-Engine-v4",
+        "status_token": "VALIDATED"
+      },
+      {
+        "wp_id": "WP-1-Workspace-Bundle",
+        "status_token": "SUPERSEDED"
+      },
+      {
+        "wp_id": "WP-1-Workspace-Bundle-v2",
+        "status_token": "STUB"
+      }
+    ]
+  },
+  "traceability": {
+    "mappings": [
+      {
+        "base_wp_id": "WP-1-ACE-Auditability",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-ACE-Auditability-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-ACE-Runtime",
+        "active_packet_path": ".GOV/task_packets/WP-1-ACE-Runtime-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-ACE-Validators",
+        "active_packet_path": ".GOV/task_packets/WP-1-ACE-Validators-v4.md"
+      },
+      {
+        "base_wp_id": "WP-1-AI-Job-Model",
+        "active_packet_path": ".GOV/task_packets/WP-1-AI-Job-Model-v4.md"
+      },
+      {
+        "base_wp_id": "WP-1-AI-Ready-Data-Architecture",
+        "active_packet_path": ".GOV/task_packets/WP-1-AI-Ready-Data-Architecture-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-AI-UX-Actions",
+        "active_packet_path": ".GOV/task_packets/WP-1-AI-UX-Actions-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-AI-UX-Rewrite",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-AI-UX-Rewrite-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-AI-UX-Summarize-Display",
+        "active_packet_path": ".GOV/task_packets/WP-1-AI-UX-Summarize-Display-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-AppState-Refactoring",
+        "active_packet_path": ".GOV/task_packets/WP-1-AppState-Refactoring-v3.md"
+      },
+      {
+        "base_wp_id": "WP-1-Artifact-System-Foundations",
+        "active_packet_path": ".GOV/task_packets/WP-1-Artifact-System-Foundations-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Atelier-Collaboration-Panel",
+        "active_packet_path": ".GOV/task_packets/WP-1-Atelier-Collaboration-Panel-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Atelier-Lens",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Autonomous-Governance-Protocol",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Autonomous-Governance-Protocol-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Calendar-Lens",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Calendar-Lens-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Canvas-Typography",
+        "active_packet_path": ".GOV/task_packets/WP-1-Canvas-Typography-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Capability-SSoT",
+        "active_packet_path": ".GOV/task_packets/WP-1-Capability-SSoT-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Cloud-Escalation-Consent",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Cloud-Escalation-Consent-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Cross-Tool-Interaction-Conformance",
+        "active_packet_path": ".GOV/task_packets/WP-1-Cross-Tool-Interaction-Conformance-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Debug-Bundle",
+        "active_packet_path": ".GOV/task_packets/WP-1-Debug-Bundle-v3.md"
+      },
+      {
+        "base_wp_id": "WP-1-Dev-Experience-ADRs",
+        "active_packet_path": ".GOV/task_packets/WP-1-Dev-Experience-ADRs-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Distillation",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Distillation-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Dual-Backend-Tests",
+        "active_packet_path": ".GOV/task_packets/WP-1-Dual-Backend-Tests-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Editor-Hardening",
+        "active_packet_path": ".GOV/task_packets/WP-1-Editor-Hardening-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Flight-Recorder",
+        "active_packet_path": ".GOV/task_packets/WP-1-Flight-Recorder-v3.md"
+      },
+      {
+        "base_wp_id": "WP-1-Flight-Recorder-UI",
+        "active_packet_path": ".GOV/task_packets/WP-1-Flight-Recorder-UI-v3.md"
+      },
+      {
+        "base_wp_id": "WP-1-Gate-Check-Tool",
+        "active_packet_path": ".GOV/task_packets/WP-1-Gate-Check-Tool-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Git-Engine-Decision-Gate",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Git-Engine-Decision-Gate-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Global-Silent-Edit-Guard",
+        "active_packet_path": ".GOV/task_packets/WP-1-Global-Silent-Edit-Guard.md"
+      },
+      {
+        "base_wp_id": "WP-1-Governance-Hooks",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Governance-Hooks-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Governance-Kernel-Conformance",
+        "active_packet_path": ".GOV/task_packets/WP-1-Governance-Kernel-Conformance-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Governance-Template-Volume",
+        "active_packet_path": ".GOV/task_packets/WP-1-Governance-Template-Volume-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Governance-Workflow-Mirror",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Governance-Workflow-Mirror-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Inbox-Role-Mailbox-Alignment",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Inbox-Role-Mailbox-Alignment-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-LLM-Core",
+        "active_packet_path": ".GOV/task_packets/WP-1-LLM-Core-v3.md"
+      },
+      {
+        "base_wp_id": "WP-1-Layerwise-Inference-Foundations",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Layerwise-Inference-Foundations-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Lens-Extraction-Tier",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Lens-Extraction-Tier-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Lens-ViewMode",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Lens-ViewMode-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Locus-Work-Tracking-System-Phase1",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Locus-Work-Tracking-System-Phase1-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-MCP-End-to-End",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-MCP-End-to-End-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-MCP-Skeleton-Gate",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-MCP-Skeleton-Gate-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-MEX-Observability",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-MEX-Observability-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-MEX-Safety-Gates",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-MEX-Safety-Gates-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-MEX-UX-Bridges",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-MEX-UX-Bridges-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-MEX-v1.2-Runtime",
+        "active_packet_path": ".GOV/task_packets/WP-1-MEX-v1.2-Runtime-v3.md"
+      },
+      {
+        "base_wp_id": "WP-1-Metrics-Mock-Tokens",
+        "active_packet_path": ".GOV/task_packets/WP-1-Metrics-Mock-Tokens.md"
+      },
+      {
+        "base_wp_id": "WP-1-Metrics-OTel",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Metrics-OTel-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Metrics-Traces",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Metrics-Traces-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Micro-Task-Executor",
+        "active_packet_path": ".GOV/task_packets/WP-1-Micro-Task-Executor-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Migration-Framework",
+        "active_packet_path": ".GOV/task_packets/WP-1-Migration-Framework-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Model-Profiles",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Model-Profiles-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Model-Swap-Protocol",
+        "active_packet_path": ".GOV/task_packets/WP-1-Model-Swap-Protocol-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Mutation-Traceability",
+        "active_packet_path": ".GOV/task_packets/WP-1-Mutation-Traceability-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-OSS-Governance",
+        "active_packet_path": ".GOV/task_packets/WP-1-OSS-Governance-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-OSS-Register-Enforcement",
+        "active_packet_path": ".GOV/task_packets/WP-1-OSS-Register-Enforcement-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Operator-Consoles",
+        "active_packet_path": ".GOV/task_packets/WP-1-Operator-Consoles-v3.md"
+      },
+      {
+        "base_wp_id": "WP-1-PDF-Pipeline",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-PDF-Pipeline-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Photo-Studio",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Photo-Studio-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Product-Governance-Snapshot",
+        "active_packet_path": ".GOV/task_packets/WP-1-Product-Governance-Snapshot-v3.md"
+      },
+      {
+        "base_wp_id": "WP-1-RAG-Iterative",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-RAG-Iterative-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Response-Behavior-ANS-001",
+        "active_packet_path": ".GOV/task_packets/WP-1-Response-Behavior-ANS-001.md"
+      },
+      {
+        "base_wp_id": "WP-1-Retrieval-Trace-Bundle-Export",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Retrieval-Trace-Bundle-Export-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Role-Mailbox",
+        "active_packet_path": ".GOV/task_packets/WP-1-Role-Mailbox-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Role-Registry-AppendOnly",
+        "active_packet_path": ".GOV/task_packets/WP-1-Role-Registry-AppendOnly-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Role-Turn-Isolation",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Role-Turn-Isolation-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Security-Gates",
+        "active_packet_path": ".GOV/task_packets/WP-1-Security-Gates-v3.md"
+      },
+      {
+        "base_wp_id": "WP-1-Semantic-Catalog",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Semantic-Catalog-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Spec-Enrichment-LLM-Core",
+        "active_packet_path": ".GOV/task_packets/WP-1-Spec-Enrichment-LLM-Core-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Spec-Router-Session-Log",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Spec-Router-Session-Log.md"
+      },
+      {
+        "base_wp_id": "WP-1-Storage-Abstraction-Layer",
+        "active_packet_path": ".GOV/task_packets/WP-1-Storage-Abstraction-Layer-v3.md"
+      },
+      {
+        "base_wp_id": "WP-1-Storage-Foundation",
+        "active_packet_path": ".GOV/task_packets/WP-1-Storage-Foundation-v3.md"
+      },
+      {
+        "base_wp_id": "WP-1-Supply-Chain-MEX",
+        "active_packet_path": ".GOV/task_packets/WP-1-Supply-Chain-MEX-v2.md"
+      },
+      {
+        "base_wp_id": "WP-1-Terminal-LAW",
+        "active_packet_path": ".GOV/task_packets/WP-1-Terminal-LAW-v3.md"
+      },
+      {
+        "base_wp_id": "WP-1-Tokenization-Service",
+        "active_packet_path": ".GOV/task_packets/WP-1-Tokenization-Service-v3.md"
+      },
+      {
+        "base_wp_id": "WP-1-Validator-Error-Codes",
+        "active_packet_path": ".GOV/task_packets/WP-1-Validator-Error-Codes-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Work-Profiles",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Work-Profiles-v1.md"
+      },
+      {
+        "base_wp_id": "WP-1-Workflow-Engine",
+        "active_packet_path": ".GOV/task_packets/WP-1-Workflow-Engine-v4.md"
+      },
+      {
+        "base_wp_id": "WP-1-Workspace-Bundle",
+        "active_packet_path": ".GOV/task_packets/stubs/WP-1-Workspace-Bundle-v2.md"
+      }
+    ]
+  },
+  "signatures": {
+    "consumed": [
+      {
+        "signature": "ilja010120260219",
+        "purpose": "Task packet creation: WP-1-Tokenization-Service-v3",
+        "wp_id": "WP-1-Tokenization-Service-v3"
+      },
+      {
+        "signature": "ilja010120260602",
+        "purpose": "Spec Enrichment v02.100 (TokenizationService sync/async bridge)"
+      },
+      {
+        "signature": "ilja010120261446",
+        "purpose": "Task packet creation: WP-1-Flight-Recorder-v3",
+        "wp_id": "WP-1-Flight-Recorder-v3"
+      },
+      {
+        "signature": "ilja010120261528",
+        "purpose": "Task packet creation: WP-1-OSS-Register-Enforcement-v1",
+        "wp_id": "WP-1-OSS-Register-Enforcement-v1"
+      },
+      {
+        "signature": "ilja010120262218",
+        "purpose": "Task packet creation: WP-1-Terminal-LAW-v3",
+        "wp_id": "WP-1-Terminal-LAW-v3"
+      },
+      {
+        "signature": "ilja010120262219",
+        "purpose": "Task packet creation: WP-1-MEX-v1.2-Runtime-v3",
+        "wp_id": "WP-1-MEX-v1"
+      },
+      {
+        "signature": "ilja010220261514",
+        "purpose": "Task packet creation: WP-1-Model-Swap-Protocol-v1",
+        "wp_id": "WP-1-Model-Swap-Protocol-v1"
+      },
+      {
+        "signature": "ilja010220261515",
+        "purpose": "Task packet creation: WP-1-AI-UX-Summarize-Display-v2",
+        "wp_id": "WP-1-AI-UX-Summarize-Display-v2"
+      },
+      {
+        "signature": "ilja020120262232",
+        "purpose": "Task packet creation: WP-1-Operator-Consoles-v3",
+        "wp_id": "WP-1-Operator-Consoles-v3"
+      },
+      {
+        "signature": "ilja020220261405",
+        "purpose": "Task packet creation: WP-1-Artifact-System-Foundations-v1",
+        "wp_id": "WP-1-Artifact-System-Foundations-v1"
+      },
+      {
+        "signature": "ilja040120260108",
+        "purpose": "Task packet creation: WP-1-Spec-Enrichment-LLM-Core-v1",
+        "wp_id": "WP-1-Spec-Enrichment-LLM-Core-v1"
+      },
+      {
+        "signature": "ilja040120260217",
+        "purpose": "Task packet creation: WP-1-LLM-Core-v3",
+        "wp_id": "WP-1-LLM-Core-v3"
+      },
+      {
+        "signature": "ilja050220260910",
+        "purpose": "Spec Enrichment v02.124 (governance boundary + pack path update; runtime gov state dir `.handshake/gov/`)"
+      },
+      {
+        "signature": "ilja050220261935",
+        "purpose": "Task packet creation: WP-1-Product-Governance-Snapshot-v2",
+        "wp_id": "WP-1-Product-Governance-Snapshot-v2"
+      },
+      {
+        "signature": "ilja060120262333",
+        "purpose": "Task packet creation: WP-1-Dual-Backend-Tests-v2",
+        "wp_id": "WP-1-Dual-Backend-Tests-v2"
+      },
+      {
+        "signature": "ilja060220260754",
+        "purpose": "Spec Enrichment v02.125 (Product Governance Snapshot: add 7.5.4.10 with canonical whitelist + deterministic schema)"
+      },
+      {
+        "signature": "ilja060220260923",
+        "purpose": "Task packet creation: WP-1-Product-Governance-Snapshot-v3",
+        "wp_id": "WP-1-Product-Governance-Snapshot-v3"
+      },
+      {
+        "signature": "ilja070120260018",
+        "purpose": "Task packet creation: WP-1-ACE-Validators-v4",
+        "wp_id": "WP-1-ACE-Validators-v4"
+      },
+      {
+        "signature": "ilja070120260227",
+        "purpose": "Scope expansion approval: WP-1-ACE-Validators-v4",
+        "wp_id": "WP-1-ACE-Validators-v4"
+      },
+      {
+        "signature": "ilja070120261338",
+        "purpose": "Waiver approval: WAIVER-ACE-VAL-V4-002/003"
+      },
+      {
+        "signature": "ilja080120262305",
+        "purpose": "Spec update: v02.102 roadmap audit + governance sync"
+      },
+      {
+        "signature": "ilja080120262313",
+        "purpose": "Spec update: v02.103 intent audit + roadmap/taskboard/stubs sync"
+      },
+      {
+        "signature": "ilja090120261951",
+        "purpose": "Task packet creation: WP-1-Storage-Abstraction-Layer-v3",
+        "wp_id": "WP-1-Storage-Abstraction-Layer-v3"
+      },
+      {
+        "signature": "ilja090120262335",
+        "purpose": "Task packet creation: WP-1-AppState-Refactoring-v3",
+        "wp_id": "WP-1-AppState-Refactoring-v3"
+      },
+      {
+        "signature": "ilja100120262214",
+        "purpose": "Spec update: v02.104 Roadmap Coverage Matrix (section-level determinism)"
+      },
+      {
+        "signature": "ilja110120260038",
+        "purpose": "Spec update: v02.105 Roadmap Coverage Matrix phase allocation + roadmap sync"
+      },
+      {
+        "signature": "ilja110120262355",
+        "purpose": "Spec update: v02.106 migration governance (heavy per-file replay safety + Phase 1 down migrations)"
+      },
+      {
+        "signature": "ilja120120260049",
+        "purpose": "Task packet creation: WP-1-Migration-Framework-v2",
+        "wp_id": "WP-1-Migration-Framework-v2"
+      },
+      {
+        "signature": "ilja120120260452",
+        "purpose": "Spec update: v02.107 governance kernel + cross-tool interaction map + local-first agentic/MCP posture"
+      },
+      {
+        "signature": "ilja120120262149",
+        "purpose": "Spec update: v02.108 governance pack + role mailbox + spec authoring rubric + trinity enforcement"
+      },
+      {
+        "signature": "ilja130120260124",
+        "purpose": "Spec update: v02.109 Governance Pack Template Volume + PROJECT_INVARIANTS requirement"
+      },
+      {
+        "signature": "ilja130120260438",
+        "purpose": "Spec update: v02.110 fix VALIDATOR_GATES template drift"
+      },
+      {
+        "signature": "ilja130120260459",
+        "purpose": "Spec update: v02.111 template volume - add rubrics + migration guide + moved-template shims"
+      },
+      {
+        "signature": "ilja150120260214",
+        "purpose": "Spec update: v02.112 Role Mailbox hardening (dedicated FR event schemas + leak-safe export + mechanical gate)"
+      },
+      {
+        "signature": "ilja150120260254",
+        "purpose": "Task packet creation: WP-1-Role-Mailbox-v1",
+        "wp_id": "WP-1-Role-Mailbox-v1"
+      },
+      {
+        "signature": "ilja160120260327",
+        "purpose": "Task packet creation: WP-1-Governance-Template-Volume-v1",
+        "wp_id": "WP-1-Governance-Template-Volume-v1"
+      },
+      {
+        "signature": "ilja160120262149",
+        "purpose": "Task packet creation: WP-1-Governance-Kernel-Conformance-v1",
+        "wp_id": "WP-1-Governance-Kernel-Conformance-v1"
+      },
+      {
+        "signature": "ilja160120262314",
+        "purpose": "Task packet creation: WP-1-Editor-Hardening-v2",
+        "wp_id": "WP-1-Editor-Hardening-v2"
+      },
+      {
+        "signature": "ilja170120260225",
+        "purpose": "Spec update: v02.113 governance workflow hardening (per-WP validator gates + activation traceability)"
+      },
+      {
+        "signature": "ilja170120262249",
+        "purpose": "Task packet creation: WP-1-Supply-Chain-MEX-v2",
+        "wp_id": "WP-1-Supply-Chain-MEX-v2"
+      },
+      {
+        "signature": "ilja170120262341",
+        "purpose": "Task packet creation: WP-1-Flight-Recorder-UI-v3",
+        "wp_id": "WP-1-Flight-Recorder-UI-v3"
+      },
+      {
+        "signature": "ilja180120261552",
+        "purpose": "Task packet creation: WP-1-Capability-SSoT-v2",
+        "wp_id": "WP-1-Capability-SSoT-v2"
+      },
+      {
+        "signature": "ilja180120261630",
+        "purpose": "Task packet creation: WP-1-Mutation-Traceability-v2",
+        "wp_id": "WP-1-Mutation-Traceability-v2"
+      },
+      {
+        "signature": "ilja180120261659",
+        "purpose": "Task packet creation: WP-1-ACE-Runtime-v2",
+        "wp_id": "WP-1-ACE-Runtime-v2"
+      },
+      {
+        "signature": "ilja180120262320",
+        "purpose": "Task packet creation: WP-1-Metrics-Mock-Tokens",
+        "wp_id": "WP-1-Metrics-Mock-Tokens"
+      },
+      {
+        "signature": "ilja190120260138",
+        "purpose": "Task packet creation: WP-1-Canvas-Typography-v2",
+        "wp_id": "WP-1-Canvas-Typography-v2"
+      },
+      {
+        "signature": "ilja190120260239",
+        "purpose": "Override: edit locked task packet WP-1-Canvas-Typography-v2",
+        "wp_id": "WP-1-Canvas-Typography-v2"
+      },
+      {
+        "signature": "ilja190120260338",
+        "purpose": "Task packet creation: WP-1-OSS-Governance-v2",
+        "wp_id": "WP-1-OSS-Governance-v2"
+      },
+      {
+        "signature": "ilja200120260048",
+        "purpose": "Task packet creation: WP-1-AI-Job-Model-v4",
+        "wp_id": "WP-1-AI-Job-Model-v4"
+      },
+      {
+        "signature": "ilja210120262044",
+        "purpose": "Task packet creation: WP-1-Cross-Tool-Interaction-Conformance-v1",
+        "wp_id": "WP-1-Cross-Tool-Interaction-Conformance-v1"
+      },
+      {
+        "signature": "ilja220120260926",
+        "purpose": "Task packet creation: WP-1-Micro-Task-Executor-v1",
+        "wp_id": "WP-1-Micro-Task-Executor-v1"
+      },
+      {
+        "signature": "ilja230120262310",
+        "purpose": "Task packet creation: WP-1-Dev-Experience-ADRs-v1",
+        "wp_id": "WP-1-Dev-Experience-ADRs-v1"
+      },
+      {
+        "signature": "ilja250120261843",
+        "purpose": "Spec Enrichment v02.117 (complete FR-EVT-DATA schemas in \\u00A711.5.5)"
+      },
+      {
+        "signature": "ilja250120262250",
+        "purpose": "Task packet creation: WP-1-AI-Ready-Data-Architecture-v1",
+        "wp_id": "WP-1-AI-Ready-Data-Architecture-v1"
+      },
+      {
+        "signature": "ilja251220250037",
+        "purpose": "Spec Enrichment v02.86 (Flight Recorder Normative Traits)"
+      },
+      {
+        "signature": "ilja251220250328",
+        "purpose": "Spec Enrichment & WP creation foundation"
+      },
+      {
+        "signature": "ilja251220251542",
+        "purpose": "Delegation of WP-1-Storage-Abstraction-Layer to Coder",
+        "wp_id": "WP-1-Storage-Abstraction-Layer"
+      },
+      {
+        "signature": "ilja251220251729",
+        "purpose": "Task packet activation: WP-1-Migration-Framework",
+        "wp_id": "WP-1-Migration-Framework"
+      },
+      {
+        "signature": "ilja251220251821",
+        "purpose": "Task packet activation: WP-1-Terminal-Integration-Baseline",
+        "wp_id": "WP-1-Terminal-Integration-Baseline"
+      },
+      {
+        "signature": "ilja251220252005",
+        "purpose": "Task packet activation: WP-1-Capability-SSoT",
+        "wp_id": "WP-1-Capability-SSoT"
+      },
+      {
+        "signature": "ilja251220252013",
+        "purpose": "Task packet activation: WP-1-Retention-GC",
+        "wp_id": "WP-1-Retention-GC"
+      },
+      {
+        "signature": "ilja251220252304",
+        "purpose": "Spec Enrichment v02.85 (ACE-RAG-001 Normative Traits)"
+      },
+      {
+        "signature": "ilja251220252310",
+        "purpose": "Spec Enrichment v02.85 (Mutation Traceability Normative Traits)"
+      },
+      {
+        "signature": "ilja251225032800",
+        "purpose": "Strategic Pause: Spec enrichment for Phase 1 storage foundation"
+      },
+      {
+        "signature": "ilja251225041500",
+        "purpose": "Task packet creation: WP-1-Storage-Abstraction-Layer",
+        "wp_id": "WP-1-Storage-Abstraction-Layer"
+      },
+      {
+        "signature": "ilja260120260054",
+        "purpose": "Task packet creation: WP-1-AI-UX-Actions-v2",
+        "wp_id": "WP-1-AI-UX-Actions-v2"
+      },
+      {
+        "signature": "ilja260120260102",
+        "purpose": "Spec Enrichment v02.118 (Tree-sitter parser requirement + Shadow Workspace root mapping + FR-EVT-DATA-015 query_hash privacy clarification)"
+      },
+      {
+        "signature": "ilja260120260248",
+        "purpose": "Spec update: v02.119 non-normative AI UX notes (Command Palette shortcuts + global jobs UI model)"
+      },
+      {
+        "signature": "ilja260120261908",
+        "purpose": "Spec Enrichment v02.121 (ANS-001: frontend session chat log + UI toggles + side-panel timeline + FR-EVT-RUNTIME-CHAT-101..103 + EXEC-060 compliance logging)"
+      },
+      {
+        "signature": "ilja261220250045",
+        "purpose": "Spec Enrichment v02.87 (LLM Core Normative Traits)"
+      },
+      {
+        "signature": "ilja261220250149",
+        "purpose": "Spec Enrichment v02.88 (AI Job Model Normative Traits)"
+      },
+      {
+        "signature": "ilja261220250201",
+        "purpose": "Spec Enrichment v02.89 (ACE Security Guard Requirements)"
+      },
+      {
+        "signature": "ilja261220250259",
+        "purpose": "Spec Enrichment v02.90 (Storage Purity & Workflow Persistence)"
+      },
+      {
+        "signature": "ilja261220250312",
+        "purpose": "Task packet activation: WP-1-Workflow-Engine-v2",
+        "wp_id": "WP-1-Workflow-Engine-v2"
+      },
+      {
+        "signature": "ilja261220252202",
+        "purpose": "Spec Enrichment v02.91 (Hardened Security Enforcement)"
+      },
+      {
+        "signature": "ilja261220252215",
+        "purpose": "Spec Enrichment v02.92 (AI Job Model Hardening)"
+      },
+      {
+        "signature": "ilja261220252337",
+        "purpose": "(INVALID - REUSED BY ERROR)"
+      },
+      {
+        "signature": "ilja271220250057",
+        "purpose": "Spec Enrichment v02.93 (Startup Recovery)"
+      },
+      {
+        "signature": "ilja280120261626",
+        "purpose": "Task packet creation: WP-1-Global-Silent-Edit-Guard",
+        "wp_id": "WP-1-Global-Silent-Edit-Guard"
+      },
+      {
+        "signature": "ilja280120261944",
+        "purpose": "Task packet creation: WP-1-Response-Behavior-ANS-001",
+        "wp_id": "WP-1-Response-Behavior-ANS-001"
+      },
+      {
+        "signature": "ilja281220250353",
+        "purpose": "Spec Enrichment v02.94 (Storage Audit) & WP-1-Storage-Foundation-v2",
+        "wp_id": "WP-1-Storage-Foundation-v2"
+      },
+      {
+        "signature": "ilja281220250435",
+        "purpose": "Spec Enrichment v02.95 (Tokenizer Trait) & WP-1-Tokenization-Service-v2",
+        "wp_id": "WP-1-Tokenization-Service-v2"
+      },
+      {
+        "signature": "ilja281220250519",
+        "purpose": "Task packet creation: WP-1-Flight-Recorder-v2",
+        "wp_id": "WP-1-Flight-Recorder-v2"
+      },
+      {
+        "signature": "ilja281220250525",
+        "purpose": "Spec Enrichment v02.96 (Reconcile Â§7.6.3 SqlitePool)"
+      },
+      {
+        "signature": "ilja281220251500",
+        "purpose": "Task packet creation: WP-1-Security-Gates-20251228",
+        "wp_id": "WP-1-Security-Gates-20251228"
+      },
+      {
+        "signature": "ilja281220251700",
+        "purpose": "Task packet creation: WP-1-Terminal-LAW-v2",
+        "wp_id": "WP-1-Terminal-LAW-v2"
+      },
+      {
+        "signature": "ilja281220251740",
+        "purpose": "Task packet creation: WP-1-MEX-v1.2-Runtime-v2",
+        "wp_id": "WP-1-MEX-v1"
+      },
+      {
+        "signature": "ilja281220251911",
+        "purpose": "Task packet creation: WP-1-Operator-Consoles-v1",
+        "wp_id": "WP-1-Operator-Consoles-v1"
+      },
+      {
+        "signature": "ilja281220252016",
+        "purpose": "Spec Enrichment v02.97 (Operator Consoles Technical Detail)"
+      },
+      {
+        "signature": "ilja290120260236",
+        "purpose": "Override: extend scope of locked task packet WP-1-Response-Behavior-ANS-001",
+        "wp_id": "WP-1-Response-Behavior-ANS-001"
+      },
+      {
+        "signature": "ilja300120262137",
+        "purpose": "Task packet creation: WP-1-Role-Registry-AppendOnly-v1",
+        "wp_id": "WP-1-Role-Registry-AppendOnly-v1"
+      },
+      {
+        "signature": "ilja310120261839",
+        "purpose": "Task packet creation: WP-1-Atelier-Collaboration-Panel-v1",
+        "wp_id": "WP-1-Atelier-Collaboration-Panel-v1"
+      },
+      {
+        "signature": "ilja311220250445",
+        "purpose": "Task packet creation: WP-1-Storage-Foundation-v3",
+        "wp_id": "WP-1-Storage-Foundation-v3"
+      },
+      {
+        "signature": "ilja311220251755",
+        "purpose": "Spec Enrichment v02.99 (JobKind/JobState alignment + FR-EVT-WF-RECOVERY)"
+      },
+      {
+        "signature": "ilja311220251846",
+        "purpose": "Task packet creation: WP-1-Workflow-Engine-v4",
+        "wp_id": "WP-1-Workflow-Engine-v4"
+      },
+      {
+        "signature": "ilja311220251916",
+        "purpose": "Task packet creation: WP-1-Gate-Check-Tool-v2",
+        "wp_id": "WP-1-Gate-Check-Tool-v2"
+      },
+      {
+        "signature": "ilja311220252043",
+        "purpose": "Task packet creation: WP-1-Security-Gates-v3",
+        "wp_id": "WP-1-Security-Gates-v3"
+      }
+    ]
+  },
+  "gates": {
+    "orchestrator": {
+      "last_refinement": "WP-1-Product-Governance-Snapshot-v3",
+      "last_signature": "ilja060220260923",
+      "last_prepare": "WP-1-Product-Governance-Snapshot-v3"
+    },
+    "validator": {
+      "wp_gate_summaries": [
+        {
+          "wp_id": "WP-1-ACE-Runtime-v2",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-AI-Job-Model-v4",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-AI-Ready-Data-Architecture-v1",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-AI-UX-Actions-v2",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-AI-UX-Summarize-Display-v2",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-Artifact-System-Foundations-v1",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-Atelier-Collaboration-Panel-v1",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-Canvas-Typography-v2",
+          "verdict": "PASS",
+          "status": "WP_APPENDED",
+          "gates_passed": [
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-Capability-SSoT-v2",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-Cross-Tool-Interaction-Conformance-v1",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-Flight-Recorder-UI-v3",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-Global-Silent-Edit-Guard",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-Metrics-Mock-Tokens",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-Model-Swap-Protocol-v1",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-Mutation-Traceability-v2",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-OSS-Governance-v2",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-Response-Behavior-ANS-001",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-Role-Registry-AppendOnly-v1",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        },
+        {
+          "wp_id": "WP-1-Supply-Chain-MEX-v2",
+          "verdict": "PASS",
+          "status": "COMMITTED",
+          "gates_passed": [
+            "COMMITTED",
+            "REPORT_PRESENTED",
+            "USER_ACKNOWLEDGED",
+            "WP_APPENDED"
+          ]
+        }
+      ]
+    }
+  }
+}

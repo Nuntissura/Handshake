@@ -172,6 +172,13 @@ gate-check wp-id:
 role-mailbox-export-check:
 	@node .GOV/scripts/validation/role_mailbox_export_check.mjs
 
+# Product Governance Snapshot (Spec v02.125 7.5.4.10)
+governance-snapshot:
+	@node .GOV/scripts/governance-snapshot.mjs
+
+validator-governance-snapshot:
+	@node .GOV/scripts/validation/validator-governance-snapshot.mjs
+
 # Validator helpers (protocol-aligned)
 validator-scan:
 	@node .GOV/scripts/validation/validator-scan.mjs
