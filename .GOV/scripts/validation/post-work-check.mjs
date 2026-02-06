@@ -459,7 +459,7 @@ if (isModernPacket) {
   if (!evidenceMapping) {
     errors.push('Missing ## EVIDENCE_MAPPING section (required for modern packets)');
   } else {
-    const hasFileLine = /\b(?:src\/|app\/|.GOV\\/|.GOV\\scripts\\/)[^`\s]*:\d+\b/i.test(evidenceMapping);
+    const hasFileLine = /(?:src[\\/]|app[\\/]|\\.GOV[\\/])[^`\s]*:\d+\b/i.test(evidenceMapping);
     if (!hasFileLine) {
       errors.push('EVIDENCE_MAPPING has no file:line evidence (add REQUIREMENT -> EVIDENCE: path:line entries)');
     }
@@ -783,5 +783,4 @@ if (errors.length === 0) {
   console.log('See: .GOV/roles/coder/CODER_PROTOCOL.md');
   process.exit(1);
 }
-
 

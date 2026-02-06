@@ -44,7 +44,13 @@
 
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- NONE
+- Waiver ID: WAIVER-2026-02-06-POSTWORK-REGEX
+  - Date: 2026-02-06
+  - Scope: Permit editing `.GOV/scripts/validation/post-work-check.mjs` to fix a SyntaxError blocking `just post-work`.
+  - Justification: `just post-work` is mandatory in TEST_PLAN; gate tooling regex was invalid and prevented execution.
+  - Approver: ilja (user)
+  - Expiry: WP-1-Product-Governance-Snapshot-v3 validation complete
+  - Ref: CX-573F
 
 ## QUALITY_GATE
 ### TEST_PLAN
