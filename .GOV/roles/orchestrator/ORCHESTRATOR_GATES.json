@@ -1024,6 +1024,38 @@
       "spec_target_sha1": "3723a94e78d7d6274b85455b864af15c784d81e2",
       "timestamp": "2026-02-05T04:24:57.717Z",
       "turn_token": "1770265497718"
+    },
+    {
+      "wpId": "WP-1-Product-Governance-Snapshot-v3",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Product-Governance-Snapshot-v3.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.125.md",
+      "spec_target_sha1": "d16eb1eb5045e858112b2ce477f27aa0200621b0",
+      "timestamp": "2026-02-06T07:02:38.329Z",
+      "turn_token": "1770361358330"
+    },
+    {
+      "wpId": "WP-1-Product-Governance-Snapshot-v3",
+      "type": "SIGNATURE",
+      "signature": "ilja060220260923",
+      "timestamp": "2026-02-06T12:42:34.563Z",
+      "refinement_path": ".GOV/refinements/WP-1-Product-Governance-Snapshot-v3.md"
+    },
+    {
+      "wpId": "WP-1-Product-Governance-Snapshot-v3",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Product-Governance-Snapshot-v3-gov",
+      "worktree_dir": "D:/Projects/LLM",
+      "timestamp": "2026-02-06T13:37:51.896Z"
+    },
+    {
+      "wpId": "WP-1-Product-Governance-Snapshot-v3",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Product-Governance-Snapshot-v3-gov",
+      "worktree_dir": "../wt-WP-1-Product-Governance-Snapshot-v3-gov",
+      "timestamp": "2026-02-06T13:40:35.262Z"
     }
   ]
 }

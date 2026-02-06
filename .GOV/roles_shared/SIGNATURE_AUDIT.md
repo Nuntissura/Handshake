@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-02-05
+**Updated:** 2026-02-06
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,9 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja060220260923 | Orchestrator | 2026-02-06 09:23 | Task packet creation: WP-1-Product-Governance-Snapshot-v3 | v02.125 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Product-Governance-Snapshot-v3.md ). |
+| ilja060220260754 | Orchestrator | 2026-02-06 07:54 | Spec Enrichment v02.125 (Product Governance Snapshot: add 7.5.4.10 with canonical whitelist + deterministic schema) | v02.125 | Approved in-chat; signature provided by Operator. |
+| ilja050220261935 | Orchestrator | 2026-02-05 19:35 | Task packet creation: WP-1-Product-Governance-Snapshot-v2 | v02.124 | Superseded by WP-1-Product-Governance-Snapshot-v3; do not merge v2. |
 | ilja050220260910 | Validator | 2026-02-05 09:10 | Spec Enrichment v02.124 (governance boundary + pack path update; runtime gov state dir `.handshake/gov/`) | v02.124 | Approved in-chat; signature provided by Operator. |
 | ilja020220261405 | Orchestrator | 2026-02-02 14:05 | Task packet creation: WP-1-Artifact-System-Foundations-v1 | v02.123 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Artifact-System-Foundations-v1.md ). |
 | ilja010220261515 | Orchestrator | 2026-02-01 15:15 | Task packet creation: WP-1-AI-UX-Summarize-Display-v2 | v02.123 | Approved after Technical Refinement (see .GOV/refinements/WP-1-AI-UX-Summarize-Display-v2.md ). |
@@ -186,5 +189,4 @@ grep -r "Strategic Pause approval \[" .GOV/task_packets/ | awk -F'[' '{print $NF
 **Last Updated:** 2026-01-26
 **Version:** 1.0
 **Maintained By:** Orchestrator Agent
-
 
