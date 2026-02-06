@@ -51,6 +51,13 @@
   - Approver: ilja (user)
   - Expiry: WP-1-Product-Governance-Snapshot-v3 validation complete
   - Ref: CX-573F
+- Waiver ID: WAIVER-2026-02-06-ROLEMAILBOX-MANIFEST
+  - Date: 2026-02-06
+  - Scope: Permit editing `.GOV/ROLE_MAILBOX/export_manifest.json` to make the file canonical (single trailing LF).
+  - Justification: `just post-work` runs `just role-mailbox-export-check`; export_manifest.json had an extra trailing newline causing a nonzero exit.
+  - Approver: ilja (user)
+  - Expiry: WP-1-Product-Governance-Snapshot-v3 validation complete
+  - Ref: CX-573F
 
 ## QUALITY_GATE
 ### TEST_PLAN
