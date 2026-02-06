@@ -361,3 +361,60 @@ SKELETON APPROVED
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - WP-1-Product-Governance-Snapshot-v3
+Verdict: PASS
+
+#### Validation Claims (explicit)
+- GATES_PASS (`just post-work WP-1-Product-Governance-Snapshot-v3 --range bbf2a673..HEAD`; deterministic manifest gate; not tests): PASS (with warnings)
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+#### Scope Inputs
+- Task Packet: `.GOV/task_packets/WP-1-Product-Governance-Snapshot-v3.md`
+- Spec anchors:
+  - `Handshake_Master_Spec_v02.125.md:28377` - `#### 7.5.4.3 Canonical governance artifacts (kernel)`
+  - `Handshake_Master_Spec_v02.125.md:42852` - `#### 7.5.4.10 Product Governance Snapshot (HARD)`
+
+#### Files Checked
+- `justfile`
+- `.GOV/scripts/governance-snapshot.mjs`
+- `.GOV/scripts/validation/validator-governance-snapshot.mjs`
+- `.GOV/roles_shared/PRODUCT_GOVERNANCE_SNAPSHOT.json`
+- `.GOV/task_packets/WP-1-Product-Governance-Snapshot-v3.md`
+- `.GOV/refinements/WP-1-Product-Governance-Snapshot-v3.md`
+- `Handshake_Master_Spec_v02.125.md`
+- Out-of-scope but explicitly waived [CX-573F]:
+  - `.GOV/scripts/validation/post-work-check.mjs`
+  - `.GOV/ROLE_MAILBOX/export_manifest.json`
+
+#### Findings (requirements -> evidence)
+- Command surface exists: `justfile:176`, `justfile:179`
+- Deterministic output bytes (`JSON.stringify(obj, null, 2) + "\\n"`): `.GOV/scripts/governance-snapshot.mjs:334`
+- Whitelist-only reads (hard-fail on non-whitelisted paths): `.GOV/scripts/governance-snapshot.mjs:250`
+- Schema version + output path: `.GOV/scripts/governance-snapshot.mjs:19`, `.GOV/scripts/governance-snapshot.mjs:20`
+- `git: {}` default (omit `head_sha` unless explicitly enabled): `.GOV/scripts/governance-snapshot.mjs:292`
+- Validator: generate twice + byte-compare: `.GOV/scripts/validation/validator-governance-snapshot.mjs:205`
+- Validator: no timestamps/raw logs invariant + forbidden keys: `.GOV/scripts/validation/validator-governance-snapshot.mjs:46`
+- Validator: whitelist enforcement (snapshot.inputs == computed whitelist): `.GOV/scripts/validation/validator-governance-snapshot.mjs:173`
+- Snapshot instance matches minimum schema + `git: {}`: `.GOV/roles_shared/PRODUCT_GOVERNANCE_SNAPSHOT.json:2`
+
+#### Commands Verified (from TEST_PLAN)
+- `just pre-work WP-1-Product-Governance-Snapshot-v3`: PASS
+- `just governance-snapshot` (run twice): PASS
+- `just validator-governance-snapshot`: PASS
+- `just cargo-clean`: PASS
+- `just post-work WP-1-Product-Governance-Snapshot-v3 --range bbf2a67308cd3706056db2b7e3e74cd21c07dbe7..HEAD`: PASS (with warnings)
+
+#### Waivers [CX-573F] (as recorded in packet)
+- WAIVER-2026-02-06-POSTWORK-REGEX: allow minimal fix to `.GOV/scripts/validation/post-work-check.mjs` to unblock mandatory `just post-work`.
+- WAIVER-2026-02-06-ROLEMAILBOX-MANIFEST: allow canonical newline fix to `.GOV/ROLE_MAILBOX/export_manifest.json` to satisfy `role-mailbox-export-check`.
+
+#### Warnings / Non-blocking notes
+- `just post-work` warning: baseline commit cannot load `Handshake_Master_Spec_v02.125.md` preimage (file did not exist at baseline) - reported as a warning by the gate; accepted.
+- `just codex-check` warns `docs/SPEC_CURRENT.md` does not reference latest spec - expected because `docs/` is compatibility-only for this repo layout; canonical pointer is `.GOV/roles_shared/SPEC_CURRENT.md`.
+
+#### REASON FOR PASS
+- The generator + validator implement the whitelist-only, deterministic-bytes, stable-sorting, and leak-safety constraints in Spec `7.5.4.10`, and `.GOV` canonical locations in `7.5.4.3`.
+- All WP TEST_PLAN commands executed successfully, and deterministic manifest gate passed.
+- Any out-of-scope changes were explicitly waived and recorded under [CX-573F].
