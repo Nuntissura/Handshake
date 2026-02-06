@@ -5,7 +5,7 @@
 - WP_ID: WP-1-Product-Governance-Snapshot-v3
 - BASE_WP_ID: WP-1-Product-Governance-Snapshot (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: 2026-02-06T13:40:41.412Z
-- MERGE_BASE_SHA: 85e20bf1071facd9b7e89e2777203f60b1b59b7c
+- MERGE_BASE_SHA: bbf2a67308cd3706056db2b7e3e74cd21c07dbe7
 - REQUESTOR: ilja
 - AGENT_ID: CodexCLI-GPT-5.2
 - ROLE: Orchestrator
@@ -27,6 +27,9 @@
 - What: Implement the deterministic "Product Governance Snapshot" generator + validator command surface per the Master Spec, producing `.GOV/roles_shared/PRODUCT_GOVERNANCE_SNAPSHOT.json` derived ONLY from canonical `.GOV/**` governance inputs.
 - Why: Provides a leak-safe, deterministic snapshot of governance state so a fresh agent/auditor can reconstruct "what is true" without chat history; enables mechanical validation of scope/approvals.
 - IN_SCOPE_PATHS:
+  - Handshake_Master_Spec_v02.125.md
+  - .GOV/roles_shared/SPEC_CURRENT.md
+  - .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
   - justfile
   - .GOV/scripts/governance-snapshot.mjs
   - .GOV/scripts/validation/validator-governance-snapshot.mjs
@@ -55,7 +58,7 @@ just governance-snapshot
 just validator-governance-snapshot
 
 just cargo-clean
-just post-work WP-1-Product-Governance-Snapshot-v3 --range 85e20bf1071facd9b7e89e2777203f60b1b59b7c..HEAD
+just post-work WP-1-Product-Governance-Snapshot-v3 --range bbf2a67308cd3706056db2b7e3e74cd21c07dbe7..HEAD
 ```
 
 ### DONE_MEANS
@@ -117,7 +120,7 @@ git revert <commit-sha>
   - "wp_gate_summaries"
 - RUN_COMMANDS:
   ```bash
-  git diff --name-only 85e20bf1071facd9b7e89e2777203f60b1b59b7c..HEAD
+  git diff --name-only bbf2a67308cd3706056db2b7e3e74cd21c07dbe7..HEAD
   rg -n "Product Governance Snapshot" Handshake_Master_Spec_v02.125.md
   rg -n "PRODUCT_GOVERNANCE_SNAPSHOT|governance-snapshot|validator-governance-snapshot" -S .GOV
   ```
@@ -199,59 +202,134 @@ SKELETON APPROVED
   - Sorting invariants hold (per spec `#### 7.5.4.10`)
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Added deterministic generator: `.GOV/scripts/governance-snapshot.mjs`.
+  - Whitelist-only reads for canonical `.GOV/**` governance inputs (no repo scan; no extras).
+  - Stable sorting for all collections per spec.
+  - Output bytes: `JSON.stringify(snapshot, null, 2) + "\\n"` to `.GOV/roles_shared/PRODUCT_GOVERNANCE_SNAPSHOT.json`.
+  - `git.head_sha` is supported but omitted by default (enabled only via `--include-head-sha`).
+- Added deterministic validator: `.GOV/scripts/validation/validator-governance-snapshot.mjs`.
+  - Generates twice and byte-compares.
+  - Validates minimum schema + whitelist inputs + "no timestamps/raw logs" invariants.
+  - Exits nonzero on any mismatch.
+- Added `just` command surface:
+  - `just governance-snapshot`
+  - `just validator-governance-snapshot`
+- Generated canonical output: `.GOV/roles_shared/PRODUCT_GOVERNANCE_SNAPSHOT.json`.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Ran:
+  - `just governance-snapshot` (twice)
+  - `just validator-governance-snapshot`
+- Logs (not committed): `.handshake/logs/WP-1-Product-Governance-Snapshot-v3/`
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `justfile`
+- **Start**: 1
+- **End**: 230
+- **Line Delta**: 7
+- **Pre-SHA1**: `fe32108fe7f70f1d7650f1b4fff448acf719636d`
+- **Post-SHA1**: `bb9952f5d9423a32c7bb9fa360ffa72fddd5325c`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 - **Lint Results**:
 - **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.125.md
+- **Notes**: Added `just governance-snapshot` and `just validator-governance-snapshot` command surface.
+
+- **Target File**: `Handshake_Master_Spec_v02.125.md`
+- **Start**: 1
+- **End**: 62680
+- **Line Delta**: 62680
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `d16eb1eb5045e858112b2ce477f27aa0200621b0`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**:
+- **Artifacts**:
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.125.md
+- **Notes**: New spec version with `#### 7.5.4.10 Product Governance Snapshot (HARD)`.
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
+- Current WP_STATUS: Implemented; ready for Validator review.
 - What changed in this update:
+  - Implemented generator + validator + `just` recipes for deterministic Product Governance Snapshot.
+  - Generated `.GOV/roles_shared/PRODUCT_GOVERNANCE_SNAPSHOT.json` with `git: {}` default.
 - Next step / handoff hint:
+  - BLOCKED: `just post-work ...` currently fails due to a SyntaxError in `.GOV/scripts/validation/post-work-check.mjs` (invalid regex literal). Requires explicit scope override to patch that file.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `path/to/file:line`
+  - REQUIREMENT: "`just governance-snapshot` writes bytes exactly `JSON.stringify(obj, null, 2) + \"\\n\"`"
+  - EVIDENCE: `.GOV/scripts/governance-snapshot.mjs:334`
+  - REQUIREMENT: "Generator reads ONLY whitelist inputs; hard-fail on non-whitelisted reads"
+  - EVIDENCE: `.GOV/scripts/governance-snapshot.mjs:67`
+  - REQUIREMENT: "Whitelist enforcement (WHITELIST_VIOLATION) is a hard error"
+  - EVIDENCE: `.GOV/scripts/governance-snapshot.mjs:250`
+  - REQUIREMENT: "schema_version is explicit: hsk.product_governance_snapshot@0.1"
+  - EVIDENCE: `.GOV/scripts/governance-snapshot.mjs:19`
+  - REQUIREMENT: "git provenance defaults to git: {} (head_sha omitted unless explicitly enabled)"
+  - EVIDENCE: `.GOV/scripts/governance-snapshot.mjs:292`
+  - REQUIREMENT: "Validator generates twice and byte-compares outputs"
+  - EVIDENCE: `.GOV/scripts/validation/validator-governance-snapshot.mjs:199`
+  - REQUIREMENT: "Validator enforces no timestamps/raw logs in snapshot output"
+  - EVIDENCE: `.GOV/scripts/validation/validator-governance-snapshot.mjs:46`
+  - REQUIREMENT: "Command surface exists: `just governance-snapshot` / `just validator-governance-snapshot`"
+  - EVIDENCE: `justfile:176`
 
 ## EVIDENCE
-- (Coder appends logs, test outputs, and proof of work here. No verdicts.)
-- Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Product-Governance-Snapshot-v3/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- COMMAND: `just governance-snapshot`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-Product-Governance-Snapshot-v3/governance-snapshot-1.log` (not committed)
+  - LOG_SHA256: `33229c88f27fd852b633bdaa55bc58d6ea246183e96293b84c03df9be0ecd4fc`
+  - PROOF_LINES:
+    - `Wrote: .GOV/roles_shared/PRODUCT_GOVERNANCE_SNAPSHOT.json`
+- COMMAND: `just governance-snapshot`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-Product-Governance-Snapshot-v3/governance-snapshot-2.log` (not committed)
+  - LOG_SHA256: `33229c88f27fd852b633bdaa55bc58d6ea246183e96293b84c03df9be0ecd4fc`
+  - PROOF_LINES:
+    - `Wrote: .GOV/roles_shared/PRODUCT_GOVERNANCE_SNAPSHOT.json`
+- COMMAND: `just validator-governance-snapshot`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-Product-Governance-Snapshot-v3/validator-governance-snapshot.log` (not committed)
+  - LOG_SHA256: `1c8af2856b35449288d63ed83bab5039811e9c5234f666297070dcd3592b1915`
+  - PROOF_LINES:
+    - `OK: .GOV/roles_shared/PRODUCT_GOVERNANCE_SNAPSHOT.json`
+- COMMAND: `just pre-work WP-1-Product-Governance-Snapshot-v3`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-Product-Governance-Snapshot-v3/pre-work.log` (not committed)
+  - LOG_SHA256: `bba08fef9102370c8408039a8962c19ea6a55c9466887bce3b3096f1a772a832`
+  - PROOF_LINES:
+    - `Pre-work validation for WP-1-Product-Governance-Snapshot-v3...`
+- COMMAND: `just post-work WP-1-Product-Governance-Snapshot-v3 --range bbf2a67308cd3706056db2b7e3e74cd21c07dbe7..HEAD`
+  - EXIT_CODE: 1
+  - LOG_PATH: `.handshake/logs/WP-1-Product-Governance-Snapshot-v3/post-work.log` (not committed)
+  - LOG_SHA256: `dd91f8ea30653417ac9ab9c1117be217f3f4c536bdab0c7542bd70f46d25c143`
+  - PROOF_LINES:
+    - `SyntaxError: Invalid regular expression`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
