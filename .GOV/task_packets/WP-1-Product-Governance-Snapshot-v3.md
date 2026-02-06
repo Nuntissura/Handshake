@@ -5,13 +5,13 @@
 - WP_ID: WP-1-Product-Governance-Snapshot-v3
 - BASE_WP_ID: WP-1-Product-Governance-Snapshot (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: 2026-02-06T13:40:41.412Z
-- MERGE_BASE_SHA: 85e20bf1071facd9b7e89e2777203f60b1b59b7c (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: 85e20bf1071facd9b7e89e2777203f60b1b59b7c
 - REQUESTOR: ilja
 - AGENT_ID: CodexCLI-GPT-5.2
 - ROLE: Orchestrator
-- AGENTIC_MODE: YES (YES | NO)
+- AGENTIC_MODE: YES
 - ORCHESTRATOR_MODEL: GPT-5.2 (Codex CLI) (required if AGENTIC_MODE=YES)
-- ORCHESTRATION_STARTED_AT_UTC: 2026-02-06T13:40:41.412Z (RFC3339 UTC; required if AGENTIC_MODE=YES)
+- ORCHESTRATION_STARTED_AT_UTC: 2026-02-06T13:40:41.412Z
 - CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH (LOW | MEDIUM | HIGH | EXTRA_HIGH)
 - **Status:** In Progress
