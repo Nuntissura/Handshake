@@ -103,6 +103,7 @@ Format:
 | WP-1-OSS-Register-Enforcement | .GOV/task_packets/WP-1-OSS-Register-Enforcement-v1.md | Done: WP-1-OSS-Register-Enforcement-v1 | active=WP-1-OSS-Register-Enforcement-v1 |
 | WP-1-PDF-Pipeline | .GOV/task_packets/stubs/WP-1-PDF-Pipeline-v2.md | Stub Backlog (Not Activated): WP-1-PDF-Pipeline-v2 | stub (remediation); supersedes: WP-1-PDF-Pipeline |
 | WP-1-Photo-Studio | .GOV/task_packets/stubs/WP-1-Photo-Studio-v2.md | Stub Backlog (Not Activated): WP-1-Photo-Studio-v2 | stub (remediation); supersedes: WP-1-Photo-Studio |
+| WP-1-Product-Governance-Snapshot | .GOV/task_packets/WP-1-Product-Governance-Snapshot-v3.md | In Progress: WP-1-Product-Governance-Snapshot-v3 | active=WP-1-Product-Governance-Snapshot-v3; activated from stub .GOV/task_packets/stubs/WP-1-Product-Governance-Snapshot-v1.md; supersedes: WP-1-Product-Governance-Snapshot-v2 |
 | WP-1-RAG-Iterative | .GOV/task_packets/stubs/WP-1-RAG-Iterative-v2.md | Stub Backlog (Not Activated): WP-1-RAG-Iterative-v2 | stub (remediation); supersedes: WP-1-RAG-Iterative |
 | WP-1-Role-Mailbox | .GOV/task_packets/WP-1-Role-Mailbox-v1.md | Ready for Dev: WP-1-Role-Mailbox-v1 | active=WP-1-Role-Mailbox-v1; activated from stub .GOV/task_packets/stubs/WP-1-Role-Mailbox-v1.md |
 | WP-1-Response-Behavior-ANS-001 | .GOV/task_packets/WP-1-Response-Behavior-ANS-001.md | Ready for Dev: WP-1-Response-Behavior-ANS-001 | active=WP-1-Response-Behavior-ANS-001; activated from stub .GOV/task_packets/stubs/WP-1-Response-Behavior-ANS-001.md |
@@ -133,4 +134,3 @@ Format:
 | WP-1-Artifact-System-Foundations | .GOV/task_packets/WP-1-Artifact-System-Foundations-v1.md | Ready for Dev: WP-1-Artifact-System-Foundations-v1 | active=WP-1-Artifact-System-Foundations-v1; activated from stub .GOV/task_packets/stubs/WP-1-Artifact-System-Foundations-v1.md; Phase 1 roadmap coverage (artifact system) |
 | WP-1-Git-Engine-Decision-Gate | .GOV/task_packets/stubs/WP-1-Git-Engine-Decision-Gate-v1.md | Stub Backlog (Not Activated): WP-1-Git-Engine-Decision-Gate-v1 | stub (spec v02.123); Phase 1 roadmap coverage (repo engine decision gate) |
 | WP-1-Retrieval-Trace-Bundle-Export | .GOV/task_packets/stubs/WP-1-Retrieval-Trace-Bundle-Export-v1.md | Stub Backlog (Not Activated): WP-1-Retrieval-Trace-Bundle-Export-v1 | stub (spec v02.123); Phase 1 roadmap coverage (retrieval evidence bundle export) |
-
