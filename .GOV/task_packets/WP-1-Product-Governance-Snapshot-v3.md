@@ -164,6 +164,8 @@ git revert <commit-sha>
   - All input files included in `inputs[]` with SHA256; `spec.spec_sha1` computed from resolved spec file contents.
   - Snapshot must not include secrets/env vars/role mailbox bodies; only hashes/refs.
 
+SKELETON APPROVED
+
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
 - TRUST_BOUNDARY: generator/validator -> filesystem (whitelist-only inputs; deterministic output)
