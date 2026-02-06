@@ -20,10 +20,8 @@ pub struct SqliteDatabase {
     guard: Arc<dyn StorageGuard>,
 }
 
-#[cfg(test)]
 impl SqliteDatabase {
-    /// Expose pool for test-only SQL adjustments (kept out of production interfaces).
-    pub fn pool(&self) -> &SqlitePool {
+    pub(crate) fn pool(&self) -> &SqlitePool {
         &self.pool
     }
 }
@@ -173,6 +171,84 @@ impl SqliteDatabase {
     }
 }
 
+async fn ensure_locus_schema_sqlite(pool: &SqlitePool) -> StorageResult<()> {
+    let mut tx = pool.begin().await?;
+
+    // Spec: Handshake_Master_Spec_v02.123.md §2.3.15.5 (Phase 1: SQLite)
+    let statements = [
+        r#"
+        CREATE TABLE IF NOT EXISTS work_packets (
+            wp_id TEXT PRIMARY KEY,
+            version INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            status TEXT NOT NULL,
+            priority INTEGER NOT NULL,
+            phase TEXT,
+            routing TEXT,
+            task_packet_path TEXT,
+            task_board_status TEXT NOT NULL,
+            assignee TEXT,
+            reporter TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            vector_clock TEXT NOT NULL,  -- JSON
+            metadata TEXT NOT NULL       -- JSON
+        );
+        "#,
+        r#"CREATE INDEX IF NOT EXISTS idx_wp_status ON work_packets(status);"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_wp_priority ON work_packets(priority);"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_wp_task_board_status ON work_packets(task_board_status);"#,
+        r#"
+        CREATE TABLE IF NOT EXISTS micro_tasks (
+            mt_id TEXT PRIMARY KEY,
+            wp_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            status TEXT NOT NULL,
+            current_iteration INTEGER,
+            escalation_level INTEGER,
+            metadata TEXT NOT NULL,  -- JSON
+            FOREIGN KEY (wp_id) REFERENCES work_packets(wp_id) ON DELETE CASCADE
+        );
+        "#,
+        r#"
+        CREATE TABLE IF NOT EXISTS mt_iterations (
+            iteration_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mt_id TEXT NOT NULL,
+            iteration INTEGER NOT NULL,
+            model_id TEXT NOT NULL,
+            lora_id TEXT,
+            outcome TEXT NOT NULL,
+            validation_passed INTEGER,
+            duration_ms INTEGER NOT NULL,
+            FOREIGN KEY (mt_id) REFERENCES micro_tasks(mt_id) ON DELETE CASCADE
+        );
+        "#,
+        r#"
+        CREATE TABLE IF NOT EXISTS dependencies (
+            dependency_id TEXT PRIMARY KEY,
+            from_wp_id TEXT NOT NULL,
+            to_wp_id TEXT NOT NULL,
+            type TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            vector_clock TEXT NOT NULL,  -- JSON
+            FOREIGN KEY (from_wp_id) REFERENCES work_packets(wp_id) ON DELETE CASCADE,
+            FOREIGN KEY (to_wp_id) REFERENCES work_packets(wp_id) ON DELETE CASCADE
+        );
+        "#,
+        r#"CREATE INDEX IF NOT EXISTS idx_dep_from ON dependencies(from_wp_id);"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_dep_to ON dependencies(to_wp_id);"#,
+        r#"CREATE INDEX IF NOT EXISTS idx_dep_type ON dependencies(type);"#,
+    ];
+
+    for statement in statements {
+        sqlx::query(statement).execute(&mut *tx).await?;
+    }
+
+    tx.commit().await?;
+    Ok(())
+}
+
 #[async_trait]
 impl super::Database for SqliteDatabase {
     fn as_any(&self) -> &dyn std::any::Any {
@@ -181,6 +257,7 @@ impl super::Database for SqliteDatabase {
 
     async fn run_migrations(&self) -> StorageResult<()> {
         sqlx::migrate!("./migrations").run(&self.pool).await?;
+        ensure_locus_schema_sqlite(&self.pool).await?;
         Ok(())
     }
 

@@ -709,6 +709,34 @@ impl DuckDbFlightRecorder {
                 }
                 "micro_task_skipped" => super::FlightRecorderEventType::MicroTaskSkipped,
                 "micro_task_blocked" => super::FlightRecorderEventType::MicroTaskBlocked,
+                "work_packet_created" => super::FlightRecorderEventType::LocusWorkPacketCreated,
+                "work_packet_updated" => super::FlightRecorderEventType::LocusWorkPacketUpdated,
+                "work_packet_gated" => super::FlightRecorderEventType::LocusWorkPacketGated,
+                "work_packet_completed" => super::FlightRecorderEventType::LocusWorkPacketCompleted,
+                "work_packet_deleted" => super::FlightRecorderEventType::LocusWorkPacketDeleted,
+                "micro_tasks_registered" => {
+                    super::FlightRecorderEventType::LocusMicroTasksRegistered
+                }
+                "mt_iteration_completed" => {
+                    super::FlightRecorderEventType::LocusMtIterationCompleted
+                }
+                "mt_started" => super::FlightRecorderEventType::LocusMtStarted,
+                "mt_completed" => super::FlightRecorderEventType::LocusMtCompleted,
+                "mt_escalated" => super::FlightRecorderEventType::LocusMtEscalated,
+                "mt_failed" => super::FlightRecorderEventType::LocusMtFailed,
+                "dependency_added" => super::FlightRecorderEventType::LocusDependencyAdded,
+                "dependency_removed" => super::FlightRecorderEventType::LocusDependencyRemoved,
+                "task_board_entry_added" => {
+                    super::FlightRecorderEventType::LocusTaskBoardEntryAdded
+                }
+                "task_board_synced" => super::FlightRecorderEventType::LocusTaskBoardSynced,
+                "task_board_status_changed" => {
+                    super::FlightRecorderEventType::LocusTaskBoardStatusChanged
+                }
+                "sync_started" => super::FlightRecorderEventType::LocusSyncStarted,
+                "sync_completed" => super::FlightRecorderEventType::LocusSyncCompleted,
+                "sync_failed" => super::FlightRecorderEventType::LocusSyncFailed,
+                "work_query_executed" => super::FlightRecorderEventType::LocusWorkQueryExecuted,
                 "debug_bundle_export" => super::FlightRecorderEventType::DebugBundleExport,
                 "governance_pack_export" => super::FlightRecorderEventType::GovernancePackExport,
                 "runtime_chat_message_appended" => {

@@ -91,6 +91,12 @@ impl CapabilityRegistry {
         valid_full_ids.insert("export.debug_bundle".to_string());
         valid_full_ids.insert("export.governance_pack".to_string());
         valid_full_ids.insert("export.include_payloads".to_string());
+        // Locus Work Tracking System (Spec Â§2.3.15 + Â§11.1)
+        valid_full_ids.insert("locus.read".to_string());
+        valid_full_ids.insert("locus.write".to_string());
+        valid_full_ids.insert("locus.gate".to_string());
+        valid_full_ids.insert("locus.delete".to_string());
+        valid_full_ids.insert("locus.sync".to_string());
         for id in CANONICAL_CAPABILITY_IDS {
             valid_full_ids.insert((*id).to_string());
         }
@@ -107,6 +113,7 @@ impl CapabilityRegistry {
                     "fs.read".to_string(),
                     "net.http".to_string(),
                     "doc.summarize".to_string(),
+                    "locus.read".to_string(),
                     "export.debug_bundle".to_string(),
                     "fr.read".to_string(),
                     "diagnostics.read".to_string(),
@@ -128,6 +135,11 @@ impl CapabilityRegistry {
                     "net.http".to_string(),
                     "doc.summarize".to_string(),
                     "terminal.exec".to_string(),
+                    "locus.read".to_string(),
+                    "locus.write".to_string(),
+                    "locus.gate".to_string(),
+                    "locus.delete".to_string(),
+                    "locus.sync".to_string(),
                 ],
             },
         );
@@ -156,6 +168,7 @@ impl CapabilityRegistry {
         job_profile_map.insert("workflow_run".to_string(), "Analyst".to_string());
         job_profile_map.insert("micro_task_execution".to_string(), "Coder".to_string());
         job_profile_map.insert("spec_router".to_string(), "Analyst".to_string());
+        job_profile_map.insert("locus_operation".to_string(), "Coder".to_string());
         job_profile_map.insert("debug_bundle_export".to_string(), "Analyst".to_string());
         job_profile_map.insert("terminal_exec".to_string(), "Coder".to_string());
         job_profile_map.insert("doc_summarize".to_string(), "Analyst".to_string());
@@ -191,6 +204,10 @@ impl CapabilityRegistry {
             vec!["doc.summarize".to_string(), "terminal.exec".to_string()],
         );
         job_requirements.insert("spec_router".to_string(), vec!["doc.summarize".to_string()]);
+        job_requirements.insert(
+            "locus_operation".to_string(),
+            vec!["locus.read".to_string()],
+        );
         job_requirements.insert(
             "doc_summarize".to_string(),
             vec!["doc.summarize".to_string()],
@@ -346,6 +363,39 @@ impl CapabilityRegistry {
             ]);
         }
 
+        if job_kind == "locus_operation" {
+            let required = match protocol_id {
+                // Core WP ops (Spec Â§2.3.15.3)
+                "locus_create_wp_v1"
+                | "locus_update_wp_v1"
+                | "locus_close_wp_v1"
+                | "locus_register_mts_v1"
+                | "locus_start_mt_v1"
+                | "locus_record_iteration_v1"
+                | "locus_complete_mt_v1"
+                | "locus_add_dependency_v1"
+                | "locus_remove_dependency_v1" => vec!["locus.write".to_string()],
+                "locus_gate_wp_v1" => vec!["locus.gate".to_string()],
+                "locus_delete_wp_v1" => vec!["locus.delete".to_string()],
+                // Queries
+                "locus_query_ready_v1"
+                | "locus_get_wp_status_v1"
+                | "locus_get_mt_progress_v1"
+                | "locus_search_v1"
+                | "locus_query_blocked_v1" => vec!["locus.read".to_string()],
+                // Task Board sync
+                "locus_sync_task_board_v1" => vec![
+                    "locus.write".to_string(),
+                    "fs.read".to_string(),
+                    "fs.write".to_string(),
+                ],
+                // Event sync (Phase 2+ / forward-compat)
+                "locus_sync_events_v1" => vec!["locus.sync".to_string()],
+                _ => self.required_capabilities_for_job(job_kind)?,
+            };
+            return Ok(required);
+        }
+
         self.required_capabilities_for_job(job_kind)
     }
 
@@ -373,9 +423,57 @@ mod tests {
         assert!(registry.is_valid("fs.read"));
         assert!(registry.is_valid("fs.read:logs")); // Valid axis + arbitrary scope
         assert!(registry.is_valid("doc.summarize")); // Valid full ID
+        assert!(registry.is_valid("locus.read"));
+        assert!(registry.is_valid("locus.write"));
+        assert!(registry.is_valid("locus.gate"));
+        assert!(registry.is_valid("locus.delete"));
+        assert!(registry.is_valid("locus.sync"));
 
         assert!(!registry.is_valid("magic.wand")); // Invalid axis
         assert!(!registry.is_valid("unknown_id")); // Invalid ID
+    }
+
+    #[test]
+    fn test_locus_protocol_requirements() {
+        let registry = CapabilityRegistry::new();
+
+        let required = match registry
+            .required_capabilities_for_job_request("locus_operation", "locus_sync_task_board_v1")
+        {
+            Ok(required) => required,
+            Err(err) => {
+                assert!(
+                    false,
+                    "expected protocol requirements for locus_sync_task_board_v1, got error: {err}"
+                );
+                return;
+            }
+        };
+        let required_set: HashSet<String> = required.iter().cloned().collect();
+        let expected_set: HashSet<String> = ["locus.write", "fs.read", "fs.write"]
+            .into_iter()
+            .map(|capability| capability.to_string())
+            .collect();
+        assert_eq!(
+            required.len(),
+            expected_set.len(),
+            "unexpected duplicates or extra requirements: {required:?}"
+        );
+        assert_eq!(required_set, expected_set);
+
+        let required_create = match registry
+            .required_capabilities_for_job_request("locus_operation", "locus_create_wp_v1")
+        {
+            Ok(required_create) => required_create,
+            Err(err) => {
+                assert!(
+                    false,
+                    "expected protocol requirements for locus_create_wp_v1, got error: {err}"
+                );
+                return;
+            }
+        };
+        assert_eq!(required_create, vec!["locus.write".to_string()]);
     }
 
     #[test]
@@ -406,6 +504,7 @@ mod tests {
             "workflow_run",
             "micro_task_execution",
             "spec_router",
+            "locus_operation",
             "debug_bundle_export",
             "terminal_exec",
             "doc_summarize",

@@ -11,6 +11,7 @@ use crate::ai_ready_data::records::{
     SilverRecord,
 };
 
+pub(crate) mod locus_sqlite;
 pub mod postgres;
 pub mod retention;
 pub mod sqlite;
@@ -932,6 +933,7 @@ pub enum JobKind {
     WorkflowRun,
     MicroTaskExecution,
     SpecRouter,
+    LocusOperation,
     /// Backward-compatible terminal execution job kind.
     TerminalExec,
     /// Document summarization job kind.
@@ -953,6 +955,7 @@ impl JobKind {
             JobKind::WorkflowRun => "workflow_run",
             JobKind::MicroTaskExecution => "micro_task_execution",
             JobKind::SpecRouter => "spec_router",
+            JobKind::LocusOperation => "locus_operation",
             JobKind::TerminalExec => "terminal_exec",
             JobKind::DocSummarize => "doc_summarize",
             JobKind::DebugBundleExport => "debug_bundle_export",
@@ -975,6 +978,7 @@ impl FromStr for JobKind {
             "workflow_run" => Ok(JobKind::WorkflowRun),
             "micro_task_execution" => Ok(JobKind::MicroTaskExecution),
             "spec_router" => Ok(JobKind::SpecRouter),
+            "locus_operation" => Ok(JobKind::LocusOperation),
             "term_exec" | "terminal_exec" => Ok(JobKind::TerminalExec),
             "doc_summarize" => Ok(JobKind::DocSummarize),
             "debug_bundle_export" => Ok(JobKind::DebugBundleExport),

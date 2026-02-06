@@ -1015,6 +1015,39 @@
       "branch": "feat/WP-1-Artifact-System-Foundations-v1",
       "worktree_dir": "../wt-WP-1-Artifact-System-Foundations-v1",
       "timestamp": "2026-02-02T13:10:50.293Z"
+    },
+    {
+      "wpId": "WP-1-Locus-Work-Tracking-System-Phase1-v1",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Locus-Work-Tracking-System-Phase1-v1.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md",
+      "spec_target_sha1": "4d406dcc1a75570d2f17659e0ac40d68a22f211a",
+      "timestamp": "2026-02-03T07:13:03.145Z",
+      "turn_token": "1770102783146"
+    },
+    {
+      "wpId": "WP-1-Governance-Pack-v1",
+      "type": "REFINEMENT",
+      "refinement_path": "docs/refinements/WP-1-Governance-Pack-v1.md",
+      "spec_target_resolved": "docs/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.123.md",
+      "spec_target_sha1": "4d406dcc1a75570d2f17659e0ac40d68a22f211a",
+      "timestamp": "2026-02-03T07:13:03.414Z",
+      "turn_token": "1770102783415"
+    },
+    {
+      "wpId": "WP-1-Locus-Work-Tracking-System-Phase1-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja030220260848",
+      "timestamp": "2026-02-03T07:48:38.529Z",
+      "refinement_path": "docs/refinements/WP-1-Locus-Work-Tracking-System-Phase1-v1.md"
+    },
+    {
+      "wpId": "WP-1-Locus-Work-Tracking-System-Phase1-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Locus-Work-Tracking-System-Phase1-v1",
+      "worktree_dir": "../wt-WP-1-Locus-Work-Tracking-System-Phase1-v1",
+      "timestamp": "2026-02-03T07:53:02.904Z"
     }
   ]
 }
