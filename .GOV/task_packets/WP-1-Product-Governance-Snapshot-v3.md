@@ -290,7 +290,7 @@ SKELETON APPROVED
   - Implemented generator + validator + `just` recipes for deterministic Product Governance Snapshot.
   - Generated `.GOV/roles_shared/PRODUCT_GOVERNANCE_SNAPSHOT.json` with `git: {}` default.
 - Next step / handoff hint:
-  - BLOCKED: `just post-work ...` currently fails due to a SyntaxError in `.GOV/scripts/validation/post-work-check.mjs` (invalid regex literal). Requires explicit scope override to patch that file.
+  - `just post-work WP-1-Product-Governance-Snapshot-v3 --range bbf2a67308cd3706056db2b7e3e74cd21c07dbe7..HEAD` output captured in `.handshake/logs/WP-1-Product-Governance-Snapshot-v3/post-work-5.log` (sha256: `3ad6aa1d450b8897d1be5fc352e5b59b6fb493b938942d23381ad4728810eb45`). Waivers are recorded under `## WAIVERS GRANTED` (CX-573F).
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
@@ -343,6 +343,21 @@ SKELETON APPROVED
   - LOG_SHA256: `dd91f8ea30653417ac9ab9c1117be217f3f4c536bdab0c7542bd70f46d25c143`
   - PROOF_LINES:
     - `SyntaxError: Invalid regular expression`
+- NOTE: A later run of `just cargo-clean` and `just post-work ...` is captured below with updated logs and exit codes.
+- COMMAND: `just cargo-clean`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-Product-Governance-Snapshot-v3/cargo-clean-3.log` (not committed)
+  - LOG_SHA256: `1a64bffb966574ce27fa4eb7712d24d01b9c9d848f667235541fa6b0f46884b7`
+  - PROOF_LINES:
+    - `Removed 0 files`
+- COMMAND: `just post-work WP-1-Product-Governance-Snapshot-v3 --range bbf2a67308cd3706056db2b7e3e74cd21c07dbe7..HEAD`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-Product-Governance-Snapshot-v3/post-work-5.log` (not committed)
+  - LOG_SHA256: `3ad6aa1d450b8897d1be5fc352e5b59b6fb493b938942d23381ad4728810eb45`
+  - PROOF_LINES:
+    - `Diff selection: range (explicit --range)`
+    - `Git range: bbf2a67308cd3706056db2b7e3e74cd21c07dbe7..a5e963269cc75af52fd9fdfc0aa715d502474da2`
+    - `You may proceed with commit.`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
