@@ -50,6 +50,8 @@ Entry format (recommended):
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
 
+- **[WP-1-Product-Governance-Snapshot-v4]** - [READY_FOR_DEV]
+
 ## Stub Backlog (Not Activated)
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
@@ -93,7 +95,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 ## In Progress
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
-- **[WP-1-Product-Governance-Snapshot-v3]** - [IN_PROGRESS]
 
 ## Done
 - **[WP-1-Artifact-System-Foundations-v1]** - [VALIDATED]
@@ -150,6 +151,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 ## Superseded (Archive)
 - **[WP-1-AppState-Refactoring]** - [SUPERSEDED]
 - **[WP-1-AppState-Refactoring-v2]** - [SUPERSEDED]
+- **[WP-1-Product-Governance-Snapshot-v3]** - [SUPERSEDED]
 - **[WP-1-Tokenization-Service-20251228]** - [SUPERSEDED]
 - **[WP-1-Storage-Foundation-20251228]** - [SUPERSEDED]
 - **[WP-1-Gate-Check-Tool]** - [SUPERSEDED]
