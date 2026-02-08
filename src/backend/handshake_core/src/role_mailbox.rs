@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
     fmt, fs,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{Arc, Mutex},
 };
 use uuid::Uuid;
@@ -16,9 +16,10 @@ use crate::bundles::schemas::RedactionMode;
 use crate::flight_recorder::{
     FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
 };
+use crate::runtime_governance::RuntimeGovernancePaths;
 
 pub const ROLE_MAILBOX_EXPORT_SCHEMA_VERSION: &str = "role_mailbox_export_v1";
-pub const ROLE_MAILBOX_EXPORT_ROOT: &str = "docs/ROLE_MAILBOX/";
+pub const ROLE_MAILBOX_EXPORT_ROOT: &str = ".handshake/gov/ROLE_MAILBOX/";
 
 #[derive(thiserror::Error, Debug)]
 pub enum RoleMailboxError {
@@ -348,16 +349,6 @@ fn ensure_advisory_not_solo(
     Ok(())
 }
 
-fn repo_root_from_manifest() -> Result<PathBuf, RoleMailboxError> {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    manifest_dir
-        .parent()
-        .and_then(Path::parent)
-        .and_then(Path::parent)
-        .map(Path::to_path_buf)
-        .ok_or_else(|| RoleMailboxError::InvalidInput("failed to resolve repo root".to_string()))
-}
-
 fn init_role_mailbox_schema(conn: &DuckDbConnection) -> Result<(), RoleMailboxError> {
     conn.execute_batch(
         r#"
@@ -459,6 +450,8 @@ pub struct AddTranscriptionLinkRequest {
 pub struct RoleMailbox {
     root_dir: PathBuf,
     export_dir: PathBuf,
+    export_root_display: String,
+    default_task_board_id: String,
     conn: Arc<Mutex<DuckDbConnection>>,
     flight_recorder: Arc<dyn FlightRecorder>,
     redactor: SecretRedactor,
@@ -468,14 +461,31 @@ impl RoleMailbox {
     pub fn new_for_repo(
         flight_recorder: Arc<dyn FlightRecorder>,
     ) -> Result<Self, RoleMailboxError> {
-        let root_dir = repo_root_from_manifest()?;
-        Self::new_for_root(root_dir, flight_recorder)
+        let runtime_paths = RuntimeGovernancePaths::resolve().map_err(|e| {
+            RoleMailboxError::InvalidInput(format!(
+                "failed to resolve runtime governance paths: {e}"
+            ))
+        })?;
+        Self::new_for_runtime_paths(runtime_paths, flight_recorder)
     }
 
     pub fn new_for_root(
         root_dir: PathBuf,
         flight_recorder: Arc<dyn FlightRecorder>,
     ) -> Result<Self, RoleMailboxError> {
+        let runtime_paths = RuntimeGovernancePaths::from_workspace_root(root_dir).map_err(|e| {
+            RoleMailboxError::InvalidInput(format!(
+                "failed to resolve runtime governance paths: {e}"
+            ))
+        })?;
+        Self::new_for_runtime_paths(runtime_paths, flight_recorder)
+    }
+
+    fn new_for_runtime_paths(
+        runtime_paths: RuntimeGovernancePaths,
+        flight_recorder: Arc<dyn FlightRecorder>,
+    ) -> Result<Self, RoleMailboxError> {
+        let root_dir = runtime_paths.workspace_root().to_path_buf();
         let data_dir = root_dir.join("data");
         fs::create_dir_all(&data_dir)?;
 
@@ -492,7 +502,9 @@ impl RoleMailbox {
         }
 
         Ok(Self {
-            export_dir: root_dir.join("docs").join("ROLE_MAILBOX"),
+            export_dir: runtime_paths.role_mailbox_export_dir(),
+            export_root_display: runtime_paths.role_mailbox_export_dir_display(),
+            default_task_board_id: runtime_paths.task_board_display(),
             root_dir,
             conn,
             flight_recorder,
@@ -1121,7 +1133,7 @@ impl RoleMailbox {
         let task_board_id = context
             .task_board_id
             .clone()
-            .unwrap_or_else(|| "docs/TASK_BOARD.md".to_string());
+            .unwrap_or_else(|| self.default_task_board_id.clone());
         let timestamp = format_rfc3339_seconds(now_utc_seconds());
         let linked_json = serde_json::to_string(&linked_artifacts)?;
 
@@ -1471,7 +1483,7 @@ impl RoleMailbox {
 
         let manifest = json!({
             "schema_version": ROLE_MAILBOX_EXPORT_SCHEMA_VERSION,
-            "export_root": ROLE_MAILBOX_EXPORT_ROOT,
+            "export_root": self.export_root_display.as_str(),
             "generated_at": generated_at,
             "index_sha256": index_sha256,
             "thread_files": thread_manifest_entries,
@@ -1496,7 +1508,7 @@ impl RoleMailbox {
             ),
             vec![ArtifactHandle::new(
                 Uuid::new_v4(),
-                "docs/ROLE_MAILBOX/export_manifest.json".to_string(),
+                self.export_manifest_ref_path(),
             )],
         )?;
 
@@ -1515,7 +1527,7 @@ impl RoleMailbox {
     ) -> Result<(), RoleMailboxError> {
         let payload = json!({
             "type": "gov_mailbox_exported",
-            "export_root": ROLE_MAILBOX_EXPORT_ROOT,
+            "export_root": self.export_root_display.as_str(),
             "export_manifest_sha256": export_manifest_sha256,
             "thread_count": thread_count,
             "message_count": message_count,
@@ -1533,6 +1545,13 @@ impl RoleMailbox {
             .record_event(event)
             .await
             .map_err(|e| RoleMailboxError::FlightRecorder(e.to_string()))
+    }
+
+    fn export_manifest_ref_path(&self) -> String {
+        format!(
+            "{}/export_manifest.json",
+            self.export_root_display.trim_end_matches('/')
+        )
     }
 }
 

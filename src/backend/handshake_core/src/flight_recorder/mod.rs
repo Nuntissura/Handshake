@@ -2850,6 +2850,13 @@ fn is_safe_token(value: &str, max_len: usize) -> bool {
     })
 }
 
+fn path_contains_repo_governance_segment(value: &str) -> bool {
+    value.replace('\\', "/").split('/').any(|segment| {
+        let segment = segment.trim();
+        segment.eq_ignore_ascii_case(".GOV") || segment.eq_ignore_ascii_case("docs")
+    })
+}
+
 fn validate_role_id_string(value: &str) -> Result<(), RecorderError> {
     let value = value.trim();
     if value.is_empty() {
@@ -3017,7 +3024,54 @@ fn validate_gov_mailbox_exported_payload(payload: &Value) -> Result<(), Recorder
     }
 
     require_fixed_string(map, "type", "gov_mailbox_exported")?;
-    require_fixed_string(map, "export_root", "docs/ROLE_MAILBOX/")?;
+    let export_root = match require_key(map, "export_root")? {
+        Value::String(value) if !value.trim().is_empty() => value.trim(),
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field export_root must be a non-empty string".to_string(),
+            ))
+        }
+    };
+    if !is_safe_token(export_root, 512) {
+        return Err(RecorderError::InvalidEvent(
+            "payload field export_root must be a bounded path token".to_string(),
+        ));
+    }
+    if export_root.contains('\\') {
+        return Err(RecorderError::InvalidEvent(
+            "payload field export_root must use '/' separators".to_string(),
+        ));
+    }
+    if export_root.starts_with('/') || export_root.contains(':') {
+        return Err(RecorderError::InvalidEvent(
+            "payload field export_root must be root-relative".to_string(),
+        ));
+    }
+    if export_root.split('/').any(|c| c == "..") {
+        return Err(RecorderError::InvalidEvent(
+            "payload field export_root must not contain '..'".to_string(),
+        ));
+    }
+    if path_contains_repo_governance_segment(export_root) {
+        return Err(RecorderError::InvalidEvent(
+            "payload field export_root must not reference docs or .GOV directories".to_string(),
+        ));
+    }
+    if !export_root.ends_with('/') {
+        return Err(RecorderError::InvalidEvent(
+            "payload field export_root must end with '/'".to_string(),
+        ));
+    }
+    let last_segment = export_root
+        .trim_end_matches('/')
+        .split('/')
+        .last()
+        .unwrap_or("");
+    if last_segment != "ROLE_MAILBOX" {
+        return Err(RecorderError::InvalidEvent(
+            "payload field export_root must end with ROLE_MAILBOX/".to_string(),
+        ));
+    }
     require_sha256_hex(map, "export_manifest_sha256")?;
 
     match require_key(map, "thread_count")? {
@@ -3441,7 +3495,7 @@ mod tests {
                 Uuid::new_v4(),
                 "gov_pack_template_volume".to_string(),
             )],
-            materialized_paths: vec!["docs/START_HERE.md".to_string()],
+            materialized_paths: vec!["START_HERE.md".to_string()],
             warnings: Vec::new(),
             errors: Vec::new(),
         };
@@ -3621,7 +3675,7 @@ mod tests {
     fn valid_mailbox_exported_payload() -> Value {
         json!({
             "type": "gov_mailbox_exported",
-            "export_root": "docs/ROLE_MAILBOX/",
+            "export_root": ".handshake/gov/ROLE_MAILBOX/",
             "export_manifest_sha256": DUMMY_SHA256,
             "thread_count": 0,
             "message_count": 0,
@@ -3635,12 +3689,37 @@ mod tests {
 
         let mut bad_root = payload.clone();
         if let Some(obj) = bad_root.as_object_mut() {
-            obj.insert("export_root".to_string(), json!("docs/ROLE_MAILBOX"));
+            obj.insert(
+                "export_root".to_string(),
+                json!(".handshake/gov/ROLE_MAILBOX"),
+            );
         } else {
             assert!(false, "expected payload to be a JSON object");
         }
         assert!(matches!(
             validate_gov_mailbox_exported_payload(&bad_root),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        let mut gov_segment = payload.clone();
+        if let Some(obj) = gov_segment.as_object_mut() {
+            obj.insert("export_root".to_string(), json!(".GOV"));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_mailbox_exported_payload(&gov_segment),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        let mut docs_segment = payload.clone();
+        if let Some(obj) = docs_segment.as_object_mut() {
+            obj.insert("export_root".to_string(), json!("docs"));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_mailbox_exported_payload(&docs_segment),
             Err(RecorderError::InvalidEvent(_))
         ));
     }
@@ -3651,7 +3730,7 @@ mod tests {
             "thread_id": "550e8400-e29b-41d4-a716-446655440000",
             "message_id": "550e8400-e29b-41d4-a716-446655440001",
             "transcription_target_kind": "task_packet",
-            "target_ref": "artifact:550e8400-e29b-41d4-a716-446655440004:/docs/task_packets/WP-1-Role-Mailbox-v1.md",
+            "target_ref": "artifact:550e8400-e29b-41d4-a716-446655440004:/task_packets/WP-1-Role-Mailbox-v1.md",
             "target_sha256": DUMMY_SHA256,
         })
     }

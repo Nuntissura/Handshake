@@ -12,6 +12,7 @@ use crate::role_mailbox::{
     AddTranscriptionLinkRequest, CreateRoleMailboxMessageRequest, RoleId, RoleMailbox,
     RoleMailboxContext, RoleMailboxMessage, RoleMailboxMessageType, TranscriptionLink,
 };
+use crate::runtime_governance::RuntimeGovernancePaths;
 use crate::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -46,11 +47,8 @@ pub fn routes(state: AppState) -> Router {
 }
 
 async fn read_index() -> Result<Json<Value>, String> {
-    let repo_root = crate::api::paths::repo_root().map_err(|e| e.to_string())?;
-    let index_path = repo_root
-        .join("docs")
-        .join("ROLE_MAILBOX")
-        .join("index.json");
+    let runtime_paths = RuntimeGovernancePaths::resolve().map_err(|e| e.to_string())?;
+    let index_path = runtime_paths.role_mailbox_export_dir().join("index.json");
     let raw = fs::read_to_string(&index_path).map_err(|e| e.to_string())?;
     let parsed: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
     Ok(Json(parsed))

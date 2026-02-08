@@ -12,6 +12,7 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use crate::ace::ArtifactHandle;
+use crate::runtime_governance::RuntimeGovernancePaths;
 use crate::storage::artifacts::{
     artifact_root_rel, bundle_index_content_hash, bundle_index_json, compute_entries_index,
     materialize_local_dir, resolve_workspace_root, write_dir_artifact, ArtifactClassification,
@@ -134,10 +135,12 @@ pub struct GovernancePackExportOutcome {
 
 #[derive(Debug, Error)]
 pub enum GovernancePackExportError {
-    #[error("failed to read docs/SPEC_CURRENT.md: {0}")]
-    SpecCurrentRead(#[source] io::Error),
-    #[error("docs/SPEC_CURRENT.md did not contain a master spec filename")]
-    SpecCurrentParse,
+    #[error("failed to resolve runtime governance paths: {0}")]
+    RuntimeGovernanceResolve(String),
+    #[error("failed to read runtime governance spec pointer at {path}: {source}")]
+    SpecCurrentRead { path: PathBuf, source: io::Error },
+    #[error("runtime governance spec pointer at {path} did not contain a master spec filename")]
+    SpecCurrentParse { path: PathBuf },
     #[error("regex compile failed for {pattern}: {message}")]
     RegexCompile {
         pattern: &'static str,
@@ -181,9 +184,11 @@ pub fn export_governance_pack(
     request: &GovernancePackExportRequest,
     job_id: Option<Uuid>,
 ) -> Result<GovernancePackExportOutcome, GovernancePackExportError> {
+    let runtime_governance_paths = RuntimeGovernancePaths::resolve()
+        .map_err(|err| GovernancePackExportError::RuntimeGovernanceResolve(err.to_string()))?;
     let master_spec_filename = match request.invariants.master_spec_filename.clone() {
         Some(filename) => filename,
-        None => resolve_master_spec_filename()?,
+        None => resolve_master_spec_filename(&runtime_governance_paths)?,
     };
     let codex_version = request
         .invariants
@@ -216,6 +221,7 @@ pub fn export_governance_pack(
         &export_root,
         &codex_version,
         &master_spec_filename,
+        &runtime_governance_paths.spec_current_display(),
         &spec_path,
         &spec_text,
     )?;
@@ -343,16 +349,25 @@ fn map_artifact_error(err: ArtifactError) -> GovernancePackExportError {
     }
 }
 
-fn resolve_master_spec_filename() -> Result<String, GovernancePackExportError> {
-    let spec_current = fs::read_to_string("docs/SPEC_CURRENT.md")
-        .map_err(GovernancePackExportError::SpecCurrentRead)?;
+fn resolve_master_spec_filename(
+    runtime_paths: &RuntimeGovernancePaths,
+) -> Result<String, GovernancePackExportError> {
+    let spec_current_path = runtime_paths.spec_current_path();
+    let spec_current = fs::read_to_string(&spec_current_path).map_err(|source| {
+        GovernancePackExportError::SpecCurrentRead {
+            path: spec_current_path.clone(),
+            source,
+        }
+    })?;
     let re = spec_current_bold_re()?;
     let mut matches = re.captures_iter(&spec_current);
     matches
         .next()
         .and_then(|cap| cap.get(1).map(|m| m.as_str().trim().to_string()))
         .filter(|s| !s.is_empty())
-        .ok_or(GovernancePackExportError::SpecCurrentParse)
+        .ok_or(GovernancePackExportError::SpecCurrentParse {
+            path: spec_current_path,
+        })
 }
 
 fn extract_template_volume(
@@ -462,6 +477,7 @@ fn build_placeholder_map(
     export_root: &Path,
     codex_version: &str,
     master_spec_filename: &str,
+    spec_current_display: &str,
     spec_path: &Path,
     spec_text: &str,
 ) -> Result<BTreeMap<String, String>, GovernancePackExportError> {
@@ -535,7 +551,11 @@ fn build_placeholder_map(
     let orchestrator_branch = "user_orchestrator".to_string();
     let validator_branch = "user_validator".to_string();
 
-    let spec_target_resolved = format!("docs/SPEC_CURRENT.md -> {}", master_spec_filename.trim());
+    let spec_target_resolved = format!(
+        "{} -> {}",
+        spec_current_display.trim(),
+        master_spec_filename.trim()
+    );
     let spec_target_sha1 = sha1_hex(spec_text.as_bytes());
 
     let mut map: BTreeMap<String, String> = BTreeMap::new();

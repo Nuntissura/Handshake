@@ -28,6 +28,7 @@ use crate::{
         ProvenanceGate, SchemaGate, POE_SCHEMA_VERSION,
     },
     models::{AiJob, JobKind, WorkflowRun},
+    runtime_governance::RuntimeGovernancePaths,
     storage::{validate_job_contract, JobState, JobStatusUpdate, NewNodeExecution, StorageError},
     terminal::{
         config::TerminalConfig,
@@ -244,8 +245,13 @@ async fn execute_locus_sync_task_board(
 
     crate::storage::locus_sqlite::ensure_locus_sqlite(db)?;
 
+    let runtime_governance_paths = RuntimeGovernancePaths::resolve().map_err(|e| {
+        WorkflowError::Terminal(format!("failed to resolve runtime governance paths: {e}"))
+    })?;
+    let workspace_root = runtime_governance_paths.workspace_root().to_path_buf();
+    let task_board_path = runtime_governance_paths.task_board_path();
     let dry_run = params.dry_run.unwrap_or(false);
-    let sync_target = "docs/TASK_BOARD.md";
+    let sync_target = runtime_governance_paths.task_board_display();
     // WAIVER [CX-573E]: Instant::now() for observability (sync duration metrics).
     let sync_started_at = std::time::Instant::now();
 
@@ -263,7 +269,7 @@ async fn execute_locus_sync_task_board(
                 "FR-EVT-SYNC-001",
                 "sync_started",
                 json!({
-                    "sync_target": sync_target,
+                    "sync_target": sync_target.as_str(),
                     "dry_run": dry_run,
                 }),
             ),
@@ -292,10 +298,6 @@ async fn execute_locus_sync_task_board(
         ),
         WorkflowError,
     > = async {
-        let repo_root =
-            repo_root_from_manifest_dir().map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-        let task_board_path = repo_root.join("docs").join("TASK_BOARD.md");
-
         let task_board = fs::read_to_string(&task_board_path).map_err(|e| {
             WorkflowError::Terminal(format!(
                 "failed to read Task Board {}: {e}",
@@ -459,7 +461,7 @@ async fn execute_locus_sync_task_board(
         let rewritten = locus::task_board::rewrite_task_board(&task_board, &canonical);
         let would_write = rewritten != task_board;
         if would_write && !dry_run {
-            write_bytes_atomic(&repo_root, &task_board_path, rewritten.as_bytes())?;
+            write_bytes_atomic(&workspace_root, &task_board_path, rewritten.as_bytes())?;
         }
 
         unknown_wp_ids.sort();
@@ -601,7 +603,7 @@ async fn execute_locus_sync_task_board(
                         "FR-EVT-SYNC-002",
                         "sync_completed",
                         json!({
-                            "sync_target": sync_target,
+                            "sync_target": sync_target.as_str(),
                             "duration_ms": duration_ms,
                         }),
                     ),
@@ -628,7 +630,7 @@ async fn execute_locus_sync_task_board(
                         "FR-EVT-SYNC-003",
                         "sync_failed",
                         json!({
-                            "sync_target": sync_target,
+                            "sync_target": sync_target.as_str(),
                             "error": err.to_string(),
                         }),
                     ),

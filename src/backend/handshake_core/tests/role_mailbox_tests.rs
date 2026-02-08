@@ -22,7 +22,7 @@ fn test_context() -> RoleMailboxContext {
     RoleMailboxContext {
         spec_id: Some("spec-1".to_string()),
         work_packet_id: Some("WP-1-Role-Mailbox-v1".to_string()),
-        task_board_id: Some("docs/TASK_BOARD.md".to_string()),
+        task_board_id: Some(".handshake/gov/TASK_BOARD.md".to_string()),
         governance_mode: GovernanceMode::GovStandard,
         project_id: None,
     }
@@ -46,9 +46,14 @@ async fn role_mailbox_export_empty_is_deterministic() {
         .await
         .unwrap();
 
-    let index_path = root.join("docs").join("ROLE_MAILBOX").join("index.json");
+    let index_path = root
+        .join(".handshake")
+        .join("gov")
+        .join("ROLE_MAILBOX")
+        .join("index.json");
     let manifest_path = root
-        .join("docs")
+        .join(".handshake")
+        .join("gov")
         .join("ROLE_MAILBOX")
         .join("export_manifest.json");
 
@@ -117,7 +122,8 @@ async fn role_mailbox_create_message_emits_events_and_export() {
     assert_eq!(created.body_sha256, body_sha);
 
     let thread_file = root
-        .join("docs")
+        .join(".handshake")
+        .join("gov")
         .join("ROLE_MAILBOX")
         .join("threads")
         .join(format!("{}.jsonl", created.thread_id));
@@ -214,7 +220,8 @@ async fn role_mailbox_idempotency_key_is_deduped() {
     assert_eq!(events_1, events_2);
 
     let thread_file = root
-        .join("docs")
+        .join(".handshake")
+        .join("gov")
         .join("ROLE_MAILBOX")
         .join("threads")
         .join(format!("{}.jsonl", first.thread_id));
