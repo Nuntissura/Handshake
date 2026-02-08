@@ -128,8 +128,21 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - Add runtime governance path resolver in `src/backend/handshake_core/src/runtime_governance.rs`:
+    - default runtime root: `.handshake/gov/`
+    - configurable root via env override
+    - canonical accessors: `spec_current_path`, `task_board_path`, `role_mailbox_export_dir`
+    - boundary guard: runtime path must not be under repo `docs/**` or `/.GOV/**`
+  - `governance_pack.rs`: replace implicit `docs/SPEC_CURRENT.md` default with runtime `SPEC_CURRENT.md` resolver.
+  - `workflows.rs`: `locus_sync_task_board` reads/writes runtime `TASK_BOARD.md` and emits this path in `sync_target`.
+  - `role_mailbox.rs`: export index/thread/manifest to runtime `ROLE_MAILBOX/`; emit dynamic `export_root`; default `task_board_id` in log rows aligns to runtime path.
+  - `api/role_mailbox.rs`: read mailbox index from runtime governance root.
+  - `flight_recorder/mod.rs`: GovMailboxExported payload validation accepts dynamic non-empty `export_root` while rejecting `/.GOV/**`.
 - Open questions:
+  - None blocking; use no fallback to `docs/**` for authoritative runtime reads.
 - Notes:
+  - Preserve v3 snapshot generator/validator behavior.
+  - Keep compatibility semantics one-way: runtime source-of-truth is `.handshake/gov/`; optional docs outputs are not required for correctness.
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: NO
