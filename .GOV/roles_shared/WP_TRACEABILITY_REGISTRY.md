@@ -114,6 +114,7 @@ Format:
 | WP-1-Storage-Abstraction-Layer | .GOV/task_packets/WP-1-Storage-Abstraction-Layer-v3.md | Done: WP-1-Storage-Abstraction-Layer-v3 | active=WP-1-Storage-Abstraction-Layer-v3; supersedes: WP-1-Storage-Abstraction-Layer, WP-1-Storage-Abstraction-Layer-v2 |
 | WP-1-Storage-Foundation | .GOV/task_packets/WP-1-Storage-Foundation-v3.md | Done: WP-1-Storage-Foundation-v3 | active=WP-1-Storage-Foundation-v3; supersedes: WP-1-Storage-Foundation-20251228 |
 | WP-1-Supply-Chain-MEX | .GOV/task_packets/WP-1-Supply-Chain-MEX-v2.md | Ready for Dev: WP-1-Supply-Chain-MEX-v2 | activated from stub .GOV/task_packets/stubs/WP-1-Supply-Chain-MEX-v2.md; supersedes: WP-1-Supply-Chain-MEX |
+| WP-1-Supply-Chain-Cargo-Deny-Clean | .GOV/task_packets/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md | Ready for Dev: WP-1-Supply-Chain-Cargo-Deny-Clean-v1 | active=WP-1-Supply-Chain-Cargo-Deny-Clean-v1; cargo-deny remediation (advisories + licenses) |
 | WP-1-Terminal-LAW | .GOV/task_packets/WP-1-Terminal-LAW-v3.md | Done: WP-1-Terminal-LAW-v3 | active=WP-1-Terminal-LAW-v3; supersedes: WP-1-Terminal-LAW, WP-1-Terminal-LAW-v2 |
 | WP-1-Tokenization-Service | .GOV/task_packets/WP-1-Tokenization-Service-v3.md | Done: WP-1-Tokenization-Service-v3 | active=WP-1-Tokenization-Service-v3; supersedes: WP-1-Tokenization-Service-20251228 |
 | WP-1-Validator-Error-Codes | .GOV/task_packets/WP-1-Validator-Error-Codes-v1.md | Done: WP-1-Validator-Error-Codes-v1 | active=WP-1-Validator-Error-Codes-v1 |
