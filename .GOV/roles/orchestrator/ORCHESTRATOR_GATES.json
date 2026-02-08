@@ -1078,8 +1078,48 @@
       "type": "PREPARE",
       "coder_id": "Coder-A",
       "branch": "feat/WP-1-Product-Governance-Snapshot-v4",
+      "worktree_dir": "D:/Projects/LLM",
+      "timestamp": "2026-02-08T20:07:50.114Z"
+    },
+    {
+      "wpId": "WP-1-Product-Governance-Snapshot-v4",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Product-Governance-Snapshot-v4",
+      "worktree_dir": "../wt-WP-1-Product-Governance-Snapshot-v4",
+      "timestamp": "2026-02-08T20:08:38.646Z"
+    },
+    {
+      "wpId": "WP-1-Product-Governance-Snapshot-v4",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Product-Governance-Snapshot-v4",
       "worktree_dir": "../wt-WP-1-Product-Governance-Snapshot-v4",
       "timestamp": "2026-02-08T20:10:23.726Z"
+    },
+    {
+      "wpId": "WP-1-Supply-Chain-Cargo-Deny-Clean-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.125.md",
+      "spec_target_sha1": "d16eb1eb5045e858112b2ce477f27aa0200621b0",
+      "timestamp": "2026-02-08T21:02:46.304Z",
+      "turn_token": "1770584566305"
+    },
+    {
+      "wpId": "WP-1-Supply-Chain-Cargo-Deny-Clean-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja080220262221",
+      "timestamp": "2026-02-08T21:23:40.545Z",
+      "refinement_path": ".GOV/refinements/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md"
+    },
+    {
+      "wpId": "WP-1-Supply-Chain-Cargo-Deny-Clean-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Supply-Chain-Cargo-Deny-Clean-v1",
+      "worktree_dir": "../wt-WP-1-Supply-Chain-Cargo-Deny-Clean-v1",
+      "timestamp": "2026-02-08T21:26:10.257Z"
     }
   ]
 }

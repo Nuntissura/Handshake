@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja080220262221 | Orchestrator | 2026-02-08 22:21 | Task packet creation: WP-1-Supply-Chain-Cargo-Deny-Clean-v1 | v02.125 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md ). |
 | ilja080220262058 | Orchestrator | 2026-02-08 20:58 | Task packet creation: WP-1-Product-Governance-Snapshot-v4 | v02.125 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Product-Governance-Snapshot-v4.md ). |
 | ilja060220260923 | Orchestrator | 2026-02-06 09:23 | Task packet creation: WP-1-Product-Governance-Snapshot-v3 | v02.125 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Product-Governance-Snapshot-v3.md ). |
 | ilja060220260754 | Orchestrator | 2026-02-06 07:54 | Spec Enrichment v02.125 (Product Governance Snapshot: add 7.5.4.10 with canonical whitelist + deterministic schema) | v02.125 | Approved in-chat; signature provided by Operator. |
