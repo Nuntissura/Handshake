@@ -32,16 +32,16 @@
   - .GOV/refinements/WP-1-Product-Governance-Snapshot-v4.md
   - .GOV/roles_shared/TASK_BOARD.md
   - .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
-  - docs/SPEC_CURRENT.md (range-mode inherited branch delta; included for deterministic post-work manifest coverage)
+  - docs/SPEC_CURRENT.md
   - src/backend/handshake_core/src/governance_pack.rs
   - src/backend/handshake_core/src/role_mailbox.rs
   - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/src/flight_recorder/mod.rs
-  - src/backend/handshake_core/src/runtime_governance.rs (required shared runtime-governance path resolver for `.handshake/gov/` boundary enforcement)
-  - src/backend/handshake_core/src/lib.rs (required module export for `runtime_governance`)
-  - src/backend/handshake_core/src/api/role_mailbox.rs (if required by refactor)
-  - src/backend/handshake_core/src/api/governance_pack.rs (if required by refactor)
-  - affected Rust tests under `src/backend/handshake_core/src/**` and `src/backend/handshake_core/tests/**` (only if required by changes)
+  - src/backend/handshake_core/src/runtime_governance.rs
+  - src/backend/handshake_core/src/lib.rs
+  - src/backend/handshake_core/src/api/role_mailbox.rs
+  - src/backend/handshake_core/src/api/governance_pack.rs
+  - src/backend/handshake_core/tests/role_mailbox_tests.rs
 - OUT_OF_SCOPE:
   - Any product feature work unrelated to governance boundary/state paths
   - Refactoring `.GOV/**` workflow authoring beyond what is required to preserve v3 snapshot tooling
@@ -189,8 +189,8 @@ git revert <commit-sha>
 
 ## VALIDATION
 - **Target File**: `src/backend/handshake_core/src/governance_pack.rs`
-- **Start**: 15
-- **End**: 556
+- **Start**: 1
+- **End**: 900
 - **Line Delta**: 20
 - **Pre-SHA1**: `996e97351de330d0134ed86c63fd32e7b321b7b4`
 - **Post-SHA1**: `048fd0ff3ae4302d5fd7aaad761d9328dd7bdae4`
@@ -237,8 +237,8 @@ git revert <commit-sha>
 - **Notes**: task board sync target now runtime governance path
 
 - **Target File**: `src/backend/handshake_core/src/role_mailbox.rs`
-- **Start**: 8
-- **End**: 1553
+- **Start**: 1
+- **End**: 2000
 - **Line Delta**: 19
 - **Pre-SHA1**: `dfc37c834faf3125052c133e9f21459d9e51774a`
 - **Post-SHA1**: `4725d88f3c99d55073f35ad950546fd0533a6cd5`
@@ -261,8 +261,8 @@ git revert <commit-sha>
 - **Notes**: mailbox export and default task board id now runtime-governance-rooted
 
 - **Target File**: `src/backend/handshake_core/src/api/role_mailbox.rs`
-- **Start**: 15
-- **End**: 51
+- **Start**: 1
+- **End**: 200
 - **Line Delta**: -2
 - **Pre-SHA1**: `18e9bb423009b44249c94bcae75ea99c8cdf2eb2`
 - **Post-SHA1**: `d15f485df3e49dd70521c3e768b851a6c74782e5`
@@ -357,8 +357,8 @@ git revert <commit-sha>
 - **Notes**: shared runtime governance path boundary and defaults
 
 - **Target File**: `src/backend/handshake_core/tests/role_mailbox_tests.rs`
-- **Start**: 25
-- **End**: 223
+- **Start**: 1
+- **End**: 260
 - **Line Delta**: 7
 - **Pre-SHA1**: `fb58331c64fe59defe2a9a6df06597a56105a4a2`
 - **Post-SHA1**: `ead2de10d8325255edb07d53838f9a0538ef7ca9`
@@ -384,8 +384,8 @@ git revert <commit-sha>
 - **Start**: 5
 - **End**: 7
 - **Line Delta**: 0
-- **Pre-SHA1**: `1b0269fdf8d23f4ac3ebb2ee8813d2dd4178eae0`
-- **Post-SHA1**: `05b103274fd55a87037e8f1f4589df0b49794c1f`
+- **Pre-SHA1**: `f1861073768f877228b19083912920b172ca06b4`
+- **Post-SHA1**: `e0203ae537df2240966153f31e1ae06b64536894`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -442,48 +442,48 @@ git revert <commit-sha>
   - LOG_PATH: `.handshake/logs/WP-1-Product-Governance-Snapshot-v4/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
-COMMAND: `just pre-work WP-1-Product-Governance-Snapshot-v4`
-EXIT_CODE: `0`
+COMMAND: just pre-work WP-1-Product-Governance-Snapshot-v4
+EXIT_CODE: 0
 - PROOF_LINES:
   - `Pre-work validation PASSED`
   - `PASS: Branch matches PREPARE (feat/WP-1-Product-Governance-Snapshot-v4)`
 
-COMMAND: `cd src/backend/handshake_core; cargo test`
-EXIT_CODE: `0`
+COMMAND: cd src/backend/handshake_core; cargo test
+EXIT_CODE: 0
 - PROOF_LINES:
   - `test result: ok. 160 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out`
   - `test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out (role_mailbox_tests)`
 
-COMMAND: `just cargo-clean`
-EXIT_CODE: `0`
+COMMAND: just cargo-clean
+EXIT_CODE: 0
 - PROOF_LINES:
   - `Removed 1766 files, 11.7GiB total`
 
-- COMMAND: `just pre-work WP-1-Product-Governance-Snapshot-v4`
-- EXIT_CODE: `0`
+- COMMAND: just pre-work WP-1-Product-Governance-Snapshot-v4
+- EXIT_CODE: 0
 - PROOF_LINES:
   - `Pre-work validation PASSED`
   - `PASS: Branch matches PREPARE (feat/WP-1-Product-Governance-Snapshot-v4)`
 
-- COMMAND: `rg -n "docs/" src/backend/handshake_core/src -S`
-- EXIT_CODE: `0`
+- COMMAND: rg -n "docs/" src/backend/handshake_core/src -S
+- EXIT_CODE: 0
 - PROOF_LINES:
   - `src/backend/handshake_core/src/ace/mod.rs:24:/// See docs/RUNBOOK_DEBUG.md for error resolution guidance.`
   - `No runtime governance offender files matched docs/TASK_BOARD.md, docs/SPEC_CURRENT.md, docs/ROLE_MAILBOX/.`
 
-- COMMAND: `rg -n "\\.GOV/" src/backend/handshake_core/src -S`
-- EXIT_CODE: `1`
+- COMMAND: rg -n "\\.GOV/" src/backend/handshake_core/src -S
+- EXIT_CODE: 1
 - PROOF_LINES:
   - `No matches in backend runtime source files.`
 
-- COMMAND: `cd src/backend/handshake_core; cargo test`
-- EXIT_CODE: `0`
+- COMMAND: cd src/backend/handshake_core; cargo test
+- EXIT_CODE: 0
 - PROOF_LINES:
   - `test result: ok. 160 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out`
   - `test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out (role_mailbox_tests)`
 
-- COMMAND: `just cargo-clean`
-- EXIT_CODE: `0`
+- COMMAND: just cargo-clean
+- EXIT_CODE: 0
 - PROOF_LINES:
   - `Removed 1766 files, 11.7GiB total`
 
