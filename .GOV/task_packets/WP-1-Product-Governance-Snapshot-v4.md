@@ -498,3 +498,65 @@ EXIT_CODE: 0
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - WP-1-Product-Governance-Snapshot-v4
+- DATE_UTC: 2026-02-08T21:53:19Z
+- VALIDATOR_ROLE: VALIDATOR
+- VERDICT: PASS
+
+#### REASON FOR PASS
+- Runtime governance boundary remediation is implemented and verified: runtime now uses product-owned .handshake/gov/ paths and rejects docs/** and /.GOV/** runtime roots.
+- Deterministic manifest gate passed (just post-work), packet TEST_PLAN commands passed, and DAL/spec/hygiene validators passed.
+- Evidence mapping covers all DONE_MEANS bullets with concrete code/test references.
+
+#### Validation Claims
+- GATES_PASS (deterministic manifest gate: just post-work WP-1-Product-Governance-Snapshot-v4 --range 0092ad1dcfec98e064f9eb97185ac493dedb7b42..HEAD): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+#### Scope Inputs
+- Task Packet: .GOV/task_packets/WP-1-Product-Governance-Snapshot-v4.md (status: In Progress)
+- Spec target resolved: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.125.md
+- Spec anchors reviewed: 7.5.4.8, 7.5.4.10
+
+#### Files Checked
+- .GOV/task_packets/WP-1-Product-Governance-Snapshot-v4.md
+- .GOV/refinements/WP-1-Product-Governance-Snapshot-v4.md
+- .GOV/roles_shared/SPEC_CURRENT.md
+- .GOV/roles_shared/TASK_BOARD.md
+- .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
+- src/backend/handshake_core/src/runtime_governance.rs
+- src/backend/handshake_core/src/governance_pack.rs
+- src/backend/handshake_core/src/workflows.rs
+- src/backend/handshake_core/src/role_mailbox.rs
+- src/backend/handshake_core/src/api/role_mailbox.rs
+- src/backend/handshake_core/src/flight_recorder/mod.rs
+- src/backend/handshake_core/src/lib.rs
+- src/backend/handshake_core/tests/role_mailbox_tests.rs
+
+#### Key Evidence
+- Runtime root default and env override constants: src/backend/handshake_core/src/runtime_governance.rs:8, src/backend/handshake_core/src/runtime_governance.rs:9
+- Runtime boundary guard and docs/.GOV rejection path: src/backend/handshake_core/src/runtime_governance.rs:57, src/backend/handshake_core/src/runtime_governance.rs:117
+- Governance pack uses runtime SPEC_CURRENT.md: src/backend/handshake_core/src/governance_pack.rs:187, src/backend/handshake_core/src/governance_pack.rs:352
+- Locus task-board sync uses runtime task-board path: src/backend/handshake_core/src/workflows.rs:248, src/backend/handshake_core/src/workflows.rs:252, src/backend/handshake_core/src/workflows.rs:254
+- Role mailbox runtime export root and task board id defaults: src/backend/handshake_core/src/role_mailbox.rs:22, src/backend/handshake_core/src/role_mailbox.rs:506, src/backend/handshake_core/src/role_mailbox.rs:1136
+- Role mailbox API reads runtime mailbox index: src/backend/handshake_core/src/api/role_mailbox.rs:50, src/backend/handshake_core/src/api/role_mailbox.rs:51
+- Flight recorder mailbox export payload rejects docs/.GOV segments: src/backend/handshake_core/src/flight_recorder/mod.rs:2853, src/backend/handshake_core/src/flight_recorder/mod.rs:3055
+- Tests updated for runtime governance paths: src/backend/handshake_core/tests/role_mailbox_tests.rs:25
+
+#### Test and Gate Results
+- just pre-work WP-1-Product-Governance-Snapshot-v4: PASS
+- g -n "docs/" src/backend/handshake_core/src -S: PASS (only non-runtime comment in src/backend/handshake_core/src/ace/mod.rs:24)
+- g -n "\\.GOV/" src/backend/handshake_core/src -S: PASS (no matches)
+- cd src/backend/handshake_core; cargo test: PASS
+- just cargo-clean: PASS
+- just post-work WP-1-Product-Governance-Snapshot-v4 --range 0092ad1dcfec98e064f9eb97185ac493dedb7b42..HEAD: PASS (warning: new-file baseline for untime_governance.rs)
+- just validator-dal-audit: PASS
+- just validator-git-hygiene: PASS
+- just validator-spec-regression: PASS
+- just governance-snapshot: PASS
+- just validator-governance-snapshot: PASS
+
+#### Risks and Follow-ups
+- Runtime governance_pack default spec resolution now depends on runtime .handshake/gov/SPEC_CURRENT.md; missing runtime bootstrap of that file will fail export requests until provisioned.
+- Branch-local task board line still shows [READY_FOR_DEV] for this WP; reconcile Task Board status on main during status sync/closure flow so board state matches packet state.
