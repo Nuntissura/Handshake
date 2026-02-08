@@ -406,9 +406,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: In Progress (implementation and hygiene commands completed; post-work pending)
+- Current WP_STATUS: In Progress (implementation complete; post-work passed; validator review pending)
 - What changed in this update: Implemented runtime-governance path decoupling from repo docs/.GOV dependencies across governance-pack, workflow task-board sync, and role-mailbox runtime paths; updated recorder and tests.
-- Next step / handoff hint: Stage packet updates and run `just post-work WP-1-Product-Governance-Snapshot-v4 --range 0092ad1dcfec98e064f9eb97185ac493dedb7b42..HEAD`.
+- Next step / handoff hint: Validator: re-run `just post-work WP-1-Product-Governance-Snapshot-v4 --range 0092ad1dcfec98e064f9eb97185ac493dedb7b42..HEAD` and confirm DONE_MEANS boundary holds.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
@@ -486,6 +486,15 @@ EXIT_CODE: 0
 - EXIT_CODE: 0
 - PROOF_LINES:
   - `Removed 1766 files, 11.7GiB total`
+
+- COMMAND: just post-work WP-1-Product-Governance-Snapshot-v4 --range 0092ad1dcfec98e064f9eb97185ac493dedb7b42..HEAD
+- EXIT_CODE: 0
+- LOG_PATH: `.handshake/logs/WP-1-Product-Governance-Snapshot-v4/just_post_work_20260208_223520.log`
+- LOG_SHA256: `28D5CA5C10FA5A991EA131173E4D3D59841A448AD2D267FC2F13D9030372CB6C`
+- PROOF_LINES:
+  - `Post-work validation PASSED (deterministic manifest gate; not tests) with warnings`
+  - `? ROLE_MAILBOX_EXPORT_GATE PASS`
+  - `Warnings: new file runtime_governance.rs not tracked at base (expected)`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
