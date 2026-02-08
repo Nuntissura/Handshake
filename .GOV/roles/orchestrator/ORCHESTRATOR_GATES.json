@@ -1056,6 +1056,22 @@
       "branch": "feat/WP-1-Product-Governance-Snapshot-v3-gov",
       "worktree_dir": "../wt-WP-1-Product-Governance-Snapshot-v3-gov",
       "timestamp": "2026-02-06T13:40:35.262Z"
+    },
+    {
+      "wpId": "WP-1-Product-Governance-Snapshot-v4",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Product-Governance-Snapshot-v4.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.125.md",
+      "spec_target_sha1": "d16eb1eb5045e858112b2ce477f27aa0200621b0",
+      "timestamp": "2026-02-08T19:44:23.452Z",
+      "turn_token": "1770579863452"
+    },
+    {
+      "wpId": "WP-1-Product-Governance-Snapshot-v4",
+      "type": "SIGNATURE",
+      "signature": "ilja080220262058",
+      "timestamp": "2026-02-08T20:02:53.996Z",
+      "refinement_path": ".GOV/refinements/WP-1-Product-Governance-Snapshot-v4.md"
     }
   ]
 }
