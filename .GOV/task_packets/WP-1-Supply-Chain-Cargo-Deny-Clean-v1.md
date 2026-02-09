@@ -160,11 +160,34 @@ SKELETON APPROVED
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
+- **Target File**: `deny.toml`
+- **Start**: 1
+- **End**: 37
+- **Line Delta**: -1
+- **Pre-SHA1**: `c466a2952f4c851088dddc1e7fc8e8654b121956`
+- **Post-SHA1**: `a98aba55eaf66c5a8b9d738da136ee4ed858740d`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: N/A
+- **Artifacts**: N/A
+- **Timestamp**: 2026-02-09T08:14:00Z
+- **Operator**: CodexCLI-GPT-5.2
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.125.md
+- **Notes**: Ring selector canonicalized to `crate = "ring"` and invalid `version` key removed to satisfy cargo-deny config schema.
 - **Target File**: `src/backend/handshake_core/Cargo.toml`
 - **Start**: 1
 - **End**: 46
 - **Line Delta**: 0
-- **Pre-SHA1**: `eeb61a7a751e70d2facd9dbdae31389715e1d9ca`
+- **Pre-SHA1**: `ece7b24c551a0374bfd19babb39b9eeabbe3fbaf`
 - **Post-SHA1**: `ece7b24c551a0374bfd19babb39b9eeabbe3fbaf`
 - **Gates Passed**:
   - [x] anchors_present
@@ -188,7 +211,7 @@ SKELETON APPROVED
 - **Start**: 1
 - **End**: 4822
 - **Line Delta**: -43
-- **Pre-SHA1**: `13fc0b040e20a83b62173e0bad81eafbc7ff2846`
+- **Pre-SHA1**: `b2cf6fcafbc9429de3b755a587dc787f741eec4d`
 - **Post-SHA1**: `b2cf6fcafbc9429de3b755a587dc787f741eec4d`
 - **Gates Passed**:
   - [x] anchors_present
@@ -212,7 +235,7 @@ SKELETON APPROVED
 - **Start**: 1
 - **End**: 370
 - **Line Delta**: 0
-- **Pre-SHA1**: `93b9e6cad299dd702044de424012b5774595cfbd`
+- **Pre-SHA1**: `6ba28a1423c5bb183348b0d302b8e79dd4697a5e`
 - **Post-SHA1**: `6ba28a1423c5bb183348b0d302b8e79dd4697a5e`
 - **Gates Passed**:
   - [x] anchors_present
