@@ -21,7 +21,7 @@ use uuid::Uuid;
 // ============================================================================
 
 /// ACE Runtime errors with stable error codes for debugging.
-/// See docs/RUNBOOK_DEBUG.md for error resolution guidance.
+/// See the governance runbook for error resolution guidance.
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum AceError {
     #[error("ACE-001: Budget exceeded: {field} ({actual} > {max})")]

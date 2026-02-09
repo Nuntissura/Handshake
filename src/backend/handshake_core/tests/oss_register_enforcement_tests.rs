@@ -1,8 +1,10 @@
 //! OSS Register Enforcement Tests
 //!
 //! Per SPEC v02.113 11.10.4 (2) + 11.7.5.7.1:
-//! - Every crate in `src/backend/handshake_core/Cargo.lock` MUST exist in `docs/OSS_REGISTER.md`
-//! - Every npm package in `app/package.json` (dependencies + devDependencies) MUST exist in `docs/OSS_REGISTER.md`
+//! - Every crate in `src/backend/handshake_core/Cargo.lock` MUST exist in
+//!   `.GOV/roles_shared/OSS_REGISTER.md`
+//! - Every npm package in `app/package.json` (dependencies + devDependencies) MUST exist in
+//!   `.GOV/roles_shared/OSS_REGISTER.md`
 //! - GPL/AGPL entries MUST have `integration_mode_default == "external_process"`
 //!
 //! Error codes:
@@ -30,7 +32,7 @@ mod oss_register_enforcement {
     }
 
     fn oss_register_path() -> PathBuf {
-        repo_root().join("docs/OSS_REGISTER.md")
+        repo_root().join(".GOV/roles_shared/OSS_REGISTER.md")
     }
 
     fn cargo_lock_path() -> PathBuf {

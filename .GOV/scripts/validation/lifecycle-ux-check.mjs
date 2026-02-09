@@ -6,10 +6,6 @@ function fail(message) {
   process.exit(1);
 }
 
-function normalizeNewlines(content) {
-  return content.replace(/\r\n/g, "\n");
-}
-
 function readUtf8(filePath) {
   return fs.readFileSync(filePath, "utf8");
 }
@@ -87,52 +83,6 @@ function requireFileExists(filePath) {
         ].join("\n"),
       );
     }
-  }
-}
-
-// If docs/ protocol mirrors exist, require they are byte-for-byte mirrors of the canonical .GOV versions.
-// (docs/ is a temporary compatibility bundle; mirror drift creates instruction divergence.)
-{
-  const mirrors = [
-    {
-      docs: path.join("docs", "ORCHESTRATOR_PROTOCOL.md"),
-      gov: path.join(".GOV", "roles", "orchestrator", "ORCHESTRATOR_PROTOCOL.md"),
-    },
-    {
-      docs: path.join("docs", "CODER_PROTOCOL.md"),
-      gov: path.join(".GOV", "roles", "coder", "CODER_PROTOCOL.md"),
-    },
-    {
-      docs: path.join("docs", "VALIDATOR_PROTOCOL.md"),
-      gov: path.join(".GOV", "roles", "validator", "VALIDATOR_PROTOCOL.md"),
-    },
-  ];
-
-  const drift = [];
-  for (const { docs, gov } of mirrors) {
-    if (!fs.existsSync(docs)) continue;
-    requireFileExists(gov);
-
-    const docsContent = normalizeNewlines(readUtf8(docs));
-    const govContent = normalizeNewlines(readUtf8(gov));
-    if (docsContent !== govContent) {
-      drift.push({ docs, gov });
-    }
-  }
-
-  if (drift.length > 0) {
-    const fix = drift
-      .map(({ docs, gov }) => `- Copy-Item -Force ${gov} ${docs}`)
-      .join("\n");
-    fail(
-      [
-        "docs/ protocol mirror drift detected (must match canonical .GOV role protocols):",
-        ...drift.flatMap(({ docs, gov }) => [`- ${docs}`, `  != ${gov}`]),
-        "",
-        "Suggested fix (PowerShell):",
-        fix,
-      ].join("\n"),
-    );
   }
 }
 

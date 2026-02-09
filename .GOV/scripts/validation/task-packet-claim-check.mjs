@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 // Canonical governance workspace packets live under `/.GOV/task_packets/`.
-// `docs/` is a legacy product compatibility bundle and must not be treated as governance SSoT.
+// Legacy compatibility bundles must not be treated as governance SSoT.
 const TASK_PACKETS_DIR = path.join(".GOV", "task_packets");
 
 function fail(message, details = []) {
@@ -83,4 +83,3 @@ function main() {
 }
 
 main();
-

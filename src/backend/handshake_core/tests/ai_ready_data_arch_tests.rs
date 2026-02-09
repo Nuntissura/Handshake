@@ -253,9 +253,9 @@ async fn pipeline_hashes_query_in_retrieval_events() {
         .await
         .expect("create workspace");
 
-    let doc_rel = "docs/readme.md";
+    let doc_rel = "workspace/readme.md";
     let doc_abs = handshake_root.join(doc_rel);
-    std::fs::create_dir_all(doc_abs.parent().expect("parent")).expect("create docs dir");
+    std::fs::create_dir_all(doc_abs.parent().expect("parent")).expect("create input dir");
     std::fs::write(
         &doc_abs,
         b"# Title\n\nThis file mentions magic_word for retrieval.\n",
