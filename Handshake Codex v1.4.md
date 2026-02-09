@@ -76,8 +76,8 @@
 [CX-210] NEW_TOP_DIR_DOC: When new top-level directories are added with user approval, they SHOULD be documented in a future codex version.
 
 [CX-211] GOV_WORKSPACE_BOUNDARY (HARD): `/.GOV/` is the repo governance workspace (role protocols, gates, governance scripts, task packets, refinements, templates, operator materials). **Handshake product runtime** (code under `/src/`, `/app/`, `/tests/`) MUST NOT read from or write to `/.GOV/` under any circumstances.
-[CX-212] DOCS_COMPATIBILITY_BUNDLE: `docs/` MAY exist as a temporary compatibility bundle for legacy product/runtime paths. Governance workflow/tooling MUST NOT treat `docs/` as authoritative governance state; `/.GOV/` is canonical.
-[CX-212A] BOUNDARY_ENFORCEMENT: The repo MUST enforce the boundary via CI/gates: (1) forbid product code string/path references to `/.GOV/`; (2) post-remediation, also forbid runtime-critical reads of `docs/**`.
+[CX-212] DOCS_COMPATIBILITY_BUNDLE: `docs/` is legacy and MUST NOT be used for governance state. The current repo layout removes `docs/`; do not recreate it. `/.GOV/` is canonical.
+[CX-212A] BOUNDARY_ENFORCEMENT: The repo MUST enforce the boundary via CI/gates: (1) forbid product code string/path references to `/.GOV/`; (2) forbid runtime-critical reads of repo `docs/**` (strings, paths, or file I/O).
 
 [CX-220] BACKEND_JOBS: `/src/backend/jobs/` SHOULD contain job engine and concrete job implementations.
 [CX-221] BACKEND_LLM: `/src/backend/llm/` SHOULD contain LLM client abstractions and provider adapters.
@@ -544,4 +544,3 @@ Clarification: `.GOV/scripts/` is governance/workflow/tooling surface and MAY be
 6. Block merge if workflow was bypassed or spec alignment is incomplete
 
 **Blocking rules apply.** If any MUST requirement is violated, work stops until fixed.
-
