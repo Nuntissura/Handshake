@@ -29,8 +29,10 @@
 - IN_SCOPE_PATHS:
   - .GOV/refinements/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md
   - .GOV/task_packets/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md
+  - .GOV/roles_shared/OSS_REGISTER.md
   - .GOV/roles_shared/TASK_BOARD.md
   - .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
+  - docs/OSS_REGISTER.md
   - justfile
   - deny.toml
   - src/backend/handshake_core/Cargo.toml
