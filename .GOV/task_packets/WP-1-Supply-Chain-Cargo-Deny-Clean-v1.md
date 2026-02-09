@@ -200,5 +200,145 @@ git revert <commit-sha>
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
 
+### Validator evidence (2026-02-09T02:20:42Z)
+
+- NOTE: Validation executed against committed `HEAD=ff9d303443bcb8d704b35692a8ee29212d84ddb0` (coder-provided HEAD SHA was not provided). At validation start, the worktree contained uncommitted changes (`src/backend/handshake_core/Cargo.lock`). Range-based gates validate committed blobs only.
+
+- COMMAND: `pwd; git rev-parse --show-toplevel; git rev-parse --abbrev-ref HEAD; git status -sb; git worktree list`
+  - EXIT_CODE: 0
+  - WORKTREE_DIR: `D:/Projects/LLM projects/wt-WP-1-Supply-Chain-Cargo-Deny-Clean-v1`
+  - BRANCH: `feat/WP-1-Supply-Chain-Cargo-Deny-Clean-v1`
+  - GIT_SHA_BEFORE: `ff9d303443bcb8d704b35692a8ee29212d84ddb0`
+  - GIT_SHA_AFTER: `ff9d303443bcb8d704b35692a8ee29212d84ddb0`
+  - LOG_PATH: `.handshake/logs/WP-1-Supply-Chain-Cargo-Deny-Clean-v1/validator-cx-wt-001-20260209T022042Z.log`
+  - OUTPUT_SHA256: `efcfd2340a9e82fcb1963b1f7ebf99d53cc1c3f070e084418730627ca43dc425`
+  - PROOF_LINES:
+    - `## feat/WP-1-Supply-Chain-Cargo-Deny-Clean-v1`
+    - ` M src/backend/handshake_core/Cargo.lock`
+
+- COMMAND: `cd src/backend/handshake_core; cargo deny check advisories licenses bans sources`
+  - EXIT_CODE: 1
+  - WORKTREE_DIR: `D:/Projects/LLM projects/wt-WP-1-Supply-Chain-Cargo-Deny-Clean-v1`
+  - BRANCH: `feat/WP-1-Supply-Chain-Cargo-Deny-Clean-v1`
+  - GIT_SHA_BEFORE: `ff9d303443bcb8d704b35692a8ee29212d84ddb0`
+  - GIT_SHA_AFTER: `ff9d303443bcb8d704b35692a8ee29212d84ddb0`
+  - LOG_PATH: `.handshake/logs/WP-1-Supply-Chain-Cargo-Deny-Clean-v1/validator-cargo-deny-check.log`
+  - OUTPUT_SHA256: `d1b9f7888023b7374828914accdd0878fbffae6a8f7e98622c329cec82d37815`
+  - PROOF_LINES:
+    - `advisories FAILED, bans ok, licenses ok, sources ok`
+    - `    ├ ID: RUSTSEC-2024-0363`
+    -     ├ Solution: Upgrade to >=0.8.1 (try `cargo update -p sqlx`)
+    - `    ├ ID: RUSTSEC-2026-0009`
+    -     ├ Solution: Upgrade to >=0.3.47 (try `cargo update -p time`)
+
+- COMMAND: `just deny`
+  - EXIT_CODE: 1
+  - WORKTREE_DIR: `D:/Projects/LLM projects/wt-WP-1-Supply-Chain-Cargo-Deny-Clean-v1`
+  - BRANCH: `feat/WP-1-Supply-Chain-Cargo-Deny-Clean-v1`
+  - GIT_SHA_BEFORE: `ff9d303443bcb8d704b35692a8ee29212d84ddb0`
+  - GIT_SHA_AFTER: `ff9d303443bcb8d704b35692a8ee29212d84ddb0`
+  - LOG_PATH: `.handshake/logs/WP-1-Supply-Chain-Cargo-Deny-Clean-v1/validator-just-deny.log`
+  - OUTPUT_SHA256: `9d4c2c4d3c20bd26fb596ce5ff9de4e42c40fbd47e5ac85c3395a83d172b74bd`
+  - PROOF_LINES:
+    - `advisories FAILED, bans ok, licenses ok, sources ok`
+    - error: Recipe `deny` failed on line 96 with exit code 1
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`
+  - EXIT_CODE: 0
+  - WORKTREE_DIR: `D:/Projects/LLM projects/wt-WP-1-Supply-Chain-Cargo-Deny-Clean-v1`
+  - BRANCH: `feat/WP-1-Supply-Chain-Cargo-Deny-Clean-v1`
+  - GIT_SHA_BEFORE: `ff9d303443bcb8d704b35692a8ee29212d84ddb0`
+  - GIT_SHA_AFTER: `ff9d303443bcb8d704b35692a8ee29212d84ddb0`
+  - LOG_PATH: `.handshake/logs/WP-1-Supply-Chain-Cargo-Deny-Clean-v1/validator-cargo-test-handshake-core.log`
+  - OUTPUT_SHA256: `3e2f028d0af8fc7beedd958718fcc4c4433d83b6a60526c630a312800f54bfa6`
+  - PROOF_LINES:
+    - `running 157 tests`
+    - `test result: ok. 157 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out`
+
+- COMMAND: `just post-work WP-1-Supply-Chain-Cargo-Deny-Clean-v1 --range ff9d3034..HEAD`
+  - EXIT_CODE: 1
+  - WORKTREE_DIR: `D:/Projects/LLM projects/wt-WP-1-Supply-Chain-Cargo-Deny-Clean-v1`
+  - BRANCH: `feat/WP-1-Supply-Chain-Cargo-Deny-Clean-v1`
+  - GIT_SHA_BEFORE: `ff9d303443bcb8d704b35692a8ee29212d84ddb0`
+  - GIT_SHA_AFTER: `ff9d303443bcb8d704b35692a8ee29212d84ddb0`
+  - LOG_PATH: `.handshake/logs/WP-1-Supply-Chain-Cargo-Deny-Clean-v1/validator-just-post-work.log`
+  - OUTPUT_SHA256: `09ff6a6d6f9ff674e5baa625f32fb67ddb2d817825275761ce03158419da81a8`
+  - PROOF_LINES:
+    - `Post-work validation FAILED (deterministic manifest gate; not tests)`
+    - `EVIDENCE_MAPPING has no file:line evidence`
+    - `EVIDENCE must include at least one COMMAND + EXIT_CODE entry for modern packets`
+    - `No files changed in range ff9d3034..HEAD`
+
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - WP-1-Supply-Chain-Cargo-Deny-Clean-v1
+
+Verdict: FAIL
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Supply-Chain-Cargo-Deny-Clean-v1`; not tests): FAIL
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): FAIL
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): NO
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md` (**Status:** In Progress)
+- Refinement: `.GOV/refinements/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md` (USER_REVIEW_STATUS: APPROVED)
+- Spec target: `.GOV/roles_shared/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.125.md`
+- Spec anchors validated (presence confirmed in `Handshake_Master_Spec_v02.125.md`):
+  - [CX-631] HYGIENE_COMMANDS includes `cargo deny check advisories licenses bans sources`
+  - Phase Closure Gate: "Supply chain audit clean (zero violations)"
+  - `deny.toml` template index (supply-chain policy shape)
+
+Validation Target:
+- Coder-provided HEAD_SHA: NOT PROVIDED
+- Committed `HEAD` at validation time: `ff9d303443bcb8d704b35692a8ee29212d84ddb0`
+- Post-work range used: `ff9d3034..HEAD` (committed diff was empty; uncommitted changes existed in worktree at start)
+
+Files Checked:
+- `AGENTS.md`
+- `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+- `.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md`
+- `.GOV/roles_shared/EVIDENCE_LEDGER.md`
+- `.GOV/roles_shared/BOUNDARY_RULES.md`
+- `.GOV/roles_shared/SPEC_CURRENT.md`
+- `.GOV/task_packets/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md`
+- `.GOV/refinements/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md`
+- `Handshake Codex v1.4.md`
+- `Handshake_Master_Spec_v02.125.md` (anchor windows)
+- `justfile` (deny recipe)
+- `.github/workflows/ci.yml` (cargo-deny step)
+- `src/backend/handshake_core/Cargo.toml` (sqlx dependency declaration)
+- `src/backend/handshake_core/Cargo.lock` (time/sqlx locked versions)
+
+Findings:
+- Supply-chain advisories: FAIL.
+  - Evidence: `cd src/backend/handshake_core; cargo deny check advisories licenses bans sources` exit 1 (OUTPUT_SHA256: `d1b9f7888023b7374828914accdd0878fbffae6a8f7e98622c329cec82d37815`).
+  - Violations observed:
+    - RUSTSEC-2024-0363: `sqlx 0.8.0` (requires upgrade to `>=0.8.1`).
+    - RUSTSEC-2026-0009: `time 0.3.44` (requires upgrade to `>=0.3.47`).
+- Repo command surface: PARTIAL.
+  - `just deny` correctly targets backend manifest (`--manifest-path src/backend/handshake_core/Cargo.toml`) but fails due to advisories (exit 1; OUTPUT_SHA256: `9d4c2c4d3c20bd26fb596ce5ff9de4e42c40fbd47e5ac85c3395a83d172b74bd`).
+- Deterministic manifest gate: FAIL.
+  - Evidence: `just post-work ... --range ff9d3034..HEAD` exit 1 (OUTPUT_SHA256: `09ff6a6d6f9ff674e5baa625f32fb67ddb2d817825275761ce03158419da81a8`).
+  - Gate failures include missing `EVIDENCE_MAPPING`, placeholder/invalid manifest fields under `## VALIDATION`, and empty committed diff range.
+
+Tests (packet TEST_PLAN):
+- `cd src/backend/handshake_core; cargo deny check advisories licenses bans sources`: FAIL (exit 1)
+- `just deny`: FAIL (exit 1)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`: PASS (exit 0; OUTPUT_SHA256: `3e2f028d0af8fc7beedd958718fcc4c4433d83b6a60526c630a312800f54bfa6`)
+
+REASON FOR FAIL:
+- Supply-chain gate not satisfied: `cargo deny` advisories still report active vulnerabilities (sqlx/time), violating DONE_MEANS and Phase Closure Gate "zero violations".
+- Deterministic validation gate not satisfied: `just post-work` fails due to incomplete packet manifest/evidence mapping and no committed changes in the provided range.
+- Validation target ambiguity: coder did not provide a committed HEAD SHA to validate; branch HEAD remained at docs-only commit `ff9d3034` during this run.
+
+Actionable Next Steps (no waivers assumed):
+- Coder:
+  - Upgrade `sqlx` to `>=0.8.1` and ensure `Cargo.lock` resolves to a patched version (then re-run `cargo deny`).
+  - Upgrade `time` to `>=0.3.47` (transitive; ensure `Cargo.lock` resolves to `time >=0.3.47`).
+  - Commit the dependency remediation changes and provide the resulting `HEAD_SHA` for validation.
+  - Fill `## EVIDENCE_MAPPING` with DONE_MEANS/SPEC_ANCHOR -> `path:line` mappings (Spec also mandates evidence mapping for MUSTs).
+  - Replace placeholder fields under `## VALIDATION` with real manifest entries (file windows + pre/post SHA1s) so `just post-work` can pass deterministically.
+- Validator (after coder commits):
+  - Re-run TEST_PLAN commands and `just post-work WP-1-Supply-Chain-Cargo-Deny-Clean-v1 --range ff9d3034..HEAD_SHA` against the committed target, then append a new Validation Report block with PASS/FAIL.
