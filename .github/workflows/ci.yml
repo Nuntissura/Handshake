@@ -308,7 +308,7 @@ jobs:
         run: cargo install cargo-deny
 
       - name: Rust dependency policy
-        run: cargo deny check advisories licenses bans sources
+        run: cargo deny --manifest-path src/backend/handshake_core/Cargo.toml check advisories licenses bans sources
 
   traceability:
     runs-on: ubuntu-latest

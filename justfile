@@ -41,7 +41,7 @@ validate:
 	cd src/backend/handshake_core; cargo fmt
 	cd src/backend/handshake_core; cargo clippy --all-targets --all-features
 	cd src/backend/handshake_core; cargo test
-	cargo deny check advisories licenses bans sources
+	cargo deny --manifest-path src/backend/handshake_core/Cargo.toml check advisories licenses bans sources
 
 # Codex guardrails: prevent direct fetch in components, println/eprintln in backend, and doc drift.
 codex-check:
@@ -93,7 +93,7 @@ depcruise:
 
 # Dependency & license checks (Rust)
 deny:
-	cargo deny check advisories licenses bans sources
+	cargo deny --manifest-path src/backend/handshake_core/Cargo.toml check advisories licenses bans sources
 
 # Scaffolding
 new-react-component name:
