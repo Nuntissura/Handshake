@@ -461,3 +461,70 @@ Actionable Next Steps (no waivers assumed):
   - Replace placeholder fields under `## VALIDATION` with real manifest entries (file windows + pre/post SHA1s) so `just post-work` can pass deterministically.
 - Validator (after coder commits):
   - Re-run TEST_PLAN commands and `just post-work WP-1-Supply-Chain-Cargo-Deny-Clean-v1 --range ff9d3034..HEAD_SHA` against the committed target, then append a new Validation Report block with PASS/FAIL.
+
+### VALIDATION REPORT - WP-1-Supply-Chain-Cargo-Deny-Clean-v1 (Revalidation 2026-02-09)
+
+Verdict: PASS
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Supply-Chain-Cargo-Deny-Clean-v1 --range ff9d3034..HEAD`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md` (**Status:** In Progress)
+- Refinement: `.GOV/refinements/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md` (USER_REVIEW_STATUS: APPROVED)
+- Spec target: `.GOV/roles_shared/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.125.md`
+- Validation target HEAD: `96d162786e5aa06ecc18007d1578db9a62d5ecb3`
+- Post-work range: `ff9d303443bcb8d704b35692a8ee29212d84ddb0..96d162786e5aa06ecc18007d1578db9a62d5ecb3`
+
+Files Checked:
+- `.GOV/task_packets/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md`
+- `.GOV/refinements/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md`
+- `.GOV/roles_shared/SPEC_CURRENT.md`
+- `Handshake_Master_Spec_v02.125.md`
+- `justfile`
+- `deny.toml`
+- `.github/workflows/ci.yml`
+- `src/backend/handshake_core/Cargo.toml`
+- `src/backend/handshake_core/Cargo.lock`
+- `src/backend/handshake_core/src/ai_ready_data/chunking.rs`
+- `docs/OSS_REGISTER.md`
+- `.GOV/roles_shared/OSS_REGISTER.md`
+
+Findings:
+- Supply-chain advisories gate now passes:
+  - COMMAND: `cd src/backend/handshake_core; cargo deny check advisories licenses bans sources`
+  - RESULT: `advisories ok, bans ok, licenses ok, sources ok` (exit 0)
+- Repo command surface now passes from root:
+  - COMMAND: `just deny`
+  - RESULT: `advisories ok, bans ok, licenses ok, sources ok` (exit 0)
+- Dependency remediation evidence in lockfile:
+  - `src/backend/handshake_core/Cargo.lock:528` -> `bytes 1.11.1`
+  - `src/backend/handshake_core/Cargo.lock:2787` -> `ring 0.17.14`
+  - `src/backend/handshake_core/Cargo.lock:3182` -> `sqlx 0.8.6`
+  - `src/backend/handshake_core/Cargo.lock:3641` -> `time 0.3.47`
+- Tree-sitter compatibility adjustment is present:
+  - `src/backend/handshake_core/Cargo.toml:28`
+  - `src/backend/handshake_core/Cargo.toml:29`
+  - `src/backend/handshake_core/Cargo.toml:30`
+  - `src/backend/handshake_core/src/ai_ready_data/chunking.rs:115`
+- OSS register closure for newly locked crates is present:
+  - `docs/OSS_REGISTER.md:317`
+  - `docs/OSS_REGISTER.md:354`
+  - `.GOV/roles_shared/OSS_REGISTER.md:317`
+  - `.GOV/roles_shared/OSS_REGISTER.md:354`
+- Deterministic manifest gate now passes:
+  - COMMAND: `just post-work WP-1-Supply-Chain-Cargo-Deny-Clean-v1 --range ff9d3034..HEAD`
+  - RESULT: `Post-work validation PASSED` (exit 0)
+
+Tests:
+- `cd src/backend/handshake_core; cargo deny check advisories licenses bans sources`: PASS
+- `just deny`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`: PASS
+
+Risks & Suggested Actions:
+- cargo-deny still emits non-blocking duplicate/unmatched-license warnings; keep monitoring but no current gate violation.
+
+REASON FOR PASS:
+- All DONE_MEANS items are satisfied on committed head `96d162786e5aa06ecc18007d1578db9a62d5ecb3`: cargo-deny passes in crate and repo command surfaces, dependency advisories are remediated in lockfile, cargo tests pass, and deterministic post-work validation passes for the declared commit range.
