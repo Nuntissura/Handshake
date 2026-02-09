@@ -55,6 +55,8 @@ const governanceOnlyPathAllowlist = [
   p => p.startsWith('.GOV/scripts/'),
   p => p.startsWith('.github/'),
   p => p.startsWith('.claude/'),
+  p => /^docs\/(ORCHESTRATOR_PROTOCOL|CODER_PROTOCOL|VALIDATOR_PROTOCOL)\.md$/.test(p),
+  p => /^docs\/(SPEC_CURRENT|TASK_BOARD)\.md$/.test(p),
   p => p === 'justfile',
   p => p === 'AGENTS.md',
   p => p === 'Handshake Codex v1.4.md',
@@ -112,24 +114,36 @@ if (commitsWithoutWpId.length > 0) {
 
 // Check 2: Task packets exist for referenced WP_IDs
 console.log('\nCheck 2: Task packets exist for referenced WP_IDs');
-const taskPacketDir = '.GOV/task_packets';
-if (!fs.existsSync(taskPacketDir)) {
+const canonicalTaskPacketDir = '.GOV/task_packets';
+const legacyTaskPacketDir = 'docs/task_packets';
+if (!fs.existsSync(canonicalTaskPacketDir)) {
   errors.push('.GOV/task_packets/ directory does not exist [CX-213]');
   console.log('Æ’?O FAIL: No task_packets directory');
   console.log('  Run: mkdir -p .GOV/task_packets');
 } else {
-  const taskPackets = fs
-    .readdirSync(taskPacketDir)
+  const canonicalPackets = fs
+    .readdirSync(canonicalTaskPacketDir)
     .filter(f => f.endsWith('.md'));
-  console.log(`  Æ’o. .GOV/task_packets/ exists (${taskPackets.length} packets)`);
+  console.log(`  Æ’o. .GOV/task_packets/ exists (${canonicalPackets.length} packets)`);
+
+  const legacyPackets = fs.existsSync(legacyTaskPacketDir)
+    ? fs.readdirSync(legacyTaskPacketDir).filter(f => f.endsWith('.md'))
+    : [];
+  if (legacyPackets.length > 0) {
+    console.log(`  â„¹ï¸  docs/task_packets/ present (${legacyPackets.length} legacy packets)`);
+  }
 
   const missingPackets = [];
+  const legacyOnlyPackets = [];
   commitsWithWpId.forEach(commit => {
     const wpId = commit.subject.match(wpIdPattern)?.[0];
     if (wpId) {
-      const hasPacket = taskPackets.some(p => p.includes(wpId));
-      if (!hasPacket) {
+      const hasCanonical = canonicalPackets.some(p => p.includes(wpId));
+      const hasLegacy = legacyPackets.some(p => p.includes(wpId));
+      if (!hasCanonical && !hasLegacy) {
         missingPackets.push({ commit, wpId });
+      } else if (!hasCanonical && hasLegacy) {
+        legacyOnlyPackets.push({ commit, wpId });
       }
     }
   });
@@ -146,6 +160,18 @@ if (!fs.existsSync(taskPacketDir)) {
     );
   } else {
     console.log('  Æ’o. All WP_IDs in commits have task packets');
+  }
+
+  if (legacyOnlyPackets.length > 0) {
+    console.log(
+      `  â„¹ï¸  ${legacyOnlyPackets.length} WP_IDs found only in docs/task_packets/ (legacy; migrate to .GOV/task_packets/)`
+    );
+    legacyOnlyPackets.slice(0, 3).forEach(({ commit, wpId }) => {
+      console.log(`    - ${commit.hash.slice(0, 7)}: ${wpId}`);
+    });
+    warnings.push(
+      `${legacyOnlyPackets.length} WP_IDs found only in docs/task_packets (legacy; migrate to .GOV/task_packets)`
+    );
   }
 }
 
@@ -184,6 +210,12 @@ console.log('\nCheck 5: Protocol files exist');
 const protocolFiles = [
   '.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md',
   '.GOV/roles/coder/CODER_PROTOCOL.md',
+  '.GOV/roles/validator/VALIDATOR_PROTOCOL.md',
+  '.GOV/roles/orchestrator/agentic/AGENTIC_PROTOCOL.md',
+  '.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md',
+  '.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md',
+  '.GOV/roles_shared/BOUNDARY_RULES.md',
+  '.GOV/roles_shared/EVIDENCE_LEDGER.md',
 ];
 
 protocolFiles.forEach(file => {
@@ -218,5 +250,3 @@ if (errors.length === 0 && warnings.length === 0) {
   console.log('See: .GOV/roles_shared/SPEC_CURRENT.md');
   process.exit(1);
 }
-
-

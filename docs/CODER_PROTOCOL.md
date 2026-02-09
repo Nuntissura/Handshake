@@ -1,4 +1,4 @@
-# CODER PROTOCOL [CX-620-625]
+﻿# CODER PROTOCOL [CX-620-625]
 
 **MANDATORY** - Read this before writing any code
 
@@ -12,15 +12,30 @@
 
 ---
 
+## Repo Boundary Rules (HARD)
+
+- `/.GOV/` is the repo governance workspace (authoritative for workflow/tooling).
+- Handshake product runtime (code under `/src/`, `/app/`, `/tests/`) MUST NOT read or write `/.GOV/` under any circumstances.
+- `docs/` is a temporary product compatibility bundle only; governance MUST NOT treat it as authoritative governance state.
+- Enforcement is mandatory (CI/gates) to forbid product code referencing `/.GOV/`.
+
+See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUNDARY_RULES.md`.
+
+## Agentic Mode (Additional LAW)
+
+If the WP is being executed via orchestrator-led, multi-agent ("agentic") workflow, you MUST also follow:
+- `/.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md`
+- `/.GOV/roles_shared/EVIDENCE_LEDGER.md`
+
 ## Governance/Workflow Changes (No WP Required)
 
-If the assignment is governance/workflow/tooling-only and the planned diff is strictly limited to `docs/`, `scripts/`, `justfile`, and `.github/`, you MAY proceed without creating a Work Packet.
+If the assignment is governance/workflow/tooling-only and the planned diff is strictly limited to `.GOV/`, `.GOV/scripts/`, `justfile`, and `.github/`, you MAY proceed without creating a Work Packet.
 
 Hard rules:
 - DO NOT modify Handshake product code in `src/`, `app/`, or `tests/`.
 - List the intended changed paths before editing.
 - Provide a rollback hint.
-- Run verification commands appropriate to the change (at minimum: `node scripts/validation/codex-check.mjs`) and record outputs.
+- Run verification commands appropriate to the change (at minimum: `node .GOV/scripts/validation/codex-check.mjs`) and record outputs.
 
 ---
 
@@ -30,7 +45,7 @@ You MUST operate from the correct working directory and branch for the WP you ar
 
 Source of truth (Coder role):
 - The WP assignment from the Orchestrator (WP branch + WP worktree directory).
-- The Orchestrator's recorded assignment in `docs/ORCHESTRATOR_GATES.json` (`PREPARE` entry contains `branch` + `worktree_dir`).
+- The Orchestrator's recorded assignment in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` (`PREPARE` entry contains `branch` + `worktree_dir`).
 
 You do NOT have a default "coder worktree". The Operator's personal worktree is not a coder worktree.
 
@@ -61,14 +76,14 @@ HARD_GATE_REASON [CX-WT-001]
 - Ensure `git worktree list` topology matches concurrency expectations.
 - Prevent using the Operator's personal worktree as a Coder worktree.
 - Ensure the Orchestrator's assignment is actually in effect locally.
-- Bind Coder work to `docs/ORCHESTRATOR_GATES.json` `PREPARE` records (`branch`, `worktree_dir`).
-- Keep role-governed defaults consistent with `docs/ROLE_WORKTREES.md`.
+- Bind Coder work to `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` `PREPARE` records (`branch`, `worktree_dir`).
+- Keep role-governed defaults consistent with `.GOV/roles_shared/ROLE_WORKTREES.md`.
 - Reduce risk of data loss from wrong-directory "cleanup"/stashing mistakes.
 - Make failures actionable: mismatch => STOP + escalate, not "guess and proceed".
 
 HARD_GATE_NEXT_ACTIONS [CX-WT-001]
 - If correct (repo/worktree/branch match the assignment): proceed to BOOTSTRAP / packet steps.
-- If incorrect/uncertain: STOP; ask Orchestrator/Operator to provide/create the correct WP worktree/branch and ensure `PREPARE` is recorded in `docs/ORCHESTRATOR_GATES.json`.
+- If incorrect/uncertain: STOP; ask Orchestrator/Operator to provide/create the correct WP worktree/branch and ensure `PREPARE` is recorded in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`.
 ```
 
 If you do not have a WP worktree assignment yet:
@@ -121,19 +136,19 @@ Rule: when a gate command is run and `GATE_STATUS` is posted, `PHASE` MUST match
 
 ## Spec Authority Rule [CX-598] (HARD INVARIANT)
 
-**The Roadmap (§7.6) is ONLY a pointer. The Master Spec Main Body (§1-6, §9-11) is the SOLE definition of "Done."**
+**The Roadmap (Â§7.6) is ONLY a pointer. The Master Spec Main Body (Â§1-6, Â§9-11) is the SOLE definition of "Done."**
 
 | Principle | Meaning |
 |-----------|---------|
-| **Roadmap = Pointer** | §7.6 lists WHAT to build and points to WHERE it's defined |
-| **Main Body = Truth** | §1-6, §9-11 define HOW it must be built (schemas, invariants, contracts) |
+| **Roadmap = Pointer** | Â§7.6 lists WHAT to build and points to WHERE it's defined |
+| **Main Body = Truth** | Â§1-6, Â§9-11 define HOW it must be built (schemas, invariants, contracts) |
 | **No Debt** | Skipping Main Body requirements poisons the project and builds on rotten foundations |
 | **No Phase Closes** | Until EVERY MUST/SHOULD in the referenced Main Body sections is implemented |
 
 **Coder Obligations:**
 - Every SPEC_ANCHOR in a task packet MUST reference a Main Body section (not Roadmap)
 - If a roadmap item lacks Main Body detail, escalate to Orchestrator for spec enrichment BEFORE coding
-- Roadmap Coverage Matrix (Spec §7.6.1; Codex [CX-598A]): if you discover a Main Body section that is missing/unscheduled in the matrix for the work you are doing, STOP and escalate (do not “implement around” governance drift)
+- Roadmap Coverage Matrix (Spec Â§7.6.1; Codex [CX-598A]): if you discover a Main Body section that is missing/unscheduled in the matrix for the work you are doing, STOP and escalate (do not â€œimplement aroundâ€ governance drift)
 - Surface-level compliance with roadmap bullets is INSUFFICIENT - every line of Main Body text must be implemented
 - Do NOT assume "good enough" - the Main Body is the contract
 
@@ -147,7 +162,7 @@ Handshake is complex software. If we skip items or treat the roadmap as the requ
 Handshake uses **Base WP IDs** for stable planning, and **packet revisions** (`-v{N}`) when packets are remediated after audits/spec drift.
 
 **Rule (blocking if ambiguous):**
-- Before you start implementation, confirm the **Active Packet** for your Base WP in `docs/WP_TRACEABILITY_REGISTRY.md`.
+- Before you start implementation, confirm the **Active Packet** for your Base WP in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`.
 - If more than one task packet exists for the same Base WP and the registry does not clearly identify the Active Packet, STOP and escalate to the Orchestrator (governance-blocked).
 - Run `just pre-work` / `just post-work` using the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
 
@@ -155,9 +170,9 @@ Handshake uses **Base WP IDs** for stable planning, and **packet revisions** (`-
 
 If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet includes `## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]`.
 
-**Why:** A `-v{N}` packet is not allowed to “forget” requirements from earlier versions. The Lineage Audit is the Orchestrator’s proof that the Base WP’s Roadmap pointer and Master Spec Main Body requirements are fully translated into the current repo state.
+**Why:** A `-v{N}` packet is not allowed to â€œforgetâ€ requirements from earlier versions. The Lineage Audit is the Orchestratorâ€™s proof that the Base WPâ€™s Roadmap pointer and Master Spec Main Body requirements are fully translated into the current repo state.
 
-**Blocking rule:** If the Lineage Audit is missing/unclear, STOP and escalate to the Orchestrator. Do NOT proceed to implement “just the v{N} diff” without a complete audit.
+**Blocking rule:** If the Lineage Audit is missing/unclear, STOP and escalate to the Orchestrator. Do NOT proceed to implement â€œjust the v{N} diffâ€ without a complete audit.
 
 **Supporting Documents:**
 - **CODER_RUBRIC.md** - Internal quality standard (15-point self-audit, success metrics, failure modes)
@@ -193,7 +208,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 Task state is managed by the agent currently holding the "ball":
 1. **Orchestrator**: Creates WP -> Adds to `Ready for Dev`.
 2. **Coder**: Starts work -> Updates task packet to `In Progress` + pushes a docs-only bootstrap commit.
-3. **Validator**: Status-syncs `docs/TASK_BOARD.md` on `main` (updates `## Active (Cross-Branch Status)` for Operator visibility).
+3. **Validator**: Status-syncs `.GOV/roles_shared/TASK_BOARD.md` on `main` (updates `## Active (Cross-Branch Status)` for Operator visibility).
 4. **Validator**: Approves work -> Moves to `Done` (during VALIDATION).
 5. **Orchestrator**: Escalation/Blocker -> Moves to `Blocked`.
 
@@ -201,7 +216,7 @@ Task state is managed by the agent currently holding the "ball":
 
 **Coder Mandate:** You are responsible for updating the task packet to `In Progress` (with claim fields) and producing the bootstrap commit. Operator-visible Task Board updates on `main` are handled by the Validator via status-sync commits.
 
-### Board Integrity Check ✋
+### Board Integrity Check âœ‹
 If you are explicitly instructed to update the board, ensure these 5 fixed sections exist (DO NOT delete them even if empty):
 - `## Ready for Dev`
 - `## In Progress`
@@ -223,29 +238,29 @@ You are a **Coder** or **Debugger** agent. Your job is to:
 3. Run validation (TEST_PLAN + hygiene) and self-review
 4. Document completion for handoff
 
-**Restrictions:** You may append raw logs/evidence to `## EVIDENCE`, but **NEVER** write a verdict or validation report. Do not rely on branch-local `docs/TASK_BOARD.md` for cross-branch visibility; the Validator maintains the Operator-visible board on `main`.
+**Restrictions:** You may append raw logs/evidence to `## EVIDENCE`, but **NEVER** write a verdict or validation report. Do not rely on branch-local `.GOV/roles_shared/TASK_BOARD.md` for cross-branch visibility; the Validator maintains the Operator-visible board on `main`.
 
 **CRITICAL**: You MUST verify a task packet exists BEFORE writing any code. This is not optional.
 
 ---
 
-## Pre-Implementation Checklist (BLOCKING ✋)
+## Pre-Implementation Checklist (BLOCKING âœ‹)
 
 Complete ALL steps before writing code. If any step fails, STOP and request help.
 
-### Step 1: Verify Task Packet Exists ✋ STOP
+### Step 1: Verify Task Packet Exists âœ‹ STOP
 
 **Check that orchestrator provided:**
-- [ ] Task packet path mentioned (e.g., `docs/task_packets/WP-*.md`)
+- [ ] Task packet path mentioned (e.g., `.GOV/task_packets/WP-*.md`)
 - [ ] WP_ID in handoff message
 - [ ] "Orchestrator checklist complete" confirmation
-- [ ] Packet is an official task packet in `docs/task_packets/` (NOT a stub in `docs/task_packets/stubs/`)
+- [ ] Packet is an official task packet in `.GOV/task_packets/` (NOT a stub in `.GOV/task_packets/stubs/`)
 
 **Verification methods (try in order):**
 
 **Method 1: Check for file**
 ```bash
-ls -la docs/task_packets/WP-*.md
+ls -la .GOV/task_packets/WP-*.md
 ```
 
 **Method 2: Check handoff message**
@@ -253,18 +268,18 @@ Look for TASK_PACKET block in orchestrator's message.
 
 **IF NOT FOUND:**
 ```
-❌ BLOCKED: No task packet found [CX-620]
+âŒ BLOCKED: No task packet found [CX-620]
 
 Orchestrator must create a task packet before I can start.
 
 Missing:
-- Task packet file in docs/task_packets/
+- Task packet file in .GOV/task_packets/
 - TASK_PACKET block in handoff
 
 Orchestrator: Please create task packet using:
   just create-task-packet WP-{ID}
 
-If only a stub exists (e.g., `docs/task_packets/stubs/WP-{ID}.md`), it must be activated into an official task packet first (refinement + USER_SIGNATURE + `just create-task-packet`).
+If only a stub exists (e.g., `.GOV/task_packets/stubs/WP-{ID}.md`), it must be activated into an official task packet first (refinement + USER_SIGNATURE + `just create-task-packet`).
 
 I cannot write code without a task packet.
 ```
@@ -273,7 +288,7 @@ I cannot write code without a task packet.
 
 ---
 
-### Step 1.5: Scope Adequacy Check [CX-581A-SCOPE] ✋ STOP
+### Step 1.5: Scope Adequacy Check [CX-581A-SCOPE] âœ‹ STOP
 
 **Purpose:** Catch scope issues BEFORE implementation. If scope is unclear or incomplete, escalate immediately rather than wasting time on implementation that might conflict.
 
@@ -305,7 +320,7 @@ I cannot write code without a task packet.
 **Option A: Scope is incomplete (blocker)**
 
 ```
-⚠️ SCOPE ISSUE: Missing IN_SCOPE_PATHS [CX-581A]
+âš ï¸ SCOPE ISSUE: Missing IN_SCOPE_PATHS [CX-581A]
 
 Description:
 I need to modify src/backend/storage/database.rs to implement connection pooling,
@@ -327,7 +342,7 @@ Awaiting Orchestrator decision.
 **Option B: Scope conflict with OUT_OF_SCOPE (blocker)**
 
 ```
-⚠️ SCOPE CONFLICT: OUT_OF_SCOPE blocker [CX-581A]
+âš ï¸ SCOPE CONFLICT: OUT_OF_SCOPE blocker [CX-581A]
 
 Description:
 To implement job cancellation, I need to modify job state machine.
@@ -352,7 +367,7 @@ Orchestrator: Please advise.
 **Option C: Scope is realistic, but I have questions**
 
 ```
-✓ Scope appears clear. Quick confirmation questions:
+âœ“ Scope appears clear. Quick confirmation questions:
 
 1. "Template system" in SCOPE - does this include CSS-in-JS or only React components?
 2. OUT_OF_SCOPE says "don't touch database schema" - what about indices?
@@ -365,10 +380,10 @@ If my understanding is correct, I'll proceed to Step 2. Otherwise, clarify neede
 
 ---
 
-### Step 2: Read Task Packet ✋ STOP
+### Step 2: Read Task Packet âœ‹ STOP
 
 ```bash
-cat docs/task_packets/WP-{ID}-*.md
+cat .GOV/task_packets/WP-{ID}-*.md
 ```
 
 **Concurrency (multi-coder sessions) [CX-CONC-001] - STOP if conflict**
@@ -379,12 +394,12 @@ When two Coders work in this repo concurrently, no two in-progress Work Packets 
 - **Low-friction rule:** Local uncommitted changes outside your WP are allowed during development, but when handing off for Validator merge/commit you MUST stage ONLY your WP's files (per `IN_SCOPE_PATHS`) so `just post-work {WP_ID}` can validate the staged diff deterministically.
 - **Waiver boundary [CX-573F]:** A user waiver is only required if the Validator cannot isolate the staged diff to the WP scope (or if out-of-scope files must be included intentionally).
 - Treat `IN_SCOPE_PATHS` as the exclusive file lock set for the WP.
-- Before editing any code, consult the Operator-visible Task Board on `main` (recommended: `git show main:docs/TASK_BOARD.md`) and review `## Active (Cross-Branch Status)`; open each listed WP packet and compare `IN_SCOPE_PATHS` to your WP.
+- Before editing any code, consult the Operator-visible Task Board on `main` (recommended: `git show main:.GOV/roles_shared/TASK_BOARD.md`) and review `## Active (Cross-Branch Status)`; open each listed WP packet and compare `IN_SCOPE_PATHS` to your WP.
 - If ANY overlap exists: STOP and escalate (do not edit any code).
 
 Escalation template:
 ```
-ƒ?O BLOCKED: File lock conflict [CX-CONC-001]
+Æ’?O BLOCKED: File lock conflict [CX-CONC-001]
 
 My WP: {WP_ID} (I am {Coder-A|Coder-B})
 Conflicts with: {OTHER_WP_ID} (see task packet CODER_MODEL / CODER_REASONING_STRENGTH)
@@ -425,7 +440,7 @@ For each field, verify it meets the objective criteria:
 
 **IF ANY FIELD IS INCOMPLETE:**
 ```
-❌ BLOCKED: Task packet incomplete [CX-581]
+âŒ BLOCKED: Task packet incomplete [CX-581]
 
 Missing or incomplete field:
 - {Field name}: {Specific reason}
@@ -438,7 +453,7 @@ I cannot start without a complete packet.
 
 ---
 
-### Step 3: Bootstrap Claim Commit (Status Sync) [CX-217] ✋ STOP
+### Step 3: Bootstrap Claim Commit (Status Sync) [CX-217] âœ‹ STOP
 
 Goal: make "work started" visible to the Operator on `main` **without** blocking your local `just validate` workflow.
 
@@ -451,42 +466,42 @@ Goal: make "work started" visible to the Operator on `main` **without** blocking
 **Then create a docs-only bootstrap commit on your WP branch:**
 ```bash
 git status -sb
-git add docs/task_packets/WP-{ID}.md
+git add .GOV/task_packets/WP-{ID}.md
 git commit -m "docs: bootstrap claim [WP-{ID}]"
 ```
 
 **Notify the Validator** with the commit hash. The Validator will:
 - Merge the docs-only bootstrap claim commit into `main` (commit SHA only; do not fast-forward to unvalidated implementation)
-- Update `docs/TASK_BOARD.md` on `main` (move WP to `## In Progress`; optionally add metadata under `## Active (Cross-Branch Status)`)
+- Update `.GOV/roles_shared/TASK_BOARD.md` on `main` (move WP to `## In Progress`; optionally add metadata under `## Active (Cross-Branch Status)`)
 
-**Do NOT edit `docs/TASK_BOARD.md` for cross-branch visibility in your WP branch** unless the Validator explicitly asks. (Validator maintains the Operator-visible `main` board; `## In Progress` lines are script-checked.)
+**Do NOT edit `.GOV/roles_shared/TASK_BOARD.md` for cross-branch visibility in your WP branch** unless the Validator explicitly asks. (Validator maintains the Operator-visible `main` board; `## In Progress` lines are script-checked.)
 
 ---
 
-### Step 4: Bootstrap Protocol [CX-574-577] ✋ STOP
+### Step 4: Bootstrap Protocol [CX-574-577] âœ‹ STOP
 
 **Read these files in order:**
 
-1. **docs/START_HERE.md** - Repo map, commands, how to run
-2. **docs/SPEC_CURRENT.md** - Current master spec pointer
+1. **.GOV/roles_shared/START_HERE.md** - Repo map, commands, how to run
+2. **.GOV/roles_shared/SPEC_CURRENT.md** - Current master spec pointer
 3. **Task packet** - Your specific work scope
 4. **Task-specific docs:**
-   - FEATURE/REFACTOR → `docs/ARCHITECTURE.md`
-   - DEBUG → `docs/RUNBOOK_DEBUG.md`
-   - REVIEW → Architecture + diff
+   - FEATURE/REFACTOR â†’ `.GOV/roles_shared/ARCHITECTURE.md`
+   - DEBUG â†’ `.GOV/roles_shared/RUNBOOK_DEBUG.md`
+   - REVIEW â†’ Architecture + diff
 
 **Read relevant sections:**
 ```bash
 # Quick scan of architecture
-cat docs/ARCHITECTURE.md
+cat .GOV/roles_shared/ARCHITECTURE.md
 
 # Check runbook for debug guidance (if debugging)
-cat docs/RUNBOOK_DEBUG.md
+cat .GOV/roles_shared/RUNBOOK_DEBUG.md
 ```
 
 ---
 
-### Step 5: Output BOOTSTRAP Block ✋ STOP
+### Step 5: Output BOOTSTRAP Block âœ‹ STOP
 
 **Before first code change, output:**
 
@@ -494,14 +509,14 @@ cat docs/RUNBOOK_DEBUG.md
 BOOTSTRAP [CX-577, CX-622]
 ========================================
 WP_ID: WP-{phase}-{name}
-TASK_PACKET: docs/task_packets/WP-{phase}-{name}.md
+TASK_PACKET: .GOV/task_packets/WP-{phase}-{name}.md
 RISK_TIER: {LOW|MEDIUM|HIGH}
 TASK_TYPE: {DEBUG|FEATURE|REFACTOR|HYGIENE}
 
 FILES_TO_OPEN:
-- docs/START_HERE.md
-- docs/SPEC_CURRENT.md
-- docs/ARCHITECTURE.md (or RUNBOOK_DEBUG.md)
+- .GOV/roles_shared/START_HERE.md
+- .GOV/roles_shared/SPEC_CURRENT.md
+- .GOV/roles_shared/ARCHITECTURE.md (or RUNBOOK_DEBUG.md)
 - {from task packet BOOTSTRAP}
 - {5-15 implementation files}
 
@@ -521,19 +536,19 @@ RISK_MAP:
 - "{failure mode}" -> "{subsystem}" (from packet)
 - "{failure mode}" -> "{subsystem}"
 
-✅ Pre-work verification complete. Starting implementation.
+âœ… Pre-work verification complete. Starting implementation.
 ========================================
 ```
 
 **This confirms you:**
-- ✅ Read the task packet
-- ✅ Understand the scope
-- ✅ Know what files to change
-- ✅ Have a validation plan
+- âœ… Read the task packet
+- âœ… Understand the scope
+- âœ… Know what files to change
+- âœ… Have a validation plan
 
 ---
 
-### Step 5.5: Output SKELETON Block + Skeleton Checkpoint Commit ✋ STOP
+### Step 5.5: Output SKELETON Block + Skeleton Checkpoint Commit âœ‹ STOP
 
 **Purpose:** Make the proposed interfaces/types/contracts explicit and get approval before implementation (per [CX-GATE-001], [CX-625]).
 
@@ -556,7 +571,7 @@ RISK_MAP:
 SKELETON [CX-625, CX-GATE-001]
 ========================================
 WP_ID: WP-{phase}-{name}
-TASK_PACKET: docs/task_packets/WP-{phase}-{name}.md
+TASK_PACKET: .GOV/task_packets/WP-{phase}-{name}.md
 
 PROPOSED_CONTRACTS:
 - {Trait/Struct/Interface/SQL header proposal 1}
@@ -572,7 +587,7 @@ STOP and wait for "SKELETON APPROVED".
 **Then create a docs-only skeleton checkpoint commit on your WP branch:**
 ```bash
 git status -sb
-git add docs/task_packets/WP-{ID}.md
+git add .GOV/task_packets/WP-{ID}.md
 git commit -m "docs: skeleton checkpoint [WP-{ID}]"
 ```
 
@@ -584,7 +599,7 @@ Notify the Validator with the commit hash and **STOP**. Do not implement any log
 
 **Follow packet scope strictly:**
 
-✅ **DO:**
+âœ… **DO:**
 - Change files in IN_SCOPE_PATHS only
 - Follow DONE_MEANS criteria
 - Add tests if TEST_PLAN requires it
@@ -596,7 +611,7 @@ Notify the Validator with the commit hash and **STOP**. Do not implement any log
 - Keep error taxonomy distinct (stale input/hash mismatch vs true scope violation vs spoof/mismatch) so operator UX and diagnostics are actionable
 - For "apply" style actions, re-check prerequisites at click-time (dirty state, hashes/selection compatibility) and block stale operations
 
-❌ **DO NOT:**
+âŒ **DO NOT:**
 - Change files outside IN_SCOPE_PATHS
 - Add features not in SCOPE
 - Skip tests in TEST_PLAN
@@ -619,7 +634,7 @@ Notify the Validator with the commit hash and **STOP**. Do not implement any log
 
 For each DONE_MEANS criterion in the task packet, ask yourself:
 1. **What code change does this require?**
-   - Example: "API endpoint available at `/jobs/:id/cancel`" → Requires new handler in `jobs.rs`
+   - Example: "API endpoint available at `/jobs/:id/cancel`" â†’ Requires new handler in `jobs.rs`
 
 2. **Where will I add the code?**
    - Answer with specific file and location
@@ -640,28 +655,28 @@ DONE_MEANS VERIFICATION [CX-625A]
 Criterion 1: "API endpoint POST /jobs/:id/cancel exists"
 Code evidence: src/backend/handshake_core/src/api/jobs.rs:156-165
 Test evidence: pnpm test passes (case: "cancel endpoint returns 200")
-✅ VERIFIABLE
+âœ… VERIFIABLE
 
 Criterion 2: "Job status changes to 'cancelled' on successful cancel"
 Code evidence: src/backend/handshake_core/src/jobs.rs:89-92
 Test evidence: pnpm test passes (case: "job status updated after cancel")
-✅ VERIFIABLE
+âœ… VERIFIABLE
 
 Criterion 3: "Cannot cancel already-completed jobs"
 Code evidence: src/backend/handshake_core/src/api/jobs.rs:162-165
 Test evidence: pnpm test passes (case: "cancel completed job returns error")
-✅ VERIFIABLE
+âœ… VERIFIABLE
 ```
 
 **Rule:** Every DONE_MEANS item must have:
 1. Code location (file:lines)
 2. Test command that proves it works
-3. Status: ✅ VERIFIABLE or ❌ NOT YET VERIFIABLE
+3. Status: âœ… VERIFIABLE or âŒ NOT YET VERIFIABLE
 
 **If any criterion is NOT verifiable:**
 
 ```
-❌ CRITERION NOT MET: "Database transaction rollback on error"
+âŒ CRITERION NOT MET: "Database transaction rollback on error"
 
 Code evidence: Not implemented
 Test evidence: No test for rollback scenario
@@ -702,12 +717,12 @@ grep -r "reqwest\|http::" src/backend/handshake_core/src/workflows/
 2. Create/use LLM module function instead
 3. Example fix:
    ```rust
-   // ❌ WRONG
+   // âŒ WRONG
    let response = reqwest::Client::new()
      .post("https://api.anthropic.com/...")
      .send().await?;
 
-   // ✅ RIGHT
+   // âœ… RIGHT
    let response = crate::llm::call_claude(prompt).await?;
    ```
 
@@ -738,11 +753,11 @@ grep -r "reqwest\|ClientBuilder\|\.post(\|\.get(" src/backend/handshake_core/src
 3. Call the module function instead
 4. Example fix:
    ```rust
-   // ❌ WRONG (in jobs/run_export.rs)
+   // âŒ WRONG (in jobs/run_export.rs)
    let bucket = reqwest::Client::new()
      .get(&storage_url).send().await?;
 
-   // ✅ RIGHT
+   // âœ… RIGHT
    let bucket = crate::storage::get_bucket(&bucket_name).await?;
    ```
 
@@ -769,15 +784,15 @@ grep -r "println!\|eprintln!" src/backend/handshake_core/src/ --include="*.rs"
 1. Identify the `println!` or `eprintln!` call
 2. Replace with logging equivalent:
    ```rust
-   // ❌ WRONG
+   // âŒ WRONG
    println!("Processing job: {}", job_id);
    eprintln!("Error: {}", err);
 
-   // ✅ RIGHT
+   // âœ… RIGHT
    log::info!("Processing job: {}", job_id);
    log::error!("Error: {}", err);
 
-   // ✅ ALSO RIGHT (if using event macro)
+   // âœ… ALSO RIGHT (if using event macro)
    event!(Level::INFO, job_id = %job_id, "Processing job");
    event!(Level::ERROR, error = %err, "Error occurred");
    ```
@@ -805,12 +820,12 @@ grep -r "TODO\|FIXME\|XXX\|HACK" src/backend/handshake_core/src/ --include="*.rs
 1. Identify the TODO without issue reference
 2. Replace with proper format:
    ```rust
-   // ❌ WRONG
+   // âŒ WRONG
    // TODO: implement error handling
    // FIXME: performance issue
    // XXX: hack
 
-   // ✅ RIGHT
+   // âœ… RIGHT
    // TODO(HSK-1234): Implement proper error handling for network timeouts
    // TODO(HSK-1235): Optimize query to <100ms
    // TODO(HSK-1236): Replace temporary array with persistent storage
@@ -845,26 +860,26 @@ grep -r "TODO\|FIXME\|XXX" src/backend/handshake_core/src/ --include="*.rs" | gr
 **Before starting validation, understand the order. Do NOT skip any step.**
 
 ```
-1️⃣ RUN TESTS (Primary Gate)
-   ↓ All TEST_PLAN commands pass?
-   ├─ YES → Continue to step 2
-   └─ NO → BLOCK: Fix code, re-test until all pass
+1ï¸âƒ£ RUN TESTS (Primary Gate)
+   â†“ All TEST_PLAN commands pass?
+   â”œâ”€ YES â†’ Continue to step 2
+   â””â”€ NO â†’ BLOCK: Fix code, re-test until all pass
 
-2️⃣ RUN POST-WORK (Final Gate)
-   ↓ `just post-work WP-{ID}` passes?
-   ├─ YES → Commit (if not already), then run `just post-work WP-{ID}` and paste PASS output + commit SHA
-   └─ NO → BLOCK: Fix validation errors, re-run until PASS
+2ï¸âƒ£ RUN POST-WORK (Final Gate)
+   â†“ `just post-work WP-{ID}` passes?
+   â”œâ”€ YES â†’ Commit (if not already), then run `just post-work WP-{ID}` and paste PASS output + commit SHA
+   â””â”€ NO â†’ BLOCK: Fix validation errors, re-run until PASS
 ```
 
 **Rule: Do NOT claim work is done if any gate fails.**
 
 ---
 
-## Post-Implementation Checklist (BLOCKING ✋)
+## Post-Implementation Checklist (BLOCKING âœ‹)
 
 Complete ALL steps before claiming work is done.
 
-### Step 7: Run Validation [CX-623] ✋ STOP
+### Step 7: Run Validation [CX-623] âœ‹ STOP
 
 **Pre-Step 7 hygiene (MANDATORY):**
 - Clean Cargo artifacts in the external target dir before self-eval/commit to keep the repo/mirror slim:
@@ -900,7 +915,7 @@ Output: [relevant output]
 
 **If tests FAIL:**
 ```
-❌ Tests failed - work not complete [CX-572]
+âŒ Tests failed - work not complete [CX-572]
 
 Failed: pnpm -C app test
 Error: TypeError in JobsView component
@@ -923,8 +938,8 @@ Fix issues, re-run tests, update your evidence in `## EVIDENCE`.
 | Risk Tier | Coverage Target | Rule | Verification |
 |-----------|-----------------|------|--------------|
 | **LOW** | None (optional) | No requirement | Skip this step if RISK_TIER is LOW |
-| **MEDIUM** | ≥ 80% | New code must have ≥80% coverage | Run `cargo tarpaulin` after tests pass |
-| **HIGH** | ≥ 85% + removal check | New code must be ≥85% + old code never removed | Run `cargo tarpaulin` + manual inspection |
+| **MEDIUM** | â‰¥ 80% | New code must have â‰¥80% coverage | Run `cargo tarpaulin` after tests pass |
+| **HIGH** | â‰¥ 85% + removal check | New code must be â‰¥85% + old code never removed | Run `cargo tarpaulin` + manual inspection |
 
 **How to check coverage (MEDIUM/HIGH risk only):**
 
@@ -937,7 +952,7 @@ cd src/backend/handshake_core
 cargo tarpaulin --out Html --output-dir coverage/
 
 # Open coverage/tarpaulin-report.html and verify:
-# - Your new code has ≥80% (MEDIUM) or ≥85% (HIGH)
+# - Your new code has â‰¥80% (MEDIUM) or â‰¥85% (HIGH)
 # - No previously-covered code now has 0% (didn't remove tests)
 ```
 
@@ -977,7 +992,7 @@ Approved by: {orchestrator decision or team agreement}
 - Prepare a clean handoff for manual validator review (evidence pointers, DONE_MEANS mapping, and validation results).
 - No automated review is required or expected.
 
-### Step 9: Update Task Packet (status and evidence only) ✋ STOP
+### Step 9: Update Task Packet (status and evidence only) âœ‹ STOP
 
 - Update WP_STATUS in the task packet to reflect current state (e.g., Completed/Blocked).
 - Append logs/output to `## EVIDENCE` (if output is long, redirect to a log file and record LOG_PATH + LOG_SHA256 + key proof lines).
@@ -989,7 +1004,7 @@ Approved by: {orchestrator decision or team agreement}
 
 ---
 
-### Step 10: Post-Work Validation ✋ STOP
+### Step 10: Post-Work Validation âœ‹ STOP
 
 **Run deterministic manifest gate (not tests):**
 ```bash
@@ -1009,14 +1024,14 @@ just post-work WP-{ID}
 
 **MUST see:**
 ```
-✅ Post-work validation PASSED (deterministic manifest gate; not tests)
+âœ… Post-work validation PASSED (deterministic manifest gate; not tests)
 
 You may proceed with commit request.
 ```
 
 **If FAIL:**
 ```
-❌ Post-work validation FAILED
+âŒ Post-work validation FAILED
 
 Errors:
   1. {Error description}
@@ -1036,18 +1051,18 @@ Fix errors, re-run `just post-work`.
 
 **2. Output final summary:**
 ```
-✅ Work complete; ready for validation [CX-623]
+âœ… Work complete; ready for validation [CX-623]
 ========================================
 
 WP_ID: WP-{phase}-{name}
 RISK_TIER: {tier}
 
 VALIDATION SUMMARY:
-- cargo test: ✅ PASS (X tests)
-- pnpm test: ✅ PASS (Y tests)
-- pnpm lint: ✅ PASS
-- cargo clippy: ✅ PASS (0 warnings)
-- gates (post-work): ✅ PASS (deterministic manifest; not tests)
+- cargo test: âœ… PASS (X tests)
+- pnpm test: âœ… PASS (Y tests)
+- pnpm lint: âœ… PASS
+- cargo clippy: âœ… PASS (0 warnings)
+- gates (post-work): âœ… PASS (deterministic manifest; not tests)
 
 FILES_CHANGED:
 - src/backend/handshake_core/src/api/jobs.rs
@@ -1055,10 +1070,10 @@ FILES_CHANGED:
 - {list all changed files}
 
 DONE_MEANS MET:
-✅ {Criterion 1 from packet}
-✅ {Criterion 2 from packet}
-✅ All tests pass
-✅ Validation clean
+âœ… {Criterion 1 from packet}
+âœ… {Criterion 2 from packet}
+âœ… All tests pass
+âœ… Validation clean
 
 SUGGESTED COMMIT MESSAGE:
 ```
@@ -1071,10 +1086,10 @@ Users can now cancel running jobs via API.
 - Update job status to "cancelled"
 - Add 2 tests for cancel flow
 
-✅ cargo test: 5 passed
-✅ pnpm test: 12 passed
+âœ… cargo test: 5 passed
+âœ… pnpm test: 12 passed
 
-🤖 Generated with Claude Code
+ðŸ¤– Generated with Claude Code
 Co-Authored-By: {Your model} <noreply@anthropic.com>
 ```
 
@@ -1086,7 +1101,7 @@ Ready for Validator review.
 
 ## BLOCKING RULES (Non-Negotiable)
 
-### ❌ DO NOT:
+### âŒ DO NOT:
 1. Start coding without task packet [CX-620]
 2. Skip BOOTSTRAP block output [CX-622]
 3. Change files outside IN_SCOPE_PATHS
@@ -1095,7 +1110,7 @@ Ready for Validator review.
 6. Request commit without `just post-work` passing [CX-623]
 7. Override enforcement checks without user permission [CX-905]
 
-### ✅ DO:
+### âœ… DO:
 1. Verify packet exists before coding [CX-620]
 2. Output BOOTSTRAP before first change [CX-622]
 3. Follow scope strictly
@@ -1112,11 +1127,11 @@ Ready for Validator review.
 
 **Response**:
 ```
-❌ BLOCKED: No task packet [CX-620]
+âŒ BLOCKED: No task packet [CX-620]
 
 I searched:
-- docs/task_packets/ → No WP-{ID} file found
-- Handoff message → No TASK_PACKET block
+- .GOV/task_packets/ â†’ No WP-{ID} file found
+- Handoff message â†’ No TASK_PACKET block
 
 Orchestrator: Please run `just create-task-packet WP-{ID}`
 
@@ -1127,7 +1142,7 @@ I cannot start without a task packet.
 
 **Response**:
 ```
-❌ Tests failed [CX-572]
+âŒ Tests failed [CX-572]
 
 Command: cargo test
 Result: FAIL (2 failed, 3 passed)
@@ -1143,7 +1158,7 @@ I'm fixing these issues. Work is not complete until tests pass.
 
 **Response**:
 ```
-❌ Manual review: BLOCK [CX-573A]
+âŒ Manual review: BLOCK [CX-573A]
 
 Blocking issues:
 1. No tests added for new endpoint
@@ -1160,7 +1175,7 @@ Requesting re-review after fixes...
 
 ## Common Mistakes (Avoid These)
 
-### ❌ Mistake 1: Starting without packet
+### âŒ Mistake 1: Starting without packet
 **Wrong:**
 ```
 User wants job cancellation. I'll start coding.
@@ -1169,8 +1184,8 @@ User wants job cancellation. I'll start coding.
 ```
 Checking for task packet...
 
-$ ls docs/task_packets/WP-*Cancel*.md
-→ Found: docs/task_packets/WP-1-Job-Cancel.md
+$ ls .GOV/task_packets/WP-*Cancel*.md
+â†’ Found: .GOV/task_packets/WP-1-Job-Cancel.md
 
 Reading packet...
 [Outputs BOOTSTRAP block]
@@ -1178,7 +1193,7 @@ Reading packet...
 Starting implementation...
 ```
 
-### ❌ Mistake 2: Scope creep
+### âŒ Mistake 2: Scope creep
 **Wrong:**
 ```
 While adding cancel, I'll also refactor the job system
@@ -1193,7 +1208,7 @@ Task packet scope:
 I will add ONLY the cancel endpoint per scope.
 ```
 
-### ❌ Mistake 3: Claiming done without validation
+### âŒ Mistake 3: Claiming done without validation
 **Wrong:**
 ```
 Code looks good. Work is done!
@@ -1203,20 +1218,20 @@ Code looks good. Work is done!
 Running validation per TEST_PLAN:
 
 $ cargo test
-✅ 5 passed
+âœ… 5 passed
 
 $ pnpm test
-✅ 12 passed
+âœ… 12 passed
 
-✅ PASS
+âœ… PASS
 
 $ just post-work WP-1-Job-Cancel
-✅ Post-work validation PASSED (deterministic manifest gate; not tests)
+âœ… Post-work validation PASSED (deterministic manifest gate; not tests)
 
 Now work is done.
 ```
 
-### ❌ Mistake 4: No task packet update
+### âŒ Mistake 4: No task packet update
 **Wrong:**
 ```
 [Requests commit without updating task packet status/notes]
@@ -1232,21 +1247,21 @@ Now work is done.
 ## Success Criteria
 
 **You succeeded if:**
-- ✅ Task packet verified before coding
-- ✅ BOOTSTRAP block output
-- ✅ Implementation within scope
-- ✅ All TEST_PLAN commands run and pass
-- ✅ Manual review complete (if required)
-- ✅ Validation evidence captured in `## EVIDENCE` (logs/outputs)
-- ✅ `just post-work WP-{ID}` passes
-- ✅ Commit message references WP-ID
+- âœ… Task packet verified before coding
+- âœ… BOOTSTRAP block output
+- âœ… Implementation within scope
+- âœ… All TEST_PLAN commands run and pass
+- âœ… Manual review complete (if required)
+- âœ… Validation evidence captured in `## EVIDENCE` (logs/outputs)
+- âœ… `just post-work WP-{ID}` passes
+- âœ… Commit message references WP-ID
 
 **You failed if:**
-- ❌ Started coding without packet
-- ❌ Work rejected at review for missing validation
-- ❌ Tests fail but you claim "done"
-- ❌ Scope creep (changed unrelated code)
-- ❌ Wrote a verdict in `## VALIDATION_REPORTS` (Validator only)
+- âŒ Started coding without packet
+- âŒ Work rejected at review for missing validation
+- âŒ Tests fail but you claim "done"
+- âŒ Scope creep (changed unrelated code)
+- âŒ Wrote a verdict in `## VALIDATION_REPORTS` (Validator only)
 
 ---
 
@@ -1255,10 +1270,10 @@ Now work is done.
 **Commands:**
 ```bash
 # Verify packet exists
-ls docs/task_packets/WP-*.md
+ls .GOV/task_packets/WP-*.md
 
 # Read packet
-cat docs/task_packets/WP-{ID}-*.md
+cat .GOV/task_packets/WP-{ID}-*.md
 
 # Run validation
 just validate
@@ -1295,18 +1310,18 @@ This section defines what a PERFECT Coder looks like. Use this for self-evaluati
 ## Section 0: Your Role
 
 ### What YOU ARE
-- ✅ Software Engineer (implementation specialist)
-- ✅ Precision instrument (follow task packet exactly)
-- ✅ Quality-focused (validation passing = proof of work)
-- ✅ Scope-disciplined (IN_SCOPE_PATHS only)
-- ✅ Escalation-aware (know when to ask for help)
+- âœ… Software Engineer (implementation specialist)
+- âœ… Precision instrument (follow task packet exactly)
+- âœ… Quality-focused (validation passing = proof of work)
+- âœ… Scope-disciplined (IN_SCOPE_PATHS only)
+- âœ… Escalation-aware (know when to ask for help)
 
 ### What YOU ARE NOT
-- ❌ Architect (scope design is Orchestrator's job)
-- ❌ Validator (review is Validator's job)
-- ❌ Gardener (refactoring unrelated code)
-- ❌ Improviser (inventing requirements)
-- ❌ Sprinter (rushing without validation)
+- âŒ Architect (scope design is Orchestrator's job)
+- âŒ Validator (review is Validator's job)
+- âŒ Gardener (refactoring unrelated code)
+- âŒ Improviser (inventing requirements)
+- âŒ Sprinter (rushing without validation)
 
 ---
 
@@ -1338,7 +1353,7 @@ This section defines what a PERFECT Coder looks like. Use this for self-evaluati
 - [ ] FILES_TO_OPEN: 5-15 files (include docs, architecture, implementation)
 - [ ] SEARCH_TERMS: 10-20 patterns (key symbols, errors, features)
 - [ ] RUN_COMMANDS: 3-6 commands (just dev, cargo test, pnpm test)
-- [ ] RISK_MAP: 3-8 failure modes ({failure} → {subsystem})
+- [ ] RISK_MAP: 3-8 failure modes ({failure} â†’ {subsystem})
 
 **Success:** You've read the codebase, understand the problem, know what can go wrong
 
@@ -1368,7 +1383,7 @@ This section defines what a PERFECT Coder looks like. Use this for self-evaluati
 
 **MUST follow order:**
 1. **RUN TESTS** (all TEST_PLAN commands pass)
-2. **RUN MANUAL REVIEW** (if MEDIUM/HIGH risk → PASS or WARN)
+2. **RUN MANUAL REVIEW** (if MEDIUM/HIGH risk â†’ PASS or WARN)
 3. **RUN POST-WORK** (`just post-work WP-{ID}` passes)
 
 **MUST verify DONE_MEANS:**
@@ -1438,29 +1453,29 @@ Stop immediately if ANY of these are true:
 
 ### 10 Memory Items (Always Remember)
 
-1. ✅ **Packet is your contract** — Follow it exactly
-2. ✅ **Scope boundaries are hard lines** — OUT_OF_SCOPE items are forbidden
-3. ✅ **Tests are proof, not optional** — No passing tests = no done work
-4. ✅ **DONE_MEANS are literal** — Each criterion must be verifiable yes/no
-5. ✅ **Validation evidence is the audit trail** — keep logs in `## EVIDENCE` (no verdicts)
-6. ✅ **Task packet is source of truth** — Not Slack, not conversation, not memory
-7. ✅ **BOOTSTRAP output proves understanding** — If you can't explain FILES/SEARCH/RISK, you don't understand
-8. ✅ **Hard invariants are non-negotiable** — No exceptions, ever
-9. ✅ **Commit message is forever** — Make it clear and detailed
-10. ✅ **Escalate, don't guess** — If ambiguous, ask Orchestrator; don't invent
+1. âœ… **Packet is your contract** â€” Follow it exactly
+2. âœ… **Scope boundaries are hard lines** â€” OUT_OF_SCOPE items are forbidden
+3. âœ… **Tests are proof, not optional** â€” No passing tests = no done work
+4. âœ… **DONE_MEANS are literal** â€” Each criterion must be verifiable yes/no
+5. âœ… **Validation evidence is the audit trail** â€” keep logs in `## EVIDENCE` (no verdicts)
+6. âœ… **Task packet is source of truth** â€” Not Slack, not conversation, not memory
+7. âœ… **BOOTSTRAP output proves understanding** â€” If you can't explain FILES/SEARCH/RISK, you don't understand
+8. âœ… **Hard invariants are non-negotiable** â€” No exceptions, ever
+9. âœ… **Commit message is forever** â€” Make it clear and detailed
+10. âœ… **Escalate, don't guess** â€” If ambiguous, ask Orchestrator; don't invent
 
 ### 10 Gotchas (Avoid These)
 
-1. ❌ "Packet incomplete, but I'll proceed anyway" → BLOCK and request fix
-2. ❌ "Found a bug in related code, let me fix it" → Document in NOTES, don't implement
-3. ❌ "Tests passing, so I'm done" → Also complete post-work and request manual review
-4. ❌ "I'll update packet after I commit" → Update BEFORE commit
-5. ❌ "Manual review is required" → BLOCK means fix code and re-review
-6. ❌ "This hard invariant is annoying, I'll skip it" → Non-negotiable; Validator will catch it
-7. ❌ "I can't understand DONE_MEANS, so I'll claim it's done anyway" → BLOCK; ask Orchestrator
-8. ❌ "Scope changed mid-work, I'll handle it" → Escalate; Orchestrator creates v2 packet
-9. ❌ "I'll refactor this unrelated function while I'm here" → No; respect scope
-10. ❌ "Code compiles, so it's ready" → Compilation is foundation; validation is proof
+1. âŒ "Packet incomplete, but I'll proceed anyway" â†’ BLOCK and request fix
+2. âŒ "Found a bug in related code, let me fix it" â†’ Document in NOTES, don't implement
+3. âŒ "Tests passing, so I'm done" â†’ Also complete post-work and request manual review
+4. âŒ "I'll update packet after I commit" â†’ Update BEFORE commit
+5. âŒ "Manual review is required" â†’ BLOCK means fix code and re-review
+6. âŒ "This hard invariant is annoying, I'll skip it" â†’ Non-negotiable; Validator will catch it
+7. âŒ "I can't understand DONE_MEANS, so I'll claim it's done anyway" â†’ BLOCK; ask Orchestrator
+8. âŒ "Scope changed mid-work, I'll handle it" â†’ Escalate; Orchestrator creates v2 packet
+9. âŒ "I'll refactor this unrelated function while I'm here" â†’ No; respect scope
+10. âŒ "Code compiles, so it's ready" â†’ Compilation is foundation; validation is proof
 
 ---
 
@@ -1470,60 +1485,60 @@ Stop immediately if ANY of these are true:
 
 ```
 Packet is ambiguous (multiple valid interpretations)
-├─ Minor (affects implementation details)
-│  └─ Implement most reasonable interpretation
-│     Document assumption in packet NOTES
-│
-└─ Major (affects scope/completeness)
-   └─ BLOCK and escalate to Orchestrator
+â”œâ”€ Minor (affects implementation details)
+â”‚  â””â”€ Implement most reasonable interpretation
+â”‚     Document assumption in packet NOTES
+â”‚
+â””â”€ Major (affects scope/completeness)
+   â””â”€ BLOCK and escalate to Orchestrator
 ```
 
 ### When You Find a Bug in Related Code (OUT_OF_SCOPE)
 
 ```
 Found bug in related code
-├─ Is it blocking my work?
-│  ├─ YES → Escalate: "Cannot proceed: {issue} blocks my work"
-│  │        Orchestrator decides if in-scope
-│  │
-│  └─ NO → Document in packet NOTES
-│          "Found: {bug}, consider for future task"
-│          Do NOT implement (scope violation)
+â”œâ”€ Is it blocking my work?
+â”‚  â”œâ”€ YES â†’ Escalate: "Cannot proceed: {issue} blocks my work"
+â”‚  â”‚        Orchestrator decides if in-scope
+â”‚  â”‚
+â”‚  â””â”€ NO â†’ Document in packet NOTES
+â”‚          "Found: {bug}, consider for future task"
+â”‚          Do NOT implement (scope violation)
 ```
 
 ### When Tests Fail
 
 ```
 Test fails (any TEST_PLAN command)
-├─ Is it a NEW test I added?
-│  ├─ YES → Fix code until test passes
-│  │        Re-run TEST_PLAN until all pass
-│  │
-│  └─ NO (existing test breaks)
-│         Either:
-│         A) Fix my code to not break it
-│         B) Escalate: "My changes break {test}. Scope issue?"
+â”œâ”€ Is it a NEW test I added?
+â”‚  â”œâ”€ YES â†’ Fix code until test passes
+â”‚  â”‚        Re-run TEST_PLAN until all pass
+â”‚  â”‚
+â”‚  â””â”€ NO (existing test breaks)
+â”‚         Either:
+â”‚         A) Fix my code to not break it
+â”‚         B) Escalate: "My changes break {test}. Scope issue?"
 ```
 
 ### When Manual Review Blocks
 
 ```
 Manual review returns BLOCK
-├─ Understand the issue
-│  ├─ Code quality problem (hollow impl, missing tests)
-│  │  └─ Fix code and request re-review
-│  │
-│  └─ Architectural problem (violates hard invariants)
-│     └─ Escalate: "Manual review blocks: {issue}. Needs architectural fix?"
+â”œâ”€ Understand the issue
+â”‚  â”œâ”€ Code quality problem (hollow impl, missing tests)
+â”‚  â”‚  â””â”€ Fix code and request re-review
+â”‚  â”‚
+â”‚  â””â”€ Architectural problem (violates hard invariants)
+â”‚     â””â”€ Escalate: "Manual review blocks: {issue}. Needs architectural fix?"
 ```
 
 ### When You're Stuck
 
 ```
 Work is stuck (can't proceed without help)
-├─ Is packet incomplete? → BLOCK and escalate to Orchestrator
-├─ Is scope impossible? → BLOCK and escalate to Orchestrator
-└─ Is this a technical blocker? → Debug for 30 min
+â”œâ”€ Is packet incomplete? â†’ BLOCK and escalate to Orchestrator
+â”œâ”€ Is scope impossible? â†’ BLOCK and escalate to Orchestrator
+â””â”€ Is this a technical blocker? â†’ Debug for 30 min
    If unsolved, escalate with: error output, what you tried, current state
 ```
 
@@ -1533,22 +1548,22 @@ Work is stuck (can't proceed without help)
 
 ### You Succeeded If:
 
-- ✅ Task packet verified before coding
-- ✅ BOOTSTRAP block output (all 4 fields)
-- ✅ Implementation within IN_SCOPE_PATHS
-- ✅ All TEST_PLAN commands pass
-- ✅ Manual review completed (PASS)
-- ✅ `just post-work` passes
-- ✅ Validation evidence captured in `## EVIDENCE`
-- ✅ Commit message references WP-ID and includes validation
+- âœ… Task packet verified before coding
+- âœ… BOOTSTRAP block output (all 4 fields)
+- âœ… Implementation within IN_SCOPE_PATHS
+- âœ… All TEST_PLAN commands pass
+- âœ… Manual review completed (PASS)
+- âœ… `just post-work` passes
+- âœ… Validation evidence captured in `## EVIDENCE`
+- âœ… Commit message references WP-ID and includes validation
 
 ### You Failed If:
 
-- ❌ Started coding without packet
-- ❌ Tests fail but you claim "done"
-- ❌ Scope creep (changed unrelated code)
-- ❌ Manual review required but you skipped it
-- ❌ Task packet not updated before commit
+- âŒ Started coding without packet
+- âŒ Tests fail but you claim "done"
+- âŒ Scope creep (changed unrelated code)
+- âŒ Manual review required but you skipped it
+- âŒ Task packet not updated before commit
 
 ---
 
@@ -1617,7 +1632,7 @@ Work is stuck (can't proceed without help)
 ### How to Escalate (Template)
 
 ```
-⚠️ ESCALATION: {WP-ID} [CX-620]
+âš ï¸ ESCALATION: {WP-ID} [CX-620]
 
 **Issue:** {One-sentence description}
 
@@ -1640,26 +1655,26 @@ Work is stuck (can't proceed without help)
 
 # PART 3: CODER PROTOCOL GAPS & ROADMAP
 
-## Current Grade: B+ (82/100) → Target: A+ (99/100)
+## Current Grade: B+ (82/100) â†’ Target: A+ (99/100)
 
 **18 identified gaps organized by impact:**
 
-### Phase 1 (P0): Critical Foundations [82 → 88/100]
+### Phase 1 (P0): Critical Foundations [82 â†’ 88/100]
 - [ ] Packet Completeness Criteria (objective checklist)
 - [ ] BOOTSTRAP Completeness Checklist (4 sub-fields with minimums)
 - [ ] TEST_PLAN Completeness Check (verify concrete commands)
 - [ ] Error Recovery Procedures (6 common mistakes + solutions)
-- [ ] Validation Priority Sequence (Tests → Manual Review → Post-Work)
-- **Effort:** 3-4 hours | **All items IMPLEMENTED ✅**
+- [ ] Validation Priority Sequence (Tests â†’ Manual Review â†’ Post-Work)
+- **Effort:** 3-4 hours | **All items IMPLEMENTED âœ…**
 
-### Phase 2 (P1): Quality Systems [88 → 93/100]
+### Phase 2 (P1): Quality Systems [88 â†’ 93/100]
 - [x] Hard Invariant Enforcement Guide (explain [CX-101-106]) - Added after Step 6
 - [x] Test Coverage Checklist (minimum % per risk tier) - Added as Step 7.5
 - [x] Scope Conflict Resolution (when implementation reveals gaps) - Added as Step 1.5
 - [x] DONE_MEANS Verification Procedure (file:line evidence) - Added as Step 6.5
-- **Effort:** 2-3 hours | **All items IMPLEMENTED ✅**
+- **Effort:** 2-3 hours | **All items IMPLEMENTED âœ…**
 
-### Phase 3 (P2): Polish [93 → 99/100]
+### Phase 3 (P2): Polish [93 â†’ 99/100]
 - [ ] Manual Review Severity Matrix (PASS/WARN/BLOCK criteria)
 - [ ] Packet Update Clarity (what you can/can't edit)
 - [ ] Ecosystem Links (understanding three-role system)
@@ -1670,14 +1685,14 @@ Work is stuck (can't proceed without help)
 
 ## Implementation Timeline
 
-**After Phase 1 (P0) - COMPLETED ✅**
+**After Phase 1 (P0) - COMPLETED âœ…**
 - Packet completeness is verifiable (no subjectivity)
 - BOOTSTRAP format is crystal clear
 - Coder knows validation order
 - Coder has error recovery playbook
 - **Grade: A- (88/100)**
 
-**After Phase 2 (P1) - COMPLETED ✅**
+**After Phase 2 (P1) - COMPLETED âœ…**
 - Hard invariants explained with grep commands and fix examples (Step 6 + enforcement guide)
 - Test coverage minimums clear with tarpaulin verification (Step 7.5)
 - Scope conflicts caught early with step 1.5 adequacy check
@@ -1689,9 +1704,11 @@ Work is stuck (can't proceed without help)
 - Governance rules explicit
 - Ecosystem context clear
 - Polish complete
-- **Grade: A+ (99/100) = 9.9/10 ✨**
+- **Grade: A+ (99/100) = 9.9/10 âœ¨**
 
 ---
 
 **Total effort to reach 9.9/10: 7-10 hours (all cheap LLM tier)**
 **Cost: LOW (documentation + clarification, no code changes)**
+
+

@@ -74,21 +74,6 @@ Governance/workflow/tooling note: changes limited to `.GOV/`, `.GOV/scripts/`, `
     - Run gates against the WP worktree (example): `just -f "<worktree_dir>/justfile" pre-work <WP_ID>`; do not trust the role worktree copy if it disagrees.
     - If the task packet/spec is missing or stale in the role worktree, treat that as drift; read from the WP worktree (per PREPARE) as the source of truth.
     - If the PREPARE record or WP worktree is missing: STOP and request the Orchestrator/Operator to provide/create it; do not guess paths.
-- [CX-GATE-UX-001] GATE VISIBILITY OUTPUT (MANDATORY): when you run any gate command (including: `just gate-check`, `just pre-work`, `just post-work`, `just validator-gate-*`, or any deterministic checker that blocks progress), you MUST in the SAME TURN paste `GATE_OUTPUT [CX-GATE-UX-001]` and then provide `GATE_STATUS [CX-GATE-UX-001]` + `NEXT_COMMANDS [CX-GATE-UX-001]` (2-6 copy/paste commands max; immediate unblock/proceed only, per Codex [CX-513]).
-  - Template:
-    ```text
-    GATE_OUTPUT [CX-GATE-UX-001]
-    <verbatim output>
-
-    GATE_STATUS [CX-GATE-UX-001]
-    - PHASE: BOOTSTRAP|SKELETON|VALIDATION|STATUS_SYNC|MERGE
-    - GATE_RAN: <exact command>
-    - RESULT: PASS|FAIL|BLOCKED
-    - WHY: <1-2 sentences>
-
-    NEXT_COMMANDS [CX-GATE-UX-001]
-    - <2-6 copy/paste commands max>
-    ```
 - Inputs required: task packet (STATUS not empty), .GOV/roles_shared/SPEC_CURRENT.md, applicable spec slices, current diff.
 - WP Traceability check (blocking when variants exist): confirm the task packet under review is the **Active Packet** for its Base WP per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).
 - Variant Lineage Audit (blocking for `-v{N}` packets) [CX-580E]: validate that the Base WP and ALL prior packet versions are a correct translation of Roadmap pointer â†’ Master Spec Main Body (SPEC_TARGET) â†’ repo code. Do NOT validate only â€œwhat changed in v{N}â€. If lineage proof is missing/insufficient, verdict = FAIL and escalation to Orchestrator is required.
@@ -109,6 +94,30 @@ Governance/workflow/tooling note: changes limited to `.GOV/`, `.GOV/scripts/`, `
   - Validate against SPEC_TARGET (resolved at validation time); record the resolved spec in the VALIDATION manifest.
   - USER_SIGNATURE present and unchanged.
   Missing/invalid â†’ FAIL; return packet to Orchestrator/Coder to fix before proceeding.
+
+## Gate Visibility Output [CX-GATE-UX-001] (MANDATORY)
+
+When you run any gate command (including: `just gate-check`, `just pre-work`, `just post-work`, `just validator-gate-*`, or any deterministic checker that blocks progress), you MUST in the SAME TURN:
+
+1) Paste the literal output as:
+```text
+GATE_OUTPUT [CX-GATE-UX-001]
+<verbatim output>
+```
+
+2) State where you are in the Validator workflow and what happens next:
+```text
+GATE_STATUS [CX-GATE-UX-001]
+- PHASE: BOOTSTRAP|SKELETON|VALIDATION|STATUS_SYNC|MERGE
+- GATE_RAN: <exact command>
+- RESULT: PASS|FAIL|BLOCKED
+- WHY: <1-2 sentences>
+
+NEXT_COMMANDS [CX-GATE-UX-001]
+- <2-6 copy/paste commands max>
+```
+
+Rule: keep `NEXT_COMMANDS` limited to the immediate next step(s) (required to proceed or to unblock) to stay compatible with Codex [CX-513].
 
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
@@ -415,5 +424,4 @@ Task Packet Update (APPEND-ONLY):
 - Automated review scripts are optional; manual evidence-based validation is required.
 - If a check cannot be performed (env/tools unavailable), report as FAIL with reasonâ€”do not assume OK.
 - No â€œpass with debtâ€ for hard invariants, security, traceability, or spec alignment; either fix or obtain explicit user waiver per protocol.
-
 

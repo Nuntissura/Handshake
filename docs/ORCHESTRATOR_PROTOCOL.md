@@ -1,4 +1,4 @@
-# ORCHESTRATOR_PROTOCOL [CX-600-616]
+﻿# ORCHESTRATOR_PROTOCOL [CX-600-616]
 
 **MANDATORY** - Lead Architect must read this to manage Phase progression and maintain governance invariants
 
@@ -12,10 +12,25 @@
 
 ---
 
+## Repo Boundary Rules (HARD)
+
+- `/.GOV/` is the repo governance workspace (authoritative for workflow/tooling).
+- Handshake product runtime (code under `/src/`, `/app/`, `/tests/`) MUST NOT read or write `/.GOV/` under any circumstances.
+- `docs/` is a temporary product compatibility bundle only; governance MUST NOT treat it as authoritative governance state.
+- Enforcement is mandatory (CI/gates) to forbid product code referencing `/.GOV/`.
+
+See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUNDARY_RULES.md`.
+
+## Agentic Mode (Additional LAW)
+
+If you are running orchestrator-led, multi-agent ("agentic") execution, you MUST also follow:
+- `/.GOV/roles/orchestrator/agentic/AGENTIC_PROTOCOL.md`
+- `/.GOV/roles_shared/EVIDENCE_LEDGER.md`
+
 ## Part 1: Strategic Priorities (Phase 1 Focus) [CX-600A]
 
 ### [PRIORITY_1] Storage Backend Portability [CX-DBP-001]
-- Enforce the four pillars defined in Master Spec §2.3.12 and Trait Purity [CX-DBP-040]
+- Enforce the four pillars defined in Master Spec Â§2.3.12 and Trait Purity [CX-DBP-040]
 - Block all database-touching work that bypasses the `Database` trait
 - Goal: Make PostgreSQL migration a 1-week task (not 4-6 weeks)
 
@@ -23,12 +38,12 @@
 - "Done" = 100% implementation of Main Body text, NOT just roadmap bullets
 - Reject any Work Packet that treats the Main Body as optional
 - Extract ALL MUST/SHOULD from spec section; map each to evidence (file:line)
-- Enforce Roadmap Coverage Matrix completeness (Spec §7.6.1; Codex [CX-598A]) so Main Body sections cannot be silently omitted from planning
+- Enforce Roadmap Coverage Matrix completeness (Spec Â§7.6.1; Codex [CX-598A]) so Main Body sections cannot be silently omitted from planning
 
 ### [PRIORITY_3] Deterministic Enforcement [CX-585A/C]
 - Spec-Version Lock: Master Spec immutable during phase execution
 - Signature Gate: Zero implementation without technical refinement pause
-- If spec change needed: run the Spec Enrichment workflow (new spec version file + update `docs/SPEC_CURRENT.md`) under a one-time user signature and record it in `docs/SIGNATURE_AUDIT.md`. Do NOT edit locked task packets to "catch up" to the new spec; keep history immutable and create a NEW remediation WP only if new-spec deltas require new code changes.
+- If spec change needed: run the Spec Enrichment workflow (new spec version file + update `.GOV/roles_shared/SPEC_CURRENT.md`) under a one-time user signature and record it in `.GOV/roles_shared/SIGNATURE_AUDIT.md`. Do NOT edit locked task packets to "catch up" to the new spec; keep history immutable and create a NEW remediation WP only if new-spec deltas require new code changes.
 - Historical completion policy: if Validator returns **OUTDATED_ONLY** (baseline-correct but spec evolved), keep the WP archived as Done/Validated history and create a NEW remediation WP only if current-spec deltas are actually needed. Do not churn the original WP back into Ready for Dev for drift-only.
 
 ### [PRIORITY_4] Phase 1 Closure Gate [CX-585D]
@@ -64,7 +79,7 @@
 
 ## Deterministic Manifest & Gate (current workflow, COR-701 discipline)
 - Every task packet MUST keep the deterministic manifest template in `## Validation` (target_file, start/end, line_delta, pre/post SHA1, gates checklist). Packets must stay ASCII-only.
-- Orchestrator ensures new packets are created from `docs/templates/TASK_PACKET_TEMPLATE.md` without stripping the manifest; reject packet creation/revision that removes it.
+- Orchestrator ensures new packets are created from `.GOV/templates/TASK_PACKET_TEMPLATE.md` without stripping the manifest; reject packet creation/revision that removes it.
 - `just pre-work WP-{ID}` must pass before handoff (template present), and `just post-work WP-{ID}` is the mandatory deterministic gate before Done/commit (enforces manifest completeness, SHA1s, window bounds, gates).
 
 ## Branching & Concurrency (preferred; low-friction)
@@ -80,7 +95,7 @@
 Orchestrator work MUST be performed from the correct worktree directory and branch.
 
 Source of truth:
-- `docs/ROLE_WORKTREES.md` (default role worktrees/branches)
+- `.GOV/roles_shared/ROLE_WORKTREES.md` (default role worktrees/branches)
 - The assigned WP worktree/branch for the WP being orchestrated
 
 Required verification (run at session start and whenever context is unclear):
@@ -108,22 +123,22 @@ HARD_GATE_REASON [CX-WT-001]
 - Ensure `git worktree list` topology matches concurrency expectations.
 - Prevent using the Operator's personal worktree as a Coder worktree.
 - Ensure the Orchestrator's assignment is actually in effect locally.
-- Bind Coder work to `docs/ORCHESTRATOR_GATES.json` `PREPARE` records (`branch`, `worktree_dir`).
-- Keep role-governed defaults consistent with `docs/ROLE_WORKTREES.md`.
+- Bind Coder work to `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` `PREPARE` records (`branch`, `worktree_dir`).
+- Keep role-governed defaults consistent with `.GOV/roles_shared/ROLE_WORKTREES.md`.
 - Reduce risk of data loss from wrong-directory "cleanup"/stashing mistakes.
 - Make failures actionable: mismatch => STOP + escalate, not "guess and proceed".
 
 HARD_GATE_NEXT_ACTIONS [CX-WT-001]
 - If correct (repo/worktree/branch match the assignment): proceed to BOOTSTRAP / packet steps.
-- If incorrect/uncertain: STOP; ask Orchestrator/Operator to provide/create the correct WP worktree/branch and ensure `PREPARE` is recorded in `docs/ORCHESTRATOR_GATES.json`.
+- If incorrect/uncertain: STOP; ask Orchestrator/Operator to provide/create the correct WP worktree/branch and ensure `PREPARE` is recorded in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`.
 ```
 
 If the required worktree/branch does not exist:
 - STOP and request explicit user authorization to create it (Codex [CX-108]).
-- Only after authorization, create it using the commands in `docs/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
+- Only after authorization, create it using the commands in `.GOV/roles_shared/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
 
 Coder worktree rule:
-- CODER agents must work only in WP-assigned worktrees/branches recorded via `just record-prepare` (writes `docs/ORCHESTRATOR_GATES.json`).
+- CODER agents must work only in WP-assigned worktrees/branches recorded via `just record-prepare` (writes `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`).
 
 ## Gate Visibility Output [CX-GATE-UX-001] (MANDATORY)
 
@@ -172,24 +187,24 @@ Rule: when a gate command is run and `GATE_STATUS` is posted, `PHASE` MUST match
 
 ## Safety Commit Gate (HARD RULE; prevents untracked WP loss)
 - Immediately after creating a WP task packet + refinement and obtaining `USER_SIGNATURE`, create a **checkpoint commit on the WP branch** that includes:
-  - `docs/task_packets/WP-{ID}.md`
-  - `docs/refinements/WP-{ID}.md`
+  - `.GOV/task_packets/WP-{ID}.md`
+  - `.GOV/refinements/WP-{ID}.md`
 - Rationale: untracked/uncommitted packets/refinements are vulnerable to accidental deletion (e.g., a mistaken cleanup). A checkpoint commit makes the WP recoverable deterministically.
 
 ## Part 2: Pre-Orchestration Checklist [CX-600]
 
 **Complete ALL steps before creating task packets.**
 
-### Step 1: Spec Currency Verification ✋ STOP
+### Step 1: Spec Currency Verification âœ‹ STOP
 ```bash
-cat docs/SPEC_CURRENT.md
+cat .GOV/roles_shared/SPEC_CURRENT.md
 just validator-spec-regression
 ```
 - [ ] SPEC_CURRENT.md is current
 - [ ] Points to latest Master Spec version
 - [ ] Regression check returns PASS
 
-### Step 2: Task Board Review ✋ STOP
+### Step 2: Task Board Review âœ‹ STOP
 - [ ] TASK_BOARD.md is current
 - [ ] No stalled WPs (>2 weeks idle)
 - [ ] All "Done" WPs show VALIDATED status (Validator approved them)
@@ -198,11 +213,11 @@ just validator-spec-regression
 **CLARIFICATION:** Orchestrator's role is to:
 1. **CHECK** that the Operator-visible TASK_BOARD on `main` correctly reflects packet status (is it in sync?)
 2. **UPDATE** TASK_BOARD planning states (Ready for Dev/Blocked/Stub Backlog) and supersedence; Validator status-syncs `main` for In Progress/Done
-3. **RECORD** governance actions (signature usage, spec pointer updates, mapping decisions) — Orchestrator does NOT issue validation verdicts
+3. **RECORD** governance actions (signature usage, spec pointer updates, mapping decisions) â€” Orchestrator does NOT issue validation verdicts
 
 Orchestrator does NOT do validation (Validator does). Orchestrator just tracks status.
 
-### Step 3: Supply Chain Audit ✋ STOP
+### Step 3: Supply Chain Audit âœ‹ STOP
 ```bash
 cargo deny check && npm audit
 ```
@@ -210,12 +225,12 @@ cargo deny check && npm audit
 - [ ] `cargo deny check` returns 0 violations
 - [ ] `npm audit` returns 0 critical/high vulnerabilities
 
-### Step 4: Phase Status ✋ STOP
+### Step 4: Phase Status âœ‹ STOP
 - [ ] Current phase identified
 - [ ] Phase-critical WPs identified
 - [ ] Dependencies documented in TASK_BOARD
 
-### Step 5: Governance Files Current ✋ STOP
+### Step 5: Governance Files Current âœ‹ STOP
 - [ ] ORCHESTRATOR_PROTOCOL.md is current
 - [ ] CODER_PROTOCOL.md is current
 - [ ] VALIDATOR_PROTOCOL.md is current
@@ -239,33 +254,33 @@ Orchestrator MUST NOT enrich speculatively. Instead, use this decision tree:
 
 A requirement "clearly covers" (passes Main Body criteria) when it satisfies ALL 5 points:
 
-1. ✅ **Appears in Main Body** — Not in Roadmap, not aspirational, not "Phase 2+"
-2. ✅ **Explicitly Named** — Reader immediately finds it without inference (section number, title, explicit text)
-3. ✅ **Specific** — Not "storage SHOULD be portable" but "storage API MUST implement X trait with Y methods"
-4. ✅ **Measurable Acceptance Criteria** — Clear yes/no test (e.g., "trait has 6 required async methods")
-5. ✅ **No Ambiguity** — Single valid interpretation; no multiple ways to read it
+1. âœ… **Appears in Main Body** â€” Not in Roadmap, not aspirational, not "Phase 2+"
+2. âœ… **Explicitly Named** â€” Reader immediately finds it without inference (section number, title, explicit text)
+3. âœ… **Specific** â€” Not "storage SHOULD be portable" but "storage API MUST implement X trait with Y methods"
+4. âœ… **Measurable Acceptance Criteria** â€” Clear yes/no test (e.g., "trait has 6 required async methods")
+5. âœ… **No Ambiguity** â€” Single valid interpretation; no multiple ways to read it
 
 **Result:**
-- **PASS (all 5 ✅)** → Requirement clearly covered. Proceed to task packet creation (no enrichment needed).
-- **FAIL (any ❌)** → Requirement NOT clearly covered. Ask user for clarification OR enrich spec (with user signature).
+- **PASS (all 5 âœ…)** â†’ Requirement clearly covered. Proceed to task packet creation (no enrichment needed).
+- **FAIL (any âŒ)** â†’ Requirement NOT clearly covered. Ask user for clarification OR enrich spec (with user signature).
 
 **Examples:**
 
-CLEARLY COVERS ✅:
+CLEARLY COVERS âœ…:
 ```
-§2.3.12.1: Database trait MUST have these 6 async methods:
+Â§2.3.12.1: Database trait MUST have these 6 async methods:
 - async fn get_blocks(&self, id: &str) -> Result<Vec<Block>>
 - async fn save_blocks(&self, blocks: Vec<Block>) -> Result<()>
 - ...etc (all 5 criteria met; unambiguous)
 ```
-→ Proceed without enrichment
+â†’ Proceed without enrichment
 
-DOES NOT CLEARLY COVER ❌:
+DOES NOT CLEARLY COVER âŒ:
 ```
-§2.3.12: Storage abstraction SHOULD be portable
+Â§2.3.12: Storage abstraction SHOULD be portable
 ```
-→ Criteria 3 fails (not specific); criteria 4 fails (no acceptance criteria)
-→ Requires user clarification OR enrichment (with signature)
+â†’ Criteria 3 fails (not specific); criteria 4 fails (no acceptance criteria)
+â†’ Requires user clarification OR enrichment (with signature)
 
 ---
 
@@ -273,19 +288,19 @@ DOES NOT CLEARLY COVER ❌:
 
 ```
 Does Master Spec Main Body clearly cover this requirement?
-├─ YES (all 5 criteria met)
-│  └─ Proceed to task packet creation (no enrichment needed)
-│
-├─ NO, but it's in Roadmap
-│  └─ Promote roadmap item to Main Body + enrich spec
-│     (This is NECESSARY enrichment, user-intended)
-│
-├─ NO, and it's NEW or UNCLEAR
-│  └─ ASK USER for clarification BEFORE enriching
-│     (Enrichment requires user signature; don't guess)
-│
-└─ CONFLICTING signals (spec says one thing, user implies another)
-   └─ ESCALATE to user; get explicit decision before proceeding
+â”œâ”€ YES (all 5 criteria met)
+â”‚  â””â”€ Proceed to task packet creation (no enrichment needed)
+â”‚
+â”œâ”€ NO, but it's in Roadmap
+â”‚  â””â”€ Promote roadmap item to Main Body + enrich spec
+â”‚     (This is NECESSARY enrichment, user-intended)
+â”‚
+â”œâ”€ NO, and it's NEW or UNCLEAR
+â”‚  â””â”€ ASK USER for clarification BEFORE enriching
+â”‚     (Enrichment requires user signature; don't guess)
+â”‚
+â””â”€ CONFLICTING signals (spec says one thing, user implies another)
+   â””â”€ ESCALATE to user; get explicit decision before proceeding
       (Don't interpret; let user clarify intent)
 ```
 
@@ -303,7 +318,7 @@ Does Master Spec Main Body clearly cover this requirement?
 
 **Rule: Zero speculative enrichment. Enrichment requires user signature (approval).**
 
-### 2.5.2 Enrichment Workflow ✋ BLOCKING
+### 2.5.2 Enrichment Workflow âœ‹ BLOCKING
 
 **Step 1: Identify gaps in Master Spec Main Body**
 Orchestrator MUST perform a "Technical Refinement Audit" and present the results to the user.
@@ -326,7 +341,7 @@ Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block contain
 
 
 **Hard enforcement rule (procedure; repo-enforced):**
-- If the refinement concludes **ENRICHMENT_NEEDED=YES** (or otherwise identifies unresolved ambiguity requiring new normative text), the Orchestrator MUST STOP. Do NOT record a WP packet signature and do NOT create/lock a task packet. Complete Spec Enrichment first (new spec version + update `docs/SPEC_CURRENT.md`), then create a NEW WP variant anchored to the updated spec with a fresh one-time signature.
+- If the refinement concludes **ENRICHMENT_NEEDED=YES** (or otherwise identifies unresolved ambiguity requiring new normative text), the Orchestrator MUST STOP. Do NOT record a WP packet signature and do NOT create/lock a task packet. Complete Spec Enrichment first (new spec version + update `.GOV/roles_shared/SPEC_CURRENT.md`), then create a NEW WP variant anchored to the updated spec with a fresh one-time signature.
 
 **Step 2: Enrich Master Spec (after user approval)**
 If gaps found:
@@ -335,18 +350,18 @@ If gaps found:
 3. Copy: Entire current spec
 4. Add: Required sections/clarifications (using the Proposed Spec Enrichment text)
 5. Add: CHANGELOG entry with reason for update
-6. Update: docs/SPEC_CURRENT.md to point to new version
+6. Update: .GOV/roles_shared/SPEC_CURRENT.md to point to new version
 
 **Step 3: Update all workflow files to reference new spec**
 
 ```
 Orchestrator MUST update these files to point to new spec version:
-- docs/CODER_PROTOCOL.md: Update spec version references
-- docs/VALIDATOR_PROTOCOL.md: Update spec version references
-- docs/ORCHESTRATOR_PROTOCOL.md: Update spec version references
-- docs/START_HERE.md: Update spec version references
-- docs/ARCHITECTURE.md: Update spec anchors if changed
-- docs/SPEC_CURRENT.md: Point to the new spec (authoritative)
+- .GOV/roles/coder/CODER_PROTOCOL.md: Update spec version references
+- .GOV/roles/validator/VALIDATOR_PROTOCOL.md: Update spec version references
+- .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md: Update spec version references
+- .GOV/roles_shared/START_HERE.md: Update spec version references
+- .GOV/roles_shared/ARCHITECTURE.md: Update spec anchors if changed
+- .GOV/roles_shared/SPEC_CURRENT.md: Point to the new spec (authoritative)
 
 Do NOT mass-edit historical/signed task packets to "catch up" to new governance/spec. Signed packets are immutable; create new variants/remediation WPs instead.
 ```
@@ -354,13 +369,13 @@ Do NOT mass-edit historical/signed task packets to "catch up" to new governance/
 **Verification:**
 ```bash
 # Check all protocol files reference latest spec version
-grep -r "Master Spec v02" docs/*.md docs/task_packets/*.md
+grep -r "Master Spec v02" .GOV/roles_shared/ .GOV/roles/ .GOV/templates/ .GOV/task_packets/
 # Should all show v02.85 (or latest), no orphaned older versions in active files
 ```
 
 **Rule:** Requesting a USER_SIGNATURE without first presenting the Technical Refinement Block is a **CRITICAL PROTOCOL VIOLATION**.
 
-### 2.5.3 Signature Gate (One-Time Use) ✋ BLOCKING
+### 2.5.3 Signature Gate (One-Time Use) âœ‹ BLOCKING
 
 **Orchestrator MUST request USER_SIGNATURE before creating work packets.**
 
@@ -369,13 +384,13 @@ grep -r "Master Spec v02" docs/*.md docs/task_packets/*.md
 A **Work Packet Stub** is an optional planning artifact used to track Roadmap/Main Body work before activation.
 
 - Stubs are legitimate backlog items, but they are NOT executable task packets/work packets.
-- Stubs MUST live in `docs/task_packets/stubs/` and should be listed on `docs/TASK_BOARD.md` under a STUB section.
-- If a Base WP has multiple packets (or a stub + official packet), the Base WP → Active Packet mapping MUST be recorded in `docs/WP_TRACEABILITY_REGISTRY.md`.
+- Stubs MUST live in `.GOV/task_packets/stubs/` and should be listed on `.GOV/roles_shared/TASK_BOARD.md` under a STUB section.
+- If a Base WP has multiple packets (or a stub + official packet), the Base WP â†’ Active Packet mapping MUST be recorded in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`.
 - Stubs MUST NOT be handed off to Coder/Validator and MUST NOT be used to start implementation.
 - Stubs do not require USER_SIGNATURE, a refinement file, or deterministic gates.
-- Stub template: `docs/templates/TASK_PACKET_STUB_TEMPLATE.md`
+- Stub template: `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
 
-Activation rule (mandatory): Before any coding starts, activate the stub by following the normal workflow (in-chat Technical Refinement Block -> USER_SIGNATURE -> `docs/refinements/WP-*.md` -> `just create-task-packet WP-*` -> update `docs/WP_TRACEABILITY_REGISTRY.md` Base→Active mapping -> move TASK_BOARD entry out of STUB).
+Activation rule (mandatory): Before any coding starts, activate the stub by following the normal workflow (in-chat Technical Refinement Block -> USER_SIGNATURE -> `.GOV/refinements/WP-*.md` -> `just create-task-packet WP-*` -> update `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` Baseâ†’Active mapping -> move TASK_BOARD entry out of STUB).
 
 Mechanical enforcement note: `just codex-check` includes a WP activation traceability guard and will BLOCK commits when an activated packet exists but the registry/Task Board still treats it as a stub.
 
@@ -385,11 +400,11 @@ Example: `ilja251225032800` (ilja + 25/12/2025 03:28:00)
 
 **Signature rules (MANDATORY):**
 
-1. **One-time use only** — Each signature can be used exactly ONCE in entire repo
-2. **External clock source** — User must provide timestamp from external/verified source
-3. **Prevents reuse** — Grep repo to verify signature never appears before
-4. **Audit trail** — Record in SIGNATURE_AUDIT.md when signature is consumed
-5. **Blocks work** — Cannot create work packets without valid, unused signature
+1. **One-time use only** â€” Each signature can be used exactly ONCE in entire repo
+2. **External clock source** â€” User must provide timestamp from external/verified source
+3. **Prevents reuse** â€” Grep repo to verify signature never appears before
+4. **Audit trail** â€” Record in SIGNATURE_AUDIT.md when signature is consumed
+5. **Blocks work** â€” Cannot create work packets without valid, unused signature
 
 **Orchestrator verification (BEFORE creating work packets):**
 
@@ -403,7 +418,7 @@ grep -r "ilja251225032800" .
 
 **If signature found elsewhere:**
 ```
-❌ BLOCKED: Signature already used [CX-585B]
+âŒ BLOCKED: Signature already used [CX-585B]
 
 Signature: ilja251225032800
 First use: {file and date when first used}
@@ -414,7 +429,7 @@ Each signature can only be used once. Request new signature from user.
 
 ### 2.5.4 Signature Audit Log [CX-585B]
 
-**Orchestrator MUST maintain `docs/SIGNATURE_AUDIT.md` as central registry.**
+**Orchestrator MUST maintain `.GOV/roles_shared/SIGNATURE_AUDIT.md` as central registry.**
 
 ```markdown
 # SIGNATURE_AUDIT.md
@@ -448,26 +463,26 @@ Record of all user signatures consumed for spec enrichment and work packet creat
 **Complete flow before task packet creation:**
 
 ```
-Pre-Orchestration Checklist (Part 2, Steps 1-5) ✅ PASS
-    ↓
-🚧 STRATEGIC PAUSE & SIGNATURE GATE (Part 2.5)
-    ↓
+Pre-Orchestration Checklist (Part 2, Steps 1-5) âœ… PASS
+    â†“
+ðŸš§ STRATEGIC PAUSE & SIGNATURE GATE (Part 2.5)
+    â†“
 1. Identify spec gaps (Master Spec Main Body coverage)
-    ↓
+    â†“
 2. Enrich spec if needed (version bump, update all protocol files)
-    ↓
+    â†“
 3. Request USER_SIGNATURE from user
-    ↓
+    â†“
 User provides: ilja251225032800 (name + DDMMYYYYHHMM)
-    ↓
+    â†“
 4. Verify signature is unused (grep repo)
-    ↓
+    â†“
 5. Record signature in SIGNATURE_AUDIT.md
-    ↓
+    â†“
 6. Reference signature in work packet metadata
-    ↓
-✅ GATE UNLOCKED: Proceed to Task Packet Creation (Part 4)
-    ↓
+    â†“
+âœ… GATE UNLOCKED: Proceed to Task Packet Creation (Part 4)
+    â†“
 Create work packets aligned with enriched, user-approved spec
 ```
 
@@ -480,7 +495,7 @@ Create work packets aligned with enriched, user-approved spec
 
 ### 2.5.6 Non-Negotiables for Signature Gate [CX-585C]
 
-**❌ DO NOT:**
+**âŒ DO NOT:**
 1. Create work packets without spec enrichment
 2. Use signature twice
 3. Skip signature verification (grep check)
@@ -490,7 +505,7 @@ Create work packets aligned with enriched, user-approved spec
 7. Forget to update protocol files when spec changes
 8. Leave signature audit log blank
 
-**✅ DO:**
+**âœ… DO:**
 1. Always enrich Master Spec before task packets
 2. Verify each signature is one-time use only
 3. Run grep check to confirm signature is unused
@@ -507,7 +522,7 @@ To physically prevent the merging of Refinement, Signature, and Creation phases,
 1. **Record Refinement:** Immediately after presenting a Technical Refinement Block, the Orchestrator MUST run `just record-refinement {wp-id}`.
 2. **Mandatory Turn Boundary:** The Orchestrator MUST STOP and wait for a NEW turn.
 3. **Record Signature:** Only in a new turn can the Orchestrator run `just record-signature {wp-id} {signature}`.
-4. **Hard Block:** The `scripts/validation/orchestrator_gates.mjs` script will return an error if Step 1 and Step 3 occur in the same turn. This error is a **Hard Stop**; the Orchestrator must not attempt to bypass it via manual file writes.
+4. **Hard Block:** The `.GOV/scripts/validation/orchestrator_gates.mjs` script will return an error if Step 1 and Step 3 occur in the same turn. This error is a **Hard Stop**; the Orchestrator must not attempt to bypass it via manual file writes.
 
 ### 2.6 Work Packet Lifecycle
 
@@ -524,8 +539,8 @@ You are an **Orchestrator** (Lead Architect / Engineering Manager). Your job is 
 
 **CRITICAL RULES:**
 1. **NO PRODUCT CODING:** You MUST NOT modify Handshake product code in `src/`, `app/`, or `tests/`.
-   - `scripts/` is governance/workflow/tooling surface and MAY be modified when needed (e.g., gates, packet tooling), as long as product code is not modified and gates are not bypassed.
-   - Governance/workflow/tooling-only work (limited to `docs/`, `scripts/`, `justfile`, `.github/`) does **not** require a Work Packet or USER_SIGNATURE.
+   - `.GOV/scripts/` is governance/workflow/tooling surface and MAY be modified when needed (e.g., gates, packet tooling), as long as product code is not modified and gates are not bypassed.
+   - Governance/workflow/tooling-only work (limited to `.GOV/`, `.GOV/scripts/`, `justfile`, `.github/`) does **not** require a Work Packet or USER_SIGNATURE.
 2. **TRANSCRIPTION NOT INVENTION:** Task packets point to SPEC_ANCHOR; they do not interpret or invent requirements.
 3. **SPEC_ANCHOR REQUIRED:** Every WP MUST reference a requirement in Master Spec Main Body (not Roadmap).
 4. **LOCK PACKETS:** Use USER_SIGNATURE to prevent post-creation edits; create NEW packets for changes (WP-{ID}-variant).
@@ -555,14 +570,14 @@ grep -r "{signature}" .
 ```
 
 **Recovery if error occurs:**
-1. Mark signature INVALID in `docs/SIGNATURE_AUDIT.md`
+1. Mark signature INVALID in `.GOV/roles_shared/SIGNATURE_AUDIT.md`
    ```markdown
    | ilja251225032800 | Orchestrator | 2025-12-25 03:28 | (INVALID - used twice by mistake) | v02.85 | Signature rejected; same timestamp used multiple times |
    ```
 
 2. Request NEW signature from user (different timestamp)
    ```
-   ❌ Signature already consumed [CX-611-A]
+   âŒ Signature already consumed [CX-611-A]
 
    Signature: ilja251225032800
    First use: {file and line when first used}
@@ -582,7 +597,7 @@ grep -r "{signature}" .
 
 **Prevention:** Verify SPEC_ANCHOR exists in Master Spec BEFORE locking:
 ```bash
-grep -n "§X\.X\.X" docs/SPEC_CURRENT.md
+grep -n "Â§X\.X\.X" .GOV/roles_shared/SPEC_CURRENT.md
 # Should return non-zero (section exists)
 ```
 
@@ -590,18 +605,18 @@ grep -n "§X\.X\.X" docs/SPEC_CURRENT.md
 
 **Step 1: Check severity**
 - **CRITICAL (wrong scope):** SPEC_ANCHOR refers to totally different requirement
-  → Create variant packet (WP-{ID}-v2)
+  â†’ Create variant packet (WP-{ID}-v2)
 
 - **MINOR (wrong section, same scope):** SPEC_ANCHOR points to same requirement in wrong subsection
-  → Add ERRATA section (read-only)
+  â†’ Add ERRATA section (read-only)
 
-**Step 2: If CRITICAL — Create variant:**
+**Step 2: If CRITICAL â€” Create variant:**
 ```markdown
 # Task Packet: WP-1-Storage-Abstraction-Layer-v2
 
 ## Authority
-- **SPEC_ANCHOR**: §2.3.12.3 (CORRECTED)
-- **Note**: Original WP-1-Storage-Abstraction-Layer used wrong SPEC_ANCHOR (§2.3.10); superseded by this version
+- **SPEC_ANCHOR**: Â§2.3.12.3 (CORRECTED)
+- **Note**: Original WP-1-Storage-Abstraction-Layer used wrong SPEC_ANCHOR (Â§2.3.10); superseded by this version
 
 (Copy rest of original packet, update SPEC_ANCHOR only)
 
@@ -612,12 +627,12 @@ grep -n "§X\.X\.X" docs/SPEC_CURRENT.md
 
 Update TASK_BOARD to reference v2 (remove original from active list, mark superseded).
 
-**Step 3: If MINOR — Add ERRATA:**
+**Step 3: If MINOR â€” Add ERRATA:**
 ```markdown
 ## ERRATA
 
-- **Original SPEC_ANCHOR:** §2.3.12 (too broad)
-- **Correct SPEC_ANCHOR:** §2.3.12.3 (specific subsection)
+- **Original SPEC_ANCHOR:** Â§2.3.12 (too broad)
+- **Correct SPEC_ANCHOR:** Â§2.3.12.3 (specific subsection)
 - **Reason:** Typo in section reference; scope unchanged
 - **Date corrected:** 2025-12-25
 - **Action:** No variant needed; correct the section reference mentally
@@ -633,13 +648,13 @@ Mark packet with ERRATA note but keep it active (no v2 needed).
 
 **Prevention:** Use docs-only status-sync commits:
 - Coder produces a docs-only bootstrap claim commit when starting (task packet set to `In Progress` with claim fields).
-- Validator mirrors that to `main` by updating `docs/TASK_BOARD.md` -> `## Active (Cross-Branch Status)` (and later moves items on PASS/FAIL).
+- Validator mirrors that to `main` by updating `.GOV/roles_shared/TASK_BOARD.md` -> `## Active (Cross-Branch Status)` (and later moves items on PASS/FAIL).
 
 **Recovery if error occurs:**
 1. Compare TASK_BOARD status vs. each WP's STATUS field
    ```bash
-   grep "^- STATUS:" docs/task_packets/WP-*.md | sort
-   # Compare with docs/TASK_BOARD.md sections
+   grep "^- STATUS:" .GOV/task_packets/WP-*.md | sort
+   # Compare with .GOV/roles_shared/TASK_BOARD.md sections
    ```
 
 2. Identify discrepancies
@@ -655,7 +670,7 @@ Mark packet with ERRATA note but keep it active (no v2 needed).
 
 **Prevention:** In Part 4 Step 1, always check blocker status:
 ```bash
-grep -A3 "BLOCKER" docs/task_packets/WP-{upstream-id}.md
+grep -A3 "BLOCKER" .GOV/task_packets/WP-{upstream-id}.md
 # Should show: STATUS: Done, verdict: VALIDATED
 ```
 
@@ -676,9 +691,9 @@ grep -A3 "BLOCKER" docs/task_packets/WP-{upstream-id}.md
 **Recovery if error occurs:**
 1. Retroactively request user signature for enrichment
    ```
-   ⚠️ Signature required (retroactive) [CX-611-B]
+   âš ï¸ Signature required (retroactive) [CX-611-B]
 
-   I enriched Master Spec v02.84 → v02.85 with Storage Backend Portability requirements.
+   I enriched Master Spec v02.84 â†’ v02.85 with Storage Backend Portability requirements.
 
    To complete governance, please provide user signature:
    Format: {username}{DDMMYYYYHHMM}
@@ -703,7 +718,7 @@ grep -A3 "BLOCKER" docs/task_packets/WP-{upstream-id}.md
 **Recovery if error occurs:**
 1. Find the orphaned signature in codebase:
    ```bash
-   grep -r "ilja251225041500" docs/
+   grep -r "ilja251225041500" .GOV/
    # Shows where it was used
    ```
 
@@ -751,9 +766,9 @@ Every task packet MUST include all 10 fields in this exact structure:
 - Used for: Task board tracking, commit messages, validation logs
 
 **What "complete" means:**
-- ✅ ID is unique (no duplicates in docs/task_packets/)
-- ✅ Format matches pattern `WP-{1-9}-{descriptive-name}`
-- ✅ Name reflects actual work (not generic like "Feature-A")
+- âœ… ID is unique (no duplicates in .GOV/task_packets/)
+- âœ… Format matches pattern `WP-{1-9}-{descriptive-name}`
+- âœ… Name reflects actual work (not generic like "Feature-A")
 
 **Example:**
 ```markdown
@@ -771,9 +786,9 @@ Every task packet MUST include all 10 fields in this exact structure:
 - If status is TBD/Draft/Pending, Coder cannot start
 
 **What "complete" means:**
-- ✅ STATUS is `Ready-for-Dev` (packet complete, awaiting assignment)
-- ✅ OR STATUS is `In-Progress` (actively assigned)
-- ✅ NOT: Draft, TBD, Pending, Waiting, Proposed
+- âœ… STATUS is `Ready-for-Dev` (packet complete, awaiting assignment)
+- âœ… OR STATUS is `In-Progress` (actively assigned)
+- âœ… NOT: Draft, TBD, Pending, Waiting, Proposed
 
 **Example:**
 ```markdown
@@ -796,8 +811,8 @@ Every task packet MUST include all 10 fields in this exact structure:
 - HIGH = Cross-module, migrations, IPC, security
 
 **What "complete" means:**
-- ✅ RISK_TIER is LOW, MEDIUM, or HIGH
-- ✅ Justification provided (why this tier, not lower)
+- âœ… RISK_TIER is LOW, MEDIUM, or HIGH
+- âœ… Justification provided (why this tier, not lower)
 - ? Matches TEST_PLAN complexity; note manual review requirement for MEDIUM/HIGH in DONE_MEANS or NOTES
 
 **Example:**
@@ -823,18 +838,18 @@ Every task packet MUST include all 10 fields in this exact structure:
 - No ambiguity about boundaries
 
 **What "complete" means:**
-- ✅ One-sentence summary: "Add {feature/fix/refactor}"
-- ✅ Business/technical rationale: "Because {reason}"
-- ✅ Boundary clarity: "This does NOT include {related work}"
+- âœ… One-sentence summary: "Add {feature/fix/refactor}"
+- âœ… Business/technical rationale: "Because {reason}"
+- âœ… Boundary clarity: "This does NOT include {related work}"
 
 **Examples:**
 
-❌ **Incomplete SCOPE:**
+âŒ **Incomplete SCOPE:**
 ```markdown
 SCOPE: Improve job handling
 ```
 
-✅ **Complete SCOPE:**
+âœ… **Complete SCOPE:**
 ```markdown
 ## Scope
 - **What**: Add `/jobs/:id/cancel` endpoint to allow users to stop running jobs
@@ -856,20 +871,20 @@ SCOPE: Improve job handling
 - 5-20 entries (not 100+)
 
 **What "complete" means:**
-- ✅ Specific file paths (not directories alone): `/src/backend/handshake_core/src/api/jobs.rs`
-- ✅ OR specific directory paths (if entire directory): `/src/backend/handshake_core/migrations/`
-- ✅ 5-20 entries (if >20, likely scope creep; split into multiple WPs)
-- ✅ Paths relative to repo root
-- ✅ Every path in this list is justified by SCOPE
+- âœ… Specific file paths (not directories alone): `/src/backend/handshake_core/src/api/jobs.rs`
+- âœ… OR specific directory paths (if entire directory): `/src/backend/handshake_core/migrations/`
+- âœ… 5-20 entries (if >20, likely scope creep; split into multiple WPs)
+- âœ… Paths relative to repo root
+- âœ… Every path in this list is justified by SCOPE
 
-❌ **Incomplete IN_SCOPE_PATHS:**
+âŒ **Incomplete IN_SCOPE_PATHS:**
 ```markdown
 IN_SCOPE_PATHS:
 - src/backend/
 - app/
 ```
 
-✅ **Complete IN_SCOPE_PATHS:**
+âœ… **Complete IN_SCOPE_PATHS:**
 ```markdown
 ## Scope
 - **IN_SCOPE_PATHS**:
@@ -894,25 +909,25 @@ IN_SCOPE_PATHS:
 - Deferred work, related tasks, refactoring NOT included
 
 **What "complete" means:**
-- ✅ List 3-8 items that sound related but are OUT_OF_SCOPE
-- ✅ Each item has brief reason ("separate task", "Phase 2", "high risk")
-- ✅ Protects against scope creep
+- âœ… List 3-8 items that sound related but are OUT_OF_SCOPE
+- âœ… Each item has brief reason ("separate task", "Phase 2", "high risk")
+- âœ… Protects against scope creep
 
-❌ **Incomplete OUT_OF_SCOPE:**
+âŒ **Incomplete OUT_OF_SCOPE:**
 ```markdown
 OUT_OF_SCOPE:
 - Unrelated work
 ```
 
-✅ **Complete OUT_OF_SCOPE:**
+âœ… **Complete OUT_OF_SCOPE:**
 ```markdown
 ## Scope
 - **OUT_OF_SCOPE**:
-  * UI changes (cancel button in Jobs view) → separate WP
-  * Retry logic (failed job retry) → Phase 2 task
-  * Timeout enforcement (cancel if >N seconds) → Phase 2 task
-  * Job history/audit trail → separate task
-  * Workspace-level job management → separate WP
+  * UI changes (cancel button in Jobs view) â†’ separate WP
+  * Retry logic (failed job retry) â†’ Phase 2 task
+  * Timeout enforcement (cancel if >N seconds) â†’ Phase 2 task
+  * Job history/audit trail â†’ separate task
+  * Workspace-level job management â†’ separate WP
 ```
 
 **Why it matters:**
@@ -930,22 +945,22 @@ OUT_OF_SCOPE:
 - Coder will copy-paste these commands
 
 **What "complete" means:**
-- ✅ For LOW tier: At least 2-3 commands (cargo test, lint)
-- ✅ For MEDIUM tier: 4-5 commands (manual review noted separately)
-- ✅ For HIGH tier: 5-6 commands (manual review noted separately, stricter checks)
-- ✅ Each command is literal (can be copy-pasted)
-- ✅ Commands are in logical order (build → test → review)
-- ✅ `just post-work WP-{ID}` is ALWAYS included (Step 10 of CODER_PROTOCOL)
-- ✅ `just cargo-clean` (uses ../Cargo Target/handshake-cargo-target) is listed before post-work/self-eval to flush Cargo artifacts outside the repo
+- âœ… For LOW tier: At least 2-3 commands (cargo test, lint)
+- âœ… For MEDIUM tier: 4-5 commands (manual review noted separately)
+- âœ… For HIGH tier: 5-6 commands (manual review noted separately, stricter checks)
+- âœ… Each command is literal (can be copy-pasted)
+- âœ… Commands are in logical order (build â†’ test â†’ review)
+- âœ… `just post-work WP-{ID}` is ALWAYS included (Step 10 of CODER_PROTOCOL)
+- âœ… `just cargo-clean` (uses ../Cargo Target/handshake-cargo-target) is listed before post-work/self-eval to flush Cargo artifacts outside the repo
 
-❌ **Incomplete TEST_PLAN:**
+âŒ **Incomplete TEST_PLAN:**
 ```markdown
 TEST_PLAN:
 - Run tests
 - Check quality
 ```
 
-✅ **Complete TEST_PLAN:**
+âœ… **Complete TEST_PLAN:**
 ```markdown
 ## Quality Gate
 - **TEST_PLAN**:
@@ -985,31 +1000,31 @@ TEST_PLAN:
 - Not vague ("works", "passes tests")
 
 **What "complete" means:**
-- ✅ 3-8 items, each testable
-- ✅ Each item maps to SPEC_ANCHOR: "per §2.3.12.1 storage API requirement"
-- ✅ Uses MUST/SHOULD language from spec
-- ✅ Includes validation success: "All tests pass", "manual review complete"
-- ✅ Each item has YES/NO answer (not subjective)
+- âœ… 3-8 items, each testable
+- âœ… Each item maps to SPEC_ANCHOR: "per Â§2.3.12.1 storage API requirement"
+- âœ… Uses MUST/SHOULD language from spec
+- âœ… Includes validation success: "All tests pass", "manual review complete"
+- âœ… Each item has YES/NO answer (not subjective)
 
-❌ **Incomplete DONE_MEANS:**
+âŒ **Incomplete DONE_MEANS:**
 ```markdown
 DONE_MEANS:
 - Feature works
 - Tests pass
 ```
 
-✅ **Complete DONE_MEANS:**
+âœ… **Complete DONE_MEANS:**
 ```markdown
 ## Quality Gate
 - **DONE_MEANS**:
-  * ✅ Storage trait defined per §2.3.12.1 with 6 required methods (get_blocks, save_blocks, etc.)
-  * ✅ AppState refactored to use `Arc<dyn Database>` (not concrete SqlitePool)
-  * ✅ SqliteDatabase implements trait with all 6 methods (§2.3.12.2)
-  * ✅ PostgresDatabase stub created with method signatures (§2.3.12.3)
-  * ✅ All existing tests pass (5 units + 3 integration tests)
-  * ✅ All NEW tests pass (2 trait tests + 2 sqlite impl tests)
-  * ✅ manual review complete (PASS/FAIL); unresolved blockers must be fixed
-  * ✅ `just post-work WP-1-Storage-Abstraction-Layer` returns PASS
+  * âœ… Storage trait defined per Â§2.3.12.1 with 6 required methods (get_blocks, save_blocks, etc.)
+  * âœ… AppState refactored to use `Arc<dyn Database>` (not concrete SqlitePool)
+  * âœ… SqliteDatabase implements trait with all 6 methods (Â§2.3.12.2)
+  * âœ… PostgresDatabase stub created with method signatures (Â§2.3.12.3)
+  * âœ… All existing tests pass (5 units + 3 integration tests)
+  * âœ… All NEW tests pass (2 trait tests + 2 sqlite impl tests)
+  * âœ… manual review complete (PASS/FAIL); unresolved blockers must be fixed
+  * âœ… `just post-work WP-1-Storage-Abstraction-Layer` returns PASS
 ```
 
 **Why it matters:**
@@ -1027,21 +1042,21 @@ DONE_MEANS:
 - Complex: Step-by-step undo instructions
 
 **What "complete" means:**
-- ✅ Simple case: `git revert {commit-hash}` (once Coder provides commit)
-- ✅ Complex case: Multi-step undo guide:
+- âœ… Simple case: `git revert {commit-hash}` (once Coder provides commit)
+- âœ… Complex case: Multi-step undo guide:
   ```bash
   # Step 1: Revert migration
   # Step 2: Revert trait definition
   # Step 3: Restore AppState
   ```
-- ✅ If data migration: Include restore procedure
+- âœ… If data migration: Include restore procedure
 
-❌ **Incomplete ROLLBACK_HINT:**
+âŒ **Incomplete ROLLBACK_HINT:**
 ```markdown
 ROLLBACK_HINT: Undo changes if needed
 ```
 
-✅ **Complete ROLLBACK_HINT:**
+âœ… **Complete ROLLBACK_HINT:**
 ```markdown
 ## Authority
 - **ROLLBACK_HINT**:
@@ -1076,30 +1091,30 @@ ROLLBACK_HINT: Undo changes if needed
 **What "complete" means:**
 
 **Sub-field 10A: FILES_TO_OPEN (5-15 files)**
-- ✅ Always include: `docs/START_HERE.md`, `docs/SPEC_CURRENT.md`, `docs/ARCHITECTURE.md`
-- ✅ Then: 5-15 implementation files (exact paths)
-- ✅ Order matters: context first, implementation last
+- âœ… Always include: `.GOV/roles_shared/START_HERE.md`, `.GOV/roles_shared/SPEC_CURRENT.md`, `.GOV/roles_shared/ARCHITECTURE.md`
+- âœ… Then: 5-15 implementation files (exact paths)
+- âœ… Order matters: context first, implementation last
 
 **Sub-field 10B: SEARCH_TERMS (10-20 grep patterns)**
-- ✅ Key symbols: "Database", "AppState", "trait"
-- ✅ Error messages: "connection failed", "pool exhausted"
-- ✅ Feature names: "storage", "migration", "backend"
-- ✅ Total: 10-20 patterns for grep -r searches
+- âœ… Key symbols: "Database", "AppState", "trait"
+- âœ… Error messages: "connection failed", "pool exhausted"
+- âœ… Feature names: "storage", "migration", "backend"
+- âœ… Total: 10-20 patterns for grep -r searches
 
 **Sub-field 10C: RUN_COMMANDS (3-6 startup commands)**
-- ✅ `just dev` (start dev environment)
-- ✅ `cargo test --manifest-path ...` (verify setup)
-- ✅ `pnpm -C app test` (verify frontend setup)
-- ✅ Commands Coder can run to validate dev environment
+- âœ… `just dev` (start dev environment)
+- âœ… `cargo test --manifest-path ...` (verify setup)
+- âœ… `pnpm -C app test` (verify frontend setup)
+- âœ… Commands Coder can run to validate dev environment
 
 **Sub-field 10D: RISK_MAP (3-8 failure modes)**
-- ✅ "{Failure mode}" -> "{Affected subsystem}"
-- ✅ Examples:
+- âœ… "{Failure mode}" -> "{Affected subsystem}"
+- âœ… Examples:
   - "Trait method missing" -> "Storage layer"
   - "IPC contract breaks" -> "Tauri bridge"
   - "Migration fails" -> "Database layer"
 
-❌ **Incomplete BOOTSTRAP:**
+âŒ **Incomplete BOOTSTRAP:**
 ```markdown
 ## Bootstrap
 - FILES_TO_OPEN: Some files
@@ -1108,13 +1123,13 @@ ROLLBACK_HINT: Undo changes if needed
 - RISK_MAP: TBD
 ```
 
-✅ **Complete BOOTSTRAP:**
+âœ… **Complete BOOTSTRAP:**
 ```markdown
 ## Bootstrap (Coder Work Plan)
 - **FILES_TO_OPEN**:
-  * docs/START_HERE.md (repository overview)
-  * docs/SPEC_CURRENT.md (current spec version)
-  * docs/ARCHITECTURE.md (storage architecture)
+  * .GOV/roles_shared/START_HERE.md (repository overview)
+  * .GOV/roles_shared/SPEC_CURRENT.md (current spec version)
+  * .GOV/roles_shared/ARCHITECTURE.md (storage architecture)
   * src/backend/handshake_core/src/lib.rs (module structure)
   * src/backend/handshake_core/src/api/mod.rs (API layer)
   * src/backend/handshake_core/src/api/jobs.rs (job endpoints - MODIFY)
@@ -1163,10 +1178,10 @@ ROLLBACK_HINT: Undo changes if needed
 ### Summary: How Orchestrator Uses This Section
 
 **Before creating task packet:**
-1. ✅ Fill all 10 fields with the completeness criteria above
-2. ✅ Validate: Every field has no TBDs, placeholders, or vagueness
-3. ✅ Run `just pre-work WP-{ID}` to verify file structure
-4. ✅ Pass to Validator if they exist, or proceed to delegation
+1. âœ… Fill all 10 fields with the completeness criteria above
+2. âœ… Validate: Every field has no TBDs, placeholders, or vagueness
+3. âœ… Run `just pre-work WP-{ID}` to verify file structure
+4. âœ… Pass to Validator if they exist, or proceed to delegation
 
 **When delegating to Coder:**
 - Coder will verify all 10 fields in Step 2 of CODER_PROTOCOL
@@ -1184,11 +1199,11 @@ ROLLBACK_HINT: Undo changes if needed
 
 ---
 
-## Pre-Delegation Checklist (BLOCKING ✋)
+## Pre-Delegation Checklist (BLOCKING âœ‹)
 
 Complete ALL steps before delegating. If any step fails, STOP and fix it.
 
-### Step 1: Verify Understanding & Blockers ✋ STOP
+### Step 1: Verify Understanding & Blockers âœ‹ STOP
 
 **Before creating task packet, ensure:**
 - [ ] User request is clear and unambiguous
@@ -1199,14 +1214,14 @@ Complete ALL steps before delegating. If any step fails, STOP and fix it.
 **NEW: Check for blocking dependencies:**
 ```bash
 # Verify blocker status in TASK_BOARD
-grep -A5 "## Blocked" docs/TASK_BOARD.md
+grep -A5 "## Blocked" .GOV/roles_shared/TASK_BOARD.md
 ```
 
 **NEW: Concurrency / File-Lock Conflict Check (multi-coder sessions) [CX-CONC-001]**
 
 When multiple Coders work in the repo concurrently, treat `IN_SCOPE_PATHS` as the exclusive file lock set for that WP.
 
-- Lock source of truth: Operator-visible Task Board on `main` (recommended: `git show main:docs/TASK_BOARD.md`) -> `## In Progress` (and `## Active (Cross-Branch Status)` if present).
+- Lock source of truth: Operator-visible Task Board on `main` (recommended: `git show main:.GOV/roles_shared/TASK_BOARD.md`) -> `## In Progress` (and `## Active (Cross-Branch Status)` if present).
 - Lock set definition: for each in-progress WP, its lock set is the exact file paths listed under its task packet's `IN_SCOPE_PATHS`.
 - Hard rule: do NOT delegate/start a new WP if ANY `IN_SCOPE_PATHS` entry overlaps with ANY in-progress WP's `IN_SCOPE_PATHS`.
   - If overlap is required, this is a blocker: re-scope to avoid overlap OR sequence the work (mark WP BLOCKED: "File lock conflict").
@@ -1214,7 +1229,7 @@ When multiple Coders work in the repo concurrently, treat `IN_SCOPE_PATHS` as th
 
 Blocking template (use when overlap is detected):
 ```
-ƒ?O BLOCKED: File lock conflict [CX-CONC-001]
+Æ’?O BLOCKED: File lock conflict [CX-CONC-001]
 
 Candidate WP: {WP_ID}
 Conflicts with in-progress WP: {OTHER_WP_ID} (see task packet CODER_MODEL / CODER_REASONING_STRENGTH)
@@ -1227,16 +1242,16 @@ Action required:
 1) Re-scope candidate WP to avoid overlap, OR
 2) Sequence work: wait until {OTHER_WP_ID} is VALIDATED and leaves In Progress.
 ```
-- [ ] If this WP has a blocker: Is blocker VALIDATED? ✅
+- [ ] If this WP has a blocker: Is blocker VALIDATED? âœ…
 - [ ] If blocker is not VALIDATED: Mark new WP as BLOCKED (don't proceed yet)
 - [ ] If blocker failed validation (FAIL): Escalate; don't create this WP until blocker fixed
 
 **BLOCKING RULE:** Never create downstream WP if blocker is not VALIDATED.
-If blocker is READY/IN-PROGRESS/BLOCKED → Mark new WP as BLOCKED in TASK_BOARD.
+If blocker is READY/IN-PROGRESS/BLOCKED â†’ Mark new WP as BLOCKED in TASK_BOARD.
 
 **IF UNCLEAR (Requirements ambiguous):**
 ```
-❌ BLOCKED: Requirements unclear [CX-584]
+âŒ BLOCKED: Requirements unclear [CX-584]
 
 I need clarification on:
 1. [Specific ambiguity]
@@ -1248,7 +1263,7 @@ Please provide clarification before I can create a task packet.
 
 **IF BLOCKER NOT READY (Dependency not VALIDATED):**
 ```
-⚠️ BLOCKED: Depends on unresolved blocker [CX-635]
+âš ï¸ BLOCKED: Depends on unresolved blocker [CX-635]
 
 This WP depends on:
 - WP-1-Storage-Abstraction-Layer (Status: In Progress, not VALIDATED)
@@ -1263,11 +1278,11 @@ When blocker VALIDATEs, I'll move this to READY FOR DEV.
 
 ---
 
-### Step 2: Create Task Packet ✋ STOP
+### Step 2: Create Task Packet âœ‹ STOP
 
 **1. Check for ID collision:**
 ```bash
-ls docs/task_packets/WP-{phase}-{name}*.md
+ls .GOV/task_packets/WP-{phase}-{name}*.md
 ```
 *Do NOT use date/time stamps in WP IDs. If the base WP ID already exists, create a revision packet using `-v{N}`.*
 *Example: `WP-1-Tokenization-Service-v3`*
@@ -1279,7 +1294,7 @@ just create-task-packet "WP-{phase}-{name}-v{N}"
 *If script fails -> STOP. Resolve collision.*
 
 **3. Fill details (Update only):**
-Edit `docs/task_packets/WP-{ID}.md` to fill placeholders.
+Edit `.GOV/task_packets/WP-{ID}.md` to fill placeholders.
 
 Use this template:
 ```markdown
@@ -1327,9 +1342,9 @@ Use this template:
 
 ## Bootstrap (Coder Work Plan)
 - **FILES_TO_OPEN**:
-  * docs/START_HERE.md
-  * docs/SPEC_CURRENT.md
-  * docs/ARCHITECTURE.md
+  * .GOV/roles_shared/START_HERE.md
+  * .GOV/roles_shared/SPEC_CURRENT.md
+  * .GOV/roles_shared/ARCHITECTURE.md
   * {5-10 implementation-specific files}
 - **SEARCH_TERMS**:
   * "{key symbol/function}"
@@ -1349,10 +1364,10 @@ Use this template:
 
 ## Authority
 - **SPEC_BASELINE**: Handshake_Master_Spec_vXX.XX.md (spec at packet creation time; provenance)
-- **SPEC_TARGET**: docs/SPEC_CURRENT.md (binding spec for closure/revalidation; resolved at validation time)
+- **SPEC_TARGET**: .GOV/roles_shared/SPEC_CURRENT.md (binding spec for closure/revalidation; resolved at validation time)
 - **SPEC_ANCHOR**: {master spec section(s) / anchors}
-- **Codex**: Handshake Codex v1.4.md (see docs/SPEC_CURRENT.md)
-- **Task Board**: docs/TASK_BOARD.md
+- **Codex**: Handshake Codex v1.4.md (see .GOV/roles_shared/SPEC_CURRENT.md)
+- **Task Board**: .GOV/roles_shared/TASK_BOARD.md
 - **Logger**: (optional) latest Handshake_logger_* if requested for milestone/hard bug
 - **ADRs**: {if relevant}
 
@@ -1364,27 +1379,27 @@ Use this template:
 
 **Verify file created:**
 ```bash
-ls -la docs/task_packets/WP-*.md
+ls -la .GOV/task_packets/WP-*.md
 ```
 
 ---
 
-### Step 3: Update Task Board ✋ STOP
+### Step 3: Update Task Board âœ‹ STOP
 
-**Update `docs/TASK_BOARD.md`:**
+**Update `.GOV/roles_shared/TASK_BOARD.md`:**
 - Move WP-{ID} to "Ready for Dev"
 - Or "In Progress" if assigning immediately
 
 **Verify file updated:**
 ```bash
-grep "WP-{ID}" docs/TASK_BOARD.md
+grep "WP-{ID}" .GOV/roles_shared/TASK_BOARD.md
 ```
 
 **Note:** You DO NOT need to create a logger entry at this stage. Logger entries are reserved for work completion, milestones, or critical blockers.
 
 ---
 
-### Step 4: Verification ✋ STOP
+### Step 4: Verification âœ‹ STOP
 
 **Run automated check:**
 ```bash
@@ -1393,14 +1408,14 @@ just pre-work WP-{ID}
 
 **MUST see:**
 ```
-✅ Pre-work validation PASSED
+âœ… Pre-work validation PASSED
 
 You may proceed with delegation.
 ```
 
 **If FAIL:**
 ```
-❌ Pre-work validation FAILED
+âŒ Pre-work validation FAILED
 
 Errors:
   1. [Error description]
@@ -1418,11 +1433,11 @@ Fix errors, then re-run `just pre-work`.
 
 off message format:**
 ```
-Task Packet: docs/task_packets/WP-{ID}.md
+Task Packet: .GOV/task_packets/WP-{ID}.md
 WP_ID: WP-{ID}
 RISK_TIER: {LOW|MEDIUM|HIGH}
 
-📋 Task: {One line summary}
+ðŸ“‹ Task: {One line summary}
 
 You are a Coder agent. Before writing code:
 1. Read .claude/CODER_PROTOCOL.md
@@ -1432,12 +1447,12 @@ You are a Coder agent. Before writing code:
 5. Verify packet scope matches user request
 
 Authority docs:
-- docs/START_HERE.md
-- docs/SPEC_CURRENT.md
-- docs/ARCHITECTURE.md
+- .GOV/roles_shared/START_HERE.md
+- .GOV/roles_shared/SPEC_CURRENT.md
+- .GOV/roles_shared/ARCHITECTURE.md
 - Handshake Codex v1.4.md
 
-✅ Orchestrator checklist complete. Task packet WP-{ID} created and verified.
+âœ… Orchestrator checklist complete. Task packet WP-{ID} created and verified.
 
 Begin implementation when ready.
 ```
@@ -1452,7 +1467,7 @@ Task state is managed by the agent currently holding the "ball":
 3. **Validator**: Approves work -> Moves to `Done` (during VALIDATION).
 4. **Orchestrator**: Escalation/Blocker -> Moves to `Blocked`.
 
-### Orchestrator Board Integrity Check ✋
+### Orchestrator Board Integrity Check âœ‹
 When updating the board, the Orchestrator MUST ensure these 5 fixed sections exist (DO NOT delete them even if empty):
 - `## Ready for Dev`
 - `## In Progress`
@@ -1466,7 +1481,7 @@ When a task's state changes (e.g., from `Ready-for-Dev` to `In-Progress`, or to 
 
 ### Step 2: Update the Task Board
 
-Immediately after updating the packet's status, the active agent MUST also edit `docs/TASK_BOARD.md` to move the `WP-ID` to the correct column.
+Immediately after updating the packet's status, the active agent MUST also edit `.GOV/roles_shared/TASK_BOARD.md` to move the `WP-ID` to the correct column.
 
 **This two-step process ensures both the detailed ticket and the high-level board are always in sync.**
 
@@ -1474,13 +1489,13 @@ Immediately after updating the packet's status, the active agent MUST also edit 
 
 ## BLOCKING RULES (Non-Negotiable)
 
-### ❌ DO NOT delegate if:
+### âŒ DO NOT delegate if:
 1. Requirements are unclear or ambiguous [CX-584]
 2. Task packet file does not exist [CX-580]
 3. `just pre-work` validation fails [CX-587]
 4. You haven't confirmed packet completeness [CX-582]
 
-### ✅ DO delegate when:
+### âœ… DO delegate when:
 1. All steps complete
 2. `just pre-work WP-{ID}` returns PASS
 3. Handoff message includes all required info
@@ -1494,7 +1509,7 @@ Immediately after updating the packet's status, the active agent MUST also edit 
 
 **Response**:
 ```
-❌ BLOCKED: Cannot create task packet [CX-584]
+âŒ BLOCKED: Cannot create task packet [CX-584]
 
 The request is ambiguous on:
 - {Specific ambiguity 1}
@@ -1511,7 +1526,7 @@ Once clarified, I can create a complete task packet.
 
 **Response**:
 ```
-❌ BLOCKED: Missing LAW context [CX-031]
+âŒ BLOCKED: Missing LAW context [CX-031]
 
 This task requires information from:
 - {Spec section or context needed}
@@ -1523,7 +1538,7 @@ Please provide this context OR narrow the task to what's feasible without it.
 
 **Response**:
 ```
-⚠️ WARNING: Task is large [CX-584]
+âš ï¸ WARNING: Task is large [CX-584]
 
 This task touches:
 - {Multiple subsystems}
@@ -1540,7 +1555,7 @@ Proceed with breakdown? Or continue with full scope?
 
 ## Common Mistakes (Avoid These)
 
-### ❌ Mistake 1: Vague scope
+### âŒ Mistake 1: Vague scope
 **Wrong:**
 ```
 SCOPE: Improve the job system
@@ -1556,7 +1571,7 @@ OUT_OF_SCOPE:
 - UI changes (separate task)
 ```
 
-### ❌ Mistake 2: Missing DONE_MEANS
+### âŒ Mistake 2: Missing DONE_MEANS
 **Wrong:**
 ```
 DONE_MEANS: Feature works
@@ -1571,7 +1586,7 @@ DONE_MEANS:
 - pnpm test passes
 ```
 
-### ❌ Mistake 3: Incomplete BOOTSTRAP
+### âŒ Mistake 3: Incomplete BOOTSTRAP
 **Wrong:**
 ```
 FILES_TO_OPEN: Some files
@@ -1579,8 +1594,8 @@ FILES_TO_OPEN: Some files
 **Right:**
 ```
 FILES_TO_OPEN:
-- docs/START_HERE.md
-- docs/ARCHITECTURE.md
+- .GOV/roles_shared/START_HERE.md
+- .GOV/roles_shared/ARCHITECTURE.md
 - src/backend/handshake_core/src/api/jobs.rs
 - src/backend/handshake_core/src/jobs.rs
 - src/backend/handshake_core/src/workflows.rs
@@ -1588,7 +1603,7 @@ FILES_TO_OPEN:
 - src/backend/handshake_core/migrations/0002_create_ai_core_tables.sql
 ```
 
-### ❌ Mistake 4: Delegating without verification
+### âŒ Mistake 4: Delegating without verification
 **Wrong:**
 ```
 I created the packet. Coder, start coding.
@@ -1598,9 +1613,9 @@ I created the packet. Coder, start coding.
 Running verification:
 $ just pre-work WP-1-Job-Cancel
 
-✅ Pre-work validation PASSED
+âœ… Pre-work validation PASSED
 
-Task Packet: docs/task_packets/WP-1-Job-Cancel.md
+Task Packet: .GOV/task_packets/WP-1-Job-Cancel.md
 [Full handoff message...]
 ```
 
@@ -1609,17 +1624,17 @@ Task Packet: docs/task_packets/WP-1-Job-Cancel.md
 ## Success Criteria
 
 **You succeeded if:**
-- ✅ Task packet file exists and is complete
-- ✅ `just pre-work WP-{ID}` passes
-- ✅ Coder receives clear handoff message
-- ✅ **YOU STOPPED TALKING** after the handoff message
+- âœ… Task packet file exists and is complete
+- âœ… `just pre-work WP-{ID}` passes
+- âœ… Coder receives clear handoff message
+- âœ… **YOU STOPPED TALKING** after the handoff message
 
 **You failed if:**
-- ❌ You wrote code in `src/` or `app/`
-- ❌ Coder asks "what should I do?"
-- ❌ Coder starts coding without packet
-- ❌ Work gets rejected at review for missing packet
-- ❌ Scope confusion leads to wrong implementation
+- âŒ You wrote code in `src/` or `app/`
+- âŒ Coder asks "what should I do?"
+- âŒ Coder starts coding without packet
+- âŒ Work gets rejected at review for missing packet
+- âŒ Scope confusion leads to wrong implementation
 
 ---
 
@@ -1634,7 +1649,7 @@ just create-task-packet WP-{ID}
 just pre-work WP-{ID}
 
 # Check packet exists
-ls docs/task_packets/WP-*.md
+ls .GOV/task_packets/WP-*.md
 ```
 
 **Codex rules enforced:**
@@ -1673,7 +1688,7 @@ Every work packet MUST include these sections (in order):
   * src/backend/handshake_core/src/storage/mod.rs
   * src/backend/handshake_core/src/storage/sqlite.rs
 - **OUT_OF_SCOPE**: {What Coder CANNOT touch}
-  * Migrations rewrite (→ WP-1-Migration-Framework)
+  * Migrations rewrite (â†’ WP-1-Migration-Framework)
 
 ## Quality Gate
 - **RISK_TIER**: LOW | MEDIUM | HIGH
@@ -1685,12 +1700,12 @@ Every work packet MUST include these sections (in order):
 - **FILES_TO_OPEN**: {5-15 key files}
 - **SEARCH_TERMS**: {10-20 grep targets}
 - **RUN_COMMANDS**: {Startup + validation commands}
-- **RISK_MAP**: {Failure modes → subsystems (3-8 items)}
+- **RISK_MAP**: {Failure modes â†’ subsystems (3-8 items)}
 
 ## Authority
-- **SPEC_ANCHOR**: §{section} ({requirement})
+- **SPEC_ANCHOR**: Â§{section} ({requirement})
 - **Codex**: {version}
-- **Task Board**: docs/TASK_BOARD.md
+- **Task Board**: .GOV/roles_shared/TASK_BOARD.md
 - **Logger**: {if applicable}
 
 ## Notes
@@ -1711,35 +1726,35 @@ Every work packet MUST include these sections (in order):
 **CLARIFICATION: Orchestrator's Role in SPEC_ANCHOR Verification**
 
 Orchestrator DOES verify (checklist below):
-- ✅ SPEC_ANCHOR cites a Main Body section (not Roadmap)
-- ✅ Cited section exists in SPEC_CURRENT.md
-- ✅ Section number is specific (§2.3.12.1, not §2.3.12 alone)
+- âœ… SPEC_ANCHOR cites a Main Body section (not Roadmap)
+- âœ… Cited section exists in SPEC_CURRENT.md
+- âœ… Section number is specific (Â§2.3.12.1, not Â§2.3.12 alone)
 
 Orchestrator DOES NOT verify (Validator verifies this):
-- ❌ Whether the cited requirement is the RIGHT interpretation
-- ❌ Whether this requirement is complete/correct
-- ❌ Whether all MUST/SHOULD from that section are covered
+- âŒ Whether the cited requirement is the RIGHT interpretation
+- âŒ Whether this requirement is complete/correct
+- âŒ Whether all MUST/SHOULD from that section are covered
 
 **If SPEC_ANCHOR is ambiguous** (could map to multiple sections):
-→ ESCALATE to user; get explicit decision before proceeding.
+â†’ ESCALATE to user; get explicit decision before proceeding.
 Do not guess which section is correct.
 
 **Valid SPEC_ANCHOR examples:**
-- `§2.3.12.1 (Four Portability Pillars)`
-- `§2.3.12.3 (Storage API Abstraction Pattern)`
-- `§A9.2.1 (Error Code Registry)`
+- `Â§2.3.12.1 (Four Portability Pillars)`
+- `Â§2.3.12.3 (Storage API Abstraction Pattern)`
+- `Â§A9.2.1 (Error Code Registry)`
 
 **Invalid (REJECT these):**
-- `§Future Work (Phase 2+)` — Not Main Body
-- `§Roadmap` — Not specific enough
-- No SPEC_ANCHOR at all — Every WP requires one
-- `§2.3.12` alone — Too broad; need specific subsection
+- `Â§Future Work (Phase 2+)` â€” Not Main Body
+- `Â§Roadmap` â€” Not specific enough
+- No SPEC_ANCHOR at all â€” Every WP requires one
+- `Â§2.3.12` alone â€” Too broad; need specific subsection
 
 **Orchestrator verification checklist:**
 - [ ] SPEC_ANCHOR references MAIN BODY section (before Roadmap)
 - [ ] SPEC_ANCHOR exists in latest Master Spec version
-- [ ] Section number is specific (§X.X.X format)
-- [ ] If multiple valid sections exist → ESCALATE to user for clarification
+- [ ] Section number is specific (Â§X.X.X format)
+- [ ] If multiple valid sections exist â†’ ESCALATE to user for clarification
 
 **If FAIL:** Reject WP; request Orchestrator cite spec requirement explicitly or escalate.
 
@@ -1748,11 +1763,11 @@ Do not guess which section is correct.
 **Orchestrator MUST be specific (NOT vague).**
 
 ```
-❌ WRONG: IN_SCOPE_PATHS: src/backend
-❌ WRONG: IN_SCOPE_PATHS: src/
-❌ WRONG: IN_SCOPE_PATHS: Everything related to storage
+âŒ WRONG: IN_SCOPE_PATHS: src/backend
+âŒ WRONG: IN_SCOPE_PATHS: src/
+âŒ WRONG: IN_SCOPE_PATHS: Everything related to storage
 
-✅ RIGHT: IN_SCOPE_PATHS:
+âœ… RIGHT: IN_SCOPE_PATHS:
   - src/backend/handshake_core/src/storage/mod.rs
   - src/backend/handshake_core/src/storage/sqlite.rs
   - src/backend/handshake_core/src/api/jobs.rs
@@ -1766,7 +1781,7 @@ Do not guess which section is correct.
 
 Example:
 ```markdown
-SPEC_ANCHOR: §2.3.12.3 (Storage API Abstraction Pattern)
+SPEC_ANCHOR: Â§2.3.12.3 (Storage API Abstraction Pattern)
 
 Spec says:
 - "MUST: Define Database trait with async methods"
@@ -1774,9 +1789,9 @@ Spec says:
 - "MUST: Create PostgresDatabase stub"
 
 DONE_MEANS (mapped):
-- [ ] MUST: Database trait defined (§2.3.12.3, requirement 1)
-- [ ] MUST: SqliteDatabase implemented (§2.3.12.3, requirement 2)
-- [ ] MUST: PostgresDatabase stub created (§2.3.12.3, requirement 3)
+- [ ] MUST: Database trait defined (Â§2.3.12.3, requirement 1)
+- [ ] MUST: SqliteDatabase implemented (Â§2.3.12.3, requirement 2)
+- [ ] MUST: PostgresDatabase stub created (Â§2.3.12.3, requirement 3)
 - [ ] All tests pass
 - [ ] Validator sign-off (PASS verdict)
 ```
@@ -1807,7 +1822,7 @@ DONE_MEANS (mapped):
 4. **RISK_MAP (3-8 failure modes)**
    - Specific failure mode
    - Which subsystem breaks
-   - Example: `"Hollow trait implementation" → Portability Failure (Phase 1 blocker)`
+   - Example: `"Hollow trait implementation" â†’ Portability Failure (Phase 1 blocker)`
 
 ### 5.6 Work Packet Locking [CX-607]
 
@@ -1824,11 +1839,11 @@ DONE_MEANS (mapped):
 ```
 
 **Rule of Locking:**
-- ✅ Once locked, packet is immutable
-- ✅ Prevents instruction creep mid-work
-- ✅ Creates audit trail (version history)
-- ❌ Cannot edit locked packet (violates governance)
-- ❌ If changes needed, must create new packet
+- âœ… Once locked, packet is immutable
+- âœ… Prevents instruction creep mid-work
+- âœ… Creates audit trail (version history)
+- âŒ Cannot edit locked packet (violates governance)
+- âŒ If changes needed, must create new packet
 
 **When to create variant packets:**
 - WP-1-Storage-Abstraction-Layer (original, locked)
@@ -1837,28 +1852,28 @@ DONE_MEANS (mapped):
 
 **Traceability rule (mandatory when variants exist):**
 - Treat `WP-1-Storage-Abstraction-Layer` as the **Base WP ID**.
-- If you create `...-v{N}`, update `docs/WP_TRACEABILITY_REGISTRY.md` so the Base WP maps to the single Active Packet, and mark the older packet(s) as Superseded on `docs/TASK_BOARD.md`.
+- If you create `...-v{N}`, update `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` so the Base WP maps to the single Active Packet, and mark the older packet(s) as Superseded on `.GOV/roles_shared/TASK_BOARD.md`.
 - When instructing Coders/Validators to run `just pre-work` / `just post-work`, always provide the **Active Packet WP_ID** (often includes `-vN`) to avoid ambiguous matches.
 
 ### 5.7 Variant Lineage Audit (ALL versions) [CX-580E] (BLOCKING)
 
 When you create a revision packet (`-v{N}`) for a Base WP, you MUST include a **Lineage Audit** inside the new packet before delegation.
 
-**Goal:** Prevent “spec→packet→code” gaps caused by version churn. A `-v{N}` packet is NOT allowed to validate only “what changed in v{N}”; it must prove the **entire Base WP requirement** is satisfied in the repo as of SPEC_TARGET.
+**Goal:** Prevent â€œspecâ†’packetâ†’codeâ€ gaps caused by version churn. A `-v{N}` packet is NOT allowed to validate only â€œwhat changed in v{N}â€; it must prove the **entire Base WP requirement** is satisfied in the repo as of SPEC_TARGET.
 
 **MANDATORY:** Add `## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]` to the new packet and include, at minimum:
 - `BASE_WP_ID` and the new `WP_ID` being created.
-- Roadmap pointer(s) (if applicable) AND the governing Master Spec Main Body anchors for “Done”.
-- `SPEC_TARGET` resolved at creation time (from `docs/SPEC_CURRENT.md`).
+- Roadmap pointer(s) (if applicable) AND the governing Master Spec Main Body anchors for â€œDoneâ€.
+- `SPEC_TARGET` resolved at creation time (from `.GOV/roles_shared/SPEC_CURRENT.md`).
 - A list of ALL known prior packet files for the Base WP (v1/v2/...) and their statuses (Superseded/FAIL/Historical/etc.).
 - A requirement map showing every governing Main Body MUST/SHOULD translated to current repo evidence:
   - `SPEC_ANCHOR` (exact clause ID)
   - Code evidence (`path:line` in the repo)
-  - Provenance (introducing commit via `git blame`, or explicit “present before v{N}”)
+  - Provenance (introducing commit via `git blame`, or explicit â€œpresent before v{N}â€)
   - If anything is missing: declare GAP and STOP (create a remediation WP or initiate spec enrichment).
 
 **Suggested commands (examples):**
-- `cat docs/SPEC_CURRENT.md`
+- `cat .GOV/roles_shared/SPEC_CURRENT.md`
 - `rg -n "<forbidden symbols>" src/`
 - `git blame -n -L <line>,<line> <path>`
 - `git log --oneline --decorate -- <path>`
@@ -1868,11 +1883,11 @@ When you create a revision packet (`-v{N}`) for a Base WP, you MUST include a **
 ## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]
 - BASE_WP_ID: WP-1-...
 - WP_ID: WP-1-...-vN
-- SPEC_TARGET: Handshake_Master_Spec_vXX.XXX.md (from docs/SPEC_CURRENT.md)
-- Roadmap pointer: §7.6.x (pointer only; Main Body is authority)
+- SPEC_TARGET: Handshake_Master_Spec_vXX.XXX.md (from .GOV/roles_shared/SPEC_CURRENT.md)
+- Roadmap pointer: Â§7.6.x (pointer only; Main Body is authority)
 - Prior packets:
-  - docs/task_packets/WP-1-....md (status: ...)
-  - docs/task_packets/WP-1-....-v2.md (status: ...)
+  - .GOV/task_packets/WP-1-....md (status: ...)
+  - .GOV/task_packets/WP-1-....-v2.md (status: ...)
 
 | SPEC_ANCHOR | Main Body requirement (MUST/SHOULD) | Repo evidence (path:line) | Introduced (commit) | Notes |
 |---|---|---|---|---|
@@ -1885,7 +1900,7 @@ When you create a revision packet (`-v{N}`) for a Base WP, you MUST include a **
 
 ### 6.1 Task Board Structure (Single Source of Truth)
 
-**Orchestrator maintains `docs/TASK_BOARD.md` as the authoritative status tracker.**
+**Orchestrator maintains `.GOV/roles_shared/TASK_BOARD.md` as the authoritative status tracker.**
 
 ```markdown
 # Handshake Project Task Board
@@ -1895,22 +1910,22 @@ Updated whenever WP status changes.
 
 ---
 
-## 🚨 PHASE 1 CLOSURE GATES (BLOCKING)
+## ðŸš¨ PHASE 1 CLOSURE GATES (BLOCKING)
 
-**Authority:** Master Spec §2.3.12, Architecture Decision {date}
+**Authority:** Master Spec Â§2.3.12, Architecture Decision {date}
 
 Storage Backend Portability Foundation (Sequential):
 
 1. **[WP-1-Storage-Abstraction-Layer]** - Define trait-based storage API
    - Lead: Coder (Senior Systems Engineer)
    - Effort: 15-20 hours
-   - Status: [READY FOR DEV 🔴]
+   - Status: [READY FOR DEV ðŸ”´]
    - Blocker: None (foundational)
 
 2. **[WP-1-AppState-Refactoring]** - Remove SqlitePool from AppState
    - Lead: Coder (Senior Systems Engineer)
    - Effort: 8-10 hours
-   - Status: [GAP 🟡]
+   - Status: [GAP ðŸŸ¡]
    - Blocker: WP-1-Storage-Abstraction-Layer (MUST COMPLETE FIRST)
 
 ---
@@ -1940,20 +1955,20 @@ Storage Backend Portability Foundation (Sequential):
 
 | Status | Symbol | Meaning | When to Use |
 |--------|--------|---------|------------|
-| **READY FOR DEV** | 🔴 | Verified, waiting for Coder | After pre-work checklist PASS |
-| **IN PROGRESS** | 🟠 | Coder is working | After Coder outputs BOOTSTRAP |
-| **BLOCKED** | 🟡 | Waiting for dependency/clarification | Document specific reason |
-| **DONE** | ✅ | Merged to main | After Validator approves |
-| **GAP** | 🟡 | Not yet created as packet | Before Orchestrator creates |
+| **READY FOR DEV** | ðŸ”´ | Verified, waiting for Coder | After pre-work checklist PASS |
+| **IN PROGRESS** | ðŸŸ  | Coder is working | After Coder outputs BOOTSTRAP |
+| **BLOCKED** | ðŸŸ¡ | Waiting for dependency/clarification | Document specific reason |
+| **DONE** | âœ… | Merged to main | After Validator approves |
+| **GAP** | ðŸŸ¡ | Not yet created as packet | Before Orchestrator creates |
 
 ### 6.3 Orchestrator Responsibilities for TASK_BOARD
 
 **Ensure TASK_BOARD is updated IMMEDIATELY when:**
-1. New WP created → Move to "Ready for Dev"
-2. Coder starts work → Ensure the Coder has produced a docs-only bootstrap claim commit; Validator status-syncs `main` (updates `## In Progress`; optionally also `## Active (Cross-Branch Status)`).
-3. Blocker discovered → Move to "Blocked" + document reason
-4. Validator approves → Validator moves to "Done" (Orchestrator verifies TASK_BOARD reflects reality)
-5. Dependency unblocked → Move blocked WP to "Ready for Dev"
+1. New WP created â†’ Move to "Ready for Dev"
+2. Coder starts work â†’ Ensure the Coder has produced a docs-only bootstrap claim commit; Validator status-syncs `main` (updates `## In Progress`; optionally also `## Active (Cross-Branch Status)`).
+3. Blocker discovered â†’ Move to "Blocked" + document reason
+4. Validator approves â†’ Validator moves to "Done" (Orchestrator verifies TASK_BOARD reflects reality)
+5. Dependency unblocked â†’ Move blocked WP to "Ready for Dev"
 
 **Keep TASK_BOARD in sync with reality:**
 ```
@@ -1966,15 +1981,15 @@ If the Operator-visible Task Board on `main` does not reflect packet reality, th
 **Orchestrator must maintain Phase Gate section:**
 
 ```markdown
-## 🚨 PHASE 1 CLOSURE GATES (BLOCKING - MUST COMPLETE)
+## ðŸš¨ PHASE 1 CLOSURE GATES (BLOCKING - MUST COMPLETE)
 
 **Status:** HOLDING - 3 of 4 gate-critical WPs not yet created
 
 Gate-critical WPs:
-1. ✅ WP-1-Storage-Abstraction-Layer [READY FOR DEV]
-2. ❌ WP-1-AppState-Refactoring [GAP - packet not yet created]
-3. ❌ WP-1-Migration-Framework [GAP - packet not yet created]
-4. ❌ WP-1-Dual-Backend-Tests [GAP - packet not yet created]
+1. âœ… WP-1-Storage-Abstraction-Layer [READY FOR DEV]
+2. âŒ WP-1-AppState-Refactoring [GAP - packet not yet created]
+3. âŒ WP-1-Migration-Framework [GAP - packet not yet created]
+4. âŒ WP-1-Dual-Backend-Tests [GAP - packet not yet created]
 
 Phase closure criteria:
 - [ ] All 4 gate-critical WPs are VALIDATED (not just "done")
@@ -1999,7 +2014,7 @@ Current status: 25% ready (1 of 4 packets created, 0 VALIDATED)
 - [ ] **Spec regression check passes**
   ```bash
   just validator-spec-regression
-  # Output: ✅ Spec regression check PASSED
+  # Output: âœ… Spec regression check PASSED
   ```
 
 - [ ] **Supply chain audit clean** (zero violations)
@@ -2029,40 +2044,40 @@ Current status: 25% ready (1 of 4 packets created, 0 VALIDATED)
 Phase 1 Closure Gate Status:
 
 MUST Criteria:
-✅ WP-1-Storage-Abstraction-Layer: VALIDATED (PASS)
-✅ WP-1-AppState-Refactoring: VALIDATED (PASS)
-✅ WP-1-Migration-Framework: VALIDATED (PASS)
-✅ WP-1-Dual-Backend-Tests: VALIDATED (PASS)
-✅ Spec regression: PASS
-✅ Cargo deny: 0 violations
-✅ npm audit: 0 high vulnerabilities
-✅ No blockers in TASK_BOARD
-✅ All commits properly tracked
+âœ… WP-1-Storage-Abstraction-Layer: VALIDATED (PASS)
+âœ… WP-1-AppState-Refactoring: VALIDATED (PASS)
+âœ… WP-1-Migration-Framework: VALIDATED (PASS)
+âœ… WP-1-Dual-Backend-Tests: VALIDATED (PASS)
+âœ… Spec regression: PASS
+âœ… Cargo deny: 0 violations
+âœ… npm audit: 0 high vulnerabilities
+âœ… No blockers in TASK_BOARD
+âœ… All commits properly tracked
 
 SHOULD Criteria:
-✅ No escalations pending
-✅ No deferred work notes
-✅ Test coverage: 84% (>80% target met)
-✅ Security audit clean (Phase 1 touches storage layer)
+âœ… No escalations pending
+âœ… No deferred work notes
+âœ… Test coverage: 84% (>80% target met)
+âœ… Security audit clean (Phase 1 touches storage layer)
 
-→ Phase 1 READY TO CLOSE ✅
+â†’ Phase 1 READY TO CLOSE âœ…
 ```
 
 #### How to Use This Gate
 
 **Before closing phase:**
-1. ✅ Check TASK_BOARD: All critical WPs show VALIDATED?
-2. ✅ Run spec regression check
-3. ✅ Run supply chain audits
-4. ✅ Review escalations log (empty?)
-5. ✅ Review WPs for deferred work notes
-6. ✅ Confirm all dependencies resolved
+1. âœ… Check TASK_BOARD: All critical WPs show VALIDATED?
+2. âœ… Run spec regression check
+3. âœ… Run supply chain audits
+4. âœ… Review escalations log (empty?)
+5. âœ… Review WPs for deferred work notes
+6. âœ… Confirm all dependencies resolved
 
 **If ANY MUST criterion fails:**
-→ Phase is NOT ready. Document blocker + ETA.
+â†’ Phase is NOT ready. Document blocker + ETA.
 
 **If ALL MUST criteria pass:**
-→ Phase ready to close (SHOULD criteria are recommendations, not blockers).
+â†’ Phase ready to close (SHOULD criteria are recommendations, not blockers).
 
 ---
 
@@ -2095,10 +2110,10 @@ SHOULD Criteria:
 Scenario: WP-1-AppState-Refactoring depends on WP-1-Storage-Abstraction-Layer
 
 If WP-1-Storage-Abstraction-Layer status is:
-- ✅ VALIDATED → Can assign WP-1-AppState-Refactoring
-- 🟠 IN PROGRESS → Mark WP-1-AppState-Refactoring as BLOCKED
-- 🔴 READY FOR DEV → Mark WP-1-AppState-Refactoring as BLOCKED
-- ❌ FAILS Validator → Don't assign, escalate
+- âœ… VALIDATED â†’ Can assign WP-1-AppState-Refactoring
+- ðŸŸ  IN PROGRESS â†’ Mark WP-1-AppState-Refactoring as BLOCKED
+- ðŸ”´ READY FOR DEV â†’ Mark WP-1-AppState-Refactoring as BLOCKED
+- âŒ FAILS Validator â†’ Don't assign, escalate
 
 Rule: Never assign downstream work until blocker is VALIDATED.
 ```
@@ -2112,7 +2127,7 @@ Phase 1 closure requires:
 - NO unresolved blockers
 
 If WP-1-Migration-Framework blocks WP-1-Dual-Backend-Tests:
-→ Phase cannot close until BOTH are VALIDATED
+â†’ Phase cannot close until BOTH are VALIDATED
 ```
 
 **Document WHY WP is BLOCKED:**
@@ -2142,7 +2157,7 @@ If WP-1-Migration-Framework blocks WP-1-Dual-Backend-Tests:
 
 **Day 5:** If blocker still unresolved:
 ```
-⚠️ ESCALATION: WP-X blocked beyond SLA [CX-635-B1]
+âš ï¸ ESCALATION: WP-X blocked beyond SLA [CX-635-B1]
 
 WP-ID: WP-1-AppState-Refactoring
 Status: BLOCKED (5 days, SLA exceeded)
@@ -2166,7 +2181,7 @@ Awaiting response by: {date/time}
 
 **Day 10:** If Coder hasn't started:
 ```
-🚨 RISK FLAG: WP-X idle beyond SLA [CX-635-B2]
+ðŸš¨ RISK FLAG: WP-X idle beyond SLA [CX-635-B2]
 
 WP-ID: WP-1-Job-Cancel-Endpoint
 Status: READY FOR DEV (10 days, no progress)
@@ -2188,7 +2203,7 @@ Action: Confirm priority and Coder assignment
 
 **Day 30:** If still IN PROGRESS with no completion in sight:
 ```
-📋 ESTIMATE REVIEW: WP-X progress check [CX-635-B3]
+ðŸ“‹ ESTIMATE REVIEW: WP-X progress check [CX-635-B3]
 
 WP-ID: WP-1-Storage-Abstraction-Layer
 Status: IN PROGRESS (30 days, original estimate: 15-20 hours)
@@ -2211,7 +2226,7 @@ Action: Reassess estimate or break work into phases
 Use this template for ANY SLA-triggered escalation:
 
 ```
-⚠️ SLA ESCALATION: {WP-ID} [CX-635]
+âš ï¸ SLA ESCALATION: {WP-ID} [CX-635]
 
 **Work Packet:** {WP-ID} ({brief description})
 **Status:** {BLOCKED|READY FOR DEV|IN PROGRESS}
@@ -2256,7 +2271,7 @@ Use this template for ANY SLA-triggered escalation:
 **Conditional (BLOCKING when applicable):**
 If the WP includes cross-boundary changes (e.g., UI/API/storage/events) OR any governing spec/DONE_MEANS includes MUST record/audit/provenance:
 
-- [ ] End-to-end closure plan captured (producer output → API schema → server-side verification/source-of-truth → audit event/log)
+- [ ] End-to-end closure plan captured (producer output â†’ API schema â†’ server-side verification/source-of-truth â†’ audit event/log)
 - [ ] Trust boundary decision recorded (client-provided audit/provenance is UNTRUSTED unless explicitly waived; server derives/verifies)
 - [ ] No unused plumbing (any newly introduced request/response fields are used end-to-end or removed before delegation)
 - [ ] Error taxonomy planned (stale input/hash mismatch vs invalid input vs scope violation vs provenance mismatch/spoof attempt)
@@ -2269,41 +2284,41 @@ If the WP includes cross-boundary changes (e.g., UI/API/storage/events) OR any g
 
 ## Part 9: Orchestrator Non-Negotiables [CX-640-650]
 
-### ❌ DO NOT:
+### âŒ DO NOT:
 
-1. **Create WP without SPEC_ANCHOR** — Every WP must reference Master Spec Main Body
-2. **Edit locked work packets** — Once USER_SIGNATURE added, packet is immutable
-3. **Use vague scope** — IN_SCOPE_PATHS must be specific file paths
-4. **Assign WP with unresolved blocker** — Wait for blocker to VALIDATE first
-5. **Close phase without all WPs VALIDATED** — "Done" ≠ "VALIDATED"
-6. **Skip pre-orchestration checklist** — All 14 items must pass
-7. **Invent requirements** — Task packets point to SPEC_ANCHOR, period
-8. **Let TASK_BOARD drift** — Ensure TASK_BOARD on `main` is status-synced when WP status changes (Validator: In Progress/Done; Orchestrator: planning states)
-9. **Lump multiple features in one WP** — One WP per requirement
-10. **Leave dependencies undocumented** — TASK_BOARD must show all blocking relationships
+1. **Create WP without SPEC_ANCHOR** â€” Every WP must reference Master Spec Main Body
+2. **Edit locked work packets** â€” Once USER_SIGNATURE added, packet is immutable
+3. **Use vague scope** â€” IN_SCOPE_PATHS must be specific file paths
+4. **Assign WP with unresolved blocker** â€” Wait for blocker to VALIDATE first
+5. **Close phase without all WPs VALIDATED** â€” "Done" â‰  "VALIDATED"
+6. **Skip pre-orchestration checklist** â€” All 14 items must pass
+7. **Invent requirements** â€” Task packets point to SPEC_ANCHOR, period
+8. **Let TASK_BOARD drift** â€” Ensure TASK_BOARD on `main` is status-synced when WP status changes (Validator: In Progress/Done; Orchestrator: planning states)
+9. **Lump multiple features in one WP** â€” One WP per requirement
+10. **Leave dependencies undocumented** â€” TASK_BOARD must show all blocking relationships
 
-### ✅ DO:
+### âœ… DO:
 
-1. **Create one WP per Master Spec requirement** — No lumping
-2. **Lock every packet with USER_SIGNATURE** — Prevents instruction creep
-3. **Map every DONE_MEANS to SPEC_ANCHOR** — Traceability required
-4. **Document dependencies explicitly** — TASK_BOARD shows blockers
-5. **Maintain Phase Gate visibility** — Keep status current
-6. **Run pre-orchestration checklist** — Verify spec, board, supply chain
-7. **Keep TASK_BOARD on `main` in sync** — Validator status-syncs In Progress/Done; Orchestrator maintains planning states
-8. **Provide complete BOOTSTRAP** — Coder needs 5-15 files, 10-20 terms, risk map
-9. **Create variant packets for changes** — Never edit locked packets
-10. **Enforce blocking rules** — Don't assign downstream work prematurely
+1. **Create one WP per Master Spec requirement** â€” No lumping
+2. **Lock every packet with USER_SIGNATURE** â€” Prevents instruction creep
+3. **Map every DONE_MEANS to SPEC_ANCHOR** â€” Traceability required
+4. **Document dependencies explicitly** â€” TASK_BOARD shows blockers
+5. **Maintain Phase Gate visibility** â€” Keep status current
+6. **Run pre-orchestration checklist** â€” Verify spec, board, supply chain
+7. **Keep TASK_BOARD on `main` in sync** â€” Validator status-syncs In Progress/Done; Orchestrator maintains planning states
+8. **Provide complete BOOTSTRAP** â€” Coder needs 5-15 files, 10-20 terms, risk map
+9. **Create variant packets for changes** â€” Never edit locked packets
+10. **Enforce blocking rules** â€” Don't assign downstream work prematurely
 
 ---
 
 ## Part 10: Real Examples (Templates)
 
-See actual work packets in `docs/task_packets/` for patterns:
+See actual work packets in `.GOV/task_packets/` for patterns:
 
-- **WP-1-Storage-Abstraction-Layer.md** — High risk, foundational (trait-based design)
-- **WP-1-AI-Integration-Baseline.md** — Medium risk, feature (LLM integration)
-- **WP-1-Terminal-Integration-Baseline.md** — High risk, security-sensitive
+- **WP-1-Storage-Abstraction-Layer.md** â€” High risk, foundational (trait-based design)
+- **WP-1-AI-Integration-Baseline.md** â€” Medium risk, feature (LLM integration)
+- **WP-1-Terminal-Integration-Baseline.md** â€” High risk, security-sensitive
 
 All follow the structure in this protocol; use them as templates for new WPs.
 
@@ -2313,8 +2328,8 @@ All follow the structure in this protocol; use them as templates for new WPs.
 
 | Responsibility | Primary Document | Authority |
 |---|---|---|
-| Create work packets | `docs/task_packets/WP-*.md` | ORCHESTRATOR_PROTOCOL Part 4-5 |
-| Maintain task board | `docs/TASK_BOARD.md` | ORCHESTRATOR_PROTOCOL Part 6 |
+| Create work packets | `.GOV/task_packets/WP-*.md` | ORCHESTRATOR_PROTOCOL Part 4-5 |
+| Maintain task board | `.GOV/roles_shared/TASK_BOARD.md` | ORCHESTRATOR_PROTOCOL Part 6 |
 | Track dependencies | Packet + TASK_BOARD | ORCHESTRATOR_PROTOCOL Part 7 |
 | Validate before delegation | Pre-work checklist | ORCHESTRATOR_PROTOCOL Part 8 |
 | Lock packets | USER_SIGNATURE | ORCHESTRATOR_PROTOCOL Part 5.6 |
@@ -2323,3 +2338,5 @@ All follow the structure in this protocol; use them as templates for new WPs.
 | Manage blockers | Dependency tracking | ORCHESTRATOR_PROTOCOL Part 7 |
 
 **Orchestrator role = Precise work packets + Updated TASK_BOARD + Locked packets + Verified pre-work + Enforced dependencies + Phase gate management**
+
+

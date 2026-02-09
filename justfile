@@ -54,6 +54,15 @@ worktree-add wp-id base="main" branch="" dir="":
 
 # Hard gate helper: Worktree + Branch Gate [CX-WT-001]
 hard-gate-wt-001:
+	@echo 'ROLE=<ROLE> | PROTOCOL=<protocol path> | COMPLIANCE={OK|BLOCKED} | NEXT_ACTION=<short>'
+	@echo ''
+	@echo 'LIFECYCLE [CX-LIFE-001]'
+	@echo '- WP_ID: <WP-... or N/A>'
+	@echo '- STAGE: <REFINEMENT|SIGNATURE|PREPARE|PACKET_CREATE|DELEGATION|STATUS_SYNC>'
+	@echo '- NEXT: <next stage or STOP>'
+	@echo ''
+	@echo 'STATE: <1 sentence>'
+	@echo ''
 	@echo 'HARD_GATE_OUTPUT [CX-WT-001]'
 	@pwd
 	@git rev-parse --show-toplevel
@@ -80,6 +89,13 @@ hard-gate-wt-001:
 	@echo 'HARD_GATE_NEXT_ACTIONS [CX-WT-001]'
 	@echo '- If correct (repo/worktree/branch match the assignment): proceed to BOOTSTRAP / packet steps.'
 	@echo '- If incorrect/uncertain: STOP; ask Orchestrator/Operator to provide/create the correct WP worktree/branch and ensure `PREPARE` is recorded in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`.'
+	@echo ''
+	@echo 'PHASE_STATUS [CX-GATE-UX-001]'
+	@echo '- PHASE: <REFINEMENT|SIGNATURE|PREPARE|PACKET_CREATE|DELEGATION|STATUS_SYNC>'
+	@echo '- DECISION: <PROCEED|STOP>'
+	@echo '- NEXT_COMMANDS:'
+	@echo '  - <cmd1>'
+	@echo '  - <cmd2>'
 
 task-board-check:
 	node .GOV/scripts/validation/task-board-check.mjs

@@ -1,4 +1,4 @@
-# VALIDATOR_PROTOCOL [CX-570-573]
+﻿# VALIDATOR_PROTOCOL [CX-570-573]
 
 **MANDATORY** - Validator must read this before performing any Validator actions (audit, review, remediation, or repo operations)
 
@@ -14,16 +14,31 @@
 
 ---
 
-Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Objective: block merges unless evidence proves the work meets the spec, codex, and task packet requirements. Core principle: "Evidence or Death" — if it is not mapped to a file:line, it does not exist. No rubber-stamping.
+## Repo Boundary Rules (HARD)
 
-Governance/workflow/tooling note: changes limited to `docs/`, `scripts/`, `justfile`, and `.github/` are considered governance surface and may be maintained without creating a Work Packet, as long as no Handshake product code (`src/`, `app/`, `tests/`) is modified.
+- `/.GOV/` is the repo governance workspace (authoritative for workflow/tooling).
+- Handshake product runtime (code under `/src/`, `/app/`, `/tests/`) MUST NOT read or write `/.GOV/` under any circumstances.
+- `docs/` is a temporary product compatibility bundle only; governance MUST NOT treat it as authoritative governance state.
+- Enforcement is mandatory (CI/gates) to forbid product code referencing `/.GOV/`.
+
+See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUNDARY_RULES.md`.
+
+## Agentic Mode (Additional LAW)
+
+If the run is orchestrator-led, multi-agent ("agentic"), you MUST also follow:
+- `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md`
+- `/.GOV/roles_shared/EVIDENCE_LEDGER.md`
+
+Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Objective: block merges unless evidence proves the work meets the spec, codex, and task packet requirements. Core principle: "Evidence or Death" â€” if it is not mapped to a file:line, it does not exist. No rubber-stamping.
+
+Governance/workflow/tooling note: changes limited to `.GOV/`, `.GOV/scripts/`, `justfile`, and `.github/` are considered governance surface and may be maintained without creating a Work Packet, as long as no Handshake product code (`src/`, `app/`, `tests/`) is modified.
 
 ## Pre-Flight (Blocking)
 - [CX-GATE-001] BINARY PHASE GATE: Workflow MUST follow the sequence: BOOTSTRAP -> SKELETON -> IMPLEMENTATION -> HYGIENE -> VALIDATION. 
 - MERGING PHASES IS FORBIDDEN: Any response that combines these phases into a single turn is an AUTO-FAIL.
 - SKELETON APPROVAL: Implementation is HARD-BLOCKED until the Validator issues the string "SKELETON APPROVED".
 - [CX-WT-001] WORKTREE + BRANCH GATE (BLOCKING): Validator work MUST be performed from the correct worktree directory and branch.
-  - Source of truth: `docs/ROLE_WORKTREES.md` (default role worktrees/branches) and the assigned WP worktree/branch.
+  - Source of truth: `.GOV/roles_shared/ROLE_WORKTREES.md` (default role worktrees/branches) and the assigned WP worktree/branch.
   - Required verification (run at session start and whenever context is unclear): `pwd`, `git rev-parse --show-toplevel`, `git rev-parse --abbrev-ref HEAD`, `git status -sb`, `git worktree list`.
   - **Chat requirement (MANDATORY):** paste the literal command outputs into chat as a `HARD_GATE_OUTPUT` block and immediately follow with `HARD_GATE_REASON` + `HARD_GATE_NEXT_ACTIONS` blocks so Operator/Validator can verify context and the stop/proceed decision without follow-ups.
   - Template:
@@ -42,58 +57,67 @@ Governance/workflow/tooling note: changes limited to `docs/`, `scripts/`, `justf
     - Ensure `git worktree list` topology matches concurrency expectations.
     - Prevent using the Operator's personal worktree as a Coder worktree.
     - Ensure the Orchestrator's assignment is actually in effect locally.
-    - Bind Coder work to `docs/ORCHESTRATOR_GATES.json` `PREPARE` records (`branch`, `worktree_dir`).
-    - Keep role-governed defaults consistent with `docs/ROLE_WORKTREES.md`.
+    - Bind Coder work to `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` `PREPARE` records (`branch`, `worktree_dir`).
+    - Keep role-governed defaults consistent with `.GOV/roles_shared/ROLE_WORKTREES.md`.
     - Reduce risk of data loss from wrong-directory "cleanup"/stashing mistakes.
     - Make failures actionable: mismatch => STOP + escalate, not "guess and proceed".
     
     HARD_GATE_NEXT_ACTIONS [CX-WT-001]
     - If correct (repo/worktree/branch match the assignment): proceed to BOOTSTRAP / packet steps.
-    - If incorrect/uncertain: STOP; ask Orchestrator/Operator to provide/create the correct WP worktree/branch and ensure `PREPARE` is recorded in `docs/ORCHESTRATOR_GATES.json`.
+    - If incorrect/uncertain: STOP; ask Orchestrator/Operator to provide/create the correct WP worktree/branch and ensure `PREPARE` is recorded in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`.
     ```
-  - If the required worktree/branch does not exist: STOP and request explicit user authorization to create it (Codex [CX-108]); only after authorization, create it using the commands in `docs/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
+  - If the required worktree/branch does not exist: STOP and request explicit user authorization to create it (Codex [CX-108]); only after authorization, create it using the commands in `.GOV/roles_shared/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
   - **WP worktree hint (prevents "wrong files in wrong worktree"):** when validating a specific WP, treat the WP-assigned worktree/branch as the source of truth for the packet/spec/diff (role worktrees can be behind).
-    - Locate the WP worktree/branch via `docs/ORCHESTRATOR_GATES.json` `PREPARE` (`branch`, `worktree_dir`) and confirm it exists in `git worktree list`.
+    - Locate the WP worktree/branch via `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` `PREPARE` (`branch`, `worktree_dir`) and confirm it exists in `git worktree list`.
     - Re-run key read-only checks inside the WP worktree (example): `git -C "<worktree_dir>" rev-parse --abbrev-ref HEAD` and `git -C "<worktree_dir>" status -sb`.
     - **Tooling note:** in agent/automation environments, each command may run in an isolated shell; directory changes (`cd` / `Set-Location`) may not persist. Prefer explicit workdir or `git -C "<worktree_dir>" ...` so you cannot accidentally read/validate the wrong tree.
     - Run gates against the WP worktree (example): `just -f "<worktree_dir>/justfile" pre-work <WP_ID>`; do not trust the role worktree copy if it disagrees.
     - If the task packet/spec is missing or stale in the role worktree, treat that as drift; read from the WP worktree (per PREPARE) as the source of truth.
     - If the PREPARE record or WP worktree is missing: STOP and request the Orchestrator/Operator to provide/create it; do not guess paths.
-- [CX-GATE-UX-001] GATE VISIBILITY OUTPUT (MANDATORY): when you run any gate command (including: `just gate-check`, `just pre-work`, `just post-work`, `just validator-gate-*`, or any deterministic checker that blocks progress), you MUST in the SAME TURN paste `GATE_OUTPUT [CX-GATE-UX-001]` and then provide `GATE_STATUS [CX-GATE-UX-001]` + `NEXT_COMMANDS [CX-GATE-UX-001]` (2-6 copy/paste commands max; immediate unblock/proceed only, per Codex [CX-513]).
-  - Template:
-    ```text
-    GATE_OUTPUT [CX-GATE-UX-001]
-    <verbatim output>
-
-    GATE_STATUS [CX-GATE-UX-001]
-    - PHASE: BOOTSTRAP|SKELETON|VALIDATION|STATUS_SYNC|MERGE
-    - GATE_RAN: <exact command>
-    - RESULT: PASS|FAIL|BLOCKED
-    - WHY: <1-2 sentences>
-
-    NEXT_COMMANDS [CX-GATE-UX-001]
-    - <2-6 copy/paste commands max>
-    ```
-- Inputs required: task packet (STATUS not empty), docs/SPEC_CURRENT.md, applicable spec slices, current diff.
-- WP Traceability check (blocking when variants exist): confirm the task packet under review is the **Active Packet** for its Base WP per `docs/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).
-- Variant Lineage Audit (blocking for `-v{N}` packets) [CX-580E]: validate that the Base WP and ALL prior packet versions are a correct translation of Roadmap pointer → Master Spec Main Body (SPEC_TARGET) → repo code. Do NOT validate only “what changed in v{N}”. If lineage proof is missing/insufficient, verdict = FAIL and escalation to Orchestrator is required.
+- Inputs required: task packet (STATUS not empty), .GOV/roles_shared/SPEC_CURRENT.md, applicable spec slices, current diff.
+- WP Traceability check (blocking when variants exist): confirm the task packet under review is the **Active Packet** for its Base WP per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).
+- Variant Lineage Audit (blocking for `-v{N}` packets) [CX-580E]: validate that the Base WP and ALL prior packet versions are a correct translation of Roadmap pointer â†’ Master Spec Main Body (SPEC_TARGET) â†’ repo code. Do NOT validate only â€œwhat changed in v{N}â€. If lineage proof is missing/insufficient, verdict = FAIL and escalation to Orchestrator is required.
 - When running Validator commands/scripts, use the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
-- If a WP exists only as a stub (e.g., `docs/task_packets/stubs/WP-*.md`) and no official packet exists in `docs/task_packets/`, STOP and return FAIL [CX-573] (not yet activated for validation).
+- If a WP exists only as a stub (e.g., `.GOV/task_packets/stubs/WP-*.md`) and no official packet exists in `.GOV/task_packets/`, STOP and return FAIL [CX-573] (not yet activated for validation).
 - If task packet is missing or incomplete, return FAIL with reason [CX-573].
 - Preserve User Context sections in packets (do not edit/remove) [CX-654].
 - Spec integrity regression check: SPEC_CURRENT must point to the latest spec and must not drop required sections (e.g., storage portability A2.3.12). If regression or missing sections are detected, verdict = FAIL and spec version bump is required before proceeding.
-- Roadmap Coverage Matrix gate (Spec §7.6.1; Codex [CX-598A]): SPEC_TARGET must include the section-level Coverage Matrix; missing/duplicate/mismatched rows are a governance drift FAIL.
+- Roadmap Coverage Matrix gate (Spec Â§7.6.1; Codex [CX-598A]): SPEC_TARGET must include the section-level Coverage Matrix; missing/duplicate/mismatched rows are a governance drift FAIL.
 - External build hygiene: Cargo target dir is pinned outside the repo at `../Cargo Target/handshake-cargo-target`; run `cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Cargo Target/handshake-cargo-target"` before validation/commit to prevent workspace bloat (FAIL if skipped).
 - Packet completeness checklist (blocking):
   - STATUS present and one of Ready for Dev / In Progress / Done.
   - RISK_TIER present.
-  - DONE_MEANS concrete (no “tbd”/empty).
+  - DONE_MEANS concrete (no â€œtbdâ€/empty).
   - TEST_PLAN commands present (no placeholders).
   - BOOTSTRAP present (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP).
   - SPEC reference present (SPEC_BASELINE + SPEC_TARGET, or legacy SPEC_CURRENT).
   - Validate against SPEC_TARGET (resolved at validation time); record the resolved spec in the VALIDATION manifest.
   - USER_SIGNATURE present and unchanged.
-  Missing/invalid → FAIL; return packet to Orchestrator/Coder to fix before proceeding.
+  Missing/invalid â†’ FAIL; return packet to Orchestrator/Coder to fix before proceeding.
+
+## Gate Visibility Output [CX-GATE-UX-001] (MANDATORY)
+
+When you run any gate command (including: `just gate-check`, `just pre-work`, `just post-work`, `just validator-gate-*`, or any deterministic checker that blocks progress), you MUST in the SAME TURN:
+
+1) Paste the literal output as:
+```text
+GATE_OUTPUT [CX-GATE-UX-001]
+<verbatim output>
+```
+
+2) State where you are in the Validator workflow and what happens next:
+```text
+GATE_STATUS [CX-GATE-UX-001]
+- PHASE: BOOTSTRAP|SKELETON|VALIDATION|STATUS_SYNC|MERGE
+- GATE_RAN: <exact command>
+- RESULT: PASS|FAIL|BLOCKED
+- WHY: <1-2 sentences>
+
+NEXT_COMMANDS [CX-GATE-UX-001]
+- <2-6 copy/paste commands max>
+```
+
+Rule: keep `NEXT_COMMANDS` limited to the immediate next step(s) (required to proceed or to unblock) to stay compatible with Codex [CX-513].
 
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
@@ -118,11 +142,11 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
    - **BOOTSTRAP/SKELETON separation (HARD):** the bootstrap turn/commit MUST NOT include any SKELETON content. Keep `## SKELETON` as placeholders until the Operator explicitly authorizes the SKELETON phase in a later turn (per [CX-GATE-001]).
 2. Coder sends the Validator: `WP_ID`, bootstrap commit SHA, `branch`, `worktree_dir`, and current HEAD short SHA (and Coder ID if more than one Coder is active).
 3. Validator verifies the bootstrap commit is **docs-only**:
-   - Allowed: `docs/task_packets/{WP_ID}.md` (and other governance docs only if explicitly requested).
+   - Allowed: `.GOV/task_packets/{WP_ID}.md` (and other governance docs only if explicitly requested).
    - Forbidden: any changes under `src/`, `app/`, or `tests/` (treat as FAIL; do not merge).
-   - Note: `scripts/` changes are governance/workflow/tooling and are allowed in general, but MUST NOT be included in a WP bootstrap status sync commit (keep bootstrap commits docs-only).
+   - Note: `.GOV/scripts/` changes are governance/workflow/tooling and are allowed in general, but MUST NOT be included in a WP bootstrap status sync commit (keep bootstrap commits docs-only).
 4. Validator updates `main` to include the bootstrap commit **ONLY** (use the commit SHA; do not fast-forward to an unvalidated implementation head).
-5. Validator updates `docs/TASK_BOARD.md` on `main`:
+5. Validator updates `.GOV/roles_shared/TASK_BOARD.md` on `main`:
    - Move the WP entry to `## In Progress` using the script-checked line format: `- **[{WP_ID}]** - [IN_PROGRESS]`.
    - Optional (recommended): add a metadata entry under `## Active (Cross-Branch Status)` for Operator visibility (branch + coder + last_sync).
 6. Announce status sync in chat (no verdict implied).
@@ -157,13 +181,13 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 
 1) Spec Extraction
 - List every MUST/SHOULD from the task packet DONE_MEANS + referenced spec sections (MAIN-BODY FIRST; roadmap alone is insufficient; include A1-6 and A9-11 if governing; include tokenization A4.6, storage portability A2.3.12, determinism/repro/error-code conventions when applicable).
-- Definition of “requirement”: any sentence/bullet containing MUST/SHOULD/SHALL or numbered checklist items. Roadmap is a pointer; Master Spec body is the authority.
+- Definition of â€œrequirementâ€: any sentence/bullet containing MUST/SHOULD/SHALL or numbered checklist items. Roadmap is a pointer; Master Spec body is the authority.
 - Copy identifiers (anchors, bullet labels) to keep traceability. No assumptions from memory.
-- Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually docs/SPEC_CURRENT.md).
-- Resolve SPEC_TARGET at validation time (docs/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md) and validate DONE_MEANS/evidence against the resolved spec.
+- Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually .GOV/roles_shared/SPEC_CURRENT.md).
+- Resolve SPEC_TARGET at validation time (.GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md) and validate DONE_MEANS/evidence against the resolved spec.
 - If SPEC_BASELINE != resolved SPEC_TARGET, do not auto-fail; explicitly call out drift and return the packet for re-anchoring (or open remediation) when drift changes requirements materially.
 - If a WP is correct for its SPEC_BASELINE but SPEC_TARGET has evolved, use a distinct verdict: **OUTDATED_ONLY** (historically done; no protocol/code regression proven). Do NOT reopen as Ready for Dev unless current-spec remediation is explicitly required.
-- Spec changes are governed via Spec Enrichment (new spec version file + `docs/SPEC_CURRENT.md` update) under a one-time user signature recorded in `docs/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
+- Spec changes are governed via Spec Enrichment (new spec version file + `.GOV/roles_shared/SPEC_CURRENT.md` update) under a one-time user signature recorded in `.GOV/roles_shared/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
 
 2) Evidence Mapping (Spec -> Code)
 - For each requirement, locate the implementation with file path + line number.
@@ -220,7 +244,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 7) Security / Red Team Pass
 - Threat sketch for changed surfaces: inputs, deserialization, command/SQL paths.
 - Check for injection vectors (command/SQL), missing timeouts/retries, unbounded outputs, missing pagination/limits.
-- Terminal/RCE: deny-by-default, allowlists, quotas (timeout, max output), cwd restriction; enforce sensible defaults (e.g., bounded timeout/output) or fail if absent. Suggested defaults: timeout ≤ 10s, kill_grace ≤ 5s, max_output ≤ 1MB, cwd pinned to workspace root.
+- Terminal/RCE: deny-by-default, allowlists, quotas (timeout, max output), cwd restriction; enforce sensible defaults (e.g., bounded timeout/output) or fail if absent. Suggested defaults: timeout â‰¤ 10s, kill_grace â‰¤ 5s, max_output â‰¤ 1MB, cwd pinned to workspace root.
 - Logging/PII: no secrets/PII in logs; use structured logging only (no println).
 - Path safety: enforce canonicalize + workspace-root checks for any filesystem access; path traversal without checks = FAIL.
 - Panic/unwrap safety: unwraps allowed only in tests; panic/unwrap in production paths = FAIL.
@@ -273,8 +297,8 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 ## Validation Gate Sequence [CX-VAL-GATE] (MECHANICAL PAUSES REQUIRED)
 
 The validation process MUST halt at these gates. **No automation may skip these pauses.**
-State is tracked per WP in `docs/validator_gates/{WP_ID}.json`. Gates enforce minimum time intervals to prevent automation momentum.
-(Legacy: `docs/VALIDATOR_GATES.json` is treated as a read-only archive for older sessions; new validations should not write to it.)
+State is tracked per WP in `.GOV/validator_gates/{WP_ID}.json`. Gates enforce minimum time intervals to prevent automation momentum.
+(Legacy: `.GOV/roles/validator/VALIDATOR_GATES.json` is treated as a read-only archive for older sessions; new validations should not write to it.)
 
 ### Gate 1: REPORT PRESENTATION (Blocking)
 1. Validator completes all checks and generates the full VALIDATION REPORT.
@@ -284,15 +308,15 @@ State is tracked per WP in `docs/validator_gates/{WP_ID}.json`. Gates enforce mi
 
 ### Gate 2: USER ACKNOWLEDGMENT (Blocking)
 1. User explicitly acknowledges the report (e.g., "proceed", "approved", "continue").
-2. If user requests changes or disputes findings → return to validation, re-run checks, regenerate report.
+2. If user requests changes or disputes findings â†’ return to validation, re-run checks, regenerate report.
 3. Validator runs: `just validator-gate-acknowledge {WP_ID}`
 4. **Only after explicit acknowledgment** may Validator proceed to Gate 3.
 
 ### Gate 3: WP APPEND (Blocking)
-1. Validator appends the VALIDATION REPORT to `docs/task_packets/{WP_ID}.md` (APPEND-ONLY per [CX-WP-001]).
+1. Validator appends the VALIDATION REPORT to `.GOV/task_packets/{WP_ID}.md` (APPEND-ONLY per [CX-WP-001]).
 2. Validator runs: `just validator-gate-append {WP_ID}`
 3. Validator confirms append completed and shows the user the appended section.
-4. **HALT.** If verdict was FAIL → STOP HERE. No commit.
+4. **HALT.** If verdict was FAIL â†’ STOP HERE. No commit.
 
 ### Gate 4: COMMIT (PASS only)
 1. **Only if verdict = PASS** and user has acknowledged, Validator may commit.
@@ -315,29 +339,29 @@ just validator-gate-reset {WP_ID} --confirm       # Reset gates (archives old se
 ```
 FLOW DIAGRAM:
 
-  [Run all checks] ──► [Generate Report] ──► GATE 1: SHOW IN CHAT ──► HALT
-                                                                        │
-                                            ◄──────────────────────────┘
+  [Run all checks] â”€â”€â–º [Generate Report] â”€â”€â–º GATE 1: SHOW IN CHAT â”€â”€â–º HALT
+                                                                        â”‚
+                                            â—„â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
                                             User reviews report
-                                                   │
+                                                   â”‚
                                             User says "proceed"
-                                                   │
-                                                   ▼
-                                           GATE 2: ACKNOWLEDGED ──► HALT
-                                                                     │
-                                            ◄────────────────────────┘
-                                                   │
-                                                   ▼
+                                                   â”‚
+                                                   â–¼
+                                           GATE 2: ACKNOWLEDGED â”€â”€â–º HALT
+                                                                     â”‚
+                                            â—„â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                                                   â”‚
+                                                   â–¼
                                            GATE 3: APPEND TO WP
-                                                   │
-                                           ┌───────┴───────┐
-                                           │               │
+                                                   â”‚
+                                           â”Œâ”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”
+                                           â”‚               â”‚
                                         FAIL?           PASS?
-                                           │               │
-                                           ▼               ▼
+                                           â”‚               â”‚
+                                           â–¼               â–¼
                                          STOP        GATE 4: COMMIT
-                                      (no commit)          │
-                                                           ▼
+                                      (no commit)          â”‚
+                                                           â–¼
                                                       git commit
 ```
 
@@ -352,7 +376,7 @@ FLOW DIAGRAM:
 
 ## Report Template
 ```
-VALIDATION REPORT — {WP_ID}
+VALIDATION REPORT â€” {WP_ID}
 Verdict: PASS | FAIL
 
 Validation Claims (do not collapse into a single PASS):
@@ -361,7 +385,7 @@ Validation Claims (do not collapse into a single PASS):
 - SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES | NO
 
 Scope Inputs:
-- Task Packet: docs/task_packets/{WP_ID}.md (status: {status})
+- Task Packet: .GOV/task_packets/{WP_ID}.md (status: {status})
 - Spec: {spec version/anchors}
 
 Files Checked:
@@ -387,9 +411,9 @@ Improvements & Future Proofing:
 - {suggested improvements to the code or protocol observed during this audit}
  
 Task Packet Update (APPEND-ONLY):
-- [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL) MUST be APPENDED to the end of the `docs/task_packets/{WP_ID}.md` file. OVERWRITING IS FORBIDDEN.
+- [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL) MUST be APPENDED to the end of the `.GOV/task_packets/{WP_ID}.md` file. OVERWRITING IS FORBIDDEN.
 - [CX-WP-002] CLOSURE REASONS: The append block MUST contain a "REASON FOR {VERDICT}" section explaining exactly why the WP was closed or failed, linking back to specific findings.
-- STATUS update in docs/task_packets/{WP_ID}.md: PASS/FAIL with reasons, actionables, and further risks. APPEND the full Validation Report using the template below. **DO NOT OVERWRITE User Context or previous history [CX-654].**
+- STATUS update in .GOV/task_packets/{WP_ID}.md: PASS/FAIL with reasons, actionables, and further risks. APPEND the full Validation Report using the template below. **DO NOT OVERWRITE User Context or previous history [CX-654].**
 - TASK_BOARD update (on `main`): move the WP entry only after the canonical task packet has an appended Validation Report (under `## VALIDATION_REPORTS`) with the explicit Validation Claims above. Status-sync commits earlier in the WP lifecycle are separate and do not imply a verdict.
 - Board consistency (on `main`): task packet `**Status:**` is source of truth; reconcile the Task Board to match packet reality before declaring PASS. Unresolved mismatch = FAIL pending correction.
 ```
@@ -398,5 +422,6 @@ Task Packet Update (APPEND-ONLY):
 - Evidence over intuition; speculative language is prohibited [CX-588].
 - [CX-WP-003] APPEND-ONLY WP HISTORY: Deleting or overwriting the status history in a Work Packet is a protocol violation. All verdicts must be appended.
 - Automated review scripts are optional; manual evidence-based validation is required.
-- If a check cannot be performed (env/tools unavailable), report as FAIL with reason—do not assume OK.
-- No “pass with debt” for hard invariants, security, traceability, or spec alignment; either fix or obtain explicit user waiver per protocol.
+- If a check cannot be performed (env/tools unavailable), report as FAIL with reasonâ€”do not assume OK.
+- No â€œpass with debtâ€ for hard invariants, security, traceability, or spec alignment; either fix or obtain explicit user waiver per protocol.
+

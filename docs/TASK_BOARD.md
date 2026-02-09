@@ -13,7 +13,7 @@
 
 **Why:** Handshake is complex software. Treating roadmap bullets as requirements (instead of pointers) leads to surface-level compliance, technical debt, and project failure.
 
-This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Phase 1 cannot close until every item below is validated against the current Master Spec (see `docs/SPEC_CURRENT.md`).
+This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Phase 1 cannot close until every item below is validated against the current Master Spec (see `.GOV/roles_shared/SPEC_CURRENT.md`).
 
 **Task Board entry format (enforced for In Progress/Done/Superseded via `just task-board-check`):**
 - In Progress: `- **[WP_ID]** - [IN_PROGRESS]`
@@ -22,9 +22,9 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the task packet to avoid drift/noise.
 
 **Backlog stubs (pre-activation):**
-- Track not-yet-activated work as STUB items (no USER_SIGNATURE yet). Details live in `docs/task_packets/stubs/`.
-- Stubs MUST be activated into official task packets before any coding starts (see `docs/ORCHESTRATOR_PROTOCOL.md`).
-- Base WP ??? packet revision mapping (v2/v3/v4) is tracked in `docs/WP_TRACEABILITY_REGISTRY.md`.
+- Track not-yet-activated work as STUB items (no USER_SIGNATURE yet). Details live in `.GOV/task_packets/stubs/`.
+- Stubs MUST be activated into official task packets before any coding starts (see `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`).
+- Base WP ??? packet revision mapping (v2/v3/v4) is tracked in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`.
 
 ---
 
@@ -48,13 +48,15 @@ Entry format (recommended):
 
 ## Ready for Dev
 
-A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `docs/task_packets/` (not a stub).
+A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
 
-- **[WP-1-Locus-Work-Tracking-System-Phase1-v1]** - [READY_FOR_DEV]
+- **[WP-1-Supply-Chain-Cargo-Deny-Clean-v1]**
+- **[WP-1-Docs-Compatibility-Sunset-v1]**
 
 ## Stub Backlog (Not Activated)
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
+- **[WP-1-Locus-Work-Tracking-System-Phase1-v1]** - [STUB]
 - **[WP-1-LocalFirst-Agentic-MCP-Posture-v1]** - [STUB]
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
 - **[WP-1-Global-Silent-Edit-Guard]** - [STUB]
@@ -96,6 +98,7 @@ A WP is only Ready for Dev if its Active Packet (per `docs/WP_TRACEABILITY_REGIS
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
 ## Done
+- **[WP-1-Product-Governance-Snapshot-v4]** - [VALIDATED]
 - **[WP-1-Artifact-System-Foundations-v1]** - [VALIDATED]
 - **[WP-1-Model-Swap-Protocol-v1]** - [VALIDATED]
 - **[WP-1-AI-UX-Summarize-Display-v2]** - [VALIDATED]
@@ -205,6 +208,8 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-OSS-Governance]** - [SUPERSEDED]
 - **[WP-1-PDF-Pipeline]** - [SUPERSEDED]
 - **[WP-1-Photo-Studio]** - [SUPERSEDED]
+- **[WP-1-Product-Governance-Snapshot-v2]** - [SUPERSEDED]
+- **[WP-1-Product-Governance-Snapshot-v3]** - [SUPERSEDED]
 - **[WP-1-RAG-Iterative]** - [SUPERSEDED]
 - **[WP-1-Semantic-Catalog]** - [SUPERSEDED]
 - **[WP-1-Supply-Chain-MEX]** - [SUPERSEDED]

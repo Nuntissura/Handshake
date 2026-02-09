@@ -135,6 +135,7 @@ await import("./task-board-check.mjs");
 await import("./task-packet-claim-check.mjs");
 await import("./wp-activation-traceability-check.mjs");
 await import("./worktree-concurrency-check.mjs");
+await import("./lifecycle-ux-check.mjs");
 
 // 7) Product ↔ governance boundary guard: product code MUST NOT reference `/.GOV/`.
 {
