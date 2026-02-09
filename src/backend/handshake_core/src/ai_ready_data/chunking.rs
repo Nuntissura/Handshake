@@ -111,12 +111,12 @@ pub fn chunk_code_treesitter(
 
     let mut parser = tree_sitter::Parser::new();
     let ts_lang = match language {
-        CodeLanguage::Rust => tree_sitter_rust::language(),
-        CodeLanguage::JavaScript => tree_sitter_javascript::language(),
-        CodeLanguage::TypeScript => tree_sitter_typescript::language_typescript(),
+        CodeLanguage::Rust => tree_sitter_rust::LANGUAGE,
+        CodeLanguage::JavaScript => tree_sitter_javascript::LANGUAGE,
+        CodeLanguage::TypeScript => tree_sitter_typescript::LANGUAGE_TYPESCRIPT,
     };
     parser
-        .set_language(&ts_lang)
+        .set_language(&ts_lang.into())
         .map_err(|_| AiReadyDataError::Chunking("tree-sitter language init failed"))?;
 
     let tree = parser
