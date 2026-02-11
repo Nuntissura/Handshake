@@ -12,9 +12,9 @@
 - AGENTIC_MODE: YES
 - ORCHESTRATOR_MODEL: GPT-5.2 (Codex CLI) (required if AGENTIC_MODE=YES)
 - ORCHESTRATION_STARTED_AT_UTC: 2026-02-11T21:34:17.296Z
-- CODER_MODEL: HUMAN (external)
+- CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** Ready for Dev
+- **Status:** In Progress
 - RISK_TIER: MEDIUM
 - USER_SIGNATURE: ilja110220262332
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -169,9 +169,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress
+- What changed in this update: BOOTSTRAP started; ran `just pre-work WP-1-Flight-Recorder-v4`; no product code changes yet.
+- Next step / handoff hint: Propose SKELETON for schema-init ordering + legacy DB regression test; await "SKELETON APPROVED" before implementation.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
@@ -187,6 +187,17 @@ git revert <commit-sha>
   - LOG_PATH: `.handshake/logs/WP-1-Flight-Recorder-v4/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+
+- COMMAND: `just pre-work WP-1-Flight-Recorder-v4`
+  - EXIT_CODE: `0`
+  - WORKTREE_DIR: `../wt-WP-1-Flight-Recorder-v4`
+  - BRANCH: `feat/WP-1-Flight-Recorder-v4`
+  - GIT_SHA_BEFORE: `47a673740564ed803ff7aa3184ed72affbb6e4b9`
+  - GIT_SHA_AFTER: `47a673740564ed803ff7aa3184ed72affbb6e4b9`
+  - OUTPUT_SHA256: `ae7477c372bf63ecfc0c1e180cd04c55e3311cc1d0b30f541fee080105a1ded4`
+  - PROOF_LINES:
+    - `Pre-work validation PASSED`
+    - `PASS: Branch matches PREPARE (feat/WP-1-Flight-Recorder-v4)`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
