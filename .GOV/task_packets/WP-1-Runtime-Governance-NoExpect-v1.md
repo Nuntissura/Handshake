@@ -291,3 +291,55 @@ EXIT_CODE: 0
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+VALIDATION REPORT - WP-1-Runtime-Governance-NoExpect-v1
+Verdict: PASS
+
+Validation Claims:
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Runtime-Governance-NoExpect-v1 --range 84aee8219bc5ae38115af33f914d4639dbad9688..HEAD`; not tests): PASS (with waiver warnings)
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Runtime-Governance-NoExpect-v1.md` (**Status:** Ready for Dev)
+- Refinement: `.GOV/refinements/WP-1-Runtime-Governance-NoExpect-v1.md` (USER_REVIEW_STATUS: APPROVED)
+- Spec target: `.GOV/roles_shared/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.125.md`
+- Validated range head: `0e5fc32e5e943477c4a5f136e840d712fb707fb4`
+- Post-work range: `84aee8219bc5ae38115af33f914d4639dbad9688..0e5fc32e5e943477c4a5f136e840d712fb707fb4`
+- Merge state: merged locally to `main` at `8e3092d65fc485d8b4497adc51da703c3f9678da` (push pending)
+
+Files Checked:
+- `.GOV/task_packets/WP-1-Runtime-Governance-NoExpect-v1.md`
+- `.GOV/refinements/WP-1-Runtime-Governance-NoExpect-v1.md`
+- `src/backend/handshake_core/src/runtime_governance.rs`
+- `.gitattributes`
+- `.GOV/roles_shared/TASK_BOARD.md`
+- `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`
+- `.GOV/roles_shared/SIGNATURE_AUDIT.md`
+- `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
+- `.GOV/scripts/validation/post-work-check.mjs`
+- `.GOV/scripts/validation/role_mailbox_export_check.mjs`
+
+Findings:
+- Forbidden patterns removed in-scope:
+  - `src/backend/handshake_core/src/runtime_governance.rs:178` (no `.expect(` / `.unwrap(` usage; test uses `Result<()>` + `?`)
+- Repo scan gate now passes:
+  - `just product-scan` -> PASS (see `## EVIDENCE`)
+- Backend tests pass:
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` -> PASS (see `## EVIDENCE`)
+- Deterministic manifest gate passes for the declared range:
+  - `just post-work ... --range 84aee82..HEAD` -> PASS with warnings due to explicit `CX-573F` waivers (`.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`, `.gitattributes`)
+- ROLE_MAILBOX export gate passes (Windows newline determinism fix):
+  - `.gitattributes:17` adds `.GOV/ROLE_MAILBOX/*.json text eol=lf`
+
+Tests:
+- `just product-scan`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`: PASS
+- `just post-work WP-1-Runtime-Governance-NoExpect-v1 --range 84aee82..HEAD`: PASS (with waiver warnings)
+
+Risks & Suggested Actions:
+- `.gitattributes` is repo-global; keep the scoping narrow (it is currently limited to `.GOV/ROLE_MAILBOX/*.json`).
+- Optional: tighten `post-work-check.mjs` allowlists so bookkeeping files do not require waivers in explicit ranges.
+
+REASON FOR PASS:
+- All DONE_MEANS items are satisfied on validated committed head `0e5fc32e5e943477c4a5f136e840d712fb707fb4`: in-scope forbidden patterns removed, `just product-scan` passes, `cargo test` passes, and deterministic `post-work --range` passes for the declared range (with explicitly recorded waivers).

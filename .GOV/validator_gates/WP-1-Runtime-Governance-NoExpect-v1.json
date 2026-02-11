@@ -1,0 +1,31 @@
+{
+  "validation_sessions": {
+    "WP-1-Runtime-Governance-NoExpect-v1": {
+      "wpId": "WP-1-Runtime-Governance-NoExpect-v1",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-02-11T22:03:32.023Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-02-11T22:03:32.024Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-02-11T22:19:58.987Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-02-11T22:23:41.064Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-02-11T22:29:45.430Z"
+        }
+      ],
+      "completed": "2026-02-11T22:29:45.432Z"
+    }
+  },
+  "archived_sessions": []
+}
