@@ -35,6 +35,7 @@
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
 - CX-573F | 2026-02-11 | Scope: allow `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` in the deterministic range `MERGE_BASE_SHA..HEAD` | Justification: checkpoint commit touched traceability registry; treat as governance bookkeeping (no product/runtime impact).
+- CX-573F | 2026-02-11 | Scope: allow `.gitattributes` in the deterministic range `MERGE_BASE_SHA..HEAD` | Justification: enforce `eol=lf` for `.GOV/ROLE_MAILBOX/*.json` so ROLE_MAILBOX_EXPORT_GATE is deterministic on Windows (prevents CRLF/newline drift).
 
 ## QUALITY_GATE
 ### TEST_PLAN
@@ -152,6 +153,7 @@ git revert <commit-sha>
 - Ran requested explicit range gate:
   - `just post-work WP-1-Runtime-Governance-NoExpect-v1 --range 84aee8219bc5ae38115af33f914d4639dbad9688..HEAD`
   - Result: failed on historical branch-range constraints (out-of-scope file in range and post_sha mismatch relative to committed HEAD snapshot).
+  - UPDATE (post-commit): explicit range-mode `post-work` passes with warnings after adding CX-573F waivers + normalizing role-mailbox export canonical newlines (see latest `just post-work ... --range ...` entry in `## EVIDENCE`).
 
 ## VALIDATION
 - **Target File**: `src/backend/handshake_core/src/runtime_governance.rs`
@@ -278,6 +280,14 @@ EXIT_CODE: 0
 - PROOF_LINES:
   - `Out-of-scope files changed ... .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`
   - `Manifest[1]: post_sha1 mismatch ... expected post_sha1 (LF) = 9c3c52b708aa34ec2a49e9f8764fbf6443845574`
+- COMMAND: `just post-work WP-1-Runtime-Governance-NoExpect-v1 --range 84aee8219bc5ae38115af33f914d4639dbad9688..HEAD`
+- EXIT_CODE: 0
+- LOG_PATH: `N/A`
+- LOG_SHA256: `N/A`
+- PROOF_LINES:
+  - `Post-work validation PASSED (deterministic manifest gate; not tests) with warnings`
+  - `Out-of-scope files changed but waiver present [CX-573F]: .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md, .gitattributes`
+  - `ROLE_MAILBOX_EXPORT_GATE PASS`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
