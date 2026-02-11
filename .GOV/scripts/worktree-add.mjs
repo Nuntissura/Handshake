@@ -30,7 +30,8 @@ function isForbiddenWorktreeDir(dir) {
   // Reject all absolute paths (including UNC) and drive-designator paths like "C:foo".
   if (path.isAbsolute(input)) return true;
   if (/^[A-Za-z]:/.test(input)) return true;
-  if (/^(\\\\|\\/\\/)/.test(input)) return true;
+  // Avoid a RegExp literal here: Node v24.11.1 fails to parse `/^(\\\\|\\/\\/)/` (Invalid flags).
+  if (input.startsWith('\\\\') || input.startsWith('//')) return true;
   return false;
 }
 
