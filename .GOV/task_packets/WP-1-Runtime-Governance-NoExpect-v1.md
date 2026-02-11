@@ -171,6 +171,23 @@ git revert <commit-sha>
   - [x] all_links_resolvable
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
+- **Target File**: `.gitattributes`
+- **Start**: 1
+- **End**: 20
+- **Line Delta**: 1
+- **Pre-SHA1**: `2ba38b2061939b6b194abda4fc2d77a9a42a484d`
+- **Post-SHA1**: `7c27896296f882e84f9cc81327a90c3b00daafb6`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 - **Lint Results**:
   - `just product-scan` -> `validator-scan: PASS - no forbidden patterns detected in backend/frontend sources.`
 - **Artifacts**:
