@@ -43,6 +43,7 @@ function requireFileExists(filePath) {
   const recipeBody = match[1] || "";
   const requiredMarkers = [
     "LIFECYCLE [CX-LIFE-001]",
+    "OPERATOR_ACTION:",
     "STATE:",
     "HARD_GATE_OUTPUT [CX-WT-001]",
     "PHASE_STATUS [CX-GATE-UX-001]",
@@ -70,6 +71,7 @@ function requireFileExists(filePath) {
   const requiredStrings = [
     "## Gate Visibility Output [CX-GATE-UX-001]",
     "## Lifecycle Marker [CX-LIFE-001]",
+    "OPERATOR_ACTION:",
   ];
 
   for (const filePath of protocolFiles) {

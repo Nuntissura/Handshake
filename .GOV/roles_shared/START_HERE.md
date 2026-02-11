@@ -49,6 +49,9 @@ just gov-check
 
 **See:** `.GOV/roles_shared/QUALITY_GATE.md` for Gate 0 and Gate 1 requirements.
 
+Quick reference:
+- `.GOV/roles_shared/ROLE_WORKFLOW_QUICKREF.md` (drive-agnostic role workflow + operator UX)
+
 ## Repo map (open in an editor and `rg`)
 - `app/` â€” React + Tauri frontend; UI components live under `app/src/`.
 - `app/src-tauri/` â€” Tauri shell; spawns `handshake_core` from `src/backend/handshake_core`.
@@ -131,4 +134,3 @@ CI expectation: run `just validate`; manual validator review is required for MED
 
 ## Past work
 Pointer to prior specs/logs/notes: `.GOV/roles_shared/PAST_WORK_INDEX.md`
-

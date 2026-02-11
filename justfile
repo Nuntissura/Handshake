@@ -66,6 +66,8 @@ hard-gate-wt-001:
 	@echo '- STAGE: <REFINEMENT|SIGNATURE|PREPARE|PACKET_CREATE|DELEGATION|STATUS_SYNC>'
 	@echo '- NEXT: <next stage or STOP>'
 	@echo ''
+	@echo 'OPERATOR_ACTION: <NONE|one explicit decision needed>'
+	@echo ''
 	@echo 'STATE: <1 sentence>'
 	@echo ''
 	@echo 'HARD_GATE_OUTPUT [CX-WT-001]'
