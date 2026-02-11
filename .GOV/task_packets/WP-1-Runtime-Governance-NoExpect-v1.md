@@ -5,13 +5,13 @@
 - WP_ID: WP-1-Runtime-Governance-NoExpect-v1
 - BASE_WP_ID: WP-1-Runtime-Governance-NoExpect (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: 2026-02-11T18:00:51.895Z
-- MERGE_BASE_SHA: 84aee8219bc5ae38115af33f914d4639dbad9688 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: 84aee8219bc5ae38115af33f914d4639dbad9688
 - REQUESTOR: ilja (Operator) / Validator directive
 - AGENT_ID: CodexCLI-GPT-5.2
 - ROLE: Orchestrator
-- AGENTIC_MODE: YES (YES | NO)
+- AGENTIC_MODE: YES
 - ORCHESTRATOR_MODEL: GPT-5.2 (Codex CLI) (required if AGENTIC_MODE=YES)
-- ORCHESTRATION_STARTED_AT_UTC: 2026-02-11T18:00:51.895Z (RFC3339 UTC; required if AGENTIC_MODE=YES)
+- ORCHESTRATION_STARTED_AT_UTC: 2026-02-11T18:00:51.895Z
 - CODER_MODEL: CodexCLI-GPT-5.2
 - CODER_REASONING_STRENGTH: MEDIUM (LOW | MEDIUM | HIGH | EXTRA_HIGH)
 - **Status:** Ready for Dev
@@ -184,4 +184,3 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
-
