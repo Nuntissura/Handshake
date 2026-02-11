@@ -405,7 +405,7 @@ A **Work Packet Stub** is an optional planning artifact used to track Roadmap/Ma
 
 Activation rule (mandatory): Before any coding starts, activate the stub by following the normal workflow (in-chat Technical Refinement Block -> USER_SIGNATURE -> `.GOV/refinements/WP-*.md` -> `just create-task-packet WP-*` -> update `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` Baseâ†’Active mapping -> move TASK_BOARD entry out of STUB).
 
-Mechanical enforcement note: `just codex-check` includes a WP activation traceability guard and will BLOCK commits when an activated packet exists but the registry/Task Board still treats it as a stub.
+Mechanical enforcement note: `just gov-check` (and `just codex-check`) includes a WP activation traceability guard and will BLOCK commits when an activated packet exists but the registry/Task Board still treats it as a stub.
 
 **Signature format:** `{username}{DDMMYYYYHHMM}`
 

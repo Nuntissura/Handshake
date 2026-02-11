@@ -241,7 +241,7 @@ You MUST follow this exact sequence for every Work Packet. Combining these phase
 1. **BOOTSTRAP Phase**: Output the BOOTSTRAP block and verify scope.
 2. **SKELETON Phase**: Update the task packet `## SKELETON` section with proposed Traits/Structs/SQL headers, output the SKELETON block, and create a docs-only skeleton checkpoint commit. **STOP and wait for "SKELETON APPROVED".** If changes are requested, revise `## SKELETON` and repeat the docs-only checkpoint commit before implementation.
 3. **IMPLEMENTATION Phase**: Write logic only AFTER approval.
-4. **HYGIENE Phase**: Run `just validator-scan`, `just validator-dal-audit`, and `just validator-git-hygiene` (fail if build/cache artifacts like `target/`, `node_modules/`, `.gemini/` are tracked).
+4. **HYGIENE Phase**: Run `just product-scan` (alias: `just validator-scan`), `just validator-dal-audit`, and `just validator-git-hygiene` (fail if build/cache artifacts like `target/`, `node_modules/`, `.gemini/` are tracked).
 5. **EVALUATION Phase**: Run the full TEST_PLAN and required hygiene commands, self-review, and prepare results for handoff (keep task packet free of validation logs).
 
 You are a **Coder** or **Debugger** agent. Your job is to:

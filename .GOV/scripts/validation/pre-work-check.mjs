@@ -99,9 +99,16 @@ if (taskPacketFiles.length === 0) {
         : path.resolve(currentTop, expectedWorktreeDir);
       const currentAbs = path.resolve(currentTop);
       if (expectedAbs.toLowerCase() !== currentAbs.toLowerCase()) {
-        warnings.push(
-          `Worktree_dir mismatch for ${WP_ID}: PREPARE says ${expectedWorktreeDir} (resolves to ${expectedAbs}), current is ${currentAbs}`
-        );
+        const msg = `Worktree_dir mismatch for ${WP_ID}: PREPARE says ${expectedWorktreeDir} (resolves to ${expectedAbs}), current is ${currentAbs}`;
+        if (enforceWorktreeGate) {
+          errors.push(msg);
+          console.log('FAIL: ' + msg);
+        } else {
+          warnings.push(msg);
+          console.log('WARN: ' + msg);
+        }
+      } else {
+        console.log(`PASS: Worktree_dir matches PREPARE (${expectedWorktreeDir})`);
       }
     }
   }
@@ -303,5 +310,4 @@ if (errors.length === 0) {
   console.log('See: .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md or .GOV/roles/coder/CODER_PROTOCOL.md');
   process.exit(1);
 }
-
 
