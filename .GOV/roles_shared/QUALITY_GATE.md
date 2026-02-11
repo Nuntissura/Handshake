@@ -19,6 +19,11 @@ Purpose: reduce coding errors by standard checks and clear risk tiers.
 
 **Enforcement:** Gate 0 is automated via validation scripts. Failure exits 1 and blocks work.
 
+**Governance-only maintenance (no WP required) [CX-111]:**
+- If the planned diff is strictly limited to governance surface files (`/.GOV/**`, `/.github/**`, `/justfile`, `/Handshake Codex v1.4.md`, `/AGENTS.md`), a Work Packet is not required.
+- Verification for governance-only changes: `just gov-check`.
+- If any product path is touched (`/src/`, `/app/`, `/tests/`), STOP and require a WP + Gate 0/1.
+
 **Why:** For AI-autonomous operation, the workflow requires deterministic enforcement. Human users may not have coding expertise and rely on these gates to ensure correctness.
 
 ## Risk tiers
@@ -73,4 +78,3 @@ just validate-workflow WP-{ID}  # Runs pre-work, validate, post-work
 
 Scaffolding: for new components or API endpoints, prefer `just new-react-component <Name>` or `just new-api-endpoint <name>` to keep structure consistent.
 For MEDIUM/HIGH tasks adding new components or endpoints, scaffolds are required unless explicitly waived; record the reason in the task packet and run `just scaffold-check` before merge.
-

@@ -42,6 +42,14 @@
 
 [CX-110] HARD_TOOLING_CONFLICT_STANCE (HARD): If tooling output/instructions conflict with this codex or the role protocols in `/.GOV/roles/`, STOP. Do not "follow the tool" to violate LAW. Escalate to the Operator and prefer fixing the tool to match LAW over bypassing checks.
 
+[CX-111] HARD_GOVERNANCE_NO_WP_REQUIRED (HARD): Governance/workflow/tooling-only maintenance does NOT require a Work Packet or USER_SIGNATURE when the planned diff is strictly limited to governance surface files:
+- `/.GOV/**`
+- `/.github/**`
+- `/justfile`
+- `/Handshake Codex v1.4.md`
+- `/AGENTS.md`
+Minimum verification for governance-only changes: `just gov-check`. If any Handshake product code is touched (`/src/`, `/app/`, `/tests/`), a WP is required and Gate 0/1 applies (`just pre-work WP-{ID}` / `just post-work WP-{ID}`).
+
 [CX-598] MAIN-BODY ALIGNMENT INVARIANT (HARD): A Phase or Work Packet is NOT DONE simply by checking off a Roadmap bullet. "Done" is defined as the 100% implementation of every technical rule, schema, and "LAW" block found in the Main Body (Sections 1-6 or 9-11) that governs that roadmap item. This includes every line of text, idea, or constraint in the corresponding Main Body section. If a roadmap item is "checked" but the corresponding Main Body logic is missing, the task is BLOCKED. i as user do not declare a phase finished as everything in the roadmap is done, this means must deliverables as also every other line of text in that phase and the coresponding text, ideas or other in the master spec main body.
 
 [CX-598A] ROADMAP_COVERAGE_MATRIX (HARD): The Master Spec Roadmap (7.6.1) MUST maintain a section-level Coverage Matrix listing every non-Roadmap section number (all `## X.Y` headings outside 7.6 plus the top-level `# 9.` section), including whether it is Main Body authority (CX-598) and which phase(s) cover it. If the matrix is missing/incomplete/duplicated/out-of-date, planning and phase-closure claims are BLOCKED until the matrix is corrected via Spec Enrichment.

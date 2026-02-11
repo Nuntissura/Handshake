@@ -41,6 +41,11 @@ just validate-workflow WP-{ID}
 just gov-check
 ```
 
+**Governance-only maintenance (no WP required) [CX-111]:**
+- Allowed scope (planned diff must be strictly limited to these governance surfaces): `/.GOV/**`, `/.github/**`, `/justfile`, `/Handshake Codex v1.4.md`, `/AGENTS.md`
+- Verification: `just gov-check`
+- If any product path is touched (`/src/`, `/app/`, `/tests/`): STOP and require a WP + Gate 0/1 (`just pre-work WP-{ID}` / `just post-work WP-{ID}`)
+
 **Gate 0 (Pre-Work):** Task packet MUST exist and pass `just pre-work WP-{ID}` before implementation starts. If blocked, STOP and request help.
 
 **Gate 1 (Post-Work):** All validation MUST pass `just post-work WP-{ID}` before commit. If blocked, fix issues and re-run.

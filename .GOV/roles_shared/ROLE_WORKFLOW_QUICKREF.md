@@ -31,6 +31,7 @@ All roles SHOULD follow a strict ordering to avoid interleaving narrative with e
 
 Governance-only (does not scan `src/` or `app/`):
 - `just gov-check`
+- Governance-only maintenance does not require a Work Packet or USER_SIGNATURE (Codex [CX-111]).
 
 Product-scanning / product-boundary enforcement:
 - `just codex-check` (includes hard boundary checks for `.GOV` references in product code)

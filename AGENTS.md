@@ -12,9 +12,18 @@
 - Default: one WP = one feature branch (e.g., `feat/WP-{ID}`).
 - When more than one coder/WP is active concurrently, use `git worktree` per active WP (separate working directories). Do NOT share a single working tree across concurrent WPs.
 
+### Governance-only work (no WP required)
+- Governance/workflow/tooling-only maintenance does NOT require a Work Packet or USER_SIGNATURE when the planned diff is strictly limited to governance surface files:
+  - `/.GOV/**`
+  - `/.github/**`
+  - `/justfile`
+  - `/Handshake Codex v1.4.md`
+  - `/AGENTS.md`
+- Hard rule: if any Handshake product code is touched (`/src/`, `/app/`, `/tests/`), STOP and require a WP.
+- Minimum verification for governance-only changes: `just gov-check`.
+
 ### Safety commit gate (prevents packet/refinement loss)
 - After creating a WP task packet + refinement and obtaining `USER_SIGNATURE`, create a checkpoint commit on the WP branch that includes:
   - `.GOV/task_packets/WP-{ID}.md`
   - `.GOV/refinements/WP-{ID}.md`
 </INSTRUCTIONS>
-
