@@ -493,7 +493,7 @@
       "type": "PREPARE",
       "coder_id": "Coder-A",
       "branch": "feat/WP-1-Supply-Chain-MEX-v2",
-      "worktree_dir": "D:/Projects/LLM",
+      "worktree_dir": "../wt-WP-1-Supply-Chain-MEX-v2",
       "timestamp": "2026-01-17T22:04:40.835Z"
     },
     {
@@ -669,7 +669,7 @@
       "type": "PREPARE",
       "coder_id": "Coder-A",
       "branch": "feat/WP-1-OSS-Governance-v2",
-      "worktree_dir": "D:/Projects/LLM",
+      "worktree_dir": "../wt-WP-1-OSS-Governance-v2",
       "timestamp": "2026-01-19T03:27:30.073Z"
     },
     {
@@ -749,7 +749,7 @@
       "type": "PREPARE",
       "coder_id": "Coder-A",
       "branch": "feat/WP-1-Micro-Task-Executor-v1",
-      "worktree_dir": "D:/Projects/LLM",
+      "worktree_dir": "../wt-WP-1-Micro-Task-Executor-v1",
       "timestamp": "2026-01-22T08:43:23.814Z"
     },
     {
@@ -925,7 +925,7 @@
       "type": "PREPARE",
       "coder_id": "Coder-A",
       "branch": "feat/WP-1-Atelier-Collaboration-Panel-v1",
-      "worktree_dir": "D:/Projects/LLM",
+      "worktree_dir": "../wt-WP-1-Atelier-Collaboration-Panel-v1",
       "timestamp": "2026-01-31T17:54:31.372Z"
     },
     {
@@ -973,7 +973,7 @@
       "type": "PREPARE",
       "coder_id": "Coder-A",
       "branch": "feat/WP-1-Model-Swap-Protocol-v1",
-      "worktree_dir": "D:/Projects/LLM",
+      "worktree_dir": "../wt-WP-1-Model-Swap-Protocol-v1",
       "timestamp": "2026-02-01T14:23:06.701Z"
     },
     {
@@ -1046,7 +1046,7 @@
       "type": "PREPARE",
       "coder_id": "Coder-A",
       "branch": "feat/WP-1-Product-Governance-Snapshot-v3-gov",
-      "worktree_dir": "D:/Projects/LLM",
+      "worktree_dir": "../wt-WP-1-Product-Governance-Snapshot-v3-gov",
       "timestamp": "2026-02-06T13:37:51.896Z"
     },
     {
@@ -1078,7 +1078,7 @@
       "type": "PREPARE",
       "coder_id": "Coder-A",
       "branch": "feat/WP-1-Product-Governance-Snapshot-v4",
-      "worktree_dir": "D:/Projects/LLM",
+      "worktree_dir": "../wt-WP-1-Product-Governance-Snapshot-v4",
       "timestamp": "2026-02-08T20:07:50.114Z"
     },
     {

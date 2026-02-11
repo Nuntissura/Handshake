@@ -1,6 +1,26 @@
 ﻿# ROLE_WORKTREES (Local Worktree Policy)
 
-This document defines the local worktree/branch policy used on Ilja's machine for role-governed sessions.
+This document defines the local worktree/branch policy for role-governed sessions.
+
+This policy is intentionally drive-agnostic: use a dedicated workspace root and keep all worktrees under a single "Handshake Worktrees" directory.
+
+## Recommended Layout (Drive-Agnostic)
+
+Define:
+- `<HANDSHAKE_ROOT>`: your chosen workspace root (example: `P:\Handshake`)
+- `<HANDSHAKE_WORKTREES>`: `<HANDSHAKE_ROOT>\Handshake Worktrees`
+
+Recommended structure:
+
+```text
+<HANDSHAKE_ROOT>\
+  Handshake Worktrees\
+    handshake_main\        # main repo checkout (branch: main)
+    wt-ilja\               # Operator role worktree (branch: user_ilja)
+    wt-orchestrator\       # Orchestrator role worktree (branch: role_orchestrator)
+    wt-validator\          # Validator role worktree (branch: role_validator)
+    wt-WP-...\             # WP worktrees (branch: feat/WP-...)
+```
 
 If you are an AI assistant operating in this repo:
 - You MUST read this file during session start (Pre-Flight) for your assigned role.
@@ -8,13 +28,13 @@ If you are an AI assistant operating in this repo:
 - If the required worktree/branch does not exist, you MUST STOP and request the Orchestrator/Operator to create it (see "Creation commands").
 - IMPORTANT: Creating worktrees/branches uses `git` operations that are blocked unless the user explicitly authorizes them in the same turn (Codex [CX-108]). If not authorized, STOP and request authorization.
 
-## Role Worktrees (Ilja)
+## Role Worktrees (Default)
 
 | Role | Worktree directory | Branch |
 | --- | --- | --- |
-| OPERATOR (human) | `D:\Projects\LLM projects\wt-ilja` | `user_ilja` |
-| ORCHESTRATOR | `D:\Projects\LLM projects\wt-orchestrator` | `user_orchestrator` |
-| VALIDATOR | `D:\Projects\LLM projects\wt-validator` | `user_validator` |
+| OPERATOR (human) | `<HANDSHAKE_WORKTREES>\wt-ilja` | `user_ilja` |
+| ORCHESTRATOR | `<HANDSHAKE_WORKTREES>\wt-orchestrator` | `role_orchestrator` |
+| VALIDATOR | `<HANDSHAKE_WORKTREES>\wt-validator` | `role_validator` |
 | CODER (agent) | WP-assigned worktree only (no default) | WP branch only (no default) |
 
 Notes:
@@ -41,16 +61,23 @@ Next actions (CX-WT-001):
 
 ## Creation Commands (only if explicitly authorized in the same turn)
 
-From the main repo working tree:
+From the main repo working tree (`<HANDSHAKE_WORKTREES>\handshake_main`):
 
 - Create ORCHESTRATOR worktree:
-  - `git worktree add -b user_orchestrator "D:\Projects\LLM projects\wt-orchestrator" main`
+  - If `origin/role_orchestrator` exists:
+    - `git worktree add -b role_orchestrator ..\wt-orchestrator origin/role_orchestrator`
+  - Legacy fallback (if `origin/user_orchestrator` exists):
+    - `git worktree add -b role_orchestrator ..\wt-orchestrator origin/user_orchestrator`
+  - Otherwise:
+    - `git worktree add -b role_orchestrator ..\wt-orchestrator main`
 - Create VALIDATOR worktree:
-  - `git worktree add -b user_validator "D:\Projects\LLM projects\wt-validator" main`
+  - `git worktree add -b role_validator ..\wt-validator main`
+- Create OPERATOR worktree:
+  - `git worktree add -b user_ilja ..\wt-ilja main`
 
 WP worktrees (Orchestrator action, not Coder):
 - Create a WP worktree/branch:
   - `just worktree-add WP-{ID}`
 - Record the coder assignment (writes `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`):
+  - Prefer repo-relative `worktree_dir` values (example: `../wt-WP-{ID}`) to avoid drive-specific paths and quoting issues.
   - `just record-prepare WP-{ID} {Coder-A|Coder-B} [branch] [worktree_dir]`
-

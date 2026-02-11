@@ -305,6 +305,15 @@ if (action === 'prepare') {
     const branch = v2NormalizeBranch((argvData[1] || `feat/${wpId}`).trim());
     const worktreeDir = (argvData[2] || `../wt-${wpId}`).trim();
 
+    const isAbsoluteWorktreeDir =
+        /^[A-Za-z]:[\\/]/.test(worktreeDir) || worktreeDir.startsWith('\\\\') || worktreeDir.startsWith('//');
+    if (isAbsoluteWorktreeDir) {
+        v2Fail('worktree_dir must be repo-relative (drive-agnostic).', [
+            `got=${worktreeDir}`,
+            'Recommended: omit worktree_dir to use default ../wt-<WP_ID>, or pass a relative path like ../wt-WP-...',
+        ]);
+    }
+
     if (!coderId) {
         v2Fail('Missing coder assignment. Usage: just record-prepare WP-... Coder-A [branch] [worktree_dir]');
     }

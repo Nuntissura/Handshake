@@ -15,7 +15,7 @@
 
 ## Repo state (hard gate)
 - Worktree: `D:\Projects\LLM projects\wt-orchestrator`
-- Branch: `user_orchestrator`
+- Branch: `role_orchestrator`
 - HEAD: `706c8e70` (Task Board VALIDATED cross-tool conformance)
 
 ---
@@ -147,4 +147,3 @@ New Phase 1 roadmap entries introduced by v02.114/v02.115 now have explicit Phas
 - Micro-Task Executor -> `WP-1-Micro-Task-Executor-v1`
 
 If additional Phase 1 topics are identified as untracked during deeper auditing, create additional Phase 1 stubs and record them with the correct spec tag (`[ADD v02.114]` or `[ADD v02.115]`) in the Phase 1 roadmap section to keep drift control tight.
-

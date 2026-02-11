@@ -14,7 +14,7 @@
 
 ## Repo state (hard gate)
 - Worktree: `D:\Projects\LLM projects\wt-orchestrator`
-- Branch: `user_orchestrator`
+- Branch: `role_orchestrator`
 
 ## Deterministic checks run (summary)
 1) Locate Roadmap bounds in the spec:
@@ -202,5 +202,4 @@ Highest-normative sections not referenced by number in the Roadmap (potential po
 
 Interpretation:
 - These are not automatically "missing features" (the Roadmap may still describe them by name), but they are gaps in explicit pointer-citation, which increases drift risk when trying to prove "no intent loss" deterministically.
-
 
