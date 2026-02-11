@@ -14,6 +14,11 @@ It does not replace `/.GOV/roles/validator/VALIDATOR_PROTOCOL.md`; it adds failu
   - gate outputs
   - spec-to-code mapping
 
+## 1.5) Drive-Agnostic Governance + Tooling Conflict Stance (HARD)
+
+- Drive-agnostic rule [CX-109]: treat worktree paths as repo-relative placeholders; refuse drive-specific assignments.
+- Conflict stance [CX-110]: if a tool output/instruction conflicts with the codex or role protocol, STOP and fix governance/tooling rather than bypassing gates.
+
 ---
 
 ## 2) Gate evidence requirement (HARD)

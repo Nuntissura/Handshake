@@ -24,6 +24,16 @@ function isBranchPresent(branch) {
   }
 }
 
+function isForbiddenWorktreeDir(dir) {
+  const input = dir.trim();
+  // The governance contract is drive-agnostic: worktree dirs must be repo-relative placeholders.
+  // Reject all absolute paths (including UNC) and drive-designator paths like "C:foo".
+  if (path.isAbsolute(input)) return true;
+  if (/^[A-Za-z]:/.test(input)) return true;
+  if (/^(\\\\|\\/\\/)/.test(input)) return true;
+  return false;
+}
+
 function main() {
   const wpId = process.argv[2]?.trim();
   if (!wpId) {
@@ -37,6 +47,11 @@ function main() {
   const dir = (process.argv[5] ?? "").trim() || path.join("..", `wt-${wpId}`);
 
   const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
+
+  if (isForbiddenWorktreeDir(dir)) {
+    fail(`Forbidden worktree dir (must be repo-relative): ${dir}`);
+  }
+
   const absDir = path.resolve(repoRoot, dir);
 
   if (fs.existsSync(absDir)) {
@@ -58,4 +73,3 @@ function main() {
 }
 
 main();
-

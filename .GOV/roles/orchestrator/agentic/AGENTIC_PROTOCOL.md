@@ -37,6 +37,11 @@ Every sub-agent instruction MUST include the canonical artifact set:
 
 Do not rely on "what the agent remembers". Assume each agent starts with near-zero context.
 
+## 2.5) Drive-Agnostic Governance + Tooling Conflict Stance (HARD)
+
+- Drive-agnostic rule [CX-109]: worktree paths MUST be repo-relative placeholders; never delegate with drive-specific absolute paths.
+- Conflict stance [CX-110]: if a tool output/instruction conflicts with the codex or role protocol, STOP and fix governance/tooling rather than bypassing gates.
+
 ---
 
 ## 3) Gate outputs are not optional (HARD)

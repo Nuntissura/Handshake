@@ -59,10 +59,15 @@ function toPosix(p) {
 }
 
 const DRIVE_PATH_RE = /\b[A-Za-z]:[\\/]/;
+// Matches both literal UNC paths (example: `\\server\share`) and common escaped representations in code (example: `\\\\server\\share`).
+const UNC_PATH_RE =
+  /\\\\[A-Za-z0-9._-]+\\[A-Za-z0-9.$_-]+|\\\\\\\\[A-Za-z0-9._-]+\\\\[A-Za-z0-9.$_-]+/;
 const EXAMPLE_HINT_RE = /\bexample\b/i;
 
 // Intent: keep repo governance drive-agnostic. Evidence logs / historical task packets are excluded.
 const roots = [
+  path.join(repoRoot, "Handshake Codex v1.4.md"),
+  path.join(repoRoot, "AGENTS.md"),
   path.join(repoRoot, ".GOV", "roles"),
   path.join(repoRoot, ".GOV", "roles_shared"),
   path.join(repoRoot, ".GOV", "scripts"),
@@ -98,7 +103,7 @@ for (const filePath of files) {
   const lines = content.split(/\r?\n/);
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
-    if (!DRIVE_PATH_RE.test(line)) continue;
+    if (!DRIVE_PATH_RE.test(line) && !UNC_PATH_RE.test(line)) continue;
 
     // Allow drive letters only in explicitly-marked examples to prevent policy drift.
     if (EXAMPLE_HINT_RE.test(line)) continue;
@@ -109,7 +114,7 @@ for (const filePath of files) {
 
 if (violations.length > 0) {
   fail(
-    "drive-agnostic-check: FAIL - absolute drive paths found in governance surface (non-example).",
+    "drive-agnostic-check: FAIL - drive-letter or UNC absolute paths found in governance surface (non-example).",
     violations.join("\n"),
   );
 }

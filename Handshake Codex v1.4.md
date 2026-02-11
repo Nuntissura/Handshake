@@ -38,6 +38,10 @@
 
 [CX-108] HARD_GIT_WORKTREE_REWRITE_CONSENT (HARD): The assistant MUST NOT run git commands that rewrite/hide the on-disk working tree unless the user explicitly authorizes it in the same turn. This includes: `git stash`, `git checkout`, `git switch`, `git merge`, `git rebase`, `git reset`, and `git clean`.
 
+[CX-109] HARD_DRIVE_AGNOSTIC_GOVERNANCE (HARD): Repo governance (scripts, gate state, and role workflows) MUST be drive-agnostic. Governance instructions and state MUST NOT depend on machine-local absolute paths (drive letters or UNC). Any recorded worktree path (e.g., `worktree_dir`) MUST be repo-relative (example: `../wt-WP-...`) and tooling MUST enforce this.
+
+[CX-110] HARD_TOOLING_CONFLICT_STANCE (HARD): If tooling output/instructions conflict with this codex or the role protocols in `/.GOV/roles/`, STOP. Do not "follow the tool" to violate LAW. Escalate to the Operator and prefer fixing the tool to match LAW over bypassing checks.
+
 [CX-598] MAIN-BODY ALIGNMENT INVARIANT (HARD): A Phase or Work Packet is NOT DONE simply by checking off a Roadmap bullet. "Done" is defined as the 100% implementation of every technical rule, schema, and "LAW" block found in the Main Body (Sections 1-6 or 9-11) that governs that roadmap item. This includes every line of text, idea, or constraint in the corresponding Main Body section. If a roadmap item is "checked" but the corresponding Main Body logic is missing, the task is BLOCKED. i as user do not declare a phase finished as everything in the roadmap is done, this means must deliverables as also every other line of text in that phase and the coresponding text, ideas or other in the master spec main body.
 
 [CX-598A] ROADMAP_COVERAGE_MATRIX (HARD): The Master Spec Roadmap (7.6.1) MUST maintain a section-level Coverage Matrix listing every non-Roadmap section number (all `## X.Y` headings outside 7.6 plus the top-level `# 9.` section), including whether it is Main Body authority (CX-598) and which phase(s) cover it. If the matrix is missing/incomplete/duplicated/out-of-date, planning and phase-closure claims are BLOCKED until the matrix is corrected via Spec Enrichment.
@@ -452,10 +456,15 @@ Clarification: `.GOV/scripts/` is governance/workflow/tooling surface and MAY be
 [CX-900] ENFORCEMENT_PURPOSE: For AI-autonomous operation, the workflow MUST be enforced by automated scripts and checks. Manual enforcement is insufficient when the human user lacks coding expertise.
 
 [CX-901] ENFORCEMENT_SCRIPTS: The repo MUST include enforcement scripts in `/.GOV/scripts/validation/`:
-- `pre-work-check.mjs` - Verifies task packet exists before work starts
-- `post-work-check.mjs` - Verifies task packet validation/status (logger only if requested)
-- `task-packet-check.mjs` - Validates packet structure
+- `pre-work-check.mjs` - Verifies task packet exists before work starts (includes worktree/branch preflight)
+- `post-work-check.mjs` - Verifies completion evidence and deterministic manifest
 - `ci-traceability-check.mjs` - CI verification of workflow compliance
+- `task-board-check.mjs` - Task Board structure/format enforcement
+- `task-packet-claim-check.mjs` - In-progress task packet claim fields enforcement
+- `worktree-concurrency-check.mjs` - Multi-worktree topology guard
+- `lifecycle-ux-check.mjs` - Operator-facing output template enforcement
+- `drive-agnostic-check.mjs` - Blocks drive-specific paths in governance surface
+- `gov-check.mjs` - Governance-only aggregator (runs governance checks without product scans)
 
 [CX-902] ENFORCEMENT_HOOKS: Git hooks SHOULD enforce:
 - pre-commit: Blocks commits without WP-ID traceability
@@ -466,6 +475,7 @@ Clarification: `.GOV/scripts/` is governance/workflow/tooling surface and MAY be
 - `just pre-work {wp-id}` - Validates readiness before implementation
 - `just post-work {wp-id}` - Validates completeness before commit
 - `just validate-workflow {wp-id}` - Full workflow compliance check
+- `just gov-check` - Governance-only health checks (no product scans)
 
 [CX-904] ENFORCEMENT_CI: GitHub Actions SHOULD verify:
 - All commits reference task packets via WP-ID
@@ -512,6 +522,8 @@ Clarification: `.GOV/scripts/` is governance/workflow/tooling surface and MAY be
 ---
 
 ## SUMMARY FOR AI AGENTS
+
+Drive-agnostic governance is mandatory: use repo-relative `worktree_dir` values and do not introduce drive-specific paths into governance state or instructions [CX-109].
 
 **If you are an Orchestrator:**
 1. Read `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` FIRST

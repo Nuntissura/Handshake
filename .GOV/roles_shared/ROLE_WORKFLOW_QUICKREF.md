@@ -8,6 +8,7 @@ This doc is a compact index of the role-governed workflow so the Operator can qu
 
 ## Drive-Agnostic Rules (Repo Governance)
 
+- Authority: `Handshake Codex v1.4.md` [CX-109], [CX-110].
 - Role worktree layout is defined in `.GOV/roles_shared/ROLE_WORKTREES.md` using placeholders:
   - `<HANDSHAKE_ROOT>` (example: `P:\Handshake`)
   - `<HANDSHAKE_WORKTREES>` = `<HANDSHAKE_ROOT>\Handshake Worktrees`
