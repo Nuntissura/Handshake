@@ -1,0 +1,192 @@
+# Task Packet: WP-1-Flight-Recorder-v4
+
+## METADATA
+- TASK_ID: WP-1-Flight-Recorder-v4
+- WP_ID: WP-1-Flight-Recorder-v4
+- BASE_WP_ID: WP-1-Flight-Recorder
+- DATE: 2026-02-11T22:32:58.696Z
+- MERGE_BASE_SHA: 8e3092d65fc485d8b4497adc51da703c3f9678da
+- REQUESTOR: ilja (Operator) (repeatable boot failure from legacy flight_recorder.db schema)
+- AGENT_ID: CodexCLI-GPT-5.2
+- ROLE: Orchestrator
+- AGENTIC_MODE: YES
+- ORCHESTRATOR_MODEL: GPT-5.2 (Codex CLI) (required if AGENTIC_MODE=YES)
+- ORCHESTRATION_STARTED_AT_UTC: 2026-02-11T21:34:17.296Z
+- CODER_MODEL: HUMAN (external)
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** Ready for Dev
+- RISK_TIER: MEDIUM
+- USER_SIGNATURE: ilja110220262332
+- PACKET_FORMAT_VERSION: 2026-02-01
+
+## TECHNICAL_REFINEMENT (MASTER SPEC)
+- REFINEMENT_FILE: .GOV/refinements/WP-1-Flight-Recorder-v4.md
+- Rule: Task packet creation is blocked until refinement is complete and signed.
+
+## SCOPE
+- What: Make Flight Recorder DuckDB schema initialization tolerant of legacy on-disk DBs (missing newer columns like `events.trace_id`) by running additive migrations before creating indexes (or retrying index creation after migration). Add a regression test that opens a legacy DB and asserts `DuckDbFlightRecorder::new_on_path(...)` succeeds.
+- Why: Prevent repeatable hard boot failures when an existing `data/flight_recorder.db` was created with an older schema. This removes the need for manual DB nuking and makes `pnpm -C app tauri dev` reliable while Phase 1 work continues.
+- IN_SCOPE_PATHS:
+  - src/backend/handshake_core/src/flight_recorder/duckdb.rs
+- OUT_OF_SCOPE:
+  - Any changes to FR-EVT schemas / event taxonomy
+  - Backfilling legacy rows (no forced `trace_id` population for old rows)
+  - Any UI changes (Operator Consoles, frontend timeline)
+  - Any manual deletion/reset of user databases
+
+## WAIVERS GRANTED
+- (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
+- NONE
+
+## QUALITY_GATE
+### TEST_PLAN
+```bash
+# Run before handoff:
+just pre-work WP-1-Flight-Recorder-v4
+
+# Backend tests:
+cargo test --manifest-path src/backend/handshake_core/Cargo.toml
+
+# Optional manual repro (if available):
+pnpm -C app tauri dev
+
+# Mechanical manifest gate:
+just post-work WP-1-Flight-Recorder-v4 --range 8e3092d65fc485d8b4497adc51da703c3f9678da..HEAD
+```
+
+### DONE_MEANS
+- Opening a legacy DuckDB file with an `events` table missing `trace_id` does not hard-fail startup: `DuckDbFlightRecorder::new_on_path(...)` succeeds (covered by regression test).
+- `src/backend/handshake_core/src/flight_recorder/duckdb.rs` creates/migrates schema idempotently and creates trace/job/timestamp indexes after migrations.
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` passes.
+- `just post-work WP-1-Flight-Recorder-v4 --range 8e3092d65fc485d8b4497adc51da703c3f9678da..HEAD` passes.
+
+### ROLLBACK_HINT
+```bash
+git revert <commit-sha>
+```
+
+## AUTHORITY
+- SPEC_BASELINE: Handshake_Master_Spec_v02.125.md (recorded_at: 2026-02-11T22:32:58.696Z)
+- SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.125.md 11.5 Flight Recorder Event Shapes & Retention (Trace Invariant; DuckDB sink) + Handshake_Master_Spec_v02.125.md [CX-224] BACKEND_STORAGE (persistence logic + migrations)
+- Codex: Handshake Codex v1.4.md
+- Task Board: .GOV/roles_shared/TASK_BOARD.md
+- WP Traceability: .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
+
+## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]
+- Required when `WP_ID` includes `-v{N}`.
+- List every prior packet for `BASE_WP_ID` (filenames/paths) and state what is preserved vs changed.
+- Hard rule: Do not drop prior requirements; carry them forward explicitly.
+- Prior packets:
+  - .GOV/task_packets/WP-1-Flight-Recorder.md
+  - .GOV/task_packets/WP-1-Flight-Recorder-v2.md
+  - .GOV/task_packets/WP-1-Flight-Recorder-v3.md
+- Preserved in v4:
+  - All v3 validated Flight Recorder behavior and schemas remain intact; this WP is a compatibility hardening only.
+- Changed in v4:
+  - Schema init/migration ordering for legacy DBs (avoid failing on index creation when new columns are absent).
+  - Add regression test that constructs a legacy `events` table (without `trace_id`) and asserts `new_on_path` succeeds.
+
+## BOOTSTRAP
+- FILES_TO_OPEN:
+  - .GOV/roles_shared/START_HERE.md
+  - .GOV/roles_shared/SPEC_CURRENT.md
+  - .GOV/roles_shared/ARCHITECTURE.md
+  - .GOV/refinements/WP-1-Flight-Recorder-v4.md
+  - .GOV/task_packets/WP-1-Flight-Recorder-v4.md
+  - .GOV/task_packets/WP-1-Flight-Recorder-v3.md
+  - src/backend/handshake_core/src/flight_recorder/duckdb.rs
+- SEARCH_TERMS:
+  - "CREATE INDEX IF NOT EXISTS idx_events_trace_id"
+  - "ALTER TABLE events ADD COLUMN IF NOT EXISTS trace_id"
+  - "DuckDbFlightRecorder::new_on_path"
+  - "init_schema"
+- RUN_COMMANDS:
+  ```bash
+  rg -n "CREATE INDEX IF NOT EXISTS idx_events_trace_id" src/backend/handshake_core/src/flight_recorder/duckdb.rs
+  rg -n "ALTER TABLE events" src/backend/handshake_core/src/flight_recorder/duckdb.rs
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml
+  ```
+- RISK_MAP:
+  - "migration ordering bug" -> "startup crash when opening legacy DB file; blocks dev loop"
+  - "partial migration" -> "retrying init fails; ensure idempotent ALTER + index creation"
+  - "legacy rows missing trace_id" -> "must not enforce NOT NULL for migrated column; keep old rows readable"
+
+## SKELETON
+- Proposed interfaces/types/contracts:
+- Open questions:
+- Notes:
+
+## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
+- END_TO_END_CLOSURE_PLAN_APPLICABLE: NO
+- TRUST_BOUNDARY: N/A
+- SERVER_SOURCES_OF_TRUTH:
+  - N/A
+- REQUIRED_PROVENANCE_FIELDS:
+  - N/A
+- VERIFICATION_PLAN:
+  - N/A
+- ERROR_TAXONOMY_PLAN:
+  - N/A
+- UI_GUARDRAILS:
+  - N/A
+- VALIDATOR_ASSERTIONS:
+  - N/A
+
+## IMPLEMENTATION
+- (Coder fills after skeleton approval.)
+
+## HYGIENE
+- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+
+## VALIDATION
+- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
+- If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
+- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- **Start**: <line>
+- **End**: <line>
+- **Line Delta**: <adds - dels>
+- **Pre-SHA1**: `<hash>`
+- **Post-SHA1**: `<hash>`
+- **Gates Passed**:
+  - [ ] anchors_present
+  - [ ] window_matches_plan
+  - [ ] rails_untouched_outside_window
+  - [ ] filename_canonical_and_openable
+  - [ ] pre_sha1_captured
+  - [ ] post_sha1_captured
+  - [ ] line_delta_equals_expected
+  - [ ] all_links_resolvable
+  - [ ] manifest_written_and_path_returned
+  - [ ] current_file_matches_preimage
+- **Lint Results**:
+- **Artifacts**:
+- **Timestamp**:
+- **Operator**:
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
+- **Notes**:
+
+## STATUS_HANDOFF
+- (Use this to list touched files and summarize work done without claiming a validation verdict.)
+- Current WP_STATUS:
+- What changed in this update:
+- Next step / handoff hint:
+
+## EVIDENCE_MAPPING
+- (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
+- Format (repeat as needed):
+  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
+  - EVIDENCE: `path/to/file:line`
+
+## EVIDENCE
+- (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+- Recommended evidence format (prevents chat truncation; enables audit):
+  - COMMAND: `<paste>`
+  - EXIT_CODE: `<int>`
+  - LOG_PATH: `.handshake/logs/WP-1-Flight-Recorder-v4/<name>.log` (recommended; not committed)
+  - LOG_SHA256: `<hash>`
+  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+
+## VALIDATION_REPORTS
+- (Validator appends official audits and verdicts here. Append-only.)

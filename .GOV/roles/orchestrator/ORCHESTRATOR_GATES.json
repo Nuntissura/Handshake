@@ -1122,28 +1122,28 @@
       "timestamp": "2026-02-08T21:26:10.257Z"
     },
     {
-      "wpId": "WP-1-Runtime-Governance-NoExpect-v1",
+      "wpId": "WP-1-Flight-Recorder-v4",
       "type": "REFINEMENT",
-      "refinement_path": ".GOV/refinements/WP-1-Runtime-Governance-NoExpect-v1.md",
+      "refinement_path": ".GOV/refinements/WP-1-Flight-Recorder-v4.md",
       "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.125.md",
       "spec_target_sha1": "d16eb1eb5045e858112b2ce477f27aa0200621b0",
-      "timestamp": "2026-02-11T17:27:12.146Z",
-      "turn_token": "1770830832147"
+      "timestamp": "2026-02-11T22:19:53.027Z",
+      "turn_token": "1770848393028"
     },
     {
-      "wpId": "WP-1-Runtime-Governance-NoExpect-v1",
+      "wpId": "WP-1-Flight-Recorder-v4",
       "type": "SIGNATURE",
-      "signature": "ilja110220261846",
-      "timestamp": "2026-02-11T17:52:35.268Z",
-      "refinement_path": ".GOV/refinements/WP-1-Runtime-Governance-NoExpect-v1.md"
+      "signature": "ilja110220262332",
+      "timestamp": "2026-02-11T22:32:37.752Z",
+      "refinement_path": ".GOV/refinements/WP-1-Flight-Recorder-v4.md"
     },
     {
-      "wpId": "WP-1-Runtime-Governance-NoExpect-v1",
+      "wpId": "WP-1-Flight-Recorder-v4",
       "type": "PREPARE",
       "coder_id": "Coder-A",
-      "branch": "feat/WP-1-Runtime-Governance-NoExpect-v1",
-      "worktree_dir": "../wt-WP-1-Runtime-Governance-NoExpect-v1",
-      "timestamp": "2026-02-11T18:00:45.992Z"
+      "branch": "feat/WP-1-Flight-Recorder-v4",
+      "worktree_dir": "../wt-WP-1-Flight-Recorder-v4",
+      "timestamp": "2026-02-11T22:32:54.024Z"
     }
   ]
 }
