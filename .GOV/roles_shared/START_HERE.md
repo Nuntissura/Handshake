@@ -36,6 +36,9 @@ just post-work WP-{ID}
 
 # Full workflow validation (pre-work + validate + post-work)
 just validate-workflow WP-{ID}
+
+# Governance-only health check (no product scan)
+just gov-check
 ```
 
 **Gate 0 (Pre-Work):** Task packet MUST exist and pass `just pre-work WP-{ID}` before implementation starts. If blocked, STOP and request help.
@@ -128,5 +131,4 @@ CI expectation: run `just validate`; manual validator review is required for MED
 
 ## Past work
 Pointer to prior specs/logs/notes: `.GOV/roles_shared/PAST_WORK_INDEX.md`
-
 

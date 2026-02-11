@@ -14,7 +14,7 @@
   3) Verify Coverage Matrix integrity and Phase 1 fixed-field template usage.
 
 ## Repo state (hard gate)
-- Worktree: `D:\Projects\LLM projects\wt-orchestrator`
+- Worktree: `<HANDSHAKE_WORKTREES>\wt-orchestrator`
 - Branch: `role_orchestrator`
 - HEAD: `706c8e70` (Task Board VALIDATED cross-tool conformance)
 

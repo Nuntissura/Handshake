@@ -35,7 +35,7 @@ Hard rules:
 - DO NOT modify Handshake product code in `src/`, `app/`, or `tests/`.
 - List the intended changed paths before editing.
 - Provide a rollback hint.
-- Run verification commands appropriate to the change (at minimum: `node .GOV/scripts/validation/codex-check.mjs`) and record outputs.
+- Run verification commands appropriate to the change (at minimum: `just gov-check`) and record outputs.
 
 ---
 
@@ -117,6 +117,8 @@ NEXT_COMMANDS [CX-GATE-UX-001]
 ```
 
 Rule: keep `NEXT_COMMANDS` limited to the immediate next step(s) (required to proceed or to unblock) to stay compatible with Codex [CX-513].
+
+Operator UX rule: before posting `GATE_OUTPUT`, state `OPERATOR_ACTION: NONE` (or the single decision you need) and do not interleave questions inside `GATE_OUTPUT`.
 
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
@@ -1710,5 +1712,3 @@ Work is stuck (can't proceed without help)
 
 **Total effort to reach 9.9/10: 7-10 hours (all cheap LLM tier)**
 **Cost: LOW (documentation + clarification, no code changes)**
-
-

@@ -47,6 +47,11 @@ validate:
 codex-check:
 	node .GOV/scripts/validation/codex-check.mjs
 
+# Governance-only checks (drive-agnostic + lifecycle UX + task board integrity).
+gov-check:
+	just docs-check
+	node .GOV/scripts/validation/gov-check.mjs
+
 # Worktrees (recommended when >1 WP active)
 # Creates a dedicated working directory for the WP branch.
 worktree-add wp-id base="main" branch="" dir="":
@@ -198,6 +203,10 @@ validator-governance-snapshot:
 # Validator helpers (protocol-aligned)
 validator-scan:
 	@node .GOV/scripts/validation/validator-scan.mjs
+
+# Alias to clarify intent: validator-scan scans product sources.
+product-scan:
+	@just validator-scan
 
 validator-dal-audit:
 	@node .GOV/scripts/validation/validator-dal-audit.mjs

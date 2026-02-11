@@ -33,6 +33,8 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
 
 Governance/workflow/tooling note: changes limited to `.GOV/`, `.GOV/scripts/`, `justfile`, and `.github/` are considered governance surface and may be maintained without creating a Work Packet, as long as no Handshake product code (`src/`, `app/`, `tests/`) is modified.
 
+Minimum verification for governance-only changes: `just gov-check`.
+
 ## Pre-Flight (Blocking)
 - [CX-GATE-001] BINARY PHASE GATE: Workflow MUST follow the sequence: BOOTSTRAP -> SKELETON -> IMPLEMENTATION -> HYGIENE -> VALIDATION. 
 - MERGING PHASES IS FORBIDDEN: Any response that combines these phases into a single turn is an AUTO-FAIL.
@@ -118,6 +120,8 @@ NEXT_COMMANDS [CX-GATE-UX-001]
 ```
 
 Rule: keep `NEXT_COMMANDS` limited to the immediate next step(s) (required to proceed or to unblock) to stay compatible with Codex [CX-513].
+
+Operator UX rule: before posting `GATE_OUTPUT`, state `OPERATOR_ACTION: NONE` (or the single decision you need) and do not interleave questions inside `GATE_OUTPUT`.
 
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
@@ -424,4 +428,3 @@ Task Packet Update (APPEND-ONLY):
 - Automated review scripts are optional; manual evidence-based validation is required.
 - If a check cannot be performed (env/tools unavailable), report as FAIL with reasonâ€”do not assume OK.
 - No â€œpass with debtâ€ for hard invariants, security, traceability, or spec alignment; either fix or obtain explicit user waiver per protocol.
-

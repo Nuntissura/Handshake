@@ -164,6 +164,8 @@ NEXT_COMMANDS [CX-GATE-UX-001]
 
 Rule: keep `NEXT_COMMANDS` limited to the immediate next step(s) (required to proceed or to unblock) to stay compatible with Codex [CX-513].
 
+Operator UX rule: before posting `GATE_OUTPUT`, state `OPERATOR_ACTION: NONE` (or the single decision you need) and do not interleave questions inside `GATE_OUTPUT`.
+
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
 In every Orchestrator message (not only gate runs), include a short lifecycle marker so reviewers can see where you are in the task/work packet creation lifecycle.
@@ -2338,5 +2340,4 @@ All follow the structure in this protocol; use them as templates for new WPs.
 | Manage blockers | Dependency tracking | ORCHESTRATOR_PROTOCOL Part 7 |
 
 **Orchestrator role = Precise work packets + Updated TASK_BOARD + Locked packets + Verified pre-work + Enforced dependencies + Phase gate management**
-
 

@@ -13,7 +13,7 @@
   3) Identify phase-structure risks (missing work or confusing phase usage).
 
 ## Repo state (hard gate)
-- Worktree: `D:\Projects\LLM projects\wt-orchestrator`
+- Worktree: `<HANDSHAKE_WORKTREES>\wt-orchestrator`
 - Branch: `role_orchestrator`
 
 ## Deterministic checks run (summary)
@@ -202,4 +202,3 @@ Highest-normative sections not referenced by number in the Roadmap (potential po
 
 Interpretation:
 - These are not automatically "missing features" (the Roadmap may still describe them by name), but they are gaps in explicit pointer-citation, which increases drift risk when trying to prove "no intent loss" deterministically.
-
