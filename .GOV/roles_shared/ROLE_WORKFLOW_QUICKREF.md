@@ -72,3 +72,6 @@ Primary commands (per WP validation):
 
 Governance-only work:
 - `just gov-check`
+
+File-touch map:
+- `.GOV/roles_shared/VALIDATOR_FILE_TOUCH_MAP.md`

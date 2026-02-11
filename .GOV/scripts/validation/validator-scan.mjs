@@ -5,10 +5,12 @@
  */
 import { execSync } from "node:child_process";
 
-const targets = ["src/backend/handshake_core/src", "app/src"];
-const GLOB_RS = '--glob "*.rs"';
+const rustTargets = ["src/backend/handshake_core/src"];
+const frontendTargets = ["app/src"];
+const GLOB_RS = ['--glob "*.rs"'];
+const GLOB_FRONTEND = ['--glob "*.ts"', '--glob "*.tsx"', '--glob "*.js"', '--glob "*.jsx"'];
 
-const forbidden = [
+const forbiddenRust = [
   "\\\\bsplit_whitespace\\\\(\\\\)",
   "\\\\bunwrap\\\\(\\\\)",
   "expect\\(",
@@ -20,13 +22,16 @@ const forbidden = [
   "panic!",
 ];
 
-const placeholder = ["Mock", "Stub", "placeholder", "hollow"];
+// Rust placeholders are stricter than frontend because frontend legitimately uses `placeholder=\"...\"`.
+const placeholderRust = ["Mock", "Stub", "placeholder", "hollow"];
+const forbiddenFrontend = ["debugger", "console\\\\.log", "(it|describe)\\\\.only"];
+const placeholderFrontend = [];
 const placeholderPathExcludes = ["governance_pack.rs:"];
 
-function runRg(pattern, paths = targets, extraArgs = "") {
+function runRg(pattern, paths, globArgs = [], extraArgs = "") {
   const cmd = `rg --hidden --no-heading --line-number "${pattern}" ${paths.join(
     " "
-  )} ${GLOB_RS} ${extraArgs}`;
+  )} ${globArgs.join(" ")} ${extraArgs}`;
   try {
     const out = execSync(cmd, { stdio: "pipe", encoding: "utf8" });
     return out.trim();
@@ -38,15 +43,22 @@ function runRg(pattern, paths = targets, extraArgs = "") {
 
 const findings = [];
 
-for (const pat of forbidden) {
-  const out = runRg(pat);
+for (const pat of forbiddenRust) {
+  const out = runRg(pat, rustTargets, GLOB_RS);
   if (out) {
-    findings.push(`FORBIDDEN_PATTERN "${pat}":\n${out}`);
+    findings.push(`FORBIDDEN_PATTERN (rust) "${pat}":\n${out}`);
   }
 }
 
-for (const pat of placeholder) {
-  let out = runRg(pat);
+for (const pat of forbiddenFrontend) {
+  const out = runRg(pat, frontendTargets, GLOB_FRONTEND);
+  if (out) {
+    findings.push(`FORBIDDEN_PATTERN (frontend) "${pat}":\n${out}`);
+  }
+}
+
+for (const pat of placeholderRust) {
+  let out = runRg(pat, rustTargets, GLOB_RS);
   if (out) {
     out = out
       .split("\n")
@@ -59,6 +71,13 @@ for (const pat of placeholder) {
   }
 }
 
+for (const pat of placeholderFrontend) {
+  const out = runRg(pat, frontendTargets, GLOB_FRONTEND);
+  if (out) {
+    findings.push(`PLACEHOLDER/MOCK (frontend) "${pat}":\n${out}`);
+  }
+}
+
 if (findings.length > 0) {
   console.error("validator-scan: FAIL - findings detected");
   findings.forEach((f) => {
@@ -68,4 +87,4 @@ if (findings.length > 0) {
   process.exit(1);
 }
 
-console.log("validator-scan: PASS - no forbidden patterns detected in backend sources.");
+console.log("validator-scan: PASS - no forbidden patterns detected in backend/frontend sources.");
