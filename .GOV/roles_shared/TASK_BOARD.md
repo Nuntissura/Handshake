@@ -53,6 +53,9 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 - **[WP-1-Product-Governance-Snapshot-v4]** - [READY_FOR_DEV]
 
 ## Stub Backlog (Not Activated)
+- **[WP-1-Spec-Enrichment-Product-Governance-Consistency-v1]** - [STUB]
+- **[WP-1-LLM-Provider-Registry-v1]** - [STUB]
+- **[WP-1-Model-Onboarding-ContextPacks-v1]** - [STUB]
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
 - **[WP-1-Locus-Work-Tracking-System-Phase1-v1]** - [STUB]
