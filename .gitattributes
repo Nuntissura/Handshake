@@ -14,6 +14,7 @@ Handshake_Master_Spec_v*.md text eol=lf
 .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json text eol=lf
 .GOV/roles/validator/VALIDATOR_GATES.json text eol=lf
 .GOV/validator_gates/*.json text eol=lf
+.GOV/ROLE_MAILBOX/*.json text eol=lf
 .GOV/task_packets/*.md text eol=lf
 .GOV/task_packets/stubs/*.md text eol=lf
 .GOV/refinements/*.md text eol=lf

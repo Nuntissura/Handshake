@@ -175,11 +175,10 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn defaults_to_handshake_gov_under_workspace() {
-        let dir = tempdir().expect("temp dir");
+    fn defaults_to_handshake_gov_under_workspace() -> std::io::Result<()> {
+        let dir = tempdir()?;
         let workspace_root = dir.path().to_path_buf();
-        let paths =
-            RuntimeGovernancePaths::from_workspace_root(workspace_root.clone()).expect("paths");
+        let paths = RuntimeGovernancePaths::from_workspace_root(workspace_root.clone())?;
         assert_eq!(
             paths.governance_root(),
             workspace_root.join(".handshake").join("gov")
@@ -191,6 +190,7 @@ mod tests {
                 .join("gov")
                 .join("TASK_BOARD.md")
         );
+        Ok(())
     }
 
     #[test]
