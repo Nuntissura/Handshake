@@ -123,25 +123,62 @@ git revert <commit-sha>
   - "Policy bypass" -> "Cloud tier invoked even when disallowed; must hard-block with deterministic error."
 
 ## SKELETON
-- Proposed interfaces/types/contracts:
-- Open questions:
+- Proposed interfaces/types/contracts (no logic; names provisional):
+  - `src/backend/handshake_core/src/llm/registry.rs`
+    - `enum ProviderKind { Ollama, OpenAiCompat }`
+    - `enum RuntimeRole { Frontend, Orchestrator, Worker, Validator }`
+    - `struct ProviderRecord { provider_id, kind, tier: ModelTier, base_url, default_model_id, api_key_env?: String }`
+    - `struct RoleAssignment { role: RuntimeRole, provider_id, model_id }`
+    - `struct ResolvedProvider { provider_id, kind, tier: ModelTier, base_url, model_id }`
+    - `struct ProviderRegistry { providers: BTreeMap<String, ProviderRecord>, assignments: BTreeMap<RuntimeRole, RoleAssignment> }`
+    - `impl ProviderRegistry { fn from_env() -> Result<Self, RegistryError>; fn resolve(&self, role: RuntimeRole) -> Result<ResolvedProvider, RegistryError> }`
+  - `src/backend/handshake_core/src/llm/openai_compat.rs`
+    - `struct OpenAiCompatAdapter { base_url, profile: ModelProfile, client: reqwest::Client, flight_recorder, api_key: ApiKey(redacted) }`
+    - Minimal OpenAI-compatible `/v1/chat/completions` request/response structs (prompt -> single user message; extract first choice text; map usage)
+    - Emits `FlightRecorderEventType::LlmInference` with `trace_id`, `model_id`, token usage, latency, prompt_hash/response_hash; no raw prompt/payload.
+  - `src/backend/handshake_core/src/llm/guard.rs` (or inline in registry module)
+    - `struct CloudEscalationGuard { inner: Arc<dyn LlmClient>, cloud_escalation_allowed: bool }`
+    - Enforcement: if `inner.profile().model_tier == ModelTier::Cloud` and `cloud_escalation_allowed == false` => hard-block before network call (stable error code string).
+  - `src/backend/handshake_core/src/main.rs`
+    - Replace Ollama-only startup wiring with ProviderRegistry resolution (initially one resolved role used for backend runtime; structure supports per-role later).
+    - Base URL validation helper for OpenAI-compatible provider (SSRF: treat env-provided base_url as untrusted; reject obviously unsafe hosts for Cloud tier unless policy explicitly allows).
+  - Tests (offline):
+    - `ProviderRegistry::from_env` deterministic resolution tests (incl. per-role overrides)
+    - `OpenAiCompatAdapter` completion tested against local axum mock server (no real network)
+    - Cloud policy guard test: when disallowed, adapter returns deterministic error and mock server sees 0 requests
+
+- Open questions / assumptions:
+  - Where is the authoritative "cloud escalation allowed" runtime policy sourced for non-micro-task flows (env var vs persisted runtime governance)? Proposed initial: env var (default deny) until Work Profiles are wired.
+  - ConsentReceipt / ProjectionPlan enforcement: implement minimal hard-block hook (and FR events) now, or defer until consent artifacts storage path exists?
+  - For OpenAI compatibility: prefer `/v1/chat/completions` only (most compatible) vs `/v1/completions` fallback?
+
 - Notes:
+  - No secrets (API keys) logged or stored in Flight Recorder/debug bundles; API key only read from env at runtime and held in-memory with redacted Debug/Display.
+  - All base_url strings trimmed of trailing `/`; do not allow embedding credentials in URL.
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
-- END_TO_END_CLOSURE_PLAN_APPLICABLE: YES | NO
-- TRUST_BOUNDARY: <fill> (examples: client->server, server->storage, job->apply)
+- END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
+- TRUST_BOUNDARY: server->network (LLM provider HTTP); env/config inputs are untrusted; cloud export requires explicit policy/consent.
 - SERVER_SOURCES_OF_TRUTH:
-  - <fill> (what the server loads/verifies instead of trusting the client)
+  - Provider selection/config resolved by ProviderRegistry (server-side; deterministic env inputs; base_url validated)
+  - Cloud escalation allowed flag (server-side policy; default-deny)
+  - Flight Recorder events emitted by adapter (server-derived model/provider identity; do not trust client provenance)
 - REQUIRED_PROVENANCE_FIELDS:
-  - <fill> (role_id, contract_id, model_id/tool_id, evidence refs, before/after spans, etc.)
+  - `trace_id` (required), `provider_id`, `model_id`, `model_tier`, `token_usage`, `latency_ms`, `prompt_hash`, `response_hash`
 - VERIFICATION_PLAN:
-  - <fill> (how provenance/audit is verified and recorded; include non-spoofable checks when required)
+  - Unit tests for ProviderRegistry resolution determinism and per-role mapping
+  - Integration test with local mock HTTP server for OpenAI-compatible adapter
+  - Guard test proving cloud-tier calls are blocked when policy disallows (no outbound HTTP attempted)
+  - Regression check: Flight Recorder payload contains hashes/usage but no raw prompt or secrets
 - ERROR_TAXONOMY_PLAN:
-  - <fill> (distinct error classes: stale/mismatch vs spoof attempt vs true scope violation)
+  - Invalid base_url / SSRF guard: deterministic provider config error (stable code string)
+  - Cloud policy disallowed: deterministic hard-block error (stable code string)
+  - Provider/network errors: mapped to `LlmError::ProviderError(...)` with stable prefix code
 - UI_GUARDRAILS:
-  - <fill> (prevent stale apply; preview before apply; disable conditions)
+  - Out of scope (no UI changes); backend returns deterministic errors for surfaces to render/handle later.
 - VALIDATOR_ASSERTIONS:
-  - <fill> (what the validator must prove; spec anchors; fields present; trust boundary enforced)
+  - Spec anchors satisfied: `LlmClient` invariants (Â§4.2.3), WorkProfile cloud disable honored (Â§4.3.7 local_only + allow_cloud_escalation), consent rules enforced/hard-blocked for Cloud tier as wired (Â§11.1.7).
+  - RED_TEAM_ADVISORY enforced: no secrets in logs/FR; SSRF-safe base_url handling; no cloud calls when policy disallows.
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)
@@ -179,9 +216,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: BOOTSTRAP complete; SKELETON drafted (awaiting approval)
+- What changed in this update: Claimed CODER_MODEL + reasoning strength; set packet status to In Progress; drafted SKELETON + E2E closure plan for review.
+- Next step / handoff hint: Please reply with "SKELETON APPROVED" (or requested changes). After approval, I will implement provider registry + OpenAI-compatible adapter + policy guard + offline tests within IN_SCOPE_PATHS.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
