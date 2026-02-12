@@ -214,9 +214,6 @@ impl DuckDbFlightRecorder {
                 wsids JSON,
                 payload JSON NOT NULL
             );
-            CREATE INDEX IF NOT EXISTS idx_events_trace_id ON events(trace_id);
-            CREATE INDEX IF NOT EXISTS idx_events_job_id ON events(job_id);
-            CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
         "#,
         )
         .map_err(|e| RecorderError::SinkError(e.to_string()))?;
@@ -238,6 +235,15 @@ impl DuckDbFlightRecorder {
             ALTER TABLE events ADD COLUMN IF NOT EXISTS timestamp TIMESTAMPTZ;
             ALTER TABLE events ADD COLUMN IF NOT EXISTS event_type TEXT;
             ALTER TABLE events ADD COLUMN IF NOT EXISTS job_id TEXT;
+        "#,
+        )
+        .map_err(|e| RecorderError::SinkError(e.to_string()))?;
+
+        conn.execute_batch(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_events_trace_id ON events(trace_id);
+            CREATE INDEX IF NOT EXISTS idx_events_job_id ON events(job_id);
+            CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
         "#,
         )
         .map_err(|e| RecorderError::SinkError(e.to_string()))?;
@@ -938,6 +944,7 @@ mod tests {
     };
     use crate::flight_recorder::{EventFilter, FlightRecorderActor, FlightRecorderEventType};
     use serde_json::json;
+    use tempfile::tempdir;
     use uuid::Uuid;
 
     fn test_event(trace_id: Uuid, job_id: Option<&str>) -> FlightRecorderEvent {
@@ -955,6 +962,93 @@ mod tests {
             event = event.with_job_id(jid);
         }
         event
+    }
+
+    fn list_query_string_cells(
+        conn: &DuckDbConnection,
+        query: &str,
+    ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        let mut stmt = conn.prepare(query)?;
+        let mut rows = stmt.query([])?;
+
+        let mut values = Vec::new();
+        while let Some(row) = rows.next()? {
+            for col in 0..32 {
+                if let Ok(value) = row.get::<usize, String>(col) {
+                    values.push(value);
+                }
+            }
+        }
+
+        Ok(values)
+    }
+
+    fn list_index_introspection_values(
+        conn: &DuckDbConnection,
+    ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        #[cfg(not(windows))]
+        {
+            if let Ok(values) = list_query_string_cells(conn, "PRAGMA index_list('events')") {
+                if !values.is_empty() {
+                    return Ok(values);
+                }
+            }
+        }
+
+        for query in ["SELECT * FROM duckdb_indexes()", "SELECT * FROM duckdb_indexes"] {
+            if let Ok(values) = list_query_string_cells(conn, query) {
+                if !values.is_empty() {
+                    return Ok(values);
+                }
+            }
+        }
+
+        Err("duckdb index introspection not available".into())
+    }
+
+    #[tokio::test]
+    async fn test_new_on_path_migrates_legacy_db_and_creates_indexes(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let tmp = tempdir()?;
+        let db_path = tmp.path().join("legacy_flight_recorder.duckdb");
+
+        {
+            let conn = DuckDbConnection::open(&db_path)?;
+            conn.execute_batch(
+                r#"
+                CREATE TABLE events (
+                    event_id UUID PRIMARY KEY,
+                    timestamp TIMESTAMPTZ,
+                    actor TEXT,
+                    actor_id TEXT,
+                    event_type TEXT,
+                    job_id TEXT,
+                    payload JSON
+                );
+            "#,
+            )?;
+        }
+
+        let recorder = DuckDbFlightRecorder::new_on_path(&db_path, 7)?;
+
+        let conn = recorder.connection();
+        let conn = conn.lock().map_err(|_| RecorderError::LockError)?;
+
+        let index_values = list_index_introspection_values(&conn)?;
+        assert!(
+            index_values.iter().any(|value| value == "idx_events_trace_id"),
+            "expected idx_events_trace_id in DuckDB index introspection; got: {index_values:?}"
+        );
+        assert!(
+            index_values.iter().any(|value| value == "idx_events_job_id"),
+            "expected idx_events_job_id in DuckDB index introspection; got: {index_values:?}"
+        );
+        assert!(
+            index_values.iter().any(|value| value == "idx_events_timestamp"),
+            "expected idx_events_timestamp in DuckDB index introspection; got: {index_values:?}"
+        );
+
+        Ok(())
     }
 
     #[tokio::test]
