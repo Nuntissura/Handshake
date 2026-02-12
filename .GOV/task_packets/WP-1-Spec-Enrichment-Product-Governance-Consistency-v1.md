@@ -197,8 +197,8 @@ git revert <commit-sha>
   - EVIDENCE: `Handshake_Master_Spec_v02.126.md:28515`
   - EVIDENCE: `Handshake_Master_Spec_v02.126.md:28519`
   - REQUIREMENT: "Spec regression + deterministic gates executed per TEST_PLAN."
-  - EVIDENCE: `.GOV/task_packets/WP-1-Spec-Enrichment-Product-Governance-Consistency-v1.md:214`
-  - EVIDENCE: `.GOV/task_packets/WP-1-Spec-Enrichment-Product-Governance-Consistency-v1.md:222`
+  - EVIDENCE: `.GOV/task_packets/WP-1-Spec-Enrichment-Product-Governance-Consistency-v1.md:215`
+  - EVIDENCE: `.GOV/task_packets/WP-1-Spec-Enrichment-Product-Governance-Consistency-v1.md:223`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
