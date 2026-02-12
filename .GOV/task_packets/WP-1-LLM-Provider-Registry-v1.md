@@ -382,12 +382,23 @@ git revert <commit-sha>
   - EXIT_CODE: 0
   - PROOF_LINES:
     - `running 174 tests`
-    - `test result: ok. 5 passed; 0 failed`
+    - `test result: ok. 174 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out`
 
 - COMMAND: `just product-scan`
   - EXIT_CODE: 0
   - PROOF_LINES:
     - `validator-scan: PASS - no forbidden patterns detected in backend/frontend sources.`
+
+- COMMAND: `just cargo-clean`
+  - EXIT_CODE: 0
+  - PROOF_LINES:
+    - `Removed 1768 files, 11.8GiB total`
+
+- COMMAND: `just post-work WP-1-LLM-Provider-Registry-v1 --range fadbbeb81693b7aa82ecd7eb8eca78dfc28c0049..HEAD`
+  - EXIT_CODE: 0
+  - PROOF_LINES:
+    - `Git range: fadbbeb81693b7aa82ecd7eb8eca78dfc28c0049..`
+    - `Post-work validation PASSED (deterministic manifest gate; not tests) with warnings`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
