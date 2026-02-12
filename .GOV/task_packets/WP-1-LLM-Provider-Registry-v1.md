@@ -32,6 +32,9 @@
   - .GOV/refinements/WP-1-LLM-Provider-Registry-v1.md
   - src/backend/handshake_core/src/llm/mod.rs
   - src/backend/handshake_core/src/llm/ollama.rs
+  - src/backend/handshake_core/src/llm/registry.rs
+  - src/backend/handshake_core/src/llm/openai_compat.rs
+  - src/backend/handshake_core/src/llm/guard.rs
   - src/backend/handshake_core/src/main.rs
   - src/backend/handshake_core/src/workflows.rs
 - OUT_OF_SCOPE:

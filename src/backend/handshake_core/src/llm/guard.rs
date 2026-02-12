@@ -230,3 +230,221 @@ impl LlmClient for CloudEscalationGuard {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::llm::{CompletionResponse, ModelProfile, TokenUsage};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use uuid::Uuid;
+
+    struct CountingClient {
+        calls: AtomicUsize,
+        profile: ModelProfile,
+    }
+
+    impl CountingClient {
+        fn new(tier: ModelTier) -> Self {
+            Self {
+                calls: AtomicUsize::new(0),
+                profile: ModelProfile::new("counting".to_string(), 1).with_tier(tier),
+            }
+        }
+
+        fn calls(&self) -> usize {
+            self.calls.load(Ordering::SeqCst)
+        }
+    }
+
+    #[async_trait]
+    impl LlmClient for CountingClient {
+        async fn completion(&self, _req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            Ok(CompletionResponse {
+                text: "ok".to_string(),
+                usage: TokenUsage {
+                    prompt_tokens: 1,
+                    completion_tokens: 1,
+                    total_tokens: 2,
+                },
+                latency_ms: 1,
+            })
+        }
+
+        fn profile(&self) -> &ModelProfile {
+            &self.profile
+        }
+    }
+
+    fn compute_prompt_sha256(prompt: &str) -> String {
+        let mut h = Sha256::new();
+        h.update(prompt.as_bytes());
+        hex::encode(h.finalize())
+    }
+
+    fn valid_consent_for_prompt(prompt: &str) -> CloudConsentArtifacts {
+        let payload_sha256 = compute_prompt_sha256(prompt);
+        let projection_plan_id = "pp-1".to_string();
+        CloudConsentArtifacts {
+            projection_plan: ProjectionPlanV0_4 {
+                schema_version: "hsk.projection_plan@0.4".to_string(),
+                projection_plan_id: projection_plan_id.clone(),
+                include_artifact_refs: Vec::new(),
+                include_fields: None,
+                redactions_applied: vec!["secrets".to_string()],
+                max_bytes: 1024,
+                payload_sha256: payload_sha256.clone(),
+                created_at: "1970-01-01T00:00:00Z".to_string(),
+                job_id: None,
+                wp_id: None,
+                mt_id: None,
+            },
+            consent_receipt: ConsentReceiptV0_4 {
+                schema_version: "hsk.consent_receipt@0.4".to_string(),
+                consent_receipt_id: "cr-1".to_string(),
+                projection_plan_id,
+                payload_sha256,
+                approved: true,
+                approved_at: "1970-01-01T00:00:00Z".to_string(),
+                user_id: "user-1".to_string(),
+                ui_surface: None,
+                notes: None,
+            },
+        }
+    }
+
+    #[tokio::test]
+    async fn locked_governance_denies_cloud_escalation_without_calling_inner() {
+        let inner = Arc::new(CountingClient::new(ModelTier::Cloud));
+        let guard = CloudEscalationGuard::new(
+            inner.clone(),
+            CloudEscalationPolicy {
+                governance_mode: RuntimeGovernanceMode::Locked,
+                cloud_escalation_allowed: true,
+            },
+            None,
+        );
+
+        let req = CompletionRequest::new(
+            Uuid::new_v4(),
+            "hello".to_string(),
+            "cloud-model".to_string(),
+        );
+        let err = match guard.completion(req).await {
+            Ok(_) => {
+                assert!(false, "expected GovernanceLocked error");
+                return;
+            }
+            Err(err) => err,
+        };
+
+        assert!(matches!(err, LlmError::GovernanceLocked));
+        assert_eq!(inner.calls(), 0);
+    }
+
+    #[tokio::test]
+    async fn policy_disallowed_denies_cloud_escalation_without_calling_inner() {
+        let inner = Arc::new(CountingClient::new(ModelTier::Cloud));
+        let guard = CloudEscalationGuard::new(
+            inner.clone(),
+            CloudEscalationPolicy {
+                governance_mode: RuntimeGovernanceMode::GovStandard,
+                cloud_escalation_allowed: false,
+            },
+            Some(valid_consent_for_prompt("hello")),
+        );
+
+        let req =
+            CompletionRequest::new(Uuid::new_v4(), "hello".to_string(), "cloud-model".to_string());
+        let err = match guard.completion(req).await {
+            Ok(_) => {
+                assert!(false, "expected CloudEscalationDenied error");
+                return;
+            }
+            Err(err) => err,
+        };
+
+        assert!(matches!(err, LlmError::CloudEscalationDenied));
+        assert_eq!(inner.calls(), 0);
+    }
+
+    #[tokio::test]
+    async fn consent_missing_denies_cloud_escalation_without_calling_inner() {
+        let inner = Arc::new(CountingClient::new(ModelTier::Cloud));
+        let guard = CloudEscalationGuard::new(
+            inner.clone(),
+            CloudEscalationPolicy {
+                governance_mode: RuntimeGovernanceMode::GovStandard,
+                cloud_escalation_allowed: true,
+            },
+            None,
+        );
+
+        let req =
+            CompletionRequest::new(Uuid::new_v4(), "hello".to_string(), "cloud-model".to_string());
+        let err = match guard.completion(req).await {
+            Ok(_) => {
+                assert!(false, "expected CloudConsentRequired error");
+                return;
+            }
+            Err(err) => err,
+        };
+
+        assert!(matches!(err, LlmError::CloudConsentRequired));
+        assert_eq!(inner.calls(), 0);
+    }
+
+    #[tokio::test]
+    async fn consent_mismatch_denies_cloud_escalation_without_calling_inner() {
+        let inner = Arc::new(CountingClient::new(ModelTier::Cloud));
+        let mut artifacts = valid_consent_for_prompt("hello");
+        artifacts.projection_plan.payload_sha256 = "bad".to_string();
+
+        let guard = CloudEscalationGuard::new(
+            inner.clone(),
+            CloudEscalationPolicy {
+                governance_mode: RuntimeGovernanceMode::GovStandard,
+                cloud_escalation_allowed: true,
+            },
+            Some(artifacts),
+        );
+
+        let req =
+            CompletionRequest::new(Uuid::new_v4(), "hello".to_string(), "cloud-model".to_string());
+        let err = match guard.completion(req).await {
+            Ok(_) => {
+                assert!(false, "expected CloudConsentMismatch error");
+                return;
+            }
+            Err(err) => err,
+        };
+
+        assert!(matches!(err, LlmError::CloudConsentMismatch(_)));
+        assert_eq!(inner.calls(), 0);
+    }
+
+    #[tokio::test]
+    async fn valid_policy_and_consent_allows_cloud_call() {
+        let inner = Arc::new(CountingClient::new(ModelTier::Cloud));
+        let guard = CloudEscalationGuard::new(
+            inner.clone(),
+            CloudEscalationPolicy {
+                governance_mode: RuntimeGovernanceMode::GovStandard,
+                cloud_escalation_allowed: true,
+            },
+            Some(valid_consent_for_prompt("hello")),
+        );
+
+        let req =
+            CompletionRequest::new(Uuid::new_v4(), "hello".to_string(), "cloud-model".to_string());
+        let resp = match guard.completion(req).await {
+            Ok(resp) => resp,
+            Err(err) => {
+                assert!(false, "expected completion Ok, got err: {err}");
+                return;
+            }
+        };
+
+        assert_eq!(resp.text, "ok");
+        assert_eq!(inner.calls(), 1);
+    }
+}

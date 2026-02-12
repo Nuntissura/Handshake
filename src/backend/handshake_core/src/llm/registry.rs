@@ -47,6 +47,7 @@ pub struct ResolvedProvider {
     pub tier: ModelTier,
     pub base_url: String,
     pub model_id: String,
+    pub api_key_env: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -196,6 +197,7 @@ impl ProviderRegistry {
             tier: record.tier,
             base_url: record.base_url.clone(),
             model_id: assignment.model_id.clone(),
+            api_key_env: record.api_key_env.clone(),
         })
     }
 }
@@ -312,4 +314,189 @@ fn is_disallowed_cloud_ipv6(ip: &Ipv6Addr) -> bool {
         return true;
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    struct EnvGuard {
+        key: &'static str,
+        previous: Option<String>,
+    }
+
+    impl EnvGuard {
+        fn set(key: &'static str, value: &str) -> Self {
+            let previous = std::env::var(key).ok();
+            std::env::set_var(key, value);
+            Self { key, previous }
+        }
+
+        fn remove(key: &'static str) -> Self {
+            let previous = std::env::var(key).ok();
+            std::env::remove_var(key);
+            Self { key, previous }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            match &self.previous {
+                Some(previous) => std::env::set_var(self.key, previous),
+                None => std::env::remove_var(self.key),
+            }
+        }
+    }
+
+    #[test]
+    fn validate_base_url_local_allows_http_and_localhost() {
+        let base_url = match validate_base_url_for_tier("http://localhost:1234/", ModelTier::Local)
+        {
+            Ok(value) => value,
+            Err(err) => {
+                assert!(false, "expected Ok, got Err: {err}");
+                return;
+            }
+        };
+        assert_eq!(base_url, "http://localhost:1234");
+    }
+
+    #[test]
+    fn validate_base_url_cloud_requires_https() {
+        let err = match validate_base_url_for_tier("http://example.com", ModelTier::Cloud) {
+            Ok(_) => {
+                assert!(false, "expected Err(SsrBlocked)");
+                return;
+            }
+            Err(err) => err,
+        };
+
+        assert!(matches!(err, LlmError::SsrBlocked(_)));
+    }
+
+    #[test]
+    fn validate_base_url_cloud_blocks_localhost_name() {
+        let err = match validate_base_url_for_tier("https://localhost:1234", ModelTier::Cloud) {
+            Ok(_) => {
+                assert!(false, "expected Err(SsrBlocked)");
+                return;
+            }
+            Err(err) => err,
+        };
+
+        assert!(matches!(err, LlmError::SsrBlocked(_)));
+    }
+
+    #[test]
+    fn validate_base_url_cloud_blocks_private_ip() {
+        let err = match validate_base_url_for_tier("https://127.0.0.1:443", ModelTier::Cloud) {
+            Ok(_) => {
+                assert!(false, "expected Err(SsrBlocked)");
+                return;
+            }
+            Err(err) => err,
+        };
+
+        assert!(matches!(err, LlmError::SsrBlocked(_)));
+    }
+
+    #[test]
+    fn validate_base_url_blocks_embedded_credentials() {
+        let err = match validate_base_url_for_tier("https://user:pass@example.com", ModelTier::Local)
+        {
+            Ok(_) => {
+                assert!(false, "expected Err(InvalidBaseUrl)");
+                return;
+            }
+            Err(err) => err,
+        };
+
+        assert!(matches!(err, LlmError::InvalidBaseUrl(_)));
+    }
+
+    #[test]
+    fn provider_registry_from_env_ollama_is_deterministic_for_roles() {
+        let _lock = match ENV_LOCK.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+
+        let _provider = EnvGuard::set("HANDSHAKE_LLM_PROVIDER", "ollama");
+        let _url = EnvGuard::set("OLLAMA_URL", "http://localhost:11434/");
+        let _model = EnvGuard::set("OLLAMA_MODEL", "llama3-test");
+        let _openai_base = EnvGuard::remove("OPENAI_COMPAT_BASE_URL");
+        let _openai_model = EnvGuard::remove("OPENAI_COMPAT_MODEL");
+        let _openai_tier = EnvGuard::remove("OPENAI_COMPAT_TIER");
+
+        let registry = match ProviderRegistry::from_env() {
+            Ok(value) => value,
+            Err(err) => {
+                assert!(false, "expected Ok registry, got Err: {err}");
+                return;
+            }
+        };
+
+        for role in [
+            RuntimeRole::Frontend,
+            RuntimeRole::Orchestrator,
+            RuntimeRole::Worker,
+            RuntimeRole::Validator,
+        ] {
+            let resolved = match registry.resolve(role) {
+                Ok(value) => value,
+                Err(err) => {
+                    assert!(false, "resolve({role:?}) returned Err: {err}");
+                    return;
+                }
+            };
+            assert_eq!(resolved.provider_id, "ollama");
+            assert!(matches!(resolved.kind, ProviderKind::Ollama));
+            assert_eq!(resolved.base_url, "http://localhost:11434");
+            assert_eq!(resolved.model_id, "llama3-test");
+            assert!(matches!(resolved.tier, ModelTier::Local));
+            assert!(resolved.api_key_env.is_none());
+        }
+    }
+
+    #[test]
+    fn provider_registry_from_env_openai_compat_propagates_api_key_env() {
+        let _lock = match ENV_LOCK.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+
+        let _provider = EnvGuard::set("HANDSHAKE_LLM_PROVIDER", "openai_compat");
+        let _base = EnvGuard::set("OPENAI_COMPAT_BASE_URL", "http://127.0.0.1:1234/");
+        let _model = EnvGuard::set("OPENAI_COMPAT_MODEL", "test-model");
+        let _tier = EnvGuard::set("OPENAI_COMPAT_TIER", "local");
+        let _api_key_env = EnvGuard::set("OPENAI_COMPAT_API_KEY_ENV", "TEST_OPENAI_KEY");
+        let _ollama_url = EnvGuard::remove("OLLAMA_URL");
+        let _ollama_model = EnvGuard::remove("OLLAMA_MODEL");
+
+        let registry = match ProviderRegistry::from_env() {
+            Ok(value) => value,
+            Err(err) => {
+                assert!(false, "expected Ok registry, got Err: {err}");
+                return;
+            }
+        };
+
+        let resolved = match registry.resolve(RuntimeRole::Orchestrator) {
+            Ok(value) => value,
+            Err(err) => {
+                assert!(false, "resolve returned Err: {err}");
+                return;
+            }
+        };
+
+        assert_eq!(resolved.provider_id, "openai_compat");
+        assert!(matches!(resolved.kind, ProviderKind::OpenAiCompat));
+        assert_eq!(resolved.base_url, "http://127.0.0.1:1234");
+        assert_eq!(resolved.model_id, "test-model");
+        assert!(matches!(resolved.tier, ModelTier::Local));
+        assert_eq!(resolved.api_key_env, Some("TEST_OPENAI_KEY".to_string()));
+    }
 }
