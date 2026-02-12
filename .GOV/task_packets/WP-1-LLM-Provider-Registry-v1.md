@@ -9,9 +9,9 @@
 - REQUESTOR: ilja (Operator)
 - AGENT_ID: CodexCLI-GPT-5.2
 - ROLE: Orchestrator
-- AGENTIC_MODE: NO (YES | NO)
-- ORCHESTRATOR_MODEL: N/A (required if AGENTIC_MODE=YES)
-- ORCHESTRATION_STARTED_AT_UTC: N/A (RFC3339 UTC; required if AGENTIC_MODE=YES)
+- AGENTIC_MODE: NO
+- ORCHESTRATOR_MODEL: N/A
+- ORCHESTRATION_STARTED_AT_UTC: N/A
 - CODER_MODEL: <unclaimed>
 - CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
 - **Status:** Ready for Dev
@@ -200,4 +200,3 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
-
