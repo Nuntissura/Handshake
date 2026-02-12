@@ -197,7 +197,8 @@ git revert <commit-sha>
   - EVIDENCE: `Handshake_Master_Spec_v02.126.md:28515`
   - EVIDENCE: `Handshake_Master_Spec_v02.126.md:28519`
   - REQUIREMENT: "Spec regression + deterministic gates executed per TEST_PLAN."
-  - EVIDENCE: `.GOV/task_packets/WP-1-Spec-Enrichment-Product-Governance-Consistency-v1.md:171`
+  - EVIDENCE: `.GOV/task_packets/WP-1-Spec-Enrichment-Product-Governance-Consistency-v1.md:214`
+  - EVIDENCE: `.GOV/task_packets/WP-1-Spec-Enrichment-Product-Governance-Consistency-v1.md:222`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
@@ -216,6 +217,14 @@ git revert <commit-sha>
   - COMMAND: `just cargo-clean`
   - EXIT_CODE: 0
   - PROOF_LINES: `Removed 0 files`
+
+  - COMMAND: `just post-work WP-1-Spec-Enrichment-Product-Governance-Consistency-v1`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `Post-work validation PASSED`
+
+  - COMMAND: `just post-work WP-1-Spec-Enrichment-Product-Governance-Consistency-v1 --range fadbbeb81693b7aa82ecd7eb8eca78dfc28c0049..HEAD`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `Post-work validation PASSED`
   - LOG_PATH: `.handshake/logs/WP-1-Spec-Enrichment-Product-Governance-Consistency-v1/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
