@@ -1,4 +1,4 @@
-﻿# Handshake Project Task Board (Phase 1: EXHAUSTIVE STRATEGIC AUDIT)
+# Handshake Project Task Board (Phase 1: EXHAUSTIVE STRATEGIC AUDIT)
 
 ## Spec Authority Rule [CX-598] (HARD INVARIANT)
 
@@ -50,7 +50,6 @@ Entry format (recommended):
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
 
-- **[WP-1-Product-Governance-Snapshot-v4]** - [READY_FOR_DEV]
 
 ## Stub Backlog (Not Activated)
 - **[WP-1-Spec-Enrichment-Product-Governance-Consistency-v1]** - [STUB]
@@ -101,6 +100,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 
 ## Done
 - **[WP-1-Runtime-Governance-NoExpect-v1]** - [VALIDATED]
+- **[WP-1-Product-Governance-Snapshot-v4]** - [VALIDATED]
 - **[WP-1-Flight-Recorder-v4]** - [VALIDATED]
 - **[WP-1-Supply-Chain-Cargo-Deny-Clean-v1]** - [VALIDATED]
 - **[WP-1-Artifact-System-Foundations-v1]** - [VALIDATED]
