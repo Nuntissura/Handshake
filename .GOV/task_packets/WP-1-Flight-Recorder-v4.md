@@ -114,8 +114,29 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+    - Keep public API unchanged:
+      - `DuckDbFlightRecorder::new_on_path(path: &Path, retention_days: u32) -> Result<Self, RecorderError>`
+    - Change internal schema init ordering in `DuckDbFlightRecorder::init_schema()`:
+      1) `CREATE TABLE IF NOT EXISTS events (...)` (table only; no indexes yet)
+      2) Additive migrations for legacy DBs:
+         - `ALTER TABLE events ADD COLUMN IF NOT EXISTS trace_id UUID;`
+         - (plus other existing `ALTER TABLE ... ADD COLUMN IF NOT EXISTS ...` statements already present)
+      3) Create indexes AFTER migrations:
+         - `CREATE INDEX IF NOT EXISTS idx_events_trace_id ON events(trace_id);`
+         - `CREATE INDEX IF NOT EXISTS idx_events_job_id ON events(job_id);`
+         - `CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);`
+    - (Optional refactor) extract helpers to make ordering explicit and testable:
+      - `fn ensure_events_table(conn: &DuckDbConnection) -> Result<(), RecorderError>`
+      - `fn migrate_events_table_additive(conn: &DuckDbConnection) -> Result<(), RecorderError>`
+      - `fn ensure_events_indexes(conn: &DuckDbConnection) -> Result<(), RecorderError>`
+  - Regression test (in same file test module):
+    - Create a legacy on-disk DuckDB file whose `events` table lacks `trace_id`.
+    - Assert `DuckDbFlightRecorder::new_on_path(&path, 7)` succeeds (this will fail on current buggy ordering due to index creation before migration).
 - Open questions:
+  - Should the regression test also assert the trace/job/timestamp indexes exist via DuckDB introspection (PRAGMA)? (Optional; constructor success already implies index creation did not fail.)
 - Notes:
+  - Keep migrations additive/idempotent; do NOT backfill legacy rows; migrated `trace_id` remains nullable for old rows (OUT_OF_SCOPE explicitly forbids forced population).
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: NO
@@ -170,8 +191,8 @@ git revert <commit-sha>
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
 - Current WP_STATUS: In Progress
-- What changed in this update: BOOTSTRAP started; ran `just pre-work WP-1-Flight-Recorder-v4`; no product code changes yet.
-- Next step / handoff hint: Propose SKELETON for schema-init ordering + legacy DB regression test; await "SKELETON APPROVED" before implementation.
+- What changed in this update: SKELETON drafted (schema-init ordering + legacy DB regression test); no product code changes yet.
+- Next step / handoff hint: Begin IMPLEMENTATION in `src/backend/handshake_core/src/flight_recorder/duckdb.rs` (reorder init_schema + add regression test), then run TEST_PLAN + post-work gate.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
