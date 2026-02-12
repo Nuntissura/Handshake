@@ -131,14 +131,33 @@ git revert <commit-sha>
     - `struct RoleAssignment { role: RuntimeRole, provider_id, model_id }`
     - `struct ResolvedProvider { provider_id, kind, tier: ModelTier, base_url, model_id }`
     - `struct ProviderRegistry { providers: BTreeMap<String, ProviderRecord>, assignments: BTreeMap<RuntimeRole, RoleAssignment> }`
-    - `impl ProviderRegistry { fn from_env() -> Result<Self, RegistryError>; fn resolve(&self, role: RuntimeRole) -> Result<ResolvedProvider, RegistryError> }`
+    - `impl ProviderRegistry { fn from_env() -> Result<Self, LlmError>; fn resolve(&self, role: RuntimeRole) -> Result<ResolvedProvider, LlmError> }`
   - `src/backend/handshake_core/src/llm/openai_compat.rs`
     - `struct OpenAiCompatAdapter { base_url, profile: ModelProfile, client: reqwest::Client, flight_recorder, api_key: ApiKey(redacted) }`
     - Minimal OpenAI-compatible `/v1/chat/completions` request/response structs (prompt -> single user message; extract first choice text; map usage)
     - Emits `FlightRecorderEventType::LlmInference` with `trace_id`, `model_id`, token usage, latency, prompt_hash/response_hash; no raw prompt/payload.
-  - `src/backend/handshake_core/src/llm/guard.rs` (or inline in registry module)
-    - `struct CloudEscalationGuard { inner: Arc<dyn LlmClient>, cloud_escalation_allowed: bool }`
-    - Enforcement: if `inner.profile().model_tier == ModelTier::Cloud` and `cloud_escalation_allowed == false` => hard-block before network call (stable error code string).
+  - `src/backend/handshake_core/src/llm/guard.rs`
+    - `enum RuntimeGovernanceMode { Locked, GovStrict, GovStandard, GovLight }`
+    - `struct CloudEscalationPolicy { governance_mode: RuntimeGovernanceMode, cloud_escalation_allowed: bool }`
+      - Source of truth (v1): env vars loaded at backend startup (default-deny):
+        - `HANDSHAKE_GOVERNANCE_MODE` in {`locked`, `gov_strict`, `gov_standard`, `gov_light`}; default: `gov_standard`
+        - `HANDSHAKE_CLOUD_ESCALATION_ALLOWED` in {`true`, `false`}; default: `false`
+      - Spec mapping: `RuntimeGovernanceMode::Locked` is the spec’s GovernanceMode `LOCKED` (cloud escalation MUST be denied).
+    - Consent artifacts (v1):
+      - `ProjectionPlanV0_4` (`hsk.projection_plan@0.4`) + `ConsentReceiptV0_4` (`hsk.consent_receipt@0.4`) loaded from env vars:
+        - `HANDSHAKE_CLOUD_PROJECTION_PLAN_JSON`
+        - `HANDSHAKE_CLOUD_CONSENT_RECEIPT_JSON`
+      - If either is missing, Cloud tier calls hard-block (no network call attempted).
+      - Binding enforcement (spec): `ConsentReceipt.payload_sha256` MUST equal `ProjectionPlan.payload_sha256` and `ConsentReceipt.projection_plan_id` MUST match.
+      - Payload hash model (v1): `payload_sha256 = sha256(CompletionRequest.prompt UTF-8 bytes)`; no raw prompt logged.
+    - `struct CloudEscalationGuard { inner: Arc<dyn LlmClient>, policy: CloudEscalationPolicy, consent: Option<CloudConsentArtifacts> }`
+      - Enforcement order for `ModelTier::Cloud`:
+        1) If `policy.governance_mode == Locked` => deny
+        2) If `policy.cloud_escalation_allowed == false` => deny
+        3) If consent artifacts missing => deny
+        4) If consent artifacts do not bind / hash mismatch => deny
+        5) Else => allow call to inner client
+      - Consent is required for *any* cloud escalation (no exceptions) per spec.
   - `src/backend/handshake_core/src/main.rs`
     - Replace Ollama-only startup wiring with ProviderRegistry resolution (initially one resolved role used for backend runtime; structure supports per-role later).
     - Base URL validation helper for OpenAI-compatible provider (SSRF: treat env-provided base_url as untrusted; reject obviously unsafe hosts for Cloud tier unless policy explicitly allows).
@@ -146,22 +165,31 @@ git revert <commit-sha>
     - `ProviderRegistry::from_env` deterministic resolution tests (incl. per-role overrides)
     - `OpenAiCompatAdapter` completion tested against local axum mock server (no real network)
     - Cloud policy guard test: when disallowed, adapter returns deterministic error and mock server sees 0 requests
+    - Consent guard tests:
+      - Missing artifacts => deterministic deny
+      - Mismatched/bad artifacts => deterministic deny
 
 - Open questions / assumptions:
-  - Where is the authoritative "cloud escalation allowed" runtime policy sourced for non-micro-task flows (env var vs persisted runtime governance)? Proposed initial: env var (default deny) until Work Profiles are wired.
-  - ConsentReceipt / ProjectionPlan enforcement: implement minimal hard-block hook (and FR events) now, or defer until consent artifacts storage path exists?
-  - For OpenAI compatibility: prefer `/v1/chat/completions` only (most compatible) vs `/v1/completions` fallback?
+  - NONE (All security-critical governance/consent behaviors are pinned for v1. Future wiring to Work Profiles/runtime governance can refine policy sources without changing enforcement semantics.)
 
 - Notes:
   - No secrets (API keys) logged or stored in Flight Recorder/debug bundles; API key only read from env at runtime and held in-memory with redacted Debug/Display.
   - All base_url strings trimmed of trailing `/`; do not allow embedding credentials in URL.
+  - Error codes (typed, deterministic) returned by the new guard/registry surfaces (modeled as `LlmError` variants in `src/backend/handshake_core/src/llm/mod.rs`):
+    - `HSK-400-INVALID-BASE-URL`: base_url parse/scheme/credentials invalid
+    - `HSK-403-SSRF-BLOCKED`: base_url host is disallowed for Cloud tier (loopback/private/link-local/etc.)
+    - `HSK-403-CLOUD-ESCALATION-DENIED`: cloud escalation disallowed by policy
+    - `HSK-403-GOVERNANCE-LOCKED`: governance mode is LOCKED => cloud escalation denied
+    - `HSK-403-CLOUD-CONSENT-REQUIRED`: consent artifacts missing (ProjectionPlan + ConsentReceipt)
+    - `HSK-403-CLOUD-CONSENT-MISMATCH`: consent receipt does not bind to projection plan or payload hash mismatch
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
 - TRUST_BOUNDARY: server->network (LLM provider HTTP); env/config inputs are untrusted; cloud export requires explicit policy/consent.
 - SERVER_SOURCES_OF_TRUTH:
   - Provider selection/config resolved by ProviderRegistry (server-side; deterministic env inputs; base_url validated)
-  - Cloud escalation allowed flag (server-side policy; default-deny)
+  - Cloud escalation policy (server-side; default-deny; governance LOCKED denies)
+  - Consent artifacts (ProjectionPlan + ConsentReceipt) (server-side; required for any Cloud tier call)
   - Flight Recorder events emitted by adapter (server-derived model/provider identity; do not trust client provenance)
 - REQUIRED_PROVENANCE_FIELDS:
   - `trace_id` (required), `provider_id`, `model_id`, `model_tier`, `token_usage`, `latency_ms`, `prompt_hash`, `response_hash`
@@ -171,9 +199,13 @@ git revert <commit-sha>
   - Guard test proving cloud-tier calls are blocked when policy disallows (no outbound HTTP attempted)
   - Regression check: Flight Recorder payload contains hashes/usage but no raw prompt or secrets
 - ERROR_TAXONOMY_PLAN:
-  - Invalid base_url / SSRF guard: deterministic provider config error (stable code string)
-  - Cloud policy disallowed: deterministic hard-block error (stable code string)
-  - Provider/network errors: mapped to `LlmError::ProviderError(...)` with stable prefix code
+  - Invalid base_url: `LlmError::InvalidBaseUrl` => `HSK-400-INVALID-BASE-URL`
+  - SSRF blocked: `LlmError::SsrBlocked` => `HSK-403-SSRF-BLOCKED`
+  - Governance LOCKED: `LlmError::GovernanceLocked` => `HSK-403-GOVERNANCE-LOCKED`
+  - Cloud policy disallowed: `LlmError::CloudEscalationDenied` => `HSK-403-CLOUD-ESCALATION-DENIED`
+  - Consent missing: `LlmError::CloudConsentRequired` => `HSK-403-CLOUD-CONSENT-REQUIRED`
+  - Consent mismatch: `LlmError::CloudConsentMismatch` => `HSK-403-CLOUD-CONSENT-MISMATCH`
+  - Provider/network errors: `LlmError::ProviderError(...)` (retains HSK-500-LLM envelope; message includes stable sub-code where applicable)
 - UI_GUARDRAILS:
   - Out of scope (no UI changes); backend returns deterministic errors for surfaces to render/handle later.
 - VALIDATOR_ASSERTIONS:
