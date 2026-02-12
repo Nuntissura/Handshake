@@ -1,0 +1,31 @@
+{
+  "validation_sessions": {
+    "WP-1-Flight-Recorder-v4": {
+      "wpId": "WP-1-Flight-Recorder-v4",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-02-12T03:37:19.342Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-02-12T03:37:19.342Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-02-12T04:02:38.122Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-02-12T04:03:59.283Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-02-12T04:05:53.614Z"
+        }
+      ],
+      "completed": "2026-02-12T04:05:53.615Z"
+    }
+  },
+  "archived_sessions": []
+}

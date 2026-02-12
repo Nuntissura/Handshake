@@ -101,6 +101,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 
 ## Done
 - **[WP-1-Runtime-Governance-NoExpect-v1]** - [VALIDATED]
+- **[WP-1-Flight-Recorder-v4]** - [VALIDATED]
 - **[WP-1-Supply-Chain-Cargo-Deny-Clean-v1]** - [VALIDATED]
 - **[WP-1-Artifact-System-Foundations-v1]** - [VALIDATED]
 - **[WP-1-Model-Swap-Protocol-v1]** - [VALIDATED]
