@@ -194,8 +194,8 @@ git revert <commit-sha>
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
 - Current WP_STATUS: In Progress
-- What changed in this update: Implemented schema init ordering fix + added legacy DB regression test (including index existence assertion via DuckDB introspection); staged product change in `src/backend/handshake_core/src/flight_recorder/duckdb.rs`.
-- Next step / handoff hint: Run `just post-work WP-1-Flight-Recorder-v4` (staged diff gate), then commit, then run `just post-work WP-1-Flight-Recorder-v4 --range 8e3092d65fc485d8b4497adc51da703c3f9678da..HEAD` per TEST_PLAN.
+- What changed in this update: Implemented schema init ordering fix + added legacy DB regression test (including index existence assertion via DuckDB introspection); ran backend tests and post-work gate; committed implementation.
+- Next step / handoff hint: Validator audit + review packet evidence/mapping; if needed, rerun `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` and `just post-work WP-1-Flight-Recorder-v4 --range 8e3092d65fc485d8b4497adc51da703c3f9678da..HEAD`.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
@@ -251,6 +251,18 @@ git revert <commit-sha>
   - PROOF_LINES:
     - `Diff selection: staged (staged changes present)`
     - `Post-work validation PASSED (deterministic manifest gate; not tests)`
+
+- COMMAND: `just post-work WP-1-Flight-Recorder-v4 --range 8e3092d65fc485d8b4497adc51da703c3f9678da..HEAD`
+  - EXIT_CODE: 0
+  - WORKTREE_DIR: `../wt-WP-1-Flight-Recorder-v4`
+  - BRANCH: `feat/WP-1-Flight-Recorder-v4`
+  - GIT_SHA_BEFORE: `016cf9ab8d88f7ea8868b26c12fba7024bbeb5cd`
+  - GIT_SHA_AFTER: `016cf9ab8d88f7ea8868b26c12fba7024bbeb5cd`
+  - OUTPUT_SHA256: `4e92c6bb6dd9c20ea7fa32e06d2a43b536696af95f6211414a7ad7d0769e1060`
+  - PROOF_LINES:
+    - `Diff selection: range (explicit --range)`
+    - `Git range: 8e3092d65fc485d8b4497adc51da703c3f9678da..016cf9ab8d88f7ea8868b26c12fba7024bbeb5cd`
+    - `Post-work validation PASSED (deterministic manifest gate; not tests) with warnings`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
