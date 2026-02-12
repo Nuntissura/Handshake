@@ -266,3 +266,52 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+VALIDATION REPORT - WP-1-Flight-Recorder-v4
+Verdict: PASS
+
+Validation Claims:
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Flight-Recorder-v4 --range 8e3092d65fc485d8b4497adc51da703c3f9678da..HEAD`; not tests): PASS (with warnings)
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS (optional `pnpm -C app tauri dev` not run)
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Flight-Recorder-v4.md` (status: In Progress)
+- Refinement: `.GOV/refinements/WP-1-Flight-Recorder-v4.md` (USER_REVIEW_STATUS: APPROVED)
+- Spec target: `.GOV/roles_shared/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.125.md`
+- Spec anchors (per packet): `Handshake_Master_Spec_v02.125.md 11.5` + `Handshake_Master_Spec_v02.125.md [CX-224] BACKEND_STORAGE`
+- Merge base: `8e3092d65fc485d8b4497adc51da703c3f9678da`
+- Validated head (pre-append): `1dd326db8064f1cfab13381ebdb84f2d83091929`
+
+Files Checked:
+- `.GOV/task_packets/WP-1-Flight-Recorder-v4.md`
+- `.GOV/refinements/WP-1-Flight-Recorder-v4.md`
+- `.GOV/roles_shared/SPEC_CURRENT.md`
+- `Handshake_Master_Spec_v02.125.md`
+- `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`
+- `.GOV/roles_shared/SIGNATURE_AUDIT.md`
+- `.GOV/roles_shared/TASK_BOARD.md`
+
+Findings:
+- Requirement: legacy DB startup does not hard-fail when `events.trace_id` is missing.
+  - Satisfied by regression test: `src/backend/handshake_core/src/flight_recorder/duckdb.rs:1010`
+- Requirement: schema init ordering is migration-first, indexes-after.
+  - Satisfied by moved index creation after additive `ALTER TABLE ... ADD COLUMN IF NOT EXISTS ...`: `src/backend/handshake_core/src/flight_recorder/duckdb.rs:195` and `src/backend/handshake_core/src/flight_recorder/duckdb.rs:242`
+- Governance hygiene fix applied:
+  - `SIGNATURE_AUDIT` preserved by restoring prior consumed signature row and keeping the new row additive (commit `1dd326db...`).
+- Out-of-scope governance change present (expected for v4 activation):
+  - `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` advances active packet from `WP-1-Flight-Recorder-v3` -> `WP-1-Flight-Recorder-v4`.
+
+Tests:
+- `just pre-work WP-1-Flight-Recorder-v4`: PASS (see packet `## EVIDENCE`)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`: PASS (re-run during validation after `SIGNATURE_AUDIT` remediation)
+- `just post-work WP-1-Flight-Recorder-v4 --range 8e3092d..HEAD`: PASS (with warnings)
+
+Risks & Suggested Actions:
+- Warning: `just post-work ... --range` reports out-of-scope file(s) with waiver present [CX-573F]. This WP includes required governance bookkeeping, but the current waiver detection is overly broad (template line includes "CX-573F"); consider tightening waiver parsing in `.GOV/scripts/validation/post-work-check.mjs`.
+- Merge note: resolve `.GOV/roles_shared/TASK_BOARD.md` conflicts by keeping `WP-1-Runtime-Governance-NoExpect-v1` in Done/Validated (per `main`) and moving only this WP appropriately after merge/validation closure.
+
+REASON FOR PASS:
+- `DuckDbFlightRecorder::new_on_path(...)` is now tolerant of legacy on-disk schemas by running additive migrations before creating indexes, and a regression test covers the legacy open-path behavior.
+- The packet TEST_PLAN mechanical gates and backend tests pass on the validated head, and the deterministic `post-work --range` gate passes for the declared range (with explicit warnings only).
