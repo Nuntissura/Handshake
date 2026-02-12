@@ -5,7 +5,7 @@
 - WP_ID: WP-1-LLM-Provider-Registry-v1
 - BASE_WP_ID: WP-1-LLM-Provider-Registry (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: 2026-02-12T03:19:16.812Z
-- MERGE_BASE_SHA: fadbbeb81693b7aa82ecd7eb8eca78dfc28c0049 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: fadbbeb81693b7aa82ecd7eb8eca78dfc28c0049
 - REQUESTOR: ilja (Operator)
 - AGENT_ID: CodexCLI-GPT-5.2
 - ROLE: Orchestrator
