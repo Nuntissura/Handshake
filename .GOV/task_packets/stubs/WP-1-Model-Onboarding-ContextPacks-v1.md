@@ -75,6 +75,23 @@ Rules:
 - Context Pack assembly is deterministic: same inputs -> same pack hash.
 - Context Packs do not embed repo-absolute paths or host-specific drive letters.
 
+## DESIGN_SKETCH (DRAFT)
+- Artifact format:
+  - Emit packs as versioned JSON with a canonical serialization (stable key ordering) and a
+    `sha256` content hash recorded in lifecycle telemetry.
+- Minimum schema (illustrative, not final):
+  - `pack_version`, `role_id`, `governance_mode`, `allowed_tools`, `lock_paths`,
+    `spec_target` (resolved), `codex_refs`/`protocol_refs`, `work_unit_id` (WP/MT), and
+    `verification_contract` (what checks/gates must run).
+  - Provider/model identifiers: `(provider_id, model_id, tier)` for the effective invocation target.
+- Swap/escalation invariants:
+  - On ModelSwap/escalation: emit a new pack (or reuse only if byte-identical) and record
+    requested vs effective pack hashes.
+  - Any pack that implies Cloud tier MUST trigger consent/leakage gating pathways (no silent upgrades).
+- Redaction:
+  - Packs MUST NOT contain secrets or raw sensitive payloads; any sensitive references should be
+    indirect handles with explicit policy.
+
 ## VALIDATOR_RUBRIC_HOOKS (DRAFT)
 - Determinism: stable ordering + hashing; swap/escalation produces traceable pack hashes (requested vs effective).
 - Governance fidelity: role and codex/protocol constraints do not change across providers or swaps.

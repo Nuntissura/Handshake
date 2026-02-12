@@ -116,6 +116,23 @@ Rules:
 - Risk: decisions about task packet refs (path vs artifact handle) require agreement. Mitigation:
   specify a stable ref type in the spec first; code can follow later.
 
+## PROPOSED_SPEC_ENRICHMENT_SKELETON (DRAFT)
+- Add a single normative "Governance State Vocabulary" subsection in the Master Spec that defines:
+  - Repo Governance Workspace: files under repo `.GOV/**` (and any `docs/**` bundles) used only to
+    author/build/validate Handshake itself; NOT runtime dependencies.
+  - Product Runtime Governance State Root: the workspace-owned, project-agnostic root directory
+    where Handshake persists governance state for arbitrary projects (examples must be drive-agnostic).
+- Add explicit invariants (mechanically checkable):
+  - Runtime MUST NOT read/write repo `.GOV/**` or `docs/**` as part of correctness.
+  - Runtime MUST NOT require absolute paths or host-specific drive letters in canonical examples.
+- Task Board + Work Packets references:
+  - Define a canonical runtime Task Board reference type (path or artifact handle), and require
+    Locus/Micro-Task integrations to use ONLY that runtime reference.
+  - Define canonical runtime "Task Packet reference" semantics that do not require repo-local paths.
+- Compatibility note (only if needed):
+  - If a `docs/**` export bundle exists, it is explicitly one-way export, non-authoritative, and
+    MUST NOT be used as runtime source of truth.
+
 ## ACTIVATION_CHECKLIST (REQUIRED BEFORE ANY CODING)
 - [ ] Confirm anchor sections exist in Master Spec Main Body (not just Roadmap).
 - [ ] Produce the in-chat Technical Refinement Block (per `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`).

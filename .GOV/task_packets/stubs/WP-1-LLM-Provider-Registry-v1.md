@@ -74,6 +74,23 @@ Rules:
   - Leakage validators flag non-exportable/high-sensitivity content.
 - ModelSwapRequest can target a different provider+model and resume after fresh context compile.
 
+## DESIGN_SKETCH (DRAFT)
+- ProviderRegistry data model (minimum):
+  - `provider_id` (stable, human-readable), `provider_kind` (e.g. ollama, openai_compat),
+    `tier` (Local|Cloud), `base_url`, optional `default_model`, `created_at`, `updated_at`.
+  - Secrets (API keys/tokens) must be stored separately from normal config and must not appear in:
+    logs, debug bundles, governance pack exports, or flight recorder payloads.
+- OpenAI-compatible adapter requirements (minimum):
+  - Deterministic request assembly (temperature/top_p/max_tokens defaults documented).
+  - Policy-driven timeout + retry rules with telemetry events (no payload leakage).
+  - Best-effort `list_models()` support (allowed to be partial or cached).
+- Work Profile integration (minimum):
+  - Work Profile model assignment selects `(provider_id, model_id)` deterministically.
+  - ModelSwapRequest includes provider change with a "fresh context compile" boundary.
+- Guardrails:
+  - Any network call to Cloud tier MUST be explicitly tiered + consent gated (when policy requires).
+  - Any Cloud-tier invocation MUST be leakage-validated prior to send.
+
 ## VALIDATOR_RUBRIC_HOOKS (DRAFT)
 - Safety: cloud calls are consent-gated and leakage-guarded; secrets never appear in logs/artifacts.
 - Determinism: provider selection is stable given config; retries/timeouts are policy-defined and observable.

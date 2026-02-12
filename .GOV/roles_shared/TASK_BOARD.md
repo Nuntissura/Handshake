@@ -51,11 +51,12 @@ Entry format (recommended):
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
 
 - **[WP-1-Product-Governance-Snapshot-v4]** - [READY_FOR_DEV]
+- **[WP-1-Flight-Recorder-v4]** - [READY_FOR_DEV]
+- **[WP-1-LLM-Provider-Registry-v1]** - [READY_FOR_DEV]
+- **[WP-1-Model-Onboarding-ContextPacks-v1]** - [READY_FOR_DEV]
+- **[WP-1-Spec-Enrichment-Product-Governance-Consistency-v1]** - [READY_FOR_DEV]
 
 ## Stub Backlog (Not Activated)
-- **[WP-1-Spec-Enrichment-Product-Governance-Consistency-v1]** - [STUB]
-- **[WP-1-LLM-Provider-Registry-v1]** - [STUB]
-- **[WP-1-Model-Onboarding-ContextPacks-v1]** - [STUB]
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
 - **[WP-1-Locus-Work-Tracking-System-Phase1-v1]** - [STUB]
@@ -121,7 +122,6 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Migration-Framework-v2]** - [VALIDATED]
 - **[WP-1-ACE-Validators-v4]** - [VALIDATED]
 - **[WP-1-LLM-Core-v3]** - [VALIDATED]
-- **[WP-1-Flight-Recorder-v3]** - [VALIDATED]
 - **[WP-1-OSS-Register-Enforcement-v1]** - [VALIDATED]
 - **[WP-1-Tokenization-Service-v3]** - [VALIDATED]
 - **[WP-1-Security-Gates-v3]** - [VALIDATED]
@@ -166,6 +166,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Diagnostic-Pipe]** - [SUPERSEDED]
 - **[WP-1-Flight-Recorder]** - [SUPERSEDED]
 - **[WP-1-Flight-Recorder-v2]** - [SUPERSEDED]
+- **[WP-1-Flight-Recorder-v3]** - [SUPERSEDED]
 - **[WP-1-Workflow-Engine-v3]** - [SUPERSEDED]
 - **[WP-1-Workflow-Engine-v2]** - [SUPERSEDED]
 - **[WP-1-AI-Job-Model-v2]** - [SUPERSEDED]
