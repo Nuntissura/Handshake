@@ -402,3 +402,41 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT -- WP-1-LLM-Provider-Registry-v1
+- DATE_UTC: 2026-02-13T01:15:34.2132055Z
+- VALIDATOR_WORKTREE: P:/Handshake/Handshake Worktrees/wt-WP-1-LLM-Provider-Registry-v1
+- BRANCH: feat/WP-1-LLM-Provider-Registry-v1
+- VALIDATED_RANGE: fadbbeb81693b7aa82ecd7eb8eca78dfc28c0049..0bbf257963edd07f31b1b3561ec877c2b3beee33
+- SPEC_TARGET_RESOLVED (WP worktree): .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.125.md
+- SPEC_TARGET_NOTE: main currently resolves SPEC_CURRENT to Handshake_Master_Spec_v02.126.md (review for drift before merge if needed)
+
+Verdict: PASS
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-LLM-Provider-Registry-v1 --range fadbbeb81693b7aa82ecd7eb8eca78dfc28c0049..HEAD`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+REASON FOR PASS:
+- ProviderRegistry deterministically resolves provider_id/tier/base_url/model_id and is covered by unit tests.
+- OpenAI-compatible adapter implements `LlmClient::completion(...)`, emits Flight Recorder `llm_inference` without raw prompt/payload, and is tested against a local server.
+- Cloud tier calls are hard-blocked under GovernanceMode=LOCKED, policy deny, or missing/mismatched consent, with tests asserting no inner call is made.
+- Cloud tier base_url SSRF guard blocks obvious internal targets (https required; localhost/private ranges denied) and is covered by unit tests.
+
+Evidence (selected):
+- DONE_MEANS: deterministic registry resolution: `src/backend/handshake_core/src/llm/registry.rs:74`, `src/backend/handshake_core/src/llm/registry.rs:187`
+- DONE_MEANS: OpenAI-compatible adapter + offline test: `src/backend/handshake_core/src/llm/openai_compat.rs:197`, `src/backend/handshake_core/src/llm/openai_compat.rs:425`
+- DONE_MEANS: cloud deny + no-call tests: `src/backend/handshake_core/src/llm/guard.rs:315`, `src/backend/handshake_core/src/llm/guard.rs:345`
+- SPEC 11.1.7 normative rules: `Handshake_Master_Spec_v02.125.md:56134`, `Handshake_Master_Spec_v02.125.md:56135`, `Handshake_Master_Spec_v02.125.md:56136`
+  - Enforcement: `src/backend/handshake_core/src/llm/guard.rs:130`, `src/backend/handshake_core/src/llm/guard.rs:208`
+- Typed stable error codes (HSK-*): `src/backend/handshake_core/src/llm/mod.rs:192`
+
+Validator checks performed (spot-check):
+- Verified changed file list matches packet manifest (see `## VALIDATION`).
+- Forbidden pattern grep (unwrap/expect/todo/unimplemented/panic/println/dbg) on touched production files: no hits.
+- ASCII-only check: task packet + refinement contain no non-ASCII.
+
+Notes:
+- `just post-work` warnings about new files vs MERGE_BASE_SHA are expected (new files cannot load preimage at base).
+- Spec drift: this WP branch resolves SPEC_CURRENT to v02.125; main currently uses v02.126. No material differences were audited here.
