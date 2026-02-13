@@ -120,9 +120,63 @@ git revert <commit-sha>
   - "Provenance loss" -> "Pack items without source_refs get promoted; must drop/downgrade deterministically."
 
 ## SKELETON
-- Proposed interfaces/types/contracts:
-- Open questions:
-- Notes:
+### Proposed contracts (no logic)
+- `ContextPackPayloadV1` (spec Â§2.6.6.7.14.7): canonical JSON payload persisted in `pack_artifact`
+  - `synopsis: string` (<= 800 chars)
+  - `facts[]: {fact_id, text, source_refs[]: SourceRef, confidence: float}`
+  - `constraints[]: {constraint_id, text, source_refs[]: SourceRef, severity: (hard|soft)}`
+  - `open_loops[]: {loop_id, question, source_refs[]: SourceRef}`
+  - `anchors[]: {anchor_id, source_ref: SourceRef, excerpt_hint: string}`
+  - `coverage: {scanned_selectors[], skipped_selectors[]?}`
+- `ContextPackRecord` staleness semantics (to implement in `src/backend/handshake_core/src/ace/mod.rs`)
+  - Replace order-dependent `source_hashes: Vec<Hash>` with deterministic `source_refs: Vec<SourceRef>` (sorted by `source_id`), OR explicitly define and enforce a stable ordering rule so staleness comparison is order-independent.
+  - `is_stale(current: &[SourceRef]) -> bool` compares `source_id -> source_hash` deterministically.
+- `ContextPackKeyV1` (deterministic lookup key; artifact-backed)
+  - Inputs: `target` (CandidateRef canonical id), `policy_id`, builder {tool_id, tool_version, config_hash}, and `sources_hash` (hash over sorted `(source_id, source_hash)`).
+  - Output: stable string key (used for on-disk artifact path + retrieval).
+- `ContextPackStore` (artifact IO surface; no `.GOV/` reads)
+  - `load(key) -> Option<(ContextPackRecord, ContextPackPayloadV1)>`
+  - `write(key, record, payload) -> (record_ref, payload_ref, payload_hash)`
+  - Storage location (proposed): `data/context_packs/` (repo-relative).
+- `ContextPackFreshnessDecision` (captured in trace + artifacts)
+  - `Fresh { pack_id }`
+  - `Stale { pack_id, reason }` (records warning marker `stale_pack:<pack_id>`)
+  - `Regenerated { old_pack_id, new_pack_id }`
+
+### Runtime behavior (spec-bound)
+- Routing: attempt `StoreKind::ContextPacks` first; on fresh pack, select evidence using pack anchors/spans and set `CandidateScores.pack = Some(1.0)`.
+- Freshness: if any underlying source hash differs at retrieval time, the pack is stale and MUST NOT be treated as `pack_score=1.0`; runtime deterministically:
+  - regenerates the pack (if allowed), OR
+  - falls back to non-pack retrieval (e.g., ShadowWsLexical/ShadowWsVector) and records a stale marker.
+- Provenance binding: pack builder enforces `source_refs[]` on every fact/constraint/open_loop:
+  - missing `source_refs[]` => item is dropped or forced `confidence=0` (deterministic)
+  - such items MUST NOT be promoted to LongTermMemory.
+- Trace markers used by `ContextPackFreshnessGuard`:
+  - `stale_pack:<pack_id>`
+  - `regen_skipped:<pack_id>` only when regeneration was required by policy but not performed.
+
+- ### ModelSwapRequest fresh context compile boundary (spec Â§4.3.3.4.3)
+- `ModelSwapRequestV0_4.context_compile_ref` is treated as a required, auditable "fresh context compilation" boundary artifact.
+- On swap completion: write `context_compile_*.json` only after producing a fresh context snapshot for the target model; payload includes:
+  - `context_snapshot_ref` + `context_snapshot_hash`
+  - optional ContextPack references + hashes (if packs are used for compilation)
+  - freshness decision markers (stale/regenerated/fallback) when applicable.
+
+### Risks (high impact)
+- Order-dependent `source_hashes[]` causes false staleness or missed drift; staleness must be keyed by `source_id`.
+- Non-canonical JSON hashing produces unstable pack hashes across environments/serde versions.
+- Regen loops/thrash on repeated staleness; must be bounded and deterministic, with a defined fallback.
+- Provenance loss: pack items without `source_refs[]` accidentally promoted; must be filtered/downgraded at build time.
+- Swap drift: model swap completes without a fresh compile artifact binding; must be enforced in the swap path.
+
+### Open questions
+- What is the ContextPack "target" for MT context compilation: per-file `SourceRef`, per-MT scope hash, or per WP/workflow-run?
+- What policy field controls regeneration allowance (local-only vs capability-gated)? When should fallback be preferred over regen?
+- What is the minimal acceptable `ContextPackPayloadV1` content for Phase 1 (anchors-only vs facts/constraints/open_loops)?
+- Should stale packs be surfaced as warnings-only (fallback path) or hard errors in any modes?
+
+### Notes
+- No product code changes until "SKELETON APPROVED".
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES | NO
