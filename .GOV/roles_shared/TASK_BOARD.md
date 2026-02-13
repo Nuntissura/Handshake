@@ -52,7 +52,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 
 
 ## Stub Backlog (Not Activated)
-- **[WP-1-LLM-Provider-Registry-v1]** - [STUB]
 - **[WP-1-Model-Onboarding-ContextPacks-v1]** - [STUB]
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
@@ -99,6 +98,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 
 ## Done
 - **[WP-1-Spec-Enrichment-Product-Governance-Consistency-v1]** - [VALIDATED]
+- **[WP-1-LLM-Provider-Registry-v1]** - [VALIDATED]
 - **[WP-1-Runtime-Governance-NoExpect-v1]** - [VALIDATED]
 - **[WP-1-Product-Governance-Snapshot-v4]** - [VALIDATED]
 - **[WP-1-Flight-Recorder-v4]** - [VALIDATED]
