@@ -12,8 +12,8 @@ Requirements (HARD):
 ### METADATA
 - WP_ID: WP-1-Model-Onboarding-ContextPacks-v1
 - CREATED_AT: 2026-02-12T02:22:31.408Z
-- SPEC_TARGET_RESOLVED: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.125.md
-- SPEC_TARGET_SHA1: d16eb1eb5045e858112b2ce477f27aa0200621b0
+- SPEC_TARGET_RESOLVED: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.126.md
+- SPEC_TARGET_SHA1: 7260b4ada693263799ff39dd909653863cf0e503
 - USER_REVIEW_STATUS: APPROVED
 - USER_SIGNATURE: ilja120220260341
 - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT WP-1-Model-Onboarding-ContextPacks-v1
@@ -62,9 +62,9 @@ Requirements (HARD):
 ### SPEC_ANCHORS (REQUIRED: one or more)
 
 #### ANCHOR 1
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.125.md 2.6.6.7.14.7 ContextPacks (mechanical compaction substrate)
-- CONTEXT_START_LINE: 10633
-- CONTEXT_END_LINE: 10652
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.126.md 2.6.6.7.14.7 ContextPacks (mechanical compaction substrate)
+- CONTEXT_START_LINE: 10634
+- CONTEXT_END_LINE: 10653
 - CONTEXT_TOKEN: ContextPacks (mechanical compaction substrate)
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -90,9 +90,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 2
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.125.md 4.3.3.4 ModelSwapRequest (fresh context recompile requirement) (Normative) [ADD v02.120]
-- CONTEXT_START_LINE: 17692
-- CONTEXT_END_LINE: 17745
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.126.md 4.3.3.4.3 ModelSwapRequest (Normative) [ADD v02.120]
+- CONTEXT_START_LINE: 17693
+- CONTEXT_END_LINE: 17746
 - CONTEXT_TOKEN: ModelSwapRequest (Normative)
 - EXCERPT_ASCII_ESCAPED:
   ```text
