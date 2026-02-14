@@ -12,9 +12,9 @@
 - AGENTIC_MODE: NO
 - ORCHESTRATOR_MODEL: N/A
 - ORCHESTRATION_STARTED_AT_UTC: N/A
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: GPT-5.2
+- CODER_REASONING_STRENGTH: HIGH (LOW | MEDIUM | HIGH | EXTRA_HIGH)
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja120220260341
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -30,6 +30,8 @@
   - .GOV/task_packets/WP-1-Model-Onboarding-ContextPacks-v1.md
   - .GOV/task_packets/stubs/WP-1-Model-Onboarding-ContextPacks-v1.md
   - .GOV/refinements/WP-1-Model-Onboarding-ContextPacks-v1.md
+  - .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
+  - .GOV/roles_shared/TASK_BOARD.md
   - src/backend/handshake_core/src/ace/mod.rs
   - src/backend/handshake_core/src/ace/validators/freshness.rs
   - src/backend/handshake_core/src/workflows.rs
@@ -121,7 +123,7 @@ git revert <commit-sha>
 
 ## SKELETON
 ### Proposed contracts (no logic)
-- `ContextPackPayloadV1` (spec Â§2.6.6.7.14.7): canonical JSON payload persisted in `pack_artifact`
+- `ContextPackPayloadV1` (spec 2.6.6.7.14.7): canonical JSON payload persisted in `pack_artifact`
   - `synopsis: string` (<= 800 chars)
   - `facts[]: {fact_id, text, source_refs[]: SourceRef, confidence: float}`
   - `constraints[]: {constraint_id, text, source_refs[]: SourceRef, severity: (hard|soft)}`
@@ -141,7 +143,7 @@ git revert <commit-sha>
   - `write(key, record, payload) -> (record_ref, payload_ref, payload_hash)`
   - Storage location (proposed): `data/context_packs/` (repo-relative).
 - `ContextPackFreshnessPolicyV1` (policy knobs; stored/traceable)
-  - `regen_allowed: bool` (may regenerate on stale)
+  - `regen_allowed: bool` (effective; regeneration is capability/policy/consent-gated and may be denied)
   - `regen_required: bool` (if stale and regeneration not performed, `ContextPackFreshnessGuard` may fail; otherwise fallback + degraded)
 - `ContextPackFreshnessDecision` (captured in trace + artifacts)
   - `Fresh { pack_id }`
@@ -162,7 +164,7 @@ git revert <commit-sha>
   - `stale_pack:<pack_id>`
   - `regen_skipped:<pack_id>` only when regeneration was required by policy but not performed.
 
-- ### ModelSwapRequest fresh context compile boundary (spec Â§4.3.3.4.3)
+- ### ModelSwapRequest fresh context compile boundary (spec 4.3.3.4.3)
 - `ModelSwapRequestV0_4.context_compile_ref` is treated as a required, auditable "fresh context compilation" boundary artifact.
 - On swap completion: write `context_compile_*.json` only after producing a fresh context snapshot for the target model; payload includes:
   - `context_snapshot_ref` + `context_snapshot_hash`
@@ -179,6 +181,7 @@ git revert <commit-sha>
 ### Decisions (resolved)
 - ContextPack target: persisted packs are keyed by `SourceRef` (per-file / per-source). Per-run context compilation remains an ephemeral snapshot (not a persisted ContextPack) unless caching proves necessary.
 - Freshness policy: stale packs MUST NOT score `1.0`; runtime regenerates if `regen_allowed`, otherwise falls back. Policy exposes `regen_allowed` and `regen_required`.
+- Regen gating: regeneration is capability/policy/consent-gated (not always permitted). When regen is denied/skipped, runtime follows the same stale policy path (fallback by default, or error if `regen_required=true`).
 - Payload minimum (Phase 1): implement the full `ContextPackPayloadV1` schema surface as canonical JSON; arrays may be empty. Minimum useful builder output is `synopsis` + `anchors[]` + `coverage`.
 - Stale default: fallback + warnings/degraded (do not block the job) unless `regen_required=true`, in which case `ContextPackFreshnessGuard` may fail if regen is not performed.
 
@@ -188,7 +191,7 @@ git revert <commit-sha>
 - Audit linkage: ModelSwap context compilation (`context_compile_ref`) records snapshot refs/hashes and any ContextPack refs/hashes used.
 
 ### Open questions (remaining)
-- Should `regen_allowed` be capability-gated (local-only vs remote builder), or always permitted when a builder is available?
+- None.
 
 ### Notes
 - No product code changes until "SKELETON APPROVED".
@@ -226,53 +229,103 @@ git revert <commit-sha>
   - Stale packs never produce `pack_score=1.0` and always follow policy (regen or fallback or error).
   - Payload artifacts are canonical JSON and hash-verified; record binds `source_refs[]` deterministically.
   - Missing `source_refs[]` items are not promoted (drop/downgrade) and are traceable.
-  - ModelSwap compile artifact includes context snapshot refs/hashes and any ContextPack refs/hashes + freshness markers.
+- ModelSwap compile artifact includes context snapshot refs/hashes and any ContextPack refs/hashes + freshness markers.
+
+SKELETON APPROVED
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Added ContextPack schema surface (ContextPackRecord.source_hashes + source_refs; ContextPackPayloadV1 with synopsis/facts/constraints/open_loops/anchors/coverage) and provenance binding enforcement.
+- Implemented SourceRef-keyed ContextPack storage under `data/context_packs/<source_id>/<builder_config_hash>/` with canonical JSON payload hashing and record/payload verification.
+- Added ContextPack regeneration gating (policy + human consent + capability profile) and deterministic stale handling (regen if allowed, else fallback; emit stale_pack:/regen_skipped: markers when applicable).
+- Extended MT context compilation to prefer ContextPacks (anchors-first span extraction) with deterministic fallback to ShadowWsLexical; ensures stale packs never yield pack_score=1.0.
+- Implemented ModelSwap context compile artifact writer that records snapshot refs/hashes, ContextPack refs/hashes, and freshness markers.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Logged decision follow-ups in refinement + traceability registry.
+- Commands and logs are recorded in `## EVIDENCE` (logs in `.handshake/logs/`).
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `src/backend/handshake_core/src/ace/mod.rs`
+- **Start**: 855
+- **End**: 1350
+- **Line Delta**: 182
+- **Pre-SHA1**: `df0cde80fca24dac5d1341c30c2a4b1436abf87b`
+- **Post-SHA1**: `effe2e46c1e514ac8ec8a5a1626903316fba085a`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 - **Lint Results**:
 - **Artifacts**:
 - **Timestamp**:
 - **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.126.md
+- **Notes**:
+ 
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 4
+- **End**: 6927
+- **Line Delta**: 970
+- **Pre-SHA1**: `081288dd934723381c8394e40f4ec7eecb30161a`
+- **Post-SHA1**: `0eb2011f8e029e15b84b1eac53b414c46a1096bd`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**:
+- **Artifacts**:
+- **Timestamp**:
+- **Operator**:
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.126.md
 - **Notes**:
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
+- Current WP_STATUS: In Progress
 - What changed in this update:
+  - Implemented SourceRef-keyed ContextPacks retrieval + freshness policy (regen if allowed, else fallback; regen is capability/policy/consent-gated).
+  - Extended ModelSwap flow to record a context compile artifact that references snapshot + ContextPacks + freshness markers.
+  - Updated refinement + WP traceability registry to reflect regen gating decision and status.
 - Next step / handoff hint:
+  - Validator review: confirm stale marker behavior + provenance binding match spec anchors and that regen is consent/capability/policy gated.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
   - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
   - EVIDENCE: `path/to/file:line`
+ 
+  - REQUIREMENT: "ContextPacks are treated as policy-bearing artifacts: ContextPackRecord.source_hashes[] freshness is enforced and stale packs deterministically trigger regeneration or fallback (covered by tests)."
+  - EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:885`
+ 
+  - REQUIREMENT: "ContextPack provenance binding is enforced: pack items without source_refs[] are dropped or deterministically downgraded (covered by tests)."
+  - EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:993`
+ 
+  - REQUIREMENT: "Stale packs MUST NOT be treated as pack_score=1.0. The runtime MUST either regenerate the pack (if allowed), or fall back to non-pack retrieval routes."
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:4188`
+ 
+  - REQUIREMENT: "Stale packs never produce pack_score=1.0 and always follow policy (regen or fallback or error)."
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:6523`
+ 
+  - REQUIREMENT: "Model swaps enforce fresh context compilation: ModelSwapRequest flow binds/records a context_compile_ref and does not reuse stale packs."
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:6914`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
@@ -282,6 +335,22 @@ git revert <commit-sha>
   - LOG_PATH: `.handshake/logs/WP-1-Model-Onboarding-ContextPacks-v1/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+ 
+  - COMMAND: `set "CARGO_INCREMENTAL=0" && set "RUSTFLAGS=-C debuginfo=0" && cargo test --manifest-path src/backend/handshake_core/Cargo.toml ace -j 1`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `.handshake/logs/cargo_test_ace_j1_debuginfo0_20260214_215315.log`
+ 
+  - COMMAND: `set "CARGO_INCREMENTAL=0" && set "RUSTFLAGS=-C debuginfo=0" && cargo test --manifest-path src/backend/handshake_core/Cargo.toml -j 1`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `.handshake/logs/cargo_test_full_j1_debuginfo0_20260214_215343.log`
+ 
+  - COMMAND: `just product-scan`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `.handshake/logs/just_product-scan_20260214_215845.log`
+ 
+  - COMMAND: `just cargo-clean`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `.handshake/logs/just_cargo-clean_20260214_215901.log`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)

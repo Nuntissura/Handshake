@@ -2,12 +2,15 @@ use crate::{
     ace::{
         validators::{
             build_query_plan_from_blocks, build_retrieval_trace_from_blocks,
+            freshness::{REGEN_SKIPPED_PREFIX, STALE_PACK_WARNING_PREFIX},
             scan_content_for_security, SecurityViolationType, StorageContentResolver,
             ValidatorPipeline,
         },
-        AceError, ArtifactHandle, CandidateRef, CandidateScores, DeterminismMode, QueryKind,
-        QueryPlan, RetrievalCandidate, RetrievalTrace, RouteTaken, SelectedEvidence, SourceRef,
-        SpanExtraction, StoreKind,
+        AceError, ArtifactHandle, CandidateRef, CandidateScores, ContextPackAnchorV1,
+        ContextPackBuilder, ContextPackCoverageV1, ContextPackFreshnessPolicyV1,
+        ContextPackPayloadV1, ContextPackRecord, DeterminismMode, QueryKind, QueryPlan,
+        RetrievalCandidate, RetrievalTrace, RouteTaken, SelectedEvidence, SourceRef, SpanExtraction,
+        StoreKind,
     },
     bundles::{BundleScope, DebugBundleRequest, DefaultDebugBundleExporter, RedactionMode},
     capabilities::{RegistryError, GOVERNANCE_PACK_EXPORT_PROTOCOL_ID},
@@ -3104,6 +3107,26 @@ impl Default for ModelSwapPolicy {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ContextPackPolicy {
+    #[serde(default)]
+    pub regen_allowed: bool,
+    #[serde(default)]
+    pub regen_required: bool,
+    #[serde(default)]
+    pub human_consent_obtained: bool,
+}
+
+impl Default for ContextPackPolicy {
+    fn default() -> Self {
+        Self {
+            regen_allowed: false,
+            regen_required: false,
+            human_consent_obtained: false,
+        }
+    }
+}
+
 fn default_allow_swaps() -> bool {
     true
 }
@@ -3143,6 +3166,8 @@ struct ExecutionPolicy {
     #[serde(default)]
     pub cloud_escalation_allowed: bool,
     #[serde(default)]
+    pub context_pack_policy: ContextPackPolicy,
+    #[serde(default)]
     pub drop_back_strategy: DropBackStrategy,
     #[serde(default)]
     pub lora_selection: LoRASelectionStrategy,
@@ -3162,6 +3187,7 @@ impl Default for ExecutionPolicy {
             max_duration_ms: default_max_duration_ms(),
             escalation_chain: default_escalation_chain(),
             cloud_escalation_allowed: false,
+            context_pack_policy: ContextPackPolicy::default(),
             drop_back_strategy: DropBackStrategy::default(),
             lora_selection: LoRASelectionStrategy::default(),
             pause_points: Vec::new(),
@@ -3667,6 +3693,60 @@ fn write_json_atomic_with_hash<T: Serialize>(
     Ok(hash)
 }
 
+fn build_context_compile_payload_v1(
+    request_id: &str,
+    job_id: Uuid,
+    wp_id: &str,
+    mt_id: &str,
+    created_at: &str,
+    target_model_id: &str,
+    context_snapshot_ref: &ArtifactHandle,
+    context_snapshot_hash: &str,
+    ace_query_plan_ref: &ArtifactHandle,
+    ace_retrieval_trace_ref: &ArtifactHandle,
+    context_pack_records: &[ContextPackRecord],
+    retrieval_warnings: &[String],
+) -> Value {
+    let context_pack_refs: Vec<Value> = context_pack_records
+        .iter()
+        .map(|r| {
+            json!({
+                "pack_id": r.pack_id.to_string(),
+                "pack_artifact_ref": r.pack_artifact.canonical_id(),
+                "payload_hash": r.payload_hash.clone(),
+                "target_source_id": r.target.source_id.to_string(),
+                "target_source_hash": r.target.source_hash.clone(),
+            })
+        })
+        .collect();
+
+    let freshness_markers: Vec<String> = retrieval_warnings
+        .iter()
+        .filter(|w| {
+            w.starts_with(STALE_PACK_WARNING_PREFIX)
+                || w.starts_with(REGEN_SKIPPED_PREFIX)
+                || w.starts_with("context_pack:")
+        })
+        .cloned()
+        .collect();
+
+    json!({
+        "schema_version": "1.0",
+        "request_id": request_id.to_string(),
+        "job_id": job_id.to_string(),
+        "wp_id": wp_id,
+        "mt_id": mt_id,
+        "created_at": created_at,
+        "target_model_id": target_model_id,
+        "context_snapshot_ref": context_snapshot_ref,
+        "context_snapshot_hash": context_snapshot_hash,
+        "ace_query_plan_ref": ace_query_plan_ref,
+        "ace_retrieval_trace_ref": ace_retrieval_trace_ref,
+        "context_packs": context_pack_refs,
+        "freshness_markers": freshness_markers,
+    })
+}
+
 fn sha256_hex(bytes: &[u8]) -> String {
     let mut h = Sha256::new();
     h.update(bytes);
@@ -3824,6 +3904,533 @@ fn shadow_ws_lexical_regions(
     merged
 }
 
+const CONTEXT_PACK_BUILDER_TOOL_ID: &str = "context_pack_builder_v0.1";
+const CONTEXT_PACK_BUILDER_TOOL_VERSION: &str = "0.1";
+
+#[derive(Debug, Clone, Serialize)]
+struct ContextPackBuilderConfigV1 {
+    chunk_lines: usize,
+    max_anchors: usize,
+}
+
+fn default_context_pack_builder_config_v1() -> ContextPackBuilderConfigV1 {
+    ContextPackBuilderConfigV1 {
+        chunk_lines: 60,
+        max_anchors: 24,
+    }
+}
+
+fn context_pack_builder_config_hash_v1(config: &ContextPackBuilderConfigV1) -> String {
+    let json = serde_json::to_string(config).unwrap_or_default();
+    sha256_hex_str(&json)
+}
+
+fn context_pack_store_dir_rel(source_id: Uuid, builder_config_hash: &str) -> PathBuf {
+    PathBuf::from("data")
+        .join("context_packs")
+        .join(source_id.to_string())
+        .join(builder_config_hash)
+}
+
+fn context_pack_store_record_rel(source_id: Uuid, builder_config_hash: &str) -> PathBuf {
+    context_pack_store_dir_rel(source_id, builder_config_hash).join("record.json")
+}
+
+fn context_pack_store_payload_rel(source_id: Uuid, builder_config_hash: &str) -> PathBuf {
+    context_pack_store_dir_rel(source_id, builder_config_hash).join("payload.json")
+}
+
+fn context_pack_anchor_id(source_id: Uuid, start_line_1: usize, end_line_1: usize, idx: usize) -> String {
+    format!("chunk:{source_id}:{start_line_1}-{end_line_1}:{idx}")
+}
+
+fn parse_context_pack_anchor_range(anchor_id: &str) -> Option<(usize, usize)> {
+    let mut parts = anchor_id.split(':');
+    if parts.next()? != "chunk" {
+        return None;
+    }
+    let _source_id = parts.next()?;
+    let range = parts.next()?;
+    let mut range_parts = range.split('-');
+    let start_line_1 = range_parts.next()?.parse::<usize>().ok()?;
+    let end_line_1 = range_parts.next()?.parse::<usize>().ok()?;
+    if start_line_1 == 0 || end_line_1 == 0 || end_line_1 < start_line_1 {
+        return None;
+    }
+    Some((start_line_1 - 1, end_line_1 - 1))
+}
+
+fn build_context_pack_payload_v1_for_source(
+    path: &str,
+    source_ref: &SourceRef,
+    bytes: &[u8],
+    config: &ContextPackBuilderConfigV1,
+) -> ContextPackPayloadV1 {
+    let content = String::from_utf8_lossy(bytes);
+    let lines: Vec<&str> = content.lines().collect();
+
+    let mut anchors: Vec<ContextPackAnchorV1> = Vec::new();
+    if !lines.is_empty() {
+        let mut idx = 1usize;
+        for start_line in (0..lines.len()).step_by(config.chunk_lines.max(1)) {
+            if anchors.len() >= config.max_anchors {
+                break;
+            }
+            let end_line = (start_line + config.chunk_lines.saturating_sub(1)).min(lines.len() - 1);
+            anchors.push(ContextPackAnchorV1 {
+                anchor_id: context_pack_anchor_id(
+                    source_ref.source_id,
+                    start_line + 1,
+                    end_line + 1,
+                    idx,
+                ),
+                source_ref: source_ref.clone(),
+                excerpt_hint: format!("lines {}-{}", start_line + 1, end_line + 1),
+            });
+            idx = idx.saturating_add(1);
+        }
+    }
+
+    let scanned_selectors: Vec<String> = anchors.iter().map(|a| a.anchor_id.clone()).collect();
+    let synopsis = format!("ContextPack for {path} (source_id={})", source_ref.source_id);
+    let synopsis = synopsis.chars().take(800).collect::<String>();
+
+    ContextPackPayloadV1 {
+        synopsis,
+        facts: Vec::new(),
+        constraints: Vec::new(),
+        open_loops: Vec::new(),
+        anchors,
+        coverage: ContextPackCoverageV1 {
+            scanned_selectors,
+            skipped_selectors: None,
+        },
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ContextPackSelection {
+    record: ContextPackRecord,
+    source_ref: SourceRef,
+    file: MtContextFile,
+    spans: Vec<SpanExtraction>,
+    match_score: u32,
+    warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct ContextPackFallback {
+    source_ref: SourceRef,
+    pack_id: Option<Uuid>,
+    warnings: Vec<String>,
+}
+
+enum ContextPackOutcome {
+    Selected(ContextPackSelection),
+    Fallback(ContextPackFallback),
+    Skipped { warning: String },
+}
+
+fn retrieve_context_pack_for_source(
+    repo_root: &Path,
+    path: &str,
+    source_ref: SourceRef,
+    bytes: &[u8],
+    query_terms: &[String],
+    max_results: usize,
+    allowance_tokens: u32,
+    max_span_tokens: u32,
+    builder_config: &ContextPackBuilderConfigV1,
+    builder_config_hash: &str,
+    policy: &ContextPackFreshnessPolicyV1,
+) -> Result<ContextPackOutcome, WorkflowError> {
+    let record_rel = context_pack_store_record_rel(source_ref.source_id, builder_config_hash);
+    let record_abs = repo_root.join(&record_rel);
+
+    let load_record = if record_abs.exists() {
+        match fs::read(&record_abs) {
+            Ok(raw) => match serde_json::from_slice::<ContextPackRecord>(&raw) {
+                Ok(record) => Some(record),
+                Err(err) => {
+                    return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+                        source_ref,
+                        pack_id: None,
+                        warnings: vec![format!("context_pack:record_parse_failed:{path}:{err}")],
+                    }));
+                }
+            },
+            Err(err) => {
+                return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+                    source_ref,
+                    pack_id: None,
+                    warnings: vec![format!("context_pack:record_read_failed:{path}:{err}")],
+                }));
+            }
+        }
+    } else {
+        None
+    };
+
+    let mut record = match load_record {
+        Some(record) => record,
+        None if policy.regen_allowed => {
+            let payload_rel =
+                context_pack_store_payload_rel(source_ref.source_id, builder_config_hash);
+            let mut payload =
+                build_context_pack_payload_v1_for_source(path, &source_ref, bytes, builder_config);
+            payload.enforce_provenance_binding();
+
+            let payload_abs = repo_root.join(&payload_rel);
+            if let Some(parent) = payload_abs.parent() {
+                if let Err(err) = fs::create_dir_all(parent) {
+                    return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+                        source_ref,
+                        pack_id: None,
+                        warnings: vec![format!("context_pack:mkdir_failed:{path}:{err}")],
+                    }));
+                }
+            }
+
+            let payload_hash = match write_json_atomic_with_hash(repo_root, &payload_abs, &payload) {
+                Ok(hash) => hash,
+                Err(err) => {
+                    return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+                        source_ref,
+                        pack_id: None,
+                        warnings: vec![format!("context_pack:payload_write_failed:{path}:{err}")],
+                    }));
+                }
+            };
+
+            let pack_id = deterministic_uuid_for_str(&format!(
+                "context_pack:{}:{}:{}",
+                source_ref.source_id, builder_config_hash, payload_hash
+            ));
+
+            let record = ContextPackRecord {
+                pack_id,
+                target: source_ref.clone(),
+                pack_artifact: ArtifactHandle::new(pack_id, rel_path_string(&payload_rel)),
+                source_hashes: vec![source_ref.source_hash.clone()],
+                source_refs: vec![source_ref.clone()],
+                created_at: Utc::now(),
+                builder: ContextPackBuilder {
+                    tool_id: CONTEXT_PACK_BUILDER_TOOL_ID.to_string(),
+                    tool_version: CONTEXT_PACK_BUILDER_TOOL_VERSION.to_string(),
+                    config_hash: builder_config_hash.to_string(),
+                },
+                payload_hash,
+                version: 1,
+            };
+
+            if let Some(parent) = record_abs.parent() {
+                if let Err(err) = fs::create_dir_all(parent) {
+                    return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+                        source_ref,
+                        pack_id: Some(record.pack_id),
+                        warnings: vec![format!("context_pack:mkdir_failed:{path}:{err}")],
+                    }));
+                }
+            }
+            if let Err(err) = write_json_atomic(repo_root, &record_abs, &record) {
+                return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+                    source_ref,
+                    pack_id: Some(record.pack_id),
+                    warnings: vec![format!("context_pack:record_write_failed:{path}:{err}")],
+                }));
+            }
+
+            record
+        }
+        None => {
+            return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+                source_ref,
+                pack_id: None,
+                warnings: Vec::new(),
+            }));
+        }
+    };
+
+    // Load payload (hash verified)
+    let payload_rel = PathBuf::from(&record.pack_artifact.path);
+    let payload_abs = repo_root.join(&payload_rel);
+    let raw_payload = match fs::read(&payload_abs) {
+        Ok(raw) => raw,
+        Err(err) => {
+            return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+                source_ref,
+                pack_id: Some(record.pack_id),
+                warnings: vec![format!("context_pack:payload_read_failed:{path}:{err}")],
+            }));
+        }
+    };
+
+    let payload_hash = sha256_hex(&raw_payload);
+    if payload_hash != record.payload_hash {
+        return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+            source_ref,
+            pack_id: Some(record.pack_id),
+            warnings: vec![format!("context_pack:payload_hash_mismatch:{path}")],
+        }));
+    }
+
+    let mut payload = match serde_json::from_slice::<ContextPackPayloadV1>(&raw_payload) {
+        Ok(payload) => payload,
+        Err(err) => {
+            return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+                source_ref,
+                pack_id: Some(record.pack_id),
+                warnings: vec![format!("context_pack:payload_parse_failed:{path}:{err}")],
+            }));
+        }
+    };
+
+    // Staleness check (regen or fallback)
+    if record.is_stale(&[source_ref.clone()]) {
+        if policy.regen_allowed {
+            let old_pack_id = record.pack_id;
+            let payload_rel =
+                context_pack_store_payload_rel(source_ref.source_id, builder_config_hash);
+            let mut new_payload =
+                build_context_pack_payload_v1_for_source(path, &source_ref, bytes, builder_config);
+            new_payload.enforce_provenance_binding();
+
+            let payload_abs = repo_root.join(&payload_rel);
+            if let Some(parent) = payload_abs.parent() {
+                if let Err(err) = fs::create_dir_all(parent) {
+                    let mut warnings: Vec<String> =
+                        vec![format!("{}{}", STALE_PACK_WARNING_PREFIX, old_pack_id)];
+                    if policy.regen_required {
+                        warnings.push(format!("{}{}", REGEN_SKIPPED_PREFIX, old_pack_id));
+                    }
+                    warnings.push(format!("context_pack:mkdir_failed:{path}:{err}"));
+                    return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+                        source_ref,
+                        pack_id: Some(old_pack_id),
+                        warnings,
+                    }));
+                }
+            }
+
+            let new_payload_hash =
+                match write_json_atomic_with_hash(repo_root, &payload_abs, &new_payload) {
+                    Ok(hash) => hash,
+                    Err(err) => {
+                        let mut warnings: Vec<String> =
+                            vec![format!("{}{}", STALE_PACK_WARNING_PREFIX, old_pack_id)];
+                        if policy.regen_required {
+                            warnings.push(format!("{}{}", REGEN_SKIPPED_PREFIX, old_pack_id));
+                        }
+                        warnings.push(format!("context_pack:payload_write_failed:{path}:{err}"));
+                        return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+                            source_ref,
+                            pack_id: Some(old_pack_id),
+                            warnings,
+                        }));
+                    }
+                };
+
+            let new_pack_id = deterministic_uuid_for_str(&format!(
+                "context_pack:{}:{}:{}",
+                source_ref.source_id, builder_config_hash, new_payload_hash
+            ));
+
+            record = ContextPackRecord {
+                pack_id: new_pack_id,
+                target: source_ref.clone(),
+                pack_artifact: ArtifactHandle::new(new_pack_id, rel_path_string(&payload_rel)),
+                source_hashes: vec![source_ref.source_hash.clone()],
+                source_refs: vec![source_ref.clone()],
+                created_at: Utc::now(),
+                builder: ContextPackBuilder {
+                    tool_id: CONTEXT_PACK_BUILDER_TOOL_ID.to_string(),
+                    tool_version: CONTEXT_PACK_BUILDER_TOOL_VERSION.to_string(),
+                    config_hash: builder_config_hash.to_string(),
+                },
+                payload_hash: new_payload_hash,
+                version: 1,
+            };
+            if let Some(parent) = record_abs.parent() {
+                if let Err(err) = fs::create_dir_all(parent) {
+                    let mut warnings: Vec<String> =
+                        vec![format!("{}{}", STALE_PACK_WARNING_PREFIX, old_pack_id)];
+                    if policy.regen_required {
+                        warnings.push(format!("{}{}", REGEN_SKIPPED_PREFIX, old_pack_id));
+                    }
+                    warnings.push(format!("context_pack:mkdir_failed:{path}:{err}"));
+                    return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+                        source_ref,
+                        pack_id: Some(old_pack_id),
+                        warnings,
+                    }));
+                }
+            }
+            if let Err(err) = write_json_atomic(repo_root, &record_abs, &record) {
+                let mut warnings: Vec<String> =
+                    vec![format!("{}{}", STALE_PACK_WARNING_PREFIX, old_pack_id)];
+                if policy.regen_required {
+                    warnings.push(format!("{}{}", REGEN_SKIPPED_PREFIX, old_pack_id));
+                }
+                warnings.push(format!("context_pack:record_write_failed:{path}:{err}"));
+                return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+                    source_ref,
+                    pack_id: Some(old_pack_id),
+                    warnings,
+                }));
+            }
+
+            payload = new_payload;
+            // Note: we do not emit stale_pack marker when regeneration succeeds.
+            // Caller may choose to record a regeneration marker if desired.
+        } else {
+            let mut warnings: Vec<String> = vec![format!("{}{}", STALE_PACK_WARNING_PREFIX, record.pack_id)];
+            if policy.regen_required {
+                warnings.push(format!("{}{}", REGEN_SKIPPED_PREFIX, record.pack_id));
+            }
+            return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+                source_ref,
+                pack_id: Some(record.pack_id),
+                warnings,
+            }));
+        }
+    }
+
+    payload.enforce_provenance_binding();
+
+    let content = String::from_utf8_lossy(bytes);
+    let lines: Vec<&str> = content.lines().collect();
+    if lines.is_empty() {
+        return Ok(ContextPackOutcome::Skipped {
+            warning: format!("empty_file:{path}"),
+        });
+    }
+
+    let mut scored: Vec<(u32, usize, usize, String)> = Vec::new();
+    for anchor in &payload.anchors {
+        if let Some((start, end)) = parse_context_pack_anchor_range(&anchor.anchor_id) {
+            let end = end.min(lines.len().saturating_sub(1));
+            let start = start.min(end);
+            let mut score = 0u32;
+            for line in &lines[start..=end] {
+                let normalized = crate::ace::normalize_query(line);
+                for term in query_terms {
+                    if normalized.contains(term) {
+                        score = score.saturating_add(1);
+                    }
+                }
+            }
+            scored.push((score, start, end, anchor.anchor_id.clone()));
+        }
+    }
+
+    scored.sort_by(|a, b| {
+        b.0.cmp(&a.0)
+            .then_with(|| a.1.cmp(&b.1))
+            .then_with(|| a.2.cmp(&b.2))
+            .then_with(|| a.3.cmp(&b.3))
+    });
+
+    if scored.is_empty() {
+        return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
+            source_ref,
+            pack_id: Some(record.pack_id),
+            warnings: vec![format!("context_pack:no_anchors:{path}")],
+        }));
+    }
+
+    let mut warnings: Vec<String> = Vec::new();
+    if scored[0].0 == 0 {
+        warnings.push(format!("context_pack:no_match:{path}"));
+    }
+
+    let mut line_offsets: Vec<u32> = Vec::with_capacity(lines.len() + 1);
+    let mut acc = 0u32;
+    for line in &lines {
+        line_offsets.push(acc);
+        acc = acc.saturating_add(line.chars().count() as u32);
+        acc = acc.saturating_add(1);
+    }
+    line_offsets.push(acc);
+
+    let mut spans: Vec<SpanExtraction> = Vec::new();
+    let mut parts: Vec<String> = Vec::new();
+    let mut tokens_used = 0u32;
+    let mut match_score = 0u32;
+    let mut truncated_any = false;
+
+    for (idx, (score, start_line, end_line, anchor_id)) in scored.into_iter().take(max_results).enumerate() {
+        if tokens_used >= allowance_tokens {
+            break;
+        }
+        let remaining = allowance_tokens.saturating_sub(tokens_used);
+        if remaining == 0 {
+            break;
+        }
+
+        let per_span_budget = remaining.min(max_span_tokens).max(1);
+        let raw_chunk = lines[start_line..=end_line].join("\n");
+        let (chunk, truncated) = truncate_to_token_budget(&raw_chunk, per_span_budget);
+        let chunk_tokens = estimate_tokens(&chunk);
+        if chunk_tokens == 0 {
+            continue;
+        }
+
+        tokens_used = tokens_used.saturating_add(chunk_tokens);
+        match_score = match_score.saturating_add(score);
+        truncated_any |= truncated;
+        if truncated {
+            warnings.push(format!(
+                "context_pack:truncated:{}:{}-{}",
+                path,
+                start_line + 1,
+                end_line + 1
+            ));
+        }
+
+        let selector = format!("context_pack:{}:{}", anchor_id, idx + 1);
+        let start = line_offsets.get(start_line).copied().unwrap_or_default();
+        let end = line_offsets
+            .get(end_line.saturating_add(1))
+            .copied()
+            .unwrap_or(acc);
+
+        spans.push(SpanExtraction {
+            source_ref: source_ref.clone(),
+            selector,
+            start,
+            end,
+            token_estimate: chunk_tokens,
+        });
+
+        parts.push(format!(
+            "/* pack chunk {} lines {}-{} */\n{}",
+            idx + 1,
+            start_line + 1,
+            end_line + 1,
+            chunk
+        ));
+    }
+
+    let snippet = parts.join("\n\n");
+    let file = MtContextFile {
+        path: path.to_string(),
+        source_id: source_ref.source_id,
+        source_hash: source_ref.source_hash.clone(),
+        token_estimate: tokens_used,
+        truncated: truncated_any,
+        content: snippet,
+    };
+
+    Ok(ContextPackOutcome::Selected(ContextPackSelection {
+        record,
+        source_ref,
+        file,
+        spans,
+        match_score,
+        warnings,
+    }))
+}
+
 enum ShadowWsLexicalOutcome {
     Selected(ShadowWsLexicalSelection),
     Skipped { warning: String },
@@ -3838,29 +4445,16 @@ struct ShadowWsLexicalSelection {
 }
 
 fn retrieve_shadow_ws_lexical_for_file(
-    repo_root: &Path,
     path: &str,
+    source_ref: SourceRef,
+    bytes: &[u8],
     query_terms: &[String],
     max_results: usize,
     neighbor_lines: usize,
     allowance_tokens: u32,
     max_span_tokens: u32,
 ) -> Result<ShadowWsLexicalOutcome, WorkflowError> {
-    let abs = repo_root.join(PathBuf::from(path));
-    let bytes = match fs::read(&abs) {
-        Ok(bytes) => bytes,
-        Err(_) => {
-            return Ok(ShadowWsLexicalOutcome::Skipped {
-                warning: format!("missing_or_unreadable_file:{path}"),
-            });
-        }
-    };
-
-    let source_hash = sha256_hex(&bytes);
-    let source_id = deterministic_uuid_for_str(path);
-    let source_ref = SourceRef::new(source_id, source_hash.clone());
-
-    let content = String::from_utf8_lossy(&bytes);
+    let content = String::from_utf8_lossy(bytes);
     let lines: Vec<&str> = content.lines().collect();
     if lines.is_empty() {
         return Ok(ShadowWsLexicalOutcome::Skipped {
@@ -3962,8 +4556,8 @@ fn retrieve_shadow_ws_lexical_for_file(
     let snippet = parts.join("\n\n");
     let file = MtContextFile {
         path: path.to_string(),
-        source_id,
-        source_hash,
+        source_id: source_ref.source_id,
+        source_hash: source_ref.source_hash.clone(),
         token_estimate: tokens_used,
         truncated: truncated_any,
         content: snippet,
@@ -3976,6 +4570,196 @@ fn retrieve_shadow_ws_lexical_for_file(
         match_score,
         warnings,
     }))
+}
+
+#[cfg(test)]
+mod context_pack_tests {
+    use super::*;
+
+    #[test]
+    fn context_pack_stale_fallback_and_regen_policy() -> Result<(), Box<dyn std::error::Error>> {
+        let tmp = tempfile::tempdir()?;
+        let repo_root = tmp.path();
+
+        let path = "src/example.txt";
+        let bytes_v1 = b"hello world\nfn test() {}\n".to_vec();
+
+        let source_id = deterministic_uuid_for_str(path);
+        let source_ref_v1 = SourceRef::new(source_id, sha256_hex(&bytes_v1));
+
+        let query_terms = vec!["hello".to_string()];
+        let builder_config = default_context_pack_builder_config_v1();
+        let builder_config_hash = context_pack_builder_config_hash_v1(&builder_config);
+
+        // Build on miss when regen is allowed
+        let allow = ContextPackFreshnessPolicyV1 {
+            regen_allowed: true,
+            regen_required: false,
+        };
+        let built = retrieve_context_pack_for_source(
+            repo_root,
+            path,
+            source_ref_v1.clone(),
+            &bytes_v1,
+            &query_terms,
+            3,
+            200,
+            100,
+            &builder_config,
+            &builder_config_hash,
+            &allow,
+        )?;
+        let built_record = match built {
+            ContextPackOutcome::Selected(sel) => sel.record,
+            _ => return Err("expected Selected on regen_allowed miss".into()),
+        };
+
+        // Stale fallback when regen is not allowed
+        let bytes_v2 = b"hello changed\nfn test() {}\n".to_vec();
+        let source_ref_v2 = SourceRef::new(source_id, sha256_hex(&bytes_v2));
+        let deny = ContextPackFreshnessPolicyV1 {
+            regen_allowed: false,
+            regen_required: false,
+        };
+        let stale = retrieve_context_pack_for_source(
+            repo_root,
+            path,
+            source_ref_v2.clone(),
+            &bytes_v2,
+            &query_terms,
+            3,
+            200,
+            100,
+            &builder_config,
+            &builder_config_hash,
+            &deny,
+        )?;
+        match stale {
+            ContextPackOutcome::Fallback(fb) => {
+                assert!(fb
+                    .warnings
+                    .iter()
+                    .any(|w| w.starts_with(STALE_PACK_WARNING_PREFIX)));
+                assert_eq!(fb.pack_id, Some(built_record.pack_id));
+            }
+            _ => return Err("expected Fallback on stale with regen_allowed=false".into()),
+        }
+
+        // Stale + regen_required should emit regen_skipped marker
+        let require = ContextPackFreshnessPolicyV1 {
+            regen_allowed: false,
+            regen_required: true,
+        };
+        let stale_required = retrieve_context_pack_for_source(
+            repo_root,
+            path,
+            source_ref_v2.clone(),
+            &bytes_v2,
+            &query_terms,
+            3,
+            200,
+            100,
+            &builder_config,
+            &builder_config_hash,
+            &require,
+        )?;
+        match stale_required {
+            ContextPackOutcome::Fallback(fb) => {
+                assert!(fb
+                    .warnings
+                    .iter()
+                    .any(|w| w.starts_with(REGEN_SKIPPED_PREFIX)));
+            }
+            _ => return Err("expected Fallback on stale with regen_required".into()),
+        }
+
+        // Stale regen when allowed should return Selected and update target hash
+        let regenerated = retrieve_context_pack_for_source(
+            repo_root,
+            path,
+            source_ref_v2.clone(),
+            &bytes_v2,
+            &query_terms,
+            3,
+            200,
+            100,
+            &builder_config,
+            &builder_config_hash,
+            &allow,
+        )?;
+        match regenerated {
+            ContextPackOutcome::Selected(sel) => {
+                assert_eq!(sel.record.target.source_hash, source_ref_v2.source_hash);
+                assert!(!sel.record.is_stale(&[source_ref_v2]));
+            }
+            _ => return Err("expected Selected on stale with regen_allowed=true".into()),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn context_compile_payload_includes_pack_refs_and_markers() {
+        let pack_id = Uuid::new_v4();
+        let source_ref = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let record = ContextPackRecord {
+            pack_id,
+            target: source_ref.clone(),
+            pack_artifact: ArtifactHandle::new(pack_id, "data/context_packs/payload.json".to_string()),
+            source_hashes: vec![source_ref.source_hash.clone()],
+            source_refs: vec![source_ref.clone()],
+            created_at: Utc::now(),
+            builder: ContextPackBuilder {
+                tool_id: CONTEXT_PACK_BUILDER_TOOL_ID.to_string(),
+                tool_version: CONTEXT_PACK_BUILDER_TOOL_VERSION.to_string(),
+                config_hash: "cfg".to_string(),
+            },
+            payload_hash: "payload_hash".to_string(),
+            version: 1,
+        };
+
+        let snapshot_ref = ArtifactHandle::new(Uuid::new_v4(), "data/snap.json".to_string());
+        let qp_ref = ArtifactHandle::new(Uuid::new_v4(), "data/qp.json".to_string());
+        let rt_ref = ArtifactHandle::new(Uuid::new_v4(), "data/rt.json".to_string());
+
+        let stale_marker = format!("{}{}", STALE_PACK_WARNING_PREFIX, pack_id);
+        let denied_marker = "context_pack:regen_denied:capability".to_string();
+
+        let payload = build_context_compile_payload_v1(
+            "req-1",
+            Uuid::nil(),
+            "WP-1",
+            "MT-1",
+            "2026-02-14T00:00:00Z",
+            "model-1",
+            &snapshot_ref,
+            "snap_hash",
+            &qp_ref,
+            &rt_ref,
+            &[record],
+            &[stale_marker.clone(), denied_marker.clone()],
+        );
+
+        assert_eq!(payload.get("request_id").and_then(Value::as_str), Some("req-1"));
+        assert_eq!(
+            payload.get("context_snapshot_hash").and_then(Value::as_str),
+            Some("snap_hash")
+        );
+        assert_eq!(
+            payload
+                .get("context_packs")
+                .and_then(Value::as_array)
+                .map(|a| a.len()),
+            Some(1)
+        );
+        let markers = payload
+            .get("freshness_markers")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(markers.iter().any(|v| v.as_str() == Some(stale_marker.as_str())));
+        assert!(markers.iter().any(|v| v.as_str() == Some(denied_marker.as_str())));
+    }
 }
 
 fn idempotency_key(
@@ -4599,14 +5383,10 @@ async fn run_validation_via_mex(
 
         let mut passed = false;
         let mut actual_exit_code = -1i64;
-        let mut timed_out = false;
         let mut duration_ms = 0u64;
         let mut stdout_ref: Option<ArtifactHandle> = None;
         let mut stderr_ref: Option<ArtifactHandle> = None;
         let mut error: Option<String> = None;
-
-        let mut stdout_rel: Option<String> = None;
-        let mut stderr_rel: Option<String> = None;
 
         if let Some(output_handle) = result.outputs.first() {
             let output_abs = repo_root.join(PathBuf::from(&output_handle.path));
@@ -4615,17 +5395,17 @@ async fn run_validation_via_mex(
                     Ok(val) => {
                         actual_exit_code =
                             val.get("exit_code").and_then(|v| v.as_i64()).unwrap_or(-1);
-                        timed_out = val
+                        let timed_out = val
                             .get("timed_out")
                             .and_then(|v| v.as_bool())
                             .unwrap_or(false);
                         duration_ms = val.get("duration_ms").and_then(|v| v.as_u64()).unwrap_or(0);
 
-                        stdout_rel = val
+                        let stdout_rel = val
                             .get("stdout_ref")
                             .and_then(|v| v.as_str())
                             .map(|s| s.to_string());
-                        stderr_rel = val
+                        let stderr_rel = val
                             .get("stderr_ref")
                             .and_then(|v| v.as_str())
                             .map(|s| s.to_string());
@@ -5621,7 +6401,7 @@ NEED: {{what you need to unblock}}
                 let mut retrieval_trace = RetrievalTrace::new(&query_plan);
                 retrieval_trace.route_taken.push(RouteTaken {
                     store: StoreKind::ContextPacks,
-                    reason: "prefer_context_packs=true; unavailable".to_string(),
+                    reason: "context_packs:attempt".to_string(),
                     cache_hit: Some(false),
                 });
                 retrieval_trace.route_taken.push(RouteTaken {
@@ -5629,6 +6409,61 @@ NEED: {{what you need to unblock}}
                     reason: "shadow_ws_lexical:deterministic_chunks".to_string(),
                     cache_hit: Some(false),
                 });
+
+                let context_pack_builder_config = default_context_pack_builder_config_v1();
+                let context_pack_builder_config_hash =
+                    context_pack_builder_config_hash_v1(&context_pack_builder_config);
+
+                let regen_capability_id = "context_packs.regen";
+                let regen_capability_allowed = match state
+                    .capability_registry
+                    .profile_can(&job.capability_profile_id, regen_capability_id)
+                {
+                    Ok(true) => {
+                        log_capability_check(state, job, regen_capability_id, "allow", trace_id)
+                            .await;
+                        true
+                    }
+                    Ok(false) => {
+                        log_capability_check(state, job, regen_capability_id, "deny", trace_id)
+                            .await;
+                        false
+                    }
+                    Err(err) => {
+                        log_capability_check(state, job, regen_capability_id, "deny", trace_id)
+                            .await;
+                        warnings.push(format!("context_pack:regen_capability_error:{err}"));
+                        false
+                    }
+                };
+
+                let context_pack_policy = ContextPackFreshnessPolicyV1 {
+                    regen_allowed: policy.context_pack_policy.regen_allowed
+                        && policy.context_pack_policy.human_consent_obtained
+                        && regen_capability_allowed,
+                    regen_required: policy.context_pack_policy.regen_required,
+                };
+
+                if policy.context_pack_policy.regen_allowed
+                    && !policy.context_pack_policy.human_consent_obtained
+                {
+                    let w = "context_pack:regen_denied:consent_missing".to_string();
+                    warnings.push(w.clone());
+                    retrieval_trace.warnings.push(w);
+                }
+
+                if policy.context_pack_policy.regen_allowed
+                    && policy.context_pack_policy.human_consent_obtained
+                    && !regen_capability_allowed
+                {
+                    let w = "context_pack:regen_denied:capability".to_string();
+                    warnings.push(w.clone());
+                    retrieval_trace.warnings.push(w);
+                }
+
+                let mut context_pack_used = 0u32;
+                let mut context_pack_fallback = 0u32;
+                let mut context_pack_records: Vec<ContextPackRecord> = Vec::new();
 
                 let per_file_budget = if mt_files.is_empty() {
                     0u32
@@ -5644,15 +6479,131 @@ NEED: {{what you need to unblock}}
                     }
 
                     let allowance = file_contents_budget.min(per_file_budget);
-                    let outcome = retrieve_shadow_ws_lexical_for_file(
+
+                    let abs = repo_root.join(PathBuf::from(path));
+                    let bytes = match fs::read(&abs) {
+                        Ok(bytes) => bytes,
+                        Err(_) => {
+                            let warning = format!("missing_or_unreadable_file:{path}");
+                            warnings.push(warning.clone());
+                            retrieval_trace.warnings.push(warning);
+                            continue;
+                        }
+                    };
+
+                    let source_hash = sha256_hex(&bytes);
+                    let source_id = deterministic_uuid_for_str(path);
+                    let source_ref = SourceRef::new(source_id, source_hash.clone());
+
+                    let pack_outcome = retrieve_context_pack_for_source(
                         &repo_root,
                         path,
+                        source_ref.clone(),
+                        &bytes,
                         &query_terms,
                         max_shadow_results,
-                        neighbor_lines,
                         allowance,
                         query_plan.budgets.max_read_tokens,
+                        &context_pack_builder_config,
+                        &context_pack_builder_config_hash,
+                        &context_pack_policy,
                     )?;
+
+                    let outcome = match pack_outcome {
+                        ContextPackOutcome::Selected(selection) => {
+                            if selection.file.token_estimate == 0 {
+                                let warning = format!("context_pack:empty_snippet:{path}");
+                                warnings.push(warning.clone());
+                                retrieval_trace.warnings.push(warning);
+                            } else {
+                                context_pack_used = context_pack_used.saturating_add(1);
+                                context_pack_records.push(selection.record.clone());
+
+                                let mut scores = CandidateScores::default();
+                                scores.pack = Some(1.0);
+                                scores.lexical = Some(selection.match_score as f64);
+
+                                retrieval_trace
+                                    .candidates
+                                    .push(RetrievalCandidate::from_source(
+                                        selection.source_ref.clone(),
+                                        StoreKind::ContextPacks,
+                                        scores.clone(),
+                                    ));
+
+                                retrieval_trace.selected.push(SelectedEvidence {
+                                    candidate_ref: CandidateRef::Source(selection.source_ref.clone()),
+                                    final_rank: retrieval_trace.selected.len() as u32,
+                                    final_score: selection.match_score as f64,
+                                    why: "mt_context_compilation_context_pack".to_string(),
+                                });
+
+                                if selection.file.truncated {
+                                    retrieval_trace.truncation_flags.push(format!(
+                                        "truncated:{}",
+                                        selection.source_ref.source_id
+                                    ));
+                                }
+
+                                retrieval_trace.spans.extend(selection.spans.clone());
+                                for w in selection.warnings {
+                                    warnings.push(w.clone());
+                                    retrieval_trace.warnings.push(w);
+                                }
+
+                                candidate_source_refs.push(selection.source_ref);
+                                file_contents_budget = file_contents_budget
+                                    .saturating_sub(selection.file.token_estimate);
+                                selected_files.push(selection.file);
+                                continue;
+                            }
+                            retrieve_shadow_ws_lexical_for_file(
+                                path,
+                                source_ref.clone(),
+                                &bytes,
+                                &query_terms,
+                                max_shadow_results,
+                                neighbor_lines,
+                                allowance,
+                                query_plan.budgets.max_read_tokens,
+                            )?
+                        }
+                        ContextPackOutcome::Fallback(fallback) => {
+                            context_pack_fallback = context_pack_fallback.saturating_add(1);
+                            for w in &fallback.warnings {
+                                warnings.push(w.clone());
+                                retrieval_trace.warnings.push(w.clone());
+                            }
+
+                            if fallback.pack_id.is_some() {
+                                let mut scores = CandidateScores::default();
+                                scores.pack = Some(0.0);
+                                retrieval_trace
+                                    .candidates
+                                    .push(RetrievalCandidate::from_source(
+                                        fallback.source_ref.clone(),
+                                        StoreKind::ContextPacks,
+                                        scores,
+                                    ));
+                            }
+
+                            retrieve_shadow_ws_lexical_for_file(
+                                path,
+                                source_ref.clone(),
+                                &bytes,
+                                &query_terms,
+                                max_shadow_results,
+                                neighbor_lines,
+                                allowance,
+                                query_plan.budgets.max_read_tokens,
+                            )?
+                        }
+                        ContextPackOutcome::Skipped { warning } => {
+                            warnings.push(warning.clone());
+                            retrieval_trace.warnings.push(warning);
+                            continue;
+                        }
+                    };
 
                     match outcome {
                         ShadowWsLexicalOutcome::Skipped { warning } => {
@@ -5705,6 +6656,21 @@ NEED: {{what you need to unblock}}
                             selected_files.push(selection.file);
                         }
                     }
+                }
+
+                if let Some(route) = retrieval_trace
+                    .route_taken
+                    .iter_mut()
+                    .find(|r| r.store == StoreKind::ContextPacks)
+                {
+                    route.reason = format!(
+                        "context_packs:used={} fallback={} regen_allowed={} regen_required={}",
+                        context_pack_used,
+                        context_pack_fallback,
+                        context_pack_policy.regen_allowed,
+                        context_pack_policy.regen_required
+                    );
+                    route.cache_hit = Some(context_pack_used > 0);
                 }
                 let retrieval_elapsed_ms = retrieval_start.elapsed().as_millis() as u64;
 
@@ -5929,8 +6895,8 @@ NEED: {{what you need to unblock}}
                     },
                     artifact_handles: vec![
                         context_files_ref.clone(),
-                        ace_query_plan_ref,
-                        ace_retrieval_trace_ref,
+                        ace_query_plan_ref.clone(),
+                        ace_retrieval_trace_ref.clone(),
                     ],
                     warnings,
                     local_only_payload_ref: Some(prompt_snapshot_ref.clone()),
@@ -5944,17 +6910,21 @@ NEED: {{what you need to unblock}}
                 if let Some(pending) = pending_model_swap.take() {
                     if pending.request.target_model_id == model_id {
                         let context_compile_abs = repo_root.join(&pending.context_compile_rel);
-                        let context_compile_payload = json!({
-                            "schema_version": "1.0",
-                            "request_id": pending.request.request_id.clone(),
-                            "job_id": job.job_id.to_string(),
-                            "wp_id": inputs.wp_id.clone(),
-                            "mt_id": mt.mt_id.clone(),
-                            "created_at": Utc::now().to_rfc3339(),
-                            "target_model_id": model_id.clone(),
-                            "context_snapshot_ref": context_snapshot_ref.clone(),
-                            "context_snapshot_hash": context_snapshot_hash.clone(),
-                        });
+                        let created_at = Utc::now().to_rfc3339();
+                        let context_compile_payload = build_context_compile_payload_v1(
+                            &pending.request.request_id,
+                            job.job_id,
+                            &inputs.wp_id,
+                            &mt.mt_id,
+                            created_at.as_str(),
+                            &model_id,
+                            &context_snapshot_ref,
+                            &context_snapshot_hash,
+                            &ace_query_plan_ref,
+                            &ace_retrieval_trace_ref,
+                            &context_pack_records,
+                            &retrieval_trace.warnings,
+                        );
                         write_json_atomic(
                             &repo_root,
                             &context_compile_abs,

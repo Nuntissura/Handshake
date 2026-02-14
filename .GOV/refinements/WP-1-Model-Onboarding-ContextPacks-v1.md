@@ -17,7 +17,12 @@ Requirements (HARD):
 - USER_REVIEW_STATUS: APPROVED
 - USER_SIGNATURE: ilja120220260341
 - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT WP-1-Model-Onboarding-ContextPacks-v1
-
+ 
+### DECISIONS_AND_OPEN_QUESTIONS
+- OPEN_QUESTION OQ-REGEN-001 (CLOSED 2026-02-14): Is ContextPack regeneration always permitted if a builder exists?
+  - Decision: `regen_allowed` is capability/policy/consent-gated (not always permitted).
+  - Spec tie-in: stale packs MUST NOT score `pack_score=1.0`; runtime MUST regenerate (if allowed) or fall back. If policy requires regeneration and it is not performed, FreshnessGuard may fail or mark degraded.
+ 
 ### REQUIRED SECTIONS (per ORCHESTRATOR_PROTOCOL Part 2.5.2)
 
 ### GAPS_IDENTIFIED
