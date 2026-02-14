@@ -1240,6 +1240,39 @@
       "branch": "feat/WP-1-Spec-Enrichment-Product-Governance-Consistency-v1",
       "worktree_dir": "../wt-WP-1-Spec-Enrichment-Product-Governance-Consistency-v1",
       "timestamp": "2026-02-12T03:19:10.172Z"
+    },
+    {
+      "wpId": "WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.125.md",
+      "spec_target_sha1": "d16eb1eb5045e858112b2ce477f27aa0200621b0",
+      "timestamp": "2026-02-14T01:21:10.878Z",
+      "turn_token": "1771032070879"
+    },
+    {
+      "wpId": "WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.126.md",
+      "spec_target_sha1": "2d7e634514d4e3e2552f9a395c3b40da1184296b",
+      "timestamp": "2026-02-14T14:09:05.354Z",
+      "turn_token": "1771078145356"
+    },
+    {
+      "wpId": "WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja140220261758",
+      "timestamp": "2026-02-14T16:58:53.041Z",
+      "refinement_path": ".GOV/refinements/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2.md"
+    },
+    {
+      "wpId": "WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2",
+      "worktree_dir": "../wt-WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2",
+      "timestamp": "2026-02-14T17:05:18.737Z"
     }
   ]
 }
