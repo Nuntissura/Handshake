@@ -131,3 +131,24 @@ Requirements (HARD):
   ```
   ```
 
+### DECISION_RECORD (APPEND-ONLY)
+- ADDED_AT: 2026-02-14T00:00:00Z
+- SOURCE: Operator directive (WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v1)
+- PURPOSE: Unblock implementation decisions for this WP before the spec enrichment lands.
+- STATUS: PROVISIONAL (authoritative once Master Spec is enriched and SPEC_CURRENT is updated)
+
+Defaults (Phase 1) for MT ContextPacks usage:
+1) Target granularity: SourceRef-first (per-file / per-source)
+   - When building or retrieving packs for MT context compilation, prefer `target_ref: SourceRef` for each file/source.
+2) Policy knobs:
+   - regen_allowed: allows regeneration of a stale pack when encountered.
+   - regen_required: requires regeneration of a stale pack; fallback-only is not sufficient when true.
+   - stale_handling outcomes (when stale is encountered and regeneration is not performed):
+     * fallback: do not use stale pack; fall back to non-pack retrieval routes (default Phase 1 intent)
+     * fail: hard error (block the compiled context / job step)
+     * degrade_and_fallback: mark degraded + fall back; record explicit warning and recovery hint
+3) Minimum payload: anchors-first
+   - Packs MUST provide anchors when available; facts/constraints/open_loops arrays MAY be empty.
+4) Provenance rules unchanged
+   - Any included facts/constraints/open_loops MUST carry `source_refs[]` as already required by spec.
+
