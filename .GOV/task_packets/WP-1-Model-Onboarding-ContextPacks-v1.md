@@ -5,7 +5,7 @@
 - WP_ID: WP-1-Model-Onboarding-ContextPacks-v1
 - BASE_WP_ID: WP-1-Model-Onboarding-ContextPacks (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: 2026-02-12T03:19:22.509Z
-- MERGE_BASE_SHA: fadbbeb81693b7aa82ecd7eb8eca78dfc28c0049
+- MERGE_BASE_SHA: 4618ed73838c01071f766c19721fc33534d6db4f
 - REQUESTOR: ilja (Operator)
 - AGENT_ID: CodexCLI-GPT-5.2
 - ROLE: Orchestrator
@@ -61,7 +61,7 @@ cargo test --manifest-path src/backend/handshake_core/Cargo.toml
 just product-scan
 
 just cargo-clean
-just post-work WP-1-Model-Onboarding-ContextPacks-v1 --range fadbbeb81693b7aa82ecd7eb8eca78dfc28c0049..HEAD
+just post-work WP-1-Model-Onboarding-ContextPacks-v1 --range 4618ed73838c01071f766c19721fc33534d6db4f..HEAD
 ```
 
 ### DONE_MEANS
@@ -337,19 +337,19 @@ SKELETON APPROVED
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
  
   - COMMAND: `set "CARGO_INCREMENTAL=0" && set "RUSTFLAGS=-C debuginfo=0" && cargo test --manifest-path src/backend/handshake_core/Cargo.toml ace -j 1`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/cargo_test_ace_j1_debuginfo0_20260214_215315.log`
  
   - COMMAND: `set "CARGO_INCREMENTAL=0" && set "RUSTFLAGS=-C debuginfo=0" && cargo test --manifest-path src/backend/handshake_core/Cargo.toml -j 1`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/cargo_test_full_j1_debuginfo0_20260214_215343.log`
  
   - COMMAND: `just product-scan`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/just_product-scan_20260214_215845.log`
  
   - COMMAND: `just cargo-clean`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/just_cargo-clean_20260214_215901.log`
 
 ## VALIDATION_REPORTS
