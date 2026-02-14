@@ -128,16 +128,21 @@ git revert <commit-sha>
   - `open_loops[]: {loop_id, question, source_refs[]: SourceRef}`
   - `anchors[]: {anchor_id, source_ref: SourceRef, excerpt_hint: string}`
   - `coverage: {scanned_selectors[], skipped_selectors[]?}`
+  - Phase 1 minimum useful builder output: `synopsis` + `anchors[]` + `coverage` (other arrays may be empty).
+  - Builder output should emit the full schema surface with canonical JSON (stable hashes across runs); prefer anchors for span extraction when present (spec 2.6.6.7.14.6(G)).
 - `ContextPackRecord` staleness semantics (to implement in `src/backend/handshake_core/src/ace/mod.rs`)
   - Replace order-dependent `source_hashes: Vec<Hash>` with deterministic `source_refs: Vec<SourceRef>` (sorted by `source_id`), OR explicitly define and enforce a stable ordering rule so staleness comparison is order-independent.
   - `is_stale(current: &[SourceRef]) -> bool` compares `source_id -> source_hash` deterministically.
 - `ContextPackKeyV1` (deterministic lookup key; artifact-backed)
-  - Inputs: `target` (CandidateRef canonical id), `policy_id`, builder {tool_id, tool_version, config_hash}, and `sources_hash` (hash over sorted `(source_id, source_hash)`).
+  - Inputs: `target` (`SourceRef`), `policy_id`, builder {tool_id, tool_version, config_hash}, and `sources_hash` (hash over sorted `(source_id, source_hash)`).
   - Output: stable string key (used for on-disk artifact path + retrieval).
 - `ContextPackStore` (artifact IO surface; no `.GOV/` reads)
   - `load(key) -> Option<(ContextPackRecord, ContextPackPayloadV1)>`
   - `write(key, record, payload) -> (record_ref, payload_ref, payload_hash)`
   - Storage location (proposed): `data/context_packs/` (repo-relative).
+- `ContextPackFreshnessPolicyV1` (policy knobs; stored/traceable)
+  - `regen_allowed: bool` (may regenerate on stale)
+  - `regen_required: bool` (if stale and regeneration not performed, `ContextPackFreshnessGuard` may fail; otherwise fallback + degraded)
 - `ContextPackFreshnessDecision` (captured in trace + artifacts)
   - `Fresh { pack_id }`
   - `Stale { pack_id, reason }` (records warning marker `stale_pack:<pack_id>`)
@@ -146,8 +151,10 @@ git revert <commit-sha>
 ### Runtime behavior (spec-bound)
 - Routing: attempt `StoreKind::ContextPacks` first; on fresh pack, select evidence using pack anchors/spans and set `CandidateScores.pack = Some(1.0)`.
 - Freshness: if any underlying source hash differs at retrieval time, the pack is stale and MUST NOT be treated as `pack_score=1.0`; runtime deterministically:
-  - regenerates the pack (if allowed), OR
-  - falls back to non-pack retrieval (e.g., ShadowWsLexical/ShadowWsVector) and records a stale marker.
+  - if `policy.regen_allowed`: attempt regeneration; on success record `Regenerated` and allow `pack_score=1.0`
+  - if regeneration is not allowed OR not performed:
+    - if `policy.regen_required`: `ContextPackFreshnessGuard` returns an error (or marks the run degraded+failed) and emits `regen_skipped:<pack_id>`
+    - otherwise: fall back to non-pack retrieval (e.g., ShadowWsLexical/ShadowWsVector), emit `stale_pack:<pack_id>`, and mark degraded/warn.
 - Provenance binding: pack builder enforces `source_refs[]` on every fact/constraint/open_loop:
   - missing `source_refs[]` => item is dropped or forced `confidence=0` (deterministic)
   - such items MUST NOT be promoted to LongTermMemory.
@@ -169,30 +176,57 @@ git revert <commit-sha>
 - Provenance loss: pack items without `source_refs[]` accidentally promoted; must be filtered/downgraded at build time.
 - Swap drift: model swap completes without a fresh compile artifact binding; must be enforced in the swap path.
 
-### Open questions
-- What is the ContextPack "target" for MT context compilation: per-file `SourceRef`, per-MT scope hash, or per WP/workflow-run?
-- What policy field controls regeneration allowance (local-only vs capability-gated)? When should fallback be preferred over regen?
-- What is the minimal acceptable `ContextPackPayloadV1` content for Phase 1 (anchors-only vs facts/constraints/open_loops)?
-- Should stale packs be surfaced as warnings-only (fallback path) or hard errors in any modes?
+### Decisions (resolved)
+- ContextPack target: persisted packs are keyed by `SourceRef` (per-file / per-source). Per-run context compilation remains an ephemeral snapshot (not a persisted ContextPack) unless caching proves necessary.
+- Freshness policy: stale packs MUST NOT score `1.0`; runtime regenerates if `regen_allowed`, otherwise falls back. Policy exposes `regen_allowed` and `regen_required`.
+- Payload minimum (Phase 1): implement the full `ContextPackPayloadV1` schema surface as canonical JSON; arrays may be empty. Minimum useful builder output is `synopsis` + `anchors[]` + `coverage`.
+- Stale default: fallback + warnings/degraded (do not block the job) unless `regen_required=true`, in which case `ContextPackFreshnessGuard` may fail if regen is not performed.
+
+### END_TO_END_CLOSURE_PLAN (summary) [CX-E2E-001]
+- Trust boundary: server/runtime derives current `SourceRef` hashes and verifies artifacts; does not trust client-supplied provenance.
+- Source of truth: `ContextPackStore` artifacts + server-derived `sources_hash` comparisons; decisions are traceable via `ContextPackFreshnessDecision` + markers.
+- Audit linkage: ModelSwap context compilation (`context_compile_ref`) records snapshot refs/hashes and any ContextPack refs/hashes used.
+
+### Open questions (remaining)
+- Should `regen_allowed` be capability-gated (local-only vs remote builder), or always permitted when a builder is available?
 
 ### Notes
 - No product code changes until "SKELETON APPROVED".
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
-- END_TO_END_CLOSURE_PLAN_APPLICABLE: YES | NO
-- TRUST_BOUNDARY: <fill> (examples: client->server, server->storage, job->apply)
+- END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
+- TRUST_BOUNDARY: server/runtime -> ContextPackStore (artifact IO) + ModelSwap `context_compile_ref` artifact
 - SERVER_SOURCES_OF_TRUTH:
-  - <fill> (what the server loads/verifies instead of trusting the client)
+  - Current `SourceRef` hashes derived by the server from source bytes (not client supplied).
+  - ContextPack artifacts loaded from `ContextPackStore` and verified by `sources_hash` + `payload_hash` (when present).
+  - `context_compile_ref` artifact written and verified by the server during ModelSwap context compilation.
 - REQUIRED_PROVENANCE_FIELDS:
-  - <fill> (role_id, contract_id, model_id/tool_id, evidence refs, before/after spans, etc.)
+  - `ContextPackKeyV1` inputs (target `SourceRef`, `policy_id`, builder id/version/config_hash, `sources_hash`).
+  - `ContextPackRecord.source_refs[]` (sorted) + `sources_hash` + `ContextPackFreshnessDecision`.
+  - `ContextPackPayloadV1` `synopsis` + `anchors[]` + `coverage` (and `facts/constraints/open_loops` when present), with `source_refs[]` on every item.
+  - `payload_hash` + artifact refs (`record_ref`/`payload_ref`) + stale/regenerated/fallback markers + reason.
+  - ModelSwap compile artifact: `context_snapshot_ref/hash` + optional ContextPack refs/hashes + freshness markers.
 - VERIFICATION_PLAN:
-  - <fill> (how provenance/audit is verified and recorded; include non-spoofable checks when required)
+  - On load: derive current `SourceRef` hashes; compute `sources_hash`; compare to record; stale => do not allow `pack_score=1.0`.
+  - If stale and `regen_allowed`: regenerate and persist new record/payload; emit `Regenerated` marker.
+  - If stale and regen is not performed:
+    - if `regen_required`: error (or mark run degraded+failed) and emit `regen_skipped:<pack_id>`.
+    - else: fall back retrieval + degraded/warn and emit `stale_pack:<pack_id>`.
+  - For every payload item: enforce non-empty `source_refs[]`; drop/downgrade deterministically when missing.
+  - For model swap: write `context_compile_*.json` only after producing a fresh context snapshot; include hashes/refs.
 - ERROR_TAXONOMY_PLAN:
-  - <fill> (distinct error classes: stale/mismatch vs spoof attempt vs true scope violation)
+  - `ContextPackStale` (hash mismatch) vs `ContextPackArtifactCorrupt` (parse/hash mismatch).
+  - `ContextPackRegenDenied` (policy) vs `ContextPackRegenFailed` (builder error).
+  - `ContextPackProvenanceMissing` (item missing `source_refs[]`).
+  - `ModelSwapCompileMissingOrStale` (missing compile artifact or stale marker present when regen required).
 - UI_GUARDRAILS:
-  - <fill> (prevent stale apply; preview before apply; disable conditions)
+  - Surface stale/regenerated/fallback markers in job/operator output; treat stale as degraded by default (no job block).
+  - When `regen_required=true`, surface as a hard error to prevent silent stale reuse.
 - VALIDATOR_ASSERTIONS:
-  - <fill> (what the validator must prove; spec anchors; fields present; trust boundary enforced)
+  - Stale packs never produce `pack_score=1.0` and always follow policy (regen or fallback or error).
+  - Payload artifacts are canonical JSON and hash-verified; record binds `source_refs[]` deterministically.
+  - Missing `source_refs[]` items are not promoted (drop/downgrade) and are traceable.
+  - ModelSwap compile artifact includes context snapshot refs/hashes and any ContextPack refs/hashes + freshness markers.
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)

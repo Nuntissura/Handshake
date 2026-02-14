@@ -52,7 +52,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 
 
 ## Stub Backlog (Not Activated)
-- **[WP-1-Model-Onboarding-ContextPacks-v1]** - [STUB]
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
 - **[WP-1-Locus-Work-Tracking-System-Phase1-v1]** - [STUB]
@@ -95,6 +94,8 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 ## In Progress
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
+
+- **[WP-1-Model-Onboarding-ContextPacks-v1]** - [IN_PROGRESS]
 
 ## Done
 - **[WP-1-Spec-Enrichment-Product-Governance-Consistency-v1]** - [VALIDATED]
