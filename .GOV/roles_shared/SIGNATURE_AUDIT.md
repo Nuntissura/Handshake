@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-02-06
+**Updated:** 2026-02-14
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja140220261758 | Orchestrator | 2026-02-14 17:58 | Task packet creation: WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2 | v02.126 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2.md ). |
+| ilja140220260236 | Orchestrator | 2026-02-14 02:36 | Spec Enrichment v02.126 (MT ContextPack defaults: SourceRef-first + policy knobs + anchors-first payload) | v02.126 | Approved in-chat; signature provided by Operator. See .GOV/refinements/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v1.md. |
 | ilja120220260342 | Orchestrator | 2026-02-12 03:42 | Task packet creation: WP-1-Spec-Enrichment-Product-Governance-Consistency-v1 | v02.125 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Spec-Enrichment-Product-Governance-Consistency-v1.md ). |
 | ilja120220260341 | Orchestrator | 2026-02-12 03:41 | Task packet creation: WP-1-Model-Onboarding-ContextPacks-v1 | v02.125 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Model-Onboarding-ContextPacks-v1.md ). |
 | ilja120220260340 | Orchestrator | 2026-02-12 03:40 | Task packet creation: WP-1-LLM-Provider-Registry-v1 | v02.125 | Approved after Technical Refinement (see .GOV/refinements/WP-1-LLM-Provider-Registry-v1.md ). |
