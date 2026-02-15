@@ -12,12 +12,17 @@ Requirements (HARD):
 ### METADATA
 - WP_ID: WP-1-Model-Onboarding-ContextPacks-v1
 - CREATED_AT: 2026-02-12T02:22:31.408Z
-- SPEC_TARGET_RESOLVED: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.125.md
-- SPEC_TARGET_SHA1: d16eb1eb5045e858112b2ce477f27aa0200621b0
+- SPEC_TARGET_RESOLVED: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.126.md
+- SPEC_TARGET_SHA1: 7260b4ada693263799ff39dd909653863cf0e503
 - USER_REVIEW_STATUS: APPROVED
 - USER_SIGNATURE: ilja120220260341
 - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT WP-1-Model-Onboarding-ContextPacks-v1
-
+ 
+### DECISIONS_AND_OPEN_QUESTIONS
+- OPEN_QUESTION OQ-REGEN-001 (CLOSED 2026-02-14): Is ContextPack regeneration always permitted if a builder exists?
+  - Decision: `regen_allowed` is capability/policy/consent-gated (not always permitted).
+  - Spec tie-in: stale packs MUST NOT score `pack_score=1.0`; runtime MUST regenerate (if allowed) or fall back. If policy requires regeneration and it is not performed, FreshnessGuard may fail or mark degraded.
+ 
 ### REQUIRED SECTIONS (per ORCHESTRATOR_PROTOCOL Part 2.5.2)
 
 ### GAPS_IDENTIFIED
@@ -62,9 +67,9 @@ Requirements (HARD):
 ### SPEC_ANCHORS (REQUIRED: one or more)
 
 #### ANCHOR 1
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.125.md 2.6.6.7.14.7 ContextPacks (mechanical compaction substrate)
-- CONTEXT_START_LINE: 10633
-- CONTEXT_END_LINE: 10652
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.126.md 2.6.6.7.14.7 ContextPacks (mechanical compaction substrate)
+- CONTEXT_START_LINE: 10634
+- CONTEXT_END_LINE: 10653
 - CONTEXT_TOKEN: ContextPacks (mechanical compaction substrate)
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -90,9 +95,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 2
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.125.md 4.3.3.4 ModelSwapRequest (fresh context recompile requirement) (Normative) [ADD v02.120]
-- CONTEXT_START_LINE: 17692
-- CONTEXT_END_LINE: 17745
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.126.md 4.3.3.4.3 ModelSwapRequest (Normative) [ADD v02.120]
+- CONTEXT_START_LINE: 17693
+- CONTEXT_END_LINE: 17746
 - CONTEXT_TOKEN: ModelSwapRequest (Normative)
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -130,25 +135,4 @@ Requirements (HARD):
   }
   ```
   ```
-
-### DECISION_RECORD (APPEND-ONLY)
-- ADDED_AT: 2026-02-14T00:00:00Z
-- SOURCE: Operator directive (WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v1)
-- PURPOSE: Unblock implementation decisions for this WP before the spec enrichment lands.
-- STATUS: PROVISIONAL (authoritative once Master Spec is enriched and SPEC_CURRENT is updated)
-
-Defaults (Phase 1) for MT ContextPacks usage:
-1) Target granularity: SourceRef-first (per-file / per-source)
-   - When building or retrieving packs for MT context compilation, prefer `target_ref: SourceRef` for each file/source.
-2) Policy knobs:
-   - regen_allowed: allows regeneration of a stale pack when encountered.
-   - regen_required: requires regeneration of a stale pack; fallback-only is not sufficient when true.
-   - stale_handling outcomes (when stale is encountered and regeneration is not performed):
-     * fallback: do not use stale pack; fall back to non-pack retrieval routes (default Phase 1 intent)
-     * fail: hard error (block the compiled context / job step)
-     * degrade_and_fallback: mark degraded + fall back; record explicit warning and recovery hint
-3) Minimum payload: anchors-first
-   - Packs MUST provide anchors when available; facts/constraints/open_loops arrays MAY be empty.
-4) Provenance rules unchanged
-   - Any included facts/constraints/open_loops MUST carry `source_refs[]` as already required by spec.
 

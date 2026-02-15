@@ -38,7 +38,7 @@
 
 **Status:** LIVING  
 **Version:** v02.126  
-**Date:** 2026-02-14  
+**Date:** 2026-02-12  
 **Authority:** [CX-001] (The Master Spec is the Source of Truth)
 
 **Purpose:** Complete reference combining product vision, Diary governance, extraction pipeline, Phase 1 closure requirements, and technical supply-chain gate specs.
@@ -49,7 +49,7 @@
 
 | Version | Date | Author | Changes | Approval |
 |---------|------|--------|---------|----------|
-| v02.126 | 2026-02-14 | Orchestrator | **MT ContextPack defaults (Phase 1):** define SourceRef-first targeting for MT context compilation, define ContextPackPolicy knobs (`regen_allowed`, `regen_required`, `stale_handling`), and clarify anchors-first minimum payload (facts/constraints/open_loops may be empty; provenance unchanged). | ilja140220260236 |
+| v02.126 | 2026-02-12 | Coder | **Spec-only consistency correction (runtime governance paths):** Replace stale work-tracking path examples with runtime governance root `.handshake/gov/` for Task Board, Task Packets, and related refs. | ilja120220260342 |
 | v02.125 | 2026-02-06 | Orchestrator | **Governance snapshot definition:** Added `#### 7.5.4.10 Product Governance Snapshot (HARD)` defining a deterministic, leak-safe JSON snapshot derived ONLY from canonical `.GOV/**` inputs, with default output `.GOV/roles_shared/PRODUCT_GOVERNANCE_SNAPSHOT.json`, explicit `schema_version`, and list-based validator gate summaries (no timestamps; no raw logs). | ilja060220260754 |
 | v02.124 | 2026-02-05 | Validator | **Spec enrichment (governance boundary + pack path update):** define `/.GOV/` as canonical governance workspace and `docs/` as temporary compatibility bundle only; require hard enforcement that product code MUST NOT read/write `/.GOV/`; set default runtime governance state dir to `.handshake/gov/` (configurable; runtime governance state only). Updated Governance Pack sections 7.5.4.7-7.5.4.9 to reflect `.GOV/` canonical layout and boundary rules. | ilja050220260910 |
 | v02.122 | 2026-01-29 | Orchestrator | **v02.122 merge:** merged Multi-Model Parallelism Addendum (UPDATED) and Handshake_Layerwise_Inference_SpecDraft_v0.3.md into Master Spec main body: RuntimeMode/ExecutionMode + invariants (DOCS_ONLY/AI_ENABLED, min_ready_models, strict file-scope locks), RoleExecutionIdentity + ParameterClass + largest-first routing + performance telemetry scoring, MailboxKind taxonomy, HSK_STATUS lifecycle marker, SwapRequest escalation + CX-MM code registry, plus reserved `settings.exec_policy` + Work Profile compute/approximate-waiver hooks and new FR `llm_exec_policy` + `hsk.layerwise_trace@0.1`. Updated §7.6 coverage matrix + roadmap (Phase 0 closed; new [ADD v02.122] entries). | pending |
@@ -58,10 +58,10 @@
 | v02.119 | 2026-01-26 | Validator | **Non-normative AI UX notes (Command Palette + Jobs UI):** Recorded the current UX preferences that (a) Command Palette uses Ctrl/Cmd+K as primary shortcut with Ctrl/Cmd+Shift+P as a fallback, (b) "Summarize" opens the palette so instructions can be tweaked before creating the job, and (c) the backend remains the queue/source-of-truth while the frontend acts as a global job tracker UI (poll queued/running only to avoid storms). (Non-normative; expected to evolve.) | ilja260120260248 |
 | v02.118 | 2026-01-26 | Validator | **AI-Ready Data Architecture (Tree-sitter + workspace root clarifications):** Clarified the Phase 1 Shadow Workspace root mapping for `workspace/raw|derived|indexes|graph` under the app-managed `data/workspaces/{workspace_id}/workspace/` tree, required a dedicated parser (Tree-sitter) for AST-aware code chunking determinism, and clarified FR-EVT-DATA-015 to log `query_hash` only (never plaintext). | ilja260120260102 |
 | v02.117 | 2026-01-25 | Orchestrator | **AI-Ready Data Architecture (FR-EVT-DATA schema completion):** Added missing DATA event schemas for FR-EVT-DATA-003/005/006/007/008/010/013/014 in §11.5.5 so the "Flight Recorder MUST reject DATA events that do not match schemas above" requirement is fully enforceable; no requirement changes. | ilja250120261843 |
-| v02.116 | 2026-01-23 | Orchestrator | **Locus Work Tracking System Integration:** Added complete §2.3.15 Locus Work Tracking System (governance-aware work tracking from macro Work Packets through micro Micro-Task execution): §2.3.15.1 Overview and Scope (unified tracking from Prompt→Spec→Gates→MT→Done); §2.3.15.2 Core Schemas (TrackedWorkPacket with governance/gates/task_packets/micro_tasks, TrackedMicroTask with iterations/escalation/validation, TrackedDependency with 10 types); §2.3.15.3 Mechanical Operations (18 operations: locus_create_wp, locus_update_wp, locus_gate_wp, locus_register_mts, locus_start_mt, locus_record_iteration, locus_complete_mt, locus_add_dependency, locus_query_ready, locus_search, locus_sync_task_board, etc.); §2.3.15.4 Integration Points (Spec Router auto-creates WPs via locus_create_wp, MT Executor records iterations via locus_record_iteration, Task Board bidirectional sync, Task Packet linking, Calendar policy integration, Knowledge Graph dependencies); §2.3.15.5 Storage Architecture (Bronze/Silver/Gold medallion, SQLite Phase 1 local-first, PostgreSQL Phase 2 multi-user, CRDT conflict resolution, vector clocks); §2.3.15.6 Event Sourcing (21 Flight Recorder events: FR-EVT-WP-001..005 for Work Packets, FR-EVT-MT-001..006 for Micro-Tasks, FR-EVT-DEP-001..002 for dependencies, FR-EVT-TB-001..003 for Task Board, FR-EVT-SYNC-001..003 for sync, FR-EVT-QUERY-001); §2.3.15.7 Query Interface (ready work detection with dependency blocking, hybrid search vector+keyword+graph, dependency tree traversal); §2.3.15.8 Multi-User Architecture (workspace model, real-time WebSocket collaboration, CRDT op-based merge); §2.3.15.9 Performance Targets (locus_create_wp <50ms, locus_query_ready <100ms, locus_search <200ms, 10K WPs Phase 1, 100K WPs Phase 2); §2.3.15.10 Conformance Requirements (MUST/SHOULD/MAY RFC 2119 requirements). Updated Coverage Matrix §7.6.1 (added §2.3.15 row: P1, P2, P3, P4). Added Phase 1-4 roadmap items tagged [ADD v02.116]: Phase 1 (SQLite backend, core operations, Spec Router integration, MT Executor integration, Task Board sync, basic queries, Flight Recorder events), Phase 2 (hybrid search, Calendar policy, dependency graph queries, migration tools), Phase 3 (PostgreSQL backend, CRDT implementation, WebSocket real-time, workspace multi-tenancy), Phase 4 (advanced analytics, auto-archival, AI-powered insights). **Integration touchpoints:** Spec Router (§2.6.8), MT Executor (§2.6.6.8), Task Board (docs/TASK_BOARD.md), Task Packets (docs/task_packets/), Flight Recorder (§11.5), Shadow Workspace (§2.3.8), Knowledge Graph (§2.3.7), Calendar (§11.9), Mechanical Tool Bus (§6.3), Capability System (§11.1). | ilja230120262345 |
+| v02.116 | 2026-01-23 | Orchestrator | **Locus Work Tracking System Integration:** Added complete §2.3.15 Locus Work Tracking System (governance-aware work tracking from macro Work Packets through micro Micro-Task execution): §2.3.15.1 Overview and Scope (unified tracking from Prompt→Spec→Gates→MT→Done); §2.3.15.2 Core Schemas (TrackedWorkPacket with governance/gates/task_packets/micro_tasks, TrackedMicroTask with iterations/escalation/validation, TrackedDependency with 10 types); §2.3.15.3 Mechanical Operations (18 operations: locus_create_wp, locus_update_wp, locus_gate_wp, locus_register_mts, locus_start_mt, locus_record_iteration, locus_complete_mt, locus_add_dependency, locus_query_ready, locus_search, locus_sync_task_board, etc.); §2.3.15.4 Integration Points (Spec Router auto-creates WPs via locus_create_wp, MT Executor records iterations via locus_record_iteration, Task Board bidirectional sync, Task Packet linking, Calendar policy integration, Knowledge Graph dependencies); §2.3.15.5 Storage Architecture (Bronze/Silver/Gold medallion, SQLite Phase 1 local-first, PostgreSQL Phase 2 multi-user, CRDT conflict resolution, vector clocks); §2.3.15.6 Event Sourcing (21 Flight Recorder events: FR-EVT-WP-001..005 for Work Packets, FR-EVT-MT-001..006 for Micro-Tasks, FR-EVT-DEP-001..002 for dependencies, FR-EVT-TB-001..003 for Task Board, FR-EVT-SYNC-001..003 for sync, FR-EVT-QUERY-001); §2.3.15.7 Query Interface (ready work detection with dependency blocking, hybrid search vector+keyword+graph, dependency tree traversal); §2.3.15.8 Multi-User Architecture (workspace model, real-time WebSocket collaboration, CRDT op-based merge); §2.3.15.9 Performance Targets (locus_create_wp <50ms, locus_query_ready <100ms, locus_search <200ms, 10K WPs Phase 1, 100K WPs Phase 2); §2.3.15.10 Conformance Requirements (MUST/SHOULD/MAY RFC 2119 requirements). Updated Coverage Matrix §7.6.1 (added §2.3.15 row: P1, P2, P3, P4). Added Phase 1-4 roadmap items tagged [ADD v02.116]: Phase 1 (SQLite backend, core operations, Spec Router integration, MT Executor integration, Task Board sync, basic queries, Flight Recorder events), Phase 2 (hybrid search, Calendar policy, dependency graph queries, migration tools), Phase 3 (PostgreSQL backend, CRDT implementation, WebSocket real-time, workspace multi-tenancy), Phase 4 (advanced analytics, auto-archival, AI-powered insights). **Integration touchpoints:** Spec Router (§2.6.8), MT Executor (§2.6.6.8), Task Board (.handshake/gov/TASK_BOARD.md), Task Packets (.handshake/gov/task_packets/), Flight Recorder (§11.5), Shadow Workspace (§2.3.8), Knowledge Graph (§2.3.7), Calendar (§11.9), Mechanical Tool Bus (§6.3), Capability System (§11.1). | ilja230120262345 |
 | v02.115 | 2026-01-22 | Orchestrator | **AI-Ready Data Architecture FULL Integration (2,350+ lines):** Added complete §2.3.14 AI-Ready Data Architecture with 22 major sections and 5 appendices: §2.3.14.1 Motivation and Scope (problem statement, research citations: Anthropic 35-67% retrieval improvement, Databricks 37% LLM improvement, 87% vs 50% semantic-aware chunking accuracy); §2.3.14.2-3 Normative References and Terminology (30+ defined terms); §2.3.14.4 Design Principles (8 principles: semantic coherence MUST, contextual enrichment SHOULD, hybrid indexing MUST, rich metadata MUST, content-aware processing MUST, event-driven freshness SHOULD, two-stage retrieval SHOULD, validation automation MUST); §2.3.14.5 Content Storage Architecture (Bronze/Silver/Gold medallion pattern with full TypeScript schemas: BronzeRecord, SilverRecord, ProcessedContent, EmbeddingRecord, ProcessingRecord, ValidationRecord); §2.3.14.6 Chunking Strategies (AST-aware code chunking with Python implementation, header-recursive document chunking, semantic chunking for prose, validation requirements); §2.3.14.7 Embedding Architecture (model registry with version tracking, model comparison tables for text/code/vision, selection function, migration plan schema); §2.3.14.8 Indexing Architecture (HNSW vector index, BM25 keyword index, Knowledge Graph with 20 relationship types, RRF fusion algorithm); §2.3.14.9 Retrieval Pipeline (two-stage with reranking, context assembly, "lost in middle" mitigation); §2.3.14.10 Metadata Schema (core metadata, content-type extensions for code/image/email/calendar, agent context annotations); §2.3.14.11 Multimodal Data Organization (unified schema, cross-modal queries); §2.3.14.12 Anti-Patterns and Mitigations (fixed-size chunking, orphan embeddings, context pollution, stale indexes); §2.3.14.13 Context Management (pollution scoring, budget management, fresh context pattern); §2.3.14.14 Validation and Quality Metrics (SLOs: MRR≥0.6, Recall@10≥0.8, NDCG@5≥0.7, p95≤500ms, validation≥95%, completeness≥99%; mechanical validation jobs); §2.3.14.15 Integration Mapping (Master Spec section touchpoints); §2.3.14.16 Security and Privacy (embedding access controls, index encryption, audit trail); §2.3.14.17 Conformance Requirements (MUST/SHOULD lists, performance baselines); §2.3.14.A Complete Schema Definitions (full TypeScript types); §2.3.14.B Embedding Model Comparison (benchmark tables); §2.3.14.C Chunking Algorithm Implementations (Python reference code); §2.3.14.D Validation Job Profiles (mechanical job specs); §2.3.14.E Flight Recorder Event Schemas (FR-EVT-DATA-001..015). Extended §2.3.7 Knowledge Graph, §2.3.8 Shadow Workspace, §2.3.13 Storage Traits. Updated Coverage Matrix §7.6.1. Added Phase 1-4 roadmap items. **Cross-cutting principle:** "everything can use everything" - all tools produce Bronze→Silver→Gold, all features consume via unified retrieval. | ilja220120262330 |
 | v02.114 | 2026-01-21 | Orchestrator | Added §2.6.6.8 Micro-Task Executor Profile: auto-generated MT decomposition from Work Packets, iterative execution loop with fresh-context-per-iteration, model/LoRA escalation chain, completion signal protocol with anti-gaming rules, crash recovery via run ledger, Skill Bank distillation integration (§9), 17 Flight Recorder events (FR-EVT-MT-001..017); updated Coverage Matrix (§2.6 row covers new subsection); added Phase 1 roadmap items (Mechanical Track: MT Loop Controller + validation engine wiring; Distillation Track: escalation candidate capture); added Phase 2/3/4 items for LoRA training automation and parallel wave execution. | ilja210120262100 |
-| v02.113 | 2026-01-17 | Orchestrator | Governance workflow hardening: Validator gate state is stored per WP in `docs/validator_gates/{WP_ID}.json` (merge-safe) with `docs/VALIDATOR_GATES.json` as a legacy read-only archive; stub activation MUST update `docs/WP_TRACEABILITY_REGISTRY.md` Base→Active mapping and move Task Board entry out of STUB; define Flight Recorder events for gate transitions and WP activation mirroring. | ilja170120260225 |
+| v02.113 | 2026-01-17 | Orchestrator | Governance workflow hardening: Validator gate state is stored per WP in `.handshake/gov/validator_gates/{WP_ID}.json` (merge-safe) with `docs/VALIDATOR_GATES.json` as a legacy read-only archive; stub activation MUST update `.handshake/gov/WP_TRACEABILITY_REGISTRY.md` Base→Active mapping and move Task Board entry out of STUB; define Flight Recorder events for gate transitions and WP activation mirroring. | ilja170120260225 |
 | v02.112 | 2026-01-15 | Orchestrator | Role Mailbox hardening: define FR-EVT-GOV-MAILBOX-001/002/003 event schemas, require schema validation at Flight Recorder ingestion, forbid inline message bodies in Flight Recorder or repo exports, and require a RoleMailboxExportGate mechanical gate. | ilja150120260214 |
 | v02.111 | 2026-01-13 | Orchestrator | Inline missing high-signal governance docs into the Governance Pack Template Volume: role rubrics (`docs/CODER_RUBRIC.md`, `docs/ORCHESTRATOR_RUBRIC.md`), migration law (`docs/MIGRATION_GUIDE.md`), and legacy shim pointers for moved templates (`docs/*_TEMPLATE.md`). | ilja130120260459 |
 | v02.110 | 2026-01-13 | Orchestrator | Fix Governance Pack template drift: `docs/VALIDATOR_GATES.json` now uses the `validation_sessions` + `archived_sessions` schema (matches `scripts/validation/validator_gates.mjs`). | ilja130120260438 |
@@ -5398,14 +5398,14 @@ Defines the complete extraction pipeline: IMG-001 (image and media extractors), 
 Handshake requires unified tracking from macro-level governance (Work Packets → Task Packets → Gates) through micro-level execution (Micro-Tasks → Iterations → Validation). External issue trackers lack governance integration, cannot observe MT execution granularity, and don't provide event-sourced sync. Locus provides a native, mechanical, fully-integrated work tracking system that spans the complete lifecycle from "User says: Build feature" through "MT-003 iteration 2 validated successfully."
 
 **What**  
-Locus is Handshake's native work tracking subsystem that tracks Work Packets (governance-aware work units) and Micro-Tasks (atomic execution units) with full observability, dependency management, and multi-user collaboration. It integrates with Spec Router (auto-creates WPs), MT Executor (tracks iterations), Task Board (bidirectional sync), Task Packets (links to docs/), Flight Recorder (event sourcing), Knowledge Graph (typed dependencies), and Calendar (policy-based queries).
+Locus is Handshake's native work tracking subsystem that tracks Work Packets (governance-aware work units) and Micro-Tasks (atomic execution units) with full observability, dependency management, and multi-user collaboration. It integrates with Spec Router (auto-creates WPs), MT Executor (tracks iterations), Task Board (bidirectional sync), Task Packets (links to runtime governance state), Flight Recorder (event sourcing), Knowledge Graph (typed dependencies), and Calendar (policy-based queries).
 
 **Jargon**  
 - **Work Packet (WP)**: A governance-tracked work unit with lifecycle states (stub → ready → in_progress → blocked → gated → done), gates (pre-work, post-work), and linked Task Packets. Created by Spec Router (§2.6.8) from user prompts.
 - **Micro-Task (MT)**: An atomic execution unit (1-5 files, single session) with iteration tracking, model escalation, and validation results. Generated and executed by MT Executor (§2.6.6.8).
 - **Locus**: Latin for "place" or "position"; the system locates work packets by status, dependencies, and execution state.
-- **Task Board**: The markdown table in `docs/TASK_BOARD.md` that provides human-readable project status. Locus syncs bidirectionally with it.
-- **Task Packet**: The structured spec in `docs/task_packets/{WP_ID}.md` with IN_SCOPE_PATHS, DONE_MEANS, TEST_PLAN. Locus links to these.
+- **Task Board**: The markdown table in `.handshake/gov/TASK_BOARD.md` that provides human-readable project status. Locus syncs bidirectionally with it.
+- **Task Packet**: The structured spec in `.handshake/gov/task_packets/{WP_ID}.md` with IN_SCOPE_PATHS, DONE_MEANS, TEST_PLAN. Locus links to these.
 - **Ready Work**: The set of all WPs where status=ready AND no open blocking dependencies exist.
 - **Mechanical Operation**: All Locus operations follow Mechanical Tool Bus (§6.3) patterns with PlannedOperation envelopes, capability gating, and deterministic execution.
 
@@ -5441,7 +5441,7 @@ Post-Work Gate ──────────────→ locus_gate_wp(wp_id
 locus_close_wp(wp_id)
     ↓
 Task Board Sync ──────────────→ locus_sync_task_board()
-                                  [docs/TASK_BOARD.md updated]
+                                  [.handshake/gov/TASK_BOARD.md updated]
 ```
 
 **Integration with Existing Systems**
@@ -5452,8 +5452,8 @@ Locus is deeply integrated with all major Handshake subsystems:
 |-----------|------------------|------------------|
 | **Spec Router (§2.6.8)** | Producer | Auto-invokes `locus_create_wp` when routing prompts |
 | **MT Executor (§2.6.6.8)** | Producer | Auto-invokes `locus_start_mt`, `locus_record_iteration`, `locus_complete_mt` |
-| **Task Board** | Bidirectional Sync | `locus_sync_task_board` reads/writes `docs/TASK_BOARD.md` |
-| **Task Packets** | Reference | WP.governance.task_packet_path links to `docs/task_packets/{WP_ID}.md` |
+| **Task Board** | Bidirectional Sync | `locus_sync_task_board` reads/writes `.handshake/gov/TASK_BOARD.md` |
+| **Task Packets** | Reference | WP.governance.task_packet_path links to `.handshake/gov/task_packets/{WP_ID}.md` |
 | **Flight Recorder (§11.5)** | Event Source | All operations emit FR-EVT-WP-*, FR-EVT-MT-*, FR-EVT-DEP-*, FR-EVT-TB-* |
 | **Shadow Workspace (§2.3.8)** | Storage | Uses Bronze/Silver/Gold medallion for WP/MT data |
 | **Knowledge Graph (§2.3.7)** | Dependencies | Dependency edges as typed KG relationships (10 types) |
@@ -5487,12 +5487,12 @@ interface TrackedWorkPacket {
     
     // Gate status (Validator integration)
     gates: {
-      pre_work: GateStatus;            // From docs/validator_gates/{WP_ID}.json
+      pre_work: GateStatus;            // From .handshake/gov/validator_gates/{WP_ID}.json
       post_work: GateStatus;
     };
     
     // Task Packet reference
-    task_packet_path?: string;         // "docs/task_packets/WP-1-Auth.md"
+    task_packet_path?: string;         // ".handshake/gov/task_packets/WP-1-Auth.md"
     task_board_status: TaskBoardStatus;
   };
   
@@ -5934,12 +5934,12 @@ interface MTExecutorLocusIntegration {
 
 **Task Board Sync**
 
-Bidirectional sync with `docs/TASK_BOARD.md`:
+Bidirectional sync with `.handshake/gov/TASK_BOARD.md`:
 
 ```typescript
 // Read Task Board → Update Locus database
 sync_from_task_board() {
-  const task_board = fs.readFileSync("docs/TASK_BOARD.md", "utf-8");
+  const task_board = fs.readFileSync(".handshake/gov/TASK_BOARD.md", "utf-8");
   const sections = parseTaskBoard(task_board);
   
   for (const entry of sections.all_entries) {
@@ -5967,8 +5967,8 @@ sync_to_task_board() {
   const sections = generateTaskBoardSections(grouped);
   
   // Atomic write
-  fs.writeFileSync("docs/TASK_BOARD.md.tmp", sections.join("\n"));
-  fs.renameSync("docs/TASK_BOARD.md.tmp", "docs/TASK_BOARD.md");
+  fs.writeFileSync(".handshake/gov/TASK_BOARD.md.tmp", sections.join("\n"));
+  fs.renameSync(".handshake/gov/TASK_BOARD.md.tmp", ".handshake/gov/TASK_BOARD.md");
 }
 ```
 
@@ -10651,43 +10651,6 @@ The final evidence set inserted into the PromptEnvelope MUST be:
 - Every `fact`, `constraint`, and `open_loop` MUST include `source_refs[]`.
 - A pack item without SourceRefs MUST be dropped or marked `confidence=0` and MUST NOT be promoted to LongTermMemory.
 
-**Phase 1 defaults (MT Context compilation)**
-
-- Target granularity (default): SourceRef-first (per-file / per-source)
-  - When compiling context for Micro-Tasks, the runtime MUST prefer ContextPacks whose `target` is a `SourceRef` corresponding to the specific file/source in scope.
-  - `EntityRef` targets MAY be used for non-file entities, but MUST NOT replace SourceRef-first targeting for code file compilation in Phase 1.
-
-- Minimum payload (anchors-first; Phase 1)
-  - `ContextPackPayload` MUST include `synopsis` and `anchors[]`.
-  - `facts[]`, `constraints[]`, and `open_loops[]` MAY be empty arrays.
-  - Provenance rules are unchanged: any included `fact`, `constraint`, or `open_loop` MUST carry `source_refs[]` as already required.
-
-- ContextPack staleness policy knobs (normative)
-  - The active policy profile MUST define:
-
-  ```typescript
-  interface ContextPackPolicy {
-    regen_allowed: boolean;
-    regen_required: boolean;
-    stale_handling: "fallback" | "fail" | "degrade_and_fallback";
-  }
-  ```
-
-  - Phase 1 default ContextPackPolicy:
-    - regen_allowed: true
-    - regen_required: false
-    - stale_handling: "fallback"
-
-**Normative staleness handling semantics**
-- If a selected ContextPack is stale:
-  - If `policy.regen_allowed=true`, the runtime MAY run `refresh_context_pack` and then re-check freshness.
-  - If `policy.regen_required=true`, `policy.stale_handling` MUST be `"fail"` or `"degrade_and_fallback"` (it MUST NOT be `"fallback"`).
-  - If `policy.regen_required=true` and a fresh pack was not produced, apply `policy.stale_handling`:
-    - `fail`: fail the retrieval-backed call (no compiled context is emitted).
-    - `degrade_and_fallback`: mark degraded and fall back to non-pack retrieval routes; emit an explicit warning and recovery hint.
-  - If `policy.regen_required=false`:
-    - The runtime MUST NOT use a stale pack as evidence; it MUST fall back to non-pack retrieval routes.
-
 ---
 
 ###### 2.6.6.7.14.8 Semantic Catalog (LLM-facing data dictionary)
@@ -10776,19 +10739,7 @@ pub trait AceRuntimeValidator: Send + Sync {
   - any bounded read exceeds max_read_tokens without truncation flag.
 
 2) **ContextPackFreshnessGuard**
-- MUST enforce ContextPack staleness behavior using the active `ContextPackPolicy` (§2.6.6.7.14.7).
-- MUST treat a ContextPack as **stale** if any underlying `source_hash` differs from the hashes recorded in the selected `ContextPackRecord.source_hashes[]`.
-- If a selected ContextPack is stale:
-  - If `policy.regen_allowed=true`, the runtime MAY attempt `refresh_context_pack` and MUST re-check freshness.
-  - If `policy.regen_required=true` and a fresh pack was not produced:
-    - If `policy.stale_handling="fail"`: fail validation (`validate_trace` returns Err); compiled context MUST NOT be emitted.
-    - If `policy.stale_handling="degrade_and_fallback"`: mark degraded, fall back to non-pack retrieval routes, and continue.
-  - If `policy.regen_required=false`:
-    - The runtime MUST NOT use a stale pack as evidence; it MUST fall back to non-pack retrieval routes.
-- Observability (normative): `RetrievalTrace.warnings[]` MUST include a warning token indicating the staleness outcome:
-  - `context_pack_stale:fallback`
-  - `context_pack_stale:fail`
-  - `context_pack_stale:degrade_and_fallback`
+- Fail or mark degraded if a selected ContextPack is stale and regeneration was required by policy but not performed.
 
 3) **IndexDriftGuard**
 - If any selected evidence item has source_hash mismatch (embedding drift) or missing provenance (KG drift), the job MUST:
@@ -11759,33 +11710,12 @@ MTContextCompilationPipeline:
    - Notes (if present)
 
 6. RETRIEVE file contents:
-    - FOR EACH file IN MT.files.read ∪ MT.files.modify:
-        target_ref = SourceRef(file)                       // SourceRef-first (Phase 1; §2.6.6.7.14.7)
-        IF prefer_context_packs=true:
-            IF ContextPack(target_ref) exists:
-                IF ContextPack is fresh:
-                    Include ContextPack synopsis + anchors[]   // anchors-first minimum payload
-                ELSE: // stale
-                    IF policy.regen_allowed=true:
-                        MAY refresh_context_pack(target_ref) and re-check freshness
-                    IF ContextPack is now fresh:
-                        Include ContextPack synopsis + anchors[]
-                    ELSE:
-                        // Apply ContextPackPolicy + ContextPackFreshnessGuard (§2.6.6.7.14.7 / §2.6.6.7.14.11)
-                        // - MUST NOT use stale pack as evidence
-                        // - MUST fall back to non-pack retrieval routes
-                        // - IF policy.regen_required=true and stale remains:
-                        //     * stale_handling=fail => abort compilation for this step
-                        //     * stale_handling=degrade_and_fallback => mark degraded and continue fallback
-                        // - MUST record RetrievalTrace.warnings[] += "context_pack_stale:{fallback|fail|degrade_and_fallback}"
-                        Query Shadow Workspace for relevant chunks
-                        Include chunks within budget
-            ELSE:
-                Query Shadow Workspace for relevant chunks
-                Include chunks within budget
-        ELSE:
-            Query Shadow Workspace for relevant chunks
-            Include chunks within budget
+   - FOR EACH file IN MT.files.read ∪ MT.files.modify:
+       IF ContextPack exists AND is fresh:
+           Include ContextPack summary + anchors
+       ELSE:
+           Query Shadow Workspace for relevant chunks
+           Include chunks within budget
    
    - IF budget allows AND include_neighbors:
        Include neighboring code context
@@ -43841,7 +43771,7 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
   - Implement basic query operations: locus_query_ready (dependency-aware), locus_get_wp_status, locus_get_mt_progress (§2.3.15.7)
   - Wire Spec Router integration: auto-invoke locus_create_wp when routing prompts, link to task_packet_path (§2.3.15.4)
   - Wire MT Executor integration: auto-invoke locus_start_mt, locus_record_iteration (every iteration), locus_complete_mt (§2.3.15.4)
-  - Implement Task Board bidirectional sync: locus_sync_task_board reads/writes docs/TASK_BOARD.md, auto-sync on WP state change (§2.3.15.4)
+  - Implement Task Board bidirectional sync: locus_sync_task_board reads/writes .handshake/gov/TASK_BOARD.md, auto-sync on WP state change (§2.3.15.4)
   - [ADD v02.116] **Task Board hygiene:** Task Board items tagged `v02.116` MUST be revised/updated (status, scope, owner, links). Ensure 1:1 mapping between Task Board entries and Locus `wp_id`s; remove stale/duplicate entries; re-run `locus_sync_task_board` to normalize.
   - Implement Bronze/Silver/Gold storage: WPBronze snapshots, WPSilver chunks with embeddings (text-embedding-3-small), basic keyword search (§2.3.15.5)
   - Wire Flight Recorder events: FR-EVT-WP-001..005, FR-EVT-MT-001..006, FR-EVT-DEP-001..002, FR-EVT-TB-001..003, FR-EVT-QUERY-001 (§2.3.15.6)
@@ -55952,7 +55882,7 @@ Centralized, single-source definitions for cross-cutting contracts that all Prod
   - `locus.gate`
   - `locus.delete`
   - `locus.sync`
-  - Note: `locus_sync_task_board` additionally requires `fs.read` + `fs.write` (scoped) to touch `docs/TASK_BOARD.md`.
+  - Note: `locus_sync_task_board` additionally requires `fs.read` + `fs.write` (scoped) to touch `.handshake/gov/TASK_BOARD.md`.
 
 ### 11.1.3 Scoped Capabilities (normative)
 
@@ -57961,7 +57891,7 @@ interface GovernanceGateTransitionEvent extends FlightRecorderEventBase {
   gate: string;                     // e.g. REPORT_PRESENTED, USER_ACKNOWLEDGED, WP_APPENDED, COMMITTED, REFINE_RECORDED, SIGNATURE_RECORDED, PREPARE_RECORDED
   verdict?: 'PASS' | 'FAIL' | null;  // REQUIRED for REPORT_PRESENTED; otherwise null/omitted
 
-  gate_state_ref: string;           // e.g. docs/validator_gates/WP-1-Example-v1.json (or other artifact handle)
+  gate_state_ref: string;           // e.g. .handshake/gov/validator_gates/WP-1-Example-v1.json (or other artifact handle)
   idempotency_key: string;
 }
 
@@ -57973,11 +57903,11 @@ interface WorkPacketActivatedEvent extends FlightRecorderEventBase {
   base_wp_id: string;
   work_packet_id: string;
 
-  stub_packet_ref: string;          // e.g. docs/task_packets/stubs/WP-...md
-  active_packet_ref: string;         // e.g. docs/task_packets/WP-...md
+  stub_packet_ref: string;          // e.g. .handshake/gov/task_packets/stubs/WP-...md
+  active_packet_ref: string;         // e.g. .handshake/gov/task_packets/WP-...md
 
-  traceability_registry_ref: string; // e.g. docs/WP_TRACEABILITY_REGISTRY.md
-  task_board_ref: string;            // e.g. docs/TASK_BOARD.md
+  traceability_registry_ref: string; // e.g. .handshake/gov/WP_TRACEABILITY_REGISTRY.md
+  task_board_ref: string;            // e.g. .handshake/gov/TASK_BOARD.md
 
   idempotency_key: string;
 }

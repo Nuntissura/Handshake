@@ -12,8 +12,8 @@ Requirements (HARD):
 ### METADATA
 - WP_ID: WP-1-Spec-Enrichment-Product-Governance-Consistency-v1
 - CREATED_AT: 2026-02-12T02:22:36.477Z
-- SPEC_TARGET_RESOLVED: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.125.md
-- SPEC_TARGET_SHA1: d16eb1eb5045e858112b2ce477f27aa0200621b0
+- SPEC_TARGET_RESOLVED: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.126.md
+- SPEC_TARGET_SHA1: 7260b4ada693263799ff39dd909653863cf0e503
 - USER_REVIEW_STATUS: APPROVED
 - USER_SIGNATURE: ilja120220260342
 - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT WP-1-Spec-Enrichment-Product-Governance-Consistency-v1
@@ -57,23 +57,23 @@ Requirements (HARD):
 ### SPEC_ANCHORS (REQUIRED: one or more)
 
 #### ANCHOR 1
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.125.md 2.3.15 Locus Work Tracking System (Task Board + Task Packet refs)
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.126.md 2.3.15 Locus Work Tracking System (Task Board + Task Packet refs)
 - CONTEXT_START_LINE: 5400
 - CONTEXT_END_LINE: 5456
-- CONTEXT_TOKEN: docs/TASK_BOARD.md
+- CONTEXT_TOKEN: .handshake/gov/TASK_BOARD.md
 - EXCERPT_ASCII_ESCAPED:
   ```text
-  - **Task Board**: The markdown table in `docs/TASK_BOARD.md` that provides human-readable project status. Locus syncs bidirectionally with it.
-  - **Task Packet**: The structured spec in `docs/task_packets/{WP_ID}.md` with IN_SCOPE_PATHS, DONE_MEANS, TEST_PLAN. Locus links to these.
+  - **Task Board**: The markdown table in `.handshake/gov/TASK_BOARD.md` that provides human-readable project status. Locus syncs bidirectionally with it.
+  - **Task Packet**: The structured spec in `.handshake/gov/task_packets/{WP_ID}.md` with IN_SCOPE_PATHS, DONE_MEANS, TEST_PLAN. Locus links to these.
 
-  | **Task Board** | Bidirectional Sync | `locus_sync_task_board` reads/writes `docs/TASK_BOARD.md` |
-  | **Task Packets** | Reference | WP.governance.task_packet_path links to `docs/task_packets/{WP_ID}.md` |
+  | **Task Board** | Bidirectional Sync | `locus_sync_task_board` reads/writes `.handshake/gov/TASK_BOARD.md` |
+  | **Task Packets** | Reference | WP.governance.task_packet_path links to `.handshake/gov/task_packets/{WP_ID}.md` |
   ```
 
 #### ANCHOR 2
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.125.md Repo/runtime boundary (HARD) + runtime governance state root `.handshake/gov/`
-- CONTEXT_START_LINE: 28514
-- CONTEXT_END_LINE: 28518
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.126.md Repo/runtime boundary (HARD) + runtime governance state root `.handshake/gov/`
+- CONTEXT_START_LINE: 28515
+- CONTEXT_END_LINE: 28519
 - CONTEXT_TOKEN: .handshake/gov/
 - EXCERPT_ASCII_ESCAPED:
   ```text

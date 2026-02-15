@@ -5,6 +5,9 @@
 //! centralized observability via Flight Recorder.
 
 pub mod ollama;
+pub mod guard;
+pub mod openai_compat;
+pub mod registry;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -196,6 +199,30 @@ pub enum LlmError {
     #[error("HSK-402-BUDGET-EXCEEDED: Token budget exceeded: {0}")]
     BudgetExceeded(u32),
 
+    /// HSK-400-INVALID-BASE-URL: Invalid/unparseable provider base_url configuration.
+    #[error("HSK-400-INVALID-BASE-URL: Invalid base_url: {0}")]
+    InvalidBaseUrl(String),
+
+    /// HSK-403-SSRF-BLOCKED: base_url blocked by SSRF protections (Cloud tier).
+    #[error("HSK-403-SSRF-BLOCKED: base_url blocked by SSRF guard: {0}")]
+    SsrBlocked(String),
+
+    /// HSK-403-GOVERNANCE-LOCKED: GovernanceMode LOCKED => cloud escalation denied.
+    #[error("HSK-403-GOVERNANCE-LOCKED: GovernanceMode LOCKED; cloud escalation denied")]
+    GovernanceLocked,
+
+    /// HSK-403-CLOUD-ESCALATION-DENIED: Cloud escalation disallowed by runtime policy.
+    #[error("HSK-403-CLOUD-ESCALATION-DENIED: Cloud escalation disallowed by policy")]
+    CloudEscalationDenied,
+
+    /// HSK-403-CLOUD-CONSENT-REQUIRED: Missing consent artifacts for cloud escalation.
+    #[error("HSK-403-CLOUD-CONSENT-REQUIRED: Missing ProjectionPlan + ConsentReceipt")]
+    CloudConsentRequired,
+
+    /// HSK-403-CLOUD-CONSENT-MISMATCH: Consent artifacts do not bind or hash mismatch.
+    #[error("HSK-403-CLOUD-CONSENT-MISMATCH: Consent artifacts invalid: {0}")]
+    CloudConsentMismatch(String),
+
     /// HSK-500-LLM: Internal provider error.
     #[error("HSK-500-LLM: Internal provider error: {0}")]
     ProviderError(String),
@@ -276,6 +303,42 @@ mod tests {
         assert_eq!(
             budget.to_string(),
             "HSK-402-BUDGET-EXCEEDED: Token budget exceeded: 1500"
+        );
+
+        let invalid_base_url = LlmError::InvalidBaseUrl("bad".to_string());
+        assert_eq!(
+            invalid_base_url.to_string(),
+            "HSK-400-INVALID-BASE-URL: Invalid base_url: bad"
+        );
+
+        let ssrf = LlmError::SsrBlocked("http://127.0.0.1".to_string());
+        assert_eq!(
+            ssrf.to_string(),
+            "HSK-403-SSRF-BLOCKED: base_url blocked by SSRF guard: http://127.0.0.1"
+        );
+
+        let locked = LlmError::GovernanceLocked;
+        assert_eq!(
+            locked.to_string(),
+            "HSK-403-GOVERNANCE-LOCKED: GovernanceMode LOCKED; cloud escalation denied"
+        );
+
+        let denied = LlmError::CloudEscalationDenied;
+        assert_eq!(
+            denied.to_string(),
+            "HSK-403-CLOUD-ESCALATION-DENIED: Cloud escalation disallowed by policy"
+        );
+
+        let consent_required = LlmError::CloudConsentRequired;
+        assert_eq!(
+            consent_required.to_string(),
+            "HSK-403-CLOUD-CONSENT-REQUIRED: Missing ProjectionPlan + ConsentReceipt"
+        );
+
+        let mismatch = LlmError::CloudConsentMismatch("hash mismatch".to_string());
+        assert_eq!(
+            mismatch.to_string(),
+            "HSK-403-CLOUD-CONSENT-MISMATCH: Consent artifacts invalid: hash mismatch"
         );
 
         let provider = LlmError::ProviderError("Connection timeout".to_string());

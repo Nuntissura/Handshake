@@ -4,7 +4,7 @@ The current authoritative Master Specification is:
 
 **Handshake_Master_Spec_v02.126.md**
 
-(Updated: 2026-02-14 - v02.126)
+(Updated: 2026-02-12 - v02.126)
 
 ---
 

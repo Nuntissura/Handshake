@@ -852,16 +852,22 @@ impl CacheKey {
 pub struct ContextPackRecord {
     /// Unique pack identifier
     pub pack_id: Uuid,
-    /// Target entity or source
-    pub target: CandidateRef,
+    /// Target source at build time
+    pub target: SourceRef,
     /// Handle to the pack artifact
     pub pack_artifact: ArtifactHandle,
-    /// Hashes of underlying sources at build time
+    /// Hashes of underlying sources at build time (spec §2.6.6.7.14.7).
+    #[serde(default)]
     pub source_hashes: Vec<Hash>,
+    /// Underlying sources at build time (sorted by source_id for determinism)
+    #[serde(default)]
+    pub source_refs: Vec<SourceRef>,
     /// When the pack was created
     pub created_at: DateTime<Utc>,
     /// Builder metadata
     pub builder: ContextPackBuilder,
+    /// Canonical JSON hash of the payload artifact
+    pub payload_hash: Hash,
     /// Pack version
     pub version: u32,
 }
@@ -876,17 +882,144 @@ pub struct ContextPackBuilder {
 
 impl ContextPackRecord {
     /// Check if the pack is stale by comparing source hashes
-    pub fn is_stale(&self, current_hashes: &[Hash]) -> bool {
-        if self.source_hashes.len() != current_hashes.len() {
-            return true;
-        }
-        for (old, new) in self.source_hashes.iter().zip(current_hashes.iter()) {
-            if old != new {
+    pub fn is_stale(&self, current_sources: &[SourceRef]) -> bool {
+        // Preferred path: compare (source_id -> source_hash) deterministically.
+        if !self.source_refs.is_empty() {
+            if self.source_refs.len() != current_sources.len() {
                 return true;
             }
+
+            let mut old_sorted: Vec<&SourceRef> = self.source_refs.iter().collect();
+            old_sorted.sort_by_key(|s| s.source_id);
+
+            let mut current_sorted: Vec<&SourceRef> = current_sources.iter().collect();
+            current_sorted.sort_by_key(|s| s.source_id);
+
+            for (old, current) in old_sorted.iter().zip(current_sorted.iter()) {
+                if old.source_id != current.source_id || old.source_hash != current.source_hash {
+                    return true;
+                }
+            }
+
+            // Enforce record's source_hashes[] (spec field) if present.
+            if !self.source_hashes.is_empty() {
+                let expected_hashes: Vec<Hash> = old_sorted
+                    .iter()
+                    .map(|s| (*s).source_hash.clone())
+                    .collect();
+                if expected_hashes != self.source_hashes {
+                    return true;
+                }
+            }
+
+            return false;
         }
-        false
+
+        // Hash-only fallback (supports legacy records) - safe only for single-source packs.
+        if self.source_hashes.len() == 1 && current_sources.len() == 1 {
+            return self.source_hashes[0] != current_sources[0].source_hash;
+        }
+
+        true
     }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ContextPackConstraintSeverity {
+    Hard,
+    Soft,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextPackFactV1 {
+    pub fact_id: String,
+    pub text: String,
+    #[serde(default)]
+    pub source_refs: Vec<SourceRef>,
+    pub confidence: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextPackConstraintV1 {
+    pub constraint_id: String,
+    pub text: String,
+    #[serde(default)]
+    pub source_refs: Vec<SourceRef>,
+    pub severity: ContextPackConstraintSeverity,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextPackOpenLoopV1 {
+    pub loop_id: String,
+    pub question: String,
+    #[serde(default)]
+    pub source_refs: Vec<SourceRef>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextPackAnchorV1 {
+    pub anchor_id: String,
+    pub source_ref: SourceRef,
+    pub excerpt_hint: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextPackCoverageV1 {
+    pub scanned_selectors: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skipped_selectors: Option<Vec<String>>,
+}
+
+/// Canonical JSON payload persisted in `pack_artifact` (spec §2.6.6.7.14.7).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextPackPayloadV1 {
+    pub synopsis: String,
+    #[serde(default)]
+    pub facts: Vec<ContextPackFactV1>,
+    #[serde(default)]
+    pub constraints: Vec<ContextPackConstraintV1>,
+    #[serde(default)]
+    pub open_loops: Vec<ContextPackOpenLoopV1>,
+    #[serde(default)]
+    pub anchors: Vec<ContextPackAnchorV1>,
+    pub coverage: ContextPackCoverageV1,
+}
+
+impl ContextPackPayloadV1 {
+    /// Enforce provenance binding per spec §2.6.6.7.14.7.
+    /// - facts: missing SourceRefs => confidence=0 (downgrade)
+    /// - constraints/open_loops: missing SourceRefs => dropped
+    pub fn enforce_provenance_binding(&mut self) {
+        for fact in &mut self.facts {
+            if fact.source_refs.is_empty() {
+                fact.confidence = 0.0;
+            }
+        }
+        self.constraints.retain(|c| !c.source_refs.is_empty());
+        self.open_loops.retain(|l| !l.source_refs.is_empty());
+    }
+
+    pub fn compute_payload_hash(&self) -> Result<Hash, serde_json::Error> {
+        let bytes = serde_json::to_vec_pretty(self)?;
+        let mut h = Sha256::new();
+        h.update(&bytes);
+        Ok(hex::encode(h.finalize()))
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextPackFreshnessPolicyV1 {
+    pub regen_allowed: bool,
+    pub regen_required: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ContextPackFreshnessDecision {
+    Fresh { pack_id: Uuid },
+    Stale { pack_id: Uuid, reason: String },
+    Regenerated { old_pack_id: Uuid, new_pack_id: Uuid },
 }
 
 // ============================================================================
@@ -1144,28 +1277,77 @@ mod tests {
 
     #[test]
     fn test_context_pack_staleness() {
+        let source1 = SourceRef::new(Uuid::from_u128(1), "hash1".to_string());
+        let source2 = SourceRef::new(Uuid::from_u128(2), "hash2".to_string());
         let pack = ContextPackRecord {
             pack_id: Uuid::new_v4(),
-            target: CandidateRef::Source(SourceRef::new(Uuid::new_v4(), "target".to_string())),
+            target: source1.clone(),
             pack_artifact: ArtifactHandle::new(Uuid::new_v4(), "/path".to_string()),
-            source_hashes: vec!["hash1".to_string(), "hash2".to_string()],
+            source_hashes: vec![source1.source_hash.clone(), source2.source_hash.clone()],
+            source_refs: vec![source2.clone(), source1.clone()],
             created_at: Utc::now(),
             builder: ContextPackBuilder {
                 tool_id: "builder".to_string(),
                 tool_version: "1.0".to_string(),
                 config_hash: "config".to_string(),
             },
+            payload_hash: "payload_hash".to_string(),
             version: 1,
         };
 
         // Same hashes -> not stale
-        assert!(!pack.is_stale(&["hash1".to_string(), "hash2".to_string()]));
+        assert!(!pack.is_stale(&[source1.clone(), source2.clone()]));
 
         // Different hashes -> stale
-        assert!(pack.is_stale(&["hash1".to_string(), "hash3".to_string()]));
+        assert!(pack.is_stale(&[
+            source1.clone(),
+            SourceRef::new(source2.source_id, "hash3".to_string()),
+        ]));
 
         // Different count -> stale
-        assert!(pack.is_stale(&["hash1".to_string()]));
+        assert!(pack.is_stale(&[source1.clone()]));
+    }
+
+    #[test]
+    fn test_context_pack_provenance_binding_enforcement() {
+        let source_ref = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+
+        let mut payload = ContextPackPayloadV1 {
+            synopsis: "synopsis".to_string(),
+            facts: vec![ContextPackFactV1 {
+                fact_id: "fact-1".to_string(),
+                text: "text".to_string(),
+                source_refs: Vec::new(),
+                confidence: 1.0,
+            }],
+            constraints: vec![ContextPackConstraintV1 {
+                constraint_id: "c-1".to_string(),
+                text: "must".to_string(),
+                source_refs: Vec::new(),
+                severity: ContextPackConstraintSeverity::Hard,
+            }],
+            open_loops: vec![ContextPackOpenLoopV1 {
+                loop_id: "l-1".to_string(),
+                question: "q?".to_string(),
+                source_refs: Vec::new(),
+            }],
+            anchors: vec![ContextPackAnchorV1 {
+                anchor_id: "a-1".to_string(),
+                source_ref: source_ref.clone(),
+                excerpt_hint: "hint".to_string(),
+            }],
+            coverage: ContextPackCoverageV1 {
+                scanned_selectors: vec!["sel-1".to_string()],
+                skipped_selectors: None,
+            },
+        };
+
+        payload.enforce_provenance_binding();
+
+        assert_eq!(payload.facts.len(), 1);
+        assert_eq!(payload.facts[0].confidence, 0.0);
+        assert!(payload.constraints.is_empty());
+        assert!(payload.open_loops.is_empty());
     }
 
     /// T-ACE-RAG-003: Replay persistence correctness
