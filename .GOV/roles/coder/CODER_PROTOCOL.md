@@ -60,9 +60,7 @@ Source of truth (Coder role):
 You do NOT have a default "coder worktree". The Operator's personal worktree is not a coder worktree.
 
 Required verification (run at session start and whenever context is unclear):
-- `pwd`
 - `git rev-parse --show-toplevel`
-- `git rev-parse --abbrev-ref HEAD`
 - `git status -sb`
 - `git worktree list`
 

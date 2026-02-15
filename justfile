@@ -71,9 +71,7 @@ hard-gate-wt-001:
 	@echo 'STATE: <1 sentence>'
 	@echo ''
 	@echo 'HARD_GATE_OUTPUT [CX-WT-001]'
-	@pwd
 	@git rev-parse --show-toplevel
-	@git rev-parse --abbrev-ref HEAD
 	@git status -sb
 	@git worktree list
 	@echo ''

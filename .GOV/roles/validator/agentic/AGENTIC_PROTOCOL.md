@@ -33,7 +33,7 @@ Evidence ledger reference: `/.GOV/roles_shared/EVIDENCE_LEDGER.md`.
 
 ## 3) Worktree/branch misdirection defense (HARD)
 
-- Always run the worktree gate (`pwd`, `git rev-parse`, `git status -sb`, `git worktree list`) and paste outputs.
+- Always run the worktree gate (`git rev-parse --show-toplevel`, `git status -sb`, `git worktree list`) and paste outputs.
 - Re-run gates against the WP worktree recorded in `/.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` (PREPARE record), not against your role worktree copy.
 
 ---

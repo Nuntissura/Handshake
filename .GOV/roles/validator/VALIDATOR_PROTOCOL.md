@@ -51,7 +51,7 @@ Minimum verification for governance-only changes: `just gov-check`.
 - SKELETON APPROVAL: Implementation is HARD-BLOCKED until the Validator issues the string "SKELETON APPROVED".
 - [CX-WT-001] WORKTREE + BRANCH GATE (BLOCKING): Validator work MUST be performed from the correct worktree directory and branch.
   - Source of truth: `.GOV/roles_shared/ROLE_WORKTREES.md` (default role worktrees/branches) and the assigned WP worktree/branch.
-  - Required verification (run at session start and whenever context is unclear): `pwd`, `git rev-parse --show-toplevel`, `git rev-parse --abbrev-ref HEAD`, `git status -sb`, `git worktree list`.
+  - Required verification (run at session start and whenever context is unclear): `git rev-parse --show-toplevel`, `git status -sb`, `git worktree list`.
   - **Chat requirement (MANDATORY):** paste the literal command outputs into chat as a `HARD_GATE_OUTPUT` block and immediately follow with `HARD_GATE_REASON` + `HARD_GATE_NEXT_ACTIONS` blocks so Operator/Validator can verify context and the stop/proceed decision without follow-ups.
   - Template:
     ```text
@@ -81,7 +81,7 @@ Minimum verification for governance-only changes: `just gov-check`.
   - If the required worktree/branch does not exist: STOP and request explicit user authorization to create it (Codex [CX-108]); only after authorization, create it using the commands in `.GOV/roles_shared/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
   - **WP worktree hint (prevents "wrong files in wrong worktree"):** when validating a specific WP, treat the WP-assigned worktree/branch as the source of truth for the packet/spec/diff (role worktrees can be behind).
     - Locate the WP worktree/branch via `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` `PREPARE` (`branch`, `worktree_dir`) and confirm it exists in `git worktree list`.
-    - Re-run key read-only checks inside the WP worktree (example): `git -C "<worktree_dir>" rev-parse --abbrev-ref HEAD` and `git -C "<worktree_dir>" status -sb`.
+    - Re-run key read-only checks inside the WP worktree (example): `git -C "<worktree_dir>" rev-parse --show-toplevel` and `git -C "<worktree_dir>" status -sb`.
     - **Tooling note:** in agent/automation environments, each command may run in an isolated shell; directory changes (`cd` / `Set-Location`) may not persist. Prefer explicit workdir or `git -C "<worktree_dir>" ...` so you cannot accidentally read/validate the wrong tree.
     - Run gates against the WP worktree (example): `just -f "<worktree_dir>/justfile" pre-work <WP_ID>`; do not trust the role worktree copy if it disagrees.
     - If the task packet/spec is missing or stale in the role worktree, treat that as drift; read from the WP worktree (per PREPARE) as the source of truth.

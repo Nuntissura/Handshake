@@ -110,9 +110,7 @@ Source of truth:
 - The assigned WP worktree/branch for the WP being orchestrated
 
 Required verification (run at session start and whenever context is unclear):
-- `pwd`
 - `git rev-parse --show-toplevel`
-- `git rev-parse --abbrev-ref HEAD`
 - `git status -sb`
 - `git worktree list`
 
