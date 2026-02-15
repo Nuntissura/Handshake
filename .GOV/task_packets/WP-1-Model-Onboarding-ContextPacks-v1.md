@@ -14,7 +14,7 @@
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 - CODER_MODEL: GPT-5.2
 - CODER_REASONING_STRENGTH: HIGH (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja120220260341
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -68,7 +68,7 @@ just post-work WP-1-Model-Onboarding-ContextPacks-v1 --range 4618ed73838c01071f7
 - ContextPacks are treated as policy-bearing artifacts: `ContextPackRecord.source_hashes[]` freshness is enforced and stale packs deterministically trigger regeneration or fallback (covered by tests).
 - ContextPack provenance binding is enforced: pack items without `source_refs[]` are dropped or deterministically downgraded (covered by tests).
 - Model swaps enforce fresh context compilation: ModelSwapRequest flow binds/records a `context_compile_ref` and does not reuse stale packs (covered by unit/integration test around swap path).
-- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` + `just product-scan` + `just post-work WP-1-Model-Onboarding-ContextPacks-v1 --range fadbbeb81693b7aa82ecd7eb8eca78dfc28c0049..HEAD` all PASS.
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` + `just product-scan` + `just post-work WP-1-Model-Onboarding-ContextPacks-v1 --range 4618ed73838c01071f766c19721fc33534d6db4f..HEAD` all PASS.
 
 ### ROLLBACK_HINT
 ```bash
@@ -354,3 +354,93 @@ SKELETON APPROVED
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT -- WP-1-Model-Onboarding-ContextPacks-v1
+- DATE_UTC: 2026-02-14T22:14:08.8779130Z
+- VALIDATOR_WORKTREE: P:/Handshake/Handshake Worktrees/wt-WP-1-Model-Onboarding-ContextPacks-v1
+- BRANCH: feat/WP-1-Model-Onboarding-ContextPacks-v1
+- VALIDATED_RANGE: 4618ed73838c01071f766c19721fc33534d6db4f..32d4f5291b229f9ab4ea63e495b13601ba704fa3
+- SPEC_TARGET_RESOLVED (WP worktree): .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.126.md
+
+Verdict: PASS
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Model-Onboarding-ContextPacks-v1 --range 4618ed73838c01071f766c19721fc33534d6db4f..HEAD`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+REASON FOR PASS:
+- ContextPack staleness is detected deterministically (order-independent source_id->source_hash compare) and stale packs never receive `pack=1.0`; stale packs deterministically regenerate (when allowed) or fall back and emit trace markers.
+- ContextPack provenance binding is enforced deterministically for payloads loaded/built at runtime, and unit-tested.
+- ModelSwapRequest includes a fresh `context_compile_ref`, and swap resume writes a `context_compile_*.json` payload that binds snapshot refs/hashes plus ContextPack refs/hashes + freshness markers; unit-tested.
+
+Scope Inputs:
+- Task Packet: .GOV/task_packets/WP-1-Model-Onboarding-ContextPacks-v1.md (status: Done)
+- Spec: Handshake_Master_Spec_v02.126.md (anchors: 2.6.6.7.14.7, 2.6.6.7.14.11, 4.3.3.4.3)
+
+Files Checked:
+- .GOV/task_packets/WP-1-Model-Onboarding-ContextPacks-v1.md
+- .GOV/refinements/WP-1-Model-Onboarding-ContextPacks-v1.md
+- .GOV/roles_shared/TASK_BOARD.md
+- .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
+- Handshake_Master_Spec_v02.126.md
+- src/backend/handshake_core/src/ace/mod.rs
+- src/backend/handshake_core/src/ace/validators/freshness.rs
+- src/backend/handshake_core/src/workflows.rs
+
+Findings:
+- Freshness / stale detection (spec 2.6.6.7.14.7):
+  - Deterministic staleness check: `src/backend/handshake_core/src/ace/mod.rs:885`
+  - Stale -> regen_allowed path (write new payload + record): `src/backend/handshake_core/src/workflows.rs:4188`
+  - Stale -> fallback markers (`stale_pack:` + optional `regen_skipped:`): `src/backend/handshake_core/src/workflows.rs:4286`
+  - Fresh pack selected => `scores.pack=Some(1.0)`: `src/backend/handshake_core/src/workflows.rs:6523`
+  - Fallback on stale => `scores.pack=Some(0.0)`: `src/backend/handshake_core/src/workflows.rs:6580`
+  - Regen gating is capability/policy/consent-bound: `src/backend/handshake_core/src/workflows.rs:6440`
+- Provenance binding (spec 2.6.6.7.14.7):
+  - Enforcement logic: `src/backend/handshake_core/src/ace/mod.rs:993`
+  - Unit test: `src/backend/handshake_core/src/ace/mod.rs:1312`
+- Validator semantics (spec 2.6.6.7.14.11 / 2.6.6.7.11.10):
+  - FreshnessGuard fails if `stale_pack:` and `regen_skipped:` are both present: `src/backend/handshake_core/src/ace/validators/freshness.rs:75`
+- ModelSwapRequest fresh context compile boundary (spec 4.3.3.4.3):
+  - Request includes `context_compile_ref` bound to a `context_compile_*.json` artifact: `src/backend/handshake_core/src/workflows.rs:7543`
+  - Swap completion writes context compile payload including pack refs + markers: `src/backend/handshake_core/src/workflows.rs:6912`
+  - Unit test asserts payload includes ContextPack refs + markers: `src/backend/handshake_core/src/workflows.rs:4702`
+
+Tests (Evidence):
+- COMMAND: `set "CARGO_INCREMENTAL=0" && set "RUSTFLAGS=-C debuginfo=0" && cargo test --manifest-path src/backend/handshake_core/Cargo.toml ace -j 1`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/cargo_test_ace_j1_debuginfo0_20260214_215315.log`
+  - LOG_SHA256: 57302E17AE36EBF80E444D5BDB7A49834A2C1EC387BAAA5A8AEE6184E6FB7B46
+  - PROOF_LINES:
+    - `test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.62s`
+- COMMAND: `set "CARGO_INCREMENTAL=0" && set "RUSTFLAGS=-C debuginfo=0" && cargo test --manifest-path src/backend/handshake_core/Cargo.toml -j 1`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/cargo_test_full_j1_debuginfo0_20260214_215343.log`
+  - LOG_SHA256: C41427CD1EE6EAA1EC33E6CF7591438DA1C7C46DF9142DED7DE94D6DEB09E14C
+  - PROOF_LINES:
+    - `test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.94s`
+- COMMAND: `just product-scan`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/just_product-scan_20260214_215845.log`
+  - LOG_SHA256: 6DF2F55E9EDD0530F28BB4A8E7056B185B38969E123A45C7C640269FBA6BD430
+  - PROOF_LINES:
+    - `validator-scan: PASS - no forbidden patterns detected in backend/frontend sources.`
+- COMMAND: `just cargo-clean`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/just_cargo-clean_20260214_215901.log`
+  - LOG_SHA256: 9525E92C8BD67243EFED2D0D6214D33E03455B6C5ED6281019AF808A8BAAEF59
+  - PROOF_LINES:
+    - `Removed 1303 files, 9.2GiB total`
+- COMMAND: `just post-work WP-1-Model-Onboarding-ContextPacks-v1 --range 4618ed73838c01071f766c19721fc33534d6db4f..HEAD`
+  - EXIT_CODE: 0
+  - PROOF_LINES:
+    - `Post-work validation PASSED (deterministic manifest gate; not tests)`
+
+Hygiene:
+- Forbidden pattern grep (`todo!/unimplemented!/panic!/dbg!/println!/expect/unwrap`) on touched production files: no hits.
+
+Risks & Suggested Actions:
+- ContextPack multi-source records are staleness-compared deterministically, but the current MT builder/runtime path uses single-source packs keyed by per-file SourceRef. If/when multi-source ContextPacks are introduced (e.g., entity packs), add a dedicated test for multi-source staleness + regen markers.
+
+Improvements & Future Proofing:
+- The packet's DONE_MEANS previously referenced an outdated post-work range; corrected to MERGE_BASE_SHA..HEAD for this WP.

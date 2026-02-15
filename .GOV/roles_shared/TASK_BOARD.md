@@ -95,9 +95,9 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
-- **[WP-1-Model-Onboarding-ContextPacks-v1]** - [IN_PROGRESS]
 
 ## Done
+- **[WP-1-Model-Onboarding-ContextPacks-v1]** - [VALIDATED]
 - **[WP-1-Spec-Enrichment-Product-Governance-Consistency-v1]** - [VALIDATED]
 - **[WP-1-LLM-Provider-Registry-v1]** - [VALIDATED]
 - **[WP-1-Runtime-Governance-NoExpect-v1]** - [VALIDATED]
