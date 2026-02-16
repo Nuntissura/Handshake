@@ -351,6 +351,35 @@ SKELETON APPROVED
   - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
   - EVIDENCE: `path/to/file:line`
 
+- REQUIREMENT: "MCP client transport exists (at least one transport) and can connect to a local stub MCP server in tests."
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/transport/duplex.rs:8`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:271`
+
+- REQUIREMENT: "Rust Gate interceptor wraps MCP traffic and enforces: capability scope + human-in-the-loop consent where required (deny/timeout paths are explicit)."
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:279`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:293`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:442`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:490`
+
+- REQUIREMENT: "MCP `tools/call` request/response and `logging/message` are recorded into Flight Recorder with correlation fields (job_id and trace_id or paired event linkage)."
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/fr_events.rs:79`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/fr_events.rs:153`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:114`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:150`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:271`
+
+- REQUIREMENT: "Handshake_Master_Spec_v02.126.md 11.3.2.3 Handling Protocol Nuances: \"Pending\" States and Cancellation"
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/client.rs:183`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:568`
+
+- REQUIREMENT: "Handshake_Master_Spec_v02.126.md 11.3.2.4 The Gate as a Schema Validator"
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:376`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:389`
+
+- REQUIREMENT: "Security hardening implemented for MCP file/resource access per spec red-team guidance (no naive prefix checks; canonicalization/no-follow where applicable)."
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/security.rs:38`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:627`
+
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
@@ -365,6 +394,34 @@ SKELETON APPROVED
   - PROOF_LINES:
     - Checking Phase Gate for WP-1-MCP-Skeleton-Gate-v2...
     - Pre-work validation PASSED
+
+- COMMAND: `cd src/backend/handshake_core; cargo fmt`
+  - EXIT_CODE: `0`
+  - PROOF_LINES:
+    - (no output)
+
+- COMMAND: `cd src/backend/handshake_core; cargo clippy --all-targets --all-features -j 1`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `.handshake/logs/WP-1-MCP-Skeleton-Gate-v2/cargo-clippy-all-targets-all-features-j1.log`
+  - LOG_SHA256: `F10B33A4A4374AF0E3468EF1753EAD512FA2F9EC1FD5FC13CED2AEF32063FAFE`
+  - PROOF_LINES:
+    - Finished `dev` profile [unoptimized + debuginfo]
+
+- COMMAND: `cd src/backend/handshake_core; cargo test -j 1 --test mcp_gate_tests`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `.handshake/logs/WP-1-MCP-Skeleton-Gate-v2/cargo-test-mcp_gate_tests-j1.log`
+  - LOG_SHA256: `86F299077BB786D19034A7B76E9A75A21870F07D0EE82E82A4B1AE1128C3C4AF`
+  - PROOF_LINES:
+    - running 6 tests
+    - test result: ok. 6 passed; 0 failed
+
+- COMMAND: `cd src/backend/handshake_core; cargo test -j 1`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `.handshake/logs/WP-1-MCP-Skeleton-Gate-v2/cargo-test-j1.log`
+  - LOG_SHA256: `3E8026DC3399D63DF6C3D6A139B29F25FE6C16703F9F1DCB048533FD2EC19AB7`
+  - PROOF_LINES:
+    - Doc-tests handshake_core
+    - test result: ok.
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)

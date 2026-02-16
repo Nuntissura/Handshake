@@ -10,6 +10,7 @@ pub mod governance_pack;
 pub mod jobs;
 pub mod llm;
 pub mod logging;
+pub mod mcp;
 pub mod mex;
 pub mod models;
 pub mod role_mailbox;
