@@ -310,7 +310,7 @@ SKELETON APPROVED
   - `DlpRedacted` (non-fatal; annotate result + FR payload)
 - UI_GUARDRAILS:
   - This WP introduces no UI changes (MVP).
-  - Consent is deny-by-default: if a tool requires human approval and `human_consent_obtained=false`, return `McpError::ConsentRequired` (no consent modal shipped in this WP).
+  - Consent is enforced via `ConsentProvider`: if a tool requires human approval and `human_consent_obtained=false`, the gate requests consent (bounded by `consent_timeout`) and denies on timeout/deny (`McpError::ConsentDenied`). No consent modal ships in this WP.
   - If future consent UI is added: modal MUST show exact tool + args + server_id; deny is default; no silent approvals.
 - VALIDATOR_ASSERTIONS:
   - MCP tool call tests prove allow/deny/timeout paths with explicit errors.
