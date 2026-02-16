@@ -12,9 +12,9 @@
 - AGENTIC_MODE: YES
 - ORCHESTRATOR_MODEL: gpt-5.2
 - ORCHESTRATION_STARTED_AT_UTC: 2026-02-15T23:41:52.974Z
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: gpt-5.2
+- CODER_REASONING_STRENGTH: EXTRA_HIGH (LOW | MEDIUM | HIGH | EXTRA_HIGH)
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja160220260031
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -175,9 +175,9 @@ git revert <commit-sha>  # revert WP commit(s) on feat/WP-1-MCP-Skeleton-Gate-v2
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress (BOOTSTRAP / claim)
+- What changed in this update: Ran `just pre-work WP-1-MCP-Skeleton-Gate-v2`; claimed CODER_MODEL + CODER_REASONING_STRENGTH.
+- Next step / handoff hint: Draft `## SKELETON` (docs-only) + make skeleton checkpoint commit; STOP for approval.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
@@ -193,6 +193,12 @@ git revert <commit-sha>  # revert WP commit(s) on feat/WP-1-MCP-Skeleton-Gate-v2
   - LOG_PATH: `.handshake/logs/WP-1-MCP-Skeleton-Gate-v2/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+
+- COMMAND: `just pre-work WP-1-MCP-Skeleton-Gate-v2`
+  - EXIT_CODE: `0`
+  - PROOF_LINES:
+    - Checking Phase Gate for WP-1-MCP-Skeleton-Gate-v2...
+    - Pre-work validation PASSED
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
