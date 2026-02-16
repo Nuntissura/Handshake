@@ -903,3 +903,53 @@ Improvements & Future Proofing:
 Task Packet Update (APPEND-ONLY):
 - This FAIL Validation Report is appended under `## VALIDATION_REPORTS` (do not overwrite prior history).
 ```
+
+### 2026-02-16 - VALIDATION REPORT - WP-1-MCP-Skeleton-Gate-v2 (PASS)
+
+```text
+VALIDATION REPORT - WP-1-MCP-Skeleton-Gate-v2
+Verdict: PASS
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-MCP-Skeleton-Gate-v2`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: .GOV/task_packets/WP-1-MCP-Skeleton-Gate-v2.md (status: In Progress)
+- Spec: Handshake_Master_Spec_v02.126.md (anchors: 11.3, 11.3.2.*; reconnect: 56152; DLP redaction: 56195)
+
+Repo State:
+- Worktree: P:/Handshake/Handshake Worktrees/wt-WP-1-MCP-Skeleton-Gate-v2
+- Branch: feat/WP-1-MCP-Skeleton-Gate-v2
+- HEAD: 4d22e5988a92704bcb4c5b91b01e3def68c8908d
+
+Commands Run (Validator):
+- PASS: `just validator-hygiene-full`; `just validator-packet-complete WP-1-MCP-Skeleton-Gate-v2`; `just validator-spec-regression`; `just validator-dal-audit`
+- PASS (TEST_PLAN): `just pre-work WP-1-MCP-Skeleton-Gate-v2`; `just cargo-clean`; `just post-work WP-1-MCP-Skeleton-Gate-v2 --range 0f7cfda43997ab72baf7b0150ced57d4c2600a06..HEAD`
+- PASS (targeted): `cd src/backend/handshake_core; cargo test -j 1 --test mcp_gate_tests`
+
+Files Checked:
+- src/backend/handshake_core/src/mcp/client.rs
+- src/backend/handshake_core/src/mcp/gate.rs
+- src/backend/handshake_core/src/mcp/transport/reconnect.rs
+- src/backend/handshake_core/src/llm/openai_compat.rs (waiver scope)
+- src/backend/handshake_core/tests/mcp_gate_tests.rs
+- .GOV/task_packets/WP-1-MCP-Skeleton-Gate-v2.md
+- .GOV/roles_shared/SPEC_CURRENT.md
+
+Findings (selected evidence):
+- Reconnect with exponential backoff is implemented via AutoReconnectTransport + backoff_delay (src/backend/handshake_core/src/mcp/transport/reconnect.rs:29, :77, :147) and wired into the gate (src/backend/handshake_core/src/mcp/gate.rs:204); covered by `mcp_auto_reconnects_when_transport_severs` (src/backend/handshake_core/tests/mcp_gate_tests.rs:755).
+- DLP redaction for tools/call is applied centrally before return/recording (src/backend/handshake_core/src/mcp/client.rs:80-97) using SecretRedactor + RedactionMode::SafeDefault; covered by `mcp_tools_call_redacts_sensitive_output_before_return_and_recording` (src/backend/handshake_core/tests/mcp_gate_tests.rs:673).
+- Waiver: WAIVER-MCP-INSTANT-NOW-001 recorded under ## WAIVERS GRANTED (CX-573F), with WAIVER [CX-573E] markers at src/backend/handshake_core/src/llm/openai_compat.rs:198, src/backend/handshake_core/src/mcp/client.rs:163, src/backend/handshake_core/src/mcp/gate.rs:230 and :484.
+
+REASON FOR PASS:
+- Previously failing spec requirements (reconnect/backoff and DLP redaction) are now implemented and guarded by targeted tests, and all required deterministic/hygiene gates pass at HEAD.
+
+Risks & Suggested Actions:
+- Non-blocking: `just post-work ... --range ...` warnings are expected for new files not present at MERGE_BASE_SHA; no action required.
+- Follow-up: replace `Instant::now()` waiver with an injectable clock abstraction to remove nondeterminism waiver.
+
+Task Packet Update (APPEND-ONLY):
+- This PASS Validation Report is appended under ## VALIDATION_REPORTS (does not overwrite prior FAIL history).
+```
