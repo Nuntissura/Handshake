@@ -309,8 +309,9 @@ SKELETON APPROVED
   - `TransportError` / `ProtocolError`
   - `DlpRedacted` (non-fatal; annotate result + FR payload)
 - UI_GUARDRAILS:
-  - MVP: no UI changes expected.
-  - If consent UI is required later: modal must show exact tool + args + server_id; deny is default; no silent approvals.
+  - This WP introduces no UI changes (MVP).
+  - Consent is deny-by-default: if a tool requires human approval and `human_consent_obtained=false`, return `McpError::ConsentRequired` (no consent modal shipped in this WP).
+  - If future consent UI is added: modal MUST show exact tool + args + server_id; deny is default; no silent approvals.
 - VALIDATOR_ASSERTIONS:
   - MCP tool call tests prove allow/deny/timeout paths with explicit errors.
   - `fr_events` contains `tool.call` + `tool.result` and at least one `mcp.logging` row with correlation (job_id + trace_id).
