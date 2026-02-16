@@ -29,6 +29,8 @@
 - IN_SCOPE_PATHS:
   - .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
   - src/backend/handshake_core/src/lib.rs
+  - src/backend/handshake_core/src/flight_recorder/duckdb.rs
+  - src/backend/handshake_core/src/llm/openai_compat.rs
   - src/backend/handshake_core/src/mcp/client.rs
   - src/backend/handshake_core/src/mcp/discovery.rs
   - src/backend/handshake_core/src/mcp/errors.rs
@@ -42,6 +44,7 @@
   - src/backend/handshake_core/src/mcp/transport/mod.rs
   - src/backend/handshake_core/src/mcp/transport/reconnect.rs
   - src/backend/handshake_core/src/mcp/transport/stdio.rs
+  - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/tests/mcp_gate_tests.rs
 - OUT_OF_SCOPE:
   - Docling ingestion implementation (Phase 2; this WP only provides the MCP plumbing/gate needed to support it)
@@ -360,7 +363,7 @@ SKELETON APPROVED
 - **End**: 250
 - **Line Delta**: 250
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `03883ed298bd58e6f2b0a5e2af51b8eed7036529`
+- **Post-SHA1**: `fbd671e0173d4825565b38b492ae3ed87694d712`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -432,7 +435,7 @@ SKELETON APPROVED
 - **End**: 528
 - **Line Delta**: 528
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `475e29ad21819b5937fa85c445c28ab08b60fdba`
+- **Post-SHA1**: `d0f8d8d2b35646c0125c6b7a5aed8f0f812c3850`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -607,6 +610,60 @@ SKELETON APPROVED
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
 
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- **Start**: 1
+- **End**: 1338
+- **Line Delta**: 4
+- **Pre-SHA1**: `d0e3e5a37fddcc497c7483701ee002d7701618b9`
+- **Post-SHA1**: `7c1eaecd21064dffe9c7240c800dc406152988f1`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/llm/openai_compat.rs`
+- **Start**: 1
+- **End**: 516
+- **Line Delta**: 0
+- **Pre-SHA1**: `8c3439e4121f9bbe7dc61ca9a1d2583d68be8ef1`
+- **Post-SHA1**: `9a3bf868e58119f737a532d0a592b2746cbe369c`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1
+- **End**: 8690
+- **Line Delta**: 24
+- **Pre-SHA1**: `0eb2011f8e029e15b84b1eac53b414c46a1096bd`
+- **Post-SHA1**: `716ceec1aa7bdfb6f7d1de18a2cdd7fe2e889f1d`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
 - Spec Target Resolved: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.126.md
 
 ## STATUS_HANDOFF
@@ -738,6 +795,28 @@ SKELETON APPROVED
   - PROOF_LINES:
     - running 15 tests
     - test result: ok. 15 passed; 0 failed
+
+- COMMAND: `just validator-scan`
+  - EXIT_CODE: 0
+  - PROOF_LINES:
+    - validator-scan: PASS - no forbidden patterns detected in backend/frontend sources.
+
+- COMMAND: `just validator-error-codes`
+  - EXIT_CODE: 0
+  - PROOF_LINES:
+    - validator-error-codes: PASS - no stringly errors or nondeterminism patterns detected.
+
+- COMMAND: `cd src/backend/handshake_core; cargo test -j 1 --test mcp_gate_tests`
+  - EXIT_CODE: 0
+  - PROOF_LINES:
+    - running 15 tests
+    - test result: ok. 15 passed; 0 failed
+
+- COMMAND: `just post-work WP-1-MCP-Skeleton-Gate-v2 --range 0f7cfda43997ab72baf7b0150ced57d4c2600a06..HEAD`
+  - EXIT_CODE: 0
+  - PROOF_LINES:
+    - Post-work validation PASSED (deterministic manifest gate; not tests) with warnings
+    - ROLE_MAILBOX_EXPORT_GATE PASS
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
