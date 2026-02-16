@@ -653,13 +653,13 @@ SKELETON APPROVED
   - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:368`
   - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:1215`
 
-- REQUIREMENT: "Handshake_Master_Spec_v02.126.md 11.3 Auth/Session/MCP Primitives — Reconnection: The MCP Client MUST support automatic reconnection with exponential backoff if the transport (stdio/SSE) is severed."
+- REQUIREMENT: "Handshake_Master_Spec_v02.126.md 11.3 Auth/Session/MCP Primitives - Reconnection: The MCP Client MUST support automatic reconnection with exponential backoff if the transport (stdio/SSE) is severed."
   - EVIDENCE: `src/backend/handshake_core/src/mcp/transport/reconnect.rs:29`
   - EVIDENCE: `src/backend/handshake_core/src/mcp/transport/reconnect.rs:77`
   - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:204`
   - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:755`
 
-- REQUIREMENT: "Handshake_Master_Spec_v02.126.md 11.3.2.2 Response Analysis — DLP redaction of sensitive keys before results reach UI/LLM context (and before recording them)."
+- REQUIREMENT: "Handshake_Master_Spec_v02.126.md 11.3.2.2 Response Analysis - DLP redaction of sensitive keys before results reach UI/LLM context (and before recording them)."
   - EVIDENCE: `src/backend/handshake_core/src/bundles/redactor.rs:23`
   - EVIDENCE: `src/backend/handshake_core/src/mcp/client.rs:84`
   - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:673`
@@ -739,10 +739,10 @@ SKELETON APPROVED
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
 
-### 2026-02-16 — VALIDATION REPORT — WP-1-MCP-Skeleton-Gate-v2
+### 2026-02-16 - VALIDATION REPORT - WP-1-MCP-Skeleton-Gate-v2
 
 ```text
-VALIDATION REPORT — WP-1-MCP-Skeleton-Gate-v2
+VALIDATION REPORT - WP-1-MCP-Skeleton-Gate-v2
 Verdict: FAIL
 
 Validation Claims (do not collapse into a single PASS):
