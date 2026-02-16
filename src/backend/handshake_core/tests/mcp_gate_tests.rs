@@ -696,6 +696,22 @@ async fn mcp_path_escape_and_symlink_are_blocked() -> Result<(), Box<dyn std::er
         .expect_err("expected traversal blocked");
     assert!(matches!(err, McpError::SecurityViolation(_)));
 
+    // Gate decision is recorded for security denials.
+    let conn_handle = recorder.connection();
+    let conn = match conn_handle.lock() {
+        Ok(conn) => conn,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let mut stmt = conn.prepare(
+        "SELECT COUNT(*) FROM fr_events WHERE job_id = ? AND event_kind = 'mcp.gate.decision'",
+    )?;
+    let decision_count: i64 =
+        stmt.query_row(duckdb::params![job_id.to_string()], |row| row.get(0))?;
+    assert!(
+        decision_count >= 1,
+        "expected at least one mcp.gate.decision row"
+    );
+
     #[cfg(unix)]
     {
         use std::os::unix::fs::symlink;

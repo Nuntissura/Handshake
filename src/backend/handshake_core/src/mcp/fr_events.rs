@@ -241,3 +241,34 @@ pub fn record_logging_message(
 
     Ok(())
 }
+
+pub fn record_gate_decision(
+    flight_recorder: Arc<dyn FlightRecorder>,
+    ctx: &McpContext,
+    server_id: &str,
+    tool_name: Option<&str>,
+    decision: &str,
+    reason: &str,
+    details: Value,
+) -> McpResult<()> {
+    let level = if decision == "allow" { "INFO" } else { "WARN" };
+    let message = format!("mcp gate decision: {decision} ({reason})");
+    let payload = json!({
+        "server_id": server_id,
+        "tool": tool_name,
+        "decision": decision,
+        "reason": reason,
+        "trace_id": ctx.trace_id.to_string(),
+        "job_id": ctx.job_id.map(|j| j.to_string()),
+        "details": details,
+    });
+    insert_fr_event(
+        flight_recorder.as_ref(),
+        Some(ctx),
+        "mcp.gate.decision",
+        server_id,
+        level,
+        &message,
+        payload,
+    )
+}

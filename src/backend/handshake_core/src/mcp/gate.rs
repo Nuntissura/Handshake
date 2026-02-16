@@ -360,33 +360,114 @@ impl GatedMcpClient {
     ) -> McpResult<Value> {
         if let Some(allowed) = &self.gate.allowed_tools {
             if !allowed.contains(tool_name) {
-                return Err(McpError::CapabilityDenied(format!(
-                    "tool not in allowed_tools: {}",
-                    tool_name
-                )));
+                let err =
+                    McpError::CapabilityDenied(format!("tool not in allowed_tools: {}", tool_name));
+                let _ = fr_events::record_gate_decision(
+                    Arc::clone(&self.flight_recorder),
+                    &ctx,
+                    &self.server_id,
+                    Some(tool_name),
+                    "deny",
+                    "tool_not_allowed",
+                    json!({ "error": err.to_string() }),
+                );
+                return Err(err);
             }
         }
 
-        let desc = self.tool_descriptor(tool_name)?;
-        let schema_value = desc
-            .input_schema
-            .ok_or_else(|| McpError::SchemaValidation {
-                details: "missing tool inputSchema".to_string(),
-            })?;
-        schema::validate_instance(&schema_value, &arguments)?;
+        let desc = match self.tool_descriptor(tool_name) {
+            Ok(d) => d,
+            Err(err) => {
+                let _ = fr_events::record_gate_decision(
+                    Arc::clone(&self.flight_recorder),
+                    &ctx,
+                    &self.server_id,
+                    Some(tool_name),
+                    "deny",
+                    "unknown_tool",
+                    json!({ "error": err.to_string() }),
+                );
+                return Err(err);
+            }
+        };
+        let schema_value = desc.input_schema.ok_or_else(|| McpError::SchemaValidation {
+            details: "missing tool inputSchema".to_string(),
+        });
+        let schema_value = match schema_value {
+            Ok(s) => s,
+            Err(err) => {
+                let _ = fr_events::record_gate_decision(
+                    Arc::clone(&self.flight_recorder),
+                    &ctx,
+                    &self.server_id,
+                    Some(tool_name),
+                    "deny",
+                    "missing_input_schema",
+                    json!({ "error": err.to_string() }),
+                );
+                return Err(err);
+            }
+        };
+        if let Err(err) = schema::validate_instance(&schema_value, &arguments) {
+            let _ = fr_events::record_gate_decision(
+                Arc::clone(&self.flight_recorder),
+                &ctx,
+                &self.server_id,
+                Some(tool_name),
+                "deny",
+                "schema_validation_failed",
+                json!({ "error": err.to_string() }),
+            );
+            return Err(err);
+        }
 
         let policy = self.tool_policy(tool_name);
         if let Some(cap) = policy.required_capability.as_deref() {
-            self.enforce_capability(cap, &ctx.granted_capabilities)?;
+            if let Err(err) = self.enforce_capability(cap, &ctx.granted_capabilities) {
+                let _ = fr_events::record_gate_decision(
+                    Arc::clone(&self.flight_recorder),
+                    &ctx,
+                    &self.server_id,
+                    Some(tool_name),
+                    "deny",
+                    "capability_denied",
+                    json!({ "capability_id": cap, "error": err.to_string() }),
+                );
+                return Err(err);
+            }
         }
-        self.enforce_consent(
-            &ctx,
-            tool_name,
-            policy.required_capability.as_deref(),
-            &policy,
-        )
-        .await?;
-        self.enforce_path_policy(&ctx, &policy, &arguments)?;
+        if let Err(err) = self
+            .enforce_consent(
+                &ctx,
+                tool_name,
+                policy.required_capability.as_deref(),
+                &policy,
+            )
+            .await
+        {
+            let _ = fr_events::record_gate_decision(
+                Arc::clone(&self.flight_recorder),
+                &ctx,
+                &self.server_id,
+                Some(tool_name),
+                "deny",
+                "consent_denied",
+                json!({ "error": err.to_string() }),
+            );
+            return Err(err);
+        }
+        if let Err(err) = self.enforce_path_policy(&ctx, &policy, &arguments) {
+            let _ = fr_events::record_gate_decision(
+                Arc::clone(&self.flight_recorder),
+                &ctx,
+                &self.server_id,
+                Some(tool_name),
+                "deny",
+                "security_violation",
+                json!({ "error": err.to_string() }),
+            );
+            return Err(err);
+        }
 
         fr_events::record_tool_call(
             Arc::clone(&self.flight_recorder),
@@ -414,6 +495,15 @@ impl GatedMcpClient {
             Ok(result) => result,
             Err(_) => {
                 let timeout_payload = json!({"timeout_ms": self.gate.request_timeout.as_millis()});
+                let _ = fr_events::record_gate_decision(
+                    Arc::clone(&self.flight_recorder),
+                    &ctx,
+                    &self.server_id,
+                    Some(tool_name),
+                    "timeout",
+                    "request_timeout",
+                    timeout_payload.clone(),
+                );
                 let _ = fr_events::record_tool_result(
                     Arc::clone(&self.flight_recorder),
                     &ctx,
