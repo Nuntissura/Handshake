@@ -222,6 +222,8 @@ pub fn record_logging_message(
     )
     .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
 
+    drop(conn);
+
     if event_kind != "mcp.logging" {
         let breadcrumb = json!({
             "logger": logger,
