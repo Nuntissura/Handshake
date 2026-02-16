@@ -119,6 +119,7 @@ git revert <commit-sha>  # revert WP commit(s) on feat/WP-1-MCP-Skeleton-Gate-v2
   - "symlink/path traversal" -> "exfiltration of host files via MCP roots/resources"
 
 ## SKELETON
+SKELETON APPROVED
 - Module layout (proposed; all under `src/backend/handshake_core/src/`):
   - `mcp/` (new): MCP client + JSON-RPC types + transport(s) + discovery + schema validation helpers.
     - `mcp/jsonrpc.rs`: `JsonRpcMessage` + `JsonRpcRequest/Notification/Response` + `JsonRpcError`.
