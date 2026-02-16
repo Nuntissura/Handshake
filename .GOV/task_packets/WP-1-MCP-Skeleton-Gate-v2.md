@@ -52,11 +52,7 @@
   - Multi-user sync / CRDT / cloud-only MCP assumptions
 
 ## WAIVERS GRANTED
-- (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- Waiver ID: CX-573E
-  - Date: 2026-02-16
-  - Scope: Allow `Instant::now()` only for duration/timeout bookkeeping in MCP client/gate and OpenAI compat adapter paths.
-  - Justification: Monotonic timing is required for telemetry and timeout enforcement; values are not used for deterministic outputs and tests do not assert exact durations.
+- WAIVER_ARTIFACT: Waiver ID=WAIVER-MCP-INSTANT-NOW-001; Date=2026-02-16; Check Waived=just validator-error-codes nondeterminism scan for `Instant::now()` with `WAIVER [CX-573E]` markers only; Scope=src/backend/handshake_core/src/llm/openai_compat.rs:198, src/backend/handshake_core/src/mcp/client.rs:163, src/backend/handshake_core/src/mcp/gate.rs:230, src/backend/handshake_core/src/mcp/gate.rs:484; Justification=Monotonic timing is required for timeout and duration bookkeeping only and is not used for deterministic outputs; tests do not assert exact durations; Approver=Operator/User explicit chat approval on 2026-02-16; Expiry=WP close for WP-1-MCP-Skeleton-Gate-v2 or Phase 1 completion, whichever comes first.
 
 ## QUALITY_GATE
 ### TEST_PLAN
@@ -817,6 +813,30 @@ SKELETON APPROVED
   - PROOF_LINES:
     - Post-work validation PASSED (deterministic manifest gate; not tests) with warnings
     - ROLE_MAILBOX_EXPORT_GATE PASS
+
+- COMMAND: `just post-work WP-1-MCP-Skeleton-Gate-v2 --range 0f7cfda43997ab72baf7b0150ced57d4c2600a06..HEAD`
+  - EXIT_CODE: 0
+  - PROOF_LINES:
+    - Checking Phase Gate for WP-1-MCP-Skeleton-Gate-v2...
+    - Post-work validation PASSED (deterministic manifest gate; not tests) with warnings
+    - ROLE_MAILBOX_EXPORT_GATE PASS
+
+- COMMAND: `just validator-error-codes`
+  - EXIT_CODE: 0
+  - PROOF_LINES:
+    - validator-error-codes: PASS - no stringly errors or nondeterminism patterns detected.
+
+- COMMAND: `just post-work WP-1-MCP-Skeleton-Gate-v2 --range 0f7cfda43997ab72baf7b0150ced57d4c2600a06..HEAD`
+  - EXIT_CODE: 0
+  - PROOF_LINES:
+    - Checking Phase Gate for WP-1-MCP-Skeleton-Gate-v2...
+    - Post-work validation PASSED (deterministic manifest gate; not tests) with warnings
+    - ROLE_MAILBOX_EXPORT_GATE PASS
+
+- COMMAND: `just validator-error-codes`
+  - EXIT_CODE: 0
+  - PROOF_LINES:
+    - validator-error-codes: PASS - no stringly errors or nondeterminism patterns detected.
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
