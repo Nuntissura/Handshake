@@ -5,7 +5,7 @@
 - WP_ID: WP-1-MCP-Skeleton-Gate-v2
 - BASE_WP_ID: WP-1-MCP-Skeleton-Gate (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: 2026-02-15T23:41:52.974Z
-- MERGE_BASE_SHA: 0f7cfda43997ab72baf7b0150ced57d4c2600a06 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: 0f7cfda43997ab72baf7b0150ced57d4c2600a06
 - REQUESTOR: Operator (ilja)
 - AGENT_ID: codex-cli (gpt-5.2)
 - ROLE: Orchestrator
@@ -196,4 +196,3 @@ git revert <commit-sha>  # revert WP commit(s) on feat/WP-1-MCP-Skeleton-Gate-v2
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
-
