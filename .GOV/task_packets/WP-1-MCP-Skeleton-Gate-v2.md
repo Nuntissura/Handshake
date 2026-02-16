@@ -174,7 +174,7 @@ git revert <commit-sha>  # revert WP commit(s) on feat/WP-1-MCP-Skeleton-Gate-v2
       - `server_id: String`
       - `job_id: Option<String>`
       - `workflow_run_id: Option<String>`
-      - `trace_id: String` (required for tool calls; source: AI Job)
+      - `trace_id: uuid::Uuid` (required for tool calls; source: AI Job; serialize to string only at JSON/DB boundaries)
       - `task_id: Option<String>`
       - `session_id: Option<String>`
       - `capability_profile_id: Option<String>`
@@ -184,6 +184,30 @@ git revert <commit-sha>  # revert WP commit(s) on feat/WP-1-MCP-Skeleton-Gate-v2
       - `allowed_tools: Vec<String>` (session-scoped allowlist)
       - `granted_capabilities: Vec<String>` (session/job scoped)
     - `enum SamplingContext { None, SamplingCreateMessage }`
+
+  - Pending requests + cancellation (protocol nuance required by spec 11.3.2.3):
+    - Goal: prevent "zombie" requests and ensure Stop/timeout actively cancels server work.
+    - `struct PendingRequest {`
+      - `id: JsonRpcId`
+      - `method: String`
+      - `started_at: std::time::Instant`
+      - `timeout: std::time::Duration`
+      - `job_id: Option<String>`
+      - `trace_id: uuid::Uuid`
+    - `type PendingRequests = dashmap::DashMap<JsonRpcId, PendingRequest>` (or equivalent concurrent map)
+    - Ownership/location:
+      - Pending map + timeout enforcement live in the Gate middleware wrapper (e.g., `GateLayer` / `GatedMcpClient`), not in the UI.
+      - Key is always `JsonRpcId` (the request id).
+    - Timeout policy (configurable):
+      - `struct TimeoutPolicy { default_tool_timeout: Duration, deep_research_timeout: Duration }`
+      - Gate selects timeout per tool/method (MVP: default for all tools; extend later).
+    - Cancellation trigger points:
+      - User clicks "Stop" -> the Future associated with the tool call is dropped -> Drop guard triggers cancellation.
+      - Request exceeds timeout -> Gate proactively cancels + returns a timeout error to the UI.
+    - Cancellation transport message (outbound notification):
+      - JSON-RPC notification: `method = "notifications/cancelled"` with the relevant `requestId` (JsonRpcId).
+    - Implementation constraint to plan for:
+      - Drop cannot `await`; cancellation must be sent via a non-blocking mechanism (e.g., spawn a tokio task or signal a transport writer loop) so it is "immediate" from the caller's perspective.
 
 - Capability + consent decision points (explicit; default-deny where ambiguous):
   - Outbound (`tools/call`):
@@ -213,7 +237,7 @@ git revert <commit-sha>  # revert WP commit(s) on feat/WP-1-MCP-Skeleton-Gate-v2
     - `mcp.gate.decision` (allow/deny/timeout/consent-required decisions)
   - Correlation fields:
     - `fr_events.job_id` = `ctx.job_id` (string) when available (required for DONE_MEANS tests).
-    - `payload.trace_id` = `ctx.trace_id` (always set for tool calls/results).
+    - `payload.trace_id` = `ctx.trace_id.to_string()` (always set for tool calls/results).
     - `payload.workflow_run_id` mirrors `ctx.workflow_run_id` when available.
   - Payload keys for tool call/result events MUST include the conformance-required keys (mirror `mex/conformance.rs`):
     - `tool_name`, `tool_version`, `inputs`, `outputs`, `status`, `duration_ms`, `error_code`, `job_id`, `workflow_run_id`, `trace_id`, `capability_id`
