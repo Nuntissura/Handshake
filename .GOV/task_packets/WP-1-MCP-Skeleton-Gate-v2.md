@@ -119,25 +119,166 @@ git revert <commit-sha>  # revert WP commit(s) on feat/WP-1-MCP-Skeleton-Gate-v2
   - "symlink/path traversal" -> "exfiltration of host files via MCP roots/resources"
 
 ## SKELETON
-- Proposed interfaces/types/contracts:
-- Open questions:
+- Module layout (proposed; all under `src/backend/handshake_core/src/`):
+  - `mcp/` (new): MCP client + JSON-RPC types + transport(s) + discovery + schema validation helpers.
+    - `mcp/jsonrpc.rs`: `JsonRpcMessage` + `JsonRpcRequest/Notification/Response` + `JsonRpcError`.
+    - `mcp/transport/mod.rs`: `McpTransport` trait + `TransportKind` + reconnection contract.
+    - `mcp/transport/stdio.rs`: `StdioTransport` (production); spawns sidecar, reads/writes JSON-RPC lines.
+    - `mcp/client.rs`: `McpClient` trait + `JsonRpcMcpClient<T: McpTransport>`.
+    - `mcp/discovery.rs`: `McpToolDescriptor`/`McpResourceDescriptor` + caching.
+    - `mcp/schema.rs`: JSON Schema validation helpers (reuse `jsonschema` patterns from `capability_registry_workflow.rs`).
+    - `mcp/errors.rs`: `McpError` (transport/protocol/schema/security/capability/consent).
+    - `mcp/fr_events.rs`: shared helper to write MCP rows into `fr_events` (mirror `mex/runtime.rs` insertion pattern).
+    - `mcp/gate.rs`: Gate interceptor trait + default gate implementation + wrapper around client/transport.
+  - `jobs.rs` / `workflows.rs` (existing): add MCP job plumbing ONLY after skeleton approval (Implementation phase).
+  - `tests/` (new): integration tests using a local stub MCP server (test-only; never built into production).
+
+- Core types / contracts (proposed; no logic yet):
+  - JSON-RPC envelope (per spec anchor 11.3.2):
+    - `enum JsonRpcMessage { Request(JsonRpcRequest), Notification(JsonRpcNotification), Response(JsonRpcResponse) }`
+    - `struct JsonRpcRequest { jsonrpc: String, id: JsonRpcId, method: String, params: Option<serde_json::Value> }`
+    - `struct JsonRpcNotification { jsonrpc: String, method: String, params: Option<serde_json::Value> }`
+    - `struct JsonRpcResponse { jsonrpc: String, id: JsonRpcId, result: Option<serde_json::Value>, error: Option<JsonRpcError> }`
+    - `struct JsonRpcError { code: i64, message: String, data: Option<serde_json::Value> }`
+    - `enum JsonRpcId { Number(i64), String(String) }` (reject null IDs for requests that expect responses)
+
+  - Transport abstraction (outbound + inbound interception requires a bidirectional contract):
+    - `#[async_trait] trait McpTransport {`
+      - `fn kind(&self) -> TransportKind`
+      - `async fn send(&self, msg: &JsonRpcMessage) -> Result<(), McpError>`
+      - `async fn recv(&self) -> Result<JsonRpcMessage, McpError>`
+      - `async fn reconnect(&self) -> Result<(), McpError>` (exponential backoff required by spec)
+      - `async fn close(&self)`
+      - `fn server_id(&self) -> &str`
+    - `enum TransportKind { Stdio, SseHttp }` (MVP: implement `Stdio` first; `SseHttp` future)
+
+  - Client API:
+    - `#[async_trait] trait McpClient {`
+      - `async fn initialize(&self, ctx: &McpContext) -> Result<McpInitializeResult, McpError>`
+      - `async fn list_tools(&self, ctx: &McpContext) -> Result<Vec<McpToolDescriptor>, McpError>`
+      - `async fn call_tool(&self, ctx: &McpContext, req: McpToolCall) -> Result<McpToolResult, McpError>`
+      - `async fn list_resources(&self, ctx: &McpContext) -> Result<Vec<McpResourceDescriptor>, McpError>` (optional in MVP; allow stubbing)
+      - `async fn read_resource(&self, ctx: &McpContext, uri: &McpUri) -> Result<McpResourceContents, McpError>` (only if required for tests)
+    - `struct McpToolCall { server_id: String, tool_name: String, arguments: serde_json::Value }`
+    - `struct McpToolResult { content: serde_json::Value, is_error: bool, redactions_applied: bool }`
+    - `struct McpInitializeResult { negotiated: McpNegotiatedCapabilities }`
+    - `struct McpNegotiatedCapabilities { supports_roots: bool, supports_sampling: bool, supports_progress: bool, ... }`
+
+  - Gate interceptor (middleware) (per spec anchor 11.3.2):
+    - `#[async_trait] trait McpInterceptor {`
+      - `async fn on_outbound(&self, ctx: &McpContext, msg: &mut JsonRpcMessage) -> Result<(), McpError>`
+      - `async fn on_inbound(&self, ctx: &McpContext, msg: &mut JsonRpcMessage) -> Result<(), McpError>`
+      - `async fn on_response(&self, ctx: &McpContext, req: &JsonRpcRequest, resp: &mut JsonRpcResponse) -> Result<(), McpError>`
+    - `struct GateLayer<T> { inner: T, interceptor: Arc<dyn McpInterceptor> }` (wraps `McpTransport` or `McpClient`)
+    - `struct McpContext {`
+      - `server_id: String`
+      - `job_id: Option<String>`
+      - `workflow_run_id: Option<String>`
+      - `trace_id: String` (required for tool calls; source: AI Job)
+      - `task_id: Option<String>`
+      - `session_id: Option<String>`
+      - `capability_profile_id: Option<String>`
+      - `human_consent_obtained: bool`
+      - `agentic_mode_enabled: bool`
+      - `sampling_context: SamplingContext` (see security plan)
+      - `allowed_tools: Vec<String>` (session-scoped allowlist)
+      - `granted_capabilities: Vec<String>` (session/job scoped)
+    - `enum SamplingContext { None, SamplingCreateMessage }`
+
+- Capability + consent decision points (explicit; default-deny where ambiguous):
+  - Outbound (`tools/call`):
+    - Check `allowed_tools` contains `tool_name` (deny -> JSON-RPC error; record decision).
+    - Resolve required capabilities for `(server_id, tool_name)` using a host-side mapping (TBD exact source; see Open Questions).
+    - Enforce capability registry (mirror `terminal/guards.rs` + `CapabilityRegistry::enforce_can_perform` patterns).
+    - If tool requires human confirmation (per policy) and `human_consent_obtained=false`: pause/timeout path is explicit (MVP: return `McpError::ConsentRequired` + record `mcp.gate.decision`).
+    - Validate `arguments` against the tool's JSON Schema before sending (see schema plan).
+
+  - Inbound (`sampling/createMessage`):
+    - Treat as untrusted; deny by default unless `agentic_mode_enabled=true` AND an explicit consent artifact is present (mirror `llm/guard.rs` pattern).
+    - Never allow tool side-effects while `sampling_context=SamplingCreateMessage` (if a response payload "looks like a tool call", treat as text-only; do not execute).
+
+  - Inbound method/capability firewall:
+    - If server attempts to use undeclared/unsupported capability or method (e.g., `roots/list` without negotiation): reject with JSON-RPC `-32601` and record `mcp.gate.decision`.
+
+  - Response analysis (DLP/redaction):
+    - Scan tool results for sensitive patterns; redact before returning to UI/LLM context; record `redactions_applied=true` in the paired FR event payload.
+
+- Flight Recorder event plan (DuckDB `fr_events`) (per spec anchor 11.3.6 + existing `mex/runtime.rs` pattern):
+  - All MCP rows use `FlightRecorder::duckdb_connection()` and insert into `fr_events` (no new DB files).
+  - `event_kind` mapping (minimum set for MVP):
+    - `mcp.tool_call` (before outbound `tools/call` send)
+    - `mcp.tool_result` (after response/error)
+    - `mcp.progress` (from MCP progress notifications, if observed)
+    - `mcp.logging` OR `fields.event_kind` (from `logging/message`, per spec contract)
+    - `mcp.gate.decision` (allow/deny/timeout/consent-required decisions)
+  - Correlation fields:
+    - `fr_events.job_id` = `ctx.job_id` (string) when available (required for DONE_MEANS tests).
+    - `payload.trace_id` = `ctx.trace_id` (always set for tool calls/results).
+    - `payload.workflow_run_id` mirrors `ctx.workflow_run_id` when available.
+  - Payload keys for tool call/result events MUST include the conformance-required keys (mirror `mex/conformance.rs`):
+    - `tool_name`, `tool_version`, `inputs`, `outputs`, `status`, `duration_ms`, `error_code`, `job_id`, `workflow_run_id`, `trace_id`, `capability_id`
+    - plus MCP-specific fields: `server_id`, `method`, `tool_arguments_schema_id` (optional), `capabilities` (list), `consent_required` (bool), `decision` (for gate events)
+  - `logging/message` handling:
+    - Persist full `params` JSON as `payload`.
+    - `event_kind` = `params.fields.event_kind` if present else `mcp.logging`.
+    - `source` = `params.fields.server_id` (or transport `server_id` fallback).
+    - `level`/`message` map from `params.level`/`params.message`.
+
+- Security plan (paths/URIs + sampling hardening):
+  - Paths/URIs:
+    - Represent MCP resource URIs as a parsed `McpUri` type; do not treat server-provided `file://...` as a host path string.
+    - Resolve/authorize file access ONLY through a host-owned `AllowedRoots` mapping keyed by `(server_id, root_id)` (treat URI as a key into that mapping).
+    - When mapping to a host path, enforce canonicalization + starts_with allowed root (mirror `terminal/guards.rs::validate_cwd` pattern).
+    - For file open/read: best-effort no-follow enforcement (Unix `O_NOFOLLOW` where available) + deny symlinks (explicit test coverage required by DONE_MEANS).
+  - Sampling hardening (spec anchor 11.3.7):
+    - Fence untrusted server content; never concatenate untrusted content into system prompts.
+    - Deny side-effects during sampling contexts; require explicit human approval (no silent auto-approve).
+
+- Open questions / decisions needed (blockers for Implementation if unresolved):
+  1. Canonical source for `(server_id, tool_name) -> required capabilities + consent_required` mapping (config file vs capability registry extension vs hardcoded MVP for stub).
+  2. What is the MVP consent artifact for MCP (env-based receipt like `llm/guard.rs` vs UI modal receipt stored in DB / mailbox)?
+  3. Which MCP message field should carry Handshake metadata (`trace_id`, `job_id`) so servers can correlate (custom `params._handshake` envelope vs existing MCP `meta`/`context` field if defined)?
+  4. DLP/redaction: confirm which redaction utility to reuse (PatternRedactor/SecretRedactor) and which patterns are mandatory for MCP tool results.
+
 - Notes:
+  - Stub server is test-only; production builds must not include it (spec stub policy).
+  - No product logic changes occur until "SKELETON APPROVED".
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
-- END_TO_END_CLOSURE_PLAN_APPLICABLE: YES | NO
-- TRUST_BOUNDARY: <fill> (examples: client->server, server->storage, job->apply)
+- END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
+- TRUST_BOUNDARY: Rust Host (trusted) <-> MCP server process/transport (untrusted) <-> filesystem/resources (high risk)
 - SERVER_SOURCES_OF_TRUTH:
-  - <fill> (what the server loads/verifies instead of trusting the client)
+  - Capability registry (`CapabilityRegistry`) + host-owned `(server_id, tool_name)` policy mapping (never trust server to self-declare required capabilities).
+  - Host-owned consent artifacts/receipts (never trust server to claim consent).
+  - Host-owned allowed-roots mapping for any file/resource resolution (never trust server-provided `file://` as a host path).
 - REQUIRED_PROVENANCE_FIELDS:
-  - <fill> (role_id, contract_id, model_id/tool_id, evidence refs, before/after spans, etc.)
+  - job_id, trace_id, workflow_run_id, session_id, task_id
+  - server_id, tool_name, transport_kind
+  - capability_profile_id, granted_capabilities, enforced_capability_id(s)
+  - consent_required + consent_decision (allow/deny/timeout)
+  - redactions_applied (DLP)
 - VERIFICATION_PLAN:
-  - <fill> (how provenance/audit is verified and recorded; include non-spoofable checks when required)
+  - Gate enforces allowlist + capability registry + consent policy BEFORE sending `tools/call`.
+  - Gate validates tool params against tool JSON Schema; on failure returns explicit error and records `mcp.gate.decision` + error into FR.
+  - Gate records `mcp.tool_call` + `mcp.tool_result` into `fr_events`, correlated by `fr_events.job_id` and `payload.trace_id`.
+  - Gate rejects inbound requests for undeclared capabilities/methods with JSON-RPC `-32601` and records decision.
+  - Gate hardens any path/URI handling via canonicalization + bounds + no-follow policies; tests cover escape + symlink attempt.
 - ERROR_TAXONOMY_PLAN:
-  - <fill> (distinct error classes: stale/mismatch vs spoof attempt vs true scope violation)
+  - `SchemaValidationFailed` (tool args invalid)
+  - `CapabilityDenied` (policy/capability registry)
+  - `ConsentRequired` / `ConsentDenied` / `ConsentTimeout`
+  - `MethodNotAllowed` (inbound undeclared capability -> -32601)
+  - `SecurityViolation` (path traversal/symlink)
+  - `TransportError` / `ProtocolError`
+  - `DlpRedacted` (non-fatal; annotate result + FR payload)
 - UI_GUARDRAILS:
-  - <fill> (prevent stale apply; preview before apply; disable conditions)
+  - MVP: no UI changes expected.
+  - If consent UI is required later: modal must show exact tool + args + server_id; deny is default; no silent approvals.
 - VALIDATOR_ASSERTIONS:
-  - <fill> (what the validator must prove; spec anchors; fields present; trust boundary enforced)
+  - MCP tool call tests prove allow/deny/timeout paths with explicit errors.
+  - `fr_events` contains `mcp.tool_call` + `mcp.tool_result` and at least one `logging/message`-derived row with correlation (job_id + trace_id).
+  - Symlink/path traversal attempt is blocked (spec anchor 11.3.7.1) with explicit error + FR decision event.
+  - Sampling/createMessage is denied by default and cannot trigger tool side effects (spec anchor 11.3.7.2).
 
 ## IMPLEMENTATION
 - (Coder fills after skeleton approval.)
