@@ -160,7 +160,7 @@ impl JsonRpcMcpClient {
                     tx,
                     meta: meta.or_else(|| {
                         Some(PendingMeta {
-                            started_at: Instant::now(),
+                            started_at: Instant::now(), // WAIVER [CX-573E] duration/timeout bookkeeping only
                             method: method_str.clone(),
                             ctx: None,
                             tool_name: None,

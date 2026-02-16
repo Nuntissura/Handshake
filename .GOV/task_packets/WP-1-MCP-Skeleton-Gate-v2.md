@@ -50,7 +50,10 @@
 
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- NONE
+- Waiver ID: CX-573E
+  - Date: 2026-02-16
+  - Scope: Allow `Instant::now()` only for duration/timeout bookkeeping in MCP client/gate and OpenAI compat adapter paths.
+  - Justification: Monotonic timing is required for telemetry and timeout enforcement; values are not used for deterministic outputs and tests do not assert exact durations.
 
 ## QUALITY_GATE
 ### TEST_PLAN

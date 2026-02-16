@@ -4611,7 +4611,13 @@ mod context_pack_tests {
         )?;
         let built_record = match built {
             ContextPackOutcome::Selected(sel) => sel.record,
-            _ => return Err("expected Selected on regen_allowed miss".into()),
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "expected Selected on regen_allowed miss",
+                )
+                .into())
+            }
         };
 
         // Stale fallback when regen is not allowed
@@ -4642,7 +4648,13 @@ mod context_pack_tests {
                     .any(|w| w.starts_with(STALE_PACK_WARNING_PREFIX)));
                 assert_eq!(fb.pack_id, Some(built_record.pack_id));
             }
-            _ => return Err("expected Fallback on stale with regen_allowed=false".into()),
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "expected Fallback on stale with regen_allowed=false",
+                )
+                .into())
+            }
         }
 
         // Stale + regen_required should emit regen_skipped marker
@@ -4670,7 +4682,13 @@ mod context_pack_tests {
                     .iter()
                     .any(|w| w.starts_with(REGEN_SKIPPED_PREFIX)));
             }
-            _ => return Err("expected Fallback on stale with regen_required".into()),
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "expected Fallback on stale with regen_required",
+                )
+                .into())
+            }
         }
 
         // Stale regen when allowed should return Selected and update target hash
@@ -4692,7 +4710,13 @@ mod context_pack_tests {
                 assert_eq!(sel.record.target.source_hash, source_ref_v2.source_hash);
                 assert!(!sel.record.is_stale(&[source_ref_v2]));
             }
-            _ => return Err("expected Selected on stale with regen_allowed=true".into()),
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "expected Selected on stale with regen_allowed=true",
+                )
+                .into())
+            }
         }
 
         Ok(())

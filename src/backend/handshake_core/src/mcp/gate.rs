@@ -227,7 +227,7 @@ impl GatedMcpClient {
                 "tools/list",
                 Some(json!({})),
                 Some(PendingMeta {
-                    started_at: Instant::now(),
+                    started_at: Instant::now(), // WAIVER [CX-573E] duration/timeout bookkeeping only
                     method: "tools/list".to_string(),
                     ctx: None,
                     tool_name: None,
@@ -481,7 +481,7 @@ impl GatedMcpClient {
             &arguments,
         )?;
 
-        let started_at = Instant::now();
+        let started_at = Instant::now(); // WAIVER [CX-573E] duration/timeout bookkeeping only
         let params = json!({ "name": tool_name, "arguments": arguments });
         let meta = PendingMeta {
             started_at,

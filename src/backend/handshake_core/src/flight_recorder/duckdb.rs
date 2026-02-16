@@ -1003,7 +1003,11 @@ mod tests {
             }
         }
 
-        Err("duckdb index introspection not available".into())
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "duckdb index introspection not available",
+        )
+        .into())
     }
 
     #[tokio::test]

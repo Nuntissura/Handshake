@@ -195,7 +195,7 @@ struct OpenAiCompatUsage {
 #[async_trait]
 impl LlmClient for OpenAiCompatAdapter {
     async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        let started = Instant::now();
+        let started = Instant::now(); // WAIVER [CX-573E] duration/timeout bookkeeping only
 
         let model_id = if req.model_id.trim().is_empty() {
             self.profile.model_id.clone()
@@ -409,10 +409,10 @@ mod tests {
 
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
-            .map_err(|err| format!("failed to bind test listener: {err}"))?;
+            .map_err(|err| err.to_string())?;
         let addr = listener
             .local_addr()
-            .map_err(|err| format!("failed to read local_addr: {err}"))?;
+            .map_err(|err| err.to_string())?;
 
         let handle = tokio::spawn(async move {
             let _ = axum::serve(listener, app).await;
