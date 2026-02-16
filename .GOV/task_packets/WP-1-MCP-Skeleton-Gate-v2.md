@@ -643,25 +643,25 @@ SKELETON APPROVED
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
 
 - COMMAND: `just pre-work WP-1-MCP-Skeleton-Gate-v2`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - PROOF_LINES:
     - Checking Phase Gate for WP-1-MCP-Skeleton-Gate-v2...
     - Pre-work validation PASSED
 
 - COMMAND: `cd src/backend/handshake_core; cargo fmt`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - PROOF_LINES:
     - (no output)
 
 - COMMAND: `cd src/backend/handshake_core; cargo clippy --all-targets --all-features -j 1`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/WP-1-MCP-Skeleton-Gate-v2/cargo-clippy-all-targets-all-features-j1-d0a8aaf.log`
   - LOG_SHA256: `D451C7976B3AF1FC9335CC6901F7B529F85C05575708BBFB8C9977E5EF184FDE`
   - PROOF_LINES:
     - Finished `dev` profile [unoptimized + debuginfo]
 
 - COMMAND: `cd src/backend/handshake_core; cargo test -j 1 --test mcp_gate_tests`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/WP-1-MCP-Skeleton-Gate-v2/cargo-test-mcp_gate_tests-j1-d0a8aaf.log`
   - LOG_SHA256: `BA4BECC3970D4A5897643C2BBAE66DA09562B021E525F39DE33E0C6DFCEF5012`
   - PROOF_LINES:
@@ -669,7 +669,7 @@ SKELETON APPROVED
     - test result: ok. 6 passed; 0 failed
 
 - COMMAND: `cd src/backend/handshake_core; cargo test -j 1`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/WP-1-MCP-Skeleton-Gate-v2/cargo-test-j1-d0a8aaf.log`
   - LOG_SHA256: `3E09BCB85DB92364BE5BA31BDCF9DD051F2C69F64BE9CDA2CEECB2D6856B6CBA`
   - PROOF_LINES:
@@ -677,7 +677,7 @@ SKELETON APPROVED
     - test result: ok.
 
 - COMMAND: `cd src/backend/handshake_core; cargo test -j 1 --test mcp_gate_tests`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/WP-1-MCP-Skeleton-Gate-v2/cargo-test-mcp_gate_tests-j1-HEAD-20260216-102628.log`
   - LOG_SHA256: `4F0D5D667FAF6569CBFB47AB454A6E919919FC0D7691D76082C822E0724DA602`
   - PROOF_LINES:
@@ -685,7 +685,7 @@ SKELETON APPROVED
     - test result: ok. 13 passed; 0 failed
 
 - COMMAND: `cd src/backend/handshake_core; cargo tarpaulin --engine Llvm --out Html --output-dir coverage -j 1 --skip-clean --include-files src/mcp/* src/mcp/transport/* --tests --test mcp_gate_tests`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/WP-1-MCP-Skeleton-Gate-v2/cargo-tarpaulin-mcp-only-j1-HEAD-20260216-102701.log`
   - LOG_SHA256: `B38BDA99C5B1D631744B30957CC5535F5B478EF6A4DE9190F7AA61181B5A6515`
   - PROOF_LINES:
