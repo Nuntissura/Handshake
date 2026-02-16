@@ -86,7 +86,7 @@ Format:
 | WP-1-Governance-Workflow-Mirror | .GOV/task_packets/stubs/WP-1-Governance-Workflow-Mirror-v1.md | Stub Backlog (Not Activated): WP-1-Governance-Workflow-Mirror-v1 | stub (new); mirror repo governance workflow in Handshake runtime per v02.113 |
 | WP-1-LLM-Core | .GOV/task_packets/WP-1-LLM-Core-v3.md | Done: WP-1-LLM-Core-v3 | active=WP-1-LLM-Core-v3; supersedes: WP-1-LLM-Core |
 | WP-1-MCP-End-to-End | .GOV/task_packets/stubs/WP-1-MCP-End-to-End-v2.md | Stub Backlog (Not Activated): WP-1-MCP-End-to-End-v2 | stub (remediation); supersedes: WP-1-MCP-End-to-End |
-| WP-1-MCP-Skeleton-Gate | .GOV/task_packets/stubs/WP-1-MCP-Skeleton-Gate-v2.md | Stub Backlog (Not Activated): WP-1-MCP-Skeleton-Gate-v2 | stub (remediation); supersedes: WP-1-MCP-Skeleton-Gate |
+| WP-1-MCP-Skeleton-Gate | .GOV/task_packets/WP-1-MCP-Skeleton-Gate-v2.md | Ready for Dev: WP-1-MCP-Skeleton-Gate-v2 | active=WP-1-MCP-Skeleton-Gate-v2; activated from stub .GOV/task_packets/stubs/WP-1-MCP-Skeleton-Gate-v2.md; supersedes: WP-1-MCP-Skeleton-Gate |
 | WP-1-Metrics-Mock-Tokens | .GOV/task_packets/WP-1-Metrics-Mock-Tokens.md | Done: WP-1-Metrics-Mock-Tokens | active=WP-1-Metrics-Mock-Tokens (no -vN revision); new packet |
 | WP-1-Metrics-OTel | .GOV/task_packets/stubs/WP-1-Metrics-OTel-v2.md | Stub Backlog (Not Activated): WP-1-Metrics-OTel-v2 | stub (remediation); supersedes: WP-1-Metrics-OTel |
 | WP-1-Metrics-Traces | .GOV/task_packets/stubs/WP-1-Metrics-Traces-v2.md | Stub Backlog (Not Activated): WP-1-Metrics-Traces-v2 | stub (remediation); supersedes: WP-1-Metrics-Traces |

@@ -1273,6 +1273,30 @@
       "branch": "feat/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2",
       "worktree_dir": "../wt-WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2",
       "timestamp": "2026-02-14T17:05:18.737Z"
+    },
+    {
+      "wpId": "WP-1-MCP-Skeleton-Gate-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-MCP-Skeleton-Gate-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.126.md",
+      "spec_target_sha1": "7260b4ada693263799ff39dd909653863cf0e503",
+      "timestamp": "2026-02-15T22:59:12.361Z",
+      "turn_token": "1771196352362"
+    },
+    {
+      "wpId": "WP-1-MCP-Skeleton-Gate-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja160220260031",
+      "timestamp": "2026-02-15T23:34:08.277Z",
+      "refinement_path": ".GOV/refinements/WP-1-MCP-Skeleton-Gate-v2.md"
+    },
+    {
+      "wpId": "WP-1-MCP-Skeleton-Gate-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-MCP-Skeleton-Gate-v2",
+      "worktree_dir": "../wt-WP-1-MCP-Skeleton-Gate-v2",
+      "timestamp": "2026-02-15T23:41:47.292Z"
     }
   ]
 }
