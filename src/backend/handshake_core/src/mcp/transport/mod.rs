@@ -1,4 +1,5 @@
 pub mod duplex;
+pub mod reconnect;
 pub mod stdio;
 
 use async_trait::async_trait;
@@ -6,6 +7,8 @@ use tokio::sync::mpsc;
 
 use crate::mcp::errors::McpResult;
 use crate::mcp::jsonrpc::JsonRpcMessage;
+
+pub use reconnect::{AutoReconnectTransport, ReconnectConfig};
 
 pub struct TransportIo {
     pub outgoing: mpsc::UnboundedSender<JsonRpcMessage>,

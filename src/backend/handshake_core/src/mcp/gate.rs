@@ -20,7 +20,7 @@ use super::fr_events;
 use super::jsonrpc::{JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
 use super::schema;
 use super::security;
-use super::transport::McpTransport;
+use super::transport::{AutoReconnectTransport, McpTransport, ReconnectConfig};
 
 #[derive(Clone, Debug)]
 pub struct McpContext {
@@ -90,6 +90,7 @@ pub struct GateConfig {
     pub tool_policies: HashMap<String, ToolPolicy>,
     pub request_timeout: Duration,
     pub consent_timeout: Duration,
+    pub reconnect: ReconnectConfig,
 }
 
 impl GateConfig {
@@ -99,6 +100,7 @@ impl GateConfig {
             tool_policies: HashMap::new(),
             request_timeout: Duration::from_secs(60),
             consent_timeout: Duration::from_secs(30),
+            reconnect: ReconnectConfig::default(),
         }
     }
 }
@@ -189,9 +191,9 @@ pub struct GatedMcpClient {
 }
 
 impl GatedMcpClient {
-    pub async fn connect<T: McpTransport>(
+    pub async fn connect<T: McpTransport + 'static>(
         server_id: impl Into<String>,
-        transport: &mut T,
+        transport: T,
         flight_recorder: Arc<dyn FlightRecorder>,
         capability_registry: Arc<CapabilityRegistry>,
         consent_provider: Arc<dyn ConsentProvider>,
@@ -199,12 +201,13 @@ impl GatedMcpClient {
         agentic_mode_enabled: bool,
     ) -> McpResult<Self> {
         let server_id = server_id.into();
+        let mut transport = AutoReconnectTransport::new(transport, gate.reconnect.clone());
         let dispatcher: Arc<dyn McpDispatcher> = Arc::new(GateDispatcher {
             server_id: server_id.clone(),
             flight_recorder: Arc::clone(&flight_recorder),
             agentic_mode_enabled,
         });
-        let inner = JsonRpcMcpClient::connect(transport, dispatcher).await?;
+        let inner = JsonRpcMcpClient::connect(&mut transport, dispatcher).await?;
 
         Ok(Self {
             server_id,

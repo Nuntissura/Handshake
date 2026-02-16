@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -14,11 +15,11 @@ use handshake_core::mcp::jsonrpc::{
 use handshake_core::mcp::security::canonicalize_under_roots;
 use handshake_core::mcp::transport::duplex::DuplexTransport;
 use handshake_core::mcp::transport::stdio::StdioTransport;
-use handshake_core::mcp::transport::McpTransport;
+use handshake_core::mcp::transport::{ConnectedTransport, McpTransport, TransportIo, TransportTasks};
 use handshake_core::storage::AccessMode;
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter, DuplexStream};
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
 struct AllowAllConsent;
@@ -150,6 +151,97 @@ async fn stub_server_basic(stream: DuplexStream, server_id: String, job_id: Stri
                         .unwrap_or("")
                         .to_string();
                     let result = json!({ "echoed": echoed });
+                    write_msg(
+                        &mut writer,
+                        &JsonRpcMessage::Response(JsonRpcResponse::ok(req.id, result)),
+                    )
+                    .await;
+                }
+                _ => {
+                    write_msg(
+                        &mut writer,
+                        &JsonRpcMessage::Response(JsonRpcResponse::err(
+                            req.id,
+                            -32601,
+                            "method not found",
+                            None,
+                        )),
+                    )
+                    .await;
+                }
+            },
+            JsonRpcMessage::Notification(_notif) => {
+                // ignore
+            }
+            JsonRpcMessage::Response(_resp) => {
+                // server should not receive responses from client in these tests
+            }
+        }
+    }
+}
+
+async fn stub_server_tool_call_returns_secret(stream: DuplexStream, server_id: String, job_id: String) {
+    let (read_half, write_half) = tokio::io::split(stream);
+    let mut lines = BufReader::new(read_half).lines();
+    let mut writer = BufWriter::new(write_half);
+
+    while let Ok(Some(line)) = lines.next_line().await {
+        let msg: JsonRpcMessage = serde_json::from_str(&line).expect("parse jsonrpc");
+        match msg {
+            JsonRpcMessage::Request(req) => match req.method.as_str() {
+                "tools/list" => {
+                    let schema = json!({
+                        "type": "object",
+                        "properties": {
+                            "message": { "type": "string" },
+                            "path": { "type": "string" }
+                        },
+                        "required": ["message"],
+                        "additionalProperties": false
+                    });
+                    let result = json!({
+                        "tools": [{
+                            "name": "echo",
+                            "description": "echo a string",
+                            "inputSchema": schema
+                        }]
+                    });
+                    write_msg(
+                        &mut writer,
+                        &JsonRpcMessage::Response(JsonRpcResponse::ok(req.id, result)),
+                    )
+                    .await;
+                }
+                "resources/list" => {
+                    let result = json!({ "resources": [] });
+                    write_msg(
+                        &mut writer,
+                        &JsonRpcMessage::Response(JsonRpcResponse::ok(req.id, result)),
+                    )
+                    .await;
+                }
+                "tools/call" => {
+                    let log = JsonRpcNotification::new(
+                        "logging/message",
+                        Some(json!({
+                            "level": "INFO",
+                            "logger": "stub",
+                            "message": "stub tool called",
+                            "context": {
+                                "session_id": "sess-1",
+                                "task_id": "task-1",
+                                "job_id": job_id.as_str(),
+                                "workflow_run_id": "wf-1"
+                            },
+                            "fields": {
+                                "server_id": server_id.as_str(),
+                                "tool_name": "echo"
+                            }
+                        })),
+                    );
+                    write_msg(&mut writer, &JsonRpcMessage::Notification(log)).await;
+
+                    let result = json!({ "echoed": "aws_secret_access_key=AAAAAAAAAAAAAAAAAAAA" });
                     write_msg(
                         &mut writer,
                         &JsonRpcMessage::Response(JsonRpcResponse::ok(req.id, result)),
@@ -370,6 +462,95 @@ fn make_ctx(
     }
 }
 
+struct FlakyTestTransport {
+    connect_calls: Arc<AtomicUsize>,
+}
+
+impl FlakyTestTransport {
+    fn new(connect_calls: Arc<AtomicUsize>) -> Self {
+        Self { connect_calls }
+    }
+}
+
+#[async_trait::async_trait]
+impl McpTransport for FlakyTestTransport {
+    async fn connect(&mut self) -> handshake_core::mcp::errors::McpResult<ConnectedTransport> {
+        let call_num = self.connect_calls.fetch_add(1, Ordering::SeqCst) + 1;
+        let sever_after_tools_list = call_num == 1;
+
+        let (outgoing_tx, mut outgoing_rx) = mpsc::unbounded_channel::<JsonRpcMessage>();
+        let (incoming_tx, incoming_rx) = mpsc::unbounded_channel::<JsonRpcMessage>();
+
+        let server = tokio::spawn(async move {
+            while let Some(msg) = outgoing_rx.recv().await {
+                match msg {
+                    JsonRpcMessage::Request(req) => match req.method.as_str() {
+                        "tools/list" => {
+                            let schema = json!({
+                                "type": "object",
+                                "properties": { "message": { "type": "string" } },
+                                "required": ["message"],
+                                "additionalProperties": false
+                            });
+                            let result = json!({
+                                "tools": [{
+                                    "name": "echo",
+                                    "description": "echo a string",
+                                    "inputSchema": schema
+                                }]
+                            });
+                            let _ = incoming_tx
+                                .send(JsonRpcMessage::Response(JsonRpcResponse::ok(req.id, result)));
+                            if sever_after_tools_list {
+                                break;
+                            }
+                        }
+                        "resources/list" => {
+                            let result = json!({ "resources": [] });
+                            let _ = incoming_tx
+                                .send(JsonRpcMessage::Response(JsonRpcResponse::ok(req.id, result)));
+                        }
+                        "tools/call" => {
+                            let args = req
+                                .params
+                                .as_ref()
+                                .and_then(|v| v.get("arguments"))
+                                .cloned()
+                                .unwrap_or(Value::Null);
+                            let echoed = args
+                                .get("message")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let result = json!({ "echoed": echoed });
+                            let _ = incoming_tx
+                                .send(JsonRpcMessage::Response(JsonRpcResponse::ok(req.id, result)));
+                        }
+                        _ => {
+                            let _ = incoming_tx.send(JsonRpcMessage::Response(JsonRpcResponse::err(
+                                req.id,
+                                -32601,
+                                "method not found",
+                                None,
+                            )));
+                        }
+                    },
+                    JsonRpcMessage::Notification(_notif) => {}
+                    JsonRpcMessage::Response(_resp) => {}
+                }
+            }
+        });
+
+        Ok(ConnectedTransport {
+            io: TransportIo {
+                outgoing: outgoing_tx,
+                incoming: incoming_rx,
+            },
+            tasks: TransportTasks::new(vec![server]),
+        })
+    }
+}
+
 #[tokio::test]
 async fn mcp_tool_call_records_fr_events_and_logging() -> Result<(), Box<dyn std::error::Error>> {
     let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
@@ -394,7 +575,7 @@ async fn mcp_tool_call_records_fr_events_and_logging() -> Result<(), Box<dyn std
         job_id_str.clone(),
     ));
 
-    let mut transport = DuplexTransport::new(client_stream);
+    let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
     gate.tool_policies.insert(
         "echo".to_string(),
@@ -407,7 +588,7 @@ async fn mcp_tool_call_records_fr_events_and_logging() -> Result<(), Box<dyn std
 
     let client = GatedMcpClient::connect(
         server_id,
-        &mut transport,
+        transport,
         flight_recorder.clone(),
         registry,
         Arc::new(AllowAllConsent),
@@ -489,6 +670,144 @@ async fn mcp_tool_call_records_fr_events_and_logging() -> Result<(), Box<dyn std
 }
 
 #[tokio::test]
+async fn mcp_tools_call_redacts_sensitive_output_before_return_and_recording(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
+    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
+    let registry = Arc::new(CapabilityRegistry::new());
+
+    let job_id = Uuid::new_v4();
+    let job_id_str = job_id.to_string();
+    let trace_id = Uuid::new_v4();
+    let ctx = make_ctx(
+        job_id,
+        trace_id,
+        vec!["fs.read".to_string()],
+        AccessMode::AnalysisOnly,
+    );
+
+    let (client_stream, server_stream) = tokio::io::duplex(64 * 1024);
+    let server_id = "stub-mcp";
+    tokio::spawn(stub_server_tool_call_returns_secret(
+        server_stream,
+        server_id.to_string(),
+        job_id_str.clone(),
+    ));
+
+    let transport = DuplexTransport::new(client_stream);
+    let mut gate = GateConfig::minimal();
+    gate.tool_policies.insert(
+        "echo".to_string(),
+        ToolPolicy {
+            required_capability: Some("fs.read".to_string()),
+            requires_consent: false,
+            path_argument: None,
+        },
+    );
+
+    let client = GatedMcpClient::connect(
+        server_id,
+        transport,
+        flight_recorder.clone(),
+        registry,
+        Arc::new(AllowAllConsent),
+        gate,
+        false,
+    )
+    .await?;
+
+    client.refresh_tools().await?;
+    let result = client
+        .tools_call(ctx, "echo", json!({ "message": "hi" }))
+        .await?;
+
+    let echoed = result
+        .get("echoed")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let raw_secret = "aws_secret_access_key=AAAAAAAAAAAAAAAAAAAA";
+    assert!(!echoed.contains(raw_secret), "expected secret to be redacted");
+    assert!(
+        echoed.contains("[REDACTED:aws:secret_aws]"),
+        "expected redaction marker in result"
+    );
+
+    let conn_handle = recorder.connection();
+    let conn = match conn_handle.lock() {
+        Ok(conn) => conn,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let payload_str: String = conn.query_row(
+        "SELECT payload FROM fr_events WHERE event_kind = 'tool.result' AND job_id = ? ORDER BY event_id DESC LIMIT 1",
+        duckdb::params![job_id_str.clone()],
+        |row| row.get(0),
+    )?;
+    assert!(
+        !payload_str.contains(raw_secret),
+        "expected fr_events payload to be redacted"
+    );
+    assert!(payload_str.contains("[REDACTED:aws:secret_aws]"));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn mcp_auto_reconnects_when_transport_severs() -> Result<(), Box<dyn std::error::Error>> {
+    let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
+    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
+    let registry = Arc::new(CapabilityRegistry::new());
+
+    let job_id = Uuid::new_v4();
+    let trace_id = Uuid::new_v4();
+    let ctx = make_ctx(
+        job_id,
+        trace_id,
+        vec!["fs.read".to_string()],
+        AccessMode::AnalysisOnly,
+    );
+
+    let connect_calls = Arc::new(AtomicUsize::new(0));
+    let transport = FlakyTestTransport::new(Arc::clone(&connect_calls));
+
+    let mut gate = GateConfig::minimal();
+    gate.request_timeout = Duration::from_millis(500);
+    gate.reconnect.base_delay = Duration::from_millis(15);
+    gate.reconnect.max_delay = Duration::from_millis(60);
+    gate.reconnect.max_attempts = Some(8);
+    gate.tool_policies.insert(
+        "echo".to_string(),
+        ToolPolicy {
+            required_capability: Some("fs.read".to_string()),
+            requires_consent: false,
+            path_argument: None,
+        },
+    );
+
+    let client = GatedMcpClient::connect(
+        "flaky-mcp",
+        transport,
+        flight_recorder,
+        registry,
+        Arc::new(AllowAllConsent),
+        gate,
+        false,
+    )
+    .await?;
+
+    client.refresh_tools().await?;
+    let result = client
+        .tools_call(ctx, "echo", json!({ "message": "hi" }))
+        .await?;
+    assert_eq!(result.get("echoed").and_then(|v| v.as_str()), Some("hi"));
+    assert!(
+        connect_calls.load(Ordering::SeqCst) >= 2,
+        "expected at least one reconnect attempt"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn mcp_logging_message_custom_event_kind_creates_breadcrumb() -> Result<(), Box<dyn std::error::Error>> {
     let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
@@ -512,7 +831,7 @@ async fn mcp_logging_message_custom_event_kind_creates_breadcrumb() -> Result<()
         job_id_str.clone(),
     ));
 
-    let mut transport = DuplexTransport::new(client_stream);
+    let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
     gate.tool_policies.insert(
         "echo".to_string(),
@@ -525,7 +844,7 @@ async fn mcp_logging_message_custom_event_kind_creates_breadcrumb() -> Result<()
 
     let client = GatedMcpClient::connect(
         server_id,
-        &mut transport,
+        transport,
         flight_recorder,
         registry,
         Arc::new(AllowAllConsent),
@@ -597,7 +916,7 @@ async fn mcp_schema_validation_failure_is_explicit() -> Result<(), Box<dyn std::
         job_id_str,
     ));
 
-    let mut transport = DuplexTransport::new(client_stream);
+    let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
     gate.tool_policies.insert(
         "echo".to_string(),
@@ -610,7 +929,7 @@ async fn mcp_schema_validation_failure_is_explicit() -> Result<(), Box<dyn std::
 
     let client = GatedMcpClient::connect(
         "stub-mcp",
-        &mut transport,
+        transport,
         flight_recorder,
         registry,
         Arc::new(AllowAllConsent),
@@ -645,7 +964,7 @@ async fn mcp_capability_denied_blocks_tool_call() -> Result<(), Box<dyn std::err
         job_id_str,
     ));
 
-    let mut transport = DuplexTransport::new(client_stream);
+    let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
     gate.tool_policies.insert(
         "echo".to_string(),
@@ -658,7 +977,7 @@ async fn mcp_capability_denied_blocks_tool_call() -> Result<(), Box<dyn std::err
 
     let client = GatedMcpClient::connect(
         "stub-mcp",
-        &mut transport,
+        transport,
         flight_recorder,
         registry,
         Arc::new(AllowAllConsent),
@@ -698,7 +1017,7 @@ async fn mcp_consent_deny_and_timeout_are_explicit() -> Result<(), Box<dyn std::
         job_id_str.clone(),
     ));
 
-    let mut transport = DuplexTransport::new(client_stream);
+    let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
     gate.consent_timeout = Duration::from_millis(10);
     gate.tool_policies.insert(
@@ -712,7 +1031,7 @@ async fn mcp_consent_deny_and_timeout_are_explicit() -> Result<(), Box<dyn std::
 
     let client = GatedMcpClient::connect(
         "stub-mcp",
-        &mut transport,
+        transport,
         flight_recorder,
         registry.clone(),
         Arc::new(DenyAllConsent),
@@ -733,10 +1052,10 @@ async fn mcp_consent_deny_and_timeout_are_explicit() -> Result<(), Box<dyn std::
         "stub-mcp".to_string(),
         job_id_str,
     ));
-    let mut transport = DuplexTransport::new(client_stream);
+    let transport = DuplexTransport::new(client_stream);
     let client = GatedMcpClient::connect(
         "stub-mcp",
-        &mut transport,
+        transport,
         Arc::new(DuckDbFlightRecorder::new_in_memory(7)?),
         registry,
         Arc::new(SlowConsent(Duration::from_millis(100))),
@@ -775,7 +1094,7 @@ async fn mcp_timeout_sends_notifications_cancelled() -> Result<(), Box<dyn std::
         cancelled_tx,
     ));
 
-    let mut transport = DuplexTransport::new(client_stream);
+    let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
     gate.request_timeout = Duration::from_millis(30);
     gate.tool_policies.insert(
@@ -789,7 +1108,7 @@ async fn mcp_timeout_sends_notifications_cancelled() -> Result<(), Box<dyn std::
 
     let client = GatedMcpClient::connect(
         "stub-mcp",
-        &mut transport,
+        transport,
         flight_recorder,
         registry,
         Arc::new(AllowAllConsent),
@@ -842,7 +1161,7 @@ async fn mcp_path_escape_and_symlink_are_blocked() -> Result<(), Box<dyn std::er
         job_id_str,
     ));
 
-    let mut transport = DuplexTransport::new(client_stream);
+    let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
     gate.tool_policies.insert(
         "echo".to_string(),
@@ -855,7 +1174,7 @@ async fn mcp_path_escape_and_symlink_are_blocked() -> Result<(), Box<dyn std::er
 
     let client = GatedMcpClient::connect(
         "stub-mcp",
-        &mut transport,
+        transport,
         flight_recorder,
         registry,
         Arc::new(AllowAllConsent),

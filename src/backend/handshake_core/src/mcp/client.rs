@@ -10,6 +10,9 @@ use async_trait::async_trait;
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot};
 
+use crate::bundles::redactor::SecretRedactor;
+use crate::bundles::schemas::RedactionMode;
+
 use super::errors::{McpError, McpResult};
 use super::jsonrpc::{
     JsonRpcId, JsonRpcMessage, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
@@ -58,11 +61,12 @@ impl JsonRpcMcpClient {
             Arc::new(Mutex::new(HashMap::new()));
         let pending_for_task = Arc::clone(&pending);
         let outgoing_for_task = outgoing.clone();
+        let redactor = SecretRedactor::new();
 
         let dispatcher_task = tokio::spawn(async move {
             while let Some(msg) = incoming.recv().await {
                 match msg {
-                    JsonRpcMessage::Response(resp) => {
+                    JsonRpcMessage::Response(mut resp) => {
                         let pending_entry = {
                             let mut guard = match pending_for_task.lock() {
                                 Ok(g) => g,
@@ -72,6 +76,31 @@ impl JsonRpcMcpClient {
                         };
 
                         if let Some(entry) = pending_entry {
+                            if let Some(meta) = entry.meta.as_ref() {
+                                if meta.method == "tools/call" {
+                                    resp.result = resp
+                                        .result
+                                        .take()
+                                        .map(|v| redactor.redact_value(&v, RedactionMode::SafeDefault, "mcp/tools_call/result").0);
+                                    if let Some(error) = resp.error.as_mut() {
+                                        let (msg, _) = redactor.redact_value(
+                                            &Value::String(error.message.clone()),
+                                            RedactionMode::SafeDefault,
+                                            "mcp/tools_call/error/message",
+                                        );
+                                        if let Value::String(msg) = msg {
+                                            error.message = msg;
+                                        }
+                                        error.data = error.data.take().map(|v| {
+                                            redactor.redact_value(
+                                                &v,
+                                                RedactionMode::SafeDefault,
+                                                "mcp/tools_call/error/data",
+                                            ).0
+                                        });
+                                    }
+                                }
+                            }
                             dispatcher.handle_response(entry.meta.clone(), &resp).await;
                             let _ = entry.tx.send(resp);
                         } else {

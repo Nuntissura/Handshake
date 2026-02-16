@@ -40,6 +40,7 @@
   - src/backend/handshake_core/src/mcp/security.rs
   - src/backend/handshake_core/src/mcp/transport/duplex.rs
   - src/backend/handshake_core/src/mcp/transport/mod.rs
+  - src/backend/handshake_core/src/mcp/transport/reconnect.rs
   - src/backend/handshake_core/src/mcp/transport/stdio.rs
   - src/backend/handshake_core/tests/mcp_gate_tests.rs
 - OUT_OF_SCOPE:
@@ -353,10 +354,10 @@ SKELETON APPROVED
 
 - **Target File**: `src/backend/handshake_core/src/mcp/client.rs`
 - **Start**: 1
-- **End**: 221
-- **Line Delta**: 221
+- **End**: 250
+- **Line Delta**: 250
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `e9dda26510e421e9b4307024c9af7cff19dd413b`
+- **Post-SHA1**: `03883ed298bd58e6f2b0a5e2af51b8eed7036529`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -425,10 +426,10 @@ SKELETON APPROVED
 
 - **Target File**: `src/backend/handshake_core/src/mcp/gate.rs`
 - **Start**: 1
-- **End**: 525
-- **Line Delta**: 525
+- **End**: 528
+- **Line Delta**: 528
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `449857e2857757ab197ecf142c25dc84f7114187`
+- **Post-SHA1**: `475e29ad21819b5937fa85c445c28ab08b60fdba`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -533,10 +534,28 @@ SKELETON APPROVED
 
 - **Target File**: `src/backend/handshake_core/src/mcp/transport/mod.rs`
 - **Start**: 1
-- **End**: 41
-- **Line Delta**: 41
+- **End**: 44
+- **Line Delta**: 44
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `47e00a7ce3d7c590509bc286c6b06c7da88a0824`
+- **Post-SHA1**: `81d71dfb9fc258efa6d4361293ae919df9a56ae7`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/mcp/transport/reconnect.rs`
+- **Start**: 1
+- **End**: 159
+- **Line Delta**: 159
+- **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
+- **Post-SHA1**: `62a51e286d1f18898028e38a8102db15fd2554f4`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -551,10 +570,10 @@ SKELETON APPROVED
 
 - **Target File**: `src/backend/handshake_core/src/mcp/transport/stdio.rs`
 - **Start**: 1
-- **End**: 100
-- **Line Delta**: 100
+- **End**: 143
+- **Line Delta**: 143
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `941cb1687f22e1574822a6030990fe2bdf5380b8`
+- **Post-SHA1**: `adb8b1073a5ca635e7a7de23b7277bc2cec12e68`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -569,10 +588,10 @@ SKELETON APPROVED
 
 - **Target File**: `src/backend/handshake_core/tests/mcp_gate_tests.rs`
 - **Start**: 1
-- **End**: 1066
-- **Line Delta**: 1066
+- **End**: 1385
+- **Line Delta**: 1385
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `1a1a283c575618faf88ca930653c996a58657c27`
+- **Post-SHA1**: `10773cf92b524feb2f7a1f266f688aa0864fb9a2`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -589,9 +608,9 @@ SKELETON APPROVED
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: In Progress (IMPLEMENTATION complete; HYGIENE/gates pending)
-- What changed in this update: Raised new MCP module coverage to >=85% and updated deterministic VALIDATION manifests + evidence mapping anchors to current line numbers.
-- Next step / handoff hint: Run `just cargo-clean`, run `just post-work WP-1-MCP-Skeleton-Gate-v2 --range 0f7cfda43997ab72baf7b0150ced57d4c2600a06..HEAD`, then hand off to Validator.
+- Current WP_STATUS: In Progress (IMPLEMENTATION updated; HYGIENE/gates pending)
+- What changed in this update: Added MCP auto-reconnect with deterministic exponential backoff and added SAFE_DEFAULT DLP redaction for `tools/call` responses (return path + Flight Recorder).
+- Next step / handoff hint: Run focused tests, then run `just post-work WP-1-MCP-Skeleton-Gate-v2 --range 0f7cfda43997ab72baf7b0150ced57d4c2600a06..HEAD`, then hand off to Validator.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
@@ -601,38 +620,49 @@ SKELETON APPROVED
 
 - REQUIREMENT: "MCP client transport exists (at least one transport) and can connect to a local stub MCP server in tests."
   - EVIDENCE: `src/backend/handshake_core/src/mcp/transport/duplex.rs:8`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:397`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:555`
 
 - REQUIREMENT: "Rust Gate interceptor wraps MCP traffic and enforces: capability scope + human-in-the-loop consent where required (deny/timeout paths are explicit)."
-  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:279`
-  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:293`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:632`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:680`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:758`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:282`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:296`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:358`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:951`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:999`
 
 - REQUIREMENT: "MCP `tools/call` request/response and `logging/message` are recorded into Flight Recorder with correlation fields (job_id and trace_id or paired event linkage)."
   - EVIDENCE: `src/backend/handshake_core/src/mcp/fr_events.rs:79`
   - EVIDENCE: `src/backend/handshake_core/src/mcp/fr_events.rs:153`
-  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:114`
-  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:150`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:374`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:169`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:475`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:555`
 
 - REQUIREMENT: "Handshake_Master_Spec_v02.126.md 11.3.2.3 Handling Protocol Nuances: \"Pending\" States and Cancellation"
-  - EVIDENCE: `src/backend/handshake_core/src/mcp/client.rs:183`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:758`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/client.rs:223`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:1077`
 
 - REQUIREMENT: "Handshake_Master_Spec_v02.126.md 11.3.2.4 The Gate as a Schema Validator"
-  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:411`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:579`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:414`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:898`
 
 - REQUIREMENT: "Security hardening implemented for MCP file/resource access per spec red-team guidance (no naive prefix checks; canonicalization/no-follow where applicable)."
   - EVIDENCE: `src/backend/handshake_core/src/mcp/security.rs:38`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:817`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:1136`
 
 - REQUIREMENT: "MCP Gate decisions are recorded into `fr_events` (deny/timeout) for traceability."
   - EVIDENCE: `src/backend/handshake_core/src/mcp/fr_events.rs:247`
-  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:355`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:896`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:368`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:1215`
+
+- REQUIREMENT: "Handshake_Master_Spec_v02.126.md 11.3 Auth/Session/MCP Primitives — Reconnection: The MCP Client MUST support automatic reconnection with exponential backoff if the transport (stdio/SSE) is severed."
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/transport/reconnect.rs:29`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/transport/reconnect.rs:77`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:204`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:755`
+
+- REQUIREMENT: "Handshake_Master_Spec_v02.126.md 11.3.2.2 Response Analysis — DLP redaction of sensitive keys before results reach UI/LLM context (and before recording them)."
+  - EVIDENCE: `src/backend/handshake_core/src/bundles/redactor.rs:23`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/client.rs:84`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:673`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
@@ -698,5 +728,76 @@ SKELETON APPROVED
     - cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml
     - Removed 1942 files, 14.8GiB total
 
+- COMMAND: `cd src/backend/handshake_core; cargo test -j 1 --test mcp_gate_tests`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake/logs/WP-1-MCP-Skeleton-Gate-v2/cargo-test-mcp_gate_tests-j1-HEAD-20260216-214718.log`
+  - LOG_SHA256: `35D39A3E4D22C4DC79CE9DF5B6AB196D249B1FE68C02251183086FE9D9223C01`
+  - PROOF_LINES:
+    - running 15 tests
+    - test result: ok. 15 passed; 0 failed
+
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### 2026-02-16 — VALIDATION REPORT — WP-1-MCP-Skeleton-Gate-v2
+
+```text
+VALIDATION REPORT — WP-1-MCP-Skeleton-Gate-v2
+Verdict: FAIL
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-MCP-Skeleton-Gate-v2`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): NO
+
+Scope Inputs:
+- Task Packet: .GOV/task_packets/WP-1-MCP-Skeleton-Gate-v2.md (status: In Progress)
+- Spec: Handshake_Master_Spec_v02.126.md (anchors: 11.3, 11.3.2.*)
+
+Files Checked:
+- Handshake Codex v1.4.md
+- .GOV/task_packets/WP-1-MCP-Skeleton-Gate-v2.md
+- .GOV/roles_shared/SPEC_CURRENT.md
+- Handshake_Master_Spec_v02.126.md
+- src/backend/handshake_core/src/mcp/transport/mod.rs
+- src/backend/handshake_core/src/mcp/transport/stdio.rs
+- src/backend/handshake_core/src/mcp/gate.rs
+- src/backend/handshake_core/src/mcp/client.rs
+- (search) src/backend/handshake_core/src/mcp/**
+
+Findings:
+- REASON FOR FAIL:
+  - Missing required automatic reconnection with exponential backoff (Handshake_Master_Spec_v02.126.md:56152).
+  - Missing required Response Analysis DLP redaction before results reach UI/LLM context (Handshake_Master_Spec_v02.126.md:56195).
+
+- Requirement: Reconnection w/ exponential backoff when transport severed.
+  - Spec: Handshake_Master_Spec_v02.126.md:56152
+  - Evidence of absence:
+    - src/backend/handshake_core/src/mcp/transport/mod.rs:39 defines `trait McpTransport` with only `connect()`.
+    - Validator grep: `rg "reconnect|backoff|exponential" src/backend/handshake_core/src/mcp` => (no matches).
+
+- Requirement: Response Analysis DLP redaction of sensitive keys before bubbling up to UI or LLM context.
+  - Spec: Handshake_Master_Spec_v02.126.md:56195
+  - Evidence of absence:
+    - Validator grep: `rg "redact|\\bDLP\\b|AWS_SECRET_ACCESS_KEY" src/backend/handshake_core/src/mcp` => (no matches).
+    - src/backend/handshake_core/src/mcp/client.rs:199 `McpCall` Future output is `McpResult<Value>` and returns `Ok(v)` directly (client.rs:210).
+    - src/backend/handshake_core/src/mcp/gate.rs:491 returns `result` from `send_request("tools/call", ...)` directly; no payload inspection/redaction step before returning.
+
+Tests:
+- `just pre-work WP-1-MCP-Skeleton-Gate-v2`: PASS (packet EVIDENCE section, EXIT_CODE: 0)
+- `just cargo-clean`: PASS (packet EVIDENCE section, EXIT_CODE: 0)
+- `just post-work WP-1-MCP-Skeleton-Gate-v2 --range 0f7cfda43997ab72baf7b0150ced57d4c2600a06..HEAD`: PASS (with warnings; deterministic manifest gate; not tests)
+- `cd src/backend/handshake_core; cargo test -j 1 --test mcp_gate_tests`: PASS (packet EVIDENCE section, EXIT_CODE: 0)
+
+Risks & Suggested Actions:
+- Implement automatic reconnection with exponential backoff for MCP transports (stdio now; SSE when added) per spec.
+- Add Response Analysis redaction/DLP step before MCP tool results reach UI/LLM context (and ensure FR event payload handling is consistent).
+- Add tests that fail if reconnection/backoff or redaction is removed.
+
+Improvements & Future Proofing:
+- Consider making reconnection strategy explicit in the `McpTransport` abstraction (e.g., reconnect/backoff policy and transport state).
+- Centralize redaction patterns + utilities (spec-driven) for reuse across MCP and other tool surfaces.
+
+Task Packet Update (APPEND-ONLY):
+- This FAIL Validation Report is appended under `## VALIDATION_REPORTS` (do not overwrite prior history).
+```
