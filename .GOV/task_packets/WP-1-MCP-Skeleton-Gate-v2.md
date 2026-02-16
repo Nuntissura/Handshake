@@ -326,7 +326,7 @@ SKELETON APPROVED
 
 ## HYGIENE
 - Formatting/lint/tests recorded in `## EVIDENCE` (focused `cargo test -j 1 --test mcp_gate_tests`, full `cargo test -j 1`, `cargo clippy --all-targets --all-features -j 1`).
-- Coverage (HIGH RISK_TIER) pending: `cargo tarpaulin` run + evidence capture.
+- Coverage (HIGH RISK_TIER): `cargo tarpaulin` recorded with `--include-files src/mcp/* src/mcp/transport/*` (new MCP code coverage 86.03%).
 - Final gate sequence pending: `just cargo-clean` + `just post-work WP-1-MCP-Skeleton-Gate-v2 --range 0f7cfda43997ab72baf7b0150ced57d4c2600a06..HEAD`.
 
 ## VALIDATION
@@ -406,10 +406,10 @@ SKELETON APPROVED
 
 - **Target File**: `src/backend/handshake_core/src/mcp/fr_events.rs`
 - **Start**: 1
-- **End**: 274
-- **Line Delta**: 274
+- **End**: 276
+- **Line Delta**: 276
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `368437994ad2267be30267d0903286336e08c680`
+- **Post-SHA1**: `a94760b4a8ab0fb3526c262e62744b2a2168c820`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -568,10 +568,10 @@ SKELETON APPROVED
 
 - **Target File**: `src/backend/handshake_core/tests/mcp_gate_tests.rs`
 - **Start**: 1
-- **End**: 736
-- **Line Delta**: 736
+- **End**: 1066
+- **Line Delta**: 1066
 - **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
-- **Post-SHA1**: `76b9238f4324d73ce0c5f22e8b7658ee9752c9ac`
+- **Post-SHA1**: `1a1a283c575618faf88ca930653c996a58657c27`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -589,8 +589,8 @@ SKELETON APPROVED
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
 - Current WP_STATUS: In Progress (IMPLEMENTATION complete; HYGIENE/gates pending)
-- What changed in this update: Implemented MCP client + Gate interceptor + FR logging + tests; updated SCOPE (explicit IN_SCOPE_PATHS), END_TO_END closure plan event kinds, and filled deterministic VALIDATION manifest blocks.
-- Next step / handoff hint: Run coverage (HIGH risk tier), run `just cargo-clean`, run `just post-work WP-1-MCP-Skeleton-Gate-v2 --range 0f7cfda43997ab72baf7b0150ced57d4c2600a06..HEAD`, then hand off to Validator.
+- What changed in this update: Raised new MCP module coverage to >=85% and updated deterministic VALIDATION manifests + evidence mapping anchors to current line numbers.
+- Next step / handoff hint: Run `just cargo-clean`, run `just post-work WP-1-MCP-Skeleton-Gate-v2 --range 0f7cfda43997ab72baf7b0150ced57d4c2600a06..HEAD`, then hand off to Validator.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
@@ -600,37 +600,38 @@ SKELETON APPROVED
 
 - REQUIREMENT: "MCP client transport exists (at least one transport) and can connect to a local stub MCP server in tests."
   - EVIDENCE: `src/backend/handshake_core/src/mcp/transport/duplex.rs:8`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:271`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:397`
 
 - REQUIREMENT: "Rust Gate interceptor wraps MCP traffic and enforces: capability scope + human-in-the-loop consent where required (deny/timeout paths are explicit)."
   - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:279`
   - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:293`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:442`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:490`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:632`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:680`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:758`
 
 - REQUIREMENT: "MCP `tools/call` request/response and `logging/message` are recorded into Flight Recorder with correlation fields (job_id and trace_id or paired event linkage)."
   - EVIDENCE: `src/backend/handshake_core/src/mcp/fr_events.rs:79`
   - EVIDENCE: `src/backend/handshake_core/src/mcp/fr_events.rs:153`
   - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:114`
   - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:150`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:271`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:374`
 
 - REQUIREMENT: "Handshake_Master_Spec_v02.126.md 11.3.2.3 Handling Protocol Nuances: \"Pending\" States and Cancellation"
   - EVIDENCE: `src/backend/handshake_core/src/mcp/client.rs:183`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:568`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:758`
 
 - REQUIREMENT: "Handshake_Master_Spec_v02.126.md 11.3.2.4 The Gate as a Schema Validator"
   - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:411`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:389`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:579`
 
 - REQUIREMENT: "Security hardening implemented for MCP file/resource access per spec red-team guidance (no naive prefix checks; canonicalization/no-follow where applicable)."
   - EVIDENCE: `src/backend/handshake_core/src/mcp/security.rs:38`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:627`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:817`
 
 - REQUIREMENT: "MCP Gate decisions are recorded into `fr_events` (deny/timeout) for traceability."
-  - EVIDENCE: `src/backend/handshake_core/src/mcp/fr_events.rs:245`
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/fr_events.rs:247`
   - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:355`
-  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:627`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:896`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
@@ -674,6 +675,21 @@ SKELETON APPROVED
   - PROOF_LINES:
     - Doc-tests handshake_core
     - test result: ok.
+
+- COMMAND: `cd src/backend/handshake_core; cargo test -j 1 --test mcp_gate_tests`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `.handshake/logs/WP-1-MCP-Skeleton-Gate-v2/cargo-test-mcp_gate_tests-j1-HEAD-20260216-102628.log`
+  - LOG_SHA256: `4F0D5D667FAF6569CBFB47AB454A6E919919FC0D7691D76082C822E0724DA602`
+  - PROOF_LINES:
+    - running 13 tests
+    - test result: ok. 13 passed; 0 failed
+
+- COMMAND: `cd src/backend/handshake_core; cargo tarpaulin --engine Llvm --out Html --output-dir coverage -j 1 --skip-clean --include-files src/mcp/* src/mcp/transport/* --tests --test mcp_gate_tests`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `.handshake/logs/WP-1-MCP-Skeleton-Gate-v2/cargo-tarpaulin-mcp-only-j1-HEAD-20260216-102701.log`
+  - LOG_SHA256: `B38BDA99C5B1D631744B30957CC5535F5B478EF6A4DE9190F7AA61181B5A6515`
+  - PROOF_LINES:
+    - 86.03% coverage, 499/580 lines covered
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
