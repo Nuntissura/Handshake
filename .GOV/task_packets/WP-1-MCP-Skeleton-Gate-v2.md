@@ -691,5 +691,11 @@ SKELETON APPROVED
   - PROOF_LINES:
     - 86.03% coverage, 499/580 lines covered
 
+- COMMAND: `just cargo-clean`
+  - EXIT_CODE: 0
+  - PROOF_LINES:
+    - cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml
+    - Removed 1942 files, 14.8GiB total
+
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
