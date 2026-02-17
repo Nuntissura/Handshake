@@ -19,6 +19,16 @@
 - USER_SIGNATURE: ilja160220262157
 - PACKET_FORMAT_VERSION: 2026-02-01
 
+## SUB_AGENT_DELEGATION (OPTIONAL; OPERATOR-GATED)
+- SUB_AGENT_DELEGATION: ALLOWED
+- OPERATOR_APPROVAL_EVIDENCE: ok coder can use agents in the mcp end to end v2 wp
+- SUB_AGENT_REASONING_ASSUMPTION: LOW (HARD)
+- RULES (HARD):
+  - Sub-agents produce draft code only; Primary Coder verifies against SPEC_CURRENT + DONE_MEANS before applying.
+  - Sub-agents MUST NOT edit any governance surface (`.GOV/**`, including task packets/refinements and `## VALIDATION_REPORTS`).
+  - Only Primary Coder runs gates, records EVIDENCE/EVIDENCE_MAPPING/VALIDATION manifest, commits, and hands off.
+  - Follow: `/.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md` Section 6.
+
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 - REFINEMENT_FILE: .GOV/refinements/WP-1-MCP-End-to-End-v2.md
 - Rule: Task packet creation is blocked until refinement is complete and signed.
@@ -261,4 +271,3 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
-
