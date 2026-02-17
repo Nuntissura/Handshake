@@ -14,7 +14,7 @@
 - ORCHESTRATION_STARTED_AT_UTC: 2026-02-16T22:03:19.337Z
 - CODER_MODEL: gpt-5.2
 - CODER_REASONING_STRENGTH: EXTRA_HIGH (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Blocked
+- **Status:** Ready-for-Dev
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja160220262157
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -35,7 +35,7 @@
 
 ## SCOPE
 - What: Implement an end-to-end MCP-backed job flow (Rust Host MCP client + Gate + persistence + Flight Recorder evidence) that exercises MCP tool calls, reference payloads, durable progress, and logging/message semantics per Master Spec 11.3.x.
-- Why: Prior packet `WP-1-MCP-End-to-End` failed validation due to missing implementation. This v2 packet aligns to current Master Spec v02.126 and provides the end-to-end evidence chain needed for Phase 1 closure. This WP is downstream of `WP-1-MCP-Skeleton-Gate-v2` and remains BLOCKED until the upstream WP is VALIDATED and merged to `main`.
+- Why: Prior packet `WP-1-MCP-End-to-End` failed validation due to missing implementation. This v2 packet aligns to current Master Spec v02.126 and provides the end-to-end evidence chain needed for Phase 1 closure. This WP is downstream of `WP-1-MCP-Skeleton-Gate-v2` (validated PASS on 2026-02-16) and is now ready for development.
 - IN_SCOPE_PATHS:
   - .GOV/refinements/WP-1-MCP-End-to-End-v2.md
   - .GOV/task_packets/WP-1-MCP-End-to-End-v2.md
@@ -122,7 +122,7 @@ git revert <commit-sha>
   - Durable progress mapping (SQLite ai_jobs fields + index on progress token)
   - Explicit DuckDB Flight Recorder event_kind mapping for MCP (`mcp.tool_call`, `mcp.progress`, `mcp.logging`, plus tool result)
   - Red-team hardening (symlink roots bypass; sampling/createMessage injection)
-- Dependency note: This packet assumes MCP client+Gate foundations from `WP-1-MCP-Skeleton-Gate-v2` exist on `main`. Until that upstream WP is VALIDATED+merged, this WP remains BLOCKED and must not start implementation.
+- Dependency note: This packet assumes MCP client+Gate foundations from `WP-1-MCP-Skeleton-Gate-v2` exist on `main` (validated PASS on 2026-02-16). This WP may proceed.
 
 ## BOOTSTRAP
 - FILES_TO_OPEN:
@@ -184,7 +184,7 @@ git revert <commit-sha>
 - Open questions:
 - What is the minimal MCP server stub strategy for tests (in-process fake vs. stdio child)?
 - Notes:
-- This WP is BLOCKED until `WP-1-MCP-Skeleton-Gate-v2` is VALIDATED and merged to `main` (dependency and lock-set overlap).
+- Dependency satisfied: `WP-1-MCP-Skeleton-Gate-v2` validated PASS on 2026-02-16 (lock-set overlap acknowledged; coordinate carefully).
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
