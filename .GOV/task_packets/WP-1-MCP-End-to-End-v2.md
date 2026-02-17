@@ -411,5 +411,11 @@ git revert <commit-sha>
     - `Git range: e048533f2ddbfbef1f14aa8de5dc75eb8dc2c51b..4df1ee152697634564d1a8cd57bf38ed87c5c943`
     - `Post-work validation PASSED (deterministic manifest gate; not tests) with warnings`
 
+- COMMAND: `just post-work WP-1-MCP-End-to-End-v2 --range e048533f2ddbfbef1f14aa8de5dc75eb8dc2c51b..HEAD`
+  - EXIT_CODE: 0
+  - PROOF_LINES:
+    - `Git range: e048533f2ddbfbef1f14aa8de5dc75eb8dc2c51b..29df31415e58c842280584a40f664b6a57d765bb`
+    - `? GATE PASS: Workflow sequence verified.`
+
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
