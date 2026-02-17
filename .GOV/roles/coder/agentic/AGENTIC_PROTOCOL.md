@@ -56,3 +56,61 @@ When handing back to the Orchestrator/Validator, provide:
 - `COMMANDS_RUN`: exact commands + outputs
 - `RISKS`: 1-3 bullets
 - `NEXT_COMMANDS`: 2-6 copy/paste commands
+
+---
+
+## 6) Sub-agent Delegation (Optional, Operator-Gated) (HARD)
+
+Primary Coder MAY delegate isolated implementation/testing slices to parallel sub-agents, but this is NOT the default workflow.
+
+### 6.1 Operator + Orchestrator decision gate (HARD)
+
+- Default: sub-agent delegation is DISALLOWED.
+- Sub-agent delegation becomes allowed ONLY when:
+  - The Orchestrator recommends it as a speedup strategy without sacrificing correctness, AND
+  - The Operator explicitly approves it for the WP, AND
+  - The task packet records the decision in `## SUB_AGENT_DELEGATION` (including approval evidence).
+
+If any of the above is missing: DO NOT use sub-agents.
+
+### 6.2 Reasoning assumption (HARD)
+
+- Assume sub-agents have LOW reasoning strength at all times.
+- Treat sub-agent output as draft-only suggestions that require Primary Coder verification.
+
+### 6.3 Accountability (HARD)
+
+- The Primary Coder remains solely accountable for:
+  - correctness,
+  - Master Spec conformance (SPEC_CURRENT + SPEC_ANCHOR),
+  - WP scope discipline (IN_SCOPE_PATHS / OUT_OF_SCOPE),
+  - and all task packet paperwork (EVIDENCE, EVIDENCE_MAPPING, VALIDATION manifest).
+
+### 6.4 Sub-agent constraints (HARD)
+
+Sub-agents MUST:
+- work only on explicitly assigned slices with explicit ALLOWED_PATHS,
+- return draft code (patch/diff) + notes,
+- STOP and ask if anything is ambiguous.
+
+Sub-agents MUST NOT:
+- edit any governance surface: `.GOV/**` (including `.GOV/task_packets/**`, `.GOV/refinements/**`, and any `## VALIDATION_REPORTS` section),
+- run workflow gates (`just pre-work`, `just post-work`, validator gates) as "official evidence",
+- commit, merge, rebase, switch branches, or otherwise modify git history/worktree state.
+
+### 6.5 Primary Coder integration rule (HARD)
+
+Only the Primary Coder may:
+- integrate sub-agent patches,
+- verify each change against `.GOV/roles_shared/SPEC_CURRENT.md` + WP acceptance criteria before applying,
+- run the WP TEST_PLAN and required gates,
+- record canonical evidence in the task packet,
+- and perform final commit + handoff.
+
+### 6.6 Delegation template (required)
+
+Every sub-agent task MUST include:
+- WP_ID + branch + repo-relative worktree_dir
+- Canonical artifacts (Codex, role protocol, SPEC_CURRENT + resolved spec, task packet, refinement)
+- SLICE_NAME + ALLOWED_PATHS + ACCEPTANCE_TARGETS (DONE_MEANS bullets and/or SPEC_ANCHORs)
+- Deliverables: PATCH + WHAT_CHANGED + COMMANDS_RUN + RISKS + NEXT_COMMANDS

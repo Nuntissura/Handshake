@@ -32,6 +32,17 @@ Requirements:
 - USER_SIGNATURE: {{USER_SIGNATURE}}
 - PACKET_FORMAT_VERSION: 2026-02-01
 
+## SUB_AGENT_DELEGATION (OPTIONAL; OPERATOR-GATED)
+- SUB_AGENT_DELEGATION: DISALLOWED
+- OPERATOR_APPROVAL_EVIDENCE: N/A
+- SUB_AGENT_REASONING_ASSUMPTION: LOW (HARD)
+- RULES (if SUB_AGENT_DELEGATION=ALLOWED):
+  - Sub-agents produce draft code only; Primary Coder verifies against SPEC_CURRENT + task packet acceptance criteria before applying.
+  - Sub-agents MUST NOT edit any governance surface (`.GOV/**`, including task packets/refinements and `## VALIDATION_REPORTS`).
+  - Only Primary Coder runs gates, records EVIDENCE/EVIDENCE_MAPPING/VALIDATION manifest, commits, and hands off.
+  - See: `/.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md` Section 6.
+- NOTE: Set `SUB_AGENT_DELEGATION: ALLOWED` only with explicit Operator approval; when ALLOWED, replace `OPERATOR_APPROVAL_EVIDENCE` with the exact approval line from chat.
+
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 - REFINEMENT_FILE: .GOV/refinements/{{WP_ID}}.md
 - Rule: Task packet creation is blocked until refinement is complete and signed.
@@ -175,5 +186,3 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
-
-

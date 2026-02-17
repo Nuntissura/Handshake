@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja160220262157 | Orchestrator | 2026-02-16 21:57 | Task packet creation: WP-1-MCP-End-to-End-v2 | v02.126 | Approved after Technical Refinement (see .GOV/refinements/WP-1-MCP-End-to-End-v2.md ). |
 | ilja160220260031 | Orchestrator | 2026-02-16 00:31 | Task packet creation: WP-1-MCP-Skeleton-Gate-v2 | v02.126 | Approved after Technical Refinement (see .GOV/refinements/WP-1-MCP-Skeleton-Gate-v2.md ). |
 | ilja140220261758 | Orchestrator | 2026-02-14 17:58 | Task packet creation: WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2 | v02.126 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2.md ). |
 | ilja140220260236 | Orchestrator | 2026-02-14 02:36 | Spec Enrichment v02.126 (MT ContextPack defaults: SourceRef-first + policy knobs + anchors-first payload) | v02.126 | Approved in-chat; signature provided by Operator. See .GOV/refinements/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v1.md. |

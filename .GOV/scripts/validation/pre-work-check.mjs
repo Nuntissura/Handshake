@@ -10,6 +10,7 @@ import path from 'path';
 import { execSync } from 'child_process';
 import {
   defaultRefinementPath,
+  resolveSpecCurrent,
   validateRefinementFile,
 } from './refinement-check.mjs';
 
@@ -26,6 +27,92 @@ const errors = [];
 const warnings = [];
 const spec = JSON.parse(fs.readFileSync(path.join('.GOV', 'scripts', 'validation', 'cor701-spec.json'), 'utf8'));
 
+function parseSingleField(text, label) {
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, 'mi');
+  const m = text.match(re);
+  return m ? m[1].trim() : '';
+}
+
+function parseStatus(text) {
+  const statusLine =
+    (text.match(/^\\s*-\\s*\\*\\*Status:\\*\\*\\s*(.+)\\s*$/mi) || [])[1] ||
+    (text.match(/^\\s*\\*\\*Status:\\*\\*\\s*(.+)\\s*$/mi) || [])[1] ||
+    (text.match(/^\\s*Status:\\s*(.+)\\s*$/mi) || [])[1] ||
+    '';
+  return statusLine.trim();
+}
+
+function extractIndentedListAfterLabel(text, label, { stopLabels = [] } = {}) {
+  const lines = text.split(/\r?\n/);
+  const idx = lines.findIndex((l) => new RegExp(`^\\s*-\\s*${label}\\s*:\\s*$`, 'i').test(l));
+  if (idx === -1) return [];
+
+  const stopRes = stopLabels.map((s) => new RegExp(`^\\s*-\\s*${s}\\s*:\\s*$`, 'i'));
+  const items = [];
+
+  for (let i = idx + 1; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (stopRes.some((re) => re.test(line))) break;
+    if (/^##\s+\S/.test(line)) break;
+    const m = line.match(/^\s{2,}-\s+(.+)\s*$/);
+    if (m) items.push(m[1].trim());
+  }
+  return items;
+}
+
+function extractFencedBlockAfterHeading(text, heading) {
+  const lines = text.split(/\r?\n/);
+  const headingIdx = lines.findIndex((l) => new RegExp(`^#{2,6}\\s+${heading}\\b`, 'i').test(l));
+  if (headingIdx === -1) return '';
+
+  const sectionStart = headingIdx + 1;
+  let sectionEnd = lines.length;
+  for (let j = sectionStart; j < lines.length; j += 1) {
+    if (/^#{1,6}\s+\S/.test(lines[j])) {
+      sectionEnd = j;
+      break;
+    }
+  }
+
+  for (let i = sectionStart; i < sectionEnd; i += 1) {
+    const fenceStart = lines[i].trim();
+    const fenceRe = /^```([a-z0-9_-]+)?\s*$/i;
+    const m = fenceStart.match(fenceRe);
+    if (!m) continue;
+
+    const bodyLines = [];
+    for (let k = i + 1; k < sectionEnd; k += 1) {
+      if (lines[k].trim() === '```') break;
+      bodyLines.push(lines[k]);
+    }
+    return bodyLines.join('\n').trim();
+  }
+
+  return '';
+}
+
+function extractBulletListAfterHeading(text, heading) {
+  const lines = text.split(/\r?\n/);
+  const headingIdx = lines.findIndex((l) => new RegExp(`^#{2,6}\\s+${heading}\\b`, 'i').test(l));
+  if (headingIdx === -1) return [];
+
+  const sectionStart = headingIdx + 1;
+  let sectionEnd = lines.length;
+  for (let j = sectionStart; j < lines.length; j += 1) {
+    if (/^#{1,6}\s+\S/.test(lines[j])) {
+      sectionEnd = j;
+      break;
+    }
+  }
+
+  const items = [];
+  for (let i = sectionStart; i < sectionEnd; i += 1) {
+    const m = lines[i].match(/^\s*-\s+(.+)\s*$/);
+    if (m) items.push(m[1].trim());
+  }
+  return items;
+}
+
 // Check 1: Task packet file exists
 console.log('Check 1: Task packet file exists');
 const taskPacketDir = '.GOV/task_packets';
@@ -38,6 +125,7 @@ const taskPacketFiles = fs.readdirSync(taskPacketDir)
 
 let packetContent = '';
 let packetPath = '';
+let lastPrepare = null;
 
 if (taskPacketFiles.length === 0) {
   errors.push(`No task packet file found for ${WP_ID} in .GOV/task_packets/`);
@@ -61,7 +149,6 @@ if (taskPacketFiles.length === 0) {
     warnings.push('Could not read current git branch/worktree (git rev-parse failed)');
   }
 
-  let lastPrepare = null;
   try {
     const gatesPath = path.join('.GOV', 'roles', 'orchestrator', 'ORCHESTRATOR_GATES.json');
     const gates = JSON.parse(fs.readFileSync(gatesPath, 'utf8'));
@@ -200,6 +287,46 @@ if (taskPacketFiles.length === 0) {
     warnings.push('AGENTIC_MODE missing (expected YES|NO) for modern packets');
   }
 
+  // Check 2.6B: Sub-agent delegation decision (optional, Operator-gated)
+  const hasSubAgentHeading = /##\s*SUB_AGENT_DELEGATION\b/i.test(packetContent);
+  const subAgentDelegationRaw = parseSingleField(packetContent, 'SUB_AGENT_DELEGATION');
+  const operatorApprovalRaw = parseSingleField(packetContent, 'OPERATOR_APPROVAL_EVIDENCE');
+  const subAgentAssumptionRaw = parseSingleField(packetContent, 'SUB_AGENT_REASONING_ASSUMPTION');
+  const hasSubAgentFields = !!(subAgentDelegationRaw || operatorApprovalRaw || subAgentAssumptionRaw);
+
+  if (isModernPacket && requiresRefinementGate && (hasSubAgentHeading || hasSubAgentFields)) {
+    const looksTemplate = (v) => /\|/.test(v || '') || /<pending>/i.test(v || '') || /<fill/i.test(v || '') || /<unclaimed>/i.test(v || '');
+
+    if (!subAgentDelegationRaw) {
+      errors.push('SUB_AGENT_DELEGATION section present but SUB_AGENT_DELEGATION field is missing');
+    } else if (looksTemplate(subAgentDelegationRaw)) {
+      errors.push('SUB_AGENT_DELEGATION contains template placeholders (set to DISALLOWED or ALLOWED)');
+    } else if (!/^(DISALLOWED|ALLOWED)\b/i.test(subAgentDelegationRaw.trim())) {
+      errors.push(`SUB_AGENT_DELEGATION invalid (expected DISALLOWED|ALLOWED; got: ${subAgentDelegationRaw})`);
+    }
+
+    const isAllowed = /^ALLOWED\b/i.test((subAgentDelegationRaw || '').trim());
+
+    if (subAgentAssumptionRaw) {
+      if (!/\bLOW\b/i.test(subAgentAssumptionRaw)) {
+        errors.push('SUB_AGENT_REASONING_ASSUMPTION must be LOW (HARD)');
+      }
+    } else if (hasSubAgentHeading) {
+      warnings.push('SUB_AGENT_REASONING_ASSUMPTION missing (expected LOW (HARD))');
+    }
+
+    if (isAllowed) {
+      if (!operatorApprovalRaw || looksTemplate(operatorApprovalRaw) || /^N\/?A\b/i.test(operatorApprovalRaw.trim())) {
+        errors.push('OPERATOR_APPROVAL_EVIDENCE is required when SUB_AGENT_DELEGATION=ALLOWED (paste exact Operator approval line from chat)');
+      }
+      if (!subAgentAssumptionRaw || !/\bLOW\b/i.test(subAgentAssumptionRaw)) {
+        errors.push('SUB_AGENT_REASONING_ASSUMPTION must be LOW (HARD) when SUB_AGENT_DELEGATION=ALLOWED');
+      }
+    } else if (operatorApprovalRaw && !/^N\/?A\b/i.test(operatorApprovalRaw.trim())) {
+      warnings.push('OPERATOR_APPROVAL_EVIDENCE should be N/A when SUB_AGENT_DELEGATION=DISALLOWED');
+    }
+  }
+
   // Check 2.7: Technical Refinement gate (unskippable for active packets)
   if (requiresRefinementGate) {
     console.log('\nCheck 2.7: Technical Refinement gate');
@@ -296,7 +423,100 @@ if (errors.length === 0) {
   } else {
     console.log('Pre-work validation PASSED');
   }
-  console.log('\nYou may proceed with implementation.');
+
+  const status = parseStatus(packetContent) || '<missing>';
+  const statusNorm = status.toLowerCase();
+  const startAllowed = /ready\s*for\s*dev|in\s*progress/.test(statusNorm) && !/blocked|stub|done|validated/.test(statusNorm);
+
+  console.log('');
+  if (startAllowed) {
+    console.log('You may proceed with implementation.');
+  } else {
+    console.log(`NOTE: Task packet Status is "${status}". Do NOT start implementation unless Status is Ready for Dev or In Progress.`);
+  }
+
+  // Automatic Coder handoff template (printed when packet is actually startable).
+  if (startAllowed) {
+    let resolved = null;
+    try {
+      resolved = resolveSpecCurrent();
+    } catch {
+      resolved = null;
+    }
+
+    const riskTier = parseSingleField(packetContent, 'RISK_TIER') || '<missing>';
+    const baseWpId = parseSingleField(packetContent, 'BASE_WP_ID') || '<missing>';
+    const mergeBaseSha = parseSingleField(packetContent, 'MERGE_BASE_SHA') || '<missing>';
+    const refinementFile = defaultRefinementPath(WP_ID).replace(/\\/g, '/');
+
+    const inScope = extractIndentedListAfterLabel(packetContent, 'IN_SCOPE_PATHS', { stopLabels: ['OUT_OF_SCOPE'] });
+    const outOfScope = extractIndentedListAfterLabel(packetContent, 'OUT_OF_SCOPE', { stopLabels: [] });
+    const doneMeans = extractBulletListAfterHeading(packetContent, 'DONE_MEANS');
+    const testPlan = extractFencedBlockAfterHeading(packetContent, 'TEST_PLAN');
+
+    const subAgentDelegation = parseSingleField(packetContent, 'SUB_AGENT_DELEGATION') || 'DISALLOWED (field missing)';
+    const operatorApproval = parseSingleField(packetContent, 'OPERATOR_APPROVAL_EVIDENCE') || 'N/A';
+    const subAgentAssumption = parseSingleField(packetContent, 'SUB_AGENT_REASONING_ASSUMPTION') || 'LOW (default)';
+
+    const expectedBranch = (lastPrepare?.branch || '').trim();
+    const expectedWorktreeDir = (lastPrepare?.worktree_dir || '').trim();
+    const coderId = (lastPrepare?.coder_id || '').trim() || '<unknown>';
+
+    console.log('\nCODER_HANDOFF [CX-HANDOFF-001]');
+    console.log(`- WP_ID: ${WP_ID}`);
+    console.log(`- BASE_WP_ID: ${baseWpId}`);
+    console.log(`- Status: ${status}`);
+    console.log(`- RISK_TIER: ${riskTier}`);
+    console.log(`- MERGE_BASE_SHA: ${mergeBaseSha}`);
+    if (resolved?.specFileName) console.log(`- SPEC_CURRENT_RESOLVED: ${resolved.specFileName}`);
+    console.log(`- Task packet: ${packetPath.replace(/\\/g, '/')}`);
+    console.log(`- Refinement: ${refinementFile}`);
+    console.log(`- Worktree_dir (repo-relative): ${expectedWorktreeDir || '<missing>'}`);
+    console.log(`- Branch: ${expectedBranch || '<missing>'}`);
+    console.log(`- Coder: ${coderId}`);
+    console.log(`- Sub-agent delegation: ${subAgentDelegation}`);
+    console.log(`- Sub-agent reasoning assumption: ${subAgentAssumption}`);
+    console.log(`- Operator approval evidence: ${operatorApproval}`);
+
+    if (/^ALLOWED\b/i.test(subAgentDelegation.trim())) {
+      console.log('\nSUB_AGENT_RULES (HARD) [CX-HANDOFF-001]');
+      console.log('- Sub-agents are LOW reasoning (draft-only). Verify everything against SPEC_CURRENT + DONE_MEANS.');
+      console.log('- Sub-agents MUST NOT edit `.GOV/**` (including task packets/refinements or `## VALIDATION_REPORTS`).');
+      console.log('- Sub-agents MUST NOT run gates/commits/branch ops as official evidence.');
+      console.log('- Follow: `/.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md` Section 6.');
+    }
+
+    console.log('\nCODER_START_COMMANDS [CX-HANDOFF-001]');
+    console.log('```bash');
+    console.log(`# Verify you are in the correct WP worktree/branch (paste outputs to chat):`);
+    console.log('just hard-gate-wt-001');
+    console.log('');
+    console.log(`# Re-validate WP gates in your environment:`);
+    console.log(`just pre-work ${WP_ID}`);
+    console.log('```');
+
+    if (inScope.length > 0) {
+      console.log('\nIN_SCOPE_PATHS [CX-HANDOFF-001]');
+      inScope.forEach((p) => console.log(`- ${p}`));
+    }
+
+    if (outOfScope.length > 0) {
+      console.log('\nOUT_OF_SCOPE [CX-HANDOFF-001]');
+      outOfScope.forEach((p) => console.log(`- ${p}`));
+    }
+
+    if (doneMeans.length > 0) {
+      console.log('\nDONE_MEANS [CX-HANDOFF-001]');
+      doneMeans.forEach((d) => console.log(`- ${d}`));
+    }
+
+    if (testPlan) {
+      console.log('\nTEST_PLAN (verbatim) [CX-HANDOFF-001]');
+      console.log('```bash');
+      console.log(testPlan);
+      console.log('```');
+    }
+  }
   process.exit(0);
 } else {
   console.log('Pre-work validation FAILED\n');
@@ -310,4 +530,3 @@ if (errors.length === 0) {
   console.log('See: .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md or .GOV/roles/coder/CODER_PROTOCOL.md');
   process.exit(1);
 }
-
