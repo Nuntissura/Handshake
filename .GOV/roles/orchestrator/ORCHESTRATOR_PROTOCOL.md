@@ -2278,8 +2278,10 @@ Use this template for ANY SLA-triggered escalation:
 - [ ] BOOTSTRAP has 10-20 SEARCH_TERMS
 - [ ] BOOTSTRAP has RISK_MAP (3-8 failure modes)
 - [ ] USER_SIGNATURE locked with date/timestamp
+- [ ] SUB_AGENT_DELEGATION decision recorded (default DISALLOWED; if ALLOWED, include Operator approval evidence + low-reasoning draft-only constraints)
 - [ ] Dependencies documented (blockers + what this blocks)
 - [ ] Effort estimate provided (hours)
+- [ ] Coder handoff posted (use the auto-generated `CODER_HANDOFF [CX-HANDOFF-001]` block from `just pre-work`)
 
 **Conditional (BLOCKING when applicable):**
 If the WP includes cross-boundary changes (e.g., UI/API/storage/events) OR any governing spec/DONE_MEANS includes MUST record/audit/provenance:
@@ -2294,6 +2296,16 @@ If the WP includes cross-boundary changes (e.g., UI/API/storage/events) OR any g
 **If ANY check fails:** Reject WP; request Orchestrator fix specific gaps.
 
 ---
+
+### Optional: Sub-agent delegation strategy (Operator-gated) (recommended decision point)
+
+Sub-agent delegation is not the default workflow. The Orchestrator MAY recommend it only when it reduces wall-clock time without increasing correctness risk.
+
+If considering sub-agents:
+1. Orchestrator explains the proposed slice split (what each sub-agent would do) and why this speeds up without risking spec conformance.
+2. Orchestrator asks Operator for explicit approval to ALLOW (not require) sub-agents for the WP.
+3. If approved, Orchestrator records the decision in the task packet `## SUB_AGENT_DELEGATION` (including approval evidence).
+4. Delegation handoff MUST state: sub-agents are LOW reasoning, draft-only; Primary Coder remains solely accountable; sub-agents must not edit `.GOV/**` or run gates/commits.
 
 ## Part 9: Orchestrator Non-Negotiables [CX-640-650]
 

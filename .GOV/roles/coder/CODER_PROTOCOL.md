@@ -27,6 +27,11 @@ If the WP is being executed via orchestrator-led, multi-agent ("agentic") workfl
 - `/.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md`
 - `/.GOV/roles_shared/EVIDENCE_LEDGER.md`
 
+Sub-agent delegation note (HARD):
+- Sub-agent delegation by the Primary Coder is DISALLOWED by default.
+- It becomes allowed ONLY when the Operator explicitly approves it for the WP and the task packet records `SUB_AGENT_DELEGATION: ALLOWED` + `OPERATOR_APPROVAL_EVIDENCE`.
+- If allowed, treat sub-agents as LOW reasoning strength (draft-only) and follow `/.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md` Section 6.
+
 ## Drive-Agnostic Governance [CX-109] (HARD)
 
 - Treat all workflow paths as repo-relative placeholders (see `.GOV/roles_shared/ROLE_WORKTREES.md`).
@@ -497,6 +502,7 @@ git commit -m "docs: bootstrap claim [WP-{ID}]"
 1. **.GOV/roles_shared/START_HERE.md** - Repo map, commands, how to run
 2. **.GOV/roles_shared/SPEC_CURRENT.md** - Current master spec pointer
 3. **Task packet** - Your specific work scope
+   - Confirm `## SUB_AGENT_DELEGATION` before using any sub-agents (default DISALLOWED; only delegate if `ALLOWED` + `OPERATOR_APPROVAL_EVIDENCE`).
 4. **Task-specific docs:**
    - FEATURE/REFACTOR â†’ `.GOV/roles_shared/ARCHITECTURE.md`
    - DEBUG â†’ `.GOV/roles_shared/RUNBOOK_DEBUG.md`
