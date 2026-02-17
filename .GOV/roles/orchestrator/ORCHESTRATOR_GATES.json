@@ -1291,14 +1291,6 @@
       "refinement_path": ".GOV/refinements/WP-1-MCP-Skeleton-Gate-v2.md"
     },
     {
-      "wpId": "WP-1-MCP-Skeleton-Gate-v2",
-      "type": "PREPARE",
-      "coder_id": "Coder-A",
-      "branch": "feat/WP-1-MCP-Skeleton-Gate-v2",
-      "worktree_dir": "../wt-WP-1-MCP-Skeleton-Gate-v2",
-      "timestamp": "2026-02-15T23:41:47.292Z"
-    },
-    {
       "wpId": "WP-1-MCP-End-to-End-v2",
       "type": "REFINEMENT",
       "refinement_path": ".GOV/refinements/WP-1-MCP-End-to-End-v2.md",
@@ -1313,6 +1305,14 @@
       "signature": "ilja160220262157",
       "timestamp": "2026-02-16T21:00:49.964Z",
       "refinement_path": ".GOV/refinements/WP-1-MCP-End-to-End-v2.md"
+    },
+    {
+      "wpId": "WP-1-MCP-End-to-End-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-MCP-End-to-End-v2",
+      "worktree_dir": "../wt-WP-1-MCP-End-to-End-v2",
+      "timestamp": "2026-02-16T22:03:12.434Z"
     }
   ]
 }

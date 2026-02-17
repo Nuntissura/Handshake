@@ -74,7 +74,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 - **[WP-1-Governance-Workflow-Mirror-v1]** - [STUB]
 - **[WP-1-Workspace-Bundle-v2]** - [STUB]
 - **[WP-1-Semantic-Catalog-v2]** - [STUB]
-- **[WP-1-MCP-End-to-End-v2]** - [STUB]
 - **[WP-1-Metrics-Traces-v2]** - [STUB]
 - **[WP-1-Work-Profiles-v1]** - [STUB]
 - **[WP-1-Cloud-Escalation-Consent-v1]** - [STUB]
@@ -150,6 +149,8 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 ## Blocked
+
+- **[WP-1-MCP-End-to-End-v2]** - [BLOCKED] - blocked_by: WP-1-MCP-Skeleton-Gate-v2 (must be VALIDATED + merged to main)
 
 ---
 
