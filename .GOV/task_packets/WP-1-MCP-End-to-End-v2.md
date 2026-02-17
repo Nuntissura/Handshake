@@ -14,7 +14,7 @@
 - ORCHESTRATION_STARTED_AT_UTC: 2026-02-16T22:03:19.337Z
 - CODER_MODEL: gpt-5.2
 - CODER_REASONING_STRENGTH: EXTRA_HIGH (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Blocked
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja160220262157
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -250,7 +250,7 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
+- Current WP_STATUS: Started (2026-02-17)
 - What changed in this update:
 - Next step / handoff hint:
 
