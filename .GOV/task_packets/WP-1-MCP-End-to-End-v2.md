@@ -387,15 +387,15 @@ git revert <commit-sha>
 
 ## EVIDENCE
 - COMMAND: `just pre-work WP-1-MCP-End-to-End-v2`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
 
 - COMMAND: `cd src/backend/handshake_core; cargo test -j 1 --test mcp_e2e_tests`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - PROOF_LINES:
     - `test mcp_e2e_persists_progress_mapping_records_fr_events_and_hydrates_ref ... ok`
 
 - COMMAND: `cd src/backend/handshake_core; cargo test -j 1`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - PROOF_LINES:
     - `running 178 tests`
 
