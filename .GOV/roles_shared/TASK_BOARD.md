@@ -41,7 +41,7 @@ Rules:
 Entry format (recommended):
 - `- **[WP_ID]** - [ACTIVE] - branch: feat/WP-{ID} - coder: <name/model> - last_sync: YYYY-MM-DD`
 
- 
+- **[WP-1-MCP-End-to-End-v2]** - [ACTIVE] - branch: feat/WP-1-MCP-End-to-End-v2 - last_sync: 2026-02-17
 
 ---
 
@@ -92,7 +92,7 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
-- **[WP-1-MCP-End-to-End-v2]** - [ACTIVE] - branch: feat/WP-1-MCP-End-to-End-v2 - last_sync: 2026-02-17
+- **[WP-1-MCP-End-to-End-v2]** - [IN_PROGRESS]
 
 
 ## Done
