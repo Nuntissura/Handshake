@@ -182,6 +182,62 @@ impl JsonRpcMcpClient {
             Arc::clone(&self.pending),
         ))
     }
+
+    pub fn reserve_progress_token(&self) -> String {
+        let id = self.next_id.fetch_add(1, Ordering::SeqCst);
+        format!("mcp-progress-{id}")
+    }
+
+    pub fn send_request_with_id(
+        &self,
+        id: JsonRpcId,
+        method: impl Into<String>,
+        params: Option<Value>,
+        meta: Option<PendingMeta>,
+    ) -> McpResult<McpCall> {
+        let method_str = method.into();
+        let request = JsonRpcRequest::new(id.clone(), method_str.clone(), params);
+
+        let (tx, rx) = oneshot::channel::<JsonRpcResponse>();
+        {
+            let mut guard = self
+                .pending
+                .lock()
+                .map_err(|_| McpError::Transport("pending map lock error".to_string()))?;
+            if guard.contains_key(&id) {
+                return Err(McpError::Protocol(format!(
+                    "json-rpc request id already in use: {:?}",
+                    id
+                )));
+            }
+            guard.insert(
+                id.clone(),
+                PendingRequest {
+                    tx,
+                    meta: meta.or_else(|| {
+                        Some(PendingMeta {
+                            started_at: Instant::now(), // WAIVER [CX-573E] duration/timeout bookkeeping only
+                            method: method_str.clone(),
+                            ctx: None,
+                            tool_name: None,
+                            capability_id: None,
+                        })
+                    }),
+                },
+            );
+        }
+
+        self.outgoing
+            .send(JsonRpcMessage::Request(request))
+            .map_err(|e| McpError::Transport(e.to_string()))?;
+
+        Ok(McpCall::new(
+            id,
+            rx,
+            self.outgoing.clone(),
+            Arc::clone(&self.pending),
+        ))
+    }
 }
 
 pub struct McpCall {

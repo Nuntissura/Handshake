@@ -1161,6 +1161,20 @@ pub struct AiJob {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct AiJobMcpFields {
+    pub mcp_server_id: Option<String>,
+    pub mcp_call_id: Option<String>,
+    pub mcp_progress_token: Option<String>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct AiJobMcpUpdate {
+    pub mcp_server_id: Option<String>,
+    pub mcp_call_id: Option<String>,
+    pub mcp_progress_token: Option<String>,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct AiJobListFilter {
     pub status: Option<JobState>,
@@ -1465,6 +1479,28 @@ pub trait Database: Send + Sync + std::any::Any {
     async fn create_ai_job(&self, job: NewAiJob) -> StorageResult<AiJob>;
     async fn update_ai_job_status(&self, update: JobStatusUpdate) -> StorageResult<AiJob>;
     async fn set_job_outputs(&self, job_id: &str, outputs: Option<Value>) -> StorageResult<()>;
+
+    async fn update_ai_job_mcp_fields(
+        &self,
+        job_id: Uuid,
+        update: AiJobMcpUpdate,
+    ) -> StorageResult<()> {
+        let _ = (job_id, update);
+        Err(StorageError::NotImplemented("update_ai_job_mcp_fields"))
+    }
+
+    async fn get_ai_job_mcp_fields(&self, job_id: Uuid) -> StorageResult<AiJobMcpFields> {
+        let _ = job_id;
+        Err(StorageError::NotImplemented("get_ai_job_mcp_fields"))
+    }
+
+    async fn find_ai_job_id_by_mcp_progress_token(
+        &self,
+        progress_token: &str,
+    ) -> StorageResult<Option<Uuid>> {
+        let _ = progress_token;
+        Err(StorageError::NotImplemented("find_ai_job_id_by_mcp_progress_token"))
+    }
 
     // Workflow runs
     async fn create_workflow_run(

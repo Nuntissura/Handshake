@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::capabilities::CapabilityRegistry;
 use crate::flight_recorder::FlightRecorder;
-use crate::storage::AccessMode;
+use crate::storage::{AccessMode, AiJobMcpUpdate, Database};
 
 use super::client::{JsonRpcMcpClient, McpDispatcher, PendingMeta};
 use super::discovery::{
@@ -17,7 +17,7 @@ use super::discovery::{
 };
 use super::errors::{McpError, McpResult};
 use super::fr_events;
-use super::jsonrpc::{JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
+use super::jsonrpc::{JsonRpcId, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
 use super::schema;
 use super::security;
 use super::transport::{AutoReconnectTransport, McpTransport, ReconnectConfig};
@@ -109,6 +109,14 @@ struct GateDispatcher {
     server_id: String,
     flight_recorder: Arc<dyn FlightRecorder>,
     agentic_mode_enabled: bool,
+    progress_bindings: Arc<Mutex<HashMap<String, ProgressBinding>>>,
+}
+
+#[derive(Clone, Debug)]
+struct ProgressBinding {
+    ctx: McpContext,
+    tool_name: String,
+    capability_id: Option<String>,
 }
 
 #[async_trait]
@@ -122,6 +130,38 @@ impl McpDispatcher for GateDispatcher {
                     params,
                 );
             }
+        } else if notification.method == "notifications/progress" {
+            let Some(params) = &notification.params else {
+                return;
+            };
+            let token_value = params.get("token").cloned().unwrap_or(Value::Null);
+            let token = match token_value {
+                Value::String(s) => s,
+                Value::Number(n) => n.to_string(),
+                _ => String::new(),
+            };
+            if token.is_empty() {
+                return;
+            }
+            let progress = params.get("progress").and_then(|v| v.as_f64());
+            let message = params.get("message").and_then(|v| v.as_str());
+            let binding = match self.progress_bindings.lock() {
+                Ok(g) => g.get(&token).cloned(),
+                Err(poisoned) => poisoned.into_inner().get(&token).cloned(),
+            };
+            let ctx = binding.as_ref().map(|b| &b.ctx);
+            let tool_name = binding.as_ref().map(|b| b.tool_name.as_str());
+            let capability_id = binding.as_ref().and_then(|b| b.capability_id.as_deref());
+            let _ = fr_events::record_progress(
+                Arc::clone(&self.flight_recorder),
+                ctx,
+                &self.server_id,
+                &token,
+                tool_name,
+                capability_id,
+                progress,
+                message,
+            );
         }
     }
 
@@ -177,6 +217,12 @@ impl McpDispatcher for GateDispatcher {
             error_code,
             &result_payload,
         );
+
+        if let JsonRpcId::String(token) = &response.id {
+            if let Ok(mut guard) = self.progress_bindings.lock() {
+                guard.remove(token);
+            }
+        }
     }
 }
 
@@ -187,11 +233,40 @@ pub struct GatedMcpClient {
     consent_provider: Arc<dyn ConsentProvider>,
     gate: GateConfig,
     inner: JsonRpcMcpClient,
+    db: Option<Arc<dyn Database>>,
+    progress_bindings: Arc<Mutex<HashMap<String, ProgressBinding>>>,
     tools: Arc<Mutex<HashMap<String, McpToolDescriptor>>>,
 }
 
+fn strip_ref_scheme(uri: &str) -> McpResult<&str> {
+    if let Some(path) = uri.strip_prefix("ref://") {
+        if path.trim().is_empty() {
+            return Err(McpError::SecurityViolation("ref uri path is empty".to_string()));
+        }
+        return Ok(path);
+    }
+
+    if uri.starts_with("file://") {
+        return Err(McpError::SecurityViolation(
+            "file:// uris are rejected for host-side reference hydration".to_string(),
+        ));
+    }
+
+    if uri.contains("://") {
+        return Err(McpError::SecurityViolation(format!(
+            "unknown uri scheme rejected: {}",
+            uri
+        )));
+    }
+
+    Err(McpError::SecurityViolation(format!(
+        "expected ref:// uri, got: {}",
+        uri
+    )))
+}
+
 impl GatedMcpClient {
-    pub async fn connect<T: McpTransport + 'static>(
+    async fn connect_internal<T: McpTransport + 'static>(
         server_id: impl Into<String>,
         transport: T,
         flight_recorder: Arc<dyn FlightRecorder>,
@@ -199,13 +274,17 @@ impl GatedMcpClient {
         consent_provider: Arc<dyn ConsentProvider>,
         gate: GateConfig,
         agentic_mode_enabled: bool,
+        db: Option<Arc<dyn Database>>,
     ) -> McpResult<Self> {
         let server_id = server_id.into();
         let mut transport = AutoReconnectTransport::new(transport, gate.reconnect.clone());
+        let progress_bindings: Arc<Mutex<HashMap<String, ProgressBinding>>> =
+            Arc::new(Mutex::new(HashMap::new()));
         let dispatcher: Arc<dyn McpDispatcher> = Arc::new(GateDispatcher {
             server_id: server_id.clone(),
             flight_recorder: Arc::clone(&flight_recorder),
             agentic_mode_enabled,
+            progress_bindings: Arc::clone(&progress_bindings),
         });
         let inner = JsonRpcMcpClient::connect(&mut transport, dispatcher).await?;
 
@@ -216,8 +295,55 @@ impl GatedMcpClient {
             consent_provider,
             gate,
             inner,
+            db,
+            progress_bindings,
             tools: Arc::new(Mutex::new(HashMap::new())),
         })
+    }
+
+    pub async fn connect<T: McpTransport + 'static>(
+        server_id: impl Into<String>,
+        transport: T,
+        flight_recorder: Arc<dyn FlightRecorder>,
+        capability_registry: Arc<CapabilityRegistry>,
+        consent_provider: Arc<dyn ConsentProvider>,
+        gate: GateConfig,
+        agentic_mode_enabled: bool,
+    ) -> McpResult<Self> {
+        Self::connect_internal(
+            server_id,
+            transport,
+            flight_recorder,
+            capability_registry,
+            consent_provider,
+            gate,
+            agentic_mode_enabled,
+            None,
+        )
+        .await
+    }
+
+    pub async fn connect_with_db<T: McpTransport + 'static>(
+        server_id: impl Into<String>,
+        transport: T,
+        flight_recorder: Arc<dyn FlightRecorder>,
+        capability_registry: Arc<CapabilityRegistry>,
+        consent_provider: Arc<dyn ConsentProvider>,
+        gate: GateConfig,
+        agentic_mode_enabled: bool,
+        db: Arc<dyn Database>,
+    ) -> McpResult<Self> {
+        Self::connect_internal(
+            server_id,
+            transport,
+            flight_recorder,
+            capability_registry,
+            consent_provider,
+            gate,
+            agentic_mode_enabled,
+            Some(db),
+        )
+        .await
     }
 
     pub async fn refresh_tools(&self) -> McpResult<Vec<McpToolDescriptor>> {
@@ -482,7 +608,6 @@ impl GatedMcpClient {
         )?;
 
         let started_at = Instant::now(); // WAIVER [CX-573E] duration/timeout bookkeeping only
-        let params = json!({ "name": tool_name, "arguments": arguments });
         let meta = PendingMeta {
             started_at,
             method: "tools/call".to_string(),
@@ -491,9 +616,62 @@ impl GatedMcpClient {
             capability_id: policy.required_capability.clone(),
         };
 
-        let call = self
-            .inner
-            .send_request("tools/call", Some(params), Some(meta))?;
+        let mut request_id: Option<JsonRpcId> = None;
+        let mut progress_token: Option<String> = None;
+        let mut mcp_job_id: Option<String> = None;
+
+        if let (Some(db), Some(job_id)) = (self.db.as_ref(), ctx.job_id) {
+            let token = self.inner.reserve_progress_token();
+
+            db.update_ai_job_mcp_fields(
+                job_id,
+                AiJobMcpUpdate {
+                    mcp_server_id: Some(self.server_id.clone()),
+                    mcp_call_id: Some(token.clone()),
+                    mcp_progress_token: Some(token.clone()),
+                },
+            )
+            .await
+            .map_err(|e| McpError::Protocol(format!("durable progress mapping failed: {e}")))?;
+
+            let binding = ProgressBinding {
+                ctx: ctx.clone(),
+                tool_name: tool_name.to_string(),
+                capability_id: policy.required_capability.clone(),
+            };
+            match self.progress_bindings.lock() {
+                Ok(mut guard) => {
+                    guard.insert(token.clone(), binding);
+                }
+                Err(poisoned) => {
+                    poisoned.into_inner().insert(token.clone(), binding);
+                }
+            }
+
+            request_id = Some(JsonRpcId::String(token.clone()));
+            progress_token = Some(token);
+            mcp_job_id = Some(job_id.to_string());
+        }
+
+        let mut params = json!({ "name": tool_name, "arguments": arguments });
+        if let Value::Object(map) = &mut params {
+            if let Some(token) = progress_token.as_deref() {
+                map.insert(
+                    "progress_token".to_string(),
+                    Value::String(token.to_string()),
+                );
+            }
+            if let Some(job_id) = mcp_job_id.as_deref() {
+                map.insert("job_id".to_string(), Value::String(job_id.to_string()));
+            }
+        }
+
+        let call = match request_id {
+            Some(id) => self
+                .inner
+                .send_request_with_id(id, "tools/call", Some(params), Some(meta))?,
+            None => self.inner.send_request("tools/call", Some(params), Some(meta))?,
+        };
         match tokio::time::timeout(self.gate.request_timeout, call).await {
             Ok(result) => result,
             Err(_) => {
@@ -518,11 +696,36 @@ impl GatedMcpClient {
                     Some("timeout"),
                     &timeout_payload,
                 );
+                if let Some(token) = progress_token.as_deref() {
+                    match self.progress_bindings.lock() {
+                        Ok(mut guard) => {
+                            guard.remove(token);
+                        }
+                        Err(poisoned) => {
+                            poisoned.into_inner().remove(token);
+                        }
+                    }
+                }
                 Err(McpError::Timeout(format!(
                     "request timed out after {:?}",
                     self.gate.request_timeout
                 )))
             }
         }
+    }
+
+    pub fn resolve_ref_uri(&self, ctx: &McpContext, uri: &str) -> McpResult<Vec<u8>> {
+        let path_str = strip_ref_scheme(uri)?;
+        let canonical = security::canonicalize_under_roots(path_str, &ctx.allowed_roots)?;
+        let bytes = std::fs::read(&canonical).map_err(|e| {
+            McpError::Protocol(format!("failed to read ref uri target {}: {e}", canonical.display()))
+        })?;
+
+        self.inner.send_notification(
+            "notifications/resource_released",
+            Some(json!({ "uri": uri })),
+        )?;
+
+        Ok(bytes)
     }
 }
