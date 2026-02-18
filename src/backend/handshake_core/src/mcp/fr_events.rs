@@ -108,6 +108,32 @@ pub fn record_tool_call(
         "INFO",
         "mcp tool invocation started",
         payload,
+    )?;
+
+    let payload = json!({
+        "tool_name": format!("mcp:{server_id}:{tool_name}"),
+        "tool_version": null,
+        "inputs": [],
+        "outputs": [],
+        "status": "success",
+        "duration_ms": null,
+        "error_code": null,
+        "job_id": ctx.job_id.map(|j| j.to_string()),
+        "workflow_run_id": ctx.workflow_run_id,
+        "trace_id": ctx.trace_id.to_string(),
+        "capability_id": capability_id,
+        "server_id": server_id,
+        "tool": tool_name,
+        "arguments": arguments,
+    });
+    insert_fr_event(
+        flight_recorder.as_ref(),
+        Some(ctx),
+        "mcp.tool_call",
+        server_id,
+        "INFO",
+        "mcp tool invocation started",
+        payload,
     )
 }
 
@@ -146,6 +172,65 @@ pub fn record_tool_result(
         server_id,
         level,
         "mcp tool invocation finished",
+        payload,
+    )?;
+
+    let payload = json!({
+        "tool_name": format!("mcp:{server_id}:{tool_name}"),
+        "tool_version": null,
+        "inputs": [],
+        "outputs": [],
+        "status": status,
+        "duration_ms": duration_ms.map(|d| d as u64),
+        "error_code": error_code,
+        "job_id": ctx.job_id.map(|j| j.to_string()),
+        "workflow_run_id": ctx.workflow_run_id,
+        "trace_id": ctx.trace_id.to_string(),
+        "capability_id": capability_id,
+        "server_id": server_id,
+        "tool": tool_name,
+        "result": result,
+    });
+    insert_fr_event(
+        flight_recorder.as_ref(),
+        Some(ctx),
+        "mcp.tool_result",
+        server_id,
+        level,
+        "mcp tool invocation finished",
+        payload,
+    )
+}
+
+pub fn record_progress(
+    flight_recorder: Arc<dyn FlightRecorder>,
+    ctx: Option<&McpContext>,
+    server_id: &str,
+    token: &str,
+    tool_name: Option<&str>,
+    capability_id: Option<&str>,
+    progress: Option<f64>,
+    message: Option<&str>,
+) -> McpResult<()> {
+    let payload = json!({
+        "token": token,
+        "progress": progress,
+        "message": message,
+        "trace_id": ctx.map(|c| c.trace_id.to_string()),
+        "job_id": ctx.and_then(|c| c.job_id).map(|j| j.to_string()),
+        "workflow_run_id": ctx.and_then(|c| c.workflow_run_id.as_deref()),
+        "server_id": server_id,
+        "tool_name": tool_name.map(|t| format!("mcp:{server_id}:{t}")),
+        "tool": tool_name,
+        "capability_id": capability_id,
+    });
+    insert_fr_event(
+        flight_recorder.as_ref(),
+        ctx,
+        "mcp.progress",
+        server_id,
+        "INFO",
+        "mcp progress update",
         payload,
     )
 }

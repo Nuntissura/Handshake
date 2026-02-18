@@ -35,9 +35,9 @@ function parseSingleField(text, label) {
 
 function parseStatus(text) {
   const statusLine =
-    (text.match(/^\\s*-\\s*\\*\\*Status:\\*\\*\\s*(.+)\\s*$/mi) || [])[1] ||
-    (text.match(/^\\s*\\*\\*Status:\\*\\*\\s*(.+)\\s*$/mi) || [])[1] ||
-    (text.match(/^\\s*Status:\\s*(.+)\\s*$/mi) || [])[1] ||
+    (text.match(/^\s*-\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1] ||
+    (text.match(/^\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1] ||
+    (text.match(/^\s*Status:\s*(.+)\s*$/mi) || [])[1] ||
     '';
   return statusLine.trim();
 }
@@ -425,7 +425,7 @@ if (errors.length === 0) {
   }
 
   const status = parseStatus(packetContent) || '<missing>';
-  const statusNorm = status.toLowerCase();
+  const statusNorm = status.toLowerCase().replace(/[-_]/g, ' ');
   const startAllowed = /ready\s*for\s*dev|in\s*progress/.test(statusNorm) && !/blocked|stub|done|validated/.test(statusNorm);
 
   console.log('');
