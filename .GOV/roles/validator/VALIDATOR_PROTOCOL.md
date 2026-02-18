@@ -309,75 +309,77 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - PASS: Every requirement mapped to evidence, hygiene clean, tests verified (or explicitly waived by user), DAL audit clean when applicable, phase-gate satisfied when progressing.
 - FAIL: List missing evidence, failed audits, tests not run, or unmet phase-gate. No partial passes.
 
-## Validation Gate Sequence [CX-VAL-GATE] (MECHANICAL PAUSES REQUIRED)
+## Validation Gate Sequence [CX-VAL-GATE] (ONE REVIEW PAUSE; APPEND-FIRST)
 
-The validation process MUST halt at these gates. **No automation may skip these pauses.**
+The validation process MUST halt only at Gate 3 (final report presentation). All other gates are state recording/unlocks and must still be run in order.
 State is tracked per WP in `.GOV/validator_gates/{WP_ID}.json`. Gates enforce minimum time intervals to prevent automation momentum.
 (Legacy: `.GOV/roles/validator/VALIDATOR_GATES.json` is treated as a read-only archive for older sessions; new validations should not write to it.)
 
-### Gate 1: REPORT PRESENTATION (Blocking)
+### Gate 1: WP APPEND (Records verdict; non-blocking)
 1. Validator completes all checks and generates the full VALIDATION REPORT.
-2. Validator **outputs the entire report to chat** using the Report Template.
-3. Validator runs: `just validator-gate-present {WP_ID} {PASS|FAIL}`
-4. **HALT.** Validator MUST NOT proceed until user acknowledges.
+2. Validator appends the VALIDATION REPORT to `.GOV/task_packets/{WP_ID}.md` (APPEND-ONLY per [CX-WP-001]).
+3. Validator runs: `just validator-gate-append {WP_ID} {PASS|FAIL}`
+4. Validator does **not** paste the full report to chat yet.
 
-### Gate 2: USER ACKNOWLEDGMENT (Blocking)
+### Gate 2: COMMIT CLEARANCE (PASS only)
+1. Only if verdict = PASS, Validator runs: `just validator-gate-commit {WP_ID}`
+2. Validator performs `git commit` on the WP branch (includes the appended report) and records the commit SHA.
+
+### Gate 3: FINAL REPORT PRESENTATION (Blocking; the only mechanical pause)
+1. If verdict = FAIL: run immediately after Gate 1, **before any remediation begins**.
+2. If verdict = PASS: run after Gate 2 and after the validation report append is committed (**right before merge/push**).
+3. Validator **outputs the entire report to chat** using the Report Template.
+4. Validator runs: `just validator-gate-present {WP_ID}`
+5. **HALT.** Validator MUST NOT merge/push (PASS) or authorize remediation kickoff (FAIL) until the user acknowledges.
+
+### Gate 4: USER ACKNOWLEDGMENT (Unlock)
 1. User explicitly acknowledges the report (e.g., "proceed", "approved", "continue").
-2. If user requests changes or disputes findings â†’ return to validation, re-run checks, regenerate report.
+2. If user requests changes or disputes findings -> return to validation, re-run checks, regenerate report.
 3. Validator runs: `just validator-gate-acknowledge {WP_ID}`
-4. **Only after explicit acknowledgment** may Validator proceed to Gate 3.
-
-### Gate 3: WP APPEND (Blocking)
-1. Validator appends the VALIDATION REPORT to `.GOV/task_packets/{WP_ID}.md` (APPEND-ONLY per [CX-WP-001]).
-2. Validator runs: `just validator-gate-append {WP_ID}`
-3. Validator confirms append completed and shows the user the appended section.
-4. **HALT.** If verdict was FAIL â†’ STOP HERE. No commit.
-
-### Gate 4: COMMIT (PASS only)
-1. **Only if verdict = PASS** and user has acknowledged, Validator may commit.
-2. Validator runs: `just validator-gate-commit {WP_ID}`
-3. Commit message format: `docs: validation PASS [WP-{ID}]` or `feat: implement {feature} [WP-{ID}]`
-4. Validator confirms commit hash to user.
+4. PASS: Validator may merge/push to `main`.
+5. FAIL: WP remains open for remediation (no merge/commit).
 
 ### Gate Commands
 ```
-just validator-gate-present {WP_ID} {PASS|FAIL}  # Gate 1: Record report shown
-just validator-gate-acknowledge {WP_ID}           # Gate 2: Record user ack
-just validator-gate-append {WP_ID}                # Gate 3: Record WP append
-just validator-gate-commit {WP_ID}                # Gate 4: Unlock commit (PASS only)
+just validator-gate-append {WP_ID} {PASS|FAIL}   # Gate 1: Record WP append + verdict
+just validator-gate-commit {WP_ID}                # Gate 2: Unlock commit (PASS only)
+just validator-gate-present {WP_ID} [PASS|FAIL]   # Gate 3: Record report shown (HALT)
+just validator-gate-acknowledge {WP_ID}           # Gate 4: Record user ack (unlock)
 just validator-gate-status {WP_ID}                # Check current gate state
 just validator-gate-reset {WP_ID} --confirm       # Reset gates (archives old session)
 ```
 
-**Violations:** Skipping any gate, auto-committing without user acknowledgment, or appending before showing the report = PROTOCOL VIOLATION [CX-VAL-GATE-FAIL]. Gate commands will fail if sequence is violated.
+**Violations:** Skipping Gate 1, committing without a PASS Gate 2, or merging/pushing (PASS) / starting remediation (FAIL) without Gate 3+4 = PROTOCOL VIOLATION [CX-VAL-GATE-FAIL]. Gate commands will fail if the sequence is violated.
 
 ```
 FLOW DIAGRAM:
 
-  [Run all checks] â”€â”€â–º [Generate Report] â”€â”€â–º GATE 1: SHOW IN CHAT â”€â”€â–º HALT
-                                                                        â”‚
-                                            â—„â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-                                            User reviews report
-                                                   â”‚
-                                            User says "proceed"
-                                                   â”‚
-                                                   â–¼
-                                           GATE 2: ACKNOWLEDGED â”€â”€â–º HALT
-                                                                     â”‚
-                                            â—„â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-                                                   â”‚
-                                                   â–¼
-                                           GATE 3: APPEND TO WP
-                                                   â”‚
-                                           â”Œâ”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”
-                                           â”‚               â”‚
-                                        FAIL?           PASS?
-                                           â”‚               â”‚
-                                           â–¼               â–¼
-                                         STOP        GATE 4: COMMIT
-                                      (no commit)          â”‚
-                                                           â–¼
-                                                      git commit
+  [Run all checks] --> [Generate Report Text]
+                         |
+                         v
+                 GATE 1: APPEND TO WP (records verdict)
+                         |
+               +---------+----------+
+               |                    |
+             FAIL                 PASS
+               |                    |
+               v                    v
+   GATE 3: SHOW REPORT IN CHAT   GATE 2: COMMIT CLEARANCE
+               |                    |
+               v                    v
+             HALT              git commit (WP branch)
+               |                    |
+               v                    v
+        GATE 4: ACKNOWLEDGE   GATE 3: SHOW REPORT IN CHAT
+               |                    |
+               v                    v
+         remediation begins        HALT
+                                    |
+                                    v
+                           GATE 4: ACKNOWLEDGE
+                                    |
+                                    v
+                              merge/push
 ```
 
 ## Merge/Commit Authority (per Codex [CX-505])

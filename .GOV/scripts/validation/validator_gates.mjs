@@ -2,13 +2,16 @@
  * Validator Gates [CX-VAL-GATE]
  *
  * Mechanical enforcement of validation gate sequence.
- * Prevents auto-commit, ensures user sees report before WP append.
+ * Prevents automation momentum and enforces a single review pause: the full
+ * validation report is presented in chat only right before merge (PASS) or
+ * remediation kickoff (FAIL), while still recording that the report was appended
+ * to the WP packet first.
  *
  * Actions:
- *   present-report {WP_ID} {PASS|FAIL}  - Gate 1: Record report shown in chat
- *   acknowledge {WP_ID}                  - Gate 2: Record user acknowledgment
- *   append {WP_ID}                       - Gate 3: Record WP append completed
- *   commit {WP_ID}                       - Gate 4: Allow commit (PASS only)
+ *   append {WP_ID} {PASS|FAIL}           - Gate 1: Record WP append completed + verdict
+ *   commit {WP_ID}                       - Gate 2: Clear PASS for git commit
+ *   present-report {WP_ID} [PASS|FAIL]   - Gate 3: Record report shown in chat (blocking)
+ *   acknowledge {WP_ID}                  - Gate 4: Record user acknowledgment (unlock)
  *   status {WP_ID}                       - Show current gate state
  *   reset {WP_ID}                        - Reset gates for WP (requires confirmation)
  */
@@ -128,40 +131,82 @@ const wpId = process.argv[3];
 const extraArg = process.argv[4];
 
 // =============================================================================
-// ACTION: present-report {WP_ID} {PASS|FAIL}
+// ACTION: present-report {WP_ID} [PASS|FAIL]
 // =============================================================================
 if (action === 'present-report') {
     assertWpId(wpId);
     const state = loadWpState(wpId);
-    const verdict = extraArg?.toUpperCase();
+    const session = getSession(state, wpId);
+    const verdictArg = extraArg?.trim() ? extraArg.trim().toUpperCase() : null;
 
-    if (verdict !== 'PASS' && verdict !== 'FAIL') {
-        fail('Verdict must be PASS or FAIL', [`Received: ${extraArg}`]);
-    }
-
-    const existing = getSession(state, wpId);
-    if (existing && existing.status === 'COMMITTED') {
-        fail(`${wpId} already has a committed validation session`, [
-            'Create a new WP variant (e.g., WP-1-Feature-v2) for re-validation'
+    if (!session) {
+        fail(`No validation session for ${wpId}`, [
+            'Append the report to the WP packet first, then record it:',
+            `Run: just validator-gate-append ${wpId} {PASS|FAIL}`
         ]);
     }
 
-    // Start new session or reset if re-presenting
-    state.validation_sessions[wpId] = {
-        wpId,
-        verdict,
-        status: 'REPORT_PRESENTED',
-        started: new Date().toISOString(),
-        gates: [{
-            gate: 'REPORT_PRESENTED',
-            verdict,
-            timestamp: new Date().toISOString()
-        }]
-    };
+    if (verdictArg && verdictArg !== 'PASS' && verdictArg !== 'FAIL') {
+        fail('Verdict must be PASS or FAIL (or omitted)', [`Received: ${extraArg}`]);
+    }
+
+    if (verdictArg && verdictArg !== session.verdict) {
+        fail(`Verdict mismatch for ${wpId}`, [
+            `Session verdict: ${session.verdict}`,
+            `Provided: ${verdictArg}`
+        ]);
+    }
+
+    // Enforce "present only at the end" pause:
+    // - FAIL: after append
+    // - PASS: after commit gate
+    if (session.status === 'REPORT_PRESENTED') {
+        success(`Gate 3 SKIPPED: ${wpId} already in state REPORT_PRESENTED`, [
+            `Verdict: ${session.verdict}`,
+            '',
+            '[HALT] Await user acknowledgment.',
+            `[NEXT] After user reviews, run: just validator-gate-acknowledge ${wpId}`
+        ]);
+        process.exit(0);
+    }
+
+    if (session.status === 'USER_ACKNOWLEDGED') {
+        success(`Gate 3 SKIPPED: ${wpId} already acknowledged`, [
+            `Verdict: ${session.verdict}`,
+        ]);
+        process.exit(0);
+    }
+
+    if (session.verdict === 'PASS') {
+        if (session.status !== 'COMMITTED') {
+            fail(`Cannot present report for ${wpId} in state ${session.status}`, [
+                'PASS flow requires commit gate before final report presentation.',
+                'Expected state: COMMITTED',
+                `Next: just validator-gate-commit ${wpId}`
+            ]);
+        }
+    } else {
+        if (session.status !== 'WP_APPENDED') {
+            fail(`Cannot present report for ${wpId} in state ${session.status}`, [
+                'FAIL flow requires append gate before final report presentation.',
+                'Expected state: WP_APPENDED',
+                `Next: just validator-gate-append ${wpId} FAIL`
+            ]);
+        }
+    }
+
+    checkMomentum(session, 'REPORT_PRESENTED');
+
+    session.status = 'REPORT_PRESENTED';
+    session.gates.push({
+        gate: 'REPORT_PRESENTED',
+        verdict: session.verdict,
+        timestamp: new Date().toISOString()
+    });
     saveWpState(wpId, state);
 
-    success(`Gate 1 PASSED: Report presented for ${wpId}`, [
-        `Verdict: ${verdict}`,
+    success(`Gate 3 PASSED: Report presented for ${wpId}`, [
+        `Verdict: ${session.verdict}`,
         '',
         '[HALT] Validator MUST now wait for user acknowledgment.',
         `[NEXT] After user reviews, run: just validator-gate-acknowledge ${wpId}`
@@ -179,7 +224,7 @@ if (action === 'acknowledge') {
     const session = getSession(state, wpId);
     if (!session) {
         fail(`No validation session for ${wpId}`, [
-            `Run: just validator-gate-present ${wpId} {PASS|FAIL}`
+            `Run: just validator-gate-append ${wpId} {PASS|FAIL}`
         ]);
     }
 
@@ -196,36 +241,38 @@ if (action === 'acknowledge') {
         gate: 'USER_ACKNOWLEDGED',
         timestamp: new Date().toISOString()
     });
+    session.completed = new Date().toISOString();
     saveWpState(wpId, state);
 
-    success(`Gate 2 PASSED: User acknowledged report for ${wpId}`, [
-        '',
-        '[HALT] Validator may now append report to WP.',
-        `[NEXT] Run: just validator-gate-append ${wpId}`
-    ]);
+    if (session.verdict === 'PASS') {
+        success(`Gate 4 PASSED: User acknowledged report for ${wpId}`, [
+            '',
+            '[UNLOCKED] Validator may now merge/push the WP to main.',
+            'Ensure the validation report append is committed on the WP branch before merging.'
+        ]);
+    } else {
+        success(`Gate 4 PASSED: User acknowledged report for ${wpId}`, [
+            '',
+            '[UNLOCKED] WP may proceed to remediation (no merge/commit).'
+        ]);
+    }
     process.exit(0);
 }
 
 // =============================================================================
-// ACTION: append {WP_ID}
+// ACTION: append {WP_ID} {PASS|FAIL}
 // =============================================================================
 if (action === 'append') {
     assertWpId(wpId);
 
     const state = loadWpState(wpId);
-    const session = getSession(state, wpId);
-    if (!session) {
-        fail(`No validation session for ${wpId}`);
-    }
+    const verdictArg = extraArg?.trim() ? extraArg.trim().toUpperCase() : null;
 
-    if (session.status !== 'USER_ACKNOWLEDGED') {
-        fail(`Cannot append: ${wpId} is in state ${session.status}`, [
-            'Expected state: USER_ACKNOWLEDGED',
-            'User must acknowledge the report before it can be appended'
+    if (verdictArg && verdictArg !== 'PASS' && verdictArg !== 'FAIL') {
+        fail('Verdict must be PASS or FAIL (or omitted when a session already exists)', [
+            `Received: ${extraArg}`
         ]);
     }
-
-    checkMomentum(session, 'WP_APPENDED');
 
     // Verify task packet exists
     const packetPath = `.GOV/task_packets/${wpId}.md`;
@@ -233,26 +280,64 @@ if (action === 'append') {
         fail(`Task packet not found: ${packetPath}`);
     }
 
-    session.status = 'WP_APPENDED';
-    session.gates.push({
-        gate: 'WP_APPENDED',
-        timestamp: new Date().toISOString()
-    });
-    saveWpState(wpId, state);
+    let session = getSession(state, wpId);
+    const nowIso = new Date().toISOString();
+    if (!session) {
+        if (!verdictArg) {
+            fail(`Verdict required to start append gate for ${wpId}`, [
+                `Run: just validator-gate-append ${wpId} {PASS|FAIL}`
+            ]);
+        }
 
-    if (session.verdict === 'FAIL') {
-        success(`Gate 3 PASSED: Report appended to ${wpId}`, [
-            '',
-            '[STOP] Verdict was FAIL - no commit allowed.',
-            'WP remains open for remediation.'
-        ]);
-    } else {
-        success(`Gate 3 PASSED: Report appended to ${wpId}`, [
-            '',
-            '[HALT] Validator may now commit.',
-            `[NEXT] Run: just validator-gate-commit ${wpId}`
+        session = {
+            wpId,
+            verdict: verdictArg,
+            status: 'WP_APPENDED',
+            started: nowIso,
+            gates: [{
+                gate: 'WP_APPENDED',
+                verdict: verdictArg,
+                timestamp: nowIso
+            }]
+        };
+        state.validation_sessions[wpId] = session;
+        saveWpState(wpId, state);
+
+        if (session.verdict === 'FAIL') {
+            success(`Gate 1 PASSED: Report appended to ${wpId}`, [
+                '',
+                '[NEXT] Paste the full validation report to chat now (before remediation), then record it:',
+                `[NEXT] Run: just validator-gate-present ${wpId}`
+            ]);
+        } else {
+            success(`Gate 1 PASSED: Report appended to ${wpId}`, [
+                '',
+                '[NEXT] Record PASS commit clearance:',
+                `[NEXT] Run: just validator-gate-commit ${wpId}`
+            ]);
+        }
+        process.exit(0);
+    }
+
+    if (verdictArg && verdictArg !== session.verdict) {
+        fail(`Verdict mismatch for ${wpId}`, [
+            `Session verdict: ${session.verdict}`,
+            `Provided: ${verdictArg}`
         ]);
     }
+
+    if (session.status === 'WP_APPENDED') {
+        success(`Gate 1 SKIPPED: ${wpId} already in state WP_APPENDED`, [
+            `Verdict: ${session.verdict}`
+        ]);
+        process.exit(0);
+    }
+
+    fail(`Cannot append: ${wpId} is in state ${session.status}`, [
+        'Append is the first gate in the sequence.',
+        'If you need to re-run gates for this WP, reset the session first:',
+        `Run: just validator-gate-reset ${wpId} --confirm`
+    ]);
     process.exit(0);
 }
 
@@ -265,7 +350,9 @@ if (action === 'commit') {
     const state = loadWpState(wpId);
     const session = getSession(state, wpId);
     if (!session) {
-        fail(`No validation session for ${wpId}`);
+        fail(`No validation session for ${wpId}`, [
+            `Run: just validator-gate-append ${wpId} PASS`
+        ]);
     }
 
     if (session.verdict !== 'PASS') {
@@ -273,6 +360,15 @@ if (action === 'commit') {
             'Only PASS verdicts may be committed',
             'Fix issues and re-validate to get a PASS'
         ]);
+    }
+
+    if (session.status === 'COMMITTED') {
+        success(`Gate 2 SKIPPED: ${wpId} already in state COMMITTED`, [
+            '',
+            '[NEXT] Paste the full validation report to chat (right before merge), then record it:',
+            `[NEXT] Run: just validator-gate-present ${wpId}`
+        ]);
+        process.exit(0);
     }
 
     if (session.status !== 'WP_APPENDED') {
@@ -289,13 +385,15 @@ if (action === 'commit') {
         gate: 'COMMITTED',
         timestamp: new Date().toISOString()
     });
-    session.completed = new Date().toISOString();
     saveWpState(wpId, state);
 
-    success(`Gate 4 PASSED: ${wpId} cleared for commit`, [
+    success(`Gate 2 PASSED: ${wpId} cleared for commit`, [
         '',
         '[UNLOCKED] Validator may now run git commit.',
-        `Commit message: docs: validation PASS [${wpId}]`
+        `Commit message: docs: validation PASS [${wpId}]`,
+        '',
+        '[NEXT] After git commit, paste the full validation report to chat (right before merge), then record it:',
+        `[NEXT] Run: just validator-gate-present ${wpId}`
     ]);
     process.exit(0);
 }
@@ -318,6 +416,9 @@ if (action === 'status') {
     console.log(`  Verdict: ${session.verdict}`);
     console.log(`  Status: ${session.status}`);
     console.log(`  Started: ${session.started}`);
+    if (session.completed) {
+        console.log(`  Completed: ${session.completed}`);
+    }
     console.log('  Gates:');
     session.gates.forEach((g, i) => {
         const check = i < session.gates.length ? 'âœ“' : 'â—‹';
@@ -326,10 +427,14 @@ if (action === 'status') {
 
     // Show next action
     const nextActions = {
+        'WP_APPENDED': session.verdict === 'PASS'
+            ? `just validator-gate-commit ${wpId}`
+            : `just validator-gate-present ${wpId}`,
+        'COMMITTED': `just validator-gate-present ${wpId}`,
         'REPORT_PRESENTED': `just validator-gate-acknowledge ${wpId}`,
-        'USER_ACKNOWLEDGED': `just validator-gate-append ${wpId}`,
-        'WP_APPENDED': session.verdict === 'PASS' ? `just validator-gate-commit ${wpId}` : '(FAIL - no commit)',
-        'COMMITTED': '(complete)'
+        'USER_ACKNOWLEDGED': session.verdict === 'PASS'
+            ? '(PASS - merge/push allowed)'
+            : '(FAIL - remediation allowed)'
     };
     console.log(`  Next: ${nextActions[session.status] || 'unknown'}`);
     process.exit(0);
@@ -378,11 +483,10 @@ fail('Unknown action', [
     'Valid actions: present-report, acknowledge, append, commit, status, reset',
     '',
     'Usage:',
-    '  just validator-gate-present {WP_ID} {PASS|FAIL}',
-    '  just validator-gate-acknowledge {WP_ID}',
-    '  just validator-gate-append {WP_ID}',
+    '  just validator-gate-append {WP_ID} {PASS|FAIL}',
     '  just validator-gate-commit {WP_ID}',
+    '  just validator-gate-present {WP_ID} [PASS|FAIL]',
+    '  just validator-gate-acknowledge {WP_ID}',
     '  just validator-gate-status {WP_ID}',
     '  just validator-gate-reset {WP_ID} --confirm'
 ]);
-
