@@ -1,0 +1,77 @@
+{
+  "validation_sessions": {
+    "WP-1-MCP-End-to-End-v2": {
+      "wpId": "WP-1-MCP-End-to-End-v2",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-02-17T23:54:53.043Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-02-17T23:54:53.043Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-02-17T23:59:45.317Z"
+        },
+        {
+          "gate": "WP_APPENDED",
+          "timestamp": "2026-02-18T00:09:56.764Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-02-18T00:24:15.175Z"
+        }
+      ],
+      "completed": "2026-02-18T00:24:15.176Z"
+    }
+  },
+  "archived_sessions": [
+    {
+      "wpId": "WP-1-MCP-End-to-End-v2",
+      "verdict": "FAIL",
+      "status": "REPORT_PRESENTED",
+      "started": "2026-02-17T18:14:01.782Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-02-17T18:14:01.782Z"
+        }
+      ],
+      "archived_at": "2026-02-17T20:45:55.724Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-MCP-End-to-End-v2",
+      "verdict": "PASS",
+      "status": "REPORT_PRESENTED",
+      "started": "2026-02-17T20:51:04.204Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-02-17T20:51:04.205Z"
+        }
+      ],
+      "archived_at": "2026-02-17T23:35:45.745Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-MCP-End-to-End-v2",
+      "verdict": "PASS",
+      "status": "REPORT_PRESENTED",
+      "started": "2026-02-17T23:35:55.519Z",
+      "gates": [
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-02-17T23:35:55.520Z"
+        }
+      ],
+      "archived_at": "2026-02-17T23:54:47.348Z",
+      "archive_reason": "manual_reset"
+    }
+  ]
+}

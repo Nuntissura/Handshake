@@ -419,3 +419,77 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATOR_REPORT (2026-02-18)
+
+VALIDATION REPORT - WP-1-MCP-End-to-End-v2
+Verdict: PASS
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-MCP-End-to-End-v2`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: .GOV/task_packets/WP-1-MCP-End-to-End-v2.md (status: In Progress)
+- Validated commit: 240ca5f4de284c242ac87b654c87065cea998970
+- Merge base window (packet MERGE_BASE_SHA): e048533f2ddbfbef1f14aa8de5dc75eb8dc2c51b..240ca5f4de284c242ac87b654c87065cea998970
+- Spec target resolved: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.126.md
+- Spec anchors validated (Master Spec 11.3.x):
+  - 11.3.2 Rust Gate interceptor (deny-by-default + schema/capability/consent)
+  - 11.3.3 Reference-based binary protocol (ref://)
+  - 11.3.4 Durable progress mapping (SQLite ai_jobs persistence)
+  - 11.3.6 Logging sink / Flight Recorder evidence kinds
+  - 11.3.7 Red Team security (roots + symlink bypass hardening)
+
+Files Checked:
+- .GOV/task_packets/WP-1-MCP-End-to-End-v2.md
+- .GOV/refinements/WP-1-MCP-End-to-End-v2.md
+- .GOV/roles_shared/SPEC_CURRENT.md
+- .GOV/roles_shared/TASK_BOARD.md
+- Handshake_Master_Spec_v02.126.md (11.3.x sections)
+- src/backend/handshake_core/src/mcp/gate.rs
+- src/backend/handshake_core/src/mcp/security.rs
+- src/backend/handshake_core/src/mcp/fr_events.rs
+- src/backend/handshake_core/src/storage/sqlite.rs
+- src/backend/handshake_core/tests/mcp_e2e_tests.rs
+- src/backend/handshake_core/tests/mcp_gate_tests.rs
+
+Findings:
+- Deny-by-default + explicit allow path (tool allowlist):
+  - Tool allowlist denies undeclared tools and records gate decision: src/backend/handshake_core/src/mcp/gate.rs:490
+  - Path args are canonicalized under allowed roots (escape + symlink controls): src/backend/handshake_core/src/mcp/gate.rs:480
+- Reference-based binary protocol (ref:// hydration; reject file://; emit release notification):
+  - ref:// accepted; file:// rejected; unknown schemes rejected: src/backend/handshake_core/src/mcp/gate.rs:241
+  - Host resolves ref:// under allowed roots, reads bytes, emits notifications/resource_released: src/backend/handshake_core/src/mcp/gate.rs:717
+  - E2E asserts returned URI is ref:// and hydration returns expected bytes: src/backend/handshake_core/tests/mcp_e2e_tests.rs:352
+- Durable progress mapping (SQLite persistence + correlation):
+  - Gate reserves progress token and persists mcp_server_id/mcp_call_id/mcp_progress_token: src/backend/handshake_core/src/mcp/gate.rs:623
+  - SQLite schema adds columns + index: src/backend/handshake_core/src/storage/sqlite.rs:268
+  - SQLite read/write/find APIs: src/backend/handshake_core/src/storage/sqlite.rs:2401
+  - E2E asserts persisted fields + reverse lookup by progress token: src/backend/handshake_core/tests/mcp_e2e_tests.rs:342
+- Flight Recorder evidence (required MCP kinds + correlation fields):
+  - Kinds recorded: mcp.tool_call (src/backend/handshake_core/src/mcp/fr_events.rs:132), mcp.tool_result (src/backend/handshake_core/src/mcp/fr_events.rs:197), mcp.progress (src/backend/handshake_core/src/mcp/fr_events.rs:230)
+  - Logging sink records event_kind (defaults to mcp.logging) and captures job/workflow/session fields: src/backend/handshake_core/src/mcp/fr_events.rs:256
+  - E2E asserts presence of required kinds + progress payload token: src/backend/handshake_core/tests/mcp_e2e_tests.rs:395
+- Red team hardening (symlink/root bypass + sampling/createMessage):
+  - Canonicalization rejects traversal + enforces no symlinks within allowed roots: src/backend/handshake_core/src/mcp/security.rs:13 and src/backend/handshake_core/src/mcp/security.rs:49
+  - Gate test covers escape + symlink blocked (unix): src/backend/handshake_core/tests/mcp_gate_tests.rs:1136 and src/backend/handshake_core/tests/mcp_gate_tests.rs:1226
+  - sampling/createMessage is disabled when agentic_mode=false and otherwise explicitly not implemented in MVP: src/backend/handshake_core/src/mcp/gate.rs:171
+
+Deterministic Gates:
+- just pre-work WP-1-MCP-End-to-End-v2: PASS (exit_code=0)
+- just task-board-check: PASS (exit_code=0)
+- just cargo-clean: PASS (exit_code=0)
+- just post-work WP-1-MCP-End-to-End-v2 --range e048533f2ddbfbef1f14aa8de5dc75eb8dc2c51b..HEAD: PASS (exit_code=0; warning: new file at merge base for src/backend/handshake_core/tests/mcp_e2e_tests.rs)
+- Validator checks: validator-spec-regression PASS; validator-scan PASS; validator-dal-audit PASS; validator-error-codes PASS; validator-coverage-gaps PASS; validator-traceability PASS; validator-git-hygiene PASS; validator-phase-gate Phase-1 PASS
+
+Tests (Validator-run):
+- cd src/backend/handshake_core; cargo test -j 1 --test mcp_e2e_tests: PASS
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml: PASS
+
+Risks & Suggested Actions:
+- Windows file-lock flakiness was observed during compilation on this machine (os error 32); rerun resolved. If recurring, use -j 1 and consider disabling incremental for local validation runs.
+
+REASON FOR PASS:
+- Implementation satisfies WP DONE_MEANS for an MCP end-to-end evidence chain: gated tool call + tool result, ref:// hydration with release notification, durable progress mapping persisted to SQLite, and Flight Recorder evidence for mcp.tool_call/mcp.tool_result/mcp.progress/mcp.logging, with red-team hardening for allowed roots + symlink bypass and sampling/createMessage fenced.
