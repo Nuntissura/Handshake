@@ -236,14 +236,14 @@ validator-hygiene-full:
 	@node .GOV/scripts/validation/validator-hygiene-full.mjs
 
 # Validator Gate Commands [CX-VAL-GATE] - Mechanical enforcement of validation sequence
-validator-gate-present wp-id verdict:
+validator-gate-present wp-id verdict="":
 	@node .GOV/scripts/validation/validator_gates.mjs present-report {{wp-id}} {{verdict}}
 
 validator-gate-acknowledge wp-id:
 	@node .GOV/scripts/validation/validator_gates.mjs acknowledge {{wp-id}}
 
-validator-gate-append wp-id:
-	@node .GOV/scripts/validation/validator_gates.mjs append {{wp-id}}
+validator-gate-append wp-id verdict="":
+	@node .GOV/scripts/validation/validator_gates.mjs append {{wp-id}} {{verdict}}
 
 validator-gate-commit wp-id:
 	@node .GOV/scripts/validation/validator_gates.mjs commit {{wp-id}}
