@@ -34,11 +34,11 @@
 
 
 
-# Handshake Master Specification v02.125
+# Handshake Master Specification v02.129
 
 **Status:** LIVING  
-**Version:** v02.125  
-**Date:** 2026-02-06  
+**Version:** v02.129  
+**Date:** 2026-02-18  
 **Authority:** [CX-001] (The Master Spec is the Source of Truth)
 
 **Purpose:** Complete reference combining product vision, Diary governance, extraction pipeline, Phase 1 closure requirements, and technical supply-chain gate specs.
@@ -49,6 +49,10 @@
 
 | Version | Date | Author | Changes | Approval |
 |---------|------|--------|---------|----------|
+| v02.129 | 2026-02-18 | Orchestrator | **Roadmap normalization:** Converted legacy `**ADD v02.xxx — …**` atomic blocks into inline phase-field patches (Phase 1: multi-model orchestration, DCC MVP, layer-wise inference foundations; Phase 3: layer-wise experiments; Phase 4: layer-wise productization). Preserved all items/version tags; restored Phase 1 **Vertical slice** field by extracting the inline core-loop chunk; added governance rule: no permanent Addendum section. | pending |
+| v02.128 | 2026-02-18 | Orchestrator | **Merge:** Embedded `Spec_Creation_System_v2.2.1_merged.md` into §2.6.8.13 as verbatim import (heading-level shifted only). No per-spec logging system added; respects v2.2.1 boundary. | pending |
+| v02.127 | 2026-02-17 | Orchestrator | **Sidecar/DCC merge:** Added §10.11 Dev Command Center (Sidecar Integration) incl. DCC wiring + inline schemas (`.handshake/workspace.json`, `devcc.db`), plus Locus integration pointer and updated §7.6 Roadmap + §7.6.1 Coverage Matrix. | pending |
+| v02.126 | 2026-02-12 | Coder | **Spec-only consistency correction (runtime governance paths):** Replace stale work-tracking path examples with runtime governance root `.handshake/gov/` for Task Board, Task Packets, and related refs. | ilja120220260342 |
 | v02.125 | 2026-02-06 | Orchestrator | **Governance snapshot definition:** Added `#### 7.5.4.10 Product Governance Snapshot (HARD)` defining a deterministic, leak-safe JSON snapshot derived ONLY from canonical `.GOV/**` inputs, with default output `.GOV/roles_shared/PRODUCT_GOVERNANCE_SNAPSHOT.json`, explicit `schema_version`, and list-based validator gate summaries (no timestamps; no raw logs). | ilja060220260754 |
 | v02.124 | 2026-02-05 | Validator | **Spec enrichment (governance boundary + pack path update):** define `/.GOV/` as canonical governance workspace and `docs/` as temporary compatibility bundle only; require hard enforcement that product code MUST NOT read/write `/.GOV/`; set default runtime governance state dir to `.handshake/gov/` (configurable; runtime governance state only). Updated Governance Pack sections 7.5.4.7-7.5.4.9 to reflect `.GOV/` canonical layout and boundary rules. | ilja050220260910 |
 | v02.122 | 2026-01-29 | Orchestrator | **v02.122 merge:** merged Multi-Model Parallelism Addendum (UPDATED) and Handshake_Layerwise_Inference_SpecDraft_v0.3.md into Master Spec main body: RuntimeMode/ExecutionMode + invariants (DOCS_ONLY/AI_ENABLED, min_ready_models, strict file-scope locks), RoleExecutionIdentity + ParameterClass + largest-first routing + performance telemetry scoring, MailboxKind taxonomy, HSK_STATUS lifecycle marker, SwapRequest escalation + CX-MM code registry, plus reserved `settings.exec_policy` + Work Profile compute/approximate-waiver hooks and new FR `llm_exec_policy` + `hsk.layerwise_trace@0.1`. Updated §7.6 coverage matrix + roadmap (Phase 0 closed; new [ADD v02.122] entries). | pending |
@@ -57,10 +61,10 @@
 | v02.119 | 2026-01-26 | Validator | **Non-normative AI UX notes (Command Palette + Jobs UI):** Recorded the current UX preferences that (a) Command Palette uses Ctrl/Cmd+K as primary shortcut with Ctrl/Cmd+Shift+P as a fallback, (b) "Summarize" opens the palette so instructions can be tweaked before creating the job, and (c) the backend remains the queue/source-of-truth while the frontend acts as a global job tracker UI (poll queued/running only to avoid storms). (Non-normative; expected to evolve.) | ilja260120260248 |
 | v02.118 | 2026-01-26 | Validator | **AI-Ready Data Architecture (Tree-sitter + workspace root clarifications):** Clarified the Phase 1 Shadow Workspace root mapping for `workspace/raw|derived|indexes|graph` under the app-managed `data/workspaces/{workspace_id}/workspace/` tree, required a dedicated parser (Tree-sitter) for AST-aware code chunking determinism, and clarified FR-EVT-DATA-015 to log `query_hash` only (never plaintext). | ilja260120260102 |
 | v02.117 | 2026-01-25 | Orchestrator | **AI-Ready Data Architecture (FR-EVT-DATA schema completion):** Added missing DATA event schemas for FR-EVT-DATA-003/005/006/007/008/010/013/014 in §11.5.5 so the "Flight Recorder MUST reject DATA events that do not match schemas above" requirement is fully enforceable; no requirement changes. | ilja250120261843 |
-| v02.116 | 2026-01-23 | Orchestrator | **Locus Work Tracking System Integration:** Added complete §2.3.15 Locus Work Tracking System (governance-aware work tracking from macro Work Packets through micro Micro-Task execution): §2.3.15.1 Overview and Scope (unified tracking from Prompt→Spec→Gates→MT→Done); §2.3.15.2 Core Schemas (TrackedWorkPacket with governance/gates/task_packets/micro_tasks, TrackedMicroTask with iterations/escalation/validation, TrackedDependency with 10 types); §2.3.15.3 Mechanical Operations (18 operations: locus_create_wp, locus_update_wp, locus_gate_wp, locus_register_mts, locus_start_mt, locus_record_iteration, locus_complete_mt, locus_add_dependency, locus_query_ready, locus_search, locus_sync_task_board, etc.); §2.3.15.4 Integration Points (Spec Router auto-creates WPs via locus_create_wp, MT Executor records iterations via locus_record_iteration, Task Board bidirectional sync, Task Packet linking, Calendar policy integration, Knowledge Graph dependencies); §2.3.15.5 Storage Architecture (Bronze/Silver/Gold medallion, SQLite Phase 1 local-first, PostgreSQL Phase 2 multi-user, CRDT conflict resolution, vector clocks); §2.3.15.6 Event Sourcing (21 Flight Recorder events: FR-EVT-WP-001..005 for Work Packets, FR-EVT-MT-001..006 for Micro-Tasks, FR-EVT-DEP-001..002 for dependencies, FR-EVT-TB-001..003 for Task Board, FR-EVT-SYNC-001..003 for sync, FR-EVT-QUERY-001); §2.3.15.7 Query Interface (ready work detection with dependency blocking, hybrid search vector+keyword+graph, dependency tree traversal); §2.3.15.8 Multi-User Architecture (workspace model, real-time WebSocket collaboration, CRDT op-based merge); §2.3.15.9 Performance Targets (locus_create_wp <50ms, locus_query_ready <100ms, locus_search <200ms, 10K WPs Phase 1, 100K WPs Phase 2); §2.3.15.10 Conformance Requirements (MUST/SHOULD/MAY RFC 2119 requirements). Updated Coverage Matrix §7.6.1 (added §2.3.15 row: P1, P2, P3, P4). Added Phase 1-4 roadmap items tagged [ADD v02.116]: Phase 1 (SQLite backend, core operations, Spec Router integration, MT Executor integration, Task Board sync, basic queries, Flight Recorder events), Phase 2 (hybrid search, Calendar policy, dependency graph queries, migration tools), Phase 3 (PostgreSQL backend, CRDT implementation, WebSocket real-time, workspace multi-tenancy), Phase 4 (advanced analytics, auto-archival, AI-powered insights). **Integration touchpoints:** Spec Router (§2.6.8), MT Executor (§2.6.6.8), Task Board (docs/TASK_BOARD.md), Task Packets (docs/task_packets/), Flight Recorder (§11.5), Shadow Workspace (§2.3.8), Knowledge Graph (§2.3.7), Calendar (§11.9), Mechanical Tool Bus (§6.3), Capability System (§11.1). | ilja230120262345 |
+| v02.116 | 2026-01-23 | Orchestrator | **Locus Work Tracking System Integration:** Added complete §2.3.15 Locus Work Tracking System (governance-aware work tracking from macro Work Packets through micro Micro-Task execution): §2.3.15.1 Overview and Scope (unified tracking from Prompt→Spec→Gates→MT→Done); §2.3.15.2 Core Schemas (TrackedWorkPacket with governance/gates/task_packets/micro_tasks, TrackedMicroTask with iterations/escalation/validation, TrackedDependency with 10 types); §2.3.15.3 Mechanical Operations (18 operations: locus_create_wp, locus_update_wp, locus_gate_wp, locus_register_mts, locus_start_mt, locus_record_iteration, locus_complete_mt, locus_add_dependency, locus_query_ready, locus_search, locus_sync_task_board, etc.); §2.3.15.4 Integration Points (Spec Router auto-creates WPs via locus_create_wp, MT Executor records iterations via locus_record_iteration, Task Board bidirectional sync, Task Packet linking, Calendar policy integration, Knowledge Graph dependencies); §2.3.15.5 Storage Architecture (Bronze/Silver/Gold medallion, SQLite Phase 1 local-first, PostgreSQL Phase 2 multi-user, CRDT conflict resolution, vector clocks); §2.3.15.6 Event Sourcing (21 Flight Recorder events: FR-EVT-WP-001..005 for Work Packets, FR-EVT-MT-001..006 for Micro-Tasks, FR-EVT-DEP-001..002 for dependencies, FR-EVT-TB-001..003 for Task Board, FR-EVT-SYNC-001..003 for sync, FR-EVT-QUERY-001); §2.3.15.7 Query Interface (ready work detection with dependency blocking, hybrid search vector+keyword+graph, dependency tree traversal); §2.3.15.8 Multi-User Architecture (workspace model, real-time WebSocket collaboration, CRDT op-based merge); §2.3.15.9 Performance Targets (locus_create_wp <50ms, locus_query_ready <100ms, locus_search <200ms, 10K WPs Phase 1, 100K WPs Phase 2); §2.3.15.10 Conformance Requirements (MUST/SHOULD/MAY RFC 2119 requirements). Updated Coverage Matrix §7.6.1 (added §2.3.15 row: P1, P2, P3, P4). Added Phase 1-4 roadmap items tagged [ADD v02.116]: Phase 1 (SQLite backend, core operations, Spec Router integration, MT Executor integration, Task Board sync, basic queries, Flight Recorder events), Phase 2 (hybrid search, Calendar policy, dependency graph queries, migration tools), Phase 3 (PostgreSQL backend, CRDT implementation, WebSocket real-time, workspace multi-tenancy), Phase 4 (advanced analytics, auto-archival, AI-powered insights). **Integration touchpoints:** Spec Router (§2.6.8), MT Executor (§2.6.6.8), Task Board (.handshake/gov/TASK_BOARD.md), Task Packets (.handshake/gov/task_packets/), Flight Recorder (§11.5), Shadow Workspace (§2.3.8), Knowledge Graph (§2.3.7), Calendar (§11.9), Mechanical Tool Bus (§6.3), Capability System (§11.1). | ilja230120262345 |
 | v02.115 | 2026-01-22 | Orchestrator | **AI-Ready Data Architecture FULL Integration (2,350+ lines):** Added complete §2.3.14 AI-Ready Data Architecture with 22 major sections and 5 appendices: §2.3.14.1 Motivation and Scope (problem statement, research citations: Anthropic 35-67% retrieval improvement, Databricks 37% LLM improvement, 87% vs 50% semantic-aware chunking accuracy); §2.3.14.2-3 Normative References and Terminology (30+ defined terms); §2.3.14.4 Design Principles (8 principles: semantic coherence MUST, contextual enrichment SHOULD, hybrid indexing MUST, rich metadata MUST, content-aware processing MUST, event-driven freshness SHOULD, two-stage retrieval SHOULD, validation automation MUST); §2.3.14.5 Content Storage Architecture (Bronze/Silver/Gold medallion pattern with full TypeScript schemas: BronzeRecord, SilverRecord, ProcessedContent, EmbeddingRecord, ProcessingRecord, ValidationRecord); §2.3.14.6 Chunking Strategies (AST-aware code chunking with Python implementation, header-recursive document chunking, semantic chunking for prose, validation requirements); §2.3.14.7 Embedding Architecture (model registry with version tracking, model comparison tables for text/code/vision, selection function, migration plan schema); §2.3.14.8 Indexing Architecture (HNSW vector index, BM25 keyword index, Knowledge Graph with 20 relationship types, RRF fusion algorithm); §2.3.14.9 Retrieval Pipeline (two-stage with reranking, context assembly, "lost in middle" mitigation); §2.3.14.10 Metadata Schema (core metadata, content-type extensions for code/image/email/calendar, agent context annotations); §2.3.14.11 Multimodal Data Organization (unified schema, cross-modal queries); §2.3.14.12 Anti-Patterns and Mitigations (fixed-size chunking, orphan embeddings, context pollution, stale indexes); §2.3.14.13 Context Management (pollution scoring, budget management, fresh context pattern); §2.3.14.14 Validation and Quality Metrics (SLOs: MRR≥0.6, Recall@10≥0.8, NDCG@5≥0.7, p95≤500ms, validation≥95%, completeness≥99%; mechanical validation jobs); §2.3.14.15 Integration Mapping (Master Spec section touchpoints); §2.3.14.16 Security and Privacy (embedding access controls, index encryption, audit trail); §2.3.14.17 Conformance Requirements (MUST/SHOULD lists, performance baselines); §2.3.14.A Complete Schema Definitions (full TypeScript types); §2.3.14.B Embedding Model Comparison (benchmark tables); §2.3.14.C Chunking Algorithm Implementations (Python reference code); §2.3.14.D Validation Job Profiles (mechanical job specs); §2.3.14.E Flight Recorder Event Schemas (FR-EVT-DATA-001..015). Extended §2.3.7 Knowledge Graph, §2.3.8 Shadow Workspace, §2.3.13 Storage Traits. Updated Coverage Matrix §7.6.1. Added Phase 1-4 roadmap items. **Cross-cutting principle:** "everything can use everything" - all tools produce Bronze→Silver→Gold, all features consume via unified retrieval. | ilja220120262330 |
 | v02.114 | 2026-01-21 | Orchestrator | Added §2.6.6.8 Micro-Task Executor Profile: auto-generated MT decomposition from Work Packets, iterative execution loop with fresh-context-per-iteration, model/LoRA escalation chain, completion signal protocol with anti-gaming rules, crash recovery via run ledger, Skill Bank distillation integration (§9), 17 Flight Recorder events (FR-EVT-MT-001..017); updated Coverage Matrix (§2.6 row covers new subsection); added Phase 1 roadmap items (Mechanical Track: MT Loop Controller + validation engine wiring; Distillation Track: escalation candidate capture); added Phase 2/3/4 items for LoRA training automation and parallel wave execution. | ilja210120262100 |
-| v02.113 | 2026-01-17 | Orchestrator | Governance workflow hardening: Validator gate state is stored per WP in `docs/validator_gates/{WP_ID}.json` (merge-safe) with `docs/VALIDATOR_GATES.json` as a legacy read-only archive; stub activation MUST update `docs/WP_TRACEABILITY_REGISTRY.md` Base→Active mapping and move Task Board entry out of STUB; define Flight Recorder events for gate transitions and WP activation mirroring. | ilja170120260225 |
+| v02.113 | 2026-01-17 | Orchestrator | Governance workflow hardening: Validator gate state is stored per WP in `.handshake/gov/validator_gates/{WP_ID}.json` (merge-safe) with `docs/VALIDATOR_GATES.json` as a legacy read-only archive; stub activation MUST update `.handshake/gov/WP_TRACEABILITY_REGISTRY.md` Base→Active mapping and move Task Board entry out of STUB; define Flight Recorder events for gate transitions and WP activation mirroring. | ilja170120260225 |
 | v02.112 | 2026-01-15 | Orchestrator | Role Mailbox hardening: define FR-EVT-GOV-MAILBOX-001/002/003 event schemas, require schema validation at Flight Recorder ingestion, forbid inline message bodies in Flight Recorder or repo exports, and require a RoleMailboxExportGate mechanical gate. | ilja150120260214 |
 | v02.111 | 2026-01-13 | Orchestrator | Inline missing high-signal governance docs into the Governance Pack Template Volume: role rubrics (`docs/CODER_RUBRIC.md`, `docs/ORCHESTRATOR_RUBRIC.md`), migration law (`docs/MIGRATION_GUIDE.md`), and legacy shim pointers for moved templates (`docs/*_TEMPLATE.md`). | ilja130120260459 |
 | v02.110 | 2026-01-13 | Orchestrator | Fix Governance Pack template drift: `docs/VALIDATOR_GATES.json` now uses the `validation_sessions` + `archived_sessions` schema (matches `scripts/validation/validator_gates.mjs`). | ilja130120260438 |
@@ -197,6 +201,7 @@
   - [10.8 Presentations (Decks)](#108-presentations-decks)
   - [10.9 Future Surfaces](#109-future-surfaces)
   - [10.10 Photo Studio](#1010-photo-studio)
+  - [10.11 Dev Command Center (Sidecar Integration)](#1011-dev-command-center-sidecar-integration)
 - [11 Shared Dev Platform & OSS Foundations](#11-shared-dev-platform-oss-foundations)
   - [11.1 Capabilities & Consent Model](#111-capabilities-consent-model)
   - [11.2 Sandbox Policy vs Hard Isolation](#112-sandbox-policy-vs-hard-isolation)
@@ -5397,14 +5402,14 @@ Defines the complete extraction pipeline: IMG-001 (image and media extractors), 
 Handshake requires unified tracking from macro-level governance (Work Packets → Task Packets → Gates) through micro-level execution (Micro-Tasks → Iterations → Validation). External issue trackers lack governance integration, cannot observe MT execution granularity, and don't provide event-sourced sync. Locus provides a native, mechanical, fully-integrated work tracking system that spans the complete lifecycle from "User says: Build feature" through "MT-003 iteration 2 validated successfully."
 
 **What**  
-Locus is Handshake's native work tracking subsystem that tracks Work Packets (governance-aware work units) and Micro-Tasks (atomic execution units) with full observability, dependency management, and multi-user collaboration. It integrates with Spec Router (auto-creates WPs), MT Executor (tracks iterations), Task Board (bidirectional sync), Task Packets (links to docs/), Flight Recorder (event sourcing), Knowledge Graph (typed dependencies), and Calendar (policy-based queries).
+Locus is Handshake's native work tracking subsystem that tracks Work Packets (governance-aware work units) and Micro-Tasks (atomic execution units) with full observability, dependency management, and multi-user collaboration. It integrates with Spec Router (auto-creates WPs), MT Executor (tracks iterations), Task Board (bidirectional sync), Task Packets (links to runtime governance state), Flight Recorder (event sourcing), Knowledge Graph (typed dependencies), and Calendar (policy-based queries).
 
 **Jargon**  
 - **Work Packet (WP)**: A governance-tracked work unit with lifecycle states (stub → ready → in_progress → blocked → gated → done), gates (pre-work, post-work), and linked Task Packets. Created by Spec Router (§2.6.8) from user prompts.
 - **Micro-Task (MT)**: An atomic execution unit (1-5 files, single session) with iteration tracking, model escalation, and validation results. Generated and executed by MT Executor (§2.6.6.8).
 - **Locus**: Latin for "place" or "position"; the system locates work packets by status, dependencies, and execution state.
-- **Task Board**: The markdown table in `docs/TASK_BOARD.md` that provides human-readable project status. Locus syncs bidirectionally with it.
-- **Task Packet**: The structured spec in `docs/task_packets/{WP_ID}.md` with IN_SCOPE_PATHS, DONE_MEANS, TEST_PLAN. Locus links to these.
+- **Task Board**: The markdown table in `.handshake/gov/TASK_BOARD.md` that provides human-readable project status. Locus syncs bidirectionally with it.
+- **Task Packet**: The structured spec in `.handshake/gov/task_packets/{WP_ID}.md` with IN_SCOPE_PATHS, DONE_MEANS, TEST_PLAN. Locus links to these.
 - **Ready Work**: The set of all WPs where status=ready AND no open blocking dependencies exist.
 - **Mechanical Operation**: All Locus operations follow Mechanical Tool Bus (§6.3) patterns with PlannedOperation envelopes, capability gating, and deterministic execution.
 
@@ -5440,7 +5445,7 @@ Post-Work Gate ──────────────→ locus_gate_wp(wp_id
 locus_close_wp(wp_id)
     ↓
 Task Board Sync ──────────────→ locus_sync_task_board()
-                                  [docs/TASK_BOARD.md updated]
+                                  [.handshake/gov/TASK_BOARD.md updated]
 ```
 
 **Integration with Existing Systems**
@@ -5451,8 +5456,8 @@ Locus is deeply integrated with all major Handshake subsystems:
 |-----------|------------------|------------------|
 | **Spec Router (§2.6.8)** | Producer | Auto-invokes `locus_create_wp` when routing prompts |
 | **MT Executor (§2.6.6.8)** | Producer | Auto-invokes `locus_start_mt`, `locus_record_iteration`, `locus_complete_mt` |
-| **Task Board** | Bidirectional Sync | `locus_sync_task_board` reads/writes `docs/TASK_BOARD.md` |
-| **Task Packets** | Reference | WP.governance.task_packet_path links to `docs/task_packets/{WP_ID}.md` |
+| **Task Board** | Bidirectional Sync | `locus_sync_task_board` reads/writes `.handshake/gov/TASK_BOARD.md` |
+| **Task Packets** | Reference | WP.governance.task_packet_path links to `.handshake/gov/task_packets/{WP_ID}.md` |
 | **Flight Recorder (§11.5)** | Event Source | All operations emit FR-EVT-WP-*, FR-EVT-MT-*, FR-EVT-DEP-*, FR-EVT-TB-* |
 | **Shadow Workspace (§2.3.8)** | Storage | Uses Bronze/Silver/Gold medallion for WP/MT data |
 | **Knowledge Graph (§2.3.7)** | Dependencies | Dependency edges as typed KG relationships (10 types) |
@@ -5486,12 +5491,12 @@ interface TrackedWorkPacket {
     
     // Gate status (Validator integration)
     gates: {
-      pre_work: GateStatus;            // From docs/validator_gates/{WP_ID}.json
+      pre_work: GateStatus;            // From .handshake/gov/validator_gates/{WP_ID}.json
       post_work: GateStatus;
     };
     
     // Task Packet reference
-    task_packet_path?: string;         // "docs/task_packets/WP-1-Auth.md"
+    task_packet_path?: string;         // ".handshake/gov/task_packets/WP-1-Auth.md"
     task_board_status: TaskBoardStatus;
   };
   
@@ -5933,12 +5938,12 @@ interface MTExecutorLocusIntegration {
 
 **Task Board Sync**
 
-Bidirectional sync with `docs/TASK_BOARD.md`:
+Bidirectional sync with `.handshake/gov/TASK_BOARD.md`:
 
 ```typescript
 // Read Task Board → Update Locus database
 sync_from_task_board() {
-  const task_board = fs.readFileSync("docs/TASK_BOARD.md", "utf-8");
+  const task_board = fs.readFileSync(".handshake/gov/TASK_BOARD.md", "utf-8");
   const sections = parseTaskBoard(task_board);
   
   for (const entry of sections.all_entries) {
@@ -5966,8 +5971,8 @@ sync_to_task_board() {
   const sections = generateTaskBoardSections(grouped);
   
   // Atomic write
-  fs.writeFileSync("docs/TASK_BOARD.md.tmp", sections.join("\n"));
-  fs.renameSync("docs/TASK_BOARD.md.tmp", "docs/TASK_BOARD.md");
+  fs.writeFileSync(".handshake/gov/TASK_BOARD.md.tmp", sections.join("\n"));
+  fs.renameSync(".handshake/gov/TASK_BOARD.md.tmp", ".handshake/gov/TASK_BOARD.md");
 }
 ```
 
@@ -5976,6 +5981,13 @@ sync_to_task_board() {
 - After MT completion
 - Periodic (every 30s, debounced)
 - Pre-commit hook
+
+
+**Dev Command Center integration (§10.11)** [ADD v02.127]
+
+- DCC is the canonical operator/developer surface to **view** Locus WPs/MTs and bind a **worktree-backed workspace** to a `wp_id`/`mt_id`/`session_id` context.
+- DCC MUST NOT become an alternate authority for work status; it MUST read/write via `locus_*` operations and treat `.handshake/gov/TASK_BOARD.md` as the human-readable mirror.
+- DCC SHOULD deep-link: `wsid` ↔ `wp_id`/`mt_id` ↔ `session_id` ↔ Flight Recorder slices, and emit FR events for stateful actions (open workspace, approve capability, run VCS op).
 
 ---
 
@@ -16156,6 +16168,1022 @@ export interface SessionChatLogEntryV0_1 {
 ---
 
 <a id="3-local-first-infrastructure"></a>
+
+#### 2.6.8.13 Spec Creation System v2.2.1 (Verbatim Import) [ADD v02.128]
+
+##### Spec Creation System v2.2.1 — Universal IDs, Requirement Grammar, Conflict Detection
+
+**Version**: v2.2.1-draft
+**Date**: 2026-02-18
+**Status**: DRAFT — Iteration on v2.2.0-draft
+**Supersedes**: v2.2.0-draft (clarifies signature + removes per-spec flight recorder/logging patterns)
+**Lineage**: v2.1 (architecture + matrices), v2.1.1 (routing addendum)
+
+---
+
+
+###### 0.1 Changelog (v2.2.1)
+
+- Clarified that **USER_SIGNATURE** is a governance gate (owned by Handshake Governance); this system only emits a signature placeholder + user approval evidence.
+- Removed **per-spec flight recorder / bespoke logging system** expectations. Any flight recorder / telemetry capture is execution-framework owned.
+- Reframed XC-LOGGING as **declarative event metadata** only (events + payload schema + PII flag), not a logging subsystem.
+- Updated examples and validation rules to support **external consumers** (e.g., governance telemetry) without inventing a flight-recorder module.
+
+---
+
+###### 0. Decisions Locked in This Iteration
+
+| # | Decision | Source |
+|---|----------|--------|
+| 1 | Command-based routing (`/spec new`, `/spec extend`, `/spec refine`, `/spec check`, `/task`) instead of heuristic detection. Model never guesses route. | Discussion |
+| 2 | No shortcuts on rubric. Full rubric + second model + red team is mandatory for all routes. | Discussion |
+| 3 | Overlap detection should prioritize intent/contextual overlap over semantic overlap. | Discussion |
+| 4 | Governance versioning already requires version bump per spec change. Spec creation system version is tracked separately in SPEC_INDEX.yaml metadata. | Governance kernel §06 |
+| 5 | Matrix maintenance is governance responsibility, triggered on spec update. Spec creation system defines schema + staleness rules. Governance enforces. | Discussion |
+| 6 | When aborted or skipped, the section records intent, root of failure, and pickup hints. | Discussion |
+| 7 | All primitives, tools, and features get universal IDs with a formal ruleset. | Discussion |
+| 8 | USER_SIGNATURE is enforced by governance. Spec creation emits a signature placeholder + deterministic user approval evidence; it does not implement signature capture. | Discussion |
+| 9 | Flight recorder / telemetry capture is governance + execution-framework owned. Spec creation MUST NOT introduce a per-spec logging system; it only declares domain events and PII classification when needed. | Discussion |
+
+---
+
+###### 1. Universal ID System
+
+###### 1.1 Why
+
+The current spec creation system uses IDs in some places (requirement IDs like `[MOD-STORAGE-FR-001]`) but not others. Primitives are referenced by bare names (`primitive.document`), tools by dotted names (`tool.document.create`), features by `feat.` prefix. There's no consistency, no formal grammar, and no guarantee of uniqueness across the spec.
+
+Every entity in the spec — primitives, tools, features, surfaces, modules, requirements, cross-cutting concerns, data flows — gets a universal ID. The ID is:
+- Deterministic (derivable from the entity's type and location)
+- Unique (no two entities share an ID)
+- Grep-friendly (regex can find all IDs of a given type)
+- Append-only (IDs are never reused or reassigned)
+- Human-readable (not UUIDs)
+
+###### 1.2 ID Format
+
+```
+{TYPE}-{SCOPE}-{NAME}[-{SEQUENCE}]
+```
+
+| Segment | Rules | Examples |
+|---------|-------|---------|
+| `TYPE` | Fixed prefix, uppercase, 2-4 chars. Identifies entity class. | `PRM`, `TL`, `FT`, `SRF`, `MOD`, `FR`, `NFR`, `XC`, `DF`, `EVT` |
+| `SCOPE` | Module or §0 origin, uppercase, max 16 chars. Uses hyphens, not underscores. | `STORAGE`, `DOCUMENTS`, `AI-JOBS`, `FOUNDATION` |
+| `NAME` | Entity name, uppercase, max 24 chars. Hyphens only. | `DOCUMENT`, `SAVE`, `EDITOR-MAIN`, `BLOCK-EDIT` |
+| `SEQUENCE` | Optional 3-digit zero-padded number. Required for FR/NFR. | `001`, `042` |
+
+###### 1.3 Entity Type Definitions
+
+Before the ID format table: what each entity type *is* and how it differs from the others. These definitions are normative — if something doesn't fit a definition, it doesn't get that type prefix.
+
+| Type | Abbreviation | What It Is | How It Differs From Others | Example |
+|------|-------------|-----------|---------------------------|---------|
+| **Primitive** | `PRM` | An atomic data entity that the system stores, transforms, or displays. Primitives are the *nouns* of the system — the things that exist. They have properties, relationships, and lifecycle. A primitive can contain other primitives. | Tools *act on* primitives. Features *combine* primitives and tools. Surfaces *display* primitives. A primitive exists whether or not any tool or surface references it. | A document, a block, an AI job, a workspace. |
+| **Tool** | `TL` | A discrete operation a user or system can invoke that reads, creates, mutates, or deletes primitives. Tools are the *verbs* of the system — the things you can do. Every tool has a trigger (shortcut, menu, API call) and a defined effect on specific primitives. | A tool always acts on one or more primitives. A feature *bundles* tools into a user-facing capability. A tool is atomic (one action); a feature is composite (a workflow). | "Save document", "submit AI job", "extract with Lens". |
+| **Feature** | `FT` | A user-facing capability composed of one or more tools operating on one or more primitives across one or more surfaces. Features are what the user thinks of as "what the product does." They map to marketing language, not implementation. | A feature is the *composition* of tools + primitives + surfaces. A module *specifies* one or more features. A tool is a single operation; a feature is the coherent user experience built from multiple operations. | "Document editing" (combines create + edit + save + export tools). |
+| **Surface** | `SRF` | A UI location where the user interacts with the system — a screen, panel, dialog, sidebar, toolbar, or overlay. Surfaces are the *where* of interaction. | Surfaces don't contain logic; they host tools and display primitives. A tool specifies which surfaces it appears on. Multiple tools can share a surface. | Editor main area, toolbar, properties panel, command palette. |
+| **Module** | `MOD` | A spec unit that groups related requirements, tools, primitives, and features into a coherent domain. Modules are the *organizational boundaries* of the spec. Each module is one file. | A module is a spec artifact, not a runtime entity. It contains FR and NFR requirements. At implementation time, a module might map to one crate/package or several — that's an implementation decision, not a spec decision. | MOD-DOCUMENTS, MOD-STORAGE, MOD-AI-JOBS. |
+| **Functional Requirement** | `FR` | A single, testable behavioral statement about what the system must do. FRs are scoped to a module and follow the requirement grammar. They are the atomic units of "what to build." | An FR describes *one* behavior. A module contains many FRs. An acceptance criterion (AC) is a pass/fail test *within* an FR. An NFR constrains *how* the FR is fulfilled. | "TL-DOCUMENTS-SAVE persists document and all child blocks to storage." |
+| **Non-Functional Requirement** | `NFR` | A constraint on *how* the system fulfills functional requirements — performance, security, reliability, scalability, accessibility, or compatibility. NFRs don't describe behavior; they constrain it. | FRs say *what*. NFRs say *how well* or *under what constraints*. An NFR always references the FRs or entities it constrains. | "Save completes in <500ms for documents with ≤1000 blocks." |
+| **Cross-Cutting Concern** | `XC` | A system-wide concern that applies across multiple modules rather than belonging to any single one. Cross-cutting concerns have their own spec files and every module must declare how it addresses each applicable concern. | XCs are not modules — they don't have their own tools or primitives. They are *constraints and patterns* that modules must implement. A module's §8 section binds it to XCs. | XC-SECURITY, XC-LOGGING, XC-DIAGNOSTICS, XC-OBSERVABILITY. |
+| **Data Flow** | `DF` | A declared path where data moves from one module to another — either as direct writes, event-driven updates, or shared primitive access. Data flows are the *nervous system* of the spec. | A data flow connects modules; a dependency (in §6) declares build/load order. A module can depend on another without a data flow (compile-time dependency). A data flow always implies runtime interaction. | MOD-DOCUMENTS writes blocks → MOD-SEARCH indexes them. |
+| **Event** | `EVT` | A named signal emitted when something happens in the system. Events are fire-and-forget notifications that other modules can subscribe to. They carry a payload but don't expect a response. | Events are one-way (publish). Data flows can be bidirectional. A tool *emits* events as side effects. An event doesn't change state directly — subscribers decide what to do. | EVT-DOCUMENTS-SAVE (emitted after save succeeds). |
+| **Acceptance Criterion** | `AC` | A single, objective pass/fail test that determines whether a requirement is met. ACs are nested inside FRs or NFRs. They are what a validator checks. | An FR is the *what*. An AC is the *proof*. Multiple ACs can belong to one FR. An AC must be mechanically verifiable — if two people can disagree on pass/fail, it's not an AC. | "After save, document state on disk matches in-memory state." |
+
+**Key relationships to remember:**
+- Primitives are *things*. Tools *act on* things. Features *bundle* tools into capabilities. Surfaces *host* tools and *display* primitives.
+- Modules *organize* requirements about features/tools/primitives. FRs and NFRs live *inside* modules.
+- Data flows and events wire modules *together*. Cross-cutting concerns constrain *all* modules.
+- Acceptance criteria prove requirements are *met*.
+
+###### 1.4 Type Prefixes (Exhaustive)
+
+```yaml
+id_types:
+  PRM:   # Primitive
+    format: "PRM-{SCOPE}-{NAME}"
+    examples:
+      - "PRM-DOCUMENTS-DOCUMENT"
+      - "PRM-DOCUMENTS-BLOCK"
+      - "PRM-AI-JOBS-JOB"
+      - "PRM-STORAGE-WORKSPACE"
+    registered_in: "§0/§0.3_primitives.yaml + matrices/PRIMITIVE_MATRIX.yaml"
+
+  TL:    # Tool
+    format: "TL-{SCOPE}-{NAME}"
+    examples:
+      - "TL-DOCUMENTS-CREATE"
+      - "TL-DOCUMENTS-SAVE"
+      - "TL-DOCUMENTS-EXPORT"
+      - "TL-AI-JOBS-SUBMIT"
+      - "TL-LENS-EXTRACT"
+    registered_in: "§0/§0.5_tool_matrix.yaml + matrices/TOOL_MATRIX.yaml"
+
+  FT:    # Feature
+    format: "FT-{SCOPE}-{NAME}"
+    examples:
+      - "FT-DOCUMENTS-EDITING"
+      - "FT-AI-JOBS-ASSISTANCE"
+      - "FT-LENS-EXTRACTION"
+    registered_in: "matrices/FEATURE_MATRIX.yaml"
+
+  SRF:   # Surface (UI)
+    format: "SRF-{SCOPE}-{NAME}"
+    examples:
+      - "SRF-DOCUMENTS-EDITOR-MAIN"
+      - "SRF-GLOBAL-TOOLBAR-TOP"
+      - "SRF-GLOBAL-COMMAND-PALETTE"
+      - "SRF-LENS-PANEL"
+    registered_in: "§0/§0.2_surfaces.yaml"
+
+  MOD:   # Module
+    format: "MOD-{NAME}"
+    examples:
+      - "MOD-DOCUMENTS"
+      - "MOD-STORAGE"
+      - "MOD-AI-JOBS"
+    registered_in: "SPEC_INDEX.yaml"
+
+  FR:    # Functional Requirement
+    format: "FR-{SCOPE}-{SEQUENCE}"
+    examples:
+      - "FR-DOCUMENTS-001"
+      - "FR-STORAGE-014"
+      - "FR-AI-JOBS-003"
+    registered_in: "modules/{module_id}.md"
+
+  NFR:   # Non-Functional Requirement
+    format: "NFR-{SCOPE}-{SEQUENCE}"
+    examples:
+      - "NFR-DOCUMENTS-001"
+      - "NFR-STORAGE-003"
+    registered_in: "modules/{module_id}.md"
+
+  XC:    # Cross-Cutting Concern
+    format: "XC-{NAME}"
+    examples:
+      - "XC-SECURITY"
+      - "XC-LOGGING"
+      - "XC-DIAGNOSTICS"
+      - "XC-OBSERVABILITY"
+    registered_in: "cross_cutting/"
+
+  DF:    # Data Flow
+    format: "DF-{SOURCE}-TO-{TARGET}"
+    examples:
+      - "DF-DOCUMENTS-TO-CANVAS"
+      - "DF-AI-JOBS-TO-DOCUMENTS"
+      - "DF-LENS-TO-SEARCH"
+    registered_in: "matrices/INTERCONNECT.yaml"
+
+  EVT:   # Event
+    format: "EVT-{SCOPE}-{NAME}"
+    examples:
+      - "EVT-DOCUMENTS-SAVE"
+      - "EVT-DOCUMENTS-EXPORT"
+      - "EVT-AI-JOBS-SUBMIT"
+      - "EVT-AI-JOBS-COMPLETE"
+    registered_in: "matrices/INTERCONNECT.yaml"
+
+  AC:    # Acceptance Criterion
+    format: "AC-{SCOPE}-{FR_SEQUENCE}-{SEQUENCE}"
+    examples:
+      - "AC-DOCUMENTS-001-01"
+      - "AC-DOCUMENTS-001-02"
+      - "AC-STORAGE-014-01"
+    registered_in: "modules/{module_id}.md (inside the FR/NFR it belongs to)"
+```
+
+###### 1.5 ID Rules (Normative)
+
+```
+RULE-ID-001: Every entity in the spec MUST have a universal ID.
+RULE-ID-002: IDs are append-only. A retired ID is marked DEPRECATED 
+             in the registry. It is never reassigned.
+RULE-ID-003: IDs use uppercase ASCII letters, digits, and hyphens only.
+             No underscores, dots, or spaces.
+RULE-ID-004: SCOPE segment MUST match the module ID (without the MOD- prefix)
+             for module-scoped entities. Foundation-scoped entities use FOUNDATION.
+RULE-ID-005: SEQUENCE numbers are zero-padded to 3 digits (001-999).
+             If a module exceeds 999 FRs, it MUST be split (this also enforces
+             the 50-requirement limit from v2.0).
+RULE-ID-006: An ID MUST appear in exactly one registry file as its source of 
+             truth. Cross-references in other files use the ID but do not 
+             re-define the entity.
+RULE-ID-007: The spec health check MUST verify: no duplicate IDs, no dangling 
+             references (ID referenced but not registered), no orphan IDs 
+             (registered but never referenced).
+```
+
+###### 1.6 Cross-Reference Syntax
+
+When one entity references another, use square bracket arrow notation:
+
+```
+[→ PRM-DOCUMENTS-BLOCK]           # Reference to a primitive
+[→ TL-AI-JOBS-SUBMIT]             # Reference to a tool
+[→ FR-STORAGE-014]                # Reference to a requirement
+[→ DF-DOCUMENTS-TO-CANVAS]        # Reference to a data flow
+[→ MOD-STORAGE]                   # Reference to a module
+```
+
+This is greppable:
+```bash
+##### Find all references TO a specific entity
+grep -rn "→ PRM-DOCUMENTS-BLOCK" .SPEC/
+
+##### Find all references FROM a specific module
+grep -rn "→ " .SPEC/modules/MOD-STORAGE.md
+
+##### Find all data flow references
+grep -rn "→ DF-" .SPEC/
+```
+
+---
+
+###### 2. Requirement Grammar (Normative)
+
+###### 2.1 Why
+
+The rubric catches bad requirements *after* they're written. A grammar constrains them *during* writing. This is the difference between a spell checker and a keyboard layout — one fixes mistakes, the other prevents them.
+
+###### 2.2 Requirement Structure (Mandatory)
+
+Every functional requirement (FR) MUST follow this structure:
+
+```markdown
+###### [FR-{SCOPE}-{SEQUENCE}] {Title}
+
+**Priority**: MUST | SHOULD | MAY
+**Phase**: {phase number}
+
+**Subject**: [→ {entity IDs this requirement governs}]
+**Verb**: {concrete, testable action — see §2.3 allowed verbs}
+**Object**: {what is acted upon, with measurable properties}
+**Condition**: {under what circumstances, if any — "When...", "If...", "Given..."}
+
+**Statement**: 
+{Single declarative sentence combining subject + verb + object + condition.}
+
+**Acceptance Criteria**:
+- [AC-{SCOPE}-{SEQUENCE}-01] {objective pass/fail criterion}
+- [AC-{SCOPE}-{SEQUENCE}-02] {objective pass/fail criterion}
+
+**Error Handling**:
+- When {failure condition}: {expected behavior}
+
+**Edge Cases**:
+- {edge case}: {expected behavior}
+
+**Cross-References**: [→ {related IDs}]
+```
+
+###### 2.3 Allowed Verbs (Normative)
+
+Requirements MUST use verbs from this list. This prevents vague language.
+
+**Creation verbs**: create, generate, emit, produce, instantiate, allocate
+**Mutation verbs**: update, modify, append, increment, decrement, set, clear, merge, replace
+**Deletion verbs**: delete, remove, archive, purge, invalidate, expire
+**Query verbs**: return, retrieve, resolve, calculate, filter, sort, search, match
+**State verbs**: transition, activate, deactivate, lock, unlock, enable, disable, suspend, resume
+**Communication verbs**: send, receive, publish, subscribe, notify, broadcast, forward, route
+**Validation verbs**: validate, verify, check, assert, enforce, reject, accept, deny
+**Persistence verbs**: store, persist, cache, index, serialize, deserialize, export, import, backup
+**Display verbs**: render, display, present, highlight, animate, hide, show, scroll
+
+**Banned verbs** (too vague, always rewrite):
+- ~~handle~~, ~~manage~~, ~~process~~, ~~deal with~~, ~~take care of~~
+- ~~support~~, ~~facilitate~~, ~~enable~~ (unless activating a specific state)
+- ~~ensure~~, ~~make sure~~ (rephrase as: validate + reject if invalid)
+- ~~improve~~, ~~enhance~~, ~~optimize~~ (unmeasurable without a target)
+
+###### 2.4 Requirement Anti-Patterns (Normative)
+
+These MUST trigger a rewrite during spec creation:
+
+| Anti-Pattern | Example | Fix |
+|-------------|---------|-----|
+| Vague adjective | "fast export" | "export completes in <2s for files <50MB" |
+| Open scope | "and other formats" | List every format explicitly or defer to future FR |
+| Implementation leak | "use SQLite FTS5" | "index document content for full-text search" (technology goes in §0.7) |
+| Compound requirement | "create, validate, and store the document" | Split into FR-001 (create), FR-002 (validate), FR-003 (store) |
+| Missing failure path | "save the document" | "save the document; on write failure, retry 3x then display error with path" |
+| Undefined reference | "uses the standard format" | "serializes to [→ PRM-STORAGE-SCHEMA].document_v1 JSON schema" |
+| Passive voice | "the document is saved" | "[→ TL-DOCUMENTS-SAVE] persists [→ PRM-DOCUMENTS-DOCUMENT] to storage" |
+
+###### 2.5 Non-Functional Requirement Structure
+
+NFRs follow a similar but distinct structure:
+
+```markdown
+###### [NFR-{SCOPE}-{SEQUENCE}] {Title}
+
+**Category**: performance | security | reliability | scalability | accessibility | compatibility
+**Priority**: MUST | SHOULD | MAY
+**Phase**: {phase number}
+
+**Applies To**: [→ {entity IDs this constraint governs}]
+**Metric**: {what is measured}
+**Target**: {numeric threshold or objective criterion}
+**Measurement Method**: {how to verify}
+
+**Statement**:
+{Single declarative sentence.}
+
+**Acceptance Criteria**:
+- [AC-{SCOPE}-{SEQUENCE}-01] {objective pass/fail with numbers}
+```
+
+###### 2.6 Example: Well-Formed Requirement
+
+```markdown
+###### [FR-DOCUMENTS-003] Persist Document on Save
+
+**Priority**: MUST
+**Phase**: 1
+
+**Subject**: [→ TL-DOCUMENTS-SAVE]
+**Verb**: persist
+**Object**: [→ PRM-DOCUMENTS-DOCUMENT] including all child [→ PRM-DOCUMENTS-BLOCK] entities
+**Condition**: When the user invokes save (keyboard shortcut Ctrl+S or menu action)
+
+**Statement**: 
+[→ TL-DOCUMENTS-SAVE] persists [→ PRM-DOCUMENTS-DOCUMENT] and all child 
+[→ PRM-DOCUMENTS-BLOCK] entities to the active storage backend when the user 
+invokes save.
+
+**Acceptance Criteria**:
+- [AC-DOCUMENTS-003-01] After save, document state on disk matches in-memory state 
+  (byte-for-byte comparison of serialized form)
+- [AC-DOCUMENTS-003-02] Save completes in <500ms for documents with ≤1000 blocks
+- [AC-DOCUMENTS-003-03] Save emits [→ EVT-DOCUMENTS-SAVE] with document_id and block_count
+
+**Error Handling**:
+- When storage backend is unreachable: retry 3 times with 1s backoff, 
+  then display error toast on [→ SRF-DOCUMENTS-EDITOR-MAIN] with the storage error message
+- When disk is full: display error toast with available space and document size
+
+**Edge Cases**:
+- Empty document (0 blocks): save succeeds, creates file with empty block array
+- Document with >10,000 blocks: save runs in background thread, 
+  displays progress indicator on [→ SRF-DOCUMENTS-EDITOR-MAIN]
+- Concurrent saves: second save queues behind first, does not error
+
+**Cross-References**: [→ EVT-DOCUMENTS-SAVE], [→ NFR-DOCUMENTS-001]
+```
+
+---
+
+###### 3. Abort and Skip States (Normative)
+
+###### 3.1 Why
+
+The pipeline (S0-S7) has gates but no abort mechanism. When a module can't reach quality threshold, or the intent has an irresolvable contradiction, the system loops or silently produces garbage.
+
+###### 3.2 Abort Record
+
+When a pipeline step cannot proceed, it MUST produce an abort record:
+
+```yaml
+##### .SPEC/aborts/{abort_id}.yaml
+abort:
+  id: "ABORT-2026-02-17-001"
+  step: "S4"                      # Pipeline step where abort occurred
+  module: "MOD-NOTIFICATIONS"     # What was being worked on
+  
+  intent:
+    original: "User wants real-time push notifications across all platforms"
+    interpreted_as: "Cross-platform push notification system with offline queuing"
+    
+  root_of_failure: |
+    Module requires a persistent connection service (WebSocket or SSE) for 
+    real-time delivery. This conflicts with §0.7 constraint LOCAL-FIRST-001 
+    ("Cloud sync is optional enhancement, never a dependency"). Real-time 
+    push inherently requires a server component.
+    
+  attempted_resolutions:
+    - "Proposed local-only notification (no push): rejected by user as 
+       insufficient for the stated intent."
+    - "Proposed optional cloud relay: rubric scored 2/5 on Completeness 
+       because the feature degrades to nothing without cloud."
+    - "Proposed hybrid (local + optional push): rubric scored 3/5 on 
+       Consistency because it creates two divergent code paths."
+       
+  rubric_scores_at_abort:
+    clarity: 4
+    testability: 3
+    completeness: 2
+    consistency: 3
+    implementability: 2
+    security: 3
+    traceability: 4
+    aggregate: "21/35 (60%) — below 80% threshold after 3 improvement passes"
+    
+  pickup_hints:
+    - "Revisit after Phase 2 when cloud sync infrastructure exists (see MOD-SYNC)"
+    - "Consider splitting into FT-LOCAL-NOTIFICATIONS (no cloud, MUST) and 
+       FT-PUSH-NOTIFICATIONS (cloud, MAY) with separate modules"
+    - "WebSocket infrastructure from MOD-COLLAB (Phase 3) could be reused"
+    
+  status: "ABORTED"
+  aborted_at: "2026-02-17T16:30:00Z"
+```
+
+###### 3.3 Skip Record
+
+Different from abort. A skip is when a section within a module can't be filled yet but the module can still proceed:
+
+```yaml
+##### Inside the module file itself, in the skipped section:
+skip:
+  id: "SKIP-FR-NOTIFICATIONS-008"
+  section: "Error Handling"
+  
+  intent: "Define behavior when notification delivery fails to native OS API"
+  
+  root_of_skip: |
+    Native OS notification APIs (Windows Toast, macOS UNUserNotification, 
+    Linux libnotify) have different failure modes. Cannot specify error 
+    handling without implementation research on each platform.
+    
+  pickup_hints:
+    - "Research needed: what does each OS return on notification failure?"
+    - "Likely needs platform-specific error mapping table"
+    - "May be resolved during MOD-PLATFORM-ABSTRACTION implementation"
+    
+  status: "SKIPPED"
+  skipped_at: "2026-02-17T16:45:00Z"
+  blocks: ["AC-NOTIFICATIONS-008-03"]  # Which ACs are incomplete
+```
+
+###### 3.4 Pipeline Rules for Abort/Skip
+
+```
+RULE-ABORT-001: A module with ≥3 failed improvement passes (score <80%) at S4 
+                MUST be aborted, not forced through.
+RULE-ABORT-002: An abort does NOT block the rest of the spec. Other modules 
+                proceed. The aborted module is recorded in SPEC_INDEX.yaml 
+                with status: ABORTED.
+RULE-ABORT-003: A module with ≤2 SKIPs may proceed to S5 (cross-module 
+                validation). A module with >2 SKIPs MUST be escalated 
+                to user review before proceeding.
+RULE-ABORT-004: Abort records are append-only. An aborted module that is 
+                later retried gets a new module ID (or the same ID with 
+                a v2 suffix) and a new pipeline run. The abort record 
+                stays as history.
+RULE-ABORT-005: Aborts and skips MUST be visible in the spec health check 
+                output. No silent failures.
+```
+
+---
+
+###### 4. Cross-Cutting Binding (Deterministic Resolution of Gap 4)
+
+###### 4.1 Problem
+
+v2.1 defined cross-cutting concern files (XC-SECURITY, XC-LOGGING, etc.) and said modules must reference them. But the module template had no dedicated section for cross-cutting compliance. Result: cross-cutting specs exist as documents nobody references.
+
+###### 4.2 Solution: §8 Cross-Cutting Compliance (New Module Section)
+
+The module template gets a new mandatory section. This section is NOT prose. It is structured YAML that maps each applicable cross-cutting concern to concrete decisions for this module.
+
+```markdown
+###### §8 Cross-Cutting Compliance
+
+###### XC-SECURITY
+```yaml
+security_surface: "user_input"        # From XC-SECURITY surface classification
+trust_boundaries_crossed:
+  - boundary: "file_system"
+    tools: [TL-DOCUMENTS-SAVE, TL-DOCUMENTS-EXPORT]
+    mitigation: "Path traversal check on all user-provided file paths"
+  - boundary: "ai_boundary"
+    tools: []                         # This module doesn't invoke AI directly
+    mitigation: null
+input_validation:
+  - input: "document.title"
+    source: [SRF-DOCUMENTS-EDITOR-MAIN]
+    max_length: 500
+    sanitize: true
+    reject_on: ["path separators", "null bytes", "control characters"]
+  - input: "block.content"
+    source: [SRF-DOCUMENTS-EDITOR-MAIN]
+    max_length: 1_000_000            # ~1MB per block
+    sanitize: "HTML sanitization (allowlist-based)"
+    reject_on: ["script tags", "event handlers"]
+capability_gates:
+  - cap: "cap.file.write"
+    required_by: [TL-DOCUMENTS-SAVE, TL-DOCUMENTS-EXPORT]
+  - cap: "cap.file.read"
+    required_by: [TL-DOCUMENTS-CREATE]  # When creating from template
+```
+
+###### XC-LOGGING
+```yaml
+##### NOTE: Runtime logging/telemetry capture is implemented by Handshake Governance + the execution framework
+##### (taskboard/work packets/micro-tasks/locus + flight recorder). This spec MUST NOT invent a bespoke
+##### per-module logging system.
+#
+##### This block is declarative only: it defines the domain events this module emits, the payload schema,
+##### and whether the payload contains PII. Governance can wire these into its capture pipeline.
+events_emitted:
+  - id: EVT-DOCUMENTS-CREATE
+    trigger: "New document entity instantiated"
+    payload_schema: {document_id: uuid, template_used: "string|null"}
+    pii: false
+  - id: EVT-DOCUMENTS-SAVE
+    trigger: "Document persisted to storage"
+    payload_schema: {document_id: uuid, block_count: int, save_duration_ms: int}
+    pii: false
+  - id: EVT-DOCUMENTS-EXPORT
+    trigger: "Document exported to file"
+    payload_schema: {document_id: uuid, format: string, file_size_bytes: int}
+    pii: false
+  - id: EVT-DOCUMENTS-SAVE-FAIL
+    trigger: "Document save failed"
+    payload_schema: {document_id: uuid, error_type: string, error_message: string}
+    pii: false
+capture:
+  required: true
+  handled_by: "governance_telemetry (flight recorder)"
+```
+
+###### XC-DIAGNOSTICS
+```yaml
+health_check:
+  checks:
+    - name: "storage_accessible"
+      type: dependency
+      target: [→ MOD-STORAGE]
+      timeout_ms: 1000
+      required: true
+operator_console:
+  panels:
+    - id: "diag.documents.overview"
+      shows: [active_document_count, save_error_rate_1h, avg_save_duration_ms]
+```
+
+###### XC-OBSERVABILITY
+```yaml
+performance_budget:
+  startup_contribution_ms: 100
+  interaction_latency_ms: 50         # Keypress to rendered character
+  memory_budget_mb: 30               # Per open document
+  batch_throughput: "Export 100 documents in <60s"
+error_budget:
+  error_rate_target: "< 0.01%"       # Of all save operations
+  recovery_strategy: "Auto-retry 3x, then user-visible error with retry button"
+```
+```
+
+###### 4.3 Binding Rules (Normative)
+
+```
+RULE-XC-001: Every module MUST include §8 Cross-Cutting Compliance.
+RULE-XC-002: Every XC concern listed in the module's FEATURE_MATRIX.yaml 
+             entry MUST have a corresponding block in §8. Missing block = 
+             spec health check failure.
+RULE-XC-003: §8 blocks are YAML, not prose. This enables mechanical 
+             validation (schema check) and aggregation (collect all 
+             EVT-* declarations across modules).
+RULE-XC-004: If a module has security_surface: "none" and crosses no 
+             trust boundaries, the XC-SECURITY block still exists but 
+             declares this explicitly:
+             ```yaml
+             security_surface: "none"
+             trust_boundaries_crossed: []
+             justification: "Module operates on in-memory data only, 
+                            no user input, no external I/O"
+             ```
+RULE-XC-005: The spec health check MUST aggregate all EVT-* declarations and verify:
+             - no duplicate event IDs
+             - every event ID follows the naming convention
+             - every event declared in a module is present in INTERCONNECT.yaml
+             - every event has ≥1 consumer, either:
+               (a) an in-spec subscriber module, or
+               (b) an external consumer explicitly declared in INTERCONNECT.yaml (e.g., governance telemetry/flight recorder)
+```
+
+---
+
+###### 5. Interconnect Conflict Detection (Gap 5 Resolution)
+
+###### 5.1 The Problem
+
+INTERCONNECT.yaml declares data flows and event subscriptions. But without conflict detection rules, invalid wiring goes unnoticed until implementation breaks.
+
+###### 5.2 Conflict Types and Detection Rules
+
+```yaml
+##### Conflict detection rules for INTERCONNECT.yaml validation
+##### These run during S5 (Cross-Module Validation) and in spec health check
+
+conflict_rules:
+
+  # CONFLICT TYPE 1: Write-Write Collision
+  # Two modules write to the same primitive field without coordination
+  write_write:
+    description: "Two or more modules modify the same primitive's state"
+    detection: |
+      For each primitive P:
+        Collect all data_flows where P appears in the 'primitive' field
+        AND direction is 'outbound' or 'bidirectional'
+        If >1 module writes to P:
+          Check if flows declare a coordination_mechanism
+          If no mechanism declared → CONFLICT
+    severity: ERROR
+    resolution_options:
+      - "Designate one module as the owner (single writer)"
+      - "Define explicit merge semantics (CRDT, last-write-wins, etc.)"
+      - "Add a coordination primitive (lock, queue, transaction)"
+    example: |
+      MOD-DOCUMENTS writes to PRM-DOCUMENTS-BLOCK
+      MOD-AI-JOBS also writes to PRM-DOCUMENTS-BLOCK (AI-generated content)
+      → Requires coordination: AI writes to DRAFT blocks, 
+        user accepts/rejects into LIVE blocks
+
+  # CONFLICT TYPE 2: Event Fan-Out Without Ordering
+  # Multiple subscribers to the same event with order-dependent behavior
+  event_ordering:
+    description: "Multiple subscribers to an event where processing order matters"
+    detection: |
+      For each event pattern E in event_subscriptions:
+        If subscriber_count > 1:
+          Check if any subscriber's behavior depends on another 
+          subscriber having processed first
+          If dependency exists but no ordering declared → CONFLICT
+    severity: WARNING
+    resolution_options:
+      - "Declare explicit subscriber ordering (priority field)"
+      - "Make subscribers independent (no shared state mutation)"
+      - "Chain subscribers (A completes → triggers B)"
+    example: |
+      EVT-DOCUMENTS-SAVE has subscribers: [MOD-SEARCH] + external governance telemetry capture
+      → No conflict: both are independent readers
+      
+      EVT-AI-JOBS-COMPLETE has subscribers: [MOD-DOCUMENTS, MOD-SEARCH]  
+      → Potential conflict: MOD-DOCUMENTS writes AI output to document,
+        MOD-SEARCH indexes document. Search must run AFTER document update.
+      → Resolution: declare ordering or make search re-index on next read
+
+  # CONFLICT TYPE 3: Circular Data Dependency
+  # Module A's output feeds module B, whose output feeds module A
+  circular_data:
+    description: "Circular data flow that could cause infinite loops"
+    detection: |
+      Build directed graph from data_flows (from_module → to_module)
+      Find all cycles
+      For each cycle:
+        If cycle has no declared termination condition → CONFLICT
+    severity: ERROR
+    resolution_options:
+      - "Break cycle by adding a termination condition"
+      - "Make one direction event-driven (async) instead of synchronous"
+      - "Add a depth limit / generation counter"
+    example: |
+      MOD-DOCUMENTS → MOD-SEARCH (document saved → index updated)
+      MOD-SEARCH → MOD-DOCUMENTS (search results → suggested edits)
+      → Legitimate cycle but needs termination: 
+        "Suggested edits from search do not trigger re-indexing"
+
+  # CONFLICT TYPE 4: Missing Consumer
+  # A module produces data/events that nothing consumes
+  orphan_producer:
+    description: "Module emits events or produces data flows with no consumer"
+    detection: |
+      For each data_flow: check if to_module has a corresponding 
+      inbound flow or event subscription
+      For each EVT-* declaration: check if it appears in event_subscriptions with ≥1 subscriber
+      OR is marked as externally consumed (external_consumers list)
+    severity: WARNING
+    resolution_options:
+      - "Add consumer (or mark as externally consumed by governance telemetry/flight recorder)"
+      - "Remove the flow/event if it's genuinely unused"
+      - "Mark as FUTURE with the module that will consume it"
+    example: |
+      EVT-DOCUMENTS-EXPORT declared but no subscriber
+      → Mark as externally consumed by governance telemetry/flight recorder, or add an internal subscriber
+
+  # CONFLICT TYPE 5: Capability Gate Mismatch
+  # A data flow crosses a capability boundary without gate declaration
+  capability_mismatch:
+    description: "Data flows from a non-gated module to a gated module (or vice versa)"
+    detection: |
+      For each data_flow:
+        Check source module's capability_gates (from §8 XC-SECURITY)
+        Check target module's capability_gates
+        If target requires a capability that source doesn't hold → CONFLICT
+    severity: ERROR
+    resolution_options:
+      - "Add capability check at the flow boundary"
+      - "Route flow through capability gate module"
+      - "Ensure source module requests required capabilities"
+    example: |
+      MOD-DOCUMENTS sends content to MOD-AI-JOBS for processing
+      MOD-AI-JOBS requires cap.ai.inference
+      → Flow must check that cap.ai.inference is granted before 
+        forwarding content
+
+  # CONFLICT TYPE 6: Intent Overlap Between Modules
+  # Two modules serve the same user-facing purpose
+  intent_overlap:
+    description: "Two modules have similar intent anchors (same problem, same user goal)"
+    detection: |
+      For each pair of modules (A, B):
+        Compare §1 Intent Anchor text via embedding similarity
+        If cosine_similarity > 0.80 → FLAG
+        Additionally check:
+          - Do they share >50% of their primitive references?
+          - Do they share >50% of their tool references?
+        If overlap on primitives OR tools AND intent similarity > 0.70 → FLAG
+    severity: WARNING (requires operator review, not auto-resolution)
+    resolution_options:
+      - "Merge modules into one"
+      - "Sharpen intent boundaries (make them clearly distinct)"
+      - "Accept overlap with explicit justification"
+    example: |
+      MOD-NOTIFICATIONS and MOD-MAIL both "inform the user about events"
+      → Operator review: are these genuinely different (different channels)
+        or should notifications be a feature of mail?
+```
+
+###### 5.3 Conflict Detection in the Pipeline
+
+```
+S5: CROSS-MODULE VALIDATION (updated)
+  │
+  ├── Existing checks:
+  │   ├── DAG acyclicity (module dependencies)
+  │   ├── §0 compliance per module
+  │   ├── Terminology consistency
+  │   └── Cross-reference validity (no dangling [→ ...] references)
+  │
+  └── New checks (v2.2):
+      ├── INTERCONNECT conflict detection (all 6 types above)
+      ├── ID uniqueness (no duplicate universal IDs)
+      ├── ID completeness (no entity without an ID)
+      ├── XC binding completeness (RULE-XC-002)
+      ├── EVT aggregation (no duplicate events, all events subscribed)
+      ├── Intent overlap detection (embedding similarity between modules)
+      └── Abort/skip inventory (all aborts and skips surfaced)
+```
+
+###### 5.4 Conflict Record
+
+Every detected conflict produces a record:
+
+```yaml
+##### Inline in INTERCONNECT.yaml or in a separate .SPEC/conflicts/ directory
+conflict:
+  id: "CONFLICT-2026-02-17-001"
+  type: "write_write"
+  severity: ERROR
+  entities:
+    - DF-DOCUMENTS-TO-STORAGE
+    - DF-AI-JOBS-TO-STORAGE
+  description: "MOD-DOCUMENTS and MOD-AI-JOBS both write to PRM-DOCUMENTS-BLOCK"
+  
+  resolution:
+    strategy: "single_writer_with_staging"
+    detail: |
+      AI job output writes to PRM-AI-JOBS-DRAFT-BLOCK (staging primitive).
+      User acceptance promotes DRAFT-BLOCK to PRM-DOCUMENTS-BLOCK.
+      Only MOD-DOCUMENTS writes to PRM-DOCUMENTS-BLOCK directly.
+    resolved_by: "operator"
+    resolved_at: "2026-02-17T17:00:00Z"
+    
+  status: "RESOLVED"  # OPEN | RESOLVED | ACCEPTED_RISK
+```
+
+---
+
+###### 6. Spec Creation System Versioning (Gap 3 Resolved)
+
+###### 6.1 Two Version Numbers
+
+```yaml
+##### In SPEC_INDEX.yaml
+versioning:
+  # Version of the SPEC CONTENT (bumped by governance on every change)
+  spec_version: "3.2.1"
+  
+  # Version of the SPEC CREATION SYSTEM that produced/last modified this spec
+  system_version: "2.2.1"
+  
+  # Version of the MODULE TEMPLATE used for each module
+  modules:
+    MOD-DOCUMENTS:
+      template_version: "2.2.1"    # Template version at creation time
+      last_modified_by_system: "2.2.1"
+    MOD-STORAGE:
+      template_version: "2.0.0"    # Created with older template
+      last_modified_by_system: "2.1.0"  # Modified during v2.1 era
+```
+
+###### 6.2 Why Both
+
+The governance kernel requires a spec version bump on every content change. That's the *spec_version*. But you also need to know: "This module was created before §8 Cross-Cutting Compliance existed (template_version < 2.2.0), so it needs a compliance section added."
+
+This enables:
+```bash
+##### "Which modules were created before we added universal IDs?"
+grep "template_version: \"2.0" .SPEC/SPEC_INDEX.yaml
+##### → MOD-STORAGE needs ID retrofit
+
+##### "Which modules haven't been touched since the requirement grammar was introduced?"
+grep "last_modified_by_system: \"2.0\|2.1" .SPEC/SPEC_INDEX.yaml
+##### → These modules may have vague requirements
+```
+
+---
+
+###### 7. Updated Module Template (v2.2.1 Complete)
+
+Incorporating universal IDs, requirement grammar, cross-cutting binding, and abort/skip states:
+
+```markdown
+##### {MOD-ID}: {Module Title}
+
+###### §1 Intent Anchor
+- **Spec Intent Reference**: [intent.yaml#{relevant_key}]
+- **Problem Statement**: {What user/system problem does this module solve?}
+- **Value Delivered**: {What does the user gain when this module works?}
+- **Not This Module**: {What does this module explicitly NOT do?}
+
+###### §2 Scope
+- **In Scope**: {bulleted list of what this module covers}
+- **Out of Scope**: {bulleted list of what this module does NOT cover}
+- **Deferred**: {bulleted list of what's planned but not for this phase}
+
+###### §3 §0 Compliance
+- **Surfaces Used**: [→ SRF-...], [→ SRF-...]
+- **Primitives Owned**: [→ PRM-...] (this module is the authoritative source)
+- **Primitives Referenced**: [→ PRM-...] (read/used but owned by another module)
+- **Tools Provided**: [→ TL-...], [→ TL-...]
+- **Architectural Constraints**: [→ §0.7 constraint IDs that apply]
+
+###### §4 Functional Requirements
+{Each FR follows the requirement grammar from §2 of this document}
+
+###### [FR-{SCOPE}-001] {Title}
+...
+
+###### §5 Non-Functional Requirements
+{Each NFR follows the NFR structure from §2.5 of this document}
+
+###### [NFR-{SCOPE}-001] {Title}
+...
+
+###### §6 Dependencies
+```yaml
+depends_on:
+  - module: [→ MOD-...]
+    reason: "{why}"
+    interface: "{what data/API is consumed}"
+blocks:
+  - module: [→ MOD-...]
+    reason: "{why}"
+```
+
+###### §7 Integration Touchpoints
+```yaml
+data_flows:
+  outbound:
+    - flow: [→ DF-...-TO-...]
+      description: "{what data, when, how}"
+  inbound:
+    - flow: [→ DF-...-TO-...]
+      description: "{what data, when, how}"
+events_emitted:
+  - [→ EVT-...]: "{trigger condition}"
+events_consumed:
+  - [→ EVT-...]: "{what this module does in response}"
+```
+
+###### §8 Cross-Cutting Compliance
+{Structured YAML for each applicable XC concern — see §4 of this document}
+
+###### §9 Open Questions
+{Questions that remain unanswered. Each has an owner and a deadline.}
+
+###### §10 Aborts and Skips
+{Any sections or requirements that were aborted/skipped. 
+ Each follows the abort/skip record format from §3 of this document.
+ If none: "No aborts or skips."}
+```
+
+---
+
+###### 8. Consolidated Pipeline (v2.2.1)
+
+```
+/spec new → ROUTE A: GREENFIELD
+  S0: INTAKE (capture raw prompt)
+  S1: INTENT EXTRACTION (route-aware question depth: full for Route A)
+    → intent.yaml frozen
+    → cross_cutting_depth determined
+  S2: DOMAIN DETECTION + §0 SCAFFOLD
+    → §0/ directory (split YAML files)
+    → §0.8 style guide for medium+ projects
+  S3: MODULE DECOMPOSITION
+    → SPEC_INDEX.yaml skeleton with universal IDs
+    → Module list + IDs approved by user
+  S3.5: INTERCONNECTION DESIGN
+    → TOOL_MATRIX.yaml (all TL-* IDs)
+    → FEATURE_MATRIX.yaml (all FT-* IDs)
+    → PRIMITIVE_MATRIX.yaml (all PRM-* IDs)
+    → INTERCONNECT.yaml (all DF-*, EVT-* IDs)
+    → Conflict detection (6 types)
+    → Intent overlap check
+    → User approves wiring map
+  S4: MODULE GENERATION (iterative, matrix-aware)
+    → Each module follows template v2.2.1
+    → Requirements follow grammar (§2)
+    → §8 cross-cutting compliance filled
+    → Rubric scoring (second model, mandatory)
+    → Up to 3 improvement passes per module
+    → Abort record if score <80% after 3 passes
+  S5: CROSS-MODULE VALIDATION
+    → ID uniqueness + completeness
+    → Cross-reference validity
+    → Interconnect conflict detection
+    → XC binding completeness
+    → EVT aggregation
+    → DAG acyclicity
+  S6: RED TEAM REVIEW (mandatory)
+    → Session dump
+    → New session with red team framing
+    → Adversarial review of entire .SPEC/
+  S7: USER REVIEW + APPROVAL
+    → USER_APPROVAL_EVIDENCE recorded (deterministic chat command)
+    → USER_SIGNATURE placeholder present in SPEC_INDEX.yaml (governance-enforced; out of scope here)
+    → .SPEC/ is complete. Status: READY FOR GOVERNANCE SIGNATURE.
+    (Handoff to execution framework — not our concern.)
+
+/spec extend → ROUTE B: FEATURE ADDITION
+  S1: INTENT EXTRACTION (scoped: delta questions only)
+    → Existing intent.yaml loaded for alignment check
+  S2: §0 EXTENSION (not replacement)
+    → New primitives/tools/surfaces added with IDs
+    → Intent overlap check against existing §0 entities
+  S3: MODULE DECOMPOSITION (additive)
+    → New modules added to existing SPEC_INDEX.yaml
+  S3.5: INTERCONNECTION UPDATE (additive)
+    → New wiring added to existing matrices
+    → Conflict detection includes existing + new
+  S4-S7: Same as Route A but only for new modules
+
+/spec refine → ROUTE C: REFINEMENT
+  → Identify affected module(s)
+  → Create refinement record in .SPEC/refinements/
+  → Requirement grammar validation on proposed changes
+  → Impact prediction on matrices
+  → Rubric + red team on changed module(s)
+  → User approval → version bump → matrix updates
+
+/spec check → HEALTH CHECK
+  → Run all mechanical validations from S5
+  → Report: ID issues, dangling references, XC gaps, 
+    interconnect conflicts, abort/skip inventory
+
+/task → NO SPEC WORK
+  → Direct handoff to execution framework
+```
+
+---
+
+###### 9. What This Document Does NOT Cover (Boundary Reminder)
+
+The following are **execution framework concerns** (Handshake's job), NOT spec creation:
+
+- Task boards
+- Work packets / micro-tasks
+- Locus / sidecar
+- Governance gates / signatures (capture + verification)
+- Flight recorder / telemetry capture implementation (governance/execution framework)
+- Role protocols (Orchestrator/Coder/Validator behavior)
+- GOV_LIGHT / GOV_STANDARD / GOV_STRICT mode selection
+- `.GOV/` directory structure
+
+The spec creation system produces `.SPEC/`. 
+The execution framework consumes `.SPEC/` and produces governed work.
+The router (`/spec`, `/task`) decides which path.
+
+---
+
+###### 10. Document Lineage
+
+| Version | Date | Focus |
+|---------|------|-------|
+| v1.0 | pre-2026 | Original spec creation system (single-file specs) |
+| v2.0 | 2026-02-17 | Spec-as-directory, state machine pipeline, module template |
+| v2.1 | 2026-02-17 | Matrices, cross-cutting concerns, governance/product split |
+| v2.1.1 | 2026-02-17 | Routing (new vs existing), three-layer architecture |
+| **v2.2** | **2026-02-17** | **Universal IDs, requirement grammar, abort states, XC binding, conflict detection** |
+| **v2.2.1** | **2026-02-18** | **Signature + flight recorder/logging boundary clarifications** |
+
 # 3. Local-First Infrastructure
 
 ## 3.1 Local-First Data Fundamentals
@@ -42904,30 +43932,25 @@ ProductGovernanceSnapshot
 <a id="76-development-roadmap"></a>
 ## 7.6 Development Roadmap
 
-**v02.120 note:** Runtime Integration Addendum v0.5 merged into master spec. Roadmap updates are **additive only** and tagged `[ADD v02.120]` (Phase 0 remains closed). New implementation focus: ModelSwap/resource management, Work Profiles, AutomationLevel autonomous governance + GovernanceDecision audit, Role Mailbox (“Inbox”) alignment + runtime telemetry, cloud escalation consent artifacts/events, and prompt→macro→micro pipeline integration.
+**Roadmap tag provenance notes (non-normative)**
 
-**v02.123 note:** Atelier/Lens Addendum v0.2.3 merged into §6.3.3.5.7 as §6.3.3.5.7.11–§6.3.3.5.7.25. Roadmap updates are **additive only** and tagged `[ADD v02.123]` (Phase 0 remains closed). New implementation focus: Tier1/Tier2 extraction depth separation, Tier2 auto-when-idle scheduling, SYM-001 template growth + profile drift/branching, selection-scoped Atelier collaboration, and hard-drop SFW projection.
-
-**v02.36 note:** Additive roadmap entries are tagged `[ADD v02.36]` (no rewrites of existing bullets; Phase 0 remains closed).
-
-**v02.40 note:** Additive roadmap entries are tagged `[ADD v02.40]` (no rewrites of existing bullets; Phase 0 remains closed).
-
-**v02.42 note:** Additive roadmap entries are tagged `[ADD v02.42]` (no rewrites of existing bullets; Phase 0 remains closed).
-
-**v02.49 note:** Additive roadmap entries are tagged `[ADD v02.49]` (no rewrites of existing bullets; Phase 0 remains closed).
-**v02.52 note:** Additive roadmap entries are tagged `[ADD v02.52]` (no rewrites of existing bullets; Phase 0 remains closed).
-**v02.63 note:** Additive roadmap entries are tagged `[ADD v02.63]` (reconciliation of orphans; no rewrites of prior bullets).
-**v02.101 note:** Additive roadmap entries are tagged `[ADD v02.101]` (no rewrites of existing bullets; Phase 0 remains closed).
-**v02.102 note:** Additive roadmap entries are tagged `[ADD v02.102]` (no rewrites of existing bullets; Phase 0 remains closed).
-**v02.103 note:** Additive roadmap entries are tagged `[ADD v02.103]` (no rewrites of existing bullets; Phase 0 remains closed).
-**v02.104 note:** Additive roadmap entries are tagged `[ADD v02.104]` (no rewrites of existing bullets; Phase 0 remains closed).
-**v02.105 note:** Additive roadmap entries are tagged `[ADD v02.105]` (no rewrites of existing bullets; Phase 0 remains closed).
-**v02.115 note:** Additive roadmap entries are tagged `[ADD v02.115]` (no rewrites of existing bullets; Phase 0 remains closed). **Flight Recorder remediation:** FR-EVT-DATA-001..015 events for AI-Ready Data Architecture (§2.3.14) are NEW scope that requires updating the existing Flight Recorder implementation—this is remediation work, not new infrastructure. **Skill Bank remediation:** LoRA training data flow from retrieval quality signals (§2.3.14.9, §9) requires extending existing Skill Bank schemas.
-
-**v02.116 note:** Roadmap entries tagged `[ADD v02.116]` (Locus Work Tracking System, §2.3.15) are **open to revision**. All Task Board entries tagged `v02.116` MUST be reviewed and revised/updated to match current Locus WP ID + status semantics and the updated Phase bullets.
-
-
-
+- **v02.129 note:** Roadmap normalization pass: converted legacy `**ADD v02.xxx — …**` atomic blocks into inline phase-field patches; version tags preserved; no scope change.
+- **v02.127 note:** Sidecar tech integration spec merged into master spec as §10.11 (Dev Command Center). Roadmap updates are **additive only** and tagged `[ADD v02.127]` (Phase 0 remains closed). New implementation focus: workspaces=git worktrees + WP linkage, Approval Inbox (capability gating UX), Execution Session Manager, Objective Anchor Store + Handoff records, and governed VCS/search/run queues via `engine.version`/`engine.context`/`engine.sandbox` (MEX v1.2; no-bypass).
+- **v02.120 note:** Runtime Integration Addendum v0.5 merged into master spec. Roadmap updates are **additive only** and tagged `[ADD v02.120]` (Phase 0 remains closed). New implementation focus: ModelSwap/resource management, Work Profiles, AutomationLevel autonomous governance + GovernanceDecision audit, Role Mailbox (“Inbox”) alignment + runtime telemetry, cloud escalation consent artifacts/events, and prompt→macro→micro pipeline integration.
+- **v02.123 note:** Atelier/Lens Addendum v0.2.3 merged into §6.3.3.5.7 as §6.3.3.5.7.11–§6.3.3.5.7.25. Roadmap updates are **additive only** and tagged `[ADD v02.123]` (Phase 0 remains closed). New implementation focus: Tier1/Tier2 extraction depth separation, Tier2 auto-when-idle scheduling, SYM-001 template growth + profile drift/branching, selection-scoped Atelier collaboration, and hard-drop SFW projection.
+- **v02.36 note:** Additive roadmap entries are tagged `[ADD v02.36]` (no rewrites of existing bullets; Phase 0 remains closed).
+- **v02.40 note:** Additive roadmap entries are tagged `[ADD v02.40]` (no rewrites of existing bullets; Phase 0 remains closed).
+- **v02.42 note:** Additive roadmap entries are tagged `[ADD v02.42]` (no rewrites of existing bullets; Phase 0 remains closed).
+- **v02.49 note:** Additive roadmap entries are tagged `[ADD v02.49]` (no rewrites of existing bullets; Phase 0 remains closed).
+- **v02.52 note:** Additive roadmap entries are tagged `[ADD v02.52]` (no rewrites of existing bullets; Phase 0 remains closed).
+- **v02.63 note:** Additive roadmap entries are tagged `[ADD v02.63]` (reconciliation of orphans; no rewrites of prior bullets).
+- **v02.101 note:** Additive roadmap entries are tagged `[ADD v02.101]` (no rewrites of existing bullets; Phase 0 remains closed).
+- **v02.102 note:** Additive roadmap entries are tagged `[ADD v02.102]` (no rewrites of existing bullets; Phase 0 remains closed).
+- **v02.103 note:** Additive roadmap entries are tagged `[ADD v02.103]` (no rewrites of existing bullets; Phase 0 remains closed).
+- **v02.104 note:** Additive roadmap entries are tagged `[ADD v02.104]` (no rewrites of existing bullets; Phase 0 remains closed).
+- **v02.105 note:** Additive roadmap entries are tagged `[ADD v02.105]` (no rewrites of existing bullets; Phase 0 remains closed).
+- **v02.115 note:** Additive roadmap entries are tagged `[ADD v02.115]` (no rewrites of existing bullets; Phase 0 remains closed). **Flight Recorder remediation:** FR-EVT-DATA-001..015 events for AI-Ready Data Architecture (§2.3.14) are NEW scope that requires updating the existing Flight Recorder implementation—this is remediation work, not new infrastructure. **Skill Bank remediation:** LoRA training data flow from retrieval quality signals (§2.3.14.9, §9) requires extending existing Skill Bank schemas.
+- **v02.116 note:** Roadmap entries tagged `[ADD v02.116]` (Locus Work Tracking System, §2.3.15) are **open to revision**. All Task Board entries tagged `v02.116` MUST be reviewed and revised/updated to match current Locus WP ID + status semantics and the updated Phase bullets.
 **Why**  
 A clear roadmap with phases and dependencies ensures focused effort and prevents scope creep. This section provides the practical build order for Project Handshake.
 
@@ -42997,6 +44020,7 @@ It MUST:
   - **Acceptance criteria**
   - **Explicitly OUT of scope**
   - **Status** (only when a phase is closed)
+- [ADD v02.122] **Do not add a permanent “Addendum” section.** Place content into the topic where it belongs and update roadmap matrices and cross-references accordingly.
 - [ADD v02.105] **No privileged fields:** For phase closure, every line in a phase section is equal importance; "MUST deliver" does not override or exclude other fields (Key risks, Tracks, Vertical slice, Acceptance criteria, Explicitly OUT of scope).
 
 #### 7.6.1.2 Coverage Matrix (HARD)
@@ -43028,6 +44052,7 @@ This Roadmap MUST include and maintain a **section-level Coverage Matrix** that 
 - [ADD v02.114] §2.6.6.8 Micro-Task Executor Profile added as subsection of §2.6; covered by existing §2.6 row (P1, P2, P3, P4).
 - [ADD v02.115] §2.3.14 AI-Ready Data Architecture added; cross-cutting integration with all tool sections (§10.x).
 - [ADD v02.120] Runtime Integration Addendum v0.5 merged into existing sections (not new top-level `##` rows): model swaps (§4.3), Work Profiles (§4.3), AutomationLevel governance (§2.6.8), cloud escalation consent (§11.1), event catalog additions (§11.5), and debug bundle exports (§10.5).
+- [ADD v02.127] §10.11 Dev Command Center (Sidecar Integration) added as new Product Surface; Coverage Matrix updated with new row (Phase 0 closed).
 | Section | Title | Main Body Authority (CX-598) | Roadmap Coverage (Phase(s)) |
 |---|---|---|---|
 | 1.1 | Executive Summary | YES | P1, P2, P3, P4 |
@@ -43092,6 +44117,7 @@ This Roadmap MUST include and maintain a **section-level Coverage Matrix** that 
 | 10.8 | Presentations (Decks) | YES | P1, P2, P3, P4 |
 | 10.9 | Future Surfaces | YES | P4 |
 | 10.10 | Photo Studio | YES | P1, P2, P3, P4 |
+| 10.11 | Dev Command Center (Sidecar Integration) | YES | P1, P2, P3, P4 |
 | 11.1 | Capabilities & Consent Model | YES | P1, P2, P3, P4 |
 | 11.2 | Sandbox Policy vs Hard Isolation | YES | P1, P2, P3, P4 |
 | 11.3 | Auth/Session/MCP Primitives | YES | P1, P2, P3, P4 |
@@ -43207,6 +44233,15 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - [ADD v02.79] Establish **Photo Studio (skeleton)** as a first-class workspace surface governed by AI Job Model + Workflow Engine + Flight Recorder (no-bypass; job-request driven).
 
 
+- **[ADD v02.122] Multi-Model Orchestration & Lifecycle Telemetry — Goal needs updating**  
+  Make multi-model execution a first-class, governed workflow capability: multiple independent model instances can execute different WPs/MTs in parallel, with strict file-scope locks, deterministic recovery, and compact lifecycle telemetry.
+
+- **[ADD v02.127] Dev Command Center (DCC) MVP (Sidecar-derived) — Goal needs updating**  
+  Deliver a single, canonical control surface that binds **Locus work (WP/MT)** ↔ **git workspaces (worktrees)** ↔ **execution sessions** ↔ **approvals/logs/diffs**, enabling safe parallel development with deterministic recovery and auditability.
+
+- **[ADD v02.122] Layer-wise Inference Foundations (Hooks + Governance + Observability) — Goal needs updating**  
+  Introduce stable, governed **dynamic compute** hooks (no algorithm requirement) so future phases can experiment with layer-wise inference without breaking auditability or determinism.
+
 **MUST deliver**
 
 1. **Model runtime integration (LLM core)**  
@@ -43223,91 +44258,6 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
    - [ADD v02.120] Align “Inbox” UI label to Role Mailbox subsystem; add runtime mailbox telemetry + debug bundle export coverage.
 
 
-**ADD v02.122 — Multi-Model Orchestration & Lifecycle Telemetry**
-
-- Goal (needs updating)  
-  Make multi-model execution a first-class, governed workflow capability: multiple independent model instances can execute different WPs/MTs in parallel, with strict file-scope locks, deterministic recovery, and compact lifecycle telemetry.
-
-- MUST deliver (Phase 1)  
-  - Runtime modes: DOCS_ONLY vs AI_ENABLED; enforce min_ready_models=1 in AI_ENABLED.  
-  - Multi-model orchestration primitives: ExecutionMode, model readiness, swap/escalation.  
-  - File-scope lock enforcement for concurrent WPs/MTs (no overlapping IN_SCOPE_PATHS).  
-  - Work Profile routing: ParameterClass + “largest-first” selection + model performance telemetry scoring.  
-  - RoleExecutionIdentity logging per output (role, model_id, backend, parameter_class, cloud_strength, session_id).  
-  - Role Mailbox persistence taxonomy (MailboxKind) and non-authority boundary.  
-  - HSK_STATUS single-line lifecycle marker; shown after gate output.  
-  - Softblock/failstate code registry (CX-MM-xxx) for model readiness, lock conflicts, swap failures.
-
-- Key risks addressed  
-  - Conflicting edits across parallel WPs (prevented by strict file-scope locks).  
-  - Governance bypass via side channels (prevented by non-authority role mailbox + canonical artifact rules).  
-  - Opaque multi-model state (solved by HSK_STATUS + FR correlation).
-
-- Acceptance criteria  
-  - Two WPs can run concurrently iff IN_SCOPE_PATHS are disjoint; otherwise one blocks with CX-MM-002 and a lock conflict report.  
-  - System runs in DOCS_ONLY with zero models, and in AI_ENABLED only with >=1 READY model.  
-  - Every role output includes RoleExecutionIdentity metadata and HSK_STATUS updates on phase transitions.  
-  - SwapRequest escalation can replace a failing smaller model with a larger model, preserving WP/MT state.
-
-- Out of scope (Phase 1)  
-  - Any GPU-sharded inference of a single model.  
-  - Any requirement for multiple GPUs.
-
-- Mechanical track (Phase 1)  
-  - Implement lock semantics + Task Board integration.  
-  - Implement HSK_STATUS generator + FR event correlation.  
-  - Implement MailboxKind taxonomy + persistence.
-
-- Atelier track (Phase 1)  
-  - UI to show READY models, active Work Units, lock states, and compact lifecycle status.
-
-- Distillation track (Phase 1)  
-  - None required.
-
-- Vertical slice (Phase 1)  
-  Run WP-A and WP-B in parallel on two models; WP-B attempts overlap → blocks; WP-A completes; operator swaps WP-B to larger model after an escalation failstate.
-
-**Do not add a permanent “Addendum” section.** Place content into the topic where it belongs and update roadmap matrices and cross-references accordingly.
-
-
-**ADD v02.122 — Layer-wise Inference Foundations (Hooks + Governance + Observability)**
-
-- Goal (needs updating)  
-  Introduce stable, governed **dynamic compute** hooks (no algorithm requirement) so future phases can experiment with layer-wise inference without breaking auditability or determinism.
-
-- MUST deliver (Phase 1)  
-  - Runtime contract hook: reserve and accept `settings.exec_policy` (optional) with deterministic downgrade semantics (requested vs effective) (§2.5.2.1, §4.5.5).  
-  - Work Profile hook: per-role compute presets + separate approximate knob with waiver requirement (`hsk.work_profile@0.6`) (§4.3.7.5, Waiver Protocol [CX-573F]).  
-  - Observability: Flight Recorder event `llm_exec_policy` (FR-EVT-LLM-EXEC-001) + referenced trace artifact format `hsk.layerwise_trace@0.1` (§11.5.11).  
-  - UI/config surface: operator can select per-role `speed_preset` (standard / fast_exact / fast_approx) and cannot enable approximate without a waiver reference.  
-  - Default posture remains **standard exact**; no planner auto-enables approximation.
-
-- Key risks addressed  
-  - Prevent silent quality regressions (approximate execution must be explicit + waived).  
-  - Prevent “unknown compute” in audits (requested vs effective policy always logged).  
-  - Prevent privacy leaks from high-volume traces (no token IDs; no raw text by default).
-
-- Acceptance criteria  
-  - If `approximate.allowed=false` or waiver missing, approximate execution cannot occur; system downgrades to exact and logs the downgrade.  
-  - For calls with `settings.exec_policy`, Flight Recorder contains an `llm_exec_policy` event capturing requested vs effective policy.  
-  - If approximate execution occurs, the event includes `waiver_ref` and a trace artifact reference (or explicit `trace_artifact_ref=null` with reason).
-
-- Out of scope (Phase 1)  
-  - Implementing true layer-wise inference in local runtimes (LayerSkip/early-exit/etc).  
-  - Multi-device/sharded inference.
-
-- Mechanical track (Phase 1)  
-  - Schema updates + validators (Work Profile v0.6; runtime settings allow `exec_policy`).  
-  - Flight Recorder schema + retention/privacy enforcement for layerwise traces.
-
-- Atelier track (Phase 1)  
-  - Operator UX for per-role compute preset selection and waiver-bound “approximate” toggle.
-
-- Distillation track (Phase 1)  
-  - Not required; keep as future.
-
-- Vertical slice (Phase 1)  
-  Operator selects `fast_exact` for `worker`, runs a WP/MT, and sees requested vs effective policy in FR + UI; then toggles approximate with a waiver and sees `llm_exec_policy` + trace reference emitted.
 
 
 2. **AI Job Model (minimum viable implementation)**  
@@ -43467,20 +44417,6 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
    - Emit SpecIntent and SpecRouterDecision artifacts with `capability_registry_version`.  
    - Auto-create or update Task Board and Work Packet entries for GOV_STRICT/GOV_STANDARD and append Spec Session Log entries.  
    - Enforce git-only safety commit behavior for git workflows; non-git workflows must not attempt a commit.  
-**Vertical slice (core loop)**- Start the app and open a sample document.  
-- Select text and trigger “Rewrite selection”.  
-- See the updated text in the document.  
-- Open Job History and locate the corresponding job with correct status and metadata.  
-- Inspect logs and traces that show the model call, workflow execution, and any errors.
-- Open a Canvas and create a text object.
-- Choose a bundled font family; ensure it renders deterministically (no fallback flash).
-- Save, restart, reopen; typography selection persists.
-- Export Canvas to PNG/SVG; exported result preserves the chosen font.
-- Export a deliverable PDF (Typst + qpdf); exported result is reproducible (byte-stable or stable hash policy).
-- [ADD v02.52] Trigger "Ask about this document" (RAG-aware Q&A) and verify Evidence view exposes QueryPlan + RetrievalTrace ids/hashes and bounded spans (with truncation flags if budgets hit).
-- [ADD v02.52] Export a Workspace Bundle for a non-trivial workspace and verify: manifest + doc/canvas/table snapshots + export report.
-- [ADD v02.52] Export a Debug Bundle for one AI job and verify required files + SAFE_DEFAULT redaction mode.
-- [ADD v02.101] Run Spec Router on a prompt, verify SpecIntent/SpecRouterDecision artifacts, Task Board + Work Packet creation, and a Spec Session Log entry; if the workspace is git-backed, verify safety commit behavior.
 
 13. **[ADD v02.36] ACE Runtime (MVP) + Validator Pack (CI-gated)**  
    - For every AI job: emit and persist **ContextPlan** and per-call **ContextSnapshot** artifacts.  
@@ -43569,6 +44505,59 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
    - [ADD v02.121] Persist frontend interactive chat sessions to `{APP_DATA}/sessions/<session_id>/chat.jsonl` (§2.10.4) including raw chat text and ANS-001 payload per frontend assistant message.
    - [ADD v02.121] UI: ANS-001 is hidden inline by default with per-message expand + global show-inline toggle, and is available in a side-panel timeline viewer (§2.7.1.7).
 
+- **[ADD v02.122] Multi-Model Orchestration & Lifecycle Telemetry**
+  - Runtime modes: DOCS_ONLY vs AI_ENABLED; enforce min_ready_models=1 in AI_ENABLED.  
+  - Multi-model orchestration primitives: ExecutionMode, model readiness, swap/escalation.  
+  - File-scope lock enforcement for concurrent WPs/MTs (no overlapping IN_SCOPE_PATHS).  
+  - Work Profile routing: ParameterClass + “largest-first” selection + model performance telemetry scoring.  
+  - RoleExecutionIdentity logging per output (role, model_id, backend, parameter_class, cloud_strength, session_id).  
+  - Role Mailbox persistence taxonomy (MailboxKind) and non-authority boundary.  
+  - HSK_STATUS single-line lifecycle marker; shown after gate output.  
+  - Softblock/failstate code registry (CX-MM-xxx) for model readiness, lock conflicts, swap failures.
+
+- **[ADD v02.127] Dev Command Center (DCC) MVP (Sidecar-derived)**
+  - DCC surface stub in UI (kanban-first), with panels: **Work Packets**, **Workspaces (worktrees)**, **Sessions**, **Approvals**, **VCS** (status/diff), **Search**.  
+  - Workspace registry: list/add/open/close worktrees; import existing worktrees; link workspace → `wp_id`/`mt_id` (no authority drift; Locus remains canonical).  
+  - Execution Session Manager: show active sessions (role/model/backend), workspace binding, capability grants; deep-link to Job History + Flight Recorder timeline.  
+  - Approval Inbox: render pending capability requests from the Workflow Engine; support approve-once / approve-for-job / approve-for-workspace / deny; log all decisions to Flight Recorder.  
+  - VCS review loop: show `version.status` + `version.diff`; commit flow uses `version.commit(paths[])` with commit message as an artifact; **no implicit staging**; dangerous ops (reset/clean/rebase) require same-turn explicit approval.  
+  - Objective Anchor Store (minimal): create/view anchors and handoffs linked to `wp_id`/`mt_id`; anchors are **non-authoritative** and MUST NOT override Locus status.  
+  - Storage foundation: ship `.handshake/workspace.json` schema v1.0 and `devcc.db` schema v1; both local-first; no secrets in committed artifacts; default ignore patterns documented.  
+  - Conversation timeline (Phase A baseline): ingest Handshake-native conversations (roles + Flight Recorder events) into DCC timeline; adapter contract stubbed for later external sources.
+
+- **[ADD v02.122] Layer-wise Inference Foundations (Hooks + Governance + Observability)**
+  - Runtime contract hook: reserve and accept `settings.exec_policy` (optional) with deterministic downgrade semantics (requested vs effective) (§2.5.2.1, §4.5.5).  
+  - Work Profile hook: per-role compute presets + separate approximate knob with waiver requirement (`hsk.work_profile@0.6`) (§4.3.7.5, Waiver Protocol [CX-573F]).  
+  - Observability: Flight Recorder event `llm_exec_policy` (FR-EVT-LLM-EXEC-001) + referenced trace artifact format `hsk.layerwise_trace@0.1` (§11.5.11).  
+  - UI/config surface: operator can select per-role `speed_preset` (standard / fast_exact / fast_approx) and cannot enable approximate without a waiver reference.  
+  - Default posture remains **standard exact**; no planner auto-enables approximation.
+
+**Vertical slice**
+- **Core loop**
+  - Start the app and open a sample document.
+  - Select text and trigger “Rewrite selection”.
+  - See the updated text in the document.
+  - Open Job History and locate the corresponding job with correct status and metadata.
+  - Inspect logs and traces that show the model call, workflow execution, and any errors.
+  - Open a Canvas and create a text object.
+  - Choose a bundled font family; ensure it renders deterministically (no fallback flash).
+  - Save, restart, reopen; typography selection persists.
+  - Export Canvas to PNG/SVG; exported result preserves the chosen font.
+  - Export a deliverable PDF (Typst + qpdf); exported result is reproducible (byte-stable or stable hash policy).
+  - [ADD v02.52] Trigger "Ask about this document" (RAG-aware Q&A) and verify Evidence view exposes QueryPlan + RetrievalTrace ids/hashes and bounded spans (with truncation flags if budgets hit).
+  - [ADD v02.52] Export a Workspace Bundle for a non-trivial workspace and verify: manifest + doc/canvas/table snapshots + export report.
+  - [ADD v02.52] Export a Debug Bundle for one AI job and verify required files + SAFE_DEFAULT redaction mode.
+  - [ADD v02.101] Run Spec Router on a prompt, verify SpecIntent/SpecRouterDecision artifacts, Task Board + Work Packet creation, and a Spec Session Log entry; if the workspace is git-backed, verify safety commit behavior.
+
+- **[ADD v02.122] Multi-Model Orchestration & Lifecycle Telemetry**  
+  Run WP-A and WP-B in parallel on two models; WP-B attempts overlap → blocks; WP-A completes; operator swaps WP-B to larger model after an escalation failstate.
+
+- **[ADD v02.127] Dev Command Center (DCC) MVP (Sidecar-derived)**  
+  Run one WP end-to-end using DCC: create/link worktree → run job → approval prompt → review diff → commit → mark MT done; confirm Task Board sync and Flight Recorder evidence.
+
+- **[ADD v02.122] Layer-wise Inference Foundations (Hooks + Governance + Observability)**  
+  Operator selects `fast_exact` for `worker`, runs a WP/MT, and sees requested vs effective policy in FR + UI; then toggles approximate with a waiver and sees `llm_exec_policy` + trace reference emitted.
+
 **Key risks addressed in Phase 1**
 
 
@@ -43617,6 +44606,21 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - [ADD v02.79] Scope explosion (Lightroom/Affinity-class) → enforce Phase 1 boundary: “skeleton only; no RAW/masks/layers/AI”.
 - [ADD v02.79] UI bypassing job runtime → all Photo Studio actions MUST enqueue jobs (“single execution authority”).
 
+
+- **[ADD v02.122] Multi-Model Orchestration & Lifecycle Telemetry**
+  - Conflicting edits across parallel WPs (prevented by strict file-scope locks).  
+  - Governance bypass via side channels (prevented by non-authority role mailbox + canonical artifact rules).  
+  - Opaque multi-model state (solved by HSK_STATUS + FR correlation).
+
+- **[ADD v02.127] Dev Command Center (DCC) MVP (Sidecar-derived)**
+  - Governance bypass via “UI direct exec” (prevented by forcing all actions through jobs + approvals + Flight Recorder).  
+  - Lost context and brittle handoffs between sessions/models (reduced via anchors + handoff records + session identity).  
+  - Parallel work collisions across WPs/MTs (mitigated via worktree-per-WP discipline + Locus lock semantics + visibility).
+
+- **[ADD v02.122] Layer-wise Inference Foundations (Hooks + Governance + Observability)**
+  - Prevent silent quality regressions (approximate execution must be explicit + waived).  
+  - Prevent “unknown compute” in audits (requested vs effective policy always logged).  
+  - Prevent privacy leaks from high-volume traces (no token IDs; no raw text by default).
 
 **Acceptance criteria**
 
@@ -43685,6 +44689,23 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - [ADD v02.79] Can import a folder of images, render a grid, open a single image, and export a derivative via job history with traceable inputs/outputs.
 
 
+- **[ADD v02.122] Multi-Model Orchestration & Lifecycle Telemetry**
+  - Two WPs can run concurrently iff IN_SCOPE_PATHS are disjoint; otherwise one blocks with CX-MM-002 and a lock conflict report.  
+  - System runs in DOCS_ONLY with zero models, and in AI_ENABLED only with >=1 READY model.  
+  - Every role output includes RoleExecutionIdentity metadata and HSK_STATUS updates on phase transitions.  
+  - SwapRequest escalation can replace a failing smaller model with a larger model, preserving WP/MT state.
+
+- **[ADD v02.127] Dev Command Center (DCC) MVP (Sidecar-derived)**
+  - Operator can open DCC, select a WP, open its linked worktree, view diff, approve a needed capability, and run a governed commit without leaving Handshake.  
+  - Every stateful DCC action emits Flight Recorder events and is traceable to `wp_id`/`mt_id`/`session_id`/`wsid`.  
+  - Denied approvals block the job deterministically with an explicit failure code and no partial side-effects.  
+  - `.handshake/workspace.json` + `devcc.db` can be deleted and rebuilt from repo state + Locus without corrupting canonical governance artifacts.
+
+- **[ADD v02.122] Layer-wise Inference Foundations (Hooks + Governance + Observability)**
+  - If `approximate.allowed=false` or waiver missing, approximate execution cannot occur; system downgrades to exact and logs the downgrade.  
+  - For calls with `settings.exec_policy`, Flight Recorder contains an `llm_exec_policy` event capturing requested vs effective policy.  
+  - If approximate execution occurs, the event includes `waiver_ref` and a trace artifact reference (or explicit `trace_artifact_ref=null` with reason).
+
 **Explicitly OUT of scope**
 
 - [ADD v02.47] Charts/dashboards, decks, and any PPTX/PDF export pipelines (including in-app presentation surfaces).
@@ -43712,6 +44733,20 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 
 - [ADD v02.79] Photo Studio advanced features: RAW decode, lens corrections, masks, layer compositor, HDR/pano/focus merges, AI vision, ComfyUI, vector tools.
 
+
+- **[ADD v02.122] Multi-Model Orchestration & Lifecycle Telemetry**
+  - Any GPU-sharded inference of a single model.  
+  - Any requirement for multiple GPUs.
+
+- **[ADD v02.127] Dev Command Center (DCC) MVP (Sidecar-derived)**
+  - GitHub PR/comment sync.  
+  - Multi-user workspace sync / shared approvals.  
+  - Full external conversation ingestion (beyond adapter skeleton + at least one external pilot, if any).  
+  - Any UI commitment to Sidecar keybindings/TUI parity.
+
+- **[ADD v02.122] Layer-wise Inference Foundations (Hooks + Governance + Observability)**
+  - Implementing true layer-wise inference in local runtimes (LayerSkip/early-exit/etc).  
+  - Multi-device/sharded inference.
 
 **Mechanical Track (Phase 1)**
 - Deliver low-risk local engines: `Context` (rg), `Version` (Jujutsu/Gitoxide), `Sandbox` (safe code exec), `Publisher` (deterministic Markdown/Doc to PDF), `Formatter` (lint/format enforcement), `Repo` (git/libgit actions), and `Deploy` (minimal devops automation).
@@ -43770,7 +44805,7 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
   - Implement basic query operations: locus_query_ready (dependency-aware), locus_get_wp_status, locus_get_mt_progress (§2.3.15.7)
   - Wire Spec Router integration: auto-invoke locus_create_wp when routing prompts, link to task_packet_path (§2.3.15.4)
   - Wire MT Executor integration: auto-invoke locus_start_mt, locus_record_iteration (every iteration), locus_complete_mt (§2.3.15.4)
-  - Implement Task Board bidirectional sync: locus_sync_task_board reads/writes docs/TASK_BOARD.md, auto-sync on WP state change (§2.3.15.4)
+  - Implement Task Board bidirectional sync: locus_sync_task_board reads/writes .handshake/gov/TASK_BOARD.md, auto-sync on WP state change (§2.3.15.4)
   - [ADD v02.116] **Task Board hygiene:** Task Board items tagged `v02.116` MUST be revised/updated (status, scope, owner, links). Ensure 1:1 mapping between Task Board entries and Locus `wp_id`s; remove stale/duplicate entries; re-run `locus_sync_task_board` to normalize.
   - Implement Bronze/Silver/Gold storage: WPBronze snapshots, WPSilver chunks with embeddings (text-embedding-3-small), basic keyword search (§2.3.15.5)
   - Wire Flight Recorder events: FR-EVT-WP-001..005, FR-EVT-MT-001..006, FR-EVT-DEP-001..002, FR-EVT-TB-001..003, FR-EVT-QUERY-001 (§2.3.15.6)
@@ -43779,6 +44814,21 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
   - [ADD v02.116] Spec Router WorkPacketBinding enforcement: `work_packet_id` MUST be a valid existing Locus `wp_id`; invalid/missing MUST fail with Diagnostics and MUST NOT produce side effects (no writes, no external calls).
   - Acceptance: Spec Router creates WPs visible in Locus; MT Executor iterations recorded; Task Board syncs within 5s; **Task Board entries tagged `v02.116` revised/updated with no drift after sync**; locus_query_ready returns dependency-aware ready work; FR events appear in Flight Recorder.
 
+
+- **[ADD v02.122] Multi-Model Orchestration & Lifecycle Telemetry**
+  - Implement lock semantics + Task Board integration.  
+  - Implement HSK_STATUS generator + FR event correlation.  
+  - Implement MailboxKind taxonomy + persistence.
+
+- **[ADD v02.127] Dev Command Center (DCC) MVP (Sidecar-derived)**
+  - Implement DCC backend services: project/workspace/session registry and `devcc.db` migrations.  
+  - Implement Approval Inbox plumbing: collect pending approvals from capability gate; persist decisions; emit Flight Recorder events.  
+  - Implement worktree management job wrapper (create/open/prune) with safe defaults and explicit rewrite consent for destructive ops.  
+  - Implement VCS panel operations via `engine.version` operations (status/diff/commit) + artifact-first commit messages.
+
+- **[ADD v02.122] Layer-wise Inference Foundations (Hooks + Governance + Observability)**
+  - Schema updates + validators (Work Profile v0.6; runtime settings allow `exec_policy`).  
+  - Flight Recorder schema + retention/privacy enforcement for layerwise traces.
 
 **Atelier Track (Phase 1)**
 - Implement storage + versioning for `DerivedContent: AtelierProductionPlan` (prose-first brief headings always present; structured `PlanFields` footer).
@@ -43806,6 +44856,16 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - [ADD v02.123] Implement role-turn isolation (role reset + context window reset) as the default execution mode for role passes (claim/glance/extract) to keep small local models consistent and prevent cross-role contamination; record per-turn pins for deterministic replay.
 
 
+- **[ADD v02.122] Multi-Model Orchestration & Lifecycle Telemetry**
+  - UI to show READY models, active Work Units, lock states, and compact lifecycle status.
+
+- **[ADD v02.127] Dev Command Center (DCC) MVP (Sidecar-derived)**
+  - DCC kanban lanes for WP statuses (from Locus), with deep links to worktree, sessions, approvals, and Flight Recorder slices.  
+  - UX for approvals: single compact list with previews and scoping (once/job/workspace).
+
+- **[ADD v02.122] Layer-wise Inference Foundations (Hooks + Governance + Observability)**
+  - Operator UX for per-role compute preset selection and waiver-bound “approximate” toggle.
+
 **Distillation Track (Phase 1)**
 - Define Skill Bank schema alignment and logging-only distillation job profiles (no training) using Workflow Engine.
 - Capture teacher/student metadata, context refs, reward features, lineage fields, and data_signature/job_ids_json in Flight Recorder.
@@ -43820,6 +44880,16 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - [ADD v02.115] **MT Executor escalation candidate capture (§2.6.6.8.8):** When escalation occurs with `enable_distillation=true`, generate DistillationCandidate artifacts with student_attempt (failed) and teacher_success (passed) snapshots, task_type_tags, and data_trust_score.
 - [ADD v02.115] **MT escalation record schema:** Capture contributing_factors (syntax_error, logic_error, scope_violation, etc.) and remediation outcomes for LoRA training feedback.
 - [ADD v02.115] Acceptance: FR-EVT-MT-015 (distillation_candidate) events emitted on escalation; DistillationCandidate artifacts stored with Skill Bank schema alignment; no LoRA training in Phase 1.
+
+- **[ADD v02.122] Multi-Model Orchestration & Lifecycle Telemetry**
+  - None required.
+
+- **[ADD v02.127] Dev Command Center (DCC) MVP (Sidecar-derived)**
+  - None required.
+
+- **[ADD v02.122] Layer-wise Inference Foundations (Hooks + Governance + Observability)**
+  - Not required; keep as future.
+
 ### 7.6.4 Phase 2 — Ingestion & Shadow Workspace (Docling + RAG MVP)
 
 **Goal**  
@@ -43959,6 +45029,7 @@ Make Handshake useful over **existing** files and unlock basic retrieval-augment
    - [ADD v02.79] Catalog/DAM baseline: collections, flags/ratings, folder sync; metadata read/write pipeline.  
    - [ADD v02.79] Proxy + preview pipeline as mechanical jobs (proxy-first for AI later).  
    - [ADD v02.79] Index photo metadata (and optionally captions) into Shadow Workspace for retrieval/debug.  
+
 **Vertical slice**  
 - Import a `.docx` or `.pdf` file.  
 - Wait for ingestion to complete and open the resulting document.  
@@ -44198,6 +45269,7 @@ Make Handshake useful over **existing** files and unlock basic retrieval-augment
 - [ADD v02.115] **MT smart drop-back implementation:** Implement ShouldDropBack algorithm checking failure_category, lora_training_updates, remaining_mt_complexity; record drop-back decisions with outcomes for threshold refinement.
 - [ADD v02.115] Acceptance: LoRA training priority updates visible in Skill Bank; drop-back decisions logged (FR-EVT-MT-014); at least one LoRA improvement cycle demonstrated end-to-end.
 - [ADD v02.79] Preset/recipe serialization rules finalized enough for “shareable presets” (still single-user).
+
 ### 7.6.5 Phase 3 — ASR & Long-Form Capture
 
 **Goal**  
@@ -44210,6 +45282,9 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
 
 - [ADD v02.79] Introduce **vision-derived metadata** for photos using the same provenance/drift discipline Phase 3 applies to other stochastic outputs.
 
+
+- **[ADD v02.122] Layer-wise Inference Experiments (Local Runtime Adapter) — Goal needs updating**  
+  Validate `settings.exec_policy` end-to-end on at least one **local** runtime, including downgrade semantics and Flight Recorder observability, and run initial approximate experiments under waiver control.
 
 **MUST deliver**
 
@@ -44263,6 +45338,13 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
 
 9. **[ADD v02.79] Photo Vision v0 (metadata-only)**  
    - [ADD v02.79] `engine.vision` jobs: `tag`, `describe`, `analyze_quality`, optional `ocr`; outputs stored as `.hs.ai.json` artifacts with model/version/params recorded.  
+
+- **[ADD v02.122] Layer-wise Inference Experiments (Local Runtime Adapter)**
+  - Implement a local runtime adapter that accepts `exec_policy` and emits `llm_exec_policy` (FR-EVT-LLM-EXEC-001) with requested vs effective policy.  
+  - Add at least one approximate execution implementation for local models (e.g., LayerSkip / early-exit), gated behind waiver + Work Profile toggle.  
+  - Benchmark: produce a comparative report (exact vs fast_exact vs fast_approx) with latency, error rates, and quality proxies, attached to the job artifacts.  
+  - Ensure high-volume traces are sampled and privacy-compliant (no token IDs; no raw text by default).
+
 **Vertical slice**  
 - Drop an audio file into Handshake.  
 - Run transcription and see progress.  
@@ -44284,6 +45366,9 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
 - [ADD v02.79] Run auto-tag + quality scoring over a batch → build a smart collection from tags/scores → inspect diffs/drift via logs.
 
 
+- **[ADD v02.122] Layer-wise Inference Experiments (Local Runtime Adapter)**  
+  A local worker role runs `fast_approx` under a waiver on a LayerSkip-capable model; `llm_exec_policy` shows approximate active + trace reference; system falls back to exact if unsupported.
+
 **Key risks addressed in Phase 3**
 
 - ASR pipeline is unreliable or too opaque.  
@@ -44300,6 +45385,11 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
 - [ADD v02.67] Time-based evidence is hard to audit and drifts when media is re-encoded; mitigated by time-span EvidenceRefs, per-segment/source hashes, and explicit drift flags in retrieval/debugger surfaces.
 - [ADD v02.79] Stochastic drift and silent regressions → require model/version pinning and artifacted outputs with comparison tools.
 
+
+- **[ADD v02.122] Layer-wise Inference Experiments (Local Runtime Adapter)**
+  - Runtime fragmentation (policy requested but not observable).  
+  - Quality regression without accountability.  
+  - Trace overhead and privacy leakage.
 
 **Acceptance criteria**
 
@@ -44332,6 +45422,12 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
 - [ADD v02.79] Re-running the same vision job under same model/version produces “within-policy” stable structure; drift is detectable.
 
 
+- **[ADD v02.122] Layer-wise Inference Experiments (Local Runtime Adapter)**
+  - Operator can run the same WP/MT twice (exact vs approximate with waiver) and see:
+    - effective policy differences,
+    - latency/throughput deltas,
+    - explicit waiver linkage in telemetry.
+
 **Explicitly OUT of scope**
 
 - Real-time streaming captions.  
@@ -44339,6 +45435,10 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
 - Complex diarization and speaker management UIs.
 - [ADD v02.79] AI masks/segmentation, ComfyUI, HDR/pano/focus merges.
 
+
+- **[ADD v02.122] Layer-wise Inference Experiments (Local Runtime Adapter)**
+  - Production-grade automatic policy selection.  
+  - Cloud-provider dynamic depth controls beyond “reasoning strength” tags.
 
 **Mechanical Track (Phase 3)**
 - Media engines: `Director` (FFmpeg/Manim) and `Composer` (LilyPond/Music21) producing DerivedContent with sidecar command/param/hash provenance.
@@ -44388,11 +45488,18 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
   - Acceptance: multi-user collaboration verified; CRDT conflicts resolve deterministically; WebSocket updates propagate <1s; performance targets met at scale
 
 
+- **[ADD v02.122] Layer-wise Inference Experiments (Local Runtime Adapter)**
+  - Runtime adapter + event emission + trace artifact pipeline.  
+  - Benchmark harness + replay tools.
+
 **Atelier Track (Phase 3)**
 - [ADD v02.67] Add explicit dual-contract examples and fixtures for post-production roles over time-based media (Editor/Color/VFX), including deliverable kinds and evidence requirements.
 - [ADD v02.67] Extend Role Glance/Claim heuristics to time-based inputs (transcripts, keyframes, shot boundaries) while keeping the claim pass cheap and budgeted.
 - [ADD v02.79] Tags panel + smart collections UI fed from vision outputs.
 
+
+- **[ADD v02.122] Layer-wise Inference Experiments (Local Runtime Adapter)**
+  - Minimal UI to surface effective policy and downgrades in Job History.
 
 **Distillation Track (Phase 3)**
 - Implement student runs, checkpoint creation, and eval/promotion gates vs teacher and previous checkpoints.
@@ -44410,44 +45517,8 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
 - [ADD v02.79] Promote successful “culling + tagging” flows into reusable workflows/presets.
 
 
-**ADD v02.122 — Layer-wise Inference Experiments (Local Runtime Adapter)**
-
-- Goal (needs updating)  
-  Validate `settings.exec_policy` end-to-end on at least one **local** runtime, including downgrade semantics and Flight Recorder observability, and run initial approximate experiments under waiver control.
-
-- MUST deliver (Phase 3)  
-  - Implement a local runtime adapter that accepts `exec_policy` and emits `llm_exec_policy` (FR-EVT-LLM-EXEC-001) with requested vs effective policy.  
-  - Add at least one approximate execution implementation for local models (e.g., LayerSkip / early-exit), gated behind waiver + Work Profile toggle.  
-  - Benchmark: produce a comparative report (exact vs fast_exact vs fast_approx) with latency, error rates, and quality proxies, attached to the job artifacts.  
-  - Ensure high-volume traces are sampled and privacy-compliant (no token IDs; no raw text by default).
-
-- Key risks addressed  
-  - Runtime fragmentation (policy requested but not observable).  
-  - Quality regression without accountability.  
-  - Trace overhead and privacy leakage.
-
-- Acceptance criteria  
-  - Operator can run the same WP/MT twice (exact vs approximate with waiver) and see:
-    - effective policy differences,
-    - latency/throughput deltas,
-    - explicit waiver linkage in telemetry.
-
-- Out of scope (Phase 3)  
-  - Production-grade automatic policy selection.  
-  - Cloud-provider dynamic depth controls beyond “reasoning strength” tags.
-
-- Mechanical track (Phase 3)  
-  - Runtime adapter + event emission + trace artifact pipeline.  
-  - Benchmark harness + replay tools.
-
-- Atelier track (Phase 3)  
-  - Minimal UI to surface effective policy and downgrades in Job History.
-
-- Distillation track (Phase 3)  
+- **[ADD v02.122] Layer-wise Inference Experiments (Local Runtime Adapter)**
   - Optional: learn a safe default mapping from `speed_preset` → exec_policy per runtime.
-
-- Vertical slice (Phase 3)  
-  A local worker role runs `fast_approx` under a waiver on a LayerSkip-capable model; `llm_exec_policy` shows approximate active + trace reference; system falls back to exact if unsupported.
 
 ### 7.6.6 Phase 4 — Collaboration & Extension Ecosystem
 
@@ -44461,6 +45532,9 @@ Move from a single-user tool to a collaborative, extensible platform, while pres
 
 - [ADD v02.79] Make Photo Studio collaboration-safe (recipes/collections/presets sync without breaking provenance or determinism guarantees).
 
+
+- **[ADD v02.122] Layer-wise Inference Productization (Guardrails + Ecosystem) — Goal needs updating**  
+  Turn dynamic compute into a safe, optional ecosystem capability: multiple runtimes can support `exec_policy`, operators can compare policies, and governance remains uncompromised.
 
 **MUST deliver**
 
@@ -44535,6 +45609,14 @@ Move from a single-user tool to a collaborative, extensible platform, while pres
 11. **[ADD v02.79] Photo Studio collaboration + extension hooks**  
    - [ADD v02.79] Conflict strategy for recipe edits + collection membership + preset updates.  
    - [ADD v02.79] Extension points: importers/export profiles/presets as plugins (gated; no-bypass).  
+
+- **[ADD v02.122] Layer-wise Inference Productization (Guardrails + Ecosystem) — Phase 4 or later**
+  - Runtime compatibility: at least two runtimes/providers support `exec_policy` with deterministic downgrade + `llm_exec_policy` emission.  
+  - Policy registry: named, versioned exec_policy presets (`policy_id`) that can be referenced in Work Profiles and jobs (without forcing schema rewrites).  
+  - Cross-role/dynamic-role support: inheritance model for dynamic roles + per-role compute overrides (see §4.5.6.2).  
+  - Operator-grade reporting: dashboards for requested vs effective policy, approximate usage frequency, and waiver compliance audits.  
+  - Export tooling: trace artifacts and summaries exportable with privacy controls and retention enforcement.
+
 **Vertical slice**  
 - Two users (or two devices) edit the same document using the chosen sync topology.  
 - One user triggers an AI action that modifies the shared document.  
@@ -44563,6 +45645,9 @@ Move from a single-user tool to a collaborative, extensible platform, while pres
 - [ADD v02.79] Two clients edit the same photo recipe and resolve conflict → export reproducibly with full provenance.
 
 
+- **[ADD v02.122] Layer-wise Inference Productization (Guardrails + Ecosystem)**  
+  Operator switches between two runtimes supporting exec_policy, compares fast_exact vs standard on a WP/MT, and exports a policy + trace report suitable for audit.
+
 **Key risks addressed in Phase 4**
 
 - [ADD v02.47] Multi-user attribution ambiguity for charts/decks (who changed what, and what exactly was exported) if lineage is not captured.
@@ -44582,6 +45667,11 @@ Move from a single-user tool to a collaborative, extensible platform, while pres
 - [ADD v02.67] Role Packs/extensions can bypass Lens validators or mutate Raw/Derived unless the same gates apply; mitigated by default-deny capabilities, mandatory validator packs, and export/write-back prohibition enforced by the host runtime.
 - [ADD v02.79] Sync conflicts and provenance corruption → sync only versioned schemas + artifact refs; forbid raw mutation paths.
 
+
+- **[ADD v02.122] Layer-wise Inference Productization (Guardrails + Ecosystem)**
+  - Operator confusion (what actually ran).  
+  - Governance drift (approximate becoming implicit).  
+  - Ecosystem incompatibility across runtimes.
 
 **Acceptance criteria**
 
@@ -44608,6 +45698,10 @@ Move from a single-user tool to a collaborative, extensible platform, while pres
 - [ADD v02.79] Concurrent edits converge; all exports remain attributable to specific recipe versions + engine versions.
 
 
+- **[ADD v02.122] Layer-wise Inference Productization (Guardrails + Ecosystem)**
+  - A job can be replayed (or deterministically explained as non-replayable) with clear “effective policy” disclosure.  
+  - Auditors can list all approximate executions over a time range with waiver refs and affected WPs/MTs.
+
 **Explicitly OUT of scope**
 
 - Phase 4 does not expand core single-user UX beyond what is required for collaboration.
@@ -44616,6 +45710,10 @@ Move from a single-user tool to a collaborative, extensible platform, while pres
 - Automatic sharing of RawContent/DerivedContent across collaborators without explicit user consent controls.
 - [ADD v02.79] Full Affinity/Illustrator parity; advanced compositor; full marketplace.
 
+
+- **[ADD v02.122] Layer-wise Inference Productization (Guardrails + Ecosystem)**
+  - Mandatory layer-wise inference for all users.  
+  - Auto-enabling approximation based on heuristics without operator consent.
 
 **Mechanical Track (Phase 4)**
 
@@ -44661,11 +45759,18 @@ Move from a single-user tool to a collaborative, extensible platform, while pres
   - Acceptance: AI recommendations visible in UI; cross-workspace queries performant; WP templates reduce creation time; plugin extensions registered and capability-gated
 
 
+- **[ADD v02.122] Layer-wise Inference Productization (Guardrails + Ecosystem)**
+  - Policy registry + schema validation + cross-runtime adapters.  
+  - Audit/reporting pipelines.
+
 **Atelier Track (Phase 4)**
 - [ADD v02.67] Role Packs: publish/install flows for `AtelierRoleSpec` + schemas + validators + templates; ensure pack hashes are recorded and referenced by Lens outputs.
 - [ADD v02.67] Multi-user sharing: allow sharing Deliverable Bundles (not Raw/Derived corpora) under explicit grants; ensure no-censor remains internal while export projections are policy-gated.
 - [ADD v02.79] Collaborative review UI for recipe diffs + preset sharing.
 
+
+- **[ADD v02.122] Layer-wise Inference Productization (Guardrails + Ecosystem)**
+  - UX for policy selection, waiver management, and effective-policy inspection.
 
 **Distillation Track (Phase 4)**
 
@@ -55835,7 +56940,1226 @@ const llmConfig = {
 
 ---
 
-*End of Specification*
+*End of Photo Studio specification*
+
+## 10.11 Dev Command Center (Sidecar Integration)
+
+[ADD v02.127] This section inlines and normalizes the content of `Handshake_Sidecar_Tech_Integration_Spec_v0.3.md` into the Master Spec as a Product Surface. It is **technology + contracts** (UI-agnostic), not a Sidecar TUI/keybinding port.
+
+### 10.11.0 Purpose
+
+The Dev Command Center (DCC) is the canonical developer/operator surface that binds:
+
+**work (Locus WP/MT)** ↔ **workspaces (git worktrees)** ↔ **execution sessions (agent/model runs)** ↔ **approvals/logs/diffs**
+
+This surface exists to make Handshake’s governed mechanical toolchain *usable*: approvals become a first-class inbox, VCS becomes a governed panel, and context/search/run queues become predictable, observable jobs.
+
+**Doc lineage (non-authoritative):**
+- Doc ID: HSK-SIDECAR-INTEGRATION
+- Source: `Handshake_Sidecar_Tech_Integration_Spec_v0.3.md` (2026-02-17)
+- Merge: Handshake Master Spec v02.127
+
+**Non-negotiable constraints (normative):**
+- DCC MUST NOT bypass Workflow Engine + gates + Flight Recorder (no direct tool execution from UI).
+- Local-first is default; MCP is supported but MUST NOT be required for core dev workflow.
+- Git operations that rewrite/hide the working tree MUST require explicit same-turn approval (Codex **[CX-108] HARD_GIT_WORKTREE_REWRITE_CONSENT**).
+- DCC MUST NOT replace Locus; authority remains in Locus + runtime governance artifacts; Objective Anchors are non-authoritative and advisory only.
+
+---
+
+### 10.11.1 Executive summary
+
+Sidecar (marcus/sidecar) demonstrates a practical pattern for supervising parallel, agent-assisted development work:
+- workspaces backed by **git worktrees**
+- task discipline that survives context resets
+- unified conversation/log browsing
+- explicit approvals and separation of implementation vs review
+
+Handshake already has the macro→micro primitives (Locus Work Packets + Micro-Tasks + Task Board + Flight Recorder + governed mechanical tools). The missing piece is a **control surface**: a GUI that binds:
+
+**work** (WP/MT) ↔ **workspaces** (worktrees) ↔ **execution sessions** (agent/model runs) ↔ **approvals/logs/diffs**
+
+This spec defines that control surface as a Handshake module/surface (“Dev Command Center”) and adds one supporting primitive:
+
+- **Objective Anchor Store**: a durable, queryable, local-first store for objective anchors + handoff records that remain stable across context resets and link directly to Locus WPs/MTs (authority remains in Locus).
+
+---
+
+### 10.11.2 Scope
+
+#### 10.11.2.1 In scope
+
+- **Workspaces** as first-class, **worktree-backed** entities: create/switch/archive/cleanup.
+- **Execution sessions**: identify which agent/model is running what, where, and under which permissions.
+- **Objective Anchor Store**
+  - stable objective anchors (index + handoff hub)
+  - dependencies / blocked reasons (surface Locus dependencies; optionally add pre-WP edges)
+  - mandatory handoff artifacts at key boundaries
+- **Git review & commit flows** (diff, revert, merge, commit)
+  - “staging is UI selection state” (no explicit staging op required)
+- **Unified conversation timeline** (adapter-driven ingestion + search + analytics)
+- **Fast codebase search** via `context.search`
+- **Approval Inbox**: a surface for capability-gated “pending approvals” (HITL)
+
+#### 10.11.2.2 Out of scope
+
+- Copying Sidecar’s TUI or keybindings.
+- Replacing Locus WP/MT with another task engine.
+- Multi-user CRDT syncing (beyond referencing master-spec direction).
+- Full GitHub/CI platform integration in v0.x (optional later).
+- Shipping a general-purpose remote sandbox service (local policy shells first; secure mode later).
+
+---
+
+### 10.11.3 Reference model: Sidecar primitives (condensed)
+
+This section is **descriptive**, not prescriptive. It exists to anchor what is valuable from Sidecar without importing TUI constraints.
+
+#### 10.11.3.1 Workspaces (parallel work)
+
+- Sidecar uses workspaces, commonly implemented as **git worktrees**, enabling parallel branches/agents.
+- Handshake already expects worktree-based concurrency where multiple WPs are active.
+
+#### 10.11.3.2 Task discipline + durable state
+
+- Sidecar “TD” is a persistent task discipline layer that survives context resets.
+- Handshake should express this as **Objective Anchor Store** (non-authoritative vs Locus).
+
+#### 10.11.3.3 Unified conversation/log browser
+
+- Sidecar’s conversations plugin unifies agent chats/logs.
+- Handshake should implement **adapter-driven log ingestion** into a normalized timeline + search, with explicit consent gates.
+
+---
+
+### 10.11.4 Design goals for Handshake
+
+#### 10.11.4.1 Goals
+
+- Make governed mechanical tools **operable**: search/diff/commit/merge/run-tests should be easy *without bypassing gates*.
+- Make parallel work (worktrees) manageable: visibility, linkage to WP/MT, cleanup.
+- Make context resets cheap: mandatory handoffs + durable anchor state.
+- Keep tool surface lean: local-first defaults; lazy MCP/connector enablement.
+
+#### 10.11.4.2 Non-negotiable constraints (normative)
+
+- **No bypass**: all mechanical operations run as Workflow Engine jobs and are recorded by Flight Recorder.
+- **Artifact-first**: large text inputs (commit messages, scripts, long previews) are passed by ArtifactHandle, not inline blobs.
+- **Explicit approvals**: all destructive or rewrite/hide working tree operations require explicit same-turn approval.
+- **Review separation**: worker/coder sessions cannot self-approve finalization into protected branches.
+
+#### 10.11.4.3 Local-first tool routing (MCP as fallback)
+
+- Default route:
+  - `engine.context` for search/open excerpts
+  - `engine.version` for VCS operations
+  - `engine.sandbox` for allowlisted build/test/run
+- MCP/tool plugins:
+  - off by default
+  - started lazily when user opens the relevant panel / enables connector
+  - must publish expected tool footprint (commands, network, scopes)
+
+---
+
+### 10.11.5 Handshake feature set (Sidecar-derived + enriched)
+
+#### 10.11.5.1 Project registry + state restoration
+
+- Maintain a local registry of projects (root path + default base branch).
+- Restore last opened workspace + UI state (panel selection, filters).
+
+#### 10.11.5.2 Workspaces = git worktrees + WP linkage
+
+- Workspaces are first-class entities. For git repos, workspace = worktree.
+- Each workspace tracks:
+  - repo root, worktree path, branch, base branch
+  - linked `wp_id` (optional but preferred)
+  - linked execution sessions (0..n)
+
+**Workspace metadata file (durable linkage, local-first)**  
+Each worktree SHOULD contain `.handshake/workspace.json`:
+- restores workspace↔WP/session linkage even if the central DB is lost
+- enables opening the worktree in external tools without losing Handshake context
+- MUST be gitignored by default
+- MUST NOT contain secrets
+
+Exact schema + migrations: see **Appendix A**.
+
+#### 10.11.5.3 Objective Anchor Store (rename of Sidecar “TD” concept)
+
+Objective Anchor Store is a durable, queryable local store for:
+- objective anchors (stable “what we’re doing” objects)
+- handoff records (done/remaining/decisions/uncertainties/blockers + evidence links)
+- optional “pre-WP” dependencies (later reconciled into Locus dependencies)
+
+Rules:
+- Locus remains authoritative for WP/MT state.
+- Anchors MUST link to a WP once the WP exists.
+- Notes are append-only (no silent rewriting).
+
+#### 10.11.5.4 Execution Session Manager (the “model manager” control surface)
+
+Execution Session Manager binds:
+- model/agent runtime ↔ workspace ↔ WP/MT ↔ capability grants ↔ approvals ↔ logs
+
+Requirements:
+- sessions have a visible status (running/paused/waiting approval/closed)
+- capability grants are explicit and time-bounded
+- session close requires a handoff (unless explicitly waived and logged)
+
+#### 10.11.5.5 Approval Inbox (capability gating made usable)
+
+- A dedicated UI surface listing pending approvals with:
+  - operation summary + bounded preview (paths, diff stats, command preview)
+  - requested capabilities
+  - one-click approve/reject + reason
+- Decisions MUST be logged to Flight Recorder.
+
+#### 10.11.5.6 Git monitoring + review + “staging is UI selection state”
+
+- UI shows status + diffs; user selects file paths to include in commit.
+- Commit operation is `version.commit(message_ref, paths[])`.
+- “Staging” is not a persistent git index state; it’s the UI selection.
+
+#### 10.11.5.7 Unified conversation timeline (multi-agent adapters)
+
+- Ingest logs from supported runtimes via adapters.
+- Normalize to a common schema and attach to workspace/session/WP where possible.
+- Support search, filters, token/cost analytics.
+
+#### 10.11.5.8 Fast codebase search (`context.search`)
+
+- Provide ripgrep-class search with snippet references, not full dumps.
+- Open excerpts with `context.open_ref`.
+
+#### 10.11.5.9 Local build/test/run queue (work packet gates as force multiplier)
+
+- Allowlisted recipes for:
+  - build
+  - unit tests
+  - lint/format
+- Jobs run in sandbox, emit artifacts, and can be linked as evidence to handoffs/WPs.
+
+#### 10.11.5.10 GitHub / PR integration (optional, later)
+
+- Local-first; enable connectors only when panel is opened.
+- Remote operations must require net capability + policy gate + explicit approval.
+
+#### 10.11.5.11 Diagnostics + update UX (optional)
+
+- Health checks for engines (context/version/sandbox).
+- DCC DB integrity checks (repair/rebuild path).
+
+#### 10.11.5.12 GUI information architecture (kanban-first, non-binding)
+
+Non-binding surfaces:
+- Workspaces list
+- WP/MT inspector
+- VCS status + diff + commit flow
+- Search panel
+- Approval Inbox
+- Unified timeline (sessions/logs/tool runs)
+
+---
+
+### 10.11.6 System architecture in Handshake terms
+
+#### 10.11.6.1 Subsystems involved
+
+- **Locus**: authoritative WP/MT + dependency graph + Task Board sync
+- **Workflow Engine**: durable execution + job tracking
+- **Gates**: capability checks, policy checks, determinism/budget, provenance
+- **Mechanical engines**:
+  - `engine.context` (`context.search`, `context.open_ref`, `context.find_todos`)
+  - `engine.version` (`version.status`, `version.diff`, `version.commit`, `version.revert`, `version.merge`)
+  - `engine.sandbox` (`sandbox.run_shell`)
+- **Flight Recorder**: audit trail + spans
+- **Artifact store**: immutable payloads referenced by handles
+
+#### 10.11.6.2 Control path (normative)
+
+```text
+DCC UI Action
+  -> Coordinator builds JobRequest
+     -> Workflow Engine queues job
+        -> Gate pipeline runs (global + op-specific)
+           -> Engine executes (context/version/sandbox)
+              -> Outputs exported as artifacts (SHA-256)
+                 -> Flight Recorder logs (inputs/outputs/gates/caps)
+                    -> UI updates via job events + state refresh
+```
+
+#### 10.11.6.3 Dev Command Center wiring (normative)
+
+DCC is implemented as a module exposing a small command set that translates UI intent into **jobs** that call Handshake engines.
+
+Recommended minimal command surface:
+
+- Projects/workspaces:
+  - `projects.list/open`
+  - `workspaces.create_worktree/switch/archive/remove`
+- Search:
+  - `search.query/open_ref/find_todos` → `engine.context`
+- VCS:
+  - `vcs.status/diff/commit/revert/merge` → `engine.version`
+- Run:
+  - `run.allowlisted/custom` → `engine.sandbox` (custom always routes through approval)
+- Work tracking:
+  - `locus.bind_workspace_to_wp`
+- Continuity:
+  - `anchors.create/update/link/query`
+  - `handoff.write`
+- Governance:
+  - `approvals.list/decide`
+- Session:
+  - `sessions.spawn/pause/resume/close/request_capability`
+
+Concrete engine PlannedOperation envelope templates and sample params are in **Appendix C**.
+
+---
+
+### 10.11.7 Data model (expanded + storage)
+
+The goal is to avoid inventing a parallel authority to Locus while still adding the missing “control surface” entities.
+
+#### 10.11.7.1 Entities (logical model)
+
+(Types here are “storage types”; artifact payloads are referenced by handle strings.)
+
+##### Project
+- `project_id` (uuid)
+- `name`
+- `root_path`
+- `repo_kind` (`git`)
+- `default_base_branch`
+- `last_open_workspace_id?`
+- `ui_state_json?` (schema-versioned)
+- `policy_json?` (MCP/log ingestion enable flags, etc.)
+- `created_at`, `updated_at`
+
+##### Workspace (worktree-backed)
+- `workspace_id` (uuid)
+- `project_id`
+- `kind` (`root` | `worktree`)
+- `role` (`human` | `coder` | `validator`)
+- `branch`, `base_branch`
+- `worktree_path`, `repo_root_path`
+- `status` (`active` | `paused` | `archived`)
+- `linked_wp_id?`, `linked_mt_id?`
+- `head_rev?` (cached)
+- `created_at`, `updated_at`, `last_opened_at?`
+
+##### ExecutionSession
+- `execution_session_id` (uuid)
+- `workspace_id`
+- `agent_type` (`worker` | `validator` | `human`)
+- `agent_name`
+- `model_role?`, `model_id?`
+- `bound_wp_id?`, `bound_mt_id?`
+- `status` (`running` | `waiting_approval` | `paused` | `interrupted` | `closed`)
+- `capability_grants[]` (refs; or join table)
+- `conversation_ids[]` (refs; or join table)
+- `handoff_required` (bool)
+- `last_handoff_id?`
+- `started_at`, `ended_at?`
+
+##### ObjectiveAnchor (Objective Anchor Store)
+- `anchor_id` (uuid)
+- `project_id`
+- `title`
+- `description_ref?` (ArtifactHandle)
+- `status` (`stub` | `ready` | `in_progress` | `blocked` | `in_review` | `done` | `cancelled`)
+- `acceptance_criteria_json` (array)
+- `linked_wp_id?`
+- `linked_mt_ids[]`
+- `dependencies[]` (anchor/wp refs)
+- `links[]` (workspace/session/commit/artifact refs)
+- `notes_append_only[]` (note_ref artifacts + ts + author)
+- `created_at`, `updated_at`
+
+##### HandoffRecord
+- `handoff_id` (uuid)
+- `project_id`
+- `workspace_id`
+- `execution_session_id`
+- `anchor_id?`
+- `wp_id?`, `mt_id?`
+- `summary_done_ref` (ArtifactHandle)
+- `summary_remaining_ref` (ArtifactHandle)
+- `decisions_json`, `uncertainties_json`, `blockers_json`
+- `evidence_links[]` (diff/commit/artifact refs)
+- `created_at`
+
+##### PendingApproval
+- `approval_id` (uuid)
+- `created_at`
+- `workspace_id`
+- `execution_session_id`
+- `requested_capabilities_json` (array)
+- `operation_preview_json` (bounded)
+- `status` (`pending` | `approved` | `rejected` | `expired`)
+- `decided_by?` (`human` | `session`)
+- `decided_at?`
+- `decision_reason?`
+- `token_id?` (if approved)
+
+##### ApprovalToken
+- `token_id` (uuid)
+- `created_at`, `expires_at?`
+- `scope_json`
+- `granted_capabilities_json`
+- `consent_receipt_ref` (ArtifactHandle or FR ref)
+
+##### ConversationSession (normalized)
+- `conversation_id` (uuid)
+- `source` (adapter id)
+- `source_locator` (pointer to raw logs/db; redacted as needed)
+- `project_id?` / `workspace_id?` / `execution_session_id?`
+- `started_at`, `ended_at?`
+- `token_usage?` / `cost?`
+- `transcript_ref` (ArtifactHandle)
+- `messages_index_ref?` (ArtifactHandle)
+
+#### 10.11.7.2 Adapter contract (conversation/log ingestion)
+
+Each adapter MUST define:
+
+- **Discovery**: enumerate sessions incrementally (not full rescan every time).
+- **Parse**: map raw data → normalized schema.
+- **Safety**:
+  - secret redaction policy
+  - refusal/skip on corrupted formats
+  - explicit consent gate (first enable)
+- **Provenance**:
+  - adapter version/hash
+  - source file hashes/paths (redacted as needed)
+- **Retention**:
+  - default conservative retention
+  - explicit “delete/forget” actions
+
+#### 10.11.7.3 Storage model (normative)
+
+DCC uses a hybrid local-first storage model:
+
+1) **Per-worktree**: `.handshake/workspace.json`  
+- minimal durable linkage (workspace_id/project_id/branch/WP linkage)
+- survives loss of central DB
+- schema + migrations: Appendix A
+
+2) **Per-project**: `.handshake/devcc.db` (SQLite)  
+- indexes and queryable state for:
+  - projects/workspaces
+  - sessions/capability grants
+  - anchors/handoffs/approvals
+  - conversations index
+- schema DDL (v1): Appendix B
+
+3) **Artifact store**: `.handshake/artifacts/...`  
+- all large payloads (diff patches, transcripts, summaries, scripts, receipts)
+- referenced by ArtifactHandle strings in DB and workspace.json
+
+#### 10.11.7.4 Migrations (normative)
+
+- `.handshake/workspace.json` uses `schema_version` and supports in-place upgrades (Appendix A).
+- `devcc.db` uses SQL migrations:
+  - `0001_devcc_init.up.sql` / `0001_devcc_init.down.sql` (Appendix B provides both)
+  - migration runner MUST be deterministic and logged to Flight Recorder.
+- If DB corruption is detected:
+  - workspace.json + git introspection + artifact store are sufficient to rebuild the workspace index
+  - anchors/handoffs are recovered from DB; therefore DB backups should be enabled by default (local-only)
+
+---
+
+### 10.11.8 Governance, capabilities, and safety
+
+#### 10.11.8.1 Capability categories (suggested)
+
+These are additive to existing Locus capabilities (e.g., `locus.read`, `locus.write`, `locus.gate`).
+
+- `dev.read_repo` (browse/search/read files)
+- `dev.version.read` (status/diff)
+- `dev.version.write` (commit/revert/merge)
+- `dev.worktree.manage` (create/delete/archive)
+- `dev.shell.run` (run local commands)
+- `dev.logs.ingest` (read external agent logs)
+- `dev.connectors.github` (PR/API)
+- `dev.mcp.enable` (start MCP servers; default off)
+
+#### 10.11.8.2 HITL defaults (safe baseline)
+
+- Worktree creation/deletion: **confirm**
+- Merge: **confirm** + preflight checks
+- Commit: **confirm** unless user has explicitly granted a scoped approval token
+- Push/PR creation: **confirm**
+- Running arbitrary commands: **confirm** unless allowlisted
+- Log ingestion: **opt-in per adapter/source**
+- Enabling MCP server(s): **confirm** + show expected tool footprint
+
+#### 10.11.8.3 Role separation enforcement (normative)
+
+Protected branches:
+- default: `project.default_base_branch` (usually `main`)
+- optionally extended by repo policy (GovPack)
+
+Rules:
+- Workspaces with `role = coder`:
+  - MAY commit on feature branches/worktrees.
+  - MUST NOT merge/rebase into protected branches.
+- Workspaces with `role = validator` or `role = human`:
+  - MAY merge into protected branches (still HITL-confirmed and logged).
+- Waivers:
+  - require explicit approval + reason + TTL
+  - are logged to Flight Recorder
+  - SHOULD be off by default
+
+#### 10.11.8.4 Git rewrite/hide consent (normative)
+
+Operations that rewrite/hide working tree state require explicit same-turn approval:
+- `version.merge` (always)
+- any future “switch/checkout/rebase/reset/clean/stash” equivalents
+- any sandbox script containing these commands
+
+Approval preview MUST include:
+- branch/ref targets
+- diff stats (bounded)
+- “what could be lost” warning when untracked files may be affected
+
+#### 10.11.8.5 Secrets and privacy
+
+- No plaintext tokens in JSON config files.
+- Prefer OS keychain / secret store.
+- Secret redaction MUST run before Flight Recorder persistence for any process/env metadata.
+- Conversation retention must be explicit; default conservative.
+- Avoid keystroke logging; prefer structured job outputs.
+
+---
+
+### 10.11.9 Risk register (updated)
+
+| Risk | Type | Why it matters | Required mitigation in Handshake |
+|---|---|---|---|
+| Upstream agent ToS conflict (log extraction) | Legal/Compliance | Ingesting local DB/log formats may be interpreted as unauthorized extraction | Adapter allow-list + explicit user consent + “disable per source” |
+| Plaintext secrets in config | Security | Local compromise → token compromise | Keychain storage + encryption at rest + redaction |
+| Destructive git actions | Security/Operational | Agents can delete/overwrite | Capabilities + HITL on write ops + rewrite/hide consent enforcement |
+| Worktree sprawl | Operational/Compliance | Worktrees evade backup/scanners | Workspace index + quotas + cleanup workflows + archive state |
+| Supply chain risk (external tools) | Security | Compromised scripts | Pin versions + checksums + controlled build path |
+| Duplicate authority (Anchor Store vs Locus) | Governance | Two task systems diverge | Anchor Store is non-authoritative; always link to WP when created; reconcile view derived from Locus |
+| Workspace metadata accidentally committed | Operational/Security | Internal IDs leak; noisy diffs | Default `.gitignore` for `.handshake/`; never store secrets; detect tracked file and warn |
+| Prompt/tool-surface bloat (MCP/plugins) | Cost/Performance | Startup prompts get huge; small models degrade | Lazy-load MCP, minimal tool manifests, tool loadouts per session, “token overhead meter”, ability to disable connectors |
+| Approval bypass / “skip perms” patterns | Security | Drift into unsafe mode | No bypass mode; waivers require explicit artifact + FR log + TTL |
+| DB corruption / mismatch | Operational | UI cannot restore state | workspace.json + git introspection fallback + repair tool |
+
+---
+
+### 10.11.10 Phased implementation plan (UI-agnostic)
+
+#### 10.11.10 Phase A — Read-only value (lowest risk)
+- Repo search via `context.search` + file preview + Monaco links
+- Git status + diff (read-only)
+- Flight Recorder wiring + inspector panel basics
+- Workspace index display (read-only)
+
+#### 10.11.10 Phase B — Controlled write ops + storage foundation
+- Implement `.handshake/workspace.json` writer + migrator
+- Implement `devcc.db` (SQLite) + migrations (Appendix B)
+- Commit flow using UI selection staging (`version.commit(paths[])`)
+- Revert flow with confirmations
+- Approval Inbox (pending approvals list + decisions logged)
+
+#### 10.11.10 Phase C — Continuity + parallelism
+- Objective Anchor Store (anchors + handoffs) + linking to WPs
+- Worktree-backed workspace create/switch/archive/delete (job wrappers; sandbox scripts until dedicated ops)
+- Execution Session Manager (spawn/attach/pause/resume/close)
+- Review separation enforcement + waiver logging
+
+#### 10.11.10 Phase D — Integrations + platform glue
+- Build/test/run queue integrated with gates + Problems panel
+- Optional PR integration (local-first; MCP fallback)
+- Additional ingestion adapters (more agents)
+- Retention + delete/forget UX
+
+---
+
+### 10.11.11 Definition of done (conformance)
+
+A DCC feature is not considered implemented until:
+
+1. **No-bypass**: UI cannot execute raw git/rg/shell outside Workflow Engine jobs.
+2. **Capability denial**: write ops fail safely without explicit grants.
+3. **Approval enforcement**: merge/revert/worktree ops require explicit approval with preview.
+4. **Role enforcement**: coder role cannot merge to protected branches.
+5. **Artifact-first**: commit messages/scripts/transcripts are passed by ArtifactHandle when large.
+6. **Flight Recorder completeness**: every job is correlated to workspace/session/WP and stores outputs by artifact reference.
+7. **Workspace recovery**: deleting `devcc.db` still allows restoring workspace linkage from workspace.json + git.
+8. **No secrets**: workspace.json and devcc.db contain no plaintext secrets.
+
+---
+
+### 10.11.12 References (pointers)
+
+- Sidecar upstream: `https://github.com/marcus/sidecar`  
+- Sidecar docs: `https://sidecar.haplab.com/docs/intro`  
+- Sidecar TD (task discipline): `https://sidecar.haplab.com/docs/td`  
+- Sidecar conversations: `https://sidecar.haplab.com/docs/conversations-plugin`  
+- OpenHands workspace abstraction: `https://docs.openhands.dev/sdk/arch/workspace`  
+- Hook systems inspiration (sessionStart / preTool / postTool): `https://github.com/OpenHands/OpenHands/issues/11943`  
+- Token overhead risk example (tool/plugin bloat): `https://github.com/anomalyco/opencode/issues/9858`  
+- Handshake master: `Handshake_Master_Spec_v02.127.md`
+
+---
+
+### 10.11.13 High-ROI force multipliers (top 10)
+
+These are the highest impact items to merge because they amplify existing Handshake primitives instead of inventing new ones.
+
+| # | ROI item | Why it’s high ROI | Example (concrete) |
+|---:|---|---|---|
+| 1 | **Execution Session Manager** | Solves the “model manager” gap: binds model/agent ↔ workspace ↔ WP/MT ↔ approvals/logs | “Session S-42 is running WP-17 in workspace `auth-fix` on model `worker_small`; it’s waiting on `dev.shell.run` approval.” |
+| 2 | **Mandatory handoff artifacts** | Context resets + model swaps become cheap; small local models can resume reliably | After each MT iteration, write a `handoff.md` with done/remaining/decisions/uncertainties and link it to WP notes + Anchor Store. |
+| 3 | **Review separation enforcement** | Removes self-approval foot-guns and aligns with governance gates | Worker session cannot move WP to DONE; validator (or user) must pass post-work gate; waivers are explicit and logged. |
+| 4 | **Approval Inbox** | Makes capability gating usable (not hidden in logs); reduces friction safely | Global inbox shows pending “commit selected paths” + “run tests” approvals with previews and one-click decisions. |
+| 5 | **Staging-as-selection commit** | Simplifies git UX and reduces “index state” confusion | Select `src/auth.ts` + `tests/auth.test.ts` in UI → commit job calls `version.commit(message_ref, paths=[...])`. |
+| 6 | **Dependency graph + critical path view** | Locus already tracks dependencies; surfacing it unlocks real scheduling | WP-UI blocked by WP-Auth; board shows critical path and suggests parallelizable WPs. |
+| 7 | **Workspace/worktree lifecycle + cleanup** | Prevents repo sprawl while enabling parallel work | “Archive” auto-prunes stale worktrees older than N days after DONE; shows disk usage per workspace. |
+| 8 | **Local-first tool router (MCP optional)** | Avoids context/tool bloat and improves latency; still supports integrations | Git ops/search run locally; GitHub tools load only when PR panel opened; MCP starts only then. |
+| 9 | **Conversation + telemetry analytics** | Flight Recorder + normalized conversations become debuggable and cost-visible | Filter timeline to tool calls; show token/cost by model; link each file edit to a diff and WP/MT. |
+| 10 | **Hooks at lifecycle points** | Clean extension points for policy + automation without spaghetti | `sessionStart` auto-links workspace↔WP; `preToolUse` forces approvals; `postToolUse` writes FR events + updates handoff draft. |
+
+---
+
+### 10.11.A — `.handshake/workspace.json` schema (v1.0) + migration rules
+
+See also: `hsk_devcc_workspace.schema.v1.json` (generated artifact alongside this spec).
+
+#### 10.11.A.1 Intent
+
+`.handshake/workspace.json` is a per-worktree, gitignored, non-secret metadata cache used to:
+- restore workspace ↔ project ↔ WP linkage even if `devcc.db` is lost
+- allow opening a worktree in external tools without losing Handshake context
+
+It is not authoritative; Locus + DB remain authoritative.
+
+#### 10.11.A.2 Required rules
+
+- MUST be gitignored by default (entire `.handshake/` dir recommended).
+- MUST NOT contain secrets (tokens, cookies, private keys).
+- SHOULD be small (prefer references to artifacts).
+- MUST include `schema_version`.
+- MUST be treated as cache; safe to delete and regenerate.
+
+#### 10.11.A.3 Schema (Draft 2020-12 JSON Schema)
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hsk.devcc.workspace@1.0",
+  "title": "Handshake Dev Command Center Workspace Metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "workspace_id",
+    "project_id",
+    "role",
+    "git",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "hsk.devcc.workspace@1.0"
+    },
+    "workspace_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "project_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "role": {
+      "type": "string",
+      "enum": ["human", "coder", "validator"]
+    },
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["branch", "base_branch"],
+      "properties": {
+        "branch": { "type": "string", "minLength": 1 },
+        "base_branch": { "type": "string", "minLength": 1 },
+        "head_rev_hint": { "type": "string", "minLength": 7 },
+        "remote_origin_url_hint": { "type": "string" }
+      }
+    },
+    "linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "linked_wp_id": { "type": "string" },
+        "linked_mt_id": { "type": "string" },
+        "anchor_ids": {
+          "type": "array",
+          "items": { "type": "string", "format": "uuid" }
+        },
+        "last_execution_session_id": { "type": "string", "format": "uuid" }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "worktree_path_hint": { "type": "string" },
+        "repo_root_path_hint": { "type": "string" },
+        "git_common_dir_hint": { "type": "string" }
+      }
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "last_opened_at": { "type": "string", "format": "date-time" }
+  }
+}
+```
+
+#### 10.11.A.4 Example
+
+```json
+{
+  "schema_version": "hsk.devcc.workspace@1.0",
+  "workspace_id": "2c7f0b1a-7a2f-4a8f-8a1b-0f4e5a1b3c2d",
+  "project_id": "6c3f51a1-2e9e-4a1b-8a2f-6d1e3b1b9a10",
+  "role": "coder",
+  "git": {
+    "branch": "feat/WP-123-auth-fix",
+    "base_branch": "main",
+    "head_rev_hint": "a1b2c3d4",
+    "remote_origin_url_hint": "git@github.com:org/repo.git"
+  },
+  "linkage": {
+    "linked_wp_id": "WP-123",
+    "linked_mt_id": "MT-004",
+    "anchor_ids": ["8b0c1d2e-3f4a-5b6c-7d8e-9f0a1b2c3d4e"],
+    "last_execution_session_id": "8e2a9f90-9f6c-4a4c-8a30-9a0b8fbc4d11"
+  },
+  "paths": {
+    "worktree_path_hint": "/abs/path/to/worktrees/WP-123",
+    "repo_root_path_hint": "/abs/path/to/repo",
+    "git_common_dir_hint": "/abs/path/to/repo/.git"
+  },
+  "created_at": "2026-02-17T10:30:00Z",
+  "updated_at": "2026-02-17T11:05:00Z",
+  "last_opened_at": "2026-02-17T11:05:00Z"
+}
+```
+
+#### 10.11.A.5 Migration rules
+
+DCC MUST support these upgrades:
+
+- **No file present**:
+  - create a new file at `.handshake/workspace.json` with:
+    - new `workspace_id` (uuid)
+    - existing `project_id` if known; otherwise create/select project in DCC and backfill
+    - git branch/base branch from `engine.version.status` or `git rev-parse`
+- **Legacy v0 file (no `schema_version`)**:
+  - treat as `hsk.devcc.workspace@0`
+  - expected keys: `workspace_id`, `project_id`, `branch`, `base_branch`, `linked_wp_id?`
+  - upgrade mapping:
+    - add `schema_version = hsk.devcc.workspace@1.0`
+    - move `branch/base_branch` into `git`
+    - move `linked_wp_id` into `linkage.linked_wp_id`
+    - set `role = human` if unknown
+    - set timestamps (`created_at` from file mtime if available; `updated_at` = now)
+- **Unknown future schema_version**:
+  - DCC MUST NOT overwrite.
+  - show a warning and open file read-only; offer “export and re-init” workflow.
+
+DCC SHOULD detect accidental git tracking:
+- if `.handshake/workspace.json` is tracked, show warning and propose:
+  - add to `.gitignore`
+  - remove from index (`git rm --cached`) via a governed job (HITL-confirmed)
+
+---
+
+### 10.11.B — `devcc.db` SQLite schema (v1) DDL
+
+See also: `devcc_db_schema_v1.sql` (generated artifact alongside this spec).
+
+#### 10.11.B.1 Notes
+
+- This is local-first state. It MUST NOT store secrets.
+- Use WAL mode + foreign keys.
+- Large payloads are stored in artifacts; DB stores references.
+
+#### 10.11.B.2 Migration file: `0001_devcc_init.up.sql`
+
+```sql
+-- 0001_devcc_init.up.sql
+PRAGMA foreign_keys = ON;
+
+-- Projects
+CREATE TABLE IF NOT EXISTS projects (
+  project_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  root_path TEXT NOT NULL UNIQUE,
+  repo_kind TEXT NOT NULL CHECK (repo_kind IN ('git')),
+  default_base_branch TEXT NOT NULL,
+  last_open_workspace_id TEXT NULL,
+  ui_state_json TEXT NULL,
+  policy_json TEXT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- Workspaces (worktree-backed)
+CREATE TABLE IF NOT EXISTS workspaces (
+  workspace_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('root','worktree')),
+  role TEXT NOT NULL CHECK (role IN ('human','coder','validator')),
+  status TEXT NOT NULL CHECK (status IN ('active','paused','archived')),
+  worktree_path TEXT NOT NULL,
+  repo_root_path TEXT NOT NULL,
+  branch TEXT NOT NULL,
+  base_branch TEXT NOT NULL,
+  head_rev TEXT NULL,
+  linked_wp_id TEXT NULL,
+  linked_mt_id TEXT NULL,
+  workspace_json_relpath TEXT NOT NULL DEFAULT '.handshake/workspace.json',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  last_opened_at TEXT NULL,
+  UNIQUE(project_id, worktree_path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_workspaces_project ON workspaces(project_id);
+CREATE INDEX IF NOT EXISTS idx_workspaces_status ON workspaces(status);
+CREATE INDEX IF NOT EXISTS idx_workspaces_linked_wp ON workspaces(linked_wp_id);
+CREATE INDEX IF NOT EXISTS idx_workspaces_last_opened ON workspaces(last_opened_at);
+
+-- Approval tokens (capability grants)
+CREATE TABLE IF NOT EXISTS approval_tokens (
+  token_id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NULL,
+  scope_json TEXT NOT NULL,
+  granted_capabilities_json TEXT NOT NULL,
+  consent_receipt_ref TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_tokens_expires ON approval_tokens(expires_at);
+
+-- Execution sessions
+CREATE TABLE IF NOT EXISTS execution_sessions (
+  execution_session_id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(workspace_id) ON DELETE CASCADE,
+  agent_type TEXT NOT NULL CHECK (agent_type IN ('worker','validator','human')),
+  agent_name TEXT NOT NULL,
+  model_role TEXT NULL,
+  model_id TEXT NULL,
+  bound_wp_id TEXT NULL,
+  bound_mt_id TEXT NULL,
+  status TEXT NOT NULL CHECK (status IN ('running','waiting_approval','paused','interrupted','closed')),
+  started_at TEXT NOT NULL,
+  ended_at TEXT NULL,
+  handoff_required INTEGER NOT NULL DEFAULT 0 CHECK (handoff_required IN (0,1)),
+  last_handoff_id TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_workspace ON execution_sessions(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_status ON execution_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_sessions_started ON execution_sessions(started_at);
+
+-- Session capability grants (refs to tokens/receipts)
+CREATE TABLE IF NOT EXISTS session_capability_grants (
+  execution_session_id TEXT NOT NULL REFERENCES execution_sessions(execution_session_id) ON DELETE CASCADE,
+  capability_id TEXT NOT NULL,
+  token_id TEXT NULL REFERENCES approval_tokens(token_id) ON DELETE SET NULL,
+  grant_ref TEXT NOT NULL,
+  expires_at TEXT NULL,
+  PRIMARY KEY (execution_session_id, capability_id, grant_ref)
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_caps_cap ON session_capability_grants(capability_id);
+
+-- Objective Anchors
+CREATE TABLE IF NOT EXISTS objective_anchors (
+  anchor_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('stub','ready','in_progress','blocked','in_review','done','cancelled')),
+  description_ref TEXT NULL,
+  acceptance_criteria_json TEXT NOT NULL DEFAULT '[]',
+  linked_wp_id TEXT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_anchors_project ON objective_anchors(project_id);
+CREATE INDEX IF NOT EXISTS idx_anchors_status ON objective_anchors(status);
+CREATE INDEX IF NOT EXISTS idx_anchors_linked_wp ON objective_anchors(linked_wp_id);
+
+-- Anchor ↔ MT links
+CREATE TABLE IF NOT EXISTS anchor_mt_links (
+  anchor_id TEXT NOT NULL REFERENCES objective_anchors(anchor_id) ON DELETE CASCADE,
+  mt_id TEXT NOT NULL,
+  PRIMARY KEY (anchor_id, mt_id)
+);
+
+-- Anchor dependencies (anchor/wp)
+CREATE TABLE IF NOT EXISTS anchor_dependencies (
+  anchor_id TEXT NOT NULL REFERENCES objective_anchors(anchor_id) ON DELETE CASCADE,
+  dep_kind TEXT NOT NULL CHECK (dep_kind IN ('anchor','wp')),
+  dep_id TEXT NOT NULL,
+  PRIMARY KEY (anchor_id, dep_kind, dep_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_anchor_deps_dep ON anchor_dependencies(dep_kind, dep_id);
+
+-- Anchor generic links (workspace/session/commit/artifact)
+CREATE TABLE IF NOT EXISTS anchor_links (
+  anchor_id TEXT NOT NULL REFERENCES objective_anchors(anchor_id) ON DELETE CASCADE,
+  link_kind TEXT NOT NULL CHECK (link_kind IN ('workspace','session','commit','artifact')),
+  link_id TEXT NOT NULL,
+  PRIMARY KEY (anchor_id, link_kind, link_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_anchor_links_target ON anchor_links(link_kind, link_id);
+
+-- Anchor notes (append-only)
+CREATE TABLE IF NOT EXISTS anchor_notes (
+  note_id TEXT PRIMARY KEY,
+  anchor_id TEXT NOT NULL REFERENCES objective_anchors(anchor_id) ON DELETE CASCADE,
+  ts TEXT NOT NULL,
+  author TEXT NOT NULL CHECK (author IN ('human','agent')),
+  note_ref TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_anchor_notes_anchor_ts ON anchor_notes(anchor_id, ts);
+
+-- Handoffs
+CREATE TABLE IF NOT EXISTS handoffs (
+  handoff_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(workspace_id) ON DELETE CASCADE,
+  execution_session_id TEXT NOT NULL REFERENCES execution_sessions(execution_session_id) ON DELETE CASCADE,
+  anchor_id TEXT NULL REFERENCES objective_anchors(anchor_id) ON DELETE SET NULL,
+  wp_id TEXT NULL,
+  mt_id TEXT NULL,
+  summary_done_ref TEXT NOT NULL,
+  summary_remaining_ref TEXT NOT NULL,
+  decisions_json TEXT NOT NULL DEFAULT '[]',
+  uncertainties_json TEXT NOT NULL DEFAULT '[]',
+  blockers_json TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_handoffs_workspace_ts ON handoffs(workspace_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_handoffs_session_ts ON handoffs(execution_session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_handoffs_anchor_ts ON handoffs(anchor_id, created_at);
+
+-- Handoff evidence links
+CREATE TABLE IF NOT EXISTS handoff_evidence (
+  handoff_id TEXT NOT NULL REFERENCES handoffs(handoff_id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('diff','commit','artifact')),
+  ref TEXT NOT NULL,
+  PRIMARY KEY (handoff_id, kind, ref)
+);
+
+-- Pending approvals (Approval Inbox)
+CREATE TABLE IF NOT EXISTS pending_approvals (
+  approval_id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  workspace_id TEXT NOT NULL REFERENCES workspaces(workspace_id) ON DELETE CASCADE,
+  execution_session_id TEXT NOT NULL REFERENCES execution_sessions(execution_session_id) ON DELETE CASCADE,
+  requested_capabilities_json TEXT NOT NULL,
+  operation_preview_json TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending','approved','rejected','expired')),
+  decided_by TEXT NULL CHECK (decided_by IN ('human','session')),
+  decided_at TEXT NULL,
+  decision_reason TEXT NULL,
+  token_id TEXT NULL REFERENCES approval_tokens(token_id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_approvals_workspace_status ON pending_approvals(workspace_id, status);
+CREATE INDEX IF NOT EXISTS idx_approvals_session_status ON pending_approvals(execution_session_id, status);
+CREATE INDEX IF NOT EXISTS idx_approvals_created ON pending_approvals(created_at);
+
+-- Conversations (normalized)
+CREATE TABLE IF NOT EXISTS conversation_sessions (
+  conversation_id TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  source_locator TEXT NOT NULL,
+  project_id TEXT NULL REFERENCES projects(project_id) ON DELETE SET NULL,
+  workspace_id TEXT NULL REFERENCES workspaces(workspace_id) ON DELETE SET NULL,
+  execution_session_id TEXT NULL REFERENCES execution_sessions(execution_session_id) ON DELETE SET NULL,
+  started_at TEXT NOT NULL,
+  ended_at TEXT NULL,
+  tokens_in INTEGER NULL,
+  tokens_out INTEGER NULL,
+  cost_currency TEXT NULL,
+  cost_amount REAL NULL,
+  transcript_ref TEXT NOT NULL,
+  messages_index_ref TEXT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_convos_source ON conversation_sessions(source);
+CREATE INDEX IF NOT EXISTS idx_convos_project_ts ON conversation_sessions(project_id, started_at);
+CREATE INDEX IF NOT EXISTS idx_convos_workspace_ts ON conversation_sessions(workspace_id, started_at);
+CREATE INDEX IF NOT EXISTS idx_convos_session_ts ON conversation_sessions(execution_session_id, started_at);
+
+-- Session ↔ Conversation mapping (many-to-many)
+CREATE TABLE IF NOT EXISTS session_conversations (
+  execution_session_id TEXT NOT NULL REFERENCES execution_sessions(execution_session_id) ON DELETE CASCADE,
+  conversation_id TEXT NOT NULL REFERENCES conversation_sessions(conversation_id) ON DELETE CASCADE,
+  PRIMARY KEY (execution_session_id, conversation_id)
+);
+```
+
+#### 10.11.B.3 Migration file: `0001_devcc_init.down.sql`
+
+```sql
+-- 0001_devcc_init.down.sql
+PRAGMA foreign_keys = OFF;
+
+DROP TABLE IF EXISTS session_conversations;
+DROP TABLE IF EXISTS conversation_sessions;
+
+DROP TABLE IF EXISTS pending_approvals;
+
+DROP TABLE IF EXISTS handoff_evidence;
+DROP TABLE IF EXISTS handoffs;
+
+DROP TABLE IF EXISTS anchor_notes;
+DROP TABLE IF EXISTS anchor_links;
+DROP TABLE IF EXISTS anchor_dependencies;
+DROP TABLE IF EXISTS anchor_mt_links;
+DROP TABLE IF EXISTS objective_anchors;
+
+DROP TABLE IF EXISTS session_capability_grants;
+DROP TABLE IF EXISTS execution_sessions;
+
+DROP TABLE IF EXISTS approval_tokens;
+
+DROP TABLE IF EXISTS workspaces;
+DROP TABLE IF EXISTS projects;
+```
+
+---
+
+### 10.11.C — Concrete engine operation templates (EPO)
+
+This appendix provides reference PlannedOperation templates (schema `poe-1.0`) aligned to the engine operations defined in `Handshake_Master_Spec_v02.127.md`.
+
+**Important:** these are templates. Exact capability IDs and allowlists depend on the project Capability Registry.
+
+#### 10.11.C.1 `engine.context` operations
+
+##### `context.search`
+
+```jsonc
+{
+  "schema_version": "poe-1.0",
+  "op_id": "UUID",
+  "engine_id": "engine.context",
+  "engine_version_req": ">=1.0",
+  "operation": "context.search",
+  "inputs": [],
+  "params": {
+    "query": "PlannedOperation",
+    "scopes": ["/abs/path/to/worktree/src"],
+    "mode": "literal",
+    "k": 20,
+    "output": "json"
+  },
+  "capabilities_requested": ["fs.read:scopes", "proc.exec:rg_allowlist"],
+  "budget": { "max_duration_ms": 8000, "max_output_kb": 2048 },
+  "determinism": "D3",
+  "output_spec": { "kind": "artifact.dataset" }
+}
+```
+
+##### `context.open_ref`
+
+```jsonc
+{
+  "schema_version": "poe-1.0",
+  "op_id": "UUID",
+  "engine_id": "engine.context",
+  "engine_version_req": ">=1.0",
+  "operation": "context.open_ref",
+  "inputs": [],
+  "params": {
+    "file": "/abs/path/to/worktree/src/foo.rs",
+    "range": { "start_line": 120, "end_line": 180 },
+    "output": "text"
+  },
+  "capabilities_requested": ["fs.read:scopes"],
+  "budget": { "max_duration_ms": 2000, "max_output_kb": 256 },
+  "determinism": "D3",
+  "output_spec": { "kind": "artifact.document" }
+}
+```
+
+#### 10.11.C.2 `engine.version` operations
+
+##### `version.status`
+
+```jsonc
+{
+  "schema_version": "poe-1.0",
+  "op_id": "UUID",
+  "engine_id": "engine.version",
+  "engine_version_req": ">=1.0",
+  "operation": "version.status",
+  "inputs": [],
+  "params": {
+    "repo_ref": { "kind": "path", "path": "/abs/path/to/worktree" },
+    "output": "json"
+  },
+  "capabilities_requested": ["fs.read:repo", "proc.exec:vcs_allowlist"],
+  "budget": { "max_duration_ms": 5000, "max_output_kb": 512 },
+  "determinism": "D3",
+  "output_spec": { "kind": "artifact.dataset" }
+}
+```
+
+##### `version.diff`
+
+```jsonc
+{
+  "schema_version": "poe-1.0",
+  "op_id": "UUID",
+  "engine_id": "engine.version",
+  "engine_version_req": ">=1.0",
+  "operation": "version.diff",
+  "inputs": [],
+  "params": {
+    "repo_ref": { "kind": "path", "path": "/abs/path/to/worktree" },
+    "from": "HEAD",
+    "to": "WORKTREE",
+    "paths": ["src/foo.rs"],
+    "output": "patch"
+  },
+  "capabilities_requested": ["fs.read:repo", "proc.exec:vcs_allowlist"],
+  "budget": { "max_duration_ms": 8000, "max_output_kb": 2048 },
+  "determinism": "D3",
+  "output_spec": { "kind": "artifact.document" }
+}
+```
+
+##### `version.commit` (staging = UI selection state)
+
+```jsonc
+{
+  "schema_version": "poe-1.0",
+  "op_id": "UUID",
+  "engine_id": "engine.version",
+  "engine_version_req": ">=1.0",
+  "operation": "version.commit",
+  "inputs": [
+    { "kind": "artifact", "artifact_ref": "artifact://sha256/<commit_message_text>" }
+  ],
+  "params": {
+    "repo_ref": { "kind": "path", "path": "/abs/path/to/worktree" },
+    "message_ref": "artifact://sha256/<commit_message_text>",
+    "paths": ["src/foo.rs", "README.md"],
+    "output": "json"
+  },
+  "capabilities_requested": ["fs.read:repo", "fs.write:repo", "proc.exec:vcs_allowlist"],
+  "budget": { "max_duration_ms": 15000, "max_output_kb": 512 },
+  "determinism": "D3",
+  "output_spec": { "kind": "artifact.dataset" }
+}
+```
+
+##### `version.revert`
+
+```jsonc
+{
+  "schema_version": "poe-1.0",
+  "op_id": "UUID",
+  "engine_id": "engine.version",
+  "engine_version_req": ">=1.0",
+  "operation": "version.revert",
+  "inputs": [],
+  "params": {
+    "repo_ref": { "kind": "path", "path": "/abs/path/to/worktree" },
+    "target": "2026-02-17T12:00:00Z",
+    "output": "json"
+  },
+  "capabilities_requested": ["fs.write:repo", "proc.exec:vcs_allowlist"],
+  "budget": { "max_duration_ms": 15000, "max_output_kb": 512 },
+  "determinism": "D3",
+  "output_spec": { "kind": "artifact.dataset" }
+}
+```
+
+##### `version.merge` (rewrite/hide consent + role restriction)
+
+```jsonc
+{
+  "schema_version": "poe-1.0",
+  "op_id": "UUID",
+  "engine_id": "engine.version",
+  "engine_version_req": ">=1.0",
+  "operation": "version.merge",
+  "inputs": [],
+  "params": {
+    "repo_ref": { "kind": "path", "path": "/abs/path/to/worktree" },
+    "source": "feat/WP-123",
+    "strategy": "merge",
+    "output": "json"
+  },
+  "capabilities_requested": ["fs.write:repo", "proc.exec:vcs_allowlist"],
+  "budget": { "max_duration_ms": 60000, "max_output_kb": 2048 },
+  "determinism": "D3",
+  "output_spec": { "kind": "artifact.dataset" }
+}
+```
+
+#### 10.11.C.3 `engine.sandbox` operation
+
+##### `sandbox.run_shell`
+
+```jsonc
+{
+  "schema_version": "poe-1.0",
+  "op_id": "UUID",
+  "engine_id": "engine.sandbox",
+  "engine_version_req": ">=1.0",
+  "operation": "sandbox.run_shell",
+  "inputs": [
+    { "kind": "artifact", "artifact_ref": "artifact://sha256/<script_text>" },
+    { "kind": "artifact", "artifact_ref": "artifact://sha256/<command_allowlist_json>" },
+    { "kind": "artifact", "artifact_ref": "artifact://sha256/<output_spec_json>" }
+  ],
+  "params": {
+    "script_ref": "artifact://sha256/<script_text>",
+    "shell": "bash",
+    "command_allowlist_ref": "artifact://sha256/<command_allowlist_json>",
+    "inputs": [],
+    "output_spec_ref": "artifact://sha256/<output_spec_json>"
+  },
+  "capabilities_requested": ["proc.exec:<allowlist>", "fs.read:repo", "fs.write:artifacts"],
+  "budget": { "max_duration_ms": 120000, "max_output_kb": 8192 },
+  "determinism": "D2",
+  "output_spec": { "kind": "artifact.bundle" }
+}
+```
+
+---
+
+### 10.11.D — Worktree lifecycle (job wrapper guidance)
+
+Until `engine.version` grows explicit worktree ops, implement worktree creation/removal as a governed job that calls allowlisted commands in `sandbox.run_shell`.
+
+Rules:
+- Always HITL-confirm worktree add/remove.
+- Enforce concurrency: one active WP → one worktree.
+- Always write `.handshake/workspace.json` in the new worktree after creation.
+- Always log the operation to Flight Recorder with affected paths.
 
 # 11. Shared Dev Platform & OSS Foundations
 
@@ -55881,7 +58205,7 @@ Centralized, single-source definitions for cross-cutting contracts that all Prod
   - `locus.gate`
   - `locus.delete`
   - `locus.sync`
-  - Note: `locus_sync_task_board` additionally requires `fs.read` + `fs.write` (scoped) to touch `docs/TASK_BOARD.md`.
+  - Note: `locus_sync_task_board` additionally requires `fs.read` + `fs.write` (scoped) to touch `.handshake/gov/TASK_BOARD.md`.
 
 ### 11.1.3 Scoped Capabilities (normative)
 
@@ -57890,7 +60214,7 @@ interface GovernanceGateTransitionEvent extends FlightRecorderEventBase {
   gate: string;                     // e.g. REPORT_PRESENTED, USER_ACKNOWLEDGED, WP_APPENDED, COMMITTED, REFINE_RECORDED, SIGNATURE_RECORDED, PREPARE_RECORDED
   verdict?: 'PASS' | 'FAIL' | null;  // REQUIRED for REPORT_PRESENTED; otherwise null/omitted
 
-  gate_state_ref: string;           // e.g. docs/validator_gates/WP-1-Example-v1.json (or other artifact handle)
+  gate_state_ref: string;           // e.g. .handshake/gov/validator_gates/WP-1-Example-v1.json (or other artifact handle)
   idempotency_key: string;
 }
 
@@ -57902,11 +60226,11 @@ interface WorkPacketActivatedEvent extends FlightRecorderEventBase {
   base_wp_id: string;
   work_packet_id: string;
 
-  stub_packet_ref: string;          // e.g. docs/task_packets/stubs/WP-...md
-  active_packet_ref: string;         // e.g. docs/task_packets/WP-...md
+  stub_packet_ref: string;          // e.g. .handshake/gov/task_packets/stubs/WP-...md
+  active_packet_ref: string;         // e.g. .handshake/gov/task_packets/WP-...md
 
-  traceability_registry_ref: string; // e.g. docs/WP_TRACEABILITY_REGISTRY.md
-  task_board_ref: string;            // e.g. docs/TASK_BOARD.md
+  traceability_registry_ref: string; // e.g. .handshake/gov/WP_TRACEABILITY_REGISTRY.md
+  task_board_ref: string;            // e.g. .handshake/gov/TASK_BOARD.md
 
   idempotency_key: string;
 }
@@ -62158,46 +64482,8 @@ The Operator Console (Master Spec §10.5) SHOULD display Role Mailbox activity v
 
 ---
 
-#
-
-**ADD v02.122 — Layer-wise Inference Productization (Guardrails + Ecosystem)**
-
-- Goal (needs updating)  
-  Turn dynamic compute into a safe, optional ecosystem capability: multiple runtimes can support `exec_policy`, operators can compare policies, and governance remains uncompromised.
-
-- MUST deliver (Phase 4 or later)  
-  - Runtime compatibility: at least two runtimes/providers support `exec_policy` with deterministic downgrade + `llm_exec_policy` emission.  
-  - Policy registry: named, versioned exec_policy presets (`policy_id`) that can be referenced in Work Profiles and jobs (without forcing schema rewrites).  
-  - Cross-role/dynamic-role support: inheritance model for dynamic roles + per-role compute overrides (see §4.5.6.2).  
-  - Operator-grade reporting: dashboards for requested vs effective policy, approximate usage frequency, and waiver compliance audits.  
-  - Export tooling: trace artifacts and summaries exportable with privacy controls and retention enforcement.
-
-- Key risks addressed  
-  - Operator confusion (what actually ran).  
-  - Governance drift (approximate becoming implicit).  
-  - Ecosystem incompatibility across runtimes.
-
-- Acceptance criteria  
-  - A job can be replayed (or deterministically explained as non-replayable) with clear “effective policy” disclosure.  
-  - Auditors can list all approximate executions over a time range with waiver refs and affected WPs/MTs.
-
-- Out of scope (Phase 4)  
-  - Mandatory layer-wise inference for all users.  
-  - Auto-enabling approximation based on heuristics without operator consent.
-
-- Mechanical track (Phase 4)  
-  - Policy registry + schema validation + cross-runtime adapters.  
-  - Audit/reporting pipelines.
-
-- Atelier track (Phase 4)  
-  - UX for policy selection, waiver management, and effective-policy inspection.
-
-- Distillation track (Phase 4)  
+- **[ADD v02.122] Layer-wise Inference Productization (Guardrails + Ecosystem)**
   - Optional: recommend safe “fast_exact” presets per hardware/runtime, and suggest approximate candidates (never auto-enable).
-
-- Vertical slice (Phase 4)  
-  Operator switches between two runtimes supporting exec_policy, compares fast_exact vs standard on a WP/MT, and exports a policy + trace report suitable for audit.
-
 ## 7.7 Multi-Model Infrastructure (future extension)
 
 Role Mailbox supports multiple concurrent models by routing deliveries at runtime while persisting a single canonical mailbox message per send.
