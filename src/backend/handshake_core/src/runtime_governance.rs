@@ -10,6 +10,8 @@ pub const RUNTIME_GOVERNANCE_DEFAULT_ROOT: &str = ".handshake/gov";
 pub const RUNTIME_TASK_BOARD_FILE: &str = "TASK_BOARD.md";
 pub const RUNTIME_SPEC_CURRENT_FILE: &str = "SPEC_CURRENT.md";
 pub const RUNTIME_ROLE_MAILBOX_DIR: &str = "ROLE_MAILBOX";
+pub const RUNTIME_GOVERNANCE_DECISIONS_DIR: &str = "governance_decisions";
+pub const RUNTIME_GOVERNANCE_AUTO_SIGNATURES_DIR: &str = "auto_signatures";
 
 #[derive(Debug, Clone)]
 pub struct RuntimeGovernancePaths {
@@ -100,6 +102,39 @@ impl RuntimeGovernancePaths {
             &self.role_mailbox_export_dir(),
         ))
     }
+
+    pub fn governance_decisions_dir(&self) -> PathBuf {
+        self.governance_root.join(RUNTIME_GOVERNANCE_DECISIONS_DIR)
+    }
+
+    pub fn governance_decisions_dir_display(&self) -> String {
+        ensure_trailing_slash(display_path(
+            &self.workspace_root,
+            &self.governance_decisions_dir(),
+        ))
+    }
+
+    pub fn governance_decision_path(&self, decision_id: &str) -> PathBuf {
+        self.governance_decisions_dir()
+            .join(format!("{decision_id}.json"))
+    }
+
+    pub fn auto_signatures_dir(&self) -> PathBuf {
+        self.governance_root
+            .join(RUNTIME_GOVERNANCE_AUTO_SIGNATURES_DIR)
+    }
+
+    pub fn auto_signatures_dir_display(&self) -> String {
+        ensure_trailing_slash(display_path(
+            &self.workspace_root,
+            &self.auto_signatures_dir(),
+        ))
+    }
+
+    pub fn auto_signature_path(&self, auto_signature_id: &str) -> PathBuf {
+        self.auto_signatures_dir()
+            .join(format!("{auto_signature_id}.json"))
+    }
 }
 
 fn absolutize(path: PathBuf) -> Result<PathBuf, io::Error> {
@@ -189,6 +224,20 @@ mod tests {
                 .join(".handshake")
                 .join("gov")
                 .join("TASK_BOARD.md")
+        );
+        assert_eq!(
+            paths.governance_decisions_dir(),
+            workspace_root
+                .join(".handshake")
+                .join("gov")
+                .join("governance_decisions")
+        );
+        assert_eq!(
+            paths.auto_signatures_dir(),
+            workspace_root
+                .join(".handshake")
+                .join("gov")
+                .join("auto_signatures")
         );
         Ok(())
     }

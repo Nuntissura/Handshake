@@ -9,8 +9,8 @@ use crate::{
         AceError, ArtifactHandle, CandidateRef, CandidateScores, ContextPackAnchorV1,
         ContextPackBuilder, ContextPackCoverageV1, ContextPackFreshnessPolicyV1,
         ContextPackPayloadV1, ContextPackRecord, DeterminismMode, QueryKind, QueryPlan,
-        RetrievalCandidate, RetrievalTrace, RouteTaken, SelectedEvidence, SourceRef, SpanExtraction,
-        StoreKind,
+        RetrievalCandidate, RetrievalTrace, RouteTaken, SelectedEvidence, SourceRef,
+        SpanExtraction, StoreKind,
     },
     bundles::{BundleScope, DebugBundleRequest, DefaultDebugBundleExporter, RedactionMode},
     capabilities::{RegistryError, GOVERNANCE_PACK_EXPORT_PROTOCOL_ID},
@@ -3153,6 +3153,39 @@ impl Default for ModelSwapFallbackStrategy {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+enum AutomationLevel {
+    FullHuman,
+    #[serde(alias = "ASSISTED", alias = "SUPERVISED")]
+    Hybrid,
+    Autonomous,
+    Locked,
+}
+
+impl AutomationLevel {
+    fn is_locked(&self) -> bool {
+        matches!(self, AutomationLevel::Locked)
+    }
+
+    fn requires_human_approval(&self) -> bool {
+        matches!(self, AutomationLevel::FullHuman)
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            AutomationLevel::FullHuman => "FULL_HUMAN",
+            AutomationLevel::Hybrid => "HYBRID",
+            AutomationLevel::Autonomous => "AUTONOMOUS",
+            AutomationLevel::Locked => "LOCKED",
+        }
+    }
+}
+
+fn default_automation_level() -> AutomationLevel {
+    AutomationLevel::Autonomous
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ExecutionPolicy {
     #[serde(default = "default_max_iterations_per_mt")]
@@ -3161,6 +3194,8 @@ struct ExecutionPolicy {
     pub max_total_iterations: u32,
     #[serde(default = "default_max_duration_ms")]
     pub max_duration_ms: u64,
+    #[serde(default = "default_automation_level")]
+    pub automation_level: AutomationLevel,
     #[serde(default = "default_escalation_chain")]
     pub escalation_chain: Vec<EscalationLevel>,
     #[serde(default)]
@@ -3185,6 +3220,7 @@ impl Default for ExecutionPolicy {
             max_iterations_per_mt: default_max_iterations_per_mt(),
             max_total_iterations: default_max_total_iterations(),
             max_duration_ms: default_max_duration_ms(),
+            automation_level: default_automation_level(),
             escalation_chain: default_escalation_chain(),
             cloud_escalation_allowed: false,
             context_pack_policy: ContextPackPolicy::default(),
@@ -3213,6 +3249,86 @@ impl ExecutionPolicy {
             })
             .unwrap_or_default()
     }
+}
+
+const GOV_DECISION_SCHEMA_VERSION: &str = "hsk.gov_decision@0.4";
+const GOV_AUTO_SIGNATURE_SCHEMA_VERSION: &str = "hsk.auto_signature@0.1";
+
+const GOV_GATE_TYPE_MICRO_TASK_VALIDATION: &str = "MicroTaskValidation";
+const GOV_GATE_TYPE_CLOUD_ESCALATION: &str = "CloudEscalation";
+const GOV_GATE_TYPE_POLICY_VIOLATION: &str = "PolicyViolation";
+const GOV_GATE_TYPE_HUMAN_INTERVENTION: &str = "HumanIntervention";
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum GovernanceDecisionOutcome {
+    Approve,
+    Reject,
+    Defer,
+}
+
+impl GovernanceDecisionOutcome {
+    fn as_str(&self) -> &'static str {
+        match self {
+            GovernanceDecisionOutcome::Approve => "approve",
+            GovernanceDecisionOutcome::Reject => "reject",
+            GovernanceDecisionOutcome::Defer => "defer",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum GovernanceActorKind {
+    Human,
+    Model,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct GovernanceDecisionActor {
+    pub kind: GovernanceActorKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct GovernanceDecision {
+    pub schema_version: String,
+    pub decision_id: String,
+    pub gate_type: String,
+    pub target_ref: String,
+    pub decision: GovernanceDecisionOutcome,
+    pub confidence: f64,
+    pub rationale: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub evidence_refs: Option<Vec<String>>,
+    pub timestamp: String,
+    pub actor: GovernanceDecisionActor,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum AutoSignatureActorKind {
+    Model,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AutoSignatureActor {
+    pub kind: AutoSignatureActorKind,
+    pub model_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AutoSignature {
+    pub schema_version: String,
+    pub auto_signature_id: String,
+    pub decision_id: String,
+    pub gate_type: String,
+    pub target_ref: String,
+    pub created_at: String,
+    pub actor: AutoSignatureActor,
 }
 
 fn default_max_iterations_per_mt() -> u32 {
@@ -3422,6 +3538,16 @@ struct LoRAInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+struct PendingGovGate {
+    pub decision_id: String,
+    pub gate_type: String,
+    pub target_ref: String,
+    pub mt_id: String,
+    pub final_iteration: u32,
+    pub final_model_level: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct CurrentExecutionState {
     #[serde(default)]
     pub active_mt: Option<String>,
@@ -3431,6 +3557,8 @@ struct CurrentExecutionState {
     #[serde(default)]
     pub total_model_swaps: u32,
     pub total_drop_backs: u32,
+    #[serde(default)]
+    pub pending_gov_gate: Option<PendingGovGate>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3664,6 +3792,393 @@ fn rel_path_string(rel_path: &Path) -> String {
 
 fn artifact_handle_for_rel(rel_path: &Path) -> ArtifactHandle {
     ArtifactHandle::new(Uuid::new_v4(), rel_path_string(rel_path))
+}
+
+fn micro_task_target_ref(wp_id: &str, mt_id: &str) -> String {
+    format!("wp/{wp_id}/mt/{mt_id}")
+}
+
+fn runtime_artifact_handle_for_abs_path(
+    workspace_root: &Path,
+    abs_path: &Path,
+    seed: &str,
+) -> Result<ArtifactHandle, WorkflowError> {
+    let rel_path = abs_path.strip_prefix(workspace_root).map_err(|_| {
+        WorkflowError::Terminal(format!(
+            "runtime governance artifact must be under workspace root: {}",
+            abs_path.display()
+        ))
+    })?;
+    Ok(ArtifactHandle::new(
+        deterministic_uuid_for_str(seed),
+        rel_path_string(rel_path),
+    ))
+}
+
+fn write_governance_decision_artifact(
+    runtime_paths: &RuntimeGovernancePaths,
+    decision: &GovernanceDecision,
+) -> Result<ArtifactHandle, WorkflowError> {
+    fs::create_dir_all(runtime_paths.governance_decisions_dir()).map_err(|e| {
+        WorkflowError::Terminal(format!("failed to create governance decisions dir: {e}"))
+    })?;
+
+    let abs_path = runtime_paths.governance_decision_path(decision.decision_id.as_str());
+    write_json_atomic(runtime_paths.workspace_root(), &abs_path, decision)?;
+
+    runtime_artifact_handle_for_abs_path(
+        runtime_paths.workspace_root(),
+        &abs_path,
+        &format!("gov_decision:{}", decision.decision_id),
+    )
+}
+
+fn load_governance_decision_artifact(
+    runtime_paths: &RuntimeGovernancePaths,
+    decision_id: &str,
+) -> Result<GovernanceDecision, WorkflowError> {
+    let abs_path = runtime_paths.governance_decision_path(decision_id);
+    let bytes = fs::read(&abs_path).map_err(|e| {
+        WorkflowError::Terminal(format!(
+            "failed to read governance decision {}: {e}",
+            abs_path.display()
+        ))
+    })?;
+    serde_json::from_slice::<GovernanceDecision>(&bytes).map_err(|e| {
+        WorkflowError::Terminal(format!(
+            "invalid governance decision JSON {}: {e}",
+            abs_path.display()
+        ))
+    })
+}
+
+fn auto_signature_allowed_for_gate_type(gate_type: &str) -> bool {
+    gate_type != GOV_GATE_TYPE_CLOUD_ESCALATION && gate_type != GOV_GATE_TYPE_POLICY_VIOLATION
+}
+
+fn enforce_auto_signature_binding(
+    decision: &GovernanceDecision,
+    auto_signature: &AutoSignature,
+) -> Result<(), WorkflowError> {
+    if auto_signature.decision_id != decision.decision_id
+        || auto_signature.gate_type != decision.gate_type
+        || auto_signature.target_ref != decision.target_ref
+    {
+        return Err(WorkflowError::Terminal(format!(
+            "autosignature binding mismatch: decision_id={} gate_type={} target_ref={}",
+            decision.decision_id, decision.gate_type, decision.target_ref
+        )));
+    }
+    Ok(())
+}
+
+fn write_auto_signature_artifact(
+    runtime_paths: &RuntimeGovernancePaths,
+    auto_signature: &AutoSignature,
+) -> Result<ArtifactHandle, WorkflowError> {
+    fs::create_dir_all(runtime_paths.auto_signatures_dir()).map_err(|e| {
+        WorkflowError::Terminal(format!("failed to create auto signatures dir: {e}"))
+    })?;
+
+    let abs_path = runtime_paths.auto_signature_path(auto_signature.auto_signature_id.as_str());
+    write_json_atomic(runtime_paths.workspace_root(), &abs_path, auto_signature)?;
+
+    runtime_artifact_handle_for_abs_path(
+        runtime_paths.workspace_root(),
+        &abs_path,
+        &format!("auto_signature:{}", auto_signature.auto_signature_id),
+    )
+}
+
+fn build_gov_automation_event_payload(
+    event_type: &str,
+    decision_id: &str,
+    gate_type: &str,
+    target_ref: &str,
+    automation_level: AutomationLevel,
+    decision: Option<GovernanceDecisionOutcome>,
+    confidence: Option<f64>,
+    evidence_refs: Option<Vec<String>>,
+    wp_id: Option<&str>,
+    mt_id: Option<&str>,
+    user_id: Option<&str>,
+) -> Value {
+    let mut payload = json!({
+        "type": event_type,
+        "decision_id": decision_id,
+        "gate_type": gate_type,
+        "target_ref": target_ref,
+        "automation_level": automation_level.as_str(),
+    });
+
+    if let Some(obj) = payload.as_object_mut() {
+        if let Some(decision) = decision {
+            obj.insert("decision".to_string(), json!(decision.as_str()));
+        }
+        if let Some(confidence) = confidence {
+            obj.insert("confidence".to_string(), json!(confidence));
+        }
+        if let Some(evidence_refs) = evidence_refs {
+            obj.insert("evidence_refs".to_string(), json!(evidence_refs));
+        }
+        if let Some(wp_id) = wp_id {
+            obj.insert("wp_id".to_string(), json!(wp_id));
+        }
+        if let Some(mt_id) = mt_id {
+            obj.insert("mt_id".to_string(), json!(mt_id));
+        }
+        if let Some(user_id) = user_id {
+            obj.insert("user_id".to_string(), json!(user_id));
+        }
+    }
+
+    payload
+}
+
+async fn record_gov_automation_event(
+    state: &AppState,
+    event_variant: FlightRecorderEventType,
+    trace_id: Uuid,
+    job_id: Uuid,
+    workflow_run_id: Uuid,
+    payload: Value,
+) -> Result<(), WorkflowError> {
+    let event =
+        FlightRecorderEvent::new(event_variant, FlightRecorderActor::Agent, trace_id, payload)
+            .with_job_id(job_id.to_string())
+            .with_workflow_id(workflow_run_id.to_string());
+    record_event_required(state, event).await
+}
+
+async fn create_gov_decision_and_emit_created(
+    state: &AppState,
+    runtime_paths: &RuntimeGovernancePaths,
+    trace_id: Uuid,
+    job_id: Uuid,
+    workflow_run_id: Uuid,
+    wp_id: &str,
+    mt_id: Option<&str>,
+    automation_level: AutomationLevel,
+    gate_type: &str,
+    target_ref: &str,
+    outcome: GovernanceDecisionOutcome,
+    confidence: f64,
+    rationale: &str,
+    evidence_refs: Option<Vec<String>>,
+    actor_model_id: Option<String>,
+    actor_user_id: Option<String>,
+) -> Result<(GovernanceDecision, ArtifactHandle), WorkflowError> {
+    let decision_id = Uuid::new_v4().to_string();
+
+    let decision = GovernanceDecision {
+        schema_version: GOV_DECISION_SCHEMA_VERSION.to_string(),
+        decision_id: decision_id.clone(),
+        gate_type: gate_type.to_string(),
+        target_ref: target_ref.to_string(),
+        decision: outcome,
+        confidence,
+        rationale: rationale.to_string(),
+        evidence_refs,
+        timestamp: Utc::now().to_rfc3339(),
+        actor: GovernanceDecisionActor {
+            kind: GovernanceActorKind::Model,
+            model_id: actor_model_id,
+            user_id: actor_user_id,
+        },
+    };
+
+    let decision_artifact = write_governance_decision_artifact(runtime_paths, &decision)?;
+
+    let created_payload = build_gov_automation_event_payload(
+        "gov_decision_created",
+        &decision.decision_id,
+        &decision.gate_type,
+        &decision.target_ref,
+        automation_level,
+        Some(decision.decision),
+        Some(decision.confidence),
+        Some(vec![decision_artifact.canonical_id()]),
+        Some(wp_id),
+        mt_id,
+        None,
+    );
+    record_gov_automation_event(
+        state,
+        FlightRecorderEventType::GovDecisionCreated,
+        trace_id,
+        job_id,
+        workflow_run_id,
+        created_payload,
+    )
+    .await?;
+
+    Ok((decision, decision_artifact))
+}
+
+async fn create_auto_signature_and_emit_created(
+    state: &AppState,
+    runtime_paths: &RuntimeGovernancePaths,
+    trace_id: Uuid,
+    job_id: Uuid,
+    workflow_run_id: Uuid,
+    wp_id: &str,
+    mt_id: Option<&str>,
+    automation_level: AutomationLevel,
+    decision: &GovernanceDecision,
+    actor_model_id: &str,
+) -> Result<(AutoSignature, ArtifactHandle), WorkflowError> {
+    if !auto_signature_allowed_for_gate_type(decision.gate_type.as_str()) {
+        return Err(WorkflowError::Terminal(format!(
+            "autosignature forbidden for gate_type: {}",
+            decision.gate_type
+        )));
+    }
+
+    let auto_signature = AutoSignature {
+        schema_version: GOV_AUTO_SIGNATURE_SCHEMA_VERSION.to_string(),
+        auto_signature_id: Uuid::new_v4().to_string(),
+        decision_id: decision.decision_id.clone(),
+        gate_type: decision.gate_type.clone(),
+        target_ref: decision.target_ref.clone(),
+        created_at: Utc::now().to_rfc3339(),
+        actor: AutoSignatureActor {
+            kind: AutoSignatureActorKind::Model,
+            model_id: actor_model_id.to_string(),
+        },
+    };
+
+    enforce_auto_signature_binding(decision, &auto_signature)?;
+    let auto_signature_artifact = write_auto_signature_artifact(runtime_paths, &auto_signature)?;
+
+    let payload = build_gov_automation_event_payload(
+        "gov_auto_signature_created",
+        &auto_signature.decision_id,
+        &auto_signature.gate_type,
+        &auto_signature.target_ref,
+        automation_level,
+        None,
+        None,
+        Some(vec![auto_signature_artifact.canonical_id()]),
+        Some(wp_id),
+        mt_id,
+        None,
+    );
+    record_gov_automation_event(
+        state,
+        FlightRecorderEventType::GovAutoSignatureCreated,
+        trace_id,
+        job_id,
+        workflow_run_id,
+        payload,
+    )
+    .await?;
+
+    Ok((auto_signature, auto_signature_artifact))
+}
+
+async fn emit_gov_decision_applied(
+    state: &AppState,
+    trace_id: Uuid,
+    job_id: Uuid,
+    workflow_run_id: Uuid,
+    wp_id: &str,
+    mt_id: Option<&str>,
+    automation_level: AutomationLevel,
+    decision: &GovernanceDecision,
+    evidence_refs: Option<Vec<String>>,
+) -> Result<(), WorkflowError> {
+    let payload = build_gov_automation_event_payload(
+        "gov_decision_applied",
+        &decision.decision_id,
+        &decision.gate_type,
+        &decision.target_ref,
+        automation_level,
+        Some(decision.decision),
+        Some(decision.confidence),
+        evidence_refs,
+        Some(wp_id),
+        mt_id,
+        None,
+    );
+    record_gov_automation_event(
+        state,
+        FlightRecorderEventType::GovDecisionApplied,
+        trace_id,
+        job_id,
+        workflow_run_id,
+        payload,
+    )
+    .await
+}
+
+async fn emit_gov_human_intervention_requested(
+    state: &AppState,
+    trace_id: Uuid,
+    job_id: Uuid,
+    workflow_run_id: Uuid,
+    wp_id: &str,
+    mt_id: Option<&str>,
+    automation_level: AutomationLevel,
+    decision: &GovernanceDecision,
+    evidence_refs: Option<Vec<String>>,
+) -> Result<(), WorkflowError> {
+    let payload = build_gov_automation_event_payload(
+        "gov_human_intervention_requested",
+        &decision.decision_id,
+        &decision.gate_type,
+        &decision.target_ref,
+        automation_level,
+        Some(decision.decision),
+        Some(decision.confidence),
+        evidence_refs,
+        Some(wp_id),
+        mt_id,
+        None,
+    );
+    record_gov_automation_event(
+        state,
+        FlightRecorderEventType::GovHumanInterventionRequested,
+        trace_id,
+        job_id,
+        workflow_run_id,
+        payload,
+    )
+    .await
+}
+
+async fn emit_gov_human_intervention_received(
+    state: &AppState,
+    trace_id: Uuid,
+    job_id: Uuid,
+    workflow_run_id: Uuid,
+    wp_id: &str,
+    mt_id: Option<&str>,
+    automation_level: AutomationLevel,
+    decision: &GovernanceDecision,
+    evidence_refs: Option<Vec<String>>,
+) -> Result<(), WorkflowError> {
+    let payload = build_gov_automation_event_payload(
+        "gov_human_intervention_received",
+        &decision.decision_id,
+        &decision.gate_type,
+        &decision.target_ref,
+        automation_level,
+        Some(decision.decision),
+        Some(decision.confidence),
+        evidence_refs,
+        Some(wp_id),
+        mt_id,
+        None,
+    );
+    record_gov_automation_event(
+        state,
+        FlightRecorderEventType::GovHumanInterventionReceived,
+        trace_id,
+        job_id,
+        workflow_run_id,
+        payload,
+    )
+    .await
 }
 
 fn write_bytes_atomic(root: &Path, abs_path: &Path, bytes: &[u8]) -> Result<(), WorkflowError> {
@@ -3940,7 +4455,12 @@ fn context_pack_store_payload_rel(source_id: Uuid, builder_config_hash: &str) ->
     context_pack_store_dir_rel(source_id, builder_config_hash).join("payload.json")
 }
 
-fn context_pack_anchor_id(source_id: Uuid, start_line_1: usize, end_line_1: usize, idx: usize) -> String {
+fn context_pack_anchor_id(
+    source_id: Uuid,
+    start_line_1: usize,
+    end_line_1: usize,
+    idx: usize,
+) -> String {
     format!("chunk:{source_id}:{start_line_1}-{end_line_1}:{idx}")
 }
 
@@ -3992,7 +4512,10 @@ fn build_context_pack_payload_v1_for_source(
     }
 
     let scanned_selectors: Vec<String> = anchors.iter().map(|a| a.anchor_id.clone()).collect();
-    let synopsis = format!("ContextPack for {path} (source_id={})", source_ref.source_id);
+    let synopsis = format!(
+        "ContextPack for {path} (source_id={})",
+        source_ref.source_id
+    );
     let synopsis = synopsis.chars().take(800).collect::<String>();
 
     ContextPackPayloadV1 {
@@ -4091,7 +4614,8 @@ fn retrieve_context_pack_for_source(
                 }
             }
 
-            let payload_hash = match write_json_atomic_with_hash(repo_root, &payload_abs, &payload) {
+            let payload_hash = match write_json_atomic_with_hash(repo_root, &payload_abs, &payload)
+            {
                 Ok(hash) => hash,
                 Err(err) => {
                     return Ok(ContextPackOutcome::Fallback(ContextPackFallback {
@@ -4283,7 +4807,8 @@ fn retrieve_context_pack_for_source(
             // Note: we do not emit stale_pack marker when regeneration succeeds.
             // Caller may choose to record a regeneration marker if desired.
         } else {
-            let mut warnings: Vec<String> = vec![format!("{}{}", STALE_PACK_WARNING_PREFIX, record.pack_id)];
+            let mut warnings: Vec<String> =
+                vec![format!("{}{}", STALE_PACK_WARNING_PREFIX, record.pack_id)];
             if policy.regen_required {
                 warnings.push(format!("{}{}", REGEN_SKIPPED_PREFIX, record.pack_id));
             }
@@ -4358,7 +4883,9 @@ fn retrieve_context_pack_for_source(
     let mut match_score = 0u32;
     let mut truncated_any = false;
 
-    for (idx, (score, start_line, end_line, anchor_id)) in scored.into_iter().take(max_results).enumerate() {
+    for (idx, (score, start_line, end_line, anchor_id)) in
+        scored.into_iter().take(max_results).enumerate()
+    {
         if tokens_used >= allowance_tokens {
             break;
         }
@@ -4729,7 +5256,10 @@ mod context_pack_tests {
         let record = ContextPackRecord {
             pack_id,
             target: source_ref.clone(),
-            pack_artifact: ArtifactHandle::new(pack_id, "data/context_packs/payload.json".to_string()),
+            pack_artifact: ArtifactHandle::new(
+                pack_id,
+                "data/context_packs/payload.json".to_string(),
+            ),
             source_hashes: vec![source_ref.source_hash.clone()],
             source_refs: vec![source_ref.clone()],
             created_at: Utc::now(),
@@ -4764,7 +5294,10 @@ mod context_pack_tests {
             &[stale_marker.clone(), denied_marker.clone()],
         );
 
-        assert_eq!(payload.get("request_id").and_then(Value::as_str), Some("req-1"));
+        assert_eq!(
+            payload.get("request_id").and_then(Value::as_str),
+            Some("req-1")
+        );
         assert_eq!(
             payload.get("context_snapshot_hash").and_then(Value::as_str),
             Some("snap_hash")
@@ -4781,8 +5314,12 @@ mod context_pack_tests {
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        assert!(markers.iter().any(|v| v.as_str() == Some(stale_marker.as_str())));
-        assert!(markers.iter().any(|v| v.as_str() == Some(denied_marker.as_str())));
+        assert!(markers
+            .iter()
+            .any(|v| v.as_str() == Some(stale_marker.as_str())));
+        assert!(markers
+            .iter()
+            .any(|v| v.as_str() == Some(denied_marker.as_str())));
     }
 }
 
@@ -5649,6 +6186,7 @@ fn init_progress_artifact(
             total_escalations: 0,
             total_model_swaps: 0,
             total_drop_backs: 0,
+            pending_gov_gate: None,
         },
         micro_tasks,
         aggregate_stats: AggregateStats {
@@ -5744,7 +6282,12 @@ async fn run_micro_task_executor_v1(
     let inputs: MicroTaskExecutorInputs = serde_json::from_value(raw_inputs).map_err(|e| {
         WorkflowError::Terminal(format!("invalid micro_task_executor_v1 inputs: {e}"))
     })?;
-    let policy = inputs.execution_policy.unwrap_or_default();
+    let mut policy = inputs.execution_policy.unwrap_or_default();
+    let automation_level = policy.automation_level;
+    if automation_level.is_locked() {
+        // Spec Â§11.1.7.3 + Â§2.6.8.12.6.1: cloud escalation must be denied in LOCKED.
+        policy.cloud_escalation_allowed = false;
+    }
 
     if job.state == JobState::Cancelled {
         record_micro_task_event(
@@ -5788,6 +6331,9 @@ async fn run_micro_task_executor_v1(
     let execution_waves = compute_execution_waves(&mt_definitions)?;
 
     let repo_root = repo_root_for_artifacts()?;
+    let runtime_paths = RuntimeGovernancePaths::resolve().map_err(|e| {
+        WorkflowError::Terminal(format!("failed to resolve runtime governance paths: {e}"))
+    })?;
     let job_dir_rel = micro_task_job_dir_rel(job.job_id);
     let job_dir_abs = repo_root.join(&job_dir_rel);
     fs::create_dir_all(&job_dir_abs).map_err(|e| {
@@ -5995,6 +6541,100 @@ async fn run_micro_task_executor_v1(
             }
 
             let resuming_this_mt = resumed_from_pause_mt.as_deref() == Some(mt_id.as_str());
+            if resuming_this_mt {
+                if let Some(pending_gate) = progress.current_state.pending_gov_gate.clone() {
+                    if pending_gate.mt_id == mt.mt_id {
+                        let decision = load_governance_decision_artifact(
+                            &runtime_paths,
+                            &pending_gate.decision_id,
+                        )?;
+                        let decision_abs = runtime_paths
+                            .governance_decision_path(pending_gate.decision_id.as_str());
+                        let decision_artifact = runtime_artifact_handle_for_abs_path(
+                            runtime_paths.workspace_root(),
+                            &decision_abs,
+                            &format!("gov_decision:{}", pending_gate.decision_id),
+                        )?;
+
+                        emit_gov_human_intervention_received(
+                            state,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            &decision,
+                            Some(vec![decision_artifact.canonical_id()]),
+                        )
+                        .await?;
+
+                        if pending_gate.final_model_level > 0
+                            && !matches!(policy.drop_back_strategy, DropBackStrategy::Never)
+                        {
+                            record_micro_task_event(
+                                state,
+                                FlightRecorderEventType::MicroTaskDropBack,
+                                "FR-EVT-MT-014",
+                                "micro_task_drop_back",
+                                trace_id,
+                                job.job_id,
+                                workflow_run_id,
+                                json!({
+                                    "wp_id": inputs.wp_id,
+                                    "from_level": pending_gate.final_model_level,
+                                    "to_level": 0
+                                }),
+                            )
+                            .await;
+
+                            progress.current_state.total_drop_backs =
+                                progress.current_state.total_drop_backs.saturating_add(1);
+                            progress.current_state.active_model_level = 0;
+                        }
+
+                        progress.micro_tasks[mt_progress_index].status = MTStatus::Completed;
+                        progress.micro_tasks[mt_progress_index].final_iteration =
+                            Some(pending_gate.final_iteration);
+                        progress.micro_tasks[mt_progress_index].final_model_level =
+                            Some(pending_gate.final_model_level);
+                        progress.current_state.active_mt = None;
+                        progress.current_state.pending_gov_gate = None;
+                        progress.updated_at = Utc::now();
+                        refresh_aggregate_stats(&mut progress);
+                        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+
+                        record_micro_task_event(
+                            state,
+                            FlightRecorderEventType::MicroTaskComplete,
+                            "FR-EVT-MT-004",
+                            "micro_task_complete",
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            json!({ "wp_id": inputs.wp_id, "mt_id": mt.mt_id }),
+                        )
+                        .await;
+
+                        emit_gov_decision_applied(
+                            state,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            &decision,
+                            Some(vec![decision_artifact.canonical_id()]),
+                        )
+                        .await?;
+
+                        resumed_from_pause_mt = None;
+                        continue;
+                    }
+                }
+            }
             if policy.pause_points.iter().any(|p| p == mt_id) && !resuming_this_mt {
                 record_micro_task_event(
                     state,
@@ -6007,6 +6647,63 @@ async fn run_micro_task_executor_v1(
                     json!({ "wp_id": inputs.wp_id, "mt_id": mt.mt_id }),
                 )
                 .await;
+
+                if automation_level.is_locked() {
+                    let target_ref =
+                        micro_task_target_ref(inputs.wp_id.as_str(), mt.mt_id.as_str());
+                    let (decision, artifact) = create_gov_decision_and_emit_created(
+                        state,
+                        &runtime_paths,
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        inputs.wp_id.as_str(),
+                        Some(mt.mt_id.as_str()),
+                        automation_level,
+                        GOV_GATE_TYPE_HUMAN_INTERVENTION,
+                        target_ref.as_str(),
+                        GovernanceDecisionOutcome::Defer,
+                        1.0,
+                        "locked_fail_closed:pause_point",
+                        None,
+                        None,
+                        None,
+                    )
+                    .await?;
+
+                    emit_gov_decision_applied(
+                        state,
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        inputs.wp_id.as_str(),
+                        Some(mt.mt_id.as_str()),
+                        automation_level,
+                        &decision,
+                        Some(vec![artifact.canonical_id()]),
+                    )
+                    .await?;
+
+                    progress.status = ProgressStatus::Failed;
+                    progress.updated_at = Utc::now();
+                    write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                    write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+
+                    return Ok(RunJobOutcome {
+                        state: JobState::Failed,
+                        status_reason: "locked_fail_closed".to_string(),
+                        output: Some(json!({
+                            "wp_id": inputs.wp_id,
+                            "reason": "pause_point",
+                            "mt_id": mt.mt_id,
+                            "decision_id": decision.decision_id,
+                            "mt_definitions_ref": mt_definitions_ref,
+                            "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                            "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                        })),
+                        error_message: Some("LOCKED fail-closed".to_string()),
+                    });
+                }
 
                 progress.status = ProgressStatus::Paused;
                 progress.current_state.active_mt = Some(mt_id.clone());
@@ -6072,6 +6769,63 @@ async fn run_micro_task_executor_v1(
                     )
                     .await;
 
+                    if automation_level.is_locked() {
+                        let target_ref =
+                            micro_task_target_ref(inputs.wp_id.as_str(), mt.mt_id.as_str());
+                        let (decision, artifact) = create_gov_decision_and_emit_created(
+                            state,
+                            &runtime_paths,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            GOV_GATE_TYPE_HUMAN_INTERVENTION,
+                            target_ref.as_str(),
+                            GovernanceDecisionOutcome::Defer,
+                            1.0,
+                            "locked_fail_closed:max_total_iterations",
+                            None,
+                            None,
+                            None,
+                        )
+                        .await?;
+
+                        emit_gov_decision_applied(
+                            state,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            &decision,
+                            Some(vec![artifact.canonical_id()]),
+                        )
+                        .await?;
+
+                        progress.status = ProgressStatus::Failed;
+                        progress.updated_at = Utc::now();
+                        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+
+                        return Ok(RunJobOutcome {
+                            state: JobState::Failed,
+                            status_reason: "locked_fail_closed".to_string(),
+                            output: Some(json!({
+                                "wp_id": inputs.wp_id,
+                                "reason": "max_total_iterations",
+                                "mt_id": mt.mt_id,
+                                "decision_id": decision.decision_id,
+                                "mt_definitions_ref": mt_definitions_ref,
+                                "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                                "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                            })),
+                            error_message: Some("LOCKED fail-closed".to_string()),
+                        });
+                    }
+
                     progress.status = ProgressStatus::Paused;
                     progress.updated_at = Utc::now();
                     write_json_atomic(&repo_root, &progress_abs, &progress)?;
@@ -6107,6 +6861,63 @@ async fn run_micro_task_executor_v1(
                         json!({ "wp_id": inputs.wp_id, "reason": "max_duration", "mt_id": mt.mt_id }),
                     )
                     .await;
+
+                    if automation_level.is_locked() {
+                        let target_ref =
+                            micro_task_target_ref(inputs.wp_id.as_str(), mt.mt_id.as_str());
+                        let (decision, artifact) = create_gov_decision_and_emit_created(
+                            state,
+                            &runtime_paths,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            GOV_GATE_TYPE_HUMAN_INTERVENTION,
+                            target_ref.as_str(),
+                            GovernanceDecisionOutcome::Defer,
+                            1.0,
+                            "locked_fail_closed:max_duration",
+                            None,
+                            None,
+                            None,
+                        )
+                        .await?;
+
+                        emit_gov_decision_applied(
+                            state,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            &decision,
+                            Some(vec![artifact.canonical_id()]),
+                        )
+                        .await?;
+
+                        progress.status = ProgressStatus::Failed;
+                        progress.updated_at = Utc::now();
+                        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+
+                        return Ok(RunJobOutcome {
+                            state: JobState::Failed,
+                            status_reason: "locked_fail_closed".to_string(),
+                            output: Some(json!({
+                                "wp_id": inputs.wp_id,
+                                "reason": "max_duration",
+                                "mt_id": mt.mt_id,
+                                "decision_id": decision.decision_id,
+                                "mt_definitions_ref": mt_definitions_ref,
+                                "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                                "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                            })),
+                            error_message: Some("LOCKED fail-closed".to_string()),
+                        });
+                    }
 
                     progress.status = ProgressStatus::Paused;
                     progress.updated_at = Utc::now();
@@ -6145,6 +6956,63 @@ async fn run_micro_task_executor_v1(
                     )
                     .await;
 
+                    if automation_level.is_locked() {
+                        let target_ref =
+                            micro_task_target_ref(inputs.wp_id.as_str(), mt.mt_id.as_str());
+                        let (decision, artifact) = create_gov_decision_and_emit_created(
+                            state,
+                            &runtime_paths,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            GOV_GATE_TYPE_HUMAN_INTERVENTION,
+                            target_ref.as_str(),
+                            GovernanceDecisionOutcome::Defer,
+                            1.0,
+                            "locked_fail_closed:escalation_exhausted",
+                            None,
+                            None,
+                            None,
+                        )
+                        .await?;
+
+                        emit_gov_decision_applied(
+                            state,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            &decision,
+                            Some(vec![artifact.canonical_id()]),
+                        )
+                        .await?;
+
+                        progress.status = ProgressStatus::Failed;
+                        progress.updated_at = Utc::now();
+                        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+
+                        return Ok(RunJobOutcome {
+                            state: JobState::Failed,
+                            status_reason: "locked_fail_closed".to_string(),
+                            output: Some(json!({
+                                "wp_id": inputs.wp_id,
+                                "reason": "escalation_exhausted",
+                                "mt_id": mt.mt_id,
+                                "decision_id": decision.decision_id,
+                                "mt_definitions_ref": mt_definitions_ref,
+                                "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                                "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                            })),
+                            error_message: Some("LOCKED fail-closed".to_string()),
+                        });
+                    }
+
                     progress.status = ProgressStatus::Paused;
                     progress.updated_at = Utc::now();
                     write_json_atomic(&repo_root, &progress_abs, &progress)?;
@@ -6182,6 +7050,63 @@ async fn run_micro_task_executor_v1(
                     )
                     .await;
 
+                    if automation_level.is_locked() {
+                        let target_ref =
+                            micro_task_target_ref(inputs.wp_id.as_str(), mt.mt_id.as_str());
+                        let (decision, artifact) = create_gov_decision_and_emit_created(
+                            state,
+                            &runtime_paths,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            GOV_GATE_TYPE_CLOUD_ESCALATION,
+                            target_ref.as_str(),
+                            GovernanceDecisionOutcome::Reject,
+                            1.0,
+                            "locked_cloud_escalation_denied",
+                            None,
+                            None,
+                            None,
+                        )
+                        .await?;
+
+                        emit_gov_decision_applied(
+                            state,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            &decision,
+                            Some(vec![artifact.canonical_id()]),
+                        )
+                        .await?;
+
+                        progress.status = ProgressStatus::Failed;
+                        progress.updated_at = Utc::now();
+                        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+
+                        return Ok(RunJobOutcome {
+                            state: JobState::Failed,
+                            status_reason: "locked_fail_closed".to_string(),
+                            output: Some(json!({
+                                "wp_id": inputs.wp_id,
+                                "reason": "cloud_escalation_disallowed",
+                                "mt_id": mt.mt_id,
+                                "decision_id": decision.decision_id,
+                                "mt_definitions_ref": mt_definitions_ref,
+                                "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                                "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                            })),
+                            error_message: Some("LOCKED fail-closed".to_string()),
+                        });
+                    }
+
                     progress.status = ProgressStatus::Paused;
                     progress.updated_at = Utc::now();
                     write_json_atomic(&repo_root, &progress_abs, &progress)?;
@@ -6218,6 +7143,63 @@ async fn run_micro_task_executor_v1(
                         }),
                     )
                     .await;
+
+                    if automation_level.is_locked() {
+                        let target_ref =
+                            micro_task_target_ref(inputs.wp_id.as_str(), mt.mt_id.as_str());
+                        let (decision, artifact) = create_gov_decision_and_emit_created(
+                            state,
+                            &runtime_paths,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            GOV_GATE_TYPE_HUMAN_INTERVENTION,
+                            target_ref.as_str(),
+                            GovernanceDecisionOutcome::Defer,
+                            1.0,
+                            "locked_fail_closed:hard_gate",
+                            None,
+                            None,
+                            None,
+                        )
+                        .await?;
+
+                        emit_gov_decision_applied(
+                            state,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            &decision,
+                            Some(vec![artifact.canonical_id()]),
+                        )
+                        .await?;
+
+                        progress.status = ProgressStatus::Failed;
+                        progress.updated_at = Utc::now();
+                        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+
+                        return Ok(RunJobOutcome {
+                            state: JobState::Failed,
+                            status_reason: "locked_fail_closed".to_string(),
+                            output: Some(json!({
+                                "wp_id": inputs.wp_id,
+                                "reason": "escalation_exhausted",
+                                "mt_id": mt.mt_id,
+                                "decision_id": decision.decision_id,
+                                "mt_definitions_ref": mt_definitions_ref,
+                                "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                                "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                            })),
+                            error_message: Some("LOCKED fail-closed".to_string()),
+                        });
+                    }
 
                     progress.status = ProgressStatus::Paused;
                     progress.updated_at = Utc::now();
@@ -6556,7 +7538,9 @@ NEED: {{what you need to unblock}}
                                     ));
 
                                 retrieval_trace.selected.push(SelectedEvidence {
-                                    candidate_ref: CandidateRef::Source(selection.source_ref.clone()),
+                                    candidate_ref: CandidateRef::Source(
+                                        selection.source_ref.clone(),
+                                    ),
                                     final_rank: retrieval_trace.selected.len() as u32,
                                     final_score: selection.match_score as f64,
                                     why: "mt_context_compilation_context_pack".to_string(),
@@ -7195,6 +8179,96 @@ NEED: {{what you need to unblock}}
                 .await;
 
                 if status_str == "SUCCESS" {
+                    let gate_type = GOV_GATE_TYPE_MICRO_TASK_VALIDATION;
+                    let target_ref =
+                        micro_task_target_ref(inputs.wp_id.as_str(), mt.mt_id.as_str());
+                    let decision_evidence_refs = Some(vec![
+                        validation_ref.canonical_id(),
+                        validation_evidence_ref.canonical_id(),
+                    ]);
+
+                    let (gov_decision, gov_decision_artifact) =
+                        create_gov_decision_and_emit_created(
+                            state,
+                            &runtime_paths,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            gate_type,
+                            target_ref.as_str(),
+                            GovernanceDecisionOutcome::Approve,
+                            1.0,
+                            "mt_validation_passed",
+                            decision_evidence_refs,
+                            Some(model_id.clone()),
+                            None,
+                        )
+                        .await?;
+
+                    if automation_level.requires_human_approval() {
+                        emit_gov_human_intervention_requested(
+                            state,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            &gov_decision,
+                            Some(vec![gov_decision_artifact.canonical_id()]),
+                        )
+                        .await?;
+
+                        progress.status = ProgressStatus::Paused;
+                        progress.current_state.active_mt = Some(mt_id.clone());
+                        progress.current_state.pending_gov_gate = Some(PendingGovGate {
+                            decision_id: gov_decision.decision_id.clone(),
+                            gate_type: gov_decision.gate_type.clone(),
+                            target_ref: gov_decision.target_ref.clone(),
+                            mt_id: mt.mt_id.clone(),
+                            final_iteration: iteration,
+                            final_model_level: escalation_level,
+                        });
+                        progress.updated_at = Utc::now();
+                        run_ledger.resume_reason =
+                            Some(format!("human_gate:{}", gov_decision.decision_id));
+                        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+
+                        return Ok(RunJobOutcome {
+                            state: JobState::AwaitingUser,
+                            status_reason: "paused_human_gate".to_string(),
+                            output: Some(json!({
+                                "wp_id": inputs.wp_id,
+                                "reason": "human_approval_required",
+                                "mt_id": mt.mt_id,
+                                "decision_id": gov_decision.decision_id,
+                                "mt_definitions_ref": mt_definitions_ref,
+                                "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                                "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                            })),
+                            error_message: None,
+                        });
+                    }
+
+                    let (_auto_signature, auto_signature_artifact) =
+                        create_auto_signature_and_emit_created(
+                            state,
+                            &runtime_paths,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            &gov_decision,
+                            model_id.as_str(),
+                        )
+                        .await?;
+
                     if policy.enable_distillation {
                         let pending = std::mem::take(
                             &mut progress.micro_tasks[mt_progress_index]
@@ -7319,6 +8393,22 @@ NEED: {{what you need to unblock}}
                         json!({ "wp_id": inputs.wp_id, "mt_id": mt.mt_id }),
                     )
                     .await;
+
+                    emit_gov_decision_applied(
+                        state,
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        inputs.wp_id.as_str(),
+                        Some(mt.mt_id.as_str()),
+                        automation_level,
+                        &gov_decision,
+                        Some(vec![
+                            gov_decision_artifact.canonical_id(),
+                            auto_signature_artifact.canonical_id(),
+                        ]),
+                    )
+                    .await?;
                     break;
                 }
 
@@ -7498,6 +8588,64 @@ NEED: {{what you need to unblock}}
                     )
                     .await;
 
+                    if automation_level.is_locked() {
+                        let target_ref =
+                            micro_task_target_ref(inputs.wp_id.as_str(), mt.mt_id.as_str());
+                        let (decision, artifact) = create_gov_decision_and_emit_created(
+                            state,
+                            &runtime_paths,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            GOV_GATE_TYPE_CLOUD_ESCALATION,
+                            target_ref.as_str(),
+                            GovernanceDecisionOutcome::Reject,
+                            1.0,
+                            "locked_cloud_escalation_denied",
+                            None,
+                            None,
+                            None,
+                        )
+                        .await?;
+
+                        emit_gov_decision_applied(
+                            state,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            &decision,
+                            Some(vec![artifact.canonical_id()]),
+                        )
+                        .await?;
+
+                        progress.status = ProgressStatus::Failed;
+                        progress.current_state.active_model_level = from_level;
+                        progress.updated_at = Utc::now();
+                        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+
+                        return Ok(RunJobOutcome {
+                            state: JobState::Failed,
+                            status_reason: "locked_fail_closed".to_string(),
+                            output: Some(json!({
+                                "wp_id": inputs.wp_id,
+                                "reason": "cloud_escalation_disallowed",
+                                "mt_id": mt.mt_id,
+                                "decision_id": decision.decision_id,
+                                "mt_definitions_ref": mt_definitions_ref,
+                                "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                                "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                            })),
+                            error_message: Some("LOCKED fail-closed".to_string()),
+                        });
+                    }
+
                     progress.status = ProgressStatus::Paused;
                     progress.updated_at = Utc::now();
                     write_json_atomic(&repo_root, &progress_abs, &progress)?;
@@ -7535,6 +8683,64 @@ NEED: {{what you need to unblock}}
                         }),
                     )
                     .await;
+
+                    if automation_level.is_locked() {
+                        let target_ref =
+                            micro_task_target_ref(inputs.wp_id.as_str(), mt.mt_id.as_str());
+                        let (decision, artifact) = create_gov_decision_and_emit_created(
+                            state,
+                            &runtime_paths,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            GOV_GATE_TYPE_HUMAN_INTERVENTION,
+                            target_ref.as_str(),
+                            GovernanceDecisionOutcome::Defer,
+                            1.0,
+                            "locked_fail_closed:hard_gate",
+                            None,
+                            None,
+                            None,
+                        )
+                        .await?;
+
+                        emit_gov_decision_applied(
+                            state,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            &decision,
+                            Some(vec![artifact.canonical_id()]),
+                        )
+                        .await?;
+
+                        progress.status = ProgressStatus::Failed;
+                        progress.current_state.active_model_level = from_level;
+                        progress.updated_at = Utc::now();
+                        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+
+                        return Ok(RunJobOutcome {
+                            state: JobState::Failed,
+                            status_reason: "locked_fail_closed".to_string(),
+                            output: Some(json!({
+                                "wp_id": inputs.wp_id,
+                                "reason": "escalation_exhausted",
+                                "mt_id": mt.mt_id,
+                                "decision_id": decision.decision_id,
+                                "mt_definitions_ref": mt_definitions_ref,
+                                "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                                "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                            })),
+                            error_message: Some("LOCKED fail-closed".to_string()),
+                        });
+                    }
 
                     progress.status = ProgressStatus::Paused;
                     progress.updated_at = Utc::now();

@@ -193,10 +193,22 @@ git revert <commit-sha>
   - AutoSignature is forbidden for cloud escalation and policy violations
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Implemented governance automation primitives in the Micro-Task Executor (Phase 1 scope):
+  - `AutomationLevel` canonicalization + normalization (accept legacy `ASSISTED`/`SUPERVISED` -> normalize to `HYBRID`) and `LOCKED` fail-closed semantics (no `AwaitingUser` in LOCKED; halt instead) [Spec 2.6.8.12.6.1 + 11.1.7.3].
+  - `GovernanceDecision` artifact creation (`schema_version: "hsk.gov_decision@0.4"`) for MT validation gate approvals, persisted under runtime governance root `.handshake/gov/governance_decisions/` [Spec 2.6.8.12.3].
+  - `AutoSignature` artifact creation (`schema_version: "hsk.auto_signature@0.1"`) for auto-approval gates with binding checks enforced before applying; hard-forbidden for `CloudEscalation` and `PolicyViolation` gate types [Spec 2.6.8.12.6.3].
+  - Flight Recorder governance automation events `FR-EVT-GOV-001..005`:
+    - Added event types + DuckDB back-compat mapping.
+    - Added payload schema validation at ingestion (`type`, `decision_id`, `gate_type`, `target_ref`, `automation_level`), explicitly accepting `automation_level="LOCKED"` and legacy `ASSISTED`/`SUPERVISED` inputs [Spec 11.5.7 + 2.6.8.12.6.1].
+    - Emission sequence for MT completion: `gov_decision_created` -> `gov_auto_signature_created` -> `gov_decision_applied`; FULL_HUMAN pauses with `gov_human_intervention_requested`/`received`; LOCKED halts without human events [Spec 2.6.8.12.6.4].
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Commands executed (selected):
+  - `cd src/backend/handshake_core && cargo build --lib`
+  - `cd src/backend/handshake_core && cargo test --lib`
+  - `just fmt` (then restored out-of-scope formatting diffs to remain within IN_SCOPE_PATHS)
+  - `just lint` (blocked in this environment: missing `node_modules` / `eslint`)
+  - `cd src/backend/handshake_core && cargo clippy --lib` (blocked intermittently: Windows file lock `os error 32`)
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
@@ -228,9 +240,17 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: BOOTSTRAP (coder started; gates executed; reviewing spec/task packet for skeleton)
-- What changed in this update: No product code changes yet. Environment unblocked; worktree/branch verified; pre-work gate run.
-- Next step / handoff hint: Draft `## SKELETON` (types/contracts + FR payload validation plan) + docs-only skeleton checkpoint commit; wait for Validator "SKELETON APPROVED" before implementation.
+- Current WP_STATUS: IMPLEMENTATION
+- What changed in this update:
+  - Implemented governance automation artifacts + FR ingestion validation in-scope:
+    - `src/backend/handshake_core/src/workflows.rs`
+    - `src/backend/handshake_core/src/runtime_governance.rs`
+    - `src/backend/handshake_core/src/flight_recorder/mod.rs`
+    - `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+  - MT Executor now produces `GovernanceDecision` + (when permitted) `AutoSignature`, emits `FR-EVT-GOV-001..005`, and enforces `LOCKED` fail-closed behavior (including cloud escalation denial in LOCKED).
+- Next step / handoff hint:
+  - Stage/commit the implementation diff on `feat/WP-1-Autonomous-Governance-Protocol-v2`.
+  - Run `just pre-work WP-1-Autonomous-Governance-Protocol-v2` and later `just post-work WP-1-Autonomous-Governance-Protocol-v2 --range b9d96a0019ffac9308968cb51ed0f7735c04f3b2..HEAD` per packet TEST_PLAN; paste gate outputs.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)

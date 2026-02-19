@@ -95,6 +95,12 @@ pub enum FlightRecorderEventType {
     GovMailboxExported,
     /// FR-EVT-GOV-MAILBOX-003: Role mailbox transcription link created [11.5.3]
     GovMailboxTranscribed,
+    /// FR-EVT-GOV-001..005: Governance automation events [11.5.7]
+    GovDecisionCreated,
+    GovDecisionApplied,
+    GovAutoSignatureCreated,
+    GovHumanInterventionRequested,
+    GovHumanInterventionReceived,
     /// FR-EVT-005: Debug Bundle export lifecycle event [11.5]
     DebugBundleExport,
     /// Governance Pack export lifecycle event [Spec 2.3.10]
@@ -202,6 +208,17 @@ impl fmt::Display for FlightRecorderEventType {
             }
             FlightRecorderEventType::GovMailboxExported => write!(f, "gov_mailbox_exported"),
             FlightRecorderEventType::GovMailboxTranscribed => write!(f, "gov_mailbox_transcribed"),
+            FlightRecorderEventType::GovDecisionCreated => write!(f, "gov_decision_created"),
+            FlightRecorderEventType::GovDecisionApplied => write!(f, "gov_decision_applied"),
+            FlightRecorderEventType::GovAutoSignatureCreated => {
+                write!(f, "gov_auto_signature_created")
+            }
+            FlightRecorderEventType::GovHumanInterventionRequested => {
+                write!(f, "gov_human_intervention_requested")
+            }
+            FlightRecorderEventType::GovHumanInterventionReceived => {
+                write!(f, "gov_human_intervention_received")
+            }
             FlightRecorderEventType::DebugBundleExport => write!(f, "debug_bundle_export"),
             FlightRecorderEventType::GovernancePackExport => write!(f, "governance_pack_export"),
             FlightRecorderEventType::RuntimeChatMessageAppended => {
@@ -562,6 +579,33 @@ impl FlightRecorderEvent {
             FlightRecorderEventType::GovMailboxTranscribed => {
                 validate_gov_mailbox_transcribed_payload(&self.payload)
             }
+            FlightRecorderEventType::GovDecisionCreated => {
+                validate_gov_automation_event_payload(&self.payload, "gov_decision_created", false)
+            }
+            FlightRecorderEventType::GovDecisionApplied => {
+                validate_gov_automation_event_payload(&self.payload, "gov_decision_applied", false)
+            }
+            FlightRecorderEventType::GovAutoSignatureCreated => {
+                validate_gov_automation_event_payload(
+                    &self.payload,
+                    "gov_auto_signature_created",
+                    false,
+                )
+            }
+            FlightRecorderEventType::GovHumanInterventionRequested => {
+                validate_gov_automation_event_payload(
+                    &self.payload,
+                    "gov_human_intervention_requested",
+                    true,
+                )
+            }
+            FlightRecorderEventType::GovHumanInterventionReceived => {
+                validate_gov_automation_event_payload(
+                    &self.payload,
+                    "gov_human_intervention_received",
+                    true,
+                )
+            }
             FlightRecorderEventType::LlmInference => {
                 let model_id = self.model_id.as_deref().map(str::trim).unwrap_or("");
                 if model_id.is_empty() {
@@ -628,6 +672,7 @@ impl FlightRecorderEvent {
     /// Prevents Unicode bypass attacks by ensuring consistent text representation.
     pub fn normalize_payload(&mut self) {
         self.payload = normalize_json_value(&self.payload);
+        normalize_automation_level_fields(&mut self.payload);
         // Also normalize string fields that could contain user-provided content
         self.actor_id = self.actor_id.nfc().collect();
         if let Some(ref job_id) = self.job_id {
@@ -654,6 +699,44 @@ fn normalize_json_value(value: &Value) -> Value {
                 .collect(),
         ),
         other => other.clone(),
+    }
+}
+
+fn normalize_automation_level_fields(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            for (key, value) in map.iter_mut() {
+                if key == "automation_level" {
+                    let Value::String(raw) = value else {
+                        continue;
+                    };
+                    let trimmed = raw.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+
+                    let upper = trimmed.to_ascii_uppercase();
+                    let normalized = match upper.as_str() {
+                        "ASSISTED" | "SUPERVISED" => "HYBRID",
+                        "FULL_HUMAN" | "HYBRID" | "AUTONOMOUS" | "LOCKED" => upper.as_str(),
+                        _ => trimmed,
+                    };
+                    if normalized == upper.as_str() {
+                        *raw = upper;
+                    } else {
+                        *raw = normalized.to_string();
+                    }
+                } else {
+                    normalize_automation_level_fields(value);
+                }
+            }
+        }
+        Value::Array(items) => {
+            for item in items.iter_mut() {
+                normalize_automation_level_fields(item);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -3152,6 +3235,180 @@ fn validate_gov_mailbox_transcribed_payload(payload: &Value) -> Result<(), Recor
     Ok(())
 }
 
+fn validate_gov_automation_event_payload(
+    payload: &Value,
+    expected_type: &str,
+    allow_user_id: bool,
+) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    let required = [
+        "type",
+        "decision_id",
+        "gate_type",
+        "target_ref",
+        "automation_level",
+    ];
+    let mut optional = vec![
+        "decision",
+        "confidence",
+        "rationale",
+        "evidence_refs",
+        "wp_id",
+        "mt_id",
+    ];
+    if allow_user_id {
+        optional.push("user_id");
+    }
+
+    require_allowed_keys(map, &required, &optional)?;
+    require_fixed_string(map, "type", expected_type)?;
+
+    match require_key(map, "decision_id")? {
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field decision_id must be a safe id".to_string(),
+            ))
+        }
+    }
+    match require_key(map, "gate_type")? {
+        Value::String(value) if is_safe_id(value, 64) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field gate_type must be a safe id".to_string(),
+            ))
+        }
+    }
+    match require_key(map, "target_ref")? {
+        Value::String(value) if is_safe_token(value, 512) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field target_ref must be a bounded string token".to_string(),
+            ))
+        }
+    }
+    match require_key(map, "automation_level")? {
+        Value::String(value) => match value.as_str() {
+            "FULL_HUMAN" | "HYBRID" | "AUTONOMOUS" | "LOCKED" | "ASSISTED" | "SUPERVISED" => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field automation_level must be one of: FULL_HUMAN, HYBRID, AUTONOMOUS, LOCKED"
+                        .to_string(),
+                ))
+            }
+        },
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field automation_level must be a string".to_string(),
+            ))
+        }
+    }
+
+    if map.contains_key("decision") {
+        match require_key(map, "decision")? {
+            Value::String(value) => match value.as_str() {
+                "approve" | "reject" | "defer" => {}
+                _ => {
+                    return Err(RecorderError::InvalidEvent(
+                        "payload field decision must be one of: approve, reject, defer".to_string(),
+                    ))
+                }
+            },
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field decision must be a string".to_string(),
+                ))
+            }
+        }
+    }
+
+    if map.contains_key("confidence") {
+        match require_key(map, "confidence")? {
+            Value::Number(value) => match value.as_f64() {
+                Some(n) if (0.0..=1.0).contains(&n) => {}
+                _ => {
+                    return Err(RecorderError::InvalidEvent(
+                        "payload field confidence must be between 0.0 and 1.0".to_string(),
+                    ))
+                }
+            },
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field confidence must be a number".to_string(),
+                ))
+            }
+        }
+    }
+
+    if map.contains_key("rationale") {
+        match require_key(map, "rationale")? {
+            Value::String(value) if is_safe_token(value, 512) => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field rationale must be a bounded string token".to_string(),
+                ))
+            }
+        }
+    }
+
+    if map.contains_key("evidence_refs") {
+        match require_key(map, "evidence_refs")? {
+            Value::Array(items) => {
+                for (idx, item) in items.iter().enumerate() {
+                    match item {
+                        Value::String(value) if is_safe_token(value, 512) => {}
+                        _ => {
+                            return Err(RecorderError::InvalidEvent(format!(
+                                "payload field evidence_refs[{idx}] must be a bounded string token"
+                            )))
+                        }
+                    }
+                }
+            }
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field evidence_refs must be an array".to_string(),
+                ))
+            }
+        }
+    }
+
+    if map.contains_key("wp_id") {
+        match require_key(map, "wp_id")? {
+            Value::String(value) if is_safe_token(value, 128) => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field wp_id must be a bounded string token".to_string(),
+                ))
+            }
+        }
+    }
+
+    if map.contains_key("mt_id") {
+        match require_key(map, "mt_id")? {
+            Value::String(value) if is_safe_token(value, 128) => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field mt_id must be a bounded string token".to_string(),
+                ))
+            }
+        }
+    }
+
+    if allow_user_id && map.contains_key("user_id") {
+        match require_key(map, "user_id")? {
+            Value::String(value) if is_safe_token(value, 128) => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field user_id must be a bounded string token".to_string(),
+                ))
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn validate_llm_inference_payload(payload: &Value) -> Result<(), RecorderError> {
     let map = payload_object(payload)?;
 
@@ -3748,6 +4005,61 @@ mod tests {
         }
         assert!(matches!(
             validate_gov_mailbox_transcribed_payload(&bad_sha),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+    }
+
+    fn valid_gov_decision_created_payload() -> Value {
+        json!({
+            "type": "gov_decision_created",
+            "decision_id": "550e8400-e29b-41d4-a716-446655440000",
+            "gate_type": "MicroTaskValidation",
+            "target_ref": "wp/WP-1/mt/MT-1",
+            "automation_level": "AUTONOMOUS",
+            "decision": "approve",
+            "confidence": 1.0,
+            "evidence_refs": ["artifact:550e8400-e29b-41d4-a716-446655440001:.handshake/gov/governance_decisions/550e8400-e29b-41d4-a716-446655440000.json"],
+            "wp_id": "WP-1",
+            "mt_id": "MT-1"
+        })
+    }
+
+    #[test]
+    fn test_gov_automation_event_payload_validation() {
+        let payload = valid_gov_decision_created_payload();
+        assert!(
+            validate_gov_automation_event_payload(&payload, "gov_decision_created", false).is_ok()
+        );
+
+        let mut bad_automation = payload.clone();
+        if let Some(obj) = bad_automation.as_object_mut() {
+            obj.insert("automation_level".to_string(), json!("BAD"));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_automation_event_payload(&bad_automation, "gov_decision_created", false),
+            Err(RecorderError::InvalidEvent(_))
+        ));
+
+        let mut legacy = payload.clone();
+        if let Some(obj) = legacy.as_object_mut() {
+            obj.insert("automation_level".to_string(), json!("ASSISTED"));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(
+            validate_gov_automation_event_payload(&legacy, "gov_decision_created", false).is_ok()
+        );
+
+        let mut extra = payload.clone();
+        if let Some(obj) = extra.as_object_mut() {
+            obj.insert("extra".to_string(), json!(true));
+        } else {
+            assert!(false, "expected payload to be a JSON object");
+        }
+        assert!(matches!(
+            validate_gov_automation_event_payload(&extra, "gov_decision_created", false),
             Err(RecorderError::InvalidEvent(_))
         ));
     }

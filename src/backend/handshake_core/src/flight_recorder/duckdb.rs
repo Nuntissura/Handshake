@@ -760,6 +760,17 @@ impl DuckDbFlightRecorder {
                 }
                 "gov_mailbox_exported" => super::FlightRecorderEventType::GovMailboxExported,
                 "gov_mailbox_transcribed" => super::FlightRecorderEventType::GovMailboxTranscribed,
+                "gov_decision_created" => super::FlightRecorderEventType::GovDecisionCreated,
+                "gov_decision_applied" => super::FlightRecorderEventType::GovDecisionApplied,
+                "gov_auto_signature_created" => {
+                    super::FlightRecorderEventType::GovAutoSignatureCreated
+                }
+                "gov_human_intervention_requested" => {
+                    super::FlightRecorderEventType::GovHumanInterventionRequested
+                }
+                "gov_human_intervention_received" => {
+                    super::FlightRecorderEventType::GovHumanInterventionReceived
+                }
                 "security_violation" => super::FlightRecorderEventType::SecurityViolation,
                 "data_bronze_created" => super::FlightRecorderEventType::DataBronzeCreated,
                 "data_silver_created" => super::FlightRecorderEventType::DataSilverCreated,
@@ -995,7 +1006,10 @@ mod tests {
             }
         }
 
-        for query in ["SELECT * FROM duckdb_indexes()", "SELECT * FROM duckdb_indexes"] {
+        for query in [
+            "SELECT * FROM duckdb_indexes()",
+            "SELECT * FROM duckdb_indexes",
+        ] {
             if let Ok(values) = list_query_string_cells(conn, query) {
                 if !values.is_empty() {
                     return Ok(values);
@@ -1040,15 +1054,21 @@ mod tests {
 
         let index_values = list_index_introspection_values(&conn)?;
         assert!(
-            index_values.iter().any(|value| value == "idx_events_trace_id"),
+            index_values
+                .iter()
+                .any(|value| value == "idx_events_trace_id"),
             "expected idx_events_trace_id in DuckDB index introspection; got: {index_values:?}"
         );
         assert!(
-            index_values.iter().any(|value| value == "idx_events_job_id"),
+            index_values
+                .iter()
+                .any(|value| value == "idx_events_job_id"),
             "expected idx_events_job_id in DuckDB index introspection; got: {index_values:?}"
         );
         assert!(
-            index_values.iter().any(|value| value == "idx_events_timestamp"),
+            index_values
+                .iter()
+                .any(|value| value == "idx_events_timestamp"),
             "expected idx_events_timestamp in DuckDB index introspection; got: {index_values:?}"
         );
 
