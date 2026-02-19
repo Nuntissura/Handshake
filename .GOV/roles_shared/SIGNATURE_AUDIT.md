@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-02-19
+**Updated:** 2026-02-20
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja200220260027 | Orchestrator | 2026-02-20 00:27 | Spec Enrichment v02.133 (Cloud escalation event alignment: canonicalize FR-EVT-CLOUD-001..004; align 9.1.4 mirror table) | v02.133 | Approved in-chat; signature provided by Operator. See .GOV/refinements/WP-1-Cloud-Escalation-Consent-v1.md. |
 | ilja190220261548 | Orchestrator | 2026-02-19 15:48 | Task packet creation: WP-1-Autonomous-Governance-Protocol-v2 | v02.132 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Autonomous-Governance-Protocol-v2.md ). |
 | ilja190220261426 | Orchestrator | 2026-02-19 14:26 | Spec Enrichment v02.132 (Autonomous Governance canonicalization: AutomationLevel/GovernanceDecision/AutoSignature/FR-EVT-GOV alignment + LOCKED semantics) | v02.132 | Approved in-chat; signature provided by Operator. See .GOV/refinements/WP-1-Autonomous-Governance-Protocol-v1.md. |
 | ilja160220262157 | Orchestrator | 2026-02-16 21:57 | Task packet creation: WP-1-MCP-End-to-End-v2 | v02.126 | Approved after Technical Refinement (see .GOV/refinements/WP-1-MCP-End-to-End-v2.md ). |
