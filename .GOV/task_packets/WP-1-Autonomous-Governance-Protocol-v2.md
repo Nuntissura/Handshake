@@ -52,7 +52,7 @@
 
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- NONE
+- [CX-573F] 2026-02-19: Allow out-of-scope bootstrap/spec files in post-work range (SPEC_CURRENT update, spec v02.132 add, traceability registry activation, legacy refinement v1 doc). Approved by: Operator.
 
 ## QUALITY_GATE
 ### TEST_PLAN
@@ -213,34 +213,103 @@ git revert <commit-sha>
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- SHA1 hint:
+  - If validating staged/worktree diffs, `just cor701-sha path/to/file` prints deterministic HEAD/INDEX SHA1s.
+  - If validating a range (`just post-work ... --range <base>..HEAD`), Pre-SHA1 values must correspond to the `<base>` blob for each target file.
+
+- **Target File**: `Handshake_Master_Spec_v02.132.md`
+- **Start**: 1
+- **End**: 68226
+- **Line Delta**: 68226
+- **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
+- **Post-SHA1**: `ffa3d933b4a21c4677bfe9a06cf29cda59dd34a2`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 12
+- **End**: 8744
+- **Line Delta**: 1206
+- **Pre-SHA1**: `716ceec1aa7bdfb6f7d1de18a2cdd7fe2e889f1d`
+- **Post-SHA1**: `13773956b14c10256cce253fc3c7e7bc3a88583c`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/runtime_governance.rs`
+- **Start**: 12
+- **End**: 241
+- **Line Delta**: 49
+- **Pre-SHA1**: `a319078ce6de98a685a796297738f476cf90d746`
+- **Post-SHA1**: `d2341a20c372789500925ba19097871637512d06`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 97
+- **End**: 4065
+- **Line Delta**: 312
+- **Pre-SHA1**: `4712140a2b3a83d127f5242deee218ec8f190130`
+- **Post-SHA1**: `5edf703771c18f4697901d0ead275d0f32b3386e`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- **Start**: 762
+- **End**: 1071
+- **Line Delta**: 20
+- **Pre-SHA1**: `7c1eaecd21064dffe9c7240c800dc406152988f1`
+- **Post-SHA1**: `9be8b53607d400a5a1366ce8c75c49166e5ddfda`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: IMPLEMENTATION
+- Current WP_STATUS: HYGIENE
 - What changed in this update:
   - Implemented governance automation artifacts + FR ingestion validation in-scope:
     - `src/backend/handshake_core/src/workflows.rs`
@@ -249,23 +318,40 @@ git revert <commit-sha>
     - `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
   - MT Executor now produces `GovernanceDecision` + (when permitted) `AutoSignature`, emits `FR-EVT-GOV-001..005`, and enforces `LOCKED` fail-closed behavior (including cloud escalation denial in LOCKED).
 - Next step / handoff hint:
-  - Stage/commit the implementation diff on `feat/WP-1-Autonomous-Governance-Protocol-v2`.
-  - Run `just pre-work WP-1-Autonomous-Governance-Protocol-v2` and later `just post-work WP-1-Autonomous-Governance-Protocol-v2 --range b9d96a0019ffac9308968cb51ed0f7735c04f3b2..HEAD` per packet TEST_PLAN; paste gate outputs.
+  - Append EVIDENCE_MAPPING + EVIDENCE (commands + exit codes).
+  - Re-run `just post-work WP-1-Autonomous-Governance-Protocol-v2 --range b9d96a0019ffac9308968cb51ed0f7735c04f3b2..HEAD` and address any remaining deterministic manifest gate issues (range currently includes out-of-scope governance/spec files; see post-work output).
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
-- Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `path/to/file:line`
+- REQUIREMENT: "AutomationLevel canonicalization implemented per Spec 2.6.8.12.6.1 (including legacy ASSISTED/SUPERVISED normalization to HYBRID) and LOCKED fail-closed semantics."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3158`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:6667`
+- REQUIREMENT: "GovernanceDecision artifact is produced for every autonomous/hybrid gate approval per 2.6.8.12.3 and linked into Flight Recorder via decision_id + gate_type + target_ref."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3953`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3990`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:4005`
+- REQUIREMENT: "AutoSignature artifact is implemented per 2.6.8.12.6.3; binding checks enforced; forbidden for cloud escalation and policy violations."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3855`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3859`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:4018`
+- REQUIREMENT: "FR-EVT-GOV-001..005 events are emitted for governance automation decisions and schema-validated at ingestion per 11.5.7; no new event IDs are introduced."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3992`
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:582`
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/duckdb.rs:763`
+- REQUIREMENT: "Cloud escalation remains explicitly human-gated and is denied in LOCKED per 11.1.7.3 and 2.6.8.12.6.1."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:7053`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Autonomous-Governance-Protocol-v2/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+  - COMMAND: `just hard-gate-wt-001`
+  - EXIT_CODE: 0
+  - COMMAND: `just pre-work WP-1-Autonomous-Governance-Protocol-v2`
+  - EXIT_CODE: 0
+  - COMMAND: `just post-work WP-1-Autonomous-Governance-Protocol-v2 --range b9d96a0019ffac9308968cb51ed0f7735c04f3b2..HEAD`
+  - EXIT_CODE: 1
+  - COMMAND: `just post-work WP-1-Autonomous-Governance-Protocol-v2 --range b9d96a0019ffac9308968cb51ed0f7735c04f3b2..HEAD`
+  - EXIT_CODE: 0
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
