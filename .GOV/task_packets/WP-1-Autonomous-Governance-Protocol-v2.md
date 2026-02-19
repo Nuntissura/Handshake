@@ -5,13 +5,13 @@
 - WP_ID: WP-1-Autonomous-Governance-Protocol-v2
 - BASE_WP_ID: WP-1-Autonomous-Governance-Protocol (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: 2026-02-19T14:59:33.593Z
-- MERGE_BASE_SHA: b9d96a0019ffac9308968cb51ed0f7735c04f3b2 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: b9d96a0019ffac9308968cb51ed0f7735c04f3b2
 - REQUESTOR: Operator (ilja)
 - AGENT_ID: codex-cli:gpt-5.2 (orchestrator)
 - ROLE: Orchestrator
-- AGENTIC_MODE: NO (YES | NO)
-- ORCHESTRATOR_MODEL: N/A (required if AGENTIC_MODE=YES)
-- ORCHESTRATION_STARTED_AT_UTC: N/A (RFC3339 UTC; required if AGENTIC_MODE=YES)
+- AGENTIC_MODE: NO
+- ORCHESTRATOR_MODEL: N/A
+- ORCHESTRATION_STARTED_AT_UTC: N/A
 - CODER_MODEL: <unclaimed>
 - CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
 - **Status:** Ready for Dev
