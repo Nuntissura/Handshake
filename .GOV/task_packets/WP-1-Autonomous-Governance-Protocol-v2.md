@@ -355,3 +355,88 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### 2026-02-19 - VALIDATION REPORT - WP-1-Autonomous-Governance-Protocol-v2
+
+Verdict: PASS
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Autonomous-Governance-Protocol-v2`; not tests): PASS (warnings; CX-573F waiver)
+- TEST_PLAN_PASS (packet QUALITY_GATE TEST_PLAN intent; backend checks): PASS (fmt check fails repo-wide; noted below)
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Autonomous-Governance-Protocol-v2.md` (**Status:** In Progress)
+- Spec: `Handshake_Master_Spec_v02.132.md` sections 2.6.8.12, 2.6.8.12.6, 11.5.7, 11.1.7.3 (per AUTHORITY)
+
+Validated Refs:
+- Branch: `feat/WP-1-Autonomous-Governance-Protocol-v2`
+- HEAD: `24be0d07d3ced08f08a49958823686f81a337f58`
+- `just post-work` range: `b9d96a0019ffac9308968cb51ed0f7735c04f3b2..24be0d07d3ced08f08a49958823686f81a337f58`
+
+WAIVERS / SCOPE NOTES:
+- [CX-573F] ACCEPTED (per packet): Out-of-scope bootstrap/spec files present in the post-work range were reviewed and determined to be correct governance/spec pointer work (SPEC_CURRENT + traceability registry + spec v02.132 add + legacy refinement doc). No regression to Master Spec intent was found.
+
+Files Checked:
+- `.GOV/task_packets/WP-1-Autonomous-Governance-Protocol-v2.md`
+- `.GOV/refinements/WP-1-Autonomous-Governance-Protocol-v2.md`
+- `Handshake_Master_Spec_v02.132.md`
+- `src/backend/handshake_core/src/workflows.rs`
+- `src/backend/handshake_core/src/runtime_governance.rs`
+- `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- `src/backend/handshake_core/src/storage/mod.rs` (atomic write + root escape block)
+- `justfile` (available recipes vs TEST_PLAN)
+
+Findings (Spec Conformance):
+- AutomationLevel canonical set + normalization + LOCKED semantics:
+  - Canonical enum + legacy aliasing implemented at `src/backend/handshake_core/src/workflows.rs:3158`.
+  - LOCKED fail-closed paths implemented (pause point + hard gates + cloud escalation denial) at:
+    - `src/backend/handshake_core/src/workflows.rs:6651` (pause point LOCKED fail-closed)
+    - `src/backend/handshake_core/src/workflows.rs:6959` (escalation exhausted LOCKED fail-closed)
+    - `src/backend/handshake_core/src/workflows.rs:7053` (cloud escalation disallowed LOCKED -> reject + halt)
+  - Flight Recorder payload normalization for `automation_level` implemented at `src/backend/handshake_core/src/flight_recorder/mod.rs:633`.
+- GovernanceDecision artifact + Flight Recorder linkage:
+  - Artifact creation + write implemented at `src/backend/handshake_core/src/workflows.rs:3818`.
+  - Decision emitted for MT success at `src/backend/handshake_core/src/workflows.rs:8190`.
+  - Decision applied event emitted at MT completion at `src/backend/handshake_core/src/workflows.rs:8397` and on human resume at `src/backend/handshake_core/src/workflows.rs:6620`.
+- AutoSignature artifact + binding + prohibition for cloud escalation/policy:
+  - Gate-type prohibition enforced at `src/backend/handshake_core/src/workflows.rs:3855`.
+  - Binding enforcement enforced at `src/backend/handshake_core/src/workflows.rs:3859`.
+  - AutoSignature created + FR emission at `src/backend/handshake_core/src/workflows.rs:4018`.
+- Flight Recorder governance automation events (FR-EVT-GOV-001..005):
+  - Event types added (no new family) at `src/backend/handshake_core/src/flight_recorder/mod.rs:95`.
+  - Payload validation implemented at `src/backend/handshake_core/src/flight_recorder/mod.rs:3235`.
+  - DuckDB ingestion mapping implemented at `src/backend/handshake_core/src/flight_recorder/duckdb.rs:760`.
+- Runtime storage paths (atomic writes under `.handshake/gov/...`):
+  - Paths added at `src/backend/handshake_core/src/runtime_governance.rs:13`.
+  - Atomic write primitive verified at `src/backend/handshake_core/src/storage/mod.rs:530`.
+
+Tests / Commands (verbatim):
+- COMMAND: `just pre-work WP-1-Autonomous-Governance-Protocol-v2`
+  - EXIT_CODE: 0
+- COMMAND: `just post-work WP-1-Autonomous-Governance-Protocol-v2 --range b9d96a0019ffac9308968cb51ed0f7735c04f3b2..HEAD`
+  - EXIT_CODE: 0
+  - NOTE: WARNINGS (expected due to CX-573F): out-of-scope files changed but waiver present; new spec file not present at preimage SHA.
+- COMMAND: `cd src/backend/handshake_core; cargo fmt -- --check`
+  - EXIT_CODE: non-zero (repo-wide baseline fails on `main` as well; not introduced by this WP)
+- COMMAND: `cd src/backend/handshake_core; cargo clippy --all-targets --all-features`
+  - EXIT_CODE: 0 (warnings present; no clippy denies observed)
+- COMMAND: `just cargo-clean`
+  - EXIT_CODE: 0 (removed ~3.1GiB artifacts)
+- COMMAND: `cd src/backend/handshake_core; cargo test -j 1`
+  - EXIT_CODE: 0
+  - NOTE: Initial `cargo test` attempt failed with OS paging-file / file-lock issues; resolved by `just cargo-clean` + re-run with `-j 1`.
+
+Security / Red Team Notes:
+- AutoSignature is forbidden for Cloud Escalation and Policy Violation gates by explicit check (`src/backend/handshake_core/src/workflows.rs:3855`).
+- LOCKED semantics deny cloud escalation and fail closed when human intervention would normally be required (see LOCKED call sites above).
+- Governance artifacts are written via atomic temp+fsync+rename with root escape prevention (`src/backend/handshake_core/src/storage/mod.rs:530`).
+
+Risks & Suggested Actions:
+- Rustfmt check currently fails repo-wide (`cargo fmt -- --check` fails on `main`). Recommend a dedicated hygiene WP to run `cargo fmt` and commit the formatting drift (kept out of this WP to avoid cross-scope churn).
+- Packet QUALITY_GATE TEST_PLAN uses `just fmt-backend/lint-backend/test-backend` which do not exist in `justfile`; recommend updating packet template or adding aliases in `justfile` (separate governance/hygiene change).
+
+REASON FOR PASS:
+- Deterministic manifest gate PASS (with an explicit waiver for known out-of-scope bootstrap/spec pointer files).
+- Backend tests pass and the implemented governance automation surfaces match the Master Spec v02.132 requirements for AutomationLevel canonicalization, GovernanceDecision/AutoSignature artifacts, FR-EVT-GOV-* emission, and LOCKED fail-closed behavior.
