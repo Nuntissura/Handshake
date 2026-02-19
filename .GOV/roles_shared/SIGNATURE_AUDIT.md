@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-02-14
+**Updated:** 2026-02-19
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja190220261548 | Orchestrator | 2026-02-19 15:48 | Task packet creation: WP-1-Autonomous-Governance-Protocol-v2 | v02.132 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Autonomous-Governance-Protocol-v2.md ). |
+| ilja190220261426 | Orchestrator | 2026-02-19 14:26 | Spec Enrichment v02.132 (Autonomous Governance canonicalization: AutomationLevel/GovernanceDecision/AutoSignature/FR-EVT-GOV alignment + LOCKED semantics) | v02.132 | Approved in-chat; signature provided by Operator. See .GOV/refinements/WP-1-Autonomous-Governance-Protocol-v1.md. |
 | ilja160220262157 | Orchestrator | 2026-02-16 21:57 | Task packet creation: WP-1-MCP-End-to-End-v2 | v02.126 | Approved after Technical Refinement (see .GOV/refinements/WP-1-MCP-End-to-End-v2.md ). |
 | ilja160220260031 | Orchestrator | 2026-02-16 00:31 | Task packet creation: WP-1-MCP-Skeleton-Gate-v2 | v02.126 | Approved after Technical Refinement (see .GOV/refinements/WP-1-MCP-Skeleton-Gate-v2.md ). |
 | ilja140220261758 | Orchestrator | 2026-02-14 17:58 | Task packet creation: WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2 | v02.126 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2.md ). |
@@ -197,6 +199,6 @@ grep -r "Strategic Pause approval \[" .GOV/task_packets/ | awk -F'[' '{print $NF
 
 ---
 
-**Last Updated:** 2026-01-26
+**Last Updated:** 2026-02-19
 **Version:** 1.0
 **Maintained By:** Orchestrator Agent

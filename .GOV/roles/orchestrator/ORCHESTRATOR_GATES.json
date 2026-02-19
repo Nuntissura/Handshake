@@ -1313,6 +1313,31 @@
       "branch": "feat/WP-1-MCP-End-to-End-v2",
       "worktree_dir": "../wt-WP-1-MCP-End-to-End-v2",
       "timestamp": "2026-02-16T22:03:12.434Z"
+    },
+    {
+      "wpId": "WP-1-Autonomous-Governance-Protocol-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Autonomous-Governance-Protocol-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.131.md",
+      "spec_target_sha1": "9d9c3daea60ed8a00e5ef409c92a3d3c154adbcb",
+      "timestamp": "2026-02-19T12:59:57.762Z",
+      "turn_token": "1771505999466"
+    },
+    {
+      "wpId": "WP-1-Autonomous-Governance-Protocol-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Autonomous-Governance-Protocol-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.132.md",
+      "spec_target_sha1": "ffa3d933b4a21c4677bfe9a06cf29cda59dd34a2",
+      "timestamp": "2026-02-19T14:12:40.573Z",
+      "turn_token": "1771510360575"
+    },
+    {
+      "wpId": "WP-1-Autonomous-Governance-Protocol-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja190220261548",
+      "timestamp": "2026-02-19T14:57:24.513Z",
+      "refinement_path": ".GOV/refinements/WP-1-Autonomous-Governance-Protocol-v2.md"
     }
   ]
 }
