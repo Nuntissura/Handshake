@@ -52,7 +52,7 @@
 
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- NONE
+- [CX-573F] 2026-02-19: Allow out-of-scope bootstrap/spec files in post-work range (SPEC_CURRENT update, spec v02.132 add, traceability registry activation, legacy refinement v1 doc). Approved by: Operator.
 
 ## QUALITY_GATE
 ### TEST_PLAN
@@ -128,8 +128,49 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - `AutomationLevel` (canonical + normalization) [Spec 2.6.8.12.6.1]
+    - Canonical values: `FULL_HUMAN | HYBRID | AUTONOMOUS | LOCKED`
+    - Normalization at ingestion boundaries:
+      - Accept legacy inputs `ASSISTED` and `SUPERVISED` and normalize both to `HYBRID`
+      - Treat any config mentioning "GovernanceMode LOCKED" as `AutomationLevel=LOCKED`
+  - `GovernanceDecision` artifact schema [Spec 2.6.8.12.3]
+    - `schema_version: "hsk.gov_decision@0.4"`
+    - Fields: `decision_id`, `gate_type`, `target_ref`, `decision`, `confidence`, `rationale`, `evidence_refs?`, `timestamp`, `actor{kind, model_id?, user_id?}`
+  - `AutoSignature` artifact schema + binding checks [Spec 2.6.8.12.6.3]
+    - `schema_version: "hsk.auto_signature@0.1"`
+    - Fields: `auto_signature_id`, `decision_id`, `gate_type`, `target_ref`, `created_at`, `actor{kind="model", model_id}`
+    - Server-side verification before applying: require `(decision_id, gate_type, target_ref)` match the referenced `GovernanceDecision`
+    - Hard forbid AutoSignature for `CloudEscalation` and `PolicyViolation` gates
+  - Gate type canonical string set (stable `gate_type` strings used in decisions + FR events)
+    - Initial set (minimal for this WP): `MicroTaskValidation`, `CloudEscalation`, `PolicyViolation`, `HumanIntervention`
+    - (Add more only if required by code paths; do NOT introduce new FR event IDs beyond FR-EVT-GOV-001..005)
+  - Flight Recorder: add FR-EVT-GOV-001..005 event types + payload schema validation at ingestion [Spec 11.5.7 + 2.6.8.12.6.1]
+    - `gov_decision_created` (FR-EVT-GOV-001): required `decision_id`, `gate_type`, `target_ref`, `automation_level`; optional `decision`, `confidence`, `rationale`, `evidence_refs`
+    - `gov_decision_applied` (FR-EVT-GOV-002): required `decision_id`, `gate_type`, `target_ref`, `automation_level`
+    - `gov_auto_signature_created` (FR-EVT-GOV-003): required `decision_id`, `gate_type`, `target_ref`, `automation_level`
+    - `gov_human_intervention_requested` (FR-EVT-GOV-004): required `decision_id`, `gate_type`, `target_ref`, `automation_level`; optional `user_id`
+    - `gov_human_intervention_received` (FR-EVT-GOV-005): required `decision_id`, `gate_type`, `target_ref`, `automation_level`; optional `user_id`
+    - NOTE: validator MUST accept `automation_level="LOCKED"` even if older spec snippets enumerate fewer values.
+  - Runtime governance storage (paths only; product-owned state under `.handshake/gov/`) [runtime_governance.rs]
+    - Add directories under runtime governance root:
+      - `.handshake/gov/governance_decisions/` (decision JSON artifacts)
+      - `.handshake/gov/auto_signatures/` (autosignature JSON artifacts)
+    - Use atomic writes; never write into repo `.GOV/**` at runtime.
+  - Workflow integration point (initial implementation target in this WP) [workflows.rs]
+    - Micro-task executor: when a micro-task completion is auto-applied (claimed_complete + validation_passed)
+      - Create `GovernanceDecision` (decision="approve") and emit FR-EVT-GOV-001
+      - If AutoSignature is permitted for this gate_type + AutomationLevel, create AutoSignature and emit FR-EVT-GOV-003
+      - Enforce binding checks, then apply completion and emit FR-EVT-GOV-002
+    - When human intervention is required (e.g., FULL_HUMAN gates or HYBRID below threshold), emit FR-EVT-GOV-004 and pause.
+    - LOCKED fail-closed: never pause for human intervention; emit GovernanceDecision ("reject" or "defer") and halt.
 - Open questions:
+  - Where does `AutomationLevel` come from for this crate today (Work Profile vs env vs per-job input)? Proposed: add optional `automation_level` to MT Executor `ExecutionPolicy` inputs with default `AUTONOMOUS`.
+  - What is the canonical `target_ref` format for MT decisions (string format) to keep it stable across job restarts?
+  - For FR-EVT-GOV-004/005, what `user_id` should be recorded in Phase 1 (not currently available in MT executor context)?
+  - Should decision/autosignature artifacts live under `.handshake/gov/` (global) or under the MT job dir (per-job)? Proposed: `.handshake/gov/` for cross-job auditability + stable refs.
 - Notes:
+  - Stage-imported spec blocks (10.13) that define alternate GovernanceDecision schema_version or non-canonical event IDs are informative only; implementation MUST follow canonical 2.6.8.12.3 + 11.5.7. No new FR event IDs.
+  - END_TO_END_CLOSURE_PLAN is already captured in the task packet section `## END_TO_END_CLOSURE_PLAN [CX-E2E-001]`; the implementation will follow that trust-boundary mapping.
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
@@ -152,59 +193,250 @@ git revert <commit-sha>
   - AutoSignature is forbidden for cloud escalation and policy violations
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Implemented governance automation primitives in the Micro-Task Executor (Phase 1 scope):
+  - `AutomationLevel` canonicalization + normalization (accept legacy `ASSISTED`/`SUPERVISED` -> normalize to `HYBRID`) and `LOCKED` fail-closed semantics (no `AwaitingUser` in LOCKED; halt instead) [Spec 2.6.8.12.6.1 + 11.1.7.3].
+  - `GovernanceDecision` artifact creation (`schema_version: "hsk.gov_decision@0.4"`) for MT validation gate approvals, persisted under runtime governance root `.handshake/gov/governance_decisions/` [Spec 2.6.8.12.3].
+  - `AutoSignature` artifact creation (`schema_version: "hsk.auto_signature@0.1"`) for auto-approval gates with binding checks enforced before applying; hard-forbidden for `CloudEscalation` and `PolicyViolation` gate types [Spec 2.6.8.12.6.3].
+  - Flight Recorder governance automation events `FR-EVT-GOV-001..005`:
+    - Added event types + DuckDB back-compat mapping.
+    - Added payload schema validation at ingestion (`type`, `decision_id`, `gate_type`, `target_ref`, `automation_level`), explicitly accepting `automation_level="LOCKED"` and legacy `ASSISTED`/`SUPERVISED` inputs [Spec 11.5.7 + 2.6.8.12.6.1].
+    - Emission sequence for MT completion: `gov_decision_created` -> `gov_auto_signature_created` -> `gov_decision_applied`; FULL_HUMAN pauses with `gov_human_intervention_requested`/`received`; LOCKED halts without human events [Spec 2.6.8.12.6.4].
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Commands executed (selected):
+  - `cd src/backend/handshake_core && cargo build --lib`
+  - `cd src/backend/handshake_core && cargo test --lib`
+  - `just fmt` (then restored out-of-scope formatting diffs to remain within IN_SCOPE_PATHS)
+  - `just lint` (blocked in this environment: missing `node_modules` / `eslint`)
+  - `cd src/backend/handshake_core && cargo clippy --lib` (blocked intermittently: Windows file lock `os error 32`)
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- SHA1 hint:
+  - If validating staged/worktree diffs, `just cor701-sha path/to/file` prints deterministic HEAD/INDEX SHA1s.
+  - If validating a range (`just post-work ... --range <base>..HEAD`), Pre-SHA1 values must correspond to the `<base>` blob for each target file.
+
+- **Target File**: `Handshake_Master_Spec_v02.132.md`
+- **Start**: 1
+- **End**: 68226
+- **Line Delta**: 68226
+- **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
+- **Post-SHA1**: `ffa3d933b4a21c4677bfe9a06cf29cda59dd34a2`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 12
+- **End**: 8744
+- **Line Delta**: 1206
+- **Pre-SHA1**: `716ceec1aa7bdfb6f7d1de18a2cdd7fe2e889f1d`
+- **Post-SHA1**: `13773956b14c10256cce253fc3c7e7bc3a88583c`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/runtime_governance.rs`
+- **Start**: 12
+- **End**: 241
+- **Line Delta**: 49
+- **Pre-SHA1**: `a319078ce6de98a685a796297738f476cf90d746`
+- **Post-SHA1**: `d2341a20c372789500925ba19097871637512d06`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 97
+- **End**: 4065
+- **Line Delta**: 312
+- **Pre-SHA1**: `4712140a2b3a83d127f5242deee218ec8f190130`
+- **Post-SHA1**: `5edf703771c18f4697901d0ead275d0f32b3386e`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- **Start**: 762
+- **End**: 1071
+- **Line Delta**: 20
+- **Pre-SHA1**: `7c1eaecd21064dffe9c7240c800dc406152988f1`
+- **Post-SHA1**: `9be8b53607d400a5a1366ce8c75c49166e5ddfda`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: BOOTSTRAP (coder started; gates executed; reviewing spec/task packet for skeleton)
-- What changed in this update: No product code changes yet. Environment unblocked; worktree/branch verified; pre-work gate run.
-- Next step / handoff hint: Draft `## SKELETON` (types/contracts + FR payload validation plan) + docs-only skeleton checkpoint commit; wait for Validator "SKELETON APPROVED" before implementation.
+- Current WP_STATUS: HYGIENE
+- What changed in this update:
+  - Implemented governance automation artifacts + FR ingestion validation in-scope:
+    - `src/backend/handshake_core/src/workflows.rs`
+    - `src/backend/handshake_core/src/runtime_governance.rs`
+    - `src/backend/handshake_core/src/flight_recorder/mod.rs`
+    - `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+  - MT Executor now produces `GovernanceDecision` + (when permitted) `AutoSignature`, emits `FR-EVT-GOV-001..005`, and enforces `LOCKED` fail-closed behavior (including cloud escalation denial in LOCKED).
+- Next step / handoff hint:
+  - Append EVIDENCE_MAPPING + EVIDENCE (commands + exit codes).
+  - Re-run `just post-work WP-1-Autonomous-Governance-Protocol-v2 --range b9d96a0019ffac9308968cb51ed0f7735c04f3b2..HEAD` and address any remaining deterministic manifest gate issues (range currently includes out-of-scope governance/spec files; see post-work output).
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
-- Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `path/to/file:line`
+- REQUIREMENT: "AutomationLevel canonicalization implemented per Spec 2.6.8.12.6.1 (including legacy ASSISTED/SUPERVISED normalization to HYBRID) and LOCKED fail-closed semantics."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3158`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:6667`
+- REQUIREMENT: "GovernanceDecision artifact is produced for every autonomous/hybrid gate approval per 2.6.8.12.3 and linked into Flight Recorder via decision_id + gate_type + target_ref."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3953`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3990`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:4005`
+- REQUIREMENT: "AutoSignature artifact is implemented per 2.6.8.12.6.3; binding checks enforced; forbidden for cloud escalation and policy violations."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3855`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3859`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:4018`
+- REQUIREMENT: "FR-EVT-GOV-001..005 events are emitted for governance automation decisions and schema-validated at ingestion per 11.5.7; no new event IDs are introduced."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3992`
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:582`
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/duckdb.rs:763`
+- REQUIREMENT: "Cloud escalation remains explicitly human-gated and is denied in LOCKED per 11.1.7.3 and 2.6.8.12.6.1."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:7053`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Autonomous-Governance-Protocol-v2/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+  - COMMAND: `just hard-gate-wt-001`
+  - EXIT_CODE: 0
+  - COMMAND: `just pre-work WP-1-Autonomous-Governance-Protocol-v2`
+  - EXIT_CODE: 0
+  - COMMAND: `just post-work WP-1-Autonomous-Governance-Protocol-v2 --range b9d96a0019ffac9308968cb51ed0f7735c04f3b2..HEAD`
+  - EXIT_CODE: 1
+  - COMMAND: `just post-work WP-1-Autonomous-Governance-Protocol-v2 --range b9d96a0019ffac9308968cb51ed0f7735c04f3b2..HEAD`
+  - EXIT_CODE: 0
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### 2026-02-19 - VALIDATION REPORT - WP-1-Autonomous-Governance-Protocol-v2
+
+Verdict: PASS
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Autonomous-Governance-Protocol-v2`; not tests): PASS (warnings; CX-573F waiver)
+- TEST_PLAN_PASS (packet QUALITY_GATE TEST_PLAN intent; backend checks): PASS (fmt check fails repo-wide; noted below)
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Autonomous-Governance-Protocol-v2.md` (**Status:** In Progress)
+- Spec: `Handshake_Master_Spec_v02.132.md` sections 2.6.8.12, 2.6.8.12.6, 11.5.7, 11.1.7.3 (per AUTHORITY)
+
+Validated Refs:
+- Branch: `feat/WP-1-Autonomous-Governance-Protocol-v2`
+- HEAD: `24be0d07d3ced08f08a49958823686f81a337f58`
+- `just post-work` range: `b9d96a0019ffac9308968cb51ed0f7735c04f3b2..24be0d07d3ced08f08a49958823686f81a337f58`
+
+WAIVERS / SCOPE NOTES:
+- [CX-573F] ACCEPTED (per packet): Out-of-scope bootstrap/spec files present in the post-work range were reviewed and determined to be correct governance/spec pointer work (SPEC_CURRENT + traceability registry + spec v02.132 add + legacy refinement doc). No regression to Master Spec intent was found.
+
+Files Checked:
+- `.GOV/task_packets/WP-1-Autonomous-Governance-Protocol-v2.md`
+- `.GOV/refinements/WP-1-Autonomous-Governance-Protocol-v2.md`
+- `Handshake_Master_Spec_v02.132.md`
+- `src/backend/handshake_core/src/workflows.rs`
+- `src/backend/handshake_core/src/runtime_governance.rs`
+- `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- `src/backend/handshake_core/src/storage/mod.rs` (atomic write + root escape block)
+- `justfile` (available recipes vs TEST_PLAN)
+
+Findings (Spec Conformance):
+- AutomationLevel canonical set + normalization + LOCKED semantics:
+  - Canonical enum + legacy aliasing implemented at `src/backend/handshake_core/src/workflows.rs:3158`.
+  - LOCKED fail-closed paths implemented (pause point + hard gates + cloud escalation denial) at:
+    - `src/backend/handshake_core/src/workflows.rs:6651` (pause point LOCKED fail-closed)
+    - `src/backend/handshake_core/src/workflows.rs:6959` (escalation exhausted LOCKED fail-closed)
+    - `src/backend/handshake_core/src/workflows.rs:7053` (cloud escalation disallowed LOCKED -> reject + halt)
+  - Flight Recorder payload normalization for `automation_level` implemented at `src/backend/handshake_core/src/flight_recorder/mod.rs:633`.
+- GovernanceDecision artifact + Flight Recorder linkage:
+  - Artifact creation + write implemented at `src/backend/handshake_core/src/workflows.rs:3818`.
+  - Decision emitted for MT success at `src/backend/handshake_core/src/workflows.rs:8190`.
+  - Decision applied event emitted at MT completion at `src/backend/handshake_core/src/workflows.rs:8397` and on human resume at `src/backend/handshake_core/src/workflows.rs:6620`.
+- AutoSignature artifact + binding + prohibition for cloud escalation/policy:
+  - Gate-type prohibition enforced at `src/backend/handshake_core/src/workflows.rs:3855`.
+  - Binding enforcement enforced at `src/backend/handshake_core/src/workflows.rs:3859`.
+  - AutoSignature created + FR emission at `src/backend/handshake_core/src/workflows.rs:4018`.
+- Flight Recorder governance automation events (FR-EVT-GOV-001..005):
+  - Event types added (no new family) at `src/backend/handshake_core/src/flight_recorder/mod.rs:95`.
+  - Payload validation implemented at `src/backend/handshake_core/src/flight_recorder/mod.rs:3235`.
+  - DuckDB ingestion mapping implemented at `src/backend/handshake_core/src/flight_recorder/duckdb.rs:760`.
+- Runtime storage paths (atomic writes under `.handshake/gov/...`):
+  - Paths added at `src/backend/handshake_core/src/runtime_governance.rs:13`.
+  - Atomic write primitive verified at `src/backend/handshake_core/src/storage/mod.rs:530`.
+
+Tests / Commands (verbatim):
+- COMMAND: `just pre-work WP-1-Autonomous-Governance-Protocol-v2`
+  - EXIT_CODE: 0
+- COMMAND: `just post-work WP-1-Autonomous-Governance-Protocol-v2 --range b9d96a0019ffac9308968cb51ed0f7735c04f3b2..HEAD`
+  - EXIT_CODE: 0
+  - NOTE: WARNINGS (expected due to CX-573F): out-of-scope files changed but waiver present; new spec file not present at preimage SHA.
+- COMMAND: `cd src/backend/handshake_core; cargo fmt -- --check`
+  - EXIT_CODE: non-zero (repo-wide baseline fails on `main` as well; not introduced by this WP)
+- COMMAND: `cd src/backend/handshake_core; cargo clippy --all-targets --all-features`
+  - EXIT_CODE: 0 (warnings present; no clippy denies observed)
+- COMMAND: `just cargo-clean`
+  - EXIT_CODE: 0 (removed ~3.1GiB artifacts)
+- COMMAND: `cd src/backend/handshake_core; cargo test -j 1`
+  - EXIT_CODE: 0
+  - NOTE: Initial `cargo test` attempt failed with OS paging-file / file-lock issues; resolved by `just cargo-clean` + re-run with `-j 1`.
+
+Security / Red Team Notes:
+- AutoSignature is forbidden for Cloud Escalation and Policy Violation gates by explicit check (`src/backend/handshake_core/src/workflows.rs:3855`).
+- LOCKED semantics deny cloud escalation and fail closed when human intervention would normally be required (see LOCKED call sites above).
+- Governance artifacts are written via atomic temp+fsync+rename with root escape prevention (`src/backend/handshake_core/src/storage/mod.rs:530`).
+
+Risks & Suggested Actions:
+- Rustfmt check currently fails repo-wide (`cargo fmt -- --check` fails on `main`). Recommend a dedicated hygiene WP to run `cargo fmt` and commit the formatting drift (kept out of this WP to avoid cross-scope churn).
+- Packet QUALITY_GATE TEST_PLAN uses `just fmt-backend/lint-backend/test-backend` which do not exist in `justfile`; recommend updating packet template or adding aliases in `justfile` (separate governance/hygiene change).
+
+REASON FOR PASS:
+- Deterministic manifest gate PASS (with an explicit waiver for known out-of-scope bootstrap/spec pointer files).
+- Backend tests pass and the implemented governance automation surfaces match the Master Spec v02.132 requirements for AutomationLevel canonicalization, GovernanceDecision/AutoSignature artifacts, FR-EVT-GOV-* emission, and LOCKED fail-closed behavior.
