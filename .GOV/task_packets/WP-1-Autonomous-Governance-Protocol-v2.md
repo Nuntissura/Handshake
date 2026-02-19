@@ -12,9 +12,9 @@
 - AGENTIC_MODE: NO
 - ORCHESTRATOR_MODEL: N/A
 - ORCHESTRATION_STARTED_AT_UTC: N/A
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: codex-cli:gpt-5.2
+- CODER_REASONING_STRENGTH: LOW (LOW | MEDIUM | HIGH | EXTRA_HIGH)
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja190220261548
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -187,9 +187,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: BOOTSTRAP (coder started; gates executed; reviewing spec/task packet for skeleton)
+- What changed in this update: No product code changes yet. Environment unblocked; worktree/branch verified; pre-work gate run.
+- Next step / handoff hint: Draft `## SKELETON` (types/contracts + FR payload validation plan) + docs-only skeleton checkpoint commit; wait for Validator "SKELETON APPROVED" before implementation.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
