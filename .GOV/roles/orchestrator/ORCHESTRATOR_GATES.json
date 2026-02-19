@@ -1355,6 +1355,22 @@
       "spec_target_sha1": "ffa3d933b4a21c4677bfe9a06cf29cda59dd34a2",
       "timestamp": "2026-02-19T23:17:47.737Z",
       "turn_token": "1771543067739"
+    },
+    {
+      "wpId": "WP-1-Cloud-Escalation-Consent-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Cloud-Escalation-Consent-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.133.md",
+      "spec_target_sha1": "9dac473bd1aa01b6d2900874169869c915fc355f",
+      "timestamp": "2026-02-19T23:44:17.433Z",
+      "turn_token": "1771544657434"
+    },
+    {
+      "wpId": "WP-1-Cloud-Escalation-Consent-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja200220260034",
+      "timestamp": "2026-02-19T23:51:22.616Z",
+      "refinement_path": ".GOV/refinements/WP-1-Cloud-Escalation-Consent-v2.md"
     }
   ]
 }
