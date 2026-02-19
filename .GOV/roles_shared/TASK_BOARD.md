@@ -52,6 +52,7 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 ## Stub Backlog (Not Activated)
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
+- **[WP-1-Spec-Creation-System-v2.2.1-v1]** - [STUB]
 - **[WP-1-Locus-Work-Tracking-System-Phase1-v1]** - [STUB]
 - **[WP-1-LocalFirst-Agentic-MCP-Posture-v1]** - [STUB]
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
@@ -80,6 +81,9 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 - **[WP-1-Autonomous-Governance-Protocol-v1]** - [STUB]
 - **[WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1]** - [STUB]
 - **[WP-1-Layerwise-Inference-Foundations-v1]** - [STUB]
+- **[WP-1-Dev-Command-Center-MVP-v1]** - [STUB]
+- **[WP-1-Loom-MVP-v1]** - [STUB]
+- **[WP-1-Handshake-Stage-MVP-v1]** - [STUB]
 - **[WP-1-Lens-Extraction-Tier-v1]** - [STUB]
 - **[WP-1-Lens-ViewMode-v1]** - [STUB]
 - **[WP-1-Role-Turn-Isolation-v1]** - [STUB]
