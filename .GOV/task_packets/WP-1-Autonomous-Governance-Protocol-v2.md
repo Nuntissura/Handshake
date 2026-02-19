@@ -128,8 +128,49 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - `AutomationLevel` (canonical + normalization) [Spec 2.6.8.12.6.1]
+    - Canonical values: `FULL_HUMAN | HYBRID | AUTONOMOUS | LOCKED`
+    - Normalization at ingestion boundaries:
+      - Accept legacy inputs `ASSISTED` and `SUPERVISED` and normalize both to `HYBRID`
+      - Treat any config mentioning "GovernanceMode LOCKED" as `AutomationLevel=LOCKED`
+  - `GovernanceDecision` artifact schema [Spec 2.6.8.12.3]
+    - `schema_version: "hsk.gov_decision@0.4"`
+    - Fields: `decision_id`, `gate_type`, `target_ref`, `decision`, `confidence`, `rationale`, `evidence_refs?`, `timestamp`, `actor{kind, model_id?, user_id?}`
+  - `AutoSignature` artifact schema + binding checks [Spec 2.6.8.12.6.3]
+    - `schema_version: "hsk.auto_signature@0.1"`
+    - Fields: `auto_signature_id`, `decision_id`, `gate_type`, `target_ref`, `created_at`, `actor{kind="model", model_id}`
+    - Server-side verification before applying: require `(decision_id, gate_type, target_ref)` match the referenced `GovernanceDecision`
+    - Hard forbid AutoSignature for `CloudEscalation` and `PolicyViolation` gates
+  - Gate type canonical string set (stable `gate_type` strings used in decisions + FR events)
+    - Initial set (minimal for this WP): `MicroTaskValidation`, `CloudEscalation`, `PolicyViolation`, `HumanIntervention`
+    - (Add more only if required by code paths; do NOT introduce new FR event IDs beyond FR-EVT-GOV-001..005)
+  - Flight Recorder: add FR-EVT-GOV-001..005 event types + payload schema validation at ingestion [Spec 11.5.7 + 2.6.8.12.6.1]
+    - `gov_decision_created` (FR-EVT-GOV-001): required `decision_id`, `gate_type`, `target_ref`, `automation_level`; optional `decision`, `confidence`, `rationale`, `evidence_refs`
+    - `gov_decision_applied` (FR-EVT-GOV-002): required `decision_id`, `gate_type`, `target_ref`, `automation_level`
+    - `gov_auto_signature_created` (FR-EVT-GOV-003): required `decision_id`, `gate_type`, `target_ref`, `automation_level`
+    - `gov_human_intervention_requested` (FR-EVT-GOV-004): required `decision_id`, `gate_type`, `target_ref`, `automation_level`; optional `user_id`
+    - `gov_human_intervention_received` (FR-EVT-GOV-005): required `decision_id`, `gate_type`, `target_ref`, `automation_level`; optional `user_id`
+    - NOTE: validator MUST accept `automation_level="LOCKED"` even if older spec snippets enumerate fewer values.
+  - Runtime governance storage (paths only; product-owned state under `.handshake/gov/`) [runtime_governance.rs]
+    - Add directories under runtime governance root:
+      - `.handshake/gov/governance_decisions/` (decision JSON artifacts)
+      - `.handshake/gov/auto_signatures/` (autosignature JSON artifacts)
+    - Use atomic writes; never write into repo `.GOV/**` at runtime.
+  - Workflow integration point (initial implementation target in this WP) [workflows.rs]
+    - Micro-task executor: when a micro-task completion is auto-applied (claimed_complete + validation_passed)
+      - Create `GovernanceDecision` (decision="approve") and emit FR-EVT-GOV-001
+      - If AutoSignature is permitted for this gate_type + AutomationLevel, create AutoSignature and emit FR-EVT-GOV-003
+      - Enforce binding checks, then apply completion and emit FR-EVT-GOV-002
+    - When human intervention is required (e.g., FULL_HUMAN gates or HYBRID below threshold), emit FR-EVT-GOV-004 and pause.
+    - LOCKED fail-closed: never pause for human intervention; emit GovernanceDecision ("reject" or "defer") and halt.
 - Open questions:
+  - Where does `AutomationLevel` come from for this crate today (Work Profile vs env vs per-job input)? Proposed: add optional `automation_level` to MT Executor `ExecutionPolicy` inputs with default `AUTONOMOUS`.
+  - What is the canonical `target_ref` format for MT decisions (string format) to keep it stable across job restarts?
+  - For FR-EVT-GOV-004/005, what `user_id` should be recorded in Phase 1 (not currently available in MT executor context)?
+  - Should decision/autosignature artifacts live under `.handshake/gov/` (global) or under the MT job dir (per-job)? Proposed: `.handshake/gov/` for cross-job auditability + stable refs.
 - Notes:
+  - Stage-imported spec blocks (10.13) that define alternate GovernanceDecision schema_version or non-canonical event IDs are informative only; implementation MUST follow canonical 2.6.8.12.3 + 11.5.7. No new FR event IDs.
+  - END_TO_END_CLOSURE_PLAN is already captured in the task packet section `## END_TO_END_CLOSURE_PLAN [CX-E2E-001]`; the implementation will follow that trust-boundary mapping.
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
