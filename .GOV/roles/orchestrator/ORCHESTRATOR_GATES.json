@@ -1388,6 +1388,15 @@
       "spec_target_sha1": "9dac473bd1aa01b6d2900874169869c915fc355f",
       "timestamp": "2026-02-20T05:51:03.198Z",
       "turn_token": "1771566663199"
+    },
+    {
+      "wpId": "WP-1-Media-Downloader-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Media-Downloader-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.134.md",
+      "spec_target_sha1": "3b397673e5e54163846094bd8dfb8919ddc8c88d",
+      "timestamp": "2026-02-20T07:55:17.614Z",
+      "turn_token": "1771574117615"
     }
   ]
 }
