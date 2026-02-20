@@ -516,6 +516,9 @@ git revert <commit-sha>
 - COMMAND: `just post-work WP-1-Cloud-Escalation-Consent-v2 --range dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..HEAD`
 - EXIT_CODE: 0
 - PROOF_LINES: "Git range: dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..4f053e00cdb643cbcd4835b61829881a4d797890"
+- COMMAND: `just post-work WP-1-Cloud-Escalation-Consent-v2 --range dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..HEAD`
+- EXIT_CODE: 0
+- PROOF_LINES: "Git range: dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..b7705d3c5cb355ba76665f036c5f166015ec3e6b"
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
