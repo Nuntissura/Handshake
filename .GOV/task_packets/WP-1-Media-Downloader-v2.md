@@ -14,7 +14,7 @@
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 - CODER_MODEL: Coder-A
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** Ready for Dev
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja200220260908
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -255,9 +255,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress
+- What changed in this update: Started (bootstrap claim); `just pre-work WP-1-Media-Downloader-v2` executed in WP worktree.
+- Next step / handoff hint: Output BOOTSTRAP block; draft `## SKELETON` and checkpoint commit.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
