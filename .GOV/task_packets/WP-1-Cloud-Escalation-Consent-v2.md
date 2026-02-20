@@ -130,9 +130,62 @@ git revert <commit-sha>
   - "payload leakage in FR/logs" -> "secrets/PII disclosure"
 
 ## SKELETON
-- Proposed interfaces/types/contracts:
-- Open questions:
-- Notes:
+
+### PROPOSED_INTERFACES_TYPES_CONTRACTS
+- Cloud consent artifacts (Spec 11.1.7, schema v0.4):
+  - `ProjectionPlanV0_4` (`hsk.projection_plan@0.4`)
+  - `ConsentReceiptV0_4` (`hsk.consent_receipt@0.4`)
+  - Keep/relocate existing structs from `src/backend/handshake_core/src/llm/guard.rs` into a shared `llm::cloud_escalation` module so both guard + workflows can use them.
+- Cloud escalation request (Spec CloudEscalationRequest schema, v0.4):
+  - New `CloudEscalationRequestV0_4` (`hsk.cloud_escalation@0.4`) with required fields: `request_id`, `wp_id`, `mt_id`, `reason`, `local_attempts`, `last_error_summary`, `requested_model_id`, `projection_plan_id`, `consent_receipt_id`.
+  - New `CloudEscalationBundleV0_4` (request + ProjectionPlan + ConsentReceipt) used at the trust boundary (server validates bindings + digest).
+- Outbound payload hashing + binding (Spec 2.6.6.7.0 canonical serialization + hashing; Refinement red-team advisory):
+  - New helper `canonical_json_bytes_nfc(Value) -> Vec<u8>` and `sha256_hex(bytes) -> String`.
+  - Binding definition for cloud consent: `payload_sha256 = sha256(canonical_json_bytes_nfc(final_outbound_request_body_json))`.
+  - Cloud adapter MUST transmit the same canonical bytes used for hashing so digest matches transmitted payload (T-CLOUD-002).
+- LLM invocation plumbing (backend enforcement boundary):
+  - Extend `llm::CompletionRequest` with `cloud_escalation: Option<CloudEscalationBundleV0_4>` (serde default + skip when None).
+  - Update `CloudEscalationGuard` to read `CompletionRequest.cloud_escalation` (per-invocation) for artifacts (not env-only), and to compute/verify payload_sha256 from the final outbound bytes before calling the inner adapter.
+  - Policy enforcement remains fail-closed: deny in LOCKED, deny when allow_cloud_escalation=false, deny on missing/invalid/mismatched artifacts.
+- Flight Recorder (Spec 11.5.8 + 11.5.8.1 canonical event family):
+  - Add `FlightRecorderEventType` variants for cloud escalation: Requested/Approved/Denied/Executed.
+  - Add `validate_cloud_escalation_event_payload(payload, expected_type)` enforcing the Spec 11.5.8 CloudEscalationEvent shape + leak-safe bounds.
+  - Emit FR-EVT-CLOUD-001..004 at lifecycle points from workflows/guard (see END_TO_END_CLOSURE_PLAN below).
+- Workflows (cloud escalation is always human-gated; Spec 11.1.7.3):
+  - When escalation chain reaches a cloud tier: create ProjectionPlan + CloudEscalationRequest and persist as workspace artifacts under the job dir; emit FR-EVT-CLOUD-001; pause for consent.
+  - On resume: load ConsentReceipt artifact, validate bindings, emit FR-EVT-CLOUD-002, then invoke LLM with `CompletionRequest.cloud_escalation` populated; guard emits FR-EVT-CLOUD-004 immediately before outbound dispatch; emit FR-EVT-CLOUD-003 on denial paths.
+
+### OPEN_QUESTIONS
+- UI vs backend-only consent capture: do we implement ProjectionPlan display + consent capture in `app/` in this WP, or implement a backend artifact + pause flow (JobState::AwaitingUser) and leave UI wiring for a follow-up WP?
+- Payload model for hashing (T-CLOUD-002): confirm `ProjectionPlan.payload_sha256` binds to the canonical JSON bytes of the actual OpenAI-compatible request body that is transmitted (model + messages + params), not just raw prompt bytes.
+- Request identity: request_id as `trace_id` string vs deterministic UUID derived from (job_id, wp_id, mt_id, to_model/to_level). Proposed: deterministic request_id to avoid duplicates on retry, while still recording trace_id in the Flight Recorder envelope.
+- user_id source for ConsentReceipt: expected from UI/session; if unavailable, require it via job input rather than minting a dummy.
+- WorkProfile mapping: treat `ExecutionPolicy.cloud_escalation_allowed` as WorkProfile.governance.allow_cloud_escalation for micro_task_executor_v1 until full WorkProfile system is implemented.
+
+### NOTES
+- Current code already has env-based `CloudEscalationGuard` in `src/backend/handshake_core/src/llm/guard.rs`, but hashing is prompt-bytes and consent artifacts are read once at startup. This WP shifts to per-invocation artifacts and canonical JSON hashing so the digest can match transmitted bytes.
+- `workflows.rs` already enforces LOCKED fail-closed (forces cloud_escalation_allowed=false) and has a pause/resume "human gate" mechanism; cloud escalation consent will reuse that so consent is always human-driven even when AutomationLevel is AUTONOMOUS.
+
+### END_TO_END_CLOSURE_PLAN (SKELETON)
+- Producer/output fields:
+  - ProjectionPlan.payload_sha256: computed server-side from canonical outbound bytes.
+  - ConsentReceipt: created by human/UI and validated server-side; must bind to (projection_plan_id, payload_sha256).
+  - CloudEscalationRequest: created server-side when escalation is queued; persisted as an artifact; referenced by FR-EVT-CLOUD-* via request_id.
+- Transport/schema changes:
+  - `CompletionRequest.cloud_escalation` carries the (request + artifacts) bundle across the enforcement boundary to the cloud adapter call site.
+- Trust boundary + verification:
+  - Treat ProjectionPlan/ConsentReceipt as untrusted until server recomputes payload_sha256 and validates bindings + policy (LOCKED + allow_cloud_escalation).
+  - Do not trust client-provided provenance for wp_id/mt_id/model_id without server correlation (prefer job state/inputs).
+- Audit/event/log payload:
+  - Emit only IDs/hashes (request_id, projection_plan_id, consent_receipt_id, payload_sha256, wp_id?, mt_id?, trace_id, requested_model_id); never include raw payload or prompt text.
+  - Events are schema-validated at ingestion by `FlightRecorderEvent::validate` (DuckDB recorder gate).
+- Error taxonomy:
+  - Missing consent: HSK-403-CLOUD-CONSENT-REQUIRED.
+  - Binding/digest mismatch: HSK-403-CLOUD-CONSENT-MISMATCH.
+  - Policy denied (LOCKED / allow_cloud_escalation=false): HSK-403-GOVERNANCE-LOCKED or HSK-403-CLOUD-ESCALATION-DENIED.
+- Determinism:
+  - Canonical JSON serialization + NFC + SHA-256 for payload_sha256; cloud adapter transmits the same canonical bytes used for hashing.
+  - Post-work range: dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..HEAD (per packet TEST_PLAN).
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
