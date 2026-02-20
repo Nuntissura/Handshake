@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja200220260830 | Orchestrator | 2026-02-20 08:30 | Spec Enrichment v02.134 (Media Downloader surface + OutputRootDir default materialization root) | v02.134 | Approved in-chat; signature provided by Operator. See .GOV/refinements/WP-1-Media-Downloader-v1.md. |
 | ilja200220260034 | Orchestrator | 2026-02-20 00:34 | Task packet creation: WP-1-Cloud-Escalation-Consent-v2 | v02.133 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Cloud-Escalation-Consent-v2.md ). |
 | ilja200220260027 | Orchestrator | 2026-02-20 00:27 | Spec Enrichment v02.133 (Cloud escalation event alignment: canonicalize FR-EVT-CLOUD-001..004; align 9.1.4 mirror table) | v02.133 | Approved in-chat; signature provided by Operator. See .GOV/refinements/WP-1-Cloud-Escalation-Consent-v1.md. |
 | ilja190220261548 | Orchestrator | 2026-02-19 15:48 | Task packet creation: WP-1-Autonomous-Governance-Protocol-v2 | v02.132 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Autonomous-Governance-Protocol-v2.md ). |
