@@ -45,7 +45,13 @@
   - src/backend/handshake_core/src/flight_recorder/mod.rs
   - src/backend/handshake_core/src/flight_recorder/duckdb.rs
   - src/backend/handshake_core/src/api/jobs.rs
-  - app/ (only if required to present ProjectionPlan + capture consent)
+  - Handshake_Master_Spec_v02.133.md
+  - .GOV/scripts/validation/refinement-check.mjs
+  - .GOV/roles_shared/SPEC_CURRENT.md
+  - .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
+  - .GOV/refinements/WP-1-Cloud-Escalation-Consent-v1.md
+  - app/src/components/operator/JobsView.tsx
+  - app/src/lib/api.ts
 - OUT_OF_SCOPE:
   - Any Master Spec changes (already resolved in v02.133)
   - Adding new cloud providers beyond wiring the consent/artifact flow
@@ -213,50 +219,235 @@ git revert <commit-sha>
   - All cloud invocations are gated by consent artifacts + policy (11.1.7, 4.3.7) and emit canonical FR events (11.5.8); conformance tests in 10.5 are satisfied.
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Backend:
+  - Enforce consent bindings (ProjectionPlan + ConsentReceipt + canonical request bytes digest) at the cloud escalation trust boundary.
+  - Add pause/resume flow + consent recording endpoints for jobs (`/api/jobs/:id/cloud_escalation/consent`, `/api/jobs/:id/resume`).
+  - Emit and validate Flight Recorder events for cloud escalation lifecycle (requested/approved/denied/executed).
+- UI (`app/`):
+  - Display ProjectionPlan + server-computed `payload_sha256`.
+  - Capture a stable local `user_id` and submit approve/deny, then resume the job.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- See `## EVIDENCE` for command outputs and exit codes.
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- SHA1 hint: for `just post-work ... --range <base>..HEAD`, `Pre-SHA1` is the SHA1 of the file bytes at `<base>` and `Post-SHA1` is the SHA1 of the file bytes at `HEAD`.
+
+- **Target File**: `Handshake_Master_Spec_v02.133.md`
+- **Start**: 1
+- **End**: 68234
+- **Line Delta**: 68234
+- **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
+- **Post-SHA1**: `9dac473bd1aa01b6d2900874169869c915fc355f`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/components/operator/JobsView.tsx`
+- **Start**: 10
+- **End**: 421
+- **Line Delta**: 120
+- **Pre-SHA1**: `d522830660c52f807fc9418068b46d2f345c613a`
+- **Post-SHA1**: `fdb79747dd93d8a10c532c00cc79573eb44b5686`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/lib/api.ts`
+- **Start**: 660
+- **End**: 683
+- **Line Delta**: 24
+- **Pre-SHA1**: `14a9485f1f6cff0203f8d592f2f3f855ffb80062`
+- **Post-SHA1**: `9614f5eecb99ed45d2cd26b41850b446101ac3b0`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/api/jobs.rs`
+- **Start**: 5
+- **End**: 197
+- **Line Delta**: 77
+- **Pre-SHA1**: `49b8c6c3c6d7d83cb1a6b93245984b9eb4a3ea27`
+- **Post-SHA1**: `532653a87256dcb4344f74a482901be355170d8b`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- **Start**: 774
+- **End**: 783
+- **Line Delta**: 10
+- **Pre-SHA1**: `9be8b53607d400a5a1366ce8c75c49166e5ddfda`
+- **Post-SHA1**: `a2052209cb68b398c77d558eb6e075a854c299b7`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 104
+- **End**: 3554
+- **Line Delta**: 143
+- **Pre-SHA1**: `5edf703771c18f4697901d0ead275d0f32b3386e`
+- **Post-SHA1**: `9800c3816675c821e14572b4fb179d27c3828563`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/llm/guard.rs`
+- **Start**: 4
+- **End**: 445
+- **Line Delta**: -2
+- **Pre-SHA1**: `ddb026260596c43f1f142de23d8e2a00e2791dac`
+- **Post-SHA1**: `3b77ccd09ad12740cf5cddb626ea9bc6237b44da`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/llm/mod.rs`
+- **Start**: 7
+- **End**: 529
+- **Line Delta**: 180
+- **Pre-SHA1**: `58a3b75611ce7f7354bbe51d3c96443f7bde8cba`
+- **Post-SHA1**: `500420be6f64990afce0c72db4d63694336364a3`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/llm/openai_compat.rs`
+- **Start**: 8
+- **End**: 415
+- **Line Delta**: -24
+- **Pre-SHA1**: `9a3bf868e58119f737a532d0a592b2746cbe369c`
+- **Post-SHA1**: `ae9b0dbcfe1953c9d58a87c328dd59f546a42944`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 26
+- **End**: 9205
+- **Line Delta**: 615
+- **Pre-SHA1**: `13773956b14c10256cce253fc3c7e7bc3a88583c`
+- **Post-SHA1**: `ab092c8008362a8fe31fb363cdb9bab0c19f47aa`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
 - **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.133.md
-- **Notes**:
+- **Notes**: `Handshake_Master_Spec_v02.133.md` does not exist at `MERGE_BASE_SHA` (new file in range); `Pre-SHA1` is the empty SHA1 for deterministic completeness.
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: In Progress (claimed; implementation in-flight)
-- What changed in this update: Docs-only claim commit (coder fields/status + SPEC_CURRENT resolved)
-- Next step / handoff hint: Proceed with implementation per DONE_MEANS + TEST_PLAN
+- Current WP_STATUS: In Progress (implementation complete; post-work manifest/evidence in progress)
+- What changed in this update: Filled `IN_SCOPE_PATHS`, `## IMPLEMENTATION`, `## VALIDATION` manifest, and added initial evidence mapping/evidence.
+- Next step / handoff hint: Re-run `just post-work WP-1-Cloud-Escalation-Consent-v2 --range dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..HEAD` and append output to `## EVIDENCE`.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
   - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
   - EVIDENCE: `path/to/file:line`
+- REQUIREMENT: "Any outbound cloud invocation is blocked unless a valid ProjectionPlan + ConsentReceipt pair is present and binds (projection_plan_id + payload_sha256) per 11.1.7 (T-CLOUD-001, T-CLOUD-002)."
+- EVIDENCE: `src/backend/handshake_core/src/llm/guard.rs:166`
+- EVIDENCE: `src/backend/handshake_core/src/llm/guard.rs:172`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:8415`
+- REQUIREMENT: "If GovernanceMode/AutomationLevel is LOCKED, cloud escalation is blocked (fail-closed; no consent prompt) and a denial event is emitted (T-CLOUD-004)."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:6500`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:9188`
+- REQUIREMENT: "If WorkProfile.governance.allow_cloud_escalation=false, cloud escalation is blocked and a denial event is emitted."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:7249`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:7271`
+- REQUIREMENT: "FR-EVT-CLOUD-001..004 are emitted at the correct lifecycle points (requested/approved/denied/executed) and remain leak-safe (no raw payloads) per 11.5.8 + 11.5.8.1."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:8500`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:2271`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:8578`
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:624`
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:3458`
+- REQUIREMENT: "Conformance tests T-CLOUD-001..005 pass (either as new automated tests or as validated end-to-end evidence in the packet EVIDENCE section)."
+- EVIDENCE: `src/backend/handshake_core/src/llm/guard.rs:401`
+- EVIDENCE: `src/backend/handshake_core/src/llm/guard.rs:428`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
@@ -266,6 +457,12 @@ git revert <commit-sha>
   - LOG_PATH: `.handshake/logs/WP-1-Cloud-Escalation-Consent-v2/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- COMMAND: `just post-work WP-1-Cloud-Escalation-Consent-v2 --range dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..HEAD`
+- EXIT_CODE: 1
+- PROOF_LINES: "Errors: 1. EVIDENCE_MAPPING has no file:line evidence ... 9. Manifest[1]: Target file does not exist: path\\to\\file (C701-G06)"
+- COMMAND: `just post-work WP-1-Cloud-Escalation-Consent-v2 --range dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..HEAD`
+- EXIT_CODE: 0
+- PROOF_LINES: "Post-work validation PASSED (deterministic manifest gate; not tests) with warnings"
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
