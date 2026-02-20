@@ -463,6 +463,17 @@ git revert <commit-sha>
 - COMMAND: `just post-work WP-1-Cloud-Escalation-Consent-v2 --range dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..HEAD`
 - EXIT_CODE: 0
 - PROOF_LINES: "Post-work validation PASSED (deterministic manifest gate; not tests) with warnings"
+- COMMAND: `cd src/backend/handshake_core; cargo fmt`
+- EXIT_CODE: 0
+- COMMAND: `cd src/backend/handshake_core; cargo clippy --all-targets --all-features`
+- EXIT_CODE: 0
+- PROOF_LINES: "Finished `dev` profile [unoptimized + debuginfo]"
+- COMMAND: `cd src/backend/handshake_core; cargo test -q`
+- EXIT_CODE: 0
+- PROOF_LINES: "test result: ok. 181 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out"
+- COMMAND: `cd app; pnpm test`
+- EXIT_CODE: 0
+- PROOF_LINES: "Test Files 6 passed (6); Tests 13 passed (13)"
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
