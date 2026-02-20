@@ -5,7 +5,7 @@
 - WP_ID: WP-1-Cloud-Escalation-Consent-v2
 - BASE_WP_ID: WP-1-Cloud-Escalation-Consent (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: 2026-02-19T23:58:35.245Z
-- MERGE_BASE_SHA: dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4
 - REQUESTOR: Operator (ilja)
 - AGENT_ID: codex-cli:gpt-5.2 (orchestrator)
 - ROLE: Orchestrator
