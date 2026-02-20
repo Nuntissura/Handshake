@@ -38,6 +38,9 @@ Rules:
       - YouTube batch video archive
       - Forum topic image archive
     - These source modes ship together in the same Phase 1 delivery for this WP (no split WPs for "crawler vs downloader").
+    - Progress UI (HARD):
+      - Single-item progress bar (per video/per image) showing: queued/running/done/skipped/failed + bytes/progress where available.
+      - Batch progress bar for the entire run showing: total items, completed, skipped, failed, and an ETA when derivable.
   - Input modes:
     - Public mode (no account): archive publicly accessible videos given a channel/playlist/video list.
     - Account mode (optional): OAuth-based account selection for authorized access (no password collection; system browser login only).
@@ -77,6 +80,7 @@ Rules:
 - Optional transcode produces deterministic outputs using Director presets and preserves originals.
 - All network/exec actions are capability-gated and produce Flight Recorder events with no secret leakage.
 - The UI/worksurface is unified: the same Archive Downloader surface is used for both YouTube and forum modes, and both ship together in this WP.
+- The UI shows progress clearly for both single downloads and batches (per-item + overall status bars) for both videos and forum images.
 
 ## DEPENDENCIES / BLOCKERS (DRAFT)
 - Capability registry includes required IDs (`net.http`, `proc.exec`, `secrets.use`) and the product enforces UnknownCapability rejection.
