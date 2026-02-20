@@ -505,7 +505,16 @@ mod tests {
         let input = format!("e\u{0301}");
         let value = json!({ "s": input });
         let bytes = canonical_json_bytes_nfc(&value);
-        let rendered = String::from_utf8(bytes).expect("expected UTF-8 canonical JSON bytes");
+        let rendered = match String::from_utf8(bytes) {
+            Ok(rendered) => rendered,
+            Err(err) => {
+                assert!(
+                    false,
+                    "expected UTF-8 canonical JSON bytes, got error: {err}"
+                );
+                return;
+            }
+        };
 
         assert!(
             rendered.contains("\\u00E9"),
@@ -521,7 +530,16 @@ mod tests {
     fn canonical_json_bytes_nfc_formats_floats_with_fixed_precision() {
         let value = json!({ "t": 0.7 });
         let bytes = canonical_json_bytes_nfc(&value);
-        let rendered = String::from_utf8(bytes).expect("expected UTF-8 canonical JSON bytes");
+        let rendered = match String::from_utf8(bytes) {
+            Ok(rendered) => rendered,
+            Err(err) => {
+                assert!(
+                    false,
+                    "expected UTF-8 canonical JSON bytes, got error: {err}"
+                );
+                return;
+            }
+        };
         assert!(
             rendered.contains("0.700000"),
             "expected fixed 6-decimal float formatting, got: {rendered}"

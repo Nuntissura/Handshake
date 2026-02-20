@@ -347,7 +347,13 @@ mod tests {
             "hello".to_string(),
             "local-model".to_string(),
         );
-        let resp = guard.completion(req).await.expect("expected passthrough");
+        let resp = match guard.completion(req).await {
+            Ok(resp) => resp,
+            Err(err) => {
+                assert!(false, "expected passthrough, got error: {err:?}");
+                return;
+            }
+        };
         assert_eq!(resp.text, "ok");
         assert_eq!(inner.calls(), 1);
     }
@@ -392,7 +398,13 @@ mod tests {
             "hello".to_string(),
             "cloud-model".to_string(),
         );
-        let resp = guard.completion(req).await.expect("expected passthrough");
+        let resp = match guard.completion(req).await {
+            Ok(resp) => resp,
+            Err(err) => {
+                assert!(false, "expected passthrough, got error: {err:?}");
+                return;
+            }
+        };
         assert_eq!(resp.text, "ok");
         assert_eq!(inner.calls(), 1);
     }
@@ -441,7 +453,13 @@ mod tests {
         );
         req.cloud_escalation = Some(valid_bundle_for_req(&req));
 
-        let resp = guard.completion(req).await.expect("expected completion Ok");
+        let resp = match guard.completion(req).await {
+            Ok(resp) => resp,
+            Err(err) => {
+                assert!(false, "expected completion Ok, got error: {err:?}");
+                return;
+            }
+        };
         assert_eq!(resp.text, "ok");
         assert_eq!(inner.calls(), 1);
     }
