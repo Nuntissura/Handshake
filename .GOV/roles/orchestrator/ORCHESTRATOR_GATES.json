@@ -1379,6 +1379,15 @@
       "branch": "feat/WP-1-Cloud-Escalation-Consent-v2",
       "worktree_dir": "../wt-WP-1-Cloud-Escalation-Consent-v2",
       "timestamp": "2026-02-19T23:56:33.198Z"
+    },
+    {
+      "wpId": "WP-1-Media-Downloader-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Media-Downloader-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.133.md",
+      "spec_target_sha1": "9dac473bd1aa01b6d2900874169869c915fc355f",
+      "timestamp": "2026-02-20T05:51:03.198Z",
+      "turn_token": "1771566663199"
     }
   ]
 }
