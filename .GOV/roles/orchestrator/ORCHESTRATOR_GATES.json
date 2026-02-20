@@ -1397,6 +1397,13 @@
       "spec_target_sha1": "3b397673e5e54163846094bd8dfb8919ddc8c88d",
       "timestamp": "2026-02-20T07:55:17.614Z",
       "turn_token": "1771574117615"
+    },
+    {
+      "wpId": "WP-1-Media-Downloader-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja200220260908",
+      "timestamp": "2026-02-20T08:11:19.915Z",
+      "refinement_path": ".GOV/refinements/WP-1-Media-Downloader-v2.md"
     }
   ]
 }
