@@ -657,6 +657,30 @@ export async function listJobs(filters?: ListJobsFilters): Promise<AiJob[]> {
   return request(path);
 }
 
+export type CloudEscalationUiSurface = "cloud_escalation_modal" | "settings" | "operator_console";
+
+export type CloudEscalationConsentInput = {
+  request_id: string;
+  approved: boolean;
+  user_id: string;
+  ui_surface?: CloudEscalationUiSurface;
+  notes?: string;
+};
+
+export async function submitCloudEscalationConsent(
+  jobId: string,
+  input: CloudEscalationConsentInput,
+): Promise<{ status: string }> {
+  return request(`/api/jobs/${encodeURIComponent(jobId)}/cloud_escalation/consent`, {
+    method: "POST",
+    body: input,
+  });
+}
+
+export async function resumeJob(jobId: string): Promise<WorkflowRun> {
+  return request(`/api/jobs/${encodeURIComponent(jobId)}/resume`, { method: "POST" });
+}
+
 // Debug Bundle types
 export type BundleScopeInput =
   | { kind: "problem"; problem_id: string }

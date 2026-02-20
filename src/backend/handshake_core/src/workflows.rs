@@ -23,7 +23,13 @@ use crate::{
         FrEvt008SecurityViolation, FrEvtWorkflowRecovery,
     },
     governance_pack::{export_governance_pack, GovernancePackExportRequest},
-    llm::{CompletionRequest, LlmError},
+    llm::{
+         guard::{
+            CloudEscalationBundleV0_4, CloudEscalationPolicy, CloudEscalationRequestV0_4,
+            ConsentReceiptV0_4, ProjectionPlanV0_4, RuntimeGovernanceMode,
+         },
+         openai_compat_canonical_request_bytes, CompletionRequest, LlmError,
+     },
     mex::runtime::ShellEngineAdapter,
     mex::{
         BudgetGate, BudgetSpec, CapabilityGate, DetGate, DeterminismLevel, EvidencePolicy,
@@ -2115,6 +2121,193 @@ async fn enforce_work_packet_binding_if_required(
     Ok(None)
 }
 
+pub async fn record_cloud_escalation_consent_v0_4(
+    state: &AppState,
+    job: &AiJob,
+    request_id: String,
+    approved: bool,
+    user_id: String,
+    ui_surface: Option<String>,
+    notes: Option<String>,
+) -> Result<(), WorkflowError> {
+    let request_id = request_id.trim().to_string();
+    if request_id.is_empty() {
+        return Err(WorkflowError::Terminal(
+            "cloud escalation consent requires request_id".to_string(),
+        ));
+    }
+    let user_id = user_id.trim().to_string();
+    if user_id.is_empty() {
+        return Err(WorkflowError::Terminal(
+            "cloud escalation consent requires user_id".to_string(),
+        ));
+    }
+
+    let ui_surface = match ui_surface.as_deref().map(|v| v.trim()) {
+        Some("cloud_escalation_modal") => Some("cloud_escalation_modal".to_string()),
+        Some("settings") => Some("settings".to_string()),
+        Some("operator_console") => Some("operator_console".to_string()),
+        _ => None,
+    };
+    let notes = notes
+        .map(|value| {
+            let mut cleaned = value.trim().replace(['\r', '\n', '\t'], " ");
+            if cleaned.len() > 1024 {
+                cleaned.truncate(1024);
+            }
+            cleaned
+        })
+        .filter(|value| !value.trim().is_empty());
+
+    let repo_root = repo_root_for_artifacts()?;
+    let job_dir_rel = micro_task_job_dir_rel(job.job_id);
+    let progress_rel = job_dir_rel.join("progress_artifact.json");
+    let progress_abs = repo_root.join(&progress_rel);
+
+    let progress_bytes = fs::read(&progress_abs).map_err(|e| {
+        WorkflowError::Terminal(format!(
+            "failed to read progress artifact {}: {e}",
+            progress_abs.display()
+        ))
+    })?;
+    let mut progress: ProgressArtifact = serde_json::from_slice(&progress_bytes).map_err(|e| {
+        WorkflowError::Terminal(format!(
+            "invalid progress_artifact.json {}: {e}",
+            progress_abs.display()
+        ))
+    })?;
+
+    let Some(pending) = progress.current_state.pending_cloud_escalation.as_mut() else {
+        return Err(WorkflowError::Terminal(
+            "no pending cloud escalation to approve/deny".to_string(),
+        ));
+    };
+    if pending.request_id != request_id {
+        return Err(WorkflowError::Terminal(format!(
+            "cloud escalation request_id mismatch: expected {}, got {}",
+            pending.request_id, request_id
+        )));
+    }
+    if pending.consent_receipt.is_some() || pending.cloud_escalation_request.is_some() {
+        return Err(WorkflowError::Terminal(
+            "cloud escalation consent already recorded".to_string(),
+        ));
+    }
+
+    let wp_id = progress.wp_id.clone();
+    let mt_id = pending.mt_id.clone();
+    let requested_model_id = pending.requested_model_id.clone();
+    let reason = pending.reason.clone();
+    let local_attempts = pending.local_attempts;
+    let last_error_summary = pending.last_error_summary.clone();
+    let projection_plan_id = pending.projection_plan.projection_plan_id.clone();
+    let payload_sha256 = pending.projection_plan.payload_sha256.clone();
+
+    let consent_receipt_id = Uuid::new_v4().to_string();
+    let approved_at = Utc::now().to_rfc3339();
+    let receipt = ConsentReceiptV0_4 {
+        schema_version: "hsk.consent_receipt@0.4".to_string(),
+        consent_receipt_id: consent_receipt_id.clone(),
+        projection_plan_id: projection_plan_id.clone(),
+        payload_sha256,
+        approved,
+        approved_at,
+        user_id,
+        ui_surface,
+        notes,
+    };
+
+    let cloud_request = CloudEscalationRequestV0_4 {
+        schema_version: "hsk.cloud_escalation@0.4".to_string(),
+        request_id: request_id.clone(),
+        wp_id: wp_id.clone(),
+        mt_id: mt_id.clone(),
+        reason: reason.clone(),
+        local_attempts,
+        last_error_summary: last_error_summary.clone(),
+        requested_model_id: requested_model_id.clone(),
+        projection_plan_id: projection_plan_id.clone(),
+        consent_receipt_id: consent_receipt_id.clone(),
+    };
+
+    let cloud_dir_rel = job_dir_rel
+        .join("cloud_escalation")
+        .join(request_id.as_str());
+    let cloud_dir_abs = repo_root.join(&cloud_dir_rel);
+    if !cloud_dir_abs.exists() {
+        return Err(WorkflowError::Terminal(format!(
+            "cloud escalation dir missing: {}",
+            cloud_dir_abs.display()
+        )));
+    }
+
+    let receipt_rel = cloud_dir_rel.join("consent_receipt.json");
+    let receipt_abs = repo_root.join(&receipt_rel);
+    if receipt_abs.exists() {
+        return Err(WorkflowError::Terminal(format!(
+            "consent_receipt.json already exists: {}",
+            receipt_abs.display()
+        )));
+    }
+    write_json_atomic(&repo_root, &receipt_abs, &receipt)?;
+
+    let request_rel = cloud_dir_rel.join("cloud_escalation_request.json");
+    let request_abs = repo_root.join(&request_rel);
+    if request_abs.exists() {
+        return Err(WorkflowError::Terminal(format!(
+            "cloud_escalation_request.json already exists: {}",
+            request_abs.display()
+        )));
+    }
+    write_json_atomic(&repo_root, &request_abs, &cloud_request)?;
+
+    pending.consent_receipt = Some(receipt);
+    pending.cloud_escalation_request = Some(cloud_request);
+    progress.updated_at = Utc::now();
+    write_json_atomic(&repo_root, &progress_abs, &progress)?;
+
+    let (event_type, event_type_str, outcome_str) = if approved {
+        (
+            FlightRecorderEventType::CloudEscalationApproved,
+            "cloud_escalation_approved",
+            "approved",
+        )
+    } else {
+        (
+            FlightRecorderEventType::CloudEscalationDenied,
+            "cloud_escalation_denied",
+            "denied",
+        )
+    };
+    let payload = json!({
+        "type": event_type_str,
+        "request_id": request_id,
+        "reason": reason,
+        "requested_model_id": requested_model_id,
+        "projection_plan_id": projection_plan_id,
+        "consent_receipt_id": consent_receipt_id,
+        "wp_id": wp_id,
+        "mt_id": mt_id,
+        "local_attempts": local_attempts,
+        "last_error_summary": last_error_summary,
+        "outcome": outcome_str,
+    });
+
+    let mut event = FlightRecorderEvent::new(
+        event_type,
+        FlightRecorderActor::Human,
+        job.trace_id,
+        payload,
+    )
+    .with_job_id(job.job_id.to_string());
+    if let Some(workflow_run_id) = job.workflow_run_id {
+        event = event.with_workflow_id(workflow_run_id.to_string());
+    }
+    record_event_safely(state, event).await;
+
+    Ok(())
+}
+
 async fn run_job(
     state: &AppState,
     job: &AiJob,
@@ -3548,6 +3741,22 @@ struct PendingGovGate {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+struct PendingCloudEscalation {
+    pub schema_version: String, // "hsk.pending_cloud_escalation@0.1"
+    pub request_id: String,
+    pub mt_id: String,
+    pub requested_model_id: String,
+    pub reason: String,
+    pub local_attempts: u32,
+    pub last_error_summary: String,
+    pub projection_plan: ProjectionPlanV0_4,
+    #[serde(default)]
+    pub consent_receipt: Option<ConsentReceiptV0_4>,
+    #[serde(default)]
+    pub cloud_escalation_request: Option<CloudEscalationRequestV0_4>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct CurrentExecutionState {
     #[serde(default)]
     pub active_mt: Option<String>,
@@ -3559,6 +3768,8 @@ struct CurrentExecutionState {
     pub total_drop_backs: u32,
     #[serde(default)]
     pub pending_gov_gate: Option<PendingGovGate>,
+    #[serde(default)]
+    pub pending_cloud_escalation: Option<PendingCloudEscalation>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -6187,6 +6398,7 @@ fn init_progress_artifact(
             total_model_swaps: 0,
             total_drop_backs: 0,
             pending_gov_gate: None,
+            pending_cloud_escalation: None,
         },
         micro_tasks,
         aggregate_stats: AggregateStats {
@@ -6288,6 +6500,8 @@ async fn run_micro_task_executor_v1(
         // Spec Â§11.1.7.3 + Â§2.6.8.12.6.1: cloud escalation must be denied in LOCKED.
         policy.cloud_escalation_allowed = false;
     }
+    let cloud_policy = CloudEscalationPolicy::from_env();
+    let cloud_governance_locked = cloud_policy.governance_mode == RuntimeGovernanceMode::Locked;
 
     if job.state == JobState::Cancelled {
         record_micro_task_event(
@@ -7047,6 +7261,28 @@ async fn run_micro_task_executor_v1(
                             "mt_id": mt.mt_id,
                             "from_level": escalation_level,
                         }),
+                    )
+                    .await;
+
+                    let denied_request_id = Uuid::new_v4().to_string();
+                    record_event_safely(
+                        state,
+                        FlightRecorderEvent::new(
+                            FlightRecorderEventType::CloudEscalationDenied,
+                            FlightRecorderActor::System,
+                            trace_id,
+                            json!({
+                                "type": "cloud_escalation_denied",
+                                "request_id": denied_request_id,
+                                "reason": "cloud_escalation_disallowed",
+                                "requested_model_id": level_cfg.model_id.clone(),
+                                "wp_id": inputs.wp_id,
+                                "mt_id": mt.mt_id,
+                                "outcome": "denied",
+                            }),
+                        )
+                        .with_job_id(job.job_id.to_string())
+                        .with_workflow_id(workflow_run_id.to_string()),
                     )
                     .await;
 
@@ -7958,6 +8194,351 @@ NEED: {{what you need to unblock}}
                     }
                 }
 
+                // Write the prompt snapshot before any outbound call / consent decision so the
+                // ProjectionPlan can reference local artifacts deterministically.
+                write_bytes_atomic(&repo_root, &repo_root.join(&prompt_rel), prompt.as_bytes())?;
+
+                let mut cloud_bundle_for_call: Option<CloudEscalationBundleV0_4> = None;
+                let mut cloud_executed_event_payload: Option<Value> = None;
+
+                if level_cfg.is_cloud {
+                    if cloud_governance_locked {
+                        // Spec 11.1.7.3: GovernanceMode LOCKED => deny cloud escalation without
+                        // prompting for consent (fail-closed).
+                        let pending = progress.current_state.pending_cloud_escalation.as_ref();
+                        let (request_id, projection_plan_id, local_attempts, last_error_summary) =
+                            match pending {
+                                Some(p)
+                                    if p.mt_id == mt.mt_id && p.requested_model_id == model_id =>
+                                {
+                                    (
+                                        p.request_id.clone(),
+                                        Some(p.projection_plan.projection_plan_id.clone()),
+                                        Some(p.local_attempts),
+                                        Some(p.last_error_summary.clone()),
+                                    )
+                                }
+                                _ => (Uuid::new_v4().to_string(), None, None, None),
+                            };
+
+                        let mut denied_payload = json!({
+                            "type": "cloud_escalation_denied",
+                            "request_id": request_id,
+                            "reason": "governance_locked",
+                            "requested_model_id": model_id.clone(),
+                            "wp_id": inputs.wp_id,
+                            "mt_id": mt.mt_id,
+                            "outcome": "denied",
+                        });
+                        if let Some(plan_id) = projection_plan_id {
+                            denied_payload["projection_plan_id"] = Value::String(plan_id);
+                        }
+                        if let Some(attempts) = local_attempts {
+                            denied_payload["local_attempts"] = json!(attempts);
+                        }
+                        if let Some(summary) = last_error_summary {
+                            denied_payload["last_error_summary"] = Value::String(summary);
+                        }
+
+                        record_event_safely(
+                            state,
+                            FlightRecorderEvent::new(
+                                FlightRecorderEventType::CloudEscalationDenied,
+                                FlightRecorderActor::System,
+                                trace_id,
+                                denied_payload,
+                            )
+                            .with_job_id(job.job_id.to_string())
+                            .with_workflow_id(workflow_run_id.to_string()),
+                        )
+                        .await;
+
+                        let target_ref =
+                            micro_task_target_ref(inputs.wp_id.as_str(), mt.mt_id.as_str());
+                        let (decision, artifact) = create_gov_decision_and_emit_created(
+                            state,
+                            &runtime_paths,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            GOV_GATE_TYPE_CLOUD_ESCALATION,
+                            target_ref.as_str(),
+                            GovernanceDecisionOutcome::Reject,
+                            1.0,
+                            "locked_cloud_escalation_denied",
+                            None,
+                            None,
+                            None,
+                        )
+                        .await?;
+
+                        emit_gov_decision_applied(
+                            state,
+                            trace_id,
+                            job.job_id,
+                            workflow_run_id,
+                            inputs.wp_id.as_str(),
+                            Some(mt.mt_id.as_str()),
+                            automation_level,
+                            &decision,
+                            Some(vec![artifact.canonical_id()]),
+                        )
+                        .await?;
+
+                        progress.status = ProgressStatus::Failed;
+                        progress.updated_at = Utc::now();
+                        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+
+                        return Ok(RunJobOutcome {
+                            state: JobState::Failed,
+                            status_reason: "locked_fail_closed".to_string(),
+                            output: Some(json!({
+                                "wp_id": inputs.wp_id,
+                                "reason": "governance_locked",
+                                "mt_id": mt.mt_id,
+                                "decision_id": decision.decision_id,
+                                "mt_definitions_ref": mt_definitions_ref,
+                                "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                                "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                            })),
+                            error_message: Some(
+                                "GovernanceMode LOCKED; cloud escalation denied".to_string(),
+                            ),
+                        });
+                    }
+                    // Cloud escalation consent is always human-gated (Spec §11.1.7).
+                    // Compute payload_sha256 from the canonical OpenAI-compatible request bytes.
+                    let preview_req =
+                        CompletionRequest::new(trace_id, prompt.clone(), model_id.clone());
+                    let canonical_bytes =
+                        openai_compat_canonical_request_bytes(&preview_req, model_id.as_str());
+                    let payload_sha256 = sha256_hex(&canonical_bytes);
+
+                    let prev_level = escalation_level.saturating_sub(1);
+                    let local_attempts = progress.micro_tasks[mt_progress_index]
+                        .iterations
+                        .iter()
+                        .filter(|r| r.escalation_level == prev_level)
+                        .count()
+                        .min(u32::MAX as usize) as u32;
+
+                    let last_error_summary = progress.micro_tasks[mt_progress_index]
+                        .iterations
+                        .iter()
+                        .rev()
+                        .find(|r| r.escalation_level == prev_level)
+                        .and_then(|r| r.error_summary.clone())
+                        .unwrap_or_else(|| "escalation".to_string());
+                    let mut last_error_summary =
+                        last_error_summary.trim().replace(['\r', '\n', '\t'], " ");
+                    if last_error_summary.len() > 256 {
+                        last_error_summary.truncate(256);
+                    }
+
+                    let reason = if last_error_summary.trim().is_empty() {
+                        "mt_escalation".to_string()
+                    } else {
+                        format!("mt_escalation:{last_error_summary}")
+                    };
+
+                    let pending = progress.current_state.pending_cloud_escalation.clone();
+
+                    if let Some(pending) = pending {
+                        let pending_matches = pending.mt_id == mt.mt_id
+                            && pending.requested_model_id == model_id
+                            && pending.projection_plan.payload_sha256 == payload_sha256;
+
+                        if pending_matches {
+                            if let (Some(receipt), Some(request)) = (
+                                pending.consent_receipt.as_ref(),
+                                pending.cloud_escalation_request.as_ref(),
+                            ) {
+                                if receipt.approved {
+                                    cloud_bundle_for_call = Some(CloudEscalationBundleV0_4 {
+                                        request: request.clone(),
+                                        projection_plan: pending.projection_plan.clone(),
+                                        consent_receipt: receipt.clone(),
+                                    });
+                                    cloud_executed_event_payload = Some(json!({
+                                        "type": "cloud_escalation_executed",
+                                        "request_id": pending.request_id,
+                                        "reason": pending.reason,
+                                        "requested_model_id": pending.requested_model_id,
+                                        "projection_plan_id": pending.projection_plan.projection_plan_id,
+                                        "consent_receipt_id": receipt.consent_receipt_id.clone(),
+                                        "wp_id": inputs.wp_id,
+                                        "mt_id": mt.mt_id,
+                                        "local_attempts": pending.local_attempts,
+                                        "last_error_summary": pending.last_error_summary,
+                                        "outcome": "executed",
+                                    }));
+                                } else {
+                                    // Explicit denial: keep cloud blocked; require human intervention.
+                                    progress.status = ProgressStatus::Paused;
+                                    progress.updated_at = Utc::now();
+                                    write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                                    write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+
+                                    return Ok(RunJobOutcome {
+                                        state: JobState::AwaitingUser,
+                                        status_reason: "paused_hard_gate".to_string(),
+                                        output: Some(json!({
+                                            "wp_id": inputs.wp_id,
+                                            "reason": "cloud_escalation_denied",
+                                            "mt_id": mt.mt_id,
+                                            "request_id": pending.request_id,
+                                            "requested_model_id": pending.requested_model_id,
+                                            "projection_plan_id": pending.projection_plan.projection_plan_id,
+                                            "mt_definitions_ref": mt_definitions_ref,
+                                            "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                                            "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                                        })),
+                                        error_message: None,
+                                    });
+                                }
+                            } else {
+                                // Pending request exists but consent has not been recorded yet; keep paused.
+                                progress.status = ProgressStatus::Paused;
+                                progress.updated_at = Utc::now();
+                                write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                                write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+
+                                return Ok(RunJobOutcome {
+                                    state: JobState::AwaitingUser,
+                                    status_reason: "paused_cloud_consent".to_string(),
+                                    output: Some(json!({
+                                        "wp_id": inputs.wp_id,
+                                        "reason": "cloud_escalation_consent_required",
+                                        "mt_id": mt.mt_id,
+                                        "request_id": pending.request_id,
+                                        "requested_model_id": pending.requested_model_id,
+                                        "payload_sha256": pending.projection_plan.payload_sha256.clone(),
+                                        "projection_plan_id": pending.projection_plan.projection_plan_id.clone(),
+                                        "projection_plan": pending.projection_plan.clone(),
+                                        "mt_definitions_ref": mt_definitions_ref,
+                                        "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                                        "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                                    })),
+                                    error_message: None,
+                                });
+                            }
+                        } else {
+                            // Stale/mismatched pending consent; clear and re-request deterministically below.
+                            progress.current_state.pending_cloud_escalation = None;
+                        }
+                    }
+
+                    if cloud_bundle_for_call.is_none() {
+                        // Create new request + ProjectionPlan, then pause for explicit consent.
+                        let request_id = Uuid::new_v4().to_string();
+                        let projection_plan_id = Uuid::new_v4().to_string();
+                        let created_at = Utc::now().to_rfc3339();
+
+                        let cloud_dir_rel = job_dir_rel
+                            .join("cloud_escalation")
+                            .join(request_id.as_str());
+                        let cloud_dir_abs = repo_root.join(&cloud_dir_rel);
+                        fs::create_dir_all(&cloud_dir_abs).map_err(|e| {
+                            WorkflowError::Terminal(format!(
+                                "failed to create cloud escalation dir {}: {e}",
+                                cloud_dir_abs.display()
+                            ))
+                        })?;
+
+                        let projection_plan = ProjectionPlanV0_4 {
+                            schema_version: "hsk.projection_plan@0.4".to_string(),
+                            projection_plan_id: projection_plan_id.clone(),
+                            include_artifact_refs: vec![
+                                prompt_snapshot_ref.path.clone(),
+                                context_files_ref.path.clone(),
+                                context_snapshot_ref.path.clone(),
+                            ],
+                            include_fields: None,
+                            redactions_applied: vec!["none".to_string()],
+                            max_bytes: canonical_bytes.len().min(u32::MAX as usize) as u32,
+                            payload_sha256: payload_sha256.clone(),
+                            created_at: created_at.clone(),
+                            job_id: Some(job.job_id.to_string()),
+                            wp_id: Some(inputs.wp_id.clone()),
+                            mt_id: Some(mt.mt_id.clone()),
+                        };
+
+                        let projection_plan_rel = cloud_dir_rel.join("projection_plan.json");
+                        write_json_atomic(
+                            &repo_root,
+                            &repo_root.join(&projection_plan_rel),
+                            &projection_plan,
+                        )?;
+                        let projection_plan_ref = artifact_handle_for_rel(&projection_plan_rel);
+
+                        progress.current_state.pending_cloud_escalation =
+                            Some(PendingCloudEscalation {
+                                schema_version: "hsk.pending_cloud_escalation@0.1".to_string(),
+                                request_id: request_id.clone(),
+                                mt_id: mt.mt_id.clone(),
+                                requested_model_id: model_id.clone(),
+                                reason: reason.clone(),
+                                local_attempts,
+                                last_error_summary: last_error_summary.clone(),
+                                projection_plan: projection_plan.clone(),
+                                consent_receipt: None,
+                                cloud_escalation_request: None,
+                            });
+
+                        progress.status = ProgressStatus::Paused;
+                        progress.updated_at = Utc::now();
+                        write_json_atomic(&repo_root, &progress_abs, &progress)?;
+                        write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+
+                        record_event_safely(
+                            state,
+                            FlightRecorderEvent::new(
+                                FlightRecorderEventType::CloudEscalationRequested,
+                                FlightRecorderActor::System,
+                                trace_id,
+                                json!({
+                                    "type": "cloud_escalation_requested",
+                                    "request_id": request_id.clone(),
+                                    "reason": reason,
+                                    "requested_model_id": model_id.clone(),
+                                    "projection_plan_id": projection_plan_id.clone(),
+                                    "wp_id": inputs.wp_id,
+                                    "mt_id": mt.mt_id,
+                                    "local_attempts": local_attempts,
+                                    "last_error_summary": last_error_summary,
+                                }),
+                            )
+                            .with_job_id(job.job_id.to_string())
+                            .with_workflow_id(workflow_run_id.to_string()),
+                        )
+                        .await;
+
+                        return Ok(RunJobOutcome {
+                            state: JobState::AwaitingUser,
+                            status_reason: "paused_cloud_consent".to_string(),
+                            output: Some(json!({
+                                "wp_id": inputs.wp_id,
+                                "reason": "cloud_escalation_consent_required",
+                                "mt_id": mt.mt_id,
+                                "request_id": request_id,
+                                "requested_model_id": model_id,
+                                "payload_sha256": payload_sha256,
+                                "projection_plan_id": projection_plan_id,
+                                "projection_plan": projection_plan,
+                                "projection_plan_ref": projection_plan_ref,
+                                "mt_definitions_ref": mt_definitions_ref,
+                                "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
+                                "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
+                            })),
+                            error_message: None,
+                        });
+                    }
+                }
+
                 record_micro_task_event(
                     state,
                     FlightRecorderEventType::MicroTaskIterationStarted,
@@ -7984,16 +8565,28 @@ NEED: {{what you need to unblock}}
                 });
                 write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
 
-                write_bytes_atomic(&repo_root, &repo_root.join(&prompt_rel), prompt.as_bytes())?;
+                let mut req = CompletionRequest::new(trace_id, prompt.clone(), model_id.clone());
 
-                let response = state
-                    .llm_client
-                    .completion(CompletionRequest::new(
-                        trace_id,
-                        prompt.clone(),
-                        model_id.clone(),
-                    ))
-                    .await?;
+                if let Some(bundle) = cloud_bundle_for_call {
+                    req.cloud_escalation = Some(bundle);
+                }
+
+                if let Some(payload) = cloud_executed_event_payload {
+                    record_event_safely(
+                        state,
+                        FlightRecorderEvent::new(
+                            FlightRecorderEventType::CloudEscalationExecuted,
+                            FlightRecorderActor::System,
+                            trace_id,
+                            payload,
+                        )
+                        .with_job_id(job.job_id.to_string())
+                        .with_workflow_id(workflow_run_id.to_string()),
+                    )
+                    .await;
+                }
+
+                let response = state.llm_client.completion(req).await?;
                 let completed_ts = Utc::now();
                 let completion_signal = parse_completion_signal(&response.text);
 
@@ -8585,6 +9178,28 @@ NEED: {{what you need to unblock}}
                             "from_level": from_level,
                             "to_level": to_level,
                         }),
+                    )
+                    .await;
+
+                    let denied_request_id = Uuid::new_v4().to_string();
+                    record_event_safely(
+                        state,
+                        FlightRecorderEvent::new(
+                            FlightRecorderEventType::CloudEscalationDenied,
+                            FlightRecorderActor::System,
+                            trace_id,
+                            json!({
+                                "type": "cloud_escalation_denied",
+                                "request_id": denied_request_id,
+                                "reason": "cloud_escalation_disallowed",
+                                "requested_model_id": to_model.clone(),
+                                "wp_id": inputs.wp_id,
+                                "mt_id": mt.mt_id,
+                                "outcome": "denied",
+                            }),
+                        )
+                        .with_job_id(job.job_id.to_string())
+                        .with_workflow_id(workflow_run_id.to_string()),
                     )
                     .await;
 

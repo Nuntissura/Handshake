@@ -4,17 +4,21 @@
 //! through the `LlmClient` trait. This ensures provider portability and
 //! centralized observability via Flight Recorder.
 
-pub mod ollama;
 pub mod guard;
+pub mod ollama;
 pub mod openai_compat;
 pub mod registry;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use sha2::{Digest, Sha256};
 use thiserror::Error;
+use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
 
 use crate::workflows::ModelSwapRequestV0_4;
+use guard::CloudEscalationBundleV0_4;
 
 // Re-export primary types for convenient access
 pub use ollama::OllamaAdapter;
@@ -73,6 +77,9 @@ pub struct CompletionRequest {
     pub temperature: f32,
     /// Sequences that cause generation to stop.
     pub stop_sequences: Vec<String>,
+    /// Cloud escalation consent bundle required for any outbound cloud invocation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cloud_escalation: Option<CloudEscalationBundleV0_4>,
 }
 
 impl CompletionRequest {
@@ -85,6 +92,7 @@ impl CompletionRequest {
             max_tokens: None,
             temperature: 0.7,
             stop_sequences: Vec::new(),
+            cloud_escalation: None,
         }
     }
 
@@ -255,12 +263,156 @@ impl LlmClient for DisabledLlmClient {
 }
 
 // =============================================================================
+// Canonical JSON + Hashing Helpers (Spec §2.6.6.7.0)
+// =============================================================================
+
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    hex::encode(hasher.finalize())
+}
+
+pub(crate) fn canonical_json_bytes_nfc(value: &Value) -> Vec<u8> {
+    let mut out = String::new();
+    write_canonical_json_value_nfc(&mut out, value);
+    out.into_bytes()
+}
+
+fn write_canonical_json_value_nfc(out: &mut String, value: &Value) {
+    match value {
+        Value::Null => out.push_str("null"),
+        Value::Bool(v) => out.push_str(if *v { "true" } else { "false" }),
+        Value::Number(num) => {
+            if let Some(v) = num.as_i64() {
+                out.push_str(&v.to_string());
+            } else if let Some(v) = num.as_u64() {
+                out.push_str(&v.to_string());
+            } else if let Some(v) = num.as_f64() {
+                // Spec §2.6.6.7.5: fixed float precision (recommend 6 decimals).
+                let normalized = if v == 0.0 { 0.0 } else { v };
+                out.push_str(&format!("{normalized:.6}"));
+            } else {
+                out.push_str(&num.to_string());
+            }
+        }
+        Value::String(s) => write_canonical_json_string_nfc(out, s),
+        Value::Array(items) => {
+            out.push('[');
+            for (idx, item) in items.iter().enumerate() {
+                if idx > 0 {
+                    out.push(',');
+                }
+                write_canonical_json_value_nfc(out, item);
+            }
+            out.push(']');
+        }
+        Value::Object(map) => {
+            out.push('{');
+            let mut keys: Vec<(&String, String)> = map
+                .keys()
+                .map(|key| (key, key.nfc().collect::<String>()))
+                .collect();
+            keys.sort_by(|(a_raw, a_norm), (b_raw, b_norm)| {
+                a_norm.cmp(b_norm).then_with(|| a_raw.cmp(b_raw))
+            });
+            for (idx, (key, _)) in keys.iter().enumerate() {
+                if idx > 0 {
+                    out.push(',');
+                }
+                write_canonical_json_string_nfc(out, key);
+                out.push(':');
+                if let Some(v) = map.get(*key) {
+                    write_canonical_json_value_nfc(out, v);
+                } else {
+                    out.push_str("null");
+                }
+            }
+            out.push('}');
+        }
+    }
+}
+
+fn write_canonical_json_string_nfc(out: &mut String, value: &str) {
+    let normalized: String = value.nfc().collect();
+    out.push('"');
+    for ch in normalized.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\u{08}' => out.push_str("\\b"),
+            '\u{0C}' => out.push_str("\\f"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => {
+                out.push_str(&format!("\\u{:04X}", c as u32));
+            }
+            c if (c as u32) <= 0x7F => out.push(c),
+            c if (c as u32) <= 0xFFFF => {
+                out.push_str(&format!("\\u{:04X}", c as u32));
+            }
+            c => {
+                let code = (c as u32) - 0x1_0000;
+                let high = 0xD800 + ((code >> 10) & 0x3FF);
+                let low = 0xDC00 + (code & 0x3FF);
+                out.push_str(&format!("\\u{:04X}\\u{:04X}", high, low));
+            }
+        }
+    }
+    out.push('"');
+}
+
+pub(crate) fn openai_compat_chat_completion_body_json(
+    req: &CompletionRequest,
+    resolved_model_id: &str,
+) -> Value {
+    let mut map = serde_json::Map::new();
+    map.insert(
+        "model".to_string(),
+        Value::String(resolved_model_id.to_string()),
+    );
+    map.insert(
+        "messages".to_string(),
+        Value::Array(vec![serde_json::json!({
+            "role": "user",
+            "content": req.prompt.clone(),
+        })]),
+    );
+    if let Some(max_tokens) = req.max_tokens {
+        map.insert("max_tokens".to_string(), serde_json::json!(max_tokens));
+    }
+    map.insert(
+        "temperature".to_string(),
+        serde_json::json!(req.temperature),
+    );
+    if !req.stop_sequences.is_empty() {
+        map.insert(
+            "stop".to_string(),
+            serde_json::to_value(&req.stop_sequences).unwrap_or(Value::Array(Vec::new())),
+        );
+    }
+    map.insert("stream".to_string(), Value::Bool(false));
+    Value::Object(map)
+}
+
+pub(crate) fn openai_compat_canonical_request_bytes(
+    req: &CompletionRequest,
+    resolved_model_id: &str,
+) -> Vec<u8> {
+    canonical_json_bytes_nfc(&openai_compat_chat_completion_body_json(
+        req,
+        resolved_model_id,
+    ))
+}
+
+// =============================================================================
 // TESTS
 // =============================================================================
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn test_completion_request_builder() {
@@ -345,6 +497,34 @@ mod tests {
         assert_eq!(
             provider.to_string(),
             "HSK-500-LLM: Internal provider error: Connection timeout"
+        );
+    }
+
+    #[test]
+    fn canonical_json_bytes_nfc_normalizes_strings() {
+        let input = format!("e\u{0301}");
+        let value = json!({ "s": input });
+        let bytes = canonical_json_bytes_nfc(&value);
+        let rendered = String::from_utf8(bytes).expect("expected UTF-8 canonical JSON bytes");
+
+        assert!(
+            rendered.contains("\\u00E9"),
+            "expected NFC normalization to compose e + combining acute to \\u00E9, got: {rendered}"
+        );
+        assert!(
+            !rendered.contains("\\u0301"),
+            "expected combining acute to be removed by NFC normalization, got: {rendered}"
+        );
+    }
+
+    #[test]
+    fn canonical_json_bytes_nfc_formats_floats_with_fixed_precision() {
+        let value = json!({ "t": 0.7 });
+        let bytes = canonical_json_bytes_nfc(&value);
+        let rendered = String::from_utf8(bytes).expect("expected UTF-8 canonical JSON bytes");
+        assert!(
+            rendered.contains("0.700000"),
+            "expected fixed 6-decimal float formatting, got: {rendered}"
         );
     }
 }

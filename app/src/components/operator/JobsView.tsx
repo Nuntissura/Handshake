@@ -7,6 +7,8 @@ import {
   getEvents,
   listDiagnostics,
   listJobs,
+  resumeJob,
+  submitCloudEscalationConsent,
 } from "../../lib/api";
 import { EvidenceSelection } from "./EvidenceDrawer";
 import { DebugBundleExport } from "./DebugBundleExport";
@@ -63,6 +65,30 @@ async function sha256Hex(value: string): Promise<string> {
     .join("");
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+const LOCAL_USER_ID_KEY = "hsk.local_user_id.v1";
+
+function getOrCreateLocalUserId(): string {
+  const uuid =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  try {
+    const existing = localStorage.getItem(LOCAL_USER_ID_KEY);
+    if (existing && existing.startsWith("local:") && existing.length <= 128) return existing;
+
+    const minted = `local:${uuid}`;
+    localStorage.setItem(LOCAL_USER_ID_KEY, minted);
+    return minted;
+  } catch {
+    return `local:${uuid}`;
+  }
+}
+
 export const JobsView: React.FC<Props> = ({ onSelect, focusJobId }) => {
   const [filters, setFilters] = useState<JobFilters>(defaultFilters);
   const [jobs, setJobs] = useState<AiJob[]>([]);
@@ -75,6 +101,10 @@ export const JobsView: React.FC<Props> = ({ onSelect, focusJobId }) => {
   const [exportOpen, setExportOpen] = useState(false);
   const [inputsHash, setInputsHash] = useState("n/a");
   const [outputsHash, setOutputsHash] = useState("n/a");
+  const [localUserId] = useState(() => getOrCreateLocalUserId());
+  const [consentNotes, setConsentNotes] = useState("");
+  const [consentSubmitting, setConsentSubmitting] = useState(false);
+  const [consentError, setConsentError] = useState<string | null>(null);
 
   const fetchJobs = async (override?: JobFilters) => {
     const active = override ?? filters;
@@ -165,6 +195,50 @@ export const JobsView: React.FC<Props> = ({ onSelect, focusJobId }) => {
       cancelled = true;
     };
   }, [selectedJob?.job_outputs]);
+
+  useEffect(() => {
+    setConsentError(null);
+    setConsentNotes("");
+  }, [selectedJob?.job_id]);
+
+  const cloudConsentOutput = (() => {
+    if (!selectedJob || selectedJob.state !== "awaiting_user") return null;
+    if (!isRecord(selectedJob.job_outputs)) return null;
+    if (selectedJob.job_outputs["reason"] !== "cloud_escalation_consent_required") return null;
+    return selectedJob.job_outputs;
+  })();
+
+  const submitConsent = async (approved: boolean) => {
+    if (!selectedJob || !cloudConsentOutput) return;
+
+    const requestId = cloudConsentOutput["request_id"];
+    if (typeof requestId !== "string" || requestId.trim().length === 0) {
+      setConsentError("Missing request_id in job outputs");
+      return;
+    }
+
+    setConsentSubmitting(true);
+    setConsentError(null);
+    try {
+      await submitCloudEscalationConsent(selectedJob.job_id, {
+        request_id: requestId,
+        approved,
+        user_id: localUserId,
+        ui_surface: "operator_console",
+        notes: consentNotes.trim().length > 0 ? consentNotes.trim() : undefined,
+      });
+
+      await resumeJob(selectedJob.job_id);
+
+      const refreshed = await getJob(selectedJob.job_id);
+      setSelectedJob(refreshed);
+      setJobs((prev) => prev.map((j) => (j.job_id === refreshed.job_id ? refreshed : j)));
+    } catch (err) {
+      setConsentError(err instanceof Error ? err.message : "Failed to record cloud consent");
+    } finally {
+      setConsentSubmitting(false);
+    }
+  };
 
   return (
     <div className="content-card">
@@ -299,6 +373,52 @@ export const JobsView: React.FC<Props> = ({ onSelect, focusJobId }) => {
                         <li>Created: {new Date(selectedJob.created_at).toLocaleString()}</li>
                         <li>Updated: {new Date(selectedJob.updated_at).toLocaleString()}</li>
                       </ul>
+
+                      {cloudConsentOutput && (
+                        <div className="content-card" style={{ marginTop: 16 }}>
+                          <h4>Cloud Escalation Consent Required</h4>
+                          <p className="muted small">
+                            This job is paused before a cloud invocation. Approving records a ConsentReceipt and resumes
+                            the workflow.
+                          </p>
+                          <ul className="meta-list">
+                            <li>User ID: {localUserId}</li>
+                            <li>Request ID: {String(cloudConsentOutput["request_id"] ?? "n/a")}</li>
+                            <li>Requested Model: {String(cloudConsentOutput["requested_model_id"] ?? "n/a")}</li>
+                            <li>Payload SHA-256: {String(cloudConsentOutput["payload_sha256"] ?? "n/a")}</li>
+                            <li>Projection Plan ID: {String(cloudConsentOutput["projection_plan_id"] ?? "n/a")}</li>
+                          </ul>
+                          <details>
+                            <summary>ProjectionPlan</summary>
+                            <pre className="muted small">
+                              {JSON.stringify(cloudConsentOutput["projection_plan"] ?? null, null, 2)}
+                            </pre>
+                          </details>
+                          <label>
+                            Notes (optional)
+                            <textarea
+                              rows={3}
+                              placeholder="Add optional notes (no secrets)"
+                              value={consentNotes}
+                              onChange={(e) => setConsentNotes(e.target.value)}
+                            />
+                          </label>
+                          <div className="filter-actions">
+                            <button type="button" disabled={consentSubmitting} onClick={() => submitConsent(true)}>
+                              Approve + Resume
+                            </button>
+                            <button
+                              type="button"
+                              className="secondary"
+                              disabled={consentSubmitting}
+                              onClick={() => submitConsent(false)}
+                            >
+                              Deny
+                            </button>
+                          </div>
+                          {consentError && <p className="error small">Error: {consentError}</p>}
+                        </div>
+                      )}
                     </div>
                   )}
                   {activeTab === "timeline" && (

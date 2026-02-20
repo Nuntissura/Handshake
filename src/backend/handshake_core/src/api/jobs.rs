@@ -2,12 +2,12 @@ use crate::{
     jobs::{create_job, JobError},
     models::{AiJob, JobKind, WorkflowRun},
     storage::{EntityRef, JobState},
-    workflows::{start_workflow_for_job, WorkflowError},
+    workflows::{record_cloud_escalation_consent_v0_4, start_workflow_for_job, WorkflowError},
     AppState,
 };
 use axum::{
     extract::{Path, Query, State},
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use chrono::{DateTime, Utc};
@@ -23,6 +23,17 @@ pub struct CreateJobRequest {
     pub doc_id: Option<String>,
     #[serde(default)]
     pub job_inputs: Option<Value>,
+}
+
+#[derive(Deserialize)]
+pub struct CloudEscalationConsentRequest {
+    pub request_id: String,
+    pub approved: bool,
+    pub user_id: String,
+    #[serde(default)]
+    pub ui_surface: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
 }
 
 // We will improve error handling later. For now, we combine the possible
@@ -48,6 +59,11 @@ pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/jobs", get(list_jobs).post(create_new_job))
         .route("/jobs/:id", get(get_job))
+        .route("/jobs/:id/resume", post(resume_job))
+        .route(
+            "/jobs/:id/cloud_escalation/consent",
+            post(record_cloud_escalation_consent),
+        )
         .with_state(state)
 }
 
@@ -116,6 +132,67 @@ async fn get_job(
         .map_err(|e| e.to_string())?;
 
     Ok(Json(job))
+}
+
+async fn resume_job(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<WorkflowRun>, String> {
+    let job = state
+        .storage
+        .get_ai_job(&id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    match job.state {
+        JobState::AwaitingUser | JobState::Stalled => {}
+        _ => {
+            return Err(format!(
+                "job {} is not resumable from state {}",
+                job.job_id,
+                job.state.as_str()
+            ))
+        }
+    }
+
+    let workflow_run = start_workflow_for_job(&state, job)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(Json(workflow_run))
+}
+
+async fn record_cloud_escalation_consent(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<CloudEscalationConsentRequest>,
+) -> Result<Json<Value>, String> {
+    let job = state
+        .storage
+        .get_ai_job(&id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !matches!(job.state, JobState::AwaitingUser) {
+        return Err(format!(
+            "job {} is not awaiting user consent (state={})",
+            job.job_id,
+            job.state.as_str()
+        ));
+    }
+
+    record_cloud_escalation_consent_v0_4(
+        &state,
+        &job,
+        payload.request_id,
+        payload.approved,
+        payload.user_id,
+        payload.ui_surface,
+        payload.notes,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(Json(json!({ "status": "recorded" })))
 }
 
 #[derive(Deserialize, Default)]
