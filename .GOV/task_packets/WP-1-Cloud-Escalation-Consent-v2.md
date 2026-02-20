@@ -420,9 +420,13 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: In Progress (implementation complete; post-work manifest/evidence in progress)
-- What changed in this update: Filled `IN_SCOPE_PATHS`, `## IMPLEMENTATION`, `## VALIDATION` manifest, and added initial evidence mapping/evidence.
-- Next step / handoff hint: Re-run `just post-work WP-1-Cloud-Escalation-Consent-v2 --range dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..HEAD` and append output to `## EVIDENCE`.
+- Current WP_STATUS: In Progress (implementation complete; ready for Validator review)
+- What changed in this update:
+  - Implementation: `964660f` (cloud escalation consent flow + UI + FR event validation/mapping).
+  - Packet hygiene/evidence: `07a7809`, `6b0ec5b` (manifest + evidence mapping + command evidence).
+- Next step / handoff hint:
+  - Validator: review evidence mapping vs DONE_MEANS/SPEC_ANCHOR and re-run gates/tests as needed.
+  - Operator (optional): authorize reverting local rustfmt-only unstaged diffs (see `git status -sb`) to leave the WP worktree clean.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
