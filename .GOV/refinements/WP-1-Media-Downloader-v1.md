@@ -273,12 +273,15 @@ Capability checks:
   ```text
   #### 2.3.8.1 Cache-to-Index Assimilation (LocalWebCacheIndex)
 
+  **LocalWebCacheIndex (Tier A cache)**
+  - Store external pages fetched by external providers (and optionally AllowlistCrawler).
+  - Normalize: strip boilerplate, preserve headings/anchors.
+  - Index: same hybrid approach as LocalDocsIndex (keyword + embeddings).
+  - TTL + pinning: default TTL; allow pinning \u00e2\u20ac\u0153gold sources\u00e2\u20ac\u009d to prevent eviction.
   **AllowlistCrawler (Tier B, optional)**
   - Only crawl explicit domains or URL lists.
   - Respect robots/ToS and avoid bulk scraping by default.
   - Output to LocalWebCacheIndex and/or LocalDocsIndex.
-
-  - TTL + pinning: default TTL; allow pinning \u00e2\u20ac\u0153gold sources\u00e2\u20ac\u009d to prevent eviction.
   ```
 
 #### ANCHOR 3
@@ -388,4 +391,3 @@ Capability checks:
   ```text
   - Large batch operations (e.g. imports, full re-index) may run in the background with progress indicators; concrete latency targets are defined and validated using the benchmark harness described in the base research.
   ```
-
