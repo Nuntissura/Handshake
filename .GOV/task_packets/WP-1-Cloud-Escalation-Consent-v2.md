@@ -40,9 +40,11 @@
 - IN_SCOPE_PATHS:
   - src/backend/handshake_core/src/llm/guard.rs
   - src/backend/handshake_core/src/llm/mod.rs
+  - src/backend/handshake_core/src/llm/openai_compat.rs
   - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/src/flight_recorder/mod.rs
   - src/backend/handshake_core/src/flight_recorder/duckdb.rs
+  - src/backend/handshake_core/src/api/jobs.rs
   - app/ (only if required to present ProjectionPlan + capture consent)
 - OUT_OF_SCOPE:
   - Any Master Spec changes (already resolved in v02.133)
