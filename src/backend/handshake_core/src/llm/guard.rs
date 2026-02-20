@@ -7,7 +7,7 @@
 
 use super::{
     openai_compat_canonical_request_bytes, sha256_hex, CompletionRequest, CompletionResponse,
-    LlmClient, LlmError,
+    LlmClient, LlmError, ModelTier,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -200,15 +200,19 @@ impl CloudEscalationGuard {
 #[async_trait]
 impl LlmClient for CloudEscalationGuard {
     async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        // Enforcement is per-invocation: only requests explicitly marked as cloud escalation
-        // require ProjectionPlan + ConsentReceipt binding.
-        let Some(bundle) = req.cloud_escalation.as_ref() else {
+        // Local models are trusted and not subject to cloud escalation consent enforcement.
+        // Cloud tier invocations MUST include explicit consent artifacts.
+        if self.inner.profile().model_tier == ModelTier::Local {
             return self.inner.completion(req).await;
-        };
+        }
 
         if self.policy.governance_mode == RuntimeGovernanceMode::Locked {
             return Err(LlmError::GovernanceLocked);
         }
+
+        let Some(bundle) = req.cloud_escalation.as_ref() else {
+            return Err(LlmError::CloudConsentRequired);
+        };
 
         let resolved_model_id = if req.model_id.trim().is_empty() {
             self.inner.profile().model_id.clone()
@@ -384,7 +388,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn unmarked_request_passes_through_without_enforcing_consent() {
+    async fn cloud_tier_requires_consent_bundle() {
         let inner = Arc::new(CountingClient::new(ModelTier::Cloud));
         let guard = CloudEscalationGuard::new(
             inner.clone(),
@@ -398,15 +402,12 @@ mod tests {
             "hello".to_string(),
             "cloud-model".to_string(),
         );
-        let resp = match guard.completion(req).await {
-            Ok(resp) => resp,
-            Err(err) => {
-                assert!(false, "expected passthrough, got error: {err:?}");
-                return;
-            }
-        };
-        assert_eq!(resp.text, "ok");
-        assert_eq!(inner.calls(), 1);
+        let err = guard
+            .completion(req)
+            .await
+            .expect_err("expected consent-required denial");
+        assert!(matches!(err, LlmError::CloudConsentRequired));
+        assert_eq!(inner.calls(), 0);
     }
 
     #[tokio::test]
