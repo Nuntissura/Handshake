@@ -345,10 +345,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/llm/guard.rs`
 - **Start**: 1
-- **End**: 466
-- **Line Delta**: 16
+- **End**: 467
+- **Line Delta**: 17
 - **Pre-SHA1**: `ddb026260596c43f1f142de23d8e2a00e2791dac`
-- **Post-SHA1**: `4f33b1268b53cd7e827af60d4921c992735f1618`
+- **Post-SHA1**: `7eb568e8a669b047cfc4be3c63695496b5b35d5a`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -496,6 +496,26 @@ git revert <commit-sha>
 - COMMAND: `just post-work WP-1-Cloud-Escalation-Consent-v2 --range dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..HEAD`
 - EXIT_CODE: 0
 - PROOF_LINES: "Git range: dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..1a8ec6898003068951ab660284cb0b02210712fe"
+- COMMAND: `cd src/backend/handshake_core; cargo fmt`
+- EXIT_CODE: 0
+- COMMAND: `just validator-scan`
+- EXIT_CODE: 0
+- PROOF_LINES: "validator-scan: PASS - no forbidden patterns detected in backend/frontend sources."
+- COMMAND: `just validator-error-codes`
+- EXIT_CODE: 0
+- PROOF_LINES: "validator-error-codes: PASS - no stringly errors or nondeterminism patterns detected."
+- COMMAND: `cd src/backend/handshake_core; cargo clippy --all-targets --all-features`
+- EXIT_CODE: 0
+- PROOF_LINES: "Finished `dev` profile [unoptimized + debuginfo]"
+- COMMAND: `cd src/backend/handshake_core; cargo test -q -j 1`
+- EXIT_CODE: 0
+- PROOF_LINES: "test result: ok. 181 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out"
+- COMMAND: `just cargo-clean`
+- EXIT_CODE: 0
+- PROOF_LINES: "Removed 2306 files, 12.9GiB total"
+- COMMAND: `just post-work WP-1-Cloud-Escalation-Consent-v2 --range dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..HEAD`
+- EXIT_CODE: 0
+- PROOF_LINES: "Git range: dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..4f053e00cdb643cbcd4835b61829881a4d797890"
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
