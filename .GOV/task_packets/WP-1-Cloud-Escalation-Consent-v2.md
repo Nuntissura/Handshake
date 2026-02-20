@@ -290,11 +290,11 @@ git revert <commit-sha>
   - [x] current_file_matches_preimage
 
 - **Target File**: `src/backend/handshake_core/src/api/jobs.rs`
-- **Start**: 5
-- **End**: 197
-- **Line Delta**: 77
+- **Start**: 1
+- **End**: 388
+- **Line Delta**: 137
 - **Pre-SHA1**: `49b8c6c3c6d7d83cb1a6b93245984b9eb4a3ea27`
-- **Post-SHA1**: `532653a87256dcb4344f74a482901be355170d8b`
+- **Post-SHA1**: `f20fa2f70fff95b80656df7727f42ac43d777793`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -344,11 +344,11 @@ git revert <commit-sha>
   - [x] current_file_matches_preimage
 
 - **Target File**: `src/backend/handshake_core/src/llm/guard.rs`
-- **Start**: 4
-- **End**: 445
-- **Line Delta**: -2
+- **Start**: 1
+- **End**: 466
+- **Line Delta**: 16
 - **Pre-SHA1**: `ddb026260596c43f1f142de23d8e2a00e2791dac`
-- **Post-SHA1**: `3b77ccd09ad12740cf5cddb626ea9bc6237b44da`
+- **Post-SHA1**: `4f33b1268b53cd7e827af60d4921c992735f1618`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -362,11 +362,11 @@ git revert <commit-sha>
   - [x] current_file_matches_preimage
 
 - **Target File**: `src/backend/handshake_core/src/llm/mod.rs`
-- **Start**: 7
-- **End**: 529
-- **Line Delta**: 180
+- **Start**: 1
+- **End**: 548
+- **Line Delta**: 198
 - **Pre-SHA1**: `58a3b75611ce7f7354bbe51d3c96443f7bde8cba`
-- **Post-SHA1**: `500420be6f64990afce0c72db4d63694336364a3`
+- **Post-SHA1**: `7f6acfdef2a761522cdeefa55f54abb9bf2ff639`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -478,6 +478,21 @@ git revert <commit-sha>
 - COMMAND: `cd app; pnpm test`
 - EXIT_CODE: 0
 - PROOF_LINES: "Test Files 6 passed (6); Tests 13 passed (13)"
+- COMMAND: `just validator-scan`
+- EXIT_CODE: 0
+- PROOF_LINES: "validator-scan: PASS - no forbidden patterns detected in backend/frontend sources."
+- COMMAND: `just validator-error-codes`
+- EXIT_CODE: 0
+- PROOF_LINES: "validator-error-codes: PASS - no stringly errors or nondeterminism patterns detected."
+- COMMAND: `cd src/backend/handshake_core; cargo test -q -j 1`
+- EXIT_CODE: 0
+- PROOF_LINES: "test result: ok. 181 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out"
+- COMMAND: `just cargo-clean`
+- EXIT_CODE: 0
+- PROOF_LINES: "Removed 2346 files, 13.6GiB total"
+- COMMAND: `just post-work WP-1-Cloud-Escalation-Consent-v2 --range dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..HEAD`
+- EXIT_CODE: 0
+- PROOF_LINES: "Git range: dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..b881593edda9cf473f3eac26c18be4451735e680"
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
