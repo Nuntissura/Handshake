@@ -179,15 +179,66 @@ git revert <commit-sha>
   - "Policy/rights" -> "must not bypass access controls/DRM; require rights warning confirmation UX"
 
 ## SKELETON
-- Proposed interfaces/types/contracts:
-  - Media Downloader job family: enqueue requests for youtube/instagram/forumcrawler/videodownloader with shared progress reporting (Spec 10.14).
-  - OutputRootDir config plumbing for default materialization root (Spec 2.3.10.5).
-  - Stage Session binding for auth-required fetches; host cookie-jar artifact export for proc.exec tools (Spec 10.14.4-10.14.5).
-- Open questions:
-  - Tooling delivery: bundle vs user-installed yt-dlp/ffmpeg; how versions are pinned and verified (Spec 11.7/OSS policy).
-  - Minimal Stage Sessions implementation required for Media Downloader auth if Stage UI is not yet built (Spec 10.13).
+- Proposed interfaces/types/contracts (no logic):
+  - Job kinds + protocol IDs (backend; `storage::JobKind` + `workflows::run_job`):
+    - `media_downloader` (protocol_id: `hsk.media_downloader.batch.v0`)
+    - `media_downloader_control` (protocol_id: `hsk.media_downloader.control.v0`) — expresses pause/resume/cancel/retry as a governed workflow operation without needing new HTTP routes.
+  - Batch request schema (job_inputs JSON; validated server-side):
+    - `schema_version`: `hsk.media_downloader.batch@v0`
+    - `source_kind`: `youtube|instagram|forumcrawler|videodownloader`
+    - `sources`: `string[]` (raw URLs; server normalizes + dedupes before enqueue per Spec 10.14.7)
+    - `auth`: `{ mode: none|stage_session|cookie_jar, stage_session_id?, cookie_jar_artifact_ref? }`
+    - `output`: `{ output_root_dir_override?: string, materialize: true }`
+    - `controls`: `{ concurrency: u8 (default=4, range=1..16), retry_failed: bool, pause_on_error: bool }`
+    - `forumcrawler?`: `{ max_pages (default=1500, cap=5000), delay_ms?, exclude_patterns?: string[] }`
+    - `videodownloader?`: `{ sniff_bytes?, allow_embed_discovery?, require_ffprobe: true }`
+    - `rights_confirmed`: `true` (server rejects if false/missing; Spec 10.14.12)
+  - Control request schema (job_inputs JSON; validated server-side):
+    - `schema_version`: `hsk.media_downloader.control@v0`
+    - `target_job_id`: `string`
+    - `action`: `pause|resume|cancel_one|cancel_all|retry_failed`
+    - `item_id?`: `string`
+  - Batch outputs schema (job_outputs JSON; updated as progress occurs):
+    - `schema_version`: `hsk.media_downloader.result@v0`
+    - `plan`: `{ stable_item_total, items[]: { item_id, source_kind, url_canonical, stable_ids? } }`
+    - `progress`: `{ state, item_done, item_total, bytes_downloaded?, bytes_total?, concurrency }`
+    - `items[]`: `{ item_id, status, artifact_handles[], materialized_paths[], error_code?, error_message? }`
+    - `export_records[]`: `ExportRecord`-shaped objects with `materialized_paths[]` root-relative under OutputRootDir (Spec 2.3.10 + 2.3.10.5 + 10.14.6)
+  - Artifact sidecars/manifests:
+    - `media_sidecar.json` per downloaded media (+ captions): `{ url, retrieved_at, source_kind, stable_ids, sha256, bytes, captions[], errors[] }`
+    - `forumcrawler_manifest.json|csv`: `{ page_url, discovered_url, chosen_url, sha256, bytes, status, reason_skipped }` rows (Spec 10.14.9)
+    - Cookie jar artifact: Netscape `cookies.txt` (classification=high, exportable=false, never materialized to OutputRootDir) (Spec 10.14.5)
+  - Telemetry payloads (Flight Recorder; leak-safe; no secrets):
+    - System events with `event_kind`:
+      - `media_downloader.job_state`
+      - `media_downloader.progress`
+      - `media_downloader.item_result`
+      (Spec 10.14.11; payload includes job_id, source_kind, url (sanitized), bytes_downloaded, bytes_total?, item_index, item_total, status, error_code?)
+    - Bronze ingest: extend FR-EVT-DATA-001 payload (`data_bronze_created`) to include:
+      - `ingestion_source: { type: \"system\", process: \"media_downloader\" }`
+      - `external_source.url` (sanitized) where available (Spec 10.14.11)
+  - Capabilities + allowlists (Spec 10.14.3 + 11.1):
+    - Required (minimum) for batch protocol:
+      - `fs.write:artifacts`
+      - `net.http` (plus explicit domain allowlist enforcement in workflow)
+      - `proc.exec:yt-dlp`
+      - `proc.exec:ffmpeg`
+      - `proc.exec:ffprobe`
+      - `secrets.use` (when `auth.mode != none`)
+    - `mechanical_engines.json`: add a scoped Media Downloader / Archivist op whose allowlisted `proc.exec:*` scopes include only yt-dlp/ffmpeg/ffprobe (no generic `proc.exec`)
+    - `capabilities.rs`: add a dedicated profile (e.g. `Archivist`) mapped to `media_downloader*` job kinds with only required caps; preserve `HSK-4001: UnknownCapability` posture.
+  - OutputRootDir config plumbing (Spec 2.3.10.5):
+    - Runtime config file under workspace: `.handshake/gov/output_root_dir.json` storing an absolute OutputRootDir path.
+    - Tauri command bridge (`app/src-tauri/src/lib.rs`) provides get/set for OutputRootDir and Stage Session registry (without exposing secrets in logs).
+    - Materialization root conventions (required for this surface): `<OutputRootDir>/media_downloader/<source_kind>/...` (Spec 10.14.6).
+- Open questions / assumptions:
+  - Stage Sessions (Spec 10.13 + 10.14.4): Do we implement governed WebView Stage Sessions in this WP, or is a v2 stopgap acceptable where users import cookie jars as persistent sessions (still no password capture)?
+  - Cookie extraction implementation: if governed WebView is required, which platform is the target first (Windows/WebView2) and what API is approved for cookie export?
+  - URL/domain allowlist: confirm the allowlisted domains set for YouTube/Instagram archival (to enforce deny-by-default for crawls per Spec 10.14.3 + 10.14.9).
+  - External tooling: bundle vs user-installed `yt-dlp`/`ffmpeg`/`ffprobe` and how tool versions are discovered/pinned (supply chain posture).
 - Notes:
   - Private content is only downloadable when the selected session has authorized access; do not attempt to bypass access controls.
+  - All URLs in telemetry MUST be sanitized (no tokens/query secrets) (Spec 10.14.11 + “no secrets in payloads”).
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
@@ -201,6 +252,10 @@ git revert <commit-sha>
   - job_id, workflow_id (if applicable), actor_id, capability_id, decision_outcome
   - external_source.url (when available), sha256, bytes, materialized_paths[]
   - stage_session_id (when using session auth)
+- TRANSPORT_SCHEMA:
+  - UI -> backend: `CreateJobRequest.job_inputs` carries `hsk.media_downloader.batch@v0` and `hsk.media_downloader.control@v0` payloads.
+  - Backend -> UI: `AiJob.job_outputs` carries `hsk.media_downloader.result@v0` plus per-item summaries and materialized paths.
+  - Backend -> FR: `event_type=system` with `event_kind=media_downloader.*`; `event_type=data_bronze_created` for successful ingest.
 - VERIFICATION_PLAN:
   - Gate/validator verifies materialized_paths normalization rules and that cookie jars are exportable=false.
   - Flight Recorder validates media_downloader.* event payload shapes and ExportRecord invariants.
