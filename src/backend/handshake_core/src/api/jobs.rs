@@ -1,19 +1,83 @@
 use crate::{
     jobs::{create_job, JobError},
-    models::{AiJob, JobKind, WorkflowRun},
+    models::{AiJob, ErrorResponse, JobKind, WorkflowRun},
     storage::{EntityRef, JobState},
-    workflows::{start_workflow_for_job, WorkflowError},
+    workflows::{record_cloud_escalation_consent_v0_4, start_workflow_for_job, WorkflowError},
     AppState,
 };
 use axum::{
     extract::{Path, Query, State},
-    routing::get,
+    http::StatusCode,
+    routing::{get, post},
     Json, Router,
 };
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::str::FromStr;
+
+type ApiError = (StatusCode, Json<ErrorResponse>);
+type ApiResult<T> = Result<T, ApiError>;
+
+fn job_not_resumable() -> ApiError {
+    (
+        StatusCode::CONFLICT,
+        Json(ErrorResponse {
+            error: "HSK-409-JOB-NOT-RESUMABLE",
+        }),
+    )
+}
+
+fn job_not_awaiting_user_consent() -> ApiError {
+    (
+        StatusCode::CONFLICT,
+        Json(ErrorResponse {
+            error: "HSK-409-JOB-NOT-AWAITING-USER",
+        }),
+    )
+}
+
+fn storage_error(err: crate::storage::StorageError) -> ApiError {
+    match err {
+        crate::storage::StorageError::NotFound(_) => (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse {
+                error: "HSK-404-JOB-NOT-FOUND",
+            }),
+        ),
+        crate::storage::StorageError::Conflict(_) => (
+            StatusCode::CONFLICT,
+            Json(ErrorResponse {
+                error: "HSK-409-STORAGE-CONFLICT",
+            }),
+        ),
+        crate::storage::StorageError::Validation(_) => (
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "HSK-400-STORAGE-VALIDATION",
+            }),
+        ),
+        other => {
+            tracing::error!(target: "handshake_core", error = %other, "jobs_api_storage_error");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "HSK-500-DB",
+                }),
+            )
+        }
+    }
+}
+
+fn workflow_error(err: WorkflowError) -> ApiError {
+    tracing::error!(target: "handshake_core", error = %err, "jobs_api_workflow_error");
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(ErrorResponse {
+            error: "HSK-500-WORKFLOW",
+        }),
+    )
+}
 
 #[derive(Deserialize)]
 pub struct CreateJobRequest {
@@ -23,6 +87,17 @@ pub struct CreateJobRequest {
     pub doc_id: Option<String>,
     #[serde(default)]
     pub job_inputs: Option<Value>,
+}
+
+#[derive(Deserialize)]
+pub struct CloudEscalationConsentRequest {
+    pub request_id: String,
+    pub approved: bool,
+    pub user_id: String,
+    #[serde(default)]
+    pub ui_surface: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
 }
 
 // We will improve error handling later. For now, we combine the possible
@@ -48,6 +123,11 @@ pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/jobs", get(list_jobs).post(create_new_job))
         .route("/jobs/:id", get(get_job))
+        .route("/jobs/:id/resume", post(resume_job))
+        .route(
+            "/jobs/:id/cloud_escalation/consent",
+            post(record_cloud_escalation_consent),
+        )
         .with_state(state)
 }
 
@@ -116,6 +196,63 @@ async fn get_job(
         .map_err(|e| e.to_string())?;
 
     Ok(Json(job))
+}
+
+async fn resume_job(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> ApiResult<Json<WorkflowRun>> {
+    let job = state.storage.get_ai_job(&id).await.map_err(storage_error)?;
+
+    match job.state {
+        JobState::AwaitingUser | JobState::Stalled => {}
+        _ => {
+            tracing::warn!(
+                target: "handshake_core",
+                job_id = %job.job_id,
+                state = job.state.as_str(),
+                "job_not_resumable"
+            );
+            return Err(job_not_resumable());
+        }
+    }
+
+    let workflow_run = start_workflow_for_job(&state, job)
+        .await
+        .map_err(workflow_error)?;
+    Ok(Json(workflow_run))
+}
+
+async fn record_cloud_escalation_consent(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(payload): Json<CloudEscalationConsentRequest>,
+) -> ApiResult<Json<Value>> {
+    let job = state.storage.get_ai_job(&id).await.map_err(storage_error)?;
+
+    if !matches!(job.state, JobState::AwaitingUser) {
+        tracing::warn!(
+            target: "handshake_core",
+            job_id = %job.job_id,
+            state = job.state.as_str(),
+            "job_not_awaiting_user_consent"
+        );
+        return Err(job_not_awaiting_user_consent());
+    }
+
+    record_cloud_escalation_consent_v0_4(
+        &state,
+        &job,
+        payload.request_id,
+        payload.approved,
+        payload.user_id,
+        payload.ui_surface,
+        payload.notes,
+    )
+    .await
+    .map_err(workflow_error)?;
+
+    Ok(Json(json!({ "status": "recorded" })))
 }
 
 #[derive(Deserialize, Default)]

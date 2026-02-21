@@ -5,9 +5,12 @@
 //! - Emits Flight Recorder `llm_inference` without raw prompts/payloads.
 //! - Does not log or persist API keys.
 
-use super::{CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, ModelTier};
+use super::{
+    openai_compat_canonical_request_bytes, CompletionRequest, CompletionResponse, LlmClient,
+    LlmError, ModelProfile, ModelTier,
+};
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::fmt;
 use std::sync::Arc;
@@ -131,7 +134,8 @@ impl OpenAiCompatAdapter {
         )
         .with_model_id(&req.model_id);
 
-        let record_result: Result<(), RecorderError> = self.flight_recorder.record_event(event).await;
+        let record_result: Result<(), RecorderError> =
+            self.flight_recorder.record_event(event).await;
         if let Err(err) = record_result {
             tracing::warn!(
                 target: "handshake_core::llm",
@@ -141,24 +145,6 @@ impl OpenAiCompatAdapter {
             );
         }
     }
-}
-
-#[derive(Debug, Serialize)]
-struct OpenAiCompatChatCompletionRequest {
-    model: String,
-    messages: Vec<OpenAiCompatChatMessage>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    max_tokens: Option<u32>,
-    temperature: f32,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    stop: Vec<String>,
-    stream: bool,
-}
-
-#[derive(Debug, Serialize)]
-struct OpenAiCompatChatMessage {
-    role: String,
-    content: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -203,28 +189,20 @@ impl LlmClient for OpenAiCompatAdapter {
             req.model_id.clone()
         };
 
-        let body = OpenAiCompatChatCompletionRequest {
-            model: model_id.clone(),
-            messages: vec![OpenAiCompatChatMessage {
-                role: "user".to_string(),
-                content: req.prompt.clone(),
-            }],
-            max_tokens: req.max_tokens,
-            temperature: req.temperature,
-            stop: req.stop_sequences.clone(),
-            stream: false,
-        };
-
         let url = self.chat_completions_url();
-        let mut builder = self.client.post(&url).json(&body);
+        let canonical_bytes = openai_compat_canonical_request_bytes(&req, model_id.as_str());
+        let mut builder = self
+            .client
+            .post(&url)
+            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .body(canonical_bytes);
         if let Some(api_key) = &self.api_key {
             builder = builder.bearer_auth(api_key.as_str());
         }
 
-        let response = builder
-            .send()
-            .await
-            .map_err(|err| LlmError::ProviderError(format!("OpenAI compat request error: {err}")))?;
+        let response = builder.send().await.map_err(|err| {
+            LlmError::ProviderError(format!("OpenAI compat request error: {err}"))
+        })?;
 
         let status = response.status();
         if status.as_u16() == 429 {
@@ -410,9 +388,7 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .map_err(|err| err.to_string())?;
-        let addr = listener
-            .local_addr()
-            .map_err(|err| err.to_string())?;
+        let addr = listener.local_addr().map_err(|err| err.to_string())?;
 
         let handle = tokio::spawn(async move {
             let _ = axum::serve(listener, app).await;

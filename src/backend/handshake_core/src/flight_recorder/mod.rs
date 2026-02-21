@@ -101,6 +101,11 @@ pub enum FlightRecorderEventType {
     GovAutoSignatureCreated,
     GovHumanInterventionRequested,
     GovHumanInterventionReceived,
+    /// FR-EVT-CLOUD-001..004: Cloud escalation events [11.5.8]
+    CloudEscalationRequested,
+    CloudEscalationApproved,
+    CloudEscalationDenied,
+    CloudEscalationExecuted,
     /// FR-EVT-005: Debug Bundle export lifecycle event [11.5]
     DebugBundleExport,
     /// Governance Pack export lifecycle event [Spec 2.3.10]
@@ -218,6 +223,16 @@ impl fmt::Display for FlightRecorderEventType {
             }
             FlightRecorderEventType::GovHumanInterventionReceived => {
                 write!(f, "gov_human_intervention_received")
+            }
+            FlightRecorderEventType::CloudEscalationRequested => {
+                write!(f, "cloud_escalation_requested")
+            }
+            FlightRecorderEventType::CloudEscalationApproved => {
+                write!(f, "cloud_escalation_approved")
+            }
+            FlightRecorderEventType::CloudEscalationDenied => write!(f, "cloud_escalation_denied"),
+            FlightRecorderEventType::CloudEscalationExecuted => {
+                write!(f, "cloud_escalation_executed")
             }
             FlightRecorderEventType::DebugBundleExport => write!(f, "debug_bundle_export"),
             FlightRecorderEventType::GovernancePackExport => write!(f, "governance_pack_export"),
@@ -605,6 +620,33 @@ impl FlightRecorderEvent {
                     "gov_human_intervention_received",
                     true,
                 )
+            }
+            FlightRecorderEventType::CloudEscalationRequested => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "cloud_escalation_requested actor must be system".to_string(),
+                    ));
+                }
+                validate_cloud_escalation_event_payload(&self.payload, "cloud_escalation_requested")
+            }
+            FlightRecorderEventType::CloudEscalationApproved => {
+                if self.actor != FlightRecorderActor::Human {
+                    return Err(RecorderError::InvalidEvent(
+                        "cloud_escalation_approved actor must be human".to_string(),
+                    ));
+                }
+                validate_cloud_escalation_event_payload(&self.payload, "cloud_escalation_approved")
+            }
+            FlightRecorderEventType::CloudEscalationDenied => {
+                validate_cloud_escalation_event_payload(&self.payload, "cloud_escalation_denied")
+            }
+            FlightRecorderEventType::CloudEscalationExecuted => {
+                if self.actor != FlightRecorderActor::System {
+                    return Err(RecorderError::InvalidEvent(
+                        "cloud_escalation_executed actor must be system".to_string(),
+                    ));
+                }
+                validate_cloud_escalation_event_payload(&self.payload, "cloud_escalation_executed")
             }
             FlightRecorderEventType::LlmInference => {
                 let model_id = self.model_id.as_deref().map(str::trim).unwrap_or("");
@@ -3401,6 +3443,107 @@ fn validate_gov_automation_event_payload(
             _ => {
                 return Err(RecorderError::InvalidEvent(
                     "payload field user_id must be a bounded string token".to_string(),
+                ))
+            }
+        }
+    }
+
+    Ok(())
+}
+
+// =============================================================================
+// FR-EVT-CLOUD-001..004 (Cloud Escalation) payload validators [11.5.8]
+// =============================================================================
+
+fn validate_cloud_escalation_event_payload(
+    payload: &Value,
+    expected_type: &str,
+) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_allowed_keys(
+        map,
+        &["type", "request_id", "reason", "requested_model_id"],
+        &[
+            "projection_plan_id",
+            "consent_receipt_id",
+            "wp_id",
+            "mt_id",
+            "local_attempts",
+            "last_error_summary",
+            "outcome",
+        ],
+    )?;
+
+    require_fixed_string(map, "type", expected_type)?;
+
+    match require_key(map, "request_id")? {
+        Value::String(value) if is_safe_token(value, 256) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field request_id must be a bounded string token".to_string(),
+            ))
+        }
+    }
+
+    require_string(map, "reason")?;
+
+    match require_key(map, "requested_model_id")? {
+        Value::String(value) if is_safe_token(value, 256) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field requested_model_id must be a bounded string token".to_string(),
+            ))
+        }
+    }
+
+    for key in ["projection_plan_id", "consent_receipt_id"] {
+        if map.contains_key(key) {
+            match require_key(map, key)? {
+                Value::String(value) if is_safe_token(value, 256) => {}
+                _ => {
+                    return Err(RecorderError::InvalidEvent(format!(
+                        "payload field {key} must be a bounded string token"
+                    )))
+                }
+            }
+        }
+    }
+
+    for key in ["wp_id", "mt_id"] {
+        if map.contains_key(key) {
+            match require_key(map, key)? {
+                Value::String(value) if is_safe_token(value, 128) => {}
+                _ => {
+                    return Err(RecorderError::InvalidEvent(format!(
+                        "payload field {key} must be a bounded string token"
+                    )))
+                }
+            }
+        }
+    }
+
+    if map.contains_key("local_attempts") {
+        match require_key(map, "local_attempts")? {
+            Value::Number(value) if value.as_u64().is_some() => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field local_attempts must be an integer".to_string(),
+                ))
+            }
+        }
+    }
+
+    if map.contains_key("last_error_summary") {
+        require_string(map, "last_error_summary")?;
+    }
+
+    if map.contains_key("outcome") {
+        match require_key(map, "outcome")? {
+            Value::String(value)
+                if matches!(value.as_str(), "approved" | "denied" | "executed") => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field outcome must be one of: approved, denied, executed".to_string(),
                 ))
             }
         }

@@ -771,6 +771,16 @@ impl DuckDbFlightRecorder {
                 "gov_human_intervention_received" => {
                     super::FlightRecorderEventType::GovHumanInterventionReceived
                 }
+                "cloud_escalation_requested" => {
+                    super::FlightRecorderEventType::CloudEscalationRequested
+                }
+                "cloud_escalation_approved" => {
+                    super::FlightRecorderEventType::CloudEscalationApproved
+                }
+                "cloud_escalation_denied" => super::FlightRecorderEventType::CloudEscalationDenied,
+                "cloud_escalation_executed" => {
+                    super::FlightRecorderEventType::CloudEscalationExecuted
+                }
                 "security_violation" => super::FlightRecorderEventType::SecurityViolation,
                 "data_bronze_created" => super::FlightRecorderEventType::DataBronzeCreated,
                 "data_silver_created" => super::FlightRecorderEventType::DataSilverCreated,

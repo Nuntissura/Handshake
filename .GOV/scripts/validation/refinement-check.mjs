@@ -70,8 +70,17 @@ function extractFencedBlockAfterHeading(lines, heading) {
   // Limit scan to the heading's section (until the next Markdown heading).
   const sectionStart = headingIdx + 1;
   let sectionEnd = lines.length;
+  // NOTE: Headings inside fenced code blocks are not real section delimiters.
+  // Without this, a fenced block that contains Markdown headings (common when
+  // pasting verbatim spec text) would cause premature section termination.
+  let inFence = false;
   for (let j = sectionStart; j < lines.length; j += 1) {
-    if (/^#{1,6}\s+\S/.test(lines[j])) {
+    const trimmed = (lines[j] || '').trim();
+    if (/^```/.test(trimmed)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (!inFence && /^#{1,6}\s+\S/.test(lines[j])) {
       sectionEnd = j;
       break;
     }
@@ -328,4 +337,3 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
 
   return { ok: errors.length === 0, errors, parsed: { wpId, reviewStatus, signature } };
 }
-
