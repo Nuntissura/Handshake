@@ -49,8 +49,6 @@ Entry format (recommended):
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
 
-- **[WP-1-Cloud-Escalation-Consent-v2]**
-
 ## Stub Backlog (Not Activated)
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
@@ -96,6 +94,7 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
 ## Done
+- **[WP-1-Cloud-Escalation-Consent-v2]** - [VALIDATED]
 - **[WP-1-Autonomous-Governance-Protocol-v2]** - [VALIDATED]
 - **[WP-1-Model-Onboarding-ContextPacks-v1]** - [VALIDATED]
 - **[WP-1-Spec-Enrichment-Product-Governance-Consistency-v1]** - [VALIDATED]
