@@ -37,7 +37,7 @@ echo ""
 # Check 2: Clean Cargo artifacts (external target dir to avoid repo bloat)
 echo "Cleaning Cargo artifacts (external target dir)..."
 if just cargo-clean; then
-  echo "Æ’o. Cargo target cleaned at ../Cargo Target/handshake-cargo-target"
+  echo "Æ’o. Cargo target cleaned at ../Build Artifacts/handshake-cargo-target"
 else
   echo ""
   echo "Æ’?O Cargo clean failed"

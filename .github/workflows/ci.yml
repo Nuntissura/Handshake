@@ -13,6 +13,8 @@ env:
   OSV_SCANNER_VERSION: "1.7.0"
   SYFT_VERSION: "0.105.0"
   SCANCODE_TOOLKIT_VERSION: "32.2.1"
+  # Keep all Rust build/test artifacts out of the repo working tree.
+  CARGO_TARGET_DIR: "${{ github.workspace }}/../Build Artifacts/handshake-cargo-target"
 
 jobs:
   validate:
