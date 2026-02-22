@@ -1,0 +1,48 @@
+{
+  "validation_sessions": {
+    "WP-1-Media-Downloader-v2": {
+      "wpId": "WP-1-Media-Downloader-v2",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-02-22T05:42:24.614Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "PASS",
+          "timestamp": "2026-02-22T05:42:24.614Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-02-22T05:42:30.985Z"
+        }
+      ]
+    }
+  },
+  "archived_sessions": [
+    {
+      "wpId": "WP-1-Media-Downloader-v2",
+      "verdict": "FAIL",
+      "status": "USER_ACKNOWLEDGED",
+      "started": "2026-02-22T01:52:51.738Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "FAIL",
+          "timestamp": "2026-02-22T01:52:51.738Z"
+        },
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-02-22T01:53:12.799Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-02-22T01:56:30.563Z"
+        }
+      ],
+      "completed": "2026-02-22T01:56:30.564Z",
+      "archived_at": "2026-02-22T05:42:20.498Z",
+      "archive_reason": "manual_reset"
+    }
+  ]
+}

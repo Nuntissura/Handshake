@@ -722,3 +722,40 @@ git revert <commit-sha>
    
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+- VALIDATION REPORT - WP-1-Media-Downloader-v2
+  - DATE: 2026-02-22
+  - VERDICT: PASS
+  - VALIDATED_COMMIT: 6b7f18c6cf813d5f324b636df225bdb6c7ee8910
+  - VALIDATION_CLAIMS:
+    - GATES_PASS (just post-work WP-1-Media-Downloader-v2 --range dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..VALIDATED_COMMIT): PASS (warnings recorded below; deterministic manifest gate, not tests)
+    - TEST_PLAN_PASS (packet TEST_PLAN commands): PASS (per packet ## EVIDENCE; Validator re-ran codex-check + post-work + validator suite spot-checks)
+    - SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES (spot-checked Stage Sessions + cookie import + OutputRootDir + governance boundary)
+  - COMMANDS_RUN (Validator):
+    - just codex-check: PASS
+    - just post-work WP-1-Media-Downloader-v2 --range dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..HEAD: PASS (with warnings)
+    - just validator-error-codes: PASS
+    - just validator-scan: PASS
+    - just validator-dal-audit: PASS
+    - just validator-spec-regression: PASS
+    - just validator-coverage-gaps: PASS
+    - just validator-traceability: PASS
+    - just validator-git-hygiene: PASS
+    - just validator-packet-complete WP-1-Media-Downloader-v2: PASS
+    - just validator-phase-gate Phase-1: FAIL (phase progression only; not a WP merge blocker)
+  - FILES_INSPECTED (Validator spot-checks):
+    - .GOV/scripts/validation/codex-check.mjs
+    - .GOV/scripts/validation/oss-register-check.mjs
+    - .GOV/scripts/validation/post-work-check.mjs
+    - .GOV/roles_shared/SPEC_CURRENT.md
+    - .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
+    - app/src/components/MediaDownloaderView.tsx
+    - app/src/lib/mediaDownloader.ts
+    - app/src-tauri/src/lib.rs
+  - FINDINGS:
+    - Hard boundary satisfied: `just codex-check` PASS; no product references to `.GOV/`.
+    - OSS register enforcement preserved via governance check: `.GOV/scripts/validation/oss-register-check.mjs` wired into `.GOV/scripts/validation/codex-check.mjs`.
+    - Stage Sessions + cookie export/import posture present (UI + Tauri): stage sessions persist via per-session data_directory; cookies export as Netscape cookies.txt into `.handshake/tmp/...` for controlled ingestion (not OutputRootDir).
+    - OutputRootDir posture present: Tauri command requires absolute path and persists via `.handshake/gov/output_root_dir.json`; UI allows picking a directory.
+  - WARNINGS / NOTES:
+    - post-work warns about "Out-of-scope files changed but waiver present [CX-573F]". Validator notes `post-work-check.mjs` currently detects [CX-573F] via a regex that matches the template line in `## WAIVERS GRANTED`, so this can be a false-positive waiver signal. Recommend tightening waiver detection or removing [CX-573F] from the template line to restore strict scope enforcement.
+    - `validator-phase-gate Phase-1` FAIL indicates Task Board still has Ready-for-Dev items; do not treat this as Phase-1 closure readiness.
