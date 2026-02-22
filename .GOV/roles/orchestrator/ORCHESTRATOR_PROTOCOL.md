@@ -964,7 +964,7 @@ OUT_OF_SCOPE:
 - âœ… Each command is literal (can be copy-pasted)
 - âœ… Commands are in logical order (build â†’ test â†’ review)
 - âœ… `just post-work WP-{ID}` is ALWAYS included (Step 10 of CODER_PROTOCOL)
-- âœ… `just cargo-clean` (uses ../Build Artifacts/handshake-cargo-target) is listed before post-work/self-eval to flush Cargo artifacts outside the repo
+- âœ… `just cargo-clean` (uses ../Handshake Artifacts/handshake-cargo-target) is listed before post-work/self-eval to flush Cargo artifacts outside the repo
 
 âŒ **Incomplete TEST_PLAN:**
 ```markdown
@@ -2273,7 +2273,7 @@ Use this template for ANY SLA-triggered escalation:
 - [ ] Every DONE_MEANS maps 1:1 to SPEC_ANCHOR requirement
 - [ ] RISK_TIER assigned (LOW/MEDIUM/HIGH)
 - [ ] TEST_PLAN includes all applicable commands
-- [ ] TEST_PLAN lists `just cargo-clean` (external `../Build Artifacts/handshake-cargo-target`) before post-work/self-eval
+- [ ] TEST_PLAN lists `just cargo-clean` (external `../Handshake Artifacts/handshake-cargo-target`) before post-work/self-eval
 - [ ] BOOTSTRAP has 5-15 FILES_TO_OPEN
 - [ ] BOOTSTRAP has 10-20 SEARCH_TERMS
 - [ ] BOOTSTRAP has RISK_MAP (3-8 failure modes)

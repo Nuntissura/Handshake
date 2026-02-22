@@ -4,10 +4,10 @@ set dotenv-load := false
 set windows-shell := ["powershell.exe", "-NoLogo", "-NonInteractive", "-Command"]
 
 # External build/test artifacts (Cargo target dir) MUST live outside the repo working tree.
-CARGO_TARGET_DIR := "../Build Artifacts/handshake-cargo-target"
+CARGO_TARGET_DIR := "../Handshake Artifacts/handshake-cargo-target"
 
 dev: preflight-ollama
-	node -e "const {execFileSync}=require('child_process'); const path=require('path'); const repo=execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim(); const cargoTarget=path.join(repo,'..','Build Artifacts','handshake-cargo-target'); execFileSync('pnpm',['-C','app','run','tauri','dev'],{stdio:'inherit', env:{...process.env, CARGO_TARGET_DIR:cargoTarget}});"
+	node -e "const {execFileSync}=require('child_process'); const path=require('path'); const repo=execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim(); const cargoTarget=path.resolve(repo,'{{CARGO_TARGET_DIR}}'); execFileSync('pnpm',['-C','app','run','tauri','dev'],{stdio:'inherit', env:{...process.env, CARGO_TARGET_DIR:cargoTarget}});"
 
 # Fail fast if Ollama is missing/unreachable (Phase 1 requirement; see .GOV/roles_shared/START_HERE.md).
 preflight-ollama:
