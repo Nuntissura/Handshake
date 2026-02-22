@@ -901,8 +901,8 @@ Complete ALL steps before claiming work is done.
 
 **Pre-Step 7 hygiene (MANDATORY):**
 - Clean Cargo artifacts in the external target dir before self-eval/commit to keep the repo/mirror slim:
-  `cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Cargo Target/handshake-cargo-target"`
-  (or run `just cargo-clean`, which uses `../Cargo Target/handshake-cargo-target`).
+  `cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Build Artifacts/handshake-cargo-target"`
+  (or run `just cargo-clean`, which uses `../Build Artifacts/handshake-cargo-target`).
 
 **Run ALL commands from TEST_PLAN:**
 
