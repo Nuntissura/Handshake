@@ -669,6 +669,12 @@ git revert <commit-sha>
 - EXIT_CODE: 0
 - PROOF_LINES: "Post-work validation PASSED (deterministic manifest gate; not tests) with warnings"
 - PROOF_LINES: "Warnings: Out-of-scope files changed but waiver present [CX-573F]: .cargo/config.toml, justfile"
+  
+- COMMAND: `just post-work WP-1-Media-Downloader-v2 --range dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..HEAD`
+- EXIT_CODE: 0
+- PROOF_LINES: "Diff selection: range (explicit --range)"
+- PROOF_LINES: "Git range: dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..215bb3c6b529f1cf0f52b40bcdf4a1a3e82f228a"
+- PROOF_LINES: "Post-work validation PASSED (deterministic manifest gate; not tests) with warnings"
  
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
