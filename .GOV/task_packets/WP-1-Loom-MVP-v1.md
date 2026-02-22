@@ -5,7 +5,7 @@
 - WP_ID: WP-1-Loom-MVP-v1
 - BASE_WP_ID: WP-1-Loom-MVP (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: 2026-02-22T15:55:22.397Z
-- MERGE_BASE_SHA: 0f5aaf67c6676c1552e948d5efd152ff2ac6b28c (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: 0f5aaf67c6676c1552e948d5efd152ff2ac6b28c
 - REQUESTOR: ilja
 - AGENT_ID: codex-orchestrator
 - ROLE: Orchestrator
@@ -211,4 +211,5 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
 

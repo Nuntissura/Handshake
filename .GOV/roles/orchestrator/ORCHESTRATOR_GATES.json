@@ -1412,6 +1412,30 @@
       "branch": "feat/WP-1-Media-Downloader-v2",
       "worktree_dir": "../wt-WP-1-Media-Downloader-v2",
       "timestamp": "2026-02-20T08:17:13.653Z"
+    },
+    {
+      "wpId": "WP-1-Loom-MVP-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Loom-MVP-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.134.md",
+      "spec_target_sha1": "b846f04093f1bd6fae885876affc99a21065ec95",
+      "timestamp": "2026-02-22T15:21:06.130Z",
+      "turn_token": "1771773666131"
+    },
+    {
+      "wpId": "WP-1-Loom-MVP-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja220220261648",
+      "timestamp": "2026-02-22T15:50:07.647Z",
+      "refinement_path": ".GOV/refinements/WP-1-Loom-MVP-v1.md"
+    },
+    {
+      "wpId": "WP-1-Loom-MVP-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Loom-MVP-v1",
+      "worktree_dir": "../wt-WP-1-Loom-MVP-v1",
+      "timestamp": "2026-02-22T15:55:15.863Z"
     }
   ]
 }
