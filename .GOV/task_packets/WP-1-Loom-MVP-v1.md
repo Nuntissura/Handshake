@@ -1,4 +1,4 @@
-# Task Packet: WP-1-Loom-MVP-v1
+﻿# Task Packet: WP-1-Loom-MVP-v1
 
 ## METADATA
 - TASK_ID: WP-1-Loom-MVP-v1
@@ -20,8 +20,8 @@
 - PACKET_FORMAT_VERSION: 2026-02-01
 
 ## SUB_AGENT_DELEGATION (OPTIONAL; OPERATOR-GATED)
-- SUB_AGENT_DELEGATION: DISALLOWED
-- OPERATOR_APPROVAL_EVIDENCE: N/A
+- SUB_AGENT_DELEGATION: ALLOWED
+- OPERATOR_APPROVAL_EVIDENCE: Coder A, orchestrator does NOT spawn agents. Coder can use agents.
 - SUB_AGENT_REASONING_ASSUMPTION: LOW (HARD)
 - RULES (if SUB_AGENT_DELEGATION=ALLOWED):
   - Sub-agents produce draft code only; Primary Coder verifies against SPEC_CURRENT + task packet acceptance criteria before applying.
@@ -211,3 +211,4 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
