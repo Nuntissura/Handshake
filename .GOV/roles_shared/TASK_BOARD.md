@@ -52,6 +52,8 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 - **[WP-1-Media-Downloader-v2]**
   - Blocks: WP-1-Video-Archive-Loom-Integration-v1
 
+- **[WP-1-Loom-MVP-v1]**
+
 ## Stub Backlog (Not Activated)
 - **[WP-1-Video-Archive-Loom-Integration-v1]** - [STUB]
 - **[WP-1-Governance-Pack-v1]** - [STUB]
@@ -84,7 +86,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 - **[WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1]** - [STUB]
 - **[WP-1-Layerwise-Inference-Foundations-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-MVP-v1]** - [STUB]
-- **[WP-1-Loom-MVP-v1]** - [STUB]
 - **[WP-1-Handshake-Stage-MVP-v1]** - [STUB]
 - **[WP-1-Lens-Extraction-Tier-v1]** - [STUB]
 - **[WP-1-Lens-ViewMode-v1]** - [STUB]
