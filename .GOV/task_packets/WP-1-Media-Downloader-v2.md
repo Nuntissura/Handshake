@@ -38,6 +38,7 @@
 - What: Implement the Master Spec v02.134 "Media Downloader" surface (YouTube + Instagram + forum/blog topic image crawl + generic video) with a unified queue, resumability, progress UI, Stage Sessions-based auth, and OutputRootDir materialization.
 - Why: Preserve personal/family media libraries locally-first with evidence-grade logging, without depending on third-party platform responsiveness.
 - IN_SCOPE_PATHS:
+  - Handshake_Master_Spec_v02.133.md
   - Handshake_Master_Spec_v02.134.md
   - .cargo/config.toml
   - justfile
@@ -293,11 +294,29 @@ git revert <commit-sha>
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
+- **Target File**: `Handshake_Master_Spec_v02.133.md`
+- **Start**: 1
+- **End**: 68234
+- **Line Delta**: 68234
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `9dac473bd1aa01b6d2900874169869c915fc355f`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
 - **Target File**: `Handshake_Master_Spec_v02.134.md`
 - **Start**: 1
 - **End**: 68397
-- **Line Delta**: -1
-- **Pre-SHA1**: `3b397673e5e54163846094bd8dfb8919ddc8c88d`
+- **Line Delta**: 68397
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
 - **Post-SHA1**: `b846f04093f1bd6fae885876affc99a21065ec95`
 - **Gates Passed**:
   - [x] anchors_present
