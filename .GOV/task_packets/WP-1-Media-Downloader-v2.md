@@ -510,6 +510,24 @@ git revert <commit-sha>
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
 
+- **Target File**: `src/backend/handshake_core/tests/role_mailbox_tests.rs`
+- **Start**: 1
+- **End**: 198
+- **Line Delta**: 0
+- **Pre-SHA1**: `49af0b6a4e54ce9dc80b85e1a6e2318279b41d09`
+- **Post-SHA1**: `c52b0fd76f52b0163d186999c6df759b629c6479`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
 - Current WP_STATUS: Ready for Validation
@@ -682,5 +700,19 @@ git revert <commit-sha>
 - PROOF_LINES: "Git range: dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..c266b73d226dbe6c89c912eca3e17428ec6b3fdd"
 - PROOF_LINES: "Post-work validation PASSED (deterministic manifest gate; not tests) with warnings"
  
+- COMMAND: `rg -n "\\.GOV[\\\\/]" src\\backend\\handshake_core\\tests`
+- EXIT_CODE: 1
+- PROOF_LINES: "(no matches)"
+ 
+- COMMAND: `just codex-check`
+- EXIT_CODE: 0
+- PROOF_LINES: "codex-check ok"
+  
+- COMMAND: `just post-work WP-1-Media-Downloader-v2 --range dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..HEAD`
+- EXIT_CODE: 0
+- PROOF_LINES: "Diff selection: range (explicit --range)"
+- PROOF_LINES: "Git range: dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..c0e20fadd48b1f657eb65287f3dad594dd8ba2b4"
+- PROOF_LINES: "Post-work validation PASSED (deterministic manifest gate; not tests) with warnings"
+  
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
