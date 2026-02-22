@@ -714,5 +714,11 @@ git revert <commit-sha>
 - PROOF_LINES: "Git range: dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..c0e20fadd48b1f657eb65287f3dad594dd8ba2b4"
 - PROOF_LINES: "Post-work validation PASSED (deterministic manifest gate; not tests) with warnings"
   
+- COMMAND: `just post-work WP-1-Media-Downloader-v2 --range dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..HEAD`
+- EXIT_CODE: 0
+- PROOF_LINES: "Diff selection: range (explicit --range)"
+- PROOF_LINES: "Git range: dfbf8d09a5753d15ea6c52916ee021bd36bcbbc4..f47085dab62ed8eb28846c92a6dd186b8bc9c923"
+- PROOF_LINES: "Post-work validation PASSED (deterministic manifest gate; not tests) with warnings"
+   
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
