@@ -3,12 +3,11 @@ set dotenv-load := false
 # Powershell is present on Windows by default.
 set windows-shell := ["powershell.exe", "-NoLogo", "-NonInteractive", "-Command"]
 
-# External Cargo build artifacts dir (kept outside the repo).
-# NOTE: This is intentionally path-like so `just` recipes can reference it deterministically.
+# External build/test artifacts (Cargo target dir) MUST live outside the repo working tree.
 CARGO_TARGET_DIR := "../Handshake Artifacts/handshake-cargo-target"
 
 dev: preflight-ollama
-	cd app; pnpm run tauri dev
+	node -e "const {execFileSync}=require('child_process'); const path=require('path'); const repo=execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim(); const cargoTarget=path.resolve(repo,'{{CARGO_TARGET_DIR}}'); execFileSync('pnpm',['-C','app','run','tauri','dev'],{stdio:'inherit', env:{...process.env, CARGO_TARGET_DIR:cargoTarget}});"
 
 # Fail fast if Ollama is missing/unreachable (Phase 1 requirement; see .GOV/roles_shared/START_HERE.md).
 preflight-ollama:
@@ -16,10 +15,10 @@ preflight-ollama:
 
 lint:
 	cd app; pnpm run lint
-	cd src/backend/handshake_core; cargo clippy --all-targets --all-features
+	cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features --target-dir "{{CARGO_TARGET_DIR}}"
 
 test:
-	cd src/backend/handshake_core; cargo test
+	cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "{{CARGO_TARGET_DIR}}"
 
 # Fail if any required docs are missing (navigation pack + past work index)
 docs-check:
@@ -29,7 +28,7 @@ docs-check:
 fmt:
 	cd src/backend/handshake_core; cargo fmt
 
-# Clean Cargo artifacts in the external target dir (see CARGO_TARGET_DIR)
+# Clean Cargo artifacts in the external target dir ({{CARGO_TARGET_DIR}})
 cargo-clean:
 	cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "{{CARGO_TARGET_DIR}}"
 
@@ -43,8 +42,8 @@ validate:
 	cd app; pnpm test
 	cd app; pnpm run depcruise
 	cd src/backend/handshake_core; cargo fmt
-	cd src/backend/handshake_core; cargo clippy --all-targets --all-features
-	cd src/backend/handshake_core; cargo test
+	cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml --all-targets --all-features --target-dir "{{CARGO_TARGET_DIR}}"
+	cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "{{CARGO_TARGET_DIR}}"
 	cargo deny --manifest-path src/backend/handshake_core/Cargo.toml check advisories licenses bans sources
 
 # Codex guardrails: prevent direct fetch in components, println/eprintln in backend, and doc drift.

@@ -422,10 +422,10 @@ git revert <commit-sha>
 
 - **Target File**: `justfile`
 - **Start**: 1
-- **End**: 259
-- **Line Delta**: 4
+- **End**: 258
+- **Line Delta**: 3
 - **Pre-SHA1**: `fb3f363b6bd2c642b4755e56a0d8ab72fcbfaefd`
-- **Post-SHA1**: `5ad5099435d80dd3c57d51173640165c2a37a6d4`
+- **Post-SHA1**: `85a7f57f32e759da6706ebfdfe26264e3f190ae4`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
