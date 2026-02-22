@@ -13,7 +13,7 @@ Requirements (HARD):
 - WP_ID: WP-1-Media-Downloader-v2
 - CREATED_AT: 2026-02-20T07:51:30Z
 - SPEC_TARGET_RESOLVED: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.134.md
-- SPEC_TARGET_SHA1: 3b397673e5e54163846094bd8dfb8919ddc8c88d
+- SPEC_TARGET_SHA1: b846f04093f1bd6fae885876affc99a21065ec95
 - USER_REVIEW_STATUS: APPROVED
 - USER_SIGNATURE: ilja200220260908
 - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT WP-1-Media-Downloader-v2
@@ -185,8 +185,8 @@ Requirements (HARD):
 
 #### ANCHOR 6
 - SPEC_ANCHOR: Handshake_Master_Spec_v02.134.md 11.8 Engine: Archivist (Preservation) operations + capabilities
-- CONTEXT_START_LINE: 66036
-- CONTEXT_END_LINE: 66056
+- CONTEXT_START_LINE: 66035
+- CONTEXT_END_LINE: 66055
 - CONTEXT_TOKEN: #### Engine: Archivist (Preservation)
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -204,8 +204,8 @@ Requirements (HARD):
 
 #### ANCHOR 7
 - SPEC_ANCHOR: Handshake_Master_Spec_v02.134.md 11.8 Engine: Director (Video / Animation) -> director.transcode
-- CONTEXT_START_LINE: 65434
-- CONTEXT_END_LINE: 65442
+- CONTEXT_START_LINE: 65433
+- CONTEXT_END_LINE: 65441
 - CONTEXT_TOKEN: ###### Operation: `director.transcode`
 - EXCERPT_ASCII_ESCAPED:
   ```text

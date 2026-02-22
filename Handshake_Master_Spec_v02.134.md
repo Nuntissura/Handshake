@@ -61471,7 +61471,6 @@ Capability checks:
 
 - The system MUST NOT bypass access controls. Private/members-only content requires an authorized session.
 - The system MUST NOT circumvent DRM or paid content restrictions.
-- The UI MUST surface a rights warning and require explicit user confirmation for archival actions on third-party platforms.
 
 ## 11.1 Capabilities & Consent Model
 

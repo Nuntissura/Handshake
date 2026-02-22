@@ -3,6 +3,10 @@ set dotenv-load := false
 # Powershell is present on Windows by default.
 set windows-shell := ["powershell.exe", "-NoLogo", "-NonInteractive", "-Command"]
 
+# External Cargo build artifacts dir (kept outside the repo).
+# NOTE: This is intentionally path-like so `just` recipes can reference it deterministically.
+CARGO_TARGET_DIR := "../Handshake Artifacts/handshake-cargo-target"
+
 dev: preflight-ollama
 	cd app; pnpm run tauri dev
 
@@ -25,9 +29,9 @@ docs-check:
 fmt:
 	cd src/backend/handshake_core; cargo fmt
 
-# Clean Cargo artifacts in the external target dir (../Cargo Target/handshake-cargo-target)
+# Clean Cargo artifacts in the external target dir (see CARGO_TARGET_DIR)
 cargo-clean:
-	cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Cargo Target/handshake-cargo-target"
+	cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "{{CARGO_TARGET_DIR}}"
 
 # Full hygiene pass: docs, lint, tests, fmt, clippy
 validate:

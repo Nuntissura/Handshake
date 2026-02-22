@@ -931,6 +931,7 @@ pub enum JobKind {
     CanvasCluster,
     AsrTranscribe,
     WorkflowRun,
+    MediaDownloader,
     MicroTaskExecution,
     SpecRouter,
     LocusOperation,
@@ -953,6 +954,7 @@ impl JobKind {
             JobKind::CanvasCluster => "canvas_cluster",
             JobKind::AsrTranscribe => "asr_transcribe",
             JobKind::WorkflowRun => "workflow_run",
+            JobKind::MediaDownloader => "media_downloader",
             JobKind::MicroTaskExecution => "micro_task_execution",
             JobKind::SpecRouter => "spec_router",
             JobKind::LocusOperation => "locus_operation",
@@ -976,6 +978,7 @@ impl FromStr for JobKind {
             "canvas_cluster" => Ok(JobKind::CanvasCluster),
             "asr_transcribe" => Ok(JobKind::AsrTranscribe),
             "workflow_run" => Ok(JobKind::WorkflowRun),
+            "media_downloader" => Ok(JobKind::MediaDownloader),
             "micro_task_execution" => Ok(JobKind::MicroTaskExecution),
             "spec_router" => Ok(JobKind::SpecRouter),
             "locus_operation" => Ok(JobKind::LocusOperation),
@@ -995,6 +998,9 @@ pub fn validate_job_contract(
     protocol_id: &str,
 ) -> StorageResult<()> {
     const MICRO_TASK_EXECUTOR_V1_ID: &str = "micro_task_executor_v1";
+    const MD_BATCH_PROTOCOL_ID_V0: &str = "hsk.media_downloader.batch.v0";
+    const MD_CONTROL_PROTOCOL_ID_V0: &str = "hsk.media_downloader.control.v0";
+    const MD_COOKIE_IMPORT_PROTOCOL_ID_V0: &str = "hsk.media_downloader.cookie_import.v0";
 
     let is_mte_profile = profile_id == MICRO_TASK_EXECUTOR_V1_ID;
     let is_mte_protocol = protocol_id == MICRO_TASK_EXECUTOR_V1_ID;
@@ -1015,6 +1021,17 @@ pub fn validate_job_contract(
     if (is_mte_profile || is_mte_protocol) && !is_mte_kind {
         return Err(StorageError::Validation(
             "invalid job contract: micro_task_executor_v1 requires job_kind micro_task_execution",
+        ));
+    }
+
+    let is_md_kind = matches!(job_kind, JobKind::MediaDownloader);
+    let is_md_protocol = protocol_id == MD_BATCH_PROTOCOL_ID_V0
+        || protocol_id == MD_CONTROL_PROTOCOL_ID_V0
+        || protocol_id == MD_COOKIE_IMPORT_PROTOCOL_ID_V0;
+
+    if is_md_kind && !is_md_protocol {
+        return Err(StorageError::Validation(
+            "invalid job contract: media_downloader requires protocol_id hsk.media_downloader.{batch|control|cookie_import}.v0",
         ));
     }
 
@@ -1499,7 +1516,9 @@ pub trait Database: Send + Sync + std::any::Any {
         progress_token: &str,
     ) -> StorageResult<Option<Uuid>> {
         let _ = progress_token;
-        Err(StorageError::NotImplemented("find_ai_job_id_by_mcp_progress_token"))
+        Err(StorageError::NotImplemented(
+            "find_ai_job_id_by_mcp_progress_token",
+        ))
     }
 
     // Workflow runs

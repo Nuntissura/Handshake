@@ -24,11 +24,12 @@ use crate::{
     },
     governance_pack::{export_governance_pack, GovernancePackExportRequest},
     llm::{CompletionRequest, LlmError},
-    mex::runtime::ShellEngineAdapter,
+    mex::runtime::{AdapterError as MexAdapterError, EngineAdapter, ShellEngineAdapter},
     mex::{
-        BudgetGate, BudgetSpec, CapabilityGate, DetGate, DeterminismLevel, EvidencePolicy,
-        GatePipeline, IntegrityGate, MexRegistry, MexRuntime, OutputSpec, PlannedOperation,
-        ProvenanceGate, SchemaGate, POE_SCHEMA_VERSION,
+        BudgetGate, BudgetSpec, CapabilityGate, DetGate, DeterminismLevel, EngineError,
+        EngineResult, EngineStatus, EvidencePolicy, GatePipeline, IntegrityGate, MexRegistry,
+        MexRuntime, OutputSpec, PlannedOperation, ProvenanceGate, ProvenanceRecord, SchemaGate,
+        POE_SCHEMA_VERSION,
     },
     models::{AiJob, JobKind, WorkflowRun},
     runtime_governance::RuntimeGovernancePaths,
@@ -41,6 +42,7 @@ use crate::{
     },
     AppState,
 };
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -49,16 +51,23 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     collections::HashMap,
+    collections::{HashSet, VecDeque},
     fs,
+    io::{Read, Write},
     path::Path,
     path::PathBuf,
     sync::{
-        atomic::{AtomicBool, AtomicU8, Ordering},
+        atomic::{AtomicBool, AtomicI64, AtomicU8, Ordering},
         Arc, Mutex,
     },
 };
 use thiserror::Error;
 use tokio::sync::Notify;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    sync::watch,
+    task::JoinSet,
+};
 use uuid::Uuid;
 
 #[path = "locus/mod.rs"]
@@ -104,6 +113,85 @@ static STARTUP_RECOVERY_GATE: Lazy<StartupRecoveryGate> = Lazy::new(|| StartupRe
     failure_reason: Mutex::new(None),
     notify: Notify::new(),
 });
+
+#[derive(Debug, Clone)]
+struct MdCancelEntry {
+    sender: watch::Sender<bool>,
+    refs: usize,
+}
+
+static MD_CANCEL_REGISTRY: Lazy<Mutex<HashMap<String, MdCancelEntry>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+fn md_request_cancel(cancel_key: &str) -> bool {
+    let mut registry = match MD_CANCEL_REGISTRY.lock() {
+        Ok(guard) => guard,
+        Err(_) => return false,
+    };
+
+    let sender = if let Some(entry) = registry.get(cancel_key) {
+        entry.sender.clone()
+    } else {
+        let (sender, _receiver) = watch::channel(false);
+        registry.insert(
+            cancel_key.to_string(),
+            MdCancelEntry {
+                sender: sender.clone(),
+                refs: 0,
+            },
+        );
+        sender
+    };
+
+    sender.send(true).is_ok()
+}
+
+fn md_register_cancel_receiver(
+    cancel_key: String,
+) -> Result<(watch::Receiver<bool>, MdCancelGuard), WorkflowError> {
+    let mut registry = MD_CANCEL_REGISTRY.lock().map_err(|_| {
+        WorkflowError::Terminal("media_downloader cancel registry lock poisoned".into())
+    })?;
+
+    let receiver = if let Some(entry) = registry.get_mut(&cancel_key) {
+        entry.refs = entry.refs.saturating_add(1);
+        entry.sender.subscribe()
+    } else {
+        let (sender, receiver) = watch::channel(false);
+        registry.insert(cancel_key.clone(), MdCancelEntry { sender, refs: 1 });
+        receiver
+    };
+
+    Ok((receiver, MdCancelGuard { key: cancel_key }))
+}
+
+struct MdCancelGuard {
+    key: String,
+}
+
+impl Drop for MdCancelGuard {
+    fn drop(&mut self) {
+        let Ok(mut registry) = MD_CANCEL_REGISTRY.lock() else {
+            return;
+        };
+        let Some(entry) = registry.get_mut(&self.key) else {
+            return;
+        };
+        entry.refs = entry.refs.saturating_sub(1);
+        if entry.refs == 0 {
+            registry.remove(&self.key);
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct MediaDownloaderSignals {
+    pause_tx: watch::Sender<bool>,
+    retry_tx: watch::Sender<u64>,
+}
+
+static MEDIA_DOWNLOADER_SIGNAL_REGISTRY: Lazy<Mutex<HashMap<Uuid, MediaDownloaderSignals>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 pub fn enable_startup_recovery_gate() {
     STARTUP_RECOVERY_GATE.enabled.store(true, Ordering::Release);
@@ -1803,6 +1891,20 @@ pub async fn start_workflow_for_job(
         })
         .await?;
 
+    state
+        .storage
+        .update_ai_job_status(JobStatusUpdate {
+            job_id: job.job_id,
+            state: JobState::Running,
+            error_message: None,
+            status_reason: "running".to_string(),
+            metrics: None,
+            workflow_run_id: Some(workflow_run.id),
+            trace_id: Some(trace_id),
+            job_outputs: None,
+        })
+        .await?;
+
     record_event_safely(
         state,
         FlightRecorderEvent::new(
@@ -1816,7 +1918,44 @@ pub async fn start_workflow_for_job(
     )
     .await;
 
-    let result = run_job(state, &job, workflow_run.id, trace_id).await;
+    let is_background_job = matches!(
+        job.job_kind,
+        JobKind::WorkflowRun | JobKind::MediaDownloader
+    ) && (job.protocol_id == MD_BATCH_PROTOCOL_ID_V0
+        || job.protocol_id == MD_CONTROL_PROTOCOL_ID_V0
+        || job.protocol_id == MD_COOKIE_IMPORT_PROTOCOL_ID_V0);
+
+    if is_background_job {
+        let state_clone = state.clone();
+        let job_clone = job.clone();
+        let workflow_run_clone = workflow_run.clone();
+        let node_exec_clone = node_exec.clone();
+
+        tokio::spawn(async move {
+            let _ = run_and_finalize_workflow_job(
+                state_clone,
+                job_clone,
+                workflow_run_clone,
+                node_exec_clone,
+                trace_id,
+            )
+            .await;
+        });
+
+        return Ok(workflow_run);
+    }
+
+    run_and_finalize_workflow_job(state.clone(), job, workflow_run, node_exec, trace_id).await
+}
+
+async fn run_and_finalize_workflow_job(
+    state: AppState,
+    job: AiJob,
+    workflow_run: WorkflowRun,
+    node_exec: crate::storage::WorkflowNodeExecution,
+    trace_id: Uuid,
+) -> Result<WorkflowRun, WorkflowError> {
+    let result = run_job(&state, &job, workflow_run.id, trace_id).await;
 
     let (final_status, error_message, status_reason, output_payload, captured_error) = match result
     {
@@ -1836,7 +1975,7 @@ pub async fn start_workflow_for_job(
                 _ => (None, None),
             };
             handle_security_violation(
-                state,
+                &state,
                 &job,
                 &workflow_run,
                 &ace_err,
@@ -1896,7 +2035,7 @@ pub async fn start_workflow_for_job(
         .await?;
 
     record_event_safely(
-        state,
+        &state,
         FlightRecorderEvent::new(
             FlightRecorderEventType::System,
             FlightRecorderActor::Agent,
@@ -2711,6 +2850,24 @@ async fn run_job(
         }
 
         return result;
+    } else if matches!(job.job_kind, JobKind::MediaDownloader) {
+        if job.protocol_id == MD_BATCH_PROTOCOL_ID_V0 {
+            return run_media_downloader_job(state, job, workflow_run_id, trace_id).await;
+        }
+        if job.protocol_id == MD_CONTROL_PROTOCOL_ID_V0 {
+            return run_media_downloader_control_job(state, job, workflow_run_id, trace_id).await;
+        }
+        if job.protocol_id == MD_COOKIE_IMPORT_PROTOCOL_ID_V0 {
+            return run_media_downloader_cookie_import_job(state, job, workflow_run_id, trace_id)
+                .await;
+        }
+
+        return Ok(RunJobOutcome {
+            state: JobState::Poisoned,
+            status_reason: "invalid_protocol_id".to_string(),
+            output: None,
+            error_message: Some("invalid protocol_id for media_downloader".to_string()),
+        });
     } else if matches!(job.job_kind, JobKind::WorkflowRun) {
         if job.profile_id == "micro_task_executor_v1" {
             return Ok(RunJobOutcome {
@@ -2722,6 +2879,17 @@ async fn run_job(
                         .to_string(),
                 ),
             });
+        }
+
+        if job.protocol_id == MD_BATCH_PROTOCOL_ID_V0 {
+            return run_media_downloader_job(state, job, workflow_run_id, trace_id).await;
+        }
+        if job.protocol_id == MD_CONTROL_PROTOCOL_ID_V0 {
+            return run_media_downloader_control_job(state, job, workflow_run_id, trace_id).await;
+        }
+        if job.protocol_id == MD_COOKIE_IMPORT_PROTOCOL_ID_V0 {
+            return run_media_downloader_cookie_import_job(state, job, workflow_run_id, trace_id)
+                .await;
         }
 
         if job.protocol_id == GOVERNANCE_PACK_EXPORT_PROTOCOL_ID {
@@ -5840,6 +6008,358 @@ struct ValidationEvidenceArtifact {
     pub evidence: Vec<ArtifactHandle>,
 }
 
+struct MediaDownloaderEngineAdapter {
+    artifact_root: PathBuf,
+}
+
+impl MediaDownloaderEngineAdapter {
+    fn new(artifact_root: PathBuf) -> Self {
+        Self { artifact_root }
+    }
+
+    fn rel_path_string(rel_path: &std::path::Path) -> String {
+        rel_path.to_string_lossy().replace('\\', "/")
+    }
+
+    fn artifact_handle_for_rel(&self, rel_path: &std::path::Path) -> ArtifactHandle {
+        ArtifactHandle::new(Uuid::new_v4(), Self::rel_path_string(rel_path))
+    }
+
+    fn artifact_dir_rel(op: &PlannedOperation) -> PathBuf {
+        PathBuf::from("data")
+            .join("mex_media_downloader")
+            .join("ops")
+            .join(op.op_id.to_string())
+    }
+
+    async fn collect_output_to_file<R: tokio::io::AsyncRead + Unpin + Send + 'static>(
+        mut reader: Option<R>,
+        mut out: tokio::fs::File,
+        max_output_bytes: u64,
+    ) -> Result<u64, std::io::Error> {
+        let mut reader = match reader.take() {
+            Some(value) => value,
+            None => return Ok(0),
+        };
+
+        let mut written: u64 = 0;
+        let mut truncated: u64 = 0;
+        let mut buf = [0u8; 4096];
+        loop {
+            let n = reader.read(&mut buf).await?;
+            if n == 0 {
+                break;
+            }
+            let available = max_output_bytes.saturating_sub(written);
+            if available > 0 {
+                let to_take = std::cmp::min(n as u64, available) as usize;
+                out.write_all(&buf[..to_take]).await?;
+                written = written.saturating_add(to_take as u64);
+                if n as u64 > available {
+                    truncated = truncated.saturating_add(n as u64 - available);
+                }
+            } else {
+                truncated = truncated.saturating_add(n as u64);
+            }
+        }
+
+        out.flush().await?;
+        Ok(truncated)
+    }
+
+    async fn wait_for_cancel(mut receivers: Vec<watch::Receiver<bool>>) {
+        if receivers.is_empty() {
+            std::future::pending::<()>().await;
+            return;
+        }
+
+        loop {
+            if receivers.iter().any(|rx| *rx.borrow()) {
+                return;
+            }
+
+            if receivers.len() == 1 {
+                let _ = receivers[0].changed().await;
+                continue;
+            }
+
+            let (first, rest) = receivers.split_at_mut(1);
+            tokio::select! {
+                _ = first[0].changed() => {},
+                _ = rest[0].changed() => {},
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    async fn kill_process_tree(pid: u32) {
+        let _ = tokio::process::Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .await;
+    }
+
+    async fn kill_child_best_effort(child: &mut tokio::process::Child) {
+        if let Some(pid) = child.id() {
+            #[cfg(windows)]
+            {
+                Self::kill_process_tree(pid).await;
+                return;
+            }
+        }
+
+        let _ = child.start_kill();
+        let _ = child.kill().await;
+    }
+}
+
+#[async_trait]
+impl EngineAdapter for MediaDownloaderEngineAdapter {
+    async fn invoke(&self, op: &PlannedOperation) -> Result<EngineResult, MexAdapterError> {
+        if op.engine_id != MD_TOOL_ENGINE_ID {
+            return Err(MexAdapterError::Engine(format!(
+                "unsupported engine_id for adapter: {}",
+                op.engine_id
+            )));
+        }
+
+        let params = op
+            .params
+            .as_object()
+            .ok_or_else(|| MexAdapterError::Engine("params must be an object".to_string()))?;
+        let tool_path = params
+            .get("tool_path")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| MexAdapterError::Engine("missing params.tool_path".to_string()))?
+            .to_string();
+        let cwd = params
+            .get("cwd")
+            .and_then(|v| v.as_str())
+            .unwrap_or(".")
+            .to_string();
+        let timeout_ms = params
+            .get("timeout_ms")
+            .and_then(|v| v.as_u64())
+            .or(op.budget.wall_time_ms)
+            .unwrap_or(600_000);
+        let max_output_bytes = op
+            .output_spec
+            .max_bytes
+            .or(op.budget.output_bytes)
+            .unwrap_or(1_500_000);
+
+        let args_value = params
+            .get("args")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| MexAdapterError::Engine("missing params.args".to_string()))?;
+        let mut args: Vec<String> = Vec::with_capacity(args_value.len());
+        for v in args_value {
+            let s = v.as_str().ok_or_else(|| {
+                MexAdapterError::Engine("params.args must be strings".to_string())
+            })?;
+            args.push(s.to_string());
+        }
+
+        let mut env_overrides = std::collections::HashMap::new();
+        if let Some(env) = params.get("env").and_then(|v| v.as_object()) {
+            for (k, v) in env {
+                if let Some(value) = v.as_str() {
+                    env_overrides.insert(k.to_string(), Some(value.to_string()));
+                }
+            }
+        }
+
+        let cancel_keys: Vec<String> = params
+            .get("cancel_keys")
+            .and_then(|v| v.as_array())
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .filter(|s| !s.trim().is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let mut cancel_receivers: Vec<watch::Receiver<bool>> = Vec::new();
+        let mut _cancel_guards: Vec<MdCancelGuard> = Vec::new();
+        for key in cancel_keys {
+            if let Ok((rx, guard)) = md_register_cancel_receiver(key) {
+                cancel_receivers.push(rx);
+                _cancel_guards.push(guard);
+            }
+        }
+
+        let started_at = Utc::now();
+        // WAIVER [CX-573E]: Instant::now() for observability (engine exec timing metrics).
+        let start = std::time::Instant::now();
+
+        if std::path::Path::new(&cwd).is_absolute() {
+            return Err(MexAdapterError::Engine(
+                "cwd must be workspace-relative".to_string(),
+            ));
+        }
+
+        let artifact_dir_rel = Self::artifact_dir_rel(op);
+        let artifact_dir_abs = self.artifact_root.join(&artifact_dir_rel);
+        std::fs::create_dir_all(&artifact_dir_abs).map_err(|e| {
+            MexAdapterError::Engine(format!(
+                "failed to create {}: {e}",
+                artifact_dir_abs.display()
+            ))
+        })?;
+
+        let stdout_rel = artifact_dir_rel.join("stdout.txt");
+        let stderr_rel = artifact_dir_rel.join("stderr.txt");
+        let output_rel = artifact_dir_rel.join("terminal_output.json");
+
+        let stdout_abs = self.artifact_root.join(&stdout_rel);
+        let stderr_abs = self.artifact_root.join(&stderr_rel);
+        let output_abs = self.artifact_root.join(&output_rel);
+
+        let stdout_file = tokio::fs::File::create(&stdout_abs).await.map_err(|e| {
+            MexAdapterError::Engine(format!("failed to create {}: {e}", stdout_abs.display()))
+        })?;
+        let stderr_file = tokio::fs::File::create(&stderr_abs).await.map_err(|e| {
+            MexAdapterError::Engine(format!("failed to create {}: {e}", stderr_abs.display()))
+        })?;
+
+        let mut command = tokio::process::Command::new(&tool_path);
+        command.args(&args);
+        command.current_dir(self.artifact_root.join(&cwd));
+        command.kill_on_drop(true);
+        command.stdout(std::process::Stdio::piped());
+        command.stderr(std::process::Stdio::piped());
+        for (k, v) in env_overrides.iter() {
+            if let Some(value) = v {
+                command.env(k, value);
+            } else {
+                command.env_remove(k);
+            }
+        }
+
+        let mut child = command.spawn().map_err(|e| {
+            MexAdapterError::Engine(format!("failed to spawn tool {tool_path}: {e}"))
+        })?;
+
+        let stdout_handle = child.stdout.take();
+        let stderr_handle = child.stderr.take();
+        let stdout_task = tokio::spawn(Self::collect_output_to_file(
+            stdout_handle,
+            stdout_file,
+            max_output_bytes,
+        ));
+        let stderr_task = tokio::spawn(Self::collect_output_to_file(
+            stderr_handle,
+            stderr_file,
+            max_output_bytes,
+        ));
+
+        let timeout = tokio::time::sleep(std::time::Duration::from_millis(timeout_ms));
+        tokio::pin!(timeout);
+        let cancel_wait = Self::wait_for_cancel(cancel_receivers);
+        tokio::pin!(cancel_wait);
+
+        let (exit_status, timed_out, cancelled) = tokio::select! {
+            status = child.wait() => {
+                let status = status.map_err(|e| MexAdapterError::Engine(e.to_string()))?;
+                (status, false, false)
+            }
+            _ = &mut timeout => {
+                Self::kill_child_best_effort(&mut child).await;
+                let status = child.wait().await.map_err(|e| MexAdapterError::Engine(e.to_string()))?;
+                (status, true, false)
+            }
+            _ = &mut cancel_wait => {
+                Self::kill_child_best_effort(&mut child).await;
+                let status = child.wait().await.map_err(|e| MexAdapterError::Engine(e.to_string()))?;
+                (status, false, true)
+            }
+        };
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+
+        let stdout_trunc = stdout_task
+            .await
+            .map_err(|e| MexAdapterError::Engine(e.to_string()))?
+            .map_err(|e| MexAdapterError::Engine(e.to_string()))?;
+        let stderr_trunc = stderr_task
+            .await
+            .map_err(|e| MexAdapterError::Engine(e.to_string()))?
+            .map_err(|e| MexAdapterError::Engine(e.to_string()))?;
+        let truncated_bytes = stdout_trunc.saturating_add(stderr_trunc);
+
+        let exit_code = exit_status.code().unwrap_or(-1);
+        let ended_at = Utc::now();
+
+        let terminal_output_payload = json!({
+            "command": tool_path,
+            "cwd": cwd,
+            "exit_code": exit_code,
+            "timed_out": timed_out,
+            "cancelled": cancelled,
+            "truncated_bytes": truncated_bytes,
+            "duration_ms": duration_ms,
+            "stdout_ref": Self::rel_path_string(&stdout_rel),
+            "stderr_ref": Self::rel_path_string(&stderr_rel),
+        });
+        let output_bytes = serde_json::to_vec_pretty(&terminal_output_payload)
+            .map_err(|e| MexAdapterError::Engine(e.to_string()))?;
+        std::fs::write(&output_abs, output_bytes).map_err(|e| {
+            MexAdapterError::Engine(format!("failed to write {}: {e}", output_abs.display()))
+        })?;
+
+        let stdout_handle = self.artifact_handle_for_rel(&stdout_rel);
+        let stderr_handle = self.artifact_handle_for_rel(&stderr_rel);
+        let output_handle = self.artifact_handle_for_rel(&output_rel);
+
+        let status = if exit_code == 0 && !timed_out && !cancelled {
+            EngineStatus::Succeeded
+        } else {
+            EngineStatus::Failed
+        };
+
+        let mut errors = Vec::new();
+        if status != EngineStatus::Succeeded {
+            errors.push(EngineError {
+                code: "ENGINE_MEDIA_DOWNLOADER_NONZERO_EXIT".to_string(),
+                message: format!("tool exited with code {}", exit_code),
+                details_ref: Some(output_handle.clone()),
+            });
+        }
+
+        let provenance = ProvenanceRecord {
+            engine_id: op.engine_id.clone(),
+            engine_version: Some(env!("CARGO_PKG_VERSION").to_string()),
+            implementation: Some("media_downloader_adapter".to_string()),
+            determinism: op.determinism,
+            config_hash: None,
+            inputs: op.inputs.clone(),
+            outputs: vec![
+                output_handle.clone(),
+                stdout_handle.clone(),
+                stderr_handle.clone(),
+            ],
+            capabilities_granted: op.capabilities_requested.clone(),
+            environment: None,
+        };
+
+        Ok(EngineResult {
+            op_id: op.op_id,
+            status,
+            started_at,
+            ended_at,
+            outputs: vec![output_handle.clone()],
+            evidence: vec![stdout_handle, stderr_handle, output_handle.clone()],
+            provenance,
+            errors,
+            logs_ref: None,
+        })
+    }
+}
+
 fn build_mex_runtime(state: &AppState, repo_root: &Path) -> Result<MexRuntime, WorkflowError> {
     let registry_path = repo_root.join("src/backend/handshake_core/mechanical_engines.json");
     let registry = MexRegistry::load_from_path(&registry_path)
@@ -5867,6 +6387,10 @@ fn build_mex_runtime(state: &AppState, repo_root: &Path) -> Result<MexRuntime, W
             state.capability_registry.clone(),
             state.flight_recorder.clone(),
         )),
+    )
+    .with_adapter(
+        MD_TOOL_ENGINE_ID,
+        Arc::new(MediaDownloaderEngineAdapter::new(repo_root.to_path_buf())),
     ))
 }
 
@@ -9370,6 +9894,5863 @@ async fn execute_terminal_job(
     }
 
     Ok(payload)
+}
+
+// =============================================================================
+// Media Downloader (Spec §10.14)
+// =============================================================================
+
+const MD_BATCH_PROTOCOL_ID_V0: &str = "hsk.media_downloader.batch.v0";
+const MD_CONTROL_PROTOCOL_ID_V0: &str = "hsk.media_downloader.control.v0";
+const MD_COOKIE_IMPORT_PROTOCOL_ID_V0: &str = "hsk.media_downloader.cookie_import.v0";
+const MD_BATCH_SCHEMA_V0: &str = "hsk.media_downloader.batch@v0";
+const MD_CONTROL_SCHEMA_V0: &str = "hsk.media_downloader.control@v0";
+const MD_COOKIE_IMPORT_SCHEMA_V0: &str = "hsk.media_downloader.cookie_import@v0";
+const MD_RESULT_SCHEMA_V0: &str = "hsk.media_downloader.result@v0";
+const MD_COOKIE_IMPORT_RESULT_SCHEMA_V0: &str = "hsk.media_downloader.cookie_import.result@v0";
+
+const MD_SESSIONS_REGISTRY_SCHEMA_V0: &str = "hsk.media_downloader.sessions@v0";
+const MD_SESSIONS_REGISTRY_FILENAME: &str = "media_downloader_sessions.json";
+
+const MD_TOOL_ENGINE_ID: &str = "engine.media_downloader";
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+enum MdSourceKindV0 {
+    Youtube,
+    Instagram,
+    Forumcrawler,
+    Videodownloader,
+}
+
+impl MdSourceKindV0 {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Youtube => "youtube",
+            Self::Instagram => "instagram",
+            Self::Forumcrawler => "forumcrawler",
+            Self::Videodownloader => "videodownloader",
+        }
+    }
+
+    fn output_subdir(&self) -> &'static str {
+        self.as_str()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdControlsV0 {
+    #[serde(default)]
+    concurrency: Option<u8>,
+    #[serde(default)]
+    max_pages: Option<u32>,
+    #[serde(default)]
+    allowlist_domains: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdAuthV0 {
+    mode: String,
+    #[serde(default)]
+    stage_session_id: Option<String>,
+    #[serde(default)]
+    cookie_jar_artifact_ref: Option<ArtifactHandle>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdBatchRequestV0 {
+    schema_version: String,
+    source_kind: MdSourceKindV0,
+    sources: Vec<String>,
+    #[serde(default)]
+    auth: Option<MdAuthV0>,
+    #[serde(default)]
+    controls: Option<MdControlsV0>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdControlRequestV0 {
+    schema_version: String,
+    #[serde(default)]
+    target_job_id: Option<String>,
+    #[serde(default)]
+    action: Option<String>,
+    #[serde(default)]
+    item_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdCookieImportRequestV0 {
+    schema_version: String,
+    /// Absolute path to a user-provided cookie export (JSON) or Netscape cookies.txt file.
+    /// IMPORTANT: raw cookie values MUST NOT be in job_inputs (secrets).
+    source_path: String,
+    /// If set, updates `.handshake/gov/media_downloader_sessions.json` to bind the resulting
+    /// cookie jar artifact to this stage session.
+    #[serde(default)]
+    stage_session_id: Option<String>,
+    /// If true, best-effort removes `source_path` after ingest (use for temp files).
+    #[serde(default)]
+    cleanup_source: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdCookieImportResultV0 {
+    schema_version: String,
+    cookie_jar_artifact_ref: ArtifactHandle,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stage_session_id: Option<String>,
+    updated_session: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdPlanItemV0 {
+    item_id: String,
+    source_kind: MdSourceKindV0,
+    url_canonical: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdPlanV0 {
+    stable_item_total: usize,
+    items: Vec<MdPlanItemV0>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdProgressV0 {
+    state: String,
+    item_done: usize,
+    item_total: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bytes_downloaded: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bytes_total: Option<u64>,
+    concurrency: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdItemResultV0 {
+    item_id: String,
+    status: String,
+    #[serde(default)]
+    artifact_handles: Vec<ArtifactHandle>,
+    #[serde(default)]
+    materialized_paths: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdJobOutputV0 {
+    schema_version: String,
+    plan: MdPlanV0,
+    progress: MdProgressV0,
+    items: Vec<MdItemResultV0>,
+    #[serde(default)]
+    export_records: Vec<crate::governance_pack::ExportRecord>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdSessionsRegistryV0 {
+    schema_version: String,
+    #[serde(default)]
+    sessions: Vec<MdSessionRecordV0>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdSessionRecordV0 {
+    session_id: String,
+    kind: String,
+    label: String,
+    created_at: String,
+    #[serde(default)]
+    last_used_at: Option<String>,
+    allow_private_network: bool,
+    #[serde(default)]
+    cookie_jar_artifact_ref: Option<ArtifactHandle>,
+}
+
+static MD_FR_EVENT_ID_LAST: Lazy<AtomicI64> = Lazy::new(|| AtomicI64::new(0));
+
+fn md_next_fr_event_id() -> i64 {
+    let now = Utc::now().timestamp_micros();
+    loop {
+        let prev = MD_FR_EVENT_ID_LAST.load(Ordering::SeqCst);
+        let next = now.max(prev.saturating_add(1));
+        if MD_FR_EVENT_ID_LAST
+            .compare_exchange(prev, next, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            return next;
+        }
+    }
+}
+
+async fn md_insert_fr_event_best_effort(
+    state: &AppState,
+    job_id: Uuid,
+    workflow_run_id: Uuid,
+    event_kind: &str,
+    payload: &Value,
+) {
+    if !event_kind.starts_with("media_downloader.") {
+        return;
+    }
+
+    let Some(conn) = state.flight_recorder.duckdb_connection() else {
+        return;
+    };
+    let Ok(conn) = conn.lock() else {
+        return;
+    };
+
+    let event_id = md_next_fr_event_id();
+    let ts_utc = Utc::now().to_rfc3339();
+    let payload_str = serde_json::to_string(payload).unwrap_or_else(|_| "{}".to_string());
+
+    let _ = conn.execute(
+        r#"
+        INSERT INTO fr_events (
+            event_id,
+            ts_utc,
+            session_id,
+            task_id,
+            job_id,
+            workflow_run_id,
+            event_kind,
+            source,
+            level,
+            message,
+            payload
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        "#,
+        duckdb::params![
+            event_id,
+            ts_utc,
+            Option::<String>::None,
+            Option::<String>::None,
+            job_id.to_string(),
+            workflow_run_id.to_string(),
+            event_kind.to_string(),
+            "media_downloader".to_string(),
+            Option::<String>::None,
+            Option::<String>::None,
+            payload_str,
+        ],
+    );
+}
+
+async fn md_record_md_system_event(
+    state: &AppState,
+    trace_id: Uuid,
+    job_id: Uuid,
+    workflow_run_id: Uuid,
+    payload: Value,
+) {
+    let event_kind = payload
+        .get("event_kind")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
+    md_insert_fr_event_best_effort(state, job_id, workflow_run_id, event_kind, &payload).await;
+
+    record_event_safely(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::System,
+            FlightRecorderActor::System,
+            trace_id,
+            payload,
+        )
+        .with_job_id(job_id.to_string())
+        .with_workflow_id(workflow_run_id.to_string()),
+    )
+    .await;
+}
+
+fn md_job_cancel_key(job_id: Uuid) -> String {
+    format!("media_downloader:{job_id}:job")
+}
+
+fn md_item_cancel_key(job_id: Uuid, item_id: &str) -> String {
+    format!("media_downloader:{job_id}:item:{}", item_id.trim())
+}
+
+fn md_sanitize_url_string_for_telemetry(raw: &str) -> String {
+    let mut clean = raw.trim();
+    if let Some((head, _)) = clean.split_once('#') {
+        clean = head;
+    }
+    if let Some((head, _)) = clean.split_once('?') {
+        clean = head;
+    }
+    clean.to_string()
+}
+
+fn md_parse_url(raw: &str) -> Result<reqwest::Url, WorkflowError> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err(WorkflowError::Terminal("empty url".into()));
+    }
+    let url = reqwest::Url::parse(trimmed).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    match url.scheme() {
+        "http" | "https" => {}
+        _ => return Err(WorkflowError::Terminal("url must be http(s)".into())),
+    }
+    Ok(url)
+}
+
+fn md_is_private_host(host: &str) -> bool {
+    let host = host.trim().trim_end_matches('.');
+    if host.eq_ignore_ascii_case("localhost") {
+        return true;
+    }
+    if host.eq_ignore_ascii_case("0.0.0.0") {
+        return true;
+    }
+    if host.eq_ignore_ascii_case("[::1]") || host.eq_ignore_ascii_case("::1") {
+        return true;
+    }
+    // IPv4 literal checks.
+    if let Ok(addr) = host.parse::<std::net::Ipv4Addr>() {
+        let octets = addr.octets();
+        if octets[0] == 0 {
+            return true;
+        }
+        if octets[0] == 10 {
+            return true;
+        }
+        if octets[0] == 127 {
+            return true;
+        }
+        if octets[0] == 192 && octets[1] == 168 {
+            return true;
+        }
+        if octets[0] == 172 && (16..=31).contains(&octets[1]) {
+            return true;
+        }
+        if octets[0] == 169 && octets[1] == 254 {
+            return true;
+        }
+        if octets[0] == 100 && (64..=127).contains(&octets[1]) {
+            return true;
+        }
+    }
+    false
+}
+
+fn md_validate_url_target(url: &reqwest::Url) -> Result<(), WorkflowError> {
+    let host = url
+        .host_str()
+        .ok_or_else(|| WorkflowError::Terminal("url missing host".into()))?;
+    if md_is_private_host(host) {
+        return Err(WorkflowError::Terminal(
+            "blocked url target (localhost/private network)".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn md_item_id_from_url(url: &reqwest::Url) -> String {
+    let mut h = Sha256::new();
+    h.update(url.as_str().as_bytes());
+    let hex = hex::encode(h.finalize());
+    hex.chars().take(16).collect()
+}
+
+fn md_normalize_allowlist_domains(raw: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+
+    for entry in raw {
+        let trimmed = entry.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let host = if trimmed.contains("://") {
+            reqwest::Url::parse(trimmed)
+                .ok()
+                .and_then(|u| u.host_str().map(|h| h.to_string()))
+                .unwrap_or_default()
+        } else {
+            trimmed.split('/').next().unwrap_or_default().to_string()
+        };
+
+        let mut host = host.trim().trim_end_matches('.').to_ascii_lowercase();
+        if host.is_empty() {
+            continue;
+        }
+        if let Some((h, port)) = host.rsplit_once(':') {
+            if !h.is_empty() && port.chars().all(|c| c.is_ascii_digit()) {
+                host = h.to_string();
+            }
+        }
+        if host.is_empty() {
+            continue;
+        }
+
+        out.push(host);
+    }
+
+    out.sort();
+    out.dedup();
+    out
+}
+
+fn md_default_concurrency() -> u8 {
+    4
+}
+
+fn md_concurrency_from_request(req: &MdBatchRequestV0) -> u8 {
+    let raw = req
+        .controls
+        .as_ref()
+        .and_then(|c| c.concurrency)
+        .unwrap_or(md_default_concurrency());
+    raw.clamp(1, 16)
+}
+
+fn md_forumcrawler_max_pages(req: &MdBatchRequestV0) -> usize {
+    let raw = req
+        .controls
+        .as_ref()
+        .and_then(|c| c.max_pages)
+        .unwrap_or(1500);
+    let capped = raw.clamp(1, 5000);
+    capped as usize
+}
+
+#[derive(Debug, Clone)]
+struct MdToolsV0 {
+    yt_dlp_path: PathBuf,
+    ffmpeg_path: PathBuf,
+    ffprobe_path: PathBuf,
+}
+
+const MD_YTDLP_VERSION: &str = "2026.02.04";
+const MD_YTDLP_SHA256_WINDOWS_X64: &str =
+    "78a3ac4cd1eeb2bdbf08b17dca64a1c06224971dc8af147e5f01652e9f6f940e";
+const MD_YTDLP_SHA256_MACOS_UNIVERSAL: &str =
+    "ae42ac3e7612c1d878f9f8384df6a7c54fc63361210709bd77682095653f0cf1";
+const MD_YTDLP_SHA256_LINUX_X64: &str =
+    "ccdbb1fcd90c51f7848d0f17a1d741fc557c37818a70c4886027aa43bcaa91af";
+
+const MD_FFMPEG_VERSION: &str = "8.0.1";
+const MD_FFMPEG_ZIP_SHA256_WINDOWS_X64: &str =
+    "e2aaeaa0fdbc4935916bbf14d4bbc25b13f0171cd65487bcdaf5fc555f89dbfa";
+
+fn md_tools_root(workspace_root: &Path) -> PathBuf {
+    workspace_root
+        .join(".handshake")
+        .join("tools")
+        .join("media_downloader")
+}
+
+fn sha256_file(path: &Path) -> Result<String, WorkflowError> {
+    let mut file = fs::File::open(path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let mut hasher = Sha256::new();
+    let mut buf = [0u8; 1024 * 1024];
+    loop {
+        let n = file
+            .read(&mut buf)
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
+    Ok(hex::encode(hasher.finalize()))
+}
+
+async fn download_to_path(url: &str, dest_path: &Path) -> Result<String, WorkflowError> {
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(url)
+        .header(reqwest::header::USER_AGENT, "Handshake-MediaDownloader/1.0")
+        .send()
+        .await
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(WorkflowError::Terminal(format!(
+            "download failed: {url} status={status}"
+        )));
+    }
+
+    if let Some(parent) = dest_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    }
+
+    let tmp_path = dest_path.with_extension("tmp");
+    let mut file = tokio::fs::File::create(&tmp_path)
+        .await
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let mut hasher = Sha256::new();
+
+    let mut resp = resp;
+    while let Some(chunk) = resp
+        .chunk()
+        .await
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+    {
+        hasher.update(&chunk);
+        file.write_all(&chunk)
+            .await
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    }
+    file.flush()
+        .await
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    drop(file);
+
+    if dest_path.exists() {
+        fs::remove_file(dest_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    }
+    fs::rename(&tmp_path, dest_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    Ok(hex::encode(hasher.finalize()))
+}
+
+#[cfg(not(windows))]
+fn ensure_executable(path: &Path) -> Result<(), WorkflowError> {
+    use std::os::unix::fs::PermissionsExt;
+    let mut perms = fs::metadata(path)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+        .permissions();
+    perms.set_mode(perms.mode() | 0o111);
+    fs::set_permissions(path, perms).map_err(|e| WorkflowError::Terminal(e.to_string()))
+}
+
+#[cfg(windows)]
+async fn extract_ffmpeg_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), WorkflowError> {
+    let zip_path = zip_path.to_path_buf();
+    let dest_dir = dest_dir.to_path_buf();
+    tokio::task::spawn_blocking(move || -> Result<(), WorkflowError> {
+        let file =
+            fs::File::open(&zip_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        let mut archive = zip::ZipArchive::new(file)
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+        let mut extracted = 0usize;
+        for i in 0..archive.len() {
+            let mut entry = archive
+                .by_index(i)
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+            let name = entry.name().to_string();
+            let lower = name.to_ascii_lowercase();
+            let target_name = if lower.ends_with("/bin/ffmpeg.exe") {
+                Some("ffmpeg.exe")
+            } else if lower.ends_with("/bin/ffprobe.exe") {
+                Some("ffprobe.exe")
+            } else {
+                None
+            };
+
+            let Some(target_name) = target_name else {
+                continue;
+            };
+
+            fs::create_dir_all(&dest_dir).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+            let target_path = dest_dir.join(target_name);
+            let tmp_path = target_path.with_extension("tmp");
+            let mut out =
+                fs::File::create(&tmp_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+            std::io::copy(&mut entry, &mut out)
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+            out.flush()
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+            drop(out);
+            if target_path.exists() {
+                fs::remove_file(&target_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+            }
+            fs::rename(&tmp_path, &target_path)
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+            extracted += 1;
+        }
+
+        if extracted < 2 {
+            return Err(WorkflowError::Terminal(
+                "ffmpeg zip did not contain expected binaries".into(),
+            ));
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+}
+
+async fn ensure_media_downloader_tools(workspace_root: &Path) -> Result<MdToolsV0, WorkflowError> {
+    let tools_root = md_tools_root(workspace_root);
+    fs::create_dir_all(&tools_root).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    // yt-dlp
+    let ytdlp_dir = tools_root.join("yt-dlp").join(MD_YTDLP_VERSION);
+    #[cfg(windows)]
+    let ytdlp_path = ytdlp_dir.join("yt-dlp.exe");
+    #[cfg(not(windows))]
+    let ytdlp_path = ytdlp_dir.join("yt-dlp");
+
+    let (ytdlp_url, ytdlp_sha256_expected) = if cfg!(windows) {
+        (
+            format!(
+                "https://github.com/yt-dlp/yt-dlp/releases/download/{}/yt-dlp.exe",
+                MD_YTDLP_VERSION
+            ),
+            MD_YTDLP_SHA256_WINDOWS_X64,
+        )
+    } else if cfg!(target_os = "macos") {
+        (
+            format!(
+                "https://github.com/yt-dlp/yt-dlp/releases/download/{}/yt-dlp_macos",
+                MD_YTDLP_VERSION
+            ),
+            MD_YTDLP_SHA256_MACOS_UNIVERSAL,
+        )
+    } else {
+        (
+            format!(
+                "https://github.com/yt-dlp/yt-dlp/releases/download/{}/yt-dlp_linux",
+                MD_YTDLP_VERSION
+            ),
+            MD_YTDLP_SHA256_LINUX_X64,
+        )
+    };
+
+    let needs_ytdlp = !ytdlp_path.exists()
+        || sha256_file(&ytdlp_path).unwrap_or_default() != ytdlp_sha256_expected;
+    if needs_ytdlp {
+        let sha = download_to_path(&ytdlp_url, &ytdlp_path).await?;
+        if sha != ytdlp_sha256_expected {
+            let _ = fs::remove_file(&ytdlp_path);
+            return Err(WorkflowError::Terminal(
+                "yt-dlp sha256 mismatch after download".into(),
+            ));
+        }
+    }
+
+    #[cfg(not(windows))]
+    ensure_executable(&ytdlp_path)?;
+
+    // ffmpeg + ffprobe (managed provisioning for Windows; other platforms rely on packaging).
+    let ffmpeg_dir = tools_root.join("ffmpeg").join(MD_FFMPEG_VERSION);
+    #[cfg(windows)]
+    let ffmpeg_path = ffmpeg_dir.join("ffmpeg.exe");
+    #[cfg(windows)]
+    let ffprobe_path = ffmpeg_dir.join("ffprobe.exe");
+
+    #[cfg(windows)]
+    {
+        let zip_path =
+            ffmpeg_dir.join(format!("ffmpeg-{}-essentials_build.zip", MD_FFMPEG_VERSION));
+        let needs_zip = !zip_path.exists()
+            || sha256_file(&zip_path).unwrap_or_default() != MD_FFMPEG_ZIP_SHA256_WINDOWS_X64;
+        if needs_zip {
+            let url = format!(
+                "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-{}-essentials_build.zip",
+                MD_FFMPEG_VERSION
+            );
+            let sha = download_to_path(&url, &zip_path).await?;
+            if sha != MD_FFMPEG_ZIP_SHA256_WINDOWS_X64 {
+                let _ = fs::remove_file(&zip_path);
+                return Err(WorkflowError::Terminal(
+                    "ffmpeg zip sha256 mismatch after download".into(),
+                ));
+            }
+        }
+
+        if !ffmpeg_path.exists() || !ffprobe_path.exists() {
+            extract_ffmpeg_zip(&zip_path, &ffmpeg_dir).await?;
+        }
+    }
+
+    #[cfg(not(windows))]
+    let ffmpeg_path = PathBuf::from("ffmpeg");
+    #[cfg(not(windows))]
+    let ffprobe_path = PathBuf::from("ffprobe");
+
+    Ok(MdToolsV0 {
+        yt_dlp_path: ytdlp_path,
+        ffmpeg_path,
+        ffprobe_path,
+    })
+}
+
+fn md_sessions_registry_path(workspace_root: &Path) -> PathBuf {
+    workspace_root
+        .join(".handshake")
+        .join("gov")
+        .join(MD_SESSIONS_REGISTRY_FILENAME)
+}
+
+fn md_load_sessions_registry(workspace_root: &Path) -> Result<MdSessionsRegistryV0, WorkflowError> {
+    let path = md_sessions_registry_path(workspace_root);
+    if !path.exists() {
+        return Ok(MdSessionsRegistryV0 {
+            schema_version: MD_SESSIONS_REGISTRY_SCHEMA_V0.to_string(),
+            sessions: Vec::new(),
+        });
+    }
+    let raw = fs::read_to_string(&path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let parsed: MdSessionsRegistryV0 =
+        serde_json::from_str(&raw).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    Ok(parsed)
+}
+
+fn md_save_sessions_registry(
+    workspace_root: &Path,
+    registry: &MdSessionsRegistryV0,
+) -> Result<(), WorkflowError> {
+    let path = md_sessions_registry_path(workspace_root);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    }
+    write_json_atomic(workspace_root, &path, registry)
+}
+
+fn md_find_cookie_jar_for_stage_session(
+    registry: &MdSessionsRegistryV0,
+    stage_session_id: &str,
+) -> Option<ArtifactHandle> {
+    registry
+        .sessions
+        .iter()
+        .find(|s| s.session_id == stage_session_id && s.kind == "stage_session")
+        .and_then(|s| s.cookie_jar_artifact_ref.clone())
+}
+
+async fn run_media_downloader_control_job(
+    _state: &AppState,
+    job: &AiJob,
+    _workflow_run_id: Uuid,
+    _trace_id: Uuid,
+) -> Result<RunJobOutcome, WorkflowError> {
+    if job.protocol_id != MD_CONTROL_PROTOCOL_ID_V0 {
+        return Ok(RunJobOutcome {
+            state: JobState::Failed,
+            status_reason: "invalid_job_contract".to_string(),
+            output: None,
+            error_message: Some("invalid protocol_id for media_downloader_control".to_string()),
+        });
+    }
+
+    let inputs = parse_inputs(job.job_inputs.as_ref());
+    let request: MdControlRequestV0 = match serde_json::from_value(inputs) {
+        Ok(req) => req,
+        Err(err) => {
+            return Ok(RunJobOutcome {
+                state: JobState::Failed,
+                status_reason: "invalid_job_inputs".to_string(),
+                output: None,
+                error_message: Some(err.to_string()),
+            })
+        }
+    };
+
+    if request.schema_version != MD_CONTROL_SCHEMA_V0 {
+        return Ok(RunJobOutcome {
+            state: JobState::Failed,
+            status_reason: "invalid_job_inputs".to_string(),
+            output: None,
+            error_message: Some("schema_version mismatch".to_string()),
+        });
+    }
+
+    let target_job_id = request
+        .target_job_id
+        .or_else(|| {
+            job.job_inputs
+                .as_ref()
+                .and_then(|v| v.get("job_id"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        })
+        .or_else(|| {
+            job.job_inputs
+                .as_ref()
+                .and_then(|v| v.get("jobId"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        })
+        .unwrap_or_default();
+    let target_job_id = target_job_id.trim().to_string();
+    if target_job_id.is_empty() {
+        return Ok(RunJobOutcome {
+            state: JobState::Failed,
+            status_reason: "invalid_job_inputs".to_string(),
+            output: None,
+            error_message: Some("target_job_id is required".to_string()),
+        });
+    }
+    let target_job_uuid = match Uuid::parse_str(&target_job_id) {
+        Ok(id) => id,
+        Err(_) => {
+            return Ok(RunJobOutcome {
+                state: JobState::Failed,
+                status_reason: "invalid_job_inputs".to_string(),
+                output: None,
+                error_message: Some("target_job_id must be a UUID".to_string()),
+            })
+        }
+    };
+
+    let action = request.action.unwrap_or_default();
+    let action = action.trim().to_string();
+
+    match action.as_str() {
+        "pause" => {
+            let registry = MEDIA_DOWNLOADER_SIGNAL_REGISTRY.lock().map_err(|_| {
+                WorkflowError::Terminal("media_downloader control registry lock poisoned".into())
+            })?;
+            if let Some(signals) = registry.get(&target_job_uuid) {
+                let _ = signals.pause_tx.send(true);
+            } else {
+                return Ok(RunJobOutcome {
+                    state: JobState::Failed,
+                    status_reason: "not_found".to_string(),
+                    output: None,
+                    error_message: Some("target job is not running".to_string()),
+                });
+            }
+        }
+        "resume" => {
+            let registry = MEDIA_DOWNLOADER_SIGNAL_REGISTRY.lock().map_err(|_| {
+                WorkflowError::Terminal("media_downloader control registry lock poisoned".into())
+            })?;
+            if let Some(signals) = registry.get(&target_job_uuid) {
+                let _ = signals.pause_tx.send(false);
+            } else {
+                return Ok(RunJobOutcome {
+                    state: JobState::Failed,
+                    status_reason: "not_found".to_string(),
+                    output: None,
+                    error_message: Some("target job is not running".to_string()),
+                });
+            }
+        }
+        "cancel_all" => {
+            md_request_cancel(&md_job_cancel_key(target_job_uuid));
+        }
+        "cancel_one" => {
+            let item_id = request.item_id.unwrap_or_default();
+            let item_id = item_id.trim();
+            if item_id.is_empty() {
+                return Ok(RunJobOutcome {
+                    state: JobState::Failed,
+                    status_reason: "invalid_job_inputs".to_string(),
+                    output: None,
+                    error_message: Some("item_id is required for cancel_one".to_string()),
+                });
+            }
+            md_request_cancel(&md_item_cancel_key(target_job_uuid, item_id));
+        }
+        "retry_failed" => {
+            let mut registry = MEDIA_DOWNLOADER_SIGNAL_REGISTRY.lock().map_err(|_| {
+                WorkflowError::Terminal("media_downloader control registry lock poisoned".into())
+            })?;
+            if let Some(signals) = registry.get_mut(&target_job_uuid) {
+                let current = *signals.retry_tx.borrow();
+                let next = current.saturating_add(1);
+                let _ = signals.retry_tx.send(next);
+            } else {
+                return Ok(RunJobOutcome {
+                    state: JobState::Failed,
+                    status_reason: "not_found".to_string(),
+                    output: None,
+                    error_message: Some("target job is not running".to_string()),
+                });
+            }
+        }
+        _ => {
+            return Ok(RunJobOutcome {
+                state: JobState::Failed,
+                status_reason: "invalid_job_inputs".to_string(),
+                output: None,
+                error_message: Some("unsupported action".to_string()),
+            })
+        }
+    }
+
+    let output = json!({
+        "schema_version": MD_CONTROL_SCHEMA_V0,
+        "target_job_id": target_job_id,
+        "action": action,
+        "ok": true,
+    });
+
+    Ok(RunJobOutcome {
+        state: JobState::Completed,
+        status_reason: "completed".to_string(),
+        output: Some(output),
+        error_message: None,
+    })
+}
+
+fn md_trim_utf8_bom(input: &str) -> &str {
+    input.strip_prefix('\u{FEFF}').unwrap_or(input)
+}
+
+fn md_netscape_cookie_jar_text_or_empty(raw: &str) -> Option<String> {
+    let trimmed = md_trim_utf8_bom(raw).trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.contains("netscape http cookie file") {
+        return Some(trimmed.to_string());
+    }
+
+    // Heuristic: Netscape cookies.txt is tab-delimited with 7 columns.
+    for line in trimmed.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let cols: Vec<&str> = line.split('\t').collect();
+        if cols.len() >= 7 {
+            return Some(trimmed.to_string());
+        }
+    }
+
+    None
+}
+
+fn md_cookie_field_sanitize(input: &str) -> String {
+    input
+        .replace('\t', " ")
+        .replace('\r', "")
+        .replace('\n', "")
+        .trim()
+        .to_string()
+}
+
+fn md_cookie_json_to_netscape(raw_json: &str) -> Result<String, WorkflowError> {
+    #[derive(Debug, Clone, Deserialize)]
+    struct MdJsonCookieV0 {
+        #[serde(default)]
+        domain: String,
+        #[serde(rename = "hostOnly", default)]
+        host_only: bool,
+        #[serde(default)]
+        path: String,
+        #[serde(default)]
+        secure: bool,
+        #[serde(rename = "httpOnly", default)]
+        http_only: bool,
+        #[serde(rename = "expirationDate", default)]
+        expiration_date: Option<f64>,
+        #[serde(default)]
+        session: bool,
+        #[serde(default)]
+        name: String,
+        #[serde(default)]
+        value: String,
+    }
+
+    let parsed: Value =
+        serde_json::from_str(raw_json).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let cookies_value: Value = match parsed {
+        Value::Array(_) => parsed,
+        Value::Object(ref obj) if obj.get("cookies").is_some() => obj
+            .get("cookies")
+            .cloned()
+            .unwrap_or_else(|| Value::Array(Vec::new())),
+        Value::Object(_) => Value::Array(Vec::new()),
+        _ => Value::Array(Vec::new()),
+    };
+
+    let cookies: Vec<MdJsonCookieV0> = serde_json::from_value(cookies_value)
+        .map_err(|e| WorkflowError::Terminal(format!("invalid cookie json: {e}")))?;
+
+    let mut out = String::new();
+    out.push_str("# Netscape HTTP Cookie File\n");
+    out.push_str("# This file is generated by Handshake (Media Downloader).\n");
+    out.push_str("# Do not share. Contains sensitive session cookies.\n\n");
+
+    for cookie in cookies {
+        let mut domain = cookie.domain.trim().trim_end_matches('.').to_string();
+        if domain.is_empty() {
+            continue;
+        }
+
+        // Normalize domain + includeSubdomains field.
+        let include_subdomains = if cookie.host_only { "FALSE" } else { "TRUE" };
+        if !cookie.host_only && !domain.starts_with('.') {
+            domain = format!(".{domain}");
+        }
+        if cookie.host_only && domain.starts_with('.') {
+            domain = domain.trim_start_matches('.').to_string();
+        }
+
+        if md_is_private_host(&domain) {
+            continue;
+        }
+
+        let secure = if cookie.secure { "TRUE" } else { "FALSE" };
+        let path = if cookie.path.trim().is_empty() {
+            "/".to_string()
+        } else {
+            cookie.path.trim().to_string()
+        };
+
+        let expires = if cookie.session {
+            0i64
+        } else {
+            cookie
+                .expiration_date
+                .map(|v| v.floor() as i64)
+                .unwrap_or(0i64)
+        };
+
+        let name = md_cookie_field_sanitize(&cookie.name);
+        let value = md_cookie_field_sanitize(&cookie.value);
+        if name.is_empty() {
+            continue;
+        }
+
+        // HttpOnly cookies use a #HttpOnly_ prefix convention.
+        let domain_field = if cookie.http_only {
+            format!("#HttpOnly_{domain}")
+        } else {
+            domain
+        };
+
+        out.push_str(&format!(
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+            domain_field, include_subdomains, path, secure, expires, name, value
+        ));
+    }
+
+    Ok(out)
+}
+
+async fn run_media_downloader_cookie_import_job(
+    state: &AppState,
+    job: &AiJob,
+    _workflow_run_id: Uuid,
+    trace_id: Uuid,
+) -> Result<RunJobOutcome, WorkflowError> {
+    if job.protocol_id != MD_COOKIE_IMPORT_PROTOCOL_ID_V0 {
+        return Ok(RunJobOutcome {
+            state: JobState::Failed,
+            status_reason: "invalid_job_contract".to_string(),
+            output: None,
+            error_message: Some(
+                "invalid protocol_id for media_downloader.cookie_import".to_string(),
+            ),
+        });
+    }
+
+    let inputs = parse_inputs(job.job_inputs.as_ref());
+    let request: MdCookieImportRequestV0 = match serde_json::from_value(inputs) {
+        Ok(req) => req,
+        Err(err) => {
+            return Ok(RunJobOutcome {
+                state: JobState::Failed,
+                status_reason: "invalid_job_inputs".to_string(),
+                output: None,
+                error_message: Some(err.to_string()),
+            })
+        }
+    };
+
+    if request.schema_version != MD_COOKIE_IMPORT_SCHEMA_V0 {
+        return Ok(RunJobOutcome {
+            state: JobState::Failed,
+            status_reason: "invalid_job_inputs".to_string(),
+            output: None,
+            error_message: Some("schema_version mismatch".to_string()),
+        });
+    }
+
+    // Cookie jar artifacts are high sensitivity; enforce secrets.use for import/export handling.
+    {
+        let cap = "secrets.use";
+        let cap_result = state
+            .capability_registry
+            .profile_can(&job.capability_profile_id, cap);
+        match cap_result {
+            Ok(true) => log_capability_check(state, job, cap, "allow", trace_id).await,
+            Ok(false) => {
+                log_capability_check(state, job, cap, "deny", trace_id).await;
+                return Err(WorkflowError::Capability(RegistryError::AccessDenied(
+                    cap.to_string(),
+                )));
+            }
+            Err(err) => {
+                log_capability_check(state, job, cap, "deny", trace_id).await;
+                return Err(WorkflowError::Capability(err));
+            }
+        }
+    }
+
+    let source_path = PathBuf::from(request.source_path.trim());
+    if !source_path.is_absolute() {
+        return Ok(RunJobOutcome {
+            state: JobState::Failed,
+            status_reason: "invalid_job_inputs".to_string(),
+            output: None,
+            error_message: Some("source_path must be absolute".to_string()),
+        });
+    }
+    let meta = fs::metadata(&source_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    if !meta.is_file() {
+        return Ok(RunJobOutcome {
+            state: JobState::Failed,
+            status_reason: "invalid_job_inputs".to_string(),
+            output: None,
+            error_message: Some("source_path must be a file".to_string()),
+        });
+    }
+
+    let raw_bytes = fs::read(&source_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let raw_text = String::from_utf8_lossy(&raw_bytes).to_string();
+
+    let netscape_text = if let Some(existing) = md_netscape_cookie_jar_text_or_empty(&raw_text) {
+        existing
+    } else {
+        // JSON cookie exports (Chrome/Firefox extensions) are supported.
+        md_cookie_json_to_netscape(md_trim_utf8_bom(&raw_text))?
+    };
+
+    let workspace_root = crate::storage::artifacts::resolve_workspace_root()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let tmp_dir = workspace_root
+        .join(".handshake")
+        .join("tmp")
+        .join("media_downloader")
+        .join(job.job_id.to_string())
+        .join("cookie_import");
+    fs::create_dir_all(&tmp_dir).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let tmp_cookie_path = tmp_dir.join("cookies.txt");
+    tokio::fs::write(&tmp_cookie_path, netscape_text.as_bytes())
+        .await
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let (_manifest, handle) = md_write_file_artifact_from_path(
+        &workspace_root,
+        crate::storage::artifacts::ArtifactLayer::L3,
+        crate::storage::artifacts::ArtifactPayloadKind::File,
+        "text/plain".to_string(),
+        Some("cookies.txt".to_string()),
+        &tmp_cookie_path,
+        crate::storage::artifacts::ArtifactClassification::High,
+        false,
+        Some(30),
+        Some(job.job_id),
+        Vec::new(),
+        Vec::new(),
+    )?;
+
+    let _ = fs::remove_file(&tmp_cookie_path);
+
+    let mut updated_session = false;
+    let stage_session_id = request.stage_session_id.clone().and_then(|v| {
+        let trimmed = v.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
+    if let Some(stage_session_id) = stage_session_id.as_deref() {
+        let mut registry = md_load_sessions_registry(&workspace_root)?;
+        let now = Utc::now().to_rfc3339();
+        for session in &mut registry.sessions {
+            if session.session_id == stage_session_id && session.kind == "stage_session" {
+                session.cookie_jar_artifact_ref = Some(handle.clone());
+                session.last_used_at = Some(now.clone());
+                updated_session = true;
+                break;
+            }
+        }
+        if updated_session {
+            md_save_sessions_registry(&workspace_root, &registry)?;
+        }
+    }
+
+    // Optional cleanup: only delete sources under workspace tmp to avoid deleting user files.
+    if request.cleanup_source.unwrap_or(false) {
+        let tmp_root = workspace_root.join(".handshake").join("tmp");
+        if source_path.starts_with(&tmp_root) {
+            let _ = fs::remove_file(&source_path);
+        }
+    }
+
+    let output = MdCookieImportResultV0 {
+        schema_version: MD_COOKIE_IMPORT_RESULT_SCHEMA_V0.to_string(),
+        cookie_jar_artifact_ref: handle,
+        stage_session_id,
+        updated_session,
+    };
+    let payload = serde_json::to_value(&output).unwrap_or(json!({}));
+
+    state
+        .storage
+        .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
+        .await?;
+
+    Ok(RunJobOutcome {
+        state: JobState::Completed,
+        status_reason: "completed".to_string(),
+        output: Some(payload),
+        error_message: None,
+    })
+}
+
+const MD_OUTPUT_ROOT_DIR_SCHEMA_V0: &str = "hsk.output_root_dir@v0";
+const MD_OUTPUT_ROOT_DIR_FILENAME: &str = "output_root_dir.json";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdOutputRootDirConfigV0 {
+    schema_version: String,
+    output_root_dir: String,
+}
+
+fn md_output_root_dir_config_path(workspace_root: &Path) -> PathBuf {
+    workspace_root
+        .join(".handshake")
+        .join("gov")
+        .join(MD_OUTPUT_ROOT_DIR_FILENAME)
+}
+
+fn md_default_output_root_dir() -> PathBuf {
+    let home = if cfg!(windows) {
+        std::env::var_os("USERPROFILE").map(PathBuf::from)
+    } else {
+        std::env::var_os("HOME").map(PathBuf::from)
+    };
+
+    let mut base = home
+        .filter(|p| p.is_absolute())
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+
+    let docs = base.join("Documents");
+    if docs.is_dir() {
+        base = docs;
+    }
+
+    base.join("Handshake_Output")
+}
+
+fn md_read_or_init_output_root_dir(workspace_root: &Path) -> Result<PathBuf, WorkflowError> {
+    let gov_dir = workspace_root.join(".handshake").join("gov");
+    fs::create_dir_all(&gov_dir).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let config_path = md_output_root_dir_config_path(workspace_root);
+    if config_path.exists() {
+        let raw =
+            fs::read_to_string(&config_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        let config: MdOutputRootDirConfigV0 =
+            serde_json::from_str(&raw).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        if config.schema_version != MD_OUTPUT_ROOT_DIR_SCHEMA_V0 {
+            return Err(WorkflowError::Terminal(
+                "output_root_dir.json schema_version mismatch".to_string(),
+            ));
+        }
+        let trimmed = config.output_root_dir.trim();
+        if trimmed.is_empty() {
+            return Err(WorkflowError::Terminal(
+                "output_root_dir is empty".to_string(),
+            ));
+        }
+        let dir = PathBuf::from(trimmed);
+        if !dir.is_absolute() {
+            return Err(WorkflowError::Terminal(format!(
+                "output_root_dir is not absolute: {trimmed}"
+            )));
+        }
+        fs::create_dir_all(&dir).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        return Ok(dir);
+    }
+
+    let default_dir = md_default_output_root_dir();
+    if !default_dir.is_absolute() {
+        return Err(WorkflowError::Terminal(format!(
+            "default output root dir is not absolute: {}",
+            default_dir.display()
+        )));
+    }
+    fs::create_dir_all(&default_dir).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let config = MdOutputRootDirConfigV0 {
+        schema_version: MD_OUTPUT_ROOT_DIR_SCHEMA_V0.to_string(),
+        output_root_dir: default_dir.to_string_lossy().to_string(),
+    };
+    write_json_atomic(workspace_root, &config_path, &config)?;
+
+    Ok(default_dir)
+}
+
+async fn run_media_downloader_job(
+    state: &AppState,
+    job: &AiJob,
+    workflow_run_id: Uuid,
+    trace_id: Uuid,
+) -> Result<RunJobOutcome, WorkflowError> {
+    if job.protocol_id != MD_BATCH_PROTOCOL_ID_V0 {
+        return Ok(RunJobOutcome {
+            state: JobState::Failed,
+            status_reason: "invalid_job_contract".to_string(),
+            output: None,
+            error_message: Some("invalid protocol_id for media_downloader".to_string()),
+        });
+    }
+
+    let inputs = parse_inputs(job.job_inputs.as_ref());
+    let req: MdBatchRequestV0 = match serde_json::from_value(inputs) {
+        Ok(req) => req,
+        Err(err) => {
+            return Ok(RunJobOutcome {
+                state: JobState::Failed,
+                status_reason: "invalid_job_inputs".to_string(),
+                output: None,
+                error_message: Some(err.to_string()),
+            })
+        }
+    };
+
+    if req.schema_version != MD_BATCH_SCHEMA_V0 {
+        return Ok(RunJobOutcome {
+            state: JobState::Failed,
+            status_reason: "invalid_job_inputs".to_string(),
+            output: None,
+            error_message: Some("schema_version mismatch".to_string()),
+        });
+    }
+
+    let workspace_root = crate::storage::artifacts::resolve_workspace_root()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let concurrency = md_concurrency_from_request(&req);
+    let forum_max_pages = md_forumcrawler_max_pages(&req);
+    let forum_allowlist_domains = md_normalize_allowlist_domains(
+        req.controls
+            .as_ref()
+            .and_then(|c| c.allowlist_domains.as_deref())
+            .unwrap_or(&[]),
+    );
+
+    let (pause_tx, mut pause_rx) = watch::channel(false);
+    let (retry_tx, mut retry_rx) = watch::channel(0u64);
+
+    {
+        let mut registry = MEDIA_DOWNLOADER_SIGNAL_REGISTRY.lock().map_err(|_| {
+            WorkflowError::Terminal("media_downloader signal registry lock poisoned".into())
+        })?;
+        registry.insert(
+            job.job_id,
+            MediaDownloaderSignals {
+                pause_tx: pause_tx.clone(),
+                retry_tx: retry_tx.clone(),
+            },
+        );
+    }
+
+    struct RegistryGuard(Uuid);
+    impl Drop for RegistryGuard {
+        fn drop(&mut self) {
+            if let Ok(mut reg) = MEDIA_DOWNLOADER_SIGNAL_REGISTRY.lock() {
+                reg.remove(&self.0);
+            }
+        }
+    }
+    let _guard = RegistryGuard(job.job_id);
+
+    let job_cancel_key = md_job_cancel_key(job.job_id);
+    let (mut job_cancel_rx, _job_cancel_guard) =
+        md_register_cancel_receiver(job_cancel_key.clone())?;
+
+    // Validate and normalize sources.
+    let mut sources: Vec<reqwest::Url> = Vec::new();
+    for raw in &req.sources {
+        let url = md_parse_url(raw)?;
+        md_validate_url_target(&url)?;
+        sources.push(url);
+    }
+    // Dedupe by canonical string.
+    let mut seen = HashSet::new();
+    sources.retain(|u| seen.insert(u.as_str().to_string()));
+
+    if sources.is_empty() {
+        return Ok(RunJobOutcome {
+            state: JobState::Failed,
+            status_reason: "invalid_job_inputs".to_string(),
+            output: None,
+            error_message: Some("sources must be non-empty".to_string()),
+        });
+    }
+
+    // Resolve auth cookie jar (if any).
+    let mut cookie_jar_payload: Option<PathBuf> = None;
+    if let Some(auth) = &req.auth {
+        match auth.mode.as_str() {
+            "none" => {}
+            "cookie_jar" => {
+                let handle = auth.cookie_jar_artifact_ref.as_ref().ok_or_else(|| {
+                    WorkflowError::Terminal("cookie_jar_artifact_ref missing".into())
+                })?;
+                cookie_jar_payload = Some(workspace_root.join(PathBuf::from(&handle.path)));
+            }
+            "stage_session" => {
+                let stage_session_id = auth
+                    .stage_session_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|v| !v.is_empty())
+                    .ok_or_else(|| WorkflowError::Terminal("stage_session_id missing".into()))?;
+                let registry = md_load_sessions_registry(&workspace_root)?;
+                let handle = md_find_cookie_jar_for_stage_session(&registry, stage_session_id)
+                    .ok_or_else(|| {
+                        WorkflowError::Terminal("stage_session has no exported cookie jar".into())
+                    })?;
+                cookie_jar_payload = Some(workspace_root.join(PathBuf::from(&handle.path)));
+            }
+            _ => {
+                return Ok(RunJobOutcome {
+                    state: JobState::Failed,
+                    status_reason: "invalid_job_inputs".to_string(),
+                    output: None,
+                    error_message: Some("unsupported auth.mode".to_string()),
+                })
+            }
+        }
+    }
+
+    // Enforce net.http for all media_downloader jobs (external fetches + tool provisioning).
+    {
+        let cap = "net.http";
+        let cap_result = state
+            .capability_registry
+            .profile_can(&job.capability_profile_id, cap);
+        match cap_result {
+            Ok(true) => log_capability_check(state, job, cap, "allow", trace_id).await,
+            Ok(false) => {
+                log_capability_check(state, job, cap, "deny", trace_id).await;
+                return Err(WorkflowError::Capability(RegistryError::AccessDenied(
+                    cap.to_string(),
+                )));
+            }
+            Err(err) => {
+                log_capability_check(state, job, cap, "deny", trace_id).await;
+                return Err(WorkflowError::Capability(err));
+            }
+        }
+    }
+
+    // Enforce secrets.use only when cookie/session auth is used.
+    if cookie_jar_payload.is_some() {
+        let cap = "secrets.use";
+        let cap_result = state
+            .capability_registry
+            .profile_can(&job.capability_profile_id, cap);
+        match cap_result {
+            Ok(true) => log_capability_check(state, job, cap, "allow", trace_id).await,
+            Ok(false) => {
+                log_capability_check(state, job, cap, "deny", trace_id).await;
+                return Err(WorkflowError::Capability(RegistryError::AccessDenied(
+                    cap.to_string(),
+                )));
+            }
+            Err(err) => {
+                log_capability_check(state, job, cap, "deny", trace_id).await;
+                return Err(WorkflowError::Capability(err));
+            }
+        }
+    }
+
+    let output_root_dir = md_read_or_init_output_root_dir(&workspace_root)?;
+
+    let materialize_root = output_root_dir.join("media_downloader");
+    fs::create_dir_all(&materialize_root).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let mex_runtime = {
+        let repo_root =
+            repo_root_from_manifest_dir().map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        Arc::new(build_mex_runtime(state, &repo_root)?)
+    };
+
+    let tools = ensure_media_downloader_tools(&workspace_root).await?;
+
+    // Expand plan where required (YouTube + Instagram use flat-playlist expansion).
+    let mut plan_items: Vec<MdPlanItemV0> = Vec::new();
+    match req.source_kind {
+        MdSourceKindV0::Youtube | MdSourceKindV0::Instagram => {
+            for src in &sources {
+                let expanded = md_expand_ytdlp_sources(
+                    &workspace_root,
+                    mex_runtime.as_ref(),
+                    job,
+                    &tools,
+                    cookie_jar_payload.as_deref(),
+                    &req.source_kind,
+                    src,
+                    &job_cancel_key,
+                )
+                .await?;
+                plan_items.extend(expanded);
+            }
+        }
+        _ => {
+            for src in &sources {
+                plan_items.push(MdPlanItemV0 {
+                    item_id: md_item_id_from_url(src),
+                    source_kind: req.source_kind,
+                    url_canonical: src.as_str().to_string(),
+                });
+            }
+        }
+    }
+
+    // Dedupe plan items by item_id.
+    let mut seen_items = HashSet::new();
+    plan_items.retain(|item| seen_items.insert(item.item_id.clone()));
+
+    let item_total = plan_items.len();
+    let items: Vec<MdItemResultV0> = plan_items
+        .iter()
+        .map(|p| MdItemResultV0 {
+            item_id: p.item_id.clone(),
+            status: "pending".to_string(),
+            artifact_handles: Vec::new(),
+            materialized_paths: Vec::new(),
+            error_code: None,
+            error_message: None,
+        })
+        .collect();
+
+    let mut output = MdJobOutputV0 {
+        schema_version: MD_RESULT_SCHEMA_V0.to_string(),
+        plan: MdPlanV0 {
+            stable_item_total: item_total,
+            items: plan_items.clone(),
+        },
+        progress: MdProgressV0 {
+            state: "running".to_string(),
+            item_done: 0,
+            item_total,
+            bytes_downloaded: None,
+            bytes_total: None,
+            concurrency,
+        },
+        items,
+        export_records: Vec::new(),
+    };
+
+    state
+        .storage
+        .set_job_outputs(
+            &job.job_id.to_string(),
+            Some(serde_json::to_value(&output).unwrap_or(json!({}))),
+        )
+        .await?;
+
+    md_record_md_system_event(
+        state,
+        trace_id,
+        job.job_id,
+        workflow_run_id,
+        json!({
+            "event_kind": "media_downloader.job_state",
+            "job_id": job.job_id.to_string(),
+            "source_kind": req.source_kind.as_str(),
+            "url": null,
+            "bytes_downloaded": null,
+            "bytes_total": null,
+            "item_index": 0,
+            "status": "running",
+            "error_code": null,
+            "item_total": item_total,
+            "concurrency": concurrency,
+        }),
+    )
+    .await;
+
+    // Main run loop with bounded concurrency.
+    let mut pending: VecDeque<MdPlanItemV0> = plan_items.into_iter().collect();
+    let mut join_set: JoinSet<(String, Result<MdItemResultV0, WorkflowError>)> = JoinSet::new();
+
+    let mut completed: usize = 0;
+    let mut any_failed = false;
+
+    loop {
+        let paused = *pause_rx.borrow();
+        let cancelled = *job_cancel_rx.borrow();
+
+        if cancelled && output.progress.state != "cancelled" {
+            output.progress.state = "cancelled".to_string();
+            md_record_md_system_event(
+                state,
+                trace_id,
+                job.job_id,
+                workflow_run_id,
+                json!({
+                    "event_kind": "media_downloader.job_state",
+                    "job_id": job.job_id.to_string(),
+                    "source_kind": req.source_kind.as_str(),
+                    "url": null,
+                    "bytes_downloaded": output.progress.bytes_downloaded,
+                    "bytes_total": output.progress.bytes_total,
+                    "item_index": completed,
+                    "status": "cancelled",
+                    "error_code": "cancelled",
+                    "item_done": completed,
+                    "item_total": item_total,
+                }),
+            )
+            .await;
+        }
+
+        // Spawn new tasks up to concurrency.
+        while !paused && !cancelled && join_set.len() < concurrency as usize && !pending.is_empty()
+        {
+            let Some(item) = pending.pop_front() else {
+                break;
+            };
+            let item_id = item.item_id.clone();
+            let item_url = item.url_canonical.clone();
+            let state_clone = state.clone();
+            let job_clone = job.clone();
+            let mex_clone = mex_runtime.clone();
+            let tools_clone = tools.clone();
+            let output_root_dir_clone = output_root_dir.clone();
+            let cookie_clone = cookie_jar_payload.clone();
+            let job_cancel_key_clone = job_cancel_key.clone();
+            let source_kind = req.source_kind;
+            let trace_id_clone = trace_id;
+            let workflow_run_id_clone = workflow_run_id;
+            let forum_max_pages_clone = forum_max_pages;
+            let forum_allowlist_domains_clone = forum_allowlist_domains.clone();
+
+            let item_id_for_task = item_id.clone();
+            join_set.spawn(async move {
+                let res = md_process_item(
+                    &state_clone,
+                    &job_clone,
+                    trace_id_clone,
+                    workflow_run_id_clone,
+                    &mex_clone,
+                    &tools_clone,
+                    &output_root_dir_clone,
+                    source_kind,
+                    &item,
+                    cookie_clone.as_deref(),
+                    forum_max_pages_clone,
+                    &forum_allowlist_domains_clone,
+                    &job_cancel_key_clone,
+                )
+                .await;
+                (item_id_for_task, res)
+            });
+
+            // Mark running in local output.
+            if let Some(entry) = output.items.iter_mut().find(|e| e.item_id == item_id) {
+                entry.status = "running".to_string();
+            }
+
+            md_record_md_system_event(
+                state,
+                trace_id,
+                job.job_id,
+                workflow_run_id,
+                json!({
+                    "event_kind": "media_downloader.progress",
+                    "job_id": job.job_id.to_string(),
+                    "source_kind": req.source_kind.as_str(),
+                    "url": md_sanitize_url_string_for_telemetry(&item_url),
+                    "item_id": item_id,
+                    "item_index": completed,
+                    "item_total": item_total,
+                    "status": "running",
+                    "error_code": null,
+                    "bytes_downloaded": null,
+                    "bytes_total": null,
+                }),
+            )
+            .await;
+
+            state
+                .storage
+                .set_job_outputs(
+                    &job.job_id.to_string(),
+                    Some(serde_json::to_value(&output).unwrap_or(json!({}))),
+                )
+                .await?;
+        }
+
+        // Persist pause state.
+        if paused && output.progress.state != "paused" && output.progress.state != "cancelled" {
+            output.progress.state = "paused".to_string();
+            md_record_md_system_event(
+                state,
+                trace_id,
+                job.job_id,
+                workflow_run_id,
+                json!({
+                    "event_kind": "media_downloader.job_state",
+                    "job_id": job.job_id.to_string(),
+                    "source_kind": req.source_kind.as_str(),
+                    "url": null,
+                    "bytes_downloaded": output.progress.bytes_downloaded,
+                    "bytes_total": output.progress.bytes_total,
+                    "item_index": completed,
+                    "status": "paused",
+                    "error_code": null,
+                    "item_done": completed,
+                    "item_total": item_total,
+                }),
+            )
+            .await;
+        }
+        if !paused && output.progress.state == "paused" {
+            output.progress.state = "running".to_string();
+            md_record_md_system_event(
+                state,
+                trace_id,
+                job.job_id,
+                workflow_run_id,
+                json!({
+                    "event_kind": "media_downloader.job_state",
+                    "job_id": job.job_id.to_string(),
+                    "source_kind": req.source_kind.as_str(),
+                    "url": null,
+                    "bytes_downloaded": output.progress.bytes_downloaded,
+                    "bytes_total": output.progress.bytes_total,
+                    "item_index": completed,
+                    "status": "running",
+                    "error_code": null,
+                    "item_done": completed,
+                    "item_total": item_total,
+                }),
+            )
+            .await;
+        }
+
+        // Exit if nothing left.
+        if join_set.is_empty() && pending.is_empty() {
+            break;
+        }
+        if cancelled && join_set.is_empty() {
+            // Drop remaining work and mark pending items as cancelled.
+            for item in output.items.iter_mut() {
+                if item.status == "pending" {
+                    item.status = "cancelled".to_string();
+                }
+            }
+            break;
+        }
+
+        tokio::select! {
+            joined = join_set.join_next(), if !join_set.is_empty() => {
+                if let Some(joined) = joined {
+                    let (item_id, result) = joined.map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                    let item_out = match result {
+                        Ok(item_out) => item_out,
+                        Err(err) => {
+                            any_failed = true;
+                            MdItemResultV0 {
+                                item_id: item_id.clone(),
+                                status: "failed".to_string(),
+                                artifact_handles: Vec::new(),
+                                materialized_paths: Vec::new(),
+                                error_code: Some("job_error".to_string()),
+                                error_message: Some(err.to_string()),
+                            }
+                        }
+                    };
+                    completed = completed.saturating_add(1);
+                    output.progress.item_done = completed;
+                    if let Some(entry) = output.items.iter_mut().find(|e| e.item_id == item_id) {
+                        *entry = item_out.clone();
+                    }
+
+                    let item_url = output
+                        .plan
+                        .items
+                        .iter()
+                        .find(|p| p.item_id == item_id)
+                        .map(|p| p.url_canonical.clone())
+                        .unwrap_or_default();
+                    let bytes_downloaded =
+                        md_sum_artifact_sizes(&workspace_root, &item_out.artifact_handles);
+                    let item_id_for_events = item_id.clone();
+                    let item_status_for_events = item_out.status.clone();
+                    let item_error_code_for_events = item_out.error_code.clone();
+
+                    if let Some(bytes) = bytes_downloaded {
+                        let prev = output.progress.bytes_downloaded.unwrap_or(0);
+                        output.progress.bytes_downloaded = Some(prev.saturating_add(bytes));
+                    }
+
+                    md_record_md_system_event(
+                        state,
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        json!({
+                            "event_kind": "media_downloader.item_result",
+                            "job_id": job.job_id.to_string(),
+                            "source_kind": req.source_kind.as_str(),
+                            "url": md_sanitize_url_string_for_telemetry(&item_url),
+                            "bytes_downloaded": bytes_downloaded,
+                            "bytes_total": null,
+                            "item_id": item_id_for_events.clone(),
+                            "item_index": completed,
+                            "item_total": item_total,
+                            "status": item_status_for_events.clone(),
+                            "error_code": item_error_code_for_events.clone(),
+                        }),
+                    )
+                    .await;
+
+                    md_record_md_system_event(
+                        state,
+                        trace_id,
+                        job.job_id,
+                        workflow_run_id,
+                        json!({
+                            "event_kind": "media_downloader.progress",
+                            "job_id": job.job_id.to_string(),
+                            "source_kind": req.source_kind.as_str(),
+                            "url": md_sanitize_url_string_for_telemetry(&item_url),
+                            "bytes_downloaded": bytes_downloaded,
+                            "bytes_total": null,
+                            "item_id": item_id_for_events,
+                            "item_index": completed,
+                            "item_total": item_total,
+                            "status": item_status_for_events,
+                            "error_code": item_error_code_for_events,
+                        }),
+                    )
+                    .await;
+
+                    state
+                        .storage
+                        .set_job_outputs(&job.job_id.to_string(), Some(serde_json::to_value(&output).unwrap_or(json!({}))))
+                        .await?;
+                }
+            }
+            _ = pause_rx.changed() => {}
+            _ = retry_rx.changed() => {
+                // Retry failed: requeue failed items (best-effort).
+                let gen = *retry_rx.borrow();
+                if gen > 0 {
+                    for item in output.items.iter_mut() {
+                        if item.status == "failed" {
+                            item.status = "pending".to_string();
+                            item.error_code = None;
+                            item.error_message = None;
+                            pending.push_back(MdPlanItemV0 {
+                                item_id: item.item_id.clone(),
+                                source_kind: req.source_kind,
+                                url_canonical: output.plan.items.iter().find(|p| p.item_id == item.item_id).map(|p| p.url_canonical.clone()).unwrap_or_default(),
+                            });
+                        }
+                    }
+                    // Reset counter so repeated retry requests still trigger.
+                    let _ = retry_tx.send(0);
+                    any_failed = false;
+                }
+            }
+            cancel_res = job_cancel_rx.changed() => {
+                if cancel_res.is_err() {
+                    // Sender dropped; ignore and continue.
+                }
+            }
+        }
+    }
+
+    // Final status.
+    let cancelled = *job_cancel_rx.borrow();
+
+    let final_state = if cancelled {
+        JobState::Cancelled
+    } else if any_failed {
+        JobState::CompletedWithIssues
+    } else {
+        JobState::Completed
+    };
+
+    output.progress.state = match final_state {
+        JobState::Cancelled => "cancelled".to_string(),
+        JobState::CompletedWithIssues => "completed_with_issues".to_string(),
+        _ => "completed".to_string(),
+    };
+
+    md_emit_materialization_export_record(
+        state,
+        job,
+        trace_id,
+        workflow_run_id,
+        &output_root_dir,
+        &mut output,
+    )
+    .await;
+
+    state
+        .storage
+        .set_job_outputs(
+            &job.job_id.to_string(),
+            Some(serde_json::to_value(&output).unwrap_or(json!({}))),
+        )
+        .await?;
+
+    Ok(RunJobOutcome {
+        state: final_state,
+        status_reason: output.progress.state.clone(),
+        output: Some(serde_json::to_value(&output).unwrap_or(json!({}))),
+        error_message: None,
+    })
+}
+
+fn md_is_cancelled(cancel_key: &str) -> bool {
+    let Ok(registry) = MD_CANCEL_REGISTRY.lock() else {
+        return false;
+    };
+    registry
+        .get(cancel_key)
+        .map(|entry| *entry.sender.borrow())
+        .unwrap_or(false)
+}
+
+fn md_artifact_layer_from_handle_path(
+    handle_path: &str,
+) -> Option<crate::storage::artifacts::ArtifactLayer> {
+    let normalized = handle_path.replace('\\', "/");
+    let mut parts = normalized.split('/');
+    while let Some(part) = parts.next() {
+        if part == "artifacts" {
+            return match parts.next()? {
+                "L1" => Some(crate::storage::artifacts::ArtifactLayer::L1),
+                "L2" => Some(crate::storage::artifacts::ArtifactLayer::L2),
+                "L3" => Some(crate::storage::artifacts::ArtifactLayer::L3),
+                "L4" => Some(crate::storage::artifacts::ArtifactLayer::L4),
+                _ => None,
+            };
+        }
+    }
+    None
+}
+
+fn md_sum_artifact_sizes(workspace_root: &Path, handles: &[ArtifactHandle]) -> Option<u64> {
+    let mut sum: u64 = 0;
+    let mut any = false;
+
+    for handle in handles {
+        let Some(layer) = md_artifact_layer_from_handle_path(&handle.path) else {
+            continue;
+        };
+        let Ok(manifest) = crate::storage::artifacts::read_artifact_manifest(
+            workspace_root,
+            layer,
+            handle.artifact_id,
+        ) else {
+            continue;
+        };
+        sum = sum.saturating_add(manifest.size_bytes);
+        any = true;
+    }
+
+    any.then_some(sum)
+}
+
+async fn md_emit_materialization_export_record(
+    state: &AppState,
+    job: &AiJob,
+    trace_id: Uuid,
+    workflow_run_id: Uuid,
+    output_root_dir: &Path,
+    output: &mut MdJobOutputV0,
+) {
+    let mut materialized_paths: Vec<String> = output
+        .items
+        .iter()
+        .flat_map(|i| i.materialized_paths.iter().cloned())
+        .collect();
+    materialized_paths.sort();
+    materialized_paths.dedup();
+    if materialized_paths.is_empty() {
+        return;
+    }
+
+    let mut output_artifact_handles: Vec<ArtifactHandle> = output
+        .items
+        .iter()
+        .flat_map(|i| i.artifact_handles.iter().cloned())
+        .collect();
+    let mut seen = HashSet::new();
+    output_artifact_handles.retain(|h| seen.insert(h.canonical_id()));
+    output_artifact_handles.sort_by(|a, b| a.canonical_id().cmp(&b.canonical_id()));
+    if output_artifact_handles.is_empty() {
+        return;
+    }
+
+    let source_entity_refs: Vec<crate::storage::EntityRef> = if !job.entity_refs.is_empty() {
+        job.entity_refs.clone()
+    } else {
+        vec![crate::storage::EntityRef {
+            entity_id: job.job_id.to_string(),
+            entity_kind: "job".to_string(),
+        }]
+    };
+
+    let mut source_inputs = String::new();
+    source_inputs.push_str("handshake.media_downloader.export_record.v1\n");
+    source_inputs.push_str(&format!("job_id={}\n", job.job_id));
+    source_inputs.push_str(&format!("output_root_dir={}\n", output_root_dir.display()));
+    source_inputs.push_str("artifacts:\n");
+    for h in &output_artifact_handles {
+        source_inputs.push_str(&h.canonical_id());
+        source_inputs.push('\n');
+    }
+    source_inputs.push_str("materialized_paths:\n");
+    for p in &materialized_paths {
+        source_inputs.push_str(p);
+        source_inputs.push('\n');
+    }
+
+    let source_hash = sha256_hex_str(&source_inputs);
+    let config_hash = sha256_hex_str(&format!(
+        "handshake.media_downloader.materialize.v1\noutput_root_dir={}\n",
+        output_root_dir.display()
+    ));
+
+    let record = crate::governance_pack::ExportRecord {
+        export_id: Uuid::new_v4(),
+        created_at: Utc::now(),
+        actor: crate::governance_pack::ExportActor::AiJob,
+        job_id: Some(job.job_id),
+        source_entity_refs,
+        source_hashes: vec![source_hash],
+        display_projection_ref: None,
+        export_format: "media_downloader_materialization".to_string(),
+        exporter: crate::governance_pack::ExporterInfo {
+            engine_id: "handshake.media_downloader".to_string(),
+            engine_version: env!("CARGO_PKG_VERSION").to_string(),
+            config_hash,
+        },
+        determinism_level: crate::governance_pack::DeterminismLevel::BestEffort,
+        export_target: crate::governance_pack::ExportTarget::LocalFile {
+            path: output_root_dir.to_path_buf(),
+        },
+        policy_id: "SAFE_DEFAULT".to_string(),
+        redactions_applied: false,
+        output_artifact_handles: output_artifact_handles.clone(),
+        materialized_paths: materialized_paths.clone(),
+        warnings: vec![
+            "materialization: local_file (atomic writes, traversal-safe paths)".to_string(),
+        ],
+        errors: Vec::new(),
+    };
+
+    output.export_records.push(record.clone());
+
+    let payload = serde_json::to_value(&record).unwrap_or(json!({}));
+    record_event_safely(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::GovernancePackExport,
+            FlightRecorderActor::System,
+            trace_id,
+            payload,
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_workflow_id(workflow_run_id.to_string()),
+    )
+    .await;
+}
+
+fn md_terminal_output_paths(
+    workspace_root: &Path,
+    result: &EngineResult,
+) -> Result<(PathBuf, PathBuf, PathBuf), WorkflowError> {
+    let output_handle = result
+        .outputs
+        .first()
+        .ok_or_else(|| WorkflowError::Terminal("engine result missing outputs".into()))?;
+    let output_abs = workspace_root.join(PathBuf::from(&output_handle.path));
+    let raw =
+        fs::read_to_string(&output_abs).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let val: Value =
+        serde_json::from_str(&raw).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let stdout_ref = val
+        .get("stdout_ref")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| WorkflowError::Terminal("terminal_output missing stdout_ref".into()))?;
+    let stderr_ref = val
+        .get("stderr_ref")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| WorkflowError::Terminal("terminal_output missing stderr_ref".into()))?;
+    Ok((
+        output_abs,
+        workspace_root.join(stdout_ref),
+        workspace_root.join(stderr_ref),
+    ))
+}
+
+fn md_terminal_output_cancelled(output_abs: &Path) -> bool {
+    let Ok(raw) = fs::read_to_string(output_abs) else {
+        return false;
+    };
+    let Ok(val) = serde_json::from_str::<Value>(&raw) else {
+        return false;
+    };
+    val.get("cancelled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
+fn md_safe_item_id(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed.len() > 128 {
+        return None;
+    }
+    if trimmed
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+    {
+        Some(trimmed.to_string())
+    } else {
+        None
+    }
+}
+
+fn md_guess_mime(path: &Path) -> String {
+    let ext = path
+        .extension()
+        .and_then(|v| v.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    match ext.as_str() {
+        "mp4" => "video/mp4",
+        "mkv" => "video/x-matroska",
+        "webm" => "video/webm",
+        "mov" => "video/quicktime",
+        "m4v" => "video/x-m4v",
+        "vtt" => "text/vtt",
+        "srt" => "text/plain",
+        "json" => "application/json",
+        "jpg" | "jpeg" => "image/jpeg",
+        "png" => "image/png",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        _ => "application/octet-stream",
+    }
+    .to_string()
+}
+
+fn md_normalize_rel_path(input: &str) -> String {
+    input
+        .replace('\\', "/")
+        .trim_start_matches("./")
+        .trim_start_matches('/')
+        .to_string()
+}
+
+fn md_ensure_safe_rel_path(rel_path: &str) -> Result<(), WorkflowError> {
+    let rel = rel_path.trim();
+    if rel.is_empty() {
+        return Err(WorkflowError::Terminal("empty relative path".to_string()));
+    }
+    if rel.contains(':') {
+        return Err(WorkflowError::Terminal(
+            "invalid relative path (contains ':')".to_string(),
+        ));
+    }
+
+    let path = Path::new(rel);
+    if path.is_absolute() {
+        return Err(WorkflowError::Terminal(
+            "invalid relative path (absolute)".to_string(),
+        ));
+    }
+
+    for component in path.components() {
+        match component {
+            std::path::Component::ParentDir
+            | std::path::Component::Prefix(_)
+            | std::path::Component::RootDir => {
+                return Err(WorkflowError::Terminal(
+                    "invalid relative path (traversal)".to_string(),
+                ))
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn md_materialize_local_file_from_path(
+    export_root: &Path,
+    rel_path: &str,
+    source_path: &Path,
+    overwrite: bool,
+) -> Result<String, WorkflowError> {
+    if !export_root.is_absolute() {
+        return Err(WorkflowError::Terminal(format!(
+            "export_root is not absolute: {}",
+            export_root.display()
+        )));
+    }
+    fs::create_dir_all(export_root).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    if !export_root.is_dir() {
+        return Err(WorkflowError::Terminal(
+            "export_root is not a directory".to_string(),
+        ));
+    }
+    let export_root_canon =
+        fs::canonicalize(export_root).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let rel = md_normalize_rel_path(rel_path);
+    md_ensure_safe_rel_path(&rel)?;
+
+    let target_path = export_root_canon.join(Path::new(&rel));
+    if !target_path.starts_with(&export_root_canon) {
+        return Err(WorkflowError::Terminal(
+            "materialize target escapes export_root".to_string(),
+        ));
+    }
+
+    if let Some(parent) = target_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    }
+
+    if target_path.exists() {
+        if !overwrite {
+            return Err(WorkflowError::Terminal(
+                "materialize target exists (overwrite=false)".to_string(),
+            ));
+        }
+        if target_path.is_dir() {
+            return Err(WorkflowError::Terminal(
+                "materialize target exists and is a directory".to_string(),
+            ));
+        }
+        fs::remove_file(&target_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    }
+
+    let tmp_name = format!(".hsk_tmp_{}", Uuid::new_v4());
+    let tmp_path = target_path
+        .parent()
+        .unwrap_or(&export_root_canon)
+        .join(tmp_name);
+
+    let mut src =
+        fs::File::open(source_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let mut dst =
+        fs::File::create(&tmp_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    std::io::copy(&mut src, &mut dst).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    dst.flush()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    dst.sync_all()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    drop(dst);
+
+    fs::rename(&tmp_path, &target_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    Ok(rel)
+}
+
+fn md_write_file_artifact_from_path(
+    workspace_root: &Path,
+    layer: crate::storage::artifacts::ArtifactLayer,
+    kind: crate::storage::artifacts::ArtifactPayloadKind,
+    mime: String,
+    filename_hint: Option<String>,
+    source_path: &Path,
+    classification: crate::storage::artifacts::ArtifactClassification,
+    exportable: bool,
+    retention_ttl_days: Option<u32>,
+    created_by_job_id: Option<Uuid>,
+    source_entity_refs: Vec<crate::storage::EntityRef>,
+    source_artifact_refs: Vec<ArtifactHandle>,
+) -> Result<(crate::storage::artifacts::ArtifactManifest, ArtifactHandle), WorkflowError> {
+    let source_meta =
+        fs::metadata(source_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    if !source_meta.is_file() {
+        return Err(WorkflowError::Terminal(format!(
+            "source_path is not a file: {}",
+            source_path.display()
+        )));
+    }
+
+    if matches!(
+        kind,
+        crate::storage::artifacts::ArtifactPayloadKind::PromptPayload
+    ) || matches!(
+        classification,
+        crate::storage::artifacts::ArtifactClassification::High
+    ) {
+        if retention_ttl_days.is_none() {
+            return Err(WorkflowError::Terminal(
+                "retention_ttl_days is required for high-sensitivity artifacts".to_string(),
+            ));
+        }
+    }
+
+    let artifact_id = Uuid::new_v4();
+    let created_at = Utc::now();
+    let artifact_root =
+        crate::storage::artifacts::artifact_root_dir(workspace_root, layer, artifact_id);
+    fs::create_dir_all(&artifact_root).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let payload_path = artifact_root.join("payload");
+    let payload_tmp = artifact_root.join("payload.tmp");
+
+    let mut src =
+        fs::File::open(source_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let mut dst =
+        fs::File::create(&payload_tmp).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let mut hasher = Sha256::new();
+    let mut total: u64 = 0;
+    let mut buf = [0u8; 1024 * 1024];
+    loop {
+        let n = src
+            .read(&mut buf)
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+        dst.write_all(&buf[..n])
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        total = total.saturating_add(n as u64);
+    }
+    dst.flush()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    dst.sync_all()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    drop(dst);
+
+    if let Err(err) = fs::rename(&payload_tmp, &payload_path) {
+        let _ = fs::remove_file(&payload_tmp);
+        return Err(WorkflowError::Terminal(err.to_string()));
+    }
+
+    let content_hash = hex::encode(hasher.finalize());
+    let manifest = crate::storage::artifacts::ArtifactManifest {
+        artifact_id,
+        layer,
+        kind,
+        mime,
+        filename_hint,
+        created_at,
+        created_by_job_id,
+        source_entity_refs,
+        source_artifact_refs,
+        content_hash: content_hash.clone(),
+        size_bytes: total,
+        classification,
+        exportable,
+        retention_ttl_days,
+        pinned: None,
+        hash_basis: None,
+        hash_exclude_paths: Vec::new(),
+    };
+
+    crate::storage::artifacts::write_artifact_manifest_atomic(&artifact_root, &manifest)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let handle = ArtifactHandle::new(
+        artifact_id,
+        format!(
+            "{}/payload",
+            crate::storage::artifacts::artifact_root_rel(layer, artifact_id)
+        ),
+    );
+    Ok((manifest, handle))
+}
+
+const MD_CAPTIONS_METADATA_SCHEMA_V0: &str = "hsk.media_downloader.captions_metadata@v0";
+const MD_ITEM_RECORD_SCHEMA_V0: &str = "hsk.media_downloader.item_record@v0";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdCaptionTrackV0 {
+    lang: String,
+    filename: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdCaptionsMetadataV0 {
+    schema_version: String,
+    item_id: String,
+    source_kind: MdSourceKindV0,
+    url_canonical: String,
+    tracks: Vec<MdCaptionTrackV0>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdItemRecordV0 {
+    schema_version: String,
+    source_kind: MdSourceKindV0,
+    item_id: String,
+    url_canonical: String,
+    created_at: String,
+    entries: Vec<MdItemRecordEntryV0>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MdItemRecordEntryV0 {
+    role: String,
+    #[serde(default)]
+    lang: Option<String>,
+    artifact_ref: ArtifactHandle,
+    content_hash: String,
+    mime: String,
+    filename: String,
+    materialized_rel_path: String,
+}
+
+fn md_item_record_path(
+    workspace_root: &Path,
+    source_kind: MdSourceKindV0,
+    item_id: &str,
+) -> PathBuf {
+    workspace_root
+        .join(".handshake")
+        .join("gov")
+        .join("media_downloader")
+        .join("item_records")
+        .join(source_kind.as_str())
+        .join(format!("{item_id}.json"))
+}
+
+fn md_caption_lang_from_filename(filename: &str) -> Option<String> {
+    let filename = filename.trim();
+    if filename.is_empty() {
+        return None;
+    }
+    let lower = filename.to_ascii_lowercase();
+    if !lower.ends_with(".vtt") {
+        return None;
+    }
+    let stem = lower.trim_end_matches(".vtt");
+    let parts: Vec<&str> = stem.split('.').collect();
+    if parts.len() < 2 {
+        return None;
+    }
+    let last = parts[parts.len().saturating_sub(1)];
+    let second_last = parts[parts.len().saturating_sub(2)];
+    if matches!(last, "auto" | "asr" | "automatic") && !second_last.trim().is_empty() {
+        return Some(second_last.to_string());
+    }
+    if last.trim().is_empty() {
+        None
+    } else {
+        Some(last.to_string())
+    }
+}
+
+async fn md_mex_exec(
+    mex_runtime: &MexRuntime,
+    capability_profile_id: &str,
+    operation: &str,
+    tool_path: &Path,
+    cwd: &str,
+    args: Vec<String>,
+    cancel_keys: Vec<String>,
+    timeout_ms: u64,
+    max_output_bytes: u64,
+) -> Result<EngineResult, WorkflowError> {
+    let capability = match operation {
+        "yt_dlp.exec" => "proc.exec:yt-dlp",
+        "ffmpeg.exec" => "proc.exec:ffmpeg",
+        "ffprobe.exec" => "proc.exec:ffprobe",
+        _ => "proc.exec",
+    };
+
+    let wants_secrets_use = operation == "yt_dlp.exec" && args.iter().any(|a| a == "--cookies");
+
+    let mut capabilities_requested: Vec<String> =
+        vec![capability.to_string(), "fs.write:artifacts".to_string()];
+    if operation == "yt_dlp.exec" {
+        capabilities_requested.push("net.http".to_string());
+        // yt-dlp may invoke ffmpeg/ffprobe internally (merge A/V, probe).
+        capabilities_requested.push("proc.exec:ffmpeg".to_string());
+        capabilities_requested.push("proc.exec:ffprobe".to_string());
+        if wants_secrets_use {
+            capabilities_requested.push("secrets.use".to_string());
+        }
+    }
+    let mut seen = HashSet::new();
+    capabilities_requested.retain(|c| seen.insert(c.clone()));
+
+    let op = PlannedOperation {
+        schema_version: POE_SCHEMA_VERSION.to_string(),
+        op_id: Uuid::new_v4(),
+        engine_id: MD_TOOL_ENGINE_ID.to_string(),
+        engine_version_req: None,
+        operation: operation.to_string(),
+        inputs: Vec::new(),
+        params: json!({
+            "tool_path": tool_path.to_string_lossy().to_string(),
+            "cwd": cwd,
+            "timeout_ms": timeout_ms,
+            "args": args,
+            "env": {},
+            "cancel_keys": cancel_keys,
+        }),
+        capabilities_requested,
+        capability_profile_id: Some(capability_profile_id.to_string()),
+        human_consent_obtained: false,
+        budget: BudgetSpec {
+            cpu_time_ms: None,
+            wall_time_ms: Some(timeout_ms),
+            memory_bytes: None,
+            output_bytes: Some(max_output_bytes),
+        },
+        determinism: DeterminismLevel::D3,
+        evidence_policy: Some(EvidencePolicy {
+            required: true,
+            notes: Some("capture_stdout_stderr".to_string()),
+        }),
+        output_spec: OutputSpec {
+            expected_types: vec!["artifact.terminal_output".to_string()],
+            max_bytes: Some(max_output_bytes),
+        },
+    };
+
+    mex_runtime
+        .execute(op)
+        .await
+        .map_err(|e| WorkflowError::Terminal(format!("MEX execute failed: {e}")))
+}
+
+async fn md_expand_ytdlp_sources(
+    workspace_root: &Path,
+    mex_runtime: &MexRuntime,
+    job: &AiJob,
+    tools: &MdToolsV0,
+    cookie_jar_payload: Option<&Path>,
+    source_kind: &MdSourceKindV0,
+    src: &reqwest::Url,
+    job_cancel_key: &str,
+) -> Result<Vec<MdPlanItemV0>, WorkflowError> {
+    let mut args: Vec<String> = vec![
+        "--flat-playlist".to_string(),
+        "--dump-json".to_string(),
+        "--skip-download".to_string(),
+        "--no-warnings".to_string(),
+        "--no-call-home".to_string(),
+        "--no-color".to_string(),
+        "--ignore-errors".to_string(),
+    ];
+    if let Some(cookie) = cookie_jar_payload {
+        args.push("--cookies".to_string());
+        args.push(cookie.to_string_lossy().to_string());
+    }
+    args.push("--".to_string());
+    args.push(src.as_str().to_string());
+
+    let result = md_mex_exec(
+        mex_runtime,
+        &job.capability_profile_id,
+        "yt_dlp.exec",
+        &tools.yt_dlp_path,
+        ".",
+        args,
+        vec![job_cancel_key.to_string()],
+        600_000,
+        50_000_000,
+    )
+    .await?;
+
+    let (output_abs, stdout_abs, _stderr_abs) = md_terminal_output_paths(workspace_root, &result)?;
+    if md_terminal_output_cancelled(&output_abs) {
+        return Ok(Vec::new());
+    }
+
+    let stdout =
+        fs::read_to_string(&stdout_abs).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let mut out: Vec<MdPlanItemV0> = Vec::new();
+    for line in stdout.lines() {
+        let Ok(val) = serde_json::from_str::<Value>(line) else {
+            continue;
+        };
+        let id = val.get("id").and_then(|v| v.as_str()).unwrap_or_default();
+        let webpage_url = val
+            .get("webpage_url")
+            .and_then(|v| v.as_str())
+            .or_else(|| val.get("original_url").and_then(|v| v.as_str()))
+            .or_else(|| val.get("url").and_then(|v| v.as_str()))
+            .unwrap_or_default();
+
+        let canonical = match source_kind {
+            MdSourceKindV0::Youtube if !id.trim().is_empty() => {
+                format!("https://www.youtube.com/watch?v={}", id.trim())
+            }
+            _ if !webpage_url.trim().is_empty() => webpage_url.trim().to_string(),
+            _ => src.as_str().to_string(),
+        };
+
+        let Ok(url) = reqwest::Url::parse(&canonical) else {
+            continue;
+        };
+        md_validate_url_target(&url)?;
+
+        let item_id = md_safe_item_id(id).unwrap_or_else(|| md_item_id_from_url(&url));
+        out.push(MdPlanItemV0 {
+            item_id,
+            source_kind: *source_kind,
+            url_canonical: url.as_str().to_string(),
+        });
+    }
+    out.sort_by(|a, b| a.item_id.cmp(&b.item_id));
+    Ok(out)
+}
+
+fn md_sanitize_ytdlp_info_json(path: &Path) -> Result<(), WorkflowError> {
+    let raw = fs::read_to_string(path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let mut val: Value =
+        serde_json::from_str(&raw).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    if let Some(obj) = val.as_object_mut() {
+        obj.remove("http_headers");
+        obj.remove("cookies");
+        obj.remove("cookie");
+        obj.remove("headers");
+    }
+    let bytes =
+        serde_json::to_vec_pretty(&val).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let tmp = path.with_extension("tmp");
+    fs::write(&tmp, bytes).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    if path.exists() {
+        fs::remove_file(path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    }
+    fs::rename(&tmp, path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    Ok(())
+}
+
+fn md_list_downloaded_files(dir: &Path) -> Result<Vec<PathBuf>, WorkflowError> {
+    let mut out: Vec<PathBuf> = Vec::new();
+    for entry in fs::read_dir(dir).map_err(|e| WorkflowError::Terminal(e.to_string()))? {
+        let entry = entry.map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if name.ends_with(".part") || name.ends_with(".tmp") {
+            continue;
+        }
+        out.push(path);
+    }
+    out.sort();
+    Ok(out)
+}
+
+async fn md_ffprobe_validate(
+    workspace_root: &Path,
+    mex_runtime: &MexRuntime,
+    job: &AiJob,
+    tools: &MdToolsV0,
+    target_path: &Path,
+    cancel_keys: Vec<String>,
+) -> Result<bool, WorkflowError> {
+    let args: Vec<String> = vec![
+        "-v".to_string(),
+        "error".to_string(),
+        "-print_format".to_string(),
+        "json".to_string(),
+        "-show_streams".to_string(),
+        "-show_format".to_string(),
+        target_path.to_string_lossy().to_string(),
+    ];
+
+    let result = md_mex_exec(
+        mex_runtime,
+        &job.capability_profile_id,
+        "ffprobe.exec",
+        &tools.ffprobe_path,
+        ".",
+        args,
+        cancel_keys,
+        120_000,
+        5_000_000,
+    )
+    .await?;
+
+    let (output_abs, stdout_abs, _stderr_abs) = md_terminal_output_paths(workspace_root, &result)?;
+    if md_terminal_output_cancelled(&output_abs) {
+        return Ok(false);
+    }
+
+    let stdout =
+        fs::read_to_string(&stdout_abs).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let parsed: Value =
+        serde_json::from_str(&stdout).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let streams = parsed
+        .get("streams")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    if streams.is_empty() {
+        return Ok(false);
+    }
+    for stream in &streams {
+        if let Some(codec_type) = stream.get("codec_type").and_then(|v| v.as_str()) {
+            if codec_type == "video" || codec_type == "audio" {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
+fn md_is_obvious_non_media_content_type(content_type: &str) -> bool {
+    let ct = content_type.trim().to_ascii_lowercase();
+    ct.starts_with("text/")
+        || ct.contains("html")
+        || ct.contains("json")
+        || ct.contains("xml")
+        || ct.contains("javascript")
+}
+
+fn md_sniff_non_media_prefix(prefix: &[u8]) -> Option<&'static str> {
+    let trimmed = prefix
+        .iter()
+        .copied()
+        .skip_while(|b| *b == b' ' || *b == b'\t' || *b == b'\r' || *b == b'\n')
+        .take(64)
+        .collect::<Vec<u8>>();
+    let Ok(text) = std::str::from_utf8(&trimmed) else {
+        return None;
+    };
+    let lower = text.to_ascii_lowercase();
+    if lower.starts_with("<!doctype") || lower.starts_with("<html") || lower.starts_with("<script")
+    {
+        return Some("html");
+    }
+    if lower.starts_with("<?xml") {
+        return Some("xml");
+    }
+    if lower.starts_with('{') || lower.starts_with('[') {
+        return Some("json");
+    }
+    None
+}
+
+fn md_video_ext_from_headers_and_url(url: &reqwest::Url, content_type: &str) -> String {
+    let ct = content_type.trim().to_ascii_lowercase();
+    if ct.contains("mp4") {
+        return "mp4".to_string();
+    }
+    if ct.contains("webm") {
+        return "webm".to_string();
+    }
+    if ct.contains("matroska") || ct.contains("mkv") {
+        return "mkv".to_string();
+    }
+    if ct.contains("quicktime") {
+        return "mov".to_string();
+    }
+    if let Some(seg) = url.path_segments().and_then(|s| s.last()) {
+        if let Some((_, ext)) = seg.rsplit_once('.') {
+            let ext = ext.to_ascii_lowercase();
+            if ext.len() <= 5 && ext.chars().all(|c| c.is_ascii_alphanumeric()) {
+                return ext;
+            }
+        }
+    }
+    "mp4".to_string()
+}
+
+async fn md_download_generic_video(
+    state: &AppState,
+    job: &AiJob,
+    trace_id: Uuid,
+    workflow_run_id: Uuid,
+    mex_runtime: &MexRuntime,
+    tools: &MdToolsV0,
+    output_root_dir: &Path,
+    item: &MdPlanItemV0,
+    cookie_jar_payload: Option<&Path>,
+    job_cancel_key: &str,
+) -> Result<MdItemResultV0, WorkflowError> {
+    let item_cancel_key = md_item_cancel_key(job.job_id, &item.item_id);
+    let workspace_root = crate::storage::artifacts::resolve_workspace_root()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let url = reqwest::Url::parse(&item.url_canonical)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    md_validate_url_target(&url)?;
+
+    let tmp_dir = workspace_root
+        .join(".handshake")
+        .join("tmp")
+        .join("media_downloader")
+        .join(job.job_id.to_string())
+        .join("videodownloader")
+        .join(&item.item_id);
+    fs::create_dir_all(&tmp_dir).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(url.clone())
+        .header(reqwest::header::USER_AGENT, "Handshake-MediaDownloader/1.0")
+        .send()
+        .await
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let status = resp.status();
+    if !status.is_success() {
+        return Ok(MdItemResultV0 {
+            item_id: item.item_id.clone(),
+            status: "failed".to_string(),
+            artifact_handles: Vec::new(),
+            materialized_paths: Vec::new(),
+            error_code: Some("http_error".to_string()),
+            error_message: Some(format!("download failed: status={status}")),
+        });
+    }
+
+    let content_type = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    let _bytes_total = resp.content_length();
+
+    let mut resp = resp;
+    let first = resp
+        .chunk()
+        .await
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+        .unwrap_or_default();
+
+    let sniff = md_sniff_non_media_prefix(&first);
+    let is_embed = md_is_obvious_non_media_content_type(&content_type)
+        || matches!(sniff, Some("html") | Some("xml") | Some("json"));
+
+    if is_embed {
+        // Fallback: treat as embed/page and attempt yt-dlp extraction.
+        let cwd_rel = tmp_dir
+            .strip_prefix(&workspace_root)
+            .map_err(|_| WorkflowError::Terminal("temp dir escapes workspace root".into()))?
+            .to_string_lossy()
+            .replace('\\', "/");
+
+        let mut args: Vec<String> = vec![
+            "--no-warnings".to_string(),
+            "--no-call-home".to_string(),
+            "--no-playlist".to_string(),
+            "--continue".to_string(),
+            "--ffmpeg-location".to_string(),
+            tools
+                .ffmpeg_path
+                .parent()
+                .unwrap_or_else(|| Path::new("."))
+                .to_string_lossy()
+                .to_string(),
+            "--merge-output-format".to_string(),
+            "mp4".to_string(),
+            "--format".to_string(),
+            "bv*+ba/b".to_string(),
+            "-o".to_string(),
+            "%(id)s.%(ext)s".to_string(),
+        ];
+        if let Some(cookie) = cookie_jar_payload {
+            args.push("--cookies".to_string());
+            args.push(cookie.to_string_lossy().to_string());
+        }
+        args.push(item.url_canonical.clone());
+
+        let result = md_mex_exec(
+            mex_runtime,
+            &job.capability_profile_id,
+            "yt_dlp.exec",
+            &tools.yt_dlp_path,
+            &cwd_rel,
+            args,
+            vec![job_cancel_key.to_string(), item_cancel_key.clone()],
+            3_600_000,
+            50_000_000,
+        )
+        .await?;
+
+        let (output_abs, _stdout_abs, _stderr_abs) =
+            md_terminal_output_paths(&workspace_root, &result)?;
+        if md_terminal_output_cancelled(&output_abs)
+            || md_is_cancelled(job_cancel_key)
+            || md_is_cancelled(&item_cancel_key)
+        {
+            let _ = fs::remove_dir_all(&tmp_dir);
+            return Ok(MdItemResultV0 {
+                item_id: item.item_id.clone(),
+                status: "cancelled".to_string(),
+                artifact_handles: Vec::new(),
+                materialized_paths: Vec::new(),
+                error_code: Some("cancelled".to_string()),
+                error_message: None,
+            });
+        }
+
+        let files = md_list_downloaded_files(&tmp_dir)?;
+        let video_file = files.iter().find(|p| {
+            let ext = p
+                .extension()
+                .and_then(|v| v.to_str())
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            matches!(ext.as_str(), "mp4" | "mkv" | "webm" | "mov" | "m4v")
+        });
+        let Some(video_file) = video_file else {
+            let _ = fs::remove_dir_all(&tmp_dir);
+            return Ok(MdItemResultV0 {
+                item_id: item.item_id.clone(),
+                status: "failed".to_string(),
+                artifact_handles: Vec::new(),
+                materialized_paths: Vec::new(),
+                error_code: Some("no_media_found".to_string()),
+                error_message: Some("yt-dlp did not produce a video file".to_string()),
+            });
+        };
+
+        let valid = md_ffprobe_validate(
+            &workspace_root,
+            mex_runtime,
+            job,
+            tools,
+            video_file,
+            vec![job_cancel_key.to_string(), item_cancel_key.clone()],
+        )
+        .await?;
+        if !valid {
+            let _ = fs::remove_dir_all(&tmp_dir);
+            return Ok(MdItemResultV0 {
+                item_id: item.item_id.clone(),
+                status: "failed".to_string(),
+                artifact_handles: Vec::new(),
+                materialized_paths: Vec::new(),
+                error_code: Some("ffprobe_invalid".to_string()),
+                error_message: Some("ffprobe validation failed".to_string()),
+            });
+        }
+
+        let filename = video_file
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("video.mp4");
+        let mime = md_guess_mime(video_file);
+        let (manifest, handle) = md_write_file_artifact_from_path(
+            &workspace_root,
+            crate::storage::artifacts::ArtifactLayer::L3,
+            crate::storage::artifacts::ArtifactPayloadKind::File,
+            mime,
+            Some(filename.to_string()),
+            video_file,
+            crate::storage::artifacts::ArtifactClassification::Low,
+            true,
+            None,
+            Some(job.job_id),
+            Vec::new(),
+            Vec::new(),
+        )?;
+
+        record_event_safely(
+            state,
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::DataBronzeCreated,
+                FlightRecorderActor::System,
+                trace_id,
+                json!({
+                    "type": "data_bronze_created",
+                    "bronze_id": manifest.artifact_id.to_string(),
+                    "content_type": manifest.mime,
+                    "content_hash": manifest.content_hash,
+                    "size_bytes": manifest.size_bytes,
+                    "ingestion_source": { "type": "system", "process": "media_downloader" },
+                    "ingestion_method": "api_ingest",
+                    "external_source": { "url": md_sanitize_url_string_for_telemetry(&item.url_canonical) }
+                }),
+            )
+            .with_job_id(job.job_id.to_string())
+            .with_workflow_id(workflow_run_id.to_string()),
+        )
+        .await;
+
+        let payload_abs = workspace_root.join(PathBuf::from(&handle.path));
+        let rel = format!(
+            "media_downloader/videodownloader/{}/{}",
+            item.item_id, filename
+        );
+        let mat = md_materialize_local_file_from_path(output_root_dir, &rel, &payload_abs, true)?;
+
+        let _ = fs::remove_dir_all(&tmp_dir);
+        return Ok(MdItemResultV0 {
+            item_id: item.item_id.clone(),
+            status: "completed".to_string(),
+            artifact_handles: vec![handle],
+            materialized_paths: vec![mat],
+            error_code: None,
+            error_message: None,
+        });
+    }
+
+    // Direct media download path (required).
+    let ext = md_video_ext_from_headers_and_url(&url, &content_type);
+    let part_path = tmp_dir.join(format!("{}.part", item.item_id));
+    let final_path = tmp_dir.join(format!("{}.{}", item.item_id, ext));
+
+    let mut file = tokio::fs::File::create(&part_path)
+        .await
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let mut downloaded: u64 = 0;
+
+    file.write_all(&first)
+        .await
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    downloaded = downloaded.saturating_add(first.len() as u64);
+
+    while let Some(chunk) = resp
+        .chunk()
+        .await
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+    {
+        if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+            let _ = tokio::fs::remove_file(&part_path).await;
+            let _ = fs::remove_dir_all(&tmp_dir);
+            return Ok(MdItemResultV0 {
+                item_id: item.item_id.clone(),
+                status: "cancelled".to_string(),
+                artifact_handles: Vec::new(),
+                materialized_paths: Vec::new(),
+                error_code: Some("cancelled".to_string()),
+                error_message: None,
+            });
+        }
+        file.write_all(&chunk)
+            .await
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        downloaded = downloaded.saturating_add(chunk.len() as u64);
+    }
+    file.flush()
+        .await
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    drop(file);
+
+    // Validate with ffprobe before finalizing.
+    let valid = md_ffprobe_validate(
+        &workspace_root,
+        mex_runtime,
+        job,
+        tools,
+        &part_path,
+        vec![job_cancel_key.to_string(), item_cancel_key.clone()],
+    )
+    .await?;
+    if !valid {
+        let _ = tokio::fs::remove_file(&part_path).await;
+        let _ = fs::remove_dir_all(&tmp_dir);
+        return Ok(MdItemResultV0 {
+            item_id: item.item_id.clone(),
+            status: "failed".to_string(),
+            artifact_handles: Vec::new(),
+            materialized_paths: Vec::new(),
+            error_code: Some("ffprobe_invalid".to_string()),
+            error_message: Some("ffprobe validation failed".to_string()),
+        });
+    }
+
+    if final_path.exists() {
+        let _ = tokio::fs::remove_file(&final_path).await;
+    }
+    tokio::fs::rename(&part_path, &final_path)
+        .await
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let filename = final_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("video.mp4");
+    let mime = md_guess_mime(&final_path);
+    let (manifest, handle) = md_write_file_artifact_from_path(
+        &workspace_root,
+        crate::storage::artifacts::ArtifactLayer::L3,
+        crate::storage::artifacts::ArtifactPayloadKind::File,
+        mime,
+        Some(filename.to_string()),
+        &final_path,
+        crate::storage::artifacts::ArtifactClassification::Low,
+        true,
+        None,
+        Some(job.job_id),
+        Vec::new(),
+        Vec::new(),
+    )?;
+
+    record_event_safely(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::DataBronzeCreated,
+            FlightRecorderActor::System,
+            trace_id,
+            json!({
+                "type": "data_bronze_created",
+                "bronze_id": manifest.artifact_id.to_string(),
+                "content_type": manifest.mime,
+                "content_hash": manifest.content_hash,
+                "size_bytes": manifest.size_bytes,
+                "ingestion_source": { "type": "system", "process": "media_downloader" },
+                "ingestion_method": "api_ingest",
+                "external_source": { "url": md_sanitize_url_string_for_telemetry(&item.url_canonical) }
+            }),
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_workflow_id(workflow_run_id.to_string()),
+    )
+    .await;
+
+    let payload_abs = workspace_root.join(PathBuf::from(&handle.path));
+    let rel = format!(
+        "media_downloader/videodownloader/{}/{}",
+        item.item_id, filename
+    );
+    let mat = md_materialize_local_file_from_path(output_root_dir, &rel, &payload_abs, true)?;
+
+    let _ = fs::remove_dir_all(&tmp_dir);
+
+    Ok(MdItemResultV0 {
+        item_id: item.item_id.clone(),
+        status: "completed".to_string(),
+        artifact_handles: vec![handle],
+        materialized_paths: vec![mat],
+        error_code: None,
+        error_message: None,
+    })
+}
+
+async fn md_crawl_forum_images(
+    state: &AppState,
+    job: &AiJob,
+    trace_id: Uuid,
+    workflow_run_id: Uuid,
+    output_root_dir: &Path,
+    item: &MdPlanItemV0,
+    forum_max_pages: usize,
+    forum_allowlist_domains: &[String],
+    job_cancel_key: &str,
+) -> Result<MdItemResultV0, WorkflowError> {
+    md_crawl_forum_images_impl(
+        state,
+        job,
+        trace_id,
+        workflow_run_id,
+        output_root_dir,
+        item,
+        forum_max_pages,
+        forum_allowlist_domains,
+        job_cancel_key,
+    )
+    .await
+}
+
+async fn md_crawl_forum_images_impl(
+    state: &AppState,
+    job: &AiJob,
+    trace_id: Uuid,
+    workflow_run_id: Uuid,
+    output_root_dir: &Path,
+    item: &MdPlanItemV0,
+    forum_max_pages: usize,
+    forum_allowlist_domains: &[String],
+    job_cancel_key: &str,
+) -> Result<MdItemResultV0, WorkflowError> {
+    let item_cancel_key = md_item_cancel_key(job.job_id, &item.item_id);
+    if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+        return Ok(MdItemResultV0 {
+            item_id: item.item_id.clone(),
+            status: "cancelled".to_string(),
+            artifact_handles: Vec::new(),
+            materialized_paths: Vec::new(),
+            error_code: Some("cancelled".to_string()),
+            error_message: None,
+        });
+    }
+
+    use regex::Regex;
+
+    #[derive(Debug, Clone, Serialize)]
+    struct MdForumManifestEntryV0 {
+        page_url: String,
+        discovered_url: String,
+        chosen_url: String,
+        sha256: Option<String>,
+        bytes: Option<u64>,
+        status: String,
+        reason_skipped: Option<String>,
+    }
+
+    fn unescape_urlish(input: &str) -> String {
+        input
+            .replace("&amp;", "&")
+            .replace("&#38;", "&")
+            .trim()
+            .to_string()
+    }
+
+    fn url_key(url: &reqwest::Url) -> String {
+        let mut clean = url.clone();
+        clean.set_fragment(None);
+        clean.to_string()
+    }
+
+    fn strip_query_and_fragment(mut url: reqwest::Url) -> reqwest::Url {
+        url.set_query(None);
+        url.set_fragment(None);
+        url
+    }
+
+    fn domain_allowed(host: &str, allowlist: &HashSet<String>) -> bool {
+        let host = host.trim().trim_end_matches('.').to_ascii_lowercase();
+        if allowlist.contains(&host) {
+            return true;
+        }
+        for base in allowlist {
+            if host.ends_with(&format!(".{base}")) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn looks_like_noise(url: &reqwest::Url, class: &str, alt: &str) -> Option<String> {
+        let hay = format!("{} {} {}", url.path(), class, alt).to_ascii_lowercase();
+        for kw in [
+            "avatar", "profile", "emoji", "emoticon", "smiley", "icon", "sprite", "logo", "badge",
+            "reaction",
+        ] {
+            if hay.contains(kw) {
+                return Some(format!("noise:{kw}"));
+            }
+        }
+        None
+    }
+
+    fn parse_srcset_best(srcset: &str) -> Option<String> {
+        let mut best: Option<(u32, String)> = None;
+        for part in srcset.split(',') {
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
+            }
+            let mut it = part.split_whitespace();
+            let url = it.next().unwrap_or("").trim();
+            if url.is_empty() {
+                continue;
+            }
+            let desc = it.next().unwrap_or("").trim();
+            let w = desc
+                .strip_suffix('w')
+                .and_then(|v| v.parse::<u32>().ok())
+                .unwrap_or(0);
+            match &best {
+                Some((bw, _)) if *bw >= w => {}
+                _ => best = Some((w, url.to_string())),
+            }
+        }
+        best.map(|(_, u)| u)
+    }
+
+    fn infer_fullsize_variants(url: &reqwest::Url) -> Vec<reqwest::Url> {
+        let mut out: Vec<reqwest::Url> = Vec::new();
+
+        // Always include a query/fragment stripped variant.
+        let stripped = strip_query_and_fragment(url.clone());
+        if stripped.as_str() != url.as_str() {
+            out.push(stripped);
+        }
+
+        // Common thumbnail directory patterns.
+        let path = url.path();
+        if path.contains("/thumb/") || path.contains("/thumbs/") {
+            let new_path = path.replace("/thumbs/", "/").replace("/thumb/", "/");
+            let mut u = url.clone();
+            u.set_path(&new_path);
+            out.push(strip_query_and_fragment(u));
+        }
+
+        // Common thumbnail suffix patterns like -150x150 before extension.
+        if let Some((head, ext)) = path.rsplit_once('.') {
+            if let Some((base, tail)) = head.rsplit_once('-') {
+                let tail = tail.to_ascii_lowercase();
+                let parts: Vec<&str> = tail.split('x').collect();
+                if parts.len() == 2
+                    && parts[0].chars().all(|c| c.is_ascii_digit())
+                    && parts[1].chars().all(|c| c.is_ascii_digit())
+                {
+                    let mut u = url.clone();
+                    u.set_path(&format!("{base}.{ext}"));
+                    out.push(strip_query_and_fragment(u));
+                }
+            }
+        }
+
+        // Dedup preserving order.
+        let mut seen: HashSet<String> = HashSet::new();
+        out.retain(|u| seen.insert(url_key(u)));
+        out
+    }
+
+    fn parse_attrs(re: &Regex, tag: &str) -> HashMap<String, String> {
+        let mut out = HashMap::new();
+        for caps in re.captures_iter(tag) {
+            let key = caps
+                .get(1)
+                .map(|m| m.as_str())
+                .unwrap_or("")
+                .trim()
+                .to_ascii_lowercase();
+            let value = caps.get(3).map(|m| m.as_str()).unwrap_or("").to_string();
+            if !key.is_empty() {
+                out.insert(key, value);
+            }
+        }
+        out
+    }
+
+    fn attr<'a>(attrs: &'a HashMap<String, String>, key: &str) -> Option<&'a str> {
+        attrs.get(key).map(|s| s.as_str())
+    }
+
+    fn parse_u32_attr(attrs: &HashMap<String, String>, key: &str) -> Option<u32> {
+        attr(attrs, key)
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .and_then(|v| v.parse::<u32>().ok())
+    }
+
+    let workspace_root = crate::storage::artifacts::resolve_workspace_root()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let topic_url = reqwest::Url::parse(&item.url_canonical)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    md_validate_url_target(&topic_url)?;
+
+    let topic_host = topic_url
+        .host_str()
+        .ok_or_else(|| WorkflowError::Terminal("topic url missing host".into()))?
+        .trim()
+        .trim_end_matches('.')
+        .to_ascii_lowercase();
+
+    let mut allowlist: HashSet<String> = HashSet::new();
+    allowlist.insert(topic_host);
+    for dom in forum_allowlist_domains {
+        let d = dom.trim();
+        if d.is_empty() {
+            continue;
+        }
+        if md_is_private_host(d) {
+            continue;
+        }
+        allowlist.insert(d.to_string());
+    }
+
+    let max_pages = forum_max_pages.clamp(1, 5000);
+
+    let tmp_dir = workspace_root
+        .join(".handshake")
+        .join("tmp")
+        .join("media_downloader")
+        .join(job.job_id.to_string())
+        .join("forumcrawler")
+        .join(&item.item_id);
+    fs::create_dir_all(&tmp_dir).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .build()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let re_attr = Regex::new(r#"(?is)([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(['"])(.*?)['"]"#)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let re_link_tag =
+        Regex::new(r"(?is)<link\b[^>]*>").map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let re_a_tag =
+        Regex::new(r"(?is)<a\b[^>]*>").map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let re_a_img = Regex::new(
+        r#"(?is)<a\b[^>]*\bhref\s*=\s*['"](?P<href>[^'"]+)['"][^>]*>(?P<inner>.{0,2000}?)<img\b(?P<imgattrs>[^>]*)>"#,
+    )
+    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let re_img_tag = Regex::new(r"(?is)<img\b(?P<imgattrs>[^>]*)>")
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let topic_path = topic_url.path().trim_end_matches('/').to_string();
+
+    let mut pages: VecDeque<reqwest::Url> = VecDeque::new();
+    let mut visited_pages: HashSet<String> = HashSet::new();
+    pages.push_back(topic_url.clone());
+    visited_pages.insert(url_key(&topic_url));
+
+    let mut seen_discovered: HashSet<String> = HashSet::new();
+    let mut seen_sha256: HashSet<String> = HashSet::new();
+    let mut manifest_entries: Vec<MdForumManifestEntryV0> = Vec::new();
+    let mut artifacts: Vec<ArtifactHandle> = Vec::new();
+    let mut materialized_paths: Vec<String> = Vec::new();
+
+    let mut bytes_downloaded_total: u64 = 0;
+    let mut pages_crawled: usize = 0;
+    let mut images_done: usize = 0;
+
+    while let Some(page_url) = pages.pop_front() {
+        if pages_crawled >= max_pages {
+            break;
+        }
+        if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+            break;
+        }
+
+        pages_crawled = pages_crawled.saturating_add(1);
+
+        // Polite defaults (global rate-limit).
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+        let resp = client
+            .get(page_url.clone())
+            .header(reqwest::header::USER_AGENT, "Handshake-MediaDownloader/1.0")
+            .send()
+            .await
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        if !resp.status().is_success() {
+            continue;
+        }
+
+        let content_type = resp
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+
+        // Only parse HTML-ish responses.
+        let ct_lower = content_type.to_ascii_lowercase();
+        if !(ct_lower.contains("html") || ct_lower.starts_with("text/")) {
+            continue;
+        }
+
+        let mut body: Vec<u8> = Vec::new();
+        let mut resp = resp;
+        while let Some(chunk) = resp
+            .chunk()
+            .await
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+        {
+            if body.len().saturating_add(chunk.len()) > 5_000_000 {
+                break;
+            }
+            body.extend_from_slice(&chunk);
+        }
+
+        let html_text = String::from_utf8_lossy(&body);
+
+        // Pagination discovery: rel=next links.
+        for m in re_link_tag.find_iter(&html_text) {
+            let tag = m.as_str();
+            let attrs = parse_attrs(&re_attr, tag);
+            let rel = attr(&attrs, "rel").unwrap_or("").to_ascii_lowercase();
+            if !rel.split_whitespace().any(|v| v == "next") {
+                continue;
+            }
+            let Some(href) = attr(&attrs, "href") else {
+                continue;
+            };
+            let href = unescape_urlish(href);
+            if href.is_empty() {
+                continue;
+            }
+            let Ok(next_url) = page_url.join(&href) else {
+                continue;
+            };
+            if next_url.scheme() != "http" && next_url.scheme() != "https" {
+                continue;
+            }
+            if let Some(host) = next_url.host_str() {
+                if md_is_private_host(host) || !domain_allowed(host, &allowlist) {
+                    continue;
+                }
+            } else {
+                continue;
+            }
+            let path = next_url.path().trim_end_matches('/');
+            if !path.starts_with(&topic_path) {
+                continue;
+            }
+            let key = url_key(&next_url);
+            if visited_pages.insert(key) {
+                pages.push_back(next_url);
+            }
+        }
+
+        // Pagination discovery: rel=next anchors.
+        for m in re_a_tag.find_iter(&html_text) {
+            let tag = m.as_str();
+            let attrs = parse_attrs(&re_attr, tag);
+            let rel = attr(&attrs, "rel").unwrap_or("").to_ascii_lowercase();
+            if !rel.split_whitespace().any(|v| v == "next") {
+                continue;
+            }
+            let Some(href) = attr(&attrs, "href") else {
+                continue;
+            };
+            let href = unescape_urlish(href);
+            if href.is_empty() {
+                continue;
+            }
+            let Ok(next_url) = page_url.join(&href) else {
+                continue;
+            };
+            if next_url.scheme() != "http" && next_url.scheme() != "https" {
+                continue;
+            }
+            let Some(host) = next_url.host_str() else {
+                continue;
+            };
+            if md_is_private_host(host) || !domain_allowed(host, &allowlist) {
+                continue;
+            }
+            let path = next_url.path().trim_end_matches('/');
+            if !path.starts_with(&topic_path) {
+                continue;
+            }
+            let key = url_key(&next_url);
+            if visited_pages.insert(key) {
+                pages.push_back(next_url);
+            }
+        }
+
+        // Pagination discovery: heuristic page-ish anchors.
+        for m in re_a_tag.find_iter(&html_text) {
+            let tag = m.as_str();
+            let attrs = parse_attrs(&re_attr, tag);
+            let Some(href) = attr(&attrs, "href") else {
+                continue;
+            };
+            let href = unescape_urlish(href);
+            if href.is_empty() {
+                continue;
+            }
+            let Ok(u) = page_url.join(&href) else {
+                continue;
+            };
+            if u.scheme() != "http" && u.scheme() != "https" {
+                continue;
+            }
+            let Some(host) = u.host_str() else {
+                continue;
+            };
+            if md_is_private_host(host) || !domain_allowed(host, &allowlist) {
+                continue;
+            }
+            let path = u.path().trim_end_matches('/');
+            if !path.starts_with(&topic_path) {
+                continue;
+            }
+            let lower = u.as_str().to_ascii_lowercase();
+            let is_pageish =
+                lower.contains("page=") || lower.contains("/page/") || lower.contains("start=");
+            if !is_pageish {
+                continue;
+            }
+            let key = url_key(&u);
+            if visited_pages.insert(key) {
+                pages.push_back(u);
+            }
+        }
+
+        // Image discovery: anchors that wrap images (full-res preference).
+        for caps in re_a_img.captures_iter(&html_text) {
+            if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                break;
+            }
+
+            let anchor_href = caps.name("href").map(|m| m.as_str()).unwrap_or("").trim();
+            if anchor_href.is_empty() {
+                continue;
+            }
+
+            let imgattrs_raw = caps.name("imgattrs").map(|m| m.as_str()).unwrap_or("");
+            let imgattrs = parse_attrs(&re_attr, imgattrs_raw);
+            let class = attr(&imgattrs, "class").unwrap_or("");
+            let alt = attr(&imgattrs, "alt").unwrap_or("");
+            let width = parse_u32_attr(&imgattrs, "width").unwrap_or(0);
+            let height = parse_u32_attr(&imgattrs, "height").unwrap_or(0);
+            if (width > 0 && width < 24) || (height > 0 && height < 24) {
+                continue;
+            }
+
+            let mut candidates_raw: Vec<reqwest::Url> = Vec::new();
+            if let Ok(u) = page_url.join(&unescape_urlish(anchor_href)) {
+                candidates_raw.push(u);
+            }
+            for key in [
+                "data-fullsize",
+                "data-full",
+                "data-original",
+                "data-src",
+                "data-lazy-src",
+            ] {
+                if let Some(v) = attr(&imgattrs, key) {
+                    let v = unescape_urlish(v);
+                    if !v.is_empty() {
+                        if let Ok(u) = page_url.join(&v) {
+                            candidates_raw.push(u);
+                        }
+                    }
+                }
+            }
+            if let Some(srcset) = attr(&imgattrs, "srcset") {
+                if let Some(best) = parse_srcset_best(srcset) {
+                    let best = unescape_urlish(best.trim());
+                    if !best.is_empty() {
+                        if let Ok(u) = page_url.join(&best) {
+                            candidates_raw.push(u);
+                        }
+                    }
+                }
+            }
+            if let Some(v) = attr(&imgattrs, "src") {
+                let v = unescape_urlish(v);
+                if !v.is_empty() {
+                    if let Ok(u) = page_url.join(&v) {
+                        candidates_raw.push(u);
+                    }
+                }
+            }
+
+            let Some(discovered_raw) = candidates_raw.first().cloned() else {
+                continue;
+            };
+
+            let mut unique: Vec<reqwest::Url> = Vec::new();
+            let mut seen = HashSet::new();
+            for c in candidates_raw {
+                if c.scheme() != "http" && c.scheme() != "https" {
+                    continue;
+                }
+                let Some(host) = c.host_str() else {
+                    continue;
+                };
+                if md_is_private_host(host) || !domain_allowed(host, &allowlist) {
+                    continue;
+                }
+                for cand in
+                    std::iter::once(c.clone()).chain(infer_fullsize_variants(&c).into_iter())
+                {
+                    if cand.scheme() != "http" && cand.scheme() != "https" {
+                        continue;
+                    }
+                    let Some(host) = cand.host_str() else {
+                        continue;
+                    };
+                    if md_is_private_host(host) || !domain_allowed(host, &allowlist) {
+                        continue;
+                    }
+                    if !seen.insert(url_key(&cand)) {
+                        continue;
+                    }
+                    unique.push(cand);
+                }
+            }
+            if unique.is_empty() {
+                let host = discovered_raw.host_str().unwrap_or("");
+                let reason = if md_is_private_host(host) {
+                    "private_host_blocked"
+                } else {
+                    "domain_not_allowlisted"
+                };
+                manifest_entries.push(MdForumManifestEntryV0 {
+                    page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                    discovered_url: md_sanitize_url_string_for_telemetry(discovered_raw.as_str()),
+                    chosen_url: md_sanitize_url_string_for_telemetry(discovered_raw.as_str()),
+                    sha256: None,
+                    bytes: None,
+                    status: "skipped".to_string(),
+                    reason_skipped: Some(reason.to_string()),
+                });
+                continue;
+            }
+
+            let discovered_url = unique[0].clone();
+            let discovered_key = url_key(&discovered_url);
+            if !seen_discovered.insert(discovered_key.clone()) {
+                continue;
+            }
+            for extra in unique.iter().skip(1) {
+                let _ = seen_discovered.insert(url_key(extra));
+            }
+
+            if let Some(reason) = looks_like_noise(&discovered_url, class, alt) {
+                manifest_entries.push(MdForumManifestEntryV0 {
+                    page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                    discovered_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    chosen_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    sha256: None,
+                    bytes: None,
+                    status: "skipped".to_string(),
+                    reason_skipped: Some(reason),
+                });
+                continue;
+            }
+
+            // Try candidates in order until one downloads as an image.
+            let mut downloaded: Option<(reqwest::Url, String, u64, PathBuf, String)> = None;
+            let mut deduped_skipped = false;
+            for candidate in &unique {
+                if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                    break;
+                }
+
+                let resp = client
+                    .get(candidate.clone())
+                    .header(reqwest::header::USER_AGENT, "Handshake-MediaDownloader/1.0")
+                    .send()
+                    .await;
+                let Ok(mut resp) = resp else {
+                    continue;
+                };
+                if !resp.status().is_success() {
+                    continue;
+                }
+
+                let content_type = resp
+                    .headers()
+                    .get(reqwest::header::CONTENT_TYPE)
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("")
+                    .to_string();
+                if md_is_obvious_non_media_content_type(&content_type) {
+                    continue;
+                }
+
+                let Some(first) = resp
+                    .chunk()
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+                else {
+                    continue;
+                };
+                if md_sniff_non_media_prefix(&first).is_some() {
+                    continue;
+                }
+
+                let ext = if first.starts_with(&[0xFF, 0xD8, 0xFF]) {
+                    "jpg"
+                } else if first.starts_with(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]) {
+                    "png"
+                } else if first.starts_with(b"GIF87a") || first.starts_with(b"GIF89a") {
+                    "gif"
+                } else if first.starts_with(b"RIFF")
+                    && first.len() >= 12
+                    && &first[8..12] == b"WEBP"
+                {
+                    "webp"
+                } else {
+                    continue;
+                };
+
+                let part_path = tmp_dir.join(format!("{}.part", Uuid::new_v4()));
+                let mut file = tokio::fs::File::create(&part_path)
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                let mut hasher = Sha256::new();
+                let mut bytes: u64 = 0;
+
+                file.write_all(&first)
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                hasher.update(&first);
+                bytes = bytes.saturating_add(first.len() as u64);
+
+                while let Some(chunk) = resp
+                    .chunk()
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+                {
+                    if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                        let _ = tokio::fs::remove_file(&part_path).await;
+                        break;
+                    }
+                    file.write_all(&chunk)
+                        .await
+                        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                    hasher.update(&chunk);
+                    bytes = bytes.saturating_add(chunk.len() as u64);
+                }
+                file.flush()
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                drop(file);
+
+                if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                    continue;
+                }
+
+                let sha = hex::encode(hasher.finalize());
+                if !seen_sha256.insert(sha.clone()) {
+                    let _ = tokio::fs::remove_file(&part_path).await;
+                    manifest_entries.push(MdForumManifestEntryV0 {
+                        page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                        discovered_url: md_sanitize_url_string_for_telemetry(
+                            discovered_url.as_str(),
+                        ),
+                        chosen_url: md_sanitize_url_string_for_telemetry(candidate.as_str()),
+                        sha256: Some(sha),
+                        bytes: Some(bytes),
+                        status: "skipped".to_string(),
+                        reason_skipped: Some("sha256_duplicate".to_string()),
+                    });
+                    deduped_skipped = true;
+                    break;
+                }
+
+                let final_path = tmp_dir.join(format!("{sha}.{ext}"));
+                tokio::fs::rename(&part_path, &final_path)
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+                downloaded = Some((candidate.clone(), sha, bytes, final_path, ext.to_string()));
+                break;
+            }
+
+            if deduped_skipped {
+                continue;
+            }
+
+            let Some((chosen_url, sha, bytes, file_path, ext)) = downloaded else {
+                manifest_entries.push(MdForumManifestEntryV0 {
+                    page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                    discovered_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    chosen_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    sha256: None,
+                    bytes: None,
+                    status: "failed".to_string(),
+                    reason_skipped: Some("no_image_candidate_succeeded".to_string()),
+                });
+                continue;
+            };
+
+            let mime = match ext.as_str() {
+                "jpg" => "image/jpeg",
+                "png" => "image/png",
+                "gif" => "image/gif",
+                "webp" => "image/webp",
+                _ => "application/octet-stream",
+            }
+            .to_string();
+            let filename = format!("{sha}.{ext}");
+
+            let (artifact_manifest, handle) = md_write_file_artifact_from_path(
+                &workspace_root,
+                crate::storage::artifacts::ArtifactLayer::L3,
+                crate::storage::artifacts::ArtifactPayloadKind::File,
+                mime,
+                Some(filename.clone()),
+                &file_path,
+                crate::storage::artifacts::ArtifactClassification::Low,
+                true,
+                None,
+                Some(job.job_id),
+                Vec::new(),
+                Vec::new(),
+            )?;
+
+            record_event_safely(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::DataBronzeCreated,
+                    FlightRecorderActor::System,
+                    trace_id,
+                    json!({
+                        "type": "data_bronze_created",
+                        "bronze_id": artifact_manifest.artifact_id.to_string(),
+                        "content_type": artifact_manifest.mime,
+                        "content_hash": artifact_manifest.content_hash,
+                        "size_bytes": artifact_manifest.size_bytes,
+                        "ingestion_source": { "type": "system", "process": "media_downloader" },
+                        "ingestion_method": "api_ingest",
+                        "external_source": { "url": md_sanitize_url_string_for_telemetry(chosen_url.as_str()) }
+                    }),
+                )
+                .with_job_id(job.job_id.to_string())
+                .with_workflow_id(workflow_run_id.to_string()),
+            )
+            .await;
+
+            let payload_abs = workspace_root.join(PathBuf::from(&handle.path));
+            let rel = format!(
+                "media_downloader/forumcrawler/{}/{}",
+                &item.item_id, filename
+            );
+            let mat =
+                md_materialize_local_file_from_path(output_root_dir, &rel, &payload_abs, true)?;
+
+            artifacts.push(handle);
+            materialized_paths.push(mat.clone());
+            bytes_downloaded_total = bytes_downloaded_total.saturating_add(bytes);
+            images_done = images_done.saturating_add(1);
+
+            if images_done % 25 == 0 {
+                md_record_md_system_event(
+                    state,
+                    trace_id,
+                    job.job_id,
+                    workflow_run_id,
+                    json!({
+                        "event_kind": "media_downloader.progress",
+                        "job_id": job.job_id.to_string(),
+                        "source_kind": MdSourceKindV0::Forumcrawler.as_str(),
+                        "url": md_sanitize_url_string_for_telemetry(&item.url_canonical),
+                        "bytes_downloaded": bytes_downloaded_total,
+                        "bytes_total": null,
+                        "item_id": item.item_id.clone(),
+                        "item_index": pages_crawled,
+                        "item_total": max_pages,
+                        "status": "running",
+                        "error_code": null,
+                        "pages_crawled": pages_crawled,
+                        "images_downloaded": images_done,
+                    }),
+                )
+                .await;
+            }
+
+            manifest_entries.push(MdForumManifestEntryV0 {
+                page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                discovered_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                chosen_url: md_sanitize_url_string_for_telemetry(chosen_url.as_str()),
+                sha256: Some(sha),
+                bytes: Some(bytes),
+                status: "downloaded".to_string(),
+                reason_skipped: None,
+            });
+        }
+
+        // Standalone images not wrapped in anchors.
+        for caps in re_img_tag.captures_iter(&html_text) {
+            if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                break;
+            }
+
+            let imgattrs_raw = caps.name("imgattrs").map(|m| m.as_str()).unwrap_or("");
+            let imgattrs = parse_attrs(&re_attr, imgattrs_raw);
+            let class = attr(&imgattrs, "class").unwrap_or("");
+            let alt = attr(&imgattrs, "alt").unwrap_or("");
+            let width = parse_u32_attr(&imgattrs, "width").unwrap_or(0);
+            let height = parse_u32_attr(&imgattrs, "height").unwrap_or(0);
+            if (width > 0 && width < 24) || (height > 0 && height < 24) {
+                continue;
+            }
+
+            let mut candidates_raw: Vec<reqwest::Url> = Vec::new();
+            for key in [
+                "data-fullsize",
+                "data-full",
+                "data-original",
+                "data-src",
+                "data-lazy-src",
+            ] {
+                if let Some(v) = attr(&imgattrs, key) {
+                    let v = unescape_urlish(v);
+                    if !v.is_empty() {
+                        if let Ok(u) = page_url.join(&v) {
+                            candidates_raw.push(u);
+                        }
+                    }
+                }
+            }
+            if let Some(srcset) = attr(&imgattrs, "srcset") {
+                if let Some(best) = parse_srcset_best(srcset) {
+                    let best = unescape_urlish(best.trim());
+                    if !best.is_empty() {
+                        if let Ok(u) = page_url.join(&best) {
+                            candidates_raw.push(u);
+                        }
+                    }
+                }
+            }
+            if let Some(v) = attr(&imgattrs, "src") {
+                let v = unescape_urlish(v);
+                if !v.is_empty() {
+                    if let Ok(u) = page_url.join(&v) {
+                        candidates_raw.push(u);
+                    }
+                }
+            }
+
+            let Some(discovered_raw) = candidates_raw.first().cloned() else {
+                continue;
+            };
+
+            let mut unique: Vec<reqwest::Url> = Vec::new();
+            let mut seen = HashSet::new();
+            for c in candidates_raw {
+                if c.scheme() != "http" && c.scheme() != "https" {
+                    continue;
+                }
+                let Some(host) = c.host_str() else {
+                    continue;
+                };
+                if md_is_private_host(host) || !domain_allowed(host, &allowlist) {
+                    continue;
+                }
+                for cand in
+                    std::iter::once(c.clone()).chain(infer_fullsize_variants(&c).into_iter())
+                {
+                    if cand.scheme() != "http" && cand.scheme() != "https" {
+                        continue;
+                    }
+                    let Some(host) = cand.host_str() else {
+                        continue;
+                    };
+                    if md_is_private_host(host) || !domain_allowed(host, &allowlist) {
+                        continue;
+                    }
+                    if !seen.insert(url_key(&cand)) {
+                        continue;
+                    }
+                    unique.push(cand);
+                }
+            }
+            if unique.is_empty() {
+                let host = discovered_raw.host_str().unwrap_or("");
+                let reason = if md_is_private_host(host) {
+                    "private_host_blocked"
+                } else {
+                    "domain_not_allowlisted"
+                };
+                manifest_entries.push(MdForumManifestEntryV0 {
+                    page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                    discovered_url: md_sanitize_url_string_for_telemetry(discovered_raw.as_str()),
+                    chosen_url: md_sanitize_url_string_for_telemetry(discovered_raw.as_str()),
+                    sha256: None,
+                    bytes: None,
+                    status: "skipped".to_string(),
+                    reason_skipped: Some(reason.to_string()),
+                });
+                continue;
+            }
+
+            let discovered_url = unique[0].clone();
+            let discovered_key = url_key(&discovered_url);
+            if !seen_discovered.insert(discovered_key.clone()) {
+                continue;
+            }
+            for extra in unique.iter().skip(1) {
+                let _ = seen_discovered.insert(url_key(extra));
+            }
+
+            if let Some(reason) = looks_like_noise(&discovered_url, class, alt) {
+                manifest_entries.push(MdForumManifestEntryV0 {
+                    page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                    discovered_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    chosen_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    sha256: None,
+                    bytes: None,
+                    status: "skipped".to_string(),
+                    reason_skipped: Some(reason),
+                });
+                continue;
+            }
+
+            let mut downloaded: Option<(reqwest::Url, String, u64, PathBuf, String)> = None;
+            let mut deduped_skipped = false;
+            for candidate in &unique {
+                if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                    break;
+                }
+
+                let resp = client
+                    .get(candidate.clone())
+                    .header(reqwest::header::USER_AGENT, "Handshake-MediaDownloader/1.0")
+                    .send()
+                    .await;
+                let Ok(mut resp) = resp else {
+                    continue;
+                };
+                if !resp.status().is_success() {
+                    continue;
+                }
+
+                let content_type = resp
+                    .headers()
+                    .get(reqwest::header::CONTENT_TYPE)
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("")
+                    .to_string();
+                if md_is_obvious_non_media_content_type(&content_type) {
+                    continue;
+                }
+
+                let Some(first) = resp
+                    .chunk()
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+                else {
+                    continue;
+                };
+                if md_sniff_non_media_prefix(&first).is_some() {
+                    continue;
+                }
+
+                let ext = if first.starts_with(&[0xFF, 0xD8, 0xFF]) {
+                    "jpg"
+                } else if first.starts_with(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]) {
+                    "png"
+                } else if first.starts_with(b"GIF87a") || first.starts_with(b"GIF89a") {
+                    "gif"
+                } else if first.starts_with(b"RIFF")
+                    && first.len() >= 12
+                    && &first[8..12] == b"WEBP"
+                {
+                    "webp"
+                } else {
+                    continue;
+                };
+
+                let part_path = tmp_dir.join(format!("{}.part", Uuid::new_v4()));
+                let mut file = tokio::fs::File::create(&part_path)
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                let mut hasher = Sha256::new();
+                let mut bytes: u64 = 0;
+
+                file.write_all(&first)
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                hasher.update(&first);
+                bytes = bytes.saturating_add(first.len() as u64);
+
+                while let Some(chunk) = resp
+                    .chunk()
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+                {
+                    if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                        let _ = tokio::fs::remove_file(&part_path).await;
+                        break;
+                    }
+                    file.write_all(&chunk)
+                        .await
+                        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                    hasher.update(&chunk);
+                    bytes = bytes.saturating_add(chunk.len() as u64);
+                }
+                file.flush()
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                drop(file);
+
+                if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                    continue;
+                }
+
+                let sha = hex::encode(hasher.finalize());
+                if !seen_sha256.insert(sha.clone()) {
+                    let _ = tokio::fs::remove_file(&part_path).await;
+                    manifest_entries.push(MdForumManifestEntryV0 {
+                        page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                        discovered_url: md_sanitize_url_string_for_telemetry(
+                            discovered_url.as_str(),
+                        ),
+                        chosen_url: md_sanitize_url_string_for_telemetry(candidate.as_str()),
+                        sha256: Some(sha),
+                        bytes: Some(bytes),
+                        status: "skipped".to_string(),
+                        reason_skipped: Some("sha256_duplicate".to_string()),
+                    });
+                    deduped_skipped = true;
+                    break;
+                }
+
+                let final_path = tmp_dir.join(format!("{sha}.{ext}"));
+                tokio::fs::rename(&part_path, &final_path)
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+                downloaded = Some((candidate.clone(), sha, bytes, final_path, ext.to_string()));
+                break;
+            }
+
+            if deduped_skipped {
+                continue;
+            }
+
+            let Some((chosen_url, sha, bytes, file_path, ext)) = downloaded else {
+                manifest_entries.push(MdForumManifestEntryV0 {
+                    page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                    discovered_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    chosen_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    sha256: None,
+                    bytes: None,
+                    status: "failed".to_string(),
+                    reason_skipped: Some("no_image_candidate_succeeded".to_string()),
+                });
+                continue;
+            };
+
+            let mime = match ext.as_str() {
+                "jpg" => "image/jpeg",
+                "png" => "image/png",
+                "gif" => "image/gif",
+                "webp" => "image/webp",
+                _ => "application/octet-stream",
+            }
+            .to_string();
+            let filename = format!("{sha}.{ext}");
+
+            let (artifact_manifest, handle) = md_write_file_artifact_from_path(
+                &workspace_root,
+                crate::storage::artifacts::ArtifactLayer::L3,
+                crate::storage::artifacts::ArtifactPayloadKind::File,
+                mime,
+                Some(filename.clone()),
+                &file_path,
+                crate::storage::artifacts::ArtifactClassification::Low,
+                true,
+                None,
+                Some(job.job_id),
+                Vec::new(),
+                Vec::new(),
+            )?;
+
+            record_event_safely(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::DataBronzeCreated,
+                    FlightRecorderActor::System,
+                    trace_id,
+                    json!({
+                        "type": "data_bronze_created",
+                        "bronze_id": artifact_manifest.artifact_id.to_string(),
+                        "content_type": artifact_manifest.mime,
+                        "content_hash": artifact_manifest.content_hash,
+                        "size_bytes": artifact_manifest.size_bytes,
+                        "ingestion_source": { "type": "system", "process": "media_downloader" },
+                        "ingestion_method": "api_ingest",
+                        "external_source": { "url": md_sanitize_url_string_for_telemetry(chosen_url.as_str()) }
+                    }),
+                )
+                .with_job_id(job.job_id.to_string())
+                .with_workflow_id(workflow_run_id.to_string()),
+            )
+            .await;
+
+            let payload_abs = workspace_root.join(PathBuf::from(&handle.path));
+            let rel = format!(
+                "media_downloader/forumcrawler/{}/{}",
+                &item.item_id, filename
+            );
+            let mat =
+                md_materialize_local_file_from_path(output_root_dir, &rel, &payload_abs, true)?;
+
+            artifacts.push(handle);
+            materialized_paths.push(mat.clone());
+            bytes_downloaded_total = bytes_downloaded_total.saturating_add(bytes);
+            images_done = images_done.saturating_add(1);
+
+            if images_done % 25 == 0 {
+                md_record_md_system_event(
+                    state,
+                    trace_id,
+                    job.job_id,
+                    workflow_run_id,
+                    json!({
+                        "event_kind": "media_downloader.progress",
+                        "job_id": job.job_id.to_string(),
+                        "source_kind": MdSourceKindV0::Forumcrawler.as_str(),
+                        "url": md_sanitize_url_string_for_telemetry(&item.url_canonical),
+                        "bytes_downloaded": bytes_downloaded_total,
+                        "bytes_total": null,
+                        "item_id": item.item_id.clone(),
+                        "item_index": pages_crawled,
+                        "item_total": max_pages,
+                        "status": "running",
+                        "error_code": null,
+                        "pages_crawled": pages_crawled,
+                        "images_downloaded": images_done,
+                    }),
+                )
+                .await;
+            }
+
+            manifest_entries.push(MdForumManifestEntryV0 {
+                page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                discovered_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                chosen_url: md_sanitize_url_string_for_telemetry(chosen_url.as_str()),
+                sha256: Some(sha),
+                bytes: Some(bytes),
+                status: "downloaded".to_string(),
+                reason_skipped: None,
+            });
+        }
+    }
+
+    // Write manifest artifact (required).
+    let manifest_path = tmp_dir.join("manifest.json");
+    let manifest_json = serde_json::to_vec_pretty(&manifest_entries)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    tokio::fs::write(&manifest_path, &manifest_json)
+        .await
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let (manifest_art, manifest_handle) = md_write_file_artifact_from_path(
+        &workspace_root,
+        crate::storage::artifacts::ArtifactLayer::L3,
+        crate::storage::artifacts::ArtifactPayloadKind::DatasetSlice,
+        "application/json".to_string(),
+        Some("manifest.json".to_string()),
+        &manifest_path,
+        crate::storage::artifacts::ArtifactClassification::Low,
+        true,
+        None,
+        Some(job.job_id),
+        Vec::new(),
+        Vec::new(),
+    )?;
+
+    let payload_abs = workspace_root.join(PathBuf::from(&manifest_handle.path));
+    let rel = format!(
+        "media_downloader/forumcrawler/{}/manifest.json",
+        &item.item_id
+    );
+    let mat = md_materialize_local_file_from_path(output_root_dir, &rel, &payload_abs, true)?;
+
+    artifacts.push(manifest_handle);
+    materialized_paths.push(mat);
+
+    // Also emit DataBronzeCreated for the manifest artifact.
+    record_event_safely(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::DataBronzeCreated,
+            FlightRecorderActor::System,
+            trace_id,
+            json!({
+                "type": "data_bronze_created",
+                "bronze_id": manifest_art.artifact_id.to_string(),
+                "content_type": manifest_art.mime,
+                "content_hash": manifest_art.content_hash,
+                "size_bytes": manifest_art.size_bytes,
+                "ingestion_source": { "type": "system", "process": "media_downloader" },
+                "ingestion_method": "api_ingest",
+                "external_source": { "url": md_sanitize_url_string_for_telemetry(&item.url_canonical) }
+            }),
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_workflow_id(workflow_run_id.to_string()),
+    )
+    .await;
+
+    let mut seen = HashSet::new();
+    artifacts.retain(|h| seen.insert(h.canonical_id()));
+    materialized_paths.sort();
+    materialized_paths.dedup();
+
+    let cancelled = md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key);
+    let status = if cancelled {
+        "cancelled"
+    } else if images_done == 0 {
+        "failed"
+    } else {
+        "completed"
+    };
+
+    let _ = fs::remove_dir_all(&tmp_dir);
+
+    Ok(MdItemResultV0 {
+        item_id: item.item_id.clone(),
+        status: status.to_string(),
+        artifact_handles: artifacts,
+        materialized_paths,
+        error_code: if cancelled {
+            Some("cancelled".to_string())
+        } else if images_done == 0 {
+            Some("no_images_found".to_string())
+        } else {
+            None
+        },
+        error_message: None,
+    })
+}
+
+#[cfg(any())]
+async fn md_crawl_forum_images(
+    state: &AppState,
+    job: &AiJob,
+    trace_id: Uuid,
+    workflow_run_id: Uuid,
+    output_root_dir: &Path,
+    item: &MdPlanItemV0,
+    forum_max_pages: usize,
+    forum_allowlist_domains: &[String],
+    job_cancel_key: &str,
+) -> Result<MdItemResultV0, WorkflowError> {
+    let item_cancel_key = md_item_cancel_key(job.job_id, &item.item_id);
+    if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+        return Ok(MdItemResultV0 {
+            item_id: item.item_id.clone(),
+            status: "cancelled".to_string(),
+            artifact_handles: Vec::new(),
+            materialized_paths: Vec::new(),
+            error_code: Some("cancelled".to_string()),
+            error_message: None,
+        });
+    }
+
+    #[derive(Debug, Clone, Serialize)]
+    struct MdForumManifestEntryV0 {
+        page_url: String,
+        discovered_url: String,
+        chosen_url: String,
+        sha256: Option<String>,
+        bytes: Option<u64>,
+        status: String,
+        reason_skipped: Option<String>,
+    }
+
+    fn url_key(url: &reqwest::Url) -> String {
+        let mut clean = url.clone();
+        clean.set_fragment(None);
+        clean.to_string()
+    }
+
+    fn domain_allowed(host: &str, allowlist: &HashSet<String>) -> bool {
+        let host = host.trim().trim_end_matches('.').to_ascii_lowercase();
+        if allowlist.contains(&host) {
+            return true;
+        }
+        for base in allowlist {
+            if host.ends_with(&format!(".{base}")) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn looks_like_noise(url: &reqwest::Url, class: &str, alt: &str) -> Option<String> {
+        let hay = format!("{} {} {}", url.path(), class, alt).to_ascii_lowercase();
+        for kw in [
+            "avatar", "profile", "emoji", "emoticon", "smiley", "icon", "sprite", "logo", "badge",
+            "reaction",
+        ] {
+            if hay.contains(kw) {
+                return Some(format!("noise:{kw}"));
+            }
+        }
+        None
+    }
+
+    fn parse_srcset_best(srcset: &str) -> Option<String> {
+        let mut best: Option<(u32, String)> = None;
+        for part in srcset.split(',') {
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
+            }
+            let mut it = part.split_whitespace();
+            let url = it.next().unwrap_or("").trim();
+            if url.is_empty() {
+                continue;
+            }
+            let desc = it.next().unwrap_or("").trim();
+            let w = desc
+                .strip_suffix('w')
+                .and_then(|v| v.parse::<u32>().ok())
+                .unwrap_or(0);
+            match &best {
+                Some((bw, _)) if *bw >= w => {}
+                _ => best = Some((w, url.to_string())),
+            }
+        }
+        best.map(|(_, u)| u)
+    }
+
+    fn strip_query_and_fragment(mut url: reqwest::Url) -> reqwest::Url {
+        url.set_query(None);
+        url.set_fragment(None);
+        url
+    }
+
+    let workspace_root = crate::storage::artifacts::resolve_workspace_root()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let topic_url = reqwest::Url::parse(&item.url_canonical)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    md_validate_url_target(&topic_url)?;
+
+    let topic_host = topic_url
+        .host_str()
+        .ok_or_else(|| WorkflowError::Terminal("topic url missing host".into()))?
+        .trim()
+        .trim_end_matches('.')
+        .to_ascii_lowercase();
+
+    let mut allowlist: HashSet<String> = HashSet::new();
+    allowlist.insert(topic_host);
+    for dom in forum_allowlist_domains {
+        let d = dom.trim();
+        if d.is_empty() {
+            continue;
+        }
+        if md_is_private_host(d) {
+            continue;
+        }
+        allowlist.insert(d.to_string());
+    }
+
+    let max_pages = forum_max_pages.clamp(1, 5000);
+
+    let tmp_dir = workspace_root
+        .join(".handshake")
+        .join("tmp")
+        .join("media_downloader")
+        .join(job.job_id.to_string())
+        .join("forumcrawler")
+        .join(&item.item_id);
+    fs::create_dir_all(&tmp_dir).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let client = reqwest::Client::new();
+
+    let sel_a = Selector::parse("a[href]").map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let sel_img = Selector::parse("img").map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let sel_link_next = Selector::parse("link[rel=next][href]")
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let topic_path = topic_url.path().trim_end_matches('/').to_string();
+
+    let mut pages: VecDeque<reqwest::Url> = VecDeque::new();
+    pages.push_back(topic_url.clone());
+    let mut visited_pages: HashSet<String> = HashSet::new();
+    visited_pages.insert(url_key(&topic_url));
+
+    let mut seen_discovered: HashSet<String> = HashSet::new();
+    let mut seen_sha256: HashSet<String> = HashSet::new();
+
+    let mut manifest_entries: Vec<MdForumManifestEntryV0> = Vec::new();
+    let mut artifacts: Vec<ArtifactHandle> = Vec::new();
+    let mut materialized_paths: Vec<String> = Vec::new();
+
+    let mut bytes_downloaded_total: u64 = 0;
+    let mut pages_crawled: usize = 0;
+    let mut images_done: usize = 0;
+
+    while let Some(page_url) = pages.pop_front() {
+        if pages_crawled >= max_pages {
+            break;
+        }
+        if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+            break;
+        }
+
+        pages_crawled = pages_crawled.saturating_add(1);
+
+        // Polite defaults (global rate-limit).
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+        let resp = client
+            .get(page_url.clone())
+            .header(reqwest::header::USER_AGENT, "Handshake-MediaDownloader/1.0")
+            .send()
+            .await
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        if !resp.status().is_success() {
+            continue;
+        }
+
+        let content_type = resp
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+
+        // Only parse HTML-ish responses.
+        let ct_lower = content_type.to_ascii_lowercase();
+        if !(ct_lower.contains("html") || ct_lower.starts_with("text/")) {
+            continue;
+        }
+
+        let mut body: Vec<u8> = Vec::new();
+        let mut resp = resp;
+        while let Some(chunk) = resp
+            .chunk()
+            .await
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+        {
+            if body.len().saturating_add(chunk.len()) > 5_000_000 {
+                break;
+            }
+            body.extend_from_slice(&chunk);
+        }
+
+        let html_text = String::from_utf8_lossy(&body);
+        let doc = Html::parse_document(&html_text);
+
+        // Pagination discovery: rel=next links.
+        for link in doc.select(&sel_link_next) {
+            let Some(href) = link.value().attr("href") else {
+                continue;
+            };
+            let href = href.trim();
+            if href.is_empty() {
+                continue;
+            }
+            let Ok(next_url) = page_url.join(href) else {
+                continue;
+            };
+            if next_url.scheme() != "http" && next_url.scheme() != "https" {
+                continue;
+            }
+            if let Some(host) = next_url.host_str() {
+                if md_is_private_host(host) || !domain_allowed(host, &allowlist) {
+                    continue;
+                }
+            } else {
+                continue;
+            }
+            let path = next_url.path().trim_end_matches('/');
+            if !path.starts_with(&topic_path) {
+                continue;
+            }
+            let key = url_key(&next_url);
+            if visited_pages.insert(key) {
+                pages.push_back(next_url);
+            }
+        }
+
+        // Pagination discovery: heuristic page-ish anchors.
+        for a in doc.select(&sel_a) {
+            let Some(href) = a.value().attr("href") else {
+                continue;
+            };
+            let href = href.trim();
+            if href.is_empty() {
+                continue;
+            }
+            let Ok(u) = page_url.join(href) else {
+                continue;
+            };
+            if u.scheme() != "http" && u.scheme() != "https" {
+                continue;
+            }
+            let Some(host) = u.host_str() else {
+                continue;
+            };
+            if md_is_private_host(host) || !domain_allowed(host, &allowlist) {
+                continue;
+            }
+            let path = u.path().trim_end_matches('/');
+            if !path.starts_with(&topic_path) {
+                continue;
+            }
+            let lower = u.as_str().to_ascii_lowercase();
+            let is_pageish =
+                lower.contains("page=") || lower.contains("/page/") || lower.contains("start=");
+            if !is_pageish {
+                continue;
+            }
+            let key = url_key(&u);
+            if visited_pages.insert(key) {
+                pages.push_back(u);
+            }
+        }
+
+        // Image discovery: anchors that wrap images (full-res preference).
+        for a in doc.select(&sel_a) {
+            if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                break;
+            }
+
+            let Some(anchor_href) = a.value().attr("href") else {
+                continue;
+            };
+            let anchor_href = anchor_href.trim();
+            if anchor_href.is_empty() {
+                continue;
+            }
+
+            let Some(img) = a.select(&sel_img).next() else {
+                continue;
+            };
+
+            let class = img.value().attr("class").unwrap_or("");
+            let alt = img.value().attr("alt").unwrap_or("");
+
+            let mut candidates: Vec<reqwest::Url> = Vec::new();
+            if let Ok(u) = page_url.join(anchor_href) {
+                candidates.push(u);
+            }
+
+            for key in [
+                "data-fullsize",
+                "data-full",
+                "data-original",
+                "data-src",
+                "data-lazy-src",
+                "src",
+            ] {
+                if let Some(v) = img.value().attr(key) {
+                    let v = v.trim();
+                    if !v.is_empty() {
+                        if let Ok(u) = page_url.join(v) {
+                            candidates.push(u);
+                        }
+                    }
+                }
+            }
+            if let Some(srcset) = img.value().attr("srcset") {
+                if let Some(best) = parse_srcset_best(srcset) {
+                    if let Ok(u) = page_url.join(best.trim()) {
+                        candidates.push(u);
+                    }
+                }
+            }
+
+            let mut unique: Vec<reqwest::Url> = Vec::new();
+            let mut seen = HashSet::new();
+            for c in candidates {
+                if c.scheme() != "http" && c.scheme() != "https" {
+                    continue;
+                }
+                let Some(host) = c.host_str() else {
+                    continue;
+                };
+                if md_is_private_host(host) || !domain_allowed(host, &allowlist) {
+                    continue;
+                }
+                if !seen.insert(url_key(&c)) {
+                    continue;
+                }
+                unique.push(c);
+                let stripped = strip_query_and_fragment(c.clone());
+                if seen.insert(url_key(&stripped)) {
+                    unique.push(stripped);
+                }
+            }
+
+            let Some(discovered_url) = unique.first().cloned() else {
+                continue;
+            };
+            let discovered_key = url_key(&discovered_url);
+            if !seen_discovered.insert(discovered_key.clone()) {
+                continue;
+            }
+            for extra in unique.iter().skip(1) {
+                let _ = seen_discovered.insert(url_key(extra));
+            }
+
+            if let Some(reason) = looks_like_noise(&discovered_url, class, alt) {
+                manifest_entries.push(MdForumManifestEntryV0 {
+                    page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                    discovered_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    chosen_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    sha256: None,
+                    bytes: None,
+                    status: "skipped".to_string(),
+                    reason_skipped: Some(reason),
+                });
+                continue;
+            }
+
+            // Try candidates in order until one downloads as an image.
+            let mut downloaded: Option<(reqwest::Url, String, u64, PathBuf, String)> = None;
+            for candidate in &unique {
+                if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                    break;
+                }
+
+                let resp = client
+                    .get(candidate.clone())
+                    .header(reqwest::header::USER_AGENT, "Handshake-MediaDownloader/1.0")
+                    .send()
+                    .await;
+                let Ok(mut resp) = resp else {
+                    continue;
+                };
+                if !resp.status().is_success() {
+                    continue;
+                }
+
+                let content_type = resp
+                    .headers()
+                    .get(reqwest::header::CONTENT_TYPE)
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("")
+                    .to_string();
+                if md_is_obvious_non_media_content_type(&content_type) {
+                    continue;
+                }
+
+                let Some(first) = resp
+                    .chunk()
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+                else {
+                    continue;
+                };
+                if md_sniff_non_media_prefix(&first).is_some() {
+                    continue;
+                }
+
+                // Simple image sniff.
+                let ext = if first.starts_with(&[0xFF, 0xD8, 0xFF]) {
+                    "jpg"
+                } else if first.starts_with(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]) {
+                    "png"
+                } else if first.starts_with(b"GIF87a") || first.starts_with(b"GIF89a") {
+                    "gif"
+                } else if first.starts_with(b"RIFF")
+                    && first.len() >= 12
+                    && &first[8..12] == b"WEBP"
+                {
+                    "webp"
+                } else {
+                    continue;
+                };
+
+                let part_path = tmp_dir.join(format!("{}.part", Uuid::new_v4()));
+                let mut file = tokio::fs::File::create(&part_path)
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                let mut hasher = Sha256::new();
+                let mut bytes: u64 = 0;
+
+                file.write_all(&first)
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                hasher.update(&first);
+                bytes = bytes.saturating_add(first.len() as u64);
+
+                while let Some(chunk) = resp
+                    .chunk()
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+                {
+                    if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                        let _ = tokio::fs::remove_file(&part_path).await;
+                        break;
+                    }
+                    file.write_all(&chunk)
+                        .await
+                        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                    hasher.update(&chunk);
+                    bytes = bytes.saturating_add(chunk.len() as u64);
+                }
+                file.flush()
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                drop(file);
+
+                if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                    continue;
+                }
+
+                let sha = hex::encode(hasher.finalize());
+                if !seen_sha256.insert(sha.clone()) {
+                    let _ = tokio::fs::remove_file(&part_path).await;
+                    manifest_entries.push(MdForumManifestEntryV0 {
+                        page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                        discovered_url: md_sanitize_url_string_for_telemetry(
+                            discovered_url.as_str(),
+                        ),
+                        chosen_url: md_sanitize_url_string_for_telemetry(candidate.as_str()),
+                        sha256: Some(sha),
+                        bytes: Some(bytes),
+                        status: "skipped".to_string(),
+                        reason_skipped: Some("sha256_duplicate".to_string()),
+                    });
+                    continue;
+                }
+
+                let final_path = tmp_dir.join(format!("{sha}.{ext}"));
+                tokio::fs::rename(&part_path, &final_path)
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+                downloaded = Some((candidate.clone(), sha, bytes, final_path, ext.to_string()));
+                break;
+            }
+
+            let Some((chosen_url, sha, bytes, file_path, ext)) = downloaded else {
+                manifest_entries.push(MdForumManifestEntryV0 {
+                    page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                    discovered_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    chosen_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    sha256: None,
+                    bytes: None,
+                    status: "failed".to_string(),
+                    reason_skipped: Some("no_image_candidate_succeeded".to_string()),
+                });
+                continue;
+            };
+
+            let mime = match ext.as_str() {
+                "jpg" => "image/jpeg",
+                "png" => "image/png",
+                "gif" => "image/gif",
+                "webp" => "image/webp",
+                _ => "application/octet-stream",
+            }
+            .to_string();
+            let filename = format!("{sha}.{ext}");
+
+            let (artifact_manifest, handle) = md_write_file_artifact_from_path(
+                &workspace_root,
+                crate::storage::artifacts::ArtifactLayer::L3,
+                crate::storage::artifacts::ArtifactPayloadKind::File,
+                mime,
+                Some(filename.clone()),
+                &file_path,
+                crate::storage::artifacts::ArtifactClassification::Low,
+                true,
+                None,
+                Some(job.job_id),
+                Vec::new(),
+                Vec::new(),
+            )?;
+
+            record_event_safely(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::DataBronzeCreated,
+                    FlightRecorderActor::System,
+                    trace_id,
+                    json!({
+                        "type": "data_bronze_created",
+                        "bronze_id": artifact_manifest.artifact_id.to_string(),
+                        "content_type": artifact_manifest.mime,
+                        "content_hash": artifact_manifest.content_hash,
+                        "size_bytes": artifact_manifest.size_bytes,
+                        "ingestion_source": { "type": "system", "process": "media_downloader" },
+                        "ingestion_method": "api_ingest",
+                        "external_source": { "url": md_sanitize_url_string_for_telemetry(chosen_url.as_str()) }
+                    }),
+                )
+                .with_job_id(job.job_id.to_string())
+                .with_workflow_id(workflow_run_id.to_string()),
+            )
+            .await;
+
+            let payload_abs = workspace_root.join(PathBuf::from(&handle.path));
+            let rel = format!(
+                "media_downloader/forumcrawler/{}/{}",
+                &item.item_id, filename
+            );
+            let mat =
+                md_materialize_local_file_from_path(output_root_dir, &rel, &payload_abs, true)?;
+
+            artifacts.push(handle);
+            materialized_paths.push(mat.clone());
+            bytes_downloaded_total = bytes_downloaded_total.saturating_add(bytes);
+            images_done = images_done.saturating_add(1);
+
+            if images_done % 25 == 0 {
+                md_record_md_system_event(
+                    state,
+                    trace_id,
+                    job.job_id,
+                    workflow_run_id,
+                    json!({
+                        "event_kind": "media_downloader.progress",
+                        "job_id": job.job_id.to_string(),
+                        "source_kind": MdSourceKindV0::Forumcrawler.as_str(),
+                        "url": md_sanitize_url_string_for_telemetry(&item.url_canonical),
+                        "bytes_downloaded": bytes_downloaded_total,
+                        "bytes_total": null,
+                        "item_id": item.item_id.clone(),
+                        "item_index": pages_crawled,
+                        "item_total": max_pages,
+                        "status": "running",
+                        "error_code": null,
+                        "pages_crawled": pages_crawled,
+                        "images_downloaded": images_done,
+                    }),
+                )
+                .await;
+            }
+
+            manifest_entries.push(MdForumManifestEntryV0 {
+                page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                discovered_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                chosen_url: md_sanitize_url_string_for_telemetry(chosen_url.as_str()),
+                sha256: Some(sha),
+                bytes: Some(bytes),
+                status: "downloaded".to_string(),
+                reason_skipped: None,
+            });
+        }
+
+        // Also include standalone images not wrapped in anchors.
+        for img in doc.select(&sel_img) {
+            if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                break;
+            }
+
+            let class = img.value().attr("class").unwrap_or("");
+            let alt = img.value().attr("alt").unwrap_or("");
+
+            let mut candidates: Vec<reqwest::Url> = Vec::new();
+            for key in [
+                "data-fullsize",
+                "data-full",
+                "data-original",
+                "data-src",
+                "data-lazy-src",
+                "src",
+            ] {
+                if let Some(v) = img.value().attr(key) {
+                    let v = v.trim();
+                    if !v.is_empty() {
+                        if let Ok(u) = page_url.join(v) {
+                            candidates.push(u);
+                        }
+                    }
+                }
+            }
+            if let Some(srcset) = img.value().attr("srcset") {
+                if let Some(best) = parse_srcset_best(srcset) {
+                    if let Ok(u) = page_url.join(best.trim()) {
+                        candidates.push(u);
+                    }
+                }
+            }
+
+            let mut unique: Vec<reqwest::Url> = Vec::new();
+            let mut seen = HashSet::new();
+            for c in candidates {
+                if c.scheme() != "http" && c.scheme() != "https" {
+                    continue;
+                }
+                let Some(host) = c.host_str() else {
+                    continue;
+                };
+                if md_is_private_host(host) || !domain_allowed(host, &allowlist) {
+                    continue;
+                }
+                if !seen.insert(url_key(&c)) {
+                    continue;
+                }
+                unique.push(c);
+                let stripped = strip_query_and_fragment(c.clone());
+                if seen.insert(url_key(&stripped)) {
+                    unique.push(stripped);
+                }
+            }
+
+            let Some(discovered_url) = unique.first().cloned() else {
+                continue;
+            };
+            let discovered_key = url_key(&discovered_url);
+            if !seen_discovered.insert(discovered_key.clone()) {
+                continue;
+            }
+            for extra in unique.iter().skip(1) {
+                let _ = seen_discovered.insert(url_key(extra));
+            }
+
+            if let Some(reason) = looks_like_noise(&discovered_url, class, alt) {
+                manifest_entries.push(MdForumManifestEntryV0 {
+                    page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                    discovered_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    chosen_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    sha256: None,
+                    bytes: None,
+                    status: "skipped".to_string(),
+                    reason_skipped: Some(reason),
+                });
+                continue;
+            }
+
+            let mut downloaded: Option<(reqwest::Url, String, u64, PathBuf, String)> = None;
+            for candidate in &unique {
+                if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                    break;
+                }
+
+                let resp = client
+                    .get(candidate.clone())
+                    .header(reqwest::header::USER_AGENT, "Handshake-MediaDownloader/1.0")
+                    .send()
+                    .await;
+                let Ok(mut resp) = resp else {
+                    continue;
+                };
+                if !resp.status().is_success() {
+                    continue;
+                }
+
+                let content_type = resp
+                    .headers()
+                    .get(reqwest::header::CONTENT_TYPE)
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("")
+                    .to_string();
+                if md_is_obvious_non_media_content_type(&content_type) {
+                    continue;
+                }
+
+                let Some(first) = resp
+                    .chunk()
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+                else {
+                    continue;
+                };
+                if md_sniff_non_media_prefix(&first).is_some() {
+                    continue;
+                }
+
+                let ext = if first.starts_with(&[0xFF, 0xD8, 0xFF]) {
+                    "jpg"
+                } else if first.starts_with(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]) {
+                    "png"
+                } else if first.starts_with(b"GIF87a") || first.starts_with(b"GIF89a") {
+                    "gif"
+                } else if first.starts_with(b"RIFF")
+                    && first.len() >= 12
+                    && &first[8..12] == b"WEBP"
+                {
+                    "webp"
+                } else {
+                    continue;
+                };
+
+                let part_path = tmp_dir.join(format!("{}.part", Uuid::new_v4()));
+                let mut file = tokio::fs::File::create(&part_path)
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                let mut hasher = Sha256::new();
+                let mut bytes: u64 = 0;
+
+                file.write_all(&first)
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                hasher.update(&first);
+                bytes = bytes.saturating_add(first.len() as u64);
+
+                while let Some(chunk) = resp
+                    .chunk()
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+                {
+                    if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                        let _ = tokio::fs::remove_file(&part_path).await;
+                        break;
+                    }
+                    file.write_all(&chunk)
+                        .await
+                        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                    hasher.update(&chunk);
+                    bytes = bytes.saturating_add(chunk.len() as u64);
+                }
+                file.flush()
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                drop(file);
+
+                if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                    continue;
+                }
+
+                let sha = hex::encode(hasher.finalize());
+                if !seen_sha256.insert(sha.clone()) {
+                    let _ = tokio::fs::remove_file(&part_path).await;
+                    manifest_entries.push(MdForumManifestEntryV0 {
+                        page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                        discovered_url: md_sanitize_url_string_for_telemetry(
+                            discovered_url.as_str(),
+                        ),
+                        chosen_url: md_sanitize_url_string_for_telemetry(candidate.as_str()),
+                        sha256: Some(sha),
+                        bytes: Some(bytes),
+                        status: "skipped".to_string(),
+                        reason_skipped: Some("sha256_duplicate".to_string()),
+                    });
+                    continue;
+                }
+
+                let final_path = tmp_dir.join(format!("{sha}.{ext}"));
+                tokio::fs::rename(&part_path, &final_path)
+                    .await
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+                downloaded = Some((candidate.clone(), sha, bytes, final_path, ext.to_string()));
+                break;
+            }
+
+            let Some((chosen_url, sha, bytes, file_path, ext)) = downloaded else {
+                manifest_entries.push(MdForumManifestEntryV0 {
+                    page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                    discovered_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    chosen_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                    sha256: None,
+                    bytes: None,
+                    status: "failed".to_string(),
+                    reason_skipped: Some("no_image_candidate_succeeded".to_string()),
+                });
+                continue;
+            };
+
+            let mime = match ext.as_str() {
+                "jpg" => "image/jpeg",
+                "png" => "image/png",
+                "gif" => "image/gif",
+                "webp" => "image/webp",
+                _ => "application/octet-stream",
+            }
+            .to_string();
+            let filename = format!("{sha}.{ext}");
+
+            let (artifact_manifest, handle) = md_write_file_artifact_from_path(
+                &workspace_root,
+                crate::storage::artifacts::ArtifactLayer::L3,
+                crate::storage::artifacts::ArtifactPayloadKind::File,
+                mime,
+                Some(filename.clone()),
+                &file_path,
+                crate::storage::artifacts::ArtifactClassification::Low,
+                true,
+                None,
+                Some(job.job_id),
+                Vec::new(),
+                Vec::new(),
+            )?;
+
+            record_event_safely(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::DataBronzeCreated,
+                    FlightRecorderActor::System,
+                    trace_id,
+                    json!({
+                        "type": "data_bronze_created",
+                        "bronze_id": artifact_manifest.artifact_id.to_string(),
+                        "content_type": artifact_manifest.mime,
+                        "content_hash": artifact_manifest.content_hash,
+                        "size_bytes": artifact_manifest.size_bytes,
+                        "ingestion_source": { "type": "system", "process": "media_downloader" },
+                        "ingestion_method": "api_ingest",
+                        "external_source": { "url": md_sanitize_url_string_for_telemetry(chosen_url.as_str()) }
+                    }),
+                )
+                .with_job_id(job.job_id.to_string())
+                .with_workflow_id(workflow_run_id.to_string()),
+            )
+            .await;
+
+            let payload_abs = workspace_root.join(PathBuf::from(&handle.path));
+            let rel = format!(
+                "media_downloader/forumcrawler/{}/{}",
+                &item.item_id, filename
+            );
+            let mat =
+                md_materialize_local_file_from_path(output_root_dir, &rel, &payload_abs, true)?;
+
+            artifacts.push(handle);
+            materialized_paths.push(mat.clone());
+            bytes_downloaded_total = bytes_downloaded_total.saturating_add(bytes);
+            images_done = images_done.saturating_add(1);
+
+            if images_done % 25 == 0 {
+                md_record_md_system_event(
+                    state,
+                    trace_id,
+                    job.job_id,
+                    workflow_run_id,
+                    json!({
+                        "event_kind": "media_downloader.progress",
+                        "job_id": job.job_id.to_string(),
+                        "source_kind": MdSourceKindV0::Forumcrawler.as_str(),
+                        "url": md_sanitize_url_string_for_telemetry(&item.url_canonical),
+                        "bytes_downloaded": bytes_downloaded_total,
+                        "bytes_total": null,
+                        "item_id": item.item_id.clone(),
+                        "item_index": pages_crawled,
+                        "item_total": max_pages,
+                        "status": "running",
+                        "error_code": null,
+                        "pages_crawled": pages_crawled,
+                        "images_downloaded": images_done,
+                    }),
+                )
+                .await;
+            }
+
+            manifest_entries.push(MdForumManifestEntryV0 {
+                page_url: md_sanitize_url_string_for_telemetry(page_url.as_str()),
+                discovered_url: md_sanitize_url_string_for_telemetry(discovered_url.as_str()),
+                chosen_url: md_sanitize_url_string_for_telemetry(chosen_url.as_str()),
+                sha256: Some(sha),
+                bytes: Some(bytes),
+                status: "downloaded".to_string(),
+                reason_skipped: None,
+            });
+        }
+    }
+
+    // Write manifest artifact (required).
+    let manifest_path = tmp_dir.join("manifest.json");
+    let manifest_json = serde_json::to_vec_pretty(&manifest_entries)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    tokio::fs::write(&manifest_path, &manifest_json)
+        .await
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let (manifest_art, manifest_handle) = md_write_file_artifact_from_path(
+        &workspace_root,
+        crate::storage::artifacts::ArtifactLayer::L3,
+        crate::storage::artifacts::ArtifactPayloadKind::DatasetSlice,
+        "application/json".to_string(),
+        Some("manifest.json".to_string()),
+        &manifest_path,
+        crate::storage::artifacts::ArtifactClassification::Low,
+        true,
+        None,
+        Some(job.job_id),
+        Vec::new(),
+        Vec::new(),
+    )?;
+
+    let payload_abs = workspace_root.join(PathBuf::from(&manifest_handle.path));
+    let rel = format!(
+        "media_downloader/forumcrawler/{}/manifest.json",
+        &item.item_id
+    );
+    let mat = md_materialize_local_file_from_path(output_root_dir, &rel, &payload_abs, true)?;
+
+    artifacts.push(manifest_handle);
+    materialized_paths.push(mat);
+
+    // Also emit DataBronzeCreated for the manifest artifact.
+    record_event_safely(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::DataBronzeCreated,
+            FlightRecorderActor::System,
+            trace_id,
+            json!({
+                "type": "data_bronze_created",
+                "bronze_id": manifest_art.artifact_id.to_string(),
+                "content_type": manifest_art.mime,
+                "content_hash": manifest_art.content_hash,
+                "size_bytes": manifest_art.size_bytes,
+                "ingestion_source": { "type": "system", "process": "media_downloader" },
+                "ingestion_method": "api_ingest",
+                "external_source": { "url": md_sanitize_url_string_for_telemetry(&item.url_canonical) }
+            }),
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_workflow_id(workflow_run_id.to_string()),
+    )
+    .await;
+
+    let mut seen = HashSet::new();
+    artifacts.retain(|h| seen.insert(h.canonical_id()));
+    materialized_paths.sort();
+    materialized_paths.dedup();
+
+    let cancelled = md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key);
+    let status = if cancelled {
+        "cancelled"
+    } else if images_done == 0 {
+        "failed"
+    } else {
+        "completed"
+    };
+
+    let _ = fs::remove_dir_all(&tmp_dir);
+
+    Ok(MdItemResultV0 {
+        item_id: item.item_id.clone(),
+        status: status.to_string(),
+        artifact_handles: artifacts,
+        materialized_paths,
+        error_code: if cancelled {
+            Some("cancelled".to_string())
+        } else if images_done == 0 {
+            Some("no_images_found".to_string())
+        } else {
+            None
+        },
+        error_message: None,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn md_process_item(
+    state: &AppState,
+    job: &AiJob,
+    trace_id: Uuid,
+    workflow_run_id: Uuid,
+    mex_runtime: &MexRuntime,
+    tools: &MdToolsV0,
+    output_root_dir: &Path,
+    source_kind: MdSourceKindV0,
+    item: &MdPlanItemV0,
+    cookie_jar_payload: Option<&Path>,
+    forum_max_pages: usize,
+    forum_allowlist_domains: &[String],
+    job_cancel_key: &str,
+) -> Result<MdItemResultV0, WorkflowError> {
+    let item_cancel_key = md_item_cancel_key(job.job_id, &item.item_id);
+    if md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+        return Ok(MdItemResultV0 {
+            item_id: item.item_id.clone(),
+            status: "cancelled".to_string(),
+            artifact_handles: Vec::new(),
+            materialized_paths: Vec::new(),
+            error_code: Some("cancelled".to_string()),
+            error_message: None,
+        });
+    }
+
+    match source_kind {
+        MdSourceKindV0::Youtube | MdSourceKindV0::Instagram => {
+            let workspace_root = crate::storage::artifacts::resolve_workspace_root()
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+            // Resumable + dedupe across runs: if this item was already archived into canonical
+            // workspace artifacts, re-materialize as needed and skip re-downloading.
+            let record_path = md_item_record_path(&workspace_root, source_kind, &item.item_id);
+            if let Ok(raw) = fs::read_to_string(&record_path) {
+                if let Ok(record) = serde_json::from_str::<MdItemRecordV0>(&raw) {
+                    if record.schema_version == MD_ITEM_RECORD_SCHEMA_V0
+                        && record.source_kind == source_kind
+                        && record.item_id == item.item_id
+                    {
+                        let mut artifacts: Vec<ArtifactHandle> = Vec::new();
+                        let mut materialized_paths: Vec<String> = Vec::new();
+                        let mut can_resume = true;
+
+                        for entry in &record.entries {
+                            let payload_abs =
+                                workspace_root.join(PathBuf::from(&entry.artifact_ref.path));
+                            if !payload_abs.exists() {
+                                can_resume = false;
+                                break;
+                            }
+
+                            let target_abs =
+                                output_root_dir.join(PathBuf::from(&entry.materialized_rel_path));
+                            if !target_abs.exists() {
+                                let mat = md_materialize_local_file_from_path(
+                                    output_root_dir,
+                                    &entry.materialized_rel_path,
+                                    &payload_abs,
+                                    true,
+                                )?;
+                                materialized_paths.push(mat);
+                            } else {
+                                materialized_paths.push(entry.materialized_rel_path.clone());
+                            }
+
+                            artifacts.push(entry.artifact_ref.clone());
+                        }
+
+                        if can_resume {
+                            let mut seen = HashSet::new();
+                            artifacts.retain(|h| seen.insert(h.canonical_id()));
+                            materialized_paths.sort();
+                            materialized_paths.dedup();
+
+                            return Ok(MdItemResultV0 {
+                                item_id: item.item_id.clone(),
+                                status: "completed".to_string(),
+                                artifact_handles: artifacts,
+                                materialized_paths,
+                                error_code: None,
+                                error_message: None,
+                            });
+                        }
+                    }
+                }
+            }
+
+            let tmp_dir = workspace_root
+                .join(".handshake")
+                .join("tmp")
+                .join("media_downloader")
+                .join(job.job_id.to_string())
+                .join(source_kind.as_str())
+                .join(&item.item_id);
+            fs::create_dir_all(&tmp_dir).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+            let cwd_rel = tmp_dir
+                .strip_prefix(&workspace_root)
+                .map_err(|_| WorkflowError::Terminal("temp dir escapes workspace root".into()))?
+                .to_string_lossy()
+                .replace('\\', "/");
+
+            let mut args: Vec<String> = vec![
+                "--no-warnings".to_string(),
+                "--no-call-home".to_string(),
+                "--no-color".to_string(),
+                "--restrict-filenames".to_string(),
+                "--no-playlist".to_string(),
+                "--continue".to_string(),
+                "--ffmpeg-location".to_string(),
+                tools
+                    .ffmpeg_path
+                    .parent()
+                    .unwrap_or_else(|| Path::new("."))
+                    .to_string_lossy()
+                    .to_string(),
+                "--merge-output-format".to_string(),
+                "mp4".to_string(),
+                "--format".to_string(),
+                "bv*+ba/b".to_string(),
+                "--write-subs".to_string(),
+                "--write-auto-subs".to_string(),
+                "--sub-format".to_string(),
+                "vtt".to_string(),
+                "--convert-subs".to_string(),
+                "vtt".to_string(),
+                "--sub-langs".to_string(),
+                "all".to_string(),
+                "--write-info-json".to_string(),
+                "-o".to_string(),
+                "%(id)s.%(ext)s".to_string(),
+            ];
+            if let Some(cookie) = cookie_jar_payload {
+                args.push("--cookies".to_string());
+                args.push(cookie.to_string_lossy().to_string());
+            }
+            args.push("--".to_string());
+            args.push(item.url_canonical.clone());
+
+            let result = md_mex_exec(
+                mex_runtime,
+                &job.capability_profile_id,
+                "yt_dlp.exec",
+                &tools.yt_dlp_path,
+                &cwd_rel,
+                args,
+                vec![job_cancel_key.to_string(), item_cancel_key.clone()],
+                3_600_000,
+                50_000_000,
+            )
+            .await?;
+
+            let (output_abs, _stdout_abs, stderr_abs) =
+                md_terminal_output_paths(&workspace_root, &result)?;
+
+            let terminal_raw = fs::read_to_string(&output_abs)
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+            let terminal_val: Value = serde_json::from_str(&terminal_raw)
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+            let exit_code = terminal_val
+                .get("exit_code")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(-1);
+            let timed_out = terminal_val
+                .get("timed_out")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let cancelled = terminal_val
+                .get("cancelled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+
+            if cancelled || md_is_cancelled(job_cancel_key) || md_is_cancelled(&item_cancel_key) {
+                let _ = fs::remove_dir_all(&tmp_dir);
+                return Ok(MdItemResultV0 {
+                    item_id: item.item_id.clone(),
+                    status: "cancelled".to_string(),
+                    artifact_handles: Vec::new(),
+                    materialized_paths: Vec::new(),
+                    error_code: Some("cancelled".to_string()),
+                    error_message: None,
+                });
+            }
+
+            if timed_out {
+                let _ = fs::remove_dir_all(&tmp_dir);
+                return Ok(MdItemResultV0 {
+                    item_id: item.item_id.clone(),
+                    status: "failed".to_string(),
+                    artifact_handles: Vec::new(),
+                    materialized_paths: Vec::new(),
+                    error_code: Some("timed_out".to_string()),
+                    error_message: Some("yt-dlp timed out".to_string()),
+                });
+            }
+
+            if exit_code != 0 {
+                let stderr = fs::read_to_string(&stderr_abs).unwrap_or_default();
+                let excerpt = stderr.lines().take(20).collect::<Vec<_>>().join("\n");
+                let msg = if excerpt.trim().is_empty() {
+                    format!("yt-dlp exited with code {exit_code}")
+                } else {
+                    format!("yt-dlp exited with code {exit_code}: {excerpt}")
+                };
+                let _ = fs::remove_dir_all(&tmp_dir);
+                return Ok(MdItemResultV0 {
+                    item_id: item.item_id.clone(),
+                    status: "failed".to_string(),
+                    artifact_handles: Vec::new(),
+                    materialized_paths: Vec::new(),
+                    error_code: Some("tool_failed".to_string()),
+                    error_message: Some(msg),
+                });
+            }
+
+            let mut files = md_list_downloaded_files(&tmp_dir)?;
+
+            // Captions language metadata sidecar (required when captions are present).
+            let mut tracks: Vec<MdCaptionTrackV0> = Vec::new();
+            for path in files.iter() {
+                let Some(filename) = path.file_name().and_then(|n| n.to_str()) else {
+                    continue;
+                };
+                if path
+                    .extension()
+                    .and_then(|v| v.to_str())
+                    .map(|v| v.eq_ignore_ascii_case("vtt"))
+                    .unwrap_or(false)
+                {
+                    let lang = md_caption_lang_from_filename(filename)
+                        .unwrap_or_else(|| "unknown".to_string());
+                    tracks.push(MdCaptionTrackV0 {
+                        lang,
+                        filename: filename.to_string(),
+                    });
+                }
+            }
+            if !tracks.is_empty() {
+                tracks.sort_by(|a, b| a.lang.cmp(&b.lang).then(a.filename.cmp(&b.filename)));
+                let captions = MdCaptionsMetadataV0 {
+                    schema_version: MD_CAPTIONS_METADATA_SCHEMA_V0.to_string(),
+                    item_id: item.item_id.clone(),
+                    source_kind,
+                    url_canonical: item.url_canonical.clone(),
+                    tracks,
+                };
+                let captions_path = tmp_dir.join("captions.metadata.json");
+                if let Err(err) = write_json_atomic(&workspace_root, &captions_path, &captions) {
+                    let _ = fs::remove_dir_all(&tmp_dir);
+                    return Ok(MdItemResultV0 {
+                        item_id: item.item_id.clone(),
+                        status: "failed".to_string(),
+                        artifact_handles: Vec::new(),
+                        materialized_paths: Vec::new(),
+                        error_code: Some("state_write_failed".to_string()),
+                        error_message: Some(format!("failed to write captions metadata: {err}")),
+                    });
+                }
+                files.push(captions_path);
+                files.sort();
+            }
+
+            if files.is_empty() {
+                let _ = fs::remove_dir_all(&tmp_dir);
+                return Ok(MdItemResultV0 {
+                    item_id: item.item_id.clone(),
+                    status: "failed".to_string(),
+                    artifact_handles: Vec::new(),
+                    materialized_paths: Vec::new(),
+                    error_code: Some("no_outputs".to_string()),
+                    error_message: Some("yt-dlp produced no output files".to_string()),
+                });
+            }
+
+            let source_entity_refs = vec![crate::storage::EntityRef {
+                entity_id: md_sanitize_url_string_for_telemetry(&item.url_canonical),
+                entity_kind: "external_url".to_string(),
+            }];
+
+            let mut artifacts: Vec<ArtifactHandle> = Vec::new();
+            let mut materialized_paths: Vec<String> = Vec::new();
+            let mut record_entries: Vec<MdItemRecordEntryV0> = Vec::new();
+
+            for file_path in files {
+                let filename = file_path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("download.bin")
+                    .to_string();
+                let filename_lower = filename.to_ascii_lowercase();
+
+                if filename_lower.ends_with(".info.json") {
+                    let _ = md_sanitize_ytdlp_info_json(&file_path);
+                }
+
+                let mime = md_guess_mime(&file_path);
+                let (role, lang, kind) = if filename_lower == "captions.metadata.json" {
+                    (
+                        "captions_metadata".to_string(),
+                        None,
+                        crate::storage::artifacts::ArtifactPayloadKind::ToolOutput,
+                    )
+                } else if file_path
+                    .extension()
+                    .and_then(|v| v.to_str())
+                    .map(|v| v.eq_ignore_ascii_case("vtt"))
+                    .unwrap_or(false)
+                {
+                    (
+                        "caption_vtt".to_string(),
+                        md_caption_lang_from_filename(&filename),
+                        crate::storage::artifacts::ArtifactPayloadKind::Transcript,
+                    )
+                } else if filename_lower.ends_with(".info.json") {
+                    (
+                        "info_json".to_string(),
+                        None,
+                        crate::storage::artifacts::ArtifactPayloadKind::ToolOutput,
+                    )
+                } else if mime.starts_with("video/") || mime.starts_with("audio/") {
+                    (
+                        "media".to_string(),
+                        None,
+                        crate::storage::artifacts::ArtifactPayloadKind::File,
+                    )
+                } else if mime.starts_with("image/") {
+                    (
+                        "image".to_string(),
+                        None,
+                        crate::storage::artifacts::ArtifactPayloadKind::File,
+                    )
+                } else {
+                    (
+                        "file".to_string(),
+                        None,
+                        crate::storage::artifacts::ArtifactPayloadKind::File,
+                    )
+                };
+
+                let (manifest, handle) = md_write_file_artifact_from_path(
+                    &workspace_root,
+                    crate::storage::artifacts::ArtifactLayer::L3,
+                    kind,
+                    mime,
+                    Some(filename.clone()),
+                    &file_path,
+                    crate::storage::artifacts::ArtifactClassification::Low,
+                    true,
+                    None,
+                    Some(job.job_id),
+                    source_entity_refs.clone(),
+                    Vec::new(),
+                )?;
+
+                record_event_safely(
+                    state,
+                    FlightRecorderEvent::new(
+                        FlightRecorderEventType::DataBronzeCreated,
+                        FlightRecorderActor::System,
+                        trace_id,
+                        json!({
+                            "type": "data_bronze_created",
+                            "bronze_id": manifest.artifact_id.to_string(),
+                            "content_type": manifest.mime,
+                            "content_hash": manifest.content_hash,
+                            "size_bytes": manifest.size_bytes,
+                            "ingestion_source": { "type": "system", "process": "media_downloader" },
+                            "ingestion_method": "api_ingest",
+                            "external_source": { "url": md_sanitize_url_string_for_telemetry(&item.url_canonical) }
+                        }),
+                    )
+                    .with_job_id(job.job_id.to_string())
+                    .with_workflow_id(workflow_run_id.to_string()),
+                )
+                .await;
+
+                let payload_abs = workspace_root.join(PathBuf::from(&handle.path));
+                let rel = format!(
+                    "media_downloader/{}/{}/{}",
+                    source_kind.output_subdir(),
+                    item.item_id,
+                    filename
+                );
+                let mat =
+                    md_materialize_local_file_from_path(output_root_dir, &rel, &payload_abs, true)?;
+
+                artifacts.push(handle.clone());
+                materialized_paths.push(mat.clone());
+                record_entries.push(MdItemRecordEntryV0 {
+                    role,
+                    lang,
+                    artifact_ref: handle,
+                    content_hash: manifest.content_hash,
+                    mime: manifest.mime,
+                    filename,
+                    materialized_rel_path: mat,
+                });
+            }
+
+            let mut seen = HashSet::new();
+            artifacts.retain(|h| seen.insert(h.canonical_id()));
+            materialized_paths.sort();
+            materialized_paths.dedup();
+
+            let record = MdItemRecordV0 {
+                schema_version: MD_ITEM_RECORD_SCHEMA_V0.to_string(),
+                source_kind,
+                item_id: item.item_id.clone(),
+                url_canonical: item.url_canonical.clone(),
+                created_at: Utc::now().to_rfc3339(),
+                entries: record_entries,
+            };
+            let record_path = md_item_record_path(&workspace_root, source_kind, &item.item_id);
+            if let Err(err) = write_json_atomic(&workspace_root, &record_path, &record) {
+                let _ = fs::remove_dir_all(&tmp_dir);
+                return Ok(MdItemResultV0 {
+                    item_id: item.item_id.clone(),
+                    status: "failed".to_string(),
+                    artifact_handles: artifacts,
+                    materialized_paths,
+                    error_code: Some("state_write_failed".to_string()),
+                    error_message: Some(format!("failed to write item record: {err}")),
+                });
+            }
+
+            let _ = fs::remove_dir_all(&tmp_dir);
+
+            Ok(MdItemResultV0 {
+                item_id: item.item_id.clone(),
+                status: "completed".to_string(),
+                artifact_handles: artifacts,
+                materialized_paths,
+                error_code: None,
+                error_message: None,
+            })
+        }
+        MdSourceKindV0::Videodownloader => {
+            md_download_generic_video(
+                state,
+                job,
+                trace_id,
+                workflow_run_id,
+                mex_runtime,
+                tools,
+                output_root_dir,
+                item,
+                cookie_jar_payload,
+                job_cancel_key,
+            )
+            .await
+        }
+        MdSourceKindV0::Forumcrawler => {
+            md_crawl_forum_images(
+                state,
+                job,
+                trace_id,
+                workflow_run_id,
+                output_root_dir,
+                item,
+                forum_max_pages,
+                forum_allowlist_domains,
+                job_cancel_key,
+            )
+            .await
+        }
+    }
 }
 
 #[cfg(test)]

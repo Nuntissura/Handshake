@@ -26,6 +26,52 @@
       }
     ]
   },
+  "engine.media_downloader": {
+    "engine_id": "engine.media_downloader",
+    "determinism_ceiling": "d3",
+    "required_caps": ["fs.write:artifacts"],
+    "required_gates": [
+      "G-SCHEMA",
+      "G-CAP",
+      "G-INTEGRITY",
+      "G-BUDGET",
+      "G-PROVENANCE",
+      "G-DET"
+    ],
+    "default_budget": {
+      "cpu_time_ms": 600000,
+      "wall_time_ms": 3600000,
+      "memory_bytes": 2147483648,
+      "output_bytes": 10737418240
+    },
+    "ops": [
+      {
+        "name": "yt_dlp.exec",
+        "schema_ref": "poe-1.0",
+        "capabilities": [
+          "proc.exec:yt-dlp",
+          "proc.exec:ffmpeg",
+          "proc.exec:ffprobe",
+          "net.http",
+          "secrets.use",
+          "fs.write:artifacts"
+        ],
+        "output_types": ["artifact.terminal_output"]
+      },
+      {
+        "name": "ffmpeg.exec",
+        "schema_ref": "poe-1.0",
+        "capabilities": ["proc.exec:ffmpeg", "fs.write:artifacts"],
+        "output_types": ["artifact.terminal_output"]
+      },
+      {
+        "name": "ffprobe.exec",
+        "schema_ref": "poe-1.0",
+        "capabilities": ["proc.exec:ffprobe", "fs.write:artifacts"],
+        "output_types": ["artifact.terminal_output"]
+      }
+    ]
+  },
   "engine.spatial": {
     "engine_id": "engine.spatial",
     "determinism_ceiling": "d2",
