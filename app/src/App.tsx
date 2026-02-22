@@ -6,6 +6,7 @@ import { DocumentView } from "./components/DocumentView";
 import { CanvasView } from "./components/CanvasView";
 import { DebugPanel } from "./components/DebugPanel";
 import { FontManagerView } from "./components/FontManagerView";
+import { MediaDownloaderView } from "./components/MediaDownloaderView";
 import { BundleScopeInput } from "./lib/api";
 import { AiJobsDrawer } from "./components/AiJobsDrawer";
 
@@ -25,7 +26,7 @@ function App() {
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [selectedCanvasId, setSelectedCanvasId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<
-    "workspace" | "fonts" | "flight-recorder" | "problems" | "jobs" | "timeline"
+    "workspace" | "media-downloader" | "fonts" | "flight-recorder" | "problems" | "jobs" | "timeline"
   >("workspace");
   const [refreshKey, setRefreshKey] = useState<number>(0);
   const [selection, setSelection] = useState<EvidenceSelection | null>(null);
@@ -51,6 +52,12 @@ function App() {
               onClick={() => setActiveView("workspace")}
             >
               Workspace
+            </button>
+            <button
+              className={activeView === "media-downloader" ? "active" : ""}
+              onClick={() => setActiveView("media-downloader")}
+            >
+              Media Downloader
             </button>
             <button className={activeView === "fonts" ? "active" : ""} onClick={() => setActiveView("fonts")}>
               Fonts
@@ -144,6 +151,10 @@ function App() {
           ) : activeView === "fonts" ? (
             <div className="content-panel content-panel--full">
               <FontManagerView />
+            </div>
+          ) : activeView === "media-downloader" ? (
+            <div className="content-panel content-panel--full">
+              <MediaDownloaderView />
             </div>
           ) : activeView === "flight-recorder" ? (
             <div className="content-panel content-panel--full">

@@ -94,7 +94,7 @@ async fn role_mailbox_create_message_emits_events_and_export() {
     let body = "secret body content";
     let body_sha = sha256_hex(body.as_bytes());
 
-    let note = "Recorded in .GOV/task_packets/WP-1-Role-Mailbox-v1.md (password=abc)";
+    let note = "Recorded in GOV/task_packets/WP-1-Role-Mailbox-v1.md (password=abc)";
     let note_sha = sha256_hex(note.as_bytes());
 
     let request = CreateRoleMailboxMessageRequest {
@@ -110,7 +110,7 @@ async fn role_mailbox_create_message_emits_events_and_export() {
         relates_to_message_id: None,
         transcription_links: vec![TranscriptionLink {
             target_kind: TranscriptionTargetKind::TaskPacket,
-            target_ref: dummy_artifact("/.GOV/task_packets/WP-1-Role-Mailbox-v1.md"),
+            target_ref: dummy_artifact("/GOV/task_packets/WP-1-Role-Mailbox-v1.md"),
             target_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
                 .to_string(),
             note: note.to_string(),

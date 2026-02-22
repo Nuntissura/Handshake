@@ -1379,6 +1379,39 @@
       "branch": "feat/WP-1-Cloud-Escalation-Consent-v2",
       "worktree_dir": "../wt-WP-1-Cloud-Escalation-Consent-v2",
       "timestamp": "2026-02-19T23:56:33.198Z"
+    },
+    {
+      "wpId": "WP-1-Media-Downloader-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Media-Downloader-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.133.md",
+      "spec_target_sha1": "9dac473bd1aa01b6d2900874169869c915fc355f",
+      "timestamp": "2026-02-20T05:51:03.198Z",
+      "turn_token": "1771566663199"
+    },
+    {
+      "wpId": "WP-1-Media-Downloader-v2",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Media-Downloader-v2.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.134.md",
+      "spec_target_sha1": "3b397673e5e54163846094bd8dfb8919ddc8c88d",
+      "timestamp": "2026-02-20T07:55:17.614Z",
+      "turn_token": "1771574117615"
+    },
+    {
+      "wpId": "WP-1-Media-Downloader-v2",
+      "type": "SIGNATURE",
+      "signature": "ilja200220260908",
+      "timestamp": "2026-02-20T08:11:19.915Z",
+      "refinement_path": ".GOV/refinements/WP-1-Media-Downloader-v2.md"
+    },
+    {
+      "wpId": "WP-1-Media-Downloader-v2",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Media-Downloader-v2",
+      "worktree_dir": "../wt-WP-1-Media-Downloader-v2",
+      "timestamp": "2026-02-20T08:17:13.653Z"
     }
   ]
 }

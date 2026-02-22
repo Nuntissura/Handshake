@@ -4,6 +4,9 @@ use std::collections::{HashMap, HashSet};
 use thiserror::Error;
 
 pub const GOVERNANCE_PACK_EXPORT_PROTOCOL_ID: &str = "hsk.governance_pack.export.v0";
+const MD_BATCH_PROTOCOL_ID_V0: &str = "hsk.media_downloader.batch.v0";
+const MD_CONTROL_PROTOCOL_ID_V0: &str = "hsk.media_downloader.control.v0";
+const MD_COOKIE_IMPORT_PROTOCOL_ID_V0: &str = "hsk.media_downloader.cookie_import.v0";
 
 /// Canonical capability identifiers from Master Spec §11.1 (Capabilities & Consent Model).
 const CANONICAL_CAPABILITY_IDS: &[&str] = &[
@@ -123,6 +126,20 @@ impl CapabilityRegistry {
             },
         );
 
+        profiles.insert(
+            "MediaDownloader".to_string(),
+            CapabilityProfile {
+                id: "MediaDownloader".to_string(),
+                allowed: vec![
+                    "fs.read".to_string(),
+                    "fs.write".to_string(),
+                    "proc.exec".to_string(),
+                    "net.http".to_string(),
+                    "secrets.use".to_string(),
+                ],
+            },
+        );
+
         // "Coder" profile (Read/Write/Exec)
         profiles.insert(
             "Coder".to_string(),
@@ -166,6 +183,10 @@ impl CapabilityRegistry {
         job_profile_map.insert("canvas_cluster".to_string(), "Analyst".to_string());
         job_profile_map.insert("asr_transcribe".to_string(), "Analyst".to_string());
         job_profile_map.insert("workflow_run".to_string(), "Analyst".to_string());
+        job_profile_map.insert(
+            "media_downloader".to_string(),
+            "MediaDownloader".to_string(),
+        );
         job_profile_map.insert("micro_task_execution".to_string(), "Coder".to_string());
         job_profile_map.insert("spec_router".to_string(), "Analyst".to_string());
         job_profile_map.insert("locus_operation".to_string(), "Coder".to_string());
@@ -199,6 +220,7 @@ impl CapabilityRegistry {
             "workflow_run".to_string(),
             vec!["doc.summarize".to_string()],
         );
+        job_requirements.insert("media_downloader".to_string(), Vec::new());
         job_requirements.insert(
             "micro_task_execution".to_string(),
             vec!["doc.summarize".to_string(), "terminal.exec".to_string()],
@@ -361,6 +383,25 @@ impl CapabilityRegistry {
                 "fs.write".to_string(),
                 "export.governance_pack".to_string(),
             ]);
+        }
+
+        if job_kind == "media_downloader" {
+            let required = match protocol_id {
+                MD_BATCH_PROTOCOL_ID_V0 => vec![
+                    "net.http".to_string(),
+                    "proc.exec".to_string(),
+                    "fs.write:artifacts".to_string(),
+                    "secrets.use".to_string(),
+                ],
+                MD_COOKIE_IMPORT_PROTOCOL_ID_V0 => vec![
+                    "fs.read".to_string(),
+                    "fs.write:artifacts".to_string(),
+                    "secrets.use".to_string(),
+                ],
+                MD_CONTROL_PROTOCOL_ID_V0 => Vec::new(),
+                _ => self.required_capabilities_for_job(job_kind)?,
+            };
+            return Ok(required);
         }
 
         if job_kind == "locus_operation" {
@@ -611,6 +652,11 @@ mod tests {
         assert!(matches!(
             registry.profile_can("Analyst", "fs.write"),
             Ok(false)
+        ));
+
+        assert!(matches!(
+            registry.profile_can("MediaDownloader", "proc.exec:yt-dlp"),
+            Ok(true)
         ));
 
         // Unknown profile error
