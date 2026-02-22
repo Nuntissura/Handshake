@@ -13,7 +13,7 @@
 - ORCHESTRATOR_MODEL: N/A (AGENTIC_MODE=NO)
 - ORCHESTRATION_STARTED_AT_UTC: N/A (AGENTIC_MODE=NO)
 - CODER_MODEL: GPT-5.2 (Codex CLI)
-- CODER_REASONING_STRENGTH: HIGH (LOW | MEDIUM | HIGH | EXTRA_HIGH)
+- CODER_REASONING_STRENGTH: HIGH
 - **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja220220261648
@@ -292,5 +292,4 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
-
 
