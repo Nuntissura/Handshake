@@ -12,9 +12,9 @@
 - AGENTIC_MODE: NO
 - ORCHESTRATOR_MODEL: N/A (AGENTIC_MODE=NO)
 - ORCHESTRATION_STARTED_AT_UTC: N/A (AGENTIC_MODE=NO)
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH (LOW | MEDIUM | HIGH | EXTRA_HIGH)
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja220220261648
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -131,9 +131,89 @@ git revert <commit-sha>
   - "preview_sandbox" -> "capability-gate preview tooling; outputs must be controlled artifacts"
 
 ## SKELETON
-- Proposed interfaces/types/contracts:
-- Open questions:
+- Proposed interfaces/types/contracts (no logic):
+  - Storage entities (backend; `src/backend/handshake_core/src/storage/*`):
+    - `LoomBlock`, `NewLoomBlock`, `LoomBlockUpdate`
+    - `LoomBlockContentType`: `note|file|annotated_file|tag_hub|journal`
+    - `PreviewStatus`: `none|pending|generated|failed`
+    - `LoomBlockDerived` (stored as JSON; selected fields materialized for queryability)
+    - `LoomEdge`, `NewLoomEdge`
+    - `LoomEdgeType`: `mention|tag|sub_tag|parent|ai_suggested`
+    - `LoomSourceAnchor`: `{ document_id, block_id, offset_start, offset_end }` (nullable on edge)
+    - `LoomImportRequest` + `LoomImportResult`:
+      - request carries file bytes + `original_filename?` + `mime?` (client paths are forbidden)
+      - result returns `{ dedup_hit, existing_block_id?, block_id, asset_id?, content_hash }`
+    - `LoomViewType`: `all|unlinked|sorted|pins`
+    - `LoomViewFilters`: `{ content_type?, mime?, date_from?, date_to?, tag_ids?, mention_ids?, layout? }`
+    - `LoomViewResponse`:
+      - `all|unlinked|pins`: flat `blocks[]`
+      - `sorted`: `groups[]` keyed by `{ edge_type, target_block_id }` + `blocks[]`
+    - `LoomBlockSearchQuery`, `LoomBlockSearchResult` (FTS5 Tier-1 baseline)
+  - Storage trait extensions (backend; `storage::Database`):
+    - LoomBlock CRUD: `create|get|list|update|delete`
+    - LoomEdge ops: `create|delete|list_for_block` (for backlinks + groupings)
+    - Import primitive: `import_loom_asset(...)`:
+      - server computes SHA-256 `content_hash`
+      - workspace-scoped dedup returns existing block (no new block created) and emits FR-EVT-LOOM-006
+      - on non-dedup: creates Asset + LoomBlock + enqueues preview job + emits FR-EVT-LOOM-001
+    - Views: `query_loom_view(workspace_id, view_type, filters, pagination)`
+    - Search: `search_loom_blocks(workspace_id, query, filters, pagination)` per **[LM-SEARCH-001]**
+  - SQL schema (new migration; SQLite + Postgres):
+    - `assets` (minimal Loom-needed subset of §2.2.3.1):
+      - `asset_id (PK)`, `workspace_id (FK)`, `kind`, `mime`, `original_filename?`, `content_hash (sha256 hex)`, `size_bytes`, `created_at`
+      - `classification`, `exportable`, `proxy_asset_id?`, `is_proxy_of?`
+      - unique: `(workspace_id, content_hash)`
+    - `loom_blocks`:
+      - `block_id (PK)`, `workspace_id (FK)`
+      - `content_type`, `document_id? (FK documents)`, `asset_id? (FK assets)`
+      - `title?`, `original_filename?`, `content_hash?`
+      - `pinned`, `journal_date?`, `imported_at?`, `created_at`, `updated_at`
+      - derived/materialized: `backlink_count`, `mention_count`, `tag_count`, `thumbnail_asset_id?`, `proxy_asset_id?`, `preview_status`, `derived_json`
+      - indexes: `(workspace_id, updated_at DESC)`, `(workspace_id, pinned)`
+    - `loom_edges`:
+      - `edge_id (PK)`, `workspace_id (FK)`
+      - `source_block_id (FK loom_blocks)`, `target_block_id (FK loom_blocks)`, `edge_type`, `created_by`, `created_at`, `crdt_site_id?`
+      - source_anchor columns: `source_document_id?`, `source_text_block_id?`, `offset_start?`, `offset_end?`
+      - indexes: `(workspace_id, target_block_id)`, `(workspace_id, source_block_id)`
+    - `loom_blocks_fts` (SQLite FTS5 virtual table) + triggers to keep in sync with LoomBlock title + doc text + derived full_text_index
+  - API routes (backend; new `src/backend/handshake_core/src/api/loom.rs` + `models` request/response types):
+    - LoomBlock:
+      - `POST /workspaces/:workspace_id/loom/blocks`
+      - `GET /workspaces/:workspace_id/loom/blocks/:block_id`
+      - `PATCH /workspaces/:workspace_id/loom/blocks/:block_id` (metadata-only; emits FR-EVT-LOOM-002)
+      - `DELETE /workspaces/:workspace_id/loom/blocks/:block_id` (emits FR-EVT-LOOM-003)
+    - LoomEdge:
+      - `POST /workspaces/:workspace_id/loom/edges` (emits FR-EVT-LOOM-004)
+      - `DELETE /workspaces/:workspace_id/loom/edges/:edge_id` (emits FR-EVT-LOOM-005)
+    - Import + assets:
+      - `POST /workspaces/:workspace_id/loom/import` (bytes -> asset -> block; dedup emits FR-EVT-LOOM-006)
+      - `GET /workspaces/:workspace_id/assets/:asset_id` (metadata)
+      - `GET /workspaces/:workspace_id/assets/:asset_id/content` (stream by server-resolved path; no client paths)
+      - `GET /workspaces/:workspace_id/assets/:asset_id/thumbnail` (Tier-1 preview if available)
+    - Views + search:
+      - `GET /workspaces/:workspace_id/loom/views/:view_type` (emits FR-EVT-LOOM-011)
+      - `GET /workspaces/:workspace_id/loom/search?q=...` (Tier-1 FTS5; emits FR-EVT-LOOM-012)
+  - Preview generation job (mechanical; bounded + cancellable):
+    - New `JobKind::LoomPreviewGenerate` + protocol_id `hsk.loom.preview_generate@v1`
+    - `job_inputs` include `{ workspace_id, block_id, asset_id, content_hash, requested_tier: 1 }`
+    - job updates `preview_status` + `thumbnail_asset_id` and emits FR-EVT-LOOM-007
+  - Flight Recorder events (backend; extend `flight_recorder`):
+    - Add event types + payload validators for FR-EVT-LOOM-001..012 (shapes for all; emit only for implemented workflows)
+    - Emission points:
+      - create/update/delete block: 001/002/003
+      - create/delete edge: 004/005
+      - import dedup hit: 006
+      - preview generated: 007
+      - view queried: 011
+      - search executed: 012
+    - Trust boundary: server-derived IDs/hashes/counts; do not accept client provenance as truth
+- Open questions / assumptions:
+  - `source_anchor.offset_*` units: confirm UTF-16 code units (frontend JS/ProseMirror) vs Unicode scalar offsets; document chosen contract and validate consistently.
+  - Asset binary storage path scheme: `data/workspaces/{workspace_id}/assets/original/{content_hash}` (preferred for dedup) vs `{asset_id}`; confirm with Operator/Validator expectations.
+  - "Sorted" view response: confirm grouping requirements for tags vs mentions (two group axes vs a unified group key).
+  - Preview tooling baseline on Windows: confirm whether `ffmpeg` is the approved minimal dependency for thumbnails (images/videos) and what to use for PDFs.
 - Notes:
+  - END_TO_END_CLOSURE_PLAN is applicable and already defined in `## END_TO_END_CLOSURE_PLAN [CX-E2E-001]`.
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
@@ -193,6 +273,7 @@ git revert <commit-sha>
 - Current WP_STATUS: Ready for Dev
 - What changed in this update: Official packet created + filled (scope, anchors, done_means, bootstrap); refinement is signed; prepare recorded to Coder-A with worktree `P:\\Handshake\\Handshake Worktrees\\wt-WP-1-Loom-MVP-v1` on branch `feat/WP-1-Loom-MVP-v1`.
 - Next step / handoff hint: Coder-A starts from the WP worktree, runs `just pre-work WP-1-Loom-MVP-v1`, implements against SPEC_ANCHOR list, and appends EVIDENCE_MAPPING + EVIDENCE + STATUS_HANDOFF updates here.
+- Current WP_STATUS: In Progress (Coder-A claimed; SKELETON drafted; awaiting approval)
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
