@@ -1989,6 +1989,20 @@ Never let TASK_BOARD drift from actual WP status.
 If the Operator-visible Task Board on `main` does not reflect packet reality, the Validator must run a docs-only status-sync commit to correct it.
 ```
 
+### 6.3A Orchestrator Responsibilities for BUILD_ORDER (Advisory; upkeep is binding) [CX-BO-001]
+
+Handshake build sequencing is advisory, but maintaining the sequencing guide is a binding Orchestrator responsibility.
+
+- Build order file: `.GOV/roles_shared/BUILD_ORDER.md`
+- The build order MUST NOT contradict SPEC_CURRENT; the Master Spec + active task packets define "Done".
+- The Orchestrator MUST keep BUILD_ORDER current when:
+  - a stub becomes activated (new official packet) or a new `-vN` revision becomes active,
+  - dependencies change (new blockers discovered / resolved),
+  - SPEC_CURRENT changes in a way that reshapes Phase 1 deliverables.
+- Dependencies MUST still be recorded concretely in:
+  - task packet `## Dependencies`, and
+  - `.GOV/roles_shared/TASK_BOARD.md` blocker lines.
+
 ### 6.4 Phase Gate Status Tracking [CX-609]
 
 **Orchestrator must maintain Phase Gate section:**
