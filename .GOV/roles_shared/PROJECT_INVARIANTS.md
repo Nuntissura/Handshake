@@ -47,7 +47,7 @@ Project-specific invariants for Governance Pack instantiation (spec §7.5.4.9).
 
 ## 6) Tooling paths (Handshake defaults)
 
-- CARGO_TARGET_DIR (external): `../Build Artifacts/handshake-cargo-target`
+- CARGO_TARGET_DIR (external): `../Handshake Artifacts/handshake-cargo-target`
 - NODE_PACKAGE_MANAGER: `pnpm` (for `app/`)
 
 ## 7) Product-owned runtime governance state (default)
