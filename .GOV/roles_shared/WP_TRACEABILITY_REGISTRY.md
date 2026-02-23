@@ -74,7 +74,7 @@ Format:
 | WP-1-Debug-Bundle | .GOV/task_packets/WP-1-Debug-Bundle-v3.md | Done: WP-1-Debug-Bundle-v3 | active=WP-1-Debug-Bundle-v3; supersedes: WP-1-Debug-Bundle, WP-1-Debug-Bundle-v2 |
 | WP-1-Dev-Experience-ADRs | .GOV/task_packets/WP-1-Dev-Experience-ADRs-v1.md | Ready for Dev: WP-1-Dev-Experience-ADRs-v1 | active=WP-1-Dev-Experience-ADRs-v1; activated from stub .GOV/task_packets/stubs/WP-1-Dev-Experience-ADRs.md |
 | WP-1-Dev-Command-Center-MVP | .GOV/task_packets/stubs/WP-1-Dev-Command-Center-MVP-v1.md | Stub Backlog (Not Activated): WP-1-Dev-Command-Center-MVP-v1 | stub (spec v02.127); new Phase 1 roadmap addition |
-| WP-1-Loom-MVP | .GOV/task_packets/WP-1-Loom-MVP-v1.md | Ready for Dev: WP-1-Loom-MVP-v1 | active=WP-1-Loom-MVP-v1; activated from stub .GOV/task_packets/stubs/WP-1-Loom-MVP-v1.md |
+| WP-1-Loom-MVP | .GOV/task_packets/WP-1-Loom-MVP-v1.md | Done: WP-1-Loom-MVP-v1 | active=WP-1-Loom-MVP-v1; activated from stub .GOV/task_packets/stubs/WP-1-Loom-MVP-v1.md |
 | WP-1-Handshake-Stage-MVP | .GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.md | Stub Backlog (Not Activated): WP-1-Handshake-Stage-MVP-v1 | stub (spec v02.131); new Phase 1 roadmap addition |
 | WP-1-Distillation | .GOV/task_packets/stubs/WP-1-Distillation-v2.md | Stub Backlog (Not Activated): WP-1-Distillation-v2 | stub (remediation); supersedes: WP-1-Distillation |
 | WP-1-Dual-Backend-Tests | .GOV/task_packets/WP-1-Dual-Backend-Tests-v2.md | Done: WP-1-Dual-Backend-Tests-v2 | active=WP-1-Dual-Backend-Tests-v2; supersedes: WP-1-Dual-Backend-Tests |
