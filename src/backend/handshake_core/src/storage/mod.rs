@@ -12,9 +12,12 @@ use crate::ai_ready_data::records::{
 };
 
 pub(crate) mod locus_sqlite;
+pub mod loom;
 pub mod postgres;
 pub mod retention;
 pub mod sqlite;
+
+pub use loom::*;
 
 // Test utilities - exposed for integration tests.
 // The helper function `run_storage_conformance` uses Result-based error handling.
@@ -935,6 +938,7 @@ pub enum JobKind {
     MicroTaskExecution,
     SpecRouter,
     LocusOperation,
+    LoomPreviewGenerate,
     /// Backward-compatible terminal execution job kind.
     TerminalExec,
     /// Document summarization job kind.
@@ -958,6 +962,7 @@ impl JobKind {
             JobKind::MicroTaskExecution => "micro_task_execution",
             JobKind::SpecRouter => "spec_router",
             JobKind::LocusOperation => "locus_operation",
+            JobKind::LoomPreviewGenerate => "loom_preview_generate",
             JobKind::TerminalExec => "terminal_exec",
             JobKind::DocSummarize => "doc_summarize",
             JobKind::DebugBundleExport => "debug_bundle_export",
@@ -982,6 +987,7 @@ impl FromStr for JobKind {
             "micro_task_execution" => Ok(JobKind::MicroTaskExecution),
             "spec_router" => Ok(JobKind::SpecRouter),
             "locus_operation" => Ok(JobKind::LocusOperation),
+            "loom_preview_generate" => Ok(JobKind::LoomPreviewGenerate),
             "term_exec" | "terminal_exec" => Ok(JobKind::TerminalExec),
             "doc_summarize" => Ok(JobKind::DocSummarize),
             "debug_bundle_export" => Ok(JobKind::DebugBundleExport),
@@ -1001,6 +1007,7 @@ pub fn validate_job_contract(
     const MD_BATCH_PROTOCOL_ID_V0: &str = "hsk.media_downloader.batch.v0";
     const MD_CONTROL_PROTOCOL_ID_V0: &str = "hsk.media_downloader.control.v0";
     const MD_COOKIE_IMPORT_PROTOCOL_ID_V0: &str = "hsk.media_downloader.cookie_import.v0";
+    const LOOM_PREVIEW_GENERATE_PROTOCOL_ID_V1: &str = "hsk.loom.preview_generate@v1";
 
     let is_mte_profile = profile_id == MICRO_TASK_EXECUTOR_V1_ID;
     let is_mte_protocol = protocol_id == MICRO_TASK_EXECUTOR_V1_ID;
@@ -1032,6 +1039,19 @@ pub fn validate_job_contract(
     if is_md_kind && !is_md_protocol {
         return Err(StorageError::Validation(
             "invalid job contract: media_downloader requires protocol_id hsk.media_downloader.{batch|control|cookie_import}.v0",
+        ));
+    }
+
+    let is_loom_preview_kind = matches!(job_kind, JobKind::LoomPreviewGenerate);
+    let is_loom_preview_protocol = protocol_id == LOOM_PREVIEW_GENERATE_PROTOCOL_ID_V1;
+    if is_loom_preview_kind && !is_loom_preview_protocol {
+        return Err(StorageError::Validation(
+            "invalid job contract: loom_preview_generate requires protocol_id hsk.loom.preview_generate@v1",
+        ));
+    }
+    if is_loom_preview_protocol && !is_loom_preview_kind {
+        return Err(StorageError::Validation(
+            "invalid job contract: hsk.loom.preview_generate@v1 requires job_kind loom_preview_generate",
         ));
     }
 
@@ -1430,6 +1450,84 @@ pub trait Database: Send + Sync + std::any::Any {
         document_id: &str,
         blocks: Vec<NewBlock>,
     ) -> StorageResult<Vec<Block>>;
+
+    // Loom (WP-1-Loom-MVP-v1)
+    async fn create_asset(&self, ctx: &WriteContext, asset: NewAsset) -> StorageResult<Asset>;
+    async fn get_asset(&self, workspace_id: &str, asset_id: &str) -> StorageResult<Asset>;
+    async fn find_asset_by_content_hash(
+        &self,
+        workspace_id: &str,
+        content_hash: &str,
+    ) -> StorageResult<Option<Asset>>;
+
+    async fn create_loom_block(
+        &self,
+        ctx: &WriteContext,
+        block: NewLoomBlock,
+    ) -> StorageResult<LoomBlock>;
+    async fn get_loom_block(&self, workspace_id: &str, block_id: &str) -> StorageResult<LoomBlock>;
+    async fn find_loom_block_by_content_hash(
+        &self,
+        workspace_id: &str,
+        content_hash: &str,
+    ) -> StorageResult<Option<LoomBlock>>;
+    async fn find_loom_block_by_asset_id(
+        &self,
+        workspace_id: &str,
+        asset_id: &str,
+    ) -> StorageResult<Option<LoomBlock>>;
+    async fn update_loom_block(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        block_id: &str,
+        update: LoomBlockUpdate,
+    ) -> StorageResult<LoomBlock>;
+    async fn set_loom_block_preview(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        block_id: &str,
+        preview_status: PreviewStatus,
+        thumbnail_asset_id: Option<String>,
+        proxy_asset_id: Option<String>,
+    ) -> StorageResult<()>;
+    async fn delete_loom_block(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<()>;
+
+    async fn create_loom_edge(&self, ctx: &WriteContext, edge: NewLoomEdge) -> StorageResult<LoomEdge>;
+    async fn delete_loom_edge(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        edge_id: &str,
+    ) -> StorageResult<LoomEdge>;
+    async fn list_loom_edges_for_block(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<Vec<LoomEdge>>;
+
+    async fn query_loom_view(
+        &self,
+        workspace_id: &str,
+        view_type: LoomViewType,
+        filters: LoomViewFilters,
+        limit: u32,
+        offset: u32,
+    ) -> StorageResult<LoomViewResponse>;
+    async fn search_loom_blocks(
+        &self,
+        workspace_id: &str,
+        query: &str,
+        filters: LoomSearchFilters,
+        limit: u32,
+        offset: u32,
+    ) -> StorageResult<Vec<LoomBlockSearchResult>>;
 
     // Canvas operations
     async fn create_canvas(&self, ctx: &WriteContext, canvas: NewCanvas) -> StorageResult<Canvas>;

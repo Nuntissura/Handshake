@@ -9,6 +9,7 @@ pub mod flight_recorder;
 pub mod governance_pack;
 pub mod jobs;
 pub mod logs;
+pub mod loom;
 pub mod paths;
 pub mod role_mailbox;
 pub mod workspaces;
@@ -17,6 +18,7 @@ pub fn routes(state: AppState) -> Router {
     let workspace_routes = workspaces::routes(state.clone());
     let canvas_routes = canvases::routes(state.clone());
     let job_routes = jobs::routes(state.clone());
+    let loom_routes = loom::routes(state.clone());
     let flight_recorder_routes = flight_recorder::routes(state.clone());
     let diagnostics_routes = diagnostics::routes(state.clone());
     let bundle_routes = bundles::routes(state.clone());
@@ -30,6 +32,7 @@ pub fn routes(state: AppState) -> Router {
         .merge(canvas_routes)
         .merge(log_routes)
         .merge(job_routes)
+        .merge(loom_routes)
         .merge(diagnostics_routes)
         .merge(flight_recorder_routes)
         .merge(bundle_routes)

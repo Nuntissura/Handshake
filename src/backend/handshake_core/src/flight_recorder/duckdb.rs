@@ -805,6 +805,18 @@ impl DuckDbFlightRecorder {
                     super::FlightRecorderEventType::DataRelationshipExtracted
                 }
                 "data_golden_query_failed" => super::FlightRecorderEventType::DataGoldenQueryFailed,
+                "loom_block_created" => super::FlightRecorderEventType::LoomBlockCreated,
+                "loom_block_updated" => super::FlightRecorderEventType::LoomBlockUpdated,
+                "loom_block_deleted" => super::FlightRecorderEventType::LoomBlockDeleted,
+                "loom_edge_created" => super::FlightRecorderEventType::LoomEdgeCreated,
+                "loom_edge_deleted" => super::FlightRecorderEventType::LoomEdgeDeleted,
+                "loom_dedup_hit" => super::FlightRecorderEventType::LoomDedupHit,
+                "loom_preview_generated" => super::FlightRecorderEventType::LoomPreviewGenerated,
+                "loom_ai_tag_suggested" => super::FlightRecorderEventType::LoomAiTagSuggested,
+                "loom_ai_tag_accepted" => super::FlightRecorderEventType::LoomAiTagAccepted,
+                "loom_ai_tag_rejected" => super::FlightRecorderEventType::LoomAiTagRejected,
+                "loom_view_queried" => super::FlightRecorderEventType::LoomViewQueried,
+                "loom_search_executed" => super::FlightRecorderEventType::LoomSearchExecuted,
                 "capability_action" => {
                     if payload_type == Some("terminal_command") {
                         super::FlightRecorderEventType::TerminalCommand

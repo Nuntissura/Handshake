@@ -190,6 +190,7 @@ impl CapabilityRegistry {
         job_profile_map.insert("micro_task_execution".to_string(), "Coder".to_string());
         job_profile_map.insert("spec_router".to_string(), "Analyst".to_string());
         job_profile_map.insert("locus_operation".to_string(), "Coder".to_string());
+        job_profile_map.insert("loom_preview_generate".to_string(), "Coder".to_string());
         job_profile_map.insert("debug_bundle_export".to_string(), "Analyst".to_string());
         job_profile_map.insert("terminal_exec".to_string(), "Coder".to_string());
         job_profile_map.insert("doc_summarize".to_string(), "Analyst".to_string());
@@ -229,6 +230,10 @@ impl CapabilityRegistry {
         job_requirements.insert(
             "locus_operation".to_string(),
             vec!["locus.read".to_string()],
+        );
+        job_requirements.insert(
+            "loom_preview_generate".to_string(),
+            vec!["fs.read".to_string(), "fs.write".to_string()],
         );
         job_requirements.insert(
             "doc_summarize".to_string(),
