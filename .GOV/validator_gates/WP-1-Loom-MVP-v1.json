@@ -3,7 +3,7 @@
     "WP-1-Loom-MVP-v1": {
       "wpId": "WP-1-Loom-MVP-v1",
       "verdict": "PASS",
-      "status": "REPORT_PRESENTED",
+      "status": "USER_ACKNOWLEDGED",
       "started": "2026-02-23T04:48:24.456Z",
       "gates": [
         {
@@ -19,8 +19,13 @@
           "gate": "REPORT_PRESENTED",
           "verdict": "PASS",
           "timestamp": "2026-02-23T04:49:49.538Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-02-23T04:54:18.006Z"
         }
-      ]
+      ],
+      "completed": "2026-02-23T04:54:18.006Z"
     }
   },
   "archived_sessions": []
