@@ -1924,12 +1924,13 @@ pub async fn start_workflow_for_job(
     )
     .await;
 
-    let is_background_job = matches!(
+    let is_background_job = (matches!(
         job.job_kind,
         JobKind::WorkflowRun | JobKind::MediaDownloader
     ) && (job.protocol_id == MD_BATCH_PROTOCOL_ID_V0
         || job.protocol_id == MD_CONTROL_PROTOCOL_ID_V0
-        || job.protocol_id == MD_COOKIE_IMPORT_PROTOCOL_ID_V0);
+        || job.protocol_id == MD_COOKIE_IMPORT_PROTOCOL_ID_V0))
+        || matches!(job.job_kind, JobKind::LoomPreviewGenerate);
 
     if is_background_job {
         let state_clone = state.clone();
@@ -2954,6 +2955,8 @@ async fn run_job(
             output: Some(payload),
             error_message: None,
         });
+    } else if matches!(job.job_kind, JobKind::LoomPreviewGenerate) {
+        return run_loom_preview_generate_job(state, job, workflow_run_id, trace_id).await;
     } else if matches!(job.job_kind, JobKind::LocusOperation) {
         let inputs = parse_inputs(job.job_inputs.as_ref());
         let op = locus::sqlite_store::parse_locus_operation(&job.protocol_id, &inputs)?;
@@ -10509,6 +10512,255 @@ async fn execute_terminal_job(
     }
 
     Ok(payload)
+}
+
+// =============================================================================
+// Loom Preview Generation (WP-1-Loom-MVP-v1)
+// =============================================================================
+
+const LOOM_PREVIEW_GENERATE_PROTOCOL_ID_V1: &str = "hsk.loom.preview_generate@v1";
+
+static LOOM_PREVIEW_SEMAPHORE: Lazy<tokio::sync::Semaphore> =
+    Lazy::new(|| tokio::sync::Semaphore::new(2));
+
+async fn run_loom_preview_generate_job(
+    state: &AppState,
+    job: &AiJob,
+    workflow_run_id: Uuid,
+    trace_id: Uuid,
+) -> Result<RunJobOutcome, WorkflowError> {
+    if job.protocol_id != LOOM_PREVIEW_GENERATE_PROTOCOL_ID_V1 {
+        return Ok(RunJobOutcome {
+            state: JobState::Poisoned,
+            status_reason: "invalid_protocol_id".to_string(),
+            output: None,
+            error_message: Some("invalid protocol_id for loom_preview_generate".to_string()),
+        });
+    }
+
+    let inputs = parse_inputs(job.job_inputs.as_ref());
+    let workspace_id = inputs
+        .get("workspace_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| WorkflowError::Terminal("workspace_id is required".into()))?;
+    let block_id = inputs
+        .get("block_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| WorkflowError::Terminal("block_id is required".into()))?;
+    let asset_id = inputs
+        .get("asset_id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| WorkflowError::Terminal("asset_id is required".into()))?;
+
+    let ctx = crate::storage::WriteContext {
+        actor_kind: crate::storage::WriteActorKind::System,
+        actor_id: None,
+        job_id: Some(job.job_id),
+        workflow_id: Some(workflow_run_id),
+    };
+
+    let _permit = LOOM_PREVIEW_SEMAPHORE
+        .acquire()
+        .await
+        .map_err(|_| WorkflowError::Terminal("loom preview semaphore closed".into()))?;
+
+    let latest_job = state.storage.get_ai_job(&job.job_id.to_string()).await?;
+    if latest_job.state == JobState::Cancelled {
+        let _ = state
+            .storage
+            .set_loom_block_preview(
+                &ctx,
+                workspace_id,
+                block_id,
+                crate::storage::PreviewStatus::Failed,
+                None,
+                None,
+            )
+            .await;
+
+        let payload = json!({
+            "workspace_id": workspace_id,
+            "block_id": block_id,
+            "asset_id": asset_id,
+            "preview_status": "failed",
+            "reason": "cancelled",
+        });
+        state
+            .storage
+            .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
+            .await?;
+
+        return Ok(RunJobOutcome {
+            state: JobState::Cancelled,
+            status_reason: "cancelled".to_string(),
+            output: Some(payload),
+            error_message: None,
+        });
+    }
+
+    let asset = state.storage.get_asset(workspace_id, asset_id).await?;
+    let handshake_root = crate::loom_fs::resolve_handshake_root()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let original_path = crate::loom_fs::loom_asset_blob_path(
+        &handshake_root,
+        workspace_id,
+        asset.kind.as_str(),
+        asset.content_hash.as_str(),
+    );
+
+    // WAIVER [CX-573E]: timing-only instrumentation; no determinism impact
+    let started = std::time::Instant::now();
+    let original_bytes = tokio::fs::read(&original_path)
+        .await
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    if !asset.mime.starts_with("image/") {
+        state
+            .storage
+            .set_loom_block_preview(
+                &ctx,
+                workspace_id,
+                block_id,
+                crate::storage::PreviewStatus::Failed,
+                None,
+                None,
+            )
+            .await?;
+
+        let payload = json!({
+            "workspace_id": workspace_id,
+            "block_id": block_id,
+            "asset_id": asset_id,
+            "preview_status": "failed",
+            "reason": "unsupported_mime",
+        });
+        state
+            .storage
+            .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
+            .await?;
+
+        return Ok(RunJobOutcome {
+            state: JobState::CompletedWithIssues,
+            status_reason: "unsupported_mime".to_string(),
+            output: Some(payload),
+            error_message: None,
+        });
+    }
+
+    let thumb = image::load_from_memory(&original_bytes)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?
+        .thumbnail(256, 256);
+
+    let mut out = Vec::new();
+    {
+        let mut cursor = std::io::Cursor::new(&mut out);
+        thumb
+            .write_to(&mut cursor, image::ImageFormat::Png)
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    }
+
+    let thumbnail_hash = {
+        let mut h = Sha256::new();
+        h.update(&out);
+        hex::encode(h.finalize())
+    };
+
+    let thumbnail_asset = match state
+        .storage
+        .find_asset_by_content_hash(workspace_id, &thumbnail_hash)
+        .await?
+    {
+        Some(existing) => existing,
+        None => state
+            .storage
+            .create_asset(
+                &ctx,
+                crate::storage::NewAsset {
+                    workspace_id: workspace_id.to_string(),
+                    kind: "thumbnail".to_string(),
+                    mime: "image/png".to_string(),
+                    original_filename: None,
+                    content_hash: thumbnail_hash.clone(),
+                    size_bytes: out.len() as i64,
+                    width: Some(thumb.width() as i64),
+                    height: Some(thumb.height() as i64),
+                    classification: "low".to_string(),
+                    exportable: true,
+                    is_proxy_of: Some(asset.asset_id.clone()),
+                    proxy_asset_id: None,
+                },
+            )
+            .await?,
+    };
+
+    let thumbnail_path = crate::loom_fs::loom_asset_blob_path(
+        &handshake_root,
+        workspace_id,
+        "thumbnail",
+        thumbnail_hash.as_str(),
+    );
+    match crate::storage::artifacts::write_file_atomic(&handshake_root, &thumbnail_path, &out, false)
+    {
+        Ok(()) => {}
+        Err(crate::storage::artifacts::ArtifactError::Io(io_err))
+            if io_err.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(err) => return Err(WorkflowError::Terminal(err.to_string())),
+    }
+
+    let thumbnail_asset_id = thumbnail_asset.asset_id.clone();
+    state
+        .storage
+        .set_loom_block_preview(
+            &ctx,
+            workspace_id,
+            block_id,
+            crate::storage::PreviewStatus::Generated,
+            Some(thumbnail_asset_id.clone()),
+            None,
+        )
+        .await?;
+
+    let duration_ms = started.elapsed().as_millis() as u64;
+    record_event_safely(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::LoomPreviewGenerated,
+            FlightRecorderActor::System,
+            trace_id,
+            json!({
+                "type": "loom_preview_generated",
+                "block_id": block_id,
+                "asset_id": thumbnail_asset_id,
+                "preview_tier": 1,
+                "format": "png",
+                "duration_ms": duration_ms,
+            }),
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_workflow_id(workflow_run_id.to_string())
+        .with_wsids(vec![workspace_id.to_string()]),
+    )
+    .await;
+
+    let payload = json!({
+        "workspace_id": workspace_id,
+        "block_id": block_id,
+        "asset_id": asset_id,
+        "thumbnail_asset_id": thumbnail_asset_id,
+        "preview_status": "generated",
+        "duration_ms": duration_ms,
+    });
+    state
+        .storage
+        .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
+        .await?;
+
+    Ok(RunJobOutcome {
+        state: JobState::Completed,
+        status_reason: "completed".to_string(),
+        output: Some(payload),
+        error_message: None,
+    })
 }
 
 // =============================================================================

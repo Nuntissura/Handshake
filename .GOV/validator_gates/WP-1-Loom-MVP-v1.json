@@ -1,0 +1,18 @@
+{
+  "validation_sessions": {
+    "WP-1-Loom-MVP-v1": {
+      "wpId": "WP-1-Loom-MVP-v1",
+      "verdict": "PASS",
+      "status": "WP_APPENDED",
+      "started": "2026-02-23T04:48:24.456Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "PASS",
+          "timestamp": "2026-02-23T04:48:24.456Z"
+        }
+      ]
+    }
+  },
+  "archived_sessions": []
+}

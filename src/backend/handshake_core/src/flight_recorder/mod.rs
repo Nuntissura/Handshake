@@ -136,6 +136,19 @@ pub enum FlightRecorderEventType {
     DataReembeddingTriggered,
     DataRelationshipExtracted,
     DataGoldenQueryFailed,
+    /// FR-EVT-LOOM-001..012: Loom surface events [§11.5.12]
+    LoomBlockCreated,
+    LoomBlockUpdated,
+    LoomBlockDeleted,
+    LoomEdgeCreated,
+    LoomEdgeDeleted,
+    LoomDedupHit,
+    LoomPreviewGenerated,
+    LoomAiTagSuggested,
+    LoomAiTagAccepted,
+    LoomAiTagRejected,
+    LoomViewQueried,
+    LoomSearchExecuted,
 }
 
 impl fmt::Display for FlightRecorderEventType {
@@ -273,6 +286,18 @@ impl fmt::Display for FlightRecorderEventType {
                 write!(f, "data_relationship_extracted")
             }
             FlightRecorderEventType::DataGoldenQueryFailed => write!(f, "data_golden_query_failed"),
+            FlightRecorderEventType::LoomBlockCreated => write!(f, "loom_block_created"),
+            FlightRecorderEventType::LoomBlockUpdated => write!(f, "loom_block_updated"),
+            FlightRecorderEventType::LoomBlockDeleted => write!(f, "loom_block_deleted"),
+            FlightRecorderEventType::LoomEdgeCreated => write!(f, "loom_edge_created"),
+            FlightRecorderEventType::LoomEdgeDeleted => write!(f, "loom_edge_deleted"),
+            FlightRecorderEventType::LoomDedupHit => write!(f, "loom_dedup_hit"),
+            FlightRecorderEventType::LoomPreviewGenerated => write!(f, "loom_preview_generated"),
+            FlightRecorderEventType::LoomAiTagSuggested => write!(f, "loom_ai_tag_suggested"),
+            FlightRecorderEventType::LoomAiTagAccepted => write!(f, "loom_ai_tag_accepted"),
+            FlightRecorderEventType::LoomAiTagRejected => write!(f, "loom_ai_tag_rejected"),
+            FlightRecorderEventType::LoomViewQueried => write!(f, "loom_view_queried"),
+            FlightRecorderEventType::LoomSearchExecuted => write!(f, "loom_search_executed"),
         }
     }
 }
@@ -704,6 +729,40 @@ impl FlightRecorderEvent {
             }
             FlightRecorderEventType::DataGoldenQueryFailed => {
                 validate_data_golden_query_failed_payload(&self.payload)
+            }
+            FlightRecorderEventType::LoomBlockCreated => {
+                validate_loom_block_created_payload(&self.payload)
+            }
+            FlightRecorderEventType::LoomBlockUpdated => {
+                validate_loom_block_updated_payload(&self.payload)
+            }
+            FlightRecorderEventType::LoomBlockDeleted => {
+                validate_loom_block_deleted_payload(&self.payload)
+            }
+            FlightRecorderEventType::LoomEdgeCreated => {
+                validate_loom_edge_created_payload(&self.payload)
+            }
+            FlightRecorderEventType::LoomEdgeDeleted => {
+                validate_loom_edge_deleted_payload(&self.payload)
+            }
+            FlightRecorderEventType::LoomDedupHit => validate_loom_dedup_hit_payload(&self.payload),
+            FlightRecorderEventType::LoomPreviewGenerated => {
+                validate_loom_preview_generated_payload(&self.payload)
+            }
+            FlightRecorderEventType::LoomAiTagSuggested => {
+                validate_loom_ai_tag_suggested_payload(&self.payload)
+            }
+            FlightRecorderEventType::LoomAiTagAccepted => {
+                validate_loom_ai_tag_accepted_payload(&self.payload)
+            }
+            FlightRecorderEventType::LoomAiTagRejected => {
+                validate_loom_ai_tag_rejected_payload(&self.payload)
+            }
+            FlightRecorderEventType::LoomViewQueried => {
+                validate_loom_view_queried_payload(&self.payload)
+            }
+            FlightRecorderEventType::LoomSearchExecuted => {
+                validate_loom_search_executed_payload(&self.payload)
             }
             _ => Ok(()),
         }
@@ -1606,6 +1665,264 @@ fn validate_data_golden_query_failed_payload(payload: &Value) -> Result<(), Reco
     require_number(map, "expected_mrr")?;
     require_number(map, "actual_mrr")?;
     require_bool(map, "regression_from_baseline")?;
+    Ok(())
+}
+
+// =============================================================================
+// FR-EVT-LOOM-* (Loom Surface) payload validators [§11.5.12]
+// =============================================================================
+
+fn require_safe_id_string(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    match require_key(map, key)? {
+        Value::String(value) if is_safe_id(value, 128) => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be a safe id"
+        ))),
+    }
+}
+
+fn require_limited_choice(map: &Map<String, Value>, key: &str, allowed: &[&str]) -> Result<(), RecorderError> {
+    match require_key(map, key)? {
+        Value::String(value) if allowed.iter().any(|v| *v == value) => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be one of: {}",
+            allowed.join("|")
+        ))),
+    }
+}
+
+fn require_sha256_hex_or_null(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    match require_key(map, key)? {
+        Value::Null => Ok(()),
+        Value::String(_) => require_sha256_hex(map, key),
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be a sha256 hex string or null"
+        ))),
+    }
+}
+
+fn validate_loom_block_created_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "block_id",
+            "workspace_id",
+            "content_type",
+            "asset_id",
+            "content_hash",
+        ],
+    )?;
+
+    require_fixed_string(map, "type", "loom_block_created")?;
+    require_safe_id_string(map, "block_id")?;
+    require_safe_id_string(map, "workspace_id")?;
+    require_string(map, "content_type")?;
+
+    match require_key(map, "asset_id")? {
+        Value::Null => {}
+        Value::String(value) if is_safe_id(value, 128) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field asset_id must be a safe id string or null".to_string(),
+            ))
+        }
+    }
+    require_sha256_hex_or_null(map, "content_hash")?;
+    Ok(())
+}
+
+fn validate_loom_block_updated_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(map, &["type", "block_id", "fields_changed", "updated_by"])?;
+    require_fixed_string(map, "type", "loom_block_updated")?;
+    require_safe_id_string(map, "block_id")?;
+    require_string_array_allow_empty(map, "fields_changed")?;
+    require_limited_choice(map, "updated_by", &["user", "ai"])?;
+    Ok(())
+}
+
+fn validate_loom_block_deleted_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(map, &["type", "block_id", "workspace_id", "content_type", "had_asset"])?;
+    require_fixed_string(map, "type", "loom_block_deleted")?;
+    require_safe_id_string(map, "block_id")?;
+    require_safe_id_string(map, "workspace_id")?;
+    require_string(map, "content_type")?;
+    require_bool(map, "had_asset")?;
+    Ok(())
+}
+
+fn validate_loom_edge_created_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "edge_id",
+            "source_block_id",
+            "target_block_id",
+            "edge_type",
+            "created_by",
+        ],
+    )?;
+    require_fixed_string(map, "type", "loom_edge_created")?;
+    require_safe_id_string(map, "edge_id")?;
+    require_safe_id_string(map, "source_block_id")?;
+    require_safe_id_string(map, "target_block_id")?;
+    require_limited_choice(
+        map,
+        "edge_type",
+        &["mention", "tag", "sub_tag", "parent", "ai_suggested"],
+    )?;
+    require_limited_choice(map, "created_by", &["user", "ai"])?;
+    Ok(())
+}
+
+fn validate_loom_edge_deleted_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(map, &["type", "edge_id", "edge_type", "deleted_by"])?;
+    require_fixed_string(map, "type", "loom_edge_deleted")?;
+    require_safe_id_string(map, "edge_id")?;
+    require_limited_choice(
+        map,
+        "edge_type",
+        &["mention", "tag", "sub_tag", "parent", "ai_suggested"],
+    )?;
+    require_limited_choice(map, "deleted_by", &["user", "ai"])?;
+    Ok(())
+}
+
+fn validate_loom_dedup_hit_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "workspace_id",
+            "content_hash",
+            "existing_block_id",
+            "attempted_filename",
+        ],
+    )?;
+    require_fixed_string(map, "type", "loom_dedup_hit")?;
+    require_safe_id_string(map, "workspace_id")?;
+    require_sha256_hex(map, "content_hash")?;
+    require_safe_id_string(map, "existing_block_id")?;
+    require_string(map, "attempted_filename")?;
+    Ok(())
+}
+
+fn validate_loom_preview_generated_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "block_id",
+            "asset_id",
+            "preview_tier",
+            "format",
+            "duration_ms",
+        ],
+    )?;
+    require_fixed_string(map, "type", "loom_preview_generated")?;
+    require_safe_id_string(map, "block_id")?;
+    require_safe_id_string(map, "asset_id")?;
+    match require_key(map, "preview_tier")? {
+        Value::Number(num) if num.as_i64().is_some_and(|v| matches!(v, 0 | 1 | 2)) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field preview_tier must be 0|1|2".to_string(),
+            ))
+        }
+    }
+    require_string(map, "format")?;
+    require_number(map, "duration_ms")?;
+    Ok(())
+}
+
+fn validate_loom_ai_tag_suggested_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(map, &["type", "block_id", "job_id", "suggested_tags", "model_id"])?;
+    require_fixed_string(map, "type", "loom_ai_tag_suggested")?;
+    require_safe_id_string(map, "block_id")?;
+    require_safe_id_string(map, "job_id")?;
+    require_string_array_allow_empty(map, "suggested_tags")?;
+    require_string(map, "model_id")?;
+    Ok(())
+}
+
+fn validate_loom_ai_tag_accepted_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(map, &["type", "block_id", "edge_id", "tag_name", "was_ai_suggested"])?;
+    require_fixed_string(map, "type", "loom_ai_tag_accepted")?;
+    require_safe_id_string(map, "block_id")?;
+    require_safe_id_string(map, "edge_id")?;
+    require_string(map, "tag_name")?;
+    require_bool(map, "was_ai_suggested")?;
+    Ok(())
+}
+
+fn validate_loom_ai_tag_rejected_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(map, &["type", "block_id", "tag_name", "was_ai_suggested"])?;
+    require_fixed_string(map, "type", "loom_ai_tag_rejected")?;
+    require_safe_id_string(map, "block_id")?;
+    require_string(map, "tag_name")?;
+    require_bool(map, "was_ai_suggested")?;
+    Ok(())
+}
+
+fn validate_loom_view_queried_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "workspace_id",
+            "view_type",
+            "filter_count",
+            "result_count",
+            "duration_ms",
+        ],
+    )?;
+    require_fixed_string(map, "type", "loom_view_queried")?;
+    require_safe_id_string(map, "workspace_id")?;
+    require_limited_choice(map, "view_type", &["all", "unlinked", "sorted", "pins"])?;
+    require_number(map, "filter_count")?;
+    require_number(map, "result_count")?;
+    require_number(map, "duration_ms")?;
+    Ok(())
+}
+
+fn validate_loom_search_executed_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(
+        map,
+        &[
+            "type",
+            "workspace_id",
+            "query_length",
+            "tier_used",
+            "result_count",
+            "duration_ms",
+        ],
+    )?;
+    require_fixed_string(map, "type", "loom_search_executed")?;
+    require_safe_id_string(map, "workspace_id")?;
+    require_number(map, "query_length")?;
+    match require_key(map, "tier_used")? {
+        Value::Number(num) if num.as_i64().is_some_and(|v| matches!(v, 1 | 2 | 3)) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field tier_used must be 1|2|3".to_string(),
+            ))
+        }
+    }
+    require_number(map, "result_count")?;
+    require_number(map, "duration_ms")?;
     Ok(())
 }
 

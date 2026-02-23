@@ -1,7 +1,10 @@
 use super::{
     validate_job_contract, AccessMode, AiJob, AiJobListFilter, Block, BlockUpdate, BronzeRecord,
-    AiJobMcpFields, AiJobMcpUpdate, Canvas, CanvasEdge, CanvasGraph, CanvasNode,
-    DefaultStorageGuard, Document,
+    AiJobMcpFields, AiJobMcpUpdate, Asset, Canvas, CanvasEdge, CanvasGraph, CanvasNode,
+    DefaultStorageGuard, Document, LoomBlock, LoomBlockContentType, LoomBlockDerived,
+    LoomBlockSearchResult, LoomBlockUpdate, LoomEdge, LoomEdgeCreatedBy, LoomEdgeType,
+    LoomSearchFilters, LoomSourceAnchor, LoomViewFilters, LoomViewGroup, LoomViewResponse,
+    LoomViewType, NewAsset, NewLoomBlock, NewLoomEdge, PreviewStatus,
     EmbeddingModelRecord, EmbeddingRegistry, EntityRef, JobKind, JobMetrics, JobState,
     JobStatusUpdate, MutationMetadata, NewAiJob, NewBlock, NewBronzeRecord, NewCanvas,
     NewCanvasEdge, NewCanvasNode, NewDocument, NewNodeExecution, NewSilverRecord, NewWorkspace,
@@ -50,6 +53,89 @@ struct AiJobRow {
     updated_at: chrono::DateTime<chrono::Utc>,
 }
 
+#[derive(sqlx::FromRow)]
+struct AssetRow {
+    asset_id: String,
+    workspace_id: String,
+    kind: String,
+    mime: String,
+    original_filename: Option<String>,
+    content_hash: String,
+    size_bytes: i64,
+    width: Option<i64>,
+    height: Option<i64>,
+    created_at: chrono::DateTime<chrono::Utc>,
+    classification: String,
+    exportable: i64,
+    is_proxy_of: Option<String>,
+    proxy_asset_id: Option<String>,
+}
+
+#[derive(sqlx::FromRow)]
+struct LoomBlockRow {
+    block_id: String,
+    workspace_id: String,
+    content_type: String,
+    document_id: Option<String>,
+    asset_id: Option<String>,
+    title: Option<String>,
+    original_filename: Option<String>,
+    content_hash: Option<String>,
+    pinned: i64,
+    journal_date: Option<String>,
+    created_at: chrono::DateTime<chrono::Utc>,
+    updated_at: chrono::DateTime<chrono::Utc>,
+    imported_at: Option<chrono::DateTime<chrono::Utc>>,
+    backlink_count: i64,
+    mention_count: i64,
+    tag_count: i64,
+    derived_json: String,
+    preview_status: String,
+    thumbnail_asset_id: Option<String>,
+    proxy_asset_id: Option<String>,
+}
+
+#[derive(sqlx::FromRow)]
+struct LoomBlockSearchRow {
+    score: f64,
+    block_id: String,
+    workspace_id: String,
+    content_type: String,
+    document_id: Option<String>,
+    asset_id: Option<String>,
+    title: Option<String>,
+    original_filename: Option<String>,
+    content_hash: Option<String>,
+    pinned: i64,
+    journal_date: Option<String>,
+    created_at: chrono::DateTime<chrono::Utc>,
+    updated_at: chrono::DateTime<chrono::Utc>,
+    imported_at: Option<chrono::DateTime<chrono::Utc>>,
+    backlink_count: i64,
+    mention_count: i64,
+    tag_count: i64,
+    derived_json: String,
+    preview_status: String,
+    thumbnail_asset_id: Option<String>,
+    proxy_asset_id: Option<String>,
+}
+
+#[derive(sqlx::FromRow)]
+struct LoomEdgeRow {
+    edge_id: String,
+    workspace_id: String,
+    source_block_id: String,
+    target_block_id: String,
+    edge_type: String,
+    created_by: String,
+    created_at: chrono::DateTime<chrono::Utc>,
+    crdt_site_id: Option<String>,
+    source_document_id: Option<String>,
+    source_text_block_id: Option<String>,
+    offset_start: Option<i64>,
+    offset_end: Option<i64>,
+}
+
 impl SqliteDatabase {
     fn map_ai_job_row(&self, row: AiJobRow) -> StorageResult<AiJob> {
         let job_state = JobState::try_from(row.status.as_str())?;
@@ -94,6 +180,119 @@ impl SqliteDatabase {
                 .transpose()?,
             created_at: row.created_at,
             updated_at: row.updated_at,
+        })
+    }
+
+    fn map_asset_row(&self, row: AssetRow) -> Asset {
+        Asset {
+            asset_id: row.asset_id,
+            workspace_id: row.workspace_id,
+            kind: row.kind,
+            mime: row.mime,
+            original_filename: row.original_filename,
+            content_hash: row.content_hash,
+            size_bytes: row.size_bytes,
+            width: row.width,
+            height: row.height,
+            created_at: row.created_at,
+            classification: row.classification,
+            exportable: row.exportable != 0,
+            is_proxy_of: row.is_proxy_of,
+            proxy_asset_id: row.proxy_asset_id,
+        }
+    }
+
+    fn map_loom_block_row(&self, row: LoomBlockRow) -> StorageResult<LoomBlock> {
+        let content_type = LoomBlockContentType::from_str(row.content_type.as_str())?;
+        let preview_status = PreviewStatus::from_str(row.preview_status.as_str())?;
+
+        let mut derived: LoomBlockDerived =
+            serde_json::from_str(&row.derived_json).unwrap_or_default();
+        derived.backlink_count = row.backlink_count;
+        derived.mention_count = row.mention_count;
+        derived.tag_count = row.tag_count;
+        derived.preview_status = preview_status;
+        derived.thumbnail_asset_id = row.thumbnail_asset_id.clone();
+        derived.proxy_asset_id = row.proxy_asset_id.clone();
+
+        Ok(LoomBlock {
+            block_id: row.block_id,
+            workspace_id: row.workspace_id,
+            content_type,
+            document_id: row.document_id,
+            asset_id: row.asset_id,
+            title: row.title,
+            original_filename: row.original_filename,
+            content_hash: row.content_hash,
+            pinned: row.pinned != 0,
+            journal_date: row.journal_date,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            imported_at: row.imported_at,
+            derived,
+        })
+    }
+
+    fn map_loom_block_search_row(
+        &self,
+        row: LoomBlockSearchRow,
+    ) -> StorageResult<LoomBlockSearchResult> {
+        let score = row.score;
+        let block = self.map_loom_block_row(LoomBlockRow {
+            block_id: row.block_id,
+            workspace_id: row.workspace_id,
+            content_type: row.content_type,
+            document_id: row.document_id,
+            asset_id: row.asset_id,
+            title: row.title,
+            original_filename: row.original_filename,
+            content_hash: row.content_hash,
+            pinned: row.pinned,
+            journal_date: row.journal_date,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            imported_at: row.imported_at,
+            backlink_count: row.backlink_count,
+            mention_count: row.mention_count,
+            tag_count: row.tag_count,
+            derived_json: row.derived_json,
+            preview_status: row.preview_status,
+            thumbnail_asset_id: row.thumbnail_asset_id,
+            proxy_asset_id: row.proxy_asset_id,
+        })?;
+        Ok(LoomBlockSearchResult { block, score })
+    }
+
+    fn map_loom_edge_row(&self, row: LoomEdgeRow) -> StorageResult<LoomEdge> {
+        let edge_type = LoomEdgeType::from_str(row.edge_type.as_str())?;
+        let created_by = LoomEdgeCreatedBy::from_str(row.created_by.as_str())?;
+        let source_anchor = match (
+            row.source_document_id,
+            row.source_text_block_id,
+            row.offset_start,
+            row.offset_end,
+        ) {
+            (Some(document_id), Some(block_id), Some(offset_start), Some(offset_end)) => {
+                Some(LoomSourceAnchor {
+                    document_id,
+                    block_id,
+                    offset_start,
+                    offset_end,
+                })
+            }
+            _ => None,
+        };
+
+        Ok(LoomEdge {
+            edge_id: row.edge_id,
+            workspace_id: row.workspace_id,
+            source_block_id: row.source_block_id,
+            target_block_id: row.target_block_id,
+            edge_type,
+            created_by,
+            created_at: row.created_at,
+            crdt_site_id: row.crdt_site_id,
+            source_anchor,
         })
     }
 
@@ -170,6 +369,160 @@ impl SqliteDatabase {
     pub fn into_arc(self) -> Arc<dyn super::Database> {
         Arc::new(self)
     }
+}
+
+fn normalize_fts5_query(raw: &str) -> Option<String> {
+    let query = raw.trim();
+    if query.is_empty() {
+        return None;
+    }
+
+    let mut tokens: Vec<String> = Vec::new();
+    for token in query.split_whitespace() {
+        let token = token.trim_matches('"').trim();
+        if token.is_empty() {
+            continue;
+        }
+
+        let safe_word = token
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_');
+        let token = token.replace('"', "\"\"");
+        if safe_word {
+            tokens.push(format!("{token}*"));
+        } else {
+            tokens.push(format!("\"{token}\""));
+        }
+    }
+
+    if tokens.is_empty() {
+        None
+    } else {
+        Some(tokens.join(" AND "))
+    }
+}
+
+async fn ensure_loom_fts_schema_sqlite(pool: &SqlitePool) -> StorageResult<()> {
+    let has_loom_blocks: Option<String> = sqlx::query_scalar(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='loom_blocks'",
+    )
+    .fetch_optional(pool)
+    .await?;
+    if has_loom_blocks.is_none() {
+        return Ok(());
+    }
+
+    let mut tx = pool.begin().await?;
+    sqlx::query(
+        r#"
+        CREATE VIRTUAL TABLE IF NOT EXISTS loom_blocks_fts USING fts5(
+            workspace_id UNINDEXED,
+            block_id UNINDEXED,
+            title,
+            original_filename,
+            full_text_index,
+            tokenize = 'unicode61'
+        );
+        "#,
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    let loom_block_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM loom_blocks")
+        .fetch_one(&mut *tx)
+        .await?;
+    let fts_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM loom_blocks_fts")
+        .fetch_one(&mut *tx)
+        .await?;
+
+    if loom_block_count != fts_count {
+        sqlx::query("DELETE FROM loom_blocks_fts")
+            .execute(&mut *tx)
+            .await?;
+
+        #[derive(sqlx::FromRow)]
+        struct LoomBlockIndexRow {
+            workspace_id: String,
+            block_id: String,
+            title: Option<String>,
+            original_filename: Option<String>,
+            derived_json: String,
+        }
+
+        #[derive(serde::Deserialize, Default)]
+        struct LoomBlockDerivedIndex {
+            #[serde(default)]
+            full_text_index: Option<String>,
+        }
+
+        let rows: Vec<LoomBlockIndexRow> = sqlx::query_as(
+            r#"
+            SELECT workspace_id, block_id, title, original_filename, derived_json
+            FROM loom_blocks
+            "#,
+        )
+        .fetch_all(&mut *tx)
+        .await?;
+
+        for row in rows {
+            let derived: LoomBlockDerivedIndex =
+                serde_json::from_str(&row.derived_json).unwrap_or_default();
+            let full_text_index = derived.full_text_index.unwrap_or_default();
+
+            sqlx::query(
+                r#"
+                INSERT INTO loom_blocks_fts (workspace_id, block_id, title, original_filename, full_text_index)
+                VALUES ($1, $2, $3, $4, $5)
+                "#,
+            )
+            .bind(row.workspace_id)
+            .bind(row.block_id)
+            .bind(row.title.unwrap_or_default())
+            .bind(row.original_filename.unwrap_or_default())
+            .bind(full_text_index)
+            .execute(&mut *tx)
+            .await?;
+        }
+    }
+
+    tx.commit().await?;
+    Ok(())
+}
+
+async fn upsert_loom_block_fts_sqlite(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    block: &LoomBlock,
+) -> StorageResult<()> {
+    let title = block.title.as_deref().unwrap_or_default();
+    let original_filename = block.original_filename.as_deref().unwrap_or_default();
+    let full_text_index = block.derived.full_text_index.as_deref().unwrap_or_default();
+
+    sqlx::query(
+        r#"
+        DELETE FROM loom_blocks_fts
+        WHERE workspace_id = $1 AND block_id = $2
+        "#,
+    )
+    .bind(&block.workspace_id)
+    .bind(&block.block_id)
+    .execute(&mut **tx)
+    .await?;
+
+    sqlx::query(
+        r#"
+        INSERT INTO loom_blocks_fts (workspace_id, block_id, title, original_filename, full_text_index)
+        VALUES ($1, $2, $3, $4, $5)
+        "#,
+    )
+    .bind(&block.workspace_id)
+    .bind(&block.block_id)
+    .bind(title)
+    .bind(original_filename)
+    .bind(full_text_index)
+    .execute(&mut **tx)
+    .await?;
+
+    Ok(())
 }
 
 async fn ensure_locus_schema_sqlite(pool: &SqlitePool) -> StorageResult<()> {
@@ -290,6 +643,7 @@ impl super::Database for SqliteDatabase {
         sqlx::migrate!("./migrations").run(&self.pool).await?;
         ensure_locus_schema_sqlite(&self.pool).await?;
         ensure_ai_jobs_mcp_columns_sqlite(&self.pool).await?;
+        ensure_loom_fts_schema_sqlite(&self.pool).await?;
         Ok(())
     }
 
@@ -924,6 +1278,1103 @@ impl super::Database for SqliteDatabase {
 
         tx.commit().await?;
         Ok(inserted)
+    }
+
+    async fn create_asset(&self, ctx: &WriteContext, asset: NewAsset) -> StorageResult<Asset> {
+        let now = Utc::now();
+        let id = Uuid::new_v4().to_string();
+        let metadata = self.guard.validate_write(ctx, &id).await?;
+        let actor_kind = metadata.actor_kind.as_str();
+        let actor_id = metadata.actor_id.clone();
+        let actor_id_ref = actor_id.as_deref();
+        let job_id = metadata.job_id.map(|id| id.to_string());
+        let workflow_id = metadata.workflow_id.map(|id| id.to_string());
+        let edit_event_id = metadata.edit_event_id.to_string();
+
+        let exportable: i64 = if asset.exportable { 1 } else { 0 };
+
+        let row: AssetRow = sqlx::query_as(
+            r#"
+            INSERT INTO assets (
+                asset_id,
+                workspace_id,
+                kind,
+                mime,
+                original_filename,
+                content_hash,
+                size_bytes,
+                width,
+                height,
+                last_actor_kind,
+                last_actor_id,
+                last_job_id,
+                last_workflow_id,
+                edit_event_id,
+                created_at,
+                classification,
+                exportable,
+                is_proxy_of,
+                proxy_asset_id
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9,
+                $10, $11, $12, $13, $14,
+                $15, $16, $17, $18, $19
+            )
+            RETURNING
+                asset_id,
+                workspace_id,
+                kind,
+                mime,
+                original_filename,
+                content_hash,
+                size_bytes,
+                width,
+                height,
+                created_at,
+                classification,
+                exportable,
+                is_proxy_of,
+                proxy_asset_id
+            "#,
+        )
+        .bind(&id)
+        .bind(&asset.workspace_id)
+        .bind(&asset.kind)
+        .bind(&asset.mime)
+        .bind(&asset.original_filename)
+        .bind(&asset.content_hash)
+        .bind(asset.size_bytes)
+        .bind(asset.width)
+        .bind(asset.height)
+        .bind(actor_kind)
+        .bind(actor_id_ref)
+        .bind(job_id)
+        .bind(workflow_id)
+        .bind(edit_event_id)
+        .bind(now)
+        .bind(&asset.classification)
+        .bind(exportable)
+        .bind(&asset.is_proxy_of)
+        .bind(&asset.proxy_asset_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(self.map_asset_row(row))
+    }
+
+    async fn get_asset(&self, workspace_id: &str, asset_id: &str) -> StorageResult<Asset> {
+        let row: Option<AssetRow> = sqlx::query_as(
+            r#"
+            SELECT
+                asset_id,
+                workspace_id,
+                kind,
+                mime,
+                original_filename,
+                content_hash,
+                size_bytes,
+                width,
+                height,
+                created_at,
+                classification,
+                exportable,
+                is_proxy_of,
+                proxy_asset_id
+            FROM assets
+            WHERE workspace_id = $1 AND asset_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(asset_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let row = row.ok_or(StorageError::NotFound("asset"))?;
+        Ok(self.map_asset_row(row))
+    }
+
+    async fn find_asset_by_content_hash(
+        &self,
+        workspace_id: &str,
+        content_hash: &str,
+    ) -> StorageResult<Option<Asset>> {
+        let row: Option<AssetRow> = sqlx::query_as(
+            r#"
+            SELECT
+                asset_id,
+                workspace_id,
+                kind,
+                mime,
+                original_filename,
+                content_hash,
+                size_bytes,
+                width,
+                height,
+                created_at,
+                classification,
+                exportable,
+                is_proxy_of,
+                proxy_asset_id
+            FROM assets
+            WHERE workspace_id = $1 AND content_hash = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(content_hash)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|row| self.map_asset_row(row)))
+    }
+
+    async fn create_loom_block(
+        &self,
+        ctx: &WriteContext,
+        block: NewLoomBlock,
+    ) -> StorageResult<LoomBlock> {
+        let mut tx = self.pool.begin().await?;
+        let now = Utc::now();
+        let id = block.block_id.map_or_else(|| Uuid::new_v4().to_string(), |v| v);
+        let metadata = self.guard.validate_write(ctx, &id).await?;
+        let actor_kind = metadata.actor_kind.as_str();
+        let actor_id = metadata.actor_id.clone();
+        let actor_id_ref = actor_id.as_deref();
+        let job_id = metadata.job_id.map(|id| id.to_string());
+        let workflow_id = metadata.workflow_id.map(|id| id.to_string());
+        let edit_event_id = metadata.edit_event_id.to_string();
+
+        let derived_json = serde_json::to_string(&block.derived)?;
+        let preview_status = block.derived.preview_status.as_str();
+
+        let row: LoomBlockRow = sqlx::query_as(
+            r#"
+            INSERT INTO loom_blocks (
+                block_id,
+                workspace_id,
+                content_type,
+                document_id,
+                asset_id,
+                title,
+                original_filename,
+                content_hash,
+                pinned,
+                journal_date,
+                last_actor_kind,
+                last_actor_id,
+                last_job_id,
+                last_workflow_id,
+                edit_event_id,
+                created_at,
+                updated_at,
+                imported_at,
+                backlink_count,
+                mention_count,
+                tag_count,
+                derived_json,
+                preview_status,
+                thumbnail_asset_id,
+                proxy_asset_id
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                $11, $12, $13, $14, $15,
+                $16, $17, $18,
+                $19, $20, $21,
+                $22, $23, $24, $25
+            )
+            RETURNING
+                block_id,
+                workspace_id,
+                content_type,
+                document_id,
+                asset_id,
+                title,
+                original_filename,
+                content_hash,
+                pinned,
+                journal_date,
+                created_at,
+                updated_at,
+                imported_at,
+                backlink_count,
+                mention_count,
+                tag_count,
+                derived_json,
+                preview_status,
+                thumbnail_asset_id,
+                proxy_asset_id
+            "#,
+        )
+        .bind(&id)
+        .bind(&block.workspace_id)
+        .bind(block.content_type.as_str())
+        .bind(&block.document_id)
+        .bind(&block.asset_id)
+        .bind(&block.title)
+        .bind(&block.original_filename)
+        .bind(&block.content_hash)
+        .bind(if block.pinned { 1_i64 } else { 0_i64 })
+        .bind(&block.journal_date)
+        .bind(actor_kind)
+        .bind(actor_id_ref)
+        .bind(job_id)
+        .bind(workflow_id)
+        .bind(edit_event_id)
+        .bind(now)
+        .bind(now)
+        .bind(block.imported_at)
+        .bind(block.derived.backlink_count)
+        .bind(block.derived.mention_count)
+        .bind(block.derived.tag_count)
+        .bind(derived_json)
+        .bind(preview_status)
+        .bind(&block.derived.thumbnail_asset_id)
+        .bind(&block.derived.proxy_asset_id)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let block = self.map_loom_block_row(row)?;
+        upsert_loom_block_fts_sqlite(&mut tx, &block).await?;
+        tx.commit().await?;
+        Ok(block)
+    }
+
+    async fn get_loom_block(&self, workspace_id: &str, block_id: &str) -> StorageResult<LoomBlock> {
+        let row: Option<LoomBlockRow> = sqlx::query_as(
+            r#"
+            SELECT
+                block_id,
+                workspace_id,
+                content_type,
+                document_id,
+                asset_id,
+                title,
+                original_filename,
+                content_hash,
+                pinned,
+                journal_date,
+                created_at,
+                updated_at,
+                imported_at,
+                backlink_count,
+                mention_count,
+                tag_count,
+                derived_json,
+                preview_status,
+                thumbnail_asset_id,
+                proxy_asset_id
+            FROM loom_blocks
+            WHERE workspace_id = $1 AND block_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let row = row.ok_or(StorageError::NotFound("loom_block"))?;
+        self.map_loom_block_row(row)
+    }
+
+    async fn find_loom_block_by_content_hash(
+        &self,
+        workspace_id: &str,
+        content_hash: &str,
+    ) -> StorageResult<Option<LoomBlock>> {
+        let row: Option<LoomBlockRow> = sqlx::query_as(
+            r#"
+            SELECT
+                block_id,
+                workspace_id,
+                content_type,
+                document_id,
+                asset_id,
+                title,
+                original_filename,
+                content_hash,
+                pinned,
+                journal_date,
+                created_at,
+                updated_at,
+                imported_at,
+                backlink_count,
+                mention_count,
+                tag_count,
+                derived_json,
+                preview_status,
+                thumbnail_asset_id,
+                proxy_asset_id
+            FROM loom_blocks
+            WHERE workspace_id = $1 AND content_hash = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(content_hash)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match row {
+            Some(row) => Ok(Some(self.map_loom_block_row(row)?)),
+            None => Ok(None),
+        }
+    }
+
+    async fn find_loom_block_by_asset_id(
+        &self,
+        workspace_id: &str,
+        asset_id: &str,
+    ) -> StorageResult<Option<LoomBlock>> {
+        let row: Option<LoomBlockRow> = sqlx::query_as(
+            r#"
+            SELECT
+                block_id,
+                workspace_id,
+                content_type,
+                document_id,
+                asset_id,
+                title,
+                original_filename,
+                content_hash,
+                pinned,
+                journal_date,
+                created_at,
+                updated_at,
+                imported_at,
+                backlink_count,
+                mention_count,
+                tag_count,
+                derived_json,
+                preview_status,
+                thumbnail_asset_id,
+                proxy_asset_id
+            FROM loom_blocks
+            WHERE workspace_id = $1 AND asset_id = $2
+            ORDER BY updated_at DESC
+            LIMIT 1
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(asset_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match row {
+            Some(row) => Ok(Some(self.map_loom_block_row(row)?)),
+            None => Ok(None),
+        }
+    }
+
+    async fn update_loom_block(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        block_id: &str,
+        update: LoomBlockUpdate,
+    ) -> StorageResult<LoomBlock> {
+        let mut tx = self.pool.begin().await?;
+        let now = Utc::now();
+        let metadata = self.guard.validate_write(ctx, block_id).await?;
+        let actor_kind = metadata.actor_kind.as_str();
+        let actor_id = metadata.actor_id.clone();
+        let actor_id_ref = actor_id.as_deref();
+        let job_id = metadata.job_id.map(|id| id.to_string());
+        let workflow_id = metadata.workflow_id.map(|id| id.to_string());
+        let edit_event_id = metadata.edit_event_id.to_string();
+
+        let pinned: Option<i64> = update.pinned.map(|v| if v { 1 } else { 0 });
+
+        let row: Option<LoomBlockRow> = sqlx::query_as(
+            r#"
+            UPDATE loom_blocks
+            SET
+                title = COALESCE($1, title),
+                pinned = COALESCE($2, pinned),
+                journal_date = COALESCE($3, journal_date),
+                last_actor_kind = $4,
+                last_actor_id = $5,
+                last_job_id = $6,
+                last_workflow_id = $7,
+                edit_event_id = $8,
+                updated_at = $9
+            WHERE workspace_id = $10 AND block_id = $11
+            RETURNING
+                block_id,
+                workspace_id,
+                content_type,
+                document_id,
+                asset_id,
+                title,
+                original_filename,
+                content_hash,
+                pinned,
+                journal_date,
+                created_at,
+                updated_at,
+                imported_at,
+                backlink_count,
+                mention_count,
+                tag_count,
+                derived_json,
+                preview_status,
+                thumbnail_asset_id,
+                proxy_asset_id
+            "#,
+        )
+        .bind(update.title)
+        .bind(pinned)
+        .bind(update.journal_date)
+        .bind(actor_kind)
+        .bind(actor_id_ref)
+        .bind(job_id)
+        .bind(workflow_id)
+        .bind(edit_event_id)
+        .bind(now)
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        let row = row.ok_or(StorageError::NotFound("loom_block"))?;
+        let block = self.map_loom_block_row(row)?;
+        upsert_loom_block_fts_sqlite(&mut tx, &block).await?;
+        tx.commit().await?;
+        Ok(block)
+    }
+
+    async fn set_loom_block_preview(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        block_id: &str,
+        preview_status: PreviewStatus,
+        thumbnail_asset_id: Option<String>,
+        proxy_asset_id: Option<String>,
+    ) -> StorageResult<()> {
+        let now = Utc::now();
+        let metadata = self.guard.validate_write(ctx, block_id).await?;
+        let actor_kind = metadata.actor_kind.as_str();
+        let actor_id = metadata.actor_id.clone();
+        let actor_id_ref = actor_id.as_deref();
+        let job_id = metadata.job_id.map(|id| id.to_string());
+        let workflow_id = metadata.workflow_id.map(|id| id.to_string());
+        let edit_event_id = metadata.edit_event_id.to_string();
+
+        let res = sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET
+                preview_status = $1,
+                thumbnail_asset_id = $2,
+                proxy_asset_id = $3,
+                last_actor_kind = $4,
+                last_actor_id = $5,
+                last_job_id = $6,
+                last_workflow_id = $7,
+                edit_event_id = $8,
+                updated_at = $9
+            WHERE workspace_id = $10 AND block_id = $11
+            "#,
+        )
+        .bind(preview_status.as_str())
+        .bind(thumbnail_asset_id)
+        .bind(proxy_asset_id)
+        .bind(actor_kind)
+        .bind(actor_id_ref)
+        .bind(job_id)
+        .bind(workflow_id)
+        .bind(edit_event_id)
+        .bind(now)
+        .bind(workspace_id)
+        .bind(block_id)
+        .execute(&self.pool)
+        .await?;
+
+        if res.rows_affected() == 0 {
+            return Err(StorageError::NotFound("loom_block"));
+        }
+
+        Ok(())
+    }
+
+    async fn delete_loom_block(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<()> {
+        self.guard.validate_write(ctx, block_id).await?;
+        let mut tx = self.pool.begin().await?;
+        let res = sqlx::query(
+            r#"
+            DELETE FROM loom_blocks
+            WHERE workspace_id = $1 AND block_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .execute(&mut *tx)
+        .await?;
+
+        if res.rows_affected() == 0 {
+            return Err(StorageError::NotFound("loom_block"));
+        }
+
+        sqlx::query(
+            r#"
+            DELETE FROM loom_blocks_fts
+            WHERE workspace_id = $1 AND block_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    async fn create_loom_edge(
+        &self,
+        ctx: &WriteContext,
+        edge: NewLoomEdge,
+    ) -> StorageResult<LoomEdge> {
+        let mut tx = self.pool.begin().await?;
+        let now = Utc::now();
+        let id = edge.edge_id.map_or_else(|| Uuid::new_v4().to_string(), |v| v);
+        let metadata = self.guard.validate_write(ctx, &id).await?;
+        let actor_kind = metadata.actor_kind.as_str();
+        let actor_id = metadata.actor_id.clone();
+        let actor_id_ref = actor_id.as_deref();
+        let job_id = metadata.job_id.map(|id| id.to_string());
+        let workflow_id = metadata.workflow_id.map(|id| id.to_string());
+        let edit_event_id = metadata.edit_event_id.to_string();
+
+        let (source_document_id, source_text_block_id, offset_start, offset_end) =
+            match edge.source_anchor.clone() {
+                Some(anchor) => (
+                    Some(anchor.document_id),
+                    Some(anchor.block_id),
+                    Some(anchor.offset_start),
+                    Some(anchor.offset_end),
+                ),
+                None => (None, None, None, None),
+            };
+
+        let row: LoomEdgeRow = sqlx::query_as(
+            r#"
+            INSERT INTO loom_edges (
+                edge_id,
+                workspace_id,
+                source_block_id,
+                target_block_id,
+                edge_type,
+                created_by,
+                last_actor_kind,
+                last_actor_id,
+                last_job_id,
+                last_workflow_id,
+                edit_event_id,
+                created_at,
+                crdt_site_id,
+                source_document_id,
+                source_text_block_id,
+                offset_start,
+                offset_end
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, $6,
+                $7, $8, $9, $10, $11,
+                $12, $13, $14, $15, $16, $17
+            )
+            RETURNING
+                edge_id,
+                workspace_id,
+                source_block_id,
+                target_block_id,
+                edge_type,
+                created_by,
+                created_at,
+                crdt_site_id,
+                source_document_id,
+                source_text_block_id,
+                offset_start,
+                offset_end
+            "#,
+        )
+        .bind(&id)
+        .bind(&edge.workspace_id)
+        .bind(&edge.source_block_id)
+        .bind(&edge.target_block_id)
+        .bind(edge.edge_type.as_str())
+        .bind(edge.created_by.as_str())
+        .bind(actor_kind)
+        .bind(actor_id_ref)
+        .bind(job_id)
+        .bind(workflow_id)
+        .bind(edit_event_id)
+        .bind(now)
+        .bind(edge.crdt_site_id)
+        .bind(source_document_id)
+        .bind(source_text_block_id)
+        .bind(offset_start)
+        .bind(offset_end)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        if matches!(edge.edge_type, LoomEdgeType::Mention | LoomEdgeType::Tag) {
+            for block_id in [&edge.source_block_id, &edge.target_block_id] {
+                sqlx::query(
+                    r#"
+                    UPDATE loom_blocks
+                    SET
+                        mention_count = (SELECT COUNT(*) FROM loom_edges WHERE workspace_id = $1 AND source_block_id = $2 AND edge_type = 'mention'),
+                        tag_count = (SELECT COUNT(*) FROM loom_edges WHERE workspace_id = $1 AND source_block_id = $2 AND edge_type = 'tag'),
+                        backlink_count = (SELECT COUNT(*) FROM loom_edges WHERE workspace_id = $1 AND target_block_id = $2 AND edge_type IN ('mention', 'tag'))
+                    WHERE workspace_id = $1 AND block_id = $2
+                    "#,
+                )
+                .bind(&edge.workspace_id)
+                .bind(block_id)
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+
+        tx.commit().await?;
+        self.map_loom_edge_row(row)
+    }
+
+    async fn delete_loom_edge(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        edge_id: &str,
+    ) -> StorageResult<LoomEdge> {
+        let mut tx = self.pool.begin().await?;
+        self.guard.validate_write(ctx, edge_id).await?;
+
+        let existing: Option<LoomEdgeRow> = sqlx::query_as(
+            r#"
+            SELECT
+                edge_id,
+                workspace_id,
+                source_block_id,
+                target_block_id,
+                edge_type,
+                created_by,
+                created_at,
+                crdt_site_id,
+                source_document_id,
+                source_text_block_id,
+                offset_start,
+                offset_end
+            FROM loom_edges
+            WHERE workspace_id = $1 AND edge_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(edge_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        let existing = existing.ok_or(StorageError::NotFound("loom_edge"))?;
+        let mapped_existing = self.map_loom_edge_row(existing)?;
+
+        sqlx::query(
+            r#"
+            DELETE FROM loom_edges
+            WHERE workspace_id = $1 AND edge_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(edge_id)
+        .execute(&mut *tx)
+        .await?;
+
+        if matches!(
+            mapped_existing.edge_type,
+            LoomEdgeType::Mention | LoomEdgeType::Tag
+        ) {
+            for block_id in [&mapped_existing.source_block_id, &mapped_existing.target_block_id] {
+                sqlx::query(
+                    r#"
+                    UPDATE loom_blocks
+                    SET
+                        mention_count = (SELECT COUNT(*) FROM loom_edges WHERE workspace_id = $1 AND source_block_id = $2 AND edge_type = 'mention'),
+                        tag_count = (SELECT COUNT(*) FROM loom_edges WHERE workspace_id = $1 AND source_block_id = $2 AND edge_type = 'tag'),
+                        backlink_count = (SELECT COUNT(*) FROM loom_edges WHERE workspace_id = $1 AND target_block_id = $2 AND edge_type IN ('mention', 'tag'))
+                    WHERE workspace_id = $1 AND block_id = $2
+                    "#,
+                )
+                .bind(workspace_id)
+                .bind(block_id)
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+
+        tx.commit().await?;
+        Ok(mapped_existing)
+    }
+
+    async fn list_loom_edges_for_block(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<Vec<LoomEdge>> {
+        let rows: Vec<LoomEdgeRow> = sqlx::query_as(
+            r#"
+            SELECT
+                edge_id,
+                workspace_id,
+                source_block_id,
+                target_block_id,
+                edge_type,
+                created_by,
+                created_at,
+                crdt_site_id,
+                source_document_id,
+                source_text_block_id,
+                offset_start,
+                offset_end
+            FROM loom_edges
+            WHERE workspace_id = $1
+              AND (source_block_id = $2 OR target_block_id = $2)
+            ORDER BY created_at ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| self.map_loom_edge_row(row))
+            .collect()
+    }
+
+    async fn query_loom_view(
+        &self,
+        workspace_id: &str,
+        view_type: LoomViewType,
+        filters: LoomViewFilters,
+        limit: u32,
+        offset: u32,
+    ) -> StorageResult<LoomViewResponse> {
+        let limit_i64 = limit as i64;
+        let offset_i64 = offset as i64;
+
+        let select_blocks = |extra_where: Option<&'static str>| async move {
+            let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
+                r#"
+                SELECT
+                    b.block_id,
+                    b.workspace_id,
+                    b.content_type,
+                    b.document_id,
+                    b.asset_id,
+                    b.title,
+                    b.original_filename,
+                    b.content_hash,
+                    b.pinned,
+                    b.journal_date,
+                    b.created_at,
+                    b.updated_at,
+                    b.imported_at,
+                    b.backlink_count,
+                    b.mention_count,
+                    b.tag_count,
+                    b.derived_json,
+                    b.preview_status,
+                    b.thumbnail_asset_id,
+                    b.proxy_asset_id
+                FROM loom_blocks b
+                LEFT JOIN assets a
+                  ON a.workspace_id = b.workspace_id AND a.asset_id = b.asset_id
+                "#,
+            );
+
+            let mut has_where = false;
+            let mut push_clause = |builder: &mut sqlx::QueryBuilder<sqlx::Sqlite>| {
+                if has_where {
+                    builder.push(" AND ");
+                } else {
+                    builder.push(" WHERE ");
+                    has_where = true;
+                }
+            };
+
+            push_clause(&mut qb);
+            qb.push("b.workspace_id = ").push_bind(workspace_id);
+
+            if let Some(extra) = extra_where {
+                push_clause(&mut qb);
+                qb.push(extra);
+            }
+
+            if let Some(content_type) = filters.content_type {
+                push_clause(&mut qb);
+                qb.push("b.content_type = ").push_bind(content_type.as_str());
+            }
+
+            if let Some(mime) = filters.mime {
+                push_clause(&mut qb);
+                qb.push("a.mime = ").push_bind(mime);
+            }
+
+            if let Some(from) = filters.date_from {
+                push_clause(&mut qb);
+                qb.push("b.updated_at >= ").push_bind(from);
+            }
+            if let Some(to) = filters.date_to {
+                push_clause(&mut qb);
+                qb.push("b.updated_at <= ").push_bind(to);
+            }
+
+            if !filters.tag_ids.is_empty() {
+                push_clause(&mut qb);
+                qb.push(
+                    "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'tag' AND e.target_block_id IN (",
+                );
+                let mut separated = qb.separated(", ");
+                for tag_id in &filters.tag_ids {
+                    separated.push_bind(tag_id);
+                }
+                separated.push_unseparated("))");
+            }
+
+            if !filters.mention_ids.is_empty() {
+                push_clause(&mut qb);
+                qb.push(
+                    "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'mention' AND e.target_block_id IN (",
+                );
+                let mut separated = qb.separated(", ");
+                for mention_id in &filters.mention_ids {
+                    separated.push_bind(mention_id);
+                }
+                separated.push_unseparated("))");
+            }
+
+            qb.push(" ORDER BY b.updated_at DESC ");
+            qb.push(" LIMIT ").push_bind(limit_i64);
+            qb.push(" OFFSET ").push_bind(offset_i64);
+
+            let rows: Vec<LoomBlockRow> = qb.build_query_as().fetch_all(&self.pool).await?;
+            let blocks: Vec<LoomBlock> = rows
+                .into_iter()
+                .map(|row| self.map_loom_block_row(row))
+                .collect::<StorageResult<Vec<_>>>()?;
+            Ok::<_, StorageError>(blocks)
+        };
+
+        match view_type {
+            LoomViewType::All => {
+                let blocks = select_blocks(None).await?;
+                Ok(LoomViewResponse::All { blocks })
+            }
+            LoomViewType::Pins => {
+                let blocks = select_blocks(Some("b.pinned != 0")).await?;
+                Ok(LoomViewResponse::Pins { blocks })
+            }
+            LoomViewType::Unlinked => {
+                let blocks = select_blocks(Some(
+                    r#"
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM loom_edges e
+                        WHERE e.workspace_id = b.workspace_id
+                          AND (e.source_block_id = b.block_id OR e.target_block_id = b.block_id)
+                          AND e.edge_type IN ('mention', 'tag')
+                    )
+                    "#,
+                ))
+                .await?;
+                Ok(LoomViewResponse::Unlinked { blocks })
+            }
+            LoomViewType::Sorted => {
+                let group_rows: Vec<(String, String)> = sqlx::query_as(
+                    r#"
+                    SELECT DISTINCT edge_type, target_block_id
+                    FROM loom_edges
+                    WHERE workspace_id = $1
+                      AND edge_type IN ('mention', 'tag')
+                    ORDER BY edge_type ASC, target_block_id ASC
+                    LIMIT $2 OFFSET $3
+                    "#,
+                )
+                .bind(workspace_id)
+                .bind(limit_i64)
+                .bind(offset_i64)
+                .fetch_all(&self.pool)
+                .await?;
+
+                let mut groups: Vec<LoomViewGroup> = Vec::new();
+                for (edge_type_raw, target_block_id) in group_rows {
+                    let edge_type = LoomEdgeType::from_str(edge_type_raw.as_str())?;
+
+                    let rows: Vec<LoomBlockRow> = sqlx::query_as(
+                        r#"
+                        SELECT
+                            b.block_id,
+                            b.workspace_id,
+                            b.content_type,
+                            b.document_id,
+                            b.asset_id,
+                            b.title,
+                            b.original_filename,
+                            b.content_hash,
+                            b.pinned,
+                            b.journal_date,
+                            b.created_at,
+                            b.updated_at,
+                            b.imported_at,
+                            b.backlink_count,
+                            b.mention_count,
+                            b.tag_count,
+                            b.derived_json,
+                            b.preview_status,
+                            b.thumbnail_asset_id,
+                            b.proxy_asset_id
+                        FROM loom_edges e
+                        JOIN loom_blocks b
+                          ON b.workspace_id = e.workspace_id AND b.block_id = e.source_block_id
+                        LEFT JOIN assets a
+                          ON a.workspace_id = b.workspace_id AND a.asset_id = b.asset_id
+                        WHERE e.workspace_id = $1
+                          AND e.edge_type = $2
+                          AND e.target_block_id = $3
+                        ORDER BY b.updated_at DESC
+                        LIMIT 100
+                        "#,
+                    )
+                    .bind(workspace_id)
+                    .bind(edge_type.as_str())
+                    .bind(&target_block_id)
+                    .fetch_all(&self.pool)
+                    .await?;
+
+                    let blocks: Vec<LoomBlock> = rows
+                        .into_iter()
+                        .map(|row| self.map_loom_block_row(row))
+                        .collect::<StorageResult<Vec<_>>>()?;
+
+                    groups.push(LoomViewGroup {
+                        edge_type,
+                        target_block_id,
+                        blocks,
+                    });
+                }
+
+                Ok(LoomViewResponse::Sorted { groups })
+            }
+        }
+    }
+
+    async fn search_loom_blocks(
+        &self,
+        workspace_id: &str,
+        query: &str,
+        filters: LoomSearchFilters,
+        limit: u32,
+        offset: u32,
+    ) -> StorageResult<Vec<LoomBlockSearchResult>> {
+        let Some(fts_query) = normalize_fts5_query(query) else {
+            return Ok(Vec::new());
+        };
+        let limit_i64 = limit as i64;
+        let offset_i64 = offset as i64;
+
+        let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
+            r#"
+            SELECT
+                bm25(loom_blocks_fts) AS score,
+                b.block_id,
+                b.workspace_id,
+                b.content_type,
+                b.document_id,
+                b.asset_id,
+                b.title,
+                b.original_filename,
+                b.content_hash,
+                b.pinned,
+                b.journal_date,
+                b.created_at,
+                b.updated_at,
+                b.imported_at,
+                b.backlink_count,
+                b.mention_count,
+                b.tag_count,
+                b.derived_json,
+                b.preview_status,
+                b.thumbnail_asset_id,
+                b.proxy_asset_id
+            FROM loom_blocks_fts
+            JOIN loom_blocks b
+              ON b.workspace_id = loom_blocks_fts.workspace_id AND b.block_id = loom_blocks_fts.block_id
+            LEFT JOIN assets a
+              ON a.workspace_id = b.workspace_id AND a.asset_id = b.asset_id
+            "#,
+        );
+
+        let mut has_where = false;
+        let mut push_clause = |builder: &mut sqlx::QueryBuilder<sqlx::Sqlite>| {
+            if has_where {
+                builder.push(" AND ");
+            } else {
+                builder.push(" WHERE ");
+                has_where = true;
+            }
+        };
+
+        push_clause(&mut qb);
+        qb.push("loom_blocks_fts.workspace_id = ").push_bind(workspace_id);
+
+        push_clause(&mut qb);
+        qb.push("loom_blocks_fts MATCH ").push_bind(fts_query);
+
+        if let Some(content_type) = filters.content_type {
+            push_clause(&mut qb);
+            qb.push("b.content_type = ").push_bind(content_type.as_str());
+        }
+        if let Some(mime) = filters.mime {
+            push_clause(&mut qb);
+            qb.push("a.mime = ").push_bind(mime);
+        }
+
+        if !filters.tag_ids.is_empty() {
+            push_clause(&mut qb);
+            qb.push(
+                "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'tag' AND e.target_block_id IN (",
+            );
+            let mut separated = qb.separated(", ");
+            for tag_id in &filters.tag_ids {
+                separated.push_bind(tag_id);
+            }
+            separated.push_unseparated("))");
+        }
+
+        if !filters.mention_ids.is_empty() {
+            push_clause(&mut qb);
+            qb.push(
+                "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'mention' AND e.target_block_id IN (",
+            );
+            let mut separated = qb.separated(", ");
+            for mention_id in &filters.mention_ids {
+                separated.push_bind(mention_id);
+            }
+            separated.push_unseparated("))");
+        }
+
+        qb.push(" ORDER BY score ASC, b.updated_at DESC ");
+        qb.push(" LIMIT ").push_bind(limit_i64);
+        qb.push(" OFFSET ").push_bind(offset_i64);
+
+        let rows: Vec<LoomBlockSearchRow> = qb.build_query_as().fetch_all(&self.pool).await?;
+        rows.into_iter()
+            .map(|row| self.map_loom_block_search_row(row))
+            .collect::<StorageResult<Vec<_>>>()
     }
     async fn create_canvas(&self, ctx: &WriteContext, canvas: NewCanvas) -> StorageResult<Canvas> {
         let now = Utc::now();
