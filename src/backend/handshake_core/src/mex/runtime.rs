@@ -8,13 +8,18 @@ use serde_json::{json, Value};
 use thiserror::Error;
 use uuid::Uuid;
 
+use crate::ace::ArtifactHandle;
+use crate::bundles::redactor::SecretRedactor;
+use crate::bundles::schemas::RedactionMode;
 use crate::capabilities::CapabilityRegistry;
 use crate::diagnostics::{
     DiagnosticActor, DiagnosticInput, DiagnosticSeverity, DiagnosticSource, DiagnosticSurface,
     DiagnosticsStore, LinkConfidence,
 };
+use crate::flight_recorder::duckdb::store_tool_payload_redacted;
 use crate::flight_recorder::{
-    FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+    canonical_json_sha256_hex, FlightRecorder, FlightRecorderActor, FlightRecorderEvent,
+    FlightRecorderEventType,
 };
 use crate::mex::envelope::{
     DeterminismLevel, EngineError, EngineResult, EngineStatus, PlannedOperation, ProvenanceRecord,
@@ -32,6 +37,61 @@ use crate::terminal::{
 pub enum AdapterError {
     #[error("Engine adapter error: {0}")]
     Engine(String),
+}
+
+fn canonical_tool_id_segment(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len().min(64));
+    for ch in raw.chars() {
+        let ch = ch.to_ascii_lowercase();
+        if ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '_' {
+            out.push(ch);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.trim_matches('_').is_empty() {
+        "unknown".to_string()
+    } else {
+        out
+    }
+}
+
+fn canonical_mex_tool_id(engine_id: &str, operation: &str) -> String {
+    let mut segments = vec!["mex".to_string()];
+    segments.extend(
+        engine_id
+            .split('.')
+            .filter(|seg| !seg.trim().is_empty())
+            .map(canonical_tool_id_segment),
+    );
+    segments.extend(
+        operation
+            .split('.')
+            .filter(|seg| !seg.trim().is_empty())
+            .map(canonical_tool_id_segment),
+    );
+    if segments.len() == 1 {
+        segments.push("unknown".to_string());
+    }
+    segments.join(".")
+}
+
+fn is_simple_semver(value: &str) -> bool {
+    let segments: Vec<&str> = value.trim().split('.').collect();
+    if segments.len() != 3 {
+        return false;
+    }
+    segments
+        .into_iter()
+        .all(|seg| !seg.is_empty() && seg.chars().all(|c| c.is_ascii_digit()))
+}
+
+fn default_actor_payload() -> Value {
+    json!({
+        "kind": "agent",
+        "agent_id": null,
+        "model_id": null,
+    })
 }
 
 #[async_trait]
@@ -183,7 +243,7 @@ impl MexRuntime {
         self.record_tool_fr_event(op, "tool.call", "INFO", "tool invocation started", payload)
     }
 
-    fn record_tool_result(
+    async fn record_tool_result(
         &self,
         op: &PlannedOperation,
         result: Option<&EngineResult>,
@@ -237,7 +297,140 @@ impl MexRuntime {
             level,
             "tool invocation finished",
             payload,
+        )?;
+
+        let tool_call_id = op.op_id;
+        let trace_id = op.op_id;
+        let tool_id = canonical_mex_tool_id(&op.engine_id, &op.operation);
+        let tool_version = result
+            .and_then(|r| r.provenance.engine_version.as_deref())
+            .filter(|v| is_simple_semver(v))
+            .unwrap_or("0.0.0")
+            .to_string();
+
+        let redactor = SecretRedactor::new();
+        let args_payload = json!({
+            "engine_id": op.engine_id,
+            "engine_version_req": op.engine_version_req,
+            "operation": op.operation,
+            "inputs": Self::artifact_refs(&op.inputs),
+            "params": op.params,
+            "capabilities_requested": op.capabilities_requested,
+            "budget": op.budget,
+            "determinism": op.determinism,
+            "output_spec": op.output_spec,
+        });
+        let (args_redacted, _) =
+            redactor.redact_value(&args_payload, RedactionMode::SafeDefault, "tool_gate/mex/args");
+        let (args_handle, args_hash) = if let Some(conn) = self.flight_recorder.duckdb_connection()
+        {
+            let conn = conn.lock().map_err(|_| {
+                MexRuntimeError::Logging("duckdb connection lock error".to_string())
+            })?;
+            store_tool_payload_redacted(&conn, tool_call_id, "args", &args_redacted)
+                .map_err(|e| MexRuntimeError::Logging(e.to_string()))?
+        } else {
+            let artifact_path = format!("data/flight_recorder/tool_payloads/{tool_call_id}/args.json");
+            (
+                ArtifactHandle::new(tool_call_id, artifact_path),
+                canonical_json_sha256_hex(&args_redacted),
+            )
+        };
+
+        let (result_ref, result_hash) = if let Some(result) = result {
+            let outputs = Self::artifact_refs(&result.outputs);
+            let evidence = Self::artifact_refs(&result.evidence);
+            let logs_ref = result.logs_ref.as_ref().map(|h| h.canonical_id());
+            let result_payload = json!({
+                "status": status,
+                "outputs": outputs,
+                "evidence": evidence,
+                "logs_ref": logs_ref,
+                "errors": result.errors,
+                "provenance": result.provenance,
+            });
+            let (result_redacted, _) = redactor.redact_value(
+                &result_payload,
+                RedactionMode::SafeDefault,
+                "tool_gate/mex/result",
+            );
+            let (handle, hash) = if let Some(conn) = self.flight_recorder.duckdb_connection() {
+                let conn = conn.lock().map_err(|_| {
+                    MexRuntimeError::Logging("duckdb connection lock error".to_string())
+                })?;
+                store_tool_payload_redacted(&conn, tool_call_id, "result", &result_redacted)
+                    .map_err(|e| MexRuntimeError::Logging(e.to_string()))?
+            } else {
+                let artifact_path =
+                    format!("data/flight_recorder/tool_payloads/{tool_call_id}/result.json");
+                (
+                    ArtifactHandle::new(tool_call_id, artifact_path),
+                    canonical_json_sha256_hex(&result_redacted),
+                )
+            };
+            (Some(handle.canonical_id()), Some(hash))
+        } else {
+            (None, None)
+        };
+
+        let ok = status == "success";
+        let ended_at = result.map(|r| r.ended_at).unwrap_or_else(Utc::now);
+        let started_at = result
+            .map(|r| r.started_at)
+            .unwrap_or_else(|| ended_at - chrono::Duration::milliseconds(duration_ms.unwrap_or(0) as i64));
+        let duration_ms = ended_at
+            .signed_duration_since(started_at)
+            .num_milliseconds()
+            .max(0);
+
+        let error = if ok {
+            Value::Null
+        } else {
+            json!({
+                "code": error_code.clone().unwrap_or_else(|| "MEX_ERROR".to_string()),
+                "kind": "tool",
+                "message": error_code.clone().unwrap_or_else(|| "mex operation failed".to_string()),
+                "retryable": false,
+            })
+        };
+
+        let tool_call_payload = json!({
+            "type": "tool_call",
+            "trace_id": trace_id.to_string(),
+            "tool_call_id": tool_call_id.to_string(),
+            "tool_id": tool_id,
+            "tool_version": tool_version,
+            "transport": "mex",
+            "side_effect": "READ",
+            "idempotency": "IDEMPOTENT",
+            "actor": default_actor_payload(),
+            "ok": ok,
+            "args_ref": args_handle.canonical_id(),
+            "args_hash": args_hash,
+            "result_ref": result_ref,
+            "result_hash": result_hash,
+            "error": error,
+            "timing": {
+                "started_at": started_at.to_rfc3339(),
+                "ended_at": ended_at.to_rfc3339(),
+                "duration_ms": duration_ms,
+            },
+            "capability_ids": op.capabilities_requested,
+        });
+
+        let event = FlightRecorderEvent::new(
+            FlightRecorderEventType::ToolCall,
+            FlightRecorderActor::Agent,
+            trace_id,
+            tool_call_payload,
         )
+        .with_job_id(op.op_id.to_string());
+        self.flight_recorder
+            .record_event(event)
+            .await
+            .map_err(|e| MexRuntimeError::Logging(e.to_string()))?;
+
+        Ok(())
     }
 
     pub async fn execute(&self, op: PlannedOperation) -> Result<EngineResult, MexRuntimeError> {
@@ -295,7 +488,8 @@ impl MexRuntime {
                     Some(duration_ms),
                     "error",
                     Some("MEX_ADAPTER_ERROR".to_string()),
-                )?;
+                )
+                .await?;
                 return Err(MexRuntimeError::Adapter(err));
             }
         };
@@ -308,14 +502,16 @@ impl MexRuntime {
                 Some(duration_ms),
                 "error",
                 Some("MEX_EVIDENCE_MISSING".to_string()),
-            )?;
+            )
+            .await?;
             return Err(MexRuntimeError::EvidenceMissing(op.determinism));
         }
 
         // Attach engine_id to provenance if missing.
         result.provenance = result.provenance.with_engine_id(&engine_id);
 
-        self.record_tool_result(&op, Some(&result), Some(duration_ms), "success", None)?;
+        self.record_tool_result(&op, Some(&result), Some(duration_ms), "success", None)
+            .await?;
 
         Ok(result)
     }

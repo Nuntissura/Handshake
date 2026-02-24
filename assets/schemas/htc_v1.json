@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://handshake.local/schemas/htc_v1.json",
+  "title": "Handshake Tool Contract (HTC-1.0)",
+  "oneOf": [
+    { "$ref": "#/$defs/HtcRequestEnvelope" },
+    { "$ref": "#/$defs/HtcResponseEnvelope" }
+  ],
+  "$defs": {
+    "Uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "ToolId": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)+$"
+    },
+    "SemVer": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "ArtifactRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^(artifact:|artifact://)"
+    },
+    "Actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["human", "agent", "system"]
+        },
+        "agent_id": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "model_id": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 256
+        }
+      }
+    },
+    "Timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["started_at", "ended_at", "duration_ms"],
+      "properties": {
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ended_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "Resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "workspace_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ArtifactRef" }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "urls": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      }
+    },
+    "ErrorKind": {
+      "type": "string",
+      "enum": [
+        "validation",
+        "auth",
+        "capability",
+        "timeout",
+        "tool",
+        "transport",
+        "canceled",
+        "policy"
+      ]
+    },
+    "ErrorObject": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["code", "kind"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "kind": { "$ref": "#/$defs/ErrorKind" },
+        "message": {
+          "type": ["string", "null"],
+          "maxLength": 4096
+        },
+        "retryable": {
+          "type": ["boolean", "null"]
+        },
+        "details": {}
+      }
+    },
+    "HtcRequestEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tool_call_id",
+        "trace_id",
+        "actor",
+        "tool_id",
+        "tool_version",
+        "args",
+        "dry_run"
+      ],
+      "properties": {
+        "schema_version": { "const": "htc-1.0" },
+        "tool_call_id": { "$ref": "#/$defs/Uuid" },
+        "trace_id": { "$ref": "#/$defs/Uuid" },
+        "session_id": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "actor": { "$ref": "#/$defs/Actor" },
+        "tool_id": { "$ref": "#/$defs/ToolId" },
+        "tool_version": { "$ref": "#/$defs/SemVer" },
+        "args": {
+          "type": "object"
+        },
+        "args_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/ArtifactRef" }]
+        },
+        "idempotency_key": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "dry_run": {
+          "type": "boolean"
+        }
+      }
+    },
+    "HtcResponseEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "tool_call_id", "trace_id", "ok", "error", "timing"],
+      "properties": {
+        "schema_version": { "const": "htc-1.0" },
+        "tool_call_id": { "$ref": "#/$defs/Uuid" },
+        "trace_id": { "$ref": "#/$defs/Uuid" },
+        "ok": {
+          "type": "boolean"
+        },
+        "result": {},
+        "result_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/ArtifactRef" }]
+        },
+        "error": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/ErrorObject" }]
+        },
+        "timing": { "$ref": "#/$defs/Timing" },
+        "resources": { "$ref": "#/$defs/Resources" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "ok": { "const": true } },
+            "required": ["ok"]
+          },
+          "then": {
+            "properties": {
+              "error": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "ok": { "const": false } },
+            "required": ["ok"]
+          },
+          "then": {
+            "properties": {
+              "error": { "$ref": "#/$defs/ErrorObject" }
+            },
+            "required": ["error"]
+          }
+        }
+      ]
+    }
+  }
+}

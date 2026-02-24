@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
@@ -41,6 +42,8 @@ pub enum FlightRecorderEventType {
     EditorEdit,
     Diagnostic,
     CapabilityAction,
+    /// FR-EVT-007: Tool invocation (Unified Tool Surface Contract) [11.5.2]
+    ToolCall,
     /// FR-EVT-008: Security violation detected by ACE validators [A2.6.6.7.11]
     SecurityViolation,
     /// FR-EVT-WF-RECOVERY: Workflow recovery initiated [A2.6.1]
@@ -160,6 +163,7 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::EditorEdit => write!(f, "editor_edit"),
             FlightRecorderEventType::Diagnostic => write!(f, "diagnostic"),
             FlightRecorderEventType::CapabilityAction => write!(f, "capability_action"),
+            FlightRecorderEventType::ToolCall => write!(f, "tool_call"),
             FlightRecorderEventType::SecurityViolation => write!(f, "security_violation"),
             FlightRecorderEventType::WorkflowRecovery => write!(f, "workflow_recovery"),
             FlightRecorderEventType::MicroTaskLoopStarted => write!(f, "micro_task_loop_started"),
@@ -685,6 +689,7 @@ impl FlightRecorderEvent {
             FlightRecorderEventType::CapabilityAction => {
                 validate_capability_action_payload(&self.payload)
             }
+            FlightRecorderEventType::ToolCall => validate_tool_call_payload(&self.payload),
             FlightRecorderEventType::DataBronzeCreated => {
                 validate_data_bronze_created_payload(&self.payload)
             }
@@ -1087,6 +1092,373 @@ fn validate_diagnostic_payload(payload: &Value) -> Result<(), RecorderError> {
     let map = payload_object(payload)?;
     require_string(map, "diagnostic_id")?;
     Ok(())
+}
+
+// =============================================================================
+// FR-EVT-007 (ToolCallEvent) payload validator [11.5.2]
+// =============================================================================
+
+fn validate_tool_call_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_allowed_keys(
+        map,
+        &[
+            "type",
+            "trace_id",
+            "tool_call_id",
+            "tool_id",
+            "tool_version",
+            "transport",
+            "side_effect",
+            "idempotency",
+            "actor",
+            "ok",
+            "timing",
+        ],
+        &[
+            "idempotency_key",
+            "args_ref",
+            "args_hash",
+            "result_ref",
+            "result_hash",
+            "error",
+            "resources_touched",
+            "capability_ids",
+            "parent_span_id",
+        ],
+    )?;
+
+    require_fixed_string(map, "type", "tool_call")?;
+    require_uuid_string_non_nil(map, "trace_id")?;
+    require_uuid_string_non_nil(map, "tool_call_id")?;
+
+    match require_key(map, "tool_id")? {
+        Value::String(value) if is_tool_id(value) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field tool_id must match ^[a-z0-9_]+(\\.[a-z0-9_]+)+$".to_string(),
+            ))
+        }
+    }
+
+    match require_key(map, "tool_version")? {
+        Value::String(value) if is_semver(value) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field tool_version must match MAJOR.MINOR.PATCH".to_string(),
+            ))
+        }
+    }
+
+    match require_key(map, "transport")? {
+        Value::String(value)
+            if matches!(
+                value.as_str(),
+                "local" | "mcp" | "mex" | "stage_bridge" | "other"
+            ) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field transport must be one of: local, mcp, mex, stage_bridge, other"
+                    .to_string(),
+            ))
+        }
+    }
+
+    match require_key(map, "side_effect")? {
+        Value::String(value) if matches!(value.as_str(), "READ" | "WRITE" | "EXECUTE") => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field side_effect must be one of: READ, WRITE, EXECUTE".to_string(),
+            ))
+        }
+    }
+
+    match require_key(map, "idempotency")? {
+        Value::String(value)
+            if matches!(
+                value.as_str(),
+                "IDEMPOTENT" | "IDEMPOTENT_WITH_KEY" | "NON_IDEMPOTENT"
+            ) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field idempotency must be one of: IDEMPOTENT, IDEMPOTENT_WITH_KEY, NON_IDEMPOTENT".to_string(),
+            ))
+        }
+    }
+
+    if map.contains_key("idempotency_key") {
+        match require_key(map, "idempotency_key")? {
+            Value::Null => {}
+            Value::String(value) if is_safe_token(value, 256) => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field idempotency_key must be a bounded string token or null"
+                        .to_string(),
+                ))
+            }
+        }
+    }
+
+    match require_key(map, "actor")? {
+        Value::Object(actor) => {
+            require_allowed_keys(actor, &["kind"], &["agent_id", "model_id"])?;
+            match require_key(actor, "kind")? {
+                Value::String(value) if matches!(value.as_str(), "human" | "agent" | "system") => {}
+                _ => {
+                    return Err(RecorderError::InvalidEvent(
+                        "payload field actor.kind must be one of: human, agent, system".to_string(),
+                    ))
+                }
+            }
+            for key in ["agent_id", "model_id"] {
+                if actor.contains_key(key) {
+                    match require_key(actor, key)? {
+                        Value::Null => {}
+                        Value::String(value) if is_safe_id(value, 256) => {}
+                        _ => {
+                            return Err(RecorderError::InvalidEvent(format!(
+                                "payload field actor.{key} must be a safe id string or null"
+                            )))
+                        }
+                    }
+                }
+            }
+        }
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field actor must be an object".to_string(),
+            ))
+        }
+    }
+
+    require_bool(map, "ok")?;
+
+    for (ref_key, hash_key) in [("args_ref", "args_hash"), ("result_ref", "result_hash")] {
+        if map.contains_key(ref_key) {
+            match require_key(map, ref_key)? {
+                Value::Null => {}
+                Value::String(value) if is_tool_payload_artifact_ref(value) => {}
+                _ => {
+                    return Err(RecorderError::InvalidEvent(format!(
+                        "payload field {ref_key} must be an artifact handle string or null"
+                    )))
+                }
+            }
+        }
+        if map.contains_key(hash_key) {
+            match require_key(map, hash_key)? {
+                Value::Null => {}
+                Value::String(_) => require_sha256_hex(map, hash_key)?,
+                _ => {
+                    return Err(RecorderError::InvalidEvent(format!(
+                        "payload field {hash_key} must be a 64-char hex sha256 or null"
+                    )))
+                }
+            }
+        }
+    }
+
+    if map.contains_key("error") {
+        match require_key(map, "error")? {
+            Value::Null => {}
+            Value::Object(err) => {
+                require_allowed_keys(err, &["code", "kind"], &["message", "retryable"])?;
+                match require_key(err, "code")? {
+                    Value::String(value) if is_safe_token(value, 64) => {}
+                    _ => {
+                        return Err(RecorderError::InvalidEvent(
+                            "payload field error.code must be a bounded string token".to_string(),
+                        ))
+                    }
+                }
+                match require_key(err, "kind")? {
+                    Value::String(value) if is_safe_token(value, 64) => {}
+                    _ => {
+                        return Err(RecorderError::InvalidEvent(
+                            "payload field error.kind must be a bounded string token".to_string(),
+                        ))
+                    }
+                }
+                if err.contains_key("message") {
+                    match require_key(err, "message")? {
+                        Value::String(_) | Value::Null => {}
+                        _ => {
+                            return Err(RecorderError::InvalidEvent(
+                                "payload field error.message must be a string or null".to_string(),
+                            ))
+                        }
+                    }
+                }
+                if err.contains_key("retryable") {
+                    match require_key(err, "retryable")? {
+                        Value::Bool(_) | Value::Null => {}
+                        _ => {
+                            return Err(RecorderError::InvalidEvent(
+                                "payload field error.retryable must be a boolean or null".to_string(),
+                            ))
+                        }
+                    }
+                }
+            }
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field error must be an object or null".to_string(),
+                ))
+            }
+        }
+    }
+
+    match require_key(map, "timing")? {
+        Value::Object(timing) => {
+            require_exact_keys(timing, &["started_at", "ended_at", "duration_ms"])?;
+            require_rfc3339(timing, "started_at")?;
+            require_rfc3339(timing, "ended_at")?;
+            require_number(timing, "duration_ms")?;
+        }
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field timing must be an object".to_string(),
+            ))
+        }
+    }
+
+    if map.contains_key("resources_touched") {
+        match require_key(map, "resources_touched")? {
+            Value::Null => {}
+            Value::Object(resources) => {
+                require_allowed_keys(resources, &[], &["workspace_ids", "artifacts", "files", "urls"])?;
+                for key in ["workspace_ids", "artifacts", "files", "urls"] {
+                    if resources.contains_key(key) {
+                        match require_key(resources, key)? {
+                            Value::Array(items) => {
+                                for (idx, item) in items.iter().enumerate() {
+                                    match item {
+                                        Value::String(value) if is_safe_token(value, 2048) => {}
+                                        _ => {
+                                            return Err(RecorderError::InvalidEvent(format!(
+                                                "payload field resources_touched.{key}[{idx}] must be a bounded string token"
+                                            )))
+                                        }
+                                    }
+                                }
+                            }
+                            _ => {
+                                return Err(RecorderError::InvalidEvent(format!(
+                                    "payload field resources_touched.{key} must be an array"
+                                )))
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field resources_touched must be an object or null".to_string(),
+                ))
+            }
+        }
+    }
+
+    if map.contains_key("capability_ids") {
+        match require_key(map, "capability_ids")? {
+            Value::Null => {}
+            Value::Array(items) => {
+                for (idx, item) in items.iter().enumerate() {
+                    match item {
+                        Value::String(value) if is_safe_token(value, 256) => {}
+                        _ => {
+                            return Err(RecorderError::InvalidEvent(format!(
+                                "payload field capability_ids[{idx}] must be a bounded string token"
+                            )))
+                        }
+                    }
+                }
+            }
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field capability_ids must be an array or null".to_string(),
+                ))
+            }
+        }
+    }
+
+    if map.contains_key("parent_span_id") {
+        match require_key(map, "parent_span_id")? {
+            Value::Null => {}
+            Value::String(value) if is_safe_token(value, 256) => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field parent_span_id must be a bounded string token or null".to_string(),
+                ))
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn is_tool_id(value: &str) -> bool {
+    let value = value.trim();
+    if value.is_empty() || value.len() > 256 {
+        return false;
+    }
+
+    let segments: Vec<&str> = value.split('.').collect();
+    if segments.len() < 2 {
+        return false;
+    }
+
+    segments.into_iter().all(|segment| {
+        !segment.is_empty()
+            && segment
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    })
+}
+
+fn is_semver(value: &str) -> bool {
+    let value = value.trim();
+    if value.is_empty() || value.len() > 64 {
+        return false;
+    }
+
+    let segments: Vec<&str> = value.split('.').collect();
+    if segments.len() != 3 {
+        return false;
+    }
+
+    segments
+        .into_iter()
+        .all(|segment| !segment.is_empty() && segment.chars().all(|c| c.is_ascii_digit()))
+}
+
+fn is_tool_payload_artifact_ref(value: &str) -> bool {
+    let value = value.trim();
+    if value.len() > 2048 {
+        return false;
+    }
+
+    if value.starts_with("artifact://") {
+        return is_safe_token(value, 2048);
+    }
+
+    let Some(rest) = value.strip_prefix("artifact:") else {
+        return false;
+    };
+    let Some((uuid_part, path_part)) = rest.split_once(':') else {
+        return false;
+    };
+    if Uuid::parse_str(uuid_part).is_err() {
+        return false;
+    }
+
+    let path_part = path_part.trim();
+    if !is_safe_token(path_part, 2048) {
+        return false;
+    }
+
+    // Canonical tool payload storage location for Phase 1.
+    path_part.starts_with("data/flight_recorder/tool_payloads/")
 }
 
 // =============================================================================
@@ -3257,6 +3629,85 @@ fn require_sha256_hex(map: &Map<String, Value>, key: &str) -> Result<(), Recorde
     }
 
     Ok(())
+}
+
+pub(crate) fn canonical_json_sha256_hex(value: &Value) -> String {
+    sha256_hex(&canonical_json_bytes(value))
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    hex::encode(hasher.finalize())
+}
+
+fn canonical_json_bytes(value: &Value) -> Vec<u8> {
+    let mut out = String::new();
+    write_canonical_json_value(&mut out, value);
+    out.push('\n');
+    out.into_bytes()
+}
+
+fn write_canonical_json_value(out: &mut String, value: &Value) {
+    match value {
+        Value::Null => out.push_str("null"),
+        Value::Bool(v) => out.push_str(if *v { "true" } else { "false" }),
+        Value::Number(num) => out.push_str(&num.to_string()),
+        Value::String(s) => write_canonical_json_string(out, s),
+        Value::Array(items) => {
+            out.push('[');
+            for (idx, item) in items.iter().enumerate() {
+                if idx > 0 {
+                    out.push(',');
+                }
+                write_canonical_json_value(out, item);
+            }
+            out.push(']');
+        }
+        Value::Object(map) => {
+            out.push('{');
+            let mut keys: Vec<&String> = map.keys().collect();
+            keys.sort();
+            for (idx, key) in keys.iter().enumerate() {
+                if idx > 0 {
+                    out.push(',');
+                }
+                write_canonical_json_string(out, key);
+                out.push(':');
+                if let Some(v) = map.get(*key) {
+                    write_canonical_json_value(out, v);
+                } else {
+                    out.push_str("null");
+                }
+            }
+            out.push('}');
+        }
+    }
+}
+
+fn write_canonical_json_string(out: &mut String, value: &str) {
+    out.push('"');
+    for ch in value.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\u{08}' => out.push_str("\\b"),
+            '\u{0C}' => out.push_str("\\f"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04X}", c as u32)),
+            c if (c as u32) <= 0x7F => out.push(c),
+            c if (c as u32) <= 0xFFFF => out.push_str(&format!("\\u{:04X}", c as u32)),
+            c => {
+                let code = (c as u32) - 0x1_0000;
+                let high = 0xD800 + ((code >> 10) & 0x3FF);
+                let low = 0xDC00 + (code & 0x3FF);
+                out.push_str(&format!("\\u{:04X}\\u{:04X}", high, low));
+            }
+        }
+    }
+    out.push('"');
 }
 
 fn require_fixed_string(

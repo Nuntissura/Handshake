@@ -1,14 +1,22 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
+use chrono::Utc;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
+use crate::ace::ArtifactHandle;
+use crate::bundles::redactor::SecretRedactor;
+use crate::bundles::schemas::RedactionMode;
 use crate::capabilities::CapabilityRegistry;
-use crate::flight_recorder::FlightRecorder;
+use crate::flight_recorder::duckdb::store_tool_payload_redacted;
+use crate::flight_recorder::{
+    canonical_json_sha256_hex, FlightRecorder, FlightRecorderActor, FlightRecorderEvent,
+    FlightRecorderEventType,
+};
 use crate::storage::{AccessMode, AiJobMcpUpdate, Database};
 
 use super::client::{JsonRpcMcpClient, McpDispatcher, PendingMeta};
@@ -105,6 +113,64 @@ impl GateConfig {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+struct ToolHandshakeMeta {
+    tool_version: Option<String>,
+    side_effect: Option<String>,
+    idempotency: Option<String>,
+    determinism: Option<String>,
+    availability: Option<String>,
+    required_capabilities: Vec<String>,
+}
+
+impl ToolHandshakeMeta {
+    fn parse(tool_value: &Value) -> Self {
+        let mut out = Self::default();
+
+        let Some(handshake) = tool_value
+            .get("_meta")
+            .and_then(|v| v.get("handshake"))
+            .and_then(|v| v.as_object())
+        else {
+            return out;
+        };
+
+        out.tool_version = handshake
+            .get("tool_version")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+        out.side_effect = handshake
+            .get("side_effect")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+        out.idempotency = handshake
+            .get("idempotency")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+        out.determinism = handshake
+            .get("determinism")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+        out.availability = handshake
+            .get("availability")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+
+        out.required_capabilities = handshake
+            .get("required_capabilities")
+            .and_then(|v| v.as_array())
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        out
+    }
+}
+
 struct GateDispatcher {
     server_id: String,
     flight_recorder: Arc<dyn FlightRecorder>,
@@ -196,27 +262,6 @@ impl McpDispatcher for GateDispatcher {
         if meta.method != "tools/call" {
             return;
         }
-        let (Some(ctx), Some(tool_name)) = (meta.ctx, meta.tool_name) else {
-            return;
-        };
-        let duration_ms = meta.started_at.elapsed().as_millis();
-        let (status, error_code) = if response.error.is_some() {
-            ("error", Some("jsonrpc"))
-        } else {
-            ("success", None)
-        };
-        let result_payload = response.result.clone().unwrap_or(Value::Null);
-        let _ = fr_events::record_tool_result(
-            Arc::clone(&self.flight_recorder),
-            &ctx,
-            &self.server_id,
-            &tool_name,
-            meta.capability_id.as_deref(),
-            status,
-            Some(duration_ms),
-            error_code,
-            &result_payload,
-        );
 
         if let JsonRpcId::String(token) = &response.id {
             if let Ok(mut guard) = self.progress_bindings.lock() {
@@ -236,6 +281,7 @@ pub struct GatedMcpClient {
     db: Option<Arc<dyn Database>>,
     progress_bindings: Arc<Mutex<HashMap<String, ProgressBinding>>>,
     tools: Arc<Mutex<HashMap<String, McpToolDescriptor>>>,
+    tool_handshake_meta: Arc<Mutex<HashMap<String, ToolHandshakeMeta>>>,
 }
 
 fn strip_ref_scheme(uri: &str) -> McpResult<&str> {
@@ -263,6 +309,107 @@ fn strip_ref_scheme(uri: &str) -> McpResult<&str> {
         "expected ref:// uri, got: {}",
         uri
     )))
+}
+
+const HTC_SCHEMA_VERSION: &str = "htc-1.0";
+const HTC_MAX_PAYLOAD_BYTES: usize = 32 * 1024;
+const HTC_VALIDATION_ERROR_CODE: &str = "VAL-HTC-001";
+
+fn json_encoded_len(value: &Value) -> usize {
+    serde_json::to_vec(value).map(|bytes| bytes.len()).unwrap_or(usize::MAX)
+}
+
+fn htc_schema() -> &'static Value {
+    static HTC: OnceLock<Value> = OnceLock::new();
+    HTC.get_or_init(|| {
+        serde_json::from_str(include_str!("../../../../../assets/schemas/htc_v1.json"))
+            .expect("htc_v1.json must be valid JSON")
+    })
+}
+
+fn default_actor_payload() -> Value {
+    json!({
+        "kind": "agent",
+        "agent_id": null,
+        "model_id": null,
+    })
+}
+
+fn canonical_tool_id_segment(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len().min(64));
+    for ch in raw.chars() {
+        let ch = ch.to_ascii_lowercase();
+        if ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '_' {
+            out.push(ch);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.trim_matches('_').is_empty() {
+        "unknown".to_string()
+    } else {
+        out
+    }
+}
+
+fn canonical_mcp_tool_id(server_id: &str, tool_name: &str) -> String {
+    let server = canonical_tool_id_segment(server_id);
+    let mut tool_segments: Vec<String> = tool_name
+        .split('.')
+        .filter(|seg| !seg.trim().is_empty())
+        .map(canonical_tool_id_segment)
+        .collect();
+    if tool_segments.is_empty() {
+        tool_segments.push("unknown".to_string());
+    }
+    format!("mcp.{server}.{}", tool_segments.join("."))
+}
+
+fn is_simple_semver(value: &str) -> bool {
+    let segments: Vec<&str> = value.trim().split('.').collect();
+    if segments.len() != 3 {
+        return false;
+    }
+    segments
+        .into_iter()
+        .all(|seg| !seg.is_empty() && seg.chars().all(|c| c.is_ascii_digit()))
+}
+
+fn default_htc_resources() -> Value {
+    json!({
+        "workspace_ids": [],
+        "artifacts": [],
+        "files": [],
+        "urls": [],
+    })
+}
+
+fn htc_timing(started_at: chrono::DateTime<Utc>, ended_at: chrono::DateTime<Utc>) -> Value {
+    let duration_ms = ended_at
+        .signed_duration_since(started_at)
+        .num_milliseconds()
+        .max(0);
+    json!({
+        "started_at": started_at.to_rfc3339(),
+        "ended_at": ended_at.to_rfc3339(),
+        "duration_ms": duration_ms,
+    })
+}
+
+fn htc_error_object(
+    code: &str,
+    kind: &str,
+    message: Option<String>,
+    retryable: Option<bool>,
+    details: Option<Value>,
+) -> Value {
+    json!({
+        "code": code,
+        "kind": kind,
+        "message": message,
+        "retryable": retryable,
+        "details": details,
+    })
 }
 
 impl GatedMcpClient {
@@ -298,6 +445,7 @@ impl GatedMcpClient {
             db,
             progress_bindings,
             tools: Arc::new(Mutex::new(HashMap::new())),
+            tool_handshake_meta: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -361,7 +509,7 @@ impl GatedMcpClient {
                 }),
             )?
             .await?;
-        let result: ToolsListResult = serde_json::from_value(value)?;
+        let result: ToolsListResult = serde_json::from_value(value.clone())?;
         let mut guard = self
             .tools
             .lock()
@@ -369,6 +517,19 @@ impl GatedMcpClient {
         guard.clear();
         for tool in &result.tools {
             guard.insert(tool.name.clone(), tool.clone());
+        }
+
+        if let Some(tools) = value.get("tools").and_then(|v| v.as_array()) {
+            let mut meta_guard = self.tool_handshake_meta.lock().map_err(|_| {
+                McpError::Transport("tools handshake meta cache lock error".to_string())
+            })?;
+            meta_guard.clear();
+            for tool in tools {
+                let Some(name) = tool.get("name").and_then(|v| v.as_str()) else {
+                    continue;
+                };
+                meta_guard.insert(name.to_string(), ToolHandshakeMeta::parse(tool));
+            }
         }
         Ok(result.tools)
     }
@@ -391,6 +552,14 @@ impl GatedMcpClient {
             .get(tool_name)
             .cloned()
             .ok_or_else(|| McpError::UnknownTool(tool_name.to_string()))
+    }
+
+    fn tool_meta(&self, tool_name: &str) -> ToolHandshakeMeta {
+        let guard = match self.tool_handshake_meta.lock() {
+            Ok(g) => g,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        guard.get(tool_name).cloned().unwrap_or_default()
     }
 
     fn tool_policy(&self, tool_name: &str) -> ToolPolicy {
@@ -481,12 +650,151 @@ impl GatedMcpClient {
         Ok(())
     }
 
-    pub async fn tools_call(
+    pub async fn tools_call_htc(
         &self,
         ctx: McpContext,
         tool_name: &str,
         arguments: Value,
     ) -> McpResult<Value> {
+        let started_at_utc = Utc::now();
+        let started_at_instant = Instant::now(); // WAIVER [CX-573E] duration/timeout bookkeeping only
+
+        let tool_call_id = Uuid::new_v4();
+        let tool_id = canonical_mcp_tool_id(&self.server_id, tool_name);
+        let tool_meta = self.tool_meta(tool_name);
+
+        let tool_version = tool_meta
+            .tool_version
+            .as_deref()
+            .filter(|v| is_simple_semver(v))
+            .unwrap_or("0.0.0")
+            .to_string();
+
+        let side_effect = match tool_meta.side_effect.as_deref() {
+            Some("READ" | "WRITE" | "EXECUTE") => tool_meta.side_effect.clone().unwrap_or_default(),
+            _ => "READ".to_string(),
+        };
+        let idempotency = match tool_meta.idempotency.as_deref() {
+            Some("IDEMPOTENT" | "IDEMPOTENT_WITH_KEY" | "NON_IDEMPOTENT") => {
+                tool_meta.idempotency.clone().unwrap_or_default()
+            }
+            _ => "IDEMPOTENT".to_string(),
+        };
+        let idempotency_key = if idempotency == "IDEMPOTENT_WITH_KEY" {
+            Some(tool_call_id.to_string())
+        } else {
+            None
+        };
+
+        let redactor = SecretRedactor::new();
+        let (args_redacted, args_redaction_logs) = redactor.redact_value(
+            &arguments,
+            RedactionMode::SafeDefault,
+            "tool_gate/mcp/args",
+        );
+
+        let (args_handle, args_hash) = if let Some(conn) = self.flight_recorder.duckdb_connection() {
+            let conn = conn.lock().map_err(|_| {
+                McpError::FlightRecorder("duckdb connection lock error".to_string())
+            })?;
+            store_tool_payload_redacted(&conn, tool_call_id, "args", &args_redacted)
+                .map_err(|e| McpError::FlightRecorder(e.to_string()))?
+        } else {
+            let artifact_path = format!("data/flight_recorder/tool_payloads/{tool_call_id}/args.json");
+            (
+                ArtifactHandle::new(tool_call_id, artifact_path),
+                canonical_json_sha256_hex(&args_redacted),
+            )
+        };
+        let args_ref = args_handle.canonical_id();
+        let args_hash = args_hash;
+
+        let args_inline = if matches!(args_redacted, Value::Object(_))
+            && json_encoded_len(&args_redacted) <= HTC_MAX_PAYLOAD_BYTES
+        {
+            args_redacted.clone()
+        } else {
+            json!({})
+        };
+
+        let request_envelope = json!({
+            "schema_version": HTC_SCHEMA_VERSION,
+            "tool_call_id": tool_call_id.to_string(),
+            "trace_id": ctx.trace_id.to_string(),
+            "session_id": ctx.session_id,
+            "actor": default_actor_payload(),
+            "tool_id": tool_id,
+            "tool_version": tool_version,
+            "args": args_inline,
+            "args_ref": args_ref,
+            "idempotency_key": idempotency_key,
+            "dry_run": ctx.access_mode != AccessMode::ApplyScoped,
+        });
+        if let Err(err) = schema::validate_instance(htc_schema(), &request_envelope) {
+            let details = err.to_string();
+            let ended_at_utc = Utc::now();
+
+            let response_envelope = json!({
+                "schema_version": HTC_SCHEMA_VERSION,
+                "tool_call_id": tool_call_id.to_string(),
+                "trace_id": ctx.trace_id.to_string(),
+                "ok": false,
+                "error": htc_error_object(
+                    HTC_VALIDATION_ERROR_CODE,
+                    "validation",
+                    Some(details.clone()),
+                    Some(false),
+                    None,
+                ),
+                "timing": htc_timing(started_at_utc, ended_at_utc),
+                "resources": default_htc_resources(),
+            });
+            let _ = schema::validate_instance(htc_schema(), &response_envelope);
+
+            let payload = json!({
+                "type": "tool_call",
+                "trace_id": ctx.trace_id.to_string(),
+                "tool_call_id": tool_call_id.to_string(),
+                "tool_id": tool_id,
+                "tool_version": tool_version,
+                "transport": "mcp",
+                "side_effect": side_effect,
+                "idempotency": idempotency,
+                "idempotency_key": idempotency_key,
+                "actor": default_actor_payload(),
+                "ok": false,
+                "args_ref": args_ref,
+                "args_hash": args_hash,
+                "error": {
+                    "code": HTC_VALIDATION_ERROR_CODE,
+                    "kind": "validation",
+                    "message": details.clone(),
+                    "retryable": false,
+                },
+                "timing": htc_timing(started_at_utc, ended_at_utc),
+            });
+            let mut event = FlightRecorderEvent::new(
+                FlightRecorderEventType::ToolCall,
+                FlightRecorderActor::Agent,
+                ctx.trace_id,
+                payload,
+            );
+            if let Some(job_id) = ctx.job_id {
+                event = event.with_job_id(job_id.to_string());
+            }
+            if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                event = event.with_workflow_id(workflow_run_id.to_string());
+            }
+            self.flight_recorder
+                .record_event(event)
+                .await
+                .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+
+            return Err(McpError::SchemaValidation {
+                details: format!("{HTC_VALIDATION_ERROR_CODE}: request envelope invalid\n{details}"),
+            });
+        }
+
         if let Some(allowed) = &self.gate.allowed_tools {
             if !allowed.contains(tool_name) {
                 let err =
@@ -500,6 +808,47 @@ impl GatedMcpClient {
                     "tool_not_allowed",
                     json!({ "error": err.to_string() }),
                 );
+
+                let ended_at_utc = Utc::now();
+                let payload = json!({
+                    "type": "tool_call",
+                    "trace_id": ctx.trace_id.to_string(),
+                    "tool_call_id": tool_call_id.to_string(),
+                    "tool_id": tool_id,
+                    "tool_version": tool_version,
+                    "transport": "mcp",
+                    "side_effect": side_effect,
+                    "idempotency": idempotency,
+                    "idempotency_key": idempotency_key,
+                    "actor": default_actor_payload(),
+                    "ok": false,
+                    "args_ref": args_ref,
+                    "args_hash": args_hash,
+                    "error": {
+                        "code": "tool_not_allowed",
+                        "kind": "policy",
+                        "message": err.to_string(),
+                        "retryable": false,
+                    },
+                    "timing": htc_timing(started_at_utc, ended_at_utc),
+                });
+                let mut event = FlightRecorderEvent::new(
+                    FlightRecorderEventType::ToolCall,
+                    FlightRecorderActor::Agent,
+                    ctx.trace_id,
+                    payload,
+                );
+                if let Some(job_id) = ctx.job_id {
+                    event = event.with_job_id(job_id.to_string());
+                }
+                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                    event = event.with_workflow_id(workflow_run_id.to_string());
+                }
+                self.flight_recorder
+                    .record_event(event)
+                    .await
+                    .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+
                 return Err(err);
             }
         }
@@ -516,6 +865,47 @@ impl GatedMcpClient {
                     "unknown_tool",
                     json!({ "error": err.to_string() }),
                 );
+
+                let ended_at_utc = Utc::now();
+                let payload = json!({
+                    "type": "tool_call",
+                    "trace_id": ctx.trace_id.to_string(),
+                    "tool_call_id": tool_call_id.to_string(),
+                    "tool_id": tool_id,
+                    "tool_version": tool_version,
+                    "transport": "mcp",
+                    "side_effect": side_effect,
+                    "idempotency": idempotency,
+                    "idempotency_key": idempotency_key,
+                    "actor": default_actor_payload(),
+                    "ok": false,
+                    "args_ref": args_ref,
+                    "args_hash": args_hash,
+                    "error": {
+                        "code": "unknown_tool",
+                        "kind": "validation",
+                        "message": err.to_string(),
+                        "retryable": false,
+                    },
+                    "timing": htc_timing(started_at_utc, ended_at_utc),
+                });
+                let mut event = FlightRecorderEvent::new(
+                    FlightRecorderEventType::ToolCall,
+                    FlightRecorderActor::Agent,
+                    ctx.trace_id,
+                    payload,
+                );
+                if let Some(job_id) = ctx.job_id {
+                    event = event.with_job_id(job_id.to_string());
+                }
+                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                    event = event.with_workflow_id(workflow_run_id.to_string());
+                }
+                self.flight_recorder
+                    .record_event(event)
+                    .await
+                    .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+
                 return Err(err);
             }
         };
@@ -534,6 +924,47 @@ impl GatedMcpClient {
                     "missing_input_schema",
                     json!({ "error": err.to_string() }),
                 );
+
+                let ended_at_utc = Utc::now();
+                let payload = json!({
+                    "type": "tool_call",
+                    "trace_id": ctx.trace_id.to_string(),
+                    "tool_call_id": tool_call_id.to_string(),
+                    "tool_id": tool_id,
+                    "tool_version": tool_version,
+                    "transport": "mcp",
+                    "side_effect": side_effect,
+                    "idempotency": idempotency,
+                    "idempotency_key": idempotency_key,
+                    "actor": default_actor_payload(),
+                    "ok": false,
+                    "args_ref": args_ref,
+                    "args_hash": args_hash,
+                    "error": {
+                        "code": "missing_input_schema",
+                        "kind": "validation",
+                        "message": err.to_string(),
+                        "retryable": false,
+                    },
+                    "timing": htc_timing(started_at_utc, ended_at_utc),
+                });
+                let mut event = FlightRecorderEvent::new(
+                    FlightRecorderEventType::ToolCall,
+                    FlightRecorderActor::Agent,
+                    ctx.trace_id,
+                    payload,
+                );
+                if let Some(job_id) = ctx.job_id {
+                    event = event.with_job_id(job_id.to_string());
+                }
+                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                    event = event.with_workflow_id(workflow_run_id.to_string());
+                }
+                self.flight_recorder
+                    .record_event(event)
+                    .await
+                    .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+
                 return Err(err);
             }
         };
@@ -547,11 +978,58 @@ impl GatedMcpClient {
                 "schema_validation_failed",
                 json!({ "error": err.to_string() }),
             );
+
+            let ended_at_utc = Utc::now();
+            let payload = json!({
+                "type": "tool_call",
+                "trace_id": ctx.trace_id.to_string(),
+                "tool_call_id": tool_call_id.to_string(),
+                "tool_id": tool_id,
+                "tool_version": tool_version,
+                "transport": "mcp",
+                "side_effect": side_effect,
+                "idempotency": idempotency,
+                "idempotency_key": idempotency_key,
+                "actor": default_actor_payload(),
+                "ok": false,
+                "args_ref": args_ref,
+                "args_hash": args_hash,
+                "error": {
+                    "code": "schema_validation_failed",
+                    "kind": "validation",
+                    "message": err.to_string(),
+                    "retryable": false,
+                },
+                "timing": htc_timing(started_at_utc, ended_at_utc),
+            });
+            let mut event = FlightRecorderEvent::new(
+                FlightRecorderEventType::ToolCall,
+                FlightRecorderActor::Agent,
+                ctx.trace_id,
+                payload,
+            );
+            if let Some(job_id) = ctx.job_id {
+                event = event.with_job_id(job_id.to_string());
+            }
+            if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                event = event.with_workflow_id(workflow_run_id.to_string());
+            }
+            self.flight_recorder
+                .record_event(event)
+                .await
+                .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+
             return Err(err);
         }
 
         let policy = self.tool_policy(tool_name);
-        if let Some(cap) = policy.required_capability.as_deref() {
+        let mut required_caps = tool_meta.required_capabilities.clone();
+        if required_caps.is_empty() {
+            if let Some(cap) = policy.required_capability.clone() {
+                required_caps.push(cap);
+            }
+        }
+        for cap in required_caps.iter().map(|s| s.as_str()) {
             if let Err(err) = self.enforce_capability(cap, &ctx.granted_capabilities) {
                 let _ = fr_events::record_gate_decision(
                     Arc::clone(&self.flight_recorder),
@@ -562,6 +1040,48 @@ impl GatedMcpClient {
                     "capability_denied",
                     json!({ "capability_id": cap, "error": err.to_string() }),
                 );
+
+                let ended_at_utc = Utc::now();
+                let payload = json!({
+                    "type": "tool_call",
+                    "trace_id": ctx.trace_id.to_string(),
+                    "tool_call_id": tool_call_id.to_string(),
+                    "tool_id": tool_id,
+                    "tool_version": tool_version,
+                    "transport": "mcp",
+                    "side_effect": side_effect,
+                    "idempotency": idempotency,
+                    "idempotency_key": idempotency_key,
+                    "actor": default_actor_payload(),
+                    "ok": false,
+                    "args_ref": args_ref,
+                    "args_hash": args_hash,
+                    "error": {
+                        "code": "capability_denied",
+                        "kind": "capability",
+                        "message": err.to_string(),
+                        "retryable": false,
+                    },
+                    "timing": htc_timing(started_at_utc, ended_at_utc),
+                    "capability_ids": &required_caps,
+                });
+                let mut event = FlightRecorderEvent::new(
+                    FlightRecorderEventType::ToolCall,
+                    FlightRecorderActor::Agent,
+                    ctx.trace_id,
+                    payload,
+                );
+                if let Some(job_id) = ctx.job_id {
+                    event = event.with_job_id(job_id.to_string());
+                }
+                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                    event = event.with_workflow_id(workflow_run_id.to_string());
+                }
+                self.flight_recorder
+                    .record_event(event)
+                    .await
+                    .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+
                 return Err(err);
             }
         }
@@ -569,7 +1089,7 @@ impl GatedMcpClient {
             .enforce_consent(
                 &ctx,
                 tool_name,
-                policy.required_capability.as_deref(),
+                required_caps.first().map(|s| s.as_str()),
                 &policy,
             )
             .await
@@ -583,6 +1103,48 @@ impl GatedMcpClient {
                 "consent_denied",
                 json!({ "error": err.to_string() }),
             );
+
+            let ended_at_utc = Utc::now();
+            let payload = json!({
+                "type": "tool_call",
+                "trace_id": ctx.trace_id.to_string(),
+                "tool_call_id": tool_call_id.to_string(),
+                "tool_id": tool_id,
+                "tool_version": tool_version,
+                "transport": "mcp",
+                "side_effect": side_effect,
+                "idempotency": idempotency,
+                "idempotency_key": idempotency_key,
+                "actor": default_actor_payload(),
+                "ok": false,
+                "args_ref": args_ref,
+                "args_hash": args_hash,
+                "error": {
+                    "code": "consent_denied",
+                    "kind": "policy",
+                    "message": err.to_string(),
+                    "retryable": false,
+                },
+                "timing": htc_timing(started_at_utc, ended_at_utc),
+                "capability_ids": &required_caps,
+            });
+            let mut event = FlightRecorderEvent::new(
+                FlightRecorderEventType::ToolCall,
+                FlightRecorderActor::Agent,
+                ctx.trace_id,
+                payload,
+            );
+            if let Some(job_id) = ctx.job_id {
+                event = event.with_job_id(job_id.to_string());
+            }
+            if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                event = event.with_workflow_id(workflow_run_id.to_string());
+            }
+            self.flight_recorder
+                .record_event(event)
+                .await
+                .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+
             return Err(err);
         }
         if let Err(err) = self.enforce_path_policy(&ctx, &policy, &arguments) {
@@ -595,6 +1157,48 @@ impl GatedMcpClient {
                 "security_violation",
                 json!({ "error": err.to_string() }),
             );
+
+            let ended_at_utc = Utc::now();
+            let payload = json!({
+                "type": "tool_call",
+                "trace_id": ctx.trace_id.to_string(),
+                "tool_call_id": tool_call_id.to_string(),
+                "tool_id": tool_id,
+                "tool_version": tool_version,
+                "transport": "mcp",
+                "side_effect": side_effect,
+                "idempotency": idempotency,
+                "idempotency_key": idempotency_key,
+                "actor": default_actor_payload(),
+                "ok": false,
+                "args_ref": args_ref,
+                "args_hash": args_hash,
+                "error": {
+                    "code": "security_violation",
+                    "kind": "policy",
+                    "message": err.to_string(),
+                    "retryable": false,
+                },
+                "timing": htc_timing(started_at_utc, ended_at_utc),
+                "capability_ids": &required_caps,
+            });
+            let mut event = FlightRecorderEvent::new(
+                FlightRecorderEventType::ToolCall,
+                FlightRecorderActor::Agent,
+                ctx.trace_id,
+                payload,
+            );
+            if let Some(job_id) = ctx.job_id {
+                event = event.with_job_id(job_id.to_string());
+            }
+            if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                event = event.with_workflow_id(workflow_run_id.to_string());
+            }
+            self.flight_recorder
+                .record_event(event)
+                .await
+                .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+
             return Err(err);
         }
 
@@ -603,17 +1207,20 @@ impl GatedMcpClient {
             &ctx,
             &self.server_id,
             tool_name,
-            policy.required_capability.as_deref(),
-            &arguments,
+            tool_call_id,
+            &tool_id,
+            tool_version.as_str(),
+            required_caps.first().map(|s| s.as_str()),
+            Some(args_ref.as_str()),
+            Some(args_hash.as_str()),
         )?;
 
-        let started_at = Instant::now(); // WAIVER [CX-573E] duration/timeout bookkeeping only
         let meta = PendingMeta {
-            started_at,
+            started_at: started_at_instant,
             method: "tools/call".to_string(),
             ctx: Some(ctx.clone()),
             tool_name: Some(tool_name.to_string()),
-            capability_id: policy.required_capability.clone(),
+            capability_id: required_caps.first().cloned(),
         };
 
         let mut request_id: Option<JsonRpcId> = None;
@@ -637,7 +1244,7 @@ impl GatedMcpClient {
             let binding = ProgressBinding {
                 ctx: ctx.clone(),
                 tool_name: tool_name.to_string(),
-                capability_id: policy.required_capability.clone(),
+                capability_id: required_caps.first().cloned(),
             };
             match self.progress_bindings.lock() {
                 Ok(mut guard) => {
@@ -664,6 +1271,29 @@ impl GatedMcpClient {
             if let Some(job_id) = mcp_job_id.as_deref() {
                 map.insert("job_id".to_string(), Value::String(job_id.to_string()));
             }
+            map.insert(
+                "_meta".to_string(),
+                json!({
+                    "handshake": {
+                        "schema_version": HTC_SCHEMA_VERSION,
+                        "trace_id": ctx.trace_id.to_string(),
+                        "tool_call_id": tool_call_id.to_string(),
+                        "session_id": ctx.session_id,
+                        "actor": default_actor_payload(),
+                        "tool_id": tool_id,
+                        "tool_version": tool_version,
+                        "transport": "mcp",
+                        "side_effect": side_effect,
+                        "idempotency": idempotency,
+                        "idempotency_key": idempotency_key,
+                        "args_ref": args_ref,
+                        "args_hash": args_hash,
+                        "dry_run": ctx.access_mode != AccessMode::ApplyScoped,
+                        "required_capabilities": &required_caps,
+                        "redaction_applied": !args_redaction_logs.is_empty(),
+                    }
+                }),
+            );
         }
 
         let call = match request_id {
@@ -672,7 +1302,8 @@ impl GatedMcpClient {
                 .send_request_with_id(id, "tools/call", Some(params), Some(meta))?,
             None => self.inner.send_request("tools/call", Some(params), Some(meta))?,
         };
-        match tokio::time::timeout(self.gate.request_timeout, call).await {
+
+        let result = match tokio::time::timeout(self.gate.request_timeout, call).await {
             Ok(result) => result,
             Err(_) => {
                 let timeout_payload = json!({"timeout_ms": self.gate.request_timeout.as_millis()});
@@ -683,19 +1314,9 @@ impl GatedMcpClient {
                     Some(tool_name),
                     "timeout",
                     "request_timeout",
-                    timeout_payload.clone(),
+                    timeout_payload,
                 );
-                let _ = fr_events::record_tool_result(
-                    Arc::clone(&self.flight_recorder),
-                    &ctx,
-                    &self.server_id,
-                    tool_name,
-                    policy.required_capability.as_deref(),
-                    "timeout",
-                    Some(self.gate.request_timeout.as_millis()),
-                    Some("timeout"),
-                    &timeout_payload,
-                );
+
                 if let Some(token) = progress_token.as_deref() {
                     match self.progress_bindings.lock() {
                         Ok(mut guard) => {
@@ -706,12 +1327,281 @@ impl GatedMcpClient {
                         }
                     }
                 }
-                Err(McpError::Timeout(format!(
+
+                let ended_at_utc = Utc::now();
+                let duration_ms = started_at_instant.elapsed().as_millis();
+
+                let response_envelope = json!({
+                    "schema_version": HTC_SCHEMA_VERSION,
+                    "tool_call_id": tool_call_id.to_string(),
+                    "trace_id": ctx.trace_id.to_string(),
+                    "ok": false,
+                    "error": htc_error_object(
+                        "request_timeout",
+                        "timeout",
+                        Some(format!("request timed out after {:?}", self.gate.request_timeout)),
+                        Some(true),
+                        None,
+                    ),
+                    "timing": htc_timing(started_at_utc, ended_at_utc),
+                    "resources": default_htc_resources(),
+                });
+                let _ = schema::validate_instance(htc_schema(), &response_envelope);
+
+                let _ = fr_events::record_tool_result(
+                    Arc::clone(&self.flight_recorder),
+                    &ctx,
+                    &self.server_id,
+                    tool_name,
+                    tool_call_id,
+                    &tool_id,
+                    tool_version.as_str(),
+                    required_caps.first().map(|s| s.as_str()),
+                    "timeout",
+                    Some(duration_ms),
+                    Some("timeout"),
+                    None,
+                    None,
+                );
+
+                let payload = json!({
+                    "type": "tool_call",
+                    "trace_id": ctx.trace_id.to_string(),
+                    "tool_call_id": tool_call_id.to_string(),
+                    "tool_id": tool_id,
+                    "tool_version": tool_version,
+                    "transport": "mcp",
+                    "side_effect": side_effect,
+                    "idempotency": idempotency,
+                    "idempotency_key": idempotency_key,
+                    "actor": default_actor_payload(),
+                    "ok": false,
+                    "args_ref": args_ref,
+                    "args_hash": args_hash,
+                    "error": {
+                        "code": "request_timeout",
+                        "kind": "timeout",
+                        "message": format!("request timed out after {:?}", self.gate.request_timeout),
+                        "retryable": true,
+                    },
+                    "timing": htc_timing(started_at_utc, ended_at_utc),
+                    "capability_ids": &required_caps,
+                });
+                let mut event = FlightRecorderEvent::new(
+                    FlightRecorderEventType::ToolCall,
+                    FlightRecorderActor::Agent,
+                    ctx.trace_id,
+                    payload,
+                );
+                if let Some(job_id) = ctx.job_id {
+                    event = event.with_job_id(job_id.to_string());
+                }
+                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                    event = event.with_workflow_id(workflow_run_id.to_string());
+                }
+                self.flight_recorder
+                    .record_event(event)
+                    .await
+                    .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+
+                return Err(McpError::Timeout(format!(
                     "request timed out after {:?}",
                     self.gate.request_timeout
-                )))
+                )));
+            }
+        };
+
+        let ended_at_utc = Utc::now();
+        let duration_ms = started_at_instant.elapsed().as_millis();
+
+        match result {
+            Ok(tool_result) => {
+                let (result_redacted, _) = redactor.redact_value(
+                    &tool_result,
+                    RedactionMode::SafeDefault,
+                    "tool_gate/mcp/result",
+                );
+
+                let (result_handle, result_hash) =
+                    if let Some(conn) = self.flight_recorder.duckdb_connection() {
+                        let conn = conn.lock().map_err(|_| {
+                            McpError::FlightRecorder("duckdb connection lock error".to_string())
+                        })?;
+                        store_tool_payload_redacted(&conn, tool_call_id, "result", &result_redacted)
+                            .map_err(|e| McpError::FlightRecorder(e.to_string()))?
+                    } else {
+                        let artifact_path =
+                            format!("data/flight_recorder/tool_payloads/{tool_call_id}/result.json");
+                        (
+                            ArtifactHandle::new(tool_call_id, artifact_path),
+                            canonical_json_sha256_hex(&result_redacted),
+                        )
+                    };
+                let result_ref = result_handle.canonical_id();
+
+                let result_inline = if json_encoded_len(&result_redacted) <= HTC_MAX_PAYLOAD_BYTES {
+                    Some(result_redacted.clone())
+                } else {
+                    None
+                };
+
+                let response_envelope = json!({
+                    "schema_version": HTC_SCHEMA_VERSION,
+                    "tool_call_id": tool_call_id.to_string(),
+                    "trace_id": ctx.trace_id.to_string(),
+                    "ok": true,
+                    "result": result_inline,
+                    "result_ref": result_ref,
+                    "error": null,
+                    "timing": htc_timing(started_at_utc, ended_at_utc),
+                    "resources": default_htc_resources(),
+                });
+                schema::validate_instance(htc_schema(), &response_envelope).map_err(|e| {
+                    McpError::SchemaValidation {
+                        details: format!("{HTC_VALIDATION_ERROR_CODE}: response envelope invalid\n{e}"),
+                    }
+                })?;
+
+                fr_events::record_tool_result(
+                    Arc::clone(&self.flight_recorder),
+                    &ctx,
+                    &self.server_id,
+                    tool_name,
+                    tool_call_id,
+                    &tool_id,
+                    tool_version.as_str(),
+                    required_caps.first().map(|s| s.as_str()),
+                    "success",
+                    Some(duration_ms),
+                    None,
+                    Some(result_ref.as_str()),
+                    Some(result_hash.as_str()),
+                )?;
+
+                let payload = json!({
+                    "type": "tool_call",
+                    "trace_id": ctx.trace_id.to_string(),
+                    "tool_call_id": tool_call_id.to_string(),
+                    "tool_id": tool_id,
+                    "tool_version": tool_version,
+                    "transport": "mcp",
+                    "side_effect": side_effect,
+                    "idempotency": idempotency,
+                    "idempotency_key": idempotency_key,
+                    "actor": default_actor_payload(),
+                    "ok": true,
+                    "args_ref": args_ref,
+                    "args_hash": args_hash,
+                    "result_ref": result_ref,
+                    "result_hash": result_hash,
+                    "timing": htc_timing(started_at_utc, ended_at_utc),
+                    "capability_ids": &required_caps,
+                });
+                let mut event = FlightRecorderEvent::new(
+                    FlightRecorderEventType::ToolCall,
+                    FlightRecorderActor::Agent,
+                    ctx.trace_id,
+                    payload,
+                );
+                if let Some(job_id) = ctx.job_id {
+                    event = event.with_job_id(job_id.to_string());
+                }
+                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                    event = event.with_workflow_id(workflow_run_id.to_string());
+                }
+                self.flight_recorder
+                    .record_event(event)
+                    .await
+                    .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+
+                Ok(result_redacted)
+            }
+            Err(err) => {
+                let response_envelope = json!({
+                    "schema_version": HTC_SCHEMA_VERSION,
+                    "tool_call_id": tool_call_id.to_string(),
+                    "trace_id": ctx.trace_id.to_string(),
+                    "ok": false,
+                    "error": htc_error_object(
+                        "mcp_error",
+                        "transport",
+                        Some(err.to_string()),
+                        Some(false),
+                        None,
+                    ),
+                    "timing": htc_timing(started_at_utc, ended_at_utc),
+                    "resources": default_htc_resources(),
+                });
+                let _ = schema::validate_instance(htc_schema(), &response_envelope);
+
+                let _ = fr_events::record_tool_result(
+                    Arc::clone(&self.flight_recorder),
+                    &ctx,
+                    &self.server_id,
+                    tool_name,
+                    tool_call_id,
+                    &tool_id,
+                    tool_version.as_str(),
+                    required_caps.first().map(|s| s.as_str()),
+                    "error",
+                    Some(duration_ms),
+                    Some("mcp_error"),
+                    None,
+                    None,
+                );
+
+                let payload = json!({
+                    "type": "tool_call",
+                    "trace_id": ctx.trace_id.to_string(),
+                    "tool_call_id": tool_call_id.to_string(),
+                    "tool_id": tool_id,
+                    "tool_version": tool_version,
+                    "transport": "mcp",
+                    "side_effect": side_effect,
+                    "idempotency": idempotency,
+                    "idempotency_key": idempotency_key,
+                    "actor": default_actor_payload(),
+                    "ok": false,
+                    "args_ref": args_ref,
+                    "args_hash": args_hash,
+                    "error": {
+                        "code": "mcp_error",
+                        "kind": "transport",
+                        "message": err.to_string(),
+                        "retryable": false,
+                    },
+                    "timing": htc_timing(started_at_utc, ended_at_utc),
+                    "capability_ids": &required_caps,
+                });
+                let mut event = FlightRecorderEvent::new(
+                    FlightRecorderEventType::ToolCall,
+                    FlightRecorderActor::Agent,
+                    ctx.trace_id,
+                    payload,
+                );
+                if let Some(job_id) = ctx.job_id {
+                    event = event.with_job_id(job_id.to_string());
+                }
+                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                    event = event.with_workflow_id(workflow_run_id.to_string());
+                }
+                self.flight_recorder
+                    .record_event(event)
+                    .await
+                    .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+
+                Err(err)
             }
         }
+    }
+
+    pub async fn tools_call(
+        &self,
+        ctx: McpContext,
+        tool_name: &str,
+        arguments: Value,
+    ) -> McpResult<Value> {
+        self.tools_call_htc(ctx, tool_name, arguments).await
     }
 
     pub fn resolve_ref_uri(&self, ctx: &McpContext, uri: &str) -> McpResult<Vec<u8>> {

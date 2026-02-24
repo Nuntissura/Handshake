@@ -287,6 +287,7 @@ mod tests {
 
     use super::*;
     use crate::capabilities::CapabilityRegistry;
+    use crate::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEventType};
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
     use crate::mex::gates::{
         BudgetGate, CapabilityGate, DetGate, GatePipeline, IntegrityGate, ProvenanceGate,
@@ -343,6 +344,8 @@ mod tests {
     #[tokio::test]
     async fn test_mex_runtime_emits_tool_call_and_result_in_fr_events(
     ) -> Result<(), Box<dyn std::error::Error>> {
+        use tokio::time::{timeout, Duration};
+
         let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
         let registry = single_engine_registry("test_engine");
         let capability_registry = CapabilityRegistry::new();
@@ -383,37 +386,45 @@ mod tests {
             output_spec: OutputSpec {
                 expected_types: vec!["artifact.document".to_string()],
                 max_bytes: Some(8 * 1024 * 1024),
-            },
-        };
+             },
+         };
 
-        runtime.execute(op.clone()).await?;
+        timeout(Duration::from_secs(10), runtime.execute(op.clone()))
+            .await
+            .map_err(|_| "mex runtime.execute timed out")??;
 
-        let conn_handle = recorder.connection();
-        let conn = match conn_handle.lock() {
-            Ok(conn) => conn,
-            Err(poisoned) => poisoned.into_inner(),
-        };
-        let mut stmt = conn.prepare(
-            "SELECT event_kind, job_id, payload FROM fr_events WHERE job_id = ? ORDER BY event_id ASC",
-        )?;
         let job_id = op.op_id.to_string();
-        let rows = stmt.query_map(duckdb::params![job_id.clone()], |row| {
-            let event_kind: String = row.get(0)?;
-            let job_id: Option<String> = row.get(1)?;
-            let payload: Option<String> = row.get(2)?;
-            Ok((event_kind, job_id, payload))
-        })?;
+        let (kinds, payloads) = {
+            let conn_handle = recorder.connection();
+            let conn = match conn_handle.lock() {
+                Ok(conn) => conn,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            let mut stmt = conn.prepare(
+                "SELECT event_kind, job_id, payload FROM fr_events WHERE job_id = ? ORDER BY event_id ASC",
+            )?;
+            let rows = stmt.query_map(duckdb::params![job_id.clone()], |row| {
+                let event_kind: String = row.get(0)?;
+                let job_id: Option<String> = row.get(1)?;
+                let payload: Option<String> = row.get(2)?;
+                Ok((event_kind, job_id, payload))
+            })?;
 
-        let mut kinds = Vec::new();
-        let mut payloads = Vec::new();
-        for row in rows {
-            let (kind, jid, payload_str) = row?;
-            assert_eq!(jid.as_deref(), Some(job_id.as_str()));
-            kinds.push(kind);
-            if let Some(payload_str) = payload_str {
-                payloads.push(serde_json::from_str::<Value>(&payload_str).unwrap_or(Value::Null));
+            let mut kinds = Vec::new();
+            let mut payloads = Vec::new();
+            for row in rows {
+                let (kind, jid, payload_str) = row?;
+                assert_eq!(jid.as_deref(), Some(job_id.as_str()));
+                kinds.push(kind);
+                if let Some(payload_str) = payload_str {
+                    payloads.push(
+                        serde_json::from_str::<Value>(&payload_str).unwrap_or(Value::Null),
+                    );
+                }
             }
-        }
+
+            (kinds, payloads)
+        };
 
         assert!(
             kinds.iter().any(|k| k == "tool.call"),
@@ -449,6 +460,50 @@ mod tests {
                 );
             }
         }
+
+        let events = recorder
+            .list_events(EventFilter {
+                trace_id: Some(op.op_id),
+                ..Default::default()
+            })
+            .await?;
+        let tool_call = events
+            .iter()
+            .find(|evt| matches!(evt.event_type, FlightRecorderEventType::ToolCall))
+            .expect("expected ToolCall event in Flight Recorder");
+        assert_eq!(tool_call.payload.get("type").and_then(|v| v.as_str()), Some("tool_call"));
+        assert_eq!(
+            tool_call.payload.get("transport").and_then(|v| v.as_str()),
+            Some("mex")
+        );
+        assert_eq!(
+            tool_call.payload.get("trace_id").and_then(|v| v.as_str()),
+            Some(job_id.as_str())
+        );
+        assert_eq!(
+            tool_call.payload.get("tool_call_id").and_then(|v| v.as_str()),
+            Some(job_id.as_str())
+        );
+        let args_ref = tool_call.payload.get("args_ref").and_then(|v| v.as_str()).unwrap_or("");
+        assert!(args_ref.starts_with("artifact:"), "expected args_ref artifact handle");
+        let args_hash = tool_call
+            .payload
+            .get("args_hash")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        assert_eq!(args_hash.len(), 64, "expected sha256 args_hash");
+        let result_ref = tool_call
+            .payload
+            .get("result_ref")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        assert!(result_ref.starts_with("artifact:"), "expected result_ref artifact handle");
+        let result_hash = tool_call
+            .payload
+            .get("result_hash")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        assert_eq!(result_hash.len(), 64, "expected sha256 result_hash");
 
         Ok(())
     }

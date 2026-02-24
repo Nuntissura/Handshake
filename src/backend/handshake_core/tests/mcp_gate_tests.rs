@@ -746,7 +746,40 @@ async fn mcp_tools_call_redacts_sensitive_output_before_return_and_recording(
         !payload_str.contains(raw_secret),
         "expected fr_events payload to be redacted"
     );
-    assert!(payload_str.contains("[REDACTED:aws:secret_aws]"));
+    let payload: Value = serde_json::from_str(&payload_str).unwrap_or(Value::Null);
+    let tool_call_id = payload
+        .get("tool_call_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let tool_call_id = Uuid::parse_str(tool_call_id).expect("tool_call_id uuid");
+    let result_ref = payload
+        .get("result_ref")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert!(
+        result_ref.starts_with("artifact:"),
+        "expected tool.result to contain result_ref artifact handle (payload={})",
+        payload
+    );
+    let result_hash = payload
+        .get("result_hash")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert_eq!(result_hash.len(), 64, "expected sha256 hex in result_hash");
+
+    let stored_payload_str: String = conn.query_row(
+        "SELECT CAST(payload AS VARCHAR) FROM tool_payloads WHERE tool_call_id = ? AND payload_kind = 'result'",
+        duckdb::params![tool_call_id.to_string()],
+        |row| row.get(0),
+    )?;
+    assert!(
+        !stored_payload_str.contains(raw_secret),
+        "expected stored tool payload to be redacted"
+    );
+    assert!(
+        stored_payload_str.contains("[REDACTED:aws:secret_aws]"),
+        "expected redaction marker in stored tool payload"
+    );
 
     Ok(())
 }
