@@ -89,8 +89,9 @@ just post-work WP-1-Lens-ViewMode-v1 --range 35cd220dbfe573628ce1ab565a6363f0b99
 
 ### DONE_MEANS
 - ViewMode type exists per spec and is plumbed through Lens query inputs as \"NSFW\"|\"SFW\" (default \"NSFW\").
-- In ViewMode=\"SFW\", retrieval enforces strict drop: no returned candidates/results with content_tier != \"sfw\" (no \"collapsed/blurred but revealable\" leakage).
+- In ViewMode=\"SFW\", retrieval enforces strict drop (default-deny): no returned candidates/results with content_tier != \"sfw\"; content_tier==None is treated as non-sfw and dropped (no \"collapsed/blurred but revealable\" leakage).
 - SFW mode applies projection at render/output only and MUST NOT write back or mutate stored raw/derived descriptors/artifacts.
+- In ViewMode=\"SFW\", any SFW-projected output is labeled per spec Addendum 11.3 (required): projection_applied=true, projection_kind=\"SFW\", projection_ruleset_id, and a link to underlying raw evidence.
 - QueryPlan and RetrievalTrace record ViewMode as a metadata filter (e.g., QueryPlan.filters.view_mode and/or trace fields), and serialized trace evidence includes it.
 - Tests cover SFW hard-drop + trace recording (Rust unit tests; optional frontend test for toggle state/param).
 
@@ -169,12 +170,19 @@ git revert COMMIT_SHA
   - Rust (`src/backend/handshake_core/src/ace/mod.rs`):
     - `enum ViewMode { "NSFW", "SFW" }` (default: `"NSFW"`; serde SCREAMING_SNAKE_CASE)
     - `enum ContentTier { "sfw", "adult_soft", "adult_explicit" }` (serde snake_case)
+    - `enum ProjectionKind { "SFW" }` (serde SCREAMING_SNAKE_CASE)
     - Extend `RetrievalFilters` with `view_mode: ViewMode`
     - (Optional) Type `content_tier_allowlist` as `Option<Vec<ContentTier>>` instead of `Option<Vec<String>>`
     - Extend `RetrievalCandidate` with `content_tier: Option<ContentTier>` (`None` means unknown/unclassified)
     - Extend `RetrievalTrace` with `filters_applied: RetrievalFilters` (serialized trace includes `view_mode`)
+    - Extend `RetrievalTrace` with projection labeling fields (spec Addendum 11.3):
+      - `projection_applied: bool`
+      - `projection_kind: Option<ProjectionKind>`
+      - `projection_ruleset_id: Option<String>`
+      - Evidence link is preserved via `SelectedEvidence.candidate_ref` and `SpanExtraction.source_ref` (projection never destroys the evidence pointer for remaining items).
     - Add `RetrievalTrace::apply_view_mode_hard_drop()`:
       - if `view_mode=="SFW"`: remove any `candidates`/`selected`/`spans` where `content_tier != sfw` (including `None`)
+      - if `view_mode=="SFW"`: set `projection_applied=true`, `projection_kind=Some("SFW")`, and `projection_ruleset_id="viewmode_sfw_hard_drop@v1"`
       - record a warning when drops occur (for audit) without leaking dropped content
   - Rust (`src/backend/handshake_core/src/ace/validators/mod.rs`):
     - Add `ViewModeHardDropGuard` to `ValidatorPipeline::with_default_guards()`:
@@ -185,11 +193,12 @@ git revert COMMIT_SHA
   - Tests (`src/backend/handshake_core/tests/lens_viewmode_tests.rs`):
     - SFW hard-drop filtering (candidates/selected/spans)
     - Trace serialization includes `view_mode`
+    - In SFW mode, trace serialization includes projection labeling fields and retains evidence links (SourceRef/candidate_ref).
 - Open questions:
   - Source of `content_tier` for real Lens candidates is not yet implemented in current Phase 1 storage models (blocks expose `sensitivity`/`exportable`, not `content_tier`).
-  - In `ViewMode=="SFW"`, proposal is default-deny for `content_tier==None` to prevent leakage; confirm this UX is acceptable.
 - Notes:
   - END_TO_END_CLOSURE_PLAN is already filled in the section below (trust boundary + provenance + error taxonomy).
+  - Decision: In `ViewMode=="SFW"`, `content_tier==None` is treated as non-sfw and dropped (strict drop is default-deny).
   - Frontend work in this WP is a global toggle + persistence + labeling; Lens query plumbing will be wired when a Lens query API exists.
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
@@ -201,6 +210,8 @@ git revert COMMIT_SHA
 - REQUIRED_PROVENANCE_FIELDS:
   - view_mode (\"NSFW\"|\"SFW\")
   - content_tier (per returned item / candidate, when applicable)
+  - projection_applied + projection_kind + projection_ruleset_id (when view_mode=\"SFW\")
+  - evidence link to underlying raw item (e.g., `SelectedEvidence.candidate_ref` / `SpanExtraction.source_ref`)
   - trace_id + query_plan_id (link results to QueryPlan/RetrievalTrace)
 - VERIFICATION_PLAN:
   - Add unit tests that prove strict drop behavior in SFW and that QueryPlan/Trace serialization contains view_mode.
@@ -215,6 +226,7 @@ git revert COMMIT_SHA
 - VALIDATOR_ASSERTIONS:
   - ViewMode is enforced server-side (cannot be bypassed by client/UI changes).
   - ViewMode is recorded in trace (QueryPlan/RetrievalTrace) and is included in evidence.
+  - SFW projection labeling fields exist (Addendum 11.3) and preserve evidence links.
   - SFW is projection-only (no storage mutation) and strict drop is proven via tests.
 
 ## IMPLEMENTATION
@@ -254,7 +266,7 @@ git revert COMMIT_SHA
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
 - Current WP_STATUS: IN_PROGRESS (skeleton checkpoint ready)
-- What changed in this update: Filled `## SKELETON` with proposed ViewMode/ContentTier contracts + enforcement plan.
+- What changed in this update: Updated SKELETON + DONE_MEANS to include spec-required SFW output labeling (Addendum 11.3) and default-deny for content_tier==None in SFW.
 - Next step / handoff hint: Wait for "SKELETON APPROVED" before implementation.
 
 ## EVIDENCE_MAPPING
