@@ -219,52 +219,189 @@ git revert <commit-sha>
   - MCP `tools/list` is Tool Registry-derived and binds required `_meta.handshake` fields.
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Added HTC-1.0 envelope schema SSoT at `assets/schemas/htc_v1.json` and validate MCP `tools/call` request/response envelopes against it at the Tool Gate boundary.
+- Added canonical FR-EVT-007 ToolCall event type + strict payload validation (transport, side_effect, idempotency, actor, ok, timing.*, plus refs/hashes) and emit it from MCP + MEX call paths.
+- Store redacted tool args/results as artifact-first payloads under `data/flight_recorder/tool_payloads/<tool_call_id>/...` and hash sha256 of canonical JSON post-redaction.
+- Restrict legacy `fr_events` tool.call/tool.result to refs + hashes only (no raw args/results).
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Ran: `just cargo-clean`
+- Ran: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --jobs 1`
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `assets/schemas/htc_v1.json`
+- **Start**: 1
+- **End**: 224
+- **Line Delta**: 224
+- **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
+- **Post-SHA1**: `cacc679f2cc9c080d982c72b05dea3140b99ac9c`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- **Start**: 1
+- **End**: 1445
+- **Line Delta**: 65
+- **Pre-SHA1**: `c6e6342642bec2b9501737405e00d90bb2bde2b2`
+- **Post-SHA1**: `695ec1973ee07b82dbc00ca3df71664acc87698e`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 1
+- **End**: 4977
+- **Line Delta**: 451
+- **Pre-SHA1**: `ec88b8d28bd6170c38208c4f1bde3706709ed406`
+- **Post-SHA1**: `aa401403742013d29df6b1480cebdaa0ad29dece`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/mcp/fr_events.rs`
+- **Start**: 1
+- **End**: 382
+- **Line Delta**: 21
+- **Pre-SHA1**: `53cf0b9007e08517c547e1bdf83ffbe482785dd1`
+- **Post-SHA1**: `fa46c1ff4aaac318a7677654f29f496b339a4545`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/mcp/gate.rs`
+- **Start**: 1
+- **End**: 1621
+- **Line Delta**: 890
+- **Pre-SHA1**: `f4275d3da4404bbe0183fe0f121e639d80796fb5`
+- **Post-SHA1**: `d24b91d98b26883d8d176469e6c895e2b01f9088`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/mex/conformance.rs`
+- **Start**: 1
+- **End**: 510
+- **Line Delta**: 55
+- **Pre-SHA1**: `056494c5fcfce2aefe301b803ee2bf05897c4914`
+- **Post-SHA1**: `5cc38b406841eebe87ddba46044fa3f7ef95be28`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/mex/runtime.rs`
+- **Start**: 1
+- **End**: 993
+- **Line Delta**: 196
+- **Pre-SHA1**: `fbcec33ac0b04ebd2277c46a490504640324f762`
+- **Post-SHA1**: `1e37f622953d7a0bf3137dc16c86270515f24a79`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/tests/mcp_gate_tests.rs`
+- **Start**: 1
+- **End**: 1418
+- **Line Delta**: 33
+- **Pre-SHA1**: `10773cf92b524feb2f7a1f266f688aa0864fb9a2`
+- **Post-SHA1**: `5edbabee29eb8c36ee8cad199fb074bd91d30cbf`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.137.md
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
 - Current WP_STATUS: In Progress
 - What changed in this update:
-  - Coder claimed WP-1-Unified-Tool-Surface-Contract-v1 and started BOOTSTRAP (gate + spec/code reads + baseline test run).
+  - Implemented HTC-1.0 envelope validation + canonical FR ToolCall event emission across MCP + MEX paths.
+  - Stored redacted tool args/results as artifact-first payloads with sha256 hashes.
+  - Updated MCP gate tests and added MEX conformance assertion for ToolCall emission.
 - Next step / handoff hint:
-  - Fill `## SKELETON` with concrete types + dataflow decisions; stop for explicit "SKELETON APPROVED" before editing product code.
+  - Run `just post-work WP-1-Unified-Tool-Surface-Contract-v1 --range 35cd220dbfe573628ce1ab565a6363f0b993a1eb..HEAD` and hand off to Validator.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
   - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
   - EVIDENCE: `path/to/file:line`
+- REQUIREMENT: "HTC-1.0 envelope schema exists as SSoT and Tool Gate validates request/response envelopes; validation failure uses VAL-HTC-001."
+- EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:733`
+- EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:316`
+- REQUIREMENT: "FR-EVT-007 ToolCall validator requires transport, side_effect, idempotency, actor, ok, and full timing.* fields."
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:1101`
+- REQUIREMENT: "args_ref/result_ref use canonical artifact:<uuid>:data/flight_recorder/tool_payloads/... format."
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/duckdb.rs:53`
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:1461`
+- REQUIREMENT: "MEX runtime emits canonical FR ToolCall event and conformance asserts presence."
+- EVIDENCE: `src/backend/handshake_core/src/mex/runtime.rs:246`
+- EVIDENCE: `src/backend/handshake_core/src/mex/conformance.rs:344`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
@@ -274,6 +411,12 @@ git revert <commit-sha>
   - LOG_PATH: `.handshake/logs/WP-1-Unified-Tool-Surface-Contract-v1/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- COMMAND: `just cargo-clean`
+- EXIT_CODE: 0
+- PROOF_LINES: `Removed 1971 files, 14.0GiB total`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --jobs 1`
+- EXIT_CODE: 0
+- PROOF_LINES: `running 183 tests`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
