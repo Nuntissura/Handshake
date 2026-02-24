@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja240220261300 | Orchestrator | 2026-02-24 13:00 | Task packet creation: WP-1-Lens-ViewMode-v1 | v02.137 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Lens-ViewMode-v1.md ). |
 | ilja220220261648 | Orchestrator | 2026-02-22 16:48 | Task packet creation: WP-1-Loom-MVP-v1 | v02.134 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Loom-MVP-v1.md ). |
 | ilja200220260908 | Orchestrator | 2026-02-20 09:08 | Task packet creation: WP-1-Media-Downloader-v2 | v02.134 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Media-Downloader-v2.md ). |
 | ilja200220260830 | Orchestrator | 2026-02-20 08:30 | Spec Enrichment v02.134 (Media Downloader surface + OutputRootDir default materialization root) | v02.134 | Approved in-chat; signature provided by Operator. See .GOV/refinements/WP-1-Media-Downloader-v1.md. |
