@@ -28,6 +28,7 @@ Rules:
   - Handshake_Master_Spec_v02.131.md 10.11.A .handshake/workspace.json schema (v1.0) + migration rules
   - Handshake_Master_Spec_v02.131.md 10.11.B devcc.db SQLite schema (v1) DDL
   - Handshake_Master_Spec_v02.131.md 10.11.D Worktree lifecycle (job wrapper guidance)
+  - Handshake_Master_Spec_v02.137.md 10.11.X Multi-Session Steering Panel [ADD v02.137]
 
 ## INTENT (DRAFT)
 - What: Deliver the Phase 1 Dev Command Center (DCC) MVP: a canonical control surface that binds Locus work (WP/MT) <-> git workspaces (worktrees) <-> execution sessions <-> approvals/logs/diffs, without bypassing Workflow Engine, gates, or Flight Recorder.
@@ -46,6 +47,7 @@ Rules:
   - Execution Session Manager:
     - show active sessions (role/model/backend), workspace binding, and capability grants
     - deep-link to Job History + Flight Recorder timeline slices
+    - multi-session steering: session list + state machine + spawn tree + per-session budgets and controls (pause/resume/cancel)
   - Approval Inbox:
     - collect pending approvals from capability gate / Workflow Engine
     - approve-once / approve-for-job / approve-for-workspace / deny (+ reason)

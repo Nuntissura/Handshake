@@ -26,6 +26,7 @@ Rules:
   - 2.3.15.5 Storage Architecture
   - 2.3.15.6 Event Sourcing
   - 2.3.15.7 Query Interface
+  - Handshake_Master_Spec_v02.137.md Locus MT occupancy: TrackedMicroTask.active_session_ids + locus_bind_session / locus_unbind_session (D1) (see Master Spec v02.137 note)
 
 ## INTENT (DRAFT)
 - What: Introduce Locus Work Tracking System Phase 1 baseline (SQLite-backed, core WP/MT operations, Spec Router + MT Executor integration, Task Board sync, and Flight Recorder events).
@@ -35,6 +36,9 @@ Rules:
 - IN_SCOPE:
   - SQLite schema and storage for work_packets, micro_tasks, mt_iterations, dependencies (per 2.3.15.5).
   - Core Locus mechanical operations (create/update/gate/close WP; register/start/record/complete MT) (per 2.3.15.3).
+  - MT occupancy tracking for parallel sessions:
+    - `active_session_ids: string[]` on MicroTasks
+    - `locus_bind_session` / `locus_unbind_session` mechanical ops
   - Dependency operations (add/remove + cycle detection) (per 2.3.15.7).
   - Basic query ops (query_ready / get status / get progress) (per 2.3.15.7).
   - Integrations: Spec Router and MT Executor integration points (per 2.3.15.4).
@@ -48,6 +52,7 @@ Rules:
 ## ACCEPTANCE_CRITERIA (DRAFT)
 - Spec Router creates Work Packets visible in Locus storage (via `locus_create_wp`).
 - MT Executor iterations are recorded (start -> record_iteration -> complete).
+- When a ModelSession begins/ends MT execution, occupancy is bound/unbound and `active_session_ids` reflects reality for parallel work.
 - Task Board sync occurs deterministically (no drift after `locus_sync_task_board`).
 - `locus_query_ready` respects dependency blocking.
 - Locus event families appear in Flight Recorder and unknown event_type fails fast.
@@ -70,5 +75,4 @@ Rules:
 - [ ] Create the official task packet via `just create-task-packet WP-1-Locus-Work-Tracking-System-Phase1-v1` (in `.GOV/task_packets/`).
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
 - [ ] Move `.GOV/roles_shared/TASK_BOARD.md` entry from STUB to Ready for Dev.
-
 

@@ -22,6 +22,7 @@ Rules:
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.131.md 7.6.3 (Phase 1) -> Handshake Stage MVP (governed browser + Stage Apps) [ADD v02.131]
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
   - Handshake_Master_Spec_v02.131.md 10.13 Handshake Stage (Built-in Browser + Stage Apps) [ADD v02.131]
+  - Handshake_Master_Spec_v02.137.md Stage spec (Phase 1 build order): Prompt Playground MUST create a ModelSession record (§4.3.9.12) for each interactive run (job_kind=model_run) so it is observable in DCC
   - Handshake_Master_Spec_v02.131.md 2.6.6 (AI Job Model job profiles: Stage family)
   - Handshake_Master_Spec_v02.131.md 11.8 (Mechanical Extension v1.2: governed engines; no bypass)
 
@@ -78,4 +79,3 @@ Rules:
 - [ ] Create the official task packet via `just create-task-packet WP-1-Handshake-Stage-MVP-v1` (in `.GOV/task_packets/`).
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
 - [ ] Move `.GOV/roles_shared/TASK_BOARD.md` entry from STUB to Ready for Dev.
-
