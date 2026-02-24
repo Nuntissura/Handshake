@@ -12,9 +12,9 @@
 - AGENTIC_MODE: YES
 - ORCHESTRATOR_MODEL: GPT-5.2 (Codex CLI) (required if AGENTIC_MODE=YES)
 - ORCHESTRATION_STARTED_AT_UTC: 2026-02-24T03:48:12.798Z
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH (LOW | MEDIUM | HIGH | EXTRA_HIGH)
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja240220260346
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -129,8 +129,8 @@ git revert <commit-sha>
 - RUN_COMMANDS:
   ```bash
   rg -n "tools/list|tools/call|tool_call|tool_version|tool_id|idempotency_key" src/backend/handshake_core/src
-  cargo test -p handshake_core
-  cargo test -p handshake_core --tests mcp_gate_tests
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml --jobs 1
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test mcp_gate_tests --jobs 1
   ```
 - RISK_MAP:
   - "Dual schema drift" -> "bypass paths; incorrect schemas; broken capabilities/consent/audit"
@@ -212,11 +212,11 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: Ready for Dev (activated)
+- Current WP_STATUS: In Progress
 - What changed in this update:
-  - Activated WP-1-Unified-Tool-Surface-Contract-v1: created official task packet + signed refinement; recorded PREPARE to Coder-A; updated Task Board + Traceability registry.
+  - Coder claimed WP-1-Unified-Tool-Surface-Contract-v1 and started BOOTSTRAP (gate + spec/code reads + baseline test run).
 - Next step / handoff hint:
-  - Run: `just pre-work WP-1-Unified-Tool-Surface-Contract-v1` then begin implementation on `feat/WP-1-Unified-Tool-Surface-Contract-v1` in `../wt-WP-1-Unified-Tool-Surface-Contract-v1`.
+  - Fill `## SKELETON` with concrete types + dataflow decisions; stop for explicit "SKELETON APPROVED" before editing product code.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
