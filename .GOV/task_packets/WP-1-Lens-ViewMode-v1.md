@@ -12,9 +12,9 @@
 - AGENTIC_MODE: YES
 - ORCHESTRATOR_MODEL: GPT-5.2 (Codex CLI) (required if AGENTIC_MODE=YES)
 - ORCHESTRATION_STARTED_AT_UTC: 2026-02-24T14:23:12.007Z
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja240220261300
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -230,9 +230,9 @@ git revert COMMIT_SHA
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: IN_PROGRESS (bootstrap claim)
+- What changed in this update: Coder claimed the WP; beginning SKELETON draft.
+- Next step / handoff hint: Produce SKELETON checkpoint commit; wait for "SKELETON APPROVED" before implementation.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
