@@ -166,8 +166,31 @@ git revert COMMIT_SHA
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - Rust (`src/backend/handshake_core/src/ace/mod.rs`):
+    - `enum ViewMode { "NSFW", "SFW" }` (default: `"NSFW"`; serde SCREAMING_SNAKE_CASE)
+    - `enum ContentTier { "sfw", "adult_soft", "adult_explicit" }` (serde snake_case)
+    - Extend `RetrievalFilters` with `view_mode: ViewMode`
+    - (Optional) Type `content_tier_allowlist` as `Option<Vec<ContentTier>>` instead of `Option<Vec<String>>`
+    - Extend `RetrievalCandidate` with `content_tier: Option<ContentTier>` (`None` means unknown/unclassified)
+    - Extend `RetrievalTrace` with `filters_applied: RetrievalFilters` (serialized trace includes `view_mode`)
+    - Add `RetrievalTrace::apply_view_mode_hard_drop()`:
+      - if `view_mode=="SFW"`: remove any `candidates`/`selected`/`spans` where `content_tier != sfw` (including `None`)
+      - record a warning when drops occur (for audit) without leaking dropped content
+  - Rust (`src/backend/handshake_core/src/ace/validators/mod.rs`):
+    - Add `ViewModeHardDropGuard` to `ValidatorPipeline::with_default_guards()`:
+      - if `plan.filters.view_mode=="SFW"`: assert trace contains no non-sfw or unknown-tier items; else `AceError::ValidationFailed`
+  - Rust (`src/backend/handshake_core/src/workflows.rs`):
+    - No behavior change for existing flows (default `view_mode=="NSFW"`).
+    - Future Lens retrieval path calls `trace.apply_view_mode_hard_drop()` before returning results and before validation logging.
+  - Tests (`src/backend/handshake_core/tests/lens_viewmode_tests.rs`):
+    - SFW hard-drop filtering (candidates/selected/spans)
+    - Trace serialization includes `view_mode`
 - Open questions:
+  - Source of `content_tier` for real Lens candidates is not yet implemented in current Phase 1 storage models (blocks expose `sensitivity`/`exportable`, not `content_tier`).
+  - In `ViewMode=="SFW"`, proposal is default-deny for `content_tier==None` to prevent leakage; confirm this UX is acceptable.
 - Notes:
+  - END_TO_END_CLOSURE_PLAN is already filled in the section below (trust boundary + provenance + error taxonomy).
+  - Frontend work in this WP is a global toggle + persistence + labeling; Lens query plumbing will be wired when a Lens query API exists.
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
@@ -230,9 +253,9 @@ git revert COMMIT_SHA
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: IN_PROGRESS (bootstrap claim)
-- What changed in this update: Coder claimed the WP; beginning SKELETON draft.
-- Next step / handoff hint: Produce SKELETON checkpoint commit; wait for "SKELETON APPROVED" before implementation.
+- Current WP_STATUS: IN_PROGRESS (skeleton checkpoint ready)
+- What changed in this update: Filled `## SKELETON` with proposed ViewMode/ContentTier contracts + enforcement plan.
+- Next step / handoff hint: Wait for "SKELETON APPROVED" before implementation.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
