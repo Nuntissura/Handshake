@@ -139,17 +139,59 @@ git revert <commit-sha>
   - "Missing correlation fields" -> "cannot audit/trace tool calls across jobs/workflows"
 
 ## SKELETON
-- Proposed interfaces/types/contracts:
-  - HTC-1.0 envelope structs (request/response/error) validated against `assets/schemas/htc_v1.json`
-  - Tool Registry entry type (tool_id/tool_version + schemas + policy metadata)
-  - Tool Gate decision type (allow|deny|escalate + normalized reason codes + capability IDs)
-  - Tool transport enum aligned to FR-EVT-007: local|mcp|mex|stage_bridge|other
-  - Conformance test suite per Spec 6.0.2.9
-- Open questions:
-  - Where will Tool Registry definitions live (file-based vs Rust-embedded), and how will MCP `tools/list` generation be enforced as the only discovery path?
-  - What are the initial "minimum set" of tools to register for conformance coverage (ensure READ/WRITE/EXECUTE present)?
-- Notes:
-  - Spec requires artifact-first args/results in Flight Recorder with redaction-before-hash (FR-EVT-007).
+- Proposed interfaces/types/contracts (target files)
+  - `assets/schemas/htc_v1.json`
+    - JSON Schema (draft 2020-12) for HTC-1.0 request/response envelopes + standard error object (Spec 6.0.2.5/5.1).
+    - 32KB sizing rule enforced in Rust (not expressible in JSON Schema).
+  - `src/backend/handshake_core/src/flight_recorder/mod.rs`
+    - Add FR-EVT-007 event type: `FlightRecorderEventType::ToolCall` (stored as `event_type="tool_call"` in `events`).
+    - Add payload validator `validate_tool_call_payload(payload: &Value)` enforcing Spec 11.5.2 requirements:
+      - REQUIRED: `type`, `trace_id`, `tool_call_id`, `tool_id`, `tool_version`, `ok`, `timing.started_at`, `timing.ended_at`, `timing.duration_ms`.
+      - If present: `args_hash` / `result_hash` are sha256 hex; `args_ref` / `result_ref` are bounded artifact-handle strings.
+    - Add enums used by Tool Registry + FR payload:
+      - `ToolTransport = Local|Mcp|Mex|StageBridge|Other` (serde -> `"local"|"mcp"|...`)
+      - `ToolSideEffect = Read|Write|Execute`
+      - `ToolIdempotency = Idempotent|IdempotentWithKey|NonIdempotent`
+      - `ToolDeterminism = Deterministic|BestEffort|NonDeterministic`
+      - `ToolAvailability = OfflineOk|RequiresNetwork|BestEffortOffline`
+    - Add helpers:
+      - `redact_tool_value(value: &Value) -> Value` using `crate::bundles::redactor::SecretRedactor` + `RedactionMode::SafeDefault`
+      - `sha256_canonical_json(value: &Value) -> String`
+  - `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+    - Create table `tool_payloads` to persist redacted args/results as artifacts:
+      - columns: `tool_call_id UUID`, `kind TEXT`, `payload_redacted JSON`, `payload_sha256 TEXT`, `created_at TIMESTAMP`
+      - indexes: `(tool_call_id)`, `(kind)`
+    - Add helper `store_tool_payload_redacted(...) -> (ref_string, sha256)` that writes ONLY redacted payload and returns a stable `args_ref`/`result_ref`.
+  - `src/backend/handshake_core/src/mcp/gate.rs`
+    - Tool Registry SSoT embedded in `GateConfig`:
+      - `ToolRegistryEntry { tool_id, tool_version, input_schema, output_schema?, side_effect, idempotency, determinism, availability, required_capabilities[], transport_bindings }`
+      - MCP binding uses `mcp_name` (name to send in MCP `tools/call`) to allow transitional aliasing for existing stub servers while keeping canonical `tool_id` dot-separated.
+    - `refresh_tools()` becomes Tool Registry-derived `tools/list` (Spec 11.3.0) and populates cache from the registry (not remote `tools/list`).
+    - Add `tools_call_htc(ctx, request_envelope: Value) -> McpResult<Value>` that returns an HTC response envelope:
+      - Validates request + response envelopes against `assets/schemas/htc_v1.json` and enforces 32KB caps.
+      - On validation failure: returns `ok=false` + `error.kind="validation"` + `error.code="VAL-HTC-001"` (Spec 6.0.2.5.1).
+    - Existing `tools_call(ctx, tool_name, arguments)` remains for compatibility (out-of-scope callers/tests):
+      - Builds an HTC request envelope internally (generated `tool_call_id`; actor default) and routes through `tools_call_htc`.
+      - Returns raw result / maps `ok=false` envelopes back to `McpError` for current call sites.
+    - Add MCP correlation metadata to forwarded `tools/call` params under `_meta.handshake`:
+      - `trace_id`, `tool_call_id`, `session_id`, `actor`, `idempotency_key` (when present).
+    - Emit FR-EVT-007 on completion (success/deny/timeout/tool_error) via `FlightRecorder::record_event`.
+  - Legacy FR events (keep for now; migrate payloads to artifact-first)
+    - `src/backend/handshake_core/src/mcp/fr_events.rs` and `src/backend/handshake_core/src/mex/runtime.rs` stop persisting raw args/results inline in `fr_events.payload`; store only redacted refs/hashes.
+  - `src/backend/handshake_core/src/mex/runtime.rs`
+    - Builds HTC request/response envelopes from `PlannedOperation` (transport=`mex`) and validates both via `htc_v1.json`.
+    - Emits FR-EVT-007 for every operation using engine provenance for `tool_id`/`tool_version`.
+  - Conformance tests (Spec 6.0.2.9)
+    - `src/backend/handshake_core/tests/mcp_gate_tests.rs`:
+      - Add HTC validation + VAL-HTC-001 tests, 32KB cap tests, capability deny-by-default, and FR-EVT-007 emission assertions.
+      - Add bypass scan: fail if any `send_request(\"tools/call\")` call site exists outside `src/mcp/gate.rs`.
+    - `src/backend/handshake_core/src/mex/conformance.rs`:
+      - Extend to assert FR-EVT-007 exists in `events` for the operation and that args/results are artifact-first (refs + hashes).
+      - Keep legacy `fr_events` assertions until migration is complete.
+- Open questions / approvals needed
+  - Artifact-handle string format for `args_ref` / `result_ref` returned from `tool_payloads` (proposal: a stable `artifact:`-prefixed handle).
+  - Whether to keep emitting legacy `fr_events` tool.call/tool.result during Phase 1 (proposal: keep, but remove inline payload to avoid secret persistence).
+  - Default actor mapping for MCP calls when explicit model identity is unavailable (proposal: `actor.kind="agent"` with null `agent_id`/`model_id`).
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
