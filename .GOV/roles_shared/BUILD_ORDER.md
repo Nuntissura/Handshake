@@ -32,7 +32,7 @@ Update this file when any of the following occurs:
 
 ### 0) Contract + no-bypass enforcement (Phase 1 blocker)
 
-1. WP-1-Unified-Tool-Surface-Contract-v1 (STUB)
+1. WP-1-Unified-Tool-Surface-Contract-v1 (Ready for Dev)
   - Rationale: per spec [ADD v02.136], local tool calling and MCP MUST use the same Tool Registry + Tool Gate + Flight Recorder event model (no bypass).
 
 ### 1) Safety baseline for "Handshake as IDE" (hardening follow-ups)
