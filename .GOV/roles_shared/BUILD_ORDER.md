@@ -30,49 +30,54 @@ Update this file when any of the following occurs:
 
 ## Recommended sequencing (Phase 1)
 
-### 0) Immediate-value deliveries (can run while foundations are being refined)
+### 0) Contract + no-bypass enforcement (Phase 1 blocker)
 
-- WP-1-Media-Downloader (active packet: see WP_TRACEABILITY_REGISTRY)
-  - Rationale: urgent family salvage value; exercises engine.job queue, tools, and OutputRootDir materialization.
+1. WP-1-Unified-Tool-Surface-Contract-v1 (STUB)
+  - Rationale: per spec [ADD v02.136], local tool calling and MCP MUST use the same Tool Registry + Tool Gate + Flight Recorder event model (no bypass).
 
-### 1) Safety baseline for "Handshake as IDE"
+### 1) Safety baseline for "Handshake as IDE" (hardening follow-ups)
 
-MEX remediation is a practical prerequisite for scaling autonomous work safely (gates, observability, UX bridges):
+MEX baseline is already VALIDATED (see TASK_BOARD). These remediation packets remain as hardening follow-ups:
 
-1. WP-1-MEX-Safety-Gates (remediation packet: `...-v2` stub exists)
-2. WP-1-MEX-Observability (remediation packet: `...-v2` stub exists)
-3. WP-1-MEX-UX-Bridges (remediation packet: `...-v2` stub exists)
+1. WP-1-MEX-Safety-Gates-v2 (STUB)
+2. WP-1-MEX-Observability-v2 (STUB)
+3. WP-1-MEX-UX-Bridges-v2 (STUB)
 
 ### 2) Model routing + governance prerequisites (before parallel cloud sessions)
 
 These enable "who can call what model/provider, under which policy" with auditability:
 
-1. WP-1-Model-Profiles (remediation packet: `...-v2` stub exists)
-2. WP-1-Work-Profiles (stub exists)
-3. WP-1-Cloud-Escalation-Consent (stub exists; required for governed cloud fan-out)
-4. WP-1-Inbox-Role-Mailbox-Alignment (stub exists; coordination fabric)
+1. WP-1-Model-Profiles-v2 (STUB)
+2. WP-1-Work-Profiles-v1 (STUB)
+3. WP-1-Inbox-Role-Mailbox-Alignment-v1 (STUB)
 
 ### 3) Parallelism foundations (runtime enforcement)
 
-- WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry (stub exists)
+- WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 (STUB)
   - Rationale: file-scope locks, lifecycle telemetry, execution identity, deterministic blocking codes.
 
 ### 4) "Control room" surfaces (IDE replacement path)
 
 These are the planned Operator-facing coordination surfaces:
 
-1. WP-1-Locus-Work-Tracking-System-Phase1 (stub exists)
-2. WP-1-Dev-Command-Center-MVP (stub exists)
+1. WP-1-Locus-Work-Tracking-System-Phase1-v1 (STUB)
+2. WP-1-Dev-Command-Center-MVP-v1 (STUB)
 
 ### 5) Web capture + media browsing/search (after ingestion + control surfaces)
 
-1. WP-1-Handshake-Stage-MVP (stub exists)
-2. WP-1-Loom-MVP (stub exists)
-3. WP-1-Video-Archive-Loom-Integration (stub exists)
+1. WP-1-Handshake-Stage-MVP-v1 (STUB)
+2. WP-1-Video-Archive-Loom-Integration-v1 (STUB)
+
+### 9) Already VALIDATED (do not schedule again)
+
+- WP-1-Cloud-Escalation-Consent-v2
+- WP-1-Loom-MVP-v1
+- WP-1-Media-Downloader-v2
+- WP-1-MEX-v1.2-Runtime-v3
+- WP-1-Supply-Chain-MEX-v2
 
 ## Notes / constraints
 
 - Concurrency: do not run overlapping WPs that touch the same IN_SCOPE_PATHS; use separate worktrees per WP.
 - Governance: cloud use requires explicit consent artifacts; do not "parallelize" by bypassing receipts/policy.
 - This file should stay compact; details belong in task packets and TASK_BOARD blocker lines.
-

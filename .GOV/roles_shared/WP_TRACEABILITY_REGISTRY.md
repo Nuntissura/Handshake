@@ -124,6 +124,7 @@ Format:
 | WP-1-Supply-Chain-Cargo-Deny-Clean | .GOV/task_packets/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md | Ready for Dev: WP-1-Supply-Chain-Cargo-Deny-Clean-v1 | active=WP-1-Supply-Chain-Cargo-Deny-Clean-v1; cargo-deny remediation (advisories + licenses) |
 | WP-1-Terminal-LAW | .GOV/task_packets/WP-1-Terminal-LAW-v3.md | Done: WP-1-Terminal-LAW-v3 | active=WP-1-Terminal-LAW-v3; supersedes: WP-1-Terminal-LAW, WP-1-Terminal-LAW-v2 |
 | WP-1-Tokenization-Service | .GOV/task_packets/WP-1-Tokenization-Service-v3.md | Done: WP-1-Tokenization-Service-v3 | active=WP-1-Tokenization-Service-v3; supersedes: WP-1-Tokenization-Service-20251228 |
+| WP-1-Unified-Tool-Surface-Contract | .GOV/task_packets/WP-1-Unified-Tool-Surface-Contract-v1.md | Ready for Dev: WP-1-Unified-Tool-Surface-Contract-v1 | active=WP-1-Unified-Tool-Surface-Contract-v1; activated from stub .GOV/task_packets/stubs/WP-1-Unified-Tool-Surface-Contract-v1.md; Phase 1 [ADD v02.136] unify tool invocation |
 | WP-1-Validator-Error-Codes | .GOV/task_packets/WP-1-Validator-Error-Codes-v1.md | Done: WP-1-Validator-Error-Codes-v1 | active=WP-1-Validator-Error-Codes-v1 |
 | WP-1-Workflow-Engine | .GOV/task_packets/WP-1-Workflow-Engine-v4.md | Done: WP-1-Workflow-Engine-v4 | active=WP-1-Workflow-Engine-v4; supersedes: WP-1-Workflow-Engine-v2, WP-1-Workflow-Engine-v3 |
 | WP-1-Workspace-Bundle | .GOV/task_packets/stubs/WP-1-Workspace-Bundle-v2.md | Stub Backlog (Not Activated): WP-1-Workspace-Bundle-v2 | stub (remediation); supersedes: WP-1-Workspace-Bundle |

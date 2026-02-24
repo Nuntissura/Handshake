@@ -1436,6 +1436,30 @@
       "branch": "feat/WP-1-Loom-MVP-v1",
       "worktree_dir": "../wt-WP-1-Loom-MVP-v1",
       "timestamp": "2026-02-22T15:55:15.863Z"
+    },
+    {
+      "wpId": "WP-1-Unified-Tool-Surface-Contract-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Unified-Tool-Surface-Contract-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.137.md",
+      "spec_target_sha1": "258012967e37eecaf5eabf3b163d7a363afad5b1",
+      "timestamp": "2026-02-24T02:06:42.025Z",
+      "turn_token": "1771898802026"
+    },
+    {
+      "wpId": "WP-1-Unified-Tool-Surface-Contract-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja240220260346",
+      "timestamp": "2026-02-24T02:47:07.682Z",
+      "refinement_path": ".GOV/refinements/WP-1-Unified-Tool-Surface-Contract-v1.md"
+    },
+    {
+      "wpId": "WP-1-Unified-Tool-Surface-Contract-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Unified-Tool-Surface-Contract-v1",
+      "worktree_dir": "../wt-WP-1-Unified-Tool-Surface-Contract-v1",
+      "timestamp": "2026-02-24T03:47:21.632Z"
     }
   ]
 }
