@@ -111,6 +111,9 @@ task-board-check:
 task-packet-claim-check:
 	node .GOV/scripts/validation/task-packet-claim-check.mjs
 
+phase1-add-coverage-check:
+	node .GOV/scripts/validation/phase1-add-coverage-check.mjs
+
 # Dependency cruise (frontend architecture)
 depcruise:
 	cd app; pnpm run depcruise

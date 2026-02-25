@@ -20,6 +20,7 @@ Rules:
 - STUB_STATUS: STUB (NOT READY FOR DEV)
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.138.md 7.6.3 (Phase 1) -> item 13 [ADD v02.138] Front End Memory System (FEMS) v0 under ACE Runtime + Validator Pack.
+- ROADMAP_ADD_COVERAGE: SPEC=v02.138; PHASE=7.6.3; LINES=46098
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
   - Handshake_Master_Spec_v02.138.md 2.6.6.6.6 Front End Memory Job Profile (FEMS) (Normative) [ADD v02.138]
   - Handshake_Master_Spec_v02.138.md 2.6.6.7.6.2 Front End Memory System (FEMS) (Normative) [ADD v02.138]

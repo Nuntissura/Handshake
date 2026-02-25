@@ -402,10 +402,11 @@ A **Work Packet Stub** is an optional planning artifact used to track Roadmap/Ma
 - Stubs MUST NOT be handed off to Coder/Validator and MUST NOT be used to start implementation.
 - Stubs do not require USER_SIGNATURE, a refinement file, or deterministic gates.
 - Stub template: `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
+- Holistic roadmap coverage rule (Phase 1): for every current-spec roadmap line in `7.6.3` tagged `[ADD v<current>]`, at least one stub MUST declare explicit `ROADMAP_ADD_COVERAGE` metadata (spec version + phase + exact line numbers). Missing coverage is BLOCKING.
 
 Activation rule (mandatory): Before any coding starts, activate the stub by following the normal workflow (in-chat Technical Refinement Block -> USER_SIGNATURE -> `.GOV/refinements/WP-*.md` -> `just create-task-packet WP-*` -> update `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` Baseâ†’Active mapping -> move TASK_BOARD entry out of STUB).
 
-Mechanical enforcement note: `just gov-check` (and `just codex-check`) includes a WP activation traceability guard and will BLOCK commits when an activated packet exists but the registry/Task Board still treats it as a stub.
+Mechanical enforcement note: `just gov-check` (and `just codex-check`) includes a WP activation traceability guard and will BLOCK commits when an activated packet exists but the registry/Task Board still treats it as a stub. `just gov-check` also runs `phase1-add-coverage-check` to BLOCK if any current-spec `7.6.3` `[ADD v<current>]` roadmap line lacks stub coverage metadata.
 
 **Signature format:** `{username}{DDMMYYYYHHMM}`
 

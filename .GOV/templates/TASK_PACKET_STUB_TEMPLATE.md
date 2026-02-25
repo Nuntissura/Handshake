@@ -8,6 +8,7 @@ Rules:
 - Coder/Validator MUST NOT start work from a stub.
 - When activating a stub into a real WP, follow `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` (Technical Refinement Block + USER_SIGNATURE + refinement + `just create-task-packet`).
 - If a Base WP later gains multiple packets (revisions), record Base WP -> Active Packet in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`.
+- For any stub covering current-spec Phase 1 roadmap additions (`[ADD v<current>]`), `ROADMAP_ADD_COVERAGE` MUST enumerate the exact spec line numbers so governance checks can verify no additions were missed.
 
 ---
 
@@ -20,6 +21,7 @@ Rules:
 - STUB_STATUS: STUB (NOT READY FOR DEV)
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: {{ROADMAP_POINTER}}
+- ROADMAP_ADD_COVERAGE: SPEC=vXX.XXX; PHASE=7.6.3; LINES={{LINE_NUMBERS_COMMA_SEPARATED}}
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
   - {{SPEC_ANCHOR_1}}
   - {{SPEC_ANCHOR_2}}
@@ -51,5 +53,3 @@ Rules:
 - [ ] Create the official task packet via `just create-task-packet {{WP_ID}}` (in `.GOV/task_packets/`).
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
 - [ ] Move `.GOV/roles_shared/TASK_BOARD.md` entry from STUB to Ready for Dev.
-
-

@@ -20,6 +20,7 @@ Rules:
 - STUB_STATUS: STUB (NOT READY FOR DEV)
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.138.md 7.6.3 (Phase 1) -> Key risks section [ADD v02.138] memory poisoning / drift risk + mitigations.
+- ROADMAP_ADD_COVERAGE: SPEC=v02.138; PHASE=7.6.3; LINES=46295
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
   - Handshake_Master_Spec_v02.138.md 2.6.6.7.6.2 Front End Memory System (FEMS) (Normative) [ADD v02.138]
   - Handshake_Master_Spec_v02.138.md 4.3.9.12.7 Front End Memory System integration (FEMS) (Normative) [ADD v02.138]

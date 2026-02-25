@@ -20,6 +20,7 @@ Rules:
 - STUB_STATUS: STUB (NOT READY FOR DEV)
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.138.md 7.6.3 (Phase 1) -> Acceptance criteria [ADD v02.138] FEMS bounded pack + approvals + replay + FR-EVT-MEM-* + FEMS-EVAL-001.
+- ROADMAP_ADD_COVERAGE: SPEC=v02.138; PHASE=7.6.3; LINES=46382
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
   - Handshake_Master_Spec_v02.138.md 5.4.8 Front End Memory System Test Suite (FEMS-EVAL-001) (Normative) [ADD v02.138]
   - Handshake_Master_Spec_v02.138.md 11.5.13 Front End Memory System events (FR-EVT-MEM-*) (Normative) [ADD v02.138]

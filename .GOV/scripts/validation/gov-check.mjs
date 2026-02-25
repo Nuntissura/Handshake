@@ -30,5 +30,6 @@ await import("./wp-activation-traceability-check.mjs");
 await import("./worktree-concurrency-check.mjs");
 await import("./lifecycle-ux-check.mjs");
 await import("./drive-agnostic-check.mjs");
+await import("./phase1-add-coverage-check.mjs");
 
 console.log("gov-check ok");
