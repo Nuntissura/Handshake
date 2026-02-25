@@ -116,24 +116,24 @@ function extractBulletListAfterHeading(text, heading) {
 // Check 1: Task packet file exists
 console.log('Check 1: Task packet file exists');
 const taskPacketDir = '.GOV/task_packets';
-if (!fs.existsSync(taskPacketDir)) {
-  fs.mkdirSync(taskPacketDir, { recursive: true });
-}
-
-const taskPacketFiles = fs.readdirSync(taskPacketDir)
-  .filter((f) => f.includes(WP_ID) && f.endsWith('.md'));
+const packetFilename = `${WP_ID}.md`;
 
 let packetContent = '';
 let packetPath = '';
 let lastPrepare = null;
 
-if (taskPacketFiles.length === 0) {
-  errors.push(`No task packet file found for ${WP_ID} in .GOV/task_packets/`);
-  console.log('FAIL: No task packet file');
+if (!fs.existsSync(taskPacketDir)) {
+  errors.push(`Task packet directory not found: ${taskPacketDir}`);
+  console.log(`FAIL: Missing directory ${taskPacketDir}`);
 } else {
-  packetPath = path.join(taskPacketDir, taskPacketFiles[0]);
-  packetContent = fs.readFileSync(packetPath, 'utf8');
-  console.log(`PASS: Found ${taskPacketFiles[0]}`);
+  packetPath = path.join(taskPacketDir, packetFilename);
+  if (!fs.existsSync(packetPath)) {
+    errors.push(`No exact task packet file found for ${WP_ID}: expected ${taskPacketDir}/${packetFilename}`);
+    console.log(`FAIL: Missing ${packetFilename}`);
+  } else {
+    packetContent = fs.readFileSync(packetPath, 'utf8');
+    console.log(`PASS: Found ${packetFilename}`);
+  }
 
   // Check 1.5: Worktree + branch preflight (mechanical guard against wrong-worktree edits)
   console.log('\nCheck 1.5: Worktree + branch preflight [CX-WT-001]');

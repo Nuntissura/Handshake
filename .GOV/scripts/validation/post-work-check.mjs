@@ -248,16 +248,8 @@ const parseDiffHunks = (targetPath, { staged, baseRev, headRev }) => {
 };
 
 const taskPacketDir = '.GOV/task_packets';
-let packetContent = '';
-let packetPath = '';
-if (fs.existsSync(taskPacketDir)) {
-  const taskPacketFiles = fs.readdirSync(taskPacketDir)
-    .filter((f) => f.includes(WP_ID));
-  if (taskPacketFiles.length > 0) {
-    packetPath = `${taskPacketDir}/${taskPacketFiles[0]}`;
-    packetContent = readFileIfExists(packetPath);
-  }
-}
+const packetPath = `${taskPacketDir}/${WP_ID}.md`;
+const packetContent = readFileIfExists(packetPath);
 
 const parseMergeBaseSha = (content) => {
   if (!content) return null;
