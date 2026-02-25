@@ -475,3 +475,84 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT -- WP-1-Unified-Tool-Surface-Contract-v1 -- 2026-02-25
+
+VALIDATION REPORT -- WP-1-Unified-Tool-Surface-Contract-v1
+Verdict: PASS
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Unified-Tool-Surface-Contract-v1`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS (Coder evidence recorded under `## EVIDENCE`; Validator did not re-run cargo tests in this session)
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Unified-Tool-Surface-Contract-v1.md` (Status at validation time: In Progress)
+- Refinement: `.GOV/refinements/WP-1-Unified-Tool-Surface-Contract-v1.md` (Approved; ENRICHMENT_NEEDED=NO; anchors: 6.0.2.2-6.0.2.3, 6.0.2.5.1, 6.0.2.9, 11.3.0, 11.5.2 FR-EVT-007)
+- Spec Target: `.GOV/roles_shared/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.137.md`
+- Validated range: `35cd220dbfe573628ce1ab565a6363f0b993a1eb..a8046e5bda579e3e50c333cdeebca0d61010f680`
+
+Files Checked (manual inspection):
+- `.GOV/task_packets/WP-1-Unified-Tool-Surface-Contract-v1.md`
+- `.GOV/refinements/WP-1-Unified-Tool-Surface-Contract-v1.md`
+- `assets/schemas/htc_v1.json`
+- `src/backend/handshake_core/src/mcp/gate.rs`
+- `src/backend/handshake_core/src/mcp/discovery.rs`
+- `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- `src/backend/handshake_core/src/ace/mod.rs`
+- `src/backend/handshake_core/src/mex/runtime.rs`
+- `src/backend/handshake_core/src/mex/conformance.rs`
+- `src/backend/handshake_core/tests/mcp_gate_tests.rs`
+- `src/backend/handshake_core/tests/mcp_e2e_tests.rs`
+- Governance workflow artifacts touched in range (inspected via diff): `.GOV/roles_shared/TASK_BOARD.md`, `.GOV/roles_shared/SIGNATURE_AUDIT.md`, `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
+
+Findings (requirements -> evidence):
+- HTC schema SSoT present (6.0.2.5.1):
+  - `assets/schemas/htc_v1.json:1` (schema file exists; includes ErrorKind enum containing "validation")
+  - `src/backend/handshake_core/src/mcp/gate.rs:305` (`htc_schema()` embeds `assets/schemas/htc_v1.json`)
+- Tool Gate validates HTC envelopes + uses `VAL-HTC-001` on validation failure (6.0.2.5.1):
+  - `src/backend/handshake_core/src/mcp/gate.rs:299` (`HTC_VALIDATION_ERROR_CODE = "VAL-HTC-001"`)
+  - `src/backend/handshake_core/src/mcp/gate.rs:728` (request envelope schema validation)
+  - `src/backend/handshake_core/src/mcp/gate.rs:1464` (response envelope schema validation)
+- Tool Registry is SSoT; MCP `tools/list` generated from registry; Tool.name == tool_id; meta binding present (11.3.0):
+  - `src/backend/handshake_core/src/mcp/gate.rs:101` (`ToolRegistryEntry` defines identity + schemas + policy metadata)
+  - `src/backend/handshake_core/src/mcp/gate.rs:126` (`tool_descriptor()` sets `name` to `tool_id` and binds `Tool._meta.handshake`)
+  - `src/backend/handshake_core/src/mcp/gate.rs:483` (`refresh_tools()` derives tool descriptors from Tool Registry; no remote `tools/list`)
+- MCP invocation correlation metadata is accepted/bound under `_meta.handshake` (11.3.0):
+  - `src/backend/handshake_core/src/mcp/gate.rs:1268` (inserts `_meta.handshake` with `trace_id`, `tool_call_id`, `session_id`, `actor`, `tool_id`, `tool_version`, etc)
+- FR-EVT-007 ToolCall event type exists and payload is validated (11.5.2 FR-EVT-007):
+  - `src/backend/handshake_core/src/flight_recorder/mod.rs:38` (`FlightRecorderEventType::ToolCall` exists)
+  - `src/backend/handshake_core/src/flight_recorder/mod.rs:692` (ToolCall payload validation enforced)
+  - `src/backend/handshake_core/src/flight_recorder/mod.rs:1101` (ToolCall payload validator requires `trace_id`, `tool_call_id`, `tool_id`, `tool_version`, `transport`, `side_effect`, `idempotency`, `actor`, `ok`, `timing`, plus optional artifact-first refs/hashes)
+- Artifact-first args/results refs + hashes are computed post-redaction and persisted as tool payloads:
+  - `src/backend/handshake_core/src/flight_recorder/duckdb.rs:53` (`store_tool_payload_redacted` stores payload + sha256 and returns ArtifactHandle)
+  - `src/backend/handshake_core/src/ace/mod.rs:141` (`ArtifactHandle::canonical_id()` format is `artifact:<uuid>:<path>`)
+- Conformance tests exist (6.0.2.9):
+  - `src/backend/handshake_core/tests/mcp_gate_tests.rs:971` (schema validation failure test via `tools_call` -> `McpError::SchemaValidation`)
+  - `src/backend/handshake_core/src/mex/conformance.rs:344` (no-shadow invoke scan + ToolCall event assertions)
+  - `src/backend/handshake_core/tests/mcp_e2e_tests.rs:314` (E2E uses Tool Registry entry + `refresh_tools()` + `tools_call()`)
+
+Hygiene / governance:
+- Governance gates: `just gov-check` PASS (see chat log for this validation session).
+- Post-work manifest gate: PASS with expected warning for new file at merge base (`assets/schemas/htc_v1.json`).
+- validator-error-codes: PASS after remediation (typed timeout error in `src/backend/handshake_core/src/mex/conformance.rs:394`).
+
+Tests:
+- Validator ran (this session):
+  - `just validator-error-codes`: PASS
+  - `just validator-dal-audit`: PASS
+  - `just validator-traceability`: PASS
+  - `just validator-coverage-gaps`: PASS
+  - `just validator-spec-regression`: PASS
+  - `just post-work WP-1-Unified-Tool-Surface-Contract-v1 --range 35cd220..HEAD`: PASS (WARN for new file at merge base)
+- Coder evidence (recorded in packet under `## EVIDENCE`):
+  - `just cargo-clean`: PASS
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --jobs 1`: PASS (logs + sha256 recorded)
+
+Risks & Suggested Actions:
+- WARN (manifest): new file `assets/schemas/htc_v1.json` cannot be loaded from merge base; expected for a new schema file.
+- Consider adding an explicit conformance assertion that the validation failure code is exactly `VAL-HTC-001` (currently enforced in code, but not asserted in tests).
+
+Improvements & Future Proofing:
+- Add an explicit bypass-scan test for MCP `tools/call` send_request call sites outside `src/backend/handshake_core/src/mcp/gate.rs` (manual grep was clean in this validation session).
