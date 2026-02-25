@@ -34,11 +34,11 @@
 
 
 
-# Handshake Master Specification v02.137
+# Handshake Master Specification v02.138
 
 **Status:** LIVING  
-**Version:** v02.137
-**Date:** 2026-02-22
+**Version:** v02.138
+**Date:** 2026-02-25
 **Authority:** [CX-001] (The Master Spec is the Source of Truth)
 
 **Purpose:** Complete reference combining product vision, Diary governance, extraction pipeline, Phase 1 closure requirements, and technical supply-chain gate specs.
@@ -49,6 +49,7 @@
 
 | Version | Date | Author | Changes | Approval |
 |---------|------|--------|---------|----------|
+| v02.138 | 2026-02-25 | Orchestrator | **Front End Memory System (FEMS) merge:** Integrated FEMS into ACE Runtime tiered memory (§2.6.6.7.6.2), added FEMS job profile (§2.6.6.6.6) and profile registry row (§2.6.6.6.2), ModelSession integration (§4.3.9.12.7), DCC Memory Panel (§10.11.5.14), Flight Recorder event family (§11.5.13), and evaluation suite (§5.4.8). Updated §7.6 Roadmap + §7.6.1 Coverage Matrix with [ADD v02.138] bullets. | pending |
 | v02.137 | 2026-02-22 | Orchestrator | **Multi-Session Orchestration & Spawn Lifecycle:** Added §4.3.9.12–§4.3.9.21 (ModelSession, session scheduler `model_run`, spawn contract, cloud consent gate, provider tool-calling/streaming adapters, workspace isolation, crash recovery, ModelSessionSpan observability + FR event families). Updated Flight Recorder with `model_session_id` correlation + registered FR-EVT-SESS-* families; added Locus MT occupancy (`active_session_ids` + bind/unbind ops); made HTC tool calls require `session_id` for ModelSessions + added session-scoped capability intersection in Tool Gate; updated §7.2.0.5 to normative; added DCC Sessions panel; updated Stage Prompt Playground requirements; extended §7.6 roadmap. | pending |
 | v02.136 | 2026-02-22 | Orchestrator | **Roadmap + Coverage Matrix update:** Updated §7.6 Roadmap + §7.6.1 Coverage Matrix to schedule Unified Tool Surface Contract (HTC v1.0, §6.0.2) implementation (Tool Registry + Tool Gate + MCP schema generation) and to phase the Design Studio shell/IA recontextualization (per `Handshake_Design_Studio_Overhaul_v0.1.md`) into Phase 2+ to avoid Phase 1 rework. Added Phase 1/2 bullets tagged [ADD v02.136] (no new phase fields). | pending |
 | v02.135 | 2026-02-22 | Orchestrator | **Tool surface unification:** add §6.0.2 Unified Tool Surface Contract (HTC-1.0) including `assets/schemas/htc_v1.json` SSoT, require Tool Gate routing for all tool calls (local + MCP), add DCC Tool Call Ledger UX, add MCP binding rules (§11.3.0), and add Flight Recorder `tool_call` event schema (FR-EVT-007). Also add product framing: worksurfaces/modules naming guardrail (Design Studio is additive). | pending |
@@ -9132,6 +9133,8 @@ Each profile:
 | Stage [ADD v02.131] | §10.13 (Handshake Stage) | Snapshots, Docs, 3D Assets | `stage.capture_webpage.v1`, `stage.clip_selection.v1`, `stage.import_pdf.v1`, `stage.3d.import_gltf.v1`, `stage.3d.validate_gltf.v1` |
 | Distillation | Section 9 (Continuous Local Skill Distillation) | Skill Bank entries, checkpoints, eval runs | `select_examples`, `run_teacher`, `run_student`, `score`, `create_checkpoint`, `evaluate_and_promote` |
 | Spec Router | 2.6.8 | Specs, refinements, work packets | `spec_route`, `spec_refine`, `spec_bind_packets` |
+| Front End Memory (FEMS) [ADD v02.138] | §2.6.6.7.6.2 | MemoryItems, MemoryPacks, MemoryWriteProposals | `memory_extract`, `memory_consolidate`, `memory_pack_build`, `memory_forget` |
+
 | Capability Registry Build | 11.1.6 | Capability registry | `extract_capabilities`, `validate_registry`, `publish_registry` |
 
 **Distillation profile integration**
@@ -10281,6 +10284,101 @@ Self-approval MUST be represented using the existing family as a sequence:
 5. FR-EVT-GOV-002 (gov_decision_applied) when the gate is satisfied
 
 
+
+##### 2.6.6.6.6 Front End Memory Job Profile (FEMS) (Normative) [ADD v02.138]
+
+The **Front End Memory System (FEMS)** is implemented as explicit, auditable AI jobs that **propose** and **commit** durable `MemoryItem`s.
+
+It MUST NOT silently mutate `LongTermMemory` from inside an interactive chat loop.
+
+**Job kinds (minimum)**
+- `memory_extract_v0.1` — extract candidate memories from a `SessionLog` / job outputs into a `MemoryWriteProposal`.
+- `memory_consolidate_v0.1` — dedupe/merge/supersede `MemoryItem`s and produce a `MemoryCommitReport`.
+- `memory_forget_v0.1` — tombstone or invalidate `MemoryItem`s under an explicit forget request (policy-gated).
+
+**Required artefacts**
+- `MemoryWriteProposal` (canonical JSON; hashable)
+- `MemoryCommitReport` (diff + ids + policy decisions)
+- (Optional) `MemoryPack` (precomputed, scope-bound pack for a WP/session; see §2.6.6.7.6.2)
+
+```ts
+type MemoryMutationOp = "add" | "update" | "supersede" | "invalidate" | "tombstone";
+
+type MemoryWriteProposal = {
+  schema_version: "hsk.memory_write_proposal@0.1";
+  proposal_id: string; // UUID
+  created_at: string;  // ISO timestamp
+  created_by_job_id: string;
+
+  // Scope for the proposal itself (workspace/project/wp/contact/session).
+  scope_refs: EntityRef[];
+
+  // Evidence for the proposal as a whole; each op MUST cite at least one SourceRef.
+  source_refs: SourceRef[];
+
+  policy: {
+    // Procedural memory MUST NOT be written unless routed through human review.
+    allow_procedural: boolean;
+    require_human_review: boolean;
+
+    // Hard caps to prevent runaway write amplification.
+    max_ops: number;
+  };
+
+  ops: Array<{
+    op: MemoryMutationOp;
+
+    // LLM-safe handle for “edit the record you meant”, avoiding UUID mixups.
+    // (May be a small-int string such as "m3"; the commit step resolves to a UUID.)
+    temp_id?: string;
+
+    // Required for update/supersede/invalidate/tombstone.
+    memory_id?: string;
+
+    // Proposed item content (partial for updates).
+    item: Partial<MemoryItem>;
+
+    // Short justification; MUST reference evidence in `source_refs`.
+    rationale: string;
+
+    confidence: number; // 0..1
+    requires_review: boolean;
+  }>;
+};
+
+type MemoryCommitReport = {
+  schema_version: "hsk.memory_commit_report@0.1";
+  commit_id: string; // UUID
+  created_at: string;
+
+  source_proposal_id: string;
+
+  applied_ops: Array<{
+    op: MemoryMutationOp;
+    memory_id: string;
+    previous_version?: number;
+    new_version?: number;
+
+    status: "applied" | "skipped" | "rejected";
+    reason?: string;
+  }>;
+
+  warnings: string[];
+
+  // Hints for pack rebuild / invalidation; consumed by pack builder.
+  pack_rebuild_hints: Array<{
+    scope_ref: EntityRef;
+    reason: "memory_changed" | "policy_changed" | "drift_detected";
+  }>;
+};
+```
+
+**Invariants (HARD)**
+- Memory extraction/consolidation MUST be deterministic under pinned inputs in `strict`/`replay` modes (see §2.6.6.7.1).
+- `memory_extract_*` MAY read `SessionLog`s and artifacts, but MUST NOT write `MemoryItem`s directly; only a commit profile may mutate LongTermMemory.
+- Procedural memory writes (`memory_class = procedural`) MUST set `requires_review = true` and MUST route through Approval Inbox / DCC (see §10.11.5.14).
+- Every commit MUST emit `FR-EVT-MEM-*` events and link to the proposal + commit report (§11.5.13).
+
 #### 2.6.6.7 ACE Runtime (Agentic Context Engineering)
 
 **Why**  
@@ -10410,7 +10508,7 @@ WorkingContext
 
 ```text
 ContextBlock
-- kind: (rules | playbook_ref | task | constraints | retrieved_snippet | tool_delta | open_loops | user_input | scope_hint)
+- kind: (rules | playbook_ref | task | constraints | memory_pack | retrieved_snippet | tool_delta | open_loops | user_input | scope_hint) [ADD v02.138]
 - content: string
 - source_refs[]: SourceRef
 - sensitivity: (low | medium | high)
@@ -10530,12 +10628,19 @@ Handshake separates durable storage from per-call presentation:
 ```text
 MemoryItem
 - memory_id: UUID
-- type: (fact | constraint | heuristic | preference | glossary | failure_pattern)
+- memory_class: (working | episodic | semantic | procedural) [ADD v02.138]
+- type: (fact | constraint | heuristic | preference | glossary | failure_pattern | intent | risk | relationship_note | tool_protocol | tool_failstate) [ADD v02.138]
+- scope_refs[]: EntityRef [ADD v02.138]
 - content: string
+- structured?: JSON [ADD v02.138]
 - confidence: float
+- trust_level: (local_authoritative | user_asserted | derived_unverified | external_import | unknown) [ADD v02.138]
 - provenance: {source_refs[], created_by_job_id}
 - classification: (low | medium | high)
+- valid_from?: Timestamp [ADD v02.138]
+- valid_to?: Timestamp [ADD v02.138]
 - last_verified_at?: Timestamp
+- status: (active | superseded | invalidated | archived) [ADD v02.138]
 - version: int
 ```
 
@@ -10598,6 +10703,206 @@ Determinism requirements:
 - Retrieval outputs MUST remain artifact/SourceRef based (no raw graph dumps into prompts).
 
 ---
+
+
+##### 2.6.6.7.6.2 Front End Memory System (FEMS) (Normative) [ADD v02.138]
+
+**Intent**  
+Provide a bounded, provenance-first memory substrate for the **front-end model** (local or cloud) that supports:
+- tool **failstates** (“do / don’t”, common pitfalls, mitigations),
+- long-lived **project context** (intent, rationale, constraints, open risks),
+- session-to-session continuity without “context explosion”,
+- (future) a simple **operator/user CRM** (contact profiles + relationship notes).
+
+This section specifies **presentation-time** memory (`MemoryPack`) and the governed write path that produces durable `MemoryItem`s.
+
+---
+
+###### 2.6.6.7.6.2.1 Design principles (HARD)
+
+1) **Storage ≠ presentation**  
+`LongTermMemory` stores canonical `MemoryItem`s. The model receives only a bounded `MemoryPack` (a presentation view).
+
+2) **Hard budgets (no context explosion)**  
+Defaults (unless a stricter Work Profile applies):
+- `MemoryPack` injected tokens ≤ **500**.  
+- `MemoryPack.items` ≤ **24** items.  
+- p95 `memory.retrieve + pack.build` ≤ **500ms** locally (excluding embedding warmup).  
+- If budgets are exceeded, the pack MUST degrade deterministically (drop lowest priority items, log truncation flags).
+
+3) **Trust segmentation (anti-poisoning)**  
+- **Procedural memory** (`memory_class=procedural`) is **trusted-only** and MUST NOT be created from untrusted text or tool output without review.  
+- Untrusted sources MAY create **candidate** memories, but they MUST remain in `MemoryWriteProposal` until approved/validated.
+
+4) **Provenance is mandatory**  
+Every committed `MemoryItem` MUST carry bounded `SourceRef`s (or ArtifactHandles) sufficient to re-audit why it exists.
+
+5) **Determinism & replay**  
+In `replay` mode, memory retrieval MUST persist candidate IDs + selected IDs + a `memory_pack_hash`, so the run can be replayed identically.
+
+---
+
+###### 2.6.6.7.6.2.2 Memory taxonomy (FEMS mapping)
+
+FEMS standardizes 4 *classes* (high-level semantics) and several *types* (operational categories):
+
+- **working**: short-horizon state for the current session/WP (open loops, current assumptions).  
+- **episodic**: dated events/outcomes (“what happened”) with strong provenance.  
+- **semantic**: stable facts/definitions/glossary entries.  
+- **procedural**: operating rules/playbooks (tool do/don’t, user constraints, safety steps).
+
+**Allowed / default review policy**
+- `procedural` MUST be review-gated (Approval Inbox / DCC) before commit.
+- `semantic` SHOULD be evidence-gated (SourceRefs) and MAY be auto-committed when derived from trusted local artifacts.
+- `episodic` MAY be auto-committed if it is purely descriptive and non-instructional.
+- `working` is typically session-scoped and MAY be garbage-collected aggressively unless pinned.
+
+---
+
+###### 2.6.6.7.6.2.3 MemoryPack (presentation artifact)
+
+`MemoryPack` is the **only** memory content injected into a model call. It MUST appear as a `ContextBlock.kind = memory_pack` block, and SHOULD be placed in the *variable suffix* unless every included item is trusted procedural memory.
+
+```ts
+type MemoryPack = {
+  schema_version: "hsk.memory_pack@0.1";
+  pack_id: string;              // UUID
+  generated_at: string;         // ISO timestamp
+
+  determinism_mode: "strict" | "replay" | "best_effort";
+  memory_policy: "EPHEMERAL" | "SESSION_SCOPED" | "WORKSPACE_SCOPED";
+
+  // What the pack is scoped to (workspace/project/wp/contact/session).
+  scope_refs: EntityRef[];
+
+  // Build constraints (recorded for audit + replay).
+  budgets: {
+    max_tokens: number;         // default 500
+    max_items: number;          // default 24
+    max_items_per_type: Record<string, number>;
+  };
+
+  items: Array<{
+    memory_id: string;
+    memory_class: "working" | "episodic" | "semantic" | "procedural";
+    type: string;
+
+    // Presentation fields (bounded, human-readable, non-instructional by default).
+    summary: string;            // <= ~240 chars
+    content: string;            // <= ~600 chars (may be elided)
+    structured?: unknown;       // optional typed payload (bounded)
+
+    trust_level: string;
+    confidence: number;         // 0..1
+
+    // Audit pointers; MUST be bounded selectors.
+    scope_refs: EntityRef[];
+    source_refs: SourceRef[];
+
+    last_verified_at?: string;
+  }>;
+
+  token_estimate: number;
+  memory_pack_hash: string;     // sha256(canonical_json(pack without hash field))
+  warnings: string[];
+};
+```
+
+**Hard rules**
+- `MemoryPack` MUST NOT include raw tool logs, raw external web content, or full documents.
+- `MemoryPack` content MUST be declarative. Imperative instructions are only permitted when:
+  - `memory_class=procedural`, AND
+  - `trust_level=local_authoritative`, AND
+  - the item was review-approved (see §2.6.6.6.6 + §10.11.5.14).
+
+---
+
+###### 2.6.6.7.6.2.4 Read path (retrieve → rank → pack)
+
+**Inputs**
+- `ContextSnapshot.scope_inputs` (entities + topics + time)  
+- `ModelSession.memory_policy` (see §4.3.9.12.7)  
+- Work Profile constraints (budgets, cloud redaction policy)
+
+**Retrieval (bounded)**
+- Lexical: FTS over `MemoryItem.content` (+ structured JSON fields).  
+- Vector: `MemoryVectorIndex` when enabled (§2.6.6.7.6.1).  
+- Graph: `MemoryGraphIndex` when enabled (§2.6.6.7.6.1).
+
+**Selection (deterministic)**
+- Filter by `trust_level`, `classification`, and scope match.
+- Apply per-type quotas (e.g., max 3 procedural, max 2 risks, max 1 intent).
+- Apply time decay for episodic/working; pinning overrides decay.
+- Dedupe near-identical items (stable tie-break by `memory_id`).
+
+**Outputs**
+- A single `MemoryPack` with stable canonical hashing.
+- Persist: candidate list + selected IDs + pack hash in the `ContextSnapshot` (or referenced artifact) when in `replay` mode.
+
+---
+
+###### 2.6.6.7.6.2.5 Write path (extract → validate → consolidate → commit)
+
+Memory writes MUST be explicit jobs (see §2.6.6.6.6):
+
+1) **Extract (`memory_extract_v0.1`)**  
+Produce a `MemoryWriteProposal` from:
+- `SessionLog` events,
+- Locus state changes / outcomes,
+- Objective Anchor / handoff updates (see §10.11.5.3),
+- explicit user “remember this” intents.
+
+2) **Validate (validator-gated)**  
+At minimum:
+- Reject items without bounded `SourceRef`s.
+- Reject procedural items unless `requires_review=true`.
+- Reject any item that contains tool-call instructions, raw prompts, secrets, or unbounded copied text.
+
+3) **Consolidate (`memory_consolidate_v0.1`)**  
+- Merge duplicates (semantic similarity + canonicalized content).
+- Supersede outdated items rather than overwriting (keep versioned history).
+- Create conflict sets (two plausible truths) instead of forced overwrites when evidence disagrees.
+
+4) **Commit (policy-gated)**  
+- Commit MUST write to canonical LongTermMemory store and emit `MemoryCommitReport`.
+- Commit MUST emit FR-EVT-MEM-* events (§11.5.13).
+
+---
+
+###### 2.6.6.7.6.2.6 Separation from RAG / Shadow Workspace (anti-drift)
+
+- Shadow Workspace (RAG) is the authoritative store for **documents and knowledge artifacts**.  
+- FEMS is the authoritative store for **short, typed, user/project/tool state** that benefits from being injected into prompts.
+
+**Hard separation rules**
+- RAG ingestion MUST NOT auto-create procedural memory.  
+- Memory items MUST NOT be written back into documents or the Shadow Workspace index as “facts”; they may only exist as separate MemoryItems with provenance.
+- `MemoryPack` MUST be compiled independently from evidence snippets and MUST have its own budget.
+
+---
+
+###### 2.6.6.7.6.2.7 Optional: GraphRAG overlay for memory (Derived) [ADD v02.138]
+
+When memory volumes grow, FEMS MAY build a *derived* GraphRAG-style overlay over MemoryGraphIndex:
+- community summaries per project/WP,
+- “hub” nodes (tools, contacts, key decisions),
+- multi-hop retrieval hints.
+
+Constraints:
+- This overlay is **Derived** and MUST be rebuildable from canonical MemoryItems + edges.
+- Community summaries MUST be treated as DerivedContent with provenance and MUST NOT replace canonical items.
+- Summaries MUST obey the same `MemoryPack` budgets and trust rules.
+
+---
+
+###### 2.6.6.7.6.2.8 Operator/user CRM hooks (minimal) [ADD v02.138]
+
+FEMS may store relationship context as memory items (scoped to a `contact_id` EntityRef):
+- `relationship_note` (episodic/semantic) — who they are, context, last interaction.
+- `preference` (procedural) — communication style constraints (review-gated).
+
+**Privacy hard rule**  
+High-sensitivity CRM items MUST NOT be included in cloud-bound prompts unless explicitly consented and policy-approved.
 
 ##### 2.6.6.7.7 Artifact-First Tool Output Policy
 
@@ -22032,6 +22337,37 @@ mod cor701_tests {
 
 ---
 
+
+### 5.4.8 Front End Memory System Test Suite (FEMS-EVAL-001) (Normative) [ADD v02.138]
+
+This suite validates that FEMS provides continuity **without** context bloat, poisoning, or irreproducibility.
+
+**FEMS-EVAL-001.1 Budget + truncation**
+- `MemoryPack.token_estimate` MUST be ≤ 500 (default) and MUST honor Work Profile overrides.
+- If truncation occurs, it MUST be deterministic and MUST set a truncation warning flag.
+
+**FEMS-EVAL-001.2 Provenance + bounded selectors**
+- Every committed `MemoryItem` MUST carry bounded `SourceRef`s.
+- Every `MemoryPackItem` MUST carry bounded `source_refs` (no “whole document” selectors).
+
+**FEMS-EVAL-001.3 Anti-poisoning / instruction suppression**
+- Untrusted content (tool output, external web, user messages) MUST NOT be promotable into procedural memory without review.
+- Memory extraction MUST reject “do this tool call” / “ignore previous rules” style instructions as invalid memory content.
+
+**FEMS-EVAL-001.4 Determinism & replay**
+- In `replay` mode, the `MemoryPack` hash and selected `memory_id`s MUST match on repeated runs given pinned indices + identical inputs.
+
+**FEMS-EVAL-001.5 Cloud redaction correctness**
+- When `provider=cloud`, high-sensitivity memory MUST be excluded or redacted unless a consent receipt explicitly permits inclusion.
+- Decisions MUST be visible in the `ContextSnapshot` and in DCC.
+
+**FEMS-EVAL-001.6 Consolidation + conflict behavior**
+- Dedupe merges MUST be stable and explainable.
+- Conflicts MUST create superseded versions or conflict sets; no silent overwrites.
+
+**Performance check (non-CI optional)**
+- p95 `retrieve+pack.build` ≤ 500ms on a warmed cache for a medium workspace fixture.
+
 ## 5.5 Benchmark Harness
 
 **Why**  
@@ -30552,6 +30888,45 @@ Recommended mapping:
 - Terminal session states (`COMPLETED`, `FAILED`, `CANCELLED`) MUST be sticky.
 
 ---
+
+
+##### 4.3.9.12.7 Front End Memory System integration (FEMS) (Normative) [ADD v02.138]
+
+`ModelSession` integrates with the Front End Memory System (FEMS) to provide **bounded continuity** across turns and across sessions without introducing prompt drift.
+
+**Read semantics (per-call)**
+- `memory_policy = EPHEMERAL`
+  - No `MemoryPack` is injected.
+  - No memory write proposals may be generated.
+- `memory_policy = SESSION_SCOPED`
+  - Inject only **session-scoped working memory** (e.g., open loops + current assumptions) derived from this session’s `SessionLog`.
+  - Do not retrieve or inject workspace/project memory.
+- `memory_policy = WORKSPACE_SCOPED`
+  - Inject a bounded `MemoryPack` compiled from `LongTermMemory` + project/WP scope (see §2.6.6.7.6.2).
+  - Workspace-scoped injection MUST still respect sensitivity classification and cloud consent gates.
+
+**Placement (anti-poisoning)**
+- `MemoryPack` SHOULD appear in the `PromptEnvelope.variable_suffix` (never in stable prefix by default).
+- `MemoryPack` MAY appear in the stable prefix only if every included item is:
+  - `memory_class = procedural`, AND
+  - `trust_level = local_authoritative`, AND
+  - review-approved (DCC / Approval Inbox).
+
+**Write semantics (governed)**
+- Sessions MAY produce `MemoryWriteProposal` artifacts via `memory_extract_v0.1` (see §2.6.6.6.6).  
+- Commits to `LongTermMemory` MUST be performed by an explicit commit job (validator + policy gated) and are never implicit.
+
+**Cloud boundary**
+- When `provider = cloud`, FEMS MUST build a **cloud-safe** `MemoryPack` variant:
+  - exclude `classification=high` unless an explicit consent receipt allows it,
+  - redact or omit contact/CRM items by default,
+  - record the decision in the `ContextSnapshot` / `CloudConsentGate` receipt.
+
+**State pointer**
+- `memory_state_ref` SHOULD reference the most recent committed `MemoryPack` artifact id/hash for this session, enabling:
+  - deterministic replay (same pack hash under `replay`),
+  - UI preview (DCC “What did the model see?”),
+  - drift debugging (pack invalidation when memory changes).
 
 #### 4.3.9.13 Session Scheduler: Model Calls as Queued Work (Normative) [ADD v02.137]
 
@@ -45301,6 +45676,7 @@ It MUST:
 
 - [ADD v02.104] Established the section-level Coverage Matrix (audit-first) to prevent Roadmap drift.
 - [ADD v02.105] Phase-allocated all matrix rows (P1-P4) and removed Phase 0 allocations to reflect that Phase 0 is closed.
+- [ADD v02.138] Front End Memory System (FEMS) merged as **subsection-level** patches under §2.6.6.6.6, §2.6.6.7.6.2, §4.3.9.12.7, §5.4.8, §10.11.5.14, and §11.5.13; Coverage Matrix rows remain unchanged because it tracks `X.Y` (and top-level `# X.`) headings.
 
 This Roadmap MUST include and maintain a **section-level Coverage Matrix** that prevents Roadmap drift.
 
@@ -45719,6 +46095,8 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
    - For every AI job: emit and persist **ContextPlan** and per-call **ContextSnapshot** artifacts.  
    - Enforce the runtime validators (see §2.6.6.7.11) on every job; violations fail the job with normalized diagnostics.  
    - Debug Bundle export includes: ContextPlan, ContextSnapshots, validator outcomes, and evidence refs used.
+   - [ADD v02.138] Front End Memory System (FEMS) v0: compile and inject bounded `MemoryPack` (≤500 tokens) per call; generate `MemoryWriteProposal`s (no implicit writes); route procedural memory through DCC review; emit `FR-EVT-MEM-*`; add FEMS-EVAL-001.
+
 
 14. **[ADD v02.36] Terminal LAW (minimal slice) promoted to MUST**
    - Terminal command execution MUST NOT bypass capabilities/consent, Workflow Engine, Gate, or Flight Recorder.
@@ -45914,6 +46292,7 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - [ADD v02.130] Loom integrity/performance risks: UUID-stable inline tokens (no text-based links), anchor drift during edits, dedup false positives/negatives, and preview-generation throughput (Tier‑1 thumbnails) must not degrade core UI responsiveness.
 - [ADD v02.131] Stage security/evidence risks: origin isolation bugs (External Web ↔ Stage Apps), session bleed (cookies/storage), private-network access, and capture-evidence integrity drift (missing hashes/provenance) must be prevented by policy enforcement + security harness + always-on Flight Recorder logging.
 - [ADD v02.136] Tool surface drift + prompt-injection risk: if local tools, MCP tools, and mechanical engines have **different** schemas/logging, agents will find bypass paths and tool outputs may smuggle instructions. Mitigation: single Tool Registry + Tool Gate, strict payload caps, artifact-first I/O, and mandatory FR-EVT-007 (ToolCallEvent) logging.
+- [ADD v02.138] Memory poisoning / drift risk: untrusted session text or tool outputs promoted into procedural memory (or oversized `MemoryPack`s) can degrade correctness and increase drift vectors. Mitigation: FEMS write gates + human review for procedural memory, hard pack budgets (≤500 tokens), and replay-grade logging (`FR-EVT-MEM-*`).
 
 
 
@@ -46000,6 +46379,7 @@ Ship with the default local LLM runtime (Ollama), hardened document/canvas edito
 - Data layer invariants enforced: Raw/Derived/Display separation respected; layer_scope/apply_scoped/preview_only/access_mode persisted; per-op provenance visible in Flight Recorder.  
 - At least one end-to-end MCP-backed job (stub server is fine) is visible in Job History and Flight Recorder, with Gate decisions and capability metadata attached.
 - [ADD v02.136] Tool Registry + Tool Gate: at least 10 tools are registered with stable names/versions and side_effect labels; local and MCP tool discovery expose the same HTC schema; every tool call emits FR-EVT-007 (ToolCallEvent) with redaction; Tool Contract conformance tests (§6.0.2.9) pass in CI.
+- [ADD v02.138] Front End Memory System (FEMS): `SESSION_SCOPED` and `WORKSPACE_SCOPED` policies inject a bounded `MemoryPack` (≤500 tokens) visible in DCC; procedural memory proposals require explicit approval; `FR-EVT-MEM-*` are emitted; replay reproduces the same `memory_pack_hash`; FEMS-EVAL-001 passes.
 - Migrations validated: forward/backward fixture tests pass (up + down), replay-safety test passes (replay all up migrations), and migration version surfaces in a health check.  
 - Workflow/Job completeness: mandatory fields (job_kind/profile_id/layer_scope/EntityRef) recorded; idempotency keys honored; retries capped; crash/restart yields resumed or failed runs with clear status.
 - Capability model is default-deny across AI/mechanical/terminal/Monaco; approvals cached with TTL; allow/deny decisions logged in Flight Recorder.
@@ -46469,6 +46849,14 @@ Make Handshake useful over **existing** files and unlock basic retrieval-augment
 - [ADD v02.52] Verify ContextPacks are preferred when fresh, fall back is logged when stale; RAG Debugger shows QueryPlan/Trace, cache hit/miss, and drift flags for the answer.
 
 
+
+12. **[ADD v02.138] Front End Memory System (FEMS) v1 (hybrid retrieval + pack governance)**  
+   - Enable hybrid retrieval over `MemoryItem`s (FTS + vector + graph) with deterministic selection and replay logging (§2.6.6.7.6.2).  
+   - Enforce per-type quotas (intent/risk/tool_protocol/etc.) and strict scope matching (workspace/project/WP).  
+   - Add consolidation + conflict workflows surfaced in DCC Memory Panel; merges are `supersede`/`merge` operations with versioned history.  
+   - Support optional precomputed per-WP `MemoryPack`s and pack invalidation on memory commit events.  
+   - Extend cloud redaction rules for memory packs and record decisions in `ContextSnapshot`.
+
 13. **[ADD v02.67] Atelier Lens at scale (Role lanes + organic growth controls)**
    - Implement `ATELIER_LANE_INDEX` to build role-scoped retrieval lanes (lexical + vector) over:
      - `RoleDescriptorBundle` (role overlays, evidence-linked)
@@ -46491,6 +46879,7 @@ Make Handshake useful over **existing** files and unlock basic retrieval-augment
 
 **Key risks addressed in Phase 2**
 - [ADD v02.130] Loom AI trust risks: suggested tags/captions must be clearly labeled as DerivedContent, reversible, and never silently mutate RawContent; acceptance must be explicit and logged.
+- [ADD v02.138] FEMS scale + privacy risk: hybrid memory retrieval can reintroduce drift or leak sensitive context unless bounded and consent-gated. Mitigation: per-type quotas, strict trust/truth gating, cloud redaction rules, DCC review, and `FR-EVT-MEM-*` auditing.
 
 
 - [ADD v02.52] Ingested content cannot be backed up/moved while preserving provenance/IDs.
@@ -46534,6 +46923,7 @@ Make Handshake useful over **existing** files and unlock basic retrieval-augment
 
 **Acceptance criteria**
 - [ADD v02.130] Loom AI: auto-tag produces AI_SUGGESTED edges; accept/reject converts or removes; captions stored as DerivedContent with attribution; semantic/hybrid Loom search returns expected results and is observable via Flight Recorder.
+- [ADD v02.138] FEMS v1: hybrid memory retrieval produces bounded `MemoryPack`s with quotas; DCC shows pack preview + memory review queue; commits emit `FR-EVT-MEM-*`; replay reproduces pack hash; consolidation produces supersedence history (no silent overwrites).
 - [ADD v02.131] Stage PDF import: `stage.import_pdf.v1` runs through the Docling/MCP path and produces structured doc blocks + descriptors; original PDF bytes remain preserved as an artifact; job is inspectable in Job History/Flight Recorder.
 - [ADD v02.131] Stage capture assimilation: captured `artifact.snapshot` bundles become searchable via `LocalWebCacheIndex`/Shadow Workspace and can satisfy later retrieval with stable artifact refs (no second external fetch when cache is fresh).
 - [ADD v02.131] Stage 3D feedback loops: `stage.3d.canonicalize_gltf.v1`/`stage.3d.optimize_mesh.v1`/`stage.3d.physics_checks.v1` produce deterministic reports with before/after hashes; Stage App can review reports and any write-back requires explicit approval + logged provenance.
@@ -46756,6 +47146,8 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
    - Drafting: `mail_draft_reply_v0.1` + mechanical `email_send` engine with `from_identity`, pre-send checks (Red Pen, Anonymizer, classification validation), before/after diff, provenance.  
    - Capabilities: `SEND_EMAIL` required; `require_confirmation = true` for AI send flows; policy-based routing for local vs cloud models (default local-only).
 
+   - [ADD v02.138] CRM/Contact profiles (minimal): introduce `ContactCard` + contact-scoped `MemoryItem`s (`relationship_note`, `preference`) for mail drafting; default to local-only; require explicit consent/redaction for any cloud-bound prompts.
+
 6. **NLP overlays and curation (derived-only)**
    - Add `Aligner` (parallel text), `Lexicographer` (dictionary/thesaurus), and `Curator` (collections/playlists) as Workflow Engine jobs producing DerivedContent overlays only (no schema changes to descriptors).  
    - Provenance: log inputs/outputs in Flight Recorder and attach overlays to source documents/descriptors by reference with capability gates.
@@ -46817,6 +47209,7 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
 - ASR pipeline is unreliable or too opaque.  
 - Long-form capture produces transcripts that are hard to relate back to source media.  
 - ASR jobs are not easily distinguishable or debuggable compared to other jobs.
+- [ADD v02.138] CRM/memory privacy risk: contact-scoped memory used for mail drafting can leak PII or introduce unwanted bias. Mitigation: local-only defaults, classification + consent gating for cloud prompts, and DCC review of contact memory.
 - Symbolic/Taste engines (SYM-001 + Taste Engine) accidentally redefine descriptor law or mutate descriptor rows instead of adding separate Derived overlays.
 - NLP/media helpers could drift or silently alter base descriptors without overlays/provenance.
 - MCP-based distillation/sampling flows accidentally run with write-capable tools or bypass the Gate/logging path, causing side effects or untraceable model changes.
@@ -46849,6 +47242,7 @@ Add lecture/meeting capture via ASR, using the same AI Job, workflow, and observ
 - Monaco AI actions respect capability scopes; AI-assisted code actions log provenance to Flight Recorder.
 - Director/Composer/Atelier/Artist outputs attach to Canvas media nodes and embedded blocks with Flight Recorder provenance back to source plans/prompts/files.  
 - Mail jobs: Job History/FR show mail job inputs/outputs (thread IDs, attachments used); draft-to-send flow blocked without `SEND_EMAIL`; confirmation logged; local-only policy enforced unless classification allows; pre-send checks + diffs/provenance recorded.
+- [ADD v02.138] CRM/Contact memory: contact-scoped `MemoryItem`s can be created and reviewed; mail drafting may use them when scoped; cloud prompts omit high-sensitivity contact memory by default; DCC shows review + pack preview.
 - NLP overlays/curation: Aligner/Lexicographer/Curator jobs recorded in FR with inputs/outputs; overlays attach by reference to sources; capability gates enforced; base descriptor/schema left unchanged.
 - ASR media pre-processing: FFmpeg normalization parameters and audio stream selection recorded in FR; pre-processing failures expose logs.  
 - Optional diarization: if enabled, diarization overlays/metadata appear with speaker labels and timestamps; base transcript stays unchanged; provenance recorded.  
@@ -55218,7 +55612,73 @@ Concrete flow:
 The calendar is the UI for selecting which parts of your life become training data.
 
 
-##### 11.6 Debugging and regression analysis
+###
+### 11.5.13 Front End Memory System events (FR-EVT-MEM-*) (Normative) [ADD v02.138]
+
+FEMS MUST emit dedicated events for proposal, review, commit, and pack-build so memory influence is debuggable and replayable.
+
+**Privacy rule (HARD)**  
+Memory events MUST NOT inline raw memory content. They MUST log **IDs/hashes** and artifact handles.
+
+```ts
+type MemoryEventCode =
+  | "FR-EVT-MEM-001" // memory_write_proposed
+  | "FR-EVT-MEM-002" // memory_write_reviewed (approved/rejected)
+  | "FR-EVT-MEM-003" // memory_write_committed
+  | "FR-EVT-MEM-004" // memory_pack_built
+  | "FR-EVT-MEM-005" // memory_item_status_changed
+  ;
+
+type MemoryWriteProposedEvent = FlightRecorderEventBase & {
+  event_code: "FR-EVT-MEM-001";
+  proposal_id: string;
+  proposal_hash: string;           // sha256(canonical proposal json)
+  artifact_ref: ArtifactHandle;     // MemoryWriteProposal artifact
+  scope_refs: EntityRef[];
+  op_count: number;
+  requires_review_count: number;
+};
+
+type MemoryWriteReviewedEvent = FlightRecorderEventBase & {
+  event_code: "FR-EVT-MEM-002";
+  proposal_id: string;
+  decision: "approved" | "rejected" | "partial";
+  reviewer_kind: "user" | "policy";
+  commit_report_ref?: ArtifactHandle;
+};
+
+type MemoryWriteCommittedEvent = FlightRecorderEventBase & {
+  event_code: "FR-EVT-MEM-003";
+  commit_id: string;
+  proposal_id: string;
+  commit_report_hash: string;
+  artifact_ref: ArtifactHandle;     // MemoryCommitReport artifact
+  changed_memory_ids_hash: string;  // sha256(sorted memory ids)
+};
+
+type MemoryPackBuiltEvent = FlightRecorderEventBase & {
+  event_code: "FR-EVT-MEM-004";
+  pack_id: string;
+  memory_pack_hash: string;
+  artifact_ref: ArtifactHandle;     // MemoryPack artifact (may be local-only)
+  memory_policy: "EPHEMERAL" | "SESSION_SCOPED" | "WORKSPACE_SCOPED";
+  scope_refs: EntityRef[];
+  item_count: number;
+  token_estimate: number;
+  truncation_occurred: boolean;
+};
+
+type MemoryItemStatusChangedEvent = FlightRecorderEventBase & {
+  event_code: "FR-EVT-MEM-005";
+  memory_id: string;
+  previous_status: string;
+  new_status: string;
+  reason: "pin" | "unpin" | "invalidate" | "tombstone" | "supersede" | "merge";
+  actor: "user" | "job" | "policy";
+};
+```
+
+## 11.6 Debugging and regression analysis
 
 When you change a model, config, or orchestrator behaviour, you can compare “before” and “after” windows.
 
@@ -58717,6 +59177,30 @@ The Dev Command Center (DCC) is the canonical UI surface to observe, debug, and 
   - nested tool calls MUST be groupable by `parent_span_id` (e.g., “Code Mode” sandbox runs)
 
 ---
+
+
+#### 10.11.5.14 Front End Memory Panel (FEMS) [ADD v02.138]
+
+The DCC MUST provide a **Front End Memory** panel to make memory observable, auditable, and operator-controlled.
+
+**Required views**
+- **Memory Browser**
+  - Filter by `scope_ref` (workspace / project / WP / session / contact), `memory_class`, `type`, `trust_level`, `status`, and `classification`.
+  - Show provenance: `source_refs`, `created_by_job_id`, `created_at`, `last_verified_at`, `version`, `supersedes/superseded_by`.
+- **Memory Write Review (Approval Inbox integration)**
+  - Display `MemoryWriteProposal` ops with evidence links.
+  - Allow approve/reject per op; procedural and CRM ops MUST require explicit approval.
+  - Approval emits a `MemoryCommitReport` and FR-EVT-MEM events.
+- **MemoryPack Preview (per session / per model call)**
+  - Show the exact `MemoryPack` (or a redacted preview) injected into a call, including token estimate and pack hash.
+  - Provide a one-click “disable memory for this session” action (switch `memory_policy` to EPHEMERAL for subsequent calls).
+- **Conflict / consolidation queue**
+  - Surface dedupe suggestions, conflict sets, and supersedence chains.
+  - Merges MUST be applied via governed jobs, never via silent in-place edits.
+
+**Hard rules**
+- UI edits MUST NOT directly mutate `MemoryItem`s. All changes MUST go through `MemoryWriteProposal → commit` with logged provenance.
+- The panel MUST respect classification and consent: high-sensitivity memory is not previewed/exported without explicit policy allowance.
 
 ### 10.11.6 System architecture in Handshake terms
 
