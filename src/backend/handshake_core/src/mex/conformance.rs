@@ -470,7 +470,12 @@ mod tests {
         let tool_call = events
             .iter()
             .find(|evt| matches!(evt.event_type, FlightRecorderEventType::ToolCall))
-            .expect("expected ToolCall event in Flight Recorder");
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "expected ToolCall event in Flight Recorder",
+                )
+            })?;
         assert_eq!(tool_call.payload.get("type").and_then(|v| v.as_str()), Some("tool_call"));
         assert_eq!(
             tool_call.payload.get("transport").and_then(|v| v.as_str()),

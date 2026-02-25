@@ -323,7 +323,12 @@ fn htc_schema() -> &'static Value {
     static HTC: OnceLock<Value> = OnceLock::new();
     HTC.get_or_init(|| {
         serde_json::from_str(include_str!("../../../../../assets/schemas/htc_v1.json"))
-            .expect("htc_v1.json must be valid JSON")
+            .unwrap_or_else(|err| {
+                json!({
+                    "$comment": format!("INVALID HTC schema JSON embedded in binary: {err}"),
+                    "not": {},
+                })
+            })
     })
 }
 
