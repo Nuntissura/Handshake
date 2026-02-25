@@ -10,7 +10,7 @@ use crate::{
         ContextPackBuilder, ContextPackCoverageV1, ContextPackFreshnessPolicyV1,
         ContextPackPayloadV1, ContextPackRecord, DeterminismMode, QueryKind, QueryPlan,
         RetrievalCandidate, RetrievalTrace, RouteTaken, SelectedEvidence, SourceRef,
-        SpanExtraction, StoreKind,
+        SpanExtraction, StoreKind, ViewMode,
     },
     bundles::{BundleScope, DebugBundleRequest, DefaultDebugBundleExporter, RedactionMode},
     capabilities::{RegistryError, GOVERNANCE_PACK_EXPORT_PROTOCOL_ID},
@@ -2500,8 +2500,16 @@ async fn run_job(
     if matches!(job.job_kind, JobKind::DocSummarize | JobKind::DocEdit) {
         let inputs = parse_inputs(job.job_inputs.as_ref());
         let doc_id = inputs.get("doc_id").and_then(|v| v.as_str());
+        let view_mode_raw = inputs.get("view_mode").and_then(|v| v.as_str());
 
         if let Some(doc_id) = doc_id {
+            let (view_mode, view_mode_unrecognized) = match view_mode_raw.map(|s| s.trim()) {
+                Some(s) if s.eq_ignore_ascii_case("SFW") => (ViewMode::Sfw, false),
+                Some(s) if s.eq_ignore_ascii_case("NSFW") => (ViewMode::Nsfw, false),
+                Some(_) => (ViewMode::Sfw, true),
+                None => (ViewMode::Nsfw, false),
+            };
+
             let blocks = state.storage.get_blocks(doc_id).await?;
             let model_tier = state.llm_client.profile().model_tier;
 
@@ -2512,10 +2520,17 @@ async fn run_job(
             } else {
                 ("summarize document", "doc_summarization")
             };
-            let plan = build_query_plan_from_blocks(&blocks, query_label, query_kind)
+            let mut plan = build_query_plan_from_blocks(&blocks, query_label, query_kind)
                 .map_err(WorkflowError::SecurityViolation)?;
-            let trace = build_retrieval_trace_from_blocks(&blocks, &plan)
+            plan.filters.view_mode = view_mode;
+            let mut trace = build_retrieval_trace_from_blocks(&blocks, &plan)
                 .map_err(WorkflowError::SecurityViolation)?;
+            if view_mode_unrecognized {
+                trace
+                    .warnings
+                    .push("view_mode_unrecognized:defaulted_to=SFW".to_string());
+            }
+            trace.apply_view_mode_hard_drop();
 
             // WAIVER [CX-573E]: Instant::now() for observability per ┬º2.6.6.7.12
             let validation_start = std::time::Instant::now();
@@ -8452,6 +8467,7 @@ NEED: {{what you need to unblock}}
                     .validate_plan(&query_plan)
                     .await
                     .map_err(WorkflowError::SecurityViolation)?;
+                retrieval_trace.apply_view_mode_hard_drop();
                 pipeline
                     .validate_trace(&retrieval_trace)
                     .await
@@ -10671,26 +10687,28 @@ async fn run_loom_preview_generate_job(
         .await?
     {
         Some(existing) => existing,
-        None => state
-            .storage
-            .create_asset(
-                &ctx,
-                crate::storage::NewAsset {
-                    workspace_id: workspace_id.to_string(),
-                    kind: "thumbnail".to_string(),
-                    mime: "image/png".to_string(),
-                    original_filename: None,
-                    content_hash: thumbnail_hash.clone(),
-                    size_bytes: out.len() as i64,
-                    width: Some(thumb.width() as i64),
-                    height: Some(thumb.height() as i64),
-                    classification: "low".to_string(),
-                    exportable: true,
-                    is_proxy_of: Some(asset.asset_id.clone()),
-                    proxy_asset_id: None,
-                },
-            )
-            .await?,
+        None => {
+            state
+                .storage
+                .create_asset(
+                    &ctx,
+                    crate::storage::NewAsset {
+                        workspace_id: workspace_id.to_string(),
+                        kind: "thumbnail".to_string(),
+                        mime: "image/png".to_string(),
+                        original_filename: None,
+                        content_hash: thumbnail_hash.clone(),
+                        size_bytes: out.len() as i64,
+                        width: Some(thumb.width() as i64),
+                        height: Some(thumb.height() as i64),
+                        classification: "low".to_string(),
+                        exportable: true,
+                        is_proxy_of: Some(asset.asset_id.clone()),
+                        proxy_asset_id: None,
+                    },
+                )
+                .await?
+        }
     };
 
     let thumbnail_path = crate::loom_fs::loom_asset_blob_path(
@@ -10699,8 +10717,12 @@ async fn run_loom_preview_generate_job(
         "thumbnail",
         thumbnail_hash.as_str(),
     );
-    match crate::storage::artifacts::write_file_atomic(&handshake_root, &thumbnail_path, &out, false)
-    {
+    match crate::storage::artifacts::write_file_atomic(
+        &handshake_root,
+        &thumbnail_path,
+        &out,
+        false,
+    ) {
         Ok(()) => {}
         Err(crate::storage::artifacts::ArtifactError::Io(io_err))
             if io_err.kind() == std::io::ErrorKind::AlreadyExists => {}
@@ -11294,10 +11316,9 @@ async fn extract_ffmpeg_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), Work
     let zip_path = zip_path.to_path_buf();
     let dest_dir = dest_dir.to_path_buf();
     tokio::task::spawn_blocking(move || -> Result<(), WorkflowError> {
-        let file =
-            fs::File::open(&zip_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-        let mut archive = zip::ZipArchive::new(file)
-            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        let file = fs::File::open(&zip_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+        let mut archive =
+            zip::ZipArchive::new(file).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
 
         let mut extracted = 0usize;
         for i in 0..archive.len() {
@@ -11329,7 +11350,8 @@ async fn extract_ffmpeg_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), Work
                 .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
             drop(out);
             if target_path.exists() {
-                fs::remove_file(&target_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+                fs::remove_file(&target_path)
+                    .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
             }
             fs::rename(&tmp_path, &target_path)
                 .map_err(|e| WorkflowError::Terminal(e.to_string()))?;

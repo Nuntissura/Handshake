@@ -1,6 +1,6 @@
 import "./App.css";
 import { SystemStatus } from "./components/SystemStatus";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { WorkspaceSidebar } from "./components/WorkspaceSidebar";
 import { DocumentView } from "./components/DocumentView";
 import { CanvasView } from "./components/CanvasView";
@@ -9,6 +9,9 @@ import { FontManagerView } from "./components/FontManagerView";
 import { MediaDownloaderView } from "./components/MediaDownloaderView";
 import { BundleScopeInput } from "./lib/api";
 import { AiJobsDrawer } from "./components/AiJobsDrawer";
+import { ViewModeToggle } from "./components/ViewModeToggle";
+import type { ViewMode } from "./lib/viewMode";
+import { loadViewModeFromStorage, saveViewModeToStorage } from "./lib/viewMode";
 
 import { FlightRecorderView } from "./components/FlightRecorderView";
 import {
@@ -25,6 +28,7 @@ import {
 function App() {
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [selectedCanvasId, setSelectedCanvasId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => loadViewModeFromStorage());
   const [activeView, setActiveView] = useState<
     "workspace" | "media-downloader" | "fonts" | "flight-recorder" | "problems" | "jobs" | "timeline"
   >("workspace");
@@ -36,6 +40,10 @@ function App() {
   const [timelineNav, setTimelineNav] = useState<{ job_id?: string; wsid?: string; event_id?: string } | null>(null);
   const [timelineWindow, setTimelineWindow] = useState<{ start: string; end: string; wsid?: string } | null>(null);
   const [ans001TimelineOpen, setAns001TimelineOpen] = useState(false);
+
+  useEffect(() => {
+    saveViewModeToStorage(viewMode);
+  }, [viewMode]);
 
   return (
     <main className="app-shell">
@@ -95,7 +103,10 @@ function App() {
             <button onClick={() => setGovernancePackExportOpen(true)}>Gov Pack Export</button>
             <button onClick={() => setAns001TimelineOpen(true)}>ANS-001 Timeline</button>
           </div>
-          <SystemStatus />
+          <div className="app-header-right">
+            <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            <SystemStatus />
+          </div>
         </header>
 
         <div className="app-body">

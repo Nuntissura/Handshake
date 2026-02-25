@@ -1,3 +1,5 @@
+import { loadViewModeFromStorage } from "./viewMode";
+
 const BASE_URL = "http://127.0.0.1:37501";
 
 type FetchOptions = {
@@ -624,7 +626,23 @@ export async function createJob(
   };
 
   if (docId) body.doc_id = docId;
-  if (jobInputs !== undefined) body.job_inputs = jobInputs;
+  const shouldAttachViewMode =
+    jobKind === "doc_edit" || jobKind === "doc_summarize" || jobKind === "doc_rewrite";
+  const viewMode = shouldAttachViewMode ? loadViewModeFromStorage() : undefined;
+
+  let effectiveJobInputs = jobInputs;
+  if (shouldAttachViewMode && viewMode) {
+    if (jobInputs == null) {
+      effectiveJobInputs = { view_mode: viewMode };
+    } else if (typeof jobInputs === "object" && !Array.isArray(jobInputs)) {
+      const record = jobInputs as Record<string, unknown>;
+      if (record.view_mode === undefined) {
+        effectiveJobInputs = { ...record, view_mode: viewMode };
+      }
+    }
+  }
+
+  if (effectiveJobInputs !== undefined) body.job_inputs = effectiveJobInputs;
 
   return request("/api/jobs", {
     method: "POST",

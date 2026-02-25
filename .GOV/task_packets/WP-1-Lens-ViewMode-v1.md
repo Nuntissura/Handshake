@@ -230,10 +230,32 @@ git revert COMMIT_SHA
   - SFW is projection-only (no storage mutation) and strict drop is proven via tests.
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Backend (ACE):
+  - Added `ViewMode`, `ContentTier`, `ProjectionKind` + serde mappings.
+  - Extended `RetrievalFilters` with `view_mode` and `RetrievalCandidate` with `content_tier: Option<ContentTier>`.
+  - Extended `RetrievalTrace` with `filters_applied` plus projection labeling fields (`projection_applied`, `projection_kind`, `projection_ruleset_id`).
+  - Implemented `RetrievalTrace::apply_view_mode_hard_drop()` (SFW strict-drop + count-only warnings + required labeling).
+  - Added `ViewModeHardDropGuard` and wired into default `ValidatorPipeline`.
+  - Wired SFW hard-drop into workflows (before trace validation).
+  - Parsed `view_mode` from doc job inputs and applied to `QueryPlan.filters.view_mode`.
+- Frontend:
+  - Added `ViewModeToggle` + localStorage persistence (`handshake.view_mode`).
+  - `createJob(...)` attaches `view_mode` into doc job inputs (`doc_edit`, `doc_summarize`, `doc_rewrite`) when not already provided.
+- Tests:
+  - Added Rust integration tests for default NSFW + SFW hard-drop + guard behavior.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Commands executed (see `## EVIDENCE` for outputs/log snippets):
+  - `just hard-gate-wt-001`
+  - `just pre-work WP-1-Lens-ViewMode-v1`
+  - `just gov-check`
+  - `just fmt`
+  - `cd app; pnpm install --frozen-lockfile`
+  - `just lint`
+  - `cd app; pnpm run lint`
+  - `cd app; pnpm test`
+  - `just test` (deferred due to Windows paging file / mmap constraints in this environment)
+  - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target-release" --release --test lens_viewmode_tests -q`
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
@@ -265,15 +287,52 @@ git revert COMMIT_SHA
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: IN_PROGRESS (skeleton checkpoint ready)
-- What changed in this update: Updated SKELETON + DONE_MEANS to include spec-required SFW output labeling (Addendum 11.3) and default-deny for content_tier==None in SFW.
-- Next step / handoff hint: Wait for "SKELETON APPROVED" before implementation.
+- Current WP_STATUS: IN_PROGRESS
+- Touched files:
+  - `src/backend/handshake_core/src/ace/mod.rs`
+  - `src/backend/handshake_core/src/ace/validators/mod.rs`
+  - `src/backend/handshake_core/src/workflows.rs`
+  - `src/backend/handshake_core/tests/lens_viewmode_tests.rs`
+  - `app/src/App.tsx`
+  - `app/src/App.css`
+  - `app/src/lib/api.ts`
+  - `app/src/lib/viewMode.ts`
+  - `app/src/components/ViewModeToggle.tsx`
+- What changed in this update:
+  - End-to-end ViewMode plumbing (UI toggle -> `job_inputs.view_mode` -> `QueryPlan.filters.view_mode` -> `RetrievalTrace.filters_applied`).
+  - SFW strict-drop enforced via `apply_view_mode_hard_drop()` + `ViewModeHardDropGuard`.
+  - Required SFW projection labeling fields added to serialized trace evidence (Addendum 11.3).
+- Next step / handoff hint:
+  - Run full `just test` when the environment paging file / mmap constraints are resolved, then run `just post-work WP-1-Lens-ViewMode-v1 --range 35cd220dbfe573628ce1ab565a6363f0b993a1eb..HEAD`.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
   - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
   - EVIDENCE: `path/to/file:line`
+- REQUIREMENT: "ViewMode type exists per spec and is plumbed through Lens query inputs as \"NSFW\"|\"SFW\" (default \"NSFW\")."
+  - EVIDENCE: `app/src/lib/viewMode.ts:1`
+  - EVIDENCE: `app/src/lib/api.ts:640`
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:2525`
+  - EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:315`
+- REQUIREMENT: "In ViewMode=\"SFW\", retrieval enforces strict drop (default-deny): no returned candidates/results with content_tier != \"sfw\"; content_tier==None is treated as non-sfw and dropped (no \"collapsed/blurred but revealable\" leakage)."
+  - EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:593`
+  - EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:796`
+  - EVIDENCE: `src/backend/handshake_core/tests/lens_viewmode_tests.rs:20`
+- REQUIREMENT: "SFW mode applies projection at render/output only and MUST NOT write back or mutate stored raw/derived descriptors/artifacts."
+  - EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:796`
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:2533`
+- REQUIREMENT: "In ViewMode=\"SFW\", any SFW-projected output is labeled per spec Addendum 11.3 (required): projection_applied=true, projection_kind=\"SFW\", projection_ruleset_id, and a link to underlying raw evidence."
+  - EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:753`
+  - EVIDENCE: `src/backend/handshake_core/tests/lens_viewmode_tests.rs:137`
+  - EVIDENCE: `src/backend/handshake_core/tests/lens_viewmode_tests.rs:112`
+- REQUIREMENT: "QueryPlan and RetrievalTrace record ViewMode as a metadata filter (e.g., QueryPlan.filters.view_mode and/or trace fields), and serialized trace evidence includes it."
+  - EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:345`
+  - EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:750`
+  - EVIDENCE: `src/backend/handshake_core/tests/lens_viewmode_tests.rs:133`
+- REQUIREMENT: "Tests cover SFW hard-drop + trace recording (Rust unit tests; optional frontend test for toggle state/param)."
+  - EVIDENCE: `src/backend/handshake_core/tests/lens_viewmode_tests.rs:20`
+  - EVIDENCE: `src/backend/handshake_core/src/ace/validators/mod.rs:520`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
@@ -283,6 +342,34 @@ git revert COMMIT_SHA
   - LOG_PATH: `.handshake/logs/WP-1-Lens-ViewMode-v1/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- COMMAND: `just gov-check`
+  - EXIT_CODE: `0`
+  - PROOF_LINES:
+    - `SPEC_CURRENT ok: Handshake_Master_Spec_v02.137.md`
+    - `gov-check ok`
+- COMMAND: `just fmt`
+  - EXIT_CODE: `0`
+  - PROOF_LINES:
+    - `cd src/backend/handshake_core; cargo fmt`
+- COMMAND: `cd app; pnpm run lint`
+  - EXIT_CODE: `0`
+  - PROOF_LINES:
+    - `eslint src --ext .ts,.tsx`
+- COMMAND: `cd app; pnpm test`
+  - EXIT_CODE: `0`
+  - PROOF_LINES:
+    - `Test Files  6 passed (6)`
+    - `Tests       13 passed (13)`
+- COMMAND: `just test`
+  - EXIT_CODE: `1`
+  - PROOF_LINES:
+    - `The paging file is too small for this operation to complete. (os error 1455)`
+    - `crate \`libduckdb_sys\` required to be available in rlib format, but was not found in this form`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir \"../Handshake Artifacts/handshake-cargo-target-release\" --release --test lens_viewmode_tests -q`
+  - EXIT_CODE: `0`
+  - PROOF_LINES:
+    - `running 3 tests`
+    - `test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)

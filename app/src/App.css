@@ -56,6 +56,56 @@ body {
   gap: 16px;
 }
 
+.app-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.view-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--hs-color-border);
+  background: var(--hs-color-bg);
+}
+
+.view-mode-toggle__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--hs-color-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: 2px;
+}
+
+.view-mode-toggle__button {
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--hs-color-text-subtle);
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.view-mode-toggle__button:hover {
+  background: var(--hs-color-accent-soft);
+  border-color: var(--hs-color-accent);
+  color: var(--hs-color-text);
+}
+
+.view-mode-toggle__button.active {
+  background: var(--hs-color-surface);
+  border-color: var(--hs-color-border);
+  color: var(--hs-color-text);
+}
+
 .app-eyebrow {
   margin: 0;
   color: var(--hs-color-text-subtle);

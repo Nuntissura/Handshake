@@ -309,6 +309,31 @@ pub struct TimeRange {
     pub end: Option<DateTime<Utc>>,
 }
 
+/// View mode for Lens-style retrieval + output (spec Addendum 2.4)
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, Hash)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ViewMode {
+    #[default]
+    Nsfw,
+    Sfw,
+}
+
+/// Content tier for a candidate/result (spec §11.2)
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum ContentTier {
+    Sfw,
+    AdultSoft,
+    AdultExplicit,
+}
+
+/// Projection kind marker for SFW-projected output (spec §11.3)
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ProjectionKind {
+    Sfw,
+}
+
 /// Filters for retrieval operations (§2.6.6.7.14.5)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct RetrievalFilters {
@@ -316,6 +341,8 @@ pub struct RetrievalFilters {
     pub allow_external_fetch: bool,
     /// Minimum trust level for evidence
     pub trust_min: TrustLevel,
+    /// View mode (SFW/NSFW). In SFW, unknown content_tier is default-deny (hard drop).
+    pub view_mode: ViewMode,
     /// Allowlist of content tiers (None = all allowed)
     pub content_tier_allowlist: Option<Vec<String>>,
     /// Allowlist of consent profiles (None = all allowed)
@@ -561,6 +588,9 @@ pub struct RetrievalCandidate {
     pub kind: CandidateKind,
     /// The actual reference
     pub candidate_ref: CandidateRef,
+    /// Content tier classification (None = unknown/unclassified; default-deny in SFW)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_tier: Option<ContentTier>,
     /// Which store produced this candidate
     pub store: StoreKind,
     /// Individual score components
@@ -580,6 +610,7 @@ impl RetrievalCandidate {
             candidate_id: Uuid::new_v4().to_string(),
             kind: CandidateKind::SourceRef,
             candidate_ref: CandidateRef::Source(source),
+            content_tier: None,
             store,
             scores,
             base_score,
@@ -595,6 +626,7 @@ impl RetrievalCandidate {
             candidate_id: Uuid::new_v4().to_string(),
             kind: CandidateKind::EntityRef,
             candidate_ref: CandidateRef::Entity(entity),
+            content_tier: None,
             store,
             scores,
             base_score,
@@ -614,6 +646,7 @@ impl RetrievalCandidate {
             candidate_id: Uuid::new_v4().to_string(),
             kind: CandidateKind::ArtifactHandle,
             candidate_ref: CandidateRef::Artifact(artifact),
+            content_tier: None,
             store,
             scores,
             base_score,
@@ -712,6 +745,16 @@ pub struct RetrievalTrace {
     pub spans: Vec<SpanExtraction>,
     /// Budgets that were applied
     pub budgets_applied: RetrievalBudgets,
+    /// Filters that were applied (must include view_mode for trace auditability)
+    #[serde(default)]
+    pub filters_applied: RetrievalFilters,
+    /// Projection markers (spec Addendum 11.3)
+    #[serde(default)]
+    pub projection_applied: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub projection_kind: Option<ProjectionKind>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub projection_ruleset_id: Option<String>,
     /// Flags for truncated content
     pub truncation_flags: Vec<String>,
     /// Non-fatal warnings
@@ -734,9 +777,68 @@ impl RetrievalTrace {
             selected: Vec::new(),
             spans: Vec::new(),
             budgets_applied: query_plan.budgets.clone(),
+            filters_applied: query_plan.filters.clone(),
+            projection_applied: false,
+            projection_kind: None,
+            projection_ruleset_id: None,
             truncation_flags: Vec::new(),
             warnings: Vec::new(),
             errors: Vec::new(),
+        }
+    }
+
+    /// Enforce ViewMode semantics for strict SFW output (spec 11.2/11.3).
+    ///
+    /// - In `ViewMode::Sfw`, strict-drop any candidate/selected/span that is not `content_tier=sfw`.
+    /// - `content_tier=None` is treated as non-sfw (default-deny) and dropped.
+    /// - Projection is non-destructive: evidence links for remaining items are preserved.
+    /// - When SFW is active, projection labeling fields are set (spec Addendum 11.3).
+    pub fn apply_view_mode_hard_drop(&mut self) {
+        if self.filters_applied.view_mode != ViewMode::Sfw {
+            return;
+        }
+
+        self.projection_applied = true;
+        self.projection_kind = Some(ProjectionKind::Sfw);
+        self.projection_ruleset_id = Some("viewmode_sfw_hard_drop@v1".to_string());
+
+        let before_candidates = self.candidates.len();
+        self.candidates
+            .retain(|c| c.content_tier == Some(ContentTier::Sfw));
+
+        let allowed_candidate_refs: std::collections::HashSet<String> = self
+            .candidates
+            .iter()
+            .map(|c| c.candidate_ref.canonical_id())
+            .collect();
+
+        let allowed_source_refs: std::collections::HashSet<String> = self
+            .candidates
+            .iter()
+            .filter_map(|c| match &c.candidate_ref {
+                CandidateRef::Source(s) => Some(s.canonical_id()),
+                _ => None,
+            })
+            .collect();
+
+        let before_selected = self.selected.len();
+        self.selected.retain(|s| {
+            let key = s.candidate_ref.canonical_id();
+            allowed_candidate_refs.contains(&key)
+        });
+
+        let before_spans = self.spans.len();
+        self.spans
+            .retain(|s| allowed_source_refs.contains(&s.source_ref.canonical_id()));
+
+        let dropped_candidates = before_candidates.saturating_sub(self.candidates.len());
+        let dropped_selected = before_selected.saturating_sub(self.selected.len());
+        let dropped_spans = before_spans.saturating_sub(self.spans.len());
+
+        if dropped_candidates > 0 || dropped_selected > 0 || dropped_spans > 0 {
+            self.warnings.push(format!(
+                "view_mode_sfw_hard_drop:dropped_candidates={dropped_candidates},dropped_selected={dropped_selected},dropped_spans={dropped_spans}"
+            ));
         }
     }
 
@@ -1017,9 +1119,17 @@ pub struct ContextPackFreshnessPolicyV1 {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContextPackFreshnessDecision {
-    Fresh { pack_id: Uuid },
-    Stale { pack_id: Uuid, reason: String },
-    Regenerated { old_pack_id: Uuid, new_pack_id: Uuid },
+    Fresh {
+        pack_id: Uuid,
+    },
+    Stale {
+        pack_id: Uuid,
+        reason: String,
+    },
+    Regenerated {
+        old_pack_id: Uuid,
+        new_pack_id: Uuid,
+    },
 }
 
 // ============================================================================

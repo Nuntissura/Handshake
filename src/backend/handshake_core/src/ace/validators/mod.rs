@@ -1,6 +1,6 @@
 //! ACE Runtime Validators (§2.6.6.7.11)
 //!
-//! This module implements the `AceRuntimeValidator` trait and all 12 required guards:
+//! This module implements the `AceRuntimeValidator` trait and required guards:
 //!
 //! **Original 4 guards (§2.6.6.7.14.11):**
 //! 1. RetrievalBudgetGuard - Budget enforcement
@@ -17,6 +17,7 @@
 //! 10. PromptInjectionGuard - Injection pattern detection
 //! 11. JobBoundaryRoutingGuard - Job routing invariant enforcement
 //! 12. LocalPayloadGuard - Encrypted local storage validation
+//! 13. ViewModeHardDropGuard - Enforces strict SFW hard-drop + labeling
 //!
 //! **Hardened Security Enforcement (§2.6.6.7.11.0):**
 //! - [HSK-ACE-VAL-100] Content Awareness: Validators MUST resolve raw UTF-8 content
@@ -43,7 +44,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use uuid::Uuid;
 
-use crate::ace::{AceError, QueryPlan, RetrievalTrace, SourceRef};
+use crate::ace::{
+    AceError, CandidateRef, ContentTier, ProjectionKind, QueryPlan, RetrievalTrace, SourceRef,
+    ViewMode,
+};
 use crate::llm::ModelTier;
 use crate::storage::{Block, Database};
 
@@ -409,6 +413,84 @@ pub struct ValidatorPipeline {
     validators: Vec<Box<dyn AceRuntimeValidator>>,
 }
 
+/// Enforces strict-drop + labeling invariants when `ViewMode="SFW"`.
+///
+/// Spec:
+/// - ViewMode: Addendum 2.4 (SFW/NSFW)
+/// - Hard-drop + labeling: §11.2/§11.3
+pub struct ViewModeHardDropGuard;
+
+#[async_trait]
+impl AceRuntimeValidator for ViewModeHardDropGuard {
+    fn name(&self) -> &str {
+        "view_mode_hard_drop_guard"
+    }
+
+    async fn validate_plan(&self, _plan: &QueryPlan) -> Result<(), AceError> {
+        Ok(())
+    }
+
+    async fn validate_trace(&self, trace: &RetrievalTrace) -> Result<(), AceError> {
+        if trace.filters_applied.view_mode != ViewMode::Sfw {
+            return Ok(());
+        }
+
+        let projection_ruleset_ok = match trace.projection_ruleset_id.as_deref() {
+            Some(ruleset_id) => !ruleset_id.trim().is_empty(),
+            None => false,
+        };
+
+        let projection_labels_ok = trace.projection_applied
+            && trace.projection_kind == Some(ProjectionKind::Sfw)
+            && projection_ruleset_ok;
+
+        let bad_candidates = trace
+            .candidates
+            .iter()
+            .filter(|c| c.content_tier != Some(ContentTier::Sfw))
+            .count();
+
+        let allowed_candidate_refs: HashSet<String> = trace
+            .candidates
+            .iter()
+            .filter(|c| c.content_tier == Some(ContentTier::Sfw))
+            .map(|c| c.candidate_ref.canonical_id())
+            .collect();
+
+        let bad_selected = trace
+            .selected
+            .iter()
+            .filter(|s| !allowed_candidate_refs.contains(&s.candidate_ref.canonical_id()))
+            .count();
+
+        let allowed_source_refs: HashSet<String> = trace
+            .candidates
+            .iter()
+            .filter(|c| c.content_tier == Some(ContentTier::Sfw))
+            .filter_map(|c| match &c.candidate_ref {
+                CandidateRef::Source(s) => Some(s.canonical_id()),
+                _ => None,
+            })
+            .collect();
+
+        let bad_spans = trace
+            .spans
+            .iter()
+            .filter(|s| !allowed_source_refs.contains(&s.source_ref.canonical_id()))
+            .count();
+
+        if !projection_labels_ok || bad_candidates > 0 || bad_selected > 0 || bad_spans > 0 {
+            return Err(AceError::ValidationFailed {
+                message: format!(
+                    "ViewMode=\"SFW\" strict-drop invariant violated: projection_labels_ok={projection_labels_ok}, bad_candidates={bad_candidates}, bad_selected={bad_selected}, bad_spans={bad_spans}"
+                ),
+            });
+        }
+
+        Ok(())
+    }
+}
+
 impl ValidatorPipeline {
     /// Create an empty pipeline
     pub fn new() -> Self {
@@ -417,7 +499,7 @@ impl ValidatorPipeline {
         }
     }
 
-    /// Create a pipeline with all 12 required guards per §2.6.6.7.11
+    /// Create a pipeline with the default guard set
     pub fn with_default_guards() -> Self {
         Self {
             validators: vec![
@@ -435,6 +517,7 @@ impl ValidatorPipeline {
                 Box::new(injection::PromptInjectionGuard),
                 Box::new(boundary::JobBoundaryRoutingGuard),
                 Box::new(payload::LocalPayloadGuard),
+                Box::new(ViewModeHardDropGuard),
             ],
         }
     }
@@ -1022,8 +1105,8 @@ pub use promotion::MemoryPromotionGuard;
 use sha2::{Digest, Sha256};
 
 use crate::ace::{
-    CandidateRef, CandidateScores, QueryKind, RetrievalCandidate, RouteTaken, SelectedEvidence,
-    SpanExtraction, StoreKind,
+    CandidateScores, QueryKind, RetrievalCandidate, RouteTaken, SelectedEvidence, SpanExtraction,
+    StoreKind,
 };
 
 /// Build QueryPlan from document blocks [§2.6.6.7.14.5]
@@ -1119,7 +1202,7 @@ mod tests {
     #[tokio::test]
     async fn test_validator_pipeline_default() {
         let pipeline = ValidatorPipeline::with_default_guards();
-        assert_eq!(pipeline.validator_names().len(), 12);
+        assert_eq!(pipeline.validator_names().len(), 13);
 
         // Original 4 guards
         assert!(pipeline.validator_names().contains(&"budget_guard"));
@@ -1146,6 +1229,9 @@ mod tests {
             .validator_names()
             .contains(&"job_boundary_routing_guard"));
         assert!(pipeline.validator_names().contains(&"local_payload_guard"));
+        assert!(pipeline
+            .validator_names()
+            .contains(&"view_mode_hard_drop_guard"));
     }
 
     #[tokio::test]
