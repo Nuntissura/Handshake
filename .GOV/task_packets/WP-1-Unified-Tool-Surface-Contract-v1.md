@@ -41,6 +41,7 @@
   - .GOV/refinements/WP-1-Unified-Tool-Surface-Contract-v1.md
   - .GOV/task_packets/WP-1-Unified-Tool-Surface-Contract-v1.md
   - assets/schemas/htc_v1.json
+  - src/backend/handshake_core/src/mcp/discovery.rs
   - src/backend/handshake_core/src/mcp/gate.rs
   - src/backend/handshake_core/src/mcp/fr_events.rs
   - src/backend/handshake_core/src/mex/runtime.rs
@@ -48,6 +49,7 @@
   - src/backend/handshake_core/src/flight_recorder/mod.rs
   - src/backend/handshake_core/src/flight_recorder/duckdb.rs
   - src/backend/handshake_core/tests/mcp_gate_tests.rs
+  - src/backend/handshake_core/tests/mcp_e2e_tests.rs
 - OUT_OF_SCOPE:
   - Tool Call Ledger / approvals UX beyond the minimum required to surface Tool Gate decisions deterministically (coordinate with Dev Command Center WP).
   - Phase 2+ Design Studio shell/IA work.
@@ -302,12 +304,30 @@ git revert <commit-sha>
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
 
+- **Target File**: `src/backend/handshake_core/src/mcp/discovery.rs`
+- **Start**: 1
+- **End**: 38
+- **Line Delta**: 2
+- **Pre-SHA1**: `40bb1b8f3d4df8053eb99b3aa3610a84c59fc0d9`
+- **Post-SHA1**: `fb280e752e36f9c96c5d7b63e5f082339dc0eb2c`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
 - **Target File**: `src/backend/handshake_core/src/mcp/gate.rs`
 - **Start**: 1
 - **End**: 1626
 - **Line Delta**: 895
 - **Pre-SHA1**: `f4275d3da4404bbe0183fe0f121e639d80796fb5`
-- **Post-SHA1**: `8a404a8d6277b9af3ef745f0b1ee004106fe963c`
+- **Post-SHA1**: `8ea82398453f0f4eb3902504c6200cd4552b7ebc`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -358,10 +378,28 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/tests/mcp_gate_tests.rs`
 - **Start**: 1
-- **End**: 1418
-- **Line Delta**: 33
+- **End**: 1473
+- **Line Delta**: 88
 - **Pre-SHA1**: `10773cf92b524feb2f7a1f266f688aa0864fb9a2`
-- **Post-SHA1**: `5edbabee29eb8c36ee8cad199fb074bd91d30cbf`
+- **Post-SHA1**: `84367469af501ee4573b4286eb8653ed1949ea76`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/tests/mcp_e2e_tests.rs`
+- **Start**: 1
+- **End**: 439
+- **Line Delta**: 24
+- **Pre-SHA1**: `2562ddd0e17c6d330651368b2e94f03411600750`
+- **Post-SHA1**: `3e05973e506997731764dda68d4e8cdccb81f02d`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -382,7 +420,8 @@ git revert <commit-sha>
 - What changed in this update:
   - Implemented HTC-1.0 envelope validation + canonical FR ToolCall event emission across MCP + MEX paths.
   - Stored redacted tool args/results as artifact-first payloads with sha256 hashes.
-  - Updated MCP gate tests and added MEX conformance assertion for ToolCall emission.
+  - Added MCP Tool Registry SSoT + registry-derived `tools/list` and registry-backed `tools/call` identity/meta binding (Spec 11.3.0).
+  - Updated MCP gate tests + MCP E2E tests to populate Tool Registry and assert canonical tool IDs.
 - Next step / handoff hint:
   - Run `just post-work WP-1-Unified-Tool-Surface-Contract-v1 --range 35cd220dbfe573628ce1ab565a6363f0b993a1eb..HEAD` and hand off to Validator.
 
@@ -392,11 +431,17 @@ git revert <commit-sha>
   - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
   - EVIDENCE: `path/to/file:line`
 - REQUIREMENT: "HTC-1.0 envelope schema exists as SSoT and Tool Gate validates request/response envelopes; validation failure uses VAL-HTC-001."
-- EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:738`
-- EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:748`
-- EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:316`
+- EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:299`
+- EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:728`
+- EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:1464`
 - REQUIREMENT: "FR-EVT-007 ToolCall validator requires transport, side_effect, idempotency, actor, ok, and full timing.* fields."
 - EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:1101`
+- REQUIREMENT: "Tool Registry is the SSoT; MCP tools/list is Tool Registry-derived and binds required _meta.handshake fields. (Spec 11.3.0)"
+- EVIDENCE: `src/backend/handshake_core/src/mcp/discovery.rs:11`
+- EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:101`
+- EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:115`
+- EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:126`
+- EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:483`
 - REQUIREMENT: "args_ref/result_ref use canonical artifact:<uuid>:data/flight_recorder/tool_payloads/... format."
 - EVIDENCE: `src/backend/handshake_core/src/flight_recorder/duckdb.rs:53`
 - EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:1461`
