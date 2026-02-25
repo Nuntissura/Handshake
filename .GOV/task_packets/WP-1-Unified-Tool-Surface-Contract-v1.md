@@ -558,3 +558,6 @@ Improvements & Future Proofing:
 - Add an explicit bypass-scan test for MCP `tools/call` send_request call sites outside `src/backend/handshake_core/src/mcp/gate.rs` (manual grep was clean in this validation session).
 
 SKELETON APPROVED
+
+REASON FOR PASS:
+- DONE_MEANS requirements are satisfied (HTC schema SSoT + `VAL-HTC-001` validation failures, Tool Registry SSoT for tools/list + invocation gating, FR-EVT-007 ToolCall emission with artifact-first refs/hashes post-redaction, and conformance tests), with deterministic manifest + validator gates recorded PASS in this packet and coder TEST_PLAN evidence showing `cargo test` PASS.
