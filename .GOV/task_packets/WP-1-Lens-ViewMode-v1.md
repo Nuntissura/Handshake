@@ -520,3 +520,84 @@ git revert COMMIT_SHA
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT — WP-1-Lens-ViewMode-v1 (2026-02-25)
+
+VALIDATION REPORT — WP-1-Lens-ViewMode-v1
+Verdict: PASS
+
+Validation Claims (explicit):
+- GATES_PASS (deterministic manifest gate; not tests): PASS
+- TEST_PLAN_PASS (packet QUALITY_GATE/TEST_PLAN commands): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Lens-ViewMode-v1.md` (packet status at validation time: **In Progress**)
+- Branch/HEAD validated: `feat/WP-1-Lens-ViewMode-v1` @ `8e8aa119fd93e5a1a72dadd0a1b6c85e09b68090`
+- Spec resolved via `just gov-check`: `Handshake_Master_Spec_v02.137.md`
+- Spec anchors reviewed:
+  - `Handshake_Master_Spec_v02.137.md:48628` (2.4 ViewMode)
+  - `Handshake_Master_Spec_v02.137.md:4520` (ViewMode recorded in trace)
+  - `Handshake_Master_Spec_v02.137.md:49111` (11.3 Output labeling)
+  - `Handshake_Master_Spec_v02.137.md:49270` (Validators addendum-required, incl. strict drop)
+
+Files Checked:
+- `app/src/App.tsx`
+- `app/src/components/ViewModeToggle.tsx`
+- `app/src/lib/api.ts`
+- `app/src/lib/viewMode.ts`
+- `src/backend/handshake_core/src/ace/mod.rs`
+- `src/backend/handshake_core/src/ace/validators/mod.rs`
+- `src/backend/handshake_core/src/workflows.rs`
+- `src/backend/handshake_core/tests/lens_viewmode_tests.rs`
+- `Handshake_Master_Spec_v02.137.md`
+- `justfile`
+
+Findings (DONE_MEANS -> Evidence):
+- ViewMode type exists per spec and is plumbed through Lens query inputs (default NSFW):
+  - Frontend type/default/storage: `app/src/lib/viewMode.ts:1`
+  - Job input attachment (non-overriding): `app/src/lib/api.ts:617`
+  - Backend input parsing + default + plan plumbing: `src/backend/handshake_core/src/workflows.rs:2500`
+  - Backend enum + serde contract: `src/backend/handshake_core/src/ace/mod.rs:312`
+- In ViewMode="SFW", strict drop (default-deny) enforced for candidates/selected/spans (content_tier None treated as non-sfw):
+  - Candidate content tier field (None=unknown): `src/backend/handshake_core/src/ace/mod.rs:582`
+  - Strict-drop projection logic: `src/backend/handshake_core/src/ace/mod.rs:790`
+  - Guard blocks unfiltered traces in SFW: `src/backend/handshake_core/src/ace/validators/mod.rs:416`
+  - Tests cover drop of adult + unknown + evidence-link preservation: `src/backend/handshake_core/tests/lens_viewmode_tests.rs:19`
+- Projection-only (no write-back/mutation of stored descriptors/artifacts):
+  - Spec hard invariant: `Handshake_Master_Spec_v02.137.md:48643`
+  - Implementation applies filtering only to the in-memory `RetrievalTrace` (no storage writes): `src/backend/handshake_core/src/ace/mod.rs:790`
+- Output labeling per spec Addendum 11.3 when SFW projection applied:
+  - Spec labeling requirement: `Handshake_Master_Spec_v02.137.md:49111`
+  - Trace fields serialized: `src/backend/handshake_core/src/ace/mod.rs:730`
+  - Labels set on hard-drop: `src/backend/handshake_core/src/ace/mod.rs:796`
+  - Guard enforces labels present in SFW: `src/backend/handshake_core/src/ace/validators/mod.rs:438`
+  - Tests assert trace JSON includes labeling fields: `src/backend/handshake_core/tests/lens_viewmode_tests.rs:117`
+- QueryPlan + RetrievalTrace record ViewMode as metadata filter and trace serialization includes it:
+  - Spec requirement: `Handshake_Master_Spec_v02.137.md:4520`
+  - Plan filter field: `src/backend/handshake_core/src/ace/mod.rs:337`
+  - Trace records applied filters from plan: `src/backend/handshake_core/src/ace/mod.rs:730`
+  - Test asserts serialized trace contains `filters_applied.view_mode="SFW"`: `src/backend/handshake_core/tests/lens_viewmode_tests.rs:131`
+- Tests exist and guard the behavior:
+  - Default NSFW test: `src/backend/handshake_core/tests/lens_viewmode_tests.rs:9`
+  - Removal-check style (hard-drop behavior + labels + serialization): `src/backend/handshake_core/tests/lens_viewmode_tests.rs:19`
+  - Guard enforcement test: `src/backend/handshake_core/tests/lens_viewmode_tests.rs:142`
+
+Hygiene / Gates (Validator-run):
+- `just pre-work WP-1-Lens-ViewMode-v1`: PASS
+- `just gov-check`: PASS
+- `just validator-scan`: PASS
+- `just post-work WP-1-Lens-ViewMode-v1 --range 13efad9235ec5e7cfe4870bcb986b81d30416aed..HEAD`: PASS (warnings only for new files)
+- `just lint` (with isolated `CARGO_TARGET_DIR`): PASS (clippy warnings only)
+
+Tests (Coder evidence in packet EVIDENCE section):
+- `just fmt`: PASS
+- `cd app; pnpm test`: PASS
+- `just test`: PASS (note: one earlier failure recorded; later rerun PASS is the closure signal)
+
+Risks & Suggested Actions:
+- `cargo clippy` emits warnings in broader codebase; not introduced by this WP but worth follow-up hygiene.
+- Ensure future Lens query endpoints propagate `view_mode` and apply `apply_view_mode_hard_drop()` prior to any output surface.
+
+REASON FOR PASS:
+- All DONE_MEANS bullets are evidenced in code/tests with strict-drop default-deny behavior in SFW (including unknown tiers), projection-only semantics (no storage mutation), required output labeling fields, and trace-recorded ViewMode metadata; gates and TEST_PLAN evidence show a clean deterministic manifest and passing tests/lint for this WP.
