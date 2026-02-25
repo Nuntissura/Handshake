@@ -13,7 +13,7 @@
 - ORCHESTRATOR_MODEL: GPT-5.2 (Codex CLI) (required if AGENTIC_MODE=YES)
 - ORCHESTRATION_STARTED_AT_UTC: 2026-02-24T03:48:12.798Z
 - CODER_MODEL: GPT-5.2 (Codex CLI)
-- CODER_REASONING_STRENGTH: HIGH (LOW | MEDIUM | HIGH | EXTRA_HIGH)
+- CODER_REASONING_STRENGTH: HIGH
 - **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja240220260346
@@ -342,10 +342,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/mex/conformance.rs`
 - **Start**: 1
-- **End**: 515
-- **Line Delta**: 60
+- **End**: 520
+- **Line Delta**: 65
 - **Pre-SHA1**: `056494c5fcfce2aefe301b803ee2bf05897c4914`
-- **Post-SHA1**: `f144fa3d2992daff079f2c0755a477b14cf1b8b9`
+- **Post-SHA1**: `a12460168d623892b488ace0852063bc21a690ed`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan

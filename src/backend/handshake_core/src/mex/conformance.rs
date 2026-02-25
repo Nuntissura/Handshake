@@ -391,7 +391,12 @@ mod tests {
 
         timeout(Duration::from_secs(10), runtime.execute(op.clone()))
             .await
-            .map_err(|_| "mex runtime.execute timed out")??;
+            .map_err(|_| {
+                std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "mex runtime.execute timed out",
+                )
+            })??;
 
         let job_id = op.op_id.to_string();
         let (kinds, payloads) = {
