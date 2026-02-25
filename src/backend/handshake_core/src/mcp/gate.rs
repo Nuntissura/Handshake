@@ -21,7 +21,7 @@ use crate::storage::{AccessMode, AiJobMcpUpdate, Database};
 
 use super::client::{JsonRpcMcpClient, McpDispatcher, PendingMeta};
 use super::discovery::{
-    McpResourceDescriptor, McpToolDescriptor, ResourcesListResult, ToolsListResult,
+    McpResourceDescriptor, McpToolDescriptor, ResourcesListResult,
 };
 use super::errors::{McpError, McpResult};
 use super::fr_events;
@@ -93,9 +93,51 @@ pub struct ToolPolicy {
 }
 
 #[derive(Clone, Debug)]
+pub struct ToolTransportBindings {
+    pub mcp_name: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct ToolRegistryEntry {
+    pub tool_id: String,
+    pub tool_version: String,
+    pub input_schema: Value,
+    pub output_schema: Option<Value>,
+    pub side_effect: String,
+    pub idempotency: String,
+    pub determinism: String,
+    pub availability: String,
+    pub required_capabilities: Vec<String>,
+    pub transport_bindings: ToolTransportBindings,
+}
+
+impl ToolRegistryEntry {
+    fn handshake_meta(&self) -> Value {
+        json!({
+            "tool_version": &self.tool_version,
+            "side_effect": &self.side_effect,
+            "idempotency": &self.idempotency,
+            "determinism": &self.determinism,
+            "availability": &self.availability,
+            "required_capabilities": &self.required_capabilities,
+        })
+    }
+
+    fn tool_descriptor(&self) -> McpToolDescriptor {
+        McpToolDescriptor {
+            name: self.tool_id.clone(),
+            description: None,
+            input_schema: Some(self.input_schema.clone()),
+            meta: Some(json!({ "handshake": self.handshake_meta() })),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct GateConfig {
     pub allowed_tools: Option<HashSet<String>>,
     pub tool_policies: HashMap<String, ToolPolicy>,
+    pub tool_registry: Vec<ToolRegistryEntry>,
     pub request_timeout: Duration,
     pub consent_timeout: Duration,
     pub reconnect: ReconnectConfig,
@@ -106,68 +148,11 @@ impl GateConfig {
         Self {
             allowed_tools: None,
             tool_policies: HashMap::new(),
+            tool_registry: Vec::new(),
             request_timeout: Duration::from_secs(60),
             consent_timeout: Duration::from_secs(30),
             reconnect: ReconnectConfig::default(),
         }
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-struct ToolHandshakeMeta {
-    tool_version: Option<String>,
-    side_effect: Option<String>,
-    idempotency: Option<String>,
-    determinism: Option<String>,
-    availability: Option<String>,
-    required_capabilities: Vec<String>,
-}
-
-impl ToolHandshakeMeta {
-    fn parse(tool_value: &Value) -> Self {
-        let mut out = Self::default();
-
-        let Some(handshake) = tool_value
-            .get("_meta")
-            .and_then(|v| v.get("handshake"))
-            .and_then(|v| v.as_object())
-        else {
-            return out;
-        };
-
-        out.tool_version = handshake
-            .get("tool_version")
-            .and_then(|v| v.as_str())
-            .map(str::to_string);
-        out.side_effect = handshake
-            .get("side_effect")
-            .and_then(|v| v.as_str())
-            .map(str::to_string);
-        out.idempotency = handshake
-            .get("idempotency")
-            .and_then(|v| v.as_str())
-            .map(str::to_string);
-        out.determinism = handshake
-            .get("determinism")
-            .and_then(|v| v.as_str())
-            .map(str::to_string);
-        out.availability = handshake
-            .get("availability")
-            .and_then(|v| v.as_str())
-            .map(str::to_string);
-
-        out.required_capabilities = handshake
-            .get("required_capabilities")
-            .and_then(|v| v.as_array())
-            .map(|items| {
-                items
-                    .iter()
-                    .filter_map(|v| v.as_str().map(str::to_string))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-
-        out
     }
 }
 
@@ -280,8 +265,6 @@ pub struct GatedMcpClient {
     inner: JsonRpcMcpClient,
     db: Option<Arc<dyn Database>>,
     progress_bindings: Arc<Mutex<HashMap<String, ProgressBinding>>>,
-    tools: Arc<Mutex<HashMap<String, McpToolDescriptor>>>,
-    tool_handshake_meta: Arc<Mutex<HashMap<String, ToolHandshakeMeta>>>,
 }
 
 fn strip_ref_scheme(uri: &str) -> McpResult<&str> {
@@ -357,7 +340,7 @@ fn canonical_tool_id_segment(raw: &str) -> String {
     }
 }
 
-fn canonical_mcp_tool_id(server_id: &str, tool_name: &str) -> String {
+pub fn canonical_mcp_tool_id(server_id: &str, tool_name: &str) -> String {
     let server = canonical_tool_id_segment(server_id);
     let mut tool_segments: Vec<String> = tool_name
         .split('.')
@@ -449,8 +432,6 @@ impl GatedMcpClient {
             inner,
             db,
             progress_bindings,
-            tools: Arc::new(Mutex::new(HashMap::new())),
-            tool_handshake_meta: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -500,43 +481,24 @@ impl GatedMcpClient {
     }
 
     pub async fn refresh_tools(&self) -> McpResult<Vec<McpToolDescriptor>> {
-        let value = self
-            .inner
-            .send_request(
-                "tools/list",
-                Some(json!({})),
-                Some(PendingMeta {
-                    started_at: Instant::now(), // WAIVER [CX-573E] duration/timeout bookkeeping only
-                    method: "tools/list".to_string(),
-                    ctx: None,
-                    tool_name: None,
-                    capability_id: None,
-                }),
-            )?
-            .await?;
-        let result: ToolsListResult = serde_json::from_value(value.clone())?;
-        let mut guard = self
-            .tools
-            .lock()
-            .map_err(|_| McpError::Transport("tools cache lock error".to_string()))?;
-        guard.clear();
-        for tool in &result.tools {
-            guard.insert(tool.name.clone(), tool.clone());
-        }
+        let mut tools = self
+            .gate
+            .tool_registry
+            .iter()
+            .map(ToolRegistryEntry::tool_descriptor)
+            .collect::<Vec<_>>();
+        tools.sort_by(|a, b| a.name.cmp(&b.name));
 
-        if let Some(tools) = value.get("tools").and_then(|v| v.as_array()) {
-            let mut meta_guard = self.tool_handshake_meta.lock().map_err(|_| {
-                McpError::Transport("tools handshake meta cache lock error".to_string())
-            })?;
-            meta_guard.clear();
-            for tool in tools {
-                let Some(name) = tool.get("name").and_then(|v| v.as_str()) else {
-                    continue;
-                };
-                meta_guard.insert(name.to_string(), ToolHandshakeMeta::parse(tool));
+        for window in tools.windows(2) {
+            if window[0].name == window[1].name {
+                return Err(McpError::Protocol(format!(
+                    "duplicate tool_id in tool registry: {}",
+                    window[0].name
+                )));
             }
         }
-        Ok(result.tools)
+
+        Ok(tools)
     }
 
     pub async fn resources_list(&self) -> McpResult<Vec<McpResourceDescriptor>> {
@@ -548,23 +510,29 @@ impl GatedMcpClient {
         Ok(result.resources)
     }
 
-    fn tool_descriptor(&self, tool_name: &str) -> McpResult<McpToolDescriptor> {
-        let guard = self
-            .tools
-            .lock()
-            .map_err(|_| McpError::Transport("tools cache lock error".to_string()))?;
-        guard
-            .get(tool_name)
-            .cloned()
-            .ok_or_else(|| McpError::UnknownTool(tool_name.to_string()))
-    }
+    fn resolve_tool_registry_entry(&self, tool_id_or_alias: &str) -> McpResult<&ToolRegistryEntry> {
+        if let Some(entry) = self
+            .gate
+            .tool_registry
+            .iter()
+            .find(|entry| entry.tool_id == tool_id_or_alias)
+        {
+            return Ok(entry);
+        }
 
-    fn tool_meta(&self, tool_name: &str) -> ToolHandshakeMeta {
-        let guard = match self.tool_handshake_meta.lock() {
-            Ok(g) => g,
-            Err(poisoned) => poisoned.into_inner(),
+        let mut matches = self.gate.tool_registry.iter().filter(|entry| {
+            entry.transport_bindings.mcp_name == tool_id_or_alias
+        });
+        let Some(first) = matches.next() else {
+            return Err(McpError::UnknownTool(tool_id_or_alias.to_string()));
         };
-        guard.get(tool_name).cloned().unwrap_or_default()
+        if matches.next().is_some() {
+            return Err(McpError::Protocol(format!(
+                "mcp tool alias matches multiple registry entries: {}",
+                tool_id_or_alias
+            )));
+        }
+        Ok(first)
     }
 
     fn tool_policy(&self, tool_name: &str) -> ToolPolicy {
@@ -658,32 +626,54 @@ impl GatedMcpClient {
     pub async fn tools_call_htc(
         &self,
         ctx: McpContext,
-        tool_name: &str,
+        tool_id_or_alias: &str,
         arguments: Value,
     ) -> McpResult<Value> {
         let started_at_utc = Utc::now();
         let started_at_instant = Instant::now(); // WAIVER [CX-573E] duration/timeout bookkeeping only
 
         let tool_call_id = Uuid::new_v4();
-        let tool_id = canonical_mcp_tool_id(&self.server_id, tool_name);
-        let tool_meta = self.tool_meta(tool_name);
 
-        let tool_version = tool_meta
-            .tool_version
-            .as_deref()
+        let (registry_entry, registry_error) = match self.resolve_tool_registry_entry(tool_id_or_alias) {
+            Ok(entry) => (Some(entry), None),
+            Err(err) => (None, Some(err)),
+        };
+
+        let tool_id = match registry_entry {
+            Some(entry) => entry.tool_id.clone(),
+            None => {
+                if tool_id_or_alias.starts_with("mcp.") {
+                    tool_id_or_alias.to_string()
+                } else {
+                    canonical_mcp_tool_id(&self.server_id, tool_id_or_alias)
+                }
+            }
+        };
+        let mcp_tool_name = registry_entry
+            .map(|entry| entry.transport_bindings.mcp_name.clone())
+            .unwrap_or_else(|| tool_id_or_alias.to_string());
+
+        let tool_version = registry_entry
+            .map(|entry| entry.tool_version.as_str())
             .filter(|v| is_simple_semver(v))
             .unwrap_or("0.0.0")
             .to_string();
 
-        let side_effect = match tool_meta.side_effect.as_deref() {
-            Some("READ" | "WRITE" | "EXECUTE") => tool_meta.side_effect.clone().unwrap_or_default(),
-            _ => "READ".to_string(),
+        let side_effect = match registry_entry {
+            Some(entry) => match entry.side_effect.as_str() {
+                "READ" | "WRITE" | "EXECUTE" => entry.side_effect.clone(),
+                _ => "READ".to_string(),
+            },
+            None => "READ".to_string(),
         };
-        let idempotency = match tool_meta.idempotency.as_deref() {
-            Some("IDEMPOTENT" | "IDEMPOTENT_WITH_KEY" | "NON_IDEMPOTENT") => {
-                tool_meta.idempotency.clone().unwrap_or_default()
-            }
-            _ => "IDEMPOTENT".to_string(),
+        let idempotency = match registry_entry {
+            Some(entry) => match entry.idempotency.as_str() {
+                "IDEMPOTENT" | "IDEMPOTENT_WITH_KEY" | "NON_IDEMPOTENT" => {
+                    entry.idempotency.clone()
+                }
+                _ => "IDEMPOTENT".to_string(),
+            },
+            None => "IDEMPOTENT".to_string(),
         };
         let idempotency_key = if idempotency == "IDEMPOTENT_WITH_KEY" {
             Some(tool_call_id.to_string())
@@ -800,15 +790,83 @@ impl GatedMcpClient {
             });
         }
 
-        if let Some(allowed) = &self.gate.allowed_tools {
-            if !allowed.contains(tool_name) {
-                let err =
-                    McpError::CapabilityDenied(format!("tool not in allowed_tools: {}", tool_name));
+        let registry_entry = match (registry_entry, registry_error) {
+            (Some(entry), None) => entry,
+            (None, Some(err)) => {
+                let (reason, code, kind) = match &err {
+                    McpError::UnknownTool(_) => ("unknown_tool", "unknown_tool", "validation"),
+                    _ => ("tool_registry_error", "tool_registry_error", "protocol"),
+                };
                 let _ = fr_events::record_gate_decision(
                     Arc::clone(&self.flight_recorder),
                     &ctx,
                     &self.server_id,
-                    Some(tool_name),
+                    Some(tool_id.as_str()),
+                    "deny",
+                    reason,
+                    json!({ "error": err.to_string() }),
+                );
+
+                let ended_at_utc = Utc::now();
+                let payload = json!({
+                    "type": "tool_call",
+                    "trace_id": ctx.trace_id.to_string(),
+                    "tool_call_id": tool_call_id.to_string(),
+                    "tool_id": tool_id,
+                    "tool_version": tool_version,
+                    "transport": "mcp",
+                    "side_effect": side_effect,
+                    "idempotency": idempotency,
+                    "idempotency_key": idempotency_key,
+                    "actor": default_actor_payload(),
+                    "ok": false,
+                    "args_ref": args_ref,
+                    "args_hash": args_hash,
+                    "error": {
+                        "code": code,
+                        "kind": kind,
+                        "message": err.to_string(),
+                        "retryable": false,
+                    },
+                    "timing": htc_timing(started_at_utc, ended_at_utc),
+                });
+                let mut event = FlightRecorderEvent::new(
+                    FlightRecorderEventType::ToolCall,
+                    FlightRecorderActor::Agent,
+                    ctx.trace_id,
+                    payload,
+                );
+                if let Some(job_id) = ctx.job_id {
+                    event = event.with_job_id(job_id.to_string());
+                }
+                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                    event = event.with_workflow_id(workflow_run_id.to_string());
+                }
+                self.flight_recorder
+                    .record_event(event)
+                    .await
+                    .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+
+                return Err(err);
+            }
+            _ => {
+                return Err(McpError::Protocol(
+                    "tool registry resolution invariant violated".to_string(),
+                ));
+            }
+        };
+
+        if let Some(allowed) = &self.gate.allowed_tools {
+            if !allowed.contains(&tool_id) && !allowed.contains(&mcp_tool_name) {
+                let err = McpError::CapabilityDenied(format!(
+                    "tool not in allowed_tools: {}",
+                    tool_id
+                ));
+                let _ = fr_events::record_gate_decision(
+                    Arc::clone(&self.flight_recorder),
+                    &ctx,
+                    &self.server_id,
+                    Some(tool_id.as_str()),
                     "deny",
                     "tool_not_allowed",
                     json!({ "error": err.to_string() }),
@@ -858,127 +916,69 @@ impl GatedMcpClient {
             }
         }
 
-        let desc = match self.tool_descriptor(tool_name) {
-            Ok(d) => d,
-            Err(err) => {
-                let _ = fr_events::record_gate_decision(
-                    Arc::clone(&self.flight_recorder),
-                    &ctx,
-                    &self.server_id,
-                    Some(tool_name),
-                    "deny",
-                    "unknown_tool",
-                    json!({ "error": err.to_string() }),
-                );
-
-                let ended_at_utc = Utc::now();
-                let payload = json!({
-                    "type": "tool_call",
-                    "trace_id": ctx.trace_id.to_string(),
-                    "tool_call_id": tool_call_id.to_string(),
-                    "tool_id": tool_id,
-                    "tool_version": tool_version,
-                    "transport": "mcp",
-                    "side_effect": side_effect,
-                    "idempotency": idempotency,
-                    "idempotency_key": idempotency_key,
-                    "actor": default_actor_payload(),
-                    "ok": false,
-                    "args_ref": args_ref,
-                    "args_hash": args_hash,
-                    "error": {
-                        "code": "unknown_tool",
-                        "kind": "validation",
-                        "message": err.to_string(),
-                        "retryable": false,
-                    },
-                    "timing": htc_timing(started_at_utc, ended_at_utc),
-                });
-                let mut event = FlightRecorderEvent::new(
-                    FlightRecorderEventType::ToolCall,
-                    FlightRecorderActor::Agent,
-                    ctx.trace_id,
-                    payload,
-                );
-                if let Some(job_id) = ctx.job_id {
-                    event = event.with_job_id(job_id.to_string());
-                }
-                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
-                    event = event.with_workflow_id(workflow_run_id.to_string());
-                }
-                self.flight_recorder
-                    .record_event(event)
-                    .await
-                    .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
-
-                return Err(err);
-            }
-        };
-        let schema_value = desc.input_schema.ok_or_else(|| McpError::SchemaValidation {
-            details: "missing tool inputSchema".to_string(),
-        });
-        let schema_value = match schema_value {
-            Ok(s) => s,
-            Err(err) => {
-                let _ = fr_events::record_gate_decision(
-                    Arc::clone(&self.flight_recorder),
-                    &ctx,
-                    &self.server_id,
-                    Some(tool_name),
-                    "deny",
-                    "missing_input_schema",
-                    json!({ "error": err.to_string() }),
-                );
-
-                let ended_at_utc = Utc::now();
-                let payload = json!({
-                    "type": "tool_call",
-                    "trace_id": ctx.trace_id.to_string(),
-                    "tool_call_id": tool_call_id.to_string(),
-                    "tool_id": tool_id,
-                    "tool_version": tool_version,
-                    "transport": "mcp",
-                    "side_effect": side_effect,
-                    "idempotency": idempotency,
-                    "idempotency_key": idempotency_key,
-                    "actor": default_actor_payload(),
-                    "ok": false,
-                    "args_ref": args_ref,
-                    "args_hash": args_hash,
-                    "error": {
-                        "code": "missing_input_schema",
-                        "kind": "validation",
-                        "message": err.to_string(),
-                        "retryable": false,
-                    },
-                    "timing": htc_timing(started_at_utc, ended_at_utc),
-                });
-                let mut event = FlightRecorderEvent::new(
-                    FlightRecorderEventType::ToolCall,
-                    FlightRecorderActor::Agent,
-                    ctx.trace_id,
-                    payload,
-                );
-                if let Some(job_id) = ctx.job_id {
-                    event = event.with_job_id(job_id.to_string());
-                }
-                if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
-                    event = event.with_workflow_id(workflow_run_id.to_string());
-                }
-                self.flight_recorder
-                    .record_event(event)
-                    .await
-                    .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
-
-                return Err(err);
-            }
-        };
-        if let Err(err) = schema::validate_instance(&schema_value, &arguments) {
+        if registry_entry.input_schema.is_null() {
+            let err = McpError::SchemaValidation {
+                details: "missing tool inputSchema".to_string(),
+            };
             let _ = fr_events::record_gate_decision(
                 Arc::clone(&self.flight_recorder),
                 &ctx,
                 &self.server_id,
-                Some(tool_name),
+                Some(tool_id.as_str()),
+                "deny",
+                "missing_input_schema",
+                json!({ "error": err.to_string() }),
+            );
+
+            let ended_at_utc = Utc::now();
+            let payload = json!({
+                "type": "tool_call",
+                "trace_id": ctx.trace_id.to_string(),
+                "tool_call_id": tool_call_id.to_string(),
+                "tool_id": tool_id,
+                "tool_version": tool_version,
+                "transport": "mcp",
+                "side_effect": side_effect,
+                "idempotency": idempotency,
+                "idempotency_key": idempotency_key,
+                "actor": default_actor_payload(),
+                "ok": false,
+                "args_ref": args_ref,
+                "args_hash": args_hash,
+                "error": {
+                    "code": "missing_input_schema",
+                    "kind": "validation",
+                    "message": err.to_string(),
+                    "retryable": false,
+                },
+                "timing": htc_timing(started_at_utc, ended_at_utc),
+            });
+            let mut event = FlightRecorderEvent::new(
+                FlightRecorderEventType::ToolCall,
+                FlightRecorderActor::Agent,
+                ctx.trace_id,
+                payload,
+            );
+            if let Some(job_id) = ctx.job_id {
+                event = event.with_job_id(job_id.to_string());
+            }
+            if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                event = event.with_workflow_id(workflow_run_id.to_string());
+            }
+            self.flight_recorder
+                .record_event(event)
+                .await
+                .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+
+            return Err(err);
+        }
+
+        if let Err(err) = schema::validate_instance(&registry_entry.input_schema, &arguments) {
+            let _ = fr_events::record_gate_decision(
+                Arc::clone(&self.flight_recorder),
+                &ctx,
+                &self.server_id,
+                Some(tool_id.as_str()),
                 "deny",
                 "schema_validation_failed",
                 json!({ "error": err.to_string() }),
@@ -1027,10 +1027,10 @@ impl GatedMcpClient {
             return Err(err);
         }
 
-        let policy = self.tool_policy(tool_name);
-        let mut required_caps = tool_meta.required_capabilities.clone();
-        if required_caps.is_empty() {
-            if let Some(cap) = policy.required_capability.clone() {
+        let policy = self.tool_policy(&tool_id);
+        let mut required_caps = registry_entry.required_capabilities.clone();
+        if let Some(cap) = policy.required_capability.clone() {
+            if !required_caps.iter().any(|c| c == &cap) {
                 required_caps.push(cap);
             }
         }
@@ -1040,7 +1040,7 @@ impl GatedMcpClient {
                     Arc::clone(&self.flight_recorder),
                     &ctx,
                     &self.server_id,
-                    Some(tool_name),
+                    Some(tool_id.as_str()),
                     "deny",
                     "capability_denied",
                     json!({ "capability_id": cap, "error": err.to_string() }),
@@ -1093,7 +1093,7 @@ impl GatedMcpClient {
         if let Err(err) = self
             .enforce_consent(
                 &ctx,
-                tool_name,
+                tool_id.as_str(),
                 required_caps.first().map(|s| s.as_str()),
                 &policy,
             )
@@ -1103,7 +1103,7 @@ impl GatedMcpClient {
                 Arc::clone(&self.flight_recorder),
                 &ctx,
                 &self.server_id,
-                Some(tool_name),
+                Some(tool_id.as_str()),
                 "deny",
                 "consent_denied",
                 json!({ "error": err.to_string() }),
@@ -1157,7 +1157,7 @@ impl GatedMcpClient {
                 Arc::clone(&self.flight_recorder),
                 &ctx,
                 &self.server_id,
-                Some(tool_name),
+                Some(tool_id.as_str()),
                 "deny",
                 "security_violation",
                 json!({ "error": err.to_string() }),
@@ -1211,7 +1211,7 @@ impl GatedMcpClient {
             Arc::clone(&self.flight_recorder),
             &ctx,
             &self.server_id,
-            tool_name,
+            mcp_tool_name.as_str(),
             tool_call_id,
             &tool_id,
             tool_version.as_str(),
@@ -1224,7 +1224,7 @@ impl GatedMcpClient {
             started_at: started_at_instant,
             method: "tools/call".to_string(),
             ctx: Some(ctx.clone()),
-            tool_name: Some(tool_name.to_string()),
+            tool_name: Some(tool_id.clone()),
             capability_id: required_caps.first().cloned(),
         };
 
@@ -1248,7 +1248,7 @@ impl GatedMcpClient {
 
             let binding = ProgressBinding {
                 ctx: ctx.clone(),
-                tool_name: tool_name.to_string(),
+                tool_name: mcp_tool_name.clone(),
                 capability_id: required_caps.first().cloned(),
             };
             match self.progress_bindings.lock() {
@@ -1265,7 +1265,7 @@ impl GatedMcpClient {
             mcp_job_id = Some(job_id.to_string());
         }
 
-        let mut params = json!({ "name": tool_name, "arguments": arguments });
+        let mut params = json!({ "name": mcp_tool_name.as_str(), "arguments": arguments });
         if let Value::Object(map) = &mut params {
             if let Some(token) = progress_token.as_deref() {
                 map.insert(
@@ -1316,7 +1316,7 @@ impl GatedMcpClient {
                     Arc::clone(&self.flight_recorder),
                     &ctx,
                     &self.server_id,
-                    Some(tool_name),
+                    Some(tool_id.as_str()),
                     "timeout",
                     "request_timeout",
                     timeout_payload,
@@ -1357,7 +1357,7 @@ impl GatedMcpClient {
                     Arc::clone(&self.flight_recorder),
                     &ctx,
                     &self.server_id,
-                    tool_name,
+                    mcp_tool_name.as_str(),
                     tool_call_id,
                     &tool_id,
                     tool_version.as_str(),
@@ -1471,7 +1471,7 @@ impl GatedMcpClient {
                     Arc::clone(&self.flight_recorder),
                     &ctx,
                     &self.server_id,
-                    tool_name,
+                    mcp_tool_name.as_str(),
                     tool_call_id,
                     &tool_id,
                     tool_version.as_str(),
@@ -1543,7 +1543,7 @@ impl GatedMcpClient {
                     Arc::clone(&self.flight_recorder),
                     &ctx,
                     &self.server_id,
-                    tool_name,
+                    mcp_tool_name.as_str(),
                     tool_call_id,
                     &tool_id,
                     tool_version.as_str(),

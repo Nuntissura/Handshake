@@ -8,6 +8,8 @@ pub struct McpToolDescriptor {
     pub description: Option<String>,
     #[serde(default, rename = "inputSchema")]
     pub input_schema: Option<Value>,
+    #[serde(default, rename = "_meta")]
+    pub meta: Option<Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

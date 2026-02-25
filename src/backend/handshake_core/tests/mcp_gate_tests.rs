@@ -7,7 +7,8 @@ use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
 use handshake_core::flight_recorder::FlightRecorder;
 use handshake_core::mcp::errors::McpError;
 use handshake_core::mcp::gate::{
-    ConsentDecision, ConsentProvider, GateConfig, GatedMcpClient, McpContext, ToolPolicy,
+    canonical_mcp_tool_id, ConsentDecision, ConsentProvider, GateConfig, GatedMcpClient, McpContext,
+    ToolPolicy, ToolRegistryEntry, ToolTransportBindings,
 };
 use handshake_core::mcp::jsonrpc::{
     JsonRpcId, JsonRpcMessage, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
@@ -462,6 +463,33 @@ fn make_ctx(
     }
 }
 
+fn echo_tool_registry_entry(server_id: &str) -> ToolRegistryEntry {
+    let schema = json!({
+        "type": "object",
+        "properties": {
+            "message": { "type": "string" },
+            "path": { "type": "string" }
+        },
+        "required": ["message"],
+        "additionalProperties": false
+    });
+
+    ToolRegistryEntry {
+        tool_id: canonical_mcp_tool_id(server_id, "echo"),
+        tool_version: "1.0.0".to_string(),
+        input_schema: schema,
+        output_schema: None,
+        side_effect: "READ".to_string(),
+        idempotency: "IDEMPOTENT".to_string(),
+        determinism: "DETERMINISTIC".to_string(),
+        availability: "AVAILABLE".to_string(),
+        required_capabilities: vec!["fs.read".to_string()],
+        transport_bindings: ToolTransportBindings {
+            mcp_name: "echo".to_string(),
+        },
+    }
+}
+
 struct FlakyTestTransport {
     connect_calls: Arc<AtomicUsize>,
 }
@@ -476,12 +504,15 @@ impl FlakyTestTransport {
 impl McpTransport for FlakyTestTransport {
     async fn connect(&mut self) -> handshake_core::mcp::errors::McpResult<ConnectedTransport> {
         let call_num = self.connect_calls.fetch_add(1, Ordering::SeqCst) + 1;
-        let sever_after_tools_list = call_num == 1;
+        let sever_immediately = call_num == 1;
 
         let (outgoing_tx, mut outgoing_rx) = mpsc::unbounded_channel::<JsonRpcMessage>();
         let (incoming_tx, incoming_rx) = mpsc::unbounded_channel::<JsonRpcMessage>();
 
         let server = tokio::spawn(async move {
+            if sever_immediately {
+                return;
+            }
             while let Some(msg) = outgoing_rx.recv().await {
                 match msg {
                     JsonRpcMessage::Request(req) => match req.method.as_str() {
@@ -501,9 +532,6 @@ impl McpTransport for FlakyTestTransport {
                             });
                             let _ = incoming_tx
                                 .send(JsonRpcMessage::Response(JsonRpcResponse::ok(req.id, result)));
-                            if sever_after_tools_list {
-                                break;
-                            }
                         }
                         "resources/list" => {
                             let result = json!({ "resources": [] });
@@ -577,8 +605,11 @@ async fn mcp_tool_call_records_fr_events_and_logging() -> Result<(), Box<dyn std
 
     let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
+    let echo_entry = echo_tool_registry_entry(server_id);
+    let tool_id = echo_entry.tool_id.clone();
+    gate.tool_registry.push(echo_entry);
     gate.tool_policies.insert(
-        "echo".to_string(),
+        tool_id.clone(),
         ToolPolicy {
             required_capability: Some("fs.read".to_string()),
             requires_consent: false,
@@ -599,7 +630,7 @@ async fn mcp_tool_call_records_fr_events_and_logging() -> Result<(), Box<dyn std
 
     client.refresh_tools().await?;
     let result = client
-        .tools_call(ctx, "echo", json!({ "message": "hi" }))
+        .tools_call(ctx, tool_id.as_str(), json!({ "message": "hi" }))
         .await?;
     assert_eq!(result.get("echoed").and_then(|v| v.as_str()), Some("hi"));
 
@@ -696,8 +727,11 @@ async fn mcp_tools_call_redacts_sensitive_output_before_return_and_recording(
 
     let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
+    let echo_entry = echo_tool_registry_entry(server_id);
+    let tool_id = echo_entry.tool_id.clone();
+    gate.tool_registry.push(echo_entry);
     gate.tool_policies.insert(
-        "echo".to_string(),
+        tool_id.clone(),
         ToolPolicy {
             required_capability: Some("fs.read".to_string()),
             requires_consent: false,
@@ -718,7 +752,7 @@ async fn mcp_tools_call_redacts_sensitive_output_before_return_and_recording(
 
     client.refresh_tools().await?;
     let result = client
-        .tools_call(ctx, "echo", json!({ "message": "hi" }))
+        .tools_call(ctx, tool_id.as_str(), json!({ "message": "hi" }))
         .await?;
 
     let echoed = result
@@ -807,8 +841,11 @@ async fn mcp_auto_reconnects_when_transport_severs() -> Result<(), Box<dyn std::
     gate.reconnect.base_delay = Duration::from_millis(15);
     gate.reconnect.max_delay = Duration::from_millis(60);
     gate.reconnect.max_attempts = Some(8);
+    let echo_entry = echo_tool_registry_entry("flaky-mcp");
+    let tool_id = echo_entry.tool_id.clone();
+    gate.tool_registry.push(echo_entry);
     gate.tool_policies.insert(
-        "echo".to_string(),
+        tool_id.clone(),
         ToolPolicy {
             required_capability: Some("fs.read".to_string()),
             requires_consent: false,
@@ -829,7 +866,7 @@ async fn mcp_auto_reconnects_when_transport_severs() -> Result<(), Box<dyn std::
 
     client.refresh_tools().await?;
     let result = client
-        .tools_call(ctx, "echo", json!({ "message": "hi" }))
+        .tools_call(ctx, tool_id.as_str(), json!({ "message": "hi" }))
         .await?;
     assert_eq!(result.get("echoed").and_then(|v| v.as_str()), Some("hi"));
     assert!(
@@ -866,8 +903,11 @@ async fn mcp_logging_message_custom_event_kind_creates_breadcrumb() -> Result<()
 
     let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
+    let echo_entry = echo_tool_registry_entry(server_id);
+    let tool_id = echo_entry.tool_id.clone();
+    gate.tool_registry.push(echo_entry);
     gate.tool_policies.insert(
-        "echo".to_string(),
+        tool_id.clone(),
         ToolPolicy {
             required_capability: Some("fs.read".to_string()),
             requires_consent: false,
@@ -888,7 +928,7 @@ async fn mcp_logging_message_custom_event_kind_creates_breadcrumb() -> Result<()
 
     client.refresh_tools().await?;
     let _ = client
-        .tools_call(ctx, "echo", json!({ "message": "hi" }))
+        .tools_call(ctx, tool_id.as_str(), json!({ "message": "hi" }))
         .await?;
 
     let conn_handle = recorder.connection();
@@ -951,8 +991,11 @@ async fn mcp_schema_validation_failure_is_explicit() -> Result<(), Box<dyn std::
 
     let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
+    let echo_entry = echo_tool_registry_entry("stub-mcp");
+    let tool_id = echo_entry.tool_id.clone();
+    gate.tool_registry.push(echo_entry);
     gate.tool_policies.insert(
-        "echo".to_string(),
+        tool_id.clone(),
         ToolPolicy {
             required_capability: Some("fs.read".to_string()),
             requires_consent: false,
@@ -973,7 +1016,7 @@ async fn mcp_schema_validation_failure_is_explicit() -> Result<(), Box<dyn std::
     client.refresh_tools().await?;
 
     let err = client
-        .tools_call(ctx, "echo", json!({ "message": 123 }))
+        .tools_call(ctx, tool_id.as_str(), json!({ "message": 123 }))
         .await
         .expect_err("expected schema validation error");
     assert!(matches!(err, McpError::SchemaValidation { .. }));
@@ -999,8 +1042,11 @@ async fn mcp_capability_denied_blocks_tool_call() -> Result<(), Box<dyn std::err
 
     let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
+    let echo_entry = echo_tool_registry_entry("stub-mcp");
+    let tool_id = echo_entry.tool_id.clone();
+    gate.tool_registry.push(echo_entry);
     gate.tool_policies.insert(
-        "echo".to_string(),
+        tool_id.clone(),
         ToolPolicy {
             required_capability: Some("fs.read".to_string()),
             requires_consent: false,
@@ -1021,7 +1067,7 @@ async fn mcp_capability_denied_blocks_tool_call() -> Result<(), Box<dyn std::err
     client.refresh_tools().await?;
 
     let err = client
-        .tools_call(ctx, "echo", json!({ "message": "hi" }))
+        .tools_call(ctx, tool_id.as_str(), json!({ "message": "hi" }))
         .await
         .expect_err("expected capability denied");
     assert!(matches!(err, McpError::CapabilityDenied(_)));
@@ -1053,8 +1099,11 @@ async fn mcp_consent_deny_and_timeout_are_explicit() -> Result<(), Box<dyn std::
     let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
     gate.consent_timeout = Duration::from_millis(10);
+    let echo_entry = echo_tool_registry_entry("stub-mcp");
+    let tool_id = echo_entry.tool_id.clone();
+    gate.tool_registry.push(echo_entry);
     gate.tool_policies.insert(
-        "echo".to_string(),
+        tool_id.clone(),
         ToolPolicy {
             required_capability: Some("fs.read".to_string()),
             requires_consent: true,
@@ -1074,7 +1123,7 @@ async fn mcp_consent_deny_and_timeout_are_explicit() -> Result<(), Box<dyn std::
     .await?;
     client.refresh_tools().await?;
     let err = client
-        .tools_call(ctx.clone(), "echo", json!({ "message": "hi" }))
+        .tools_call(ctx.clone(), tool_id.as_str(), json!({ "message": "hi" }))
         .await
         .expect_err("expected consent denied");
     assert!(matches!(err, McpError::ConsentDenied(_)));
@@ -1098,7 +1147,7 @@ async fn mcp_consent_deny_and_timeout_are_explicit() -> Result<(), Box<dyn std::
     .await?;
     client.refresh_tools().await?;
     let err = client
-        .tools_call(ctx, "echo", json!({ "message": "hi" }))
+        .tools_call(ctx, tool_id.as_str(), json!({ "message": "hi" }))
         .await
         .expect_err("expected consent timeout");
     assert!(matches!(err, McpError::ConsentDenied(_)));
@@ -1130,8 +1179,11 @@ async fn mcp_timeout_sends_notifications_cancelled() -> Result<(), Box<dyn std::
     let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
     gate.request_timeout = Duration::from_millis(30);
+    let echo_entry = echo_tool_registry_entry("stub-mcp");
+    let tool_id = echo_entry.tool_id.clone();
+    gate.tool_registry.push(echo_entry);
     gate.tool_policies.insert(
-        "echo".to_string(),
+        tool_id.clone(),
         ToolPolicy {
             required_capability: Some("fs.read".to_string()),
             requires_consent: false,
@@ -1152,7 +1204,7 @@ async fn mcp_timeout_sends_notifications_cancelled() -> Result<(), Box<dyn std::
     client.refresh_tools().await?;
 
     let err = client
-        .tools_call(ctx, "echo", json!({ "message": "hi" }))
+        .tools_call(ctx, tool_id.as_str(), json!({ "message": "hi" }))
         .await
         .expect_err("expected timeout");
     assert!(matches!(err, McpError::Timeout(_)));
@@ -1196,8 +1248,11 @@ async fn mcp_path_escape_and_symlink_are_blocked() -> Result<(), Box<dyn std::er
 
     let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
+    let echo_entry = echo_tool_registry_entry("stub-mcp");
+    let tool_id = echo_entry.tool_id.clone();
+    gate.tool_registry.push(echo_entry);
     gate.tool_policies.insert(
-        "echo".to_string(),
+        tool_id.clone(),
         ToolPolicy {
             required_capability: Some("fs.read".to_string()),
             requires_consent: false,
@@ -1221,7 +1276,7 @@ async fn mcp_path_escape_and_symlink_are_blocked() -> Result<(), Box<dyn std::er
     let ok = client
         .tools_call(
             ctx.clone(),
-            "echo",
+            tool_id.as_str(),
             json!({ "message": "hi", "path": inside.to_string_lossy() }),
         )
         .await?;
@@ -1231,7 +1286,7 @@ async fn mcp_path_escape_and_symlink_are_blocked() -> Result<(), Box<dyn std::er
     let err = client
         .tools_call(
             ctx.clone(),
-            "echo",
+            tool_id.as_str(),
             json!({ "message": "hi", "path": "../escape.txt" }),
         )
         .await
@@ -1266,7 +1321,7 @@ async fn mcp_path_escape_and_symlink_are_blocked() -> Result<(), Box<dyn std::er
         let err = client
             .tools_call(
                 ctx,
-                "echo",
+                tool_id.as_str(),
                 json!({ "message": "hi", "path": link.to_string_lossy() }),
             )
             .await
