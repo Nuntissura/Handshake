@@ -307,7 +307,7 @@ git revert <commit-sha>
 - **End**: 1626
 - **Line Delta**: 895
 - **Pre-SHA1**: `f4275d3da4404bbe0183fe0f121e639d80796fb5`
-- **Post-SHA1**: `9cf9a7b8c0ec33af0e86a82b3ca3c0f614483f84`
+- **Post-SHA1**: `8a404a8d6277b9af3ef745f0b1ee004106fe963c`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -325,7 +325,7 @@ git revert <commit-sha>
 - **End**: 515
 - **Line Delta**: 60
 - **Pre-SHA1**: `056494c5fcfce2aefe301b803ee2bf05897c4914`
-- **Post-SHA1**: `6a18bbd4b78ae594e7300ed60d3c64a60798bcdd`
+- **Post-SHA1**: `f144fa3d2992daff079f2c0755a477b14cf1b8b9`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
