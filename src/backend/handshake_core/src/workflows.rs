@@ -2503,11 +2503,21 @@ async fn run_job(
         let view_mode_raw = inputs.get("view_mode").and_then(|v| v.as_str());
 
         if let Some(doc_id) = doc_id {
-            let (view_mode, view_mode_unrecognized) = match view_mode_raw.map(|s| s.trim()) {
-                Some(s) if s.eq_ignore_ascii_case("SFW") => (ViewMode::Sfw, false),
-                Some(s) if s.eq_ignore_ascii_case("NSFW") => (ViewMode::Nsfw, false),
-                Some(_) => (ViewMode::Sfw, true),
-                None => (ViewMode::Nsfw, false),
+            let view_mode = match view_mode_raw.map(|s| s.trim()) {
+                Some(s) if s.eq_ignore_ascii_case("SFW") => ViewMode::Sfw,
+                Some(s) if s.eq_ignore_ascii_case("NSFW") => ViewMode::Nsfw,
+                Some(other) => {
+                    return Ok(RunJobOutcome {
+                        state: JobState::Failed,
+                        status_reason: "invalid_job_inputs".to_string(),
+                        output: None,
+                        error_message: Some(format!(
+                            "invalid view_mode in job_inputs: expected 'SFW' or 'NSFW', got '{}'",
+                            other
+                        )),
+                    });
+                }
+                None => ViewMode::Nsfw,
             };
 
             let blocks = state.storage.get_blocks(doc_id).await?;
@@ -2525,11 +2535,6 @@ async fn run_job(
             plan.filters.view_mode = view_mode;
             let mut trace = build_retrieval_trace_from_blocks(&blocks, &plan)
                 .map_err(WorkflowError::SecurityViolation)?;
-            if view_mode_unrecognized {
-                trace
-                    .warnings
-                    .push("view_mode_unrecognized:defaulted_to=SFW".to_string());
-            }
             trace.apply_view_mode_hard_drop();
 
             // WAIVER [CX-573E]: Instant::now() for observability per ┬º2.6.6.7.12

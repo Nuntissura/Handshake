@@ -5,7 +5,7 @@
 - WP_ID: WP-1-Lens-ViewMode-v1
 - BASE_WP_ID: WP-1-Lens-ViewMode (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: 2026-02-24T12:03:19.298Z
-- MERGE_BASE_SHA: 35cd220dbfe573628ce1ab565a6363f0b993a1eb
+- MERGE_BASE_SHA: 13efad9235ec5e7cfe4870bcb986b81d30416aed
 - REQUESTOR: Operator (ilja)
 - AGENT_ID: CodexCLI-GPT-5.2 (Orchestrator)
 - ROLE: Orchestrator
@@ -84,7 +84,7 @@ cd app; pnpm test
 just test
 
 # Post-work (before PR / final handoff):
-just post-work WP-1-Lens-ViewMode-v1 --range 35cd220dbfe573628ce1ab565a6363f0b993a1eb..HEAD
+just post-work WP-1-Lens-ViewMode-v1 --range 13efad9235ec5e7cfe4870bcb986b81d30416aed..HEAD
 ```
 
 ### DONE_MEANS
@@ -237,7 +237,7 @@ git revert COMMIT_SHA
   - Implemented `RetrievalTrace::apply_view_mode_hard_drop()` (SFW strict-drop + count-only warnings + required labeling).
   - Added `ViewModeHardDropGuard` and wired into default `ValidatorPipeline`.
   - Wired SFW hard-drop into workflows (before trace validation).
-  - Parsed `view_mode` from doc job inputs and applied to `QueryPlan.filters.view_mode`.
+  - Parsed `view_mode` from doc job inputs (case-insensitive allowlist; invalid values fail with `invalid_job_inputs`) and applied to `QueryPlan.filters.view_mode`.
 - Frontend:
   - Added `ViewModeToggle` + localStorage persistence (`handshake.view_mode`).
   - `createJob(...)` attaches `view_mode` into doc job inputs (`doc_edit`, `doc_summarize`, `doc_rewrite`) when not already provided.
@@ -254,36 +254,173 @@ git revert COMMIT_SHA
   - `just lint`
   - `cd app; pnpm run lint`
   - `cd app; pnpm test`
-  - `just test` (deferred due to Windows paging file / mmap constraints in this environment)
+  - `just test`
+  - `cd src/backend/handshake_core; cargo test`
   - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target-release" --release --test lens_viewmode_tests -q`
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- (Mechanical manifest for audit. This section records hashes/lines for Validator review. It is NOT a claim of official Validation.)
+- **Target File**: `app/src/App.css`
+- **Start**: 59
+- **End**: 108
+- **Line Delta**: 50
+- **Pre-SHA1**: `2c0c011c75e7b09edbb0d07b4b7ee31554bf2468`
+- **Post-SHA1**: `7a87bee83ac5d5d2aa91f03ec5d1edc8d2c7e189`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/App.tsx`
+- **Start**: 3
+- **End**: 109
+- **Line Delta**: 11
+- **Pre-SHA1**: `4ce4a3c6791a8a371882e19e0e09c1c8d2789614`
+- **Post-SHA1**: `80b9d2a1734b3f30079e1823ca0385a773259e5a`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/components/ViewModeToggle.tsx`
+- **Start**: 1
+- **End**: 31
+- **Line Delta**: 31
+- **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
+- **Post-SHA1**: `c73af54dd33028fe30f5b849c721df3fc6ce9df9`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/lib/api.ts`
+- **Start**: 1
+- **End**: 645
+- **Line Delta**: 18
+- **Pre-SHA1**: `9614f5eecb99ed45d2cd26b41850b446101ac3b0`
+- **Post-SHA1**: `2e131ab7051b1d18f304d767cf4cd92234fa9898`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/lib/viewMode.ts`
+- **Start**: 1
+- **End**: 29
+- **Line Delta**: 29
+- **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
+- **Post-SHA1**: `40ced7947df19db838e1d700f440a3bb5ed4bda2`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ace/mod.rs`
+- **Start**: 312
+- **End**: 1132
+- **Line Delta**: 110
+- **Pre-SHA1**: `effe2e46c1e514ac8ec8a5a1626903316fba085a`
+- **Post-SHA1**: `68b097f0aa3cec8b1b2f0b39acd113722886440c`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ace/validators/mod.rs`
+- **Start**: 3
+- **End**: 1234
+- **Line Delta**: 86
+- **Pre-SHA1**: `25b80de87f0e8ae1c028b55e092a0e53ee008375`
+- **Post-SHA1**: `24a27e5e87374878f4c30090cb471529c64e98f7`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 13
+- **End**: 11359
+- **Line Delta**: 27
+- **Pre-SHA1**: `0fb7b3b8c92e0fe1454bea5a5664146af6644aca`
+- **Post-SHA1**: `2c8260d8881fb89aeb38412a5336930be264d484`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/tests/lens_viewmode_tests.rs`
+- **Start**: 1
+- **End**: 186
+- **Line Delta**: 186
+- **Pre-SHA1**: `da39a3ee5e6b4b0d3255bfef95601890afd80709`
+- **Post-SHA1**: `65ad1cbc66873d97bdb5f0522b41373f17372061`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
@@ -303,7 +440,7 @@ git revert COMMIT_SHA
   - SFW strict-drop enforced via `apply_view_mode_hard_drop()` + `ViewModeHardDropGuard`.
   - Required SFW projection labeling fields added to serialized trace evidence (Addendum 11.3).
 - Next step / handoff hint:
-  - Run full `just test` when the environment paging file / mmap constraints are resolved, then run `just post-work WP-1-Lens-ViewMode-v1 --range 35cd220dbfe573628ce1ab565a6363f0b993a1eb..HEAD`.
+  - Run `just post-work WP-1-Lens-ViewMode-v1 --range 13efad9235ec5e7cfe4870bcb986b81d30416aed..HEAD`.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
@@ -313,7 +450,7 @@ git revert COMMIT_SHA
 - REQUIREMENT: "ViewMode type exists per spec and is plumbed through Lens query inputs as \"NSFW\"|\"SFW\" (default \"NSFW\")."
   - EVIDENCE: `app/src/lib/viewMode.ts:1`
   - EVIDENCE: `app/src/lib/api.ts:640`
-  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:2525`
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:2535`
   - EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:315`
 - REQUIREMENT: "In ViewMode=\"SFW\", retrieval enforces strict drop (default-deny): no returned candidates/results with content_tier != \"sfw\"; content_tier==None is treated as non-sfw and dropped (no \"collapsed/blurred but revealable\" leakage)."
   - EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:593`
@@ -321,7 +458,7 @@ git revert COMMIT_SHA
   - EVIDENCE: `src/backend/handshake_core/tests/lens_viewmode_tests.rs:20`
 - REQUIREMENT: "SFW mode applies projection at render/output only and MUST NOT write back or mutate stored raw/derived descriptors/artifacts."
   - EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:796`
-  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:2533`
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:2538`
 - REQUIREMENT: "In ViewMode=\"SFW\", any SFW-projected output is labeled per spec Addendum 11.3 (required): projection_applied=true, projection_kind=\"SFW\", projection_ruleset_id, and a link to underlying raw evidence."
   - EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:753`
   - EVIDENCE: `src/backend/handshake_core/tests/lens_viewmode_tests.rs:137`
@@ -365,6 +502,16 @@ git revert COMMIT_SHA
   - PROOF_LINES:
     - `The paging file is too small for this operation to complete. (os error 1455)`
     - `crate \`libduckdb_sys\` required to be available in rlib format, but was not found in this form`
+- COMMAND: `cd src/backend/handshake_core; cargo test`
+  - EXIT_CODE: `0`
+  - PROOF_LINES:
+    - `running 183 tests`
+    - `Doc-tests handshake_core`
+- COMMAND: `just test`
+  - EXIT_CODE: `0`
+  - PROOF_LINES:
+    - `running 183 tests`
+    - `test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;`
 - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir \"../Handshake Artifacts/handshake-cargo-target-release\" --release --test lens_viewmode_tests -q`
   - EXIT_CODE: `0`
   - PROOF_LINES:
