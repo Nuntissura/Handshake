@@ -556,3 +556,5 @@ Risks & Suggested Actions:
 
 Improvements & Future Proofing:
 - Add an explicit bypass-scan test for MCP `tools/call` send_request call sites outside `src/backend/handshake_core/src/mcp/gate.rs` (manual grep was clean in this validation session).
+
+SKELETON APPROVED
