@@ -480,40 +480,40 @@ git revert COMMIT_SHA
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
 - COMMAND: `just gov-check`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - PROOF_LINES:
     - `SPEC_CURRENT ok: Handshake_Master_Spec_v02.137.md`
     - `gov-check ok`
 - COMMAND: `just fmt`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - PROOF_LINES:
     - `cd src/backend/handshake_core; cargo fmt`
 - COMMAND: `cd app; pnpm run lint`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - PROOF_LINES:
     - `eslint src --ext .ts,.tsx`
 - COMMAND: `cd app; pnpm test`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - PROOF_LINES:
     - `Test Files  6 passed (6)`
     - `Tests       13 passed (13)`
 - COMMAND: `just test`
-  - EXIT_CODE: `1`
+  - EXIT_CODE: 1
   - PROOF_LINES:
     - `The paging file is too small for this operation to complete. (os error 1455)`
     - `crate \`libduckdb_sys\` required to be available in rlib format, but was not found in this form`
 - COMMAND: `cd src/backend/handshake_core; cargo test`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - PROOF_LINES:
     - `running 183 tests`
     - `Doc-tests handshake_core`
 - COMMAND: `just test`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - PROOF_LINES:
     - `running 183 tests`
     - `test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;`
 - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir \"../Handshake Artifacts/handshake-cargo-target-release\" --release --test lens_viewmode_tests -q`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - PROOF_LINES:
     - `running 3 tests`
     - `test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;`
