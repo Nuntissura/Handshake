@@ -304,10 +304,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/mcp/gate.rs`
 - **Start**: 1
-- **End**: 1621
-- **Line Delta**: 890
+- **End**: 1626
+- **Line Delta**: 895
 - **Pre-SHA1**: `f4275d3da4404bbe0183fe0f121e639d80796fb5`
-- **Post-SHA1**: `d24b91d98b26883d8d176469e6c895e2b01f9088`
+- **Post-SHA1**: `9cf9a7b8c0ec33af0e86a82b3ca3c0f614483f84`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -322,10 +322,10 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/mex/conformance.rs`
 - **Start**: 1
-- **End**: 510
-- **Line Delta**: 55
+- **End**: 515
+- **Line Delta**: 60
 - **Pre-SHA1**: `056494c5fcfce2aefe301b803ee2bf05897c4914`
-- **Post-SHA1**: `5cc38b406841eebe87ddba46044fa3f7ef95be28`
+- **Post-SHA1**: `6a18bbd4b78ae594e7300ed60d3c64a60798bcdd`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -392,7 +392,8 @@ git revert <commit-sha>
   - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
   - EVIDENCE: `path/to/file:line`
 - REQUIREMENT: "HTC-1.0 envelope schema exists as SSoT and Tool Gate validates request/response envelopes; validation failure uses VAL-HTC-001."
-- EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:733`
+- EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:738`
+- EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:748`
 - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:316`
 - REQUIREMENT: "FR-EVT-007 ToolCall validator requires transport, side_effect, idempotency, actor, ok, and full timing.* fields."
 - EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:1101`
@@ -417,6 +418,15 @@ git revert <commit-sha>
 - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --jobs 1`
 - EXIT_CODE: 0
 - PROOF_LINES: `running 183 tests`
+- COMMAND: `just validator-scan`
+- EXIT_CODE: 0
+- PROOF_LINES: `validator-scan: PASS - no forbidden patterns detected in backend/frontend sources.`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --jobs 1`
+- EXIT_CODE: 0
+- ENV: `CARGO_TARGET_DIR=C:\Users\ILJASM~1\AppData\Local\Temp\handshake_wp1_target`
+- LOG_PATH: `C:\Users\ILJASM~1\AppData\Local\Temp\wp1_handshake_core_cargo_test_20260225_035035.log`
+- LOG_SHA256: `8815f03d96b539061d6ae502514ac6f1de116d1aa7114aa43fdf12b0f5131348`
+- PROOF_LINES: `test result: ok. 0 failed; (see log)`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
