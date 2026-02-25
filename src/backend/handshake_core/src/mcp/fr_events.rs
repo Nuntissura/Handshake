@@ -1,5 +1,6 @@
 use serde_json::{json, Value};
 use std::sync::Arc;
+use uuid::Uuid;
 
 use crate::flight_recorder::FlightRecorder;
 
@@ -81,12 +82,18 @@ pub fn record_tool_call(
     ctx: &McpContext,
     server_id: &str,
     tool_name: &str,
+    tool_call_id: Uuid,
+    tool_id: &str,
+    tool_version: &str,
     capability_id: Option<&str>,
-    arguments: &Value,
+    args_ref: Option<&str>,
+    args_hash: Option<&str>,
 ) -> McpResult<()> {
     let payload = json!({
+        "tool_call_id": tool_call_id.to_string(),
+        "tool_id": tool_id,
         "tool_name": format!("mcp:{server_id}:{tool_name}"),
-        "tool_version": null,
+        "tool_version": tool_version,
         "inputs": [],
         "outputs": [],
         "status": "success",
@@ -98,7 +105,8 @@ pub fn record_tool_call(
         "capability_id": capability_id,
         "server_id": server_id,
         "tool": tool_name,
-        "arguments": arguments,
+        "args_ref": args_ref,
+        "args_hash": args_hash,
     });
     insert_fr_event(
         flight_recorder.as_ref(),
@@ -111,8 +119,10 @@ pub fn record_tool_call(
     )?;
 
     let payload = json!({
+        "tool_call_id": tool_call_id.to_string(),
+        "tool_id": tool_id,
         "tool_name": format!("mcp:{server_id}:{tool_name}"),
-        "tool_version": null,
+        "tool_version": tool_version,
         "inputs": [],
         "outputs": [],
         "status": "success",
@@ -124,7 +134,8 @@ pub fn record_tool_call(
         "capability_id": capability_id,
         "server_id": server_id,
         "tool": tool_name,
-        "arguments": arguments,
+        "args_ref": args_ref,
+        "args_hash": args_hash,
     });
     insert_fr_event(
         flight_recorder.as_ref(),
@@ -142,15 +153,21 @@ pub fn record_tool_result(
     ctx: &McpContext,
     server_id: &str,
     tool_name: &str,
+    tool_call_id: Uuid,
+    tool_id: &str,
+    tool_version: &str,
     capability_id: Option<&str>,
     status: &str,
     duration_ms: Option<u128>,
     error_code: Option<&str>,
-    result: &Value,
+    result_ref: Option<&str>,
+    result_hash: Option<&str>,
 ) -> McpResult<()> {
     let payload = json!({
+        "tool_call_id": tool_call_id.to_string(),
+        "tool_id": tool_id,
         "tool_name": format!("mcp:{server_id}:{tool_name}"),
-        "tool_version": null,
+        "tool_version": tool_version,
         "inputs": [],
         "outputs": [],
         "status": status,
@@ -162,7 +179,8 @@ pub fn record_tool_result(
         "capability_id": capability_id,
         "server_id": server_id,
         "tool": tool_name,
-        "result": result,
+        "result_ref": result_ref,
+        "result_hash": result_hash,
     });
     let level = if status == "success" { "INFO" } else { "ERROR" };
     insert_fr_event(
@@ -176,8 +194,10 @@ pub fn record_tool_result(
     )?;
 
     let payload = json!({
+        "tool_call_id": tool_call_id.to_string(),
+        "tool_id": tool_id,
         "tool_name": format!("mcp:{server_id}:{tool_name}"),
-        "tool_version": null,
+        "tool_version": tool_version,
         "inputs": [],
         "outputs": [],
         "status": status,
@@ -189,7 +209,8 @@ pub fn record_tool_result(
         "capability_id": capability_id,
         "server_id": server_id,
         "tool": tool_name,
-        "result": result,
+        "result_ref": result_ref,
+        "result_hash": result_hash,
     });
     insert_fr_event(
         flight_recorder.as_ref(),

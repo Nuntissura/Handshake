@@ -6,7 +6,8 @@ use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
 use handshake_core::flight_recorder::FlightRecorder;
 use handshake_core::mcp::errors::McpError;
 use handshake_core::mcp::gate::{
-    ConsentDecision, ConsentProvider, GateConfig, GatedMcpClient, McpContext, ToolPolicy,
+    canonical_mcp_tool_id, ConsentDecision, ConsentProvider, GateConfig, GatedMcpClient, McpContext,
+    ToolPolicy, ToolRegistryEntry, ToolTransportBindings,
 };
 use handshake_core::mcp::jsonrpc::{JsonRpcId, JsonRpcMessage, JsonRpcNotification, JsonRpcResponse};
 use handshake_core::mcp::transport::duplex::DuplexTransport;
@@ -310,9 +311,32 @@ async fn mcp_e2e_persists_progress_mapping_records_fr_events_and_hydrates_ref() 
 
     let transport = DuplexTransport::new(client_stream);
     let mut gate = GateConfig::minimal();
-    gate.allowed_tools = Some(["echo_ref".to_string()].into_iter().collect());
+    let entry = ToolRegistryEntry {
+        tool_id: canonical_mcp_tool_id(server_id, "echo_ref"),
+        tool_version: "1.0.0".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "message": { "type": "string" }
+            },
+            "required": ["message"],
+            "additionalProperties": false
+        }),
+        output_schema: None,
+        side_effect: "READ".to_string(),
+        idempotency: "IDEMPOTENT".to_string(),
+        determinism: "DETERMINISTIC".to_string(),
+        availability: "AVAILABLE".to_string(),
+        required_capabilities: vec!["fs.read".to_string()],
+        transport_bindings: ToolTransportBindings {
+            mcp_name: "echo_ref".to_string(),
+        },
+    };
+    let tool_id = entry.tool_id.clone();
+    gate.tool_registry.push(entry);
+    gate.allowed_tools = Some([tool_id.clone()].into_iter().collect());
     gate.tool_policies.insert(
-        "echo_ref".to_string(),
+        tool_id.clone(),
         ToolPolicy {
             required_capability: Some("fs.read".to_string()),
             requires_consent: false,
@@ -334,7 +358,7 @@ async fn mcp_e2e_persists_progress_mapping_records_fr_events_and_hydrates_ref() 
 
     client.refresh_tools().await?;
     let result = client
-        .tools_call(ctx.clone(), "echo_ref", json!({ "message": "hi" }))
+        .tools_call(ctx.clone(), tool_id.as_str(), json!({ "message": "hi" }))
         .await?;
 
     let token = tokio::time::timeout(Duration::from_secs(2), token_rx).await??;

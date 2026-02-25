@@ -15,9 +15,11 @@ use crate::diagnostics::{
     LinkConfidence, ProblemGroup,
 };
 use crate::storage::StorageError;
+use crate::ace::ArtifactHandle;
 
 use super::{
-    FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+    canonical_json_sha256_hex, FlightRecorder, FlightRecorderActor, FlightRecorderEvent,
+    FlightRecorderEventType,
     FrEvt003Diagnostic, RecorderError,
 };
 
@@ -46,6 +48,43 @@ pub(crate) fn store_terminal_output_redacted(
     .map_err(|e| RecorderError::SinkError(e.to_string()))?;
 
     Ok(())
+}
+
+pub(crate) fn store_tool_payload_redacted(
+    conn: &DuckDbConnection,
+    tool_call_id: Uuid,
+    payload_kind: &str,
+    payload_redacted: &Value,
+) -> Result<(ArtifactHandle, String), RecorderError> {
+    let payload_sha256 = canonical_json_sha256_hex(payload_redacted);
+    let artifact_path = format!(
+        "data/flight_recorder/tool_payloads/{tool_call_id}/{payload_kind}.json"
+    );
+    let payload_str = serde_json::to_string(payload_redacted)
+        .map_err(|e| RecorderError::InvalidEvent(e.to_string()))?;
+
+    conn.execute(
+        r#"
+        INSERT INTO tool_payloads (
+            tool_call_id,
+            payload_kind,
+            ts_utc,
+            artifact_path,
+            payload,
+            payload_sha256
+        ) VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
+    "#,
+        duckdb::params![
+            tool_call_id.to_string(),
+            payload_kind,
+            artifact_path.clone(),
+            payload_str,
+            payload_sha256.clone()
+        ],
+    )
+    .map_err(|e| RecorderError::SinkError(e.to_string()))?;
+
+    Ok((ArtifactHandle::new(tool_call_id, artifact_path), payload_sha256))
 }
 
 fn map_db_error(err: duckdb::Error) -> StorageError {
@@ -306,6 +345,22 @@ impl DuckDbFlightRecorder {
         )
         .map_err(|e| RecorderError::SinkError(e.to_string()))?;
 
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS tool_payloads (
+                tool_call_id UUID NOT NULL,
+                payload_kind TEXT NOT NULL,
+                ts_utc TIMESTAMP NOT NULL,
+                artifact_path TEXT NOT NULL,
+                payload JSON NOT NULL,
+                payload_sha256 TEXT NOT NULL,
+                PRIMARY KEY(tool_call_id, payload_kind)
+            );
+            CREATE INDEX IF NOT EXISTS idx_tool_payloads_ts ON tool_payloads(ts_utc);
+        "#,
+        )
+        .map_err(|e| RecorderError::SinkError(e.to_string()))?;
+
         Ok(())
     }
 
@@ -561,7 +616,16 @@ impl DuckDbFlightRecorder {
             .execute(&terminal_query, [])
             .map_err(|e| RecorderError::SinkError(e.to_string()))?;
 
-        Ok((affected_events + affected_fr_events + affected_terminal_output) as u64)
+        let tool_payload_query = format!(
+            "DELETE FROM tool_payloads WHERE ts_utc < (CURRENT_TIMESTAMP - INTERVAL '{}' DAY)",
+            self.retention_days
+        );
+        let affected_tool_payloads = conn
+            .execute(&tool_payload_query, [])
+            .map_err(|e| RecorderError::SinkError(e.to_string()))?;
+
+        Ok((affected_events + affected_fr_events + affected_terminal_output + affected_tool_payloads)
+            as u64)
     }
 
     fn query_events(
@@ -683,6 +747,7 @@ impl DuckDbFlightRecorder {
                 "terminal_command" => super::FlightRecorderEventType::TerminalCommand,
                 "editor_edit" => super::FlightRecorderEventType::EditorEdit,
                 "llm_inference" => super::FlightRecorderEventType::LlmInference,
+                "tool_call" => super::FlightRecorderEventType::ToolCall,
                 "diagnostic" => super::FlightRecorderEventType::Diagnostic,
                 "micro_task_loop_started" => super::FlightRecorderEventType::MicroTaskLoopStarted,
                 "micro_task_iteration_started" => {

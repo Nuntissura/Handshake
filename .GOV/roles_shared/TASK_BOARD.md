@@ -49,6 +49,8 @@ Entry format (recommended):
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
 
+- **[WP-1-Unified-Tool-Surface-Contract-v1]** - [ACTIVE] - branch: feat/WP-1-Unified-Tool-Surface-Contract-v1 - coder: Coder-A - last_sync: 2026-02-24
+
 ## Stub Backlog (Not Activated)
 - **[WP-1-Video-Archive-Loom-Integration-v1]** - [STUB]
 - **[WP-1-Governance-Pack-v1]** - [STUB]
@@ -56,9 +58,7 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 - **[WP-1-Spec-Creation-System-v2.2.1-v1]** - [STUB]
 - **[WP-1-Locus-Work-Tracking-System-Phase1-v1]** - [STUB]
 - **[WP-1-LocalFirst-Agentic-MCP-Posture-v1]** - [STUB]
-- **[WP-1-Unified-Tool-Surface-Contract-v1]** - [STUB]
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
-- **[WP-1-Global-Silent-Edit-Guard]** - [STUB]
 - **[WP-1-Metrics-OTel-v2]** - [STUB]
 - **[WP-1-ACE-Auditability-v2]** - [STUB]
 - **[WP-1-RAG-Iterative-v2]** - [STUB]
