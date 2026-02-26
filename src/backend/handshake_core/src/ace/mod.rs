@@ -12,6 +12,7 @@ pub mod validators;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use uuid::Uuid;
@@ -194,6 +195,9 @@ pub struct MemoryWriteOperation {
     pub memory_class: String,
     pub trust_level: String,
     pub source_refs: Vec<SourceRef>,
+    pub content: String,
+    pub content_hash: String,
+    pub content_excerpt: String,
     pub requires_review: bool,
 }
 
@@ -238,7 +242,10 @@ pub struct MemoryPackItem {
     pub memory_class: String,
     pub trust_level: String,
     pub classification: String,
+    pub source_ref_id: String,
     pub source_hash: String,
+    pub content_hash: String,
+    pub content_excerpt: String,
     pub token_estimate: u32,
     pub priority: i32,
     pub status: String,
@@ -267,15 +274,102 @@ fn hash_serializable<T: Serialize>(value: &T) -> Result<Hash, serde_json::Error>
     Ok(hex::encode(hasher.finalize()))
 }
 
+fn memory_mutation_op_key(op: MemoryMutationOp) -> &'static str {
+    match op {
+        MemoryMutationOp::Add => "add",
+        MemoryMutationOp::Update => "update",
+        MemoryMutationOp::Supersede => "supersede",
+        MemoryMutationOp::Invalidate => "invalidate",
+        MemoryMutationOp::Tombstone => "tombstone",
+    }
+}
+
+fn canonical_scope_refs(scope_refs: &[String]) -> Vec<String> {
+    let mut refs = scope_refs.to_vec();
+    refs.sort();
+    refs.dedup();
+    refs
+}
+
+fn canonical_source_refs(source_refs: &[SourceRef]) -> Vec<SourceRef> {
+    let mut refs = source_refs.to_vec();
+    refs.sort_by(|a, b| {
+        a.source_hash
+            .cmp(&b.source_hash)
+            .then_with(|| a.source_id.cmp(&b.source_id))
+    });
+    refs.dedup_by(|a, b| a.source_id == b.source_id && a.source_hash == b.source_hash);
+    refs
+}
+
+fn canonical_operations(operations: &[MemoryWriteOperation]) -> Vec<MemoryWriteOperation> {
+    let mut ops = operations.to_vec();
+    for op in &mut ops {
+        op.source_refs = canonical_source_refs(&op.source_refs);
+    }
+    ops.sort_by(|a, b| {
+        a.memory_id
+            .cmp(&b.memory_id)
+            .then_with(|| memory_mutation_op_key(a.op).cmp(memory_mutation_op_key(b.op)))
+            .then_with(|| a.memory_class.cmp(&b.memory_class))
+            .then_with(|| a.trust_level.cmp(&b.trust_level))
+            .then_with(|| a.content_hash.cmp(&b.content_hash))
+    });
+    ops
+}
+
+fn canonical_commit_changes(changes: &[MemoryCommitChange]) -> Vec<MemoryCommitChange> {
+    let mut items = changes.to_vec();
+    items.sort_by(|a, b| {
+        a.memory_id
+            .cmp(&b.memory_id)
+            .then_with(|| {
+                memory_mutation_op_key(a.operation).cmp(memory_mutation_op_key(b.operation))
+            })
+            .then_with(|| a.previous_status.cmp(&b.previous_status))
+            .then_with(|| a.new_status.cmp(&b.new_status))
+            .then_with(|| a.reason.cmp(&b.reason))
+            .then_with(|| a.actor.cmp(&b.actor))
+    });
+    items
+}
+
 impl MemoryWriteProposal {
     pub fn compute_hash(&self) -> Result<Hash, serde_json::Error> {
-        hash_serializable(self)
+        let canonical_operations = canonical_operations(&self.operations);
+        let canonical_source_refs = canonical_source_refs(
+            &canonical_operations
+                .iter()
+                .flat_map(|op| op.source_refs.clone())
+                .collect::<Vec<_>>(),
+        );
+        let payload = json!({
+            "schema_version": self.schema_version,
+            "proposal_id": self.proposal_id,
+            "scope_refs": canonical_scope_refs(&self.scope_refs),
+            "source_refs": canonical_source_refs,
+            "operations": canonical_operations,
+        });
+        hash_serializable(&payload)
     }
 }
 
 impl MemoryCommitReport {
     pub fn compute_hash(&self) -> Result<Hash, serde_json::Error> {
-        hash_serializable(self)
+        let mut changed_memory_ids = self.changed_memory_ids.clone();
+        changed_memory_ids.sort();
+        changed_memory_ids.dedup();
+        let payload = json!({
+            "schema_version": self.schema_version,
+            "commit_id": self.commit_id,
+            "proposal_id": self.proposal_id,
+            "memory_policy": self.memory_policy,
+            "decision": self.decision,
+            "reviewer_kind": self.reviewer_kind,
+            "changed_memory_ids": changed_memory_ids,
+            "changes": canonical_commit_changes(&self.changes),
+        });
+        hash_serializable(&payload)
     }
 }
 
@@ -1741,5 +1835,79 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[test]
+    fn test_memory_write_proposal_hash_is_deterministic_without_wall_clock_fields() {
+        let source = SourceRef::new(Uuid::from_u128(11), "a".repeat(64));
+        let operation = MemoryWriteOperation {
+            op: MemoryMutationOp::Update,
+            memory_id: "mem_001".to_string(),
+            memory_class: "working".to_string(),
+            trust_level: "trusted".to_string(),
+            source_refs: vec![source.clone()],
+            content: "remember alpha".to_string(),
+            content_hash: "b".repeat(64),
+            content_excerpt: "remember alpha".to_string(),
+            requires_review: true,
+        };
+
+        let mut first = MemoryWriteProposal {
+            schema_version: "hsk.memory_write_proposal@0.1".to_string(),
+            proposal_id: "550e8400-e29b-41d4-a716-446655440100".to_string(),
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            created_by_job_id: "job_a".to_string(),
+            scope_refs: vec!["workspace:alpha".to_string()],
+            source_refs: vec![source.clone()],
+            operations: vec![operation.clone()],
+        };
+        let mut second = first.clone();
+        second.created_at = "2030-01-01T00:00:00Z".to_string();
+        second.created_by_job_id = "job_b".to_string();
+
+        let hash_first = first.compute_hash().expect("hash");
+        let hash_second = second.compute_hash().expect("hash");
+        assert_eq!(hash_first, hash_second);
+
+        // Semantic change must alter hash.
+        first.operations[0].content = "remember beta".to_string();
+        first.operations[0].content_hash = "c".repeat(64);
+        let hash_changed = first.compute_hash().expect("hash");
+        assert_ne!(hash_first, hash_changed);
+    }
+
+    #[test]
+    fn test_memory_commit_report_hash_is_deterministic_without_wall_clock_fields() {
+        let change = MemoryCommitChange {
+            memory_id: "mem_001".to_string(),
+            operation: MemoryMutationOp::Update,
+            previous_status: "active".to_string(),
+            new_status: "active".to_string(),
+            reason: "merge".to_string(),
+            actor: "policy".to_string(),
+        };
+        let mut first = MemoryCommitReport {
+            schema_version: "hsk.memory_commit_report@0.1".to_string(),
+            commit_id: "550e8400-e29b-41d4-a716-446655440101".to_string(),
+            proposal_id: "550e8400-e29b-41d4-a716-446655440100".to_string(),
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            created_by_job_id: "job_a".to_string(),
+            memory_policy: MemoryPolicy::WorkspaceScoped,
+            decision: "approved".to_string(),
+            reviewer_kind: "user".to_string(),
+            changed_memory_ids: vec!["mem_001".to_string()],
+            changes: vec![change.clone()],
+        };
+        let mut second = first.clone();
+        second.created_at = "2030-01-01T00:00:00Z".to_string();
+        second.created_by_job_id = "job_b".to_string();
+
+        let hash_first = first.compute_hash().expect("hash");
+        let hash_second = second.compute_hash().expect("hash");
+        assert_eq!(hash_first, hash_second);
+
+        first.changes[0].new_status = "superseded".to_string();
+        let hash_changed = first.compute_hash().expect("hash");
+        assert_ne!(hash_first, hash_changed);
     }
 }

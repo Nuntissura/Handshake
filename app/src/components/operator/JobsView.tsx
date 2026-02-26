@@ -2,8 +2,10 @@ import React, { useEffect, useState } from "react";
 import {
   AiJob,
   asFemsJobOutput,
+  createFemsJob,
   Diagnostic,
   FlightEvent,
+  FemsProtocolId,
   getJob,
   getEvents,
   isFemsProtocolId,
@@ -71,6 +73,49 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
+function toFemsMemoryItemsFromProposal(
+  proposal: Record<string, unknown> | null,
+): Array<Record<string, unknown>> {
+  if (!proposal) return [];
+  const rawOperations = proposal["operations"];
+  if (!Array.isArray(rawOperations)) return [];
+
+  const out: Array<Record<string, unknown>> = [];
+  for (const op of rawOperations) {
+    if (!isRecord(op)) continue;
+    const memoryId = typeof op.memory_id === "string" ? op.memory_id : "";
+    if (!memoryId) continue;
+    const memoryClass = typeof op.memory_class === "string" ? op.memory_class : "working";
+    const trustLevel = typeof op.trust_level === "string" ? op.trust_level : "untrusted";
+    const content = typeof op.content === "string" ? op.content : "";
+    const sourceRefs = Array.isArray(op.source_refs) ? op.source_refs.filter((v) => isRecord(v)) : [];
+    const firstRef = sourceRefs[0];
+    const sourceRefId = firstRef && typeof firstRef.source_id === "string" ? firstRef.source_id : "";
+    const sourceHash = firstRef && typeof firstRef.source_hash === "string" ? firstRef.source_hash : "";
+
+    out.push({
+      memory_id: memoryId,
+      memory_class: memoryClass,
+      trust_level: trustLevel,
+      content,
+      source_ref_id: sourceRefId,
+      source_hash: sourceHash,
+      source_refs: sourceRefs.map((entry) => ({
+        source_ref_id: typeof entry.source_id === "string" ? entry.source_id : "",
+        source_hash: typeof entry.source_hash === "string" ? entry.source_hash : "",
+      })),
+      requires_review: Boolean(op.requires_review),
+      operation: typeof op.op === "string" ? op.op : "update",
+    });
+  }
+  return out;
+}
+
+function protocolForReviewAction(protocolId: FemsProtocolId): FemsProtocolId {
+  if (protocolId === "memory_forget_v0.1") return "memory_forget_v0.1";
+  return "memory_consolidate_v0.1";
+}
+
 const LOCAL_USER_ID_KEY = "hsk.local_user_id.v1";
 
 function getOrCreateLocalUserId(): string {
@@ -107,6 +152,9 @@ export const JobsView: React.FC<Props> = ({ onSelect, focusJobId }) => {
   const [consentNotes, setConsentNotes] = useState("");
   const [consentSubmitting, setConsentSubmitting] = useState(false);
   const [consentError, setConsentError] = useState<string | null>(null);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewResultJobId, setReviewResultJobId] = useState<string | null>(null);
 
   const fetchJobs = async (override?: JobFilters) => {
     const active = override ?? filters;
@@ -201,6 +249,8 @@ export const JobsView: React.FC<Props> = ({ onSelect, focusJobId }) => {
   useEffect(() => {
     setConsentError(null);
     setConsentNotes("");
+    setReviewError(null);
+    setReviewResultJobId(null);
   }, [selectedJob?.job_id]);
 
   const cloudConsentOutput = (() => {
@@ -220,6 +270,9 @@ export const JobsView: React.FC<Props> = ({ onSelect, focusJobId }) => {
     femsOutput && isRecord(femsOutput.commit_report)
       ? (femsOutput.commit_report as Record<string, unknown>)
       : null;
+  const femsReviewActionable = Boolean(
+    femsProposal && (femsReview?.status === "awaiting_review" || femsReview?.status === "proposal_created"),
+  );
 
   const submitConsent = async (approved: boolean) => {
     if (!selectedJob || !cloudConsentOutput) return;
@@ -250,6 +303,53 @@ export const JobsView: React.FC<Props> = ({ onSelect, focusJobId }) => {
       setConsentError(err instanceof Error ? err.message : "Failed to record cloud consent");
     } finally {
       setConsentSubmitting(false);
+    }
+  };
+
+  const submitFemsReview = async (decision: "approved" | "rejected", disableMemory: boolean) => {
+    if (!selectedJob || !femsOutput || !femsProposal || !isFemsProtocolId(selectedJob.protocol_id)) return;
+
+    const proposalId = typeof femsProposal.proposal_id === "string" ? femsProposal.proposal_id : "";
+    if (!proposalId) {
+      setReviewError("Missing proposal_id in FEMS proposal output.");
+      return;
+    }
+
+    const memoryItems = toFemsMemoryItemsFromProposal(femsProposal);
+    if (memoryItems.length === 0) {
+      setReviewError("Proposal has no operation payload to review.");
+      return;
+    }
+
+    const targetProtocol = protocolForReviewAction(selectedJob.protocol_id);
+    const requestedPolicy =
+      femsOutput.memory_policy_requested ?? femsOutput.memory_policy ?? "WORKSPACE_SCOPED";
+
+    setReviewSubmitting(true);
+    setReviewError(null);
+    setReviewResultJobId(null);
+    try {
+      const run = await createFemsJob(targetProtocol, {
+        memory_policy: requestedPolicy,
+        proposal_id: proposalId,
+        reviewer_kind: "user",
+        review_decision: decision,
+        disable_memory: disableMemory,
+        memory_items: memoryItems,
+      });
+      setReviewResultJobId(run.job_id);
+      const refreshed = await getJob(run.job_id);
+      setSelectedJob(refreshed);
+      setJobs((prev) => {
+        const has = prev.some((job) => job.job_id === refreshed.job_id);
+        return has
+          ? prev.map((job) => (job.job_id === refreshed.job_id ? refreshed : job))
+          : [refreshed, ...prev];
+      });
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : "Failed to submit memory review.");
+    } finally {
+      setReviewSubmitting(false);
     }
   };
 
@@ -496,6 +596,48 @@ export const JobsView: React.FC<Props> = ({ onSelect, focusJobId }) => {
                             <li>Reviewer kind: {femsReview?.reviewer_kind ?? "n/a"}</li>
                           </ul>
                           {femsOutput?.warning && <p className="error small">Warning: {femsOutput.warning}</p>}
+                          {femsReviewActionable && (
+                            <div style={{ marginTop: 12, marginBottom: 12 }}>
+                              <h4 style={{ marginBottom: 8 }}>Memory Write Review</h4>
+                              <p className="muted small">
+                                Review is job-driven: actions create a follow-up commit/review job. MemoryItems are not
+                                mutated directly from UI.
+                              </p>
+                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                <button
+                                  type="button"
+                                  className="primary"
+                                  disabled={reviewSubmitting}
+                                  onClick={() => submitFemsReview("approved", false)}
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  type="button"
+                                  className="secondary"
+                                  disabled={reviewSubmitting}
+                                  onClick={() => submitFemsReview("rejected", false)}
+                                >
+                                  Reject
+                                </button>
+                                <button
+                                  type="button"
+                                  className="secondary"
+                                  disabled={reviewSubmitting}
+                                  onClick={() => submitFemsReview("rejected", true)}
+                                  title="Reject and set disable-memory guardrail for follow-up job"
+                                >
+                                  Disable Memory
+                                </button>
+                              </div>
+                              {reviewResultJobId && (
+                                <p className="muted small" style={{ marginTop: 8 }}>
+                                  Review job created: {reviewResultJobId}
+                                </p>
+                              )}
+                              {reviewError && <p className="error small">Error: {reviewError}</p>}
+                            </div>
+                          )}
 
                           {femsMemoryPack && (
                             <details>

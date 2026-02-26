@@ -3,18 +3,18 @@
 ## METADATA
 - TASK_ID: WP-1-Front-End-Memory-System-v1
 - WP_ID: WP-1-Front-End-Memory-System-v1
-- BASE_WP_ID: WP-1-Front-End-Memory-System (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
+- BASE_WP_ID: WP-1-Front-End-Memory-System
 - DATE: 2026-02-26T00:01:20.142Z
-- MERGE_BASE_SHA: 460e4198b11994da9515fb8c627e05cd6f4b1760 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: 460e4198b11994da9515fb8c627e05cd6f4b1760
 - REQUESTOR: Operator (ilja)
 - AGENT_ID: CodexCLI-GPT-5.2 (Orchestrator)
 - ROLE: Orchestrator
 - AGENTIC_MODE: YES
-- ORCHESTRATOR_MODEL: GPT-5.2 (Codex CLI) (required if AGENTIC_MODE=YES)
-- ORCHESTRATION_STARTED_AT_UTC: 2026-02-26T00:05:00Z (RFC3339 UTC; required if AGENTIC_MODE=YES)
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- ORCHESTRATOR_MODEL: GPT-5.2 (Codex CLI)
+- ORCHESTRATION_STARTED_AT_UTC: 2026-02-26T00:05:00Z
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja260220260100
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -188,6 +188,13 @@ git revert <commit-sha>
   - Confirm whether DCC memory panel MVP should live under existing operator views or dedicated component for this packet.
 - Notes:
   - This packet is the core v02.138 Phase 1 FEMS deliverable and should precede FEMS risk/acceptance follow-on packets.
+  - BOOTSTRAP baseline scan indicates FEMS-specific contracts are not present yet in in-scope runtime/API/UI paths; this WP introduces the first end-to-end FEMS v0 surface.
+  - File-level contract mapping for this WP:
+    - `src/backend/handshake_core/src/workflows.rs`: add FEMS job-kind handling + session memory policy orchestration + review-gated commit path wiring.
+    - `src/backend/handshake_core/src/jobs.rs` and `src/backend/handshake_core/src/api/jobs.rs`: expose/accept FEMS job contracts and policy-safe job lifecycle entrypoints.
+    - `src/backend/handshake_core/src/flight_recorder/mod.rs` and `src/backend/handshake_core/src/flight_recorder/duckdb.rs`: add FR-EVT-MEM-001..005 event typing + validation + persistence mapping.
+    - `app/src/lib/api.ts` + `app/src/state/aiJobs.ts`: add frontend contract types/actions for memory proposal/review/pack preview payloads.
+    - `app/src/components/operator/TimelineView.tsx`, `app/src/components/operator/JobsView.tsx`, `app/src/components/operator/DebugBundleExport.tsx`: add memory timeline visibility and operator review/preview affordances.
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
@@ -218,50 +225,324 @@ git revert <commit-sha>
   - Replay mode can reproduce memory_pack_hash for identical inputs and pinned selection.
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Added FEMS runtime contracts and deterministic hashing:
+  - `MemoryPolicy`, `MemoryWriteProposal`, `MemoryCommitReport`, `MemoryPack` and related memory mutation structs in `src/backend/handshake_core/src/ace/mod.rs`.
+  - Deterministic hash computation for proposal/report/pack artifacts.
+- Added procedural-review guardrail:
+  - `promotion:procedural_requires_review` warning and enforcement in `src/backend/handshake_core/src/ace/validators/promotion.rs`.
+- Implemented FEMS execution path in workflows:
+  - Protocol dispatch for `memory_extract_v0.1`, `memory_consolidate_v0.1`, `memory_forget_v0.1`.
+  - Memory policy enforcement for `EPHEMERAL|SESSION_SCOPED|WORKSPACE_SCOPED`.
+  - Deterministic pack construction with truncation accounting and hash emission.
+  - Review-gated write proposal/commit flow for procedural memory changes.
+- Added FR-EVT-MEM-001..005 event support:
+  - Added event types, payload validators, and duckdb mappings.
+  - Payloads are id/hash/ref fields only (no raw memory content fields).
+- Added API and operator UI plumbing:
+  - FEMS job-kind aliases accepted in jobs API with protocol consistency checks.
+  - Frontend FEMS types/helpers and memory-aware operator UI surfaces in Jobs/Timeline/Debug export views.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Out-of-scope formatting drift from `just fmt` was reverted to keep this WP diff in-scope.
+- TEST_PLAN commands were executed in this worktree and recorded in `## EVIDENCE` with command + exit code entries.
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `.GOV/roles_shared/TASK_BOARD.md`
+- **Start**: 1
+- **End**: 200
+- **Line Delta**: 0
+- **Pre-SHA1**: `c66eb61f900cb81b7d5b6d01e1f63d18585cca57`
+- **Post-SHA1**: `44eec622a7f72668ad89f75696582341bf767881`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/components/operator/DebugBundleExport.tsx`
+- **Start**: 1
+- **End**: 409
+- **Line Delta**: 4
+- **Pre-SHA1**: `8e3b23a5108f64a568c653ec6d7f91c8a278b5a8`
+- **Post-SHA1**: `a7f0af807e55cb0169608affb496fe7e9e0131a5`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/components/operator/JobsView.tsx`
+- **Start**: 1
+- **End**: 723
+- **Line Delta**: 239
+- **Pre-SHA1**: `a00a7f67531a8ec135ec2b9b16caae5044f4b025`
+- **Post-SHA1**: `40e9275d93d6b5c534ecce1fd259cb8dacc41f83`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/components/operator/TimelineView.tsx`
+- **Start**: 1
+- **End**: 426
+- **Line Delta**: 19
+- **Pre-SHA1**: `8619157ab25cb71799db9a7b0a4a1bb700726e43`
+- **Post-SHA1**: `b45211d7caeb80517d2c6c1679572c12b06725d7`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/lib/api.ts`
+- **Start**: 1
+- **End**: 752
+- **Line Delta**: 68
+- **Pre-SHA1**: `e92de6705290e9c4f4aa02a70a29167aa012c4d1`
+- **Post-SHA1**: `fe84083996bf202949227a53ea4d8a31b38a7607`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/state/aiJobs.ts`
+- **Start**: 1
+- **End**: 180
+- **Line Delta**: 8
+- **Pre-SHA1**: `3674f5a8216e3112280fe69ceb5fd2d3ecdc2af4`
+- **Post-SHA1**: `1c9da94876212c93f46354a868426cc77f0b85ff`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ace/mod.rs`
+- **Start**: 1
+- **End**: 1713
+- **Line Delta**: 299
+- **Pre-SHA1**: `2bcf517f927cc4eac5cc881a418c16ecc535d2e8`
+- **Post-SHA1**: `51c0626fb2bdf114532e16e92c3c7224e902fc15`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ace/validators/promotion.rs`
+- **Start**: 1
+- **End**: 235
+- **Line Delta**: 39
+- **Pre-SHA1**: `bbff1aee75c7007392c67e10942b1463672698c5`
+- **Post-SHA1**: `765f6b5a46624a10bd7f0c05fbde99f099f55050`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/api/jobs.rs`
+- **Start**: 1
+- **End**: 465
+- **Line Delta**: 77
+- **Pre-SHA1**: `f20fa2f70fff95b80656df7727f42ac43d777793`
+- **Post-SHA1**: `a6322b45a19e58e41839e2e1456f24655881176c`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- **Start**: 1
+- **End**: 1455
+- **Line Delta**: 10
+- **Pre-SHA1**: `695ec1973ee07b82dbc00ca3df71664acc87698e`
+- **Post-SHA1**: `85e545db63261d4227e573346c5273441023f4a3`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 1
+- **End**: 5005
+- **Line Delta**: 406
+- **Pre-SHA1**: `cff114132c8f83a0e9f328e57e3bbf17b2ecbbd6`
+- **Post-SHA1**: `a0cf5706edd14bae057c6a3b1ae9e44cd3093353`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1
+- **End**: 16823
+- **Line Delta**: 1220
+- **Pre-SHA1**: `401fa370f9a01967ed51c9b56e2a0cc2a2e322b8`
+- **Post-SHA1**: `1750d205522c8e5a123cbdce633a4b24b8ae1101`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+ - **Lint Results**: `just lint` exit code 0
+- **Artifacts**: FEMS runtime, FR event, API, and UI code paths listed in `## IMPLEMENTATION`
+- **Timestamp**: 2026-02-26T00:00:00Z
+- **Operator**: coder
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.138.md
+- **Notes**: Range-manifest values computed against `460e4198b11994da9515fb8c627e05cd6f4b1760..HEAD`
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress (implementation complete, hygiene/evidence updated, awaiting validator handoff)
+- What changed in this update: Implemented FEMS v0 runtime/API/UI and FR-EVT-MEM-001..005 plumbing; recorded hygiene and deterministic manifest metadata for post-work checks.
+- Next step / handoff hint: Run/collect `just post-work ... --range ...` output and hand off to Validator.
+- Current WP_STATUS: In Progress (remediation batch applied after Validator FAIL report)
+- What changed in this update: Restored append-only `## VALIDATION_REPORTS`; implemented extract->proposal flow, deterministic proposal/commit hashing inputs, provenance/content validation, ArtifactHandle FR payload alignment, and operator review controls.
+- Next step / handoff hint: Validator re-runs spec conformance against this remediation head.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
   - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
   - EVIDENCE: `path/to/file:line`
+- REQUIREMENT: "FEMS job profile contracts are represented in runtime job paths (`memory_extract_v0.1`, `memory_consolidate_v0.1`, `memory_forget_v0.1`) with explicit proposal/commit artifacts."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11121`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11288`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11444`
+- EVIDENCE: `src/backend/handshake_core/src/api/jobs.rs:22`
+- REQUIREMENT: "Session `memory_policy` behavior is enforced with deterministic/bounded memory pack handling."
+- EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:191`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11011`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11180`
+- REQUIREMENT: "Procedural memory writes are review-gated only."
+- EVIDENCE: `src/backend/handshake_core/src/ace/validators/promotion.rs:22`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11277`
+- REQUIREMENT: "Flight Recorder emits FR-EVT-MEM-001..005 with hash/id-based payloads (no raw memory content)."
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:117`
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:5252`
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:5315`
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/duckdb.rs:816`
+- REQUIREMENT: "Operator UI exposes memory inspection/review/preview affordances."
+- EVIDENCE: `app/src/components/operator/JobsView.tsx:212`
+- EVIDENCE: `app/src/components/operator/TimelineView.tsx:243`
+- EVIDENCE: `app/src/components/operator/DebugBundleExport.tsx:219`
+- EVIDENCE: `app/src/state/aiJobs.ts:178`
+- REQUIREMENT: "Append-only packet history remediation: preserve prior Validator FAIL report content."
+- EVIDENCE: `.GOV/task_packets/WP-1-Front-End-Memory-System-v1.md:548`
+- REQUIREMENT: "memory_extract_v0.1 produces MemoryWriteProposal artifact (not read-only early return)."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11483`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11549`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11578`
+- REQUIREMENT: "Deterministic hashes/IDs do not depend on wall-clock for proposal/commit surfaces."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:10944`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11534`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11740`
+- EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:338`
+- EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:358`
+- REQUIREMENT: "Validate step rejects missing/invalid provenance and instruction-like content."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:10987`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11048`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:18216`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:18229`
+- REQUIREMENT: "Server-enforced effective memory policy/session context is applied (not raw client input only)."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:10916`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11347`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11406`
+- REQUIREMENT: "Operator UI supports review gating actions (approve/reject/disable-memory) without direct MemoryItem mutation."
+- EVIDENCE: `app/src/components/operator/JobsView.tsx:309`
+- EVIDENCE: `app/src/components/operator/JobsView.tsx:601`
+- EVIDENCE: `app/src/components/operator/JobsView.tsx:630`
+- REQUIREMENT: "FR-EVT-MEM payload schema aligns to ArtifactHandle object shape."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11536`
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:3679`
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:3735`
+- EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:5283`
+- REQUIREMENT: "FEMS-EVAL-001 coverage added: determinism, truncation, anti-poisoning/provenance rejects, FR payload privacy."
+- EVIDENCE: `src/backend/handshake_core/src/ace/mod.rs:1841`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:18240`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:18285`
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:18369`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
@@ -271,6 +552,140 @@ git revert <commit-sha>
   - LOG_PATH: `.handshake/logs/WP-1-Front-End-Memory-System-v1/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- COMMAND: just pre-work WP-1-Front-End-Memory-System-v1
+- EXIT_CODE: 0
+- PROOF_LINES: `Pre-work checks completed with no blocking errors`
+- COMMAND: just gate-check WP-1-Front-End-Memory-System-v1
+- EXIT_CODE: 0
+- PROOF_LINES: `All critical gate checks passed`
+- COMMAND: just gov-check
+- EXIT_CODE: 0
+- PROOF_LINES: `Governance checks completed`
+- COMMAND: just fmt
+- EXIT_CODE: 0
+- PROOF_LINES: `Formatting command completed; out-of-scope drift reverted afterward`
+- COMMAND: just lint
+- EXIT_CODE: 0
+- PROOF_LINES: `Lint command completed (warnings present, non-blocking)`
+- COMMAND: just test
+- EXIT_CODE: 0
+- PROOF_LINES: `test result: ok`
+- COMMAND: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test terminal_session_tests
+- EXIT_CODE: 0
+- PROOF_LINES: `test result: ok`
+- COMMAND: cd app; pnpm test
+- EXIT_CODE: 0
+- PROOF_LINES: `Test Files  6 passed`
+- COMMAND: just cargo-clean
+- EXIT_CODE: 0
+- PROOF_LINES: `cargo clean completed`
+- COMMAND: just post-work WP-1-Front-End-Memory-System-v1 --range 460e4198b11994da9515fb8c627e05cd6f4b1760..HEAD
+- EXIT_CODE: 1
+- PROOF_LINES: `Initial run reported placeholder manifest/evidence fields; packet updated accordingly`
+- COMMAND: cargo test --manifest-path src/backend/handshake_core/Cargo.toml fems_ -- --nocapture
+- EXIT_CODE: 0
+- PROOF_LINES: `6 passed; 0 failed (includes new FEMS tests)`
+- COMMAND: cd app; pnpm -s exec tsc --noEmit
+- EXIT_CODE: 0
+- PROOF_LINES: `TypeScript compile completed without errors`
+- COMMAND: just pre-work WP-1-Front-End-Memory-System-v1
+- EXIT_CODE: 0
+- PROOF_LINES: `Pre-work validation PASSED`
+- COMMAND: just gov-check
+- EXIT_CODE: 0
+- PROOF_LINES: `gov-check completed`
+- COMMAND: just fmt
+- EXIT_CODE: 0
+- PROOF_LINES: `cargo fmt completed`
+- COMMAND: git restore -- src/backend/handshake_core/src/api/loom.rs src/backend/handshake_core/src/llm/registry.rs src/backend/handshake_core/src/loom_fs.rs src/backend/handshake_core/src/mcp/client.rs src/backend/handshake_core/src/mcp/gate.rs src/backend/handshake_core/src/mcp/transport/reconnect.rs src/backend/handshake_core/src/mex/conformance.rs src/backend/handshake_core/src/mex/runtime.rs src/backend/handshake_core/src/storage/loom.rs src/backend/handshake_core/src/storage/mod.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/src/storage/sqlite.rs src/backend/handshake_core/tests/mcp_e2e_tests.rs src/backend/handshake_core/tests/mcp_gate_tests.rs
+- EXIT_CODE: 0
+- PROOF_LINES: `Out-of-scope formatting drift reverted`
+- COMMAND: just lint
+- EXIT_CODE: 0
+- PROOF_LINES: `eslint + clippy completed (warnings present)`
+- COMMAND: just test
+- EXIT_CODE: 0
+- PROOF_LINES: `194 passed; 0 failed`
+- COMMAND: cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test terminal_session_tests
+- EXIT_CODE: 0
+- PROOF_LINES: `5 passed; 0 failed`
+- COMMAND: cd app; pnpm test
+- EXIT_CODE: 0
+- PROOF_LINES: `Test Files 6 passed`
+- COMMAND: just cargo-clean
+- EXIT_CODE: 0
+- PROOF_LINES: `Removed handshake_core target artifacts`
+- COMMAND: just post-work WP-1-Front-End-Memory-System-v1 --range 460e4198b11994da9515fb8c627e05cd6f4b1760..HEAD
+- EXIT_CODE: 0
+- PROOF_LINES: `Post-work validation PASSED (deterministic manifest gate; not tests)`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+VALIDATION REPORT -- WP-1-Front-End-Memory-System-v1
+Verdict: FAIL
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Front-End-Memory-System-v1`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS (note: coder recorded an initial `post-work` FAIL; Validator reran and recorded PASS below)
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): NO
+
+Scope Inputs:
+- Task Packet: .GOV/task_packets/WP-1-Front-End-Memory-System-v1.md (status: In Progress)
+- Spec: Handshake_Master_Spec_v02.138.md anchors 2.6.6.6.6, 2.6.6.7.6.2, 4.3.9.12.7, 5.4.8, 10.11.5.14, 11.5.13
+
+Validated Window:
+- MERGE_BASE_SHA: 460e4198b11994da9515fb8c627e05cd6f4b1760
+- Range validated by `just post-work` (Validator-run): 460e4198b11994da9515fb8c627e05cd6f4b1760..de84ead2540d9e85f46cc9502033de08de9b9b3f
+
+Files Checked:
+- src/backend/handshake_core/src/workflows.rs
+- src/backend/handshake_core/src/ace/mod.rs
+- src/backend/handshake_core/src/ace/validators/promotion.rs
+- src/backend/handshake_core/src/api/jobs.rs
+- src/backend/handshake_core/src/flight_recorder/mod.rs
+- app/src/components/operator/JobsView.tsx
+- Handshake_Master_Spec_v02.138.md (sections above)
+
+Findings (Blocking):
+- Spec 2.6.6.6.6 (Job kinds minimum): `memory_extract_v0.1` MUST extract candidate memories into a `MemoryWriteProposal`.
+  - Current implementation treats `memory_extract_v0.1` as non-write and returns without creating a proposal: `src/backend/handshake_core/src/workflows.rs:10867`, `src/backend/handshake_core/src/workflows.rs:11222`.
+  - Proposal creation is only reached for write protocols (consolidate/forget): `src/backend/handshake_core/src/workflows.rs:11288`.
+- Spec 2.6.6.6.6 + 2.6.6.7.6.2 (Determinism): extraction/consolidation MUST be deterministic under pinned inputs in strict/replay.
+  - `created_at` is set from wall-clock time (`Utc::now()`) inside proposal + commit report, and hashes include that field: `src/backend/handshake_core/src/workflows.rs:11291`, `src/backend/handshake_core/src/workflows.rs:11448`, `src/backend/handshake_core/src/ace/mod.rs:201`, `src/backend/handshake_core/src/ace/mod.rs:263`.
+- Spec 2.6.6.7.6.2.5 (Validate step): extraction MUST reject items without bounded SourceRefs and reject instruction-like content.
+  - Implementation fabricates missing source_ref_id/source_hash instead of rejecting missing provenance: `src/backend/handshake_core/src/workflows.rs:10932`.
+  - No content-level validation exists because FEMS input items/pack items do not include any memory content fields to validate (metadata-only pack): `src/backend/handshake_core/src/ace/mod.rs:236`.
+- Spec 4.3.9.12.7 (ModelSession integration): memory_policy read/write semantics, cloud-safe pack decision recording, and memory_state_ref SHOULD pointer are specified on ModelSession per-call.
+  - Current implementation is a WorkflowRun job-path only; there is no ModelSession integration surface in this diff, and `memory_policy` is only parsed from job_inputs: `src/backend/handshake_core/src/workflows.rs:10874`.
+- Spec 10.11.5.14 (Front End Memory Panel): required views include approve/reject review actions and a disable-memory action.
+  - Current UI only displays read-only preview fields in Jobs inspector; no approve/reject actions, no disable-memory control: `app/src/components/operator/JobsView.tsx:477`.
+- Spec 5.4.8 (FEMS-EVAL-001 test suite): normative suite requires budget/truncation, provenance selector bounds, anti-poisoning/instruction suppression, determinism/replay, cloud redaction correctness, and consolidation/conflict behavior validation.
+  - Current tests added/observed cover only protocol alias acceptance, promotion guard review gating, and FR payload validation; the FEMS-EVAL-001 suite is not implemented in tests.
+- Spec 11.5.13 (FR-EVT-MEM-* schema): event payload types specify `artifact_ref: ArtifactHandle`.
+  - Current implementation uses string refs like `fems://proposals/...` and validators enforce prefixed token strings rather than ArtifactHandle objects: `src/backend/handshake_core/src/workflows.rs:11312`, `src/backend/handshake_core/src/flight_recorder/mod.rs:3695`.
+
+Hygiene:
+- Deterministic manifest gate: PASS (Validator rerun) for range noted above.
+- Git status at validation time: clean (WP worktree).
+
+Tests (per packet EVIDENCE):
+- `just pre-work WP-1-Front-End-Memory-System-v1`: PASS (exit code 0)
+- `just gov-check`: PASS (exit code 0)
+- `just fmt`: PASS (exit code 0)
+- `just lint`: PASS (exit code 0; warnings present per coder note)
+- `just test`: PASS (exit code 0)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test terminal_session_tests`: PASS (exit code 0)
+- `cd app; pnpm test`: PASS (exit code 0)
+- `just post-work WP-1-Front-End-Memory-System-v1 --range 460e4198.....HEAD`: Validator rerun PASS (see chat + gate output)
+
+Risks & Suggested Actions:
+1. Implement `memory_extract_v0.1` as the proposal-producing job (or introduce a separate `memory_pack_build` protocol and align naming with spec), and ensure proposal artifacts are produced and hashable.
+2. Remove wall-clock fields from hashed proposal/report OR derive them deterministically in strict/replay; ensure hash uses canonical JSON rules if required by spec.
+3. Add FEMS validation gates: bounded SourceRefs, instruction suppression, and provenance enforcement per 2.6.6.7.6.2.5.
+4. Implement the FEMS-EVAL-001 test suite items (budget/truncation determinism, replay hash determinism, cloud redaction correctness, consolidation/conflict behavior).
+5. Expand operator UI to meet 10.11.5.14: review approve/reject actions, MemoryPack preview, and disable-memory control (job-driven; no direct mutation).
+6. Align FR-EVT-MEM payload schemas with spec (ArtifactHandle shape) or document/waive the representation mismatch explicitly.
+
+REASON FOR FAIL:
+- The implementation does not satisfy multiple normative MUST requirements from the cited spec anchors (notably: `memory_extract_v0.1` does not produce a MemoryWriteProposal, determinism requirements are violated by wall-clock timestamps in hashed artifacts, the required DCC memory review controls are not implemented, and the FEMS-EVAL-001 test suite is missing). Per Validator Protocol and Codex [CX-598], merge is blocked until requirements are implemented or an explicit waiver/override is recorded.

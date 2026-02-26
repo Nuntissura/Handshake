@@ -638,7 +638,15 @@ export type FemsJobOutput = {
   schema_version: "hsk.fems.result@0.1";
   protocol_id: FemsProtocolId;
   memory_policy: "EPHEMERAL" | "SESSION_SCOPED" | "WORKSPACE_SCOPED";
+  memory_policy_requested?: "EPHEMERAL" | "SESSION_SCOPED" | "WORKSPACE_SCOPED";
   memory_state_ref?: string | null;
+  memory_session?: {
+    memory_policy_requested: "EPHEMERAL" | "SESSION_SCOPED" | "WORKSPACE_SCOPED";
+    memory_policy_effective: "EPHEMERAL" | "SESSION_SCOPED" | "WORKSPACE_SCOPED";
+    memory_state_ref?: string | null;
+    server_enforced: boolean;
+    cloud_consent_granted: boolean;
+  };
   proposal?: Record<string, unknown>;
   proposal_hash?: string;
   commit_report?: Record<string, unknown>;
@@ -649,6 +657,8 @@ export type FemsJobOutput = {
     status: string;
     required_ops: number;
     reviewer_kind?: "user" | "policy";
+    disable_memory?: boolean;
+    disable_memory_allowed?: boolean;
   };
   memory_browser?: {
     items: Array<Record<string, unknown>>;

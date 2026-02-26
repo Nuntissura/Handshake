@@ -3663,22 +3663,6 @@ fn validate_locus_work_query_executed_payload(payload: &Value) -> Result<(), Rec
     Ok(())
 }
 
-fn require_prefixed_token(
-    map: &Map<String, Value>,
-    key: &str,
-    prefix: &str,
-    max_len: usize,
-) -> Result<(), RecorderError> {
-    match require_key(map, key)? {
-        Value::String(value) if value.starts_with(prefix) && is_safe_token(value, max_len) => {
-            Ok(())
-        }
-        _ => Err(RecorderError::InvalidEvent(format!(
-            "payload field {key} must be a safe token with prefix {prefix}"
-        ))),
-    }
-}
-
 fn require_safe_token_string(
     map: &Map<String, Value>,
     key: &str,
@@ -3689,6 +3673,62 @@ fn require_safe_token_string(
         _ => Err(RecorderError::InvalidEvent(format!(
             "payload field {key} must be a safe token string"
         ))),
+    }
+}
+
+fn validate_artifact_handle_value(value: &Value, key: &str) -> Result<(), RecorderError> {
+    let obj = value.as_object().ok_or_else(|| {
+        RecorderError::InvalidEvent(format!("payload field {key} must be an object"))
+    })?;
+    require_allowed_keys(obj, &["artifact_id", "path"], &[])?;
+    let artifact_id = match require_key(obj, "artifact_id")? {
+        Value::String(value) => value,
+        _ => {
+            return Err(RecorderError::InvalidEvent(format!(
+                "payload field {key}.artifact_id must be a string"
+            )))
+        }
+    };
+    let parsed = Uuid::parse_str(artifact_id).map_err(|_| {
+        RecorderError::InvalidEvent(format!(
+            "payload field {key}.artifact_id must be a non-nil UUID"
+        ))
+    })?;
+    if parsed.is_nil() {
+        return Err(RecorderError::InvalidEvent(format!(
+            "payload field {key}.artifact_id must be a non-nil UUID"
+        )));
+    }
+    let path = match require_key(obj, "path")? {
+        Value::String(value) => value,
+        _ => {
+            return Err(RecorderError::InvalidEvent(format!(
+                "payload field {key}.path must be a string"
+            )))
+        }
+    };
+    if path.trim().is_empty() || !is_safe_token(path, 512) {
+        return Err(RecorderError::InvalidEvent(format!(
+            "payload field {key}.path must be a safe token string"
+        )));
+    }
+    Ok(())
+}
+
+fn require_artifact_handle_object(
+    map: &Map<String, Value>,
+    key: &str,
+) -> Result<(), RecorderError> {
+    validate_artifact_handle_value(require_key(map, key)?, key)
+}
+
+fn require_artifact_handle_object_or_null(
+    map: &Map<String, Value>,
+    key: &str,
+) -> Result<(), RecorderError> {
+    match require_key(map, key)? {
+        Value::Null => Ok(()),
+        value => validate_artifact_handle_value(value, key),
     }
 }
 
@@ -3713,7 +3753,7 @@ fn validate_memory_write_proposed_payload(payload: &Value) -> Result<(), Recorde
     require_fixed_string(map, "event_id", "FR-EVT-MEM-001")?;
     require_safe_token_string(map, "proposal_id", 256)?;
     require_sha256_hex(map, "proposal_hash")?;
-    require_prefixed_token(map, "artifact_ref", "fems://proposals/", 512)?;
+    require_artifact_handle_object(map, "artifact_ref")?;
     for scope_ref in require_string_array_allow_empty(map, "scope_refs")? {
         if !is_safe_token(scope_ref, 256) {
             return Err(RecorderError::InvalidEvent(
@@ -3760,16 +3800,7 @@ fn validate_memory_write_reviewed_payload(payload: &Value) -> Result<(), Recorde
             ))
         }
     }
-    match require_key(map, "commit_report_ref")? {
-        Value::Null => {}
-        Value::String(value)
-            if value.starts_with("fems://commits/") && is_safe_token(value, 512) => {}
-        _ => {
-            return Err(RecorderError::InvalidEvent(
-                "payload field commit_report_ref must be null or a fems://commits/ ref".to_string(),
-            ))
-        }
-    }
+    require_artifact_handle_object_or_null(map, "commit_report_ref")?;
     Ok(())
 }
 
@@ -3794,7 +3825,7 @@ fn validate_memory_write_committed_payload(payload: &Value) -> Result<(), Record
     require_safe_token_string(map, "commit_id", 256)?;
     require_safe_token_string(map, "proposal_id", 256)?;
     require_sha256_hex(map, "commit_report_hash")?;
-    require_prefixed_token(map, "artifact_ref", "fems://commits/", 512)?;
+    require_artifact_handle_object(map, "artifact_ref")?;
     require_sha256_hex(map, "changed_memory_ids_hash")?;
     Ok(())
 }
@@ -3824,7 +3855,7 @@ fn validate_memory_pack_built_payload(payload: &Value) -> Result<(), RecorderErr
     require_fixed_string(map, "event_id", "FR-EVT-MEM-004")?;
     require_safe_token_string(map, "pack_id", 256)?;
     require_sha256_hex(map, "memory_pack_hash")?;
-    require_prefixed_token(map, "artifact_ref", "fems://packs/", 512)?;
+    require_artifact_handle_object(map, "artifact_ref")?;
     match require_key(map, "memory_policy")? {
         Value::String(value)
             if matches!(
@@ -5255,7 +5286,10 @@ mod tests {
             "event_id": "FR-EVT-MEM-001",
             "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
             "proposal_hash": DUMMY_SHA256,
-            "artifact_ref": "fems://proposals/550e8400-e29b-41d4-a716-446655440000",
+            "artifact_ref": {
+                "artifact_id": "550e8400-e29b-41d4-a716-44665544000a",
+                "path": ".handshake/fems/proposals/550e8400-e29b-41d4-a716-446655440000.json"
+            },
             "scope_refs": ["workspace:550e8400-e29b-41d4-a716-446655440001"],
             "op_count": 2,
             "requires_review_count": 1
@@ -5268,7 +5302,10 @@ mod tests {
             "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
             "decision": "approved",
             "reviewer_kind": "user",
-            "commit_report_ref": "fems://commits/550e8400-e29b-41d4-a716-446655440000"
+            "commit_report_ref": {
+                "artifact_id": "550e8400-e29b-41d4-a716-44665544000b",
+                "path": ".handshake/fems/commits/550e8400-e29b-41d4-a716-446655440000.json"
+            }
         });
         assert!(validate_memory_write_reviewed_payload(&reviewed).is_ok());
 
@@ -5278,7 +5315,10 @@ mod tests {
             "commit_id": "550e8400-e29b-41d4-a716-446655440002",
             "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
             "commit_report_hash": DUMMY_SHA256,
-            "artifact_ref": "fems://commits/550e8400-e29b-41d4-a716-446655440002",
+            "artifact_ref": {
+                "artifact_id": "550e8400-e29b-41d4-a716-44665544000c",
+                "path": ".handshake/fems/commits/550e8400-e29b-41d4-a716-446655440002.json"
+            },
             "changed_memory_ids_hash": DUMMY_SHA256
         });
         assert!(validate_memory_write_committed_payload(&committed).is_ok());
@@ -5288,7 +5328,10 @@ mod tests {
             "event_id": "FR-EVT-MEM-004",
             "pack_id": "550e8400-e29b-41d4-a716-446655440003",
             "memory_pack_hash": DUMMY_SHA256,
-            "artifact_ref": "fems://packs/550e8400-e29b-41d4-a716-446655440003",
+            "artifact_ref": {
+                "artifact_id": "550e8400-e29b-41d4-a716-44665544000d",
+                "path": ".handshake/fems/packs/550e8400-e29b-41d4-a716-446655440003.json"
+            },
             "memory_policy": "WORKSPACE_SCOPED",
             "scope_refs": ["workspace:550e8400-e29b-41d4-a716-446655440001"],
             "item_count": 4,
@@ -5318,7 +5361,10 @@ mod tests {
             "event_id": "FR-EVT-MEM-001",
             "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
             "proposal_hash": DUMMY_SHA256,
-            "artifact_ref": "fems://proposals/550e8400-e29b-41d4-a716-446655440000",
+            "artifact_ref": {
+                "artifact_id": "550e8400-e29b-41d4-a716-44665544000e",
+                "path": ".handshake/fems/proposals/550e8400-e29b-41d4-a716-446655440000.json"
+            },
             "scope_refs": [],
             "op_count": 1,
             "requires_review_count": 0
