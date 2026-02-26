@@ -48,6 +48,7 @@ Entry format (recommended):
 ## Ready for Dev
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
+- **[WP-1-Front-End-Memory-System-v1]** - [READY_FOR_DEV]
 
 ## Stub Backlog (Not Activated)
 - **[WP-1-Video-Archive-Loom-Integration-v1]** - [STUB]
@@ -57,6 +58,9 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 - **[WP-1-Locus-Work-Tracking-System-Phase1-v1]** - [STUB]
 - **[WP-1-LocalFirst-Agentic-MCP-Posture-v1]** - [STUB]
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
+- **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [STUB]
+- **[WP-1-Spec-Router-CapabilitySnapshot-v1]** - [STUB]
+- **[WP-1-Spec-Router-SpecLint-v1]** - [STUB]
 - **[WP-1-Metrics-OTel-v2]** - [STUB]
 - **[WP-1-ACE-Auditability-v2]** - [STUB]
 - **[WP-1-RAG-Iterative-v2]** - [STUB]
@@ -78,7 +82,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 - **[WP-1-Work-Profiles-v1]** - [STUB]
 - **[WP-1-Inbox-Role-Mailbox-Alignment-v1]** - [STUB]
 - **[WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1]** - [STUB]
-- **[WP-1-Front-End-Memory-System-v1]** - [STUB]
 - **[WP-1-FEMS-Memory-Poisoning-Drift-Guardrails-v1]** - [STUB]
 - **[WP-1-FEMS-Acceptance-Replay-Eval-v1]** - [STUB]
 - **[WP-1-ModelSession-Core-Scheduler-v1]** - [STUB]

@@ -35,6 +35,14 @@ Update this file when any of the following occurs:
 - WP-1-Media-Downloader (active packet: see WP_TRACEABILITY_REGISTRY)
   - Rationale: urgent family salvage value; exercises engine.job queue, tools, and OutputRootDir materialization.
 
+### 0.5) Prompt->Spec hardening quartet prerequisites (v02.139)
+
+Run these before broader Spec Router expansion so routing stays deterministic and policy-safe:
+
+1. WP-1-Spec-Router-SpecPromptCompiler (stub exists)
+2. WP-1-Spec-Router-CapabilitySnapshot (stub exists)
+3. WP-1-Spec-Router-SpecLint (stub exists)
+
 ### 1) Safety baseline for "Handshake as IDE"
 
 MEX remediation is a practical prerequisite for scaling autonomous work safely (gates, observability, UX bridges):
@@ -75,4 +83,3 @@ These are the planned Operator-facing coordination surfaces:
 - Concurrency: do not run overlapping WPs that touch the same IN_SCOPE_PATHS; use separate worktrees per WP.
 - Governance: cloud use requires explicit consent artifacts; do not "parallelize" by bypassing receipts/policy.
 - This file should stay compact; details belong in task packets and TASK_BOARD blocker lines.
-
