@@ -363,9 +363,9 @@ SKELETON APPROVED
 - **Target File**: `src/backend/handshake_core/src/ace/mod.rs`
 - **Start**: 1
 - **End**: 99999
-- **Line Delta**: 489
+- **Line Delta**: 511
 - **Pre-SHA1**: `68b097f0aa3cec8b1b2f0b39acd113722886440c`
-- **Post-SHA1**: `4ed9ac52b5f02a74ffbebb4604de763d3594d8e1`
+- **Post-SHA1**: `6d6e502fb668dd1dfddbcb5c34a28a991e3adba5`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -398,10 +398,10 @@ SKELETON APPROVED
 
 - **Target File**: `src/backend/handshake_core/src/api/jobs.rs`
 - **Start**: 1
-- **End**: 465
-- **Line Delta**: 77
+- **End**: 99999
+- **Line Delta**: 104
 - **Pre-SHA1**: `f20fa2f70fff95b80656df7727f42ac43d777793`
-- **Post-SHA1**: `a6322b45a19e58e41839e2e1456f24655881176c`
+- **Post-SHA1**: `d4aedc697050b731b5b0a5d4c912013a4972edfd`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
