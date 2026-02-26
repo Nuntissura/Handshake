@@ -1,0 +1,28 @@
+{
+  "validation_sessions": {
+    "WP-1-Front-End-Memory-System-v1": {
+      "wpId": "WP-1-Front-End-Memory-System-v1",
+      "verdict": "FAIL",
+      "status": "USER_ACKNOWLEDGED",
+      "started": "2026-02-26T22:39:49.907Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "FAIL",
+          "timestamp": "2026-02-26T22:39:49.907Z"
+        },
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-02-26T22:40:06.672Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-02-26T23:15:25.040Z"
+        }
+      ],
+      "completed": "2026-02-26T23:15:25.041Z"
+    }
+  },
+  "archived_sessions": []
+}

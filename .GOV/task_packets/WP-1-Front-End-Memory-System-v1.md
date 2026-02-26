@@ -755,3 +755,92 @@ Spec conformance:
 
 REASON FOR PASS:
 - Packet contains updated evidence mapping + test/gate evidence for the remediation head, and the phase-gate marker now satisfies the gate-check requirement.
+
+### VALIDATION REPORT - WP-1-Front-End-Memory-System-v1 (Validator, 2026-02-26)
+Verdict: FAIL (merge blocked)
+
+Validation Claims:
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Front-End-Memory-System-v1 --range 460e4198b11994da9515fb8c627e05cd6f4b1760..HEAD`; not tests): PASS
+- TEST_PLAN_PASS (packet QUALITY_GATE/TEST_PLAN commands): PASS (Validator reran: `just pre-work`, `just gov-check`, `just lint`, `just test`, `cd app; pnpm test`, `just cargo-clean`, `just post-work`; `just fmt` exists as coder evidence in `## EVIDENCE`)
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES (see Findings), but overall Verdict is FAIL due to a new validator hygiene regression (below).
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Front-End-Memory-System-v1.md` (**Status:** In Progress)
+- Branch/HEAD validated: `feat/WP-1-Front-End-Memory-System-v1` @ `a544e7c15717bcf7ee39397c911a25b5f9842db8`
+- Merge base: `460e4198b11994da9515fb8c627e05cd6f4b1760`
+- Spec target (resolved at validation time): `.GOV/roles_shared/SPEC_CURRENT.md` (on `main`) -> `Handshake_Master_Spec_v02.139.md`
+- Spec anchors reviewed (v02.139):
+  - `Handshake_Master_Spec_v02.139.md:10560` (2.6.6.6.6 Front End Memory Job Profile (FEMS))
+  - `Handshake_Master_Spec_v02.139.md:10980` (2.6.6.7.6.2 Front End Memory System (FEMS))
+  - `Handshake_Master_Spec_v02.139.md:31165` (4.3.9.12.7 FEMS integration)
+  - `Handshake_Master_Spec_v02.139.md:22613` (5.4.8 FEMS-EVAL-001)
+  - `Handshake_Master_Spec_v02.139.md:59460` (10.11.5.14 Front End Memory Panel (FEMS))
+  - `Handshake_Master_Spec_v02.139.md:55894` (11.5.13 FR-EVT-MEM-* events)
+
+Files Checked:
+- `src/backend/handshake_core/src/workflows.rs`
+- `src/backend/handshake_core/src/ace/mod.rs`
+- `src/backend/handshake_core/src/ace/validators/promotion.rs`
+- `src/backend/handshake_core/src/api/jobs.rs`
+- `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- `app/src/lib/api.ts`
+- `app/src/components/operator/JobsView.tsx`
+- `app/src/components/operator/TimelineView.tsx`
+- `Handshake_Master_Spec_v02.139.md` (from `main`)
+
+Findings (DONE_MEANS -> Evidence):
+- FEMS job profile contracts exist in runtime paths (`memory_extract_v0.1`, `memory_consolidate_v0.1`, `memory_forget_v0.1`) with proposal/commit artifacts:
+  - Protocol constants + routing: `src/backend/handshake_core/src/workflows.rs:10807`
+  - Proposal artifact emitted (FR-EVT-MEM-001): `src/backend/handshake_core/src/workflows.rs:11738`
+  - Commit/report path emits FR-EVT-MEM-002/003/005: `src/backend/handshake_core/src/workflows.rs:11863`, `:11968`, `:12001`
+- Session `memory_policy` enforcement + bounded deterministic packs:
+  - Parse + server-enforced effective policy: `src/backend/handshake_core/src/workflows.rs:10894`
+  - Pack build budgets + deterministic ordering + truncation: `src/backend/handshake_core/src/workflows.rs:11329`
+  - Cloud redaction when no consent: `src/backend/handshake_core/src/workflows.rs:11347`
+- Procedural memory writes are review-gated only:
+  - `requires_review` enforced for procedural: `src/backend/handshake_core/src/workflows.rs:11188`
+  - Review-gate blocks commit when review decision missing: `src/backend/handshake_core/src/workflows.rs:11817`
+  - Promotion guard marker for procedural without review: `src/backend/handshake_core/src/ace/validators/promotion.rs:22`
+- Flight Recorder emits FR-EVT-MEM-001..005 with privacy-safe payloads (hash/id/ref only; no raw memory content fields allowed):
+  - Emission: `src/backend/handshake_core/src/workflows.rs:11754` (001), `:11855` (002), `:11959` (003), `:11579` (004), `:11993` (005)
+  - Payload validators restrict allowed keys and require `artifact_ref` as `ArtifactHandle`: `src/backend/handshake_core/src/flight_recorder/mod.rs:3735`
+- Operator UI exposes memory preview + review controls (proposal + decision + disable-memory) and pack hash visibility:
+  - Review action + disable-memory control: `app/src/components/operator/JobsView.tsx:329`
+  - MemoryPack preview + pack hash: `app/src/components/operator/JobsView.tsx:662`
+  - Timeline view shows memory event family: `app/src/components/operator/TimelineView.tsx:386`
+- FEMS-EVAL-001 criteria coverage present via unit tests:
+  - Schema keys match spec v02.139: `src/backend/handshake_core/src/ace/mod.rs:1882`
+  - Provenance + instruction-like rejects / determinism + truncation / FR privacy: `src/backend/handshake_core/src/workflows.rs:18427`, `:18438`, `:18454`, `:18551`
+
+Hygiene / Gates (Validator-run):
+- `just pre-work WP-1-Front-End-Memory-System-v1`: PASS
+- `just gov-check`: PASS
+- `just validator-scan`: PASS
+- `just validator-dal-audit`: PASS
+- `just lint`: PASS (clippy warnings only; non-blocking)
+- `just test`: PASS
+- `cd app; pnpm test`: PASS
+- `just cargo-clean`: PASS
+- `just post-work ... --range 460e4198...1760..a544e7c...`: PASS
+- Git status at validation time: clean
+
+BLOCKER (why this is FAIL):
+- `just validator-error-codes` FAILS on this WP head (while PASSING on current `main`), which would introduce a new validator hygiene regression into `main` if merged.
+  - Findings (examples):
+    - `src/backend/handshake_core/src/api/jobs.rs:39` uses `Err(format!(...))` in production request parsing.
+    - `src/backend/handshake_core/src/ace/mod.rs:1885` uses `Err(\"...\")` patterns inside unit tests compiled from `src/`.
+
+Remediation Required (Coder):
+1. Fix `src/backend/handshake_core/src/api/jobs.rs` to avoid `Err(format!(...))` and other string-error patterns flagged by `just validator-error-codes`.
+   - Recommended: introduce a small typed error enum for `parse_job_kind_request()` and convert at callsite using `map_err(|e| e.to_string())?`.
+2. Fix the unit tests in `src/backend/handshake_core/src/ace/mod.rs` to avoid `Err(\"...\")` / `map_err(|e| format!(...))` patterns (use assert-based control flow or `map_err(|e| e.to_string())` where needed).
+3. Re-run (and paste outputs):
+   - `just validator-error-codes`
+   - `just lint`
+   - `just test`
+   - `cd app; pnpm test`
+   - `just post-work WP-1-Front-End-Memory-System-v1 --range 460e4198b11994da9515fb8c627e05cd6f4b1760..HEAD`
+
+REASON FOR FAIL:
+- Despite meeting DONE_MEANS and spec anchors for FEMS behavior, merging this WP as-is would regress the repo-wide validator hygiene baseline (`just validator-error-codes` passes on `main` but fails on this WP head). Per Validator Protocol (Evidence-led; no regressions without explicit waiver), merge is blocked until the findings are remediated or an explicit waiver is granted and recorded.
