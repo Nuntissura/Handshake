@@ -155,6 +155,137 @@ impl ArtifactHandle {
 }
 
 // ============================================================================
+// Front End Memory System (FEMS) v0.1 Contracts (Spec v02.138)
+// ============================================================================
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum MemoryPolicy {
+    Ephemeral,
+    SessionScoped,
+    #[default]
+    WorkspaceScoped,
+}
+
+impl MemoryPolicy {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MemoryPolicy::Ephemeral => "EPHEMERAL",
+            MemoryPolicy::SessionScoped => "SESSION_SCOPED",
+            MemoryPolicy::WorkspaceScoped => "WORKSPACE_SCOPED",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MemoryMutationOp {
+    Add,
+    Update,
+    Supersede,
+    Invalidate,
+    Tombstone,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MemoryWriteOperation {
+    pub op: MemoryMutationOp,
+    pub memory_id: String,
+    pub memory_class: String,
+    pub trust_level: String,
+    pub source_refs: Vec<SourceRef>,
+    pub requires_review: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MemoryWriteProposal {
+    pub schema_version: String,
+    pub proposal_id: String,
+    pub created_at: String,
+    pub created_by_job_id: String,
+    pub scope_refs: Vec<String>,
+    pub source_refs: Vec<SourceRef>,
+    pub operations: Vec<MemoryWriteOperation>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MemoryCommitChange {
+    pub memory_id: String,
+    pub operation: MemoryMutationOp,
+    pub previous_status: String,
+    pub new_status: String,
+    pub reason: String,
+    pub actor: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MemoryCommitReport {
+    pub schema_version: String,
+    pub commit_id: String,
+    pub proposal_id: String,
+    pub created_at: String,
+    pub created_by_job_id: String,
+    pub memory_policy: MemoryPolicy,
+    pub decision: String,
+    pub reviewer_kind: String,
+    pub changed_memory_ids: Vec<String>,
+    pub changes: Vec<MemoryCommitChange>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MemoryPackItem {
+    pub memory_id: String,
+    pub memory_class: String,
+    pub trust_level: String,
+    pub classification: String,
+    pub source_hash: String,
+    pub token_estimate: u32,
+    pub priority: i32,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MemoryPack {
+    pub schema_version: String,
+    pub pack_id: String,
+    pub memory_policy: MemoryPolicy,
+    pub scope_refs: Vec<String>,
+    pub item_count: u32,
+    pub token_estimate: u32,
+    pub truncation_occurred: bool,
+    pub dropped_memory_ids: Vec<String>,
+    pub cloud_safe: bool,
+    pub redaction_applied: bool,
+    pub selected_memory_ids: Vec<String>,
+    pub items: Vec<MemoryPackItem>,
+}
+
+fn hash_serializable<T: Serialize>(value: &T) -> Result<Hash, serde_json::Error> {
+    let json = serde_json::to_vec(value)?;
+    let mut hasher = Sha256::new();
+    hasher.update(&json);
+    Ok(hex::encode(hasher.finalize()))
+}
+
+impl MemoryWriteProposal {
+    pub fn compute_hash(&self) -> Result<Hash, serde_json::Error> {
+        hash_serializable(self)
+    }
+}
+
+impl MemoryCommitReport {
+    pub fn compute_hash(&self) -> Result<Hash, serde_json::Error> {
+        hash_serializable(self)
+    }
+}
+
+impl MemoryPack {
+    pub fn compute_hash(&self) -> Result<Hash, serde_json::Error> {
+        hash_serializable(self)
+    }
+}
+
+// ============================================================================
 // QueryPlan Types (§2.6.6.7.14.5)
 // ============================================================================
 

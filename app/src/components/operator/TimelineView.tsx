@@ -48,6 +48,11 @@ const defaultFilters: TimelineFilters = {
 };
 
 const PINNED_SLICES_STORAGE_KEY = "handshake.timeline.pinnedSlices.v1";
+const MEMORY_EVENT_PREFIX = "memory_";
+
+function isMemoryEventType(eventType: FlightEvent["event_type"]): boolean {
+  return eventType.startsWith(MEMORY_EVENT_PREFIX);
+}
 
 function stableStringify(value: unknown): string {
   const seen = new WeakSet<object>();
@@ -116,6 +121,7 @@ export const TimelineView: React.FC<Props> = ({ onSelect, navigation, onTimeWind
   const [events, setEvents] = useState<FlightEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [memoryOnly, setMemoryOnly] = useState(false);
   const [pinnedSlices, setPinnedSlices] = useState<PinnedSlice[]>([]);
   const [exportScope, setExportScope] = useState<BundleScopeInput | null>(null);
 
@@ -191,6 +197,7 @@ export const TimelineView: React.FC<Props> = ({ onSelect, navigation, onTimeWind
   };
 
   const timeWindow = activeTimeWindowFromFilters(filters);
+  const displayedEvents = memoryOnly ? events.filter((event) => isMemoryEventType(event.event_type)) : events;
 
   const pinSlice = async () => {
     if (!timeWindow) {
@@ -228,6 +235,13 @@ export const TimelineView: React.FC<Props> = ({ onSelect, navigation, onTimeWind
           </p>
         </div>
         <div className="card-actions">
+          <button
+            className={memoryOnly ? "primary" : "secondary"}
+            type="button"
+            onClick={() => setMemoryOnly((current) => !current)}
+          >
+            {memoryOnly ? "Show all events" : "Memory events only"}
+          </button>
           <button className="secondary" onClick={pinSlice} disabled={!timeWindow}>
             Pin this slice
           </button>
@@ -367,6 +381,11 @@ export const TimelineView: React.FC<Props> = ({ onSelect, navigation, onTimeWind
         <p className="error">Error: {error}</p>
       ) : (
         <div className="table-scroll">
+          {memoryOnly && (
+            <p className="muted small" style={{ marginBottom: 8 }}>
+              Showing memory event family (`FR-EVT-MEM-001..005`) only.
+            </p>
+          )}
           <table className="data-table">
             <thead>
               <tr>
@@ -378,7 +397,7 @@ export const TimelineView: React.FC<Props> = ({ onSelect, navigation, onTimeWind
               </tr>
             </thead>
             <tbody>
-              {events.map((event) => (
+              {displayedEvents.map((event) => (
                 <tr
                   key={event.event_id}
                   className="clickable-row"

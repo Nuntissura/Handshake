@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import {
   AiJob,
+  asFemsJobOutput,
   Diagnostic,
   FlightEvent,
   getJob,
   getEvents,
+  isFemsProtocolId,
   listDiagnostics,
   listJobs,
   resumeJob,
@@ -34,7 +36,7 @@ const defaultFilters: JobFilters = {
   to: "",
 };
 
-type Tab = "summary" | "timeline" | "io" | "diagnostics" | "policy";
+type Tab = "summary" | "timeline" | "io" | "memory" | "diagnostics" | "policy";
 
 function stableStringify(value: unknown): string {
   const seen = new WeakSet<object>();
@@ -207,6 +209,17 @@ export const JobsView: React.FC<Props> = ({ onSelect, focusJobId }) => {
     if (selectedJob.job_outputs["reason"] !== "cloud_escalation_consent_required") return null;
     return selectedJob.job_outputs;
   })();
+  const femsOutput = selectedJob ? asFemsJobOutput(selectedJob.job_outputs) : null;
+  const memoryEvents = events.filter((event) => event.event_type.startsWith("memory_"));
+  const femsMemoryPack =
+    femsOutput && isRecord(femsOutput.memory_pack) ? (femsOutput.memory_pack as Record<string, unknown>) : null;
+  const femsReview = femsOutput?.review;
+  const femsProposal =
+    femsOutput && isRecord(femsOutput.proposal) ? (femsOutput.proposal as Record<string, unknown>) : null;
+  const femsCommitReport =
+    femsOutput && isRecord(femsOutput.commit_report)
+      ? (femsOutput.commit_report as Record<string, unknown>)
+      : null;
 
   const submitConsent = async (approved: boolean) => {
     if (!selectedJob || !cloudConsentOutput) return;
@@ -349,7 +362,7 @@ export const JobsView: React.FC<Props> = ({ onSelect, focusJobId }) => {
             {selectedJob ? (
               <>
                 <div className="tabs">
-                  {(["summary", "timeline", "io", "diagnostics", "policy"] as Tab[]).map((tab) => (
+                  {(["summary", "timeline", "io", "memory", "diagnostics", "policy"] as Tab[]).map((tab) => (
                     <button
                       key={tab}
                       className={activeTab === tab ? "active" : ""}
@@ -459,6 +472,90 @@ export const JobsView: React.FC<Props> = ({ onSelect, focusJobId }) => {
                         <li>Inputs hash: {inputsHash}</li>
                         <li>Outputs hash: {outputsHash}</li>
                       </ul>
+                    </div>
+                  )}
+                  {activeTab === "memory" && (
+                    <div>
+                      <h3>Memory</h3>
+                      {!selectedJob || !isFemsProtocolId(selectedJob.protocol_id) ? (
+                        <p className="muted small">
+                          Memory preview/review is available for FEMS protocols (`memory_extract_v0.1`,
+                          `memory_consolidate_v0.1`, `memory_forget_v0.1`).
+                        </p>
+                      ) : (
+                        <>
+                          <ul className="meta-list">
+                            <li>Protocol: {selectedJob.protocol_id}</li>
+                            <li>Memory policy: {femsOutput?.memory_policy ?? "n/a"}</li>
+                            <li>Memory state ref: {femsOutput?.memory_state_ref ?? "n/a"}</li>
+                            <li>Pack hash: {femsOutput?.memory_pack_hash ?? "n/a"}</li>
+                            <li>Proposal hash: {femsOutput?.proposal_hash ?? "n/a"}</li>
+                            <li>Commit report hash: {femsOutput?.commit_report_hash ?? "n/a"}</li>
+                            <li>Review status: {femsReview?.status ?? "n/a"}</li>
+                            <li>Review required ops: {femsReview?.required_ops ?? 0}</li>
+                            <li>Reviewer kind: {femsReview?.reviewer_kind ?? "n/a"}</li>
+                          </ul>
+                          {femsOutput?.warning && <p className="error small">Warning: {femsOutput.warning}</p>}
+
+                          {femsMemoryPack && (
+                            <details>
+                              <summary>MemoryPack Preview</summary>
+                              <ul className="meta-list">
+                                <li>Pack ID: {String(femsMemoryPack["pack_id"] ?? "n/a")}</li>
+                                <li>Item count: {String(femsMemoryPack["item_count"] ?? "n/a")}</li>
+                                <li>Token estimate: {String(femsMemoryPack["token_estimate"] ?? "n/a")}</li>
+                                <li>
+                                  Truncation occurred: {String(femsMemoryPack["truncation_occurred"] ?? "n/a")}
+                                </li>
+                                <li>Redaction applied: {String(femsMemoryPack["redaction_applied"] ?? "n/a")}</li>
+                              </ul>
+                            </details>
+                          )}
+
+                          {(femsProposal || femsCommitReport) && (
+                            <details>
+                              <summary>Review Artifacts</summary>
+                              <ul className="meta-list">
+                                <li>Proposal ID: {String(femsProposal?.["proposal_id"] ?? "n/a")}</li>
+                                <li>Commit ID: {String(femsCommitReport?.["commit_id"] ?? "n/a")}</li>
+                                <li>Decision: {String(femsCommitReport?.["decision"] ?? "n/a")}</li>
+                              </ul>
+                            </details>
+                          )}
+
+                          <h4 style={{ marginTop: 16 }}>Memory Events</h4>
+                          {memoryEvents.length === 0 ? (
+                            <p className="muted small">No memory FR events recorded for this job yet.</p>
+                          ) : (
+                            <div className="table-scroll">
+                              <table className="data-table">
+                                <thead>
+                                  <tr>
+                                    <th>Time</th>
+                                    <th>Type</th>
+                                    <th>Actor</th>
+                                    <th>Payload</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {memoryEvents.map((event) => (
+                                    <tr
+                                      key={event.event_id}
+                                      className="clickable-row"
+                                      onClick={() => onSelect({ kind: "event", event })}
+                                    >
+                                      <td className="muted">{new Date(event.timestamp).toLocaleString()}</td>
+                                      <td>{event.event_type}</td>
+                                      <td className="muted">{event.actor_id}</td>
+                                      <td className="muted small">{JSON.stringify(event.payload)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
                   {activeTab === "diagnostics" && (

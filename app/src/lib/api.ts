@@ -218,6 +218,21 @@ export type WorkflowRun = {
   updated_at: string;
 };
 
+export type FemsProtocolId =
+  | "memory_extract_v0.1"
+  | "memory_consolidate_v0.1"
+  | "memory_forget_v0.1";
+
+export const FEMS_PROTOCOLS: readonly FemsProtocolId[] = [
+  "memory_extract_v0.1",
+  "memory_consolidate_v0.1",
+  "memory_forget_v0.1",
+];
+
+export function isFemsProtocolId(value: string): value is FemsProtocolId {
+  return (FEMS_PROTOCOLS as readonly string[]).includes(value);
+}
+
 export type FlightEvent = {
   event_id: string;
   trace_id: string;
@@ -233,6 +248,11 @@ export type FlightEvent = {
     | "workflow_recovery"
     | "debug_bundle_export"
     | "governance_pack_export"
+    | "memory_write_proposed"
+    | "memory_write_reviewed"
+    | "memory_write_committed"
+    | "memory_pack_built"
+    | "memory_item_status_changed"
     | "runtime_chat_message_appended"
     | "runtime_chat_ans001_validation"
     | "runtime_chat_session_closed";
@@ -614,6 +634,37 @@ export type AiJob = {
   updated_at: string;
 };
 
+export type FemsJobOutput = {
+  schema_version: "hsk.fems.result@0.1";
+  protocol_id: FemsProtocolId;
+  memory_policy: "EPHEMERAL" | "SESSION_SCOPED" | "WORKSPACE_SCOPED";
+  memory_state_ref?: string | null;
+  proposal?: Record<string, unknown>;
+  proposal_hash?: string;
+  commit_report?: Record<string, unknown>;
+  commit_report_hash?: string;
+  memory_pack?: Record<string, unknown> | null;
+  memory_pack_hash?: string | null;
+  review?: {
+    status: string;
+    required_ops: number;
+    reviewer_kind?: "user" | "policy";
+  };
+  memory_browser?: {
+    items: Array<Record<string, unknown>>;
+  };
+  warning?: string;
+};
+
+export function asFemsJobOutput(value: unknown): FemsJobOutput | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (record.schema_version !== "hsk.fems.result@0.1") return null;
+  const protocol_id = record.protocol_id;
+  if (typeof protocol_id !== "string" || !isFemsProtocolId(protocol_id)) return null;
+  return record as FemsJobOutput;
+}
+
 export async function createJob(
   jobKind: string,
   protocolId: string,
@@ -648,6 +699,13 @@ export async function createJob(
     method: "POST",
     body,
   });
+}
+
+export async function createFemsJob(
+  protocolId: FemsProtocolId,
+  jobInputs?: unknown,
+): Promise<WorkflowRun> {
+  return createJob(protocolId, protocolId, undefined, jobInputs);
 }
 
 export async function getJob(jobId: string): Promise<AiJob> {

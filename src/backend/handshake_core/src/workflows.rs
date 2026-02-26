@@ -3,14 +3,17 @@ use crate::{
         validators::{
             build_query_plan_from_blocks, build_retrieval_trace_from_blocks,
             freshness::{REGEN_SKIPPED_PREFIX, STALE_PACK_WARNING_PREFIX},
+            promotion::PROMOTION_PROCEDURAL_REVIEW_WARNING,
             scan_content_for_security, SecurityViolationType, StorageContentResolver,
             ValidatorPipeline,
         },
         AceError, ArtifactHandle, CandidateRef, CandidateScores, ContextPackAnchorV1,
         ContextPackBuilder, ContextPackCoverageV1, ContextPackFreshnessPolicyV1,
-        ContextPackPayloadV1, ContextPackRecord, DeterminismMode, QueryKind, QueryPlan,
-        RetrievalCandidate, RetrievalTrace, RouteTaken, SelectedEvidence, SourceRef,
-        SpanExtraction, StoreKind, ViewMode,
+        ContextPackPayloadV1, ContextPackRecord, DeterminismMode, MemoryCommitChange,
+        MemoryCommitReport, MemoryMutationOp, MemoryPack, MemoryPackItem, MemoryPolicy,
+        MemoryWriteOperation, MemoryWriteProposal, QueryKind, QueryPlan, RetrievalCandidate,
+        RetrievalTrace, RouteTaken, SelectedEvidence, SourceRef, SpanExtraction, StoreKind,
+        ViewMode,
     },
     bundles::{BundleScope, DebugBundleRequest, DefaultDebugBundleExporter, RedactionMode},
     capabilities::{RegistryError, GOVERNANCE_PACK_EXPORT_PROTOCOL_ID},
@@ -3095,6 +3098,10 @@ async fn run_job(
                         .to_string(),
                 ),
             });
+        }
+
+        if is_fems_protocol(&job.protocol_id) {
+            return run_fems_memory_job(state, job, workflow_run_id, trace_id).await;
         }
 
         if job.protocol_id == MD_BATCH_PROTOCOL_ID_V0 {
@@ -10793,6 +10800,740 @@ async fn run_loom_preview_generate_job(
 // =============================================================================
 // Media Downloader (Spec §10.14)
 // =============================================================================
+
+const FEMS_PROTOCOL_MEMORY_EXTRACT_V0_1: &str = "memory_extract_v0.1";
+const FEMS_PROTOCOL_MEMORY_CONSOLIDATE_V0_1: &str = "memory_consolidate_v0.1";
+const FEMS_PROTOCOL_MEMORY_FORGET_V0_1: &str = "memory_forget_v0.1";
+const FEMS_RESULT_SCHEMA_V0_1: &str = "hsk.fems.result@0.1";
+const FEMS_MEMORY_PROPOSAL_SCHEMA_V0_1: &str = "hsk.memory_write_proposal@0.1";
+const FEMS_MEMORY_COMMIT_REPORT_SCHEMA_V0_1: &str = "hsk.memory_commit_report@0.1";
+const FEMS_MEMORY_PACK_SCHEMA_V0_1: &str = "hsk.memory_pack@0.1";
+const FEMS_MAX_PACK_TOKENS_DEFAULT: u32 = 500;
+const FEMS_MAX_PACK_ITEMS_DEFAULT: usize = 24;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct FemsInputItem {
+    #[serde(default)]
+    memory_id: String,
+    #[serde(default = "fems_default_memory_class")]
+    memory_class: String,
+    #[serde(default = "fems_default_trust_level")]
+    trust_level: String,
+    #[serde(default = "fems_default_classification")]
+    classification: String,
+    #[serde(default = "fems_default_status")]
+    status: String,
+    #[serde(default)]
+    memory_type: String,
+    #[serde(default)]
+    source_hash: String,
+    #[serde(default)]
+    source_ref_id: String,
+    #[serde(default)]
+    requires_review: bool,
+    #[serde(default)]
+    token_estimate: Option<u32>,
+    #[serde(default)]
+    priority: Option<i32>,
+    #[serde(default)]
+    operation: Option<String>,
+}
+
+fn fems_default_memory_class() -> String {
+    "working".to_string()
+}
+
+fn fems_default_trust_level() -> String {
+    "untrusted".to_string()
+}
+
+fn fems_default_classification() -> String {
+    "medium".to_string()
+}
+
+fn fems_default_status() -> String {
+    "active".to_string()
+}
+
+fn is_fems_protocol(protocol_id: &str) -> bool {
+    matches!(
+        protocol_id,
+        FEMS_PROTOCOL_MEMORY_EXTRACT_V0_1
+            | FEMS_PROTOCOL_MEMORY_CONSOLIDATE_V0_1
+            | FEMS_PROTOCOL_MEMORY_FORGET_V0_1
+    )
+}
+
+fn is_fems_write_protocol(protocol_id: &str) -> bool {
+    matches!(
+        protocol_id,
+        FEMS_PROTOCOL_MEMORY_CONSOLIDATE_V0_1 | FEMS_PROTOCOL_MEMORY_FORGET_V0_1
+    )
+}
+
+fn parse_memory_policy(inputs: &Value) -> Result<MemoryPolicy, WorkflowError> {
+    let raw = inputs
+        .get("memory_policy")
+        .and_then(|v| v.as_str())
+        .unwrap_or("WORKSPACE_SCOPED");
+    match raw.trim().to_ascii_uppercase().as_str() {
+        "EPHEMERAL" => Ok(MemoryPolicy::Ephemeral),
+        "SESSION_SCOPED" => Ok(MemoryPolicy::SessionScoped),
+        "WORKSPACE_SCOPED" => Ok(MemoryPolicy::WorkspaceScoped),
+        _ => Err(WorkflowError::Terminal(format!(
+            "invalid memory_policy: {raw}"
+        ))),
+    }
+}
+
+fn deterministic_uuid_from_seed(seed: &str) -> Uuid {
+    let hash = sha256_hex(seed.as_bytes());
+    let raw = format!(
+        "{}-{}-{}-{}-{}",
+        &hash[0..8],
+        &hash[8..12],
+        &hash[12..16],
+        &hash[16..20],
+        &hash[20..32]
+    );
+    Uuid::parse_str(raw.as_str()).unwrap_or_else(|_| Uuid::new_v4())
+}
+
+fn parse_fems_items(inputs: &Value) -> Vec<FemsInputItem> {
+    let from_memory_items = inputs
+        .get("memory_items")
+        .and_then(|v| v.as_array())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| serde_json::from_value::<FemsInputItem>(item.clone()).ok())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    if !from_memory_items.is_empty() {
+        return from_memory_items;
+    }
+
+    inputs
+        .get("memory_ids")
+        .and_then(|v| v.as_array())
+        .map(|ids| {
+            ids.iter()
+                .filter_map(|id| id.as_str())
+                .map(|id| FemsInputItem {
+                    memory_id: id.to_string(),
+                    ..Default::default()
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn normalize_fems_item(mut item: FemsInputItem, index: usize) -> FemsInputItem {
+    if item.memory_id.trim().is_empty() {
+        item.memory_id = format!("mem_{index:04}");
+    }
+    if item.source_hash.trim().is_empty() {
+        item.source_hash = sha256_hex(item.memory_id.as_bytes());
+    }
+    if item.source_ref_id.trim().is_empty() {
+        item.source_ref_id = deterministic_uuid_from_seed(item.memory_id.as_str()).to_string();
+    }
+    item
+}
+
+fn fems_priority(item: &FemsInputItem) -> i32 {
+    if let Some(priority) = item.priority {
+        return priority;
+    }
+
+    let base = match item.memory_class.as_str() {
+        "procedural" => 100,
+        "working" => 90,
+        "semantic" => 80,
+        "episodic" => 70,
+        _ => 60,
+    };
+    let trust_bonus = match item.trust_level.as_str() {
+        "local_authoritative" => 20,
+        "trusted" => 10,
+        _ => 0,
+    };
+    base + trust_bonus
+}
+
+fn fems_token_estimate(item: &FemsInputItem) -> u32 {
+    item.token_estimate.unwrap_or(32).max(1)
+}
+
+fn fems_requires_review(item: &FemsInputItem) -> bool {
+    item.requires_review || item.memory_class == "procedural"
+}
+
+fn build_scope_refs(job: &AiJob, inputs: &Value) -> Vec<String> {
+    let mut refs: Vec<String> = job
+        .entity_refs
+        .iter()
+        .map(|r| format!("{}:{}", r.entity_kind, r.entity_id))
+        .collect();
+
+    if let Some(extra) = inputs.get("scope_refs").and_then(|v| v.as_array()) {
+        refs.extend(
+            extra
+                .iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.to_string()),
+        );
+    }
+
+    refs.sort();
+    refs.dedup();
+    refs
+}
+
+fn operation_from_input(item: &FemsInputItem, fallback: MemoryMutationOp) -> MemoryMutationOp {
+    match item.operation.as_deref() {
+        Some("add") => MemoryMutationOp::Add,
+        Some("update") => MemoryMutationOp::Update,
+        Some("supersede") => MemoryMutationOp::Supersede,
+        Some("invalidate") => MemoryMutationOp::Invalidate,
+        Some("tombstone") => MemoryMutationOp::Tombstone,
+        _ => fallback,
+    }
+}
+
+fn build_memory_pack(
+    policy: MemoryPolicy,
+    items: &[FemsInputItem],
+    scope_refs: &[String],
+    provider_is_cloud: bool,
+    cloud_consent: bool,
+) -> Option<MemoryPack> {
+    if policy == MemoryPolicy::Ephemeral {
+        return None;
+    }
+
+    let mut normalized: Vec<FemsInputItem> = items
+        .iter()
+        .cloned()
+        .enumerate()
+        .map(|(idx, item)| normalize_fems_item(item, idx))
+        .collect();
+
+    if policy == MemoryPolicy::SessionScoped {
+        normalized.retain(|item| item.memory_class == "working");
+    }
+
+    let mut redaction_applied = false;
+    if provider_is_cloud && !cloud_consent {
+        normalized.retain(|item| {
+            let is_high = item.classification == "high";
+            let type_lower = item.memory_type.to_ascii_lowercase();
+            let is_contact = type_lower.contains("contact") || type_lower.contains("crm");
+            let keep = !is_high && !is_contact;
+            if !keep {
+                redaction_applied = true;
+            }
+            keep
+        });
+    }
+
+    normalized.sort_by(|a, b| {
+        fems_priority(b)
+            .cmp(&fems_priority(a))
+            .then_with(|| a.memory_id.cmp(&b.memory_id))
+    });
+
+    let mut selected: Vec<MemoryPackItem> = Vec::new();
+    let mut selected_ids: Vec<String> = Vec::new();
+    let mut dropped_ids: Vec<String> = Vec::new();
+    let mut token_total = 0u32;
+    let mut truncation_occurred = false;
+
+    for item in normalized {
+        let estimate = fems_token_estimate(&item);
+        let priority = fems_priority(&item);
+        let exceeds_budget = selected.len() >= FEMS_MAX_PACK_ITEMS_DEFAULT
+            || token_total.saturating_add(estimate) > FEMS_MAX_PACK_TOKENS_DEFAULT;
+        if exceeds_budget {
+            truncation_occurred = true;
+            dropped_ids.push(item.memory_id);
+            continue;
+        }
+
+        token_total = token_total.saturating_add(estimate);
+        selected_ids.push(item.memory_id.clone());
+        selected.push(MemoryPackItem {
+            memory_id: item.memory_id,
+            memory_class: item.memory_class,
+            trust_level: item.trust_level,
+            classification: item.classification,
+            source_hash: item.source_hash,
+            token_estimate: estimate,
+            priority,
+            status: item.status,
+        });
+    }
+
+    let seed = format!(
+        "{}|{}|{}|{}|{}",
+        policy.as_str(),
+        scope_refs.join(","),
+        selected_ids.join(","),
+        token_total,
+        provider_is_cloud
+    );
+    let pack_id = deterministic_uuid_from_seed(seed.as_str()).to_string();
+
+    Some(MemoryPack {
+        schema_version: FEMS_MEMORY_PACK_SCHEMA_V0_1.to_string(),
+        pack_id,
+        memory_policy: policy,
+        scope_refs: scope_refs.to_vec(),
+        item_count: selected.len() as u32,
+        token_estimate: token_total,
+        truncation_occurred,
+        dropped_memory_ids: dropped_ids,
+        cloud_safe: provider_is_cloud,
+        redaction_applied,
+        selected_memory_ids: selected_ids,
+        items: selected,
+    })
+}
+
+fn parse_review_decision(inputs: &Value) -> Option<String> {
+    inputs
+        .get("review_decision")
+        .and_then(|v| v.as_str())
+        .map(|v| v.trim().to_ascii_lowercase())
+        .filter(|v| matches!(v.as_str(), "approved" | "rejected" | "partial"))
+}
+
+fn parse_reviewer_kind(inputs: &Value) -> String {
+    inputs
+        .get("reviewer_kind")
+        .and_then(|v| v.as_str())
+        .map(|v| v.trim().to_ascii_lowercase())
+        .filter(|v| matches!(v.as_str(), "user" | "policy"))
+        .unwrap_or_else(|| "policy".to_string())
+}
+
+async fn run_fems_memory_job(
+    state: &AppState,
+    job: &AiJob,
+    workflow_run_id: Uuid,
+    trace_id: Uuid,
+) -> Result<RunJobOutcome, WorkflowError> {
+    let inputs = parse_inputs(job.job_inputs.as_ref());
+    let policy = parse_memory_policy(&inputs)?;
+    let is_write_protocol = is_fems_write_protocol(job.protocol_id.as_str());
+    let provider_is_cloud = inputs
+        .get("provider")
+        .and_then(|v| v.as_str())
+        .is_some_and(|provider| provider.eq_ignore_ascii_case("cloud"));
+    let cloud_consent = inputs
+        .get("cloud_consent_granted")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+        || inputs
+            .get("cloud_consent_receipt_id")
+            .and_then(|v| v.as_str())
+            .is_some_and(|v| !v.trim().is_empty());
+
+    let scope_refs = build_scope_refs(job, &inputs);
+    let parsed_items = parse_fems_items(&inputs);
+    let normalized_items: Vec<FemsInputItem> = parsed_items
+        .into_iter()
+        .enumerate()
+        .map(|(idx, item)| normalize_fems_item(item, idx))
+        .collect();
+
+    if normalized_items.is_empty() {
+        return Ok(RunJobOutcome {
+            state: JobState::Failed,
+            status_reason: "invalid_job_inputs".to_string(),
+            output: None,
+            error_message: Some(
+                "memory_items or memory_ids are required for FEMS jobs".to_string(),
+            ),
+        });
+    }
+
+    if policy == MemoryPolicy::Ephemeral && is_write_protocol {
+        return Ok(RunJobOutcome {
+            state: JobState::Failed,
+            status_reason: "invalid_memory_policy".to_string(),
+            output: None,
+            error_message: Some(
+                "EPHEMERAL policy does not permit memory write proposals or commits".to_string(),
+            ),
+        });
+    }
+
+    let memory_pack = build_memory_pack(
+        policy,
+        normalized_items.as_slice(),
+        scope_refs.as_slice(),
+        provider_is_cloud,
+        cloud_consent,
+    );
+    let memory_pack_hash = match memory_pack.as_ref() {
+        Some(pack) => Some(
+            pack.compute_hash()
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+        ),
+        None => None,
+    };
+    let memory_state_ref = memory_pack
+        .as_ref()
+        .zip(memory_pack_hash.as_ref())
+        .map(|(pack, hash)| format!("{}:{hash}", pack.pack_id));
+
+    if let (Some(pack), Some(pack_hash)) = (memory_pack.as_ref(), memory_pack_hash.as_ref()) {
+        let selected_memory_ids_hash = sha256_hex(pack.selected_memory_ids.join(",").as_bytes());
+        let pack_payload = json!({
+            "type": "memory_pack_built",
+            "event_id": "FR-EVT-MEM-004",
+            "pack_id": pack.pack_id,
+            "memory_pack_hash": pack_hash,
+            "artifact_ref": format!("fems://packs/{}", pack.pack_id),
+            "memory_policy": policy.as_str(),
+            "scope_refs": scope_refs,
+            "item_count": pack.item_count,
+            "token_estimate": pack.token_estimate,
+            "truncation_occurred": pack.truncation_occurred,
+            "selected_memory_ids_hash": selected_memory_ids_hash,
+            "redaction_applied": pack.redaction_applied,
+        });
+        record_event_required(
+            state,
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::MemoryPackBuilt,
+                FlightRecorderActor::System,
+                trace_id,
+                pack_payload,
+            )
+            .with_job_id(job.job_id.to_string())
+            .with_workflow_id(workflow_run_id.to_string()),
+        )
+        .await?;
+    }
+
+    if !is_write_protocol {
+        let output = json!({
+            "schema_version": FEMS_RESULT_SCHEMA_V0_1,
+            "protocol_id": job.protocol_id,
+            "memory_policy": policy.as_str(),
+            "memory_state_ref": memory_state_ref,
+            "memory_pack": memory_pack,
+            "memory_pack_hash": memory_pack_hash,
+            "review": {
+                "status": "not_applicable",
+                "required_ops": 0,
+            },
+            "memory_browser": {
+                "items": memory_pack.as_ref().map(|p| p.items.clone()).unwrap_or_default(),
+            },
+        });
+        state
+            .storage
+            .set_job_outputs(&job.job_id.to_string(), Some(output.clone()))
+            .await?;
+        return Ok(RunJobOutcome {
+            state: JobState::Completed,
+            status_reason: "completed".to_string(),
+            output: Some(output),
+            error_message: None,
+        });
+    }
+
+    let base_operation = match job.protocol_id.as_str() {
+        FEMS_PROTOCOL_MEMORY_FORGET_V0_1 => MemoryMutationOp::Tombstone,
+        _ => MemoryMutationOp::Update,
+    };
+
+    let proposal_seed = format!(
+        "{}|{}|{}|{}",
+        job.job_id,
+        job.protocol_id,
+        policy.as_str(),
+        normalized_items
+            .iter()
+            .map(|i| i.memory_id.as_str())
+            .collect::<Vec<_>>()
+            .join(",")
+    );
+    let proposal_id = inputs
+        .get("proposal_id")
+        .and_then(|v| v.as_str())
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| deterministic_uuid_from_seed(proposal_seed.as_str()).to_string());
+
+    let operations: Vec<MemoryWriteOperation> = normalized_items
+        .iter()
+        .map(|item| MemoryWriteOperation {
+            op: operation_from_input(item, base_operation),
+            memory_id: item.memory_id.clone(),
+            memory_class: item.memory_class.clone(),
+            trust_level: item.trust_level.clone(),
+            source_refs: vec![SourceRef {
+                source_id: Uuid::parse_str(item.source_ref_id.as_str())
+                    .unwrap_or_else(|_| deterministic_uuid_from_seed(item.memory_id.as_str())),
+                source_hash: item.source_hash.clone(),
+            }],
+            requires_review: fems_requires_review(item),
+        })
+        .collect();
+
+    let proposal = MemoryWriteProposal {
+        schema_version: FEMS_MEMORY_PROPOSAL_SCHEMA_V0_1.to_string(),
+        proposal_id: proposal_id.clone(),
+        created_at: Utc::now().to_rfc3339(),
+        created_by_job_id: job.job_id.to_string(),
+        scope_refs: scope_refs.clone(),
+        source_refs: operations
+            .iter()
+            .flat_map(|op| op.source_refs.clone())
+            .collect::<Vec<_>>(),
+        operations: operations.clone(),
+    };
+    let proposal_hash = proposal
+        .compute_hash()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let requires_review_count = operations.iter().filter(|op| op.requires_review).count() as u32;
+
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::MemoryWriteProposed,
+            FlightRecorderActor::System,
+            trace_id,
+            json!({
+                "type": "memory_write_proposed",
+                "event_id": "FR-EVT-MEM-001",
+                "proposal_id": proposal_id,
+                "proposal_hash": proposal_hash,
+                "artifact_ref": format!("fems://proposals/{proposal_id}"),
+                "scope_refs": scope_refs,
+                "op_count": operations.len(),
+                "requires_review_count": requires_review_count,
+            }),
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_workflow_id(workflow_run_id.to_string()),
+    )
+    .await?;
+
+    let review_decision = parse_review_decision(&inputs);
+    let reviewer_kind = parse_reviewer_kind(&inputs);
+    if requires_review_count > 0 && review_decision.is_none() {
+        let output = json!({
+            "schema_version": FEMS_RESULT_SCHEMA_V0_1,
+            "protocol_id": job.protocol_id,
+            "memory_policy": policy.as_str(),
+            "memory_state_ref": memory_state_ref,
+            "proposal": proposal,
+            "proposal_hash": proposal_hash,
+            "memory_pack": memory_pack,
+            "memory_pack_hash": memory_pack_hash,
+            "review": {
+                "status": "awaiting_review",
+                "required_ops": requires_review_count,
+            },
+            "warning": PROMOTION_PROCEDURAL_REVIEW_WARNING,
+        });
+        return Ok(RunJobOutcome {
+            state: JobState::AwaitingUser,
+            status_reason: "procedural_write_requires_review".to_string(),
+            output: Some(output),
+            error_message: None,
+        });
+    }
+
+    let decision = review_decision.unwrap_or_else(|| "approved".to_string());
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::MemoryWriteReviewed,
+            FlightRecorderActor::System,
+            trace_id,
+            json!({
+                "type": "memory_write_reviewed",
+                "event_id": "FR-EVT-MEM-002",
+                "proposal_id": proposal_id,
+                "decision": decision,
+                "reviewer_kind": reviewer_kind,
+                "commit_report_ref": if decision == "approved" || decision == "partial" {
+                    Value::String(format!("fems://commits/{proposal_id}"))
+                } else {
+                    Value::Null
+                },
+            }),
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_workflow_id(workflow_run_id.to_string()),
+    )
+    .await?;
+
+    if decision == "rejected" {
+        let output = json!({
+            "schema_version": FEMS_RESULT_SCHEMA_V0_1,
+            "protocol_id": job.protocol_id,
+            "memory_policy": policy.as_str(),
+            "memory_state_ref": memory_state_ref,
+            "proposal": proposal,
+            "proposal_hash": proposal_hash,
+            "memory_pack": memory_pack,
+            "memory_pack_hash": memory_pack_hash,
+            "review": {
+                "status": "rejected",
+                "required_ops": requires_review_count,
+            },
+        });
+        state
+            .storage
+            .set_job_outputs(&job.job_id.to_string(), Some(output.clone()))
+            .await?;
+        return Ok(RunJobOutcome {
+            state: JobState::CompletedWithIssues,
+            status_reason: "review_rejected".to_string(),
+            output: Some(output),
+            error_message: None,
+        });
+    }
+
+    let mut changed_memory_ids: Vec<String> = operations
+        .iter()
+        .map(|op| op.memory_id.clone())
+        .collect::<Vec<_>>();
+    changed_memory_ids.sort();
+    changed_memory_ids.dedup();
+
+    let changes: Vec<MemoryCommitChange> = operations
+        .iter()
+        .map(|op| {
+            let (new_status, reason) = match op.op {
+                MemoryMutationOp::Add | MemoryMutationOp::Update => ("active", "merge"),
+                MemoryMutationOp::Supersede => ("superseded", "supersede"),
+                MemoryMutationOp::Invalidate => ("invalid", "invalidate"),
+                MemoryMutationOp::Tombstone => ("tombstoned", "tombstone"),
+            };
+            MemoryCommitChange {
+                memory_id: op.memory_id.clone(),
+                operation: op.op,
+                previous_status: "active".to_string(),
+                new_status: new_status.to_string(),
+                reason: reason.to_string(),
+                actor: if reviewer_kind == "policy" {
+                    "policy".to_string()
+                } else {
+                    "job".to_string()
+                },
+            }
+        })
+        .collect();
+
+    let commit_seed = format!(
+        "{}|{}|{}|{}",
+        proposal_id,
+        decision,
+        reviewer_kind,
+        changed_memory_ids.join(",")
+    );
+    let commit_id = deterministic_uuid_from_seed(commit_seed.as_str()).to_string();
+    let commit_report = MemoryCommitReport {
+        schema_version: FEMS_MEMORY_COMMIT_REPORT_SCHEMA_V0_1.to_string(),
+        commit_id: commit_id.clone(),
+        proposal_id: proposal_id.clone(),
+        created_at: Utc::now().to_rfc3339(),
+        created_by_job_id: job.job_id.to_string(),
+        memory_policy: policy,
+        decision: decision.clone(),
+        reviewer_kind: reviewer_kind.clone(),
+        changed_memory_ids: changed_memory_ids.clone(),
+        changes: changes.clone(),
+    };
+    let commit_report_hash = commit_report
+        .compute_hash()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let changed_memory_ids_hash = sha256_hex(changed_memory_ids.join(",").as_bytes());
+
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::MemoryWriteCommitted,
+            FlightRecorderActor::System,
+            trace_id,
+            json!({
+                "type": "memory_write_committed",
+                "event_id": "FR-EVT-MEM-003",
+                "commit_id": commit_id,
+                "proposal_id": proposal_id,
+                "commit_report_hash": commit_report_hash,
+                "artifact_ref": format!("fems://commits/{commit_id}"),
+                "changed_memory_ids_hash": changed_memory_ids_hash,
+            }),
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_workflow_id(workflow_run_id.to_string()),
+    )
+    .await?;
+
+    for change in &changes {
+        record_event_required(
+            state,
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::MemoryItemStatusChanged,
+                FlightRecorderActor::System,
+                trace_id,
+                json!({
+                    "type": "memory_item_status_changed",
+                    "event_id": "FR-EVT-MEM-005",
+                    "memory_id": change.memory_id,
+                    "previous_status": change.previous_status,
+                    "new_status": change.new_status,
+                    "reason": change.reason,
+                    "actor": change.actor,
+                }),
+            )
+            .with_job_id(job.job_id.to_string())
+            .with_workflow_id(workflow_run_id.to_string()),
+        )
+        .await?;
+    }
+
+    let output = json!({
+        "schema_version": FEMS_RESULT_SCHEMA_V0_1,
+        "protocol_id": job.protocol_id,
+        "memory_policy": policy.as_str(),
+        "memory_state_ref": memory_state_ref,
+        "proposal": proposal,
+        "proposal_hash": proposal_hash,
+        "commit_report": commit_report,
+        "commit_report_hash": commit_report_hash,
+        "memory_pack": memory_pack,
+        "memory_pack_hash": memory_pack_hash,
+        "review": {
+            "status": decision,
+            "required_ops": requires_review_count,
+            "reviewer_kind": reviewer_kind,
+        },
+        "memory_browser": {
+            "items": memory_pack.as_ref().map(|p| p.items.clone()).unwrap_or_default(),
+        },
+    });
+
+    state
+        .storage
+        .set_job_outputs(&job.job_id.to_string(), Some(output.clone()))
+        .await?;
+    Ok(RunJobOutcome {
+        state: JobState::Completed,
+        status_reason: "completed".to_string(),
+        output: Some(output),
+        error_message: None,
+    })
+}
 
 const MD_BATCH_PROTOCOL_ID_V0: &str = "hsk.media_downloader.batch.v0";
 const MD_CONTROL_PROTOCOL_ID_V0: &str = "hsk.media_downloader.control.v0";
