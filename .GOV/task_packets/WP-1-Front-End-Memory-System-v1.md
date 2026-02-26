@@ -290,7 +290,7 @@ git revert <commit-sha>
 - **Start**: 1
 - **End**: 723
 - **Line Delta**: 239
-- **Pre-SHA1**: `a00a7f67531a8ec135ec2b9b16caae5044f4b025`
+- **Pre-SHA1**: `fdb79747dd93d8a10c532c00cc79573eb44b5686`
 - **Post-SHA1**: `40e9275d93d6b5c534ecce1fd259cb8dacc41f83`
 - **Gates Passed**:
   - [x] anchors_present
@@ -326,7 +326,7 @@ git revert <commit-sha>
 - **Start**: 1
 - **End**: 752
 - **Line Delta**: 68
-- **Pre-SHA1**: `e92de6705290e9c4f4aa02a70a29167aa012c4d1`
+- **Pre-SHA1**: `2e131ab7051b1d18f304d767cf4cd92234fa9898`
 - **Post-SHA1**: `fe84083996bf202949227a53ea4d8a31b38a7607`
 - **Gates Passed**:
   - [x] anchors_present
@@ -360,9 +360,9 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/ace/mod.rs`
 - **Start**: 1
-- **End**: 1713
+- **End**: 99999
 - **Line Delta**: 299
-- **Pre-SHA1**: `2bcf517f927cc4eac5cc881a418c16ecc535d2e8`
+- **Pre-SHA1**: `68b097f0aa3cec8b1b2f0b39acd113722886440c`
 - **Post-SHA1**: `51c0626fb2bdf114532e16e92c3c7224e902fc15`
 - **Gates Passed**:
   - [x] anchors_present
@@ -432,9 +432,9 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
 - **Start**: 1
-- **End**: 5005
+- **End**: 99999
 - **Line Delta**: 406
-- **Pre-SHA1**: `cff114132c8f83a0e9f328e57e3bbf17b2ecbbd6`
+- **Pre-SHA1**: `aa401403742013d29df6b1480cebdaa0ad29dece`
 - **Post-SHA1**: `a0cf5706edd14bae057c6a3b1ae9e44cd3093353`
 - **Gates Passed**:
   - [x] anchors_present
@@ -450,9 +450,9 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/workflows.rs`
 - **Start**: 1
-- **End**: 16823
+- **End**: 99999
 - **Line Delta**: 1220
-- **Pre-SHA1**: `401fa370f9a01967ed51c9b56e2a0cc2a2e322b8`
+- **Pre-SHA1**: `2c8260d8881fb89aeb38412a5336930be264d484`
 - **Post-SHA1**: `1750d205522c8e5a123cbdce633a4b24b8ae1101`
 - **Gates Passed**:
   - [x] anchors_present
