@@ -12,7 +12,7 @@ pub mod validators;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use uuid::Uuid;
@@ -178,7 +178,7 @@ impl MemoryPolicy {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
 pub enum MemoryMutationOp {
     Add,
@@ -188,194 +188,235 @@ pub enum MemoryMutationOp {
     Tombstone,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct MemoryWriteOperation {
-    pub op: MemoryMutationOp,
-    pub memory_id: String,
-    pub memory_class: String,
-    pub trust_level: String,
-    pub source_refs: Vec<SourceRef>,
-    pub content: String,
-    pub content_hash: String,
-    pub content_excerpt: String,
-    pub requires_review: bool,
+// Spec §2.6.6.2.3 / §2.6.6.6.6: scope is expressed as EntityRef pointers.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct FemsEntityRef {
+    pub artefact_type: String,
+    pub artefact_id: Uuid,
+    pub selector: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum FemsSourceRefKind {
+    Span,
+    JobStep,
+    Artifact,
+    Entity,
+    DocBlock,
+    Kv,
+}
+
+// Spec §2.6.6.7.2: canonical provenance pointer.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct FemsSourceRef {
+    pub kind: FemsSourceRefKind,
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hash: Option<Hash>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selector: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub classification: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MemoryPackDeterminismMode {
+    Strict,
+    Replay,
+    BestEffort,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MemoryPackBudgets {
+    pub max_tokens: u32,
+    pub max_items: u32,
+    pub max_items_per_type: std::collections::BTreeMap<String, u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MemoryWritePolicy {
+    pub allow_procedural: bool,
+    pub require_human_review: bool,
+    pub max_ops: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MemoryWriteOp {
+    pub op: MemoryMutationOp,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temp_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_id: Option<String>,
+    pub item: PartialMemoryItem,
+    pub rationale: String,
+    pub confidence: f64,
+    pub requires_review: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MemoryWriteProposal {
     pub schema_version: String,
     pub proposal_id: String,
     pub created_at: String,
     pub created_by_job_id: String,
-    pub scope_refs: Vec<String>,
-    pub source_refs: Vec<SourceRef>,
-    pub operations: Vec<MemoryWriteOperation>,
+    pub scope_refs: Vec<FemsEntityRef>,
+    pub source_refs: Vec<FemsSourceRef>,
+    pub policy: MemoryWritePolicy,
+    pub ops: Vec<MemoryWriteOp>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MemoryCommitOpStatus {
+    Applied,
+    Skipped,
+    Rejected,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct MemoryCommitChange {
+pub struct MemoryCommitAppliedOp {
+    pub op: MemoryMutationOp,
     pub memory_id: String,
-    pub operation: MemoryMutationOp,
-    pub previous_status: String,
-    pub new_status: String,
-    pub reason: String,
-    pub actor: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub previous_version: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_version: Option<u32>,
+    pub status: MemoryCommitOpStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MemoryPackRebuildHintReason {
+    MemoryChanged,
+    PolicyChanged,
+    DriftDetected,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MemoryPackRebuildHint {
+    pub scope_ref: FemsEntityRef,
+    pub reason: MemoryPackRebuildHintReason,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct MemoryCommitReport {
     pub schema_version: String,
     pub commit_id: String,
-    pub proposal_id: String,
     pub created_at: String,
-    pub created_by_job_id: String,
-    pub memory_policy: MemoryPolicy,
-    pub decision: String,
-    pub reviewer_kind: String,
-    pub changed_memory_ids: Vec<String>,
-    pub changes: Vec<MemoryCommitChange>,
+    pub source_proposal_id: String,
+    pub applied_ops: Vec<MemoryCommitAppliedOp>,
+    pub warnings: Vec<String>,
+    pub pack_rebuild_hints: Vec<MemoryPackRebuildHint>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MemoryPackItem {
     pub memory_id: String,
     pub memory_class: String,
+    #[serde(rename = "type")]
+    pub item_type: String,
+    pub summary: String,
+    pub content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub structured: Option<Value>,
     pub trust_level: String,
-    pub classification: String,
-    pub source_ref_id: String,
-    pub source_hash: String,
-    pub content_hash: String,
-    pub content_excerpt: String,
-    pub token_estimate: u32,
-    pub priority: i32,
-    pub status: String,
+    pub confidence: f64,
+    pub scope_refs: Vec<FemsEntityRef>,
+    pub source_refs: Vec<FemsSourceRef>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_verified_at: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct MemoryItemProvenance {
+    #[serde(default)]
+    pub source_refs: Vec<FemsSourceRef>,
+    #[serde(default)]
+    pub created_by_job_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct PartialMemoryItem {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_class: Option<String>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub item_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scope_refs: Option<Vec<FemsEntityRef>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub structured: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trust_level: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<MemoryItemProvenance>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub classification: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valid_from: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valid_to: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_verified_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MemoryPack {
     pub schema_version: String,
     pub pack_id: String,
+    pub generated_at: String,
+    pub determinism_mode: MemoryPackDeterminismMode,
     pub memory_policy: MemoryPolicy,
-    pub scope_refs: Vec<String>,
-    pub item_count: u32,
-    pub token_estimate: u32,
-    pub truncation_occurred: bool,
-    pub dropped_memory_ids: Vec<String>,
-    pub cloud_safe: bool,
-    pub redaction_applied: bool,
-    pub selected_memory_ids: Vec<String>,
+    pub scope_refs: Vec<FemsEntityRef>,
+    pub budgets: MemoryPackBudgets,
     pub items: Vec<MemoryPackItem>,
-}
-
-fn hash_serializable<T: Serialize>(value: &T) -> Result<Hash, serde_json::Error> {
-    let json = serde_json::to_vec(value)?;
-    let mut hasher = Sha256::new();
-    hasher.update(&json);
-    Ok(hex::encode(hasher.finalize()))
-}
-
-fn memory_mutation_op_key(op: MemoryMutationOp) -> &'static str {
-    match op {
-        MemoryMutationOp::Add => "add",
-        MemoryMutationOp::Update => "update",
-        MemoryMutationOp::Supersede => "supersede",
-        MemoryMutationOp::Invalidate => "invalidate",
-        MemoryMutationOp::Tombstone => "tombstone",
-    }
-}
-
-fn canonical_scope_refs(scope_refs: &[String]) -> Vec<String> {
-    let mut refs = scope_refs.to_vec();
-    refs.sort();
-    refs.dedup();
-    refs
-}
-
-fn canonical_source_refs(source_refs: &[SourceRef]) -> Vec<SourceRef> {
-    let mut refs = source_refs.to_vec();
-    refs.sort_by(|a, b| {
-        a.source_hash
-            .cmp(&b.source_hash)
-            .then_with(|| a.source_id.cmp(&b.source_id))
-    });
-    refs.dedup_by(|a, b| a.source_id == b.source_id && a.source_hash == b.source_hash);
-    refs
-}
-
-fn canonical_operations(operations: &[MemoryWriteOperation]) -> Vec<MemoryWriteOperation> {
-    let mut ops = operations.to_vec();
-    for op in &mut ops {
-        op.source_refs = canonical_source_refs(&op.source_refs);
-    }
-    ops.sort_by(|a, b| {
-        a.memory_id
-            .cmp(&b.memory_id)
-            .then_with(|| memory_mutation_op_key(a.op).cmp(memory_mutation_op_key(b.op)))
-            .then_with(|| a.memory_class.cmp(&b.memory_class))
-            .then_with(|| a.trust_level.cmp(&b.trust_level))
-            .then_with(|| a.content_hash.cmp(&b.content_hash))
-    });
-    ops
-}
-
-fn canonical_commit_changes(changes: &[MemoryCommitChange]) -> Vec<MemoryCommitChange> {
-    let mut items = changes.to_vec();
-    items.sort_by(|a, b| {
-        a.memory_id
-            .cmp(&b.memory_id)
-            .then_with(|| {
-                memory_mutation_op_key(a.operation).cmp(memory_mutation_op_key(b.operation))
-            })
-            .then_with(|| a.previous_status.cmp(&b.previous_status))
-            .then_with(|| a.new_status.cmp(&b.new_status))
-            .then_with(|| a.reason.cmp(&b.reason))
-            .then_with(|| a.actor.cmp(&b.actor))
-    });
-    items
+    pub token_estimate: u32,
+    pub memory_pack_hash: String,
+    pub warnings: Vec<String>,
 }
 
 impl MemoryWriteProposal {
     pub fn compute_hash(&self) -> Result<Hash, serde_json::Error> {
-        let canonical_operations = canonical_operations(&self.operations);
-        let canonical_source_refs = canonical_source_refs(
-            &canonical_operations
-                .iter()
-                .flat_map(|op| op.source_refs.clone())
-                .collect::<Vec<_>>(),
-        );
-        let payload = json!({
-            "schema_version": self.schema_version,
-            "proposal_id": self.proposal_id,
-            "scope_refs": canonical_scope_refs(&self.scope_refs),
-            "source_refs": canonical_source_refs,
-            "operations": canonical_operations,
-        });
-        hash_serializable(&payload)
+        let value = serde_json::to_value(self)?;
+        Ok(crate::llm::sha256_hex(
+            crate::llm::canonical_json_bytes_nfc(&value).as_slice(),
+        ))
     }
 }
 
 impl MemoryCommitReport {
     pub fn compute_hash(&self) -> Result<Hash, serde_json::Error> {
-        let mut changed_memory_ids = self.changed_memory_ids.clone();
-        changed_memory_ids.sort();
-        changed_memory_ids.dedup();
-        let payload = json!({
-            "schema_version": self.schema_version,
-            "commit_id": self.commit_id,
-            "proposal_id": self.proposal_id,
-            "memory_policy": self.memory_policy,
-            "decision": self.decision,
-            "reviewer_kind": self.reviewer_kind,
-            "changed_memory_ids": changed_memory_ids,
-            "changes": canonical_commit_changes(&self.changes),
-        });
-        hash_serializable(&payload)
+        let value = serde_json::to_value(self)?;
+        Ok(crate::llm::sha256_hex(
+            crate::llm::canonical_json_bytes_nfc(&value).as_slice(),
+        ))
     }
 }
 
 impl MemoryPack {
     pub fn compute_hash(&self) -> Result<Hash, serde_json::Error> {
-        hash_serializable(self)
+        let mut value = serde_json::to_value(self)?;
+        if let Some(obj) = value.as_object_mut() {
+            obj.insert("memory_pack_hash".to_string(), Value::Null);
+        }
+        Ok(crate::llm::sha256_hex(
+            crate::llm::canonical_json_bytes_nfc(&value).as_slice(),
+        ))
     }
 }
 
@@ -1838,76 +1879,225 @@ mod tests {
     }
 
     #[test]
-    fn test_memory_write_proposal_hash_is_deterministic_without_wall_clock_fields() {
-        let source = SourceRef::new(Uuid::from_u128(11), "a".repeat(64));
-        let operation = MemoryWriteOperation {
-            op: MemoryMutationOp::Update,
-            memory_id: "mem_001".to_string(),
-            memory_class: "working".to_string(),
-            trust_level: "trusted".to_string(),
-            source_refs: vec![source.clone()],
-            content: "remember alpha".to_string(),
-            content_hash: "b".repeat(64),
-            content_excerpt: "remember alpha".to_string(),
-            requires_review: true,
-        };
+    fn test_fems_artifact_schema_keys_match_spec_v02_139() -> Result<(), String> {
+        fn sorted_keys(value: &Value) -> Result<Vec<String>, String> {
+            let Some(obj) = value.as_object() else {
+                return Err("expected JSON object".to_string());
+            };
+            let mut keys = obj.keys().cloned().collect::<Vec<_>>();
+            keys.sort();
+            Ok(keys)
+        }
 
-        let mut first = MemoryWriteProposal {
+        let scope_refs = vec![FemsEntityRef {
+            artefact_type: "workspace".to_string(),
+            artefact_id: Uuid::from_u128(1),
+            selector: "self".to_string(),
+        }];
+        let source_refs = vec![FemsSourceRef {
+            kind: FemsSourceRefKind::Artifact,
+            id: "src_001".to_string(),
+            hash: Some("a".repeat(64)),
+            selector: Some("lines:1-2".to_string()),
+            created_at: None,
+            classification: Some("medium".to_string()),
+        }];
+
+        let proposal = MemoryWriteProposal {
             schema_version: "hsk.memory_write_proposal@0.1".to_string(),
             proposal_id: "550e8400-e29b-41d4-a716-446655440100".to_string(),
             created_at: "2026-01-01T00:00:00Z".to_string(),
-            created_by_job_id: "job_a".to_string(),
-            scope_refs: vec!["workspace:alpha".to_string()],
-            source_refs: vec![source.clone()],
-            operations: vec![operation.clone()],
+            created_by_job_id: "job_001".to_string(),
+            scope_refs: scope_refs.clone(),
+            source_refs: source_refs.clone(),
+            policy: MemoryWritePolicy {
+                allow_procedural: true,
+                require_human_review: true,
+                max_ops: 64,
+            },
+            ops: vec![MemoryWriteOp {
+                op: MemoryMutationOp::Update,
+                temp_id: None,
+                memory_id: Some("mem_001".to_string()),
+                item: PartialMemoryItem {
+                    memory_id: Some("mem_001".to_string()),
+                    memory_class: Some("working".to_string()),
+                    item_type: Some("preference".to_string()),
+                    scope_refs: Some(scope_refs.clone()),
+                    content: Some("remember alpha".to_string()),
+                    structured: None,
+                    confidence: Some(0.8),
+                    trust_level: Some("trusted".to_string()),
+                    provenance: Some(MemoryItemProvenance {
+                        source_refs: source_refs.clone(),
+                        created_by_job_id: "job_001".to_string(),
+                    }),
+                    classification: Some("medium".to_string()),
+                    valid_from: None,
+                    valid_to: None,
+                    last_verified_at: None,
+                    status: Some("active".to_string()),
+                    version: None,
+                },
+                rationale: "test".to_string(),
+                confidence: 0.8,
+                requires_review: false,
+            }],
         };
-        let mut second = first.clone();
-        second.created_at = "2030-01-01T00:00:00Z".to_string();
-        second.created_by_job_id = "job_b".to_string();
+        let proposal_value =
+            serde_json::to_value(&proposal).map_err(|e| format!("serialize proposal: {e}"))?;
+        assert_eq!(
+            sorted_keys(&proposal_value)?,
+            vec![
+                "created_at".to_string(),
+                "created_by_job_id".to_string(),
+                "ops".to_string(),
+                "policy".to_string(),
+                "proposal_id".to_string(),
+                "schema_version".to_string(),
+                "scope_refs".to_string(),
+                "source_refs".to_string(),
+            ]
+        );
 
-        let hash_first = first.compute_hash().expect("hash");
-        let hash_second = second.compute_hash().expect("hash");
-        assert_eq!(hash_first, hash_second);
+        let commit_report = MemoryCommitReport {
+            schema_version: "hsk.memory_commit_report@0.1".to_string(),
+            commit_id: "550e8400-e29b-41d4-a716-446655440101".to_string(),
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            source_proposal_id: proposal.proposal_id.clone(),
+            applied_ops: vec![MemoryCommitAppliedOp {
+                op: MemoryMutationOp::Update,
+                memory_id: "mem_001".to_string(),
+                previous_version: None,
+                new_version: None,
+                status: MemoryCommitOpStatus::Applied,
+                reason: None,
+            }],
+            warnings: Vec::new(),
+            pack_rebuild_hints: vec![MemoryPackRebuildHint {
+                scope_ref: scope_refs[0].clone(),
+                reason: MemoryPackRebuildHintReason::MemoryChanged,
+            }],
+        };
+        let commit_value =
+            serde_json::to_value(&commit_report).map_err(|e| format!("serialize commit: {e}"))?;
+        assert_eq!(
+            sorted_keys(&commit_value)?,
+            vec![
+                "applied_ops".to_string(),
+                "commit_id".to_string(),
+                "created_at".to_string(),
+                "pack_rebuild_hints".to_string(),
+                "schema_version".to_string(),
+                "source_proposal_id".to_string(),
+                "warnings".to_string(),
+            ]
+        );
 
-        // Semantic change must alter hash.
-        first.operations[0].content = "remember beta".to_string();
-        first.operations[0].content_hash = "c".repeat(64);
-        let hash_changed = first.compute_hash().expect("hash");
-        assert_ne!(hash_first, hash_changed);
+        let pack = MemoryPack {
+            schema_version: "hsk.memory_pack@0.1".to_string(),
+            pack_id: "550e8400-e29b-41d4-a716-446655440102".to_string(),
+            generated_at: "2026-01-01T00:00:00Z".to_string(),
+            determinism_mode: MemoryPackDeterminismMode::Strict,
+            memory_policy: MemoryPolicy::WorkspaceScoped,
+            scope_refs: scope_refs.clone(),
+            budgets: MemoryPackBudgets {
+                max_tokens: 500,
+                max_items: 24,
+                max_items_per_type: std::collections::BTreeMap::new(),
+            },
+            items: vec![MemoryPackItem {
+                memory_id: "mem_001".to_string(),
+                memory_class: "working".to_string(),
+                item_type: "preference".to_string(),
+                summary: "alpha".to_string(),
+                content: "alpha".to_string(),
+                structured: None,
+                trust_level: "trusted".to_string(),
+                confidence: 0.8,
+                scope_refs,
+                source_refs,
+                last_verified_at: None,
+            }],
+            token_estimate: 42,
+            memory_pack_hash: "0".repeat(64),
+            warnings: Vec::new(),
+        };
+        let pack_value = serde_json::to_value(&pack).map_err(|e| format!("serialize pack: {e}"))?;
+        assert_eq!(
+            sorted_keys(&pack_value)?,
+            vec![
+                "budgets".to_string(),
+                "determinism_mode".to_string(),
+                "generated_at".to_string(),
+                "items".to_string(),
+                "memory_pack_hash".to_string(),
+                "memory_policy".to_string(),
+                "pack_id".to_string(),
+                "schema_version".to_string(),
+                "scope_refs".to_string(),
+                "token_estimate".to_string(),
+                "warnings".to_string(),
+            ]
+        );
+
+        Ok(())
     }
 
     #[test]
-    fn test_memory_commit_report_hash_is_deterministic_without_wall_clock_fields() {
-        let change = MemoryCommitChange {
-            memory_id: "mem_001".to_string(),
-            operation: MemoryMutationOp::Update,
-            previous_status: "active".to_string(),
-            new_status: "active".to_string(),
-            reason: "merge".to_string(),
-            actor: "policy".to_string(),
-        };
-        let mut first = MemoryCommitReport {
-            schema_version: "hsk.memory_commit_report@0.1".to_string(),
-            commit_id: "550e8400-e29b-41d4-a716-446655440101".to_string(),
-            proposal_id: "550e8400-e29b-41d4-a716-446655440100".to_string(),
-            created_at: "2026-01-01T00:00:00Z".to_string(),
-            created_by_job_id: "job_a".to_string(),
+    fn test_memory_pack_hash_is_independent_of_memory_pack_hash_field() -> Result<(), String> {
+        let scope_refs = vec![FemsEntityRef {
+            artefact_type: "workspace".to_string(),
+            artefact_id: Uuid::from_u128(1),
+            selector: "self".to_string(),
+        }];
+        let source_refs = vec![FemsSourceRef {
+            kind: FemsSourceRefKind::Artifact,
+            id: "src_001".to_string(),
+            hash: Some("a".repeat(64)),
+            selector: Some("lines:1-2".to_string()),
+            created_at: None,
+            classification: None,
+        }];
+
+        let mut pack = MemoryPack {
+            schema_version: "hsk.memory_pack@0.1".to_string(),
+            pack_id: "550e8400-e29b-41d4-a716-446655440102".to_string(),
+            generated_at: "2026-01-01T00:00:00Z".to_string(),
+            determinism_mode: MemoryPackDeterminismMode::Strict,
             memory_policy: MemoryPolicy::WorkspaceScoped,
-            decision: "approved".to_string(),
-            reviewer_kind: "user".to_string(),
-            changed_memory_ids: vec!["mem_001".to_string()],
-            changes: vec![change.clone()],
+            scope_refs: scope_refs.clone(),
+            budgets: MemoryPackBudgets {
+                max_tokens: 500,
+                max_items: 24,
+                max_items_per_type: std::collections::BTreeMap::new(),
+            },
+            items: vec![MemoryPackItem {
+                memory_id: "mem_001".to_string(),
+                memory_class: "working".to_string(),
+                item_type: "preference".to_string(),
+                summary: "alpha".to_string(),
+                content: "alpha".to_string(),
+                structured: None,
+                trust_level: "trusted".to_string(),
+                confidence: 0.8,
+                scope_refs,
+                source_refs,
+                last_verified_at: None,
+            }],
+            token_estimate: 42,
+            memory_pack_hash: "1".repeat(64),
+            warnings: Vec::new(),
         };
-        let mut second = first.clone();
-        second.created_at = "2030-01-01T00:00:00Z".to_string();
-        second.created_by_job_id = "job_b".to_string();
 
-        let hash_first = first.compute_hash().expect("hash");
-        let hash_second = second.compute_hash().expect("hash");
-        assert_eq!(hash_first, hash_second);
-
-        first.changes[0].new_status = "superseded".to_string();
-        let hash_changed = first.compute_hash().expect("hash");
-        assert_ne!(hash_first, hash_changed);
+        let first = pack
+            .compute_hash()
+            .map_err(|e| format!("compute hash: {e}"))?;
+        pack.memory_pack_hash = "2".repeat(64);
+        let second = pack
+            .compute_hash()
+            .map_err(|e| format!("compute hash: {e}"))?;
+        assert_eq!(first, second);
+        Ok(())
     }
 }
