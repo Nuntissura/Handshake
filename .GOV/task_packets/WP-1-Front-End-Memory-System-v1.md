@@ -267,7 +267,205 @@ git revert <commit-sha>
   - [x] all_links_resolvable
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
-- **Lint Results**: `just lint` exit code 0
+
+- **Target File**: `app/src/components/operator/DebugBundleExport.tsx`
+- **Start**: 1
+- **End**: 409
+- **Line Delta**: 4
+- **Pre-SHA1**: `8e3b23a5108f64a568c653ec6d7f91c8a278b5a8`
+- **Post-SHA1**: `a7f0af807e55cb0169608affb496fe7e9e0131a5`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/components/operator/JobsView.tsx`
+- **Start**: 1
+- **End**: 626
+- **Line Delta**: 97
+- **Pre-SHA1**: `fdb79747dd93d8a10c532c00cc79573eb44b5686`
+- **Post-SHA1**: `8cfe830387165f37e1846fdc46cd83cf89a32087`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/components/operator/TimelineView.tsx`
+- **Start**: 1
+- **End**: 426
+- **Line Delta**: 19
+- **Pre-SHA1**: `8619157ab25cb71799db9a7b0a4a1bb700726e43`
+- **Post-SHA1**: `b45211d7caeb80517d2c6c1679572c12b06725d7`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/lib/api.ts`
+- **Start**: 1
+- **End**: 856
+- **Line Delta**: 58
+- **Pre-SHA1**: `2e131ab7051b1d18f304d767cf4cd92234fa9898`
+- **Post-SHA1**: `492553f576ae133a1c2b1c1eb129636b13dd5758`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `app/src/state/aiJobs.ts`
+- **Start**: 1
+- **End**: 180
+- **Line Delta**: 8
+- **Pre-SHA1**: `3674f5a8216e3112280fe69ceb5fd2d3ecdc2af4`
+- **Post-SHA1**: `1c9da94876212c93f46354a868426cc77f0b85ff`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ace/mod.rs`
+- **Start**: 1
+- **End**: 1745
+- **Line Delta**: 131
+- **Pre-SHA1**: `68b097f0aa3cec8b1b2f0b39acd113722886440c`
+- **Post-SHA1**: `90e24d83b3203e9016634b3c696ff7855de20aab`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/ace/validators/promotion.rs`
+- **Start**: 1
+- **End**: 235
+- **Line Delta**: 39
+- **Pre-SHA1**: `bbff1aee75c7007392c67e10942b1463672698c5`
+- **Post-SHA1**: `765f6b5a46624a10bd7f0c05fbde99f099f55050`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/api/jobs.rs`
+- **Start**: 1
+- **End**: 465
+- **Line Delta**: 77
+- **Pre-SHA1**: `f20fa2f70fff95b80656df7727f42ac43d777793`
+- **Post-SHA1**: `a6322b45a19e58e41839e2e1456f24655881176c`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- **Start**: 1
+- **End**: 1455
+- **Line Delta**: 10
+- **Pre-SHA1**: `695ec1973ee07b82dbc00ca3df71664acc87698e`
+- **Post-SHA1**: `85e545db63261d4227e573346c5273441023f4a3`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 1
+- **End**: 5337
+- **Line Delta**: 360
+- **Pre-SHA1**: `aa401403742013d29df6b1480cebdaa0ad29dece`
+- **Post-SHA1**: `2c799c316a058b5b8a7f01881f00f39f3c077e56`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1
+- **End**: 17912
+- **Line Delta**: 741
+- **Pre-SHA1**: `2c8260d8881fb89aeb38412a5336930be264d484`
+- **Post-SHA1**: `86bf9034ccacdc31d647e17401e5659d584cf064`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+ - **Lint Results**: `just lint` exit code 0
 - **Artifacts**: FEMS runtime, FR event, API, and UI code paths listed in `## IMPLEMENTATION`
 - **Timestamp**: 2026-02-26T00:00:00Z
 - **Operator**: coder
