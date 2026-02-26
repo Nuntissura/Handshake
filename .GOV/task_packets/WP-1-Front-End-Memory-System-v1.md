@@ -188,6 +188,13 @@ git revert <commit-sha>
   - Confirm whether DCC memory panel MVP should live under existing operator views or dedicated component for this packet.
 - Notes:
   - This packet is the core v02.138 Phase 1 FEMS deliverable and should precede FEMS risk/acceptance follow-on packets.
+  - BOOTSTRAP baseline scan indicates FEMS-specific contracts are not present yet in in-scope runtime/API/UI paths; this WP introduces the first end-to-end FEMS v0 surface.
+  - File-level contract mapping for this WP:
+    - `src/backend/handshake_core/src/workflows.rs`: add FEMS job-kind handling + session memory policy orchestration + review-gated commit path wiring.
+    - `src/backend/handshake_core/src/jobs.rs` and `src/backend/handshake_core/src/api/jobs.rs`: expose/accept FEMS job contracts and policy-safe job lifecycle entrypoints.
+    - `src/backend/handshake_core/src/flight_recorder/mod.rs` and `src/backend/handshake_core/src/flight_recorder/duckdb.rs`: add FR-EVT-MEM-001..005 event typing + validation + persistence mapping.
+    - `app/src/lib/api.ts` + `app/src/state/aiJobs.ts`: add frontend contract types/actions for memory proposal/review/pack preview payloads.
+    - `app/src/components/operator/TimelineView.tsx`, `app/src/components/operator/JobsView.tsx`, `app/src/components/operator/DebugBundleExport.tsx`: add memory timeline visibility and operator review/preview affordances.
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
