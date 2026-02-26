@@ -3,17 +3,17 @@
 ## METADATA
 - TASK_ID: WP-1-Front-End-Memory-System-v1
 - WP_ID: WP-1-Front-End-Memory-System-v1
-- BASE_WP_ID: WP-1-Front-End-Memory-System (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
+- BASE_WP_ID: WP-1-Front-End-Memory-System
 - DATE: 2026-02-26T00:01:20.142Z
-- MERGE_BASE_SHA: 460e4198b11994da9515fb8c627e05cd6f4b1760 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: 460e4198b11994da9515fb8c627e05cd6f4b1760
 - REQUESTOR: Operator (ilja)
 - AGENT_ID: CodexCLI-GPT-5.2 (Orchestrator)
 - ROLE: Orchestrator
 - AGENTIC_MODE: YES
-- ORCHESTRATOR_MODEL: GPT-5.2 (Codex CLI) (required if AGENTIC_MODE=YES)
-- ORCHESTRATION_STARTED_AT_UTC: 2026-02-26T00:05:00Z (RFC3339 UTC; required if AGENTIC_MODE=YES)
+- ORCHESTRATOR_MODEL: GPT-5.2 (Codex CLI)
+- ORCHESTRATION_STARTED_AT_UTC: 2026-02-26T00:05:00Z
 - CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
+- CODER_REASONING_STRENGTH: <unclaimed>
 - **Status:** Ready for Dev
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja260220260100
