@@ -547,3 +547,71 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+VALIDATION REPORT -- WP-1-Front-End-Memory-System-v1
+Verdict: FAIL
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Front-End-Memory-System-v1`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS (note: coder recorded an initial `post-work` FAIL; Validator reran and recorded PASS below)
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): NO
+
+Scope Inputs:
+- Task Packet: .GOV/task_packets/WP-1-Front-End-Memory-System-v1.md (status: In Progress)
+- Spec: Handshake_Master_Spec_v02.138.md anchors 2.6.6.6.6, 2.6.6.7.6.2, 4.3.9.12.7, 5.4.8, 10.11.5.14, 11.5.13
+
+Validated Window:
+- MERGE_BASE_SHA: 460e4198b11994da9515fb8c627e05cd6f4b1760
+- Range validated by `just post-work` (Validator-run): 460e4198b11994da9515fb8c627e05cd6f4b1760..de84ead2540d9e85f46cc9502033de08de9b9b3f
+
+Files Checked:
+- src/backend/handshake_core/src/workflows.rs
+- src/backend/handshake_core/src/ace/mod.rs
+- src/backend/handshake_core/src/ace/validators/promotion.rs
+- src/backend/handshake_core/src/api/jobs.rs
+- src/backend/handshake_core/src/flight_recorder/mod.rs
+- app/src/components/operator/JobsView.tsx
+- Handshake_Master_Spec_v02.138.md (sections above)
+
+Findings (Blocking):
+- Spec 2.6.6.6.6 (Job kinds minimum): `memory_extract_v0.1` MUST extract candidate memories into a `MemoryWriteProposal`.
+  - Current implementation treats `memory_extract_v0.1` as non-write and returns without creating a proposal: `src/backend/handshake_core/src/workflows.rs:10867`, `src/backend/handshake_core/src/workflows.rs:11222`.
+  - Proposal creation is only reached for write protocols (consolidate/forget): `src/backend/handshake_core/src/workflows.rs:11288`.
+- Spec 2.6.6.6.6 + 2.6.6.7.6.2 (Determinism): extraction/consolidation MUST be deterministic under pinned inputs in strict/replay.
+  - `created_at` is set from wall-clock time (`Utc::now()`) inside proposal + commit report, and hashes include that field: `src/backend/handshake_core/src/workflows.rs:11291`, `src/backend/handshake_core/src/workflows.rs:11448`, `src/backend/handshake_core/src/ace/mod.rs:201`, `src/backend/handshake_core/src/ace/mod.rs:263`.
+- Spec 2.6.6.7.6.2.5 (Validate step): extraction MUST reject items without bounded SourceRefs and reject instruction-like content.
+  - Implementation fabricates missing source_ref_id/source_hash instead of rejecting missing provenance: `src/backend/handshake_core/src/workflows.rs:10932`.
+  - No content-level validation exists because FEMS input items/pack items do not include any memory content fields to validate (metadata-only pack): `src/backend/handshake_core/src/ace/mod.rs:236`.
+- Spec 4.3.9.12.7 (ModelSession integration): memory_policy read/write semantics, cloud-safe pack decision recording, and memory_state_ref SHOULD pointer are specified on ModelSession per-call.
+  - Current implementation is a WorkflowRun job-path only; there is no ModelSession integration surface in this diff, and `memory_policy` is only parsed from job_inputs: `src/backend/handshake_core/src/workflows.rs:10874`.
+- Spec 10.11.5.14 (Front End Memory Panel): required views include approve/reject review actions and a disable-memory action.
+  - Current UI only displays read-only preview fields in Jobs inspector; no approve/reject actions, no disable-memory control: `app/src/components/operator/JobsView.tsx:477`.
+- Spec 5.4.8 (FEMS-EVAL-001 test suite): normative suite requires budget/truncation, provenance selector bounds, anti-poisoning/instruction suppression, determinism/replay, cloud redaction correctness, and consolidation/conflict behavior validation.
+  - Current tests added/observed cover only protocol alias acceptance, promotion guard review gating, and FR payload validation; the FEMS-EVAL-001 suite is not implemented in tests.
+- Spec 11.5.13 (FR-EVT-MEM-* schema): event payload types specify `artifact_ref: ArtifactHandle`.
+  - Current implementation uses string refs like `fems://proposals/...` and validators enforce prefixed token strings rather than ArtifactHandle objects: `src/backend/handshake_core/src/workflows.rs:11312`, `src/backend/handshake_core/src/flight_recorder/mod.rs:3695`.
+
+Hygiene:
+- Deterministic manifest gate: PASS (Validator rerun) for range noted above.
+- Git status at validation time: clean (WP worktree).
+
+Tests (per packet EVIDENCE):
+- `just pre-work WP-1-Front-End-Memory-System-v1`: PASS (exit code 0)
+- `just gov-check`: PASS (exit code 0)
+- `just fmt`: PASS (exit code 0)
+- `just lint`: PASS (exit code 0; warnings present per coder note)
+- `just test`: PASS (exit code 0)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test terminal_session_tests`: PASS (exit code 0)
+- `cd app; pnpm test`: PASS (exit code 0)
+- `just post-work WP-1-Front-End-Memory-System-v1 --range 460e4198.....HEAD`: Validator rerun PASS (see chat + gate output)
+
+Risks & Suggested Actions:
+1. Implement `memory_extract_v0.1` as the proposal-producing job (or introduce a separate `memory_pack_build` protocol and align naming with spec), and ensure proposal artifacts are produced and hashable.
+2. Remove wall-clock fields from hashed proposal/report OR derive them deterministically in strict/replay; ensure hash uses canonical JSON rules if required by spec.
+3. Add FEMS validation gates: bounded SourceRefs, instruction suppression, and provenance enforcement per 2.6.6.7.6.2.5.
+4. Implement the FEMS-EVAL-001 test suite items (budget/truncation determinism, replay hash determinism, cloud redaction correctness, consolidation/conflict behavior).
+5. Expand operator UI to meet 10.11.5.14: review approve/reject actions, MemoryPack preview, and disable-memory control (job-driven; no direct mutation).
+6. Align FR-EVT-MEM payload schemas with spec (ArtifactHandle shape) or document/waive the representation mismatch explicitly.
+
+REASON FOR FAIL:
+- The implementation does not satisfy multiple normative MUST requirements from the cited spec anchors (notably: `memory_extract_v0.1` does not produce a MemoryWriteProposal, determinism requirements are violated by wall-clock timestamps in hashed artifacts, the required DCC memory review controls are not implemented, and the FEMS-EVAL-001 test suite is missing). Per Validator Protocol and Codex [CX-598], merge is blocked until requirements are implemented or an explicit waiver/override is recorded.
