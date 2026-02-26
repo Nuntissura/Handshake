@@ -618,6 +618,24 @@ git revert <commit-sha>
 - COMMAND: just post-work WP-1-Front-End-Memory-System-v1 --range 460e4198b11994da9515fb8c627e05cd6f4b1760..HEAD
 - EXIT_CODE: 0
 - PROOF_LINES: `Post-work validation PASSED (deterministic manifest gate; not tests)`
+- COMMAND: just fmt
+- EXIT_CODE: 0
+- PROOF_LINES: `Formatting completed; out-of-scope formatting drift detected and reverted`
+- COMMAND: just lint
+- EXIT_CODE: 0
+- PROOF_LINES: `Lint completed (warnings only)`
+- COMMAND: just test
+- EXIT_CODE: 0
+- PROOF_LINES: `194 passed; 0 failed`
+- COMMAND: cd app; pnpm test
+- EXIT_CODE: 0
+- PROOF_LINES: `Test Files 6 passed`
+- COMMAND: git restore -- src/backend/handshake_core/src/api/loom.rs src/backend/handshake_core/src/llm/registry.rs src/backend/handshake_core/src/loom_fs.rs src/backend/handshake_core/src/mcp/client.rs src/backend/handshake_core/src/mcp/gate.rs src/backend/handshake_core/src/mcp/transport/reconnect.rs src/backend/handshake_core/src/mex/conformance.rs src/backend/handshake_core/src/mex/runtime.rs src/backend/handshake_core/src/storage/loom.rs src/backend/handshake_core/src/storage/mod.rs src/backend/handshake_core/src/storage/postgres.rs src/backend/handshake_core/src/storage/sqlite.rs src/backend/handshake_core/tests/mcp_e2e_tests.rs src/backend/handshake_core/tests/mcp_gate_tests.rs
+- EXIT_CODE: 0
+- PROOF_LINES: `Out-of-scope formatting changes reverted per scope guardrail`
+- COMMAND: just post-work WP-1-Front-End-Memory-System-v1 --range 460e4198b11994da9515fb8c627e05cd6f4b1760..HEAD
+- EXIT_CODE: 0
+- PROOF_LINES: `Git range: 460e4198b11994da9515fb8c627e05cd6f4b1760..b957f90e0676e899fed4b29f933c5be76b11803f; ROLE_MAILBOX_EXPORT_GATE PASS`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
