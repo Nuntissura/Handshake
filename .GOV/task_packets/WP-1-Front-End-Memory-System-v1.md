@@ -12,9 +12,9 @@
 - AGENTIC_MODE: YES
 - ORCHESTRATOR_MODEL: GPT-5.2 (Codex CLI)
 - ORCHESTRATION_STARTED_AT_UTC: 2026-02-26T00:05:00Z
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed>
-- **Status:** Ready for Dev
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja260220260100
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -253,9 +253,9 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: In Progress (bootstrap started)
+- What changed in this update: Claimed packet for Coder-A; completed hard-gate + pre-work + gate-check + BOOTSTRAP context read/search.
+- Next step / handoff hint: Output SKELETON block/checkpoint and wait for "SKELETON APPROVED" before implementation.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
