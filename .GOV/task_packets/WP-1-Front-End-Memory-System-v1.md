@@ -288,10 +288,10 @@ git revert <commit-sha>
 
 - **Target File**: `app/src/components/operator/JobsView.tsx`
 - **Start**: 1
-- **End**: 723
-- **Line Delta**: 239
+- **End**: 754
+- **Line Delta**: 271
 - **Pre-SHA1**: `fdb79747dd93d8a10c532c00cc79573eb44b5686`
-- **Post-SHA1**: `40e9275d93d6b5c534ecce1fd259cb8dacc41f83`
+- **Post-SHA1**: `fa48a41a5e7e6b84b5cf58ea910055c29d22751d`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -361,9 +361,9 @@ git revert <commit-sha>
 - **Target File**: `src/backend/handshake_core/src/ace/mod.rs`
 - **Start**: 1
 - **End**: 99999
-- **Line Delta**: 299
+- **Line Delta**: 489
 - **Pre-SHA1**: `68b097f0aa3cec8b1b2f0b39acd113722886440c`
-- **Post-SHA1**: `51c0626fb2bdf114532e16e92c3c7224e902fc15`
+- **Post-SHA1**: `4ed9ac52b5f02a74ffbebb4604de763d3594d8e1`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -451,9 +451,9 @@ git revert <commit-sha>
 - **Target File**: `src/backend/handshake_core/src/workflows.rs`
 - **Start**: 1
 - **End**: 99999
-- **Line Delta**: 1220
+- **Line Delta**: 1463
 - **Pre-SHA1**: `2c8260d8881fb89aeb38412a5336930be264d484`
-- **Post-SHA1**: `1750d205522c8e5a123cbdce633a4b24b8ae1101`
+- **Post-SHA1**: `1cde8d5281ae7a9d22e03142a5bd16b3aa12eb3f`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
