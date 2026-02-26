@@ -658,6 +658,9 @@ git revert <commit-sha>
 - COMMAND: just post-work WP-1-Front-End-Memory-System-v1 --range 460e4198b11994da9515fb8c627e05cd6f4b1760..HEAD
 - EXIT_CODE: 0
 - PROOF_LINES: `Git range: 460e4198b11994da9515fb8c627e05cd6f4b1760..74414fe5c936efcc925d3a2a161f9e461b3b37cc; ROLE_MAILBOX_EXPORT_GATE PASS`
+- COMMAND: just post-work WP-1-Front-End-Memory-System-v1 --range 460e4198b11994da9515fb8c627e05cd6f4b1760..HEAD
+- EXIT_CODE: 0
+- PROOF_LINES: `Git range: 460e4198b11994da9515fb8c627e05cd6f4b1760..8b68f24a056da02abe3a71cbe57818b93d8d3019; ROLE_MAILBOX_EXPORT_GATE PASS`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
