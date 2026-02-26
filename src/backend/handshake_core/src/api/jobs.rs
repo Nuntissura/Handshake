@@ -32,18 +32,44 @@ fn is_fems_protocol(protocol_id: &str) -> bool {
     )
 }
 
-fn parse_job_kind_request(job_kind: &str, protocol_id: &str) -> Result<JobKind, String> {
+#[derive(Debug)]
+enum ParseJobKindRequestError {
+    ContractMismatch { job_kind: String, protocol_id: String },
+    InvalidJobKind(crate::storage::StorageError),
+}
+
+impl std::fmt::Display for ParseJobKindRequestError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParseJobKindRequestError::ContractMismatch {
+                job_kind,
+                protocol_id: _,
+            } => {
+                write!(
+                    f,
+                    "invalid job contract: job_kind {job_kind} requires matching protocol_id"
+                )
+            }
+            ParseJobKindRequestError::InvalidJobKind(err) => err.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for ParseJobKindRequestError {}
+
+fn parse_job_kind_request(job_kind: &str, protocol_id: &str) -> Result<JobKind, ParseJobKindRequestError> {
     let trimmed = job_kind.trim();
     if is_fems_protocol(trimmed) {
         if trimmed != protocol_id {
-            return Err(format!(
-                "invalid job contract: job_kind {trimmed} requires matching protocol_id"
-            ));
+            return Err(ParseJobKindRequestError::ContractMismatch {
+                job_kind: trimmed.to_string(),
+                protocol_id: protocol_id.to_string(),
+            });
         }
         return Ok(JobKind::WorkflowRun);
     }
 
-    JobKind::from_str(trimmed).map_err(|e| e.to_string())
+    JobKind::from_str(trimmed).map_err(ParseJobKindRequestError::InvalidJobKind)
 }
 
 fn parse_job_kind_filter(job_kind: &str) -> Result<JobKind, String> {
@@ -172,7 +198,8 @@ async fn create_new_job(
     State(state): State<AppState>,
     Json(payload): Json<CreateJobRequest>,
 ) -> Result<Json<WorkflowRun>, String> {
-    let job_kind = parse_job_kind_request(payload.job_kind.as_str(), payload.protocol_id.as_str())?;
+    let job_kind = parse_job_kind_request(payload.job_kind.as_str(), payload.protocol_id.as_str())
+        .map_err(|e| e.to_string())?;
 
     let capability_profile_id = state
         .capability_registry

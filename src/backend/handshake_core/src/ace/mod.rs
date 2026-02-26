@@ -1879,14 +1879,15 @@ mod tests {
     }
 
     #[test]
-    fn test_fems_artifact_schema_keys_match_spec_v02_139() -> Result<(), String> {
-        fn sorted_keys(value: &Value) -> Result<Vec<String>, String> {
+    fn test_fems_artifact_schema_keys_match_spec_v02_139() {
+        fn sorted_keys(value: &Value) -> Vec<String> {
             let Some(obj) = value.as_object() else {
-                return Err("expected JSON object".to_string());
+                assert!(value.is_object(), "expected JSON object");
+                return Vec::new();
             };
             let mut keys = obj.keys().cloned().collect::<Vec<_>>();
             keys.sort();
-            Ok(keys)
+            keys
         }
 
         let scope_refs = vec![FemsEntityRef {
@@ -1944,10 +1945,15 @@ mod tests {
                 requires_review: false,
             }],
         };
-        let proposal_value =
-            serde_json::to_value(&proposal).map_err(|e| format!("serialize proposal: {e}"))?;
+        let proposal_value = match serde_json::to_value(&proposal) {
+            Ok(value) => value,
+            Err(err) => {
+                assert!(false, "serialize proposal: {err}");
+                return;
+            }
+        };
         assert_eq!(
-            sorted_keys(&proposal_value)?,
+            sorted_keys(&proposal_value),
             vec![
                 "created_at".to_string(),
                 "created_by_job_id".to_string(),
@@ -1979,10 +1985,15 @@ mod tests {
                 reason: MemoryPackRebuildHintReason::MemoryChanged,
             }],
         };
-        let commit_value =
-            serde_json::to_value(&commit_report).map_err(|e| format!("serialize commit: {e}"))?;
+        let commit_value = match serde_json::to_value(&commit_report) {
+            Ok(value) => value,
+            Err(err) => {
+                assert!(false, "serialize commit: {err}");
+                return;
+            }
+        };
         assert_eq!(
-            sorted_keys(&commit_value)?,
+            sorted_keys(&commit_value),
             vec![
                 "applied_ops".to_string(),
                 "commit_id".to_string(),
@@ -2023,9 +2034,15 @@ mod tests {
             memory_pack_hash: "0".repeat(64),
             warnings: Vec::new(),
         };
-        let pack_value = serde_json::to_value(&pack).map_err(|e| format!("serialize pack: {e}"))?;
+        let pack_value = match serde_json::to_value(&pack) {
+            Ok(value) => value,
+            Err(err) => {
+                assert!(false, "serialize pack: {err}");
+                return;
+            }
+        };
         assert_eq!(
-            sorted_keys(&pack_value)?,
+            sorted_keys(&pack_value),
             vec![
                 "budgets".to_string(),
                 "determinism_mode".to_string(),
@@ -2040,12 +2057,10 @@ mod tests {
                 "warnings".to_string(),
             ]
         );
-
-        Ok(())
     }
 
     #[test]
-    fn test_memory_pack_hash_is_independent_of_memory_pack_hash_field() -> Result<(), String> {
+    fn test_memory_pack_hash_is_independent_of_memory_pack_hash_field() {
         let scope_refs = vec![FemsEntityRef {
             artefact_type: "workspace".to_string(),
             artefact_id: Uuid::from_u128(1),
@@ -2090,14 +2105,21 @@ mod tests {
             warnings: Vec::new(),
         };
 
-        let first = pack
-            .compute_hash()
-            .map_err(|e| format!("compute hash: {e}"))?;
+        let first = match pack.compute_hash() {
+            Ok(value) => value,
+            Err(err) => {
+                assert!(false, "compute hash: {err}");
+                return;
+            }
+        };
         pack.memory_pack_hash = "2".repeat(64);
-        let second = pack
-            .compute_hash()
-            .map_err(|e| format!("compute hash: {e}"))?;
+        let second = match pack.compute_hash() {
+            Ok(value) => value,
+            Err(err) => {
+                assert!(false, "compute hash: {err}");
+                return;
+            }
+        };
         assert_eq!(first, second);
-        Ok(())
     }
 }
