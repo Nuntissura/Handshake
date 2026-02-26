@@ -77,33 +77,53 @@ function toFemsMemoryItemsFromProposal(
   proposal: Record<string, unknown> | null,
 ): Array<Record<string, unknown>> {
   if (!proposal) return [];
-  const rawOperations = proposal["operations"];
-  if (!Array.isArray(rawOperations)) return [];
+  const rawOps = proposal["ops"];
+  if (!Array.isArray(rawOps)) return [];
 
   const out: Array<Record<string, unknown>> = [];
-  for (const op of rawOperations) {
+  for (const op of rawOps) {
     if (!isRecord(op)) continue;
-    const memoryId = typeof op.memory_id === "string" ? op.memory_id : "";
+    const item = isRecord(op.item) ? (op.item as Record<string, unknown>) : null;
+    const memoryId =
+      typeof op.memory_id === "string"
+        ? op.memory_id
+        : item && typeof item.memory_id === "string"
+          ? item.memory_id
+          : "";
     if (!memoryId) continue;
-    const memoryClass = typeof op.memory_class === "string" ? op.memory_class : "working";
-    const trustLevel = typeof op.trust_level === "string" ? op.trust_level : "untrusted";
-    const content = typeof op.content === "string" ? op.content : "";
-    const sourceRefs = Array.isArray(op.source_refs) ? op.source_refs.filter((v) => isRecord(v)) : [];
+    const memoryClass = item && typeof item.memory_class === "string" ? item.memory_class : "working";
+    const trustLevel = item && typeof item.trust_level === "string" ? item.trust_level : "untrusted";
+    const classification =
+      item && typeof item.classification === "string" ? item.classification : "medium";
+    const memoryType = item && typeof item.type === "string" ? item.type : "";
+    const content = item && typeof item.content === "string" ? item.content : "";
+
+    const provenance = item && isRecord(item.provenance) ? (item.provenance as Record<string, unknown>) : null;
+    const rawSourceRefs =
+      provenance && Array.isArray(provenance.source_refs)
+        ? provenance.source_refs.filter((v) => isRecord(v))
+        : [];
+    const sourceRefs = rawSourceRefs
+      .map((entry) => {
+        const id = typeof entry.id === "string" ? entry.id : "";
+        const hash = typeof entry.hash === "string" ? entry.hash : "";
+        return { source_ref_id: id, source_hash: hash };
+      })
+      .filter((ref) => ref.source_ref_id && ref.source_hash);
     const firstRef = sourceRefs[0];
-    const sourceRefId = firstRef && typeof firstRef.source_id === "string" ? firstRef.source_id : "";
-    const sourceHash = firstRef && typeof firstRef.source_hash === "string" ? firstRef.source_hash : "";
+    const sourceRefId = firstRef ? firstRef.source_ref_id : "";
+    const sourceHash = firstRef ? firstRef.source_hash : "";
 
     out.push({
       memory_id: memoryId,
       memory_class: memoryClass,
       trust_level: trustLevel,
+      classification,
+      memory_type: memoryType,
       content,
       source_ref_id: sourceRefId,
       source_hash: sourceHash,
-      source_refs: sourceRefs.map((entry) => ({
-        source_ref_id: typeof entry.source_id === "string" ? entry.source_id : "",
-        source_hash: typeof entry.source_hash === "string" ? entry.source_hash : "",
-      })),
+      source_refs: sourceRefs,
       requires_review: Boolean(op.requires_review),
       operation: typeof op.op === "string" ? op.op : "update",
     });
@@ -644,12 +664,16 @@ export const JobsView: React.FC<Props> = ({ onSelect, focusJobId }) => {
                               <summary>MemoryPack Preview</summary>
                               <ul className="meta-list">
                                 <li>Pack ID: {String(femsMemoryPack["pack_id"] ?? "n/a")}</li>
-                                <li>Item count: {String(femsMemoryPack["item_count"] ?? "n/a")}</li>
-                                <li>Token estimate: {String(femsMemoryPack["token_estimate"] ?? "n/a")}</li>
+                                <li>Generated at: {String(femsMemoryPack["generated_at"] ?? "n/a")}</li>
+                                <li>Determinism mode: {String(femsMemoryPack["determinism_mode"] ?? "n/a")}</li>
+                                <li>Policy: {String(femsMemoryPack["memory_policy"] ?? "n/a")}</li>
                                 <li>
-                                  Truncation occurred: {String(femsMemoryPack["truncation_occurred"] ?? "n/a")}
+                                  Item count:{" "}
+                                  {Array.isArray(femsMemoryPack["items"]) ? femsMemoryPack["items"].length : "n/a"}
                                 </li>
-                                <li>Redaction applied: {String(femsMemoryPack["redaction_applied"] ?? "n/a")}</li>
+                                <li>Token estimate: {String(femsMemoryPack["token_estimate"] ?? "n/a")}</li>
+                                <li>Pack hash: {String(femsMemoryPack["memory_pack_hash"] ?? "n/a")}</li>
+                                <li>Warnings: {String(femsMemoryPack["warnings"] ?? "n/a")}</li>
                               </ul>
                             </details>
                           )}
@@ -660,7 +684,15 @@ export const JobsView: React.FC<Props> = ({ onSelect, focusJobId }) => {
                               <ul className="meta-list">
                                 <li>Proposal ID: {String(femsProposal?.["proposal_id"] ?? "n/a")}</li>
                                 <li>Commit ID: {String(femsCommitReport?.["commit_id"] ?? "n/a")}</li>
-                                <li>Decision: {String(femsCommitReport?.["decision"] ?? "n/a")}</li>
+                                <li>
+                                  Source proposal: {String(femsCommitReport?.["source_proposal_id"] ?? "n/a")}
+                                </li>
+                                <li>
+                                  Applied ops:{" "}
+                                  {Array.isArray(femsCommitReport?.["applied_ops"])
+                                    ? (femsCommitReport?.["applied_ops"] as unknown[]).length
+                                    : "n/a"}
+                                </li>
                               </ul>
                             </details>
                           )}
