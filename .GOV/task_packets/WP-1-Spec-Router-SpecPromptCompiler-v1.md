@@ -139,8 +139,56 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - `assets/spec_prompt_packs/spec_router_pack@1.json`
+    - `SpecPromptPackV1` JSON schema per Master Spec 2.6.8.5.2 (schema_version/pack_id/target_job_kind/stable_prefix_sections/variable_suffix_template_md/placeholders/required_outputs/budgets).
+    - Pack hashing: `spec_prompt_pack_sha256 = SHA-256(exact JSON bytes on disk)` (no re-serialization).
+  - `src/backend/handshake_core/src/spec_router/mod.rs` (new)
+    - `pub mod spec_prompt_pack;`
+    - `pub mod spec_prompt_compiler;`
+  - `src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs` (new)
+    - `#[derive(Debug, Clone, Serialize, Deserialize)] pub struct SpecPromptPackV1 { schema_version, pack_id, description, target_job_kind, stable_prefix_sections, variable_suffix_template_md, placeholders, required_outputs, budgets }`
+    - `#[derive(Debug, Clone, Serialize, Deserialize)] pub struct StablePrefixSectionV1 { section_id: String, content_md: String }`
+    - `#[derive(Debug, Clone, Serialize, Deserialize)] pub struct PlaceholderV1 { name: String, source: PlaceholderSourceV1, max_tokens: u32, required: bool }`
+    - `#[derive(Debug, Clone, Serialize, Deserialize)] pub enum PlaceholderSourceV1 { PromptRef, CapabilitySnapshot, WorkflowContext, GovernanceMode }` (serde snake_case)
+    - `#[derive(Debug, Clone, Serialize, Deserialize)] pub struct RequiredOutputV1 { artifact_kind: String, schema_ref: String }`
+    - `#[derive(Debug, Clone, Serialize, Deserialize)] pub struct BudgetsV1 { max_total_tokens: u32, max_prompt_excerpt_tokens: u32, max_capsule_tokens: u32, max_capability_table_tokens: u32 }`
+    - `pub struct LoadedSpecPromptPack { pub pack: SpecPromptPackV1, pub pack_id: String, pub pack_sha256: String, pub raw_bytes: Vec<u8> }`
+    - `pub fn load_spec_prompt_pack(pack_id: &str) -> Result<LoadedSpecPromptPack, SpecPromptPackError>`
+  - `src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs` (new)
+    - `pub struct PromptEnvelopeV1 { pub stable_prefix: String, pub variable_suffix: String, pub stable_prefix_hash: String, pub variable_suffix_hash: String, pub full_prompt_hash: String, pub stable_prefix_tokens: u32, pub variable_suffix_tokens: u32, pub total_tokens: u32, pub truncation: PromptEnvelopeTruncationV1 }`
+    - `pub struct PromptEnvelopeTruncationV1 { pub per_placeholder_truncated: BTreeMap<String, bool>, pub variable_suffix_truncated: bool }`
+    - `pub struct SpecPromptCompiler<'a> { pub tokenization: &'a dyn TokenizationService, pub model_id: &'a str }`
+    - `pub fn compile_spec_router_envelope(pack: &SpecPromptPackV1, values: &BTreeMap<String, String>, tokenization: &dyn TokenizationService, model_id: &str) -> Result<PromptEnvelopeV1, SpecPromptCompilerError>`
+    - Determinism rules (compiler):
+      - `stable_prefix = concat(pack.stable_prefix_sections[*].content_md in order)` with a single `\\n\\n` join between sections.
+      - `variable_suffix = expand(pack.variable_suffix_template_md, {{PLACEHOLDER_NAME}} -> value)` using only placeholders declared in `pack.placeholders`.
+      - Placeholder enforcement order: (1) require presence for `required=true`, (2) truncate each placeholder to `max_tokens` via TokenizationService, (3) expand template, (4) enforce `budgets.max_total_tokens` by truncating `variable_suffix` to remaining tokens (record `variable_suffix_truncated=true`), else `budget_exceeded` if stable_prefix alone exceeds budget.
+      - Hashes: SHA-256 over UTF-8 bytes of `stable_prefix`, `variable_suffix`, and `stable_prefix + \"\\n\\n\" + variable_suffix`.
+  - `src/backend/handshake_core/src/workflows.rs` (integration points; implementation after skeleton approval)
+    - Add `JobKind::SpecRouter` execution branch.
+    - Parse `job_inputs` as `SpecRouterJobProfile` per Master Spec 2.6.6.6.5.
+    - Load SpecPromptPack (default `spec_router_pack@1`) and compute `(spec_prompt_pack_id, spec_prompt_pack_sha256)`.
+    - Load prompt bytes from `prompt_ref.path` (ArtifactHandle) and compute `prompt_sha256` for ContextSnapshot.
+    - Generate/store CapabilitySnapshot artifact and compute `capability_snapshot_ref + capability_snapshot_sha256` for ContextSnapshot (generation details coordinated with WP-1-Spec-Router-CapabilitySnapshot-v1; enforcement/allowlist details OUT_OF_SCOPE here).
+    - Compile PromptEnvelope via SpecPromptCompiler; record hashes, token counts, truncation flags.
+    - Emit ContextSnapshot artifact (JSON) including at minimum: `prompt_ref + prompt_sha256`, `capability_snapshot_ref + capability_snapshot_sha256`, `spec_prompt_pack_id + spec_prompt_pack_sha256`, `context_snapshot_id`, and `prompt_envelope.{stable_prefix_hash,variable_suffix_hash}`.
+    - Flight Recorder provenance: extend `llm_inference` payload with required fields (Spec 2.6.8.5.2 / 2.6.8.9) without trusting model-provided provenance.
+    - SpecIntent + SpecRouterDecision artifacts: parse model output for semantic fields, but set/overwrite required provenance fields server-side from computed truth.
+
+- END_TO_END_CLOSURE_PLAN (SKELETON mirror; see `## END_TO_END_CLOSURE_PLAN [CX-E2E-001]` for full list):
+  - Producer (server-derived truth): `SpecPromptPack` bytes->sha256; `SpecPromptCompiler` -> stable/variable strings + hashes + token counts + truncation flags; ContextSnapshot JSON -> id + artifact refs/hashes.
+  - Transport: Flight Recorder `llm_inference` event payload MUST include `spec_prompt_pack_id`, `spec_prompt_pack_sha256`, `context_snapshot_id`, `prompt_envelope.stable_prefix_hash`, `prompt_envelope.variable_suffix_hash`, and token counts + truncation flags.
+  - Persistence: write `context_snapshot.json` + `spec_intent.json` + `spec_router_decision.json` artifacts under a deterministic job directory; link handles in job output.
+  - Trust boundary: job_inputs and model output are untrusted; provenance fields MUST be computed and enforced by the server.
+  - Determinism: no randomness; identical pack bytes + prompt bytes + capability snapshot bytes + workflow context => identical hashes.
+
 - Open questions:
+  - CapabilitySnapshot: implement minimal deterministic generation here vs require as pre-existing artifact? (Spec 2.6.6.6.5 says router MUST generate; WP notes generation rules/enforcement are out-of-scope.)
+  - SpecRouterDecision schema: Master Spec 2.6.8.5.2 requires copying PromptEnvelope hashes + ContextSnapshot id into SpecRouterDecision, but the 2.6.8.5 Rust snippet does not include them. Confirm desired fields set for `hsk.spec_router_decision@0.2` before implementation.
+  - PromptEnvelope hashing: spec defines PromptEnvelope hashes over canonical WorkingContext blocks (2.6.6.7.4/7.5); current runtime patterns hash raw strings (see MT executor). Confirm acceptable v1 approach for spec_router.
+
 - Notes:
+  - No product code changes until "SKELETON APPROVED" (per CODER_PROTOCOL [CX-GATE-001]).
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
