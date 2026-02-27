@@ -14,7 +14,7 @@
 - ORCHESTRATION_STARTED_AT_UTC: 2026-02-26T00:05:00Z
 - CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Validated (PASS)
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja260220260100
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -844,3 +844,89 @@ Remediation Required (Coder):
 
 REASON FOR FAIL:
 - Despite meeting DONE_MEANS and spec anchors for FEMS behavior, merging this WP as-is would regress the repo-wide validator hygiene baseline (`just validator-error-codes` passes on `main` but fails on this WP head). Per Validator Protocol (Evidence-led; no regressions without explicit waiver), merge is blocked until the findings are remediated or an explicit waiver is granted and recorded.
+
+### VALIDATION REPORT - WP-1-Front-End-Memory-System-v1 (Validator, 2026-02-27)
+Verdict: PASS (supersedes prior FAIL at `a544e7c15717bcf7ee39397c911a25b5f9842db8`)
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Front-End-Memory-System-v1 --range 460e4198b11994da9515fb8c627e05cd6f4b1760..HEAD`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Front-End-Memory-System-v1.md` (**Status:** Validated (PASS))
+- Branch/HEAD validated: `feat/WP-1-Front-End-Memory-System-v1` @ `b84580a4656f47c468291e3d0f5537fcf9bc3ed3`
+- Merge base: `460e4198b11994da9515fb8c627e05cd6f4b1760`
+- Spec target (merge target `main`): `.GOV/roles_shared/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.139.md`
+- Spec target (WP branch): `.GOV/roles_shared/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.138.md` (note: WP branch still points at v02.138; merge target `main` is v02.139)
+- Spec anchors reviewed (v02.139):
+  - `Handshake_Master_Spec_v02.139.md:10560` (2.6.6.6.6 Front End Memory Job Profile (FEMS))
+  - `Handshake_Master_Spec_v02.139.md:10980` (2.6.6.7.6.2 Front End Memory System (FEMS))
+  - `Handshake_Master_Spec_v02.139.md:22613` (5.4.8 FEMS-EVAL-001)
+  - `Handshake_Master_Spec_v02.139.md:59460` (10.11.5.14 Front End Memory Panel (FEMS))
+  - `Handshake_Master_Spec_v02.139.md:55894` (11.5.13 FR-EVT-MEM-* event family)
+
+Files Checked:
+- `.GOV/task_packets/WP-1-Front-End-Memory-System-v1.md` (validation history, test plan, evidence mapping)
+- `.GOV/validator_gates/WP-1-Front-End-Memory-System-v1.json` (gate state; prior FAIL archived via reset)
+- `.GOV/roles_shared/SPEC_CURRENT.md` (on WP branch + on `main`)
+- `Handshake_Master_Spec_v02.139.md` (grep anchor headings for FEMS requirements)
+- `src/backend/handshake_core/src/workflows.rs`
+- `src/backend/handshake_core/src/ace/mod.rs`
+- `src/backend/handshake_core/src/ace/validators/promotion.rs`
+- `src/backend/handshake_core/src/api/jobs.rs`
+- `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- `app/src/lib/api.ts`
+- `app/src/state/aiJobs.ts` (by test coverage/gate scan)
+- `app/src/components/operator/JobsView.tsx`
+- `app/src/components/operator/TimelineView.tsx`
+- `app/src/components/operator/DebugBundleExport.tsx`
+
+Findings:
+- FEMS job-kind routing is explicit and stable (`memory_extract_v0.1`, `memory_consolidate_v0.1`, `memory_forget_v0.1`):
+  - `src/backend/handshake_core/src/workflows.rs:10807` / `:10808` / `:10809`
+  - `src/backend/handshake_core/src/api/jobs.rs:22` / `:23` / `:24` (API contract mirrors the same protocol ids)
+- Session `memory_policy` parsing and effective policy resolution is enforced server-side:
+  - `src/backend/handshake_core/src/workflows.rs:10894` (policy parsing)
+  - `src/backend/handshake_core/src/workflows.rs:10919` (effective policy resolution)
+- Deterministic `MemoryPack` construction + determinism mode handling:
+  - `src/backend/handshake_core/src/workflows.rs:11211` (determinism mode parsing)
+  - `src/backend/handshake_core/src/workflows.rs:11324` (pack build entrypoint + budgets)
+  - `src/backend/handshake_core/src/ace/mod.rs:411` (`MemoryPack` impl; hash-related tests cover determinism)
+- Procedural memory write governance is review-gated:
+  - `src/backend/handshake_core/src/workflows.rs:11188` (procedural implies `requires_review`)
+  - `src/backend/handshake_core/src/workflows.rs:11817` (blocks commit when review decision missing)
+  - `src/backend/handshake_core/src/ace/validators/promotion.rs:21` / `:101` (promotion guard blocks bypass)
+- Flight Recorder emits and validates the FR-EVT-MEM-001..005 family with privacy-safe payload schemas:
+  - `src/backend/handshake_core/src/flight_recorder/mod.rs:3753` (FR-EVT-MEM-001)
+  - `src/backend/handshake_core/src/flight_recorder/mod.rs:3785` (FR-EVT-MEM-002)
+  - `src/backend/handshake_core/src/flight_recorder/mod.rs:3824` (FR-EVT-MEM-003)
+  - `src/backend/handshake_core/src/flight_recorder/mod.rs:3855` (FR-EVT-MEM-004; includes memory_policy field validation)
+  - `src/backend/handshake_core/src/flight_recorder/mod.rs:3902` (FR-EVT-MEM-005)
+  - `src/backend/handshake_core/src/flight_recorder/duckdb.rs:819` (duckdb mapping includes `memory_pack_built`)
+- Operator UI surfaces proposal/commit artifacts, pack hash, and review controls (job-driven, no direct mutation):
+  - `app/src/components/operator/JobsView.tsx:329` (submit review job with decision + disable-memory)
+  - `app/src/components/operator/JobsView.tsx:599` / `:662` (memory tab + MemoryPack preview + hashes)
+  - `app/src/components/operator/TimelineView.tsx:200` / `:386` (memory-event filtering and FR-EVT-MEM family hint)
+  - `app/src/components/operator/DebugBundleExport.tsx:219` (bundle guidance: ID/hash/ref-only)
+- Validator hygiene regression from the prior FAIL head is resolved:
+  - `just validator-error-codes`: PASS
+  - `src/backend/handshake_core/src/api/jobs.rs:36` (typed error replaces stringly `Err(format!(...))`)
+
+Tests:
+- `just lint`: PASS (WARN: clippy warnings present; non-blocking; includes dead_code on `ParseJobKindRequestError.protocol_id`)
+- `just test`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test terminal_session_tests`: PASS
+- `cd app; pnpm test`: PASS
+- `just cargo-clean`: PASS (Removed 2285 files, 14.3GiB total)
+- `just post-work WP-1-Front-End-Memory-System-v1 --range 460e4198b11994da9515fb8c627e05cd6f4b1760..HEAD`: PASS
+
+Risks & Suggested Actions:
+- Non-blocking clippy warnings remain (repo-wide). Suggested follow-up WP: address `dead_code` on `ParseJobKindRequestError.protocol_id` and reduce new warnings in touched modules.
+
+Improvements & Future Proofing:
+- Consider extending `just validator-spec-regression` to assert merge-target spec version (e.g., validate against `main` SPEC_CURRENT when validating a WP branch), to prevent false PASS on stale spec pointers.
+
+REASON FOR PASS:
+- All required validator checks and packet TEST_PLAN commands pass on the validated HEAD; the previously blocking `validator-error-codes` regression is resolved; deterministic manifest gate passes; key FEMS governance invariants are present with evidence mapped to file:line.
