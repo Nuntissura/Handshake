@@ -85,6 +85,9 @@ use uuid::Uuid;
 #[path = "locus/mod.rs"]
 pub mod locus;
 
+#[path = "spec_router/mod.rs"]
+mod spec_router;
+
 #[derive(Error, Debug)]
 pub enum WorkflowError {
     #[error("Storage error: {0}")]
@@ -2969,6 +2972,8 @@ async fn run_job(
                 error_message: None,
             });
         }
+    } else if matches!(job.job_kind, JobKind::SpecRouter) {
+        return run_spec_router_job(state, job, workflow_run_id, trace_id).await;
     } else if matches!(job.job_kind, JobKind::TerminalExec) {
         let payload = execute_terminal_job(state, job, trace_id).await?;
         state
@@ -10436,6 +10441,789 @@ NEED: {{what you need to unblock}}
             "progress_artifact_ref": artifact_handle_for_rel(&progress_rel),
             "run_ledger_ref": artifact_handle_for_rel(&run_ledger_rel),
         })),
+        error_message: None,
+    })
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SpecRouterCapabilityRegistryDoc {
+    entries: Vec<SpecRouterCapabilityRegistryEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SpecRouterCapabilityRegistryEntry {
+    capability_id: String,
+    kind: String,
+    risk_class: String,
+    #[serde(default)]
+    tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CapabilitySnapshotV1 {
+    schema_version: String,
+    spec_id: String,
+    registry_version: String,
+    allowed_capabilities: Vec<CapabilitySnapshotCapabilityV1>,
+    allowed_tools: Vec<CapabilitySnapshotToolV1>,
+    denied_capabilities: Vec<String>,
+    generated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CapabilitySnapshotCapabilityV1 {
+    capability_id: String,
+    kind: String,
+    risk_class: String,
+    tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CapabilitySnapshotToolV1 {
+    tool_id: String,
+    engine_id: String,
+    operation: String,
+    capability_required: String,
+    schema_ref: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SpecRouterIdsHashCountV1 {
+    ids_hash: String,
+    count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SpecRouterPromptEnvelopeHashesV1 {
+    stable_prefix_hash: String,
+    variable_suffix_hash: String,
+    full_prompt_hash: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SpecRouterContextSnapshotV1 {
+    context_snapshot_id: Uuid,
+    job_id: String,
+    step_id: String,
+    created_at: DateTime<Utc>,
+    determinism_mode: String,
+    model_tier: String,
+    model_id: String,
+    policy_profile_id: String,
+    layer_scope: String,
+    scope_inputs_hash: String,
+    retrieval_candidates: SpecRouterIdsHashCountV1,
+    selected_sources: SpecRouterIdsHashCountV1,
+    prompt_envelope_hashes: SpecRouterPromptEnvelopeHashesV1,
+    #[serde(default)]
+    artifact_handles: Vec<ArtifactHandle>,
+    #[serde(default)]
+    warnings: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    local_only_payload_ref: Option<ArtifactHandle>,
+
+    // SpecPromptCompiler min fields (Master Spec §2.6.8.5.2)
+    prompt_ref: ArtifactHandle,
+    prompt_hash: String,
+    capability_snapshot_ref: ArtifactHandle,
+    capability_snapshot_hash: String,
+    spec_prompt_pack_id: String,
+    spec_prompt_pack_sha256: String,
+
+    stable_prefix_tokens: u32,
+    variable_suffix_tokens: u32,
+    total_tokens: u32,
+    truncation: spec_router::spec_prompt_compiler::PromptEnvelopeTruncationV1,
+}
+
+fn capability_kind_titlecase(value: &str) -> &'static str {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "surface" => "Surface",
+        "engine" => "Engine",
+        "runtime" => "Runtime",
+        "integration" => "Integration",
+        "model" => "Model",
+        "workflow" => "Workflow",
+        _ => "Runtime",
+    }
+}
+
+fn risk_class_titlecase(value: &str) -> &'static str {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "low" => "Low",
+        "medium" => "Medium",
+        "high" => "High",
+        "critical" => "Critical",
+        _ => "Low",
+    }
+}
+
+fn format_capability_snapshot_table(snapshot: &CapabilitySnapshotV1) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    lines.push("| capability_id | kind | risk_class | tags |".to_string());
+    lines.push("|---|---|---|---|".to_string());
+
+    let mut caps = snapshot.allowed_capabilities.clone();
+    caps.sort_by(|a, b| a.capability_id.cmp(&b.capability_id));
+    for c in &caps {
+        let tags = if c.tags.is_empty() {
+            "".to_string()
+        } else {
+            c.tags.join(",")
+        };
+        lines.push(format!(
+            "| {} | {} | {} | {} |",
+            c.capability_id, c.kind, c.risk_class, tags
+        ));
+    }
+
+    lines.join("\n")
+}
+
+fn spec_router_required_gates(
+    mode: crate::role_mailbox::GovernanceMode,
+    version_control: &crate::models::VersionControl,
+) -> Vec<String> {
+    match mode {
+        crate::role_mailbox::GovernanceMode::GovStrict => {
+            let mut gates = vec![
+                "G-CODEX",
+                "G-REFINE",
+                "G-SPECLINT",
+                "G-TASKBOARD",
+                "G-WORKPACKET",
+                "G-WORKTREE",
+                "G-PRE",
+                "G-POST",
+                "G-ORCH",
+                "G-VALIDATOR",
+                "G-QUALITY",
+            ]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+            if matches!(version_control, crate::models::VersionControl::Git) {
+                gates.insert(3, "G-SAFETY-COMMIT".to_string());
+            }
+            gates
+        }
+        crate::role_mailbox::GovernanceMode::GovStandard => vec![
+            "G-CODEX",
+            "G-REFINE",
+            "G-SPECLINT",
+            "G-TASKBOARD",
+            "G-WORKPACKET",
+            "G-PRE",
+            "G-POST",
+            "G-ORCH",
+            "G-VALIDATOR",
+            "G-QUALITY",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect(),
+        crate::role_mailbox::GovernanceMode::GovLight => Vec::new(),
+    }
+}
+
+fn write_bytes_artifact(
+    workspace_root: &Path,
+    artifact_id: Uuid,
+    layer: crate::storage::artifacts::ArtifactLayer,
+    kind: crate::storage::artifacts::ArtifactPayloadKind,
+    mime: String,
+    filename_hint: Option<String>,
+    payload_bytes: Vec<u8>,
+    classification: crate::storage::artifacts::ArtifactClassification,
+    exportable: bool,
+    retention_ttl_days: Option<u32>,
+    created_by_job_id: Option<Uuid>,
+    source_entity_refs: Vec<crate::storage::EntityRef>,
+    source_artifact_refs: Vec<ArtifactHandle>,
+) -> Result<(crate::storage::artifacts::ArtifactManifest, ArtifactHandle), WorkflowError> {
+    let content_hash = sha256_hex(&payload_bytes);
+    let created_at = Utc::now();
+    let manifest = crate::storage::artifacts::ArtifactManifest {
+        artifact_id,
+        layer,
+        kind,
+        mime,
+        filename_hint,
+        created_at,
+        created_by_job_id,
+        source_entity_refs,
+        source_artifact_refs,
+        content_hash: content_hash.clone(),
+        size_bytes: payload_bytes.len() as u64,
+        classification,
+        exportable,
+        retention_ttl_days,
+        pinned: None,
+        hash_basis: None,
+        hash_exclude_paths: Vec::new(),
+    };
+
+    crate::storage::artifacts::write_file_artifact(workspace_root, &manifest, &payload_bytes)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let handle = ArtifactHandle::new(
+        artifact_id,
+        format!(
+            "{}/payload",
+            crate::storage::artifacts::artifact_root_rel(layer, artifact_id)
+        ),
+    );
+    Ok((manifest, handle))
+}
+
+async fn run_spec_router_job(
+    state: &AppState,
+    job: &AiJob,
+    workflow_run_id: Uuid,
+    trace_id: Uuid,
+) -> Result<RunJobOutcome, WorkflowError> {
+    let raw_inputs = match job.job_inputs.as_ref() {
+        Some(inputs) => inputs.clone(),
+        None => {
+            return Ok(RunJobOutcome {
+                state: JobState::Failed,
+                status_reason: "invalid_job_inputs".to_string(),
+                output: None,
+                error_message: Some("job_inputs is required for spec_router".to_string()),
+            });
+        }
+    };
+
+    let profile: crate::models::SpecRouterJobProfile = match serde_json::from_value(raw_inputs) {
+        Ok(profile) => profile,
+        Err(err) => {
+            return Ok(RunJobOutcome {
+                state: JobState::Failed,
+                status_reason: "invalid_job_inputs".to_string(),
+                output: None,
+                error_message: Some(format!("invalid SpecRouterJobProfile: {err}")),
+            });
+        }
+    };
+
+    let governance_mode = profile
+        .mode_override
+        .unwrap_or(crate::role_mailbox::GovernanceMode::GovStandard);
+    let required_gates =
+        spec_router_required_gates(governance_mode, &profile.workflow_context.version_control);
+    let safety_commit_required = matches!(
+        profile.workflow_context.version_control,
+        crate::models::VersionControl::Git
+    ) && !matches!(
+        governance_mode,
+        crate::role_mailbox::GovernanceMode::GovLight
+    );
+
+    let pack_id = profile
+        .spec_prompt_pack_id
+        .clone()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| "spec_router_pack@1".to_string());
+
+    let workspace_root = crate::storage::artifacts::resolve_workspace_root()
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    let loaded_pack =
+        match spec_router::spec_prompt_pack::load_spec_prompt_pack(&workspace_root, &pack_id) {
+            Ok(pack) => pack,
+            Err(err) => {
+                return Ok(RunJobOutcome {
+                    state: JobState::Failed,
+                    status_reason: "missing_pack".to_string(),
+                    output: None,
+                    error_message: Some(err.to_string()),
+                });
+            }
+        };
+
+    let model_profile = state.llm_client.profile();
+    let model_id = model_profile.model_id.clone();
+
+    let mut pack = loaded_pack.pack.clone();
+    pack.budgets.max_total_tokens = pack
+        .budgets
+        .max_total_tokens
+        .min(model_profile.max_context_tokens);
+
+    // Load prompt text from prompt_ref (artifact handle path)
+    let prompt_rel =
+        crate::storage::artifacts::normalize_materialized_path(&profile.prompt_ref.path)
+            .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let prompt_abs = workspace_root.join(&prompt_rel);
+    let prompt_bytes = match tokio::fs::read(&prompt_abs).await {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            return Ok(RunJobOutcome {
+                state: JobState::Failed,
+                status_reason: "missing_prompt_ref".to_string(),
+                output: None,
+                error_message: Some(format!(
+                    "failed to read prompt_ref payload at {}: {}",
+                    prompt_rel, err
+                )),
+            });
+        }
+    };
+    let prompt_hash = sha256_hex(&prompt_bytes);
+    let prompt_text = md_trim_utf8_bom(&String::from_utf8_lossy(&prompt_bytes)).to_string();
+
+    // CapabilitySnapshot (minimal deterministic generation)
+    let registry_path = workspace_root
+        .join("assets")
+        .join("capability_registry.json");
+    let registry_bytes = tokio::fs::read(&registry_path).await.map_err(|e| {
+        WorkflowError::Terminal(format!("capability_registry.json read failed: {e}"))
+    })?;
+    let capability_registry_version = sha256_hex(&registry_bytes);
+    let reg_doc: SpecRouterCapabilityRegistryDoc = serde_json::from_slice(&registry_bytes)
+        .map_err(|e| {
+            WorkflowError::Terminal(format!("capability_registry.json parse failed: {e}"))
+        })?;
+
+    let allowed_profile = match state
+        .capability_registry
+        .profile_by_id(job.capability_profile_id.as_str())
+    {
+        Ok(profile) => profile,
+        Err(err) => {
+            return Ok(RunJobOutcome {
+                state: JobState::Failed,
+                status_reason: "invalid_capability_profile".to_string(),
+                output: None,
+                error_message: Some(err.to_string()),
+            });
+        }
+    };
+
+    let mut meta: BTreeMap<String, SpecRouterCapabilityRegistryEntry> = BTreeMap::new();
+    for entry in reg_doc.entries {
+        meta.insert(entry.capability_id.clone(), entry);
+    }
+
+    let mut allowed_ids = allowed_profile.allowed.clone();
+    allowed_ids.sort();
+
+    let mut allowed_capabilities: Vec<CapabilitySnapshotCapabilityV1> = Vec::new();
+    for capability_id in allowed_ids {
+        if let Some(m) = meta.get(&capability_id) {
+            allowed_capabilities.push(CapabilitySnapshotCapabilityV1 {
+                capability_id: capability_id.clone(),
+                kind: capability_kind_titlecase(&m.kind).to_string(),
+                risk_class: risk_class_titlecase(&m.risk_class).to_string(),
+                tags: m.tags.clone(),
+            });
+        } else {
+            allowed_capabilities.push(CapabilitySnapshotCapabilityV1 {
+                capability_id: capability_id.clone(),
+                kind: "Runtime".to_string(),
+                risk_class: "Low".to_string(),
+                tags: Vec::new(),
+            });
+        }
+    }
+
+    let capability_snapshot = CapabilitySnapshotV1 {
+        schema_version: "hsk.capability_snapshot@1".to_string(),
+        spec_id: profile.spec_intent_id.clone(),
+        registry_version: capability_registry_version.clone(),
+        allowed_capabilities,
+        allowed_tools: Vec::new(),
+        denied_capabilities: Vec::new(),
+        generated_at: Utc::now().to_rfc3339(),
+    };
+
+    let capability_snapshot_table = format_capability_snapshot_table(&capability_snapshot);
+
+    let cap_value = serde_json::to_value(&capability_snapshot)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let cap_bytes = crate::llm::canonical_json_bytes_nfc(&cap_value);
+    let (cap_manifest, cap_handle) = write_bytes_artifact(
+        &workspace_root,
+        Uuid::new_v4(),
+        crate::storage::artifacts::ArtifactLayer::L3,
+        crate::storage::artifacts::ArtifactPayloadKind::File,
+        "application/json".to_string(),
+        Some("capability_snapshot.json".to_string()),
+        cap_bytes,
+        crate::storage::artifacts::ArtifactClassification::Low,
+        true,
+        None,
+        Some(job.job_id),
+        Vec::new(),
+        vec![profile.prompt_ref.clone()],
+    )?;
+
+    // Deterministic SpecPromptCompiler compilation
+    let tokenization = crate::tokenization::TokenizationRouter::new(
+        Arc::new(crate::tokenization::TiktokenAdapter::default()),
+        Arc::new(crate::tokenization::VibeTokenizer::default()),
+    );
+
+    let mut values: BTreeMap<String, String> = BTreeMap::new();
+    values.insert("PROMPT_REF".to_string(), profile.prompt_ref.path.clone());
+    values.insert("PROMPT_TEXT".to_string(), prompt_text);
+    values.insert("WORKSPACE_ID".to_string(), profile.workspace_id.to_string());
+    values.insert(
+        "PROJECT_ID".to_string(),
+        profile
+            .project_id
+            .map(|id| id.to_string())
+            .unwrap_or_default(),
+    );
+    values.insert(
+        "VERSION_CONTROL".to_string(),
+        format!("{:?}", profile.workflow_context.version_control),
+    );
+    values.insert(
+        "REPO_ROOT".to_string(),
+        profile
+            .workflow_context
+            .repo_root
+            .clone()
+            .unwrap_or_default(),
+    );
+    values.insert(
+        "CAPABILITY_SNAPSHOT_TABLE".to_string(),
+        capability_snapshot_table,
+    );
+    values.insert(
+        "GOVERNANCE_MODE".to_string(),
+        governance_mode.as_str().to_string(),
+    );
+    values.insert("REQUIRED_GATES".to_string(), required_gates.join(", "));
+
+    let envelope = match spec_router::spec_prompt_compiler::compile_spec_router_envelope(
+        &pack,
+        &values,
+        &tokenization,
+        &model_id,
+    ) {
+        Ok(env) => env,
+        Err(err) => {
+            let status_reason = match err {
+                spec_router::spec_prompt_compiler::SpecPromptCompilerError::MissingRequiredPlaceholder { .. } => {
+                    "missing_required_placeholder"
+                }
+                spec_router::spec_prompt_compiler::SpecPromptCompilerError::BudgetExceeded { .. } => {
+                    "budget_exceeded"
+                }
+                _ => "prompt_compile_failed",
+            };
+            return Ok(RunJobOutcome {
+                state: JobState::Failed,
+                status_reason: status_reason.to_string(),
+                output: None,
+                error_message: Some(err.to_string()),
+            });
+        }
+    };
+
+    let full_prompt_text =
+        spec_router::spec_prompt_compiler::render_prompt_envelope_text(&envelope);
+
+    // Local-only prompt payload artifact (sensitive)
+    let (_prompt_payload_manifest, prompt_payload_handle) = write_bytes_artifact(
+        &workspace_root,
+        Uuid::new_v4(),
+        crate::storage::artifacts::ArtifactLayer::L3,
+        crate::storage::artifacts::ArtifactPayloadKind::PromptPayload,
+        "text/plain".to_string(),
+        Some("spec_router_prompt.txt".to_string()),
+        full_prompt_text.as_bytes().to_vec(),
+        crate::storage::artifacts::ArtifactClassification::High,
+        false,
+        Some(30),
+        Some(job.job_id),
+        Vec::new(),
+        vec![profile.prompt_ref.clone(), cap_handle.clone()],
+    )?;
+
+    // ContextSnapshot artifact (minimal but includes SpecPromptCompiler provenance)
+    let scope_inputs_hash = sha256_hex(&crate::llm::canonical_json_bytes_nfc(
+        &job.job_inputs.clone().unwrap_or_else(|| json!({})),
+    ));
+    let empty_ids_hash = sha256_hex(&crate::llm::canonical_json_bytes_nfc(&json!([])));
+    let model_tier = match model_profile.model_tier {
+        crate::llm::ModelTier::Cloud => "cloud",
+        crate::llm::ModelTier::Local => "local",
+    };
+
+    let context_snapshot_id = Uuid::new_v4();
+    let context_snapshot = SpecRouterContextSnapshotV1 {
+        context_snapshot_id,
+        job_id: job.job_id.to_string(),
+        step_id: "spec_router".to_string(),
+        created_at: Utc::now(),
+        determinism_mode: "strict".to_string(),
+        model_tier: model_tier.to_string(),
+        model_id: model_id.clone(),
+        policy_profile_id: job.capability_profile_id.clone(),
+        layer_scope: "document".to_string(),
+        scope_inputs_hash,
+        retrieval_candidates: SpecRouterIdsHashCountV1 {
+            ids_hash: empty_ids_hash.clone(),
+            count: 0,
+        },
+        selected_sources: SpecRouterIdsHashCountV1 {
+            ids_hash: empty_ids_hash.clone(),
+            count: 0,
+        },
+        prompt_envelope_hashes: SpecRouterPromptEnvelopeHashesV1 {
+            stable_prefix_hash: envelope.stable_prefix_hash.clone(),
+            variable_suffix_hash: envelope.variable_suffix_hash.clone(),
+            full_prompt_hash: envelope.full_prompt_hash.clone(),
+        },
+        artifact_handles: vec![profile.prompt_ref.clone(), cap_handle.clone()],
+        warnings: Vec::new(),
+        local_only_payload_ref: Some(prompt_payload_handle.clone()),
+        prompt_ref: profile.prompt_ref.clone(),
+        prompt_hash: prompt_hash.clone(),
+        capability_snapshot_ref: cap_handle.clone(),
+        capability_snapshot_hash: cap_manifest.content_hash.clone(),
+        spec_prompt_pack_id: loaded_pack.pack_id.clone(),
+        spec_prompt_pack_sha256: loaded_pack.pack_sha256.clone(),
+        stable_prefix_tokens: envelope.stable_prefix_tokens,
+        variable_suffix_tokens: envelope.variable_suffix_tokens,
+        total_tokens: envelope.total_tokens,
+        truncation: envelope.truncation.clone(),
+    };
+
+    let cs_value = serde_json::to_value(&context_snapshot)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let cs_bytes = crate::llm::canonical_json_bytes_nfc(&cs_value);
+    let (_cs_manifest, cs_handle) = write_bytes_artifact(
+        &workspace_root,
+        context_snapshot_id,
+        crate::storage::artifacts::ArtifactLayer::L3,
+        crate::storage::artifacts::ArtifactPayloadKind::File,
+        "application/json".to_string(),
+        Some("context_snapshot.json".to_string()),
+        cs_bytes,
+        crate::storage::artifacts::ArtifactClassification::Low,
+        true,
+        None,
+        Some(job.job_id),
+        Vec::new(),
+        vec![
+            profile.prompt_ref.clone(),
+            cap_handle.clone(),
+            prompt_payload_handle.clone(),
+        ],
+    )?;
+
+    // Call the LLM with deterministic prompt text
+    let req = CompletionRequest::new(trace_id, full_prompt_text, model_id.clone());
+    let response = match state.llm_client.completion(req).await {
+        Ok(response) => response,
+        Err(err) => {
+            return Ok(RunJobOutcome {
+                state: JobState::Failed,
+                status_reason: "llm_error".to_string(),
+                output: None,
+                error_message: Some(err.to_string()),
+            });
+        }
+    };
+
+    let response_hash = sha256_hex_str(&response.text);
+
+    let prompt_envelope_hashes = context_snapshot.prompt_envelope_hashes.clone();
+    let truncation = context_snapshot.truncation.clone();
+    let spec_prompt_pack_id = loaded_pack.pack_id.clone();
+    let spec_prompt_pack_sha256 = loaded_pack.pack_sha256.clone();
+
+    // Record required provenance in Flight Recorder (Master Spec §2.6.8.5.2)
+    record_event_safely(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::LlmInference,
+            FlightRecorderActor::Agent,
+            trace_id,
+            json!({
+                "type": "llm_inference",
+                "trace_id": trace_id.to_string(),
+                "model_id": model_id.clone(),
+                "token_usage": {
+                    "prompt_tokens": response.usage.prompt_tokens,
+                    "completion_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens,
+                },
+                "latency_ms": response.latency_ms,
+                "prompt_hash": prompt_envelope_hashes.full_prompt_hash.clone(),
+                "response_hash": response_hash,
+
+                "spec_prompt_pack_id": spec_prompt_pack_id.clone(),
+                "spec_prompt_pack_sha256": spec_prompt_pack_sha256.clone(),
+                "context_snapshot_id": context_snapshot_id.to_string(),
+                "prompt_envelope": {
+                    "stable_prefix_hash": prompt_envelope_hashes.stable_prefix_hash.clone(),
+                    "variable_suffix_hash": prompt_envelope_hashes.variable_suffix_hash.clone(),
+                    "full_prompt_hash": prompt_envelope_hashes.full_prompt_hash.clone(),
+                },
+                "token_counts": {
+                    "stable_prefix_tokens": context_snapshot.stable_prefix_tokens,
+                    "variable_suffix_tokens": context_snapshot.variable_suffix_tokens,
+                    "total_tokens": context_snapshot.total_tokens,
+                },
+                "truncation": truncation.clone(),
+            }),
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_workflow_id(workflow_run_id.to_string())
+        .with_model_id(model_id.clone()),
+    )
+    .await;
+
+    // Emit SpecIntent + SpecRouterDecision artifacts with locked provenance fields.
+    let spec_intent = json!({
+        "spec_id": profile.spec_intent_id.clone(),
+        "prompt_ref": profile.prompt_ref.clone(),
+        "prompt_type": "SpecFeature",
+        "detected_capabilities": [],
+        "risk_flags": [],
+        "requested_outputs": ["SpecArtifact"],
+
+        "spec_prompt_pack_id": spec_prompt_pack_id.clone(),
+        "spec_prompt_pack_sha256": spec_prompt_pack_sha256.clone(),
+        "capability_snapshot_ref": context_snapshot.capability_snapshot_ref.clone(),
+
+        "context_snapshot_id": context_snapshot_id.to_string(),
+        "prompt_envelope_stable_prefix_hash": prompt_envelope_hashes.stable_prefix_hash.clone(),
+        "prompt_envelope_variable_suffix_hash": prompt_envelope_hashes.variable_suffix_hash.clone(),
+        "prompt_envelope_full_prompt_hash": prompt_envelope_hashes.full_prompt_hash.clone(),
+
+        "capability_registry_version": capability_registry_version.clone(),
+        "created_at": Utc::now(),
+
+        "token_counts": {
+            "stable_prefix_tokens": context_snapshot.stable_prefix_tokens,
+            "variable_suffix_tokens": context_snapshot.variable_suffix_tokens,
+            "total_tokens": context_snapshot.total_tokens,
+        },
+        "truncation": truncation.clone(),
+    });
+
+    let decision = json!({
+        "spec_id": profile.spec_intent_id.clone(),
+        "governance_mode": governance_mode,
+        "spec_template_id": "FeatureSpec",
+        "required_roles": ["coder", "validator"],
+        "required_gates": required_gates.clone(),
+        "work_packet_required": !matches!(governance_mode, crate::role_mailbox::GovernanceMode::GovLight),
+        "task_board_required": !matches!(governance_mode, crate::role_mailbox::GovernanceMode::GovLight),
+        "workflow_context": profile.workflow_context.clone(),
+        "safety_commit_required": safety_commit_required,
+
+        "spec_prompt_pack_id": spec_prompt_pack_id.clone(),
+        "spec_prompt_pack_sha256": spec_prompt_pack_sha256.clone(),
+        "capability_snapshot_ref": context_snapshot.capability_snapshot_ref.clone(),
+        "capability_registry_version": capability_registry_version.clone(),
+
+        "context_snapshot_id": context_snapshot_id.to_string(),
+        "prompt_envelope_stable_prefix_hash": prompt_envelope_hashes.stable_prefix_hash.clone(),
+        "prompt_envelope_variable_suffix_hash": prompt_envelope_hashes.variable_suffix_hash.clone(),
+        "prompt_envelope_full_prompt_hash": prompt_envelope_hashes.full_prompt_hash.clone(),
+
+        "token_counts": {
+            "stable_prefix_tokens": context_snapshot.stable_prefix_tokens,
+            "variable_suffix_tokens": context_snapshot.variable_suffix_tokens,
+            "total_tokens": context_snapshot.total_tokens,
+        },
+        "truncation": truncation.clone(),
+    });
+
+    let spec_intent_bytes = crate::llm::canonical_json_bytes_nfc(&spec_intent);
+    let (_intent_manifest, intent_handle) = write_bytes_artifact(
+        &workspace_root,
+        Uuid::new_v4(),
+        crate::storage::artifacts::ArtifactLayer::L3,
+        crate::storage::artifacts::ArtifactPayloadKind::File,
+        "application/json".to_string(),
+        Some("spec_intent.json".to_string()),
+        spec_intent_bytes,
+        crate::storage::artifacts::ArtifactClassification::Low,
+        true,
+        None,
+        Some(job.job_id),
+        Vec::new(),
+        vec![
+            profile.prompt_ref.clone(),
+            cs_handle.clone(),
+            context_snapshot.capability_snapshot_ref.clone(),
+        ],
+    )?;
+
+    let decision_bytes = crate::llm::canonical_json_bytes_nfc(&decision);
+    let (_decision_manifest, decision_handle) = write_bytes_artifact(
+        &workspace_root,
+        Uuid::new_v4(),
+        crate::storage::artifacts::ArtifactLayer::L3,
+        crate::storage::artifacts::ArtifactPayloadKind::File,
+        "application/json".to_string(),
+        Some("spec_router_decision.json".to_string()),
+        decision_bytes,
+        crate::storage::artifacts::ArtifactClassification::Low,
+        true,
+        None,
+        Some(job.job_id),
+        Vec::new(),
+        vec![
+            profile.prompt_ref.clone(),
+            cs_handle.clone(),
+            context_snapshot.capability_snapshot_ref.clone(),
+        ],
+    )?;
+
+    let (_spec_manifest, spec_handle) = write_bytes_artifact(
+        &workspace_root,
+        Uuid::new_v4(),
+        crate::storage::artifacts::ArtifactLayer::L3,
+        crate::storage::artifacts::ArtifactPayloadKind::Report,
+        "text/markdown".to_string(),
+        Some("spec_artifact.md".to_string()),
+        response.text.as_bytes().to_vec(),
+        crate::storage::artifacts::ArtifactClassification::Medium,
+        true,
+        None,
+        Some(job.job_id),
+        Vec::new(),
+        vec![intent_handle.clone(), decision_handle.clone()],
+    )?;
+
+    let output = json!({
+        "schema_version": "hsk.spec_router.job_output@v1",
+        "spec_id": profile.spec_intent_id,
+        "spec_intent_ref": intent_handle,
+        "spec_router_decision_ref": decision_handle,
+        "spec_artifact_ref": spec_handle,
+        "capability_snapshot_ref": context_snapshot.capability_snapshot_ref,
+        "context_snapshot_id": context_snapshot_id.to_string(),
+        "context_snapshot_ref": cs_handle,
+        "spec_prompt_pack_id": pack_id,
+        "spec_prompt_pack_sha256": context_snapshot.spec_prompt_pack_sha256,
+        "prompt_envelope_hashes": context_snapshot.prompt_envelope_hashes,
+        "token_counts": {
+            "stable_prefix_tokens": context_snapshot.stable_prefix_tokens,
+            "variable_suffix_tokens": context_snapshot.variable_suffix_tokens,
+            "total_tokens": context_snapshot.total_tokens,
+        },
+        "truncation": context_snapshot.truncation,
+    });
+
+    state
+        .storage
+        .set_job_outputs(&job.job_id.to_string(), Some(output.clone()))
+        .await?;
+
+    Ok(RunJobOutcome {
+        state: JobState::Completed,
+        status_reason: "completed".to_string(),
+        output: Some(output),
         error_message: None,
     })
 }

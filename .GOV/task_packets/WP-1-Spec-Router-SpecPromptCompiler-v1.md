@@ -45,9 +45,9 @@
   - src/backend/handshake_core/src/models.rs
   - src/backend/handshake_core/src/tokenization.rs
   - src/backend/handshake_core/src/flight_recorder/mod.rs
-  - src/backend/handshake_core/src/spec_router/mod.rs (new)
-  - src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs (new)
-  - src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs (new)
+  - src/backend/handshake_core/src/spec_router/mod.rs
+  - src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs
+  - src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs
 - OUT_OF_SCOPE:
   - CapabilitySnapshot generation rules and allowlist enforcement details (see WP-1-Spec-Router-CapabilitySnapshot-v1)
   - SpecLint engine + G-SPECLINT preflight gate (see WP-1-Spec-Router-SpecLint-v1)
@@ -268,56 +268,126 @@ git revert <commit-sha>
   - For `spec_router` jobs, required provenance fields exist in Flight Recorder payload and in SpecIntent/SpecRouterDecision artifacts, and are consistent with computed hashes.
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Added SpecPromptPack asset: `assets/spec_prompt_packs/spec_router_pack@1.json` (SpecPromptPackV1 fields per Master Spec 2.6.8.5.2).
+- Added `spec_router` module:
+  - `src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs`: deterministic pack loader + exact-bytes SHA-256.
+  - `src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs`: deterministic PromptEnvelope compilation, token caps, truncation flags, and canonical-json hashing over WorkingContext blocks.
+- Updated `src/backend/handshake_core/src/models.rs`: added `SpecRouterJobProfile` + `WorkflowContext` + `VersionControl` (Master Spec 2.6.6.6.5).
+- Updated `src/backend/handshake_core/src/workflows.rs`:
+  - Routes `JobKind::SpecRouter` to `run_spec_router_job(...)`.
+  - Loads SpecPromptPack (default `spec_router_pack@1`) + computes `spec_prompt_pack_sha256`.
+  - Loads prompt bytes from `prompt_ref` + computes prompt SHA-256.
+  - Generates minimal deterministic CapabilitySnapshot artifact (JSON) and injects a rendered capability table into the router prompt.
+  - Compiles PromptEnvelope (stable_prefix + variable_suffix) via SpecPromptCompiler; records hashes, token counts, and truncation flags.
+  - Emits ContextSnapshot artifact (JSON) including required provenance refs/hashes and SpecPromptPack id/sha.
+  - Records required provenance fields into Flight Recorder LlmInference payload (server-computed).
+  - Emits SpecIntent + SpecRouterDecision artifacts with required provenance fields set server-side (not trusted from model output).
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Gates run:
+  - `just hard-gate-wt-001`
+  - `just pre-work WP-1-Spec-Router-SpecPromptCompiler-v1`
+- Deterministic manifest prep:
+  - `git add` (stage only WP files)
+  - `just cor701-sha <file>` for each changed non-`.GOV/` file
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- (Deterministic manifest for `just post-work` / COR-701 checks; no verdicts.)
+
+- **Target File**: `assets/spec_prompt_packs/spec_router_pack@1.json`
+- **Start**: 1
+- **End**: 39
+- **Line Delta**: 39
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `ab406f08f2281d6da22ff2b91db626b66b48ddfd`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] all_links_resolvable
+
+- **Target File**: `src/backend/handshake_core/src/models.rs`
+- **Start**: 1
+- **End**: 181
+- **Line Delta**: 38
+- **Pre-SHA1**: `31316f5d7276ab8603060156e35cfe0172197302`
+- **Post-SHA1**: `4b1704483d3461e92b3dfed10f85bacc31dc9b46`
+- **Gates Passed**:
+  - [x] all_links_resolvable
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1
+- **End**: 19422
+- **Line Delta**: 788
+- **Pre-SHA1**: `1cde8d5281ae7a9d22e03142a5bd16b3aa12eb3f`
+- **Post-SHA1**: `6686cc63d670dc44966a2dc066e4ac2142fd5be8`
+- **Gates Passed**:
+  - [x] all_links_resolvable
+
+- **Target File**: `src/backend/handshake_core/src/spec_router/mod.rs`
+- **Start**: 1
+- **End**: 2
+- **Line Delta**: 2
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `47a83f333c56ec4d7f75a58c6970be16a8a3bb64`
+- **Gates Passed**:
+  - [x] all_links_resolvable
+
+- **Target File**: `src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs`
+- **Start**: 1
+- **End**: 148
+- **Line Delta**: 148
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `f712fe145a47f51d7db3aeb71fe322e0db835b73`
+- **Gates Passed**:
+  - [x] all_links_resolvable
+
+- **Target File**: `src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs`
+- **Start**: 1
+- **End**: 248
+- **Line Delta**: 248
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `8dfd67fa1f7ce1d9063ceee91b217f1f68545858`
+- **Gates Passed**:
+  - [x] all_links_resolvable
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
 - Current WP_STATUS: In Progress
-- What changed in this update: Claimed packet (CODER_MODEL/CODER_REASONING_STRENGTH) and moved Status -> In Progress.
-- Next step / handoff hint: Fill `## SKELETON`, create docs-only skeleton checkpoint commit, and wait for "SKELETON APPROVED" before any product code changes.
+- What changed in this update: Implemented SpecPromptPack loading + SpecPromptCompiler + spec_router integration and staged only WP in-scope files for deterministic post-work validation.
+- Next step / handoff hint: Run `just post-work WP-1-Spec-Router-SpecPromptCompiler-v1` (staged diff mode) and then commit the staged WP files.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
-- Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `path/to/file:line`
+- REQUIREMENT: "SpecPromptPack asset exists at `assets/spec_prompt_packs/spec_router_pack@1.json` and includes the required fields per Master Spec 2.6.8.5.2."
+  - EVIDENCE: `assets/spec_prompt_packs/spec_router_pack@1.json:1`
+- REQUIREMENT: "Loads the selected pack (default `spec_router_pack@1`) and computes `spec_prompt_pack_id` and `spec_prompt_pack_sha256` (hash of the exact JSON bytes)."
+  - EVIDENCE: `src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs:121`
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:10732`
+- REQUIREMENT: "Compiles PromptEnvelope such that stable_prefix is the concatenation of stable_prefix_sections in order, and variable_suffix is deterministic template expansion with deterministic truncation rules."
+  - EVIDENCE: `src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs:140`
+  - EVIDENCE: `src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs:156`
+- REQUIREMENT: "Uses TokenizationService to enforce placeholder token caps and the envelope total budget, and records token counts and truncation flags."
+  - EVIDENCE: `src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs:118`
+  - EVIDENCE: `src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs:204`
+- REQUIREMENT: "For each spec_router job, the system emits a ContextSnapshot that includes at minimum prompt_ref (handle + hash), capability_snapshot_ref (handle + hash), and spec_prompt_pack_id + spec_prompt_pack_sha256."
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:10525`
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:10957`
+- REQUIREMENT: "For each spec_router job, Flight Recorder records and Operator Consoles can display the required provenance fields (pack id/sha, context_snapshot_id, prompt_envelope hashes, token counts, truncation flags)."
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11041`
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11063`
+- REQUIREMENT: "These provenance fields are copied into SpecIntent and SpecRouterDecision."
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11083`
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:11111`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
+  - COMMAND: `just hard-gate-wt-001`
+  - EXIT_CODE: 0
+  - COMMAND: `just pre-work WP-1-Spec-Router-SpecPromptCompiler-v1`
+  - EXIT_CODE: 0
+  - COMMAND: `git diff --cached --numstat -- assets/spec_prompt_packs/spec_router_pack@1.json src/backend/handshake_core/src/models.rs src/backend/handshake_core/src/workflows.rs src/backend/handshake_core/src/spec_router/mod.rs src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs`
+  - EXIT_CODE: 0
+  - COMMAND: `just cor701-sha src/backend/handshake_core/src/workflows.rs`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/WP-1-Spec-Router-SpecPromptCompiler-v1/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`

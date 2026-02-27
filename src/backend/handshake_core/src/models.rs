@@ -3,6 +3,10 @@ pub use crate::storage::{AiJob, JobKind, JobState, WorkflowRun};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use uuid::Uuid;
+
+use crate::ace::ArtifactHandle;
+use crate::role_mailbox::GovernanceMode;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -140,4 +144,38 @@ pub struct CanvasWithGraphResponse {
 #[derive(Serialize)]
 pub struct ErrorResponse {
     pub error: &'static str,
+}
+
+// ----------------------------------------------------------------------------
+// Spec Router job inputs (Master Spec §2.6.6.6.5)
+// ----------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpecRouterJobProfile {
+    /// Prompt artifact to route
+    pub prompt_ref: ArtifactHandle,
+    /// SpecIntent identifier
+    pub spec_intent_id: String,
+    /// Optional operator override for governance mode
+    pub mode_override: Option<GovernanceMode>,
+    /// Optional override for deterministic prompt compilation.
+    /// If None, runtime MUST use the workspace default SpecPromptPack (see Master Spec §2.6.8.5.2).
+    pub spec_prompt_pack_id: Option<String>,
+    /// Workspace and project context
+    pub workspace_id: Uuid,
+    pub project_id: Option<Uuid>,
+    /// Workflow context for safety behavior (e.g., git workflows)
+    pub workflow_context: WorkflowContext,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowContext {
+    pub version_control: VersionControl,
+    pub repo_root: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum VersionControl {
+    None,
+    Git,
 }
