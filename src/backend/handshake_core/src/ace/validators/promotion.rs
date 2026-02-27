@@ -18,6 +18,9 @@ pub const PROMOTION_VALIDATION_FAIL_WARNING: &str = "promotion:validation_failed
 /// Marker in trace warnings indicating promotion without provenance
 pub const PROMOTION_NO_PROVENANCE_WARNING: &str = "promotion:missing_provenance";
 
+/// Marker in trace warnings indicating procedural memory write without review
+pub const PROMOTION_PROCEDURAL_REVIEW_WARNING: &str = "promotion:procedural_requires_review";
+
 /// MemoryPromotionGuard blocks unauthorized SessionLog -> LongTermMemory promotion.
 ///
 /// Per §2.6.6.7.11.4:
@@ -48,6 +51,14 @@ impl MemoryPromotionGuard {
             .warnings
             .iter()
             .any(|w| w.starts_with(PROMOTION_NO_PROVENANCE_WARNING))
+    }
+
+    /// Check if trace has procedural memory promotion without explicit review decision
+    fn has_procedural_without_review_warning(trace: &RetrievalTrace) -> bool {
+        trace
+            .warnings
+            .iter()
+            .any(|w| w.starts_with(PROMOTION_PROCEDURAL_REVIEW_WARNING))
     }
 }
 
@@ -84,6 +95,13 @@ impl AceRuntimeValidator for MemoryPromotionGuard {
             return Err(AceError::MemoryPromotionBlocked {
                 reason: "SessionLog -> LongTermMemory promotion requires preserved provenance"
                     .to_string(),
+            });
+        }
+
+        // Check for procedural memory writes that bypass review gating
+        if Self::has_procedural_without_review_warning(trace) {
+            return Err(AceError::MemoryPromotionBlocked {
+                reason: "Procedural memory writes require explicit review".to_string(),
             });
         }
 
@@ -177,6 +195,27 @@ mod tests {
         assert!(matches!(
             result,
             Err(AceError::MemoryPromotionBlocked { reason }) if reason.contains("provenance")
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_promotion_guard_procedural_requires_review() {
+        let guard = MemoryPromotionGuard;
+        let plan = QueryPlan::new(
+            "test".to_string(),
+            QueryKind::FactLookup,
+            "policy".to_string(),
+        );
+        let mut trace = RetrievalTrace::new(&plan);
+
+        trace
+            .warnings
+            .push(PROMOTION_PROCEDURAL_REVIEW_WARNING.to_string());
+
+        let result = guard.validate_trace(&trace).await;
+        assert!(matches!(
+            result,
+            Err(AceError::MemoryPromotionBlocked { reason }) if reason.contains("review")
         ));
     }
 

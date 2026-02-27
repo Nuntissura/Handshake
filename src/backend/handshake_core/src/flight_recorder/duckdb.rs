@@ -9,18 +9,17 @@ use duckdb::{Connection as DuckDbConnection, ToSql};
 use serde_json::Value;
 use uuid::Uuid;
 
+use crate::ace::ArtifactHandle;
 use crate::diagnostics::{
     aggregate_grouped, apply_metadata, diagnostic_metadata, DiagFilter, Diagnostic,
     DiagnosticActor, DiagnosticSeverity, DiagnosticSource, DiagnosticSurface, DiagnosticsStore,
     LinkConfidence, ProblemGroup,
 };
 use crate::storage::StorageError;
-use crate::ace::ArtifactHandle;
 
 use super::{
     canonical_json_sha256_hex, FlightRecorder, FlightRecorderActor, FlightRecorderEvent,
-    FlightRecorderEventType,
-    FrEvt003Diagnostic, RecorderError,
+    FlightRecorderEventType, FrEvt003Diagnostic, RecorderError,
 };
 
 pub struct DuckDbFlightRecorder {
@@ -57,9 +56,8 @@ pub(crate) fn store_tool_payload_redacted(
     payload_redacted: &Value,
 ) -> Result<(ArtifactHandle, String), RecorderError> {
     let payload_sha256 = canonical_json_sha256_hex(payload_redacted);
-    let artifact_path = format!(
-        "data/flight_recorder/tool_payloads/{tool_call_id}/{payload_kind}.json"
-    );
+    let artifact_path =
+        format!("data/flight_recorder/tool_payloads/{tool_call_id}/{payload_kind}.json");
     let payload_str = serde_json::to_string(payload_redacted)
         .map_err(|e| RecorderError::InvalidEvent(e.to_string()))?;
 
@@ -84,7 +82,10 @@ pub(crate) fn store_tool_payload_redacted(
     )
     .map_err(|e| RecorderError::SinkError(e.to_string()))?;
 
-    Ok((ArtifactHandle::new(tool_call_id, artifact_path), payload_sha256))
+    Ok((
+        ArtifactHandle::new(tool_call_id, artifact_path),
+        payload_sha256,
+    ))
 }
 
 fn map_db_error(err: duckdb::Error) -> StorageError {
@@ -624,8 +625,10 @@ impl DuckDbFlightRecorder {
             .execute(&tool_payload_query, [])
             .map_err(|e| RecorderError::SinkError(e.to_string()))?;
 
-        Ok((affected_events + affected_fr_events + affected_terminal_output + affected_tool_payloads)
-            as u64)
+        Ok((affected_events
+            + affected_fr_events
+            + affected_terminal_output
+            + affected_tool_payloads) as u64)
     }
 
     fn query_events(
@@ -810,6 +813,13 @@ impl DuckDbFlightRecorder {
                 "work_query_executed" => super::FlightRecorderEventType::LocusWorkQueryExecuted,
                 "debug_bundle_export" => super::FlightRecorderEventType::DebugBundleExport,
                 "governance_pack_export" => super::FlightRecorderEventType::GovernancePackExport,
+                "memory_write_proposed" => super::FlightRecorderEventType::MemoryWriteProposed,
+                "memory_write_reviewed" => super::FlightRecorderEventType::MemoryWriteReviewed,
+                "memory_write_committed" => super::FlightRecorderEventType::MemoryWriteCommitted,
+                "memory_pack_built" => super::FlightRecorderEventType::MemoryPackBuilt,
+                "memory_item_status_changed" => {
+                    super::FlightRecorderEventType::MemoryItemStatusChanged
+                }
                 "runtime_chat_message_appended" => {
                     super::FlightRecorderEventType::RuntimeChatMessageAppended
                 }

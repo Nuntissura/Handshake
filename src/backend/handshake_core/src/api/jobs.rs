@@ -19,6 +19,67 @@ use std::str::FromStr;
 type ApiError = (StatusCode, Json<ErrorResponse>);
 type ApiResult<T> = Result<T, ApiError>;
 
+const FEMS_PROTOCOL_MEMORY_EXTRACT_V0_1: &str = "memory_extract_v0.1";
+const FEMS_PROTOCOL_MEMORY_CONSOLIDATE_V0_1: &str = "memory_consolidate_v0.1";
+const FEMS_PROTOCOL_MEMORY_FORGET_V0_1: &str = "memory_forget_v0.1";
+
+fn is_fems_protocol(protocol_id: &str) -> bool {
+    matches!(
+        protocol_id,
+        FEMS_PROTOCOL_MEMORY_EXTRACT_V0_1
+            | FEMS_PROTOCOL_MEMORY_CONSOLIDATE_V0_1
+            | FEMS_PROTOCOL_MEMORY_FORGET_V0_1
+    )
+}
+
+#[derive(Debug)]
+enum ParseJobKindRequestError {
+    ContractMismatch { job_kind: String, protocol_id: String },
+    InvalidJobKind(crate::storage::StorageError),
+}
+
+impl std::fmt::Display for ParseJobKindRequestError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParseJobKindRequestError::ContractMismatch {
+                job_kind,
+                protocol_id: _,
+            } => {
+                write!(
+                    f,
+                    "invalid job contract: job_kind {job_kind} requires matching protocol_id"
+                )
+            }
+            ParseJobKindRequestError::InvalidJobKind(err) => err.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for ParseJobKindRequestError {}
+
+fn parse_job_kind_request(job_kind: &str, protocol_id: &str) -> Result<JobKind, ParseJobKindRequestError> {
+    let trimmed = job_kind.trim();
+    if is_fems_protocol(trimmed) {
+        if trimmed != protocol_id {
+            return Err(ParseJobKindRequestError::ContractMismatch {
+                job_kind: trimmed.to_string(),
+                protocol_id: protocol_id.to_string(),
+            });
+        }
+        return Ok(JobKind::WorkflowRun);
+    }
+
+    JobKind::from_str(trimmed).map_err(ParseJobKindRequestError::InvalidJobKind)
+}
+
+fn parse_job_kind_filter(job_kind: &str) -> Result<JobKind, String> {
+    let trimmed = job_kind.trim();
+    if is_fems_protocol(trimmed) {
+        return Ok(JobKind::WorkflowRun);
+    }
+    JobKind::from_str(trimmed).map_err(|e| e.to_string())
+}
+
 fn job_not_resumable() -> ApiError {
     (
         StatusCode::CONFLICT,
@@ -137,11 +198,12 @@ async fn create_new_job(
     State(state): State<AppState>,
     Json(payload): Json<CreateJobRequest>,
 ) -> Result<Json<WorkflowRun>, String> {
-    let job_kind = JobKind::from_str(payload.job_kind.as_str()).map_err(|e| e.to_string())?;
+    let job_kind = parse_job_kind_request(payload.job_kind.as_str(), payload.protocol_id.as_str())
+        .map_err(|e| e.to_string())?;
 
     let capability_profile_id = state
         .capability_registry
-        .profile_for_job(job_kind.as_str())
+        .profile_for_job_request(job_kind.as_str(), payload.protocol_id.as_str())
         .map_err(|e| e.to_string())?;
 
     let job_inputs = payload
@@ -277,7 +339,7 @@ async fn list_jobs(
     let job_kind = filters
         .job_kind
         .as_deref()
-        .map(JobKind::from_str)
+        .map(parse_job_kind_filter)
         .transpose()
         .map_err(|e| e.to_string())?;
 
@@ -383,6 +445,48 @@ mod tests {
             stdout
         );
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_job_accepts_fems_job_kind_alias() -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let request = CreateJobRequest {
+            job_kind: "memory_extract_v0.1".to_string(),
+            protocol_id: "memory_extract_v0.1".to_string(),
+            doc_id: None,
+            job_inputs: Some(json!({
+                "memory_policy": "EPHEMERAL",
+                "memory_ids": ["mem_001"]
+            })),
+        };
+
+        let response = create_new_job(State(state.clone()), Json(request)).await?;
+        let job = state
+            .storage
+            .get_ai_job(&response.0.job_id.to_string())
+            .await?;
+        assert_eq!(job.job_kind.as_str(), "workflow_run");
+        assert_eq!(job.protocol_id, "memory_extract_v0.1");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_job_rejects_mismatched_fems_alias_protocol(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let request = CreateJobRequest {
+            job_kind: "memory_extract_v0.1".to_string(),
+            protocol_id: "memory_forget_v0.1".to_string(),
+            doc_id: None,
+            job_inputs: Some(json!({ "memory_ids": ["mem_001"] })),
+        };
+
+        let result = create_new_job(State(state), Json(request)).await;
+        assert!(
+            result.is_err(),
+            "expected mismatched FEMS alias/protocol to be rejected"
+        );
         Ok(())
     }
 }

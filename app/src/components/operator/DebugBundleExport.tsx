@@ -215,6 +215,10 @@ const DebugBundleExportInner: React.FC<InnerProps> = ({ defaultScope, onClose })
         {stage === "form" && (
           <div className="modal-body">
             <p className="muted small">Scope and redaction controls align with SAFE_DEFAULT requirements.</p>
+            <p className="muted small">
+              Memory-system telemetry in bundles is ID/hash/ref based (`FR-EVT-MEM-*`); review full proposal/commit
+              context from the selected job outputs.
+            </p>
 
             <div className="stacked">
               <span>Scope</span>

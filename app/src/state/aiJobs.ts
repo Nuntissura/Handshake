@@ -1,4 +1,4 @@
-import { AiJob, getJob } from "../lib/api";
+import { AiJob, asFemsJobOutput, FemsJobOutput, getJob, isFemsProtocolId } from "../lib/api";
 
 export type AiJobTrackerEntry = {
   jobId: string;
@@ -169,4 +169,12 @@ export function startPolling() {
   pollingTimer = window.setInterval(() => {
     void tick();
   }, POLL_INTERVAL_MS);
+}
+
+export function isFemsJob(job: AiJob): boolean {
+  return isFemsProtocolId(job.protocol_id);
+}
+
+export function femsOutputForJob(job: AiJob): FemsJobOutput | null {
+  return asFemsJobOutput(job.job_outputs);
 }
