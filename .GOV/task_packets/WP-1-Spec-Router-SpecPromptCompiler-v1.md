@@ -147,7 +147,7 @@ git revert <commit-sha>
       {
         "schema_version": "hsk.spec_prompt_pack@1",
         "pack_id": "spec_router_pack@1",
-        "description": "Deterministic prompt envelope skeleton for Spec Router (Prompt→Spec).",
+        "description": "Deterministic prompt envelope skeleton for Spec Router (Prompt->Spec).",
         "target_job_kind": "spec_router",
         "stable_prefix_sections": [
           {
@@ -213,11 +213,11 @@ git revert <commit-sha>
     - Parse `job_inputs` as `SpecRouterJobProfile` per Master Spec 2.6.6.6.5.
     - Load SpecPromptPack (default `spec_router_pack@1`) and compute `(spec_prompt_pack_id, spec_prompt_pack_sha256)`.
     - Load prompt bytes from `prompt_ref.path` (ArtifactHandle) and compute `prompt_sha256` for ContextSnapshot.
-    - Generate/store CapabilitySnapshot artifact and compute `capability_snapshot_ref + capability_snapshot_sha256` for ContextSnapshot (generation details coordinated with WP-1-Spec-Router-CapabilitySnapshot-v1; enforcement/allowlist details OUT_OF_SCOPE here).
+    - Generate/store CapabilitySnapshot artifact (minimal deterministic generation in this WP) and compute `capability_snapshot_ref + capability_snapshot_sha256` for ContextSnapshot (allowlist enforcement/rules remain OUT_OF_SCOPE here).
     - Compile PromptEnvelope via SpecPromptCompiler; record hashes, token counts, truncation flags.
     - Emit ContextSnapshot artifact (JSON) including at minimum: `prompt_ref + prompt_sha256`, `capability_snapshot_ref + capability_snapshot_sha256`, `spec_prompt_pack_id + spec_prompt_pack_sha256`, `context_snapshot_id`, and `prompt_envelope.{stable_prefix_hash,variable_suffix_hash}`.
     - Flight Recorder provenance: extend `llm_inference` payload with required fields (Spec 2.6.8.5.2 / 2.6.8.9) without trusting model-provided provenance.
-    - SpecIntent + SpecRouterDecision artifacts: parse model output for semantic fields, but set/overwrite required provenance fields server-side from computed truth.
+    - SpecIntent + SpecRouterDecision artifacts: parse model output for semantic fields, but set/overwrite required provenance fields server-side from computed truth (including ContextSnapshot id, PromptEnvelope hashes, token counts, truncation flags).
 
 - END_TO_END_CLOSURE_PLAN (SKELETON mirror; see `## END_TO_END_CLOSURE_PLAN [CX-E2E-001]` for full list):
   - Producer (server-derived truth): `SpecPromptPack` bytes->sha256; `SpecPromptCompiler` -> stable/variable strings + hashes + token counts + truncation flags; ContextSnapshot JSON -> id + artifact refs/hashes.
@@ -226,10 +226,16 @@ git revert <commit-sha>
   - Trust boundary: job_inputs and model output are untrusted; provenance fields MUST be computed and enforced by the server.
   - Determinism: no randomness; identical pack bytes + prompt bytes + capability snapshot bytes + workflow context => identical hashes.
 
+- Contract decisions (locked for implementation):
+  - CapabilitySnapshot: MUST do minimal deterministic generation in this WP (emit artifact + hash + inject into prompt); allowlist enforcement/rules remain OUT_OF_SCOPE.
+  - SpecRouterDecision provenance: implement per Spec 2.6.8.5.2 (include `context_snapshot_id`, PromptEnvelope hashes, token counts, truncation flags). Treat the 2.6.8.5 Rust snippet as incomplete if it omits these fields.
+  - WorkingContext rendering: define deterministic text rendering for the LLM request while keeping hashes defined over canonical JSON:
+    - `stable_prefix_text = join(stable_prefix.blocks[*].content, \"\\n\\n\")` in block order
+    - `variable_suffix_text = join(variable_suffix.blocks[*].content, \"\\n\\n\")` in block order
+    - `full_prompt_text = stable_prefix_text + \"\\n\\n\" + variable_suffix_text`
+
 - Open questions:
-  - CapabilitySnapshot: implement minimal deterministic generation here vs require as pre-existing artifact? (Spec 2.6.6.6.5 says router MUST generate; WP notes generation rules/enforcement are out-of-scope.)
-  - SpecRouterDecision schema: Master Spec 2.6.8.5.2 requires copying PromptEnvelope hashes + ContextSnapshot id into SpecRouterDecision, but the 2.6.8.5 Rust snippet does not include them. Confirm desired fields set for `hsk.spec_router_decision@0.2` before implementation.
-  - WorkingContext rendering: define the deterministic string rendering fed to `CompletionRequest` (e.g., join block `content` with `\\n\\n` separators) while keeping hashes defined over canonical WorkingContext JSON.
+  - Confirm `full_prompt_hash` computation target (canonical JSON of a `{stable_prefix, variable_suffix}` object vs canonical JSON of concatenated block list), consistent with Spec 2.6.6.7.3/2.6.6.7.4.
 
 - Notes:
   - No product code changes until "SKELETON APPROVED" (per CODER_PROTOCOL [CX-GATE-001]).
