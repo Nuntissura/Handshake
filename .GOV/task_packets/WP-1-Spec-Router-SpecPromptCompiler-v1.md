@@ -142,6 +142,48 @@ git revert <commit-sha>
   - `assets/spec_prompt_packs/spec_router_pack@1.json`
     - `SpecPromptPackV1` JSON schema per Master Spec 2.6.8.5.2 (schema_version/pack_id/target_job_kind/stable_prefix_sections/variable_suffix_template_md/placeholders/required_outputs/budgets).
     - Pack hashing: `spec_prompt_pack_sha256 = SHA-256(exact JSON bytes on disk)` (no re-serialization).
+    - Draft JSON (for SKELETON review; will be written to the file after "SKELETON APPROVED" unless explicitly overridden):
+      ```json
+      {
+        "schema_version": "hsk.spec_prompt_pack@1",
+        "pack_id": "spec_router_pack@1",
+        "description": "Deterministic prompt envelope skeleton for Spec Router (Prompt→Spec).",
+        "target_job_kind": "spec_router",
+        "stable_prefix_sections": [
+          {
+            "section_id": "SYSTEM_RULES",
+            "content_md": "## SYSTEM RULES (HARD)\n- You are running as Handshake Spec Router / Spec Author.\n- You MUST NOT invent tools, engines, surfaces, connectors, events, or files.\n- You MAY only reference items listed in CAPABILITY SNAPSHOT.\n- If you lack information, record assumptions as NEEDS_CONFIRMATION in ## Assumptions.\n- Output MUST follow OUTPUT CONTRACT exactly."
+          },
+          {
+            "section_id": "OUTPUT_CONTRACT",
+            "content_md": "## REQUIRED OUTPUTS (HARD)\nYou MUST output, in order:\n1) SpecIntent (JSON)\n2) SpecRouterDecision (JSON)\n3) Spec artifact (Markdown)\n\n## OUTPUT CONTRACT (STRICT)\n- No extra prose outside the three artifacts.\n- All IDs must be stable and machine-readable."
+          }
+        ],
+        "variable_suffix_template_md": "## INPUTS\n### User prompt\n- prompt_ref: {{PROMPT_REF}}\n- prompt_text: {{PROMPT_TEXT}}\n\n### Workspace/workflow context\n- workspace_id: {{WORKSPACE_ID}}\n- project_id: {{PROJECT_ID}}\n- version_control: {{VERSION_CONTROL}}\n- repo_root: {{REPO_ROOT}}\n\n## CAPABILITY SNAPSHOT (ALLOWED ONLY)\n{{CAPABILITY_SNAPSHOT_TABLE}}\n\n## GOVERNANCE\n- governance_mode: {{GOVERNANCE_MODE}}\n- required_gates: {{REQUIRED_GATES}}\n\nBEGIN WORK:\n",
+        "placeholders": [
+          { "name": "PROMPT_REF", "source": "prompt_ref", "max_tokens": 32, "required": true },
+          { "name": "PROMPT_TEXT", "source": "prompt_ref", "max_tokens": 900, "required": true },
+          { "name": "WORKSPACE_ID", "source": "workflow_context", "max_tokens": 64, "required": true },
+          { "name": "PROJECT_ID", "source": "workflow_context", "max_tokens": 64, "required": false },
+          { "name": "VERSION_CONTROL", "source": "workflow_context", "max_tokens": 16, "required": true },
+          { "name": "REPO_ROOT", "source": "workflow_context", "max_tokens": 256, "required": false },
+          { "name": "CAPABILITY_SNAPSHOT_TABLE", "source": "capability_snapshot", "max_tokens": 900, "required": true },
+          { "name": "GOVERNANCE_MODE", "source": "governance_mode", "max_tokens": 16, "required": true },
+          { "name": "REQUIRED_GATES", "source": "governance_mode", "max_tokens": 128, "required": true }
+        ],
+        "required_outputs": [
+          { "artifact_kind": "SpecIntent", "schema_ref": "hsk.spec_intent@0.2" },
+          { "artifact_kind": "SpecRouterDecision", "schema_ref": "hsk.spec_router_decision@0.2" },
+          { "artifact_kind": "SpecArtifact", "schema_ref": "hsk.feature_spec@0.2" }
+        ],
+        "budgets": {
+          "max_total_tokens": 8000,
+          "max_prompt_excerpt_tokens": 900,
+          "max_capsule_tokens": 1200,
+          "max_capability_table_tokens": 900
+        }
+      }
+      ```
   - `src/backend/handshake_core/src/spec_router/mod.rs` (new)
     - `pub mod spec_prompt_pack;`
     - `pub mod spec_prompt_compiler;`
@@ -155,15 +197,17 @@ git revert <commit-sha>
     - `pub struct LoadedSpecPromptPack { pub pack: SpecPromptPackV1, pub pack_id: String, pub pack_sha256: String, pub raw_bytes: Vec<u8> }`
     - `pub fn load_spec_prompt_pack(pack_id: &str) -> Result<LoadedSpecPromptPack, SpecPromptPackError>`
   - `src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs` (new)
-    - `pub struct PromptEnvelopeV1 { pub stable_prefix: String, pub variable_suffix: String, pub stable_prefix_hash: String, pub variable_suffix_hash: String, pub full_prompt_hash: String, pub stable_prefix_tokens: u32, pub variable_suffix_tokens: u32, pub total_tokens: u32, pub truncation: PromptEnvelopeTruncationV1 }`
+    - `pub struct WorkingContextV1 { pub blocks: Vec<ContextBlockV1>, pub token_budget: u32, pub token_estimate: u32, pub build_id: String }` (Master Spec 2.6.6.7.4)
+    - `pub struct ContextBlockV1 { pub kind: String, pub content: String, pub source_refs: Vec<Value>, pub sensitivity: String, pub projection: String, pub order_key: String }` (Master Spec 2.6.6.7.4; arrays MUST be in deterministic order)
+    - `pub struct PromptEnvelopeV1 { pub stable_prefix: WorkingContextV1, pub variable_suffix: WorkingContextV1, pub stable_prefix_hash: String, pub variable_suffix_hash: String, pub full_prompt_hash: String, pub stable_prefix_tokens: u32, pub variable_suffix_tokens: u32, pub total_tokens: u32, pub truncation: PromptEnvelopeTruncationV1 }`
     - `pub struct PromptEnvelopeTruncationV1 { pub per_placeholder_truncated: BTreeMap<String, bool>, pub variable_suffix_truncated: bool }`
     - `pub struct SpecPromptCompiler<'a> { pub tokenization: &'a dyn TokenizationService, pub model_id: &'a str }`
     - `pub fn compile_spec_router_envelope(pack: &SpecPromptPackV1, values: &BTreeMap<String, String>, tokenization: &dyn TokenizationService, model_id: &str) -> Result<PromptEnvelopeV1, SpecPromptCompilerError>`
     - Determinism rules (compiler):
-      - `stable_prefix = concat(pack.stable_prefix_sections[*].content_md in order)` with a single `\\n\\n` join between sections.
-      - `variable_suffix = expand(pack.variable_suffix_template_md, {{PLACEHOLDER_NAME}} -> value)` using only placeholders declared in `pack.placeholders`.
+      - `stable_prefix` MUST be a canonical WorkingContext with deterministic `blocks[]` (derived from `stable_prefix_sections` in order).
+      - `variable_suffix` MUST be a canonical WorkingContext with deterministic `blocks[]` whose `content` is the deterministic template expansion of `variable_suffix_template_md`.
       - Placeholder enforcement order: (1) require presence for `required=true`, (2) truncate each placeholder to `max_tokens` via TokenizationService, (3) expand template, (4) enforce `budgets.max_total_tokens` by truncating `variable_suffix` to remaining tokens (record `variable_suffix_truncated=true`), else `budget_exceeded` if stable_prefix alone exceeds budget.
-      - Hashes: SHA-256 over UTF-8 bytes of `stable_prefix`, `variable_suffix`, and `stable_prefix + \"\\n\\n\" + variable_suffix`.
+      - Hashes (Spec 2.6.6.7.4/2.6.6.7.5): SHA-256 over UTF-8 bytes of **canonical JSON** for WorkingContext blocks (sorted keys + NFC + deterministic arrays). Use `crate::llm::canonical_json_bytes_nfc` + `crate::llm::sha256_hex` (or `flight_recorder::canonical_json_sha256_hex`) to compute `stable_prefix_hash`, `variable_suffix_hash`, and `full_prompt_hash`.
   - `src/backend/handshake_core/src/workflows.rs` (integration points; implementation after skeleton approval)
     - Add `JobKind::SpecRouter` execution branch.
     - Parse `job_inputs` as `SpecRouterJobProfile` per Master Spec 2.6.6.6.5.
@@ -185,7 +229,7 @@ git revert <commit-sha>
 - Open questions:
   - CapabilitySnapshot: implement minimal deterministic generation here vs require as pre-existing artifact? (Spec 2.6.6.6.5 says router MUST generate; WP notes generation rules/enforcement are out-of-scope.)
   - SpecRouterDecision schema: Master Spec 2.6.8.5.2 requires copying PromptEnvelope hashes + ContextSnapshot id into SpecRouterDecision, but the 2.6.8.5 Rust snippet does not include them. Confirm desired fields set for `hsk.spec_router_decision@0.2` before implementation.
-  - PromptEnvelope hashing: spec defines PromptEnvelope hashes over canonical WorkingContext blocks (2.6.6.7.4/7.5); current runtime patterns hash raw strings (see MT executor). Confirm acceptable v1 approach for spec_router.
+  - WorkingContext rendering: define the deterministic string rendering fed to `CompletionRequest` (e.g., join block `content` with `\\n\\n` separators) while keeping hashes defined over canonical WorkingContext JSON.
 
 - Notes:
   - No product code changes until "SKELETON APPROVED" (per CODER_PROTOCOL [CX-GATE-001]).
