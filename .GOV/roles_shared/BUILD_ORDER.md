@@ -39,7 +39,7 @@ Update this file when any of the following occurs:
 
 Run these before broader Spec Router expansion so routing stays deterministic and policy-safe:
 
-1. WP-1-Spec-Router-SpecPromptCompiler (stub exists)
+1. WP-1-Spec-Router-SpecPromptCompiler (active packet: WP-1-Spec-Router-SpecPromptCompiler-v1)
 2. WP-1-Spec-Router-CapabilitySnapshot (stub exists)
 3. WP-1-Spec-Router-SpecLint (stub exists)
 
