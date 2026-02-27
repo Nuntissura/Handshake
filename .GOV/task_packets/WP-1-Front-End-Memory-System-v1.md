@@ -40,6 +40,7 @@
 - IN_SCOPE_PATHS:
   - .GOV/refinements/WP-1-Front-End-Memory-System-v1.md
   - .GOV/task_packets/WP-1-Front-End-Memory-System-v1.md
+  - .GOV/validator_gates/WP-1-Front-End-Memory-System-v1.json
   - .GOV/roles_shared/TASK_BOARD.md
   - .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
   - src/backend/handshake_core/src/ace/mod.rs
