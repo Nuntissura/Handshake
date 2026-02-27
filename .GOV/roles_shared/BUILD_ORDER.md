@@ -32,7 +32,7 @@ Update this file when any of the following occurs:
 
 ### 0) Immediate-value deliveries (can run while foundations are being refined)
 
-- WP-1-Media-Downloader (VALIDATED: WP-1-Media-Downloader-v2)
+- WP-1-Media-Downloader (active packet: see WP_TRACEABILITY_REGISTRY)
   - Rationale: urgent family salvage value; exercises engine.job queue, tools, and OutputRootDir materialization.
 
 ### 0.5) Prompt->Spec hardening quartet prerequisites (v02.139)
@@ -43,11 +43,6 @@ Run these before broader Spec Router expansion so routing stays deterministic an
 2. WP-1-Spec-Router-CapabilitySnapshot (stub exists)
 3. WP-1-Spec-Router-SpecLint (stub exists)
 
-### 0.6) Spec Router session logging (after 0.5)
-
-- WP-1-Spec-Router-Session-Log (stub exists)
-  - Rationale: Phase 1 goal requires Spec Router to create Task Board + Work Packet session logs; schedule after prompt determinism hardening so logs capture the required provenance fields.
-
 ### 1) Safety baseline for "Handshake as IDE"
 
 MEX remediation is a practical prerequisite for scaling autonomous work safely (gates, observability, UX bridges):
@@ -56,20 +51,13 @@ MEX remediation is a practical prerequisite for scaling autonomous work safely (
 2. WP-1-MEX-Observability (remediation packet: `...-v2` stub exists)
 3. WP-1-MEX-UX-Bridges (remediation packet: `...-v2` stub exists)
 
-### 1.5) Phase 1 MVP workspace surfaces (Atelier + Photo Studio)
-
-These are Phase 1 MVP product surfaces that should not be deferred past the core governance/tooling foundations:
-
-1. WP-1-Atelier-Lens (remediation packet: `...-v2` stub exists; always-on Lens extraction runtime)
-2. WP-1-Photo-Studio (remediation packet: `...-v2` stub exists; Photo Studio skeleton surface)
-
 ### 2) Model routing + governance prerequisites (before parallel cloud sessions)
 
 These enable "who can call what model/provider, under which policy" with auditability:
 
 1. WP-1-Model-Profiles (remediation packet: `...-v2` stub exists)
 2. WP-1-Work-Profiles (stub exists)
-3. WP-1-Cloud-Escalation-Consent (VALIDATED: WP-1-Cloud-Escalation-Consent-v2; required for governed cloud fan-out)
+3. WP-1-Cloud-Escalation-Consent (stub exists; required for governed cloud fan-out)
 4. WP-1-Inbox-Role-Mailbox-Alignment (stub exists; coordination fabric)
 
 ### 3) Parallelism foundations (runtime enforcement)
@@ -87,7 +75,7 @@ These are the planned Operator-facing coordination surfaces:
 ### 5) Web capture + media browsing/search (after ingestion + control surfaces)
 
 1. WP-1-Handshake-Stage-MVP (stub exists)
-2. WP-1-Loom-MVP (VALIDATED: WP-1-Loom-MVP-v1)
+2. WP-1-Loom-MVP (stub exists)
 3. WP-1-Video-Archive-Loom-Integration (stub exists)
 
 ## Notes / constraints
