@@ -1,0 +1,39 @@
+{
+  "schema_version": "hsk.spec_prompt_pack@1",
+  "pack_id": "spec_router_pack@1",
+  "description": "Deterministic prompt envelope skeleton for Spec Router (Prompt->Spec).",
+  "target_job_kind": "spec_router",
+  "stable_prefix_sections": [
+    {
+      "section_id": "SYSTEM_RULES",
+      "content_md": "## SYSTEM RULES (HARD)\n- You are running as Handshake Spec Router / Spec Author.\n- You MUST NOT invent tools, engines, surfaces, connectors, events, or files.\n- You MAY only reference items listed in CAPABILITY SNAPSHOT.\n- If you lack information, record assumptions as NEEDS_CONFIRMATION in ## Assumptions.\n- Output MUST follow OUTPUT CONTRACT exactly."
+    },
+    {
+      "section_id": "OUTPUT_CONTRACT",
+      "content_md": "## REQUIRED OUTPUTS (HARD)\nYou MUST output, in order:\n1) SpecIntent (JSON)\n2) SpecRouterDecision (JSON)\n3) Spec artifact (Markdown)\n\n## OUTPUT CONTRACT (STRICT)\n- No extra prose outside the three artifacts.\n- All IDs must be stable and machine-readable."
+    }
+  ],
+  "variable_suffix_template_md": "## INPUTS\n### User prompt\n- prompt_ref: {{PROMPT_REF}}\n- prompt_text: {{PROMPT_TEXT}}\n\n### Workspace/workflow context\n- workspace_id: {{WORKSPACE_ID}}\n- project_id: {{PROJECT_ID}}\n- version_control: {{VERSION_CONTROL}}\n- repo_root: {{REPO_ROOT}}\n\n## CAPABILITY SNAPSHOT (ALLOWED ONLY)\n{{CAPABILITY_SNAPSHOT_TABLE}}\n\n## GOVERNANCE\n- governance_mode: {{GOVERNANCE_MODE}}\n- required_gates: {{REQUIRED_GATES}}\n\nBEGIN WORK:\n",
+  "placeholders": [
+    { "name": "PROMPT_REF", "source": "prompt_ref", "max_tokens": 32, "required": true },
+    { "name": "PROMPT_TEXT", "source": "prompt_ref", "max_tokens": 900, "required": true },
+    { "name": "WORKSPACE_ID", "source": "workflow_context", "max_tokens": 64, "required": true },
+    { "name": "PROJECT_ID", "source": "workflow_context", "max_tokens": 64, "required": false },
+    { "name": "VERSION_CONTROL", "source": "workflow_context", "max_tokens": 16, "required": true },
+    { "name": "REPO_ROOT", "source": "workflow_context", "max_tokens": 256, "required": false },
+    { "name": "CAPABILITY_SNAPSHOT_TABLE", "source": "capability_snapshot", "max_tokens": 900, "required": true },
+    { "name": "GOVERNANCE_MODE", "source": "governance_mode", "max_tokens": 16, "required": true },
+    { "name": "REQUIRED_GATES", "source": "governance_mode", "max_tokens": 128, "required": true }
+  ],
+  "required_outputs": [
+    { "artifact_kind": "SpecIntent", "schema_ref": "hsk.spec_intent@0.2" },
+    { "artifact_kind": "SpecRouterDecision", "schema_ref": "hsk.spec_router_decision@0.2" },
+    { "artifact_kind": "SpecArtifact", "schema_ref": "hsk.feature_spec@0.2" }
+  ],
+  "budgets": {
+    "max_total_tokens": 8000,
+    "max_prompt_excerpt_tokens": 900,
+    "max_capsule_tokens": 1200,
+    "max_capability_table_tokens": 900
+  }
+}
