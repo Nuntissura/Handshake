@@ -134,6 +134,24 @@ Rule: keep `NEXT_COMMANDS` limited to the immediate next step(s) (required to pr
 
 Operator UX rule: before posting `GATE_OUTPUT`, state `OPERATOR_ACTION: NONE` (or the single decision you need) and do not interleave questions inside `GATE_OUTPUT`.
 
+## Auto-Continue on PASS [CX-GATE-AUTO-VAL-001] (ANTI-BABYSIT)
+
+Hard rule (to prevent "babysit every gate to proceed" loops):
+- If a gate/hard-gate output is posted and it clearly shows `RESULT: PASS` **and** `OPERATOR_ACTION: NONE`, you MUST proceed to `NEXT_COMMANDS` without waiting for the Operator to say "proceed".
+
+STOP is only required when at least one is true:
+- The gate result is not PASS (FAIL/BLOCKED/unknown).
+- `OPERATOR_ACTION` is not `NONE` (a single explicit decision is needed).
+- The next step requires explicit Operator authorization in the same turn (e.g., SYNC gate actions like `git fetch`, `git switch`, merge/rebase/ff into another branch/worktree).
+- The next step is a protocol-mandated stop point (e.g., waiting for a Coder handoff or a required phase boundary).
+
+### Condensed validator session preflight (recommended)
+
+Instead of running session-start checks as separate commands, you MAY run:
+- `just validator-preflight`
+
+This is a convenience wrapper around the core deterministic checks (worktree context + governance integrity + spec regression).
+
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
 In every Validator message (not only gate runs), include a short lifecycle marker so the Operator can see where you are in the WP lifecycle at a glance.

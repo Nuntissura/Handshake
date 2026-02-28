@@ -141,6 +141,24 @@ close-wp-branch wp-id remote="":
 
 # === Workflow Enforcement Commands (see .GOV/roles_shared/SPEC_CURRENT.md) ===
 
+# Orchestrator preflight (condensed): worktree context + governance integrity + spec regression.
+orchestrator-preflight:
+	@just hard-gate-wt-001
+	@just gov-check
+	@just validator-spec-regression
+
+# Validator preflight (condensed): worktree context + governance integrity + spec regression.
+validator-preflight:
+	@just hard-gate-wt-001
+	@just gov-check
+	@just validator-spec-regression
+
+# Coder preflight (condensed): worktree context + governance integrity + spec regression.
+coder-preflight:
+	@just hard-gate-wt-001
+	@just gov-check
+	@just validator-spec-regression
+
 # Record a technical refinement for a work packet [CX-585A]
 record-refinement wp-id detail="":
 	@node .GOV/scripts/validation/orchestrator_gates.mjs refine {{wp-id}} "{{detail}}"
