@@ -483,6 +483,7 @@ git revert <commit-sha>
   - LOG_PATH: `C:\\Users\\ILJASM~1\\AppData\\Local\\Temp\\handshake_core_cargo_test_lib_j1.log`
   - ERROR_SNIPPET:
     - `fatal error C1083: Cannot open compiler generated file: '': Invalid argument`
+  - NOTE: SUPERSEDED by the later passing run recorded below with short CARGO_TARGET_DIR/TEMP/TMP (EXIT_CODE: 0).
 - COMMAND: `rustfmt --edition 2021 --check src/backend/handshake_core/src/models.rs src/backend/handshake_core/src/workflows.rs src/backend/handshake_core/src/spec_router/mod.rs src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs`
   - EXIT_CODE: 0
 - COMMAND: `$env:CARGO_TARGET_DIR='D:\\tmp\\hs_target'; $env:TEMP='D:\\tmp'; $env:TMP='D:\\tmp'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib -j 1`
