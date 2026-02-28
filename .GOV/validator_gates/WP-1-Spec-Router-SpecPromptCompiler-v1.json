@@ -1,0 +1,22 @@
+{
+  "validation_sessions": {
+    "WP-1-Spec-Router-SpecPromptCompiler-v1": {
+      "wpId": "WP-1-Spec-Router-SpecPromptCompiler-v1",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-02-28T05:59:55.787Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "PASS",
+          "timestamp": "2026-02-28T05:59:55.787Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-02-28T06:00:20.663Z"
+        }
+      ]
+    }
+  },
+  "archived_sessions": []
+}

@@ -507,3 +507,50 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+VALIDATION REPORT - WP-1-Spec-Router-SpecPromptCompiler-v1
+Verdict: PASS
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Spec-Router-SpecPromptCompiler-v1`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS (with waiver [CX-573F] for `cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml`)
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Spec-Router-SpecPromptCompiler-v1.md` (status: In Progress)
+- Spec Target: `.GOV/roles_shared/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.139.md`
+- Spec Anchors: `Handshake_Master_Spec_v02.139.md` 2.6.8.5.2; 2.6.8.9
+
+Files Checked:
+- `assets/spec_prompt_packs/spec_router_pack@1.json`
+- `src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs`
+- `src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs`
+- `src/backend/handshake_core/src/workflows.rs`
+- `src/backend/handshake_core/src/models.rs`
+- `src/backend/handshake_core/src/llm/mod.rs`
+- `.GOV/task_packets/WP-1-Spec-Router-SpecPromptCompiler-v1.md`
+- `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`
+- `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+
+Findings:
+- SpecPromptPack asset location + required fields: satisfied (`assets/spec_prompt_packs/spec_router_pack@1.json:1`).
+- Pack hashing is SHA-256 over exact JSON bytes (no re-serialization): satisfied (`src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs:121`) and unit test `load_pack_hashes_exact_bytes`.
+- PromptEnvelope hashing uses canonical WorkingContext JSON blocks (NFC + sorted keys), and `full_prompt_hash` preserves the boundary object: satisfied (`src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs:216`) and unit test `full_prompt_hash_is_over_boundary_object`.
+- Workflow integration (SpecRouter): pack load + CapabilitySnapshot artifact + ContextSnapshot + Flight Recorder provenance + SpecIntent/SpecRouterDecision provenance copy: satisfied (`src/backend/handshake_core/src/workflows.rs:10679`, `src/backend/handshake_core/src/workflows.rs:10957`, `src/backend/handshake_core/src/workflows.rs:11040`, `src/backend/handshake_core/src/workflows.rs:11083`, `src/backend/handshake_core/src/workflows.rs:11111`).
+
+Hygiene:
+- Forbidden pattern scan: no `unwrap`/`expect`/`todo!`/`panic!`/`println!` found in production paths under `src/backend/handshake_core/src/spec_router` (hits only in `#[cfg(test)]` blocks).
+- `just validator-traceability`: PASS
+- `just validator-git-hygiene`: PASS
+
+Tests:
+- `just pre-work WP-1-Spec-Router-SpecPromptCompiler-v1`: PASS (packet evidence; exit code 0)
+- `just post-work WP-1-Spec-Router-SpecPromptCompiler-v1 --range "c01ddc665b32762ddefa8719037261afa1d96c18..HEAD"`: PASS (warnings only for new-file base preimage missing; exit code 0)
+- `just cargo-clean`: PASS (validator-run; exit code 0)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml -j 1` (with `CARGO_TARGET_DIR=D:\\tmp\\hs_target`, `TEMP/TMP=D:\\tmp`): PASS (validator-run; log: `.handshake/logs/WP-1-Spec-Router-SpecPromptCompiler-v1/validator_cargo_test_full_short_target_j1_20260228_060148.log`)
+
+Waivers:
+- WAIVER [CX-573F] (granted 2026-02-28 by Operator in chat): full-crate `cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml` is waived for this WP because it fails due to pre-existing rustfmt drift across unrelated files; validation relies on the touched-files `rustfmt --check ...` evidence already recorded in this packet.
+
+REASON FOR PASS
+- The WP meets Master Spec `Handshake_Master_Spec_v02.139.md` 2.6.8.5.2 and 2.6.8.9 acceptance: SpecPromptPack asset exists at the mandated location, is hashed by exact bytes, PromptEnvelope hashes are canonical+deterministic, required provenance is persisted (ContextSnapshot + Flight Recorder) and copied into SpecIntent and SpecRouterDecision, and targeted tests guard the critical determinism contracts.
