@@ -249,11 +249,11 @@ pub fn compile_spec_router_envelope(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::llm::{canonical_json_bytes_nfc, sha256_hex};
-    use super::spec_prompt_pack::{
+    use super::super::spec_prompt_pack::{
         BudgetsV1, PlaceholderSourceV1, PlaceholderV1, SpecPromptPackV1, StablePrefixSectionV1,
     };
+    use super::*;
+    use crate::llm::{canonical_json_bytes_nfc, sha256_hex};
 
     #[derive(Debug, Default)]
     struct CharTokenization;
