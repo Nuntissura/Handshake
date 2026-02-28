@@ -135,6 +135,24 @@ Rule: keep `NEXT_COMMANDS` limited to the immediate next step(s) (required to pr
 
 Operator UX rule: before posting `GATE_OUTPUT`, state `OPERATOR_ACTION: NONE` (or the single decision you need) and do not interleave questions inside `GATE_OUTPUT`.
 
+## Auto-Continue on PASS [CX-GATE-AUTO-CODE-001] (ANTI-BABYSIT)
+
+Hard rule (to prevent "babysit every gate to proceed" loops):
+- If a gate/hard-gate output is posted and it clearly shows `RESULT: PASS` **and** `OPERATOR_ACTION: NONE`, you MUST proceed to `NEXT_COMMANDS` without waiting for the Operator/Validator to say "proceed".
+
+STOP is only required when at least one is true:
+- The gate result is not PASS (FAIL/BLOCKED/unknown).
+- `OPERATOR_ACTION` is not `NONE` (a single explicit decision is needed).
+- The next step requires an explicit external approval string (e.g., you are at the SKELETON stop point waiting for `SKELETON APPROVED`).
+- The next step is a protocol-mandated stop point (e.g., handoff to Validator).
+
+### Condensed coder session preflight (recommended)
+
+Instead of re-running session-start checks manually after a reset, you MAY run:
+- `just coder-preflight`
+
+This is a convenience wrapper around the core deterministic checks (worktree context + governance integrity + spec regression). It does not replace the WP-specific gates (`just pre-work WP-{ID}` / `just post-work WP-{ID}`).
+
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
 In every Coder message (not only gate runs), include a short lifecycle marker so the Validator can see where you are in the WP lifecycle at a glance.

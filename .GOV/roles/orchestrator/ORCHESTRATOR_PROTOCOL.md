@@ -177,6 +177,23 @@ Rule: keep `NEXT_COMMANDS` limited to the immediate next step(s) (required to pr
 
 Operator UX rule: before posting `GATE_OUTPUT`, state `OPERATOR_ACTION: NONE` (or the single decision you need) and do not interleave questions inside `GATE_OUTPUT`.
 
+## Auto-Continue on PASS [CX-GATE-AUTO-001] (ANTI-BABYSIT)
+
+Hard rule (to prevent "babysit every gate to proceed" loops):
+- If a gate/hard-gate output is posted and it clearly shows `RESULT: PASS` (or the hard-gate context matches the assignment) **and** `OPERATOR_ACTION: NONE`, you MUST proceed to `NEXT_COMMANDS` without waiting for the Operator to say "proceed".
+
+STOP is only required when at least one is true:
+- The gate result is not PASS (FAIL/BLOCKED/unknown).
+- `OPERATOR_ACTION` is not `NONE` (a single explicit decision is needed).
+- The next step requires a one-time user input (e.g., `USER_SIGNATURE`) or a protocol-mandated turn boundary (see [CX-585C]).
+
+### Condensed pre-orchestration preflight (recommended)
+
+Instead of running the Pre-Orchestration Checklist steps as separate gates, you MAY run:
+- `just orchestrator-preflight`
+
+This is a convenience wrapper around the core deterministic checks (worktree context + governance integrity + spec regression).
+
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
 In every Orchestrator message (not only gate runs), include a short lifecycle marker so reviewers can see where you are in the task/work packet creation lifecycle.
