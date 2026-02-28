@@ -304,7 +304,22 @@ git revert <commit-sha>
 - **Pre-SHA1**: `0000000000000000000000000000000000000000`
 - **Post-SHA1**: `ab406f08f2281d6da22ff2b91db626b66b48ddfd`
 - **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
   - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: N/A
+- **Artifacts**: N/A
+- **Timestamp**: 2026-02-28T04:02:33+01:00
+- **Operator**: Ilja Smets
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.139.md
+- **Notes**: New at MERGE_BASE_SHA c01ddc665b32762ddefa8719037261afa1d96c18; base preimage not loadable; expected post-work warning for base version missing.
 
 - **Target File**: `src/backend/handshake_core/src/models.rs`
 - **Start**: 1
@@ -313,7 +328,22 @@ git revert <commit-sha>
 - **Pre-SHA1**: `31316f5d7276ab8603060156e35cfe0172197302`
 - **Post-SHA1**: `4b1704483d3461e92b3dfed10f85bacc31dc9b46`
 - **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
   - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: rustfmt --edition 2021 --check (EXIT_CODE: 0)
+- **Artifacts**: N/A
+- **Timestamp**: 2026-02-28T04:02:33+01:00
+- **Operator**: Ilja Smets
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.139.md
+- **Notes**: Existing at MERGE_BASE_SHA c01ddc665b32762ddefa8719037261afa1d96c18.
 
 - **Target File**: `src/backend/handshake_core/src/workflows.rs`
 - **Start**: 1
@@ -322,7 +352,22 @@ git revert <commit-sha>
 - **Pre-SHA1**: `1cde8d5281ae7a9d22e03142a5bd16b3aa12eb3f`
 - **Post-SHA1**: `6686cc63d670dc44966a2dc066e4ac2142fd5be8`
 - **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
   - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: rustfmt --edition 2021 --check (EXIT_CODE: 0)
+- **Artifacts**: N/A
+- **Timestamp**: 2026-02-28T04:02:33+01:00
+- **Operator**: Ilja Smets
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.139.md
+- **Notes**: Existing at MERGE_BASE_SHA c01ddc665b32762ddefa8719037261afa1d96c18.
 
 - **Target File**: `src/backend/handshake_core/src/spec_router/mod.rs`
 - **Start**: 1
@@ -331,7 +376,22 @@ git revert <commit-sha>
 - **Pre-SHA1**: `0000000000000000000000000000000000000000`
 - **Post-SHA1**: `47a83f333c56ec4d7f75a58c6970be16a8a3bb64`
 - **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
   - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: rustfmt --edition 2021 --check (EXIT_CODE: 0)
+- **Artifacts**: N/A
+- **Timestamp**: 2026-02-28T04:02:33+01:00
+- **Operator**: Ilja Smets
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.139.md
+- **Notes**: New at MERGE_BASE_SHA c01ddc665b32762ddefa8719037261afa1d96c18; base preimage not loadable; expected post-work warning for base version missing.
 
 - **Target File**: `src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs`
 - **Start**: 1
@@ -340,16 +400,46 @@ git revert <commit-sha>
 - **Pre-SHA1**: `0000000000000000000000000000000000000000`
 - **Post-SHA1**: `d425ef9de9bc9e0eab25acbb03dade065a7f0ac3`
 - **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
   - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: rustfmt --edition 2021 --check (EXIT_CODE: 0)
+- **Artifacts**: N/A
+- **Timestamp**: 2026-02-28T04:02:33+01:00
+- **Operator**: Ilja Smets
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.139.md
+- **Notes**: New at MERGE_BASE_SHA c01ddc665b32762ddefa8719037261afa1d96c18; base preimage not loadable; expected post-work warning for base version missing.
 
 - **Target File**: `src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs`
 - **Start**: 1
 - **End**: 378
 - **Line Delta**: 378
 - **Pre-SHA1**: `0000000000000000000000000000000000000000`
-- **Post-SHA1**: `2e8d8070462a4f7e7c4403893229950c31197b50`
+- **Post-SHA1**: `a645583839e7017f36bf5121aa8a69d0ab810432`
 - **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
   - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: rustfmt --edition 2021 --check (EXIT_CODE: 0)
+- **Artifacts**: N/A
+- **Timestamp**: 2026-02-28T04:02:33+01:00
+- **Operator**: Ilja Smets
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.139.md
+- **Notes**: New at MERGE_BASE_SHA c01ddc665b32762ddefa8719037261afa1d96c18; base preimage not loadable; expected post-work warning for base version missing.
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
@@ -393,6 +483,14 @@ git revert <commit-sha>
   - LOG_PATH: `C:\\Users\\ILJASM~1\\AppData\\Local\\Temp\\handshake_core_cargo_test_lib_j1.log`
   - ERROR_SNIPPET:
     - `fatal error C1083: Cannot open compiler generated file: '': Invalid argument`
+- COMMAND: `rustfmt --edition 2021 --check src/backend/handshake_core/src/models.rs src/backend/handshake_core/src/workflows.rs src/backend/handshake_core/src/spec_router/mod.rs src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs`
+  - EXIT_CODE: 0
+- COMMAND: `$env:CARGO_TARGET_DIR='D:\\tmp\\hs_target'; $env:TEMP='D:\\tmp'; $env:TMP='D:\\tmp'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib -j 1`
+  - EXIT_CODE: 0
+  - LOG_PATH: `.handshake\\logs\\WP-1-Spec-Router-SpecPromptCompiler-v1\\cargo_test_lib_j1_20260228_035756_retry.log`
+  - LOG_SHA256: `CBC408FA3CE3ED025B7407F809BB4E3E099848EAAC2AFC576D9E5060030DFB90`
+  - PROOF_LINES:
+    - `test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.79s`
 - Recommended evidence format (prevents chat truncation; enables audit):
   - COMMAND: `just hard-gate-wt-001`
   - EXIT_CODE: 0
