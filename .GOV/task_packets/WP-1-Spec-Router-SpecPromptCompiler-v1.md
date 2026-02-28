@@ -289,6 +289,7 @@ git revert <commit-sha>
 - Gates run:
   - `just hard-gate-wt-001`
   - `just pre-work WP-1-Spec-Router-SpecPromptCompiler-v1`
+  - `just post-work WP-1-Spec-Router-SpecPromptCompiler-v1 --range "c01ddc665b32762ddefa8719037261afa1d96c18..HEAD"`
 - Deterministic manifest prep:
   - `git add` (stage only WP files)
   - `just cor701-sha <file>` for each changed non-`.GOV/` file
@@ -334,19 +335,19 @@ git revert <commit-sha>
 
 - **Target File**: `src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs`
 - **Start**: 1
-- **End**: 148
-- **Line Delta**: 148
+- **End**: 181
+- **Line Delta**: 181
 - **Pre-SHA1**: `0000000000000000000000000000000000000000`
-- **Post-SHA1**: `f712fe145a47f51d7db3aeb71fe322e0db835b73`
+- **Post-SHA1**: `d425ef9de9bc9e0eab25acbb03dade065a7f0ac3`
 - **Gates Passed**:
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs`
 - **Start**: 1
-- **End**: 248
-- **Line Delta**: 248
+- **End**: 378
+- **Line Delta**: 378
 - **Pre-SHA1**: `0000000000000000000000000000000000000000`
-- **Post-SHA1**: `8dfd67fa1f7ce1d9063ceee91b217f1f68545858`
+- **Post-SHA1**: `2e8d8070462a4f7e7c4403893229950c31197b50`
 - **Gates Passed**:
   - [x] all_links_resolvable
 
@@ -381,6 +382,17 @@ git revert <commit-sha>
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
+- COMMAND: `just hard-gate-wt-001`
+  - EXIT_CODE: 0
+- COMMAND: `just pre-work WP-1-Spec-Router-SpecPromptCompiler-v1`
+  - EXIT_CODE: 0
+- COMMAND: `just post-work WP-1-Spec-Router-SpecPromptCompiler-v1 --range "c01ddc665b32762ddefa8719037261afa1d96c18..HEAD"`
+  - EXIT_CODE: 0
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib -j 1`
+  - EXIT_CODE: 101
+  - LOG_PATH: `C:\\Users\\ILJASM~1\\AppData\\Local\\Temp\\handshake_core_cargo_test_lib_j1.log`
+  - ERROR_SNIPPET:
+    - `fatal error C1083: Cannot open compiler generated file: '': Invalid argument`
 - Recommended evidence format (prevents chat truncation; enables audit):
   - COMMAND: `just hard-gate-wt-001`
   - EXIT_CODE: 0

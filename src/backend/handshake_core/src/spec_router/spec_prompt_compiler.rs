@@ -246,3 +246,133 @@ pub fn compile_spec_router_envelope(
         },
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::llm::{canonical_json_bytes_nfc, sha256_hex};
+    use super::spec_prompt_pack::{
+        BudgetsV1, PlaceholderSourceV1, PlaceholderV1, SpecPromptPackV1, StablePrefixSectionV1,
+    };
+
+    #[derive(Debug, Default)]
+    struct CharTokenization;
+
+    impl TokenizationService for CharTokenization {
+        fn count_tokens(&self, text: &str, _model: &str) -> Result<u32, TokenizerError> {
+            Ok(text.chars().count() as u32)
+        }
+
+        fn truncate(&self, text: &str, limit: u32, _model: &str) -> String {
+            text.chars().take(limit as usize).collect()
+        }
+    }
+
+    fn minimal_pack() -> SpecPromptPackV1 {
+        SpecPromptPackV1 {
+            schema_version: "hsk.spec_prompt_pack@1".to_string(),
+            pack_id: "spec_router_pack@1".to_string(),
+            description: "test pack".to_string(),
+            target_job_kind: "spec_router".to_string(),
+            stable_prefix_sections: vec![StablePrefixSectionV1 {
+                section_id: "SYSTEM_RULES".to_string(),
+                content_md: "AAAA".to_string(),
+            }],
+            variable_suffix_template_md: "Hello".to_string(),
+            placeholders: Vec::new(),
+            required_outputs: Vec::new(),
+            budgets: BudgetsV1 {
+                max_total_tokens: 100,
+                max_prompt_excerpt_tokens: 10,
+                max_capsule_tokens: 10,
+                max_capability_table_tokens: 10,
+            },
+        }
+    }
+
+    #[test]
+    fn hashes_are_deterministic() {
+        let mut pack = minimal_pack();
+        pack.placeholders = vec![PlaceholderV1 {
+            name: "name".to_string(),
+            source: PlaceholderSourceV1::PromptRef,
+            max_tokens: 50,
+            required: true,
+        }];
+        pack.variable_suffix_template_md = "Hi {{name}}".to_string();
+
+        let mut values: BTreeMap<String, String> = BTreeMap::new();
+        values.insert("name".to_string(), "World".to_string());
+
+        let tokenization = CharTokenization;
+        let env1 =
+            compile_spec_router_envelope(&pack, &values, &tokenization, "test-model").unwrap();
+        let env2 =
+            compile_spec_router_envelope(&pack, &values, &tokenization, "test-model").unwrap();
+
+        assert_eq!(env1.stable_prefix_hash, env2.stable_prefix_hash);
+        assert_eq!(env1.variable_suffix_hash, env2.variable_suffix_hash);
+        assert_eq!(env1.full_prompt_hash, env2.full_prompt_hash);
+    }
+
+    #[test]
+    fn placeholder_truncation_sets_flags() {
+        let mut pack = minimal_pack();
+        pack.placeholders = vec![PlaceholderV1 {
+            name: "p".to_string(),
+            source: PlaceholderSourceV1::PromptRef,
+            max_tokens: 3,
+            required: true,
+        }];
+        pack.variable_suffix_template_md = "X={{p}}".to_string();
+
+        let mut values: BTreeMap<String, String> = BTreeMap::new();
+        values.insert("p".to_string(), "ABCDE".to_string());
+
+        let tokenization = CharTokenization;
+        let env =
+            compile_spec_router_envelope(&pack, &values, &tokenization, "test-model").unwrap();
+
+        assert_eq!(
+            env.truncation.per_placeholder_truncated.get("p"),
+            Some(&true)
+        );
+        assert_eq!(env.variable_suffix.blocks[0].content, "X=ABC");
+    }
+
+    #[test]
+    fn budget_truncation_sets_variable_suffix_flag_and_counts() {
+        let mut pack = minimal_pack();
+        pack.placeholders = Vec::new();
+        pack.stable_prefix_sections[0].content_md = "AAAA".to_string();
+        pack.variable_suffix_template_md = "BBBBBB".to_string();
+        pack.budgets.max_total_tokens = 10;
+
+        let values: BTreeMap<String, String> = BTreeMap::new();
+        let tokenization = CharTokenization;
+        let env =
+            compile_spec_router_envelope(&pack, &values, &tokenization, "test-model").unwrap();
+
+        assert!(env.truncation.variable_suffix_truncated);
+        assert_eq!(env.stable_prefix_tokens, 4);
+        assert_eq!(env.variable_suffix_tokens, 4);
+        assert_eq!(env.total_tokens, 10);
+        assert_eq!(env.variable_suffix.blocks[0].content, "BBBB");
+    }
+
+    #[test]
+    fn full_prompt_hash_is_over_boundary_object() {
+        let pack = minimal_pack();
+        let values: BTreeMap<String, String> = BTreeMap::new();
+        let tokenization = CharTokenization;
+        let env =
+            compile_spec_router_envelope(&pack, &values, &tokenization, "test-model").unwrap();
+
+        let expected = sha256_hex(&canonical_json_bytes_nfc(&serde_json::json!({
+            "stable_prefix_blocks": &env.stable_prefix.blocks,
+            "variable_suffix_blocks": &env.variable_suffix.blocks,
+        })));
+
+        assert_eq!(env.full_prompt_hash, expected);
+    }
+}

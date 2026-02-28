@@ -146,3 +146,36 @@ pub fn load_spec_prompt_pack(
         raw_bytes,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn load_pack_hashes_exact_bytes() {
+        let workspace_root = tempfile::tempdir().expect("tempdir");
+        let pack_id = "spec_router_pack@1";
+        let path = spec_prompt_pack_path(workspace_root.path(), pack_id);
+        std::fs::create_dir_all(path.parent().expect("parent dir")).expect("create_dir_all");
+
+        let raw_bytes = br#"{
+  "schema_version":"hsk.spec_prompt_pack@1",
+  "pack_id":"spec_router_pack@1",
+  "description":"test pack",
+  "target_job_kind":"spec_router",
+  "stable_prefix_sections":[{"section_id":"SYSTEM_RULES","content_md":"RULES"}],
+  "variable_suffix_template_md":"Hello",
+  "placeholders":[],
+  "required_outputs":[],
+  "budgets":{"max_total_tokens":100,"max_prompt_excerpt_tokens":10,"max_capsule_tokens":10,"max_capability_table_tokens":10}
+}
+"#;
+        std::fs::write(&path, raw_bytes).expect("write pack");
+
+        let loaded = load_spec_prompt_pack(workspace_root.path(), pack_id).expect("load pack");
+        assert_eq!(loaded.pack_id, pack_id);
+        assert_eq!(loaded.pack.pack_id, pack_id);
+        assert_eq!(loaded.pack_sha256, sha256_hex(raw_bytes));
+        assert_eq!(loaded.raw_bytes.as_slice(), raw_bytes);
+    }
+}
