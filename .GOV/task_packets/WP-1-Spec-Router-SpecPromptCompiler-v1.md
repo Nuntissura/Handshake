@@ -39,6 +39,8 @@
 - What: Implement deterministic SpecPromptPack loading + SpecPromptCompiler for `spec_router`, producing reproducible PromptEnvelope hashes and ContextSnapshot lineage and recording/persisting provenance required by the Master Spec.
 - Why: Prompt-to-spec routing must be replayable and auditable; deterministic compilation + hash/provenance capture prevents silent prompt drift and enables Validator-grade evidence.
 - IN_SCOPE_PATHS:
+  - .GOV/roles_shared/BUILD_ORDER.md
+  - .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
   - assets/spec_prompt_packs/spec_router_pack@1.json
   - src/backend/handshake_core/src/jobs.rs
   - src/backend/handshake_core/src/workflows.rs
