@@ -499,3 +499,19 @@ git revert <commit-sha>
     - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_session_scheduler_tests`: PASS (exit 0, 4 passed)
     - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`: FAIL (exit 1) - baseline environment issue (`os error 1455`)
     - `just post-work WP-1-ModelSession-Core-Scheduler-v1 --range 6e763ff05dbc7e52c75eaf83ee37a3168da7d1ac..HEAD`: FAIL (exit 1) - blocking deterministic manifest gate failure
+- 2026-03-01T21:19:44Z | Validator: Codex (GPT-5) | Branch: `feat/WP-1-ModelSession-Core-Scheduler-v1` | Worktree: `wt-WP-1-ModelSession-Core-Scheduler-v1` | HEAD: `31b722a`
+  - SUPERSESSION: This report **supersedes** the prior validator report at `2026-03-01T21:12:31Z` (FAIL) after remediation commit `31b722a84382ac66f315e9177c0e0699fdce6fa3`.
+  - VERDICT: **PASS**
+  - MERGE_BLOCKED: **NO**
+  - REASON: Previous blocker is resolved; `just post-work WP-1-ModelSession-Core-Scheduler-v1 --range 6e763ff05dbc7e52c75eaf83ee37a3168da7d1ac..HEAD` now passes deterministic manifest/file-integrity gates.
+  - COMMAND_MATRIX:
+    - `git rev-parse --short HEAD`: PASS (output `31b722a`)
+    - `just hard-gate-wt-001`: PASS (exit 0)
+    - `just pre-work WP-1-ModelSession-Core-Scheduler-v1`: PASS (exit 0)
+    - `just post-work WP-1-ModelSession-Core-Scheduler-v1 --range 6e763ff05dbc7e52c75eaf83ee37a3168da7d1ac..HEAD`: PASS (exit 0; warning only for new-file preimage at merge base)
+    - `just validator-scan` (optional confidence): FAIL (exit 1; baseline/pre-existing findings in `spec_router/*` and placeholder token usage)
+    - `just validator-dal-audit` (optional confidence): PASS (exit 0)
+    - `just validator-spec-regression` (optional confidence): PASS (exit 0)
+    - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_session_scheduler_tests` (optional confidence): PASS (exit 0; 4 passed)
+  - BASELINE_CLASSIFICATION:
+    - `validator-scan` remains a baseline/non-WP blocker in this re-audit context; no new blocking regression was introduced by remediation commit `31b722a84382ac66f315e9177c0e0699fdce6fa3`.
