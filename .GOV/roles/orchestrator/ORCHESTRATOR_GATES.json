@@ -1508,6 +1508,30 @@
       "branch": "feat/WP-1-Front-End-Memory-System-v1",
       "worktree_dir": "../wt-WP-1-Front-End-Memory-System-v1",
       "timestamp": "2026-02-26T00:01:09.785Z"
+    },
+    {
+      "wpId": "WP-1-Spec-Router-SpecPromptCompiler-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Spec-Router-SpecPromptCompiler-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.139.md",
+      "spec_target_sha1": "0a5a9069bf8e06654ddf9b647927c2cb8a30aa6f",
+      "timestamp": "2026-02-27T09:51:04.667Z",
+      "turn_token": "1772185864668"
+    },
+    {
+      "wpId": "WP-1-Spec-Router-SpecPromptCompiler-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja270220261121",
+      "timestamp": "2026-02-27T10:21:50.915Z",
+      "refinement_path": ".GOV/refinements/WP-1-Spec-Router-SpecPromptCompiler-v1.md"
+    },
+    {
+      "wpId": "WP-1-Spec-Router-SpecPromptCompiler-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Spec-Router-SpecPromptCompiler-v1",
+      "worktree_dir": "../wt-WP-1-Spec-Router-SpecPromptCompiler-v1",
+      "timestamp": "2026-02-27T11:05:31.571Z"
     }
   ]
 }

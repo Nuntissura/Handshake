@@ -57,7 +57,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 - **[WP-1-Locus-Work-Tracking-System-Phase1-v1]** - [STUB]
 - **[WP-1-LocalFirst-Agentic-MCP-Posture-v1]** - [STUB]
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
-- **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [STUB]
 - **[WP-1-Spec-Router-CapabilitySnapshot-v1]** - [STUB]
 - **[WP-1-Spec-Router-SpecLint-v1]** - [STUB]
 - **[WP-1-Metrics-OTel-v2]** - [STUB]
@@ -105,6 +104,7 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
 ## Done
+- **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]
 - **[WP-1-Front-End-Memory-System-v1]** - [VALIDATED]
 - **[WP-1-Unified-Tool-Surface-Contract-v1]** - [VALIDATED]
 - **[WP-1-Lens-ViewMode-v1]** - [VALIDATED]

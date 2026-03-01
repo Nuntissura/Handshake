@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja270220261121 | Orchestrator | 2026-02-27 11:21 | Task packet creation: WP-1-Spec-Router-SpecPromptCompiler-v1 | v02.139 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Spec-Router-SpecPromptCompiler-v1.md ). |
 | ilja260220261202 | Orchestrator | 2026-02-26 12:02 | Spec Enrichment v02.139 (promote SPEC_CURRENT to v02.139; add Phase 1 prompt-spec stubs) | v02.139 | Approved in-chat; signature provided by Operator. |
 | ilja260220260100 | Orchestrator | 2026-02-26 01:00 | Task packet creation: WP-1-Front-End-Memory-System-v1 | v02.138 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Front-End-Memory-System-v1.md ). |
 | ilja240220261300 | Orchestrator | 2026-02-24 13:00 | Task packet creation: WP-1-Lens-ViewMode-v1 | v02.137 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Lens-ViewMode-v1.md ). |
