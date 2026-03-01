@@ -6,10 +6,11 @@ use super::{
     LoomSearchFilters, LoomSourceAnchor, LoomViewFilters, LoomViewGroup, LoomViewResponse,
     LoomViewType, NewAsset, NewLoomBlock, NewLoomEdge, PreviewStatus,
     EmbeddingModelRecord, EmbeddingRegistry, EntityRef, JobKind, JobMetrics, JobState,
-    JobStatusUpdate, MutationMetadata, NewAiJob, NewBlock, NewBronzeRecord, NewCanvas,
-    NewCanvasEdge, NewCanvasNode, NewDocument, NewNodeExecution, NewSilverRecord, NewWorkspace,
-    PlannedOperation, SafetyMode, SilverRecord, StorageError, StorageGuard, StorageResult,
-    WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
+    JobStatusUpdate, ModelSession, ModelSessionState, MutationMetadata, NewAiJob, NewBlock,
+    NewBronzeRecord, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewModelSession,
+    NewNodeExecution, NewSessionMessage, NewSilverRecord, NewWorkspace, PlannedOperation,
+    SafetyMode, SessionMessage, SessionMessageRole, SilverRecord, StorageError, StorageGuard,
+    StorageResult, WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
 };
 use async_trait::async_trait;
 use chrono::Utc;
@@ -338,6 +339,121 @@ impl SqliteDatabase {
         })
     }
 
+    async fn ensure_model_session_schema(&self) -> StorageResult<()> {
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS model_sessions (
+                session_id TEXT PRIMARY KEY NOT NULL,
+                parent_session_id TEXT,
+                spawn_depth INTEGER NOT NULL DEFAULT 0,
+                state TEXT NOT NULL,
+                model_id TEXT NOT NULL,
+                backend TEXT NOT NULL,
+                parameter_class TEXT NOT NULL,
+                role TEXT NOT NULL,
+                wp_id TEXT,
+                mt_id TEXT,
+                work_profile_id TEXT,
+                execution_mode TEXT NOT NULL,
+                memory_policy TEXT NOT NULL,
+                consent_receipt_id TEXT,
+                capability_grants TEXT NOT NULL DEFAULT '[]',
+                capability_token_ids TEXT,
+                job_id TEXT,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_model_sessions_job_id ON model_sessions(job_id)",
+        )
+        .execute(&self.pool)
+        .await?;
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_model_sessions_parent ON model_sessions(parent_session_id)",
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS session_messages (
+                message_id TEXT PRIMARY KEY NOT NULL,
+                session_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                content_hash TEXT NOT NULL,
+                content_artifact_id TEXT NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES model_sessions(session_id) ON DELETE CASCADE
+            )
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_session_messages_session_created ON session_messages(session_id, created_at)",
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    fn map_model_session_row(&self, row: sqlx::sqlite::SqliteRow) -> StorageResult<ModelSession> {
+        let grants_raw: String = row.get("capability_grants");
+        let token_ids_raw: Option<String> = row.get("capability_token_ids");
+        let job_id_raw: Option<String> = row.get("job_id");
+
+        Ok(ModelSession {
+            session_id: row.get("session_id"),
+            parent_session_id: row.get("parent_session_id"),
+            spawn_depth: row.get("spawn_depth"),
+            state: ModelSessionState::try_from(row.get::<String, _>("state").as_str())?,
+            model_id: row.get("model_id"),
+            backend: row.get("backend"),
+            parameter_class: row.get("parameter_class"),
+            role: row.get("role"),
+            wp_id: row.get("wp_id"),
+            mt_id: row.get("mt_id"),
+            work_profile_id: row.get("work_profile_id"),
+            execution_mode: row.get("execution_mode"),
+            memory_policy: row.get("memory_policy"),
+            consent_receipt_id: row.get("consent_receipt_id"),
+            capability_grants: serde_json::from_str(&grants_raw).unwrap_or_default(),
+            capability_token_ids: token_ids_raw
+                .as_deref()
+                .map(serde_json::from_str::<Vec<String>>)
+                .transpose()
+                .map_err(|_| StorageError::Validation("invalid capability_token_ids"))?,
+            job_id: job_id_raw
+                .as_deref()
+                .map(Uuid::parse_str)
+                .transpose()
+                .map_err(|_| StorageError::Validation("invalid model session job_id"))?,
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        })
+    }
+
+    fn map_session_message_row(
+        &self,
+        row: sqlx::sqlite::SqliteRow,
+    ) -> StorageResult<SessionMessage> {
+        Ok(SessionMessage {
+            message_id: row.get("message_id"),
+            session_id: row.get("session_id"),
+            role: SessionMessageRole::try_from(row.get::<String, _>("role").as_str())?,
+            content_hash: row.get("content_hash"),
+            content_artifact_id: row.get("content_artifact_id"),
+            created_at: row.get("created_at"),
+        })
+    }
+
     pub async fn connect(db_url: &str, max_connections: u32) -> StorageResult<Self> {
         let guard: Arc<dyn StorageGuard> = Arc::new(DefaultStorageGuard);
         Self::connect_with_guard(db_url, max_connections, guard).await
@@ -400,6 +516,10 @@ fn normalize_fts5_query(raw: &str) -> Option<String> {
     } else {
         Some(tokens.join(" AND "))
     }
+}
+
+fn is_sha256_hex(value: &str) -> bool {
+    value.len() == 64 && value.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 async fn ensure_loom_fts_schema_sqlite(pool: &SqlitePool) -> StorageResult<()> {
@@ -3847,6 +3967,300 @@ impl super::Database for SqliteDatabase {
         .execute(&self.pool)
         .await?;
         Ok(())
+    }
+
+    async fn upsert_model_session(&self, session: NewModelSession) -> StorageResult<ModelSession> {
+        self.ensure_model_session_schema().await?;
+
+        let now = Utc::now();
+        let capability_grants = serde_json::to_string(&session.capability_grants)?;
+        let capability_token_ids = session
+            .capability_token_ids
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
+        let job_id = session.job_id.map(|value| value.to_string());
+
+        let row = sqlx::query(
+            r#"
+            INSERT INTO model_sessions (
+                session_id,
+                parent_session_id,
+                spawn_depth,
+                state,
+                model_id,
+                backend,
+                parameter_class,
+                role,
+                wp_id,
+                mt_id,
+                work_profile_id,
+                execution_mode,
+                memory_policy,
+                consent_receipt_id,
+                capability_grants,
+                capability_token_ids,
+                job_id,
+                created_at,
+                updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+            ON CONFLICT(session_id) DO UPDATE SET
+                parent_session_id = excluded.parent_session_id,
+                spawn_depth = excluded.spawn_depth,
+                state = excluded.state,
+                model_id = excluded.model_id,
+                backend = excluded.backend,
+                parameter_class = excluded.parameter_class,
+                role = excluded.role,
+                wp_id = excluded.wp_id,
+                mt_id = excluded.mt_id,
+                work_profile_id = excluded.work_profile_id,
+                execution_mode = excluded.execution_mode,
+                memory_policy = excluded.memory_policy,
+                consent_receipt_id = excluded.consent_receipt_id,
+                capability_grants = excluded.capability_grants,
+                capability_token_ids = excluded.capability_token_ids,
+                job_id = excluded.job_id,
+                updated_at = excluded.updated_at
+            RETURNING
+                session_id,
+                parent_session_id,
+                spawn_depth,
+                state,
+                model_id,
+                backend,
+                parameter_class,
+                role,
+                wp_id,
+                mt_id,
+                work_profile_id,
+                execution_mode,
+                memory_policy,
+                consent_receipt_id,
+                capability_grants,
+                capability_token_ids,
+                job_id,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(session.session_id)
+        .bind(session.parent_session_id)
+        .bind(session.spawn_depth)
+        .bind(session.state.as_str())
+        .bind(session.model_id)
+        .bind(session.backend)
+        .bind(session.parameter_class)
+        .bind(session.role)
+        .bind(session.wp_id)
+        .bind(session.mt_id)
+        .bind(session.work_profile_id)
+        .bind(session.execution_mode)
+        .bind(session.memory_policy)
+        .bind(session.consent_receipt_id)
+        .bind(capability_grants)
+        .bind(capability_token_ids)
+        .bind(job_id)
+        .bind(now)
+        .bind(now)
+        .fetch_one(&self.pool)
+        .await?;
+
+        self.map_model_session_row(row)
+    }
+
+    async fn get_model_session(&self, session_id: &str) -> StorageResult<ModelSession> {
+        self.ensure_model_session_schema().await?;
+        let row = sqlx::query(
+            r#"
+            SELECT
+                session_id,
+                parent_session_id,
+                spawn_depth,
+                state,
+                model_id,
+                backend,
+                parameter_class,
+                role,
+                wp_id,
+                mt_id,
+                work_profile_id,
+                execution_mode,
+                memory_policy,
+                consent_receipt_id,
+                capability_grants,
+                capability_token_ids,
+                job_id,
+                created_at,
+                updated_at
+            FROM model_sessions
+            WHERE session_id = $1
+            "#,
+        )
+        .bind(session_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match row {
+            Some(row) => self.map_model_session_row(row),
+            None => Err(StorageError::NotFound("model_session")),
+        }
+    }
+
+    async fn get_model_session_by_job_id(&self, job_id: Uuid) -> StorageResult<ModelSession> {
+        self.ensure_model_session_schema().await?;
+        let row = sqlx::query(
+            r#"
+            SELECT
+                session_id,
+                parent_session_id,
+                spawn_depth,
+                state,
+                model_id,
+                backend,
+                parameter_class,
+                role,
+                wp_id,
+                mt_id,
+                work_profile_id,
+                execution_mode,
+                memory_policy,
+                consent_receipt_id,
+                capability_grants,
+                capability_token_ids,
+                job_id,
+                created_at,
+                updated_at
+            FROM model_sessions
+            WHERE job_id = $1
+            "#,
+        )
+        .bind(job_id.to_string())
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match row {
+            Some(row) => self.map_model_session_row(row),
+            None => Err(StorageError::NotFound("model_session")),
+        }
+    }
+
+    async fn update_model_session_state(
+        &self,
+        session_id: &str,
+        state: ModelSessionState,
+        job_id: Option<Uuid>,
+    ) -> StorageResult<ModelSession> {
+        self.ensure_model_session_schema().await?;
+        let now = Utc::now();
+        let row = sqlx::query(
+            r#"
+            UPDATE model_sessions
+            SET state = $1,
+                job_id = COALESCE($2, job_id),
+                updated_at = $3
+            WHERE session_id = $4
+            RETURNING
+                session_id,
+                parent_session_id,
+                spawn_depth,
+                state,
+                model_id,
+                backend,
+                parameter_class,
+                role,
+                wp_id,
+                mt_id,
+                work_profile_id,
+                execution_mode,
+                memory_policy,
+                consent_receipt_id,
+                capability_grants,
+                capability_token_ids,
+                job_id,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(state.as_str())
+        .bind(job_id.map(|value| value.to_string()))
+        .bind(now)
+        .bind(session_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match row {
+            Some(row) => self.map_model_session_row(row),
+            None => Err(StorageError::NotFound("model_session")),
+        }
+    }
+
+    async fn append_session_message(
+        &self,
+        message: NewSessionMessage,
+    ) -> StorageResult<SessionMessage> {
+        self.ensure_model_session_schema().await?;
+        if !is_sha256_hex(message.content_hash.as_str()) {
+            return Err(StorageError::Validation("invalid content_hash"));
+        }
+
+        let message_id = message
+            .message_id
+            .unwrap_or_else(|| Uuid::new_v4().to_string());
+        let row = sqlx::query(
+            r#"
+            INSERT INTO session_messages (
+                message_id,
+                session_id,
+                role,
+                content_hash,
+                content_artifact_id
+            )
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING
+                message_id,
+                session_id,
+                role,
+                content_hash,
+                content_artifact_id,
+                created_at
+            "#,
+        )
+        .bind(message_id)
+        .bind(message.session_id)
+        .bind(message.role.as_str())
+        .bind(message.content_hash)
+        .bind(message.content_artifact_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        self.map_session_message_row(row)
+    }
+
+    async fn list_session_messages(&self, session_id: &str) -> StorageResult<Vec<SessionMessage>> {
+        self.ensure_model_session_schema().await?;
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                message_id,
+                session_id,
+                role,
+                content_hash,
+                content_artifact_id,
+                created_at
+            FROM session_messages
+            WHERE session_id = $1
+            ORDER BY created_at ASC, message_id ASC
+            "#,
+        )
+        .bind(session_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| self.map_session_message_row(row))
+            .collect()
     }
 
     async fn update_ai_job_mcp_fields(

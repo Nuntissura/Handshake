@@ -933,6 +933,7 @@ pub enum JobKind {
     SheetTransform,
     CanvasCluster,
     AsrTranscribe,
+    ModelRun,
     WorkflowRun,
     MediaDownloader,
     MicroTaskExecution,
@@ -957,6 +958,7 @@ impl JobKind {
             JobKind::SheetTransform => "sheet_transform",
             JobKind::CanvasCluster => "canvas_cluster",
             JobKind::AsrTranscribe => "asr_transcribe",
+            JobKind::ModelRun => "model_run",
             JobKind::WorkflowRun => "workflow_run",
             JobKind::MediaDownloader => "media_downloader",
             JobKind::MicroTaskExecution => "micro_task_execution",
@@ -982,6 +984,7 @@ impl FromStr for JobKind {
             "sheet_transform" => Ok(JobKind::SheetTransform),
             "canvas_cluster" => Ok(JobKind::CanvasCluster),
             "asr_transcribe" => Ok(JobKind::AsrTranscribe),
+            "model_run" => Ok(JobKind::ModelRun),
             "workflow_run" => Ok(JobKind::WorkflowRun),
             "media_downloader" => Ok(JobKind::MediaDownloader),
             "micro_task_execution" => Ok(JobKind::MicroTaskExecution),
@@ -1173,6 +1176,149 @@ impl JobMetrics {
             validators_run_count: 0,
         }
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ModelSessionState {
+    Created,
+    Active,
+    Paused,
+    Blocked,
+    Completed,
+    Failed,
+    Cancelled,
+}
+
+impl ModelSessionState {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ModelSessionState::Created => "CREATED",
+            ModelSessionState::Active => "ACTIVE",
+            ModelSessionState::Paused => "PAUSED",
+            ModelSessionState::Blocked => "BLOCKED",
+            ModelSessionState::Completed => "COMPLETED",
+            ModelSessionState::Failed => "FAILED",
+            ModelSessionState::Cancelled => "CANCELLED",
+        }
+    }
+}
+
+impl TryFrom<&str> for ModelSessionState {
+    type Error = StorageError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "CREATED" | "created" => Ok(ModelSessionState::Created),
+            "ACTIVE" | "active" => Ok(ModelSessionState::Active),
+            "PAUSED" | "paused" => Ok(ModelSessionState::Paused),
+            "BLOCKED" | "blocked" => Ok(ModelSessionState::Blocked),
+            "COMPLETED" | "completed" => Ok(ModelSessionState::Completed),
+            "FAILED" | "failed" => Ok(ModelSessionState::Failed),
+            "CANCELLED" | "cancelled" => Ok(ModelSessionState::Cancelled),
+            _ => Err(StorageError::Validation("invalid model session state")),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum SessionMessageRole {
+    System,
+    User,
+    Assistant,
+    ToolCall,
+    ToolResult,
+}
+
+impl SessionMessageRole {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SessionMessageRole::System => "SYSTEM",
+            SessionMessageRole::User => "USER",
+            SessionMessageRole::Assistant => "ASSISTANT",
+            SessionMessageRole::ToolCall => "TOOL_CALL",
+            SessionMessageRole::ToolResult => "TOOL_RESULT",
+        }
+    }
+}
+
+impl TryFrom<&str> for SessionMessageRole {
+    type Error = StorageError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "SYSTEM" | "system" => Ok(SessionMessageRole::System),
+            "USER" | "user" => Ok(SessionMessageRole::User),
+            "ASSISTANT" | "assistant" => Ok(SessionMessageRole::Assistant),
+            "TOOL_CALL" | "tool_call" => Ok(SessionMessageRole::ToolCall),
+            "TOOL_RESULT" | "tool_result" => Ok(SessionMessageRole::ToolResult),
+            _ => Err(StorageError::Validation("invalid session message role")),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ModelSession {
+    pub session_id: String,
+    pub parent_session_id: Option<String>,
+    pub spawn_depth: i32,
+    pub state: ModelSessionState,
+    pub model_id: String,
+    pub backend: String,
+    pub parameter_class: String,
+    pub role: String,
+    pub wp_id: Option<String>,
+    pub mt_id: Option<String>,
+    pub work_profile_id: Option<String>,
+    pub execution_mode: String,
+    pub memory_policy: String,
+    pub consent_receipt_id: Option<String>,
+    pub capability_grants: Vec<String>,
+    pub capability_token_ids: Option<Vec<String>>,
+    pub job_id: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug)]
+pub struct NewModelSession {
+    pub session_id: String,
+    pub parent_session_id: Option<String>,
+    pub spawn_depth: i32,
+    pub state: ModelSessionState,
+    pub model_id: String,
+    pub backend: String,
+    pub parameter_class: String,
+    pub role: String,
+    pub wp_id: Option<String>,
+    pub mt_id: Option<String>,
+    pub work_profile_id: Option<String>,
+    pub execution_mode: String,
+    pub memory_policy: String,
+    pub consent_receipt_id: Option<String>,
+    pub capability_grants: Vec<String>,
+    pub capability_token_ids: Option<Vec<String>>,
+    pub job_id: Option<Uuid>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SessionMessage {
+    pub message_id: String,
+    pub session_id: String,
+    pub role: SessionMessageRole,
+    pub content_hash: String,
+    pub content_artifact_id: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug)]
+pub struct NewSessionMessage {
+    pub message_id: Option<String>,
+    pub session_id: String,
+    pub role: SessionMessageRole,
+    pub content_hash: String,
+    pub content_artifact_id: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1594,6 +1740,20 @@ pub trait Database: Send + Sync + std::any::Any {
     async fn create_ai_job(&self, job: NewAiJob) -> StorageResult<AiJob>;
     async fn update_ai_job_status(&self, update: JobStatusUpdate) -> StorageResult<AiJob>;
     async fn set_job_outputs(&self, job_id: &str, outputs: Option<Value>) -> StorageResult<()>;
+    async fn upsert_model_session(&self, session: NewModelSession) -> StorageResult<ModelSession>;
+    async fn get_model_session(&self, session_id: &str) -> StorageResult<ModelSession>;
+    async fn get_model_session_by_job_id(&self, job_id: Uuid) -> StorageResult<ModelSession>;
+    async fn update_model_session_state(
+        &self,
+        session_id: &str,
+        state: ModelSessionState,
+        job_id: Option<Uuid>,
+    ) -> StorageResult<ModelSession>;
+    async fn append_session_message(
+        &self,
+        message: NewSessionMessage,
+    ) -> StorageResult<SessionMessage>;
+    async fn list_session_messages(&self, session_id: &str) -> StorageResult<Vec<SessionMessage>>;
 
     async fn update_ai_job_mcp_fields(
         &self,

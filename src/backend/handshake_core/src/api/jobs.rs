@@ -201,9 +201,15 @@ async fn create_new_job(
     let job_kind = parse_job_kind_request(payload.job_kind.as_str(), payload.protocol_id.as_str())
         .map_err(|e| e.to_string())?;
 
+    let capability_job_kind = if matches!(job_kind, JobKind::ModelRun) {
+        JobKind::WorkflowRun
+    } else {
+        job_kind.clone()
+    };
+
     let capability_profile_id = state
         .capability_registry
-        .profile_for_job_request(job_kind.as_str(), payload.protocol_id.as_str())
+        .profile_for_job_request(capability_job_kind.as_str(), payload.protocol_id.as_str())
         .map_err(|e| e.to_string())?;
 
     let job_inputs = payload

@@ -158,6 +158,11 @@ pub enum FlightRecorderEventType {
     LoomAiTagRejected,
     LoomViewQueried,
     LoomSearchExecuted,
+    /// FR-EVT-SESS-SCHED-001..004: Session Scheduler events [4.3.9.13]
+    SessionSchedulerEnqueue,
+    SessionSchedulerDispatch,
+    SessionSchedulerRateLimited,
+    SessionSchedulerCancelled,
 }
 
 impl fmt::Display for FlightRecorderEventType {
@@ -315,6 +320,18 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::LoomAiTagRejected => write!(f, "loom_ai_tag_rejected"),
             FlightRecorderEventType::LoomViewQueried => write!(f, "loom_view_queried"),
             FlightRecorderEventType::LoomSearchExecuted => write!(f, "loom_search_executed"),
+            FlightRecorderEventType::SessionSchedulerEnqueue => {
+                write!(f, "session_scheduler_enqueue")
+            }
+            FlightRecorderEventType::SessionSchedulerDispatch => {
+                write!(f, "session_scheduler_dispatch")
+            }
+            FlightRecorderEventType::SessionSchedulerRateLimited => {
+                write!(f, "session_scheduler_rate_limited")
+            }
+            FlightRecorderEventType::SessionSchedulerCancelled => {
+                write!(f, "session_scheduler_cancelled")
+            }
         }
     }
 }
@@ -796,6 +813,18 @@ impl FlightRecorderEvent {
             }
             FlightRecorderEventType::LoomSearchExecuted => {
                 validate_loom_search_executed_payload(&self.payload)
+            }
+            FlightRecorderEventType::SessionSchedulerEnqueue => {
+                validate_session_scheduler_enqueue_payload(&self.payload)
+            }
+            FlightRecorderEventType::SessionSchedulerDispatch => {
+                validate_session_scheduler_dispatch_payload(&self.payload)
+            }
+            FlightRecorderEventType::SessionSchedulerRateLimited => {
+                validate_session_scheduler_rate_limited_payload(&self.payload)
+            }
+            FlightRecorderEventType::SessionSchedulerCancelled => {
+                validate_session_scheduler_cancelled_payload(&self.payload)
             }
             _ => Ok(()),
         }
@@ -3905,6 +3934,197 @@ fn validate_memory_item_status_changed_payload(payload: &Value) -> Result<(), Re
     require_safe_token_string(map, "new_status", 64)?;
     require_safe_token_string(map, "reason", 64)?;
     require_safe_token_string(map, "actor", 64)?;
+    Ok(())
+}
+
+fn ensure_no_inline_content_fields(map: &Map<String, Value>) -> Result<(), RecorderError> {
+    for forbidden in ["content", "text", "prompt", "response", "message"] {
+        if map.contains_key(forbidden) {
+            return Err(RecorderError::InvalidEvent(format!(
+                "payload field {forbidden} is forbidden for artifact-first events"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn require_integer(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    match require_key(map, key)? {
+        Value::Number(value) if value.is_i64() || value.is_u64() => Ok(()),
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be an integer"
+        ))),
+    }
+}
+
+fn require_non_negative_integer(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    match require_key(map, key)? {
+        Value::Number(value)
+            if (value.is_i64() && value.as_i64().unwrap_or_default() >= 0) || value.is_u64() =>
+        {
+            Ok(())
+        }
+        _ => Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be a non-negative integer"
+        ))),
+    }
+}
+
+fn require_scheduler_lane(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    let lane = match require_key(map, key)? {
+        Value::String(value) if !value.trim().is_empty() => value.trim(),
+        _ => {
+            return Err(RecorderError::InvalidEvent(format!(
+                "payload field {key} must be a non-empty string"
+            )))
+        }
+    };
+    if !matches!(lane, "PRIMARY" | "SUBAGENT" | "BACKGROUND" | "VALIDATION") {
+        return Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be one of PRIMARY|SUBAGENT|BACKGROUND|VALIDATION"
+        )));
+    }
+    Ok(())
+}
+
+fn require_scheduler_retry_backoff(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    let raw = match require_key(map, key)? {
+        Value::String(value) if !value.trim().is_empty() => value.trim().to_ascii_lowercase(),
+        _ => {
+            return Err(RecorderError::InvalidEvent(format!(
+                "payload field {key} must be a non-empty string"
+            )))
+        }
+    };
+    if !matches!(raw.as_str(), "fixed" | "exponential") {
+        return Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must be fixed|exponential"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_session_scheduler_common_payload(
+    map: &Map<String, Value>,
+    expected_type: &str,
+    expected_event_id: &str,
+    required: &[&str],
+) -> Result<(), RecorderError> {
+    require_allowed_keys(map, required, &[])?;
+    require_fixed_string(map, "type", expected_type)?;
+    require_fixed_string(map, "event_id", expected_event_id)?;
+    require_string(map, "session_id")?;
+    require_string(map, "job_id")?;
+    require_fixed_string(map, "job_kind", "model_run")?;
+    require_scheduler_lane(map, "lane")?;
+    require_integer(map, "priority")?;
+    require_string_or_null_nonempty(map, "concurrency_group")?;
+    require_non_negative_integer(map, "attempt")?;
+    ensure_no_inline_content_fields(map)?;
+    Ok(())
+}
+
+fn validate_session_scheduler_enqueue_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    validate_session_scheduler_common_payload(
+        map,
+        "session_scheduler_enqueue",
+        "FR-EVT-SESS-SCHED-001",
+        &[
+            "type",
+            "event_id",
+            "session_id",
+            "job_id",
+            "job_kind",
+            "lane",
+            "priority",
+            "concurrency_group",
+            "queue_depth",
+            "attempt",
+            "max_retries",
+            "retry_backoff",
+            "cancellation_token",
+        ],
+    )?;
+    require_non_negative_integer(map, "queue_depth")?;
+    require_non_negative_integer(map, "max_retries")?;
+    require_scheduler_retry_backoff(map, "retry_backoff")?;
+    require_string_or_null_nonempty(map, "cancellation_token")?;
+    Ok(())
+}
+
+fn validate_session_scheduler_dispatch_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    validate_session_scheduler_common_payload(
+        map,
+        "session_scheduler_dispatch",
+        "FR-EVT-SESS-SCHED-002",
+        &[
+            "type",
+            "event_id",
+            "session_id",
+            "job_id",
+            "job_kind",
+            "lane",
+            "priority",
+            "concurrency_group",
+            "queue_wait_ms",
+            "attempt",
+        ],
+    )?;
+    require_non_negative_integer(map, "queue_wait_ms")?;
+    Ok(())
+}
+
+fn validate_session_scheduler_rate_limited_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    validate_session_scheduler_common_payload(
+        map,
+        "session_scheduler_rate_limited",
+        "FR-EVT-SESS-SCHED-003",
+        &[
+            "type",
+            "event_id",
+            "session_id",
+            "job_id",
+            "job_kind",
+            "lane",
+            "priority",
+            "concurrency_group",
+            "queue_wait_ms",
+            "attempt",
+            "backoff_ms",
+            "reason",
+        ],
+    )?;
+    require_non_negative_integer(map, "queue_wait_ms")?;
+    require_non_negative_integer(map, "backoff_ms")?;
+    require_string(map, "reason")?;
+    Ok(())
+}
+
+fn validate_session_scheduler_cancelled_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    validate_session_scheduler_common_payload(
+        map,
+        "session_scheduler_cancelled",
+        "FR-EVT-SESS-SCHED-004",
+        &[
+            "type",
+            "event_id",
+            "session_id",
+            "job_id",
+            "job_kind",
+            "lane",
+            "priority",
+            "concurrency_group",
+            "attempt",
+            "cancelled_by",
+            "reason",
+        ],
+    )?;
+    require_string(map, "cancelled_by")?;
+    require_string(map, "reason")?;
     Ok(())
 }
 

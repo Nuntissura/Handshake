@@ -25,7 +25,7 @@ use crate::{
         CapabilityRegistryWorkflowParams,
     },
     flight_recorder::{
-        FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+        EventFilter, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
         FrEvt008SecurityViolation, FrEvtWorkflowRecovery,
     },
     governance_pack::{export_governance_pack, GovernancePackExportRequest},
@@ -45,7 +45,10 @@ use crate::{
     },
     models::{AiJob, JobKind, WorkflowRun},
     runtime_governance::RuntimeGovernancePaths,
-    storage::{validate_job_contract, JobState, JobStatusUpdate, NewNodeExecution, StorageError},
+    storage::{
+        validate_job_contract, AiJobListFilter, JobState, JobStatusUpdate, ModelSessionState,
+        NewModelSession, NewNodeExecution, NewSessionMessage, SessionMessageRole, StorageError,
+    },
     terminal::{
         config::TerminalConfig,
         guards::{DefaultTerminalGuard, TerminalGuard},
@@ -77,8 +80,9 @@ use thiserror::Error;
 use tokio::sync::Notify;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
-    sync::watch,
+    sync::{watch, Mutex as TokioMutex},
     task::JoinSet,
+    time::{sleep, Duration},
 };
 use uuid::Uuid;
 
@@ -208,6 +212,128 @@ struct MediaDownloaderSignals {
 static MEDIA_DOWNLOADER_SIGNAL_REGISTRY: Lazy<Mutex<HashMap<Uuid, MediaDownloaderSignals>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
+static SESSION_SCHEDULER_LOCK: Lazy<TokioMutex<()>> = Lazy::new(|| TokioMutex::new(()));
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SessionSchedulerLane {
+    Primary,
+    Subagent,
+    Background,
+    Validation,
+}
+
+impl SessionSchedulerLane {
+    fn as_str(self) -> &'static str {
+        match self {
+            SessionSchedulerLane::Primary => "PRIMARY",
+            SessionSchedulerLane::Subagent => "SUBAGENT",
+            SessionSchedulerLane::Background => "BACKGROUND",
+            SessionSchedulerLane::Validation => "VALIDATION",
+        }
+    }
+}
+
+impl TryFrom<&str> for SessionSchedulerLane {
+    type Error = WorkflowError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "PRIMARY" | "primary" => Ok(SessionSchedulerLane::Primary),
+            "SUBAGENT" | "subagent" => Ok(SessionSchedulerLane::Subagent),
+            "BACKGROUND" | "background" => Ok(SessionSchedulerLane::Background),
+            "VALIDATION" | "validation" => Ok(SessionSchedulerLane::Validation),
+            _ => Err(WorkflowError::Terminal(
+                "invalid model_run lane; expected PRIMARY|SUBAGENT|BACKGROUND|VALIDATION"
+                    .to_string(),
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct SessionSchedulerConfig {
+    max_concurrent_sessions_global: usize,
+    max_concurrent_sessions_per_provider: usize,
+    max_concurrent_sessions_per_model: usize,
+    rate_limit_requests_per_minute: Option<u32>,
+    rate_limit_tokens_per_minute: Option<u32>,
+}
+
+impl SessionSchedulerConfig {
+    fn from_env() -> Self {
+        let global = std::env::var("SESSION_SCHED_MAX_CONCURRENT_GLOBAL")
+            .ok()
+            .and_then(|raw| raw.parse::<usize>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(1);
+        let per_provider = std::env::var("SESSION_SCHED_MAX_CONCURRENT_PER_PROVIDER")
+            .ok()
+            .and_then(|raw| raw.parse::<usize>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(global);
+        let per_model = std::env::var("SESSION_SCHED_MAX_CONCURRENT_PER_MODEL")
+            .ok()
+            .and_then(|raw| raw.parse::<usize>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(global);
+        let rpm = std::env::var("SESSION_SCHED_RATE_LIMIT_REQUESTS_PER_MINUTE")
+            .ok()
+            .and_then(|raw| raw.parse::<u32>().ok())
+            .filter(|value| *value > 0);
+        let tpm = std::env::var("SESSION_SCHED_RATE_LIMIT_TOKENS_PER_MINUTE")
+            .ok()
+            .and_then(|raw| raw.parse::<u32>().ok())
+            .filter(|value| *value > 0);
+
+        Self {
+            max_concurrent_sessions_global: global,
+            max_concurrent_sessions_per_provider: per_provider,
+            max_concurrent_sessions_per_model: per_model,
+            rate_limit_requests_per_minute: rpm,
+            rate_limit_tokens_per_minute: tpm,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct SessionMessageInput {
+    message_id: Option<String>,
+    role: SessionMessageRole,
+    content_hash: String,
+    content_artifact_id: String,
+}
+
+#[derive(Debug, Clone)]
+struct ModelRunMetadata {
+    session_id: String,
+    parent_session_id: Option<String>,
+    spawn_depth: i32,
+    lane: SessionSchedulerLane,
+    priority: i32,
+    concurrency_group: Option<String>,
+    cancellation_token: Option<String>,
+    timeout_ms: i64,
+    max_tokens_budget: Option<i64>,
+    estimated_cost_usd: Option<f64>,
+    max_retries: i32,
+    retry_backoff: String,
+    prompt: String,
+    model_id: String,
+    backend: String,
+    parameter_class: String,
+    role: String,
+    wp_id: Option<String>,
+    mt_id: Option<String>,
+    work_profile_id: Option<String>,
+    execution_mode: String,
+    memory_policy: String,
+    consent_receipt_id: Option<String>,
+    capability_grants: Vec<String>,
+    capability_token_ids: Option<Vec<String>>,
+    session_messages: Vec<SessionMessageInput>,
+    simulate_duration_ms: u64,
+}
+
 pub fn enable_startup_recovery_gate() {
     STARTUP_RECOVERY_GATE.enabled.store(true, Ordering::Release);
     STARTUP_RECOVERY_GATE
@@ -291,6 +417,175 @@ fn derive_trace_id(job: &AiJob, workflow_id: Option<&str>) -> Uuid {
     }
 
     job.job_id
+}
+
+fn model_run_inputs(job: &AiJob) -> Option<&serde_json::Map<String, Value>> {
+    job.job_inputs.as_ref()?.as_object()
+}
+
+fn string_opt(map: Option<&serde_json::Map<String, Value>>, key: &str) -> Option<String> {
+    map.and_then(|m| m.get(key))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string)
+}
+
+fn int_opt(map: Option<&serde_json::Map<String, Value>>, key: &str) -> Option<i64> {
+    map.and_then(|m| m.get(key)).and_then(Value::as_i64)
+}
+
+fn u64_opt(map: Option<&serde_json::Map<String, Value>>, key: &str) -> Option<u64> {
+    map.and_then(|m| m.get(key)).and_then(Value::as_u64)
+}
+
+fn f64_opt(map: Option<&serde_json::Map<String, Value>>, key: &str) -> Option<f64> {
+    map.and_then(|m| m.get(key)).and_then(Value::as_f64)
+}
+
+fn string_vec_opt(map: Option<&serde_json::Map<String, Value>>, key: &str) -> Option<Vec<String>> {
+    let raw = map?.get(key)?.as_array()?;
+    let mut out = Vec::new();
+    for item in raw {
+        let Some(value) = item.as_str() else {
+            return None;
+        };
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        out.push(trimmed.to_string());
+    }
+    Some(out)
+}
+
+fn parse_session_message_inputs(job: &AiJob) -> Result<Vec<SessionMessageInput>, WorkflowError> {
+    let Some(inputs) = model_run_inputs(job) else {
+        return Ok(Vec::new());
+    };
+    let Some(raw_messages) = inputs.get("session_messages") else {
+        return Ok(Vec::new());
+    };
+    let raw_messages = raw_messages.as_array().ok_or_else(|| {
+        WorkflowError::Terminal("model_run session_messages must be an array".to_string())
+    })?;
+
+    let mut out = Vec::new();
+    for entry in raw_messages {
+        let map = entry.as_object().ok_or_else(|| {
+            WorkflowError::Terminal("model_run session_messages entries must be objects".to_string())
+        })?;
+        if map.contains_key("content") || map.contains_key("text") {
+            return Err(WorkflowError::Terminal(
+                "model_run session_messages must be artifact-first (no inline content/text)"
+                    .to_string(),
+            ));
+        }
+
+        let role_raw = map
+            .get("role")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                WorkflowError::Terminal(
+                    "model_run session_messages.role must be a non-empty string".to_string(),
+                )
+            })?;
+        let role = SessionMessageRole::try_from(role_raw)
+            .map_err(|_| WorkflowError::Terminal("invalid session message role".to_string()))?;
+
+        let content_hash = map
+            .get("content_hash")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                WorkflowError::Terminal(
+                    "model_run session_messages.content_hash must be a non-empty string"
+                        .to_string(),
+                )
+            })?
+            .to_string();
+        let content_artifact_id = map
+            .get("content_artifact_id")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                WorkflowError::Terminal(
+                    "model_run session_messages.content_artifact_id must be a non-empty string"
+                        .to_string(),
+                )
+            })?
+            .to_string();
+        let message_id = map
+            .get("message_id")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToString::to_string);
+
+        out.push(SessionMessageInput {
+            message_id,
+            role,
+            content_hash,
+            content_artifact_id,
+        });
+    }
+
+    Ok(out)
+}
+
+fn parse_model_run_metadata(job: &AiJob) -> Result<ModelRunMetadata, WorkflowError> {
+    let inputs = model_run_inputs(job);
+    let lane_raw = string_opt(inputs, "lane").unwrap_or_else(|| "PRIMARY".to_string());
+    let lane = SessionSchedulerLane::try_from(lane_raw.as_str())?;
+    let retry_backoff = string_opt(inputs, "retry_backoff")
+        .unwrap_or_else(|| "fixed".to_string())
+        .to_ascii_lowercase();
+    if retry_backoff != "fixed" && retry_backoff != "exponential" {
+        return Err(WorkflowError::Terminal(
+            "invalid model_run retry_backoff; expected fixed|exponential".to_string(),
+        ));
+    }
+
+    let model_id_default = string_opt(inputs, "model_id").unwrap_or_else(|| "default-model".to_string());
+    let backend_default = string_opt(inputs, "backend").unwrap_or_else(|| "default-backend".to_string());
+
+    Ok(ModelRunMetadata {
+        session_id: string_opt(inputs, "session_id")
+            .unwrap_or_else(|| Uuid::new_v4().to_string()),
+        parent_session_id: string_opt(inputs, "parent_session_id"),
+        spawn_depth: int_opt(inputs, "spawn_depth").unwrap_or(0) as i32,
+        lane,
+        priority: int_opt(inputs, "priority").unwrap_or(100) as i32,
+        concurrency_group: string_opt(inputs, "concurrency_group"),
+        cancellation_token: string_opt(inputs, "cancellation_token"),
+        timeout_ms: int_opt(inputs, "timeout_ms").unwrap_or(60_000),
+        max_tokens_budget: int_opt(inputs, "max_tokens_budget"),
+        estimated_cost_usd: f64_opt(inputs, "estimated_cost_usd"),
+        max_retries: int_opt(inputs, "max_retries").unwrap_or(0) as i32,
+        retry_backoff,
+        prompt: string_opt(inputs, "prompt").unwrap_or_default(),
+        model_id: model_id_default,
+        backend: backend_default,
+        parameter_class: string_opt(inputs, "parameter_class")
+            .unwrap_or_else(|| "default".to_string()),
+        role: string_opt(inputs, "role").unwrap_or_else(|| "assistant".to_string()),
+        wp_id: string_opt(inputs, "wp_id"),
+        mt_id: string_opt(inputs, "mt_id"),
+        work_profile_id: string_opt(inputs, "work_profile_id"),
+        execution_mode: string_opt(inputs, "execution_mode")
+            .unwrap_or_else(|| "STANDARD".to_string()),
+        memory_policy: string_opt(inputs, "memory_policy")
+            .unwrap_or_else(|| "EPHEMERAL".to_string()),
+        consent_receipt_id: string_opt(inputs, "consent_receipt_id"),
+        capability_grants: string_vec_opt(inputs, "capability_grants").unwrap_or_default(),
+        capability_token_ids: string_vec_opt(inputs, "capability_token_ids"),
+        session_messages: parse_session_message_inputs(job)?,
+        simulate_duration_ms: u64_opt(inputs, "simulate_duration_ms").unwrap_or(0),
+    })
 }
 
 async fn execute_locus_sync_task_board(
@@ -1858,6 +2153,723 @@ pub async fn mark_stalled_workflows(
     Ok(stalled)
 }
 
+fn model_run_priority_for_sort(job: &AiJob) -> i32 {
+    let raw = int_opt(model_run_inputs(job), "priority").unwrap_or(100);
+    raw.clamp(i32::MIN as i64, i32::MAX as i64) as i32
+}
+
+async fn list_queued_model_run_jobs(state: &AppState) -> Result<Vec<AiJob>, WorkflowError> {
+    let mut queued = state
+        .storage
+        .list_ai_jobs(AiJobListFilter {
+            status: Some(JobState::Queued),
+            job_kind: Some(JobKind::ModelRun),
+            ..Default::default()
+        })
+        .await?;
+    queued.sort_by(|a, b| {
+        model_run_priority_for_sort(a)
+            .cmp(&model_run_priority_for_sort(b))
+            .then_with(|| a.created_at.cmp(&b.created_at))
+            .then_with(|| a.job_id.as_hyphenated().cmp(&b.job_id.as_hyphenated()))
+    });
+    Ok(queued)
+}
+
+async fn list_running_model_run_jobs(state: &AppState) -> Result<Vec<AiJob>, WorkflowError> {
+    state
+        .storage
+        .list_ai_jobs(AiJobListFilter {
+            status: Some(JobState::Running),
+            job_kind: Some(JobKind::ModelRun),
+            ..Default::default()
+        })
+        .await
+        .map_err(WorkflowError::from)
+}
+
+async fn emit_session_scheduler_enqueue_event(
+    state: &AppState,
+    trace_id: Uuid,
+    job: &AiJob,
+    metadata: &ModelRunMetadata,
+    queue_depth: usize,
+) -> Result<(), WorkflowError> {
+    let payload = json!({
+        "type": "session_scheduler_enqueue",
+        "event_id": "FR-EVT-SESS-SCHED-001",
+        "session_id": metadata.session_id,
+        "job_id": job.job_id.to_string(),
+        "job_kind": "model_run",
+        "lane": metadata.lane.as_str(),
+        "priority": metadata.priority,
+        "concurrency_group": metadata.concurrency_group,
+        "queue_depth": queue_depth as i64,
+        "attempt": 0,
+        "max_retries": metadata.max_retries,
+        "retry_backoff": metadata.retry_backoff,
+        "cancellation_token": metadata.cancellation_token,
+    });
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionSchedulerEnqueue,
+            FlightRecorderActor::System,
+            trace_id,
+            payload,
+        )
+        .with_job_id(job.job_id.to_string()),
+    )
+    .await
+}
+
+async fn emit_session_scheduler_dispatch_event(
+    state: &AppState,
+    trace_id: Uuid,
+    job: &AiJob,
+    metadata: &ModelRunMetadata,
+    queue_wait_ms: u64,
+) -> Result<(), WorkflowError> {
+    let payload = json!({
+        "type": "session_scheduler_dispatch",
+        "event_id": "FR-EVT-SESS-SCHED-002",
+        "session_id": metadata.session_id,
+        "job_id": job.job_id.to_string(),
+        "job_kind": "model_run",
+        "lane": metadata.lane.as_str(),
+        "priority": metadata.priority,
+        "concurrency_group": metadata.concurrency_group,
+        "queue_wait_ms": queue_wait_ms,
+        "attempt": 1,
+    });
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionSchedulerDispatch,
+            FlightRecorderActor::System,
+            trace_id,
+            payload,
+        )
+        .with_job_id(job.job_id.to_string()),
+    )
+    .await
+}
+
+async fn emit_session_scheduler_rate_limited_event(
+    state: &AppState,
+    trace_id: Uuid,
+    job: &AiJob,
+    metadata: &ModelRunMetadata,
+    queue_wait_ms: u64,
+    backoff_ms: u64,
+    reason: &str,
+) -> Result<(), WorkflowError> {
+    let payload = json!({
+        "type": "session_scheduler_rate_limited",
+        "event_id": "FR-EVT-SESS-SCHED-003",
+        "session_id": metadata.session_id,
+        "job_id": job.job_id.to_string(),
+        "job_kind": "model_run",
+        "lane": metadata.lane.as_str(),
+        "priority": metadata.priority,
+        "concurrency_group": metadata.concurrency_group,
+        "queue_wait_ms": queue_wait_ms,
+        "attempt": 1,
+        "backoff_ms": backoff_ms,
+        "reason": reason,
+    });
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionSchedulerRateLimited,
+            FlightRecorderActor::System,
+            trace_id,
+            payload,
+        )
+        .with_job_id(job.job_id.to_string()),
+    )
+    .await
+}
+
+async fn emit_session_scheduler_cancelled_event(
+    state: &AppState,
+    trace_id: Uuid,
+    job: &AiJob,
+    metadata: &ModelRunMetadata,
+    cancelled_by: &str,
+    reason: &str,
+) -> Result<(), WorkflowError> {
+    let payload = json!({
+        "type": "session_scheduler_cancelled",
+        "event_id": "FR-EVT-SESS-SCHED-004",
+        "session_id": metadata.session_id,
+        "job_id": job.job_id.to_string(),
+        "job_kind": "model_run",
+        "lane": metadata.lane.as_str(),
+        "priority": metadata.priority,
+        "concurrency_group": metadata.concurrency_group,
+        "attempt": 1,
+        "cancelled_by": cancelled_by,
+        "reason": reason,
+    });
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionSchedulerCancelled,
+            FlightRecorderActor::System,
+            trace_id,
+            payload,
+        )
+        .with_job_id(job.job_id.to_string()),
+    )
+    .await
+}
+
+async fn ensure_model_session_artifact_refs(
+    state: &AppState,
+    job: &AiJob,
+    metadata: &ModelRunMetadata,
+) -> Result<(), WorkflowError> {
+    state
+        .storage
+        .upsert_model_session(NewModelSession {
+            session_id: metadata.session_id.clone(),
+            parent_session_id: metadata.parent_session_id.clone(),
+            spawn_depth: metadata.spawn_depth,
+            state: ModelSessionState::Created,
+            model_id: metadata.model_id.clone(),
+            backend: metadata.backend.clone(),
+            parameter_class: metadata.parameter_class.clone(),
+            role: metadata.role.clone(),
+            wp_id: metadata.wp_id.clone(),
+            mt_id: metadata.mt_id.clone(),
+            work_profile_id: metadata.work_profile_id.clone(),
+            execution_mode: metadata.execution_mode.clone(),
+            memory_policy: metadata.memory_policy.clone(),
+            consent_receipt_id: metadata.consent_receipt_id.clone(),
+            capability_grants: metadata.capability_grants.clone(),
+            capability_token_ids: metadata.capability_token_ids.clone(),
+            job_id: Some(job.job_id),
+        })
+        .await?;
+
+    for entry in &metadata.session_messages {
+        state
+            .storage
+            .append_session_message(NewSessionMessage {
+                message_id: entry.message_id.clone(),
+                session_id: metadata.session_id.clone(),
+                role: entry.role.clone(),
+                content_hash: entry.content_hash.clone(),
+                content_artifact_id: entry.content_artifact_id.clone(),
+            })
+            .await?;
+    }
+
+    Ok(())
+}
+
+async fn ensure_model_run_workflow_run(
+    state: &AppState,
+    job: &AiJob,
+    trace_id: Uuid,
+) -> Result<WorkflowRun, WorkflowError> {
+    let run = if let Some(run_id) = job.workflow_run_id {
+        state
+            .storage
+            .update_workflow_run_status(run_id, JobState::Queued, None)
+            .await?
+    } else {
+        state
+            .storage
+            .create_workflow_run(job.job_id, JobState::Queued, Some(Utc::now()))
+            .await?
+    };
+
+    state
+        .storage
+        .update_ai_job_status(JobStatusUpdate {
+            job_id: job.job_id,
+            state: JobState::Queued,
+            error_message: None,
+            status_reason: "queued".to_string(),
+            metrics: None,
+            workflow_run_id: Some(run.id),
+            trace_id: Some(trace_id),
+            job_outputs: None,
+        })
+        .await?;
+
+    Ok(run)
+}
+
+async fn enqueue_model_run_job(
+    state: &AppState,
+    job: AiJob,
+    trace_id: Uuid,
+) -> Result<WorkflowRun, WorkflowError> {
+    let metadata = parse_model_run_metadata(&job)?;
+    ensure_model_session_artifact_refs(state, &job, &metadata).await?;
+
+    let run = ensure_model_run_workflow_run(state, &job, trace_id).await?;
+    let queued = list_queued_model_run_jobs(state).await?;
+    let queue_depth = queued.len();
+
+    emit_session_scheduler_enqueue_event(state, trace_id, &job, &metadata, queue_depth).await?;
+    kick_model_run_dispatcher(state.clone());
+
+    Ok(run)
+}
+
+fn kick_model_run_dispatcher(state: AppState) {
+    tokio::spawn(async move {
+        if let Err(err) = run_model_run_dispatch_loop(state.clone()).await {
+            tracing::warn!(
+                target: "handshake_core::session_scheduler",
+                error = %err,
+                "model_run_dispatch_loop_failed"
+            );
+        }
+    });
+}
+
+async fn model_run_dispatch_limit_reason(
+    state: &AppState,
+    job: &AiJob,
+    config: &SessionSchedulerConfig,
+) -> Result<Option<String>, WorkflowError> {
+    let running = list_running_model_run_jobs(state).await?;
+    if let Some(rpm) = config.rate_limit_requests_per_minute {
+        if (running.len() as u32) >= rpm {
+            return Ok(Some("rate_limit_requests_per_minute_queued".to_string()));
+        }
+    }
+
+    if let Some(tpm) = config.rate_limit_tokens_per_minute {
+        let mut tokens_in_flight = 0_u64;
+        for running_job in &running {
+            let budget = int_opt(model_run_inputs(running_job), "max_tokens_budget")
+                .unwrap_or(0)
+                .max(0) as u64;
+            tokens_in_flight = tokens_in_flight.saturating_add(budget);
+        }
+        let candidate_budget = int_opt(model_run_inputs(job), "max_tokens_budget")
+            .unwrap_or(0)
+            .max(0) as u64;
+        if tokens_in_flight.saturating_add(candidate_budget) > u64::from(tpm) {
+            return Ok(Some("rate_limit_tokens_per_minute_queued".to_string()));
+        }
+    }
+
+    if running.len() >= config.max_concurrent_sessions_global {
+        return Ok(Some("concurrency_limit_exceeded_queued".to_string()));
+    }
+
+    let candidate = state.storage.get_model_session_by_job_id(job.job_id).await?;
+    let registry = state
+        .storage
+        .get_model_session(candidate.session_id.as_str())
+        .await?;
+    if matches!(
+        registry.state,
+        ModelSessionState::Completed | ModelSessionState::Failed | ModelSessionState::Cancelled
+    ) {
+        return Ok(Some("session_not_dispatchable".to_string()));
+    }
+
+    let mut same_provider = 0_usize;
+    let mut same_model = 0_usize;
+    for running_job in &running {
+        if let Ok(active_session) = state
+            .storage
+            .get_model_session_by_job_id(running_job.job_id)
+            .await
+        {
+            if active_session.backend == candidate.backend {
+                same_provider = same_provider.saturating_add(1);
+            }
+            if active_session.model_id == candidate.model_id {
+                same_model = same_model.saturating_add(1);
+            }
+        }
+    }
+
+    if same_provider >= config.max_concurrent_sessions_per_provider {
+        return Ok(Some("provider_concurrency_limit_exceeded_queued".to_string()));
+    }
+    if same_model >= config.max_concurrent_sessions_per_model {
+        return Ok(Some("model_concurrency_limit_exceeded_queued".to_string()));
+    }
+
+    Ok(None)
+}
+
+async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), WorkflowError> {
+    let metadata = parse_model_run_metadata(&job)?;
+    let trace_id = derive_trace_id(&job, None);
+    let now = Utc::now();
+    let queue_wait_ms = now
+        .signed_duration_since(job.created_at)
+        .num_milliseconds()
+        .max(0) as u64;
+
+    let workflow_run = if let Some(run_id) = job.workflow_run_id {
+        state
+            .storage
+            .update_workflow_run_status(run_id, JobState::Running, None)
+            .await?
+    } else {
+        state
+            .storage
+            .create_workflow_run(job.job_id, JobState::Running, Some(now))
+            .await?
+    };
+    state.storage.heartbeat_workflow(workflow_run.id, now).await?;
+
+    let node_exec = state
+        .storage
+        .create_workflow_node_execution(NewNodeExecution {
+            workflow_run_id: workflow_run.id,
+            node_id: job.job_id.to_string(),
+            node_type: job.job_kind.as_str().to_string(),
+            status: JobState::Running,
+            sequence: 1,
+            input_payload: job.job_inputs.clone(),
+            started_at: now,
+        })
+        .await?;
+
+    state
+        .storage
+        .update_ai_job_status(JobStatusUpdate {
+            job_id: job.job_id,
+            state: JobState::Running,
+            error_message: None,
+            status_reason: "running".to_string(),
+            metrics: None,
+            workflow_run_id: Some(workflow_run.id),
+            trace_id: Some(trace_id),
+            job_outputs: None,
+        })
+        .await?;
+
+    state
+        .storage
+        .update_model_session_state(
+            metadata.session_id.as_str(),
+            ModelSessionState::Active,
+            Some(job.job_id),
+        )
+        .await?;
+
+    emit_session_scheduler_dispatch_event(state, trace_id, &job, &metadata, queue_wait_ms).await?;
+
+    let state_clone = state.clone();
+    tokio::spawn(async move {
+        let _ = run_and_finalize_workflow_job(state_clone, job, workflow_run, node_exec, trace_id)
+            .await;
+    });
+
+    Ok(())
+}
+
+async fn run_model_run_dispatch_loop(state: AppState) -> Result<(), WorkflowError> {
+    let _guard = SESSION_SCHEDULER_LOCK.lock().await;
+
+    loop {
+        let queued = list_queued_model_run_jobs(&state).await?;
+        let Some(next_job) = queued.into_iter().next() else {
+            break;
+        };
+
+        let metadata = match parse_model_run_metadata(&next_job) {
+            Ok(metadata) => metadata,
+            Err(err) => {
+                state
+                    .storage
+                    .update_ai_job_status(JobStatusUpdate {
+                        job_id: next_job.job_id,
+                        state: JobState::Failed,
+                        error_message: Some(err.to_string()),
+                        status_reason: err.to_string(),
+                        metrics: None,
+                        workflow_run_id: next_job.workflow_run_id,
+                        trace_id: None,
+                        job_outputs: None,
+                    })
+                    .await?;
+                continue;
+            }
+        };
+
+        let config = SessionSchedulerConfig::from_env();
+        let limit_reason = model_run_dispatch_limit_reason(&state, &next_job, &config).await?;
+        if let Some(reason) = limit_reason {
+            let wait_ms = Utc::now()
+                .signed_duration_since(next_job.created_at)
+                .num_milliseconds()
+                .max(0) as u64;
+            let backoff_ms = 1_000_u64;
+            emit_session_scheduler_rate_limited_event(
+                &state,
+                derive_trace_id(&next_job, None),
+                &next_job,
+                &metadata,
+                wait_ms,
+                backoff_ms,
+                reason.as_str(),
+            )
+            .await?;
+            break;
+        }
+
+        dispatch_model_run_job(&state, next_job).await?;
+    }
+
+    Ok(())
+}
+
+async fn is_model_run_cancel_requested(state: &AppState, job_id: Uuid) -> Result<bool, WorkflowError> {
+    let current = state.storage.get_ai_job(job_id.to_string().as_str()).await?;
+    Ok(matches!(current.state, JobState::Cancelled))
+}
+
+async fn model_run_cancel_reason(state: &AppState, job_id: Uuid) -> Result<String, WorkflowError> {
+    let current = state.storage.get_ai_job(job_id.to_string().as_str()).await?;
+    let reason = if current.status_reason.trim().is_empty() {
+        "cancelled".to_string()
+    } else {
+        current.status_reason
+    };
+    Ok(reason)
+}
+
+async fn run_model_run_job(
+    state: &AppState,
+    job: &AiJob,
+    trace_id: Uuid,
+) -> Result<RunJobOutcome, WorkflowError> {
+    let metadata = parse_model_run_metadata(job)?;
+
+    if is_model_run_cancel_requested(state, job.job_id).await? {
+        let reason = model_run_cancel_reason(state, job.job_id).await?;
+        return Ok(RunJobOutcome {
+            state: JobState::Cancelled,
+            status_reason: reason.clone(),
+            output: None,
+            error_message: Some(reason),
+        });
+    }
+
+    if metadata.simulate_duration_ms > 0 {
+        let mut waited = 0_u64;
+        while waited < metadata.simulate_duration_ms {
+            sleep(Duration::from_millis(20)).await;
+            waited = waited.saturating_add(20);
+            if is_model_run_cancel_requested(state, job.job_id).await? {
+                let reason = model_run_cancel_reason(state, job.job_id).await?;
+                return Ok(RunJobOutcome {
+                    state: JobState::Cancelled,
+                    status_reason: reason.clone(),
+                    output: None,
+                    error_message: Some(reason),
+                });
+            }
+        }
+    }
+
+    let mut request =
+        CompletionRequest::new(trace_id, metadata.prompt.clone(), metadata.model_id.clone());
+    if let Some(max_tokens_budget) = metadata.max_tokens_budget {
+        if max_tokens_budget > 0 {
+            request = request.with_max_tokens(max_tokens_budget as u32);
+        }
+    }
+
+    let completion = match state.llm_client.completion(request).await {
+        Ok(result) => result,
+        Err(LlmError::RateLimit) => {
+            emit_session_scheduler_rate_limited_event(
+                state,
+                trace_id,
+                job,
+                &metadata,
+                0,
+                1_000,
+                "provider_rate_limit",
+            )
+            .await?;
+            return Ok(RunJobOutcome {
+                state: JobState::Failed,
+                status_reason: "rate_limited".to_string(),
+                output: None,
+                error_message: Some("rate_limited".to_string()),
+            });
+        }
+        Err(other) => return Err(WorkflowError::Llm(other)),
+    };
+
+    let content_hash = sha256_hex(completion.text.as_bytes());
+    let content_artifact_id = string_opt(model_run_inputs(job), "assistant_content_artifact_id")
+        .unwrap_or_else(|| format!("artifact:model_run:{}/{}", metadata.session_id, job.job_id));
+
+    state
+        .storage
+        .append_session_message(NewSessionMessage {
+            message_id: None,
+            session_id: metadata.session_id.clone(),
+            role: SessionMessageRole::Assistant,
+            content_hash: content_hash.clone(),
+            content_artifact_id: content_artifact_id.clone(),
+        })
+        .await?;
+
+    let output = json!({
+        "session_id": metadata.session_id,
+        "response_ref": {
+            "content_hash": content_hash,
+            "content_artifact_id": content_artifact_id,
+        },
+        "usage": {
+            "prompt_tokens": completion.usage.prompt_tokens,
+            "completion_tokens": completion.usage.completion_tokens,
+            "total_tokens": completion.usage.total_tokens
+        },
+        "latency_ms": completion.latency_ms,
+        "timeout_ms": metadata.timeout_ms,
+        "estimated_cost_usd": metadata.estimated_cost_usd,
+    });
+
+    Ok(RunJobOutcome {
+        state: JobState::Completed,
+        status_reason: "completed".to_string(),
+        output: Some(output),
+        error_message: None,
+    })
+}
+
+async fn finalize_model_run_after_terminal(
+    state: &AppState,
+    job: &AiJob,
+    final_status: &JobState,
+    status_reason: &str,
+    trace_id: Uuid,
+) -> Result<(), WorkflowError> {
+    let metadata = parse_model_run_metadata(job)?;
+    let session_state = match final_status {
+        JobState::Completed | JobState::CompletedWithIssues => ModelSessionState::Completed,
+        JobState::Cancelled => ModelSessionState::Cancelled,
+        JobState::Failed | JobState::Poisoned | JobState::Stalled => ModelSessionState::Failed,
+        JobState::Running => ModelSessionState::Active,
+        JobState::Queued => ModelSessionState::Created,
+        JobState::AwaitingUser | JobState::AwaitingValidation => ModelSessionState::Blocked,
+    };
+
+    state
+        .storage
+        .update_model_session_state(metadata.session_id.as_str(), session_state, Some(job.job_id))
+        .await?;
+
+    if matches!(final_status, JobState::Cancelled) {
+        let cancel_event_already_recorded = state
+            .flight_recorder
+            .list_events(EventFilter {
+                job_id: Some(job.job_id.to_string()),
+                ..Default::default()
+            })
+            .await
+            .map(|events| {
+                events.iter().any(|event| {
+                    matches!(
+                        event.event_type,
+                        FlightRecorderEventType::SessionSchedulerCancelled
+                    )
+                })
+            })
+            .unwrap_or(false);
+        if !cancel_event_already_recorded {
+            let cancelled_by = string_opt(model_run_inputs(job), "cancelled_by")
+                .unwrap_or_else(|| "scheduler".to_string());
+            emit_session_scheduler_cancelled_event(
+                state,
+                trace_id,
+                job,
+                &metadata,
+                cancelled_by.as_str(),
+                status_reason,
+            )
+            .await?;
+        }
+    }
+
+    kick_model_run_dispatcher(state.clone());
+    Ok(())
+}
+
+pub async fn cancel_model_run_job(
+    state: &AppState,
+    job_id: Uuid,
+    cancelled_by: String,
+    reason: String,
+) -> Result<(), WorkflowError> {
+    let mut job = state.storage.get_ai_job(job_id.to_string().as_str()).await?;
+    if !matches!(job.job_kind, JobKind::ModelRun) {
+        return Err(WorkflowError::Terminal(
+            "cancel_model_run_job only supports job_kind=model_run".to_string(),
+        ));
+    }
+
+    state
+        .storage
+        .update_ai_job_status(JobStatusUpdate {
+            job_id,
+            state: JobState::Cancelled,
+            error_message: Some(reason.clone()),
+            status_reason: reason.clone(),
+            metrics: None,
+            workflow_run_id: job.workflow_run_id,
+            trace_id: Some(derive_trace_id(&job, None)),
+            job_outputs: None,
+        })
+        .await?;
+
+    if let Some(run_id) = job.workflow_run_id {
+        let _ = state
+            .storage
+            .update_workflow_run_status(run_id, JobState::Cancelled, Some(reason.clone()))
+            .await;
+    }
+
+    let metadata = parse_model_run_metadata(&job)?;
+    let _ = state
+        .storage
+        .update_model_session_state(
+            metadata.session_id.as_str(),
+            ModelSessionState::Cancelled,
+            Some(job_id),
+        )
+        .await;
+
+    emit_session_scheduler_cancelled_event(
+        state,
+        derive_trace_id(&job, None),
+        &job,
+        &metadata,
+        cancelled_by.as_str(),
+        reason.as_str(),
+    )
+    .await?;
+
+    if let Some(inputs) = job.job_inputs.as_mut() {
+        if let Some(map) = inputs.as_object_mut() {
+            map.insert("cancelled_by".to_string(), Value::String(cancelled_by));
+        }
+    }
+
+    kick_model_run_dispatcher(state.clone());
+    Ok(())
+}
+
 pub async fn start_workflow_for_job(
     state: &AppState,
     job: AiJob,
@@ -1879,6 +2891,10 @@ pub async fn start_workflow_for_job(
             })
             .await?;
         return Err(err);
+    }
+
+    if matches!(job.job_kind, JobKind::ModelRun) {
+        return enqueue_model_run_job(state, job, trace_id).await;
     }
 
     let heartbeat_at = Utc::now();
@@ -2037,7 +3053,7 @@ async fn run_and_finalize_workflow_job(
             job_id: job.job_id,
             state: final_status.clone(),
             error_message: error_message.clone(),
-            status_reason,
+            status_reason: status_reason.clone(),
             metrics: None,
             workflow_run_id: Some(workflow_run.id),
             trace_id: Some(trace_id),
@@ -2049,6 +3065,11 @@ async fn run_and_finalize_workflow_job(
         .storage
         .update_workflow_run_status(workflow_run.id, final_status.clone(), error_message.clone())
         .await?;
+
+    if matches!(job.job_kind, JobKind::ModelRun) {
+        finalize_model_run_after_terminal(&state, &job, &final_status, &status_reason, trace_id)
+            .await?;
+    }
 
     record_event_safely(
         &state,
@@ -2112,9 +3133,15 @@ async fn enforce_capabilities(
     job: &AiJob,
     trace_id: Uuid,
 ) -> Result<(), WorkflowError> {
+    let capability_job_kind = if matches!(job.job_kind, JobKind::ModelRun) {
+        JobKind::WorkflowRun
+    } else {
+        job.job_kind.clone()
+    };
+
     let required = state
         .capability_registry
-        .required_capabilities_for_job_request(job.job_kind.as_str(), &job.protocol_id)?;
+        .required_capabilities_for_job_request(capability_job_kind.as_str(), &job.protocol_id)?;
 
     for capability_id in required {
         let result = state
@@ -2504,6 +3531,10 @@ async fn run_job(
         enforce_work_packet_binding_if_required(state, job, workflow_run_id, trace_id).await?
     {
         return Ok(outcome);
+    }
+
+    if matches!(job.job_kind, JobKind::ModelRun) {
+        return run_model_run_job(state, job, trace_id).await;
     }
 
     if matches!(job.job_kind, JobKind::DocSummarize | JobKind::DocEdit) {
