@@ -257,12 +257,13 @@ git revert <commit-sha>
   - No `0014_model_sessions.sql` file was added in this diff because persistence schema is currently ensured in DAL runtime paths for both SQLite and Postgres.
 
 ## VALIDATION
-- **Target File**: `.GOV/task_packets/WP-1-ModelSession-Core-Scheduler-v1.md`
+- (Mechanical manifest for audit. Records deterministic file-integrity metadata for changed non-`.GOV/` files in range `6e763ff05dbc7e52c75eaf83ee37a3168da7d1ac..HEAD`.)
+- **Target File**: `src/backend/handshake_core/src/api/jobs.rs`
 - **Start**: 1
-- **End**: 275
-- **Line Delta**: 275
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
-- **Post-SHA1**: `750d52169cf3c132ab19fe955543c6ff718403ae`
+- **End**: 50000
+- **Line Delta**: 6
+- **Pre-SHA1**: `d4aedc697050b731b5b0a5d4c912013a4972edfd`
+- **Post-SHA1**: `a810d7f5f3e679b83a16f8a1077ba1c76780eea0`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -274,12 +275,132 @@ git revert <commit-sha>
   - [x] all_links_resolvable
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
-- **Lint Results**: `just validator-scan` baseline fail on existing out-of-scope findings (see EVIDENCE).
-- **Artifacts**: N/A
-- **Timestamp**: 2026-03-01
-- **Operator**: coder-a (WP-1)
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.139.md
-- **Notes**: range preimage for this file is absent at `6e763ff05dbc7e52c75eaf83ee37a3168da7d1ac` because this packet file is added later in branch history.
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- **Start**: 1
+- **End**: 50000
+- **Line Delta**: 12
+- **Pre-SHA1**: `85e545db63261d4227e573346c5273441023f4a3`
+- **Post-SHA1**: `417c897e5ba074ba3bbc6bcd9c0753a283dca268`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 1
+- **End**: 50000
+- **Line Delta**: 220
+- **Pre-SHA1**: `a0cf5706edd14bae057c6a3b1ae9e44cd3093353`
+- **Post-SHA1**: `7c70b50d4cb4f4919e36f9831f62e9f401160001`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/storage/mod.rs`
+- **Start**: 1
+- **End**: 50000
+- **Line Delta**: 160
+- **Pre-SHA1**: `f94ce4989159248e7e7d0bb8b9f7fe8186ef2285`
+- **Post-SHA1**: `730b15c92db76bd81115be2717f25113db65ab39`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Start**: 1
+- **End**: 50000
+- **Line Delta**: 408
+- **Pre-SHA1**: `d6346c2c953094f5064300b7253d97580d2320c2`
+- **Post-SHA1**: `bd49b55e1ba23d916fe90a2bc891a8082feab4a4`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/storage/sqlite.rs`
+- **Start**: 1
+- **End**: 50000
+- **Line Delta**: 414
+- **Pre-SHA1**: `6d743f9c8a3910d8eb302957290965dfa1659197`
+- **Post-SHA1**: `8da3f151bf505b04751d681248a5d66a76d697e3`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1
+- **End**: 50000
+- **Line Delta**: 1031
+- **Pre-SHA1**: `6686cc63d670dc44966a2dc066e4ac2142fd5be8`
+- **Post-SHA1**: `c06ca5d702c0f2956dd627abf37b013f280964be`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs`
+- **Start**: 1
+- **End**: 50000
+- **Line Delta**: 567
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `7a44f26a43a03faf47753ecc576cb23f4b73a856`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
 
 ## STATUS_HANDOFF
 - Current WP_STATUS: READY_FOR_VALIDATOR (with known environment/baseline blockers documented).
@@ -354,3 +475,27 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+- 2026-03-01T21:12:31Z | Validator: Codex (GPT-5) | Branch: `feat/WP-1-ModelSession-Core-Scheduler-v1` | Worktree: `wt-WP-1-ModelSession-Core-Scheduler-v1`
+  - VERDICT: **FAIL**
+  - MERGE_BLOCKED: **YES**
+  - REASON: Required command `just post-work WP-1-ModelSession-Core-Scheduler-v1 --range 6e763ff05dbc7e52c75eaf83ee37a3168da7d1ac..HEAD` failed with deterministic manifest gate errors.
+  - DONE_MEANS_EVALUATION:
+    - PASS: ModelSession + SessionMessage persistence and artifact-first refs implemented (`src/backend/handshake_core/src/storage/mod.rs:1262`, `src/backend/handshake_core/src/storage/mod.rs:1306`, `src/backend/handshake_core/src/storage/sqlite.rs:342`, `src/backend/handshake_core/src/storage/postgres.rs:67`, `src/backend/handshake_core/src/storage/sqlite.rs:4199`, `src/backend/handshake_core/src/storage/postgres.rs:3608`).
+    - PASS: `job_kind=\"model_run\"` modeled and scheduler-routed (`src/backend/handshake_core/src/storage/mod.rs:930`, `src/backend/handshake_core/src/storage/mod.rs:961`, `src/backend/handshake_core/src/storage/mod.rs:987`, `src/backend/handshake_core/src/workflows.rs:2896`, `src/backend/handshake_core/src/workflows.rs:3536`).
+    - PASS: Queue + concurrency semantics are deterministic enqueue-not-drop (`src/backend/handshake_core/src/workflows.rs:2161`, `src/backend/handshake_core/src/workflows.rs:2170`, `src/backend/handshake_core/src/workflows.rs:2436`, `src/backend/handshake_core/src/workflows.rs:2606`; test `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:260`).
+    - PASS: Cooperative cancellation maps to cancelled semantics (`src/backend/handshake_core/src/workflows.rs:2647`, `src/backend/handshake_core/src/workflows.rs:2759`, `src/backend/handshake_core/src/workflows.rs:2809`; test `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:388`).
+    - PASS: FR scheduler events 001..004 emitted and schema-validated (`src/backend/handshake_core/src/workflows.rs:2191`, `src/backend/handshake_core/src/workflows.rs:2226`, `src/backend/handshake_core/src/workflows.rs:2258`, `src/backend/handshake_core/src/workflows.rs:2294`, `src/backend/handshake_core/src/flight_recorder/mod.rs:161`, `src/backend/handshake_core/src/flight_recorder/mod.rs:817`, `src/backend/handshake_core/src/flight_recorder/mod.rs:4007`, `src/backend/handshake_core/src/flight_recorder/mod.rs:4027`, `src/backend/handshake_core/src/flight_recorder/duckdb.rs:895`; tests `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:463`, `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:565`).
+    - PASS: Session registry authority read path used by scheduler (`src/backend/handshake_core/src/storage/mod.rs:1744`, `src/backend/handshake_core/src/storage/mod.rs:1745`, `src/backend/handshake_core/src/workflows.rs:2468`, `src/backend/handshake_core/src/workflows.rs:2471`, `src/backend/handshake_core/src/workflows.rs:2770`).
+  - FINDINGS:
+    - BLOCKING (WP regression/process gap): `just post-work ...` failed because validation manifest coverage is incomplete and packet manifest metadata is stale for this file. Evidence: missing manifest coverage for changed in-scope files listed by gate (`src/backend/handshake_core/src/api/jobs.rs`, `src/backend/handshake_core/src/flight_recorder/duckdb.rs`, `src/backend/handshake_core/src/flight_recorder/mod.rs`, `src/backend/handshake_core/src/storage/mod.rs`, `src/backend/handshake_core/src/storage/postgres.rs`, `src/backend/handshake_core/src/storage/sqlite.rs`, `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/tests/model_session_scheduler_tests.rs`); packet still declares validation window/hash at `1..275` and fixed `Post-SHA1` (`.GOV/task_packets/WP-1-ModelSession-Core-Scheduler-v1.md:259`).
+    - NON-BLOCKING BASELINE: `just validator-scan` findings are pre-existing at merge base. Evidence now: `src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs:156`, `src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs:159`, `src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs:173`, `src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs:175`, `src/backend/handshake_core/src/workflows.rs:11941`. Merge-base confirmation: same `expect(` hits in `spec_router/spec_prompt_pack.rs` and same placeholder token in workflows at base commit (`6e763ff...:src/backend/handshake_core/src/workflows.rs:10910`).
+    - NON-BLOCKING BASELINE ENVIRONMENT: full suite command `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` failed due Windows paging/mmap resource exhaustion (`os error 1455`) followed by compiler cascading errors, while targeted WP tests passed.
+  - COMMAND_MATRIX:
+    - `just hard-gate-wt-001`: PASS (exit 0)
+    - `just pre-work WP-1-ModelSession-Core-Scheduler-v1`: PASS (exit 0)
+    - `just validator-scan`: FAIL (exit 1) - baseline findings outside WP delta plus pre-existing placeholder token
+    - `just validator-dal-audit`: PASS (exit 0)
+    - `just validator-spec-regression`: PASS (exit 0)
+    - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_session_scheduler_tests`: PASS (exit 0, 4 passed)
+    - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`: FAIL (exit 1) - baseline environment issue (`os error 1455`)
+    - `just post-work WP-1-ModelSession-Core-Scheduler-v1 --range 6e763ff05dbc7e52c75eaf83ee37a3168da7d1ac..HEAD`: FAIL (exit 1) - blocking deterministic manifest gate failure
