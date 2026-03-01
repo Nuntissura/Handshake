@@ -5,7 +5,7 @@
 - WP_ID: WP-1-ModelSession-Core-Scheduler-v1
 - BASE_WP_ID: WP-1-ModelSession-Core-Scheduler
 - DATE: 2026-03-01T20:04:08.068Z
-- MERGE_BASE_SHA: 6e763ff05dbc7e52c75eaf83ee37a3168da7d1ac (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: 6e763ff05dbc7e52c75eaf83ee37a3168da7d1ac
 - REQUESTOR: Operator (ilja)
 - AGENT_ID: CodexCLI-GPT-5 (Orchestrator)
 - ROLE: Orchestrator
