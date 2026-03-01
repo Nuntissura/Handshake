@@ -1532,6 +1532,30 @@
       "branch": "feat/WP-1-Spec-Router-SpecPromptCompiler-v1",
       "worktree_dir": "../wt-WP-1-Spec-Router-SpecPromptCompiler-v1",
       "timestamp": "2026-02-27T11:05:31.571Z"
+    },
+    {
+      "wpId": "WP-1-ModelSession-Core-Scheduler-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-ModelSession-Core-Scheduler-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.139.md",
+      "spec_target_sha1": "0a5a9069bf8e06654ddf9b647927c2cb8a30aa6f",
+      "timestamp": "2026-03-01T19:31:25.779Z",
+      "turn_token": "1772393485780"
+    },
+    {
+      "wpId": "WP-1-ModelSession-Core-Scheduler-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja010320262103",
+      "timestamp": "2026-03-01T20:03:44.250Z",
+      "refinement_path": ".GOV/refinements/WP-1-ModelSession-Core-Scheduler-v1.md"
+    },
+    {
+      "wpId": "WP-1-ModelSession-Core-Scheduler-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-ModelSession-Core-Scheduler-v1",
+      "worktree_dir": "../wt-WP-1-ModelSession-Core-Scheduler-v1",
+      "timestamp": "2026-03-01T20:04:02.630Z"
     }
   ]
 }
