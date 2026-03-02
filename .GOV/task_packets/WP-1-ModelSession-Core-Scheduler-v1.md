@@ -515,3 +515,42 @@ git revert <commit-sha>
     - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_session_scheduler_tests` (optional confidence): PASS (exit 0; 4 passed)
   - BASELINE_CLASSIFICATION:
     - `validator-scan` remains a baseline/non-WP blocker in this re-audit context; no new blocking regression was introduced by remediation commit `31b722a84382ac66f315e9177c0e0699fdce6fa3`.
+- 2026-03-01T22:50:05Z | Validator: Codex (GPT-5) | Branch: `feat/WP-1-ModelSession-Core-Scheduler-v1` | Worktree: `wt-WP-1-ModelSession-Core-Scheduler-v1` | HEAD: `d6174a5`
+  - SUPERSESSION: This report supersedes the prior validator report at `2026-03-01T21:19:44Z` (PASS). Reason: Spec-anchor conformance audit against Handshake_Master_Spec_v02.139.md identified unmet MUST requirements not captured by DONE_MEANS-only evaluation.
+  - VERDICT: **FAIL**
+  - MERGE_BLOCKED: **YES**
+  - VALIDATION_CLAIMS:
+    - GATES_PASS (deterministic manifest gate: `just post-work WP-1-ModelSession-Core-Scheduler-v1`; not tests): PASS
+    - TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): FAIL (validator-scan exit 1)
+    - SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): NO
+  - SPEC_TARGET_RESOLVED: Handshake_Master_Spec_v02.139.md
+  - FILES_CHECKED:
+    - .GOV/task_packets/WP-1-ModelSession-Core-Scheduler-v1.md
+    - .GOV/refinements/WP-1-ModelSession-Core-Scheduler-v1.md
+    - Handshake_Master_Spec_v02.139.md (4.3.9.12, 4.3.9.13, 7.2.0.5)
+    - src/backend/handshake_core/src/workflows.rs
+    - src/backend/handshake_core/src/storage/mod.rs
+    - src/backend/handshake_core/src/storage/sqlite.rs
+    - src/backend/handshake_core/src/storage/postgres.rs
+    - src/backend/handshake_core/src/flight_recorder/mod.rs
+    - src/backend/handshake_core/src/flight_recorder/duckdb.rs
+  - COMMAND_MATRIX:
+    - `just hard-gate-wt-001`: PASS (exit 0)
+    - `just gov-check`: PASS (exit 0)
+    - `just pre-work WP-1-ModelSession-Core-Scheduler-v1`: PASS (exit 0)
+    - `just validator-spec-regression`: PASS (exit 0)
+    - `just validator-dal-audit`: PASS (exit 0)
+    - `just validator-scan`: FAIL (exit 1; global/out-of-scope findings in spec_router/* and placeholder token usage)
+    - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_session_scheduler_tests`: PASS (exit 0; 4 passed)
+    - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` (with `CARGO_BUILD_JOBS=1`): PASS (exit 0)
+    - `just cargo-clean`: PASS (exit 0)
+    - `just post-work WP-1-ModelSession-Core-Scheduler-v1 --range 6e763ff05dbc7e52c75eaf83ee37a3168da7d1ac..HEAD`: PASS (exit 0; warning only for new-file preimage at merge base)
+  - BLOCKING_FINDINGS (SPEC_NONCONFORMANCE):
+    - SPEC 7.2.0.5 (Session Registry): The spec requires a `SessionRegistry` runtime authority (MUST) and a `MultiModelSession` primitive with `active_sessions` + `scheduler_config` (Handshake_Master_Spec_v02.139.md:29874-29893). There is no `SessionRegistry`, `MultiModelSession`, or `active_sessions` symbol anywhere under `src/` (rg returned 0 matches).
+    - SPEC 4.3.9.13 INV-SCHED-003 (Rate limiting algorithm): Spec requires token-bucket or sliding-window rate limiting with deterministic backoff and logging (Handshake_Master_Spec_v02.139.md:31252). Implementation compares `running.len()` to `rate_limit_requests_per_minute` (not requests-per-minute) and sums token budgets without any window/bucket semantics (`model_run_dispatch_limit_reason`, src/backend/handshake_core/src/workflows.rs:2441-2462). Backoff is a fixed constant (`backoff_ms = 1_000_u64`, src/backend/handshake_core/src/workflows.rs:2612-2623).
+    - SPEC 4.3.9.13.5 (FR event types/payload): Spec defines event_type strings using dot notation (e.g., `session_scheduler.rate_limited`) and requires a `provider` field for FR-EVT-SESS-SCHED-003 payload (Handshake_Master_Spec_v02.139.md:31268-31274). Implementation uses underscore event_type strings (`FlightRecorderEventType::SessionSchedulerRateLimited` displays as `session_scheduler_rate_limited`, src/backend/handshake_core/src/flight_recorder/mod.rs:329-334) and emits FR-EVT-SESS-SCHED-003 payload without `provider` (`emit_session_scheduler_rate_limited_event`, src/backend/handshake_core/src/workflows.rs:2258-2291; payload validator `validate_session_scheduler_rate_limited_payload` does not require `provider`, src/backend/handshake_core/src/flight_recorder/mod.rs:4079-4103).
+    - SPEC 4.3.9.13.2 (ModelRunJob defaults): Spec defines defaults for core job fields (priority default 50; max_retries default 3; retry_backoff default EXPONENTIAL; timeout_ms default 120000) (Handshake_Master_Spec_v02.139.md:31223-31230). Implementation defaults differ (priority 100 via `model_run_priority_for_sort` and `parse_model_run_metadata`, src/backend/handshake_core/src/workflows.rs:2156-2158 and :560-566; max_retries 0 at :568; retry_backoff default `fixed` at :544-546; timeout_ms 60000 at :565).
+    - SPEC 4.3.9.12.3 (SessionMessage schema): Spec defines additional required SessionMessage fields (token_count, redacted, tool_call_id, attachments) (Handshake_Master_Spec_v02.139.md:31113-31124). Implementation storage struct/table omit these fields (src/backend/handshake_core/src/storage/mod.rs:1306-1313; schema creation in sqlite.rs:382-404 and postgres.rs:107-129).
+    - SPEC 4.3.9.12 INV-SESS-004 (memory_policy immutability): Spec requires memory_policy declared at creation and MUST NOT change mid-session (Handshake_Master_Spec_v02.139.md:31131). upsert_model_session writes memory_policy on conflict updates (sqlite upsert updates `memory_policy = excluded.memory_policy`, src/backend/handshake_core/src/storage/sqlite.rs:4019-4024; postgres upsert updates `memory_policy = excluded.memory_policy`, src/backend/handshake_core/src/storage/postgres.rs:3428-3434).
+  - NON_BLOCKING_NOTES:
+    - IN_SCOPE_PATHS lists migration files that do not exist (`src/backend/handshake_core/migrations/0012_model_sessions*.sql`). Current implementation creates `model_sessions`/`session_messages` tables at runtime via `ensure_model_session_schema` (sqlite.rs:342-405; postgres.rs:67-129). Consider aligning packet IN_SCOPE_PATHS with actual delivered artifacts.
