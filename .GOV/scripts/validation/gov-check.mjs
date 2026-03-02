@@ -25,6 +25,7 @@ process.chdir(repoRoot);
 await import("../spec-current-check.mjs");
 await import("./atelier_role_registry_check.mjs");
 await import("./task-board-check.mjs");
+await import("./build-order-check.mjs");
 await import("./task-packet-claim-check.mjs");
 await import("./wp-activation-traceability-check.mjs");
 await import("./worktree-concurrency-check.mjs");

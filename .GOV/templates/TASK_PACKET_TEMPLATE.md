@@ -29,6 +29,11 @@ Requirements:
 - CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
 - **Status:** Ready for Dev
 - RISK_TIER: LOW | MEDIUM | HIGH
+- BUILD_ORDER_DOMAIN: <pending> (BACKEND | FRONTEND | GOV | CROSS_BOUNDARY)
+- BUILD_ORDER_TECH_BLOCKER: <pending> (YES | NO) (YES => unblocks multiple downstream WPs)
+- BUILD_ORDER_VALUE_TIER: <pending> (LOW | MEDIUM | HIGH) (spec-defined Phase 1 impact)
+- BUILD_ORDER_DEPENDS_ON: <pending> (comma-separated Base WP IDs | NONE) (use Base IDs, no `-vN`)
+- BUILD_ORDER_BLOCKS: <pending> (comma-separated Base WP IDs | NONE) (use Base IDs, no `-vN`)
 - USER_SIGNATURE: {{USER_SIGNATURE}}
 - PACKET_FORMAT_VERSION: 2026-02-01
 
