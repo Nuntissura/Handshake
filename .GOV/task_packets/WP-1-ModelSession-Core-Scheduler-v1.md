@@ -706,3 +706,99 @@ SKELETON APPROVED
     - SPEC 4.3.9.12 INV-SESS-004 (memory_policy immutability): Spec requires memory_policy declared at creation and MUST NOT change mid-session (Handshake_Master_Spec_v02.139.md:31131). upsert_model_session writes memory_policy on conflict updates (sqlite upsert updates `memory_policy = excluded.memory_policy`, src/backend/handshake_core/src/storage/sqlite.rs:4019-4024; postgres upsert updates `memory_policy = excluded.memory_policy`, src/backend/handshake_core/src/storage/postgres.rs:3428-3434).
   - NON_BLOCKING_NOTES:
     - IN_SCOPE_PATHS lists migration files that do not exist (`src/backend/handshake_core/migrations/0012_model_sessions*.sql`). Current implementation creates `model_sessions`/`session_messages` tables at runtime via `ensure_model_session_schema` (sqlite.rs:342-405; postgres.rs:67-129). Consider aligning packet IN_SCOPE_PATHS with actual delivered artifacts.
+
+- 2026-03-02T05:56:53Z | Validator: Codex (GPT-5) | Branch: `feat/WP-1-ModelSession-Core-Scheduler-v1` | Worktree: `wt-WP-1-ModelSession-Core-Scheduler-v1` | HEAD: `ad26804`
+  - SUPERSESSION: This report evaluates remediation commits `4cfc2bb` (skeleton), `f6db7e7` (implementation), `ad26804` (packet update). It supersedes the prior SPEC_NONCONFORMANCE finding set (SessionRegistry/rate limiting/FR/provider/defaults/SessionMessage/memory_policy) from `2026-03-01T22:50:05Z`.
+  - VERDICT: **FAIL**
+  - MERGE_BLOCKED: **YES**
+  - VALIDATION_CLAIMS:
+    - GATES_PASS (deterministic manifest gate: `just post-work WP-1-ModelSession-Core-Scheduler-v1`; not tests): PASS
+    - TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): FAIL (`just validator-scan` exit 1; findings remain)
+    - SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+  - SPEC_TARGET_RESOLVED: Handshake_Master_Spec_v02.139.md
+  - CODE_RANGE_VALIDATED: `6e763ff05dbc7e52c75eaf83ee37a3168da7d1ac..ad2680470542495edc092f43e8c81c33ddbbdf54`
+  - FILES_CHECKED:
+    - .GOV/task_packets/WP-1-ModelSession-Core-Scheduler-v1.md
+    - .GOV/refinements/WP-1-ModelSession-Core-Scheduler-v1.md
+    - Handshake_Master_Spec_v02.139.md (4.3.9.12, 4.3.9.13, 7.2.0.5)
+    - src/backend/handshake_core/src/lib.rs
+    - src/backend/handshake_core/src/main.rs
+    - src/backend/handshake_core/src/workflows.rs
+    - src/backend/handshake_core/src/storage/mod.rs
+    - src/backend/handshake_core/src/storage/sqlite.rs
+    - src/backend/handshake_core/src/storage/postgres.rs
+    - src/backend/handshake_core/src/flight_recorder/mod.rs
+    - src/backend/handshake_core/src/flight_recorder/duckdb.rs
+    - src/backend/handshake_core/tests/model_session_scheduler_tests.rs
+    - src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs (validator-scan finding context: cfg(test) expect)
+    - src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs (validator-scan finding context: placeholder domain model)
+  - COMMAND_MATRIX:
+    - `just hard-gate-wt-001`: PASS (exit 0)
+    - `just pre-work WP-1-ModelSession-Core-Scheduler-v1`: PASS (exit 0)
+    - `just gov-check`: PASS (exit 0)
+    - `just validator-scan`: FAIL (exit 1; findings in `spec_router/*` and a `workflows.rs` string match)
+    - `just validator-dal-audit`: PASS (exit 0)
+    - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_session_scheduler_tests`: PASS (exit 0; 5 passed)
+    - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` (with `CARGO_BUILD_JOBS=1`): PASS (exit 0)
+    - `just cargo-clean`: PASS (exit 0)
+    - `just post-work WP-1-ModelSession-Core-Scheduler-v1 --range 6e763ff05dbc7e52c75eaf83ee37a3168da7d1ac..HEAD`: PASS (exit 0; warning only for new-file preimage at merge base)
+  - SPEC_ANCHOR_CONFORMANCE (EVIDENCE):
+    - SPEC 7.2.0.5 (SessionRegistry + MultiModelSession runtime primitives): Implemented `SessionRegistry` and `MultiModelSession` with `active_sessions` and `scheduler_config` in `src/backend/handshake_core/src/workflows.rs:367-522`; wired into `AppState.session_registry` (`src/backend/handshake_core/src/lib.rs:32-39`) and constructed in `src/backend/handshake_core/src/main.rs:55` and API state constructors. Scheduler dispatch gate uses registry reads (`model_run_dispatch_gate`, `src/backend/handshake_core/src/workflows.rs:2949-3041`).
+    - SPEC 4.3.9.13 INV-SCHED-003 (Rate limiting): Implemented per-provider token-bucket limiter with deterministic `backoff_ms` and a guaranteed re-kick after backoff (`ProviderRateLimiter` and token bucket logic `src/backend/handshake_core/src/workflows.rs:541-706`; dispatch loop backoff scheduling at `src/backend/handshake_core/src/workflows.rs:3169-3195`).
+    - SPEC 4.3.9.13.5 (FR scheduler event types/payload): Event types switched to dot notation (Display mapping `src/backend/handshake_core/src/flight_recorder/mod.rs:323-334`); emitted payload `type` is dot notation and rate limited payload includes `provider` (`emit_session_scheduler_rate_limited_event`, `src/backend/handshake_core/src/workflows.rs:2748-2784`); payload validator requires `provider` (`src/backend/handshake_core/src/flight_recorder/mod.rs:4079-4106`); DuckDB event type mapping supports dot notation (`src/backend/handshake_core/src/flight_recorder/duckdb.rs:901`).
+    - SPEC 4.3.9.13.2 + 4.3.9.13.3 (Defaults): `SessionSchedulerConfig::default()` matches spec defaults (8/4/2) (`src/backend/handshake_core/src/workflows.rs:263-274`); `parse_model_run_metadata` defaults match spec (priority 50, max_retries 3, retry_backoff exponential, timeout_ms 120000) (`src/backend/handshake_core/src/workflows.rs:1030-1078`).
+    - SPEC 4.3.9.12.3 (SessionMessage schema): SessionMessage struct includes token_count/redacted/tool_call_id/attachments (`src/backend/handshake_core/src/storage/mod.rs:1306-1330`); SQLite schema includes fields + deterministic upgrade path via PRAGMA introspection and ALTER TABLE (`src/backend/handshake_core/src/storage/sqlite.rs:382-431`); similar expansion performed for Postgres.
+    - SPEC 4.3.9.12 INV-SESS-004 (memory_policy immutability): upsert_model_session no longer updates memory_policy on conflict; enforces equality or returns validation error (SQLite: `src/backend/handshake_core/src/storage/sqlite.rs:4054-4136`; Postgres: analogous enforcement in `src/backend/handshake_core/src/storage/postgres.rs`); covered by test `model_session_memory_policy_is_immutable` (`src/backend/handshake_core/tests/model_session_scheduler_tests.rs`).
+  - BLOCKING_FINDINGS:
+    - TEST_PLAN command `just validator-scan` fails (exit 1) and no explicit waiver is recorded under `## WAIVERS GRANTED`. Findings include:
+      - `expect(` occurrences inside `#[cfg(test)]` module in `src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs`.
+      - `placeholder` string matches in `src/backend/handshake_core/src/spec_router/spec_prompt_*` and `src/backend/handshake_core/src/workflows.rs` (scan rule is string-based and does not distinguish domain terms).
+    - Absent user waiver for this required check, verdict must remain FAIL per Validator protocol.
+
+- 2026-03-02T05:56:53Z | Validator: Codex (GPT-5) | Branch: `feat/WP-1-ModelSession-Core-Scheduler-v1` | Worktree: `wt-WP-1-ModelSession-Core-Scheduler-v1` | HEAD: `ad26804`
+  - SUPERSESSION: This report evaluates remediation commits `4cfc2bb` (skeleton), `f6db7e7` (implementation), `ad26804` (packet update). It supersedes the prior SPEC_NONCONFORMANCE finding set (SessionRegistry/rate limiting/FR/provider/defaults/SessionMessage/memory_policy) from `2026-03-01T22:50:05Z`.
+  - VERDICT: **FAIL**
+  - MERGE_BLOCKED: **YES**
+  - VALIDATION_CLAIMS:
+    - GATES_PASS (deterministic manifest gate: `just post-work WP-1-ModelSession-Core-Scheduler-v1`; not tests): PASS
+    - TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): FAIL (`just validator-scan` exit 1; findings remain)
+    - SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+  - SPEC_TARGET_RESOLVED: Handshake_Master_Spec_v02.139.md
+  - CODE_RANGE_VALIDATED: `6e763ff05dbc7e52c75eaf83ee37a3168da7d1ac..ad2680470542495edc092f43e8c81c33ddbbdf54`
+  - FILES_CHECKED:
+    - .GOV/task_packets/WP-1-ModelSession-Core-Scheduler-v1.md
+    - .GOV/refinements/WP-1-ModelSession-Core-Scheduler-v1.md
+    - Handshake_Master_Spec_v02.139.md (4.3.9.12, 4.3.9.13, 7.2.0.5)
+    - src/backend/handshake_core/src/lib.rs
+    - src/backend/handshake_core/src/main.rs
+    - src/backend/handshake_core/src/workflows.rs
+    - src/backend/handshake_core/src/storage/mod.rs
+    - src/backend/handshake_core/src/storage/sqlite.rs
+    - src/backend/handshake_core/src/storage/postgres.rs
+    - src/backend/handshake_core/src/flight_recorder/mod.rs
+    - src/backend/handshake_core/src/flight_recorder/duckdb.rs
+    - src/backend/handshake_core/tests/model_session_scheduler_tests.rs
+    - src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs (validator-scan finding context: cfg(test) expect)
+    - src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs (validator-scan finding context: placeholder domain model)
+  - COMMAND_MATRIX:
+    - `just hard-gate-wt-001`: PASS (exit 0)
+    - `just pre-work WP-1-ModelSession-Core-Scheduler-v1`: PASS (exit 0)
+    - `just gov-check`: PASS (exit 0)
+    - `just validator-scan`: FAIL (exit 1; findings in `spec_router/*` and a `workflows.rs` string match)
+    - `just validator-dal-audit`: PASS (exit 0)
+    - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_session_scheduler_tests`: PASS (exit 0; 5 passed)
+    - `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` (with `CARGO_BUILD_JOBS=1`): PASS (exit 0)
+    - `just cargo-clean`: PASS (exit 0)
+    - `just post-work WP-1-ModelSession-Core-Scheduler-v1 --range 6e763ff05dbc7e52c75eaf83ee37a3168da7d1ac..HEAD`: PASS (exit 0; warning only for new-file preimage at merge base)
+  - SPEC_ANCHOR_CONFORMANCE (EVIDENCE):
+    - SPEC 7.2.0.5 (SessionRegistry + MultiModelSession runtime primitives): Implemented `SessionRegistry` and `MultiModelSession` with `active_sessions` and `scheduler_config` in `src/backend/handshake_core/src/workflows.rs:367-522`; wired into `AppState.session_registry` (`src/backend/handshake_core/src/lib.rs:32-39`) and constructed in `src/backend/handshake_core/src/main.rs:55` and API state constructors. Scheduler dispatch gate uses registry reads (`model_run_dispatch_gate`, `src/backend/handshake_core/src/workflows.rs:2949-3041`).
+    - SPEC 4.3.9.13 INV-SCHED-003 (Rate limiting): Implemented per-provider token-bucket limiter with deterministic `backoff_ms` and a guaranteed re-kick after backoff (`ProviderRateLimiter` and token bucket logic `src/backend/handshake_core/src/workflows.rs:541-706`; dispatch loop backoff scheduling at `src/backend/handshake_core/src/workflows.rs:3169-3195`).
+    - SPEC 4.3.9.13.5 (FR scheduler event types/payload): Event types switched to dot notation (Display mapping `src/backend/handshake_core/src/flight_recorder/mod.rs:323-334`); emitted payload `type` is dot notation and rate limited payload includes `provider` (`emit_session_scheduler_rate_limited_event`, `src/backend/handshake_core/src/workflows.rs:2748-2784`); payload validator requires `provider` (`src/backend/handshake_core/src/flight_recorder/mod.rs:4079-4106`); DuckDB event type mapping supports dot notation (`src/backend/handshake_core/src/flight_recorder/duckdb.rs:901`).
+    - SPEC 4.3.9.13.2 + 4.3.9.13.3 (Defaults): `SessionSchedulerConfig::default()` matches spec defaults (8/4/2) (`src/backend/handshake_core/src/workflows.rs:263-274`); `parse_model_run_metadata` defaults match spec (priority 50, max_retries 3, retry_backoff exponential, timeout_ms 120000) (`src/backend/handshake_core/src/workflows.rs:1030-1078`).
+    - SPEC 4.3.9.12.3 (SessionMessage schema): SessionMessage struct includes token_count/redacted/tool_call_id/attachments (`src/backend/handshake_core/src/storage/mod.rs:1306-1330`); SQLite schema includes fields + deterministic upgrade path via PRAGMA introspection and ALTER TABLE (`src/backend/handshake_core/src/storage/sqlite.rs:382-431`); similar expansion performed for Postgres.
+    - SPEC 4.3.9.12 INV-SESS-004 (memory_policy immutability): upsert_model_session no longer updates memory_policy on conflict; enforces equality or returns validation error (SQLite: `src/backend/handshake_core/src/storage/sqlite.rs:4054-4136`; Postgres: analogous enforcement in `src/backend/handshake_core/src/storage/postgres.rs`); covered by test `model_session_memory_policy_is_immutable` (`src/backend/handshake_core/tests/model_session_scheduler_tests.rs`).
+  - BLOCKING_FINDINGS:
+    - TEST_PLAN command `just validator-scan` fails (exit 1) and no explicit waiver is recorded under `## WAIVERS GRANTED`. Findings include:
+      - `expect(` occurrences inside `#[cfg(test)]` module in `src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs`.
+      - `placeholder` string matches in `src/backend/handshake_core/src/spec_router/spec_prompt_*` and `src/backend/handshake_core/src/workflows.rs` (scan rule is string-based and does not distinguish domain terms).
+    - Absent user waiver for this required check, verdict must remain FAIL per Validator protocol.
