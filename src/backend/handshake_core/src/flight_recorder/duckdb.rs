@@ -892,16 +892,16 @@ impl DuckDbFlightRecorder {
                 "loom_ai_tag_rejected" => super::FlightRecorderEventType::LoomAiTagRejected,
                 "loom_view_queried" => super::FlightRecorderEventType::LoomViewQueried,
                 "loom_search_executed" => super::FlightRecorderEventType::LoomSearchExecuted,
-                "session_scheduler_enqueue" => {
+                "session_scheduler.enqueue" | "session_scheduler_enqueue" => {
                     super::FlightRecorderEventType::SessionSchedulerEnqueue
                 }
-                "session_scheduler_dispatch" => {
+                "session_scheduler.dispatch" | "session_scheduler_dispatch" => {
                     super::FlightRecorderEventType::SessionSchedulerDispatch
                 }
-                "session_scheduler_rate_limited" => {
+                "session_scheduler.rate_limited" | "session_scheduler_rate_limited" => {
                     super::FlightRecorderEventType::SessionSchedulerRateLimited
                 }
-                "session_scheduler_cancelled" => {
+                "session_scheduler.cancelled" | "session_scheduler_cancelled" => {
                     super::FlightRecorderEventType::SessionSchedulerCancelled
                 }
                 "capability_action" => {

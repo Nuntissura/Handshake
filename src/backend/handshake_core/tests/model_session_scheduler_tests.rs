@@ -14,9 +14,11 @@ use handshake_core::llm::{
 };
 use handshake_core::storage::{
     sqlite::SqliteDatabase, AccessMode, AiJob, Database, JobKind, JobMetrics, JobState,
-    ModelSessionState, NewAiJob, SafetyMode, SessionMessageRole,
+    ModelSessionState, NewAiJob, NewModelSession, SafetyMode, SessionMessageRole, StorageError,
 };
-use handshake_core::workflows::{cancel_model_run_job, start_workflow_for_job};
+use handshake_core::workflows::{
+    cancel_model_run_job, start_workflow_for_job, SessionRegistry, SessionSchedulerConfig,
+};
 use handshake_core::AppState;
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -65,6 +67,7 @@ async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
         diagnostics: flight_recorder,
         llm_client,
         capability_registry: Arc::new(CapabilityRegistry::new()),
+        session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
     })
 }
 
@@ -155,7 +158,7 @@ fn model_run_priority(job: &AiJob) -> i64 {
         .as_ref()
         .and_then(|inputs| inputs.get("priority"))
         .and_then(Value::as_i64)
-        .unwrap_or(100)
+        .unwrap_or(50)
 }
 
 #[tokio::test]
@@ -282,6 +285,7 @@ async fn model_run_scheduler_queues_not_drop_and_dispatch_is_deterministic(
             "lane": "PRIMARY",
             "priority": 1,
             "prompt": "second",
+            "simulate_duration_ms": 300,
             "model_id": "model-session-test",
             "backend": "local-test"
         }),
@@ -467,7 +471,7 @@ fn session_scheduler_event_payloads_are_validated() {
         (
             FlightRecorderEventType::SessionSchedulerEnqueue,
             json!({
-                "type": "session_scheduler_enqueue",
+                "type": "session_scheduler.enqueue",
                 "event_id": "FR-EVT-SESS-SCHED-001",
                 "session_id": "sess-1",
                 "job_id": Uuid::new_v4().to_string(),
@@ -477,15 +481,15 @@ fn session_scheduler_event_payloads_are_validated() {
                 "concurrency_group": Value::Null,
                 "queue_depth": 0,
                 "attempt": 0,
-                "max_retries": 0,
-                "retry_backoff": "fixed",
+                "max_retries": 3,
+                "retry_backoff": "exponential",
                 "cancellation_token": Value::Null
             }),
         ),
         (
             FlightRecorderEventType::SessionSchedulerDispatch,
             json!({
-                "type": "session_scheduler_dispatch",
+                "type": "session_scheduler.dispatch",
                 "event_id": "FR-EVT-SESS-SCHED-002",
                 "session_id": "sess-2",
                 "job_id": Uuid::new_v4().to_string(),
@@ -500,10 +504,11 @@ fn session_scheduler_event_payloads_are_validated() {
         (
             FlightRecorderEventType::SessionSchedulerRateLimited,
             json!({
-                "type": "session_scheduler_rate_limited",
+                "type": "session_scheduler.rate_limited",
                 "event_id": "FR-EVT-SESS-SCHED-003",
                 "session_id": "sess-3",
                 "job_id": Uuid::new_v4().to_string(),
+                "provider": "local-test",
                 "job_kind": "model_run",
                 "lane": "PRIMARY",
                 "priority": 2,
@@ -517,7 +522,7 @@ fn session_scheduler_event_payloads_are_validated() {
         (
             FlightRecorderEventType::SessionSchedulerCancelled,
             json!({
-                "type": "session_scheduler_cancelled",
+                "type": "session_scheduler.cancelled",
                 "event_id": "FR-EVT-SESS-SCHED-004",
                 "session_id": "sess-4",
                 "job_id": Uuid::new_v4().to_string(),
@@ -547,7 +552,7 @@ fn session_scheduler_event_payloads_are_validated() {
         FlightRecorderActor::System,
         trace_id,
         json!({
-            "type": "session_scheduler_enqueue",
+            "type": "session_scheduler.enqueue",
             "event_id": "FR-EVT-SESS-SCHED-001",
             "session_id": "sess-inline",
             "job_id": Uuid::new_v4().to_string(),
@@ -564,4 +569,65 @@ fn session_scheduler_event_payloads_are_validated() {
         }),
     );
     assert!(invalid_inline_content.validate().is_err());
+}
+
+#[tokio::test]
+async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::error::Error>> {
+    let state = setup_state().await?;
+    let session_id = format!("sess-{}", Uuid::new_v4());
+
+    let created = state
+        .storage
+        .upsert_model_session(NewModelSession {
+            session_id: session_id.clone(),
+            parent_session_id: None,
+            spawn_depth: 0,
+            state: ModelSessionState::Created,
+            model_id: "model-session-test".to_string(),
+            backend: "local-test".to_string(),
+            parameter_class: "default".to_string(),
+            role: "assistant".to_string(),
+            wp_id: None,
+            mt_id: None,
+            work_profile_id: None,
+            execution_mode: "default".to_string(),
+            memory_policy: "full".to_string(),
+            consent_receipt_id: None,
+            capability_grants: Vec::new(),
+            capability_token_ids: None,
+            job_id: Some(Uuid::new_v4()),
+        })
+        .await?;
+    assert_eq!(created.memory_policy, "full");
+
+    let err = state
+        .storage
+        .upsert_model_session(NewModelSession {
+            session_id: session_id.clone(),
+            parent_session_id: None,
+            spawn_depth: 0,
+            state: ModelSessionState::Created,
+            model_id: "model-session-test".to_string(),
+            backend: "local-test".to_string(),
+            parameter_class: "default".to_string(),
+            role: "assistant".to_string(),
+            wp_id: None,
+            mt_id: None,
+            work_profile_id: None,
+            execution_mode: "default".to_string(),
+            memory_policy: "none".to_string(),
+            consent_receipt_id: None,
+            capability_grants: Vec::new(),
+            capability_token_ids: None,
+            job_id: Some(Uuid::new_v4()),
+        })
+        .await
+        .expect_err("expected immutability violation");
+
+    assert!(matches!(
+        err,
+        StorageError::Validation(msg) if msg.contains("memory_policy")
+    ));
+
+    Ok(())
 }

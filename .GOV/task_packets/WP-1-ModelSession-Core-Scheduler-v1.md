@@ -1,4 +1,4 @@
-# Task Packet: WP-1-ModelSession-Core-Scheduler-v1
+﻿# Task Packet: WP-1-ModelSession-Core-Scheduler-v1
 
 ## METADATA
 - TASK_ID: WP-1-ModelSession-Core-Scheduler-v1
@@ -48,9 +48,13 @@
   - .GOV/validator_gates/WP-1-ModelSession-Core-Scheduler-v1.json
   - .GOV/roles_shared/TASK_BOARD.md
   - .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
+  - src/backend/handshake_core/src/lib.rs
+  - src/backend/handshake_core/src/main.rs
   - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/src/jobs.rs
   - src/backend/handshake_core/src/api/jobs.rs
+  - src/backend/handshake_core/src/api/workspaces.rs
+  - src/backend/handshake_core/src/api/loom.rs
   - src/backend/handshake_core/src/storage/mod.rs
   - src/backend/handshake_core/src/storage/sqlite.rs
   - src/backend/handshake_core/src/storage/postgres.rs
@@ -58,6 +62,7 @@
   - src/backend/handshake_core/src/flight_recorder/duckdb.rs
   - src/backend/handshake_core/migrations/0012_model_sessions.sql
   - src/backend/handshake_core/migrations/0012_model_sessions.down.sql
+  - src/backend/handshake_core/tests/micro_task_executor_tests.rs
   - src/backend/handshake_core/tests/model_session_scheduler_tests.rs
 - OUT_OF_SCOPE:
   - Session spawn lifecycle contract (tracked in `WP-1-Session-Spawn-Contract-v1`).
@@ -239,6 +244,8 @@ git revert <commit-sha>
   - This packet is a dependency unlocker for session spawn, session safety, session observability, and multi-model lifecycle telemetry packets.
   - Coder must keep this packet focused on baseline foundations; downstream session feature packets should not be absorbed here.
 
+SKELETON APPROVED
+
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
 - TRUST_BOUNDARY: client->server->storage->flight_recorder
@@ -312,12 +319,12 @@ git revert <commit-sha>
 
 ## VALIDATION
 - (Mechanical manifest for audit. Records deterministic file-integrity metadata for changed non-`.GOV/` files in range `6e763ff05dbc7e52c75eaf83ee37a3168da7d1ac..HEAD`.)
-- **Target File**: `src/backend/handshake_core/src/api/jobs.rs`
+- **Target File**: src/backend/handshake_core/src/api/jobs.rs
 - **Start**: 1
 - **End**: 50000
-- **Line Delta**: 6
-- **Pre-SHA1**: `d4aedc697050b731b5b0a5d4c912013a4972edfd`
-- **Post-SHA1**: `a810d7f5f3e679b83a16f8a1077ba1c76780eea0`
+- **Line Delta**: 9
+- **Pre-SHA1**: d4aedc697050b731b5b0a5d4c912013a4972edfd
+- **Post-SHA1**: 6acdc9e86d8191f9d7c7ca0eca739ea84274cc5e
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -330,12 +337,48 @@ git revert <commit-sha>
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
 
-- **Target File**: `src/backend/handshake_core/src/flight_recorder/duckdb.rs`
+- **Target File**: src/backend/handshake_core/src/api/loom.rs
+- **Start**: 1
+- **End**: 50000
+- **Line Delta**: 3
+- **Pre-SHA1**: 90948ea1547a3cd84480eec1ebfe5769ac97f34c
+- **Post-SHA1**: 519adadab1d666def0d025b301c23d95654d289e
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: src/backend/handshake_core/src/api/workspaces.rs
+- **Start**: 1
+- **End**: 50000
+- **Line Delta**: 3
+- **Pre-SHA1**: 71260615581b0699e5671160bbf3727837dfd08b
+- **Post-SHA1**: bf62feffd229c35c916f9d2459016ec1931ff8df
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: src/backend/handshake_core/src/flight_recorder/duckdb.rs
 - **Start**: 1
 - **End**: 50000
 - **Line Delta**: 12
-- **Pre-SHA1**: `85e545db63261d4227e573346c5273441023f4a3`
-- **Post-SHA1**: `417c897e5ba074ba3bbc6bcd9c0753a283dca268`
+- **Pre-SHA1**: 85e545db63261d4227e573346c5273441023f4a3
+- **Post-SHA1**: b28ae647329979ee53d1285c48d4b49e74d9e9be
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -348,12 +391,12 @@ git revert <commit-sha>
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
 
-- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Target File**: src/backend/handshake_core/src/flight_recorder/mod.rs
 - **Start**: 1
 - **End**: 50000
-- **Line Delta**: 220
-- **Pre-SHA1**: `a0cf5706edd14bae057c6a3b1ae9e44cd3093353`
-- **Post-SHA1**: `7c70b50d4cb4f4919e36f9831f62e9f401160001`
+- **Line Delta**: 222
+- **Pre-SHA1**: a0cf5706edd14bae057c6a3b1ae9e44cd3093353
+- **Post-SHA1**: 12373dd82250732fd97aff658bc0bba68eb27ba9
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -366,12 +409,12 @@ git revert <commit-sha>
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
 
-- **Target File**: `src/backend/handshake_core/src/storage/mod.rs`
+- **Target File**: src/backend/handshake_core/src/lib.rs
 - **Start**: 1
 - **End**: 50000
-- **Line Delta**: 160
-- **Pre-SHA1**: `f94ce4989159248e7e7d0bb8b9f7fe8186ef2285`
-- **Post-SHA1**: `730b15c92db76bd81115be2717f25113db65ab39`
+- **Line Delta**: 1
+- **Pre-SHA1**: cad7ab9b5c4a7f15eaef75f05e9ae3733203411a
+- **Post-SHA1**: 571a60851d121f37fb9ea374bf5f584e66f1564f
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -384,12 +427,12 @@ git revert <commit-sha>
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
 
-- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Target File**: src/backend/handshake_core/src/main.rs
 - **Start**: 1
 - **End**: 50000
-- **Line Delta**: 408
-- **Pre-SHA1**: `d6346c2c953094f5064300b7253d97580d2320c2`
-- **Post-SHA1**: `bd49b55e1ba23d916fe90a2bc891a8082feab4a4`
+- **Line Delta**: 4
+- **Pre-SHA1**: 247af16a370143539bee82a85504bd3b345dacdf
+- **Post-SHA1**: 482bde6009c877135e468eb986d3573014411346
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -402,12 +445,12 @@ git revert <commit-sha>
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
 
-- **Target File**: `src/backend/handshake_core/src/storage/sqlite.rs`
+- **Target File**: src/backend/handshake_core/src/storage/mod.rs
 - **Start**: 1
 - **End**: 50000
-- **Line Delta**: 414
-- **Pre-SHA1**: `6d743f9c8a3910d8eb302957290965dfa1659197`
-- **Post-SHA1**: `8da3f151bf505b04751d681248a5d66a76d697e3`
+- **Line Delta**: 168
+- **Pre-SHA1**: f94ce4989159248e7e7d0bb8b9f7fe8186ef2285
+- **Post-SHA1**: d3bd36e9887c98c6b95e584ec953896945b7ba56
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -420,12 +463,12 @@ git revert <commit-sha>
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
 
-- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Target File**: src/backend/handshake_core/src/storage/postgres.rs
 - **Start**: 1
 - **End**: 50000
-- **Line Delta**: 1031
-- **Pre-SHA1**: `6686cc63d670dc44966a2dc066e4ac2142fd5be8`
-- **Post-SHA1**: `c06ca5d702c0f2956dd627abf37b013f280964be`
+- **Line Delta**: 479
+- **Pre-SHA1**: d6346c2c953094f5064300b7253d97580d2320c2
+- **Post-SHA1**: 17bea48df8b40497e40be4bf65d2883f52939892
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -438,12 +481,12 @@ git revert <commit-sha>
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
 
-- **Target File**: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs`
+- **Target File**: src/backend/handshake_core/src/storage/sqlite.rs
 - **Start**: 1
 - **End**: 50000
-- **Line Delta**: 567
-- **Pre-SHA1**: `0000000000000000000000000000000000000000`
-- **Post-SHA1**: `7a44f26a43a03faf47753ecc576cb23f4b73a856`
+- **Line Delta**: 498
+- **Pre-SHA1**: 6d743f9c8a3910d8eb302957290965dfa1659197
+- **Post-SHA1**: a6ddca565a90bf8d70c7e8b94252b76b8568219e
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -455,6 +498,61 @@ git revert <commit-sha>
   - [x] all_links_resolvable
   - [x] manifest_written_and_path_returned
   - [x] current_file_matches_preimage
+
+- **Target File**: src/backend/handshake_core/src/workflows.rs
+- **Start**: 1
+- **End**: 50000
+- **Line Delta**: 1612
+- **Pre-SHA1**: 6686cc63d670dc44966a2dc066e4ac2142fd5be8
+- **Post-SHA1**: fee6ab73ce755f3c72a4e330600c58760e399a93
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: src/backend/handshake_core/tests/micro_task_executor_tests.rs
+- **Start**: 1
+- **End**: 50000
+- **Line Delta**: 3
+- **Pre-SHA1**: c98ec5ca6fc6bf60162e5d5f2aba118d2d5a853d
+- **Post-SHA1**: d43a5ac06891272e54a83f7bb21c0d535b71058a
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
+- **Target File**: src/backend/handshake_core/tests/model_session_scheduler_tests.rs
+- **Start**: 1
+- **End**: 50000
+- **Line Delta**: 633
+- **Pre-SHA1**: 0000000000000000000000000000000000000000
+- **Post-SHA1**: 259531a4a96a24984d24e6fcaf95ca245146f1e4
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+
 
 ## STATUS_HANDOFF
 - Current WP_STATUS: READY_FOR_VALIDATOR (with known environment/baseline blockers documented).

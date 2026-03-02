@@ -47,7 +47,8 @@ use crate::{
     runtime_governance::RuntimeGovernancePaths,
     storage::{
         validate_job_contract, AiJobListFilter, JobState, JobStatusUpdate, ModelSessionState,
-        NewModelSession, NewNodeExecution, NewSessionMessage, SessionMessageRole, StorageError,
+        ModelSession, NewModelSession, NewNodeExecution, NewSessionMessage, SessionMessageRole,
+        StorageError,
     },
     terminal::{
         config::TerminalConfig,
@@ -80,9 +81,9 @@ use thiserror::Error;
 use tokio::sync::Notify;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
-    sync::{watch, Mutex as TokioMutex},
+    sync::{watch, Mutex as TokioMutex, RwLock},
     task::JoinSet,
-    time::{sleep, Duration},
+    time::{sleep, Duration, Instant},
 };
 use uuid::Uuid;
 
@@ -250,36 +251,57 @@ impl TryFrom<&str> for SessionSchedulerLane {
     }
 }
 
-#[derive(Debug, Clone)]
-struct SessionSchedulerConfig {
-    max_concurrent_sessions_global: usize,
-    max_concurrent_sessions_per_provider: usize,
-    max_concurrent_sessions_per_model: usize,
-    rate_limit_requests_per_minute: Option<u32>,
-    rate_limit_tokens_per_minute: Option<u32>,
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SessionSchedulerConfig {
+    pub max_concurrent_sessions_global: usize,
+    pub max_concurrent_sessions_per_provider: usize,
+    pub max_concurrent_sessions_per_model: usize,
+    pub rate_limit_requests_per_minute: Option<u32>,
+    pub rate_limit_tokens_per_minute: Option<u32>,
+}
+
+impl Default for SessionSchedulerConfig {
+    fn default() -> Self {
+        // SPEC 4.3.9.13.3 defaults
+        Self {
+            max_concurrent_sessions_global: 8,
+            max_concurrent_sessions_per_provider: 4,
+            max_concurrent_sessions_per_model: 2,
+            rate_limit_requests_per_minute: None,
+            rate_limit_tokens_per_minute: None,
+        }
+    }
 }
 
 impl SessionSchedulerConfig {
-    fn from_env() -> Self {
+    pub fn from_env() -> Self {
+        let default = Self::default();
+
         let global = std::env::var("SESSION_SCHED_MAX_CONCURRENT_GLOBAL")
             .ok()
             .and_then(|raw| raw.parse::<usize>().ok())
             .filter(|value| *value > 0)
-            .unwrap_or(1);
+            .unwrap_or(default.max_concurrent_sessions_global);
+
         let per_provider = std::env::var("SESSION_SCHED_MAX_CONCURRENT_PER_PROVIDER")
             .ok()
             .and_then(|raw| raw.parse::<usize>().ok())
             .filter(|value| *value > 0)
-            .unwrap_or(global);
+            .unwrap_or(default.max_concurrent_sessions_per_provider)
+            .min(global);
+
         let per_model = std::env::var("SESSION_SCHED_MAX_CONCURRENT_PER_MODEL")
             .ok()
             .and_then(|raw| raw.parse::<usize>().ok())
             .filter(|value| *value > 0)
-            .unwrap_or(global);
+            .unwrap_or(default.max_concurrent_sessions_per_model)
+            .min(global);
+
         let rpm = std::env::var("SESSION_SCHED_RATE_LIMIT_REQUESTS_PER_MINUTE")
             .ok()
             .and_then(|raw| raw.parse::<u32>().ok())
             .filter(|value| *value > 0);
+
         let tpm = std::env::var("SESSION_SCHED_RATE_LIMIT_TOKENS_PER_MINUTE")
             .ok()
             .and_then(|raw| raw.parse::<u32>().ok())
@@ -295,12 +317,408 @@ impl SessionSchedulerConfig {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RoutingStrategy {
+    RoundRobin,
+    LeastBusy,
+    Affinity,
+    Broadcast,
+    WorkProfileDriven,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RoutingPolicy {
+    pub strategy: RoutingStrategy,
+    pub affinity_key: Option<String>,
+    pub broadcast_max_targets: Option<u32>,
+}
+
+impl Default for RoutingPolicy {
+    fn default() -> Self {
+        Self {
+            // SPEC 7.2.0.5: default routing strategy is work_profile_driven.
+            strategy: RoutingStrategy::WorkProfileDriven,
+            affinity_key: None,
+            broadcast_max_targets: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SpawnLimits {
+    pub max_spawn_depth: i32,
+    pub max_active_children_per_session: i32,
+    pub max_total_active_sessions: i32,
+}
+
+impl SpawnLimits {
+    fn from_scheduler_config(config: &SessionSchedulerConfig) -> Self {
+        // SPEC 4.3.9.15.4 + 4.3.9.13.3
+        Self {
+            max_spawn_depth: 3,
+            max_active_children_per_session: 4,
+            max_total_active_sessions: config.max_concurrent_sessions_global as i32,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiModelSession {
+    pub session_id: String,
+    pub active_sessions: HashMap<String, ModelSession>,
+    pub routing_policy: RoutingPolicy,
+    pub spawn_limits: SpawnLimits,
+    pub scheduler_config: SessionSchedulerConfig,
+    pub last_swap_event: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SessionRegistry {
+    inner: Arc<RwLock<SessionRegistryInner>>,
+}
+
+#[derive(Debug)]
+struct SessionRegistryInner {
+    multi_model_session: MultiModelSession,
+    children_by_parent: HashMap<String, HashSet<String>>,
+    session_id_by_job_id: HashMap<Uuid, String>,
+    rate_limiter: ProviderRateLimiter,
+}
+
+impl SessionRegistry {
+    pub fn new(scheduler_config: SessionSchedulerConfig) -> Self {
+        let spawn_limits = SpawnLimits::from_scheduler_config(&scheduler_config);
+        let routing_policy = RoutingPolicy::default();
+        let multi_model_session = MultiModelSession {
+            session_id: "registry-global".to_string(),
+            active_sessions: HashMap::new(),
+            routing_policy,
+            spawn_limits,
+            scheduler_config: scheduler_config.clone(),
+            last_swap_event: None,
+        };
+        Self {
+            inner: Arc::new(RwLock::new(SessionRegistryInner {
+                multi_model_session,
+                children_by_parent: HashMap::new(),
+                session_id_by_job_id: HashMap::new(),
+                rate_limiter: ProviderRateLimiter::new(
+                    scheduler_config.rate_limit_requests_per_minute,
+                    scheduler_config.rate_limit_tokens_per_minute,
+                ),
+            })),
+        }
+    }
+
+    pub fn new_from_env() -> Self {
+        Self::new(SessionSchedulerConfig::from_env())
+    }
+
+    pub async fn scheduler_config(&self) -> SessionSchedulerConfig {
+        let inner = self.inner.read().await;
+        inner.multi_model_session.scheduler_config.clone()
+    }
+
+    pub async fn set_scheduler_config(&self, config: SessionSchedulerConfig) {
+        let mut inner = self.inner.write().await;
+        inner.multi_model_session.spawn_limits = SpawnLimits::from_scheduler_config(&config);
+        inner.rate_limiter
+            .update_limits(config.rate_limit_requests_per_minute, config.rate_limit_tokens_per_minute);
+        inner.multi_model_session.scheduler_config = config;
+    }
+
+    pub async fn snapshot(&self) -> MultiModelSession {
+        let inner = self.inner.read().await;
+        inner.multi_model_session.clone()
+    }
+
+    pub async fn upsert_session(&self, session: ModelSession) {
+        let mut inner = self.inner.write().await;
+        let session_id = session.session_id.clone();
+
+        // Maintain indices
+        if let Some(job_id) = session.job_id {
+            inner
+                .session_id_by_job_id
+                .insert(job_id, session.session_id.clone());
+        }
+        if let Some(parent) = session.parent_session_id.as_deref() {
+            inner
+                .children_by_parent
+                .entry(parent.to_string())
+                .or_default()
+                .insert(session.session_id.clone());
+        }
+
+        // Track active sessions only (per spec language).
+        if matches!(
+            session.state,
+            ModelSessionState::Completed | ModelSessionState::Failed | ModelSessionState::Cancelled
+        ) {
+            inner.multi_model_session.active_sessions.remove(&session_id);
+        } else {
+            inner
+                .multi_model_session
+                .active_sessions
+                .insert(session_id, session);
+        }
+    }
+
+    pub async fn get_model_session(&self, state: &AppState, session_id: &str) -> Result<ModelSession, StorageError> {
+        if let Some(found) = self
+            .inner
+            .read()
+            .await
+            .multi_model_session
+            .active_sessions
+            .get(session_id)
+            .cloned()
+        {
+            return Ok(found);
+        }
+
+        // Hydrate from storage on cache-miss; registry remains the scheduler/UI read surface.
+        let session = state.storage.get_model_session(session_id).await?;
+        self.upsert_session(session.clone()).await;
+        Ok(session)
+    }
+
+    pub async fn get_model_session_by_job_id(&self, state: &AppState, job_id: Uuid) -> Result<ModelSession, StorageError> {
+        if let Some(session_id) = self.inner.read().await.session_id_by_job_id.get(&job_id).cloned() {
+            if let Some(found) = self
+                .inner
+                .read()
+                .await
+                .multi_model_session
+                .active_sessions
+                .get(&session_id)
+                .cloned()
+            {
+                return Ok(found);
+            }
+        }
+
+        let session = state.storage.get_model_session_by_job_id(job_id).await?;
+        self.upsert_session(session.clone()).await;
+        Ok(session)
+    }
+
+    pub async fn try_acquire_rate_limit(
+        &self,
+        provider: &str,
+        token_budget: u64,
+    ) -> RateLimitOutcome {
+        let mut inner = self.inner.write().await;
+        inner.rate_limiter.try_acquire(provider, token_budget)
+    }
+
+    pub async fn refund_rate_limit(&self, reservation: RateLimitReservation) {
+        let mut inner = self.inner.write().await;
+        inner
+            .rate_limiter
+            .refund(&reservation.provider, reservation.requests, reservation.tokens);
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RateLimitReservation {
+    provider: String,
+    requests: u32,
+    tokens: u64,
+}
+
+#[derive(Debug, Clone)]
+pub enum RateLimitOutcome {
+    Unlimited,
+    Allowed(RateLimitReservation),
+    Denied {
+        reason: String,
+        backoff_ms: u64,
+    },
+}
+
+#[derive(Debug)]
+struct ProviderRateLimiter {
+    rpm: Option<u32>,
+    tpm: Option<u32>,
+    providers: HashMap<String, ProviderBuckets>,
+}
+
+#[derive(Debug)]
+struct ProviderBuckets {
+    requests: Option<TokenBucket>,
+    tokens: Option<TokenBucket>,
+}
+
+impl ProviderRateLimiter {
+    fn new(rpm: Option<u32>, tpm: Option<u32>) -> Self {
+        Self {
+            rpm,
+            tpm,
+            providers: HashMap::new(),
+        }
+    }
+
+    fn update_limits(&mut self, rpm: Option<u32>, tpm: Option<u32>) {
+        if self.rpm != rpm || self.tpm != tpm {
+            // Changing limits mid-run resets bucket state deterministically.
+            self.rpm = rpm;
+            self.tpm = tpm;
+            self.providers.clear();
+        }
+    }
+
+    fn buckets_for_mut(&mut self, provider: &str, now: Instant) -> &mut ProviderBuckets {
+        self.providers.entry(provider.to_string()).or_insert_with(|| ProviderBuckets {
+            requests: self.rpm.map(|rpm| TokenBucket::new(rpm as f64, now)),
+            tokens: self.tpm.map(|tpm| TokenBucket::new(tpm as f64, now)),
+        })
+    }
+
+    fn try_acquire(&mut self, provider: &str, token_budget: u64) -> RateLimitOutcome {
+        if self.rpm.is_none() && self.tpm.is_none() {
+            return RateLimitOutcome::Unlimited;
+        }
+
+        let now = Instant::now();
+        let buckets = self.buckets_for_mut(provider, now);
+
+        // Refill buckets before checking.
+        if let Some(bucket) = buckets.requests.as_mut() {
+            bucket.refill(now);
+        }
+        if let Some(bucket) = buckets.tokens.as_mut() {
+            // Allow large token budgets to accumulate over multiple minutes by expanding capacity.
+            bucket.ensure_capacity(token_budget as f64);
+            bucket.refill(now);
+        }
+
+        let mut backoff_ms = 0_u64;
+        let mut reason = None::<String>;
+
+        if let Some(bucket) = buckets.requests.as_mut() {
+            if bucket.available < 1.0 {
+                backoff_ms = backoff_ms.max(bucket.time_until(1.0));
+                reason = Some("rate_limit_requests_per_minute_queued".to_string());
+            }
+        }
+
+        if let Some(bucket) = buckets.tokens.as_mut() {
+            let required = token_budget.max(0) as f64;
+            if required > 0.0 && bucket.available < required {
+                backoff_ms = backoff_ms.max(bucket.time_until(required));
+                reason = Some("rate_limit_tokens_per_minute_queued".to_string());
+            }
+        }
+
+        if let Some(reason) = reason {
+            return RateLimitOutcome::Denied { reason, backoff_ms };
+        }
+
+        // Consume after we've confirmed both dimensions allow the dispatch.
+        if let Some(bucket) = buckets.requests.as_mut() {
+            bucket.take(1.0);
+        }
+        if let Some(bucket) = buckets.tokens.as_mut() {
+            let required = token_budget.max(0) as f64;
+            if required > 0.0 {
+                bucket.take(required);
+            }
+        }
+
+        RateLimitOutcome::Allowed(RateLimitReservation {
+            provider: provider.to_string(),
+            requests: 1,
+            tokens: token_budget,
+        })
+    }
+
+    fn refund(&mut self, provider: &str, requests: u32, tokens: u64) {
+        let now = Instant::now();
+        let Some(buckets) = self.providers.get_mut(provider) else {
+            return;
+        };
+
+        if let Some(bucket) = buckets.requests.as_mut() {
+            bucket.refill(now);
+            bucket.available = (bucket.available + requests as f64).min(bucket.capacity);
+        }
+        if let Some(bucket) = buckets.tokens.as_mut() {
+            bucket.refill(now);
+            bucket.ensure_capacity(tokens as f64);
+            bucket.available = (bucket.available + tokens as f64).min(bucket.capacity);
+        }
+    }
+}
+
+#[derive(Debug)]
+struct TokenBucket {
+    capacity: f64,
+    refill_per_ms: f64,
+    available: f64,
+    last_refill: Instant,
+}
+
+impl TokenBucket {
+    fn new(per_minute: f64, now: Instant) -> Self {
+        // Refill continuously; 60_000ms window.
+        let capacity = per_minute.max(0.0);
+        let refill_per_ms = capacity / 60_000.0;
+        Self {
+            capacity,
+            refill_per_ms,
+            available: capacity,
+            last_refill: now,
+        }
+    }
+
+    fn ensure_capacity(&mut self, minimum_capacity: f64) {
+        if minimum_capacity > self.capacity {
+            self.capacity = minimum_capacity;
+            // Keep refill rate based on configured per-minute limits (not minimum_capacity).
+            // If refill_per_ms is zero (should only happen when limit is zero/None), leave as-is.
+        }
+    }
+
+    fn refill(&mut self, now: Instant) {
+        if self.refill_per_ms <= 0.0 {
+            self.last_refill = now;
+            return;
+        }
+
+        let elapsed = now.saturating_duration_since(self.last_refill);
+        let add = elapsed.as_millis() as f64 * self.refill_per_ms;
+        self.available = (self.available + add).min(self.capacity);
+        self.last_refill = now;
+    }
+
+    fn time_until(&self, required: f64) -> u64 {
+        if self.refill_per_ms <= 0.0 {
+            return u64::MAX / 2;
+        }
+        let missing = (required - self.available).max(0.0);
+        if missing <= 0.0 {
+            return 0;
+        }
+        ((missing / self.refill_per_ms).ceil() as u64).max(1)
+    }
+
+    fn take(&mut self, amount: f64) {
+        self.available = (self.available - amount).max(0.0);
+    }
+}
+
 #[derive(Debug, Clone)]
 struct SessionMessageInput {
     message_id: Option<String>,
     role: SessionMessageRole,
     content_hash: String,
     content_artifact_id: String,
+    token_count: Option<i64>,
+    redacted: bool,
+    tool_call_id: Option<String>,
+    attachments: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -526,11 +944,83 @@ fn parse_session_message_inputs(job: &AiJob) -> Result<Vec<SessionMessageInput>,
             .filter(|value| !value.is_empty())
             .map(ToString::to_string);
 
+        let token_count = match map.get("token_count") {
+            None | Some(Value::Null) => None,
+            Some(Value::Number(num)) => num.as_i64(),
+            _ => {
+                return Err(WorkflowError::Terminal(
+                    "model_run session_messages.token_count must be an integer or null".to_string(),
+                ))
+            }
+        };
+
+        let redacted = match map.get("redacted") {
+            None | Some(Value::Null) => false,
+            Some(Value::Bool(value)) => *value,
+            _ => {
+                return Err(WorkflowError::Terminal(
+                    "model_run session_messages.redacted must be a boolean".to_string(),
+                ))
+            }
+        };
+
+        let tool_call_id = match map.get("tool_call_id") {
+            None | Some(Value::Null) => None,
+            Some(Value::String(value)) => {
+                let trimmed = value.trim();
+                if trimmed.is_empty() {
+                    return Err(WorkflowError::Terminal(
+                        "model_run session_messages.tool_call_id must be a non-empty string or null"
+                            .to_string(),
+                    ));
+                }
+                Some(trimmed.to_string())
+            }
+            _ => {
+                return Err(WorkflowError::Terminal(
+                    "model_run session_messages.tool_call_id must be a string or null".to_string(),
+                ))
+            }
+        };
+
+        let attachments = match map.get("attachments") {
+            None | Some(Value::Null) => Vec::new(),
+            Some(Value::Array(values)) => {
+                let mut out = Vec::new();
+                for entry in values {
+                    let Some(value) = entry.as_str() else {
+                        return Err(WorkflowError::Terminal(
+                            "model_run session_messages.attachments must be an array of strings"
+                                .to_string(),
+                        ));
+                    };
+                    let trimmed = value.trim();
+                    if trimmed.is_empty() {
+                        return Err(WorkflowError::Terminal(
+                            "model_run session_messages.attachments entries must be non-empty strings"
+                                .to_string(),
+                        ));
+                    }
+                    out.push(trimmed.to_string());
+                }
+                out
+            }
+            _ => {
+                return Err(WorkflowError::Terminal(
+                    "model_run session_messages.attachments must be an array of strings".to_string(),
+                ))
+            }
+        };
+
         out.push(SessionMessageInput {
             message_id,
             role,
             content_hash,
             content_artifact_id,
+            token_count,
+            redacted,
+            tool_call_id,
+            attachments,
         });
     }
 
@@ -542,7 +1032,7 @@ fn parse_model_run_metadata(job: &AiJob) -> Result<ModelRunMetadata, WorkflowErr
     let lane_raw = string_opt(inputs, "lane").unwrap_or_else(|| "PRIMARY".to_string());
     let lane = SessionSchedulerLane::try_from(lane_raw.as_str())?;
     let retry_backoff = string_opt(inputs, "retry_backoff")
-        .unwrap_or_else(|| "fixed".to_string())
+        .unwrap_or_else(|| "exponential".to_string())
         .to_ascii_lowercase();
     if retry_backoff != "fixed" && retry_backoff != "exponential" {
         return Err(WorkflowError::Terminal(
@@ -559,13 +1049,13 @@ fn parse_model_run_metadata(job: &AiJob) -> Result<ModelRunMetadata, WorkflowErr
         parent_session_id: string_opt(inputs, "parent_session_id"),
         spawn_depth: int_opt(inputs, "spawn_depth").unwrap_or(0) as i32,
         lane,
-        priority: int_opt(inputs, "priority").unwrap_or(100) as i32,
+        priority: int_opt(inputs, "priority").unwrap_or(50) as i32,
         concurrency_group: string_opt(inputs, "concurrency_group"),
         cancellation_token: string_opt(inputs, "cancellation_token"),
-        timeout_ms: int_opt(inputs, "timeout_ms").unwrap_or(60_000),
+        timeout_ms: int_opt(inputs, "timeout_ms").unwrap_or(120_000),
         max_tokens_budget: int_opt(inputs, "max_tokens_budget"),
         estimated_cost_usd: f64_opt(inputs, "estimated_cost_usd"),
-        max_retries: int_opt(inputs, "max_retries").unwrap_or(0) as i32,
+        max_retries: int_opt(inputs, "max_retries").unwrap_or(3) as i32,
         retry_backoff,
         prompt: string_opt(inputs, "prompt").unwrap_or_default(),
         model_id: model_id_default,
@@ -2154,7 +2644,7 @@ pub async fn mark_stalled_workflows(
 }
 
 fn model_run_priority_for_sort(job: &AiJob) -> i32 {
-    let raw = int_opt(model_run_inputs(job), "priority").unwrap_or(100);
+    let raw = int_opt(model_run_inputs(job), "priority").unwrap_or(50);
     raw.clamp(i32::MIN as i64, i32::MAX as i64) as i32
 }
 
@@ -2196,7 +2686,7 @@ async fn emit_session_scheduler_enqueue_event(
     queue_depth: usize,
 ) -> Result<(), WorkflowError> {
     let payload = json!({
-        "type": "session_scheduler_enqueue",
+        "type": "session_scheduler.enqueue",
         "event_id": "FR-EVT-SESS-SCHED-001",
         "session_id": metadata.session_id,
         "job_id": job.job_id.to_string(),
@@ -2231,7 +2721,7 @@ async fn emit_session_scheduler_dispatch_event(
     queue_wait_ms: u64,
 ) -> Result<(), WorkflowError> {
     let payload = json!({
-        "type": "session_scheduler_dispatch",
+        "type": "session_scheduler.dispatch",
         "event_id": "FR-EVT-SESS-SCHED-002",
         "session_id": metadata.session_id,
         "job_id": job.job_id.to_string(),
@@ -2260,15 +2750,17 @@ async fn emit_session_scheduler_rate_limited_event(
     trace_id: Uuid,
     job: &AiJob,
     metadata: &ModelRunMetadata,
+    provider: &str,
     queue_wait_ms: u64,
     backoff_ms: u64,
     reason: &str,
 ) -> Result<(), WorkflowError> {
     let payload = json!({
-        "type": "session_scheduler_rate_limited",
+        "type": "session_scheduler.rate_limited",
         "event_id": "FR-EVT-SESS-SCHED-003",
         "session_id": metadata.session_id,
         "job_id": job.job_id.to_string(),
+        "provider": provider,
         "job_kind": "model_run",
         "lane": metadata.lane.as_str(),
         "priority": metadata.priority,
@@ -2300,7 +2792,7 @@ async fn emit_session_scheduler_cancelled_event(
     reason: &str,
 ) -> Result<(), WorkflowError> {
     let payload = json!({
-        "type": "session_scheduler_cancelled",
+        "type": "session_scheduler.cancelled",
         "event_id": "FR-EVT-SESS-SCHED-004",
         "session_id": metadata.session_id,
         "job_id": job.job_id.to_string(),
@@ -2330,7 +2822,7 @@ async fn ensure_model_session_artifact_refs(
     job: &AiJob,
     metadata: &ModelRunMetadata,
 ) -> Result<(), WorkflowError> {
-    state
+    let session = state
         .storage
         .upsert_model_session(NewModelSession {
             session_id: metadata.session_id.clone(),
@@ -2352,6 +2844,7 @@ async fn ensure_model_session_artifact_refs(
             job_id: Some(job.job_id),
         })
         .await?;
+    state.session_registry.upsert_session(session).await;
 
     for entry in &metadata.session_messages {
         state
@@ -2362,6 +2855,10 @@ async fn ensure_model_session_artifact_refs(
                 role: entry.role.clone(),
                 content_hash: entry.content_hash.clone(),
                 content_artifact_id: entry.content_artifact_id.clone(),
+                token_count: entry.token_count,
+                redacted: entry.redacted,
+                tool_call_id: entry.tool_call_id.clone(),
+                attachments: entry.attachments.clone(),
             })
             .await?;
     }
@@ -2433,56 +2930,62 @@ fn kick_model_run_dispatcher(state: AppState) {
     });
 }
 
-async fn model_run_dispatch_limit_reason(
+#[derive(Debug, Clone)]
+struct ModelRunDispatchDenied {
+    provider: String,
+    reason: String,
+    backoff_ms: u64,
+}
+
+#[derive(Debug, Clone)]
+enum ModelRunDispatchGate {
+    Allowed {
+        provider: String,
+        reservation: Option<RateLimitReservation>,
+    },
+    Denied(ModelRunDispatchDenied),
+}
+
+async fn model_run_dispatch_gate(
     state: &AppState,
     job: &AiJob,
+    metadata: &ModelRunMetadata,
     config: &SessionSchedulerConfig,
-) -> Result<Option<String>, WorkflowError> {
+) -> Result<ModelRunDispatchGate, WorkflowError> {
     let running = list_running_model_run_jobs(state).await?;
-    if let Some(rpm) = config.rate_limit_requests_per_minute {
-        if (running.len() as u32) >= rpm {
-            return Ok(Some("rate_limit_requests_per_minute_queued".to_string()));
-        }
-    }
 
-    if let Some(tpm) = config.rate_limit_tokens_per_minute {
-        let mut tokens_in_flight = 0_u64;
-        for running_job in &running {
-            let budget = int_opt(model_run_inputs(running_job), "max_tokens_budget")
-                .unwrap_or(0)
-                .max(0) as u64;
-            tokens_in_flight = tokens_in_flight.saturating_add(budget);
-        }
-        let candidate_budget = int_opt(model_run_inputs(job), "max_tokens_budget")
-            .unwrap_or(0)
-            .max(0) as u64;
-        if tokens_in_flight.saturating_add(candidate_budget) > u64::from(tpm) {
-            return Ok(Some("rate_limit_tokens_per_minute_queued".to_string()));
-        }
+    // Registry is the runtime authority for session lifecycle reads (storage hydration on cache-miss).
+    let candidate = state
+        .session_registry
+        .get_model_session_by_job_id(state, job.job_id)
+        .await?;
+    let provider = candidate.backend.clone();
+
+    if matches!(
+        candidate.state,
+        ModelSessionState::Completed | ModelSessionState::Failed | ModelSessionState::Cancelled
+    ) {
+        return Ok(ModelRunDispatchGate::Denied(ModelRunDispatchDenied {
+            provider,
+            reason: "session_not_dispatchable".to_string(),
+            backoff_ms: 0,
+        }));
     }
 
     if running.len() >= config.max_concurrent_sessions_global {
-        return Ok(Some("concurrency_limit_exceeded_queued".to_string()));
-    }
-
-    let candidate = state.storage.get_model_session_by_job_id(job.job_id).await?;
-    let registry = state
-        .storage
-        .get_model_session(candidate.session_id.as_str())
-        .await?;
-    if matches!(
-        registry.state,
-        ModelSessionState::Completed | ModelSessionState::Failed | ModelSessionState::Cancelled
-    ) {
-        return Ok(Some("session_not_dispatchable".to_string()));
+        return Ok(ModelRunDispatchGate::Denied(ModelRunDispatchDenied {
+            provider,
+            reason: "concurrency_limit_exceeded_queued".to_string(),
+            backoff_ms: 0,
+        }));
     }
 
     let mut same_provider = 0_usize;
     let mut same_model = 0_usize;
     for running_job in &running {
         if let Ok(active_session) = state
-            .storage
-            .get_model_session_by_job_id(running_job.job_id)
+            .session_registry
+            .get_model_session_by_job_id(state, running_job.job_id)
             .await
         {
             if active_session.backend == candidate.backend {
@@ -2495,13 +2998,46 @@ async fn model_run_dispatch_limit_reason(
     }
 
     if same_provider >= config.max_concurrent_sessions_per_provider {
-        return Ok(Some("provider_concurrency_limit_exceeded_queued".to_string()));
+        return Ok(ModelRunDispatchGate::Denied(ModelRunDispatchDenied {
+            provider,
+            reason: "provider_concurrency_limit_exceeded_queued".to_string(),
+            backoff_ms: 0,
+        }));
     }
     if same_model >= config.max_concurrent_sessions_per_model {
-        return Ok(Some("model_concurrency_limit_exceeded_queued".to_string()));
+        return Ok(ModelRunDispatchGate::Denied(ModelRunDispatchDenied {
+            provider,
+            reason: "model_concurrency_limit_exceeded_queued".to_string(),
+            backoff_ms: 0,
+        }));
     }
 
-    Ok(None)
+    // INV-SCHED-003: token-bucket time-based rate limiting with deterministic backoff.
+    let token_budget = metadata
+        .max_tokens_budget
+        .unwrap_or(0)
+        .max(0) as u64;
+    match state
+        .session_registry
+        .try_acquire_rate_limit(provider.as_str(), token_budget)
+        .await
+    {
+        RateLimitOutcome::Unlimited => Ok(ModelRunDispatchGate::Allowed {
+            provider,
+            reservation: None,
+        }),
+        RateLimitOutcome::Allowed(reservation) => Ok(ModelRunDispatchGate::Allowed {
+            provider,
+            reservation: Some(reservation),
+        }),
+        RateLimitOutcome::Denied { reason, backoff_ms } => Ok(ModelRunDispatchGate::Denied(
+            ModelRunDispatchDenied {
+                provider,
+                reason,
+                backoff_ms,
+            },
+        )),
+    }
 }
 
 async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), WorkflowError> {
@@ -2553,7 +3089,7 @@ async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), Work
         })
         .await?;
 
-    state
+    let session = state
         .storage
         .update_model_session_state(
             metadata.session_id.as_str(),
@@ -2561,6 +3097,7 @@ async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), Work
             Some(job.job_id),
         )
         .await?;
+    state.session_registry.upsert_session(session).await;
 
     emit_session_scheduler_dispatch_event(state, trace_id, &job, &metadata, queue_wait_ms).await?;
 
@@ -2575,6 +3112,7 @@ async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), Work
 
 async fn run_model_run_dispatch_loop(state: AppState) -> Result<(), WorkflowError> {
     let _guard = SESSION_SCHEDULER_LOCK.lock().await;
+    let config = state.session_registry.scheduler_config().await;
 
     loop {
         let queued = list_queued_model_run_jobs(&state).await?;
@@ -2602,28 +3140,61 @@ async fn run_model_run_dispatch_loop(state: AppState) -> Result<(), WorkflowErro
             }
         };
 
-        let config = SessionSchedulerConfig::from_env();
-        let limit_reason = model_run_dispatch_limit_reason(&state, &next_job, &config).await?;
-        if let Some(reason) = limit_reason {
-            let wait_ms = Utc::now()
-                .signed_duration_since(next_job.created_at)
-                .num_milliseconds()
-                .max(0) as u64;
-            let backoff_ms = 1_000_u64;
-            emit_session_scheduler_rate_limited_event(
-                &state,
-                derive_trace_id(&next_job, None),
-                &next_job,
-                &metadata,
-                wait_ms,
-                backoff_ms,
-                reason.as_str(),
-            )
-            .await?;
-            break;
-        }
+        match model_run_dispatch_gate(&state, &next_job, &metadata, &config).await? {
+            ModelRunDispatchGate::Allowed { reservation, .. } => {
+                if let Err(err) = dispatch_model_run_job(&state, next_job).await {
+                    if let Some(reservation) = reservation {
+                        state.session_registry.refund_rate_limit(reservation).await;
+                    }
+                    return Err(err);
+                }
+            }
+            ModelRunDispatchGate::Denied(denied) => {
+                if denied.reason == "session_not_dispatchable" {
+                    state
+                        .storage
+                        .update_ai_job_status(JobStatusUpdate {
+                            job_id: next_job.job_id,
+                            state: JobState::Failed,
+                            error_message: Some(denied.reason.clone()),
+                            status_reason: denied.reason,
+                            metrics: None,
+                            workflow_run_id: next_job.workflow_run_id,
+                            trace_id: None,
+                            job_outputs: None,
+                        })
+                        .await?;
+                    continue;
+                }
 
-        dispatch_model_run_job(&state, next_job).await?;
+                let wait_ms = Utc::now()
+                    .signed_duration_since(next_job.created_at)
+                    .num_milliseconds()
+                    .max(0) as u64;
+                emit_session_scheduler_rate_limited_event(
+                    &state,
+                    derive_trace_id(&next_job, None),
+                    &next_job,
+                    &metadata,
+                    denied.provider.as_str(),
+                    wait_ms,
+                    denied.backoff_ms,
+                    denied.reason.as_str(),
+                )
+                .await?;
+
+                if denied.backoff_ms > 0 {
+                    let state_clone = state.clone();
+                    let backoff_ms = denied.backoff_ms;
+                    tokio::spawn(async move {
+                        sleep(Duration::from_millis(backoff_ms)).await;
+                        kick_model_run_dispatcher(state_clone);
+                    });
+                }
+
+                break;
+            }
+        }
     }
 
     Ok(())
@@ -2694,6 +3265,7 @@ async fn run_model_run_job(
                 trace_id,
                 job,
                 &metadata,
+                metadata.backend.as_str(),
                 0,
                 1_000,
                 "provider_rate_limit",
@@ -2721,6 +3293,10 @@ async fn run_model_run_job(
             role: SessionMessageRole::Assistant,
             content_hash: content_hash.clone(),
             content_artifact_id: content_artifact_id.clone(),
+            token_count: Some(completion.usage.total_tokens as i64),
+            redacted: false,
+            tool_call_id: None,
+            attachments: Vec::new(),
         })
         .await?;
 
@@ -2765,10 +3341,11 @@ async fn finalize_model_run_after_terminal(
         JobState::AwaitingUser | JobState::AwaitingValidation => ModelSessionState::Blocked,
     };
 
-    state
+    let session = state
         .storage
         .update_model_session_state(metadata.session_id.as_str(), session_state, Some(job.job_id))
         .await?;
+    state.session_registry.upsert_session(session).await;
 
     if matches!(final_status, JobState::Cancelled) {
         let cancel_event_already_recorded = state
@@ -2841,7 +3418,7 @@ pub async fn cancel_model_run_job(
     }
 
     let metadata = parse_model_run_metadata(&job)?;
-    let _ = state
+    let session = state
         .storage
         .update_model_session_state(
             metadata.session_id.as_str(),
@@ -2849,6 +3426,9 @@ pub async fn cancel_model_run_job(
             Some(job_id),
         )
         .await;
+    if let Ok(session) = session {
+        state.session_registry.upsert_session(session).await;
+    }
 
     emit_session_scheduler_cancelled_event(
         state,
@@ -19744,6 +20324,7 @@ mod tests {
             diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
             capability_registry: Arc::new(CapabilityRegistry::new()),
+            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
         })
     }
 

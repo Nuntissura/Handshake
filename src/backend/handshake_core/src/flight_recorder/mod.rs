@@ -321,16 +321,16 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::LoomViewQueried => write!(f, "loom_view_queried"),
             FlightRecorderEventType::LoomSearchExecuted => write!(f, "loom_search_executed"),
             FlightRecorderEventType::SessionSchedulerEnqueue => {
-                write!(f, "session_scheduler_enqueue")
+                write!(f, "session_scheduler.enqueue")
             }
             FlightRecorderEventType::SessionSchedulerDispatch => {
-                write!(f, "session_scheduler_dispatch")
+                write!(f, "session_scheduler.dispatch")
             }
             FlightRecorderEventType::SessionSchedulerRateLimited => {
-                write!(f, "session_scheduler_rate_limited")
+                write!(f, "session_scheduler.rate_limited")
             }
             FlightRecorderEventType::SessionSchedulerCancelled => {
-                write!(f, "session_scheduler_cancelled")
+                write!(f, "session_scheduler.cancelled")
             }
         }
     }
@@ -4028,7 +4028,7 @@ fn validate_session_scheduler_enqueue_payload(payload: &Value) -> Result<(), Rec
     let map = payload_object(payload)?;
     validate_session_scheduler_common_payload(
         map,
-        "session_scheduler_enqueue",
+        "session_scheduler.enqueue",
         "FR-EVT-SESS-SCHED-001",
         &[
             "type",
@@ -4057,7 +4057,7 @@ fn validate_session_scheduler_dispatch_payload(payload: &Value) -> Result<(), Re
     let map = payload_object(payload)?;
     validate_session_scheduler_common_payload(
         map,
-        "session_scheduler_dispatch",
+        "session_scheduler.dispatch",
         "FR-EVT-SESS-SCHED-002",
         &[
             "type",
@@ -4080,13 +4080,14 @@ fn validate_session_scheduler_rate_limited_payload(payload: &Value) -> Result<()
     let map = payload_object(payload)?;
     validate_session_scheduler_common_payload(
         map,
-        "session_scheduler_rate_limited",
+        "session_scheduler.rate_limited",
         "FR-EVT-SESS-SCHED-003",
         &[
             "type",
             "event_id",
             "session_id",
             "job_id",
+            "provider",
             "job_kind",
             "lane",
             "priority",
@@ -4097,6 +4098,7 @@ fn validate_session_scheduler_rate_limited_payload(payload: &Value) -> Result<()
             "reason",
         ],
     )?;
+    require_string(map, "provider")?;
     require_non_negative_integer(map, "queue_wait_ms")?;
     require_non_negative_integer(map, "backoff_ms")?;
     require_string(map, "reason")?;
@@ -4107,7 +4109,7 @@ fn validate_session_scheduler_cancelled_payload(payload: &Value) -> Result<(), R
     let map = payload_object(payload)?;
     validate_session_scheduler_common_payload(
         map,
-        "session_scheduler_cancelled",
+        "session_scheduler.cancelled",
         "FR-EVT-SESS-SCHED-004",
         &[
             "type",

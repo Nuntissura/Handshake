@@ -52,6 +52,9 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
     let llm_client = init_llm_client(flight_recorder.clone()).await;
     let capability_registry = Arc::new(CapabilityRegistry::new());
+    let session_registry = Arc::new(workflows::SessionRegistry::new(
+        workflows::SessionSchedulerConfig::from_env(),
+    ));
 
     let state = AppState {
         storage: storage.clone(),
@@ -59,6 +62,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         diagnostics,
         llm_client,
         capability_registry,
+        session_registry,
     };
 
     // [HSK-WF-003] Startup Recovery Loop

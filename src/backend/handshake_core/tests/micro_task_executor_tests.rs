@@ -14,7 +14,9 @@ use handshake_core::storage::{
     sqlite::SqliteDatabase, AccessMode, Database, JobKind, JobMetrics, JobState, NewAiJob,
     SafetyMode, StorageError,
 };
-use handshake_core::workflows::{start_workflow_for_job, ModelSwapRequestV0_4};
+use handshake_core::workflows::{
+    start_workflow_for_job, ModelSwapRequestV0_4, SessionRegistry, SessionSchedulerConfig,
+};
 use handshake_core::AppState;
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -108,6 +110,7 @@ async fn setup_state(
         diagnostics: flight_recorder,
         llm_client,
         capability_registry: Arc::new(CapabilityRegistry::new()),
+        session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
     })
 }
 

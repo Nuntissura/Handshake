@@ -35,4 +35,5 @@ pub struct AppState {
     pub diagnostics: Arc<dyn DiagnosticsStore>,
     pub llm_client: Arc<dyn LlmClient>,
     pub capability_registry: Arc<capabilities::CapabilityRegistry>,
+    pub session_registry: Arc<workflows::SessionRegistry>,
 }

@@ -387,6 +387,9 @@ mod tests {
             diagnostics: flight_recorder,
             llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
             capability_registry: Arc::new(CapabilityRegistry::new()),
+            session_registry: Arc::new(crate::workflows::SessionRegistry::new(
+                crate::workflows::SessionSchedulerConfig::default(),
+            )),
         })
     }
 

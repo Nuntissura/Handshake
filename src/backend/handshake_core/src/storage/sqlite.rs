@@ -387,6 +387,10 @@ impl SqliteDatabase {
                 role TEXT NOT NULL,
                 content_hash TEXT NOT NULL,
                 content_artifact_id TEXT NOT NULL,
+                token_count INTEGER,
+                redacted INTEGER NOT NULL DEFAULT 0,
+                tool_call_id TEXT,
+                attachments TEXT NOT NULL DEFAULT '[]',
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (session_id) REFERENCES model_sessions(session_id) ON DELETE CASCADE
             )
@@ -394,6 +398,37 @@ impl SqliteDatabase {
         )
         .execute(&self.pool)
         .await?;
+
+        // Deterministic runtime schema upgrades for existing installs (SQLite has no CREATE TABLE migration runner here).
+        // Avoid relying on CREATE TABLE IF NOT EXISTS for new columns.
+        let columns = sqlx::query("PRAGMA table_info(session_messages)")
+            .fetch_all(&self.pool)
+            .await?;
+        let mut existing = std::collections::HashSet::new();
+        for row in columns {
+            let name: String = row.get("name");
+            existing.insert(name);
+        }
+        if !existing.contains("token_count") {
+            sqlx::query("ALTER TABLE session_messages ADD COLUMN token_count INTEGER")
+                .execute(&self.pool)
+                .await?;
+        }
+        if !existing.contains("redacted") {
+            sqlx::query("ALTER TABLE session_messages ADD COLUMN redacted INTEGER NOT NULL DEFAULT 0")
+                .execute(&self.pool)
+                .await?;
+        }
+        if !existing.contains("tool_call_id") {
+            sqlx::query("ALTER TABLE session_messages ADD COLUMN tool_call_id TEXT")
+                .execute(&self.pool)
+                .await?;
+        }
+        if !existing.contains("attachments") {
+            sqlx::query("ALTER TABLE session_messages ADD COLUMN attachments TEXT NOT NULL DEFAULT '[]'")
+                .execute(&self.pool)
+                .await?;
+        }
 
         sqlx::query(
             "CREATE INDEX IF NOT EXISTS idx_session_messages_session_created ON session_messages(session_id, created_at)",
@@ -444,12 +479,21 @@ impl SqliteDatabase {
         &self,
         row: sqlx::sqlite::SqliteRow,
     ) -> StorageResult<SessionMessage> {
+        let attachments_raw: String = row.get("attachments");
+        let token_count: Option<i64> = row.get("token_count");
+        let redacted_raw: i64 = row.get("redacted");
+        let tool_call_id: Option<String> = row.get("tool_call_id");
+
         Ok(SessionMessage {
             message_id: row.get("message_id"),
             session_id: row.get("session_id"),
             role: SessionMessageRole::try_from(row.get::<String, _>("role").as_str())?,
             content_hash: row.get("content_hash"),
             content_artifact_id: row.get("content_artifact_id"),
+            token_count,
+            redacted: redacted_raw != 0,
+            tool_call_id,
+            attachments: serde_json::from_str(&attachments_raw).unwrap_or_default(),
             created_at: row.get("created_at"),
         })
     }
@@ -3973,6 +4017,8 @@ impl super::Database for SqliteDatabase {
         self.ensure_model_session_schema().await?;
 
         let now = Utc::now();
+        let session_id = session.session_id.clone();
+        let memory_policy = session.memory_policy.clone();
         let capability_grants = serde_json::to_string(&session.capability_grants)?;
         let capability_token_ids = session
             .capability_token_ids
@@ -4017,12 +4063,12 @@ impl super::Database for SqliteDatabase {
                 mt_id = excluded.mt_id,
                 work_profile_id = excluded.work_profile_id,
                 execution_mode = excluded.execution_mode,
-                memory_policy = excluded.memory_policy,
                 consent_receipt_id = excluded.consent_receipt_id,
                 capability_grants = excluded.capability_grants,
                 capability_token_ids = excluded.capability_token_ids,
                 job_id = excluded.job_id,
                 updated_at = excluded.updated_at
+            WHERE model_sessions.memory_policy = excluded.memory_policy
             RETURNING
                 session_id,
                 parent_session_id,
@@ -4064,10 +4110,30 @@ impl super::Database for SqliteDatabase {
         .bind(job_id)
         .bind(now)
         .bind(now)
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await?;
 
-        self.map_model_session_row(row)
+        match row {
+            Some(row) => self.map_model_session_row(row),
+            None => {
+                // INV-SESS-004: memory_policy is immutable once declared at session creation.
+                let existing = sqlx::query("SELECT memory_policy FROM model_sessions WHERE session_id = $1")
+                    .bind(&session_id)
+                    .fetch_optional(&self.pool)
+                    .await?;
+                if let Some(existing) = existing {
+                    let existing_policy: String = existing.get("memory_policy");
+                    if existing_policy != memory_policy {
+                        return Err(StorageError::Validation(
+                            "memory_policy is immutable for an existing session",
+                        ));
+                    }
+                    // Same memory_policy; return the persisted row.
+                    return self.get_model_session(session_id.as_str()).await;
+                }
+                Err(StorageError::NotFound("model_session"))
+            }
+        }
     }
 
     async fn get_model_session(&self, session_id: &str) -> StorageResult<ModelSession> {
@@ -4208,6 +4274,8 @@ impl super::Database for SqliteDatabase {
         let message_id = message
             .message_id
             .unwrap_or_else(|| Uuid::new_v4().to_string());
+        let attachments = serde_json::to_string(&message.attachments)?;
+        let redacted = if message.redacted { 1_i64 } else { 0_i64 };
         let row = sqlx::query(
             r#"
             INSERT INTO session_messages (
@@ -4215,15 +4283,23 @@ impl super::Database for SqliteDatabase {
                 session_id,
                 role,
                 content_hash,
-                content_artifact_id
+                content_artifact_id,
+                token_count,
+                redacted,
+                tool_call_id,
+                attachments
             )
-            VALUES ($1, $2, $3, $4, $5)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING
                 message_id,
                 session_id,
                 role,
                 content_hash,
                 content_artifact_id,
+                token_count,
+                redacted,
+                tool_call_id,
+                attachments,
                 created_at
             "#,
         )
@@ -4232,6 +4308,10 @@ impl super::Database for SqliteDatabase {
         .bind(message.role.as_str())
         .bind(message.content_hash)
         .bind(message.content_artifact_id)
+        .bind(message.token_count)
+        .bind(redacted)
+        .bind(message.tool_call_id)
+        .bind(attachments)
         .fetch_one(&self.pool)
         .await?;
 
@@ -4248,6 +4328,10 @@ impl super::Database for SqliteDatabase {
                 role,
                 content_hash,
                 content_artifact_id,
+                token_count,
+                redacted,
+                tool_call_id,
+                attachments,
                 created_at
             FROM session_messages
             WHERE session_id = $1

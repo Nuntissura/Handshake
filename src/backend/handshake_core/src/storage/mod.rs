@@ -1309,6 +1309,10 @@ pub struct SessionMessage {
     pub role: SessionMessageRole,
     pub content_hash: String,
     pub content_artifact_id: String,
+    pub token_count: Option<i64>,
+    pub redacted: bool,
+    pub tool_call_id: Option<String>,
+    pub attachments: Vec<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -1319,6 +1323,10 @@ pub struct NewSessionMessage {
     pub role: SessionMessageRole,
     pub content_hash: String,
     pub content_artifact_id: String,
+    pub token_count: Option<i64>,
+    pub redacted: bool,
+    pub tool_call_id: Option<String>,
+    pub attachments: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
