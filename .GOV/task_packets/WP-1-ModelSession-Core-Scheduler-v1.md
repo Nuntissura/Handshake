@@ -173,14 +173,68 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
-  - `ModelSession` persistence contract in workspace DB (`model_sessions`, `session_messages`) with artifact handle references for message content.
-  - `SessionSchedulerConfig` runtime settings bound to scheduler dispatch logic (global/provider/model limits, rate limits).
-  - `ModelRunJob` job payload contract (`job_kind="model_run"`, `lane`, `priority`, `concurrency_group`, `cancellation_token`, `timeout_ms`, budgets).
-  - Session scheduler API: enqueue, dispatch, cancel, and queue-state query with deterministic ordering policy.
-  - Flight Recorder payload contracts for `FR-EVT-SESS-SCHED-001..004`.
+  - SPEC 7.2.0.5 Multi-Model Infrastructure (SessionRegistry + MultiModelSession):
+    - `SessionRegistry` (runtime authority; scheduler/UI read path):
+      - maintains active `ModelSession` instances and `ModelSessionState`
+      - maintains parent-child relationships (parent_session_id -> child session_ids)
+      - provides scheduler-facing queries (by session_id, by job_id, active-by-provider/model counts)
+      - hydration contract: registry loads from storage on cache-miss and updates on state transitions
+    - `MultiModelSession` (governed runtime primitive):
+      - `session_id: String` (registry-level session group id)
+      - `active_sessions: HashMap<String, ModelSession>` (session_id -> ModelSession)
+      - `routing_policy: RoutingPolicy`
+      - `spawn_limits: SpawnLimits`
+      - `scheduler_config: SessionSchedulerConfig`
+      - `last_swap_event: Option<String>`
+    - `RoutingPolicy`:
+      - `strategy: enum { round_robin, least_busy, affinity, broadcast, work_profile_driven }`
+      - `affinity_key: Option<String>` (e.g., "wp_id")
+      - `broadcast_max_targets: Option<u32>`
+    - `SpawnLimits` (spec §4.3.9.15.4):
+      - `max_spawn_depth: i32` (default 3)
+      - `max_active_children_per_session: i32` (default 4)
+      - `max_total_active_sessions: i32` (derived from SessionSchedulerConfig.max_concurrent_sessions_global)
+    - Scheduler integration point:
+      - Replace direct lifecycle reads in `model_run_dispatch_limit_reason` (`state.storage.get_model_session*`) with `SessionRegistry` reads.
+      - Storage remains persistence source; registry is the runtime read authority.
+
+  - SPEC 4.3.9.13 INV-SCHED-003 Rate limiting (time-based):
+    - Introduce per-provider rate limiter state (token-bucket or sliding-window) with deterministic `backoff_ms`:
+      - state tracked per `provider` (mapped from `ModelSession.backend`)
+      - API returns `{ allowed: bool, backoff_ms: u64, limiting_dimension: rpm|tpm|both }`
+    - Dispatch loop guarantee:
+      - On rate-limit deny, emit FR-EVT-SESS-SCHED-003 and schedule a deterministic re-kick after `backoff_ms` (no "stall until new enqueue").
+
+  - SPEC 4.3.9.13.5 Flight Recorder scheduler event contracts:
+    - Event type strings switch to dot notation:
+      - `session_scheduler.enqueue`
+      - `session_scheduler.dispatch`
+      - `session_scheduler.rate_limited`
+      - `session_scheduler.cancelled`
+    - FR-EVT-SESS-SCHED-003 payload MUST include `provider` (in addition to attempt/backoff_ms); payload validator updated accordingly.
+    - DuckDB string-to-enum mapping updated for new event type strings.
+
+  - SPEC 4.3.9.13.2 + 4.3.9.13.3 Defaults:
+    - `ModelRunJob` defaults:
+      - `priority=50`, `max_retries=3`, `retry_backoff=exponential`, `timeout_ms=120000`
+    - `SessionSchedulerConfig` defaults:
+      - `max_concurrent_sessions_global=8`, `max_concurrent_sessions_per_provider=4`, `max_concurrent_sessions_per_model=2`
+
+  - SPEC 4.3.9.12.3 SessionMessage schema expansion:
+    - Extend storage structs:
+      - `SessionMessage`: add `token_count: Option<i64>`, `redacted: bool`, `tool_call_id: Option<String>`, `attachments: Vec<String>`
+      - `NewSessionMessage`: same fields (with sane defaults)
+    - DB schema additions (SQLite + Postgres):
+      - add columns: `token_count`, `redacted`, `tool_call_id`, `attachments`
+      - deterministic runtime upgrades in `ensure_model_session_schema` (not only CREATE TABLE IF NOT EXISTS)
+
+  - SPEC 4.3.9.12 INV-SESS-004 memory_policy immutability:
+    - `upsert_model_session` MUST NOT mutate `memory_policy` on conflict update.
+    - If a write attempts to change `memory_policy` for an existing session_id, return validation error.
 - Open questions:
-  - Should queue ordering be strict `(priority ASC, created_at ASC, job_id ASC)` or include lane-weighting tie-breakers from day one?
-  - Do we extend existing job tables for scheduler queue metadata, or create dedicated session scheduler tables for clearer migration rollback?
+  - Confirm `provider` for rate limiting + FR-EVT-SESS-SCHED-003 payload should be `ModelSession.backend` (current "provider" key).
+  - Confirm `attachments` storage encoding: JSON string[] stored as TEXT in both SQLite and Postgres.
+  - Registry placement: keep in-scope by implementing `SessionRegistry` in `workflows.rs` (static runtime authority), vs widening scope to add it to `AppState`.
 - Notes:
   - This packet is a dependency unlocker for session spawn, session safety, session observability, and multi-model lifecycle telemetry packets.
   - Coder must keep this packet focused on baseline foundations; downstream session feature packets should not be absorbed here.
