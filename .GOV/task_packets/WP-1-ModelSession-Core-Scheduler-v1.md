@@ -14,7 +14,7 @@
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 - CODER_MODEL: <unclaimed>
 - CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja010320262103
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -755,6 +755,11 @@ SKELETON APPROVED
       - `expect(` occurrences inside `#[cfg(test)]` module in `src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs`.
       - `placeholder` string matches in `src/backend/handshake_core/src/spec_router/spec_prompt_*` and `src/backend/handshake_core/src/workflows.rs` (scan rule is string-based and does not distinguish domain terms).
     - Absent user waiver for this required check, verdict must remain FAIL per Validator protocol.
+
+- 2026-03-02T22:18:02Z | Validator: Codex (GPT-5) | Branch: `main` | Worktree: `handshake_main`
+  Verdict: PASS
+  - CLOSURE: **PASS** (WP merged into `main` at `48d4def`).
+  - SUPERSEDES: the out-of-order appended FAIL report `2026-03-02T05:56:53Z` (HEAD `ad26804`); effective final verdict is PASS per the `2026-03-02T11:11:27Z` report (HEAD `4be5b83`).
 - 2026-03-02T11:11:27Z | Validator: Codex (GPT-5) | Branch: `feat/WP-1-ModelSession-Core-Scheduler-v1` | Worktree: `wt-WP-1-ModelSession-Core-Scheduler-v1` | HEAD: `4be5b83`
   - VERDICT: **PASS**
   - TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
