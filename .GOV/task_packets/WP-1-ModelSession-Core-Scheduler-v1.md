@@ -1,4 +1,4 @@
-﻿# Task Packet: WP-1-ModelSession-Core-Scheduler-v1
+# Task Packet: WP-1-ModelSession-Core-Scheduler-v1
 
 ## METADATA
 - TASK_ID: WP-1-ModelSession-Core-Scheduler-v1
@@ -195,7 +195,7 @@ git revert <commit-sha>
       - `strategy: enum { round_robin, least_busy, affinity, broadcast, work_profile_driven }`
       - `affinity_key: Option<String>` (e.g., "wp_id")
       - `broadcast_max_targets: Option<u32>`
-    - `SpawnLimits` (spec §4.3.9.15.4):
+    - `SpawnLimits` (spec section 4.3.9.15.4):
       - `max_spawn_depth: i32` (default 3)
       - `max_active_children_per_session: i32` (default 4)
       - `max_total_active_sessions: i32` (derived from SessionSchedulerConfig.max_concurrent_sessions_global)
