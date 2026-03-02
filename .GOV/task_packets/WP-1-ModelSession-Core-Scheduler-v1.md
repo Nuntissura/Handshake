@@ -48,6 +48,7 @@
   - .GOV/validator_gates/WP-1-ModelSession-Core-Scheduler-v1.json
   - .GOV/roles_shared/TASK_BOARD.md
   - .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
+  - .GOV/scripts/validation/validator-scan.mjs
   - src/backend/handshake_core/src/lib.rs
   - src/backend/handshake_core/src/main.rs
   - src/backend/handshake_core/src/workflows.rs
