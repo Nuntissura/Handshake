@@ -22,18 +22,28 @@ Requirements:
 - REQUESTOR: {{REQUESTOR}}
 - AGENT_ID: {{AGENT_ID}}
 - ROLE: Orchestrator
-- AGENTIC_MODE: <pending> (YES | NO)
-- ORCHESTRATOR_MODEL: <pending> (required if AGENTIC_MODE=YES)
-- ORCHESTRATION_STARTED_AT_UTC: <pending> (RFC3339 UTC; required if AGENTIC_MODE=YES)
+- AGENTIC_MODE: <pending>
+<!-- Allowed: YES | NO -->
+- ORCHESTRATOR_MODEL: <pending>
+<!-- Required if AGENTIC_MODE=YES -->
+- ORCHESTRATION_STARTED_AT_UTC: <pending>
+<!-- RFC3339 UTC; required if AGENTIC_MODE=YES -->
 - CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
+- CODER_REASONING_STRENGTH: <unclaimed>
+<!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - **Status:** Ready for Dev
-- RISK_TIER: LOW | MEDIUM | HIGH
-- BUILD_ORDER_DOMAIN: <pending> (BACKEND | FRONTEND | GOV | CROSS_BOUNDARY)
-- BUILD_ORDER_TECH_BLOCKER: <pending> (YES | NO) (YES => unblocks multiple downstream WPs)
-- BUILD_ORDER_VALUE_TIER: <pending> (LOW | MEDIUM | HIGH) (spec-defined Phase 1 impact)
-- BUILD_ORDER_DEPENDS_ON: <pending> (comma-separated Base WP IDs | NONE) (use Base IDs, no `-vN`)
-- BUILD_ORDER_BLOCKS: <pending> (comma-separated Base WP IDs | NONE) (use Base IDs, no `-vN`)
+- RISK_TIER: <pending>
+<!-- Allowed: LOW | MEDIUM | HIGH -->
+- BUILD_ORDER_DOMAIN: <pending>
+<!-- Allowed: BACKEND | FRONTEND | GOV | CROSS_BOUNDARY -->
+- BUILD_ORDER_TECH_BLOCKER: <pending>
+<!-- Allowed: YES | NO. YES => unblocks multiple downstream WPs. -->
+- BUILD_ORDER_VALUE_TIER: <pending>
+<!-- Allowed: LOW | MEDIUM | HIGH. Spec-defined Phase 1 impact. -->
+- BUILD_ORDER_DEPENDS_ON: <pending>
+<!-- Allowed: comma-separated Base WP IDs | NONE. Use Base IDs only (no -vN). -->
+- BUILD_ORDER_BLOCKS: <pending>
+<!-- Allowed: comma-separated Base WP IDs | NONE. Use Base IDs only (no -vN). -->
 - USER_SIGNATURE: {{USER_SIGNATURE}}
 - PACKET_FORMAT_VERSION: 2026-02-01
 

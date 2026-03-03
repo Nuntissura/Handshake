@@ -15,9 +15,10 @@ function isPlaceholder(value) {
   const v = (value || "").trim();
   if (!v) return true;
   if (/^\{.+\}$/.test(v)) return true;
+  // Treat "<pending> (notes)" or "<unclaimed> (options)" as placeholders too.
   if (/^<fill/i.test(v)) return true;
-  if (/^<pending>$/i.test(v)) return true;
-  if (/^<unclaimed>$/i.test(v)) return true;
+  if (/^<pending>/i.test(v)) return true;
+  if (/^<unclaimed>/i.test(v)) return true;
   return false;
 }
 
@@ -40,6 +41,12 @@ function normalizeStrength(value) {
   return value.toLowerCase().replace(/[\s_-]+/g, "");
 }
 
+function extractStrengthToken(value) {
+  const v = String(value || "").trim();
+  // Allow trailing notes like: "HIGH (EXTRA_HIGH also acceptable)" while still enforcing the leading token.
+  return (v.split(/[\s(]/)[0] || "").trim();
+}
+
 function checkPacket(filePath) {
   const text = fs.readFileSync(filePath, "utf8");
   const status = parseStatus(text);
@@ -59,7 +66,8 @@ function checkPacket(filePath) {
   if (isPlaceholder(coderStrength)) {
     errors.push(`${rel}: CODER_REASONING_STRENGTH is required when Status is In Progress`);
   } else {
-    const norm = normalizeStrength(coderStrength);
+    const token = extractStrengthToken(coderStrength);
+    const norm = normalizeStrength(token);
     const allowed = new Set(["low", "medium", "high", "extrahigh"]);
     if (!allowed.has(norm)) {
       errors.push(
