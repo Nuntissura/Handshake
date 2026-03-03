@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use handshake_core::capabilities::CapabilityRegistry;
 use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
-use handshake_core::flight_recorder::FlightRecorder;
+use handshake_core::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEventType};
 use handshake_core::mcp::errors::McpError;
 use handshake_core::mcp::gate::{
     canonical_mcp_tool_id, ConsentDecision, ConsentProvider, GateConfig, GatedMcpClient, McpContext,
@@ -477,6 +477,63 @@ fn make_ctx_with_session(
     ctx
 }
 
+async fn assert_tool_call_denied_event(
+    flight_recorder: &Arc<dyn FlightRecorder>,
+    trace_id: Uuid,
+    required_capability_id: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let events = flight_recorder
+        .list_events(EventFilter {
+            trace_id: Some(trace_id),
+            ..Default::default()
+        })
+        .await?;
+    let event = events
+        .iter()
+        .find(|e| e.event_type == FlightRecorderEventType::ToolCall)
+        .expect("missing ToolCall FlightRecorder event");
+
+    assert_eq!(
+        event.payload.get("ok").and_then(|v| v.as_bool()),
+        Some(false),
+        "expected ToolCall payload ok=false (payload={})",
+        event.payload
+    );
+    assert_eq!(
+        event.payload
+            .get("error")
+            .and_then(|v| v.get("kind"))
+            .and_then(|v| v.as_str()),
+        Some("capability"),
+        "expected ToolCall payload error.kind=capability (payload={})",
+        event.payload
+    );
+    assert_eq!(
+        event.payload
+            .get("error")
+            .and_then(|v| v.get("code"))
+            .and_then(|v| v.as_str()),
+        Some("capability_denied"),
+        "expected ToolCall payload error.code=capability_denied (payload={})",
+        event.payload
+    );
+
+    let caps = event
+        .payload
+        .get("capability_ids")
+        .and_then(|v| v.as_array())
+        .expect("missing ToolCall payload capability_ids");
+    assert!(
+        caps.iter()
+            .any(|v| v.as_str() == Some(required_capability_id)),
+        "expected ToolCall payload capability_ids to include {} (payload={})",
+        required_capability_id,
+        event.payload
+    );
+
+    Ok(())
+}
+
 fn echo_tool_registry_entry(server_id: &str) -> ToolRegistryEntry {
     let schema = json!({
         "type": "object",
@@ -888,6 +945,191 @@ async fn mcp_tool_call_denies_when_session_scoped_grants_do_not_satisfy_required
         matches!(err, McpError::CapabilityDenied(ref msg) if msg.contains("session capability denied")),
         "unexpected error: {err:?}"
     );
+
+    assert_tool_call_denied_event(&flight_recorder, trace_id, "fs.read").await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn mcp_tool_call_denies_and_records_tool_call_when_session_scoped_grants_unavailable(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
+    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
+    let registry = Arc::new(CapabilityRegistry::new());
+
+    let job_id = Uuid::new_v4();
+    let trace_id = Uuid::new_v4();
+    let session_id = "sess-1";
+    let mut ctx = make_ctx_with_session(
+        job_id,
+        trace_id,
+        session_id,
+        vec!["fs.read".to_string()],
+        AccessMode::AnalysisOnly,
+    );
+    ctx.job_id = None;
+
+    let (client_stream, server_stream) = tokio::io::duplex(64 * 1024);
+    let server_id = "stub-mcp";
+    tokio::spawn(stub_server_basic(
+        server_stream,
+        server_id.to_string(),
+        job_id.to_string(),
+    ));
+
+    let transport = DuplexTransport::new(client_stream);
+    let mut gate = GateConfig::minimal();
+    let echo_entry = echo_tool_registry_entry(server_id);
+    let tool_id = echo_entry.tool_id.clone();
+    gate.tool_registry.push(echo_entry);
+    gate.tool_policies.insert(
+        tool_id.clone(),
+        ToolPolicy {
+            required_capability: Some("fs.read".to_string()),
+            requires_consent: false,
+            path_argument: None,
+        },
+    );
+
+    let client = GatedMcpClient::connect(
+        server_id,
+        transport,
+        flight_recorder.clone(),
+        registry,
+        Arc::new(AllowAllConsent),
+        gate,
+        false,
+    )
+    .await?;
+
+    client.refresh_tools().await?;
+    let err = client
+        .tools_call(ctx, tool_id.as_str(), json!({ "message": "hi" }))
+        .await
+        .expect_err("expected deny-by-default due to session grants lookup failure");
+    assert!(
+        matches!(err, McpError::CapabilityDenied(_)),
+        "unexpected error: {err:?}"
+    );
+
+    assert_tool_call_denied_event(&flight_recorder, trace_id, "fs.read").await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn mcp_tool_call_denies_and_records_tool_call_when_child_session_widens_vs_parent_trust_003(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
+    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
+    let registry = Arc::new(CapabilityRegistry::new());
+
+    let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
+    sqlite.run_migrations().await?;
+    let db: Arc<dyn Database> = sqlite.into_arc();
+
+    let job_id = Uuid::new_v4();
+    let trace_id = Uuid::new_v4();
+    let parent_session_id = "sess-parent";
+    let child_session_id = "sess-child";
+
+    db.upsert_model_session(NewModelSession {
+        session_id: parent_session_id.to_string(),
+        parent_session_id: None,
+        spawn_depth: 0,
+        state: ModelSessionState::Created,
+        model_id: "mcp-test".to_string(),
+        backend: "local-test".to_string(),
+        parameter_class: "default".to_string(),
+        role: "assistant".to_string(),
+        wp_id: None,
+        mt_id: None,
+        work_profile_id: None,
+        execution_mode: "STANDARD".to_string(),
+        memory_policy: "EPHEMERAL".to_string(),
+        consent_receipt_id: None,
+        capability_grants: Vec::new(),
+        capability_token_ids: None,
+        job_id: None,
+    })
+    .await?;
+
+    db.upsert_model_session(NewModelSession {
+        session_id: child_session_id.to_string(),
+        parent_session_id: Some(parent_session_id.to_string()),
+        spawn_depth: 1,
+        state: ModelSessionState::Created,
+        model_id: "mcp-test".to_string(),
+        backend: "local-test".to_string(),
+        parameter_class: "default".to_string(),
+        role: "assistant".to_string(),
+        wp_id: None,
+        mt_id: None,
+        work_profile_id: None,
+        execution_mode: "STANDARD".to_string(),
+        memory_policy: "EPHEMERAL".to_string(),
+        consent_receipt_id: None,
+        capability_grants: vec!["fs.read".to_string()],
+        capability_token_ids: None,
+        job_id: Some(job_id),
+    })
+    .await?;
+
+    let mut ctx = make_ctx_with_session(
+        job_id,
+        trace_id,
+        child_session_id,
+        vec!["fs.read".to_string()],
+        AccessMode::AnalysisOnly,
+    );
+    ctx.job_id = None;
+
+    let (client_stream, server_stream) = tokio::io::duplex(64 * 1024);
+    let server_id = "stub-mcp";
+    tokio::spawn(stub_server_basic(
+        server_stream,
+        server_id.to_string(),
+        job_id.to_string(),
+    ));
+
+    let transport = DuplexTransport::new(client_stream);
+    let mut gate = GateConfig::minimal();
+    let echo_entry = echo_tool_registry_entry(server_id);
+    let tool_id = echo_entry.tool_id.clone();
+    gate.tool_registry.push(echo_entry);
+    gate.tool_policies.insert(
+        tool_id.clone(),
+        ToolPolicy {
+            required_capability: Some("fs.read".to_string()),
+            requires_consent: false,
+            path_argument: None,
+        },
+    );
+
+    let client = GatedMcpClient::connect_with_db(
+        server_id,
+        transport,
+        flight_recorder.clone(),
+        registry,
+        Arc::new(AllowAllConsent),
+        gate,
+        false,
+        Arc::clone(&db),
+    )
+    .await?;
+
+    client.refresh_tools().await?;
+    let err = client
+        .tools_call(ctx, tool_id.as_str(), json!({ "message": "hi" }))
+        .await
+        .expect_err("expected TRUST-003 parent narrowing denial");
+    assert!(
+        matches!(err, McpError::CapabilityDenied(ref msg) if msg.contains("exceeds parent")),
+        "unexpected error: {err:?}"
+    );
+
+    assert_tool_call_denied_event(&flight_recorder, trace_id, "fs.read").await?;
 
     Ok(())
 }

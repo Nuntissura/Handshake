@@ -1105,7 +1105,63 @@ impl GatedMcpClient {
 
         let (session_scoped_grants, parent_session_grants) = match session_id {
             Some(session_id) if !session_id.trim().is_empty() => {
-                self.resolve_session_scoped_grants(session_id).await?
+                match self.resolve_session_scoped_grants(session_id).await {
+                    Ok(result) => result,
+                    Err(err) => {
+                        let _ = fr_events::record_gate_decision(
+                            Arc::clone(&self.flight_recorder),
+                            &ctx,
+                            &self.server_id,
+                            Some(tool_id.as_str()),
+                            "deny",
+                            "session_grants_unavailable",
+                            json!({ "session_id": session_id, "error": err.to_string() }),
+                        );
+
+                        let ended_at_utc = Utc::now();
+                        let payload = json!({
+                            "type": "tool_call",
+                            "trace_id": ctx.trace_id.to_string(),
+                            "tool_call_id": tool_call_id.to_string(),
+                            "tool_id": tool_id,
+                            "tool_version": tool_version,
+                            "transport": "mcp",
+                            "side_effect": side_effect,
+                            "idempotency": idempotency,
+                            "idempotency_key": idempotency_key,
+                            "actor": default_actor_payload(),
+                            "ok": false,
+                            "args_ref": args_ref,
+                            "args_hash": args_hash,
+                            "error": {
+                                "code": "capability_denied",
+                                "kind": "capability",
+                                "message": err.to_string(),
+                                "retryable": false,
+                            },
+                            "timing": htc_timing(started_at_utc, ended_at_utc),
+                            "capability_ids": &required_caps,
+                        });
+                        let mut event = FlightRecorderEvent::new(
+                            FlightRecorderEventType::ToolCall,
+                            FlightRecorderActor::Agent,
+                            ctx.trace_id,
+                            payload,
+                        );
+                        if let Some(job_id) = ctx.job_id {
+                            event = event.with_job_id(job_id.to_string());
+                        }
+                        if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                            event = event.with_workflow_id(workflow_run_id.to_string());
+                        }
+                        self.flight_recorder
+                            .record_event(event)
+                            .await
+                            .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+
+                        return Err(err);
+                    }
+                }
             }
             _ => (Vec::new(), None),
         };
@@ -1182,6 +1238,47 @@ impl GatedMcpClient {
                         "session_capability_denied",
                         json!({ "capability_id": cap, "error": err.to_string() }),
                     );
+
+                    let ended_at_utc = Utc::now();
+                    let payload = json!({
+                        "type": "tool_call",
+                        "trace_id": ctx.trace_id.to_string(),
+                        "tool_call_id": tool_call_id.to_string(),
+                        "tool_id": tool_id,
+                        "tool_version": tool_version,
+                        "transport": "mcp",
+                        "side_effect": side_effect,
+                        "idempotency": idempotency,
+                        "idempotency_key": idempotency_key,
+                        "actor": default_actor_payload(),
+                        "ok": false,
+                        "args_ref": args_ref,
+                        "args_hash": args_hash,
+                        "error": {
+                            "code": "capability_denied",
+                            "kind": "capability",
+                            "message": err.to_string(),
+                            "retryable": false,
+                        },
+                        "timing": htc_timing(started_at_utc, ended_at_utc),
+                        "capability_ids": &required_caps,
+                    });
+                    let mut event = FlightRecorderEvent::new(
+                        FlightRecorderEventType::ToolCall,
+                        FlightRecorderActor::Agent,
+                        ctx.trace_id,
+                        payload,
+                    );
+                    if let Some(job_id) = ctx.job_id {
+                        event = event.with_job_id(job_id.to_string());
+                    }
+                    if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                        event = event.with_workflow_id(workflow_run_id.to_string());
+                    }
+                    self.flight_recorder
+                        .record_event(event)
+                        .await
+                        .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
                     return Err(err);
                 }
 
@@ -1201,6 +1298,47 @@ impl GatedMcpClient {
                             "parent_capability_denied",
                             json!({ "capability_id": cap, "error": err.to_string() }),
                         );
+
+                        let ended_at_utc = Utc::now();
+                        let payload = json!({
+                            "type": "tool_call",
+                            "trace_id": ctx.trace_id.to_string(),
+                            "tool_call_id": tool_call_id.to_string(),
+                            "tool_id": tool_id,
+                            "tool_version": tool_version,
+                            "transport": "mcp",
+                            "side_effect": side_effect,
+                            "idempotency": idempotency,
+                            "idempotency_key": idempotency_key,
+                            "actor": default_actor_payload(),
+                            "ok": false,
+                            "args_ref": args_ref,
+                            "args_hash": args_hash,
+                            "error": {
+                                "code": "capability_denied",
+                                "kind": "capability",
+                                "message": err.to_string(),
+                                "retryable": false,
+                            },
+                            "timing": htc_timing(started_at_utc, ended_at_utc),
+                            "capability_ids": &required_caps,
+                        });
+                        let mut event = FlightRecorderEvent::new(
+                            FlightRecorderEventType::ToolCall,
+                            FlightRecorderActor::Agent,
+                            ctx.trace_id,
+                            payload,
+                        );
+                        if let Some(job_id) = ctx.job_id {
+                            event = event.with_job_id(job_id.to_string());
+                        }
+                        if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                            event = event.with_workflow_id(workflow_run_id.to_string());
+                        }
+                        self.flight_recorder
+                            .record_event(event)
+                            .await
+                            .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
                         return Err(err);
                     }
                 }

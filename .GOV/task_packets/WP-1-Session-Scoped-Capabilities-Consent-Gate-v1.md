@@ -247,6 +247,15 @@ git revert <commit-sha>
 - **Pre-SHA1**: `fdbb900798a9eb07e14c4d085dced45923553f94`
 - **Post-SHA1**: `4da0b2b0367554d1e5c2de3938ea002cfe95b3f5`
 - **Gates Passed**:
+  - [x] anchors_present (C701-G01)
+  - [x] window_matches_plan (C701-G02)
+  - [x] rails_untouched_outside_window (C701-G04)
+  - [x] filename_canonical_and_openable (C701-G06)
+  - [x] pre_sha1_captured (C701-G05)
+  - [x] post_sha1_captured (C701-G05)
+  - [x] line_delta_equals_expected (C701-G05)
+  - [x] manifest_written_and_path_returned (C701-G05)
+  - [x] current_file_matches_preimage (C701-G08)
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
@@ -256,6 +265,15 @@ git revert <commit-sha>
 - **Pre-SHA1**: `12373dd82250732fd97aff658bc0bba68eb27ba9`
 - **Post-SHA1**: `11fc877b0073c0ef6147c00377e72debf445009b`
 - **Gates Passed**:
+  - [x] anchors_present (C701-G01)
+  - [x] window_matches_plan (C701-G02)
+  - [x] rails_untouched_outside_window (C701-G04)
+  - [x] filename_canonical_and_openable (C701-G06)
+  - [x] pre_sha1_captured (C701-G05)
+  - [x] post_sha1_captured (C701-G05)
+  - [x] line_delta_equals_expected (C701-G05)
+  - [x] manifest_written_and_path_returned (C701-G05)
+  - [x] current_file_matches_preimage (C701-G08)
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/src/llm/guard.rs`
@@ -265,6 +283,15 @@ git revert <commit-sha>
 - **Pre-SHA1**: `7eb568e8a669b047cfc4be3c63695496b5b35d5a`
 - **Post-SHA1**: `9159e5fa6c62fd478c4862ec2fa3b30a4f3b7768`
 - **Gates Passed**:
+  - [x] anchors_present (C701-G01)
+  - [x] window_matches_plan (C701-G02)
+  - [x] rails_untouched_outside_window (C701-G04)
+  - [x] filename_canonical_and_openable (C701-G06)
+  - [x] pre_sha1_captured (C701-G05)
+  - [x] post_sha1_captured (C701-G05)
+  - [x] line_delta_equals_expected (C701-G05)
+  - [x] manifest_written_and_path_returned (C701-G05)
+  - [x] current_file_matches_preimage (C701-G08)
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/src/llm/mod.rs`
@@ -274,15 +301,33 @@ git revert <commit-sha>
 - **Pre-SHA1**: `7f6acfdef2a761522cdeefa55f54abb9bf2ff639`
 - **Post-SHA1**: `4b833f9d8f9a2f6bf3867de7ca1ef28f75dafa45`
 - **Gates Passed**:
+  - [x] anchors_present (C701-G01)
+  - [x] window_matches_plan (C701-G02)
+  - [x] rails_untouched_outside_window (C701-G04)
+  - [x] filename_canonical_and_openable (C701-G06)
+  - [x] pre_sha1_captured (C701-G05)
+  - [x] post_sha1_captured (C701-G05)
+  - [x] line_delta_equals_expected (C701-G05)
+  - [x] manifest_written_and_path_returned (C701-G05)
+  - [x] current_file_matches_preimage (C701-G08)
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/src/mcp/gate.rs`
 - **Start**: 403
-- **End**: 1207
-- **Line Delta**: 116
+- **End**: 1345
+- **Line Delta**: 254
 - **Pre-SHA1**: `8ea82398453f0f4eb3902504c6200cd4552b7ebc`
-- **Post-SHA1**: `a71836ecc175c9e74ca4423a58dfd17c069f589e`
+- **Post-SHA1**: `7dfdca609427853c2640e83c44fc988049cad11f`
 - **Gates Passed**:
+  - [x] anchors_present (C701-G01)
+  - [x] window_matches_plan (C701-G02)
+  - [x] rails_untouched_outside_window (C701-G04)
+  - [x] filename_canonical_and_openable (C701-G06)
+  - [x] pre_sha1_captured (C701-G05)
+  - [x] post_sha1_captured (C701-G05)
+  - [x] line_delta_equals_expected (C701-G05)
+  - [x] manifest_written_and_path_returned (C701-G05)
+  - [x] current_file_matches_preimage (C701-G08)
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/src/workflows.rs`
@@ -292,6 +337,15 @@ git revert <commit-sha>
 - **Pre-SHA1**: `fee6ab73ce755f3c72a4e330600c58760e399a93`
 - **Post-SHA1**: `8bf16dea97e1503fb9a27bfd1d0a346d3f521952`
 - **Gates Passed**:
+  - [x] anchors_present (C701-G01)
+  - [x] window_matches_plan (C701-G02)
+  - [x] rails_untouched_outside_window (C701-G04)
+  - [x] filename_canonical_and_openable (C701-G06)
+  - [x] pre_sha1_captured (C701-G05)
+  - [x] post_sha1_captured (C701-G05)
+  - [x] line_delta_equals_expected (C701-G05)
+  - [x] manifest_written_and_path_returned (C701-G05)
+  - [x] current_file_matches_preimage (C701-G08)
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/tests/mcp_e2e_tests.rs`
@@ -301,15 +355,33 @@ git revert <commit-sha>
 - **Pre-SHA1**: `3e05973e506997731764dda68d4e8cdccb81f02d`
 - **Post-SHA1**: `b3c03021e526a0963b6a628ca5c93d04e796376f`
 - **Gates Passed**:
+  - [x] anchors_present (C701-G01)
+  - [x] window_matches_plan (C701-G02)
+  - [x] rails_untouched_outside_window (C701-G04)
+  - [x] filename_canonical_and_openable (C701-G06)
+  - [x] pre_sha1_captured (C701-G05)
+  - [x] post_sha1_captured (C701-G05)
+  - [x] line_delta_equals_expected (C701-G05)
+  - [x] manifest_written_and_path_returned (C701-G05)
+  - [x] current_file_matches_preimage (C701-G08)
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/tests/mcp_gate_tests.rs`
-- **Start**: 20
-- **End**: 894
-- **Line Delta**: 192
+- **Start**: 7
+- **End**: 1136
+- **Line Delta**: 434
 - **Pre-SHA1**: `84367469af501ee4573b4286eb8653ed1949ea76`
-- **Post-SHA1**: `49bd8721b779b23e982bd73c31a8f4d7fd6fee81`
+- **Post-SHA1**: `8182e539fb917b53cac985fdbaf463f20e77e99f`
 - **Gates Passed**:
+  - [x] anchors_present (C701-G01)
+  - [x] window_matches_plan (C701-G02)
+  - [x] rails_untouched_outside_window (C701-G04)
+  - [x] filename_canonical_and_openable (C701-G06)
+  - [x] pre_sha1_captured (C701-G05)
+  - [x] post_sha1_captured (C701-G05)
+  - [x] line_delta_equals_expected (C701-G05)
+  - [x] manifest_written_and_path_returned (C701-G05)
+  - [x] current_file_matches_preimage (C701-G08)
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs`
@@ -319,6 +391,15 @@ git revert <commit-sha>
 - **Pre-SHA1**: `259531a4a96a24984d24e6fcaf95ca245146f1e4`
 - **Post-SHA1**: `7a773197bbfaf518d942fbb77f0d50ded4da9576`
 - **Gates Passed**:
+  - [x] anchors_present (C701-G01)
+  - [x] window_matches_plan (C701-G02)
+  - [x] rails_untouched_outside_window (C701-G04)
+  - [x] filename_canonical_and_openable (C701-G06)
+  - [x] pre_sha1_captured (C701-G05)
+  - [x] post_sha1_captured (C701-G05)
+  - [x] line_delta_equals_expected (C701-G05)
+  - [x] manifest_written_and_path_returned (C701-G05)
+  - [x] current_file_matches_preimage (C701-G08)
   - [x] all_links_resolvable
 
 ## STATUS_HANDOFF
@@ -391,3 +472,74 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - WP-1-Session-Scoped-Capabilities-Consent-Gate-v1
+Verdict: FAIL
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Session-Scoped-Capabilities-Consent-Gate-v1 --range 1cb1bae85f51a83bac1dc28580199b6e15bec157..HEAD`; not tests): FAIL
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): NO
+
+Scope Inputs:
+- Task Packet: .GOV/task_packets/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md (status: In Progress)
+- Refinement: .GOV/refinements/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md (SPEC_TARGET_RESOLVED: Handshake_Master_Spec_v02.139.md)
+- Spec Anchors (refinement):
+  - 6.0.2.5 Canonical invocation envelope (HTC-1.0) (MUST) - session-scoped capability intersection (Normative)
+  - 4.3.9.12 ModelSession (Normative) - consent + capability_token_ids
+  - 4.3.9.14 Cloud Consent-Gate Lifecycle for Parallel Sessions (Normative) - INV-CONSENT-001/002/003
+  - 4.3.9.20 Inbound Trust Boundary Rules (Normative) - TRUST-001/002/003/004
+  - 11.5 FR-EVT-007 ToolCallEvent (Normative)
+  - 11.5.8 FR-EVT-CLOUD-001..004 (Cloud Escalation Events) (Normative)
+
+Worktree/Branch Verified:
+- worktree_dir: ../wt-WP-1-Session-Scoped-Capabilities-Consent-Gate-v1
+- branch: feat/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1
+- head_sha: 34f0460863b30dfebb1591dac5ccca63356d6fa0
+- validated_range: 1cb1bae85f51a83bac1dc28580199b6e15bec157..34f0460863b30dfebb1591dac5ccca63356d6fa0
+
+Files Checked:
+- src/backend/handshake_core/src/mcp/gate.rs
+- src/backend/handshake_core/src/mcp/fr_events.rs
+- src/backend/handshake_core/src/workflows.rs
+- src/backend/handshake_core/src/llm/guard.rs
+- src/backend/handshake_core/src/flight_recorder/mod.rs
+- src/backend/handshake_core/tests/mcp_gate_tests.rs
+- src/backend/handshake_core/tests/mcp_e2e_tests.rs
+- src/backend/handshake_core/tests/model_session_scheduler_tests.rs
+- justfile
+- .GOV/task_packets/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md
+- .GOV/refinements/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md
+
+Findings:
+- Deterministic manifest discipline failure (C701):
+  - The packet `## VALIDATION` manifest entries only list `- [x] all_links_resolvable` and omit the required per-entry gate checklist items (anchors_present, window_matches_plan, rails_untouched_outside_window, filename_canonical_and_openable, pre/post SHA1 captured, line_delta_equals_expected, manifest_written_and_path_returned, current_file_matches_preimage, etc).
+  - `just post-work ...` reports many warnings of the form: "Manifest[n]: gate not checked but inferred as PASS: <gate>" and also notes `Git hygiene waiver detected [CX-573F]` which relaxes strict git checks.
+  - Per VALIDATOR_PROTOCOL "Deterministic Manifest Gate" requirements, missing/unchecked gates are FAIL even if the script infers PASS.
+
+- DONE_MEANS / SPEC mismatch: session-scoped tool capability denials do not emit FR-EVT-007 (ToolCallEvent):
+  - In `src/backend/handshake_core/src/mcp/gate.rs`, when session_id is present and `session_scoped_grants` do not satisfy a required capability, the gate returns `McpError::CapabilityDenied(...)` after recording only `mcp.gate.decision` (via `fr_events::record_gate_decision`), but it does not record a `FlightRecorderEventType::ToolCall` event.
+  - This contradicts DONE_MEANS: "missing required capability yields ... FR-EVT-007 (ToolCallEvent) evidence" and refinement anchor 11.5 (ToolCallEvent).
+  - Additional related risk: failures inside `resolve_session_scoped_grants(session_id).await?` return early via `?` before a ToolCall event is recorded, meaning "deny-by-default" paths (DB unavailable / session lookup errors) may also lack FR-EVT-007 evidence.
+
+- Waiver scope note (CX-573F):
+  - Range includes many governance-surface changes (/.GOV/** and justfile). Waiver is recorded in packet and the post-work gate allows this, but it increases audit surface and risk of mixed provenance for the deterministic gate scripts used as evidence.
+
+Tests (run by Validator):
+- just pre-work WP-1-Session-Scoped-Capabilities-Consent-Gate-v1: PASS (with warnings)
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\\hs-cargo-target --test mcp_gate_tests: PASS
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\\hs-cargo-target --test mcp_e2e_tests: PASS
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\\hs-cargo-target --test model_session_scheduler_tests: PASS
+- just --set CARGO_TARGET_DIR D:\\hs-cargo-target test: PASS
+- just post-work WP-1-Session-Scoped-Capabilities-Consent-Gate-v1 --range 1cb1bae85f51a83bac1dc28580199b6e15bec157..HEAD: PASS (with warnings; treated as FAIL per manifest discipline above)
+
+REASON FOR FAIL:
+- Packet deterministic manifest gate checklist is incomplete and the post-work gate output explicitly reports many "gate not checked but inferred" warnings; VALIDATOR_PROTOCOL requires explicit gates, not inference.
+- Session-scoped capability denials do not produce FR-EVT-007 ToolCallEvent evidence, violating DONE_MEANS + spec anchor 11.5.
+
+Required Remediation:
+1) Fix Tool Gate to emit FR-EVT-007 ToolCallEvent on session-scoped capability denial (and parent-capability denial) and on deny-by-default session grant resolution failures (DB unavailable / session lookup errors). Add/extend tests to assert the ToolCall event exists for these deny paths.
+2) Update the task packet `## VALIDATION` manifest entries to include the full required per-entry gate checklist (no inference warnings). Re-run `just post-work ... --range 1cb1bae..HEAD` until the deterministic manifest gate passes without "gate not checked but inferred" warnings.
+
+Residual Risks / Notes:
+- Given the waiver and mixed governance changes in-range, consider minimizing audit surface by isolating governance-only changes outside the WP merge window (or re-cutting a clean branch) after remediation.
