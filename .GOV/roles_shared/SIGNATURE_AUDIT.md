@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja030320260206 | Orchestrator | 2026-03-03 02:06 | Task packet creation: WP-1-Session-Scoped-Capabilities-Consent-Gate-v1 | v02.139 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md ). |
 | ilja010320262103 | Orchestrator | 2026-03-01 21:03 | Task packet creation: WP-1-ModelSession-Core-Scheduler-v1 | v02.139 | Approved after Technical Refinement (see .GOV/refinements/WP-1-ModelSession-Core-Scheduler-v1.md ). |
 | ilja270220261121 | Orchestrator | 2026-02-27 11:21 | Task packet creation: WP-1-Spec-Router-SpecPromptCompiler-v1 | v02.139 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Spec-Router-SpecPromptCompiler-v1.md ). |
 | ilja260220261202 | Orchestrator | 2026-02-26 12:02 | Spec Enrichment v02.139 (promote SPEC_CURRENT to v02.139; add Phase 1 prompt-spec stubs) | v02.139 | Approved in-chat; signature provided by Operator. |
