@@ -70,6 +70,7 @@ Required verification (run at session start and whenever context is unclear):
 - `git worktree list`
 
 Tip (low-friction): run `just hard-gate-wt-001` to print the required `HARD_GATE_*` blocks in one command.
+Note: `just pre-work WP-{ID}` now also prints a `HARD_GATE_OUTPUT [CX-WT-001]` block (worktree evidence) as part of its chat-ready output.
 
 **Tooling note (prevents "wrong files in wrong worktree"):** if you're using an agent/automation where each command runs in an isolated shell, directory changes (`cd` / `Set-Location`) may not persist between commands. Always re-assert the WP worktree context by using an explicit workdir or `git -C "<worktree_dir>" ...` style commands.
 
@@ -624,6 +625,12 @@ STOP and wait for "SKELETON APPROVED".
 ```
 
 **Then create a docs-only skeleton checkpoint commit on your WP branch:**
+Recommended (safer, enforced docs-only):
+```bash
+just coder-skeleton-checkpoint WP-{ID}
+```
+
+Manual fallback:
 ```bash
 git status -sb
 git add .GOV/task_packets/WP-{ID}.md

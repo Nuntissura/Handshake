@@ -233,14 +233,15 @@ create-task-packet-stub wp-id roadmap_pointer="" line_numbers="":
 
 # Pre-work validation - run before starting implementation [CX-587, CX-620]
 pre-work wp-id:
-	@just gate-check {{wp-id}}
-	@node .GOV/scripts/validation/pre-work-check.mjs {{wp-id}}
+	@node .GOV/scripts/validation/pre-work.mjs {{wp-id}}
 
 # Post-work validation - run before or after commit [CX-623, CX-651]
 post-work wp-id *args:
-	@just gate-check {{wp-id}}
-	@node .GOV/scripts/validation/post-work-check.mjs {{wp-id}} {{args}}
-	@just role-mailbox-export-check
+	@node .GOV/scripts/validation/post-work.mjs {{wp-id}} {{args}}
+
+# Coder helper: docs-only skeleton checkpoint commit (task packet only).
+coder-skeleton-checkpoint wp-id:
+	@node .GOV/scripts/validation/coder-skeleton-checkpoint.mjs {{wp-id}}
 
 # Helper: compute deterministic COR-701 Pre/Post SHA1 for a file.
 cor701-sha file:
@@ -250,16 +251,13 @@ cor701-sha file:
 validate-workflow wp-id:
 	@echo "Running automated workflow validation for {{wp-id}}..."
 	@echo ""
-	@echo "Step 0: Gate Check"
-	@just gate-check {{wp-id}}
-	@echo ""
-	@echo "Step 1: Pre-work check"
+	@echo "Step 0: Pre-work check"
 	@just pre-work {{wp-id}}
 	@echo ""
-	@echo "Step 2: Code quality validation"
+	@echo "Step 1: Code quality validation"
 	@just validate
 	@echo ""
-	@echo "Step 3: Post-work check"
+	@echo "Step 2: Post-work check"
 	@just post-work {{wp-id}}
 	@echo ""
 	@echo "✅ Automated workflow validation passed for {{wp-id}} (manual review required)"
