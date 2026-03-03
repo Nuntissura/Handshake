@@ -12,9 +12,9 @@
 - AGENTIC_MODE: NO
 - ORCHESTRATOR_MODEL: N/A (required if AGENTIC_MODE=YES)
 - ORCHESTRATION_STARTED_AT_UTC: N/A (RFC3339 UTC; required if AGENTIC_MODE=YES)
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed> (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- CODER_MODEL: CodexCLI-GPT-5.2
+- CODER_REASONING_STRENGTH: HIGH (LOW | MEDIUM | HIGH | EXTRA_HIGH)
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
 - BUILD_ORDER_TECH_BLOCKER: YES
@@ -150,8 +150,46 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - Session-scoped capability resolution (deny-by-default):
+    - `ResolvedSessionCapabilities` (capabilities.rs): `{ session_id, parent_session_id?, effective_capability_ids[], capability_token_ids[] }`
+    - `resolve_effective_capabilities_for_session(db, registry, session_id) -> Result<ResolvedSessionCapabilities, CapabilityGateError>`
+    - `CapabilityGateErrorKind` + `CapabilityGateError` (capabilities.rs / workflows.rs) with stable kinds:
+      - `capability_mismatch`
+      - `consent_missing_or_invalid`
+      - `provenance_violation`
+  - Child-session narrowing (TRUST-003):
+    - `resolve_effective_capabilities_for_session(...)` intersects child grants/tokens with parent effective set (fail-closed if parent missing).
+  - Cloud consent-gate binding + broadcast scope (INV-CONSENT-001..003):
+    - Extend `ConsentReceiptV0_4` (llm/guard.rs) with explicit session binding + scope:
+      - `consent_scope: ConsentScope` (enum: SINGLE_CALL | SESSION_SCOPED | WP_SCOPED | BROADCAST_SCOPED)
+      - `session_ids: Vec<String>` (for BROADCAST_SCOPED; single-element for SESSION_SCOPED)
+      - `valid_from_utc: Option<String>` / `valid_until_utc: Option<String>` (enforced; deny when expired)
+    - Extend `CloudEscalationRequestV0_4` (llm/guard.rs) with:
+      - `session_id: String`
+      - `consent_scope: ConsentScope`
+    - `CloudEscalationBundleV0_4::validate_for_payload_sha256(...)` additionally validates:
+      - receipt/session binding (contains session_id; BROADCAST_SCOPED enumerates targets)
+      - validity window (now within [valid_from, valid_until])
+  - Scheduler consent gate enforcement + revocation (workflows.rs):
+    - `validate_consent_for_model_run_dispatch(db, session_id, consent_receipt_id, now) -> Result<(), CapabilityGateError>`
+    - `revoke_consent_receipt(db, consent_receipt_id, reason) -> Result<(), WorkflowError>`:
+      - cancel pending ModelRun jobs covered by receipt
+      - transition affected ModelSessions to `BLOCKED`
+  - Inbound trust boundary enforcement (TRUST-001/002) (workflows.rs + storage/mod.rs):
+    - `InboundMessageProvenance` struct (workflows.rs): `{ source_kind, source_session_id?, source_role?, content_hash?, trusted }`
+    - `sanitize_inbound_session_messages(inputs) -> Result<Vec<NewSessionMessage>, CapabilityGateError>`:
+      - external SYSTEM is rejected or downgraded deterministically (recorded)
+      - cross-session routed messages require provenance fields (else provenance_violation)
+  - Flight Recorder payload compatibility (flight_recorder/mod.rs):
+    - Allow optional `session_id` / `session_ids` on FR-EVT-CLOUD-* payloads (kept bounded tokens).
 - Open questions:
+  - Scope mismatch risk: session-scoped tool enforcement for MCP currently lives in `src/backend/handshake_core/src/mcp/gate.rs` (not listed in IN_SCOPE_PATHS). Plan is to enforce via session-effective `granted_capabilities` computed upstream in in-scope runtime/workflows code; confirm this satisfies "Tool Gate" DONE_MEANS or request Orchestrator to add `src/backend/handshake_core/src/mcp/gate.rs` to IN_SCOPE_PATHS.
+  - Schema versioning: extend `hsk.*@0.4` structs with new fields (serde optional) vs bump to `@0.5` (spec alignment decision needed).
+  - Broadcast/fan-out target enumeration source-of-truth: receipt `session_ids[]` vs ProjectionPlan; current ProjectionPlanV0_4 has no session binding.
+  - Revocation surface: where does operator-triggered revocation enter (workflow protocol / locus op / admin op)? Implement internal primitive now; wire surface later if out-of-scope.
 - Notes:
+  - END_TO_END_CLOSURE_PLAN [CX-E2E-001] already present below; enforcement will treat `job_inputs` fields as untrusted at trust boundaries and derive session/consent/capability truth from stored ModelSession + receipt artifacts.
+  - No product code changes until SKELETON is approved.
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
