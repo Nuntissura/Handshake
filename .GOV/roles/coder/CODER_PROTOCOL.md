@@ -74,7 +74,9 @@ Note: `just pre-work WP-{ID}` now also prints a `HARD_GATE_OUTPUT [CX-WT-001]` b
 
 **Tooling note (prevents "wrong files in wrong worktree"):** if you're using an agent/automation where each command runs in an isolated shell, directory changes (`cd` / `Set-Location`) may not persist between commands. Always re-assert the WP worktree context by using an explicit workdir or `git -C "<worktree_dir>" ...` style commands.
 
-**Chat requirement (MANDATORY):** paste the literal command outputs into chat as a `HARD_GATE_OUTPUT` block and immediately follow with `HARD_GATE_REASON` + `HARD_GATE_NEXT_ACTIONS` blocks so Operator/Validator can verify context and the stop/proceed decision without follow-ups.
+**Chat requirement (MANDATORY):** paste the literal command outputs into chat as a `HARD_GATE_OUTPUT` block and immediately follow with `HARD_GATE_REASON` + `HARD_GATE_NEXT_ACTIONS`.
+
+If the hard-gate output clearly matches the assignment, proceed automatically; do not wait for the Operator to type "proceed".
 
 Template:
 ```text
@@ -82,24 +84,11 @@ HARD_GATE_OUTPUT [CX-WT-001]
 <paste the verbatim outputs for the commands above, in order>
 
 HARD_GATE_REASON [CX-WT-001]
-- Prevent edits in the wrong repo/worktree directory.
-- Prevent accidental work on the wrong branch (e.g., `main`/role branches).
-- Enforce WP isolation: one WP == one worktree + branch.
-- Avoid cross-WP contamination of unstaged changes and commits.
-- Ensure deterministic handoff: Operator/Validator can verify state without back-and-forth.
-- Provide a verifiable snapshot for audits and validation evidence.
-- Catch missing/mispointed worktrees early (before any changes).
-- Ensure `git worktree list` topology matches concurrency expectations.
-- Prevent using the Operator's personal worktree as a Coder worktree.
-- Ensure the Orchestrator's assignment is actually in effect locally.
-- Bind Coder work to `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` `PREPARE` records (`branch`, `worktree_dir`).
-- Keep role-governed defaults consistent with `.GOV/roles_shared/ROLE_WORKTREES.md`.
-- Reduce risk of data loss from wrong-directory "cleanup"/stashing mistakes.
-- Make failures actionable: mismatch => STOP + escalate, not "guess and proceed".
+- Verify repo/worktree/branch context before proceeding (prevents cross-WP contamination).
 
 HARD_GATE_NEXT_ACTIONS [CX-WT-001]
-- If correct (repo/worktree/branch match the assignment): proceed to BOOTSTRAP / packet steps.
-- If incorrect/uncertain: STOP; ask Orchestrator/Operator to provide/create the correct WP worktree/branch and ensure `PREPARE` is recorded in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`.
+- If this matches the assignment: continue.
+- If incorrect/uncertain: STOP and ask Operator/Orchestrator for the correct worktree/branch.
 ```
 
 If you do not have a WP worktree assignment yet:
@@ -264,7 +253,11 @@ If you are explicitly instructed to update the board, ensure these 5 fixed secti
 - `## Superseded (Archive)`
 
 ### [CX-GATE-001] Binary Phase Gate (HARD INVARIANT)
-You MUST follow this exact sequence for every Work Packet. Combining these phases into a single turn is an AUTO-FAIL.
+You MUST follow this exact sequence for every Work Packet.
+
+Fast path (ANTI-BABYSIT): you MAY deliver **BOOTSTRAP + SKELETON** in a single turn and a single docs-only checkpoint commit. This does NOT authorize implementation.
+
+Forbidden: any product code changes (`src/`, `app/`, `tests/`) before "SKELETON APPROVED" is recorded in the task packet (enforced mechanically by `just post-work` / `post-work-check.mjs`).
 1. **BOOTSTRAP Phase**: Output the BOOTSTRAP block and verify scope.
 2. **SKELETON Phase**: Update the task packet `## SKELETON` section with proposed Traits/Structs/SQL headers, output the SKELETON block, and create a docs-only skeleton checkpoint commit. **STOP and wait for "SKELETON APPROVED".** If changes are requested, revise `## SKELETON` and repeat the docs-only checkpoint commit before implementation.
 3. **IMPLEMENTATION Phase**: Write logic only AFTER approval.

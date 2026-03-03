@@ -116,7 +116,9 @@ Required verification (run at session start and whenever context is unclear):
 
 Tip (low-friction): run `just hard-gate-wt-001` to print the required `HARD_GATE_*` blocks in one command.
 
-**Chat requirement (MANDATORY):** paste the literal command outputs into chat as a `HARD_GATE_OUTPUT` block and immediately follow with `HARD_GATE_REASON` + `HARD_GATE_NEXT_ACTIONS` blocks so Operator/Validator can verify context and the stop/proceed decision without follow-ups.
+**Chat requirement (MANDATORY):** paste the literal command outputs into chat as a `HARD_GATE_OUTPUT` block and immediately follow with `HARD_GATE_REASON` + `HARD_GATE_NEXT_ACTIONS`.
+
+If the hard-gate output clearly matches the assignment, proceed automatically; do not wait for the Operator to type "proceed".
 
 Template:
 ```text
@@ -124,24 +126,11 @@ HARD_GATE_OUTPUT [CX-WT-001]
 <paste the verbatim outputs for the commands above, in order>
 
 HARD_GATE_REASON [CX-WT-001]
-- Prevent edits in the wrong repo/worktree directory.
-- Prevent accidental work on the wrong branch (e.g., `main`/role branches).
-- Enforce WP isolation: one WP == one worktree + branch.
-- Avoid cross-WP contamination of unstaged changes and commits.
-- Ensure deterministic handoff: Operator/Validator can verify state without back-and-forth.
-- Provide a verifiable snapshot for audits and validation evidence.
-- Catch missing/mispointed worktrees early (before any changes).
-- Ensure `git worktree list` topology matches concurrency expectations.
-- Prevent using the Operator's personal worktree as a Coder worktree.
-- Ensure the Orchestrator's assignment is actually in effect locally.
-- Bind Coder work to `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` `PREPARE` records (`branch`, `worktree_dir`).
-- Keep role-governed defaults consistent with `.GOV/roles_shared/ROLE_WORKTREES.md`.
-- Reduce risk of data loss from wrong-directory "cleanup"/stashing mistakes.
-- Make failures actionable: mismatch => STOP + escalate, not "guess and proceed".
+- Verify repo/worktree/branch context before proceeding (prevents cross-WP contamination).
 
 HARD_GATE_NEXT_ACTIONS [CX-WT-001]
-- If correct (repo/worktree/branch match the assignment): proceed to BOOTSTRAP / packet steps.
-- If incorrect/uncertain: STOP; ask Orchestrator/Operator to provide/create the correct WP worktree/branch and ensure `PREPARE` is recorded in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`.
+- If this matches the assignment: continue.
+- If incorrect/uncertain: STOP and ask Operator for the correct worktree/branch.
 ```
 
 If the required worktree/branch does not exist:
