@@ -55,6 +55,11 @@ gov-check:
 	just docs-check
 	node .GOV/scripts/validation/gov-check.mjs
 
+# Governance sync helper: refresh derived governance views then validate.
+gov-sync:
+	just build-order-sync
+	just gov-check
+
 # Build order (derived view) maintenance [CX-BO-001]
 build-order-sync:
 	node .GOV/scripts/build-order-sync.mjs

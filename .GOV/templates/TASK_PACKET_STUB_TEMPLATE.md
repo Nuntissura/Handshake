@@ -22,6 +22,7 @@ Rules:
 - BUILD_ORDER_DOMAIN: <pending> (BACKEND | FRONTEND | GOV | CROSS_BOUNDARY)
 - BUILD_ORDER_TECH_BLOCKER: <pending> (YES | NO)
 - BUILD_ORDER_VALUE_TIER: <pending> (LOW | MEDIUM | HIGH)
+- BUILD_ORDER_RISK_TIER: <pending> (LOW | MEDIUM | HIGH)
 - BUILD_ORDER_DEPENDS_ON: <pending> (comma-separated Base WP IDs | NONE) (use Base IDs, no `-vN`)
 - BUILD_ORDER_BLOCKS: <pending> (comma-separated Base WP IDs | NONE) (use Base IDs, no `-vN`)
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
