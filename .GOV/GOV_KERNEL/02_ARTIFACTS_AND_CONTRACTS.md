@@ -142,7 +142,7 @@ Contract (minimum kernel requirements):
   - `## AUTHORITY` (must include spec pointer + codex + task board + traceability registry)
   - `## BOOTSTRAP` (files to open, search terms, commands)
   - `## SKELETON` (interface-first design)
-  - `## IMPLEMENTATION` (coder fills only after skeleton approval gate)
+  - `## IMPLEMENTATION` (coder fills only after the docs-only skeleton checkpoint commit)
   - `## HYGIENE`
   - `## VALIDATION` (mechanical manifest blocks for every changed non-doc file)
   - `## STATUS_HANDOFF`
@@ -150,7 +150,7 @@ Contract (minimum kernel requirements):
   - `## VALIDATION_REPORTS` (validator append-only audits/verdicts)
 
 Kernel phase gate requirement:
-- A literal line containing exactly `SKELETON APPROVED` MUST exist outside fenced code blocks before any â€œimplementation evidenceâ€ markers recognized by gate tooling.
+- Before any product code changes (`src/`, `app/`, `tests/`), a docs-only skeleton checkpoint commit MUST exist on the WP branch (enforced mechanically by `just post-work` / `post-work-check.mjs`).
 
 Failure modes:
 - Scope creep (â€œI also refactored Xâ€) becomes unauditable.
@@ -190,5 +190,4 @@ Contract:
 
 Failure modes:
 - Work can be started without real Operator authorization; approvals can be disputed.
-
 

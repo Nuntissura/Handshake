@@ -190,7 +190,7 @@ Why:
    - `CODER_MODEL`
    - `CODER_REASONING_STRENGTH`
    (Enforced by `.GOV/scripts/validation/task-packet-claim-check.mjs`)
-2. Gate check: `just gate-check {WP_ID}` enforces Markdown phase ordering and "SKELETON APPROVED" before implementation signals.
+2. Gate check: `just gate-check {WP_ID}` enforces Markdown phase ordering (BOOTSTRAP -> SKELETON) to keep phases unmerged.
 3. Pre-work gate: `just pre-work {WP_ID}`
    - Validates packet structure
    - Validates refinement exists + signature matches
@@ -641,4 +641,3 @@ Generated from repo file listing; grouped by directory. This is the "no file lef
 - `.GOV/operator/docs_local/DOC_INDEX.txt`
 - `.GOV/operator/docs_local/Diary RID extraction.txt`
 - `.GOV/operator/docs_local/legacy/The_Prompt_Diaries_v03.056.000_2025-11-28_01-42_CET.txt`
-

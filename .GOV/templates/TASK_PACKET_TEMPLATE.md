@@ -150,7 +150,7 @@ git revert <commit-sha>
   - <fill> (what the validator must prove; spec anchors; fields present; trust boundary enforced)
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- (Coder fills after the docs-only skeleton checkpoint commit exists.)
 
 ## HYGIENE
 - (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)

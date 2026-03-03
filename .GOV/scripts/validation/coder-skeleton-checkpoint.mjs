@@ -6,7 +6,7 @@
  * - Only `.GOV/task_packets/{WP_ID}.md` is modified/staged/untracked.
  * - Creates a commit: "docs: skeleton checkpoint [WP-{ID}]"
  *
- * This is a convenience helper; it does NOT bypass the "SKELETON APPROVED" stop.
+ * This is the interface-first checkpoint required before implementation [CX-GATE-001].
  */
 
 import fs from 'node:fs';
@@ -66,4 +66,3 @@ if (changed.length === 0) {
 // Stage and commit.
 execSync(`git add ${packetRel}`, { stdio: 'inherit' });
 execSync(`git commit -m \"docs: skeleton checkpoint [${wpId}]\"`, { stdio: 'inherit' });
-

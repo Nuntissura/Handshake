@@ -133,7 +133,6 @@ Hard rule (to prevent "babysit every gate to proceed" loops):
 STOP is only required when at least one is true:
 - The gate result is not PASS (FAIL/BLOCKED/unknown).
 - `OPERATOR_ACTION` is not `NONE` (a single explicit decision is needed).
-- The next step requires an explicit external approval string (e.g., you are at the SKELETON stop point waiting for `SKELETON APPROVED`).
 - The next step is a protocol-mandated stop point (e.g., handoff to Validator).
 
 ### Condensed coder session preflight (recommended)
@@ -255,12 +254,12 @@ If you are explicitly instructed to update the board, ensure these 5 fixed secti
 ### [CX-GATE-001] Binary Phase Gate (HARD INVARIANT)
 You MUST follow this exact sequence for every Work Packet.
 
-Fast path (ANTI-BABYSIT): you MAY deliver **BOOTSTRAP + SKELETON** in a single turn and a single docs-only checkpoint commit. This does NOT authorize implementation.
+Fast path (ANTI-BABYSIT): you MAY deliver **BOOTSTRAP + SKELETON** in a single turn and a single docs-only skeleton checkpoint commit, then continue to implementation without waiting for an external approval string.
 
-Forbidden: any product code changes (`src/`, `app/`, `tests/`) before "SKELETON APPROVED" is recorded in the task packet (enforced mechanically by `just post-work` / `post-work-check.mjs`).
+Forbidden: any product code changes (`src/`, `app/`, `tests/`) before a docs-only skeleton checkpoint commit exists on the WP branch (enforced mechanically by `just post-work` / `post-work-check.mjs`).
 1. **BOOTSTRAP Phase**: Output the BOOTSTRAP block and verify scope.
-2. **SKELETON Phase**: Update the task packet `## SKELETON` section with proposed Traits/Structs/SQL headers, output the SKELETON block, and create a docs-only skeleton checkpoint commit. **STOP and wait for "SKELETON APPROVED".** If changes are requested, revise `## SKELETON` and repeat the docs-only checkpoint commit before implementation.
-3. **IMPLEMENTATION Phase**: Write logic only AFTER approval.
+2. **SKELETON Phase**: Update the task packet `## SKELETON` section with proposed Traits/Structs/SQL headers, output the SKELETON block, and create a docs-only skeleton checkpoint commit.
+3. **IMPLEMENTATION Phase**: Write logic only AFTER the skeleton checkpoint commit exists.
 4. **HYGIENE Phase**: Run `just product-scan` (alias: `just validator-scan`), `just validator-dal-audit`, and `just validator-git-hygiene` (fail if build/cache artifacts like `target/`, `node_modules/`, `.gemini/` are tracked).
 5. **EVALUATION Phase**: Run the full TEST_PLAN and required hygiene commands, self-review, and prepare results for handoff (keep task packet free of validation logs).
 
@@ -613,7 +612,7 @@ PROPOSED_CONTRACTS:
 OPEN_QUESTIONS:
 - {question 1, if any}
 
-STOP and wait for "SKELETON APPROVED".
+NEXT: Create a docs-only skeleton checkpoint commit, then proceed to implementation.
 ========================================
 ```
 
@@ -630,7 +629,7 @@ git add .GOV/task_packets/WP-{ID}.md
 git commit -m "docs: skeleton checkpoint [WP-{ID}]"
 ```
 
-Notify the Validator with the commit hash and **STOP**. Do not implement any logic until the Validator issues "SKELETON APPROVED".
+Optional: notify the Validator with the skeleton checkpoint commit hash (useful when working async). Then proceed to implementation.
 
 ---
 

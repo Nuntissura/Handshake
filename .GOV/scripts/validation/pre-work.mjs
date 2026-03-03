@@ -76,7 +76,7 @@ process.stdout.write('\n');
 printBlockHeader('NEXT_COMMANDS', 'CX-GATE-UX-001');
 if (ok) {
   process.stdout.write('- (After updating the packet `## SKELETON`) just coder-skeleton-checkpoint ' + wpId + '\n');
-  process.stdout.write('- STOP and wait for \"SKELETON APPROVED\" before implementation.\n');
+  process.stdout.write('- Proceed to implementation after the skeleton checkpoint commit exists.\n');
 } else {
   process.stdout.write(`- Review the failures above.\n`);
   process.stdout.write(`- Fix the packet/worktree context, then re-run: just pre-work ${wpId}\n`);

@@ -122,7 +122,7 @@ Kernel objective: enforce â€œinterface-firstâ€ sequencing and prevent m
 
 Required checks (conceptual):
 - BOOTSTRAP must exist before SKELETON.
-- A literal `SKELETON APPROVED` marker must exist (outside code fences) before implementation evidence is accepted.
+- A docs-only skeleton checkpoint commit must exist on the WP branch before any product code changes are accepted.
 - Gate parsing must ignore fenced code blocks to avoid false positives.
 
 Failure modes prevented:
@@ -182,4 +182,3 @@ These checks are not always required for kernel conformance, but they harden por
 - **Worktree concurrency check**: detect multiple active WPs in one worktree (project-defined heuristic).
 - **Spec-current check**: ensures `.GOV/roles_shared/SPEC_CURRENT.md` points to the newest spec version by version parsing policy.
 - **Codex check**: detects forbidden patterns (architecture violations, unsafe APIs, debug prints) and codex drift across docs.
-

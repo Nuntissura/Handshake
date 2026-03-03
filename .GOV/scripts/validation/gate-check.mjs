@@ -8,7 +8,6 @@ import path from 'node:path';
  * Hardened per WP-1-Gate-Check-Tool-v2:
  * - Line-based parsing with fenced code block tracking
  * - Detects phases via heading lines only (outside fences)
- * - Detects approval via dedicated marker line (outside fences)
  */
 
 const wpId = process.argv[2];
@@ -39,7 +38,6 @@ function parseMarkersFromContent(content) {
     const result = {
         bootstrapHeadingLine: -1,
         skeletonHeadingLine: -1,
-        approvalMarkerLine: -1,
         implementationDetected: false,
         statusInProgress: false
     };
@@ -71,13 +69,6 @@ function parseMarkersFromContent(content) {
             }
         }
 
-        // Detect approval marker: trimmed line must equal "SKELETON APPROVED" exactly
-        if (trimmed === 'SKELETON APPROVED') {
-            if (result.approvalMarkerLine === -1) {
-                result.approvalMarkerLine = i;
-            }
-        }
-
         // Detect implementation evidence (heading syntax only, outside fence)
         if (/^#{1,6}\s+VALIDATION\s*\(Coder\)/i.test(line) ||
             /^#{1,6}\s+VALIDATION REPORT\b/i.test(line)) {
@@ -104,34 +95,23 @@ if (parsed.statusInProgress && parsed.bootstrapHeadingLine === -1) {
     process.exit(1);
 }
 
-// Validation 2: Interface-First Invariant [CX-625]
-if (parsed.implementationDetected && parsed.approvalMarkerLine === -1) {
-    console.error("? GATE FAIL: Implementation detected without SKELETON APPROVED marker.");
-    process.exit(1);
-}
-
-// Validation 3: Anti-Turn-Merging (Heuristic)
+// Validation 2: Anti-Turn-Merging (Heuristic)
 const missingPhases = [];
 if (parsed.bootstrapHeadingLine === -1) missingPhases.push('BOOTSTRAP');
 if (parsed.skeletonHeadingLine === -1) missingPhases.push('SKELETON');
-if (parsed.approvalMarkerLine === -1) missingPhases.push('APPROVAL');
 
 if (missingPhases.length > 0 && parsed.implementationDetected) {
     console.error(`? GATE FAIL: Missing mandatory phases: ${missingPhases.join(', ')}`);
     process.exit(1);
 }
 
-// Validation 4: Enforce sequence order (BOOTSTRAP -> SKELETON -> APPROVAL)
+// Validation 3: Enforce sequence order (BOOTSTRAP -> SKELETON)
 if (parsed.bootstrapHeadingLine === -1 || parsed.skeletonHeadingLine === -1) {
     console.error("? GATE FAIL: Missing BOOTSTRAP or SKELETON markers.");
     process.exit(1);
 }
 if (parsed.bootstrapHeadingLine > parsed.skeletonHeadingLine) {
     console.error("? GATE FAIL: SKELETON appears before BOOTSTRAP.");
-    process.exit(1);
-}
-if (parsed.approvalMarkerLine !== -1 && parsed.skeletonHeadingLine > parsed.approvalMarkerLine) {
-    console.error("? GATE FAIL: SKELETON APPROVED marker must follow SKELETON.");
     process.exit(1);
 }
 

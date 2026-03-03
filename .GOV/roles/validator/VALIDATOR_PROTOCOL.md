@@ -46,10 +46,8 @@ Governance/workflow/tooling note: changes limited to `.GOV/`, `.GOV/scripts/`, `
 Minimum verification for governance-only changes: `just gov-check`.
 
 ## Pre-Flight (Blocking)
-- [CX-GATE-001] BINARY PHASE GATE (HARD INVARIANT): Workflow MUST follow the sequence: BOOTSTRAP -> SKELETON -> SKELETON APPROVED -> IMPLEMENTATION -> HYGIENE -> VALIDATION.
-- Fast path (ANTI-BABYSIT): Coder MAY deliver BOOTSTRAP + SKELETON in a single turn and a single docs-only checkpoint commit. This does NOT authorize implementation.
-- Forbidden: any product code changes (`src/`, `app/`, `tests/`) before a "SKELETON APPROVED" marker is recorded in the task packet (enforced mechanically by `just post-work` / `post-work-check.mjs`).
-- SKELETON APPROVAL: Implementation is HARD-BLOCKED until the Validator issues the string "SKELETON APPROVED" and the approval is recorded in the task packet.
+- [CX-GATE-001] BINARY PHASE GATE (HARD INVARIANT): Workflow MUST follow the sequence: BOOTSTRAP -> SKELETON -> IMPLEMENTATION -> HYGIENE -> VALIDATION.
+- Interface-first checkpoint (ANTI-VIBECODE): before any product code changes (`src/`, `app/`, `tests/`), a docs-only skeleton checkpoint commit MUST exist on the WP branch (recommended: `just coder-skeleton-checkpoint WP-{ID}`).
 - [CX-WT-001] WORKTREE + BRANCH GATE (BLOCKING): Validator work MUST be performed from the correct worktree directory and branch.
   - Source of truth: `.GOV/roles_shared/ROLE_WORKTREES.md` (default role worktrees/branches) and the assigned WP worktree/branch.
   - Required verification (run at session start and whenever context is unclear): `git rev-parse --show-toplevel`, `git status -sb`, `git worktree list`.

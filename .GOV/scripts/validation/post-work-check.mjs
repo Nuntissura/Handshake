@@ -529,33 +529,29 @@ const useRange = evaluation.mode === 'range' && evaluation.baseRev && evaluation
 const rangeFiles = useRange ? getRangeFiles(evaluation.baseRev, evaluation.headRev) : [];
 const changedFiles = useStaged ? stagedFiles : (evaluation.mode === 'worktree' ? workingFiles : rangeFiles);
 
-// Phase gate: product code changes require a "SKELETON APPROVED" marker recorded in the task packet.
-// This is intentionally mechanical to prevent "vibecoding" ahead of interface approval [CX-GATE-001].
-const hasSkeletonApprovedMarker = (content) => {
-  if (!content) return false;
-  const lines = content.split('\n');
-  let inCodeFence = false;
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('```')) {
-      inCodeFence = !inCodeFence;
-      continue;
-    }
-    if (inCodeFence) continue;
-
-    if (trimmed === 'SKELETON APPROVED') return true;
-    if (/^#{1,6}\s+SKELETON APPROVED\b/i.test(trimmed)) return true;
+// Phase gate: product code changes require a docs-only skeleton checkpoint commit.
+// This is intentionally mechanical to prevent "vibecoding" ahead of interface checkpointing [CX-GATE-001].
+const escapeRegex = (s) => (s ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const hasSkeletonCheckpointCommit = (wpId) => {
+  const wp = (wpId ?? '').trim();
+  if (!wp) return false;
+  const subjectRe = `^docs: skeleton checkpoint \\[${escapeRegex(wp)}\\]$`;
+  try {
+    const sha = gitTrim(`git log -n 1 --format=%H --grep="${subjectRe}"`);
+    return Boolean((sha || '').trim());
+  } catch {
+    return false;
   }
-  return false;
 };
 
-const hasApproval = hasSkeletonApprovedMarker(packetContent);
+const hasSkeletonCheckpoint = hasSkeletonCheckpointCommit(WP_ID);
 const productChanged = changedFiles
   .map((p) => p.replace(/\\/g, '/'))
   .filter((p) => p.startsWith('src/') || p.startsWith('app/') || p.startsWith('tests/'));
 
-if (productChanged.length > 0 && !hasApproval) {
-  errors.push('Phase gate violation [CX-GATE-001]: Product code changes detected without "SKELETON APPROVED" recorded in the task packet.');
+if (productChanged.length > 0 && !hasSkeletonCheckpoint) {
+  errors.push('Phase gate violation [CX-GATE-001]: Product code changes detected without a docs-only skeleton checkpoint commit on this WP branch.');
+  errors.push(`Expected commit subject: docs: skeleton checkpoint [${WP_ID}] (create via: just coder-skeleton-checkpoint ${WP_ID})`);
   errors.push(`Changed product paths (subset): ${productChanged.slice(0, 10).join(', ')}`);
   if (productChanged.length > 10) {
     errors.push(`Changed product paths: (+${productChanged.length - 10} more)`);
