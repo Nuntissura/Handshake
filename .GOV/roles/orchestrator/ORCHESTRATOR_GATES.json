@@ -1556,6 +1556,22 @@
       "branch": "feat/WP-1-ModelSession-Core-Scheduler-v1",
       "worktree_dir": "../wt-WP-1-ModelSession-Core-Scheduler-v1",
       "timestamp": "2026-03-01T20:04:02.630Z"
+    },
+    {
+      "wpId": "WP-1-Session-Scoped-Capabilities-Consent-Gate-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.139.md",
+      "spec_target_sha1": "0a5a9069bf8e06654ddf9b647927c2cb8a30aa6f",
+      "timestamp": "2026-03-03T00:52:44.978Z",
+      "turn_token": "1772499164979"
+    },
+    {
+      "wpId": "WP-1-Session-Scoped-Capabilities-Consent-Gate-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja030320260206",
+      "timestamp": "2026-03-03T01:07:05.902Z",
+      "refinement_path": ".GOV/refinements/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md"
     }
   ]
 }

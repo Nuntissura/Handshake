@@ -56,6 +56,8 @@ Entry format (recommended):
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
 
 ## Stub Backlog (Not Activated)
+
+Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
 - **[WP-1-Video-Archive-Loom-Integration-v1]** - [STUB]
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
