@@ -17,7 +17,9 @@ use handshake_core::mcp::security::canonicalize_under_roots;
 use handshake_core::mcp::transport::duplex::DuplexTransport;
 use handshake_core::mcp::transport::stdio::StdioTransport;
 use handshake_core::mcp::transport::{ConnectedTransport, McpTransport, TransportIo, TransportTasks};
-use handshake_core::storage::AccessMode;
+use handshake_core::storage::{
+    sqlite::SqliteDatabase, AccessMode, Database, ModelSessionState, NewModelSession,
+};
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter, DuplexStream};
 use tokio::sync::{mpsc, oneshot};
@@ -452,7 +454,7 @@ fn make_ctx(
     McpContext {
         job_id: Some(job_id),
         trace_id,
-        session_id: Some("sess-1".to_string()),
+        session_id: None,
         task_id: Some("task-1".to_string()),
         workflow_run_id: Some("wf-1".to_string()),
         granted_capabilities: granted,
@@ -461,6 +463,18 @@ fn make_ctx(
         agentic_mode_enabled: false,
         allowed_roots: Vec::new(),
     }
+}
+
+fn make_ctx_with_session(
+    job_id: Uuid,
+    trace_id: Uuid,
+    session_id: &str,
+    granted: Vec<String>,
+    access_mode: AccessMode,
+) -> McpContext {
+    let mut ctx = make_ctx(job_id, trace_id, granted, access_mode);
+    ctx.session_id = Some(session_id.to_string());
+    ctx
 }
 
 fn echo_tool_registry_entry(server_id: &str) -> ToolRegistryEntry {
@@ -696,6 +710,184 @@ async fn mcp_tool_call_records_fr_events_and_logging() -> Result<(), Box<dyn std
             );
         }
     }
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn mcp_tool_call_allows_when_session_scoped_grants_satisfy_required_caps(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
+    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
+    let registry = Arc::new(CapabilityRegistry::new());
+
+    let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
+    sqlite.run_migrations().await?;
+    let db: Arc<dyn Database> = sqlite.into_arc();
+
+    let job_id = Uuid::new_v4();
+    let trace_id = Uuid::new_v4();
+    let session_id = "sess-1";
+    db.upsert_model_session(NewModelSession {
+        session_id: session_id.to_string(),
+        parent_session_id: None,
+        spawn_depth: 0,
+        state: ModelSessionState::Created,
+        model_id: "mcp-test".to_string(),
+        backend: "local-test".to_string(),
+        parameter_class: "default".to_string(),
+        role: "assistant".to_string(),
+        wp_id: None,
+        mt_id: None,
+        work_profile_id: None,
+        execution_mode: "STANDARD".to_string(),
+        memory_policy: "EPHEMERAL".to_string(),
+        consent_receipt_id: None,
+        capability_grants: vec!["fs.read".to_string()],
+        capability_token_ids: None,
+        job_id: Some(job_id),
+    })
+    .await?;
+
+    let mut ctx = make_ctx_with_session(
+        job_id,
+        trace_id,
+        session_id,
+        vec!["fs.read".to_string()],
+        AccessMode::AnalysisOnly,
+    );
+    ctx.job_id = None;
+
+    let (client_stream, server_stream) = tokio::io::duplex(64 * 1024);
+    let server_id = "stub-mcp";
+    tokio::spawn(stub_server_basic(
+        server_stream,
+        server_id.to_string(),
+        job_id.to_string(),
+    ));
+
+    let transport = DuplexTransport::new(client_stream);
+    let mut gate = GateConfig::minimal();
+    let echo_entry = echo_tool_registry_entry(server_id);
+    let tool_id = echo_entry.tool_id.clone();
+    gate.tool_registry.push(echo_entry);
+    gate.tool_policies.insert(
+        tool_id.clone(),
+        ToolPolicy {
+            required_capability: Some("fs.read".to_string()),
+            requires_consent: false,
+            path_argument: None,
+        },
+    );
+
+    let client = GatedMcpClient::connect_with_db(
+        server_id,
+        transport,
+        flight_recorder.clone(),
+        registry,
+        Arc::new(AllowAllConsent),
+        gate,
+        false,
+        Arc::clone(&db),
+    )
+    .await?;
+
+    client.refresh_tools().await?;
+    let result = client
+        .tools_call(ctx, tool_id.as_str(), json!({ "message": "hi" }))
+        .await?;
+    assert_eq!(result.get("echoed").and_then(|v| v.as_str()), Some("hi"));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn mcp_tool_call_denies_when_session_scoped_grants_do_not_satisfy_required_caps(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
+    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
+    let registry = Arc::new(CapabilityRegistry::new());
+
+    let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
+    sqlite.run_migrations().await?;
+    let db: Arc<dyn Database> = sqlite.into_arc();
+
+    let job_id = Uuid::new_v4();
+    let trace_id = Uuid::new_v4();
+    let session_id = "sess-1";
+    db.upsert_model_session(NewModelSession {
+        session_id: session_id.to_string(),
+        parent_session_id: None,
+        spawn_depth: 0,
+        state: ModelSessionState::Created,
+        model_id: "mcp-test".to_string(),
+        backend: "local-test".to_string(),
+        parameter_class: "default".to_string(),
+        role: "assistant".to_string(),
+        wp_id: None,
+        mt_id: None,
+        work_profile_id: None,
+        execution_mode: "STANDARD".to_string(),
+        memory_policy: "EPHEMERAL".to_string(),
+        consent_receipt_id: None,
+        capability_grants: Vec::new(),
+        capability_token_ids: None,
+        job_id: Some(job_id),
+    })
+    .await?;
+
+    let mut ctx = make_ctx_with_session(
+        job_id,
+        trace_id,
+        session_id,
+        vec!["fs.read".to_string()],
+        AccessMode::AnalysisOnly,
+    );
+    ctx.job_id = None;
+
+    let (client_stream, server_stream) = tokio::io::duplex(64 * 1024);
+    let server_id = "stub-mcp";
+    tokio::spawn(stub_server_basic(
+        server_stream,
+        server_id.to_string(),
+        job_id.to_string(),
+    ));
+
+    let transport = DuplexTransport::new(client_stream);
+    let mut gate = GateConfig::minimal();
+    let echo_entry = echo_tool_registry_entry(server_id);
+    let tool_id = echo_entry.tool_id.clone();
+    gate.tool_registry.push(echo_entry);
+    gate.tool_policies.insert(
+        tool_id.clone(),
+        ToolPolicy {
+            required_capability: Some("fs.read".to_string()),
+            requires_consent: false,
+            path_argument: None,
+        },
+    );
+
+    let client = GatedMcpClient::connect_with_db(
+        server_id,
+        transport,
+        flight_recorder.clone(),
+        registry,
+        Arc::new(AllowAllConsent),
+        gate,
+        false,
+        Arc::clone(&db),
+    )
+    .await?;
+
+    client.refresh_tools().await?;
+    let err = client
+        .tools_call(ctx, tool_id.as_str(), json!({ "message": "hi" }))
+        .await
+        .expect_err("expected session-scoped capability denial");
+    assert!(
+        matches!(err, McpError::CapabilityDenied(ref msg) if msg.contains("session capability denied")),
+        "unexpected error: {err:?}"
+    );
 
     Ok(())
 }

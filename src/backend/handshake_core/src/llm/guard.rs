@@ -10,6 +10,7 @@ use super::{
     LlmClient, LlmError, ModelTier,
 };
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -56,6 +57,11 @@ impl CloudEscalationPolicy {
 pub struct ProjectionPlanV0_4 {
     pub schema_version: String, // "hsk.projection_plan@0.4"
     pub projection_plan_id: String,
+    // Optional session binding fields (parallel sessions consent gate).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub consent_scope: Option<ConsentScopeV0_4>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_ids: Option<Vec<String>>,
     pub include_artifact_refs: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub include_fields: Option<Vec<String>>,
@@ -72,6 +78,15 @@ pub struct ProjectionPlanV0_4 {
 }
 
 /// Cloud escalation consent receipt [Spec §11.1.7.2].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ConsentScopeV0_4 {
+    SingleCall,
+    SessionScoped,
+    WpScoped,
+    BroadcastScoped,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConsentReceiptV0_4 {
     pub schema_version: String, // "hsk.consent_receipt@0.4"
@@ -81,6 +96,17 @@ pub struct ConsentReceiptV0_4 {
     pub approved: bool,
     pub approved_at: String,
     pub user_id: String,
+    // Optional consent gate invariants (parallel sessions consent gate).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub consent_scope: Option<ConsentScopeV0_4>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_ids: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub valid_from_utc: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub valid_until_utc: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revoked_at_utc: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ui_surface: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -92,6 +118,11 @@ pub struct ConsentReceiptV0_4 {
 pub struct CloudEscalationRequestV0_4 {
     pub schema_version: String, // "hsk.cloud_escalation@0.4"
     pub request_id: String,
+    // Optional session binding fields (parallel sessions consent gate).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub consent_scope: Option<ConsentScopeV0_4>,
     pub wp_id: String,
     pub mt_id: String,
     pub reason: String,
@@ -111,6 +142,13 @@ pub struct CloudEscalationBundleV0_4 {
 }
 
 impl CloudEscalationBundleV0_4 {
+    fn parse_rfc3339_utc(label: &str, value: &str) -> Result<DateTime<Utc>, LlmError> {
+        let parsed = DateTime::parse_from_rfc3339(value).map_err(|_| {
+            LlmError::CloudConsentMismatch(format!("{label} must be RFC3339 (UTC preferred)"))
+        })?;
+        Ok(parsed.with_timezone(&Utc))
+    }
+
     pub fn validate_for_payload_sha256(
         &self,
         computed_payload_sha256: &str,
@@ -174,6 +212,90 @@ impl CloudEscalationBundleV0_4 {
                 "payload_sha256 mismatch (computed canonical OpenAI-compatible request bytes)"
                     .to_string(),
             ));
+        }
+
+        // Optional session binding + consent gate invariants (deny-by-default when session_id present).
+        if let Some(revoked_at) = self
+            .consent_receipt
+            .revoked_at_utc
+            .as_deref()
+            .map(|v| v.trim())
+            .filter(|v| !v.is_empty())
+        {
+            let _ = Self::parse_rfc3339_utc("ConsentReceipt.revoked_at_utc", revoked_at)?;
+            return Err(LlmError::CloudConsentMismatch(
+                "ConsentReceipt is revoked".to_string(),
+            ));
+        }
+
+        let now = Utc::now();
+        if let Some(valid_from) = self
+            .consent_receipt
+            .valid_from_utc
+            .as_deref()
+            .map(|v| v.trim())
+            .filter(|v| !v.is_empty())
+        {
+            let start = Self::parse_rfc3339_utc("ConsentReceipt.valid_from_utc", valid_from)?;
+            if now < start {
+                return Err(LlmError::CloudConsentMismatch(
+                    "ConsentReceipt not yet valid (valid_from_utc)".to_string(),
+                ));
+            }
+        }
+        if let Some(valid_until) = self
+            .consent_receipt
+            .valid_until_utc
+            .as_deref()
+            .map(|v| v.trim())
+            .filter(|v| !v.is_empty())
+        {
+            let end = Self::parse_rfc3339_utc("ConsentReceipt.valid_until_utc", valid_until)?;
+            if now > end {
+                return Err(LlmError::CloudConsentMismatch(
+                    "ConsentReceipt expired (valid_until_utc)".to_string(),
+                ));
+            }
+        }
+
+        let request_session_id = self
+            .request
+            .session_id
+            .as_deref()
+            .map(|v| v.trim())
+            .filter(|v| !v.is_empty());
+        if let Some(session_id) = request_session_id {
+            let scope = self
+                .consent_receipt
+                .consent_scope
+                .or(self.request.consent_scope)
+                .ok_or_else(|| {
+                    LlmError::CloudConsentMismatch(
+                        "ConsentReceipt.consent_scope required when CloudEscalationRequest.session_id is present"
+                            .to_string(),
+                    )
+                })?;
+            let session_ids = self
+                .consent_receipt
+                .session_ids
+                .as_ref()
+                .ok_or_else(|| {
+                    LlmError::CloudConsentMismatch(
+                        "ConsentReceipt.session_ids required when CloudEscalationRequest.session_id is present"
+                            .to_string(),
+                    )
+                })?;
+            if !session_ids.iter().any(|v| v.trim() == session_id) {
+                return Err(LlmError::CloudConsentMismatch(
+                    "ConsentReceipt.session_ids must include CloudEscalationRequest.session_id"
+                        .to_string(),
+                ));
+            }
+            if matches!(scope, ConsentScopeV0_4::SessionScoped) && session_ids.len() != 1 {
+                return Err(LlmError::CloudConsentMismatch(
+                    "SESSION_SCOPED receipt must bind exactly one session_id".to_string(),
+                ));
+            }
         }
 
         Ok(())
@@ -300,6 +422,8 @@ mod tests {
             request: CloudEscalationRequestV0_4 {
                 schema_version: "hsk.cloud_escalation@0.4".to_string(),
                 request_id,
+                session_id: None,
+                consent_scope: None,
                 wp_id: "WP-TEST".to_string(),
                 mt_id: "MT-TEST".to_string(),
                 reason: "test".to_string(),
@@ -312,6 +436,8 @@ mod tests {
             projection_plan: ProjectionPlanV0_4 {
                 schema_version: "hsk.projection_plan@0.4".to_string(),
                 projection_plan_id: projection_plan_id.clone(),
+                consent_scope: None,
+                session_ids: None,
                 include_artifact_refs: Vec::new(),
                 include_fields: None,
                 redactions_applied: vec!["none".to_string()],
@@ -330,6 +456,11 @@ mod tests {
                 approved: true,
                 approved_at: "1970-01-01T00:00:00Z".to_string(),
                 user_id: "user-1".to_string(),
+                consent_scope: None,
+                session_ids: None,
+                valid_from_utc: None,
+                valid_until_utc: None,
+                revoked_at_utc: None,
                 ui_surface: None,
                 notes: None,
             },

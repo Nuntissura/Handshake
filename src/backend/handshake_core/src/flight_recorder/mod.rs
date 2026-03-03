@@ -4760,6 +4760,9 @@ fn validate_cloud_escalation_event_payload(
         &[
             "projection_plan_id",
             "consent_receipt_id",
+            "consent_scope",
+            "session_id",
+            "session_ids",
             "wp_id",
             "mt_id",
             "local_attempts",
@@ -4799,6 +4802,61 @@ fn validate_cloud_escalation_event_payload(
                         "payload field {key} must be a bounded string token"
                     )))
                 }
+            }
+        }
+    }
+
+    if map.contains_key("consent_scope") {
+        match require_key(map, "consent_scope")? {
+            Value::String(value)
+                if matches!(
+                    value.as_str(),
+                    "SINGLE_CALL" | "SESSION_SCOPED" | "WP_SCOPED" | "BROADCAST_SCOPED"
+                ) => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field consent_scope must be one of: SINGLE_CALL, SESSION_SCOPED, WP_SCOPED, BROADCAST_SCOPED"
+                        .to_string(),
+                ))
+            }
+        }
+    }
+
+    if map.contains_key("session_id") {
+        match require_key(map, "session_id")? {
+            Value::String(value) if is_safe_token(value, 256) => {}
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field session_id must be a bounded string token".to_string(),
+                ))
+            }
+        }
+    }
+
+    if map.contains_key("session_ids") {
+        match require_key(map, "session_ids")? {
+            Value::Array(values) => {
+                if values.is_empty() {
+                    return Err(RecorderError::InvalidEvent(
+                        "payload field session_ids must be a non-empty array".to_string(),
+                    ));
+                }
+                for value in values {
+                    match value {
+                        Value::String(s) if is_safe_token(s, 256) => {}
+                        _ => {
+                            return Err(RecorderError::InvalidEvent(
+                                "payload field session_ids entries must be bounded string tokens"
+                                    .to_string(),
+                            ))
+                        }
+                    }
+                }
+            }
+            _ => {
+                return Err(RecorderError::InvalidEvent(
+                    "payload field session_ids must be an array of strings".to_string(),
+                ))
             }
         }
     }

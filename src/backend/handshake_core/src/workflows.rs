@@ -34,7 +34,7 @@ use crate::{
             CloudEscalationBundleV0_4, CloudEscalationPolicy, CloudEscalationRequestV0_4,
             ConsentReceiptV0_4, ProjectionPlanV0_4, RuntimeGovernanceMode,
         },
-        openai_compat_canonical_request_bytes, CompletionRequest, LlmError,
+        openai_compat_canonical_request_bytes, CompletionRequest, LlmError, ModelTier,
     },
     mex::runtime::{AdapterError as MexAdapterError, EngineAdapter, ShellEngineAdapter},
     mex::{
@@ -715,6 +715,9 @@ struct SessionMessageInput {
     role: SessionMessageRole,
     content_hash: String,
     content_artifact_id: String,
+    source_session_id: Option<String>,
+    source_role: Option<SessionMessageRole>,
+    source_trusted: Option<bool>,
     token_count: Option<i64>,
     redacted: bool,
     tool_call_id: Option<String>,
@@ -925,6 +928,11 @@ fn parse_session_message_inputs(job: &AiJob) -> Result<Vec<SessionMessageInput>,
                 )
             })?
             .to_string();
+        if content_hash.len() != 64 || !content_hash.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err(WorkflowError::Terminal(
+                "model_run session_messages.content_hash must be a 64-char hex string".to_string(),
+            ));
+        }
         let content_artifact_id = map
             .get("content_artifact_id")
             .and_then(Value::as_str)
@@ -1012,11 +1020,54 @@ fn parse_session_message_inputs(job: &AiJob) -> Result<Vec<SessionMessageInput>,
             }
         };
 
+        let source_session_id = map
+            .get("source_session_id")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToString::to_string);
+
+        let source_role = map
+            .get("source_role")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(|raw| {
+                SessionMessageRole::try_from(raw)
+                    .map_err(|_| WorkflowError::Terminal("invalid session message source_role".to_string()))
+            })
+            .transpose()?;
+
+        let source_trusted = match map.get("source_trusted").or_else(|| map.get("trusted_source"))
+        {
+            None | Some(Value::Null) => None,
+            Some(Value::Bool(value)) => Some(*value),
+            _ => {
+                return Err(WorkflowError::Terminal(
+                    "model_run session_messages.source_trusted must be a boolean".to_string(),
+                ))
+            }
+        };
+
+        let has_provenance =
+            source_session_id.is_some() || source_role.is_some() || source_trusted.is_some();
+        if has_provenance
+            && (source_session_id.is_none() || source_role.is_none() || source_trusted.is_none())
+        {
+            return Err(WorkflowError::Terminal(
+                "cross-session routed session_messages must include source_session_id, source_role, and source_trusted"
+                    .to_string(),
+            ));
+        }
+
         out.push(SessionMessageInput {
             message_id,
             role,
             content_hash,
             content_artifact_id,
+            source_session_id,
+            source_role,
+            source_trusted,
             token_count,
             redacted,
             tool_call_id,
@@ -2847,18 +2898,64 @@ async fn ensure_model_session_artifact_refs(
     state.session_registry.upsert_session(session).await;
 
     for entry in &metadata.session_messages {
+        let mut role = entry.role.clone();
+        let mut attachments = entry.attachments.clone();
+
+        // TRUST-002: persist cross-session provenance in a structured, queryable way.
+        if let (Some(source_session_id), Some(source_role), Some(source_trusted)) = (
+            entry.source_session_id.as_deref(),
+            entry.source_role.as_ref(),
+            entry.source_trusted,
+        ) {
+            attachments.push(format!("provenance:source_session_id={source_session_id}"));
+            attachments.push(format!("provenance:source_role={}", source_role.as_str()));
+            attachments.push(format!("provenance:source_trusted={source_trusted}"));
+            attachments.push(format!(
+                "provenance:source_content_hash={}",
+                entry.content_hash.as_str()
+            ));
+        }
+
+        // TRUST-001: external sources MAY NOT inject SYSTEM; downgrade to USER with attribution.
+        if matches!(role, SessionMessageRole::System) {
+            role = SessionMessageRole::User;
+            attachments.push("provenance:original_role=SYSTEM".to_string());
+            attachments.push("provenance:injected_by=external".to_string());
+
+            record_event_safely(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::System,
+                    FlightRecorderActor::System,
+                    derive_trace_id(job, None),
+                    json!({
+                        "type": "trust_boundary.system_downgrade",
+                        "job_id": job.job_id.to_string(),
+                        "session_id": metadata.session_id.as_str(),
+                        "message_id": entry.message_id.as_deref(),
+                        "from_role": "SYSTEM",
+                        "to_role": "USER",
+                        "source_session_id": entry.source_session_id.as_deref(),
+                        "source_trusted": entry.source_trusted,
+                    }),
+                )
+                .with_job_id(job.job_id.to_string()),
+            )
+            .await;
+        }
+
         state
             .storage
             .append_session_message(NewSessionMessage {
                 message_id: entry.message_id.clone(),
                 session_id: metadata.session_id.clone(),
-                role: entry.role.clone(),
+                role,
                 content_hash: entry.content_hash.clone(),
                 content_artifact_id: entry.content_artifact_id.clone(),
                 token_count: entry.token_count,
                 redacted: entry.redacted,
                 tool_call_id: entry.tool_call_id.clone(),
-                attachments: entry.attachments.clone(),
+                attachments,
             })
             .await?;
     }
@@ -3257,6 +3354,223 @@ async fn run_model_run_job(
         }
     }
 
+    // INV-CONSENT-001: No cloud model call without valid ConsentReceipt bound to the target session.
+    let provider_is_cloud = matches!(state.llm_client.profile().model_tier, ModelTier::Cloud)
+        || metadata.backend.trim().eq_ignore_ascii_case("cloud");
+    if provider_is_cloud {
+        let inputs = model_run_inputs(job);
+        let bundle_value = inputs.and_then(|m| m.get("cloud_escalation_bundle")).cloned();
+        let bundle = match bundle_value {
+            Some(value) => match serde_json::from_value::<CloudEscalationBundleV0_4>(value) {
+                Ok(bundle) => Some(bundle),
+                Err(err) => {
+                    record_event_safely(
+                        state,
+                        FlightRecorderEvent::new(
+                            FlightRecorderEventType::CloudEscalationDenied,
+                            FlightRecorderActor::System,
+                            trace_id,
+                            json!({
+                                "type": "cloud_escalation_denied",
+                                "request_id": job.job_id.to_string(),
+                                "reason": "cloud_consent_bundle_invalid",
+                                "requested_model_id": metadata.model_id,
+                                "consent_receipt_id": metadata.consent_receipt_id,
+                                "session_id": metadata.session_id,
+                                "outcome": "denied",
+                            }),
+                        )
+                        .with_job_id(job.job_id.to_string()),
+                    )
+                    .await;
+                    return Ok(RunJobOutcome {
+                        state: JobState::AwaitingUser,
+                        status_reason: "paused_cloud_consent".to_string(),
+                        output: None,
+                        error_message: Some(format!("invalid cloud_escalation_bundle: {err}")),
+                    });
+                }
+            },
+            None => None,
+        };
+
+        let Some(bundle) = bundle else {
+            record_event_safely(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::CloudEscalationDenied,
+                    FlightRecorderActor::System,
+                    trace_id,
+                    json!({
+                        "type": "cloud_escalation_denied",
+                        "request_id": job.job_id.to_string(),
+                        "reason": "cloud_consent_required",
+                        "requested_model_id": metadata.model_id,
+                        "consent_receipt_id": metadata.consent_receipt_id,
+                        "session_id": metadata.session_id,
+                        "outcome": "denied",
+                    }),
+                )
+                .with_job_id(job.job_id.to_string()),
+            )
+            .await;
+            return Ok(RunJobOutcome {
+                state: JobState::AwaitingUser,
+                status_reason: "paused_cloud_consent".to_string(),
+                output: None,
+                error_message: Some("cloud_consent_required".to_string()),
+            });
+        };
+
+        // Bind cloud consent bundle to this ModelSession (fail-closed).
+        if bundle
+            .request
+            .session_id
+            .as_deref()
+            .map(|v| v.trim())
+            != Some(metadata.session_id.as_str())
+        {
+            record_event_safely(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::CloudEscalationDenied,
+                    FlightRecorderActor::System,
+                    trace_id,
+                    json!({
+                        "type": "cloud_escalation_denied",
+                        "request_id": bundle.request.request_id,
+                        "reason": "cloud_consent_session_mismatch",
+                        "requested_model_id": metadata.model_id,
+                        "consent_receipt_id": bundle.consent_receipt.consent_receipt_id,
+                        "consent_scope": bundle.consent_receipt.consent_scope,
+                        "session_id": metadata.session_id,
+                        "session_ids": bundle.consent_receipt.session_ids,
+                        "outcome": "denied",
+                    }),
+                )
+                .with_job_id(job.job_id.to_string()),
+            )
+            .await;
+            return Ok(RunJobOutcome {
+                state: JobState::AwaitingUser,
+                status_reason: "paused_cloud_consent".to_string(),
+                output: None,
+                error_message: Some("cloud_consent_session_mismatch".to_string()),
+            });
+        }
+
+        if metadata
+            .consent_receipt_id
+            .as_deref()
+            .map(|v| v.trim())
+            .filter(|v| !v.is_empty())
+            != Some(bundle.consent_receipt.consent_receipt_id.as_str())
+        {
+            record_event_safely(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::CloudEscalationDenied,
+                    FlightRecorderActor::System,
+                    trace_id,
+                    json!({
+                        "type": "cloud_escalation_denied",
+                        "request_id": bundle.request.request_id,
+                        "reason": "cloud_consent_receipt_id_mismatch",
+                        "requested_model_id": metadata.model_id,
+                        "consent_receipt_id": bundle.consent_receipt.consent_receipt_id,
+                        "session_id": metadata.session_id,
+                        "outcome": "denied",
+                    }),
+                )
+                .with_job_id(job.job_id.to_string()),
+            )
+            .await;
+            return Ok(RunJobOutcome {
+                state: JobState::AwaitingUser,
+                status_reason: "paused_cloud_consent".to_string(),
+                output: None,
+                error_message: Some("cloud_consent_receipt_id_mismatch".to_string()),
+            });
+        }
+
+        let resolved_model_id = if request.model_id.trim().is_empty() {
+            state.llm_client.profile().model_id.clone()
+        } else {
+            request.model_id.clone()
+        };
+        let canonical_bytes = openai_compat_canonical_request_bytes(&request, resolved_model_id.as_str());
+        let computed_sha256 = sha256_hex(&canonical_bytes);
+        if let Err(err) = bundle.validate_for_payload_sha256(computed_sha256.as_str(), resolved_model_id.as_str()) {
+            record_event_safely(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::CloudEscalationDenied,
+                    FlightRecorderActor::System,
+                    trace_id,
+                    json!({
+                        "type": "cloud_escalation_denied",
+                        "request_id": bundle.request.request_id,
+                        "reason": "cloud_consent_invalid",
+                        "requested_model_id": metadata.model_id,
+                        "projection_plan_id": bundle.projection_plan.projection_plan_id,
+                        "consent_receipt_id": bundle.consent_receipt.consent_receipt_id,
+                        "consent_scope": bundle.consent_receipt.consent_scope,
+                        "session_id": metadata.session_id,
+                        "session_ids": bundle.consent_receipt.session_ids,
+                        "outcome": "denied",
+                    }),
+                )
+                .with_job_id(job.job_id.to_string()),
+            )
+            .await;
+            return Ok(RunJobOutcome {
+                state: JobState::AwaitingUser,
+                status_reason: "paused_cloud_consent".to_string(),
+                output: None,
+                error_message: Some(err.to_string()),
+            });
+        }
+
+        record_event_safely(
+            state,
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::CloudEscalationExecuted,
+                FlightRecorderActor::System,
+                trace_id,
+                json!({
+                    "type": "cloud_escalation_executed",
+                    "request_id": bundle.request.request_id.clone(),
+                    "reason": bundle.request.reason.clone(),
+                    "requested_model_id": bundle.request.requested_model_id.clone(),
+                    "projection_plan_id": bundle.projection_plan.projection_plan_id.clone(),
+                    "consent_receipt_id": bundle.consent_receipt.consent_receipt_id.clone(),
+                    "consent_scope": bundle.consent_receipt.consent_scope,
+                    "session_id": metadata.session_id.as_str(),
+                    "session_ids": bundle.consent_receipt.session_ids.clone(),
+                    "wp_id": bundle.request.wp_id.clone(),
+                    "mt_id": bundle.request.mt_id.clone(),
+                    "local_attempts": bundle.request.local_attempts,
+                    "last_error_summary": bundle.request.last_error_summary.clone(),
+                    "outcome": "executed",
+                }),
+            )
+            .with_job_id(job.job_id.to_string()),
+        )
+        .await;
+
+        request.cloud_escalation = Some(bundle);
+    }
+
+    if is_model_run_cancel_requested(state, job.job_id).await? {
+        let reason = model_run_cancel_reason(state, job.job_id).await?;
+        return Ok(RunJobOutcome {
+            state: JobState::Cancelled,
+            status_reason: reason.clone(),
+            output: None,
+            error_message: Some(reason),
+        });
+    }
+
     let completion = match state.llm_client.completion(request).await {
         Ok(result) => result,
         Err(LlmError::RateLimit) => {
@@ -3334,7 +3648,13 @@ async fn finalize_model_run_after_terminal(
     let metadata = parse_model_run_metadata(job)?;
     let session_state = match final_status {
         JobState::Completed | JobState::CompletedWithIssues => ModelSessionState::Completed,
-        JobState::Cancelled => ModelSessionState::Cancelled,
+        JobState::Cancelled => {
+            if status_reason.trim().eq_ignore_ascii_case("consent_revoked") {
+                ModelSessionState::Blocked
+            } else {
+                ModelSessionState::Cancelled
+            }
+        }
         JobState::Failed | JobState::Poisoned | JobState::Stalled => ModelSessionState::Failed,
         JobState::Running => ModelSessionState::Active,
         JobState::Queued => ModelSessionState::Created,
@@ -3418,11 +3738,16 @@ pub async fn cancel_model_run_job(
     }
 
     let metadata = parse_model_run_metadata(&job)?;
+    let session_state = if reason.trim().eq_ignore_ascii_case("consent_revoked") {
+        ModelSessionState::Blocked
+    } else {
+        ModelSessionState::Cancelled
+    };
     let session = state
         .storage
         .update_model_session_state(
             metadata.session_id.as_str(),
-            ModelSessionState::Cancelled,
+            session_state,
             Some(job_id),
         )
         .await;
@@ -3448,6 +3773,135 @@ pub async fn cancel_model_run_job(
 
     kick_model_run_dispatcher(state.clone());
     Ok(())
+}
+
+/// INV-CONSENT-003: revoke a ConsentReceipt by cancelling pending model_run jobs that reference it
+/// and transitioning affected sessions to BLOCKED.
+///
+/// This is an internal primitive; UI/admin wiring may be layered on later.
+pub async fn revoke_consent_receipt_for_model_runs(
+    state: &AppState,
+    consent_receipt_id: String,
+    revoked_by: String,
+) -> Result<u32, WorkflowError> {
+    let consent_receipt_id = consent_receipt_id.trim().to_string();
+    if consent_receipt_id.is_empty() {
+        return Err(WorkflowError::Terminal(
+            "consent revocation requires consent_receipt_id".to_string(),
+        ));
+    }
+    let revoked_by = revoked_by.trim().to_string();
+    if revoked_by.is_empty() {
+        return Err(WorkflowError::Terminal(
+            "consent revocation requires revoked_by".to_string(),
+        ));
+    }
+
+    let mut affected: Vec<(AiJob, ModelRunMetadata)> = Vec::new();
+    let pending_states = [
+        JobState::Queued,
+        JobState::Running,
+        JobState::AwaitingUser,
+        JobState::AwaitingValidation,
+    ];
+    for state_filter in pending_states {
+        let jobs = state
+            .storage
+            .list_ai_jobs(AiJobListFilter {
+                status: Some(state_filter.clone()),
+                job_kind: Some(JobKind::ModelRun),
+                ..Default::default()
+            })
+            .await?;
+        for job in jobs {
+            let Ok(metadata) = parse_model_run_metadata(&job) else {
+                continue;
+            };
+            if metadata
+                .consent_receipt_id
+                .as_deref()
+                .map(|v| v.trim())
+                == Some(consent_receipt_id.as_str())
+            {
+                affected.push((job, metadata));
+            }
+        }
+    }
+
+    let mut cancelled = 0_u32;
+    for (job, metadata) in affected {
+        let trace_id = derive_trace_id(&job, None);
+
+        let _ = state
+            .storage
+            .update_ai_job_status(JobStatusUpdate {
+                job_id: job.job_id,
+                state: JobState::Cancelled,
+                error_message: Some("consent_revoked".to_string()),
+                status_reason: "consent_revoked".to_string(),
+                metrics: None,
+                workflow_run_id: job.workflow_run_id,
+                trace_id: Some(trace_id),
+                job_outputs: None,
+            })
+            .await;
+
+        if let Some(run_id) = job.workflow_run_id {
+            let _ = state
+                .storage
+                .update_workflow_run_status(
+                    run_id,
+                    JobState::Cancelled,
+                    Some("consent_revoked".to_string()),
+                )
+                .await;
+        }
+
+        let session = state
+            .storage
+            .update_model_session_state(
+                metadata.session_id.as_str(),
+                ModelSessionState::Blocked,
+                Some(job.job_id),
+            )
+            .await?;
+        state.session_registry.upsert_session(session).await;
+
+        emit_session_scheduler_cancelled_event(
+            state,
+            trace_id,
+            &job,
+            &metadata,
+            revoked_by.as_str(),
+            "consent_revoked",
+        )
+        .await?;
+
+        record_event_safely(
+            state,
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::CloudEscalationDenied,
+                FlightRecorderActor::System,
+                trace_id,
+                json!({
+                    "type": "cloud_escalation_denied",
+                    "request_id": job.job_id.to_string(),
+                    "reason": "consent_revoked",
+                    "requested_model_id": metadata.model_id.as_str(),
+                    "consent_receipt_id": consent_receipt_id.as_str(),
+                    "session_id": metadata.session_id.as_str(),
+                    "outcome": "denied",
+                }),
+            )
+            .with_job_id(job.job_id.to_string()),
+        )
+        .await;
+
+        cancelled = cancelled.saturating_add(1);
+    }
+
+    kick_model_run_dispatcher(state.clone());
+    Ok(cancelled)
 }
 
 pub async fn start_workflow_for_job(
@@ -3969,6 +4423,11 @@ pub async fn record_cloud_escalation_consent_v0_4(
         approved,
         approved_at,
         user_id,
+        consent_scope: None,
+        session_ids: None,
+        valid_from_utc: None,
+        valid_until_utc: None,
+        revoked_at_utc: None,
         ui_surface,
         notes,
     };
@@ -3976,6 +4435,8 @@ pub async fn record_cloud_escalation_consent_v0_4(
     let cloud_request = CloudEscalationRequestV0_4 {
         schema_version: "hsk.cloud_escalation@0.4".to_string(),
         request_id: request_id.clone(),
+        session_id: None,
+        consent_scope: None,
         wp_id: wp_id.clone(),
         mt_id: mt_id.clone(),
         reason: reason.clone(),
@@ -10626,6 +11087,8 @@ NEED: {{what you need to unblock}}
                         let projection_plan = ProjectionPlanV0_4 {
                             schema_version: "hsk.projection_plan@0.4".to_string(),
                             projection_plan_id: projection_plan_id.clone(),
+                            consent_scope: None,
+                            session_ids: None,
                             include_artifact_refs: vec![
                                 prompt_snapshot_ref.path.clone(),
                                 context_files_ref.path.clone(),
