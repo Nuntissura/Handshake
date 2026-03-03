@@ -106,8 +106,9 @@ hard-gate-wt-001:
 	@echo '  - <cmd2>'
 
 # Protocol ack helper: print first non-empty line from each required doc.
-protocol-ack *files:
-	@node .GOV/scripts/protocol-ack.mjs {{files}}
+# Note: using 3 fixed args avoids shell splitting on space-containing filenames.
+protocol-ack codex agents protocol:
+	@node .GOV/scripts/protocol-ack.mjs "{{codex}}" "{{agents}}" "{{protocol}}"
 
 task-board-check:
 	node .GOV/scripts/validation/task-board-check.mjs
