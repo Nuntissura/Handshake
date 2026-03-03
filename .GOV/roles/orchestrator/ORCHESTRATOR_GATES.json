@@ -1572,6 +1572,14 @@
       "signature": "ilja030320260206",
       "timestamp": "2026-03-03T01:07:05.902Z",
       "refinement_path": ".GOV/refinements/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md"
+    },
+    {
+      "wpId": "WP-1-Session-Scoped-Capabilities-Consent-Gate-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "branch": "feat/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1",
+      "worktree_dir": "../wt-WP-1-Session-Scoped-Capabilities-Consent-Gate-v1",
+      "timestamp": "2026-03-03T01:24:40.992Z"
     }
   ]
 }
