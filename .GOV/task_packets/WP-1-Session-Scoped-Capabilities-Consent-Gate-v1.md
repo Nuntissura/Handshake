@@ -49,6 +49,7 @@ Next: N/A
 - Why: Multi-session execution becomes a remote action pipeline unless every tool call and cloud escalation is bound to per-session effective capabilities + durable consent receipts, and inbound SYSTEM/provenance is fail-closed.
 - IN_SCOPE_PATHS:
   - src/backend/handshake_core/src/capabilities.rs
+  - src/backend/handshake_core/src/mcp/gate.rs
   - src/backend/handshake_core/src/mex/runtime.rs
   - src/backend/handshake_core/src/llm/guard.rs
   - src/backend/handshake_core/src/llm/mod.rs
@@ -122,6 +123,7 @@ git revert <commit-sha>
   - .GOV/refinements/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md
   - .GOV/task_packets/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md
   - src/backend/handshake_core/src/capabilities.rs
+  - src/backend/handshake_core/src/mcp/gate.rs
   - src/backend/handshake_core/src/llm/guard.rs
   - src/backend/handshake_core/src/mex/runtime.rs
   - src/backend/handshake_core/src/workflows.rs
@@ -183,13 +185,19 @@ git revert <commit-sha>
   - Flight Recorder payload compatibility (flight_recorder/mod.rs):
     - Allow optional `session_id` / `session_ids` on FR-EVT-CLOUD-* payloads (kept bounded tokens).
 - Open questions:
-  - Scope mismatch risk: session-scoped tool enforcement for MCP currently lives in `src/backend/handshake_core/src/mcp/gate.rs` (not listed in IN_SCOPE_PATHS). Plan is to enforce via session-effective `granted_capabilities` computed upstream in in-scope runtime/workflows code; confirm this satisfies "Tool Gate" DONE_MEANS or request Orchestrator to add `src/backend/handshake_core/src/mcp/gate.rs` to IN_SCOPE_PATHS.
-  - Schema versioning: extend `hsk.*@0.4` structs with new fields (serde optional) vs bump to `@0.5` (spec alignment decision needed).
+  - Scope mismatch: RESOLVED by adding `src/backend/handshake_core/src/mcp/gate.rs` to IN_SCOPE_PATHS; enforcement should occur at Tool Gate per spec "Capability rule (HARD)" (Handshake_Master_Spec_v02.139.md 4.3.9.16.4) and HTC session binding (6.0.2.5).
+  - Schema versioning: DECISION for this WP is to extend `hsk.*@0.4` structs with new fields as serde optional (no bump to `@0.5` unless a hard incompatibility is discovered, then escalate).
   - Broadcast/fan-out target enumeration source-of-truth: receipt `session_ids[]` vs ProjectionPlan; current ProjectionPlanV0_4 has no session binding.
   - Revocation surface: where does operator-triggered revocation enter (workflow protocol / locus op / admin op)? Implement internal primitive now; wire surface later if out-of-scope.
 - Notes:
   - END_TO_END_CLOSURE_PLAN [CX-E2E-001] already present below; enforcement will treat `job_inputs` fields as untrusted at trust boundaries and derive session/consent/capability truth from stored ModelSession + receipt artifacts.
   - No product code changes until SKELETON is approved.
+
+## SKELETON APPROVED
+- Approved_at_utc: 2026-03-03T05:50:41Z
+- Approved_by: role_validator
+- Scope amendment: add `src/backend/handshake_core/src/mcp/gate.rs` to IN_SCOPE_PATHS (aligns DONE_MEANS "Tool Gate" + spec HARD rule 4.3.9.16.4).
+- Schema decision: extend `hsk.*@0.4` structs with optional fields (no `@0.5` bump in this WP).
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES
