@@ -248,15 +248,15 @@ SKELETON APPROVED
 - **Pre-SHA1**: `fdbb900798a9eb07e14c4d085dced45923553f94`
 - **Post-SHA1**: `4da0b2b0367554d1e5c2de3938ea002cfe95b3f5`
 - **Gates Passed**:
-  - [x] anchors_present (C701-G01)
-  - [x] window_matches_plan (C701-G02)
-  - [x] rails_untouched_outside_window (C701-G04)
-  - [x] filename_canonical_and_openable (C701-G06)
-  - [x] pre_sha1_captured (C701-G05)
-  - [x] post_sha1_captured (C701-G05)
-  - [x] line_delta_equals_expected (C701-G05)
-  - [x] manifest_written_and_path_returned (C701-G05)
-  - [x] current_file_matches_preimage (C701-G08)
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
@@ -266,15 +266,15 @@ SKELETON APPROVED
 - **Pre-SHA1**: `12373dd82250732fd97aff658bc0bba68eb27ba9`
 - **Post-SHA1**: `11fc877b0073c0ef6147c00377e72debf445009b`
 - **Gates Passed**:
-  - [x] anchors_present (C701-G01)
-  - [x] window_matches_plan (C701-G02)
-  - [x] rails_untouched_outside_window (C701-G04)
-  - [x] filename_canonical_and_openable (C701-G06)
-  - [x] pre_sha1_captured (C701-G05)
-  - [x] post_sha1_captured (C701-G05)
-  - [x] line_delta_equals_expected (C701-G05)
-  - [x] manifest_written_and_path_returned (C701-G05)
-  - [x] current_file_matches_preimage (C701-G08)
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/src/llm/guard.rs`
@@ -284,15 +284,15 @@ SKELETON APPROVED
 - **Pre-SHA1**: `7eb568e8a669b047cfc4be3c63695496b5b35d5a`
 - **Post-SHA1**: `9159e5fa6c62fd478c4862ec2fa3b30a4f3b7768`
 - **Gates Passed**:
-  - [x] anchors_present (C701-G01)
-  - [x] window_matches_plan (C701-G02)
-  - [x] rails_untouched_outside_window (C701-G04)
-  - [x] filename_canonical_and_openable (C701-G06)
-  - [x] pre_sha1_captured (C701-G05)
-  - [x] post_sha1_captured (C701-G05)
-  - [x] line_delta_equals_expected (C701-G05)
-  - [x] manifest_written_and_path_returned (C701-G05)
-  - [x] current_file_matches_preimage (C701-G08)
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/src/llm/mod.rs`
@@ -302,15 +302,15 @@ SKELETON APPROVED
 - **Pre-SHA1**: `7f6acfdef2a761522cdeefa55f54abb9bf2ff639`
 - **Post-SHA1**: `4b833f9d8f9a2f6bf3867de7ca1ef28f75dafa45`
 - **Gates Passed**:
-  - [x] anchors_present (C701-G01)
-  - [x] window_matches_plan (C701-G02)
-  - [x] rails_untouched_outside_window (C701-G04)
-  - [x] filename_canonical_and_openable (C701-G06)
-  - [x] pre_sha1_captured (C701-G05)
-  - [x] post_sha1_captured (C701-G05)
-  - [x] line_delta_equals_expected (C701-G05)
-  - [x] manifest_written_and_path_returned (C701-G05)
-  - [x] current_file_matches_preimage (C701-G08)
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/src/mcp/gate.rs`
@@ -320,15 +320,15 @@ SKELETON APPROVED
 - **Pre-SHA1**: `8ea82398453f0f4eb3902504c6200cd4552b7ebc`
 - **Post-SHA1**: `7dfdca609427853c2640e83c44fc988049cad11f`
 - **Gates Passed**:
-  - [x] anchors_present (C701-G01)
-  - [x] window_matches_plan (C701-G02)
-  - [x] rails_untouched_outside_window (C701-G04)
-  - [x] filename_canonical_and_openable (C701-G06)
-  - [x] pre_sha1_captured (C701-G05)
-  - [x] post_sha1_captured (C701-G05)
-  - [x] line_delta_equals_expected (C701-G05)
-  - [x] manifest_written_and_path_returned (C701-G05)
-  - [x] current_file_matches_preimage (C701-G08)
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/src/workflows.rs`
@@ -338,15 +338,15 @@ SKELETON APPROVED
 - **Pre-SHA1**: `fee6ab73ce755f3c72a4e330600c58760e399a93`
 - **Post-SHA1**: `8bf16dea97e1503fb9a27bfd1d0a346d3f521952`
 - **Gates Passed**:
-  - [x] anchors_present (C701-G01)
-  - [x] window_matches_plan (C701-G02)
-  - [x] rails_untouched_outside_window (C701-G04)
-  - [x] filename_canonical_and_openable (C701-G06)
-  - [x] pre_sha1_captured (C701-G05)
-  - [x] post_sha1_captured (C701-G05)
-  - [x] line_delta_equals_expected (C701-G05)
-  - [x] manifest_written_and_path_returned (C701-G05)
-  - [x] current_file_matches_preimage (C701-G08)
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/tests/mcp_e2e_tests.rs`
@@ -356,15 +356,15 @@ SKELETON APPROVED
 - **Pre-SHA1**: `3e05973e506997731764dda68d4e8cdccb81f02d`
 - **Post-SHA1**: `b3c03021e526a0963b6a628ca5c93d04e796376f`
 - **Gates Passed**:
-  - [x] anchors_present (C701-G01)
-  - [x] window_matches_plan (C701-G02)
-  - [x] rails_untouched_outside_window (C701-G04)
-  - [x] filename_canonical_and_openable (C701-G06)
-  - [x] pre_sha1_captured (C701-G05)
-  - [x] post_sha1_captured (C701-G05)
-  - [x] line_delta_equals_expected (C701-G05)
-  - [x] manifest_written_and_path_returned (C701-G05)
-  - [x] current_file_matches_preimage (C701-G08)
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/tests/mcp_gate_tests.rs`
@@ -374,15 +374,15 @@ SKELETON APPROVED
 - **Pre-SHA1**: `84367469af501ee4573b4286eb8653ed1949ea76`
 - **Post-SHA1**: `8182e539fb917b53cac985fdbaf463f20e77e99f`
 - **Gates Passed**:
-  - [x] anchors_present (C701-G01)
-  - [x] window_matches_plan (C701-G02)
-  - [x] rails_untouched_outside_window (C701-G04)
-  - [x] filename_canonical_and_openable (C701-G06)
-  - [x] pre_sha1_captured (C701-G05)
-  - [x] post_sha1_captured (C701-G05)
-  - [x] line_delta_equals_expected (C701-G05)
-  - [x] manifest_written_and_path_returned (C701-G05)
-  - [x] current_file_matches_preimage (C701-G08)
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
   - [x] all_links_resolvable
 
 - **Target File**: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs`
@@ -392,15 +392,15 @@ SKELETON APPROVED
 - **Pre-SHA1**: `259531a4a96a24984d24e6fcaf95ca245146f1e4`
 - **Post-SHA1**: `7a773197bbfaf518d942fbb77f0d50ded4da9576`
 - **Gates Passed**:
-  - [x] anchors_present (C701-G01)
-  - [x] window_matches_plan (C701-G02)
-  - [x] rails_untouched_outside_window (C701-G04)
-  - [x] filename_canonical_and_openable (C701-G06)
-  - [x] pre_sha1_captured (C701-G05)
-  - [x] post_sha1_captured (C701-G05)
-  - [x] line_delta_equals_expected (C701-G05)
-  - [x] manifest_written_and_path_returned (C701-G05)
-  - [x] current_file_matches_preimage (C701-G08)
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
   - [x] all_links_resolvable
 
 ## STATUS_HANDOFF
