@@ -445,6 +445,10 @@ function sha256(text) {
   return crypto.createHash("sha256").update(text, "utf8").digest("hex");
 }
 
+function normalizeLf(text) {
+  return String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
 const args = process.argv.slice(2);
 const checkOnly = args.includes("--check");
 const repoRoot = path.resolve(resolveRepoRoot());
@@ -485,9 +489,10 @@ const autogen = generateAutogenBlock({ specTarget, registryRows, taskBoardTokens
 
 const buildOrderOriginal = readText(BUILD_ORDER_PATH);
 const expected = applyAutogenBlockToFile(buildOrderOriginal, autogen);
+const sameContent = normalizeLf(expected) === normalizeLf(buildOrderOriginal);
 
 if (checkOnly) {
-  if (expected !== buildOrderOriginal) {
+  if (!sameContent) {
     console.error(`[BUILD_ORDER_CHECK] ${BUILD_ORDER_PATH} is out of date.`);
     console.error("Run: just build-order-sync");
     process.exit(1);
@@ -495,7 +500,7 @@ if (checkOnly) {
   process.exit(0);
 }
 
-if (expected !== buildOrderOriginal) {
+if (!sameContent) {
   fs.writeFileSync(BUILD_ORDER_PATH, expected, "utf8");
   console.log(`build-order-sync ok: updated ${BUILD_ORDER_PATH}`);
 } else {
