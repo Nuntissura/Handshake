@@ -529,6 +529,39 @@ const useRange = evaluation.mode === 'range' && evaluation.baseRev && evaluation
 const rangeFiles = useRange ? getRangeFiles(evaluation.baseRev, evaluation.headRev) : [];
 const changedFiles = useStaged ? stagedFiles : (evaluation.mode === 'worktree' ? workingFiles : rangeFiles);
 
+// Phase gate: product code changes require a "SKELETON APPROVED" marker recorded in the task packet.
+// This is intentionally mechanical to prevent "vibecoding" ahead of interface approval [CX-GATE-001].
+const hasSkeletonApprovedMarker = (content) => {
+  if (!content) return false;
+  const lines = content.split('\n');
+  let inCodeFence = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('```')) {
+      inCodeFence = !inCodeFence;
+      continue;
+    }
+    if (inCodeFence) continue;
+
+    if (trimmed === 'SKELETON APPROVED') return true;
+    if (/^#{1,6}\s+SKELETON APPROVED\b/i.test(trimmed)) return true;
+  }
+  return false;
+};
+
+const hasApproval = hasSkeletonApprovedMarker(packetContent);
+const productChanged = changedFiles
+  .map((p) => p.replace(/\\/g, '/'))
+  .filter((p) => p.startsWith('src/') || p.startsWith('app/') || p.startsWith('tests/'));
+
+if (productChanged.length > 0 && !hasApproval) {
+  errors.push('Phase gate violation [CX-GATE-001]: Product code changes detected without "SKELETON APPROVED" recorded in the task packet.');
+  errors.push(`Changed product paths (subset): ${productChanged.slice(0, 10).join(', ')}`);
+  if (productChanged.length > 10) {
+    errors.push(`Changed product paths: (+${productChanged.length - 10} more)`);
+  }
+}
+
 const resolveRev = (rev) => {
   try {
     return gitTrim(`git rev-parse ${rev}`);
