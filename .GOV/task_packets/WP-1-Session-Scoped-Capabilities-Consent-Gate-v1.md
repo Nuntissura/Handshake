@@ -14,7 +14,7 @@
 - ORCHESTRATION_STARTED_AT_UTC: N/A (RFC3339 UTC; required if AGENTIC_MODE=YES)
 - CODER_MODEL: CodexCLI-GPT-5.2
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: HIGH
 - BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
 - BUILD_ORDER_TECH_BLOCKER: YES
@@ -25,9 +25,9 @@
 - PACKET_FORMAT_VERSION: 2026-02-01
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
+Verdict: PASS
 Blockers: NONE
-Next: N/A
+Next: Merge/push to main (SYNC-GATED)
 
 ## SUB_AGENT_DELEGATION (OPTIONAL; OPERATOR-GATED)
 - SUB_AGENT_DELEGATION: ALLOWED
@@ -544,3 +544,91 @@ Required Remediation:
 
 Residual Risks / Notes:
 - Given the waiver and mixed governance changes in-range, consider minimizing audit surface by isolating governance-only changes outside the WP merge window (or re-cutting a clean branch) after remediation.
+
+### VALIDATION REPORT - WP-1-Session-Scoped-Capabilities-Consent-Gate-v1
+Verdict: PASS
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Session-Scoped-Capabilities-Consent-Gate-v1 --range 1cb1bae85f51a83bac1dc28580199b6e15bec157..HEAD`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim intent): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: .GOV/task_packets/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md (status: Done)
+- Refinement: .GOV/refinements/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md (SPEC_TARGET_RESOLVED: Handshake_Master_Spec_v02.139.md)
+- Spec Anchors (refinement):
+  - 6.0.2.5 Canonical invocation envelope (HTC-1.0) (MUST) - session-scoped capability intersection (Normative)
+  - 4.3.9.12 ModelSession (Normative) - consent + capability_token_ids
+  - 4.3.9.14 Cloud Consent-Gate Lifecycle for Parallel Sessions (Normative) - INV-CONSENT-001/002/003
+  - 4.3.9.20 Inbound Trust Boundary Rules (Normative) - TRUST-001/002/003/004
+  - 11.5 FR-EVT-007 ToolCallEvent (Normative)
+  - 11.5.8 FR-EVT-CLOUD-001..004 (Cloud Escalation Events) (Normative)
+
+Worktree/Branch Verified:
+- worktree_dir: ../wt-WP-1-Session-Scoped-Capabilities-Consent-Gate-v1
+- branch: feat/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1
+- head_sha: 76ca188b778497151f4f8a78324c66e36f0a5a61
+- validated_range: 1cb1bae85f51a83bac1dc28580199b6e15bec157..76ca188b778497151f4f8a78324c66e36f0a5a61
+
+Files Checked:
+- src/backend/handshake_core/src/mcp/gate.rs
+- src/backend/handshake_core/src/llm/guard.rs
+- src/backend/handshake_core/src/workflows.rs
+- src/backend/handshake_core/tests/mcp_gate_tests.rs
+- src/backend/handshake_core/tests/mcp_e2e_tests.rs
+- src/backend/handshake_core/tests/model_session_scheduler_tests.rs
+- .GOV/task_packets/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md
+- .GOV/roles_shared/BUILD_ORDER.md
+- justfile
+
+Findings:
+- FR-EVT-007 ToolCallEvent emitted for session-scoped denies and deny-by-default session grants failures:
+  - session grants unavailable -> ToolCall event: `src/backend/handshake_core/src/mcp/gate.rs:1106`
+  - session capability denied -> ToolCall event: `src/backend/handshake_core/src/mcp/gate.rs:1225`
+  - TRUST-003 parent narrowing -> ToolCall event: `src/backend/handshake_core/src/mcp/gate.rs:1285`
+  - test coverage: `src/backend/handshake_core/tests/mcp_gate_tests.rs:862`, `src/backend/handshake_core/tests/mcp_gate_tests.rs:955`, `src/backend/handshake_core/tests/mcp_gate_tests.rs:1022`
+
+- Cloud consent gate invariants (INV-CONSENT-001/003) enforced:
+  - blocks without consent bundle: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:489`
+  - allows with valid consent bundle: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:557`
+  - revocation cancels pending model_run + blocks sessions: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:846`
+
+- BROADCAST_SCOPED receipts enumerate session_ids at issuance (INV-CONSENT-002):
+  - broadcast scoped must enumerate target session_id: `src/backend/handshake_core/src/llm/guard.rs:626`
+
+- TRUST-001/002 inbound trust boundary behavior enforced:
+  - external SYSTEM downgraded with attribution: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:330`
+  - cross-session provenance persisted: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:385`
+  - partial provenance rejected: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:451`
+
+- Deterministic manifest discipline (COR-701/C701): `just post-work` passes without "gate not checked but inferred as PASS" warnings (post-work PASS with waiver warning only).
+
+- Hygiene / forbidden patterns scan (selected prod files):
+  - Found `expect()` usage in `src/backend/handshake_core/src/llm/guard.rs:620`, within `#[tokio::test]` (acceptable per protocol exceptions).
+
+- Governance consistency: `just gov-check` was failing due to out-of-date `.GOV/roles_shared/BUILD_ORDER.md`; corrected via `just build-order-sync`, then `just gov-check` passed.
+
+Tests (run by Validator):
+- just pre-work WP-1-Session-Scoped-Capabilities-Consent-Gate-v1: PASS (with warning about MERGE_BASE_SHA detection)
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\\hs-cargo-target --test mcp_gate_tests: PASS
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\\hs-cargo-target --test mcp_e2e_tests: PASS
+- cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\\hs-cargo-target --test model_session_scheduler_tests: PASS
+- just --set CARGO_TARGET_DIR D:\\hs-cargo-target test: PASS
+  - LOG_PATH: .handshake\\logs\\WP-1-Session-Scoped-Capabilities-Consent-Gate-v1\\validator_just_test_20260303_173211.log
+  - LOG_SHA256: 6108657B53BCF479DDF9C859E3816E54C560516229DF3D93C5D6750BE9BC20D7
+- just post-work WP-1-Session-Scoped-Capabilities-Consent-Gate-v1 --range 1cb1bae85f51a83bac1dc28580199b6e15bec157..HEAD: PASS (with waiver warning about out-of-scope files changed)
+
+REASON FOR PASS:
+- Session-scoped capability denies (including deny-by-default session grants resolution failures) emit deterministic denials with FR-EVT-007 ToolCallEvent evidence (spec 11.5) and have explicit test coverage.
+- Cloud model_run dispatch enforces consent receipt binding and supports revocation cancellation/blocked-session transitions (INV-CONSENT-001/003) with explicit test coverage.
+- BROADCAST_SCOPED receipt session_id enumeration is enforced (INV-CONSENT-002) with explicit test coverage.
+- TRUST-001/002/003 invariants are enforced with explicit test coverage.
+- Deterministic manifest gate discipline is satisfied (explicit checklist; post-work PASS without inferred-gate warnings).
+
+Risks & Suggested Actions:
+- Waiver CX-573F remains in effect: the validated range includes governance surface changes; keep audit surface minimal in future WPs by avoiding mixed provenance merges when possible.
+- Pre-work still warns "Packet missing MERGE_BASE_SHA" despite METADATA containing it; recommend fixing `.GOV/scripts/validation/pre-work.mjs` detection logic.
+- Packet TEST_PLAN uses `cargo test -p handshake_core mcp_gate_tests` style; prefer `cargo test -p handshake_core --test mcp_gate_tests` to avoid accidentally running 0 tests due to name filtering.
+
+NEXT (SYNC-GATED):
+- Operator authorization required to run git sync ops (merge/push) after PASS is presented + acknowledged via validator gates.
