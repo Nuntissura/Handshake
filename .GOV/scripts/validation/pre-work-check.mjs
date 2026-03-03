@@ -488,10 +488,7 @@ if (errors.length === 0) {
 
     console.log('\nCODER_START_COMMANDS [CX-HANDOFF-001]');
     console.log('```bash');
-    console.log(`# Verify you are in the correct WP worktree/branch (paste outputs to chat):`);
-    console.log('just hard-gate-wt-001');
-    console.log('');
-    console.log(`# Re-validate WP gates in your environment:`);
+    console.log(`# Re-validate WP gates in your environment (also verifies branch/worktree vs PREPARE):`);
     console.log(`just pre-work ${WP_ID}`);
     console.log('```');
 
