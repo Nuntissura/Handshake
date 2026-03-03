@@ -70,7 +70,7 @@ Required verification (run at session start and whenever context is unclear):
 - `git worktree list`
 
 Tip (low-friction): run `just hard-gate-wt-001` to print the required `HARD_GATE_*` blocks in one command.
-Note: `just pre-work WP-{ID}` now also prints a `HARD_GATE_OUTPUT [CX-WT-001]` block (worktree evidence) as part of its chat-ready output.
+Redundancy rule (ANTI-BABYSIT): do NOT emit a second CX-WT-001 hard-gate between SKELETON -> IMPLEMENTATION if you are still in the same WP worktree/branch and nothing about context changed. Re-run only when context is unclear, after a session reset, or after switching worktrees/branches.
 
 **Tooling note (prevents "wrong files in wrong worktree"):** if you're using an agent/automation where each command runs in an isolated shell, directory changes (`cd` / `Set-Location`) may not persist between commands. Always re-assert the WP worktree context by using an explicit workdir or `git -C "<worktree_dir>" ...` style commands.
 

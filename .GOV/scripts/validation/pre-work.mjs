@@ -5,12 +5,10 @@
  * Goals:
  * - Keep correctness: run the same underlying gates as before.
  * - Reduce babysitting: emit chat-ready blocks automatically.
- * - Fold CX-WT-001 worktree evidence into pre-work output.
  *
  * What this runs (in order):
- * 1) Worktree evidence (git rev-parse/status/worktree list) [CX-WT-001]
- * 2) Phase gate: gate-check.mjs [CX-GATE-001]
- * 3) Pre-work validation: pre-work-check.mjs [CX-580, CX-620]
+ * 1) Phase gate: gate-check.mjs [CX-GATE-001]
+ * 2) Pre-work validation: pre-work-check.mjs [CX-580, CX-620]
  */
 
 import path from 'node:path';
@@ -43,27 +41,6 @@ let ok = true;
 let why = 'Pre-work checks passed.';
 
 printBlockHeader('GATE_OUTPUT', 'CX-GATE-UX-001');
-process.stdout.write('\n');
-
-// Fold the worktree+branch evidence into the pre-work output.
-printBlockHeader('HARD_GATE_OUTPUT', 'CX-WT-001');
-try {
-  const top = run('git', ['rev-parse', '--show-toplevel']);
-  process.stdout.write(ensureTrailingNewline(top.out.trimEnd()));
-  if (top.code !== 0) ok = false;
-
-  const status = run('git', ['status', '-sb']);
-  process.stdout.write(ensureTrailingNewline(status.out.trimEnd()));
-  if (status.code !== 0) ok = false;
-
-  const wtl = run('git', ['worktree', 'list']);
-  process.stdout.write(ensureTrailingNewline(wtl.out.trimEnd()));
-  if (wtl.code !== 0) ok = false;
-} catch (e) {
-  ok = false;
-  process.stdout.write(`(error collecting worktree evidence: ${String(e)})\n`);
-}
-
 process.stdout.write('\n');
 
 const gateCheckPath = path.join('.GOV', 'scripts', 'validation', 'gate-check.mjs');
