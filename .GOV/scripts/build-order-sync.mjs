@@ -454,16 +454,16 @@ const checkOnly = args.includes("--check");
 const repoRoot = path.resolve(resolveRepoRoot());
 process.chdir(repoRoot);
 
-const specCurrent = readText(SPEC_CURRENT_PATH);
+const specCurrent = normalizeLf(readText(SPEC_CURRENT_PATH));
 const specTarget = parseSpecTarget(specCurrent);
 
-const registryContent = readText(TRACE_REGISTRY_PATH);
+const registryContent = normalizeLf(readText(TRACE_REGISTRY_PATH));
 const registryRows = parseRegistryRows(registryContent);
 if (registryRows.length === 0) {
   fail("No registry rows found; cannot build build-order snapshot", [TRACE_REGISTRY_PATH]);
 }
 
-const taskBoardContent = readText(TASK_BOARD_PATH);
+const taskBoardContent = normalizeLf(readText(TASK_BOARD_PATH));
 const taskBoardTokens = parseTaskBoardTokens(taskBoardContent);
 
 const metaByBase = new Map();
@@ -479,7 +479,7 @@ for (const row of [...registryRows].sort((a, b) => a.baseWpId.localeCompare(b.ba
     // Missing packets are a governance smell, but keep this tool non-blocking.
     continue;
   }
-  const text = fs.readFileSync(packetPath, "utf8");
+  const text = normalizeLf(fs.readFileSync(packetPath, "utf8"));
   inputsForHash.push(`${packetPath}:\n${text}`);
   metaByBase.set(row.baseWpId, parseBuildOrderMeta(text));
 }
