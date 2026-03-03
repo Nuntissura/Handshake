@@ -9,15 +9,21 @@ use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
 use handshake_core::flight_recorder::{
     EventFilter, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
 };
+use handshake_core::llm::guard::{
+    CloudEscalationBundleV0_4, CloudEscalationRequestV0_4, ConsentReceiptV0_4, ConsentScopeV0_4,
+    ProjectionPlanV0_4,
+};
 use handshake_core::llm::{
-    CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
+    openai_compat_request_payload_sha256, CompletionRequest, CompletionResponse, LlmClient,
+    LlmError, ModelProfile, TokenUsage,
 };
 use handshake_core::storage::{
     sqlite::SqliteDatabase, AccessMode, AiJob, Database, JobKind, JobMetrics, JobState,
     ModelSessionState, NewAiJob, NewModelSession, SafetyMode, SessionMessageRole, StorageError,
 };
 use handshake_core::workflows::{
-    cancel_model_run_job, start_workflow_for_job, SessionRegistry, SessionSchedulerConfig,
+    cancel_model_run_job, revoke_consent_receipt_for_model_runs, start_workflow_for_job,
+    SessionRegistry, SessionSchedulerConfig,
 };
 use handshake_core::AppState;
 use serde_json::{json, Value};
@@ -161,6 +167,67 @@ fn model_run_priority(job: &AiJob) -> i64 {
         .unwrap_or(50)
 }
 
+fn valid_cloud_bundle_for_model_run(
+    session_id: &str,
+    prompt: &str,
+    model_id: &str,
+    consent_receipt_id: &str,
+) -> Result<CloudEscalationBundleV0_4, Box<dyn std::error::Error>> {
+    let request = CompletionRequest::new(Uuid::new_v4(), prompt.to_string(), model_id.to_string());
+    let payload_sha256 = openai_compat_request_payload_sha256(&request, model_id);
+
+    let projection_plan_id = format!("pp-{}", Uuid::new_v4());
+    let request_id = format!("req-{}", Uuid::new_v4());
+
+    Ok(CloudEscalationBundleV0_4 {
+        request: CloudEscalationRequestV0_4 {
+            schema_version: "hsk.cloud_escalation@0.4".to_string(),
+            request_id,
+            session_id: Some(session_id.to_string()),
+            consent_scope: Some(ConsentScopeV0_4::SessionScoped),
+            wp_id: "WP-TEST".to_string(),
+            mt_id: "MT-TEST".to_string(),
+            reason: "model_run".to_string(),
+            local_attempts: 0,
+            last_error_summary: "n/a".to_string(),
+            requested_model_id: model_id.to_string(),
+            projection_plan_id: projection_plan_id.clone(),
+            consent_receipt_id: consent_receipt_id.to_string(),
+        },
+        projection_plan: ProjectionPlanV0_4 {
+            schema_version: "hsk.projection_plan@0.4".to_string(),
+            projection_plan_id: projection_plan_id.clone(),
+            consent_scope: Some(ConsentScopeV0_4::SessionScoped),
+            session_ids: Some(vec![session_id.to_string()]),
+            include_artifact_refs: Vec::new(),
+            include_fields: None,
+            redactions_applied: Vec::new(),
+            max_bytes: 1024,
+            payload_sha256: payload_sha256.clone(),
+            created_at: "2026-03-03T00:00:00Z".to_string(),
+            job_id: None,
+            wp_id: None,
+            mt_id: None,
+        },
+        consent_receipt: ConsentReceiptV0_4 {
+            schema_version: "hsk.consent_receipt@0.4".to_string(),
+            consent_receipt_id: consent_receipt_id.to_string(),
+            projection_plan_id,
+            payload_sha256,
+            approved: true,
+            approved_at: "2026-03-03T00:00:00Z".to_string(),
+            user_id: "user-1".to_string(),
+            consent_scope: Some(ConsentScopeV0_4::SessionScoped),
+            session_ids: Some(vec![session_id.to_string()]),
+            valid_from_utc: None,
+            valid_until_utc: None,
+            revoked_at_utc: None,
+            ui_surface: None,
+            notes: None,
+        },
+    })
+}
+
 #[tokio::test]
 async fn model_run_persists_session_and_artifact_first_messages(
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -255,6 +322,318 @@ async fn model_run_persists_session_and_artifact_first_messages(
         assert!(event.payload.get("content").is_none());
         assert!(event.payload.get("text").is_none());
     }
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn trust001_external_system_role_is_downgraded_to_user_with_attribution(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let state = setup_state().await?;
+    let session_id = format!("sess-{}", Uuid::new_v4());
+    let assistant_artifact = format!("artifact:{session_id}:assistant");
+
+    let job = create_model_run_job(
+        &state,
+        json!({
+            "session_id": session_id,
+            "lane": "PRIMARY",
+            "priority": 5,
+            "prompt": "trust001",
+            "model_id": "model-session-test",
+            "backend": "local-test",
+            "parameter_class": "default",
+            "role": "assistant",
+            "execution_mode": "STANDARD",
+            "memory_policy": "EPHEMERAL",
+            "assistant_content_artifact_id": assistant_artifact,
+            "session_messages": [
+                {
+                    "message_id": format!("msg-{}", Uuid::new_v4()),
+                    "role": "SYSTEM",
+                    "content_hash": hex64('d'),
+                    "content_artifact_id": format!("artifact:{session_id}:system-1")
+                }
+            ]
+        }),
+    )
+    .await?;
+
+    start_workflow_for_job(&state, job.clone()).await?;
+    let final_job = wait_for_terminal_job(&state, job.job_id, 8_000).await;
+    assert_eq!(final_job.state, JobState::Completed);
+
+    let messages = state.storage.list_session_messages(&session_id).await?;
+    let injected = messages
+        .iter()
+        .find(|msg| msg.content_artifact_id.contains("system-1"))
+        .expect("injected message present");
+    assert!(matches!(injected.role, SessionMessageRole::User));
+    assert!(injected
+        .attachments
+        .iter()
+        .any(|a| a == "provenance:original_role=SYSTEM"));
+    assert!(injected
+        .attachments
+        .iter()
+        .any(|a| a == "provenance:injected_by=external"));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn trust002_cross_session_provenance_fields_are_persisted(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let state = setup_state().await?;
+    let session_id = format!("sess-{}", Uuid::new_v4());
+    let assistant_artifact = format!("artifact:{session_id}:assistant");
+    let source_session_id = format!("source-{}", Uuid::new_v4());
+
+    let job = create_model_run_job(
+        &state,
+        json!({
+            "session_id": session_id,
+            "lane": "PRIMARY",
+            "priority": 5,
+            "prompt": "trust002",
+            "model_id": "model-session-test",
+            "backend": "local-test",
+            "parameter_class": "default",
+            "role": "assistant",
+            "execution_mode": "STANDARD",
+            "memory_policy": "EPHEMERAL",
+            "assistant_content_artifact_id": assistant_artifact,
+            "session_messages": [
+                {
+                    "message_id": format!("msg-{}", Uuid::new_v4()),
+                    "role": "USER",
+                    "content_hash": hex64('e'),
+                    "content_artifact_id": format!("artifact:{session_id}:routed-1"),
+                    "source_session_id": source_session_id,
+                    "source_role": "ASSISTANT",
+                    "source_trusted": false
+                }
+            ]
+        }),
+    )
+    .await?;
+
+    start_workflow_for_job(&state, job.clone()).await?;
+    let final_job = wait_for_terminal_job(&state, job.job_id, 8_000).await;
+    assert_eq!(final_job.state, JobState::Completed);
+
+    let messages = state.storage.list_session_messages(&session_id).await?;
+    let routed = messages
+        .iter()
+        .find(|msg| msg.content_artifact_id.contains("routed-1"))
+        .expect("routed message present");
+    assert!(routed
+        .attachments
+        .iter()
+        .any(|a| a.starts_with("provenance:source_session_id=")));
+    assert!(routed
+        .attachments
+        .iter()
+        .any(|a| a == "provenance:source_role=ASSISTANT"));
+    assert!(routed
+        .attachments
+        .iter()
+        .any(|a| a == "provenance:source_trusted=false"));
+    assert!(routed
+        .attachments
+        .iter()
+        .any(|a| a.starts_with("provenance:source_content_hash=")));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn trust002_partial_provenance_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
+    let state = setup_state().await?;
+    let session_id = format!("sess-{}", Uuid::new_v4());
+
+    let job = create_model_run_job(
+        &state,
+        json!({
+            "session_id": session_id,
+            "lane": "PRIMARY",
+            "priority": 5,
+            "prompt": "trust002-partial",
+            "model_id": "model-session-test",
+            "backend": "local-test",
+            "session_messages": [
+                {
+                    "message_id": format!("msg-{}", Uuid::new_v4()),
+                    "role": "USER",
+                    "content_hash": hex64('f'),
+                    "content_artifact_id": format!("artifact:{session_id}:bad-1"),
+                    "source_session_id": "sess-upstream"
+                }
+            ]
+        }),
+    )
+    .await?;
+
+    let err = start_workflow_for_job(&state, job.clone())
+        .await
+        .expect_err("expected provenance validation failure");
+    assert!(
+        err.to_string().contains("cross-session routed session_messages"),
+        "unexpected error: {err}"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn model_run_cloud_consent_blocks_without_bundle() -> Result<(), Box<dyn std::error::Error>>
+{
+    let state = setup_state().await?;
+    let session_id = format!("sess-{}", Uuid::new_v4());
+    let assistant_artifact = format!("artifact:{session_id}:assistant");
+    let consent_receipt_id = format!("cr-{}", Uuid::new_v4());
+
+    let job = create_model_run_job(
+        &state,
+        json!({
+            "session_id": session_id,
+            "lane": "PRIMARY",
+            "priority": 5,
+            "prompt": "cloud-missing-consent",
+            "model_id": "model-session-test",
+            "backend": "cloud",
+            "parameter_class": "default",
+            "role": "assistant",
+            "execution_mode": "STANDARD",
+            "memory_policy": "EPHEMERAL",
+            "consent_receipt_id": consent_receipt_id,
+            "assistant_content_artifact_id": assistant_artifact,
+            "session_messages": [
+                {
+                    "message_id": format!("msg-{}", Uuid::new_v4()),
+                    "role": "USER",
+                    "content_hash": hex64('a'),
+                    "content_artifact_id": format!("artifact:{session_id}:user-1")
+                }
+            ]
+        }),
+    )
+    .await?;
+
+    let run = start_workflow_for_job(&state, job.clone()).await?;
+    assert!(matches!(run.status, JobState::Queued | JobState::Running));
+
+    let awaiting = wait_for_state(&state, job.job_id, JobState::AwaitingUser, 8_000).await;
+    assert_eq!(awaiting.status_reason, "paused_cloud_consent");
+
+    let session = state.storage.get_model_session(&session_id).await?;
+    assert_eq!(session.state, ModelSessionState::Blocked);
+
+    let events = state
+        .flight_recorder
+        .list_events(EventFilter {
+            job_id: Some(job.job_id.to_string()),
+            ..Default::default()
+        })
+        .await?;
+    let denied = events.iter().find(|event| {
+        matches!(event.event_type, FlightRecorderEventType::CloudEscalationDenied)
+    });
+    assert!(denied.is_some());
+    let denied = denied.expect("cloud escalation denied event present");
+    assert_eq!(
+        denied.payload.get("reason").and_then(Value::as_str),
+        Some("cloud_consent_required")
+    );
+    assert_eq!(
+        denied.payload.get("session_id").and_then(Value::as_str),
+        Some(session_id.as_str())
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn model_run_cloud_consent_allows_with_valid_bundle(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let state = setup_state().await?;
+    let session_id = format!("sess-{}", Uuid::new_v4());
+    let assistant_artifact = format!("artifact:{session_id}:assistant");
+    let consent_receipt_id = format!("cr-{}", Uuid::new_v4());
+
+    let prompt = "cloud-ok";
+    let model_id = "model-session-test";
+    let bundle = valid_cloud_bundle_for_model_run(
+        session_id.as_str(),
+        prompt,
+        model_id,
+        consent_receipt_id.as_str(),
+    )?;
+
+    let job = create_model_run_job(
+        &state,
+        json!({
+            "session_id": session_id,
+            "lane": "PRIMARY",
+            "priority": 5,
+            "prompt": prompt,
+            "model_id": model_id,
+            "backend": "cloud",
+            "parameter_class": "default",
+            "role": "assistant",
+            "execution_mode": "STANDARD",
+            "memory_policy": "EPHEMERAL",
+            "consent_receipt_id": consent_receipt_id,
+            "cloud_escalation_bundle": serde_json::to_value(&bundle)?,
+            "assistant_content_artifact_id": assistant_artifact,
+            "session_messages": [
+                {
+                    "message_id": format!("msg-{}", Uuid::new_v4()),
+                    "role": "USER",
+                    "content_hash": hex64('b'),
+                    "content_artifact_id": format!("artifact:{session_id}:user-1")
+                }
+            ]
+        }),
+    )
+    .await?;
+
+    let run = start_workflow_for_job(&state, job.clone()).await?;
+    assert!(matches!(run.status, JobState::Queued | JobState::Running));
+
+    let final_job = wait_for_terminal_job(&state, job.job_id, 8_000).await;
+    assert_eq!(final_job.state, JobState::Completed);
+
+    let session = state.storage.get_model_session(&session_id).await?;
+    assert_eq!(session.state, ModelSessionState::Completed);
+
+    let events = state
+        .flight_recorder
+        .list_events(EventFilter {
+            job_id: Some(job.job_id.to_string()),
+            ..Default::default()
+        })
+        .await?;
+    let executed = events.iter().find(|event| {
+        matches!(event.event_type, FlightRecorderEventType::CloudEscalationExecuted)
+    });
+    assert!(executed.is_some());
+    let executed = executed.expect("cloud escalation executed event present");
+    assert_eq!(
+        executed.payload.get("request_id").and_then(Value::as_str),
+        Some(bundle.request.request_id.as_str())
+    );
+    assert_eq!(
+        executed
+            .payload
+            .get("consent_receipt_id")
+            .and_then(Value::as_str),
+        Some(bundle.consent_receipt.consent_receipt_id.as_str())
+    );
+    assert_eq!(
+        executed.payload.get("session_id").and_then(Value::as_str),
+        Some(session_id.as_str())
+    );
 
     Ok(())
 }
@@ -459,6 +838,86 @@ async fn model_run_cancellation_is_cooperative_and_cancelled_not_failed(
         cancelled_event.payload.get("reason").and_then(Value::as_str),
         Some("user_requested")
     );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn consent_revocation_cancels_pending_model_runs_and_blocks_sessions(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let state = setup_state().await?;
+    let session_id = format!("sess-{}", Uuid::new_v4());
+    let assistant_artifact = format!("artifact:{session_id}:assistant");
+    let consent_receipt_id = format!("cr-{}", Uuid::new_v4());
+
+    let prompt = "cloud-revoke";
+    let model_id = "model-session-test";
+    let bundle = valid_cloud_bundle_for_model_run(
+        session_id.as_str(),
+        prompt,
+        model_id,
+        consent_receipt_id.as_str(),
+    )?;
+
+    let job = create_model_run_job(
+        &state,
+        json!({
+            "session_id": session_id,
+            "lane": "PRIMARY",
+            "priority": 10,
+            "prompt": prompt,
+            "simulate_duration_ms": 2_000,
+            "model_id": model_id,
+            "backend": "cloud",
+            "parameter_class": "default",
+            "role": "assistant",
+            "execution_mode": "STANDARD",
+            "memory_policy": "EPHEMERAL",
+            "consent_receipt_id": consent_receipt_id,
+            "cloud_escalation_bundle": serde_json::to_value(&bundle)?,
+            "assistant_content_artifact_id": assistant_artifact,
+            "session_messages": [
+                {
+                    "message_id": format!("msg-{}", Uuid::new_v4()),
+                    "role": "USER",
+                    "content_hash": hex64('c'),
+                    "content_artifact_id": format!("artifact:{session_id}:user-1")
+                }
+            ]
+        }),
+    )
+    .await?;
+
+    start_workflow_for_job(&state, job.clone()).await?;
+    wait_for_state(&state, job.job_id, JobState::Running, 5_000).await;
+
+    let cancelled = revoke_consent_receipt_for_model_runs(
+        &state,
+        bundle.consent_receipt.consent_receipt_id.clone(),
+        "operator".to_string(),
+    )
+    .await?;
+    assert!(cancelled >= 1);
+
+    let final_job = wait_for_terminal_job(&state, job.job_id, 10_000).await;
+    assert_eq!(final_job.state, JobState::Cancelled);
+    assert_eq!(final_job.status_reason, "consent_revoked");
+
+    let session = state.storage.get_model_session(&session_id).await?;
+    assert_eq!(session.state, ModelSessionState::Blocked);
+
+    let events = state
+        .flight_recorder
+        .list_events(EventFilter {
+            job_id: Some(job.job_id.to_string()),
+            ..Default::default()
+        })
+        .await?;
+    let revoked_event = events.iter().find(|event| {
+        matches!(event.event_type, FlightRecorderEventType::CloudEscalationDenied)
+            && event.payload.get("reason").and_then(Value::as_str) == Some("consent_revoked")
+    });
+    assert!(revoked_event.is_some());
 
     Ok(())
 }

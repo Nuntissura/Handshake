@@ -401,6 +401,68 @@ fn htc_error_object(
 }
 
 impl GatedMcpClient {
+    fn normalize_session_capability_grants(
+        mut grants: Vec<String>,
+        token_ids: Option<Vec<String>>,
+    ) -> Vec<String> {
+        if let Some(tokens) = token_ids {
+            grants.extend(tokens);
+        }
+
+        for cap in &mut grants {
+            *cap = cap.trim().to_string();
+        }
+        grants.retain(|c| !c.is_empty());
+
+        // Stable order for determinism in event payloads and tests.
+        grants.sort();
+        grants.dedup();
+        grants
+    }
+
+    async fn resolve_session_scoped_grants(
+        &self,
+        session_id: &str,
+    ) -> McpResult<(Vec<String>, Option<(String, Vec<String>)>)> {
+        let db = self.db.as_ref().ok_or_else(|| {
+            McpError::CapabilityDenied(
+                "session_id present but gate database unavailable (deny-by-default)".to_string(),
+            )
+        })?;
+
+        let session = db.get_model_session(session_id).await.map_err(|e| {
+            McpError::CapabilityDenied(format!(
+                "session-scoped capabilities unavailable for session_id={}: {}",
+                session_id, e
+            ))
+        })?;
+
+        let session_grants = Self::normalize_session_capability_grants(
+            session.capability_grants,
+            session.capability_token_ids,
+        );
+
+        let parent_grants = if let Some(parent_id) = session.parent_session_id.as_deref() {
+            let parent = db.get_model_session(parent_id).await.map_err(|e| {
+                McpError::CapabilityDenied(format!(
+                    "parent session capabilities unavailable for parent_session_id={}: {}",
+                    parent_id, e
+                ))
+            })?;
+            Some((
+                parent_id.to_string(),
+                Self::normalize_session_capability_grants(
+                    parent.capability_grants,
+                    parent.capability_token_ids,
+                ),
+            ))
+        } else {
+            None
+        };
+
+        Ok((session_grants, parent_grants))
+    }
+
     async fn connect_internal<T: McpTransport + 'static>(
         server_id: impl Into<String>,
         transport: T,
@@ -1034,6 +1096,76 @@ impl GatedMcpClient {
                 required_caps.push(cap);
             }
         }
+
+        let session_id = ctx
+            .session_id
+            .as_deref()
+            .map(|v| v.trim())
+            .filter(|v| !v.is_empty());
+
+        let (session_scoped_grants, parent_session_grants) = match session_id {
+            Some(session_id) if !session_id.trim().is_empty() => {
+                match self.resolve_session_scoped_grants(session_id).await {
+                    Ok(result) => result,
+                    Err(err) => {
+                        let _ = fr_events::record_gate_decision(
+                            Arc::clone(&self.flight_recorder),
+                            &ctx,
+                            &self.server_id,
+                            Some(tool_id.as_str()),
+                            "deny",
+                            "session_grants_unavailable",
+                            json!({ "session_id": session_id, "error": err.to_string() }),
+                        );
+
+                        let ended_at_utc = Utc::now();
+                        let payload = json!({
+                            "type": "tool_call",
+                            "trace_id": ctx.trace_id.to_string(),
+                            "tool_call_id": tool_call_id.to_string(),
+                            "tool_id": tool_id,
+                            "tool_version": tool_version,
+                            "transport": "mcp",
+                            "side_effect": side_effect,
+                            "idempotency": idempotency,
+                            "idempotency_key": idempotency_key,
+                            "actor": default_actor_payload(),
+                            "ok": false,
+                            "args_ref": args_ref,
+                            "args_hash": args_hash,
+                            "error": {
+                                "code": "capability_denied",
+                                "kind": "capability",
+                                "message": err.to_string(),
+                                "retryable": false,
+                            },
+                            "timing": htc_timing(started_at_utc, ended_at_utc),
+                            "capability_ids": &required_caps,
+                        });
+                        let mut event = FlightRecorderEvent::new(
+                            FlightRecorderEventType::ToolCall,
+                            FlightRecorderActor::Agent,
+                            ctx.trace_id,
+                            payload,
+                        );
+                        if let Some(job_id) = ctx.job_id {
+                            event = event.with_job_id(job_id.to_string());
+                        }
+                        if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                            event = event.with_workflow_id(workflow_run_id.to_string());
+                        }
+                        self.flight_recorder
+                            .record_event(event)
+                            .await
+                            .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+
+                        return Err(err);
+                    }
+                }
+            }
+            _ => (Vec::new(), None),
+        };
+
         for cap in required_caps.iter().map(|s| s.as_str()) {
             if let Err(err) = self.enforce_capability(cap, &ctx.granted_capabilities) {
                 let _ = fr_events::record_gate_decision(
@@ -1088,6 +1220,128 @@ impl GatedMcpClient {
                     .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
 
                 return Err(err);
+            }
+
+            // Session-scoped capability enforcement (deny-by-default when session_id present).
+            if let Some(session_id) = session_id {
+                if let Err(_err) = self.enforce_capability(cap, &session_scoped_grants) {
+                    let err = McpError::CapabilityDenied(format!(
+                        "session capability denied: {} (session_id={})",
+                        cap, session_id
+                    ));
+                    let _ = fr_events::record_gate_decision(
+                        Arc::clone(&self.flight_recorder),
+                        &ctx,
+                        &self.server_id,
+                        Some(tool_id.as_str()),
+                        "deny",
+                        "session_capability_denied",
+                        json!({ "capability_id": cap, "error": err.to_string() }),
+                    );
+
+                    let ended_at_utc = Utc::now();
+                    let payload = json!({
+                        "type": "tool_call",
+                        "trace_id": ctx.trace_id.to_string(),
+                        "tool_call_id": tool_call_id.to_string(),
+                        "tool_id": tool_id,
+                        "tool_version": tool_version,
+                        "transport": "mcp",
+                        "side_effect": side_effect,
+                        "idempotency": idempotency,
+                        "idempotency_key": idempotency_key,
+                        "actor": default_actor_payload(),
+                        "ok": false,
+                        "args_ref": args_ref,
+                        "args_hash": args_hash,
+                        "error": {
+                            "code": "capability_denied",
+                            "kind": "capability",
+                            "message": err.to_string(),
+                            "retryable": false,
+                        },
+                        "timing": htc_timing(started_at_utc, ended_at_utc),
+                        "capability_ids": &required_caps,
+                    });
+                    let mut event = FlightRecorderEvent::new(
+                        FlightRecorderEventType::ToolCall,
+                        FlightRecorderActor::Agent,
+                        ctx.trace_id,
+                        payload,
+                    );
+                    if let Some(job_id) = ctx.job_id {
+                        event = event.with_job_id(job_id.to_string());
+                    }
+                    if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                        event = event.with_workflow_id(workflow_run_id.to_string());
+                    }
+                    self.flight_recorder
+                        .record_event(event)
+                        .await
+                        .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+                    return Err(err);
+                }
+
+                // TRUST-003: child sessions cannot widen capabilities vs parent.
+                if let Some((parent_session_id, parent_grants)) = parent_session_grants.as_ref() {
+                    if let Err(_err) = self.enforce_capability(cap, parent_grants) {
+                        let err = McpError::CapabilityDenied(format!(
+                            "child session capability exceeds parent: {} (session_id={}, parent_session_id={})",
+                            cap, session_id, parent_session_id
+                        ));
+                        let _ = fr_events::record_gate_decision(
+                            Arc::clone(&self.flight_recorder),
+                            &ctx,
+                            &self.server_id,
+                            Some(tool_id.as_str()),
+                            "deny",
+                            "parent_capability_denied",
+                            json!({ "capability_id": cap, "error": err.to_string() }),
+                        );
+
+                        let ended_at_utc = Utc::now();
+                        let payload = json!({
+                            "type": "tool_call",
+                            "trace_id": ctx.trace_id.to_string(),
+                            "tool_call_id": tool_call_id.to_string(),
+                            "tool_id": tool_id,
+                            "tool_version": tool_version,
+                            "transport": "mcp",
+                            "side_effect": side_effect,
+                            "idempotency": idempotency,
+                            "idempotency_key": idempotency_key,
+                            "actor": default_actor_payload(),
+                            "ok": false,
+                            "args_ref": args_ref,
+                            "args_hash": args_hash,
+                            "error": {
+                                "code": "capability_denied",
+                                "kind": "capability",
+                                "message": err.to_string(),
+                                "retryable": false,
+                            },
+                            "timing": htc_timing(started_at_utc, ended_at_utc),
+                            "capability_ids": &required_caps,
+                        });
+                        let mut event = FlightRecorderEvent::new(
+                            FlightRecorderEventType::ToolCall,
+                            FlightRecorderActor::Agent,
+                            ctx.trace_id,
+                            payload,
+                        );
+                        if let Some(job_id) = ctx.job_id {
+                            event = event.with_job_id(job_id.to_string());
+                        }
+                        if let Some(workflow_run_id) = ctx.workflow_run_id.as_deref() {
+                            event = event.with_workflow_id(workflow_run_id.to_string());
+                        }
+                        self.flight_recorder
+                            .record_event(event)
+                            .await
+                            .map_err(|e| McpError::FlightRecorder(e.to_string()))?;
+                        return Err(err);
+                    }
+                }
             }
         }
         if let Err(err) = self

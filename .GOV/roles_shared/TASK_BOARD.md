@@ -55,6 +55,8 @@ Entry format (recommended):
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
 
+- **[WP-1-Session-Scoped-Capabilities-Consent-Gate-v1]** - [READY_FOR_DEV]
+
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
@@ -91,7 +93,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-FEMS-Memory-Poisoning-Drift-Guardrails-v1]** - [STUB]
 - **[WP-1-FEMS-Acceptance-Replay-Eval-v1]** - [STUB]
 - **[WP-1-Session-Spawn-Contract-v1]** - [STUB]
-- **[WP-1-Session-Scoped-Capabilities-Consent-Gate-v1]** - [STUB]
 - **[WP-1-Provider-Feature-Coverage-Agentic-Ready-v1]** - [STUB]
 - **[WP-1-Workspace-Safety-Parallel-Sessions-v1]** - [STUB]
 - **[WP-1-Session-Crash-Recovery-Checkpointing-v1]** - [STUB]

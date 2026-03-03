@@ -11,7 +11,10 @@ use handshake_core::mcp::gate::{
 };
 use handshake_core::mcp::jsonrpc::{JsonRpcId, JsonRpcMessage, JsonRpcNotification, JsonRpcResponse};
 use handshake_core::mcp::transport::duplex::DuplexTransport;
-use handshake_core::storage::{AccessMode, AiJobListFilter, Database, JobKind, JobMetrics, JobState, JobStatusUpdate, NewAiJob, SafetyMode};
+use handshake_core::storage::{
+    AccessMode, AiJobListFilter, Database, JobKind, JobMetrics, JobState, JobStatusUpdate,
+    ModelSessionState, NewAiJob, NewModelSession, SafetyMode,
+};
 use serde_json::{json, Value};
 use tempfile::tempdir;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter, DuplexStream};
@@ -278,6 +281,28 @@ async fn mcp_e2e_persists_progress_mapping_records_fr_events_and_hydrates_ref() 
     })
     .await?;
 
+    let session_id = "sess-1".to_string();
+    db.upsert_model_session(NewModelSession {
+        session_id: session_id.clone(),
+        parent_session_id: None,
+        spawn_depth: 0,
+        state: ModelSessionState::Created,
+        model_id: "mcp-e2e".to_string(),
+        backend: "local-test".to_string(),
+        parameter_class: "default".to_string(),
+        role: "assistant".to_string(),
+        wp_id: None,
+        mt_id: None,
+        work_profile_id: None,
+        execution_mode: "STANDARD".to_string(),
+        memory_policy: "EPHEMERAL".to_string(),
+        consent_receipt_id: None,
+        capability_grants: vec!["fs.read".to_string()],
+        capability_token_ids: None,
+        job_id: Some(job.job_id),
+    })
+    .await?;
+
     let tmp = tempdir()?;
     let fixture_path = tmp.path().join("fixture.bin");
     std::fs::write(&fixture_path, b"hello world")?;
@@ -286,7 +311,7 @@ async fn mcp_e2e_persists_progress_mapping_records_fr_events_and_hydrates_ref() 
     let ctx = McpContext {
         job_id: Some(job.job_id),
         trace_id,
-        session_id: Some("sess-1".to_string()),
+        session_id: Some(session_id.clone()),
         task_id: Some("task-1".to_string()),
         workflow_run_id: Some(workflow_run_id.to_string()),
         granted_capabilities: vec!["fs.read".to_string()],

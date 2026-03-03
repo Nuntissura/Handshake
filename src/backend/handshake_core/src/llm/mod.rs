@@ -405,6 +405,16 @@ pub(crate) fn openai_compat_canonical_request_bytes(
     ))
 }
 
+/// Computes the canonical OpenAI-compatible request payload hash used for consent binding.
+///
+/// This is the SHA-256 (hex) of `openai_compat_canonical_request_bytes`.
+pub fn openai_compat_request_payload_sha256(
+    req: &CompletionRequest,
+    resolved_model_id: &str,
+) -> String {
+    sha256_hex(&openai_compat_canonical_request_bytes(req, resolved_model_id))
+}
+
 // =============================================================================
 // TESTS
 // =============================================================================
