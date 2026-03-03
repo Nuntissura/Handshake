@@ -70,7 +70,7 @@ Next: N/A
 
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- NONE
+- CX-573F (2026-03-03): Post-work range includes governance surface changes from merged main (/.GOV/** and justfile). Scope for product code remains restricted to IN_SCOPE_PATHS; out-of-scope changes are governance-only.
 
 ## QUALITY_GATE
 ### TEST_PLAN
@@ -225,50 +225,140 @@ git revert <commit-sha>
   - Scheduler blocks cloud `model_run` dispatch without valid ConsentReceipt bound to session; revocation cancels pending jobs and sets sessions BLOCKED.
 
 ## IMPLEMENTATION
-- (Coder fills after skeleton approval.)
+- Implemented session-scoped capability enforcement in MCP Tool Gate using DB-backed ModelSession grants/tokens (deny-by-default when HTC session_id present) and TRUST-003 parent narrowing.
+- Extended hsk.*@0.4 cloud consent schemas with optional consent_scope/session binding + validity/revocation fields; added strict validation when CloudEscalationRequest.session_id is present.
+- Enforced INV-CONSENT-001 at model_run dispatch (cloud tier or backend=cloud): require CloudEscalationBundle, validate hash binding, bind session_id + consent_receipt_id, and emit FR-EVT-CLOUD-* deny/execute events.
+- Implemented INV-CONSENT-003 primitive: revoke consent_receipt_id cancels pending model_run jobs and blocks affected sessions (consent_revoked).
+- Enforced TRUST-001/002 at ModelRun inbound trust boundary: downgrade external SYSTEM -> USER with provenance attribution; validate/persist cross-session provenance fields when provided.
+- Updated/added tests for MCP gate, MCP e2e, model_session_scheduler consent gating, revocation, and trust boundary behavior.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Ran: just pre-work WP-1-Session-Scoped-Capabilities-Consent-Gate-v1
+- Ran: cargo test (targeted) for handshake_core: mcp_gate_tests, mcp_e2e_tests, model_session_scheduler_tests
+- Ran: just test (with CARGO_TARGET_DIR override to avoid space-containing path on Windows)
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- (Deterministic manifest for audit. This records the "What" (hashes/lines) for the Validator's "How/Why" audit. It is NOT a claim of official Validation.)
+
+- **Target File**: `justfile`
+- **Start**: 57
+- **End**: 245
+- **Line Delta**: 5
+- **Pre-SHA1**: `fdbb900798a9eb07e14c4d085dced45923553f94`
+- **Post-SHA1**: `4da0b2b0367554d1e5c2de3938ea002cfe95b3f5`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] all_links_resolvable
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 4762
+- **End**: 4863
+- **Line Delta**: 58
+- **Pre-SHA1**: `12373dd82250732fd97aff658bc0bba68eb27ba9`
+- **Post-SHA1**: `11fc877b0073c0ef6147c00377e72debf445009b`
+- **Gates Passed**:
+  - [x] all_links_resolvable
+
+- **Target File**: `src/backend/handshake_core/src/llm/guard.rs`
+- **Start**: 12
+- **End**: 682
+- **Line Delta**: 216
+- **Pre-SHA1**: `7eb568e8a669b047cfc4be3c63695496b5b35d5a`
+- **Post-SHA1**: `9159e5fa6c62fd478c4862ec2fa3b30a4f3b7768`
+- **Gates Passed**:
+  - [x] all_links_resolvable
+
+- **Target File**: `src/backend/handshake_core/src/llm/mod.rs`
+- **Start**: 407
+- **End**: 417
+- **Line Delta**: 10
+- **Pre-SHA1**: `7f6acfdef2a761522cdeefa55f54abb9bf2ff639`
+- **Post-SHA1**: `4b833f9d8f9a2f6bf3867de7ca1ef28f75dafa45`
+- **Gates Passed**:
+  - [x] all_links_resolvable
+
+- **Target File**: `src/backend/handshake_core/src/mcp/gate.rs`
+- **Start**: 403
+- **End**: 1207
+- **Line Delta**: 116
+- **Pre-SHA1**: `8ea82398453f0f4eb3902504c6200cd4552b7ebc`
+- **Post-SHA1**: `a71836ecc175c9e74ca4423a58dfd17c069f589e`
+- **Gates Passed**:
+  - [x] all_links_resolvable
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 37
+- **End**: 11091
+- **Line Delta**: 463
+- **Pre-SHA1**: `fee6ab73ce755f3c72a4e330600c58760e399a93`
+- **Post-SHA1**: `8bf16dea97e1503fb9a27bfd1d0a346d3f521952`
+- **Gates Passed**:
+  - [x] all_links_resolvable
+
+- **Target File**: `src/backend/handshake_core/tests/mcp_e2e_tests.rs`
+- **Start**: 14
+- **End**: 314
+- **Line Delta**: 25
+- **Pre-SHA1**: `3e05973e506997731764dda68d4e8cdccb81f02d`
+- **Post-SHA1**: `b3c03021e526a0963b6a628ca5c93d04e796376f`
+- **Gates Passed**:
+  - [x] all_links_resolvable
+
+- **Target File**: `src/backend/handshake_core/tests/mcp_gate_tests.rs`
+- **Start**: 20
+- **End**: 894
+- **Line Delta**: 192
+- **Pre-SHA1**: `84367469af501ee4573b4286eb8653ed1949ea76`
+- **Post-SHA1**: `49bd8721b779b23e982bd73c31a8f4d7fd6fee81`
+- **Gates Passed**:
+  - [x] all_links_resolvable
+
+- **Target File**: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs`
+- **Start**: 11
+- **End**: 924
+- **Line Delta**: 459
+- **Pre-SHA1**: `259531a4a96a24984d24e6fcaf95ca245146f1e4`
+- **Post-SHA1**: `7a773197bbfaf518d942fbb77f0d50ded4da9576`
+- **Gates Passed**:
+  - [x] all_links_resolvable
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
+- Current WP_STATUS: IN_PROGRESS (ready for validator audit)
 - What changed in this update:
+  - Implemented session-scoped capability enforcement + TRUST-003 in MCP Tool Gate.
+  - Enforced cloud consent gate invariants for model_run (INV-CONSENT-001..003) with FR-EVT-CLOUD-* events.
+  - Enforced TRUST-001/002 on ModelRun inbound session_messages (SYSTEM downgrade + provenance validation/persistence).
+  - Added/updated tests covering session-scoped MCP gate, cloud model_run consent, revocation, and provenance rules.
 - Next step / handoff hint:
+  - Run `just post-work WP-1-Session-Scoped-Capabilities-Consent-Gate-v1 --range 1cb1bae85f51a83bac1dc28580199b6e15bec157..HEAD` and review warnings.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
-- Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `path/to/file:line`
+- REQUIREMENT: "Tool Gate enforces session-scoped capability intersection when session_id is present (deny-by-default)"
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:1169`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:718`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_gate_tests.rs:805`
+- REQUIREMENT: "TRUST-003 is enforced for session-scoped capabilities: child sessions cannot widen vs parent"
+  - EVIDENCE: `src/backend/handshake_core/src/mcp/gate.rs:1192`
+- REQUIREMENT: "Cloud model_run dispatch is blocked without valid ConsentReceipt bound to session (INV-CONSENT-001) and denials observable via FR-EVT-CLOUD-*"
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3357`
+  - EVIDENCE: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:489`
+- REQUIREMENT: "Cloud escalation executed is observable via FR-EVT-CLOUD-004 (no raw payloads)"
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3541`
+  - EVIDENCE: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:557`
+- REQUIREMENT: "BROADCAST_SCOPED receipt enumerates session_ids; non-enumerated target session is blocked (INV-CONSENT-002)"
+  - EVIDENCE: `src/backend/handshake_core/src/llm/guard.rs:290`
+  - EVIDENCE: `src/backend/handshake_core/src/llm/guard.rs:626`
+- REQUIREMENT: "Revocation cancels pending model_run jobs and transitions affected sessions to BLOCKED (INV-CONSENT-003)"
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:3782`
+  - EVIDENCE: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:846`
+- REQUIREMENT: "TRUST-001/002 enforced: external sources cannot inject SYSTEM; cross-session routed messages require provenance and are persisted"
+  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:2919`
+  - EVIDENCE: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:330`
+  - EVIDENCE: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:385`
+  - EVIDENCE: `src/backend/handshake_core/tests/model_session_scheduler_tests.rs:451`
+- REQUIREMENT: "FR-EVT-CLOUD payload validator allows consent_scope/session_id/session_ids fields"
+  - EVIDENCE: `src/backend/handshake_core/src/flight_recorder/mod.rs:4765`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
@@ -278,6 +368,26 @@ git revert <commit-sha>
   - LOG_PATH: `.handshake/logs/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+
+- COMMAND: `just pre-work WP-1-Session-Scoped-Capabilities-Consent-Gate-v1`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `Pre-work validation PASSED`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\\hs-cargo-target --test mcp_gate_tests`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `test result: ok. 17 passed; 0 failed`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\\hs-cargo-target --test mcp_e2e_tests`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `test result: ok. 1 passed; 0 failed`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\\hs-cargo-target --test model_session_scheduler_tests`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `test result: ok. 11 passed; 0 failed`
+
+- COMMAND: `just --set CARGO_TARGET_DIR D:\\hs-cargo-target test`
+  - EXIT_CODE: 0
+  - PROOF_LINES: `Finished \`test\` profile` / `Doc-tests handshake_core`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
