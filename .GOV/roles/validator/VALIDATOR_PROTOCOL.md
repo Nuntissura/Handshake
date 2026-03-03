@@ -317,6 +317,13 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - PASS: Every requirement mapped to evidence, hygiene clean, tests verified (or explicitly waived by user), DAL audit clean when applicable, phase-gate satisfied when progressing.
 - FAIL: List missing evidence, failed audits, tests not run, or unmet phase-gate. No partial passes.
 
+## Operator UX: Explicit Verdict Line (HARD)
+- When discussing a WP where the verdict is known, every Validator chat message MUST include an explicit single-line status near the top:
+  - `VERDICT: PASS` or `VERDICT: FAIL`
+- While validation is still in progress, use:
+  - `VERDICT: PENDING`
+- Do not require the Operator to infer the verdict from `NEXT_ACTION`, gate state, or prose.
+
 ## Validation Gate Sequence [CX-VAL-GATE] (ONE REVIEW PAUSE; APPEND-FIRST)
 
 The validation process MUST halt only at Gate 3 (final report presentation). All other gates are state recording/unlocks and must still be run in order.
