@@ -595,4 +595,89 @@ mod tests {
         assert_eq!(resp.text, "ok");
         assert_eq!(inner.calls(), 1);
     }
+
+    #[tokio::test]
+    async fn session_scoped_binding_allows_cloud_call() {
+        let inner = Arc::new(CountingClient::new(ModelTier::Cloud));
+        let guard = CloudEscalationGuard::new(
+            inner.clone(),
+            CloudEscalationPolicy {
+                governance_mode: RuntimeGovernanceMode::GovStandard,
+            },
+        );
+
+        let mut req = CompletionRequest::new(
+            Uuid::new_v4(),
+            "hello".to_string(),
+            "cloud-model".to_string(),
+        );
+        let mut bundle = valid_bundle_for_req(&req);
+        bundle.request.session_id = Some("sess-1".to_string());
+        bundle.consent_receipt.consent_scope = Some(ConsentScopeV0_4::SessionScoped);
+        bundle.consent_receipt.session_ids = Some(vec!["sess-1".to_string()]);
+        req.cloud_escalation = Some(bundle);
+
+        let resp = guard.completion(req).await.expect("expected ok");
+        assert_eq!(resp.text, "ok");
+        assert_eq!(inner.calls(), 1);
+    }
+
+    #[tokio::test]
+    async fn broadcast_scoped_must_enumerate_target_session_id() {
+        let inner = Arc::new(CountingClient::new(ModelTier::Cloud));
+        let guard = CloudEscalationGuard::new(
+            inner.clone(),
+            CloudEscalationPolicy {
+                governance_mode: RuntimeGovernanceMode::GovStandard,
+            },
+        );
+
+        let mut req = CompletionRequest::new(
+            Uuid::new_v4(),
+            "hello".to_string(),
+            "cloud-model".to_string(),
+        );
+        let mut bundle = valid_bundle_for_req(&req);
+        bundle.request.session_id = Some("sess-target".to_string());
+        bundle.consent_receipt.consent_scope = Some(ConsentScopeV0_4::BroadcastScoped);
+        bundle.consent_receipt.session_ids = Some(vec!["sess-other".to_string()]);
+        req.cloud_escalation = Some(bundle);
+
+        let err = guard
+            .completion(req)
+            .await
+            .expect_err("expected mismatch");
+        assert!(matches!(err, LlmError::CloudConsentMismatch(_)));
+        assert_eq!(inner.calls(), 0);
+    }
+
+    #[tokio::test]
+    async fn session_scoped_requires_exactly_one_session_id() {
+        let inner = Arc::new(CountingClient::new(ModelTier::Cloud));
+        let guard = CloudEscalationGuard::new(
+            inner.clone(),
+            CloudEscalationPolicy {
+                governance_mode: RuntimeGovernanceMode::GovStandard,
+            },
+        );
+
+        let mut req = CompletionRequest::new(
+            Uuid::new_v4(),
+            "hello".to_string(),
+            "cloud-model".to_string(),
+        );
+        let mut bundle = valid_bundle_for_req(&req);
+        bundle.request.session_id = Some("sess-target".to_string());
+        bundle.consent_receipt.consent_scope = Some(ConsentScopeV0_4::SessionScoped);
+        bundle.consent_receipt.session_ids =
+            Some(vec!["sess-target".to_string(), "sess-2".to_string()]);
+        req.cloud_escalation = Some(bundle);
+
+        let err = guard
+            .completion(req)
+            .await
+            .expect_err("expected mismatch");
+        assert!(matches!(err, LlmError::CloudConsentMismatch(_)));
+        assert_eq!(inner.calls(), 0);
+    }
 }
