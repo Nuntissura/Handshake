@@ -153,6 +153,9 @@ Instead of re-running session-start checks manually after a reset, you MAY run:
 
 This is a convenience wrapper around the core deterministic checks (worktree context + governance integrity + spec regression). It does not replace the WP-specific gates (`just pre-work WP-{ID}` / `just post-work WP-{ID}`).
 
+Optional (recommended on session start to reduce babysitting):
+- `just coder-startup` (prints PROTOCOL_ACK lines + runs `just coder-preflight`).
+
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
 In every Coder message (not only gate runs), include a short lifecycle marker so the Validator can see where you are in the WP lifecycle at a glance.

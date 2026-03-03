@@ -194,6 +194,9 @@ Instead of running the Pre-Orchestration Checklist steps as separate gates, you 
 
 This is a convenience wrapper around the core deterministic checks (worktree context + governance integrity + spec regression).
 
+Optional (recommended on session start to reduce babysitting):
+- `just orchestrator-startup` (prints PROTOCOL_ACK lines + runs `just orchestrator-preflight`).
+
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
 In every Orchestrator message (not only gate runs), include a short lifecycle marker so reviewers can see where you are in the task/work packet creation lifecycle.

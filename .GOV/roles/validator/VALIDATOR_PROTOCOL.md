@@ -152,6 +152,9 @@ Instead of running session-start checks as separate commands, you MAY run:
 
 This is a convenience wrapper around the core deterministic checks (worktree context + governance integrity + spec regression).
 
+Optional (recommended on session start to reduce babysitting):
+- `just validator-startup` (prints PROTOCOL_ACK lines + runs `just validator-preflight`).
+
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
 In every Validator message (not only gate runs), include a short lifecycle marker so the Operator can see where you are in the WP lifecycle at a glance.

@@ -105,6 +105,10 @@ hard-gate-wt-001:
 	@echo '  - <cmd1>'
 	@echo '  - <cmd2>'
 
+# Protocol ack helper: print first non-empty line from each required doc.
+protocol-ack *files:
+	@node .GOV/scripts/protocol-ack.mjs {{files}}
+
 task-board-check:
 	node .GOV/scripts/validation/task-board-check.mjs
 
@@ -158,6 +162,19 @@ coder-preflight:
 	@just hard-gate-wt-001
 	@just gov-check
 	@just validator-spec-regression
+
+# Role startup (recommended): protocol ack + condensed preflight in one command.
+orchestrator-startup:
+	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md"
+	@just orchestrator-preflight
+
+validator-startup:
+	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles/validator/VALIDATOR_PROTOCOL.md"
+	@just validator-preflight
+
+coder-startup:
+	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles/coder/CODER_PROTOCOL.md"
+	@just coder-preflight
 
 # Record a technical refinement for a work packet [CX-585A]
 record-refinement wp-id detail="":
