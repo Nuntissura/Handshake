@@ -55,6 +55,13 @@ gov-check:
 	just docs-check
 	node .GOV/scripts/validation/gov-check.mjs
 
+# Build order (derived view) maintenance [CX-BO-001]
+build-order-sync:
+	node .GOV/scripts/build-order-sync.mjs
+
+build-order-check:
+	node .GOV/scripts/validation/build-order-check.mjs
+
 # Worktrees (recommended when >1 WP active)
 # Creates a dedicated working directory for the WP branch.
 worktree-add wp-id base="main" branch="" dir="":
@@ -193,6 +200,13 @@ record-prepare wp-id coder_id branch="" worktree_dir="":
 create-task-packet wp-id:
 	@echo "Creating task packet: {{wp-id}}..."
 	@node .GOV/scripts/create-task-packet.mjs {{wp-id}}
+	@just build-order-sync
+
+# Create new task packet stub from template (backlog; non-executable)
+create-task-packet-stub wp-id roadmap_pointer="" line_numbers="":
+	@echo "Creating task packet stub: {{wp-id}}..."
+	@node .GOV/scripts/create-task-packet-stub.mjs {{wp-id}} "{{roadmap_pointer}}" "{{line_numbers}}"
+	@just build-order-sync
 
 # Pre-work validation - run before starting implementation [CX-587, CX-620]
 pre-work wp-id:

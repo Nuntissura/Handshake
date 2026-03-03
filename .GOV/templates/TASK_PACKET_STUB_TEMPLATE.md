@@ -19,6 +19,11 @@ Rules:
 - BASE_WP_ID: {{WP_ID}} (stable ID without `-vN`; equals WP_ID for stubs; if WP_ID includes `-vN`, override to the base ID)
 - CREATED_AT: {{DATE_ISO}}
 - STUB_STATUS: STUB (NOT READY FOR DEV)
+- BUILD_ORDER_DOMAIN: <pending> (BACKEND | FRONTEND | GOV | CROSS_BOUNDARY)
+- BUILD_ORDER_TECH_BLOCKER: <pending> (YES | NO)
+- BUILD_ORDER_VALUE_TIER: <pending> (LOW | MEDIUM | HIGH)
+- BUILD_ORDER_DEPENDS_ON: <pending> (comma-separated Base WP IDs | NONE) (use Base IDs, no `-vN`)
+- BUILD_ORDER_BLOCKS: <pending> (comma-separated Base WP IDs | NONE) (use Base IDs, no `-vN`)
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: {{ROADMAP_POINTER}}
 - ROADMAP_ADD_COVERAGE: SPEC=vXX.XXX; PHASE=7.6.3; LINES={{LINE_NUMBERS_COMMA_SEPARATED}}
