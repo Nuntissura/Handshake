@@ -226,8 +226,8 @@ This table is intentionally explicit because these commands are the "mechanical 
 | `just record-prepare {WP_ID} ...` | `.GOV/scripts/validation/orchestrator_gates.mjs prepare` | `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`, git branch exists, `git worktree list --porcelain` | `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` |
 | `just create-task-packet {WP_ID}` | `.GOV/scripts/create-task-packet.mjs` | refinement file, `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`, `.GOV/roles_shared/SIGNATURE_AUDIT.md`, `.GOV/templates/TASK_PACKET_TEMPLATE.md`, `.GOV/roles_shared/SPEC_CURRENT.md` | `.GOV/task_packets/{WP_ID}.md` (or creates refinement scaffold and exits BLOCKED) |
 | `just gate-check {WP_ID}` | `.GOV/scripts/validation/gate-check.mjs` | `.GOV/task_packets/{WP_ID}.md` | none |
-| `just pre-work {WP_ID}` | `gate-check` + `.GOV/scripts/validation/pre-work-check.mjs` | packet + refinement + signature audit; `.GOV/scripts/validation/cor701-spec.json`; git object DB for checkpoint commit gate | may create `.GOV/task_packets/` dir if missing |
-| `just post-work {WP_ID}` | `gate-check` + `.GOV/scripts/validation/post-work-check.mjs` | packet; git diff/index/worktree files; spec schema `cor701-spec.json` | none |
+| `just pre-work {WP_ID}` | `.GOV/scripts/validation/pre-work.mjs` (wraps `gate-check` + `pre-work-check` + CX-WT-001 evidence) | packet + refinement + signature audit; `.GOV/scripts/validation/cor701-spec.json`; git object DB for checkpoint commit gate | none |
+| `just post-work {WP_ID}` | `.GOV/scripts/validation/post-work.mjs` (wraps `gate-check` + `post-work-check` + role mailbox export gate) | packet; git diff/index/worktree files; spec schema `cor701-spec.json` | none |
 | `just cor701-sha <file>` | `.GOV/scripts/validation/cor701-sha.mjs` | git blobs (HEAD/INDEX) + worktree file | none |
 | `just task-board-check` | `.GOV/scripts/validation/task-board-check.mjs` | `.GOV/roles_shared/TASK_BOARD.md` | none |
 | `just task-packet-claim-check` | `.GOV/scripts/validation/task-packet-claim-check.mjs` | `.GOV/task_packets/*.md` | none |
@@ -641,5 +641,4 @@ Generated from repo file listing; grouped by directory. This is the "no file lef
 - `.GOV/operator/docs_local/DOC_INDEX.txt`
 - `.GOV/operator/docs_local/Diary RID extraction.txt`
 - `.GOV/operator/docs_local/legacy/The_Prompt_Diaries_v03.056.000_2025-11-28_01-42_CET.txt`
-
 

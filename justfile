@@ -55,6 +55,11 @@ gov-check:
 	just docs-check
 	node .GOV/scripts/validation/gov-check.mjs
 
+# Governance sync helper: refresh derived governance views then validate.
+gov-sync:
+	just build-order-sync
+	just gov-check
+
 # Build order (derived view) maintenance [CX-BO-001]
 build-order-sync:
 	node .GOV/scripts/build-order-sync.mjs
@@ -196,6 +201,24 @@ record-signature wp-id signature:
 record-prepare wp-id coder_id branch="" worktree_dir="":
 	@node .GOV/scripts/validation/orchestrator_gates.mjs prepare {{wp-id}} {{coder_id}} {{branch}} {{worktree_dir}}
 
+# Orchestrator helper (read-only): infer next steps for a WP from gates + file state.
+orchestrator-next wp-id:
+	@node .GOV/scripts/orchestrator-next.mjs {{wp-id}}
+
+# Deterministic Task Board updater: move a WP entry between sections.
+task-board-set wp-id status reason="":
+	@node .GOV/scripts/task-board-set.mjs {{wp-id}} {{status}} "{{reason}}"
+
+# Deterministic traceability mapping updater: set Base WP -> Active Packet.
+wp-traceability-set base_wp_id active_wp_id:
+	@node .GOV/scripts/wp-traceability-set.mjs {{base_wp_id}} {{active_wp_id}}
+
+# Orchestrator wrapper: create WP worktree + PREPARE record + task packet (after signature).
+orchestrator-prepare-and-packet wp-id coder_id:
+	@just worktree-add {{wp-id}}
+	@just record-prepare {{wp-id}} {{coder_id}}
+	@just create-task-packet {{wp-id}}
+
 # Create new task packet from template [CX-580]
 create-task-packet wp-id:
 	@echo "Creating task packet: {{wp-id}}..."
@@ -210,14 +233,15 @@ create-task-packet-stub wp-id roadmap_pointer="" line_numbers="":
 
 # Pre-work validation - run before starting implementation [CX-587, CX-620]
 pre-work wp-id:
-	@just gate-check {{wp-id}}
-	@node .GOV/scripts/validation/pre-work-check.mjs {{wp-id}}
+	@node .GOV/scripts/validation/pre-work.mjs {{wp-id}}
 
 # Post-work validation - run before or after commit [CX-623, CX-651]
 post-work wp-id *args:
-	@just gate-check {{wp-id}}
-	@node .GOV/scripts/validation/post-work-check.mjs {{wp-id}} {{args}}
-	@just role-mailbox-export-check
+	@node .GOV/scripts/validation/post-work.mjs {{wp-id}} {{args}}
+
+# Coder helper: docs-only skeleton checkpoint commit (task packet only).
+coder-skeleton-checkpoint wp-id:
+	@node .GOV/scripts/validation/coder-skeleton-checkpoint.mjs {{wp-id}}
 
 # Helper: compute deterministic COR-701 Pre/Post SHA1 for a file.
 cor701-sha file:
@@ -227,16 +251,13 @@ cor701-sha file:
 validate-workflow wp-id:
 	@echo "Running automated workflow validation for {{wp-id}}..."
 	@echo ""
-	@echo "Step 0: Gate Check"
-	@just gate-check {{wp-id}}
-	@echo ""
-	@echo "Step 1: Pre-work check"
+	@echo "Step 0: Pre-work check"
 	@just pre-work {{wp-id}}
 	@echo ""
-	@echo "Step 2: Code quality validation"
+	@echo "Step 1: Code quality validation"
 	@just validate
 	@echo ""
-	@echo "Step 3: Post-work check"
+	@echo "Step 2: Post-work check"
 	@just post-work {{wp-id}}
 	@echo ""
 	@echo "✅ Automated workflow validation passed for {{wp-id}} (manual review required)"

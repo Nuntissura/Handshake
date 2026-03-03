@@ -16,9 +16,30 @@ import {
 const WP_ID = process.argv[2];
 
 if (!WP_ID || !WP_ID.startsWith('WP-')) {
-  console.error('âŒ Usage: node create-task-packet.mjs WP-{phase}-{name}');
+  console.error('ERROR: Usage: node create-task-packet.mjs WP-{phase}-{name}');
   console.error('Example: node create-task-packet.mjs WP-1-Job-Cancel');
   process.exit(1);
+}
+
+function printGateBlocks({ wpId, stage, next, operatorAction, gateRan, result, why, gateOutputLines, nextCommands }) {
+  console.log('LIFECYCLE [CX-LIFE-001]');
+  console.log(`- WP_ID: ${wpId}`);
+  console.log(`- STAGE: ${stage}`);
+  console.log(`- NEXT: ${next}`);
+  console.log('');
+  console.log(`OPERATOR_ACTION: ${operatorAction || 'NONE'}`);
+  console.log('');
+  console.log('GATE_OUTPUT [CX-GATE-UX-001]');
+  for (const line of gateOutputLines || []) console.log(line);
+  console.log('');
+  console.log('GATE_STATUS [CX-GATE-UX-001]');
+  console.log(`- PHASE: ${stage}`);
+  console.log(`- GATE_RAN: ${gateRan}`);
+  console.log(`- RESULT: ${result}`);
+  console.log(`- WHY: ${why}`);
+  console.log('');
+  console.log('NEXT_COMMANDS [CX-GATE-UX-001]');
+  for (const cmd of nextCommands || []) console.log(`- ${cmd}`);
 }
 
 // HARD GATE: Technical Refinement must exist and be signed before packet creation.
@@ -54,25 +75,56 @@ if (!fs.existsSync(refinementPath)) {
 
   fs.writeFileSync(refinementPath, filled, 'utf8');
 
-  console.error('BLOCKED: Technical Refinement must be completed BEFORE task packet creation.');
-  console.error(`Created refinement scaffold: ${refinementPath}`);
-  console.error('Next steps:');
-  console.error(`1) Fill ${refinementPath} (ASCII-only; token-in-window per SPEC_ANCHOR)`);
-  console.error('2) Present refinement to the user (do NOT ask for signature in the same turn)');
-  console.error(`3) Run: just record-refinement ${WP_ID}`);
-  console.error(`4) After user review in a NEW turn, run: just record-signature ${WP_ID} {usernameDDMMYYYYHHMM}`);
-  console.error(`5) Re-run: node .GOV/scripts/create-task-packet.mjs ${WP_ID}`);
+  printGateBlocks({
+    wpId: WP_ID,
+    stage: 'REFINEMENT',
+    next: 'REFINEMENT',
+    operatorAction: 'NONE',
+    gateRan: `just create-task-packet ${WP_ID}`,
+    result: 'BLOCKED',
+    why: 'Refinement scaffold created; complete refinement + review + signature before packet creation.',
+    gateOutputLines: [
+      'BLOCKED: Technical Refinement must be completed BEFORE task packet creation.',
+      `Created refinement scaffold: ${refinementPath.replace(/\\/g, '/')}`,
+    ],
+    nextCommands: [
+      `cat ${refinementPath.replace(/\\/g, '/')}`,
+      '# Fill the refinement (ASCII-only; token-in-window per SPEC_ANCHOR).',
+      '# Present refinement to the user (do NOT ask for signature in the same turn).',
+      `just record-refinement ${WP_ID}`,
+      '# After explicit user review in a NEW turn:',
+      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM}`,
+      '# After signature:',
+      `just orchestrator-prepare-and-packet ${WP_ID} {Coder-A|Coder-B}`,
+      '# If you only scaffolded refinement (no packet yet), re-run when unblocked:',
+      `just create-task-packet ${WP_ID}`,
+    ],
+  });
   process.exit(2);
 }
 
 const refinementValidation = validateRefinementFile(refinementPath, { expectedWpId: WP_ID, requireSignature: true });
 if (!refinementValidation.ok) {
-  console.error(`BLOCKED: Refinement is not approved/signed: ${refinementPath}`);
-  refinementValidation.errors.forEach((e) => console.error(`- ${e}`));
-  console.error('Next steps:');
-  console.error(`- Ensure ${refinementPath} is complete.`);
-  console.error(`- Run: just record-refinement ${WP_ID}`);
-  console.error(`- After user review, run: just record-signature ${WP_ID} {usernameDDMMYYYYHHMM}`);
+  printGateBlocks({
+    wpId: WP_ID,
+    stage: 'SIGNATURE',
+    next: 'SIGNATURE',
+    operatorAction: `Collect explicit approval + one-time signature for ${WP_ID}`,
+    gateRan: `just create-task-packet ${WP_ID}`,
+    result: 'BLOCKED',
+    why: 'Refinement is not approved/signed; task packet creation is forbidden until the refinement signature gate passes.',
+    gateOutputLines: [
+      `BLOCKED: Refinement is not approved/signed: ${refinementPath.replace(/\\/g, '/')}`,
+      ...((refinementValidation.errors || []).map((e) => `- ${e}`)),
+    ],
+    nextCommands: [
+      `cat ${refinementPath.replace(/\\/g, '/')}`,
+      `just record-refinement ${WP_ID}`,
+      '# After explicit user approval in a NEW turn:',
+      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM}`,
+      `just create-task-packet ${WP_ID}`,
+    ],
+  });
   process.exit(1);
 }
 
@@ -84,16 +136,42 @@ try {
   const m = refinementContent.match(/^\s*-\s*ENRICHMENT_NEEDED\s*:\s*(YES|NO)\s*$/mi);
   const enrichmentNeeded = (m?.[1] || '').toUpperCase();
   if (enrichmentNeeded === 'YES') {
-    console.error(`BLOCKED: ${WP_ID} refinement declares ENRICHMENT_NEEDED=YES.`);
-    console.error('Do NOT create/lock a WP packet while enrichment is required.');
-    console.error('Next steps (spec-agnostic):');
-    console.error('- Run the spec enrichment workflow (new spec version file + update .GOV/roles_shared/SPEC_CURRENT.md).');
-    console.error('- Create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).');
+    printGateBlocks({
+      wpId: WP_ID,
+      stage: 'SIGNATURE',
+      next: 'STOP',
+      operatorAction: 'Spec enrichment required (create new spec version + new WP variant)',
+      gateRan: `just create-task-packet ${WP_ID}`,
+      result: 'BLOCKED',
+      why: 'Refinement declares ENRICHMENT_NEEDED=YES; do not create/lock a task packet until enrichment is completed.',
+      gateOutputLines: [
+        `BLOCKED: ${WP_ID} refinement declares ENRICHMENT_NEEDED=YES.`,
+        'Do NOT create/lock a WP packet while enrichment is required.',
+      ],
+      nextCommands: [
+        '# Run the spec enrichment workflow (new spec version file + update .GOV/roles_shared/SPEC_CURRENT.md).',
+        '# Create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).',
+      ],
+    });
     process.exit(1);
   }
 } catch {
   // If refinement cannot be read, earlier validation would have failed; keep defensive behavior deterministic.
-  console.error(`BLOCKED: Unable to read refinement file: ${refinementPath}`);
+  printGateBlocks({
+    wpId: WP_ID,
+    stage: 'REFINEMENT',
+    next: 'REFINEMENT',
+    operatorAction: 'NONE',
+    gateRan: `just create-task-packet ${WP_ID}`,
+    result: 'BLOCKED',
+    why: 'Unable to read refinement file; cannot proceed deterministically.',
+    gateOutputLines: [
+      `BLOCKED: Unable to read refinement file: ${refinementPath.replace(/\\/g, '/')}`,
+    ],
+    nextCommands: [
+      `cat ${refinementPath.replace(/\\/g, '/')}`,
+    ],
+  });
   process.exit(1);
 }
 
@@ -104,42 +182,128 @@ try {
   const logs = Array.isArray(gates.gate_logs) ? gates.gate_logs : [];
   const lastSig = [...logs].reverse().find((l) => l.wpId === WP_ID && l.type === 'SIGNATURE');
   if (!lastSig) {
-    console.error(`BLOCKED: No signature record found for ${WP_ID} in ${gatesPath}.`);
-    console.error(`Run: just record-signature ${WP_ID} ${userSignature}`);
+    printGateBlocks({
+      wpId: WP_ID,
+      stage: 'SIGNATURE',
+      next: 'SIGNATURE',
+      operatorAction: `Record signature via Orchestrator gate for ${WP_ID}`,
+      gateRan: `just create-task-packet ${WP_ID}`,
+      result: 'BLOCKED',
+      why: 'No signature record found in ORCHESTRATOR_GATES.json; packet creation cannot be bypassed by manual edits.',
+      gateOutputLines: [
+        `BLOCKED: No signature record found for ${WP_ID} in ${gatesPath.replace(/\\/g, '/')}.`,
+        'Note: If USER_SIGNATURE was manually edited into the refinement file, revert it back to <pending> first.',
+      ],
+      nextCommands: [
+        `cat ${refinementPath.replace(/\\/g, '/')}`,
+        `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM}`,
+        `just create-task-packet ${WP_ID}`,
+      ],
+    });
     process.exit(1);
   }
   if (lastSig.signature !== userSignature) {
-    console.error(`BLOCKED: Signature mismatch between refinement (${userSignature}) and gate log (${lastSig.signature}).`);
+    printGateBlocks({
+      wpId: WP_ID,
+      stage: 'SIGNATURE',
+      next: 'SIGNATURE',
+      operatorAction: 'Resolve signature mismatch (refinement vs gate log)',
+      gateRan: `just create-task-packet ${WP_ID}`,
+      result: 'BLOCKED',
+      why: 'Refinement USER_SIGNATURE does not match the recorded SIGNATURE gate; packet creation is forbidden.',
+      gateOutputLines: [
+        `BLOCKED: Signature mismatch between refinement (${userSignature}) and gate log (${lastSig.signature}).`,
+      ],
+      nextCommands: [
+        `cat ${refinementPath.replace(/\\/g, '/')}`,
+        `# If refinement was manually edited, revert USER_SIGNATURE to <pending> and re-run: just record-signature ${WP_ID} {newSignature}.`,
+      ],
+    });
     process.exit(1);
   }
 
   // HARD GATE: worktree + coder assignment must be recorded AFTER signature and BEFORE packet creation.
   const lastPrepare = [...logs].reverse().find((l) => l.wpId === WP_ID && l.type === 'PREPARE');
   if (!lastPrepare) {
-    console.error(`BLOCKED: WP branch/worktree + coder assignment not recorded for ${WP_ID}.`);
-    console.error('Required workflow (stop-work gate):');
-    console.error(`1) Create WP worktree: just worktree-add ${WP_ID}`);
-    console.error(`2) Record assignment: just record-prepare ${WP_ID} {Coder-A|Coder-B}`);
+    printGateBlocks({
+      wpId: WP_ID,
+      stage: 'PREPARE',
+      next: 'PREPARE',
+      operatorAction: `Choose coder assignment (Coder-A|Coder-B) for ${WP_ID}`,
+      gateRan: `just create-task-packet ${WP_ID}`,
+      result: 'BLOCKED',
+      why: 'WP worktree/branch + coder assignment must be recorded AFTER signature and BEFORE packet creation.',
+      gateOutputLines: [
+        `BLOCKED: WP branch/worktree + coder assignment not recorded for ${WP_ID}.`,
+      ],
+      nextCommands: [
+        `just orchestrator-prepare-and-packet ${WP_ID} {Coder-A|Coder-B}`,
+        `# (or run separately) just worktree-add ${WP_ID}`,
+        `# (or run separately) just record-prepare ${WP_ID} {Coder-A|Coder-B}`,
+      ],
+    });
     process.exit(1);
   }
   try {
     const sigTs = Date.parse(lastSig.timestamp);
     const prepTs = Date.parse(lastPrepare.timestamp);
     if (!Number.isNaN(sigTs) && !Number.isNaN(prepTs) && prepTs <= sigTs) {
-      console.error(`BLOCKED: PREPARE record must occur after SIGNATURE for ${WP_ID}.`);
-      console.error(`- signature_ts=${lastSig.timestamp}`);
-      console.error(`- prepare_ts=${lastPrepare.timestamp}`);
-      console.error(`Re-run: just record-prepare ${WP_ID} {Coder-A|Coder-B}`);
+      printGateBlocks({
+        wpId: WP_ID,
+        stage: 'PREPARE',
+        next: 'PREPARE',
+        operatorAction: `Re-run PREPARE for ${WP_ID}`,
+        gateRan: `just create-task-packet ${WP_ID}`,
+        result: 'BLOCKED',
+        why: 'PREPARE record must occur after SIGNATURE; ordering check failed.',
+        gateOutputLines: [
+          `BLOCKED: PREPARE record must occur after SIGNATURE for ${WP_ID}.`,
+          `- signature_ts=${lastSig.timestamp}`,
+          `- prepare_ts=${lastPrepare.timestamp}`,
+        ],
+        nextCommands: [
+          `just record-prepare ${WP_ID} {Coder-A|Coder-B}`,
+          `just create-task-packet ${WP_ID}`,
+        ],
+      });
       process.exit(1);
     }
   } catch {
     // If timestamps are unparsable, treat as blocked to preserve determinism.
-    console.error(`BLOCKED: Unable to verify PREPARE ordering for ${WP_ID}.`);
-    console.error(`Re-run: just record-prepare ${WP_ID} {Coder-A|Coder-B}`);
+    printGateBlocks({
+      wpId: WP_ID,
+      stage: 'PREPARE',
+      next: 'PREPARE',
+      operatorAction: `Re-run PREPARE for ${WP_ID}`,
+      gateRan: `just create-task-packet ${WP_ID}`,
+      result: 'BLOCKED',
+      why: 'Unable to verify PREPARE ordering deterministically; re-record PREPARE.',
+      gateOutputLines: [
+        `BLOCKED: Unable to verify PREPARE ordering for ${WP_ID}.`,
+      ],
+      nextCommands: [
+        `just record-prepare ${WP_ID} {Coder-A|Coder-B}`,
+        `just create-task-packet ${WP_ID}`,
+      ],
+    });
     process.exit(1);
   }
 } catch {
-  console.error('BLOCKED: Unable to verify signature in .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json.');
+  printGateBlocks({
+    wpId: WP_ID,
+    stage: 'SIGNATURE',
+    next: 'SIGNATURE',
+    operatorAction: 'NONE',
+    gateRan: `just create-task-packet ${WP_ID}`,
+    result: 'BLOCKED',
+    why: 'Unable to verify signature in ORCHESTRATOR_GATES.json; cannot proceed deterministically.',
+    gateOutputLines: [
+      'BLOCKED: Unable to verify signature in .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json.',
+    ],
+    nextCommands: [
+      'cat .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json',
+    ],
+  });
   process.exit(1);
 }
 
@@ -148,12 +312,40 @@ try {
   const auditPath = path.join('.GOV', 'roles_shared', 'SIGNATURE_AUDIT.md');
   const audit = fs.readFileSync(auditPath, 'utf8');
   if (!audit.includes(`| ${userSignature} |`)) {
-    console.error(`BLOCKED: Signature not found in ${auditPath}.`);
-    console.error(`Run: just record-signature ${WP_ID} ${userSignature} (this appends to the audit log).`);
+    printGateBlocks({
+      wpId: WP_ID,
+      stage: 'SIGNATURE',
+      next: 'SIGNATURE',
+      operatorAction: 'NONE',
+      gateRan: `just create-task-packet ${WP_ID}`,
+      result: 'BLOCKED',
+      why: 'Signature not present in SIGNATURE_AUDIT.md; signature gate is incomplete.',
+      gateOutputLines: [
+        `BLOCKED: Signature not found in ${auditPath.replace(/\\/g, '/')}.`,
+      ],
+      nextCommands: [
+        `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM}`,
+        `just create-task-packet ${WP_ID}`,
+      ],
+    });
     process.exit(1);
   }
 } catch {
-  console.error('BLOCKED: Unable to verify signature in .GOV/roles_shared/SIGNATURE_AUDIT.md.');
+  printGateBlocks({
+    wpId: WP_ID,
+    stage: 'SIGNATURE',
+    next: 'SIGNATURE',
+    operatorAction: 'NONE',
+    gateRan: `just create-task-packet ${WP_ID}`,
+    result: 'BLOCKED',
+    why: 'Unable to verify signature in SIGNATURE_AUDIT.md; cannot proceed deterministically.',
+    gateOutputLines: [
+      'BLOCKED: Unable to verify signature in .GOV/roles_shared/SIGNATURE_AUDIT.md.',
+    ],
+    nextCommands: [
+      'cat .GOV/roles_shared/SIGNATURE_AUDIT.md',
+    ],
+  });
   process.exit(1);
 }
 
@@ -169,8 +361,22 @@ const filePath = path.join(taskPacketDir, fileName);
 
 // Check if file already exists
 if (fs.existsSync(filePath)) {
-  console.error(`âŒ Task packet already exists: ${filePath}`);
-  console.error('Edit the existing file or use a different WP_ID.');
+  printGateBlocks({
+    wpId: WP_ID,
+    stage: 'PACKET_CREATE',
+    next: 'STOP',
+    operatorAction: 'NONE',
+    gateRan: `just create-task-packet ${WP_ID}`,
+    result: 'FAIL',
+    why: 'Task packet file already exists; generator will not overwrite it.',
+    gateOutputLines: [
+      `FAIL: Task packet already exists: ${filePath.replace(/\\/g, '/')}`,
+    ],
+    nextCommands: [
+      `cat ${filePath.replace(/\\/g, '/')}`,
+      '# If you need a revision, create a new packet ID: WP-...-v{N}.',
+    ],
+  });
   process.exit(1);
 }
 
@@ -188,7 +394,21 @@ try {
 // Template content (canonical)
 const templatePath = path.join('.GOV', 'templates', 'TASK_PACKET_TEMPLATE.md');
 if (!fs.existsSync(templatePath)) {
-  console.error(`Æ’?O Missing template: ${templatePath}`);
+  printGateBlocks({
+    wpId: WP_ID,
+    stage: 'PACKET_CREATE',
+    next: 'STOP',
+    operatorAction: 'NONE',
+    gateRan: `just create-task-packet ${WP_ID}`,
+    result: 'FAIL',
+    why: 'Task packet template is missing; cannot generate packet deterministically.',
+    gateOutputLines: [
+      `FAIL: Missing template: ${templatePath.replace(/\\/g, '/')}`,
+    ],
+    nextCommands: [
+      'ls .GOV/templates',
+    ],
+  });
   process.exit(1);
 }
 
@@ -223,23 +443,32 @@ template = fill(template, '{{SPEC_ANCHOR}}', '<fill>');
 // Write the file
 fs.writeFileSync(filePath, template, 'utf8');
 
-console.log(`âœ… Task packet created: ${filePath}`);
-console.log('');
-console.log('Next steps:');
-console.log('1. Edit the file and fill in all {placeholder} values');
-console.log('2. Update .GOV/roles_shared/TASK_BOARD.md to "Ready for Dev"');
-console.log('3. If WP_ID includes -vN: update .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md (Base WP -> Active Packet)');
-console.log('4. Ensure TASK_BOARD no longer lists this WP as [STUB]');
-console.log('5. Verify completeness: just pre-work ' + WP_ID);
-console.log('6. Delegate to coder with packet path');
-console.log('');
-console.log('Template fields to complete:');
-console.log('- Metadata: REQUESTOR, AGENT_ID');
-console.log('- SCOPE: What, Why, IN_SCOPE_PATHS, OUT_OF_SCOPE');
-console.log('- RISK_TIER: Choose LOW/MEDIUM/HIGH');
-console.log('- TEST_PLAN: List specific commands');
-console.log('- DONE_MEANS: Define success criteria');
-console.log('- BOOTSTRAP: Fill in FILES_TO_OPEN, SEARCH_TERMS, RISK_MAP');
-console.log('- AUTHORITY: Fill SPEC_ANCHOR; keep SPEC_BASELINE as provenance');
+{
+  const baseWpId = WP_ID.replace(/-v\d+$/, '');
+  const isRevision = baseWpId !== WP_ID;
 
+  const nextCommands = [
+    `cat ${filePath.replace(/\\/g, '/')}`,
+    '# Fill placeholders: REQUESTOR, AGENT_ID, SCOPE, RISK_TIER, TEST_PLAN, DONE_MEANS, BOOTSTRAP, SPEC_ANCHOR.',
+    `just task-board-set ${WP_ID} READY_FOR_DEV`,
+  ];
+  if (isRevision) {
+    nextCommands.push(`just wp-traceability-set ${baseWpId} ${WP_ID}`);
+  }
+  nextCommands.push(`just pre-work ${WP_ID}`);
+  nextCommands.push('# Delegate to Coder with packet path + assigned worktree/branch from ORCHESTRATOR_GATES.json PREPARE.');
 
+  printGateBlocks({
+    wpId: WP_ID,
+    stage: 'PACKET_CREATE',
+    next: 'PRE_WORK',
+    operatorAction: 'NONE',
+    gateRan: `just create-task-packet ${WP_ID}`,
+    result: 'PASS',
+    why: 'Task packet created from template.',
+    gateOutputLines: [
+      `OK: Task packet created: ${filePath.replace(/\\/g, '/')}`,
+    ],
+    nextCommands,
+  });
+}

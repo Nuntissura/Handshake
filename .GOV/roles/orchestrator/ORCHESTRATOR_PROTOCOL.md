@@ -197,6 +197,24 @@ This is a convenience wrapper around the core deterministic checks (worktree con
 Optional (recommended on session start to reduce babysitting):
 - `just orchestrator-startup` (prints PROTOCOL_ACK lines + runs `just orchestrator-preflight`).
 
+### Context resume (recommended; anti-babysit)
+
+If the session resets or you inherit a half-finished WP, use:
+- `just orchestrator-next WP-{ID}`
+
+This prints the inferred WP stage + the minimal next commands based on:
+- `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
+- `.GOV/refinements/WP-*.md`
+- `.GOV/task_packets/WP-*.md`
+- `.GOV/roles_shared/TASK_BOARD.md`
+
+### Deterministic helpers (recommended)
+
+To avoid manual markdown editing mistakes:
+- Update Task Board entry: `just task-board-set WP-{ID} READY_FOR_DEV|IN_PROGRESS|DONE_VALIDATED|DONE_FAIL|DONE_OUTDATED_ONLY|STUB|BLOCKED|SUPERSEDED ["reason"]`
+- Update Base->Active mapping: `just wp-traceability-set BASE_WP_ID ACTIVE_PACKET_WP_ID`
+- Condense post-signature setup: `just orchestrator-prepare-and-packet WP-{ID} {Coder-A|Coder-B}`
+
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
 In every Orchestrator message (not only gate runs), include a short lifecycle marker so reviewers can see where you are in the task/work packet creation lifecycle.
@@ -250,13 +268,19 @@ just validator-spec-regression
 
 Orchestrator does NOT do validation (Validator does). Orchestrator just tracks status.
 
-### Step 3: Supply Chain Audit âœ‹ STOP
+### Step 3: Supply Chain Audit (Conditional) âœ‹ STOP
+Run this step when at least one is true:
+- Dependency/lockfile changed (e.g., `Cargo.lock`, `app/pnpm-lock.yaml`, `package-lock.json`)
+- Operator requests it for this WP/session
+- A periodic audit is due (project hygiene)
+
+If none apply, record: `SKIPPED (no dependency changes)` and proceed.
+
 ```bash
-cargo deny check && npm audit
+cargo deny check advisories licenses bans sources && npm audit
 ```
-- [ ] OSS_REGISTER.md exists and is complete
-- [ ] `cargo deny check` returns 0 violations
-- [ ] `npm audit` returns 0 critical/high vulnerabilities
+- [ ] If run: `cargo deny` returns 0 violations
+- [ ] If run: `npm audit` returns 0 critical/high vulnerabilities
 
 ### Step 4: Phase Status âœ‹ STOP
 - [ ] Current phase identified

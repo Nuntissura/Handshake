@@ -56,7 +56,6 @@ fs.writeFileSync(filePath, content, "utf8");
 console.log(`task-packet-stub created: ${filePath.replace(/\\/g, "/")}`);
 console.log("");
 console.log("Next steps:");
-console.log(`1) Fill SPEC_ANCHOR_CANDIDATES and DEPENDENCIES/BLOCKERS in ${filePath.replace(/\\/g, "/")}`);
+console.log(`1) Fill BUILD_ORDER_* + SPEC_ANCHOR_CANDIDATES + DEPENDENCIES/BLOCKERS in ${filePath.replace(/\\/g, "/")}`);
 console.log("2) Ensure TASK_BOARD lists the stub under 'Stub Backlog (Not Activated)'");
 console.log("3) Run: just build-order-sync");
-
