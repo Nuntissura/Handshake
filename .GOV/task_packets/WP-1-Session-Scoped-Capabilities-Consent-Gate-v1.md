@@ -194,6 +194,7 @@ git revert <commit-sha>
   - No product code changes until SKELETON is approved.
 
 ## SKELETON APPROVED
+SKELETON APPROVED
 - Approved_at_utc: 2026-03-03T05:50:41Z
 - Approved_by: role_validator
 - Scope amendment: add `src/backend/handshake_core/src/mcp/gate.rs` to IN_SCOPE_PATHS (aligns DONE_MEANS "Tool Gate" + spec HARD rule 4.3.9.16.4).
