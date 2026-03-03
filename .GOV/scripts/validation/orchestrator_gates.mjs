@@ -38,6 +38,27 @@ function v2Fail(msg, details = []) {
     process.exit(1);
 }
 
+function v2PrintGateBlocks({ wpId, stage, next, operatorAction, gateRan, result, why, gateOutputLines, nextCommands }) {
+    console.log('LIFECYCLE [CX-LIFE-001]');
+    console.log(`- WP_ID: ${wpId}`);
+    console.log(`- STAGE: ${stage}`);
+    console.log(`- NEXT: ${next}`);
+    console.log('');
+    console.log(`OPERATOR_ACTION: ${operatorAction || 'NONE'}`);
+    console.log('');
+    console.log('GATE_OUTPUT [CX-GATE-UX-001]');
+    for (const line of gateOutputLines || []) console.log(line);
+    console.log('');
+    console.log('GATE_STATUS [CX-GATE-UX-001]');
+    console.log(`- PHASE: ${stage}`);
+    console.log(`- GATE_RAN: ${gateRan}`);
+    console.log(`- RESULT: ${result}`);
+    console.log(`- WHY: ${why}`);
+    console.log('');
+    console.log('NEXT_COMMANDS [CX-GATE-UX-001]');
+    for (const cmd of nextCommands || []) console.log(`- ${cmd}`);
+}
+
 function v2AssertWpId(id) {
     if (!id || !id.startsWith('WP-')) {
         v2Fail('Expected WP_ID like WP-1-Storage-Abstraction-Layer-v3');
@@ -145,9 +166,23 @@ if (action === 'refine') {
     });
     saveState(state);
 
-    console.log(`[ORCHESTRATOR GATE] Technical Refinement recorded for ${wpId}.`);
-    console.log('[GATE LOCKED] This is the refinement phase; do not request/record USER_SIGNATURE in this turn.');
-    console.log('[NEXT] Wait for explicit user review, then run: just record-signature ' + wpId + ' {usernameDDMMYYYYHHMM}');
+    v2PrintGateBlocks({
+        wpId,
+        stage: 'REFINEMENT',
+        next: 'APPROVAL',
+        operatorAction: 'NONE',
+        gateRan: `just record-refinement ${wpId}`,
+        result: 'PASS',
+        why: 'Technical refinement recorded; signature is locked to a later turn (explicit user review required).',
+        gateOutputLines: [
+            `[ORCHESTRATOR GATE] Technical Refinement recorded for ${wpId}.`,
+            `[GATE LOCKED] Do not request/record USER_SIGNATURE in this turn.`,
+        ],
+        nextCommands: [
+            `# Present the Technical Refinement Block in chat and wait for explicit user approval.`,
+            `just record-signature ${wpId} {usernameDDMMYYYYHHMM}`,
+        ],
+    });
     process.exit(0);
 }
 
@@ -290,11 +325,25 @@ if (action === 'sign') {
     });
     saveState(state);
 
-    console.log(`[ORCHESTRATOR GATE] Signature recorded for ${wpId}.`);
-    console.log('[GATE PARTIAL] Signature recorded. Next, you MUST create a WP branch/worktree and record assignment before creating the Task Packet.');
-    console.log(`[NEXT] 1) Create WP worktree: just worktree-add ${wpId}`);
-    console.log(`[NEXT] 2) Record assignment: just record-prepare ${wpId} {Coder-A|Coder-B} (optional: {branch} {worktree_dir})`);
-    console.log(`[NEXT] 3) Then create packet: just create-task-packet ${wpId}`);
+    v2PrintGateBlocks({
+        wpId,
+        stage: 'SIGNATURE',
+        next: 'PREPARE',
+        operatorAction: `Choose coder assignment (Coder-A|Coder-B) for ${wpId}`,
+        gateRan: `just record-signature ${wpId} ${signature}`,
+        result: 'PASS',
+        why: 'One-time signature recorded + audited; proceed to worktree + coder assignment before packet creation.',
+        gateOutputLines: [
+            `[ORCHESTRATOR GATE] Signature recorded for ${wpId}.`,
+            `[GATE PARTIAL] Next: create WP worktree + record PREPARE before task packet creation.`,
+        ],
+        nextCommands: [
+            `just orchestrator-prepare-and-packet ${wpId} {Coder-A|Coder-B}`,
+            `# (or run separately) just worktree-add ${wpId}`,
+            `# (or run separately) just record-prepare ${wpId} {Coder-A|Coder-B}`,
+            `# (or run separately) just create-task-packet ${wpId}`,
+        ],
+    });
     process.exit(0);
 }
 
@@ -346,86 +395,25 @@ if (action === 'prepare') {
     });
     saveState(state);
 
-    console.log(`[ORCHESTRATOR GATE] Prepared ${wpId} for development.`);
-    console.log(`- coder_id: ${coderId}`);
-    console.log(`- branch: ${branch}`);
-    console.log(`- worktree_dir: ${worktreeDir}`);
-    console.log('[NEXT] Create packet: just create-task-packet ' + wpId);
+    v2PrintGateBlocks({
+        wpId,
+        stage: 'PREPARE',
+        next: 'PACKET_CREATE',
+        operatorAction: 'NONE',
+        gateRan: `just record-prepare ${wpId} ${coderId} ${branch} ${worktreeDir}`,
+        result: 'PASS',
+        why: 'WP worktree/branch + coder assignment recorded; task packet creation is now unblocked.',
+        gateOutputLines: [
+            `[ORCHESTRATOR GATE] Prepared ${wpId} for development.`,
+            `- coder_id: ${coderId}`,
+            `- branch: ${branch}`,
+            `- worktree_dir: ${worktreeDir}`,
+        ],
+        nextCommands: [
+            `just create-task-packet ${wpId}`,
+        ],
+    });
     process.exit(0);
 }
 
-if (action !== 'refine' && action !== 'sign') {
-    v2Fail('Unknown action. Expected: refine|sign|prepare');
-}
-
-if (action === 'refine') {
-    // data is an optional hash or description of the refinement
-    const refinementEntry = {
-        wpId,
-        type: 'REFINEMENT',
-        data: data || 'No detail provided',
-        timestamp: new Date().toISOString(),
-        // We use a simple counter to track "Protocol Turns"
-        turn_token: Math.random().toString(36).substring(7)
-    };
-    
-    state.gate_logs.push(refinementEntry);
-    saveState(state);
-    console.log(`
-âœ… [ORCHESTRATOR GATE] Technical Refinement recorded for ${wpId}.`);
-    console.log(`ðŸ”’ [GATE LOCKED] You must wait for a new turn to provide a signature.
-`);
-}
-
-if (action === 'sign') {
-    // data is the signature: usernameDDMMYYYYHHMM
-    if (!data || !/^[a-z]+[0-9]{12}$/.test(data)) {
-        console.error(`
-âŒ [GATE ERROR] Invalid signature format. Expected {username}{DDMMYYYYHHMM}
-`);
-        process.exit(1);
-    }
-
-    const logs = state.gate_logs.filter(l => l.wpId === wpId);
-    const lastRefinement = [...logs].reverse().find(l => l.type === 'REFINEMENT');
-    
-    if (!lastRefinement) {
-        console.error(`
-âŒ [GATE ERROR] No technical refinement found for ${wpId}. You cannot sign what hasn't been refined.
-`);
-        process.exit(1);
-    }
-
-    // BLOCK: Automation Momentum Detection
-    // If the signature's HHMM matches the refinement's HHMM, it's likely a merged turn.
-    const refDate = new Date(lastRefinement.timestamp);
-    const refHHMM = `${String(refDate.getDate()).padStart(2, '0')}${String(refDate.getMonth() + 1).padStart(2, '0')}${refDate.getFullYear()}${String(refDate.getHours()).padStart(2, '0')}${String(refDate.getMinutes()).padStart(2, '0')}`;
-    const sigHHMM = data.slice(-12);
-
-    // If the refinement was recorded less than 10 seconds ago, it's definitely the same turn.
-    const now = new Date();
-    const diffSeconds = (now.getTime() - refDate.getTime()) / 1000;
-
-    if (diffSeconds < 10) {
-        console.error(`
-ðŸš¨ [GATE ERROR: AUTOMATION MOMENTUM]`);
-        console.error(`Refinement and Signature detected in the same turn (diff: ${diffSeconds}s).`);
-        console.error(`The protocol mandates a standalone turn for refinement inspection.`);
-        console.error(`STOP and wait for the user to review the refinement in a NEW turn.
-`);
-        process.exit(1);
-    }
-
-    state.gate_logs.push({
-        wpId,
-        type: 'SIGNATURE',
-        signature: data,
-        timestamp: now.toISOString()
-    });
-    
-    saveState(state);
-    console.log(`
-âœ… [ORCHESTRATOR GATE] Signature validated for ${wpId}.`);
-    console.log(`ðŸ”“ [GATE UNLOCKED] You may now create the Task Packet.
-`);
-}
+v2Fail('Unknown action. Expected: refine|sign|prepare');

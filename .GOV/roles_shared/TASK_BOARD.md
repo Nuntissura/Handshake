@@ -21,6 +21,12 @@ This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Ph
 - Superseded: `- **[WP_ID]** - [SUPERSEDED]`
 Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the task packet to avoid drift/noise.
 
+**Additional recommended entry format (not currently enforced):**
+- Ready for Dev: `- **[WP_ID]** - [READY_FOR_DEV]`
+- Stub Backlog: `- **[WP_ID]** - [STUB]`
+- Blocked: `- **[WP_ID]** - [BLOCKED] - <reason>`
+- Active (Cross-Branch Status): `- **[WP_ID]** - [ACTIVE] - branch: feat/WP-{ID} - coder: <name/model> - last_sync: YYYY-MM-DD`
+
 **Backlog stubs (pre-activation):**
 - Track not-yet-activated work as STUB items (no USER_SIGNATURE yet). Details live in `.GOV/task_packets/stubs/`.
 - Stubs MUST be activated into official task packets before any coding starts (see `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`).

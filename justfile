@@ -196,6 +196,24 @@ record-signature wp-id signature:
 record-prepare wp-id coder_id branch="" worktree_dir="":
 	@node .GOV/scripts/validation/orchestrator_gates.mjs prepare {{wp-id}} {{coder_id}} {{branch}} {{worktree_dir}}
 
+# Orchestrator helper (read-only): infer next steps for a WP from gates + file state.
+orchestrator-next wp-id:
+	@node .GOV/scripts/orchestrator-next.mjs {{wp-id}}
+
+# Deterministic Task Board updater: move a WP entry between sections.
+task-board-set wp-id status reason="":
+	@node .GOV/scripts/task-board-set.mjs {{wp-id}} {{status}} "{{reason}}"
+
+# Deterministic traceability mapping updater: set Base WP -> Active Packet.
+wp-traceability-set base_wp_id active_wp_id:
+	@node .GOV/scripts/wp-traceability-set.mjs {{base_wp_id}} {{active_wp_id}}
+
+# Orchestrator wrapper: create WP worktree + PREPARE record + task packet (after signature).
+orchestrator-prepare-and-packet wp-id coder_id:
+	@just worktree-add {{wp-id}}
+	@just record-prepare {{wp-id}} {{coder_id}}
+	@just create-task-packet {{wp-id}}
+
 # Create new task packet from template [CX-580]
 create-task-packet wp-id:
 	@echo "Creating task packet: {{wp-id}}..."
