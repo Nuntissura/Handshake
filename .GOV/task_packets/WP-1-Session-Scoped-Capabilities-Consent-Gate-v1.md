@@ -9,7 +9,7 @@
 - REQUESTOR: Operator (ilja)
 - AGENT_ID: CodexCLI-GPT-5.2 (Orchestrator)
 - ROLE: Orchestrator
-- AGENTIC_MODE: NO (YES | NO)
+- AGENTIC_MODE: NO
 - ORCHESTRATOR_MODEL: N/A (required if AGENTIC_MODE=YES)
 - ORCHESTRATION_STARTED_AT_UTC: N/A (RFC3339 UTC; required if AGENTIC_MODE=YES)
 - CODER_MODEL: <unclaimed>
