@@ -115,7 +115,9 @@ function main() {
   const eol = detectEol(raw);
   let lines = raw.split(/\r?\n/);
 
-  const wpLineRe = new RegExp(`^\\s*-\\s+\\*\\*\\[${escapeRegExp(wpId)}\\]\\*\\*\\b`);
+  // Match TASK_BOARD entries like: `- **[WP-...-vN]** - [STATUS]`
+  // Note: `\b` doesn't work here because the pattern ends in `**` (non-word chars).
+  const wpLineRe = new RegExp(`^\\s*-\\s+\\*\\*\\[${escapeRegExp(wpId)}\\]\\*\\*(?=\\s|$)`);
   lines = lines.filter((l) => !wpLineRe.test(l));
 
   const headingRe = sectionForStatus(status);

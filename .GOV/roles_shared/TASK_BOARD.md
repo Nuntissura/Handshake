@@ -133,7 +133,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
-- **[WP-1-Spec-Appendices-Backfill-v1]** - [IN_PROGRESS]
 
 ## Done
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]
@@ -201,6 +200,8 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 - **[WP-1-Session-Scoped-Capabilities-Consent-Gate-v1]** - [VALIDATED]
+
+
 
 - **[WP-1-Spec-Appendices-Backfill-v1]** - [VALIDATED]
 
