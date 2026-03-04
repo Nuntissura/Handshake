@@ -418,6 +418,10 @@ If my understanding is correct, I'll proceed to Step 2. Otherwise, clarify neede
 cat .GOV/task_packets/WP-{ID}-*.md
 ```
 
+Recommended (Refinement cross-check):
+- Open `.GOV/refinements/WP-{ID}.md` and read `LANDSCAPE_SCAN` (prior art + ADOPT/ADAPT/REJECT decisions) before choosing libraries/architectural patterns.
+- If the WP requires a non-trivial technical approach choice and there is no `LANDSCAPE_SCAN` recorded: STOP and escalate to the Orchestrator (do not improvise an un-reviewed approach).
+
 **Concurrency (multi-coder sessions) [CX-CONC-001] - STOP if conflict**
 
 When two Coders work in this repo concurrently, no two in-progress Work Packets may touch the same files.

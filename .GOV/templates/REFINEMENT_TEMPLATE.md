@@ -23,6 +23,15 @@ Requirements (HARD):
 ### GAPS_IDENTIFIED
 - <fill; write NONE if no gaps>
 
+### LANDSCAPE_SCAN (prior art / better approaches)
+- TIMEBOX: <fill; e.g., 30m|2h|4h>
+- REFERENCES: <fill; include vendor docs, papers, and OSS repos; write NONE + reason only if truly not applicable>
+- PATTERNS_EXTRACTED: <fill; what to steal (constraints/invariants/interfaces)>
+- DECISIONS (ADOPT/ADAPT/REJECT): <fill; include rationale>
+- LICENSE/IP_NOTES: <fill; include any constraints for code-level reuse>
+- SPEC_IMPACT: PENDING (YES | NO)
+- SPEC_IMPACT_REASON: <fill; if YES, point to Main Body and/or EOF Appendix blocks that must change>
+
 ### FLIGHT_RECORDER_INTERACTION (event IDs + telemetry triggers)
 - <fill; write NONE if not applicable>
 
@@ -73,4 +82,3 @@ Requirements (HARD):
   ```text
   <paste excerpt>
   ```
-

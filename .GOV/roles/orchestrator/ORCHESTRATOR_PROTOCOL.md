@@ -374,6 +374,7 @@ Orchestrator MUST perform a "Technical Refinement Audit" and present the results
 **Step 1.1: The Technical Refinement Block (MANDATORY)**
 Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block containing:
 - **Gaps Identified:** Specific sections/logic missing in the current Master Spec.
+- **Landscape scan (prior art / best available approaches):** A timeboxed scan of comparable systems (hyperscalers, model vendors, academia, OSS, and adjacent products). Must include: REFERENCES, PATTERNS_EXTRACTED, and DECISIONS (ADOPT/ADAPT/REJECT). Include a LICENSE/IP note for any code-level reuse. If not applicable: write NONE + reason.
 - **Interaction with flight recorder: Specific event IDs and telemetry triggers:** Specific event IDs, telemetry triggers, and log data structures.
 - **red team advisory: Architectural risks and security failure modes:** Specific architectural risks and security failure modes.
 - **proposed Spec Enrichment: The FULL, VERBATIM normative text to be added to the Master Spec:**

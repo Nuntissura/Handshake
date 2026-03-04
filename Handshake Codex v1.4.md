@@ -350,6 +350,14 @@ Clarification: `.GOV/scripts/` is governance/workflow/tooling surface and MAY be
 
 [CX-585G] REFINEMENT_BLOCK_IN_CHAT (HARD): Before requesting any USER_SIGNATURE or delegating work, the Orchestrator MUST paste the full Technical Refinement Block into the chat for explicit user review/approval. Writing it only to disk (e.g., `.GOV/refinements/*.md`) is insufficient.
 
+[CX-585H] REFINEMENT_LANDSCAPE_SCAN (HARD): During the Refinement Loop, the Orchestrator MUST perform a timeboxed "landscape scan" for prior art / better approaches relevant to the WP (hyperscalers, model vendors, academia, OSS, and adjacent products). The Technical Refinement Block MUST include:
+- TIMEBOX + search scope
+- REFERENCES (if none: write NONE + reason)
+- PATTERNS_EXTRACTED (constraints/invariants/interfaces to steal)
+- DECISIONS (ADOPT/ADAPT/REJECT + rationale)
+- LICENSE/IP note for any code-level reuse
+- SPEC_IMPACT (if this changes the intended primitives/techniques/UI surface, delegation is BLOCKED until the Master Spec is enriched per [CX-585A])
+
 [CX-586] ORCH_AUTHORITY_DOCS: Packets MUST include pointers to: `.GOV/roles_shared/START_HERE.md`, `.GOV/roles_shared/SPEC_CURRENT.md`, `.GOV/roles_shared/ARCHITECTURE.md`, `.GOV/roles_shared/RUNBOOK_DEBUG.md`, `.GOV/roles_shared/QUALITY_GATE.md` (logger pointer OPTIONAL, only if logger will be used for this WP).
 
 [CX-587] ORCH_PRE_WORK_CHECK: Before delegating, the orchestrator SHOULD run (or instruct the coder to run): `just pre-work {WP_ID}` to verify the packet is complete and system is ready for work.
