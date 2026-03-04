@@ -56,8 +56,6 @@ Entry format (recommended):
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
 
 
-- **[WP-1-Spec-Appendices-Backfill-v1]** - [READY_FOR_DEV]
-
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
@@ -67,7 +65,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-ASR-Transcribe-Media-v1]** - [STUB]
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
-- **[WP-1-Spec-Appendices-Backfill-v1]** - [STUB]
 - **[WP-1-Spec-Creation-System-v2.2.1-v1]** - [STUB]
 - **[WP-1-Locus-Work-Tracking-System-Phase1-v1]** - [STUB]
 - **[WP-1-Locus-Phase1-Integration-Occupancy-v1]** - [STUB]
@@ -135,6 +132,8 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 ## In Progress
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
+
+- **[WP-1-Spec-Appendices-Backfill-v1]** - [IN_PROGRESS]
 
 ## Done
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]
