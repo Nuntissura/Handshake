@@ -1,4 +1,4 @@
-# Task Packet: WP-1-Runtime-Governance-NoExpect-v1
+﻿# Task Packet: WP-1-Runtime-Governance-NoExpect-v1
 
 ## METADATA
 - TASK_ID: WP-1-Runtime-Governance-NoExpect-v1
@@ -14,7 +14,7 @@
 - ORCHESTRATION_STARTED_AT_UTC: 2026-02-11T18:00:51.895Z
 - CODER_MODEL: CodexCLI-GPT-5.2
 - CODER_REASONING_STRENGTH: MEDIUM (LOW | MEDIUM | HIGH | EXTRA_HIGH)
-- **Status:** Ready for Dev
+- **Status:** Done
 - RISK_TIER: LOW
 - USER_SIGNATURE: ilja110220261846
 - PACKET_FORMAT_VERSION: 2026-02-01

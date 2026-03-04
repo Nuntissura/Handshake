@@ -1,4 +1,4 @@
-# Task Packet: WP-1-MCP-Skeleton-Gate-v2
+﻿# Task Packet: WP-1-MCP-Skeleton-Gate-v2
 
 ## METADATA
 - TASK_ID: WP-1-MCP-Skeleton-Gate-v2
@@ -14,7 +14,7 @@
 - ORCHESTRATION_STARTED_AT_UTC: 2026-02-15T23:41:52.974Z
 - CODER_MODEL: gpt-5.2
 - CODER_REASONING_STRENGTH: EXTRA_HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja160220260031
 - PACKET_FORMAT_VERSION: 2026-02-01

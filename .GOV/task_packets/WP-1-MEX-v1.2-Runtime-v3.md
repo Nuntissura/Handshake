@@ -9,7 +9,7 @@
 - ROLE: Orchestrator
 - CODER_MODEL: gpt-5-codex
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja010120262219
 - SUPERSEDES: WP-1-MEX-v1.2-Runtime-v2 (revalidation FAIL / governance drift; v3 is protocol-clean)

@@ -1,4 +1,4 @@
-# Task Packet: WP-1-Cloud-Escalation-Consent-v2
+﻿# Task Packet: WP-1-Cloud-Escalation-Consent-v2
 
 ## METADATA
 - TASK_ID: WP-1-Cloud-Escalation-Consent-v2
@@ -14,7 +14,7 @@
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 - CODER_MODEL: codex-cli:gpt-5.2
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja200220260034
 - PACKET_FORMAT_VERSION: 2026-02-01

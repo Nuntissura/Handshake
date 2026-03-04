@@ -1,4 +1,4 @@
-# Task Packet: WP-1-Lens-ViewMode-v1
+﻿# Task Packet: WP-1-Lens-ViewMode-v1
 
 ## METADATA
 - TASK_ID: WP-1-Lens-ViewMode-v1
@@ -14,7 +14,7 @@
 - ORCHESTRATION_STARTED_AT_UTC: 2026-02-24T14:23:12.007Z
 - CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: HIGH
 - USER_SIGNATURE: ilja240220261300
 - PACKET_FORMAT_VERSION: 2026-02-01
@@ -521,9 +521,9 @@ git revert COMMIT_SHA
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
 
-### VALIDATION REPORT — WP-1-Lens-ViewMode-v1 (2026-02-25)
+### VALIDATION REPORT â€” WP-1-Lens-ViewMode-v1 (2026-02-25)
 
-VALIDATION REPORT — WP-1-Lens-ViewMode-v1
+VALIDATION REPORT â€” WP-1-Lens-ViewMode-v1
 Verdict: PASS
 
 Validation Claims (explicit):
