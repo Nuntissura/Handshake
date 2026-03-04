@@ -18,6 +18,12 @@ Rules:
 - BASE_WP_ID: WP-1-Loom-Preview-VideoPosterFrames
 - CREATED_AT: 2026-03-04T00:00:00Z
 - STUB_STATUS: STUB (NOT READY FOR DEV)
+- BUILD_ORDER_DOMAIN: BACKEND
+- BUILD_ORDER_TECH_BLOCKER: NO
+- BUILD_ORDER_VALUE_TIER: HIGH
+- BUILD_ORDER_RISK_TIER: MEDIUM
+- BUILD_ORDER_DEPENDS_ON: WP-1-Loom-MVP, WP-1-MEX-v1.2-Runtime
+- BUILD_ORDER_BLOCKS: WP-1-Media-Downloader-Loom-Bridge, WP-1-Video-Archive-Loom-Integration
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Loom MVP / Cache-tiered browsing vertical slice
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):

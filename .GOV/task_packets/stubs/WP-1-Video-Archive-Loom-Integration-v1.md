@@ -18,6 +18,12 @@ Rules:
 - BASE_WP_ID: WP-1-Video-Archive-Loom-Integration
 - CREATED_AT: 2026-02-20T00:00:00Z
 - STUB_STATUS: STUB (NOT READY FOR DEV)
+- BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
+- BUILD_ORDER_TECH_BLOCKER: NO
+- BUILD_ORDER_VALUE_TIER: HIGH
+- BUILD_ORDER_RISK_TIER: HIGH
+- BUILD_ORDER_DEPENDS_ON: WP-1-Media-Downloader, WP-1-Loom-MVP, WP-1-Media-Downloader-Loom-Bridge, WP-1-Loom-Preview-VideoPosterFrames, WP-1-ASR-Transcribe-Media
+- BUILD_ORDER_BLOCKS: NONE
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: N/A (Operator request; unlocks Loom/Lens value for video assets)
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):

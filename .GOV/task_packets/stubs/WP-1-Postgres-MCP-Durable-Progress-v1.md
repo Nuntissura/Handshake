@@ -18,6 +18,12 @@ Rules:
 - BASE_WP_ID: WP-1-Postgres-MCP-Durable-Progress
 - CREATED_AT: 2026-03-04T00:00:00Z
 - STUB_STATUS: STUB (NOT READY FOR DEV)
+- BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
+- BUILD_ORDER_TECH_BLOCKER: YES
+- BUILD_ORDER_VALUE_TIER: HIGH
+- BUILD_ORDER_RISK_TIER: HIGH
+- BUILD_ORDER_DEPENDS_ON: WP-1-Storage-Abstraction-Layer, WP-1-Migration-Framework, WP-1-Dual-Backend-Tests
+- BUILD_ORDER_BLOCKS: NONE
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Audit remediation against Handshake_Master_Spec_v02.139.md (dual-backend + MCP durability)
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
@@ -60,4 +66,3 @@ Rules:
 - [ ] Create the official task packet via `just create-task-packet WP-1-Postgres-MCP-Durable-Progress-v1` (in `.GOV/task_packets/`).
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
 - [ ] Move `.GOV/roles_shared/TASK_BOARD.md` entry from STUB to Ready for Dev.
-

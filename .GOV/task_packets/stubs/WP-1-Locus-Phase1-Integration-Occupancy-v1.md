@@ -18,6 +18,12 @@ Rules:
 - BASE_WP_ID: WP-1-Locus-Phase1-Integration-Occupancy
 - CREATED_AT: 2026-03-04T00:00:00Z
 - STUB_STATUS: STUB (NOT READY FOR DEV)
+- BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
+- BUILD_ORDER_TECH_BLOCKER: NO
+- BUILD_ORDER_VALUE_TIER: HIGH
+- BUILD_ORDER_RISK_TIER: HIGH
+- BUILD_ORDER_DEPENDS_ON: WP-1-Micro-Task-Executor, WP-1-Spec-Router-SpecPromptCompiler, WP-1-Workflow-Engine, WP-1-Flight-Recorder, WP-1-Storage-Abstraction-Layer
+- BUILD_ORDER_BLOCKS: WP-1-Locus-Phase1-QueryContract-Autosync, WP-1-Locus-Phase1-Medallion-Search
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Audit remediation against Handshake_Master_Spec_v02.139.md (Locus integration points + MT occupancy)
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
@@ -57,4 +63,3 @@ Rules:
 - [ ] Create the official task packet via `just create-task-packet WP-1-Locus-Phase1-Integration-Occupancy-v1` (in `.GOV/task_packets/`).
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
 - [ ] Move `.GOV/roles_shared/TASK_BOARD.md` entry from STUB to Ready for Dev.
-

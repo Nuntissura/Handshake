@@ -18,6 +18,12 @@ Rules:
 - BASE_WP_ID: WP-1-ASR-Transcribe-Media
 - CREATED_AT: 2026-03-04T00:00:00Z
 - STUB_STATUS: STUB (NOT READY FOR DEV)
+- BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
+- BUILD_ORDER_TECH_BLOCKER: NO
+- BUILD_ORDER_VALUE_TIER: MEDIUM
+- BUILD_ORDER_RISK_TIER: MEDIUM
+- BUILD_ORDER_DEPENDS_ON: WP-1-Workflow-Engine, WP-1-MEX-v1.2-Runtime, WP-1-Artifact-System-Foundations
+- BUILD_ORDER_BLOCKS: WP-1-Video-Archive-Loom-Integration
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: N/A (Enables transcript search and video archive utility)
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
@@ -69,4 +75,3 @@ Rules:
 - [ ] Create `.GOV/refinements/WP-1-ASR-Transcribe-Media-v1.md` (approved/signed).
 - [ ] Create the official task packet via `just create-task-packet WP-1-ASR-Transcribe-Media-v1` (in `.GOV/task_packets/`).
 - [ ] Move `.GOV/roles_shared/TASK_BOARD.md` entry from STUB to Ready for Dev.
-

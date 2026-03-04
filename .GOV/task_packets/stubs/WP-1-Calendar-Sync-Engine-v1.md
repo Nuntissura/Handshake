@@ -18,6 +18,12 @@ Rules:
 - BASE_WP_ID: WP-1-Calendar-Sync-Engine
 - CREATED_AT: 2026-03-04T00:00:00Z
 - STUB_STATUS: STUB (NOT READY FOR DEV)
+- BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
+- BUILD_ORDER_TECH_BLOCKER: NO
+- BUILD_ORDER_VALUE_TIER: HIGH
+- BUILD_ORDER_RISK_TIER: HIGH
+- BUILD_ORDER_DEPENDS_ON: WP-1-Calendar-Storage, WP-1-MEX-v1.2-Runtime, WP-1-Workflow-Engine
+- BUILD_ORDER_BLOCKS: WP-1-Calendar-Law-Compliance-Tests
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Audit remediation against Handshake_Master_Spec_v02.139.md (calendar_sync mechanical engine)
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
@@ -63,4 +69,3 @@ Rules:
 - [ ] Create the official task packet via `just create-task-packet WP-1-Calendar-Sync-Engine-v1` (in `.GOV/task_packets/`).
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
 - [ ] Move `.GOV/roles_shared/TASK_BOARD.md` entry from STUB to Ready for Dev.
-
