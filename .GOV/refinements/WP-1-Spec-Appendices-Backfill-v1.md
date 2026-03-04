@@ -12,8 +12,8 @@ Requirements (HARD):
 ### METADATA
 - WP_ID: WP-1-Spec-Appendices-Backfill-v1
 - CREATED_AT: 2026-03-04T18:46:19.130Z
-- SPEC_TARGET_RESOLVED: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.140.md
-- SPEC_TARGET_SHA1: 9c0e72a2a4fdf292c57e8cedf8a0902567e3ed76
+- SPEC_TARGET_RESOLVED: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- SPEC_TARGET_SHA1: f3b0715a544ebae689bee2196c0a4041cf4f2798
 - USER_REVIEW_STATUS: APPROVED
 - USER_SIGNATURE: ilja040320262011
 - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT WP-1-Spec-Appendices-Backfill-v1
@@ -84,9 +84,9 @@ Requirements (HARD):
 ### SPEC_ANCHORS (REQUIRED: one or more)
 
 #### ANCHOR 1
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.140.md 12.2 Maintenance rules (HARD) [CX-SPEC-APPX-003]
-- CONTEXT_START_LINE: 70245
-- CONTEXT_END_LINE: 70269
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.141.md 12.2 Maintenance rules (HARD) [CX-SPEC-APPX-003]
+- CONTEXT_START_LINE: 70261
+- CONTEXT_END_LINE: 70271
 - CONTEXT_TOKEN: Legacy features MAY be missing UI guidance until backfilled
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -104,9 +104,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 2
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.140.md 12.3 HS-APPX-FEATURE-REGISTRY [CX-SPEC-APPX-010]
-- CONTEXT_START_LINE: 70273
-- CONTEXT_END_LINE: 70292
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.141.md 12.3 HS-APPX-FEATURE-REGISTRY [CX-SPEC-APPX-010]
+- CONTEXT_START_LINE: 70272
+- CONTEXT_END_LINE: 70286
 - CONTEXT_TOKEN: HS-APPX-FEATURE-REGISTRY
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -116,17 +116,13 @@ Requirements (HARD):
   ```json
   {
     "schema": "hs_feature_registry@1",
-    "spec_version": "v02.140",
+    "spec_version": "v02.141",
     "last_updated": "2026-03-04",
     "features": [
       {
-        "feature_id": "FEAT-SPEC-APPENDICES",
-        "title": "End-of-File Spec Appendices System",
-        "spec_anchor": "#12-end-of-file-appendices",
-        "surfaces": ["spec"],
-        "primitives": [],
-        "tools_tech": ["markdown"],
-        "notes": "This entry exists to bootstrap the appendix system itself."
+        "feature_id": "FEAT-ACE-RUNTIME",
+        "title": "ACE Runtime (Agentic Context Engineering)",
+        "spec_anchor": "\\u00A72.6.6.7"
       }
     ]
   }
@@ -135,9 +131,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 3
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.140.md 12.4 HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX [CX-SPEC-APPX-011]
-- CONTEXT_START_LINE: 70296
-- CONTEXT_END_LINE: 70308
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.141.md 12.4 HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX [CX-SPEC-APPX-011]
+- CONTEXT_START_LINE: 70529
+- CONTEXT_END_LINE: 70543
 - CONTEXT_TOKEN: HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -146,22 +142,30 @@ Requirements (HARD):
   <!-- HS_APPENDIX:BEGIN id=HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX schema=hs_primitive_tool_tech_matrix@1 -->
   ```json
   {
-    "schema": "hs_primitive_tool_tech_matrix@1",
-    "spec_version": "v02.140",
-    "last_updated": "2026-03-04",
-    "primitives": [],
-    "tools": [],
-    "technologies": [],
-    "feature_links": []
+       "schema":  "hs_primitive_tool_tech_matrix@1",
+       "spec_version":  "v02.141",
+       "last_updated":  "2026-03-04",
+       "primitives":  [
+                          {
+                              "primitive_id":  "PRIM-AccessMode",
+                              "title":  "AccessMode",
+                              "kind":  "rust_enum"
+                          },
+                          {
+                              "primitive_id":  "PRIM-AceRuntimeValidator",
+                              "title":  "AceRuntimeValidator",
+                              "kind":  "rust_trait"
+                          }
+                      ]
   }
   ```
   <!-- HS_APPENDIX:END id=HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX -->
   ```
 
 #### ANCHOR 4
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.140.md 12.5 HS-APPX-UI-GUIDANCE [CX-SPEC-APPX-012]
-- CONTEXT_START_LINE: 70312
-- CONTEXT_END_LINE: 70337
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.141.md 12.5 HS-APPX-UI-GUIDANCE [CX-SPEC-APPX-012]
+- CONTEXT_START_LINE: 73273
+- CONTEXT_END_LINE: 73292
 - CONTEXT_TOKEN: HS-APPX-UI-GUIDANCE
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -171,23 +175,12 @@ Requirements (HARD):
   ```json
   {
     "schema": "hs_ui_guidance@1",
-    "spec_version": "v02.140",
+    "spec_version": "v02.141",
     "last_updated": "2026-03-04",
     "ui_guidance": [
       {
-        "feature_id": "FEAT-SPEC-APPENDICES",
-        "user_goal": "Maintain a self-contained spec that scales: explicit feature inventory, explicit interaction model, explicit per-feature UI contract.",
-        "entry_points": ["Master Spec Section 12"],
-        "required_surfaces": ["spec"],
-        "interaction_contract": {
-          "states": ["present", "stale_derived_views"],
-          "errors": ["appendix_missing", "schema_invalid", "derived_drift"]
-        },
-        "capability_gates": [],
-        "telemetry": [],
-        "tests": [
-          "gov-check includes an appendix presence + json-parse validation (repo-level, deterministic)"
-        ]
+        "feature_id": "FEAT-CALENDAR",
+        "user_goal": "View and author local calendar events and correlate time ranges with Activity/Session spans."
       }
     ]
   }
@@ -196,9 +189,9 @@ Requirements (HARD):
   ```
 
 #### ANCHOR 5
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.140.md 12.6 HS-APPX-INTERACTION-MATRIX [CX-SPEC-APPX-013]
-- CONTEXT_START_LINE: 70341
-- CONTEXT_END_LINE: 70350
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.141.md 12.6 HS-APPX-INTERACTION-MATRIX [CX-SPEC-APPX-013]
+- CONTEXT_START_LINE: 73433
+- CONTEXT_END_LINE: 73449
 - CONTEXT_TOKEN: HS-APPX-INTERACTION-MATRIX
 - EXCERPT_ASCII_ESCAPED:
   ```text
@@ -208,9 +201,21 @@ Requirements (HARD):
   ```json
   {
     "schema": "hs_interaction_matrix@1",
-    "spec_version": "v02.140",
+    "spec_version": "v02.141",
     "last_updated": "2026-03-04",
-    "edges": []
+    "edges": [
+      {
+        "edge_id": "IMX-001",
+        "from_kind": "feature",
+        "from_id": "FEAT-UNIFIED-TOOL-SURFACE",
+        "to_kind": "feature",
+        "to_id": "FEAT-CAPABILITIES-CONSENT",
+        "kind": "enforce_capabilities",
+        "scope": "normative",
+        "tokens": ["HTC-1.0", "session-scoped capability intersection"],
+        "spec_refs": ["\\u00A76.0.2", "#111-capabilities-consent-model"]
+      }
+    ]
   }
   ```
   <!-- HS_APPENDIX:END id=HS-APPX-INTERACTION-MATRIX -->

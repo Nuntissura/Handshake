@@ -58,12 +58,15 @@ Next: N/A
 - What: Backfill Master Spec EOF appendices (Section 12) with a comprehensive, machine-readable feature registry + primitive/tool/tech matrix + per-feature UI guidance + interaction matrix.
 - Why: Reduce drift and cognitive load by giving humans/LLMs an in-spec index and interaction map that remains self-contained and anchored to Main Body truth.
 - IN_SCOPE_PATHS:
-  - Handshake_Master_Spec_v02.140.md (source baseline; new version file expected)
+  - Handshake_Master_Spec_v02.141.md
   - .GOV/roles_shared/SPEC_CURRENT.md
+  - .GOV/roles_shared/BUILD_ORDER.md
+  - .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
+  - .GOV/roles_shared/TASK_BOARD.md
+  - .GOV/roles_shared/SIGNATURE_AUDIT.md
+  - .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json
   - .GOV/task_packets/WP-1-Spec-Appendices-Backfill-v1.md
   - .GOV/refinements/WP-1-Spec-Appendices-Backfill-v1.md
-  - .GOV/roles_shared/TASK_BOARD.md
-  - .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
 - OUT_OF_SCOPE:
   - src/** (product code)
   - app/** (product code)
@@ -145,50 +148,66 @@ git revert <commit-sha>
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `Handshake_Master_Spec_v02.141.md`
+- **Start**: 1
+- **End**: 73553
+- **Line Delta**: 73553
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `d01677a72b79523fef93b6d4072ebc5e0ec4b019`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: N/A (docs-only)
+- **Artifacts**: `just spec-eof-appendices-check` PASS; `just gov-check` PASS
+- **Timestamp**: 2026-03-04T21:20:51Z
+- **Operator**: Ilja Smets (Operator); CodexCLI (Orchestrator)
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: New spec version file with populated EOF appendices (Section 12).
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
+- Current WP_STATUS: IMPLEMENTED (docs-only) - READY_FOR_VALIDATION
 - What changed in this update:
+  - Backfilled Master Spec EOF appendices in `Handshake_Master_Spec_v02.141.md` (feature registry, matrix, UI guidance, interaction matrix).
+  - Updated `.GOV/roles_shared/SPEC_CURRENT.md` to point at `Handshake_Master_Spec_v02.141.md`.
+  - Synced `.GOV/roles_shared/BUILD_ORDER.md` and updated `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`.
+  - Updated this task packet + refinement to reflect current SPEC_CURRENT and add deterministic validation manifest + evidence.
 - Next step / handoff hint:
+  - Validator: run `just post-work WP-1-Spec-Appendices-Backfill-v1 --range e5bd640599ece9cb95e3f4770c700c4212da493d..HEAD` and append findings in `## VALIDATION_REPORTS`.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
-- Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `path/to/file:line`
+- REQUIREMENT: "SPEC_CURRENT points to the authoritative spec file."
+  - EVIDENCE: `.GOV/roles_shared/SPEC_CURRENT.md:1`
+- REQUIREMENT: "HS-APPX-FEATURE-REGISTRY lists Phase 1 features with stable feature_id values and spec anchors."
+  - EVIDENCE: `Handshake_Master_Spec_v02.141.md:70272`
+- REQUIREMENT: "HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX includes current primitives/tools/technologies and links to features."
+  - EVIDENCE: `Handshake_Master_Spec_v02.141.md:70529`
+- REQUIREMENT: "HS-APPX-UI-GUIDANCE has per-feature entries for Phase 1 user-facing features (legacy backfill)."
+  - EVIDENCE: `Handshake_Master_Spec_v02.141.md:73273`
+- REQUIREMENT: "HS-APPX-INTERACTION-MATRIX includes initial high-signal edges."
+  - EVIDENCE: `Handshake_Master_Spec_v02.141.md:73433`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Spec-Appendices-Backfill-v1/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+  - COMMAND: `just spec-eof-appendices-check`
+  - EXIT_CODE: 0
+  - PROOF_LINES: spec-eof-appendices-check ok: Handshake_Master_Spec_v02.141.md
+  - COMMAND: `just gov-check`
+  - EXIT_CODE: 0
+  - PROOF_LINES: gov-check ok
+  - COMMAND: `just post-work WP-1-Spec-Appendices-Backfill-v1 --range e5bd640599ece9cb95e3f4770c700c4212da493d..HEAD`
+  - EXIT_CODE: 0
+  - PROOF_LINES: RESULT: PASS
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
