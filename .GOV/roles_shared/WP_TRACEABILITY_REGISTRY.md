@@ -178,3 +178,4 @@ Format:
 | WP-1-Retrieval-Trace-Bundle-Export | .GOV/task_packets/stubs/WP-1-Retrieval-Trace-Bundle-Export-v1.md | Stub Backlog (Not Activated): WP-1-Retrieval-Trace-Bundle-Export-v1 | stub (spec v02.123); Phase 1 roadmap coverage (retrieval evidence bundle export) |
 | WP-1-Runtime-Governance-NoExpect | .GOV/task_packets/WP-1-Runtime-Governance-NoExpect-v1.md | Ready for Dev: WP-1-Runtime-Governance-NoExpect-v1 | active=WP-1-Runtime-Governance-NoExpect-v1; hygiene remediation (remove expect/unwrap in runtime_governance tests) |
 | WP-1-LLM-Provider-Registry | .GOV/task_packets/WP-1-LLM-Provider-Registry-v1.md | Done: WP-1-LLM-Provider-Registry-v1 | active=WP-1-LLM-Provider-Registry-v1; activated from stub .GOV/task_packets/stubs/WP-1-LLM-Provider-Registry-v1.md |
+| WP-1-Spec-Appendices-Backfill | .GOV/task_packets/WP-1-Spec-Appendices-Backfill-v1.md | TBD | |
