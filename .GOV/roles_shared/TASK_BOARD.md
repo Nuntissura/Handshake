@@ -202,6 +202,8 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 
 - **[WP-1-Session-Scoped-Capabilities-Consent-Gate-v1]** - [VALIDATED]
 
+- **[WP-1-Spec-Appendices-Backfill-v1]** - [VALIDATED]
+
 ## Blocked
 ---
 
