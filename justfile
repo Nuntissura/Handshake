@@ -55,6 +55,10 @@ gov-check:
 	just docs-check
 	node .GOV/scripts/validation/gov-check.mjs
 
+# Master Spec EOF appendix blocks check (Spec §12).
+spec-eof-appendices-check:
+	node .GOV/scripts/validation/spec-eof-appendices-check.mjs
+
 # Governance sync helper: refresh derived governance views then validate.
 gov-sync:
 	just build-order-sync

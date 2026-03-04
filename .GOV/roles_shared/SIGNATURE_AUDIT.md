@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja040320261813 | Orchestrator | 2026-03-04 18:13 | Spec Enrichment v02.140 (End-of-file appendices: feature registry + matrix + UI guidance + interaction matrix) | v02.140 | Approved in-chat: APPROVE REFINEMENT WP-1-Spec-Appendices-Index-Matrix-UI-Guidance-v1. |
 | ilja030320260206 | Orchestrator | 2026-03-03 02:06 | Task packet creation: WP-1-Session-Scoped-Capabilities-Consent-Gate-v1 | v02.139 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md ). |
 | ilja010320262103 | Orchestrator | 2026-03-01 21:03 | Task packet creation: WP-1-ModelSession-Core-Scheduler-v1 | v02.139 | Approved after Technical Refinement (see .GOV/refinements/WP-1-ModelSession-Core-Scheduler-v1.md ). |
 | ilja270220261121 | Orchestrator | 2026-02-27 11:21 | Task packet creation: WP-1-Spec-Router-SpecPromptCompiler-v1 | v02.139 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Spec-Router-SpecPromptCompiler-v1.md ). |

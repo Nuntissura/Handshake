@@ -54,6 +54,8 @@ Minimum verification for governance-only changes: `just gov-check`. If any Hands
 
 [CX-598A] ROADMAP_COVERAGE_MATRIX (HARD): The Master Spec Roadmap (7.6.1) MUST maintain a section-level Coverage Matrix listing every non-Roadmap section number (all `## X.Y` headings outside 7.6 plus the top-level `# 9.` section), including whether it is Main Body authority (CX-598) and which phase(s) cover it. If the matrix is missing/incomplete/duplicated/out-of-date, planning and phase-closure claims are BLOCKED until the matrix is corrected via Spec Enrichment.
 
+[CX-598B] MASTER_SPEC_EOF_APPENDICES (HARD): The Master Spec MUST maintain the end-of-file appendix blocks defined in Master Spec §12 (Feature Registry, Primitive/Tool/Tech Matrix, UI Guidance per feature, Interaction Matrix). These blocks exist to keep the spec self-contained while scaling UI coverage and cross-feature interaction clarity. External derived files are allowed only as clearly-labeled DERIVED views and MUST be regeneratable from the spec. Missing/invalid appendix blocks BLOCK planning and validation. UI guidance is REQUIRED only for new/changed features; legacy backfill is tracked as stub WPs (non-blocking for unrelated work).
+
 [CX-599] CROSS-PHASE GOVERNANCE CONTINUITY: All requirements for Spec Alignment, Quality Gates, and Evidence-Based Reporting are cumulative. These requirements carry over automatically to Phase 2, 3, and all future work. Starting a new Phase never relaxes the rules of the previous ones.
 
 ---

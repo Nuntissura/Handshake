@@ -239,10 +239,12 @@ Rule: when a gate command is run and `GATE_STATUS` is posted, `PHASE` MUST match
 ```bash
 cat .GOV/roles_shared/SPEC_CURRENT.md
 just validator-spec-regression
+just spec-eof-appendices-check
 ```
 - [ ] SPEC_CURRENT.md is current
 - [ ] Points to latest Master Spec version
 - [ ] Regression check returns PASS
+- [ ] Spec EOF appendices check returns PASS (Master Spec Â§12)
 
 ### Step 2: Task Board Review âœ‹ STOP
 - [ ] TASK_BOARD.md is current
@@ -395,6 +397,7 @@ If gaps found:
 2. Create: NEW version file (e.g., v02.92.md)
 3. Copy: Entire current spec
 4. Add: Required sections/clarifications (using the Proposed Spec Enrichment text)
+4a. If applicable: update Master Spec Â§12 end-of-file appendix blocks (Feature Registry, Primitive/Tool/Tech Matrix, UI Guidance per feature, Interaction Matrix) and keep them at end-of-file. UI guidance is REQUIRED only for new/changed features; legacy backfill is tracked as stub WPs.
 5. Add: CHANGELOG entry with reason for update
 6. Update: .GOV/roles_shared/SPEC_CURRENT.md to point to new version
 

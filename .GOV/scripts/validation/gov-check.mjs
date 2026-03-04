@@ -23,6 +23,7 @@ process.chdir(repoRoot);
 
 // Governance-only checks (no product source scanning).
 await import("../spec-current-check.mjs");
+await import("./spec-eof-appendices-check.mjs");
 await import("./atelier_role_registry_check.mjs");
 await import("./task-board-check.mjs");
 await import("./build-order-check.mjs");

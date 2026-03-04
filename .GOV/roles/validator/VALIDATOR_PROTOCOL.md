@@ -83,6 +83,7 @@ Minimum verification for governance-only changes: `just gov-check`.
 - Preserve User Context sections in packets (do not edit/remove) [CX-654].
 - Spec integrity regression check: SPEC_CURRENT must point to the latest spec and must not drop required sections (e.g., storage portability A2.3.12). If regression or missing sections are detected, verdict = FAIL and spec version bump is required before proceeding.
 - Roadmap Coverage Matrix gate (Spec Â§7.6.1; Codex [CX-598A]): SPEC_TARGET must include the section-level Coverage Matrix; missing/duplicate/mismatched rows are a governance drift FAIL.
+- Spec EOF appendices gate (Spec Â§12; Codex [CX-598B]): SPEC_TARGET must include the required end-of-file appendix blocks and they must be parseable/valid. Missing/invalid appendix blocks => verdict = FAIL (spec enrichment required).
 - External build hygiene: Cargo target dir is pinned outside the repo at `../Handshake Artifacts/handshake-cargo-target`; run `cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target"` before validation/commit to prevent workspace bloat (FAIL if skipped).
 - Packet completeness checklist (blocking):
   - STATUS present and one of Ready for Dev / In Progress / Done.
@@ -306,6 +307,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - `just validator-scan` (forbidden patterns, mocks/placeholders, RDD/LLM/DB boundary greps)
 - `just validator-dal-audit` (CX-DBP-VAL-010..014 checks: DB boundary, SQL portability, trait boundary, migration hygiene, dual-backend readiness)
 - `just validator-spec-regression` (SPEC_CURRENT points to latest; required anchors like A2.3.12 present)
+- `just spec-eof-appendices-check` (Spec Â§12 end-of-file appendix blocks exist + are parseable/valid)
 - `just validator-phase-gate Phase-1` (ensure no Ready-for-Dev items remain before phase progression; depends on validator scans)
 - `just validator-error-codes` (stringly errors/determinism/HSK-#### enforcement)
 - `just validator-coverage-gaps` (sanity check that tests exist/guard the change)

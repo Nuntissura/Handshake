@@ -4,6 +4,7 @@ Authority: Master Spec (see `.GOV/roles_shared/SPEC_CURRENT.md`)
 ---
 ## Canonical sources
 - **Spec:** `.GOV/roles_shared/SPEC_CURRENT.md` (points to the current Handshake master spec).
+- **Spec EOF appendices:** Master Spec Â§12 (Feature Registry, Primitive/Tool/Tech Matrix, UI Guidance, Interaction Matrix). These blocks are spec-internal and kept at end-of-file; `just gov-check` enforces presence + parseability.
 - **WP Traceability:** `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` (Base WP â†’ Active Packet mapping; resolves `-vN` revisions without putting WP IDs into the Master Spec).
 - **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `.GOV/roles_shared/TASK_BOARD.md` + task packets. Handshake logger is for milestones/hard bugs when requested.
 - **Architecture & debug:** `.GOV/roles_shared/ARCHITECTURE.md` and `.GOV/roles_shared/RUNBOOK_DEBUG.md`.
