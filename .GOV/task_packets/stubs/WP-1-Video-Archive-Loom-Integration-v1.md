@@ -21,12 +21,19 @@ Rules:
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: N/A (Operator request; unlocks Loom/Lens value for video assets)
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
-  - Handshake_Master_Spec_v02.133.md 10.12 Loom (Heaper-style Library Surface) [ADD v02.130]
-  - Handshake_Master_Spec_v02.133.md 2.2.1.14 LoomBlock Entity (Heaper-style Unit of Meaning) [ADD v02.130]
-  - Handshake_Master_Spec_v02.133.md 2.3.7.1 Loom Relational Edges (Mentions, Tags, Backlinks) [ADD v02.130]
-  - Handshake_Master_Spec_v02.133.md 6.2 Speech Recognition: ASR Subsystem (audio/video transcription into searchable text)
-  - Handshake_Master_Spec_v02.133.md 2.3.5 Data Architecture: File-Tree Model (Sidecar Files)
-  - Handshake_Master_Spec_v02.133.md 11.1 Capabilities & Consent Model (`fs.*`, `proc.exec`, `net.http` as needed) (Normative)
+  - Handshake_Master_Spec_v02.139.md 10.14 Media Downloader (Unified Web Media Archiving Surface) [ADD v02.134]
+  - Handshake_Master_Spec_v02.139.md 10.14.7 YouTube archive requirements (Normative)
+  - Handshake_Master_Spec_v02.139.md 10.14.8 Generic video downloader requirements (Normative)
+  - Handshake_Master_Spec_v02.139.md 10.14.10 Progress and controls (Normative)
+  - Handshake_Master_Spec_v02.139.md 10.14.11 Telemetry (Normative)
+  - Handshake_Master_Spec_v02.139.md 10.12 Loom (Heaper-style Library Surface) [ADD v02.130]
+  - Handshake_Master_Spec_v02.139.md 10.12 Section 6 Media & File Management: Cache-Tiered Asset Browsing (LM-MEDIA-001, LM-CACHE-003)
+  - Handshake_Master_Spec_v02.139.md 2.2.1.14 LoomBlock Entity (Heaper-style Unit of Meaning) [ADD v02.130]
+  - Handshake_Master_Spec_v02.139.md 2.3.7.1 Loom Relational Edges (Mentions, Tags, Backlinks) [ADD v02.130]
+  - Handshake_Master_Spec_v02.139.md 6.2 Speech Recognition: ASR Subsystem (audio/video transcription into searchable text)
+  - Handshake_Master_Spec_v02.139.md 2.3.5 Data Architecture: File-Tree Model (Sidecar Files)
+  - Handshake_Master_Spec_v02.139.md 2.3.8 Shadow Workspace (Indexing/Search)
+  - Handshake_Master_Spec_v02.139.md 11.1 Capabilities & Consent Model (`fs.*`, `proc.exec`, `net.http`, `secrets.use`) (Normative)
 
 ## INTENT (DRAFT)
 - What: Turn archived/imported video files (from YouTube or elsewhere) into first-class Loom library objects with searchable transcripts, captions sidecars, and tag/mention organization that composes with Lens/Atelier.
@@ -39,7 +46,7 @@ Rules:
     - Captions (`.vtt`) and transcript Documents attach as referenced entities (no duplication).
   - Transcript generation:
     - If captions are present: ingest captions as a timing sidecar and derive a readable transcript Document.
-    - If captions are missing: offer local-first ASR job to produce transcript + timing sidecars (per §6.2).
+    - If captions are missing: offer local-first ASR job to produce transcript + timing sidecars (per Section 6.2).
   - Smart organization (user-safe):
     - Manual tags become RawContent `TAG` edges.
     - AI-suggested tags remain DerivedContent (`AI_SUGGESTED` edges) until user confirmation (LM-TAG-005).
@@ -75,4 +82,3 @@ Rules:
 - [ ] Create `.GOV/refinements/WP-1-Video-Archive-Loom-Integration-v1.md` (approved/signed).
 - [ ] Create the official task packet via `just create-task-packet WP-1-Video-Archive-Loom-Integration-v1` (in `.GOV/task_packets/`).
 - [ ] Move `.GOV/roles_shared/TASK_BOARD.md` entry from STUB to Ready for Dev.
-

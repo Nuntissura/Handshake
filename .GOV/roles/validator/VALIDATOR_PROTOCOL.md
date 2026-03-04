@@ -176,6 +176,8 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 
 **Rule:** Status sync commits are not validation verdicts. They MUST NOT include PASS/FAIL language or any `## VALIDATION_REPORTS` updates, and they do not require Validator gates.
 
+**Closure rule:** Only after `verdict: PASS` may the Validator set the task packet `**Status:** Done`, move the Task Board entry to `## Done` with `[VALIDATED]`, and sync `.GOV/roles_shared/BUILD_ORDER.md` (via `just build-order-sync`).
+
 ## Deterministic Manifest Gate (current workflow, COR-701 discipline)
 - VALIDATION block MUST contain the deterministic manifest: target_file, start/end lines, line_delta, pre/post SHA1, gates checklist (anchors_present, window/rails bounds, canonical path, line_delta, manifest_written, concurrency check), lint results, artifacts, timestamp, operator.
 - Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
