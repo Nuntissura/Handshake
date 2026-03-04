@@ -431,6 +431,7 @@ A **Work Packet Stub** is an optional planning artifact used to track Roadmap/Ma
 
 - Stubs are legitimate backlog items, but they are NOT executable task packets/work packets.
 - Stubs MUST live in `.GOV/task_packets/stubs/` and should be listed on `.GOV/roles_shared/TASK_BOARD.md` under a STUB section.
+- Stub list order is inventory-only and MUST NOT be treated as priority; sequencing is determined by `.GOV/roles_shared/BUILD_ORDER.md` and per-packet `BUILD_ORDER_*` metadata.
 - If a Base WP has multiple packets (or a stub + official packet), the Base WP â†’ Active Packet mapping MUST be recorded in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`.
 - Stubs MUST NOT be handed off to Coder/Validator and MUST NOT be used to start implementation.
 - Stubs do not require USER_SIGNATURE, a refinement file, or deterministic gates.
