@@ -1639,6 +1639,15 @@
       "spec_target_sha1": "f3b0715a544ebae689bee2196c0a4041cf4f2798",
       "timestamp": "2026-03-04T21:21:16.721Z",
       "turn_token": "1772659276722"
+    },
+    {
+      "wpId": "WP-1-Postgres-MCP-Durable-Progress-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Postgres-MCP-Durable-Progress-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md",
+      "spec_target_sha1": "f3b0715a544ebae689bee2196c0a4041cf4f2798",
+      "timestamp": "2026-03-05T22:56:17.487Z",
+      "turn_token": "1772751377487"
     }
   ]
 }
