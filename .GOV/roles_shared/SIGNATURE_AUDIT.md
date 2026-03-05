@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja060320260004 | Orchestrator | 2026-03-06 00:04 | Task packet creation: WP-1-Postgres-MCP-Durable-Progress-v1 | v02.141 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Postgres-MCP-Durable-Progress-v1.md ). |
 | ilja040320262011 | Orchestrator | 2026-03-04 20:11 | Task packet creation: WP-1-Spec-Appendices-Backfill-v1 | v02.140 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Spec-Appendices-Backfill-v1.md ). |
 | ilja040320261813 | Orchestrator | 2026-03-04 18:13 | Spec Enrichment v02.140 (End-of-file appendices: feature registry + matrix + UI guidance + interaction matrix) | v02.140 | Approved in-chat: APPROVE REFINEMENT WP-1-Spec-Appendices-Index-Matrix-UI-Guidance-v1. |
 | ilja030320260206 | Orchestrator | 2026-03-03 02:06 | Task packet creation: WP-1-Session-Scoped-Capabilities-Consent-Gate-v1 | v02.139 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md ). |

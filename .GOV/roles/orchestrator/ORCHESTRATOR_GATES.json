@@ -1648,6 +1648,13 @@
       "spec_target_sha1": "f3b0715a544ebae689bee2196c0a4041cf4f2798",
       "timestamp": "2026-03-05T22:56:17.487Z",
       "turn_token": "1772751377487"
+    },
+    {
+      "wpId": "WP-1-Postgres-MCP-Durable-Progress-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja060320260004",
+      "timestamp": "2026-03-05T23:14:09.664Z",
+      "refinement_path": ".GOV/refinements/WP-1-Postgres-MCP-Durable-Progress-v1.md"
     }
   ]
 }
