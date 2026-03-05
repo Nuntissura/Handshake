@@ -1,0 +1,32 @@
+{
+  "validation_sessions": {
+    "WP-1-Autonomous-Governance-Protocol-v2": {
+      "wpId": "WP-1-Autonomous-Governance-Protocol-v2",
+      "verdict": "PASS",
+      "status": "USER_ACKNOWLEDGED",
+      "started": "2026-02-19T21:45:09.555Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "PASS",
+          "timestamp": "2026-02-19T21:45:09.555Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-02-19T21:45:15.284Z"
+        },
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-02-19T21:47:54.398Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-02-19T21:54:43.856Z"
+        }
+      ],
+      "completed": "2026-02-19T21:54:43.857Z"
+    }
+  },
+  "archived_sessions": []
+}
