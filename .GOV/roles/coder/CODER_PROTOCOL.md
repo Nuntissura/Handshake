@@ -420,6 +420,7 @@ cat .GOV/task_packets/WP-{ID}-*.md
 
 Recommended (Refinement cross-check):
 - Open `.GOV/refinements/WP-{ID}.md` and read `LANDSCAPE_SCAN` (prior art + ADOPT/ADAPT/REJECT decisions) before choosing libraries/architectural patterns.
+- Also review `PILLAR_ALIGNMENT` + `FORCE_MULTIPLIER_INTERACTIONS` to avoid isolated implementations that miss cross-feature/primitive leverage; if missing/UNKNOWN for a cross-cutting WP, STOP and escalate to the Orchestrator.
 - If the WP requires a non-trivial technical approach choice and there is no `LANDSCAPE_SCAN` recorded: STOP and escalate to the Orchestrator (do not improvise an un-reviewed approach).
 
 **Concurrency (multi-coder sessions) [CX-CONC-001] - STOP if conflict**

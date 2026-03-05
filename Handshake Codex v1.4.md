@@ -338,6 +338,12 @@ Clarification: `.GOV/scripts/` is governance/workflow/tooling surface and MAY be
 - **Spec-Version Lock:** The Orchestrator is **FORBIDDEN** from outputting a final Task Packet for delegation unless it has **first** created a new version of the Master Spec (`v02.xx+1`) that explicitly defines the technical approach (env vars, signatures, constraints).
 - **The Strategic Pause:** This pause exists to allow the user (non-coder) to enrich the Main Body, especially if methods or software choices deviate from the original plan. Document these shifts in the Main Body for hygiene and provenance.
 - **Pointer Update:** `.GOV/roles_shared/SPEC_CURRENT.md` MUST point to this new version.
+- **Appendices stay current (Spec Appendix 12):** When a spec version bump happens, update the in-spec index/matrices if impacted:
+  - HS-APPX-FEATURE-REGISTRY (index)
+  - HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX
+  - HS-APPX-UI-GUIDANCE (required only for new/changed features)
+  - HS-APPX-INTERACTION-MATRIX (cross-primitive/feature force multipliers)
+- **Phase split + stubs (when scope expands):** If refinement introduces large additive scope or a new direction, record it in the Main Body first; then (if needed) split across Roadmap phases using the fixed per-phase fields (Goal, MUST deliver, Key risks addressed, Acceptance criteria, Explicitly OUT of scope, Mechanical Track, Atelier Track, Distillation Track, Vertical slice). Create WP stubs for the new additions before resuming normal signature -> packet -> delegation workflow. Do not invent new per-phase block types.
 - **Delegation Block:** If the Spec does not contain the exact requirements, delegation is BLOCKED. We do not "implement then specify"; we "specify then implement".
 
 [CX-585B] RED_HAT_REVIEW: During the "Proposed" phase, the Orchestrator MUST perform a "Red Hat" review (looking for risks, security flaws, architectural debt) and refine the task packet to address them.

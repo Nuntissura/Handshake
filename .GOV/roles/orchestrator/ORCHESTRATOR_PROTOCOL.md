@@ -382,6 +382,14 @@ Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block contain
     - **CRITICAL:** You MUST output the exact Markdown text (headings, rules, code blocks) that will be inserted.
     - **CRITICAL:** The user must be able to copy-paste this text directly into the Master Spec if they chose to do so manually.
 - **primitives:** Specific Traits, Structs, or Enums that must be implemented.
+- **pillar alignment + force multipliers:** Explicitly assess alignment/interconnections across the Handshake pillars (Flight Recorder, Calendar, Monaco, Word/Excel clones, Locus, Loom, MicroTask, Command Center, Spec-to-Prompt, Postgres readiness, LLM-friendly data, Stage/Studio, Atelier/Lens, Distillation/LoRA, ACE, RAG). If unsure, record UNKNOWN and create stubs rather than guessing.
+- **cross-primitive interactions:** Propose interaction edges (force multipliers) to add/update in Master Spec Appendix 12.6 (HS-APPX-INTERACTION-MATRIX). If out of scope for the current WP, create WP stubs for remediation/additions.
+- **appendix/index/matrix maintenance impact:** If the WP introduces/changes a feature, technique, or UI-visible behavior, explicitly list required updates to Master Spec Appendix 12 blocks:
+  - HS-APPX-FEATURE-REGISTRY (index)
+  - HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX
+  - HS-APPX-UI-GUIDANCE (required only for new/changed features)
+  - HS-APPX-INTERACTION-MATRIX
+- **roadmap phase split (if multi-phase):** If refinement discovers large additive scope that should be phased, update the Roadmap section (Spec 7.6) using the fixed per-phase fields (Goal, MUST deliver, Key risks addressed in Phase n, Acceptance criteria, Explicitly OUT of scope, Mechanical Track, Atelier Track, Distillation Track, Vertical slice). Do not invent new per-phase block types.
 
 **Non-negotiable presentation rule:** The Technical Refinement Block MUST be pasted into the Orchestrator's chat message for user review (not only written to a file). The Orchestrator MUST NOT proceed to signature or packet creation until the user explicitly approves the refinement in-chat (e.g., `APPROVE REFINEMENT {WP_ID}`) or requests edits.
 
@@ -399,6 +407,7 @@ If gaps found:
 3. Copy: Entire current spec
 4. Add: Required sections/clarifications (using the Proposed Spec Enrichment text)
 4a. If applicable: update Master Spec Â§12 end-of-file appendix blocks (Feature Registry, Primitive/Tool/Tech Matrix, UI Guidance per feature, Interaction Matrix) and keep them at end-of-file. UI guidance is REQUIRED only for new/changed features; legacy backfill is tracked as stub WPs.
+4b. If enrichment introduces new technology/direction or large additive scope: record it in the Main Body first, then (if needed) split execution across phases in the Roadmap (Spec 7.6) using the fixed per-phase fields (do not invent new per-phase block types), then create WP stubs for the new additions before resuming the normal signature -> packet -> delegation workflow.
 5. Add: CHANGELOG entry with reason for update
 6. Update: .GOV/roles_shared/SPEC_CURRENT.md to point to new version
 

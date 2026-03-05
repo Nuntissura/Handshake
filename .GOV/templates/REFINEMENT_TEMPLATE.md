@@ -41,6 +41,54 @@ Requirements (HARD):
 ### PRIMITIVES (traits/structs/enums)
 - <fill; write NONE if not applicable>
 
+### PILLAR_ALIGNMENT (Handshake pillars cross-check)
+- Rule: Refinement MUST explicitly consider pillar alignment and interconnections (force multipliers). If unknown, write UNKNOWN and create stubs instead of guessing.
+- For each pillar, mark: [TOUCHED] | [NOT_TOUCHED] | [UNKNOWN], then add 1-3 lines when TOUCHED/UNKNOWN (impact + required Spec/Appendix updates + required tests/evidence).
+- Pillars:
+  - Flight Recorder
+  - Calendar
+  - Monaco
+  - Word clone
+  - Excel clone
+  - Locus
+  - Loom
+  - Work packets (product, not repo)
+  - Task board (product, not repo)
+  - MicroTask
+  - Command Center
+  - Spec to prompt
+  - SQL to PostgreSQL shift readiness
+  - LLM-friendly data
+  - Stage
+  - Studio
+  - Atelier/Lens
+  - Skill distillation / LoRA
+  - ACE
+  - RAG
+- PILLAR_ALIGNMENT_VERDICT: PENDING (OK | NEEDS_SPEC_UPDATE | NEEDS_STUBS)
+
+### FORCE_MULTIPLIER_INTERACTIONS (cross-primitive / cross-feature)
+- Candidate interaction edges to add/update in Spec Appendix 12.6 (HS-APPX-INTERACTION-MATRIX):
+  - Edge: <from_kind/from_id> -> <to_kind/to_id>
+  - Kind: <fill>
+  - Spec refs: <fill>
+  - In-scope for this WP: PENDING (YES | NO)
+  - If NO: create a stub WP and record it in TASK_BOARD Stub Backlog (order is not priority).
+
+### ROADMAP_PHASE_SPLIT (only if scope must be phased)
+- PHASE_SPLIT_NEEDED: PENDING (YES | NO)
+- If YES: update the Roadmap (Spec 7.6) using the fixed per-phase fields below (do not invent new per-phase block types).
+- Per phase, include exactly:
+  - Goal:
+  - MUST deliver:
+  - Key risks addressed in Phase n:
+  - Acceptance criteria:
+  - Explicitly OUT of scope:
+  - Mechanical Track:
+  - Atelier Track:
+  - Distillation Track:
+  - Vertical slice:
+
 ### CLEARLY_COVERS (5-point checklist)
 - Appears in Main Body: [ ] PASS
 - Explicitly named: [ ] PASS
