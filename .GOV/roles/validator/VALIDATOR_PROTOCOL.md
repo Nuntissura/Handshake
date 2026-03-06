@@ -145,6 +145,23 @@ This is a convenience wrapper around the core deterministic checks (worktree con
 Optional (recommended on session start to reduce babysitting):
 - `just validator-startup` (prints PROTOCOL_ACK lines + runs `just validator-preflight`).
 
+### Context resume (recommended; anti-babysit)
+
+If the session resets, context compacts, or you inherit a half-finished WP, use:
+- `just validator-next [WP-{ID}]`
+
+This prints the inferred WP stage + the minimal next commands based on:
+- current git branch/worktree context
+- `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
+- `.GOV/task_packets/WP-*.md`
+- `.GOV/validator_gates/{WP_ID}.json` (when present)
+
+Resume rule (hard, anti-babysit):
+- After `just validator-startup` on a reset/compaction, do NOT stop merely because startup/preflight re-ran.
+- Immediately run `just validator-next` (or `just validator-next WP-{ID}` when the WP is known).
+- If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS` without waiting for a fresh "proceed".
+- STOP only if the helper requires a single explicit decision, the WP inference is ambiguous, or the next step is a sync/destructive action that still needs explicit authorization.
+
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
 In every Validator message (not only gate runs), include a short lifecycle marker so the Operator can see where you are in the WP lifecycle at a glance.

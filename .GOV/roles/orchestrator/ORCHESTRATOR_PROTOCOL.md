@@ -189,13 +189,19 @@ Optional (recommended on session start to reduce babysitting):
 ### Context resume (recommended; anti-babysit)
 
 If the session resets or you inherit a half-finished WP, use:
-- `just orchestrator-next WP-{ID}`
+- `just orchestrator-next [WP-{ID}]`
 
 This prints the inferred WP stage + the minimal next commands based on:
 - `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
 - `.GOV/refinements/WP-*.md`
 - `.GOV/task_packets/WP-*.md`
 - `.GOV/roles_shared/TASK_BOARD.md`
+
+Resume rule (hard, anti-babysit):
+- After `just orchestrator-startup` on a reset/compaction, do NOT stop merely because startup/preflight re-ran.
+- Immediately run `just orchestrator-next` (or `just orchestrator-next WP-{ID}` when the WP is known).
+- If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS` without waiting for a fresh "proceed".
+- STOP only if the helper requires a single explicit decision, the WP inference is ambiguous, or the next step is a sync/destructive action that still needs explicit authorization.
 
 ### Deterministic helpers (recommended)
 

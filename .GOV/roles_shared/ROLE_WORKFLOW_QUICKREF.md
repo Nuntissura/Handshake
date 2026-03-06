@@ -27,6 +27,18 @@ All roles SHOULD follow a strict ordering to avoid interleaving narrative with e
 6) If a gate command ran: paste `GATE_OUTPUT [CX-GATE-UX-001]` as a single verbatim block
 7) Then `GATE_STATUS [CX-GATE-UX-001]` + `NEXT_COMMANDS [CX-GATE-UX-001]` (copy/paste ready)
 
+## Resume After Reset / Compaction
+
+Use the role-specific read-only resume helper immediately after `just <role>-startup` when a session resets or context compacts:
+- Orchestrator: `just orchestrator-next [WP-{ID}]`
+- Coder: `just coder-next [WP-{ID}]`
+- Validator: `just validator-next [WP-{ID}]`
+
+Rule:
+- If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS`.
+- Do not wait for a fresh "proceed" after a startup/preflight rerun unless the helper says a single explicit decision is required.
+- Read the helper's `CONFIDENCE: HIGH|MEDIUM|LOW` line as the inference strength for the resumed WP selection.
+
 ## Governance vs Product Checks
 
 Governance-only (does not scan `src/` or `app/`):

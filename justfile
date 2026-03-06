@@ -168,14 +168,17 @@ coder-preflight:
 orchestrator-startup:
 	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md"
 	@just orchestrator-preflight
+	@echo 'RESUME_HINT: After a reset/compaction, run `just orchestrator-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 validator-startup:
 	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles/validator/VALIDATOR_PROTOCOL.md"
 	@just validator-preflight
+	@echo 'RESUME_HINT: After a reset/compaction, run `just validator-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 coder-startup:
 	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles/coder/CODER_PROTOCOL.md"
 	@just coder-preflight
+	@echo 'RESUME_HINT: After a reset/compaction, run `just coder-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 # Record a technical refinement for a work packet [CX-585A]
 record-refinement wp-id detail="":
@@ -190,8 +193,16 @@ record-prepare wp-id coder_id branch="" worktree_dir="":
 	@node .GOV/scripts/validation/orchestrator_gates.mjs prepare {{wp-id}} {{coder_id}} {{branch}} {{worktree_dir}}
 
 # Orchestrator helper (read-only): infer next steps for a WP from gates + file state.
-orchestrator-next wp-id:
+orchestrator-next wp-id="":
 	@node .GOV/scripts/orchestrator-next.mjs {{wp-id}}
+
+# Coder helper (read-only): infer next steps for the current WP after reset/compaction.
+coder-next wp-id="":
+	@node .GOV/scripts/coder-next.mjs {{wp-id}}
+
+# Validator helper (read-only): infer next steps for the current WP after reset/compaction.
+validator-next wp-id="":
+	@node .GOV/scripts/validator-next.mjs {{wp-id}}
 
 # Deterministic Task Board updater: move a WP entry between sections.
 task-board-set wp-id status reason="":

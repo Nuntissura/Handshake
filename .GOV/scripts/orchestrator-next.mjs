@@ -12,6 +12,19 @@ import {
   defaultRefinementPath,
   validateRefinementFile,
 } from "./validation/refinement-check.mjs";
+import {
+  activeOrchestratorCandidates,
+  currentGitContext,
+  inferOrchestratorWpId,
+  loadOrchestratorGateLogs,
+  printConfidence,
+  printFindings,
+  printLifecycle,
+  printNextCommands,
+  printOperatorAction,
+  printState,
+  taskBoardStatus,
+} from "./role-resume-utils.mjs";
 
 const STATE_FILE = ".GOV/roles/orchestrator/ORCHESTRATOR_GATES.json";
 const TASK_BOARD_PATH = ".GOV/roles_shared/TASK_BOARD.md";
@@ -50,36 +63,173 @@ function hasStubLine(wpId) {
   return content.includes(`- **[${wpId}]** - [STUB]`);
 }
 
-function printLifecycle({ wpId, stage, next }) {
-  console.log("LIFECYCLE [CX-LIFE-001]");
-  console.log(`- WP_ID: ${wpId}`);
-  console.log(`- STAGE: ${stage}`);
-  console.log(`- NEXT: ${next}`);
-  console.log("");
+function stageScore(stage, detail = {}) {
+  switch (stage) {
+    case "REFINEMENT":
+      return detail.ready === false ? 170 : 160;
+    case "APPROVAL":
+      return 150;
+    case "PREPARE":
+      return 140;
+    case "PACKET_CREATE":
+      return 130;
+    case "DELEGATION":
+      return detail.needsStubCleanup ? 110 : 90;
+    default:
+      return 50;
+  }
 }
 
-function printOperatorAction(action) {
-  console.log(`OPERATOR_ACTION: ${action || "NONE"}`);
-  console.log("");
+function freshnessBoost(timestamp) {
+  const parsed = Date.parse(String(timestamp || ""));
+  if (Number.isNaN(parsed)) return 0;
+  const ageHours = Math.max(0, (Date.now() - parsed) / (1000 * 60 * 60));
+  return Math.max(0, 24 - Math.min(24, ageHours / 2));
 }
 
-function printState(state) {
-  console.log(`STATE: ${state}`);
-  console.log("");
-}
+function summarizeResumeState(state, wpId) {
+  const lastRefinement = lastLog(state, wpId, "REFINEMENT");
+  const lastSignature = lastLog(state, wpId, "SIGNATURE");
+  const lastPrepare = lastLog(state, wpId, "PREPARE");
 
-function printNextCommands(cmds) {
-  console.log("NEXT_COMMANDS [CX-GATE-UX-001]");
-  for (const cmd of cmds) console.log(`- ${cmd}`);
+  const refinementPath = defaultRefinementPath(wpId);
+  const currentPacketPath = path.join(".GOV", "task_packets", `${wpId}.md`).replace(/\\/g, "/");
+  const refinementExists = exists(refinementPath);
+  const currentPacketExists = exists(currentPacketPath);
+  const boardStatus = taskBoardStatus(wpId) || "<none>";
+  const needsStubCleanup = hasStubLine(wpId);
+
+  let refinementReady = false;
+  let refinementError = "";
+  if (refinementExists) {
+    const ready = validateRefinementFile(refinementPath, {
+      expectedWpId: wpId,
+      requireSignature: false,
+    });
+    refinementReady = !!ready.ok;
+    refinementError = ready.ok ? "" : (ready.errors || [])[0] || "Refinement is incomplete.";
+  }
+
+  let stage = "DELEGATION";
+  let reason = "Task packet exists; ready to delegate to Coder.";
+  let ready = true;
+
+  if (!refinementExists) {
+    stage = "REFINEMENT";
+    ready = false;
+    reason = "Refinement file does not exist yet.";
+  } else if (!refinementReady) {
+    stage = "REFINEMENT";
+    ready = false;
+    reason = refinementError;
+  } else if (!lastRefinement) {
+    stage = "REFINEMENT";
+    reason = "Refinement file looks reviewable, but no refinement gate log exists yet.";
+  } else if (!lastSignature) {
+    stage = "APPROVAL";
+    reason = "Refinement recorded; signature not yet recorded.";
+  } else if (!lastPrepare) {
+    stage = "PREPARE";
+    reason = "Signature recorded; WP prepare record missing.";
+  } else if (!currentPacketExists) {
+    stage = "PACKET_CREATE";
+    reason = "Prepare recorded; task packet file does not exist yet.";
+  } else if (needsStubCleanup) {
+    stage = "DELEGATION";
+    reason = "Task packet exists; Task Board still lists this WP as [STUB].";
+  }
+
+  const timestamp =
+    lastPrepare?.timestamp ||
+    lastSignature?.timestamp ||
+    lastRefinement?.timestamp ||
+    "";
+  const score =
+    stageScore(stage, { ready, needsStubCleanup }) +
+    freshnessBoost(timestamp) +
+    (boardStatus === "READY_FOR_DEV" ? 8 : 0) +
+    (boardStatus === "IN_PROGRESS" ? 4 : 0);
+
+  return {
+    wpId,
+    stage,
+    reason,
+    boardStatus,
+    timestamp,
+    score,
+  };
 }
 
 function main() {
-  const wpId = (process.argv[2] || "").trim();
-  if (!wpId || !wpId.startsWith("WP-")) {
-    fail("Usage: node .GOV/scripts/orchestrator-next.mjs <WP_ID>", [
-      "Example: node .GOV/scripts/orchestrator-next.mjs WP-1-ModelSession-Core-Scheduler-v1",
-    ]);
+  const providedWpId = (process.argv[2] || "").trim();
+  const gitContext = currentGitContext();
+  const gateLogs = loadOrchestratorGateLogs();
+  let inferred = providedWpId
+    ? { wpId: providedWpId, source: "explicit", candidates: [providedWpId] }
+    : inferOrchestratorWpId(gateLogs, gitContext);
+
+  if (!providedWpId && !inferred.wpId) {
+    const state = loadState();
+    const ranked = activeOrchestratorCandidates(gateLogs)
+      .map((entry) => summarizeResumeState(state, entry.wpId))
+      .sort((left, right) => {
+        if (right.score !== left.score) return right.score - left.score;
+        return String(right.timestamp || "").localeCompare(String(left.timestamp || ""));
+      });
+
+    if (ranked.length === 1) {
+      inferred = { wpId: ranked[0].wpId, source: "heuristic-ranked", candidates: [ranked[0].wpId] };
+    } else if (ranked.length >= 2 && ranked[0].score - ranked[1].score >= 12) {
+      inferred = { wpId: ranked[0].wpId, source: "heuristic-ranked", candidates: ranked.map((entry) => entry.wpId) };
+    } else if (!ranked.length) {
+      inferred = { wpId: null, source: "heuristic-ranked", candidates: [] };
+    } else {
+      inferred = { wpId: null, source: "heuristic-ranked", candidates: ranked.map((entry) => entry.wpId), ranked };
+    }
   }
+
+  const wpId = inferred.wpId;
+  if (!wpId || !wpId.startsWith("WP-")) {
+    const activeCandidates =
+      inferred.ranked ||
+      activeOrchestratorCandidates(gateLogs).map((entry) => ({
+        wpId: entry.wpId,
+        stage: entry.type,
+        reason: `Latest orchestrator log: ${entry.type}`,
+      }));
+    const findings = [
+      `Current branch: ${gitContext.branch || "<unknown>"}`,
+      `Current worktree: ${gitContext.topLevel || "<unknown>"}`,
+    ];
+
+    if (activeCandidates.length > 0) {
+      findings.push(
+        `Active candidates: ${activeCandidates
+          .slice(0, 5)
+          .map((entry) => `${entry.wpId} (${entry.stage}: ${entry.reason})`)
+          .join(", ")}`,
+      );
+    } else {
+      findings.push("No active WP candidates were inferred from ORCHESTRATOR_GATES.json.");
+    }
+
+    printLifecycle({ wpId: "N/A", stage: "REFINEMENT", next: "STOP" });
+    printOperatorAction("NONE");
+    printConfidence("LOW", "multiple-or-no-candidates");
+    printState("Unable to infer a single orchestrator WP to resume.");
+    printFindings(findings);
+    printNextCommands(
+      activeCandidates.length > 0
+        ? activeCandidates.slice(0, 5).map((entry) => `just orchestrator-next ${entry.wpId}`)
+        : ["just orchestrator-next WP-{ID}"],
+    );
+    process.exit(1);
+  }
+
+  const confidence =
+    inferred.source === "explicit" || inferred.source === "branch" || inferred.source === "prepare"
+      ? { level: "HIGH", detail: inferred.source }
+      : { level: "MEDIUM", detail: inferred.source };
 
   const state = loadState();
   const lastRefinement = lastLog(state, wpId, "REFINEMENT");
@@ -114,6 +264,7 @@ function main() {
   if (!refinementExists) {
     printLifecycle({ wpId, stage: "REFINEMENT", next: "REFINEMENT" });
     printOperatorAction("NONE");
+    printConfidence(confidence.level, confidence.detail);
     printState("Refinement file does not exist yet.");
     printNextCommands([
       `just create-task-packet ${wpId}  # scaffolds .GOV/refinements/${wpId}.md and exits BLOCKED`,
@@ -127,6 +278,7 @@ function main() {
   if (!refinementReady) {
     printLifecycle({ wpId, stage: "REFINEMENT", next: "REFINEMENT" });
     printOperatorAction("NONE");
+    printConfidence(confidence.level, confidence.detail);
     const detail = refinementErrors.length > 0 ? refinementErrors[0] : "Refinement is incomplete.";
     printState(detail);
     printNextCommands([
@@ -140,6 +292,7 @@ function main() {
   if (!lastRefinement) {
     printLifecycle({ wpId, stage: "REFINEMENT", next: "APPROVAL" });
     printOperatorAction("NONE");
+    printConfidence(confidence.level, confidence.detail);
     printState("Refinement file looks reviewable, but no refinement gate log exists yet.");
     printNextCommands([`just record-refinement ${wpId}`]);
     return;
@@ -148,6 +301,7 @@ function main() {
   if (!lastSignature) {
     printLifecycle({ wpId, stage: "APPROVAL", next: "SIGNATURE" });
     printOperatorAction(`Collect explicit approval + one-time signature for ${wpId}`);
+    printConfidence(confidence.level, confidence.detail);
     printState("Refinement recorded; signature not yet recorded.");
     printNextCommands([
       `# Ensure refinement METADATA contains: - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT ${wpId}`,
@@ -159,6 +313,7 @@ function main() {
   if (!lastPrepare) {
     printLifecycle({ wpId, stage: "PREPARE", next: "PACKET_CREATE" });
     printOperatorAction("Choose coder assignment (Coder-A|Coder-B) for PREPARE");
+    printConfidence(confidence.level, confidence.detail);
     printState("Signature recorded; WP prepare record missing.");
     printNextCommands([
       `just worktree-add ${wpId}`,
@@ -170,6 +325,7 @@ function main() {
   if (!packetExists) {
     printLifecycle({ wpId, stage: "PACKET_CREATE", next: "PRE_WORK" });
     printOperatorAction("NONE");
+    printConfidence(confidence.level, confidence.detail);
     printState("Prepare recorded; task packet file does not exist yet.");
     printNextCommands([
       `just create-task-packet ${wpId}`,
@@ -183,11 +339,17 @@ function main() {
   const needsStubCleanup = hasStubLine(wpId);
   printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
   printOperatorAction("NONE");
+  printConfidence(confidence.level, confidence.detail);
   printState(
     needsStubCleanup
       ? "Task packet exists; Task Board still lists this WP as [STUB]."
       : "Task packet exists; ready to delegate to Coder."
   );
+  printFindings([
+    `Resume source: ${inferred.source}`,
+    `Current branch: ${gitContext.branch || "<unknown>"}`,
+    `Current worktree: ${gitContext.topLevel || "<unknown>"}`,
+  ]);
   const cmds = [
     `cat ${packetPath}`,
     `just pre-work ${wpId}`,
@@ -198,4 +360,3 @@ function main() {
 }
 
 main();
-
