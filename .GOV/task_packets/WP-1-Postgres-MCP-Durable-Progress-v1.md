@@ -64,7 +64,15 @@ Next: Create docs-only skeleton checkpoint commit; then implement migration-back
 
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- NONE
+- Waiver ID: CX-573F
+  - Date: 2026-03-06
+  - Scope: Out-of-scope governance/workflow edits landed on this WP branch before the storage implementation:
+    - `.GOV/roles/coder/CODER_PROTOCOL.md`
+    - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+    - `.GOV/roles_shared/BUILD_ORDER.md`
+    - `.GOV/scripts/validation/{pre-work.mjs,pre-work-check.mjs,post-work-check.mjs,skeleton-approved.mjs}`
+    - `justfile`
+  - Justification: Operator-requested workflow hard gate ("skeleton approved") needed for this WP flow; kept in-branch for continuity.
 
 ## QUALITY_GATE
 ### TEST_PLAN
@@ -188,50 +196,232 @@ git revert <commit-sha>
   - N/A
 
 ## IMPLEMENTATION
-- (Coder fills after the docs-only skeleton checkpoint commit exists.)
+- Migration-backed portable schema:
+  - Added side-table `ai_job_mcp_fields` keyed by `job_id` with UNIQUE `mcp_progress_token` reverse lookup.
+- Storage parity (SQLite + Postgres):
+  - Implemented durable MCP progress mapping via the side-table for both backends:
+    - `Database::update_ai_job_mcp_fields`
+    - `Database::get_ai_job_mcp_fields`
+    - `Database::find_ai_job_id_by_mcp_progress_token`
+  - Postgres: enforces token uniqueness via DB constraint; maps unique violations to `StorageError::Conflict(...)`; updates `ai_jobs.updated_at` on successful update.
+  - SQLite: uses side-table as primary store; backward-compat read fallback to legacy `ai_jobs.mcp_*` columns when no side-table row exists (no DDL/backfill).
+- Tests/CI:
+  - Parameterized MCP e2e test to run on SQLite and Postgres (skips Postgres when `POSTGRES_TEST_URL` is unset).
+  - CI: `backend-storage` job runs `mcp_e2e_tests` alongside `storage_conformance` for both backends.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Gates:
+  - `just coder-startup`
+  - `just pre-work WP-1-Postgres-MCP-Durable-Progress-v1`
+- Local test env notes:
+  - Windows DuckDB build required a shorter `CARGO_TARGET_DIR` to avoid MSVC path-length issues (`CARGO_TARGET_DIR=D:\\hs-target`).
+  - Local Postgres service occupied port 5432; Docker Postgres for this WP was exposed on 5433 via an override compose file under `.handshake/` (not committed).
+- Tests run per `TEST_PLAN`: see `## EVIDENCE` logs.
 
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `justfile`
+- **Start**: 1
+- **End**: 324
+- **Line Delta**: 4
+- **Pre-SHA1**: `c22f7fc0888791455ef627cec8b9aa8c1f5e1835`
+- **Post-SHA1**: `a36ed05b90ad69a7718a5696c15f89420717bf89`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: N/A
+- **Artifacts**: N/A
+- **Timestamp**: 2026-03-06T02:58:00Z
+- **Operator**: ilja
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: Out-of-scope governance change (waived CX-573F).
+
+- **Target File**: `.github/workflows/ci.yml`
+- **Start**: 1
+- **End**: 333
+- **Line Delta**: 3
+- **Pre-SHA1**: `aa38a8a53d057ffa2b315d9193dff1f4c1b9857b`
+- **Post-SHA1**: `fb217861d45da3b7d701a53c7c94fae762bbb739`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: N/A
+- **Artifacts**: N/A
+- **Timestamp**: 2026-03-06T02:58:00Z
+- **Operator**: ilja
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
 - **Notes**:
+
+- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Start**: 1
+- **End**: 4179
+- **Line Delta**: 133
+- **Pre-SHA1**: `0cbbef3b6f7b74184fe029d699f28e80ae76b406`
+- **Post-SHA1**: `63b192201ebfd06fb17030f0af3e5b095598f10b`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo test` (see EVIDENCE)
+- **Artifacts**: N/A
+- **Timestamp**: 2026-03-06T02:58:00Z
+- **Operator**: ilja
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**:
+
+- **Target File**: `src/backend/handshake_core/src/storage/sqlite.rs`
+- **Start**: 1
+- **End**: 4849
+- **Line Delta**: 63
+- **Pre-SHA1**: `5eb180d950a6953f25bf3e20dff1d53a478ec054`
+- **Post-SHA1**: `feba5623dcc4f38e463a407f93cf8b28f483b0c8`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo test` (see EVIDENCE)
+- **Artifacts**: N/A
+- **Timestamp**: 2026-03-06T02:58:00Z
+- **Operator**: ilja
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**:
+
+- **Target File**: `src/backend/handshake_core/tests/mcp_e2e_tests.rs`
+- **Start**: 1
+- **End**: 484
+- **Line Delta**: 20
+- **Pre-SHA1**: `7c93b9f450bd8610d6d587158e7f3ce79d460edc`
+- **Post-SHA1**: `0cad994acba319e87e0249cad5320cb78bf76f07`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo test` (see EVIDENCE)
+- **Artifacts**: N/A
+- **Timestamp**: 2026-03-06T02:58:00Z
+- **Operator**: ilja
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**:
+
+- **Target File**: `src/backend/handshake_core/migrations/0014_ai_job_mcp_fields.sql`
+- **Start**: 1
+- **End**: 12
+- **Line Delta**: 12
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `b3a819803d488f67051b771c06762057e3c3ac19`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: N/A
+- **Artifacts**: N/A
+- **Timestamp**: 2026-03-06T02:58:00Z
+- **Operator**: ilja
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: New file in this range; pre-SHA1 is a sentinel value.
+
+- **Target File**: `src/backend/handshake_core/migrations/0014_ai_job_mcp_fields.down.sql`
+- **Start**: 1
+- **End**: 3
+- **Line Delta**: 3
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `997f1cff92570df4602273a3feab342cf1dd68ee`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: N/A
+- **Artifacts**: N/A
+- **Timestamp**: 2026-03-06T02:58:00Z
+- **Operator**: ilja
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: New file in this range; pre-SHA1 is a sentinel value.
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
+- Current WP_STATUS: Ready for Validator
 - What changed in this update:
+  - Added portable durable MCP mapping store (`ai_job_mcp_fields`) + UNIQUE progress token constraint.
+  - Implemented durable MCP mapping methods for Postgres + SQLite using the new side-table (with SQLite legacy fallback).
+  - Added dual-backend MCP e2e test coverage and CI wiring.
 - Next step / handoff hint:
+  - Run `just cargo-clean` and `just post-work WP-1-Postgres-MCP-Durable-Progress-v1 --range 49442d61b03f52b4f11e2334933ef5b6283c7a94..HEAD` then handoff to Validator.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
   - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
   - EVIDENCE: `path/to/file:line`
+- REQUIREMENT: "Portable persistence: a migration-backed, DB-agnostic schema stores MCP fields ... side-table `ai_job_mcp_fields` ... UNIQUE ... `mcp_progress_token`"
+  - EVIDENCE: `src/backend/handshake_core/migrations/0014_ai_job_mcp_fields.sql:3`
+  - EVIDENCE: `src/backend/handshake_core/migrations/0014_ai_job_mcp_fields.sql:11`
+- REQUIREMENT: "Postgres parity: MCP durable storage methods are implemented (no NotImplemented) for Postgres and SQLite: update/get/find"
+  - EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:3763`
+  - EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:3824`
+  - EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:3857`
+  - EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:4334`
+  - EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:4393`
+  - EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:4448`
+- REQUIREMENT: "MCP regression: durable progress mapping assertions pass for both backends (SQLite and Postgres) and `find_ai_job_id_by_mcp_progress_token(token)` returns the originating job_id."
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_e2e_tests.rs:245`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_e2e_tests.rs:253`
+  - EVIDENCE: `src/backend/handshake_core/tests/mcp_e2e_tests.rs:417`
+- REQUIREMENT: "CI pipeline includes PostgreSQL test variant ... runs storage_conformance + mcp_e2e_tests"
+  - EVIDENCE: `.github/workflows/ci.yml:136`
+  - EVIDENCE: `.github/workflows/ci.yml:142`
 
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
@@ -241,6 +431,35 @@ git revert <commit-sha>
   - LOG_PATH: `.handshake/logs/WP-1-Postgres-MCP-Durable-Progress-v1/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- COMMAND: `docker compose -f docker-compose.test.yml -f .handshake/docker-compose.test.override-5433.yml up -d`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `.handshake/logs/WP-1-Postgres-MCP-Durable-Progress-v1/docker_compose_test_up_5433.log`
+  - LOG_SHA256: `acf8ad14753b1164c73893c10976c8458baa4a111444d2e6317fec57d04beee3`
+  - PROOF_LINES: `Container wt-wp-1-postgres-mcp-durable-progress-v1-postgres-1  Started`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `.handshake/logs/WP-1-Postgres-MCP-Durable-Progress-v1/cargo_test_storage_conformance_sqlite_final.log`
+  - LOG_SHA256: `eeaf3517f383c2c112e4bae252d60a0834bfa8d965d98f8603a49894e3fc364c`
+  - PROOF_LINES: `test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests mcp_e2e_tests`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `.handshake/logs/WP-1-Postgres-MCP-Durable-Progress-v1/cargo_test_mcp_e2e_sqlite_final.log`
+  - LOG_SHA256: `8c42325ca6e6787b284f64d90d16d2519229f0a268259836fe342f85674d4139`
+  - PROOF_LINES: `test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;`
+
+- COMMAND: `$env:POSTGRES_TEST_URL=\"postgres://postgres:postgres@127.0.0.1:5433/handshake_test\"; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `.handshake/logs/WP-1-Postgres-MCP-Durable-Progress-v1/cargo_test_storage_conformance_postgres_5433.log`
+  - LOG_SHA256: `f6e0b6f9da35299543550601fac3a09598ecb909c9b1d2e15a602206d717ae20`
+  - PROOF_LINES: `test postgres_storage_conformance ... ok`
+
+- COMMAND: `$env:POSTGRES_TEST_URL=\"postgres://postgres:postgres@127.0.0.1:5433/handshake_test\"; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests mcp_e2e_tests`
+  - EXIT_CODE: `0`
+  - LOG_PATH: `.handshake/logs/WP-1-Postgres-MCP-Durable-Progress-v1/cargo_test_mcp_e2e_postgres_5433.log`
+  - LOG_SHA256: `159ad9abacf821e55913569f2dbbf8e0d940d14c1d9dcbd6659d64936d1a8d4a`
+  - PROOF_LINES: `test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
