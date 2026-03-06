@@ -48,6 +48,7 @@ Minimum verification for governance-only changes: `just gov-check`.
 ## Pre-Flight (Blocking)
 - [CX-GATE-001] BINARY PHASE GATE (HARD INVARIANT): Workflow MUST follow the sequence: BOOTSTRAP -> SKELETON -> IMPLEMENTATION -> HYGIENE -> VALIDATION.
 - Interface-first checkpoint (ANTI-VIBECODE): before any product code changes (`src/`, `app/`, `tests/`), a docs-only skeleton checkpoint commit MUST exist on the WP branch (recommended: `just coder-skeleton-checkpoint WP-{ID}`).
+- Skeleton approval hard gate: before validating/accepting any implementation changes, confirm the WP branch contains `docs: skeleton approved [WP-{ID}]` (created by Operator/Validator via `just skeleton-approved WP-{ID}`).
 - Refinement completeness (HARD): If the WP requires a non-trivial technical approach choice (new primitives/techniques, new dependencies, security-sensitive patterns, or UI-visible behavior), the Validator MUST confirm a `LANDSCAPE_SCAN` exists in `.GOV/refinements/WP-{ID}.md` (or was pasted in-chat) with ADOPT/ADAPT/REJECT decisions. Missing scan = FAIL unless the Operator explicitly waives it for the WP. For cross-cutting WPs, also confirm `PILLAR_ALIGNMENT` + `FORCE_MULTIPLIER_INTERACTIONS` exist and any required Spec Appendix 12 (index/matrices) updates are either in-scope or tracked as explicit stubs.
 - [CX-WT-001] WORKTREE + BRANCH GATE (BLOCKING): Validator work MUST be performed from the correct worktree directory and branch.
   - Source of truth: `.GOV/roles_shared/ROLE_WORKTREES.md` (default role worktrees/branches) and the assigned WP worktree/branch.

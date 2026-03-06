@@ -544,7 +544,20 @@ const hasSkeletonCheckpointCommit = (wpId) => {
   }
 };
 
+const hasSkeletonApprovedCommit = (wpId) => {
+  const wp = (wpId ?? '').trim();
+  if (!wp) return false;
+  const subjectRe = `^docs: skeleton approved \\[${escapeRegex(wp)}\\]$`;
+  try {
+    const sha = gitTrim(`git log -n 1 --format=%H --grep="${subjectRe}"`);
+    return Boolean((sha || '').trim());
+  } catch {
+    return false;
+  }
+};
+
 const hasSkeletonCheckpoint = hasSkeletonCheckpointCommit(WP_ID);
+const hasSkeletonApproved = hasSkeletonApprovedCommit(WP_ID);
 const productChanged = changedFiles
   .map((p) => p.replace(/\\/g, '/'))
   .filter((p) => p.startsWith('src/') || p.startsWith('app/') || p.startsWith('tests/'));
@@ -556,6 +569,11 @@ if (productChanged.length > 0 && !hasSkeletonCheckpoint) {
   if (productChanged.length > 10) {
     errors.push(`Changed product paths: (+${productChanged.length - 10} more)`);
   }
+}
+
+if (productChanged.length > 0 && !hasSkeletonApproved) {
+  errors.push('Phase gate violation [CX-GATE-001]: Product code changes detected without a skeleton approval commit (Operator/Validator-only unblock).');
+  errors.push(`Expected commit subject: docs: skeleton approved [${WP_ID}] (create via: just skeleton-approved ${WP_ID})`);
 }
 
 const resolveRev = (rev) => {
