@@ -13,8 +13,9 @@ use handshake_core::mcp::jsonrpc::{JsonRpcId, JsonRpcMessage, JsonRpcNotificatio
 use handshake_core::mcp::transport::duplex::DuplexTransport;
 use handshake_core::storage::{
     AccessMode, AiJobListFilter, Database, JobKind, JobMetrics, JobState, JobStatusUpdate,
-    ModelSessionState, NewAiJob, NewModelSession, SafetyMode,
+    ModelSessionState, NewAiJob, NewModelSession, SafetyMode, StorageError,
 };
+use handshake_core::storage::tests::{postgres_backend_from_env, sqlite_backend};
 use serde_json::{json, Value};
 use tempfile::tempdir;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter, DuplexStream};
@@ -241,14 +242,33 @@ async fn stub_server_e2e(
 }
 
 #[tokio::test]
-async fn mcp_e2e_persists_progress_mapping_records_fr_events_and_hydrates_ref() -> Result<(), Box<dyn std::error::Error>> {
+async fn mcp_e2e_tests_sqlite_persists_progress_mapping_records_fr_events_and_hydrates_ref() -> Result<(), Box<dyn std::error::Error>> {
+    let db = sqlite_backend()
+        .await
+        .map_err(|err| Box::new(err) as Box<dyn std::error::Error>)?;
+    run_mcp_e2e(db).await
+}
+
+#[tokio::test]
+async fn mcp_e2e_tests_postgres_persists_progress_mapping_records_fr_events_and_hydrates_ref() -> Result<(), Box<dyn std::error::Error>> {
+    let db = match postgres_backend_from_env().await {
+        Ok(db) => db,
+        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
+            eprintln!("Skipping postgres MCP e2e: {msg}");
+            return Ok(());
+        }
+        Err(err) => return Err(Box::new(err) as Box<dyn std::error::Error>),
+    };
+
+    run_mcp_e2e(db).await
+}
+
+async fn run_mcp_e2e(db: Arc<dyn Database>) -> Result<(), Box<dyn std::error::Error>> {
     let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let registry = Arc::new(CapabilityRegistry::new());
 
-    let sqlite = handshake_core::storage::sqlite::SqliteDatabase::connect("sqlite::memory:", 1).await?;
-    let db: Arc<dyn Database> = Arc::new(sqlite);
-    db.run_migrations().await?;
+    let baseline_jobs = db.list_ai_jobs(AiJobListFilter::default()).await?.len();
 
     let trace_id = Uuid::new_v4();
     let job = db
@@ -458,7 +478,7 @@ async fn mcp_e2e_persists_progress_mapping_records_fr_events_and_hydrates_ref() 
 
     // Sanity: no jobs leaked by token mapping.
     let all_jobs = db.list_ai_jobs(AiJobListFilter::default()).await?;
-    assert_eq!(all_jobs.len(), 1);
+    assert_eq!(all_jobs.len(), baseline_jobs + 1);
 
     Ok(())
 }
