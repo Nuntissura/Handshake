@@ -237,6 +237,10 @@ post-work wp-id *args:
 coder-skeleton-checkpoint wp-id:
 	@node .GOV/scripts/validation/coder-skeleton-checkpoint.mjs {{wp-id}}
 
+# Operator/Validator helper: approve a WP skeleton checkpoint (unblocks implementation).
+skeleton-approved wp-id:
+	@node .GOV/scripts/validation/skeleton-approved.mjs {{wp-id}}
+
 # Helper: compute deterministic COR-701 Pre/Post SHA1 for a file.
 cor701-sha file:
 	@node .GOV/scripts/validation/cor701-sha.mjs {{file}}

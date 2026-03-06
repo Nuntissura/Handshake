@@ -506,7 +506,7 @@ if (errors.length === 0) {
 
   console.log('');
   if (startAllowed) {
-    console.log('You may proceed with implementation.');
+    console.log('You may proceed with the workflow (SKELETON -> approval -> implementation).');
   } else {
     console.log(`NOTE: Task packet Status is "${status}". Do NOT start implementation unless Status is Ready for Dev or In Progress.`);
   }

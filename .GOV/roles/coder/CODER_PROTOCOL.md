@@ -255,14 +255,16 @@ If you are explicitly instructed to update the board, ensure these 5 fixed secti
 ### [CX-GATE-001] Binary Phase Gate (HARD INVARIANT)
 You MUST follow this exact sequence for every Work Packet.
 
-Fast path (ANTI-BABYSIT): you MAY deliver **BOOTSTRAP + SKELETON** in a single turn and a single docs-only skeleton checkpoint commit, then continue to implementation without waiting for an external approval string.
+Hard gate (ANTI-VIBECODE): after the docs-only skeleton checkpoint commit exists, you MUST STOP and wait for skeleton approval. The ONLY unblockers are Operator or Validator running: `just skeleton-approved WP-{ID}`.
 
 Forbidden: any product code changes (`src/`, `app/`, `tests/`) before a docs-only skeleton checkpoint commit exists on the WP branch (enforced mechanically by `just post-work` / `post-work-check.mjs`).
+Forbidden: any product code changes (`src/`, `app/`, `tests/`) without a skeleton approval commit on the WP branch (enforced mechanically by `just post-work` / `post-work-check.mjs`).
 1. **BOOTSTRAP Phase**: Output the BOOTSTRAP block and verify scope.
 2. **SKELETON Phase**: Update the task packet `## SKELETON` section with proposed Traits/Structs/SQL headers, output the SKELETON block, and create a docs-only skeleton checkpoint commit.
-3. **IMPLEMENTATION Phase**: Write logic only AFTER the skeleton checkpoint commit exists.
-4. **HYGIENE Phase**: Run `just product-scan` (alias: `just validator-scan`), `just validator-dal-audit`, and `just validator-git-hygiene` (fail if build/cache artifacts like `target/`, `node_modules/`, `.gemini/` are tracked).
-5. **EVALUATION Phase**: Run the full TEST_PLAN and required hygiene commands, self-review, and prepare results for handoff (keep task packet free of validation logs).
+3. **SKELETON APPROVAL Gate** (Operator/Validator only): STOP. Wait for `just skeleton-approved WP-{ID}` to be run (creates `docs: skeleton approved [WP-{ID}]` commit on the WP branch).
+4. **IMPLEMENTATION Phase**: Write logic only AFTER the skeleton approval commit exists.
+5. **HYGIENE Phase**: Run `just product-scan` (alias: `just validator-scan`), `just validator-dal-audit`, and `just validator-git-hygiene` (fail if build/cache artifacts like `target/`, `node_modules/`, `.gemini/` are tracked).
+6. **EVALUATION Phase**: Run the full TEST_PLAN and required hygiene commands, self-review, and prepare results for handoff (keep task packet free of validation logs).
 
 You are a **Coder** or **Debugger** agent. Your job is to:
 1. Verify task packet exists
@@ -618,7 +620,7 @@ PROPOSED_CONTRACTS:
 OPEN_QUESTIONS:
 - {question 1, if any}
 
-NEXT: Create a docs-only skeleton checkpoint commit, then proceed to implementation.
+NEXT: Create a docs-only skeleton checkpoint commit. STOP. Await Operator/Validator approval via: just skeleton-approved WP-{ID}. Then re-run just pre-work WP-{ID} and proceed to implementation.
 ========================================
 ```
 
@@ -635,7 +637,8 @@ git add .GOV/task_packets/WP-{ID}.md
 git commit -m "docs: skeleton checkpoint [WP-{ID}]"
 ```
 
-Optional: notify the Validator with the skeleton checkpoint commit hash (useful when working async). Then proceed to implementation.
+STOP: request skeleton approval (Operator/Validator runs: `just skeleton-approved WP-{ID}`).
+After the approval commit exists (`docs: skeleton approved [WP-{ID}]`): re-run `just pre-work WP-{ID}`, then proceed to implementation.
 
 ---
 
