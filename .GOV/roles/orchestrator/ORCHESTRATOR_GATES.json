@@ -1678,6 +1678,15 @@
       "signature": "ilja060320261915",
       "timestamp": "2026-03-06T18:16:43.969Z",
       "refinement_path": ".GOV/refinements/WP-1-Locus-Phase1-Integration-Occupancy-v1.md"
+    },
+    {
+      "wpId": "WP-1-Locus-Phase1-Integration-Occupancy-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "execution_lane": "Coder-A",
+      "branch": "feat/WP-1-Locus-Phase1-Integration-Occupancy-v1",
+      "worktree_dir": "../wt-WP-1-Locus-Phase1-Integration-Occupancy-v1",
+      "timestamp": "2026-03-06T19:48:58.119Z"
     }
   ]
 }
