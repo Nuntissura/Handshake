@@ -5,7 +5,8 @@
 - WP_ID: WP-1-Postgres-MCP-Durable-Progress-v1
 - BASE_WP_ID: WP-1-Postgres-MCP-Durable-Progress (stable ID without `-vN`; equals WP_ID for non-revision packets; if WP_ID includes `-vN`, override to the base ID)
 - DATE: 2026-03-05T23:22:55.018Z
-- MERGE_BASE_SHA: 49442d61b03f52b4f11e2334933ef5b6283c7a94 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
+- MERGE_BASE_SHA: 49442d61b03f52b4f11e2334933ef5b6283c7a94
+- MERGE_BASE_SHA_NOTE: git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence
 - REQUESTOR: Operator (ilja) (Postgres MCP durable progress mapping fails: NotImplemented storage methods)
 - AGENT_ID: CodexCLI-GPT-5.2 (Orchestrator)
 - ROLE: Orchestrator
