@@ -490,8 +490,10 @@ if (!fs.existsSync(taskPacketDir)) {
       const packetResearchRequired = parseSingleField(packetContent, 'RESEARCH_CURRENCY_REQUIRED');
       const packetResearchVerdict = parseSingleField(packetContent, 'RESEARCH_CURRENCY_VERDICT');
       const packetResearchDepthVerdict = parseSingleField(packetContent, 'RESEARCH_DEPTH_VERDICT');
+      const packetGitHubProjectScoutingVerdict = parseSingleField(packetContent, 'GITHUB_PROJECT_SCOUTING_VERDICT');
       const packetResearchSources = extractIndentedListAfterLabel(packetContent, 'SOURCE_LOG');
       const packetResearchSynthesis = extractIndentedListAfterLabel(packetContent, 'RESEARCH_SYNTHESIS');
+      const packetGitHubProjectDecisions = extractIndentedListAfterLabel(packetContent, 'GITHUB_PROJECT_DECISIONS');
       const packetPrimitivesTouched = extractIndentedListAfterLabel(packetContent, 'PRIMITIVES_TOUCHED');
       const packetMechanicalEnginesTouched = extractIndentedListAfterLabel(packetContent, 'MECHANICAL_ENGINES_TOUCHED');
       const packetFeatureRegistryAction = parseSingleField(packetContent, 'FEATURE_REGISTRY_ACTION');
@@ -504,6 +506,9 @@ if (!fs.existsSync(taskPacketDir)) {
       const packetPrimitiveMatrixVerdict = parseSingleField(packetContent, 'PRIMITIVE_MATRIX_VERDICT');
       const packetForceMultiplierVerdict = parseSingleField(packetContent, 'FORCE_MULTIPLIER_VERDICT');
       const packetForceMultiplierResolutions = extractIndentedListAfterLabel(packetContent, 'FORCE_MULTIPLIER_RESOLUTIONS');
+      const packetExistingCapabilityAlignmentVerdict = parseSingleField(packetContent, 'EXISTING_CAPABILITY_ALIGNMENT_VERDICT');
+      const packetMatchedArtifactResolutions = extractIndentedListAfterLabel(packetContent, 'MATCHED_ARTIFACT_RESOLUTIONS');
+      const packetCodeRealitySummary = extractIndentedListAfterLabel(packetContent, 'CODE_REALITY_SUMMARY');
       const packetScopeWhat = parseSingleField(packetContent, 'What');
       const packetScopeWhy = parseSingleField(packetContent, 'Why');
       const packetRequestor = parseSingleField(packetContent, 'REQUESTOR');
@@ -548,11 +553,17 @@ if (!fs.existsSync(taskPacketDir)) {
       if ((packetResearchDepthVerdict || '').toUpperCase() !== (refinementData.researchDepthVerdict || '').toUpperCase()) {
         errors.push('RESEARCH_DEPTH_VERDICT in the packet drifted from the signed refinement');
       }
+      if ((packetGitHubProjectScoutingVerdict || '').toUpperCase() !== (refinementData.githubProjectScoutingVerdict || '').toUpperCase()) {
+        errors.push('GITHUB_PROJECT_SCOUTING_VERDICT in the packet drifted from the signed refinement');
+      }
       if (!sameList(packetResearchSources, expectedSourceLog)) {
         errors.push('RESEARCH_SIGNAL SOURCE_LOG in the packet drifted from the signed refinement');
       }
       if (!sameList(packetResearchSynthesis, refinementData.researchSynthesis || [])) {
         errors.push('RESEARCH_SIGNAL RESEARCH_SYNTHESIS in the packet drifted from the signed refinement');
+      }
+      if (!sameList(packetGitHubProjectDecisions, refinementData.githubProjectDecisions || [])) {
+        errors.push('GITHUB_PROJECT_DECISIONS in the packet drifted from the signed refinement');
       }
       if (!sameList(packetPrimitivesTouched, refinementData.primitivesTouched || [])) {
         errors.push('PRIMITIVES_TOUCHED in the packet drifted from the signed refinement');
@@ -589,6 +600,18 @@ if (!fs.existsSync(taskPacketDir)) {
       }
       if (!sameList(packetForceMultiplierResolutions, refinementData.forceMultiplierResolutions || [])) {
         errors.push('FORCE_MULTIPLIER_RESOLUTIONS in the packet drifted from the signed refinement');
+      }
+      if ((packetExistingCapabilityAlignmentVerdict || '').toUpperCase() !== (refinementData.existingCapabilityAlignmentVerdict || '').toUpperCase()) {
+        errors.push('EXISTING_CAPABILITY_ALIGNMENT_VERDICT in the packet drifted from the signed refinement');
+      }
+      if ((packetExistingCapabilityAlignmentVerdict || '').toUpperCase() === 'REUSE_EXISTING') {
+        errors.push('PACKET_HYDRATION_PROFILE=HYDRATED_RESEARCH_V1 cannot proceed when EXISTING_CAPABILITY_ALIGNMENT_VERDICT=REUSE_EXISTING; reuse the matched artifact instead of starting duplicate work');
+      }
+      if (!sameList(packetMatchedArtifactResolutions, refinementData.matchedArtifactResolutions || [])) {
+        errors.push('MATCHED_ARTIFACT_RESOLUTIONS in the packet drifted from the signed refinement');
+      }
+      if (!sameList(packetCodeRealitySummary, refinementData.codeRealitySummary || [])) {
+        errors.push('CODE_REALITY_SUMMARY in the packet drifted from the signed refinement');
       }
 
       const packetUiApplicable = parseSingleField(packetContent, 'UI_UX_APPLICABLE');

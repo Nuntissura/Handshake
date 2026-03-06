@@ -3,6 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 
 const SPEC_CURRENT_PATH = path.join('.GOV', 'roles_shared', 'SPEC_CURRENT.md');
+const TASK_BOARD_PATH = path.join('.GOV', 'roles_shared', 'TASK_BOARD.md');
 
 export function resolveSpecCurrent() {
   if (!fs.existsSync(SPEC_CURRENT_PATH)) {
@@ -327,6 +328,21 @@ function extractAppendixJson(specContent, appendixId) {
   }
 }
 
+function readTaskBoardStatusMap() {
+  if (!fs.existsSync(TASK_BOARD_PATH)) {
+    return { ok: false, error: `Missing task board: ${TASK_BOARD_PATH.replace(/\\/g, '/')}` };
+  }
+  const content = fs.readFileSync(TASK_BOARD_PATH, 'utf8');
+  const statuses = new Map();
+  const pattern = /^-\s+\*\*\[(WP-[^\]]+)\]\*\*\s+-\s+\[([^\]]+)\]/gm;
+  let match = pattern.exec(content);
+  while (match) {
+    statuses.set(match[1].trim(), match[2].trim().toUpperCase());
+    match = pattern.exec(content);
+  }
+  return { ok: true, statuses };
+}
+
 function extractMechanicalEngines(specContent) {
   const engines = [...specContent.matchAll(/#### Engine: ([^\n(]+).*?\n\n- \*\*Engine ID:\*\* `([^`]+)`/gs)]
     .map((m) => ({ title: m[1].trim(), id: m[2].trim() }))
@@ -377,6 +393,83 @@ function parseForceMultiplierCandidates(lines) {
   return rows;
 }
 
+function parseGitHubProjectScoutRows(lines) {
+  const list = extractIndentedListAfterLabel(lines, 'MATCHED_PROJECTS');
+  if (!list.found) return { found: false, hasNone: false, rows: [] };
+  if (list.items.length === 1 && /^NONE$/i.test(list.items[0])) {
+    return { found: true, hasNone: true, rows: [] };
+  }
+
+  const rows = [];
+  const re = /^Source:\s*(.+?)\s*\|\s*Repo:\s*([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)\s*\|\s*URL:\s*(https:\/\/github\.com\/\S+)\s*\|\s*Intent:\s*(SAME|ADJACENT|IMPLEMENTATION|UI_PATTERN|ARCH_PATTERN)\s*\|\s*Decision:\s*(ADOPT|ADAPT|REJECT|TRACK_ONLY)\s*\|\s*Impact:\s*(NONE|EXPAND_SCOPE|NEW_STUB|SPEC_UPDATE_NOW|UI_ENRICHMENT)\s*\|\s*Stub:\s*(.+?)\s*\|\s*Notes:\s*(.+)\s*$/i;
+  for (const item of list.items) {
+    const m = String(item || '').match(re);
+    if (!m) continue;
+    rows.push({
+      source: m[1].trim(),
+      repo: m[2].trim(),
+      url: m[3].trim(),
+      intent: m[4].trim().toUpperCase(),
+      decision: m[5].trim().toUpperCase(),
+      impact: m[6].trim().toUpperCase(),
+      stubRaw: m[7].trim(),
+      notes: m[8].trim(),
+    });
+  }
+  return { found: true, hasNone: false, rows, rawItems: list.items };
+}
+
+function parseExistingCapabilityRows(lines, label) {
+  const list = extractIndentedListAfterLabel(lines, label);
+  if (!list.found) return { found: false, hasNone: false, rows: [] };
+  if (list.items.length === 1 && /^NONE$/i.test(list.items[0])) {
+    return { found: true, hasNone: true, rows: [] };
+  }
+
+  const rows = [];
+  const re = /^Artifact:\s*(WP-[A-Za-z0-9][A-Za-z0-9-]*)\s*\|\s*BoardStatus:\s*([A-Z_]+)\s*\|\s*Intent:\s*(SAME|PARTIAL|DISTINCT)\s*\|\s*PrimitiveIndex:\s*(COVERED|MISSING|N\/A)\s*\|\s*Matrix:\s*(COVERED|MISSING|N\/A)\s*\|\s*UI:\s*(SAME|PARTIAL|NONE|N\/A)\s*\|\s*CodeReality:\s*(IMPLEMENTED|PARTIAL|NOT_PRESENT|N\/A)\s*\|\s*Resolution:\s*(REUSE_EXISTING|EXPAND_IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW|KEEP_SEPARATE)\s*\|\s*Stub:\s*(.+?)\s*\|\s*Notes:\s*(.+)\s*$/i;
+  for (const item of list.items) {
+    const m = String(item || '').match(re);
+    if (!m) continue;
+    rows.push({
+      artifact: m[1].trim(),
+      boardStatus: m[2].trim().toUpperCase(),
+      intent: m[3].trim().toUpperCase(),
+      primitiveIndex: m[4].trim().toUpperCase(),
+      matrix: m[5].trim().toUpperCase(),
+      ui: m[6].trim().toUpperCase(),
+      codeReality: m[7].trim().toUpperCase(),
+      resolution: m[8].trim().toUpperCase(),
+      stubRaw: m[9].trim(),
+      notes: m[10].trim(),
+    });
+  }
+  return { found: true, hasNone: false, rows, rawItems: list.items };
+}
+
+function parseCodeRealityEvidence(lines) {
+  const list = extractIndentedListAfterLabel(lines, 'CODE_REALITY_EVIDENCE');
+  if (!list.found) return { found: false, hasNone: false, rows: [] };
+  if (list.items.length === 1 && /^NONE$/i.test(list.items[0])) {
+    return { found: true, hasNone: true, rows: [] };
+  }
+
+  const rows = [];
+  const re = /^Path:\s*(.+?)\s*\|\s*Artifact:\s*(WP-[A-Za-z0-9][A-Za-z0-9-]*|NONE)\s*\|\s*Covers:\s*(primitive|combo|ui-intent|execution)\s*\|\s*Verdict:\s*(IMPLEMENTED|PARTIAL|NOT_PRESENT)\s*\|\s*Notes:\s*(.+)\s*$/i;
+  for (const item of list.items) {
+    const m = String(item || '').match(re);
+    if (!m) continue;
+    rows.push({
+      pathRaw: m[1].trim(),
+      artifact: m[2].trim(),
+      covers: m[3].trim().toLowerCase(),
+      verdict: m[4].trim().toUpperCase(),
+      notes: m[5].trim(),
+    });
+  }
+  return { found: true, hasNone: false, rows, rawItems: list.items };
+}
+
 export function validateRefinementFile(refinementPath, { expectedWpId, requireSignature } = {}) {
   const errors = [];
   const parsed = {
@@ -400,8 +493,10 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     researchCurrencyRequired: '',
     researchCurrencyVerdict: '',
     researchDepthVerdict: '',
+    githubProjectScoutingVerdict: '',
     researchSources: [],
     researchSynthesis: [],
+    githubProjectDecisions: [],
     primitivesTouched: [],
     mechanicalEnginesTouched: [],
     mechanicalEngineAlignmentVerdict: '',
@@ -409,6 +504,9 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     pillarsRequiringStubs: [],
     forceMultiplierVerdict: '',
     forceMultiplierResolutions: [],
+    existingCapabilityAlignmentVerdict: '',
+    matchedArtifactResolutions: [],
+    codeRealitySummary: [],
     packetHydrationProfile: '',
     packetHydration: {
       requestor: '',
@@ -516,9 +614,11 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
   if (isHydratedResearchProfile) {
     requiredSections.splice(2, 0, 'RESEARCH_CURRENCY');
     requiredSections.splice(3, 0, 'RESEARCH_DEPTH');
+    requiredSections.splice(4, 0, 'GITHUB_PROJECT_SCOUTING');
     requiredSections.splice(6, 0, 'APPENDIX_MAINTENANCE');
     requiredSections.splice(7, 0, 'MECHANICAL_ENGINE_ALIGNMENT');
     requiredSections.splice(requiredSections.indexOf('UI_UX_RUBRIC'), 0, 'FORCE_MULTIPLIER_EXPANSION');
+    requiredSections.splice(requiredSections.indexOf('UI_UX_RUBRIC'), 0, 'EXISTING_CAPABILITY_ALIGNMENT');
     requiredSections.splice(requiredSections.indexOf('CLEARLY_COVERS'), 0, 'PACKET_HYDRATION');
   }
 
@@ -562,10 +662,14 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       const adaptPatterns = extractIndentedListAfterLabel(lines, 'ADAPT_PATTERNS');
       const rejectPatterns = extractIndentedListAfterLabel(lines, 'REJECT_PATTERNS');
       const researchDepthVerdict = getSingleField(content, 'RESEARCH_DEPTH_VERDICT');
+      const githubSearchQueries = extractIndentedListAfterLabel(lines, 'SEARCH_QUERIES');
+      const githubProjectMatches = parseGitHubProjectScoutRows(lines);
+      const githubProjectScoutingVerdict = getSingleField(content, 'GITHUB_PROJECT_SCOUTING_VERDICT');
 
       parsed.researchCurrencyRequired = (researchRequired || '').toUpperCase();
       parsed.researchCurrencyVerdict = (researchVerdict || '').toUpperCase();
       parsed.researchDepthVerdict = (researchDepthVerdict || '').toUpperCase();
+      parsed.githubProjectScoutingVerdict = (githubProjectScoutingVerdict || '').toUpperCase();
 
       if (!/^(YES|NO)$/i.test(researchRequired || '')) {
         errors.push('RESEARCH_CURRENCY_REQUIRED must be YES or NO');
@@ -575,6 +679,9 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       }
       if (!/^(PASS|NOT_APPLICABLE)$/i.test(researchDepthVerdict || '')) {
         errors.push('RESEARCH_DEPTH_VERDICT must be PASS or NOT_APPLICABLE');
+      }
+      if (!/^(PASS|NOT_APPLICABLE)$/i.test(githubProjectScoutingVerdict || '')) {
+        errors.push('GITHUB_PROJECT_SCOUTING_VERDICT must be PASS or NOT_APPLICABLE');
       }
       if (!researchSynthesis.found || researchSynthesis.items.length === 0 || researchSynthesis.items.some((s) => isPlaceholderValue(s))) {
         errors.push('RESEARCH_CURRENCY RESEARCH_SYNTHESIS must be filled (use NONE only if truly not applicable)');
@@ -598,9 +705,11 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
         }
 
         const categories = new Set();
+        let githubSourceCount = 0;
         let freshSources = 0;
         const maxAgeDays = isPositiveIntegerString(sourceMaxAgeRaw) ? parseInt(sourceMaxAgeRaw, 10) : null;
         const sourceTitles = new Set();
+        const sourceByTitle = new Map();
         parsed.researchSources = [];
 
         for (const item of sourceLog.items) {
@@ -617,6 +726,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
           const why = record.WHY || '';
           parsed.researchSources.push({ source, kind, date: dateStr, retrievedAt, url, why });
           if (source) sourceTitles.add(source);
+          if (source) sourceByTitle.set(source, { kind, url });
 
           if (isPlaceholderValue(source)) errors.push(`RESEARCH_CURRENCY SOURCE_LOG entry missing Source: ${item}`);
           if (!/^(BIG_TECH|UNIVERSITY|PAPER|GITHUB|OSS_DOC)$/i.test(kind)) {
@@ -628,6 +738,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
           } else {
             categories.add('GITHUB_OR_OSS');
           }
+          if (kind === 'GITHUB') githubSourceCount += 1;
           const sourceDate = parseIsoDateUtc(dateStr);
           if (!sourceDate) {
             errors.push(`RESEARCH_CURRENCY SOURCE_LOG Date must be YYYY-MM-DD (got: ${dateStr || '<missing>'})`);
@@ -684,6 +795,54 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
         if (!/^PASS$/i.test(researchDepthVerdict || '')) {
           errors.push('RESEARCH_CURRENCY_REQUIRED=YES requires RESEARCH_DEPTH_VERDICT=PASS');
         }
+        if (githubSourceCount === 0) {
+          errors.push('RESEARCH_CURRENCY_REQUIRED=YES requires at least one GITHUB source in SOURCE_LOG');
+        }
+        if (!githubSearchQueries.found || githubSearchQueries.items.filter((item) => !isPlaceholderValue(item) && !/^NONE$/i.test(item)).length === 0) {
+          errors.push('GITHUB_PROJECT_SCOUTING SEARCH_QUERIES must include at least one concrete GitHub search angle when RESEARCH_CURRENCY_REQUIRED=YES');
+        }
+        if (!githubProjectMatches.found || githubProjectMatches.rows.length === 0) {
+          errors.push('GITHUB_PROJECT_SCOUTING MATCHED_PROJECTS must include at least one concrete GitHub project when RESEARCH_CURRENCY_REQUIRED=YES');
+        } else if (githubProjectMatches.rows.length !== githubProjectMatches.rawItems.length) {
+          errors.push('GITHUB_PROJECT_SCOUTING MATCHED_PROJECTS contains malformed entries; each item must match the required Source|Repo|URL|Intent|Decision|Impact|Stub|Notes format');
+        }
+        parsed.githubProjectDecisions = [];
+        for (const project of githubProjectMatches.rows) {
+          const sourceMeta = sourceByTitle.get(project.source);
+          if (!sourceMeta) {
+            errors.push(`GITHUB_PROJECT_SCOUTING MATCHED_PROJECTS references unknown Source: ${project.source}`);
+          } else {
+            if (sourceMeta.kind !== 'GITHUB') {
+              errors.push(`GITHUB_PROJECT_SCOUTING MATCHED_PROJECTS Source must be a GITHUB source from SOURCE_LOG (got ${sourceMeta.kind})`);
+            }
+            if (!/^https:\/\/github\.com\//i.test(sourceMeta.url || '')) {
+              errors.push(`GITHUB_PROJECT_SCOUTING MATCHED_PROJECTS Source ${project.source} must use a GitHub repository URL`);
+            }
+          }
+          if (!project.url.toLowerCase().startsWith(`https://github.com/${project.repo.toLowerCase()}`)) {
+            errors.push(`GITHUB_PROJECT_SCOUTING project URL must align with Repo ${project.repo}`);
+          }
+          if (isPlaceholderValue(project.notes)) {
+            errors.push(`GITHUB_PROJECT_SCOUTING ${project.repo} Notes must be filled`);
+          }
+          if (project.impact === 'NEW_STUB') {
+            const stubIds = validateStubIds(project.stubRaw, errors, `GITHUB_PROJECT_SCOUTING ${project.repo} Stub`);
+            if (stubIds.length !== 1) {
+              errors.push(`GITHUB_PROJECT_SCOUTING ${project.repo} with Impact=NEW_STUB must point to exactly one stub packet`);
+            }
+            for (const stubId of stubIds) {
+              if (!parsed.stubWpIds.includes(stubId)) {
+                errors.push(`Top-level STUB_WP_IDS must include GitHub-project-derived stub ${stubId}`);
+              }
+            }
+          } else if (!/^NONE$/i.test(project.stubRaw || '')) {
+            errors.push(`GITHUB_PROJECT_SCOUTING ${project.repo} must use Stub: NONE unless Impact=NEW_STUB`);
+          }
+          parsed.githubProjectDecisions.push(`${project.repo} -> ${project.decision} (${project.impact})`);
+        }
+        if (!/^PASS$/i.test(githubProjectScoutingVerdict || '')) {
+          errors.push('RESEARCH_CURRENCY_REQUIRED=YES requires GITHUB_PROJECT_SCOUTING_VERDICT=PASS');
+        }
         if (!/^CURRENT$/i.test(researchVerdict || '')) {
           errors.push('RESEARCH_CURRENCY_REQUIRED=YES requires RESEARCH_CURRENCY_VERDICT=CURRENT');
         }
@@ -705,6 +864,15 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
         }
         if (!/^NOT_APPLICABLE$/i.test(researchDepthVerdict || '')) {
           errors.push('RESEARCH_CURRENCY_REQUIRED=NO requires RESEARCH_DEPTH_VERDICT=NOT_APPLICABLE');
+        }
+        if (!githubSearchQueries.found || githubSearchQueries.items.length === 0 || githubSearchQueries.items.some((item) => !/^NONE$/i.test(item))) {
+          errors.push('RESEARCH_CURRENCY_REQUIRED=NO requires GITHUB_PROJECT_SCOUTING SEARCH_QUERIES to be NONE');
+        }
+        if (!githubProjectMatches.found || !githubProjectMatches.hasNone) {
+          errors.push('RESEARCH_CURRENCY_REQUIRED=NO requires GITHUB_PROJECT_SCOUTING MATCHED_PROJECTS to be NONE');
+        }
+        if (!/^NOT_APPLICABLE$/i.test(githubProjectScoutingVerdict || '')) {
+          errors.push('RESEARCH_CURRENCY_REQUIRED=NO requires GITHUB_PROJECT_SCOUTING_VERDICT=NOT_APPLICABLE');
         }
       }
 
@@ -852,6 +1020,16 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       }
       if (parsed.appendixSpecUpdateRequired && !/^YES$/i.test(lsSpecImpact || '')) {
         errors.push('Any appendix action marked UPDATED requires LANDSCAPE_SCAN SPEC_IMPACT=YES');
+      }
+
+      const githubProjectMatches = parseGitHubProjectScoutRows(lines);
+      for (const project of githubProjectMatches.rows) {
+        if (project.impact === 'SPEC_UPDATE_NOW' && !parsed.appendixSpecUpdateRequired) {
+          errors.push(`GITHUB_PROJECT_SCOUTING ${project.repo} uses Impact=SPEC_UPDATE_NOW but appendix maintenance did not declare a spec update`);
+        }
+        if (project.impact === 'UI_ENRICHMENT' && parsed.uiGuidanceAction === 'NO_CHANGE') {
+          errors.push(`GITHUB_PROJECT_SCOUTING ${project.repo} uses Impact=UI_ENRICHMENT, so UI_GUIDANCE_ACTION cannot remain NO_CHANGE`);
+        }
       }
     }
 
@@ -1157,6 +1335,212 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       }
       if (parsed.forceMultiplierVerdict === 'NEEDS_SPEC_UPDATE' && !parsed.appendixSpecUpdateRequired) {
         errors.push('FORCE_MULTIPLIER_VERDICT=NEEDS_SPEC_UPDATE requires appendix maintenance to declare a spec update');
+      }
+    }
+
+    if (isHydratedResearchProfile) {
+      const scanScope = getSingleField(content, 'SCAN_SCOPE');
+      const currentUiApplicable = getSingleField(content, 'UI_UX_APPLICABLE');
+      const stubMatches = parseExistingCapabilityRows(lines, 'MATCHED_STUBS');
+      const activeMatches = parseExistingCapabilityRows(lines, 'MATCHED_ACTIVE_PACKETS');
+      const completedMatches = parseExistingCapabilityRows(lines, 'MATCHED_COMPLETED_PACKETS');
+      const codeRealityEvidence = parseCodeRealityEvidence(lines);
+      const alignmentVerdict = getSingleField(content, 'EXISTING_CAPABILITY_ALIGNMENT_VERDICT');
+      const alignmentReason = getSingleField(content, 'EXISTING_CAPABILITY_ALIGNMENT_REASON');
+      const taskBoardMapResult = readTaskBoardStatusMap();
+      const taskBoardStatuses = taskBoardMapResult.ok ? taskBoardMapResult.statuses : new Map();
+      const needsEvidenceArtifacts = new Set();
+      const allArtifacts = new Set();
+      const allRows = [];
+
+      parsed.existingCapabilityAlignmentVerdict = (alignmentVerdict || '').toUpperCase();
+
+      if (isPlaceholderValue(scanScope)) {
+        errors.push('EXISTING_CAPABILITY_ALIGNMENT SCAN_SCOPE must be filled');
+      }
+      if (!/^(OK|REUSE_EXISTING|NEEDS_SCOPE_EXPANSION|NEEDS_STUBS|NEEDS_SPEC_UPDATE)$/i.test(alignmentVerdict || '')) {
+        errors.push('EXISTING_CAPABILITY_ALIGNMENT_VERDICT must be OK | REUSE_EXISTING | NEEDS_SCOPE_EXPANSION | NEEDS_STUBS | NEEDS_SPEC_UPDATE');
+      }
+      if (isPlaceholderValue(alignmentReason)) {
+        errors.push('EXISTING_CAPABILITY_ALIGNMENT_REASON must be filled');
+      }
+      if (!taskBoardMapResult.ok) {
+        errors.push(taskBoardMapResult.error);
+      }
+
+      const matchGroups = [
+        { label: 'MATCHED_STUBS', parsedMatches: stubMatches, allowedStatuses: new Set(['STUB']), expectsStubFile: true, expectsOfficialPacket: false, codeRealityAllowed: new Set(['N/A']) },
+        { label: 'MATCHED_ACTIVE_PACKETS', parsedMatches: activeMatches, allowedStatuses: new Set(['READY_FOR_DEV', 'IN_PROGRESS', 'BLOCKED']), expectsStubFile: false, expectsOfficialPacket: true, codeRealityAllowed: new Set(['PARTIAL', 'NOT_PRESENT', 'N/A']) },
+        { label: 'MATCHED_COMPLETED_PACKETS', parsedMatches: completedMatches, allowedStatuses: new Set(['VALIDATED', 'OUTDATED_ONLY', 'FAIL', 'SUPERSEDED']), expectsStubFile: false, expectsOfficialPacket: true, codeRealityAllowed: new Set(['IMPLEMENTED', 'PARTIAL', 'NOT_PRESENT']) },
+      ];
+
+      for (const group of matchGroups) {
+        if (!group.parsedMatches.found) {
+          errors.push(`EXISTING_CAPABILITY_ALIGNMENT must include ${group.label} (use NONE if there are no matches)`);
+          continue;
+        }
+        if (!group.parsedMatches.hasNone && group.parsedMatches.rows.length !== group.parsedMatches.rawItems.length) {
+          errors.push(`${group.label} contains malformed entries; each item must match the required Artifact|BoardStatus|Intent|PrimitiveIndex|Matrix|UI|CodeReality|Resolution|Stub|Notes format`);
+        }
+        for (const row of group.parsedMatches.rows) {
+          allRows.push(row);
+          allArtifacts.add(row.artifact);
+          if (!group.allowedStatuses.has(row.boardStatus)) {
+            errors.push(`${group.label} ${row.artifact} has invalid BoardStatus ${row.boardStatus}`);
+          }
+          if (taskBoardStatuses.size > 0) {
+            const actualStatus = taskBoardStatuses.get(row.artifact);
+            if (!actualStatus) {
+              errors.push(`${group.label} references ${row.artifact} but it is missing from ${TASK_BOARD_PATH.replace(/\\/g, '/')}`);
+            } else if (actualStatus !== row.boardStatus) {
+              errors.push(`${group.label} ${row.artifact} BoardStatus drifted from TASK_BOARD: expected ${actualStatus}, got ${row.boardStatus}`);
+            }
+          }
+          if (group.expectsStubFile) {
+            const stubPath = path.join('.GOV', 'task_packets', 'stubs', `${row.artifact}.md`);
+            if (!fs.existsSync(stubPath)) {
+              errors.push(`${group.label} ${row.artifact} is missing stub file ${stubPath.replace(/\\/g, '/')}`);
+            }
+          }
+          if (group.expectsOfficialPacket) {
+            const packetPath = path.join('.GOV', 'task_packets', `${row.artifact}.md`);
+            if (!fs.existsSync(packetPath)) {
+              errors.push(`${group.label} ${row.artifact} is missing official task packet ${packetPath.replace(/\\/g, '/')}`);
+            }
+          }
+          if (!group.codeRealityAllowed.has(row.codeReality)) {
+            errors.push(`${group.label} ${row.artifact} has invalid CodeReality ${row.codeReality} for that artifact class`);
+          }
+          if (isPlaceholderValue(row.notes)) {
+            errors.push(`${group.label} ${row.artifact} Notes must be filled`);
+          }
+
+          if (row.resolution === 'NEW_STUB') {
+            const stubIds = validateStubIds(row.stubRaw, errors, `${group.label} ${row.artifact} Stub`);
+            if (stubIds.length !== 1) {
+              errors.push(`${group.label} ${row.artifact} with Resolution=NEW_STUB must point to exactly one stub packet`);
+            }
+            for (const stubId of stubIds) {
+              if (!parsed.stubWpIds.includes(stubId)) {
+                errors.push(`Top-level STUB_WP_IDS must include reuse-alignment stub ${stubId}`);
+              }
+            }
+          } else if (!/^NONE$/i.test(row.stubRaw || '')) {
+            errors.push(`${group.label} ${row.artifact} must use Stub: NONE unless Resolution=NEW_STUB`);
+          }
+
+          if (row.resolution === 'SPEC_UPDATE_NOW' && !parsed.appendixSpecUpdateRequired) {
+            errors.push(`${group.label} ${row.artifact} uses Resolution=SPEC_UPDATE_NOW but appendix maintenance did not declare a spec update`);
+          }
+          if (row.resolution === 'REUSE_EXISTING') {
+            if (row.intent === 'DISTINCT') {
+              errors.push(`${group.label} ${row.artifact} cannot use Resolution=REUSE_EXISTING with Intent=DISTINCT`);
+            }
+            if (row.primitiveIndex === 'MISSING') {
+              errors.push(`${group.label} ${row.artifact} cannot use Resolution=REUSE_EXISTING when PrimitiveIndex=MISSING`);
+            }
+            if (row.matrix === 'MISSING') {
+              errors.push(`${group.label} ${row.artifact} cannot use Resolution=REUSE_EXISTING when Matrix=MISSING`);
+            }
+            if (row.ui === 'PARTIAL' || row.ui === 'NONE') {
+              errors.push(`${group.label} ${row.artifact} cannot use Resolution=REUSE_EXISTING when UI is PARTIAL or NONE`);
+            }
+            if (group.label === 'MATCHED_COMPLETED_PACKETS' && row.codeReality !== 'IMPLEMENTED') {
+              errors.push(`${group.label} ${row.artifact} requires CodeReality=IMPLEMENTED for Resolution=REUSE_EXISTING`);
+            }
+          }
+          if (row.resolution === 'KEEP_SEPARATE' && row.intent === 'SAME') {
+            errors.push(`${group.label} ${row.artifact} cannot use Resolution=KEEP_SEPARATE with Intent=SAME`);
+          }
+          if ((group.label === 'MATCHED_STUBS' || group.label === 'MATCHED_ACTIVE_PACKETS') && row.intent === 'SAME' && row.resolution === 'NEW_STUB') {
+            errors.push(`${group.label} ${row.artifact} cannot create a NEW_STUB when the same-intent capability already has a tracked governance artifact`);
+          }
+          if (
+            group.label === 'MATCHED_COMPLETED_PACKETS'
+            && row.intent === 'SAME'
+            && row.codeReality === 'IMPLEMENTED'
+            && row.primitiveIndex === 'COVERED'
+            && row.matrix !== 'MISSING'
+            && row.ui !== 'PARTIAL'
+            && row.ui !== 'NONE'
+            && row.resolution !== 'REUSE_EXISTING'
+          ) {
+            errors.push(`${group.label} ${row.artifact} already covers the same intent in code/spec/UI; Resolution must be REUSE_EXISTING`);
+          }
+          if (group.label === 'MATCHED_COMPLETED_PACKETS' && (row.intent === 'SAME' || row.resolution === 'REUSE_EXISTING')) {
+            needsEvidenceArtifacts.add(row.artifact);
+          }
+        }
+      }
+
+      const evidenceRows = codeRealityEvidence.rows || [];
+      const evidenceByArtifact = new Map();
+      if (!codeRealityEvidence.found) {
+        errors.push('EXISTING_CAPABILITY_ALIGNMENT must include CODE_REALITY_EVIDENCE (use NONE if there is no applicable code evidence)');
+      } else if (!codeRealityEvidence.hasNone && evidenceRows.length !== codeRealityEvidence.rawItems.length) {
+        errors.push('CODE_REALITY_EVIDENCE contains malformed entries; each item must match the required Path|Artifact|Covers|Verdict|Notes format');
+      }
+
+      for (const row of evidenceRows) {
+        const evidencePath = path.normalize(row.pathRaw);
+        if (isPlaceholderValue(row.pathRaw)) {
+          errors.push('CODE_REALITY_EVIDENCE Path must be filled');
+        } else if (!fs.existsSync(evidencePath)) {
+          errors.push(`CODE_REALITY_EVIDENCE path does not exist: ${row.pathRaw.replace(/\\/g, '/')}`);
+        }
+        if (row.artifact !== 'NONE' && !allArtifacts.has(row.artifact)) {
+          errors.push(`CODE_REALITY_EVIDENCE references unknown Artifact: ${row.artifact}`);
+        }
+        if (isPlaceholderValue(row.notes)) {
+          errors.push(`CODE_REALITY_EVIDENCE ${row.pathRaw} Notes must be filled`);
+        }
+        if (row.artifact !== 'NONE') {
+          const existing = evidenceByArtifact.get(row.artifact) || [];
+          existing.push(row);
+          evidenceByArtifact.set(row.artifact, existing);
+        }
+        parsed.codeRealitySummary.push(`${row.pathRaw} -> ${row.verdict} (${row.artifact})`);
+      }
+
+      for (const artifact of needsEvidenceArtifacts) {
+        const evidence = evidenceByArtifact.get(artifact) || [];
+        if (evidence.length === 0) {
+          errors.push(`MATCHED_COMPLETED_PACKETS ${artifact} requires CODE_REALITY_EVIDENCE because it claims SAME intent or REUSE_EXISTING`);
+        } else if (!evidence.some((row) => row.verdict === 'IMPLEMENTED')) {
+          errors.push(`MATCHED_COMPLETED_PACKETS ${artifact} requires at least one CODE_REALITY_EVIDENCE entry with Verdict=IMPLEMENTED`);
+        }
+      }
+
+      const anyPrimitiveMissing = allRows.some((row) => row.primitiveIndex === 'MISSING' && row.resolution !== 'KEEP_SEPARATE');
+      const anyMatrixMissing = allRows.some((row) => row.matrix === 'MISSING' && row.resolution !== 'KEEP_SEPARATE');
+      const anyUiMissing = allRows.some((row) => (row.ui === 'PARTIAL' || row.ui === 'NONE') && row.resolution !== 'KEEP_SEPARATE');
+      if (anyPrimitiveMissing && parsed.primitiveIndexAction !== 'UPDATED') {
+        errors.push('Existing capability alignment found PrimitiveIndex=MISSING on a non-separated match; PRIMITIVE_INDEX_ACTION must be UPDATED');
+      }
+      if (anyMatrixMissing && parsed.interactionMatrixAction !== 'UPDATED') {
+        errors.push('Existing capability alignment found Matrix=MISSING on a non-separated match; INTERACTION_MATRIX_ACTION must be UPDATED');
+      }
+      if (anyUiMissing && /^YES$/i.test(currentUiApplicable || '') && parsed.uiGuidanceAction === 'NO_CHANGE') {
+        errors.push('Existing capability alignment found missing/partial same-intent UI coverage; UI_GUIDANCE_ACTION cannot stay NO_CHANGE when UI_UX_APPLICABLE=YES');
+      }
+
+      parsed.matchedArtifactResolutions = allRows.map((row) => `${row.artifact} -> ${row.resolution}`);
+
+      const derivedAlignmentVerdict =
+        allRows.some((row) => row.resolution === 'SPEC_UPDATE_NOW') ? 'NEEDS_SPEC_UPDATE'
+          : allRows.some((row) => row.resolution === 'NEW_STUB') ? 'NEEDS_STUBS'
+            : allRows.some((row) => row.resolution === 'EXPAND_IN_THIS_WP') ? 'NEEDS_SCOPE_EXPANSION'
+              : allRows.some((row) => row.resolution === 'REUSE_EXISTING') ? 'REUSE_EXISTING'
+                : 'OK';
+
+      if (parsed.existingCapabilityAlignmentVerdict !== derivedAlignmentVerdict) {
+        errors.push(`EXISTING_CAPABILITY_ALIGNMENT_VERDICT must be ${derivedAlignmentVerdict} based on the listed artifact resolutions`);
+      }
+      if (parsed.existingCapabilityAlignmentVerdict === 'NEEDS_STUBS' && parsed.stubWpIds.length === 0) {
+        errors.push('EXISTING_CAPABILITY_ALIGNMENT_VERDICT=NEEDS_STUBS requires top-level STUB_WP_IDS to list one or more stub packets');
+      }
+      if (parsed.existingCapabilityAlignmentVerdict === 'NEEDS_SPEC_UPDATE' && !parsed.appendixSpecUpdateRequired) {
+        errors.push('EXISTING_CAPABILITY_ALIGNMENT_VERDICT=NEEDS_SPEC_UPDATE requires appendix maintenance to declare a spec update');
       }
     }
 

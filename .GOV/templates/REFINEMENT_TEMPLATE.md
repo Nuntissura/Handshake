@@ -58,6 +58,14 @@ Requirements (HARD):
   - Source: <title from SOURCE_LOG> | Pattern: <fill> | Why: <fill>
 - RESEARCH_DEPTH_VERDICT: PENDING (PASS | NOT_APPLICABLE)
 
+### GITHUB_PROJECT_SCOUTING (same-topic repo exploration; feed useful findings back into governance)
+- Rule: if RESEARCH_CURRENCY_REQUIRED=YES, inspect topic-adjacent GitHub projects/repos that touch the same intent, implementation topic, or UI surface. This is for discovering better execution patterns, richer feature combinations, and UI/UX force multipliers. Useful findings MUST flow back into spec/governance through scope expansion, new stubs, spec updates, or UI enrichment.
+- SEARCH_QUERIES:
+  - <fill; repo/topic search query or angle>
+- MATCHED_PROJECTS:
+  - Source: <title from SOURCE_LOG with Kind: GITHUB> | Repo: <owner/name> | URL: <https://github.com/owner/name> | Intent: <SAME|ADJACENT|IMPLEMENTATION|UI_PATTERN|ARCH_PATTERN> | Decision: <ADOPT|ADAPT|REJECT|TRACK_ONLY> | Impact: <NONE|EXPAND_SCOPE|NEW_STUB|SPEC_UPDATE_NOW|UI_ENRICHMENT> | Stub: <WP-... | NONE> | Notes: <fill>
+- GITHUB_PROJECT_SCOUTING_VERDICT: PENDING (PASS | NOT_APPLICABLE)
+
 ### FLIGHT_RECORDER_INTERACTION (event IDs + telemetry triggers)
 - <fill; write NONE if not applicable>
 
@@ -165,6 +173,20 @@ Requirements (HARD):
   - Combo: <fill> | Pillars: <comma-separated pillar names | NONE> | Mechanical: <comma-separated engine IDs | NONE> | Primitives/Features: <comma-separated PRIM-/FEAT-/TOOL-/TECH- ids | NONE> | Resolution: <IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW> | Stub: <WP-... | NONE> | Notes: <fill>
 - FORCE_MULTIPLIER_VERDICT: PENDING (OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
 - FORCE_MULTIPLIER_REASON: <fill>
+
+### EXISTING_CAPABILITY_ALIGNMENT (dedupe against stubs, packets, UI intent, and product code)
+- Rule: before creating a new stub or activating a new packet, scan existing stubs, active packets, completed packets, primitive/index coverage, interaction-matrix coverage, same-intent UI surfaces, and product code. If an equivalent capability already exists and code/UI evidence confirms it, reuse the existing artifact instead of creating a duplicate. If only partial coverage exists, expand this WP. If the gap is real, create a stub and/or spec update.
+- SCAN_SCOPE: <fill>
+- MATCHED_STUBS:
+  - Artifact: <WP-...> | BoardStatus: STUB | Intent: <SAME|PARTIAL|DISTINCT> | PrimitiveIndex: <COVERED|MISSING|N/A> | Matrix: <COVERED|MISSING|N/A> | UI: <SAME|PARTIAL|NONE|N/A> | CodeReality: N/A | Resolution: <REUSE_EXISTING|EXPAND_IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW|KEEP_SEPARATE> | Stub: <WP-... | NONE> | Notes: <fill>
+- MATCHED_ACTIVE_PACKETS:
+  - Artifact: <WP-...> | BoardStatus: <READY_FOR_DEV|IN_PROGRESS|BLOCKED> | Intent: <SAME|PARTIAL|DISTINCT> | PrimitiveIndex: <COVERED|MISSING|N/A> | Matrix: <COVERED|MISSING|N/A> | UI: <SAME|PARTIAL|NONE|N/A> | CodeReality: <PARTIAL|NOT_PRESENT|N/A> | Resolution: <REUSE_EXISTING|EXPAND_IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW|KEEP_SEPARATE> | Stub: <WP-... | NONE> | Notes: <fill>
+- MATCHED_COMPLETED_PACKETS:
+  - Artifact: <WP-...> | BoardStatus: <VALIDATED|OUTDATED_ONLY|FAIL|SUPERSEDED> | Intent: <SAME|PARTIAL|DISTINCT> | PrimitiveIndex: <COVERED|MISSING|N/A> | Matrix: <COVERED|MISSING|N/A> | UI: <SAME|PARTIAL|NONE|N/A> | CodeReality: <IMPLEMENTED|PARTIAL|NOT_PRESENT> | Resolution: <REUSE_EXISTING|EXPAND_IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW|KEEP_SEPARATE> | Stub: <WP-... | NONE> | Notes: <fill>
+- CODE_REALITY_EVIDENCE:
+  - Path: <repo path> | Artifact: <WP-...|NONE> | Covers: <primitive|combo|ui-intent|execution> | Verdict: <IMPLEMENTED|PARTIAL|NOT_PRESENT> | Notes: <fill>
+- EXISTING_CAPABILITY_ALIGNMENT_VERDICT: PENDING (OK | REUSE_EXISTING | NEEDS_SCOPE_EXPANSION | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
+- EXISTING_CAPABILITY_ALIGNMENT_REASON: <fill>
 
 ### UI_UX_RUBRIC (early UI/UX thinking; prefer too many controls early)
 - UI_UX_APPLICABLE: PENDING (YES | NO)

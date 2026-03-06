@@ -73,6 +73,12 @@ Rules:
 - REJECT:
   - Source: <title> | Pattern: <fill> | Why: <fill>
 
+## GITHUB_PROJECT_SCOUTING (DRAFT)
+- SEARCH_QUERIES:
+  - <fill>
+- MATCHED_PROJECTS:
+  - Repo: <owner/name> | Intent: <SAME|ADJACENT|IMPLEMENTATION|UI_PATTERN|ARCH_PATTERN> | Decision hint: <ADOPT|ADAPT|REJECT|TRACK_ONLY> | Impact hint: <NONE|EXPAND_SCOPE|NEW_STUB|SPEC_UPDATE|UI_ENRICHMENT> | Notes: <fill>
+
 ## PILLAR_FORCE_MULTIPLIERS (DRAFT)
 - TOUCHED_OR_UNKNOWN_PILLARS:
   - PILLAR: <fill> | STATUS: <TOUCHED|UNKNOWN> | NOTES: <fill> | Stub follow-up: <THIS_STUB|WP-...|NONE>
@@ -90,6 +96,14 @@ Rules:
 ## FORCE_MULTIPLIER_HYPOTHESES (DRAFT)
 - CANDIDATES:
   - Combo: <fill> | Pillars: <comma-separated names|NONE> | Mechanical: <comma-separated engine IDs|NONE> | Primitives/Features: <comma-separated ids|NONE> | Resolution hint: <IN_THIS_STUB|SPIN_OUT_STUB|SPEC_UPDATE> | Notes: <fill>
+
+## EXISTING_CAPABILITY_SCOUTING (DRAFT)
+- MATCHED_STUBS:
+  - Artifact: <WP-...> | Intent: <SAME|PARTIAL|DISTINCT> | PrimitiveIndex: <COVERED|MISSING|N/A> | Matrix: <COVERED|MISSING|N/A> | UI: <SAME|PARTIAL|NONE|N/A> | Resolution hint: <REUSE_EXISTING|EXPAND_THIS_STUB|KEEP_SEPARATE> | Notes: <fill>
+- MATCHED_ACTIVE_OR_DONE_PACKETS:
+  - Artifact: <WP-...> | Status: <READY_FOR_DEV|IN_PROGRESS|VALIDATED|OUTDATED_ONLY|BLOCKED|SUPERSEDED> | Intent: <SAME|PARTIAL|DISTINCT> | PrimitiveIndex: <COVERED|MISSING|N/A> | Matrix: <COVERED|MISSING|N/A> | UI: <SAME|PARTIAL|NONE|N/A> | CodeReality: <IMPLEMENTED|PARTIAL|NOT_PRESENT|N/A> | Resolution hint: <REUSE_EXISTING|EXPAND_CURRENT_WP|KEEP_SEPARATE|SPIN_OUT_STUB> | Notes: <fill>
+- CODE_REALITY_HINTS:
+  - Path: <repo path> | Covers: <primitive|combo|ui-intent|execution> | Notes: <fill>
 
 ## APPENDIX_MAINTENANCE_NOTES (DRAFT)
 - FEATURE_REGISTRY:

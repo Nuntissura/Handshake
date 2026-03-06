@@ -136,6 +136,7 @@ try {
   const refinementContent = fs.readFileSync(refinementPath, 'utf8');
   const m = refinementContent.match(/^\s*-\s*ENRICHMENT_NEEDED\s*:\s*(YES|NO)\s*$/mi);
   const enrichmentNeeded = (m?.[1] || '').toUpperCase();
+  const existingCapabilityAlignmentVerdict = String(refinementValidation?.parsed?.existingCapabilityAlignmentVerdict || '').toUpperCase();
   if (enrichmentNeeded === 'YES') {
     printGateBlocks({
       wpId: WP_ID,
@@ -153,6 +154,26 @@ try {
         '# Run the spec update workflow (new spec version file + update .GOV/roles_shared/SPEC_CURRENT.md).',
         '# If the refinement expanded appendices (primitive index, feature registry, UI guidance, interaction matrix), land those changes in the new spec version first.',
         '# Create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).',
+      ],
+    });
+    process.exit(1);
+  }
+  if (existingCapabilityAlignmentVerdict === 'REUSE_EXISTING') {
+    printGateBlocks({
+      wpId: WP_ID,
+      stage: 'REFINEMENT',
+      next: 'STOP',
+      operatorAction: 'Reuse the existing stub/packet instead of creating a duplicate packet',
+      gateRan: `just create-task-packet ${WP_ID}`,
+      result: 'BLOCKED',
+      why: 'The signed refinement concluded that an equivalent capability already exists and should be reused.',
+      gateOutputLines: [
+        `BLOCKED: ${WP_ID} refinement declares EXISTING_CAPABILITY_ALIGNMENT_VERDICT=REUSE_EXISTING.`,
+        'Do NOT create a duplicate packet when the same capability already exists in governance + code reality.',
+      ],
+      nextCommands: [
+        '# Reuse or route to the matched existing artifact recorded in the signed refinement.',
+        '# If the current candidate is redundant, supersede or retire it instead of activating a duplicate WP.',
       ],
     });
     process.exit(1);
@@ -508,10 +529,13 @@ if (isHydratedProfile) {
 - RESEARCH_CURRENCY_REQUIRED: ${refinementData.researchCurrencyRequired || 'NO'}
 - RESEARCH_CURRENCY_VERDICT: ${refinementData.researchCurrencyVerdict || 'NOT_APPLICABLE'}
 - RESEARCH_DEPTH_VERDICT: ${refinementData.researchDepthVerdict || 'NOT_APPLICABLE'}
+- GITHUB_PROJECT_SCOUTING_VERDICT: ${refinementData.githubProjectScoutingVerdict || 'NOT_APPLICABLE'}
 - SOURCE_LOG:
 ${formatSourceLog(refinementData.researchSources)}
 - RESEARCH_SYNTHESIS:
 ${formatList(refinementData.researchSynthesis)}
+- GITHUB_PROJECT_DECISIONS:
+${formatList(refinementData.githubProjectDecisions)}
 `);
 
   template = replaceSection(template, 'PRIMITIVES_AND_MATRIX', `
@@ -535,6 +559,15 @@ ${formatList(refinementData.pillarsRequiringStubs)}
 - FORCE_MULTIPLIER_RESOLUTIONS:
 ${formatList(refinementData.forceMultiplierResolutions)}
 - STUB_WP_IDS: ${refinementData.stubWpIdsRaw || 'NONE'}
+`);
+
+  template = replaceSection(template, 'EXISTING_CAPABILITY_ALIGNMENT', `
+## EXISTING_CAPABILITY_ALIGNMENT (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
+- EXISTING_CAPABILITY_ALIGNMENT_VERDICT: ${refinementData.existingCapabilityAlignmentVerdict || 'OK'}
+- MATCHED_ARTIFACT_RESOLUTIONS:
+${formatList(refinementData.matchedArtifactResolutions)}
+- CODE_REALITY_SUMMARY:
+${formatList(refinementData.codeRealitySummary)}
 `);
 
   template = replaceSection(template, 'SCOPE', `
