@@ -226,8 +226,8 @@ git revert <commit-sha>
 - **Start**: 1
 - **End**: 324
 - **Line Delta**: 4
-- **Pre-SHA1**: `c22f7fc0888791455ef627cec8b9aa8c1f5e1835`
-- **Post-SHA1**: `a36ed05b90ad69a7718a5696c15f89420717bf89`
+- **Pre-SHA1**: `cb2d4748b370cf6e61e3ac0648a7067df6c600a0`
+- **Post-SHA1**: `27e34451b173526b04576877377cf0472da10e16`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -250,8 +250,8 @@ git revert <commit-sha>
 - **Start**: 1
 - **End**: 333
 - **Line Delta**: 3
-- **Pre-SHA1**: `aa38a8a53d057ffa2b315d9193dff1f4c1b9857b`
-- **Post-SHA1**: `fb217861d45da3b7d701a53c7c94fae762bbb739`
+- **Pre-SHA1**: `f409331fe71c298dcd8ca35db9cda09f180075da`
+- **Post-SHA1**: `b069f5b6efd91cfe9c96fdcef516353d33825a76`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -274,8 +274,8 @@ git revert <commit-sha>
 - **Start**: 1
 - **End**: 4179
 - **Line Delta**: 133
-- **Pre-SHA1**: `0cbbef3b6f7b74184fe029d699f28e80ae76b406`
-- **Post-SHA1**: `63b192201ebfd06fb17030f0af3e5b095598f10b`
+- **Pre-SHA1**: `17bea48df8b40497e40be4bf65d2883f52939892`
+- **Post-SHA1**: `6e85127af80185579a7330e7cbbaa0e5000023c3`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -298,8 +298,8 @@ git revert <commit-sha>
 - **Start**: 1
 - **End**: 4849
 - **Line Delta**: 63
-- **Pre-SHA1**: `5eb180d950a6953f25bf3e20dff1d53a478ec054`
-- **Post-SHA1**: `feba5623dcc4f38e463a407f93cf8b28f483b0c8`
+- **Pre-SHA1**: `a6ddca565a90bf8d70c7e8b94252b76b8568219e`
+- **Post-SHA1**: `89fa6eb668182fe6ff016ad2d416f17f7fcb1798`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -322,8 +322,8 @@ git revert <commit-sha>
 - **Start**: 1
 - **End**: 484
 - **Line Delta**: 20
-- **Pre-SHA1**: `7c93b9f450bd8610d6d587158e7f3ce79d460edc`
-- **Post-SHA1**: `0cad994acba319e87e0249cad5320cb78bf76f07`
+- **Pre-SHA1**: `b3c03021e526a0963b6a628ca5c93d04e796376f`
+- **Post-SHA1**: `9b24d18d1d6b7f7c2df64fd2b07df38bda146a1a`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -347,7 +347,7 @@ git revert <commit-sha>
 - **End**: 12
 - **Line Delta**: 12
 - **Pre-SHA1**: `0000000000000000000000000000000000000000`
-- **Post-SHA1**: `b3a819803d488f67051b771c06762057e3c3ac19`
+- **Post-SHA1**: `d32f921b344e5595d268a051128b0e0509fd6c60`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -371,7 +371,7 @@ git revert <commit-sha>
 - **End**: 3
 - **Line Delta**: 3
 - **Pre-SHA1**: `0000000000000000000000000000000000000000`
-- **Post-SHA1**: `997f1cff92570df4602273a3feab342cf1dd68ee`
+- **Post-SHA1**: `1d989936f6fb66deba0bd7e16d54dd111201389c`
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -432,31 +432,31 @@ git revert <commit-sha>
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
 - COMMAND: `docker compose -f docker-compose.test.yml -f .handshake/docker-compose.test.override-5433.yml up -d`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/WP-1-Postgres-MCP-Durable-Progress-v1/docker_compose_test_up_5433.log`
   - LOG_SHA256: `acf8ad14753b1164c73893c10976c8458baa4a111444d2e6317fec57d04beee3`
   - PROOF_LINES: `Container wt-wp-1-postgres-mcp-durable-progress-v1-postgres-1  Started`
 
 - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/WP-1-Postgres-MCP-Durable-Progress-v1/cargo_test_storage_conformance_sqlite_final.log`
   - LOG_SHA256: `eeaf3517f383c2c112e4bae252d60a0834bfa8d965d98f8603a49894e3fc364c`
   - PROOF_LINES: `test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;`
 
 - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests mcp_e2e_tests`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/WP-1-Postgres-MCP-Durable-Progress-v1/cargo_test_mcp_e2e_sqlite_final.log`
   - LOG_SHA256: `8c42325ca6e6787b284f64d90d16d2519229f0a268259836fe342f85674d4139`
   - PROOF_LINES: `test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;`
 
 - COMMAND: `$env:POSTGRES_TEST_URL=\"postgres://postgres:postgres@127.0.0.1:5433/handshake_test\"; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/WP-1-Postgres-MCP-Durable-Progress-v1/cargo_test_storage_conformance_postgres_5433.log`
   - LOG_SHA256: `f6e0b6f9da35299543550601fac3a09598ecb909c9b1d2e15a602206d717ae20`
   - PROOF_LINES: `test postgres_storage_conformance ... ok`
 
 - COMMAND: `$env:POSTGRES_TEST_URL=\"postgres://postgres:postgres@127.0.0.1:5433/handshake_test\"; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests mcp_e2e_tests`
-  - EXIT_CODE: `0`
+  - EXIT_CODE: 0
   - LOG_PATH: `.handshake/logs/WP-1-Postgres-MCP-Durable-Progress-v1/cargo_test_mcp_e2e_postgres_5433.log`
   - LOG_SHA256: `159ad9abacf821e55913569f2dbbf8e0d940d14c1d9dcbd6659d64936d1a8d4a`
   - PROOF_LINES: `test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;`
