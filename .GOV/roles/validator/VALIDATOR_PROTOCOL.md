@@ -196,13 +196,19 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 
 **Rule:** Status sync commits are not validation verdicts. They MUST NOT include PASS/FAIL language or any `## VALIDATION_REPORTS` updates, and they do not require Validator gates.
 
-**Closure rule:** Only after `verdict: PASS` may the Validator set the task packet `**Status:** Done`, move the Task Board entry to `## Done` with `[VALIDATED]`, and sync `.GOV/roles_shared/BUILD_ORDER.md` (via `just build-order-sync`).
+**Closure rule:** Only after `verdict: PASS` may the Validator set the task packet `**Status:** Done`, move the Task Board entry to `## Done` with `[VALIDATED]`, sync `.GOV/roles_shared/BUILD_ORDER.md` (via `just build-order-sync`), and reconcile any remaining activation-state drift for the Base WP before merge.
 
 **PASS closure visibility rule (MANDATORY):**
 - After a WP receives `verdict: PASS`, the Validator MUST update `.GOV/roles_shared/TASK_BOARD.md` before merging the WP to `main`.
 - Required command: `just task-board-set WP-{ID} DONE_VALIDATED`
 - The Task Board update MUST be carried in the same WP branch closure flow as the PASS report append / packet `**Status:** Done` update, so that the eventual merge to `main` and fast-forward of role worktrees makes the closed `[VALIDATED]` state visible everywhere immediately.
 - If the WP packet says `Done`/`PASS` but the Task Board still shows `READY_FOR_DEV` or `IN_PROGRESS`, closure is incomplete and the Validator MUST fix the Task Board before merge.
+- Activation-state reconciliation is part of PASS closure, not an optional cleanup:
+  - If `.GOV/task_packets/{WP_ID}.md` is an official packet, `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` MUST point the Base WP to that official packet path, not a stub path.
+  - `.GOV/roles_shared/TASK_BOARD.md` MUST NOT keep that Active Packet under `## Stub Backlog (Not Activated)`.
+  - `.GOV/roles_shared/BUILD_ORDER.md` MUST be regenerated from the reconciled Task Board + traceability state via `just build-order-sync`.
+- Required final verification before merge/push of `main`: `just gov-check`
+- If `just gov-check` fails because of activation traceability drift (`wp-activation-traceability-check`) or any related governance mismatch, the Validator MUST STOP, fix the governance surfaces on the WP branch, and re-run the check before merge.
 
 ## Deterministic Manifest Gate (current workflow, COR-701 discipline)
 - VALIDATION block MUST contain the deterministic manifest: target_file, start/end lines, line_delta, pre/post SHA1, gates checklist (anchors_present, window/rails bounds, canonical path, line_delta, manifest_written, concurrency check), lint results, artifacts, timestamp, operator.
@@ -329,6 +335,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 
 ## Standard Command Set (run when applicable)
 - `just cargo-clean` (cleans external Cargo target dir at `../Handshake Artifacts/handshake-cargo-target` before validation/commit; fail validation if skipped)
+- `just gov-check` (required before PASS merge/push and for any governance-only validator changes; catches activation traceability drift, Task Board/build-order drift, and shared governance regressions)
 - `just validator-scan` (forbidden patterns, mocks/placeholders, RDD/LLM/DB boundary greps)
 - `just validator-dal-audit` (CX-DBP-VAL-010..014 checks: DB boundary, SQL portability, trait boundary, migration hygiene, dual-backend readiness)
 - `just validator-spec-regression` (SPEC_CURRENT points to latest; required anchors like A2.3.12 present)
@@ -372,7 +379,8 @@ State is tracked per WP in `.GOV/validator_gates/{WP_ID}.json`. Gates enforce mi
 ### Gate 2: COMMIT CLEARANCE (PASS only)
 1. Only if verdict = PASS, Validator runs: `just validator-gate-commit {WP_ID}`
 2. Validator performs `git commit` on the WP branch and records the commit SHA.
-   - PASS requirement: this commit MUST include the appended report plus the Task Board / packet / build-order closure updates so the later merge + fast-forward exposes the validated WP state in every active worktree.
+   - PASS requirement: this commit MUST include the appended report plus the Task Board / packet / build-order closure updates and any required Base-WP activation-state fixes (`WP_TRACEABILITY_REGISTRY`, removal of stale STUB state) so the later merge + fast-forward exposes the validated WP state in every active worktree.
+   - PASS requirement: run `just gov-check` after those closure updates and before merge; a PASS commit without a passing governance check is incomplete.
 
 ### Gate 3: FINAL REPORT PRESENTATION (Blocking; the only mechanical pause)
 1. If verdict = FAIL: run immediately after Gate 1, **before any remediation begins**.
@@ -437,6 +445,7 @@ FLOW DIAGRAM:
   - merge the validated WP branch into `main`
   - commit any required closure-sync or conflict-resolution edits on `main`
   - ensure the canonical closed `[VALIDATED]` state lives on `main`
+- Pre-merge governance gate (MANDATORY): before merging the WP branch into `main`, the Validator MUST confirm `just gov-check` passes on the closure branch. Treat any activation-state drift (`WP_TRACEABILITY_REGISTRY`, Task Board STUB residue, stale build-order snapshot) as a merge-blocking failure, not post-merge cleanup.
 - Coders must not merge their own work.
 - Main-only push rule: only `main` may be pushed to `origin`. WP branches, role branches, and other working branches are not canonical push targets.
 - If a remote push is authorized, the Validator pushes `main` only after the merge is complete and `main` contains the final validated closure state.
@@ -491,6 +500,7 @@ Task Packet Update (APPEND-ONLY):
 - TASK_BOARD update (merge-visible requirement): for PASS, the Validator MUST update `.GOV/roles_shared/TASK_BOARD.md` on the WP branch before merge using `just task-board-set WP-{ID} DONE_VALIDATED`, and the closure commit MUST carry that update so merge + fast-forward makes the validated state visible in all role worktrees.
 - TASK_BOARD update (on `main`): after merge, the canonical main-branch Task Board must already show the validated WP entry from that closure commit. Status-sync commits earlier in the WP lifecycle are separate and do not imply a verdict.
 - Board consistency (on `main`): task packet `**Status:**` is source of truth; reconcile the Task Board to match packet reality before declaring PASS. Unresolved mismatch = FAIL pending correction.
+- Activation consistency (merge-visible requirement): when validating an official packet, reconcile `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` and remove any stale `## Stub Backlog` entry for that Active Packet before merge; then run `just build-order-sync` and `just gov-check` so the official activation state is visible on `main` immediately after merge.
 ```
 
 ## Non-Negotiables
