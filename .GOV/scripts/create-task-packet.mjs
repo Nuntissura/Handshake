@@ -141,16 +141,17 @@ try {
       wpId: WP_ID,
       stage: 'SIGNATURE',
       next: 'STOP',
-      operatorAction: 'Spec enrichment required (create new spec version + new WP variant)',
+      operatorAction: 'Spec update required (create new spec version + new WP variant)',
       gateRan: `just create-task-packet ${WP_ID}`,
       result: 'BLOCKED',
-      why: 'Refinement declares ENRICHMENT_NEEDED=YES; do not create/lock a task packet until enrichment is completed.',
+      why: 'Refinement declares ENRICHMENT_NEEDED=YES; do not create/lock a task packet until the spec update is completed.',
       gateOutputLines: [
         `BLOCKED: ${WP_ID} refinement declares ENRICHMENT_NEEDED=YES.`,
-        'Do NOT create/lock a WP packet while enrichment is required.',
+        'Do NOT create/lock a WP packet while a Main Body or appendix spec update is required.',
       ],
       nextCommands: [
-        '# Run the spec enrichment workflow (new spec version file + update .GOV/roles_shared/SPEC_CURRENT.md).',
+        '# Run the spec update workflow (new spec version file + update .GOV/roles_shared/SPEC_CURRENT.md).',
+        '# If the refinement expanded appendices (primitive index, feature registry, UI guidance, interaction matrix), land those changes in the new spec version first.',
         '# Create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).',
       ],
     });
@@ -434,16 +435,39 @@ const templateBody = templateStartIdx === -1
 const fill = (text, token, value) => text.split(token).join(value);
 const replaceSingleField = (text, label, value) =>
   text.replace(new RegExp(`^(\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*).*$`, 'mi'), `$1${value}`);
+const escapeRegExp = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const replaceSection = (text, heading, newSection) =>
+  text.replace(new RegExp(`##\\s+${escapeRegExp(heading)}\\b[\\s\\S]*?(?=\\n##\\s+[^#]|$)`, 'm'), newSection.trim());
+const formatList = (items, { indent = '  - ', none = 'NONE' } = {}) => {
+  const normalized = (items || []).map((item) => String(item || '').trim()).filter(Boolean);
+  if (normalized.length === 0) return `${indent}${none}`;
+  return normalized.map((item) => `${indent}${item}`).join('\n');
+};
+const formatSourceLog = (sources) => formatList(
+  (sources || []).map((source) => {
+    const kind = (source.kind || '').trim() || 'UNKNOWN';
+    const title = (source.source || '').trim() || '<missing>';
+    const date = (source.date || '').trim() || '<missing>';
+    const url = (source.url || '').trim() || '<missing>';
+    const why = (source.why || '').trim() || '<missing>';
+    return `[${kind}] ${title} | ${date} | ${url} | Why: ${why}`;
+  }),
+);
 
 let template = templateBody;
 template = fill(template, '{{WP_ID}}', WP_ID);
 template = fill(template, '{{DATE_ISO}}', timestamp);
 template = fill(template, '{{MERGE_BASE_SHA}}', mergeBaseSha);
 template = fill(template, '{{SPEC_BASELINE}}', specBaseline);
-template = fill(template, '{{REQUESTOR}}', '{user or source}');
-template = fill(template, '{{AGENT_ID}}', '{orchestrator agent ID}');
+template = fill(template, '{{REQUESTOR}}', 'Operator');
+template = fill(template, '{{AGENT_ID}}', 'Orchestrator');
 template = fill(template, '{{USER_SIGNATURE}}', userSignature);
 template = fill(template, '{{SPEC_ANCHOR}}', '<fill>');
+
+const refinementData = refinementValidation.parsed || {};
+const isHydratedProfile = /^HYDRATED_RESEARCH_V1$/i.test(refinementData.refinementEnforcementProfile || '');
+template = replaceSingleField(template, 'REFINEMENT_ENFORCEMENT_PROFILE', refinementData.refinementEnforcementProfile || 'LEGACY_MANUAL');
+template = replaceSingleField(template, 'PACKET_HYDRATION_PROFILE', isHydratedProfile ? 'HYDRATED_RESEARCH_V1' : 'LEGACY_MANUAL');
 
 const executionLane = (signatureGate?.execution_lane || prepareGate?.coder_id || '').trim();
 const orchestrationStartedAt = signatureGate?.timestamp || timestamp;
@@ -463,6 +487,114 @@ if (/^Orchestrator-Agentic$/i.test(executionLane)) {
   template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', `Signature bundle selected ${executionLane} execution lane for ${WP_ID}`);
 }
 
+if (isHydratedProfile) {
+  const hydration = refinementData.packetHydration || {};
+  template = replaceSingleField(template, 'REQUESTOR', hydration.requestor || 'Operator');
+  template = replaceSingleField(template, 'AGENT_ID', hydration.agentId || 'Orchestrator');
+  template = replaceSingleField(template, 'RISK_TIER', hydration.riskTier || '<fill>');
+  template = replaceSingleField(template, 'BUILD_ORDER_DOMAIN', hydration.buildOrderDomain || '<fill>');
+  template = replaceSingleField(template, 'BUILD_ORDER_TECH_BLOCKER', hydration.buildOrderTechBlocker || '<fill>');
+  template = replaceSingleField(template, 'BUILD_ORDER_VALUE_TIER', hydration.buildOrderValueTier || '<fill>');
+  template = replaceSingleField(template, 'BUILD_ORDER_DEPENDS_ON', hydration.buildOrderDependsOnRaw || 'NONE');
+  template = replaceSingleField(template, 'BUILD_ORDER_BLOCKS', hydration.buildOrderBlocksRaw || 'NONE');
+  template = replaceSingleField(template, 'UI_UX_APPLICABLE', refinementData.uiApplicable || 'NO');
+  template = replaceSingleField(template, 'UI_UX_VERDICT', refinementData.uiVerdict || 'OK');
+  template = replaceSingleField(template, 'STUB_WP_IDS', refinementData.stubWpIdsRaw || 'NONE');
+  template = replaceSingleField(template, 'SPEC_ANCHOR', hydration.specAnchorPrimary || '<fill>');
+
+  template = replaceSection(template, 'RESEARCH_SIGNAL', `
+## RESEARCH_SIGNAL (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
+- RESEARCH_CURRENCY_REQUIRED: ${refinementData.researchCurrencyRequired || 'NO'}
+- RESEARCH_CURRENCY_VERDICT: ${refinementData.researchCurrencyVerdict || 'NOT_APPLICABLE'}
+- SOURCE_LOG:
+${formatSourceLog(refinementData.researchSources)}
+- RESEARCH_SYNTHESIS:
+${formatList(refinementData.researchSynthesis)}
+`);
+
+  template = replaceSection(template, 'PRIMITIVES_AND_MATRIX', `
+## PRIMITIVES_AND_MATRIX (REFINEMENT OUTPUT; REQUIRED)
+- PRIMITIVES_TOUCHED:
+${formatList(refinementData.primitivesTouched)}
+- PRIMITIVE_INDEX_ACTION: ${refinementData.primitiveIndexAction || 'NO_CHANGE'}
+- FEATURE_REGISTRY_ACTION: ${refinementData.featureRegistryAction || 'NO_CHANGE'}
+- UI_GUIDANCE_ACTION: ${refinementData.uiGuidanceAction || 'NOT_APPLICABLE'}
+- INTERACTION_MATRIX_ACTION: ${refinementData.interactionMatrixAction || 'NO_CHANGE'}
+- APPENDIX_MAINTENANCE_VERDICT: ${refinementData.appendixMaintenanceVerdict || 'OK'}
+- PILLAR_ALIGNMENT_VERDICT: ${refinementData.pillarAlignmentVerdict || 'OK'}
+- PILLARS_TOUCHED:
+${formatList(refinementData.pillarsTouched)}
+- PILLARS_REQUIRING_STUBS:
+${formatList(refinementData.pillarsRequiringStubs)}
+- PRIMITIVE_MATRIX_VERDICT: ${refinementData.primitiveMatrixVerdict || 'NONE_FOUND'}
+- STUB_WP_IDS: ${refinementData.stubWpIdsRaw || 'NONE'}
+`);
+
+  template = replaceSection(template, 'SCOPE', `
+## SCOPE
+- What: ${hydration.what || '<fill>'}
+- Why: ${hydration.why || '<fill>'}
+- IN_SCOPE_PATHS:
+${formatList(hydration.inScopePaths)}
+- OUT_OF_SCOPE:
+${formatList(hydration.outOfScope)}
+`);
+
+  template = replaceSection(template, 'QUALITY_GATE', `
+## QUALITY_GATE
+### TEST_PLAN
+\`\`\`bash
+${(hydration.testPlan || '').trim()}
+\`\`\`
+
+### DONE_MEANS
+${formatList(hydration.doneMeans, { indent: '- ' })}
+
+### ROLLBACK_HINT
+\`\`\`bash
+git revert <commit-sha>
+\`\`\`
+`);
+
+  template = replaceSection(template, 'BOOTSTRAP', `
+## BOOTSTRAP
+- FILES_TO_OPEN:
+${formatList(hydration.filesToOpen)}
+- SEARCH_TERMS:
+${formatList(hydration.searchTerms)}
+- RUN_COMMANDS:
+  \`\`\`bash
+${(hydration.runCommands || '').trim()}
+  \`\`\`
+- RISK_MAP:
+${formatList(hydration.riskMap)}
+`);
+
+  if (/^YES$/i.test(refinementData.uiApplicable || '')) {
+    template = replaceSection(template, 'UI_UX_SPEC', `
+## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
+- Principle: prefer enumerating "too many" controls early, consolidate later.
+- For \`PACKET_HYDRATION_PROFILE: HYDRATED_RESEARCH_V1\`, this section is copied from the signed refinement and should not drift.
+- Include minimalistic in-UI explainers (prefer hover tooltips), and ensure tooltips are accessible (hover + keyboard focus; dismissible; avoid violating WCAG 1.4.13).
+- UI_SURFACES:
+${formatList(refinementData.uiSpec?.surfaces)}
+- UI_CONTROLS (buttons/dropdowns/inputs):
+${formatList(refinementData.uiSpec?.controls)}
+- UI_STATES (empty/loading/error):
+${formatList(refinementData.uiSpec?.states)}
+- UI_MICROCOPY_NOTES (labels, helper text, hover explainers):
+${formatList(refinementData.uiSpec?.microcopy)}
+- UI_ACCESSIBILITY_NOTES:
+${formatList(refinementData.uiSpec?.accessibility)}
+`);
+  } else {
+    template = replaceSection(template, 'UI_UX_SPEC', `
+## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
+- UI_UX_APPLICABLE=NO in the signed refinement. No user-facing surface is in scope for this packet.
+`);
+  }
+}
+
 // Write the file
 fs.writeFileSync(filePath, template, 'utf8');
 
@@ -472,9 +604,11 @@ fs.writeFileSync(filePath, template, 'utf8');
 
   const nextCommands = [
     `cat ${filePath.replace(/\\/g, '/')}`,
-    '# Fill placeholders: REQUESTOR, AGENT_ID, SCOPE, RISK_TIER, TEST_PLAN, DONE_MEANS, BOOTSTRAP, SPEC_ANCHOR.',
     `just task-board-set ${WP_ID} READY_FOR_DEV`,
   ];
+  if (!isHydratedProfile) {
+    nextCommands.splice(1, 0, '# Fill placeholders: UI_UX_APPLICABLE, UI_UX_VERDICT, STUB_WP_IDS, SCOPE, RISK_TIER, TEST_PLAN, DONE_MEANS, BOOTSTRAP, SPEC_ANCHOR.');
+  }
   if (isRevision) {
     nextCommands.push(`just wp-traceability-set ${baseWpId} ${WP_ID}`);
   }

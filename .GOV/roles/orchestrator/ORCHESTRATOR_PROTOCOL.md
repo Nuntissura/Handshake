@@ -410,11 +410,13 @@ Orchestrator MUST perform a "Technical Refinement Audit" and present the results
 Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block containing:
 - **Gaps Identified:** Specific sections/logic missing in the current Master Spec.
 - **Landscape scan (prior art / best available approaches):** A timeboxed scan of comparable systems (hyperscalers, model vendors, academia, OSS, and adjacent products). Must include: REFERENCES, PATTERNS_EXTRACTED, and DECISIONS (ADOPT/ADAPT/REJECT). Include a LICENSE/IP note for any code-level reuse. If not applicable: write NONE + reason.
+- **research currency (MANDATORY unless the WP is strictly internal/mechanical):** Record a current external-signal scan with explicit dated sources and adoption notes. The refinement MUST capture at least one BIG_TECH source, one UNIVERSITY/PAPER source, and one GITHUB/OSS source when research is required, and it MUST state a freshness window (`SOURCE_MAX_AGE_DAYS`) plus a verdict. If the topic is truly internal/mechanical, write `RESEARCH_CURRENCY_REQUIRED=NO` with a concrete reason instead of guessing.
 - **Interaction with flight recorder: Specific event IDs and telemetry triggers:** Specific event IDs, telemetry triggers, and log data structures.
 - **red team advisory: Architectural risks and security failure modes:** Specific architectural risks and security failure modes.
 - **proposed Spec Enrichment: The FULL, VERBATIM normative text to be added to the Master Spec:**
     - **CRITICAL:** Summaries are FORBIDDEN.
     - **CRITICAL:** You MUST output the exact Markdown text (headings, rules, code blocks) that will be inserted.
+    - **CRITICAL:** Appendix-only growth still counts. If the primitive index, interaction matrix, feature registry, or UI guidance must change, paste the exact appendix block updates that will go into the new spec version.
     - **CRITICAL:** The user must be able to copy-paste this text directly into the Master Spec if they chose to do so manually.
 - **primitives:** Specific Traits, Structs, or Enums that must be implemented.
 - **pillar rubric + force multipliers (MANDATORY):** Explicitly assess alignment/interconnections across the Handshake pillars (Flight Recorder, Calendar, Monaco, Word/Excel clones, Locus, Loom, MicroTask, Command Center, Spec-to-Prompt, Postgres readiness, LLM-friendly data, Stage/Studio, Atelier/Lens, Distillation/LoRA, ACE, RAG). This is a structured rubric (per pillar): TOUCHED | NOT_TOUCHED | UNKNOWN. If UNKNOWN: do not guess; create stubs.
@@ -429,7 +431,9 @@ Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block contain
   - HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX
   - HS-APPX-UI-GUIDANCE (required only for new/changed features)
   - HS-APPX-INTERACTION-MATRIX
+  Hard rule: if any of those appendix actions are `UPDATED`, that is a spec-version update boundary, not post-hoc cleanup. The Orchestrator must advance the Master Spec version, update `SPEC_CURRENT`, create required stubs/governance sync, and only then resume WP activation against the new spec.
 - **roadmap phase split (if multi-phase):** If refinement discovers large additive scope that should be phased, update the Roadmap section (Spec 7.6) using the fixed per-phase fields (Goal, MUST deliver, Key risks addressed in Phase n, Acceptance criteria, Explicitly OUT of scope, Mechanical Track, Atelier Track, Distillation Track, Vertical slice). Do not invent new per-phase block types.
+- **packet hydration (MANDATORY for `HYDRATED_RESEARCH_V1`):** The refinement MUST include a structured packet-hydration block that deterministically fills packet metadata, scope, test plan, done means, bootstrap commands, and primary spec anchor. Packet creation should be transcription from the signed refinement, not manual reinterpretation.
 
 **Non-negotiable presentation rule:** The Technical Refinement Block MUST be pasted into the Orchestrator's chat message for user review (not only written to a file). The pasted block MUST be the FULL verbatim refinement text from `.GOV/refinements/WP-*.md`; summaries or shortened versions are forbidden. The Orchestrator MUST NOT proceed to signature or packet creation until the user explicitly approves the refinement in-chat (e.g., `APPROVE REFINEMENT {WP_ID}`) or requests edits.
 
@@ -439,6 +443,10 @@ Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block contain
 
 **Hard enforcement rule (procedure; repo-enforced):**
 - If the refinement concludes **ENRICHMENT_NEEDED=YES** (or otherwise identifies unresolved ambiguity requiring new normative text), the Orchestrator MUST STOP. Do NOT record a WP packet signature and do NOT create/lock a task packet. Complete Spec Enrichment first (new spec version + update `.GOV/roles_shared/SPEC_CURRENT.md`), then create a NEW WP variant anchored to the updated spec with a fresh one-time signature.
+- If `APPENDIX_MAINTENANCE` declares any appendix action as `UPDATED`, treat that exactly like spec enrichment even when the Main Body already clearly covers the feature. Appendix growth for the primitive index, interaction matrix, feature registry, or UI guidance MUST happen before packet creation, not during or after coding.
+- After that appendix-driven spec update, the Orchestrator MUST also complete the normal governance sync for the new scope: create required stubs, update Task Board / traceability / build-order state, advance `SPEC_CURRENT`, and only then resume activation or create a new WP variant against the updated spec.
+- If the refinement concludes `NEEDS_STUBS` for pillar alignment, primitive-matrix combos, appendix maintenance follow-through, or UI/UX follow-up, the corresponding stub files MUST exist and be listed in top-level `STUB_WP_IDS` before the refinement gate can PASS.
+- For `REFINEMENT_ENFORCEMENT_PROFILE: HYDRATED_RESEARCH_V1`, packet creation MUST auto-hydrate from the signed refinement and `just pre-work` MUST fail if the packet drifts from the refinement.
 
 **Step 2: Enrich Master Spec (after user approval)**
 If gaps found:
@@ -1399,8 +1407,13 @@ just create-task-packet "WP-{phase}-{name}-v{N}"
 ```
 *If script fails -> STOP. Resolve collision.*
 
-**3. Fill details (Update only):**
-Edit `.GOV/task_packets/WP-{ID}.md` to fill placeholders.
+**3. Hydration rule (default):**
+- If the signed refinement uses `REFINEMENT_ENFORCEMENT_PROFILE: HYDRATED_RESEARCH_V1`, `just create-task-packet` MUST auto-hydrate the packet from the refinement.
+- In that path, manual packet transcription is forbidden. Review the generated packet, but do not silently rewrite scope/test/bootstrap/UI/research decisions without updating the signed refinement first.
+- Legacy/manual placeholder fill is allowed only for older refinements that do not use the hydrated profile.
+
+**4. Legacy manual fill (only if packet is not hydrated):**
+Edit `.GOV/task_packets/WP-{ID}.md` to fill the remaining placeholders.
 
 Use this template:
 ```markdown

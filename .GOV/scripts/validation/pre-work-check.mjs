@@ -110,6 +110,24 @@ function extractFencedBlockAfterHeading(text, heading) {
   return '';
 }
 
+function extractFencedBlockAfterLabel(text, label) {
+  const lines = text.split(/\r?\n/);
+  const idx = lines.findIndex((l) => new RegExp(`^\\s*-\\s*${label}\\s*:\\s*$`, 'i').test(l));
+  if (idx === -1) return '';
+
+  let i = idx + 1;
+  while (i < lines.length && lines[i].trim() === '') i += 1;
+  if (i >= lines.length) return '';
+  if (!/^```/.test(lines[i].trim())) return '';
+
+  const body = [];
+  for (let j = i + 1; j < lines.length; j += 1) {
+    if (lines[j].trim() === '```') break;
+    body.push(lines[j]);
+  }
+  return body.join('\n').trim();
+}
+
 function extractBulletListAfterHeading(text, heading) {
   const lines = text.split(/\r?\n/);
   const headingIdx = lines.findIndex((l) => new RegExp(`^#{2,6}\\s+${heading}\\b`, 'i').test(l));
@@ -130,6 +148,20 @@ function extractBulletListAfterHeading(text, heading) {
     if (m) items.push(m[1].trim());
   }
   return items;
+}
+
+function normalizeList(items) {
+  return (items || []).map((item) => String(item || '').trim()).filter(Boolean);
+}
+
+function normalizeBlock(text) {
+  return String(text || '').replace(/\r/g, '').trim();
+}
+
+function sameList(a, b) {
+  const aa = normalizeList(a);
+  const bb = normalizeList(b);
+  return aa.length === bb.length && aa.every((item, idx) => item === bb[idx]);
 }
 
 // Check 1: Task packet file exists
@@ -438,6 +470,166 @@ if (!fs.existsSync(taskPacketDir)) {
       }
     } catch {
       warnings.push('Could not verify signature against .GOV/roles_shared/SIGNATURE_AUDIT.md');
+    }
+
+    const refinementProfile = parseSingleField(packetContent, 'REFINEMENT_ENFORCEMENT_PROFILE');
+    const packetHydrationProfile = parseSingleField(packetContent, 'PACKET_HYDRATION_PROFILE');
+    const isHydratedPacket = /^HYDRATED_RESEARCH_V1$/i.test(packetHydrationProfile || '');
+
+    if (isHydratedPacket) {
+      console.log('Check 2.7A: Packet/refinement hydration drift');
+
+      if (!/^HYDRATED_RESEARCH_V1$/i.test(refinementProfile || '')) {
+        errors.push('PACKET_HYDRATION_PROFILE=HYDRATED_RESEARCH_V1 requires REFINEMENT_ENFORCEMENT_PROFILE=HYDRATED_RESEARCH_V1 in the task packet');
+      }
+      if (!/^HYDRATED_RESEARCH_V1$/i.test(refinementValidation?.parsed?.refinementEnforcementProfile || '')) {
+        errors.push('PACKET_HYDRATION_PROFILE=HYDRATED_RESEARCH_V1 requires the signed refinement to use REFINEMENT_ENFORCEMENT_PROFILE=HYDRATED_RESEARCH_V1');
+      }
+
+      const refinementData = refinementValidation?.parsed || {};
+      const packetResearchRequired = parseSingleField(packetContent, 'RESEARCH_CURRENCY_REQUIRED');
+      const packetResearchVerdict = parseSingleField(packetContent, 'RESEARCH_CURRENCY_VERDICT');
+      const packetResearchSources = extractIndentedListAfterLabel(packetContent, 'SOURCE_LOG');
+      const packetResearchSynthesis = extractIndentedListAfterLabel(packetContent, 'RESEARCH_SYNTHESIS');
+      const packetPrimitivesTouched = extractIndentedListAfterLabel(packetContent, 'PRIMITIVES_TOUCHED');
+      const packetFeatureRegistryAction = parseSingleField(packetContent, 'FEATURE_REGISTRY_ACTION');
+      const packetUiGuidanceAction = parseSingleField(packetContent, 'UI_GUIDANCE_ACTION');
+      const packetInteractionMatrixAction = parseSingleField(packetContent, 'INTERACTION_MATRIX_ACTION');
+      const packetAppendixVerdict = parseSingleField(packetContent, 'APPENDIX_MAINTENANCE_VERDICT');
+      const packetPillarVerdict = parseSingleField(packetContent, 'PILLAR_ALIGNMENT_VERDICT');
+      const packetPillarsTouched = extractIndentedListAfterLabel(packetContent, 'PILLARS_TOUCHED');
+      const packetPillarsRequiringStubs = extractIndentedListAfterLabel(packetContent, 'PILLARS_REQUIRING_STUBS');
+      const packetPrimitiveMatrixVerdict = parseSingleField(packetContent, 'PRIMITIVE_MATRIX_VERDICT');
+      const packetScopeWhat = parseSingleField(packetContent, 'What');
+      const packetScopeWhy = parseSingleField(packetContent, 'Why');
+      const packetRequestor = parseSingleField(packetContent, 'REQUESTOR');
+      const packetAgentId = parseSingleField(packetContent, 'AGENT_ID');
+      const packetRiskTier2 = parseSingleField(packetContent, 'RISK_TIER');
+      const packetBuildOrderDomain = parseSingleField(packetContent, 'BUILD_ORDER_DOMAIN');
+      const packetBuildOrderTechBlocker = parseSingleField(packetContent, 'BUILD_ORDER_TECH_BLOCKER');
+      const packetBuildOrderValueTier = parseSingleField(packetContent, 'BUILD_ORDER_VALUE_TIER');
+      const packetBuildOrderDependsOn = parseSingleField(packetContent, 'BUILD_ORDER_DEPENDS_ON');
+      const packetBuildOrderBlocks = parseSingleField(packetContent, 'BUILD_ORDER_BLOCKS');
+      const packetInScope = extractIndentedListAfterLabel(packetContent, 'IN_SCOPE_PATHS', { stopLabels: ['OUT_OF_SCOPE'] });
+      const packetOutOfScope = extractIndentedListAfterLabel(packetContent, 'OUT_OF_SCOPE');
+      const packetTestPlan = extractFencedBlockAfterHeading(packetContent, 'TEST_PLAN');
+      const packetDoneMeans = extractBulletListAfterHeading(packetContent, 'DONE_MEANS');
+      const packetSpecAnchor = parseSingleField(packetContent, 'SPEC_ANCHOR');
+      const packetFilesToOpen = extractIndentedListAfterLabel(packetContent, 'FILES_TO_OPEN', { stopLabels: ['SEARCH_TERMS'] });
+      const packetSearchTerms = extractIndentedListAfterLabel(packetContent, 'SEARCH_TERMS', { stopLabels: ['RUN_COMMANDS'] });
+      const packetRunCommands = extractFencedBlockAfterLabel(packetContent, 'RUN_COMMANDS');
+      const packetRiskMap = extractIndentedListAfterLabel(packetContent, 'RISK_MAP');
+      const packetUiSurfaces = extractIndentedListAfterLabel(packetContent, 'UI_SURFACES');
+      const packetUiControls = extractIndentedListAfterLabel(packetContent, 'UI_CONTROLS (buttons/dropdowns/inputs)');
+      const packetUiStates = extractIndentedListAfterLabel(packetContent, 'UI_STATES (empty/loading/error)');
+      const packetUiMicrocopy = extractIndentedListAfterLabel(packetContent, 'UI_MICROCOPY_NOTES (labels, helper text, hover explainers)');
+      const packetUiAccessibility = extractIndentedListAfterLabel(packetContent, 'UI_ACCESSIBILITY_NOTES');
+
+      const expectedSourceLog = (refinementData.researchSources || []).map((source) => {
+        const kind = (source.kind || '').trim() || 'UNKNOWN';
+        const title = (source.source || '').trim() || '<missing>';
+        const date = (source.date || '').trim() || '<missing>';
+        const url = (source.url || '').trim() || '<missing>';
+        const why = (source.why || '').trim() || '<missing>';
+        return `[${kind}] ${title} | ${date} | ${url} | Why: ${why}`;
+      });
+
+      if ((packetResearchRequired || '').toUpperCase() !== (refinementData.researchCurrencyRequired || '').toUpperCase()) {
+        errors.push('RESEARCH_CURRENCY_REQUIRED in the packet drifted from the signed refinement');
+      }
+      if ((packetResearchVerdict || '').toUpperCase() !== (refinementData.researchCurrencyVerdict || '').toUpperCase()) {
+        errors.push('RESEARCH_CURRENCY_VERDICT in the packet drifted from the signed refinement');
+      }
+      if (!sameList(packetResearchSources, expectedSourceLog)) {
+        errors.push('RESEARCH_SIGNAL SOURCE_LOG in the packet drifted from the signed refinement');
+      }
+      if (!sameList(packetResearchSynthesis, refinementData.researchSynthesis || [])) {
+        errors.push('RESEARCH_SIGNAL RESEARCH_SYNTHESIS in the packet drifted from the signed refinement');
+      }
+      if (!sameList(packetPrimitivesTouched, refinementData.primitivesTouched || [])) {
+        errors.push('PRIMITIVES_TOUCHED in the packet drifted from the signed refinement');
+      }
+      if ((packetFeatureRegistryAction || '').toUpperCase() !== (refinementData.featureRegistryAction || '').toUpperCase()) {
+        errors.push('FEATURE_REGISTRY_ACTION in the packet drifted from the signed refinement');
+      }
+      if ((packetUiGuidanceAction || '').toUpperCase() !== (refinementData.uiGuidanceAction || '').toUpperCase()) {
+        errors.push('UI_GUIDANCE_ACTION in the packet drifted from the signed refinement');
+      }
+      if ((packetInteractionMatrixAction || '').toUpperCase() !== (refinementData.interactionMatrixAction || '').toUpperCase()) {
+        errors.push('INTERACTION_MATRIX_ACTION in the packet drifted from the signed refinement');
+      }
+      if ((packetAppendixVerdict || '').toUpperCase() !== (refinementData.appendixMaintenanceVerdict || '').toUpperCase()) {
+        errors.push('APPENDIX_MAINTENANCE_VERDICT in the packet drifted from the signed refinement');
+      }
+      if ((packetPillarVerdict || '').toUpperCase() !== (refinementData.pillarAlignmentVerdict || '').toUpperCase()) {
+        errors.push('PILLAR_ALIGNMENT_VERDICT in the packet drifted from the signed refinement');
+      }
+      if (!sameList(packetPillarsTouched, refinementData.pillarsTouched || [])) {
+        errors.push('PILLARS_TOUCHED in the packet drifted from the signed refinement');
+      }
+      if (!sameList(packetPillarsRequiringStubs, refinementData.pillarsRequiringStubs || [])) {
+        errors.push('PILLARS_REQUIRING_STUBS in the packet drifted from the signed refinement');
+      }
+      if ((packetPrimitiveMatrixVerdict || '').toUpperCase() !== (refinementData.primitiveMatrixVerdict || '').toUpperCase()) {
+        errors.push('PRIMITIVE_MATRIX_VERDICT in the packet drifted from the signed refinement');
+      }
+
+      const packetUiApplicable = parseSingleField(packetContent, 'UI_UX_APPLICABLE');
+      const packetUiVerdict2 = parseSingleField(packetContent, 'UI_UX_VERDICT');
+      const packetStubWpIds2 = parseSingleField(packetContent, 'STUB_WP_IDS');
+      if ((packetUiApplicable || '').toUpperCase() !== (refinementData.uiApplicable || '').toUpperCase()) {
+        errors.push('UI_UX_APPLICABLE in the packet drifted from the signed refinement');
+      }
+      if ((packetUiVerdict2 || '').toUpperCase() !== (refinementData.uiVerdict || '').toUpperCase()) {
+        errors.push('UI_UX_VERDICT in the packet drifted from the signed refinement');
+      }
+      if ((packetStubWpIds2 || '').trim() !== (refinementData.stubWpIdsRaw || '').trim()) {
+        errors.push('STUB_WP_IDS in the packet drifted from the signed refinement');
+      }
+
+      const hydration = refinementData.packetHydration || {};
+      if ((packetRequestor || '').trim() !== (hydration.requestor || '').trim()) errors.push('REQUESTOR in the packet drifted from the signed refinement');
+      if ((packetAgentId || '').trim() !== (hydration.agentId || '').trim()) errors.push('AGENT_ID in the packet drifted from the signed refinement');
+      if ((packetRiskTier2 || '').toUpperCase() !== (hydration.riskTier || '').toUpperCase()) errors.push('RISK_TIER in the packet drifted from the signed refinement');
+      if ((packetBuildOrderDomain || '').toUpperCase() !== (hydration.buildOrderDomain || '').toUpperCase()) errors.push('BUILD_ORDER_DOMAIN in the packet drifted from the signed refinement');
+      if ((packetBuildOrderTechBlocker || '').toUpperCase() !== (hydration.buildOrderTechBlocker || '').toUpperCase()) errors.push('BUILD_ORDER_TECH_BLOCKER in the packet drifted from the signed refinement');
+      if ((packetBuildOrderValueTier || '').toUpperCase() !== (hydration.buildOrderValueTier || '').toUpperCase()) errors.push('BUILD_ORDER_VALUE_TIER in the packet drifted from the signed refinement');
+      if ((packetBuildOrderDependsOn || '').trim() !== (hydration.buildOrderDependsOnRaw || '').trim()) errors.push('BUILD_ORDER_DEPENDS_ON in the packet drifted from the signed refinement');
+      if ((packetBuildOrderBlocks || '').trim() !== (hydration.buildOrderBlocksRaw || '').trim()) errors.push('BUILD_ORDER_BLOCKS in the packet drifted from the signed refinement');
+      if ((packetScopeWhat || '').trim() !== (hydration.what || '').trim()) errors.push('SCOPE What in the packet drifted from the signed refinement');
+      if ((packetScopeWhy || '').trim() !== (hydration.why || '').trim()) errors.push('SCOPE Why in the packet drifted from the signed refinement');
+      if (!sameList(packetInScope, hydration.inScopePaths || [])) errors.push('IN_SCOPE_PATHS in the packet drifted from the signed refinement');
+      if (!sameList(packetOutOfScope, hydration.outOfScope || [])) errors.push('OUT_OF_SCOPE in the packet drifted from the signed refinement');
+      if (normalizeBlock(packetTestPlan) !== normalizeBlock(hydration.testPlan || '')) errors.push('TEST_PLAN in the packet drifted from the signed refinement');
+      if (!sameList(packetDoneMeans, hydration.doneMeans || [])) errors.push('DONE_MEANS in the packet drifted from the signed refinement');
+      if ((packetSpecAnchor || '').trim() !== (hydration.specAnchorPrimary || '').trim()) errors.push('SPEC_ANCHOR in the packet drifted from the signed refinement');
+      if (!sameList(packetFilesToOpen, hydration.filesToOpen || [])) errors.push('BOOTSTRAP FILES_TO_OPEN in the packet drifted from the signed refinement');
+      if (!sameList(packetSearchTerms, hydration.searchTerms || [])) errors.push('BOOTSTRAP SEARCH_TERMS in the packet drifted from the signed refinement');
+      if (normalizeBlock(packetRunCommands) !== normalizeBlock(hydration.runCommands || '')) errors.push('BOOTSTRAP RUN_COMMANDS in the packet drifted from the signed refinement');
+      if (!sameList(packetRiskMap, hydration.riskMap || [])) errors.push('BOOTSTRAP RISK_MAP in the packet drifted from the signed refinement');
+
+      if (/^YES$/i.test(refinementData.uiApplicable || '')) {
+        if (!sameList(packetUiSurfaces, refinementData.uiSpec?.surfaces || [])) errors.push('UI_SURFACES in the packet drifted from the signed refinement');
+        if (!sameList(packetUiControls, refinementData.uiSpec?.controls || [])) errors.push('UI_CONTROLS in the packet drifted from the signed refinement');
+        if (!sameList(packetUiStates, refinementData.uiSpec?.states || [])) errors.push('UI_STATES in the packet drifted from the signed refinement');
+        if (!sameList(packetUiMicrocopy, refinementData.uiSpec?.microcopy || [])) errors.push('UI_MICROCOPY_NOTES in the packet drifted from the signed refinement');
+        if (!sameList(packetUiAccessibility, refinementData.uiSpec?.accessibility || [])) errors.push('UI_ACCESSIBILITY_NOTES in the packet drifted from the signed refinement');
+      }
+
+      const forbiddenPlaceholders = [
+        '{user or source}',
+        '{orchestrator agent ID}',
+        'path/to/file',
+        'measurable criterion 1',
+        'measurable criterion 2',
+        '# ...task-specific commands...',
+        '<fill>',
+      ];
+      for (const token of forbiddenPlaceholders) {
+        if (packetContent.includes(token)) {
+          errors.push(`HYDRATED_RESEARCH_V1 packets must not contain placeholder token: ${token}`);
+        }
+      }
     }
 
     // Safety checkpoint gate: packet + refinement must be committed before development starts.

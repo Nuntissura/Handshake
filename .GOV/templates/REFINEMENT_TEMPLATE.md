@@ -12,6 +12,7 @@ Requirements (HARD):
 ### METADATA
 - WP_ID: {{WP_ID}}
 - REFINEMENT_FORMAT_VERSION: 2026-03-06
+- REFINEMENT_ENFORCEMENT_PROFILE: HYDRATED_RESEARCH_V1
 - CREATED_AT: {{DATE_ISO}}
 - SPEC_TARGET_RESOLVED: .GOV/roles_shared/SPEC_CURRENT.md -> {{SPEC_TARGET_RESOLVED}}
 - SPEC_TARGET_SHA1: {{SPEC_TARGET_SHA1}}
@@ -35,6 +36,18 @@ Requirements (HARD):
 - SPEC_IMPACT: PENDING (YES | NO)
 - SPEC_IMPACT_REASON: <fill; if YES, point to Main Body and/or EOF Appendix blocks that must change>
 
+### RESEARCH_CURRENCY (current external signal scan; mandatory unless the WP is strictly internal/mechanical)
+- RESEARCH_CURRENCY_REQUIRED: PENDING (YES | NO)
+- RESEARCH_CURRENCY_REASON_NO: <fill if RESEARCH_CURRENCY_REQUIRED=NO>
+- SOURCE_MAX_AGE_DAYS: <fill integer 30-730; if RESEARCH_CURRENCY_REQUIRED=NO write N/A>
+- SOURCE_LOG:
+  - Source: <title> | Kind: <BIG_TECH|UNIVERSITY|PAPER|GITHUB|OSS_DOC> | Date: <YYYY-MM-DD> | URL: <https://...> | Why: <fill>
+- RESEARCH_SYNTHESIS:
+  - <fill; what improves Handshake or what to avoid>
+- RESEARCH_GAPS_TO_TRACK:
+  - <fill; write NONE if none>
+- RESEARCH_CURRENCY_VERDICT: PENDING (CURRENT | STALE | NOT_APPLICABLE)
+
 ### FLIGHT_RECORDER_INTERACTION (event IDs + telemetry triggers)
 - <fill; write NONE if not applicable>
 
@@ -54,6 +67,18 @@ Requirements (HARD):
 - PRIMITIVE_INDEX_REASON_NO_CHANGE: <fill if PRIMITIVE_INDEX_ACTION=NO_CHANGE>
 - PRIMITIVE_INDEX_UPDATE_NOTES:
   - <fill>
+
+### APPENDIX_MAINTENANCE (spec appendix follow-through)
+- Rule: if any appendix action below is `UPDATED`, this refinement is declaring a Master Spec version bump. In that case set `APPENDIX_MAINTENANCE_VERDICT=NEEDS_SPEC_UPDATE`, set `SPEC_IMPACT=YES`, set `ENRICHMENT_NEEDED=YES`, and include the verbatim appendix update text in `PROPOSED_SPEC_ENRICHMENT`. Packet creation stays blocked until the new spec version exists and `SPEC_CURRENT` is advanced.
+- FEATURE_REGISTRY_ACTION: PENDING (UPDATED | NO_CHANGE)
+- FEATURE_REGISTRY_REASON_NO_CHANGE: <fill if FEATURE_REGISTRY_ACTION=NO_CHANGE>
+- UI_GUIDANCE_ACTION: PENDING (UPDATED | NO_CHANGE | NOT_APPLICABLE)
+- UI_GUIDANCE_REASON: <fill>
+- INTERACTION_MATRIX_ACTION: PENDING (UPDATED | NO_CHANGE)
+- INTERACTION_MATRIX_REASON_NO_CHANGE: <fill if INTERACTION_MATRIX_ACTION=NO_CHANGE>
+- APPENDIX_MAINTENANCE_NOTES:
+  - <fill>
+- APPENDIX_MAINTENANCE_VERDICT: PENDING (OK | NEEDS_SPEC_UPDATE | NEEDS_STUBS)
 
 ### PILLAR_ALIGNMENT (Handshake pillars cross-check)
 - Rule: Refinement MUST explicitly consider pillar alignment and interconnections (force multipliers). If unknown, write UNKNOWN and create stubs instead of guessing.
@@ -125,6 +150,40 @@ Requirements (HARD):
   - Distillation Track:
   - Vertical slice:
 
+### PACKET_HYDRATION (task packet auto-fill; mandatory for HYDRATED_RESEARCH_V1)
+- PACKET_HYDRATION_PROFILE: HYDRATED_RESEARCH_V1
+- REQUESTOR: Operator
+- AGENT_ID: Orchestrator
+- RISK_TIER: <LOW|MEDIUM|HIGH>
+- BUILD_ORDER_DOMAIN: <BACKEND|FRONTEND|GOV|CROSS_BOUNDARY>
+- BUILD_ORDER_TECH_BLOCKER: <YES|NO>
+- BUILD_ORDER_VALUE_TIER: <LOW|MEDIUM|HIGH>
+- BUILD_ORDER_DEPENDS_ON: <comma-separated Base WP IDs | NONE>
+- BUILD_ORDER_BLOCKS: <comma-separated Base WP IDs | NONE>
+- SPEC_ANCHOR_PRIMARY: <fill; packet-level anchor summary or exact anchor string>
+- WHAT: <fill; 1-2 sentence scope summary>
+- WHY: <fill; 1-2 sentence rationale>
+- IN_SCOPE_PATHS:
+  - <fill>
+- OUT_OF_SCOPE:
+  - <fill>
+- TEST_PLAN:
+  ```bash
+  <fill exact commands>
+  ```
+- DONE_MEANS:
+  - <fill>
+- FILES_TO_OPEN:
+  - <fill>
+- SEARCH_TERMS:
+  - <fill>
+- RUN_COMMANDS:
+  ```bash
+  <fill exact commands>
+  ```
+- RISK_MAP:
+  - "<risk>" -> "<impact>"
+
 ### CLEARLY_COVERS (5-point checklist)
 - Appears in Main Body: [ ] PASS
 - Explicitly named: [ ] PASS
@@ -137,10 +196,11 @@ Requirements (HARD):
 - AMBIGUITY_REASON: <fill; write NONE if AMBIGUITY_FOUND=NO>
 
 ### ENRICHMENT
+- Rule: `ENRICHMENT_NEEDED=YES` is required both for Main Body gaps and for appendix-driven spec version bumps. Appendix-only updates still count as a spec update boundary.
 - ENRICHMENT_NEEDED: PENDING
 - REASON_NO_ENRICHMENT: <fill if ENRICHMENT_NEEDED=NO>
 
-#### PROPOSED_SPEC_ENRICHMENT (VERBATIM) (required if ENRICHMENT_NEEDED=YES)
+#### PROPOSED_SPEC_ENRICHMENT (VERBATIM) (required if ENRICHMENT_NEEDED=YES; includes appendix-only spec updates)
 ```md
 <not applicable; ENRICHMENT_NEEDED=NO>
 ```

@@ -54,11 +54,36 @@ Rules:
 - UI_MICROCOPY_NOTES (labels, helper text, hover explainers):
   - <fill>
 
+## RESEARCH_SCOUTING (DRAFT)
+- RESEARCH_CURRENCY_REQUIRED: <YES|NO>
+- TARGET_BUCKETS:
+  - BIG_TECH
+  - UNIVERSITY|PAPER
+  - GITHUB|OSS_DOC
+- SEARCH_SEEDS:
+  - <fill>
+- CANDIDATE_SOURCES:
+  - Source: <title> | Kind: <BIG_TECH|UNIVERSITY|PAPER|GITHUB|OSS_DOC> | Date: <YYYY-MM-DD> | URL: <https://...> | Why: <fill>
+
+## PILLAR_FORCE_MULTIPLIERS (DRAFT)
+- TOUCHED_OR_UNKNOWN_PILLARS:
+  - PILLAR: <fill> | STATUS: <TOUCHED|UNKNOWN> | NOTES: <fill> | Stub follow-up: <THIS_STUB|WP-...|NONE>
+
 ## PRIMITIVES_AND_MATRIX_NOTES (DRAFT)
 - PRIMITIVES_TOUCHED:
   - PRIM-<fill> (or NONE)
 - PRIMITIVE_MATRIX_COMBO_CANDIDATES:
   - Edge: <from_kind/from_id> -> <to_kind/to_id> | ROI: <H|M|L> | Effort: <H|M|L> | Notes: <fill>
+
+## APPENDIX_MAINTENANCE_NOTES (DRAFT)
+- FEATURE_REGISTRY:
+  - <fill>
+- PRIMITIVE_INDEX:
+  - <fill>
+- UI_GUIDANCE:
+  - <fill>
+- INTERACTION_MATRIX:
+  - <fill>
 
 ## ACCEPTANCE_CRITERIA (DRAFT)
 - ...
@@ -71,6 +96,9 @@ Rules:
 
 ## ACTIVATION_CHECKLIST (REQUIRED BEFORE ANY CODING)
 - [ ] Confirm the requirement exists in Master Spec Main Body (not just Roadmap).
+- [ ] Draft research scouting across BIG_TECH, UNIVERSITY/PAPER, and GITHUB/OSS sources unless the work is strictly internal/mechanical.
+- [ ] Draft pillar force multipliers and primitive-matrix combo candidates; create extra stubs instead of guessing.
+- [ ] If refinement is likely to grow the primitive index, feature registry, UI guidance, or interaction matrix, treat activation as a spec-version update flow first, then re-activate the WP against the new `SPEC_CURRENT`.
 - [ ] Produce the in-chat Technical Refinement Block (per `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`).
 - [ ] Obtain USER_SIGNATURE for the WP.
 - [ ] Create `.GOV/refinements/{{WP_ID}}.md` (approved/signed).

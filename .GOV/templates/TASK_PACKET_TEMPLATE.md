@@ -8,6 +8,7 @@ Requirements:
 - Use SPEC_TARGET as the authoritative spec for closure/revalidation (usually .GOV/roles_shared/SPEC_CURRENT.md).
 - WP_ID and filename MUST NOT include date/time stamps; use `-v{N}` for revisions (e.g., `WP-1-Tokenization-Service-v3`).
 - If multiple packets exist for the same Base WP, update `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet).
+- For `REFINEMENT_ENFORCEMENT_PROFILE: HYDRATED_RESEARCH_V1`, this packet is auto-hydrated from the signed refinement; manual drift is forbidden and `just pre-work` enforces alignment.
 
 ---
 
@@ -22,6 +23,8 @@ Requirements:
 - REQUESTOR: {{REQUESTOR}}
 - AGENT_ID: {{AGENT_ID}}
 - ROLE: Orchestrator
+- REFINEMENT_ENFORCEMENT_PROFILE: <pending>
+- PACKET_HYDRATION_PROFILE: <pending>
 - AGENTIC_MODE: <pending>
 <!-- Allowed: YES | NO -->
 - ORCHESTRATOR_MODEL: <pending>
@@ -74,10 +77,27 @@ Next: N/A
 - REFINEMENT_FILE: .GOV/refinements/{{WP_ID}}.md
 - Rule: Task packet creation is blocked until refinement is complete and signed.
 
+## RESEARCH_SIGNAL (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
+- RESEARCH_CURRENCY_REQUIRED: <fill> (YES | NO)
+- RESEARCH_CURRENCY_VERDICT: <fill> (CURRENT | STALE | NOT_APPLICABLE)
+- SOURCE_LOG:
+  - [<KIND>] <title> | <YYYY-MM-DD> | <https://...> | Why: <fill>
+- RESEARCH_SYNTHESIS:
+  - <fill>
+
 ## PRIMITIVES_AND_MATRIX (REFINEMENT OUTPUT; REQUIRED)
 - PRIMITIVES_TOUCHED:
   - PRIM-<fill> (or NONE)
 - PRIMITIVE_INDEX_ACTION: <fill> (UPDATED | NO_CHANGE)
+- FEATURE_REGISTRY_ACTION: <fill> (UPDATED | NO_CHANGE)
+- UI_GUIDANCE_ACTION: <fill> (UPDATED | NO_CHANGE | NOT_APPLICABLE)
+- INTERACTION_MATRIX_ACTION: <fill> (UPDATED | NO_CHANGE)
+- APPENDIX_MAINTENANCE_VERDICT: <fill> (OK | NEEDS_SPEC_UPDATE | NEEDS_STUBS)
+- PILLAR_ALIGNMENT_VERDICT: <fill> (OK | NEEDS_SPEC_UPDATE | NEEDS_STUBS)
+- PILLARS_TOUCHED:
+  - <fill> (or NONE)
+- PILLARS_REQUIRING_STUBS:
+  - <fill> (or NONE)
 - PRIMITIVE_MATRIX_VERDICT: <fill> (OK | NEEDS_STUBS | NONE_FOUND)
 - STUB_WP_IDS: <fill> (comma-separated WP-... IDs | NONE)
 
@@ -149,6 +169,7 @@ git revert <commit-sha>
 
 ## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
 - Principle: prefer enumerating "too many" controls early, consolidate later.
+- For `PACKET_HYDRATION_PROFILE: HYDRATED_RESEARCH_V1`, this section is copied from the signed refinement and should not drift.
 - Include minimalistic in-UI explainers (prefer hover tooltips), and ensure tooltips are accessible (hover + keyboard focus; dismissible; avoid violating WCAG 1.4.13).
 - UI_SURFACES:
   - <fill; screens/panels/dialogs/menus>

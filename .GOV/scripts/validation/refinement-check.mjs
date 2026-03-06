@@ -176,10 +176,111 @@ function isIsoDate(s) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(s || '').trim());
 }
 
+function parseIsoDateUtc(s) {
+  const value = String(s || '').trim();
+  if (!isIsoDate(value)) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function isVersionAtLeast(isoDate, minIsoDate) {
   if (!isIsoDate(isoDate) || !isIsoDate(minIsoDate)) return false;
   // ISO date strings are lexicographically comparable.
   return isoDate >= minIsoDate;
+}
+
+function isPositiveIntegerString(s) {
+  return /^\d+$/.test(String(s || '').trim());
+}
+
+function normalizeCsv(value) {
+  const raw = String(value || '').trim();
+  if (!raw || /^NONE$/i.test(raw)) return [];
+  return raw.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+function parsePipeRecord(item) {
+  const record = {};
+  for (const part of String(item || '').split('|')) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const idx = trimmed.indexOf(':');
+    if (idx === -1) continue;
+    const key = trimmed.slice(0, idx).trim().toUpperCase().replace(/\s+/g, '_');
+    const value = trimmed.slice(idx + 1).trim();
+    record[key] = value;
+  }
+  return record;
+}
+
+function parsePillarRubric(lines) {
+  const pillars = [];
+  const re = /^\s*-\s*PILLAR:\s*(.+?)\s*\|\s*STATUS:\s*(TOUCHED|NOT_TOUCHED|UNKNOWN)\s*\|\s*NOTES:\s*(.+?)\s*\|\s*STUB_WP_IDS:\s*(.+)\s*$/i;
+  for (const line of lines) {
+    const m = line.match(re);
+    if (!m) continue;
+    pillars.push({
+      pillar: m[1].trim(),
+      status: m[2].trim().toUpperCase(),
+      notes: m[3].trim(),
+      stubWpIdsRaw: m[4].trim(),
+      stubWpIds: normalizeCsv(m[4]),
+    });
+  }
+  return pillars;
+}
+
+function validateStubIds(rawValue, errors, label) {
+  const raw = String(rawValue || '').trim();
+  if (isPlaceholderValue(raw)) {
+    errors.push(`${label} must be set (comma-separated WP-... IDs or NONE)`);
+    return [];
+  }
+  if (/^NONE$/i.test(raw)) return [];
+
+  const ids = normalizeCsv(raw);
+  if (ids.length === 0) {
+    errors.push(`${label} must be NONE or a comma-separated list of WP-... IDs`);
+    return [];
+  }
+
+  for (const id of ids) {
+    if (!/^WP-[A-Za-z0-9][A-Za-z0-9-]*$/i.test(id)) {
+      errors.push(`${label} contains invalid WP id: ${id}`);
+      continue;
+    }
+    const stubPath = path.join('.GOV', 'task_packets', 'stubs', `${id}.md`);
+    if (!fs.existsSync(stubPath)) {
+      errors.push(`Stub referenced in ${label} does not exist: ${stubPath.replace(/\\/g, '/')}`);
+    }
+  }
+  return ids;
+}
+
+function validateBaseWpIds(rawValue, errors, label) {
+  const raw = String(rawValue || '').trim();
+  if (isPlaceholderValue(raw)) {
+    errors.push(`${label} must be set (comma-separated Base WP IDs or NONE)`);
+    return [];
+  }
+  if (/^NONE$/i.test(raw)) return [];
+
+  const ids = normalizeCsv(raw);
+  if (ids.length === 0) {
+    errors.push(`${label} must be NONE or a comma-separated list of Base WP IDs`);
+    return [];
+  }
+
+  for (const id of ids) {
+    if (!/^WP-[A-Za-z0-9][A-Za-z0-9-]*$/i.test(id)) {
+      errors.push(`${label} contains invalid Base WP id: ${id}`);
+      continue;
+    }
+    if (/-v\d+$/i.test(id)) {
+      errors.push(`${label} must use Base WP IDs only (no -vN revisions): ${id}`);
+    }
+  }
+  return ids;
 }
 
 function extractIndentedListAfterLabel(lines, label) {
@@ -228,6 +329,63 @@ function extractAppendixJson(specContent, appendixId) {
 
 export function validateRefinementFile(refinementPath, { expectedWpId, requireSignature } = {}) {
   const errors = [];
+  const parsed = {
+    wpId: '',
+    reviewStatus: '',
+    signature: '',
+    refinementFormatVersion: '',
+    refinementEnforcementProfile: '',
+    stubWpIdsRaw: '',
+    stubWpIds: [],
+    uiApplicable: '',
+    uiVerdict: '',
+    primitiveIndexAction: '',
+    primitiveMatrixVerdict: '',
+    pillarAlignmentVerdict: '',
+    appendixMaintenanceVerdict: '',
+    appendixSpecUpdateRequired: false,
+    featureRegistryAction: '',
+    uiGuidanceAction: '',
+    interactionMatrixAction: '',
+    researchCurrencyRequired: '',
+    researchCurrencyVerdict: '',
+    researchSources: [],
+    researchSynthesis: [],
+    primitivesTouched: [],
+    pillarsTouched: [],
+    pillarsRequiringStubs: [],
+    packetHydrationProfile: '',
+    packetHydration: {
+      requestor: '',
+      agentId: '',
+      riskTier: '',
+      buildOrderDomain: '',
+      buildOrderTechBlocker: '',
+      buildOrderValueTier: '',
+      buildOrderDependsOnRaw: '',
+      buildOrderDependsOn: [],
+      buildOrderBlocksRaw: '',
+      buildOrderBlocks: [],
+      specAnchorPrimary: '',
+      what: '',
+      why: '',
+      inScopePaths: [],
+      outOfScope: [],
+      testPlan: '',
+      doneMeans: [],
+      filesToOpen: [],
+      searchTerms: [],
+      runCommands: '',
+      riskMap: [],
+    },
+    uiSpec: {
+      surfaces: [],
+      controls: [],
+      states: [],
+      microcopy: [],
+      accessibility: [],
+    },
+  };
 
   if (!fs.existsSync(refinementPath)) {
     errors.push(`Missing refinement file: ${refinementPath}`);
@@ -243,14 +401,22 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
   }
 
   const wpId = getSingleField(content, 'WP_ID');
+  parsed.wpId = wpId;
   if (expectedWpId && wpId !== expectedWpId) {
     errors.push(`WP_ID mismatch in refinement: expected ${expectedWpId}, got ${wpId || '<missing>'}`);
   }
 
   const refinementFormatVersion = getSingleField(content, 'REFINEMENT_FORMAT_VERSION');
+  parsed.refinementFormatVersion = refinementFormatVersion;
   const isModernRefinement = isVersionAtLeast(refinementFormatVersion, '2026-03-06');
   if (refinementFormatVersion && !isIsoDate(refinementFormatVersion)) {
     errors.push('REFINEMENT_FORMAT_VERSION must be YYYY-MM-DD (ISO date)');
+  }
+  const refinementEnforcementProfile = getSingleField(content, 'REFINEMENT_ENFORCEMENT_PROFILE');
+  parsed.refinementEnforcementProfile = refinementEnforcementProfile;
+  const isHydratedResearchProfile = /^HYDRATED_RESEARCH_V1$/i.test(refinementEnforcementProfile || '');
+  if (refinementEnforcementProfile && !isHydratedResearchProfile) {
+    errors.push('REFINEMENT_ENFORCEMENT_PROFILE must be HYDRATED_RESEARCH_V1 when present');
   }
 
   // Resolve SPEC_CURRENT and validate resolved spec + sha1.
@@ -292,31 +458,22 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       ]
     : ['GAPS_IDENTIFIED', 'FLIGHT_RECORDER_INTERACTION', 'RED_TEAM_ADVISORY', 'PRIMITIVES'];
 
+  if (isHydratedResearchProfile) {
+    requiredSections.splice(2, 0, 'RESEARCH_CURRENCY');
+    requiredSections.splice(6, 0, 'APPENDIX_MAINTENANCE');
+    requiredSections.splice(requiredSections.indexOf('CLEARLY_COVERS'), 0, 'PACKET_HYDRATION');
+  }
+
   requiredSections.forEach((h) => {
     if (!hasHeading(content, h)) errors.push(`Missing required section heading: ${h}`);
   });
 
+  const lines = content.split('\n');
+
   if (isModernRefinement) {
     const stubWpIdsRaw = getSingleField(content, 'STUB_WP_IDS');
-    if (isPlaceholderValue(stubWpIdsRaw)) {
-      errors.push('STUB_WP_IDS must be set (comma-separated WP-... IDs or NONE)');
-    } else if (!/^NONE$/i.test(stubWpIdsRaw)) {
-      const ids = stubWpIdsRaw.split(',').map((s) => s.trim()).filter(Boolean);
-      if (ids.length === 0) {
-        errors.push('STUB_WP_IDS must be NONE or a comma-separated list of WP-... IDs');
-      } else {
-        for (const id of ids) {
-          if (!/^WP-[A-Za-z0-9][A-Za-z0-9-]*$/i.test(id)) {
-            errors.push(`STUB_WP_IDS contains invalid WP id: ${id}`);
-            continue;
-          }
-          const stubPath = path.join('.GOV', 'task_packets', 'stubs', `${id}.md`);
-          if (!fs.existsSync(stubPath)) {
-            errors.push(`Stub referenced in STUB_WP_IDS does not exist: ${stubPath.replace(/\\/g, '/')}`);
-          }
-        }
-      }
-    }
+    parsed.stubWpIdsRaw = stubWpIdsRaw;
+    parsed.stubWpIds = validateStubIds(stubWpIdsRaw, errors, 'STUB_WP_IDS');
 
     // LANDSCAPE_SCAN minimums (enforced for modern refinements).
     const lsTimebox = getSingleField(content, 'TIMEBOX');
@@ -335,8 +492,120 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     if (!/^(YES|NO)$/i.test(lsSpecImpact || '')) errors.push('LANDSCAPE_SCAN SPEC_IMPACT must be YES or NO');
     if (isPlaceholderValue(lsSpecImpactReason)) errors.push('LANDSCAPE_SCAN SPEC_IMPACT_REASON must be filled');
 
+    if (isHydratedResearchProfile) {
+      const researchRequired = getSingleField(content, 'RESEARCH_CURRENCY_REQUIRED');
+      const researchReasonNo = getSingleField(content, 'RESEARCH_CURRENCY_REASON_NO');
+      const sourceMaxAgeRaw = getSingleField(content, 'SOURCE_MAX_AGE_DAYS');
+      const sourceLog = extractIndentedListAfterLabel(lines, 'SOURCE_LOG');
+      const researchSynthesis = extractIndentedListAfterLabel(lines, 'RESEARCH_SYNTHESIS');
+      const researchGaps = extractIndentedListAfterLabel(lines, 'RESEARCH_GAPS_TO_TRACK');
+      const researchVerdict = getSingleField(content, 'RESEARCH_CURRENCY_VERDICT');
+
+      parsed.researchCurrencyRequired = (researchRequired || '').toUpperCase();
+      parsed.researchCurrencyVerdict = (researchVerdict || '').toUpperCase();
+
+      if (!/^(YES|NO)$/i.test(researchRequired || '')) {
+        errors.push('RESEARCH_CURRENCY_REQUIRED must be YES or NO');
+      }
+      if (!/^(CURRENT|STALE|NOT_APPLICABLE)$/i.test(researchVerdict || '')) {
+        errors.push('RESEARCH_CURRENCY_VERDICT must be CURRENT | STALE | NOT_APPLICABLE');
+      }
+      if (!researchSynthesis.found || researchSynthesis.items.length === 0 || researchSynthesis.items.some((s) => isPlaceholderValue(s))) {
+        errors.push('RESEARCH_CURRENCY RESEARCH_SYNTHESIS must be filled (use NONE only if truly not applicable)');
+      }
+      if (!researchGaps.found || researchGaps.items.length === 0 || researchGaps.items.some((s) => isPlaceholderValue(s))) {
+        errors.push('RESEARCH_CURRENCY RESEARCH_GAPS_TO_TRACK must be filled (use NONE if none)');
+      }
+
+      if (/^YES$/i.test(researchRequired || '')) {
+        if (!isPositiveIntegerString(sourceMaxAgeRaw)) {
+          errors.push('SOURCE_MAX_AGE_DAYS must be an integer when RESEARCH_CURRENCY_REQUIRED=YES');
+        } else {
+          const maxAgeDays = parseInt(sourceMaxAgeRaw, 10);
+          if (maxAgeDays < 30 || maxAgeDays > 730) {
+            errors.push('SOURCE_MAX_AGE_DAYS must be between 30 and 730');
+          }
+        }
+
+        if (!sourceLog.found || sourceLog.items.length < 3) {
+          errors.push('RESEARCH_CURRENCY SOURCE_LOG must include at least 3 sources when RESEARCH_CURRENCY_REQUIRED=YES');
+        }
+
+        const categories = new Set();
+        let freshSources = 0;
+        const maxAgeDays = isPositiveIntegerString(sourceMaxAgeRaw) ? parseInt(sourceMaxAgeRaw, 10) : null;
+        parsed.researchSources = [];
+
+        for (const item of sourceLog.items) {
+          if (/^NONE$/i.test(item)) {
+            errors.push('RESEARCH_CURRENCY SOURCE_LOG cannot contain NONE when RESEARCH_CURRENCY_REQUIRED=YES');
+            continue;
+          }
+          const record = parsePipeRecord(item);
+          const source = record.SOURCE || '';
+          const kind = (record.KIND || '').toUpperCase();
+          const dateStr = record.DATE || '';
+          const url = record.URL || '';
+          const why = record.WHY || '';
+          parsed.researchSources.push({ source, kind, date: dateStr, url, why });
+
+          if (isPlaceholderValue(source)) errors.push(`RESEARCH_CURRENCY SOURCE_LOG entry missing Source: ${item}`);
+          if (!/^(BIG_TECH|UNIVERSITY|PAPER|GITHUB|OSS_DOC)$/i.test(kind)) {
+            errors.push(`RESEARCH_CURRENCY SOURCE_LOG Kind must be BIG_TECH | UNIVERSITY | PAPER | GITHUB | OSS_DOC (got: ${kind || '<missing>'})`);
+          } else if (kind === 'BIG_TECH') {
+            categories.add('BIG_TECH');
+          } else if (kind === 'UNIVERSITY' || kind === 'PAPER') {
+            categories.add('UNIVERSITY_OR_PAPER');
+          } else {
+            categories.add('GITHUB_OR_OSS');
+          }
+          const sourceDate = parseIsoDateUtc(dateStr);
+          if (!sourceDate) {
+            errors.push(`RESEARCH_CURRENCY SOURCE_LOG Date must be YYYY-MM-DD (got: ${dateStr || '<missing>'})`);
+          } else {
+            const ageDays = Math.floor((Date.now() - sourceDate.getTime()) / 86400000);
+            if (ageDays < 0) errors.push(`RESEARCH_CURRENCY SOURCE_LOG Date cannot be in the future: ${dateStr}`);
+            if (maxAgeDays !== null && ageDays >= 0 && ageDays <= maxAgeDays) freshSources += 1;
+          }
+          if (!/^https:\/\/\S+$/i.test(url)) {
+            errors.push(`RESEARCH_CURRENCY SOURCE_LOG URL must be https://... (got: ${url || '<missing>'})`);
+          }
+          if (isPlaceholderValue(why)) {
+            errors.push(`RESEARCH_CURRENCY SOURCE_LOG Why must be filled for source: ${source || '<missing>'}`);
+          }
+        }
+
+        if (!categories.has('BIG_TECH')) errors.push('RESEARCH_CURRENCY SOURCE_LOG must include at least one BIG_TECH source');
+        if (!categories.has('UNIVERSITY_OR_PAPER')) errors.push('RESEARCH_CURRENCY SOURCE_LOG must include at least one UNIVERSITY or PAPER source');
+        if (!categories.has('GITHUB_OR_OSS')) errors.push('RESEARCH_CURRENCY SOURCE_LOG must include at least one GITHUB or OSS_DOC source');
+        if (maxAgeDays !== null && freshSources === 0) {
+          errors.push('RESEARCH_CURRENCY SOURCE_LOG must include at least one source within SOURCE_MAX_AGE_DAYS');
+        }
+        if (researchSynthesis.items.filter((s) => !isPlaceholderValue(s) && !/^NONE$/i.test(s)).length === 0) {
+          errors.push('RESEARCH_CURRENCY RESEARCH_SYNTHESIS must include at least one concrete insight');
+        }
+        if (!/^CURRENT$/i.test(researchVerdict || '')) {
+          errors.push('RESEARCH_CURRENCY_REQUIRED=YES requires RESEARCH_CURRENCY_VERDICT=CURRENT');
+        }
+      } else if (/^NO$/i.test(researchRequired || '')) {
+        if (isPlaceholderValue(researchReasonNo)) {
+          errors.push('RESEARCH_CURRENCY_REASON_NO is required when RESEARCH_CURRENCY_REQUIRED=NO');
+        }
+        if (!/^(N\/A|NONE)$/i.test(sourceMaxAgeRaw || '')) {
+          errors.push('SOURCE_MAX_AGE_DAYS must be N/A or NONE when RESEARCH_CURRENCY_REQUIRED=NO');
+        }
+        if (!sourceLog.found || sourceLog.items.length === 0 || sourceLog.items.some((item) => !/^NONE$/i.test(item))) {
+          errors.push('RESEARCH_CURRENCY_REQUIRED=NO requires SOURCE_LOG to be a single NONE entry');
+        }
+        if (!/^NOT_APPLICABLE$/i.test(researchVerdict || '')) {
+          errors.push('RESEARCH_CURRENCY_REQUIRED=NO requires RESEARCH_CURRENCY_VERDICT=NOT_APPLICABLE');
+        }
+      }
+
+      parsed.researchSynthesis = researchSynthesis.items.filter((s) => !/^NONE$/i.test(s));
+    }
+
     // PRIMITIVES section minimums.
-    const lines = content.split('\n');
     const primTouched = extractIndentedListAfterLabel(lines, 'PRIMITIVES_TOUCHED (IDs)');
     const primNewOrUpdated = extractIndentedListAfterLabel(lines, 'PRIMITIVES_NEW_OR_UPDATED (IDs)');
 
@@ -367,9 +636,11 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
 
     addPrimIdsFromList('PRIMITIVES_TOUCHED (IDs)', primTouched, { requireSome: true });
     addPrimIdsFromList('PRIMITIVES_NEW_OR_UPDATED (IDs)', primNewOrUpdated, { requireSome: false });
+    parsed.primitivesTouched = Array.from(primIds);
 
     // PRIMITIVE_INDEX gate.
     const primIndexAction = getSingleField(content, 'PRIMITIVE_INDEX_ACTION');
+    parsed.primitiveIndexAction = (primIndexAction || '').toUpperCase();
     if (!/^(UPDATED|NO_CHANGE)$/i.test(primIndexAction || '')) {
       errors.push('PRIMITIVE_INDEX_ACTION must be UPDATED or NO_CHANGE');
     }
@@ -419,6 +690,64 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       }
     }
 
+    if (isHydratedResearchProfile) {
+      const featureRegistryAction = getSingleField(content, 'FEATURE_REGISTRY_ACTION');
+      const featureRegistryReason = getSingleField(content, 'FEATURE_REGISTRY_REASON_NO_CHANGE');
+      const uiGuidanceAction = getSingleField(content, 'UI_GUIDANCE_ACTION');
+      const uiGuidanceReason = getSingleField(content, 'UI_GUIDANCE_REASON');
+      const interactionMatrixAction = getSingleField(content, 'INTERACTION_MATRIX_ACTION');
+      const interactionMatrixReason = getSingleField(content, 'INTERACTION_MATRIX_REASON_NO_CHANGE');
+      const appendixNotes = extractIndentedListAfterLabel(lines, 'APPENDIX_MAINTENANCE_NOTES');
+      const appendixVerdict = getSingleField(content, 'APPENDIX_MAINTENANCE_VERDICT');
+
+      parsed.featureRegistryAction = (featureRegistryAction || '').toUpperCase();
+      parsed.uiGuidanceAction = (uiGuidanceAction || '').toUpperCase();
+      parsed.interactionMatrixAction = (interactionMatrixAction || '').toUpperCase();
+      parsed.appendixMaintenanceVerdict = (appendixVerdict || '').toUpperCase();
+      parsed.appendixSpecUpdateRequired =
+        parsed.featureRegistryAction === 'UPDATED'
+        || parsed.uiGuidanceAction === 'UPDATED'
+        || parsed.interactionMatrixAction === 'UPDATED'
+        || parsed.primitiveIndexAction === 'UPDATED';
+
+      if (!/^(UPDATED|NO_CHANGE)$/i.test(featureRegistryAction || '')) {
+        errors.push('FEATURE_REGISTRY_ACTION must be UPDATED or NO_CHANGE');
+      }
+      if (/^NO_CHANGE$/i.test(featureRegistryAction || '') && isPlaceholderValue(featureRegistryReason)) {
+        errors.push('FEATURE_REGISTRY_REASON_NO_CHANGE is required when FEATURE_REGISTRY_ACTION=NO_CHANGE');
+      }
+
+      if (!/^(UPDATED|NO_CHANGE|NOT_APPLICABLE)$/i.test(uiGuidanceAction || '')) {
+        errors.push('UI_GUIDANCE_ACTION must be UPDATED | NO_CHANGE | NOT_APPLICABLE');
+      }
+      if (isPlaceholderValue(uiGuidanceReason)) {
+        errors.push('UI_GUIDANCE_REASON must be filled');
+      }
+
+      if (!/^(UPDATED|NO_CHANGE)$/i.test(interactionMatrixAction || '')) {
+        errors.push('INTERACTION_MATRIX_ACTION must be UPDATED or NO_CHANGE');
+      }
+      if (/^NO_CHANGE$/i.test(interactionMatrixAction || '') && isPlaceholderValue(interactionMatrixReason)) {
+        errors.push('INTERACTION_MATRIX_REASON_NO_CHANGE is required when INTERACTION_MATRIX_ACTION=NO_CHANGE');
+      }
+
+      if (!appendixNotes.found || appendixNotes.items.filter((s) => !isPlaceholderValue(s)).length === 0) {
+        errors.push('APPENDIX_MAINTENANCE_NOTES must include at least one concrete note');
+      }
+      if (!/^(OK|NEEDS_SPEC_UPDATE|NEEDS_STUBS)$/i.test(appendixVerdict || '')) {
+        errors.push('APPENDIX_MAINTENANCE_VERDICT must be OK | NEEDS_SPEC_UPDATE | NEEDS_STUBS');
+      }
+      if (parsed.appendixSpecUpdateRequired && parsed.appendixMaintenanceVerdict !== 'NEEDS_SPEC_UPDATE') {
+        errors.push('Any appendix action marked UPDATED requires APPENDIX_MAINTENANCE_VERDICT=NEEDS_SPEC_UPDATE');
+      }
+      if (!parsed.appendixSpecUpdateRequired && parsed.appendixMaintenanceVerdict === 'NEEDS_SPEC_UPDATE') {
+        errors.push('APPENDIX_MAINTENANCE_VERDICT=NEEDS_SPEC_UPDATE requires at least one appendix action to be UPDATED');
+      }
+      if (parsed.appendixSpecUpdateRequired && !/^YES$/i.test(lsSpecImpact || '')) {
+        errors.push('Any appendix action marked UPDATED requires LANDSCAPE_SCAN SPEC_IMPACT=YES');
+      }
+    }
+
     // PILLAR_ALIGNMENT rubric lines.
     const pillars = [
       'Flight Recorder',
@@ -448,9 +777,36 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
         errors.push(`PILLAR_ALIGNMENT missing/invalid rubric line for pillar: ${p}`);
       }
     }
+    const pillarRows = parsePillarRubric(lines);
+    const pillarStubUnion = new Set();
+    for (const row of pillarRows) {
+      if (isPlaceholderValue(row.notes)) {
+        errors.push(`PILLAR ${row.pillar} NOTES must be filled`);
+      }
+      const rowStubIds = validateStubIds(row.stubWpIdsRaw, errors, `PILLAR ${row.pillar} STUB_WP_IDS`);
+      row.stubWpIds = rowStubIds;
+      if (row.status === 'UNKNOWN' && rowStubIds.length === 0) {
+        errors.push(`PILLAR ${row.pillar} STATUS=UNKNOWN requires one or more STUB_WP_IDS`);
+      }
+      rowStubIds.forEach((id) => pillarStubUnion.add(id));
+    }
+    parsed.pillarsTouched = pillarRows.filter((row) => row.status === 'TOUCHED').map((row) => row.pillar);
+    parsed.pillarsRequiringStubs = pillarRows
+      .filter((row) => row.stubWpIds.length > 0)
+      .map((row) => `${row.pillar}: ${row.stubWpIds.join(', ')}`);
+    for (const stubId of pillarStubUnion) {
+      if (!parsed.stubWpIds.includes(stubId)) {
+        errors.push(`Top-level STUB_WP_IDS must include pillar-linked stub ${stubId}`);
+      }
+    }
+
     const pillarVerdict = getSingleField(content, 'PILLAR_ALIGNMENT_VERDICT');
+    parsed.pillarAlignmentVerdict = (pillarVerdict || '').toUpperCase();
     if (!/^(OK|NEEDS_SPEC_UPDATE|NEEDS_STUBS)$/i.test(pillarVerdict || '')) {
       errors.push('PILLAR_ALIGNMENT_VERDICT must be OK | NEEDS_SPEC_UPDATE | NEEDS_STUBS');
+    }
+    if (/^NEEDS_STUBS$/i.test(pillarVerdict || '') && parsed.stubWpIds.length === 0) {
+      errors.push('PILLAR_ALIGNMENT_VERDICT=NEEDS_STUBS requires top-level STUB_WP_IDS to list one or more stub packets');
     }
 
     // PRIMITIVE_MATRIX minimums.
@@ -458,6 +814,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     if (isPlaceholderValue(matrixTimebox)) errors.push('PRIMITIVE_MATRIX MATRIX_SCAN_TIMEBOX must be filled');
 
     const matrixVerdict = getSingleField(content, 'PRIMITIVE_MATRIX_VERDICT');
+    parsed.primitiveMatrixVerdict = (matrixVerdict || '').toUpperCase();
     if (!/^(OK|NEEDS_STUBS|NONE_FOUND)$/i.test(matrixVerdict || '')) {
       errors.push('PRIMITIVE_MATRIX_VERDICT must be OK | NEEDS_STUBS | NONE_FOUND');
     }
@@ -495,29 +852,119 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       const r = getSingleField(content, 'PRIMITIVE_MATRIX_REASON');
       if (isPlaceholderValue(r)) errors.push('PRIMITIVE_MATRIX_REASON is required when PRIMITIVE_MATRIX_VERDICT=NONE_FOUND');
     }
+    if (/^NEEDS_STUBS$/i.test(matrixVerdict || '') && parsed.stubWpIds.length === 0) {
+      errors.push('PRIMITIVE_MATRIX_VERDICT=NEEDS_STUBS requires top-level STUB_WP_IDS to list one or more stub packets');
+    }
+    if (isHydratedResearchProfile) {
+      if (imxIds.length > 0 && parsed.interactionMatrixAction !== 'UPDATED') {
+        errors.push('INTERACTION_MATRIX_ACTION must be UPDATED when IMX_EDGE_IDS_ADDED_OR_UPDATED lists one or more edges');
+      }
+      if (imxIds.length === 0 && parsed.interactionMatrixAction === 'UPDATED') {
+        errors.push('INTERACTION_MATRIX_ACTION=UPDATED requires one or more IMX_EDGE_IDS_ADDED_OR_UPDATED');
+      }
+    }
 
     // UI_UX_RUBRIC minimums.
     const uiApplicable = getSingleField(content, 'UI_UX_APPLICABLE');
+    const uiVerdict = getSingleField(content, 'UI_UX_VERDICT');
+    parsed.uiApplicable = (uiApplicable || '').toUpperCase();
+    parsed.uiVerdict = (uiVerdict || '').toUpperCase();
     if (!/^(YES|NO)$/i.test(uiApplicable || '')) errors.push('UI_UX_APPLICABLE must be YES or NO');
     if (/^NO$/i.test(uiApplicable || '')) {
       const r = getSingleField(content, 'UI_UX_REASON_NO');
       if (isPlaceholderValue(r)) errors.push('UI_UX_REASON_NO is required when UI_UX_APPLICABLE=NO');
     } else if (/^YES$/i.test(uiApplicable || '')) {
       const surfaces = extractIndentedListAfterLabel(lines, 'UI_SURFACES');
+      const controls = extractIndentedListAfterLabel(lines, 'UI_CONTROLS (buttons/dropdowns/inputs)');
+      const states = extractIndentedListAfterLabel(lines, 'UI_STATES (empty/loading/error)');
+      const microcopy = extractIndentedListAfterLabel(lines, 'UI_MICROCOPY_NOTES (labels, helper text, hover explainers)');
+      const accessibility = extractIndentedListAfterLabel(lines, 'UI_ACCESSIBILITY_NOTES');
+
+      parsed.uiSpec.surfaces = surfaces.items.filter((s) => !/^NONE$/i.test(s));
+      parsed.uiSpec.controls = controls.items.filter((s) => !/^NONE$/i.test(s));
+      parsed.uiSpec.states = states.items.filter((s) => !/^NONE$/i.test(s));
+      parsed.uiSpec.microcopy = microcopy.items.filter((s) => !/^NONE$/i.test(s));
+      parsed.uiSpec.accessibility = accessibility.items.filter((s) => !/^NONE$/i.test(s));
+
       if (!surfaces.found || surfaces.items.filter((s) => !isPlaceholderValue(s)).length === 0) {
         errors.push('UI_UX_RUBRIC UI_SURFACES must include at least one concrete surface');
       }
-      const controls = extractIndentedListAfterLabel(lines, 'UI_CONTROLS (buttons/dropdowns/inputs)');
       if (!controls.found || controls.items.filter((s) => !isPlaceholderValue(s)).length === 0) {
         errors.push('UI_UX_RUBRIC UI_CONTROLS must include at least one concrete control');
       } else {
         const anyTooltip = controls.items.some((s) => /\bTooltip:\b/i.test(s) && !/Tooltip:\s*<fill/i.test(s));
         if (!anyTooltip) errors.push('UI_UX_RUBRIC UI_CONTROLS entries must include concrete Tooltip: text');
       }
-      const uiVerdict = getSingleField(content, 'UI_UX_VERDICT');
+      if (!states.found || states.items.length === 0) {
+        errors.push('UI_UX_RUBRIC UI_STATES must be filled (use NONE only if truly not applicable)');
+      }
+      if (!microcopy.found || microcopy.items.length === 0) {
+        errors.push('UI_UX_RUBRIC UI_MICROCOPY_NOTES must be filled (use NONE only if truly not applicable)');
+      }
+      if (!accessibility.found || accessibility.items.length === 0) {
+        errors.push('UI_UX_RUBRIC UI_ACCESSIBILITY_NOTES must be filled');
+      }
       if (!/^(OK|NEEDS_STUBS|UNKNOWN)$/i.test(uiVerdict || '')) {
         errors.push('UI_UX_VERDICT must be OK | NEEDS_STUBS | UNKNOWN');
       }
+    }
+    if ((/^NEEDS_STUBS$/i.test(uiVerdict || '') || /^UNKNOWN$/i.test(uiVerdict || '')) && parsed.stubWpIds.length === 0) {
+      errors.push('UI_UX_VERDICT requiring follow-up (NEEDS_STUBS|UNKNOWN) requires top-level STUB_WP_IDS to list one or more stub packets');
+    }
+    if (isHydratedResearchProfile && /^YES$/i.test(uiApplicable || '') && parsed.uiGuidanceAction === 'NOT_APPLICABLE') {
+      errors.push('UI_GUIDANCE_ACTION cannot be NOT_APPLICABLE when UI_UX_APPLICABLE=YES');
+    }
+
+    if (isHydratedResearchProfile) {
+      const hydration = parsed.packetHydration;
+      parsed.packetHydrationProfile = getSingleField(content, 'PACKET_HYDRATION_PROFILE');
+      if (!/^HYDRATED_RESEARCH_V1$/i.test(parsed.packetHydrationProfile || '')) {
+        errors.push('PACKET_HYDRATION_PROFILE must be HYDRATED_RESEARCH_V1');
+      }
+
+      hydration.requestor = getSingleField(content, 'REQUESTOR');
+      hydration.agentId = getSingleField(content, 'AGENT_ID');
+      hydration.riskTier = getSingleField(content, 'RISK_TIER');
+      hydration.buildOrderDomain = getSingleField(content, 'BUILD_ORDER_DOMAIN');
+      hydration.buildOrderTechBlocker = getSingleField(content, 'BUILD_ORDER_TECH_BLOCKER');
+      hydration.buildOrderValueTier = getSingleField(content, 'BUILD_ORDER_VALUE_TIER');
+      hydration.buildOrderDependsOnRaw = getSingleField(content, 'BUILD_ORDER_DEPENDS_ON');
+      hydration.buildOrderBlocksRaw = getSingleField(content, 'BUILD_ORDER_BLOCKS');
+      hydration.buildOrderDependsOn = validateBaseWpIds(hydration.buildOrderDependsOnRaw, errors, 'PACKET_HYDRATION BUILD_ORDER_DEPENDS_ON');
+      hydration.buildOrderBlocks = validateBaseWpIds(hydration.buildOrderBlocksRaw, errors, 'PACKET_HYDRATION BUILD_ORDER_BLOCKS');
+      hydration.specAnchorPrimary = getSingleField(content, 'SPEC_ANCHOR_PRIMARY');
+      hydration.what = getSingleField(content, 'WHAT');
+      hydration.why = getSingleField(content, 'WHY');
+      hydration.inScopePaths = extractIndentedListAfterLabel(lines, 'IN_SCOPE_PATHS').items.filter((s) => !/^NONE$/i.test(s));
+      hydration.outOfScope = extractIndentedListAfterLabel(lines, 'OUT_OF_SCOPE').items.filter((s) => !/^NONE$/i.test(s));
+      hydration.testPlan = extractFencedBlockAfterLabel(lines, 'TEST_PLAN').body;
+      hydration.doneMeans = extractIndentedListAfterLabel(lines, 'DONE_MEANS').items.filter((s) => !/^NONE$/i.test(s));
+      hydration.filesToOpen = extractIndentedListAfterLabel(lines, 'FILES_TO_OPEN').items.filter((s) => !/^NONE$/i.test(s));
+      hydration.searchTerms = extractIndentedListAfterLabel(lines, 'SEARCH_TERMS').items.filter((s) => !/^NONE$/i.test(s));
+      hydration.runCommands = extractFencedBlockAfterLabel(lines, 'RUN_COMMANDS').body;
+      hydration.riskMap = extractIndentedListAfterLabel(lines, 'RISK_MAP').items.filter((s) => !/^NONE$/i.test(s));
+
+      if (isPlaceholderValue(hydration.requestor)) errors.push('PACKET_HYDRATION REQUESTOR must be filled');
+      if (isPlaceholderValue(hydration.agentId)) errors.push('PACKET_HYDRATION AGENT_ID must be filled');
+      if (!/^(LOW|MEDIUM|HIGH)$/i.test(hydration.riskTier || '')) errors.push('PACKET_HYDRATION RISK_TIER must be LOW | MEDIUM | HIGH');
+      if (!/^(BACKEND|FRONTEND|GOV|CROSS_BOUNDARY)$/i.test(hydration.buildOrderDomain || '')) errors.push('PACKET_HYDRATION BUILD_ORDER_DOMAIN must be BACKEND | FRONTEND | GOV | CROSS_BOUNDARY');
+      if (!/^(YES|NO)$/i.test(hydration.buildOrderTechBlocker || '')) errors.push('PACKET_HYDRATION BUILD_ORDER_TECH_BLOCKER must be YES or NO');
+      if (!/^(LOW|MEDIUM|HIGH)$/i.test(hydration.buildOrderValueTier || '')) errors.push('PACKET_HYDRATION BUILD_ORDER_VALUE_TIER must be LOW | MEDIUM | HIGH');
+      if (isPlaceholderValue(hydration.specAnchorPrimary)) errors.push('PACKET_HYDRATION SPEC_ANCHOR_PRIMARY must be filled');
+      if (isPlaceholderValue(hydration.what)) errors.push('PACKET_HYDRATION WHAT must be filled');
+      if (isPlaceholderValue(hydration.why)) errors.push('PACKET_HYDRATION WHY must be filled');
+      if (hydration.inScopePaths.length === 0) errors.push('PACKET_HYDRATION IN_SCOPE_PATHS must list one or more concrete paths');
+      if (hydration.outOfScope.length === 0) errors.push('PACKET_HYDRATION OUT_OF_SCOPE must list one or more concrete exclusions');
+      if (isPlaceholderValue(hydration.testPlan)) errors.push('PACKET_HYDRATION TEST_PLAN must contain a fenced command block');
+      if (hydration.doneMeans.filter((s) => !isPlaceholderValue(s)).length === 0) errors.push('PACKET_HYDRATION DONE_MEANS must list one or more measurable criteria');
+      if (hydration.filesToOpen.filter((s) => !isPlaceholderValue(s)).length === 0) errors.push('PACKET_HYDRATION FILES_TO_OPEN must list one or more files');
+      if (hydration.searchTerms.filter((s) => !isPlaceholderValue(s)).length === 0) errors.push('PACKET_HYDRATION SEARCH_TERMS must list one or more concrete search terms');
+      if (isPlaceholderValue(hydration.runCommands)) errors.push('PACKET_HYDRATION RUN_COMMANDS must contain a fenced command block');
+      if (hydration.riskMap.filter((s) => !isPlaceholderValue(s)).length === 0) errors.push('PACKET_HYDRATION RISK_MAP must list one or more concrete risk mappings');
+    }
+
+    if (/^NEEDS_STUBS$/i.test(parsed.appendixMaintenanceVerdict || '') && parsed.stubWpIds.length === 0) {
+      errors.push('APPENDIX_MAINTENANCE_VERDICT=NEEDS_STUBS requires top-level STUB_WP_IDS to list one or more stub packets');
     }
   }
 
@@ -537,11 +984,17 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
   }
 
   // Deterministic cross-field consistency: "clearly covers" vs "enrichment needed"
-  if (/^PASS$/i.test(clearlyVerdict) && /^YES$/i.test(enrichmentNeeded)) {
-    errors.push('Inconsistent refinement: CLEARLY_COVERS_VERDICT=PASS requires ENRICHMENT_NEEDED=NO');
+  if (/^PASS$/i.test(clearlyVerdict) && /^YES$/i.test(enrichmentNeeded) && !parsed.appendixSpecUpdateRequired) {
+    errors.push('Inconsistent refinement: CLEARLY_COVERS_VERDICT=PASS requires ENRICHMENT_NEEDED=NO unless appendix/spec-update maintenance is required');
   }
   if (/^FAIL$/i.test(clearlyVerdict) && /^NO$/i.test(enrichmentNeeded)) {
     errors.push('Inconsistent refinement: CLEARLY_COVERS_VERDICT=FAIL requires ENRICHMENT_NEEDED=YES');
+  }
+  if (parsed.appendixSpecUpdateRequired && !/^YES$/i.test(enrichmentNeeded || '')) {
+    errors.push('Appendix actions marked UPDATED require ENRICHMENT_NEEDED=YES so packet creation stays blocked until the new spec version exists');
+  }
+  if (!parsed.appendixSpecUpdateRequired && /^NEEDS_SPEC_UPDATE$/i.test(parsed.appendixMaintenanceVerdict || '') && !/^YES$/i.test(enrichmentNeeded || '')) {
+    errors.push('APPENDIX_MAINTENANCE_VERDICT=NEEDS_SPEC_UPDATE requires ENRICHMENT_NEEDED=YES');
   }
 
   // Optional, but if present it must be consistent (prevents "PASS but ambiguous" procedure failures).
@@ -560,8 +1013,9 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
   }
 
   // Proposed spec enrichment block: enforce consistency when present.
-  const lines = content.split('\n');
-  const proposedViaLabel = extractFencedBlockAfterLabel(lines, 'PROPOSED_SPEC_ENRICHMENT (VERBATIM) (required if ENRICHMENT_NEEDED=YES)');
+  const proposedViaLabelPrimary = extractFencedBlockAfterLabel(lines, 'PROPOSED_SPEC_ENRICHMENT (VERBATIM) (required if ENRICHMENT_NEEDED=YES)');
+  const proposedViaLabelSecondary = extractFencedBlockAfterLabel(lines, 'PROPOSED_SPEC_ENRICHMENT (VERBATIM) (required if ENRICHMENT_NEEDED=YES; includes appendix-only spec updates)');
+  const proposedViaLabel = proposedViaLabelPrimary.found ? proposedViaLabelPrimary : proposedViaLabelSecondary;
   const proposedViaHeading = extractFencedBlockAfterHeading(lines, 'PROPOSED_SPEC_ENRICHMENT');
   const proposedFound = proposedViaLabel.found || proposedViaHeading.found;
   const proposedBody = (proposedViaLabel.found ? proposedViaLabel.body : '') || (proposedViaHeading.found ? proposedViaHeading.body : '') || '';
@@ -630,6 +1084,8 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
 
   const reviewStatus = getSingleField(content, 'USER_REVIEW_STATUS');
   const signature = getSingleField(content, 'USER_SIGNATURE');
+  parsed.reviewStatus = reviewStatus;
+  parsed.signature = signature;
   if (requireSignature) {
     if (!/^(APPROVED)$/i.test(reviewStatus || '')) {
       errors.push('USER_REVIEW_STATUS must be APPROVED before task packet creation');
@@ -639,5 +1095,5 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     }
   }
 
-  return { ok: errors.length === 0, errors, parsed: { wpId, reviewStatus, signature } };
+  return { ok: errors.length === 0, errors, parsed };
 }

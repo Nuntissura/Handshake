@@ -245,12 +245,14 @@ function main() {
   let refinementReady = false;
   let refinementSigned = false;
   let refinementErrors = [];
+  let refinementParsed = null;
   if (refinementExists) {
     const ready = validateRefinementFile(refinementPath, {
       expectedWpId: wpId,
       requireSignature: false,
     });
     refinementReady = !!ready.ok;
+    refinementParsed = ready.parsed || refinementParsed;
     if (!ready.ok) refinementErrors = ready.errors || [];
 
     const signed = validateRefinementFile(refinementPath, {
@@ -258,6 +260,7 @@ function main() {
       requireSignature: true,
     });
     refinementSigned = !!signed.ok;
+    refinementParsed = signed.parsed || refinementParsed;
   }
 
   // Phase inference (minimal and deterministic).
@@ -338,12 +341,13 @@ function main() {
     printOperatorAction("NONE");
     printConfidence(confidence.level, confidence.detail);
     printState("Prepare recorded; task packet file does not exist yet.");
-    printNextCommands([
-      `just create-task-packet ${wpId}`,
-      `# Fill packet placeholders (AGENT_ID/REQUESTOR/SCOPE/TEST_PLAN/DONE_MEANS/BOOTSTRAP/SPEC_ANCHOR).`,
-      `just pre-work ${wpId}`,
-      `just task-board-set ${wpId} READY_FOR_DEV`,
-    ]);
+    const nextCommands = [`just create-task-packet ${wpId}`];
+    if (!/^HYDRATED_RESEARCH_V1$/i.test(refinementParsed?.refinementEnforcementProfile || "")) {
+      nextCommands.push(`# Fill legacy packet placeholders (UI/stub metadata, SCOPE, TEST_PLAN, DONE_MEANS, BOOTSTRAP, SPEC_ANCHOR).`);
+    }
+    nextCommands.push(`just pre-work ${wpId}`);
+    nextCommands.push(`just task-board-set ${wpId} READY_FOR_DEV`);
+    printNextCommands(nextCommands);
     return;
   }
 
