@@ -202,7 +202,9 @@ This prints the inferred WP stage + the minimal next commands based on:
 To avoid manual markdown editing mistakes:
 - Update Task Board entry: `just task-board-set WP-{ID} READY_FOR_DEV|IN_PROGRESS|DONE_VALIDATED|DONE_FAIL|DONE_OUTDATED_ONLY|STUB|BLOCKED|SUPERSEDED ["reason"]`
 - Update Base->Active mapping: `just wp-traceability-set BASE_WP_ID ACTIVE_PACKET_WP_ID`
-- Condense post-signature setup: `just orchestrator-prepare-and-packet WP-{ID} {Coder-A|Coder-B}`
+- Condense post-signature setup:
+  - Create branch/worktree + packet: `just orchestrator-worktree-and-packet WP-{ID}`
+  - Create branch/worktree + prepare + packet: `just orchestrator-prepare-and-packet WP-{ID} {Coder-A|Coder-B}`
 
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
@@ -218,12 +220,12 @@ LIFECYCLE [CX-LIFE-001]
 
 Rule: when a gate command is run and `GATE_STATUS` is posted, `PHASE` MUST match `STAGE` (same token).
 
-## Stop-Work Gate: Worktree + Assignment Before Packet Creation (HARD RULE)
-- After a refinement is signed (`just record-signature WP-{ID} ...`), the Orchestrator MUST:
+## Stop-Work Gate: Worktree + Assignment Before Delegation (HARD RULE)
+- After a refinement is signed (`just record-signature WP-{ID} ...`), the Orchestrator MAY proceed to create the task packet.
+- However, before ANY product work starts (Coder runs `just pre-work WP-{ID}` / begins implementation), the Orchestrator MUST:
   1) Create the WP branch/worktree (`just worktree-add WP-{ID}`), and
-  2) Record coder assignment (`just record-prepare WP-{ID} {Coder-A|Coder-B}`),
-  before creating the task packet (`just create-task-packet WP-{ID}`).
-- Rationale: prevents packet creation in an unassigned/shared working tree and forces a clean handoff to the correct work directory.
+  2) Record coder assignment (`just record-prepare WP-{ID} {Coder-A|Coder-B}`).
+- Rationale: blocks coding in the wrong worktree/branch, and makes the Coder handoff deterministic (branch/worktree recorded in ORCHESTRATOR_GATES.json).
 
 ## Safety Commit Gate (HARD RULE; prevents untracked WP loss)
 - Immediately after creating a WP task packet + refinement and obtaining `USER_SIGNATURE`, create a **checkpoint commit on the WP branch** that includes:
@@ -382,8 +384,13 @@ Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block contain
     - **CRITICAL:** You MUST output the exact Markdown text (headings, rules, code blocks) that will be inserted.
     - **CRITICAL:** The user must be able to copy-paste this text directly into the Master Spec if they chose to do so manually.
 - **primitives:** Specific Traits, Structs, or Enums that must be implemented.
-- **pillar alignment + force multipliers:** Explicitly assess alignment/interconnections across the Handshake pillars (Flight Recorder, Calendar, Monaco, Word/Excel clones, Locus, Loom, MicroTask, Command Center, Spec-to-Prompt, Postgres readiness, LLM-friendly data, Stage/Studio, Atelier/Lens, Distillation/LoRA, ACE, RAG). If unsure, record UNKNOWN and create stubs rather than guessing.
-- **cross-primitive interactions:** Propose interaction edges (force multipliers) to add/update in Master Spec Appendix 12.6 (HS-APPX-INTERACTION-MATRIX). If out of scope for the current WP, create WP stubs for remediation/additions.
+- **pillar rubric + force multipliers (MANDATORY):** Explicitly assess alignment/interconnections across the Handshake pillars (Flight Recorder, Calendar, Monaco, Word/Excel clones, Locus, Loom, MicroTask, Command Center, Spec-to-Prompt, Postgres readiness, LLM-friendly data, Stage/Studio, Atelier/Lens, Distillation/LoRA, ACE, RAG). This is a structured rubric (per pillar): TOUCHED | NOT_TOUCHED | UNKNOWN. If UNKNOWN: do not guess; create stubs.
+- **primitive matrix combo scan (MANDATORY):** Actively search for high-ROI combinations of:
+  - primitives, tools/tech, mechanical tools, and local+cloud model usage,
+  - and pillar-to-pillar interactions (force multipliers).
+  Use a structured scan (morphological analysis / dependency & interaction matrix mindset). If a combo is out of scope: create stubs instead of silently dropping it.
+- **cross-primitive interactions (Appendix 12.6):** Propose interaction edges (force multipliers) to add/update in Master Spec Appendix 12.6 (HS-APPX-INTERACTION-MATRIX). If out of scope for the current WP, create WP stubs and list them in the refinement metadata.
+- **GUI/UI/UX rubric (MANDATORY when any UI surface is touched):** Enumerate UI surfaces, controls (buttons/dropdowns/inputs), states (empty/loading/error), and microcopy. Prefer "too many controls" early, consolidate later. Include minimalistic in-UI explainers (prefer hover tooltips) and ensure tooltips are accessible (hover + keyboard focus, dismissible; avoid violating WCAG 1.4.13 "Content on Hover or Focus").
 - **appendix/index/matrix maintenance impact:** If the WP introduces/changes a feature, technique, or UI-visible behavior, explicitly list required updates to Master Spec Appendix 12 blocks:
   - HS-APPX-FEATURE-REGISTRY (index)
   - HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX
@@ -578,12 +585,17 @@ Create work packets aligned with enriched, user-approved spec
 
 ### 2.5.7 Automated Gate Enforcement (Orchestrator Gates)
 
-To physically prevent the merging of Refinement, Signature, and Creation phases, the Orchestrator MUST use the code-enforced turn lock:
+Goal: reduce Operator babysitting without losing correctness.
 
-1. **Record Refinement:** Immediately after presenting a Technical Refinement Block, the Orchestrator MUST run `just record-refinement {wp-id}`.
-2. **Mandatory Turn Boundary:** The Orchestrator MUST STOP and wait for a NEW turn.
-3. **Record Signature:** Only in a new turn can the Orchestrator run `just record-signature {wp-id} {signature}`.
-4. **Hard Block:** The `.GOV/scripts/validation/orchestrator_gates.mjs` script will return an error if Step 1 and Step 3 occur in the same turn. This error is a **Hard Stop**; the Orchestrator must not attempt to bypass it via manual file writes.
+The enforcement is file-based and deterministic:
+- `just record-refinement {wp-id}` is BLOCKED unless the refinement is complete (no placeholders, SPEC_ANCHOR windows/token-in-window, rubrics filled).
+- `just record-signature {wp-id} {signature}` is BLOCKED unless:
+  - Refinement exists and is complete,
+  - Refinement contains deterministic approval evidence: `- USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT {WP_ID}`,
+  - Signature is one-time-use (repo grep guard),
+  - Signature is appended to `.GOV/roles_shared/SIGNATURE_AUDIT.md`.
+
+There is no time-based or turn-based lock between refinement and signature. If the Operator already provided explicit approval + the one-time signature, proceed immediately.
 
 ### 2.6 Work Packet Lifecycle
 

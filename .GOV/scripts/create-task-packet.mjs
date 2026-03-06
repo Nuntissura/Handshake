@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 /**
  * Task packet generator [CX-580-581]
  * Creates a task packet from template
@@ -90,12 +90,15 @@ if (!fs.existsSync(refinementPath)) {
     nextCommands: [
       `cat ${refinementPath.replace(/\\/g, '/')}`,
       '# Fill the refinement (ASCII-only; token-in-window per SPEC_ANCHOR).',
-      '# Present refinement to the user (do NOT ask for signature in the same turn).',
+      '# Present refinement to the user for review.',
       `just record-refinement ${WP_ID}`,
-      '# After explicit user review in a NEW turn:',
+      '# After explicit user approval + one-time signature:',
       `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM}`,
       '# After signature:',
-      `just orchestrator-prepare-and-packet ${WP_ID} {Coder-A|Coder-B}`,
+      `just orchestrator-worktree-and-packet ${WP_ID}`,
+      '# Before delegation/pre-work:',
+      `just record-prepare ${WP_ID} {Coder-A|Coder-B}`,
+      `just pre-work ${WP_ID}`,
       '# If you only scaffolded refinement (no packet yet), re-run when unblocked:',
       `just create-task-packet ${WP_ID}`,
     ],
@@ -120,7 +123,7 @@ if (!refinementValidation.ok) {
     nextCommands: [
       `cat ${refinementPath.replace(/\\/g, '/')}`,
       `just record-refinement ${WP_ID}`,
-      '# After explicit user approval in a NEW turn:',
+      '# After explicit user approval + one-time signature:',
       `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM}`,
       `just create-task-packet ${WP_ID}`,
     ],

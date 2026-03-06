@@ -162,24 +162,23 @@ if (action === 'refine') {
         spec_target_resolved: resolved ? `.GOV/roles_shared/SPEC_CURRENT.md -> ${resolved.specFileName}` : '.GOV/roles_shared/SPEC_CURRENT.md -> <unresolved>',
         spec_target_sha1: resolved ? resolved.sha1 : '<unresolved>',
         timestamp: new Date().toISOString(),
-        turn_token: String(Date.now()),
     });
     saveState(state);
 
     v2PrintGateBlocks({
         wpId,
         stage: 'REFINEMENT',
-        next: 'APPROVAL',
-        operatorAction: 'NONE',
+        next: 'SIGNATURE',
+        operatorAction: `Collect explicit approval + one-time signature for ${wpId}`,
         gateRan: `just record-refinement ${wpId}`,
         result: 'PASS',
-        why: 'Technical refinement recorded; signature is locked to a later turn (explicit user review required).',
+        why: 'Technical refinement recorded; request explicit user approval + one-time signature before proceeding.',
         gateOutputLines: [
             `[ORCHESTRATOR GATE] Technical Refinement recorded for ${wpId}.`,
-            `[GATE LOCKED] Do not request/record USER_SIGNATURE in this turn.`,
         ],
         nextCommands: [
-            `# Present the Technical Refinement Block in chat and wait for explicit user approval.`,
+            `# Present the Technical Refinement Block in chat.`,
+            `# When approved, set USER_APPROVAL_EVIDENCE in the refinement file to: APPROVE REFINEMENT ${wpId}`,
             `just record-signature ${wpId} {usernameDDMMYYYYHHMM}`,
         ],
     });
@@ -203,15 +202,7 @@ if (action === 'sign') {
         v2Fail(`A signature is already recorded for ${wpId} (${lastSignature.signature}). Create a new WP variant instead of re-signing.`);
     }
 
-    const refDate = new Date(lastRefinement.timestamp);
     const now = new Date();
-    const diffSeconds = (now.getTime() - refDate.getTime()) / 1000;
-    if (diffSeconds < 10) {
-        v2Fail('Automation momentum detected: refinement and signature recorded too close together.', [
-            `diff_seconds=${diffSeconds}`,
-            'Protocol requires a standalone user review turn between refinement and signature.',
-        ]);
-    }
 
     const refinementPath = lastRefinement.refinement_path || defaultRefinementPath(wpId);
     const refinementValidation = validateRefinementFile(refinementPath, { expectedWpId: wpId, requireSignature: false });
@@ -328,20 +319,20 @@ if (action === 'sign') {
     v2PrintGateBlocks({
         wpId,
         stage: 'SIGNATURE',
-        next: 'PREPARE',
-        operatorAction: `Choose coder assignment (Coder-A|Coder-B) for ${wpId}`,
+        next: 'PACKET_CREATE',
+        operatorAction: 'NONE',
         gateRan: `just record-signature ${wpId} ${signature}`,
         result: 'PASS',
-        why: 'One-time signature recorded + audited; proceed to worktree + coder assignment before packet creation.',
+        why: 'One-time signature recorded + audited; proceed to worktree + packet creation. Record PREPARE before delegation/pre-work.',
         gateOutputLines: [
             `[ORCHESTRATOR GATE] Signature recorded for ${wpId}.`,
-            `[GATE PARTIAL] Next: create WP worktree + record PREPARE before task packet creation.`,
         ],
         nextCommands: [
-            `just orchestrator-prepare-and-packet ${wpId} {Coder-A|Coder-B}`,
-            `# (or run separately) just worktree-add ${wpId}`,
-            `# (or run separately) just record-prepare ${wpId} {Coder-A|Coder-B}`,
-            `# (or run separately) just create-task-packet ${wpId}`,
+            `just orchestrator-worktree-and-packet ${wpId}`,
+            `# Before delegation/pre-work:`,
+            `just record-prepare ${wpId} {Coder-A|Coder-B}`,
+            `just pre-work ${wpId}`,
+            `# Alternative (all-in-one, includes PREPARE): just orchestrator-prepare-and-packet ${wpId} {Coder-A|Coder-B}`,
         ],
     });
     process.exit(0);

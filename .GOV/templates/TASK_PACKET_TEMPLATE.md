@@ -44,8 +44,14 @@ Requirements:
 <!-- Allowed: comma-separated Base WP IDs | NONE. Use Base IDs only (no -vN). -->
 - BUILD_ORDER_BLOCKS: <pending>
 <!-- Allowed: comma-separated Base WP IDs | NONE. Use Base IDs only (no -vN). -->
+- UI_UX_APPLICABLE: <pending>
+<!-- Allowed: YES | NO. YES => packet must include ## UI_UX_SPEC with concrete controls + tooltips. -->
+- UI_UX_VERDICT: <pending>
+<!-- Allowed: OK | NEEDS_STUBS | UNKNOWN -->
+- STUB_WP_IDS: <pending>
+<!-- Allowed: comma-separated WP-... IDs | NONE. Must match refinement metadata STUB_WP_IDS. -->
 - USER_SIGNATURE: {{USER_SIGNATURE}}
-- PACKET_FORMAT_VERSION: 2026-02-01
+- PACKET_FORMAT_VERSION: 2026-03-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
@@ -66,6 +72,13 @@ Next: N/A
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 - REFINEMENT_FILE: .GOV/refinements/{{WP_ID}}.md
 - Rule: Task packet creation is blocked until refinement is complete and signed.
+
+## PRIMITIVES_AND_MATRIX (REFINEMENT OUTPUT; REQUIRED)
+- PRIMITIVES_TOUCHED:
+  - PRIM-<fill> (or NONE)
+- PRIMITIVE_INDEX_ACTION: <fill> (UPDATED | NO_CHANGE)
+- PRIMITIVE_MATRIX_VERDICT: <fill> (OK | NEEDS_STUBS | NONE_FOUND)
+- STUB_WP_IDS: <fill> (comma-separated WP-... IDs | NONE)
 
 ## SCOPE
 - What:
@@ -132,6 +145,20 @@ git revert <commit-sha>
 - Proposed interfaces/types/contracts:
 - Open questions:
 - Notes:
+
+## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
+- Principle: prefer enumerating "too many" controls early, consolidate later.
+- Include minimalistic in-UI explainers (prefer hover tooltips), and ensure tooltips are accessible (hover + keyboard focus; dismissible; avoid violating WCAG 1.4.13).
+- UI_SURFACES:
+  - <fill; screens/panels/dialogs/menus>
+- UI_CONTROLS (buttons/dropdowns/inputs):
+  - Control: <fill> | Type: <fill> | Tooltip: <fill> | Notes: <fill>
+- UI_STATES (empty/loading/error):
+  - <fill>
+- UI_MICROCOPY_NOTES (labels, helper text, hover explainers):
+  - <fill>
+- UI_ACCESSIBILITY_NOTES:
+  - <fill>
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: YES | NO
