@@ -63,17 +63,33 @@ Rules:
 - SEARCH_SEEDS:
   - <fill>
 - CANDIDATE_SOURCES:
-  - Source: <title> | Kind: <BIG_TECH|UNIVERSITY|PAPER|GITHUB|OSS_DOC> | Date: <YYYY-MM-DD> | URL: <https://...> | Why: <fill>
+  - Source: <title> | Kind: <BIG_TECH|UNIVERSITY|PAPER|GITHUB|OSS_DOC> | Date: <YYYY-MM-DD> | Retrieved: <YYYY-MM-DDTHH:MM:SSZ> | URL: <https://...> | Why: <fill>
+
+## RESEARCH_DECISIONS (DRAFT)
+- ADOPT:
+  - Source: <title> | Pattern: <fill> | Why: <fill>
+- ADAPT:
+  - Source: <title> | Pattern: <fill> | Why: <fill>
+- REJECT:
+  - Source: <title> | Pattern: <fill> | Why: <fill>
 
 ## PILLAR_FORCE_MULTIPLIERS (DRAFT)
 - TOUCHED_OR_UNKNOWN_PILLARS:
   - PILLAR: <fill> | STATUS: <TOUCHED|UNKNOWN> | NOTES: <fill> | Stub follow-up: <THIS_STUB|WP-...|NONE>
+
+## MECHANICAL_ENGINE_SCOUTING (DRAFT)
+- TOUCHED_OR_UNKNOWN_ENGINES:
+  - ENGINE: <title> | ENGINE_ID: <engine.id> | STATUS: <TOUCHED|UNKNOWN> | NOTES: <fill> | Stub follow-up: <THIS_STUB|WP-...|NONE>
 
 ## PRIMITIVES_AND_MATRIX_NOTES (DRAFT)
 - PRIMITIVES_TOUCHED:
   - PRIM-<fill> (or NONE)
 - PRIMITIVE_MATRIX_COMBO_CANDIDATES:
   - Edge: <from_kind/from_id> -> <to_kind/to_id> | ROI: <H|M|L> | Effort: <H|M|L> | Notes: <fill>
+
+## FORCE_MULTIPLIER_HYPOTHESES (DRAFT)
+- CANDIDATES:
+  - Combo: <fill> | Pillars: <comma-separated names|NONE> | Mechanical: <comma-separated engine IDs|NONE> | Primitives/Features: <comma-separated ids|NONE> | Resolution hint: <IN_THIS_STUB|SPIN_OUT_STUB|SPEC_UPDATE> | Notes: <fill>
 
 ## APPENDIX_MAINTENANCE_NOTES (DRAFT)
 - FEATURE_REGISTRY:

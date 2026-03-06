@@ -489,9 +489,11 @@ if (!fs.existsSync(taskPacketDir)) {
       const refinementData = refinementValidation?.parsed || {};
       const packetResearchRequired = parseSingleField(packetContent, 'RESEARCH_CURRENCY_REQUIRED');
       const packetResearchVerdict = parseSingleField(packetContent, 'RESEARCH_CURRENCY_VERDICT');
+      const packetResearchDepthVerdict = parseSingleField(packetContent, 'RESEARCH_DEPTH_VERDICT');
       const packetResearchSources = extractIndentedListAfterLabel(packetContent, 'SOURCE_LOG');
       const packetResearchSynthesis = extractIndentedListAfterLabel(packetContent, 'RESEARCH_SYNTHESIS');
       const packetPrimitivesTouched = extractIndentedListAfterLabel(packetContent, 'PRIMITIVES_TOUCHED');
+      const packetMechanicalEnginesTouched = extractIndentedListAfterLabel(packetContent, 'MECHANICAL_ENGINES_TOUCHED');
       const packetFeatureRegistryAction = parseSingleField(packetContent, 'FEATURE_REGISTRY_ACTION');
       const packetUiGuidanceAction = parseSingleField(packetContent, 'UI_GUIDANCE_ACTION');
       const packetInteractionMatrixAction = parseSingleField(packetContent, 'INTERACTION_MATRIX_ACTION');
@@ -500,6 +502,8 @@ if (!fs.existsSync(taskPacketDir)) {
       const packetPillarsTouched = extractIndentedListAfterLabel(packetContent, 'PILLARS_TOUCHED');
       const packetPillarsRequiringStubs = extractIndentedListAfterLabel(packetContent, 'PILLARS_REQUIRING_STUBS');
       const packetPrimitiveMatrixVerdict = parseSingleField(packetContent, 'PRIMITIVE_MATRIX_VERDICT');
+      const packetForceMultiplierVerdict = parseSingleField(packetContent, 'FORCE_MULTIPLIER_VERDICT');
+      const packetForceMultiplierResolutions = extractIndentedListAfterLabel(packetContent, 'FORCE_MULTIPLIER_RESOLUTIONS');
       const packetScopeWhat = parseSingleField(packetContent, 'What');
       const packetScopeWhy = parseSingleField(packetContent, 'Why');
       const packetRequestor = parseSingleField(packetContent, 'REQUESTOR');
@@ -529,9 +533,10 @@ if (!fs.existsSync(taskPacketDir)) {
         const kind = (source.kind || '').trim() || 'UNKNOWN';
         const title = (source.source || '').trim() || '<missing>';
         const date = (source.date || '').trim() || '<missing>';
+        const retrievedAt = (source.retrievedAt || '').trim() || '<missing>';
         const url = (source.url || '').trim() || '<missing>';
         const why = (source.why || '').trim() || '<missing>';
-        return `[${kind}] ${title} | ${date} | ${url} | Why: ${why}`;
+        return `[${kind}] ${title} | ${date} | Retrieved: ${retrievedAt} | ${url} | Why: ${why}`;
       });
 
       if ((packetResearchRequired || '').toUpperCase() !== (refinementData.researchCurrencyRequired || '').toUpperCase()) {
@@ -539,6 +544,9 @@ if (!fs.existsSync(taskPacketDir)) {
       }
       if ((packetResearchVerdict || '').toUpperCase() !== (refinementData.researchCurrencyVerdict || '').toUpperCase()) {
         errors.push('RESEARCH_CURRENCY_VERDICT in the packet drifted from the signed refinement');
+      }
+      if ((packetResearchDepthVerdict || '').toUpperCase() !== (refinementData.researchDepthVerdict || '').toUpperCase()) {
+        errors.push('RESEARCH_DEPTH_VERDICT in the packet drifted from the signed refinement');
       }
       if (!sameList(packetResearchSources, expectedSourceLog)) {
         errors.push('RESEARCH_SIGNAL SOURCE_LOG in the packet drifted from the signed refinement');
@@ -548,6 +556,9 @@ if (!fs.existsSync(taskPacketDir)) {
       }
       if (!sameList(packetPrimitivesTouched, refinementData.primitivesTouched || [])) {
         errors.push('PRIMITIVES_TOUCHED in the packet drifted from the signed refinement');
+      }
+      if (!sameList(packetMechanicalEnginesTouched, refinementData.mechanicalEnginesTouched || [])) {
+        errors.push('MECHANICAL_ENGINES_TOUCHED in the packet drifted from the signed refinement');
       }
       if ((packetFeatureRegistryAction || '').toUpperCase() !== (refinementData.featureRegistryAction || '').toUpperCase()) {
         errors.push('FEATURE_REGISTRY_ACTION in the packet drifted from the signed refinement');
@@ -572,6 +583,12 @@ if (!fs.existsSync(taskPacketDir)) {
       }
       if ((packetPrimitiveMatrixVerdict || '').toUpperCase() !== (refinementData.primitiveMatrixVerdict || '').toUpperCase()) {
         errors.push('PRIMITIVE_MATRIX_VERDICT in the packet drifted from the signed refinement');
+      }
+      if ((packetForceMultiplierVerdict || '').toUpperCase() !== (refinementData.forceMultiplierVerdict || '').toUpperCase()) {
+        errors.push('FORCE_MULTIPLIER_VERDICT in the packet drifted from the signed refinement');
+      }
+      if (!sameList(packetForceMultiplierResolutions, refinementData.forceMultiplierResolutions || [])) {
+        errors.push('FORCE_MULTIPLIER_RESOLUTIONS in the packet drifted from the signed refinement');
       }
 
       const packetUiApplicable = parseSingleField(packetContent, 'UI_UX_APPLICABLE');

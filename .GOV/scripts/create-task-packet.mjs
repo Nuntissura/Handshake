@@ -448,9 +448,10 @@ const formatSourceLog = (sources) => formatList(
     const kind = (source.kind || '').trim() || 'UNKNOWN';
     const title = (source.source || '').trim() || '<missing>';
     const date = (source.date || '').trim() || '<missing>';
+    const retrievedAt = (source.retrievedAt || '').trim() || '<missing>';
     const url = (source.url || '').trim() || '<missing>';
     const why = (source.why || '').trim() || '<missing>';
-    return `[${kind}] ${title} | ${date} | ${url} | Why: ${why}`;
+    return `[${kind}] ${title} | ${date} | Retrieved: ${retrievedAt} | ${url} | Why: ${why}`;
   }),
 );
 
@@ -506,6 +507,7 @@ if (isHydratedProfile) {
 ## RESEARCH_SIGNAL (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - RESEARCH_CURRENCY_REQUIRED: ${refinementData.researchCurrencyRequired || 'NO'}
 - RESEARCH_CURRENCY_VERDICT: ${refinementData.researchCurrencyVerdict || 'NOT_APPLICABLE'}
+- RESEARCH_DEPTH_VERDICT: ${refinementData.researchDepthVerdict || 'NOT_APPLICABLE'}
 - SOURCE_LOG:
 ${formatSourceLog(refinementData.researchSources)}
 - RESEARCH_SYNTHESIS:
@@ -516,6 +518,8 @@ ${formatList(refinementData.researchSynthesis)}
 ## PRIMITIVES_AND_MATRIX (REFINEMENT OUTPUT; REQUIRED)
 - PRIMITIVES_TOUCHED:
 ${formatList(refinementData.primitivesTouched)}
+- MECHANICAL_ENGINES_TOUCHED:
+${formatList(refinementData.mechanicalEnginesTouched)}
 - PRIMITIVE_INDEX_ACTION: ${refinementData.primitiveIndexAction || 'NO_CHANGE'}
 - FEATURE_REGISTRY_ACTION: ${refinementData.featureRegistryAction || 'NO_CHANGE'}
 - UI_GUIDANCE_ACTION: ${refinementData.uiGuidanceAction || 'NOT_APPLICABLE'}
@@ -527,6 +531,9 @@ ${formatList(refinementData.pillarsTouched)}
 - PILLARS_REQUIRING_STUBS:
 ${formatList(refinementData.pillarsRequiringStubs)}
 - PRIMITIVE_MATRIX_VERDICT: ${refinementData.primitiveMatrixVerdict || 'NONE_FOUND'}
+- FORCE_MULTIPLIER_VERDICT: ${refinementData.forceMultiplierVerdict || 'OK'}
+- FORCE_MULTIPLIER_RESOLUTIONS:
+${formatList(refinementData.forceMultiplierResolutions)}
 - STUB_WP_IDS: ${refinementData.stubWpIdsRaw || 'NONE'}
 `);
 

@@ -41,12 +41,22 @@ Requirements (HARD):
 - RESEARCH_CURRENCY_REASON_NO: <fill if RESEARCH_CURRENCY_REQUIRED=NO>
 - SOURCE_MAX_AGE_DAYS: <fill integer 30-730; if RESEARCH_CURRENCY_REQUIRED=NO write N/A>
 - SOURCE_LOG:
-  - Source: <title> | Kind: <BIG_TECH|UNIVERSITY|PAPER|GITHUB|OSS_DOC> | Date: <YYYY-MM-DD> | URL: <https://...> | Why: <fill>
+  - Source: <title> | Kind: <BIG_TECH|UNIVERSITY|PAPER|GITHUB|OSS_DOC> | Date: <YYYY-MM-DD> | Retrieved: <YYYY-MM-DDTHH:MM:SSZ> | URL: <https://...> | Why: <fill>
 - RESEARCH_SYNTHESIS:
   - <fill; what improves Handshake or what to avoid>
 - RESEARCH_GAPS_TO_TRACK:
   - <fill; write NONE if none>
 - RESEARCH_CURRENCY_VERDICT: PENDING (CURRENT | STALE | NOT_APPLICABLE)
+
+### RESEARCH_DEPTH (prevent shallow source logging)
+- Rule: if RESEARCH_CURRENCY_REQUIRED=YES, refinement must record at least one adopted pattern, one adapted pattern, and one rejected pattern grounded in the SOURCE_LOG. Do not only list sources; prove how they changed the WP.
+- ADOPT_PATTERNS:
+  - Source: <title from SOURCE_LOG> | Pattern: <fill> | Why: <fill>
+- ADAPT_PATTERNS:
+  - Source: <title from SOURCE_LOG> | Pattern: <fill> | Why: <fill>
+- REJECT_PATTERNS:
+  - Source: <title from SOURCE_LOG> | Pattern: <fill> | Why: <fill>
+- RESEARCH_DEPTH_VERDICT: PENDING (PASS | NOT_APPLICABLE)
 
 ### FLIGHT_RECORDER_INTERACTION (event IDs + telemetry triggers)
 - <fill; write NONE if not applicable>
@@ -79,6 +89,33 @@ Requirements (HARD):
 - APPENDIX_MAINTENANCE_NOTES:
   - <fill>
 - APPENDIX_MAINTENANCE_VERDICT: PENDING (OK | NEEDS_SPEC_UPDATE | NEEDS_STUBS)
+
+### MECHANICAL_ENGINE_ALIGNMENT (spec-grade 22-engine set; treat each as a stand-alone feature surface)
+- Rule: inspect the spec-grade mechanical engine set in Master Spec 11.8 / 6.3 as first-class force multipliers. Do not treat these engines as a vague implementation bag. If UNKNOWN, create stubs instead of guessing.
+- Required rubric lines (one per engine; do not delete lines, fill values):
+  - ENGINE: Spatial | ENGINE_ID: engine.spatial | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Machinist | ENGINE_ID: engine.machinist | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Physics | ENGINE_ID: engine.physics | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Simulation | ENGINE_ID: engine.simulation | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Hardware | ENGINE_ID: engine.hardware | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Director | ENGINE_ID: engine.director | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Composer | ENGINE_ID: engine.composer | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Artist | ENGINE_ID: engine.artist | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Publisher | ENGINE_ID: engine.publisher | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Sous Chef | ENGINE_ID: engine.sous_chef | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Food Safety | ENGINE_ID: engine.food_safety | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Logistics | ENGINE_ID: engine.logistics | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Archivist | ENGINE_ID: engine.archivist | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Librarian | ENGINE_ID: engine.librarian | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Analyst | ENGINE_ID: engine.analyst | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Wrangler | ENGINE_ID: engine.wrangler | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: DBA | ENGINE_ID: engine.dba | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Sovereign | ENGINE_ID: engine.sovereign | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Guide | ENGINE_ID: engine.guide | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Context | ENGINE_ID: engine.context | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Version | ENGINE_ID: engine.version | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - ENGINE: Sandbox | ENGINE_ID: engine.sandbox | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+- MECHANICAL_ENGINE_ALIGNMENT_VERDICT: PENDING (OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
 
 ### PILLAR_ALIGNMENT (Handshake pillars cross-check)
 - Rule: Refinement MUST explicitly consider pillar alignment and interconnections (force multipliers). If unknown, write UNKNOWN and create stubs instead of guessing.
@@ -120,6 +157,14 @@ Requirements (HARD):
   - If NO: create a stub WP and record it in TASK_BOARD Stub Backlog (order is not priority).
 - PRIMITIVE_MATRIX_VERDICT: PENDING (OK | NEEDS_STUBS | NONE_FOUND)
 - PRIMITIVE_MATRIX_REASON: <fill>
+
+### FORCE_MULTIPLIER_EXPANSION (high-ROI combinations must resolve explicitly)
+- Rule: every high-ROI combination found across pillars, mechanical engines, primitives, tools, and features must end in exactly one resolution path: `IN_THIS_WP`, `NEW_STUB`, or `SPEC_UPDATE_NOW`. Silent drop is forbidden.
+- COMBO_PRESSURE_MODE: AUTO
+- HIGH_ROI_EXPANSION_CANDIDATES:
+  - Combo: <fill> | Pillars: <comma-separated pillar names | NONE> | Mechanical: <comma-separated engine IDs | NONE> | Primitives/Features: <comma-separated PRIM-/FEAT-/TOOL-/TECH- ids | NONE> | Resolution: <IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW> | Stub: <WP-... | NONE> | Notes: <fill>
+- FORCE_MULTIPLIER_VERDICT: PENDING (OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
+- FORCE_MULTIPLIER_REASON: <fill>
 
 ### UI_UX_RUBRIC (early UI/UX thinking; prefer too many controls early)
 - UI_UX_APPLICABLE: PENDING (YES | NO)

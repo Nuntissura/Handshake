@@ -327,6 +327,56 @@ function extractAppendixJson(specContent, appendixId) {
   }
 }
 
+function extractMechanicalEngines(specContent) {
+  const engines = [...specContent.matchAll(/#### Engine: ([^\n(]+).*?\n\n- \*\*Engine ID:\*\* `([^`]+)`/gs)]
+    .map((m) => ({ title: m[1].trim(), id: m[2].trim() }))
+    .filter((entry) => entry.id && entry.title);
+  if (engines.length === 0) {
+    return { ok: false, error: 'Failed to extract spec-grade mechanical engine set from Master Spec §11.8 / §6.3' };
+  }
+  return { ok: true, engines };
+}
+
+function parseMechanicalEngineRubric(lines) {
+  const rows = [];
+  const re = /^\s*-\s*ENGINE:\s*(.+?)\s*\|\s*ENGINE_ID:\s*([A-Za-z0-9._-]+)\s*\|\s*STATUS:\s*(TOUCHED|NOT_TOUCHED|UNKNOWN)\s*\|\s*NOTES:\s*(.+?)\s*\|\s*STUB_WP_IDS:\s*(.+)\s*$/i;
+  for (const line of lines) {
+    const m = line.match(re);
+    if (!m) continue;
+    rows.push({
+      title: m[1].trim(),
+      engineId: m[2].trim(),
+      status: m[3].trim().toUpperCase(),
+      notes: m[4].trim(),
+      stubWpIdsRaw: m[5].trim(),
+      stubWpIds: normalizeCsv(m[5]),
+    });
+  }
+  return rows;
+}
+
+function parseForceMultiplierCandidates(lines) {
+  const rows = [];
+  const re = /^\s*-\s*Combo:\s*(.+?)\s*\|\s*Pillars:\s*(.+?)\s*\|\s*Mechanical:\s*(.+?)\s*\|\s*Primitives\/Features:\s*(.+?)\s*\|\s*Resolution:\s*(IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW)\s*\|\s*Stub:\s*(.+?)\s*\|\s*Notes:\s*(.+)\s*$/i;
+  for (const line of lines) {
+    const m = line.match(re);
+    if (!m) continue;
+    rows.push({
+      combo: m[1].trim(),
+      pillarsRaw: m[2].trim(),
+      pillars: normalizeCsv(m[2]),
+      mechanicalRaw: m[3].trim(),
+      mechanical: normalizeCsv(m[3]),
+      primitivesFeaturesRaw: m[4].trim(),
+      primitivesFeatures: normalizeCsv(m[4]),
+      resolution: m[5].trim().toUpperCase(),
+      stubRaw: m[6].trim(),
+      notes: m[7].trim(),
+    });
+  }
+  return rows;
+}
+
 export function validateRefinementFile(refinementPath, { expectedWpId, requireSignature } = {}) {
   const errors = [];
   const parsed = {
@@ -349,11 +399,16 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     interactionMatrixAction: '',
     researchCurrencyRequired: '',
     researchCurrencyVerdict: '',
+    researchDepthVerdict: '',
     researchSources: [],
     researchSynthesis: [],
     primitivesTouched: [],
+    mechanicalEnginesTouched: [],
+    mechanicalEngineAlignmentVerdict: '',
     pillarsTouched: [],
     pillarsRequiringStubs: [],
+    forceMultiplierVerdict: '',
+    forceMultiplierResolutions: [],
     packetHydrationProfile: '',
     packetHydration: {
       requestor: '',
@@ -460,7 +515,10 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
 
   if (isHydratedResearchProfile) {
     requiredSections.splice(2, 0, 'RESEARCH_CURRENCY');
+    requiredSections.splice(3, 0, 'RESEARCH_DEPTH');
     requiredSections.splice(6, 0, 'APPENDIX_MAINTENANCE');
+    requiredSections.splice(7, 0, 'MECHANICAL_ENGINE_ALIGNMENT');
+    requiredSections.splice(requiredSections.indexOf('UI_UX_RUBRIC'), 0, 'FORCE_MULTIPLIER_EXPANSION');
     requiredSections.splice(requiredSections.indexOf('CLEARLY_COVERS'), 0, 'PACKET_HYDRATION');
   }
 
@@ -500,15 +558,23 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       const researchSynthesis = extractIndentedListAfterLabel(lines, 'RESEARCH_SYNTHESIS');
       const researchGaps = extractIndentedListAfterLabel(lines, 'RESEARCH_GAPS_TO_TRACK');
       const researchVerdict = getSingleField(content, 'RESEARCH_CURRENCY_VERDICT');
+      const adoptPatterns = extractIndentedListAfterLabel(lines, 'ADOPT_PATTERNS');
+      const adaptPatterns = extractIndentedListAfterLabel(lines, 'ADAPT_PATTERNS');
+      const rejectPatterns = extractIndentedListAfterLabel(lines, 'REJECT_PATTERNS');
+      const researchDepthVerdict = getSingleField(content, 'RESEARCH_DEPTH_VERDICT');
 
       parsed.researchCurrencyRequired = (researchRequired || '').toUpperCase();
       parsed.researchCurrencyVerdict = (researchVerdict || '').toUpperCase();
+      parsed.researchDepthVerdict = (researchDepthVerdict || '').toUpperCase();
 
       if (!/^(YES|NO)$/i.test(researchRequired || '')) {
         errors.push('RESEARCH_CURRENCY_REQUIRED must be YES or NO');
       }
       if (!/^(CURRENT|STALE|NOT_APPLICABLE)$/i.test(researchVerdict || '')) {
         errors.push('RESEARCH_CURRENCY_VERDICT must be CURRENT | STALE | NOT_APPLICABLE');
+      }
+      if (!/^(PASS|NOT_APPLICABLE)$/i.test(researchDepthVerdict || '')) {
+        errors.push('RESEARCH_DEPTH_VERDICT must be PASS or NOT_APPLICABLE');
       }
       if (!researchSynthesis.found || researchSynthesis.items.length === 0 || researchSynthesis.items.some((s) => isPlaceholderValue(s))) {
         errors.push('RESEARCH_CURRENCY RESEARCH_SYNTHESIS must be filled (use NONE only if truly not applicable)');
@@ -534,6 +600,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
         const categories = new Set();
         let freshSources = 0;
         const maxAgeDays = isPositiveIntegerString(sourceMaxAgeRaw) ? parseInt(sourceMaxAgeRaw, 10) : null;
+        const sourceTitles = new Set();
         parsed.researchSources = [];
 
         for (const item of sourceLog.items) {
@@ -545,9 +612,11 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
           const source = record.SOURCE || '';
           const kind = (record.KIND || '').toUpperCase();
           const dateStr = record.DATE || '';
+          const retrievedAt = record.RETRIEVED || '';
           const url = record.URL || '';
           const why = record.WHY || '';
-          parsed.researchSources.push({ source, kind, date: dateStr, url, why });
+          parsed.researchSources.push({ source, kind, date: dateStr, retrievedAt, url, why });
+          if (source) sourceTitles.add(source);
 
           if (isPlaceholderValue(source)) errors.push(`RESEARCH_CURRENCY SOURCE_LOG entry missing Source: ${item}`);
           if (!/^(BIG_TECH|UNIVERSITY|PAPER|GITHUB|OSS_DOC)$/i.test(kind)) {
@@ -567,6 +636,14 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
             if (ageDays < 0) errors.push(`RESEARCH_CURRENCY SOURCE_LOG Date cannot be in the future: ${dateStr}`);
             if (maxAgeDays !== null && ageDays >= 0 && ageDays <= maxAgeDays) freshSources += 1;
           }
+          if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(retrievedAt || '')) {
+            errors.push(`RESEARCH_CURRENCY SOURCE_LOG Retrieved must be RFC3339 UTC (got: ${retrievedAt || '<missing>'})`);
+          } else {
+            const retrievedDate = new Date(retrievedAt);
+            if (Number.isNaN(retrievedDate.getTime()) || retrievedDate.getTime() > Date.now()) {
+              errors.push(`RESEARCH_CURRENCY SOURCE_LOG Retrieved cannot be invalid or in the future: ${retrievedAt}`);
+            }
+          }
           if (!/^https:\/\/\S+$/i.test(url)) {
             errors.push(`RESEARCH_CURRENCY SOURCE_LOG URL must be https://... (got: ${url || '<missing>'})`);
           }
@@ -584,6 +661,29 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
         if (researchSynthesis.items.filter((s) => !isPlaceholderValue(s) && !/^NONE$/i.test(s)).length === 0) {
           errors.push('RESEARCH_CURRENCY RESEARCH_SYNTHESIS must include at least one concrete insight');
         }
+        const validateResearchPatternList = (label, listResult) => {
+          if (!listResult.found || listResult.items.length === 0) {
+            errors.push(`RESEARCH_DEPTH ${label} must include at least one entry when RESEARCH_CURRENCY_REQUIRED=YES`);
+            return;
+          }
+          for (const item of listResult.items) {
+            const record = parsePipeRecord(item);
+            const source = record.SOURCE || '';
+            const pattern = record.PATTERN || '';
+            const whyText = record.WHY || '';
+            if (!sourceTitles.has(source)) {
+              errors.push(`RESEARCH_DEPTH ${label} must reference a Source from SOURCE_LOG (got: ${source || '<missing>'})`);
+            }
+            if (isPlaceholderValue(pattern)) errors.push(`RESEARCH_DEPTH ${label} Pattern must be filled`);
+            if (isPlaceholderValue(whyText)) errors.push(`RESEARCH_DEPTH ${label} Why must be filled`);
+          }
+        };
+        validateResearchPatternList('ADOPT_PATTERNS', adoptPatterns);
+        validateResearchPatternList('ADAPT_PATTERNS', adaptPatterns);
+        validateResearchPatternList('REJECT_PATTERNS', rejectPatterns);
+        if (!/^PASS$/i.test(researchDepthVerdict || '')) {
+          errors.push('RESEARCH_CURRENCY_REQUIRED=YES requires RESEARCH_DEPTH_VERDICT=PASS');
+        }
         if (!/^CURRENT$/i.test(researchVerdict || '')) {
           errors.push('RESEARCH_CURRENCY_REQUIRED=YES requires RESEARCH_CURRENCY_VERDICT=CURRENT');
         }
@@ -599,6 +699,12 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
         }
         if (!/^NOT_APPLICABLE$/i.test(researchVerdict || '')) {
           errors.push('RESEARCH_CURRENCY_REQUIRED=NO requires RESEARCH_CURRENCY_VERDICT=NOT_APPLICABLE');
+        }
+        if ((adoptPatterns.items || []).some((item) => !/^NONE$/i.test(item)) || (adaptPatterns.items || []).some((item) => !/^NONE$/i.test(item)) || (rejectPatterns.items || []).some((item) => !/^NONE$/i.test(item))) {
+          errors.push('RESEARCH_CURRENCY_REQUIRED=NO requires ADOPT/ADAPT/REJECT pattern lists to be NONE');
+        }
+        if (!/^NOT_APPLICABLE$/i.test(researchDepthVerdict || '')) {
+          errors.push('RESEARCH_CURRENCY_REQUIRED=NO requires RESEARCH_DEPTH_VERDICT=NOT_APPLICABLE');
         }
       }
 
@@ -653,9 +759,10 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     // This makes "update the index first" mechanically enforceable.
     let specPrimitiveIds = null;
     let specImxEdgeIds = null;
+    let specContent = null;
     if (resolved) {
       try {
-        const specContent = fs.readFileSync(resolved.specFilePath, 'utf8');
+        specContent = fs.readFileSync(resolved.specFilePath, 'utf8');
         const primTool = extractAppendixJson(specContent, 'HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX');
         if (!primTool.ok) {
           errors.push(primTool.error);
@@ -748,6 +855,81 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       }
     }
 
+    let engineRows = [];
+    let specMechanicalEngines = [];
+    let specMechanicalEngineIds = new Set();
+    if (isHydratedResearchProfile) {
+      if (!specContent) {
+        errors.push('HYDRATED_RESEARCH_V1 requires the resolved Master Spec to be readable for mechanical engine extraction');
+      } else {
+        const engineCatalog = extractMechanicalEngines(specContent);
+        if (!engineCatalog.ok) {
+          errors.push(engineCatalog.error);
+        } else {
+          specMechanicalEngines = engineCatalog.engines;
+          specMechanicalEngineIds = new Set(specMechanicalEngines.map((entry) => entry.id));
+        }
+      }
+
+      engineRows = parseMechanicalEngineRubric(lines);
+      for (const engine of specMechanicalEngines) {
+        if (!engineRows.some((row) => row.engineId === engine.id)) {
+          errors.push(`MECHANICAL_ENGINE_ALIGNMENT missing/invalid rubric line for engine: ${engine.title} (${engine.id})`);
+        }
+      }
+
+      const engineStubUnion = new Set();
+      const touchedEngineIds = [];
+      for (const row of engineRows) {
+        if (!specMechanicalEngineIds.has(row.engineId)) {
+          errors.push(`MECHANICAL_ENGINE_ALIGNMENT references unknown spec engine id: ${row.engineId}`);
+        } else {
+          const expected = specMechanicalEngines.find((entry) => entry.id === row.engineId);
+          if (expected && row.title.toUpperCase() !== expected.title.toUpperCase()) {
+            errors.push(`MECHANICAL_ENGINE_ALIGNMENT engine title mismatch for ${row.engineId}: expected "${expected.title}", got "${row.title}"`);
+          }
+        }
+        if (isPlaceholderValue(row.notes)) {
+          errors.push(`MECHANICAL_ENGINE_ALIGNMENT ${row.engineId} NOTES must be filled`);
+        }
+        const rowStubIds = validateStubIds(row.stubWpIdsRaw, errors, `MECHANICAL_ENGINE_ALIGNMENT ${row.engineId} STUB_WP_IDS`);
+        row.stubWpIds = rowStubIds;
+        if (row.status === 'UNKNOWN' && rowStubIds.length === 0) {
+          errors.push(`MECHANICAL_ENGINE_ALIGNMENT ${row.engineId} STATUS=UNKNOWN requires one or more STUB_WP_IDS`);
+        }
+        if (row.status === 'TOUCHED') {
+          touchedEngineIds.push(row.engineId);
+        }
+        rowStubIds.forEach((id) => engineStubUnion.add(id));
+      }
+      parsed.mechanicalEnginesTouched = Array.from(new Set(touchedEngineIds));
+
+      const engineVerdict = getSingleField(content, 'MECHANICAL_ENGINE_ALIGNMENT_VERDICT');
+      parsed.mechanicalEngineAlignmentVerdict = (engineVerdict || '').toUpperCase();
+      if (!/^(OK|NEEDS_STUBS|NEEDS_SPEC_UPDATE)$/i.test(engineVerdict || '')) {
+        errors.push('MECHANICAL_ENGINE_ALIGNMENT_VERDICT must be OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE');
+      }
+
+      const engineNeedsStubs = engineRows.some((row) => row.status === 'UNKNOWN' || row.stubWpIds.length > 0);
+      if (engineNeedsStubs && parsed.mechanicalEngineAlignmentVerdict === 'OK') {
+        errors.push('MECHANICAL_ENGINE_ALIGNMENT rows with UNKNOWN or STUB_WP_IDS require MECHANICAL_ENGINE_ALIGNMENT_VERDICT=NEEDS_STUBS or NEEDS_SPEC_UPDATE');
+      }
+      if (!engineNeedsStubs && parsed.mechanicalEngineAlignmentVerdict === 'NEEDS_STUBS') {
+        errors.push('MECHANICAL_ENGINE_ALIGNMENT_VERDICT=NEEDS_STUBS requires at least one engine row with STATUS=UNKNOWN or STUB_WP_IDS');
+      }
+      if (parsed.mechanicalEngineAlignmentVerdict === 'NEEDS_SPEC_UPDATE' && !parsed.appendixSpecUpdateRequired) {
+        errors.push('MECHANICAL_ENGINE_ALIGNMENT_VERDICT=NEEDS_SPEC_UPDATE requires appendix maintenance to declare a spec update');
+      }
+      if (parsed.mechanicalEngineAlignmentVerdict === 'NEEDS_STUBS' && parsed.stubWpIds.length === 0) {
+        errors.push('MECHANICAL_ENGINE_ALIGNMENT_VERDICT=NEEDS_STUBS requires top-level STUB_WP_IDS to list one or more stub packets');
+      }
+      for (const stubId of engineStubUnion) {
+        if (!parsed.stubWpIds.includes(stubId)) {
+          errors.push(`Top-level STUB_WP_IDS must include mechanical-engine-linked stub ${stubId}`);
+        }
+      }
+    }
+
     // PILLAR_ALIGNMENT rubric lines.
     const pillars = [
       'Flight Recorder',
@@ -771,6 +953,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       'ACE',
       'RAG',
     ];
+    const pillarLookup = new Map(pillars.map((pillar) => [pillar.toUpperCase(), pillar]));
     for (const p of pillars) {
       const re = new RegExp(`^\\s*-\\s*PILLAR:\\s*${escapeRegExp(p)}\\s*\\|\\s*STATUS:\\s*(TOUCHED|NOT_TOUCHED|UNKNOWN)\\b`, 'i');
       if (!lines.some((l) => re.test(l))) {
@@ -861,6 +1044,119 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       }
       if (imxIds.length === 0 && parsed.interactionMatrixAction === 'UPDATED') {
         errors.push('INTERACTION_MATRIX_ACTION=UPDATED requires one or more IMX_EDGE_IDS_ADDED_OR_UPDATED');
+      }
+
+      const comboPressureMode = getSingleField(content, 'COMBO_PRESSURE_MODE');
+      const forceMultiplierReason = getSingleField(content, 'FORCE_MULTIPLIER_REASON');
+      const forceMultiplierVerdict = getSingleField(content, 'FORCE_MULTIPLIER_VERDICT');
+      const candidates = parseForceMultiplierCandidates(lines);
+      const touchedPillars = new Set(parsed.pillarsTouched);
+      const touchedEngines = new Set(parsed.mechanicalEnginesTouched);
+      const forceMultiplierStubUnion = new Set();
+      const candidatePillarsSeen = new Set();
+      const candidateEnginesSeen = new Set();
+      const requiredCandidateCount = Math.max(3, Math.min(12, touchedPillars.size + touchedEngines.size));
+
+      parsed.forceMultiplierVerdict = (forceMultiplierVerdict || '').toUpperCase();
+      if (!/^AUTO$/i.test(comboPressureMode || '')) {
+        errors.push('FORCE_MULTIPLIER_EXPANSION COMBO_PRESSURE_MODE must be AUTO');
+      }
+      if (!/^(OK|NEEDS_STUBS|NEEDS_SPEC_UPDATE)$/i.test(forceMultiplierVerdict || '')) {
+        errors.push('FORCE_MULTIPLIER_VERDICT must be OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE');
+      }
+      if (isPlaceholderValue(forceMultiplierReason)) {
+        errors.push('FORCE_MULTIPLIER_REASON must be filled');
+      }
+      if (candidates.length < requiredCandidateCount) {
+        errors.push(`FORCE_MULTIPLIER_EXPANSION must include at least ${requiredCandidateCount} candidates for the touched pillar/mechanical-engine surface area`);
+      }
+
+      let hasNewStubResolution = false;
+      let hasSpecUpdateResolution = false;
+      parsed.forceMultiplierResolutions = [];
+
+      for (const candidate of candidates) {
+        const pillarRefs = candidate.pillars.filter((value) => !/^NONE$/i.test(value));
+        const mechanicalRefs = candidate.mechanical.filter((value) => !/^NONE$/i.test(value));
+        const primitiveFeatureRefs = candidate.primitivesFeatures.filter((value) => !/^NONE$/i.test(value));
+
+        if (isPlaceholderValue(candidate.combo)) {
+          errors.push('FORCE_MULTIPLIER_EXPANSION candidate Combo must be filled');
+        }
+        if (isPlaceholderValue(candidate.notes)) {
+          errors.push(`FORCE_MULTIPLIER_EXPANSION candidate "${candidate.combo || '<missing>'}" Notes must be filled`);
+        }
+        if (pillarRefs.length === 0 && mechanicalRefs.length === 0 && primitiveFeatureRefs.length === 0) {
+          errors.push(`FORCE_MULTIPLIER_EXPANSION candidate "${candidate.combo || '<missing>'}" must reference at least one pillar, mechanical engine, or primitive/feature`);
+        }
+
+        for (const pillar of pillarRefs) {
+          const canonicalPillar = pillarLookup.get(pillar.toUpperCase());
+          if (!canonicalPillar) {
+            errors.push(`FORCE_MULTIPLIER_EXPANSION candidate "${candidate.combo || '<missing>'}" references unknown pillar: ${pillar}`);
+          } else {
+            candidatePillarsSeen.add(canonicalPillar);
+          }
+        }
+        for (const engineId of mechanicalRefs) {
+          if (!specMechanicalEngineIds.has(engineId)) {
+            errors.push(`FORCE_MULTIPLIER_EXPANSION candidate "${candidate.combo || '<missing>'}" references unknown mechanical engine: ${engineId}`);
+          } else {
+            candidateEnginesSeen.add(engineId);
+          }
+        }
+
+        let candidateStubId = 'NONE';
+        if (candidate.resolution === 'NEW_STUB') {
+          hasNewStubResolution = true;
+          const stubIds = validateStubIds(candidate.stubRaw, errors, `FORCE_MULTIPLIER candidate "${candidate.combo || '<missing>'}" Stub`);
+          if (stubIds.length !== 1) {
+            errors.push(`FORCE_MULTIPLIER candidate "${candidate.combo || '<missing>'}" with Resolution=NEW_STUB must point to exactly one stub packet`);
+          }
+          candidateStubId = stubIds[0] || 'NONE';
+          stubIds.forEach((id) => forceMultiplierStubUnion.add(id));
+        } else if (!/^NONE$/i.test(candidate.stubRaw || '')) {
+          errors.push(`FORCE_MULTIPLIER candidate "${candidate.combo || '<missing>'}" must use Stub: NONE unless Resolution=NEW_STUB`);
+        }
+
+        if (candidate.resolution === 'SPEC_UPDATE_NOW') {
+          hasSpecUpdateResolution = true;
+          if (!parsed.appendixSpecUpdateRequired) {
+            errors.push(`FORCE_MULTIPLIER candidate "${candidate.combo || '<missing>'}" uses Resolution=SPEC_UPDATE_NOW but appendix maintenance did not declare a spec update`);
+          }
+        }
+
+        parsed.forceMultiplierResolutions.push(`${candidate.combo} -> ${candidate.resolution} (stub: ${candidateStubId})`);
+      }
+
+      for (const pillar of touchedPillars) {
+        if (!candidatePillarsSeen.has(pillar)) {
+          errors.push(`FORCE_MULTIPLIER_EXPANSION must include at least one candidate for touched pillar: ${pillar}`);
+        }
+      }
+      for (const engineId of touchedEngines) {
+        if (!candidateEnginesSeen.has(engineId)) {
+          errors.push(`FORCE_MULTIPLIER_EXPANSION must include at least one candidate for touched mechanical engine: ${engineId}`);
+        }
+      }
+      for (const stubId of forceMultiplierStubUnion) {
+        if (!parsed.stubWpIds.includes(stubId)) {
+          errors.push(`Top-level STUB_WP_IDS must include force-multiplier-linked stub ${stubId}`);
+        }
+      }
+
+      if (hasSpecUpdateResolution && parsed.forceMultiplierVerdict !== 'NEEDS_SPEC_UPDATE') {
+        errors.push('FORCE_MULTIPLIER_VERDICT must be NEEDS_SPEC_UPDATE when any candidate resolves to SPEC_UPDATE_NOW');
+      } else if (!hasSpecUpdateResolution && hasNewStubResolution && parsed.forceMultiplierVerdict !== 'NEEDS_STUBS') {
+        errors.push('FORCE_MULTIPLIER_VERDICT must be NEEDS_STUBS when any candidate resolves to NEW_STUB and none resolve to SPEC_UPDATE_NOW');
+      } else if (!hasSpecUpdateResolution && !hasNewStubResolution && parsed.forceMultiplierVerdict !== 'OK') {
+        errors.push('FORCE_MULTIPLIER_VERDICT must be OK when all candidates resolve IN_THIS_WP');
+      }
+      if (parsed.forceMultiplierVerdict === 'NEEDS_STUBS' && parsed.stubWpIds.length === 0) {
+        errors.push('FORCE_MULTIPLIER_VERDICT=NEEDS_STUBS requires top-level STUB_WP_IDS to list one or more stub packets');
+      }
+      if (parsed.forceMultiplierVerdict === 'NEEDS_SPEC_UPDATE' && !parsed.appendixSpecUpdateRequired) {
+        errors.push('FORCE_MULTIPLIER_VERDICT=NEEDS_SPEC_UPDATE requires appendix maintenance to declare a spec update');
       }
     }
 
