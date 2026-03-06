@@ -16,7 +16,7 @@
 - CODER_MODEL: GPT-5.2 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: HIGH
 - BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
 - BUILD_ORDER_TECH_BLOCKER: YES
@@ -27,9 +27,9 @@
 - PACKET_FORMAT_VERSION: 2026-02-01
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
+Verdict: PASS
 Blockers: NONE
-Next: Create docs-only skeleton checkpoint commit; then implement migration-backed durable MCP progress mapping + dual-backend tests.
+Next: Await Gate 4 user acknowledgement before merge/push.
 
 ## SUB_AGENT_DELEGATION (OPTIONAL; OPERATOR-GATED)
 - SUB_AGENT_DELEGATION: DISALLOWED
@@ -463,3 +463,69 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - WP-1-Postgres-MCP-Durable-Progress-v1
+Date: 2026-03-06
+Validator: GPT-5 (Codex CLI)
+Verdict: PASS
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Postgres-MCP-Durable-Progress-v1 --range 49442d61b03f52b4f11e2334933ef5b6283c7a94..HEAD`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Postgres-MCP-Durable-Progress-v1.md` (status: Done)
+- Spec: `Handshake_Master_Spec_v02.141.md` via `.GOV/roles_shared/SPEC_CURRENT.md`
+- Spec anchors validated:
+  - `11.3.4 Implementation Target 3: Durable Progress Mapping (SQLite Integration)`
+  - `2.3.13.1 Pillar 2: Portable Schema & Migrations [CX-DBP-011]`
+  - `2.3.13.1 Pillar 4: Dual-Backend Testing Early [CX-DBP-013]`
+
+Files Checked:
+- `.GOV/task_packets/WP-1-Postgres-MCP-Durable-Progress-v1.md`
+- `.GOV/refinements/WP-1-Postgres-MCP-Durable-Progress-v1.md`
+- `.GOV/roles_shared/SPEC_CURRENT.md`
+- `.GOV/roles_shared/TASK_BOARD.md`
+- `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`
+- `.github/workflows/ci.yml`
+- `src/backend/handshake_core/migrations/0014_ai_job_mcp_fields.sql`
+- `src/backend/handshake_core/migrations/0014_ai_job_mcp_fields.down.sql`
+- `src/backend/handshake_core/src/mcp/gate.rs`
+- `src/backend/handshake_core/src/storage/postgres.rs`
+- `src/backend/handshake_core/src/storage/sqlite.rs`
+- `src/backend/handshake_core/src/storage/tests.rs`
+- `src/backend/handshake_core/tests/storage_conformance.rs`
+- `src/backend/handshake_core/tests/mcp_e2e_tests.rs`
+
+Findings:
+- Requirement: Postgres durable MCP field persistence is implemented at `src/backend/handshake_core/src/storage/postgres.rs:3763` through `src/backend/handshake_core/src/storage/postgres.rs:3868`. The implementation upserts `ai_job_mcp_fields`, enforces duplicate-token conflicts, preserves `updated_at`, and resolves token -> `job_id`.
+- Requirement: SQLite parity is implemented at `src/backend/handshake_core/src/storage/sqlite.rs:4334` through `src/backend/handshake_core/src/storage/sqlite.rs:4478`. The implementation writes the side-table, preserves duplicate-token conflicts, and keeps backward-compatible fallbacks to legacy `ai_jobs.mcp_*` columns for older SQLite databases.
+- Requirement: Portable, migration-backed persistence exists at `src/backend/handshake_core/migrations/0014_ai_job_mcp_fields.sql:3` through `src/backend/handshake_core/migrations/0014_ai_job_mcp_fields.sql:11`, with rollback at `src/backend/handshake_core/migrations/0014_ai_job_mcp_fields.down.sql:2`.
+- Requirement: MCP gate writes the durable mapping before tool execution at `src/backend/handshake_core/src/mcp/gate.rs:1489` through `src/backend/handshake_core/src/mcp/gate.rs:1501`.
+- Requirement: Dual-backend storage tests remain parameterized at `src/backend/handshake_core/src/storage/tests.rs:169` through `src/backend/handshake_core/src/storage/tests.rs:182` and `src/backend/handshake_core/tests/storage_conformance.rs:6` through `src/backend/handshake_core/tests/storage_conformance.rs:27`.
+- Requirement: MCP regression coverage now exercises both SQLite and Postgres at `src/backend/handshake_core/tests/mcp_e2e_tests.rs:244` through `src/backend/handshake_core/tests/mcp_e2e_tests.rs:483`, including durable field reads, reverse lookup, and Flight Recorder event assertions.
+- Requirement: CI executes the MCP durable progress regression in the backend matrix at `.github/workflows/ci.yml:139` through `.github/workflows/ci.yml:143`.
+- Hygiene: `just validator-scan`, `just validator-dal-audit`, `just validator-coverage-gaps`, `just pre-work`, and `just post-work` all passed. `git status -sb` was clean at the end of validation.
+- Forbidden Patterns: none found by `just validator-scan`.
+- Storage DAL Audit (if applicable): PASS. `just validator-dal-audit` reported `DAL checks clean`.
+- Architecture/RDD/LLM: no boundary regression found in the changed paths. The only new runtime write happens through the storage trait from `mcp/gate.rs`.
+- Security/Red Team: SQL remains parameterized, the new schema enforces a unique progress-token mapping, and duplicate token reuse returns `StorageError::Conflict("mcp_progress_token already mapped")`.
+
+Tests:
+- `just pre-work WP-1-Postgres-MCP-Durable-Progress-v1`: PASS
+- `just post-work WP-1-Postgres-MCP-Durable-Progress-v1 --range 49442d61b03f52b4f11e2334933ef5b6283c7a94..HEAD`: PASS
+- `$env:CARGO_TARGET_DIR='D:\hs-target'; $env:POSTGRES_TEST_URL='postgres://postgres:postgres@127.0.0.1:5433/handshake_test'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance`: PASS (`sqlite_storage_conformance` and `postgres_storage_conformance`)
+- `$env:CARGO_TARGET_DIR='D:\hs-target'; $env:POSTGRES_TEST_URL='postgres://postgres:postgres@127.0.0.1:5433/handshake_test'; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests mcp_e2e_tests`: PASS (`mcp_e2e_tests_sqlite_persists_progress_mapping_records_fr_events_and_hydrates_ref` and `mcp_e2e_tests_postgres_persists_progress_mapping_records_fr_events_and_hydrates_ref`)
+- Coverage note: the MCP e2e test would fail if the new durable mapping write or reverse lookup were removed, and the storage conformance suite still exercises both backends.
+
+Risks & Suggested Actions:
+- Local Postgres reruns depend on a clean and ready test database. On this validator host, I had to reset the compose volume and wait for the container healthcheck before the Postgres path became stable again. This did not block a clean-run PASS, but it is a local validation sharp edge.
+- Windows local cargo runs were more reliable with a short `CARGO_TARGET_DIR` (`D:\hs-target`) than with the long workspace-relative target path. Keep that override available for future validator/coder runs on this host.
+
+Improvements & Future Proofing:
+- Consider hardening `postgres_backend_from_env()` or the Postgres test harness to provision a fresh database per run so repeated local executions are hermetic without manual container resets.
+- Consider documenting the short Windows cargo target-dir override in the WP evidence or validator runbook to avoid false negatives caused by long-path native builds.
+
+REASON FOR PASS:
+- The WP now satisfies the storage portability and durable progress mapping requirements in the current spec: both backends implement the MCP field methods, the schema is migration-backed and portable, the reverse lookup is enforced by a unique side-table index, the MCP regression proves token -> job resolution plus Flight Recorder correlation, and the deterministic workflow gates passed on the validated range.
