@@ -300,25 +300,35 @@ function main() {
 
   if (!lastSignature) {
     printLifecycle({ wpId, stage: "APPROVAL", next: "SIGNATURE" });
-    printOperatorAction(`Collect explicit approval + one-time signature for ${wpId}`);
+    printOperatorAction(`Collect explicit approval + one-time signature bundle for ${wpId} (signature + execution lane)`);
     printConfidence(confidence.level, confidence.detail);
     printState("Refinement recorded; signature not yet recorded.");
     printNextCommands([
       `# Paste the FULL Technical Refinement Block from .GOV/refinements/${wpId}.md in chat (verbatim; no summary).`,
       `# Ensure refinement METADATA contains: - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT ${wpId}`,
-      `just record-signature ${wpId} {usernameDDMMYYYYHHMM}`,
+      `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {Orchestrator-Agentic|Coder-A|Coder-B}`,
     ]);
     return;
   }
 
   if (!lastPrepare) {
     printLifecycle({ wpId, stage: "PREPARE", next: "PACKET_CREATE" });
-    printOperatorAction("Choose coder assignment (Coder-A|Coder-B) for PREPARE");
+    const executionLane = lastSignature.execution_lane || "";
+    if (!executionLane) {
+      printOperatorAction("Choose execution lane for legacy PREPARE recovery (Orchestrator-Agentic|Coder-A|Coder-B)");
+      printConfidence(confidence.level, confidence.detail);
+      printState("Signature recorded; WP prepare record missing and signature bundle did not capture the execution lane.");
+      printNextCommands([
+        `just orchestrator-prepare-and-packet ${wpId} {Orchestrator-Agentic|Coder-A|Coder-B}`,
+      ]);
+      return;
+    }
+
+    printOperatorAction("NONE");
     printConfidence(confidence.level, confidence.detail);
-    printState("Signature recorded; WP prepare record missing.");
+    printState(`Signature recorded; WP prepare record missing. Execution lane from signature bundle: ${executionLane}.`);
     printNextCommands([
-      `just worktree-add ${wpId}`,
-      `just record-prepare ${wpId} {Coder-A|Coder-B}`,
+      `just orchestrator-prepare-and-packet ${wpId} ${executionLane}`,
     ]);
     return;
   }

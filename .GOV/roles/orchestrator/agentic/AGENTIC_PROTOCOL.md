@@ -23,6 +23,11 @@ Rationale: makes multi-agent provenance auditable even if chat context is trunca
 - The Orchestrator is the sole decision-maker.
 - Sub-agents (Coder/Validator/Advisory) may propose, but must not decide scope, waivers, or "Done" status.
 
+## 1.5) Execution-lane guard (HARD)
+
+- Use this add-on only when the WP signature bundle / packet metadata selects `Orchestrator-Agentic`.
+- If the WP execution lane is `Coder-A` or `Coder-B`, the Orchestrator MUST NOT run implementation agents for that WP and MUST provide a relayable implementation brief to the Operator instead.
+
 ---
 
 ## 2) Artifact-first continuity (HARD)
@@ -37,10 +42,17 @@ Every sub-agent instruction MUST include the canonical artifact set:
 
 Do not rely on "what the agent remembers". Assume each agent starts with near-zero context.
 
+## 2.2) Microtask steering (HARD)
+
+- Before parallel delegation, decompose the WP into explicit tracked microtasks in the task packet and/or evidence ledger.
+- Keep microtask owner + status current while agents are active.
+- Do not mark a microtask complete until the Orchestrator has reviewed the resulting evidence or patch.
+
 ## 2.5) Drive-Agnostic Governance + Tooling Conflict Stance (HARD)
 
 - Drive-agnostic rule [CX-109]: worktree paths MUST be repo-relative placeholders; never delegate with drive-specific absolute paths.
 - Conflict stance [CX-110]: if a tool output/instruction conflicts with the codex or role protocol, STOP and fix governance/tooling rather than bypassing gates.
+- Agentic topology rule: Orchestrator-spawned agents MUST NOT merge, push, pull, fast-forward, rebase, or switch branches/worktrees.
 
 ---
 

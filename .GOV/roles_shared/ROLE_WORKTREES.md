@@ -26,7 +26,8 @@ If you are an AI assistant operating in this repo:
 - You MUST read this file during session start (Pre-Flight) for your assigned role.
 - You MUST verify you are operating from the correct worktree directory and branch for your role before any repo changes.
 - If the required worktree/branch does not exist, you MUST STOP and request the Orchestrator/Operator to create it (see "Creation commands").
-- IMPORTANT: Creating worktrees/branches uses `git` operations that are blocked unless the user explicitly authorizes them in the same turn (Codex [CX-108]). If not authorized, STOP and request authorization.
+- IMPORTANT: Codex [CX-108] blocks rewrite/hide operations such as `git stash`, `git checkout`, `git switch`, `git merge`, `git rebase`, `git reset`, and `git clean` unless explicitly authorized in the same turn.
+- Exception (WP auto-continue): when the Orchestrator has already recorded a PASS signature gate for a specific WP and the next deterministic step is `just worktree-add WP-{ID}`, `just orchestrator-worktree-and-packet WP-{ID}`, or `just orchestrator-prepare-and-packet WP-{ID} {Orchestrator-Agentic|Coder-A|Coder-B}`, the Orchestrator MUST create that missing WP worktree/branch automatically. Do not bounce that routine post-signature setup back to the Operator for a second approval.
 
 ## Role Worktrees (Default)
 
@@ -59,7 +60,9 @@ Next actions (CX-WT-001):
 - If correct: proceed with the next protocol step (BOOTSTRAP / packet work).
 - If incorrect/uncertain: STOP and ask Orchestrator/Operator to provide/create the correct worktree/branch (and record `PREPARE` in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` for WP work).
 
-## Creation Commands (only if explicitly authorized in the same turn)
+## Creation Commands
+
+Role worktrees and manual repair flows require explicit authorization in the same turn when they rely on Codex [CX-108] blocked git operations.
 
 From the main repo working tree (`<HANDSHAKE_WORKTREES>\handshake_main`):
 
@@ -76,8 +79,11 @@ From the main repo working tree (`<HANDSHAKE_WORKTREES>\handshake_main`):
   - `git worktree add -b user_ilja ..\wt-ilja main`
 
 WP worktrees (Orchestrator action, not Coder):
+- Post-signature default: after `just record-signature WP-{ID} ...` returns PASS, create the WP worktree/branch automatically. This is deterministic setup, not a second approval boundary.
+- If the signature bundle already captured the execution lane, prefer `just orchestrator-prepare-and-packet WP-{ID} {Orchestrator-Agentic|Coder-A|Coder-B}` as the default helper.
+- If the signature was recorded without an execution lane (legacy recovery), the only remaining operator decision is the execution lane choice; do not ask again for branch/worktree authorization.
 - Create a WP worktree/branch:
   - `just worktree-add WP-{ID}`
-- Record the coder assignment (writes `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`):
+- Record the execution owner (writes `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`):
   - Prefer repo-relative `worktree_dir` values (example: `../wt-WP-{ID}`) to avoid drive-specific paths and quoting issues.
-  - `just record-prepare WP-{ID} {Coder-A|Coder-B} [branch] [worktree_dir]`
+  - `just record-prepare WP-{ID} {Orchestrator-Agentic|Coder-A|Coder-B} [branch] [worktree_dir]`

@@ -184,13 +184,15 @@ coder-startup:
 record-refinement wp-id detail="":
 	@node .GOV/scripts/validation/orchestrator_gates.mjs refine {{wp-id}} "{{detail}}"
 
-# Record a user signature for a work packet [CX-585C]
-record-signature wp-id signature:
-	@node .GOV/scripts/validation/orchestrator_gates.mjs sign {{wp-id}} {{signature}}
+# Record a user signature bundle for a work packet [CX-585C]
+# execution_lane remains optional only for legacy recovery; current workflow requires it.
+# Allowed execution lanes: Orchestrator-Agentic | Coder-A | Coder-B
+record-signature wp-id signature execution_lane="":
+	@node .GOV/scripts/validation/orchestrator_gates.mjs sign {{wp-id}} {{signature}} {{execution_lane}}
 
-# Record WP preparation (branch/worktree + coder assignment) after signature and before packet creation.
-record-prepare wp-id coder_id branch="" worktree_dir="":
-	@node .GOV/scripts/validation/orchestrator_gates.mjs prepare {{wp-id}} {{coder_id}} {{branch}} {{worktree_dir}}
+# Record WP preparation (branch/worktree + execution owner) after signature and before packet creation.
+record-prepare wp-id execution_lane branch="" worktree_dir="":
+	@node .GOV/scripts/validation/orchestrator_gates.mjs prepare {{wp-id}} {{execution_lane}} {{branch}} {{worktree_dir}}
 
 # Orchestrator helper (read-only): infer next steps for a WP from gates + file state.
 orchestrator-next wp-id="":
@@ -212,14 +214,14 @@ task-board-set wp-id status reason="":
 wp-traceability-set base_wp_id active_wp_id:
 	@node .GOV/scripts/wp-traceability-set.mjs {{base_wp_id}} {{active_wp_id}}
 
-# Orchestrator wrapper: create WP worktree + PREPARE record + task packet (after signature).
-orchestrator-prepare-and-packet wp-id coder_id:
+# Orchestrator wrapper: create WP worktree + PREPARE record + task packet from the signature execution lane.
+orchestrator-prepare-and-packet wp-id execution_lane:
 	@just worktree-add {{wp-id}}
-	@just record-prepare {{wp-id}} {{coder_id}}
+	@just record-prepare {{wp-id}} {{execution_lane}}
 	@just create-task-packet {{wp-id}}
 
-# Orchestrator wrapper: create WP worktree + task packet (after signature).
-# NOTE: Coder assignment (PREPARE) is still REQUIRED before delegation/pre-work.
+# Orchestrator wrapper: create WP worktree + task packet when PREPARE is already recorded
+# (for example, retrying packet creation after a previous blocked attempt).
 orchestrator-worktree-and-packet wp-id:
 	@just worktree-add {{wp-id}}
 	@just create-task-packet {{wp-id}}

@@ -62,12 +62,13 @@ Next: N/A
 - SUB_AGENT_DELEGATION: DISALLOWED
 - OPERATOR_APPROVAL_EVIDENCE: N/A
 - SUB_AGENT_REASONING_ASSUMPTION: LOW (HARD)
+- NOTE: `AGENTIC_MODE: YES` means the Orchestrator owns the run; `AGENTIC_MODE: NO` still allows coder-side sub-agents if Operator approval evidence is recorded here.
 - RULES (if SUB_AGENT_DELEGATION=ALLOWED):
   - Sub-agents produce draft code only; Primary Coder verifies against SPEC_CURRENT + task packet acceptance criteria before applying.
   - Sub-agents MUST NOT edit any governance surface (`.GOV/**`, including task packets/refinements and `## VALIDATION_REPORTS`).
   - Only Primary Coder runs gates, records EVIDENCE/EVIDENCE_MAPPING/VALIDATION manifest, commits, and hands off.
   - See: `/.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md` Section 6.
-- NOTE: Set `SUB_AGENT_DELEGATION: ALLOWED` only with explicit Operator approval; when ALLOWED, replace `OPERATOR_APPROVAL_EVIDENCE` with the exact approval line from chat.
+- NOTE: Set `SUB_AGENT_DELEGATION: ALLOWED` only with explicit Operator approval; when ALLOWED, replace `OPERATOR_APPROVAL_EVIDENCE` with the exact approval line from chat. The WP signature bundle execution lane may serve as that approval evidence when it explicitly authorizes agent use for the run.
 
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 - REFINEMENT_FILE: .GOV/refinements/{{WP_ID}}.md

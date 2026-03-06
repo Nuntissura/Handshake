@@ -60,12 +60,12 @@ Authoritative inputs:
 
 Primary commands:
 - `just record-refinement WP-...`
-- `just record-signature WP-... <sig>`
+- `just record-signature WP-... <sig> <Orchestrator-Agentic|Coder-A|Coder-B>`
 - `just worktree-add WP-...`
-- `just record-prepare WP-... <Coder-A|Coder-B> [branch] [worktree_dir]`
+- `just record-prepare WP-... <Orchestrator-Agentic|Coder-A|Coder-B> [branch] [worktree_dir]`
 - `just create-task-packet WP-...`
 - `just orchestrator-worktree-and-packet WP-...`
-- `just orchestrator-prepare-and-packet WP-... <Coder-A|Coder-B>`
+- `just orchestrator-prepare-and-packet WP-... <Orchestrator-Agentic|Coder-A|Coder-B>`
 - `just pre-work WP-...`
 
 ## Role: Coder

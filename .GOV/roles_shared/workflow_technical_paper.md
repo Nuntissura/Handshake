@@ -260,7 +260,7 @@ Backlog â†’ Ready-for-Dev â†’ In-Progress â†’ Ready-for-Validatio
 
 **Status Rules**:
 - **Backlog**: packet created but not spec-ready; waiting for enrichment or dependency resolution
-- **Ready-for-Dev**: fully spec'd, signature obtained, `just pre-work` passed; awaiting coder assignment
+- **Ready-for-Dev**: fully spec'd, signature bundle recorded, execution lane prepared, `just pre-work` passed; awaiting implementation start
 - **In-Progress**: coder actively implementing; packet shows BOOTSTRAP + validation evidence
 - **Ready-for-Validation**: implementation complete; `just post-work` passed; awaiting validator review
 - **Done (VALIDATED)**: validator issued PASS; validation report appended to packet; task board entry shows VALIDATED
@@ -1353,7 +1353,7 @@ Must be Done + VALIDATED before Phase 1 can close:
 
 ## Ready for Dev
 
-- [WP-1-Observability] Spec'd, no blockers, awaiting coder assignment (SLA: 10 days)
+- [WP-1-Observability] Spec'd, no blockers, awaiting execution-lane prep / implementation start (SLA: 10 days)
 - [WP-1-Metrics-Collection] Spec'd, awaiting blockers WP-1-Logging-Framework to clear
 
 ## Backlog
@@ -3099,6 +3099,5 @@ Signed: {signature}
 8) Train agents on Orchestrator/Coder/Validator protocols and the signature pause.
 9) Run `just pre-work WP-{id}` before handoff; block on any failure.
 10) Require signature pause before enrichment or packet creation; log every signature.
-
 
 

@@ -89,6 +89,7 @@ If any of the above is missing: DO NOT use sub-agents.
 ### 6.4 Sub-agent constraints (HARD)
 
 Sub-agents MUST:
+- be Coder-role helpers only; do not delegate implementation to Orchestrator-role or Validator-role agents,
 - work only on explicitly assigned slices with explicit ALLOWED_PATHS,
 - return draft code (patch/diff) + notes,
 - STOP and ask if anything is ambiguous.
@@ -96,7 +97,7 @@ Sub-agents MUST:
 Sub-agents MUST NOT:
 - edit any governance surface: `.GOV/**` (including `.GOV/task_packets/**`, `.GOV/refinements/**`, and any `## VALIDATION_REPORTS` section),
 - run workflow gates (`just pre-work`, `just post-work`, validator gates) as "official evidence",
-- commit, merge, rebase, switch branches, or otherwise modify git history/worktree state.
+- commit, merge, push, pull, fast-forward, rebase, switch branches, or otherwise modify git history/worktree state.
 
 ### 6.5 Primary Coder integration rule (HARD)
 

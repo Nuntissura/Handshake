@@ -36,6 +36,12 @@ Evidence ledger reference: `/.GOV/roles_shared/EVIDENCE_LEDGER.md`.
 - Always run the worktree gate (`git rev-parse --show-toplevel`, `git status -sb`, `git worktree list`) and paste outputs.
 - Re-run gates against the WP worktree recorded in `/.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` (PREPARE record), not against your role worktree copy.
 
+## 3.5) Audit-only topology rule (HARD)
+
+- An orchestrator-spawned validator agent is audit-only.
+- It MUST NOT merge, push, pull, fast-forward, rebase, or switch branches/worktrees.
+- Final merge authority remains with the standalone Validator closure flow, not an orchestrator-spawned validator sub-agent.
+
 ---
 
 ## 4) "Range vs worktree" trap (HARD)

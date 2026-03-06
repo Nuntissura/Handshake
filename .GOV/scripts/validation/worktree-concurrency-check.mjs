@@ -117,7 +117,7 @@ for (const wpId of inProgressWpIds) {
 
   if (!worktree) {
     violations.push(
-      `${wpId}: no linked worktree found for expected branch ${expectedBranch} (run: just worktree-add ${wpId} && just record-prepare ${wpId} {Coder-A|Coder-B})`,
+      `${wpId}: no linked worktree found for expected branch ${expectedBranch} (run: just worktree-add ${wpId} && just record-prepare ${wpId} {Orchestrator-Agentic|Coder-A|Coder-B})`,
     );
     continue;
   }
