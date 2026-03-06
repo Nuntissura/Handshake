@@ -198,6 +198,12 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 
 **Closure rule:** Only after `verdict: PASS` may the Validator set the task packet `**Status:** Done`, move the Task Board entry to `## Done` with `[VALIDATED]`, and sync `.GOV/roles_shared/BUILD_ORDER.md` (via `just build-order-sync`).
 
+**PASS closure visibility rule (MANDATORY):**
+- After a WP receives `verdict: PASS`, the Validator MUST update `.GOV/roles_shared/TASK_BOARD.md` before merging the WP to `main`.
+- Required command: `just task-board-set WP-{ID} DONE_VALIDATED`
+- The Task Board update MUST be carried in the same WP branch closure flow as the PASS report append / packet `**Status:** Done` update, so that the eventual merge to `main` and fast-forward of role worktrees makes the closed `[VALIDATED]` state visible everywhere immediately.
+- If the WP packet says `Done`/`PASS` but the Task Board still shows `READY_FOR_DEV` or `IN_PROGRESS`, closure is incomplete and the Validator MUST fix the Task Board before merge.
+
 ## Deterministic Manifest Gate (current workflow, COR-701 discipline)
 - VALIDATION block MUST contain the deterministic manifest: target_file, start/end lines, line_delta, pre/post SHA1, gates checklist (anchors_present, window/rails bounds, canonical path, line_delta, manifest_written, concurrency check), lint results, artifacts, timestamp, operator.
 - Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
@@ -355,26 +361,31 @@ State is tracked per WP in `.GOV/validator_gates/{WP_ID}.json`. Gates enforce mi
 
 ### Gate 1: WP APPEND (Records verdict; non-blocking)
 1. Validator completes all checks and generates the full VALIDATION REPORT.
-2. Validator appends the VALIDATION REPORT to `.GOV/task_packets/{WP_ID}.md` (APPEND-ONLY per [CX-WP-001]).
-3. Validator runs: `just validator-gate-append {WP_ID} {PASS|FAIL}`
-4. Validator does **not** paste the full report to chat yet.
+2. If verdict = PASS, before recording Gate 1 the Validator MUST update the WP closure state on the WP branch:
+   - set task packet `**Status:** Done`
+   - update `.GOV/roles_shared/TASK_BOARD.md` to `## Done` / `[VALIDATED]`
+   - sync `.GOV/roles_shared/BUILD_ORDER.md` via `just build-order-sync`
+3. Validator appends the VALIDATION REPORT to `.GOV/task_packets/{WP_ID}.md` (APPEND-ONLY per [CX-WP-001]).
+4. Validator runs: `just validator-gate-append {WP_ID} {PASS|FAIL}`
+5. Validator does **not** paste the full report to chat yet.
 
 ### Gate 2: COMMIT CLEARANCE (PASS only)
 1. Only if verdict = PASS, Validator runs: `just validator-gate-commit {WP_ID}`
-2. Validator performs `git commit` on the WP branch (includes the appended report) and records the commit SHA.
+2. Validator performs `git commit` on the WP branch and records the commit SHA.
+   - PASS requirement: this commit MUST include the appended report plus the Task Board / packet / build-order closure updates so the later merge + fast-forward exposes the validated WP state in every active worktree.
 
 ### Gate 3: FINAL REPORT PRESENTATION (Blocking; the only mechanical pause)
 1. If verdict = FAIL: run immediately after Gate 1, **before any remediation begins**.
-2. If verdict = PASS: run after Gate 2 and after the validation report append is committed (**right before merge/push**).
+2. If verdict = PASS: run after Gate 2 and after the validation report append is committed (**right before merge to `main` / push of `main`**).
 3. Validator **outputs the entire report to chat** using the Report Template.
 4. Validator runs: `just validator-gate-present {WP_ID}`
-5. **HALT.** Validator MUST NOT merge/push (PASS) or authorize remediation kickoff (FAIL) until the user acknowledges.
+5. **HALT.** Validator MUST NOT merge to `main` / push `main` (PASS) or authorize remediation kickoff (FAIL) until the user acknowledges.
 
 ### Gate 4: USER ACKNOWLEDGMENT (Unlock)
 1. User explicitly acknowledges the report (e.g., "proceed", "approved", "continue").
 2. If user requests changes or disputes findings -> return to validation, re-run checks, regenerate report.
 3. Validator runs: `just validator-gate-acknowledge {WP_ID}`
-4. PASS: Validator may merge/push to `main`.
+4. PASS: Validator may merge the validated WP into `main`. Only `main` may be pushed to `origin`; WP branches and role branches must not be pushed.
 5. FAIL: WP remains open for remediation (no merge/commit).
 
 ### Gate Commands
@@ -387,7 +398,7 @@ just validator-gate-status {WP_ID}                # Check current gate state
 just validator-gate-reset {WP_ID} --confirm       # Reset gates (archives old session)
 ```
 
-**Violations:** Skipping Gate 1, committing without a PASS Gate 2, or merging/pushing (PASS) / starting remediation (FAIL) without Gate 3+4 = PROTOCOL VIOLATION [CX-VAL-GATE-FAIL]. Gate commands will fail if the sequence is violated.
+**Violations:** Skipping Gate 1, committing without a PASS Gate 2, or merging to `main` / pushing `main` (PASS) / starting remediation (FAIL) without Gate 3+4 = PROTOCOL VIOLATION [CX-VAL-GATE-FAIL]. Gate commands will fail if the sequence is violated.
 
 ```
 FLOW DIAGRAM:
@@ -417,11 +428,18 @@ FLOW DIAGRAM:
                            GATE 4: ACKNOWLEDGE
                                     |
                                     v
-                              merge/push
+                       merge to main / push main only
 ```
 
 ## Merge/Commit Authority (per Codex [CX-505])
-- After issuing PASS **and completing all validation gates**, the Validator is responsible for merging/committing the WP to `main`. Coders must not merge their own work.
+- After issuing PASS **and completing all validation gates**, the Validator is responsible for the integration flow into `main`.
+- Validator responsibilities after PASS:
+  - merge the validated WP branch into `main`
+  - commit any required closure-sync or conflict-resolution edits on `main`
+  - ensure the canonical closed `[VALIDATED]` state lives on `main`
+- Coders must not merge their own work.
+- Main-only push rule: only `main` may be pushed to `origin`. WP branches, role branches, and other working branches are not canonical push targets.
+- If a remote push is authorized, the Validator pushes `main` only after the merge is complete and `main` contains the final validated closure state.
 
 ## Post-Merge Cleanup (reduces branch confusion)
 - After a WP is merged into `main`, the Validator SHOULD delete the local WP branch pointer to avoid leaving stale branches:
@@ -470,7 +488,8 @@ Task Packet Update (APPEND-ONLY):
 - [CX-WP-002] CLOSURE REASONS: The append block MUST contain a "REASON FOR {VERDICT}" section explaining exactly why the WP was closed or failed, linking back to specific findings.
 - STATUS + closure updates are PASS-gated: append the full Validation Report for PASS/FAIL using the template below, but only after `verdict: PASS` may the Validator set task packet `**Status:** Done`, move TASK_BOARD to Done/Validated, and sync BUILD_ORDER (`just build-order-sync`). **DO NOT OVERWRITE User Context or previous history [CX-654].**
 - For non-PASS verdicts (FAIL/OUTDATED_ONLY), append the report but do not perform Done/Validated closure updates on task packet/TASK_BOARD/BUILD_ORDER.
-- TASK_BOARD update (on `main`): move the WP entry only after the canonical task packet has an appended Validation Report (under `## VALIDATION_REPORTS`) with the explicit Validation Claims above. Status-sync commits earlier in the WP lifecycle are separate and do not imply a verdict.
+- TASK_BOARD update (merge-visible requirement): for PASS, the Validator MUST update `.GOV/roles_shared/TASK_BOARD.md` on the WP branch before merge using `just task-board-set WP-{ID} DONE_VALIDATED`, and the closure commit MUST carry that update so merge + fast-forward makes the validated state visible in all role worktrees.
+- TASK_BOARD update (on `main`): after merge, the canonical main-branch Task Board must already show the validated WP entry from that closure commit. Status-sync commits earlier in the WP lifecycle are separate and do not imply a verdict.
 - Board consistency (on `main`): task packet `**Status:**` is source of truth; reconcile the Task Board to match packet reality before declaring PASS. Unresolved mismatch = FAIL pending correction.
 ```
 
