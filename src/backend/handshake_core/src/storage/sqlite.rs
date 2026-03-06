@@ -1,16 +1,19 @@
 use super::{
-    validate_job_contract, AccessMode, AiJob, AiJobListFilter, Block, BlockUpdate, BronzeRecord,
-    AiJobMcpFields, AiJobMcpUpdate, Asset, Canvas, CanvasEdge, CanvasGraph, CanvasNode,
-    DefaultStorageGuard, Document, LoomBlock, LoomBlockContentType, LoomBlockDerived,
+    validate_job_contract, AccessMode, AiJob, AiJobListFilter, AiJobMcpFields, AiJobMcpUpdate,
+    Asset, Block, BlockUpdate, BronzeRecord, CalendarEvent, CalendarEventExportMode,
+    CalendarEventStatus, CalendarEventUpsert, CalendarEventVisibility, CalendarEventWindowQuery,
+    CalendarSource, CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
+    CalendarSourceWritePolicy, CalendarSyncStateStage, Canvas, CanvasEdge, CanvasGraph, CanvasNode,
+    DefaultStorageGuard, Document, EmbeddingModelRecord, EmbeddingRegistry, EntityRef, JobKind,
+    JobMetrics, JobState, JobStatusUpdate, LoomBlock, LoomBlockContentType, LoomBlockDerived,
     LoomBlockSearchResult, LoomBlockUpdate, LoomEdge, LoomEdgeCreatedBy, LoomEdgeType,
     LoomSearchFilters, LoomSourceAnchor, LoomViewFilters, LoomViewGroup, LoomViewResponse,
-    LoomViewType, NewAsset, NewLoomBlock, NewLoomEdge, PreviewStatus,
-    EmbeddingModelRecord, EmbeddingRegistry, EntityRef, JobKind, JobMetrics, JobState,
-    JobStatusUpdate, ModelSession, ModelSessionState, MutationMetadata, NewAiJob, NewBlock,
-    NewBronzeRecord, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewModelSession,
-    NewNodeExecution, NewSessionMessage, NewSilverRecord, NewWorkspace, PlannedOperation,
-    SafetyMode, SessionMessage, SessionMessageRole, SilverRecord, StorageError, StorageGuard,
-    StorageResult, WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
+    LoomViewType, ModelSession, ModelSessionState, MutationMetadata, NewAiJob, NewAsset, NewBlock,
+    NewBronzeRecord, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock,
+    NewLoomEdge, NewModelSession, NewNodeExecution, NewSessionMessage, NewSilverRecord,
+    NewWorkspace, PlannedOperation, PreviewStatus, SafetyMode, SessionMessage, SessionMessageRole,
+    SilverRecord, StorageError, StorageGuard, StorageResult, WorkflowNodeExecution, WorkflowRun,
+    Workspace, WriteContext,
 };
 use async_trait::async_trait;
 use chrono::Utc;
@@ -415,9 +418,11 @@ impl SqliteDatabase {
                 .await?;
         }
         if !existing.contains("redacted") {
-            sqlx::query("ALTER TABLE session_messages ADD COLUMN redacted INTEGER NOT NULL DEFAULT 0")
-                .execute(&self.pool)
-                .await?;
+            sqlx::query(
+                "ALTER TABLE session_messages ADD COLUMN redacted INTEGER NOT NULL DEFAULT 0",
+            )
+            .execute(&self.pool)
+            .await?;
         }
         if !existing.contains("tool_call_id") {
             sqlx::query("ALTER TABLE session_messages ADD COLUMN tool_call_id TEXT")
@@ -425,9 +430,11 @@ impl SqliteDatabase {
                 .await?;
         }
         if !existing.contains("attachments") {
-            sqlx::query("ALTER TABLE session_messages ADD COLUMN attachments TEXT NOT NULL DEFAULT '[]'")
-                .execute(&self.pool)
-                .await?;
+            sqlx::query(
+                "ALTER TABLE session_messages ADD COLUMN attachments TEXT NOT NULL DEFAULT '[]'",
+            )
+            .execute(&self.pool)
+            .await?;
         }
 
         sqlx::query(
@@ -544,9 +551,7 @@ fn normalize_fts5_query(raw: &str) -> Option<String> {
             continue;
         }
 
-        let safe_word = token
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '_');
+        let safe_word = token.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
         let token = token.replace('"', "\"\"");
         if safe_word {
             tokens.push(format!("{token}*"));
@@ -780,6 +785,195 @@ fn is_sqlite_missing_column(err: &sqlx::Error) -> bool {
         err,
         sqlx::Error::Database(db_err) if db_err.message().to_lowercase().contains("no such column")
     )
+}
+
+fn empty_json_object() -> Value {
+    Value::Object(Default::default())
+}
+
+fn empty_json_array() -> Value {
+    Value::Array(Vec::new())
+}
+
+fn encode_json(value: &Value) -> StorageResult<String> {
+    Ok(serde_json::to_string(value)?)
+}
+
+fn encode_string_vec(values: &[String]) -> StorageResult<String> {
+    Ok(serde_json::to_string(values)?)
+}
+
+fn decode_json_or_default(raw: Option<String>, default: Value) -> StorageResult<Value> {
+    match raw {
+        Some(raw) => Ok(serde_json::from_str(&raw)?),
+        None => Ok(default),
+    }
+}
+
+fn decode_string_vec_or_default(raw: Option<String>) -> StorageResult<Vec<String>> {
+    match raw {
+        Some(raw) => Ok(serde_json::from_str(&raw)?),
+        None => Ok(Vec::new()),
+    }
+}
+
+fn validate_calendar_source_upsert(source: &CalendarSourceUpsert) -> StorageResult<()> {
+    if source.id.trim().is_empty() {
+        return Err(StorageError::Validation("calendar source id is required"));
+    }
+    if source.workspace_id.trim().is_empty() {
+        return Err(StorageError::Validation(
+            "calendar source workspace_id is required",
+        ));
+    }
+    if source.display_name.trim().is_empty() {
+        return Err(StorageError::Validation(
+            "calendar source display_name is required",
+        ));
+    }
+    if source.default_tzid.trim().is_empty() {
+        return Err(StorageError::Validation(
+            "calendar source default_tzid is required",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_calendar_event_upsert(event: &CalendarEventUpsert) -> StorageResult<()> {
+    if event.id.trim().is_empty() {
+        return Err(StorageError::Validation("calendar event id is required"));
+    }
+    if event.workspace_id.trim().is_empty() {
+        return Err(StorageError::Validation(
+            "calendar event workspace_id is required",
+        ));
+    }
+    if event.source_id.trim().is_empty() {
+        return Err(StorageError::Validation(
+            "calendar event source_id is required",
+        ));
+    }
+    if event.title.trim().is_empty() {
+        return Err(StorageError::Validation("calendar event title is required"));
+    }
+    if event.tzid.trim().is_empty() {
+        return Err(StorageError::Validation("calendar event tzid is required"));
+    }
+    if event.end_ts_utc <= event.start_ts_utc {
+        return Err(StorageError::Validation(
+            "calendar event end_ts_utc must be after start_ts_utc",
+        ));
+    }
+    if event
+        .external_id
+        .as_deref()
+        .is_some_and(|value| value.trim().is_empty())
+    {
+        return Err(StorageError::Validation(
+            "calendar event external_id cannot be blank",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_calendar_event_query(query: &CalendarEventWindowQuery) -> StorageResult<()> {
+    if query.workspace_id.trim().is_empty() {
+        return Err(StorageError::Validation(
+            "calendar query workspace_id is required",
+        ));
+    }
+    if query.window_end_utc <= query.window_start_utc {
+        return Err(StorageError::Validation(
+            "calendar query window_end_utc must be after window_start_utc",
+        ));
+    }
+    Ok(())
+}
+
+fn map_calendar_source_row(row: sqlx::sqlite::SqliteRow) -> StorageResult<CalendarSource> {
+    let sync_state = row
+        .get::<Option<String>, _>("sync_state")
+        .as_deref()
+        .map(CalendarSyncStateStage::from_str)
+        .transpose()?;
+
+    Ok(CalendarSource {
+        id: row.get("id"),
+        workspace_id: row.get("workspace_id"),
+        display_name: row.get("display_name"),
+        provider_type: CalendarSourceProviderType::from_str(
+            row.get::<String, _>("provider_type").as_str(),
+        )?,
+        write_policy: CalendarSourceWritePolicy::from_str(
+            row.get::<String, _>("write_policy").as_str(),
+        )?,
+        default_tzid: row.get("default_tzid"),
+        auto_export: row.get::<i64, _>("auto_export") != 0,
+        credentials_ref: row.get("credentials_ref"),
+        provider_calendar_id: row.get("provider_calendar_id"),
+        capability_profile_id: row.get("capability_profile_id"),
+        config: decode_json_or_default(row.get("config_json"), empty_json_object())?,
+        sync_state: CalendarSourceSyncState {
+            state: sync_state,
+            sync_token: row.get("sync_token"),
+            last_synced_at: row.get("last_sync_ts"),
+            last_full_sync_at: row.get("last_full_sync_ts"),
+            last_ok_at: row.get("last_ok_at"),
+            last_pull_at: row.get("last_pull_at"),
+            last_push_at: row.get("last_push_at"),
+            last_error_at: row.get("last_error_at"),
+            last_error_code: row.get("last_error_code"),
+            last_error: row.get("last_error"),
+            backoff_until: row.get("backoff_until"),
+            consecutive_failures: row.get("consecutive_failures"),
+            last_remote_watermark: row.get("last_remote_watermark"),
+            last_local_applied_rev: row.get("last_local_applied_rev"),
+        },
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+fn map_calendar_event_row(row: sqlx::sqlite::SqliteRow) -> StorageResult<CalendarEvent> {
+    Ok(CalendarEvent {
+        id: row.get("id"),
+        workspace_id: row.get("workspace_id"),
+        source_id: row.get("source_id"),
+        external_id: row.get("external_id"),
+        external_etag: row.get("external_etag"),
+        title: row.get("title"),
+        description: row.get("description"),
+        location: row.get("location"),
+        start_ts_utc: row.get("start_ts_utc"),
+        end_ts_utc: row.get("end_ts_utc"),
+        start_local: row.get("start_local"),
+        end_local: row.get("end_local"),
+        tzid: row.get("tzid"),
+        all_day: row.get::<i64, _>("all_day") != 0,
+        was_floating: row.get::<i64, _>("was_floating") != 0,
+        status: CalendarEventStatus::from_str(row.get::<String, _>("status").as_str())?,
+        visibility: CalendarEventVisibility::from_str(row.get::<String, _>("visibility").as_str())?,
+        export_mode: CalendarEventExportMode::from_str(
+            row.get::<String, _>("export_mode").as_str(),
+        )?,
+        rrule: row.get("rrule"),
+        rdate: decode_string_vec_or_default(row.get("rdate_json"))?,
+        exdate: decode_string_vec_or_default(row.get("exdate_json"))?,
+        is_recurring: row.get::<i64, _>("is_recurring") != 0,
+        series_id: row.get("series_id"),
+        instance_key: row.get("instance_key"),
+        is_override: row.get::<i64, _>("is_override") != 0,
+        source_last_seen_at: row.get("source_last_seen_at"),
+        created_by: row.get("created_by"),
+        attendees: decode_json_or_default(row.get("attendees_json"), empty_json_array())?,
+        links: decode_json_or_default(row.get("links_json"), empty_json_array())?,
+        provider_payload: row
+            .get::<Option<String>, _>("provider_payload_json")
+            .map(|raw| serde_json::from_str::<Value>(&raw))
+            .transpose()?,
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
 }
 
 #[async_trait]
@@ -1583,7 +1777,9 @@ impl super::Database for SqliteDatabase {
     ) -> StorageResult<LoomBlock> {
         let mut tx = self.pool.begin().await?;
         let now = Utc::now();
-        let id = block.block_id.map_or_else(|| Uuid::new_v4().to_string(), |v| v);
+        let id = block
+            .block_id
+            .map_or_else(|| Uuid::new_v4().to_string(), |v| v);
         let metadata = self.guard.validate_write(ctx, &id).await?;
         let actor_kind = metadata.actor_kind.as_str();
         let actor_id = metadata.actor_id.clone();
@@ -1990,7 +2186,9 @@ impl super::Database for SqliteDatabase {
     ) -> StorageResult<LoomEdge> {
         let mut tx = self.pool.begin().await?;
         let now = Utc::now();
-        let id = edge.edge_id.map_or_else(|| Uuid::new_v4().to_string(), |v| v);
+        let id = edge
+            .edge_id
+            .map_or_else(|| Uuid::new_v4().to_string(), |v| v);
         let metadata = self.guard.validate_write(ctx, &id).await?;
         let actor_kind = metadata.actor_kind.as_str();
         let actor_id = metadata.actor_id.clone();
@@ -2145,7 +2343,10 @@ impl super::Database for SqliteDatabase {
             mapped_existing.edge_type,
             LoomEdgeType::Mention | LoomEdgeType::Tag
         ) {
-            for block_id in [&mapped_existing.source_block_id, &mapped_existing.target_block_id] {
+            for block_id in [
+                &mapped_existing.source_block_id,
+                &mapped_existing.target_block_id,
+            ] {
                 sqlx::query(
                     r#"
                     UPDATE loom_blocks
@@ -2264,7 +2465,8 @@ impl super::Database for SqliteDatabase {
 
             if let Some(content_type) = filters.content_type {
                 push_clause(&mut qb);
-                qb.push("b.content_type = ").push_bind(content_type.as_str());
+                qb.push("b.content_type = ")
+                    .push_bind(content_type.as_str());
             }
 
             if let Some(mime) = filters.mime {
@@ -2477,14 +2679,16 @@ impl super::Database for SqliteDatabase {
         };
 
         push_clause(&mut qb);
-        qb.push("loom_blocks_fts.workspace_id = ").push_bind(workspace_id);
+        qb.push("loom_blocks_fts.workspace_id = ")
+            .push_bind(workspace_id);
 
         push_clause(&mut qb);
         qb.push("loom_blocks_fts MATCH ").push_bind(fts_query);
 
         if let Some(content_type) = filters.content_type {
             push_clause(&mut qb);
-            qb.push("b.content_type = ").push_bind(content_type.as_str());
+            qb.push("b.content_type = ")
+                .push_bind(content_type.as_str());
         }
         if let Some(mime) = filters.mime {
             push_clause(&mut qb);
@@ -2524,6 +2728,701 @@ impl super::Database for SqliteDatabase {
             .map(|row| self.map_loom_block_search_row(row))
             .collect::<StorageResult<Vec<_>>>()
     }
+
+    async fn upsert_calendar_source(
+        &self,
+        ctx: &WriteContext,
+        source: CalendarSourceUpsert,
+    ) -> StorageResult<CalendarSource> {
+        validate_calendar_source_upsert(&source)?;
+
+        let now = Utc::now();
+        let metadata = self.guard.validate_write(ctx, &source.id).await?;
+        let actor_kind = metadata.actor_kind.as_str();
+        let actor_id = metadata.actor_id.clone();
+        let actor_id_ref = actor_id.as_deref();
+        let job_id = metadata.job_id.map(|id| id.to_string());
+        let workflow_id = metadata.workflow_id.map(|id| id.to_string());
+        let edit_event_id = metadata.edit_event_id.to_string();
+        let config_json = encode_json(&source.config)?;
+        let auto_export = if source.auto_export { 1_i64 } else { 0_i64 };
+        let sync_state = source.sync_state.state.as_ref().map(|value| value.as_str());
+
+        let row = sqlx::query(
+            r#"
+            INSERT INTO calendar_sources (
+                id,
+                workspace_id,
+                display_name,
+                provider_type,
+                write_policy,
+                default_tzid,
+                auto_export,
+                credentials_ref,
+                provider_calendar_id,
+                capability_profile_id,
+                config_json,
+                sync_state,
+                sync_token,
+                last_sync_ts,
+                last_full_sync_ts,
+                last_ok_at,
+                last_pull_at,
+                last_push_at,
+                last_error_at,
+                last_error_code,
+                last_error,
+                backoff_until,
+                consecutive_failures,
+                last_remote_watermark,
+                last_local_applied_rev,
+                last_actor_kind,
+                last_actor_id,
+                last_job_id,
+                last_workflow_id,
+                edit_event_id,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+                $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
+                $31, $32
+            )
+            ON CONFLICT (id) DO UPDATE SET
+                workspace_id = excluded.workspace_id,
+                display_name = excluded.display_name,
+                provider_type = excluded.provider_type,
+                write_policy = excluded.write_policy,
+                default_tzid = excluded.default_tzid,
+                auto_export = excluded.auto_export,
+                credentials_ref = excluded.credentials_ref,
+                provider_calendar_id = excluded.provider_calendar_id,
+                capability_profile_id = excluded.capability_profile_id,
+                config_json = excluded.config_json,
+                sync_state = excluded.sync_state,
+                sync_token = excluded.sync_token,
+                last_sync_ts = excluded.last_sync_ts,
+                last_full_sync_ts = excluded.last_full_sync_ts,
+                last_ok_at = excluded.last_ok_at,
+                last_pull_at = excluded.last_pull_at,
+                last_push_at = excluded.last_push_at,
+                last_error_at = excluded.last_error_at,
+                last_error_code = excluded.last_error_code,
+                last_error = excluded.last_error,
+                backoff_until = excluded.backoff_until,
+                consecutive_failures = excluded.consecutive_failures,
+                last_remote_watermark = excluded.last_remote_watermark,
+                last_local_applied_rev = excluded.last_local_applied_rev,
+                last_actor_kind = excluded.last_actor_kind,
+                last_actor_id = excluded.last_actor_id,
+                last_job_id = excluded.last_job_id,
+                last_workflow_id = excluded.last_workflow_id,
+                edit_event_id = excluded.edit_event_id,
+                updated_at = excluded.updated_at
+            RETURNING
+                id,
+                workspace_id,
+                display_name,
+                provider_type,
+                write_policy,
+                default_tzid,
+                auto_export,
+                credentials_ref,
+                provider_calendar_id,
+                capability_profile_id,
+                config_json,
+                sync_state,
+                sync_token,
+                last_sync_ts,
+                last_full_sync_ts,
+                last_ok_at,
+                last_pull_at,
+                last_push_at,
+                last_error_at,
+                last_error_code,
+                last_error,
+                backoff_until,
+                consecutive_failures,
+                last_remote_watermark,
+                last_local_applied_rev,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(source.id)
+        .bind(source.workspace_id)
+        .bind(source.display_name)
+        .bind(source.provider_type.as_str())
+        .bind(source.write_policy.as_str())
+        .bind(source.default_tzid)
+        .bind(auto_export)
+        .bind(source.credentials_ref)
+        .bind(source.provider_calendar_id)
+        .bind(source.capability_profile_id)
+        .bind(config_json)
+        .bind(sync_state)
+        .bind(source.sync_state.sync_token)
+        .bind(source.sync_state.last_synced_at)
+        .bind(source.sync_state.last_full_sync_at)
+        .bind(source.sync_state.last_ok_at)
+        .bind(source.sync_state.last_pull_at)
+        .bind(source.sync_state.last_push_at)
+        .bind(source.sync_state.last_error_at)
+        .bind(source.sync_state.last_error_code)
+        .bind(source.sync_state.last_error)
+        .bind(source.sync_state.backoff_until)
+        .bind(source.sync_state.consecutive_failures)
+        .bind(source.sync_state.last_remote_watermark)
+        .bind(source.sync_state.last_local_applied_rev)
+        .bind(actor_kind)
+        .bind(actor_id_ref)
+        .bind(job_id)
+        .bind(workflow_id)
+        .bind(edit_event_id)
+        .bind(now)
+        .bind(now)
+        .fetch_one(&self.pool)
+        .await?;
+
+        map_calendar_source_row(row)
+    }
+
+    async fn list_calendar_sources(
+        &self,
+        workspace_id: &str,
+    ) -> StorageResult<Vec<CalendarSource>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                id,
+                workspace_id,
+                display_name,
+                provider_type,
+                write_policy,
+                default_tzid,
+                auto_export,
+                credentials_ref,
+                provider_calendar_id,
+                capability_profile_id,
+                config_json,
+                sync_state,
+                sync_token,
+                last_sync_ts,
+                last_full_sync_ts,
+                last_ok_at,
+                last_pull_at,
+                last_push_at,
+                last_error_at,
+                last_error_code,
+                last_error,
+                backoff_until,
+                consecutive_failures,
+                last_remote_watermark,
+                last_local_applied_rev,
+                created_at,
+                updated_at
+            FROM calendar_sources
+            WHERE workspace_id = $1
+            ORDER BY display_name ASC, id ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(map_calendar_source_row)
+            .collect::<StorageResult<Vec<_>>>()
+    }
+
+    async fn get_calendar_source(
+        &self,
+        workspace_id: &str,
+        source_id: &str,
+    ) -> StorageResult<Option<CalendarSource>> {
+        let row = sqlx::query(
+            r#"
+            SELECT
+                id,
+                workspace_id,
+                display_name,
+                provider_type,
+                write_policy,
+                default_tzid,
+                auto_export,
+                credentials_ref,
+                provider_calendar_id,
+                capability_profile_id,
+                config_json,
+                sync_state,
+                sync_token,
+                last_sync_ts,
+                last_full_sync_ts,
+                last_ok_at,
+                last_pull_at,
+                last_push_at,
+                last_error_at,
+                last_error_code,
+                last_error,
+                backoff_until,
+                consecutive_failures,
+                last_remote_watermark,
+                last_local_applied_rev,
+                created_at,
+                updated_at
+            FROM calendar_sources
+            WHERE workspace_id = $1 AND id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(source_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        row.map(map_calendar_source_row).transpose()
+    }
+
+    async fn upsert_calendar_event(
+        &self,
+        ctx: &WriteContext,
+        event: CalendarEventUpsert,
+    ) -> StorageResult<CalendarEvent> {
+        validate_calendar_event_upsert(&event)?;
+
+        let now = Utc::now();
+        let metadata = self.guard.validate_write(ctx, &event.id).await?;
+        let actor_kind = metadata.actor_kind.as_str();
+        let actor_id = metadata.actor_id.clone();
+        let actor_id_ref = actor_id.as_deref();
+        let job_id = metadata.job_id.map(|id| id.to_string());
+        let workflow_id = metadata.workflow_id.map(|id| id.to_string());
+        let edit_event_id = metadata.edit_event_id.to_string();
+        let all_day = if event.all_day { 1_i64 } else { 0_i64 };
+        let was_floating = if event.was_floating { 1_i64 } else { 0_i64 };
+        let is_recurring = if event.is_recurring { 1_i64 } else { 0_i64 };
+        let is_override = if event.is_override { 1_i64 } else { 0_i64 };
+        let rdate_json = encode_string_vec(&event.rdate)?;
+        let exdate_json = encode_string_vec(&event.exdate)?;
+        let attendees_json = encode_json(&event.attendees)?;
+        let links_json = encode_json(&event.links)?;
+        let provider_payload_json = event
+            .provider_payload
+            .as_ref()
+            .map(encode_json)
+            .transpose()?;
+
+        let row = if event.external_id.is_some() {
+            sqlx::query(
+                r#"
+                INSERT INTO calendar_events (
+                    id,
+                    workspace_id,
+                    source_id,
+                    external_id,
+                    external_etag,
+                    title,
+                    description,
+                    location,
+                    start_ts_utc,
+                    end_ts_utc,
+                    start_local,
+                    end_local,
+                    tzid,
+                    all_day,
+                    was_floating,
+                    status,
+                    visibility,
+                    export_mode,
+                    rrule,
+                    rdate_json,
+                    exdate_json,
+                    is_recurring,
+                    series_id,
+                    instance_key,
+                    is_override,
+                    source_last_seen_at,
+                    created_by,
+                    attendees_json,
+                    links_json,
+                    provider_payload_json,
+                    last_actor_kind,
+                    last_actor_id,
+                    last_job_id,
+                    last_workflow_id,
+                    edit_event_id,
+                    created_at,
+                    updated_at
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                    $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+                    $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
+                    $31, $32, $33, $34, $35, $36, $37
+                )
+                ON CONFLICT (source_id, external_id) DO UPDATE SET
+                    workspace_id = excluded.workspace_id,
+                    external_etag = excluded.external_etag,
+                    title = excluded.title,
+                    description = excluded.description,
+                    location = excluded.location,
+                    start_ts_utc = excluded.start_ts_utc,
+                    end_ts_utc = excluded.end_ts_utc,
+                    start_local = excluded.start_local,
+                    end_local = excluded.end_local,
+                    tzid = excluded.tzid,
+                    all_day = excluded.all_day,
+                    was_floating = excluded.was_floating,
+                    status = excluded.status,
+                    visibility = excluded.visibility,
+                    export_mode = excluded.export_mode,
+                    rrule = excluded.rrule,
+                    rdate_json = excluded.rdate_json,
+                    exdate_json = excluded.exdate_json,
+                    is_recurring = excluded.is_recurring,
+                    series_id = excluded.series_id,
+                    instance_key = excluded.instance_key,
+                    is_override = excluded.is_override,
+                    source_last_seen_at = excluded.source_last_seen_at,
+                    attendees_json = excluded.attendees_json,
+                    links_json = excluded.links_json,
+                    provider_payload_json = excluded.provider_payload_json,
+                    last_actor_kind = excluded.last_actor_kind,
+                    last_actor_id = excluded.last_actor_id,
+                    last_job_id = excluded.last_job_id,
+                    last_workflow_id = excluded.last_workflow_id,
+                    edit_event_id = excluded.edit_event_id,
+                    updated_at = excluded.updated_at
+                RETURNING
+                    id,
+                    workspace_id,
+                    source_id,
+                    external_id,
+                    external_etag,
+                    title,
+                    description,
+                    location,
+                    start_ts_utc,
+                    end_ts_utc,
+                    start_local,
+                    end_local,
+                    tzid,
+                    all_day,
+                    was_floating,
+                    status,
+                    visibility,
+                    export_mode,
+                    rrule,
+                    rdate_json,
+                    exdate_json,
+                    is_recurring,
+                    series_id,
+                    instance_key,
+                    is_override,
+                    source_last_seen_at,
+                    created_by,
+                    attendees_json,
+                    links_json,
+                    provider_payload_json,
+                    created_at,
+                    updated_at
+                "#,
+            )
+            .bind(event.id)
+            .bind(event.workspace_id)
+            .bind(event.source_id)
+            .bind(event.external_id)
+            .bind(event.external_etag)
+            .bind(event.title)
+            .bind(event.description)
+            .bind(event.location)
+            .bind(event.start_ts_utc)
+            .bind(event.end_ts_utc)
+            .bind(event.start_local)
+            .bind(event.end_local)
+            .bind(event.tzid)
+            .bind(all_day)
+            .bind(was_floating)
+            .bind(event.status.as_str())
+            .bind(event.visibility.as_str())
+            .bind(event.export_mode.as_str())
+            .bind(event.rrule)
+            .bind(rdate_json)
+            .bind(exdate_json)
+            .bind(is_recurring)
+            .bind(event.series_id)
+            .bind(event.instance_key)
+            .bind(is_override)
+            .bind(event.source_last_seen_at)
+            .bind(actor_id_ref)
+            .bind(attendees_json)
+            .bind(links_json)
+            .bind(provider_payload_json)
+            .bind(actor_kind)
+            .bind(actor_id_ref)
+            .bind(job_id)
+            .bind(workflow_id)
+            .bind(edit_event_id)
+            .bind(now)
+            .bind(now)
+            .fetch_one(&self.pool)
+            .await?
+        } else {
+            sqlx::query(
+                r#"
+                INSERT INTO calendar_events (
+                    id,
+                    workspace_id,
+                    source_id,
+                    external_id,
+                    external_etag,
+                    title,
+                    description,
+                    location,
+                    start_ts_utc,
+                    end_ts_utc,
+                    start_local,
+                    end_local,
+                    tzid,
+                    all_day,
+                    was_floating,
+                    status,
+                    visibility,
+                    export_mode,
+                    rrule,
+                    rdate_json,
+                    exdate_json,
+                    is_recurring,
+                    series_id,
+                    instance_key,
+                    is_override,
+                    source_last_seen_at,
+                    created_by,
+                    attendees_json,
+                    links_json,
+                    provider_payload_json,
+                    last_actor_kind,
+                    last_actor_id,
+                    last_job_id,
+                    last_workflow_id,
+                    edit_event_id,
+                    created_at,
+                    updated_at
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                    $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+                    $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
+                    $31, $32, $33, $34, $35, $36, $37
+                )
+                ON CONFLICT (id) DO UPDATE SET
+                    workspace_id = excluded.workspace_id,
+                    source_id = excluded.source_id,
+                    external_id = excluded.external_id,
+                    external_etag = excluded.external_etag,
+                    title = excluded.title,
+                    description = excluded.description,
+                    location = excluded.location,
+                    start_ts_utc = excluded.start_ts_utc,
+                    end_ts_utc = excluded.end_ts_utc,
+                    start_local = excluded.start_local,
+                    end_local = excluded.end_local,
+                    tzid = excluded.tzid,
+                    all_day = excluded.all_day,
+                    was_floating = excluded.was_floating,
+                    status = excluded.status,
+                    visibility = excluded.visibility,
+                    export_mode = excluded.export_mode,
+                    rrule = excluded.rrule,
+                    rdate_json = excluded.rdate_json,
+                    exdate_json = excluded.exdate_json,
+                    is_recurring = excluded.is_recurring,
+                    series_id = excluded.series_id,
+                    instance_key = excluded.instance_key,
+                    is_override = excluded.is_override,
+                    source_last_seen_at = excluded.source_last_seen_at,
+                    attendees_json = excluded.attendees_json,
+                    links_json = excluded.links_json,
+                    provider_payload_json = excluded.provider_payload_json,
+                    last_actor_kind = excluded.last_actor_kind,
+                    last_actor_id = excluded.last_actor_id,
+                    last_job_id = excluded.last_job_id,
+                    last_workflow_id = excluded.last_workflow_id,
+                    edit_event_id = excluded.edit_event_id,
+                    updated_at = excluded.updated_at
+                RETURNING
+                    id,
+                    workspace_id,
+                    source_id,
+                    external_id,
+                    external_etag,
+                    title,
+                    description,
+                    location,
+                    start_ts_utc,
+                    end_ts_utc,
+                    start_local,
+                    end_local,
+                    tzid,
+                    all_day,
+                    was_floating,
+                    status,
+                    visibility,
+                    export_mode,
+                    rrule,
+                    rdate_json,
+                    exdate_json,
+                    is_recurring,
+                    series_id,
+                    instance_key,
+                    is_override,
+                    source_last_seen_at,
+                    created_by,
+                    attendees_json,
+                    links_json,
+                    provider_payload_json,
+                    created_at,
+                    updated_at
+                "#,
+            )
+            .bind(event.id)
+            .bind(event.workspace_id)
+            .bind(event.source_id)
+            .bind(event.external_id)
+            .bind(event.external_etag)
+            .bind(event.title)
+            .bind(event.description)
+            .bind(event.location)
+            .bind(event.start_ts_utc)
+            .bind(event.end_ts_utc)
+            .bind(event.start_local)
+            .bind(event.end_local)
+            .bind(event.tzid)
+            .bind(all_day)
+            .bind(was_floating)
+            .bind(event.status.as_str())
+            .bind(event.visibility.as_str())
+            .bind(event.export_mode.as_str())
+            .bind(event.rrule)
+            .bind(rdate_json)
+            .bind(exdate_json)
+            .bind(is_recurring)
+            .bind(event.series_id)
+            .bind(event.instance_key)
+            .bind(is_override)
+            .bind(event.source_last_seen_at)
+            .bind(actor_id_ref)
+            .bind(attendees_json)
+            .bind(links_json)
+            .bind(provider_payload_json)
+            .bind(actor_kind)
+            .bind(actor_id_ref)
+            .bind(job_id)
+            .bind(workflow_id)
+            .bind(edit_event_id)
+            .bind(now)
+            .bind(now)
+            .fetch_one(&self.pool)
+            .await?
+        };
+
+        map_calendar_event_row(row)
+    }
+
+    async fn query_calendar_events(
+        &self,
+        query: CalendarEventWindowQuery,
+    ) -> StorageResult<Vec<CalendarEvent>> {
+        validate_calendar_event_query(&query)?;
+
+        let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
+            r#"
+            SELECT
+                id,
+                workspace_id,
+                source_id,
+                external_id,
+                external_etag,
+                title,
+                description,
+                location,
+                start_ts_utc,
+                end_ts_utc,
+                start_local,
+                end_local,
+                tzid,
+                all_day,
+                was_floating,
+                status,
+                visibility,
+                export_mode,
+                rrule,
+                rdate_json,
+                exdate_json,
+                is_recurring,
+                series_id,
+                instance_key,
+                is_override,
+                source_last_seen_at,
+                created_by,
+                attendees_json,
+                links_json,
+                provider_payload_json,
+                created_at,
+                updated_at
+            FROM calendar_events
+            WHERE workspace_id = "#,
+        );
+        qb.push_bind(&query.workspace_id);
+        qb.push(" AND start_ts_utc < ")
+            .push_bind(query.window_end_utc);
+        qb.push(" AND end_ts_utc > ")
+            .push_bind(query.window_start_utc);
+
+        if !query.source_ids.is_empty() {
+            qb.push(" AND source_id IN (");
+            let mut separated = qb.separated(", ");
+            for source_id in &query.source_ids {
+                separated.push_bind(source_id);
+            }
+            separated.push_unseparated(")");
+        }
+
+        qb.push(" ORDER BY start_ts_utc ASC, end_ts_utc ASC, id ASC");
+
+        let rows = qb.build().fetch_all(&self.pool).await?;
+        rows.into_iter()
+            .map(map_calendar_event_row)
+            .collect::<StorageResult<Vec<_>>>()
+    }
+
+    async fn delete_calendar_data_by_source(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        source_id: &str,
+    ) -> StorageResult<()> {
+        self.guard.validate_write(ctx, source_id).await?;
+
+        let res = sqlx::query(
+            r#"
+            DELETE FROM calendar_sources
+            WHERE workspace_id = $1 AND id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(source_id)
+        .execute(&self.pool)
+        .await?;
+
+        if res.rows_affected() == 0 {
+            return Err(StorageError::NotFound("calendar_source"));
+        }
+
+        Ok(())
+    }
+
     async fn create_canvas(&self, ctx: &WriteContext, canvas: NewCanvas) -> StorageResult<Canvas> {
         let now = Utc::now();
         let id = Uuid::new_v4().to_string();
@@ -4101,10 +5000,11 @@ impl super::Database for SqliteDatabase {
             Some(row) => self.map_model_session_row(row),
             None => {
                 // INV-SESS-004: memory_policy is immutable once declared at session creation.
-                let existing = sqlx::query("SELECT memory_policy FROM model_sessions WHERE session_id = $1")
-                    .bind(&session_id)
-                    .fetch_optional(&self.pool)
-                    .await?;
+                let existing =
+                    sqlx::query("SELECT memory_policy FROM model_sessions WHERE session_id = $1")
+                        .bind(&session_id)
+                        .fetch_optional(&self.pool)
+                        .await?;
                 if let Some(existing) = existing {
                     let existing_policy: String = existing.get("memory_policy");
                     if existing_policy != memory_policy {

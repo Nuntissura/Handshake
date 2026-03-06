@@ -1,16 +1,19 @@
 #[allow(unused_imports)]
 use super::{
-    postgres::PostgresDatabase, sqlite::SqliteDatabase, AccessMode, BlockUpdate, Database,
-    DefaultStorageGuard, EntityRef, GuardError, JobKind, JobMetrics, JobState, JobStatusUpdate,
-    NewAiJob, NewBlock, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewNodeExecution,
-    NewWorkspace, OperationType, PlannedOperation, SafetyMode, StorageError, StorageGuard,
-    StorageResult, WriteContext,
+    postgres::PostgresDatabase, sqlite::SqliteDatabase, AccessMode, BlockUpdate,
+    CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert, CalendarEventVisibility,
+    CalendarEventWindowQuery, CalendarSourceProviderType, CalendarSourceSyncState,
+    CalendarSourceUpsert, CalendarSourceWritePolicy, Database, DefaultStorageGuard, EntityRef,
+    GuardError, JobKind, JobMetrics, JobState, JobStatusUpdate, NewAiJob, NewBlock, NewCanvas,
+    NewCanvasEdge, NewCanvasNode, NewDocument, NewNodeExecution, NewWorkspace, OperationType,
+    PlannedOperation, SafetyMode, StorageError, StorageGuard, StorageResult, WriteContext,
 };
-#[cfg(test)]
-use chrono::{Duration, Utc};
+use chrono::Duration;
+use chrono::Utc;
 use serde_json::json;
+use sqlx::Connection;
 #[cfg(test)]
-use sqlx::{Connection, Row};
+use sqlx::Row;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -177,7 +180,17 @@ pub async fn sqlite_backend() -> StorageResult<Arc<dyn super::Database>> {
 pub async fn postgres_backend_from_env() -> StorageResult<Arc<dyn super::Database>> {
     let url = std::env::var("POSTGRES_TEST_URL")
         .map_err(|_| StorageError::Validation("POSTGRES_TEST_URL not set for postgres tests"))?;
-    let db = PostgresDatabase::connect(&url, 5).await?;
+    let mut conn = sqlx::PgConnection::connect(&url).await?;
+    let schema = format!("storage_test_{}", Uuid::new_v4().simple());
+    sqlx::query(&format!("CREATE SCHEMA {schema}"))
+        .execute(&mut conn)
+        .await?;
+    drop(conn);
+
+    let sep = if url.contains('?') { "&" } else { "?" };
+    let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
+
+    let db = PostgresDatabase::connect(&schema_url, 5).await?;
     db.run_migrations().await?;
     Ok(db.into_arc())
 }
@@ -421,10 +434,367 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
     assert_eq!(guard.actor_kind.as_str(), "AI");
     assert_eq!(guard.resource_id, "resource-1");
 
+    let source = db
+        .upsert_calendar_source(
+            &ctx,
+            CalendarSourceUpsert {
+                id: format!("local:{}", Uuid::new_v4()),
+                workspace_id: workspace.id.clone(),
+                display_name: "Local".into(),
+                provider_type: CalendarSourceProviderType::Local,
+                write_policy: CalendarSourceWritePolicy::PublishFromHandshake,
+                default_tzid: "Europe/Brussels".into(),
+                auto_export: false,
+                credentials_ref: None,
+                provider_calendar_id: None,
+                capability_profile_id: Some("calendar-local".into()),
+                config: json!({"kind": "local"}),
+                sync_state: CalendarSourceSyncState::default(),
+            },
+        )
+        .await?;
+
+    let loaded_source = db
+        .get_calendar_source(&workspace.id, &source.id)
+        .await?
+        .ok_or(StorageError::NotFound("calendar_source"))?;
+    assert_eq!(loaded_source.id, source.id);
+    assert_eq!(loaded_source.workspace_id, workspace.id);
+
+    let listed_sources = db.list_calendar_sources(&workspace.id).await?;
+    assert!(listed_sources.iter().any(|item| item.id == source.id));
+
+    let event_start = Utc::now() + Duration::hours(2);
+    let event_end = event_start + Duration::hours(1);
+    let event = db
+        .upsert_calendar_event(
+            &ctx,
+            CalendarEventUpsert {
+                id: Uuid::new_v4().to_string(),
+                workspace_id: workspace.id.clone(),
+                source_id: source.id.clone(),
+                external_id: None,
+                external_etag: None,
+                title: "Calendar smoke".into(),
+                description: Some("storage conformance".into()),
+                location: Some("Desk".into()),
+                start_ts_utc: event_start,
+                end_ts_utc: event_end,
+                start_local: Some("2026-03-06T10:00:00".into()),
+                end_local: Some("2026-03-06T11:00:00".into()),
+                tzid: "Europe/Brussels".into(),
+                all_day: false,
+                was_floating: false,
+                status: CalendarEventStatus::Confirmed,
+                visibility: CalendarEventVisibility::Private,
+                export_mode: CalendarEventExportMode::LocalOnly,
+                rrule: None,
+                rdate: Vec::new(),
+                exdate: Vec::new(),
+                is_recurring: false,
+                series_id: None,
+                instance_key: None,
+                is_override: false,
+                source_last_seen_at: None,
+                attendees: json!([]),
+                links: json!([]),
+                provider_payload: Some(json!({"kind": "smoke"})),
+            },
+        )
+        .await?;
+
+    let queried_events = db
+        .query_calendar_events(CalendarEventWindowQuery {
+            workspace_id: workspace.id.clone(),
+            window_start_utc: event_start - Duration::minutes(30),
+            window_end_utc: event_end + Duration::minutes(30),
+            source_ids: Vec::new(),
+        })
+        .await?;
+    assert!(queried_events.iter().any(|item| item.id == event.id));
+
+    db.delete_calendar_data_by_source(&ctx, &workspace.id, &source.id)
+        .await?;
+    let remaining_events = db
+        .query_calendar_events(CalendarEventWindowQuery {
+            workspace_id: workspace.id.clone(),
+            window_start_utc: event_start - Duration::minutes(30),
+            window_end_utc: event_end + Duration::minutes(30),
+            source_ids: Vec::new(),
+        })
+        .await?;
+    assert!(!remaining_events.iter().any(|item| item.id == event.id));
+
     db.delete_document(&ctx, &document.id).await?;
     db.delete_canvas(&ctx, &canvas.id).await?;
     db.delete_workspace(&ctx, &workspace.id).await?;
 
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> StorageResult<()> {
+    db.ping().await?;
+
+    let ctx = WriteContext::human(Some("calendar-tester".into()));
+    let workspace = db
+        .create_workspace(
+            &ctx,
+            NewWorkspace {
+                name: format!("calendar-ws-{}", Uuid::new_v4()),
+            },
+        )
+        .await?;
+
+    let source_id = format!("google:test:{}", Uuid::new_v4());
+    let source = db
+        .upsert_calendar_source(
+            &ctx,
+            CalendarSourceUpsert {
+                id: source_id.clone(),
+                workspace_id: workspace.id.clone(),
+                display_name: "Google / Test".into(),
+                provider_type: CalendarSourceProviderType::Google,
+                write_policy: CalendarSourceWritePolicy::TwoWayMirror,
+                default_tzid: "Europe/Brussels".into(),
+                auto_export: true,
+                credentials_ref: Some("cred:test".into()),
+                provider_calendar_id: Some("primary".into()),
+                capability_profile_id: Some("calendar-google".into()),
+                config: json!({"calendar_id": "primary", "color": "blue"}),
+                sync_state: CalendarSourceSyncState {
+                    state: None,
+                    sync_token: Some("sync-token-1".into()),
+                    last_synced_at: Some(Utc::now()),
+                    last_full_sync_at: Some(Utc::now()),
+                    last_ok_at: None,
+                    last_pull_at: None,
+                    last_push_at: None,
+                    last_error_at: None,
+                    last_error_code: None,
+                    last_error: None,
+                    backoff_until: None,
+                    consecutive_failures: Some(0),
+                    last_remote_watermark: Some("etag-1".into()),
+                    last_local_applied_rev: Some(1),
+                },
+            },
+        )
+        .await?;
+
+    let updated_source = db
+        .upsert_calendar_source(
+            &ctx,
+            CalendarSourceUpsert {
+                id: source.id.clone(),
+                workspace_id: workspace.id.clone(),
+                display_name: "Google / Updated".into(),
+                provider_type: CalendarSourceProviderType::Google,
+                write_policy: CalendarSourceWritePolicy::TwoWayMirror,
+                default_tzid: "Europe/Brussels".into(),
+                auto_export: true,
+                credentials_ref: Some("cred:test".into()),
+                provider_calendar_id: Some("primary".into()),
+                capability_profile_id: Some("calendar-google".into()),
+                config: json!({"calendar_id": "primary", "color": "green"}),
+                sync_state: CalendarSourceSyncState {
+                    state: None,
+                    sync_token: Some("sync-token-2".into()),
+                    last_synced_at: Some(Utc::now()),
+                    last_full_sync_at: Some(Utc::now()),
+                    last_ok_at: Some(Utc::now()),
+                    last_pull_at: None,
+                    last_push_at: None,
+                    last_error_at: None,
+                    last_error_code: None,
+                    last_error: None,
+                    backoff_until: None,
+                    consecutive_failures: Some(0),
+                    last_remote_watermark: Some("etag-2".into()),
+                    last_local_applied_rev: Some(2),
+                },
+            },
+        )
+        .await?;
+    assert_eq!(updated_source.id, source.id);
+    assert_eq!(updated_source.display_name, "Google / Updated");
+    assert_eq!(
+        updated_source.sync_state.sync_token.as_deref(),
+        Some("sync-token-2")
+    );
+
+    let listed_sources = db.list_calendar_sources(&workspace.id).await?;
+    assert_eq!(listed_sources.len(), 1);
+    let fetched_source = db
+        .get_calendar_source(&workspace.id, &source.id)
+        .await?
+        .ok_or(StorageError::NotFound("calendar_source"))?;
+    assert_eq!(fetched_source.display_name, "Google / Updated");
+
+    let provider_start = Utc::now() + Duration::days(1);
+    let provider_end = provider_start + Duration::hours(1);
+    let original_provider_event = db
+        .upsert_calendar_event(
+            &ctx,
+            CalendarEventUpsert {
+                id: Uuid::new_v4().to_string(),
+                workspace_id: workspace.id.clone(),
+                source_id: source.id.clone(),
+                external_id: Some("provider-event-1".into()),
+                external_etag: Some("etag-1".into()),
+                title: "Provider event".into(),
+                description: Some("initial".into()),
+                location: Some("Room A".into()),
+                start_ts_utc: provider_start,
+                end_ts_utc: provider_end,
+                start_local: Some("2026-03-07T09:00:00".into()),
+                end_local: Some("2026-03-07T10:00:00".into()),
+                tzid: "Europe/Brussels".into(),
+                all_day: false,
+                was_floating: false,
+                status: CalendarEventStatus::Confirmed,
+                visibility: CalendarEventVisibility::Private,
+                export_mode: CalendarEventExportMode::FullExport,
+                rrule: Some("FREQ=WEEKLY".into()),
+                rdate: Vec::new(),
+                exdate: Vec::new(),
+                is_recurring: true,
+                series_id: Some("series-1".into()),
+                instance_key: Some("instance-1".into()),
+                is_override: false,
+                source_last_seen_at: Some(Utc::now()),
+                attendees: json!([{ "email": "person@example.com" }]),
+                links: json!([{ "type": "doc", "target": "doc-1" }]),
+                provider_payload: Some(json!({"raw": "payload-1"})),
+            },
+        )
+        .await?;
+
+    let duplicate_provider_event = db
+        .upsert_calendar_event(
+            &ctx,
+            CalendarEventUpsert {
+                id: Uuid::new_v4().to_string(),
+                workspace_id: workspace.id.clone(),
+                source_id: source.id.clone(),
+                external_id: Some("provider-event-1".into()),
+                external_etag: Some("etag-2".into()),
+                title: "Provider event updated".into(),
+                description: Some("updated".into()),
+                location: Some("Room B".into()),
+                start_ts_utc: provider_start,
+                end_ts_utc: provider_end + Duration::minutes(30),
+                start_local: Some("2026-03-07T09:00:00".into()),
+                end_local: Some("2026-03-07T10:30:00".into()),
+                tzid: "Europe/Brussels".into(),
+                all_day: false,
+                was_floating: false,
+                status: CalendarEventStatus::Tentative,
+                visibility: CalendarEventVisibility::BusyOnly,
+                export_mode: CalendarEventExportMode::BusyOnly,
+                rrule: Some("FREQ=WEEKLY".into()),
+                rdate: vec!["2026-03-08T09:00:00".into()],
+                exdate: vec!["2026-03-15T09:00:00".into()],
+                is_recurring: true,
+                series_id: Some("series-1".into()),
+                instance_key: Some("instance-1".into()),
+                is_override: true,
+                source_last_seen_at: Some(Utc::now()),
+                attendees: json!([{ "email": "updated@example.com" }]),
+                links: json!([{ "type": "canvas", "target": "canvas-1" }]),
+                provider_payload: Some(json!({"raw": "payload-2"})),
+            },
+        )
+        .await?;
+
+    assert_eq!(duplicate_provider_event.id, original_provider_event.id);
+    assert_eq!(duplicate_provider_event.title, "Provider event updated");
+    assert_eq!(
+        duplicate_provider_event.external_etag.as_deref(),
+        Some("etag-2")
+    );
+    assert!(duplicate_provider_event.is_override);
+
+    let local_start = provider_start + Duration::hours(5);
+    let local_end = local_start + Duration::hours(2);
+    let local_event = db
+        .upsert_calendar_event(
+            &ctx,
+            CalendarEventUpsert {
+                id: Uuid::new_v4().to_string(),
+                workspace_id: workspace.id.clone(),
+                source_id: source.id.clone(),
+                external_id: None,
+                external_etag: None,
+                title: "Local draft".into(),
+                description: Some("local-only".into()),
+                location: None,
+                start_ts_utc: local_start,
+                end_ts_utc: local_end,
+                start_local: Some("2026-03-07T14:00:00".into()),
+                end_local: Some("2026-03-07T16:00:00".into()),
+                tzid: "Europe/Brussels".into(),
+                all_day: false,
+                was_floating: true,
+                status: CalendarEventStatus::Confirmed,
+                visibility: CalendarEventVisibility::Private,
+                export_mode: CalendarEventExportMode::LocalOnly,
+                rrule: None,
+                rdate: Vec::new(),
+                exdate: Vec::new(),
+                is_recurring: false,
+                series_id: None,
+                instance_key: None,
+                is_override: false,
+                source_last_seen_at: None,
+                attendees: json!([]),
+                links: json!([]),
+                provider_payload: None,
+            },
+        )
+        .await?;
+    assert_eq!(local_event.external_id, None);
+    assert!(local_event.was_floating);
+
+    let matching_events = db
+        .query_calendar_events(CalendarEventWindowQuery {
+            workspace_id: workspace.id.clone(),
+            window_start_utc: provider_start - Duration::minutes(15),
+            window_end_utc: local_end + Duration::minutes(15),
+            source_ids: vec![source.id.clone()],
+        })
+        .await?;
+    assert_eq!(matching_events.len(), 2);
+    assert_eq!(matching_events[0].id, original_provider_event.id);
+    assert_eq!(matching_events[1].id, local_event.id);
+
+    let narrow_window = db
+        .query_calendar_events(CalendarEventWindowQuery {
+            workspace_id: workspace.id.clone(),
+            window_start_utc: provider_start - Duration::minutes(15),
+            window_end_utc: provider_end + Duration::minutes(15),
+            source_ids: Vec::new(),
+        })
+        .await?;
+    assert_eq!(narrow_window.len(), 1);
+    assert_eq!(narrow_window[0].id, original_provider_event.id);
+
+    db.delete_calendar_data_by_source(&ctx, &workspace.id, &source.id)
+        .await?;
+
+    let no_sources = db.list_calendar_sources(&workspace.id).await?;
+    assert!(no_sources.is_empty());
+    let no_events = db
+        .query_calendar_events(CalendarEventWindowQuery {
+            workspace_id: workspace.id.clone(),
+            window_start_utc: provider_start - Duration::minutes(15),
+            window_end_utc: local_end + Duration::minutes(15),
+            source_ids: Vec::new(),
+        })
+        .await?;
+    assert!(no_events.is_empty());
+
+    db.delete_workspace(&ctx, &workspace.id).await?;
     Ok(())
 }
 

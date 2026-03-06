@@ -255,59 +255,309 @@ git revert <commit-sha>
   - N/A
 
 ## IMPLEMENTATION
-- (Coder fills after the docs-only skeleton checkpoint commit exists.)
+- Added `src/backend/handshake_core/src/storage/calendar.rs` with calendar source/event DTOs, sync-state payloads, and typed enums for provider, write policy, status, visibility, and export mode so both backends map the same storage contract.
+- Extended `src/backend/handshake_core/src/storage/mod.rs` with six calendar storage methods on `Database` so source/event writes, reads, window queries, and source-scoped cleanup stay behind the trait boundary.
+- Implemented backend-parity calendar SQL in `src/backend/handshake_core/src/storage/sqlite.rs` and `src/backend/handshake_core/src/storage/postgres.rs`: deterministic source upsert, provider-backed event upsert on `(source_id, external_id)`, local-only event upsert on stable internal `id`, overlap-based time-window reads, and delete-by-source through FK cascade.
+- Added portable migration pair `src/backend/handshake_core/migrations/0015_calendar_storage.sql` and `src/backend/handshake_core/migrations/0015_calendar_storage.down.sql` for `calendar_sources` / `calendar_events`, including sync-state fields, timezone/all-day fidelity fields, recurrence identity, relationship payload JSON, traceability columns, and required indexes.
+- Extended shared storage conformance coverage in `src/backend/handshake_core/src/storage/tests.rs`, added focused parity tests in `src/backend/handshake_core/tests/calendar_storage_tests.rs`, and isolated Postgres test runs into per-run schemas so migration-backed storage tests remain replay-safe on shared Postgres instances.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Reverted accidental out-of-scope `cargo fmt` churn so the working diff stayed inside the packet's storage, migration, and calendar test scope.
+- Staged only the eight non-`.GOV/` WP files and captured deterministic COR-701 pre/post SHA1 values with `just cor701-sha`.
+- Ran the packet test plan plus storage hygiene commands; `just cargo-clean` completed and `just post-work WP-1-Calendar-Storage-v1` passed on the staged diff. Raw outputs are recorded in `## EVIDENCE` and log files under `.handshake/logs/WP-1-Calendar-Storage-v1/`.
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `src/backend/handshake_core/migrations/0015_calendar_storage.down.sql`
+- **Start**: 1
+- **End**: 4
+- **Line Delta**: 4
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `4d2f743b58f48669b8091c7a1f45f31625136fb2`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Test plan PASS; `just validator-scan` PASS; `just validator-dal-audit` PASS; `just validator-git-hygiene` PASS
+- **Artifacts**: See `## EVIDENCE` log entries for command outputs and SHA256 values.
+- **Timestamp**: 2026-03-06T12:00:43.3235877+01:00
+- **Operator**: Codex CLI (Coder)
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: New migration rollback file.
+
+- **Target File**: `src/backend/handshake_core/migrations/0015_calendar_storage.sql`
+- **Start**: 1
+- **End**: 88
+- **Line Delta**: 88
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `d956ee3fa51ce1b2bc4844fcefb5e8ea5f184335`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Test plan PASS; `just validator-scan` PASS; `just validator-dal-audit` PASS; `just validator-git-hygiene` PASS
+- **Artifacts**: See `## EVIDENCE` log entries for command outputs and SHA256 values.
+- **Timestamp**: 2026-03-06T12:00:43.3235877+01:00
+- **Operator**: Codex CLI (Coder)
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: New portable calendar schema migration.
+
+- **Target File**: `src/backend/handshake_core/src/storage/calendar.rs`
+- **Start**: 1
+- **End**: 349
+- **Line Delta**: 349
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `9fbd02c81fd0f17cdea6b1bedde2da83797b2e24`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Test plan PASS; `just validator-scan` PASS; `just validator-dal-audit` PASS; `just validator-git-hygiene` PASS
+- **Artifacts**: See `## EVIDENCE` log entries for command outputs and SHA256 values.
+- **Timestamp**: 2026-03-06T12:00:43.3235877+01:00
+- **Operator**: Codex CLI (Coder)
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: New shared calendar storage types module.
+
+- **Target File**: `src/backend/handshake_core/src/storage/mod.rs`
+- **Start**: 1
+- **End**: 1901
+- **Line Delta**: 35
+- **Pre-SHA1**: `d3bd36e9887c98c6b95e584ec953896945b7ba56`
+- **Post-SHA1**: `55f5bd5dd8b28cc860b2eb15752a20e9dfd9196b`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Test plan PASS; `just validator-scan` PASS; `just validator-dal-audit` PASS; `just validator-git-hygiene` PASS
+- **Artifacts**: See `## EVIDENCE` log entries for command outputs and SHA256 values.
+- **Timestamp**: 2026-03-06T12:00:43.3235877+01:00
+- **Operator**: Codex CLI (Coder)
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: Extended the `Database` trait and module exports for calendar storage.
+
+- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Start**: 1
+- **End**: 5078
+- **Line Delta**: 899
+- **Pre-SHA1**: `6e85127af80185579a7330e7cbbaa0e5000023c3`
+- **Post-SHA1**: `e52777c01d146c9c30d5f5696ab88d2ca3223ada`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Test plan PASS; `just validator-scan` PASS; `just validator-dal-audit` PASS; `just validator-git-hygiene` PASS
+- **Artifacts**: See `## EVIDENCE` log entries for command outputs and SHA256 values.
+- **Timestamp**: 2026-03-06T12:00:43.3235877+01:00
+- **Operator**: Codex CLI (Coder)
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: Added Postgres calendar source/event storage parity.
+
+- **Target File**: `src/backend/handshake_core/src/storage/sqlite.rs`
+- **Start**: 1
+- **End**: 5749
+- **Line Delta**: 900
+- **Pre-SHA1**: `89fa6eb668182fe6ff016ad2d416f17f7fcb1798`
+- **Post-SHA1**: `3284fe89e6d4ac792248b5496b640cffff4e4b46`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Test plan PASS; `just validator-scan` PASS; `just validator-dal-audit` PASS; `just validator-git-hygiene` PASS
+- **Artifacts**: See `## EVIDENCE` log entries for command outputs and SHA256 values.
+- **Timestamp**: 2026-03-06T12:00:43.3235877+01:00
+- **Operator**: Codex CLI (Coder)
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: Added SQLite calendar source/event storage parity.
+
+- **Target File**: `src/backend/handshake_core/src/storage/tests.rs`
+- **Start**: 1
+- **End**: 1542
+- **Line Delta**: 370
+- **Pre-SHA1**: `42116cffcd11ee1e30836f0d0cb2341ed1610c08`
+- **Post-SHA1**: `477228885d07d32c9b7f3152435f183a2b08f0e4`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Test plan PASS; `just validator-scan` PASS; `just validator-dal-audit` PASS; `just validator-git-hygiene` PASS
+- **Artifacts**: See `## EVIDENCE` log entries for command outputs and SHA256 values.
+- **Timestamp**: 2026-03-06T12:00:43.3235877+01:00
+- **Operator**: Codex CLI (Coder)
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: Extended shared dual-backend storage conformance coverage.
+
+- **Target File**: `src/backend/handshake_core/tests/calendar_storage_tests.rs`
+- **Start**: 1
+- **End**: 28
+- **Line Delta**: 28
+- **Pre-SHA1**: `0000000000000000000000000000000000000000`
+- **Post-SHA1**: `bd1b612ac02b1b83c8d6fdc17b87bc61b632a037`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Test plan PASS; `just validator-scan` PASS; `just validator-dal-audit` PASS; `just validator-git-hygiene` PASS
+- **Artifacts**: See `## EVIDENCE` log entries for command outputs and SHA256 values.
+- **Timestamp**: 2026-03-06T12:00:43.3235877+01:00
+- **Operator**: Codex CLI (Coder)
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: New focused calendar parity integration test.
 
 ## STATUS_HANDOFF
-- (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: Implementation complete; GATES_PASS (post-work) PASS; TEST_PLAN results recorded; ready for validation
+- What changed in this update: Implemented trait-gated calendar source/event persistence for SQLite and Postgres, added portable `0015_calendar_storage` migrations, expanded shared storage conformance coverage, and added focused dual-backend calendar storage tests.
+- Next step / handoff hint: Review `## VALIDATION`, `## EVIDENCE_MAPPING`, and `## EVIDENCE`, then re-run the validator suite after the recorded `just cargo-clean` and `just post-work` outputs are appended.
 
 ## EVIDENCE_MAPPING
-- (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
-- Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `path/to/file:line`
+- REQUIREMENT: "Portable migration pair `0015_calendar_storage.*` creates `calendar_sources` and `calendar_events` plus required foreign keys and indexes using DB-agnostic SQL; replay-safe and undo-safe migration checks continue to pass on SQLite and Postgres."
+- EVIDENCE: `src/backend/handshake_core/migrations/0015_calendar_storage.sql:3`
+- EVIDENCE: `src/backend/handshake_core/migrations/0015_calendar_storage.sql:38`
+- EVIDENCE: `src/backend/handshake_core/migrations/0015_calendar_storage.sql:81`
+- EVIDENCE: `src/backend/handshake_core/migrations/0015_calendar_storage.sql:84`
+- EVIDENCE: `src/backend/handshake_core/migrations/0015_calendar_storage.sql:87`
+- EVIDENCE: `src/backend/handshake_core/migrations/0015_calendar_storage.down.sql:1`
+- EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:536`
+- EVIDENCE: `src/backend/handshake_core/tests/calendar_storage_tests.rs:15`
+- REQUIREMENT: "Calendar source persistence covers the spec-defined identity, provider/write-policy, default timezone, sync-state, and capability-profile fields needed by downstream sync and policy packets."
+- EVIDENCE: `src/backend/handshake_core/src/storage/calendar.rs:124`
+- EVIDENCE: `src/backend/handshake_core/src/storage/calendar.rs:142`
+- EVIDENCE: `src/backend/handshake_core/src/storage/calendar.rs:160`
+- EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:2732`
+- EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:2301`
+- REQUIREMENT: "Calendar event persistence covers source identity, external identity/etag, UTC range plus `tzid`/`all_day` semantics, status/visibility/export mode, RRULE/is_recurring/instance_key, and raw relationship payload fields without lossy normalization."
+- EVIDENCE: `src/backend/handshake_core/src/storage/calendar.rs:243`
+- EVIDENCE: `src/backend/handshake_core/src/storage/calendar.rs:275`
+- EVIDENCE: `src/backend/handshake_core/src/storage/calendar.rs:311`
+- EVIDENCE: `src/backend/handshake_core/src/storage/calendar.rs:344`
+- EVIDENCE: `src/backend/handshake_core/migrations/0015_calendar_storage.sql:38`
+- REQUIREMENT: "Source and event write semantics enforce idempotent `(source_id, external_id)` behavior and support source-scoped deletion plus time-window querying by workspace and time range."
+- EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:2987`
+- EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:3333`
+- EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:3400`
+- EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:2554`
+- EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:2895`
+- EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:2962`
+- REQUIREMENT: "Dual-backend tests prove calendar source/event CRUD, time-window query behavior, migration replay/undo safety, and idempotent upsert semantics on SQLite and Postgres."
+- EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:536`
+- EVIDENCE: `src/backend/handshake_core/tests/calendar_storage_tests.rs:7`
+- EVIDENCE: `src/backend/handshake_core/tests/calendar_storage_tests.rs:15`
+- REQUIREMENT: "SPEC_ANCHOR 2.0.4 Mutation governance (Hard Invariant) / 2.3 Storage and indexing / 2.3.13.1 Pillar 2 / Pillar 4"
+- EVIDENCE: `src/backend/handshake_core/src/storage/mod.rs:1693`
+- EVIDENCE: `src/backend/handshake_core/src/storage/mod.rs:1705`
+- EVIDENCE: `src/backend/handshake_core/migrations/0015_calendar_storage.sql:81`
+- EVIDENCE: `src/backend/handshake_core/migrations/0015_calendar_storage.sql:84`
+- EVIDENCE: `src/backend/handshake_core/migrations/0015_calendar_storage.sql:87`
 
 ## EVIDENCE
-- (Coder appends logs, test outputs, and proof of work here. No verdicts.)
-- Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Calendar-Storage-v1/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance`
+- EXIT_CODE: 0
+- LOG_PATH: `.handshake/logs/WP-1-Calendar-Storage-v1/storage_conformance_no_env.log`
+- LOG_SHA256: `a1909c06473d74ca1b0828ffb3682a08844327b9d343dffb75185171ba2d712c`
+- PROOF_LINES: `test postgres_calendar_storage_conformance ... ok`; `test sqlite_calendar_storage_conformance ... ok`; `test postgres_storage_conformance ... ok`; `test sqlite_storage_conformance ... ok`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test calendar_storage_tests`
+- EXIT_CODE: 0
+- LOG_PATH: `.handshake/logs/WP-1-Calendar-Storage-v1/calendar_storage_tests_no_env.log`
+- LOG_SHA256: `e8690b005411e3d268b63b8749e05ded38d143a9b7bcd3ae3533bcf7981e60a3`
+- PROOF_LINES: `test postgres_calendar_storage_conformance ... ok`; `test sqlite_calendar_storage_conformance ... ok`; `test result: ok. 2 passed; 0 failed`
+
+- COMMAND: `docker compose -f docker-compose.test.yml up -d`
+- EXIT_CODE: 0
+- LOG_PATH: `.handshake/logs/WP-1-Calendar-Storage-v1/docker_compose_test_up.log`
+- LOG_SHA256: `1cfd5f66ba2a6f82161a78ac0882a65a956346a9f40c665d02c0e691bdfa6c54`
+- PROOF_LINES: `Container wt-wp-1-calendar-storage-v1-postgres-1  Started`
+
+- COMMAND: `$env:POSTGRES_TEST_URL="postgres://postgres:postgres@localhost:5432/handshake_test"; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --tests storage_conformance`
+- EXIT_CODE: 0
+- LOG_PATH: `.handshake/logs/WP-1-Calendar-Storage-v1/storage_conformance_postgres_env.log`
+- LOG_SHA256: `7542719dbe286d8b6fae41b355b38312902e2d37df2271ad300a085c4f4f1a3d`
+- PROOF_LINES: `test sqlite_calendar_storage_conformance ... ok`; `test postgres_calendar_storage_conformance ... ok`; `test sqlite_storage_conformance ... ok`; `test postgres_storage_conformance ... ok`
+
+- COMMAND: `$env:POSTGRES_TEST_URL="postgres://postgres:postgres@localhost:5432/handshake_test"; cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test calendar_storage_tests`
+- EXIT_CODE: 0
+- LOG_PATH: `.handshake/logs/WP-1-Calendar-Storage-v1/calendar_storage_tests_postgres_env.log`
+- LOG_SHA256: `5cfc4b579f5dc202e6eae8d96a8bfe9b9570a3918f49402d749bb9fab3ffc725`
+- PROOF_LINES: `test sqlite_calendar_storage_conformance ... ok`; `test postgres_calendar_storage_conformance ... ok`; `test result: ok. 2 passed; 0 failed`
+
+- COMMAND: `just validator-scan`
+- EXIT_CODE: 0
+- LOG_PATH: `.handshake/logs/WP-1-Calendar-Storage-v1/validator_scan.log`
+- LOG_SHA256: `454af19a73fe81c71396d5dfdbc477b7d1b6e92622985cbc11ad1cef6bc55924`
+- PROOF_LINES: `validator-scan: PASS - no forbidden patterns detected in backend/frontend sources.`
+
+- COMMAND: `just validator-dal-audit`
+- EXIT_CODE: 0
+- LOG_PATH: `.handshake/logs/WP-1-Calendar-Storage-v1/validator_dal_audit.log`
+- LOG_SHA256: `3543f1aae3d1b56bc92c529262139b83f01ca307641e76aa64f84f6119e92bc5`
+- PROOF_LINES: `validator-dal-audit: PASS (DAL checks clean).`
+
+- COMMAND: `just validator-git-hygiene`
+- EXIT_CODE: 0
+- LOG_PATH: `.handshake/logs/WP-1-Calendar-Storage-v1/validator_git_hygiene.log`
+- LOG_SHA256: `e239d430a5fb2b9d05980f218b54c6a65e67f92d8d9deed67980fdc11ea66d23`
+- PROOF_LINES: `validator-git-hygiene: PASS - .gitignore coverage and artifact checks clean.`
+
+- COMMAND: `just cargo-clean`
+- EXIT_CODE: 0
+- LOG_PATH: `.handshake/logs/WP-1-Calendar-Storage-v1/cargo_clean.log`
+- LOG_SHA256: `71e43461618bcb06ff6b2eb7bf39f72dd8f0d6fa563ca66fae6fceb4fbd12949`
+- PROOF_LINES: `Removed 2185 files, 16.3GiB total`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)

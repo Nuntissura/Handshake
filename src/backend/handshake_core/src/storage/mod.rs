@@ -11,12 +11,14 @@ use crate::ai_ready_data::records::{
     SilverRecord,
 };
 
+pub mod calendar;
 pub(crate) mod locus_sqlite;
 pub mod loom;
 pub mod postgres;
 pub mod retention;
 pub mod sqlite;
 
+pub use calendar::*;
 pub use loom::*;
 
 // Test utilities - exposed for integration tests.
@@ -1653,7 +1655,11 @@ pub trait Database: Send + Sync + std::any::Any {
         block_id: &str,
     ) -> StorageResult<()>;
 
-    async fn create_loom_edge(&self, ctx: &WriteContext, edge: NewLoomEdge) -> StorageResult<LoomEdge>;
+    async fn create_loom_edge(
+        &self,
+        ctx: &WriteContext,
+        edge: NewLoomEdge,
+    ) -> StorageResult<LoomEdge>;
     async fn delete_loom_edge(
         &self,
         ctx: &WriteContext,
@@ -1682,6 +1688,35 @@ pub trait Database: Send + Sync + std::any::Any {
         limit: u32,
         offset: u32,
     ) -> StorageResult<Vec<LoomBlockSearchResult>>;
+
+    // Calendar storage (WP-1-Calendar-Storage-v1)
+    async fn upsert_calendar_source(
+        &self,
+        ctx: &WriteContext,
+        source: CalendarSourceUpsert,
+    ) -> StorageResult<CalendarSource>;
+    async fn list_calendar_sources(&self, workspace_id: &str)
+        -> StorageResult<Vec<CalendarSource>>;
+    async fn get_calendar_source(
+        &self,
+        workspace_id: &str,
+        source_id: &str,
+    ) -> StorageResult<Option<CalendarSource>>;
+    async fn upsert_calendar_event(
+        &self,
+        ctx: &WriteContext,
+        event: CalendarEventUpsert,
+    ) -> StorageResult<CalendarEvent>;
+    async fn query_calendar_events(
+        &self,
+        query: CalendarEventWindowQuery,
+    ) -> StorageResult<Vec<CalendarEvent>>;
+    async fn delete_calendar_data_by_source(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        source_id: &str,
+    ) -> StorageResult<()>;
 
     // Canvas operations
     async fn create_canvas(&self, ctx: &WriteContext, canvas: NewCanvas) -> StorageResult<Canvas>;
