@@ -177,8 +177,9 @@ if (action === 'refine') {
             `[ORCHESTRATOR GATE] Technical Refinement recorded for ${wpId}.`,
         ],
         nextCommands: [
-            `# Present the Technical Refinement Block in chat.`,
+            `# Paste the FULL Technical Refinement Block from .GOV/refinements/${wpId}.md in chat (verbatim; no summary).`,
             `# When approved, set USER_APPROVAL_EVIDENCE in the refinement file to: APPROVE REFINEMENT ${wpId}`,
+            `# Do NOT ask for or consume a signature until that verbatim block has been shown in chat.`,
             `just record-signature ${wpId} {usernameDDMMYYYYHHMM}`,
         ],
     });

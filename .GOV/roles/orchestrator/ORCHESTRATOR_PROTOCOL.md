@@ -166,6 +166,11 @@ Rule: keep `NEXT_COMMANDS` limited to the immediate next step(s) (required to pr
 
 Operator UX rule: before posting `GATE_OUTPUT`, state `OPERATOR_ACTION: NONE` (or the single decision you need) and do not interleave questions inside `GATE_OUTPUT`.
 
+Special rule for `just record-refinement`:
+- In the SAME chat message as `GATE_OUTPUT`/`GATE_STATUS`, the Orchestrator MUST paste the FULL `## TECHNICAL_REFINEMENT (MASTER SPEC)` block verbatim from `.GOV/refinements/WP-*.md`.
+- Summaries, abridgements, or "key points only" are forbidden for refinement review. The Operator must be able to review the exact refinement text directly in chat without opening the file.
+- The Orchestrator MUST NOT request or consume a one-time signature until that verbatim refinement block has been shown in chat.
+
 ## Auto-Continue on PASS [CX-GATE-AUTO-001] (ANTI-BABYSIT)
 
 Hard rule (to prevent "babysit every gate to proceed" loops):
@@ -404,7 +409,7 @@ Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block contain
   - HS-APPX-INTERACTION-MATRIX
 - **roadmap phase split (if multi-phase):** If refinement discovers large additive scope that should be phased, update the Roadmap section (Spec 7.6) using the fixed per-phase fields (Goal, MUST deliver, Key risks addressed in Phase n, Acceptance criteria, Explicitly OUT of scope, Mechanical Track, Atelier Track, Distillation Track, Vertical slice). Do not invent new per-phase block types.
 
-**Non-negotiable presentation rule:** The Technical Refinement Block MUST be pasted into the Orchestrator's chat message for user review (not only written to a file). The Orchestrator MUST NOT proceed to signature or packet creation until the user explicitly approves the refinement in-chat (e.g., `APPROVE REFINEMENT {WP_ID}`) or requests edits.
+**Non-negotiable presentation rule:** The Technical Refinement Block MUST be pasted into the Orchestrator's chat message for user review (not only written to a file). The pasted block MUST be the FULL verbatim refinement text from `.GOV/refinements/WP-*.md`; summaries or shortened versions are forbidden. The Orchestrator MUST NOT proceed to signature or packet creation until the user explicitly approves the refinement in-chat (e.g., `APPROVE REFINEMENT {WP_ID}`) or requests edits.
 
 **Deterministic approval evidence (repo-enforced):**
 - Before consuming a one-time signature, the refinement file MUST contain: - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT {WP_ID} (exact match). This prevents signature-by-momentum and makes the approval step mechanically checkable.
