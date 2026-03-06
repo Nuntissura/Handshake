@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 /**
  * Pre-work validation [CX-580, CX-620]
  * - Verifies task packet exists before work starts
@@ -40,6 +40,25 @@ function parseStatus(text) {
     (text.match(/^\s*Status:\s*(.+)\s*$/mi) || [])[1] ||
     '';
   return statusLine.trim();
+}
+
+function isIsoDate(s) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(s || '').trim());
+}
+
+function isVersionAtLeast(isoDate, minIsoDate) {
+  if (!isIsoDate(isoDate) || !isIsoDate(minIsoDate)) return false;
+  return isoDate >= minIsoDate;
+}
+
+function looksPlaceholder(value) {
+  const v = String(value || '').trim();
+  if (!v) return true;
+  if (/^\{.+\}$/.test(v)) return true;
+  if (/^<fill/i.test(v)) return true;
+  if (/^<pending>/i.test(v)) return true;
+  if (/^<unclaimed>/i.test(v)) return true;
+  return false;
 }
 
 function extractIndentedListAfterLabel(text, label, { stopLabels = [] } = {}) {
@@ -324,6 +343,63 @@ if (!fs.existsSync(taskPacketDir)) {
       }
     } else if (operatorApprovalRaw && !/^N\/?A\b/i.test(operatorApprovalRaw.trim())) {
       warnings.push('OPERATOR_APPROVAL_EVIDENCE should be N/A when SUB_AGENT_DELEGATION=DISALLOWED');
+    }
+  }
+
+  // Check 2.6C: UI/UX rubric + stub tracking (enforced for packet format >= 2026-03-06)
+  if (isModernPacket && requiresRefinementGate && isVersionAtLeast(packetFormatVersion, '2026-03-06')) {
+    console.log('\nCheck 2.6C: UI/UX rubric + stub tracking');
+
+    const uiApplicable = parseSingleField(packetContent, 'UI_UX_APPLICABLE');
+    if (looksPlaceholder(uiApplicable) || !/^(YES|NO)$/i.test(uiApplicable || '')) {
+      errors.push('UI_UX_APPLICABLE missing/invalid (expected YES|NO) for packets with PACKET_FORMAT_VERSION >= 2026-03-06');
+    }
+
+    const uiVerdict = parseSingleField(packetContent, 'UI_UX_VERDICT');
+    if (looksPlaceholder(uiVerdict) || !/^(OK|NEEDS_STUBS|UNKNOWN)$/i.test(uiVerdict || '')) {
+      errors.push('UI_UX_VERDICT missing/invalid (expected OK|NEEDS_STUBS|UNKNOWN) for packets with PACKET_FORMAT_VERSION >= 2026-03-06');
+    }
+
+    const stubWpIdsRaw = parseSingleField(packetContent, 'STUB_WP_IDS');
+    if (looksPlaceholder(stubWpIdsRaw)) {
+      errors.push('STUB_WP_IDS must be set (comma-separated WP-... IDs or NONE) for packets with PACKET_FORMAT_VERSION >= 2026-03-06');
+    } else if (stubWpIdsRaw && !/^NONE$/i.test(stubWpIdsRaw)) {
+      const ids = stubWpIdsRaw.split(',').map((s) => s.trim()).filter(Boolean);
+      if (ids.length === 0) {
+        errors.push('STUB_WP_IDS must be NONE or a comma-separated list of WP-... IDs');
+      } else {
+        for (const id of ids) {
+          if (!/^WP-[A-Za-z0-9][A-Za-z0-9-]*$/i.test(id)) {
+            errors.push(`STUB_WP_IDS contains invalid WP id: ${id}`);
+            continue;
+          }
+          const stubPath = path.join('.GOV', 'task_packets', 'stubs', `${id}.md`);
+          if (!fs.existsSync(stubPath)) {
+            errors.push(`Stub referenced in STUB_WP_IDS does not exist: ${stubPath.replace(/\\/g, '/')}`);
+          }
+        }
+      }
+    }
+
+    if (/^YES$/i.test(uiApplicable || '')) {
+      if (!/##\s*UI_UX_SPEC\b/i.test(packetContent)) {
+        errors.push('UI_UX_APPLICABLE=YES requires ## UI_UX_SPEC in the task packet');
+      }
+
+      const surfaces = extractIndentedListAfterLabel(packetContent, 'UI_SURFACES');
+      if (surfaces.length === 0 || surfaces.every((s) => /<fill/i.test(s))) {
+        errors.push('UI_UX_APPLICABLE=YES requires UI_SURFACES to list at least one concrete surface');
+      }
+
+      const controls = extractIndentedListAfterLabel(packetContent, 'UI_CONTROLS (buttons/dropdowns/inputs)');
+      if (controls.length === 0) {
+        errors.push('UI_UX_APPLICABLE=YES requires UI_CONTROLS to list at least one concrete control');
+      } else {
+        const anyTooltip = controls.some((s) => /\bTooltip:\b/i.test(s) && !/Tooltip:\s*<fill/i.test(s));
+        if (!anyTooltip) {
+          errors.push('UI_UX_APPLICABLE=YES requires UI_CONTROLS entries to include concrete Tooltip: text');
+        }
+      }
     }
   }
 

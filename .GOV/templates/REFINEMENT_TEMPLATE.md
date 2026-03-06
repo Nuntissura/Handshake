@@ -11,12 +11,14 @@ Requirements (HARD):
 
 ### METADATA
 - WP_ID: {{WP_ID}}
+- REFINEMENT_FORMAT_VERSION: 2026-03-06
 - CREATED_AT: {{DATE_ISO}}
 - SPEC_TARGET_RESOLVED: .GOV/roles_shared/SPEC_CURRENT.md -> {{SPEC_TARGET_RESOLVED}}
 - SPEC_TARGET_SHA1: {{SPEC_TARGET_SHA1}}
 - USER_REVIEW_STATUS: PENDING
 - USER_SIGNATURE: <pending>
 - USER_APPROVAL_EVIDENCE: <pending> (must equal: APPROVE REFINEMENT {{WP_ID}})
+- STUB_WP_IDS: <pending> (comma-separated WP-... IDs | NONE)
 
 ### REQUIRED SECTIONS (per ORCHESTRATOR_PROTOCOL Part 2.5.2)
 
@@ -25,6 +27,7 @@ Requirements (HARD):
 
 ### LANDSCAPE_SCAN (prior art / better approaches)
 - TIMEBOX: <fill; e.g., 30m|2h|4h>
+- SEARCH_SCOPE: <fill; key terms + where you searched>
 - REFERENCES: <fill; include vendor docs, papers, and OSS repos; write NONE + reason only if truly not applicable>
 - PATTERNS_EXTRACTED: <fill; what to steal (constraints/invariants/interfaces)>
 - DECISIONS (ADOPT/ADAPT/REJECT): <fill; include rationale>
@@ -39,41 +42,74 @@ Requirements (HARD):
 - <fill; write NONE if not applicable>
 
 ### PRIMITIVES (traits/structs/enums)
-- <fill; write NONE if not applicable>
+- PRIMITIVES_TOUCHED (IDs):
+  - PRIM-<fill>
+- PRIMITIVES_NEW_OR_UPDATED (IDs):
+  - PRIM-<fill> (or NONE)
+- NOTES:
+  - <fill>
+
+### PRIMITIVE_INDEX (Appendix 12.4: HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX)
+- PRIMITIVE_INDEX_ACTION: PENDING (UPDATED | NO_CHANGE)
+- PRIMITIVE_INDEX_REASON_NO_CHANGE: <fill if PRIMITIVE_INDEX_ACTION=NO_CHANGE>
+- PRIMITIVE_INDEX_UPDATE_NOTES:
+  - <fill>
 
 ### PILLAR_ALIGNMENT (Handshake pillars cross-check)
 - Rule: Refinement MUST explicitly consider pillar alignment and interconnections (force multipliers). If unknown, write UNKNOWN and create stubs instead of guessing.
-- For each pillar, mark: [TOUCHED] | [NOT_TOUCHED] | [UNKNOWN], then add 1-3 lines when TOUCHED/UNKNOWN (impact + required Spec/Appendix updates + required tests/evidence).
-- Pillars:
-  - Flight Recorder
-  - Calendar
-  - Monaco
-  - Word clone
-  - Excel clone
-  - Locus
-  - Loom
-  - Work packets (product, not repo)
-  - Task board (product, not repo)
-  - MicroTask
-  - Command Center
-  - Spec to prompt
-  - SQL to PostgreSQL shift readiness
-  - LLM-friendly data
-  - Stage
-  - Studio
-  - Atelier/Lens
-  - Skill distillation / LoRA
-  - ACE
-  - RAG
+- Required rubric lines (one per pillar; do not delete lines, fill values):
+  - PILLAR: Flight Recorder | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Calendar | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Monaco | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Word clone | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Excel clone | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Locus | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Loom | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Work packets (product, not repo) | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Task board (product, not repo) | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: MicroTask | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Command Center | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Spec to prompt | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: SQL to PostgreSQL shift readiness | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: LLM-friendly data | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Stage | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Studio | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Atelier/Lens | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Skill distillation / LoRA | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: ACE | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: RAG | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
 - PILLAR_ALIGNMENT_VERDICT: PENDING (OK | NEEDS_SPEC_UPDATE | NEEDS_STUBS)
 
-### FORCE_MULTIPLIER_INTERACTIONS (cross-primitive / cross-feature)
+### PRIMITIVE_MATRIX (high-ROI combos; cross-primitive / cross-feature)
+- MATRIX_SCAN_TIMEBOX: <fill; e.g., 30m|2h|4h>
+- MATRIX_SCAN_NOTES:
+  - <fill; include local+cloud model compatibility and tool mixing opportunities>
+- IMX_EDGE_IDS_ADDED_OR_UPDATED: <pending> (comma-separated IMX-... IDs | NONE)
 - Candidate interaction edges to add/update in Spec Appendix 12.6 (HS-APPX-INTERACTION-MATRIX):
   - Edge: <from_kind/from_id> -> <to_kind/to_id>
   - Kind: <fill>
+  - ROI: <HIGH|MEDIUM|LOW>
+  - Effort: <HIGH|MEDIUM|LOW>
   - Spec refs: <fill>
   - In-scope for this WP: PENDING (YES | NO)
   - If NO: create a stub WP and record it in TASK_BOARD Stub Backlog (order is not priority).
+- PRIMITIVE_MATRIX_VERDICT: PENDING (OK | NEEDS_STUBS | NONE_FOUND)
+- PRIMITIVE_MATRIX_REASON: <fill>
+
+### UI_UX_RUBRIC (early UI/UX thinking; prefer too many controls early)
+- UI_UX_APPLICABLE: PENDING (YES | NO)
+- UI_UX_REASON_NO: <fill if UI_UX_APPLICABLE=NO>
+- UI_SURFACES:
+  - <fill; screens/panels/dialogs/menus>
+- UI_CONTROLS (buttons/dropdowns/inputs):
+  - Control: <fill> | Type: <fill> | Tooltip: <fill> | Notes: <fill>
+- UI_STATES (empty/loading/error):
+  - <fill>
+- UI_MICROCOPY_NOTES (labels, helper text, hover explainers):
+  - <fill>
+- UI_ACCESSIBILITY_NOTES:
+  - Tooltips must work on hover and keyboard focus; be dismissible; do not obscure content (WCAG 1.4.13).
+- UI_UX_VERDICT: PENDING (OK | NEEDS_STUBS | UNKNOWN)
 
 ### ROADMAP_PHASE_SPLIT (only if scope must be phased)
 - PHASE_SPLIT_NEEDED: PENDING (YES | NO)

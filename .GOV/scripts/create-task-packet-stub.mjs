@@ -57,5 +57,6 @@ console.log(`task-packet-stub created: ${filePath.replace(/\\/g, "/")}`);
 console.log("");
 console.log("Next steps:");
 console.log(`1) Fill BUILD_ORDER_* + SPEC_ANCHOR_CANDIDATES + DEPENDENCIES/BLOCKERS in ${filePath.replace(/\\/g, "/")}`);
-console.log("2) Ensure TASK_BOARD lists the stub under 'Stub Backlog (Not Activated)'");
-console.log("3) Run: just build-order-sync");
+console.log("2) Fill UI_UX_SKETCH + PRIMITIVES_AND_MATRIX_NOTES (draft; prefer too many UI controls early)");
+console.log("3) Ensure TASK_BOARD lists the stub under 'Stub Backlog (Not Activated)'");
+console.log("4) Run: just build-order-sync");

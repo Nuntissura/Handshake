@@ -42,6 +42,24 @@ Rules:
 - OUT_OF_SCOPE:
   - ...
 
+## UI_UX_SKETCH (DRAFT)
+- Principle: prefer enumerating "too many" controls early, consolidate later.
+- Include minimalistic in-UI explainers (prefer hover tooltips), and ensure tooltips are accessible (hover + keyboard focus; dismissible; avoid violating WCAG 1.4.13).
+- UI_SURFACES:
+  - <fill; screens/panels/dialogs/menus>
+- UI_CONTROLS (buttons/dropdowns/inputs):
+  - Control: <fill> | Type: <fill> | Tooltip: <fill> | Notes: <fill>
+- UI_STATES (empty/loading/error):
+  - <fill>
+- UI_MICROCOPY_NOTES (labels, helper text, hover explainers):
+  - <fill>
+
+## PRIMITIVES_AND_MATRIX_NOTES (DRAFT)
+- PRIMITIVES_TOUCHED:
+  - PRIM-<fill> (or NONE)
+- PRIMITIVE_MATRIX_COMBO_CANDIDATES:
+  - Edge: <from_kind/from_id> -> <to_kind/to_id> | ROI: <H|M|L> | Effort: <H|M|L> | Notes: <fill>
+
 ## ACCEPTANCE_CRITERIA (DRAFT)
 - ...
 

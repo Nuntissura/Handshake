@@ -207,6 +207,12 @@ orchestrator-prepare-and-packet wp-id coder_id:
 	@just record-prepare {{wp-id}} {{coder_id}}
 	@just create-task-packet {{wp-id}}
 
+# Orchestrator wrapper: create WP worktree + task packet (after signature).
+# NOTE: Coder assignment (PREPARE) is still REQUIRED before delegation/pre-work.
+orchestrator-worktree-and-packet wp-id:
+	@just worktree-add {{wp-id}}
+	@just create-task-packet {{wp-id}}
+
 # Create new task packet from template [CX-580]
 create-task-packet wp-id:
 	@echo "Creating task packet: {{wp-id}}..."
