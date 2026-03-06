@@ -465,11 +465,22 @@ fn map_workflow_node_execution(row: PgRow) -> StorageResult<WorkflowNodeExecutio
 }
 
 fn map_timestamp(row: &PgRow, column: &str) -> chrono::DateTime<Utc> {
+    // Some legacy tables use `TIMESTAMP` while newer tables use `TIMESTAMPTZ`.
+    // Decode both without panicking to keep mixed-schema compatibility.
+    if let Ok(value) = row.try_get::<chrono::DateTime<Utc>, _>(column) {
+        return value;
+    }
+
     let value: NaiveDateTime = row.get(column);
     value.and_utc()
 }
 
 fn map_optional_timestamp(row: &PgRow, column: &str) -> Option<chrono::DateTime<Utc>> {
+    // Some legacy tables use `TIMESTAMP` while newer tables use `TIMESTAMPTZ`.
+    if let Ok(value) = row.try_get::<Option<chrono::DateTime<Utc>>, _>(column) {
+        return value;
+    }
+
     row.get::<Option<NaiveDateTime>, _>(column)
         .map(|value| value.and_utc())
 }
@@ -482,6 +493,14 @@ fn map_i64_from_i32(row: &PgRow, column: &str) -> i64 {
 fn map_f64_from_f32(row: &PgRow, column: &str) -> f64 {
     let value: f32 = row.get(column);
     value as f64
+}
+
+fn is_pg_unique_violation(err: &sqlx::Error) -> bool {
+    matches!(err, sqlx::Error::Database(db_err) if db_err.code().as_deref() == Some("23505"))
+}
+
+fn is_pg_foreign_key_violation(err: &sqlx::Error) -> bool {
+    matches!(err, sqlx::Error::Database(db_err) if db_err.code().as_deref() == Some("23503"))
 }
 
 #[async_trait]
@@ -3739,6 +3758,120 @@ impl super::Database for PostgresDatabase {
         .await?;
 
         rows.into_iter().map(map_session_message).collect()
+    }
+
+    async fn update_ai_job_mcp_fields(
+        &self,
+        job_id: Uuid,
+        update: super::AiJobMcpUpdate,
+    ) -> StorageResult<()> {
+        let now = Utc::now();
+        let job_id = job_id.to_string();
+        let super::AiJobMcpUpdate {
+            mcp_server_id,
+            mcp_call_id,
+            mcp_progress_token,
+        } = update;
+
+        let mut tx = self.pool.begin().await?;
+
+        let exists = sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM ai_jobs WHERE id = $1)")
+            .bind(&job_id)
+            .fetch_one(&mut *tx)
+            .await?;
+        if !exists {
+            return Err(StorageError::NotFound("ai_job"));
+        }
+
+        let upsert = sqlx::query(
+            r#"
+            INSERT INTO ai_job_mcp_fields (job_id, mcp_server_id, mcp_call_id, mcp_progress_token)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (job_id) DO UPDATE SET
+                mcp_server_id = COALESCE(excluded.mcp_server_id, ai_job_mcp_fields.mcp_server_id),
+                mcp_call_id = COALESCE(excluded.mcp_call_id, ai_job_mcp_fields.mcp_call_id),
+                mcp_progress_token = COALESCE(excluded.mcp_progress_token, ai_job_mcp_fields.mcp_progress_token)
+            "#,
+        )
+        .bind(&job_id)
+        .bind(mcp_server_id)
+        .bind(mcp_call_id)
+        .bind(mcp_progress_token)
+        .execute(&mut *tx)
+        .await;
+
+        match upsert {
+            Ok(_) => {}
+            Err(e) if is_pg_unique_violation(&e) => {
+                return Err(StorageError::Conflict("mcp_progress_token already mapped"));
+            }
+            Err(e) if is_pg_foreign_key_violation(&e) => {
+                return Err(StorageError::NotFound("ai_job"));
+            }
+            Err(e) => return Err(e.into()),
+        }
+
+        sqlx::query("UPDATE ai_jobs SET updated_at = $1 WHERE id = $2")
+            .bind(now)
+            .bind(&job_id)
+            .execute(&mut *tx)
+            .await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    async fn get_ai_job_mcp_fields(&self, job_id: Uuid) -> StorageResult<super::AiJobMcpFields> {
+        let job_id = job_id.to_string();
+
+        let exists = sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM ai_jobs WHERE id = $1)")
+            .bind(&job_id)
+            .fetch_one(&self.pool)
+            .await?;
+        if !exists {
+            return Err(StorageError::NotFound("ai_job"));
+        }
+
+        let row = sqlx::query(
+            r#"
+            SELECT mcp_server_id, mcp_call_id, mcp_progress_token
+            FROM ai_job_mcp_fields
+            WHERE job_id = $1
+            "#,
+        )
+        .bind(&job_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let Some(row) = row else {
+            return Ok(super::AiJobMcpFields::default());
+        };
+
+        Ok(super::AiJobMcpFields {
+            mcp_server_id: row.get("mcp_server_id"),
+            mcp_call_id: row.get("mcp_call_id"),
+            mcp_progress_token: row.get("mcp_progress_token"),
+        })
+    }
+
+    async fn find_ai_job_id_by_mcp_progress_token(
+        &self,
+        progress_token: &str,
+    ) -> StorageResult<Option<Uuid>> {
+        let id: Option<String> = sqlx::query_scalar(
+            r#"
+            SELECT job_id
+            FROM ai_job_mcp_fields
+            WHERE mcp_progress_token = $1
+            LIMIT 1
+            "#,
+        )
+        .bind(progress_token)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        id.map(|id| Uuid::parse_str(&id).map_err(|_| StorageError::Validation("invalid job_id uuid")))
+            .transpose()
     }
 
     async fn create_workflow_run(

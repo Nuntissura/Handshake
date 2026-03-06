@@ -767,34 +767,19 @@ async fn ensure_locus_schema_sqlite(pool: &SqlitePool) -> StorageResult<()> {
     Ok(())
 }
 
-async fn ensure_ai_jobs_mcp_columns_sqlite(pool: &SqlitePool) -> StorageResult<()> {
-    async fn exec_ignore_duplicate_column(pool: &SqlitePool, sql: &str) -> StorageResult<()> {
-        match sqlx::query(sql).execute(pool).await {
-            Ok(_) => Ok(()),
-            Err(e) => {
-                let ignore = matches!(&e, sqlx::Error::Database(db_err) if db_err.message().to_lowercase().contains("duplicate column name"));
-                if ignore {
-                    Ok(())
-                } else {
-                    Err(e.into())
-                }
-            }
-        }
-    }
-
-    exec_ignore_duplicate_column(pool, "ALTER TABLE ai_jobs ADD COLUMN mcp_server_id TEXT").await?;
-    exec_ignore_duplicate_column(pool, "ALTER TABLE ai_jobs ADD COLUMN mcp_call_id TEXT").await?;
-    exec_ignore_duplicate_column(
-        pool,
-        "ALTER TABLE ai_jobs ADD COLUMN mcp_progress_token TEXT",
+fn is_sqlite_unique_violation(err: &sqlx::Error) -> bool {
+    matches!(
+        err,
+        sqlx::Error::Database(db_err)
+            if db_err.message().to_lowercase().contains("unique constraint failed")
     )
-    .await?;
+}
 
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_ai_jobs_progress_token ON ai_jobs(mcp_progress_token)")
-        .execute(pool)
-        .await?;
-
-    Ok(())
+fn is_sqlite_missing_column(err: &sqlx::Error) -> bool {
+    matches!(
+        err,
+        sqlx::Error::Database(db_err) if db_err.message().to_lowercase().contains("no such column")
+    )
 }
 
 #[async_trait]
@@ -806,7 +791,6 @@ impl super::Database for SqliteDatabase {
     async fn run_migrations(&self) -> StorageResult<()> {
         sqlx::migrate!("./migrations").run(&self.pool).await?;
         ensure_locus_schema_sqlite(&self.pool).await?;
-        ensure_ai_jobs_mcp_columns_sqlite(&self.pool).await?;
         ensure_loom_fts_schema_sqlite(&self.pool).await?;
         Ok(())
     }
@@ -4353,51 +4337,105 @@ impl super::Database for SqliteDatabase {
         update: AiJobMcpUpdate,
     ) -> StorageResult<()> {
         let now = Utc::now();
-        let mcp_server_id = update.mcp_server_id.clone();
-        let mcp_call_id = update.mcp_call_id.clone();
-        let mcp_progress_token = update.mcp_progress_token.clone();
         let job_id = job_id.to_string();
+        let AiJobMcpUpdate {
+            mcp_server_id,
+            mcp_call_id,
+            mcp_progress_token,
+        } = update;
 
-        let result = sqlx::query(
-            r#"
-            UPDATE ai_jobs
-            SET mcp_server_id = COALESCE($1, mcp_server_id),
-                mcp_call_id = COALESCE($2, mcp_call_id),
-                mcp_progress_token = COALESCE($3, mcp_progress_token),
-                updated_at = $4
-            WHERE id = $5
-            "#,
-        )
-        .bind(mcp_server_id)
-        .bind(mcp_call_id)
-        .bind(mcp_progress_token)
-        .bind(now)
-        .bind(job_id)
-        .execute(&self.pool)
-        .await?;
+        let mut tx = self.pool.begin().await?;
 
-        if result.rows_affected() == 0 {
+        let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM ai_jobs WHERE id = $1")
+            .bind(&job_id)
+            .fetch_optional(&mut *tx)
+            .await?
+            .is_some();
+        if !exists {
             return Err(StorageError::NotFound("ai_job"));
         }
 
+        let upsert = sqlx::query(
+            r#"
+            INSERT INTO ai_job_mcp_fields (job_id, mcp_server_id, mcp_call_id, mcp_progress_token)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (job_id) DO UPDATE SET
+                mcp_server_id = COALESCE(excluded.mcp_server_id, ai_job_mcp_fields.mcp_server_id),
+                mcp_call_id = COALESCE(excluded.mcp_call_id, ai_job_mcp_fields.mcp_call_id),
+                mcp_progress_token = COALESCE(excluded.mcp_progress_token, ai_job_mcp_fields.mcp_progress_token)
+            "#,
+        )
+        .bind(&job_id)
+        .bind(mcp_server_id)
+        .bind(mcp_call_id)
+        .bind(mcp_progress_token)
+        .execute(&mut *tx)
+        .await;
+
+        match upsert {
+            Ok(_) => {}
+            Err(e) if is_sqlite_unique_violation(&e) => {
+                return Err(StorageError::Conflict("mcp_progress_token already mapped"));
+            }
+            Err(e) => return Err(e.into()),
+        }
+
+        sqlx::query("UPDATE ai_jobs SET updated_at = $1 WHERE id = $2")
+            .bind(now)
+            .bind(&job_id)
+            .execute(&mut *tx)
+            .await?;
+
+        tx.commit().await?;
         Ok(())
     }
 
     async fn get_ai_job_mcp_fields(&self, job_id: Uuid) -> StorageResult<AiJobMcpFields> {
         let job_id = job_id.to_string();
+
+        let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM ai_jobs WHERE id = $1")
+            .bind(&job_id)
+            .fetch_optional(&self.pool)
+            .await?
+            .is_some();
+        if !exists {
+            return Err(StorageError::NotFound("ai_job"));
+        }
+
         let row = sqlx::query(
             r#"
             SELECT mcp_server_id, mcp_call_id, mcp_progress_token
-            FROM ai_jobs
-            WHERE id = $1
+            FROM ai_job_mcp_fields
+            WHERE job_id = $1
             "#,
         )
-        .bind(job_id)
+        .bind(&job_id)
         .fetch_optional(&self.pool)
         .await?;
 
         let Some(row) = row else {
-            return Err(StorageError::NotFound("ai_job"));
+            // Backward-compat: if legacy ai_jobs.mcp_* columns exist, read them without DDL/backfill.
+            let legacy = sqlx::query(
+                r#"
+                SELECT mcp_server_id, mcp_call_id, mcp_progress_token
+                FROM ai_jobs
+                WHERE id = $1
+                "#,
+            )
+            .bind(&job_id)
+            .fetch_optional(&self.pool)
+            .await;
+
+            return match legacy {
+                Ok(Some(row)) => Ok(AiJobMcpFields {
+                    mcp_server_id: row.get("mcp_server_id"),
+                    mcp_call_id: row.get("mcp_call_id"),
+                    mcp_progress_token: row.get("mcp_progress_token"),
+                }),
+                Ok(None) => Err(StorageError::NotFound("ai_job")),
+                Err(e) if is_sqlite_missing_column(&e) => Ok(AiJobMcpFields::default()),
+                Err(e) => Err(e.into()),
+            };
         };
 
         Ok(AiJobMcpFields {
@@ -4413,8 +4451,8 @@ impl super::Database for SqliteDatabase {
     ) -> StorageResult<Option<Uuid>> {
         let id: Option<String> = sqlx::query_scalar(
             r#"
-            SELECT id
-            FROM ai_jobs
+            SELECT job_id
+            FROM ai_job_mcp_fields
             WHERE mcp_progress_token = $1
             LIMIT 1
             "#,
@@ -4423,8 +4461,33 @@ impl super::Database for SqliteDatabase {
         .fetch_optional(&self.pool)
         .await?;
 
-        id.map(|id| Uuid::parse_str(&id).map_err(|_| StorageError::Validation("invalid job_id uuid")))
-            .transpose()
+        let Some(id) = id else {
+            // Backward-compat: fallback to legacy ai_jobs.mcp_progress_token if column exists.
+            let legacy: Result<Option<String>, sqlx::Error> = sqlx::query_scalar(
+                r#"
+                SELECT id
+                FROM ai_jobs
+                WHERE mcp_progress_token = $1
+                LIMIT 1
+                "#,
+            )
+            .bind(progress_token)
+            .fetch_optional(&self.pool)
+            .await;
+
+            return match legacy {
+                Ok(Some(id)) => Uuid::parse_str(&id)
+                    .map(Some)
+                    .map_err(|_| StorageError::Validation("invalid job_id uuid")),
+                Ok(None) => Ok(None),
+                Err(e) if is_sqlite_missing_column(&e) => Ok(None),
+                Err(e) => Err(e.into()),
+            };
+        };
+
+        Uuid::parse_str(&id)
+            .map(Some)
+            .map_err(|_| StorageError::Validation("invalid job_id uuid"))
     }
     async fn create_workflow_run(
         &self,

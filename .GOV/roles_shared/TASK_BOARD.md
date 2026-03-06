@@ -56,7 +56,6 @@ Entry format (recommended):
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
 
 
-- **[WP-1-Postgres-MCP-Durable-Progress-v1]** - [READY_FOR_DEV]
 
 ## Stub Backlog (Not Activated)
 
@@ -205,6 +204,8 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 - **[WP-1-Spec-Appendices-Backfill-v1]** - [VALIDATED]
+
+- **[WP-1-Postgres-MCP-Durable-Progress-v1]** - [VALIDATED]
 
 ## Blocked
 ---
