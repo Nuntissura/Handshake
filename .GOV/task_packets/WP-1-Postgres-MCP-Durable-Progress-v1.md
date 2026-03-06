@@ -13,10 +13,10 @@
 - AGENTIC_MODE: YES
 - ORCHESTRATOR_MODEL: GPT-5.2 (Codex CLI) (required if AGENTIC_MODE=YES)
 - ORCHESTRATION_STARTED_AT_UTC: 2026-03-05T22:41:53.300Z
-- CODER_MODEL: <unclaimed>
-- CODER_REASONING_STRENGTH: <unclaimed>
+- CODER_MODEL: GPT-5.2 (Codex CLI)
+- CODER_REASONING_STRENGTH: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
-- **Status:** Ready for Dev
+- **Status:** In Progress
 - RISK_TIER: HIGH
 - BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
 - BUILD_ORDER_TECH_BLOCKER: YES
@@ -29,7 +29,7 @@
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
 Blockers: NONE
-Next: N/A
+Next: Create docs-only skeleton checkpoint commit; then implement migration-backed durable MCP progress mapping + dual-backend tests.
 
 ## SUB_AGENT_DELEGATION (OPTIONAL; OPERATOR-GATED)
 - SUB_AGENT_DELEGATION: DISALLOWED
@@ -151,8 +151,25 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - Portable schema (migration-backed):
+    - Introduce side-table `ai_job_mcp_fields` keyed by `job_id` (FK -> `ai_jobs`) with optional columns:
+      - `mcp_server_id`, `mcp_call_id`, `mcp_progress_token`
+    - Enforce 1:1 mapping from `mcp_progress_token` -> `job_id` via UNIQUE constraint/index.
+  - Storage trait semantics (existing surface; implement for SQLite + Postgres):
+    - `Database::update_ai_job_mcp_fields(job_id, update)` performs an UPSERT into side-table; only fields present in `update` are mutated.
+    - `Database::get_ai_job_mcp_fields(job_id)` reads from side-table (preferred); for older SQLite DBs without side-table row, fallback to legacy `ai_jobs` columns if present (no transforms/backfill in this WP).
+    - `Database::find_ai_job_id_by_mcp_progress_token(token)` looks up via side-table; fallback to legacy `ai_jobs.mcp_progress_token` for older DBs; returns `None` if unknown.
+  - Error/consistency posture:
+    - Token collision across jobs is prevented by UNIQUE constraint; treat violations as an error (no silent reassignment).
+    - All queries remain parameterized; no runtime DDL.
 - Open questions:
+  - Confirm current `ai_jobs` primary key column naming (`id` vs `job_id`) in migrations for correct FK definition.
+  - Confirm whether SQLite currently persists MCP fields in `ai_jobs` columns and whether any runtime DDL remains; align read-through behavior accordingly.
+  - Confirm how `AiJobMcpUpdate` expresses partial updates (Option fields) and whether `mcp_progress_token` is required before issuing MCP tool calls.
+  - Confirm intended semantics for clearing fields (if `AiJobMcpUpdate` supports explicit nulling) vs "leave unchanged".
 - Notes:
+  - Out-of-scope backfill: this WP adds the side-table + read-through; it does not migrate legacy data into the side-table.
+  - CI/testing: ensure `storage_conformance` + `mcp_e2e_tests` execute for both SQLite and Postgres per [CX-DBP-013].
 
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
 - END_TO_END_CLOSURE_PLAN_APPLICABLE: NO
