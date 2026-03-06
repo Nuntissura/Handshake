@@ -56,6 +56,8 @@ Entry format (recommended):
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
 
 
+- **[WP-1-Postgres-MCP-Durable-Progress-v1]** - [READY_FOR_DEV]
+
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
@@ -71,7 +73,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Locus-Phase1-QueryContract-Autosync-v1]** - [STUB]
 - **[WP-1-Locus-Phase1-Medallion-Search-v1]** - [STUB]
 - **[WP-1-LocalFirst-Agentic-MCP-Posture-v1]** - [STUB]
-- **[WP-1-Postgres-MCP-Durable-Progress-v1]** - [STUB]
 - **[WP-1-Storage-No-Runtime-DDL-v1]** - [STUB]
 - **[WP-1-Storage-Trait-Purity-v1]** - [STUB]
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
