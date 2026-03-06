@@ -29,6 +29,20 @@ function git(args) {
   return execSync(`git ${args}`, { encoding: 'utf8' });
 }
 
+const checkpointSubject = `docs: skeleton checkpoint [${wpId}]`;
+
+function latestCheckpointSha() {
+  const log = git('log -n 50 --format=%H%x09%s');
+  for (const line of log.split(/\r?\n/)) {
+    if (!line) continue;
+    const [sha, subject] = line.split('\t');
+    if ((subject || '').trim() === checkpointSubject) {
+      return (sha || '').trim();
+    }
+  }
+  return '';
+}
+
 const currentBranch = git('rev-parse --abbrev-ref HEAD').trim();
 
 // Refuse obvious wrong contexts.
@@ -59,10 +73,15 @@ if (bad.length > 0) {
 }
 
 if (changed.length === 0) {
+  const checkpointSha = latestCheckpointSha();
+  if (checkpointSha) {
+    console.log(`PASS: Skeleton checkpoint already exists at ${checkpointSha}. Nothing new to commit.`);
+    process.exit(0);
+  }
   console.error(`FAIL: No changes detected. Edit ${packetRel.replace(/\\/g, '/')} (## SKELETON), then re-run.`);
   process.exit(1);
 }
 
 // Stage and commit.
 execSync(`git add ${packetRel}`, { stdio: 'inherit' });
-execSync(`git commit -m \"docs: skeleton checkpoint [${wpId}]\"`, { stdio: 'inherit' });
+execSync(`git commit -m \"${checkpointSubject}\"`, { stdio: 'inherit' });
