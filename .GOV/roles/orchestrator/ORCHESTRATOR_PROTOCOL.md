@@ -259,6 +259,12 @@ Rule: when a gate command is run and `GATE_STATUS` is posted, `PHASE` MUST match
   1) Create the WP branch/worktree (`just worktree-add WP-{ID}`), and
   2) Record the execution owner (`just record-prepare WP-{ID} {Orchestrator-Agentic|Coder-A|Coder-B}`).
 - Rationale: blocks coding in the wrong worktree/branch, and makes the execution lane + handoff deterministic (branch/worktree recorded in ORCHESTRATOR_GATES.json).
+- Additional hard invariant: coder handoff is FORBIDDEN until the assigned WP worktree itself contains:
+  - the official packet under `.GOV/task_packets/WP-{ID}.md`,
+  - the current `SPEC_CURRENT` snapshot (resolved spec filename + SHA matches Orchestrator/main),
+  - the current `PREPARE` record in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`,
+  - the current Task Board + traceability mapping for that WP (no stale `[STUB]` / stale active-packet path).
+- If any of those are stale or missing, the Orchestrator must report `STAGE: STATUS_SYNC` and direct Validator to fast-forward/sync the assigned WP branch/worktree before telling the coder to run `just pre-work`.
 
 ## Safety Commit Gate (HARD RULE; prevents untracked WP loss)
 - Immediately after creating a WP task packet + refinement and obtaining `USER_SIGNATURE`, create a **checkpoint commit on the WP branch** that includes:
