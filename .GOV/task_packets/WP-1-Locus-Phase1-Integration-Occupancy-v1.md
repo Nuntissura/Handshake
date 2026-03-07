@@ -43,7 +43,7 @@
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: READY_FOR_VALIDATION
 Blockers: None
-Next: Validator reviews commit `07d6a72` and the recorded gate/test evidence against the committed range `21ee7c29d34a1f0e5a22f989756973aca15e65fc..HEAD`
+Next: Validator reviews the current HEAD of `feat/WP-1-Locus-Phase1-Integration-Occupancy-v1` and the recorded gate/test evidence against the committed range `21ee7c29d34a1f0e5a22f989756973aca15e65fc..HEAD`
 
 ## SUB_AGENT_DELEGATION (OPTIONAL; OPERATOR-GATED)
 - SUB_AGENT_DELEGATION: ALLOWED
@@ -470,7 +470,8 @@ git revert <commit-sha>
 - EXIT_CODE: 0
 - PROOF_LINES:
   - `NOTE: Git hygiene waiver detected [CX-573F]. Strict git checks relaxed.`
-  - `Git range: 21ee7c29d34a1f0e5a22f989756973aca15e65fc..07d6a7263289d75a0d9a32f3c387ad8df3b8a53e`
+  - `Diff selection: range (explicit --range)`
+  - `Git range: 21ee7c29d34a1f0e5a22f989756973aca15e65fc..HEAD`
   - `Post-work validation PASSED (deterministic manifest gate; not tests) with warnings`
   - `Out-of-scope files changed but waiver present [CX-573F]`
   - `ROLE_MAILBOX_EXPORT_GATE PASS`
