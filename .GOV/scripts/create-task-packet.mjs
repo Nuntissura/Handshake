@@ -12,6 +12,7 @@ import {
   resolveSpecCurrent,
   validateRefinementFile,
 } from './validation/refinement-check.mjs';
+import { preparedWorktreeSyncState } from './role-resume-utils.mjs';
 
 const WP_ID = process.argv[2];
 
@@ -641,6 +642,7 @@ fs.writeFileSync(filePath, template, 'utf8');
 {
   const baseWpId = WP_ID.replace(/-v\d+$/, '');
   const isRevision = baseWpId !== WP_ID;
+  const syncState = preparedWorktreeSyncState(WP_ID, prepareGate, process.cwd());
 
   const nextCommands = [
     `cat ${filePath.replace(/\\/g, '/')}`,
@@ -652,25 +654,46 @@ fs.writeFileSync(filePath, template, 'utf8');
   if (isRevision) {
     nextCommands.push(`just wp-traceability-set ${baseWpId} ${WP_ID}`);
   }
-  nextCommands.push(`just pre-work ${WP_ID}`);
-  if (/^Orchestrator-Agentic$/i.test(executionLane)) {
-    nextCommands.push('# Then decompose the WP into tracked microtasks and steer agent execution under /.GOV/roles/orchestrator/agentic/AGENTIC_PROTOCOL.md.');
-  } else if (/^Coder-(A|B)$/i.test(executionLane)) {
-    nextCommands.push(`# Then provide a relayable implementation brief in chat for ${executionLane}; orchestrator implementation agents stay blocked in this lane.`);
-  }
-  nextCommands.push('# Use the assigned worktree/branch from ORCHESTRATOR_GATES.json PREPARE for the chosen execution lane.');
+  if (!syncState.ok) {
+    nextCommands.push(`# Validator: fast-forward ${syncState.expectedBranch || 'the assigned WP branch'} and ${syncState.worktreeAbs || 'the assigned WP worktree'} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`);
+    nextCommands.push(`# Then in the assigned WP worktree: just pre-work ${WP_ID}`);
+    nextCommands.push(`just orchestrator-next ${WP_ID}`);
 
-  printGateBlocks({
-    wpId: WP_ID,
-    stage: 'PACKET_CREATE',
-    next: 'PRE_WORK',
-    operatorAction: 'NONE',
-    gateRan: `just create-task-packet ${WP_ID}`,
-    result: 'PASS',
-    why: 'Task packet created from template.',
-    gateOutputLines: [
-      `OK: Task packet created: ${filePath.replace(/\\/g, '/')}`,
-    ],
-    nextCommands,
-  });
+    printGateBlocks({
+      wpId: WP_ID,
+      stage: 'PACKET_CREATE',
+      next: 'STATUS_SYNC',
+      operatorAction: 'NONE',
+      gateRan: `just create-task-packet ${WP_ID}`,
+      result: 'PASS',
+      why: 'Task packet was created, but coder handoff is blocked until the assigned WP worktree contains the current packet/spec/governance state.',
+      gateOutputLines: [
+        `OK: Task packet created: ${filePath.replace(/\\/g, '/')}`,
+        ...syncState.issues.map((issue) => `SYNC_REQUIRED: ${issue}`),
+      ],
+      nextCommands,
+    });
+  } else {
+    nextCommands.push(`just pre-work ${WP_ID}`);
+    if (/^Orchestrator-Agentic$/i.test(executionLane)) {
+      nextCommands.push('# Then decompose the WP into tracked microtasks and steer agent execution under /.GOV/roles/orchestrator/agentic/AGENTIC_PROTOCOL.md.');
+    } else if (/^Coder-(A|B)$/i.test(executionLane)) {
+      nextCommands.push(`# Then provide a relayable implementation brief in chat for ${executionLane}; orchestrator implementation agents stay blocked in this lane.`);
+    }
+    nextCommands.push('# Use the assigned worktree/branch from ORCHESTRATOR_GATES.json PREPARE for the chosen execution lane.');
+
+    printGateBlocks({
+      wpId: WP_ID,
+      stage: 'PACKET_CREATE',
+      next: 'PRE_WORK',
+      operatorAction: 'NONE',
+      gateRan: `just create-task-packet ${WP_ID}`,
+      result: 'PASS',
+      why: 'Task packet created from template.',
+      gateOutputLines: [
+        `OK: Task packet created: ${filePath.replace(/\\/g, '/')}`,
+      ],
+      nextCommands,
+    });
+  }
 }

@@ -17,6 +17,7 @@ import {
   currentGitContext,
   inferOrchestratorWpId,
   loadOrchestratorGateLogs,
+  preparedWorktreeSyncState,
   printConfidence,
   printFindings,
   printLifecycle,
@@ -73,6 +74,8 @@ function stageScore(stage, detail = {}) {
       return 140;
     case "PACKET_CREATE":
       return 130;
+    case "STATUS_SYNC":
+      return 120;
     case "DELEGATION":
       return detail.needsStubCleanup ? 110 : 90;
     default:
@@ -113,6 +116,9 @@ function summarizeResumeState(state, wpId) {
   let stage = "DELEGATION";
   let reason = "Task packet exists; ready to delegate to Coder.";
   let ready = true;
+  const syncState = lastPrepare && currentPacketExists
+    ? preparedWorktreeSyncState(wpId, lastPrepare, process.cwd())
+    : null;
 
   if (!refinementExists) {
     stage = "REFINEMENT";
@@ -134,6 +140,9 @@ function summarizeResumeState(state, wpId) {
   } else if (!currentPacketExists) {
     stage = "PACKET_CREATE";
     reason = "Prepare recorded; task packet file does not exist yet.";
+  } else if (syncState && !syncState.ok) {
+    stage = "STATUS_SYNC";
+    reason = syncState.issues[0] || "Assigned WP worktree is stale.";
   } else if (needsStubCleanup) {
     stage = "DELEGATION";
     reason = "Task packet exists; Task Board still lists this WP as [STUB].";
@@ -352,6 +361,25 @@ function main() {
   }
 
   const needsStubCleanup = hasStubLine(wpId);
+  const syncState = preparedWorktreeSyncState(wpId, lastPrepare, gitContext.topLevel || process.cwd());
+  if (!syncState.ok) {
+    printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
+    printOperatorAction("NONE");
+    printConfidence(confidence.level, confidence.detail);
+    printState("Task packet exists, but the assigned WP worktree is stale and coder handoff is blocked.");
+    printFindings([
+      `Assigned worktree: ${syncState.worktreeAbs || "<missing>"}`,
+      `Expected branch: ${syncState.expectedBranch || "<missing>"}`,
+      ...(syncState.actualBranch ? [`Actual branch: ${syncState.actualBranch}`] : []),
+      ...syncState.issues,
+    ]);
+    printNextCommands([
+      `# Validator: fast-forward ${syncState.expectedBranch || "the assigned WP branch"} and ${syncState.worktreeAbs || "the assigned WP worktree"} until they contain the official packet, current SPEC_CURRENT snapshot, current TASK_BOARD/traceability state, and current PREPARE record.`,
+      `# Then re-run in ${syncState.worktreeAbs || "the assigned WP worktree"}: just pre-work ${wpId}`,
+      `just orchestrator-next ${wpId}`,
+    ]);
+    return;
+  }
   printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
   printOperatorAction("NONE");
   printConfidence(confidence.level, confidence.detail);

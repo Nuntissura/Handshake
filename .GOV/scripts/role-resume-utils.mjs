@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
+import crypto from "node:crypto";
 
 export const ORCHESTRATOR_GATES_PATH = path.join(
   ".GOV",
@@ -14,6 +15,18 @@ export const TERMINAL_TASK_BOARD_STATUSES = ["VALIDATED", "FAIL", "OUTDATED_ONLY
 function safeExec(command) {
   try {
     return execSync(command, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    return "";
+  }
+}
+
+function safeExecInDir(cwd, command) {
+  try {
+    return execSync(command, {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
   } catch {
     return "";
   }
@@ -222,6 +235,162 @@ export function taskBoardEntries() {
     match = pattern.exec(content);
   }
   return entries;
+}
+
+function taskBoardStatusAtRepo(repoRoot, wpId) {
+  const taskBoardPath = path.join(repoRoot, ".GOV", "roles_shared", "TASK_BOARD.md");
+  if (!exists(taskBoardPath)) return "";
+  const content = readUtf8(taskBoardPath);
+  const match = content.match(
+    new RegExp(`- \\*\\*\\[${escapeRegex(wpId)}\\]\\*\\* - \\[([^\\]]+)\\]`, "i"),
+  );
+  return match ? match[1].trim().toUpperCase() : "";
+}
+
+function traceabilityPacketPathAtRepo(repoRoot, baseWpId) {
+  const traceabilityPath = path.join(repoRoot, ".GOV", "roles_shared", "WP_TRACEABILITY_REGISTRY.md");
+  if (!exists(traceabilityPath)) return "";
+  const content = readUtf8(traceabilityPath);
+  const lines = content.split(/\r?\n/);
+  for (const line of lines) {
+    if (!line.trimStart().startsWith("|")) continue;
+    if (line.includes("Base WP ID") || line.includes("---")) continue;
+    const cols = line.split("|").slice(1, -1).map((cell) => cell.trim());
+    if (cols.length < 2) continue;
+    if (cols[0] === baseWpId) return cols[1];
+  }
+  return "";
+}
+
+function resolveSpecSnapshotAtRepo(repoRoot) {
+  const specCurrentPath = path.join(repoRoot, ".GOV", "roles_shared", "SPEC_CURRENT.md");
+  if (!exists(specCurrentPath)) {
+    return { ok: false, error: `Missing ${specCurrentPath}` };
+  }
+  const specCurrent = readUtf8(specCurrentPath);
+  const match = specCurrent.match(/Handshake_Master_Spec_v[0-9._]+\.md/);
+  if (!match) {
+    return { ok: false, error: `Could not resolve spec filename from ${specCurrentPath}` };
+  }
+  const specFileName = match[0];
+  const specFilePath = path.join(repoRoot, specFileName);
+  if (!exists(specFilePath)) {
+    return { ok: false, error: `Resolved spec file does not exist: ${specFilePath}` };
+  }
+  const sha1 = crypto.createHash("sha1").update(fs.readFileSync(specFilePath)).digest("hex");
+  return { ok: true, specFileName, sha1 };
+}
+
+function lastPrepareEntryAtRepo(repoRoot, wpId) {
+  const gatesPath = path.join(repoRoot, ".GOV", "roles", "orchestrator", "ORCHESTRATOR_GATES.json");
+  if (!exists(gatesPath)) return null;
+  let state = {};
+  try {
+    state = JSON.parse(readUtf8(gatesPath));
+  } catch {
+    return null;
+  }
+  const logs = Array.isArray(state.gate_logs) ? state.gate_logs : [];
+  return [...logs].reverse().find((entry) => entry?.wpId === wpId && entry?.type === "PREPARE") || null;
+}
+
+export function resolvePrepareWorktreeAbs(prepareEntry, referenceRepoRoot) {
+  const worktreeDir = String(prepareEntry?.worktree_dir || "").trim();
+  if (!worktreeDir) return "";
+  return path.isAbsolute(worktreeDir)
+    ? path.resolve(worktreeDir)
+    : path.resolve(referenceRepoRoot || process.cwd(), worktreeDir);
+}
+
+export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot) {
+  const repoRoot = referenceRepoRoot || currentGitContext().topLevel || process.cwd();
+  const worktreeAbs = resolvePrepareWorktreeAbs(prepareEntry, repoRoot);
+  const expectedBranch = String(prepareEntry?.branch || "").trim();
+  const issues = [];
+
+  if (!worktreeAbs) {
+    issues.push("PREPARE is missing worktree_dir");
+    return { ok: false, repoRoot, worktreeAbs: "", expectedBranch, issues };
+  }
+  if (!exists(worktreeAbs)) {
+    issues.push(`Assigned worktree does not exist: ${worktreeAbs}`);
+    return { ok: false, repoRoot, worktreeAbs, expectedBranch, issues };
+  }
+
+  const actualBranch = safeExecInDir(worktreeAbs, "git rev-parse --abbrev-ref HEAD");
+  if (expectedBranch && actualBranch && expectedBranch !== actualBranch) {
+    issues.push(`Assigned worktree branch mismatch: expected ${expectedBranch}, got ${actualBranch}`);
+  }
+
+  const packetPath = path.join(worktreeAbs, ".GOV", "task_packets", `${wpId}.md`);
+  const referencePacketPath = path.join(repoRoot, ".GOV", "task_packets", `${wpId}.md`);
+  if (!exists(packetPath)) {
+    issues.push(`Assigned worktree is missing the official packet: ${packetPath}`);
+  } else if (exists(referencePacketPath)) {
+    const referencePacket = fs.readFileSync(referencePacketPath, "utf8");
+    const worktreePacket = fs.readFileSync(packetPath, "utf8");
+    if (referencePacket !== worktreePacket) {
+      issues.push("Assigned worktree official packet content is stale relative to the current orchestrator state");
+    }
+  }
+
+  const currentPrepare = lastPrepareEntryAtRepo(repoRoot, wpId);
+  const worktreePrepare = lastPrepareEntryAtRepo(worktreeAbs, wpId);
+  if (!worktreePrepare) {
+    issues.push("Assigned worktree does not contain the current PREPARE record");
+  } else if (
+    currentPrepare
+    && (
+      String(worktreePrepare.branch || "").trim() !== String(currentPrepare.branch || "").trim()
+      || String(worktreePrepare.worktree_dir || "").trim() !== String(currentPrepare.worktree_dir || "").trim()
+      || String(worktreePrepare.coder_id || "").trim() !== String(currentPrepare.coder_id || "").trim()
+    )
+  ) {
+    issues.push("Assigned worktree PREPARE record does not match current orchestrator gate state");
+  }
+
+  const referenceSpec = resolveSpecSnapshotAtRepo(repoRoot);
+  const worktreeSpec = resolveSpecSnapshotAtRepo(worktreeAbs);
+  if (!referenceSpec.ok) {
+    issues.push(referenceSpec.error);
+  } else if (!worktreeSpec.ok) {
+    issues.push(worktreeSpec.error);
+  } else if (
+    referenceSpec.specFileName !== worktreeSpec.specFileName
+    || referenceSpec.sha1 !== worktreeSpec.sha1
+  ) {
+    issues.push(
+      `Assigned worktree SPEC_CURRENT snapshot is stale: expected ${referenceSpec.specFileName} @ ${referenceSpec.sha1}, got ${worktreeSpec.specFileName} @ ${worktreeSpec.sha1}`,
+    );
+  }
+
+  const referenceBoardStatus = taskBoardStatusAtRepo(repoRoot, wpId);
+  const worktreeBoardStatus = taskBoardStatusAtRepo(worktreeAbs, wpId);
+  if (referenceBoardStatus && referenceBoardStatus !== worktreeBoardStatus) {
+    issues.push(`Assigned worktree TASK_BOARD status is stale: expected ${referenceBoardStatus}, got ${worktreeBoardStatus || "<missing>"}`);
+  }
+
+  const baseWpId = String(wpId || "").replace(/-v\d+$/i, "");
+  const referenceTraceabilityPath = traceabilityPacketPathAtRepo(repoRoot, baseWpId);
+  const worktreeTraceabilityPath = traceabilityPacketPathAtRepo(worktreeAbs, baseWpId);
+  if (referenceTraceabilityPath && referenceTraceabilityPath !== worktreeTraceabilityPath) {
+    issues.push(`Assigned worktree traceability mapping is stale: expected ${referenceTraceabilityPath}, got ${worktreeTraceabilityPath || "<missing>"}`);
+  }
+
+  return {
+    ok: issues.length === 0,
+    repoRoot,
+    worktreeAbs,
+    expectedBranch,
+    actualBranch,
+    referenceBoardStatus,
+    worktreeBoardStatus,
+    referenceTraceabilityPath,
+    worktreeTraceabilityPath,
+    referenceSpec,
+    worktreeSpec,
+    issues,
+  };
 }
 
 export function activeOrchestratorCandidates(logs) {
