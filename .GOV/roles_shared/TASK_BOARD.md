@@ -59,7 +59,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 
 - **[WP-1-Calendar-Storage-v1]** - [READY_FOR_DEV]
 
-- **[WP-1-Locus-Phase1-Integration-Occupancy-v1]** - [READY_FOR_DEV]
 
 ## Stub Backlog (Not Activated)
 
@@ -208,6 +207,8 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Spec-Appendices-Backfill-v1]** - [VALIDATED]
 
 - **[WP-1-Postgres-MCP-Durable-Progress-v1]** - [VALIDATED]
+
+- **[WP-1-Locus-Phase1-Integration-Occupancy-v1]** - [VALIDATED]
 
 ## Blocked
 ---

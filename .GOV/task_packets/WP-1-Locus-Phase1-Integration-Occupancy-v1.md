@@ -18,7 +18,7 @@
 - CODER_MODEL: Coder-A
 - CODER_REASONING_STRENGTH: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
-- **Status:** In Progress
+- **Status:** Done
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
 - BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
@@ -41,9 +41,9 @@
 - PACKET_FORMAT_VERSION: 2026-03-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: READY_FOR_VALIDATION
-Blockers: None
-Next: Validator reviews the current HEAD of `feat/WP-1-Locus-Phase1-Integration-Occupancy-v1` and the recorded gate/test evidence against the committed range `21ee7c29d34a1f0e5a22f989756973aca15e65fc..HEAD`
+Verdict: PASS
+Blockers: NONE
+Next: Validation report will be presented to the Operator; merge to `main` stays blocked until explicit acknowledgment
 
 ## SUB_AGENT_DELEGATION (OPTIONAL; OPERATOR-GATED)
 - SUB_AGENT_DELEGATION: ALLOWED
@@ -478,3 +478,62 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+### VALIDATION REPORT - 2026-03-07T03:48:50.3533348+01:00
+VALIDATION REPORT - WP-1-Locus-Phase1-Integration-Occupancy-v1
+Verdict: PASS
+
+REASON FOR PASS
+- The committed range satisfies the packet DONE_MEANS and the cited spec anchors for routed WP creation, MT lifecycle submission, replay-safe occupancy persistence, and capability enforcement.
+- `just pre-work WP-1-Locus-Phase1-Integration-Occupancy-v1` passed in the assigned WP worktree and `just post-work WP-1-Locus-Phase1-Integration-Occupancy-v1 --range 21ee7c29d34a1f0e5a22f989756973aca15e65fc..HEAD` passed against the packet's deterministic merge-base window.
+- The required Rust tests passed under the Windows short-path override, and validator audit scripts (`validator-scan`, `validator-dal-audit`, `validator-traceability`, `validator-coverage-gaps`) all passed on the clean handed-off commit.
+- The recorded [CX-573F] waiver is narrow and valid: it only covers inherited governance-only files already present in branch history before the implementation commit.
+
+Validation Claims
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Locus-Phase1-Integration-Occupancy-v1 --range 21ee7c29d34a1f0e5a22f989756973aca15e65fc..HEAD`): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs
+- Task Packet: `.GOV/task_packets/WP-1-Locus-Phase1-Integration-Occupancy-v1.md` (status: Done)
+- Spec: `Handshake_Master_Spec_v02.141.md` Section 2.3.15.2 through 2.3.15.6
+- Validation range: `21ee7c29d34a1f0e5a22f989756973aca15e65fc..f9662349d37b3ae73d83e6b452a8e1a8b23b8f33`
+
+Files Checked
+- `.GOV/task_packets/WP-1-Locus-Phase1-Integration-Occupancy-v1.md`
+- `.GOV/refinements/WP-1-Locus-Phase1-Integration-Occupancy-v1.md`
+- `.GOV/roles_shared/TASK_BOARD.md`
+- `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`
+- `src/backend/handshake_core/src/workflows.rs`
+- `src/backend/handshake_core/src/capabilities.rs`
+- `src/backend/handshake_core/src/locus/types.rs`
+- `src/backend/handshake_core/src/locus/sqlite_store.rs`
+- `src/backend/handshake_core/src/storage/locus_sqlite.rs`
+- `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+
+Findings
+- No blocking findings.
+- Routed Spec Router outputs submit `locus_create_wp_v1` child jobs with `task_packet_path` and `spec_session_id`, and Locus writes still emit the canonical work-packet Flight Recorder event path.
+- MT executor registration, start, iteration, completion, bind, and unbind all go through child `locus_operation` jobs rather than direct storage writes.
+- SQLite persistence trims and deduplicates `active_session_ids`, upserts iteration history, and clears occupancy on completion.
+- Capability mapping explicitly covers `locus_bind_session_v1`, `locus_unbind_session_v1`, and the rest of the lifecycle protocols with `locus.write`.
+- Hygiene: `just cargo-clean` removed the external cargo target contents before validation, and range-mode `post-work` passed with the packet-recorded [CX-573F] waiver for inherited governance-only files.
+- Forbidden Patterns: `just validator-scan` PASS.
+- Storage DAL Audit: `just validator-dal-audit` PASS.
+- Traceability: `just validator-traceability` PASS.
+- Coverage: `just validator-coverage-gaps` PASS.
+
+Tests
+- `just pre-work WP-1-Locus-Phase1-Integration-Occupancy-v1`: PASS
+- `cmd /c "set CARGO_TARGET_DIR=D:\hc&& set TEMP=D:\hctmp&& set TMP=D:\hctmp&& cargo test --test micro_task_executor_tests"`: PASS (12 passed)
+- `cmd /c "set CARGO_TARGET_DIR=D:\hc&& set TEMP=D:\hctmp&& set TMP=D:\hctmp&& cargo test --lib test_locus_protocol_requirements"`: PASS (1 passed)
+- `cmd /c "set CARGO_TARGET_DIR=D:\hc&& set TEMP=D:\hctmp&& set TMP=D:\hctmp&& cargo test --test mcp_e2e_tests"`: PASS (2 passed)
+- `cmd /c "set CARGO_TARGET_DIR=D:\hc&& set TEMP=D:\hctmp&& set TMP=D:\hctmp&& cargo test --test model_session_scheduler_tests"`: PASS (11 passed)
+- `just post-work WP-1-Locus-Phase1-Integration-Occupancy-v1 --range 21ee7c29d34a1f0e5a22f989756973aca15e65fc..HEAD`: PASS
+
+Risks & Suggested Actions
+- Keep using the short-path cargo environment override on this Windows machine for future reruns until the `libduckdb-sys` path-length issue is addressed upstream or in repo tooling.
+- Future governance ergonomics would benefit from a helper that updates the Task Board column in `WP_TRACEABILITY_REGISTRY.md`; the existing `wp-traceability-set` helper only rewrites the active packet path.
+
+Improvements & Future Proofing
+- Add a validator helper that reconciles `WP_TRACEABILITY_REGISTRY.md` task-board state from packet status so PASS closure does not require manual table edits.
