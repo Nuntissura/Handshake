@@ -91,7 +91,7 @@ Next: Commit the staged WP-owned files, rerun `just post-work WP-1-Locus-Phase1-
 
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- NONE
+- CX-573F | 2026-03-07 | Scope: allow inherited governance bootstrap files in `just post-work WP-1-Locus-Phase1-Integration-Occupancy-v1 --range 21ee7c29d34a1f0e5a22f989756973aca15e65fc..HEAD`: `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles_shared/BUILD_ORDER.md`, `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`, `.GOV/scripts/create-task-packet.mjs`, `.GOV/scripts/orchestrator-next.mjs`, `.GOV/scripts/validation/pre-work-check.mjs`, `.GOV/scripts/validation/refinement-check.mjs`, `.GOV/templates/REFINEMENT_TEMPLATE.md`, `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`, `.GOV/templates/TASK_PACKET_TEMPLATE.md` | Justification: these governance-only files were already present in the branch history from WP activation/bootstrap work before the product implementation commit; staged post-work passed on the WP-owned implementation diff, and this waiver is limited to inherited non-product range noise.
 
 ## QUALITY_GATE
 ### TEST_PLAN
