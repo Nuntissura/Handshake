@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
+use handshake_core::ace::ArtifactHandle;
 use handshake_core::capabilities::CapabilityRegistry;
 use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
 use handshake_core::flight_recorder::{EventFilter, FlightRecorderEventType};
@@ -11,14 +12,14 @@ use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
 };
 use handshake_core::storage::{
-    sqlite::SqliteDatabase, AccessMode, Database, JobKind, JobMetrics, JobState, NewAiJob,
-    SafetyMode, StorageError,
+    sqlite::SqliteDatabase, AccessMode, AiJobListFilter, Database, JobKind, JobMetrics, JobState,
+    NewAiJob, SafetyMode, StorageError,
 };
 use handshake_core::workflows::{
     start_workflow_for_job, ModelSwapRequestV0_4, SessionRegistry, SessionSchedulerConfig,
 };
 use handshake_core::AppState;
-use serde_json::json;
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
@@ -104,14 +105,81 @@ async fn setup_state(
 
     let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
 
-    Ok(AppState {
+    let state = AppState {
         storage: sqlite.into_arc(),
         flight_recorder: flight_recorder.clone(),
         diagnostics: flight_recorder,
         llm_client,
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-    })
+    };
+    seed_locus_work_packet(&state, "WP-TEST").await?;
+    Ok(state)
+}
+
+async fn run_locus_job(
+    state: &AppState,
+    protocol_id: &str,
+    inputs: Value,
+) -> Result<Value, Box<dyn std::error::Error>> {
+    let job = state
+        .storage
+        .create_ai_job(NewAiJob {
+            trace_id: Uuid::new_v4(),
+            job_kind: JobKind::LocusOperation,
+            protocol_id: protocol_id.to_string(),
+            profile_id: "default".to_string(),
+            capability_profile_id: "Coder".to_string(),
+            access_mode: AccessMode::AnalysisOnly,
+            safety_mode: SafetyMode::Normal,
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            status_reason: "queued".to_string(),
+            metrics: JobMetrics::zero(),
+            job_inputs: Some(inputs),
+        })
+        .await?;
+    let job_id = job.job_id;
+
+    start_workflow_for_job(state, job).await?;
+
+    let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+    assert!(
+        matches!(
+            updated_job.state,
+            JobState::Completed | JobState::CompletedWithIssues
+        ),
+        "expected locus job to complete, got {} ({:?})",
+        updated_job.state.as_str(),
+        updated_job.error_message
+    );
+
+    updated_job
+        .job_outputs
+        .ok_or_else(|| "missing locus job outputs".into())
+}
+
+async fn seed_locus_work_packet(
+    state: &AppState,
+    wp_id: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = run_locus_job(
+        state,
+        "locus_create_wp_v1",
+        json!({
+            "wp_id": wp_id,
+            "title": format!("Seeded {wp_id}"),
+            "description": "seeded work packet for tests",
+            "priority": 2,
+            "type": "feature",
+            "phase": "1",
+            "routing": "GOV_STANDARD",
+            "task_packet_path": format!(".handshake/gov/task_packets/{wp_id}.md"),
+            "reporter": "micro_task_executor_tests",
+        }),
+    )
+    .await?;
+    Ok(())
 }
 
 fn default_wp_scope(test_plan: Vec<String>) -> serde_json::Value {
@@ -261,6 +329,354 @@ async fn micro_task_executor_completes_single_mt_and_emits_events(
 }
 
 #[tokio::test]
+async fn micro_task_executor_persists_locus_lifecycle_and_session_occupancy(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![
+        "work complete <mt_complete>yes</mt_complete>".to_string(),
+    ]));
+    let state = setup_state(llm_client).await?;
+    let trace_id = Uuid::new_v4();
+
+    let job = state
+        .storage
+        .create_ai_job(NewAiJob {
+            trace_id,
+            job_kind: JobKind::MicroTaskExecution,
+            protocol_id: "micro_task_executor_v1".to_string(),
+            profile_id: "micro_task_executor_v1".to_string(),
+            capability_profile_id: "Coder".to_string(),
+            access_mode: AccessMode::AnalysisOnly,
+            safety_mode: SafetyMode::Normal,
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            status_reason: "queued".to_string(),
+            metrics: JobMetrics::zero(),
+            job_inputs: Some(json!({
+                "wp_id": "WP-TEST",
+                "session_id": "sess-occupancy",
+                "wp_scope": default_wp_scope(vec!["exit 0".to_string()]),
+                "execution_policy": {
+                    "automation_level": "FULL_HUMAN",
+                }
+            })),
+        })
+        .await?;
+    let job_id = job.job_id;
+
+    start_workflow_for_job(&state, job).await?;
+
+    let paused_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+    assert!(matches!(paused_job.state, JobState::AwaitingUser));
+
+    let mt_progress = run_locus_job(
+        &state,
+        "locus_get_mt_progress_v1",
+        json!({ "mt_id": "MT-001" }),
+    )
+    .await?;
+    assert_eq!(
+        mt_progress.get("status").and_then(Value::as_str),
+        Some("in_progress")
+    );
+    assert_eq!(
+        mt_progress.get("current_iteration").and_then(Value::as_i64),
+        Some(1)
+    );
+    let metadata = mt_progress.get("metadata").expect("metadata");
+    let active_session_ids = metadata
+        .get("active_session_ids")
+        .and_then(Value::as_array)
+        .expect("active_session_ids");
+    assert!(
+        active_session_ids.is_empty(),
+        "paused MT should unbind session occupancy"
+    );
+    let iterations = metadata
+        .get("iterations")
+        .and_then(Value::as_array)
+        .expect("iterations");
+    assert_eq!(iterations.len(), 1);
+
+    let events = state
+        .flight_recorder
+        .list_events(EventFilter::default())
+        .await?;
+    assert!(events
+        .iter()
+        .any(|e| e.event_type == FlightRecorderEventType::LocusMicroTasksRegistered));
+    assert!(events
+        .iter()
+        .any(|e| e.event_type == FlightRecorderEventType::LocusMtStarted));
+    assert!(events
+        .iter()
+        .any(|e| e.event_type == FlightRecorderEventType::LocusMtIterationCompleted));
+
+    let resume_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+    start_workflow_for_job(&state, resume_job).await?;
+
+    let completed_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+    assert!(matches!(completed_job.state, JobState::Completed));
+
+    let mt_progress_after = run_locus_job(
+        &state,
+        "locus_get_mt_progress_v1",
+        json!({ "mt_id": "MT-001" }),
+    )
+    .await?;
+    assert_eq!(
+        mt_progress_after.get("status").and_then(Value::as_str),
+        Some("completed")
+    );
+    let active_session_ids_after = mt_progress_after
+        .get("metadata")
+        .and_then(|metadata| metadata.get("active_session_ids"))
+        .and_then(Value::as_array)
+        .expect("active_session_ids after completion");
+    assert!(active_session_ids_after.is_empty());
+
+    let events_after = state
+        .flight_recorder
+        .list_events(EventFilter::default())
+        .await?;
+    assert!(events_after
+        .iter()
+        .any(|e| e.event_type == FlightRecorderEventType::LocusMtCompleted));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn micro_task_executor_spec_router_creates_locus_work_packet_when_routing_metadata_present(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let llm_client: Arc<dyn LlmClient> =
+        Arc::new(QueuedLlmClient::new(vec!["# Spec Artifact".to_string()]));
+    let state = setup_state(llm_client).await?;
+    let trace_id = Uuid::new_v4();
+    let repo_root = handshake_core::capability_registry_workflow::repo_root_from_manifest_dir()?;
+    let prompt_rel = PathBuf::from("data")
+        .join("spec_router_tests")
+        .join(format!("{}.md", Uuid::new_v4()));
+    let prompt_abs = repo_root.join(&prompt_rel);
+    std::fs::create_dir_all(prompt_abs.parent().ok_or("prompt parent missing")?)?;
+    std::fs::write(&prompt_abs, "route this prompt into a work packet")?;
+
+    let prompt_ref = ArtifactHandle::new(
+        Uuid::new_v4(),
+        prompt_rel.to_string_lossy().replace('\\', "/"),
+    );
+    let routed_wp_id = format!("WP-ROUTED-{}", Uuid::new_v4());
+
+    let job = state
+        .storage
+        .create_ai_job(NewAiJob {
+            trace_id,
+            job_kind: JobKind::SpecRouter,
+            protocol_id: "protocol-default".to_string(),
+            profile_id: "default".to_string(),
+            capability_profile_id: "Analyst".to_string(),
+            access_mode: AccessMode::AnalysisOnly,
+            safety_mode: SafetyMode::Normal,
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            status_reason: "queued".to_string(),
+            metrics: JobMetrics::zero(),
+            job_inputs: Some(json!({
+                "prompt_ref": prompt_ref,
+                "spec_intent_id": format!("spec-{}", Uuid::new_v4()),
+                "mode_override": "gov_standard",
+                "spec_prompt_pack_id": "spec_router_pack@1",
+                "workspace_id": Uuid::new_v4(),
+                "project_id": Value::Null,
+                "workflow_context": {
+                    "version_control": "Git",
+                    "repo_root": repo_root.to_string_lossy().to_string(),
+                },
+                "wp_id": routed_wp_id,
+                "title": "Routed Packet",
+                "description": "Spec Router should submit locus_create_wp_v1",
+                "task_packet_path": ".handshake/gov/task_packets/WP-ROUTED.md",
+                "spec_session_id": "spec-session-1",
+                "phase": "1",
+                "routing": "GOV_STANDARD",
+                "type": "feature",
+                "priority": 2,
+                "reporter": "spec_router_test",
+            })),
+        })
+        .await?;
+    let job_id = job.job_id;
+
+    start_workflow_for_job(&state, job).await?;
+
+    let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+    assert!(matches!(updated_job.state, JobState::Completed));
+    assert!(
+        updated_job
+            .job_outputs
+            .as_ref()
+            .and_then(|value| value.get("spec_artifact_ref"))
+            .is_some(),
+        "spec_router output should still include spec_artifact_ref"
+    );
+
+    let wp_status = run_locus_job(
+        &state,
+        "locus_get_wp_status_v1",
+        json!({ "wp_id": routed_wp_id }),
+    )
+    .await?;
+    assert_eq!(
+        wp_status.get("status").and_then(Value::as_str),
+        Some("stub")
+    );
+    assert_eq!(
+        wp_status.get("task_board_status").and_then(Value::as_str),
+        Some("STUB")
+    );
+
+    let child_jobs = state
+        .storage
+        .list_ai_jobs(AiJobListFilter::default())
+        .await?;
+    assert_eq!(
+        child_jobs
+            .iter()
+            .filter(|child_job| {
+                matches!(child_job.job_kind, JobKind::LocusOperation)
+                    && child_job.protocol_id == "locus_create_wp_v1"
+                    && child_job
+                        .job_inputs
+                        .as_ref()
+                        .and_then(|inputs| inputs.get("wp_id"))
+                        .and_then(Value::as_str)
+                        == Some(routed_wp_id.as_str())
+            })
+            .count(),
+        1,
+        "spec router should dispatch exactly one locus_create_wp_v1 child job for the routed WP"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_bind_session_normalizes_and_deduplicates_session_ids(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    run_locus_job(
+        &state,
+        "locus_register_mts_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "micro_tasks": [{
+                "mt_id": "MT-SESSION",
+                "wp_id": "WP-TEST",
+                "name": "Session occupancy",
+                "scope": "verify session binding normalization",
+                "files": {
+                    "read": [],
+                    "modify": [],
+                    "create": [],
+                },
+                "done_criteria": [],
+                "status": "pending",
+                "active_session_ids": [],
+                "iterations": [],
+                "current_iteration": 0,
+                "max_iterations": 1,
+                "validation_result": Value::Null,
+                "escalation": {
+                    "current_level": 0,
+                    "escalation_chain": [],
+                    "escalations_count": 0,
+                    "drop_backs_count": 0,
+                },
+                "started_at": Value::Null,
+                "completed_at": Value::Null,
+                "duration_ms": Value::Null,
+                "depends_on": [],
+                "metadata": {
+                    "source": "occupancy_normalization_test",
+                },
+            }],
+        }),
+    )
+    .await?;
+
+    run_locus_job(
+        &state,
+        "locus_bind_session_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "mt_id": "MT-SESSION",
+            "session_id": "  sess-occupancy  ",
+            "model_id": "queued-test-model",
+            "lora_id": Value::Null,
+            "escalation_level": 0,
+        }),
+    )
+    .await?;
+    run_locus_job(
+        &state,
+        "locus_bind_session_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "mt_id": "MT-SESSION",
+            "session_id": "sess-occupancy",
+            "model_id": "queued-test-model",
+            "lora_id": Value::Null,
+            "escalation_level": 0,
+        }),
+    )
+    .await?;
+
+    let mt_progress = run_locus_job(
+        &state,
+        "locus_get_mt_progress_v1",
+        json!({ "mt_id": "MT-SESSION" }),
+    )
+    .await?;
+    let active_session_ids = mt_progress
+        .get("metadata")
+        .and_then(|metadata| metadata.get("active_session_ids"))
+        .and_then(Value::as_array)
+        .expect("active_session_ids after bind")
+        .iter()
+        .filter_map(Value::as_str)
+        .collect::<Vec<_>>();
+    assert_eq!(active_session_ids, vec!["sess-occupancy"]);
+
+    run_locus_job(
+        &state,
+        "locus_unbind_session_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "mt_id": "MT-SESSION",
+            "session_id": "  sess-occupancy  ",
+            "reason": "test_cleanup",
+        }),
+    )
+    .await?;
+
+    let mt_progress_after = run_locus_job(
+        &state,
+        "locus_get_mt_progress_v1",
+        json!({ "mt_id": "MT-SESSION" }),
+    )
+    .await?;
+    let active_session_ids_after = mt_progress_after
+        .get("metadata")
+        .and_then(|metadata| metadata.get("active_session_ids"))
+        .and_then(Value::as_array)
+        .expect("active_session_ids after unbind");
+    assert!(active_session_ids_after.is_empty());
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn micro_task_executor_escalates_and_hard_gates_after_budget_exhaustion(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![
@@ -302,10 +718,7 @@ async fn micro_task_executor_escalates_and_hard_gates_after_budget_exhaustion(
 
     let events = state
         .flight_recorder
-        .list_events(EventFilter {
-            job_id: Some(job_id.to_string()),
-            ..Default::default()
-        })
+        .list_events(EventFilter::default())
         .await?;
 
     assert!(events
@@ -378,6 +791,90 @@ EVIDENCE:
     assert!(events
         .iter()
         .any(|e| e.event_type == FlightRecorderEventType::MicroTaskDistillationCandidate));
+    let mt_progress = run_locus_job(
+        &state,
+        "locus_get_mt_progress_v1",
+        json!({ "mt_id": "MT-001" }),
+    )
+    .await?;
+    assert_eq!(
+        mt_progress.get("status").and_then(Value::as_str),
+        Some("completed")
+    );
+    assert_eq!(
+        mt_progress.get("current_iteration").and_then(Value::as_i64),
+        Some(2)
+    );
+    assert_eq!(
+        mt_progress.get("escalation_level").and_then(Value::as_i64),
+        Some(1)
+    );
+    let metadata = mt_progress.get("metadata").expect("metadata");
+    let active_session_ids = metadata
+        .get("active_session_ids")
+        .and_then(Value::as_array)
+        .expect("active_session_ids");
+    assert!(
+        active_session_ids.is_empty(),
+        "completed MT should not retain bound sessions"
+    );
+    let iterations = metadata
+        .get("iterations")
+        .and_then(Value::as_array)
+        .expect("iterations");
+    assert_eq!(
+        iterations.len(),
+        2,
+        "expected one Locus iteration record per attempt"
+    );
+    let iteration_numbers = iterations
+        .iter()
+        .filter_map(|record| record.get("iteration").and_then(Value::as_u64))
+        .collect::<Vec<_>>();
+    assert_eq!(iteration_numbers, vec![1, 1]);
+    let escalation_levels = iterations
+        .iter()
+        .filter_map(|record| record.get("escalation_level").and_then(Value::as_u64))
+        .collect::<Vec<_>>();
+    assert_eq!(escalation_levels, vec![0, 1]);
+    let child_jobs = state
+        .storage
+        .list_ai_jobs(AiJobListFilter::default())
+        .await?;
+    assert_eq!(
+        child_jobs
+            .iter()
+            .filter(|child_job| {
+                matches!(child_job.job_kind, JobKind::LocusOperation)
+                    && child_job.protocol_id == "locus_start_mt_v1"
+                    && child_job
+                        .job_inputs
+                        .as_ref()
+                        .and_then(|inputs| inputs.get("mt_id"))
+                        .and_then(Value::as_str)
+                        == Some("MT-001")
+            })
+            .count(),
+        1,
+        "locus_start_mt_v1 should only dispatch once per MT activation"
+    );
+    assert_eq!(
+        child_jobs
+            .iter()
+            .filter(|child_job| {
+                matches!(child_job.job_kind, JobKind::LocusOperation)
+                    && child_job.protocol_id == "locus_record_iteration_v1"
+                    && child_job
+                        .job_inputs
+                        .as_ref()
+                        .and_then(|inputs| inputs.get("mt_id"))
+                        .and_then(Value::as_str)
+                        == Some("MT-001")
+            })
+            .count(),
+        2,
+        "expected one locus_record_iteration_v1 child job per attempt"
+    );
 
     let repo_root = handshake_core::capability_registry_workflow::repo_root_from_manifest_dir()?;
     let progress_path = repo_root

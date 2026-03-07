@@ -417,6 +417,8 @@ impl CapabilityRegistry {
                 | "locus_close_wp_v1"
                 | "locus_register_mts_v1"
                 | "locus_start_mt_v1"
+                | "locus_bind_session_v1"
+                | "locus_unbind_session_v1"
                 | "locus_record_iteration_v1"
                 | "locus_complete_mt_v1"
                 | "locus_add_dependency_v1"
@@ -520,6 +522,25 @@ mod tests {
             }
         };
         assert_eq!(required_create, vec!["locus.write".to_string()]);
+
+        for protocol_id in [
+            "locus_start_mt_v1",
+            "locus_bind_session_v1",
+            "locus_unbind_session_v1",
+            "locus_record_iteration_v1",
+            "locus_complete_mt_v1",
+        ] {
+            let required = registry
+                .required_capabilities_for_job_request("locus_operation", protocol_id)
+                .unwrap_or_else(|err| {
+                    panic!("expected protocol requirements for {protocol_id}, got error: {err}")
+                });
+            assert_eq!(
+                required,
+                vec!["locus.write".to_string()],
+                "unexpected requirements for {protocol_id}"
+            );
+        }
     }
 
     #[test]

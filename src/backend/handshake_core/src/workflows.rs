@@ -46,9 +46,9 @@ use crate::{
     models::{AiJob, JobKind, WorkflowRun},
     runtime_governance::RuntimeGovernancePaths,
     storage::{
-        validate_job_contract, AiJobListFilter, JobState, JobStatusUpdate, ModelSessionState,
-        ModelSession, NewModelSession, NewNodeExecution, NewSessionMessage, SessionMessageRole,
-        StorageError,
+        validate_job_contract, AiJobListFilter, JobState, JobStatusUpdate, ModelSession,
+        ModelSessionState, NewModelSession, NewNodeExecution, NewSessionMessage,
+        SessionMessageRole, StorageError,
     },
     terminal::{
         config::TerminalConfig,
@@ -69,9 +69,11 @@ use std::{
     collections::HashMap,
     collections::{HashSet, VecDeque},
     fs,
+    future::Future,
     io::{Read, Write},
     path::Path,
     path::PathBuf,
+    pin::Pin,
     sync::{
         atomic::{AtomicBool, AtomicI64, AtomicU8, Ordering},
         Arc, Mutex,
@@ -423,8 +425,10 @@ impl SessionRegistry {
     pub async fn set_scheduler_config(&self, config: SessionSchedulerConfig) {
         let mut inner = self.inner.write().await;
         inner.multi_model_session.spawn_limits = SpawnLimits::from_scheduler_config(&config);
-        inner.rate_limiter
-            .update_limits(config.rate_limit_requests_per_minute, config.rate_limit_tokens_per_minute);
+        inner.rate_limiter.update_limits(
+            config.rate_limit_requests_per_minute,
+            config.rate_limit_tokens_per_minute,
+        );
         inner.multi_model_session.scheduler_config = config;
     }
 
@@ -456,7 +460,10 @@ impl SessionRegistry {
             session.state,
             ModelSessionState::Completed | ModelSessionState::Failed | ModelSessionState::Cancelled
         ) {
-            inner.multi_model_session.active_sessions.remove(&session_id);
+            inner
+                .multi_model_session
+                .active_sessions
+                .remove(&session_id);
         } else {
             inner
                 .multi_model_session
@@ -465,7 +472,11 @@ impl SessionRegistry {
         }
     }
 
-    pub async fn get_model_session(&self, state: &AppState, session_id: &str) -> Result<ModelSession, StorageError> {
+    pub async fn get_model_session(
+        &self,
+        state: &AppState,
+        session_id: &str,
+    ) -> Result<ModelSession, StorageError> {
         if let Some(found) = self
             .inner
             .read()
@@ -484,8 +495,19 @@ impl SessionRegistry {
         Ok(session)
     }
 
-    pub async fn get_model_session_by_job_id(&self, state: &AppState, job_id: Uuid) -> Result<ModelSession, StorageError> {
-        if let Some(session_id) = self.inner.read().await.session_id_by_job_id.get(&job_id).cloned() {
+    pub async fn get_model_session_by_job_id(
+        &self,
+        state: &AppState,
+        job_id: Uuid,
+    ) -> Result<ModelSession, StorageError> {
+        if let Some(session_id) = self
+            .inner
+            .read()
+            .await
+            .session_id_by_job_id
+            .get(&job_id)
+            .cloned()
+        {
             if let Some(found) = self
                 .inner
                 .read()
@@ -515,9 +537,11 @@ impl SessionRegistry {
 
     pub async fn refund_rate_limit(&self, reservation: RateLimitReservation) {
         let mut inner = self.inner.write().await;
-        inner
-            .rate_limiter
-            .refund(&reservation.provider, reservation.requests, reservation.tokens);
+        inner.rate_limiter.refund(
+            &reservation.provider,
+            reservation.requests,
+            reservation.tokens,
+        );
     }
 }
 
@@ -532,10 +556,7 @@ pub struct RateLimitReservation {
 pub enum RateLimitOutcome {
     Unlimited,
     Allowed(RateLimitReservation),
-    Denied {
-        reason: String,
-        backoff_ms: u64,
-    },
+    Denied { reason: String, backoff_ms: u64 },
 }
 
 #[derive(Debug)]
@@ -570,10 +591,12 @@ impl ProviderRateLimiter {
     }
 
     fn buckets_for_mut(&mut self, provider: &str, now: Instant) -> &mut ProviderBuckets {
-        self.providers.entry(provider.to_string()).or_insert_with(|| ProviderBuckets {
-            requests: self.rpm.map(|rpm| TokenBucket::new(rpm as f64, now)),
-            tokens: self.tpm.map(|tpm| TokenBucket::new(tpm as f64, now)),
-        })
+        self.providers
+            .entry(provider.to_string())
+            .or_insert_with(|| ProviderBuckets {
+                requests: self.rpm.map(|rpm| TokenBucket::new(rpm as f64, now)),
+                tokens: self.tpm.map(|tpm| TokenBucket::new(tpm as f64, now)),
+            })
     }
 
     fn try_acquire(&mut self, provider: &str, token_budget: u64) -> RateLimitOutcome {
@@ -894,7 +917,9 @@ fn parse_session_message_inputs(job: &AiJob) -> Result<Vec<SessionMessageInput>,
     let mut out = Vec::new();
     for entry in raw_messages {
         let map = entry.as_object().ok_or_else(|| {
-            WorkflowError::Terminal("model_run session_messages entries must be objects".to_string())
+            WorkflowError::Terminal(
+                "model_run session_messages entries must be objects".to_string(),
+            )
         })?;
         if map.contains_key("content") || map.contains_key("text") {
             return Err(WorkflowError::Terminal(
@@ -1015,7 +1040,8 @@ fn parse_session_message_inputs(job: &AiJob) -> Result<Vec<SessionMessageInput>,
             }
             _ => {
                 return Err(WorkflowError::Terminal(
-                    "model_run session_messages.attachments must be an array of strings".to_string(),
+                    "model_run session_messages.attachments must be an array of strings"
+                        .to_string(),
                 ))
             }
         };
@@ -1033,12 +1059,15 @@ fn parse_session_message_inputs(job: &AiJob) -> Result<Vec<SessionMessageInput>,
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .map(|raw| {
-                SessionMessageRole::try_from(raw)
-                    .map_err(|_| WorkflowError::Terminal("invalid session message source_role".to_string()))
+                SessionMessageRole::try_from(raw).map_err(|_| {
+                    WorkflowError::Terminal("invalid session message source_role".to_string())
+                })
             })
             .transpose()?;
 
-        let source_trusted = match map.get("source_trusted").or_else(|| map.get("trusted_source"))
+        let source_trusted = match map
+            .get("source_trusted")
+            .or_else(|| map.get("trusted_source"))
         {
             None | Some(Value::Null) => None,
             Some(Value::Bool(value)) => Some(*value),
@@ -1091,12 +1120,13 @@ fn parse_model_run_metadata(job: &AiJob) -> Result<ModelRunMetadata, WorkflowErr
         ));
     }
 
-    let model_id_default = string_opt(inputs, "model_id").unwrap_or_else(|| "default-model".to_string());
-    let backend_default = string_opt(inputs, "backend").unwrap_or_else(|| "default-backend".to_string());
+    let model_id_default =
+        string_opt(inputs, "model_id").unwrap_or_else(|| "default-model".to_string());
+    let backend_default =
+        string_opt(inputs, "backend").unwrap_or_else(|| "default-backend".to_string());
 
     Ok(ModelRunMetadata {
-        session_id: string_opt(inputs, "session_id")
-            .unwrap_or_else(|| Uuid::new_v4().to_string()),
+        session_id: string_opt(inputs, "session_id").unwrap_or_else(|| Uuid::new_v4().to_string()),
         parent_session_id: string_opt(inputs, "parent_session_id"),
         spawn_depth: int_opt(inputs, "spawn_depth").unwrap_or(0) as i32,
         lane,
@@ -2216,11 +2246,25 @@ async fn emit_locus_operation_event(
         locus::LocusOperation::StartMt(params) => {
             inner.insert("wp_id".to_string(), Value::String(params.wp_id.clone()));
             inner.insert("mt_id".to_string(), Value::String(params.mt_id.clone()));
+            inner.insert(
+                "model_id".to_string(),
+                Value::String(params.model_id.clone()),
+            );
+            if let Some(lora_id) = &params.lora_id {
+                inner.insert("lora_id".to_string(), Value::String(lora_id.clone()));
+            }
+            inner.insert(
+                "escalation_level".to_string(),
+                json!(params.escalation_level),
+            );
             (
                 FlightRecorderEventType::LocusMtStarted,
                 "FR-EVT-MT-003",
                 "mt_started",
             )
+        }
+        locus::LocusOperation::BindSession(_) | locus::LocusOperation::UnbindSession(_) => {
+            return Ok(());
         }
         locus::LocusOperation::RecordIteration(params) => {
             inner.insert("wp_id".to_string(), Value::String(params.wp_id.clone()));
@@ -2483,6 +2527,359 @@ async fn emit_locus_operation_event(
         }
     }
     Ok(())
+}
+
+fn governance_mode_to_routing_policy(
+    governance_mode: crate::role_mailbox::GovernanceMode,
+) -> locus::RoutingPolicy {
+    match governance_mode {
+        crate::role_mailbox::GovernanceMode::GovStrict => locus::RoutingPolicy::GovStrict,
+        crate::role_mailbox::GovernanceMode::GovStandard => locus::RoutingPolicy::GovStandard,
+        crate::role_mailbox::GovernanceMode::GovLight => locus::RoutingPolicy::GovLight,
+    }
+}
+
+fn json_pointer_value<'a>(value: &'a Value, pointers: &[&str]) -> Option<&'a Value> {
+    pointers.iter().find_map(|pointer| value.pointer(pointer))
+}
+
+fn json_pointer_string(value: &Value, pointers: &[&str]) -> Option<String> {
+    json_pointer_value(value, pointers)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn json_pointer_vec_string(value: &Value, pointers: &[&str]) -> Option<Vec<String>> {
+    json_pointer_value(value, pointers).and_then(|value| {
+        value.as_array().map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .filter(|item| !item.is_empty())
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+    })
+}
+
+fn json_pointer_enum<T>(value: &Value, pointers: &[&str]) -> Option<T>
+where
+    T: serde::de::DeserializeOwned,
+{
+    json_pointer_value(value, pointers)
+        .cloned()
+        .and_then(|raw| serde_json::from_value(raw).ok())
+}
+
+fn build_spec_router_locus_create_wp_params(
+    raw_inputs: &Value,
+    governance_mode: crate::role_mailbox::GovernanceMode,
+) -> Result<Option<locus::LocusCreateWpParams>, WorkflowError> {
+    if let Some(explicit) = json_pointer_value(raw_inputs, &["/locus_create_wp"]) {
+        let params: locus::LocusCreateWpParams =
+            serde_json::from_value(explicit.clone()).map_err(|err| {
+                WorkflowError::Terminal(format!("invalid locus_create_wp payload: {err}"))
+            })?;
+        return Ok(Some(params));
+    }
+
+    let wp_id = match json_pointer_string(
+        raw_inputs,
+        &["/wp_id", "/routing_result/wp_id", "/work_packet/wp_id"],
+    ) {
+        Some(value) => value,
+        None => return Ok(None),
+    };
+    let title = match json_pointer_string(
+        raw_inputs,
+        &[
+            "/title",
+            "/spec_intent/title",
+            "/routing_result/spec_intent/title",
+            "/work_packet/title",
+        ],
+    ) {
+        Some(value) => value,
+        None => return Ok(None),
+    };
+    let description = match json_pointer_string(
+        raw_inputs,
+        &[
+            "/description",
+            "/spec_intent/description",
+            "/routing_result/spec_intent/description",
+            "/work_packet/description",
+        ],
+    ) {
+        Some(value) => value,
+        None => return Ok(None),
+    };
+    let task_packet_path = match json_pointer_string(
+        raw_inputs,
+        &[
+            "/task_packet_path",
+            "/routing_result/task_packet_path",
+            "/work_packet/task_packet_path",
+        ],
+    ) {
+        Some(value) => Some(value),
+        None => return Ok(None),
+    };
+
+    let priority = json_pointer_value(
+        raw_inputs,
+        &[
+            "/priority",
+            "/routing_result/priority",
+            "/work_packet/priority",
+        ],
+    )
+    .and_then(Value::as_u64)
+    .map(|value| value.min(4) as u8)
+    .unwrap_or(2);
+    let kind = json_pointer_enum(
+        raw_inputs,
+        &[
+            "/type",
+            "/kind",
+            "/routing_result/type",
+            "/routing_result/kind",
+            "/work_packet/type",
+            "/work_packet/kind",
+        ],
+    )
+    .unwrap_or(locus::WorkPacketType::Feature);
+    let phase = json_pointer_enum(
+        raw_inputs,
+        &["/phase", "/routing_result/phase", "/work_packet/phase"],
+    )
+    .unwrap_or(locus::WorkPacketPhase::Phase1);
+    let routing = json_pointer_enum(
+        raw_inputs,
+        &[
+            "/routing",
+            "/routing_result/routing",
+            "/work_packet/routing",
+        ],
+    )
+    .unwrap_or_else(|| governance_mode_to_routing_policy(governance_mode));
+    let assignee = json_pointer_string(
+        raw_inputs,
+        &[
+            "/assignee",
+            "/routing_result/assignee",
+            "/work_packet/assignee",
+        ],
+    );
+    let labels = json_pointer_vec_string(
+        raw_inputs,
+        &["/labels", "/routing_result/labels", "/work_packet/labels"],
+    );
+    let reporter = json_pointer_string(
+        raw_inputs,
+        &[
+            "/reporter",
+            "/routing_result/reporter",
+            "/work_packet/reporter",
+        ],
+    )
+    .unwrap_or_else(|| "spec_router".to_string());
+    let spec_session_id = json_pointer_string(
+        raw_inputs,
+        &[
+            "/spec_session_id",
+            "/session_id",
+            "/routing_result/spec_session_id",
+            "/routing_result/session_id",
+            "/work_packet/spec_session_id",
+        ],
+    );
+
+    Ok(Some(locus::LocusCreateWpParams {
+        wp_id,
+        title,
+        description,
+        priority,
+        kind,
+        phase,
+        routing,
+        task_packet_path,
+        assignee,
+        labels,
+        spec_session_id,
+        reporter,
+    }))
+}
+
+async fn run_child_locus_operation(
+    state: &AppState,
+    parent_job: &AiJob,
+    protocol_id: &str,
+    job_inputs: Value,
+) -> Result<Option<Value>, WorkflowError> {
+    let child_job = state
+        .storage
+        .create_ai_job(crate::storage::NewAiJob {
+            trace_id: parent_job.trace_id,
+            job_kind: JobKind::LocusOperation,
+            protocol_id: protocol_id.to_string(),
+            profile_id: "default".to_string(),
+            capability_profile_id: "Coder".to_string(),
+            access_mode: parent_job.access_mode.clone(),
+            safety_mode: parent_job.safety_mode.clone(),
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            status_reason: "queued".to_string(),
+            metrics: crate::storage::JobMetrics::zero(),
+            job_inputs: Some(job_inputs),
+        })
+        .await?;
+
+    let child_job_id = child_job.job_id;
+    start_workflow_for_job_boxed(state, child_job).await?;
+
+    let child_job = state.storage.get_ai_job(&child_job_id.to_string()).await?;
+    match child_job.state {
+        JobState::Completed | JobState::CompletedWithIssues => Ok(child_job.job_outputs),
+        _ => Err(WorkflowError::Terminal(format!(
+            "child locus operation {protocol_id} finished in state {}: {}",
+            child_job.state.as_str(),
+            child_job.error_message.unwrap_or(child_job.status_reason),
+        ))),
+    }
+}
+
+async fn submit_locus_create_wp(
+    state: &AppState,
+    parent_job: &AiJob,
+    params: locus::LocusCreateWpParams,
+) -> Result<(), WorkflowError> {
+    run_child_locus_operation(
+        state,
+        parent_job,
+        "locus_create_wp_v1",
+        serde_json::to_value(params).map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+    )
+    .await?;
+    Ok(())
+}
+
+async fn submit_locus_register_mts(
+    state: &AppState,
+    parent_job: &AiJob,
+    params: locus::LocusRegisterMtsParams,
+) -> Result<(), WorkflowError> {
+    run_child_locus_operation(
+        state,
+        parent_job,
+        "locus_register_mts_v1",
+        serde_json::to_value(params).map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+    )
+    .await?;
+    Ok(())
+}
+
+async fn submit_locus_start_mt(
+    state: &AppState,
+    parent_job: &AiJob,
+    params: locus::LocusStartMtParams,
+) -> Result<(), WorkflowError> {
+    run_child_locus_operation(
+        state,
+        parent_job,
+        "locus_start_mt_v1",
+        serde_json::to_value(params).map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+    )
+    .await?;
+    Ok(())
+}
+
+async fn submit_locus_record_iteration(
+    state: &AppState,
+    parent_job: &AiJob,
+    params: locus::LocusRecordIterationParams,
+) -> Result<(), WorkflowError> {
+    run_child_locus_operation(
+        state,
+        parent_job,
+        "locus_record_iteration_v1",
+        serde_json::to_value(params).map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+    )
+    .await?;
+    Ok(())
+}
+
+async fn submit_locus_complete_mt(
+    state: &AppState,
+    parent_job: &AiJob,
+    params: locus::LocusCompleteMtParams,
+) -> Result<(), WorkflowError> {
+    run_child_locus_operation(
+        state,
+        parent_job,
+        "locus_complete_mt_v1",
+        serde_json::to_value(params).map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+    )
+    .await?;
+    Ok(())
+}
+
+async fn maybe_submit_locus_bind_session(
+    state: &AppState,
+    parent_job: &AiJob,
+    params: Option<locus::LocusBindSessionParams>,
+) -> Result<(), WorkflowError> {
+    let Some(params) = params else {
+        return Ok(());
+    };
+    run_child_locus_operation(
+        state,
+        parent_job,
+        "locus_bind_session_v1",
+        serde_json::to_value(params).map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+    )
+    .await?;
+    Ok(())
+}
+
+async fn maybe_submit_locus_unbind_session(
+    state: &AppState,
+    parent_job: &AiJob,
+    params: Option<locus::LocusUnbindSessionParams>,
+) -> Result<(), WorkflowError> {
+    let Some(params) = params else {
+        return Ok(());
+    };
+    run_child_locus_operation(
+        state,
+        parent_job,
+        "locus_unbind_session_v1",
+        serde_json::to_value(params).map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+    )
+    .await?;
+    Ok(())
+}
+
+async fn resolve_job_session_id(
+    state: &AppState,
+    parent_job: &AiJob,
+    fallback_session_id: Option<&str>,
+) -> Option<String> {
+    if let Ok(session) = state
+        .session_registry
+        .get_model_session_by_job_id(state, parent_job.job_id)
+        .await
+    {
+        return Some(session.session_id);
+    }
+
+    fallback_session_id
+        .map(str::trim)
+        .filter(|session_id| !session_id.is_empty())
+        .map(str::to_string)
 }
 
 // ============================================================================
@@ -3110,10 +3507,7 @@ async fn model_run_dispatch_gate(
     }
 
     // INV-SCHED-003: token-bucket time-based rate limiting with deterministic backoff.
-    let token_budget = metadata
-        .max_tokens_budget
-        .unwrap_or(0)
-        .max(0) as u64;
+    let token_budget = metadata.max_tokens_budget.unwrap_or(0).max(0) as u64;
     match state
         .session_registry
         .try_acquire_rate_limit(provider.as_str(), token_budget)
@@ -3127,13 +3521,13 @@ async fn model_run_dispatch_gate(
             provider,
             reservation: Some(reservation),
         }),
-        RateLimitOutcome::Denied { reason, backoff_ms } => Ok(ModelRunDispatchGate::Denied(
-            ModelRunDispatchDenied {
+        RateLimitOutcome::Denied { reason, backoff_ms } => {
+            Ok(ModelRunDispatchGate::Denied(ModelRunDispatchDenied {
                 provider,
                 reason,
                 backoff_ms,
-            },
-        )),
+            }))
+        }
     }
 }
 
@@ -3157,7 +3551,10 @@ async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), Work
             .create_workflow_run(job.job_id, JobState::Running, Some(now))
             .await?
     };
-    state.storage.heartbeat_workflow(workflow_run.id, now).await?;
+    state
+        .storage
+        .heartbeat_workflow(workflow_run.id, now)
+        .await?;
 
     let node_exec = state
         .storage
@@ -3297,13 +3694,22 @@ async fn run_model_run_dispatch_loop(state: AppState) -> Result<(), WorkflowErro
     Ok(())
 }
 
-async fn is_model_run_cancel_requested(state: &AppState, job_id: Uuid) -> Result<bool, WorkflowError> {
-    let current = state.storage.get_ai_job(job_id.to_string().as_str()).await?;
+async fn is_model_run_cancel_requested(
+    state: &AppState,
+    job_id: Uuid,
+) -> Result<bool, WorkflowError> {
+    let current = state
+        .storage
+        .get_ai_job(job_id.to_string().as_str())
+        .await?;
     Ok(matches!(current.state, JobState::Cancelled))
 }
 
 async fn model_run_cancel_reason(state: &AppState, job_id: Uuid) -> Result<String, WorkflowError> {
-    let current = state.storage.get_ai_job(job_id.to_string().as_str()).await?;
+    let current = state
+        .storage
+        .get_ai_job(job_id.to_string().as_str())
+        .await?;
     let reason = if current.status_reason.trim().is_empty() {
         "cancelled".to_string()
     } else {
@@ -3359,7 +3765,9 @@ async fn run_model_run_job(
         || metadata.backend.trim().eq_ignore_ascii_case("cloud");
     if provider_is_cloud {
         let inputs = model_run_inputs(job);
-        let bundle_value = inputs.and_then(|m| m.get("cloud_escalation_bundle")).cloned();
+        let bundle_value = inputs
+            .and_then(|m| m.get("cloud_escalation_bundle"))
+            .cloned();
         let bundle = match bundle_value {
             Some(value) => match serde_json::from_value::<CloudEscalationBundleV0_4>(value) {
                 Ok(bundle) => Some(bundle),
@@ -3423,11 +3831,7 @@ async fn run_model_run_job(
         };
 
         // Bind cloud consent bundle to this ModelSession (fail-closed).
-        if bundle
-            .request
-            .session_id
-            .as_deref()
-            .map(|v| v.trim())
+        if bundle.request.session_id.as_deref().map(|v| v.trim())
             != Some(metadata.session_id.as_str())
         {
             record_event_safely(
@@ -3498,9 +3902,12 @@ async fn run_model_run_job(
         } else {
             request.model_id.clone()
         };
-        let canonical_bytes = openai_compat_canonical_request_bytes(&request, resolved_model_id.as_str());
+        let canonical_bytes =
+            openai_compat_canonical_request_bytes(&request, resolved_model_id.as_str());
         let computed_sha256 = sha256_hex(&canonical_bytes);
-        if let Err(err) = bundle.validate_for_payload_sha256(computed_sha256.as_str(), resolved_model_id.as_str()) {
+        if let Err(err) =
+            bundle.validate_for_payload_sha256(computed_sha256.as_str(), resolved_model_id.as_str())
+        {
             record_event_safely(
                 state,
                 FlightRecorderEvent::new(
@@ -3663,7 +4070,11 @@ async fn finalize_model_run_after_terminal(
 
     let session = state
         .storage
-        .update_model_session_state(metadata.session_id.as_str(), session_state, Some(job.job_id))
+        .update_model_session_state(
+            metadata.session_id.as_str(),
+            session_state,
+            Some(job.job_id),
+        )
         .await?;
     state.session_registry.upsert_session(session).await;
 
@@ -3709,7 +4120,10 @@ pub async fn cancel_model_run_job(
     cancelled_by: String,
     reason: String,
 ) -> Result<(), WorkflowError> {
-    let mut job = state.storage.get_ai_job(job_id.to_string().as_str()).await?;
+    let mut job = state
+        .storage
+        .get_ai_job(job_id.to_string().as_str())
+        .await?;
     if !matches!(job.job_kind, JobKind::ModelRun) {
         return Err(WorkflowError::Terminal(
             "cancel_model_run_job only supports job_kind=model_run".to_string(),
@@ -3745,11 +4159,7 @@ pub async fn cancel_model_run_job(
     };
     let session = state
         .storage
-        .update_model_session_state(
-            metadata.session_id.as_str(),
-            session_state,
-            Some(job_id),
-        )
+        .update_model_session_state(metadata.session_id.as_str(), session_state, Some(job_id))
         .await;
     if let Ok(session) = session {
         state.session_registry.upsert_session(session).await;
@@ -3817,10 +4227,7 @@ pub async fn revoke_consent_receipt_for_model_runs(
             let Ok(metadata) = parse_model_run_metadata(&job) else {
                 continue;
             };
-            if metadata
-                .consent_receipt_id
-                .as_deref()
-                .map(|v| v.trim())
+            if metadata.consent_receipt_id.as_deref().map(|v| v.trim())
                 == Some(consent_receipt_id.as_str())
             {
                 affected.push((job, metadata));
@@ -3902,6 +4309,13 @@ pub async fn revoke_consent_receipt_for_model_runs(
 
     kick_model_run_dispatcher(state.clone());
     Ok(cancelled)
+}
+
+fn start_workflow_for_job_boxed<'a>(
+    state: &'a AppState,
+    job: AiJob,
+) -> Pin<Box<dyn Future<Output = Result<WorkflowRun, WorkflowError>> + Send + 'a>> {
+    Box::pin(start_workflow_for_job(state, job))
 }
 
 pub async fn start_workflow_for_job(
@@ -5451,6 +5865,8 @@ struct MicroTaskExecutorInputs {
     pub wp_scope: WorkPacketScope,
     #[serde(default)]
     pub execution_policy: Option<ExecutionPolicy>,
+    #[serde(default)]
+    pub session_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -9054,6 +9470,113 @@ fn init_progress_artifact(
     progress
 }
 
+fn build_locus_register_mts_params(
+    wp_id: &str,
+    policy: &ExecutionPolicy,
+    defs: &[MicroTaskDefinition],
+) -> locus::LocusRegisterMtsParams {
+    let micro_tasks = defs
+        .iter()
+        .map(|mt| locus::TrackedMicroTask {
+            mt_id: mt.mt_id.clone(),
+            wp_id: wp_id.to_string(),
+            name: mt.name.clone(),
+            scope: mt.scope.clone(),
+            files: locus::MicroTaskFiles {
+                read: mt.files.read.clone(),
+                modify: mt.files.modify.clone(),
+                create: mt.files.create.clone(),
+            },
+            done_criteria: mt
+                .done
+                .iter()
+                .map(|item| item.description.clone())
+                .collect(),
+            status: locus::MicroTaskStatus::Pending,
+            active_session_ids: Vec::new(),
+            iterations: Vec::new(),
+            current_iteration: 0,
+            max_iterations: policy.max_iterations_per_mt,
+            validation_result: None,
+            escalation: locus::MicroTaskEscalation {
+                current_level: 0,
+                escalation_chain: policy
+                    .escalation_chain
+                    .iter()
+                    .map(|level| locus::EscalationLevel {
+                        model_id: level.model_id.clone(),
+                        lora_id: level.lora_id.clone(),
+                    })
+                    .collect(),
+                escalations_count: 0,
+                drop_backs_count: 0,
+            },
+            started_at: None,
+            completed_at: None,
+            duration_ms: None,
+            depends_on: mt.depends_on.clone(),
+            metadata: json!({
+                "source": "micro_task_executor_v1",
+            }),
+        })
+        .collect();
+
+    locus::LocusRegisterMtsParams {
+        wp_id: wp_id.to_string(),
+        micro_tasks,
+    }
+}
+
+fn locus_iteration_outcome(outcome: IterationOutcome) -> locus::MicroTaskIterationOutcome {
+    match outcome {
+        IterationOutcome::Success => locus::MicroTaskIterationOutcome::Success,
+        IterationOutcome::Retry => locus::MicroTaskIterationOutcome::Retry,
+        IterationOutcome::Escalate => locus::MicroTaskIterationOutcome::Escalate,
+        IterationOutcome::Blocked => locus::MicroTaskIterationOutcome::Blocked,
+        IterationOutcome::Skipped => locus::MicroTaskIterationOutcome::Skipped,
+    }
+}
+
+fn build_locus_bind_session_params(
+    wp_id: &str,
+    mt_id: &str,
+    session_id: Option<&str>,
+    model_id: &str,
+    lora_id: Option<&str>,
+    escalation_level: u32,
+) -> Option<locus::LocusBindSessionParams> {
+    let session_id = session_id
+        .map(str::trim)
+        .filter(|session_id| !session_id.is_empty())?;
+
+    Some(locus::LocusBindSessionParams {
+        wp_id: wp_id.to_string(),
+        mt_id: mt_id.to_string(),
+        session_id: session_id.to_string(),
+        model_id: Some(model_id.to_string()),
+        lora_id: lora_id.map(str::to_string),
+        escalation_level,
+    })
+}
+
+fn build_locus_unbind_session_params(
+    wp_id: &str,
+    mt_id: &str,
+    session_id: Option<&str>,
+    reason: &str,
+) -> Option<locus::LocusUnbindSessionParams> {
+    let session_id = session_id
+        .map(str::trim)
+        .filter(|session_id| !session_id.is_empty())?;
+
+    Some(locus::LocusUnbindSessionParams {
+        wp_id: wp_id.to_string(),
+        mt_id: mt_id.to_string(),
+        session_id: session_id.to_string(),
+        reason: Some(reason.to_string()),
+    })
+}
+
 fn init_run_ledger(wp_id: &str, job_id: Uuid) -> RunLedger {
     RunLedger {
         ledger_id: Uuid::new_v4(),
@@ -9136,6 +9659,7 @@ async fn run_micro_task_executor_v1(
     }
     let cloud_policy = CloudEscalationPolicy::from_env();
     let cloud_governance_locked = cloud_policy.governance_mode == RuntimeGovernanceMode::Locked;
+    let locus_session_id = resolve_job_session_id(state, job, inputs.session_id.as_deref()).await;
 
     if job.state == JobState::Cancelled {
         record_micro_task_event(
@@ -9223,6 +9747,15 @@ async fn run_micro_task_executor_v1(
         write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
         (progress, run_ledger, false)
     };
+
+    if !loaded_existing_state {
+        submit_locus_register_mts(
+            state,
+            job,
+            build_locus_register_mts_params(&inputs.wp_id, &policy, &mt_definitions),
+        )
+        .await?;
+    }
 
     if loaded_existing_state && progress.status == ProgressStatus::Completed {
         return Ok(RunJobOutcome {
@@ -9452,6 +9985,27 @@ async fn run_micro_task_executor_v1(
                         refresh_aggregate_stats(&mut progress);
                         write_json_atomic(&repo_root, &progress_abs, &progress)?;
                         write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                        maybe_submit_locus_unbind_session(
+                            state,
+                            job,
+                            build_locus_unbind_session_params(
+                                inputs.wp_id.as_str(),
+                                mt.mt_id.as_str(),
+                                locus_session_id.as_deref(),
+                                "completed",
+                            ),
+                        )
+                        .await?;
+                        submit_locus_complete_mt(
+                            state,
+                            job,
+                            locus::LocusCompleteMtParams {
+                                wp_id: inputs.wp_id.clone(),
+                                mt_id: mt.mt_id.clone(),
+                                final_iteration: pending_gate.final_iteration,
+                            },
+                        )
+                        .await?;
 
                         record_micro_task_event(
                             state,
@@ -9581,6 +10135,7 @@ async fn run_micro_task_executor_v1(
             if !continuing_active_mt {
                 progress.current_state.active_model_level = 0;
             }
+            let mut needs_locus_start = !matches!(current_mt_status, MTStatus::InProgress);
 
             progress.micro_tasks[mt_progress_index].status = MTStatus::InProgress;
             progress.current_state.active_mt = Some(mt_id.clone());
@@ -9602,6 +10157,7 @@ async fn run_micro_task_executor_v1(
             }
 
             let mut pending_model_swap: Option<PendingModelSwapV0_4> = None;
+            let mut needs_locus_bind = true;
 
             loop {
                 if progress.current_state.total_iterations >= policy.max_total_iterations {
@@ -9657,6 +10213,17 @@ async fn run_micro_task_executor_v1(
                         progress.updated_at = Utc::now();
                         write_json_atomic(&repo_root, &progress_abs, &progress)?;
                         write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                        maybe_submit_locus_unbind_session(
+                            state,
+                            job,
+                            build_locus_unbind_session_params(
+                                inputs.wp_id.as_str(),
+                                mt.mt_id.as_str(),
+                                locus_session_id.as_deref(),
+                                "locked_fail_closed",
+                            ),
+                        )
+                        .await?;
 
                         return Ok(RunJobOutcome {
                             state: JobState::Failed,
@@ -9678,6 +10245,17 @@ async fn run_micro_task_executor_v1(
                     progress.updated_at = Utc::now();
                     write_json_atomic(&repo_root, &progress_abs, &progress)?;
                     write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                    maybe_submit_locus_unbind_session(
+                        state,
+                        job,
+                        build_locus_unbind_session_params(
+                            inputs.wp_id.as_str(),
+                            mt.mt_id.as_str(),
+                            locus_session_id.as_deref(),
+                            "paused_hard_gate",
+                        ),
+                    )
+                    .await?;
 
                     return Ok(RunJobOutcome {
                         state: JobState::AwaitingUser,
@@ -9750,6 +10328,17 @@ async fn run_micro_task_executor_v1(
                         progress.updated_at = Utc::now();
                         write_json_atomic(&repo_root, &progress_abs, &progress)?;
                         write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                        maybe_submit_locus_unbind_session(
+                            state,
+                            job,
+                            build_locus_unbind_session_params(
+                                inputs.wp_id.as_str(),
+                                mt.mt_id.as_str(),
+                                locus_session_id.as_deref(),
+                                "locked_fail_closed",
+                            ),
+                        )
+                        .await?;
 
                         return Ok(RunJobOutcome {
                             state: JobState::Failed,
@@ -9771,6 +10360,17 @@ async fn run_micro_task_executor_v1(
                     progress.updated_at = Utc::now();
                     write_json_atomic(&repo_root, &progress_abs, &progress)?;
                     write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                    maybe_submit_locus_unbind_session(
+                        state,
+                        job,
+                        build_locus_unbind_session_params(
+                            inputs.wp_id.as_str(),
+                            mt.mt_id.as_str(),
+                            locus_session_id.as_deref(),
+                            "paused_hard_gate",
+                        ),
+                    )
+                    .await?;
 
                     return Ok(RunJobOutcome {
                         state: JobState::AwaitingUser,
@@ -9844,6 +10444,17 @@ async fn run_micro_task_executor_v1(
                         progress.updated_at = Utc::now();
                         write_json_atomic(&repo_root, &progress_abs, &progress)?;
                         write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                        maybe_submit_locus_unbind_session(
+                            state,
+                            job,
+                            build_locus_unbind_session_params(
+                                inputs.wp_id.as_str(),
+                                mt.mt_id.as_str(),
+                                locus_session_id.as_deref(),
+                                "locked_fail_closed",
+                            ),
+                        )
+                        .await?;
 
                         return Ok(RunJobOutcome {
                             state: JobState::Failed,
@@ -9865,6 +10476,17 @@ async fn run_micro_task_executor_v1(
                     progress.updated_at = Utc::now();
                     write_json_atomic(&repo_root, &progress_abs, &progress)?;
                     write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                    maybe_submit_locus_unbind_session(
+                        state,
+                        job,
+                        build_locus_unbind_session_params(
+                            inputs.wp_id.as_str(),
+                            mt.mt_id.as_str(),
+                            locus_session_id.as_deref(),
+                            "paused_hard_gate",
+                        ),
+                    )
+                    .await?;
 
                     return Ok(RunJobOutcome {
                         state: JobState::AwaitingUser,
@@ -9960,6 +10582,17 @@ async fn run_micro_task_executor_v1(
                         progress.updated_at = Utc::now();
                         write_json_atomic(&repo_root, &progress_abs, &progress)?;
                         write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                        maybe_submit_locus_unbind_session(
+                            state,
+                            job,
+                            build_locus_unbind_session_params(
+                                inputs.wp_id.as_str(),
+                                mt.mt_id.as_str(),
+                                locus_session_id.as_deref(),
+                                "locked_fail_closed",
+                            ),
+                        )
+                        .await?;
 
                         return Ok(RunJobOutcome {
                             state: JobState::Failed,
@@ -9981,6 +10614,17 @@ async fn run_micro_task_executor_v1(
                     progress.updated_at = Utc::now();
                     write_json_atomic(&repo_root, &progress_abs, &progress)?;
                     write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                    maybe_submit_locus_unbind_session(
+                        state,
+                        job,
+                        build_locus_unbind_session_params(
+                            inputs.wp_id.as_str(),
+                            mt.mt_id.as_str(),
+                            locus_session_id.as_deref(),
+                            "paused_hard_gate",
+                        ),
+                    )
+                    .await?;
 
                     return Ok(RunJobOutcome {
                         state: JobState::AwaitingUser,
@@ -10054,6 +10698,17 @@ async fn run_micro_task_executor_v1(
                         progress.updated_at = Utc::now();
                         write_json_atomic(&repo_root, &progress_abs, &progress)?;
                         write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                        maybe_submit_locus_unbind_session(
+                            state,
+                            job,
+                            build_locus_unbind_session_params(
+                                inputs.wp_id.as_str(),
+                                mt.mt_id.as_str(),
+                                locus_session_id.as_deref(),
+                                "locked_fail_closed",
+                            ),
+                        )
+                        .await?;
 
                         return Ok(RunJobOutcome {
                             state: JobState::Failed,
@@ -10075,6 +10730,17 @@ async fn run_micro_task_executor_v1(
                     progress.updated_at = Utc::now();
                     write_json_atomic(&repo_root, &progress_abs, &progress)?;
                     write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                    maybe_submit_locus_unbind_session(
+                        state,
+                        job,
+                        build_locus_unbind_session_params(
+                            inputs.wp_id.as_str(),
+                            mt.mt_id.as_str(),
+                            locus_session_id.as_deref(),
+                            "paused_hard_gate",
+                        ),
+                    )
+                    .await?;
 
                     return Ok(RunJobOutcome {
                         state: JobState::AwaitingUser,
@@ -10092,6 +10758,38 @@ async fn run_micro_task_executor_v1(
 
                 let model_id = level_cfg.model_id.clone();
                 let lora_id = level_cfg.lora_id.clone();
+
+                if needs_locus_start {
+                    submit_locus_start_mt(
+                        state,
+                        job,
+                        locus::LocusStartMtParams {
+                            wp_id: inputs.wp_id.clone(),
+                            mt_id: mt.mt_id.clone(),
+                            model_id: model_id.clone(),
+                            lora_id: lora_id.clone(),
+                            escalation_level,
+                        },
+                    )
+                    .await?;
+                    needs_locus_start = false;
+                }
+                if needs_locus_bind {
+                    maybe_submit_locus_bind_session(
+                        state,
+                        job,
+                        build_locus_bind_session_params(
+                            inputs.wp_id.as_str(),
+                            mt.mt_id.as_str(),
+                            locus_session_id.as_deref(),
+                            model_id.as_str(),
+                            lora_id.as_deref(),
+                            escalation_level,
+                        ),
+                    )
+                    .await?;
+                    needs_locus_bind = false;
+                }
 
                 record_micro_task_event(
                     state,
@@ -10927,6 +11625,17 @@ NEED: {{what you need to unblock}}
                         progress.updated_at = Utc::now();
                         write_json_atomic(&repo_root, &progress_abs, &progress)?;
                         write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                        maybe_submit_locus_unbind_session(
+                            state,
+                            job,
+                            build_locus_unbind_session_params(
+                                inputs.wp_id.as_str(),
+                                mt.mt_id.as_str(),
+                                locus_session_id.as_deref(),
+                                "locked_fail_closed",
+                            ),
+                        )
+                        .await?;
 
                         return Ok(RunJobOutcome {
                             state: JobState::Failed,
@@ -11017,6 +11726,17 @@ NEED: {{what you need to unblock}}
                                     progress.updated_at = Utc::now();
                                     write_json_atomic(&repo_root, &progress_abs, &progress)?;
                                     write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                                    maybe_submit_locus_unbind_session(
+                                        state,
+                                        job,
+                                        build_locus_unbind_session_params(
+                                            inputs.wp_id.as_str(),
+                                            mt.mt_id.as_str(),
+                                            locus_session_id.as_deref(),
+                                            "paused_hard_gate",
+                                        ),
+                                    )
+                                    .await?;
 
                                     return Ok(RunJobOutcome {
                                         state: JobState::AwaitingUser,
@@ -11041,6 +11761,17 @@ NEED: {{what you need to unblock}}
                                 progress.updated_at = Utc::now();
                                 write_json_atomic(&repo_root, &progress_abs, &progress)?;
                                 write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                                maybe_submit_locus_unbind_session(
+                                    state,
+                                    job,
+                                    build_locus_unbind_session_params(
+                                        inputs.wp_id.as_str(),
+                                        mt.mt_id.as_str(),
+                                        locus_session_id.as_deref(),
+                                        "paused_cloud_consent",
+                                    ),
+                                )
+                                .await?;
 
                                 return Ok(RunJobOutcome {
                                     state: JobState::AwaitingUser,
@@ -11130,6 +11861,17 @@ NEED: {{what you need to unblock}}
                         progress.updated_at = Utc::now();
                         write_json_atomic(&repo_root, &progress_abs, &progress)?;
                         write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                        maybe_submit_locus_unbind_session(
+                            state,
+                            job,
+                            build_locus_unbind_session_params(
+                                inputs.wp_id.as_str(),
+                                mt.mt_id.as_str(),
+                                locus_session_id.as_deref(),
+                                "paused_cloud_consent",
+                            ),
+                        )
+                        .await?;
 
                         record_event_safely(
                             state,
@@ -11378,6 +12120,42 @@ NEED: {{what you need to unblock}}
                 refresh_aggregate_stats(&mut progress);
                 write_json_atomic(&repo_root, &progress_abs, &progress)?;
                 write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                let locus_iteration = locus::MicroTaskIterationRecord {
+                    iteration,
+                    model_id: model_id.clone(),
+                    lora_id: lora_id.clone(),
+                    escalation_level,
+                    started_at: started_ts,
+                    completed_at: completed_ts,
+                    duration_ms: response.latency_ms,
+                    tokens_prompt: response.usage.prompt_tokens,
+                    tokens_completion: response.usage.completion_tokens,
+                    claimed_complete: completion_signal.claimed_complete,
+                    validation_passed: validation_outcome.as_ref().map(|v| v.passed),
+                    outcome: locus_iteration_outcome(outcome_enum),
+                    output_artifact_ref: serde_json::to_value(&output_artifact_ref)
+                        .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+                    validation_artifact_ref: if validation_outcome.is_some() {
+                        Some(
+                            serde_json::to_value(&validation_ref)
+                                .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+                        )
+                    } else {
+                        None
+                    },
+                    error_summary: error_summary.clone(),
+                    failure_category: failure_category.map(|value| value.to_string()),
+                };
+                submit_locus_record_iteration(
+                    state,
+                    job,
+                    locus::LocusRecordIterationParams {
+                        wp_id: inputs.wp_id.clone(),
+                        mt_id: mt.mt_id.clone(),
+                        iteration: locus_iteration,
+                    },
+                )
+                .await?;
 
                 record_micro_task_event(
                     state,
@@ -11467,6 +12245,17 @@ NEED: {{what you need to unblock}}
                             Some(format!("human_gate:{}", gov_decision.decision_id));
                         write_json_atomic(&repo_root, &progress_abs, &progress)?;
                         write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                        maybe_submit_locus_unbind_session(
+                            state,
+                            job,
+                            build_locus_unbind_session_params(
+                                inputs.wp_id.as_str(),
+                                mt.mt_id.as_str(),
+                                locus_session_id.as_deref(),
+                                "paused_human_gate",
+                            ),
+                        )
+                        .await?;
 
                         return Ok(RunJobOutcome {
                             state: JobState::AwaitingUser,
@@ -11611,6 +12400,27 @@ NEED: {{what you need to unblock}}
                     refresh_aggregate_stats(&mut progress);
                     write_json_atomic(&repo_root, &progress_abs, &progress)?;
                     write_json_atomic(&repo_root, &run_ledger_abs, &run_ledger)?;
+                    maybe_submit_locus_unbind_session(
+                        state,
+                        job,
+                        build_locus_unbind_session_params(
+                            inputs.wp_id.as_str(),
+                            mt.mt_id.as_str(),
+                            locus_session_id.as_deref(),
+                            "completed",
+                        ),
+                    )
+                    .await?;
+                    submit_locus_complete_mt(
+                        state,
+                        job,
+                        locus::LocusCompleteMtParams {
+                            wp_id: inputs.wp_id.clone(),
+                            mt_id: mt.mt_id.clone(),
+                            final_iteration: iteration,
+                        },
+                    )
+                    .await?;
 
                     record_micro_task_event(
                         state,
@@ -12768,17 +13578,18 @@ async fn run_spec_router_job(
         }
     };
 
-    let profile: crate::models::SpecRouterJobProfile = match serde_json::from_value(raw_inputs) {
-        Ok(profile) => profile,
-        Err(err) => {
-            return Ok(RunJobOutcome {
-                state: JobState::Failed,
-                status_reason: "invalid_job_inputs".to_string(),
-                output: None,
-                error_message: Some(format!("invalid SpecRouterJobProfile: {err}")),
-            });
-        }
-    };
+    let profile: crate::models::SpecRouterJobProfile =
+        match serde_json::from_value(raw_inputs.clone()) {
+            Ok(profile) => profile,
+            Err(err) => {
+                return Ok(RunJobOutcome {
+                    state: JobState::Failed,
+                    status_reason: "invalid_job_inputs".to_string(),
+                    output: None,
+                    error_message: Some(format!("invalid SpecRouterJobProfile: {err}")),
+                });
+            }
+        };
 
     let governance_mode = profile
         .mode_override
@@ -13268,6 +14079,10 @@ async fn run_spec_router_job(
         Vec::new(),
         vec![intent_handle.clone(), decision_handle.clone()],
     )?;
+
+    if let Some(params) = build_spec_router_locus_create_wp_params(&raw_inputs, governance_mode)? {
+        submit_locus_create_wp(state, job, params).await?;
+    }
 
     let output = json!({
         "schema_version": "hsk.spec_router.job_output@v1",

@@ -29,6 +29,12 @@ pub fn parse_locus_operation(
         "locus_start_mt_v1" => Ok(LocusOperation::StartMt(serde_json::from_value(
             raw_inputs.clone(),
         )?)),
+        "locus_bind_session_v1" => Ok(LocusOperation::BindSession(serde_json::from_value(
+            raw_inputs.clone(),
+        )?)),
+        "locus_unbind_session_v1" => Ok(LocusOperation::UnbindSession(serde_json::from_value(
+            raw_inputs.clone(),
+        )?)),
         "locus_record_iteration_v1" => Ok(LocusOperation::RecordIteration(serde_json::from_value(
             raw_inputs.clone(),
         )?)),

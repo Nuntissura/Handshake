@@ -1,15 +1,17 @@
 use super::{sqlite::SqliteDatabase, Database, StorageError, StorageResult};
 use chrono::Utc;
 use serde_json::{json, Value};
-use sqlx::SqlitePool;
+use sqlx::{Sqlite, SqlitePool};
+use std::collections::HashSet;
 
 use crate::workflows::locus::types::{
-    DependencyType, LocusAddDependencyParams, LocusCloseWpParams, LocusCompleteMtParams,
-    LocusCreateWpParams, LocusDeleteWpParams, LocusGateKind, LocusGateWpParams,
-    LocusGetMtProgressParams, LocusGetWpStatusParams, LocusOperation, LocusQueryReadyParams,
-    LocusRecordIterationParams, LocusRegisterMtsParams, LocusRemoveDependencyParams,
-    LocusStartMtParams, LocusUpdateWpParams, MicroTaskIterationOutcome, MicroTaskStatus,
-    RoutingPolicy, TaskBoardStatus, WorkPacketPhase, WorkPacketStatus,
+    DependencyType, LocusAddDependencyParams, LocusBindSessionParams, LocusCloseWpParams,
+    LocusCompleteMtParams, LocusCreateWpParams, LocusDeleteWpParams, LocusGateKind,
+    LocusGateWpParams, LocusGetMtProgressParams, LocusGetWpStatusParams, LocusOperation,
+    LocusQueryReadyParams, LocusRecordIterationParams, LocusRegisterMtsParams,
+    LocusRemoveDependencyParams, LocusStartMtParams, LocusUnbindSessionParams, LocusUpdateWpParams,
+    MicroTaskIterationOutcome, MicroTaskStatus, RoutingPolicy, TaskBoardStatus, TrackedMicroTask,
+    WorkPacketPhase, WorkPacketStatus,
 };
 
 fn sqlite_db(db: &dyn Database) -> StorageResult<&SqliteDatabase> {
@@ -210,6 +212,108 @@ async fn ensure_mt_exists_for_wp(pool: &SqlitePool, wp_id: &str, mt_id: &str) ->
     .is_some();
 
     if !exists {
+        return Err(StorageError::NotFound("micro_task"));
+    }
+
+    Ok(())
+}
+
+fn dedupe_session_ids(active_session_ids: &mut Vec<String>) {
+    let mut seen = HashSet::new();
+    let normalized = active_session_ids
+        .iter()
+        .filter_map(|session_id| {
+            let trimmed = session_id.trim();
+            if trimmed.is_empty() {
+                return None;
+            }
+
+            let normalized = trimmed.to_string();
+            if seen.insert(normalized.clone()) {
+                Some(normalized)
+            } else {
+                None
+            }
+        })
+        .collect();
+    *active_session_ids = normalized;
+}
+
+fn tracked_mt_iteration_index(
+    tracked_mt: &TrackedMicroTask,
+    iteration: &crate::workflows::locus::types::MicroTaskIterationRecord,
+) -> Option<usize> {
+    tracked_mt.iterations.iter().position(|existing| {
+        existing.iteration == iteration.iteration
+            && existing.escalation_level == iteration.escalation_level
+    })
+}
+
+fn upsert_tracked_mt_iteration(
+    tracked_mt: &mut TrackedMicroTask,
+    iteration: crate::workflows::locus::types::MicroTaskIterationRecord,
+) {
+    if let Some(index) = tracked_mt_iteration_index(tracked_mt, &iteration) {
+        tracked_mt.iterations[index] = iteration;
+    } else {
+        tracked_mt.iterations.push(iteration);
+    }
+}
+
+async fn load_tracked_mt_for_update(
+    tx: &mut sqlx::Transaction<'_, Sqlite>,
+    wp_id: &str,
+    mt_id: &str,
+) -> StorageResult<TrackedMicroTask> {
+    let metadata = sqlx::query_scalar::<_, String>(
+        r#"
+        SELECT metadata
+        FROM micro_tasks
+        WHERE mt_id = $1 AND wp_id = $2
+        "#,
+    )
+    .bind(mt_id)
+    .bind(wp_id)
+    .fetch_optional(&mut **tx)
+    .await?;
+
+    let Some(metadata) = metadata else {
+        return Err(StorageError::NotFound("micro_task"));
+    };
+
+    let mut tracked_mt: TrackedMicroTask = serde_json::from_str(&metadata)?;
+    dedupe_session_ids(&mut tracked_mt.active_session_ids);
+    Ok(tracked_mt)
+}
+
+async fn persist_tracked_mt(
+    tx: &mut sqlx::Transaction<'_, Sqlite>,
+    tracked_mt: &TrackedMicroTask,
+) -> StorageResult<()> {
+    let metadata = serde_json::to_string(tracked_mt)?;
+    let result = sqlx::query(
+        r#"
+        UPDATE micro_tasks
+        SET
+            name = $1,
+            status = $2,
+            current_iteration = $3,
+            escalation_level = $4,
+            metadata = $5
+        WHERE mt_id = $6 AND wp_id = $7
+        "#,
+    )
+    .bind(&tracked_mt.name)
+    .bind(micro_task_status_str(tracked_mt.status))
+    .bind(tracked_mt.current_iteration as i64)
+    .bind(tracked_mt.escalation.current_level as i64)
+    .bind(metadata)
+    .bind(&tracked_mt.mt_id)
+    .bind(&tracked_mt.wp_id)
+    .execute(&mut **tx)
+    .await?;
+
+    if result.rows_affected() == 0 {
         return Err(StorageError::NotFound("micro_task"));
     }
 
@@ -512,9 +616,25 @@ async fn register_mts(pool: &SqlitePool, params: LocusRegisterMtsParams) -> Stor
     ensure_wp_exists(pool, &params.wp_id).await?;
 
     let mut tx = pool.begin().await?;
-    for mt in params.micro_tasks {
+    for mut mt in params.micro_tasks {
         if mt.wp_id != params.wp_id {
             return Err(StorageError::Validation("micro task wp_id mismatch"));
+        }
+
+        dedupe_session_ids(&mut mt.active_session_ids);
+        let existing_wp_id = sqlx::query_scalar::<_, String>(
+            "SELECT wp_id FROM micro_tasks WHERE mt_id = $1 LIMIT 1",
+        )
+        .bind(&mt.mt_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        if let Some(existing_wp_id) = existing_wp_id {
+            if existing_wp_id != params.wp_id {
+                return Err(StorageError::Conflict(
+                    "micro_task already registered to a different work_packet",
+                ));
+            }
+            continue;
         }
 
         let metadata = serde_json::to_string(&mt)?;
@@ -548,28 +668,23 @@ async fn start_mt(pool: &SqlitePool, params: LocusStartMtParams) -> StorageResul
     ensure_wp_exists(pool, &params.wp_id).await?;
     ensure_mt_exists_for_wp(pool, &params.wp_id, &params.mt_id).await?;
     let now = now_rfc3339();
-
-    let result = sqlx::query(
-        r#"
-        UPDATE micro_tasks
-        SET status = $1
-        WHERE mt_id = $2 AND wp_id = $3
-        "#,
-    )
-    .bind(micro_task_status_str(MicroTaskStatus::InProgress))
-    .bind(&params.mt_id)
-    .bind(&params.wp_id)
-    .execute(pool)
-    .await?;
-
-    if result.rows_affected() == 0 {
-        return Err(StorageError::NotFound("micro_task"));
+    let mut tx = pool.begin().await?;
+    let mut tracked_mt = load_tracked_mt_for_update(&mut tx, &params.wp_id, &params.mt_id).await?;
+    tracked_mt.status = MicroTaskStatus::InProgress;
+    tracked_mt.escalation.current_level = params.escalation_level;
+    if tracked_mt.started_at.is_none() {
+        tracked_mt.started_at = Some(Utc::now());
     }
+    persist_tracked_mt(&mut tx, &tracked_mt).await?;
+    tx.commit().await?;
 
     Ok(json!({
         "wp_id": params.wp_id,
         "mt_id": params.mt_id,
         "status": "in_progress",
+        "model_id": params.model_id,
+        "lora_id": params.lora_id,
+        "escalation_level": params.escalation_level,
         "updated_at": now,
     }))
 }
@@ -582,44 +697,78 @@ async fn record_iteration(
     ensure_mt_exists_for_wp(pool, &params.wp_id, &params.mt_id).await?;
 
     let mut tx = pool.begin().await?;
-
-    sqlx::query(
+    let mut tracked_mt = load_tracked_mt_for_update(&mut tx, &params.wp_id, &params.mt_id).await?;
+    let recorded_iteration = tracked_mt_iteration_index(&tracked_mt, &params.iteration)
+        .map(|index| index as u32 + 1)
+        .unwrap_or(tracked_mt.iterations.len() as u32 + 1);
+    let existing_iteration_id = sqlx::query_scalar::<_, i64>(
         r#"
-        INSERT INTO mt_iterations (
-            mt_id, iteration, model_id, lora_id, outcome, validation_passed, duration_ms
+        SELECT iteration_id
+        FROM mt_iterations
+        WHERE mt_id = $1 AND iteration = $2
+        LIMIT 1
+        "#,
+    )
+    .bind(&params.mt_id)
+    .bind(recorded_iteration as i64)
+    .fetch_optional(&mut *tx)
+    .await?;
+    if let Some(iteration_id) = existing_iteration_id {
+        sqlx::query(
+            r#"
+            UPDATE mt_iterations
+            SET
+                model_id = $1,
+                lora_id = $2,
+                outcome = $3,
+                validation_passed = $4,
+                duration_ms = $5
+            WHERE iteration_id = $6
+            "#,
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        "#,
-    )
-    .bind(&params.mt_id)
-    .bind(params.iteration.iteration as i64)
-    .bind(&params.iteration.model_id)
-    .bind(params.iteration.lora_id.as_deref())
-    .bind(mt_iteration_outcome_str(params.iteration.outcome))
-    .bind(
-        params
-            .iteration
-            .validation_passed
-            .map(|v| if v { 1i64 } else { 0i64 }),
-    )
-    .bind(params.iteration.duration_ms as i64)
-    .execute(&mut *tx)
-    .await?;
+        .bind(&params.iteration.model_id)
+        .bind(params.iteration.lora_id.as_deref())
+        .bind(mt_iteration_outcome_str(params.iteration.outcome))
+        .bind(
+            params
+                .iteration
+                .validation_passed
+                .map(|v| if v { 1i64 } else { 0i64 }),
+        )
+        .bind(params.iteration.duration_ms as i64)
+        .bind(iteration_id)
+        .execute(&mut *tx)
+        .await?;
+    } else {
+        sqlx::query(
+            r#"
+            INSERT INTO mt_iterations (
+                mt_id, iteration, model_id, lora_id, outcome, validation_passed, duration_ms
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            "#,
+        )
+        .bind(&params.mt_id)
+        .bind(recorded_iteration as i64)
+        .bind(&params.iteration.model_id)
+        .bind(params.iteration.lora_id.as_deref())
+        .bind(mt_iteration_outcome_str(params.iteration.outcome))
+        .bind(
+            params
+                .iteration
+                .validation_passed
+                .map(|v| if v { 1i64 } else { 0i64 }),
+        )
+        .bind(params.iteration.duration_ms as i64)
+        .execute(&mut *tx)
+        .await?;
+    }
 
-    sqlx::query(
-        r#"
-        UPDATE micro_tasks
-        SET status = $1, current_iteration = $2, escalation_level = $3
-        WHERE mt_id = $4 AND wp_id = $5
-        "#,
-    )
-    .bind(micro_task_status_str(MicroTaskStatus::InProgress))
-    .bind(params.iteration.iteration as i64)
-    .bind(params.iteration.escalation_level as i64)
-    .bind(&params.mt_id)
-    .bind(&params.wp_id)
-    .execute(&mut *tx)
-    .await?;
+    tracked_mt.status = MicroTaskStatus::InProgress;
+    tracked_mt.current_iteration = tracked_mt.current_iteration.max(recorded_iteration);
+    tracked_mt.escalation.current_level = params.iteration.escalation_level;
+    upsert_tracked_mt_iteration(&mut tracked_mt, params.iteration.clone());
+    persist_tracked_mt(&mut tx, &tracked_mt).await?;
 
     tx.commit().await?;
 
@@ -627,35 +776,84 @@ async fn record_iteration(
         "wp_id": params.wp_id,
         "mt_id": params.mt_id,
         "iteration": params.iteration.iteration,
+        "recorded_iteration": recorded_iteration,
     }))
 }
 
 async fn complete_mt(pool: &SqlitePool, params: LocusCompleteMtParams) -> StorageResult<Value> {
     ensure_wp_exists(pool, &params.wp_id).await?;
     ensure_mt_exists_for_wp(pool, &params.wp_id, &params.mt_id).await?;
-
-    let result = sqlx::query(
-        r#"
-        UPDATE micro_tasks
-        SET status = $1, current_iteration = $2
-        WHERE mt_id = $3 AND wp_id = $4
-        "#,
-    )
-    .bind(micro_task_status_str(MicroTaskStatus::Completed))
-    .bind(params.final_iteration as i64)
-    .bind(&params.mt_id)
-    .bind(&params.wp_id)
-    .execute(pool)
-    .await?;
-
-    if result.rows_affected() == 0 {
-        return Err(StorageError::NotFound("micro_task"));
+    let mut tx = pool.begin().await?;
+    let mut tracked_mt = load_tracked_mt_for_update(&mut tx, &params.wp_id, &params.mt_id).await?;
+    tracked_mt.status = MicroTaskStatus::Completed;
+    tracked_mt.current_iteration = tracked_mt
+        .current_iteration
+        .max(tracked_mt.iterations.len() as u32)
+        .max(params.final_iteration);
+    tracked_mt.active_session_ids.clear();
+    if tracked_mt.completed_at.is_none() {
+        tracked_mt.completed_at = Some(Utc::now());
     }
+    persist_tracked_mt(&mut tx, &tracked_mt).await?;
+    tx.commit().await?;
 
     Ok(json!({
         "wp_id": params.wp_id,
         "mt_id": params.mt_id,
         "status": "completed",
+    }))
+}
+
+async fn bind_session(pool: &SqlitePool, params: LocusBindSessionParams) -> StorageResult<Value> {
+    ensure_wp_exists(pool, &params.wp_id).await?;
+    ensure_mt_exists_for_wp(pool, &params.wp_id, &params.mt_id).await?;
+    let session_id = params.session_id.trim().to_string();
+    if session_id.is_empty() {
+        return Err(StorageError::Validation("session_id"));
+    }
+
+    let mut tx = pool.begin().await?;
+    let mut tracked_mt = load_tracked_mt_for_update(&mut tx, &params.wp_id, &params.mt_id).await?;
+    tracked_mt.status = MicroTaskStatus::InProgress;
+    tracked_mt.escalation.current_level = params.escalation_level;
+    tracked_mt.active_session_ids.push(session_id.clone());
+    dedupe_session_ids(&mut tracked_mt.active_session_ids);
+    persist_tracked_mt(&mut tx, &tracked_mt).await?;
+    tx.commit().await?;
+
+    Ok(json!({
+        "wp_id": params.wp_id,
+        "mt_id": params.mt_id,
+        "session_id": session_id,
+        "active_session_ids": tracked_mt.active_session_ids,
+    }))
+}
+
+async fn unbind_session(
+    pool: &SqlitePool,
+    params: LocusUnbindSessionParams,
+) -> StorageResult<Value> {
+    ensure_wp_exists(pool, &params.wp_id).await?;
+    ensure_mt_exists_for_wp(pool, &params.wp_id, &params.mt_id).await?;
+    let session_id = params.session_id.trim().to_string();
+    if session_id.is_empty() {
+        return Err(StorageError::Validation("session_id"));
+    }
+
+    let mut tx = pool.begin().await?;
+    let mut tracked_mt = load_tracked_mt_for_update(&mut tx, &params.wp_id, &params.mt_id).await?;
+    tracked_mt
+        .active_session_ids
+        .retain(|existing_session_id| existing_session_id != &session_id);
+    persist_tracked_mt(&mut tx, &tracked_mt).await?;
+    tx.commit().await?;
+
+    Ok(json!({
+        "wp_id": params.wp_id,
+        "mt_id": params.mt_id,
+        "session_id": session_id,
+        "active_session_ids": tracked_mt.active_session_ids,
+        "reason": params.reason,
     }))
 }
 
@@ -840,6 +1038,8 @@ async fn execute_sqlite_locus_operation(
         LocusOperation::DeleteWp(params) => delete_wp(pool, params).await,
         LocusOperation::RegisterMts(params) => register_mts(pool, params).await,
         LocusOperation::StartMt(params) => start_mt(pool, params).await,
+        LocusOperation::BindSession(params) => bind_session(pool, params).await,
+        LocusOperation::UnbindSession(params) => unbind_session(pool, params).await,
         LocusOperation::RecordIteration(params) => record_iteration(pool, params).await,
         LocusOperation::CompleteMt(params) => complete_mt(pool, params).await,
         LocusOperation::AddDependency(params) => add_dependency(pool, params).await,

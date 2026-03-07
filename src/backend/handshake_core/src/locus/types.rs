@@ -310,6 +310,8 @@ pub struct TrackedMicroTask {
     pub done_criteria: Vec<String>,
     pub status: MicroTaskStatus,
     #[serde(default)]
+    pub active_session_ids: Vec<String>,
+    #[serde(default)]
     pub iterations: Vec<MicroTaskIterationRecord>,
     pub current_iteration: u32,
     pub max_iterations: u32,
@@ -391,6 +393,10 @@ pub struct LocusRegisterMtsParams {
 pub struct LocusStartMtParams {
     pub wp_id: String,
     pub mt_id: String,
+    pub model_id: String,
+    #[serde(default)]
+    pub lora_id: Option<String>,
+    pub escalation_level: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -405,6 +411,27 @@ pub struct LocusCompleteMtParams {
     pub wp_id: String,
     pub mt_id: String,
     pub final_iteration: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LocusBindSessionParams {
+    pub wp_id: String,
+    pub mt_id: String,
+    pub session_id: String,
+    #[serde(default)]
+    pub model_id: Option<String>,
+    #[serde(default)]
+    pub lora_id: Option<String>,
+    pub escalation_level: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LocusUnbindSessionParams {
+    pub wp_id: String,
+    pub mt_id: String,
+    pub session_id: String,
+    #[serde(default)]
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -453,6 +480,8 @@ pub enum LocusOperation {
     DeleteWp(LocusDeleteWpParams),
     RegisterMts(LocusRegisterMtsParams),
     StartMt(LocusStartMtParams),
+    BindSession(LocusBindSessionParams),
+    UnbindSession(LocusUnbindSessionParams),
     RecordIteration(LocusRecordIterationParams),
     CompleteMt(LocusCompleteMtParams),
     AddDependency(LocusAddDependencyParams),

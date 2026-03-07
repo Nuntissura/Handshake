@@ -41,9 +41,9 @@
 - PACKET_FORMAT_VERSION: 2026-03-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: IN_PROGRESS
-Blockers: Skeleton approval required before implementation
-Next: Operator/Validator reviews the drafted `## SKELETON` and runs `just skeleton-approved WP-1-Locus-Phase1-Integration-Occupancy-v1`
+Verdict: READY_FOR_VALIDATION
+Blockers: None
+Next: Commit the staged WP-owned files, rerun `just post-work WP-1-Locus-Phase1-Integration-Occupancy-v1 --range 21ee7c29d34a1f0e5a22f989756973aca15e65fc..HEAD`, and hand the branch to Validator with the recorded evidence
 
 ## SUB_AGENT_DELEGATION (OPTIONAL; OPERATOR-GATED)
 - SUB_AGENT_DELEGATION: ALLOWED
@@ -239,62 +239,232 @@ git revert <commit-sha>
   - Prove capability checks + Flight Recorder emission remain on the write path and were not bypassed by direct SQLite writes.
 
 ## IMPLEMENTATION
-- (Coder fills after the docs-only skeleton checkpoint commit exists.)
+- Spec Router now derives `LocusCreateWpParams` from routed packet metadata and dispatches `locus_create_wp_v1` through the existing Locus job path instead of keeping routed WP creation local-only.
+- The Micro-Task Executor now dispatches `locus_register_mts_v1`, `locus_start_mt_v1`, `locus_record_iteration_v1`, `locus_complete_mt_v1`, plus session bind/unbind child jobs at the lifecycle points required by the spec, while preserving the "one start per activation" guard.
+- Locus tracked micro-task storage now persists `active_session_ids`, normalizes bind/unbind inputs, and preserves iteration history across escalation levels without overwriting earlier attempts when local iteration counters reset.
+- Regression coverage now exercises routed WP creation, MT lifecycle persistence, session occupancy normalization, and escalation-success persistence/dispatch counts; capability requirements were extended for the new Locus protocols.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Re-ran `just pre-work WP-1-Locus-Phase1-Integration-Occupancy-v1` in the dedicated WP worktree before implementation.
+- Used short Windows build/temp paths for Rust verification because the default long target path triggered the existing bundled `libduckdb-sys` MSVC `fatal error C1083` failure:
+  - `CARGO_TARGET_DIR=D:\hc`
+  - `TEMP=D:\hctmp`
+  - `TMP=D:\hctmp`
+- Ran the packet-required Rust verification targets from `src/backend/handshake_core` with that environment:
+  - `cargo test --test micro_task_executor_tests`
+  - `cargo test --lib test_locus_protocol_requirements`
+  - `cargo test --test mcp_e2e_tests`
+  - `cargo test --test model_session_scheduler_tests`
+- Captured deterministic SHA pairs for each staged WP-owned product file with `just cor701-sha ...` before filling the manifest below.
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `src/backend/handshake_core/src/capabilities.rs`
+- **Start**: 420
+- **End**: 543
+- **Line Delta**: 21
+- **Pre-SHA1**: `0418da12a9816b2b87bd1af7d1fe0ab14d54d2a2`
+- **Post-SHA1**: `bf323172c4b1c642365097eadee4ca3565672f05`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by `cargo test --lib test_locus_protocol_requirements` and `cargo test --test micro_task_executor_tests`.
+- **Artifacts**: `just cor701-sha src/backend/handshake_core/src/capabilities.rs`
+- **Timestamp**: 2026-03-07T03:22:10.9859945+01:00
+- **Operator**: Coder-A
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: Window spans the staged protocol capability additions and their direct regression coverage.
+
+- **Target File**: `src/backend/handshake_core/src/locus/sqlite_store.rs`
+- **Start**: 32
+- **End**: 37
+- **Line Delta**: 6
+- **Pre-SHA1**: `93213598b743263de25c0e52891a8c9f58b52d35`
+- **Post-SHA1**: `4cdae3fa04c7704edc59359bbf3d6a21bc1a74c6`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by `cargo test --test micro_task_executor_tests`.
+- **Artifacts**: `just cor701-sha src/backend/handshake_core/src/locus/sqlite_store.rs`
+- **Timestamp**: 2026-03-07T03:22:10.9859945+01:00
+- **Operator**: Coder-A
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: Window spans the new parser routes for `locus_bind_session_v1` and `locus_unbind_session_v1`.
+
+- **Target File**: `src/backend/handshake_core/src/locus/types.rs`
+- **Start**: 313
+- **End**: 484
+- **Line Delta**: 29
+- **Pre-SHA1**: `1b6afa556fcf2ed68eeca33fcbb4b0cd2170caf1`
+- **Post-SHA1**: `97c5a28506a9fa8cad69a8180fe2af808dc7e335`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by `cargo test --test micro_task_executor_tests`.
+- **Artifacts**: `just cor701-sha src/backend/handshake_core/src/locus/types.rs`
+- **Timestamp**: 2026-03-07T03:22:10.9859945+01:00
+- **Operator**: Coder-A
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: Window spans the tracked occupancy field plus the new start/bind/unbind operation contracts.
+
+- **Target File**: `src/backend/handshake_core/src/storage/locus_sqlite.rs`
+- **Start**: 4
+- **End**: 1042
+- **Line Delta**: 200
+- **Pre-SHA1**: `039c8f967d482d2a0568602e94bed658d478c90d`
+- **Post-SHA1**: `3cd7ba131365f6ba78462737cdabee571cda95d2`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by `cargo test --test micro_task_executor_tests`.
+- **Artifacts**: `just cor701-sha src/backend/handshake_core/src/storage/locus_sqlite.rs`
+- **Timestamp**: 2026-03-07T03:22:10.9859945+01:00
+- **Operator**: Coder-A
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: Window spans replay-safe tracked MT persistence helpers, register/start/iteration/complete updates, and deterministic session bind/unbind storage.
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 49
+- **End**: 14086
+- **Line Delta**: 815
+- **Pre-SHA1**: `8bf16dea97e1503fb9a27bfd1d0a346d3f521952`
+- **Post-SHA1**: `399602f44739988443d68570eabde15a32f45498`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered by `cargo test --test micro_task_executor_tests`.
+- **Artifacts**: `just cor701-sha src/backend/handshake_core/src/workflows.rs`
+- **Timestamp**: 2026-03-07T03:22:10.9859945+01:00
+- **Operator**: Coder-A
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: Window spans the routed WP submission helpers, the child Locus dispatcher calls, and the MT executor lifecycle/occupancy integration points present in the staged diff.
+
+- **Target File**: `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+- **Start**: 7
+- **End**: 877
+- **Line Delta**: 497
+- **Pre-SHA1**: `d43a5ac06891272e54a83f7bb21c0d535b71058a`
+- **Post-SHA1**: `658e58f438e20803f52534b25344f390a75dbf84`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: Covered directly by `cargo test --test micro_task_executor_tests`.
+- **Artifacts**: `just cor701-sha src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+- **Timestamp**: 2026-03-07T03:22:10.9859945+01:00
+- **Operator**: Coder-A
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.141.md
+- **Notes**: Window spans the new Locus seeding helpers plus lifecycle, routed-WP, occupancy, and escalation-history regressions.
 
 ## STATUS_HANDOFF
-- (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS: In Progress (BOOTSTRAP complete; `## SKELETON` drafted; awaiting approval)
+- Current WP_STATUS: Ready for Validation (implementation complete; staged post-work PASS recorded; commit + range post-work pending)
 - What changed in this update:
-  - Updated the packet state from Ready for Dev to In Progress.
-  - Drafted the interface-first skeleton for Spec Router -> Locus submission, MT lifecycle submissions, occupancy bind/unbind contracts, and scoped regression coverage.
+  - Wired Spec Router routed WP creation through `locus_create_wp_v1` child jobs and preserved the canonical routed output behavior.
+  - Wired MT executor registration/start/iteration/complete plus bind/unbind occupancy through child Locus operations, including pause/resume and completion exits.
+  - Hardened Locus SQLite MT persistence so occupancy binds are trimmed/deduped and escalation-level retries no longer overwrite prior iteration history.
+  - Added regression coverage for routed WP creation, lifecycle persistence, occupancy normalization, and one-start/two-recorded-attempt dispatch counts.
 - Next step / handoff hint:
-  - Run `just coder-skeleton-checkpoint WP-1-Locus-Phase1-Integration-Occupancy-v1`, then STOP for Operator/Validator approval via `just skeleton-approved WP-1-Locus-Phase1-Integration-Occupancy-v1`.
+  - Stage this packet, run `just post-work WP-1-Locus-Phase1-Integration-Occupancy-v1`, then commit the WP-owned files and rerun `just post-work WP-1-Locus-Phase1-Integration-Occupancy-v1 --range 21ee7c29d34a1f0e5a22f989756973aca15e65fc..HEAD` for validator handoff evidence.
 
 ## EVIDENCE_MAPPING
-- (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
-- Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `path/to/file:line`
+- REQUIREMENT: "Routed prompts that create a task packet also submit a `locus_create_wp_v1` job with `task_packet_path` and `spec_session_id`, and the resulting Locus write still emits the canonical work-packet Flight Recorder event."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:2577`, `src/backend/handshake_core/src/workflows.rs:14083`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:449`
+- REQUIREMENT: "The MT executor loop calls `locus_register_mts_v1`, `locus_start_mt_v1`, `locus_record_iteration_v1`, and `locus_complete_mt_v1` at the spec-defined lifecycle points without bypassing the existing Locus job dispatcher."
+- EVIDENCE: `src/backend/handshake_core/src/workflows.rs:9473`, `src/backend/handshake_core/src/workflows.rs:10762`, `src/backend/handshake_core/src/workflows.rs:12149`, `src/backend/handshake_core/src/workflows.rs:12414`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:735`
+- REQUIREMENT: "Tracked micro-tasks persist `active_session_ids`, plus bind/unbind occupancy updates, with deterministic add/remove semantics that survive retries and replay without duplicating sessions or iteration history."
+- EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:313`, `src/backend/handshake_core/src/storage/locus_sqlite.rs:221`, `src/backend/handshake_core/src/storage/locus_sqlite.rs:701`, `src/backend/handshake_core/src/storage/locus_sqlite.rs:807`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:563`
+- REQUIREMENT: "Capability mapping and regression tests cover the new Locus lifecycle/occupancy path so the router/executor integration is mechanically provable before validation."
+- EVIDENCE: `src/backend/handshake_core/src/capabilities.rs:419`, `src/backend/handshake_core/src/capabilities.rs:527`, `src/backend/handshake_core/src/locus/sqlite_store.rs:29`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:332`
 
 ## EVIDENCE
-- (Coder appends logs, test outputs, and proof of work here. No verdicts.)
-- Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Locus-Phase1-Integration-Occupancy-v1/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- COMMAND: `just pre-work WP-1-Locus-Phase1-Integration-Occupancy-v1`
+- EXIT_CODE: 0
+- PROOF_LINES:
+  - `Pre-work validation PASSED with warnings`
+  - `PASS: Refinement file exists and is approved/signed`
+  - `MERGE_BASE_SHA: 21ee7c29d34a1f0e5a22f989756973aca15e65fc`
+
+- COMMAND: `cmd /c "set CARGO_TARGET_DIR=D:\hc&& set TEMP=D:\hctmp&& set TMP=D:\hctmp&& cargo test --test micro_task_executor_tests"`
+- EXIT_CODE: 0
+- PROOF_LINES:
+  - `running 12 tests`
+  - `test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out`
+
+- COMMAND: `cmd /c "set CARGO_TARGET_DIR=D:\hc&& set TEMP=D:\hctmp&& set TMP=D:\hctmp&& cargo test --lib test_locus_protocol_requirements"`
+- EXIT_CODE: 0
+- PROOF_LINES:
+  - `running 1 test`
+  - `test capabilities::tests::test_locus_protocol_requirements ... ok`
+  - `test result: ok. 1 passed; 0 failed`
+
+- COMMAND: `cmd /c "set CARGO_TARGET_DIR=D:\hc&& set TEMP=D:\hctmp&& set TMP=D:\hctmp&& cargo test --test mcp_e2e_tests"`
+- EXIT_CODE: 0
+- PROOF_LINES:
+  - `running 2 tests`
+  - `test mcp_e2e_tests_postgres_persists_progress_mapping_records_fr_events_and_hydrates_ref ... ok`
+  - `test mcp_e2e_tests_sqlite_persists_progress_mapping_records_fr_events_and_hydrates_ref ... ok`
+  - `test result: ok. 2 passed; 0 failed`
+
+- COMMAND: `cmd /c "set CARGO_TARGET_DIR=D:\hc&& set TEMP=D:\hctmp&& set TMP=D:\hctmp&& cargo test --test model_session_scheduler_tests"`
+- EXIT_CODE: 0
+- PROOF_LINES:
+  - `running 11 tests`
+  - `test model_run_scheduler_queues_not_drop_and_dispatch_is_deterministic ... ok`
+  - `test result: ok. 11 passed; 0 failed`
+
+- COMMAND: `just post-work WP-1-Locus-Phase1-Integration-Occupancy-v1`
+- EXIT_CODE: 0
+- PROOF_LINES:
+  - `Post-work validation PASSED (deterministic manifest gate; not tests) with warnings`
+  - `Diff selection: staged (staged changes present)`
+  - `Working tree has unstaged changes; post-work validation uses STAGED changes only`
+  - `ROLE_MAILBOX_EXPORT_GATE PASS`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
