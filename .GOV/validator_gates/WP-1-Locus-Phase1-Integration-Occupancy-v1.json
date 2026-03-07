@@ -3,7 +3,7 @@
     "WP-1-Locus-Phase1-Integration-Occupancy-v1": {
       "wpId": "WP-1-Locus-Phase1-Integration-Occupancy-v1",
       "verdict": "PASS",
-      "status": "COMMITTED",
+      "status": "USER_ACKNOWLEDGED",
       "started": "2026-03-07T02:49:54.900Z",
       "gates": [
         {
@@ -14,8 +14,18 @@
         {
           "gate": "COMMITTED",
           "timestamp": "2026-03-07T02:50:09.050Z"
+        },
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-03-07T02:50:42.203Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-03-07T03:05:28.840Z"
         }
-      ]
+      ],
+      "completed": "2026-03-07T03:05:28.840Z"
     }
   },
   "archived_sessions": []
