@@ -18,7 +18,7 @@
 - CODER_MODEL: Coder-A
 - CODER_REASONING_STRENGTH: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
-- **Status:** Ready for Dev
+- **Status:** In Progress
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
 - BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
@@ -41,9 +41,9 @@
 - PACKET_FORMAT_VERSION: 2026-03-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: READY_FOR_DEV
-Blockers: NONE
-Next: Validator merge/fast-forward of governance state, then Coder-A handoff in the dedicated WP worktree
+Verdict: IN_PROGRESS
+Blockers: Skeleton approval required before implementation
+Next: Operator/Validator reviews the drafted `## SKELETON` and runs `just skeleton-approved WP-1-Locus-Phase1-Integration-Occupancy-v1`
 
 ## SUB_AGENT_DELEGATION (OPTIONAL; OPERATOR-GATED)
 - SUB_AGENT_DELEGATION: ALLOWED
@@ -166,8 +166,33 @@ git revert <commit-sha>
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - `src/backend/handshake_core/src/locus/types.rs`
+    - Extend `TrackedMicroTask` with `active_session_ids: Vec<String>` so MT occupancy lives in the canonical tracked-MT shape rather than ad-hoc metadata keys.
+    - Extend `LocusStartMtParams` to carry `model_id: String`, `lora_id: Option<String>`, and `escalation_level: u32` to match the spec-defined start payload.
+    - Add `LocusBindSessionParams { wp_id, mt_id, session_id, model_id: Option<String>, lora_id: Option<String>, escalation_level: u32 }`.
+    - Add `LocusUnbindSessionParams { wp_id, mt_id, session_id, reason: Option<String> }`.
+    - Extend `LocusOperation` plus protocol parsing for `locus_bind_session_v1` and `locus_unbind_session_v1`.
+  - `src/backend/handshake_core/src/capabilities.rs`
+    - Map `locus_bind_session_v1` and `locus_unbind_session_v1` to `locus.write`.
+    - Preserve the current dispatcher/capability boundary; Spec Router and MT Executor remain producers of Locus jobs, not direct storage writers.
+  - `src/backend/handshake_core/src/storage/locus_sqlite.rs` and `src/backend/handshake_core/src/locus/sqlite_store.rs`
+    - Keep `micro_tasks.metadata` as the durable tracked-MT envelope, but update the stored JSON transactionally during register/start/record/complete/bind/unbind so `active_session_ids` stays replay-safe and deduplicated.
+    - `register_mts` seeds `active_session_ids: []`.
+    - `start_mt`, `record_iteration`, `complete_mt`, `bind_session`, and `unbind_session` all update the stored tracked-MT JSON alongside the existing scalar status/current-iteration columns.
+  - `src/backend/handshake_core/src/workflows.rs`
+    - `run_spec_router_job` submits a follow-on `JobKind::LocusOperation` request for `locus_create_wp_v1` when routing yields a task packet/WP, carrying `wp_id`, title, description, `task_packet_path`, and `spec_session_id`.
+    - `run_micro_task_executor_v1` submits `locus_register_mts_v1` after MT generation, `locus_start_mt_v1` when an MT becomes active, `locus_record_iteration_v1` after each completed iteration, and `locus_complete_mt_v1` on terminal completion.
+    - Occupancy binding uses the active ModelSession context when present: bind on MT entry, unbind on completion/failure/pause/cancel so stranded session IDs cannot accumulate.
+  - Tests
+    - Extend the scoped regression suites to assert canonical Locus job submission, persisted `active_session_ids`, and preserved FR events rather than only local progress-artifact behavior.
 - Open questions:
+  - Confirm the exact source object inside `run_spec_router_job` that already has `wp_id`, title/description, and `task_packet_path`; reuse that payload instead of re-deriving fields in a second place.
+  - Confirm which MT executor boundary exposes the canonical `session_id` for occupancy updates when a ModelSession is not yet registered at MT-generation time.
+  - Confirm whether paused/governance-gated MTs should unbind immediately or remain bound until human intervention resolves; default assumption for this WP is fail-safe unbind on any non-running state.
 - Notes:
+  - No new Locus tables are planned in this packet; occupancy remains in the tracked-MT JSON already persisted in `micro_tasks.metadata`.
+  - All writes stay on the existing `JobKind::LocusOperation` -> capability gate -> sqlite dispatcher -> Flight Recorder path.
+  - Query/autosync/search/Postgres parity remain deferred to the stub WPs listed in packet metadata.
 
 ## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
 - Principle: prefer enumerating "too many" controls early, consolidate later.
@@ -249,9 +274,12 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict.)
-- Current WP_STATUS:
+- Current WP_STATUS: In Progress (BOOTSTRAP complete; `## SKELETON` drafted; awaiting approval)
 - What changed in this update:
+  - Updated the packet state from Ready for Dev to In Progress.
+  - Drafted the interface-first skeleton for Spec Router -> Locus submission, MT lifecycle submissions, occupancy bind/unbind contracts, and scoped regression coverage.
 - Next step / handoff hint:
+  - Run `just coder-skeleton-checkpoint WP-1-Locus-Phase1-Integration-Occupancy-v1`, then STOP for Operator/Validator approval via `just skeleton-approved WP-1-Locus-Phase1-Integration-Occupancy-v1`.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
