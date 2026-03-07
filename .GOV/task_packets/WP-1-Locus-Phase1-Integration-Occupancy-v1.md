@@ -43,7 +43,7 @@
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: READY_FOR_VALIDATION
 Blockers: None
-Next: Commit the staged WP-owned files, rerun `just post-work WP-1-Locus-Phase1-Integration-Occupancy-v1 --range 21ee7c29d34a1f0e5a22f989756973aca15e65fc..HEAD`, and hand the branch to Validator with the recorded evidence
+Next: Validator reviews commit `07d6a72` and the recorded gate/test evidence against the committed range `21ee7c29d34a1f0e5a22f989756973aca15e65fc..HEAD`
 
 ## SUB_AGENT_DELEGATION (OPTIONAL; OPERATOR-GATED)
 - SUB_AGENT_DELEGATION: ALLOWED
@@ -403,7 +403,7 @@ git revert <commit-sha>
 - **Notes**: Window spans the new Locus seeding helpers plus lifecycle, routed-WP, occupancy, and escalation-history regressions.
 
 ## STATUS_HANDOFF
-- Current WP_STATUS: Ready for Validation (implementation complete; staged post-work PASS recorded; commit + range post-work pending)
+- Current WP_STATUS: Ready for Validation (implementation committed; staged and range post-work PASS recorded)
 - What changed in this update:
   - Wired Spec Router routed WP creation through `locus_create_wp_v1` child jobs and preserved the canonical routed output behavior.
   - Wired MT executor registration/start/iteration/complete plus bind/unbind occupancy through child Locus operations, including pause/resume and completion exits.
@@ -464,6 +464,15 @@ git revert <commit-sha>
   - `Post-work validation PASSED (deterministic manifest gate; not tests) with warnings`
   - `Diff selection: staged (staged changes present)`
   - `Working tree has unstaged changes; post-work validation uses STAGED changes only`
+  - `ROLE_MAILBOX_EXPORT_GATE PASS`
+
+- COMMAND: `just post-work WP-1-Locus-Phase1-Integration-Occupancy-v1 --range 21ee7c29d34a1f0e5a22f989756973aca15e65fc..HEAD`
+- EXIT_CODE: 0
+- PROOF_LINES:
+  - `NOTE: Git hygiene waiver detected [CX-573F]. Strict git checks relaxed.`
+  - `Git range: 21ee7c29d34a1f0e5a22f989756973aca15e65fc..07d6a7263289d75a0d9a32f3c387ad8df3b8a53e`
+  - `Post-work validation PASSED (deterministic manifest gate; not tests) with warnings`
+  - `Out-of-scope files changed but waiver present [CX-573F]`
   - `ROLE_MAILBOX_EXPORT_GATE PASS`
 
 ## VALIDATION_REPORTS
