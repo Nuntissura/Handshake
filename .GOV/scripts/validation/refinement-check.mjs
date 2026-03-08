@@ -177,6 +177,16 @@ function isIsoDate(s) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(s || '').trim());
 }
 
+function sameList(a, b) {
+  const left = (a || []).map((item) => String(item || '').trim()).filter(Boolean);
+  const right = (b || []).map((item) => String(item || '').trim()).filter(Boolean);
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i += 1) {
+    if (left[i] !== right[i]) return false;
+  }
+  return true;
+}
+
 function parseIsoDateUtc(s) {
   const value = String(s || '').trim();
   if (!isIsoDate(value)) return null;
@@ -487,6 +497,92 @@ function parseGitHubProjectScoutRows(lines) {
   return { found: true, hasNone: false, rows, rawItems: list.items };
 }
 
+function parseMatrixResearchSourceScanRows(lines) {
+  const list = extractIndentedListAfterLabel(lines, 'SOURCE_SCAN');
+  if (!list.found) return { found: false, hasNone: false, rows: [] };
+  if (list.items.length === 1 && /^NONE$/i.test(list.items[0])) {
+    return { found: true, hasNone: true, rows: [] };
+  }
+
+  const rows = [];
+  const re = /^Source:\s*(.+?)\s*\|\s*Kind:\s*(BIG_TECH|UNIVERSITY|PAPER|GITHUB|OSS_DOC)\s*\|\s*Angle:\s*(.+?)\s*\|\s*Pattern:\s*(.+?)\s*\|\s*Decision:\s*(ADOPT|ADAPT|REJECT)\s*\|\s*EngineeringTrick:\s*(.+?)\s*\|\s*ROI:\s*(HIGH|MEDIUM|LOW)\s*\|\s*Resolution:\s*(IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW|REJECT_LOW_ROI|REJECT_DUPLICATE)\s*\|\s*Stub:\s*(.+?)\s*\|\s*Notes:\s*(.+)\s*$/i;
+  for (const item of list.items) {
+    const m = String(item || '').match(re);
+    if (!m) continue;
+    rows.push({
+      source: m[1].trim(),
+      kind: m[2].trim().toUpperCase(),
+      angle: m[3].trim(),
+      pattern: m[4].trim(),
+      decision: m[5].trim().toUpperCase(),
+      engineeringTrick: m[6].trim(),
+      roi: m[7].trim().toUpperCase(),
+      resolution: m[8].trim().toUpperCase(),
+      stubRaw: m[9].trim(),
+      notes: m[10].trim(),
+    });
+  }
+  return { found: true, hasNone: false, rows, rawItems: list.items };
+}
+
+function parseMatrixGrowthCandidateRows(lines) {
+  const list = extractIndentedListAfterLabel(lines, 'MATRIX_GROWTH_CANDIDATES');
+  if (!list.found) return { found: false, hasNone: false, rows: [] };
+  if (list.items.length === 1 && /^NONE$/i.test(list.items[0])) {
+    return { found: true, hasNone: true, rows: [] };
+  }
+
+  const rows = [];
+  const re = /^Combo:\s*(.+?)\s*\|\s*Sources:\s*(.+?)\s*\|\s*WhatToSteal:\s*(.+?)\s*\|\s*HandshakeCarryOver:\s*(.+?)\s*\|\s*RuntimeConsequences:\s*(.+?)\s*\|\s*ROI:\s*(HIGH|MEDIUM|LOW)\s*\|\s*Resolution:\s*(IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW|REJECT_LOW_ROI|REJECT_DUPLICATE)\s*\|\s*Stub:\s*(.+?)\s*\|\s*Notes:\s*(.+)\s*$/i;
+  for (const item of list.items) {
+    const m = String(item || '').match(re);
+    if (!m) continue;
+    rows.push({
+      combo: m[1].trim(),
+      sourcesRaw: m[2].trim(),
+      sources: normalizeCsv(m[2]),
+      whatToSteal: m[3].trim(),
+      handshakeCarryOver: m[4].trim(),
+      runtimeConsequences: m[5].trim(),
+      roi: m[6].trim().toUpperCase(),
+      resolution: m[7].trim().toUpperCase(),
+      stubRaw: m[8].trim(),
+      notes: m[9].trim(),
+    });
+  }
+  return { found: true, hasNone: false, rows, rawItems: list.items };
+}
+
+function parseGuiReferenceScanRows(lines) {
+  const list = extractIndentedListAfterLabel(lines, 'GUI_REFERENCE_SCAN');
+  if (!list.found) return { found: false, hasNone: false, rows: [] };
+  if (list.items.length === 1 && /^NONE$/i.test(list.items[0])) {
+    return { found: true, hasNone: true, rows: [] };
+  }
+
+  const rows = [];
+  const re = /^Surface:\s*(.+?)\s*\|\s*Source:\s*(.+?)\s*\|\s*Kind:\s*(BIG_TECH|UNIVERSITY|PAPER|GITHUB|OSS_DOC|NONE)\s*\|\s*Pattern:\s*(.+?)\s*\|\s*HiddenRequirement:\s*(.+?)\s*\|\s*InteractionContract:\s*(.+?)\s*\|\s*Accessibility:\s*(.+?)\s*\|\s*TooltipStrategy:\s*(HOVER_INLINE|INLINE_PERSISTENT|MIXED|NONE)\s*\|\s*EngineeringTrick:\s*(.+?)\s*\|\s*Resolution:\s*(IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW)\s*\|\s*Stub:\s*(.+?)\s*\|\s*Notes:\s*(.+)\s*$/i;
+  for (const item of list.items) {
+    const m = String(item || '').match(re);
+    if (!m) continue;
+    rows.push({
+      surface: m[1].trim(),
+      source: m[2].trim(),
+      kind: m[3].trim().toUpperCase(),
+      pattern: m[4].trim(),
+      hiddenRequirement: m[5].trim(),
+      interactionContract: m[6].trim(),
+      accessibility: m[7].trim(),
+      tooltipStrategy: m[8].trim().toUpperCase(),
+      engineeringTrick: m[9].trim(),
+      resolution: m[10].trim().toUpperCase(),
+      stubRaw: m[11].trim(),
+      notes: m[12].trim(),
+    });
+  }
+  return { found: true, hasNone: false, rows, rawItems: list.items };
+}
+
 function parseExistingCapabilityRows(lines, label) {
   const list = extractIndentedListAfterLabel(lines, label);
   if (!list.found) return { found: false, hasNone: false, rows: [] };
@@ -550,6 +646,17 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     stubWpIds: [],
     uiApplicable: '',
     uiVerdict: '',
+    matrixResearchRequired: '',
+    matrixResearchVerdict: '',
+    matrixResearchSourceDecisions: [],
+    matrixGrowthCandidates: [],
+    matrixResearchEngineeringTricks: [],
+    guiAdviceRequired: '',
+    guiImplementationAdviceVerdict: '',
+    guiReferenceDecisions: [],
+    handshakeGuiAdvice: [],
+    hiddenGuiRequirements: [],
+    guiEngineeringTricks: [],
     primitiveIndexAction: '',
     orphanPrimitiveResolution: '',
     primitiveMatrixVerdict: '',
@@ -567,6 +674,8 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     researchSynthesis: [],
     githubProjectDecisions: [],
     primitivesTouched: [],
+    primitivesExposed: [],
+    primitivesCreated: [],
     mechanicalEnginesTouched: [],
     mechanicalEngineAlignmentVerdict: '',
     pillarsTouched: [],
@@ -581,6 +690,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       requestor: '',
       agentId: '',
       riskTier: '',
+      specAddMarkerTarget: '',
       buildOrderDomain: '',
       buildOrderTechBlocker: '',
       buildOrderValueTier: '',
@@ -595,6 +705,8 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       outOfScope: [],
       testPlan: '',
       doneMeans: [],
+      primitivesExposed: [],
+      primitivesCreated: [],
       filesToOpen: [],
       searchTerms: [],
       runCommands: '',
@@ -638,6 +750,14 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
   const refinementEnforcementProfile = getSingleField(content, 'REFINEMENT_ENFORCEMENT_PROFILE');
   parsed.refinementEnforcementProfile = refinementEnforcementProfile;
   const isHydratedResearchProfile = /^HYDRATED_RESEARCH_V1$/i.test(refinementEnforcementProfile || '');
+  const reviewStatusForNewRubrics = getSingleField(content, 'USER_REVIEW_STATUS');
+  const signatureForNewRubrics = getSingleField(content, 'USER_SIGNATURE');
+  const requiresNewResearchRubrics =
+    isHydratedResearchProfile
+    && (
+      /^PENDING$/i.test(reviewStatusForNewRubrics || '')
+      || isPlaceholderValue(signatureForNewRubrics)
+    );
   if (refinementEnforcementProfile && !isHydratedResearchProfile) {
     errors.push('REFINEMENT_ENFORCEMENT_PROFILE must be HYDRATED_RESEARCH_V1 when present');
   }
@@ -691,8 +811,14 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       requiredSections.splice(requiredSections.indexOf('PRIMITIVE_MATRIX'), 0, 'PILLAR_DECOMPOSITION');
       requiredSections.splice(requiredSections.indexOf('PRIMITIVE_MATRIX'), 0, 'EXECUTION_RUNTIME_ALIGNMENT');
     }
+    if (requiresNewResearchRubrics || hasHeading(content, 'MATRIX_RESEARCH_RUBRIC')) {
+      requiredSections.splice(requiredSections.indexOf('PRIMITIVE_MATRIX') + 1, 0, 'MATRIX_RESEARCH_RUBRIC');
+    }
     requiredSections.splice(requiredSections.indexOf('UI_UX_RUBRIC'), 0, 'FORCE_MULTIPLIER_EXPANSION');
     requiredSections.splice(requiredSections.indexOf('UI_UX_RUBRIC'), 0, 'EXISTING_CAPABILITY_ALIGNMENT');
+    if (requiresNewResearchRubrics || hasHeading(content, 'GUI_IMPLEMENTATION_ADVICE_RUBRIC')) {
+      requiredSections.splice(requiredSections.indexOf('UI_UX_RUBRIC'), 0, 'GUI_IMPLEMENTATION_ADVICE_RUBRIC');
+    }
     requiredSections.splice(requiredSections.indexOf('CLEARLY_COVERS'), 0, 'PACKET_HYDRATION');
   }
 
@@ -968,10 +1094,148 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       }
 
       parsed.researchSynthesis = researchSynthesis.items.filter((s) => !/^NONE$/i.test(s));
+
+      if (requiresNewResearchRubrics || hasHeading(content, 'MATRIX_RESEARCH_RUBRIC')) {
+        const matrixResearchRequired = getSingleField(content, 'MATRIX_RESEARCH_REQUIRED');
+        const matrixResearchReasonNo = getSingleField(content, 'MATRIX_RESEARCH_REASON_NO');
+        const matrixSourceScan = parseMatrixResearchSourceScanRows(lines);
+        const matrixGrowthCandidates = parseMatrixGrowthCandidateRows(lines);
+        const matrixEngineeringTricks = extractIndentedListAfterLabel(lines, 'ENGINEERING_TRICKS_CARRIED_OVER');
+        const matrixResearchVerdict = getSingleField(content, 'MATRIX_RESEARCH_VERDICT');
+        const sourceTitles = new Set(parsed.researchSources.map((source) => source.source));
+
+        parsed.matrixResearchRequired = (matrixResearchRequired || '').toUpperCase();
+        parsed.matrixResearchVerdict = (matrixResearchVerdict || '').toUpperCase();
+        parsed.matrixResearchSourceDecisions = [];
+        parsed.matrixGrowthCandidates = [];
+        parsed.matrixResearchEngineeringTricks = matrixEngineeringTricks.items.filter((item) => !/^NONE$/i.test(item));
+
+        if (!/^(YES|NO)$/i.test(matrixResearchRequired || '')) {
+          errors.push('MATRIX_RESEARCH_REQUIRED must be YES or NO');
+        }
+        if (!/^(PASS|NOT_APPLICABLE|NEEDS_STUBS|NEEDS_SPEC_UPDATE)$/i.test(matrixResearchVerdict || '')) {
+          errors.push('MATRIX_RESEARCH_VERDICT must be PASS | NOT_APPLICABLE | NEEDS_STUBS | NEEDS_SPEC_UPDATE');
+        }
+        if (/^YES$/i.test(researchRequired || '') && !/^YES$/i.test(matrixResearchRequired || '')) {
+          errors.push('RESEARCH_CURRENCY_REQUIRED=YES requires MATRIX_RESEARCH_REQUIRED=YES');
+        }
+
+        if (/^YES$/i.test(matrixResearchRequired || '')) {
+          if (!matrixSourceScan.found || matrixSourceScan.rows.length === 0) {
+            errors.push('MATRIX_RESEARCH_RUBRIC SOURCE_SCAN must include at least one concrete row when MATRIX_RESEARCH_REQUIRED=YES');
+          } else if (matrixSourceScan.rows.length !== matrixSourceScan.rawItems.length) {
+            errors.push('MATRIX_RESEARCH_RUBRIC SOURCE_SCAN contains malformed entries; each row must match the required Source|Kind|Angle|Pattern|Decision|EngineeringTrick|ROI|Resolution|Stub|Notes format');
+          }
+          if (!matrixGrowthCandidates.found || matrixGrowthCandidates.rows.length === 0) {
+            errors.push('MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES must include at least one concrete row when MATRIX_RESEARCH_REQUIRED=YES');
+          } else if (matrixGrowthCandidates.rows.length !== matrixGrowthCandidates.rawItems.length) {
+            errors.push('MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES contains malformed entries; each row must match the required Combo|Sources|WhatToSteal|HandshakeCarryOver|RuntimeConsequences|ROI|Resolution|Stub|Notes format');
+          }
+          if (!matrixEngineeringTricks.found || matrixEngineeringTricks.items.length === 0 || matrixEngineeringTricks.items.every((item) => isPlaceholderValue(item) || /^NONE$/i.test(item))) {
+            errors.push('MATRIX_RESEARCH_RUBRIC ENGINEERING_TRICKS_CARRIED_OVER must list one or more concrete carry-over notes when MATRIX_RESEARCH_REQUIRED=YES');
+          }
+
+          let matrixHasStub = false;
+          let matrixHasSpecUpdate = false;
+          for (const row of matrixSourceScan.rows) {
+            if (!sourceTitles.has(row.source)) {
+              errors.push(`MATRIX_RESEARCH_RUBRIC SOURCE_SCAN references unknown Source: ${row.source}`);
+            }
+            if (isPlaceholderValue(row.angle)) errors.push(`MATRIX_RESEARCH_RUBRIC SOURCE_SCAN ${row.source} Angle must be filled`);
+            if (isPlaceholderValue(row.pattern)) errors.push(`MATRIX_RESEARCH_RUBRIC SOURCE_SCAN ${row.source} Pattern must be filled`);
+            if (isPlaceholderValue(row.engineeringTrick)) errors.push(`MATRIX_RESEARCH_RUBRIC SOURCE_SCAN ${row.source} EngineeringTrick must be filled`);
+            if (isPlaceholderValue(row.notes)) errors.push(`MATRIX_RESEARCH_RUBRIC SOURCE_SCAN ${row.source} Notes must be filled`);
+            let stubId = 'NONE';
+            if (row.resolution === 'NEW_STUB') {
+              matrixHasStub = true;
+              const stubIds = validateStubIds(row.stubRaw, errors, `MATRIX_RESEARCH_RUBRIC SOURCE_SCAN ${row.source} Stub`);
+              if (stubIds.length !== 1) {
+                errors.push(`MATRIX_RESEARCH_RUBRIC SOURCE_SCAN ${row.source} Resolution=NEW_STUB must point to exactly one stub packet`);
+              }
+              stubId = stubIds[0] || 'NONE';
+              if (stubId !== 'NONE' && !parsed.stubWpIds.includes(stubId)) {
+                errors.push(`Top-level STUB_WP_IDS must include matrix-research-linked stub ${stubId}`);
+              }
+            } else if (!/^NONE$/i.test(row.stubRaw || '')) {
+              errors.push(`MATRIX_RESEARCH_RUBRIC SOURCE_SCAN ${row.source} must use Stub: NONE unless Resolution=NEW_STUB`);
+            }
+            if (row.resolution === 'SPEC_UPDATE_NOW') {
+              matrixHasSpecUpdate = true;
+              if (!parsed.appendixSpecUpdateRequired) {
+                errors.push(`MATRIX_RESEARCH_RUBRIC SOURCE_SCAN ${row.source} uses Resolution=SPEC_UPDATE_NOW but appendix maintenance did not declare a spec update`);
+              }
+            }
+            parsed.matrixResearchSourceDecisions.push(`${row.source} -> ${row.decision} (${row.resolution})`);
+          }
+
+          for (const row of matrixGrowthCandidates.rows) {
+            if (isPlaceholderValue(row.combo)) errors.push('MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES Combo must be filled');
+            if (row.sources.length === 0 || row.sources.every((value) => /^NONE$/i.test(value))) {
+              errors.push(`MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES ${row.combo || '<missing>'} must list one or more Sources from SOURCE_LOG`);
+            }
+            for (const source of row.sources.filter((value) => !/^NONE$/i.test(value))) {
+              if (!sourceTitles.has(source)) {
+                errors.push(`MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES ${row.combo || '<missing>'} references unknown Source: ${source}`);
+              }
+            }
+            if (isPlaceholderValue(row.whatToSteal)) errors.push(`MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES ${row.combo || '<missing>'} WhatToSteal must be filled`);
+            if (isPlaceholderValue(row.handshakeCarryOver)) errors.push(`MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES ${row.combo || '<missing>'} HandshakeCarryOver must be filled`);
+            if (isPlaceholderValue(row.runtimeConsequences)) errors.push(`MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES ${row.combo || '<missing>'} RuntimeConsequences must be filled`);
+            if (isPlaceholderValue(row.notes)) errors.push(`MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES ${row.combo || '<missing>'} Notes must be filled`);
+            let stubId = 'NONE';
+            if (row.resolution === 'NEW_STUB') {
+              matrixHasStub = true;
+              const stubIds = validateStubIds(row.stubRaw, errors, `MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES ${row.combo || '<missing>'} Stub`);
+              if (stubIds.length !== 1) {
+                errors.push(`MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES ${row.combo || '<missing>'} Resolution=NEW_STUB must point to exactly one stub packet`);
+              }
+              stubId = stubIds[0] || 'NONE';
+              if (stubId !== 'NONE' && !parsed.stubWpIds.includes(stubId)) {
+                errors.push(`Top-level STUB_WP_IDS must include matrix-growth-linked stub ${stubId}`);
+              }
+            } else if (!/^NONE$/i.test(row.stubRaw || '')) {
+              errors.push(`MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES ${row.combo || '<missing>'} must use Stub: NONE unless Resolution=NEW_STUB`);
+            }
+            if (row.resolution === 'SPEC_UPDATE_NOW') {
+              matrixHasSpecUpdate = true;
+              if (!parsed.appendixSpecUpdateRequired) {
+                errors.push(`MATRIX_RESEARCH_RUBRIC MATRIX_GROWTH_CANDIDATES ${row.combo || '<missing>'} uses Resolution=SPEC_UPDATE_NOW but appendix maintenance did not declare a spec update`);
+              }
+            }
+            parsed.matrixGrowthCandidates.push(`${row.combo} -> ${row.resolution} (stub: ${stubId})`);
+          }
+
+          if (matrixHasSpecUpdate && parsed.matrixResearchVerdict !== 'NEEDS_SPEC_UPDATE') {
+            errors.push('MATRIX_RESEARCH_VERDICT must be NEEDS_SPEC_UPDATE when any research row resolves to SPEC_UPDATE_NOW');
+          } else if (!matrixHasSpecUpdate && matrixHasStub && parsed.matrixResearchVerdict !== 'NEEDS_STUBS') {
+            errors.push('MATRIX_RESEARCH_VERDICT must be NEEDS_STUBS when any research row resolves to NEW_STUB and none resolve to SPEC_UPDATE_NOW');
+          } else if (!matrixHasSpecUpdate && !matrixHasStub && parsed.matrixResearchVerdict !== 'PASS') {
+            errors.push('MATRIX_RESEARCH_VERDICT must be PASS when all matrix-research rows resolve without stubs/spec updates');
+          }
+        } else if (/^NO$/i.test(matrixResearchRequired || '')) {
+          if (isPlaceholderValue(matrixResearchReasonNo)) {
+            errors.push('MATRIX_RESEARCH_REASON_NO is required when MATRIX_RESEARCH_REQUIRED=NO');
+          }
+          if (!matrixSourceScan.found || !matrixSourceScan.hasNone) {
+            errors.push('MATRIX_RESEARCH_REQUIRED=NO requires SOURCE_SCAN to be NONE');
+          }
+          if (!matrixGrowthCandidates.found || !matrixGrowthCandidates.hasNone) {
+            errors.push('MATRIX_RESEARCH_REQUIRED=NO requires MATRIX_GROWTH_CANDIDATES to be NONE');
+          }
+          if (!matrixEngineeringTricks.found || matrixEngineeringTricks.items.length === 0 || matrixEngineeringTricks.items.some((item) => !/^NONE$/i.test(item))) {
+            errors.push('MATRIX_RESEARCH_REQUIRED=NO requires ENGINEERING_TRICKS_CARRIED_OVER to be NONE');
+          }
+          if (!/^NOT_APPLICABLE$/i.test(matrixResearchVerdict || '')) {
+            errors.push('MATRIX_RESEARCH_REQUIRED=NO requires MATRIX_RESEARCH_VERDICT=NOT_APPLICABLE');
+          }
+        }
+      }
     }
 
     // PRIMITIVES section minimums.
     const primTouched = extractIndentedListAfterLabel(lines, 'PRIMITIVES_TOUCHED (IDs)');
+    const primExposed = extractIndentedListAfterLabel(lines, 'PRIMITIVES_EXPOSED (IDs)');
+    const primCreated = extractIndentedListAfterLabel(lines, 'PRIMITIVES_CREATED (IDs)');
     const primNewOrUpdated = extractIndentedListAfterLabel(lines, 'PRIMITIVES_NEW_OR_UPDATED (IDs)');
 
     const primIds = new Set();
@@ -1000,8 +1264,12 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     };
 
     addPrimIdsFromList('PRIMITIVES_TOUCHED (IDs)', primTouched, { requireSome: true });
+    addPrimIdsFromList('PRIMITIVES_EXPOSED (IDs)', primExposed, { requireSome: false });
+    addPrimIdsFromList('PRIMITIVES_CREATED (IDs)', primCreated, { requireSome: false });
     addPrimIdsFromList('PRIMITIVES_NEW_OR_UPDATED (IDs)', primNewOrUpdated, { requireSome: false });
     parsed.primitivesTouched = Array.from(primIds);
+    parsed.primitivesExposed = primExposed.items.filter((item) => /^PRIM-/i.test(item));
+    parsed.primitivesCreated = primCreated.items.filter((item) => /^PRIM-/i.test(item));
 
     // PRIMITIVE_INDEX gate.
     const primIndexAction = getSingleField(content, 'PRIMITIVE_INDEX_ACTION');
@@ -1555,6 +1823,14 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     if (/^NEEDS_STUBS$/i.test(matrixVerdict || '') && parsed.stubWpIds.length === 0) {
       errors.push('PRIMITIVE_MATRIX_VERDICT=NEEDS_STUBS requires top-level STUB_WP_IDS to list one or more stub packets');
     }
+    if (requiresNewResearchRubrics || hasHeading(content, 'MATRIX_RESEARCH_RUBRIC')) {
+      if (/^NEEDS_STUBS$/i.test(parsed.matrixResearchVerdict || '') && parsed.stubWpIds.length === 0) {
+        errors.push('MATRIX_RESEARCH_VERDICT=NEEDS_STUBS requires top-level STUB_WP_IDS to list one or more stub packets');
+      }
+      if (/^NEEDS_SPEC_UPDATE$/i.test(parsed.matrixResearchVerdict || '') && !parsed.appendixSpecUpdateRequired) {
+        errors.push('MATRIX_RESEARCH_VERDICT=NEEDS_SPEC_UPDATE requires appendix maintenance to declare a spec update');
+      }
+    }
     if (isHydratedResearchProfile) {
       if (imxIds.length > 0 && parsed.interactionMatrixAction !== 'UPDATED') {
         errors.push('INTERACTION_MATRIX_ACTION must be UPDATED when IMX_EDGE_IDS_ADDED_OR_UPDATED lists one or more edges');
@@ -1934,6 +2210,118 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       errors.push('UI_GUIDANCE_ACTION cannot be NOT_APPLICABLE when UI_UX_APPLICABLE=YES');
     }
 
+    if (requiresNewResearchRubrics || hasHeading(content, 'GUI_IMPLEMENTATION_ADVICE_RUBRIC')) {
+      const guiAdviceRequired = getSingleField(content, 'GUI_ADVICE_REQUIRED');
+      const guiAdviceReasonNo = getSingleField(content, 'GUI_ADVICE_REASON_NO');
+      const guiReferenceScan = parseGuiReferenceScanRows(lines);
+      const handshakeGuiAdvice = extractIndentedListAfterLabel(lines, 'HANDSHAKE_GUI_ADVICE');
+      const hiddenGuiRequirements = extractIndentedListAfterLabel(lines, 'HIDDEN_GUI_REQUIREMENTS');
+      const guiEngineeringTricks = extractIndentedListAfterLabel(lines, 'GUI_ENGINEERING_TRICKS_TO_CARRY');
+      const guiAdviceVerdict = getSingleField(content, 'GUI_IMPLEMENTATION_ADVICE_VERDICT');
+      const sourceTitles = new Set(parsed.researchSources.map((source) => source.source));
+
+      parsed.guiAdviceRequired = (guiAdviceRequired || '').toUpperCase();
+      parsed.guiImplementationAdviceVerdict = (guiAdviceVerdict || '').toUpperCase();
+      parsed.guiReferenceDecisions = [];
+      parsed.handshakeGuiAdvice = handshakeGuiAdvice.items.filter((item) => !/^NONE$/i.test(item));
+      parsed.hiddenGuiRequirements = hiddenGuiRequirements.items.filter((item) => !/^NONE$/i.test(item));
+      parsed.guiEngineeringTricks = guiEngineeringTricks.items.filter((item) => !/^NONE$/i.test(item));
+
+      if (!/^(YES|NO)$/i.test(guiAdviceRequired || '')) {
+        errors.push('GUI_ADVICE_REQUIRED must be YES or NO');
+      }
+      if (!/^(PASS|NOT_APPLICABLE|NEEDS_STUBS|NEEDS_SPEC_UPDATE)$/i.test(guiAdviceVerdict || '')) {
+        errors.push('GUI_IMPLEMENTATION_ADVICE_VERDICT must be PASS | NOT_APPLICABLE | NEEDS_STUBS | NEEDS_SPEC_UPDATE');
+      }
+      if (/^YES$/i.test(uiApplicable || '') && !/^YES$/i.test(guiAdviceRequired || '')) {
+        errors.push('UI_UX_APPLICABLE=YES requires GUI_ADVICE_REQUIRED=YES');
+      }
+
+      if (/^YES$/i.test(guiAdviceRequired || '')) {
+        if (!guiReferenceScan.found || guiReferenceScan.rows.length === 0) {
+          errors.push('GUI_IMPLEMENTATION_ADVICE_RUBRIC GUI_REFERENCE_SCAN must include at least one concrete row when GUI_ADVICE_REQUIRED=YES');
+        } else if (guiReferenceScan.rows.length !== guiReferenceScan.rawItems.length) {
+          errors.push('GUI_IMPLEMENTATION_ADVICE_RUBRIC GUI_REFERENCE_SCAN contains malformed entries; each row must match the required Surface|Source|Kind|Pattern|HiddenRequirement|InteractionContract|Accessibility|TooltipStrategy|EngineeringTrick|Resolution|Stub|Notes format');
+        }
+        if (!handshakeGuiAdvice.found || handshakeGuiAdvice.items.length === 0 || handshakeGuiAdvice.items.every((item) => isPlaceholderValue(item) || /^NONE$/i.test(item))) {
+          errors.push('GUI_IMPLEMENTATION_ADVICE_RUBRIC HANDSHAKE_GUI_ADVICE must include one or more concrete guidance rows when GUI_ADVICE_REQUIRED=YES');
+        }
+        if (!hiddenGuiRequirements.found || hiddenGuiRequirements.items.length === 0 || hiddenGuiRequirements.items.every((item) => isPlaceholderValue(item) || /^NONE$/i.test(item))) {
+          errors.push('GUI_IMPLEMENTATION_ADVICE_RUBRIC HIDDEN_GUI_REQUIREMENTS must include one or more concrete hidden requirements when GUI_ADVICE_REQUIRED=YES');
+        }
+        if (!guiEngineeringTricks.found || guiEngineeringTricks.items.length === 0 || guiEngineeringTricks.items.every((item) => isPlaceholderValue(item) || /^NONE$/i.test(item))) {
+          errors.push('GUI_IMPLEMENTATION_ADVICE_RUBRIC GUI_ENGINEERING_TRICKS_TO_CARRY must include one or more concrete engineering tricks when GUI_ADVICE_REQUIRED=YES');
+        }
+
+        let guiHasStub = false;
+        let guiHasSpecUpdate = false;
+        for (const row of guiReferenceScan.rows) {
+          if (row.kind === 'NONE') {
+            if (!/^NONE$/i.test(row.source || '')) {
+              errors.push(`GUI_IMPLEMENTATION_ADVICE_RUBRIC ${row.surface || '<missing>'} Kind=NONE requires Source: NONE`);
+            }
+          } else if (!sourceTitles.has(row.source)) {
+            errors.push(`GUI_IMPLEMENTATION_ADVICE_RUBRIC ${row.surface || '<missing>'} references unknown Source: ${row.source}`);
+          }
+          if (isPlaceholderValue(row.pattern)) errors.push(`GUI_IMPLEMENTATION_ADVICE_RUBRIC ${row.surface || '<missing>'} Pattern must be filled`);
+          if (isPlaceholderValue(row.hiddenRequirement)) errors.push(`GUI_IMPLEMENTATION_ADVICE_RUBRIC ${row.surface || '<missing>'} HiddenRequirement must be filled`);
+          if (isPlaceholderValue(row.interactionContract)) errors.push(`GUI_IMPLEMENTATION_ADVICE_RUBRIC ${row.surface || '<missing>'} InteractionContract must be filled`);
+          if (isPlaceholderValue(row.accessibility)) errors.push(`GUI_IMPLEMENTATION_ADVICE_RUBRIC ${row.surface || '<missing>'} Accessibility must be filled`);
+          if (isPlaceholderValue(row.engineeringTrick)) errors.push(`GUI_IMPLEMENTATION_ADVICE_RUBRIC ${row.surface || '<missing>'} EngineeringTrick must be filled`);
+          if (isPlaceholderValue(row.notes)) errors.push(`GUI_IMPLEMENTATION_ADVICE_RUBRIC ${row.surface || '<missing>'} Notes must be filled`);
+
+          let stubId = 'NONE';
+          if (row.resolution === 'NEW_STUB') {
+            guiHasStub = true;
+            const stubIds = validateStubIds(row.stubRaw, errors, `GUI_IMPLEMENTATION_ADVICE_RUBRIC ${row.surface || '<missing>'} Stub`);
+            if (stubIds.length !== 1) {
+              errors.push(`GUI_IMPLEMENTATION_ADVICE_RUBRIC ${row.surface || '<missing>'} Resolution=NEW_STUB must point to exactly one stub packet`);
+            }
+            stubId = stubIds[0] || 'NONE';
+            if (stubId !== 'NONE' && !parsed.stubWpIds.includes(stubId)) {
+              errors.push(`Top-level STUB_WP_IDS must include GUI-advice-linked stub ${stubId}`);
+            }
+          } else if (!/^NONE$/i.test(row.stubRaw || '')) {
+            errors.push(`GUI_IMPLEMENTATION_ADVICE_RUBRIC ${row.surface || '<missing>'} must use Stub: NONE unless Resolution=NEW_STUB`);
+          }
+          if (row.resolution === 'SPEC_UPDATE_NOW') {
+            guiHasSpecUpdate = true;
+            if (!parsed.appendixSpecUpdateRequired) {
+              errors.push(`GUI_IMPLEMENTATION_ADVICE_RUBRIC ${row.surface || '<missing>'} uses Resolution=SPEC_UPDATE_NOW but appendix maintenance did not declare a spec update`);
+            }
+          }
+          parsed.guiReferenceDecisions.push(`${row.surface} <- ${row.source} (${row.resolution})`);
+        }
+
+        if (guiHasSpecUpdate && parsed.guiImplementationAdviceVerdict !== 'NEEDS_SPEC_UPDATE') {
+          errors.push('GUI_IMPLEMENTATION_ADVICE_VERDICT must be NEEDS_SPEC_UPDATE when any reference row resolves to SPEC_UPDATE_NOW');
+        } else if (!guiHasSpecUpdate && guiHasStub && parsed.guiImplementationAdviceVerdict !== 'NEEDS_STUBS') {
+          errors.push('GUI_IMPLEMENTATION_ADVICE_VERDICT must be NEEDS_STUBS when any reference row resolves to NEW_STUB and none resolve to SPEC_UPDATE_NOW');
+        } else if (!guiHasSpecUpdate && !guiHasStub && parsed.guiImplementationAdviceVerdict !== 'PASS') {
+          errors.push('GUI_IMPLEMENTATION_ADVICE_VERDICT must be PASS when all GUI reference rows resolve without stubs/spec updates');
+        }
+      } else if (/^NO$/i.test(guiAdviceRequired || '')) {
+        if (isPlaceholderValue(guiAdviceReasonNo)) {
+          errors.push('GUI_ADVICE_REASON_NO is required when GUI_ADVICE_REQUIRED=NO');
+        }
+        if (!guiReferenceScan.found || !guiReferenceScan.hasNone) {
+          errors.push('GUI_ADVICE_REQUIRED=NO requires GUI_REFERENCE_SCAN to be NONE');
+        }
+        if (!handshakeGuiAdvice.found || handshakeGuiAdvice.items.length === 0 || handshakeGuiAdvice.items.some((item) => !/^NONE$/i.test(item))) {
+          errors.push('GUI_ADVICE_REQUIRED=NO requires HANDSHAKE_GUI_ADVICE to be NONE');
+        }
+        if (!hiddenGuiRequirements.found || hiddenGuiRequirements.items.length === 0 || hiddenGuiRequirements.items.some((item) => !/^NONE$/i.test(item))) {
+          errors.push('GUI_ADVICE_REQUIRED=NO requires HIDDEN_GUI_REQUIREMENTS to be NONE');
+        }
+        if (!guiEngineeringTricks.found || guiEngineeringTricks.items.length === 0 || guiEngineeringTricks.items.some((item) => !/^NONE$/i.test(item))) {
+          errors.push('GUI_ADVICE_REQUIRED=NO requires GUI_ENGINEERING_TRICKS_TO_CARRY to be NONE');
+        }
+        if (!/^NOT_APPLICABLE$/i.test(guiAdviceVerdict || '')) {
+          errors.push('GUI_ADVICE_REQUIRED=NO requires GUI_IMPLEMENTATION_ADVICE_VERDICT=NOT_APPLICABLE');
+        }
+      }
+    }
+
     if (isHydratedResearchProfile) {
       const hydration = parsed.packetHydration;
       parsed.packetHydrationProfile = getSingleField(content, 'PACKET_HYDRATION_PROFILE');
@@ -1944,6 +2332,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       hydration.requestor = getSingleField(content, 'REQUESTOR');
       hydration.agentId = getSingleField(content, 'AGENT_ID');
       hydration.riskTier = getSingleField(content, 'RISK_TIER');
+      hydration.specAddMarkerTarget = getSingleField(content, 'SPEC_ADD_MARKER_TARGET');
       hydration.buildOrderDomain = getSingleField(content, 'BUILD_ORDER_DOMAIN');
       hydration.buildOrderTechBlocker = getSingleField(content, 'BUILD_ORDER_TECH_BLOCKER');
       hydration.buildOrderValueTier = getSingleField(content, 'BUILD_ORDER_VALUE_TIER');
@@ -1958,6 +2347,8 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       hydration.outOfScope = extractIndentedListAfterLabel(lines, 'OUT_OF_SCOPE').items.filter((s) => !/^NONE$/i.test(s));
       hydration.testPlan = extractFencedBlockAfterLabel(lines, 'TEST_PLAN').body;
       hydration.doneMeans = extractIndentedListAfterLabel(lines, 'DONE_MEANS').items.filter((s) => !/^NONE$/i.test(s));
+      hydration.primitivesExposed = extractIndentedListAfterLabel(lines, 'PRIMITIVES_EXPOSED').items;
+      hydration.primitivesCreated = extractIndentedListAfterLabel(lines, 'PRIMITIVES_CREATED').items;
       hydration.filesToOpen = extractIndentedListAfterLabel(lines, 'FILES_TO_OPEN').items.filter((s) => !/^NONE$/i.test(s));
       hydration.searchTerms = extractIndentedListAfterLabel(lines, 'SEARCH_TERMS').items.filter((s) => !/^NONE$/i.test(s));
       hydration.runCommands = extractFencedBlockAfterLabel(lines, 'RUN_COMMANDS').body;
@@ -1966,6 +2357,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       if (isPlaceholderValue(hydration.requestor)) errors.push('PACKET_HYDRATION REQUESTOR must be filled');
       if (isPlaceholderValue(hydration.agentId)) errors.push('PACKET_HYDRATION AGENT_ID must be filled');
       if (!/^(LOW|MEDIUM|HIGH)$/i.test(hydration.riskTier || '')) errors.push('PACKET_HYDRATION RISK_TIER must be LOW | MEDIUM | HIGH');
+      if (!/^\[ADD v\d{2}\.\d{3}\]$/i.test(hydration.specAddMarkerTarget || '')) errors.push('PACKET_HYDRATION SPEC_ADD_MARKER_TARGET must be [ADD vNN.NNN]');
       if (!/^(BACKEND|FRONTEND|GOV|CROSS_BOUNDARY)$/i.test(hydration.buildOrderDomain || '')) errors.push('PACKET_HYDRATION BUILD_ORDER_DOMAIN must be BACKEND | FRONTEND | GOV | CROSS_BOUNDARY');
       if (!/^(YES|NO)$/i.test(hydration.buildOrderTechBlocker || '')) errors.push('PACKET_HYDRATION BUILD_ORDER_TECH_BLOCKER must be YES or NO');
       if (!/^(LOW|MEDIUM|HIGH)$/i.test(hydration.buildOrderValueTier || '')) errors.push('PACKET_HYDRATION BUILD_ORDER_VALUE_TIER must be LOW | MEDIUM | HIGH');
@@ -1976,6 +2368,28 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       if (hydration.outOfScope.length === 0) errors.push('PACKET_HYDRATION OUT_OF_SCOPE must list one or more concrete exclusions');
       if (isPlaceholderValue(hydration.testPlan)) errors.push('PACKET_HYDRATION TEST_PLAN must contain a fenced command block');
       if (hydration.doneMeans.filter((s) => !isPlaceholderValue(s)).length === 0) errors.push('PACKET_HYDRATION DONE_MEANS must list one or more measurable criteria');
+      const validateHydratedPrimitiveList = (label, items) => {
+        if (!items || items.length === 0) {
+          errors.push(`PACKET_HYDRATION ${label} must list one or more PRIM-... IDs or NONE`);
+          return;
+        }
+        if (items.length === 1 && /^NONE$/i.test(items[0])) return;
+        for (const item of items) {
+          if (isPlaceholderValue(item)) {
+            errors.push(`PACKET_HYDRATION ${label} contains placeholders`);
+          } else if (!/^PRIM-[A-Za-z0-9][A-Za-z0-9_-]*$/i.test(item)) {
+            errors.push(`PACKET_HYDRATION ${label} contains invalid primitive id: ${item}`);
+          }
+        }
+      };
+      validateHydratedPrimitiveList('PRIMITIVES_EXPOSED', hydration.primitivesExposed);
+      validateHydratedPrimitiveList('PRIMITIVES_CREATED', hydration.primitivesCreated);
+      if (parsed.primitivesExposed.length > 0 && !sameList(parsed.primitivesExposed, hydration.primitivesExposed)) {
+        errors.push('PACKET_HYDRATION PRIMITIVES_EXPOSED must match the top-level PRIMITIVES_EXPOSED (IDs) list');
+      }
+      if (parsed.primitivesCreated.length > 0 && !sameList(parsed.primitivesCreated, hydration.primitivesCreated)) {
+        errors.push('PACKET_HYDRATION PRIMITIVES_CREATED must match the top-level PRIMITIVES_CREATED (IDs) list');
+      }
       if (hydration.filesToOpen.filter((s) => !isPlaceholderValue(s)).length === 0) errors.push('PACKET_HYDRATION FILES_TO_OPEN must list one or more files');
       if (hydration.searchTerms.filter((s) => !isPlaceholderValue(s)).length === 0) errors.push('PACKET_HYDRATION SEARCH_TERMS must list one or more concrete search terms');
       if (isPlaceholderValue(hydration.runCommands)) errors.push('PACKET_HYDRATION RUN_COMMANDS must contain a fenced command block');

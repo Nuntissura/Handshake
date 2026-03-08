@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja080320261910 | Orchestrator | 2026-03-08 19:10 | Spec Enrichment v02.149 (refinement reciprocity + matrix-research rubric + GUI implementation advice hardening) | v02.149 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.149 | SIGNATURE: ilja080320261910`. |
 | ilja080320261744 | Orchestrator | 2026-03-08 17:44 | Spec Enrichment v02.148 (ownership-reduction deepening: Stage/media session-auth ownership + multi-session runtime + debug/export/retention contract attachment + Stage↔Media, Session↔AI Job, Debug↔Storage edges) | v02.148 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.148 | SIGNATURE: ilja080320261744`. |
 | ilja080320261623 | Orchestrator | 2026-03-08 16:23 | Spec Enrichment v02.147 (orphan-ownership and projection-contract pass + capability/job/debug/storage/operator deepening + export/projection edges) | v02.147 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.147 | SIGNATURE: ilja 080320261623` (normalized to `ilja080320261623` for audit format). |
 | ilja080320261546 | Orchestrator | 2026-03-08 15:46 | Spec Enrichment v02.146 (deepening pass over seeded runtime rows + AI-ready/FR/RoleMailbox/Locus/Loom coverage + job-consent/MEX-FR edges) | v02.146 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.146 | SIGNATURE: ilja080320261546`. |

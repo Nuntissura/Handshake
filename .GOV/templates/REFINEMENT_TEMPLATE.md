@@ -75,6 +75,10 @@ Requirements (HARD):
 ### PRIMITIVES (traits/structs/enums)
 - PRIMITIVES_TOUCHED (IDs):
   - PRIM-<fill>
+- PRIMITIVES_EXPOSED (IDs):
+  - PRIM-<fill> (or NONE)
+- PRIMITIVES_CREATED (IDs):
+  - PRIM-<fill> (or NONE)
 - PRIMITIVES_NEW_OR_UPDATED (IDs):
   - PRIM-<fill> (or NONE)
 - NOTES:
@@ -184,6 +188,18 @@ Requirements (HARD):
 - PRIMITIVE_MATRIX_VERDICT: PENDING (OK | NEEDS_STUBS | NONE_FOUND)
 - PRIMITIVE_MATRIX_REASON: <fill>
 
+### MATRIX_RESEARCH_RUBRIC (external combo research; separate from local matrix scan)
+- Rule: inspect vendor docs/papers, university/lab work, official design systems, and high-signal GitHub repos when relevant. This section records what those systems combine, what Handshake should steal or reject, and which engineering tricks should carry over into primitives/tools/features/runtime surfaces. Link dumping is forbidden; every useful row must resolve explicitly.
+- MATRIX_RESEARCH_REQUIRED: PENDING (YES | NO)
+- MATRIX_RESEARCH_REASON_NO: <fill if MATRIX_RESEARCH_REQUIRED=NO>
+- SOURCE_SCAN:
+  - Source: <title from SOURCE_LOG> | Kind: <BIG_TECH|UNIVERSITY|PAPER|GITHUB|OSS_DOC> | Angle: <fill> | Pattern: <fill> | Decision: <ADOPT|ADAPT|REJECT> | EngineeringTrick: <fill> | ROI: <HIGH|MEDIUM|LOW> | Resolution: <IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW|REJECT_LOW_ROI|REJECT_DUPLICATE> | Stub: <WP-... | NONE> | Notes: <fill>
+- MATRIX_GROWTH_CANDIDATES:
+  - Combo: <fill> | Sources: <comma-separated titles from SOURCE_LOG> | WhatToSteal: <fill> | HandshakeCarryOver: <fill> | RuntimeConsequences: <fill> | ROI: <HIGH|MEDIUM|LOW> | Resolution: <IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW|REJECT_LOW_ROI|REJECT_DUPLICATE> | Stub: <WP-... | NONE> | Notes: <fill>
+- ENGINEERING_TRICKS_CARRIED_OVER:
+  - <fill>
+- MATRIX_RESEARCH_VERDICT: PENDING (PASS | NOT_APPLICABLE | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
+
 ### FORCE_MULTIPLIER_EXPANSION (high-ROI combinations must resolve explicitly)
 - Rule: every high-ROI combination found across pillars, mechanical engines, primitives, tools, and features must end in exactly one resolution path: `IN_THIS_WP`, `NEW_STUB`, or `SPEC_UPDATE_NOW`. Silent drop is forbidden.
 - COMBO_PRESSURE_MODE: AUTO
@@ -221,6 +237,20 @@ Requirements (HARD):
   - Tooltips must work on hover and keyboard focus; be dismissible; do not obscure content (WCAG 1.4.13).
 - UI_UX_VERDICT: PENDING (OK | NEEDS_STUBS | UNKNOWN)
 
+### GUI_IMPLEMENTATION_ADVICE_RUBRIC (research-backed GUI implementation advice)
+- Rule: separate hidden interaction requirements and implementation tricks from the concrete UI surface checklist. Inspect reference products/repos/design systems/papers when possible, capture hidden semantics, state models, accessibility/keyboard behavior, tooltip-vs-inline strategy, and spell out what Handshake should copy or adapt.
+- GUI_ADVICE_REQUIRED: PENDING (YES | NO)
+- GUI_ADVICE_REASON_NO: <fill if GUI_ADVICE_REQUIRED=NO>
+- GUI_REFERENCE_SCAN:
+  - Surface: <fill> | Source: <title from SOURCE_LOG or NONE> | Kind: <BIG_TECH|UNIVERSITY|PAPER|GITHUB|OSS_DOC|NONE> | Pattern: <fill> | HiddenRequirement: <fill> | InteractionContract: <fill> | Accessibility: <fill> | TooltipStrategy: <HOVER_INLINE|INLINE_PERSISTENT|MIXED|NONE> | EngineeringTrick: <fill> | Resolution: <IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW> | Stub: <WP-... | NONE> | Notes: <fill>
+- HANDSHAKE_GUI_ADVICE:
+  - Surface: <fill> | Control: <fill> | Type: <fill> | Why: <fill> | Microcopy: <fill> | Tooltip: <fill>
+- HIDDEN_GUI_REQUIREMENTS:
+  - <fill>
+- GUI_ENGINEERING_TRICKS_TO_CARRY:
+  - <fill>
+- GUI_IMPLEMENTATION_ADVICE_VERDICT: PENDING (PASS | NOT_APPLICABLE | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
+
 ### ROADMAP_PHASE_SPLIT (only if scope must be phased)
 - PHASE_SPLIT_NEEDED: PENDING (YES | NO)
 - If YES: update the Roadmap (Spec 7.6) using the fixed per-phase fields below (do not invent new per-phase block types).
@@ -241,6 +271,7 @@ Requirements (HARD):
 - REQUESTOR: Operator
 - AGENT_ID: Orchestrator
 - RISK_TIER: <LOW|MEDIUM|HIGH>
+- SPEC_ADD_MARKER_TARGET: [ADD v<target>]
 - BUILD_ORDER_DOMAIN: <BACKEND|FRONTEND|GOV|CROSS_BOUNDARY>
 - BUILD_ORDER_TECH_BLOCKER: <YES|NO>
 - BUILD_ORDER_VALUE_TIER: <LOW|MEDIUM|HIGH>
@@ -259,6 +290,10 @@ Requirements (HARD):
   ```
 - DONE_MEANS:
   - <fill>
+- PRIMITIVES_EXPOSED:
+  - PRIM-<fill> (or NONE)
+- PRIMITIVES_CREATED:
+  - PRIM-<fill> (or NONE)
 - FILES_TO_OPEN:
   - <fill>
 - SEARCH_TERMS:

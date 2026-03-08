@@ -488,6 +488,10 @@ const formatSourceLog = (sources) => formatList(
     return `[${kind}] ${title} | ${date} | Retrieved: ${retrievedAt} | ${url} | Why: ${why}`;
   }),
 );
+const deriveAddMarkerTarget = (specFileName) => {
+  const match = String(specFileName || '').match(/v(\d{2}\.\d{3})/i);
+  return match ? `[ADD v${match[1]}]` : '[ADD vXX.XXX]';
+};
 
 let template = templateBody;
 template = fill(template, '{{WP_ID}}', WP_ID);
@@ -501,8 +505,10 @@ template = fill(template, '{{SPEC_ANCHOR}}', '<fill>');
 
 const refinementData = refinementValidation.parsed || {};
 const isHydratedProfile = /^HYDRATED_RESEARCH_V1$/i.test(refinementData.refinementEnforcementProfile || '');
+const specAddMarkerTarget = refinementData.packetHydration?.specAddMarkerTarget || deriveAddMarkerTarget(specBaseline);
 template = replaceSingleField(template, 'REFINEMENT_ENFORCEMENT_PROFILE', refinementData.refinementEnforcementProfile || 'LEGACY_MANUAL');
 template = replaceSingleField(template, 'PACKET_HYDRATION_PROFILE', isHydratedProfile ? 'HYDRATED_RESEARCH_V1' : 'LEGACY_MANUAL');
+template = replaceSingleField(template, 'SPEC_ADD_MARKER_TARGET', specAddMarkerTarget);
 
 const executionLane = (signatureGate?.execution_lane || prepareGate?.coder_id || '').trim();
 const orchestrationStartedAt = signatureGate?.timestamp || timestamp;
@@ -560,10 +566,26 @@ ${formatList(refinementData.researchSynthesis)}
 ${formatList(refinementData.githubProjectDecisions)}
 `);
 
+  template = replaceSection(template, 'MATRIX_RESEARCH_RUBRIC', `
+## MATRIX_RESEARCH_RUBRIC (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
+- MATRIX_RESEARCH_REQUIRED: ${refinementData.matrixResearchRequired || 'NO'}
+- MATRIX_RESEARCH_VERDICT: ${refinementData.matrixResearchVerdict || 'NOT_APPLICABLE'}
+- SOURCE_SCAN_DECISIONS:
+${formatList(refinementData.matrixResearchSourceDecisions)}
+- MATRIX_GROWTH_CANDIDATES:
+${formatList(refinementData.matrixGrowthCandidates)}
+- ENGINEERING_TRICKS_CARRIED_OVER:
+${formatList(refinementData.matrixResearchEngineeringTricks)}
+`);
+
   template = replaceSection(template, 'PRIMITIVES_AND_MATRIX', `
 ## PRIMITIVES_AND_MATRIX (REFINEMENT OUTPUT; REQUIRED)
 - PRIMITIVES_TOUCHED:
 ${formatList(refinementData.primitivesTouched)}
+- PRIMITIVES_EXPOSED:
+${formatList(refinementData.primitivesExposed)}
+- PRIMITIVES_CREATED:
+${formatList(refinementData.primitivesCreated)}
 - MECHANICAL_ENGINES_TOUCHED:
 ${formatList(refinementData.mechanicalEnginesTouched)}
 - PRIMITIVE_INDEX_ACTION: ${refinementData.primitiveIndexAction || 'NO_CHANGE'}
@@ -606,6 +628,20 @@ ${formatList(refinementData.matchedArtifactResolutions)}
 ${formatList(refinementData.codeRealitySummary)}
 `);
 
+  template = replaceSection(template, 'GUI_IMPLEMENTATION_ADVICE', `
+## GUI_IMPLEMENTATION_ADVICE (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
+- GUI_ADVICE_REQUIRED: ${refinementData.guiAdviceRequired || 'NO'}
+- GUI_IMPLEMENTATION_ADVICE_VERDICT: ${refinementData.guiImplementationAdviceVerdict || 'NOT_APPLICABLE'}
+- GUI_REFERENCE_DECISIONS:
+${formatList(refinementData.guiReferenceDecisions)}
+- HANDSHAKE_GUI_ADVICE:
+${formatList(refinementData.handshakeGuiAdvice)}
+- HIDDEN_GUI_REQUIREMENTS:
+${formatList(refinementData.hiddenGuiRequirements)}
+- GUI_ENGINEERING_TRICKS_TO_CARRY:
+${formatList(refinementData.guiEngineeringTricks)}
+`);
+
   template = replaceSection(template, 'SCOPE', `
 ## SCOPE
 - What: ${hydration.what || '<fill>'}
@@ -625,6 +661,11 @@ ${(hydration.testPlan || '').trim()}
 
 ### DONE_MEANS
 ${formatList(hydration.doneMeans, { indent: '- ' })}
+
+- PRIMITIVES_EXPOSED:
+${formatList(hydration.primitivesExposed)}
+- PRIMITIVES_CREATED:
+${formatList(hydration.primitivesCreated)}
 
 ### ROLLBACK_HINT
 \`\`\`bash

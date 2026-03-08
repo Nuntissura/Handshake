@@ -494,7 +494,15 @@ if (!fs.existsSync(taskPacketDir)) {
       const packetResearchSources = extractIndentedListAfterLabel(packetContent, 'SOURCE_LOG');
       const packetResearchSynthesis = extractIndentedListAfterLabel(packetContent, 'RESEARCH_SYNTHESIS');
       const packetGitHubProjectDecisions = extractIndentedListAfterLabel(packetContent, 'GITHUB_PROJECT_DECISIONS');
+      const packetHasMatrixResearchSection = /##\s+MATRIX_RESEARCH_RUBRIC\b/i.test(packetContent);
+      const packetMatrixResearchRequired = parseSingleField(packetContent, 'MATRIX_RESEARCH_REQUIRED');
+      const packetMatrixResearchVerdict = parseSingleField(packetContent, 'MATRIX_RESEARCH_VERDICT');
+      const packetMatrixSourceScanDecisions = extractIndentedListAfterLabel(packetContent, 'SOURCE_SCAN_DECISIONS');
+      const packetMatrixGrowthCandidates = extractIndentedListAfterLabel(packetContent, 'MATRIX_GROWTH_CANDIDATES');
+      const packetMatrixEngineeringTricks = extractIndentedListAfterLabel(packetContent, 'ENGINEERING_TRICKS_CARRIED_OVER');
       const packetPrimitivesTouched = extractIndentedListAfterLabel(packetContent, 'PRIMITIVES_TOUCHED');
+      const packetPrimitivesExposed = extractIndentedListAfterLabel(packetContent, 'PRIMITIVES_EXPOSED');
+      const packetPrimitivesCreated = extractIndentedListAfterLabel(packetContent, 'PRIMITIVES_CREATED');
       const packetMechanicalEnginesTouched = extractIndentedListAfterLabel(packetContent, 'MECHANICAL_ENGINES_TOUCHED');
       const packetFeatureRegistryAction = parseSingleField(packetContent, 'FEATURE_REGISTRY_ACTION');
       const packetUiGuidanceAction = parseSingleField(packetContent, 'UI_GUIDANCE_ACTION');
@@ -513,11 +521,19 @@ if (!fs.existsSync(taskPacketDir)) {
       const packetExistingCapabilityAlignmentVerdict = parseSingleField(packetContent, 'EXISTING_CAPABILITY_ALIGNMENT_VERDICT');
       const packetMatchedArtifactResolutions = extractIndentedListAfterLabel(packetContent, 'MATCHED_ARTIFACT_RESOLUTIONS');
       const packetCodeRealitySummary = extractIndentedListAfterLabel(packetContent, 'CODE_REALITY_SUMMARY');
+      const packetHasGuiAdviceSection = /##\s+GUI_IMPLEMENTATION_ADVICE\b/i.test(packetContent);
+      const packetGuiAdviceRequired = parseSingleField(packetContent, 'GUI_ADVICE_REQUIRED');
+      const packetGuiAdviceVerdict = parseSingleField(packetContent, 'GUI_IMPLEMENTATION_ADVICE_VERDICT');
+      const packetGuiReferenceDecisions = extractIndentedListAfterLabel(packetContent, 'GUI_REFERENCE_DECISIONS');
+      const packetHandshakeGuiAdvice = extractIndentedListAfterLabel(packetContent, 'HANDSHAKE_GUI_ADVICE');
+      const packetHiddenGuiRequirements = extractIndentedListAfterLabel(packetContent, 'HIDDEN_GUI_REQUIREMENTS');
+      const packetGuiEngineeringTricks = extractIndentedListAfterLabel(packetContent, 'GUI_ENGINEERING_TRICKS_TO_CARRY');
       const packetScopeWhat = parseSingleField(packetContent, 'What');
       const packetScopeWhy = parseSingleField(packetContent, 'Why');
       const packetRequestor = parseSingleField(packetContent, 'REQUESTOR');
       const packetAgentId = parseSingleField(packetContent, 'AGENT_ID');
       const packetRiskTier2 = parseSingleField(packetContent, 'RISK_TIER');
+      const packetSpecAddMarkerTarget = parseSingleField(packetContent, 'SPEC_ADD_MARKER_TARGET');
       const packetBuildOrderDomain = parseSingleField(packetContent, 'BUILD_ORDER_DOMAIN');
       const packetBuildOrderTechBlocker = parseSingleField(packetContent, 'BUILD_ORDER_TECH_BLOCKER');
       const packetBuildOrderValueTier = parseSingleField(packetContent, 'BUILD_ORDER_VALUE_TIER');
@@ -569,8 +585,31 @@ if (!fs.existsSync(taskPacketDir)) {
       if (!sameList(packetGitHubProjectDecisions, refinementData.githubProjectDecisions || [])) {
         errors.push('GITHUB_PROJECT_DECISIONS in the packet drifted from the signed refinement');
       }
+      if (packetHasMatrixResearchSection || refinementData.matrixResearchRequired || refinementData.matrixResearchVerdict) {
+        if ((packetMatrixResearchRequired || '').toUpperCase() !== (refinementData.matrixResearchRequired || '').toUpperCase()) {
+          errors.push('MATRIX_RESEARCH_REQUIRED in the packet drifted from the signed refinement');
+        }
+        if ((packetMatrixResearchVerdict || '').toUpperCase() !== (refinementData.matrixResearchVerdict || '').toUpperCase()) {
+          errors.push('MATRIX_RESEARCH_VERDICT in the packet drifted from the signed refinement');
+        }
+        if (!sameList(packetMatrixSourceScanDecisions, refinementData.matrixResearchSourceDecisions || [])) {
+          errors.push('SOURCE_SCAN_DECISIONS in the packet drifted from the signed refinement');
+        }
+        if (!sameList(packetMatrixGrowthCandidates, refinementData.matrixGrowthCandidates || [])) {
+          errors.push('MATRIX_GROWTH_CANDIDATES in the packet drifted from the signed refinement');
+        }
+        if (!sameList(packetMatrixEngineeringTricks, refinementData.matrixResearchEngineeringTricks || [])) {
+          errors.push('ENGINEERING_TRICKS_CARRIED_OVER in the packet drifted from the signed refinement');
+        }
+      }
       if (!sameList(packetPrimitivesTouched, refinementData.primitivesTouched || [])) {
         errors.push('PRIMITIVES_TOUCHED in the packet drifted from the signed refinement');
+      }
+      if (!sameList(packetPrimitivesExposed, refinementData.primitivesExposed || [])) {
+        errors.push('PRIMITIVES_EXPOSED in the packet drifted from the signed refinement');
+      }
+      if (!sameList(packetPrimitivesCreated, refinementData.primitivesCreated || [])) {
+        errors.push('PRIMITIVES_CREATED in the packet drifted from the signed refinement');
       }
       if (!sameList(packetMechanicalEnginesTouched, refinementData.mechanicalEnginesTouched || [])) {
         errors.push('MECHANICAL_ENGINES_TOUCHED in the packet drifted from the signed refinement');
@@ -629,6 +668,26 @@ if (!fs.existsSync(taskPacketDir)) {
       if (!sameList(packetCodeRealitySummary, refinementData.codeRealitySummary || [])) {
         errors.push('CODE_REALITY_SUMMARY in the packet drifted from the signed refinement');
       }
+      if (packetHasGuiAdviceSection || refinementData.guiAdviceRequired || refinementData.guiImplementationAdviceVerdict) {
+        if ((packetGuiAdviceRequired || '').toUpperCase() !== (refinementData.guiAdviceRequired || '').toUpperCase()) {
+          errors.push('GUI_ADVICE_REQUIRED in the packet drifted from the signed refinement');
+        }
+        if ((packetGuiAdviceVerdict || '').toUpperCase() !== (refinementData.guiImplementationAdviceVerdict || '').toUpperCase()) {
+          errors.push('GUI_IMPLEMENTATION_ADVICE_VERDICT in the packet drifted from the signed refinement');
+        }
+        if (!sameList(packetGuiReferenceDecisions, refinementData.guiReferenceDecisions || [])) {
+          errors.push('GUI_REFERENCE_DECISIONS in the packet drifted from the signed refinement');
+        }
+        if (!sameList(packetHandshakeGuiAdvice, refinementData.handshakeGuiAdvice || [])) {
+          errors.push('HANDSHAKE_GUI_ADVICE in the packet drifted from the signed refinement');
+        }
+        if (!sameList(packetHiddenGuiRequirements, refinementData.hiddenGuiRequirements || [])) {
+          errors.push('HIDDEN_GUI_REQUIREMENTS in the packet drifted from the signed refinement');
+        }
+        if (!sameList(packetGuiEngineeringTricks, refinementData.guiEngineeringTricks || [])) {
+          errors.push('GUI_ENGINEERING_TRICKS_TO_CARRY in the packet drifted from the signed refinement');
+        }
+      }
 
       const packetUiApplicable = parseSingleField(packetContent, 'UI_UX_APPLICABLE');
       const packetUiVerdict2 = parseSingleField(packetContent, 'UI_UX_VERDICT');
@@ -647,6 +706,7 @@ if (!fs.existsSync(taskPacketDir)) {
       if ((packetRequestor || '').trim() !== (hydration.requestor || '').trim()) errors.push('REQUESTOR in the packet drifted from the signed refinement');
       if ((packetAgentId || '').trim() !== (hydration.agentId || '').trim()) errors.push('AGENT_ID in the packet drifted from the signed refinement');
       if ((packetRiskTier2 || '').toUpperCase() !== (hydration.riskTier || '').toUpperCase()) errors.push('RISK_TIER in the packet drifted from the signed refinement');
+      if ((packetSpecAddMarkerTarget || '').trim() !== (hydration.specAddMarkerTarget || '').trim()) errors.push('SPEC_ADD_MARKER_TARGET in the packet drifted from the signed refinement');
       if ((packetBuildOrderDomain || '').toUpperCase() !== (hydration.buildOrderDomain || '').toUpperCase()) errors.push('BUILD_ORDER_DOMAIN in the packet drifted from the signed refinement');
       if ((packetBuildOrderTechBlocker || '').toUpperCase() !== (hydration.buildOrderTechBlocker || '').toUpperCase()) errors.push('BUILD_ORDER_TECH_BLOCKER in the packet drifted from the signed refinement');
       if ((packetBuildOrderValueTier || '').toUpperCase() !== (hydration.buildOrderValueTier || '').toUpperCase()) errors.push('BUILD_ORDER_VALUE_TIER in the packet drifted from the signed refinement');
@@ -658,6 +718,8 @@ if (!fs.existsSync(taskPacketDir)) {
       if (!sameList(packetOutOfScope, hydration.outOfScope || [])) errors.push('OUT_OF_SCOPE in the packet drifted from the signed refinement');
       if (normalizeBlock(packetTestPlan) !== normalizeBlock(hydration.testPlan || '')) errors.push('TEST_PLAN in the packet drifted from the signed refinement');
       if (!sameList(packetDoneMeans, hydration.doneMeans || [])) errors.push('DONE_MEANS in the packet drifted from the signed refinement');
+      if (!sameList(packetPrimitivesExposed, hydration.primitivesExposed || [])) errors.push('QUALITY_GATE PRIMITIVES_EXPOSED in the packet drifted from the signed refinement');
+      if (!sameList(packetPrimitivesCreated, hydration.primitivesCreated || [])) errors.push('QUALITY_GATE PRIMITIVES_CREATED in the packet drifted from the signed refinement');
       if ((packetSpecAnchor || '').trim() !== (hydration.specAnchorPrimary || '').trim()) errors.push('SPEC_ANCHOR in the packet drifted from the signed refinement');
       if (!sameList(packetFilesToOpen, hydration.filesToOpen || [])) errors.push('BOOTSTRAP FILES_TO_OPEN in the packet drifted from the signed refinement');
       if (!sameList(packetSearchTerms, hydration.searchTerms || [])) errors.push('BOOTSTRAP SEARCH_TERMS in the packet drifted from the signed refinement');
