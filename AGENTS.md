@@ -13,9 +13,18 @@
 - When more than one coder/WP is active concurrently, use `git worktree` per active WP (separate working directories). Do NOT share a single working tree across concurrent WPs.
 - `main` is the only canonical integrated branch on disk and on GitHub.
 - Permanent protected role/user branches and their corresponding permanent worktrees must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`.
+- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
 - `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches, not integration branches. They may diverge from `main`.
 - Before any destructive or state-hiding local git action (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed branch state to its matching GitHub backup branch.
 - Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, stop and ask for an approval command naming the exact targets.
+- Terminology:
+  - `local branch` = a branch ref in the local checkout on disk
+  - `remote branch` / `GitHub branch` = a branch at `origin/<name>` on GitHub
+  - `worktree` = a working directory on disk attached to a local checkout
+- Broad requests like "clean up branches" or "sync everything" are insufficient. Use deterministic approvals that name object type + exact target(s), for example:
+  - `APPROVE DELETE LOCAL WORKTREE wt-WP-1-Example`
+  - `APPROVE DELETE LOCAL BRANCH feat/WP-1-Example`
+  - `APPROVE FAST_FORWARD REMOTE BRANCH role_validator TO main`
 
 ### Governance-only work (no WP required)
 - Governance/workflow/tooling-only maintenance does NOT require a Work Packet or USER_SIGNATURE when the planned diff is strictly limited to governance surface files:

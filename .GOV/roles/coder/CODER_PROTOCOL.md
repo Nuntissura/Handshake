@@ -15,11 +15,20 @@
 ## Permanent Branch + Backup Model (HARD)
 
 - `main` is the only canonical integrated branch on disk and on GitHub.
-- Permanent protected role/user branches and their permanent role worktrees must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
+- Permanent protected role/user branches must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`.
+- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
 - Coders must never push to `main`, `user_ilja`, `role_orchestrator`, or `role_validator`.
 - A Coder may push only the assigned WP backup branch recorded in the task packet.
 - Before destructive or state-hiding local git actions on the WP branch (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the assigned WP backup branch on GitHub.
 - Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact targets, and ask for an approval command naming those targets deterministically.
+- Terminology:
+  - `local branch` = a branch ref in the local checkout on disk
+  - `remote branch` / `GitHub branch` = a branch at `origin/<name>` on GitHub
+  - `worktree` = a working directory on disk attached to a local checkout
+- Broad requests like "clean up branches" or "sync everything" are insufficient for destructive or branch-moving work. Ask for deterministic approvals that name object type + exact target(s), for example:
+  - `APPROVE DELETE LOCAL WORKTREE wt-WP-1-Example`
+  - `APPROVE DELETE LOCAL BRANCH feat/WP-1-Example`
+  - `APPROVE FAST_FORWARD REMOTE BRANCH feat/WP-1-Example TO main`
 
 ## Repo Boundary Rules (HARD)
 
