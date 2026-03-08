@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja080320262258 | Orchestrator | 2026-03-08 22:58 | Spec Enrichment v02.151 (backend export/evidence/portability pass + mailbox/AI-ready/workflow backend matrix expansion + stub bridge growth) | v02.151 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.151 ilja080320262258`. |
+| ilja080320262147 | Orchestrator | 2026-03-08 21:47 | Spec Enrichment v02.150 (backend-heavy matrix expansion + combo stub growth) | v02.150 | Approved in-chat: APPROVE SPEC ENRICHMENT v02.150 |
 | ilja080320261910 | Orchestrator | 2026-03-08 19:10 | Spec Enrichment v02.149 (refinement reciprocity + matrix-research rubric + GUI implementation advice hardening) | v02.149 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.149 | SIGNATURE: ilja080320261910`. |
 | ilja080320261744 | Orchestrator | 2026-03-08 17:44 | Spec Enrichment v02.148 (ownership-reduction deepening: Stage/media session-auth ownership + multi-session runtime + debug/export/retention contract attachment + Stage↔Media, Session↔AI Job, Debug↔Storage edges) | v02.148 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.148 | SIGNATURE: ilja080320261744`. |
 | ilja080320261623 | Orchestrator | 2026-03-08 16:23 | Spec Enrichment v02.147 (orphan-ownership and projection-contract pass + capability/job/debug/storage/operator deepening + export/projection edges) | v02.147 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.147 | SIGNATURE: ilja 080320261623` (normalized to `ilja080320261623` for audit format). |
