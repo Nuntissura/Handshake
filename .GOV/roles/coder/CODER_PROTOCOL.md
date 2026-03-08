@@ -20,6 +20,7 @@
 - Coders must never push to `main`, `user_ilja`, `role_orchestrator`, or `role_validator`.
 - A Coder may push only the assigned WP backup branch recorded in the task packet.
 - Before destructive or state-hiding local git actions on the WP branch (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the assigned WP backup branch on GitHub.
+- Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact targets, and ask for an approval command naming those targets deterministically.
 - For clearer language going forward, use these exact terms:
   - `local branch`: a branch ref in a local checkout on disk, for example `main` or `role_validator`
@@ -31,6 +32,7 @@
   - `APPROVE DELETE LOCAL WORKTREE wt-WP-1-Example`
   - `APPROVE DELETE LOCAL BRANCH feat/WP-1-Example`
   - `APPROVE FAST_FORWARD REMOTE BRANCH feat/WP-1-Example TO main`
+- Use `just enumerate-cleanup-targets` before asking for cleanup approvals.
 
 ## Repo Boundary Rules (HARD)
 

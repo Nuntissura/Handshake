@@ -22,6 +22,7 @@
 - `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches, not integration branches. They may diverge from `main`.
 - Matching backup pushes are allowed safety operations. For Validator work this means pushing `role_validator` to `origin/role_validator` when preserving committed state before destructive local operations.
 - Before destructive or state-hiding local git actions (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the matching GitHub backup branch.
+- Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact targets, and ask for an approval command naming those targets deterministically.
 - For clearer language going forward, use these exact terms:
   - `local branch`: a branch ref in a local checkout on disk, for example `main` or `role_validator`
@@ -33,6 +34,8 @@
   - `APPROVE DELETE LOCAL WORKTREE wt-WP-1-Example`
   - `APPROVE DELETE LOCAL BRANCH feat/WP-1-Example`
   - `APPROVE FAST_FORWARD REMOTE BRANCH role_validator TO main`
+- Use `just enumerate-cleanup-targets` before asking for cleanup approvals.
+- Use `just sync-all-role-worktrees` to fast-forward the permanent local clones when all are clean.
 
 ## Repo Boundary Rules (HARD)
 

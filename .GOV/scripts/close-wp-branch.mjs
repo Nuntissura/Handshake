@@ -16,8 +16,8 @@ function fail(message, details = []) {
 
 function usage() {
   fail("Usage: node .GOV/scripts/close-wp-branch.mjs <WP_ID> [--remote] --approve \"<approval text>\"", [
-    "Example (local only): node .GOV/scripts/close-wp-branch.mjs WP-1-MEX-v1.2-Runtime-v3 --approve \"APPROVE DELETE BRANCH feat/WP-1-MEX-v1.2-Runtime-v3\"",
-    "Example (also delete origin branch): node .GOV/scripts/close-wp-branch.mjs WP-1-MEX-v1.2-Runtime-v3 --remote --approve \"APPROVE DELETE BRANCH feat/WP-1-MEX-v1.2-Runtime-v3; APPROVE DELETE GITHUB BRANCH feat/WP-1-MEX-v1.2-Runtime-v3\"",
+    "Example (local only): node .GOV/scripts/close-wp-branch.mjs WP-1-MEX-v1.2-Runtime-v3 --approve \"APPROVE DELETE LOCAL BRANCH feat/WP-1-MEX-v1.2-Runtime-v3\"",
+    "Example (also delete origin branch): node .GOV/scripts/close-wp-branch.mjs WP-1-MEX-v1.2-Runtime-v3 --remote --approve \"APPROVE DELETE LOCAL BRANCH feat/WP-1-MEX-v1.2-Runtime-v3; APPROVE DELETE REMOTE BRANCH feat/WP-1-MEX-v1.2-Runtime-v3\"",
   ]);
 }
 
@@ -74,8 +74,8 @@ function remoteBranchExists(remoteName, branch) {
 }
 
 function requireApproval(approval, branch, remote) {
-  const required = [`APPROVE DELETE BRANCH ${branch}`];
-  if (remote) required.push(`APPROVE DELETE GITHUB BRANCH ${branch}`);
+  const required = [`APPROVE DELETE LOCAL BRANCH ${branch}`];
+  if (remote) required.push(`APPROVE DELETE REMOTE BRANCH ${branch}`);
   const missing = required.filter((token) => !approval.includes(token));
   if (missing.length > 0) {
     fail("Missing deterministic Operator approval text", [

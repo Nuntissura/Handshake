@@ -16,6 +16,7 @@
 - Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
 - `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches, not integration branches. They may diverge from `main`.
 - Before any destructive or state-hiding local git action (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed branch state to its matching GitHub backup branch.
+- Before deleting local branches/worktrees or doing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, stop and ask for an approval command naming the exact targets.
 - For clearer language going forward, use these exact terms:
   - `local branch`: a branch ref in a local checkout on disk, for example `main` or `role_validator`
@@ -27,6 +28,8 @@
   - `APPROVE DELETE LOCAL WORKTREE wt-WP-1-Example`
   - `APPROVE DELETE LOCAL BRANCH feat/WP-1-Example`
   - `APPROVE FAST_FORWARD REMOTE BRANCH role_validator TO main`
+- Use `just enumerate-cleanup-targets` to print current exact targets and copy-paste approval examples.
+- Use `just sync-all-role-worktrees` to fast-forward the permanent local clones safely when all are clean.
 
 ### Governance-only work (no WP required)
 - Governance/workflow/tooling-only maintenance does NOT require a Work Packet or USER_SIGNATURE when the planned diff is strictly limited to governance surface files:

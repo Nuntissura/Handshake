@@ -35,5 +35,6 @@ await import("./drive-agnostic-check.mjs");
 await import("./phase1-add-coverage-check.mjs");
 await import("./spec-growth-discipline-check.mjs");
 await import("./spec-governance-reference-check.mjs");
+await import("./topology-registry-check.mjs");
 
 console.log("gov-check ok");

@@ -22,7 +22,7 @@ test:
 
 # Fail if any required docs are missing (navigation pack + past work index)
 docs-check:
-	node -e "['.GOV/roles_shared/START_HERE.md', '.GOV/roles_shared/SPEC_CURRENT.md', '.GOV/roles_shared/ARCHITECTURE.md', '.GOV/roles_shared/RUNBOOK_DEBUG.md', '.GOV/roles_shared/PAST_WORK_INDEX.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
+	node -e "['.GOV/roles_shared/START_HERE.md', '.GOV/roles_shared/SPEC_CURRENT.md', '.GOV/roles_shared/ARCHITECTURE.md', '.GOV/roles_shared/RUNBOOK_DEBUG.md', '.GOV/roles_shared/PAST_WORK_INDEX.md', '.GOV/roles_shared/REPO_RESILIENCE.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
 
 # Format backend Rust
 fmt:
@@ -55,6 +55,12 @@ gov-check:
 	just docs-check
 	node .GOV/scripts/validation/gov-check.mjs
 
+topology-registry-sync:
+	node .GOV/scripts/topology-registry-sync.mjs
+
+topology-registry-check:
+	node .GOV/scripts/validation/topology-registry-check.mjs
+
 # Safety backup push: push the current committed branch state to its matching GitHub backup branch.
 backup-push local_branch="" remote_branch="":
 	node .GOV/scripts/backup-push.mjs {{local_branch}} {{remote_branch}}
@@ -63,6 +69,18 @@ backup-push local_branch="" remote_branch="":
 ensure-permanent-backup-branches:
 	node .GOV/scripts/ensure-permanent-backup-branches.mjs
 
+# Immutable out-of-repo snapshot: git bundles + copied working files.
+backup-snapshot label="manual" out_root="" nas_root="":
+	node .GOV/scripts/backup-snapshot.mjs --label "{{label}}" --out-root "{{out_root}}" --nas-root "{{nas_root}}"
+
+# Fast-forward the permanent local clones from their matching remotes when all are clean.
+sync-all-role-worktrees:
+	node .GOV/scripts/sync-all-role-worktrees.mjs
+
+# Enumerate deletable local worktrees/branches and non-protected remote branches with exact approval examples.
+enumerate-cleanup-targets:
+	node .GOV/scripts/enumerate-cleanup-targets.mjs
+
 # Master Spec EOF appendix blocks check (Spec §12).
 spec-eof-appendices-check:
 	node .GOV/scripts/validation/spec-eof-appendices-check.mjs
@@ -70,6 +88,7 @@ spec-eof-appendices-check:
 # Governance sync helper: refresh derived governance views then validate.
 gov-sync:
 	just build-order-sync
+	just topology-registry-sync
 	just gov-check
 
 # Build order (derived view) maintenance [CX-BO-001]
