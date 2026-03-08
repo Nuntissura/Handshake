@@ -23,6 +23,8 @@ import {
   writeFileNormalized,
 } from "./git-topology-lib.mjs";
 
+const OFFLINE_GIT_BACKUP_SETUP_REPO_PATH = ".GOV/roles_shared/OFFLINE_GIT_BACKUP_SETUP.md";
+
 function usage() {
   console.error("Usage: node .GOV/scripts/backup-snapshot.mjs [--label <name>] [--out-root <dir>] [--nas-root <dir>]");
   process.exit(1);
@@ -68,6 +70,12 @@ function createBundle(absPath, refs) {
   execFileSync("git", ["bundle", "create", absPath, ...refs], { cwd: REPO_ROOT, stdio: "inherit" });
 }
 
+function writeReusableGuide(destRoot) {
+  if (!destRoot) return;
+  const sourceText = fs.readFileSync(absFromRepo(OFFLINE_GIT_BACKUP_SETUP_REPO_PATH), "utf8");
+  writeFileNormalized(path.join(destRoot, "OFFLINE_GIT_BACKUP_SETUP.md"), sourceText);
+}
+
 function resolveProtectedBundleRefs() {
   return PROTECTED_BRANCHES.map((branch) => {
     if (refExists(REPO_ROOT, branch)) return branch;
@@ -90,6 +98,7 @@ const manifestsDir = path.join(snapshotRoot, "manifests");
 ensureDir(bundlesDir);
 ensureDir(worktreesDir);
 ensureDir(manifestsDir);
+writeReusableGuide(backupRoot);
 
 const topologyRegistry = buildTopologyRegistry();
 const topologySnapshot = buildDynamicTopologySnapshot();
@@ -132,6 +141,7 @@ const manifest = {
     "git bundles preserve committed refs",
     "robocopy worktree copies preserve working files, including dirty state, outside the repo tree",
     "robocopy excludes .git and common build-cache directories to keep snapshots portable",
+    "backup roots are append-only timestamped directories; old snapshots are not deleted by the snapshot job",
   ],
 };
 
@@ -153,6 +163,7 @@ writeFileNormalized(
 
 let nasCopyStatus = "SKIPPED";
 if (nasBackupRoot) {
+  writeReusableGuide(nasBackupRoot);
   const nasDest = path.join(nasBackupRoot, snapshotName);
   ensureDir(nasDest);
   runRobocopy(snapshotRoot, nasDest, []);

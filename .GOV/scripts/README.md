@@ -12,5 +12,6 @@ Git hooks:
 Repo resilience:
 - `node .GOV/scripts/topology-registry-sync.mjs` regenerates the deterministic permanent-checkout topology registry.
 - `node .GOV/scripts/backup-snapshot.mjs --label manual` creates an out-of-repo snapshot with git bundles + copied working files.
+- `node .GOV/scripts/backup-snapshot.mjs --label manual --nas-root "\\\\server\\share\\Project Backups"` copies the same timestamped snapshot to a NAS without mirror deletes.
 - `node .GOV/scripts/sync-all-role-worktrees.mjs` fast-forwards the permanent local clones when all are clean.
 - `node .GOV/scripts/enumerate-cleanup-targets.mjs` lists exact cleanup candidates and approval examples.

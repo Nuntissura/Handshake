@@ -73,6 +73,11 @@ ensure-permanent-backup-branches:
 backup-snapshot label="manual" out_root="" nas_root="":
 	node .GOV/scripts/backup-snapshot.mjs --label "{{label}}" --out-root "{{out_root}}" --nas-root "{{nas_root}}"
 
+# Immutable snapshot using the configured HANDSHAKE_NAS_BACKUP_ROOT.
+backup-snapshot-nas label="manual":
+	node -e "if(!(process.env.HANDSHAKE_NAS_BACKUP_ROOT||'').trim()){console.error('HANDSHAKE_NAS_BACKUP_ROOT is not set');process.exit(1)}"
+	node .GOV/scripts/backup-snapshot.mjs --label "{{label}}"
+
 # Fast-forward the permanent local clones from their matching remotes when all are clean.
 sync-all-role-worktrees:
 	node .GOV/scripts/sync-all-role-worktrees.mjs
