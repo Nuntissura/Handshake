@@ -1,10 +1,11 @@
 # PAST_WORK_INDEX
 
 ## Current authoritative references
-- [Handshake_Master_Spec_v02.144.md](../Handshake_Master_Spec_v02.144.md) - current authoritative Master Spec (`SPEC_CURRENT` target).
+- [Handshake_Master_Spec_v02.145.md](../Handshake_Master_Spec_v02.145.md) - current authoritative Master Spec (`SPEC_CURRENT` target).
 - [Handshake Codex v1.4.md](../Handshake%20Codex%20v1.4.md) - current governance and operating rules.
 
 ## Recent spec history
+- [Handshake_Master_Spec_v02.144.md](../Handshake_Master_Spec_v02.144.md) - prior spec drop for diffing.
 - [Handshake_Master_Spec_v02.143.md](../Handshake_Master_Spec_v02.143.md) - prior spec drop for diffing.
 - [Handshake_Master_Spec_v02.142.md](../Handshake_Master_Spec_v02.142.md) - prior spec drop for diffing.
 - [Handshake_Master_Spec_v02.141.md](../Handshake_Master_Spec_v02.141.md) - prior spec drop for diffing.
