@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja080320261546 | Orchestrator | 2026-03-08 15:46 | Spec Enrichment v02.146 (deepening pass over seeded runtime rows + AI-ready/FR/RoleMailbox/Locus/Loom coverage + job-consent/MEX-FR edges) | v02.146 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.146 | SIGNATURE: ilja080320261546`. |
 | ilja080320261408 | Orchestrator | 2026-03-08 14:08 | Spec Enrichment v02.145 (third-pass runtime/data/operator coverage + session/consent/MEX feature rows + execution-path matrix deepening) | v02.145 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.145 | SIGNATURE: ilja080320261408`. |
 | ilja080320260600 | Orchestrator | 2026-03-08 06:00 | Spec Enrichment v02.144 (second-pass feature-family coverage + runtime visibility deepening + stub backlog expansion) | v02.144 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.144 | SIGNATURE: ilja080320260600`. |
 | ilja080320260320 | Orchestrator | 2026-03-08 03:20 | Spec Enrichment v02.143 (primitive index coverage contract + exhaustive Appendix 12.4 seeding + stub backlog sync) | v02.143 | Approved in-chat: `APPROVE SPEC ENRICHMENT|v02.143 ilja080320260320`. |
