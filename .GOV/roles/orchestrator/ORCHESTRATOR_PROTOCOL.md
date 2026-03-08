@@ -21,10 +21,12 @@
 - Matching backup pushes are allowed safety operations. For Orchestrator work this means pushing `role_orchestrator` to `origin/role_orchestrator` when preserving committed state before destructive local operations.
 - Before destructive or state-hiding local git actions (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the matching GitHub backup branch.
 - Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact targets, and ask for an approval command naming those targets deterministically.
-- Terminology:
-  - `local branch` = a branch ref in the local checkout on disk
-  - `remote branch` / `GitHub branch` = a branch at `origin/<name>` on GitHub
-  - `worktree` = a working directory on disk attached to a local checkout
+- For clearer language going forward, use these exact terms:
+  - `local branch`: a branch ref in a local checkout on disk, for example `main` or `role_validator`
+  - `remote branch` or `GitHub branch`: a branch at `origin/<name>`, for example `origin/main`
+  - `worktree`: a directory on disk, for example `handshake_main` or `wt-validator`
+  - `canonical branch`: always `main`
+  - `backup branch`: a non-canonical GitHub branch used as a safety copy, for example `origin/role_validator`
 - Broad requests like "clean up branches" or "sync everything" are insufficient for destructive or branch-moving work. Ask for deterministic approvals that name object type + exact target(s), for example:
   - `APPROVE DELETE LOCAL WORKTREE wt-WP-1-Example`
   - `APPROVE DELETE LOCAL BRANCH feat/WP-1-Example`

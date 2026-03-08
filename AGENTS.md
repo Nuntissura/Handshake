@@ -17,10 +17,12 @@
 - `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches, not integration branches. They may diverge from `main`.
 - Before any destructive or state-hiding local git action (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed branch state to its matching GitHub backup branch.
 - Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, stop and ask for an approval command naming the exact targets.
-- Terminology:
-  - `local branch` = a branch ref in the local checkout on disk
-  - `remote branch` / `GitHub branch` = a branch at `origin/<name>` on GitHub
-  - `worktree` = a working directory on disk attached to a local checkout
+- For clearer language going forward, use these exact terms:
+  - `local branch`: a branch ref in a local checkout on disk, for example `main` or `role_validator`
+  - `remote branch` or `GitHub branch`: a branch at `origin/<name>`, for example `origin/main`
+  - `worktree`: a directory on disk, for example `handshake_main` or `wt-validator`
+  - `canonical branch`: always `main`
+  - `backup branch`: a non-canonical GitHub branch used as a safety copy, for example `origin/role_validator`
 - Broad requests like "clean up branches" or "sync everything" are insufficient. Use deterministic approvals that name object type + exact target(s), for example:
   - `APPROVE DELETE LOCAL WORKTREE wt-WP-1-Example`
   - `APPROVE DELETE LOCAL BRANCH feat/WP-1-Example`
