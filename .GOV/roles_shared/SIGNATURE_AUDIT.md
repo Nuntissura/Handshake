@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja080320261623 | Orchestrator | 2026-03-08 16:23 | Spec Enrichment v02.147 (orphan-ownership and projection-contract pass + capability/job/debug/storage/operator deepening + export/projection edges) | v02.147 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.147 | SIGNATURE: ilja 080320261623` (normalized to `ilja080320261623` for audit format). |
 | ilja080320261546 | Orchestrator | 2026-03-08 15:46 | Spec Enrichment v02.146 (deepening pass over seeded runtime rows + AI-ready/FR/RoleMailbox/Locus/Loom coverage + job-consent/MEX-FR edges) | v02.146 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.146 | SIGNATURE: ilja080320261546`. |
 | ilja080320261408 | Orchestrator | 2026-03-08 14:08 | Spec Enrichment v02.145 (third-pass runtime/data/operator coverage + session/consent/MEX feature rows + execution-path matrix deepening) | v02.145 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.145 | SIGNATURE: ilja080320261408`. |
 | ilja080320260600 | Orchestrator | 2026-03-08 06:00 | Spec Enrichment v02.144 (second-pass feature-family coverage + runtime visibility deepening + stub backlog expansion) | v02.144 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.144 | SIGNATURE: ilja080320260600`. |

@@ -85,6 +85,11 @@ Requirements (HARD):
 - PRIMITIVE_INDEX_REASON_NO_CHANGE: <fill if PRIMITIVE_INDEX_ACTION=NO_CHANGE>
 - PRIMITIVE_INDEX_UPDATE_NOTES:
   - <fill>
+- HIGH_SIGNAL_ORPHAN_PRIMITIVES_DISCOVERED: <comma-separated PRIM-... IDs | NONE>
+- HIGH_SIGNAL_ORPHAN_PRIMITIVES_RESOLUTION: PENDING (ATTACHED | STUBBED | MIXED | NONE)
+- HIGH_SIGNAL_ORPHAN_PRIMITIVES_ATTACHED_THIS_PASS: <comma-separated PRIM-... IDs | NONE>
+- HIGH_SIGNAL_ORPHAN_PRIMITIVES_STUB_WP_IDS: <comma-separated WP-... IDs | NONE>
+- HIGH_SIGNAL_ORPHAN_PRIMITIVES_REASON: <fill>
 
 ### APPENDIX_MAINTENANCE (spec appendix follow-through)
 - Rule: if any appendix action below is `UPDATED`, this refinement is declaring a Master Spec version bump. In that case set `APPENDIX_MAINTENANCE_VERDICT=NEEDS_SPEC_UPDATE`, set `SPEC_IMPACT=YES`, set `ENRICHMENT_NEEDED=YES`, and include the verbatim appendix update text in `PROPOSED_SPEC_ENRICHMENT`. Packet creation stays blocked until the new spec version exists and `SPEC_CURRENT` is advanced.

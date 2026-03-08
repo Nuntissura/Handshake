@@ -551,6 +551,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     uiApplicable: '',
     uiVerdict: '',
     primitiveIndexAction: '',
+    orphanPrimitiveResolution: '',
     primitiveMatrixVerdict: '',
     pillarAlignmentVerdict: '',
     appendixMaintenanceVerdict: '',
@@ -1011,6 +1012,99 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     if (/^NO_CHANGE$/i.test(primIndexAction || '')) {
       const reason = getSingleField(content, 'PRIMITIVE_INDEX_REASON_NO_CHANGE');
       if (isPlaceholderValue(reason)) errors.push('PRIMITIVE_INDEX_REASON_NO_CHANGE is required when PRIMITIVE_INDEX_ACTION=NO_CHANGE');
+    }
+
+    const orphanDiscoveredRaw = getSingleField(content, 'HIGH_SIGNAL_ORPHAN_PRIMITIVES_DISCOVERED');
+    const orphanResolutionRaw = getSingleField(content, 'HIGH_SIGNAL_ORPHAN_PRIMITIVES_RESOLUTION');
+    const orphanAttachedRaw = getSingleField(content, 'HIGH_SIGNAL_ORPHAN_PRIMITIVES_ATTACHED_THIS_PASS');
+    const orphanStubRaw = getSingleField(content, 'HIGH_SIGNAL_ORPHAN_PRIMITIVES_STUB_WP_IDS');
+    const orphanReason = getSingleField(content, 'HIGH_SIGNAL_ORPHAN_PRIMITIVES_REASON');
+    const reviewStatusForOrphans = getSingleField(content, 'USER_REVIEW_STATUS');
+    const signatureForOrphans = getSingleField(content, 'USER_SIGNATURE');
+    const enforceOrphanPrimitiveRule = isHydratedResearchProfile
+      && hasRuntimeAlignmentSections
+      && (!/^(APPROVED)$/i.test(reviewStatusForOrphans || '') || !signatureForOrphans || signatureForOrphans === '<pending>');
+
+    const parsePrimitiveCsv = (rawValue, label) => {
+      const raw = String(rawValue || '').trim();
+      if (isPlaceholderValue(raw)) {
+        errors.push(`${label} is required`);
+        return { ids: [], hasNone: false };
+      }
+      if (/^NONE$/i.test(raw)) return { ids: [], hasNone: true };
+      const ids = [];
+      const seen = new Set();
+      for (const item of normalizeCsv(raw)) {
+        if (!/^PRIM-[A-Za-z0-9][A-Za-z0-9_-]*$/i.test(item)) {
+          errors.push(`${label} contains invalid primitive id (expected PRIM-...): ${item}`);
+          continue;
+        }
+        if (!seen.has(item)) {
+          seen.add(item);
+          ids.push(item);
+        }
+      }
+      if (ids.length === 0) {
+        errors.push(`${label} must list one or more PRIM-... IDs, or NONE`);
+      }
+      return { ids, hasNone: false };
+    };
+
+    if (enforceOrphanPrimitiveRule) {
+      const discovered = parsePrimitiveCsv(orphanDiscoveredRaw, 'HIGH_SIGNAL_ORPHAN_PRIMITIVES_DISCOVERED');
+      const attached = parsePrimitiveCsv(orphanAttachedRaw, 'HIGH_SIGNAL_ORPHAN_PRIMITIVES_ATTACHED_THIS_PASS');
+      const stubIds = validateStubIds(orphanStubRaw, errors, 'HIGH_SIGNAL_ORPHAN_PRIMITIVES_STUB_WP_IDS');
+      const resolution = (orphanResolutionRaw || '').toUpperCase();
+      parsed.orphanPrimitiveResolution = resolution;
+
+      if (!/^(ATTACHED|STUBBED|MIXED|NONE)$/i.test(orphanResolutionRaw || '')) {
+        errors.push('HIGH_SIGNAL_ORPHAN_PRIMITIVES_RESOLUTION must be ATTACHED | STUBBED | MIXED | NONE');
+      }
+      if (isPlaceholderValue(orphanReason)) {
+        errors.push('HIGH_SIGNAL_ORPHAN_PRIMITIVES_REASON must be filled');
+      }
+
+      if (discovered.hasNone) {
+        if (resolution !== 'NONE') {
+          errors.push('HIGH_SIGNAL_ORPHAN_PRIMITIVES_DISCOVERED=NONE requires HIGH_SIGNAL_ORPHAN_PRIMITIVES_RESOLUTION=NONE');
+        }
+        if (!/^NONE$/i.test(String(orphanAttachedRaw || '').trim())) {
+          errors.push('HIGH_SIGNAL_ORPHAN_PRIMITIVES_DISCOVERED=NONE requires HIGH_SIGNAL_ORPHAN_PRIMITIVES_ATTACHED_THIS_PASS=NONE');
+        }
+        if (stubIds.length > 0 || !/^NONE$/i.test(String(orphanStubRaw || '').trim())) {
+          errors.push('HIGH_SIGNAL_ORPHAN_PRIMITIVES_DISCOVERED=NONE requires HIGH_SIGNAL_ORPHAN_PRIMITIVES_STUB_WP_IDS=NONE');
+        }
+      } else {
+        if (resolution === 'NONE') {
+          errors.push('Discovered high-signal orphan primitives require resolution ATTACHED | STUBBED | MIXED, not NONE');
+        }
+        const discoveredSet = new Set(discovered.ids);
+        if (resolution === 'ATTACHED' || resolution === 'MIXED') {
+          if (attached.hasNone || attached.ids.length === 0) {
+            errors.push(`HIGH_SIGNAL_ORPHAN_PRIMITIVES_RESOLUTION=${resolution} requires HIGH_SIGNAL_ORPHAN_PRIMITIVES_ATTACHED_THIS_PASS to list one or more PRIM-... IDs`);
+          }
+          for (const primId of attached.ids) {
+            if (!discoveredSet.has(primId)) {
+              errors.push(`HIGH_SIGNAL_ORPHAN_PRIMITIVES_ATTACHED_THIS_PASS includes ${primId}, but it is not listed in HIGH_SIGNAL_ORPHAN_PRIMITIVES_DISCOVERED`);
+            }
+          }
+        } else if (!/^NONE$/i.test(String(orphanAttachedRaw || '').trim())) {
+          errors.push(`HIGH_SIGNAL_ORPHAN_PRIMITIVES_RESOLUTION=${resolution} requires HIGH_SIGNAL_ORPHAN_PRIMITIVES_ATTACHED_THIS_PASS=NONE`);
+        }
+
+        if (resolution === 'STUBBED' || resolution === 'MIXED') {
+          if (stubIds.length === 0) {
+            errors.push(`HIGH_SIGNAL_ORPHAN_PRIMITIVES_RESOLUTION=${resolution} requires HIGH_SIGNAL_ORPHAN_PRIMITIVES_STUB_WP_IDS to list one or more stub packets`);
+          }
+          for (const stubId of stubIds) {
+            if (!parsed.stubWpIds.includes(stubId)) {
+              errors.push(`Top-level STUB_WP_IDS must include orphan-primitive-linked stub ${stubId}`);
+            }
+          }
+        } else if (stubIds.length > 0 || !/^NONE$/i.test(String(orphanStubRaw || '').trim())) {
+          errors.push(`HIGH_SIGNAL_ORPHAN_PRIMITIVES_RESOLUTION=${resolution} requires HIGH_SIGNAL_ORPHAN_PRIMITIVES_STUB_WP_IDS=NONE`);
+        }
+      }
     }
 
     // Enforce that any referenced PRIM-* IDs exist in the Spec primitive index/matrix (Appendix 12.4).
