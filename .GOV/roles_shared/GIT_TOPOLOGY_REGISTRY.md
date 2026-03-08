@@ -19,6 +19,7 @@ This file is a deterministic governance registry for the permanent Handshake che
 ## HELPER_COMMANDS
 
 - backup_snapshot: just backup-snapshot
+- backup_status: just backup-status
 - sync_all_role_worktrees: just sync-all-role-worktrees
 - enumerate_cleanup_targets: just enumerate-cleanup-targets
 - ensure_permanent_backup_branches: just ensure-permanent-backup-branches

@@ -73,10 +73,13 @@ ensure-permanent-backup-branches:
 backup-snapshot label="manual" out_root="" nas_root="":
 	node .GOV/scripts/backup-snapshot.mjs --label "{{label}}" --out-root "{{out_root}}" --nas-root "{{nas_root}}"
 
+# Read-only status for local/NAS backup roots and latest snapshot presence.
+backup-status:
+	node .GOV/scripts/backup-status.mjs
+
 # Immutable snapshot using the configured HANDSHAKE_NAS_BACKUP_ROOT.
 backup-snapshot-nas label="manual":
-	node -e "if(!(process.env.HANDSHAKE_NAS_BACKUP_ROOT||'').trim()){console.error('HANDSHAKE_NAS_BACKUP_ROOT is not set');process.exit(1)}"
-	node .GOV/scripts/backup-snapshot.mjs --label "{{label}}"
+	node .GOV/scripts/backup-snapshot.mjs --label "{{label}}" --require-nas
 
 # Fast-forward the permanent local clones from their matching remotes when all are clean.
 sync-all-role-worktrees:
@@ -199,16 +202,19 @@ coder-preflight:
 # Role startup (recommended): protocol ack + condensed preflight in one command.
 orchestrator-startup:
 	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md"
+	@just backup-status
 	@just orchestrator-preflight
 	@echo 'RESUME_HINT: After a reset/compaction, run `just orchestrator-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 validator-startup:
 	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles/validator/VALIDATOR_PROTOCOL.md"
+	@just backup-status
 	@just validator-preflight
 	@echo 'RESUME_HINT: After a reset/compaction, run `just validator-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 coder-startup:
 	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles/coder/CODER_PROTOCOL.md"
+	@just backup-status
 	@just coder-preflight
 	@echo 'RESUME_HINT: After a reset/compaction, run `just coder-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
 

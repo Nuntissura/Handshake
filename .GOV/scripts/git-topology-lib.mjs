@@ -195,6 +195,7 @@ export function buildTopologyRegistry() {
     })),
     helper_commands: {
       backup_snapshot: "just backup-snapshot",
+      backup_status: "just backup-status",
       sync_all_role_worktrees: "just sync-all-role-worktrees",
       enumerate_cleanup_targets: "just enumerate-cleanup-targets",
       ensure_permanent_backup_branches: "just ensure-permanent-backup-branches",
@@ -235,6 +236,7 @@ export function renderTopologyRegistryMd(registry) {
     "## HELPER_COMMANDS",
     "",
     `- backup_snapshot: ${registry.helper_commands.backup_snapshot}`,
+    `- backup_status: ${registry.helper_commands.backup_status}`,
     `- sync_all_role_worktrees: ${registry.helper_commands.sync_all_role_worktrees}`,
     `- enumerate_cleanup_targets: ${registry.helper_commands.enumerate_cleanup_targets}`,
     `- ensure_permanent_backup_branches: ${registry.helper_commands.ensure_permanent_backup_branches}`,
@@ -315,14 +317,27 @@ export function timestampForSnapshot(now = new Date()) {
   return `${yyyy}${mm}${dd}-${hh}${mi}${ss}Z`;
 }
 
+function readPersistedUserEnv(name) {
+  if (process.platform !== "win32") return "";
+  try {
+    return execFileSync(
+      "powershell.exe",
+      ["-NoLogo", "-NonInteractive", "-Command", `[Environment]::GetEnvironmentVariable('${name}','User')`],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    ).trim();
+  } catch {
+    return "";
+  }
+}
+
 export function resolveBackupRoot(overrideValue = "") {
-  const value = String(overrideValue || process.env.HANDSHAKE_BACKUP_ROOT || "").trim();
+  const value = String(overrideValue || process.env.HANDSHAKE_BACKUP_ROOT || readPersistedUserEnv("HANDSHAKE_BACKUP_ROOT") || "").trim();
   if (value) return path.resolve(value);
   return path.resolve(WORKSPACE_ROOT, "..", "Handshake Backups");
 }
 
 export function resolveNasBackupRoot(overrideValue = "") {
-  const value = String(overrideValue || process.env.HANDSHAKE_NAS_BACKUP_ROOT || "").trim();
+  const value = String(overrideValue || process.env.HANDSHAKE_NAS_BACKUP_ROOT || readPersistedUserEnv("HANDSHAKE_NAS_BACKUP_ROOT") || "").trim();
   return value ? path.resolve(value) : "";
 }
 

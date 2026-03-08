@@ -123,7 +123,8 @@ Persist them for the current user if desired:
 
 Recommended cadence:
 
-- daily automated snapshot
+- local automated snapshot every 4 hours
+- daily automated NAS snapshot
 - extra manual snapshot before destructive cleanup or topology changes
 - weekly restore drill
 
@@ -134,6 +135,32 @@ Pattern:
 1. run the snapshot command
 2. verify the new timestamped directory exists
 3. optionally write a simple log entry
+
+Recommended command split:
+
+- local recurring job:
+  - `just backup-snapshot autosnap`
+- NAS recurring job:
+  - `just backup-snapshot-nas daily`
+- visibility/status check:
+  - `just backup-status`
+
+The status command should be surfaced during role startup or preflight so humans and agents can see whether backup roots are configured and whether recent snapshots exist. This is safety context only; it does not authorize destructive actions by itself.
+
+## Startup Awareness Pattern
+
+If a project uses role-based agents or strict repo workflows, make backup existence visible at startup.
+
+Minimum pattern:
+
+1. keep the backup implementation in shared scripts/docs, not copied into every role doc in full
+2. surface a short status command during startup or preflight
+3. show only:
+   - local backup configured or not
+   - NAS backup configured or not
+   - latest snapshot name or `NONE`
+4. do not print machine-specific NAS paths in every protocol unless truly required
+5. make clear that status visibility is not a substitute for approval gates
 
 ## Retention Policy
 
@@ -206,6 +233,44 @@ Minimal checklist:
 - [ ] protected branches are documented
 - [ ] restore steps are documented
 - [ ] restore drill is scheduled
+
+Recommended implementation checklist for another project:
+
+1. Create a shared resilience doc in the repo, for example `docs/REPO_RESILIENCE.md` or `.GOV/roles_shared/REPO_RESILIENCE.md`.
+2. Create a reusable setup guide like this file and copy it into the backup root after every snapshot run.
+3. Add a script that creates:
+   - git bundles for refs
+   - copied worktree files outside the repo tree
+   - snapshot manifests
+4. Add a status script that reports:
+   - local backup root configured or not
+   - NAS backup root configured or not
+   - latest snapshot presence
+   - latest manifest presence
+5. Add startup/preflight hooks so roles or maintainers see the backup status early.
+6. Add scheduled tasks:
+   - local recurring snapshots
+   - nightly NAS snapshots
+   - weekly restore drill or restore check
+7. Keep retention cleanup separate from snapshot creation.
+8. Keep backup roots outside the repo and outside live mirror-delete jobs.
+
+## Example Windows Task Scheduler Micro-Steps
+
+1. Open Task Scheduler.
+2. Create a new task for local recurring snapshots.
+3. Run it under the user account that has access to the repo and backup disks.
+4. Action:
+   - `powershell.exe`
+   - arguments: `-NoLogo -NonInteractive -Command "cd '<repo-root>'; just backup-snapshot autosnap"`
+5. Trigger:
+   - repeat every 4 hours
+6. Create a second task for nightly NAS snapshots.
+7. Action:
+   - `powershell.exe`
+   - arguments: `-NoLogo -NonInteractive -Command "cd '<repo-root>'; just backup-snapshot-nas daily"`
+8. Create a third optional task or checklist reminder for restore testing.
+9. After creating each task, run it once manually and confirm a new timestamped snapshot exists.
 
 ## Handshake-Specific Note
 

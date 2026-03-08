@@ -13,6 +13,7 @@ This document defines the repo-resilience layer for Handshake governance.
 
 - `just topology-registry-sync`
 - `just backup-snapshot [label] [out_root] [nas_root]`
+- `just backup-status`
 - `just backup-snapshot-nas [label]`
 - `just sync-all-role-worktrees`
 - `just enumerate-cleanup-targets`
@@ -23,6 +24,7 @@ This document defines the repo-resilience layer for Handshake governance.
 - `main` is the only canonical integrated branch.
 - `user_ilja`, `role_orchestrator`, and `role_validator` are backup branches on GitHub.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
+- Role startup should surface `just backup-status` so the assistant can see whether local/NAS backup roots are configured and whether recent immutable snapshots exist.
 - Backup snapshots do two things:
   - create git bundles for committed refs
   - copy current worktree files outside the repo tree so dirty state survives deletion incidents
@@ -49,9 +51,10 @@ Use environment variables or explicit command arguments:
 1. Keep working repos and worktrees on their normal disks.
 2. Keep the backup root outside the repo tree.
 3. Run `just backup-snapshot <label>` regularly and before topology deletion or broad cleanup.
-4. When `HANDSHAKE_NAS_BACKUP_ROOT` is configured, copy the entire timestamped snapshot directory to the NAS as a second location.
-5. Never use a destructive mirror sync against the backup roots.
-6. Keep backup cleanup as a separate operator-reviewed action.
+4. Run `just backup-status` during role startup or before risky topology work to confirm backup roots and latest snapshots are visible.
+5. When `HANDSHAKE_NAS_BACKUP_ROOT` is configured, copy the entire timestamped snapshot directory to the NAS as a second location.
+6. Never use a destructive mirror sync against the backup roots.
+7. Keep backup cleanup as a separate operator-reviewed action.
 
 ## Folder Layout
 

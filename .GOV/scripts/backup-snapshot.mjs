@@ -26,7 +26,7 @@ import {
 const OFFLINE_GIT_BACKUP_SETUP_REPO_PATH = ".GOV/roles_shared/OFFLINE_GIT_BACKUP_SETUP.md";
 
 function usage() {
-  console.error("Usage: node .GOV/scripts/backup-snapshot.mjs [--label <name>] [--out-root <dir>] [--nas-root <dir>]");
+  console.error("Usage: node .GOV/scripts/backup-snapshot.mjs [--label <name>] [--out-root <dir>] [--nas-root <dir>] [--require-nas]");
   process.exit(1);
 }
 
@@ -35,6 +35,7 @@ function parseArgs() {
   let label = "manual";
   let outRoot = "";
   let nasRoot = "";
+  let requireNas = false;
   for (let i = 0; i < args.length; i += 1) {
     const token = args[i];
     if (token === "--label") {
@@ -61,9 +62,13 @@ function parseArgs() {
       }
       continue;
     }
+    if (token === "--require-nas") {
+      requireNas = true;
+      continue;
+    }
     usage();
   }
-  return { label: label || "manual", outRoot, nasRoot };
+  return { label: label || "manual", outRoot, nasRoot, requireNas };
 }
 
 function createBundle(absPath, refs) {
@@ -85,10 +90,14 @@ function resolveProtectedBundleRefs() {
   }).filter(Boolean);
 }
 
-const { label, outRoot, nasRoot } = parseArgs();
+const { label, outRoot, nasRoot, requireNas } = parseArgs();
 const snapshotStamp = timestampForSnapshot();
 const backupRoot = resolveBackupRoot(outRoot);
 const nasBackupRoot = resolveNasBackupRoot(nasRoot);
+if (requireNas && !nasBackupRoot) {
+  console.error("HANDSHAKE_NAS_BACKUP_ROOT is not configured");
+  process.exit(1);
+}
 const snapshotName = `${snapshotStamp}-${label.replace(/[^A-Za-z0-9._-]+/g, "-")}`;
 const snapshotRoot = path.join(backupRoot, snapshotName);
 const bundlesDir = path.join(snapshotRoot, "bundles");
