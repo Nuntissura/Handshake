@@ -11,7 +11,7 @@ Requirements (HARD):
 
 ### METADATA
 - WP_ID: {{WP_ID}}
-- REFINEMENT_FORMAT_VERSION: 2026-03-06
+- REFINEMENT_FORMAT_VERSION: 2026-03-08
 - REFINEMENT_ENFORCEMENT_PROFILE: HYDRATED_RESEARCH_V1
 - CREATED_AT: {{DATE_ISO}}
 - SPEC_TARGET_RESOLVED: .GOV/roles_shared/SPEC_CURRENT.md -> {{SPEC_TARGET_RESOLVED}}
@@ -139,6 +139,7 @@ Requirements (HARD):
   - PILLAR: Task board (product, not repo) | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: MicroTask | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: Command Center | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Execution / Job Runtime | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: Spec to prompt | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: SQL to PostgreSQL shift readiness | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: LLM-friendly data | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
@@ -149,6 +150,18 @@ Requirements (HARD):
   - PILLAR: ACE | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: RAG | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
 - PILLAR_ALIGNMENT_VERDICT: PENDING (OK | NEEDS_SPEC_UPDATE | NEEDS_STUBS)
+
+### PILLAR_DECOMPOSITION (deeper pillar -> subfeature/capability slice mapping)
+- Rule: for `REFINEMENT_FORMAT_VERSION >= 2026-03-08`, decompose touched or adjacent pillars into concrete capability slices so Appendix 12 can grow beyond coarse pillar rows. This is where Calendar/Loom/Locus/Stage/Studio/Atelier-Lens/Command Center/Flight Recorder/RAG mixes become explicit. Silent omission is forbidden; every row must resolve through `IN_THIS_WP`, `NEW_STUB`, or `SPEC_UPDATE_NOW`.
+- Required row format:
+  - PILLAR: <fill> | CAPABILITY_SLICE: <fill> | SUBFEATURES: <fill> | PRIMITIVES_FEATURES: <comma-separated PRIM-/FEAT-/TOOL-/TECH- ids | NONE> | MECHANICAL: <comma-separated engine IDs | NONE> | ROI: <HIGH|MEDIUM|LOW> | RESOLUTION: <IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW> | STUB: <WP-... | NONE> | NOTES: <fill>
+- PILLAR_DECOMPOSITION_VERDICT: PENDING (OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
+
+### EXECUTION_RUNTIME_ALIGNMENT (job/workflow/tool/runtime visibility mapping)
+- Rule: every new or expanded capability must map to a Handshake runtime execution surface so local models, cloud models, and operators can invoke and observe it. This section is mandatory even when `ENRICHMENT_NEEDED=NO`.
+- Required row format:
+  - Capability: <fill> | JobModel: <AI_JOB|WORKFLOW|MECHANICAL_TOOL|UI_ACTION|NONE> | Workflow: <fill> | ToolSurface: <UNIFIED_TOOL_SURFACE|MCP|COMMAND_CENTER|UI_ONLY|NONE> | ModelExposure: <LOCAL|CLOUD|BOTH|OPERATOR_ONLY> | CommandCenter: <VISIBLE|PLANNED|NONE> | FlightRecorder: <event ids | NONE> | Locus: <VISIBLE|PLANNED|NONE> | StoragePosture: <SQLITE_NOW_POSTGRES_READY|POSTGRES_ONLY|N/A> | Resolution: <IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW> | Stub: <WP-... | NONE> | Notes: <fill>
+- EXECUTION_RUNTIME_ALIGNMENT_VERDICT: PENDING (OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
 
 ### PRIMITIVE_MATRIX (high-ROI combos; cross-primitive / cross-feature)
 - MATRIX_SCAN_TIMEBOX: <fill; e.g., 30m|2h|4h>
@@ -206,6 +219,7 @@ Requirements (HARD):
 ### ROADMAP_PHASE_SPLIT (only if scope must be phased)
 - PHASE_SPLIT_NEEDED: PENDING (YES | NO)
 - If YES: update the Roadmap (Spec 7.6) using the fixed per-phase fields below (do not invent new per-phase block types).
+- Patch canonical roadmap sections in place. Do not create addendum-style normative text; use `[ADD v<version>]` markers for new lines/blocks.
 - Per phase, include exactly:
   - Goal:
   - MUST deliver:
@@ -250,6 +264,9 @@ Requirements (HARD):
   ```
 - RISK_MAP:
   - "<risk>" -> "<impact>"
+- BUILD_ORDER_SYNC_REQUIRED: PENDING (YES | NO)
+- BUILD_ORDER_SYNC_NOTES:
+  - <fill; if refinement changes stubs, dependencies, execution lane sequencing, or SPEC_CURRENT, sync `.GOV/roles_shared/BUILD_ORDER.md` before approval>
 
 ### CLEARLY_COVERS (5-point checklist)
 - Appears in Main Body: [ ] PASS

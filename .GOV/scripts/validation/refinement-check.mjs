@@ -300,6 +300,27 @@ function extractIndentedListAfterLabel(lines, label) {
   return { found: true, items };
 }
 
+function extractSectionLinesByHeading(lines, heading) {
+  const headingRe = new RegExp(`^#{2,6}\\s+${escapeRegExp(heading)}\\b`, 'i');
+  const headingIdx = lines.findIndex((l) => headingRe.test(l));
+  if (headingIdx === -1) return { found: false, lines: [] };
+
+  const sectionLines = [];
+  let inFence = false;
+  for (let i = headingIdx + 1; i < lines.length; i += 1) {
+    const line = lines[i] || '';
+    const trimmed = line.trim();
+    if (/^```/.test(trimmed)) {
+      inFence = !inFence;
+      sectionLines.push(line);
+      continue;
+    }
+    if (!inFence && /^#{1,6}\s+\S/.test(line)) break;
+    sectionLines.push(line);
+  }
+  return { found: true, lines: sectionLines };
+}
+
 function extractAppendixJson(specContent, appendixId) {
   const beginNeedle = `<!-- HS_APPENDIX:BEGIN id=${appendixId}`;
   const endNeedle = `<!-- HS_APPENDIX:END id=${appendixId}`;
@@ -366,6 +387,53 @@ function parseMechanicalEngineRubric(lines) {
       notes: m[4].trim(),
       stubWpIdsRaw: m[5].trim(),
       stubWpIds: normalizeCsv(m[5]),
+    });
+  }
+  return rows;
+}
+
+function parsePillarDecompositionRows(lines) {
+  const rows = [];
+  const re = /^\s*-\s*PILLAR:\s*(.+?)\s*\|\s*CAPABILITY_SLICE:\s*(.+?)\s*\|\s*SUBFEATURES:\s*(.+?)\s*\|\s*PRIMITIVES_FEATURES:\s*(.+?)\s*\|\s*MECHANICAL:\s*(.+?)\s*\|\s*ROI:\s*(HIGH|MEDIUM|LOW)\s*\|\s*RESOLUTION:\s*(IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW)\s*\|\s*STUB:\s*(.+?)\s*\|\s*NOTES:\s*(.+)\s*$/i;
+  for (const line of lines) {
+    const m = line.match(re);
+    if (!m) continue;
+    rows.push({
+      pillar: m[1].trim(),
+      capabilitySlice: m[2].trim(),
+      subfeatures: m[3].trim(),
+      primitivesFeaturesRaw: m[4].trim(),
+      primitivesFeatures: normalizeCsv(m[4]),
+      mechanicalRaw: m[5].trim(),
+      mechanical: normalizeCsv(m[5]),
+      roi: m[6].trim().toUpperCase(),
+      resolution: m[7].trim().toUpperCase(),
+      stubRaw: m[8].trim(),
+      notes: m[9].trim(),
+    });
+  }
+  return rows;
+}
+
+function parseExecutionRuntimeAlignmentRows(lines) {
+  const rows = [];
+  const re = /^\s*-\s*Capability:\s*(.+?)\s*\|\s*JobModel:\s*(AI_JOB|WORKFLOW|MECHANICAL_TOOL|UI_ACTION|NONE)\s*\|\s*Workflow:\s*(.+?)\s*\|\s*ToolSurface:\s*(UNIFIED_TOOL_SURFACE|MCP|COMMAND_CENTER|UI_ONLY|NONE)\s*\|\s*ModelExposure:\s*(LOCAL|CLOUD|BOTH|OPERATOR_ONLY)\s*\|\s*CommandCenter:\s*(VISIBLE|PLANNED|NONE)\s*\|\s*FlightRecorder:\s*(.+?)\s*\|\s*Locus:\s*(VISIBLE|PLANNED|NONE)\s*\|\s*StoragePosture:\s*(SQLITE_NOW_POSTGRES_READY|POSTGRES_ONLY|N\/A)\s*\|\s*Resolution:\s*(IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW)\s*\|\s*Stub:\s*(.+?)\s*\|\s*Notes:\s*(.+)\s*$/i;
+  for (const line of lines) {
+    const m = line.match(re);
+    if (!m) continue;
+    rows.push({
+      capability: m[1].trim(),
+      jobModel: m[2].trim().toUpperCase(),
+      workflow: m[3].trim(),
+      toolSurface: m[4].trim().toUpperCase(),
+      modelExposure: m[5].trim().toUpperCase(),
+      commandCenter: m[6].trim().toUpperCase(),
+      flightRecorder: m[7].trim(),
+      locus: m[8].trim().toUpperCase(),
+      storagePosture: m[9].trim().toUpperCase(),
+      resolution: m[10].trim().toUpperCase(),
+      stubRaw: m[11].trim(),
+      notes: m[12].trim(),
     });
   }
   return rows;
@@ -562,6 +630,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
   const refinementFormatVersion = getSingleField(content, 'REFINEMENT_FORMAT_VERSION');
   parsed.refinementFormatVersion = refinementFormatVersion;
   const isModernRefinement = isVersionAtLeast(refinementFormatVersion, '2026-03-06');
+  const hasRuntimeAlignmentSections = isVersionAtLeast(refinementFormatVersion, '2026-03-08');
   if (refinementFormatVersion && !isIsoDate(refinementFormatVersion)) {
     errors.push('REFINEMENT_FORMAT_VERSION must be YYYY-MM-DD (ISO date)');
   }
@@ -617,6 +686,10 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     requiredSections.splice(4, 0, 'GITHUB_PROJECT_SCOUTING');
     requiredSections.splice(6, 0, 'APPENDIX_MAINTENANCE');
     requiredSections.splice(7, 0, 'MECHANICAL_ENGINE_ALIGNMENT');
+    if (hasRuntimeAlignmentSections) {
+      requiredSections.splice(requiredSections.indexOf('PRIMITIVE_MATRIX'), 0, 'PILLAR_DECOMPOSITION');
+      requiredSections.splice(requiredSections.indexOf('PRIMITIVE_MATRIX'), 0, 'EXECUTION_RUNTIME_ALIGNMENT');
+    }
     requiredSections.splice(requiredSections.indexOf('UI_UX_RUBRIC'), 0, 'FORCE_MULTIPLIER_EXPANSION');
     requiredSections.splice(requiredSections.indexOf('UI_UX_RUBRIC'), 0, 'EXISTING_CAPABILITY_ALIGNMENT');
     requiredSections.splice(requiredSections.indexOf('CLEARLY_COVERS'), 0, 'PACKET_HYDRATION');
@@ -632,6 +705,23 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     const stubWpIdsRaw = getSingleField(content, 'STUB_WP_IDS');
     parsed.stubWpIdsRaw = stubWpIdsRaw;
     parsed.stubWpIds = validateStubIds(stubWpIdsRaw, errors, 'STUB_WP_IDS');
+    if (isHydratedResearchProfile && hasRuntimeAlignmentSections && resolved?.specFileName) {
+      const buildOrderPath = path.join('.GOV', 'roles_shared', 'BUILD_ORDER.md');
+      try {
+        const buildOrderContent = fs.readFileSync(buildOrderPath, 'utf8');
+        const specTarget = (buildOrderContent.match(/^\s*-\s*SPEC_TARGET\s*:\s*(.+)\s*$/mi) || [])[1]?.trim() || '';
+        if (specTarget !== resolved.specFileName) {
+          errors.push(`BUILD_ORDER.md SPEC_TARGET mismatch: expected ${resolved.specFileName}, got ${specTarget || '<missing>'}`);
+        }
+        for (const stubId of parsed.stubWpIds) {
+          if (!buildOrderContent.includes(stubId)) {
+            errors.push(`BUILD_ORDER.md must include stub ${stubId} before the refinement gate can PASS`);
+          }
+        }
+      } catch (e) {
+        errors.push(`Could not read .GOV/roles_shared/BUILD_ORDER.md: ${String(e?.message || e)}`);
+      }
+    }
 
     // LANDSCAPE_SCAN minimums (enforced for modern refinements).
     const lsTimebox = getSingleField(content, 'TIMEBOX');
@@ -1131,6 +1221,9 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       'ACE',
       'RAG',
     ];
+    if (hasRuntimeAlignmentSections) {
+      pillars.splice(pillars.indexOf('Spec to prompt'), 0, 'Execution / Job Runtime');
+    }
     const pillarLookup = new Map(pillars.map((pillar) => [pillar.toUpperCase(), pillar]));
     for (const p of pillars) {
       const re = new RegExp(`^\\s*-\\s*PILLAR:\\s*${escapeRegExp(p)}\\s*\\|\\s*STATUS:\\s*(TOUCHED|NOT_TOUCHED|UNKNOWN)\\b`, 'i');
@@ -1168,6 +1261,158 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     }
     if (/^NEEDS_STUBS$/i.test(pillarVerdict || '') && parsed.stubWpIds.length === 0) {
       errors.push('PILLAR_ALIGNMENT_VERDICT=NEEDS_STUBS requires top-level STUB_WP_IDS to list one or more stub packets');
+    }
+
+    if (isHydratedResearchProfile && hasRuntimeAlignmentSections) {
+      const decompositionSection = extractSectionLinesByHeading(lines, 'PILLAR_DECOMPOSITION');
+      const decompositionRows = parsePillarDecompositionRows(decompositionSection.lines);
+      const decompositionVerdict = getSingleField(content, 'PILLAR_DECOMPOSITION_VERDICT');
+      const decompositionStubUnion = new Set();
+      const decompositionPillarsSeen = new Set();
+      parsed.pillarDecompositionVerdict = (decompositionVerdict || '').toUpperCase();
+      parsed.pillarDecompositionRows = [];
+
+      if (decompositionRows.length === 0) {
+        errors.push('PILLAR_DECOMPOSITION must include at least one concrete row');
+      }
+      if (!/^(OK|NEEDS_STUBS|NEEDS_SPEC_UPDATE)$/i.test(decompositionVerdict || '')) {
+        errors.push('PILLAR_DECOMPOSITION_VERDICT must be OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE');
+      }
+
+      let decompositionHasStub = false;
+      let decompositionHasSpecUpdate = false;
+      for (const row of decompositionRows) {
+        const canonicalPillar = pillarLookup.get(row.pillar.toUpperCase());
+        if (!canonicalPillar) {
+          errors.push(`PILLAR_DECOMPOSITION references unknown pillar: ${row.pillar}`);
+          continue;
+        }
+        decompositionPillarsSeen.add(canonicalPillar);
+        if (isPlaceholderValue(row.capabilitySlice)) {
+          errors.push(`PILLAR_DECOMPOSITION ${canonicalPillar} CAPABILITY_SLICE must be filled`);
+        }
+        if (isPlaceholderValue(row.subfeatures)) {
+          errors.push(`PILLAR_DECOMPOSITION ${canonicalPillar} SUBFEATURES must be filled`);
+        }
+        if (isPlaceholderValue(row.notes)) {
+          errors.push(`PILLAR_DECOMPOSITION ${canonicalPillar} NOTES must be filled`);
+        }
+        for (const engineId of row.mechanical.filter((value) => !/^NONE$/i.test(value))) {
+          if (!specMechanicalEngineIds.has(engineId)) {
+            errors.push(`PILLAR_DECOMPOSITION ${canonicalPillar} references unknown mechanical engine: ${engineId}`);
+          }
+        }
+
+        let stubId = 'NONE';
+        if (row.resolution === 'NEW_STUB') {
+          decompositionHasStub = true;
+          const stubIds = validateStubIds(row.stubRaw, errors, `PILLAR_DECOMPOSITION ${canonicalPillar} STUB`);
+          if (stubIds.length !== 1) {
+            errors.push(`PILLAR_DECOMPOSITION ${canonicalPillar} Resolution=NEW_STUB must point to exactly one stub packet`);
+          }
+          stubId = stubIds[0] || 'NONE';
+          stubIds.forEach((id) => decompositionStubUnion.add(id));
+        } else if (!/^NONE$/i.test(row.stubRaw || '')) {
+          errors.push(`PILLAR_DECOMPOSITION ${canonicalPillar} must use STUB: NONE unless RESOLUTION=NEW_STUB`);
+        }
+
+        if (row.resolution === 'SPEC_UPDATE_NOW') {
+          decompositionHasSpecUpdate = true;
+          if (!parsed.appendixSpecUpdateRequired) {
+            errors.push(`PILLAR_DECOMPOSITION ${canonicalPillar} uses RESOLUTION=SPEC_UPDATE_NOW but appendix maintenance did not declare a spec update`);
+          }
+        }
+
+        parsed.pillarDecompositionRows.push(
+          `PILLAR: ${canonicalPillar} | CAPABILITY_SLICE: ${row.capabilitySlice} | SUBFEATURES: ${row.subfeatures} | PRIMITIVES_FEATURES: ${row.primitivesFeaturesRaw} | MECHANICAL: ${row.mechanicalRaw} | ROI: ${row.roi} | RESOLUTION: ${row.resolution} | STUB: ${stubId} | NOTES: ${row.notes}`
+        );
+      }
+
+      for (const pillar of parsed.pillarsTouched) {
+        if (!decompositionPillarsSeen.has(pillar)) {
+          errors.push(`PILLAR_DECOMPOSITION must include at least one row for touched pillar: ${pillar}`);
+        }
+      }
+      for (const stubId of decompositionStubUnion) {
+        if (!parsed.stubWpIds.includes(stubId)) {
+          errors.push(`Top-level STUB_WP_IDS must include pillar-decomposition-linked stub ${stubId}`);
+        }
+      }
+
+      if (decompositionHasSpecUpdate && parsed.pillarDecompositionVerdict !== 'NEEDS_SPEC_UPDATE') {
+        errors.push('PILLAR_DECOMPOSITION_VERDICT must be NEEDS_SPEC_UPDATE when any row resolves to SPEC_UPDATE_NOW');
+      } else if (!decompositionHasSpecUpdate && decompositionHasStub && parsed.pillarDecompositionVerdict !== 'NEEDS_STUBS') {
+        errors.push('PILLAR_DECOMPOSITION_VERDICT must be NEEDS_STUBS when any row resolves to NEW_STUB and none resolve to SPEC_UPDATE_NOW');
+      } else if (!decompositionHasSpecUpdate && !decompositionHasStub && parsed.pillarDecompositionVerdict !== 'OK') {
+        errors.push('PILLAR_DECOMPOSITION_VERDICT must be OK when all rows resolve IN_THIS_WP');
+      }
+
+      const runtimeSection = extractSectionLinesByHeading(lines, 'EXECUTION_RUNTIME_ALIGNMENT');
+      const runtimeRows = parseExecutionRuntimeAlignmentRows(runtimeSection.lines);
+      const runtimeVerdict = getSingleField(content, 'EXECUTION_RUNTIME_ALIGNMENT_VERDICT');
+      const runtimeStubUnion = new Set();
+      parsed.executionRuntimeAlignmentVerdict = (runtimeVerdict || '').toUpperCase();
+      parsed.executionRuntimeAlignmentRows = [];
+
+      if (runtimeRows.length === 0) {
+        errors.push('EXECUTION_RUNTIME_ALIGNMENT must include at least one concrete row');
+      }
+      if (!/^(OK|NEEDS_STUBS|NEEDS_SPEC_UPDATE)$/i.test(runtimeVerdict || '')) {
+        errors.push('EXECUTION_RUNTIME_ALIGNMENT_VERDICT must be OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE');
+      }
+
+      let runtimeHasStub = false;
+      let runtimeHasSpecUpdate = false;
+      for (const row of runtimeRows) {
+        if (isPlaceholderValue(row.capability)) {
+          errors.push('EXECUTION_RUNTIME_ALIGNMENT Capability must be filled');
+        }
+        if (isPlaceholderValue(row.workflow)) {
+          errors.push(`EXECUTION_RUNTIME_ALIGNMENT ${row.capability || '<missing>'} Workflow must be filled`);
+        }
+        if (isPlaceholderValue(row.notes)) {
+          errors.push(`EXECUTION_RUNTIME_ALIGNMENT ${row.capability || '<missing>'} Notes must be filled`);
+        }
+        if (isPlaceholderValue(row.flightRecorder)) {
+          errors.push(`EXECUTION_RUNTIME_ALIGNMENT ${row.capability || '<missing>'} FlightRecorder must be filled (use NONE if not applicable)`);
+        }
+
+        let stubId = 'NONE';
+        if (row.resolution === 'NEW_STUB') {
+          runtimeHasStub = true;
+          const stubIds = validateStubIds(row.stubRaw, errors, `EXECUTION_RUNTIME_ALIGNMENT ${row.capability || '<missing>'} Stub`);
+          if (stubIds.length !== 1) {
+            errors.push(`EXECUTION_RUNTIME_ALIGNMENT ${row.capability || '<missing>'} Resolution=NEW_STUB must point to exactly one stub packet`);
+          }
+          stubId = stubIds[0] || 'NONE';
+          stubIds.forEach((id) => runtimeStubUnion.add(id));
+        } else if (!/^NONE$/i.test(row.stubRaw || '')) {
+          errors.push(`EXECUTION_RUNTIME_ALIGNMENT ${row.capability || '<missing>'} must use Stub: NONE unless Resolution=NEW_STUB`);
+        }
+
+        if (row.resolution === 'SPEC_UPDATE_NOW') {
+          runtimeHasSpecUpdate = true;
+          if (!parsed.appendixSpecUpdateRequired) {
+            errors.push(`EXECUTION_RUNTIME_ALIGNMENT ${row.capability || '<missing>'} uses Resolution=SPEC_UPDATE_NOW but appendix maintenance did not declare a spec update`);
+          }
+        }
+
+        parsed.executionRuntimeAlignmentRows.push(
+          `Capability: ${row.capability} | JobModel: ${row.jobModel} | Workflow: ${row.workflow} | ToolSurface: ${row.toolSurface} | ModelExposure: ${row.modelExposure} | CommandCenter: ${row.commandCenter} | FlightRecorder: ${row.flightRecorder} | Locus: ${row.locus} | StoragePosture: ${row.storagePosture} | Resolution: ${row.resolution} | Stub: ${stubId} | Notes: ${row.notes}`
+        );
+      }
+      for (const stubId of runtimeStubUnion) {
+        if (!parsed.stubWpIds.includes(stubId)) {
+          errors.push(`Top-level STUB_WP_IDS must include execution-runtime-linked stub ${stubId}`);
+        }
+      }
+      if (runtimeHasSpecUpdate && parsed.executionRuntimeAlignmentVerdict !== 'NEEDS_SPEC_UPDATE') {
+        errors.push('EXECUTION_RUNTIME_ALIGNMENT_VERDICT must be NEEDS_SPEC_UPDATE when any row resolves to SPEC_UPDATE_NOW');
+      } else if (!runtimeHasSpecUpdate && runtimeHasStub && parsed.executionRuntimeAlignmentVerdict !== 'NEEDS_STUBS') {
+        errors.push('EXECUTION_RUNTIME_ALIGNMENT_VERDICT must be NEEDS_STUBS when any row resolves to NEW_STUB and none resolve to SPEC_UPDATE_NOW');
+      } else if (!runtimeHasSpecUpdate && !runtimeHasStub && parsed.executionRuntimeAlignmentVerdict !== 'OK') {
+        errors.push('EXECUTION_RUNTIME_ALIGNMENT_VERDICT must be OK when all rows resolve IN_THIS_WP');
+      }
     }
 
     // PRIMITIVE_MATRIX minimums.

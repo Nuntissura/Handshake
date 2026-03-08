@@ -562,6 +562,20 @@ ${formatList(refinementData.forceMultiplierResolutions)}
 - STUB_WP_IDS: ${refinementData.stubWpIdsRaw || 'NONE'}
 `);
 
+  template = replaceSection(template, 'PILLAR_DECOMPOSITION', `
+## PILLAR_DECOMPOSITION (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
+- PILLAR_DECOMPOSITION_VERDICT: ${refinementData.pillarDecompositionVerdict || 'OK'}
+- DECOMPOSITION_ROWS:
+${formatList(refinementData.pillarDecompositionRows)}
+`);
+
+  template = replaceSection(template, 'EXECUTION_RUNTIME_ALIGNMENT', `
+## EXECUTION_RUNTIME_ALIGNMENT (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
+- EXECUTION_RUNTIME_ALIGNMENT_VERDICT: ${refinementData.executionRuntimeAlignmentVerdict || 'OK'}
+- ALIGNMENT_ROWS:
+${formatList(refinementData.executionRuntimeAlignmentRows)}
+`);
+
   template = replaceSection(template, 'EXISTING_CAPABILITY_ALIGNMENT', `
 ## EXISTING_CAPABILITY_ALIGNMENT (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - EXISTING_CAPABILITY_ALIGNMENT_VERDICT: ${refinementData.existingCapabilityAlignmentVerdict || 'OK'}

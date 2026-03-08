@@ -1,16 +1,20 @@
 # PAST_WORK_INDEX
 
-## Root-level specs and logs (canonical history)
-- [Handshake_Master_Spec_v02.44.md](../Handshake_Master_Spec_v02.44.md) - latest master spec (current).
-- [Handshake_Master_Spec_v02.43.md](../Handshake_Master_Spec_v02.43.md) / [v02.40](../Handshake_Master_Spec_v02.40.md) / [v02.39](../Handshake_Master_Spec_v02.39.md) / [v02.38](../Handshake_Master_Spec_v02.38.md) - prior spec drops for diffing.
-- [Handshake Codex v0.7.md](../Handshake%20Codex%20v0.7.md) - current governance and operating rules.
-- [Handshake Codex v0.5.md](../Handshake%20Codex%20v0.5.md) - prior codex version.
-- [Handshake_logger_20251213_UPDATED_v3.3_20251213T194037.md](../Handshake_logger_20251213_UPDATED_v3.3_20251213T194037.md) - latest logger; older loggers remain in root and `log_archive/`.
+## Current authoritative references
+- [Handshake_Master_Spec_v02.143.md](../Handshake_Master_Spec_v02.143.md) - current authoritative Master Spec (`SPEC_CURRENT` target).
+- [Handshake Codex v1.4.md](../Handshake%20Codex%20v1.4.md) - current governance and operating rules.
+
+## Recent spec history
+- [Handshake_Master_Spec_v02.142.md](../Handshake_Master_Spec_v02.142.md) - prior spec drop for diffing.
+- [Handshake_Master_Spec_v02.141.md](../Handshake_Master_Spec_v02.141.md) - prior spec drop for diffing.
+- [Handshake_Master_Spec_v02.140.md](../Handshake_Master_Spec_v02.140.md) - prior spec drop for diffing.
+- [Handshake_Master_Spec_v02.139.md](../Handshake_Master_Spec_v02.139.md) - prior spec drop for diffing.
+
+## Working notes and operator references
 - [Handshake_Context_Engineering_RAG_Spec_v0.2.md](../Handshake_Context_Engineering_RAG_Spec_v0.2.md) - RAG/context governance.
 - [Handshake_Export_Bundles_Insert_Plan_v0.1.md](../operator/Handshake_Export_Bundles_Insert_Plan_v0.1.md) - export plan.
-- [Handshake_Phase_0_5_Closure_v0.1.md](../Handshake_Phase_0_5_Closure_v0.1.md) - phase closure notes.
 - [extraction and digital production team.md](../operator/extraction%20and%20digital%20production%20team.md) - team/scoping notes.
-- [primitives_catalogue.md](../operator/primitives_catalogue.md) - primitives reference.
+- [primitives_catalogue.md](../operator/primitives_catalogue.md) - legacy primitives reference.
 
 ## .GOV/operator/docs_local/ (staging, non-canonical)
 - [DOC_INDEX.txt](../operator/docs_local/DOC_INDEX.txt) - quick pointer to local docs.

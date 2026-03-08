@@ -428,6 +428,8 @@ Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block contain
     - **CRITICAL:** The user must be able to copy-paste this text directly into the Master Spec if they chose to do so manually.
 - **primitives:** Specific Traits, Structs, or Enums that must be implemented.
 - **pillar rubric + force multipliers (MANDATORY):** Explicitly assess alignment/interconnections across the Handshake pillars (Flight Recorder, Calendar, Monaco, Word/Excel clones, Locus, Loom, MicroTask, Command Center, Spec-to-Prompt, Postgres readiness, LLM-friendly data, Stage/Studio, Atelier/Lens, Distillation/LoRA, ACE, RAG). This is a structured rubric (per pillar): TOUCHED | NOT_TOUCHED | UNKNOWN. If UNKNOWN: do not guess; create stubs.
+- **deeper pillar decomposition (MANDATORY):** Refinement is not allowed to stop at coarse pillar rows. It MUST decompose touched or adjacent pillars into concrete capability slices/subfeatures and record how those slices mix with primitives, tools/tech, mechanical engines, and ROI. This is where Calendar/Loom/Locus/Stage/Studio/Atelier-Lens/Command Center/Flight Recorder/RAG combinations become explicit. If a slice is valuable but out of scope: create a stub.
+- **execution / job runtime alignment (MANDATORY):** Every new or expanded capability MUST be mapped to how it becomes runtime-callable and runtime-visible inside Handshake: AI Job Model, Workflow Engine, Unified Tool Surface / Tool Registry, Mechanical Tool Bus, Command Center visibility, Flight Recorder evidence, Locus visibility, and SQLite-now / PostgreSQL-ready posture. This work happens during refinement even when Main Body enrichment is not needed.
 - **mechanical engine alignment (MANDATORY):** Inspect the spec-grade 22-engine mechanical set from §11.8 / §6.3 as first-class stand-alone features, not as an amorphous backend toolbox. The refinement MUST record a rubric line for every engine and identify where a WP can combine with those engines for force-multiplier value. If UNKNOWN: do not guess; create stubs.
 - **primitive matrix combo scan (MANDATORY):** Actively search for high-ROI combinations of:
   - primitives, tools/tech, mechanical tools, and local+cloud model usage,
@@ -444,6 +446,7 @@ Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block contain
   - HS-APPX-INTERACTION-MATRIX
   Hard rule: if any of those appendix actions are `UPDATED`, that is a spec-version update boundary, not post-hoc cleanup. The Orchestrator must advance the Master Spec version, update `SPEC_CURRENT`, create required stubs/governance sync, and only then resume WP activation against the new spec.
 - **roadmap phase split (if multi-phase):** If refinement discovers large additive scope that should be phased, update the Roadmap section (Spec 7.6) using the fixed per-phase fields (Goal, MUST deliver, Key risks addressed in Phase n, Acceptance criteria, Explicitly OUT of scope, Mechanical Track, Atelier Track, Distillation Track, Vertical slice). Do not invent new per-phase block types.
+- **build-order sync (MANDATORY):** Refinement is also the sequencing review point. If the refinement changes stubs, dependencies, `BUILD_ORDER_*` metadata, current spec version, or force-multiplier rollout order, the Orchestrator MUST sync `.GOV/roles_shared/BUILD_ORDER.md` before the refinement gate is considered complete.
 - **packet hydration (MANDATORY for `HYDRATED_RESEARCH_V1`):** The refinement MUST include a structured packet-hydration block that deterministically fills packet metadata, scope, test plan, done means, bootstrap commands, and primary spec anchor. Packet creation should be transcription from the signed refinement, not manual reinterpretation.
 
 **Non-negotiable presentation rule:** The Technical Refinement Block MUST be pasted into the Orchestrator's chat message for user review (not only written to a file). The pasted block MUST be the FULL verbatim refinement text from `.GOV/refinements/WP-*.md`; summaries or shortened versions are forbidden. The Orchestrator MUST NOT proceed to signature or packet creation until the user explicitly approves the refinement in-chat (e.g., `APPROVE REFINEMENT {WP_ID}`) or requests edits.
@@ -467,6 +470,7 @@ If gaps found:
 4. Add: Required sections/clarifications (using the Proposed Spec Enrichment text)
 4a. If applicable: update Master Spec Â§12 end-of-file appendix blocks (Feature Registry, Primitive/Tool/Tech Matrix, UI Guidance per feature, Interaction Matrix) and keep them at end-of-file. UI guidance is REQUIRED only for new/changed features; legacy backfill is tracked as stub WPs.
 4b. If enrichment introduces new technology/direction or large additive scope: record it in the Main Body first, then (if needed) split execution across phases in the Roadmap (Spec 7.6) using the fixed per-phase fields (do not invent new per-phase block types), then create WP stubs for the new additions before resuming the normal signature -> packet -> delegation workflow.
+4c. Patch canonical sections in place. Do not create addendum-style normative text. New normative lines/blocks should use `[ADD v<version>]` markers so spec growth remains traceable while staying inside the canonical section.
 5. Add: CHANGELOG entry with reason for update
 6. Update: .GOV/roles_shared/SPEC_CURRENT.md to point to new version
 
@@ -2113,6 +2117,7 @@ Handshake build sequencing is advisory, but maintaining the sequencing guide is 
 - Build order file: `.GOV/roles_shared/BUILD_ORDER.md`
 - The build order MUST NOT contradict SPEC_CURRENT; the Master Spec + active task packets define "Done".
 - The Orchestrator MUST keep BUILD_ORDER current when:
+  - refinement discovers new stubs, force-multiplier combos, or runtime rollout ordering,
   - a stub becomes activated (new official packet) or a new `-vN` revision becomes active,
   - dependencies change (new blockers discovered / resolved),
   - SPEC_CURRENT changes in a way that reshapes Phase 1 deliverables.

@@ -506,6 +506,10 @@ if (!fs.existsSync(taskPacketDir)) {
       const packetPrimitiveMatrixVerdict = parseSingleField(packetContent, 'PRIMITIVE_MATRIX_VERDICT');
       const packetForceMultiplierVerdict = parseSingleField(packetContent, 'FORCE_MULTIPLIER_VERDICT');
       const packetForceMultiplierResolutions = extractIndentedListAfterLabel(packetContent, 'FORCE_MULTIPLIER_RESOLUTIONS');
+      const packetPillarDecompositionVerdict = parseSingleField(packetContent, 'PILLAR_DECOMPOSITION_VERDICT');
+      const packetDecompositionRows = extractIndentedListAfterLabel(packetContent, 'DECOMPOSITION_ROWS');
+      const packetExecutionRuntimeAlignmentVerdict = parseSingleField(packetContent, 'EXECUTION_RUNTIME_ALIGNMENT_VERDICT');
+      const packetAlignmentRows = extractIndentedListAfterLabel(packetContent, 'ALIGNMENT_ROWS');
       const packetExistingCapabilityAlignmentVerdict = parseSingleField(packetContent, 'EXISTING_CAPABILITY_ALIGNMENT_VERDICT');
       const packetMatchedArtifactResolutions = extractIndentedListAfterLabel(packetContent, 'MATCHED_ARTIFACT_RESOLUTIONS');
       const packetCodeRealitySummary = extractIndentedListAfterLabel(packetContent, 'CODE_REALITY_SUMMARY');
@@ -600,6 +604,18 @@ if (!fs.existsSync(taskPacketDir)) {
       }
       if (!sameList(packetForceMultiplierResolutions, refinementData.forceMultiplierResolutions || [])) {
         errors.push('FORCE_MULTIPLIER_RESOLUTIONS in the packet drifted from the signed refinement');
+      }
+      if ((packetPillarDecompositionVerdict || '').toUpperCase() !== (refinementData.pillarDecompositionVerdict || '').toUpperCase()) {
+        errors.push('PILLAR_DECOMPOSITION_VERDICT in the packet drifted from the signed refinement');
+      }
+      if (!sameList(packetDecompositionRows, refinementData.pillarDecompositionRows || [])) {
+        errors.push('DECOMPOSITION_ROWS in the packet drifted from the signed refinement');
+      }
+      if ((packetExecutionRuntimeAlignmentVerdict || '').toUpperCase() !== (refinementData.executionRuntimeAlignmentVerdict || '').toUpperCase()) {
+        errors.push('EXECUTION_RUNTIME_ALIGNMENT_VERDICT in the packet drifted from the signed refinement');
+      }
+      if (!sameList(packetAlignmentRows, refinementData.executionRuntimeAlignmentRows || [])) {
+        errors.push('ALIGNMENT_ROWS in the packet drifted from the signed refinement');
       }
       if ((packetExistingCapabilityAlignmentVerdict || '').toUpperCase() !== (refinementData.existingCapabilityAlignmentVerdict || '').toUpperCase()) {
         errors.push('EXISTING_CAPABILITY_ALIGNMENT_VERDICT in the packet drifted from the signed refinement');

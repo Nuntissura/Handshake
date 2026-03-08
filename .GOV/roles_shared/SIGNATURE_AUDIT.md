@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-02-26
+**Updated:** 2026-03-08
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja080320260320 | Orchestrator | 2026-03-08 03:20 | Spec Enrichment v02.143 (primitive index coverage contract + exhaustive Appendix 12.4 seeding + stub backlog sync) | v02.143 | Approved in-chat: `APPROVE SPEC ENRICHMENT|v02.143 ilja080320260320`. |
 | ilja060320261915 | Orchestrator | 2026-03-06 19:15 | Task packet creation: WP-1-Locus-Phase1-Integration-Occupancy-v1 | v02.141 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Locus-Phase1-Integration-Occupancy-v1.md ). |
 | ilja060320260004 | Orchestrator | 2026-03-06 00:04 | Task packet creation: WP-1-Postgres-MCP-Durable-Progress-v1 | v02.141 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Postgres-MCP-Durable-Progress-v1.md ). |
 | ilja040320262011 | Orchestrator | 2026-03-04 20:11 | Task packet creation: WP-1-Spec-Appendices-Backfill-v1 | v02.140 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Spec-Appendices-Backfill-v1.md ). |

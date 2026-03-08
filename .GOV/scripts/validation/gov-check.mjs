@@ -33,5 +33,7 @@ await import("./worktree-concurrency-check.mjs");
 await import("./lifecycle-ux-check.mjs");
 await import("./drive-agnostic-check.mjs");
 await import("./phase1-add-coverage-check.mjs");
+await import("./spec-growth-discipline-check.mjs");
+await import("./spec-governance-reference-check.mjs");
 
 console.log("gov-check ok");
