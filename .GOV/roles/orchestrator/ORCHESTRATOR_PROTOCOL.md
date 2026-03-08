@@ -12,6 +12,15 @@
 
 ---
 
+## Permanent Branch + Backup Model (HARD)
+
+- `main` is the only canonical integrated branch on disk and on GitHub.
+- Permanent protected role/user branches and their permanent role worktrees must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
+- `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches, not integration branches. They may diverge from `main`.
+- Matching backup pushes are allowed safety operations. For Orchestrator work this means pushing `role_orchestrator` to `origin/role_orchestrator` when preserving committed state before destructive local operations.
+- Before destructive or state-hiding local git actions (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the matching GitHub backup branch.
+- Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact targets, and ask for an approval command naming those targets deterministically.
+
 ## Repo Boundary Rules (HARD)
 
 - `/.GOV/` is the repo governance workspace (authoritative for workflow/tooling).
@@ -100,6 +109,7 @@ If you are running orchestrator-led, multi-agent ("agentic") execution, you MUST
   - Coders MUST NOT share a single working tree when working concurrently.
 - **File-lock rule (MANDATORY when >1 WP is active):** treat each active WP's `IN_SCOPE_PATHS` as an exclusive file lock set. Do NOT activate/delegate a second WP whose `IN_SCOPE_PATHS` overlaps an in-progress WP. If overlap is required, sequence the work or re-scope (see [CX-CONC-001]).
 - Coders may commit freely on their WP branch. The Validator performs the final merge/commit to `main` after PASS (per Codex [CX-505]).
+- Every active role/user/WP branch must have a matching GitHub backup branch. For WPs, the Orchestrator must record the temporary remote backup branch and URL in the task packet. Later removal of that temporary remote branch after Operator-approved cleanup must not become a future governance blocker.
 
 ## Worktree + Branch Gate [CX-WT-001] (BLOCKING)
 

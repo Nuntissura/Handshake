@@ -55,6 +55,14 @@ gov-check:
 	just docs-check
 	node .GOV/scripts/validation/gov-check.mjs
 
+# Safety backup push: push the current committed branch state to its matching GitHub backup branch.
+backup-push local_branch="" remote_branch="":
+	node .GOV/scripts/backup-push.mjs {{local_branch}} {{remote_branch}}
+
+# Ensure the permanent GitHub backup branches exist, seeded from local main when missing.
+ensure-permanent-backup-branches:
+	node .GOV/scripts/ensure-permanent-backup-branches.mjs
+
 # Master Spec EOF appendix blocks check (Spec §12).
 spec-eof-appendices-check:
 	node .GOV/scripts/validation/spec-eof-appendices-check.mjs
@@ -141,8 +149,8 @@ codex-check-test:
 	node .GOV/scripts/codex-check-test.mjs
 
 # Close a WP branch after it has been merged into main.
-close-wp-branch wp-id remote="":
-	node .GOV/scripts/close-wp-branch.mjs {{wp-id}} {{remote}}
+close-wp-branch wp-id remote="" approval="":
+	node .GOV/scripts/close-wp-branch.mjs {{wp-id}} {{remote}} --approve "{{approval}}"
 
 # === Workflow Enforcement Commands (see .GOV/roles_shared/SPEC_CURRENT.md) ===
 

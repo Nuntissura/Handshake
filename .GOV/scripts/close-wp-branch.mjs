@@ -15,17 +15,21 @@ function fail(message, details = []) {
 }
 
 function usage() {
-  fail("Usage: node .GOV/scripts/close-wp-branch.mjs <WP_ID> [--remote]", [
-    "Example (local only): node .GOV/scripts/close-wp-branch.mjs WP-1-MEX-v1.2-Runtime-v3",
-    "Example (also delete origin branch): node .GOV/scripts/close-wp-branch.mjs WP-1-MEX-v1.2-Runtime-v3 --remote",
+  fail("Usage: node .GOV/scripts/close-wp-branch.mjs <WP_ID> [--remote] --approve \"<approval text>\"", [
+    "Example (local only): node .GOV/scripts/close-wp-branch.mjs WP-1-MEX-v1.2-Runtime-v3 --approve \"APPROVE DELETE BRANCH feat/WP-1-MEX-v1.2-Runtime-v3\"",
+    "Example (also delete origin branch): node .GOV/scripts/close-wp-branch.mjs WP-1-MEX-v1.2-Runtime-v3 --remote --approve \"APPROVE DELETE BRANCH feat/WP-1-MEX-v1.2-Runtime-v3; APPROVE DELETE GITHUB BRANCH feat/WP-1-MEX-v1.2-Runtime-v3\"",
   ]);
 }
 
 function parseArgs() {
   const wpId = (process.argv[2] ?? "").trim();
   if (!wpId || !wpId.startsWith("WP-")) usage();
-  const remote = process.argv.slice(3).includes("--remote");
-  return { wpId, remote };
+  const args = process.argv.slice(3);
+  const remote = args.includes("--remote");
+  const approveIndex = args.indexOf("--approve");
+  const approval = approveIndex >= 0 ? (args[approveIndex + 1] ?? "").trim() : "";
+  if (!approval) usage();
+  return { wpId, remote, approval };
 }
 
 function branchForWp(wpId) {
@@ -69,9 +73,23 @@ function remoteBranchExists(remoteName, branch) {
   }
 }
 
+function requireApproval(approval, branch, remote) {
+  const required = [`APPROVE DELETE BRANCH ${branch}`];
+  if (remote) required.push(`APPROVE DELETE GITHUB BRANCH ${branch}`);
+  const missing = required.filter((token) => !approval.includes(token));
+  if (missing.length > 0) {
+    fail("Missing deterministic Operator approval text", [
+      `branch=${branch}`,
+      ...missing.map((token) => `required token: ${token}`),
+    ]);
+  }
+}
+
 function main() {
-  const { wpId, remote } = parseArgs();
+  const { wpId, remote, approval } = parseArgs();
   const branch = branchForWp(wpId);
+
+  requireApproval(approval, branch, remote);
 
   if (!localBranchExists(branch)) {
     fail("Local WP branch not found", [`branch=${branch}`]);
@@ -113,4 +131,3 @@ function main() {
 }
 
 main();
-

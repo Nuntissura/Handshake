@@ -28,20 +28,25 @@ If you are an AI assistant operating in this repo:
 - If the required worktree/branch does not exist, you MUST STOP and request the Orchestrator/Operator to create it (see "Creation commands").
 - IMPORTANT: Codex [CX-108] blocks rewrite/hide operations such as `git stash`, `git checkout`, `git switch`, `git merge`, `git rebase`, `git reset`, and `git clean` unless explicitly authorized in the same turn.
 - Exception (WP auto-continue): when the Orchestrator has already recorded a PASS signature gate for a specific WP and the next deterministic step is `just worktree-add WP-{ID}`, `just orchestrator-worktree-and-packet WP-{ID}`, or `just orchestrator-prepare-and-packet WP-{ID} {Orchestrator-Agentic|Coder-A|Coder-B}`, the Orchestrator MUST create that missing WP worktree/branch automatically. Do not bounce that routine post-signature setup back to the Operator for a second approval.
+- `main` is the canonical integrated branch. `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches and may diverge from `main`.
+- Before destructive or state-hiding local git actions on a role/user/WP branch, push the current committed state to the matching GitHub backup branch.
+- Permanent protected branches/worktrees that must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
 
 ## Role Worktrees (Default)
 
-| Role | Worktree directory | Branch |
+| Role | Worktree directory | Branch | GitHub backup branch |
 | --- | --- | --- |
-| OPERATOR (human) | `<HANDSHAKE_WORKTREES>\wt-ilja` | `user_ilja` |
-| ORCHESTRATOR | `<HANDSHAKE_WORKTREES>\wt-orchestrator` | `role_orchestrator` |
-| VALIDATOR | `<HANDSHAKE_WORKTREES>\wt-validator` | `role_validator` |
-| CODER (agent) | WP-assigned worktree only (no default) | WP branch only (no default) |
+| OPERATOR (human) | `<HANDSHAKE_WORKTREES>\wt-ilja` | `user_ilja` | `origin/user_ilja` |
+| ORCHESTRATOR | `<HANDSHAKE_WORKTREES>\wt-orchestrator` | `role_orchestrator` | `origin/role_orchestrator` |
+| VALIDATOR | `<HANDSHAKE_WORKTREES>\wt-validator` | `role_validator` | `origin/role_validator` |
+| CODER (agent) | WP-assigned worktree only (no default) | WP branch only (no default) | matching WP backup branch on GitHub |
 
 Notes:
 - CODER agents MUST work only in the WP-assigned worktree/branch created and recorded by the Orchestrator. They must not "pick" a worktree.
 - WP assignment is recorded in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` as a `PREPARE` entry (via `just record-prepare ...`) with `branch` and `worktree_dir`.
 - ORCHESTRATOR/VALIDATOR role work (governance/validation work outside a specific WP worktree) uses the dedicated role worktrees above.
+- Permanent role/user branches are backup branches on GitHub. Their purpose is recoverability, not integration. They may be ahead of, equal to, or behind `main`.
+- A WP backup branch is temporary. Its URL may stop resolving after Operator-approved cleanup and that later 404 must not become a governance failure.
 
 ## Verification Commands (run at session start)
 
@@ -66,6 +71,9 @@ Role worktrees and manual repair flows require explicit authorization in the sam
 
 From the main repo working tree (`<HANDSHAKE_WORKTREES>\handshake_main`):
 
+- Ensure the permanent GitHub backup branches exist:
+  - `just ensure-permanent-backup-branches`
+
 - Create ORCHESTRATOR worktree:
   - If `origin/role_orchestrator` exists:
     - `git worktree add -b role_orchestrator ..\wt-orchestrator origin/role_orchestrator`
@@ -77,6 +85,10 @@ From the main repo working tree (`<HANDSHAKE_WORKTREES>\handshake_main`):
   - `git worktree add -b role_validator ..\wt-validator main`
 - Create OPERATOR worktree:
   - `git worktree add -b user_ilja ..\wt-ilja main`
+- After creating a permanent role/user branch locally, push it once to the matching GitHub backup branch and set upstream:
+  - `git -C ..\wt-orchestrator push -u origin role_orchestrator`
+  - `git -C ..\wt-validator push -u origin role_validator`
+  - `git -C ..\wt-ilja push -u origin user_ilja`
 
 WP worktrees (Orchestrator action, not Coder):
 - Post-signature default: after `just record-signature WP-{ID} ...` returns PASS, create the WP worktree/branch automatically. This is deterministic setup, not a second approval boundary.
@@ -84,6 +96,8 @@ WP worktrees (Orchestrator action, not Coder):
 - If the signature was recorded without an execution lane (legacy recovery), the only remaining operator decision is the execution lane choice; do not ask again for branch/worktree authorization.
 - Create a WP worktree/branch:
   - `just worktree-add WP-{ID}`
+- Create/preserve the matching GitHub backup branch for the WP when sync is authorized for the activation turn:
+  - `just backup-push feat/WP-{ID} feat/WP-{ID}`
 - Record the execution owner (writes `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`):
   - Prefer repo-relative `worktree_dir` values (example: `../wt-WP-{ID}`) to avoid drive-specific paths and quoting issues.
   - `just record-prepare WP-{ID} {Orchestrator-Agentic|Coder-A|Coder-B} [branch] [worktree_dir]`

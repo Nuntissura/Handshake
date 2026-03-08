@@ -14,6 +14,15 @@
 
 ---
 
+## Permanent Branch + Backup Model (HARD)
+
+- `main` is the only canonical integrated branch on disk and on GitHub.
+- Permanent protected role/user branches and their permanent role worktrees must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
+- `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches, not integration branches. They may diverge from `main`.
+- Matching backup pushes are allowed safety operations. For Validator work this means pushing `role_validator` to `origin/role_validator` when preserving committed state before destructive local operations.
+- Before destructive or state-hiding local git actions (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the matching GitHub backup branch.
+- Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact targets, and ask for an approval command naming those targets deterministically.
+
 ## Repo Boundary Rules (HARD)
 
 - `/.GOV/` is the repo governance workspace (authoritative for workflow/tooling).
@@ -393,7 +402,7 @@ State is tracked per WP in `.GOV/validator_gates/{WP_ID}.json`. Gates enforce mi
 1. User explicitly acknowledges the report (e.g., "proceed", "approved", "continue").
 2. If user requests changes or disputes findings -> return to validation, re-run checks, regenerate report.
 3. Validator runs: `just validator-gate-acknowledge {WP_ID}`
-4. PASS: Validator may merge the validated WP into `main`. Only `main` may be pushed to `origin`; WP branches and role branches must not be pushed.
+4. PASS: Validator may merge the validated WP into `main`. Canonical integration push remains `main` only; backup pushes are allowed only to the matching backup branch for the current role or WP when preserving state.
 5. FAIL: WP remains open for remediation (no merge/commit).
 
 ### Gate Commands
@@ -447,14 +456,14 @@ FLOW DIAGRAM:
   - ensure the canonical closed `[VALIDATED]` state lives on `main`
 - Pre-merge governance gate (MANDATORY): before merging the WP branch into `main`, the Validator MUST confirm `just gov-check` passes on the closure branch. Treat any activation-state drift (`WP_TRACEABILITY_REGISTRY`, Task Board STUB residue, stale build-order snapshot) as a merge-blocking failure, not post-merge cleanup.
 - Coders must not merge their own work.
-- Main-only push rule: only `main` may be pushed to `origin`. WP branches, role branches, and other working branches are not canonical push targets.
-- If a remote push is authorized, the Validator pushes `main` only after the merge is complete and `main` contains the final validated closure state.
+- Canonical push rule: only `main` is a canonical integration push target. Backup pushes to matching backup branches are allowed as safety copies, but they are not integration events.
+- If a remote integration push is authorized, the Validator pushes `main` only after the merge is complete and `main` contains the final validated closure state.
 
 ## Post-Merge Cleanup (reduces branch confusion)
-- After a WP is merged into `main`, the Validator SHOULD delete the local WP branch pointer to avoid leaving stale branches:
-  - `just close-wp-branch WP-{ID}`
-- If the repo uses a remote backup (e.g., GitHub) and the WP branch was pushed, the Validator MAY also delete the remote WP branch after `main` is pushed:
-  - `just close-wp-branch WP-{ID} --remote`
+- Do NOT delete local WP branches or remote WP backup branches as routine cleanup.
+- Any local or remote WP branch deletion requires explicit Operator approval naming the exact target(s).
+- When deletion is approved, use the deterministic helper with the exact approval text:
+  - `just close-wp-branch WP-{ID} "--remote" "APPROVE DELETE BRANCH feat/WP-{ID}; APPROVE DELETE GITHUB BRANCH feat/WP-{ID}"`
 
 ## Report Template
 ```

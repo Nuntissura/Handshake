@@ -12,6 +12,15 @@
 
 ---
 
+## Permanent Branch + Backup Model (HARD)
+
+- `main` is the only canonical integrated branch on disk and on GitHub.
+- Permanent protected role/user branches and their permanent role worktrees must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
+- Coders must never push to `main`, `user_ilja`, `role_orchestrator`, or `role_validator`.
+- A Coder may push only the assigned WP backup branch recorded in the task packet.
+- Before destructive or state-hiding local git actions on the WP branch (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the assigned WP backup branch on GitHub.
+- Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact targets, and ask for an approval command naming those targets deterministically.
+
 ## Repo Boundary Rules (HARD)
 
 - `/.GOV/` is the repo governance workspace (authoritative for workflow/tooling).
@@ -242,7 +251,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 - **Evidence Management:** You MAY append test logs, command outputs, and proof of work to the `## EVIDENCE` section of the task packet.
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
 - **Status Updates:** Update the `## STATUS_HANDOFF` section to reflect progress (e.g., "Implementation complete, tests passing").
-- **Branch Discipline (preferred):** Do all work on a WP branch (e.g., `feat/WP-{ID}`), optionally via `git worktree`. You MAY commit freely to your WP branch. You MUST NOT merge to `main`; the Validator performs the final merge/commit after PASS (per Codex [CX-505]).
+- **Branch Discipline (preferred):** Do all work on a WP branch (e.g., `feat/WP-{ID}`), optionally via `git worktree`. You MAY commit freely to your WP branch and push only the assigned WP backup branch. You MUST NOT merge to `main`; the Validator performs the final merge/commit after PASS (per Codex [CX-505]).
 - **Concurrency rule (MANDATORY when >1 Coder is active):** work only in the dedicated `git worktree` directory assigned to your WP. Do NOT share a single working tree with another active WP.
 
 ## Role
@@ -252,6 +261,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 Task state is managed by the agent currently holding the "ball":
 1. **Orchestrator**: Creates WP -> Adds to `Ready for Dev`.
 2. **Coder**: Starts work -> Updates task packet to `In Progress` + pushes a docs-only bootstrap commit.
+   - Pushes it to the assigned WP backup branch on GitHub so the prior state is recoverable before later local merges/cleanup.
 3. **Validator**: Status-syncs `.GOV/roles_shared/TASK_BOARD.md` on `main` (updates `## Active (Cross-Branch Status)` for Operator visibility).
 4. **Validator**: Approves work -> Moves to `Done` (during VALIDATION).
 5. **Orchestrator**: Escalation/Blocker -> Moves to `Blocked`.

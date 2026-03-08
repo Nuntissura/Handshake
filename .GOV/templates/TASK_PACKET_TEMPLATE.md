@@ -53,6 +53,13 @@ Requirements:
 <!-- Allowed: OK | NEEDS_STUBS | UNKNOWN -->
 - STUB_WP_IDS: <pending>
 <!-- Allowed: comma-separated WP-... IDs | NONE. Must match refinement metadata STUB_WP_IDS. -->
+- LOCAL_BRANCH: <pending>
+- LOCAL_WORKTREE_DIR: <pending>
+- REMOTE_BACKUP_BRANCH: <pending>
+- REMOTE_BACKUP_URL: <pending>
+- REMOTE_BACKUP_LIFECYCLE: TEMPORARY
+<!-- WP backup branches may be deleted after Operator-approved cleanup; later dead links are non-blocking. -->
+- BACKUP_PUSH_STATUS: REQUIRED_BEFORE_DESTRUCTIVE_OPS
 - USER_SIGNATURE: {{USER_SIGNATURE}}
 - PACKET_FORMAT_VERSION: 2026-03-08
 

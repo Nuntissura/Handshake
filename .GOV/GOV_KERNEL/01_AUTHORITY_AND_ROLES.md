@@ -80,10 +80,14 @@ Mandatory rules:
 - One work packet (WP) â†’ one feature branch (e.g., `feat/WP-<ID>`).
 - Concurrency across active WPs MUST use `git worktree` (separate working directories).
 - A single working tree MUST NOT be shared across concurrent WPs.
+- `main` is the only canonical integrated branch on disk and on GitHub.
+- Permanent protected branches/worktrees (`main`, `user_ilja`, `role_orchestrator`, `role_validator`) MUST NOT be deleted by assistants.
+- Each permanent role/user branch on GitHub is a backup branch, not an integration branch, and MAY diverge from `main`.
 
 Recommended rules:
 - One role â†’ one default worktree (e.g., `wt-orchestrator`, `wt-validator`) plus per-WP worktrees as needed.
 - Task packets SHOULD specify the expected branch/worktree name so small-context models can validate they are â€œin the right placeâ€.
+- Each active role/user/WP branch SHOULD have a matching GitHub backup branch so committed state can be preserved before destructive local operations.
 
 ## 4. Safety: destructive operations and sync gates
 
@@ -98,6 +102,14 @@ If cleanup/reset is authorized:
 1. Make it reversible first: `git stash push -u -m "SAFETY: before <operation>"`
 2. Preview deletions: `git clean -nd`
 3. Proceed only with explicit Operator confirmation.
+
+Backup-before-destructive rule:
+- Before destructive or state-hiding local git actions (merge into local `main`, branch deletion, worktree deletion, reset/clean/switch that can strand prior branch state), first push the current committed state to the matching GitHub backup branch.
+
+Operator-only topology changes:
+- Only the Operator may approve fast-forwarding GitHub backup branches.
+- Only the Operator may approve deleting GitHub branches, local branches, or worktrees.
+- If cleanup is requested broadly, stop and request an approval command that lists the exact targets.
 
 Sync gate (project-policy-dependent, but kernel-ready):
 - If the Codex/Protocol forbids sync actions by default, an agent MUST request explicit authorization before:
@@ -115,6 +127,5 @@ For deterministic safety, a role protocol SHOULD require the agent to capture th
 - `git worktree list`
 
 Rationale: prevents work being performed in the wrong worktree/branch, which is a primary failure mode when models hand off mid-task.
-
 
 

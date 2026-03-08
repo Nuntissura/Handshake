@@ -460,6 +460,18 @@ const replaceSingleField = (text, label, value) =>
 const escapeRegExp = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const replaceSection = (text, heading, newSection) =>
   text.replace(new RegExp(`##\\s+${escapeRegExp(heading)}\\b[\\s\\S]*?(?=\\n##\\s+[^#]|$)`, 'm'), newSection.trim());
+const githubTreeBase = () => {
+  try {
+    const raw = execSync('git remote get-url origin', { encoding: 'utf8' }).trim();
+    const normalized = raw.replace(/\.git$/, '');
+    if (/^https?:\/\//i.test(normalized)) return normalized.replace(/\/+$/, '');
+    const sshMatch = normalized.match(/^git@github\.com:(.+)$/i);
+    if (sshMatch) return `https://github.com/${sshMatch[1].replace(/^\/+/, '')}`;
+  } catch {
+    // Fall through to pending placeholder.
+  }
+  return '<pending>';
+};
 const formatList = (items, { indent = '  - ', none = 'NONE' } = {}) => {
   const normalized = (items || []).map((item) => String(item || '').trim()).filter(Boolean);
   if (normalized.length === 0) return `${indent}${none}`;
@@ -494,6 +506,15 @@ template = replaceSingleField(template, 'PACKET_HYDRATION_PROFILE', isHydratedPr
 
 const executionLane = (signatureGate?.execution_lane || prepareGate?.coder_id || '').trim();
 const orchestrationStartedAt = signatureGate?.timestamp || timestamp;
+const localBranch = (prepareGate?.branch || `feat/${WP_ID}`).trim() || `feat/${WP_ID}`;
+const localWorktreeDir = (prepareGate?.worktree_dir || '<pending>').trim() || '<pending>';
+const remoteBackupBranch = localBranch;
+const originTreeBase = githubTreeBase();
+const remoteBackupUrl = originTreeBase === '<pending>' ? '<pending>' : `${originTreeBase}/tree/${remoteBackupBranch}`;
+template = replaceSingleField(template, 'LOCAL_BRANCH', localBranch);
+template = replaceSingleField(template, 'LOCAL_WORKTREE_DIR', localWorktreeDir);
+template = replaceSingleField(template, 'REMOTE_BACKUP_BRANCH', remoteBackupBranch);
+template = replaceSingleField(template, 'REMOTE_BACKUP_URL', remoteBackupUrl);
 if (/^Orchestrator-Agentic$/i.test(executionLane)) {
   template = replaceSingleField(template, 'AGENTIC_MODE', 'YES');
   template = replaceSingleField(template, 'ORCHESTRATOR_MODEL', 'Codex (GPT-5)');
