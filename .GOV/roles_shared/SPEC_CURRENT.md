@@ -2,12 +2,13 @@
 
 The current authoritative Master Specification is:
 
-**Handshake_Master_Spec_v02.143.md**
+**Handshake_Master_Spec_v02.144.md**
 
-(Updated: 2026-03-08 - v02.143)
+(Updated: 2026-03-08 - v02.144)
 
 ---
 
 The current authoritative Governance Reference is:
 
 **Handshake Codex v1.4.md**
+

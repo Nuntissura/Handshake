@@ -1,10 +1,11 @@
 # PAST_WORK_INDEX
 
 ## Current authoritative references
-- [Handshake_Master_Spec_v02.143.md](../Handshake_Master_Spec_v02.143.md) - current authoritative Master Spec (`SPEC_CURRENT` target).
+- [Handshake_Master_Spec_v02.144.md](../Handshake_Master_Spec_v02.144.md) - current authoritative Master Spec (`SPEC_CURRENT` target).
 - [Handshake Codex v1.4.md](../Handshake%20Codex%20v1.4.md) - current governance and operating rules.
 
 ## Recent spec history
+- [Handshake_Master_Spec_v02.143.md](../Handshake_Master_Spec_v02.143.md) - prior spec drop for diffing.
 - [Handshake_Master_Spec_v02.142.md](../Handshake_Master_Spec_v02.142.md) - prior spec drop for diffing.
 - [Handshake_Master_Spec_v02.141.md](../Handshake_Master_Spec_v02.141.md) - prior spec drop for diffing.
 - [Handshake_Master_Spec_v02.140.md](../Handshake_Master_Spec_v02.140.md) - prior spec drop for diffing.
@@ -23,3 +24,5 @@
 
 ## log_archive/
 - Stored historical loggers for archaeology and regressions; see `log_archive/Handshake_logger_*.md`. Use alongside the latest logger to trace behavior changes or past debugging sessions.
+
+

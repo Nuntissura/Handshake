@@ -132,6 +132,13 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Retrieval-Trace-Bundle-Export-v1]** - [STUB]
 
 
+- **[WP-1-Charts-Dashboards-Backfill-v1]** - [STUB]
+- **[WP-1-Docs-Sheets-Runtime-Backfill-v1]** - [STUB]
+- **[WP-1-Thinking-Pipeline-Runtime-Backfill-v1]** - [STUB]
+- **[WP-1-Canvas-Runtime-Backfill-v1]** - [STUB]
+- **[WP-1-Presentations-Decks-Backfill-v1]** - [STUB]
+- **[WP-1-Project-Brain-Runtime-Backfill-v1]** - [STUB]
+
 ## In Progress
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
@@ -281,3 +288,5 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Semantic-Catalog]** - [SUPERSEDED]
 - **[WP-1-Supply-Chain-MEX]** - [SUPERSEDED]
 - **[WP-1-Workspace-Bundle]** - [SUPERSEDED]
+]
+

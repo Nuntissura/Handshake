@@ -1,4 +1,4 @@
-﻿# SIGNATURE_AUDIT
+# SIGNATURE_AUDIT
 
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja080320260600 | Orchestrator | 2026-03-08 06:00 | Spec Enrichment v02.144 (second-pass feature-family coverage + runtime visibility deepening + stub backlog expansion) | v02.144 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.144 | SIGNATURE: ilja080320260600`. |
 | ilja080320260320 | Orchestrator | 2026-03-08 03:20 | Spec Enrichment v02.143 (primitive index coverage contract + exhaustive Appendix 12.4 seeding + stub backlog sync) | v02.143 | Approved in-chat: `APPROVE SPEC ENRICHMENT|v02.143 ilja080320260320`. |
 | ilja060320261915 | Orchestrator | 2026-03-06 19:15 | Task packet creation: WP-1-Locus-Phase1-Integration-Occupancy-v1 | v02.141 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Locus-Phase1-Integration-Occupancy-v1.md ). |
 | ilja060320260004 | Orchestrator | 2026-03-06 00:04 | Task packet creation: WP-1-Postgres-MCP-Durable-Progress-v1 | v02.141 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Postgres-MCP-Durable-Progress-v1.md ). |
@@ -98,7 +99,7 @@
 | ilja120120260049 | Orchestrator | 2026-01-12 00:49 | Task packet creation: WP-1-Migration-Framework-v2 | v02.106 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Migration-Framework-v2.md ). |
 | ilja110120262355 | Orchestrator | 2026-01-11 23:55 | Spec update: v02.106 migration governance (heavy per-file replay safety + Phase 1 down migrations) | v02.106 | Clarified CX-DBP-022 (replay-safe migrations) and required concrete down migrations; updated migration acceptance criteria. |
 | ilja110120260038 | Orchestrator | 2026-01-11 00:38 | Spec update: v02.105 Roadmap Coverage Matrix phase allocation + roadmap sync | v02.105 | Phase 0 closed: removed P0 allocations; removed UNSCHEDULED; updated roadmap text to reference/enforce the matrix. |
-| ilja100120262214 | Orchestrator | 2026-01-10 22:14 | Spec update: v02.104 Roadmap Coverage Matrix (section-level determinism) | v02.104 | Added Â§7.6.1 Coverage Matrix + hard rules; updated .GOV/roles_shared/SPEC_CURRENT.md and role protocols/codex for enforcement. |
+| ilja100120262214 | Orchestrator | 2026-01-10 22:14 | Spec update: v02.104 Roadmap Coverage Matrix (section-level determinism) | v02.104 | Added §7.6.1 Coverage Matrix + hard rules; updated .GOV/roles_shared/SPEC_CURRENT.md and role protocols/codex for enforcement. |
 | ilja090120262335 | Orchestrator | 2026-01-09 23:35 | Task packet creation: WP-1-AppState-Refactoring-v3 | v02.103 | Approved after Technical Refinement (see .GOV/refinements/WP-1-AppState-Refactoring-v3.md ). |
 | ilja090120261951 | Orchestrator | 2026-01-09 19:51 | Task packet creation: WP-1-Storage-Abstraction-Layer-v3 | v02.103 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Storage-Abstraction-Layer-v3.md ). |
 | ilja080120262313 | Orchestrator | 2026-01-08 23:13 | Spec update: v02.103 intent audit + roadmap/taskboard/stubs sync | v02.103 | Added roadmap pointer for ANS-001 response behavior contract; clarified phase closure preamble; updated SPEC_CURRENT + TASK_BOARD + stubs. |
@@ -121,34 +122,34 @@
 | ilja311220251846 | Orchestrator | 2025-12-31 18:46 | Task packet creation: WP-1-Workflow-Engine-v4 | v02.99 | Protocol clean revalidation for HSK-WF-003 ordering and FR-EVT-WF-RECOVERY emission. |
 | ilja311220251755 | Orchestrator | 2025-12-31 17:55 | Spec Enrichment v02.99 (JobKind/JobState alignment + FR-EVT-WF-RECOVERY) | v02.99 | Approved AI Job Model enum expansion and workflow recovery event definition. |
 | ilja311220250445 | Orchestrator | 2025-12-31 04:45 | Task packet creation: WP-1-Storage-Foundation-v3 | v02.98 | No spec enrichment; remediation for mandatory storage audit failure (sqlx leakage outside storage). |
-| ilja281220250525 | Orchestrator | 2025-12-28 05:25 | Spec Enrichment v02.96 (Reconcile Â§7.6.3 SqlitePool) | v02.96 | Reconciled legacy signatures with Trait Purity invariant |
-| ilja281220250519 | Orchestrator | 2025-12-28 05:19 | Task packet creation: WP-1-Flight-Recorder-v2 | v02.95 | Infrastructure for durable audit logging (Â§11.5) |
+| ilja281220250525 | Orchestrator | 2025-12-28 05:25 | Spec Enrichment v02.96 (Reconcile §7.6.3 SqlitePool) | v02.96 | Reconciled legacy signatures with Trait Purity invariant |
+| ilja281220250519 | Orchestrator | 2025-12-28 05:19 | Task packet creation: WP-1-Flight-Recorder-v2 | v02.95 | Infrastructure for durable audit logging (§11.5) |
 | ilja271220250057 | Orchestrator | 2025-12-27 00:57 | Spec Enrichment v02.93 (Startup Recovery) | v02.93 | Authorizes normative HSK-WF-003 |
 | ilja261220252337 | Orchestrator | 2025-12-26 23:37 | (INVALID - REUSED BY ERROR) | v02.93 | Signature rejected; used for multiple artifacts in one turn |
-| ilja261220252215 | Orchestrator | 2025-12-26 22:15 | Spec Enrichment v02.92 (AI Job Model Hardening) | v02.92 | Enriched Â§2.6.6.2.8 with Strict Enum Mapping and Metrics Integrity |
-| ilja261220252202 | Orchestrator | 2025-12-26 22:02 | Spec Enrichment v02.91 (Hardened Security Enforcement) | v02.91 | Enriched Â§2.6.6.7.11 with Content Awareness, Atomic Poisoning, and NFC Normalization |
-| ilja251225032800 | Orchestrator | 2025-12-25 03:28 | Strategic Pause: Spec enrichment for Phase 1 storage foundation | v02.85 | Enriched Â§2.3.12 Storage Backend Portability requirements |
-| ilja251220250328 | Orchestrator | 2025-12-25 03:28 | Spec Enrichment & WP creation foundation | v02.84 | Enriched Â§2.3.12.3 with Trait Contract |
+| ilja261220252215 | Orchestrator | 2025-12-26 22:15 | Spec Enrichment v02.92 (AI Job Model Hardening) | v02.92 | Enriched §2.6.6.2.8 with Strict Enum Mapping and Metrics Integrity |
+| ilja261220252202 | Orchestrator | 2025-12-26 22:02 | Spec Enrichment v02.91 (Hardened Security Enforcement) | v02.91 | Enriched §2.6.6.7.11 with Content Awareness, Atomic Poisoning, and NFC Normalization |
+| ilja251225032800 | Orchestrator | 2025-12-25 03:28 | Strategic Pause: Spec enrichment for Phase 1 storage foundation | v02.85 | Enriched §2.3.12 Storage Backend Portability requirements |
+| ilja251220250328 | Orchestrator | 2025-12-25 03:28 | Spec Enrichment & WP creation foundation | v02.84 | Enriched §2.3.12.3 with Trait Contract |
 | ilja251220251542 | Orchestrator | 2025-12-25 15:42 | Delegation of WP-1-Storage-Abstraction-Layer to Coder | v02.84 | Coder assigned, work activated |
 | ilja251220251729 | Orchestrator | 2025-12-25 17:29 | Task packet activation: WP-1-Migration-Framework | v02.84 | Migration framework & SQL portability |
 | ilja251220251821 | Orchestrator | 2025-12-25 18:21 | Task packet activation: WP-1-Terminal-Integration-Baseline | v02.84 | Secure terminal execution baseline |
 | ilja251220252005 | Orchestrator | 2025-12-25 20:05 | Task packet activation: WP-1-Capability-SSoT | v02.84 | Centralized Capability Registry SSoT |
 | ilja251220252013 | Orchestrator | 2025-12-25 20:13 | Task packet activation: WP-1-Retention-GC | v02.84 | Data retention and garbage collection |
 | ilja251225041500 | Orchestrator | 2025-12-25 04:15 | Task packet creation: WP-1-Storage-Abstraction-Layer | v02.85 | Spec already enriched; Coder ready for work |
-| ilja251220252304 | Orchestrator | 2025-12-25 23:04 | Spec Enrichment v02.85 (ACE-RAG-001 Normative Traits) | v02.85 | Enriched Â§2.6.6.7.14.11 with AceRuntimeValidator trait |
-| ilja251220252310 | Orchestrator | 2025-12-25 23:10 | Spec Enrichment v02.85 (Mutation Traceability Normative Traits) | v02.85 | Enriched Â§2.9.3 with StorageGuard trait and Persistence Schema |
-| ilja251220250037 | Orchestrator | 2025-12-26 00:37 | Spec Enrichment v02.86 (Flight Recorder Normative Traits) | v02.86 | Enriched Â§11.5 with FlightRecorder trait and FR-EVT schemas |
-| ilja261220250045 | Orchestrator | 2025-12-26 00:45 | Spec Enrichment v02.87 (LLM Core Normative Traits) | v02.87 | Enriched Â§4.2 with LlmClient trait and completion schemas |
-| ilja261220250149 | Orchestrator | 2025-12-26 01:49 | Spec Enrichment v02.88 (AI Job Model Normative Traits) | v02.88 | Enriched Â§2.6.6.2.8 with normative AiJob and JobMetrics structs |
+| ilja251220252304 | Orchestrator | 2025-12-25 23:04 | Spec Enrichment v02.85 (ACE-RAG-001 Normative Traits) | v02.85 | Enriched §2.6.6.7.14.11 with AceRuntimeValidator trait |
+| ilja251220252310 | Orchestrator | 2025-12-25 23:10 | Spec Enrichment v02.85 (Mutation Traceability Normative Traits) | v02.85 | Enriched §2.9.3 with StorageGuard trait and Persistence Schema |
+| ilja251220250037 | Orchestrator | 2025-12-26 00:37 | Spec Enrichment v02.86 (Flight Recorder Normative Traits) | v02.86 | Enriched §11.5 with FlightRecorder trait and FR-EVT schemas |
+| ilja261220250045 | Orchestrator | 2025-12-26 00:45 | Spec Enrichment v02.87 (LLM Core Normative Traits) | v02.87 | Enriched §4.2 with LlmClient trait and completion schemas |
+| ilja261220250149 | Orchestrator | 2025-12-26 01:49 | Spec Enrichment v02.88 (AI Job Model Normative Traits) | v02.88 | Enriched §2.6.6.2.8 with normative AiJob and JobMetrics structs |
 | ilja261220250312 | Orchestrator | 2025-12-26 03:12 | Task packet activation: WP-1-Workflow-Engine-v2 | v02.90 | Mandates node-level persistence and recovery state machine |
-| ilja261220250259 | Orchestrator | 2025-12-26 02:59 | Spec Enrichment v02.90 (Storage Purity & Workflow Persistence) | v02.90 | Enriched Â§2.3.12.3 (Trait Purity), Â§2.3.11.2 (Janitor Decoupling), Â§2.6.1 (Workflow Persistence) |
-| ilja281220250353 | Orchestrator | 2025-12-28 03:53 | Spec Enrichment v02.94 (Storage Audit) & WP-1-Storage-Foundation-v2 | v02.94 | Enriched Â§2.3.12.5 with Mandatory Audit requirement |
-| ilja281220250435 | Orchestrator | 2025-12-28 04:35 | Spec Enrichment v02.95 (Tokenizer Trait) & WP-1-Tokenization-Service-v2 | v02.95 | Enriched Â§4.6.1 with Tokenizer Trait definition |
-| ilja261220250201 | Orchestrator | 2025-12-26 02:01 | Spec Enrichment v02.89 (ACE Security Guard Requirements) | v02.89 | Enriched Â§2.6.6.7.11 with normative requirements for 8 missing guards |
-| ilja281220251500 | Orchestrator | 2025-12-28 15:00 | Task packet creation: WP-1-Security-Gates-20251228 | v02.96 | Terminal/RCE security gates per Â§10.1 |
-| ilja281220251700 | Orchestrator | 2025-12-28 17:00 | Task packet creation: WP-1-Terminal-LAW-v2 | v02.96 | Terminal LAW session types + AI isolation enforcement per Â§10.1 |
-| ilja281220251740 | Orchestrator | 2025-12-28 17:40 | Task packet creation: WP-1-MEX-v1.2-Runtime-v2 | v02.96 | MEX v1.2 runtime contract (envelopes, gates, registry, conformance) per Â§6.3.0 + Â§11.8 |
-| ilja281220251911 | Orchestrator | 2025-12-28 19:11 | Task packet creation: WP-1-Operator-Consoles-v1 | v02.96 | Operator Consoles v1 per Â§10.5 + DIAG-SCHEMA Â§11.4 (Problems/Jobs/Timeline/Evidence) |
+| ilja261220250259 | Orchestrator | 2025-12-26 02:59 | Spec Enrichment v02.90 (Storage Purity & Workflow Persistence) | v02.90 | Enriched §2.3.12.3 (Trait Purity), §2.3.11.2 (Janitor Decoupling), §2.6.1 (Workflow Persistence) |
+| ilja281220250353 | Orchestrator | 2025-12-28 03:53 | Spec Enrichment v02.94 (Storage Audit) & WP-1-Storage-Foundation-v2 | v02.94 | Enriched §2.3.12.5 with Mandatory Audit requirement |
+| ilja281220250435 | Orchestrator | 2025-12-28 04:35 | Spec Enrichment v02.95 (Tokenizer Trait) & WP-1-Tokenization-Service-v2 | v02.95 | Enriched §4.6.1 with Tokenizer Trait definition |
+| ilja261220250201 | Orchestrator | 2025-12-26 02:01 | Spec Enrichment v02.89 (ACE Security Guard Requirements) | v02.89 | Enriched §2.6.6.7.11 with normative requirements for 8 missing guards |
+| ilja281220251500 | Orchestrator | 2025-12-28 15:00 | Task packet creation: WP-1-Security-Gates-20251228 | v02.96 | Terminal/RCE security gates per §10.1 |
+| ilja281220251700 | Orchestrator | 2025-12-28 17:00 | Task packet creation: WP-1-Terminal-LAW-v2 | v02.96 | Terminal LAW session types + AI isolation enforcement per §10.1 |
+| ilja281220251740 | Orchestrator | 2025-12-28 17:40 | Task packet creation: WP-1-MEX-v1.2-Runtime-v2 | v02.96 | MEX v1.2 runtime contract (envelopes, gates, registry, conformance) per §6.3.0 + §11.8 |
+| ilja281220251911 | Orchestrator | 2025-12-28 19:11 | Task packet creation: WP-1-Operator-Consoles-v1 | v02.96 | Operator Consoles v1 per §10.5 + DIAG-SCHEMA §11.4 (Problems/Jobs/Timeline/Evidence) |
 | ilja281220252016 | Orchestrator | 2025-12-28 20:16 | Spec Enrichment v02.97 (Operator Consoles Technical Detail) | v02.97 | Added normative DuckDB schema and DiagnosticsStore trait |
 
 ---
@@ -181,17 +182,17 @@
 
 ## Signature History (For Reference)
 
-### v02.50 â†’ v02.81
+### v02.50 → v02.81
 - Rogue assistant enriched spec (multiple iterations)
 - No signatures recorded in this audit log (governance gap from early design)
 - v02.81 represents first major enrichment cycle
 
-### v02.81 â†’ v02.82 â†’ v02.83 â†’ v02.84
+### v02.81 → v02.82 → v02.83 → v02.84
 - Continued enrichment iterations
 - Signatures likely used but not recorded here (audit log was created later)
 - v02.84 is current baseline
 
-### v02.84 â†’ v02.85+ (Forward)
+### v02.84 → v02.85+ (Forward)
 - All future enrichments will be recorded in Consumed Signatures table above
 - Each signature tracked, one-time use enforced
 - Full provenance audit trail maintained
@@ -219,3 +220,4 @@ grep -r "Strategic Pause approval \[" .GOV/task_packets/ | awk -F'[' '{print $NF
 **Last Updated:** 2026-02-19
 **Version:** 1.0
 **Maintained By:** Orchestrator Agent
+
