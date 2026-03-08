@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-03-08
+**Updated:** 2026-03-09
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,8 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja090320260021 | Orchestrator | 2026-03-09 00:21 | Spec Enrichment v02.153 (backend capability/diagnostics evidence pass + capability/workflow/spec-router/MCP/diagnostics matrix expansion + cloud-consent portability stub growth) | v02.153 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.153 | SIGNATURE: ilja090320260021`. |
+| ilja080320262335 | Orchestrator | 2026-03-08 23:35 | Spec Enrichment v02.152 (backend orchestration/projection/replay pass + Spec Router/Locus/MCP/MEX backend matrix expansion + stub bridge growth) | v02.152 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.152 | SIGNATURE: ilja080320262335`. |
 | ilja080320262258 | Orchestrator | 2026-03-08 22:58 | Spec Enrichment v02.151 (backend export/evidence/portability pass + mailbox/AI-ready/workflow backend matrix expansion + stub bridge growth) | v02.151 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.151 ilja080320262258`. |
 | ilja080320262147 | Orchestrator | 2026-03-08 21:47 | Spec Enrichment v02.150 (backend-heavy matrix expansion + combo stub growth) | v02.150 | Approved in-chat: APPROVE SPEC ENRICHMENT v02.150 |
 | ilja080320261910 | Orchestrator | 2026-03-08 19:10 | Spec Enrichment v02.149 (refinement reciprocity + matrix-research rubric + GUI implementation advice hardening) | v02.149 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.149 | SIGNATURE: ilja080320261910`. |
