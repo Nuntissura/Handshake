@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja090320261600 | Orchestrator | 2026-03-09 16:00 | Spec Enrichment v02.161 (Dev Command Center evidence-and-replay backend pass + governance export, workspace bundle, and diagnostics projection hardening) | v02.161 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.161 | ilja090320261600` (normalized from the supplied approval line). |
 | ilja090320261423 | Orchestrator | 2026-03-09 14:23 | Spec Enrichment v02.160 (Dev Command Center control-plane backend pass + workflow, artificial intelligence job, capability, and model-session control-plane projection hardening) | v02.160 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.160 | ilja090320261423`. |
 | ilja090320261125 | Orchestrator | 2026-03-09 11:25 | Spec Enrichment v02.159 (correlation/projection backend pass + Dev Command Center and Operator Consoles ownership clarification + full-name wording discipline on touched additions) | v02.159 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.159 | ilja090320261125` (normalized from the supplied approval line). |
 | ilja090320260940 | Orchestrator | 2026-03-09 09:40 | Spec Enrichment v02.158 (Stage/Studio/Media/ASR backend pillar pass + ASR recorder/portability edges + Stage/ASR lineage stub growth) | v02.158 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.158 ilja090320260940`. |
