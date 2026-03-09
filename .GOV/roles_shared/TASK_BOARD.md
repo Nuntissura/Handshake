@@ -68,6 +68,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Loom-Preview-VideoPosterFrames-v1]** - [STUB]
 - **[WP-1-Loom-Storage-Portability-v1]** - [STUB]
 - **[WP-1-ASR-Transcribe-Media-v1]** - [STUB]
+- **[WP-1-Stage-ASR-Transcript-Lineage-v1]** - [STUB]
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
 - **[WP-1-Spec-Creation-System-v2.2.1-v1]** - [STUB]
