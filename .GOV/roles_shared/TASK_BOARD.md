@@ -154,6 +154,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Retrieval-Trace-Bundle-Export-v1]** - [STUB]
 - **[WP-1-Role-Mailbox-Debug-Bundle-Bridge-v1]** - [STUB]
 - **[WP-1-Role-Mailbox-Message-Thread-Contract-v1]** - [STUB]
+- **[WP-1-Role-Mailbox-Micro-Task-Loop-Control-v1]** - [STUB]
 
 
 - **[WP-1-Charts-Dashboards-Backfill-v1]** - [STUB]
