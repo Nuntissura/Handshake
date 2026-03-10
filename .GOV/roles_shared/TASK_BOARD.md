@@ -140,6 +140,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Structured-Collaboration-Schema-Registry-v1]** - [STUB]
 - **[WP-1-Project-Profile-Extension-Registry-v1]** - [STUB]
 - **[WP-1-Project-Agnostic-Workflow-State-Registry-v1]** - [STUB]
+- **[WP-1-Workflow-Transition-Automation-Registry-v1]** - [STUB]
 - **[WP-1-Markdown-Mirror-Sync-Drift-Guard-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-MVP-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-Layout-Projection-Registry-v1]** - [STUB]
@@ -152,6 +153,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Git-Engine-Decision-Gate-v1]** - [STUB]
 - **[WP-1-Retrieval-Trace-Bundle-Export-v1]** - [STUB]
 - **[WP-1-Role-Mailbox-Debug-Bundle-Bridge-v1]** - [STUB]
+- **[WP-1-Role-Mailbox-Message-Thread-Contract-v1]** - [STUB]
 
 
 - **[WP-1-Charts-Dashboards-Backfill-v1]** - [STUB]
