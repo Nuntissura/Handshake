@@ -139,6 +139,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Structured-Collaboration-Artifact-Family-v1]** - [STUB]
 - **[WP-1-Structured-Collaboration-Schema-Registry-v1]** - [STUB]
 - **[WP-1-Project-Profile-Extension-Registry-v1]** - [STUB]
+- **[WP-1-Project-Agnostic-Workflow-State-Registry-v1]** - [STUB]
 - **[WP-1-Markdown-Mirror-Sync-Drift-Guard-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-MVP-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-Layout-Projection-Registry-v1]** - [STUB]
