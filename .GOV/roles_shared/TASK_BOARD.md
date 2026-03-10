@@ -141,6 +141,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Project-Profile-Extension-Registry-v1]** - [STUB]
 - **[WP-1-Markdown-Mirror-Sync-Drift-Guard-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-MVP-v1]** - [STUB]
+- **[WP-1-Dev-Command-Center-Layout-Projection-Registry-v1]** - [STUB]
 - **[WP-1-Dev-Command-Center-Structured-Artifact-Viewer-v1]** - [STUB]
 - **[WP-1-Handshake-Stage-MVP-v1]** - [STUB]
 - **[WP-1-Stage-Media-Artifact-Portability-v1]** - [STUB]
