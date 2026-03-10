@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-03-09
+**Updated:** 2026-03-10
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,9 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja100320260150 | Orchestrator | 2026-03-10 01:50 | Spec Enrichment v02.168 (base structured-collaboration envelope and project-profile contract pass + shared envelope, compact summary, mirror-state, and profile-extension boundaries for Work Packets, Micro-Tasks, Task Board projections, and Role Mailbox exports + schema-registry and project-profile-extension registry stub growth) | v02.168 | Approved in-chat: `approved refinement v02.168 ilja100320260150` (normalized to spec-enrichment approval for this pass). |
+| ilja100320260112 | Orchestrator | 2026-03-10 01:12 | Spec Enrichment v02.167 (canonical structured artifact backend pass + versioned JavaScript Object Notation or JavaScript Object Notation Lines artifact family for Work Packets, Micro-Tasks, Task Board projections, and Role Mailbox exports + projected board and queue layout rules + new structured-artifact viewer and mirror-sync stubs) | v02.167 | Approved in-chat: `approved refinement v02.167 ilja100320260112` (normalized to spec-enrichment approval for this pass). |
+| ilja100320260032 | Orchestrator | 2026-03-10 00:32 | Spec Enrichment v02.166 (structured collaboration-substrate backend pass + canonical structured records for Work Packets, Micro-Tasks, Task Board, and Role Mailbox + Dev Command Center structured viewers and collaboration triage) | v02.166 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.166 | ilja100320260032`. |
 | ilja090320262346 | Orchestrator | 2026-03-09 23:46 | Spec Enrichment v02.165 (Dev Command Center operating-surface backend pass + run history/tool infrastructure/workspace runtime/promotion-gate hardening) | v02.165 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.165 | ilja 090320262346` (normalized to `ilja090320262346`). |
 | ilja090320262320 | Orchestrator | 2026-03-09 23:20 | Spec Enrichment v02.164 (Dev Command Center resilience and governed repository-decision backend pass + session recovery/provider readiness/anti-pattern/repository-policy hardening) | v02.164 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.164 | ilja090320262320`. |
 | ilja090320261949 | Orchestrator | 2026-03-09 19:49 | Spec Enrichment v02.163 (Dev Command Center planning-and-coordination backend pass + Task Board / Work Packet System appendix backfill + planning projection hardening) | v02.163 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.163 | ilja090320261949` (normalized from the supplied approval line). |
