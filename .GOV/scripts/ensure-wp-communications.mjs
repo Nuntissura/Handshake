@@ -42,6 +42,12 @@ function writeIfMissing(filePath, content) {
   return true;
 }
 
+function requireTemplateFile(filePath) {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Missing WP communication template: ${normalize(filePath)}`);
+  }
+}
+
 export function ensureWpCommunications({
   wpId,
   baseWpId,
@@ -72,6 +78,21 @@ export function ensureWpCommunications({
   const AGENTIC_MODE = String(agenticMode || parseSingleField(packetText, "AGENTIC_MODE") || "<pending>").trim();
   const PACKET_STATUS = String(packetStatus || parsePacketStatus(packetText) || "Ready for Dev").trim();
   const DATE_ISO = String(initializedAt || new Date().toISOString()).trim();
+
+  if (packetText) {
+    const warnings = [];
+    if (!parseSingleField(packetText, "BASE_WP_ID") && !baseWpId) warnings.push("BASE_WP_ID missing; defaulted from WP_ID");
+    if (!parseSingleField(packetText, "LOCAL_BRANCH") && !localBranch) warnings.push("LOCAL_BRANCH missing; defaulted to <pending>");
+    if (!parseSingleField(packetText, "LOCAL_WORKTREE_DIR") && !localWorktreeDir) warnings.push("LOCAL_WORKTREE_DIR missing; defaulted to <pending>");
+    if (!parseSingleField(packetText, "AGENTIC_MODE") && !agenticMode) warnings.push("AGENTIC_MODE missing; defaulted to <pending>");
+    for (const warning of warnings) {
+      console.warn(`[WP_COMMUNICATIONS] ${WP_ID}: ${warning}`);
+    }
+  }
+
+  requireTemplateFile(THREAD_TEMPLATE);
+  requireTemplateFile(RUNTIME_TEMPLATE);
+  requireTemplateFile(RECEIPTS_TEMPLATE);
 
   fs.mkdirSync(COMM_ROOT, { recursive: true });
   const wpCommDir = path.join(COMM_ROOT, WP_ID);

@@ -44,6 +44,34 @@ function printGateBlocks({ wpId, stage, next, operatorAction, gateRan, result, w
   for (const cmd of nextCommands || []) console.log(`- ${cmd}`);
 }
 
+function parseSingleField(text, label) {
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, 'mi');
+  const match = text.match(re);
+  return match ? match[1].trim() : '';
+}
+
+function detectCommunicationArtifactDrift(packetPath, packetText) {
+  const communicationDir = parseSingleField(packetText, 'WP_COMMUNICATION_DIR');
+  const threadFile = parseSingleField(packetText, 'WP_THREAD_FILE');
+  const runtimeStatusFile = parseSingleField(packetText, 'WP_RUNTIME_STATUS_FILE');
+  const receiptsFile = parseSingleField(packetText, 'WP_RECEIPTS_FILE');
+  const declared = [communicationDir, threadFile, runtimeStatusFile, receiptsFile].filter(Boolean);
+  if (declared.length === 0) return null;
+
+  const missing = [];
+  for (const target of [communicationDir, threadFile, runtimeStatusFile, receiptsFile].filter(Boolean)) {
+    if (!fs.existsSync(target)) missing.push(target.replace(/\\/g, '/'));
+  }
+  if (declared.length !== 4 || missing.length > 0) {
+    return {
+      declaredCount: declared.length,
+      missing,
+      packetPath: packetPath.replace(/\\/g, '/'),
+    };
+  }
+  return null;
+}
+
 // HARD GATE: Technical Refinement must exist and be signed before packet creation.
 const refinementsDir = path.join('.GOV', 'refinements');
 if (!fs.existsSync(refinementsDir)) {
@@ -388,6 +416,34 @@ const filePath = path.join(taskPacketDir, fileName);
 
 // Check if file already exists
 if (fs.existsSync(filePath)) {
+  const packetText = fs.readFileSync(filePath, 'utf8');
+  const communicationDrift = detectCommunicationArtifactDrift(filePath, packetText);
+  if (communicationDrift) {
+    printGateBlocks({
+      wpId: WP_ID,
+      stage: 'PACKET_CREATE',
+      next: 'STATUS_SYNC',
+      operatorAction: 'NONE',
+      gateRan: `just create-task-packet ${WP_ID}`,
+      result: 'BLOCKED',
+      why: 'The packet already exists, but its WP communication artifacts are incomplete. The packet is intentionally preserved on disk; repair the communication artifacts instead of recreating or deleting the packet.',
+      gateOutputLines: [
+        `BLOCKED: Repairable packet communication drift detected for ${communicationDrift.packetPath}.`,
+        ...(communicationDrift.declaredCount !== 4
+          ? [`- Packet declares ${communicationDrift.declaredCount} of 4 WP communication metadata fields; all 4 are required.`]
+          : []),
+        ...communicationDrift.missing.map((item) => `- Missing communication artifact: ${item}`),
+        '- Packet was preserved intentionally. Auto-delete rollback is disabled for this workflow.',
+      ],
+      nextCommands: [
+        `cat ${filePath.replace(/\\/g, '/')}`,
+        `just ensure-wp-communications ${WP_ID}`,
+        `just gov-check`,
+      ],
+    });
+    process.exit(1);
+  }
+
   printGateBlocks({
     wpId: WP_ID,
     stage: 'PACKET_CREATE',
@@ -732,14 +788,15 @@ try {
   printGateBlocks({
     wpId: WP_ID,
     stage: 'PACKET_CREATE',
-    next: 'STOP',
+    next: 'STATUS_SYNC',
     operatorAction: 'NONE',
     gateRan: `just create-task-packet ${WP_ID}`,
-    result: 'FAIL',
-    why: 'Task packet was created, but WP communication artifacts could not be bootstrapped deterministically.',
+    result: 'BLOCKED',
+    why: 'Task packet was created, but WP communication artifacts could not be bootstrapped deterministically. The packet is intentionally preserved on disk; repair the communication artifacts instead of deleting and recreating the packet.',
     gateOutputLines: [
-      `FAIL: WP communication folder bootstrap failed for ${WP_ID}.`,
+      `BLOCKED: WP communication folder bootstrap failed for ${WP_ID}.`,
       `- ${(error && error.message) ? error.message : String(error)}`,
+      '- Packet was preserved intentionally. Auto-delete rollback is disabled for this workflow.',
     ],
     nextCommands: [
       `cat ${filePath.replace(/\\/g, '/')}`,
