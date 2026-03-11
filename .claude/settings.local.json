@@ -23,7 +23,11 @@
       "Bash(node scripts/validation/gate-check.mjs:*)",
       "Bash(git hash-object:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "WebSearch",
+      "WebFetch(domain:www.anthropic.com)",
+      "WebFetch(domain:dev.to)",
+      "WebFetch(domain:towardsdatascience.com)"
     ]
   }
 }
