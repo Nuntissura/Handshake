@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-03-10
+**Updated:** 2026-03-11
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,9 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja110320260813 | Orchestrator | 2026-03-11 08:13 | Spec Enrichment v02.177 (Role Mailbox handoff-bundle and announce-back provenance pass + structured handoff bundles, note-transcription duties, announce-back provenance kinds, compact handoff summaries, and mailbox-handoff/transcription/announce-back stub growth) | v02.177 | Approved in-chat: `refinement approved for v02.177 ilja110320260813`. |
+| ilja110320260021 | Orchestrator | 2026-03-11 00:21 | Spec Enrichment v02.176 (Role Mailbox executor-routing and claim-lease pass + executor kinds, claim modes, claim or lease records, response-authority scope, takeover policy, claimant visibility, and mailbox-executor-routing-and-claim-lease stub growth) | v02.176 | Approved in-chat: `approved refinement v02.176 ilja110320260021`. |
+| ilja110320260002 | Orchestrator | 2026-03-11 00:02 | Spec Enrichment v02.175 (Role Mailbox triage and queue-control pass + triage queue state, reminder schedules, snooze and expiry posture, dead-letter remediation, operator-facing remediation controls, and mailbox-triage-and-queue-controls stub growth) | v02.175 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.175 ilja110320260002`. |
 | ilja100320262233 | Orchestrator | 2026-03-10 22:33 | Spec Enrichment v02.174 (Role Mailbox and Micro-Task loop-control pass + verifier-driven mailbox loop checkpoints, structured verifier outcomes, retry-budget and escalation posture, completion-report transcription duties, and mailbox-loop-control stub growth) | v02.174 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.174 | ilja100320262233`. |
 | ilja100320261756 | Orchestrator | 2026-03-10 17:56 | Spec Enrichment v02.173 (Role Mailbox message-contract pass + typed message families, thread lifecycle states, delivery states, allowed-response envelopes, Micro-Task collaboration message groundwork, and mailbox message-thread contract stub growth) | v02.173 | Approved in-chat: `APPROVE SPEC ENRICHMENT v02.173 | ilja100320261756`. |
 | ilja100320261658 | Orchestrator | 2026-03-10 16:58 | Spec Enrichment v02.172 (workflow transition matrix, queue automation, and executor eligibility pass + transition rules, queue automation rules, executor eligibility policies, and transition-automation registry stub growth) | v02.172 | Approved in-chat: `approve refinement v02.172 ilja100320261658`. |

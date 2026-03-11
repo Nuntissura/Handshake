@@ -155,6 +155,9 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Role-Mailbox-Debug-Bundle-Bridge-v1]** - [STUB]
 - **[WP-1-Role-Mailbox-Message-Thread-Contract-v1]** - [STUB]
 - **[WP-1-Role-Mailbox-Micro-Task-Loop-Control-v1]** - [STUB]
+- **[WP-1-Role-Mailbox-Triage-Queue-Controls-v1]** - [STUB]
+- **[WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1]** - [STUB]
+- **[WP-1-Role-Mailbox-Handoff-Bundle-Transcription-Announce-Back-v1]** - [STUB]
 
 
 - **[WP-1-Charts-Dashboards-Backfill-v1]** - [STUB]
