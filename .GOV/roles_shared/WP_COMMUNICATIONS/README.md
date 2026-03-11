@@ -62,5 +62,21 @@ Authority split:
 Deterministic helpers:
 - `just ensure-wp-communications WP-{ID}`
 - `just wp-communications-check`
+- `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]`
 - `just wp-heartbeat WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <CURRENT_PHASE> <RUNTIME_STATUS> <NEXT_EXPECTED_ACTOR> "<WAITING_ON>" [VALIDATOR_TRIGGER] [LAST_EVENT]`
 - `just wp-receipt-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <RECEIPT_KIND> "<SUMMARY>" [STATE_BEFORE] [STATE_AFTER]`
+
+Monitor-first operator workflow:
+- `just operator-monitor` renders a CLI/TUI overview of active WPs, packet truth, heartbeats, authorities, thread activity, and recent receipts.
+- The monitor reads Task Board, traceability, active packet headers, and packet-declared communication artifacts.
+- The monitor is an overview/helper surface only. It is not packet truth and must not become a second authority.
+- When available, prefer VS Code integrated terminals as the host for role sessions and keep the monitor in a dedicated VS Code terminal tab.
+
+Freeform thread target convention:
+- Messages in `THREAD.md` may start with lightweight target hints to improve scanning:
+  - `@orch`
+  - `@coder`
+  - `@wpval`
+  - `@ival`
+  - `@operator`
+- These target hints are advisory only. Authority still comes from packet metadata and runtime fields.

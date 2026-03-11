@@ -191,6 +191,7 @@ Resume rule (hard, anti-babysit):
 
 - If the assigned packet defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, use those files as the secondary collaboration surface for that WP.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not use a coder-local worktree as a competing inbox.
+- When available, prefer VS Code integrated terminals for coder sessions so the Operator can monitor active WPs alongside `just operator-monitor`.
 - Use `THREAD.md` for append-only questions, clarifications, blocker notes, and soft coordination.
 - Use `RUNTIME_STATUS.json` for liveness updates only:
   - `runtime_status`
@@ -212,6 +213,7 @@ Resume rule (hard, anti-babysit):
 - Update runtime status and append a receipt on session start, phase change, blocker/unblock, handoff, completion, and every packet heartbeat interval only while actively working.
 - Set `validator_trigger` only when the validator should wake up. Do not expect continuous polling.
 - Prefer deterministic helpers over hand-editing these files:
+  - `just wp-thread-append WP-{ID} CODER <session> "<message>" [target]`
   - `just wp-heartbeat WP-{ID} CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
   - `just wp-receipt-append WP-{ID} CODER <session> <receipt_kind> "<summary>" [state_before] [state_after]`
 - Keep authoritative work state in the packet:

@@ -50,6 +50,18 @@ Product-scanning / product-boundary enforcement:
 - `just product-scan` (alias) / `just validator-scan` (forbidden patterns in product sources)
 - `just validate` (full product hygiene: frontend + backend tests, etc.)
 
+## Session Host + Operator Monitor
+
+- When available, prefer VS Code integrated terminals for multi-session work instead of many floating desktop terminals.
+- Recommended VS Code tabs:
+  - `ORCH`
+  - `CODER <WP_ID>`
+  - `WPVAL <WP_ID>`
+  - `INTVAL`
+  - `MONITOR`
+- `just operator-monitor` provides the overview surface for active WPs, authorities, heartbeats, and WP-scoped communications.
+- `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]` appends a freeform message to the packet-declared `WP_COMMUNICATION_DIR`.
+
 ## Role: Orchestrator
 
 Authoritative inputs:
@@ -70,6 +82,8 @@ Primary commands:
 - `just pre-work WP-...`
 - `just wp-heartbeat WP-... ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - `just wp-receipt-append WP-... ORCHESTRATOR <session> <receipt_kind> "<summary>"`
+- `just wp-thread-append WP-... ORCHESTRATOR <session> "<message>" [target]`
+- `just operator-monitor`
 
 Role rule:
 - The Orchestrator is non-agentic. It coordinates sessions and governance state, but does not spawn Orchestrator or Validator helper agents.
@@ -84,6 +98,7 @@ Primary commands:
 - Workflow closure evidence: `just post-work WP-...`
 - `just wp-heartbeat WP-... CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - `just wp-receipt-append WP-... CODER <session> <receipt_kind> "<summary>"`
+- `just wp-thread-append WP-... CODER <session> "<message>" [target]`
 
 Role rule:
 - Only the Primary Coder may use sub-agents, and only when the packet explicitly allows it.
@@ -99,6 +114,7 @@ Primary commands (per WP validation):
 - `just codex-check` (product boundary enforcement)
 - `just wp-heartbeat WP-... VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - `just wp-receipt-append WP-... VALIDATOR <session> <receipt_kind> "<summary>"`
+- `just wp-thread-append WP-... VALIDATOR <session> "<message>" [target]`
 
 Governance-only work:
 - `just gov-check`

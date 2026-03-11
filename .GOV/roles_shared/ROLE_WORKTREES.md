@@ -22,6 +22,10 @@ Recommended structure:
     wt-WP-...\             # WP worktrees (branch: feat/WP-...)
 ```
 
+Preferred session host:
+- When available, prefer VS Code integrated terminals to host the Orchestrator, Coder, WP Validator, and Integration Validator sessions.
+- Keep one dedicated VS Code terminal tab for `just operator-monitor` so the Operator can watch active WPs, heartbeats, and packet-scoped communications without using many floating terminal windows.
+
 If you are an AI assistant operating in this repo:
 - You MUST read this file during session start (Pre-Flight) for your assigned role.
 - You MUST verify you are operating from the correct worktree directory and branch for your role before any repo changes.

@@ -284,11 +284,17 @@ ensure-wp-communications wp-id:
 wp-communications-check:
 	@node .GOV/scripts/validation/wp-communications-check.mjs
 
+wp-thread-append wp-id actor-role actor-session message target='':
+	@node .GOV/scripts/wp-thread-append.mjs {{wp-id}} {{actor-role}} {{actor-session}} "{{message}}" "{{target}}"
+
 wp-receipt-append wp-id actor-role actor-session receipt-kind summary state-before='' state-after='':
 	@node .GOV/scripts/wp-receipt-append.mjs {{wp-id}} {{actor-role}} {{actor-session}} {{receipt-kind}} "{{summary}}" "{{state-before}}" "{{state-after}}"
 
 wp-heartbeat wp-id actor-role actor-session current-phase runtime-status next-expected-actor waiting-on validator-trigger='NONE' last-event='' worktree-dir='':
 	@node .GOV/scripts/wp-heartbeat.mjs {{wp-id}} {{actor-role}} {{actor-session}} {{current-phase}} {{runtime-status}} {{next-expected-actor}} "{{waiting-on}}" {{validator-trigger}} "{{last-event}}" "{{worktree-dir}}"
+
+operator-monitor *args:
+	@node .GOV/scripts/operator-monitor-tui.mjs {{args}}
 
 # Create new task packet stub from template (backlog; non-executable)
 create-task-packet-stub wp-id roadmap_pointer="" line_numbers="":

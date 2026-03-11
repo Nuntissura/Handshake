@@ -263,6 +263,7 @@ Resume rule (hard, anti-babysit):
 
 - If the active packet defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, the Orchestrator MUST treat those files as the canonical non-authoritative collaboration surface for that WP.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not treat any role worktree or backup branch as a competing inbox.
+- When available, prefer VS Code integrated terminals as the host for Orchestrator-managed sessions and keep one dedicated `just operator-monitor` tab open for overview.
 - Use `THREAD.md` for append-only steering, clarifications, relay notes, and manual-lane coordination.
 - Use `RUNTIME_STATUS.json` for structured liveness only:
   - `runtime_status`: `submitted | working | input_required | completed | failed | canceled`
@@ -288,8 +289,10 @@ Resume rule (hard, anti-babysit):
 To avoid manual markdown editing mistakes:
 - Update Task Board entry: `just task-board-set WP-{ID} READY_FOR_DEV|IN_PROGRESS|DONE_VALIDATED|DONE_FAIL|DONE_OUTDATED_ONLY|STUB|BLOCKED|SUPERSEDED ["reason"]`
 - Update Base->Active mapping: `just wp-traceability-set BASE_WP_ID ACTIVE_PACKET_WP_ID`
+- Append freeform thread message: `just wp-thread-append WP-{ID} ORCHESTRATOR <session> "<message>" [target]`
 - Update WP communication liveness: `just wp-heartbeat WP-{ID} ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - Append deterministic receipt: `just wp-receipt-append WP-{ID} ORCHESTRATOR <session> <receipt_kind> "<summary>" [state_before] [state_after]`
+- Open the operator monitor TUI: `just operator-monitor`
 - Condense post-signature setup:
   - Default post-signature path: `just orchestrator-prepare-and-packet WP-{ID}`
   - Retry helper when PREPARE is already recorded: `just orchestrator-worktree-and-packet WP-{ID}`

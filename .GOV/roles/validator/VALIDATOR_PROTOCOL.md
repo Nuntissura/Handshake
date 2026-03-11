@@ -192,6 +192,7 @@ Resume rule (hard, anti-babysit):
 
 - If the packet under review defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, use those files as the secondary collaboration surface for that WP.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not use a validator-local worktree as a competing inbox.
+- When available, prefer VS Code integrated terminals for validator sessions so the Operator can keep each WP validator and the Integration Validator grouped beside `just operator-monitor`.
 - Use `THREAD.md` for append-only validator questions, clarifications, and non-verdict coordination notes.
 - Use `RUNTIME_STATUS.json` for liveness state only:
   - `runtime_status`
@@ -207,6 +208,7 @@ Resume rule (hard, anti-babysit):
 - Do not poll continuously. The Validator should wake on explicit packet assignment, `ready_for_validation=true`, `validator_trigger != NONE`, a validation handoff receipt, or an explicit operator/orchestrator instruction.
 - Update runtime status and append a receipt on validation start, validation query, blocker, verdict-ready handoff, completion, and every packet heartbeat interval only while actively validating.
 - Prefer deterministic helpers over hand-editing these files:
+  - `just wp-thread-append WP-{ID} VALIDATOR <session> "<message>" [target]`
   - `just wp-heartbeat WP-{ID} VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
   - `just wp-receipt-append WP-{ID} VALIDATOR <session> <receipt_kind> "<summary>" [state_before] [state_after]`
 - Hard rule: packet truth still wins. Validation authority remains in the packet, especially `## VALIDATION`, `## EVIDENCE`, and `## VALIDATION_REPORTS`.
