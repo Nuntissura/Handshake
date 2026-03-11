@@ -87,6 +87,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-ACE-Auditability-v2]** - [STUB]
 - **[WP-1-ACE-Persist-QueryPlan-Trace-v1]** - [STUB]
 - **[WP-1-RAG-Iterative-v2]** - [STUB]
+- **[WP-1-RAG-Retrieval-Mode-Policy-v1]** - [STUB]
 - **[WP-1-AIReady-CoreMetadata-v1]** - [STUB]
 - **[WP-1-AIReady-Index-Evidence-Export-v1]** - [STUB]
 - **[WP-1-AIReady-RelationshipIds-GraphRetrieval-v1]** - [STUB]
