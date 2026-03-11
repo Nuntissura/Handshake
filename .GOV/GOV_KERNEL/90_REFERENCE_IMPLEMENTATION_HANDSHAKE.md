@@ -171,11 +171,11 @@ Why: role work must occur in the correct worktree and branch, preventing acciden
    - Fill `.GOV/refinements/{WP_ID}.md` from template and run refinement validation.
    - Record refinement: `just record-refinement {WP_ID}` (writes `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`).
    - In a new user turn, after explicit approval evidence exists in the refinement file:
-     - Record signature bundle: `just record-signature {WP_ID} {usernameDDMMYYYYHHMM} {Orchestrator-Agentic|Coder-A|Coder-B}`
+     - Record signature bundle: `just record-signature {WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`
        - Updates refinement file with APPROVED status and signature
        - Appends the signature to `.GOV/roles_shared/SIGNATURE_AUDIT.md`
-       - Writes the signature event (including execution lane) to `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
-   - Preferred: create WP worktree/branch + PREPARE + packet in one step: `just orchestrator-prepare-and-packet {WP_ID} {Orchestrator-Agentic|Coder-A|Coder-B}`
+       - Writes the signature event (including workflow lane + execution owner) to `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
+   - Preferred: create WP worktree/branch + PREPARE + packet in one step: `just orchestrator-prepare-and-packet {WP_ID}`
      - This helper wraps `just worktree-add`, `just record-prepare`, and `just create-task-packet`.
    - Retry-only alternative: `just create-task-packet {WP_ID}`
      - Script hard-gates on signature + prepare being recorded and on ENRICHMENT_NEEDED=NO.

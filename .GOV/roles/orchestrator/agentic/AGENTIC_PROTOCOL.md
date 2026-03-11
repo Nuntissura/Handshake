@@ -1,5 +1,10 @@
 # AGENTIC_PROTOCOL (Orchestrator)
 
+LEGACY NOTICE:
+- This file remains for historical audit/reference only.
+- Current repo governance keeps the Orchestrator single-session and non-agentic.
+- Do not use this add-on for new runs unless the Operator explicitly re-enables Orchestrator agentic execution in governance.
+
 This is an **add-on** protocol for orchestrator-led, multi-agent ("agentic") execution.
 
 It does not replace `/.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`; it adds constraints to prevent drift when multiple agents are running.

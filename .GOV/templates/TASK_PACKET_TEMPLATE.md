@@ -27,12 +27,24 @@ Requirements:
 - ROLE: Orchestrator
 - REFINEMENT_ENFORCEMENT_PROFILE: <pending>
 - PACKET_HYDRATION_PROFILE: <pending>
-- AGENTIC_MODE: <pending>
-<!-- Allowed: YES | NO -->
-- ORCHESTRATOR_MODEL: <pending>
-<!-- Required if AGENTIC_MODE=YES -->
-- ORCHESTRATION_STARTED_AT_UTC: <pending>
-<!-- RFC3339 UTC; required if AGENTIC_MODE=YES -->
+- WORKFLOW_LANE: MANUAL_RELAY
+<!-- Allowed: MANUAL_RELAY | ORCHESTRATOR_MANAGED | UNSPECIFIED -->
+- EXECUTION_OWNER: UNASSIGNED
+<!-- Allowed: ORCHESTRATOR | CODER_A | CODER_B | UNASSIGNED -->
+- WORKFLOW_AUTHORITY: ORCHESTRATOR
+<!-- Current repo-governance owner for workflow steering and hard-gate progression. -->
+- TECHNICAL_ADVISOR: WP_VALIDATOR
+<!-- Advisory WP-scoped validator; may question and challenge coder work but does not own final merge authority. -->
+- TECHNICAL_AUTHORITY: INTEGRATION_VALIDATOR
+<!-- Final technical verdict authority across the WP batch. -->
+- MERGE_AUTHORITY: INTEGRATION_VALIDATOR
+<!-- Final merge-to-main authority. -->
+- AGENTIC_MODE: NO
+<!-- Allowed: YES | NO. Default NO; set to YES only with explicit operator-authorized sub-agent use. -->
+- ORCHESTRATOR_MODEL: N/A
+<!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
+- ORCHESTRATION_STARTED_AT_UTC: N/A
+<!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - CODER_MODEL: <unclaimed>
 - CODER_REASONING_STRENGTH: <unclaimed>
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
@@ -63,10 +75,22 @@ Requirements:
 - REMOTE_BACKUP_LIFECYCLE: TEMPORARY
 <!-- WP backup branches may be deleted after Operator-approved cleanup; later dead links are non-blocking. -->
 - BACKUP_PUSH_STATUS: REQUIRED_BEFORE_DESTRUCTIVE_OPS
+- HEARTBEAT_INTERVAL_MINUTES: 15
+<!-- Integer minutes; update runtime status/receipts on event boundaries and at this interval only while actively working. -->
+- STALE_AFTER_MINUTES: 45
+<!-- Integer minutes; heartbeat older than this threshold is stale. -->
+- MAX_CODER_REVISION_CYCLES: 3
+- MAX_VALIDATOR_REVIEW_CYCLES: 3
+- MAX_RELAY_ESCALATION_CYCLES: 2
 - WP_COMMUNICATION_DIR: .GOV/roles_shared/WP_COMMUNICATIONS/{{WP_ID}}
 - WP_THREAD_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/{{WP_ID}}/THREAD.md
 - WP_RUNTIME_STATUS_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/{{WP_ID}}/RUNTIME_STATUS.json
-- WP_RECEIPTS_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/{{WP_ID}}/RECEIPTS.md
+- WP_RECEIPTS_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/{{WP_ID}}/RECEIPTS.jsonl
+- WP_VALIDATOR_OF_RECORD: <unassigned>
+- INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
+- SECONDARY_VALIDATOR_SESSIONS: NONE
+- COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
+<!-- All roles MUST use the packet-declared WP communication directory. Role-local worktrees are never the communication authority. -->
 - USER_SIGNATURE: {{USER_SIGNATURE}}
 - PACKET_FORMAT_VERSION: 2026-03-11
 
@@ -78,28 +102,46 @@ Next: N/A
 ## WP_COMMUNICATIONS (NON-AUTHORITATIVE; REQUIRED FOR NEW PACKETS)
 - RULE: The task packet remains authoritative for scope, status, branch/worktree truth, acceptance, and verdict.
 - PURPOSE: The per-WP communication folder holds freeform discussion, liveness state, and deterministic receipts for multi-session work.
+- COMMUNICATION AUTHORITY RULE:
+  - all roles use the packet-declared `WP_COMMUNICATION_DIR`
+  - do not improvise role-local inboxes or worktree-local communication authority
+  - if there is any dispute about where to write, `WP_COMMUNICATION_DIR` wins
+- AUTHORITY SPLIT:
+  - `WORKFLOW_AUTHORITY` owns workflow steering and hard gates
+  - `TECHNICAL_ADVISOR` is the WP-scoped advisory validator
+  - `TECHNICAL_AUTHORITY` owns final technical verdict authority
+  - `MERGE_AUTHORITY` owns merge-to-main authority
+  - `WP_VALIDATOR_OF_RECORD` and `INTEGRATION_VALIDATOR_OF_RECORD` name the active validator sessions once assigned
 - THREAD.md:
   - append-only freeform conversation for Operator, Orchestrator, Coder, and Validator
   - may contain steering, questions, clarifications, and soft coordination
 - RUNTIME_STATUS.json:
   - non-authoritative liveness and watch state
-  - use for next expected actor, waiting state, heartbeat posture, and validation readiness
-- RECEIPTS.md:
-  - append-only deterministic receipts such as assignment receipt, status receipt, heartbeat receipt, and handoff receipt
+  - uses repo-governance runtime states: `submitted | working | input_required | completed | failed | canceled`
+  - use for next expected actor, waiting state, validator trigger, heartbeat posture, validation readiness, and bounded review-loop counters
+- RECEIPTS.jsonl:
+  - append-only deterministic receipt ledger
+  - one JSON object per line
+  - use for assignment, status, heartbeat, steering, repair, validation, and handoff receipts
 - CONFLICT RULE:
-  - if THREAD.md, RUNTIME_STATUS.json, or RECEIPTS.md conflicts with this packet, this packet wins
+  - if THREAD.md, RUNTIME_STATUS.json, or RECEIPTS.jsonl conflicts with this packet, this packet wins
+- LOOP LIMIT RULE:
+  - do not exceed `MAX_CODER_REVISION_CYCLES`, `MAX_VALIDATOR_REVIEW_CYCLES`, or `MAX_RELAY_ESCALATION_CYCLES` without explicit Operator steering recorded in the packet or thread
+- HEARTBEAT RULE:
+  - do not poll continuously
+  - update `RUNTIME_STATUS.json` and append a receipt on session start, major phase change, blocker/unblock, handoff, completion, and every `HEARTBEAT_INTERVAL_MINUTES` only while active
 
 ## SUB_AGENT_DELEGATION (OPTIONAL; OPERATOR-GATED)
 - SUB_AGENT_DELEGATION: DISALLOWED
 - OPERATOR_APPROVAL_EVIDENCE: N/A
 - SUB_AGENT_REASONING_ASSUMPTION: LOW (HARD)
-- NOTE: `AGENTIC_MODE: YES` means the Orchestrator owns the run; `AGENTIC_MODE: NO` still allows coder-side sub-agents if Operator approval evidence is recorded here.
+- NOTE: `AGENTIC_MODE: YES` means sub-agent use is explicitly authorized for this WP; `AGENTIC_MODE: NO` means all roles remain single-session.
 - RULES (if SUB_AGENT_DELEGATION=ALLOWED):
   - Sub-agents produce draft code only; Primary Coder verifies against SPEC_CURRENT + task packet acceptance criteria before applying.
   - Sub-agents MUST NOT edit any governance surface (`.GOV/**`, including task packets/refinements and `## VALIDATION_REPORTS`).
   - Only Primary Coder runs gates, records EVIDENCE/EVIDENCE_MAPPING/VALIDATION manifest, commits, and hands off.
   - See: `/.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md` Section 6.
-- NOTE: Set `SUB_AGENT_DELEGATION: ALLOWED` only with explicit Operator approval; when ALLOWED, replace `OPERATOR_APPROVAL_EVIDENCE` with the exact approval line from chat. The WP signature bundle execution lane may serve as that approval evidence when it explicitly authorizes agent use for the run.
+- NOTE: Set `SUB_AGENT_DELEGATION: ALLOWED` only with explicit Operator approval; when ALLOWED, replace `OPERATOR_APPROVAL_EVIDENCE` with the exact approval line from chat.
 
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 - REFINEMENT_FILE: .GOV/refinements/{{WP_ID}}.md

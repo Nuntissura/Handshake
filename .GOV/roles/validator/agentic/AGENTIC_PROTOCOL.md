@@ -1,5 +1,10 @@
 # AGENTIC_PROTOCOL (Validator)
 
+LEGACY NOTICE:
+- This file remains for historical audit/reference only.
+- Current repo governance keeps the Validator single-session and non-agentic.
+- Do not use this add-on for new runs unless the Operator explicitly re-enables Validator agentic execution in governance.
+
 This is an **add-on** protocol for validators operating in orchestrator-led, multi-agent ("agentic") workflows.
 
 It does not replace `/.GOV/roles/validator/VALIDATOR_PROTOCOL.md`; it adds failure-mode defenses specific to agentic relays.

@@ -1,18 +1,8 @@
-# WP Receipts: {{WP_ID}}
+# LEGACY TEMPLATE - DO NOT USE
 
-Rules:
-- Append-only.
-- Use this file for deterministic receipts, not freeform discussion.
-- If this file conflicts with the task packet, the task packet wins.
+Receipts are now stored in `WP_RECEIPTS_TEMPLATE.jsonl`.
 
-## ASSIGNMENT_RECEIPTS
-- {{DATE_ISO}} | SYSTEM | Assignment artifacts initialized for {{WP_ID}}.
-
-## STATUS_RECEIPTS
-- <append receipts here>
-
-## HEARTBEAT_RECEIPTS
-- <append receipts here>
-
-## HANDOFF_RECEIPTS
-- <append receipts here>
+Reason:
+- Deterministic multi-session coordination now requires schema-validated receipt entries.
+- Freeform notes belong in `THREAD.md`.
+- Packet truth still wins over all communication artifacts.

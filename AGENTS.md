@@ -53,8 +53,19 @@
 - Official packets may define `.GOV/roles_shared/WP_COMMUNICATIONS/WP-{ID}/`.
 - These files are governance-only collaboration helpers:
   - `THREAD.md` for append-only freeform discussion
-  - `RUNTIME_STATUS.json` for liveness, waiting-state, and next-actor watch state
-  - `RECEIPTS.md` for deterministic assignment, status, heartbeat, and handoff receipts
+  - `RUNTIME_STATUS.json` for liveness, validator-trigger, waiting-state, next-actor watch state, and bounded loop counters
+  - `RECEIPTS.jsonl` for deterministic assignment, status, heartbeat, steering, repair, validation, and handoff receipts
 - The task packet remains authoritative for scope, packet status, PREPARE assignment, acceptance, and verdict.
 - If packet and communication artifacts disagree, the packet wins.
+- These richer artifacts apply to both `MANUAL_RELAY` and `ORCHESTRATOR_MANAGED` workflow lanes.
+- The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not improvise role-local inboxes.
+- Authority split for semi-autonomous work:
+  - Orchestrator = workflow authority
+  - WP Validator = advisory technical reviewer
+  - Integration Validator = final technical and merge authority
+
+### Current role execution policy
+- Orchestrator is non-agentic and single-session.
+- Validator is non-agentic and single-session.
+- Only the Primary Coder may use coder sub-agents, and only when the packet explicitly records operator approval.
 </INSTRUCTIONS>

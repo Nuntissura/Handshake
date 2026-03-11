@@ -156,6 +156,23 @@ function v2NormalizeExecutionLane(raw) {
     return null;
 }
 
+function v2NormalizeWorkflowLane(raw) {
+    const value = (raw || '').trim();
+    if (!value) return '';
+
+    const upper = value.toUpperCase().replace(/[\s-]+/g, '_');
+    if (upper === 'MANUAL_RELAY' || upper === 'MANUAL') {
+        return 'MANUAL_RELAY';
+    }
+    if (upper === 'ORCHESTRATOR_MANAGED' || upper === 'ORCH_MANAGED' || upper === 'AUTONOMOUS') {
+        return 'ORCHESTRATOR_MANAGED';
+    }
+    if (upper === 'UNSPECIFIED') {
+        return 'UNSPECIFIED';
+    }
+    return null;
+}
+
 if (action === 'refine') {
     v2AssertWpId(wpId);
 
@@ -186,7 +203,7 @@ if (action === 'refine') {
         wpId,
         stage: 'REFINEMENT',
         next: 'SIGNATURE',
-        operatorAction: `Collect explicit approval + one-time signature bundle for ${wpId} (signature + execution lane)`,
+        operatorAction: `Collect explicit approval + one-time signature bundle for ${wpId} (signature + workflow lane + execution owner)`,
         gateRan: `just record-refinement ${wpId}`,
         result: 'PASS',
         why: 'Technical refinement recorded; request explicit user approval + one-time signature bundle before proceeding.',
@@ -197,7 +214,7 @@ if (action === 'refine') {
             `# Paste the FULL Technical Refinement Block from .GOV/refinements/${wpId}.md in chat (verbatim; no summary).`,
             `# When approved, set USER_APPROVAL_EVIDENCE in the refinement file to: APPROVE REFINEMENT ${wpId}`,
             `# Do NOT ask for or consume a signature until that verbatim block has been shown in chat.`,
-            `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {Orchestrator-Agentic|Coder-A|Coder-B}`,
+            `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
         ],
     });
     process.exit(0);
@@ -206,13 +223,49 @@ if (action === 'refine') {
 if (action === 'sign') {
     v2AssertWpId(wpId);
     const signature = (argvData[0] || '').trim();
-    const executionLaneRaw = (argvData[1] || '').trim();
-    const executionLane = v2NormalizeExecutionLane(executionLaneRaw);
+    const laneArg1 = (argvData[1] || '').trim();
+    const laneArg2 = (argvData[2] || '').trim();
+    const workflowLane1 = v2NormalizeWorkflowLane(laneArg1);
+    const workflowLane2 = v2NormalizeWorkflowLane(laneArg2);
+    const executionLane1 = v2NormalizeExecutionLane(laneArg1);
+    const executionLane2 = v2NormalizeExecutionLane(laneArg2);
+    let workflowLane = '';
+    let executionLane = '';
+
+    if (workflowLane1) {
+        workflowLane = workflowLane1;
+        executionLane = executionLane2;
+    } else if (executionLane1 && workflowLane2) {
+        workflowLane = workflowLane2;
+        executionLane = executionLane1;
+    } else if (executionLane1 && !laneArg2) {
+        executionLane = executionLane1;
+    }
+
     if (!signature || !/^[a-z]+[0-9]{12}$/.test(signature)) {
         v2Fail('Invalid signature format. Expected {username}{DDMMYYYYHHMM}');
     }
-    if (executionLaneRaw && !executionLane) {
-        v2Fail('Invalid execution lane. Expected Orchestrator-Agentic | Coder-A | Coder-B');
+    if (laneArg1 && !workflowLane1 && !executionLane1) {
+        v2Fail('Invalid workflow lane / execution owner bundle. Expected MANUAL_RELAY | ORCHESTRATOR_MANAGED | Coder-A | Coder-B');
+    }
+    if (laneArg2 && !workflowLane2 && !executionLane2) {
+        v2Fail('Invalid workflow lane / execution owner bundle. Expected MANUAL_RELAY | ORCHESTRATOR_MANAGED | Coder-A | Coder-B');
+    }
+    if (workflowLane && !executionLane) {
+        v2Fail('Missing execution owner. Current workflow requires both workflow lane and execution owner.', [
+            `Usage: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+        ]);
+    }
+    if (!workflowLane && laneArg2 && executionLane1 && !workflowLane2) {
+        v2Fail('When four-part signature syntax is used, the workflow lane must be MANUAL_RELAY or ORCHESTRATOR_MANAGED.', [
+            `Usage: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+        ]);
+    }
+    if (executionLane === 'Orchestrator-Agentic') {
+        v2Fail('Orchestrator-Agentic is not allowed in current repo governance.', [
+            'The Orchestrator remains non-agentic and single-session.',
+            'Choose Coder-A or Coder-B as the execution owner.',
+        ]);
     }
 
     const lastRefinement = v2ResolveLastRefinement();
@@ -334,18 +387,17 @@ if (action === 'sign') {
         wpId,
         type: 'SIGNATURE',
         signature,
+        workflow_lane: workflowLane || undefined,
         execution_lane: executionLane || undefined,
         timestamp: now.toISOString(),
         refinement_path: refinementPath.replace(/\\/g, '/'),
     });
     saveState(state);
 
-    if (executionLane) {
+    if (workflowLane && executionLane) {
         const nextCommands = [
-            `just orchestrator-prepare-and-packet ${wpId} ${executionLane}`,
-            executionLane === 'Orchestrator-Agentic'
-                ? '# Before agentic execution after packet creation, run pre-work and manage WP microtasks under the agentic protocols:'
-                : '# Before external coder handoff after packet creation, run pre-work and prepare the relayable implementation brief in chat:',
+            `just orchestrator-prepare-and-packet ${wpId}`,
+            '# Before coder handoff after packet creation, run pre-work and prepare the relayable implementation brief in chat:',
             `just pre-work ${wpId}`,
         ];
 
@@ -354,11 +406,12 @@ if (action === 'sign') {
             stage: 'SIGNATURE',
             next: 'PREPARE',
             operatorAction: 'NONE',
-            gateRan: `just record-signature ${wpId} ${signature} ${executionLane}`,
+            gateRan: `just record-signature ${wpId} ${signature} ${workflowLane} ${executionLane}`,
             result: 'PASS',
-            why: `One-time signature recorded + audited with execution lane ${executionLane}; continue without a separate branch/worktree or execution-owner prompt.`,
+            why: `One-time signature recorded + audited with workflow lane ${workflowLane} and execution owner ${executionLane}; continue without a separate branch/worktree or ownership prompt.`,
             gateOutputLines: [
                 `[ORCHESTRATOR GATE] Signature recorded for ${wpId}.`,
+                `- workflow_lane: ${workflowLane}`,
                 `- execution_lane: ${executionLane}`,
             ],
             nextCommands,
@@ -370,15 +423,18 @@ if (action === 'sign') {
         wpId,
         stage: 'SIGNATURE',
         next: 'PREPARE',
-        operatorAction: `Choose execution lane for ${wpId} (Orchestrator-Agentic|Coder-A|Coder-B)`,
-        gateRan: `just record-signature ${wpId} ${signature}`,
+        operatorAction: executionLane
+            ? `Choose workflow lane for ${wpId} (MANUAL_RELAY|ORCHESTRATOR_MANAGED)`
+            : `Choose workflow lane + execution owner for ${wpId} (MANUAL_RELAY|ORCHESTRATOR_MANAGED + Coder-A|Coder-B)`,
+        gateRan: `just record-signature ${wpId} ${signature}${laneArg1 ? ` ${laneArg1}` : ''}${laneArg2 ? ` ${laneArg2}` : ''}`,
         result: 'PASS',
-        why: 'One-time signature recorded + audited. Legacy recovery is still possible, but the current workflow expects the execution lane in the same approval bundle to avoid later babysit prompts.',
+        why: 'One-time signature recorded + audited. Legacy recovery is still possible, but the current workflow expects both workflow lane and execution owner in the same approval bundle to avoid later babysit prompts.',
         gateOutputLines: [
             `[ORCHESTRATOR GATE] Signature recorded for ${wpId}.`,
+            ...(executionLane ? [`- execution_lane: ${executionLane}`] : []),
         ],
         nextCommands: [
-            `just orchestrator-prepare-and-packet ${wpId} {Orchestrator-Agentic|Coder-A|Coder-B}`,
+            `just record-signature ${wpId} ${signature} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${executionLane || '{Coder-A|Coder-B}'}`,
         ],
     });
     process.exit(0);
@@ -386,11 +442,39 @@ if (action === 'sign') {
 
 if (action === 'prepare') {
     v2AssertWpId(wpId);
+    const arg1 = (argvData[0] || '').trim();
+    const arg2 = (argvData[1] || '').trim();
+    const workflowLane1 = v2NormalizeWorkflowLane(arg1);
+    const workflowLane2 = v2NormalizeWorkflowLane(arg2);
+    const executionLane1 = v2NormalizeExecutionLane(arg1);
+    const executionLane2 = v2NormalizeExecutionLane(arg2);
+    const lastSignature = v2ResolveLastSignature();
 
-    const coderIdRaw = (argvData[0] || '').trim();
-    const executionLane = v2NormalizeExecutionLane(coderIdRaw);
-    const branch = v2NormalizeBranch((argvData[1] || `feat/${wpId}`).trim());
-    const worktreeDir = (argvData[2] || `../wt-${wpId}`).trim();
+    let workflowLane = '';
+    let executionLane = '';
+    let branchArgIndex = 0;
+
+    if (workflowLane1) {
+        workflowLane = workflowLane1;
+        executionLane = executionLane2;
+        branchArgIndex = 2;
+    } else if (executionLane1 && workflowLane2) {
+        workflowLane = workflowLane2;
+        executionLane = executionLane1;
+        branchArgIndex = 2;
+    } else if (executionLane1) {
+        executionLane = executionLane1;
+        branchArgIndex = 1;
+    } else if (workflowLane2 && !arg1) {
+        workflowLane = workflowLane2;
+        branchArgIndex = 2;
+    }
+
+    workflowLane = workflowLane || lastSignature?.workflow_lane || '';
+    executionLane = executionLane || lastSignature?.execution_lane || '';
+
+    const branch = v2NormalizeBranch((argvData[branchArgIndex] || `feat/${wpId}`).trim());
+    const worktreeDir = (argvData[branchArgIndex + 1] || `../wt-${wpId}`).trim();
 
     const isAbsoluteWorktreeDir =
         /^[A-Za-z]:[\\/]/.test(worktreeDir) || worktreeDir.startsWith('\\\\') || worktreeDir.startsWith('//');
@@ -401,13 +485,27 @@ if (action === 'prepare') {
         ]);
     }
 
-    if (!executionLane) {
-        v2Fail('Missing execution owner. Usage: just record-prepare WP-... {Orchestrator-Agentic|Coder-A|Coder-B} [branch] [worktree_dir]');
+    if (!workflowLane) {
+        v2Fail('Missing workflow lane. Usage: just record-prepare WP-... {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B} [branch] [worktree_dir]');
     }
-
-    const lastSignature = v2ResolveLastSignature();
+    if (!executionLane) {
+        v2Fail('Missing execution owner. Usage: just record-prepare WP-... {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B} [branch] [worktree_dir]');
+    }
+    if (executionLane === 'Orchestrator-Agentic') {
+        v2Fail('Orchestrator-Agentic is not allowed in current repo governance.', [
+            'The Orchestrator remains non-agentic and single-session.',
+            'Choose Coder-A or Coder-B as the execution owner.',
+        ]);
+    }
     if (!lastSignature) {
-        v2Fail(`No signature recorded for ${wpId}. Run: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {Orchestrator-Agentic|Coder-A|Coder-B}`);
+        v2Fail(`No signature recorded for ${wpId}. Run: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`);
+    }
+    if (lastSignature.workflow_lane && lastSignature.workflow_lane !== workflowLane) {
+        v2Fail('PREPARE workflow lane conflicts with the signed workflow lane.', [
+            `signature.workflow_lane=${lastSignature.workflow_lane}`,
+            `prepare.workflow_lane=${workflowLane}`,
+            'Re-run PREPARE with the signed workflow lane, or re-sign only if the Operator is intentionally changing workflow mode.',
+        ]);
     }
     if (lastSignature.execution_lane && lastSignature.execution_lane !== executionLane) {
         v2Fail('PREPARE execution lane conflicts with the signed execution lane.', [
@@ -434,6 +532,7 @@ if (action === 'prepare') {
         wpId,
         type: 'PREPARE',
         coder_id: executionLane,
+        workflow_lane: workflowLane,
         execution_lane: executionLane,
         branch,
         worktree_dir: worktreeDir.replace(/\\/g, '/'),
@@ -446,11 +545,12 @@ if (action === 'prepare') {
         stage: 'PREPARE',
         next: 'PACKET_CREATE',
         operatorAction: 'NONE',
-        gateRan: `just record-prepare ${wpId} ${executionLane} ${branch} ${worktreeDir}`,
+        gateRan: `just record-prepare ${wpId} ${workflowLane} ${executionLane} ${branch} ${worktreeDir}`,
         result: 'PASS',
-        why: 'WP worktree/branch + execution owner recorded; task packet creation is now unblocked.',
+        why: 'WP worktree/branch + workflow lane + execution owner recorded; task packet creation is now unblocked.',
         gateOutputLines: [
             `[ORCHESTRATOR GATE] Prepared ${wpId} for development.`,
+            `- workflow_lane: ${workflowLane}`,
             `- execution_lane: ${executionLane}`,
             `- branch: ${branch}`,
             `- worktree_dir: ${worktreeDir}`,

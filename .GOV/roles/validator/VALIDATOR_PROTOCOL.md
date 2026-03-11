@@ -49,11 +49,11 @@
 
 See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUNDARY_RULES.md`.
 
-## Agentic Mode (Additional LAW)
+## Current Execution Policy (Additional LAW)
 
-If the run is orchestrator-led, multi-agent ("agentic"), you MUST also follow:
-- `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md`
-- `/.GOV/roles_shared/EVIDENCE_LEDGER.md`
+- The Validator role is single-session and non-agentic in current repo governance.
+- The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
+- The historical add-on at `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
 
 ## Drive-Agnostic Governance [CX-109] (HARD)
 
@@ -191,9 +191,24 @@ Resume rule (hard, anti-babysit):
 ## WP Communication Folder (when the packet defines it)
 
 - If the packet under review defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, use those files as the secondary collaboration surface for that WP.
+- The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not use a validator-local worktree as a competing inbox.
 - Use `THREAD.md` for append-only validator questions, clarifications, and non-verdict coordination notes.
-- Use `RUNTIME_STATUS.json` for liveness state, ready-for-validation posture, and stale-session visibility.
-- Use `RECEIPTS.md` for deterministic validation-start, validation-query, status-sync, and handoff receipts when helpful.
+- Use `RUNTIME_STATUS.json` for liveness state only:
+  - `runtime_status`
+  - `ready_for_validation`
+  - `validator_trigger`
+  - stale-session visibility
+  - next expected actor
+- Use `RECEIPTS.jsonl` for deterministic validation-start, validation-query, status-sync, repair, and handoff receipts.
+- Validator authority is layered:
+  - `WP Validator` = advisory technical reviewer for the WP
+  - `Integration Validator` = final technical and merge authority
+  - only the Integration Validator may own the final merge-ready verdict unless the packet explicitly says otherwise
+- Do not poll continuously. The Validator should wake on explicit packet assignment, `ready_for_validation=true`, `validator_trigger != NONE`, a validation handoff receipt, or an explicit operator/orchestrator instruction.
+- Update runtime status and append a receipt on validation start, validation query, blocker, verdict-ready handoff, completion, and every packet heartbeat interval only while actively validating.
+- Prefer deterministic helpers over hand-editing these files:
+  - `just wp-heartbeat WP-{ID} VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
+  - `just wp-receipt-append WP-{ID} VALIDATOR <session> <receipt_kind> "<summary>" [state_before] [state_after]`
 - Hard rule: packet truth still wins. Validation authority remains in the packet, especially `## VALIDATION`, `## EVIDENCE`, and `## VALIDATION_REPORTS`.
 - Do not treat `THREAD.md` or `RUNTIME_STATUS.json` as authority for scope, verdict, or PREPARE assignment.
 

@@ -312,35 +312,41 @@ function main() {
 
   if (!lastSignature) {
     printLifecycle({ wpId, stage: "APPROVAL", next: "SIGNATURE" });
-    printOperatorAction(`Collect explicit approval + one-time signature bundle for ${wpId} (signature + execution lane)`);
+    printOperatorAction(`Collect explicit approval + one-time signature bundle for ${wpId} (signature + workflow lane + execution owner)`);
     printConfidence(confidence.level, confidence.detail);
     printState("Refinement recorded; signature not yet recorded.");
     printNextCommands([
       `# Paste the FULL Technical Refinement Block from .GOV/refinements/${wpId}.md in chat (verbatim; no summary).`,
       `# Ensure refinement METADATA contains: - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT ${wpId}`,
-      `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {Orchestrator-Agentic|Coder-A|Coder-B}`,
+      `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
     ]);
     return;
   }
 
   if (!lastPrepare) {
     printLifecycle({ wpId, stage: "PREPARE", next: "PACKET_CREATE" });
+    const workflowLane = lastSignature.workflow_lane || "";
     const executionLane = lastSignature.execution_lane || "";
-    if (!executionLane) {
-      printOperatorAction("Choose execution lane for legacy PREPARE recovery (Orchestrator-Agentic|Coder-A|Coder-B)");
+    if (!workflowLane || !executionLane) {
+      const prompt = !workflowLane && !executionLane
+        ? "Choose workflow lane + execution owner for legacy PREPARE recovery (MANUAL_RELAY|ORCHESTRATOR_MANAGED + Coder-A|Coder-B)"
+        : !workflowLane
+          ? `Choose workflow lane for legacy PREPARE recovery (${executionLane}; MANUAL_RELAY|ORCHESTRATOR_MANAGED)`
+          : "Choose execution owner for legacy PREPARE recovery (Coder-A|Coder-B)";
+      printOperatorAction(prompt);
       printConfidence(confidence.level, confidence.detail);
-      printState("Signature recorded; WP prepare record missing and signature bundle did not capture the execution lane.");
+      printState("Signature recorded; WP prepare record missing and the legacy signature bundle did not capture the full workflow tuple.");
       printNextCommands([
-        `just orchestrator-prepare-and-packet ${wpId} {Orchestrator-Agentic|Coder-A|Coder-B}`,
+        `just record-signature ${wpId} ${lastSignature.signature} ${workflowLane || '{MANUAL_RELAY|ORCHESTRATOR_MANAGED}'} ${executionLane || '{Coder-A|Coder-B}'}`,
       ]);
       return;
     }
 
     printOperatorAction("NONE");
     printConfidence(confidence.level, confidence.detail);
-    printState(`Signature recorded; WP prepare record missing. Execution lane from signature bundle: ${executionLane}.`);
+    printState(`Signature recorded; WP prepare record missing. Workflow lane from signature bundle: ${workflowLane}; execution owner: ${executionLane}.`);
     printNextCommands([
-      `just orchestrator-prepare-and-packet ${wpId} ${executionLane}`,
+      `just orchestrator-prepare-and-packet ${wpId}`,
     ]);
     return;
   }

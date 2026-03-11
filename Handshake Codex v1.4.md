@@ -103,6 +103,11 @@ Minimum verification for governance-only changes: `just gov-check`. If any Hands
 - Validator maintains the Operator-visible `main` Task Board via docs-only "status sync" commits (update `## In Progress`; optionally also update `## Active (Cross-Branch Status)` for branch/coder visibility).
 
 [CX-218] ROLE_MAILBOX (GOV): `/.GOV/ROLE_MAILBOX/` contains leak-safe role exports (approvals/waivers/validation findings/tooling metadata) and MUST pass `just role-mailbox-export-check` when required by a role protocol or WP DONE_MEANS.
+[CX-218A] WP_COMMUNICATIONS (GOV): `/.GOV/roles_shared/WP_COMMUNICATIONS/` MAY contain per-WP `THREAD.md`, `RUNTIME_STATUS.json`, and `RECEIPTS.jsonl` artifacts. These files are non-authoritative coordination helpers only. The task packet remains authoritative for scope, status, PREPARE assignment, acceptance, and verdict.
+[CX-218B] WP_COMMUNICATION_SCHEMAS (HARD): When a task packet declares WP communication artifacts, `RUNTIME_STATUS.json` and `RECEIPTS.jsonl` MUST validate against the corresponding governance schemas in `/.GOV/schemas/`. Freeform discussion belongs only in `THREAD.md`.
+[CX-218C] NON_AGENTIC_ROLE_BOUNDARY (HARD): In current repo governance, the Orchestrator and Validator roles MUST remain single-session and non-agentic. They may coordinate, assign, steer, validate, and update governance artifacts, but they MUST NOT spawn helper agents or delegate their core role responsibilities. Only the Primary Coder may use coder sub-agents, and only with explicit operator approval recorded in the task packet.
+[CX-218D] WP_COMMUNICATION_AUTHORITY (HARD): The task packet field `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Role-local worktrees, backup branches, or ad-hoc inbox files MUST NOT replace it.
+[CX-218E] VALIDATOR_AUTHORITY_SPLIT (HARD): When both validator layers exist, `WP Validator` is advisory only, while `Integration Validator` owns final technical verdict and merge authority unless the packet explicitly overrides that split.
 
 [CX-219] AGENTIC_WRAPPER_PROTOCOLS: When running in multi-agent ("agentic") mode, roles MUST also follow their add-on protocols under `/.GOV/roles/<role>/agentic/AGENTIC_PROTOCOL.md` and maintain evidence per `/.GOV/roles_shared/EVIDENCE_LEDGER.md`.
 

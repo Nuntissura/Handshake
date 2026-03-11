@@ -1,8 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
+import {
+  COMM_ROOT,
+  communicationPathsForWp,
+  ensureSchemaFilesExist,
+  normalize,
+  parseJsonFile,
+  parseJsonlFile,
+  RECEIPTS_FILE_NAME,
+  RUNTIME_STATUS_FILE_NAME,
+  THREAD_FILE_NAME,
+  validateReceipt,
+  validateRuntimeStatus,
+} from "../wp-communications-lib.mjs";
 
 const PACKETS_DIR = path.join(".GOV", "task_packets");
-const COMM_ROOT = ".GOV/roles_shared/WP_COMMUNICATIONS";
 
 function fail(message, details = []) {
   console.error(`[WP_COMMUNICATIONS_CHECK] ${message}`);
@@ -16,11 +28,8 @@ function parseSingleField(text, label) {
   return match ? match[1].trim() : "";
 }
 
-function normalize(value) {
-  return String(value || "").replace(/\\/g, "/").trim();
-}
-
 const violations = [];
+ensureSchemaFilesExist();
 
 if (fs.existsSync(PACKETS_DIR)) {
   const files = fs.readdirSync(PACKETS_DIR).filter((name) => name.endsWith(".md"));
@@ -42,10 +51,11 @@ if (fs.existsSync(PACKETS_DIR)) {
       continue;
     }
 
-    const expectedDir = `${COMM_ROOT}/${wpId}`;
-    const expectedThread = `${expectedDir}/THREAD.md`;
-    const expectedRuntime = `${expectedDir}/RUNTIME_STATUS.json`;
-    const expectedReceipts = `${expectedDir}/RECEIPTS.md`;
+    const expected = communicationPathsForWp(wpId);
+    const expectedDir = expected.dir;
+    const expectedThread = expected.threadFile;
+    const expectedRuntime = expected.runtimeStatusFile;
+    const expectedReceipts = expected.receiptsFile;
 
     if (normalize(communicationDir) !== normalize(expectedDir)) {
       violations.push(`${packetPath}: WP_COMMUNICATION_DIR must be ${expectedDir} (got ${communicationDir})`);
@@ -63,6 +73,62 @@ if (fs.existsSync(PACKETS_DIR)) {
     for (const requiredPath of [expectedDir, expectedThread, expectedRuntime, expectedReceipts]) {
       if (!fs.existsSync(requiredPath)) {
         violations.push(`${packetPath}: referenced communication artifact missing on disk -> ${requiredPath}`);
+      }
+    }
+
+    if (fs.existsSync(expectedRuntime)) {
+      try {
+        const runtimeStatus = parseJsonFile(expectedRuntime);
+        const runtimeErrors = validateRuntimeStatus(runtimeStatus);
+        for (const error of runtimeErrors) {
+          violations.push(`${packetPath}: ${RUNTIME_STATUS_FILE_NAME} invalid -> ${error}`);
+        }
+      } catch (error) {
+        violations.push(`${packetPath}: ${RUNTIME_STATUS_FILE_NAME} parse/validation failure -> ${error.message}`);
+      }
+    }
+
+    if (fs.existsSync(expectedReceipts)) {
+      try {
+        const receipts = parseJsonlFile(expectedReceipts);
+        if (receipts.length === 0) {
+          violations.push(`${packetPath}: ${RECEIPTS_FILE_NAME} must contain at least one receipt entry`);
+        }
+        receipts.forEach((entry, index) => {
+          const receiptErrors = validateReceipt(entry);
+          for (const error of receiptErrors) {
+            violations.push(`${packetPath}: ${RECEIPTS_FILE_NAME} line ${index + 1} invalid -> ${error}`);
+          }
+        });
+      } catch (error) {
+        violations.push(`${packetPath}: ${RECEIPTS_FILE_NAME} parse/validation failure -> ${error.message}`);
+      }
+    }
+  }
+}
+
+if (fs.existsSync(COMM_ROOT)) {
+  const entries = fs.readdirSync(COMM_ROOT, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (!entry.name.startsWith("WP-")) {
+      violations.push(`${COMM_ROOT}/${entry.name}: unexpected directory in WP communication root`);
+      continue;
+    }
+    const packetPath = path.join(PACKETS_DIR, `${entry.name}.md`);
+    if (!fs.existsSync(packetPath)) {
+      violations.push(`${COMM_ROOT}/${entry.name}: orphan communication folder with no matching official packet`);
+      continue;
+    }
+    const packetText = fs.readFileSync(packetPath, "utf8");
+    const communicationDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
+    if (!communicationDir) {
+      violations.push(`${COMM_ROOT}/${entry.name}: communication folder exists but matching packet does not declare WP communication metadata`);
+    }
+    for (const requiredName of [THREAD_FILE_NAME, RUNTIME_STATUS_FILE_NAME, RECEIPTS_FILE_NAME]) {
+      const requiredPath = path.join(COMM_ROOT, entry.name, requiredName);
+      if (!fs.existsSync(requiredPath)) {
+        violations.push(`${COMM_ROOT}/${entry.name}: missing required artifact ${requiredName}`);
       }
     }
   }

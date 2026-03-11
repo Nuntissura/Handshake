@@ -1,0 +1,350 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://handshake.local/gov/schemas/WP_RUNTIME_STATUS.schema.json",
+  "title": "WP Runtime Status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "wp_id",
+    "base_wp_id",
+    "task_packet",
+    "communication_dir",
+    "thread_file",
+    "runtime_status_file",
+    "receipts_file",
+    "workflow_lane",
+    "execution_owner",
+    "workflow_authority",
+    "technical_advisor",
+    "technical_authority",
+    "merge_authority",
+    "wp_validator_of_record",
+    "integration_validator_of_record",
+    "secondary_validator_sessions",
+    "agentic_mode",
+    "current_packet_status",
+    "runtime_status",
+    "current_phase",
+    "next_expected_actor",
+    "waiting_on",
+    "validator_trigger",
+    "validator_trigger_reason",
+    "attention_required",
+    "ready_for_validation",
+    "ready_for_validation_reason",
+    "current_branch",
+    "current_worktree_dir",
+    "current_files_touched",
+    "active_role_sessions",
+    "last_event",
+    "last_event_at",
+    "last_heartbeat_at",
+    "heartbeat_interval_minutes",
+    "heartbeat_due_at",
+    "stale_after",
+    "max_coder_revision_cycles",
+    "max_validator_review_cycles",
+    "max_relay_escalation_cycles",
+    "current_coder_revision_cycle",
+    "current_validator_review_cycle",
+    "current_relay_escalation_cycle",
+    "last_backup_push_at",
+    "last_backup_push_sha"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wp_runtime_status@1"
+    },
+    "wp_id": {
+      "type": "string",
+      "pattern": "^WP-"
+    },
+    "base_wp_id": {
+      "type": "string",
+      "pattern": "^WP-"
+    },
+    "task_packet": {
+      "type": "string",
+      "pattern": "^\\.GOV/task_packets/WP-.*\\.md$"
+    },
+    "communication_dir": {
+      "type": "string",
+      "pattern": "^\\.GOV/roles_shared/WP_COMMUNICATIONS/WP-.*$"
+    },
+    "thread_file": {
+      "type": "string",
+      "pattern": "^\\.GOV/roles_shared/WP_COMMUNICATIONS/WP-.*/THREAD\\.md$"
+    },
+    "runtime_status_file": {
+      "type": "string",
+      "pattern": "^\\.GOV/roles_shared/WP_COMMUNICATIONS/WP-.*/RUNTIME_STATUS\\.json$"
+    },
+    "receipts_file": {
+      "type": "string",
+      "pattern": "^\\.GOV/roles_shared/WP_COMMUNICATIONS/WP-.*/RECEIPTS\\.jsonl$"
+    },
+    "workflow_lane": {
+      "enum": [
+        "MANUAL_RELAY",
+        "ORCHESTRATOR_MANAGED",
+        "UNSPECIFIED"
+      ]
+    },
+    "execution_owner": {
+      "enum": [
+        "ORCHESTRATOR",
+        "CODER_A",
+        "CODER_B",
+        "UNASSIGNED"
+      ]
+    },
+    "workflow_authority": {
+      "const": "ORCHESTRATOR"
+    },
+    "technical_advisor": {
+      "enum": [
+        "WP_VALIDATOR",
+        "NONE"
+      ]
+    },
+    "technical_authority": {
+      "enum": [
+        "INTEGRATION_VALIDATOR",
+        "NONE"
+      ]
+    },
+    "merge_authority": {
+      "enum": [
+        "INTEGRATION_VALIDATOR",
+        "OPERATOR",
+        "NONE"
+      ]
+    },
+    "wp_validator_of_record": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "integration_validator_of_record": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "secondary_validator_sessions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "agentic_mode": {
+      "enum": [
+        "YES",
+        "NO"
+      ]
+    },
+    "current_packet_status": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runtime_status": {
+      "enum": [
+        "submitted",
+        "working",
+        "input_required",
+        "completed",
+        "failed",
+        "canceled"
+      ]
+    },
+    "current_phase": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$"
+    },
+    "next_expected_actor": {
+      "enum": [
+        "OPERATOR",
+        "ORCHESTRATOR",
+        "CODER",
+        "VALIDATOR",
+        "NONE"
+      ]
+    },
+    "waiting_on": {
+      "type": "string",
+      "minLength": 1
+    },
+    "validator_trigger": {
+      "enum": [
+        "NONE",
+        "READY_FOR_VALIDATION",
+        "VALIDATOR_QUERY",
+        "POST_WORK_PASS",
+        "BLOCKED_NEEDS_VALIDATOR",
+        "STALE_HEARTBEAT",
+        "HANDOFF_READY"
+      ]
+    },
+    "validator_trigger_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "attention_required": {
+      "type": "boolean"
+    },
+    "ready_for_validation": {
+      "type": "boolean"
+    },
+    "ready_for_validation_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "current_branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "current_worktree_dir": {
+      "type": "string",
+      "minLength": 1
+    },
+    "current_files_touched": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "active_role_sessions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role",
+          "session_id",
+          "authority_kind",
+          "validator_role_kind",
+          "worktree_dir",
+          "state",
+          "last_heartbeat_at"
+        ],
+        "properties": {
+          "role": {
+            "enum": [
+              "OPERATOR",
+              "ORCHESTRATOR",
+              "CODER",
+              "VALIDATOR"
+            ]
+          },
+          "session_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "authority_kind": {
+            "enum": [
+              "SYSTEM",
+              "OPERATOR",
+              "WORKFLOW_AUTHORITY",
+              "PRIMARY_CODER",
+              "WP_VALIDATOR",
+              "INTEGRATION_VALIDATOR",
+              "SECONDARY_VALIDATOR"
+            ]
+          },
+          "validator_role_kind": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "WP_VALIDATOR",
+              "INTEGRATION_VALIDATOR",
+              "SECONDARY_VALIDATOR",
+              null
+            ]
+          },
+          "worktree_dir": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "enum": [
+              "idle",
+              "working",
+              "waiting",
+              "blocked",
+              "completed"
+            ]
+          },
+          "last_heartbeat_at": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "last_event": {
+      "type": "string",
+      "minLength": 1
+    },
+    "last_event_at": {
+      "type": "string"
+    },
+    "last_heartbeat_at": {
+      "type": "string"
+    },
+    "heartbeat_interval_minutes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "heartbeat_due_at": {
+      "type": "string"
+    },
+    "stale_after": {
+      "type": "string"
+    },
+    "max_coder_revision_cycles": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "max_validator_review_cycles": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "max_relay_escalation_cycles": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "current_coder_revision_cycle": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "current_validator_review_cycle": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "current_relay_escalation_cycle": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "last_backup_push_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "last_backup_push_sha": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

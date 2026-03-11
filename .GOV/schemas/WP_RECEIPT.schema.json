@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://handshake.local/gov/schemas/WP_RECEIPT.schema.json",
+  "title": "WP Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "timestamp_utc",
+    "wp_id",
+    "actor_role",
+    "actor_session",
+    "actor_authority_kind",
+    "validator_role_kind",
+    "receipt_kind",
+    "summary",
+    "branch",
+    "worktree_dir",
+    "state_before",
+    "state_after",
+    "refs"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "wp_receipt@1"
+    },
+    "timestamp_utc": {
+      "type": "string"
+    },
+    "wp_id": {
+      "type": "string",
+      "pattern": "^WP-"
+    },
+    "actor_role": {
+      "enum": [
+        "SYSTEM",
+        "OPERATOR",
+        "ORCHESTRATOR",
+        "CODER",
+        "VALIDATOR"
+      ]
+    },
+    "actor_session": {
+      "type": "string",
+      "minLength": 1
+    },
+    "actor_authority_kind": {
+      "enum": [
+        "SYSTEM",
+        "OPERATOR",
+        "WORKFLOW_AUTHORITY",
+        "PRIMARY_CODER",
+        "WP_VALIDATOR",
+        "INTEGRATION_VALIDATOR",
+        "SECONDARY_VALIDATOR"
+      ]
+    },
+    "validator_role_kind": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "WP_VALIDATOR",
+        "INTEGRATION_VALIDATOR",
+        "SECONDARY_VALIDATOR",
+        null
+      ]
+    },
+    "receipt_kind": {
+      "enum": [
+        "ASSIGNMENT",
+        "STATUS",
+        "HEARTBEAT",
+        "HANDOFF",
+        "VALIDATOR_QUERY",
+        "VALIDATION_START",
+        "VALIDATION_STATUS_SYNC",
+        "STEERING",
+        "REPAIR"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "branch": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "worktree_dir": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "state_before": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "state_after": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

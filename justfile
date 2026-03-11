@@ -227,14 +227,17 @@ record-refinement wp-id detail="":
 	@node .GOV/scripts/validation/orchestrator_gates.mjs refine {{wp-id}} "{{detail}}"
 
 # Record a user signature bundle for a work packet [CX-585C]
-# execution_lane remains optional only for legacy recovery; current workflow requires it.
-# Allowed execution lanes: Orchestrator-Agentic | Coder-A | Coder-B
-record-signature wp-id signature execution_lane="":
-	@node .GOV/scripts/validation/orchestrator_gates.mjs sign {{wp-id}} {{signature}} {{execution_lane}}
+# Current workflow requires: workflow lane + execution owner.
+# Legacy recovery still accepts the older single execution-lane form.
+# Allowed workflow lanes: MANUAL_RELAY | ORCHESTRATOR_MANAGED
+# Allowed execution owners for current runs: Coder-A | Coder-B
+record-signature wp-id signature workflow_lane="" execution_lane="":
+	@node .GOV/scripts/validation/orchestrator_gates.mjs sign {{wp-id}} {{signature}} {{workflow_lane}} {{execution_lane}}
 
 # Record WP preparation (branch/worktree + execution owner) after signature and before packet creation.
-record-prepare wp-id execution_lane branch="" worktree_dir="":
-	@node .GOV/scripts/validation/orchestrator_gates.mjs prepare {{wp-id}} {{execution_lane}} {{branch}} {{worktree_dir}}
+# If omitted, workflow lane / execution owner are inferred from the signed bundle.
+record-prepare wp-id workflow_lane="" execution_lane="" branch="" worktree_dir="":
+	@node .GOV/scripts/validation/orchestrator_gates.mjs prepare {{wp-id}} {{workflow_lane}} {{execution_lane}} {{branch}} {{worktree_dir}}
 
 # Orchestrator helper (read-only): infer next steps for a WP from gates + file state.
 orchestrator-next wp-id="":
@@ -256,10 +259,11 @@ task-board-set wp-id status reason="":
 wp-traceability-set base_wp_id active_wp_id:
 	@node .GOV/scripts/wp-traceability-set.mjs {{base_wp_id}} {{active_wp_id}}
 
-# Orchestrator wrapper: create WP worktree + PREPARE record + task packet from the signature execution lane.
-orchestrator-prepare-and-packet wp-id execution_lane:
+# Orchestrator wrapper: create WP worktree + PREPARE record + task packet from the signature bundle.
+# Optional workflow lane / execution owner args are accepted for legacy recovery only.
+orchestrator-prepare-and-packet wp-id workflow_lane="" execution_lane="":
 	@just worktree-add {{wp-id}}
-	@just record-prepare {{wp-id}} {{execution_lane}}
+	@just record-prepare {{wp-id}} {{workflow_lane}} {{execution_lane}}
 	@just create-task-packet {{wp-id}}
 
 # Orchestrator wrapper: create WP worktree + task packet when PREPARE is already recorded
@@ -276,6 +280,15 @@ create-task-packet wp-id:
 
 ensure-wp-communications wp-id:
 	@node .GOV/scripts/ensure-wp-communications.mjs {{wp-id}}
+
+wp-communications-check:
+	@node .GOV/scripts/validation/wp-communications-check.mjs
+
+wp-receipt-append wp-id actor-role actor-session receipt-kind summary state-before='' state-after='':
+	@node .GOV/scripts/wp-receipt-append.mjs {{wp-id}} {{actor-role}} {{actor-session}} {{receipt-kind}} "{{summary}}" "{{state-before}}" "{{state-after}}"
+
+wp-heartbeat wp-id actor-role actor-session current-phase runtime-status next-expected-actor waiting-on validator-trigger='NONE' last-event='' worktree-dir='':
+	@node .GOV/scripts/wp-heartbeat.mjs {{wp-id}} {{actor-role}} {{actor-session}} {{current-phase}} {{runtime-status}} {{next-expected-actor}} "{{waiting-on}}" {{validator-trigger}} "{{last-event}}" "{{worktree-dir}}"
 
 # Create new task packet stub from template (backlog; non-executable)
 create-task-packet-stub wp-id roadmap_pointer="" line_numbers="":

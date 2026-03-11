@@ -57,16 +57,23 @@ Authoritative inputs:
 - `.GOV/roles_shared/TASK_BOARD.md`
 - `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`
 - `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` (mechanical gate state)
+- Active WP packet + `WP_COMMUNICATIONS` artifacts when declared
 
 Primary commands:
 - `just record-refinement WP-...`
-- `just record-signature WP-... <sig> <Orchestrator-Agentic|Coder-A|Coder-B>`
+- `just record-signature WP-... <sig> <MANUAL_RELAY|ORCHESTRATOR_MANAGED> <Coder-A|Coder-B>`
 - `just worktree-add WP-...`
-- `just record-prepare WP-... <Orchestrator-Agentic|Coder-A|Coder-B> [branch] [worktree_dir]`
+- `just record-prepare WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A|Coder-B>] [branch] [worktree_dir]`
 - `just create-task-packet WP-...`
 - `just orchestrator-worktree-and-packet WP-...`
-- `just orchestrator-prepare-and-packet WP-... <Orchestrator-Agentic|Coder-A|Coder-B>`
+- `just orchestrator-prepare-and-packet WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A|Coder-B>]`
 - `just pre-work WP-...`
+- `just wp-heartbeat WP-... ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
+- `just wp-receipt-append WP-... ORCHESTRATOR <session> <receipt_kind> "<summary>"`
+
+Role rule:
+- The Orchestrator is non-agentic. It coordinates sessions and governance state, but does not spawn Orchestrator or Validator helper agents.
+- The Orchestrator is workflow authority. It does not become final technical or merge authority.
 
 ## Role: Coder
 
@@ -75,6 +82,12 @@ Primary commands:
 - Implement only within `IN_SCOPE_PATHS`
 - Hygiene: `just product-scan`, `just validator-dal-audit`, `just validator-git-hygiene`
 - Workflow closure evidence: `just post-work WP-...`
+- `just wp-heartbeat WP-... CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
+- `just wp-receipt-append WP-... CODER <session> <receipt_kind> "<summary>"`
+
+Role rule:
+- Only the Primary Coder may use sub-agents, and only when the packet explicitly allows it.
+- Coders coordinate through the packet-declared `WP_COMMUNICATION_DIR`, not through role-local inboxes.
 
 ## Role: Validator
 
@@ -84,9 +97,15 @@ Primary commands (per WP validation):
 - `just validator-dal-audit`
 - `just validator-git-hygiene`
 - `just codex-check` (product boundary enforcement)
+- `just wp-heartbeat WP-... VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
+- `just wp-receipt-append WP-... VALIDATOR <session> <receipt_kind> "<summary>"`
 
 Governance-only work:
 - `just gov-check`
 
 File-touch map:
 - `.GOV/roles_shared/VALIDATOR_FILE_TOUCH_MAP.md`
+
+Role rule:
+- The Validator is non-agentic. Validation work must remain in the Validator session and packet evidence, not delegated to helper agents.
+- Validator authority is layered: WP Validator is advisory; Integration Validator owns final technical and merge authority unless the packet explicitly overrides it.

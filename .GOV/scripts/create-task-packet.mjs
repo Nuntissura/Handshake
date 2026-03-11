@@ -123,9 +123,9 @@ if (!fs.existsSync(refinementPath)) {
       '# Present refinement to the user for review.',
       `just record-refinement ${WP_ID}`,
       '# After explicit user approval + one-time signature bundle:',
-      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {Orchestrator-Agentic|Coder-A|Coder-B}`,
+      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
       '# After signature bundle:',
-      `just orchestrator-prepare-and-packet ${WP_ID} {Orchestrator-Agentic|Coder-A|Coder-B}`,
+      `just orchestrator-prepare-and-packet ${WP_ID}`,
       `just pre-work ${WP_ID}`,
       '# If you only scaffolded refinement (no packet yet), re-run when unblocked:',
       `just create-task-packet ${WP_ID}`,
@@ -152,7 +152,7 @@ if (!refinementValidation.ok) {
       `cat ${refinementPath.replace(/\\/g, '/')}`,
       `just record-refinement ${WP_ID}`,
       '# After explicit user approval + one-time signature bundle:',
-      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {Orchestrator-Agentic|Coder-A|Coder-B}`,
+      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
       `just create-task-packet ${WP_ID}`,
     ],
   });
@@ -251,7 +251,7 @@ try {
       ],
       nextCommands: [
         `cat ${refinementPath.replace(/\\/g, '/')}`,
-        `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {Orchestrator-Agentic|Coder-A|Coder-B}`,
+        `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
         `just create-task-packet ${WP_ID}`,
       ],
     });
@@ -271,7 +271,7 @@ try {
       ],
       nextCommands: [
         `cat ${refinementPath.replace(/\\/g, '/')}`,
-        `# If refinement was manually edited, revert USER_SIGNATURE to <pending> and re-run: just record-signature ${WP_ID} {newSignature}.`,
+        `# If refinement was manually edited, revert USER_SIGNATURE to <pending> and re-run: just record-signature ${WP_ID} {newSignature} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}.`,
       ],
     });
     process.exit(1);
@@ -284,7 +284,7 @@ try {
       wpId: WP_ID,
       stage: 'PREPARE',
       next: 'PREPARE',
-      operatorAction: `Record execution owner for ${WP_ID} (Orchestrator-Agentic|Coder-A|Coder-B)`,
+      operatorAction: `Record workflow lane + execution owner for ${WP_ID} (MANUAL_RELAY|ORCHESTRATOR_MANAGED + Coder-A|Coder-B)`,
       gateRan: `just create-task-packet ${WP_ID}`,
       result: 'BLOCKED',
       why: 'WP worktree/branch + execution owner must be recorded AFTER signature and BEFORE packet creation.',
@@ -292,7 +292,7 @@ try {
         `BLOCKED: WP branch/worktree + execution owner not recorded for ${WP_ID}.`,
       ],
       nextCommands: [
-        `just orchestrator-prepare-and-packet ${WP_ID} {Orchestrator-Agentic|Coder-A|Coder-B}`,
+        `just orchestrator-prepare-and-packet ${WP_ID}`,
       ],
     });
     process.exit(1);
@@ -315,7 +315,7 @@ try {
           `- prepare_ts=${lastPrepare.timestamp}`,
         ],
         nextCommands: [
-          `just record-prepare ${WP_ID} {Orchestrator-Agentic|Coder-A|Coder-B}`,
+          `just record-prepare ${WP_ID} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
           `just create-task-packet ${WP_ID}`,
         ],
       });
@@ -335,7 +335,7 @@ try {
         `BLOCKED: Unable to verify PREPARE ordering for ${WP_ID}.`,
       ],
         nextCommands: [
-        `just record-prepare ${WP_ID} {Orchestrator-Agentic|Coder-A|Coder-B}`,
+        `just record-prepare ${WP_ID} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
         `just create-task-packet ${WP_ID}`,
       ],
     });
@@ -379,7 +379,7 @@ try {
         `BLOCKED: Signature not found in ${auditPath.replace(/\\/g, '/')}.`,
       ],
       nextCommands: [
-        `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {Orchestrator-Agentic|Coder-A|Coder-B}`,
+        `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
         `just create-task-packet ${WP_ID}`,
       ],
     });
@@ -567,7 +567,8 @@ template = replaceSingleField(template, 'REFINEMENT_ENFORCEMENT_PROFILE', refine
 template = replaceSingleField(template, 'PACKET_HYDRATION_PROFILE', isHydratedProfile ? 'HYDRATED_RESEARCH_V1' : 'LEGACY_MANUAL');
 template = replaceSingleField(template, 'SPEC_ADD_MARKER_TARGET', specAddMarkerTarget);
 
-const executionLane = (signatureGate?.execution_lane || prepareGate?.coder_id || '').trim();
+const workflowLane = (prepareGate?.workflow_lane || signatureGate?.workflow_lane || '').trim();
+const executionLane = (prepareGate?.execution_lane || signatureGate?.execution_lane || prepareGate?.coder_id || '').trim();
 const orchestrationStartedAt = signatureGate?.timestamp || timestamp;
 const baseWpId = WP_ID.replace(/-v\d+$/, '');
 const localBranch = (prepareGate?.branch || `feat/${WP_ID}`).trim() || `feat/${WP_ID}`;
@@ -579,20 +580,30 @@ template = replaceSingleField(template, 'LOCAL_BRANCH', localBranch);
 template = replaceSingleField(template, 'LOCAL_WORKTREE_DIR', localWorktreeDir);
 template = replaceSingleField(template, 'REMOTE_BACKUP_BRANCH', remoteBackupBranch);
 template = replaceSingleField(template, 'REMOTE_BACKUP_URL', remoteBackupUrl);
+const effectiveWorkflowLane = workflowLane || (/^Coder-(A|B)$/i.test(executionLane) ? 'MANUAL_RELAY' : 'UNSPECIFIED');
+
 if (/^Orchestrator-Agentic$/i.test(executionLane)) {
+  // Legacy recovery only. Current repo governance blocks new Orchestrator-Agentic runs.
+  template = replaceSingleField(template, 'WORKFLOW_LANE', 'ORCHESTRATOR_MANAGED');
+  template = replaceSingleField(template, 'EXECUTION_OWNER', 'ORCHESTRATOR');
   template = replaceSingleField(template, 'AGENTIC_MODE', 'YES');
   template = replaceSingleField(template, 'ORCHESTRATOR_MODEL', 'Codex (GPT-5)');
   template = replaceSingleField(template, 'ORCHESTRATION_STARTED_AT_UTC', orchestrationStartedAt);
   template = replaceSingleField(template, 'CODER_MODEL', 'Orchestrator-Agentic');
   template = replaceSingleField(template, 'SUB_AGENT_DELEGATION', 'ALLOWED');
-  template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', `Signature bundle selected ${executionLane} execution lane for ${WP_ID}`);
+  template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', `Signature bundle selected ORCHESTRATOR_MANAGED workflow lane + ORCHESTRATOR execution owner for ${WP_ID}`);
 } else if (/^Coder-(A|B)$/i.test(executionLane)) {
+  template = replaceSingleField(template, 'WORKFLOW_LANE', effectiveWorkflowLane);
+  template = replaceSingleField(template, 'EXECUTION_OWNER', executionLane.toUpperCase().replace('-', '_'));
   template = replaceSingleField(template, 'AGENTIC_MODE', 'NO');
   template = replaceSingleField(template, 'ORCHESTRATOR_MODEL', 'N/A');
   template = replaceSingleField(template, 'ORCHESTRATION_STARTED_AT_UTC', 'N/A');
   template = replaceSingleField(template, 'CODER_MODEL', executionLane);
   template = replaceSingleField(template, 'SUB_AGENT_DELEGATION', 'ALLOWED');
-  template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', `Signature bundle selected ${executionLane} execution lane for ${WP_ID}`);
+  template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', `Signature bundle selected ${effectiveWorkflowLane} workflow lane + ${executionLane} execution owner for ${WP_ID}`);
+} else {
+  template = replaceSingleField(template, 'WORKFLOW_LANE', 'UNSPECIFIED');
+  template = replaceSingleField(template, 'EXECUTION_OWNER', 'UNASSIGNED');
 }
 
 if (isHydratedProfile) {
@@ -778,9 +789,11 @@ try {
   wpCommunicationPaths = ensureWpCommunications({
     wpId: WP_ID,
     baseWpId,
+    workflowLane: (template.match(/^\s*-\s*(?:\*\*)?WORKFLOW_LANE(?:\*\*)?\s*:\s*(.+)\s*$/mi) || [])[1] || 'UNSPECIFIED',
+    executionOwner: (template.match(/^\s*-\s*(?:\*\*)?EXECUTION_OWNER(?:\*\*)?\s*:\s*(.+)\s*$/mi) || [])[1] || 'UNASSIGNED',
     localBranch,
     localWorktreeDir,
-    agenticMode: (template.match(/^\s*-\s*(?:\*\*)?AGENTIC_MODE(?:\*\*)?\s*:\s*(.+)\s*$/mi) || [])[1] || '<pending>',
+    agenticMode: (template.match(/^\s*-\s*(?:\*\*)?AGENTIC_MODE(?:\*\*)?\s*:\s*(.+)\s*$/mi) || [])[1] || 'NO',
     packetStatus: 'Ready for Dev',
     initializedAt: timestamp,
   });
@@ -843,12 +856,10 @@ try {
     });
   } else {
     nextCommands.push(`just pre-work ${WP_ID}`);
-    if (/^Orchestrator-Agentic$/i.test(executionLane)) {
-      nextCommands.push('# Then decompose the WP into tracked microtasks and steer agent execution under /.GOV/roles/orchestrator/agentic/AGENTIC_PROTOCOL.md.');
-    } else if (/^Coder-(A|B)$/i.test(executionLane)) {
+    if (/^Coder-(A|B)$/i.test(executionLane)) {
       nextCommands.push(`# Then provide a relayable implementation brief in chat for ${executionLane}; orchestrator implementation agents stay blocked in this lane.`);
     }
-    nextCommands.push('# Use the assigned worktree/branch from ORCHESTRATOR_GATES.json PREPARE for the chosen execution lane.');
+    nextCommands.push('# Use the assigned worktree/branch from ORCHESTRATOR_GATES.json PREPARE for the chosen workflow lane + execution owner.');
 
     printGateBlocks({
       wpId: WP_ID,

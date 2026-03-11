@@ -56,6 +56,7 @@ Sub-agent delegation note (HARD):
 - Sub-agent delegation by the Primary Coder is DISALLOWED by default.
 - It becomes allowed ONLY when the Operator explicitly approves it for the WP and the task packet records `SUB_AGENT_DELEGATION: ALLOWED` + `OPERATOR_APPROVAL_EVIDENCE`.
 - If allowed, treat sub-agents as LOW reasoning strength (draft-only) and follow `/.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md` Section 6.
+- The Primary Coder remains solely accountable for governance compliance, evidence, and the work of any spawned coder sub-agents.
 
 ## Drive-Agnostic Governance [CX-109] (HARD)
 
@@ -189,9 +190,30 @@ Resume rule (hard, anti-babysit):
 ## WP Communication Folder (when the packet defines it)
 
 - If the assigned packet defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, use those files as the secondary collaboration surface for that WP.
+- The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not use a coder-local worktree as a competing inbox.
 - Use `THREAD.md` for append-only questions, clarifications, blocker notes, and soft coordination.
-- Use `RUNTIME_STATUS.json` for liveness updates, next-actor hints, ready-for-validation posture, and heartbeat-style watch state.
-- Use `RECEIPTS.md` for deterministic assignment, status, heartbeat, and handoff receipts.
+- Use `RUNTIME_STATUS.json` for liveness updates only:
+  - `runtime_status`
+  - `current_phase`
+  - `next_expected_actor`
+  - `waiting_on`
+  - `validator_trigger`
+  - heartbeat timestamps
+- Use `RECEIPTS.jsonl` for deterministic machine-readable coder receipts:
+  - assignment
+  - status
+  - heartbeat
+  - handoff
+  - repair
+- Authority split for coder coordination:
+  - Orchestrator = workflow authority
+  - WP Validator = advisory technical reviewer for this WP
+  - Integration Validator = final technical and merge authority
+- Update runtime status and append a receipt on session start, phase change, blocker/unblock, handoff, completion, and every packet heartbeat interval only while actively working.
+- Set `validator_trigger` only when the validator should wake up. Do not expect continuous polling.
+- Prefer deterministic helpers over hand-editing these files:
+  - `just wp-heartbeat WP-{ID} CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
+  - `just wp-receipt-append WP-{ID} CODER <session> <receipt_kind> "<summary>" [state_before] [state_after]`
 - Keep authoritative work state in the packet:
   - packet `**Status:**`
   - `## CURRENT_STATE`

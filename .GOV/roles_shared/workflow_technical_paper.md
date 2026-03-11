@@ -67,6 +67,16 @@ This document is **complete, standalone, and implementable by a fresh model** fo
 - Validator audits evidence deterministically; "looks good" is not evidence
 - Traceability enables post-mortem analysis, regression detection, feature removal safety
 
+**6. Packet-Declared Communication Authority**
+- Every WP may declare one canonical communication directory
+- All roles use that packet-declared location for freeform talk, liveness, and receipts
+- Role-local worktrees are execution surfaces, not communication authorities
+
+**7. Layered Validator Authority**
+- WP Validator = advisory reviewer close to the branch
+- Integration Validator = final technical and merge authority
+- Orchestrator = workflow and hard-gate authority, not final code verdict authority
+
 ## Roles & Responsibilities
 
 ### Orchestrator (Lead Architect / Engineering Manager)
@@ -260,10 +270,15 @@ Backlog â†’ Ready-for-Dev â†’ In-Progress â†’ Ready-for-Validatio
 
 **Status Rules**:
 - **Backlog**: packet created but not spec-ready; waiting for enrichment or dependency resolution
-- **Ready-for-Dev**: fully spec'd, signature bundle recorded, execution lane prepared, `just pre-work` passed; awaiting implementation start
+- **Ready-for-Dev**: fully spec'd, signature bundle recorded, coder lane prepared, `just pre-work` passed; awaiting implementation start
 - **In-Progress**: coder actively implementing; packet shows BOOTSTRAP + validation evidence
 - **Ready-for-Validation**: implementation complete; `just post-work` passed; awaiting validator review
 - **Done (VALIDATED)**: validator issued PASS; validation report appended to packet; task board entry shows VALIDATED
+
+**Communication Artifacts**:
+- `THREAD.md`: freeform cross-role talk
+- `RUNTIME_STATUS.json`: non-authoritative liveness, next actor, validator trigger, heartbeat/stale status
+- `RECEIPTS.jsonl`: structured receipt ledger for assignment, status, heartbeat, steering, repair, validation, and handoff
 
 **Immutability & Variants**:
 - Once USER_SIGNATURE is recorded, packet content is frozen
@@ -3099,5 +3114,3 @@ Signed: {signature}
 8) Train agents on Orchestrator/Coder/Validator protocols and the signature pause.
 9) Run `just pre-work WP-{id}` before handoff; block on any failure.
 10) Require signature pause before enrichment or packet creation; log every signature.
-
-
