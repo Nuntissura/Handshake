@@ -119,6 +119,7 @@ function parseBuildOrderMeta(packetText) {
     dependsOn: [],
     blocks: [],
     riskTier: "UNKNOWN",
+    packetStatus: "",
   };
 
   const lines = packetText.split(/\r?\n/);
@@ -147,7 +148,19 @@ function parseBuildOrderMeta(packetText) {
     if (mBlocks) meta.blocks = parseWpIdList(mBlocks[1]);
   }
 
+  meta.packetStatus = parsePacketStatus(packetText);
   return meta;
+}
+
+function parsePacketStatus(packetText) {
+  const statusLine =
+    (packetText.match(/^\s*-\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1] ||
+    (packetText.match(/^\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1] ||
+    (packetText.match(/^\s*-\s*STUB_STATUS\s*:\s*(.+)\s*$/mi) || [])[1] ||
+    (packetText.match(/^\s*-\s*STATUS\s*:\s*(.+)\s*$/mi) || [])[1] ||
+    (packetText.match(/^\s*STATUS\s*:\s*(.+)\s*$/mi) || [])[1] ||
+    "";
+  return statusLine.trim();
 }
 
 function parseWpIdList(raw) {
@@ -179,6 +192,29 @@ function shortStateFromRegistryCell(taskBoardCell) {
   if (/^Blocked:/i.test(cell)) return "BLOCKED";
   if (/^Superseded:/i.test(cell)) return "SUPERSEDED";
   if (/^Stub Backlog/i.test(cell)) return "STUB";
+  return "UNKNOWN";
+}
+
+function stateFromBoardToken(boardToken, fallbackState = "UNKNOWN") {
+  const token = normalizeEnum(boardToken);
+  if (["VALIDATED", "FAIL", "OUTDATED_ONLY"].includes(token)) return "DONE";
+  if (token === "IN_PROGRESS") return "IN_PROGRESS";
+  if (token === "READY_FOR_DEV") return "READY_FOR_DEV";
+  if (token === "BLOCKED") return "BLOCKED";
+  if (token === "SUPERSEDED") return "SUPERSEDED";
+  if (token === "STUB") return "STUB";
+  return fallbackState;
+}
+
+function stateFromPacketStatus(packetStatus) {
+  const status = String(packetStatus || "").trim().toUpperCase();
+  if (!status) return "UNKNOWN";
+  if (status.includes("STUB")) return "STUB";
+  if (status.includes("READY FOR DEV")) return "READY_FOR_DEV";
+  if (status.includes("IN PROGRESS")) return "IN_PROGRESS";
+  if (status.includes("BLOCKED")) return "BLOCKED";
+  if (status.includes("VALIDATED")) return "DONE";
+  if (status.includes("DONE") || status.includes("COMPLETE")) return "DONE";
   return "UNKNOWN";
 }
 
@@ -249,9 +285,23 @@ function generateAutogenBlock({ specTarget, registryRows, taskBoardTokens, metaB
 
   const statusByBaseWpId = new Map();
   for (const row of registryRows) {
+    const meta = metaByBase.get(row.baseWpId) || {
+      domain: "UNKNOWN",
+      techBlocker: "UNKNOWN",
+      valueTier: "UNKNOWN",
+      dependsOn: [],
+      blocks: [],
+      riskTier: "UNKNOWN",
+      packetStatus: "",
+    };
+    const boardToken = taskBoardTokens.get(row.activePacketId) || "-";
+    const packetState = stateFromPacketStatus(meta.packetStatus);
     statusByBaseWpId.set(row.baseWpId, {
-      registryState: shortStateFromRegistryCell(row.taskBoardCell),
-      boardToken: taskBoardTokens.get(row.activePacketId) || "-",
+      registryState:
+        packetState !== "UNKNOWN"
+          ? packetState
+          : stateFromBoardToken(boardToken, shortStateFromRegistryCell(row.taskBoardCell)),
+      boardToken,
       activePacketId: row.activePacketId,
     });
   }
@@ -267,7 +317,11 @@ function generateAutogenBlock({ specTarget, registryRows, taskBoardTokens, metaB
     };
 
     const boardToken = taskBoardTokens.get(row.activePacketId) || "-";
-    const registryState = shortStateFromRegistryCell(row.taskBoardCell);
+    const packetState = stateFromPacketStatus(meta.packetStatus);
+    const registryState =
+      packetState !== "UNKNOWN"
+        ? packetState
+        : stateFromBoardToken(boardToken, shortStateFromRegistryCell(row.taskBoardCell));
     const deps = depsState(meta, statusByBaseWpId);
     const score = priorityScore(meta);
 

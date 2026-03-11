@@ -8,6 +8,8 @@ Rules:
 - Coder/Validator MUST NOT start work from a stub.
 - When activating a stub into a real WP, follow `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` (Technical Refinement Block + USER_SIGNATURE + refinement + `just create-task-packet`).
 - If a Base WP later gains multiple packets (revisions), record Base WP -> Active Packet in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`.
+- A stub is the authoritative backlog contract before activation. Task Board, traceability, and Build Order are projections over this stub metadata.
+- When a real packet replaces a stub or older packet, the new active packet is whichever file the traceability registry maps for the shared `BASE_WP_ID`.
 - For any stub covering current-spec Phase 1 roadmap additions (`[ADD v<current>]`), `ROADMAP_ADD_COVERAGE` MUST enumerate the exact spec line numbers so governance checks can verify no additions were missed.
 
 ---

@@ -19,7 +19,7 @@
 - CODER_MODEL: GPT-5 (Codex CLI)
 - CODER_REASONING_STRENGTH: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
-- **Status:** In Progress
+- **Status:** Blocked
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
 - BUILD_ORDER_DOMAIN: BACKEND

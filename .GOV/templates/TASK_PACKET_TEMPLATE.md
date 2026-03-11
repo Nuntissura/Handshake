@@ -8,6 +8,8 @@ Requirements:
 - Use SPEC_TARGET as the authoritative spec for closure/revalidation (usually .GOV/roles_shared/SPEC_CURRENT.md).
 - WP_ID and filename MUST NOT include date/time stamps; use `-v{N}` for revisions (e.g., `WP-1-Tokenization-Service-v3`).
 - If multiple packets exist for the same Base WP, update `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet).
+- Packet metadata is the authoritative lifecycle truth. `TASK_BOARD.md`, `WP_TRACEABILITY_REGISTRY.md`, and `BUILD_ORDER.md` are projections and must reconcile to this header.
+- Active packet rule: the packet mapped by `BASE_WP_ID` in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` is the current contract. Any other official packet with the same `BASE_WP_ID` is older history and must be tracked as `SUPERSEDED` on the Task Board.
 - For `REFINEMENT_ENFORCEMENT_PROFILE: HYDRATED_RESEARCH_V1`, this packet is auto-hydrated from the signed refinement; manual drift is forbidden and `just pre-work` enforces alignment.
 
 ---
@@ -35,6 +37,7 @@ Requirements:
 - CODER_REASONING_STRENGTH: <unclaimed>
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - **Status:** Ready for Dev
+<!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: <pending>
 <!-- Allowed: LOW | MEDIUM | HIGH -->
 - BUILD_ORDER_DOMAIN: <pending>

@@ -30,7 +30,8 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 **Backlog stubs (pre-activation):**
 - Track not-yet-activated work as STUB items (no USER_SIGNATURE yet). Details live in `.GOV/task_packets/stubs/`.
 - Stubs MUST be activated into official task packets before any coding starts (see `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`).
-- Base WP ??? packet revision mapping (v2/v3/v4) is tracked in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`.
+- Base WP to active packet mapping (v2/v3/v4 and stub revisions) is tracked in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`.
+- Only the registry-mapped active packet or stub for a `BASE_WP_ID` may remain non-superseded. Any older packet or older stub with the same `BASE_WP_ID` must move to `## Superseded (Archive)`.
 
 ---
 
@@ -55,9 +56,8 @@ Entry format (recommended):
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
 
-
-
-- **[WP-1-Calendar-Storage-v1]** - [READY_FOR_DEV]
+- **[WP-1-Spec-Enrichment-LLM-Core-v1]** - [READY_FOR_DEV]
+- **[WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2]** - [READY_FOR_DEV]
 
 
 ## Stub Backlog (Not Activated)
@@ -106,7 +106,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Photo-Studio-v2]** - [STUB]
 - **[WP-1-Atelier-Lens-v2]** - [STUB]
 - **[WP-1-Studio-Runtime-Visibility-v1]** - [STUB]
-- **[WP-1-Calendar-Lens-v2]** - [STUB]
 - **[WP-1-Calendar-Lens-v3]** - [STUB]
 - **[WP-1-Calendar-Sync-Engine-v1]** - [STUB]
 - **[WP-1-Calendar-Policy-Integration-v1]** - [STUB]
@@ -249,6 +248,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Locus-Phase1-Integration-Occupancy-v1]** - [VALIDATED]
 
 ## Blocked
+- **[WP-1-Calendar-Storage-v1]** - [BLOCKED]
 ---
 
 ## Superseded (Archive)
@@ -258,6 +258,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Product-Governance-Snapshot-v3]** - [SUPERSEDED]
 - **[WP-1-Tokenization-Service-20251228]** - [SUPERSEDED]
 - **[WP-1-Storage-Foundation-20251228]** - [SUPERSEDED]
+- **[WP-1-Storage-Foundation]** - [SUPERSEDED]
 - **[WP-1-Gate-Check-Tool]** - [SUPERSEDED]
 - **[WP-1-Operator-Consoles-v2]** - [SUPERSEDED]
 - **[WP-1-Operator-Consoles-v1]** - [SUPERSEDED]
@@ -268,7 +269,9 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Flight-Recorder-v3]** - [SUPERSEDED]
 - **[WP-1-Workflow-Engine-v3]** - [SUPERSEDED]
 - **[WP-1-Workflow-Engine-v2]** - [SUPERSEDED]
+- **[WP-1-Workflow-Engine]** - [SUPERSEDED]
 - **[WP-1-AI-Job-Model-v2]** - [SUPERSEDED]
+- **[WP-1-AI-Job-Model]** - [SUPERSEDED]
 - **[WP-1-ACE-Validators]** - [SUPERSEDED]
 - **[WP-1-ACE-Validators-v2]** - [SUPERSEDED]
 - **[WP-1-ACE-Validators-v3]** - [SUPERSEDED]
@@ -309,6 +312,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Migration-Framework]** - [SUPERSEDED]
 - **[WP-1-Model-Profiles]** - [SUPERSEDED]
 - **[WP-1-Mutation-Traceability]** - [SUPERSEDED]
+- **[WP-1-Product-Governance-Snapshot-v1]** - [SUPERSEDED]
 - **[WP-1-OSS-Governance]** - [SUPERSEDED]
 - **[WP-1-PDF-Pipeline]** - [SUPERSEDED]
 - **[WP-1-Photo-Studio]** - [SUPERSEDED]
@@ -316,5 +320,10 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-RAG-Iterative]** - [SUPERSEDED]
 - **[WP-1-Semantic-Catalog]** - [SUPERSEDED]
 - **[WP-1-Supply-Chain-MEX]** - [SUPERSEDED]
+- **[WP-1-Autonomous-Governance-Protocol-v1]** - [SUPERSEDED]
+- **[WP-1-Cloud-Escalation-Consent-v1]** - [SUPERSEDED]
+- **[WP-1-Dev-Experience-ADRs]** - [SUPERSEDED]
+- **[WP-1-Calendar-Lens-v2]** - [SUPERSEDED]
 - **[WP-1-Workspace-Bundle]** - [SUPERSEDED]
+- **[WP-1-Tokenization-Service]** - [SUPERSEDED]
 ]
