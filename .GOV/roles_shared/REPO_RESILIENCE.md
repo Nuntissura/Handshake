@@ -17,6 +17,7 @@ This document defines the repo-resilience layer for Handshake governance.
 - `just backup-snapshot-nas [label]`
 - `just sync-all-role-worktrees`
 - `just enumerate-cleanup-targets`
+- `just delete-local-worktree <worktree_id> "<approval>"`
 - `just ensure-permanent-backup-branches`
 
 ## Policy
@@ -24,6 +25,8 @@ This document defines the repo-resilience layer for Handshake governance.
 - `main` is the only canonical integrated branch.
 - `user_ilja`, `role_orchestrator`, and `role_validator` are backup branches on GitHub.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
+- Worktree deletion must go through `just delete-local-worktree`. Never fall back to `Remove-Item`, `rm`, `del`, or other direct filesystem deletion for worktree paths.
+- If `git worktree remove` fails, STOP. Treat that as abnormal repo state, not as permission to continue cleanup manually.
 - Role startup should surface `just backup-status` so the assistant can see whether local/NAS backup roots are configured and whether recent immutable snapshots exist.
 - Backup snapshots do two things:
   - create git bundles for committed refs

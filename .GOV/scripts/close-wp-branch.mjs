@@ -1,5 +1,7 @@
 ﻿import { execFileSync } from "node:child_process";
 
+import path from "node:path";
+
 function runGit(args, opts = {}) {
   return execFileSync("git", args, { stdio: "pipe", ...opts }).toString().trim();
 }
@@ -85,6 +87,13 @@ function requireApproval(approval, branch, remote) {
   }
 }
 
+function createSafetySnapshot(wpId) {
+  const label = `pre-close-${wpId}`;
+  execFileSync(process.execPath, [path.join(".GOV", "scripts", "backup-snapshot.mjs"), "--label", label], {
+    stdio: "inherit",
+  });
+}
+
 function main() {
   const { wpId, remote, approval } = parseArgs();
   const branch = branchForWp(wpId);
@@ -115,6 +124,8 @@ function main() {
       "Merge it into main first, or pass `--force` (not supported).",
     ]);
   }
+
+  createSafetySnapshot(wpId);
 
   // The upstream safety check in `git branch -d` can block deletion even when the branch
   // is already merged into `main`. We already proved ancestry, so force-delete the pointer.

@@ -89,6 +89,10 @@ sync-all-role-worktrees:
 enumerate-cleanup-targets:
 	node .GOV/scripts/enumerate-cleanup-targets.mjs
 
+# Delete a non-protected git-managed local worktree safely: immutable snapshot first, then git worktree remove only.
+delete-local-worktree worktree_id approval:
+	node .GOV/scripts/delete-local-worktree.mjs {{worktree_id}} --approve "{{approval}}"
+
 # Master Spec EOF appendix blocks check (Spec §12).
 spec-eof-appendices-check:
 	node .GOV/scripts/validation/spec-eof-appendices-check.mjs

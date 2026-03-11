@@ -198,6 +198,7 @@ export function buildTopologyRegistry() {
       backup_status: "just backup-status",
       sync_all_role_worktrees: "just sync-all-role-worktrees",
       enumerate_cleanup_targets: "just enumerate-cleanup-targets",
+      delete_local_worktree: "just delete-local-worktree",
       ensure_permanent_backup_branches: "just ensure-permanent-backup-branches",
     },
     backup_policy: {
@@ -239,6 +240,7 @@ export function renderTopologyRegistryMd(registry) {
     `- backup_status: ${registry.helper_commands.backup_status}`,
     `- sync_all_role_worktrees: ${registry.helper_commands.sync_all_role_worktrees}`,
     `- enumerate_cleanup_targets: ${registry.helper_commands.enumerate_cleanup_targets}`,
+    `- delete_local_worktree: ${registry.helper_commands.delete_local_worktree}`,
     `- ensure_permanent_backup_branches: ${registry.helper_commands.ensure_permanent_backup_branches}`,
     "",
     "## BACKUP_POLICY",

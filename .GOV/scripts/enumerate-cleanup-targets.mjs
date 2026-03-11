@@ -56,7 +56,7 @@ if (worktreeCandidates.length === 0) {
   console.log("  - NONE");
 } else {
   for (const row of worktreeCandidates) {
-    console.log(`  - ${row.id} | rel_path=${row.rel_path} | git_checkout=${row.is_git_checkout ? "YES" : "NO"} | approval_example=APPROVE DELETE LOCAL WORKTREE ${row.id}`);
+    console.log(`  - ${row.id} | rel_path=${row.rel_path} | git_checkout=${row.is_git_checkout ? "YES" : "NO"} | assistant_deletable=${row.is_git_checkout ? "YES" : "NO"} | approval_example=APPROVE DELETE LOCAL WORKTREE ${row.id} | command_example=just delete-local-worktree ${row.id} "APPROVE DELETE LOCAL WORKTREE ${row.id}"`);
   }
 }
 

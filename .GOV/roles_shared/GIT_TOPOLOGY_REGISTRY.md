@@ -22,6 +22,7 @@ This file is a deterministic governance registry for the permanent Handshake che
 - backup_status: just backup-status
 - sync_all_role_worktrees: just sync-all-role-worktrees
 - enumerate_cleanup_targets: just enumerate-cleanup-targets
+- delete_local_worktree: just delete-local-worktree
 - ensure_permanent_backup_branches: just ensure-permanent-backup-branches
 
 ## BACKUP_POLICY

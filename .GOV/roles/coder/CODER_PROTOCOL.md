@@ -34,6 +34,8 @@
   - `APPROVE DELETE LOCAL BRANCH feat/WP-1-Example`
   - `APPROVE FAST_FORWARD REMOTE BRANCH feat/WP-1-Example TO main`
 - Use `just enumerate-cleanup-targets` before asking for cleanup approvals.
+- Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion. Never use direct filesystem deletion on worktree paths.
+- If `git worktree remove` fails, STOP immediately. Do not continue with manual cleanup inside the shared worktree root.
 
 ## Repo Boundary Rules (HARD)
 

@@ -30,6 +30,8 @@
   - `APPROVE DELETE LOCAL BRANCH feat/WP-1-Example`
   - `APPROVE FAST_FORWARD REMOTE BRANCH role_validator TO main`
 - Use `just enumerate-cleanup-targets` to print current exact targets and copy-paste approval examples.
+- Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion. Never delete worktree directories directly with `rm`, `del`, or `Remove-Item`.
+- If `git worktree remove` fails, STOP. Do not switch to manual filesystem cleanup inside the shared worktree root.
 - Use `just sync-all-role-worktrees` to fast-forward the permanent local clones safely when all are clean.
 
 ### Governance-only work (no WP required)

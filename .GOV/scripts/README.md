@@ -16,3 +16,4 @@ Repo resilience:
 - `node .GOV/scripts/backup-snapshot.mjs --label manual --nas-root "\\\\server\\share\\Project Backups"` copies the same timestamped snapshot to a NAS without mirror deletes.
 - `node .GOV/scripts/sync-all-role-worktrees.mjs` fast-forwards the permanent local clones when all are clean.
 - `node .GOV/scripts/enumerate-cleanup-targets.mjs` lists exact cleanup candidates and approval examples.
+- `node .GOV/scripts/delete-local-worktree.mjs <WORKTREE_ID> --approve "APPROVE DELETE LOCAL WORKTREE <WORKTREE_ID>"` is the only allowed assistant path for local worktree deletion. It snapshots first, uses `git worktree remove`, and forbids direct filesystem fallback.
