@@ -27,6 +27,7 @@ await import("./spec-eof-appendices-check.mjs");
 await import("./atelier_role_registry_check.mjs");
 await import("./task-board-check.mjs");
 await import("./packet-truth-check.mjs");
+await import("./wp-communications-check.mjs");
 await import("./build-order-check.mjs");
 await import("./task-packet-claim-check.mjs");
 await import("./wp-activation-traceability-check.mjs");

@@ -257,6 +257,15 @@ Resume rule (hard, anti-babysit):
 - If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS` without waiting for a fresh "proceed".
 - STOP only if the helper requires a single explicit decision, the WP inference is ambiguous, or the next step is a sync/destructive action that still needs explicit authorization.
 
+## WP Communication Folder (when the packet defines it)
+
+- If the active packet defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, the Orchestrator MUST treat those files as the canonical non-authoritative collaboration surface for that WP.
+- Use `THREAD.md` for append-only steering, clarifications, relay notes, and manual-lane coordination.
+- Use `RUNTIME_STATUS.json` for liveness, waiting state, next expected actor, ready-for-validation posture, and stale-session visibility.
+- Use `RECEIPTS.md` for deterministic assignment, status, heartbeat, and handoff receipts.
+- These artifacts support both manual relay and orchestrator-managed execution lanes.
+- Hard rule: those files do not override packet scope, packet status, PREPARE assignment, Task Board projection, or validation authority. If there is any conflict, the packet wins.
+
 ### Deterministic helpers (recommended)
 
 To avoid manual markdown editing mistakes:

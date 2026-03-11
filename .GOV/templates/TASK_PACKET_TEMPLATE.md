@@ -63,13 +63,31 @@ Requirements:
 - REMOTE_BACKUP_LIFECYCLE: TEMPORARY
 <!-- WP backup branches may be deleted after Operator-approved cleanup; later dead links are non-blocking. -->
 - BACKUP_PUSH_STATUS: REQUIRED_BEFORE_DESTRUCTIVE_OPS
+- WP_COMMUNICATION_DIR: .GOV/roles_shared/WP_COMMUNICATIONS/{{WP_ID}}
+- WP_THREAD_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/{{WP_ID}}/THREAD.md
+- WP_RUNTIME_STATUS_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/{{WP_ID}}/RUNTIME_STATUS.json
+- WP_RECEIPTS_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/{{WP_ID}}/RECEIPTS.md
 - USER_SIGNATURE: {{USER_SIGNATURE}}
-- PACKET_FORMAT_VERSION: 2026-03-08
+- PACKET_FORMAT_VERSION: 2026-03-11
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
 Blockers: NONE
 Next: N/A
+
+## WP_COMMUNICATIONS (NON-AUTHORITATIVE; REQUIRED FOR NEW PACKETS)
+- RULE: The task packet remains authoritative for scope, status, branch/worktree truth, acceptance, and verdict.
+- PURPOSE: The per-WP communication folder holds freeform discussion, liveness state, and deterministic receipts for multi-session work.
+- THREAD.md:
+  - append-only freeform conversation for Operator, Orchestrator, Coder, and Validator
+  - may contain steering, questions, clarifications, and soft coordination
+- RUNTIME_STATUS.json:
+  - non-authoritative liveness and watch state
+  - use for next expected actor, waiting state, heartbeat posture, and validation readiness
+- RECEIPTS.md:
+  - append-only deterministic receipts such as assignment receipt, status receipt, heartbeat receipt, and handoff receipt
+- CONFLICT RULE:
+  - if THREAD.md, RUNTIME_STATUS.json, or RECEIPTS.md conflicts with this packet, this packet wins
 
 ## SUB_AGENT_DELEGATION (OPTIONAL; OPERATOR-GATED)
 - SUB_AGENT_DELEGATION: DISALLOWED
@@ -296,7 +314,7 @@ git revert <commit-sha>
 - **Notes**:
 
 ## STATUS_HANDOFF
-- (Use this to list touched files and summarize work done without claiming a validation verdict.)
+- (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Current WP_STATUS:
 - What changed in this update:
 - Next step / handoff hint:

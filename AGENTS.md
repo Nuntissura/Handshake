@@ -48,4 +48,13 @@
 - After creating a WP task packet + refinement and obtaining `USER_SIGNATURE`, create a checkpoint commit on the WP branch that includes:
   - `.GOV/task_packets/WP-{ID}.md`
   - `.GOV/refinements/WP-{ID}.md`
+
+### WP communication artifacts
+- Official packets may define `.GOV/roles_shared/WP_COMMUNICATIONS/WP-{ID}/`.
+- These files are governance-only collaboration helpers:
+  - `THREAD.md` for append-only freeform discussion
+  - `RUNTIME_STATUS.json` for liveness, waiting-state, and next-actor watch state
+  - `RECEIPTS.md` for deterministic assignment, status, heartbeat, and handoff receipts
+- The task packet remains authoritative for scope, packet status, PREPARE assignment, acceptance, and verdict.
+- If packet and communication artifacts disagree, the packet wins.
 </INSTRUCTIONS>

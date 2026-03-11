@@ -274,6 +274,9 @@ create-task-packet wp-id:
 	@node .GOV/scripts/create-task-packet.mjs {{wp-id}}
 	@just build-order-sync
 
+ensure-wp-communications wp-id:
+	@node .GOV/scripts/ensure-wp-communications.mjs {{wp-id}}
+
 # Create new task packet stub from template (backlog; non-executable)
 create-task-packet-stub wp-id roadmap_pointer="" line_numbers="":
 	@echo "Creating task packet stub: {{wp-id}}..."

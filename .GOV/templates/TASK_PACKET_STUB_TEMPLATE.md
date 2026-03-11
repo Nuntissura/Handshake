@@ -135,5 +135,6 @@ Rules:
 - [ ] Obtain USER_SIGNATURE for the WP.
 - [ ] Create `.GOV/refinements/{{WP_ID}}.md` (approved/signed).
 - [ ] Create the official task packet via `just create-task-packet {{WP_ID}}` (in `.GOV/task_packets/`).
+- [ ] Confirm `just create-task-packet {{WP_ID}}` also created `.GOV/roles_shared/WP_COMMUNICATIONS/{{WP_ID}}/`.
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
 - [ ] Move `.GOV/roles_shared/TASK_BOARD.md` entry from STUB to Ready for Dev.

@@ -12,6 +12,7 @@ import {
   resolveSpecCurrent,
   validateRefinementFile,
 } from './validation/refinement-check.mjs';
+import { ensureWpCommunications } from './ensure-wp-communications.mjs';
 import { preparedWorktreeSyncState } from './role-resume-utils.mjs';
 
 const WP_ID = process.argv[2];
@@ -512,6 +513,7 @@ template = replaceSingleField(template, 'SPEC_ADD_MARKER_TARGET', specAddMarkerT
 
 const executionLane = (signatureGate?.execution_lane || prepareGate?.coder_id || '').trim();
 const orchestrationStartedAt = signatureGate?.timestamp || timestamp;
+const baseWpId = WP_ID.replace(/-v\d+$/, '');
 const localBranch = (prepareGate?.branch || `feat/${WP_ID}`).trim() || `feat/${WP_ID}`;
 const localWorktreeDir = (prepareGate?.worktree_dir || '<pending>').trim() || '<pending>';
 const remoteBackupBranch = localBranch;
@@ -715,8 +717,40 @@ ${formatList(refinementData.uiSpec?.accessibility)}
 // Write the file
 fs.writeFileSync(filePath, template, 'utf8');
 
+let wpCommunicationPaths = null;
+try {
+  wpCommunicationPaths = ensureWpCommunications({
+    wpId: WP_ID,
+    baseWpId,
+    localBranch,
+    localWorktreeDir,
+    agenticMode: (template.match(/^\s*-\s*(?:\*\*)?AGENTIC_MODE(?:\*\*)?\s*:\s*(.+)\s*$/mi) || [])[1] || '<pending>',
+    packetStatus: 'Ready for Dev',
+    initializedAt: timestamp,
+  });
+} catch (error) {
+  printGateBlocks({
+    wpId: WP_ID,
+    stage: 'PACKET_CREATE',
+    next: 'STOP',
+    operatorAction: 'NONE',
+    gateRan: `just create-task-packet ${WP_ID}`,
+    result: 'FAIL',
+    why: 'Task packet was created, but WP communication artifacts could not be bootstrapped deterministically.',
+    gateOutputLines: [
+      `FAIL: WP communication folder bootstrap failed for ${WP_ID}.`,
+      `- ${(error && error.message) ? error.message : String(error)}`,
+    ],
+    nextCommands: [
+      `cat ${filePath.replace(/\\/g, '/')}`,
+      `just ensure-wp-communications ${WP_ID}`,
+      `just gov-check`,
+    ],
+  });
+  process.exit(1);
+}
+
 {
-  const baseWpId = WP_ID.replace(/-v\d+$/, '');
   const isRevision = baseWpId !== WP_ID;
   const syncState = preparedWorktreeSyncState(WP_ID, prepareGate, process.cwd());
 
@@ -745,6 +779,7 @@ fs.writeFileSync(filePath, template, 'utf8');
       why: 'Task packet was created, but coder handoff is blocked until the assigned WP worktree contains the current packet/spec/governance state.',
       gateOutputLines: [
         `OK: Task packet created: ${filePath.replace(/\\/g, '/')}`,
+        `OK: WP communication folder ready: ${wpCommunicationPaths.dir}`,
         ...syncState.issues.map((issue) => `SYNC_REQUIRED: ${issue}`),
       ],
       nextCommands,
@@ -768,6 +803,7 @@ fs.writeFileSync(filePath, template, 'utf8');
       why: 'Task packet created from template.',
       gateOutputLines: [
         `OK: Task packet created: ${filePath.replace(/\\/g, '/')}`,
+        `OK: WP communication folder ready: ${wpCommunicationPaths.dir}`,
       ],
       nextCommands,
     });

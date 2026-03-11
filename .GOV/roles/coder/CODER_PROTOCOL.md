@@ -186,6 +186,19 @@ Resume rule (hard, anti-babysit):
 - If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS` without waiting for a fresh "proceed".
 - STOP only if the helper requires a single explicit decision, the WP inference is ambiguous, or the next step is a protocol-mandated handoff/approval stop.
 
+## WP Communication Folder (when the packet defines it)
+
+- If the assigned packet defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, use those files as the secondary collaboration surface for that WP.
+- Use `THREAD.md` for append-only questions, clarifications, blocker notes, and soft coordination.
+- Use `RUNTIME_STATUS.json` for liveness updates, next-actor hints, ready-for-validation posture, and heartbeat-style watch state.
+- Use `RECEIPTS.md` for deterministic assignment, status, heartbeat, and handoff receipts.
+- Keep authoritative work state in the packet:
+  - packet `**Status:**`
+  - `## CURRENT_STATE`
+  - `## STATUS_HANDOFF`
+  - `## EVIDENCE`
+- Hard rule: the communication folder does not change packet truth. If it conflicts with the packet, the packet wins.
+
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
 In every Coder message (not only gate runs), include a short lifecycle marker so the Validator can see where you are in the WP lifecycle at a glance.
