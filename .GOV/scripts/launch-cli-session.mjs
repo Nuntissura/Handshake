@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import {
+  CLI_ESCALATION_HOST_DEFAULT,
   CLI_SESSION_TOOL,
   defaultCoderBranch,
   defaultCoderWorktreeDir,
@@ -14,11 +15,29 @@ import {
   ROLE_SESSION_REASONING_CONFIG_KEY,
   ROLE_SESSION_REASONING_CONFIG_VALUE,
   ROLE_SESSION_FALLBACK_MODEL,
+  SESSION_HOST_PREFERENCE,
   roleNextCommand,
   roleStartupCommand,
   SESSION_HOST_FALLBACK,
-  SESSION_HOST_PREFERENCE,
+  SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS,
+  SESSION_PLUGIN_BRIDGE_COMMAND,
+  SESSION_PLUGIN_BRIDGE_ID,
+  SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION,
 } from "./session-policy.mjs";
+import {
+  assertOrchestratorLaunchAuthority,
+  buildLaunchRequest,
+  ensureSessionStateFiles,
+  getOrCreateSessionRecord,
+  loadSessionLaunchRequests,
+  loadSessionRegistry,
+  markPluginResult,
+  pendingRequestStatus,
+  queuePluginLaunch,
+  registrySessionSummary,
+  saveSessionRegistry,
+  settleTimedOutPluginRequests,
+} from "./session-registry-lib.mjs";
 
 const role = String(process.argv[2] || "").trim().toUpperCase();
 const wpId = String(process.argv[3] || "").trim();
@@ -31,7 +50,7 @@ function fail(message) {
 }
 
 if (!wpId || !wpId.startsWith("WP-")) {
-  fail("Usage: node .GOV/scripts/launch-cli-session.mjs <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]");
+  fail("Usage: node .GOV/scripts/launch-cli-session.mjs <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN|VSCODE] [PRIMARY|FALLBACK]");
 }
 if (!["PRIMARY", "FALLBACK"].includes(requestedModel)) {
   fail(`Invalid model selector: ${requestedModel} (expected PRIMARY or FALLBACK)`);
@@ -86,6 +105,8 @@ if (!roleConfig) fail(`Unknown role: ${role}`);
 const selectedModel = requestedModel === "FALLBACK" ? ROLE_SESSION_FALLBACK_MODEL : ROLE_SESSION_PRIMARY_MODEL;
 
 const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
+const currentBranch = runGit(["branch", "--show-current"]);
+assertOrchestratorLaunchAuthority(currentBranch);
 const absWorktreeDir = path.resolve(repoRoot, roleConfig.worktreeDir);
 
 if (!fs.existsSync(absWorktreeDir)) {
@@ -119,6 +140,8 @@ const codexArgs = [
   absWorktreeDir,
   prompt,
 ];
+
+const codexCommand = `${CLI_SESSION_TOOL} ${codexArgs.map((part) => JSON.stringify(part)).join(" ")}`;
 
 function writeLaunchScript() {
   const psPath = path.join(os.tmpdir(), `handshake-${role.toLowerCase()}-${wpId}-${Date.now()}.ps1`);
@@ -180,15 +203,128 @@ function printOnly(reason, resolvedHost) {
   console.log(`[LAUNCH_CLI_SESSION] selected_model=${selectedModel}`);
   console.log(`[LAUNCH_CLI_SESSION] startup=${roleConfig.startupCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] next=${roleConfig.nextCommand}`);
-  console.log(`[LAUNCH_CLI_SESSION] command=${CLI_SESSION_TOOL} ${codexArgs.map((part) => JSON.stringify(part)).join(" ")}`);
+  console.log(`[LAUNCH_CLI_SESSION] command=${codexCommand}`);
+}
+
+ensureSessionStateFiles(repoRoot);
+const { registry } = loadSessionRegistry(repoRoot);
+const { requests } = loadSessionLaunchRequests(repoRoot);
+settleTimedOutPluginRequests(registry, requests);
+const session = getOrCreateSessionRecord(registry, {
+  wp_id: wpId,
+  role,
+  local_branch: roleConfig.branch,
+  local_worktree_dir: roleConfig.worktreeDir,
+  terminal_title: roleConfig.title,
+  requested_model: selectedModel,
+  reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
+  reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
+});
+saveSessionRegistry(repoRoot, registry);
+
+function printSessionSummary() {
+  const summary = registrySessionSummary(session);
+  console.log(`[LAUNCH_CLI_SESSION] session_key=${summary.session_key}`);
+  console.log(`[LAUNCH_CLI_SESSION] runtime_state=${summary.runtime_state}`);
+  console.log(`[LAUNCH_CLI_SESSION] plugin_request_count=${summary.plugin_request_count}`);
+  console.log(`[LAUNCH_CLI_SESSION] plugin_failure_count=${summary.plugin_failure_count}`);
+  console.log(`[LAUNCH_CLI_SESSION] plugin_last_result=${summary.plugin_last_result}`);
+  console.log(`[LAUNCH_CLI_SESSION] cli_escalation_allowed=${summary.cli_escalation_allowed ? "YES" : "NO"}`);
+}
+
+function queueVsCodePluginLaunch() {
+  const pending = session.plugin_last_request_id ? pendingRequestStatus(registry, session.plugin_last_request_id) : null;
+  const lastRequestAtMs = Date.parse(session.plugin_last_request_at || "");
+  const hasFreshPendingRequest =
+    session.plugin_last_result === "QUEUED" &&
+    !pending &&
+    !Number.isNaN(lastRequestAtMs) &&
+    (Date.now() - lastRequestAtMs) < (SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS * 1000);
+  if (hasFreshPendingRequest) {
+    console.log(`[LAUNCH_CLI_SESSION] plugin launch request still pending for ${SESSION_PLUGIN_BRIDGE_ID}`);
+    console.log(`[LAUNCH_CLI_SESSION] request_id=${session.plugin_last_request_id}`);
+    console.log(`[LAUNCH_CLI_SESSION] wait_timeout_seconds=${SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS}`);
+    printSessionSummary();
+    return;
+  }
+  const request = buildLaunchRequest({
+    wpId,
+    role,
+    localBranch: roleConfig.branch,
+    localWorktreeDir: roleConfig.worktreeDir,
+    absWorktreeDir,
+    selectedModel,
+    reasoningConfigKey: ROLE_SESSION_REASONING_CONFIG_KEY,
+    reasoningConfigValue: ROLE_SESSION_REASONING_CONFIG_VALUE,
+    startupCommand: roleConfig.startupCommand,
+    nextCommand: roleConfig.nextCommand,
+    terminalTitleValue: roleConfig.title,
+    command: codexCommand,
+    pluginAttemptNumber: session.plugin_request_count + 1,
+  });
+  queuePluginLaunch(repoRoot, registry, request);
+  console.log(`[LAUNCH_CLI_SESSION] queued plugin launch request for ${SESSION_PLUGIN_BRIDGE_ID}`);
+  console.log(`[LAUNCH_CLI_SESSION] request_id=${request.request_id}`);
+  console.log(`[LAUNCH_CLI_SESSION] preferred_host=${SESSION_HOST_PREFERENCE}`);
+  console.log(`[LAUNCH_CLI_SESSION] plugin_command=${SESSION_PLUGIN_BRIDGE_COMMAND}`);
+  console.log(`[LAUNCH_CLI_SESSION] wait_timeout_seconds=${SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS}`);
+  printSessionSummary();
+}
+
+function cliEscalationGatePassed() {
+  return session.cli_escalation_allowed || session.plugin_failure_count >= SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION;
+}
+
+function maybeRecordCliEscalation(hostKind) {
+  const pending = session.plugin_last_request_id ? pendingRequestStatus(registry, session.plugin_last_request_id) : null;
+  if (!pending && session.plugin_last_request_id) {
+    markPluginResult(registry, session, session.plugin_last_request_id, "CLI_ESCALATION_USED", {
+      host_kind: hostKind,
+      terminal_title: roleConfig.title,
+    });
+  } else {
+    session.runtime_state = "CLI_ESCALATION_USED";
+    session.active_host = hostKind;
+    session.active_terminal_title = roleConfig.title;
+    session.active_terminal_kind = hostKind;
+    session.cli_escalation_used = true;
+    session.last_event_at = new Date().toISOString();
+  }
+  saveSessionRegistry(repoRoot, registry);
 }
 
 if (requestedHost === "PRINT") {
   printOnly("print-only requested", "PRINT");
+  printSessionSummary();
   process.exit(0);
 }
 
+if (requestedHost === "AUTO" || requestedHost === "VSCODE_PLUGIN" || requestedHost === "VSCODE") {
+  if (!cliEscalationGatePassed()) {
+    queueVsCodePluginLaunch();
+    process.exit(0);
+  }
+  if (requestedHost !== "AUTO") {
+    printOnly(
+      `Plugin launch has already failed ${session.plugin_failure_count} time(s); CLI escalation is now allowed and should be used from AUTO/CURRENT/WINDOWS_TERMINAL`,
+      "PRINT",
+    );
+    printSessionSummary();
+    process.exit(0);
+  }
+}
+
+if ((requestedHost === "CURRENT" || requestedHost === "WINDOWS_TERMINAL") && !cliEscalationGatePassed()) {
+  printOnly(
+    `CLI escalation is blocked until ${SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION} plugin failures/timeouts have been recorded for this ${role}/${wpId} session`,
+    "PRINT",
+  );
+  printSessionSummary();
+  process.exit(1);
+}
+
 if (requestedHost === "CURRENT") {
+  maybeRecordCliEscalation("CURRENT");
   launchCurrent();
   process.exit(0);
 }
@@ -196,20 +332,27 @@ if (requestedHost === "CURRENT") {
 if (requestedHost === "WINDOWS_TERMINAL") {
   if (!commandExists("wt")) {
     printOnly("wt.exe is unavailable on this host", "PRINT");
+    printSessionSummary();
     process.exit(0);
   }
+  maybeRecordCliEscalation("WINDOWS_TERMINAL");
   launchWindowsTerminal();
+  printSessionSummary();
   process.exit(0);
 }
 
-if (requestedHost === "VSCODE") {
-  printOnly("VS Code integrated-terminal automation is not implemented in this repo launcher; use the printed command inside VS Code or fall back to WINDOWS_TERMINAL", "PRINT");
+if (requestedHost === "AUTO") {
+  if (commandExists("wt")) {
+    maybeRecordCliEscalation("WINDOWS_TERMINAL");
+    launchWindowsTerminal();
+    printSessionSummary();
+    process.exit(0);
+  }
+  maybeRecordCliEscalation("PRINT");
+  printOnly("Plugin retry budget exhausted and no CLI window host is available; run the printed command manually in an escalation window", "PRINT");
+  printSessionSummary();
   process.exit(0);
 }
 
-if (commandExists("wt")) {
-  launchWindowsTerminal();
-  process.exit(0);
-}
-
-printOnly("No supported auto-launch host is available; run the printed command manually", "PRINT");
+printOnly("Unsupported host mode; use AUTO, VSCODE_PLUGIN, CURRENT, WINDOWS_TERMINAL, or PRINT", "PRINT");
+printSessionSummary();

@@ -60,6 +60,9 @@
 - These richer artifacts apply to both `MANUAL_RELAY` and `ORCHESTRATOR_MANAGED` workflow lanes.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not improvise role-local inboxes.
 - When available, prefer VS Code integrated terminals as the host for multi-session role work. Use `just operator-monitor` as the overview surface instead of treating role-local terminal buffers as authority.
+- Repo-governed multi-session launch is plugin-first: queue VS Code bridge requests through `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`, project current state in `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`, and keep heartbeat as fallback only.
+- Only the Orchestrator may start repo-governed Coder, WP Validator, and Integration Validator sessions. Coder/Validator sessions may resume work, but they do not self-start a fresh repo-governed session.
+- CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts.
 - For newly created stubs/packets, repo-governed CLI session policy is explicit: primary model `gpt-5.4`, fallback `gpt-5.2`, reasoning strength `EXTRA_HIGH`, launcher config `model_reasoning_effort=xhigh`.
 - Do not rely on whatever model/reasoning defaults happen to be active in an editor or local CLI profile. Launch or claim the session explicitly.
 - Repo policy for new repo-governed sessions disallows Codex model aliases in packet claim fields; the CLI tool may still be `codex`.
@@ -73,4 +76,5 @@
 - Orchestrator is non-agentic and single-session, but may coordinate and launch multiple external CLI sessions.
 - Validator duties are non-agentic, but repo governance may run multiple validator CLI sessions concurrently when they are scoped as WP Validator and Integration Validator sessions.
 - Only the Primary Coder may use coder sub-agents, and only when the packet explicitly records operator approval.
+- Shared launch/watch contract: `.GOV/roles_shared/ROLE_SESSION_ORCHESTRATION.md`.
 </INSTRUCTIONS>

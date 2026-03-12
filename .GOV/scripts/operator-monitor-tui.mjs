@@ -7,6 +7,7 @@ import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import { appendWpThreadEntry } from "./wp-thread-append.mjs";
 import { normalize, parseJsonFile, parseJsonlFile, validateReceipt, validateRuntimeStatus } from "./wp-communications-lib.mjs";
+import { loadSessionRegistry, registrySessionSummary } from "./session-registry-lib.mjs";
 
 const TASK_BOARD_PATH = ".GOV/roles_shared/TASK_BOARD.md";
 const TRACEABILITY_PATH = ".GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md";
@@ -126,6 +127,22 @@ function parseTraceabilityRegistry() {
     byWpId.set(path.basename(activePacket, ".md"), activePacket);
   }
   return { byBaseWpId, byWpId };
+}
+
+function parseSessionRegistry() {
+  try {
+    const { registry } = loadSessionRegistry(process.cwd());
+    const byWpId = new Map();
+    for (const session of registry.sessions || []) {
+      const summary = registrySessionSummary(session);
+      const entries = byWpId.get(summary.wp_id) || [];
+      entries.push(summary);
+      byWpId.set(summary.wp_id, entries);
+    }
+    return byWpId;
+  } catch {
+    return new Map();
+  }
 }
 
 function resolvePacketPath(wpId, traceability) {
@@ -253,14 +270,17 @@ function parsePacketRecord(packetPath) {
 function loadMonitorModel() {
   const traceability = parseTraceabilityRegistry();
   const boardEntries = parseTaskBoard();
+  const sessionRegistry = parseSessionRegistry();
   const records = boardEntries.map((entry) => {
     const packetPath = resolvePacketPath(entry.wpId, traceability);
     const packetRecord = parsePacketRecord(packetPath);
+    const registrySessions = sessionRegistry.get(entry.wpId) || [];
     return {
       ...entry,
       packetPath,
       packetRecord,
       sessions: summarizeSessions(packetRecord?.runtime),
+      registrySessions,
       stale: Boolean(packetRecord?.runtime?.stale_after && new Date(packetRecord.runtime.stale_after) < new Date()),
     };
   });
@@ -329,7 +349,8 @@ function renderList(records, selectedIndex, width, height) {
     const threadCount = record.packetRecord?.threadEntries?.length || 0;
     const receiptCount = record.packetRecord?.receipts?.length || 0;
     const sessionCount = record.sessions?.length || 0;
-    const line = `${marker}${stale} ${record.wpId} [${record.boardSection}] T${threadCount} R${receiptCount} S${sessionCount} ${latest}`;
+    const launchState = record.registrySessions?.[0]?.runtime_state || "NONE";
+    const line = `${marker}${stale} ${record.wpId} [${record.boardSection}] T${threadCount} R${receiptCount} S${sessionCount} L=${launchState} ${latest}`;
     rows.push(globalIndex === selectedIndex ? `\x1b[7m${truncate(line, width)}\x1b[0m` : truncate(line, width));
   }
   while (rows.length < maxRows) rows.push(" ".repeat(width));
@@ -387,6 +408,16 @@ function buildDetailLines(record, width, detailView) {
       for (const session of record.sessions) {
         lines.push(`${session.role} | ${session.sessionId} | ${session.state} | ${session.authorityKind}${session.validatorRoleKind ? `/${session.validatorRoleKind}` : ""}`);
         lines.push(`  ${session.worktreeDir}`);
+      }
+    }
+    lines.push("");
+    lines.push("SESSION REGISTRY");
+    if ((record.registrySessions || []).length === 0) {
+      lines.push("No launch records.");
+    } else {
+      for (const session of record.registrySessions) {
+        lines.push(`${session.role} | ${session.runtime_state} | host=${session.active_host || session.preferred_host}`);
+        lines.push(`  req=${session.plugin_request_count} fail=${session.plugin_failure_count} last=${session.plugin_last_result}`);
       }
     }
     if (packet?.runtimeValidationErrors?.length) {

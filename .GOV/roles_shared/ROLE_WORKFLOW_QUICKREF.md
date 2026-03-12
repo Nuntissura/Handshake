@@ -54,6 +54,9 @@ Product-scanning / product-boundary enforcement:
 
 - When available, prefer VS Code integrated terminals for multi-session work instead of many floating desktop terminals.
 - Do not rely on ambient editor defaults for repo-governed session model choice or reasoning strength. New packets/stubs assume `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`.
+- Repo-governed role-session start is `ORCHESTRATOR_ONLY`.
+- Primary transport is the VS Code session bridge over `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- CLI escalation windows are allowed only after 2 plugin failures/timeouts for the same role/WP session.
 - Recommended VS Code tabs:
   - `ORCH`
   - `CODER <WP_ID>`
@@ -83,9 +86,10 @@ Primary commands:
 - `just coder-worktree-add WP-...`
 - `just wp-validator-worktree-add WP-...`
 - `just integration-validator-worktree-add WP-...`
-- `just launch-coder-session WP-... [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]`
-- `just launch-wp-validator-session WP-... [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]`
-- `just launch-integration-validator-session WP-... [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]`
+- `just launch-coder-session WP-... [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-wp-validator-session WP-... [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-integration-validator-session WP-... [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just session-registry-status [WP-...]`
 - `just pre-work WP-...`
 - `just wp-heartbeat WP-... ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - `just wp-receipt-append WP-... ORCHESTRATOR <session> <receipt_kind> "<summary>"`
@@ -110,6 +114,7 @@ Primary commands:
 Role rule:
 - Only the Primary Coder may use sub-agents, and only when the packet explicitly allows it.
 - Coders coordinate through the packet-declared `WP_COMMUNICATION_DIR`, not through role-local inboxes.
+- Coders do not self-start fresh repo-governed sessions; they continue in sessions started by the Orchestrator or in an Orchestrator-opened CLI escalation window.
 
 ## Role: Validator
 
@@ -132,3 +137,4 @@ File-touch map:
 Role rule:
 - Validator duties are non-agentic, but repo workflows may run multiple validator CLI sessions when they are explicitly scoped as WP Validator and Integration Validator sessions.
 - Validator authority is layered: WP Validator is advisory; Integration Validator owns final technical and merge authority unless the packet explicitly overrides it.
+- Validator sessions are started by the Orchestrator; validators do not self-start new repo-governed sessions.

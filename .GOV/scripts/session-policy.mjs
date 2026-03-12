@@ -3,11 +3,22 @@ import path from "node:path";
 export const PACKET_FORMAT_VERSION = "2026-03-12";
 export const STUB_FORMAT_VERSION = "2026-03-12";
 
-export const SESSION_HOST_PREFERENCE = "VSCODE_INTEGRATED_TERMINAL";
-export const SESSION_HOST_FALLBACK = "WINDOWS_TERMINAL";
-export const SESSION_LAUNCH_POLICY = "ORCHESTRATOR_LAUNCHES_CLI_SESSIONS";
+export const SESSION_START_AUTHORITY = "ORCHESTRATOR_ONLY";
+export const SESSION_HOST_PREFERENCE = "VSCODE_EXTENSION_TERMINAL";
+export const SESSION_HOST_FALLBACK = "CLI_ESCALATION_WINDOW";
+export const SESSION_LAUNCH_POLICY = "ORCHESTRATOR_PLUGIN_FIRST_WITH_2TRY_ESCALATION";
 export const ROLE_SESSION_RUNTIME = "CLI";
 export const CLI_SESSION_TOOL = "codex";
+export const SESSION_PLUGIN_BRIDGE_ID = "handshake.handshake-session-bridge";
+export const SESSION_PLUGIN_BRIDGE_COMMAND = "handshakeSessionBridge.processLaunchQueue";
+export const SESSION_PLUGIN_REQUESTS_FILE = ".GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl";
+export const SESSION_REGISTRY_FILE = ".GOV/roles_shared/ROLE_SESSION_REGISTRY.json";
+export const SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION = 2;
+export const SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS = 20;
+export const SESSION_WATCH_POLICY = "EVENT_WATCH_PRIMARY_HEARTBEAT_FALLBACK";
+export const SESSION_WAKE_CHANNEL_PRIMARY = "VS_CODE_FILE_WATCH";
+export const SESSION_WAKE_CHANNEL_FALLBACK = "WP_HEARTBEAT";
+export const CLI_ESCALATION_HOST_DEFAULT = "WINDOWS_TERMINAL";
 
 export const MODEL_FAMILY_POLICY = "OPENAI_GPT_SERIES_ONLY";
 export const CODEX_MODEL_ALIASES_ALLOWED = "NO";
@@ -23,6 +34,25 @@ export const EXECUTION_OWNER_TOKENS = Array.from({ length: 26 }, (_, index) =>
 );
 export const EXECUTION_OWNER_VALUES = EXECUTION_OWNER_TOKENS.map((token) => `CODER_${token}`);
 export const EXECUTION_OWNER_RANGE_HELP = "Coder-A..Coder-Z";
+export const SESSION_ROLES = ["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"];
+export const SESSION_RUNTIME_STATES = [
+  "UNSTARTED",
+  "PLUGIN_REQUESTED",
+  "PLUGIN_CONFIRMED",
+  "CLI_ESCALATION_READY",
+  "CLI_ESCALATION_USED",
+  "ACTIVE",
+  "WAITING",
+  "COMPLETED",
+  "FAILED",
+];
+export const SESSION_REQUEST_STATUSES = [
+  "QUEUED",
+  "PLUGIN_CONFIRMED",
+  "PLUGIN_FAILED",
+  "PLUGIN_TIMED_OUT",
+  "CLI_ESCALATION_USED",
+];
 
 export function normalizePath(value) {
   return String(value || "").replace(/\\/g, "/");
@@ -50,6 +80,17 @@ export function defaultIntegrationValidatorBranch(wpId) {
 
 export function defaultIntegrationValidatorWorktreeDir(wpId) {
   return normalizePath(path.join("..", `wt-INTV-${wpId}`));
+}
+
+export function sessionKey(role, wpId) {
+  return `${String(role || "").trim().toUpperCase()}:${String(wpId || "").trim()}`;
+}
+
+export function terminalTitle(role, wpId) {
+  if (role === "CODER") return `CODER ${wpId}`;
+  if (role === "WP_VALIDATOR") return `WPVAL ${wpId}`;
+  if (role === "INTEGRATION_VALIDATOR") return `INTVAL ${wpId}`;
+  return `${String(role || "").trim().toUpperCase()} ${wpId}`.trim();
 }
 
 export function normalizeExecutionOwner(raw) {
@@ -116,4 +157,9 @@ export function roleStageLabel(role) {
   if (role === "WP_VALIDATOR") return "WP_VALIDATOR";
   if (role === "INTEGRATION_VALIDATOR") return "INTEGRATION_VALIDATOR";
   return "ORCHESTRATOR";
+}
+
+export function roleLaunchAuthority(role) {
+  if (SESSION_ROLES.includes(role)) return SESSION_START_AUTHORITY;
+  return "DIRECT_ONLY";
 }

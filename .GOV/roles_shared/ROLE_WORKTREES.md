@@ -25,9 +25,11 @@ Recommended structure:
 ```
 
 Preferred session host:
-- When available, prefer VS Code integrated terminals to host the Orchestrator, Coder, WP Validator, and Integration Validator sessions.
+- Prefer the VS Code session bridge to host repo-governed Coder, WP Validator, and Integration Validator terminals inside VS Code integrated terminals.
 - Keep one dedicated VS Code terminal tab for `just operator-monitor` so the Operator can watch active WPs, heartbeats, and packet-scoped communications without using many floating terminal windows.
 - Do not rely on ambient editor defaults for model choice or reasoning strength. New repo-governed launchers explicitly target `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`.
+- Launch requests are append-only in `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`; current launch state is projected in `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- CLI escalation windows are allowed only after 2 plugin failures/timeouts for the same role/WP session, unless the Operator explicitly waives the plugin-first path.
 
 If you are an AI assistant operating in this repo:
 - You MUST read this file during session start (Pre-Flight) for your assigned role.
@@ -115,9 +117,11 @@ WP worktrees (Orchestrator action, not Coder):
   - `just wp-validator-worktree-add WP-{ID}`
   - `just integration-validator-worktree-add WP-{ID}`
 - Launch the repo-governed CLI sessions:
-  - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]`
-  - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]`
-  - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]`
+  - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- View current launch state:
+  - `just session-registry-status [WP-{ID}]`
 - Create/preserve the matching GitHub backup branch for the WP when sync is authorized for the activation turn:
   - `just backup-push feat/WP-{ID} feat/WP-{ID}`
 - Before deleting a WP worktree or WP backup branch after approval:

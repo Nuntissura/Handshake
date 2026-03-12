@@ -408,6 +408,7 @@ function main() {
   if (needsStubCleanup) cmds.push(`just task-board-set ${wpId} READY_FOR_DEV`);
   cmds.push(`just launch-coder-session ${wpId}`);
   cmds.push(`just launch-wp-validator-session ${wpId}`);
+  cmds.push(`just session-registry-status ${wpId}`);
   cmds.push(`# Integration Validator is downstream of WP validation PASS; launch later with: just launch-integration-validator-session ${wpId}`);
   printNextCommands(cmds);
 }

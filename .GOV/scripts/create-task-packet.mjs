@@ -17,6 +17,7 @@ import { EXECUTION_OWNER_VALUES, WORKFLOW_LANE_VALUES } from './wp-communication
 import { preparedWorktreeSyncState } from './role-resume-utils.mjs';
 import {
   buildRemoteBackupUrl,
+  CLI_ESCALATION_HOST_DEFAULT,
   CLI_SESSION_TOOL,
   CODEX_MODEL_ALIASES_ALLOWED,
   defaultCoderBranch,
@@ -35,6 +36,16 @@ import {
   ROLE_SESSION_REASONING_CONFIG_VALUE,
   ROLE_SESSION_REASONING_REQUIRED,
   ROLE_SESSION_RUNTIME,
+  SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS,
+  SESSION_PLUGIN_BRIDGE_COMMAND,
+  SESSION_PLUGIN_BRIDGE_ID,
+  SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION,
+  SESSION_PLUGIN_REQUESTS_FILE,
+  SESSION_REGISTRY_FILE,
+  SESSION_START_AUTHORITY,
+  SESSION_WAKE_CHANNEL_FALLBACK,
+  SESSION_WAKE_CHANNEL_PRIMARY,
+  SESSION_WATCH_POLICY,
   SESSION_HOST_FALLBACK,
   SESSION_HOST_PREFERENCE,
   SESSION_LAUNCH_POLICY,
@@ -617,11 +628,22 @@ template = replaceSingleField(template, 'LOCAL_BRANCH', localBranch);
 template = replaceSingleField(template, 'LOCAL_WORKTREE_DIR', localWorktreeDir);
 template = replaceSingleField(template, 'REMOTE_BACKUP_BRANCH', remoteBackupBranch);
 template = replaceSingleField(template, 'REMOTE_BACKUP_URL', remoteBackupUrl);
+template = replaceSingleField(template, 'SESSION_START_AUTHORITY', SESSION_START_AUTHORITY);
 template = replaceSingleField(template, 'SESSION_HOST_PREFERENCE', SESSION_HOST_PREFERENCE);
 template = replaceSingleField(template, 'SESSION_HOST_FALLBACK', SESSION_HOST_FALLBACK);
 template = replaceSingleField(template, 'SESSION_LAUNCH_POLICY', SESSION_LAUNCH_POLICY);
 template = replaceSingleField(template, 'ROLE_SESSION_RUNTIME', ROLE_SESSION_RUNTIME);
 template = replaceSingleField(template, 'CLI_SESSION_TOOL', CLI_SESSION_TOOL);
+template = replaceSingleField(template, 'SESSION_PLUGIN_BRIDGE_ID', SESSION_PLUGIN_BRIDGE_ID);
+template = replaceSingleField(template, 'SESSION_PLUGIN_BRIDGE_COMMAND', SESSION_PLUGIN_BRIDGE_COMMAND);
+template = replaceSingleField(template, 'SESSION_PLUGIN_REQUESTS_FILE', SESSION_PLUGIN_REQUESTS_FILE);
+template = replaceSingleField(template, 'SESSION_REGISTRY_FILE', SESSION_REGISTRY_FILE);
+template = replaceSingleField(template, 'SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION', String(SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION));
+template = replaceSingleField(template, 'SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS', String(SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS));
+template = replaceSingleField(template, 'SESSION_WATCH_POLICY', SESSION_WATCH_POLICY);
+template = replaceSingleField(template, 'SESSION_WAKE_CHANNEL_PRIMARY', SESSION_WAKE_CHANNEL_PRIMARY);
+template = replaceSingleField(template, 'SESSION_WAKE_CHANNEL_FALLBACK', SESSION_WAKE_CHANNEL_FALLBACK);
+template = replaceSingleField(template, 'CLI_ESCALATION_HOST_DEFAULT', CLI_ESCALATION_HOST_DEFAULT);
 template = replaceSingleField(template, 'MODEL_FAMILY_POLICY', MODEL_FAMILY_POLICY);
 template = replaceSingleField(template, 'CODEX_MODEL_ALIASES_ALLOWED', CODEX_MODEL_ALIASES_ALLOWED);
 template = replaceSingleField(template, 'ROLE_SESSION_PRIMARY_MODEL', ROLE_SESSION_PRIMARY_MODEL);
@@ -950,6 +972,7 @@ try {
     if (/^CODER_[A-Z]$/i.test(normalizedExecutionOwner)) {
       nextCommands.push(`just launch-coder-session ${WP_ID}`);
       nextCommands.push(`just launch-wp-validator-session ${WP_ID}`);
+      nextCommands.push(`just session-registry-status ${WP_ID}`);
       nextCommands.push(`# Integration Validator stays downstream of WP validation PASS; launch later with: just launch-integration-validator-session ${WP_ID}`);
       nextCommands.push(`# Then provide a relayable implementation brief in chat for ${executionLane}; orchestrator implementation agents stay blocked in this lane.`);
     }

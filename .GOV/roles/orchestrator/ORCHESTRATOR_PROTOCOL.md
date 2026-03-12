@@ -52,6 +52,9 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUN
 - The Orchestrator role is one non-agentic coordinator CLI session in current repo governance.
 - The Orchestrator MAY coordinate and launch multiple external CLI sessions and roles, but MUST NOT spawn helper agents to perform Orchestrator or Validator duties.
 - For newly created repo-governed sessions, launch/claim the model explicitly: primary `gpt-5.4`, fallback `gpt-5.2`, reasoning `EXTRA_HIGH` (`model_reasoning_effort=xhigh`). Do not rely on ambient editor defaults.
+- Repo-governed Coder, WP Validator, and Integration Validator session start is `ORCHESTRATOR_ONLY`.
+- Primary launch transport is `VSCODE_EXTENSION_TERMINAL` via `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts, unless the Operator explicitly waives the plugin-first path.
 - Repo policy for new packet claim fields disallows Codex model aliases even when the CLI tool is `codex`.
 - The historical add-on at `/.GOV/roles/orchestrator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
 
@@ -279,7 +282,9 @@ Resume rule (hard, anti-babysit):
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not treat any role worktree or backup branch as a competing inbox.
 - When available, prefer VS Code integrated terminals as the host for Orchestrator-managed sessions and keep one dedicated `just operator-monitor` tab open for overview.
 - Do not rely on ambient editor defaults for model choice or reasoning strength. Launch/brief each repo-governed CLI session explicitly with `gpt-5.4` + `model_reasoning_effort=xhigh`, or `gpt-5.2` + `model_reasoning_effort=xhigh` as fallback.
-- If VS Code integrated-terminal automation is unavailable on the current host, use the repo launcher fallback and keep the packet/thread/runtime artifacts authoritative.
+- Use `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` as the append-only launch queue and `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json` as the current launch/session-state projection.
+- The Orchestrator is the only role that starts repo-governed Coder/WP Validator/Integration Validator sessions.
+- If the VS Code bridge path fails twice for the same role/WP session, the Orchestrator may open a CLI escalation window and must leave the packet/thread/runtime artifacts authoritative.
 - Use `THREAD.md` for append-only steering, clarifications, relay notes, and manual-lane coordination.
 - Use `RUNTIME_STATUS.json` for structured liveness only:
   - `runtime_status`: `submitted | working | input_required | completed | failed | canceled`
@@ -314,9 +319,10 @@ To avoid manual markdown editing mistakes:
   - WP Validator: `just wp-validator-worktree-add WP-{ID}`
   - Integration Validator: `just integration-validator-worktree-add WP-{ID}`
 - Launch repo-governed CLI sessions:
-  - Coder: `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]`
-  - WP Validator: `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]`
-  - Integration Validator: `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]`
+  - Coder: `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - WP Validator: `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - Integration Validator: `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - Inspect launch/runtime state: `just session-registry-status [WP-{ID}]`
 - Condense post-signature setup:
   - Default post-signature path: `just orchestrator-prepare-and-packet WP-{ID}`
   - Retry helper when PREPARE is already recorded: `just orchestrator-worktree-and-packet WP-{ID}`

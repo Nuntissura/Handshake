@@ -125,7 +125,8 @@ wp-validator-worktree-add wp-id branch="" dir="":
 integration-validator-worktree-add wp-id branch="" dir="":
 	node .GOV/scripts/role-session-worktree-add.mjs INTEGRATION_VALIDATOR {{wp-id}} {{branch}} {{dir}}
 
-# CLI session launch helpers. AUTO prefers repo policy, then falls back to Windows Terminal or print-only.
+# Repo-governed session launch helpers.
+# AUTO = Orchestrator queues a VS Code plugin launch first; CLI fallback is unlocked only after 2 plugin failures/timeouts.
 launch-coder-session wp-id host="AUTO" model="PRIMARY":
 	node .GOV/scripts/launch-cli-session.mjs CODER {{wp-id}} {{host}} {{model}}
 
@@ -134,6 +135,12 @@ launch-wp-validator-session wp-id host="AUTO" model="PRIMARY":
 
 launch-integration-validator-session wp-id host="AUTO" model="PRIMARY":
 	node .GOV/scripts/launch-cli-session.mjs INTEGRATION_VALIDATOR {{wp-id}} {{host}} {{model}}
+
+session-registry-status wp-id="":
+	node .GOV/scripts/session-registry-status.mjs {{wp-id}}
+
+session-launch-runtime-check:
+	node .GOV/scripts/validation/session-launch-runtime-check.mjs
 
 # Hard gate helper: Worktree + Branch Gate [CX-WT-001]
 hard-gate-wt-001:

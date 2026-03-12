@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://handshake.local/schemas/ROLE_SESSION_REGISTRY.schema.json",
+  "title": "Role Session Registry",
+  "type": "object",
+  "required": [
+    "schema_id",
+    "schema_version",
+    "updated_at",
+    "session_start_authority",
+    "session_host_preference",
+    "session_host_fallback",
+    "session_watch_policy",
+    "session_plugin_bridge_id",
+    "session_plugin_bridge_command",
+    "session_plugin_requests_file",
+    "session_wake_channel_primary",
+    "session_wake_channel_fallback",
+    "session_plugin_max_retries_before_escalation",
+    "session_plugin_attempt_timeout_seconds",
+    "sessions",
+    "processed_requests"
+  ],
+  "properties": {
+    "schema_id": {
+      "const": "hsk.role_session_registry@1"
+    },
+    "schema_version": {
+      "const": "role_session_registry_v1"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "session_start_authority": {
+      "const": "ORCHESTRATOR_ONLY"
+    },
+    "session_host_preference": {
+      "const": "VSCODE_EXTENSION_TERMINAL"
+    },
+    "session_host_fallback": {
+      "const": "CLI_ESCALATION_WINDOW"
+    },
+    "session_watch_policy": {
+      "const": "EVENT_WATCH_PRIMARY_HEARTBEAT_FALLBACK"
+    },
+    "session_plugin_bridge_id": {
+      "type": "string"
+    },
+    "session_plugin_bridge_command": {
+      "type": "string"
+    },
+    "session_plugin_requests_file": {
+      "type": "string",
+      "pattern": "^\\.GOV/roles_shared/SESSION_LAUNCH_REQUESTS\\.jsonl$"
+    },
+    "session_wake_channel_primary": {
+      "const": "VS_CODE_FILE_WATCH"
+    },
+    "session_wake_channel_fallback": {
+      "const": "WP_HEARTBEAT"
+    },
+    "session_plugin_max_retries_before_escalation": {
+      "type": "integer",
+      "minimum": 2
+    },
+    "session_plugin_attempt_timeout_seconds": {
+      "type": "integer",
+      "minimum": 5
+    },
+    "sessions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "session_key",
+          "session_id",
+          "wp_id",
+          "role",
+          "launch_authority",
+          "preferred_host",
+          "fallback_host",
+          "cli_escalation_host",
+          "local_branch",
+          "local_worktree_dir",
+          "terminal_title",
+          "plugin_request_count",
+          "plugin_failure_count",
+          "plugin_last_result",
+          "cli_escalation_allowed",
+          "cli_escalation_used",
+          "runtime_state",
+          "active_host",
+          "active_terminal_title",
+          "active_terminal_kind",
+          "last_heartbeat_at",
+          "last_error",
+          "last_event_at"
+        ],
+        "properties": {
+          "session_key": {
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "wp_id": {
+            "type": "string",
+            "pattern": "^WP-"
+          },
+          "role": {
+            "enum": [
+              "CODER",
+              "WP_VALIDATOR",
+              "INTEGRATION_VALIDATOR"
+            ]
+          },
+          "launch_authority": {
+            "const": "ORCHESTRATOR_ONLY"
+          },
+          "preferred_host": {
+            "const": "VSCODE_EXTENSION_TERMINAL"
+          },
+          "fallback_host": {
+            "const": "CLI_ESCALATION_WINDOW"
+          },
+          "cli_escalation_host": {
+            "enum": [
+              "WINDOWS_TERMINAL",
+              "CURRENT",
+              "PRINT"
+            ]
+          },
+          "local_branch": {
+            "type": "string"
+          },
+          "local_worktree_dir": {
+            "type": "string"
+          },
+          "terminal_title": {
+            "type": "string"
+          },
+          "requested_model": {
+            "type": "string"
+          },
+          "reasoning_config_key": {
+            "type": "string"
+          },
+          "reasoning_config_value": {
+            "type": "string"
+          },
+          "plugin_request_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "plugin_failure_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "plugin_last_request_id": {
+            "type": "string"
+          },
+          "plugin_last_request_at": {
+            "type": "string"
+          },
+          "plugin_last_result": {
+            "enum": [
+              "NONE",
+              "QUEUED",
+              "PLUGIN_CONFIRMED",
+              "PLUGIN_FAILED",
+              "PLUGIN_TIMED_OUT",
+              "CLI_ESCALATION_USED"
+            ]
+          },
+          "plugin_last_error": {
+            "type": "string"
+          },
+          "cli_escalation_allowed": {
+            "type": "boolean"
+          },
+          "cli_escalation_used": {
+            "type": "boolean"
+          },
+          "runtime_state": {
+            "enum": [
+              "UNSTARTED",
+              "PLUGIN_REQUESTED",
+              "PLUGIN_CONFIRMED",
+              "CLI_ESCALATION_READY",
+              "CLI_ESCALATION_USED",
+              "ACTIVE",
+              "WAITING",
+              "COMPLETED",
+              "FAILED"
+            ]
+          },
+          "active_host": {
+            "type": "string"
+          },
+          "active_terminal_title": {
+            "type": "string"
+          },
+          "active_terminal_kind": {
+            "type": "string"
+          },
+          "last_heartbeat_at": {
+            "type": "string"
+          },
+          "last_error": {
+            "type": "string"
+          },
+          "last_event_at": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "processed_requests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "status",
+          "processed_at"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "QUEUED",
+              "PLUGIN_CONFIRMED",
+              "PLUGIN_FAILED",
+              "PLUGIN_TIMED_OUT",
+              "CLI_ESCALATION_USED"
+            ]
+          },
+          "processed_at": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}
