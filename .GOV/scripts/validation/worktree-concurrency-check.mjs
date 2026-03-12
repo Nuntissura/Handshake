@@ -1,6 +1,7 @@
 ﻿import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { EXECUTION_OWNER_RANGE_HELP } from "../session-policy.mjs";
 
 const TASK_BOARD_PATH = ".GOV/roles_shared/TASK_BOARD.md";
 const ORCH_GATES_PATH = ".GOV/roles/orchestrator/ORCHESTRATOR_GATES.json";
@@ -117,7 +118,7 @@ for (const wpId of inProgressWpIds) {
 
   if (!worktree) {
     violations.push(
-      `${wpId}: no linked worktree found for expected branch ${expectedBranch} (run: just worktree-add ${wpId} && just record-prepare ${wpId} {Coder-A|Coder-B})`,
+      `${wpId}: no linked worktree found for expected branch ${expectedBranch} (run: just worktree-add ${wpId} && just record-prepare ${wpId} {${EXECUTION_OWNER_RANGE_HELP}})`,
     );
     continue;
   }

@@ -93,7 +93,31 @@
     "execution_owner": {
       "enum": [
         "CODER_A",
-        "CODER_B"
+        "CODER_B",
+        "CODER_C",
+        "CODER_D",
+        "CODER_E",
+        "CODER_F",
+        "CODER_G",
+        "CODER_H",
+        "CODER_I",
+        "CODER_J",
+        "CODER_K",
+        "CODER_L",
+        "CODER_M",
+        "CODER_N",
+        "CODER_O",
+        "CODER_P",
+        "CODER_Q",
+        "CODER_R",
+        "CODER_S",
+        "CODER_T",
+        "CODER_U",
+        "CODER_V",
+        "CODER_W",
+        "CODER_X",
+        "CODER_Y",
+        "CODER_Z"
       ]
     },
     "workflow_authority": {

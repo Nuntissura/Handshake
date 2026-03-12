@@ -11,6 +11,22 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import {
+  CLI_SESSION_TOOL,
+  CODEX_MODEL_ALIASES_ALLOWED,
+  EXECUTION_OWNER_RANGE_HELP,
+  MODEL_FAMILY_POLICY,
+  ROLE_SESSION_FALLBACK_MODEL,
+  ROLE_SESSION_PRIMARY_MODEL,
+  ROLE_SESSION_REASONING_CONFIG_KEY,
+  ROLE_SESSION_REASONING_CONFIG_VALUE,
+  ROLE_SESSION_REASONING_REQUIRED,
+  ROLE_SESSION_RUNTIME,
+  SESSION_HOST_FALLBACK,
+  SESSION_HOST_PREFERENCE,
+  SESSION_LAUNCH_POLICY,
+  STUB_FORMAT_VERSION,
+} from "./session-policy.mjs";
 
 const WP_ID = process.argv[2];
 const ROADMAP_POINTER = process.argv[3] || "<fill>";
@@ -46,10 +62,24 @@ const fill = (text, token, value) => text.split(token).join(value);
 let content = raw;
 content = fill(content, "{{WP_ID}}", WP_ID);
 content = fill(content, "{{DATE_ISO}}", timestamp);
+content = fill(content, "{{STUB_FORMAT_VERSION}}", STUB_FORMAT_VERSION);
 content = fill(content, "{{ROADMAP_POINTER}}", ROADMAP_POINTER);
 content = fill(content, "{{LINE_NUMBERS_COMMA_SEPARATED}}", LINE_NUMBERS);
 content = fill(content, "{{SPEC_ANCHOR_1}}", "<fill>");
 content = fill(content, "{{SPEC_ANCHOR_2}}", "<fill>");
+content = fill(content, "{{SESSION_HOST_PREFERENCE}}", SESSION_HOST_PREFERENCE);
+content = fill(content, "{{SESSION_HOST_FALLBACK}}", SESSION_HOST_FALLBACK);
+content = fill(content, "{{SESSION_LAUNCH_POLICY}}", SESSION_LAUNCH_POLICY);
+content = fill(content, "{{ROLE_SESSION_RUNTIME}}", ROLE_SESSION_RUNTIME);
+content = fill(content, "{{CLI_SESSION_TOOL}}", CLI_SESSION_TOOL);
+content = fill(content, "{{MODEL_FAMILY_POLICY}}", MODEL_FAMILY_POLICY);
+content = fill(content, "{{CODEX_MODEL_ALIASES_ALLOWED}}", CODEX_MODEL_ALIASES_ALLOWED);
+content = fill(content, "{{ROLE_SESSION_PRIMARY_MODEL}}", ROLE_SESSION_PRIMARY_MODEL);
+content = fill(content, "{{ROLE_SESSION_FALLBACK_MODEL}}", ROLE_SESSION_FALLBACK_MODEL);
+content = fill(content, "{{ROLE_SESSION_REASONING_REQUIRED}}", ROLE_SESSION_REASONING_REQUIRED);
+content = fill(content, "{{ROLE_SESSION_REASONING_CONFIG_KEY}}", ROLE_SESSION_REASONING_CONFIG_KEY);
+content = fill(content, "{{ROLE_SESSION_REASONING_CONFIG_VALUE}}", ROLE_SESSION_REASONING_CONFIG_VALUE);
+content = fill(content, "{{EXECUTION_OWNER_RANGE_HELP}}", EXECUTION_OWNER_RANGE_HELP);
 
 fs.writeFileSync(filePath, content, "utf8");
 

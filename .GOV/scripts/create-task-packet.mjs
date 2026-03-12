@@ -15,8 +15,33 @@ import {
 import { ensureWpCommunications } from './ensure-wp-communications.mjs';
 import { EXECUTION_OWNER_VALUES, WORKFLOW_LANE_VALUES } from './wp-communications-lib.mjs';
 import { preparedWorktreeSyncState } from './role-resume-utils.mjs';
+import {
+  buildRemoteBackupUrl,
+  CLI_SESSION_TOOL,
+  CODEX_MODEL_ALIASES_ALLOWED,
+  defaultCoderBranch,
+  defaultCoderWorktreeDir,
+  defaultIntegrationValidatorBranch,
+  defaultIntegrationValidatorWorktreeDir,
+  defaultWpValidatorBranch,
+  defaultWpValidatorWorktreeDir,
+  EXECUTION_OWNER_RANGE_HELP,
+  executionOwnerToPacketValue,
+  MODEL_FAMILY_POLICY,
+  PACKET_FORMAT_VERSION,
+  ROLE_SESSION_FALLBACK_MODEL,
+  ROLE_SESSION_PRIMARY_MODEL,
+  ROLE_SESSION_REASONING_CONFIG_KEY,
+  ROLE_SESSION_REASONING_CONFIG_VALUE,
+  ROLE_SESSION_REASONING_REQUIRED,
+  ROLE_SESSION_RUNTIME,
+  SESSION_HOST_FALLBACK,
+  SESSION_HOST_PREFERENCE,
+  SESSION_LAUNCH_POLICY,
+} from './session-policy.mjs';
 
 const WP_ID = process.argv[2];
+const EXECUTION_OWNER_USAGE = `{${EXECUTION_OWNER_RANGE_HELP}}`;
 
 if (!WP_ID || !WP_ID.startsWith('WP-')) {
   console.error('ERROR: Usage: node create-task-packet.mjs WP-{phase}-{name}');
@@ -124,7 +149,7 @@ if (!fs.existsSync(refinementPath)) {
       '# Present refinement to the user for review.',
       `just record-refinement ${WP_ID}`,
       '# After explicit user approval + one-time signature bundle:',
-      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
       '# After signature bundle:',
       `just orchestrator-prepare-and-packet ${WP_ID}`,
       `just pre-work ${WP_ID}`,
@@ -153,7 +178,7 @@ if (!refinementValidation.ok) {
       `cat ${refinementPath.replace(/\\/g, '/')}`,
       `just record-refinement ${WP_ID}`,
       '# After explicit user approval + one-time signature bundle:',
-      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
       `just create-task-packet ${WP_ID}`,
     ],
   });
@@ -252,7 +277,7 @@ try {
       ],
       nextCommands: [
         `cat ${refinementPath.replace(/\\/g, '/')}`,
-        `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+        `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
         `just create-task-packet ${WP_ID}`,
       ],
     });
@@ -272,7 +297,7 @@ try {
       ],
       nextCommands: [
         `cat ${refinementPath.replace(/\\/g, '/')}`,
-        `# If refinement was manually edited, revert USER_SIGNATURE to <pending> and re-run: just record-signature ${WP_ID} {newSignature} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}.`,
+        `# If refinement was manually edited, revert USER_SIGNATURE to <pending> and re-run: just record-signature ${WP_ID} {newSignature} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}.`,
       ],
     });
     process.exit(1);
@@ -285,7 +310,7 @@ try {
       wpId: WP_ID,
       stage: 'PREPARE',
       next: 'PREPARE',
-      operatorAction: `Record workflow lane + execution owner for ${WP_ID} (MANUAL_RELAY|ORCHESTRATOR_MANAGED + Coder-A|Coder-B)`,
+      operatorAction: `Record workflow lane + execution owner for ${WP_ID} (MANUAL_RELAY|ORCHESTRATOR_MANAGED + ${EXECUTION_OWNER_RANGE_HELP})`,
       gateRan: `just create-task-packet ${WP_ID}`,
       result: 'BLOCKED',
       why: 'WP worktree/branch + execution owner must be recorded AFTER signature and BEFORE packet creation.',
@@ -316,7 +341,7 @@ try {
           `- prepare_ts=${lastPrepare.timestamp}`,
         ],
         nextCommands: [
-          `just record-prepare ${WP_ID} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+          `just record-prepare ${WP_ID} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
           `just create-task-packet ${WP_ID}`,
         ],
       });
@@ -336,7 +361,7 @@ try {
         `BLOCKED: Unable to verify PREPARE ordering for ${WP_ID}.`,
       ],
         nextCommands: [
-        `just record-prepare ${WP_ID} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+        `just record-prepare ${WP_ID} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
         `just create-task-packet ${WP_ID}`,
       ],
     });
@@ -380,7 +405,7 @@ try {
         `BLOCKED: Signature not found in ${auditPath.replace(/\\/g, '/')}.`,
       ],
       nextCommands: [
-        `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+        `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
         `just create-task-packet ${WP_ID}`,
       ],
     });
@@ -574,18 +599,47 @@ template = replaceSingleField(template, 'SPEC_ADD_MARKER_TARGET', specAddMarkerT
 const workflowLane = (prepareGate?.workflow_lane || signatureGate?.workflow_lane || '').trim();
 const executionLane = (prepareGate?.execution_lane || signatureGate?.execution_lane || prepareGate?.coder_id || '').trim();
 const baseWpId = WP_ID.replace(/-v\d+$/, '');
-const localBranch = (prepareGate?.branch || `feat/${WP_ID}`).trim() || `feat/${WP_ID}`;
-const localWorktreeDir = (prepareGate?.worktree_dir || '<pending>').trim() || '<pending>';
+const localBranch = (prepareGate?.branch || defaultCoderBranch(WP_ID)).trim() || defaultCoderBranch(WP_ID);
+const localWorktreeDir = (prepareGate?.worktree_dir || defaultCoderWorktreeDir(WP_ID)).trim() || defaultCoderWorktreeDir(WP_ID);
 const remoteBackupBranch = localBranch;
 const originTreeBase = githubTreeBase();
-const remoteBackupUrl = originTreeBase === '<pending>' ? '<pending>' : `${originTreeBase}/tree/${remoteBackupBranch}`;
+const remoteBackupUrl = buildRemoteBackupUrl(originTreeBase, remoteBackupBranch);
+const wpValidatorBranch = defaultWpValidatorBranch(WP_ID);
+const wpValidatorWorktreeDir = defaultWpValidatorWorktreeDir(WP_ID);
+const wpValidatorRemoteBackupBranch = wpValidatorBranch;
+const wpValidatorRemoteBackupUrl = buildRemoteBackupUrl(originTreeBase, wpValidatorRemoteBackupBranch);
+const integrationValidatorBranch = defaultIntegrationValidatorBranch(WP_ID);
+const integrationValidatorWorktreeDir = defaultIntegrationValidatorWorktreeDir(WP_ID);
+const integrationValidatorRemoteBackupBranch = integrationValidatorBranch;
+const integrationValidatorRemoteBackupUrl = buildRemoteBackupUrl(originTreeBase, integrationValidatorRemoteBackupBranch);
 template = replaceSingleField(template, 'BASE_WP_ID', baseWpId);
 template = replaceSingleField(template, 'LOCAL_BRANCH', localBranch);
 template = replaceSingleField(template, 'LOCAL_WORKTREE_DIR', localWorktreeDir);
 template = replaceSingleField(template, 'REMOTE_BACKUP_BRANCH', remoteBackupBranch);
 template = replaceSingleField(template, 'REMOTE_BACKUP_URL', remoteBackupUrl);
+template = replaceSingleField(template, 'SESSION_HOST_PREFERENCE', SESSION_HOST_PREFERENCE);
+template = replaceSingleField(template, 'SESSION_HOST_FALLBACK', SESSION_HOST_FALLBACK);
+template = replaceSingleField(template, 'SESSION_LAUNCH_POLICY', SESSION_LAUNCH_POLICY);
+template = replaceSingleField(template, 'ROLE_SESSION_RUNTIME', ROLE_SESSION_RUNTIME);
+template = replaceSingleField(template, 'CLI_SESSION_TOOL', CLI_SESSION_TOOL);
+template = replaceSingleField(template, 'MODEL_FAMILY_POLICY', MODEL_FAMILY_POLICY);
+template = replaceSingleField(template, 'CODEX_MODEL_ALIASES_ALLOWED', CODEX_MODEL_ALIASES_ALLOWED);
+template = replaceSingleField(template, 'ROLE_SESSION_PRIMARY_MODEL', ROLE_SESSION_PRIMARY_MODEL);
+template = replaceSingleField(template, 'ROLE_SESSION_FALLBACK_MODEL', ROLE_SESSION_FALLBACK_MODEL);
+template = replaceSingleField(template, 'ROLE_SESSION_REASONING_REQUIRED', ROLE_SESSION_REASONING_REQUIRED);
+template = replaceSingleField(template, 'ROLE_SESSION_REASONING_CONFIG_KEY', ROLE_SESSION_REASONING_CONFIG_KEY);
+template = replaceSingleField(template, 'ROLE_SESSION_REASONING_CONFIG_VALUE', ROLE_SESSION_REASONING_CONFIG_VALUE);
+template = replaceSingleField(template, 'WP_VALIDATOR_LOCAL_BRANCH', wpValidatorBranch);
+template = replaceSingleField(template, 'WP_VALIDATOR_LOCAL_WORKTREE_DIR', wpValidatorWorktreeDir);
+template = replaceSingleField(template, 'WP_VALIDATOR_REMOTE_BACKUP_BRANCH', wpValidatorRemoteBackupBranch);
+template = replaceSingleField(template, 'WP_VALIDATOR_REMOTE_BACKUP_URL', wpValidatorRemoteBackupUrl);
+template = replaceSingleField(template, 'INTEGRATION_VALIDATOR_LOCAL_BRANCH', integrationValidatorBranch);
+template = replaceSingleField(template, 'INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR', integrationValidatorWorktreeDir);
+template = replaceSingleField(template, 'INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH', integrationValidatorRemoteBackupBranch);
+template = replaceSingleField(template, 'INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL', integrationValidatorRemoteBackupUrl);
+template = replaceSingleField(template, 'PACKET_FORMAT_VERSION', PACKET_FORMAT_VERSION);
 const normalizedWorkflowLane = workflowLane.toUpperCase();
-const normalizedExecutionOwner = executionLane.toUpperCase().replace('-', '_');
+const normalizedExecutionOwner = executionOwnerToPacketValue(executionLane) || executionLane.toUpperCase().replace('-', '_');
 const legacyOrchestratorAgentic = /^ORCHESTRATOR-AGENTIC$/i.test(executionLane.replace(/[\s_]+/g, '-'));
 
 if (legacyOrchestratorAgentic) {
@@ -602,8 +656,8 @@ if (legacyOrchestratorAgentic) {
       'The Orchestrator remains non-agentic and cannot be the execution owner for a new packet.',
     ],
     nextCommands: [
-      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
-      `just record-prepare ${WP_ID} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B} [branch] [worktree_dir]`,
+      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
+      `just record-prepare ${WP_ID} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE} [branch] [worktree_dir]`,
       `just create-task-packet ${WP_ID}`,
     ],
   });
@@ -625,8 +679,8 @@ if (!WORKFLOW_LANE_VALUES.includes(normalizedWorkflowLane) || !EXECUTION_OWNER_V
       `- execution_owner: ${executionLane || '<missing>'}`,
     ],
     nextCommands: [
-      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
-      `just record-prepare ${WP_ID} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B} [branch] [worktree_dir]`,
+      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
+      `just record-prepare ${WP_ID} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE} [branch] [worktree_dir]`,
       `just create-task-packet ${WP_ID}`,
     ],
   });
@@ -638,7 +692,8 @@ template = replaceSingleField(template, 'EXECUTION_OWNER', normalizedExecutionOw
 template = replaceSingleField(template, 'AGENTIC_MODE', 'NO');
 template = replaceSingleField(template, 'ORCHESTRATOR_MODEL', 'N/A');
 template = replaceSingleField(template, 'ORCHESTRATION_STARTED_AT_UTC', 'N/A');
-template = replaceSingleField(template, 'CODER_MODEL', executionLane);
+template = replaceSingleField(template, 'CODER_MODEL', '<unclaimed>');
+template = replaceSingleField(template, 'CODER_REASONING_STRENGTH', '<unclaimed>');
 template = replaceSingleField(template, 'SUB_AGENT_DELEGATION', 'DISALLOWED');
 template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', 'N/A');
 
@@ -892,7 +947,10 @@ try {
     });
   } else {
     nextCommands.push(`just pre-work ${WP_ID}`);
-    if (/^Coder-(A|B)$/i.test(executionLane)) {
+    if (/^CODER_[A-Z]$/i.test(normalizedExecutionOwner)) {
+      nextCommands.push(`just launch-coder-session ${WP_ID}`);
+      nextCommands.push(`just launch-wp-validator-session ${WP_ID}`);
+      nextCommands.push(`# Integration Validator stays downstream of WP validation PASS; launch later with: just launch-integration-validator-session ${WP_ID}`);
       nextCommands.push(`# Then provide a relayable implementation brief in chat for ${executionLane}; orchestrator implementation agents stay blocked in this lane.`);
     }
     nextCommands.push('# Use the assigned worktree/branch from ORCHESTRATOR_GATES.json PREPARE for the chosen workflow lane + execution owner.');

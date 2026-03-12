@@ -192,6 +192,7 @@ Resume rule (hard, anti-babysit):
 - If the assigned packet defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, use those files as the secondary collaboration surface for that WP.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not use a coder-local worktree as a competing inbox.
 - When available, prefer VS Code integrated terminals for coder sessions so the Operator can monitor active WPs alongside `just operator-monitor`.
+- Do not rely on ambient editor defaults for model choice or reasoning strength. For newly created repo-governed sessions, claim/launch explicitly with `gpt-5.4` + `model_reasoning_effort=xhigh`, or `gpt-5.2` + `model_reasoning_effort=xhigh` as fallback.
 - Use `THREAD.md` for append-only questions, clarifications, blocker notes, and soft coordination.
 - Use `RUNTIME_STATUS.json` for liveness updates only:
   - `runtime_status`
@@ -300,7 +301,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 
 ## Active Workflow Adjustment [2025-12-28]
 - Run all TEST_PLAN commands (and any required hygiene checks) before handoff; no skipping validation.
-- At start: set the task packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH`, and make a docs-only bootstrap commit on your WP branch (so the Validator can status-sync `main`).
+- At start: set the task packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH`, and make a docs-only bootstrap commit on your WP branch (so the Validator can status-sync `main`). For newly created repo-governed packets, claim `gpt-5.4` + `EXTRA_HIGH`, or `gpt-5.2` + `EXTRA_HIGH` only when the primary model is unavailable.
 - **Evidence Management:** You MAY append test logs, command outputs, and proof of work to the `## EVIDENCE` section of the task packet.
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
 - **Status Updates:** Update the `## STATUS_HANDOFF` section to reflect progress (e.g., "Implementation complete, tests passing").
@@ -519,7 +520,7 @@ Escalation template:
 ```
 Æ’?O BLOCKED: File lock conflict [CX-CONC-001]
 
-My WP: {WP_ID} (I am {Coder-A|Coder-B})
+My WP: {WP_ID} (I am {Coder-A..Coder-Z})
 Conflicts with: {OTHER_WP_ID} (see task packet CODER_MODEL / CODER_REASONING_STRENGTH)
 
 Overlapping paths:

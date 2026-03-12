@@ -15,7 +15,7 @@ const PACKET_STUBS_DIR = ".GOV/task_packets/stubs";
 
 const FILTERS = ["ALL", "ACTIVE", "READY_FOR_DEV", "IN_PROGRESS", "BLOCKED", "STUB", "DONE", "SUPERSEDED"];
 const BOARD_ORDER = ["ACTIVE", "READY_FOR_DEV", "IN_PROGRESS", "BLOCKED", "STUB", "DONE", "SUPERSEDED", "OTHER"];
-const REFRESH_INTERVAL_MS = 5000;
+const REFRESH_INTERVAL_MS = 1000;
 
 function readText(filePath) {
   return fs.readFileSync(filePath, "utf8");
@@ -42,6 +42,7 @@ function parseArgs(argv) {
     actorSession: "operator-monitor",
     wpId: "",
     filter: "ALL",
+    refreshMs: REFRESH_INTERVAL_MS,
   };
   const args = [...argv];
   while (args.length > 0) {
@@ -57,6 +58,9 @@ function parseArgs(argv) {
     } else if (token === "--filter") {
       const value = String(args.shift() || "").trim().toUpperCase();
       if (FILTERS.includes(value)) options.filter = value;
+    } else if (token === "--refresh-ms") {
+      const value = Number(args.shift() || "");
+      if (Number.isInteger(value) && value >= 250) options.refreshMs = value;
     }
   }
   return options;
@@ -491,7 +495,7 @@ async function runInteractive(options) {
   process.stdin.setEncoding("utf8");
   refresh();
 
-  const timer = setInterval(refresh, REFRESH_INTERVAL_MS);
+  const timer = setInterval(refresh, options.refreshMs);
   const cleanup = () => {
     clearInterval(timer);
     if (process.stdin.isTTY) process.stdin.setRawMode(false);

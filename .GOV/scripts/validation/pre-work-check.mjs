@@ -13,6 +13,24 @@ import {
   resolveSpecCurrent,
   validateRefinementFile,
 } from './refinement-check.mjs';
+import {
+  CLI_SESSION_TOOL,
+  CODEX_MODEL_ALIASES_ALLOWED,
+  defaultIntegrationValidatorBranch,
+  defaultIntegrationValidatorWorktreeDir,
+  defaultWpValidatorBranch,
+  defaultWpValidatorWorktreeDir,
+  MODEL_FAMILY_POLICY,
+  ROLE_SESSION_FALLBACK_MODEL,
+  ROLE_SESSION_PRIMARY_MODEL,
+  ROLE_SESSION_REASONING_CONFIG_KEY,
+  ROLE_SESSION_REASONING_CONFIG_VALUE,
+  ROLE_SESSION_REASONING_REQUIRED,
+  ROLE_SESSION_RUNTIME,
+  SESSION_HOST_FALLBACK,
+  SESSION_HOST_PREFERENCE,
+  SESSION_LAUNCH_POLICY,
+} from '../session-policy.mjs';
 
 const WP_ID = process.argv[2];
 
@@ -215,7 +233,7 @@ if (!fs.existsSync(taskPacketDir)) {
   }
 
   if (!lastPrepare) {
-    const msg = `Missing PREPARE record in .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json for ${WP_ID} (expected: just record-prepare ${WP_ID} {Coder-A|Coder-B} ...)`;
+    const msg = `Missing PREPARE record in .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json for ${WP_ID} (expected: just record-prepare ${WP_ID} {Coder-A..Coder-Z} ...)`;
     if (enforceWorktreeGate) {
       errors.push(msg);
       console.log('FAIL: ' + msg);
@@ -381,6 +399,58 @@ if (!fs.existsSync(taskPacketDir)) {
       }
     } else if (operatorApprovalRaw && !/^N\/?A\b/i.test(operatorApprovalRaw.trim())) {
       warnings.push('OPERATOR_APPROVAL_EVIDENCE should be N/A when SUB_AGENT_DELEGATION=DISALLOWED');
+    }
+  }
+
+  // Check 2.6BC: Session policy for new packet format (enforced for packet format >= 2026-03-12)
+  if (isModernPacket && isVersionAtLeast(packetFormatVersion, '2026-03-12')) {
+    console.log('\nCheck 2.6BC: Session policy');
+
+    const expectedFields = [
+      ['SESSION_HOST_PREFERENCE', SESSION_HOST_PREFERENCE],
+      ['SESSION_HOST_FALLBACK', SESSION_HOST_FALLBACK],
+      ['SESSION_LAUNCH_POLICY', SESSION_LAUNCH_POLICY],
+      ['ROLE_SESSION_RUNTIME', ROLE_SESSION_RUNTIME],
+      ['CLI_SESSION_TOOL', CLI_SESSION_TOOL],
+      ['MODEL_FAMILY_POLICY', MODEL_FAMILY_POLICY],
+      ['CODEX_MODEL_ALIASES_ALLOWED', CODEX_MODEL_ALIASES_ALLOWED],
+      ['ROLE_SESSION_PRIMARY_MODEL', ROLE_SESSION_PRIMARY_MODEL],
+      ['ROLE_SESSION_FALLBACK_MODEL', ROLE_SESSION_FALLBACK_MODEL],
+      ['ROLE_SESSION_REASONING_REQUIRED', ROLE_SESSION_REASONING_REQUIRED],
+      ['ROLE_SESSION_REASONING_CONFIG_KEY', ROLE_SESSION_REASONING_CONFIG_KEY],
+      ['ROLE_SESSION_REASONING_CONFIG_VALUE', ROLE_SESSION_REASONING_CONFIG_VALUE],
+      ['CODER_STARTUP_COMMAND', 'just coder-startup'],
+      ['CODER_RESUME_COMMAND', `just coder-next ${WP_ID}`],
+      ['WP_VALIDATOR_LOCAL_BRANCH', defaultWpValidatorBranch(WP_ID)],
+      ['WP_VALIDATOR_LOCAL_WORKTREE_DIR', defaultWpValidatorWorktreeDir(WP_ID)],
+      ['WP_VALIDATOR_REMOTE_BACKUP_BRANCH', defaultWpValidatorBranch(WP_ID)],
+      ['WP_VALIDATOR_STARTUP_COMMAND', 'just validator-startup'],
+      ['WP_VALIDATOR_RESUME_COMMAND', `just validator-next ${WP_ID}`],
+      ['INTEGRATION_VALIDATOR_LOCAL_BRANCH', defaultIntegrationValidatorBranch(WP_ID)],
+      ['INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR', defaultIntegrationValidatorWorktreeDir(WP_ID)],
+      ['INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH', defaultIntegrationValidatorBranch(WP_ID)],
+      ['INTEGRATION_VALIDATOR_STARTUP_COMMAND', 'just validator-startup'],
+      ['INTEGRATION_VALIDATOR_RESUME_COMMAND', `just validator-next ${WP_ID}`],
+    ];
+
+    for (const [label, expected] of expectedFields) {
+      const actual = parseSingleField(packetContent, label);
+      if (actual !== expected) {
+        errors.push(`${label} missing/invalid for packets with PACKET_FORMAT_VERSION >= 2026-03-12 (expected ${expected}; got: ${actual || '<missing>'})`);
+      }
+    }
+
+    const validatorBackupUrl = parseSingleField(packetContent, 'WP_VALIDATOR_REMOTE_BACKUP_URL');
+    if (validatorBackupUrl !== '<pending>' && !validatorBackupUrl.endsWith(`/tree/${defaultWpValidatorBranch(WP_ID)}`)) {
+      errors.push(`WP_VALIDATOR_REMOTE_BACKUP_URL must end with /tree/${defaultWpValidatorBranch(WP_ID)} or be <pending>`);
+    }
+
+    const integrationBackupUrl = parseSingleField(packetContent, 'INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL');
+    if (
+      integrationBackupUrl !== '<pending>' &&
+      !integrationBackupUrl.endsWith(`/tree/${defaultIntegrationValidatorBranch(WP_ID)}`)
+    ) {
+      errors.push(`INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL must end with /tree/${defaultIntegrationValidatorBranch(WP_ID)} or be <pending>`);
     }
   }
 

@@ -115,6 +115,26 @@ build-order-check:
 worktree-add wp-id base="main" branch="" dir="":
 	node .GOV/scripts/worktree-add.mjs {{wp-id}} {{base}} {{branch}} {{dir}}
 
+# Role-scoped WP worktrees for ORCHESTRATOR_MANAGED CLI sessions.
+coder-worktree-add wp-id branch="" dir="":
+	node .GOV/scripts/role-session-worktree-add.mjs CODER {{wp-id}} {{branch}} {{dir}}
+
+wp-validator-worktree-add wp-id branch="" dir="":
+	node .GOV/scripts/role-session-worktree-add.mjs WP_VALIDATOR {{wp-id}} {{branch}} {{dir}}
+
+integration-validator-worktree-add wp-id branch="" dir="":
+	node .GOV/scripts/role-session-worktree-add.mjs INTEGRATION_VALIDATOR {{wp-id}} {{branch}} {{dir}}
+
+# CLI session launch helpers. AUTO prefers repo policy, then falls back to Windows Terminal or print-only.
+launch-coder-session wp-id host="AUTO":
+	node .GOV/scripts/launch-cli-session.mjs CODER {{wp-id}} {{host}}
+
+launch-wp-validator-session wp-id host="AUTO":
+	node .GOV/scripts/launch-cli-session.mjs WP_VALIDATOR {{wp-id}} {{host}}
+
+launch-integration-validator-session wp-id host="AUTO":
+	node .GOV/scripts/launch-cli-session.mjs INTEGRATION_VALIDATOR {{wp-id}} {{host}}
+
 # Hard gate helper: Worktree + Branch Gate [CX-WT-001]
 hard-gate-wt-001:
 	@echo 'LIFECYCLE [CX-LIFE-001]'
@@ -230,7 +250,7 @@ record-refinement wp-id detail="":
 # Current workflow requires: workflow lane + execution owner.
 # Legacy recovery still accepts the older single execution-lane form.
 # Allowed workflow lanes: MANUAL_RELAY | ORCHESTRATOR_MANAGED
-# Allowed execution owners for current runs: Coder-A | Coder-B
+# Allowed execution owners for current runs: Coder-A .. Coder-Z
 record-signature wp-id signature workflow_lane="" execution_lane="":
 	@node .GOV/scripts/validation/orchestrator_gates.mjs sign {{wp-id}} {{signature}} {{workflow_lane}} {{execution_lane}}
 
