@@ -470,7 +470,7 @@ if (action === 'prepare') {
         branchArgIndex = 2;
     }
 
-    if (v2IsLegacyOrchestratorAgentic(workflowLaneInput) || v2IsLegacyOrchestratorAgentic(executionLaneInput)) {
+    if (v2IsLegacyOrchestratorAgentic(arg1) || v2IsLegacyOrchestratorAgentic(arg2)) {
         v2Fail('Orchestrator-Agentic is legacy-only and cannot be used in current PREPARE records.', [
             'The Orchestrator remains non-agentic and single-session.',
             `Usage: just record-prepare ${wpId} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B} [branch] [worktree_dir]`,

@@ -294,7 +294,7 @@ Next: N/A
 ### TEST_PLAN
 ```bash
 cargo test -p handshake_core
-just gov-check
+  just gov-check
 ```
 
 ### DONE_MEANS
@@ -360,8 +360,8 @@ git revert <commit-sha>
 - RUN_COMMANDS:
   ```bash
 rg -n "TrackedWorkPacket|TrackedMicroTask|role_mailbox_export_v1|workflow_state_family|queue_reason_code|mirror_state|summary.json|packet.json" src/backend/handshake_core
-cargo test -p handshake_core
-just gov-check
+  cargo test -p handshake_core
+  just gov-check
   ```
 - RISK_MAP:
   - "base-envelope drift between record families" -> "shared readers and validators become unreliable"

@@ -517,7 +517,10 @@ const replaceSingleField = (text, label, value) =>
   text.replace(new RegExp(`^(\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*).*$`, 'mi'), `$1${value}`);
 const escapeRegExp = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const replaceSection = (text, heading, newSection) =>
-  text.replace(new RegExp(`##\\s+${escapeRegExp(heading)}\\b[\\s\\S]*?(?=\\n##\\s+[^#]|$)`, 'm'), newSection.trim());
+  text.replace(
+    new RegExp(`##\\s+${escapeRegExp(heading)}\\b[\\s\\S]*?(?=(?:\\r?\\n)##\\s+[^#]|$)`),
+    newSection.trim(),
+  );
 const githubTreeBase = () => {
   try {
     const raw = execSync('git remote get-url origin', { encoding: 'utf8' }).trim();
@@ -576,6 +579,7 @@ const localWorktreeDir = (prepareGate?.worktree_dir || '<pending>').trim() || '<
 const remoteBackupBranch = localBranch;
 const originTreeBase = githubTreeBase();
 const remoteBackupUrl = originTreeBase === '<pending>' ? '<pending>' : `${originTreeBase}/tree/${remoteBackupBranch}`;
+template = replaceSingleField(template, 'BASE_WP_ID', baseWpId);
 template = replaceSingleField(template, 'LOCAL_BRANCH', localBranch);
 template = replaceSingleField(template, 'LOCAL_WORKTREE_DIR', localWorktreeDir);
 template = replaceSingleField(template, 'REMOTE_BACKUP_BRANCH', remoteBackupBranch);
@@ -635,8 +639,8 @@ template = replaceSingleField(template, 'AGENTIC_MODE', 'NO');
 template = replaceSingleField(template, 'ORCHESTRATOR_MODEL', 'N/A');
 template = replaceSingleField(template, 'ORCHESTRATION_STARTED_AT_UTC', 'N/A');
 template = replaceSingleField(template, 'CODER_MODEL', executionLane);
-template = replaceSingleField(template, 'SUB_AGENT_DELEGATION', 'ALLOWED');
-template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', `Signature bundle selected ${normalizedWorkflowLane} workflow lane + ${executionLane} execution owner for ${WP_ID}`);
+template = replaceSingleField(template, 'SUB_AGENT_DELEGATION', 'DISALLOWED');
+template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', 'N/A');
 
 if (isHydratedProfile) {
   const hydration = refinementData.packetHydration || {};
