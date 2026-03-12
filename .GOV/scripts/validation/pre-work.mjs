@@ -11,6 +11,7 @@
  * 2) Pre-work validation: pre-work-check.mjs [CX-580, CX-620]
  */
 
+import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -40,10 +41,29 @@ function escapeRegex(s) {
   return (s ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function parseSingleField(text, label) {
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, 'mi');
+  const m = text.match(re);
+  return m ? m[1].trim() : '';
+}
+
+function workflowLaneForPacket(wpId) {
+  const packetPath = path.join('.GOV', 'task_packets', `${wpId}.md`);
+  try {
+    const packetText = ensureTrailingNewline(fs.readFileSync(packetPath, 'utf8'));
+    return parseSingleField(packetText, 'WORKFLOW_LANE').toUpperCase();
+  } catch {
+    return '';
+  }
+}
+
 const gateOutputs = [];
 let ok = true;
 let why = 'Pre-work checks passed.';
 let blockedOnSkeletonApproval = false;
+const workflowLane = workflowLaneForPacket(wpId);
+const skeletonApprover =
+  workflowLane === 'ORCHESTRATOR_MANAGED' ? 'Orchestrator/Validator/Operator' : 'Operator/Validator';
 
 printBlockHeader('GATE_OUTPUT', 'CX-GATE-UX-001');
 process.stdout.write('\n');
@@ -85,7 +105,7 @@ const hasSkeletonApproval = hasCommitBySubjectRe(approvedSubjectRe);
 if (ok && hasSkeletonCheckpoint && !hasSkeletonApproval) {
   ok = false;
   blockedOnSkeletonApproval = true;
-  why = 'Skeleton checkpoint exists; awaiting Operator/Validator approval.';
+  why = `Skeleton checkpoint exists; awaiting ${skeletonApprover} approval.`;
 }
 
 process.stdout.write('\n');
@@ -101,14 +121,14 @@ printBlockHeader('NEXT_COMMANDS', 'CX-GATE-UX-001');
 if (ok) {
   if (!hasSkeletonCheckpoint) {
     process.stdout.write(`- (After updating the packet \`## SKELETON\`) just coder-skeleton-checkpoint ${wpId}\n`);
-    process.stdout.write(`- STOP: Await skeleton approval (Operator/Validator runs: just skeleton-approved ${wpId})\n`);
+    process.stdout.write(`- STOP: Await skeleton approval (${skeletonApprover} runs: just skeleton-approved ${wpId})\n`);
     process.stdout.write(`- After approval commit exists: re-run just pre-work ${wpId}\n`);
   } else {
     process.stdout.write(`- Proceed to implementation (skeleton approved).\n`);
   }
 } else {
   if (blockedOnSkeletonApproval) {
-    process.stdout.write(`- STOP: Await skeleton approval (Operator/Validator runs: just skeleton-approved ${wpId})\n`);
+    process.stdout.write(`- STOP: Await skeleton approval (${skeletonApprover} runs: just skeleton-approved ${wpId})\n`);
     process.stdout.write(`- After approval commit exists: re-run just pre-work ${wpId}\n`);
   } else {
     process.stdout.write(`- Review the failures above.\n`);

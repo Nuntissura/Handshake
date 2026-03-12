@@ -314,7 +314,8 @@ post-work wp-id *args:
 coder-skeleton-checkpoint wp-id:
 	@node .GOV/scripts/validation/coder-skeleton-checkpoint.mjs {{wp-id}}
 
-# Operator/Validator helper: approve a WP skeleton checkpoint (unblocks implementation).
+# Workflow-authority helper: approve a WP skeleton checkpoint (unblocks implementation).
+# In ORCHESTRATOR_MANAGED this may be Orchestrator, Validator, or Operator.
 skeleton-approved wp-id:
 	@node .GOV/scripts/validation/skeleton-approved.mjs {{wp-id}}
 

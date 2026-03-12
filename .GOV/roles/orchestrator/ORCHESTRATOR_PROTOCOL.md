@@ -225,6 +225,18 @@ STOP is only required when at least one is true:
 - `OPERATOR_ACTION` is not `NONE` (a single explicit decision is needed).
 - The next step requires a one-time user input (e.g., `USER_SIGNATURE`) or a protocol-mandated turn boundary (see [CX-585C]).
 
+Operator steering continuity rule (`ORCHESTRATOR_MANAGED`, hard):
+- Non-blocking Operator chat, steering nudges, status questions, or clarification messages MUST NOT create a pause boundary by themselves.
+- Treat a mid-run Operator message as non-blocking unless it explicitly says `STOP`, `PAUSE`, `WAIT`, changes scope/priority/lane/execution owner, or introduces a real approval/decision gate.
+- After replying to a non-blocking steering message, if the latest gate still implies `OPERATOR_ACTION: NONE`, continue to the deterministic next step.
+- User silence is not required for progress.
+
+Docs-only bridge rule (`ORCHESTRATOR_MANAGED`, hard):
+- To keep the workflow moving, the Orchestrator MAY perform docs-only workflow commits on the assigned WP branch/worktree before implementation starts.
+- Allowed examples: docs-only bootstrap claim/status-sync edits in the task packet, docs-only skeleton approval commits, and WP communication liveness/receipt updates.
+- These actions do NOT make the Orchestrator the Coder and MUST NOT touch product code, tests, validator verdicts, or final technical approval surfaces.
+- Once the next step would touch non-governance implementation files, the Orchestrator MUST stop and hand execution back to the declared `EXECUTION_OWNER` unless separately reassigned as Coder.
+
 Post-signature setup rule (hard, anti-babysit):
 - After `just record-signature WP-{ID} ...` returns PASS with `OPERATOR_ACTION: NONE`, deterministic WP setup is auto-continue work.
 - Do NOT stop merely because the WP branch/worktree does not exist yet; creating that missing WP worktree is the expected next step after signature, not a fresh approval boundary.

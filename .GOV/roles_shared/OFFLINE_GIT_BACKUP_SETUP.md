@@ -108,15 +108,15 @@ Use it as a secondary remote, not as the only backup target.
 Example environment variables:
 
 ```powershell
-$env:PROJECT_BACKUP_ROOT = 'D:\Project Backups'
-$env:PROJECT_NAS_BACKUP_ROOT = '\\NAS\share\Project Backups'
+$env:PROJECT_BACKUP_ROOT = 'D:\Project Backups' # example
+$env:PROJECT_NAS_BACKUP_ROOT = '\\NAS\share\Project Backups' # example
 ```
 
 Persist them for the current user if desired:
 
 ```powershell
-[Environment]::SetEnvironmentVariable('PROJECT_BACKUP_ROOT', 'D:\Project Backups', 'User')
-[Environment]::SetEnvironmentVariable('PROJECT_NAS_BACKUP_ROOT', '\\NAS\share\Project Backups', 'User')
+[Environment]::SetEnvironmentVariable('PROJECT_BACKUP_ROOT', 'D:\Project Backups', 'User') # example
+[Environment]::SetEnvironmentVariable('PROJECT_NAS_BACKUP_ROOT', '\\NAS\share\Project Backups', 'User') # example
 ```
 
 ## Scheduling Pattern
