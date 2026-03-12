@@ -60,6 +60,8 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 - **[WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2]** - [READY_FOR_DEV]
 
 
+- **[WP-1-Structured-Collaboration-Artifact-Family-v1]** - [READY_FOR_DEV]
+
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
@@ -136,7 +138,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-FR-ModelSessionId-v1]** - [STUB]
 - **[WP-1-Session-Anti-Pattern-Registry-v1]** - [STUB]
 - **[WP-1-Layerwise-Inference-Foundations-v1]** - [STUB]
-- **[WP-1-Structured-Collaboration-Artifact-Family-v1]** - [STUB]
 - **[WP-1-Structured-Collaboration-Schema-Registry-v1]** - [STUB]
 - **[WP-1-Project-Profile-Extension-Registry-v1]** - [STUB]
 - **[WP-1-Project-Agnostic-Workflow-State-Registry-v1]** - [STUB]

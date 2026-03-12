@@ -67,12 +67,14 @@ function extractIndentedListAfterLabel(text, label, { stopLabels = [] } = {}) {
   if (idx === -1) return [];
 
   const stopRes = stopLabels.map((s) => new RegExp(`^\\s*-\\s*${s}\\s*:\\s*$`, 'i'));
+  const topLevelLabelRe = /^-\s*(?:\*\*)?[A-Z][A-Z0-9_ ()/.-]*(?:\*\*)?\s*:\s*$/;
   const items = [];
 
   for (let i = idx + 1; i < lines.length; i += 1) {
     const line = lines[i];
     if (stopRes.some((re) => re.test(line))) break;
     if (/^##\s+\S/.test(line)) break;
+    if (topLevelLabelRe.test(line)) break;
     const m = line.match(/^\s{2,}-\s+(.+)\s*$/);
     if (m) items.push(m[1].trim());
   }
@@ -143,7 +145,9 @@ function extractBulletListAfterHeading(text, heading) {
   }
 
   const items = [];
+  const topLevelLabelRe = /^-\s*(?:\*\*)?[A-Z][A-Z0-9_ ()/.-]*(?:\*\*)?\s*:\s*$/;
   for (let i = sectionStart; i < sectionEnd; i += 1) {
+    if (topLevelLabelRe.test(lines[i])) break;
     const m = lines[i].match(/^\s*-\s+(.+)\s*$/);
     if (m) items.push(m[1].trim());
   }
@@ -151,7 +155,8 @@ function extractBulletListAfterHeading(text, heading) {
 }
 
 function normalizeList(items) {
-  return (items || []).map((item) => String(item || '').trim()).filter(Boolean);
+  const normalized = (items || []).map((item) => String(item || '').trim()).filter(Boolean);
+  return normalized.every((item) => item.toUpperCase() === 'NONE') ? [] : normalized;
 }
 
 function normalizeBlock(text) {

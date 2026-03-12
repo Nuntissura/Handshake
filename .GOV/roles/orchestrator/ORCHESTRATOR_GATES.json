@@ -1687,6 +1687,33 @@
       "branch": "feat/WP-1-Locus-Phase1-Integration-Occupancy-v1",
       "worktree_dir": "../wt-WP-1-Locus-Phase1-Integration-Occupancy-v1",
       "timestamp": "2026-03-06T19:48:58.119Z"
+    },
+    {
+      "wpId": "WP-1-Structured-Collaboration-Artifact-Family-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Structured-Collaboration-Artifact-Family-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md",
+      "spec_target_sha1": "d5225e6ab7a377fd574604160b9dd29bd12009da",
+      "timestamp": "2026-03-12T19:15:56.797Z"
+    },
+    {
+      "wpId": "WP-1-Structured-Collaboration-Artifact-Family-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja120320262021",
+      "workflow_lane": "ORCHESTRATOR_MANAGED",
+      "execution_lane": "Coder-A",
+      "timestamp": "2026-03-12T19:22:37.601Z",
+      "refinement_path": ".GOV/refinements/WP-1-Structured-Collaboration-Artifact-Family-v1.md"
+    },
+    {
+      "wpId": "WP-1-Structured-Collaboration-Artifact-Family-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "workflow_lane": "ORCHESTRATOR_MANAGED",
+      "execution_lane": "Coder-A",
+      "branch": "feat/WP-1-Structured-Collaboration-Artifact-Family-v1",
+      "worktree_dir": "../wt-WP-1-Structured-Collaboration-Artifact-Family-v1",
+      "timestamp": "2026-03-12T19:23:23.467Z"
     }
   ]
 }
