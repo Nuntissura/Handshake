@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja120320262021 | Orchestrator | 2026-03-12 20:21 | Task packet creation: WP-1-Structured-Collaboration-Artifact-Family-v1 | v02.178 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Structured-Collaboration-Artifact-Family-v1.md ). |
 | ilja110320261228 | Orchestrator | 2026-03-11 12:28 | Spec Enrichment v02.178 (RAG mode and no-RAG cross-pillar pass + retrieval-mode selection, non-hybrid reasons, Loom graph bias, Prompt-to-Spec authoritative preloads, Work Packet direct-load posture, and retrieval-mode policy stub growth) | v02.178 | Approved in-chat: `ok approved refinement v02.178 ilja110320261228`. |
 | ilja110320260813 | Orchestrator | 2026-03-11 08:13 | Spec Enrichment v02.177 (Role Mailbox handoff-bundle and announce-back provenance pass + structured handoff bundles, note-transcription duties, announce-back provenance kinds, compact handoff summaries, and mailbox-handoff/transcription/announce-back stub growth) | v02.177 | Approved in-chat: `refinement approved for v02.177 ilja110320260813`. |
 | ilja110320260021 | Orchestrator | 2026-03-11 00:21 | Spec Enrichment v02.176 (Role Mailbox executor-routing and claim-lease pass + executor kinds, claim modes, claim or lease records, response-authority scope, takeover policy, claimant visibility, and mailbox-executor-routing-and-claim-lease stub growth) | v02.176 | Approved in-chat: `approved refinement v02.176 ilja110320260021`. |
