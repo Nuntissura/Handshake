@@ -30,9 +30,9 @@
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - CODER_MODEL: Coder-A
-- CODER_REASONING_STRENGTH: HIGH
+- CODER_REASONING_STRENGTH: <unclaimed>
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
-- **Status:** In Progress
+- **Status:** Ready for Dev
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -82,7 +82,7 @@
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
 Blockers: NONE
-Next: Begin implementation against the approved skeleton in the scoped backend files.
+Next: N/A
 
 ## WP_COMMUNICATIONS (NON-AUTHORITATIVE; REQUIRED FOR NEW PACKETS)
 - RULE: The task packet remains authoritative for scope, status, branch/worktree truth, acceptance, and verdict.
@@ -371,20 +371,8 @@ rg -n "TrackedWorkPacket|TrackedMicroTask|role_mailbox_export_v1|workflow_state_
 
 ## SKELETON
 - Proposed interfaces/types/contracts:
-  - Add shared structured-collaboration base-envelope and bounded-summary serializer helpers in `src/backend/handshake_core/src/locus/types.rs` so Work Packets, Micro-Tasks, Task Board rows, and Role Mailbox exports stay field-equivalent for `schema_id`, `schema_version`, `record_id`, `record_kind`, `project_profile_kind`, `updated_at`, `mirror_state`, `authority_refs`, and `evidence_refs`.
-  - Extend `src/backend/handshake_core/src/runtime_governance.rs` with canonical Phase 1 artifact-family roots and helpers for `.handshake/gov/work_packets/{wp_id}/`, `.handshake/gov/micro_tasks/{wp_id}/{mt_id}/`, `.handshake/gov/task_board/`, and mailbox export directories so writers stop hard-coding partial paths.
-  - Emit canonical Work Packet artifacts from Locus tracked state as `packet.json` plus `summary.json`, carrying workflow-state fields, mirror metadata, note refs, and stable joins back to the existing tracked record.
-  - Emit canonical Micro-Task artifacts with the same envelope/summary contract while preserving iteration history, validation evidence, and executor-specific telemetry in extension/metadata fields instead of widening the shared envelope.
-  - Add structured Task Board projection export beside the existing Markdown rewrite path: `task_board/index.json` plus deterministic `task_board/views/{view_id}.json` files derived from canonical rows rather than reparsing Markdown.
-  - Converge Role Mailbox export records onto the shared collaboration envelope while preserving leak-safe `body_ref` behavior, transcription links, and export-manifest hashing.
 - Open questions:
-  - Minimal Phase 1 Task Board view set: emit only the default by-status projection now, or reserve additional stable `view_id` outputs in the first pass?
-  - Shared Rust shape placement: keep the first serializer/helpers in `locus/types.rs`, or split to a dedicated structured-collaboration module once the envelope/summarizer code is in place?
-  - Mailbox summary posture: treat `index.json` as the bounded summary surface for threads/messages, and avoid a redundant mailbox `summary.json` unless the read path proves too heavy.
 - Notes:
-  - Preserve `TASK_BOARD.md` and current mailbox export files as readable mirrors/projections during Phase 1; canonical authority must stay in structured records.
-  - Default `project_profile_kind` to `software_delivery` for this repo and keep repository-specific fields in `profile_extension` or existing metadata payloads.
-  - This packet stops at canonical artifact emission plus deterministic summaries; schema registry, mirror reconciliation controllers, and viewer/layout work remain downstream packets.
 
 ## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
 - UI_UX_APPLICABLE=NO in the signed refinement. No user-facing surface is in scope for this packet.
@@ -441,13 +429,9 @@ rg -n "TrackedWorkPacket|TrackedMicroTask|role_mailbox_export_v1|workflow_state_
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
-- Current WP_STATUS: IMPLEMENTATION_READY
+- Current WP_STATUS:
 - What changed in this update:
-  - Added the docs-only bootstrap claim and moved the packet to `In Progress`.
-  - Hydrated `## SKELETON` with the planned artifact-family serializer, path, projection, and mailbox-convergence surfaces.
-  - Cleared the docs-only skeleton approval gate under `ORCHESTRATOR_MANAGED` and re-ran `just pre-work` successfully.
 - Next step / handoff hint:
-  - Start backend implementation in the scoped `handshake_core` files, then capture hygiene/evidence before `just post-work`.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
