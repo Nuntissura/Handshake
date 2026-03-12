@@ -286,7 +286,8 @@ if (!fs.existsSync(taskPacketDir)) {
   }
 
   // Check 2.5B: MERGE_BASE_SHA (recommended for deterministic multi-commit post-work)
-  const mergeBaseSha = (packetContent.match(/^\s*-\s*MERGE_BASE_SHA\s*:\s*([a-f0-9]{40})\s*$/mi) || [])[1]?.trim();
+  const mergeBaseShaRaw = parseSingleField(packetContent, 'MERGE_BASE_SHA');
+  const mergeBaseSha = (mergeBaseShaRaw.match(/[a-f0-9]{40}/i) || [])[0]?.trim() || '';
   if (!mergeBaseSha) {
     warnings.push('Packet missing MERGE_BASE_SHA; for multi-commit WPs prefer deterministic evidence: just post-work WP-{ID} --range <MERGE_BASE_SHA>..HEAD');
   }
