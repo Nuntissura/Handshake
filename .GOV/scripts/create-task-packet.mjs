@@ -13,6 +13,7 @@ import {
   validateRefinementFile,
 } from './validation/refinement-check.mjs';
 import { ensureWpCommunications } from './ensure-wp-communications.mjs';
+import { EXECUTION_OWNER_VALUES, WORKFLOW_LANE_VALUES } from './wp-communications-lib.mjs';
 import { preparedWorktreeSyncState } from './role-resume-utils.mjs';
 
 const WP_ID = process.argv[2];
@@ -569,7 +570,6 @@ template = replaceSingleField(template, 'SPEC_ADD_MARKER_TARGET', specAddMarkerT
 
 const workflowLane = (prepareGate?.workflow_lane || signatureGate?.workflow_lane || '').trim();
 const executionLane = (prepareGate?.execution_lane || signatureGate?.execution_lane || prepareGate?.coder_id || '').trim();
-const orchestrationStartedAt = signatureGate?.timestamp || timestamp;
 const baseWpId = WP_ID.replace(/-v\d+$/, '');
 const localBranch = (prepareGate?.branch || `feat/${WP_ID}`).trim() || `feat/${WP_ID}`;
 const localWorktreeDir = (prepareGate?.worktree_dir || '<pending>').trim() || '<pending>';
@@ -580,31 +580,63 @@ template = replaceSingleField(template, 'LOCAL_BRANCH', localBranch);
 template = replaceSingleField(template, 'LOCAL_WORKTREE_DIR', localWorktreeDir);
 template = replaceSingleField(template, 'REMOTE_BACKUP_BRANCH', remoteBackupBranch);
 template = replaceSingleField(template, 'REMOTE_BACKUP_URL', remoteBackupUrl);
-const effectiveWorkflowLane = workflowLane || (/^Coder-(A|B)$/i.test(executionLane) ? 'MANUAL_RELAY' : 'UNSPECIFIED');
+const normalizedWorkflowLane = workflowLane.toUpperCase();
+const normalizedExecutionOwner = executionLane.toUpperCase().replace('-', '_');
+const legacyOrchestratorAgentic = /^ORCHESTRATOR-AGENTIC$/i.test(executionLane.replace(/[\s_]+/g, '-'));
 
-if (/^Orchestrator-Agentic$/i.test(executionLane)) {
-  // Legacy recovery only. Current repo governance blocks new Orchestrator-Agentic runs.
-  template = replaceSingleField(template, 'WORKFLOW_LANE', 'ORCHESTRATOR_MANAGED');
-  template = replaceSingleField(template, 'EXECUTION_OWNER', 'ORCHESTRATOR');
-  template = replaceSingleField(template, 'AGENTIC_MODE', 'YES');
-  template = replaceSingleField(template, 'ORCHESTRATOR_MODEL', 'Codex (GPT-5)');
-  template = replaceSingleField(template, 'ORCHESTRATION_STARTED_AT_UTC', orchestrationStartedAt);
-  template = replaceSingleField(template, 'CODER_MODEL', 'Orchestrator-Agentic');
-  template = replaceSingleField(template, 'SUB_AGENT_DELEGATION', 'ALLOWED');
-  template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', `Signature bundle selected ORCHESTRATOR_MANAGED workflow lane + ORCHESTRATOR execution owner for ${WP_ID}`);
-} else if (/^Coder-(A|B)$/i.test(executionLane)) {
-  template = replaceSingleField(template, 'WORKFLOW_LANE', effectiveWorkflowLane);
-  template = replaceSingleField(template, 'EXECUTION_OWNER', executionLane.toUpperCase().replace('-', '_'));
-  template = replaceSingleField(template, 'AGENTIC_MODE', 'NO');
-  template = replaceSingleField(template, 'ORCHESTRATOR_MODEL', 'N/A');
-  template = replaceSingleField(template, 'ORCHESTRATION_STARTED_AT_UTC', 'N/A');
-  template = replaceSingleField(template, 'CODER_MODEL', executionLane);
-  template = replaceSingleField(template, 'SUB_AGENT_DELEGATION', 'ALLOWED');
-  template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', `Signature bundle selected ${effectiveWorkflowLane} workflow lane + ${executionLane} execution owner for ${WP_ID}`);
-} else {
-  template = replaceSingleField(template, 'WORKFLOW_LANE', 'UNSPECIFIED');
-  template = replaceSingleField(template, 'EXECUTION_OWNER', 'UNASSIGNED');
+if (legacyOrchestratorAgentic) {
+  printGateBlocks({
+    wpId: WP_ID,
+    stage: 'PACKET_CREATE',
+    next: 'STOP',
+    operatorAction: 'Migrate the signature bundle to the current workflow tuple',
+    gateRan: `just create-task-packet ${WP_ID}`,
+    result: 'BLOCKED',
+    why: 'Legacy Orchestrator-Agentic execution is not a valid packet-creation path in current repo governance.',
+    gateOutputLines: [
+      `BLOCKED: ${WP_ID} still resolves to legacy Orchestrator-Agentic execution.`,
+      'The Orchestrator remains non-agentic and cannot be the execution owner for a new packet.',
+    ],
+    nextCommands: [
+      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+      `just record-prepare ${WP_ID} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B} [branch] [worktree_dir]`,
+      `just create-task-packet ${WP_ID}`,
+    ],
+  });
+  process.exit(1);
 }
+
+if (!WORKFLOW_LANE_VALUES.includes(normalizedWorkflowLane) || !EXECUTION_OWNER_VALUES.includes(normalizedExecutionOwner)) {
+  printGateBlocks({
+    wpId: WP_ID,
+    stage: 'PACKET_CREATE',
+    next: 'PREPARE',
+    operatorAction: 'Complete or repair the workflow tuple before packet creation',
+    gateRan: `just create-task-packet ${WP_ID}`,
+    result: 'BLOCKED',
+    why: 'Official packet creation now requires an explicit workflow lane and coder execution owner.',
+    gateOutputLines: [
+      `BLOCKED: invalid workflow tuple for ${WP_ID}.`,
+      `- workflow_lane: ${workflowLane || '<missing>'}`,
+      `- execution_owner: ${executionLane || '<missing>'}`,
+    ],
+    nextCommands: [
+      `just record-signature ${WP_ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+      `just record-prepare ${WP_ID} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B} [branch] [worktree_dir]`,
+      `just create-task-packet ${WP_ID}`,
+    ],
+  });
+  process.exit(1);
+}
+
+template = replaceSingleField(template, 'WORKFLOW_LANE', normalizedWorkflowLane);
+template = replaceSingleField(template, 'EXECUTION_OWNER', normalizedExecutionOwner);
+template = replaceSingleField(template, 'AGENTIC_MODE', 'NO');
+template = replaceSingleField(template, 'ORCHESTRATOR_MODEL', 'N/A');
+template = replaceSingleField(template, 'ORCHESTRATION_STARTED_AT_UTC', 'N/A');
+template = replaceSingleField(template, 'CODER_MODEL', executionLane);
+template = replaceSingleField(template, 'SUB_AGENT_DELEGATION', 'ALLOWED');
+template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', `Signature bundle selected ${normalizedWorkflowLane} workflow lane + ${executionLane} execution owner for ${WP_ID}`);
 
 if (isHydratedProfile) {
   const hydration = refinementData.packetHydration || {};
@@ -789,8 +821,8 @@ try {
   wpCommunicationPaths = ensureWpCommunications({
     wpId: WP_ID,
     baseWpId,
-    workflowLane: (template.match(/^\s*-\s*(?:\*\*)?WORKFLOW_LANE(?:\*\*)?\s*:\s*(.+)\s*$/mi) || [])[1] || 'UNSPECIFIED',
-    executionOwner: (template.match(/^\s*-\s*(?:\*\*)?EXECUTION_OWNER(?:\*\*)?\s*:\s*(.+)\s*$/mi) || [])[1] || 'UNASSIGNED',
+    workflowLane: (template.match(/^\s*-\s*(?:\*\*)?WORKFLOW_LANE(?:\*\*)?\s*:\s*(.+)\s*$/mi) || [])[1] || '<missing>',
+    executionOwner: (template.match(/^\s*-\s*(?:\*\*)?EXECUTION_OWNER(?:\*\*)?\s*:\s*(.+)\s*$/mi) || [])[1] || '<missing>',
     localBranch,
     localWorktreeDir,
     agenticMode: (template.match(/^\s*-\s*(?:\*\*)?AGENTIC_MODE(?:\*\*)?\s*:\s*(.+)\s*$/mi) || [])[1] || 'NO',

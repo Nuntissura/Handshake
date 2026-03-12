@@ -27,10 +27,10 @@ Requirements:
 - ROLE: Orchestrator
 - REFINEMENT_ENFORCEMENT_PROFILE: <pending>
 - PACKET_HYDRATION_PROFILE: <pending>
-- WORKFLOW_LANE: MANUAL_RELAY
-<!-- Allowed: MANUAL_RELAY | ORCHESTRATOR_MANAGED | UNSPECIFIED -->
-- EXECUTION_OWNER: UNASSIGNED
-<!-- Allowed: ORCHESTRATOR | CODER_A | CODER_B | UNASSIGNED -->
+- WORKFLOW_LANE: <pending>
+<!-- Required before packet creation: MANUAL_RELAY | ORCHESTRATOR_MANAGED -->
+- EXECUTION_OWNER: <pending>
+<!-- Required before packet creation: CODER_A | CODER_B -->
 - WORKFLOW_AUTHORITY: ORCHESTRATOR
 <!-- Current repo-governance owner for workflow steering and hard-gate progression. -->
 - TECHNICAL_ADVISOR: WP_VALIDATOR

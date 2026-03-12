@@ -73,6 +73,7 @@
         "STATUS",
         "HEARTBEAT",
         "HANDOFF",
+        "THREAD_MESSAGE",
         "VALIDATOR_QUERY",
         "VALIDATION_START",
         "VALIDATION_STATUS_SYNC",

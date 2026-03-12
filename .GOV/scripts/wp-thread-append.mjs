@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalize } from "./wp-communications-lib.mjs";
+import { appendWpReceipt } from "./wp-receipt-append.mjs";
 
 const PACKETS_DIR = path.join(".GOV", "task_packets");
 
@@ -37,7 +38,7 @@ function loadThreadContext(wpId) {
   return { packetPath: normalize(packetPath), threadFile: normalize(threadFile) };
 }
 
-export function appendWpThreadEntry({ wpId, actorRole, actorSession, message, target = "" } = {}) {
+export function appendWpThreadEntry({ wpId, actorRole, actorSession, message, target = "", recordReceipt = true } = {}) {
   const WP_ID = String(wpId || "").trim();
   const ACTOR_ROLE = String(actorRole || "").trim().toUpperCase();
   const ACTOR_SESSION = String(actorSession || "").trim();
@@ -58,10 +59,23 @@ export function appendWpThreadEntry({ wpId, actorRole, actorSession, message, ta
   const entryLines = [header.join(" | "), ...bodyLines.map((line) => `  ${line}`), ""];
   fs.appendFileSync(context.threadFile, `${entryLines.join("\n")}\n`, "utf8");
 
+  if (recordReceipt) {
+    appendWpReceipt({
+      wpId: WP_ID,
+      actorRole: ACTOR_ROLE,
+      actorSession: ACTOR_SESSION,
+      receiptKind: "THREAD_MESSAGE",
+      summary: `${ACTOR_ROLE} -> ${TARGET || "thread"}: ${bodyLines[0]}`,
+      refs: [context.threadFile],
+      timestamp,
+    });
+  }
+
   return {
     threadFile: context.threadFile,
     timestamp,
     summary: `${ACTOR_ROLE} -> ${TARGET || "thread"}: ${bodyLines[0]}`,
+    receiptAppended: recordReceipt,
   };
 }
 
@@ -77,6 +91,7 @@ function runCli() {
   console.log(`- thread: ${result.threadFile}`);
   console.log(`- timestamp_utc: ${result.timestamp}`);
   console.log(`- summary: ${result.summary}`);
+  console.log(`- receipt_appended: ${result.receiptAppended ? 'YES' : 'NO'}`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

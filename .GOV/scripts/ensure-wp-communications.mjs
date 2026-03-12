@@ -93,8 +93,8 @@ export function ensureWpCommunications({
       parseSingleField(packetText, "BASE_WP_ID").replace(/\s*\(.*/, "") ||
       WP_ID.replace(/-v\d+$/, "")
   ).trim();
-  const WORKFLOW_LANE = String(workflowLane || parseSingleField(packetText, "WORKFLOW_LANE") || "UNSPECIFIED").trim();
-  const EXECUTION_OWNER = String(executionOwner || parseSingleField(packetText, "EXECUTION_OWNER") || "UNASSIGNED").trim();
+  const WORKFLOW_LANE = String(workflowLane || parseSingleField(packetText, "WORKFLOW_LANE") || "").trim();
+  const EXECUTION_OWNER = String(executionOwner || parseSingleField(packetText, "EXECUTION_OWNER") || "").trim();
   const LOCAL_BRANCH = String(localBranch || parseSingleField(packetText, "LOCAL_BRANCH") || "<pending>").trim();
   const LOCAL_WORKTREE_DIR = String(localWorktreeDir || parseSingleField(packetText, "LOCAL_WORKTREE_DIR") || "<pending>").trim();
   const AGENTIC_MODE = String(agenticMode || parseSingleField(packetText, "AGENTIC_MODE") || "NO").trim();
@@ -116,8 +116,8 @@ export function ensureWpCommunications({
   if (packetText) {
     const warnings = [];
     if (!parseSingleField(packetText, "BASE_WP_ID") && !baseWpId) warnings.push("BASE_WP_ID missing; defaulted from WP_ID");
-    if (!parseSingleField(packetText, "WORKFLOW_LANE") && !workflowLane) warnings.push("WORKFLOW_LANE missing; defaulted to UNSPECIFIED");
-    if (!parseSingleField(packetText, "EXECUTION_OWNER") && !executionOwner) warnings.push("EXECUTION_OWNER missing; defaulted to UNASSIGNED");
+    if (!parseSingleField(packetText, "WORKFLOW_LANE") && !workflowLane) warnings.push("WORKFLOW_LANE missing; explicit workflow tuple is required");
+    if (!parseSingleField(packetText, "EXECUTION_OWNER") && !executionOwner) warnings.push("EXECUTION_OWNER missing; explicit coder ownership is required");
     if (!parseSingleField(packetText, "LOCAL_BRANCH") && !localBranch) warnings.push("LOCAL_BRANCH missing; defaulted to <pending>");
     if (!parseSingleField(packetText, "LOCAL_WORKTREE_DIR") && !localWorktreeDir) warnings.push("LOCAL_WORKTREE_DIR missing; defaulted to <pending>");
     if (!parseSingleField(packetText, "AGENTIC_MODE") && !agenticMode) warnings.push("AGENTIC_MODE missing; defaulted to NO");

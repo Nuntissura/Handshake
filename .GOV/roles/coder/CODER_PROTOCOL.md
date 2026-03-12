@@ -213,7 +213,7 @@ Resume rule (hard, anti-babysit):
 - Update runtime status and append a receipt on session start, phase change, blocker/unblock, handoff, completion, and every packet heartbeat interval only while actively working.
 - Set `validator_trigger` only when the validator should wake up. Do not expect continuous polling.
 - Prefer deterministic helpers over hand-editing these files:
-  - `just wp-thread-append WP-{ID} CODER <session> "<message>" [target]`
+  - `just wp-thread-append WP-{ID} CODER <session> "<message>" [target]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
   - `just wp-heartbeat WP-{ID} CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
   - `just wp-receipt-append WP-{ID} CODER <session> <receipt_kind> "<summary>" [state_before] [state_after]`
 - Keep authoritative work state in the packet:

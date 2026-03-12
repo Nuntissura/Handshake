@@ -289,7 +289,7 @@ Resume rule (hard, anti-babysit):
 To avoid manual markdown editing mistakes:
 - Update Task Board entry: `just task-board-set WP-{ID} READY_FOR_DEV|IN_PROGRESS|DONE_VALIDATED|DONE_FAIL|DONE_OUTDATED_ONLY|STUB|BLOCKED|SUPERSEDED ["reason"]`
 - Update Base->Active mapping: `just wp-traceability-set BASE_WP_ID ACTIVE_PACKET_WP_ID`
-- Append freeform thread message: `just wp-thread-append WP-{ID} ORCHESTRATOR <session> "<message>" [target]`
+- Append freeform thread message: `just wp-thread-append WP-{ID} ORCHESTRATOR <session> "<message>" [target]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
 - Update WP communication liveness: `just wp-heartbeat WP-{ID} ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - Append deterministic receipt: `just wp-receipt-append WP-{ID} ORCHESTRATOR <session> <receipt_kind> "<summary>" [state_before] [state_after]`
 - Open the operator monitor TUI: `just operator-monitor`

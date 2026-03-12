@@ -144,9 +144,6 @@ function v2NormalizeExecutionLane(raw) {
     if (!value) return '';
 
     const upper = value.toUpperCase().replace(/[\s_]+/g, '-');
-    if (upper === 'ORCHESTRATOR-AGENTIC' || upper === 'ORCH-AGENTIC' || upper === 'AGENTIC') {
-        return 'Orchestrator-Agentic';
-    }
     if (upper === 'CODER-A' || upper === 'CODERA' || upper === 'A') {
         return 'Coder-A';
     }
@@ -167,10 +164,14 @@ function v2NormalizeWorkflowLane(raw) {
     if (upper === 'ORCHESTRATOR_MANAGED' || upper === 'ORCH_MANAGED' || upper === 'AUTONOMOUS') {
         return 'ORCHESTRATOR_MANAGED';
     }
-    if (upper === 'UNSPECIFIED') {
-        return 'UNSPECIFIED';
-    }
     return null;
+}
+
+function v2IsLegacyOrchestratorAgentic(raw) {
+    const value = (raw || '').trim();
+    if (!value) return false;
+    const upper = value.toUpperCase().replace(/[\s_]+/g, '-');
+    return upper === 'ORCHESTRATOR-AGENTIC' || upper === 'ORCH-AGENTIC' || upper === 'AGENTIC';
 }
 
 if (action === 'refine') {
@@ -225,6 +226,12 @@ if (action === 'sign') {
     const signature = (argvData[0] || '').trim();
     const laneArg1 = (argvData[1] || '').trim();
     const laneArg2 = (argvData[2] || '').trim();
+    if (v2IsLegacyOrchestratorAgentic(laneArg1) || v2IsLegacyOrchestratorAgentic(laneArg2)) {
+        v2Fail('Orchestrator-Agentic is legacy-only and cannot be recorded in new repo-governance signatures.', [
+            'Current repo governance requires an explicit workflow lane plus Coder-A or Coder-B as execution owner.',
+            `Usage: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+        ]);
+    }
     const workflowLane1 = v2NormalizeWorkflowLane(laneArg1);
     const workflowLane2 = v2NormalizeWorkflowLane(laneArg2);
     const executionLane1 = v2NormalizeExecutionLane(laneArg1);
@@ -261,13 +268,6 @@ if (action === 'sign') {
             `Usage: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
         ]);
     }
-    if (executionLane === 'Orchestrator-Agentic') {
-        v2Fail('Orchestrator-Agentic is not allowed in current repo governance.', [
-            'The Orchestrator remains non-agentic and single-session.',
-            'Choose Coder-A or Coder-B as the execution owner.',
-        ]);
-    }
-
     const lastRefinement = v2ResolveLastRefinement();
     if (!lastRefinement) {
         v2Fail(`No technical refinement recorded for ${wpId}. Run: just record-refinement ${wpId}`);
@@ -470,6 +470,13 @@ if (action === 'prepare') {
         branchArgIndex = 2;
     }
 
+    if (v2IsLegacyOrchestratorAgentic(workflowLaneInput) || v2IsLegacyOrchestratorAgentic(executionLaneInput)) {
+        v2Fail('Orchestrator-Agentic is legacy-only and cannot be used in current PREPARE records.', [
+            'The Orchestrator remains non-agentic and single-session.',
+            `Usage: just record-prepare ${wpId} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B} [branch] [worktree_dir]`,
+        ]);
+    }
+
     workflowLane = workflowLane || lastSignature?.workflow_lane || '';
     executionLane = executionLane || lastSignature?.execution_lane || '';
 
@@ -490,12 +497,6 @@ if (action === 'prepare') {
     }
     if (!executionLane) {
         v2Fail('Missing execution owner. Usage: just record-prepare WP-... {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B} [branch] [worktree_dir]');
-    }
-    if (executionLane === 'Orchestrator-Agentic') {
-        v2Fail('Orchestrator-Agentic is not allowed in current repo governance.', [
-            'The Orchestrator remains non-agentic and single-session.',
-            'Choose Coder-A or Coder-B as the execution owner.',
-        ]);
     }
     if (!lastSignature) {
         v2Fail(`No signature recorded for ${wpId}. Run: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`);

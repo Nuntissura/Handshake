@@ -60,7 +60,7 @@ Product-scanning / product-boundary enforcement:
   - `INTVAL`
   - `MONITOR`
 - `just operator-monitor` provides the overview surface for active WPs, authorities, heartbeats, and WP-scoped communications.
-- `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]` appends a freeform message to the packet-declared `WP_COMMUNICATION_DIR`.
+- `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]` appends a freeform message to the packet-declared `WP_COMMUNICATION_DIR` and writes a paired `THREAD_MESSAGE` receipt.
 
 ## Role: Orchestrator
 

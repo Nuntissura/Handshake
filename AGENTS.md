@@ -60,7 +60,7 @@
 - These richer artifacts apply to both `MANUAL_RELAY` and `ORCHESTRATOR_MANAGED` workflow lanes.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not improvise role-local inboxes.
 - When available, prefer VS Code integrated terminals as the host for multi-session role work. Use `just operator-monitor` as the overview surface instead of treating role-local terminal buffers as authority.
-- Freeform packet-scoped messages should be appended with `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]`.
+- Freeform packet-scoped messages should be appended with `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]`; this writes both the thread entry and a paired structured receipt.
 - Authority split for semi-autonomous work:
   - Orchestrator = workflow authority
   - WP Validator = advisory technical reviewer

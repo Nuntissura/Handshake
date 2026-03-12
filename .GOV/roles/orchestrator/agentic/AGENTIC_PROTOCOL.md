@@ -30,8 +30,9 @@ Rationale: makes multi-agent provenance auditable even if chat context is trunca
 
 ## 1.5) Execution-lane guard (HARD)
 
-- Use this add-on only when the WP signature bundle / packet metadata selects `Orchestrator-Agentic`.
-- If the WP execution lane is `Coder-A` or `Coder-B`, the Orchestrator MUST NOT run implementation agents for that WP and MUST provide a relayable implementation brief to the Operator instead.
+- This add-on is legacy-only. Do not select it for new runs.
+- It may be consulted only when reviewing historical packets or signatures that still contain `Orchestrator-Agentic`.
+- For current repo governance, if the WP execution owner is `CODER_A` or `CODER_B`, the Orchestrator MUST remain non-agentic and MUST NOT run implementation agents for that WP.
 
 ---
 

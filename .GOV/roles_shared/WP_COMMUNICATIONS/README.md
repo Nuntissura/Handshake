@@ -63,6 +63,7 @@ Deterministic helpers:
 - `just ensure-wp-communications WP-{ID}`
 - `just wp-communications-check`
 - `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]`
+  - appends to `THREAD.md` and writes a paired `THREAD_MESSAGE` receipt to `RECEIPTS.jsonl`
 - `just wp-heartbeat WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <CURRENT_PHASE> <RUNTIME_STATUS> <NEXT_EXPECTED_ACTOR> "<WAITING_ON>" [VALIDATOR_TRIGGER] [LAST_EVENT]`
 - `just wp-receipt-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <RECEIPT_KIND> "<SUMMARY>" [STATE_BEFORE] [STATE_AFTER]`
 

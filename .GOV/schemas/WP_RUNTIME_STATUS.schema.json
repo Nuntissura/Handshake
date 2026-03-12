@@ -87,16 +87,13 @@
     "workflow_lane": {
       "enum": [
         "MANUAL_RELAY",
-        "ORCHESTRATOR_MANAGED",
-        "UNSPECIFIED"
+        "ORCHESTRATOR_MANAGED"
       ]
     },
     "execution_owner": {
       "enum": [
-        "ORCHESTRATOR",
         "CODER_A",
-        "CODER_B",
-        "UNASSIGNED"
+        "CODER_B"
       ]
     },
     "workflow_authority": {
