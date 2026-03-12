@@ -314,9 +314,9 @@ To avoid manual markdown editing mistakes:
   - WP Validator: `just wp-validator-worktree-add WP-{ID}`
   - Integration Validator: `just integration-validator-worktree-add WP-{ID}`
 - Launch repo-governed CLI sessions:
-  - Coder: `just launch-coder-session WP-{ID}`
-  - WP Validator: `just launch-wp-validator-session WP-{ID}`
-  - Integration Validator: `just launch-integration-validator-session WP-{ID}`
+  - Coder: `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]`
+  - WP Validator: `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]`
+  - Integration Validator: `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]`
 - Condense post-signature setup:
   - Default post-signature path: `just orchestrator-prepare-and-packet WP-{ID}`
   - Retry helper when PREPARE is already recorded: `just orchestrator-worktree-and-packet WP-{ID}`

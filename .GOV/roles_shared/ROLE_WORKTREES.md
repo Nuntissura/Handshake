@@ -115,9 +115,9 @@ WP worktrees (Orchestrator action, not Coder):
   - `just wp-validator-worktree-add WP-{ID}`
   - `just integration-validator-worktree-add WP-{ID}`
 - Launch the repo-governed CLI sessions:
-  - `just launch-coder-session WP-{ID}`
-  - `just launch-wp-validator-session WP-{ID}`
-  - `just launch-integration-validator-session WP-{ID}`
+  - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]`
+  - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]`
+  - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]`
 - Create/preserve the matching GitHub backup branch for the WP when sync is authorized for the activation turn:
   - `just backup-push feat/WP-{ID} feat/WP-{ID}`
 - Before deleting a WP worktree or WP backup branch after approval:

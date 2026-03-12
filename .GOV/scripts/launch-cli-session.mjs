@@ -23,6 +23,7 @@ import {
 const role = String(process.argv[2] || "").trim().toUpperCase();
 const wpId = String(process.argv[3] || "").trim();
 const requestedHost = String(process.argv[4] || "").trim().toUpperCase() || "AUTO";
+const requestedModel = String(process.argv[5] || "").trim().toUpperCase() || "PRIMARY";
 
 function fail(message) {
   console.error(`[LAUNCH_CLI_SESSION] ${message}`);
@@ -30,7 +31,10 @@ function fail(message) {
 }
 
 if (!wpId || !wpId.startsWith("WP-")) {
-  fail("Usage: node .GOV/scripts/launch-cli-session.mjs <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE]");
+  fail("Usage: node .GOV/scripts/launch-cli-session.mjs <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE] [PRIMARY|FALLBACK]");
+}
+if (!["PRIMARY", "FALLBACK"].includes(requestedModel)) {
+  fail(`Invalid model selector: ${requestedModel} (expected PRIMARY or FALLBACK)`);
 }
 
 function runGit(args) {
@@ -79,6 +83,7 @@ function resolveRoleConfig(roleName, workPacketId) {
 
 const roleConfig = resolveRoleConfig(role, wpId);
 if (!roleConfig) fail(`Unknown role: ${role}`);
+const selectedModel = requestedModel === "FALLBACK" ? ROLE_SESSION_FALLBACK_MODEL : ROLE_SESSION_PRIMARY_MODEL;
 
 const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
 const absWorktreeDir = path.resolve(repoRoot, roleConfig.worktreeDir);
@@ -100,14 +105,14 @@ const prompt = [
   `AFTER STARTUP: ${roleConfig.nextCommand}`,
   `AUTHORITY: AGENTS.md + startup output + the role protocol + .GOV/task_packets/${wpId}.md`,
   `FOCUS: ${roleConfig.focus}.`,
-  `MODEL POLICY: primary ${ROLE_SESSION_PRIMARY_MODEL} with ${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}; fallback ${ROLE_SESSION_FALLBACK_MODEL} with the same reasoning value if primary is unavailable.`,
+  `MODEL POLICY: selected ${selectedModel}; primary ${ROLE_SESSION_PRIMARY_MODEL} with ${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}; fallback ${ROLE_SESSION_FALLBACK_MODEL} with the same reasoning value if primary is unavailable.`,
   `REPO POLICY: do not switch to Codex model aliases for repo-governed sessions.`,
   `REMINDER: the Orchestrator remains workflow authority; only the Integration Validator can own merge-to-main authority.`,
 ].join("\n");
 
 const codexArgs = [
   "-m",
-  ROLE_SESSION_PRIMARY_MODEL,
+  selectedModel,
   "-c",
   `${ROLE_SESSION_REASONING_CONFIG_KEY}="${ROLE_SESSION_REASONING_CONFIG_VALUE}"`,
   "-C",
@@ -120,7 +125,7 @@ function writeLaunchScript() {
   const script = [
     `$ErrorActionPreference = 'Stop'`,
     `Set-Location -LiteralPath '${absWorktreeDir.replace(/'/g, "''")}'`,
-    `${CLI_SESSION_TOOL} -m ${ROLE_SESSION_PRIMARY_MODEL} -c '${ROLE_SESSION_REASONING_CONFIG_KEY}="${ROLE_SESSION_REASONING_CONFIG_VALUE}"' -C '${absWorktreeDir.replace(/'/g, "''")}' @'`,
+    `${CLI_SESSION_TOOL} -m ${selectedModel} -c '${ROLE_SESSION_REASONING_CONFIG_KEY}="${ROLE_SESSION_REASONING_CONFIG_VALUE}"' -C '${absWorktreeDir.replace(/'/g, "''")}' @'`,
     prompt,
     `'@`,
   ].join("\r\n");
@@ -160,6 +165,7 @@ function launchWindowsTerminal() {
   child.unref();
   console.log(`[LAUNCH_CLI_SESSION] launched via WINDOWS_TERMINAL (${roleConfig.title})`);
   console.log(`[LAUNCH_CLI_SESSION] worktree=${absWorktreeDir}`);
+  console.log(`[LAUNCH_CLI_SESSION] selected_model=${selectedModel}`);
   console.log(`[LAUNCH_CLI_SESSION] startup=${roleConfig.startupCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] next=${roleConfig.nextCommand}`);
 }
@@ -171,6 +177,7 @@ function printOnly(reason, resolvedHost) {
   console.log(`[LAUNCH_CLI_SESSION] reason=${reason}`);
   console.log(`[LAUNCH_CLI_SESSION] worktree=${absWorktreeDir}`);
   console.log(`[LAUNCH_CLI_SESSION] branch=${roleConfig.branch}`);
+  console.log(`[LAUNCH_CLI_SESSION] selected_model=${selectedModel}`);
   console.log(`[LAUNCH_CLI_SESSION] startup=${roleConfig.startupCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] next=${roleConfig.nextCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] command=${CLI_SESSION_TOOL} ${codexArgs.map((part) => JSON.stringify(part)).join(" ")}`);
