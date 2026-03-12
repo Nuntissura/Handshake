@@ -44,6 +44,7 @@ Rule:
 Governance-only (does not scan `src/` or `app/`):
 - `just gov-check`
 - Governance-only maintenance does not require a Work Packet or USER_SIGNATURE (Codex [CX-111]).
+- Shared repo tooling notes live in `.GOV/roles_shared/TOOLING_GUARDRAILS.md`; use it as short append-only shared tooling memory, not as a second LAW surface.
 
 Product-scanning / product-boundary enforcement:
 - `just codex-check` (includes hard boundary checks for `.GOV` references in product code)

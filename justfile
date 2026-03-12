@@ -20,9 +20,9 @@ lint:
 test:
 	cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "{{CARGO_TARGET_DIR}}"
 
-# Fail if any required docs are missing (navigation pack + past work index)
+# Fail if any required docs are missing (navigation pack + shared tooling guardrails + resilience)
 docs-check:
-	node -e "['.GOV/roles_shared/START_HERE.md', '.GOV/roles_shared/SPEC_CURRENT.md', '.GOV/roles_shared/ARCHITECTURE.md', '.GOV/roles_shared/RUNBOOK_DEBUG.md', '.GOV/roles_shared/PAST_WORK_INDEX.md', '.GOV/roles_shared/REPO_RESILIENCE.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
+	node -e "['.GOV/roles_shared/START_HERE.md', '.GOV/roles_shared/SPEC_CURRENT.md', '.GOV/roles_shared/ARCHITECTURE.md', '.GOV/roles_shared/RUNBOOK_DEBUG.md', '.GOV/roles_shared/PAST_WORK_INDEX.md', '.GOV/roles_shared/REPO_RESILIENCE.md', '.GOV/roles_shared/TOOLING_GUARDRAILS.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
 
 # Format backend Rust
 fmt:
@@ -145,9 +145,8 @@ hard-gate-wt-001:
 	@echo '  - <cmd2>'
 
 # Protocol ack helper: print first non-empty line from each required doc.
-# Note: using 3 fixed args avoids shell splitting on space-containing filenames.
-protocol-ack codex agents protocol:
-	@node .GOV/scripts/protocol-ack.mjs "{{codex}}" "{{agents}}" "{{protocol}}"
+protocol-ack codex agents shared protocol:
+	@node .GOV/scripts/protocol-ack.mjs "{{codex}}" "{{agents}}" "{{shared}}" "{{protocol}}"
 
 task-board-check:
 	node .GOV/scripts/validation/task-board-check.mjs
@@ -205,19 +204,19 @@ coder-preflight:
 
 # Role startup (recommended): protocol ack + condensed preflight in one command.
 orchestrator-startup:
-	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md"
+	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles_shared/TOOLING_GUARDRAILS.md" ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md"
 	@just backup-status
 	@just orchestrator-preflight
 	@echo 'RESUME_HINT: After a reset/compaction, run `just orchestrator-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 validator-startup:
-	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles/validator/VALIDATOR_PROTOCOL.md"
+	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles_shared/TOOLING_GUARDRAILS.md" ".GOV/roles/validator/VALIDATOR_PROTOCOL.md"
 	@just backup-status
 	@just validator-preflight
 	@echo 'RESUME_HINT: After a reset/compaction, run `just validator-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 coder-startup:
-	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles/coder/CODER_PROTOCOL.md"
+	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles_shared/TOOLING_GUARDRAILS.md" ".GOV/roles/coder/CODER_PROTOCOL.md"
 	@just backup-status
 	@just coder-preflight
 	@echo 'RESUME_HINT: After a reset/compaction, run `just coder-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
