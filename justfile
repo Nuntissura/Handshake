@@ -115,6 +115,33 @@ build-order-check:
 worktree-add wp-id base="main" branch="" dir="":
 	node .GOV/scripts/worktree-add.mjs {{wp-id}} {{base}} {{branch}} {{dir}}
 
+# Role-scoped WP worktrees for ORCHESTRATOR_MANAGED CLI sessions.
+coder-worktree-add wp-id branch="" dir="":
+	node .GOV/scripts/role-session-worktree-add.mjs CODER {{wp-id}} {{branch}} {{dir}}
+
+wp-validator-worktree-add wp-id branch="" dir="":
+	node .GOV/scripts/role-session-worktree-add.mjs WP_VALIDATOR {{wp-id}} {{branch}} {{dir}}
+
+integration-validator-worktree-add wp-id branch="" dir="":
+	node .GOV/scripts/role-session-worktree-add.mjs INTEGRATION_VALIDATOR {{wp-id}} {{branch}} {{dir}}
+
+# Repo-governed session launch helpers.
+# AUTO = Orchestrator queues a VS Code plugin launch first; CLI fallback is unlocked only after 2 plugin failures/timeouts.
+launch-coder-session wp-id host="AUTO" model="PRIMARY":
+	node .GOV/scripts/launch-cli-session.mjs CODER {{wp-id}} {{host}} {{model}}
+
+launch-wp-validator-session wp-id host="AUTO" model="PRIMARY":
+	node .GOV/scripts/launch-cli-session.mjs WP_VALIDATOR {{wp-id}} {{host}} {{model}}
+
+launch-integration-validator-session wp-id host="AUTO" model="PRIMARY":
+	node .GOV/scripts/launch-cli-session.mjs INTEGRATION_VALIDATOR {{wp-id}} {{host}} {{model}}
+
+session-registry-status wp-id="":
+	node .GOV/scripts/session-registry-status.mjs {{wp-id}}
+
+session-launch-runtime-check:
+	node .GOV/scripts/validation/session-launch-runtime-check.mjs
+
 # Hard gate helper: Worktree + Branch Gate [CX-WT-001]
 hard-gate-wt-001:
 	@echo 'LIFECYCLE [CX-LIFE-001]'
@@ -229,7 +256,7 @@ record-refinement wp-id detail="":
 # Current workflow requires: workflow lane + execution owner.
 # Legacy recovery still accepts the older single execution-lane form.
 # Allowed workflow lanes: MANUAL_RELAY | ORCHESTRATOR_MANAGED
-# Allowed execution owners for current runs: Coder-A | Coder-B
+# Allowed execution owners for current runs: Coder-A .. Coder-Z
 record-signature wp-id signature workflow_lane="" execution_lane="":
 	@node .GOV/scripts/validation/orchestrator_gates.mjs sign {{wp-id}} {{signature}} {{workflow_lane}} {{execution_lane}}
 
@@ -313,7 +340,8 @@ post-work wp-id *args:
 coder-skeleton-checkpoint wp-id:
 	@node .GOV/scripts/validation/coder-skeleton-checkpoint.mjs {{wp-id}}
 
-# Operator/Validator helper: approve a WP skeleton checkpoint (unblocks implementation).
+# Workflow-authority helper: approve a WP skeleton checkpoint (unblocks implementation).
+# In ORCHESTRATOR_MANAGED this may be Orchestrator, Validator, or Operator.
 skeleton-approved wp-id:
 	@node .GOV/scripts/validation/skeleton-approved.mjs {{wp-id}}
 

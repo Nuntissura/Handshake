@@ -26,9 +26,11 @@ import {
   printState,
   taskBoardStatus,
 } from "./role-resume-utils.mjs";
+import { EXECUTION_OWNER_RANGE_HELP } from "./session-policy.mjs";
 
 const STATE_FILE = ".GOV/roles/orchestrator/ORCHESTRATOR_GATES.json";
 const TASK_BOARD_PATH = ".GOV/roles_shared/TASK_BOARD.md";
+const EXECUTION_OWNER_USAGE = `{${EXECUTION_OWNER_RANGE_HELP}}`;
 
 function fail(message, details = []) {
   console.error(`[ORCHESTRATOR_NEXT] ${message}`);
@@ -318,7 +320,7 @@ function main() {
     printNextCommands([
       `# Paste the FULL Technical Refinement Block from .GOV/refinements/${wpId}.md in chat (verbatim; no summary).`,
       `# Ensure refinement METADATA contains: - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT ${wpId}`,
-      `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+      `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
     ]);
     return;
   }
@@ -329,15 +331,15 @@ function main() {
     const executionLane = lastSignature.execution_lane || "";
     if (!workflowLane || !executionLane) {
       const prompt = !workflowLane && !executionLane
-        ? "Choose workflow lane + execution owner for legacy PREPARE recovery (MANUAL_RELAY|ORCHESTRATOR_MANAGED + Coder-A|Coder-B)"
+        ? `Choose workflow lane + execution owner for legacy PREPARE recovery (MANUAL_RELAY|ORCHESTRATOR_MANAGED + ${EXECUTION_OWNER_RANGE_HELP})`
         : !workflowLane
           ? `Choose workflow lane for legacy PREPARE recovery (${executionLane}; MANUAL_RELAY|ORCHESTRATOR_MANAGED)`
-          : "Choose execution owner for legacy PREPARE recovery (Coder-A|Coder-B)";
+          : `Choose execution owner for legacy PREPARE recovery (${EXECUTION_OWNER_RANGE_HELP})`;
       printOperatorAction(prompt);
       printConfidence(confidence.level, confidence.detail);
       printState("Signature recorded; WP prepare record missing and the legacy signature bundle did not capture the full workflow tuple.");
       printNextCommands([
-        `just record-signature ${wpId} ${lastSignature.signature} ${workflowLane || '{MANUAL_RELAY|ORCHESTRATOR_MANAGED}'} ${executionLane || '{Coder-A|Coder-B}'}`,
+        `just record-signature ${wpId} ${lastSignature.signature} ${workflowLane || '{MANUAL_RELAY|ORCHESTRATOR_MANAGED}'} ${executionLane || EXECUTION_OWNER_USAGE}`,
       ]);
       return;
     }
@@ -404,7 +406,10 @@ function main() {
     `just pre-work ${wpId}`,
   ];
   if (needsStubCleanup) cmds.push(`just task-board-set ${wpId} READY_FOR_DEV`);
-  cmds.push(`# Delegate: send packet path + worktree/branch recorded in ORCHESTRATOR_GATES.json PREPARE.`);
+  cmds.push(`just launch-coder-session ${wpId}`);
+  cmds.push(`just launch-wp-validator-session ${wpId}`);
+  cmds.push(`just session-registry-status ${wpId}`);
+  cmds.push(`# Integration Validator is downstream of WP validation PASS; launch later with: just launch-integration-validator-session ${wpId}`);
   printNextCommands(cmds);
 }
 

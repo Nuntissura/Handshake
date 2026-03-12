@@ -56,10 +56,9 @@ const status = git('status --porcelain=v1');
 const lines = status.split(/\r?\n/).filter(Boolean);
 
 // Collect paths (including untracked) and enforce docs-only.
-const changed = lines.map((l) => {
-  const m = l.match(/^\s*\S\S\s+(.+)\s*$/);
-  return m ? m[1].trim() : '';
-}).filter(Boolean);
+const changed = lines
+  .map((line) => (line.length > 3 ? line.slice(3).trim() : ""))
+  .filter(Boolean);
 
 const allowed = new Set([packetRel.replace(/\\/g, '/')]);
 const bad = changed.filter((p) => !allowed.has(p.replace(/\\/g, '/')));

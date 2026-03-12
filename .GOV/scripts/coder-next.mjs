@@ -78,6 +78,7 @@ if (!packetExists(wpId)) {
 const packetContent = loadPacket(wpId);
 const packetStatus = parseStatus(packetContent);
 const currentWpStatus = parseCurrentWpStatus(packetContent);
+const workflowLane = parseClaimField(packetContent, "WORKFLOW_LANE").toUpperCase();
 const coderModel = parseClaimField(packetContent, "CODER_MODEL");
 const bootstrapClaim = hasCommitSubject(`^docs: bootstrap claim \\[${escapeRegex(wpId)}\\]$`);
 const skeletonCheckpoint = hasCommitSubject(`^docs: skeleton checkpoint \\[${escapeRegex(wpId)}\\]$`);
@@ -88,11 +89,14 @@ const validationFilled = sectionHasMaterialContent(packetContent, "VALIDATION");
 const dirtyTree = Boolean(gitContext.statusPorcelain);
 const postWorkCommand = buildPostWorkCommand(wpId, packetContent);
 const currentWpStatusLower = currentWpStatus.toLowerCase();
+const skeletonApprover =
+  workflowLane === "ORCHESTRATOR_MANAGED" ? "Orchestrator/Validator/Operator" : "Validator/Operator";
 
 const commonFindings = [
   `Current branch: ${gitContext.branch || "<unknown>"}`,
   `Packet status: ${packetStatus || "<missing>"}`,
   `Current WP_STATUS: ${currentWpStatus || "<empty>"}`,
+  `Workflow lane: ${workflowLane || "<missing>"}`,
   `Bootstrap claim commit: ${bootstrapClaim ? "present" : "missing"}`,
   `Skeleton checkpoint: ${skeletonCheckpoint ? "present" : "missing"}`,
   `Skeleton approval: ${skeletonApproved ? "present" : "missing"}`,
@@ -128,12 +132,12 @@ if (!skeletonCheckpoint) {
 
 if (!skeletonApproved) {
   printLifecycle({ wpId, stage: "SKELETON", next: "STOP" });
-  printOperatorAction(`Validator/Operator must create skeleton approval commit for ${wpId}`);
+  printOperatorAction(`${skeletonApprover} must create skeleton approval commit for ${wpId}`);
   printConfidence(confidence, confidenceDetail);
   printState("Skeleton checkpoint exists; implementation remains blocked until the approval commit lands.");
   printFindings(commonFindings);
   printNextCommands([
-    `# STOP: Await skeleton approval (Validator/Operator runs: just skeleton-approved ${wpId})`,
+    `# STOP: Await skeleton approval (${skeletonApprover} runs: just skeleton-approved ${wpId})`,
     `just pre-work ${wpId}`,
   ]);
   process.exit(0);

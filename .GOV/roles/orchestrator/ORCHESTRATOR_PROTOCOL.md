@@ -49,8 +49,13 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUN
 
 ## Current Execution Policy (Additional LAW)
 
-- The Orchestrator role is single-session and non-agentic in current repo governance.
-- The Orchestrator MAY coordinate multiple CLI sessions and roles, but MUST NOT spawn helper agents to perform Orchestrator or Validator duties.
+- The Orchestrator role is one non-agentic coordinator CLI session in current repo governance.
+- The Orchestrator MAY coordinate and launch multiple external CLI sessions and roles, but MUST NOT spawn helper agents to perform Orchestrator or Validator duties.
+- For newly created repo-governed sessions, launch/claim the model explicitly: primary `gpt-5.4`, fallback `gpt-5.2`, reasoning `EXTRA_HIGH` (`model_reasoning_effort=xhigh`). Do not rely on ambient editor defaults.
+- Repo-governed Coder, WP Validator, and Integration Validator session start is `ORCHESTRATOR_ONLY`.
+- Primary launch transport is `VSCODE_EXTENSION_TERMINAL` via `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts, unless the Operator explicitly waives the plugin-first path.
+- Repo policy for new packet claim fields disallows Codex model aliases even when the CLI tool is `codex`.
 - The historical add-on at `/.GOV/roles/orchestrator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
 
 ## Drive-Agnostic Governance [CX-109] (HARD)
@@ -204,16 +209,16 @@ Special rule for `just record-refinement`:
 At the signature step, collect one approval bundle for the WP:
 - `USER_SIGNATURE`: `usernameDDMMYYYYHHMM`
 - `WORKFLOW_LANE`: exactly one of `MANUAL_RELAY | ORCHESTRATOR_MANAGED`
-- `EXECUTION_OWNER`: exactly one of `Coder-A | Coder-B`
+- `EXECUTION_OWNER`: exactly one of `Coder-A .. Coder-Z`
 
 Anti-babysit normalization rule:
 - Do NOT ask one question for "manual vs orchestrator-managed" and a second question for "which coder?" unless the operator explicitly wants the split discussed.
-- Normalize the decision to a single workflow bundle and record it with `just record-signature WP-{ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`.
+- Normalize the decision to a single workflow bundle and record it with `just record-signature WP-{ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A..Coder-Z}`.
 
 Workflow semantics:
 - `MANUAL_RELAY`: the human Operator remains the primary relay and hard-gate commander, but the WP still uses the richer packet metadata plus `WP_COMMUNICATIONS` artifacts for logging, receipts, heartbeat, and validator wake-up.
 - `ORCHESTRATOR_MANAGED`: the Orchestrator manages steering and session coordination, but remains non-agentic and MUST NOT implement or validate the WP directly.
-- `Coder-A` / `Coder-B`: the Primary Coder execution owner for the WP. The Orchestrator remains responsible for governance correctness, paperwork, worktree truth, steering, and status sync, but MUST NOT implement the WP itself unless separately reassigned as Coder. The Primary Coder may use coder-role sub-agents only with explicit packet approval and remains solely accountable for them. Coder-side agents MUST NOT merge, push, pull, fast-forward, or otherwise mutate repo topology.
+- `Coder-A .. Coder-Z`: the Primary Coder execution owner for the WP. The Orchestrator remains responsible for governance correctness, paperwork, worktree truth, steering, and status sync, but MUST NOT implement the WP itself unless separately reassigned as Coder. The Primary Coder may use coder-role sub-agents only with explicit packet approval and remains solely accountable for them. Coder-side agents MUST NOT merge, push, pull, fast-forward, or otherwise mutate repo topology.
 
 ## Auto-Continue on PASS [CX-GATE-AUTO-001] (ANTI-BABYSIT)
 
@@ -224,6 +229,18 @@ STOP is only required when at least one is true:
 - The gate result is not PASS (FAIL/BLOCKED/unknown).
 - `OPERATOR_ACTION` is not `NONE` (a single explicit decision is needed).
 - The next step requires a one-time user input (e.g., `USER_SIGNATURE`) or a protocol-mandated turn boundary (see [CX-585C]).
+
+Operator steering continuity rule (`ORCHESTRATOR_MANAGED`, hard):
+- Non-blocking Operator chat, steering nudges, status questions, or clarification messages MUST NOT create a pause boundary by themselves.
+- Treat a mid-run Operator message as non-blocking unless it explicitly says `STOP`, `PAUSE`, `WAIT`, changes scope/priority/lane/execution owner, or introduces a real approval/decision gate.
+- After replying to a non-blocking steering message, if the latest gate still implies `OPERATOR_ACTION: NONE`, continue to the deterministic next step.
+- User silence is not required for progress.
+
+Docs-only bridge rule (`ORCHESTRATOR_MANAGED`, hard):
+- To keep the workflow moving, the Orchestrator MAY perform docs-only workflow commits on the assigned WP branch/worktree before implementation starts.
+- Allowed examples: docs-only bootstrap claim/status-sync edits in the task packet, docs-only skeleton approval commits, and WP communication liveness/receipt updates.
+- These actions do NOT make the Orchestrator the Coder and MUST NOT touch product code, tests, validator verdicts, or final technical approval surfaces.
+- Once the next step would touch non-governance implementation files, the Orchestrator MUST stop and hand execution back to the declared `EXECUTION_OWNER` unless separately reassigned as Coder.
 
 Post-signature setup rule (hard, anti-babysit):
 - After `just record-signature WP-{ID} ...` returns PASS with `OPERATOR_ACTION: NONE`, deterministic WP setup is auto-continue work.
@@ -264,6 +281,10 @@ Resume rule (hard, anti-babysit):
 - If the active packet defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, the Orchestrator MUST treat those files as the canonical non-authoritative collaboration surface for that WP.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not treat any role worktree or backup branch as a competing inbox.
 - When available, prefer VS Code integrated terminals as the host for Orchestrator-managed sessions and keep one dedicated `just operator-monitor` tab open for overview.
+- Do not rely on ambient editor defaults for model choice or reasoning strength. Launch/brief each repo-governed CLI session explicitly with `gpt-5.4` + `model_reasoning_effort=xhigh`, or `gpt-5.2` + `model_reasoning_effort=xhigh` as fallback.
+- Use `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` as the append-only launch queue and `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json` as the current launch/session-state projection.
+- The Orchestrator is the only role that starts repo-governed Coder/WP Validator/Integration Validator sessions.
+- If the VS Code bridge path fails twice for the same role/WP session, the Orchestrator may open a CLI escalation window and must leave the packet/thread/runtime artifacts authoritative.
 - Use `THREAD.md` for append-only steering, clarifications, relay notes, and manual-lane coordination.
 - Use `RUNTIME_STATUS.json` for structured liveness only:
   - `runtime_status`: `submitted | working | input_required | completed | failed | canceled`
@@ -293,6 +314,15 @@ To avoid manual markdown editing mistakes:
 - Update WP communication liveness: `just wp-heartbeat WP-{ID} ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - Append deterministic receipt: `just wp-receipt-append WP-{ID} ORCHESTRATOR <session> <receipt_kind> "<summary>" [state_before] [state_after]`
 - Open the operator monitor TUI: `just operator-monitor`
+- Create role-scoped worktrees:
+  - Coder: `just coder-worktree-add WP-{ID}`
+  - WP Validator: `just wp-validator-worktree-add WP-{ID}`
+  - Integration Validator: `just integration-validator-worktree-add WP-{ID}`
+- Launch repo-governed CLI sessions:
+  - Coder: `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - WP Validator: `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - Integration Validator: `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - Inspect launch/runtime state: `just session-registry-status [WP-{ID}]`
 - Condense post-signature setup:
   - Default post-signature path: `just orchestrator-prepare-and-packet WP-{ID}`
   - Retry helper when PREPARE is already recorded: `just orchestrator-worktree-and-packet WP-{ID}`
@@ -315,7 +345,7 @@ Rule: when a gate command is run and `GATE_STATUS` is posted, `PHASE` MUST match
 - After a refinement is signed (`just record-signature WP-{ID} ...`), the Orchestrator MAY proceed to create the task packet.
 - However, before ANY product work starts (Coder runs `just pre-work WP-{ID}` / begins implementation), the Orchestrator MUST:
   1) Create the WP branch/worktree (`just worktree-add WP-{ID}`), and
-  2) Record the execution owner (`just record-prepare WP-{ID} {Coder-A|Coder-B}`).
+  2) Record the execution owner (`just record-prepare WP-{ID} {Coder-A..Coder-Z}`).
 - Rationale: blocks coding in the wrong worktree/branch, and makes the workflow lane + execution owner + handoff deterministic (branch/worktree recorded in ORCHESTRATOR_GATES.json).
 - Additional hard invariant: coder handoff is FORBIDDEN until the assigned WP worktree itself contains:
   - the official packet under `.GOV/task_packets/WP-{ID}.md`,
@@ -2502,11 +2532,11 @@ If the WP includes cross-boundary changes (e.g., UI/API/storage/events) OR any g
 
 The signature bundle is the approval point for the WP coder lane. Do not re-ask the Operator later with a second standalone "which coder owns this?" question for the same WP.
 
-If the signature bundle selected `Coder-A` or `Coder-B`:
+If the signature bundle selected `Coder-A .. Coder-Z`:
 1. The Orchestrator MUST prepare the WP worktree/branch, packet, and communication artifacts deterministically.
 2. The Orchestrator MUST remain non-agentic and is responsible for governance correctness, paperwork, and live steering.
 3. The Primary Coder remains solely accountable for any coder-role sub-agents and MUST enforce the Coder protocol + agentic add-on if such agents are used.
-4. The Validator remains single-session and non-agentic; validation work must stay in the Validator session and packet evidence.
+4. Validator duties remain non-agentic, but repo governance may run multiple validator CLI sessions when they are explicitly scoped as `WP Validator` and `Integration Validator`; validation evidence must still stay in the assigned validator session and packet artifacts.
 
 ## Part 9: Orchestrator Non-Negotiables [CX-640-650]
 

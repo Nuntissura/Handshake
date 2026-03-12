@@ -51,8 +51,12 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUN
 
 ## Current Execution Policy (Additional LAW)
 
-- The Validator role is single-session and non-agentic in current repo governance.
+- Validator duties are non-agentic in current repo governance, but repo workflows may run multiple validator CLI sessions concurrently when they are explicitly scoped as `WP Validator` and `Integration Validator`.
 - The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
+- For newly created repo-governed validator sessions, launch/claim the model explicitly: primary `gpt-5.4`, fallback `gpt-5.2`, reasoning `EXTRA_HIGH` (`model_reasoning_effort=xhigh`). Do not rely on ambient editor defaults.
+- Fresh repo-governed validator session start is `ORCHESTRATOR_ONLY`.
+- Primary transport is `VSCODE_EXTENSION_TERMINAL` via `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts, unless the Operator explicitly waives the plugin-first path.
 - The historical add-on at `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
 
 ## Drive-Agnostic Governance [CX-109] (HARD)
@@ -193,6 +197,9 @@ Resume rule (hard, anti-babysit):
 - If the packet under review defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, use those files as the secondary collaboration surface for that WP.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not use a validator-local worktree as a competing inbox.
 - When available, prefer VS Code integrated terminals for validator sessions so the Operator can keep each WP validator and the Integration Validator grouped beside `just operator-monitor`.
+- Do not rely on ambient editor defaults for model choice or reasoning strength. Launch/claim validator sessions explicitly with `gpt-5.4` + `model_reasoning_effort=xhigh`, or `gpt-5.2` + `model_reasoning_effort=xhigh` as fallback.
+- Validator sessions are started by the Orchestrator. Do not self-start a fresh repo-governed validator session.
+- Use `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json` to inspect launch/runtime state when session startup looks stale or ambiguous.
 - Use `THREAD.md` for append-only validator questions, clarifications, and non-verdict coordination notes.
 - Use `RUNTIME_STATUS.json` for liveness state only:
   - `runtime_status`
@@ -211,6 +218,9 @@ Resume rule (hard, anti-babysit):
   - `just wp-thread-append WP-{ID} VALIDATOR <session> "<message>" [target]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
   - `just wp-heartbeat WP-{ID} VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
   - `just wp-receipt-append WP-{ID} VALIDATOR <session> <receipt_kind> "<summary>" [state_before] [state_after]`
+  - `just wp-validator-worktree-add WP-{ID}` / `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `just integration-validator-worktree-add WP-{ID}` / `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `just session-registry-status [WP-{ID}]`
 - Hard rule: packet truth still wins. Validation authority remains in the packet, especially `## VALIDATION`, `## EVIDENCE`, and `## VALIDATION_REPORTS`.
 - Do not treat `THREAD.md` or `RUNTIME_STATUS.json` as authority for scope, verdict, or PREPARE assignment.
 

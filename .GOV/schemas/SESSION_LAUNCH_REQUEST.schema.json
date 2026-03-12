@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://handshake.local/schemas/SESSION_LAUNCH_REQUEST.schema.json",
+  "title": "Session Launch Request",
+  "type": "object",
+  "required": [
+    "schema_id",
+    "schema_version",
+    "request_id",
+    "created_at",
+    "request_kind",
+    "created_by_role",
+    "launch_authority",
+    "preferred_host",
+    "fallback_host",
+    "plugin_bridge_id",
+    "plugin_bridge_command",
+    "wp_id",
+    "role",
+    "session_key",
+    "terminal_title",
+    "local_branch",
+    "local_worktree_dir",
+    "abs_worktree_dir",
+    "selected_model",
+    "reasoning_config_key",
+    "reasoning_config_value",
+    "startup_command",
+    "next_command",
+    "command",
+    "plugin_attempt_number"
+  ],
+  "properties": {
+    "schema_id": {
+      "const": "hsk.session_launch_request@1"
+    },
+    "schema_version": {
+      "const": "session_launch_request_v1"
+    },
+    "request_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "request_kind": {
+      "const": "LAUNCH_SESSION"
+    },
+    "created_by_role": {
+      "const": "ORCHESTRATOR"
+    },
+    "launch_authority": {
+      "const": "ORCHESTRATOR_ONLY"
+    },
+    "preferred_host": {
+      "const": "VSCODE_EXTENSION_TERMINAL"
+    },
+    "fallback_host": {
+      "const": "CLI_ESCALATION_WINDOW"
+    },
+    "plugin_bridge_id": {
+      "type": "string"
+    },
+    "plugin_bridge_command": {
+      "type": "string"
+    },
+    "wp_id": {
+      "type": "string",
+      "pattern": "^WP-"
+    },
+    "role": {
+      "enum": [
+        "CODER",
+        "WP_VALIDATOR",
+        "INTEGRATION_VALIDATOR"
+      ]
+    },
+    "session_key": {
+      "type": "string"
+    },
+    "terminal_title": {
+      "type": "string"
+    },
+    "local_branch": {
+      "type": "string"
+    },
+    "local_worktree_dir": {
+      "type": "string"
+    },
+    "abs_worktree_dir": {
+      "type": "string"
+    },
+    "selected_model": {
+      "enum": [
+        "gpt-5.4",
+        "gpt-5.2"
+      ]
+    },
+    "reasoning_config_key": {
+      "const": "model_reasoning_effort"
+    },
+    "reasoning_config_value": {
+      "const": "xhigh"
+    },
+    "startup_command": {
+      "type": "string"
+    },
+    "next_command": {
+      "type": "string"
+    },
+    "command": {
+      "type": "string"
+    },
+    "plugin_attempt_number": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "additionalProperties": true
+}

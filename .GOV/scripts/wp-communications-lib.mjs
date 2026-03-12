@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { EXECUTION_OWNER_VALUES } from "./session-policy.mjs";
 
 export const COMM_ROOT = ".GOV/roles_shared/WP_COMMUNICATIONS";
 export const THREAD_FILE_NAME = "THREAD.md";
@@ -9,7 +10,6 @@ export const RUNTIME_STATUS_SCHEMA_PATH = ".GOV/schemas/WP_RUNTIME_STATUS.schema
 export const RECEIPT_SCHEMA_PATH = ".GOV/schemas/WP_RECEIPT.schema.json";
 
 export const WORKFLOW_LANE_VALUES = ["MANUAL_RELAY", "ORCHESTRATOR_MANAGED"];
-export const EXECUTION_OWNER_VALUES = ["CODER_A", "CODER_B"];
 export const AGENTIC_MODE_VALUES = ["YES", "NO"];
 export const PACKET_STATUS_VALUES = [
   "Ready for Dev",

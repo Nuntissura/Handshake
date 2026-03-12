@@ -1,17 +1,20 @@
 #!/usr/bin/env node
 /**
- * Helper: Operator/Validator-only skeleton approval commit for a WP [CX-GATE-001]
+ * Helper: workflow-authority skeleton approval commit for a WP [CX-GATE-001]
  *
  * Purpose:
  * - After the Coder produces the BOOTSTRAP + SKELETON and creates a docs-only skeleton checkpoint commit,
- *   the workflow hard-gates until the Operator or Validator approves the skeleton.
+ *   the workflow hard-gates until the workflow authority approves the skeleton.
  *
  * Enforcement:
- * - Refuses to run unless invoked from `role_validator` or a `user_*` branch.
+ * - Refuses to run unless invoked from `role_validator`, a `user_*` branch,
+ *   or `role_orchestrator` when the packet declares `WORKFLOW_LANE: ORCHESTRATOR_MANAGED`.
  * - Locates the WP worktree for `feat/{WP_ID}` and creates an allow-empty commit:
  *     "docs: skeleton approved [WP-{ID}]"
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { execSync } from 'node:child_process';
 
 const wpId = process.argv[2];
@@ -33,13 +36,36 @@ function die(msg) {
   process.exit(1);
 }
 
+function parseSingleField(text, label) {
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, 'mi');
+  const m = text.match(re);
+  return m ? m[1].trim() : '';
+}
+
+const packetPath = path.join('.GOV', 'task_packets', `${wpId}.md`);
+let workflowLane = '';
+if (fs.existsSync(packetPath)) {
+  try {
+    workflowLane = parseSingleField(fs.readFileSync(packetPath, 'utf8'), 'WORKFLOW_LANE').toUpperCase();
+  } catch {
+    workflowLane = '';
+  }
+}
+
 const actorBranch = gitTrim('rev-parse --abbrev-ref HEAD');
-const actorAllowed = actorBranch === 'role_validator' || actorBranch.startsWith('user_');
+const actorAllowed =
+  actorBranch === 'role_validator' ||
+  actorBranch.startsWith('user_') ||
+  (actorBranch === 'role_orchestrator' && workflowLane === 'ORCHESTRATOR_MANAGED');
 if (!actorAllowed) {
+  const approverHint =
+    workflowLane === 'ORCHESTRATOR_MANAGED'
+      ? 'Orchestrator/Operator/Validator'
+      : 'Operator/Validator';
   die(
     `FAIL: Refusing skeleton approval from branch "${actorBranch}".\n` +
-      `This command is restricted to Operator (user_*) or Validator (role_validator).\n` +
-      `Ask Operator/Validator to run: just skeleton-approved ${wpId}`,
+      `This command is restricted to ${approverHint}.\n` +
+      `Ask ${approverHint} to run: just skeleton-approved ${wpId}`,
   );
 }
 
@@ -110,6 +136,7 @@ if (alreadyApprovedSha) {
   console.log(`- WP_BRANCH: ${wpBranch}`);
   console.log(`- WP_WORKTREE: ${wpWorktreePath}`);
   console.log(`- APPROVER_BRANCH: ${actorBranch}`);
+  console.log(`- WORKFLOW_LANE: ${workflowLane || '<unknown>'}`);
   console.log(`- SKELETON_CHECKPOINT_SHA: ${checkpointSha}`);
   console.log(`- APPROVAL_COMMIT_SHA: ${alreadyApprovedSha}`);
   console.log(`- STATUS: ALREADY_APPROVED`);
@@ -128,7 +155,7 @@ console.log(`- WP_ID: ${wpId}`);
 console.log(`- WP_BRANCH: ${wpBranch}`);
 console.log(`- WP_WORKTREE: ${wpWorktreePath}`);
 console.log(`- APPROVER_BRANCH: ${actorBranch}`);
+console.log(`- WORKFLOW_LANE: ${workflowLane || '<unknown>'}`);
 console.log(`- SKELETON_CHECKPOINT_SHA: ${checkpointSha}`);
 console.log(`- APPROVAL_COMMIT_SHA: ${approvalSha}`);
 console.log(`- NEXT: Coder re-run 'just pre-work ${wpId}' then proceed to IMPLEMENTATION.`);
-

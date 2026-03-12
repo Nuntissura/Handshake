@@ -233,8 +233,12 @@ if (primitiveMatrixSchema === "hs_primitive_tool_tech_matrix@2") {
     }
     for (const stubId of row.gap_stub_ids) {
       const stubNeedle = `**[${stubId}]** - [STUB]`;
-      if (!taskBoard.includes(stubNeedle)) {
-        fail("Primitive matrix feature link points at a stub that is not present in TASK_BOARD Stub Backlog.", [
+      const activePacketRe = new RegExp(
+        `^\\s*-\\s+\\*\\*\\[${escapeRegExp(stubId)}\\]\\*\\*\\s+-\\s+\\[(READY_FOR_DEV|IN_PROGRESS|BLOCKED|ACTIVE)\\]`,
+        "m",
+      );
+      if (!taskBoard.includes(stubNeedle) && !activePacketRe.test(taskBoard)) {
+        fail("Primitive matrix feature link points at a gap reference that is neither a Stub Backlog item nor an active official packet.", [
           `feature_id=${featureId}`,
           `gap_stub_id=${stubId}`,
         ]);

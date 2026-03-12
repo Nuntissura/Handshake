@@ -13,6 +13,35 @@ import {
   resolveSpecCurrent,
   validateRefinementFile,
 } from './refinement-check.mjs';
+import {
+  CLI_ESCALATION_HOST_DEFAULT,
+  CLI_SESSION_TOOL,
+  CODEX_MODEL_ALIASES_ALLOWED,
+  defaultIntegrationValidatorBranch,
+  defaultIntegrationValidatorWorktreeDir,
+  defaultWpValidatorBranch,
+  defaultWpValidatorWorktreeDir,
+  MODEL_FAMILY_POLICY,
+  ROLE_SESSION_FALLBACK_MODEL,
+  ROLE_SESSION_PRIMARY_MODEL,
+  ROLE_SESSION_REASONING_CONFIG_KEY,
+  ROLE_SESSION_REASONING_CONFIG_VALUE,
+  ROLE_SESSION_REASONING_REQUIRED,
+  ROLE_SESSION_RUNTIME,
+  SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS,
+  SESSION_PLUGIN_BRIDGE_COMMAND,
+  SESSION_PLUGIN_BRIDGE_ID,
+  SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION,
+  SESSION_PLUGIN_REQUESTS_FILE,
+  SESSION_REGISTRY_FILE,
+  SESSION_START_AUTHORITY,
+  SESSION_WAKE_CHANNEL_FALLBACK,
+  SESSION_WAKE_CHANNEL_PRIMARY,
+  SESSION_WATCH_POLICY,
+  SESSION_HOST_FALLBACK,
+  SESSION_HOST_PREFERENCE,
+  SESSION_LAUNCH_POLICY,
+} from '../session-policy.mjs';
 
 const WP_ID = process.argv[2];
 
@@ -67,12 +96,14 @@ function extractIndentedListAfterLabel(text, label, { stopLabels = [] } = {}) {
   if (idx === -1) return [];
 
   const stopRes = stopLabels.map((s) => new RegExp(`^\\s*-\\s*${s}\\s*:\\s*$`, 'i'));
+  const topLevelLabelRe = /^-\s*(?:\*\*)?[A-Z][A-Z0-9_ ()/.-]*(?:\*\*)?\s*:\s*$/;
   const items = [];
 
   for (let i = idx + 1; i < lines.length; i += 1) {
     const line = lines[i];
     if (stopRes.some((re) => re.test(line))) break;
     if (/^##\s+\S/.test(line)) break;
+    if (topLevelLabelRe.test(line)) break;
     const m = line.match(/^\s{2,}-\s+(.+)\s*$/);
     if (m) items.push(m[1].trim());
   }
@@ -143,7 +174,9 @@ function extractBulletListAfterHeading(text, heading) {
   }
 
   const items = [];
+  const topLevelLabelRe = /^-\s*(?:\*\*)?[A-Z][A-Z0-9_ ()/.-]*(?:\*\*)?\s*:\s*$/;
   for (let i = sectionStart; i < sectionEnd; i += 1) {
+    if (topLevelLabelRe.test(lines[i])) break;
     const m = lines[i].match(/^\s*-\s+(.+)\s*$/);
     if (m) items.push(m[1].trim());
   }
@@ -151,7 +184,8 @@ function extractBulletListAfterHeading(text, heading) {
 }
 
 function normalizeList(items) {
-  return (items || []).map((item) => String(item || '').trim()).filter(Boolean);
+  const normalized = (items || []).map((item) => String(item || '').trim()).filter(Boolean);
+  return normalized.every((item) => item.toUpperCase() === 'NONE') ? [] : normalized;
 }
 
 function normalizeBlock(text) {
@@ -210,7 +244,7 @@ if (!fs.existsSync(taskPacketDir)) {
   }
 
   if (!lastPrepare) {
-    const msg = `Missing PREPARE record in .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json for ${WP_ID} (expected: just record-prepare ${WP_ID} {Coder-A|Coder-B} ...)`;
+    const msg = `Missing PREPARE record in .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json for ${WP_ID} (expected: just record-prepare ${WP_ID} {Coder-A..Coder-Z} ...)`;
     if (enforceWorktreeGate) {
       errors.push(msg);
       console.log('FAIL: ' + msg);
@@ -281,7 +315,8 @@ if (!fs.existsSync(taskPacketDir)) {
   }
 
   // Check 2.5B: MERGE_BASE_SHA (recommended for deterministic multi-commit post-work)
-  const mergeBaseSha = (packetContent.match(/^\s*-\s*MERGE_BASE_SHA\s*:\s*([a-f0-9]{40})\s*$/mi) || [])[1]?.trim();
+  const mergeBaseShaRaw = parseSingleField(packetContent, 'MERGE_BASE_SHA');
+  const mergeBaseSha = (mergeBaseShaRaw.match(/[a-f0-9]{40}/i) || [])[0]?.trim() || '';
   if (!mergeBaseSha) {
     warnings.push('Packet missing MERGE_BASE_SHA; for multi-commit WPs prefer deterministic evidence: just post-work WP-{ID} --range <MERGE_BASE_SHA>..HEAD');
   }
@@ -375,6 +410,69 @@ if (!fs.existsSync(taskPacketDir)) {
       }
     } else if (operatorApprovalRaw && !/^N\/?A\b/i.test(operatorApprovalRaw.trim())) {
       warnings.push('OPERATOR_APPROVAL_EVIDENCE should be N/A when SUB_AGENT_DELEGATION=DISALLOWED');
+    }
+  }
+
+  // Check 2.6BC: Session policy for new packet format (enforced for packet format >= 2026-03-12)
+  if (isModernPacket && isVersionAtLeast(packetFormatVersion, '2026-03-12')) {
+    console.log('\nCheck 2.6BC: Session policy');
+
+    const expectedFields = [
+      ['SESSION_START_AUTHORITY', SESSION_START_AUTHORITY],
+      ['SESSION_HOST_PREFERENCE', SESSION_HOST_PREFERENCE],
+      ['SESSION_HOST_FALLBACK', SESSION_HOST_FALLBACK],
+      ['SESSION_LAUNCH_POLICY', SESSION_LAUNCH_POLICY],
+      ['ROLE_SESSION_RUNTIME', ROLE_SESSION_RUNTIME],
+      ['CLI_SESSION_TOOL', CLI_SESSION_TOOL],
+      ['SESSION_PLUGIN_BRIDGE_ID', SESSION_PLUGIN_BRIDGE_ID],
+      ['SESSION_PLUGIN_BRIDGE_COMMAND', SESSION_PLUGIN_BRIDGE_COMMAND],
+      ['SESSION_PLUGIN_REQUESTS_FILE', SESSION_PLUGIN_REQUESTS_FILE],
+      ['SESSION_REGISTRY_FILE', SESSION_REGISTRY_FILE],
+      ['SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION', String(SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION)],
+      ['SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS', String(SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS)],
+      ['SESSION_WATCH_POLICY', SESSION_WATCH_POLICY],
+      ['SESSION_WAKE_CHANNEL_PRIMARY', SESSION_WAKE_CHANNEL_PRIMARY],
+      ['SESSION_WAKE_CHANNEL_FALLBACK', SESSION_WAKE_CHANNEL_FALLBACK],
+      ['CLI_ESCALATION_HOST_DEFAULT', CLI_ESCALATION_HOST_DEFAULT],
+      ['MODEL_FAMILY_POLICY', MODEL_FAMILY_POLICY],
+      ['CODEX_MODEL_ALIASES_ALLOWED', CODEX_MODEL_ALIASES_ALLOWED],
+      ['ROLE_SESSION_PRIMARY_MODEL', ROLE_SESSION_PRIMARY_MODEL],
+      ['ROLE_SESSION_FALLBACK_MODEL', ROLE_SESSION_FALLBACK_MODEL],
+      ['ROLE_SESSION_REASONING_REQUIRED', ROLE_SESSION_REASONING_REQUIRED],
+      ['ROLE_SESSION_REASONING_CONFIG_KEY', ROLE_SESSION_REASONING_CONFIG_KEY],
+      ['ROLE_SESSION_REASONING_CONFIG_VALUE', ROLE_SESSION_REASONING_CONFIG_VALUE],
+      ['CODER_STARTUP_COMMAND', 'just coder-startup'],
+      ['CODER_RESUME_COMMAND', `just coder-next ${WP_ID}`],
+      ['WP_VALIDATOR_LOCAL_BRANCH', defaultWpValidatorBranch(WP_ID)],
+      ['WP_VALIDATOR_LOCAL_WORKTREE_DIR', defaultWpValidatorWorktreeDir(WP_ID)],
+      ['WP_VALIDATOR_REMOTE_BACKUP_BRANCH', defaultWpValidatorBranch(WP_ID)],
+      ['WP_VALIDATOR_STARTUP_COMMAND', 'just validator-startup'],
+      ['WP_VALIDATOR_RESUME_COMMAND', `just validator-next ${WP_ID}`],
+      ['INTEGRATION_VALIDATOR_LOCAL_BRANCH', defaultIntegrationValidatorBranch(WP_ID)],
+      ['INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR', defaultIntegrationValidatorWorktreeDir(WP_ID)],
+      ['INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH', defaultIntegrationValidatorBranch(WP_ID)],
+      ['INTEGRATION_VALIDATOR_STARTUP_COMMAND', 'just validator-startup'],
+      ['INTEGRATION_VALIDATOR_RESUME_COMMAND', `just validator-next ${WP_ID}`],
+    ];
+
+    for (const [label, expected] of expectedFields) {
+      const actual = parseSingleField(packetContent, label);
+      if (actual !== expected) {
+        errors.push(`${label} missing/invalid for packets with PACKET_FORMAT_VERSION >= 2026-03-12 (expected ${expected}; got: ${actual || '<missing>'})`);
+      }
+    }
+
+    const validatorBackupUrl = parseSingleField(packetContent, 'WP_VALIDATOR_REMOTE_BACKUP_URL');
+    if (validatorBackupUrl !== '<pending>' && !validatorBackupUrl.endsWith(`/tree/${defaultWpValidatorBranch(WP_ID)}`)) {
+      errors.push(`WP_VALIDATOR_REMOTE_BACKUP_URL must end with /tree/${defaultWpValidatorBranch(WP_ID)} or be <pending>`);
+    }
+
+    const integrationBackupUrl = parseSingleField(packetContent, 'INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL');
+    if (
+      integrationBackupUrl !== '<pending>' &&
+      !integrationBackupUrl.endsWith(`/tree/${defaultIntegrationValidatorBranch(WP_ID)}`)
+    ) {
+      errors.push(`INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL must end with /tree/${defaultIntegrationValidatorBranch(WP_ID)} or be <pending>`);
     }
   }
 

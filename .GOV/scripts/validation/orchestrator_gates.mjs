@@ -6,6 +6,12 @@ import {
     resolveSpecCurrent,
     validateRefinementFile,
 } from './refinement-check.mjs';
+import {
+    defaultCoderBranch,
+    defaultCoderWorktreeDir,
+    EXECUTION_OWNER_RANGE_HELP,
+    normalizeExecutionOwner,
+} from '../session-policy.mjs';
 
 const STATE_FILE = '.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json';
 
@@ -31,6 +37,7 @@ const state = loadState();
 // NOTE: We keep the legacy logic below for compatibility, but V2 exits before it can run.
 
 const SIGNATURE_AUDIT_PATH = path.join('.GOV', 'roles_shared', 'SIGNATURE_AUDIT.md');
+const EXECUTION_OWNER_USAGE = `{${EXECUTION_OWNER_RANGE_HELP}}`;
 
 function v2Fail(msg, details = []) {
     console.error(`[GATE ERROR] ${msg}`);
@@ -140,17 +147,9 @@ function v2AssertBranchExists(branch) {
 }
 
 function v2NormalizeExecutionLane(raw) {
-    const value = (raw || '').trim();
-    if (!value) return '';
-
-    const upper = value.toUpperCase().replace(/[\s_]+/g, '-');
-    if (upper === 'CODER-A' || upper === 'CODERA' || upper === 'A') {
-        return 'Coder-A';
-    }
-    if (upper === 'CODER-B' || upper === 'CODERB' || upper === 'B') {
-        return 'Coder-B';
-    }
-    return null;
+    const value = normalizeExecutionOwner(raw);
+    if (value === '') return '';
+    return value;
 }
 
 function v2NormalizeWorkflowLane(raw) {
@@ -215,7 +214,7 @@ if (action === 'refine') {
             `# Paste the FULL Technical Refinement Block from .GOV/refinements/${wpId}.md in chat (verbatim; no summary).`,
             `# When approved, set USER_APPROVAL_EVIDENCE in the refinement file to: APPROVE REFINEMENT ${wpId}`,
             `# Do NOT ask for or consume a signature until that verbatim block has been shown in chat.`,
-            `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+            `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
         ],
     });
     process.exit(0);
@@ -228,8 +227,8 @@ if (action === 'sign') {
     const laneArg2 = (argvData[2] || '').trim();
     if (v2IsLegacyOrchestratorAgentic(laneArg1) || v2IsLegacyOrchestratorAgentic(laneArg2)) {
         v2Fail('Orchestrator-Agentic is legacy-only and cannot be recorded in new repo-governance signatures.', [
-            'Current repo governance requires an explicit workflow lane plus Coder-A or Coder-B as execution owner.',
-            `Usage: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+            `Current repo governance requires an explicit workflow lane plus ${EXECUTION_OWNER_RANGE_HELP} as execution owner.`,
+            `Usage: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
         ]);
     }
     const workflowLane1 = v2NormalizeWorkflowLane(laneArg1);
@@ -253,19 +252,19 @@ if (action === 'sign') {
         v2Fail('Invalid signature format. Expected {username}{DDMMYYYYHHMM}');
     }
     if (laneArg1 && !workflowLane1 && !executionLane1) {
-        v2Fail('Invalid workflow lane / execution owner bundle. Expected MANUAL_RELAY | ORCHESTRATOR_MANAGED | Coder-A | Coder-B');
+        v2Fail(`Invalid workflow lane / execution owner bundle. Expected MANUAL_RELAY | ORCHESTRATOR_MANAGED | ${EXECUTION_OWNER_RANGE_HELP}`);
     }
     if (laneArg2 && !workflowLane2 && !executionLane2) {
-        v2Fail('Invalid workflow lane / execution owner bundle. Expected MANUAL_RELAY | ORCHESTRATOR_MANAGED | Coder-A | Coder-B');
+        v2Fail(`Invalid workflow lane / execution owner bundle. Expected MANUAL_RELAY | ORCHESTRATOR_MANAGED | ${EXECUTION_OWNER_RANGE_HELP}`);
     }
     if (workflowLane && !executionLane) {
         v2Fail('Missing execution owner. Current workflow requires both workflow lane and execution owner.', [
-            `Usage: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+            `Usage: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
         ]);
     }
     if (!workflowLane && laneArg2 && executionLane1 && !workflowLane2) {
         v2Fail('When four-part signature syntax is used, the workflow lane must be MANUAL_RELAY or ORCHESTRATOR_MANAGED.', [
-            `Usage: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`,
+            `Usage: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
         ]);
     }
     const lastRefinement = v2ResolveLastRefinement();
@@ -425,7 +424,7 @@ if (action === 'sign') {
         next: 'PREPARE',
         operatorAction: executionLane
             ? `Choose workflow lane for ${wpId} (MANUAL_RELAY|ORCHESTRATOR_MANAGED)`
-            : `Choose workflow lane + execution owner for ${wpId} (MANUAL_RELAY|ORCHESTRATOR_MANAGED + Coder-A|Coder-B)`,
+            : `Choose workflow lane + execution owner for ${wpId} (MANUAL_RELAY|ORCHESTRATOR_MANAGED + ${EXECUTION_OWNER_RANGE_HELP})`,
         gateRan: `just record-signature ${wpId} ${signature}${laneArg1 ? ` ${laneArg1}` : ''}${laneArg2 ? ` ${laneArg2}` : ''}`,
         result: 'PASS',
         why: 'One-time signature recorded + audited. Legacy recovery is still possible, but the current workflow expects both workflow lane and execution owner in the same approval bundle to avoid later babysit prompts.',
@@ -434,7 +433,7 @@ if (action === 'sign') {
             ...(executionLane ? [`- execution_lane: ${executionLane}`] : []),
         ],
         nextCommands: [
-            `just record-signature ${wpId} ${signature} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${executionLane || '{Coder-A|Coder-B}'}`,
+            `just record-signature ${wpId} ${signature} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${executionLane || EXECUTION_OWNER_USAGE}`,
         ],
     });
     process.exit(0);
@@ -470,18 +469,18 @@ if (action === 'prepare') {
         branchArgIndex = 2;
     }
 
-    if (v2IsLegacyOrchestratorAgentic(workflowLaneInput) || v2IsLegacyOrchestratorAgentic(executionLaneInput)) {
+    if (v2IsLegacyOrchestratorAgentic(arg1) || v2IsLegacyOrchestratorAgentic(arg2)) {
         v2Fail('Orchestrator-Agentic is legacy-only and cannot be used in current PREPARE records.', [
             'The Orchestrator remains non-agentic and single-session.',
-            `Usage: just record-prepare ${wpId} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B} [branch] [worktree_dir]`,
+            `Usage: just record-prepare ${wpId} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE} [branch] [worktree_dir]`,
         ]);
     }
 
     workflowLane = workflowLane || lastSignature?.workflow_lane || '';
     executionLane = executionLane || lastSignature?.execution_lane || '';
 
-    const branch = v2NormalizeBranch((argvData[branchArgIndex] || `feat/${wpId}`).trim());
-    const worktreeDir = (argvData[branchArgIndex + 1] || `../wt-${wpId}`).trim();
+    const branch = v2NormalizeBranch((argvData[branchArgIndex] || defaultCoderBranch(wpId)).trim());
+    const worktreeDir = (argvData[branchArgIndex + 1] || defaultCoderWorktreeDir(wpId)).trim();
 
     const isAbsoluteWorktreeDir =
         /^[A-Za-z]:[\\/]/.test(worktreeDir) || worktreeDir.startsWith('\\\\') || worktreeDir.startsWith('//');
@@ -493,13 +492,13 @@ if (action === 'prepare') {
     }
 
     if (!workflowLane) {
-        v2Fail('Missing workflow lane. Usage: just record-prepare WP-... {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B} [branch] [worktree_dir]');
+        v2Fail(`Missing workflow lane. Usage: just record-prepare WP-... {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE} [branch] [worktree_dir]`);
     }
     if (!executionLane) {
-        v2Fail('Missing execution owner. Usage: just record-prepare WP-... {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B} [branch] [worktree_dir]');
+        v2Fail(`Missing execution owner. Usage: just record-prepare WP-... {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE} [branch] [worktree_dir]`);
     }
     if (!lastSignature) {
-        v2Fail(`No signature recorded for ${wpId}. Run: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A|Coder-B}`);
+        v2Fail(`No signature recorded for ${wpId}. Run: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`);
     }
     if (lastSignature.workflow_lane && lastSignature.workflow_lane !== workflowLane) {
         v2Fail('PREPARE workflow lane conflicts with the signed workflow lane.', [

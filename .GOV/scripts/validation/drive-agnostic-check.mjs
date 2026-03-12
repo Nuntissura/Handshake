@@ -58,7 +58,8 @@ function toPosix(p) {
   return p.split(path.sep).join("/");
 }
 
-const DRIVE_PATH_RE = /\b[A-Za-z]:[\\/]/;
+// Restrict to uppercase drive letters to avoid false positives from regex literals like `n:/mi`.
+const DRIVE_PATH_RE = /\b[A-Z]:[\\/]/;
 // Matches both literal UNC paths (example: `\\server\share`) and common escaped representations in code (example: `\\\\server\\share`).
 const UNC_PATH_RE =
   /\\\\[A-Za-z0-9._-]+\\[A-Za-z0-9.$_-]+|\\\\\\\\[A-Za-z0-9._-]+\\\\[A-Za-z0-9.$_-]+/;

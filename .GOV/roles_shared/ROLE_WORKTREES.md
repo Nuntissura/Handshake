@@ -19,12 +19,17 @@ Recommended structure:
     wt-ilja\               # Operator role worktree (branch: user_ilja)
     wt-orchestrator\       # Orchestrator role worktree (branch: role_orchestrator)
     wt-validator\          # Validator role worktree (branch: role_validator)
-    wt-WP-...\             # WP worktrees (branch: feat/WP-...)
+    wt-WP-...\             # Coder WP worktrees (branch: feat/WP-...)
+    wt-WPV-WP-...\         # WP Validator worktrees (branch: validate/WP-...)
+    wt-INTV-WP-...\        # Integration Validator worktrees (branch: integrate/WP-...)
 ```
 
 Preferred session host:
-- When available, prefer VS Code integrated terminals to host the Orchestrator, Coder, WP Validator, and Integration Validator sessions.
+- Prefer the VS Code session bridge to host repo-governed Coder, WP Validator, and Integration Validator terminals inside VS Code integrated terminals.
 - Keep one dedicated VS Code terminal tab for `just operator-monitor` so the Operator can watch active WPs, heartbeats, and packet-scoped communications without using many floating terminal windows.
+- Do not rely on ambient editor defaults for model choice or reasoning strength. New repo-governed launchers explicitly target `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`.
+- Launch requests are append-only in `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`; current launch state is projected in `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- CLI escalation windows are allowed only after 2 plugin failures/timeouts for the same role/WP session, unless the Operator explicitly waives the plugin-first path.
 
 If you are an AI assistant operating in this repo:
 - You MUST read this file during session start (Pre-Flight) for your assigned role.
@@ -49,6 +54,8 @@ If you are an AI assistant operating in this repo:
 
 Notes:
 - CODER agents MUST work only in the WP-assigned worktree/branch created and recorded by the Orchestrator. They must not "pick" a worktree.
+- WP Validator sessions SHOULD use `validate/WP-...` + `../wt-WPV-WP-...`.
+- Integration Validator sessions SHOULD use `integrate/WP-...` + `../wt-INTV-WP-...`.
 - WP assignment is recorded in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` as a `PREPARE` entry (via `just record-prepare ...`) with `branch` and `worktree_dir`.
 - ORCHESTRATOR/VALIDATOR role work (governance/validation work outside a specific WP worktree) uses the dedicated role worktrees above.
 - Permanent role/user branches are backup branches on GitHub. Their purpose is recoverability, not integration. They may be ahead of, equal to, or behind `main`.
@@ -106,10 +113,19 @@ WP worktrees (Orchestrator action, not Coder):
 - If the signature was recorded without the full workflow tuple (legacy recovery), the only remaining operator decision is the missing workflow lane and/or coder lane; do not ask again for branch/worktree authorization.
 - Create a WP worktree/branch:
   - `just worktree-add WP-{ID}`
+- Create the validator worktrees/branches for the same WP:
+  - `just wp-validator-worktree-add WP-{ID}`
+  - `just integration-validator-worktree-add WP-{ID}`
+- Launch the repo-governed CLI sessions:
+  - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- View current launch state:
+  - `just session-registry-status [WP-{ID}]`
 - Create/preserve the matching GitHub backup branch for the WP when sync is authorized for the activation turn:
   - `just backup-push feat/WP-{ID} feat/WP-{ID}`
 - Before deleting a WP worktree or WP backup branch after approval:
   - `just backup-snapshot`
 - Record the execution owner (writes `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`):
   - Prefer repo-relative `worktree_dir` values (example: `../wt-WP-{ID}`) to avoid drive-specific paths and quoting issues.
-  - `just record-prepare WP-{ID} {Coder-A|Coder-B} [branch] [worktree_dir]`
+  - `just record-prepare WP-{ID} {Coder-A..Coder-Z} [branch] [worktree_dir]`

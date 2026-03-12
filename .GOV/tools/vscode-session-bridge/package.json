@@ -1,0 +1,35 @@
+{
+  "name": "handshake-session-bridge",
+  "displayName": "Handshake Session Bridge",
+  "description": "Thin VS Code bridge for Handshake repo-governed session launch requests.",
+  "version": "0.0.1",
+  "publisher": "handshake",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:handshakeSessionBridge.processLaunchQueue",
+    "workspaceContains:.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "handshakeSessionBridge.processLaunchQueue",
+        "title": "Handshake: Process Session Launch Queue"
+      },
+      {
+        "command": "handshakeSessionBridge.openSessionRegistry",
+        "title": "Handshake: Open Session Registry"
+      }
+    ]
+  },
+  "scripts": {
+    "lint": "node -e \"console.log('no-op')\""
+  },
+  "license": "UNLICENSED"
+}

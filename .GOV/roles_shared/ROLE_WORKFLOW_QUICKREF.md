@@ -54,6 +54,10 @@ Product-scanning / product-boundary enforcement:
 ## Session Host + Operator Monitor
 
 - When available, prefer VS Code integrated terminals for multi-session work instead of many floating desktop terminals.
+- Do not rely on ambient editor defaults for repo-governed session model choice or reasoning strength. New packets/stubs assume `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`.
+- Repo-governed role-session start is `ORCHESTRATOR_ONLY`.
+- Primary transport is the VS Code session bridge over `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- CLI escalation windows are allowed only after 2 plugin failures/timeouts for the same role/WP session.
 - Recommended VS Code tabs:
   - `ORCH`
   - `CODER <WP_ID>`
@@ -74,12 +78,19 @@ Authoritative inputs:
 
 Primary commands:
 - `just record-refinement WP-...`
-- `just record-signature WP-... <sig> <MANUAL_RELAY|ORCHESTRATOR_MANAGED> <Coder-A|Coder-B>`
+- `just record-signature WP-... <sig> <MANUAL_RELAY|ORCHESTRATOR_MANAGED> <Coder-A..Coder-Z>`
 - `just worktree-add WP-...`
-- `just record-prepare WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A|Coder-B>] [branch] [worktree_dir]`
+- `just record-prepare WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A..Coder-Z>] [branch] [worktree_dir]`
 - `just create-task-packet WP-...`
 - `just orchestrator-worktree-and-packet WP-...`
-- `just orchestrator-prepare-and-packet WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A|Coder-B>]`
+- `just orchestrator-prepare-and-packet WP-... [<MANUAL_RELAY|ORCHESTRATOR_MANAGED>] [<Coder-A..Coder-Z>]`
+- `just coder-worktree-add WP-...`
+- `just wp-validator-worktree-add WP-...`
+- `just integration-validator-worktree-add WP-...`
+- `just launch-coder-session WP-... [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-wp-validator-session WP-... [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-integration-validator-session WP-... [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just session-registry-status [WP-...]`
 - `just pre-work WP-...`
 - `just wp-heartbeat WP-... ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - `just wp-receipt-append WP-... ORCHESTRATOR <session> <receipt_kind> "<summary>"`
@@ -87,7 +98,7 @@ Primary commands:
 - `just operator-monitor`
 
 Role rule:
-- The Orchestrator is non-agentic. It coordinates sessions and governance state, but does not spawn Orchestrator or Validator helper agents.
+- The Orchestrator is one non-agentic coordinator CLI session. It coordinates and launches repo-governed CLI sessions, but does not spawn Orchestrator or Validator helper agents.
 - The Orchestrator is workflow authority. It does not become final technical or merge authority.
 
 ## Role: Coder
@@ -104,6 +115,7 @@ Primary commands:
 Role rule:
 - Only the Primary Coder may use sub-agents, and only when the packet explicitly allows it.
 - Coders coordinate through the packet-declared `WP_COMMUNICATION_DIR`, not through role-local inboxes.
+- Coders do not self-start fresh repo-governed sessions; they continue in sessions started by the Orchestrator or in an Orchestrator-opened CLI escalation window.
 
 ## Role: Validator
 
@@ -124,5 +136,6 @@ File-touch map:
 - `.GOV/roles_shared/VALIDATOR_FILE_TOUCH_MAP.md`
 
 Role rule:
-- The Validator is non-agentic. Validation work must remain in the Validator session and packet evidence, not delegated to helper agents.
+- Validator duties are non-agentic, but repo workflows may run multiple validator CLI sessions when they are explicitly scoped as WP Validator and Integration Validator sessions.
 - Validator authority is layered: WP Validator is advisory; Integration Validator owns final technical and merge authority unless the packet explicitly overrides it.
+- Validator sessions are started by the Orchestrator; validators do not self-start new repo-governed sessions.
