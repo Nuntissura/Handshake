@@ -47,7 +47,7 @@ Use environment variables or explicit command arguments:
   - optional NAS destination
   - when set, snapshots are copied there as timestamped directories using `robocopy`
   - copy mode is additive timestamped copy, not destructive mirror delete
-  - current operator-provided Handshake NAS root: `\\MIR\home\Backups\project folder backup\Handshake back up` (configure locally; do not reuse blindly for other projects)
+  - example operator-provided Handshake NAS root: `\\MIR\home\Backups\project folder backup\Handshake back up` (configure locally; do not reuse blindly for other projects)
 
 ## Exact Workflow
 

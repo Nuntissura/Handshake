@@ -82,7 +82,7 @@
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
 Blockers: NONE
-Next: Approve the docs-only skeleton checkpoint, re-run pre-work, then begin implementation.
+Next: Begin implementation against the approved skeleton in the scoped backend files.
 
 ## WP_COMMUNICATIONS (NON-AUTHORITATIVE; REQUIRED FOR NEW PACKETS)
 - RULE: The task packet remains authoritative for scope, status, branch/worktree truth, acceptance, and verdict.
@@ -441,9 +441,13 @@ rg -n "TrackedWorkPacket|TrackedMicroTask|role_mailbox_export_v1|workflow_state_
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
-- Current WP_STATUS:
+- Current WP_STATUS: IMPLEMENTATION_READY
 - What changed in this update:
+  - Added the docs-only bootstrap claim and moved the packet to `In Progress`.
+  - Hydrated `## SKELETON` with the planned artifact-family serializer, path, projection, and mailbox-convergence surfaces.
+  - Cleared the docs-only skeleton approval gate under `ORCHESTRATOR_MANAGED` and re-ran `just pre-work` successfully.
 - Next step / handoff hint:
+  - Start backend implementation in the scoped `handshake_core` files, then capture hygiene/evidence before `just post-work`.
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)

@@ -27,7 +27,7 @@ Rules:
 - BUILD_ORDER_BLOCKS: NONE
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.178.md 7.6.3 (Phase 1) -> [ADD v02.178] Governed RAG retrieval modes and no-RAG policy
-- ROADMAP_ADD_COVERAGE: SPEC=v02.178; PHASE=7.6.3; LINES=47314
+- ROADMAP_ADD_COVERAGE: SPEC=v02.178; PHASE=7.6.3; LINES=47314,47826,47842
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
   - Handshake_Master_Spec_v02.178.md AI-Ready Data retrieval-mode ladder [ADD v02.178]
   - Handshake_Master_Spec_v02.178.md 2.5.8 Project Brain (RAG Interface) [ADD v02.178]
