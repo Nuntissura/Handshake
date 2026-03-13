@@ -54,8 +54,8 @@ function runGit(args) {
   return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 }
 
-if (!["START_SESSION", "SEND_PROMPT", "CANCEL_SESSION"].includes(commandKind)) {
-  fail("Usage: node .GOV/scripts/session-control-command.mjs <START_SESSION|SEND_PROMPT|CANCEL_SESSION> <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [PROMPT] [PRIMARY|FALLBACK]");
+if (!["START_SESSION", "SEND_PROMPT", "CANCEL_SESSION", "CLOSE_SESSION"].includes(commandKind)) {
+  fail("Usage: node .GOV/scripts/session-control-command.mjs <START_SESSION|SEND_PROMPT|CANCEL_SESSION|CLOSE_SESSION> <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [PROMPT] [PRIMARY|FALLBACK]");
 }
 if (!wpId || !wpId.startsWith("WP-")) {
   fail("WP_ID must start with WP-");
@@ -165,6 +165,70 @@ if (commandKind === "CANCEL_SESSION") {
     if (settledTarget.error) console.log(`[SESSION_CONTROL] target_error=${settledTarget.error}`);
   }
 
+  process.exit(0);
+}
+
+if (commandKind === "CLOSE_SESSION") {
+  session = registry.sessions.find((entry) => entry.session_key === session.session_key) || session;
+  const commandId = crypto.randomUUID();
+  const request = buildSessionControlRequest({
+    commandId,
+    commandKind,
+    wpId,
+    role,
+    sessionKey: session.session_key,
+    localBranch: roleConfig.branch,
+    localWorktreeDir: roleConfig.worktreeDir,
+    absWorktreeDir,
+    selectedModel: session.requested_model || selectedModel,
+    prompt: `Close governed session ${role} ${wpId}. This must clear the steerable thread registration and leave no active run.`,
+    threadId: session.session_thread_id || "",
+    summary: `Close governed ${role} session for ${wpId}`,
+    outputJsonlFile: defaultSessionOutputFile(repoRoot, session.session_key, commandId),
+  });
+
+  saveSessionRegistry(repoRoot, registry);
+
+  let acpResponse;
+  try {
+    acpResponse = await callHandshakeAcpMethod({
+      repoRoot,
+      method: "session/close",
+      params: { request },
+      timeoutMs: 30000,
+    });
+  } catch (error) {
+    const existingResult = loadSessionControlResults(repoRoot).results.find((entry) => entry.command_id === request.command_id);
+    if (existingResult) {
+      acpResponse = {
+        result: {
+          command_id: existingResult.command_id,
+          session_id: existingResult.session_key,
+          status: String(existingResult.status || "").toLowerCase(),
+          output_jsonl_file: existingResult.output_jsonl_file || request.output_jsonl_file,
+          error: existingResult.error || "",
+          thread_id: existingResult.thread_id || "",
+        },
+      };
+    } else {
+      fail(`Broker close dispatch failed for ${request.command_id}: ${error.message || "Handshake ACP call failed"}`);
+    }
+  }
+
+  const response = acpResponse.result || {};
+  const settledClose = await waitForSettledResult(repoRoot, request.command_id);
+  if (!settledClose) {
+    fail(`Close request ${request.command_id} did not settle within 30s`);
+  }
+
+  console.log(`[SESSION_CONTROL] command_id=${request.command_id}`);
+  console.log(`[SESSION_CONTROL] session_key=${session.session_key}`);
+  console.log(`[SESSION_CONTROL] command_kind=${request.command_kind}`);
+  console.log(`[SESSION_CONTROL] broker_status=${response.status || "unknown"}`);
+  console.log(`[SESSION_CONTROL] settled_status=${settledClose.status}`);
+  console.log(`[SESSION_CONTROL] output_jsonl=${settledClose.output_jsonl_file || request.output_jsonl_file}`);
+  if (settledClose.summary) console.log(`[SESSION_CONTROL] summary=${settledClose.summary}`);
+  if (settledClose.error) console.log(`[SESSION_CONTROL] error=${settledClose.error}`);
   process.exit(0);
 }
 

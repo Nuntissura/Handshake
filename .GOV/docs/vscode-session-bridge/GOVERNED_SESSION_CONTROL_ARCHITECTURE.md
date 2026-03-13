@@ -45,7 +45,13 @@ From the Orchestrator worktree:
 4. Cancel a governed run when needed:
    - `just cancel-coder-session WP-{ID}`
    - `just cancel-wp-validator-session WP-{ID}`
-5. Use packet communications for human/role collaboration:
+5. Close a governed session when you want the thread registration cleared:
+   - `just close-coder-session WP-{ID}`
+   - `just close-wp-validator-session WP-{ID}`
+6. Stop the ACP broker when no governed runs remain:
+   - `just handshake-acp-broker-status`
+   - `just handshake-acp-broker-stop`
+7. Use packet communications for human/role collaboration:
    - `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]`
 
 Expected operator model:
@@ -69,7 +75,8 @@ New workflow:
 - later steering resumes that same governed session through the ACP-style broker
 - every governed command writes request/result/output artifacts
 - cancel is first-class and auditable
-- operator monitoring sees canonical board state plus governed control activity
+- close is first-class and auditable
+- operator monitoring sees canonical board state plus governed control activity and broker/session lifecycle state
 
 Short version:
 
@@ -143,7 +150,8 @@ That means:
 - session control is no longer defined as "send text into a terminal"
 - the primary control transport becomes a governed ACP adapter under `.GOV/tools`
 - repo scripts remain the authority layer that decides who may start, steer, cancel, or inspect a session
-- the TUI remains a viewport only
+- the main TUI remains governance-backed and non-authoritative as a rich viewport only
+- any lifecycle actions such as `close session` or `broker stop` belong to a separate explicit admin mode, not the default operator monitor
 
 This is not a `.bat` file design. The deliverable is a governance-owned tool package plus repo scripts, ledgers, and viewport updates.
 
@@ -330,42 +338,93 @@ Trust boundary note:
 
 ## TUI Requirements
 
-The operator monitor remains a viewport. It should not directly control ACP sessions.
+The default operator monitor remains a viewport. It must stay read-only and must not directly control ACP sessions.
 
-The TUI should read:
+The read model should combine:
 
-- task board
+- canonical task board from `main`
+- current worktree board as the mirror comparison surface
 - traceability registry
-- active packet or stub
+- active packet
+- related refinement
+- active stub when one exists
 - packet-declared WP communications
 - session registry
 - session control requests/results
 - merged governed control output logs for the selected WP
 - git topology registry when needed to identify canonical `main` worktree and board path
+- validator gate and audit artifacts when present
 
-Recommended viewport additions:
+### Design Direction
 
-- `SESSIONS`: governed ACP sessions first, packet runtime sessions second
-- `CONTROL`: recent governed ACP commands and outcomes for the selected WP
-- `EVENTS`: merged tail of governed ACP output events for the selected WP across its governed role sessions
+The target interaction model is closer to `k9s` and `lazygit` than to a board editor:
+
+- left rail: WP list grouped by canonical workflow state
+- right header: selected WP summary, authority badges, drift, owner, next actor, validator posture, session health
+- right body: tabbed inspection area
+- bottom status strip: filter, focus, follow state, refresh, broker state, key hints
+
+The primary unit is the `WP`, not the governed session. Sessions are a child surface of a WP.
+
+### Read-Only Operator Views
+
+Recommended Phase 1 views:
+
+- `OVERVIEW`: canonical board state, current mirror state, drift, owner, lane, blocker, next actor, validator and ACP posture
+- `DOCS`: full read-only viewer for packet, refinement, stub, runtime status, thread, receipts, validator gate, and relevant audit files
+- `COMMS`: packet-scoped communication surfaces with drill-down for `THREAD.md`, `RECEIPTS.jsonl`, and `RUNTIME_STATUS.json`
+- `SESSIONS`: governed ACP session registry state, broker state, last command/result, thread registration, and active-run posture
 - `TIMELINE`: merged timestamp-ordered view of thread entries, receipts, governed control requests/results, and ACP events
-- `ARTIFACT`: preview of the active packet or stub
-- `BOARD_SOURCE`: current board source vs canonical `main` board path
 
 Ordering and scope rules:
 
-- `EVENTS` is WP-scoped, not single-session-scoped, unless a future per-session selector is added
-- `TIMELINE` is sorted by the repo timestamp carried by each source artifact
-- `CONTROL` remains the compact command/result ledger view; `TIMELINE` is the merged incident/debugging view
+- the WP list is sourced from canonical `main` whenever available
+- `DOCS` is the authoritative file-inspection surface; it should show actual file content, not only summaries
+- `TIMELINE` is WP-scoped by default and sorted by repo timestamps carried by each source artifact
+- `SESSIONS` is diagnostic context for the selected WP, not the primary browsing surface
+- status summaries should stay compact; full text belongs in the file/timeline viewers
 
-This gives the operator visibility into:
+### Navigation Model
+
+Recommended interaction model:
+
+- `tab` / `shift-tab`: switch pane focus
+- `j/k` or arrows: move within the focused pane
+- numeric tabs for top-level views
+- `/`: search/filter WPs
+- `enter`: expand or switch the selected artifact/viewer
+- follow/tail mode only on timeline-style views
+- no mutating action keys in the default monitor
+
+The operator should always be able to answer three questions quickly:
+
+- what needs attention now
+- what is the authoritative state of this WP
+- what actually happened and what is actually written
+
+### Admin Mode Separation
+
+Admin functionality must be separate from the default viewport.
+
+- default `operator-monitor` = read-only viewport
+- explicit admin mode or separate admin entrypoint = lifecycle actions such as `close session`, `broker stop`, or other governed controls
+- admin mode must call the same governed wrappers as the normal Orchestrator workflow
+- admin mode must remain auditable through the same request/result/output ledgers
+
+This separation keeps the monitor from becoming a worksurface while still allowing a future governed admin console.
+
+### What The Operator Must Be Able To Inspect
+
+The TUI should give direct read-only visibility into:
 
 - stubs
 - ready-for-dev packets
 - superseded packets
-- session steering history
+- refinements
 - live role communication
+- governed session steering history
 - canonical vs mirrored board context
+- the actual contents of the selected authoritative files, not only status summaries
 
 ## Canonical Task Board Note
 

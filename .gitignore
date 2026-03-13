@@ -38,6 +38,7 @@ Thumbs.db
 # Local artifacts/logs (not committed)
 .handshake/
 logs/
+.GOV/roles_shared/SESSION_CONTROL_OUTPUTS/
 
 # Existing project entries
 data/

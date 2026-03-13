@@ -65,7 +65,7 @@ Product-scanning / product-boundary enforcement:
   - `WPVAL <WP_ID>`
   - `INTVAL`
   - `MONITOR`
-- `just operator-monitor` is the Operator viewport.
+- `just operator-monitor` is the Operator viewport for canonical board drift, governed ACP state, and broker/session lifecycle actions.
 - When the canonical `main` task board is available, the monitor uses that board for counts, filter buckets, and WP list selection. The current worktree board is still surfaced as the mirror/drift comparison source.
 - Default `SESSIONS` view is governed-session-first: repo-governed ACP sessions are shown as first-class active sessions, with packet runtime sessions shown separately.
 - `EVENTS` shows the merged governed ACP output stream for the selected WP across its governed role sessions.
@@ -75,6 +75,8 @@ Product-scanning / product-boundary enforcement:
 - `just session-cancel <ROLE> WP-...` requests cancellation of the currently running governed command for that role/WP session.
 - `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]` appends a freeform message to the packet-declared `WP_COMMUNICATION_DIR` and writes a paired `THREAD_MESSAGE` receipt.
 - `just external-validator-brief WP-...` prints the canonical external/classical validation target contract, including startup order, split verdict fields, disposition, and the legal verdict vocabulary.
+- `just backup-push feat/WP-{ID} feat/WP-{ID}` preserves the WP phase-boundary recovery branch; use it after bootstrap claim, skeleton checkpoint, skeleton approval, and before destructive/state-hiding local git actions.
+- `just generate-worktree-cleanup-script WP-{ID} CODER|WP_VALIDATOR` emits a single-target post-merge cleanup script plus manifest. The script is hard-bound to one exact local worktree, requires both the baked Operator approval text and the matching worktree cleanup token, and refuses generation when the target worktree is dirty.
 
 ## Role: Orchestrator
 
@@ -117,6 +119,9 @@ Primary commands:
 - `just wp-receipt-append WP-... ORCHESTRATOR <session> <receipt_kind> "<summary>"`
 - `just wp-thread-append WP-... ORCHESTRATOR <session> "<message>" [target]`
 - `just operator-monitor`
+- Inside the monitor:
+  - `c` closes governed sessions for the selected WP after a role prompt + confirmation.
+  - `b` stops the ACP broker after confirmation, but only if no governed runs are active.
 
 Role rule:
 - The Orchestrator is one non-agentic coordinator CLI session. It coordinates and launches repo-governed CLI sessions, but does not spawn Orchestrator or Validator helper agents.

@@ -39,6 +39,12 @@ If you are an AI assistant operating in this repo:
 - Exception (WP auto-continue): when the Orchestrator has already recorded a PASS signature gate for a specific WP and the next deterministic step is `just worktree-add WP-{ID}`, `just orchestrator-worktree-and-packet WP-{ID}`, or `just orchestrator-prepare-and-packet WP-{ID}`, the Orchestrator MUST create that missing WP worktree/branch automatically. Do not bounce that routine post-signature setup back to the Operator for a second approval.
 - `main` is the canonical integrated branch. `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches and may diverge from `main`.
 - Before destructive or state-hiding local git actions on a role/user/WP branch, push the current committed state to the matching GitHub backup branch.
+- For WPs, the matching GitHub backup branch should be treated as the phase-boundary recovery branch, not just a pre-destruction safety sink.
+- Minimum WP recovery milestones to preserve remotely are:
+  - signed packet/refinement checkpoint
+  - docs-only bootstrap claim checkpoint
+  - docs-only skeleton checkpoint
+  - skeleton approval checkpoint before implementation resumes
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Permanent protected branches/worktrees that must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
 - Use `.GOV/roles_shared/GIT_TOPOLOGY_REGISTRY.md` + `.GOV/roles_shared/REPO_RESILIENCE.md` as the deterministic reference for the permanent checkout layout and backup commands.
@@ -124,6 +130,7 @@ WP worktrees (Orchestrator action, not Coder):
   - `just session-registry-status [WP-{ID}]`
 - Create/preserve the matching GitHub backup branch for the WP when sync is authorized for the activation turn:
   - `just backup-push feat/WP-{ID} feat/WP-{ID}`
+- Keep reusing that same WP backup branch at each recovery milestone so a clean restart can begin from the latest lawful WP phase boundary instead of a dirty local tree.
 - Before deleting a WP worktree or WP backup branch after approval:
   - `just backup-snapshot`
 - Record the execution owner (writes `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`):

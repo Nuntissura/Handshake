@@ -17,7 +17,7 @@ export const SESSION_CONTROL_MODE = "STEERABLE";
 export const SESSION_CONTROL_TRANSPORT_PRIMARY = "CODEX_EXEC_RESUME_JSON";
 export const SESSION_CONTROL_PROTOCOL_PRIMARY = "HANDSHAKE_ACP_STDIO_V1";
 export const SESSION_CONTROL_HOST_PRIMARY = "HANDSHAKE_ACP_BROKER";
-export const SESSION_CONTROL_BROKER_BUILD_ID = "2026-03-13.5";
+export const SESSION_CONTROL_BROKER_BUILD_ID = "2026-03-13.6";
 export const SESSION_CONTROL_BROKER_AUTH_MODE = "LOCAL_TOKEN_FILE_V1";
 export const SESSION_CONTROL_REQUESTS_FILE = ".GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl";
 export const SESSION_CONTROL_RESULTS_FILE = ".GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl";
@@ -63,6 +63,7 @@ export const SESSION_RUNTIME_STATES = [
   "COMPLETED",
   "FAILED",
   "STALE",
+  "CLOSED",
 ];
 export const SESSION_REQUEST_STATUSES = [
   "QUEUED",
@@ -76,12 +77,15 @@ export const SESSION_COMMAND_KINDS = [
   "START_SESSION",
   "SEND_PROMPT",
   "CANCEL_SESSION",
+  "CLOSE_SESSION",
 ];
 export const SESSION_CONTROL_SUPPORTED_METHODS = [
   "session/new",
   "session/load",
   "session/prompt",
   "session/cancel",
+  "session/close",
+  "broker/shutdown",
 ];
 export const SESSION_COMMAND_STATUSES = [
   "QUEUED",

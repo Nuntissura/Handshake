@@ -425,6 +425,14 @@ export function markSessionCommandResult(session, result) {
     if (session.last_command_kind === "START_SESSION") {
       session.startup_proof_state = result.thread_id ? "READY" : "NO_THREAD_ID";
       session.runtime_state = result.thread_id ? "READY" : "FAILED";
+    } else if (session.last_command_kind === "CLOSE_SESSION") {
+      session.session_thread_id = "";
+      session.session_thread_started_at = "";
+      session.startup_proof_state = "CLOSED";
+      session.runtime_state = "CLOSED";
+      session.active_host = SESSION_ACTIVE_HOST_NONE;
+      session.active_terminal_title = "";
+      session.active_terminal_kind = SESSION_ACTIVE_TERMINAL_KIND_NONE;
     } else {
       session.runtime_state = "READY";
     }

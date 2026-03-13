@@ -19,6 +19,11 @@
 - Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
 - Coders must never push to `main`, `user_ilja`, `role_orchestrator`, or `role_validator`.
 - A Coder may push only the assigned WP backup branch recorded in the task packet.
+- Treat the assigned WP backup branch as the WP phase-boundary recovery branch for coder work. It should hold the latest committed restart-safe WP state at the key workflow checkpoints you create or consume.
+- Minimum recovery milestones for the WP backup branch are:
+  - docs-only bootstrap claim commit
+  - docs-only skeleton checkpoint commit
+  - skeleton approval commit present on the WP branch before implementation continues
 - Before destructive or state-hiding local git actions on the WP branch (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the assigned WP backup branch on GitHub.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Startup must surface `just backup-status` so backup configuration and recent immutable snapshots are visible before coding proceeds. This is safety context only, not a bypass for destructive-op approvals.
@@ -328,7 +333,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 Task state is managed by the agent currently holding the "ball":
 1. **Orchestrator**: Creates WP -> Adds to `Ready for Dev`.
 2. **Coder**: Starts work -> Updates task packet to `In Progress` + pushes a docs-only bootstrap commit.
-   - Pushes it to the assigned WP backup branch on GitHub so the prior state is recoverable before later local merges/cleanup.
+   - Pushes it to the assigned WP backup branch on GitHub so the WP has a clean restart point before later local merges/cleanup.
 3. **Validator**: Status-syncs `.GOV/roles_shared/TASK_BOARD.md` on `main` (updates `## Active (Cross-Branch Status)` for Operator visibility).
 4. **Validator**: Approves work -> Moves to `Done` (during VALIDATION).
 5. **Orchestrator**: Escalation/Blocker -> Moves to `Blocked`.
@@ -602,6 +607,11 @@ git add .GOV/task_packets/WP-{ID}.md
 git commit -m "docs: bootstrap claim [WP-{ID}]"
 ```
 
+**Immediately push the committed bootstrap checkpoint to the assigned WP backup branch:**
+```bash
+just backup-push feat/WP-{ID} feat/WP-{ID}
+```
+
 **Notify the Validator** with the commit hash. The Validator will:
 - Merge the docs-only bootstrap claim commit into `main` (commit SHA only; do not fast-forward to unvalidated implementation)
 - Update `.GOV/roles_shared/TASK_BOARD.md` on `main` (move WP to `## In Progress`; optionally add metadata under `## Active (Cross-Branch Status)`)
@@ -730,8 +740,16 @@ git add .GOV/task_packets/WP-{ID}.md
 git commit -m "docs: skeleton checkpoint [WP-{ID}]"
 ```
 
+**Immediately push the committed skeleton checkpoint to the assigned WP backup branch:**
+```bash
+just backup-push feat/WP-{ID} feat/WP-{ID}
+```
+
 STOP: request skeleton approval (Operator/Validator runs: `just skeleton-approved WP-{ID}`).
-After the approval commit exists (`docs: skeleton approved [WP-{ID}]`): re-run `just pre-work WP-{ID}`, then proceed to implementation.
+After the approval commit exists (`docs: skeleton approved [WP-{ID}]`):
+- push the WP branch again so the backup branch also includes the approval checkpoint
+- re-run `just pre-work WP-{ID}`
+- then proceed to implementation
 
 ---
 

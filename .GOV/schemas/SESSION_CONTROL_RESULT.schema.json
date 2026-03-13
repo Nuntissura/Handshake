@@ -33,7 +33,8 @@
       "enum": [
         "START_SESSION",
         "SEND_PROMPT",
-        "CANCEL_SESSION"
+        "CANCEL_SESSION",
+        "CLOSE_SESSION"
       ]
     },
     "session_key": {
@@ -115,6 +116,16 @@
           }
         ]
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "command_kind": {
+            "const": "CLOSE_SESSION"
+          }
+        }
+      },
+      "then": {}
     }
   ],
   "additionalProperties": false

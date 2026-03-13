@@ -20,6 +20,7 @@ const PACKETS_DIR = ".GOV/task_packets";
 const PACKET_STUBS_DIR = ".GOV/task_packets/stubs";
 
 const FILTERS = ["ALL", "ACTIVE", "READY_FOR_DEV", "IN_PROGRESS", "BLOCKED", "STUB", "DONE", "SUPERSEDED"];
+const DETAIL_VIEWS = ["OVERVIEW", "DOCS", "COMMS", "SESSIONS", "TIMELINE", "CONTROL", "EVENTS"];
 const BOARD_ORDER = ["ACTIVE", "READY_FOR_DEV", "IN_PROGRESS", "BLOCKED", "STUB", "DONE", "SUPERSEDED", "OTHER"];
 const REFRESH_INTERVAL_MS = 1000;
 const ACTIVE_RUNTIME_STATES = new Set([
@@ -39,6 +40,17 @@ function readText(filePath) {
   return fs.readFileSync(filePath, "utf8");
 }
 
+function isProcessAlive(pid) {
+  const numeric = Number(pid || 0);
+  if (!Number.isInteger(numeric) || numeric <= 0) return false;
+  try {
+    process.kill(numeric, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
   const match = text.match(re);
@@ -56,10 +68,12 @@ function parsePacketStatus(text) {
 function parseArgs(argv) {
   const options = {
     once: false,
+    admin: false,
     actorRole: "OPERATOR",
     actorSession: "operator-monitor",
     wpId: "",
     filter: "ALL",
+    detailView: "OVERVIEW",
     refreshMs: REFRESH_INTERVAL_MS,
   };
   const args = [...argv];
@@ -67,6 +81,8 @@ function parseArgs(argv) {
     const token = args.shift();
     if (token === "--once") {
       options.once = true;
+    } else if (token === "--admin") {
+      options.admin = true;
     } else if (token === "--actor-role") {
       options.actorRole = String(args.shift() || "").trim().toUpperCase() || "OPERATOR";
     } else if (token === "--actor-session") {
@@ -76,6 +92,9 @@ function parseArgs(argv) {
     } else if (token === "--filter") {
       const value = String(args.shift() || "").trim().toUpperCase();
       if (FILTERS.includes(value)) options.filter = value;
+    } else if (token === "--view") {
+      const value = String(args.shift() || "").trim().toUpperCase();
+      if (DETAIL_VIEWS.includes(value)) options.detailView = value;
     } else if (token === "--refresh-ms") {
       const value = Number(args.shift() || "");
       if (Number.isInteger(value) && value >= 250) options.refreshMs = value;
@@ -208,7 +227,16 @@ function parseSessionControlRequests() {
 
 function parseBrokerState() {
   const activeRunsByWpId = new Map();
-  if (!fs.existsSync(SESSION_CONTROL_BROKER_STATE_PATH)) return { state: null, activeRunsByWpId };
+  if (!fs.existsSync(SESSION_CONTROL_BROKER_STATE_PATH)) {
+    return {
+      state: null,
+      activeRunsByWpId,
+      brokerAlive: false,
+      activeRunCount: 0,
+      buildId: "",
+      summary: "broker=OFF",
+    };
+  }
   try {
     const state = parseJsonFile(SESSION_CONTROL_BROKER_STATE_PATH);
     for (const run of state.active_runs || []) {
@@ -216,9 +244,26 @@ function parseBrokerState() {
       entries.push(run);
       activeRunsByWpId.set(run.wp_id, entries);
     }
-    return { state, activeRunsByWpId };
+    const brokerAlive = isProcessAlive(state.broker_pid);
+    const activeRunCount = Array.isArray(state.active_runs) ? state.active_runs.length : 0;
+    const buildId = String(state.broker_build_id || "").trim();
+    return {
+      state,
+      activeRunsByWpId,
+      brokerAlive,
+      activeRunCount,
+      buildId,
+      summary: `broker=${brokerAlive ? "ON" : "OFF"} pid=${state.broker_pid || 0} port=${state.port || 0} runs=${activeRunCount}${buildId ? ` build=${buildId}` : ""}`,
+    };
   } catch {
-    return { state: null, activeRunsByWpId: new Map() };
+    return {
+      state: null,
+      activeRunsByWpId: new Map(),
+      brokerAlive: false,
+      activeRunCount: 0,
+      buildId: "",
+      summary: "broker=INVALID_STATE",
+    };
   }
 }
 
@@ -343,11 +388,13 @@ function parsePacketRecord(packetPath) {
   if (!packetPath || !fs.existsSync(packetPath)) return null;
   const packetText = readText(packetPath);
   const wpId = path.basename(packetPath, ".md");
+  const baseWpId = parseSingleField(packetText, "BASE_WP_ID") || wpId;
   const runtimePath = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
   const receiptsPath = parseSingleField(packetText, "WP_RECEIPTS_FILE");
   const threadPath = parseSingleField(packetText, "WP_THREAD_FILE");
   const record = {
     wpId,
+    baseWpId,
     packetPath: normalize(packetPath),
     packetKind: packetPath.includes("/stubs/") ? "STUB" : "OFFICIAL",
     packetStatus: parsePacketStatus(packetText),
@@ -412,6 +459,126 @@ function parsePacketRecord(packetPath) {
     .at(-1) || null;
 
   return record;
+}
+
+function refinementPathForWp(wpId) {
+  const candidate = normalize(path.join(".GOV", "refinements", `${wpId}.md`));
+  return fs.existsSync(candidate) ? candidate : "";
+}
+
+function stubPathForWp(baseWpId, wpId) {
+  const candidates = [
+    normalize(path.join(PACKET_STUBS_DIR, `${baseWpId}.md`)),
+    normalize(path.join(PACKET_STUBS_DIR, `${wpId}.md`)),
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate)) || "";
+}
+
+function validatorGatePathForWp(wpId) {
+  const candidate = normalize(path.join(".GOV", "validator_gates", `${wpId}.json`));
+  return fs.existsSync(candidate) ? candidate : "";
+}
+
+function latestAuditPathForWp(baseWpId, wpId) {
+  const auditDir = normalize(path.join(".GOV", "Audits"));
+  if (!fs.existsSync(auditDir)) return "";
+  const matches = fs.readdirSync(auditDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .filter((name) => name.includes(wpId) || name.includes(baseWpId))
+    .sort();
+  if (matches.length === 0) return "";
+  return normalize(path.join(auditDir, matches.at(-1)));
+}
+
+function readArtifactLines(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) return ["<missing>"];
+  const extension = path.extname(filePath).toLowerCase();
+  try {
+    if (extension === ".json") {
+      return JSON.stringify(parseJsonFile(filePath), null, 2).split(/\r?\n/);
+    }
+    return readText(filePath).split(/\r?\n/);
+  } catch (error) {
+    return [`<read error: ${error.message}>`];
+  }
+}
+
+function numberLines(lines) {
+  const width = String(Math.max(1, lines.length)).length;
+  return lines.map((line, index) => `${String(index + 1).padStart(width, " ")} | ${line}`);
+}
+
+function buildDocArtifacts(record) {
+  const packet = record.packetRecord;
+  if (!packet) return [];
+  const artifacts = [
+    {
+      key: "PACKET",
+      label: "Packet",
+      badge: packet.packetKind === "STUB" ? "STUB_PACKET" : "ACTIVE_PACKET",
+      path: packet.packetPath,
+    },
+    {
+      key: "REFINEMENT",
+      label: "Refinement",
+      badge: "REFINEMENT",
+      path: refinementPathForWp(record.wpId),
+    },
+    {
+      key: "STUB",
+      label: "Stub",
+      badge: "ACTIVE_STUB",
+      path: stubPathForWp(packet.baseWpId || record.wpId, record.wpId),
+    },
+    {
+      key: "VALIDATOR_GATE",
+      label: "Validator Gate",
+      badge: "VALIDATOR_GATE",
+      path: validatorGatePathForWp(record.wpId),
+    },
+    {
+      key: "AUDIT",
+      label: "Latest Audit",
+      badge: "AUDIT",
+      path: latestAuditPathForWp(packet.baseWpId || record.wpId, record.wpId),
+    },
+  ].filter((artifact) => artifact.path);
+  return artifacts.map((artifact) => ({
+    ...artifact,
+    exists: fs.existsSync(artifact.path),
+    lines: numberLines(readArtifactLines(artifact.path)),
+  }));
+}
+
+function buildCommsArtifacts(record) {
+  const packet = record.packetRecord;
+  if (!packet) return [];
+  const artifacts = [
+    {
+      key: "THREAD",
+      label: "Thread",
+      badge: "WP_THREAD",
+      path: packet.threadPath || "",
+    },
+    {
+      key: "RECEIPTS",
+      label: "Receipts",
+      badge: "WP_RECEIPTS",
+      path: packet.receiptsPath || "",
+    },
+    {
+      key: "RUNTIME",
+      label: "Runtime",
+      badge: "WP_RUNTIME",
+      path: packet.runtimePath || "",
+    },
+  ].filter((artifact) => artifact.path);
+  return artifacts.map((artifact) => ({
+    ...artifact,
+    exists: fs.existsSync(artifact.path),
+    lines: numberLines(readArtifactLines(artifact.path)),
+  }));
 }
 
 function loadMonitorModel() {
@@ -489,6 +656,7 @@ function loadMonitorModel() {
       packetPath,
       packetRecord,
       boardSource,
+      brokerState,
       selectedBoardSource,
       sessions: summarizeSessions(packetRecord?.runtime),
       registrySessions,
@@ -512,7 +680,7 @@ function loadMonitorModel() {
     if (leftIndex !== rightIndex) return leftIndex - rightIndex;
     return left.wpId.localeCompare(right.wpId);
   });
-  return { records, boardSource };
+  return { records, boardSource, brokerState };
 }
 
 function filterRecords(records, filter) {
@@ -625,7 +793,12 @@ function wrapText(text, width) {
   return lines;
 }
 
-function renderList(records, selectedIndex, width, height) {
+function clampIndex(index, length) {
+  if (length <= 0) return 0;
+  return Math.max(0, Math.min(length - 1, index));
+}
+
+function renderList(records, selectedIndex, width, height, listHasFocus) {
   const rows = [];
   const maxRows = Math.max(1, height);
   if (records.length === 0) {
@@ -647,16 +820,22 @@ function renderList(records, selectedIndex, width, height) {
     const sessionCount = Math.max(record.sessions?.length || 0, record.registrySessions?.length || 0);
     const launchState = record.latestRegistrySession?.runtime_state || "NONE";
     const line = `${marker}${stale}${drift} ${record.wpId} [${record.boardSection}] T${threadCount} R${receiptCount} S${sessionCount} L=${launchState} ${latest}`;
-    rows.push(globalIndex === selectedIndex ? `\x1b[7m${truncate(line, width)}\x1b[0m` : truncate(line, width));
+    if (globalIndex === selectedIndex) {
+      const selectedLine = truncate(line, width);
+      rows.push(listHasFocus ? `\x1b[7m${selectedLine}\x1b[0m` : `\x1b[1m${selectedLine}\x1b[0m`);
+    } else {
+      rows.push(truncate(line, width));
+    }
   }
   while (rows.length < maxRows) rows.push(" ".repeat(width));
   return rows;
 }
 
-function buildDetailLines(record, width, detailView) {
+function buildDetailLines(record, width, detailView, uiState) {
   if (!record) return ["No WP selected."];
   const packet = record.packetRecord;
   const runtime = packet?.runtime;
+  const broker = record.brokerState || {};
   const lines = [
     `${record.wpId} | board=${record.boardSection} | token=${record.boardToken}`,
     `packet=${packet?.packetKind || "UNKNOWN"} | packet_status=${packet?.packetStatus || "<none>"}`,
@@ -667,6 +846,7 @@ function buildDetailLines(record, width, detailView) {
     `worktree=${packet?.localWorktreeDir || "<pending>"}`,
     `board_source=${record.boardSource?.display || "<unknown>"}`,
     `selected_board_source=${record.selectedBoardSource || "CURRENT_WORKTREE"}`,
+    `acp_broker=${broker.summary || "broker=<unknown>"}`,
   ];
   if (record.boardSource?.canonical_board_path) {
     lines.push(`canonical_board=${record.boardSource.canonical_board_path} | drift=${record.boardSource.board_drift || "UNKNOWN"}`);
@@ -783,6 +963,7 @@ function buildDetailLines(record, width, detailView) {
       for (const line of preview) lines.push(line);
     }
   } else {
+    lines.push("OVERVIEW");
     lines.push("GOVERNED SESSIONS");
     if ((record.registrySessions || []).length === 0) {
       lines.push("No governed sessions.");
@@ -795,6 +976,9 @@ function buildDetailLines(record, width, detailView) {
           lines.push(`  thread=${session.session_thread_id} cmd=${session.last_command_kind}/${session.last_command_status}`);
           if (session.control_protocol) lines.push(`  protocol=${session.control_protocol} transport=${session.control_transport || "<none>"}`);
         }
+        if (session.runtime_state === "CLOSED") {
+          lines.push("  note=session thread registration cleared; start-session is required before steering again");
+        }
         if (activeRun) {
           lines.push(`  active_run=${activeRun.command_kind} started=${activeRun.started_at || "<no-ts>"} timeout=${activeRun.timeout_at || "<none>"}`);
         }
@@ -805,6 +989,11 @@ function buildDetailLines(record, width, detailView) {
         }
       }
     }
+    lines.push("");
+    lines.push("LIFECYCLE ACTIONS");
+    lines.push("c = close selected WP governed sessions (role prompt)");
+    lines.push("b = stop ACP broker if no governed runs are active");
+    lines.push("r = refresh");
     lines.push("");
     lines.push("PACKET RUNTIME SESSIONS");
     if ((record.sessions || []).length === 0) {
@@ -830,6 +1019,197 @@ function buildDetailLines(record, width, detailView) {
   return lines.flatMap((line) => wrapText(line, width));
 }
 
+function buildDetailLinesRich(record, width, detailView, uiState) {
+  if (!record) return ["No WP selected."];
+  const packet = record.packetRecord;
+  const runtime = packet?.runtime;
+  const broker = record.brokerState || {};
+  const docArtifacts = buildDocArtifacts(record);
+  const commsArtifacts = buildCommsArtifacts(record);
+  const docIndex = clampIndex(uiState.docArtifactIndex || 0, docArtifacts.length);
+  const commsIndex = clampIndex(uiState.commsArtifactIndex || 0, commsArtifacts.length);
+  const lines = [
+    `${record.wpId} | board=${record.boardSection} | token=${record.boardToken}`,
+    `packet=${packet?.packetKind || "UNKNOWN"} | packet_status=${packet?.packetStatus || "<none>"}`,
+    `lane=${packet?.workflowLane || "<missing>"} | owner=${packet?.executionOwner || "<missing>"}`,
+    `workflow=${packet?.workflowAuthority || "ORCHESTRATOR"} | tech=${packet?.technicalAuthority || "INTEGRATION_VALIDATOR"} | merge=${packet?.mergeAuthority || "INTEGRATION_VALIDATOR"}`,
+    `wpval=${packet?.wpValidatorOfRecord || "<unassigned>"} | ival=${packet?.integrationValidatorOfRecord || "<unassigned>"}`,
+    `branch=${packet?.localBranch || "<pending>"}`,
+    `worktree=${packet?.localWorktreeDir || "<pending>"}`,
+    `board_source=${record.boardSource?.display || "<unknown>"}`,
+    `selected_board_source=${record.selectedBoardSource || "CURRENT_WORKTREE"}`,
+    `acp_broker=${broker.summary || "broker=<unknown>"}`,
+  ];
+  if (record.boardSource?.canonical_board_path) {
+    lines.push(`canonical_board=${record.boardSource.canonical_board_path} | drift=${record.boardSource.board_drift || "UNKNOWN"}`);
+  }
+  lines.push(`canonical_entry=${formatBoardEntry(record.canonicalBoardEntry)} | current_entry=${formatBoardEntry(record.currentBoardEntry)}`);
+  lines.push(`current_entry_drift=${record.currentBoardMatchesSelected === null ? "UNKNOWN" : (record.currentBoardMatchesSelected ? "NO" : "YES")}`);
+  if (runtime) {
+    lines.push(`runtime=${runtime.runtime_status}/${runtime.current_phase} | next=${runtime.next_expected_actor} | waiting_on=${runtime.waiting_on}`);
+    lines.push(`validator_trigger=${runtime.validator_trigger} | ready=${runtime.ready_for_validation ? "YES" : "NO"} | stale=${record.stale ? "YES" : "NO"}`);
+  } else {
+    lines.push("runtime=<none>");
+  }
+  lines.push("");
+
+  if (detailView === "DOCS") {
+    lines.push("DOCS");
+    if (docArtifacts.length === 0) {
+      lines.push("No document artifacts found for this WP.");
+    } else {
+      const selectedArtifact = docArtifacts[docIndex];
+      lines.push(`sources=${docArtifacts.map((artifact, index) => index === docIndex ? `[${artifact.label}]` : artifact.label).join(" | ")}`);
+      lines.push(`artifact=${selectedArtifact.label} | badge=${selectedArtifact.badge} | path=${selectedArtifact.path}`);
+      lines.push("");
+      lines.push(...selectedArtifact.lines);
+    }
+  } else if (detailView === "COMMS") {
+    lines.push("COMMS");
+    if (commsArtifacts.length === 0) {
+      lines.push("No communication artifacts found for this WP.");
+    } else {
+      const selectedArtifact = commsArtifacts[commsIndex];
+      lines.push(`sources=${commsArtifacts.map((artifact, index) => index === commsIndex ? `[${artifact.label}]` : artifact.label).join(" | ")}`);
+      lines.push(`artifact=${selectedArtifact.label} | badge=${selectedArtifact.badge} | path=${selectedArtifact.path}`);
+      lines.push("");
+      lines.push(...selectedArtifact.lines);
+    }
+  } else if (detailView === "SESSIONS") {
+    lines.push("SESSIONS");
+    if ((record.registrySessions || []).length === 0) {
+      lines.push("No governed sessions.");
+    } else {
+      for (const session of record.registrySessions) {
+        const activeRun = (record.controlBrokerRuns || []).find((run) => run.role === session.role) || null;
+        lines.push(`${session.role} | ${session.runtime_state} | host=${session.active_host || session.preferred_host}`);
+        lines.push(`  thread=${session.session_thread_id || "<none>"} | cmd=${session.last_command_kind || "NONE"}/${session.last_command_status || "NONE"}`);
+        lines.push(`  protocol=${session.control_protocol || "<none>"} | transport=${session.control_transport || "<none>"}`);
+        if (session.last_command_summary) lines.push(`  ${session.last_command_summary}`);
+        if (activeRun) lines.push(`  active_run=${activeRun.command_kind} started=${activeRun.started_at || "<no-ts>"} timeout=${activeRun.timeout_at || "<none>"}`);
+      }
+    }
+    lines.push("");
+    lines.push("PACKET RUNTIME SESSIONS");
+    if ((record.sessions || []).length === 0) {
+      lines.push("No packet runtime sessions recorded.");
+    } else {
+      for (const session of record.sessions) {
+        lines.push(`${session.role} | ${session.sessionId} | ${session.state} | ${session.authorityKind}${session.validatorRoleKind ? `/${session.validatorRoleKind}` : ""}`);
+        lines.push(`  ${session.worktreeDir}`);
+      }
+    }
+    lines.push("");
+    lines.push(`broker=${broker.summary || "<unknown>"}`);
+  } else if (detailView === "CONTROL") {
+    lines.push("CONTROL");
+    if ((record.registrySessions || []).length === 0) {
+      lines.push("No governed sessions.");
+    } else {
+      for (const session of record.registrySessions) {
+        lines.push(`${session.role} | state=${session.runtime_state} | protocol=${session.control_protocol || "<none>"}`);
+        lines.push(`  transport=${session.control_transport || "<none>"} | host=${session.active_host || session.preferred_host || "NONE"} | terminal=${session.active_terminal_kind || "NONE"}`);
+        lines.push(`  thread=${session.session_thread_id || "<none>"} | cmd=${session.last_command_kind || "NONE"}/${session.last_command_status || "NONE"}`);
+        if (session.last_command_summary) lines.push(`  ${session.last_command_summary}`);
+      }
+    }
+    lines.push("");
+    lines.push("RECENT REQUESTS");
+    if ((record.controlRequests || []).length === 0) {
+      lines.push("No control requests.");
+    } else {
+      for (const entry of (record.controlRequests || []).slice(-8)) {
+        const pending = (record.pendingControlRequests || []).some((request) => request.command_id === entry.command_id) ? " | pending" : "";
+        lines.push(`${entry.created_at} | ${entry.role} | ${entry.command_kind}${pending}`);
+        lines.push(`  ${entry.summary || entry.prompt?.split(/\r?\n/, 1)[0] || "<no summary>"}`);
+      }
+    }
+    lines.push("");
+    lines.push("RECENT RESULTS");
+    if ((record.controlResults || []).length === 0) {
+      lines.push("No control results.");
+    } else {
+      for (const entry of (record.controlResults || []).slice(-8)) {
+        lines.push(`${entry.processed_at} | ${entry.role} | ${entry.command_kind} | ${entry.status}`);
+        lines.push(`  ${entry.summary || entry.error || "<no summary>"}`);
+      }
+    }
+    lines.push("");
+    lines.push("BROKER");
+    if ((record.controlBrokerRuns || []).length === 0) {
+      lines.push("No active broker runs.");
+    } else {
+      for (const run of record.controlBrokerRuns || []) {
+        lines.push(`${run.started_at || "<no-ts>"} | ${run.role} | ${run.command_kind} | pid=${run.child_pid || 0}`);
+        lines.push(`  timeout=${run.timeout_at || "<none>"} | reason=${run.termination_reason || "<none>"}`);
+      }
+    }
+  } else if (detailView === "EVENTS") {
+    lines.push("EVENTS");
+    lines.push("Merged governed ACP output events for this WP.");
+    if ((record.controlEventTimeline || []).length === 0) {
+      lines.push("No control events.");
+    } else {
+      for (const entry of (record.controlEventTimeline || []).slice(-32)) {
+        lines.push(`${entry.timestamp || "<no-ts>"} | ${entry.role || "<unknown>"} | ${entry.session_key || "<none>"}`);
+        lines.push(`  ${summarizeControlEvent(entry)}`);
+      }
+    }
+  } else if (detailView === "TIMELINE") {
+    lines.push("TIMELINE");
+    lines.push("Merged thread, receipts, control requests/results, and ACP events. Use detail focus + j/k to scroll.");
+    const timeline = buildTimelineEntries(record);
+    if (timeline.length === 0) {
+      lines.push("No timeline entries.");
+    } else {
+      for (const entry of timeline) {
+        lines.push(entry.header);
+        for (const detailLine of entry.detailLines) lines.push(`  ${detailLine}`);
+      }
+    }
+  } else {
+    lines.push("OVERVIEW");
+    lines.push(`focus=${uiState.focusedPane} | mode=${uiState.admin ? "ADMIN" : "VIEW"}`);
+    lines.push(`docs=${docArtifacts.map((artifact) => artifact.label).join(", ") || "<none>"} | comms=${commsArtifacts.map((artifact) => artifact.label).join(", ") || "<none>"}`);
+    lines.push("");
+    lines.push("GOVERNED SESSIONS");
+    if ((record.registrySessions || []).length === 0) {
+      lines.push("No governed sessions.");
+    } else {
+      for (const session of record.registrySessions) {
+        const activeRun = (record.controlBrokerRuns || []).find((run) => run.role === session.role) || null;
+        lines.push(`${session.role} | ${session.runtime_state} | host=${session.active_host || session.preferred_host}`);
+        lines.push(`  req=${session.plugin_request_count} fail=${session.plugin_failure_count} last=${session.plugin_last_result}`);
+        if (session.session_thread_id) {
+          lines.push(`  thread=${session.session_thread_id} cmd=${session.last_command_kind}/${session.last_command_status}`);
+          if (session.control_protocol) lines.push(`  protocol=${session.control_protocol} transport=${session.control_transport || "<none>"}`);
+        }
+        if (session.runtime_state === "CLOSED") lines.push("  note=session thread registration cleared; start-session is required before steering again");
+        if (activeRun) lines.push(`  active_run=${activeRun.command_kind} started=${activeRun.started_at || "<no-ts>"} timeout=${activeRun.timeout_at || "<none>"}`);
+        if (session.runtime_state === "TERMINAL_COMMAND_DISPATCHED" || session.runtime_state === "PLUGIN_CONFIRMED") {
+          lines.push("  note=terminal dispatch only; wait for receipts/heartbeat/runtime movement");
+        } else if (session.runtime_state === "READY") {
+          lines.push("  note=steerable thread registered; use governed session prompts to continue work");
+        }
+      }
+    }
+    lines.push("");
+    lines.push("LATEST ACTIVITY");
+    const latestTimeline = buildTimelineEntries(record).slice(-6);
+    if (latestTimeline.length === 0) {
+      lines.push("No recent activity.");
+    } else {
+      for (const entry of latestTimeline) {
+        lines.push(entry.header);
+        for (const detailLine of entry.detailLines.slice(0, 1)) lines.push(`  ${detailLine}`);
+      }
+    }
+  }
+
+  if (detailView === "DOCS" || detailView === "COMMS" || detailView === "TIMELINE") return lines;
+  return lines.flatMap((line) => wrapText(line, width));
+}
+
 function renderScreen(model, uiState) {
   const records = model.records;
   const filtered = filterRecords(records, uiState.filter);
@@ -839,24 +1219,30 @@ function renderScreen(model, uiState) {
   const rows = process.stdout.rows || 35;
   const leftWidth = Math.max(38, Math.floor(columns * 0.42));
   const rightWidth = Math.max(40, columns - leftWidth - 3);
-  const bodyHeight = Math.max(12, rows - 8);
+  const bodyHeight = Math.max(12, rows - 9);
 
   const counts = FILTERS.map((filter) => `${filter}:${filterRecords(records, filter).length}`).join("  ");
-  const header = `Operator Monitor | filter=${uiState.filter} | view=${uiState.detailView} | actor=${uiState.actorRole}/${uiState.actorSession}`;
+  const header = `Operator Monitor | mode=${uiState.admin ? "ADMIN" : "VIEW"} | focus=${uiState.focusedPane} | filter=${uiState.filter} | view=${uiState.detailView} | actor=${uiState.actorRole}/${uiState.actorSession}`;
   const board = model.boardSource?.display || "board=<unknown>";
   const boardDetail = model.boardSource?.detail || "board_paths=<unknown>";
-  const help = "j/k move  [/ ] filter  1 sessions  2 thread  3 receipts  4 control  5 events  6 artifact  7 timeline  m message  r refresh  q quit";
+  const broker = model.brokerState?.summary || "broker=<unknown>";
+  const help = uiState.admin
+    ? "tab focus  j/k move-scroll  h/l source  [/ ] filter  1 overview 2 docs 3 comms 4 sessions 5 timeline 6 control 7 events  c close  b broker-stop  m message  r refresh  q quit"
+    : "tab focus  j/k move-scroll  h/l source  [/ ] filter  1 overview 2 docs 3 comms 4 sessions 5 timeline 6 control 7 events  r refresh  q quit";
 
-  const leftLines = renderList(filtered, uiState.selectedIndex, leftWidth, bodyHeight);
-  const rightLines = buildDetailLines(selected, rightWidth, uiState.detailView).slice(0, bodyHeight);
+  const leftLines = renderList(filtered, uiState.selectedIndex, leftWidth, bodyHeight, uiState.focusedPane === "LIST");
+  const detailLines = buildDetailLinesRich(selected, rightWidth, uiState.detailView, uiState);
+  const detailStart = Math.max(0, Math.min(uiState.detailScroll, Math.max(0, detailLines.length - bodyHeight)));
+  const rightLines = detailLines.slice(detailStart, detailStart + bodyHeight);
   while (rightLines.length < bodyHeight) rightLines.push("");
 
-  const frame = [header, counts, board, boardDetail, help, "-".repeat(columns)];
+  const frame = [header, counts, board, boardDetail, broker, help, "-".repeat(columns)];
   for (let index = 0; index < bodyHeight; index += 1) {
     frame.push(`${leftLines[index]} | ${truncate(rightLines[index], rightWidth)}`);
   }
   frame.push("-".repeat(columns));
-  frame.push(selected ? `Selected: ${selected.wpId} | packet=${selected.packetPath || "<none>"} | last_activity=${selected.lastActivityAt || "n/a"}` : "Selected: none");
+  const status = uiState.statusMessage ? ` | ${uiState.statusMessage}` : "";
+  frame.push(selected ? `Selected: ${selected.wpId} | packet=${selected.packetPath || "<none>"} | last_activity=${selected.lastActivityAt || "n/a"} | detail_scroll=${detailStart}${status}` : `Selected: none${status}`);
   return frame.join(os.EOL);
 }
 
@@ -864,9 +1250,15 @@ function renderOnce(model, options) {
   const uiState = {
     filter: options.filter,
     selectedIndex: 0,
-    detailView: "SESSIONS",
+    detailView: options.detailView,
     actorRole: options.actorRole,
     actorSession: options.actorSession,
+    admin: options.admin,
+    focusedPane: "LIST",
+    detailScroll: 0,
+    docArtifactIndex: 0,
+    commsArtifactIndex: 0,
+    statusMessage: "",
   };
   const filtered = filterRecords(model.records, uiState.filter);
   if (options.wpId) {
@@ -897,6 +1289,86 @@ async function promptForMessage(selectedRecord, uiState) {
   });
 }
 
+async function promptForInput(label) {
+  if (process.stdin.isTTY) process.stdin.setRawMode(false);
+  process.stdout.write("\x1b[?25h");
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await new Promise((resolve) => rl.question(label, resolve));
+  rl.close();
+  if (process.stdin.isTTY) process.stdin.setRawMode(true);
+  process.stdout.write("\x1b[?25l");
+  return String(answer || "").trim();
+}
+
+function runJustCommand(args) {
+  return execFileSync("just", args, {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+}
+
+async function closeSelectedSessions(selectedRecord) {
+  if (!selectedRecord) return "No WP selected.";
+  const availableRoles = [...new Set((selectedRecord.registrySessions || []).map((session) => session.role))];
+  const roleAnswer = (await promptForInput(`close role for ${selectedRecord.wpId} (${availableRoles.join("/")}/ALL)> `)).toUpperCase();
+  if (!roleAnswer) return "Close canceled.";
+  const targetRoles = roleAnswer === "ALL"
+    ? availableRoles
+    : (availableRoles.includes(roleAnswer) ? [roleAnswer] : []);
+  if (targetRoles.length === 0) {
+    return `No governed session matches role selection ${roleAnswer}.`;
+  }
+  const confirm = (await promptForInput(`confirm close ${selectedRecord.wpId} ${targetRoles.join(",")} [y/N]> `)).toLowerCase();
+  if (confirm !== "y" && confirm !== "yes") return "Close canceled.";
+  const outcomes = [];
+  for (const role of targetRoles) {
+    try {
+      const output = runJustCommand(["session-close", role, selectedRecord.wpId]);
+      outcomes.push(`${role}: ${output.split(/\r?\n/).slice(-2).join(" | ")}`);
+    } catch (error) {
+      const stderr = String(error.stderr || error.message || "close failed").trim();
+      outcomes.push(`${role}: FAILED ${stderr.split(/\r?\n/).slice(-1)[0]}`);
+    }
+  }
+  return outcomes.join(" || ");
+}
+
+async function stopBrokerFromMonitor() {
+  const confirm = (await promptForInput("stop ACP broker if no governed runs are active [y/N]> ")).toLowerCase();
+  if (confirm !== "y" && confirm !== "yes") return "Broker stop canceled.";
+  try {
+    const output = runJustCommand(["handshake-acp-broker-stop"]);
+    return output.split(/\r?\n/).join(" | ");
+  } catch (error) {
+    const stderr = String(error.stderr || error.message || "broker stop failed").trim();
+    return `BROKER STOP FAILED: ${stderr.split(/\r?\n/).slice(-1)[0]}`;
+  }
+}
+
+function resetDetailViewport(uiState) {
+  uiState.detailScroll = 0;
+}
+
+function setDetailView(uiState, nextView) {
+  uiState.detailView = nextView;
+  resetDetailViewport(uiState);
+}
+
+function cycleFocusedArtifact(record, uiState, delta) {
+  if (!record) return;
+  if (uiState.detailView === "DOCS") {
+    const artifacts = buildDocArtifacts(record);
+    if (artifacts.length === 0) return;
+    uiState.docArtifactIndex = clampIndex((uiState.docArtifactIndex || 0) + delta, artifacts.length);
+    resetDetailViewport(uiState);
+  } else if (uiState.detailView === "COMMS") {
+    const artifacts = buildCommsArtifacts(record);
+    if (artifacts.length === 0) return;
+    uiState.commsArtifactIndex = clampIndex((uiState.commsArtifactIndex || 0) + delta, artifacts.length);
+    resetDetailViewport(uiState);
+  }
+}
+
 async function runInteractive(options) {
   if (!process.stdout.isTTY || !process.stdin.isTTY) {
     renderOnce(loadMonitorModel(), options);
@@ -906,9 +1378,15 @@ async function runInteractive(options) {
   const uiState = {
     filter: options.filter,
     selectedIndex: 0,
-    detailView: "SESSIONS",
+    detailView: options.detailView,
     actorRole: options.actorRole,
     actorSession: options.actorSession,
+    admin: options.admin,
+    focusedPane: "LIST",
+    detailScroll: 0,
+    docArtifactIndex: 0,
+    commsArtifactIndex: 0,
+    statusMessage: "",
   };
 
   let records = loadMonitorModel();
@@ -939,50 +1417,88 @@ async function runInteractive(options) {
   process.stdin.on("data", async (chunk) => {
     const key = String(chunk || "");
     const filtered = filterRecords(records.records, uiState.filter);
+    const selected = filtered[uiState.selectedIndex] || null;
     if (key === "q") {
       cleanup();
       process.exit(0);
+    } else if (key === "\t") {
+      uiState.focusedPane = uiState.focusedPane === "LIST" ? "DETAIL" : "LIST";
+      refresh();
     } else if (key === "j" || key === "\u001b[B") {
-      uiState.selectedIndex = Math.min(filtered.length - 1, uiState.selectedIndex + 1);
+      if (uiState.focusedPane === "LIST") {
+        uiState.selectedIndex = Math.min(filtered.length - 1, uiState.selectedIndex + 1);
+        resetDetailViewport(uiState);
+      } else {
+        uiState.detailScroll += 1;
+      }
       refresh();
     } else if (key === "k" || key === "\u001b[A") {
-      uiState.selectedIndex = Math.max(0, uiState.selectedIndex - 1);
+      if (uiState.focusedPane === "LIST") {
+        uiState.selectedIndex = Math.max(0, uiState.selectedIndex - 1);
+        resetDetailViewport(uiState);
+      } else {
+        uiState.detailScroll = Math.max(0, uiState.detailScroll - 1);
+      }
       refresh();
+    } else if (key === "h" || key === "\u001b[D") {
+      if (uiState.focusedPane === "DETAIL") {
+        cycleFocusedArtifact(selected, uiState, -1);
+        refresh();
+      }
+    } else if (key === "l" || key === "\u001b[C") {
+      if (uiState.focusedPane === "DETAIL") {
+        cycleFocusedArtifact(selected, uiState, 1);
+        refresh();
+      }
     } else if (key === "]") {
-      const index = FILTERS.indexOf(uiState.filter);
-      uiState.filter = FILTERS[(index + 1) % FILTERS.length];
-      uiState.selectedIndex = 0;
-      refresh();
+      if (uiState.focusedPane === "LIST") {
+        const index = FILTERS.indexOf(uiState.filter);
+        uiState.filter = FILTERS[(index + 1) % FILTERS.length];
+        uiState.selectedIndex = 0;
+        resetDetailViewport(uiState);
+        refresh();
+      }
     } else if (key === "[") {
-      const index = FILTERS.indexOf(uiState.filter);
-      uiState.filter = FILTERS[(index - 1 + FILTERS.length) % FILTERS.length];
-      uiState.selectedIndex = 0;
-      refresh();
+      if (uiState.focusedPane === "LIST") {
+        const index = FILTERS.indexOf(uiState.filter);
+        uiState.filter = FILTERS[(index - 1 + FILTERS.length) % FILTERS.length];
+        uiState.selectedIndex = 0;
+        resetDetailViewport(uiState);
+        refresh();
+      }
     } else if (key === "1") {
-      uiState.detailView = "SESSIONS";
+      setDetailView(uiState, "OVERVIEW");
       refresh();
     } else if (key === "2") {
-      uiState.detailView = "THREAD";
+      setDetailView(uiState, "DOCS");
       refresh();
     } else if (key === "3") {
-      uiState.detailView = "RECEIPTS";
+      setDetailView(uiState, "COMMS");
       refresh();
     } else if (key === "4") {
-      uiState.detailView = "CONTROL";
+      setDetailView(uiState, "SESSIONS");
       refresh();
     } else if (key === "5") {
-      uiState.detailView = "EVENTS";
+      setDetailView(uiState, "TIMELINE");
       refresh();
     } else if (key === "6") {
-      uiState.detailView = "ARTIFACT";
+      setDetailView(uiState, "CONTROL");
       refresh();
     } else if (key === "7") {
-      uiState.detailView = "TIMELINE";
+      setDetailView(uiState, "EVENTS");
       refresh();
     } else if (key === "r") {
+      uiState.statusMessage = "";
       refresh();
-    } else if (key === "m") {
-      const selected = filtered[uiState.selectedIndex] || null;
+    } else if (uiState.admin && key === "c") {
+      uiState.statusMessage = await closeSelectedSessions(selected);
+      records = loadMonitorModel();
+      refresh();
+    } else if (uiState.admin && key === "b") {
+      uiState.statusMessage = await stopBrokerFromMonitor();
+      records = loadMonitorModel();
+      refresh();
+    } else if (uiState.admin && key === "m") {
       await promptForMessage(selected, uiState);
       records = loadMonitorModel();
       refresh();

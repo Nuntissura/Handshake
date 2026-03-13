@@ -25,6 +25,8 @@ It is the control transport layer. It is not the policy layer.
 - `session/load`
 - `session/prompt`
 - `session/cancel`
+- `session/close`
+- `broker/shutdown`
 
 ## Governance Rule
 
@@ -47,3 +49,9 @@ The VS Code bridge is no longer the primary session control plane. It is a launc
 This ACP bridge is the primary control transport for governed session steering.
 
 One governed role/WP session may have at most one active broker-owned run at a time.
+
+Operational note:
+
+- `session/cancel` stops an active governed run.
+- `session/close` clears the steerable thread registration for a governed role/WP session and leaves an auditable closed record in the registry.
+- `broker/shutdown` only stops the broker process. It does not delete registry history or role-session records.
