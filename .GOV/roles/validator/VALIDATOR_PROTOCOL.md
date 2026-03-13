@@ -469,6 +469,19 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
     - append normal governed-lane closure artifacts
     - merge or authorize merge
   - Default write target for this mode is a chat report or a clearly labeled external revalidation report, not the normal governed-lane closure path.
+  - ACP runtime note for orchestrator-managed WPs:
+    - `wt-orchestrator` may legitimately be dirty because ACP/runtime projections are tracked governance artifacts.
+    - Dirty files limited to these surfaces are runtime-state evidence first, not automatic proof of governance failure:
+      - `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`
+      - `.GOV/roles_shared/SESSION_CONTROL_BROKER_STATE.json`
+      - `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
+      - `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+      - `.GOV/validator_gates/WP-{ID}.json`
+    - Before treating `wt-orchestrator` dirt as a governance defect, inspect ACP state with:
+      - `just handshake-acp-broker-status`
+      - `just session-registry-status WP-{ID}`
+      - `just external-validator-brief WP-{ID}`
+    - If those commands show expected runtime churn and the governed handoff path still passes, classify the dirt as runtime-state context, not packet-scope implementation drift.
 
 ## External Validator Split Report Contract
 - Before an external/classical validator starts on an orchestrator-managed WP, generate the target contract with `just external-validator-brief WP-{ID}`.
