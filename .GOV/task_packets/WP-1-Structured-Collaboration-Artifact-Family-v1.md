@@ -600,7 +600,7 @@ rg -n "TrackedWorkPacket|TrackedMicroTask|role_mailbox_export_v1|workflow_state_
 - COMMAND: `just post-work WP-1-Structured-Collaboration-Artifact-Family-v1`
 - EXIT_CODE: 0
 - LOG_PATH: `src/backend/handshake_core/.handshake/logs/WP-1-Structured-Collaboration-Artifact-Family-v1/post-work.log`
-- LOG_SHA256: `6890C3E15F49C43B077AA00FDD721D17A2FC1C162F1393CF2E388108FEA0F2AE`
+- LOG_SHA256: `1AA2EB32D1B2B07FC210051EED013206AA0B2B7AAA1CC519ECF72D1A4029FFEB`
 - PROOF_LINES:
   - `Post-work validation PASSED (deterministic manifest gate; not tests) with warnings`
   - `Warnings:`
