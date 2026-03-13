@@ -13,6 +13,7 @@ import { loadSessionRegistry, registrySessionSummary } from "./session-registry-
 const TASK_BOARD_PATH = ".GOV/roles_shared/TASK_BOARD.md";
 const TRACEABILITY_PATH = ".GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md";
 const TOPOLOGY_PATH = ".GOV/roles_shared/GIT_TOPOLOGY_REGISTRY.json";
+const ORCHESTRATOR_GATES_PATH = ".GOV/roles/orchestrator/ORCHESTRATOR_GATES.json";
 const SESSION_CONTROL_REQUESTS_PATH = ".GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl";
 const SESSION_CONTROL_RESULTS_PATH = ".GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl";
 const SESSION_CONTROL_BROKER_STATE_PATH = ".GOV/roles_shared/SESSION_CONTROL_BROKER_STATE.json";
@@ -30,10 +31,18 @@ const ACTIVE_RUNTIME_STATES = new Set([
   "CLI_ESCALATION_READY",
   "CLI_ESCALATION_USED",
   "STARTING",
-  "READY",
   "COMMAND_RUNNING",
   "ACTIVE",
   "WAITING",
+]);
+const ACTIVE_PACKET_SESSION_STATES = new Set([
+  "assigned",
+  "queued",
+  "starting",
+  "running",
+  "working",
+  "waiting",
+  "blocked",
 ]);
 
 function readText(filePath) {
@@ -384,7 +393,54 @@ function summarizeSessions(runtime) {
   }));
 }
 
-function parsePacketRecord(packetPath) {
+function resolveWorktreeInfo(localWorktreeDir) {
+  const value = String(localWorktreeDir || "").trim();
+  if (!value || value === "<pending>") {
+    return {
+      absolutePath: "",
+      exists: false,
+      status: "PENDING",
+    };
+  }
+  const absolutePath = path.resolve(process.cwd(), value);
+  return {
+    absolutePath: normalize(absolutePath),
+    exists: fs.existsSync(absolutePath),
+    status: fs.existsSync(absolutePath) ? "PRESENT" : "MISSING",
+  };
+}
+
+function hasActivePacketSessions(record) {
+  const runtimeStatus = String(record.packetRecord?.runtime?.runtime_status || "").trim().toLowerCase();
+  if (record.stale) return false;
+  if (["completed", "done", "closed", "failed", "merged"].includes(runtimeStatus)) return false;
+  return (record.sessions || []).some((session) =>
+    ACTIVE_PACKET_SESSION_STATES.has(String(session.state || "").trim().toLowerCase())
+  );
+}
+
+function parsePrepareAssignments() {
+  if (!fs.existsSync(ORCHESTRATOR_GATES_PATH)) return new Map();
+  try {
+    const parsed = JSON.parse(readText(ORCHESTRATOR_GATES_PATH));
+    const gateLogs = Array.isArray(parsed?.gate_logs) ? parsed.gate_logs : [];
+    const assignments = new Map();
+    for (const entry of gateLogs) {
+      if (String(entry?.type || "").toUpperCase() !== "PREPARE") continue;
+      const wpId = String(entry?.wpId || "").trim();
+      if (!wpId) continue;
+      const previous = assignments.get(wpId);
+      if (!previous || String(previous.timestamp || "") <= String(entry.timestamp || "")) {
+        assignments.set(wpId, entry);
+      }
+    }
+    return assignments;
+  } catch {
+    return new Map();
+  }
+}
+
+function parsePacketRecord(packetPath, prepareAssignment = null) {
   if (!packetPath || !fs.existsSync(packetPath)) return null;
   const packetText = readText(packetPath);
   const wpId = path.basename(packetPath, ".md");
@@ -415,6 +471,23 @@ function parsePacketRecord(packetPath) {
     packetText,
     artifactPreviewLines: packetText.split(/\r?\n/).slice(0, 40),
   };
+  if (prepareAssignment) {
+    if (!record.localBranch || record.localBranch === "<pending>") {
+      record.localBranch = String(prepareAssignment.branch || "").trim() || "<pending>";
+    }
+    if (!record.localWorktreeDir || record.localWorktreeDir === "<pending>") {
+      record.localWorktreeDir = String(prepareAssignment.worktree_dir || "").trim() || "<pending>";
+    }
+  }
+  const worktreeInfo = resolveWorktreeInfo(record.localWorktreeDir);
+  record.localWorktreeAbsPath = worktreeInfo.absolutePath;
+  record.localWorktreeExists = worktreeInfo.exists;
+  record.localWorktreeStatus = worktreeInfo.status;
+  record.prepareAssignment = prepareAssignment ? {
+    branch: String(prepareAssignment.branch || "").trim() || "",
+    worktreeDir: String(prepareAssignment.worktree_dir || "").trim() || "",
+    timestamp: String(prepareAssignment.timestamp || "").trim() || "",
+  } : null;
 
   try {
     if (runtimePath && fs.existsSync(runtimePath)) {
@@ -583,6 +656,7 @@ function buildCommsArtifacts(record) {
 
 function loadMonitorModel() {
   const traceability = parseTraceabilityRegistry();
+  const prepareAssignments = parsePrepareAssignments();
   const boardSource = loadBoardSourceInfo();
   const currentBoardEntries = parseTaskBoard();
   const currentByWpId = new Map(currentBoardEntries.map((entry) => [entry.wpId, entry]));
@@ -598,7 +672,7 @@ function loadMonitorModel() {
   const brokerState = parseBrokerState();
   const records = selectedBoardEntries.map((entry) => {
     const packetPath = resolvePacketPath(entry.wpId, traceability);
-    const packetRecord = parsePacketRecord(packetPath);
+    const packetRecord = parsePacketRecord(packetPath, prepareAssignments.get(entry.wpId) || null);
     const registrySessions = [...(sessionRegistry.get(entry.wpId) || [])]
       .sort((left, right) => String(left.updated_at || "").localeCompare(String(right.updated_at || "")));
     const wpControlRequests = [...(controlRequests.get(entry.wpId) || [])]
@@ -686,14 +760,22 @@ function loadMonitorModel() {
 function filterRecords(records, filter) {
   if (filter === "ALL") return records;
   if (filter === "ACTIVE") {
-    return records.filter((record) =>
-      record.boardSection === "ACTIVE"
-      || record.sessions.length > 0
-      || (record.registrySessions || []).some((session) => ACTIVE_RUNTIME_STATES.has(session.runtime_state))
-      || (record.pendingControlRequests || []).length > 0
-      || (record.controlBrokerRuns || []).length > 0
-      || (record.controlResults || []).some((entry) => ["QUEUED", "RUNNING"].includes(String(entry.status || "").toUpperCase()))
-    );
+    return records.filter((record) => {
+      const activeRegistrySession = (record.registrySessions || []).some((session) => ACTIVE_RUNTIME_STATES.has(session.runtime_state));
+      const activeControl =
+        (record.pendingControlRequests || []).length > 0
+        || (record.controlBrokerRuns || []).length > 0
+        || (record.controlResults || []).some((entry) => ["QUEUED", "RUNNING"].includes(String(entry.status || "").toUpperCase()));
+      if (["DONE", "SUPERSEDED"].includes(record.boardSection)) {
+        return activeRegistrySession || activeControl;
+      }
+      return (
+        record.boardSection === "ACTIVE"
+        || hasActivePacketSessions(record)
+        || activeRegistrySession
+        || activeControl
+      );
+    });
   }
   return records.filter((record) => record.boardSection === filter);
 }
@@ -814,12 +896,13 @@ function renderList(records, selectedIndex, width, height, listHasFocus) {
     const marker = globalIndex === selectedIndex ? ">" : " ";
     const stale = record.stale ? "!" : " ";
     const drift = record.currentBoardMatchesSelected === false ? "~" : " ";
+    const worktreeFlag = record.packetRecord?.localWorktreeStatus === "MISSING" ? "x" : " ";
     const latest = record.lastActivityAt ? record.lastActivityAt.slice(11, 16) : "-----";
     const threadCount = record.packetRecord?.threadEntries?.length || 0;
     const receiptCount = record.packetRecord?.receipts?.length || 0;
     const sessionCount = Math.max(record.sessions?.length || 0, record.registrySessions?.length || 0);
     const launchState = record.latestRegistrySession?.runtime_state || "NONE";
-    const line = `${marker}${stale}${drift} ${record.wpId} [${record.boardSection}] T${threadCount} R${receiptCount} S${sessionCount} L=${launchState} ${latest}`;
+    const line = `${marker}${stale}${drift}${worktreeFlag} ${record.wpId} [${record.boardSection}] T${threadCount} R${receiptCount} S${sessionCount} L=${launchState} ${latest}`;
     if (globalIndex === selectedIndex) {
       const selectedLine = truncate(line, width);
       rows.push(listHasFocus ? `\x1b[7m${selectedLine}\x1b[0m` : `\x1b[1m${selectedLine}\x1b[0m`);
@@ -844,6 +927,7 @@ function buildDetailLines(record, width, detailView, uiState) {
     `wpval=${packet?.wpValidatorOfRecord || "<unassigned>"} | ival=${packet?.integrationValidatorOfRecord || "<unassigned>"}`,
     `branch=${packet?.localBranch || "<pending>"}`,
     `worktree=${packet?.localWorktreeDir || "<pending>"}`,
+    `worktree_state=${packet?.localWorktreeStatus || "UNKNOWN"}${packet?.localWorktreeAbsPath ? ` | abs=${packet.localWorktreeAbsPath}` : ""}`,
     `board_source=${record.boardSource?.display || "<unknown>"}`,
     `selected_board_source=${record.selectedBoardSource || "CURRENT_WORKTREE"}`,
     `acp_broker=${broker.summary || "broker=<unknown>"}`,
@@ -1036,6 +1120,7 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
     `wpval=${packet?.wpValidatorOfRecord || "<unassigned>"} | ival=${packet?.integrationValidatorOfRecord || "<unassigned>"}`,
     `branch=${packet?.localBranch || "<pending>"}`,
     `worktree=${packet?.localWorktreeDir || "<pending>"}`,
+    `worktree_state=${packet?.localWorktreeStatus || "UNKNOWN"}${packet?.localWorktreeAbsPath ? ` | abs=${packet.localWorktreeAbsPath}` : ""}`,
     `board_source=${record.boardSource?.display || "<unknown>"}`,
     `selected_board_source=${record.selectedBoardSource || "CURRENT_WORKTREE"}`,
     `acp_broker=${broker.summary || "broker=<unknown>"}`,
@@ -1390,13 +1475,17 @@ async function runInteractive(options) {
   };
 
   let records = loadMonitorModel();
+  let lastFrame = "";
   const refresh = () => {
     records = loadMonitorModel();
-    process.stdout.write("\x1b[2J\x1b[H");
-    process.stdout.write(renderScreen(records, uiState));
+    const frame = renderScreen(records, uiState);
+    if (frame === lastFrame) return;
+    lastFrame = frame;
+    process.stdout.write("\x1b[H\x1b[J");
+    process.stdout.write(frame);
   };
 
-  process.stdout.write("\x1b[?1049h\x1b[?25l");
+  process.stdout.write("\x1b[?1049h\x1b[?25l\x1b[H\x1b[J");
   process.stdin.setRawMode(true);
   process.stdin.resume();
   process.stdin.setEncoding("utf8");
