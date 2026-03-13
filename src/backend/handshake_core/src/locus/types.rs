@@ -8,6 +8,234 @@ pub type VectorClock = Value;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+pub enum ProjectProfileKind {
+    SoftwareDelivery,
+    Research,
+    Worldbuilding,
+    Design,
+    Generic,
+    Custom,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MirrorSyncState {
+    CanonicalOnly,
+    Synchronized,
+    Stale,
+    AdvisoryEdit,
+    NormalizationRequired,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MarkdownAuthorityMode {
+    DerivedReadonly,
+    AdvisoryEditable,
+    NotesSidecarOnly,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MirrorReconciliationAction {
+    None,
+    RegenerateMirror,
+    PromoteAdvisoryNote,
+    ManualResolutionRequired,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MarkdownMirrorContractV1 {
+    pub authority_mode: MarkdownAuthorityMode,
+    pub markdown_mirror_path: String,
+    pub template_id: String,
+    pub canonical_content_hash: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror_content_hash: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_reconciled_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub manual_edit_zones: Vec<String>,
+    pub reconciliation_action: MirrorReconciliationAction,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum WorkflowStateFamily {
+    Intake,
+    Ready,
+    Active,
+    Waiting,
+    Review,
+    Approval,
+    Validation,
+    Blocked,
+    Done,
+    Canceled,
+    Archived,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum WorkflowQueueReasonCode {
+    NewUntriaged,
+    DependencyWait,
+    ReadyForLocalSmallModel,
+    ReadyForCloudModel,
+    ReadyForHuman,
+    ReviewWait,
+    ApprovalWait,
+    ValidationWait,
+    MailboxResponseWait,
+    TimerWait,
+    BlockedMissingContext,
+    BlockedPolicy,
+    BlockedCapability,
+    BlockedError,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GovernedActionDescriptorV1 {
+    pub action_id: String,
+    pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StructuredCollaborationSummaryV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub record_id: String,
+    pub record_kind: String,
+    pub project_profile_kind: ProjectProfileKind,
+    pub updated_at: String,
+    pub mirror_state: MirrorSyncState,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub authority_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror_contract: Option<MarkdownMirrorContractV1>,
+    pub workflow_state_family: WorkflowStateFamily,
+    pub queue_reason_code: WorkflowQueueReasonCode,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_action_ids: Vec<String>,
+    pub status: String,
+    pub title_or_objective: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blockers: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_action: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary_ref: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrackedWorkPacketArtifactV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub record_id: String,
+    pub record_kind: String,
+    pub project_profile_kind: ProjectProfileKind,
+    pub updated_at: String,
+    pub mirror_state: MirrorSyncState,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub authority_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror_contract: Option<MarkdownMirrorContractV1>,
+    pub workflow_state_family: WorkflowStateFamily,
+    pub queue_reason_code: WorkflowQueueReasonCode,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_action_ids: Vec<String>,
+    pub summary_ref: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub note_refs: Vec<String>,
+    pub wp_id: String,
+    pub version: u64,
+    pub title: String,
+    pub description: String,
+    pub status: WorkPacketStatus,
+    pub priority: u8,
+    pub governance: WorkPacketGovernance,
+    #[serde(rename = "type")]
+    pub kind: WorkPacketType,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub labels: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assignee: Option<String>,
+    pub reporter: String,
+    pub micro_tasks: MicroTaskSummary,
+    pub created_at: Iso8601Timestamp,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<Iso8601Timestamp>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<Iso8601Timestamp>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub due_at: Option<Iso8601Timestamp>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<WorkNote>,
+    #[serde(default)]
+    pub metadata: Value,
+    #[serde(default)]
+    pub vector_clock: VectorClock,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tombstone: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrackedMicroTaskArtifactV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub record_id: String,
+    pub record_kind: String,
+    pub project_profile_kind: ProjectProfileKind,
+    pub updated_at: String,
+    pub mirror_state: MirrorSyncState,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub authority_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror_contract: Option<MarkdownMirrorContractV1>,
+    pub workflow_state_family: WorkflowStateFamily,
+    pub queue_reason_code: WorkflowQueueReasonCode,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_action_ids: Vec<String>,
+    pub summary_ref: String,
+    pub mt_id: String,
+    pub wp_id: String,
+    pub name: String,
+    pub scope: String,
+    pub files: MicroTaskFiles,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub done_criteria: Vec<String>,
+    pub status: MicroTaskStatus,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub active_session_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub iterations: Vec<MicroTaskIterationRecord>,
+    pub current_iteration: u32,
+    pub max_iterations: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validation_result: Option<MicroTaskValidationResult>,
+    pub escalation: MicroTaskEscalation,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<Iso8601Timestamp>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<Iso8601Timestamp>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub depends_on: Vec<String>,
+    #[serde(default)]
+    pub metadata: Value,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub enum WorkPacketStatus {
     #[serde(rename = "stub")]
     Unknown,

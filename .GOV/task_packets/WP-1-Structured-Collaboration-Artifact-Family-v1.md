@@ -394,59 +394,219 @@ rg -n "TrackedWorkPacket|TrackedMicroTask|role_mailbox_export_v1|workflow_state_
   - Validator must prove the canonical artifact family is emitted from authoritative runtime state, not reconstructed from Markdown or layout position, and that the shared envelope fields remain present across packet, summary, board, and mailbox outputs.
 
 ## IMPLEMENTATION
-- (Coder fills after the docs-only skeleton checkpoint commit exists.)
+- Added the shared structured-collaboration envelope and canonical artifact structs in `locus/types.rs` for work packets, micro-tasks, summaries, workflow-state fields, governed actions, and Markdown mirror contracts.
+- Added task-board projection record/index/view structs plus stable lane/view helpers in `locus/task_board.rs`.
+- Extended `RuntimeGovernancePaths` with deterministic canonical artifact paths for work packets, micro-tasks, task-board projections, and view files, plus coverage for the new path helpers.
+- Wired locus operations in `workflows.rs` to emit `packet.json`, `summary.json`, note sidecars, task-board projection files, and shared authority/evidence/mirror metadata from authoritative runtime state.
+- Tightened the workflow implementation with deterministic micro-task `updated_at` derivation and a workflow-local atomic-write lock so parallel runtime tests do not race on the same canonical artifact paths.
+- Aligned role mailbox export thread lines, index, and manifest records to the shared envelope with explicit `record_kind`, `authority_refs`, and `evidence_refs`.
+- `src/backend/handshake_core/src/api/role_mailbox.rs` required no code change because it already serves the exported mailbox index as parsed JSON.
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- `cargo fmt` in `src/backend/handshake_core`: PASS
+- `CARGO_TARGET_DIR=D:\hctarget cargo test -p handshake_core --no-run`: PASS
+- `CARGO_TARGET_DIR=D:\hctarget cargo test -p handshake_core --test micro_task_executor_tests`: PASS
+- `CARGO_TARGET_DIR=D:\hctarget cargo test -p handshake_core`: PASS
+- `just gov-check`: PASS
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha relative/file/path` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `relative/file/path`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- Mechanical manifest for audit. Records the coder-side `What` only; no validation verdict is claimed here.
+
+### Manifest Entry 1: runtime_governance.rs
+- **Target File**: `src/backend/handshake_core/src/runtime_governance.rs`
+- **Start**: 13
+- **End**: 396
+- **Line Delta**: 162
+- **Pre-SHA1**: `d2341a20c372789500925ba19097871637512d06`
+- **Post-SHA1**: `b348f715467840ed0068dbbeddaa1145399476c9`
+- **Change Summary**: Added canonical path helpers for work-packet, micro-task, and task-board projection artifact families plus path coverage tests.
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo fmt` PASS
+- **Artifacts**: `git diff --cached --unified=0 -- src/backend/handshake_core/src/runtime_governance.rs`; `just cor701-sha src/backend/handshake_core/src/runtime_governance.rs`
+- **Timestamp**: `2026-03-13T08:42:44.7758130Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Runtime artifact locations remain deterministic and rooted under `.handshake/gov/`.
+
+### Manifest Entry 2: locus/types.rs
+- **Target File**: `src/backend/handshake_core/src/locus/types.rs`
+- **Start**: 9
+- **End**: 236
+- **Line Delta**: 228
+- **Pre-SHA1**: `97c5a28506a9fa8cad69a8180fe2af808dc7e335`
+- **Post-SHA1**: `944462d1c363c20a075662360f6f3a7fa9302c1f`
+- **Change Summary**: Added the shared collaboration envelope enums and canonical record structs for work packets, micro-tasks, and summaries.
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo fmt` PASS
+- **Artifacts**: `git diff --cached --unified=0 -- src/backend/handshake_core/src/locus/types.rs`; `just cor701-sha src/backend/handshake_core/src/locus/types.rs`
+- **Timestamp**: `2026-03-13T08:42:44.7758130Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: This block establishes the reusable base envelope required by the packet refinement.
+
+### Manifest Entry 3: locus/task_board.rs
+- **Target File**: `src/backend/handshake_core/src/locus/task_board.rs`
+- **Start**: 1
+- **End**: 175
+- **Line Delta**: 102
+- **Pre-SHA1**: `d0191f5ca5ca233afef59714dd8de131452c3bde`
+- **Post-SHA1**: `28f94f596f1cc0ba89d8a5db0417a88dddcbdd00`
+- **Change Summary**: Added structured task-board projection records and stable lane/view identifiers.
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo fmt` PASS
+- **Artifacts**: `git diff --cached --unified=0 -- src/backend/handshake_core/src/locus/task_board.rs`; `just cor701-sha src/backend/handshake_core/src/locus/task_board.rs`
+- **Timestamp**: `2026-03-13T08:42:44.7758130Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Projection rows stay derived from canonical state instead of Markdown layout.
+
+### Manifest Entry 4: role_mailbox.rs
+- **Target File**: `src/backend/handshake_core/src/role_mailbox.rs`
+- **Start**: 1396
+- **End**: 1520
+- **Line Delta**: 35
+- **Pre-SHA1**: `4725d88f3c99d55073f35ad950546fd0533a6cd5`
+- **Post-SHA1**: `019957403e03efdc4546fbd372349c8bd66b38c2`
+- **Change Summary**: Aligned mailbox export thread lines, index, and manifest with the shared collaboration envelope.
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo fmt` PASS
+- **Artifacts**: `git diff --cached --unified=0 -- src/backend/handshake_core/src/role_mailbox.rs`; `just cor701-sha src/backend/handshake_core/src/role_mailbox.rs`
+- **Timestamp**: `2026-03-13T08:42:44.7758130Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Existing leak-safe export behavior stays covered by the unchanged mailbox tests.
+
+### Manifest Entry 5: workflows.rs
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 49
+- **End**: 8446
+- **Line Delta**: 1357
+- **Pre-SHA1**: `399602f44739988443d68570eabde15a32f45498`
+- **Post-SHA1**: `8644dcaee5ec289c3ad790baf2a1364a371bce33`
+- **Change Summary**: Added authoritative artifact emission for work packets, micro-tasks, and task-board projections, plus deterministic micro-task timestamps and serialized atomic writes.
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo fmt` PASS
+- **Artifacts**: `git diff --cached --unified=0 -- src/backend/handshake_core/src/workflows.rs`; `just cor701-sha src/backend/handshake_core/src/workflows.rs`
+- **Timestamp**: `2026-03-13T08:42:44.7758130Z`
+- **Operator**: `CODER_A`
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: The repair for parallel test races is limited to the workflow-side write wrapper used by these new structured artifact emissions.
 
 ## STATUS_HANDOFF
-- (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
-- Current WP_STATUS:
+- Current WP_STATUS: Implementation complete; post-work passed; ready for validator review.
 - What changed in this update:
+  - Implemented the canonical structured collaboration artifact family across work packets, micro-tasks, task-board projections, and role-mailbox exports.
+  - Added deterministic runtime artifact path helpers and wired authoritative locus operations to materialize those artifacts.
+  - Repaired a parallel-test race in workflow artifact writes and verified the targeted regression test binary before rerunning the full crate test plan.
 - Next step / handoff hint:
+  - Wake the WP validator now.
+  - Review the staged packet manifest plus the cargo and governance logs, then audit the emitted artifact-family logic in the five scoped backend files.
 
 ## EVIDENCE_MAPPING
-- (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
-- Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `relative/file/path:line`
+- REQUIREMENT: "Work Packet, Micro-Task, Task Board, and Role Mailbox runtime artifacts are emitted in a canonical structured family aligned to the v02.178 base envelope."
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:106`, `src/backend/handshake_core/src/locus/types.rs:135`, `src/backend/handshake_core/src/locus/types.rs:189`, `src/backend/handshake_core/src/locus/task_board.rs:26`, `src/backend/handshake_core/src/locus/task_board.rs:56`, `src/backend/handshake_core/src/role_mailbox.rs:1402`, `src/backend/handshake_core/src/role_mailbox.rs:1465`, `src/backend/handshake_core/src/role_mailbox.rs:1510`, `src/backend/handshake_core/src/workflows.rs:3742`
+- REQUIREMENT: "Each canonical collaboration artifact family member exposes a bounded summary path or summary payload that smaller local models can consume first."
+  - EVIDENCE: `src/backend/handshake_core/src/runtime_governance.rs:137`, `src/backend/handshake_core/src/runtime_governance.rs:195`, `src/backend/handshake_core/src/workflows.rs:3339`, `src/backend/handshake_core/src/workflows.rs:3423`, `src/backend/handshake_core/src/workflows.rs:3660`
+- REQUIREMENT: "Runtime artifact paths and serialization stay deterministic and preserve mirror-state plus authoritative-reference semantics."
+  - EVIDENCE: `src/backend/handshake_core/src/runtime_governance.rs:129`, `src/backend/handshake_core/src/runtime_governance.rs:213`, `src/backend/handshake_core/src/workflows.rs:3269`, `src/backend/handshake_core/src/workflows.rs:3497`, `src/backend/handshake_core/src/workflows.rs:3636`, `src/backend/handshake_core/src/workflows.rs:8439`, `src/backend/handshake_core/src/role_mailbox.rs:1415`
+- REQUIREMENT: "Existing mailbox leak-safety and current Locus/Task Board behavior do not regress while the new artifact family is added."
+  - EVIDENCE: `src/backend/handshake_core/tests/role_mailbox_tests.rs:32`, `src/backend/handshake_core/tests/role_mailbox_tests.rs:83`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:332`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:563`
+- REQUIREMENT: "Handshake_Master_Spec_v02.178.md 2.3.15.5 Canonical structured collaboration artifact family [ADD v02.167]"
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:106`, `src/backend/handshake_core/src/locus/task_board.rs:26`, `src/backend/handshake_core/src/workflows.rs:3340`, `src/backend/handshake_core/src/workflows.rs:3664`
 
 ## EVIDENCE
-- (Coder appends logs, test outputs, and proof of work here. No verdicts.)
-- Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Structured-Collaboration-Artifact-Family-v1/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- COMMAND: `CARGO_TARGET_DIR=D:\hctarget cargo test -p handshake_core --test micro_task_executor_tests`
+- EXIT_CODE: 0
+- LOG_PATH: `src/backend/handshake_core/.handshake/logs/WP-1-Structured-Collaboration-Artifact-Family-v1/cargo-test-micro-task-executor.log`
+- LOG_SHA256: `3A6B819152AFEAAD9558DA2D666BEDB922A764BF9C5D164D81BFC5BCA53A35AA`
+- PROOF_LINES:
+  - `running 12 tests`
+  - `test micro_task_executor_persists_locus_lifecycle_and_session_occupancy ... ok`
+  - `test locus_bind_session_normalizes_and_deduplicates_session_ids ... ok`
+  - `test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.58s`
+
+- COMMAND: `CARGO_TARGET_DIR=D:\hctarget cargo test -p handshake_core`
+- EXIT_CODE: 0
+- LOG_PATH: `src/backend/handshake_core/.handshake/logs/WP-1-Structured-Collaboration-Artifact-Family-v1/cargo-test-short-target.log`
+- LOG_SHA256: `950DDF486025FCD460B0AF125A0120AE5BEC67113167032A0771CAF4BB825C48`
+- PROOF_LINES:
+  - `test result: ok. 202 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 56.65s`
+  - `test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.58s`
+  - `test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.87s`
+  - `Doc-tests handshake_core`
+  - `test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s`
+
+- COMMAND: `just gov-check`
+- EXIT_CODE: 0
+- LOG_PATH: `src/backend/handshake_core/.handshake/logs/WP-1-Structured-Collaboration-Artifact-Family-v1/gov-check.log`
+- LOG_SHA256: `4EEA01DA12FD2BE04DA646F3EE9F77BC179C3B01A452E2574FF50938547983D5`
+- PROOF_LINES:
+  - `SPEC_CURRENT ok: Handshake_Master_Spec_v02.178.md`
+  - `task-board-check ok`
+  - `wp-communications-check ok`
+  - `task-packet-claim-check ok`
+  - `worktree-concurrency-check ok`
+
+- COMMAND: `just post-work WP-1-Structured-Collaboration-Artifact-Family-v1`
+- EXIT_CODE: 0
+- LOG_PATH: `src/backend/handshake_core/.handshake/logs/WP-1-Structured-Collaboration-Artifact-Family-v1/post-work.log`
+- LOG_SHA256: `6890C3E15F49C43B077AA00FDD721D17A2FC1C162F1393CF2E388108FEA0F2AE`
+- PROOF_LINES:
+  - `Post-work validation PASSED (deterministic manifest gate; not tests) with warnings`
+  - `Warnings:`
+  - `Working tree has unstaged changes; post-work validation uses STAGED changes only.`
+  - `ROLE_MAILBOX_EXPORT_GATE PASS`
+  - `RESULT: PASS`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
