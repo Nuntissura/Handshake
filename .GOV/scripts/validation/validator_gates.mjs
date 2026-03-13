@@ -38,10 +38,15 @@ function normalizeState(raw) {
         raw?.validation_sessions && typeof raw.validation_sessions === 'object'
             ? raw.validation_sessions
             : {};
+    const committed_validation_evidence =
+        raw?.committed_validation_evidence && typeof raw.committed_validation_evidence === 'object'
+            ? raw.committed_validation_evidence
+            : {};
 
     return {
         validation_sessions,
         archived_sessions: Array.isArray(raw?.archived_sessions) ? raw.archived_sessions : [],
+        committed_validation_evidence,
     };
 }
 
@@ -312,7 +317,10 @@ if (action === 'append') {
         } else {
             success(`Gate 1 PASSED: Report appended to ${wpId}`, [
                 '',
-                '[NEXT] Record PASS commit clearance:',
+                '[NEXT] Record committed handoff validation against the PREPARE worktree source of truth:',
+                `[NEXT] Run: just validator-handoff-check ${wpId}`,
+                '',
+                '[NEXT] After the committed handoff check passes, record PASS commit clearance:',
                 `[NEXT] Run: just validator-gate-commit ${wpId}`
             ]);
         }
@@ -378,6 +386,17 @@ if (action === 'commit') {
         ]);
     }
 
+    const committedEvidence = state?.committed_validation_evidence?.[wpId] || null;
+    if (!committedEvidence || committedEvidence.status !== 'PASS') {
+        fail(`Cannot commit: ${wpId} is missing committed handoff validation evidence`, [
+            'PASS commit clearance now requires committed validation against the PREPARE worktree source of truth.',
+            `Run: just validator-handoff-check ${wpId}`,
+            committedEvidence
+                ? `Latest committed evidence status: ${committedEvidence.status}`
+                : 'No committed validation evidence is recorded for this WP.'
+        ]);
+    }
+
     checkMomentum(session, 'COMMITTED');
 
     session.status = 'COMMITTED';
@@ -419,6 +438,17 @@ if (action === 'status') {
     if (session.completed) {
         console.log(`  Completed: ${session.completed}`);
     }
+    const committedEvidence = state?.committed_validation_evidence?.[wpId] || null;
+    if (committedEvidence) {
+        console.log('  Committed validation:');
+        console.log(`    Status: ${committedEvidence.status}`);
+        console.log(`    Target: ${committedEvidence.committed_validation_target}`);
+        console.log(`    HEAD: ${committedEvidence.target_head_sha}`);
+        console.log(`    Worktree: ${committedEvidence.prepare_worktree_dir}`);
+        console.log(`    Validated at: ${committedEvidence.validated_at}`);
+    } else {
+        console.log('  Committed validation: (missing)');
+    }
     console.log('  Gates:');
     session.gates.forEach((g, i) => {
         const check = i < session.gates.length ? 'âœ“' : 'â—‹';
@@ -428,7 +458,11 @@ if (action === 'status') {
     // Show next action
     const nextActions = {
         'WP_APPENDED': session.verdict === 'PASS'
-            ? `just validator-gate-commit ${wpId}`
+            ? (
+                committedEvidence?.status === 'PASS'
+                    ? `just validator-gate-commit ${wpId}`
+                    : `just validator-handoff-check ${wpId}`
+            )
             : `just validator-gate-present ${wpId}`,
         'COMMITTED': `just validator-gate-present ${wpId}`,
         'REPORT_PRESENTED': `just validator-gate-acknowledge ${wpId}`,

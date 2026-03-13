@@ -240,7 +240,6 @@ export function buildLaunchRequest({
   role,
   localBranch,
   localWorktreeDir,
-  absWorktreeDir,
   selectedModel,
   reasoningConfigKey,
   reasoningConfigValue,
@@ -268,7 +267,6 @@ export function buildLaunchRequest({
     terminal_title: terminalTitleValue || terminalTitle(role, wpId),
     local_branch: normalizePath(localBranch),
     local_worktree_dir: normalizePath(localWorktreeDir),
-    abs_worktree_dir: normalizePath(absWorktreeDir),
     selected_model: selectedModel,
     reasoning_config_key: reasoningConfigKey,
     reasoning_config_value: reasoningConfigValue,
@@ -556,6 +554,7 @@ export function validateLaunchRequestShape(request) {
   if (!request.request_id) errors.push("request_id is required");
   if (!request.role) errors.push("role is required");
   if (!request.wp_id) errors.push("wp_id is required");
+  if (!request.local_worktree_dir) errors.push("local_worktree_dir is required");
   if (!request.command) errors.push("command is required");
   return errors;
 }

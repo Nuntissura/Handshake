@@ -74,6 +74,7 @@ Product-scanning / product-boundary enforcement:
 - `just session-send <ROLE> WP-... "<prompt>"` resumes that governed thread and records append-only request/result artifacts.
 - `just session-cancel <ROLE> WP-...` requests cancellation of the currently running governed command for that role/WP session.
 - `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]` appends a freeform message to the packet-declared `WP_COMMUNICATION_DIR` and writes a paired `THREAD_MESSAGE` receipt.
+- `just external-validator-brief WP-...` prints the canonical external/classical validation target contract, including startup order, split verdict fields, disposition, and the legal verdict vocabulary.
 
 ## Role: Orchestrator
 
@@ -142,7 +143,8 @@ Role rule:
 
 Primary commands (per WP validation):
 - `just gate-check WP-...`
-- `just post-work WP-...`
+- `just validator-handoff-check WP-...`
+- `just post-work WP-...` (local mirror sanity only unless you are explicitly validating the committed PREPARE target)
 - `just validator-dal-audit`
 - `just validator-git-hygiene`
 - `just codex-check` (product boundary enforcement)
@@ -161,3 +163,4 @@ Role rule:
 - Validator duties are non-agentic, but repo workflows may run multiple validator CLI sessions when they are explicitly scoped as WP Validator and Integration Validator sessions.
 - Validator authority is layered: WP Validator is advisory; Integration Validator owns final technical and merge authority unless the packet explicitly overrides it.
 - Validator sessions are started by the Orchestrator; validators do not self-start new repo-governed sessions.
+- For orchestrator-managed WPs, PASS commit clearance now depends on committed handoff validation against the PREPARE worktree source of truth, recorded via `just validator-handoff-check WP-...`.

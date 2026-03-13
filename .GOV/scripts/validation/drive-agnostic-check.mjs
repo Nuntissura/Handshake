@@ -83,13 +83,23 @@ const files = roots.flatMap((root) => {
 
 const violations = [];
 
+function isExcludedRuntimeArtifact(relPath) {
+  return relPath === ".GOV/roles_shared/ROLE_SESSION_REGISTRY.json"
+    || relPath === ".GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl"
+    || relPath === ".GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl"
+    || relPath === ".GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl"
+    || relPath === ".GOV/roles_shared/SESSION_CONTROL_BROKER_STATE.json"
+    || relPath.startsWith(".GOV/roles_shared/SESSION_CONTROL_OUTPUTS/");
+}
+
 for (const filePath of files) {
   // Exclude evidence/history folders that may contain old absolute paths.
   const rel = toPosix(path.relative(repoRoot, filePath));
   if (
     rel.startsWith(".GOV/task_packets/") ||
     rel.startsWith(".GOV/refinements/") ||
-    rel.startsWith(".GOV/operator/")
+    rel.startsWith(".GOV/operator/") ||
+    isExcludedRuntimeArtifact(rel)
   ) {
     continue;
   }

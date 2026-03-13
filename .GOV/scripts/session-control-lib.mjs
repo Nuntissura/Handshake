@@ -56,6 +56,13 @@ export function normalizePath(value) {
   return String(value || "").replace(/\\/g, "/");
 }
 
+export function toRepoRelativePath(repoRoot, targetPath) {
+  const repoAbs = path.resolve(repoRoot);
+  const targetAbs = path.resolve(targetPath);
+  const relative = normalizePath(path.relative(repoAbs, targetAbs));
+  return relative || ".";
+}
+
 export function sanitizeSessionKey(value) {
   return String(value || "")
     .trim()
@@ -178,7 +185,6 @@ export function buildSessionControlRequest({
     session_thread_id: threadId,
     local_branch: normalizePath(localBranch),
     local_worktree_dir: normalizePath(localWorktreeDir),
-    abs_worktree_dir: normalizePath(absWorktreeDir),
     selected_model: selectedModel,
     reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
     reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
@@ -234,7 +240,7 @@ export function buildSessionControlResult({
 
 export function defaultSessionOutputFile(repoRoot, sessionKey, commandId) {
   const safeSessionKey = sanitizeSessionKey(sessionKey);
-  return path.resolve(repoRoot, SESSION_CONTROL_OUTPUT_DIR, safeSessionKey, `${commandId}.jsonl`);
+  return normalizePath(path.join(SESSION_CONTROL_OUTPUT_DIR, safeSessionKey, `${commandId}.jsonl`));
 }
 
 export async function runCodexThreadCommand({
@@ -418,7 +424,9 @@ export function validateSessionControlResultShape(result) {
   if (!result.session_key) errors.push("session_key is required");
   if (!result.wp_id) errors.push("wp_id is required");
   if (!result.role) errors.push("role is required");
-  if (result.broker_build_id && result.broker_build_id !== SESSION_CONTROL_BROKER_BUILD_ID) errors.push(`broker_build_id must be ${SESSION_CONTROL_BROKER_BUILD_ID}`);
+  if ("broker_build_id" in result && !String(result.broker_build_id || "").trim()) {
+    errors.push("broker_build_id must be a non-empty string when present");
+  }
   if (commandKind === "CANCEL_SESSION" && !result.target_command_id) {
     errors.push("target_command_id is required for CANCEL_SESSION");
   }

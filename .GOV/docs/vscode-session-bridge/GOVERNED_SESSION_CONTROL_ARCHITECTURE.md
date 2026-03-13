@@ -89,6 +89,35 @@ The previous bridge design solved terminal dispatch. It did not solve real sessi
 
 The new target is ACP-first session control with repo-governed projections. The bridge and the TUI stay non-authoritative. Packets, traceability, task board, and WP communications remain authoritative.
 
+## Live Smoke Test Findings (2026-03-13)
+
+This architecture was proven in a live end-to-end run of `WP-1-Structured-Collaboration-Artifact-Family-v1`.
+
+Validated workflow outcome:
+
+- implementation source head validated by WP Validator: `84d37247e9e8e6ff6350fb109e5faaea821af9b9`
+- feature branch closeout head after integration-validator governance records: `f9e89285a17dc2f7a2a19f08c09fd57c89e89d2b`
+- merged to canonical `main` at: `5367d86e960888ff1ccd04308bbc847e87442d7a`
+
+Governance and ACP defects found and fixed during the live run:
+
+- broker run timeout was too short for real WP implementation work
+  - original governed run ceiling: `900s`
+  - patched governed run ceiling: `5400s`
+- broker build identity had to be bumped when timeout semantics changed so stale in-memory brokers were rejected and restarted
+- historical settled result rows were being invalidated by broker build changes
+  - fixed by treating `broker_build_id` on settled rows as historical audit metadata, while live broker identity remains exact-match enforced by the client/broker handshake
+- topology registry validation produced a false positive in clean Windows checkouts because it compared raw file bytes instead of normalized line endings
+  - fixed by normalizing `CRLF/LF` in `topology-registry-check`
+- advisory/final validator worktrees created from `main` are expected to start with stale packet/runtime mirrors for an active WP
+  - proven operating rule: validate the explicit feat-branch/WP-worktree handoff state, not the initial main-based local mirror
+
+Operational conclusions proven by the smoke test:
+
+- the governed ACP lane is sufficient to run `Coder -> WP Validator -> Integration Validator -> merge to main`
+- the VS Code bridge is not needed for ongoing steering once the governed ACP thread exists
+- repo projections remain authoritative enough for audit, but the Orchestrator must still steer validators toward the correct feat-branch source of truth when their bootstrap worktrees begin from `main`
+
 ## Research Basis
 
 This design is based on the current shape of public ACP and multi-agent implementations:
@@ -139,6 +168,12 @@ The following artifacts are projections, not work-scope authority:
 - ACP adapter runtime metadata under `.GOV/tools/handshake-acp-bridge/`
 
 If packet truth and session-control artifacts disagree, the packet wins.
+
+Operational note:
+
+- session runtime ledgers may contain operator-facing file links, output-log paths, and launch/bootstrap command text
+- those runtime artifacts are audited by their dedicated runtime/schema checks
+- they should not be treated as the canonical drive-agnostic governance text surface
 
 ## High-Level Architecture
 
@@ -285,6 +320,8 @@ Additional governance requirement:
 
 - `gov-check` must enforce request/result parity, duplicate-command detection, missing output-log detection, and stale-running detection across the request ledger, result ledger, registry projection, and broker-state projection
 - one governed role/WP session may have at most one active ACP broker-owned run at a time
+- final PASS commit clearance for orchestrator-managed validation must use committed handoff evidence from `just validator-handoff-check WP-{ID}`, which runs against the PREPARE worktree source of truth rather than a possibly dirty validator mirror
+- when external/classical validation is used, the Orchestrator should require `just validator-startup` followed immediately by `just external-validator-brief WP-{ID}` so the validator gets one canonical code target, one governance target, the committed handoff command, and the legal split-verdict contract (`VALIDATION_CONTEXT`, `CODE_VERDICT`, `GOVERNANCE_VERDICT`, `ENVIRONMENT_VERDICT`, `DISPOSITION`, `LEGAL_VERDICT`)
 
 Trust boundary note:
 

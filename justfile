@@ -453,6 +453,12 @@ validator-git-hygiene:
 validator-hygiene-full:
 	@node .GOV/scripts/validation/validator-hygiene-full.mjs
 
+validator-handoff-check wp-id *args:
+	@node .GOV/scripts/validation/validator-handoff-check.mjs {{wp-id}} {{args}}
+
+external-validator-brief wp-id *args:
+	@node .GOV/scripts/validation/external-validator-brief.mjs {{wp-id}} {{args}}
+
 # Validator Gate Commands [CX-VAL-GATE] - Mechanical enforcement of validation sequence
 validator-gate-present wp-id verdict="":
 	@node .GOV/scripts/validation/validator_gates.mjs present-report {{wp-id}} {{verdict}}
