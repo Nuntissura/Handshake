@@ -499,10 +499,10 @@ rg -n "TrackedWorkPacket|TrackedMicroTask|role_mailbox_export_v1|workflow_state_
 - **Target File**: `src/backend/handshake_core/src/role_mailbox.rs`
 - **Start**: 1396
 - **End**: 1520
-- **Line Delta**: 35
+- **Line Delta**: 0
 - **Pre-SHA1**: `4725d88f3c99d55073f35ad950546fd0533a6cd5`
-- **Post-SHA1**: `019957403e03efdc4546fbd372349c8bd66b38c2`
-- **Change Summary**: Aligned mailbox export thread lines, index, and manifest with the shared collaboration envelope.
+- **Post-SHA1**: `9540ea45e6cad28fe3c753c52d9deaec3833d41d`
+- **Change Summary**: Kept the mailbox export thread lines stable while restoring the index and manifest record_kind values to the spec-aligned generic envelope.
 - **Gates Passed**:
   - [x] anchors_present
   - [x] window_matches_plan
@@ -516,7 +516,7 @@ rg -n "TrackedWorkPacket|TrackedMicroTask|role_mailbox_export_v1|workflow_state_
   - [x] current_file_matches_preimage
 - **Lint Results**: `cargo fmt` PASS
 - **Artifacts**: `git diff --cached --unified=0 -- src/backend/handshake_core/src/role_mailbox.rs`; `just cor701-sha src/backend/handshake_core/src/role_mailbox.rs`
-- **Timestamp**: `2026-03-13T08:42:44.7758130Z`
+- **Timestamp**: `2026-03-13T09:28:00.0000000Z`
 - **Operator**: `CODER_A`
 - **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
 - **Notes**: Existing leak-safe export behavior stays covered by the unchanged mailbox tests.
