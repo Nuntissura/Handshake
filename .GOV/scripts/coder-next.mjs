@@ -102,7 +102,7 @@ const commonFindings = [
   `Skeleton approval: ${skeletonApproved ? "present" : "missing"}`,
 ];
 
-if (!bootstrapClaim || /^ready for dev$/i.test(packetStatus) || /^<unclaimed>$/i.test(coderModel)) {
+if (!bootstrapClaim) {
   printLifecycle({ wpId, stage: "BOOTSTRAP", next: "BOOTSTRAP" });
   printOperatorAction("NONE");
   printConfidence(confidence, confidenceDetail);

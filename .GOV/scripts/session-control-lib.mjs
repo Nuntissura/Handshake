@@ -418,7 +418,9 @@ export function validateSessionControlResultShape(result) {
   if (!result.session_key) errors.push("session_key is required");
   if (!result.wp_id) errors.push("wp_id is required");
   if (!result.role) errors.push("role is required");
-  if (result.broker_build_id && result.broker_build_id !== SESSION_CONTROL_BROKER_BUILD_ID) errors.push(`broker_build_id must be ${SESSION_CONTROL_BROKER_BUILD_ID}`);
+  if ("broker_build_id" in result && !String(result.broker_build_id || "").trim()) {
+    errors.push("broker_build_id must be a non-empty string when present");
+  }
   if (commandKind === "CANCEL_SESSION" && !result.target_command_id) {
     errors.push("target_command_id is required for CANCEL_SESSION");
   }
