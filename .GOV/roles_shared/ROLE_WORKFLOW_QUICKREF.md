@@ -74,6 +74,7 @@ Product-scanning / product-boundary enforcement:
 - `just session-send <ROLE> WP-... "<prompt>"` resumes that governed thread and records append-only request/result artifacts.
 - `just session-cancel <ROLE> WP-...` requests cancellation of the currently running governed command for that role/WP session.
 - `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]` appends a freeform message to the packet-declared `WP_COMMUNICATION_DIR` and writes a paired `THREAD_MESSAGE` receipt.
+- `just external-validator-brief WP-...` prints the canonical external/classical validation target contract, including split verdict fields and the legal verdict vocabulary.
 
 ## Role: Orchestrator
 

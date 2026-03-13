@@ -413,6 +413,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 
 ## Standard Command Set (run when applicable)
 - `just cargo-clean` (cleans external Cargo target dir at `../Handshake Artifacts/handshake-cargo-target` before validation/commit; fail validation if skipped)
+- `just external-validator-brief WP-{ID}` (prints the canonical external/classical validator target contract: code target, governance target, committed handoff command, split report fields, and legal verdict vocabulary)
 - `just validator-handoff-check WP-{ID}` (required before PASS commit clearance for orchestrator-managed WPs; validates the committed PREPARE worktree handoff state)
 - `just gov-check` (required before PASS merge/push and for any governance-only validator changes; catches activation traceability drift, Task Board/build-order drift, and shared governance regressions)
 - `just validator-scan` (forbidden patterns, mocks/placeholders, RDD/LLM/DB boundary greps)
@@ -438,6 +439,19 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - While validation is still in progress, use:
   - `VERDICT: PENDING`
 - Do not require the Operator to infer the verdict from `NEXT_ACTION`, gate state, or prose.
+- Strings like `accept`, `approved`, `technical pass`, or `looks good` are not legal verdicts.
+
+## External Validator Split Report Contract
+- Before an external/classical validator starts on an orchestrator-managed WP, generate the target contract with `just external-validator-brief WP-{ID}`.
+- External/classical validator reports for orchestrator-managed WPs MUST use these top fields:
+  - `VALIDATION_CONTEXT: OK | CONTEXT_MISMATCH`
+  - `CODE_VERDICT: PASS | FAIL | NOT_RUN`
+  - `GOVERNANCE_VERDICT: PASS | FAIL | NOT_RUN`
+  - `ENVIRONMENT_VERDICT: PASS | FAIL | NOT_RUN`
+  - `LEGAL_VERDICT: PASS | FAIL | PENDING`
+- `LEGAL_VERDICT` is the only legal top-line verdict field. `CODE_VERDICT`, `GOVERNANCE_VERDICT`, and `ENVIRONMENT_VERDICT` are split assessments only.
+- If the validator is in the wrong checkout or cannot access the committed PREPARE worktree source of truth, classify that as `VALIDATION_CONTEXT: CONTEXT_MISMATCH`, keep the blocked assessment at `NOT_RUN`, and use `LEGAL_VERDICT: PENDING` until the validation is rerun from the correct governance context.
+- A `CONTEXT_MISMATCH` is not, by itself, proof that the WP implementation failed.
 
 ## Validation Gate Sequence [CX-VAL-GATE] (ONE REVIEW PAUSE; APPEND-FIRST)
 

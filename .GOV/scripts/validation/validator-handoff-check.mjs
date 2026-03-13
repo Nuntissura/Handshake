@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import {
+  currentGitContext,
   loadOrchestratorGateLogs,
   lastGateLog,
   packetExists,
@@ -19,10 +20,18 @@ function usage() {
   process.exit(1);
 }
 
-function fail(message, details = []) {
-  console.error(`[VALIDATOR_HANDOFF_CHECK] ${message}`);
+function fail(kind, message, details = [], exitCode = 1) {
+  console.error(`[VALIDATOR_HANDOFF_CHECK] ${kind}: ${message}`);
   for (const detail of details) console.error(`  - ${detail}`);
-  process.exit(1);
+  process.exit(exitCode);
+}
+
+function contextMismatch(message, details = []) {
+  fail("CONTEXT_MISMATCH", message, details, 2);
+}
+
+function hardFail(message, details = []) {
+  fail("FAIL", message, details, 1);
 }
 
 function ensureStateDir() {
@@ -150,30 +159,45 @@ function persistEvidence(wpId, evidence) {
 
 const parsed = parseArgs(process.argv.slice(2));
 const repoRoot = process.cwd();
+const gitContext = currentGitContext();
 
 if (!packetExists(parsed.wpId)) {
-  fail("Task packet not found", [`.GOV/task_packets/${parsed.wpId}.md`]);
+  hardFail("Task packet not found", [`.GOV/task_packets/${parsed.wpId}.md`]);
 }
 
 const logs = loadOrchestratorGateLogs();
 const prepareEntry = lastGateLog(logs, parsed.wpId, "PREPARE");
 if (!prepareEntry) {
-  fail("PREPARE gate entry is missing", [`Run: just orchestrator-next ${parsed.wpId}`]);
+  if (gitContext.branch !== "role_orchestrator") {
+    contextMismatch("PREPARE gate entry is unavailable in this checkout", [
+      `current_branch=${gitContext.branch || "<detached>"}`,
+      "expected_governance_branch=role_orchestrator",
+      `rerun=just validator-handoff-check ${parsed.wpId}`,
+    ]);
+  }
+  hardFail("PREPARE gate entry is missing", [`Run: just orchestrator-next ${parsed.wpId}`]);
 }
 
 const syncState = preparedWorktreeSyncState(parsed.wpId, prepareEntry, repoRoot);
 const worktreeAbs = resolvePrepareWorktreeAbs(prepareEntry, repoRoot);
 if (!worktreeAbs || !fs.existsSync(worktreeAbs)) {
-  fail("Assigned PREPARE worktree is missing", [String(prepareEntry.worktree_dir || "<missing>")]);
+  contextMismatch("Assigned PREPARE worktree is unavailable in this environment", [
+    `recorded_worktree_dir=${String(prepareEntry.worktree_dir || "<missing>")}`,
+    `current_branch=${gitContext.branch || "<detached>"}`,
+    "This blocks committed handoff validation in this checkout but does not by itself prove a WP failure.",
+  ]);
 }
 if (!String(syncState.actualBranch || "").trim()) {
-  fail("Assigned PREPARE worktree branch could not be resolved", [worktreeAbs]);
+  contextMismatch("Assigned PREPARE worktree branch could not be resolved", [
+    worktreeAbs,
+    "The committed handoff source cannot be inspected from this environment.",
+  ]);
 }
 if (
   String(syncState.expectedBranch || "").trim()
   && String(syncState.actualBranch || "").trim() !== String(syncState.expectedBranch || "").trim()
 ) {
-  fail("Assigned PREPARE worktree branch does not match PREPARE", [
+  hardFail("Assigned PREPARE worktree branch does not match PREPARE", [
     `expected=${syncState.expectedBranch}`,
     `actual=${syncState.actualBranch}`,
   ]);
@@ -224,7 +248,7 @@ const evidence = {
 persistEvidence(parsed.wpId, evidence);
 
 if (evidence.status !== "PASS") {
-  fail("Committed handoff validation failed", [
+  hardFail("Committed handoff validation failed", [
     `prepare_worktree_dir=${evidence.prepare_worktree_dir}`,
     `committed_validation_target=${evidence.committed_validation_target}`,
     `pre_work_status=${evidence.pre_work_status}`,
