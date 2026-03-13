@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { appendWpThreadEntry } from "./wp-thread-append.mjs";
 import { normalize, parseJsonFile, parseJsonlFile, validateReceipt, validateRuntimeStatus } from "./wp-communications-lib.mjs";
@@ -11,12 +12,28 @@ import { loadSessionRegistry, registrySessionSummary } from "./session-registry-
 
 const TASK_BOARD_PATH = ".GOV/roles_shared/TASK_BOARD.md";
 const TRACEABILITY_PATH = ".GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md";
+const TOPOLOGY_PATH = ".GOV/roles_shared/GIT_TOPOLOGY_REGISTRY.json";
+const SESSION_CONTROL_REQUESTS_PATH = ".GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl";
+const SESSION_CONTROL_RESULTS_PATH = ".GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl";
+const SESSION_CONTROL_BROKER_STATE_PATH = ".GOV/roles_shared/SESSION_CONTROL_BROKER_STATE.json";
 const PACKETS_DIR = ".GOV/task_packets";
 const PACKET_STUBS_DIR = ".GOV/task_packets/stubs";
 
 const FILTERS = ["ALL", "ACTIVE", "READY_FOR_DEV", "IN_PROGRESS", "BLOCKED", "STUB", "DONE", "SUPERSEDED"];
 const BOARD_ORDER = ["ACTIVE", "READY_FOR_DEV", "IN_PROGRESS", "BLOCKED", "STUB", "DONE", "SUPERSEDED", "OTHER"];
 const REFRESH_INTERVAL_MS = 1000;
+const ACTIVE_RUNTIME_STATES = new Set([
+  "PLUGIN_REQUESTED",
+  "TERMINAL_COMMAND_DISPATCHED",
+  "PLUGIN_CONFIRMED",
+  "CLI_ESCALATION_READY",
+  "CLI_ESCALATION_USED",
+  "STARTING",
+  "READY",
+  "COMMAND_RUNNING",
+  "ACTIVE",
+  "WAITING",
+]);
 
 function readText(filePath) {
   return fs.readFileSync(filePath, "utf8");
@@ -67,8 +84,20 @@ function parseArgs(argv) {
   return options;
 }
 
-function parseTaskBoard() {
-  const lines = readText(TASK_BOARD_PATH).split(/\r?\n/);
+function latestTimestamp(values) {
+  return values
+    .filter(Boolean)
+    .map((value) => String(value))
+    .sort()
+    .at(-1) || null;
+}
+
+function normalizeBoardText(text) {
+  return String(text || "").replace(/\r\n/g, "\n").trim();
+}
+
+function parseTaskBoard(boardPath = TASK_BOARD_PATH) {
+  const lines = readText(boardPath).split(/\r?\n/);
   const entries = [];
   let section = "OTHER";
   for (const line of lines) {
@@ -145,6 +174,109 @@ function parseSessionRegistry() {
   }
 }
 
+function parseSessionControlResults() {
+  const byWpId = new Map();
+  if (!fs.existsSync(SESSION_CONTROL_RESULTS_PATH)) return byWpId;
+  try {
+    const results = parseJsonlFile(SESSION_CONTROL_RESULTS_PATH);
+    for (const result of results) {
+      const entries = byWpId.get(result.wp_id) || [];
+      entries.push(result);
+      byWpId.set(result.wp_id, entries);
+    }
+  } catch {
+    return new Map();
+  }
+  return byWpId;
+}
+
+function parseSessionControlRequests() {
+  const byWpId = new Map();
+  if (!fs.existsSync(SESSION_CONTROL_REQUESTS_PATH)) return byWpId;
+  try {
+    const requests = parseJsonlFile(SESSION_CONTROL_REQUESTS_PATH);
+    for (const request of requests) {
+      const entries = byWpId.get(request.wp_id) || [];
+      entries.push(request);
+      byWpId.set(request.wp_id, entries);
+    }
+  } catch {
+    return new Map();
+  }
+  return byWpId;
+}
+
+function parseBrokerState() {
+  const activeRunsByWpId = new Map();
+  if (!fs.existsSync(SESSION_CONTROL_BROKER_STATE_PATH)) return { state: null, activeRunsByWpId };
+  try {
+    const state = parseJsonFile(SESSION_CONTROL_BROKER_STATE_PATH);
+    for (const run of state.active_runs || []) {
+      const entries = activeRunsByWpId.get(run.wp_id) || [];
+      entries.push(run);
+      activeRunsByWpId.set(run.wp_id, entries);
+    }
+    return { state, activeRunsByWpId };
+  } catch {
+    return { state: null, activeRunsByWpId: new Map() };
+  }
+}
+
+function currentBranch() {
+  try {
+    return execFileSync("git", ["branch", "--show-current"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    return "";
+  }
+}
+
+function loadBoardSourceInfo() {
+  const info = {
+    current_branch: currentBranch(),
+    current_worktree_dir: normalize(process.cwd()),
+    current_board_path: normalize(path.resolve(process.cwd(), TASK_BOARD_PATH)),
+    canonical_branch: "main",
+    canonical_worktree_dir: "",
+    canonical_board_path: "",
+    board_drift: "UNKNOWN",
+    display: "board=current",
+    detail: "",
+  };
+  if (!fs.existsSync(TOPOLOGY_PATH)) {
+    info.display = `board=current:${info.current_branch || "<unknown>"}`;
+    return info;
+  }
+  try {
+    const topology = parseJsonFile(TOPOLOGY_PATH);
+    info.canonical_branch = topology.canonical_branch || "main";
+    const canonical = Array.isArray(topology.protected_worktrees)
+      ? topology.protected_worktrees.find((entry) => entry && entry.canonical)
+      : null;
+    if (canonical?.rel_path) {
+      info.canonical_worktree_dir = normalize(path.resolve(process.cwd(), canonical.rel_path));
+      info.canonical_board_path = normalize(path.resolve(process.cwd(), canonical.rel_path, ".GOV/roles_shared/TASK_BOARD.md"));
+    }
+    const isCanonical = info.canonical_worktree_dir && info.current_worktree_dir === info.canonical_worktree_dir;
+    if (isCanonical) {
+      info.board_drift = "CANONICAL";
+      info.display = `board=canonical:${info.canonical_branch}`;
+      info.detail = `current=${info.current_board_path}`;
+      return info;
+    }
+    if (info.canonical_board_path && fs.existsSync(info.canonical_board_path) && fs.existsSync(info.current_board_path)) {
+      const currentBoard = normalizeBoardText(readText(info.current_board_path));
+      const canonicalBoard = normalizeBoardText(readText(info.canonical_board_path));
+      info.board_drift = currentBoard === canonicalBoard ? "IN_SYNC" : "DIVERGED";
+    }
+    info.display = `board=mirror:${info.current_branch || "<unknown>"} | canonical=${info.canonical_branch}@${info.canonical_worktree_dir || "<unknown>"} | drift=${info.board_drift}`;
+    info.detail = `current=${info.current_board_path} | canonical=${info.canonical_board_path || "<unknown>"}`;
+  } catch {
+    info.display = `board=current:${info.current_branch || "<unknown>"}`;
+    info.detail = `current=${info.current_board_path}`;
+  }
+  return info;
+}
+
 function resolvePacketPath(wpId, traceability) {
   if (traceability.byWpId.has(wpId)) return traceability.byWpId.get(wpId);
   const official = normalize(path.join(PACKETS_DIR, `${wpId}.md`));
@@ -153,6 +285,19 @@ function resolvePacketPath(wpId, traceability) {
   if (fs.existsSync(stub)) return stub;
   if (traceability.byBaseWpId.has(wpId)) return traceability.byBaseWpId.get(wpId);
   return null;
+}
+
+function compareBoardEntries(left, right) {
+  if (!left || !right) return null;
+  return left.boardSection === right.boardSection
+    && left.boardToken === right.boardToken
+    && String(left.detail || "").trim() === String(right.detail || "").trim();
+}
+
+function formatBoardEntry(entry) {
+  if (!entry) return "<missing>";
+  const detail = String(entry.detail || "").trim();
+  return detail ? `${entry.boardSection}/${entry.boardToken} | ${detail}` : `${entry.boardSection}/${entry.boardToken}`;
 }
 
 function parseThreadEntries(threadPath) {
@@ -220,6 +365,8 @@ function parsePacketRecord(packetPath) {
     threadPath,
     runtimePath,
     receiptsPath,
+    packetText,
+    artifactPreviewLines: packetText.split(/\r?\n/).slice(0, 40),
   };
 
   try {
@@ -269,18 +416,93 @@ function parsePacketRecord(packetPath) {
 
 function loadMonitorModel() {
   const traceability = parseTraceabilityRegistry();
-  const boardEntries = parseTaskBoard();
+  const boardSource = loadBoardSourceInfo();
+  const currentBoardEntries = parseTaskBoard();
+  const currentByWpId = new Map(currentBoardEntries.map((entry) => [entry.wpId, entry]));
+  const canonicalBoardEntries = boardSource.canonical_board_path && fs.existsSync(boardSource.canonical_board_path)
+    ? parseTaskBoard(boardSource.canonical_board_path)
+    : [];
+  const selectedBoardEntries = canonicalBoardEntries.length > 0 ? canonicalBoardEntries : currentBoardEntries;
+  const selectedBoardSource = canonicalBoardEntries.length > 0 ? "CANONICAL_MAIN" : "CURRENT_WORKTREE";
+  const canonicalByWpId = new Map(canonicalBoardEntries.map((entry) => [entry.wpId, entry]));
   const sessionRegistry = parseSessionRegistry();
-  const records = boardEntries.map((entry) => {
+  const controlRequests = parseSessionControlRequests();
+  const controlResults = parseSessionControlResults();
+  const brokerState = parseBrokerState();
+  const records = selectedBoardEntries.map((entry) => {
     const packetPath = resolvePacketPath(entry.wpId, traceability);
     const packetRecord = parsePacketRecord(packetPath);
-    const registrySessions = sessionRegistry.get(entry.wpId) || [];
+    const registrySessions = [...(sessionRegistry.get(entry.wpId) || [])]
+      .sort((left, right) => String(left.updated_at || "").localeCompare(String(right.updated_at || "")));
+    const wpControlRequests = [...(controlRequests.get(entry.wpId) || [])]
+      .sort((left, right) => String(left.created_at || "").localeCompare(String(right.created_at || "")));
+    const latestRegistrySession = registrySessions.at(-1) || null;
+    const controlEventStreams = registrySessions.map((session) => {
+      let events = [];
+      if (session.last_command_output_file && fs.existsSync(session.last_command_output_file)) {
+        try {
+          events = parseJsonlFile(session.last_command_output_file);
+        } catch {
+          events = [];
+        }
+      }
+      return {
+        session_key: session.session_key,
+        role: session.role,
+        output_file: session.last_command_output_file || "",
+        updated_at: session.updated_at || "",
+        events,
+      };
+    });
+    const controlEventTimeline = controlEventStreams
+      .flatMap((stream) => (stream.events || []).map((event) => ({
+        ...event,
+        session_key: stream.session_key,
+        role: stream.role,
+        output_file: stream.output_file,
+      })))
+      .sort((left, right) => String(left.timestamp || "").localeCompare(String(right.timestamp || "")));
+    const wpControlResults = [...(controlResults.get(entry.wpId) || [])]
+      .sort((left, right) => String(left.processed_at || "").localeCompare(String(right.processed_at || "")));
+    const resultIds = new Set(wpControlResults.map((result) => result.command_id));
+    const pendingControlRequests = wpControlRequests.filter((request) => !resultIds.has(request.command_id));
+    const controlBrokerRuns = [...(brokerState.activeRunsByWpId.get(entry.wpId) || [])]
+      .sort((left, right) => String(left.started_at || "").localeCompare(String(right.started_at || "")));
+    const canonicalBoardEntry = canonicalByWpId.get(entry.wpId) || (selectedBoardSource === "CANONICAL_MAIN" ? entry : null);
+    const currentBoardEntry = currentByWpId.get(entry.wpId) || null;
+    const currentBoardMatchesSelected = compareBoardEntries(entry, currentBoardEntry);
+    const lastActivityAt = latestTimestamp([
+      packetRecord?.runtime?.last_event_at || null,
+      packetRecord?.lastThreadEntry?.timestamp || null,
+      packetRecord?.lastReceipt?.timestamp_utc || null,
+      ...registrySessions.map((session) => session.updated_at || null),
+      ...wpControlRequests.map((request) => request.created_at || null),
+      ...wpControlResults.map((result) => result.processed_at || null),
+      ...controlBrokerRuns.map((run) => run.started_at || null),
+      ...controlEventTimeline.map((event) => event.timestamp || null),
+    ]);
+    if (packetRecord) {
+      packetRecord.lastActivityAt = lastActivityAt;
+    }
     return {
       ...entry,
       packetPath,
       packetRecord,
+      boardSource,
+      selectedBoardSource,
       sessions: summarizeSessions(packetRecord?.runtime),
       registrySessions,
+      controlRequests: wpControlRequests,
+      pendingControlRequests,
+      controlResults: wpControlResults,
+      controlBrokerRuns,
+      latestRegistrySession,
+      controlEventStreams,
+      controlEventTimeline,
+      canonicalBoardEntry,
+      currentBoardEntry,
+      currentBoardMatchesSelected,
+      lastActivityAt,
       stale: Boolean(packetRecord?.runtime?.stale_after && new Date(packetRecord.runtime.stale_after) < new Date()),
     };
   });
@@ -290,12 +512,21 @@ function loadMonitorModel() {
     if (leftIndex !== rightIndex) return leftIndex - rightIndex;
     return left.wpId.localeCompare(right.wpId);
   });
-  return records;
+  return { records, boardSource };
 }
 
 function filterRecords(records, filter) {
   if (filter === "ALL") return records;
-  if (filter === "ACTIVE") return records.filter((record) => record.boardSection === "ACTIVE" || record.sessions.length > 0);
+  if (filter === "ACTIVE") {
+    return records.filter((record) =>
+      record.boardSection === "ACTIVE"
+      || record.sessions.length > 0
+      || (record.registrySessions || []).some((session) => ACTIVE_RUNTIME_STATES.has(session.runtime_state))
+      || (record.pendingControlRequests || []).length > 0
+      || (record.controlBrokerRuns || []).length > 0
+      || (record.controlResults || []).some((entry) => ["QUEUED", "RUNNING"].includes(String(entry.status || "").toUpperCase()))
+    );
+  }
   return records.filter((record) => record.boardSection === filter);
 }
 
@@ -305,6 +536,70 @@ function truncate(value, width) {
   if (text.length <= width) return text.padEnd(width, " ");
   if (width === 1) return text.slice(0, 1);
   return `${text.slice(0, width - 1)}…`;
+}
+
+function summarizeControlEvent(event) {
+  if (!event || typeof event !== "object") return "";
+  if (event.type === "thread.started") return `thread.started | thread=${event.thread_id || "<missing>"}`;
+  if (event.type === "stderr") return `stderr | ${String(event.text || "").trim()}`;
+  if (event.type === "spawn.error") return `spawn.error | ${event.message || ""}`;
+  if (event.type === "process.closed") return `process.closed | exit=${event.exit_code ?? "<missing>"}`;
+  if (event.type === "item.completed" && event.item?.type === "agent_message") {
+    return `agent_message | ${String(event.item.text || "").split(/\r?\n/, 1)[0]}`;
+  }
+  if (event.type === "item.completed" && event.item?.type === "command_execution") {
+    return `command_execution | ${event.item.command || ""}`;
+  }
+  return JSON.stringify(event);
+}
+
+function buildTimelineEntries(record) {
+  const entries = [];
+  let sequence = 0;
+  for (const entry of record.packetRecord?.threadEntries || []) {
+    entries.push({
+      timestamp: entry.timestamp || "",
+      sequence: sequence += 1,
+      header: `${entry.timestamp || "<no-ts>"} | THREAD | ${entry.actorRole} | ${entry.actorSession}${entry.target ? ` | ${entry.target}` : ""}`,
+      detailLines: entry.messageLines?.length ? entry.messageLines : ["<no body>"],
+    });
+  }
+  for (const entry of record.packetRecord?.receipts || []) {
+    entries.push({
+      timestamp: entry.timestamp_utc || "",
+      sequence: sequence += 1,
+      header: `${entry.timestamp_utc || "<no-ts>"} | RECEIPT | ${entry.actor_role} | ${entry.receipt_kind}`,
+      detailLines: [entry.summary || "<no summary>"],
+    });
+  }
+  for (const entry of record.controlRequests || []) {
+    entries.push({
+      timestamp: entry.created_at || "",
+      sequence: sequence += 1,
+      header: `${entry.created_at || "<no-ts>"} | CONTROL_REQUEST | ${entry.role} | ${entry.command_kind}`,
+      detailLines: [entry.summary || entry.prompt?.split(/\r?\n/, 1)[0] || "<no summary>"],
+    });
+  }
+  for (const entry of record.controlResults || []) {
+    entries.push({
+      timestamp: entry.processed_at || "",
+      sequence: sequence += 1,
+      header: `${entry.processed_at || "<no-ts>"} | CONTROL_RESULT | ${entry.role} | ${entry.command_kind} | ${entry.status}`,
+      detailLines: [entry.summary || entry.error || "<no summary>"],
+    });
+  }
+  for (const entry of record.controlEventTimeline || []) {
+    entries.push({
+      timestamp: entry.timestamp || "",
+      sequence: sequence += 1,
+      header: `${entry.timestamp || "<no-ts>"} | CONTROL_EVENT | ${entry.role || "<unknown>"} | ${entry.session_key || "<none>"}`,
+      detailLines: [summarizeControlEvent(entry)],
+    });
+  }
+  return entries.sort((left, right) =>
+    String(left.timestamp || "").localeCompare(String(right.timestamp || ""))
+    || left.sequence - right.sequence
+  );
 }
 
 function wrapText(text, width) {
@@ -345,12 +640,13 @@ function renderList(records, selectedIndex, width, height) {
     const globalIndex = start + index;
     const marker = globalIndex === selectedIndex ? ">" : " ";
     const stale = record.stale ? "!" : " ";
-    const latest = record.packetRecord?.lastActivityAt ? record.packetRecord.lastActivityAt.slice(11, 16) : "-----";
+    const drift = record.currentBoardMatchesSelected === false ? "~" : " ";
+    const latest = record.lastActivityAt ? record.lastActivityAt.slice(11, 16) : "-----";
     const threadCount = record.packetRecord?.threadEntries?.length || 0;
     const receiptCount = record.packetRecord?.receipts?.length || 0;
-    const sessionCount = record.sessions?.length || 0;
-    const launchState = record.registrySessions?.[0]?.runtime_state || "NONE";
-    const line = `${marker}${stale} ${record.wpId} [${record.boardSection}] T${threadCount} R${receiptCount} S${sessionCount} L=${launchState} ${latest}`;
+    const sessionCount = Math.max(record.sessions?.length || 0, record.registrySessions?.length || 0);
+    const launchState = record.latestRegistrySession?.runtime_state || "NONE";
+    const line = `${marker}${stale}${drift} ${record.wpId} [${record.boardSection}] T${threadCount} R${receiptCount} S${sessionCount} L=${launchState} ${latest}`;
     rows.push(globalIndex === selectedIndex ? `\x1b[7m${truncate(line, width)}\x1b[0m` : truncate(line, width));
   }
   while (rows.length < maxRows) rows.push(" ".repeat(width));
@@ -369,7 +665,14 @@ function buildDetailLines(record, width, detailView) {
     `wpval=${packet?.wpValidatorOfRecord || "<unassigned>"} | ival=${packet?.integrationValidatorOfRecord || "<unassigned>"}`,
     `branch=${packet?.localBranch || "<pending>"}`,
     `worktree=${packet?.localWorktreeDir || "<pending>"}`,
+    `board_source=${record.boardSource?.display || "<unknown>"}`,
+    `selected_board_source=${record.selectedBoardSource || "CURRENT_WORKTREE"}`,
   ];
+  if (record.boardSource?.canonical_board_path) {
+    lines.push(`canonical_board=${record.boardSource.canonical_board_path} | drift=${record.boardSource.board_drift || "UNKNOWN"}`);
+  }
+  lines.push(`canonical_entry=${formatBoardEntry(record.canonicalBoardEntry)} | current_entry=${formatBoardEntry(record.currentBoardEntry)}`);
+  lines.push(`current_entry_drift=${record.currentBoardMatchesSelected === null ? "UNKNOWN" : (record.currentBoardMatchesSelected ? "NO" : "YES")}`);
   if (runtime) {
     lines.push(`runtime=${runtime.runtime_status}/${runtime.current_phase} | next=${runtime.next_expected_actor} | waiting_on=${runtime.waiting_on}`);
     lines.push(`validator_trigger=${runtime.validator_trigger} | ready=${runtime.ready_for_validation ? "YES" : "NO"} | stale=${record.stale ? "YES" : "NO"}`);
@@ -400,24 +703,116 @@ function buildDetailLines(record, width, detailView) {
         lines.push(`  ${entry.summary}`);
       }
     }
+  } else if (detailView === "CONTROL") {
+    lines.push("CONTROL");
+    if ((record.registrySessions || []).length === 0) {
+      lines.push("No governed sessions.");
+    } else {
+      for (const session of record.registrySessions) {
+        lines.push(`${session.role} | state=${session.runtime_state} | protocol=${session.control_protocol || "<none>"}`);
+        lines.push(`  transport=${session.control_transport || "<none>"} | host=${session.active_host || session.preferred_host || "NONE"} | terminal=${session.active_terminal_kind || "NONE"}`);
+        lines.push(`  thread=${session.session_thread_id || "<none>"} | cmd=${session.last_command_kind || "NONE"}/${session.last_command_status || "NONE"}`);
+        if (session.last_command_summary) lines.push(`  ${session.last_command_summary}`);
+      }
+    }
+    lines.push("");
+    lines.push("RECENT REQUESTS");
+    const recentRequests = (record.controlRequests || []).slice(-8);
+    if (recentRequests.length === 0) {
+      lines.push("No control requests.");
+    } else {
+      for (const entry of recentRequests) {
+        const pending = (record.pendingControlRequests || []).some((request) => request.command_id === entry.command_id) ? " | pending" : "";
+        lines.push(`${entry.created_at} | ${entry.role} | ${entry.command_kind}${pending}`);
+        lines.push(`  ${entry.summary || entry.prompt?.split(/\r?\n/, 1)[0] || "<no summary>"}`);
+      }
+    }
+    lines.push("");
+    lines.push("RECENT RESULTS");
+    const recent = (record.controlResults || []).slice(-8);
+    if (recent.length === 0) {
+      lines.push("No control results.");
+    } else {
+      for (const entry of recent) {
+        lines.push(`${entry.processed_at} | ${entry.role} | ${entry.command_kind} | ${entry.status}`);
+        lines.push(`  ${entry.summary || entry.error || "<no summary>"}`);
+      }
+    }
+    lines.push("");
+    lines.push("BROKER");
+    const brokerRuns = record.controlBrokerRuns || [];
+    if (brokerRuns.length === 0) {
+      lines.push("No active broker runs.");
+    } else {
+      for (const run of brokerRuns) {
+        lines.push(`${run.started_at || "<no-ts>"} | ${run.role} | ${run.command_kind} | pid=${run.child_pid || 0}`);
+        lines.push(`  timeout=${run.timeout_at || "<none>"} | reason=${run.termination_reason || "<none>"}`);
+      }
+    }
+  } else if (detailView === "EVENTS") {
+    lines.push("EVENTS");
+    lines.push("Merged governed ACP output events for this WP.");
+    const recent = (record.controlEventTimeline || []).slice(-16);
+    if (recent.length === 0) {
+      lines.push("No control events.");
+    } else {
+      for (const entry of recent) {
+        lines.push(`${entry.timestamp || "<no-ts>"} | ${entry.role || "<unknown>"} | ${entry.session_key || "<none>"}`);
+        lines.push(`  ${summarizeControlEvent(entry)}`);
+      }
+    }
+  } else if (detailView === "TIMELINE") {
+    lines.push("TIMELINE");
+    lines.push("Merged thread, receipts, control requests/results, and ACP events.");
+    const recent = buildTimelineEntries(record).slice(-20);
+    if (recent.length === 0) {
+      lines.push("No timeline entries.");
+    } else {
+      for (const entry of recent) {
+        lines.push(entry.header);
+        for (const detailLine of entry.detailLines) lines.push(`  ${detailLine}`);
+      }
+    }
+  } else if (detailView === "ARTIFACT") {
+    lines.push("ARTIFACT");
+    lines.push(`packet=${record.packetPath || "<none>"}`);
+    const preview = record.packetRecord?.artifactPreviewLines || [];
+    if (preview.length === 0) {
+      lines.push("No packet preview.");
+    } else {
+      for (const line of preview) lines.push(line);
+    }
   } else {
-    lines.push("SESSIONS");
+    lines.push("GOVERNED SESSIONS");
+    if ((record.registrySessions || []).length === 0) {
+      lines.push("No governed sessions.");
+    } else {
+      for (const session of record.registrySessions) {
+        const activeRun = (record.controlBrokerRuns || []).find((run) => run.role === session.role) || null;
+        lines.push(`${session.role} | ${session.runtime_state} | host=${session.active_host || session.preferred_host}`);
+        lines.push(`  req=${session.plugin_request_count} fail=${session.plugin_failure_count} last=${session.plugin_last_result}`);
+        if (session.session_thread_id) {
+          lines.push(`  thread=${session.session_thread_id} cmd=${session.last_command_kind}/${session.last_command_status}`);
+          if (session.control_protocol) lines.push(`  protocol=${session.control_protocol} transport=${session.control_transport || "<none>"}`);
+        }
+        if (activeRun) {
+          lines.push(`  active_run=${activeRun.command_kind} started=${activeRun.started_at || "<no-ts>"} timeout=${activeRun.timeout_at || "<none>"}`);
+        }
+        if (session.runtime_state === "TERMINAL_COMMAND_DISPATCHED" || session.runtime_state === "PLUGIN_CONFIRMED") {
+          lines.push("  note=terminal dispatch only; wait for receipts/heartbeat/runtime movement");
+        } else if (session.runtime_state === "READY") {
+          lines.push("  note=steerable thread registered; use governed session prompts to continue work");
+        }
+      }
+    }
+    lines.push("");
+    lines.push("PACKET RUNTIME SESSIONS");
     if ((record.sessions || []).length === 0) {
-      lines.push("No active sessions recorded.");
+      lines.push("No packet runtime sessions recorded.");
     } else {
       for (const session of record.sessions) {
         lines.push(`${session.role} | ${session.sessionId} | ${session.state} | ${session.authorityKind}${session.validatorRoleKind ? `/${session.validatorRoleKind}` : ""}`);
         lines.push(`  ${session.worktreeDir}`);
-      }
-    }
-    lines.push("");
-    lines.push("SESSION REGISTRY");
-    if ((record.registrySessions || []).length === 0) {
-      lines.push("No launch records.");
-    } else {
-      for (const session of record.registrySessions) {
-        lines.push(`${session.role} | ${session.runtime_state} | host=${session.active_host || session.preferred_host}`);
-        lines.push(`  req=${session.plugin_request_count} fail=${session.plugin_failure_count} last=${session.plugin_last_result}`);
       }
     }
     if (packet?.runtimeValidationErrors?.length) {
@@ -435,7 +830,8 @@ function buildDetailLines(record, width, detailView) {
   return lines.flatMap((line) => wrapText(line, width));
 }
 
-function renderScreen(records, uiState) {
+function renderScreen(model, uiState) {
+  const records = model.records;
   const filtered = filterRecords(records, uiState.filter);
   if (uiState.selectedIndex >= filtered.length) uiState.selectedIndex = Math.max(0, filtered.length - 1);
   const selected = filtered[uiState.selectedIndex] || null;
@@ -443,26 +839,28 @@ function renderScreen(records, uiState) {
   const rows = process.stdout.rows || 35;
   const leftWidth = Math.max(38, Math.floor(columns * 0.42));
   const rightWidth = Math.max(40, columns - leftWidth - 3);
-  const bodyHeight = Math.max(12, rows - 6);
+  const bodyHeight = Math.max(12, rows - 8);
 
   const counts = FILTERS.map((filter) => `${filter}:${filterRecords(records, filter).length}`).join("  ");
   const header = `Operator Monitor | filter=${uiState.filter} | view=${uiState.detailView} | actor=${uiState.actorRole}/${uiState.actorSession}`;
-  const help = "j/k move  [/ ] filter  1 sessions  2 thread  3 receipts  m message  r refresh  q quit";
+  const board = model.boardSource?.display || "board=<unknown>";
+  const boardDetail = model.boardSource?.detail || "board_paths=<unknown>";
+  const help = "j/k move  [/ ] filter  1 sessions  2 thread  3 receipts  4 control  5 events  6 artifact  7 timeline  m message  r refresh  q quit";
 
   const leftLines = renderList(filtered, uiState.selectedIndex, leftWidth, bodyHeight);
   const rightLines = buildDetailLines(selected, rightWidth, uiState.detailView).slice(0, bodyHeight);
   while (rightLines.length < bodyHeight) rightLines.push("");
 
-  const frame = [header, counts, help, "-".repeat(columns)];
+  const frame = [header, counts, board, boardDetail, help, "-".repeat(columns)];
   for (let index = 0; index < bodyHeight; index += 1) {
     frame.push(`${leftLines[index]} | ${truncate(rightLines[index], rightWidth)}`);
   }
   frame.push("-".repeat(columns));
-  frame.push(selected ? `Selected: ${selected.wpId} | packet=${selected.packetPath || "<none>"} | last_activity=${selected.packetRecord?.lastActivityAt || "n/a"}` : "Selected: none");
+  frame.push(selected ? `Selected: ${selected.wpId} | packet=${selected.packetPath || "<none>"} | last_activity=${selected.lastActivityAt || "n/a"}` : "Selected: none");
   return frame.join(os.EOL);
 }
 
-function renderOnce(records, options) {
+function renderOnce(model, options) {
   const uiState = {
     filter: options.filter,
     selectedIndex: 0,
@@ -470,12 +868,12 @@ function renderOnce(records, options) {
     actorRole: options.actorRole,
     actorSession: options.actorSession,
   };
-  const filtered = filterRecords(records, uiState.filter);
+  const filtered = filterRecords(model.records, uiState.filter);
   if (options.wpId) {
     const index = filtered.findIndex((record) => record.wpId === options.wpId);
     if (index >= 0) uiState.selectedIndex = index;
   }
-  console.log(renderScreen(records, uiState));
+  console.log(renderScreen(model, uiState));
 }
 
 async function promptForMessage(selectedRecord, uiState) {
@@ -540,7 +938,7 @@ async function runInteractive(options) {
 
   process.stdin.on("data", async (chunk) => {
     const key = String(chunk || "");
-    const filtered = filterRecords(records, uiState.filter);
+    const filtered = filterRecords(records.records, uiState.filter);
     if (key === "q") {
       cleanup();
       process.exit(0);
@@ -568,6 +966,18 @@ async function runInteractive(options) {
       refresh();
     } else if (key === "3") {
       uiState.detailView = "RECEIPTS";
+      refresh();
+    } else if (key === "4") {
+      uiState.detailView = "CONTROL";
+      refresh();
+    } else if (key === "5") {
+      uiState.detailView = "EVENTS";
+      refresh();
+    } else if (key === "6") {
+      uiState.detailView = "ARTIFACT";
+      refresh();
+    } else if (key === "7") {
+      uiState.detailView = "TIMELINE";
       refresh();
     } else if (key === "r") {
       refresh();

@@ -194,7 +194,10 @@ Resume rule (hard, anti-babysit):
 - When available, prefer VS Code integrated terminals for coder sessions so the Operator can monitor active WPs alongside `just operator-monitor`.
 - Do not rely on ambient editor defaults for model choice or reasoning strength. For newly created repo-governed sessions, claim/launch explicitly with `gpt-5.4` + `model_reasoning_effort=xhigh`, or `gpt-5.2` + `model_reasoning_effort=xhigh` as fallback.
 - Fresh repo-governed coder session start is `ORCHESTRATOR_ONLY`. Do not self-start a new repo-governed coder session.
-- Primary transport is the VS Code session bridge over `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- Primary launch path is the VS Code session bridge over `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl`.
+- The Coder does not own the steering lane. The Orchestrator owns `START_SESSION`, `SEND_PROMPT`, and `CANCEL_SESSION`; coder-side requests for pause, repair, or cancel must go through `THREAD.md`, `RECEIPTS.jsonl`, or an explicit operator/orchestrator instruction.
+- `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl` is the settled steering ledger; `.GOV/roles_shared/SESSION_CONTROL_OUTPUTS/` holds the per-command ACP event logs that the Operator monitor can surface.
 - If the plugin path has failed twice and the Orchestrator opens a CLI escalation window, continue there; do not open your own untracked session.
 - Use `THREAD.md` for append-only questions, clarifications, blocker notes, and soft coordination.
 - Use `RUNTIME_STATUS.json` for liveness updates only:
@@ -221,6 +224,12 @@ Resume rule (hard, anti-babysit):
   - `just wp-heartbeat WP-{ID} CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
   - `just wp-receipt-append WP-{ID} CODER <session> <receipt_kind> "<summary>" [state_before] [state_after]`
   - `just session-registry-status [WP-{ID}]`
+  - `just operator-monitor` (operator viewport for ACP-aware session/control/thread/receipt/artifact visibility)
+- Orchestrator-only governed session controls (reference only; do not run these from inside a Coder session):
+  - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
+  - `just steer-coder-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
+  - `just cancel-coder-session WP-{ID}`
 - Keep authoritative work state in the packet:
   - packet `**Status:**`
   - `## CURRENT_STATE`

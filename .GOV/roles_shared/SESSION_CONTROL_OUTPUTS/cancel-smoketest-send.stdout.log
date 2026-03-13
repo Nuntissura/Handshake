@@ -1,0 +1,7 @@
+[SESSION_CONTROL] command_id=70458e6e-a33e-481d-bad7-7e86a1475150
+[SESSION_CONTROL] session_key=WP_VALIDATOR:WP-1-Structured-Collaboration-Artifact-Family-v1
+[SESSION_CONTROL] thread_id=019ce468-8c58-74e3-aab1-9483731e01e3
+[SESSION_CONTROL] runtime_state=READY
+[SESSION_CONTROL] command_kind=SEND_PROMPT
+[SESSION_CONTROL] output_jsonl=D:\Projects\LLM projects\Handshake\Handshake Worktrees\wt-orchestrator\.GOV\roles_shared\SESSION_CONTROL_OUTPUTS\WP_VALIDATOR_WP-1-Structured-Collaboration-Artifact-Family-v1\70458e6e-a33e-481d-bad7-7e86a1475150.jsonl
+[SESSION_CONTROL] last_agent_message=LIFECYCLE [CX-LIFE-001]: WP_ID=`WP-1-Structured-Collaboration-Artifact-Family-v1`, STAGE=`STATUS_SYNC`, NEXT=`STOP`; governance-only posture, no file edits.

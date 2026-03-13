@@ -4,6 +4,7 @@ const path = require("node:path");
 
 const QUEUE_REL_PATH = ".GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl";
 const REGISTRY_REL_PATH = ".GOV/roles_shared/ROLE_SESSION_REGISTRY.json";
+const CONTROL_RESULTS_REL_PATH = ".GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl";
 
 function nowIso() {
   return new Date().toISOString();
@@ -194,15 +195,15 @@ async function processLaunchQueue() {
       const terminal = getOrCreateTerminal(request.terminal_title, request.abs_worktree_dir);
       terminal.show(true);
       terminal.sendText(request.command, true);
-      session.plugin_last_result = "PLUGIN_CONFIRMED";
+      session.plugin_last_result = "PLUGIN_DISPATCHED";
       session.plugin_last_error = "";
-      session.runtime_state = "PLUGIN_CONFIRMED";
+      session.runtime_state = "TERMINAL_COMMAND_DISPATCHED";
       session.active_host = "VSCODE_EXTENSION_TERMINAL";
       session.active_terminal_title = request.terminal_title;
       session.active_terminal_kind = "VSCODE_EXTENSION_TERMINAL";
       session.last_error = "";
       session.last_event_at = nowIso();
-      upsertProcessedRequest(registry, request.request_id, "PLUGIN_CONFIRMED", {
+      upsertProcessedRequest(registry, request.request_id, "PLUGIN_DISPATCHED", {
         terminal_title: request.terminal_title
       });
     } catch (error) {
@@ -269,6 +270,32 @@ function installLaunchQueueWatcher(context) {
   context.subscriptions.push(watcher);
 }
 
+function installSessionControlResultsWatcher(context) {
+  const folder = vscode.workspace.workspaceFolders?.[0];
+  if (!folder) return;
+  let lastSeenCommandId = "";
+  const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, CONTROL_RESULTS_REL_PATH));
+  const handle = async () => {
+    try {
+      const repoRoot = getRepoRoot();
+      if (!repoRoot) return;
+      const resultsPath = path.join(repoRoot, CONTROL_RESULTS_REL_PATH);
+      const results = parseJsonl(resultsPath);
+      const latest = results.at(-1);
+      if (!latest || latest.command_id === lastSeenCommandId) return;
+      lastSeenCommandId = latest.command_id;
+      void vscode.window.showInformationMessage(
+        `Handshake session command ${latest.status}: ${latest.session_key} (${latest.command_kind})`
+      );
+    } catch {
+      // Ignore malformed control-result notifications; registry and logs remain authoritative.
+    }
+  };
+  watcher.onDidChange(handle, null, context.subscriptions);
+  watcher.onDidCreate(handle, null, context.subscriptions);
+  context.subscriptions.push(watcher);
+}
+
 function activate(context) {
   context.subscriptions.push(
     vscode.commands.registerCommand("handshakeSessionBridge.processLaunchQueue", async () => {
@@ -286,6 +313,7 @@ function activate(context) {
 
   installRuntimeStatusWatcher(context);
   installLaunchQueueWatcher(context);
+  installSessionControlResultsWatcher(context);
   void processLaunchQueue();
 }
 

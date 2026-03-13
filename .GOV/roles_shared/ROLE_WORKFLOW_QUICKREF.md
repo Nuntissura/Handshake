@@ -56,7 +56,8 @@ Product-scanning / product-boundary enforcement:
 - When available, prefer VS Code integrated terminals for multi-session work instead of many floating desktop terminals.
 - Do not rely on ambient editor defaults for repo-governed session model choice or reasoning strength. New packets/stubs assume `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`.
 - Repo-governed role-session start is `ORCHESTRATOR_ONLY`.
-- Primary transport is the VS Code session bridge over `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- Primary launch path is the VS Code session bridge over `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl`.
 - CLI escalation windows are allowed only after 2 plugin failures/timeouts for the same role/WP session.
 - Recommended VS Code tabs:
   - `ORCH`
@@ -64,7 +65,14 @@ Product-scanning / product-boundary enforcement:
   - `WPVAL <WP_ID>`
   - `INTVAL`
   - `MONITOR`
-- `just operator-monitor` provides the overview surface for active WPs, authorities, heartbeats, and WP-scoped communications.
+- `just operator-monitor` is the Operator viewport.
+- When the canonical `main` task board is available, the monitor uses that board for counts, filter buckets, and WP list selection. The current worktree board is still surfaced as the mirror/drift comparison source.
+- Default `SESSIONS` view is governed-session-first: repo-governed ACP sessions are shown as first-class active sessions, with packet runtime sessions shown separately.
+- `EVENTS` shows the merged governed ACP output stream for the selected WP across its governed role sessions.
+- `TIMELINE` merges thread entries, receipts, governed control requests/results, and ACP events in timestamp order for the selected WP.
+- `just session-start <ROLE> WP-...` starts a steerable governed thread for that role/WP session.
+- `just session-send <ROLE> WP-... "<prompt>"` resumes that governed thread and records append-only request/result artifacts.
+- `just session-cancel <ROLE> WP-...` requests cancellation of the currently running governed command for that role/WP session.
 - `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]` appends a freeform message to the packet-declared `WP_COMMUNICATION_DIR` and writes a paired `THREAD_MESSAGE` receipt.
 
 ## Role: Orchestrator
@@ -90,6 +98,18 @@ Primary commands:
 - `just launch-coder-session WP-... [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-... [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-... [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just start-coder-session WP-... [PRIMARY|FALLBACK]`
+- `just start-wp-validator-session WP-... [PRIMARY|FALLBACK]`
+- `just start-integration-validator-session WP-... [PRIMARY|FALLBACK]`
+- `just steer-coder-session WP-... "<prompt>" [PRIMARY|FALLBACK]`
+- `just cancel-coder-session WP-...`
+- `just steer-wp-validator-session WP-... "<prompt>" [PRIMARY|FALLBACK]`
+- `just cancel-wp-validator-session WP-...`
+- `just steer-integration-validator-session WP-... "<prompt>" [PRIMARY|FALLBACK]`
+- `just cancel-integration-validator-session WP-...`
+- `just session-start <ROLE> WP-... [PRIMARY|FALLBACK]`
+- `just session-send <ROLE> WP-... "<prompt>" [PRIMARY|FALLBACK]`
+- `just session-cancel <ROLE> WP-...`
 - `just session-registry-status [WP-...]`
 - `just pre-work WP-...`
 - `just wp-heartbeat WP-... ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
@@ -108,6 +128,7 @@ Primary commands:
 - Implement only within `IN_SCOPE_PATHS`
 - Hygiene: `just product-scan`, `just validator-dal-audit`, `just validator-git-hygiene`
 - Workflow closure evidence: `just post-work WP-...`
+- Session start/steering: `just start-coder-session WP-...`, `just steer-coder-session WP-... "<prompt>"`
 - `just wp-heartbeat WP-... CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - `just wp-receipt-append WP-... CODER <session> <receipt_kind> "<summary>"`
 - `just wp-thread-append WP-... CODER <session> "<message>" [target]`
@@ -125,6 +146,7 @@ Primary commands (per WP validation):
 - `just validator-dal-audit`
 - `just validator-git-hygiene`
 - `just codex-check` (product boundary enforcement)
+- Session start/steering: `just start-wp-validator-session WP-...`, `just steer-wp-validator-session WP-... "<prompt>"`
 - `just wp-heartbeat WP-... VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - `just wp-receipt-append WP-... VALIDATOR <session> <receipt_kind> "<summary>"`
 - `just wp-thread-append WP-... VALIDATOR <session> "<message>" [target]`

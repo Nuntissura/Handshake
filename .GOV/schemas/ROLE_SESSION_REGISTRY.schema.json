@@ -14,6 +14,12 @@
     "session_plugin_bridge_id",
     "session_plugin_bridge_command",
     "session_plugin_requests_file",
+    "session_control_mode",
+    "session_control_transport_primary",
+    "session_control_protocol_primary",
+    "session_control_requests_file",
+    "session_control_results_file",
+    "session_control_output_dir",
     "session_wake_channel_primary",
     "session_wake_channel_fallback",
     "session_plugin_max_retries_before_escalation",
@@ -53,6 +59,27 @@
       "type": "string",
       "pattern": "^\\.GOV/roles_shared/SESSION_LAUNCH_REQUESTS\\.jsonl$"
     },
+    "session_control_mode": {
+      "const": "STEERABLE"
+    },
+    "session_control_transport_primary": {
+      "const": "CODEX_EXEC_RESUME_JSON"
+    },
+    "session_control_protocol_primary": {
+      "const": "HANDSHAKE_ACP_STDIO_V1"
+    },
+    "session_control_requests_file": {
+      "type": "string",
+      "pattern": "^\\.GOV/roles_shared/SESSION_CONTROL_REQUESTS\\.jsonl$"
+    },
+    "session_control_results_file": {
+      "type": "string",
+      "pattern": "^\\.GOV/roles_shared/SESSION_CONTROL_RESULTS\\.jsonl$"
+    },
+    "session_control_output_dir": {
+      "type": "string",
+      "pattern": "^\\.GOV/roles_shared/SESSION_CONTROL_OUTPUTS$"
+    },
     "session_wake_channel_primary": {
       "const": "VS_CODE_FILE_WATCH"
     },
@@ -83,6 +110,19 @@
           "local_branch",
           "local_worktree_dir",
           "terminal_title",
+          "control_mode",
+          "control_transport",
+          "control_protocol",
+          "session_thread_id",
+          "session_thread_started_at",
+          "startup_proof_state",
+          "last_command_id",
+          "last_command_kind",
+          "last_command_status",
+          "last_command_summary",
+          "last_command_prompt_at",
+          "last_command_completed_at",
+          "last_command_output_file",
           "plugin_request_count",
           "plugin_failure_count",
           "plugin_last_result",
@@ -139,6 +179,45 @@
           "terminal_title": {
             "type": "string"
           },
+          "control_mode": {
+            "const": "STEERABLE"
+          },
+          "control_transport": {
+            "const": "CODEX_EXEC_RESUME_JSON"
+          },
+          "control_protocol": {
+            "const": "HANDSHAKE_ACP_STDIO_V1"
+          },
+          "session_thread_id": {
+            "type": "string"
+          },
+          "session_thread_started_at": {
+            "type": "string"
+          },
+          "startup_proof_state": {
+            "type": "string"
+          },
+          "last_command_id": {
+            "type": "string"
+          },
+          "last_command_kind": {
+            "type": "string"
+          },
+          "last_command_status": {
+            "type": "string"
+          },
+          "last_command_summary": {
+            "type": "string"
+          },
+          "last_command_prompt_at": {
+            "type": "string"
+          },
+          "last_command_completed_at": {
+            "type": "string"
+          },
+          "last_command_output_file": {
+            "type": "string"
+          },
           "requested_model": {
             "type": "string"
           },
@@ -166,6 +245,7 @@
             "enum": [
               "NONE",
               "QUEUED",
+              "PLUGIN_DISPATCHED",
               "PLUGIN_CONFIRMED",
               "PLUGIN_FAILED",
               "PLUGIN_TIMED_OUT",
@@ -185,23 +265,39 @@
             "enum": [
               "UNSTARTED",
               "PLUGIN_REQUESTED",
+              "TERMINAL_COMMAND_DISPATCHED",
               "PLUGIN_CONFIRMED",
               "CLI_ESCALATION_READY",
               "CLI_ESCALATION_USED",
+              "STARTING",
+              "READY",
+              "COMMAND_RUNNING",
               "ACTIVE",
               "WAITING",
               "COMPLETED",
-              "FAILED"
+              "FAILED",
+              "STALE"
             ]
           },
           "active_host": {
-            "type": "string"
+            "enum": [
+              "NONE",
+              "VSCODE_EXTENSION_TERMINAL",
+              "CLI_ESCALATION_WINDOW",
+              "HANDSHAKE_ACP_BROKER"
+            ]
           },
           "active_terminal_title": {
             "type": "string"
           },
           "active_terminal_kind": {
-            "type": "string"
+            "enum": [
+              "NONE",
+              "VSCODE_EXTENSION_TERMINAL",
+              "WINDOWS_TERMINAL",
+              "CURRENT",
+              "PRINT"
+            ]
           },
           "last_heartbeat_at": {
             "type": "string"
@@ -232,6 +328,7 @@
           "status": {
             "enum": [
               "QUEUED",
+              "PLUGIN_DISPATCHED",
               "PLUGIN_CONFIRMED",
               "PLUGIN_FAILED",
               "PLUGIN_TIMED_OUT",

@@ -27,7 +27,8 @@
       "WebSearch",
       "WebFetch(domain:www.anthropic.com)",
       "WebFetch(domain:dev.to)",
-      "WebFetch(domain:towardsdatascience.com)"
+      "WebFetch(domain:towardsdatascience.com)",
+      "Bash(cd \"D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-orchestrator\" && echo \"=== Product code line counts ===\" && find app/src -name \"*.tsx\" -o -name \"*.ts\" | xargs wc -l 2>/dev/null | tail -1 && find src/backend -name \"*.rs\" | xargs wc -l 2>/dev/null | tail -1 && echo \"=== GOV line counts ===\" && find .GOV -name \"*.mjs\" -o -name \"*.md\" -o -name \"*.json\" | xargs wc -l 2>/dev/null | tail -1 && echo \"=== Spec current ===\" && wc -l Handshake_Master_Spec_v02.158.md && echo \"=== Codex ===\" && head -5 \"Handshake Codex v1.4.md\" && echo \"=== Active WPs on task board ===\" && grep -c \"IN_PROGRESS\\\\|ACTIVE\\\\|DELEGATED\\\\|PREPARING\" .GOV/roles_shared/TASK_BOARD.md 2>/dev/null || echo \"no task board found\")"
     ]
   }
 }

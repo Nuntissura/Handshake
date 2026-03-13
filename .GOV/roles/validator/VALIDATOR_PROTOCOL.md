@@ -55,7 +55,10 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUN
 - The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
 - For newly created repo-governed validator sessions, launch/claim the model explicitly: primary `gpt-5.4`, fallback `gpt-5.2`, reasoning `EXTRA_HIGH` (`model_reasoning_effort=xhigh`). Do not rely on ambient editor defaults.
 - Fresh repo-governed validator session start is `ORCHESTRATOR_ONLY`.
-- Primary transport is `VSCODE_EXTENSION_TERMINAL` via `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- Primary launch path is `VSCODE_EXTENSION_TERMINAL` via `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl`.
+- Validator sessions do not own the steering lane. Only the Orchestrator starts, resumes, or cancels governed validator sessions; validators request repair, pause, or cancel through packet communications or an explicit orchestrator instruction.
+- `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl` is the settled steering ledger; `.GOV/roles_shared/SESSION_CONTROL_OUTPUTS/` holds the per-command ACP event logs that the Operator monitor can surface.
 - CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts, unless the Operator explicitly waives the plugin-first path.
 - The historical add-on at `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
 
@@ -200,6 +203,8 @@ Resume rule (hard, anti-babysit):
 - Do not rely on ambient editor defaults for model choice or reasoning strength. Launch/claim validator sessions explicitly with `gpt-5.4` + `model_reasoning_effort=xhigh`, or `gpt-5.2` + `model_reasoning_effort=xhigh` as fallback.
 - Validator sessions are started by the Orchestrator. Do not self-start a fresh repo-governed validator session.
 - Use `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json` to inspect launch/runtime state when session startup looks stale or ambiguous.
+- Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl`.
+- Use `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl` plus `.GOV/roles_shared/SESSION_CONTROL_OUTPUTS/` when the Operator/Orchestrator is diagnosing governed steering, cancel evidence, or stale-control repairs.
 - Use `THREAD.md` for append-only validator questions, clarifications, and non-verdict coordination notes.
 - Use `RUNTIME_STATUS.json` for liveness state only:
   - `runtime_status`
@@ -218,9 +223,17 @@ Resume rule (hard, anti-babysit):
   - `just wp-thread-append WP-{ID} VALIDATOR <session> "<message>" [target]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
   - `just wp-heartbeat WP-{ID} VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
   - `just wp-receipt-append WP-{ID} VALIDATOR <session> <receipt_kind> "<summary>" [state_before] [state_after]`
+  - `just session-registry-status [WP-{ID}]`
+  - `just operator-monitor` (operator viewport for ACP-aware session/control/thread/receipt/artifact visibility)
+- Orchestrator-only governed session controls (reference only; do not run these from inside a Validator session):
   - `just wp-validator-worktree-add WP-{ID}` / `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - `just integration-validator-worktree-add WP-{ID}` / `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-  - `just session-registry-status [WP-{ID}]`
+  - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
+  - `just start-integration-validator-session WP-{ID} [PRIMARY|FALLBACK]`
+  - `just steer-wp-validator-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
+  - `just steer-integration-validator-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
+  - `just cancel-wp-validator-session WP-{ID}`
+  - `just cancel-integration-validator-session WP-{ID}`
 - Hard rule: packet truth still wins. Validation authority remains in the packet, especially `## VALIDATION`, `## EVIDENCE`, and `## VALIDATION_REPORTS`.
 - Do not treat `THREAD.md` or `RUNTIME_STATUS.json` as authority for scope, verdict, or PREPARE assignment.
 

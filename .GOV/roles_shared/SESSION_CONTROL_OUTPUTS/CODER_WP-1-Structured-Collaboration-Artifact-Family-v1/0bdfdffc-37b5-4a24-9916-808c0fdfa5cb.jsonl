@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019ce466-8794-7c20-90ba-3dd39fb18887"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"eady-after-cancel"}}
+{"type":"turn.completed","usage":{"input_tokens":109129,"cached_input_tokens":81280,"output_tokens":1879}}

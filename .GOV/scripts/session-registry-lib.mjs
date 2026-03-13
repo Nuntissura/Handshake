@@ -2,6 +2,19 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import {
+  SESSION_ACTIVE_HOST_NONE,
+  SESSION_ACTIVE_HOST_VALUES,
+  SESSION_ACTIVE_TERMINAL_KIND_NONE,
+  SESSION_ACTIVE_TERMINAL_KIND_VALUES,
+  SESSION_COMMAND_STATUSES,
+  SESSION_CONTROL_MODE,
+  SESSION_CONTROL_BROKER_STATE_FILE,
+  SESSION_CONTROL_HOST_PRIMARY,
+  SESSION_CONTROL_OUTPUT_DIR,
+  SESSION_CONTROL_PROTOCOL_PRIMARY,
+  SESSION_CONTROL_REQUESTS_FILE,
+  SESSION_CONTROL_RESULTS_FILE,
+  SESSION_CONTROL_TRANSPORT_PRIMARY,
   CLI_ESCALATION_HOST_DEFAULT,
   SESSION_HOST_FALLBACK,
   SESSION_HOST_PREFERENCE,
@@ -17,6 +30,8 @@ import {
   SESSION_WAKE_CHANNEL_FALLBACK,
   SESSION_WAKE_CHANNEL_PRIMARY,
   SESSION_WATCH_POLICY,
+  normalizeActiveHostValue,
+  normalizeActiveTerminalKindValue,
   normalizePath,
   sessionKey,
   terminalTitle,
@@ -35,6 +50,42 @@ function ensureParentDir(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
 }
 
+function normalizeActiveHost(value) {
+  const token = normalizeActiveHostValue(value);
+  if (SESSION_ACTIVE_HOST_VALUES.includes(token)) return token;
+  return SESSION_ACTIVE_HOST_NONE;
+}
+
+function normalizeActiveTerminalKind(value) {
+  const token = normalizeActiveTerminalKindValue(value);
+  if (SESSION_ACTIVE_TERMINAL_KIND_VALUES.includes(token)) return token;
+  return SESSION_ACTIVE_TERMINAL_KIND_NONE;
+}
+
+function normalizeSessionRecord(session) {
+  if (!session || typeof session !== "object") return session;
+  session.control_mode = session.control_mode || SESSION_CONTROL_MODE;
+  session.control_transport = session.control_transport || SESSION_CONTROL_TRANSPORT_PRIMARY;
+  session.control_protocol = session.control_protocol || SESSION_CONTROL_PROTOCOL_PRIMARY;
+  session.session_thread_id = session.session_thread_id || "";
+  session.session_thread_started_at = session.session_thread_started_at || "";
+  session.startup_proof_state = session.startup_proof_state || "NONE";
+  session.last_command_id = session.last_command_id || "";
+  session.last_command_kind = session.last_command_kind || "NONE";
+  session.last_command_status = session.last_command_status || "NONE";
+  session.last_command_summary = session.last_command_summary || "";
+  session.last_command_prompt_at = session.last_command_prompt_at || "";
+  session.last_command_completed_at = session.last_command_completed_at || "";
+  session.last_command_output_file = session.last_command_output_file || "";
+  session.active_host = normalizeActiveHost(session.active_host);
+  session.active_terminal_title = session.active_terminal_title || "";
+  session.active_terminal_kind = normalizeActiveTerminalKind(session.active_terminal_kind);
+  session.last_heartbeat_at = session.last_heartbeat_at || "";
+  session.last_error = session.last_error || "";
+  session.last_event_at = session.last_event_at || "";
+  return session;
+}
+
 export function defaultRegistry() {
   return {
     schema_id: ROLE_SESSION_REGISTRY_SCHEMA_ID,
@@ -47,6 +98,12 @@ export function defaultRegistry() {
     session_plugin_bridge_id: SESSION_PLUGIN_BRIDGE_ID,
     session_plugin_bridge_command: SESSION_PLUGIN_BRIDGE_COMMAND,
     session_plugin_requests_file: SESSION_PLUGIN_REQUESTS_FILE,
+    session_control_mode: SESSION_CONTROL_MODE,
+    session_control_transport_primary: SESSION_CONTROL_TRANSPORT_PRIMARY,
+    session_control_protocol_primary: SESSION_CONTROL_PROTOCOL_PRIMARY,
+    session_control_requests_file: SESSION_CONTROL_REQUESTS_FILE,
+    session_control_results_file: SESSION_CONTROL_RESULTS_FILE,
+    session_control_output_dir: SESSION_CONTROL_OUTPUT_DIR,
     session_wake_channel_primary: SESSION_WAKE_CHANNEL_PRIMARY,
     session_wake_channel_fallback: SESSION_WAKE_CHANNEL_FALLBACK,
     session_plugin_max_retries_before_escalation: SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION,
@@ -84,7 +141,7 @@ export function appendJsonlLine(filePath, value) {
 export function loadSessionRegistry(repoRoot) {
   const filePath = path.resolve(repoRoot, SESSION_REGISTRY_FILE);
   const registry = readJsonFile(filePath, defaultRegistry());
-  registry.sessions = Array.isArray(registry.sessions) ? registry.sessions : [];
+  registry.sessions = Array.isArray(registry.sessions) ? registry.sessions.map((session) => normalizeSessionRecord(session)) : [];
   registry.processed_requests = Array.isArray(registry.processed_requests) ? registry.processed_requests : [];
   return { filePath, registry };
 }
@@ -95,7 +152,7 @@ export function saveSessionRegistry(repoRoot, registry) {
     ...defaultRegistry(),
     ...registry,
     updated_at: nowIso(),
-    sessions: Array.isArray(registry.sessions) ? registry.sessions : [],
+    sessions: Array.isArray(registry.sessions) ? registry.sessions.map((session) => normalizeSessionRecord(session)) : [],
     processed_requests: Array.isArray(registry.processed_requests) ? registry.processed_requests : [],
   };
   writeJsonFile(filePath, next);
@@ -105,6 +162,16 @@ export function saveSessionRegistry(repoRoot, registry) {
 export function loadSessionLaunchRequests(repoRoot) {
   const filePath = path.resolve(repoRoot, SESSION_PLUGIN_REQUESTS_FILE);
   return { filePath, requests: parseJsonlFile(filePath) };
+}
+
+export function loadSessionControlRequests(repoRoot) {
+  const filePath = path.resolve(repoRoot, SESSION_CONTROL_REQUESTS_FILE);
+  return { filePath, requests: parseJsonlFile(filePath) };
+}
+
+export function loadSessionControlResults(repoRoot) {
+  const filePath = path.resolve(repoRoot, SESSION_CONTROL_RESULTS_FILE);
+  return { filePath, results: parseJsonlFile(filePath) };
 }
 
 export function getOrCreateSessionRecord(registry, sessionDescriptor) {
@@ -126,6 +193,19 @@ export function getOrCreateSessionRecord(registry, sessionDescriptor) {
       requested_model: sessionDescriptor.requested_model || "",
       reasoning_config_key: sessionDescriptor.reasoning_config_key || "",
       reasoning_config_value: sessionDescriptor.reasoning_config_value || "",
+      control_mode: SESSION_CONTROL_MODE,
+      control_transport: SESSION_CONTROL_TRANSPORT_PRIMARY,
+      control_protocol: SESSION_CONTROL_PROTOCOL_PRIMARY,
+      session_thread_id: "",
+      session_thread_started_at: "",
+      startup_proof_state: "NONE",
+      last_command_id: "",
+      last_command_kind: "NONE",
+      last_command_status: "NONE",
+      last_command_summary: "",
+      last_command_prompt_at: "",
+      last_command_completed_at: "",
+      last_command_output_file: "",
       plugin_request_count: 0,
       plugin_failure_count: 0,
       plugin_last_request_id: "",
@@ -135,9 +215,9 @@ export function getOrCreateSessionRecord(registry, sessionDescriptor) {
       cli_escalation_allowed: false,
       cli_escalation_used: false,
       runtime_state: "UNSTARTED",
-      active_host: "NONE",
+      active_host: SESSION_ACTIVE_HOST_NONE,
       active_terminal_title: "",
-      active_terminal_kind: "",
+      active_terminal_kind: SESSION_ACTIVE_TERMINAL_KIND_NONE,
       last_heartbeat_at: "",
       last_error: "",
       last_event_at: "",
@@ -150,6 +230,7 @@ export function getOrCreateSessionRecord(registry, sessionDescriptor) {
     session.requested_model = sessionDescriptor.requested_model || session.requested_model || "";
     session.reasoning_config_key = sessionDescriptor.reasoning_config_key || session.reasoning_config_key || "";
     session.reasoning_config_value = sessionDescriptor.reasoning_config_value || session.reasoning_config_value || "";
+    normalizeSessionRecord(session);
   }
   return session;
 }
@@ -253,15 +334,15 @@ export function markPluginResult(registry, session, requestId, status, details =
   session.plugin_last_request_id = requestId;
   session.last_event_at = processed.processed_at;
 
-  if (status === "PLUGIN_CONFIRMED") {
-    session.runtime_state = "PLUGIN_CONFIRMED";
+  if (status === "PLUGIN_DISPATCHED" || status === "PLUGIN_CONFIRMED") {
+    session.runtime_state = status === "PLUGIN_CONFIRMED" ? "PLUGIN_CONFIRMED" : "TERMINAL_COMMAND_DISPATCHED";
     session.active_host = SESSION_HOST_PREFERENCE;
     session.active_terminal_title = details.terminal_title || session.terminal_title;
-    session.active_terminal_kind = "VSCODE_EXTENSION_TERMINAL";
+    session.active_terminal_kind = SESSION_HOST_PREFERENCE;
     session.plugin_last_error = "";
   } else if (status === "CLI_ESCALATION_USED") {
     session.runtime_state = "CLI_ESCALATION_USED";
-    session.active_host = details.host_kind || CLI_ESCALATION_HOST_DEFAULT;
+    session.active_host = SESSION_HOST_FALLBACK;
     session.active_terminal_title = details.terminal_title || session.terminal_title;
     session.active_terminal_kind = details.host_kind || CLI_ESCALATION_HOST_DEFAULT;
     session.cli_escalation_used = true;
@@ -295,6 +376,73 @@ export function settleTimedOutPluginRequests(registry, requests, now = new Date(
   }
 }
 
+export function markSessionCommandQueued(session, command) {
+  session.last_command_id = command.command_id;
+  session.last_command_kind = command.command_kind;
+  session.last_command_status = "QUEUED";
+  session.last_command_summary = command.summary || "";
+  session.last_command_prompt_at = command.created_at || nowIso();
+  session.last_command_completed_at = "";
+  session.last_command_output_file = command.output_jsonl_file || "";
+  session.last_event_at = command.created_at || nowIso();
+  if (command.command_kind === "START_SESSION") {
+    session.runtime_state = "STARTING";
+    session.startup_proof_state = "START_REQUESTED";
+  }
+  normalizeSessionRecord(session);
+}
+
+export function markSessionCommandRunning(session, command) {
+  session.last_command_id = command.command_id;
+  session.last_command_kind = command.command_kind;
+  session.last_command_status = "RUNNING";
+  session.last_command_summary = command.summary || "";
+  session.last_command_prompt_at = command.created_at || nowIso();
+  session.last_command_output_file = command.output_jsonl_file || "";
+  session.last_event_at = nowIso();
+  session.runtime_state = command.command_kind === "START_SESSION" ? "STARTING" : "COMMAND_RUNNING";
+  normalizeSessionRecord(session);
+}
+
+export function markSessionCommandResult(session, result) {
+  const status = String(result.status || "").trim().toUpperCase();
+  if (!SESSION_COMMAND_STATUSES.includes(status)) {
+    throw new Error(`Unknown session command status: ${status}`);
+  }
+
+  session.last_command_id = result.command_id || session.last_command_id;
+  session.last_command_kind = result.command_kind || session.last_command_kind || "NONE";
+  session.last_command_status = status;
+  session.last_command_summary = result.summary || session.last_command_summary || "";
+  session.last_command_completed_at = result.processed_at || nowIso();
+  session.last_command_output_file = result.output_jsonl_file || session.last_command_output_file || "";
+  session.last_event_at = result.processed_at || nowIso();
+
+  if (result.thread_id) {
+    session.session_thread_id = result.thread_id;
+    session.session_thread_started_at = session.session_thread_started_at || (result.processed_at || nowIso());
+  }
+
+  if (status === "COMPLETED") {
+    if (session.last_command_kind === "START_SESSION") {
+      session.startup_proof_state = result.thread_id ? "READY" : "NO_THREAD_ID";
+      session.runtime_state = result.thread_id ? "READY" : "FAILED";
+    } else {
+      session.runtime_state = "READY";
+    }
+    session.last_error = "";
+  } else if (status === "FAILED") {
+    if (session.last_command_kind === "START_SESSION") {
+      session.startup_proof_state = "FAILED";
+    }
+    session.runtime_state = "FAILED";
+    session.last_error = result.error || "session command failed";
+  } else if (status === "RUNNING") {
+    session.runtime_state = session.last_command_kind === "START_SESSION" ? "STARTING" : "COMMAND_RUNNING";
+  }
+  normalizeSessionRecord(session);
+}
+
 export function assertOrchestratorLaunchAuthority(currentBranch) {
   const branch = String(currentBranch || "").trim();
   if (branch !== "role_orchestrator") {
@@ -310,8 +458,15 @@ export function registrySessionSummary(session) {
     role: session.role,
     wp_id: session.wp_id,
     runtime_state: session.runtime_state,
+    control_mode: session.control_mode || SESSION_CONTROL_MODE,
+    control_transport: session.control_transport || SESSION_CONTROL_TRANSPORT_PRIMARY,
+    control_protocol: session.control_protocol || SESSION_CONTROL_PROTOCOL_PRIMARY,
+    session_thread_id: session.session_thread_id || "",
+    session_thread_started_at: session.session_thread_started_at || "",
+    startup_proof_state: session.startup_proof_state || "NONE",
     preferred_host: session.preferred_host,
-    active_host: session.active_host,
+    active_host: session.active_host || "NONE",
+    active_terminal_kind: session.active_terminal_kind || "NONE",
     plugin_request_count: session.plugin_request_count,
     plugin_failure_count: session.plugin_failure_count,
     cli_escalation_allowed: session.cli_escalation_allowed,
@@ -319,6 +474,11 @@ export function registrySessionSummary(session) {
     plugin_last_result: session.plugin_last_result,
     plugin_last_error: session.plugin_last_error,
     active_terminal_title: session.active_terminal_title,
+    last_command_id: session.last_command_id || "",
+    last_command_kind: session.last_command_kind || "NONE",
+    last_command_status: session.last_command_status || "NONE",
+    last_command_summary: session.last_command_summary || "",
+    last_command_output_file: session.last_command_output_file || "",
     updated_at: session.last_event_at || "",
   };
 }
@@ -328,9 +488,19 @@ export function ensureSessionStateFiles(repoRoot) {
   ensureParentDir(path.resolve(repoRoot, SESSION_PLUGIN_REQUESTS_FILE));
   const requestsFile = path.resolve(repoRoot, SESSION_PLUGIN_REQUESTS_FILE);
   if (!fs.existsSync(requestsFile)) fs.writeFileSync(requestsFile, "", "utf8");
+  ensureParentDir(path.resolve(repoRoot, SESSION_CONTROL_REQUESTS_FILE));
+  ensureParentDir(path.resolve(repoRoot, SESSION_CONTROL_RESULTS_FILE));
+  ensureParentDir(path.resolve(repoRoot, SESSION_CONTROL_OUTPUT_DIR, ".keep"));
+  ensureParentDir(path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE));
+  const controlRequestsFile = path.resolve(repoRoot, SESSION_CONTROL_REQUESTS_FILE);
+  const controlResultsFile = path.resolve(repoRoot, SESSION_CONTROL_RESULTS_FILE);
+  if (!fs.existsSync(controlRequestsFile)) fs.writeFileSync(controlRequestsFile, "", "utf8");
+  if (!fs.existsSync(controlResultsFile)) fs.writeFileSync(controlResultsFile, "", "utf8");
   return {
     registryPath,
     requestsFile,
+    controlRequestsFile,
+    controlResultsFile,
   };
 }
 
@@ -339,12 +509,32 @@ export function validateRegistryShape(registry) {
   if (!registry || typeof registry !== "object") errors.push("registry must be an object");
   if (registry.schema_id !== ROLE_SESSION_REGISTRY_SCHEMA_ID) errors.push(`schema_id must be ${ROLE_SESSION_REGISTRY_SCHEMA_ID}`);
   if (registry.schema_version !== ROLE_SESSION_REGISTRY_SCHEMA_VERSION) errors.push(`schema_version must be ${ROLE_SESSION_REGISTRY_SCHEMA_VERSION}`);
+  if (registry.session_control_mode !== SESSION_CONTROL_MODE) errors.push(`session_control_mode must be ${SESSION_CONTROL_MODE}`);
+  if (registry.session_control_transport_primary !== SESSION_CONTROL_TRANSPORT_PRIMARY) {
+    errors.push(`session_control_transport_primary must be ${SESSION_CONTROL_TRANSPORT_PRIMARY}`);
+  }
+  if (registry.session_control_protocol_primary !== SESSION_CONTROL_PROTOCOL_PRIMARY) {
+    errors.push(`session_control_protocol_primary must be ${SESSION_CONTROL_PROTOCOL_PRIMARY}`);
+  }
   if (!Array.isArray(registry.sessions)) errors.push("sessions must be an array");
   if (!Array.isArray(registry.processed_requests)) errors.push("processed_requests must be an array");
   for (const session of registry.sessions || []) {
+    normalizeSessionRecord(session);
     if (!session.session_key) errors.push("session.session_key is required");
     if (!SESSION_RUNTIME_STATES.includes(session.runtime_state)) {
       errors.push(`session ${session.session_key || "<missing>"} has invalid runtime_state ${session.runtime_state}`);
+    }
+    if (session.control_protocol !== SESSION_CONTROL_PROTOCOL_PRIMARY) {
+      errors.push(`session ${session.session_key || "<missing>"} has invalid control_protocol ${session.control_protocol}`);
+    }
+    if (!SESSION_ACTIVE_HOST_VALUES.includes(session.active_host || "NONE")) {
+      errors.push(`session ${session.session_key || "<missing>"} has invalid active_host ${session.active_host}`);
+    }
+    if (!SESSION_ACTIVE_TERMINAL_KIND_VALUES.includes(session.active_terminal_kind || "NONE")) {
+      errors.push(`session ${session.session_key || "<missing>"} has invalid active_terminal_kind ${session.active_terminal_kind}`);
+    }
+    if (session.last_command_status && session.last_command_status !== "NONE" && !SESSION_COMMAND_STATUSES.includes(session.last_command_status)) {
+      errors.push(`session ${session.session_key || "<missing>"} has invalid last_command_status ${session.last_command_status}`);
     }
   }
   for (const entry of registry.processed_requests || []) {

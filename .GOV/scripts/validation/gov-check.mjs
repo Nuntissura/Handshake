@@ -32,6 +32,7 @@ await import("./build-order-check.mjs");
 await import("./task-packet-claim-check.mjs");
 await import("./session-policy-check.mjs");
 await import("./session-launch-runtime-check.mjs");
+await import("./session-control-runtime-check.mjs");
 await import("./wp-activation-traceability-check.mjs");
 await import("./worktree-concurrency-check.mjs");
 await import("./lifecycle-ux-check.mjs");

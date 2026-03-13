@@ -53,7 +53,9 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUN
 - The Orchestrator MAY coordinate and launch multiple external CLI sessions and roles, but MUST NOT spawn helper agents to perform Orchestrator or Validator duties.
 - For newly created repo-governed sessions, launch/claim the model explicitly: primary `gpt-5.4`, fallback `gpt-5.2`, reasoning `EXTRA_HIGH` (`model_reasoning_effort=xhigh`). Do not rely on ambient editor defaults.
 - Repo-governed Coder, WP Validator, and Integration Validator session start is `ORCHESTRATOR_ONLY`.
-- Primary launch transport is `VSCODE_EXTENSION_TERMINAL` via `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- Primary launch path is `VSCODE_EXTENSION_TERMINAL` via `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl`.
+- `START_SESSION`, `SEND_PROMPT`, and `CANCEL_SESSION` are first-class governed control commands. When cancel rows are present they must reference the target command and settle through the same append-only request/result ledgers.
 - CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts, unless the Operator explicitly waives the plugin-first path.
 - Repo policy for new packet claim fields disallows Codex model aliases even when the CLI tool is `codex`.
 - The historical add-on at `/.GOV/roles/orchestrator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
@@ -283,7 +285,10 @@ Resume rule (hard, anti-babysit):
 - When available, prefer VS Code integrated terminals as the host for Orchestrator-managed sessions and keep one dedicated `just operator-monitor` tab open for overview.
 - Do not rely on ambient editor defaults for model choice or reasoning strength. Launch/brief each repo-governed CLI session explicitly with `gpt-5.4` + `model_reasoning_effort=xhigh`, or `gpt-5.2` + `model_reasoning_effort=xhigh` as fallback.
 - Use `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` as the append-only launch queue and `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json` as the current launch/session-state projection.
+- Use `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` and `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl` as the append-only steerable session-control ledgers for governed Codex thread start/resume actions.
+- Use `.GOV/roles_shared/SESSION_CONTROL_OUTPUTS/` as the per-command ACP event-log surface and `.GOV/roles_shared/SESSION_CONTROL_BROKER_STATE.json` as the broker projection surface for active runs plus optional broker build/version identity.
 - The Orchestrator is the only role that starts repo-governed Coder/WP Validator/Integration Validator sessions.
+- The Orchestrator is also the only role that issues governed cancel commands for those sessions.
 - If the VS Code bridge path fails twice for the same role/WP session, the Orchestrator may open a CLI escalation window and must leave the packet/thread/runtime artifacts authoritative.
 - Use `THREAD.md` for append-only steering, clarifications, relay notes, and manual-lane coordination.
 - Use `RUNTIME_STATUS.json` for structured liveness only:
@@ -303,6 +308,7 @@ Resume rule (hard, anti-babysit):
 - These artifacts support both `MANUAL_RELAY` and `ORCHESTRATOR_MANAGED`; they do not require agentic delegation.
 - The Orchestrator MUST update `RUNTIME_STATUS.json` and append a receipt on session start, phase change, blocker/unblock, handoff, completion, and every packet heartbeat interval only while actively steering.
 - Hard rule: do not poll continuously. Steering is event-driven first, heartbeat-backed second.
+- Wake/notice priority is: launch queue + registry for bootstrap, session-control results/output logs + broker state for steering, and WP runtime/thread/receipts for packet-scoped collaboration.
 - Hard rule: those files do not override packet scope, packet status, PREPARE assignment, Task Board projection, or validation authority. If there is any conflict, the packet wins.
 
 ### Deterministic helpers (recommended)
@@ -314,6 +320,7 @@ To avoid manual markdown editing mistakes:
 - Update WP communication liveness: `just wp-heartbeat WP-{ID} ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - Append deterministic receipt: `just wp-receipt-append WP-{ID} ORCHESTRATOR <session> <receipt_kind> "<summary>" [state_before] [state_after]`
 - Open the operator monitor TUI: `just operator-monitor`
+  - The monitor is an ACP-aware viewport: canonical task-board source/drift, session registry state, control results, per-command output logs, thread/receipt activity, and packet/runtime artifacts.
 - Create role-scoped worktrees:
   - Coder: `just coder-worktree-add WP-{ID}`
   - WP Validator: `just wp-validator-worktree-add WP-{ID}`
@@ -322,6 +329,11 @@ To avoid manual markdown editing mistakes:
   - Coder: `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - WP Validator: `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - Integration Validator: `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - Steerable Coder thread: `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
+  - Steerable WP Validator thread: `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
+  - Steerable Integration Validator thread: `just start-integration-validator-session WP-{ID} [PRIMARY|FALLBACK]`
+  - Governed prompt resume: `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
+  - Governed cancel: `just session-cancel <ROLE> WP-{ID}`
   - Inspect launch/runtime state: `just session-registry-status [WP-{ID}]`
 - Condense post-signature setup:
   - Default post-signature path: `just orchestrator-prepare-and-packet WP-{ID}`

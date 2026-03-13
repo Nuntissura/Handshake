@@ -139,6 +139,45 @@ launch-integration-validator-session wp-id host="AUTO" model="PRIMARY":
 session-registry-status wp-id="":
 	node .GOV/scripts/session-registry-status.mjs {{wp-id}}
 
+handshake-acp-bridge:
+	node .GOV/tools/handshake-acp-bridge/agent.mjs
+
+session-start role wp-id model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs START_SESSION {{role}} {{wp-id}} "" {{model}}
+
+session-send role wp-id prompt model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs SEND_PROMPT {{role}} {{wp-id}} "{{prompt}}" {{model}}
+
+session-cancel role wp-id:
+	node .GOV/scripts/session-control-cancel.mjs {{role}} {{wp-id}}
+
+start-coder-session wp-id model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs START_SESSION CODER {{wp-id}} "" {{model}}
+
+start-wp-validator-session wp-id model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs START_SESSION WP_VALIDATOR {{wp-id}} "" {{model}}
+
+start-integration-validator-session wp-id model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs START_SESSION INTEGRATION_VALIDATOR {{wp-id}} "" {{model}}
+
+steer-coder-session wp-id prompt model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs SEND_PROMPT CODER {{wp-id}} "{{prompt}}" {{model}}
+
+cancel-coder-session wp-id:
+	node .GOV/scripts/session-control-cancel.mjs CODER {{wp-id}}
+
+steer-wp-validator-session wp-id prompt model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs SEND_PROMPT WP_VALIDATOR {{wp-id}} "{{prompt}}" {{model}}
+
+cancel-wp-validator-session wp-id:
+	node .GOV/scripts/session-control-cancel.mjs WP_VALIDATOR {{wp-id}}
+
+steer-integration-validator-session wp-id prompt model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs SEND_PROMPT INTEGRATION_VALIDATOR {{wp-id}} "{{prompt}}" {{model}}
+
+cancel-integration-validator-session wp-id:
+	node .GOV/scripts/session-control-cancel.mjs INTEGRATION_VALIDATOR {{wp-id}}
+
 session-launch-runtime-check:
 	node .GOV/scripts/validation/session-launch-runtime-check.mjs
 

@@ -35,7 +35,7 @@ Reference files:
 - `.GOV/scripts/session-policy.mjs`
 - `.GOV/scripts/launch-cli-session.mjs`
 - `.GOV/tools/vscode-session-bridge/extension.js`
-- `.GOV/docs/vscode-session-bridge/VSCODE_SESSION_BRIDGE_ARCHITECTURE.md`
+- `.GOV/docs/vscode-session-bridge/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md`
 
 ## VS Code Bridge Status
 

@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://handshake.local/schemas/SESSION_CONTROL_RESULT.schema.json",
+  "title": "Session Control Result",
+  "type": "object",
+  "required": [
+    "schema_id",
+    "schema_version",
+    "command_id",
+    "processed_at",
+    "command_kind",
+    "session_key",
+    "wp_id",
+    "role",
+    "status",
+    "output_jsonl_file",
+    "duration_ms"
+  ],
+  "properties": {
+    "schema_id": {
+      "const": "hsk.session_control_result@1"
+    },
+    "schema_version": {
+      "const": "session_control_result_v1"
+    },
+    "command_id": {
+      "type": "string"
+    },
+    "processed_at": {
+      "type": "string"
+    },
+    "command_kind": {
+      "enum": [
+        "START_SESSION",
+        "SEND_PROMPT",
+        "CANCEL_SESSION"
+      ]
+    },
+    "session_key": {
+      "type": "string"
+    },
+    "wp_id": {
+      "type": "string",
+      "pattern": "^WP-"
+    },
+    "role": {
+      "enum": [
+        "CODER",
+        "WP_VALIDATOR",
+        "INTEGRATION_VALIDATOR"
+      ]
+    },
+    "status": {
+      "enum": [
+        "QUEUED",
+        "RUNNING",
+        "COMPLETED",
+        "FAILED"
+      ]
+    },
+    "thread_id": {
+      "type": "string"
+    },
+    "target_command_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cancel_status": {
+      "type": "string"
+    },
+    "broker_build_id": {
+      "type": "string"
+    },
+    "cancel_target_command_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "summary": {
+      "type": "string"
+    },
+    "output_jsonl_file": {
+      "type": "string"
+    },
+    "last_agent_message": {
+      "type": "string"
+    },
+    "error": {
+      "type": "string"
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "command_kind": {
+            "const": "CANCEL_SESSION"
+          }
+        }
+      },
+      "then": {
+        "anyOf": [
+          {
+            "required": [
+              "target_command_id"
+            ]
+          },
+          {
+            "required": [
+              "cancel_target_command_id"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "additionalProperties": false
+}

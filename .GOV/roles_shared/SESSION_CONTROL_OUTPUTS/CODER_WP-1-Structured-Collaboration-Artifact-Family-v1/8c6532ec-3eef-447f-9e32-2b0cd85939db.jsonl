@@ -1,0 +1,1 @@
+{"type":"stderr","text":"error: unexpected argument '-s' found\n\n  tip: to pass '-s' as a value, use '-- -s'\n\nUsage: codex exec resume [OPTIONS] [SESSION_ID] [PROMPT]\n\nFor more information, try '--help'.\n"}

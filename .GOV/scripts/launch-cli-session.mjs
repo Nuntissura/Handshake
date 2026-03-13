@@ -141,20 +141,27 @@ const codexArgs = [
   prompt,
 ];
 
-const codexCommand = `${CLI_SESSION_TOOL} ${codexArgs.map((part) => JSON.stringify(part)).join(" ")}`;
+function psQuote(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
 
 function writeLaunchScript() {
   const psPath = path.join(os.tmpdir(), `handshake-${role.toLowerCase()}-${wpId}-${Date.now()}.ps1`);
+  const psArgsLines = codexArgs.map((arg) => `  ${psQuote(arg)}`).join(",\r\n");
   const script = [
     `$ErrorActionPreference = 'Stop'`,
-    `Set-Location -LiteralPath '${absWorktreeDir.replace(/'/g, "''")}'`,
-    `${CLI_SESSION_TOOL} -m ${selectedModel} -c '${ROLE_SESSION_REASONING_CONFIG_KEY}="${ROLE_SESSION_REASONING_CONFIG_VALUE}"' -C '${absWorktreeDir.replace(/'/g, "''")}' @'`,
-    prompt,
-    `'@`,
+    `Set-Location -LiteralPath ${psQuote(absWorktreeDir)}`,
+    `$codexArgs = @(`,
+    psArgsLines,
+    `)`,
+    `& ${psQuote(CLI_SESSION_TOOL)} @codexArgs`,
   ].join("\r\n");
   fs.writeFileSync(psPath, script, "utf8");
   return psPath;
 }
+
+const launchScriptPath = writeLaunchScript();
+const codexCommand = `& ${psQuote(launchScriptPath)}`;
 
 function launchCurrent() {
   const child = spawn(CLI_SESSION_TOOL, codexArgs, {
@@ -166,7 +173,6 @@ function launchCurrent() {
 }
 
 function launchWindowsTerminal() {
-  const launchScript = writeLaunchScript();
   const child = spawn(
     "wt.exe",
     [
@@ -177,7 +183,7 @@ function launchWindowsTerminal() {
       "-NoLogo",
       "-NoExit",
       "-File",
-      launchScript,
+      launchScriptPath,
     ],
     {
       cwd: repoRoot,
@@ -201,6 +207,7 @@ function printOnly(reason, resolvedHost) {
   console.log(`[LAUNCH_CLI_SESSION] worktree=${absWorktreeDir}`);
   console.log(`[LAUNCH_CLI_SESSION] branch=${roleConfig.branch}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_model=${selectedModel}`);
+  console.log(`[LAUNCH_CLI_SESSION] launch_script=${launchScriptPath}`);
   console.log(`[LAUNCH_CLI_SESSION] startup=${roleConfig.startupCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] next=${roleConfig.nextCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] command=${codexCommand}`);
