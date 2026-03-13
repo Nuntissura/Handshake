@@ -20,3 +20,6 @@ Rules:
 - 2026-03-13T09:57:49.313Z | VALIDATOR | session=codex-intv-smoke-20260313 | target=ORCHESTRATOR
   Final technical validation is running against origin/feat/WP-1-Structured-Collaboration-Artifact-Family-v1@84d37247e9e8e6ff6350fb109e5faaea821af9b9 in the live smoke test. Canonical merge authority is executing from the clean canonical clone; no product-code edits are planned.
 
+- 2026-03-13T10:02:14.941Z | VALIDATOR | session=codex-intv-smoke-20260313 | target=ORCHESTRATOR
+  Integration validation PASS is recorded, Gate 4 is acknowledged under the live smoke-test authorization, and merge-to-main is now proceeding from the canonical clone.
+

@@ -3,7 +3,7 @@
     "WP-1-Structured-Collaboration-Artifact-Family-v1": {
       "wpId": "WP-1-Structured-Collaboration-Artifact-Family-v1",
       "verdict": "PASS",
-      "status": "COMMITTED",
+      "status": "USER_ACKNOWLEDGED",
       "started": "2026-03-13T10:00:13.679Z",
       "gates": [
         {
@@ -14,8 +14,18 @@
         {
           "gate": "COMMITTED",
           "timestamp": "2026-03-13T10:00:37.571Z"
+        },
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "PASS",
+          "timestamp": "2026-03-13T10:01:36.118Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-03-13T10:01:53.134Z"
         }
-      ]
+      ],
+      "completed": "2026-03-13T10:01:53.135Z"
     }
   },
   "archived_sessions": []
