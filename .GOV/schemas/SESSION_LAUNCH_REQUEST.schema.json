@@ -21,7 +21,6 @@
     "terminal_title",
     "local_branch",
     "local_worktree_dir",
-    "abs_worktree_dir",
     "selected_model",
     "reasoning_config_key",
     "reasoning_config_value",

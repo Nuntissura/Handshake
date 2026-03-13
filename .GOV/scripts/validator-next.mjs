@@ -369,8 +369,8 @@ if (
   printState("Coder handoff markers indicate this WP is ready for Validator execution.");
   printFindings(findings);
   printNextCommands([
-    `just pre-work ${wpId}`,
-    "just cargo-clean",
+    `just validator-handoff-check ${wpId}`,
+    `just pre-work ${wpId}  # local mirror sanity only`,
     postWorkCommand,
   ]);
   process.exit(0);

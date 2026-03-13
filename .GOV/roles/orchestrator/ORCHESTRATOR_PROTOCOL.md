@@ -125,6 +125,7 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUN
 - Every task packet MUST keep the deterministic manifest template in `## Validation` (target_file, start/end, line_delta, pre/post SHA1, gates checklist). Packets must stay ASCII-only.
 - Orchestrator ensures new packets are created from `.GOV/templates/TASK_PACKET_TEMPLATE.md` without stripping the manifest; reject packet creation/revision that removes it.
 - `just pre-work WP-{ID}` must pass before handoff (template present), and `just post-work WP-{ID}` is the mandatory deterministic gate before Done/commit (enforces manifest completeness, SHA1s, window bounds, gates).
+- For validator PASS clearance on orchestrator-managed WPs, steer Validators to `just validator-handoff-check WP-{ID}` so committed validation runs against the PREPARE worktree source of truth rather than a possibly dirty local mirror.
 
 ## Branching & Concurrency (preferred; low-friction)
 - Default: one WP = one feature branch (e.g., `feat/WP-{ID}`).

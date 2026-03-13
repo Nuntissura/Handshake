@@ -56,6 +56,13 @@ export function normalizePath(value) {
   return String(value || "").replace(/\\/g, "/");
 }
 
+export function toRepoRelativePath(repoRoot, targetPath) {
+  const repoAbs = path.resolve(repoRoot);
+  const targetAbs = path.resolve(targetPath);
+  const relative = normalizePath(path.relative(repoAbs, targetAbs));
+  return relative || ".";
+}
+
 export function sanitizeSessionKey(value) {
   return String(value || "")
     .trim()
@@ -178,7 +185,6 @@ export function buildSessionControlRequest({
     session_thread_id: threadId,
     local_branch: normalizePath(localBranch),
     local_worktree_dir: normalizePath(localWorktreeDir),
-    abs_worktree_dir: normalizePath(absWorktreeDir),
     selected_model: selectedModel,
     reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
     reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
@@ -234,7 +240,7 @@ export function buildSessionControlResult({
 
 export function defaultSessionOutputFile(repoRoot, sessionKey, commandId) {
   const safeSessionKey = sanitizeSessionKey(sessionKey);
-  return path.resolve(repoRoot, SESSION_CONTROL_OUTPUT_DIR, safeSessionKey, `${commandId}.jsonl`);
+  return normalizePath(path.join(SESSION_CONTROL_OUTPUT_DIR, safeSessionKey, `${commandId}.jsonl`));
 }
 
 export async function runCodexThreadCommand({

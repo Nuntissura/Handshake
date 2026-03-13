@@ -137,8 +137,16 @@ function validateRequest(request) {
   if (request.launch_authority !== "ORCHESTRATOR_ONLY") errors.push("launch_authority must be ORCHESTRATOR_ONLY");
   if (request.preferred_host !== "VSCODE_EXTENSION_TERMINAL") errors.push("preferred_host must be VSCODE_EXTENSION_TERMINAL");
   if (!request.command) errors.push("command missing");
-  if (!request.abs_worktree_dir) errors.push("abs_worktree_dir missing");
+  if (!request.local_worktree_dir && !request.abs_worktree_dir) errors.push("local_worktree_dir missing");
   return errors;
+}
+
+function resolveLaunchCwd(repoRoot, request) {
+  const relativeWorktree = String(request.local_worktree_dir || "").trim();
+  if (relativeWorktree) return path.resolve(repoRoot, relativeWorktree);
+  const absoluteWorktree = String(request.abs_worktree_dir || "").trim();
+  if (absoluteWorktree) return absoluteWorktree;
+  return repoRoot;
 }
 
 function getOrCreateTerminal(title, cwd) {
@@ -192,7 +200,7 @@ async function processLaunchQueue() {
     }
 
     try {
-      const terminal = getOrCreateTerminal(request.terminal_title, request.abs_worktree_dir);
+      const terminal = getOrCreateTerminal(request.terminal_title, resolveLaunchCwd(repoRoot, request));
       terminal.show(true);
       terminal.sendText(request.command, true);
       session.plugin_last_result = "PLUGIN_DISPATCHED";

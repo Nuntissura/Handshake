@@ -59,6 +59,7 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUN
 - Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl`.
 - Validator sessions do not own the steering lane. Only the Orchestrator starts, resumes, or cancels governed validator sessions; validators request repair, pause, or cancel through packet communications or an explicit orchestrator instruction.
 - `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl` is the settled steering ledger; `.GOV/roles_shared/SESSION_CONTROL_OUTPUTS/` holds the per-command ACP event logs that the Operator monitor can surface.
+- Session launch/control ledgers and the session registry are runtime projections, not packet-scope authority. Treat them as operator/runtime evidence only; use the PREPARE worktree plus packet/WP-communications truth for validation decisions.
 - CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts, unless the Operator explicitly waives the plugin-first path.
 - The historical add-on at `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
 
@@ -288,7 +289,8 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 ## Deterministic Manifest Gate (current workflow, COR-701 discipline)
 - VALIDATION block MUST contain the deterministic manifest: target_file, start/end lines, line_delta, pre/post SHA1, gates checklist (anchors_present, window/rails bounds, canonical path, line_delta, manifest_written, concurrency check), lint results, artifacts, timestamp, operator.
 - Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
-- Require evidence that `just post-work WP-{ID}` ran and passed (this gate enforces the manifest + SHA1/gate checks). If absent or failing, verdict = FAIL until fixed.
+- Require evidence that `just validator-handoff-check WP-{ID}` ran and passed before PASS commit clearance. This helper runs `pre-work`, `cargo-clean`, and committed `post-work` against the PREPARE worktree source of truth. If absent or failing, verdict = FAIL until fixed.
+- Require evidence that `just post-work WP-{ID}` ran and passed for the validated committed target (directly or via `validator-handoff-check`). If absent or failing, verdict = FAIL until fixed.
 - Post-work sequencing note (echo from CODER_PROTOCOL): `just post-work` validates staged/working changes when present, and on a clean tree validates a deterministic range:
   - If the task packet contains `MERGE_BASE_SHA`: `MERGE_BASE_SHA..HEAD`
   - Else if `merge-base(main, HEAD)` differs from `HEAD`: `merge-base(main, HEAD)..HEAD`
@@ -386,7 +388,8 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
     - **Strict:** "Dirty" git status (uncommitted changes) is a FAIL for final validation unless a **User Waiver** [CX-573F] is explicitly recorded in the Task Packet.
     - **Artifacts:** FAIL if *ignored* build artifacts (e.g., `target/`, `node_modules/`) are tracked or committed.
     - **Scope:** Ensure changes are restricted to the WP's `IN_SCOPE_PATHS`.
-    - **Low-friction rule (preferred):** Validator stages ONLY the WP changes, then runs `just post-work {WP_ID}`; the post-work gate validates STAGED changes first, so unrelated local dirt does not block as long as it is not staged. If validating a clean handoff commit, run `just post-work {WP_ID} --rev <sha>`.
+    - **Committed-handoff rule (preferred for orchestrator-managed WPs):** Run `just validator-handoff-check {WP_ID}`. This validates the PREPARE worktree source of truth with `pre-work`, `cargo-clean`, and committed `post-work`, and records commit-clearance evidence for `validator-gate-commit`.
+    - **Local mirror sanity only:** You may still run `just post-work {WP_ID}` in your validator worktree for local diagnosis, but it does not replace committed handoff validation against the PREPARE worktree.
 
 
 7.1) Git & Build Hygiene Audit (execute when any build artifacts/.gitignore risk is suspected)
@@ -410,6 +413,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 
 ## Standard Command Set (run when applicable)
 - `just cargo-clean` (cleans external Cargo target dir at `../Handshake Artifacts/handshake-cargo-target` before validation/commit; fail validation if skipped)
+- `just validator-handoff-check WP-{ID}` (required before PASS commit clearance for orchestrator-managed WPs; validates the committed PREPARE worktree handoff state)
 - `just gov-check` (required before PASS merge/push and for any governance-only validator changes; catches activation traceability drift, Task Board/build-order drift, and shared governance regressions)
 - `just validator-scan` (forbidden patterns, mocks/placeholders, RDD/LLM/DB boundary greps)
 - `just validator-dal-audit` (CX-DBP-VAL-010..014 checks: DB boundary, SQL portability, trait boundary, migration hygiene, dual-backend readiness)
@@ -537,7 +541,7 @@ VALIDATION REPORT â€” {WP_ID}
 Verdict: PASS | FAIL
 
 Validation Claims (do not collapse into a single PASS):
-- GATES_PASS (deterministic manifest gate: `just post-work {WP_ID}`; not tests): PASS | FAIL
+- GATES_PASS (deterministic manifest gate on the committed handoff state, typically via `just validator-handoff-check {WP_ID}`; not tests): PASS | FAIL
 - TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS | FAIL | NOT_RUN
 - SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES | NO
 

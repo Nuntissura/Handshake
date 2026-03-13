@@ -169,6 +169,12 @@ The following artifacts are projections, not work-scope authority:
 
 If packet truth and session-control artifacts disagree, the packet wins.
 
+Operational note:
+
+- session runtime ledgers may contain operator-facing file links, output-log paths, and launch/bootstrap command text
+- those runtime artifacts are audited by their dedicated runtime/schema checks
+- they should not be treated as the canonical drive-agnostic governance text surface
+
 ## High-Level Architecture
 
 ### 1. Governance Layer
@@ -314,6 +320,7 @@ Additional governance requirement:
 
 - `gov-check` must enforce request/result parity, duplicate-command detection, missing output-log detection, and stale-running detection across the request ledger, result ledger, registry projection, and broker-state projection
 - one governed role/WP session may have at most one active ACP broker-owned run at a time
+- final PASS commit clearance for orchestrator-managed validation must use committed handoff evidence from `just validator-handoff-check WP-{ID}`, which runs against the PREPARE worktree source of truth rather than a possibly dirty validator mirror
 
 Trust boundary note:
 

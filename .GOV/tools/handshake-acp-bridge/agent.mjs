@@ -384,7 +384,6 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
   const { registry, session, absWorktreeDir, selectedModel, outputFile, threadId } = validation;
   const requestRecord = {
     ...request,
-    abs_worktree_dir: absWorktreeDir.replace(/\\/g, "/"),
     selected_model: selectedModel,
     output_jsonl_file: outputFile.replace(/\\/g, "/"),
     session_thread_id: request.command_kind === "SEND_PROMPT" ? threadId : "",
@@ -577,7 +576,6 @@ function handleSessionCancel(socket, id, params = {}) {
     cancelOutputFile = validation.outputFile;
     requestRecord = {
       ...request,
-      abs_worktree_dir: validation.absWorktreeDir.replace(/\\/g, "/"),
       output_jsonl_file: cancelOutputFile.replace(/\\/g, "/"),
     };
 

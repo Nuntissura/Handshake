@@ -273,3 +273,19 @@ That is a good foundation. It is not yet evidence that the workflow is effortles
 ---
 
 *Audit complete. This document records the live smoke test outcome and the defects exposed during the run. It is intentionally candid because the goal is operational trust, not narrative polish.*
+
+---
+
+## 11. Post-Smoke-Test Classical Validation Override
+
+Verdict: `FAIL`.
+
+### Findings
+
+- The live smoketest delta is not packet-aligned. The WP scope is limited to the files listed in `WP-1-Structured-Collaboration-Artifact-Family-v1.md:276`, but `git diff --name-only` over those scoped paths returned nothing. The active dirty tree is instead changing out-of-scope files like `api/loom.rs:1` and `mcp/gate.rs:23`. This cannot be passed as a revalidation of WP-1's implementation scope.
+- `just gov-check` fails on drive-agnostic governance. The live tree now contains absolute Windows paths in `SESSION_CONTROL_RESULTS.jsonl:1` and `SESSION_LAUNCH_REQUESTS.jsonl:1`, and the gate stops on `drive-agnostic-check: FAIL`.
+- The required clean rebuild does not complete. After the mandated `cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target"`, the revalidation `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target"` failed during the `libduckdb-sys` native build (`cc-rs` / `cl.exe`).
+
+`just pre-work WP-1-Structured-Collaboration-Artifact-Family-v1` did pass, which means the packet/refinement/PREPARE tuple is still internally valid. That does not save the live tree: the current working copy fails the actual governance/build revalidation and is outside the packet's scoped implementation surface.
+
+The official FAIL audit was appended under `WP-1-Structured-Collaboration-Artifact-Family-v1.md:631`, and the WP communication state was updated to failed in `RUNTIME_STATUS.json`. The next actor is the Orchestrator/Coder to isolate or revert the out-of-scope live-run drift, remove the absolute-path governance artifacts, and rerun the clean validation flow.

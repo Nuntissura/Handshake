@@ -58,6 +58,7 @@ This file is the shared law for repo-governed multi-session launch behavior.
 - Control requests and control results are append-only JSONL records.
 - Per-command ACP event logs under `.GOV/roles_shared/SESSION_CONTROL_OUTPUTS/` are append-only detail surfaces for governed command execution, including cancel evidence and broker-settled output.
 - The session registry is the current state projection for active and historical role sessions.
+- The launch queue, control ledgers, broker state, output logs, and session registry are runtime artifacts. They are not packet/work-scope authority, and generic drive-agnostic scanning may treat them like operator evidence rather than normative governance text.
 - Packet truth still wins over session state for scope, verdict, and acceptance.
 - `TERMINAL_COMMAND_DISPATCHED` means the VS Code bridge created/reused a terminal and sent the governed command into it. It is not proof that the CLI session is alive yet.
 - Treat packet-scoped receipts, runtime-state movement, or heartbeat evidence as the actual proof that the launched role session started executing.
