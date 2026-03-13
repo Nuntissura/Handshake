@@ -321,7 +321,7 @@ Additional governance requirement:
 - `gov-check` must enforce request/result parity, duplicate-command detection, missing output-log detection, and stale-running detection across the request ledger, result ledger, registry projection, and broker-state projection
 - one governed role/WP session may have at most one active ACP broker-owned run at a time
 - final PASS commit clearance for orchestrator-managed validation must use committed handoff evidence from `just validator-handoff-check WP-{ID}`, which runs against the PREPARE worktree source of truth rather than a possibly dirty validator mirror
-- when external/classical validation is used, the Orchestrator should generate `just external-validator-brief WP-{ID}` first so the validator gets one canonical code target, one governance target, the committed handoff command, and the legal split-verdict contract (`VALIDATION_CONTEXT`, `CODE_VERDICT`, `GOVERNANCE_VERDICT`, `ENVIRONMENT_VERDICT`, `LEGAL_VERDICT`)
+- when external/classical validation is used, the Orchestrator should require `just validator-startup` followed immediately by `just external-validator-brief WP-{ID}` so the validator gets one canonical code target, one governance target, the committed handoff command, and the legal split-verdict contract (`VALIDATION_CONTEXT`, `CODE_VERDICT`, `GOVERNANCE_VERDICT`, `ENVIRONMENT_VERDICT`, `DISPOSITION`, `LEGAL_VERDICT`)
 
 Trust boundary note:
 

@@ -195,6 +195,7 @@ Resume rule (hard, anti-babysit):
 - Immediately run `just validator-next` (or `just validator-next WP-{ID}` when the WP is known).
 - If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS` without waiting for a fresh "proceed".
 - STOP only if the helper requires a single explicit decision, the WP inference is ambiguous, or the next step is a sync/destructive action that still needs explicit authorization.
+- `just validator-startup` remains the universal validator startup command. It is necessary but not sufficient for external/classical revalidation; that mode requires `just external-validator-brief WP-{ID}` immediately after startup and before any verdict work.
 
 ## WP Communication Folder (when the packet defines it)
 
@@ -320,7 +321,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually .GOV/roles_shared/SPEC_CURRENT.md).
 - Resolve SPEC_TARGET at validation time (.GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md) and validate DONE_MEANS/evidence against the resolved spec.
 - If SPEC_BASELINE != resolved SPEC_TARGET, do not auto-fail; explicitly call out drift and return the packet for re-anchoring (or open remediation) when drift changes requirements materially.
-- If a WP is correct for its SPEC_BASELINE but SPEC_TARGET has evolved, use a distinct verdict: **OUTDATED_ONLY** (historically done; no protocol/code regression proven). Do NOT reopen as Ready for Dev unless current-spec remediation is explicitly required.
+- If a WP is correct for its SPEC_BASELINE but SPEC_TARGET has evolved, record a distinct disposition: **OUTDATED_ONLY** (historically done; no protocol/code regression proven). Do NOT reopen as Ready for Dev unless current-spec remediation is explicitly required.
 - Spec changes are governed via Spec Enrichment (new spec version file + `.GOV/roles_shared/SPEC_CURRENT.md` update) under a one-time user signature recorded in `.GOV/roles_shared/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
 
 2) Evidence Mapping (Spec -> Code)
@@ -441,17 +442,38 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - Do not require the Operator to infer the verdict from `NEXT_ACTION`, gate state, or prose.
 - Strings like `accept`, `approved`, `technical pass`, or `looks good` are not legal verdicts.
 
+## Validation Modes
+- `Governed Validation`
+  - This is the normal validator lane.
+  - It may run `validator-gate-*`, append the canonical packet validation report, update closure state, and merge only when the full governed gate sequence authorizes it.
+- `External / Classical Revalidation`
+  - This is an audit mode, not a second validator workflow.
+  - Required start sequence:
+    - `just validator-startup`
+    - `just external-validator-brief WP-{ID}`
+  - `just validator-startup` alone is insufficient for this mode.
+  - This mode may audit code, governance, and environment, but it MUST NOT:
+    - run `validator-gate-*`
+    - mutate closure state
+    - append normal governed-lane closure artifacts
+    - merge or authorize merge
+  - Default write target for this mode is a chat report or a clearly labeled external revalidation report, not the normal governed-lane closure path.
+
 ## External Validator Split Report Contract
 - Before an external/classical validator starts on an orchestrator-managed WP, generate the target contract with `just external-validator-brief WP-{ID}`.
+- Governance target selection is derived from the packet-declared governance authority and workflow lane, not by assuming every case is `role_orchestrator`.
 - External/classical validator reports for orchestrator-managed WPs MUST use these top fields:
   - `VALIDATION_CONTEXT: OK | CONTEXT_MISMATCH`
   - `CODE_VERDICT: PASS | FAIL | NOT_RUN`
   - `GOVERNANCE_VERDICT: PASS | FAIL | NOT_RUN`
   - `ENVIRONMENT_VERDICT: PASS | FAIL | NOT_RUN`
+  - `DISPOSITION: NONE | OUTDATED_ONLY`
   - `LEGAL_VERDICT: PASS | FAIL | PENDING`
-- `LEGAL_VERDICT` is the only legal top-line verdict field. `CODE_VERDICT`, `GOVERNANCE_VERDICT`, and `ENVIRONMENT_VERDICT` are split assessments only.
+- `LEGAL_VERDICT` is the only legal top-line verdict field. `CODE_VERDICT`, `GOVERNANCE_VERDICT`, `ENVIRONMENT_VERDICT`, and `DISPOSITION` are split assessments/classifications only.
 - If the validator is in the wrong checkout or cannot access the committed PREPARE worktree source of truth, classify that as `VALIDATION_CONTEXT: CONTEXT_MISMATCH`, keep the blocked assessment at `NOT_RUN`, and use `LEGAL_VERDICT: PENDING` until the validation is rerun from the correct governance context.
 - A `CONTEXT_MISMATCH` is not, by itself, proof that the WP implementation failed.
+- If the WP remains correct for its baseline but SPEC_TARGET evolved materially, keep the legal verdict in `PASS | FAIL | PENDING` and set `DISPOSITION: OUTDATED_ONLY`.
+- `OUTDATED_ONLY` is a disposition, not a legal top-line verdict.
 
 ## Validation Gate Sequence [CX-VAL-GATE] (ONE REVIEW PAUSE; APPEND-FIRST)
 
@@ -589,7 +611,7 @@ Task Packet Update (APPEND-ONLY):
 - [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL) MUST be APPENDED to the end of the `.GOV/task_packets/{WP_ID}.md` file. OVERWRITING IS FORBIDDEN.
 - [CX-WP-002] CLOSURE REASONS: The append block MUST contain a "REASON FOR {VERDICT}" section explaining exactly why the WP was closed or failed, linking back to specific findings.
 - STATUS + closure updates are PASS-gated: append the full Validation Report for PASS/FAIL using the template below, but only after `verdict: PASS` may the Validator set task packet `**Status:** Done`, move TASK_BOARD to Done/Validated, and sync BUILD_ORDER (`just build-order-sync`). **DO NOT OVERWRITE User Context or previous history [CX-654].**
-- For non-PASS verdicts (FAIL/OUTDATED_ONLY), append the report but do not perform Done/Validated closure updates on task packet/TASK_BOARD/BUILD_ORDER.
+- For non-PASS governed verdicts or `DISPOSITION=OUTDATED_ONLY`, append the report but do not perform normal Done/Validated PASS closure updates on task packet/TASK_BOARD/BUILD_ORDER unless the governed lane explicitly records the outdated-only closure path.
 - TASK_BOARD update (merge-visible requirement): for PASS, the Validator MUST update `.GOV/roles_shared/TASK_BOARD.md` on the WP branch before merge using `just task-board-set WP-{ID} DONE_VALIDATED`, and the closure commit MUST carry that update so merge + fast-forward makes the validated state visible in all role worktrees.
 - TASK_BOARD update (on `main`): after merge, the canonical main-branch Task Board must already show the validated WP entry from that closure commit. Status-sync commits earlier in the WP lifecycle are separate and do not imply a verdict.
 - Board consistency (on `main`): task packet `**Status:**` is source of truth; reconcile the Task Board to match packet reality before declaring PASS. Unresolved mismatch = FAIL pending correction.

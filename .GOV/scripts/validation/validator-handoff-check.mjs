@@ -7,7 +7,9 @@ import {
   currentGitContext,
   loadOrchestratorGateLogs,
   lastGateLog,
+  loadPacket,
   packetExists,
+  parseClaimField,
   parseMergeBaseSha,
   preparedWorktreeSyncState,
   resolvePrepareWorktreeAbs,
@@ -32,6 +34,20 @@ function contextMismatch(message, details = []) {
 
 function hardFail(message, details = []) {
   fail("FAIL", message, details, 1);
+}
+
+function normalizeRole(value) {
+  return String(value || "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+}
+
+function authorityRoleToBranch(authorityRole) {
+  const normalized = normalizeRole(authorityRole);
+  if (normalized === "ORCHESTRATOR") return "role_orchestrator";
+  if (normalized === "VALIDATOR" || normalized === "WP_VALIDATOR" || normalized === "INTEGRATION_VALIDATOR") {
+    return "role_validator";
+  }
+  if (normalized === "OPERATOR") return "user_ilja";
+  return "role_orchestrator";
 }
 
 function ensureStateDir() {
@@ -160,6 +176,11 @@ function persistEvidence(wpId, evidence) {
 const parsed = parseArgs(process.argv.slice(2));
 const repoRoot = process.cwd();
 const gitContext = currentGitContext();
+const packetContentForContext = loadPacket(parsed.wpId);
+const workflowLane = parseClaimField(packetContentForContext, "WORKFLOW_LANE");
+const workflowAuthority = parseClaimField(packetContentForContext, "WORKFLOW_AUTHORITY")
+  || (String(workflowLane || "").trim().toUpperCase() === "ORCHESTRATOR_MANAGED" ? "ORCHESTRATOR" : "ORCHESTRATOR");
+const expectedGovernanceBranch = authorityRoleToBranch(workflowAuthority);
 
 if (!packetExists(parsed.wpId)) {
   hardFail("Task packet not found", [`.GOV/task_packets/${parsed.wpId}.md`]);
@@ -168,10 +189,10 @@ if (!packetExists(parsed.wpId)) {
 const logs = loadOrchestratorGateLogs();
 const prepareEntry = lastGateLog(logs, parsed.wpId, "PREPARE");
 if (!prepareEntry) {
-  if (gitContext.branch !== "role_orchestrator") {
+  if (gitContext.branch !== expectedGovernanceBranch) {
     contextMismatch("PREPARE gate entry is unavailable in this checkout", [
       `current_branch=${gitContext.branch || "<detached>"}`,
-      "expected_governance_branch=role_orchestrator",
+      `expected_governance_branch=${expectedGovernanceBranch}`,
       `rerun=just validator-handoff-check ${parsed.wpId}`,
     ]);
   }

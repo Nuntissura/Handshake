@@ -83,6 +83,38 @@ function findLocalBranchWorktree(repoRoot, branchName) {
   return flushMatch();
 }
 
+function normalizeRole(value) {
+  return String(value || "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+}
+
+function authorityRoleToBranch(authorityRole) {
+  const normalized = normalizeRole(authorityRole);
+  if (normalized === "ORCHESTRATOR") return "role_orchestrator";
+  if (normalized === "VALIDATOR" || normalized === "WP_VALIDATOR" || normalized === "INTEGRATION_VALIDATOR") {
+    return "role_validator";
+  }
+  if (normalized === "OPERATOR") return "user_ilja";
+  return "role_orchestrator";
+}
+
+function resolveGovernanceTarget(packetContent, repoRoot, workflowLane) {
+  const topology = loadJson(path.join(".GOV", "roles_shared", "GIT_TOPOLOGY_REGISTRY.json"), {});
+  const authorityRole = parseClaimField(packetContent, "WORKFLOW_AUTHORITY")
+    || (String(workflowLane || "").trim().toUpperCase() === "ORCHESTRATOR_MANAGED" ? "ORCHESTRATOR" : "ORCHESTRATOR");
+  const branch = authorityRoleToBranch(authorityRole);
+  const protectedWorktrees = Array.isArray(topology?.protected_worktrees) ? topology.protected_worktrees : [];
+  const topologyEntry = protectedWorktrees.find((entry) => String(entry?.local_branch || "").trim() === branch);
+  const topologyPath = topologyEntry?.rel_path
+    ? path.resolve(repoRoot, String(topologyEntry.rel_path))
+    : "";
+  const discoveredPath = findLocalBranchWorktree(repoRoot, branch);
+  return {
+    authority_role: authorityRole,
+    branch,
+    checkout_path: (discoveredPath || topologyPath || repoRoot).replace(/\\/g, "/"),
+  };
+}
+
 function loadCommittedValidationEvidence(wpId) {
   const statePath = path.join(".GOV", "validator_gates", `${wpId}.json`);
   const state = loadJson(statePath, {});
@@ -103,8 +135,10 @@ function formatText(brief) {
   const lines = [
     "EXTERNAL_VALIDATOR_BRIEF [CX-VAL-EXT-001]",
     `- WP_ID: ${brief.wp_id}`,
+    `- VALIDATION_MODE: ${brief.validation_mode}`,
     `- WORKFLOW_LANE: ${brief.workflow_lane}`,
     `- VALIDATION_CONTEXT: ${brief.validation_context}`,
+    `- GOVERNANCE_AUTHORITY_ROLE: ${brief.governance_target.authority_role}`,
     `- CODE_TARGET_BRANCH: ${brief.code_target.branch}`,
     `- CODE_TARGET_COMMIT: ${brief.code_target.commit}`,
     `- CODE_TARGET_HINT: ${brief.code_target.hint}`,
@@ -112,11 +146,14 @@ function formatText(brief) {
     `- GOVERNANCE_CHECKOUT_PATH: ${brief.governance_target.checkout_path}`,
     `- PREPARE_WORKTREE_DIR: ${brief.handoff_target.prepare_worktree_dir}`,
     `- PREPARE_WORKTREE_HEAD: ${brief.handoff_target.prepare_worktree_head}`,
+    `- STARTUP_SEQUENCE: ${brief.startup_sequence.join(" -> ")}`,
     `- HANDOFF_COMMAND: ${brief.handoff_target.command}`,
     `- GOVERNANCE_COMMAND: ${brief.governance_target.command}`,
     `- LEGAL_VERDICTS: PASS | FAIL | PENDING`,
-    `- SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | LEGAL_VERDICT`,
+    `- DISPOSITIONS: NONE | OUTDATED_ONLY`,
+    `- SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT`,
     `- RUNTIME_LEDGER_RULE: session ledgers/output logs are operator/runtime evidence only; they are not packet-scope implementation authority`,
+    `- WRITE_TARGET_RULE: external/classical revalidation writes a chat report or clearly labeled external revalidation report only; it must not run validator-gate-*, mutate closure state, or merge`,
   ];
 
   if (brief.context_notes.length > 0) {
@@ -134,8 +171,10 @@ function formatText(brief) {
   lines.push("  - CODE_VERDICT: PASS | FAIL | NOT_RUN");
   lines.push("  - GOVERNANCE_VERDICT: PASS | FAIL | NOT_RUN");
   lines.push("  - ENVIRONMENT_VERDICT: PASS | FAIL | NOT_RUN");
+  lines.push("  - DISPOSITION: NONE | OUTDATED_ONLY");
   lines.push("  - LEGAL_VERDICT: PASS | FAIL | PENDING");
   lines.push("  - RULE: strings like accept/approved/technical pass are not legal verdicts");
+  lines.push("  - RULE: use DISPOSITION=OUTDATED_ONLY when SPEC_TARGET has evolved but no code/protocol regression is proven");
 
   return `${lines.join("\n")}\n`;
 }
@@ -143,7 +182,6 @@ function formatText(brief) {
 const parsed = parseArgs(process.argv.slice(2));
 const gitContext = currentGitContext();
 const repoRoot = gitContext.topLevel || process.cwd();
-const orchestratorWorktree = findLocalBranchWorktree(repoRoot, "role_orchestrator");
 
 if (!packetExists(parsed.wpId)) {
   console.error(`[EXTERNAL_VALIDATOR_BRIEF] Task packet not found: .GOV/task_packets/${parsed.wpId}.md`);
@@ -152,6 +190,7 @@ if (!packetExists(parsed.wpId)) {
 
 const packetContent = loadPacket(parsed.wpId);
 const workflowLane = parseClaimField(packetContent, "WORKFLOW_LANE") || "<missing>";
+const governanceTarget = resolveGovernanceTarget(packetContent, repoRoot, workflowLane);
 const packetBranch = parseClaimField(packetContent, "LOCAL_BRANCH") || "<missing>";
 const packetWorktreeDir = parseClaimField(packetContent, "LOCAL_WORKTREE_DIR") || "<missing>";
 const mergeBaseField = parseClaimField(packetContent, "MERGE_BASE_SHA");
@@ -168,11 +207,11 @@ const committedEvidence = loadCommittedValidationEvidence(parsed.wpId);
 const contextNotes = [];
 let validationContext = "OK";
 
-if (gitContext.branch !== "role_orchestrator") {
+if (gitContext.branch !== governanceTarget.branch) {
   validationContext = "CONTEXT_MISMATCH";
   pushUnique(
     contextNotes,
-    `Current checkout branch is ${gitContext.branch || "<detached>"}; governance validation target is role_orchestrator.`,
+    `Current checkout branch is ${gitContext.branch || "<detached>"}; governance validation target is ${governanceTarget.branch}.`,
   );
 }
 
@@ -202,6 +241,7 @@ const codeTargetHint = mergeBaseSha
   : `Use a clean checkout of ${packetBranch} and validate commit ${codeTargetCommit}.`;
 
 const requiredCommands = [];
+pushUnique(requiredCommands, "just validator-startup");
 pushUnique(requiredCommands, `just external-validator-brief ${parsed.wpId}`);
 pushUnique(requiredCommands, `just validator-handoff-check ${parsed.wpId}`);
 pushUnique(requiredCommands, "just gov-check");
@@ -212,6 +252,7 @@ const brief = {
   schema_id: "hsk.external_validator_brief@1",
   schema_version: "external_validator_brief_v1",
   wp_id: parsed.wpId,
+  validation_mode: "EXTERNAL_CLASSICAL_REVALIDATION",
   workflow_lane: workflowLane,
   validation_context: validationContext,
   code_target: {
@@ -221,8 +262,7 @@ const brief = {
     hint: codeTargetHint,
   },
   governance_target: {
-    branch: "role_orchestrator",
-    checkout_path: (orchestratorWorktree || repoRoot).replace(/\\/g, "/"),
+    ...governanceTarget,
     command: "just gov-check",
   },
   handoff_target: {
@@ -230,12 +270,15 @@ const brief = {
     prepare_worktree_head: prepareWorktreeHead || codeTargetCommit,
     command: `just validator-handoff-check ${parsed.wpId}`,
   },
+  startup_sequence: ["just validator-startup", `just external-validator-brief ${parsed.wpId}`],
   legal_verdicts: ["PASS", "FAIL", "PENDING"],
+  dispositions: ["NONE", "OUTDATED_ONLY"],
   split_fields: [
     "VALIDATION_CONTEXT",
     "CODE_VERDICT",
     "GOVERNANCE_VERDICT",
     "ENVIRONMENT_VERDICT",
+    "DISPOSITION",
     "LEGAL_VERDICT",
   ],
   required_commands: requiredCommands,
