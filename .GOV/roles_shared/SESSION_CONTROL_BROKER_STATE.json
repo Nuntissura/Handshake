@@ -4,11 +4,11 @@
   "protocol": "HANDSHAKE_ACP_STDIO_V1",
   "control_transport": "CODEX_EXEC_RESUME_JSON",
   "host": "127.0.0.1",
-  "port": 54466,
-  "broker_pid": 165836,
+  "port": 60603,
+  "broker_pid": 108848,
   "started_at": "2026-03-13T00:57:55.229Z",
-  "updated_at": "2026-03-13T01:54:20.255Z",
+  "updated_at": "2026-03-13T20:18:16.117Z",
   "active_runs": [],
-  "broker_build_id": "2026-03-13.4",
+  "broker_build_id": "2026-03-13.6",
   "broker_auth_mode": "LOCAL_TOKEN_FILE_V1"
 }

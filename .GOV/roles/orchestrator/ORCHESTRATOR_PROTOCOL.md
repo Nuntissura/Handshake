@@ -64,7 +64,7 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUN
 - Repo-governed Coder, WP Validator, and Integration Validator session start is `ORCHESTRATOR_ONLY`.
 - Primary launch path is `VSCODE_EXTENSION_TERMINAL` via `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
 - Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl`.
-- `START_SESSION`, `SEND_PROMPT`, and `CANCEL_SESSION` are first-class governed control commands. When cancel rows are present they must reference the target command and settle through the same append-only request/result ledgers.
+- `START_SESSION`, `SEND_PROMPT`, `CANCEL_SESSION`, and `CLOSE_SESSION` are first-class governed control commands. Cancel rows must reference the target command. Close rows intentionally clear the steerable thread registration for a governed role/WP session. Both settle through the same append-only request/result ledgers.
 - CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts, unless the Operator explicitly waives the plugin-first path.
 - Repo policy for new packet claim fields disallows Codex model aliases even when the CLI tool is `codex`.
 - The historical add-on at `/.GOV/roles/orchestrator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.

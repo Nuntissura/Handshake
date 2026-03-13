@@ -30,7 +30,7 @@ const resultsPath = path.resolve(repoRoot, SESSION_CONTROL_RESULTS_FILE);
 const outputDirPath = path.resolve(repoRoot, SESSION_CONTROL_OUTPUT_DIR);
 const brokerStatePath = path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE);
 const maxUnsettledAgeMs = (SESSION_CONTROL_RUN_TIMEOUT_SECONDS + SESSION_CONTROL_RUN_STALE_GRACE_SECONDS) * 1000;
-const GOVERNED_COMMAND_KINDS = new Set(["START_SESSION", "SEND_PROMPT", "CANCEL_SESSION"]);
+const GOVERNED_COMMAND_KINDS = new Set(["START_SESSION", "SEND_PROMPT", "CANCEL_SESSION", "CLOSE_SESSION"]);
 
 function fail(message, details = []) {
   console.error(`[SESSION_CONTROL_RUNTIME_CHECK] ${message}`);
@@ -440,6 +440,9 @@ for (const session of registry.sessions || []) {
 
   if (session.startup_proof_state === "READY" && !session.session_thread_id) {
     invariantErrors.push(`session ${session.session_key} is READY without a session_thread_id`);
+  }
+  if (session.runtime_state === "CLOSED" && session.session_thread_id) {
+    invariantErrors.push(`session ${session.session_key} is CLOSED but still has a session_thread_id`);
   }
 }
 

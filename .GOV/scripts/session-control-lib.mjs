@@ -404,7 +404,7 @@ export function validateSessionControlRequestShape(request) {
   if (!request.session_key) errors.push("session_key is required");
   if (!request.wp_id) errors.push("wp_id is required");
   if (!request.role) errors.push("role is required");
-  if (commandKind !== "CANCEL_SESSION" && !request.prompt) errors.push("prompt is required");
+  if (!["CANCEL_SESSION", "CLOSE_SESSION"].includes(commandKind) && !request.prompt) errors.push("prompt is required");
   if (!request.output_jsonl_file) errors.push("output_jsonl_file is required");
   if (commandKind === "CANCEL_SESSION" && !request.target_command_id) {
     errors.push("target_command_id is required for CANCEL_SESSION");

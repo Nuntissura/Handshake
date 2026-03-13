@@ -65,7 +65,7 @@ Product-scanning / product-boundary enforcement:
   - `WPVAL <WP_ID>`
   - `INTVAL`
   - `MONITOR`
-- `just operator-monitor` is the Operator viewport.
+- `just operator-monitor` is the Operator viewport for canonical board drift, governed ACP state, and broker/session lifecycle actions.
 - When the canonical `main` task board is available, the monitor uses that board for counts, filter buckets, and WP list selection. The current worktree board is still surfaced as the mirror/drift comparison source.
 - Default `SESSIONS` view is governed-session-first: repo-governed ACP sessions are shown as first-class active sessions, with packet runtime sessions shown separately.
 - `EVENTS` shows the merged governed ACP output stream for the selected WP across its governed role sessions.
@@ -119,6 +119,9 @@ Primary commands:
 - `just wp-receipt-append WP-... ORCHESTRATOR <session> <receipt_kind> "<summary>"`
 - `just wp-thread-append WP-... ORCHESTRATOR <session> "<message>" [target]`
 - `just operator-monitor`
+- Inside the monitor:
+  - `c` closes governed sessions for the selected WP after a role prompt + confirmation.
+  - `b` stops the ACP broker after confirmation, but only if no governed runs are active.
 
 Role rule:
 - The Orchestrator is one non-agentic coordinator CLI session. It coordinates and launches repo-governed CLI sessions, but does not spawn Orchestrator or Validator helper agents.

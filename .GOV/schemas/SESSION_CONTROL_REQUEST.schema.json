@@ -32,7 +32,8 @@
       "enum": [
         "START_SESSION",
         "SEND_PROMPT",
-        "CANCEL_SESSION"
+        "CANCEL_SESSION",
+        "CLOSE_SESSION"
       ]
     },
     "created_by_role": {
@@ -133,6 +134,16 @@
           }
         ]
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "command_kind": {
+            "const": "CLOSE_SESSION"
+          }
+        }
+      },
+      "then": {}
     }
   ],
   "additionalProperties": false

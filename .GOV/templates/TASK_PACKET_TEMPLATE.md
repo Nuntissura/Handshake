@@ -117,6 +117,7 @@ Requirements:
 - REMOTE_BACKUP_LIFECYCLE: TEMPORARY
 <!-- WP backup branches may be deleted after Operator-approved cleanup; later dead links are non-blocking. -->
 - BACKUP_PUSH_STATUS: REQUIRED_BEFORE_DESTRUCTIVE_OPS
+<!-- Treat the WP backup branch as the phase-boundary recovery branch. Preserve the latest committed restart-safe state at packet/refinement checkpoint, bootstrap claim, skeleton checkpoint, skeleton approval, and before destructive/state-hiding local git actions. -->
 - HEARTBEAT_INTERVAL_MINUTES: 15
 <!-- Integer minutes; update runtime status/receipts on event boundaries and at this interval only while actively working. -->
 - STALE_AFTER_MINUTES: 45

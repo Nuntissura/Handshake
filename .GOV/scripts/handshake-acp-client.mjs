@@ -218,13 +218,48 @@ async function shutdownBrokerGracefully(state, authToken) {
   }
 }
 
-async function ensureBroker(repoRoot) {
+export async function inspectHandshakeAcpBroker(repoRoot) {
   const state = readJson(brokerStatePath(repoRoot), null);
   const authToken = ensureBrokerAuthToken(repoRoot);
   const brokerIsAlive = Boolean(state?.broker_pid && isProcessAlive(state.broker_pid));
   const brokerIsReachable = brokerIsAlive && await canConnect(state);
   const buildMatches = state?.broker_build_id === SESSION_CONTROL_BROKER_BUILD_ID
     && state?.broker_auth_mode === SESSION_CONTROL_BROKER_AUTH_MODE;
+  return {
+    state,
+    authToken,
+    brokerIsAlive,
+    brokerIsReachable,
+    buildMatches,
+  };
+}
+
+export async function shutdownHandshakeAcpBroker(repoRoot, { force = false } = {}) {
+  const inspected = await inspectHandshakeAcpBroker(repoRoot);
+  const { state, authToken, brokerIsAlive, brokerIsReachable } = inspected;
+  if (!brokerIsAlive || !brokerIsReachable) {
+    return {
+      status: "not_running",
+      broker: state || null,
+    };
+  }
+  const result = await callBrokerRpc({
+    broker: state,
+    authToken,
+    method: "broker/shutdown",
+    params: { force: Boolean(force) },
+    timeoutMs: SESSION_CONTROL_BROKER_SHUTDOWN_GRACE_SECONDS * 1000,
+  });
+  return {
+    status: result?.status || "shutdown_requested",
+    broker: state,
+    result,
+  };
+}
+
+async function ensureBroker(repoRoot) {
+  const inspected = await inspectHandshakeAcpBroker(repoRoot);
+  const { state, authToken, brokerIsAlive, brokerIsReachable, buildMatches } = inspected;
 
   if (brokerIsAlive && brokerIsReachable && buildMatches) {
     return { ...state, auth_token: authToken };

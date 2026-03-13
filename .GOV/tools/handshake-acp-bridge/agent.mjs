@@ -323,7 +323,7 @@ function validateGovernedRequest(request, expectedCommandKind) {
     return { ok: false, reason: `local_worktree_dir drift for ${request.session_key}` };
   }
   const absWorktreeDir = path.resolve(repoRoot, session.local_worktree_dir);
-  if (!fs.existsSync(absWorktreeDir)) {
+  if (expectedCommandKind !== "CLOSE_SESSION" && !fs.existsSync(absWorktreeDir)) {
     return { ok: false, reason: `Assigned worktree missing for ${request.session_key}` };
   }
   const expectedOutputFile = defaultSessionOutputFile(repoRoot, session.session_key, request.command_id);
@@ -357,6 +357,78 @@ function validateGovernedRequest(request, expectedCommandKind) {
     outputFile: expectedOutputFile,
     threadId: session.session_thread_id || "",
   };
+}
+
+function handleSessionClose(socket, id, params = {}) {
+  const request = params.request || params;
+  const validation = validateGovernedRequest(request, "CLOSE_SESSION");
+  if (validation.existingResult) {
+    respond(socket, id, validation.existingResult);
+    return;
+  }
+  if (!validation.ok) {
+    const result = settleRejectedRequest(request, validation.reason);
+    respond(socket, id, result);
+    return;
+  }
+
+  const concurrent = findActiveRunBySession(request.session_key);
+  if (concurrent) {
+    const result = settleRejectedRequest(
+      request,
+      `Cannot close ${request.session_key} while governed run ${concurrent.request.command_id} is active.`,
+    );
+    respond(socket, id, result);
+    return;
+  }
+
+  const { registry, session, outputFile } = validation;
+  const requestRecord = {
+    ...request,
+    output_jsonl_file: outputFile.replace(/\\/g, "/"),
+  };
+  const requestMap = loadRequestMap();
+  if (!requestMap.has(requestRecord.command_id)) {
+    appendOutputEvent(outputFile, {
+      type: "control.close.requested",
+      session_id: requestRecord.session_key,
+      command_id: requestRecord.command_id,
+    });
+    appendJsonlLine(path.resolve(repoRoot, SESSION_CONTROL_REQUESTS_FILE), requestRecord);
+  }
+
+  const priorThreadId = session.session_thread_id || "";
+  markSessionCommandRunning(session, requestRecord);
+  session.active_host = SESSION_CONTROL_HOST_PRIMARY;
+  session.active_terminal_kind = SESSION_ACTIVE_TERMINAL_KIND_NONE;
+
+  const result = buildSessionControlResult({
+    commandId: requestRecord.command_id,
+    commandKind: requestRecord.command_kind,
+    sessionKey: requestRecord.session_key,
+    wpId: requestRecord.wp_id,
+    role: requestRecord.role,
+    status: "COMPLETED",
+    threadId: "",
+    summary: priorThreadId
+      ? `Governed session closed and steerable thread ${priorThreadId} was cleared.`
+      : "Governed session closed; no steerable thread was registered.",
+    outputJsonlFile: outputFile,
+    lastAgentMessage: "",
+    error: "",
+    durationMs: 0,
+  });
+
+  ensureResultPersisted(requestRecord, session, result);
+  saveSessionRegistry(repoRoot, registry);
+
+  respond(socket, id, {
+    command_id: requestRecord.command_id,
+    session_id: requestRecord.session_key,
+    status: "completed",
+    output_jsonl_file: outputFile,
+    closed_thread_id: priorThreadId,
+  });
 }
 
 async function runGovernedRequest(socket, id, request, expectedCommandKind) {
@@ -761,6 +833,7 @@ function handleRequest(socket, message) {
           "session/load",
           "session/prompt",
           "session/cancel",
+          "session/close",
         ],
         notifications: ["session/update"],
       },
@@ -784,6 +857,10 @@ function handleRequest(socket, message) {
   }
   if (method === "session/cancel") {
     handleSessionCancel(socket, id, params);
+    return;
+  }
+  if (method === "session/close") {
+    handleSessionClose(socket, id, params);
     return;
   }
   if (method === "session/new") {

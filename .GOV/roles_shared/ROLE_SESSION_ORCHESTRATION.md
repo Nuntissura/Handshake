@@ -5,7 +5,7 @@ This file is the shared law for repo-governed multi-session launch behavior.
 ## Core Rule
 - Only the Orchestrator may start repo-governed Coder, WP Validator, and Integration Validator sessions.
 - Coder and Validator sessions may resume work, but they do not self-start a fresh repo-governed session.
-- Only the Orchestrator may run fresh-start or cancel control commands for governed role sessions. Coder and Validator sessions request repair, pause, or cancel actions through packet thread/receipt surfaces; they do not mutate the governed control ledgers directly.
+- Only the Orchestrator may run fresh-start, close, cancel, or broker-stop control commands for governed role sessions. Coder and Validator sessions request repair, pause, or cancel actions through packet thread/receipt surfaces; they do not mutate the governed control ledgers directly.
 
 ## Primary launch path
 - Preferred host: `VSCODE_EXTENSION_TERMINAL`
@@ -25,7 +25,7 @@ This file is the shared law for repo-governed multi-session launch behavior.
 - Broker state: `.GOV/roles_shared/SESSION_CONTROL_BROKER_STATE.json`
 - Session steering is ACP-backed and thread-based: the Orchestrator starts a governed Codex thread once through the Handshake ACP bridge, then resumes that same thread with governed prompts.
 - A persistent Handshake ACP broker owns the active-run table, timeout settlement, and cancellation delivery for governed prompts. The wrapper client talks to that broker; it does not own command completion.
-- `START_SESSION`, `SEND_PROMPT`, and `CANCEL_SESSION` are first-class governed control commands. When cancel rows are present, they carry a target-command reference and settle through the same append-only request/result ledgers.
+- `START_SESSION`, `SEND_PROMPT`, `CANCEL_SESSION`, and `CLOSE_SESSION` are first-class governed control commands. Cancel rows carry a target-command reference. Close rows clear the steerable thread registration for that governed role/WP session and settle through the same append-only request/result ledgers.
 - The registry `session_thread_id` is the steering identity for that role/WP session.
 
 ## Fallback Law
@@ -50,7 +50,8 @@ This file is the shared law for repo-governed multi-session launch behavior.
   - `.GOV/roles_shared/WP_COMMUNICATIONS/**/RECEIPTS.jsonl`
   - `.GOV/roles_shared/WP_COMMUNICATIONS/**/THREAD.md`
 - The VS Code bridge handles launch/bootstrap dispatch plus operator-facing notices. The ACP broker owns steering state, result settlement, and per-command output logs.
-- `just operator-monitor` is the ACP-aware operator viewport: it merges canonical task-board source/drift, session registry state, control results/output activity, packet thread/receipt activity, and packet/runtime visibility. The monitor is a viewport, not an authority surface.
+- `just operator-monitor` is the ACP-aware read-only operator viewport: it merges canonical task-board source/drift, broker status, session registry state, control results/output activity, packet thread/receipt activity, and packet/runtime visibility.
+- `just operator-admin` is the explicit admin-mode console for governed lifecycle actions. It remains non-authoritative and must invoke the same governed scripts the Orchestrator would run directly.
 - Roles should not depend on blind continuous polling when a watch event exists.
 
 ## Deterministic State
@@ -64,6 +65,7 @@ This file is the shared law for repo-governed multi-session launch behavior.
 - Treat packet-scoped receipts, runtime-state movement, or heartbeat evidence as the actual proof that the launched role session started executing.
 - `READY` with a non-empty `session_thread_id` means a steerable Codex thread is registered and may be resumed through the governed control lane.
 - `READY` is thread-registration proof, not by itself proof that packet-scoped WP communications are already live.
+- `CLOSED` means the governed session record remains in the registry for audit, but its steerable thread registration has been intentionally cleared. A fresh `START_SESSION` is required before steering may resume.
 - Heartbeat is liveness only. `validator_trigger` is a validator wake signal only. Neither one is a steering channel.
 - One governed role/WP session has at most one active ACP run at a time. Concurrent steering for the same governed session is not allowed.
 
@@ -85,13 +87,20 @@ This file is the shared law for repo-governed multi-session launch behavior.
   - `just start-integration-validator-session WP-{ID}`
   - `just steer-coder-session WP-{ID} "<prompt>"`
   - `just cancel-coder-session WP-{ID}`
+  - `just close-coder-session WP-{ID}`
   - `just steer-wp-validator-session WP-{ID} "<prompt>"`
   - `just cancel-wp-validator-session WP-{ID}`
+  - `just close-wp-validator-session WP-{ID}`
   - `just steer-integration-validator-session WP-{ID} "<prompt>"`
   - `just cancel-integration-validator-session WP-{ID}`
+  - `just close-integration-validator-session WP-{ID}`
   - `just session-start <ROLE> WP-{ID}`
   - `just session-send <ROLE> WP-{ID} "<prompt>"`
   - `just session-cancel <ROLE> WP-{ID}`
+  - `just session-close <ROLE> WP-{ID}`
+  - `just handshake-acp-broker-status`
+  - `just handshake-acp-broker-stop`
 - `just session-registry-status [WP-{ID}]`
 - `just operator-monitor`
+- `just operator-admin`
 - `just handshake-acp-bridge`

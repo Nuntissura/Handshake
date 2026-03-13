@@ -276,7 +276,8 @@
               "WAITING",
               "COMPLETED",
               "FAILED",
-              "STALE"
+              "STALE",
+              "CLOSED"
             ]
           },
           "active_host": {

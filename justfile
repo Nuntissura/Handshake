@@ -155,6 +155,15 @@ session-send role wp-id prompt model="PRIMARY":
 session-cancel role wp-id:
 	node .GOV/scripts/session-control-cancel.mjs {{role}} {{wp-id}}
 
+session-close role wp-id:
+	node .GOV/scripts/session-control-command.mjs CLOSE_SESSION {{role}} {{wp-id}}
+
+handshake-acp-broker-status:
+	node .GOV/scripts/session-control-broker.mjs status
+
+handshake-acp-broker-stop:
+	node .GOV/scripts/session-control-broker.mjs stop
+
 start-coder-session wp-id model="PRIMARY":
 	node .GOV/scripts/session-control-command.mjs START_SESSION CODER {{wp-id}} "" {{model}}
 
@@ -170,17 +179,26 @@ steer-coder-session wp-id prompt model="PRIMARY":
 cancel-coder-session wp-id:
 	node .GOV/scripts/session-control-cancel.mjs CODER {{wp-id}}
 
+close-coder-session wp-id:
+	node .GOV/scripts/session-control-command.mjs CLOSE_SESSION CODER {{wp-id}}
+
 steer-wp-validator-session wp-id prompt model="PRIMARY":
 	node .GOV/scripts/session-control-command.mjs SEND_PROMPT WP_VALIDATOR {{wp-id}} "{{prompt}}" {{model}}
 
 cancel-wp-validator-session wp-id:
 	node .GOV/scripts/session-control-cancel.mjs WP_VALIDATOR {{wp-id}}
 
+close-wp-validator-session wp-id:
+	node .GOV/scripts/session-control-command.mjs CLOSE_SESSION WP_VALIDATOR {{wp-id}}
+
 steer-integration-validator-session wp-id prompt model="PRIMARY":
 	node .GOV/scripts/session-control-command.mjs SEND_PROMPT INTEGRATION_VALIDATOR {{wp-id}} "{{prompt}}" {{model}}
 
 cancel-integration-validator-session wp-id:
 	node .GOV/scripts/session-control-cancel.mjs INTEGRATION_VALIDATOR {{wp-id}}
+
+close-integration-validator-session wp-id:
+	node .GOV/scripts/session-control-command.mjs CLOSE_SESSION INTEGRATION_VALIDATOR {{wp-id}}
 
 session-launch-runtime-check:
 	node .GOV/scripts/validation/session-launch-runtime-check.mjs
@@ -364,6 +382,9 @@ wp-heartbeat wp-id actor-role actor-session current-phase runtime-status next-ex
 
 operator-monitor *args:
 	@node .GOV/scripts/operator-monitor-tui.mjs {{args}}
+
+operator-admin *args:
+	@node .GOV/scripts/operator-monitor-tui.mjs --admin {{args}}
 
 # Create new task packet stub from template (backlog; non-executable)
 create-task-packet-stub wp-id roadmap_pointer="" line_numbers="":
