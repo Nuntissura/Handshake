@@ -10,6 +10,10 @@ pub const RUNTIME_GOVERNANCE_DEFAULT_ROOT: &str = ".handshake/gov";
 pub const RUNTIME_TASK_BOARD_FILE: &str = "TASK_BOARD.md";
 pub const RUNTIME_SPEC_CURRENT_FILE: &str = "SPEC_CURRENT.md";
 pub const RUNTIME_ROLE_MAILBOX_DIR: &str = "ROLE_MAILBOX";
+pub const RUNTIME_WORK_PACKETS_DIR: &str = "work_packets";
+pub const RUNTIME_MICRO_TASKS_DIR: &str = "micro_tasks";
+pub const RUNTIME_TASK_BOARD_DIR: &str = "task_board";
+pub const RUNTIME_TASK_BOARD_VIEWS_DIR: &str = "views";
 pub const RUNTIME_GOVERNANCE_DECISIONS_DIR: &str = "governance_decisions";
 pub const RUNTIME_GOVERNANCE_AUTO_SIGNATURES_DIR: &str = "auto_signatures";
 
@@ -101,6 +105,137 @@ impl RuntimeGovernancePaths {
             &self.workspace_root,
             &self.role_mailbox_export_dir(),
         ))
+    }
+
+    pub fn work_packets_dir(&self) -> PathBuf {
+        self.governance_root.join(RUNTIME_WORK_PACKETS_DIR)
+    }
+
+    pub fn work_packets_dir_display(&self) -> String {
+        ensure_trailing_slash(display_path(&self.workspace_root, &self.work_packets_dir()))
+    }
+
+    pub fn work_packet_dir(&self, wp_id: &str) -> PathBuf {
+        self.work_packets_dir().join(wp_id)
+    }
+
+    pub fn work_packet_dir_display(&self, wp_id: &str) -> String {
+        ensure_trailing_slash(display_path(
+            &self.workspace_root,
+            &self.work_packet_dir(wp_id),
+        ))
+    }
+
+    pub fn work_packet_packet_path(&self, wp_id: &str) -> PathBuf {
+        self.work_packet_dir(wp_id).join("packet.json")
+    }
+
+    pub fn work_packet_packet_display(&self, wp_id: &str) -> String {
+        display_path(&self.workspace_root, &self.work_packet_packet_path(wp_id))
+    }
+
+    pub fn work_packet_summary_path(&self, wp_id: &str) -> PathBuf {
+        self.work_packet_dir(wp_id).join("summary.json")
+    }
+
+    pub fn work_packet_summary_display(&self, wp_id: &str) -> String {
+        display_path(&self.workspace_root, &self.work_packet_summary_path(wp_id))
+    }
+
+    pub fn work_packet_notes_dir(&self, wp_id: &str) -> PathBuf {
+        self.work_packet_dir(wp_id).join("notes")
+    }
+
+    pub fn work_packet_note_path(&self, wp_id: &str, note_id: &str) -> PathBuf {
+        self.work_packet_notes_dir(wp_id)
+            .join(format!("{note_id}.md"))
+    }
+
+    pub fn work_packet_note_display(&self, wp_id: &str, note_id: &str) -> String {
+        display_path(
+            &self.workspace_root,
+            &self.work_packet_note_path(wp_id, note_id),
+        )
+    }
+
+    pub fn micro_tasks_dir(&self) -> PathBuf {
+        self.governance_root.join(RUNTIME_MICRO_TASKS_DIR)
+    }
+
+    pub fn micro_tasks_dir_display(&self) -> String {
+        ensure_trailing_slash(display_path(&self.workspace_root, &self.micro_tasks_dir()))
+    }
+
+    pub fn micro_task_dir(&self, wp_id: &str, mt_id: &str) -> PathBuf {
+        self.micro_tasks_dir().join(wp_id).join(mt_id)
+    }
+
+    pub fn micro_task_dir_display(&self, wp_id: &str, mt_id: &str) -> String {
+        ensure_trailing_slash(display_path(
+            &self.workspace_root,
+            &self.micro_task_dir(wp_id, mt_id),
+        ))
+    }
+
+    pub fn micro_task_packet_path(&self, wp_id: &str, mt_id: &str) -> PathBuf {
+        self.micro_task_dir(wp_id, mt_id).join("packet.json")
+    }
+
+    pub fn micro_task_packet_display(&self, wp_id: &str, mt_id: &str) -> String {
+        display_path(
+            &self.workspace_root,
+            &self.micro_task_packet_path(wp_id, mt_id),
+        )
+    }
+
+    pub fn micro_task_summary_path(&self, wp_id: &str, mt_id: &str) -> PathBuf {
+        self.micro_task_dir(wp_id, mt_id).join("summary.json")
+    }
+
+    pub fn micro_task_summary_display(&self, wp_id: &str, mt_id: &str) -> String {
+        display_path(
+            &self.workspace_root,
+            &self.micro_task_summary_path(wp_id, mt_id),
+        )
+    }
+
+    pub fn task_board_projection_dir(&self) -> PathBuf {
+        self.governance_root.join(RUNTIME_TASK_BOARD_DIR)
+    }
+
+    pub fn task_board_projection_dir_display(&self) -> String {
+        ensure_trailing_slash(display_path(
+            &self.workspace_root,
+            &self.task_board_projection_dir(),
+        ))
+    }
+
+    pub fn task_board_index_path(&self) -> PathBuf {
+        self.task_board_projection_dir().join("index.json")
+    }
+
+    pub fn task_board_index_display(&self) -> String {
+        display_path(&self.workspace_root, &self.task_board_index_path())
+    }
+
+    pub fn task_board_views_dir(&self) -> PathBuf {
+        self.task_board_projection_dir()
+            .join(RUNTIME_TASK_BOARD_VIEWS_DIR)
+    }
+
+    pub fn task_board_views_dir_display(&self) -> String {
+        ensure_trailing_slash(display_path(
+            &self.workspace_root,
+            &self.task_board_views_dir(),
+        ))
+    }
+
+    pub fn task_board_view_path(&self, view_id: &str) -> PathBuf {
+        self.task_board_views_dir().join(format!("{view_id}.json"))
+    }
+
+    pub fn task_board_view_display(&self, view_id: &str) -> String {
+        display_path(&self.workspace_root, &self.task_board_view_path(view_id))
     }
 
     pub fn governance_decisions_dir(&self) -> PathBuf {
@@ -231,6 +366,33 @@ mod tests {
                 .join(".handshake")
                 .join("gov")
                 .join("governance_decisions")
+        );
+        assert_eq!(
+            paths.work_packet_packet_path("WP-1"),
+            workspace_root
+                .join(".handshake")
+                .join("gov")
+                .join("work_packets")
+                .join("WP-1")
+                .join("packet.json")
+        );
+        assert_eq!(
+            paths.micro_task_summary_path("WP-1", "MT-1"),
+            workspace_root
+                .join(".handshake")
+                .join("gov")
+                .join("micro_tasks")
+                .join("WP-1")
+                .join("MT-1")
+                .join("summary.json")
+        );
+        assert_eq!(
+            paths.task_board_index_path(),
+            workspace_root
+                .join(".handshake")
+                .join("gov")
+                .join("task_board")
+                .join("index.json")
         );
         assert_eq!(
             paths.auto_signatures_dir(),

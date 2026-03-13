@@ -1393,14 +1393,29 @@ impl RoleMailbox {
                     let attachments: Vec<String> = serde_json::from_str(&attachments_json)?;
                     let transcription_links: Vec<ExportTranscriptionLinkV1> =
                         serde_json::from_str(&transcription_links_json)?;
+                    let evidence_refs = transcription_links
+                        .iter()
+                        .map(|link| link.target_ref.clone())
+                        .collect::<Vec<_>>();
 
                     let line = json!({
+                        "schema_id": "hsk.role_mailbox_thread_line@1",
+                        "schema_version": ROLE_MAILBOX_EXPORT_SCHEMA_VERSION,
+                        "record_id": message_id,
+                        "record_kind": "role_mailbox_message",
+                        "project_profile_kind": "software_delivery",
+                        "mirror_state": "canonical_only",
+                        "updated_at": msg_created_at,
                         "message_id": message_id,
                         "thread_id": thread_id,
                         "created_at": msg_created_at,
                         "from_role": from_role,
                         "to_roles": to_roles,
                         "message_type": message_type,
+                        "authority_refs": [
+                            format!("locus:role_mailbox:thread:{thread_id}")
+                        ],
+                        "evidence_refs": evidence_refs,
                         "body_ref": body_ref,
                         "body_sha256": body_sha256,
                         "attachments": attachments,
@@ -1447,8 +1462,18 @@ impl RoleMailbox {
 
             let thread_count = threads_out.len() as u64;
             let index = json!({
+                "schema_id": "hsk.role_mailbox_index@1",
                 "schema_version": ROLE_MAILBOX_EXPORT_SCHEMA_VERSION,
+                "record_id": "role_mailbox_index",
+                "record_kind": "generic",
+                "project_profile_kind": "software_delivery",
+                "mirror_state": "canonical_only",
+                "updated_at": max_ts,
                 "generated_at": max_ts,
+                "authority_refs": [
+                    "locus:role_mailbox"
+                ],
+                "evidence_refs": [],
                 "threads": threads_out,
             });
             let index_bytes = canonical_json_bytes(&index);
@@ -1482,7 +1507,17 @@ impl RoleMailbox {
         let index_sha256 = sha256_hex(&index_bytes);
 
         let manifest = json!({
+            "schema_id": "hsk.role_mailbox_export_manifest@1",
             "schema_version": ROLE_MAILBOX_EXPORT_SCHEMA_VERSION,
+            "record_id": "role_mailbox_export_manifest",
+            "record_kind": "generic",
+            "project_profile_kind": "software_delivery",
+            "mirror_state": "canonical_only",
+            "updated_at": generated_at,
+            "authority_refs": [
+                "locus:role_mailbox"
+            ],
+            "evidence_refs": [],
             "export_root": self.export_root_display.as_str(),
             "generated_at": generated_at,
             "index_sha256": index_sha256,

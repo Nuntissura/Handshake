@@ -1,4 +1,8 @@
-use super::types::TaskBoardStatus;
+use super::types::{
+    MarkdownMirrorContractV1, MirrorSyncState, ProjectProfileKind, TaskBoardStatus,
+    WorkflowQueueReasonCode, WorkflowStateFamily,
+};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TaskBoardEntry {
@@ -16,6 +20,88 @@ pub struct TaskBoardSections {
     pub gated: Vec<TaskBoardEntry>,
     pub done: Vec<TaskBoardEntry>,
     pub cancelled: Vec<TaskBoardEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TaskBoardEntryRecordV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub record_id: String,
+    pub record_kind: String,
+    pub project_profile_kind: ProjectProfileKind,
+    pub updated_at: String,
+    pub mirror_state: MirrorSyncState,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub authority_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror_contract: Option<MarkdownMirrorContractV1>,
+    pub workflow_state_family: WorkflowStateFamily,
+    pub queue_reason_code: WorkflowQueueReasonCode,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_action_ids: Vec<String>,
+    pub task_board_id: String,
+    pub work_packet_id: String,
+    pub lane_id: String,
+    pub display_order: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub view_ids: Vec<String>,
+    pub token: String,
+    pub status: String,
+    pub summary_ref: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TaskBoardIndexV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub record_id: String,
+    pub record_kind: String,
+    pub project_profile_kind: ProjectProfileKind,
+    pub updated_at: String,
+    pub mirror_state: MirrorSyncState,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub authority_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror_contract: Option<MarkdownMirrorContractV1>,
+    pub task_board_id: String,
+    pub generated_at: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub view_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub entries: Vec<TaskBoardEntryRecordV1>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TaskBoardViewLaneV1 {
+    pub lane_id: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub entries: Vec<TaskBoardEntryRecordV1>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TaskBoardViewV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub record_id: String,
+    pub record_kind: String,
+    pub project_profile_kind: ProjectProfileKind,
+    pub updated_at: String,
+    pub mirror_state: MirrorSyncState,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub authority_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mirror_contract: Option<MarkdownMirrorContractV1>,
+    pub task_board_id: String,
+    pub view_id: String,
+    pub generated_at: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub lanes: Vec<TaskBoardViewLaneV1>,
 }
 
 impl TaskBoardSections {
@@ -69,6 +155,22 @@ fn status_for_heading(heading: &str) -> Option<TaskBoardStatus> {
     }
 
     None
+}
+
+pub fn lane_id_for_status(status: TaskBoardStatus) -> &'static str {
+    match status {
+        TaskBoardStatus::Unknown => "stub",
+        TaskBoardStatus::Ready => "ready",
+        TaskBoardStatus::InProgress => "in_progress",
+        TaskBoardStatus::Blocked => "blocked",
+        TaskBoardStatus::Gated => "gated",
+        TaskBoardStatus::Done => "done",
+        TaskBoardStatus::Cancelled => "cancelled",
+    }
+}
+
+pub fn default_view_id() -> &'static str {
+    "by_status"
 }
 
 fn parse_entry_line(line: &str) -> Option<(String, String)> {
