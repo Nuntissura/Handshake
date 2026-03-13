@@ -30,9 +30,9 @@
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - CODER_MODEL: Coder-A
-- CODER_REASONING_STRENGTH: <unclaimed>
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
-- **Status:** Done
+- **Status:** In Progress
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -288,7 +288,12 @@ Next: WP Validator review
 
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- NONE
+- WAIVER-GOV-HANDOFF-SYNC-WP-1-Structured-Collaboration-Artifact-Family-v1-001 [CX-573F]
+  - Date: 2026-03-13
+  - Scope: `.GOV/roles_shared/TASK_BOARD.md` and `.GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/**` to synchronize validator-ready handoff state requested by advisory validation.
+  - Justification: Operator explicitly requested governance handoff remediation outside the original `IN_SCOPE_PATHS` so committed HEAD reflects validator-ready state in a clean checkout.
+  - Approver: Operator (chat instruction on 2026-03-13)
+  - Expiry: On WP closure (validation complete).
 
 ## QUALITY_GATE
 ### TEST_PLAN
@@ -548,9 +553,10 @@ rg -n "TrackedWorkPacket|TrackedMicroTask|role_mailbox_export_v1|workflow_state_
   - Implemented the canonical structured collaboration artifact family across work packets, micro-tasks, task-board projections, and role-mailbox exports.
   - Added deterministic runtime artifact path helpers and wired authoritative locus operations to materialize those artifacts.
   - Repaired a parallel-test race in workflow artifact writes and verified the targeted regression test binary before rerunning the full crate test plan.
+  - Applied advisory validator remediation so the committed governance handoff state matches validator-ready workflow expectations and the mailbox export metadata stays aligned to the v02.178 generic envelope examples.
 - Next step / handoff hint:
   - Wake the WP validator now.
-  - Review the staged packet manifest plus the cargo and governance logs, then audit the emitted artifact-family logic in the five scoped backend files.
+  - Re-check the synchronized task-board/runtime handoff state plus the role-mailbox export index and manifest metadata, then audit the emitted artifact-family logic in the five scoped backend files.
 
 ## EVIDENCE_MAPPING
 - REQUIREMENT: "Work Packet, Micro-Task, Task Board, and Role Mailbox runtime artifacts are emitted in a canonical structured family aligned to the v02.178 base envelope."
@@ -565,6 +571,17 @@ rg -n "TrackedWorkPacket|TrackedMicroTask|role_mailbox_export_v1|workflow_state_
   - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:106`, `src/backend/handshake_core/src/locus/task_board.rs:26`, `src/backend/handshake_core/src/workflows.rs:3340`, `src/backend/handshake_core/src/workflows.rs:3664`
 
 ## EVIDENCE
+- COMMAND: `CARGO_TARGET_DIR=D:\hctarget cargo test -p handshake_core --test role_mailbox_tests`
+- EXIT_CODE: 0
+- LOG_PATH: `src/backend/handshake_core/.handshake/logs/WP-1-Structured-Collaboration-Artifact-Family-v1/role-mailbox-tests-remediation.log`
+- LOG_SHA256: `DB8904E46BD967296FC0B5338E362ECBC6564B91D4F234A5A03762BF1A00CAEB`
+- PROOF_LINES:
+  - `running 3 tests`
+  - `test role_mailbox_export_empty_is_deterministic ... ok`
+  - `test role_mailbox_create_message_emits_events_and_export ... ok`
+  - `test role_mailbox_idempotency_key_is_deduped ... ok`
+  - `test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s`
+
 - COMMAND: `CARGO_TARGET_DIR=D:\hctarget cargo test -p handshake_core --test micro_task_executor_tests`
 - EXIT_CODE: 0
 - LOG_PATH: `src/backend/handshake_core/.handshake/logs/WP-1-Structured-Collaboration-Artifact-Family-v1/cargo-test-micro-task-executor.log`
