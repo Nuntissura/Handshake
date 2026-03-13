@@ -75,6 +75,8 @@ Product-scanning / product-boundary enforcement:
 - `just session-cancel <ROLE> WP-...` requests cancellation of the currently running governed command for that role/WP session.
 - `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]` appends a freeform message to the packet-declared `WP_COMMUNICATION_DIR` and writes a paired `THREAD_MESSAGE` receipt.
 - `just external-validator-brief WP-...` prints the canonical external/classical validation target contract, including startup order, split verdict fields, disposition, and the legal verdict vocabulary.
+- `just backup-push feat/WP-{ID} feat/WP-{ID}` preserves the WP phase-boundary recovery branch; use it after bootstrap claim, skeleton checkpoint, skeleton approval, and before destructive/state-hiding local git actions.
+- `just generate-worktree-cleanup-script WP-{ID} CODER|WP_VALIDATOR` emits a single-target post-merge cleanup script plus manifest. The script is hard-bound to one exact local worktree, requires both the baked Operator approval text and the matching worktree cleanup token, and refuses generation when the target worktree is dirty.
 
 ## Role: Orchestrator
 

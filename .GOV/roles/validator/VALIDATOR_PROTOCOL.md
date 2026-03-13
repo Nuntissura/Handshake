@@ -38,6 +38,12 @@
 - Use `just enumerate-cleanup-targets` before asking for cleanup approvals.
 - Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion. Never use direct filesystem deletion on worktree paths.
 - If `git worktree remove` fails, STOP immediately. Do not continue with manual cleanup inside the shared worktree root.
+- For orchestrator-managed WP cleanup after merge, do not improvise deletion commands. Use the Orchestrator-generated single-target cleanup script for the exact CODER or WP_VALIDATOR worktree:
+  - `just generate-worktree-cleanup-script WP-{ID} CODER`
+  - `just generate-worktree-cleanup-script WP-{ID} WP_VALIDATOR`
+  - The generated script is hard-bound to one exact local worktree, consumes the baked Operator approval text plus the matching worktree cleanup token, and may only remove that local worktree via `git worktree remove`.
+  - Cleanup script generation is blocked unless the target worktree is clean and still matches the recorded branch/HEAD.
+  - Generated cleanup scripts do not delete remote WP backup branches.
 - Use `just sync-all-role-worktrees` to fast-forward the permanent local clones when all are clean.
 
 ## Repo Boundary Rules (HARD)
@@ -446,6 +452,11 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - `Governed Validation`
   - This is the normal validator lane.
   - It may run `validator-gate-*`, append the canonical packet validation report, update closure state, and merge only when the full governed gate sequence authorizes it.
+  - After merge-to-main succeeds, the Integration Validator may execute an Orchestrator-generated single-target cleanup script for the merged CODER or WP_VALIDATOR local worktree only when:
+    - the WP merge is already complete
+    - the exact Operator approval text is supplied
+    - the matching cleanup token from the target worktree is supplied
+  - Manual filesystem deletion remains forbidden.
 - `External / Classical Revalidation`
   - This is an audit mode, not a second validator workflow.
   - Required start sequence:

@@ -18,6 +18,7 @@ This document defines the repo-resilience layer for Handshake governance.
 - `just sync-all-role-worktrees`
 - `just enumerate-cleanup-targets`
 - `just delete-local-worktree <worktree_id> "<approval>"`
+- `just generate-worktree-cleanup-script WP-{ID} CODER|WP_VALIDATOR`
 - `just ensure-permanent-backup-branches`
 
 ## Policy
@@ -26,6 +27,11 @@ This document defines the repo-resilience layer for Handshake governance.
 - `user_ilja`, `role_orchestrator`, and `role_validator` are backup branches on GitHub.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Worktree deletion must go through `just delete-local-worktree`. Never fall back to `Remove-Item`, `rm`, `del`, or other direct filesystem deletion for worktree paths.
+- For orchestrator-managed WP closeout, prefer the generated single-target cleanup script flow:
+  - Orchestrator generates the script for the exact CODER or WP_VALIDATOR worktree.
+  - The cleanup token is stored in that worktree's git admin dir so the working tree stays clean.
+  - The generated script requires both the exact Operator approval text and the matching token, then delegates to the hardened `delete-local-worktree` path.
+  - The generated script may only remove the local worktree. Remote backup branch deletion stays separate.
 - If `git worktree remove` fails, STOP. Treat that as abnormal repo state, not as permission to continue cleanup manually.
 - Role startup should surface `just backup-status` so the assistant can see whether local/NAS backup roots are configured and whether recent immutable snapshots exist.
 - Backup snapshots do two things:

@@ -93,6 +93,10 @@ enumerate-cleanup-targets:
 delete-local-worktree worktree_id approval:
 	node .GOV/scripts/delete-local-worktree.mjs {{worktree_id}} --approve "{{approval}}"
 
+# Generate a single-target, token-gated cleanup script for a merged WP role worktree.
+generate-worktree-cleanup-script wp-id role:
+	node .GOV/scripts/generate-worktree-cleanup-script.mjs {{wp-id}} {{role}}
+
 # Master Spec EOF appendix blocks check (Spec §12).
 spec-eof-appendices-check:
 	node .GOV/scripts/validation/spec-eof-appendices-check.mjs

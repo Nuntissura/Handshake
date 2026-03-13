@@ -20,6 +20,7 @@
 - `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches, not integration branches. They may diverge from `main`.
 - Matching backup pushes are allowed safety operations. For Orchestrator work this means pushing `role_orchestrator` to `origin/role_orchestrator` when preserving committed state before destructive local operations.
 - Before destructive or state-hiding local git actions (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the matching GitHub backup branch.
+- For WPs, the temporary remote backup branch is not only a destructive-op safety copy. Treat it as the WP phase-boundary recovery branch so the repo can restart from committed packet/refinement/bootstrap/skeleton checkpoints without reconstructing state from a dirty local worktree.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Startup must surface `just backup-status` so backup configuration and recent immutable snapshots are visible before orchestration proceeds. This is safety context only, not a bypass for destructive-op approvals.
 - Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact targets, and ask for an approval command naming those targets deterministically.
@@ -36,6 +37,14 @@
 - Use `just enumerate-cleanup-targets` before asking for cleanup approvals.
 - Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion. Never use direct filesystem deletion on worktree paths.
 - If `git worktree remove` fails, STOP immediately. Do not continue with manual cleanup inside the shared worktree root.
+- For merged orchestrator-managed WPs, prefer single-target generated cleanup scripts over ad hoc deletion commands:
+  - `just generate-worktree-cleanup-script WP-{ID} CODER`
+  - `just generate-worktree-cleanup-script WP-{ID} WP_VALIDATOR`
+  - Each generated script is hard-bound to one exact local worktree and will only run when it receives:
+    - the exact Operator approval text baked into that script
+    - the matching cleanup token from the target worktree's git admin dir
+  - Script generation is itself blocked unless the target worktree is clean and still matches the recorded branch/HEAD.
+  - Generated cleanup scripts may remove only the local worktree through `git worktree remove`. They must not delete remote backup branches and must not fall back to `Remove-Item`, `rm`, or `del`.
 - Use `just sync-all-role-worktrees` to fast-forward the permanent local clones when all are clean.
 
 ## Repo Boundary Rules (HARD)
@@ -139,6 +148,11 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUN
 - **File-lock rule (MANDATORY when >1 WP is active):** treat each active WP's `IN_SCOPE_PATHS` as an exclusive file lock set. Do NOT activate/delegate a second WP whose `IN_SCOPE_PATHS` overlaps an in-progress WP. If overlap is required, sequence the work or re-scope (see [CX-CONC-001]).
 - Coders may commit freely on their WP branch. The Validator performs the final merge/commit to `main` after PASS (per Codex [CX-505]).
 - Every active role/user/WP branch must have a matching GitHub backup branch. For WPs, the Orchestrator must record the temporary remote backup branch and URL in the task packet. Later removal of that temporary remote branch after Operator-approved cleanup must not become a future governance blocker.
+- For WPs, the Orchestrator should ensure the remote WP backup branch is preserved at the main restart boundaries:
+  - task packet + refinement checkpoint
+  - docs-only bootstrap claim checkpoint
+  - docs-only skeleton checkpoint
+  - skeleton approval checkpoint before implementation resumes
 
 ## Worktree + Branch Gate [CX-WT-001] (BLOCKING)
 
@@ -340,6 +354,9 @@ To avoid manual markdown editing mistakes:
   - Governed prompt resume: `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
   - Governed cancel: `just session-cancel <ROLE> WP-{ID}`
   - Inspect launch/runtime state: `just session-registry-status [WP-{ID}]`
+  - Generate single-target post-merge cleanup scripts:
+    - `just generate-worktree-cleanup-script WP-{ID} CODER`
+    - `just generate-worktree-cleanup-script WP-{ID} WP_VALIDATOR`
 - Condense post-signature setup:
   - Default post-signature path: `just orchestrator-prepare-and-packet WP-{ID}`
   - Retry helper when PREPARE is already recorded: `just orchestrator-worktree-and-packet WP-{ID}`
