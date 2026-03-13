@@ -234,7 +234,7 @@ if (primitiveMatrixSchema === "hs_primitive_tool_tech_matrix@2") {
     for (const stubId of row.gap_stub_ids) {
       const stubNeedle = `**[${stubId}]** - [STUB]`;
       const activePacketRe = new RegExp(
-        `^\\s*-\\s+\\*\\*\\[${escapeRegExp(stubId)}\\]\\*\\*\\s+-\\s+\\[(READY_FOR_DEV|IN_PROGRESS|BLOCKED|ACTIVE)\\]`,
+        `^\\s*-\\s+\\*\\*\\[${escapeRegExp(stubId)}\\]\\*\\*\\s+-\\s+\\[(READY_FOR_DEV|IN_PROGRESS|BLOCKED|ACTIVE|VALIDATED|FAIL|OUTDATED_ONLY)\\]`,
         "m",
       );
       if (!taskBoard.includes(stubNeedle) && !activePacketRe.test(taskBoard)) {

@@ -1,0 +1,22 @@
+{
+  "validation_sessions": {
+    "WP-1-Structured-Collaboration-Artifact-Family-v1": {
+      "wpId": "WP-1-Structured-Collaboration-Artifact-Family-v1",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-03-13T10:00:13.679Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "PASS",
+          "timestamp": "2026-03-13T10:00:13.679Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-03-13T10:00:37.571Z"
+        }
+      ]
+    }
+  },
+  "archived_sessions": []
+}

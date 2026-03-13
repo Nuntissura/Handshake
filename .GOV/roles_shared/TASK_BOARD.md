@@ -169,7 +169,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
-- **[WP-1-Structured-Collaboration-Artifact-Family-v1]** - [IN_PROGRESS]
 
 
 ## Done
@@ -246,6 +245,8 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Postgres-MCP-Durable-Progress-v1]** - [VALIDATED]
 
 - **[WP-1-Locus-Phase1-Integration-Occupancy-v1]** - [VALIDATED]
+
+- **[WP-1-Structured-Collaboration-Artifact-Family-v1]** - [VALIDATED]
 
 ## Blocked
 - **[WP-1-Calendar-Storage-v1]** - [BLOCKED]

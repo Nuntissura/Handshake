@@ -32,7 +32,7 @@
 - CODER_MODEL: Coder-A
 - CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
-- **Status:** In Progress
+- **Status:** Done
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -72,7 +72,7 @@
 - WP_RUNTIME_STATUS_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/RECEIPTS.jsonl
 - WP_VALIDATOR_OF_RECORD: <unassigned>
-- INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
+- INTEGRATION_VALIDATOR_OF_RECORD: codex-intv-smoke-20260313
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
 <!-- All roles MUST use the packet-declared WP communication directory. Role-local worktrees are never the communication authority. -->
@@ -80,9 +80,9 @@
 - PACKET_FORMAT_VERSION: 2026-03-11
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
+Verdict: PASS
 Blockers: NONE
-Next: WP Validator review
+Next: NONE
 
 ## WP_COMMUNICATIONS (NON-AUTHORITATIVE; REQUIRED FOR NEW PACKETS)
 - RULE: The task packet remains authoritative for scope, status, branch/worktree truth, acceptance, and verdict.
@@ -499,7 +499,7 @@ rg -n "TrackedWorkPacket|TrackedMicroTask|role_mailbox_export_v1|workflow_state_
 - **Target File**: `src/backend/handshake_core/src/role_mailbox.rs`
 - **Start**: 1396
 - **End**: 1520
-- **Line Delta**: 0
+- **Line Delta**: 35
 - **Pre-SHA1**: `4725d88f3c99d55073f35ad950546fd0533a6cd5`
 - **Post-SHA1**: `9540ea45e6cad28fe3c753c52d9deaec3833d41d`
 - **Change Summary**: Kept the mailbox export thread lines stable while restoring the index and manifest record_kind values to the spec-aligned generic envelope.
@@ -627,3 +627,67 @@ rg -n "TrackedWorkPacket|TrackedMicroTask|role_mailbox_export_v1|workflow_state_
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+## VALIDATION REPORT - 2026-03-13 (Integration Validator, live smoke test)
+Verdict: PASS
+
+Validation Claims (do not collapse into a single PASS):
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Structured-Collaboration-Artifact-Family-v1 --range 3068595fa5c194ffa09a87de60daa9e5c3b7d052..HEAD`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim intent): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Structured-Collaboration-Artifact-Family-v1.md` (**Status:** Done)
+- Spec: `.GOV/roles_shared/SPEC_CURRENT.md` -> `Handshake_Master_Spec_v02.178.md` (anchor: `2.3.15.5 Canonical structured collaboration artifact family [ADD v02.167]`)
+- Implementation Source of Truth: `origin/feat/WP-1-Structured-Collaboration-Artifact-Family-v1` @ `84d37247e9e8e6ff6350fb109e5faaea821af9b9`
+- Protocol: `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+
+Commands Run (Integration Validator):
+- `just validator-spec-regression`: PASS
+- `just validator-scan`: PASS
+- `just validator-packet-complete WP-1-Structured-Collaboration-Artifact-Family-v1`: PASS
+- `just gov-check`: PASS
+- `just post-work WP-1-Structured-Collaboration-Artifact-Family-v1 --range 3068595fa5c194ffa09a87de60daa9e5c3b7d052..HEAD`: PASS
+- `CARGO_TARGET_DIR=D:\hctarget cargo test --manifest-path src/backend/handshake_core/Cargo.toml -p handshake_core`: PASS
+- `CARGO_TARGET_DIR=D:\hctarget cargo test --manifest-path src/backend/handshake_core/Cargo.toml -p handshake_core --test role_mailbox_tests`: PASS
+- `CARGO_TARGET_DIR=D:\hctarget cargo test --manifest-path src/backend/handshake_core/Cargo.toml -p handshake_core --test micro_task_executor_tests`: PASS
+
+Spec/DONE_MEANS Evidence (file:line):
+- Shared canonical envelope, bounded summary contract, governed action descriptors, and mirror contract types are defined in `src/backend/handshake_core/src/locus/types.rs:48`, `src/backend/handshake_core/src/locus/types.rs:98`, and `src/backend/handshake_core/src/locus/types.rs:106`.
+- Task-board projection records retain stable view metadata in `src/backend/handshake_core/src/locus/task_board.rs:49`, `src/backend/handshake_core/src/locus/task_board.rs:73`, `src/backend/handshake_core/src/locus/task_board.rs:101`, and `src/backend/handshake_core/src/locus/task_board.rs:172`.
+- Deterministic runtime paths for `packet.json`, `summary.json`, micro-task artifacts, and task-board projections are emitted by `src/backend/handshake_core/src/runtime_governance.rs:118`, `src/backend/handshake_core/src/runtime_governance.rs:130`, `src/backend/handshake_core/src/runtime_governance.rs:138`, `src/backend/handshake_core/src/runtime_governance.rs:214`, and `src/backend/handshake_core/src/runtime_governance.rs:234`.
+- Workflow emission writes work-packet summaries/details from authoritative state with explicit `authority_refs`, `evidence_refs`, and canonical-only mirror posture in `src/backend/handshake_core/src/workflows.rs:3336`, `src/backend/handshake_core/src/workflows.rs:3370`, `src/backend/handshake_core/src/workflows.rs:3420`, and `src/backend/handshake_core/src/workflows.rs:3457`.
+- Task-board projection files are materialized from canonical locus state, not Markdown layout, in `src/backend/handshake_core/src/workflows.rs:3640`, `src/backend/handshake_core/src/workflows.rs:3668`, and `src/backend/handshake_core/src/workflows.rs:3707`.
+- Role mailbox export stays leak-safe while aligning index/manifest records to the shared envelope in `src/backend/handshake_core/src/role_mailbox.rs:1405`, `src/backend/handshake_core/src/role_mailbox.rs:1415`, `src/backend/handshake_core/src/role_mailbox.rs:1468`, and `src/backend/handshake_core/src/role_mailbox.rs:1513`.
+- Regression coverage exercises mailbox export determinism, micro-task lifecycle persistence, and MCP persistence paths in `src/backend/handshake_core/tests/role_mailbox_tests.rs:32`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:332`, `src/backend/handshake_core/tests/mcp_e2e_tests.rs:245`, and `src/backend/handshake_core/tests/mcp_e2e_tests.rs:253`.
+
+Findings:
+- The only validator-discovered defect on the validated feat head was governance-only: Manifest Entry 4 in this packet recorded `Line Delta: 0` for `src/backend/handshake_core/src/role_mailbox.rs`, while the actual diff is `35`. This report corrects that packet metadata so the deterministic manifest gate matches the validated implementation.
+- No product-code blocker remains. `validator-scan`, `gov-check`, packet completeness, spec regression, and the crate test plan all passed against the validated feat head.
+- PASS closure also required merge-visible governance reconciliation: packet status moved to `Done`, Task Board moved to `[VALIDATED]`, and activation-state/build-order surfaces were refreshed for the official packet.
+- Final closeout also required a governance-only validator repair in `.GOV/scripts/validation/spec-eof-appendices-check.mjs` so primitive-matrix `gap_stub_ids` accept official packet rows that are already `[VALIDATED]` on the Task Board, matching the existing `## Done` board convention.
+
+Tests:
+- `just validator-spec-regression`: PASS
+- `just validator-scan`: PASS
+- `just validator-packet-complete WP-1-Structured-Collaboration-Artifact-Family-v1`: PASS
+- `just gov-check`: PASS
+- `just post-work WP-1-Structured-Collaboration-Artifact-Family-v1 --range 3068595fa5c194ffa09a87de60daa9e5c3b7d052..HEAD`: PASS
+- `CARGO_TARGET_DIR=D:\hctarget cargo test --manifest-path src/backend/handshake_core/Cargo.toml -p handshake_core`: PASS (202 tests + integration targets; 0 failed)
+- `CARGO_TARGET_DIR=D:\hctarget cargo test --manifest-path src/backend/handshake_core/Cargo.toml -p handshake_core --test role_mailbox_tests`: PASS
+- `CARGO_TARGET_DIR=D:\hctarget cargo test --manifest-path src/backend/handshake_core/Cargo.toml -p handshake_core --test micro_task_executor_tests`: PASS
+- Coverage note: existing targeted tests cover the mailbox export record family, authoritative locus lifecycle persistence, and runtime/MCP paths that consume the new structured artifact family.
+
+Risks & Suggested Actions:
+- Add a coder-side manifest sanity check that compares recorded `Line Delta` values against `git diff` before validator handoff so packet metadata drift is caught earlier.
+- Consider auto-populating validator-of-record fields and ready-for-validation transitions when advisory validation finishes so smoke-test closures do not require manual communication-state repair.
+
+Improvements & Future Proofing:
+- Promote the packet-manifest consistency check into `just post-work` preflight output so a wrong `Line Delta` is called out before final handoff.
+- Add an activation helper that updates `WP_TRACEABILITY_REGISTRY`, `TASK_BOARD`, and `BUILD_ORDER` together when an official packet replaces a stub, rather than waiting for PASS closure.
+
+REASON FOR PASS:
+- The validated feat head `84d37247e9e8e6ff6350fb109e5faaea821af9b9` satisfies the packet DONE_MEANS and spec anchor with authoritative runtime artifact emission, bounded summaries, deterministic path materialization, aligned mailbox export metadata, and passing tests/validator gates. The only remaining defect was packet governance metadata, repaired here without changing product code.
+
+Timestamp: 2026-03-13
+Validator: `codex-intv-smoke-20260313` (Integration Validator)
