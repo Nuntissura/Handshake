@@ -760,3 +760,141 @@ Risks and Suggested Actions:
 
 REASON FOR FAIL:
 - Integration PASS is blocked because the packet does not yet contain auditable manifest/evidence data, the current working tree exceeds packet scope without a recorded waiver, and the committed WP branch still stops at skeleton approval rather than a committed implementation handoff.
+
+VALIDATION REPORT - WP-1-Structured-Collaboration-Schema-Registry-v1
+Verdict: FAIL
+
+Validation Claims:
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD`): PASS
+- TEST_PLAN_PASS (packet acceptance coverage): PASS for packet-scoped backend acceptance tests; FAIL for `just gov-check`
+- SPEC_CONFORMANCE_CONFIRMED (merge-candidate level): NO
+
+Validation Scope:
+- Commit: `cf3457f294244331cee22ba01a5f710a346e36ff`
+- Feature branch authority: `origin/feat/WP-1-Structured-Collaboration-Schema-Registry-v1`
+- Spec authority: `Handshake_Master_Spec_v02.178.md`
+
+Findings:
+- The committed WP product requirements called out in this rerun are now satisfied. `just validator-packet-complete WP-1-Structured-Collaboration-Schema-Registry-v1` passed, `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD` passed, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test micro_task_executor_tests locus_register_mts_emits_structured_micro_task_packet_and_summary` passed, and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test role_mailbox_tests role_mailbox_index_api_` passed. The committed diff therefore satisfies the required micro-task packet+summary emission, mailbox index validation, packet evidence completeness, and packet scope discipline checks for this WP.
+- Final merge authority is still blocked because the committed branch itself fails `just gov-check`. The failure is branch-local governance truth drift unrelated to the WP product code: `.GOV/roles_shared/TASK_BOARD.md` marks `WP-1-Loom-Storage-Portability-v1` as `[ACTIVE]`, while `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` still maps that base WP to `.GOV/task_packets/stubs/WP-1-Loom-Storage-Portability-v1.md` and the stub file remains `STUB (NOT READY FOR DEV)`.
+
+Tests:
+- `just validator-packet-complete WP-1-Structured-Collaboration-Schema-Registry-v1`: PASS
+- `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD`: PASS (warnings only; waiver applied)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test micro_task_executor_tests locus_register_mts_emits_structured_micro_task_packet_and_summary`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test role_mailbox_tests role_mailbox_index_api_`: PASS
+- `just gov-check`: FAIL (`[PACKET_TRUTH_CHECK] Packet truth drift detected`)
+
+REASON FOR FAIL:
+- The current committed merge candidate cannot receive final integration PASS while `just gov-check` fails on the branch itself. This rerun cleared the prior WP-1 product/packet blockers, but the branch remains not merge-ready until the committed task-board/traceability truth drift around `WP-1-Loom-Storage-Portability-v1` is corrected and the gates are rerun.
+
+VALIDATION REPORT - WP-1-Structured-Collaboration-Schema-Registry-v1
+Verdict: FAIL
+
+Validation Claims:
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD`): PASS
+- TEST_PLAN_PASS (packet acceptance coverage): PASS for packet-scoped backend acceptance tests; FAIL for `just gov-check`
+- SPEC_CONFORMANCE_CONFIRMED (merge-candidate level): NO
+
+Validation Scope:
+- Commit: `3e51266a7d2cb9a688eff903f5caa55557d3d35f`
+- Feature branch authority: `origin/feat/WP-1-Structured-Collaboration-Schema-Registry-v1`
+- Spec authority: `Handshake_Master_Spec_v02.178.md`
+
+Findings:
+- The committed WP product requirements called out in this rerun remain satisfied. `just validator-packet-complete WP-1-Structured-Collaboration-Schema-Registry-v1` passed, `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD` passed, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test micro_task_executor_tests locus_register_mts_emits_structured_micro_task_packet_and_summary` passed, and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test role_mailbox_tests role_mailbox_index_api_` passed. The committed diff therefore continues to satisfy the required micro-task packet+summary emission, mailbox index validation, packet evidence completeness, and packet scope discipline checks for this WP.
+- Final merge authority remains blocked because the committed branch still fails `just gov-check`. The previous stray active Loom row is gone, but the corresponding stub backlog entry is now missing from `.GOV/roles_shared/TASK_BOARD.md`. The stub backlog section no longer lists `WP-1-Loom-Storage-Portability-v1`, even though `.GOV/roles_shared/BUILD_ORDER.md` and `.GOV/task_packets/stubs/WP-1-Loom-Storage-Portability-v1.md` still classify it as a stub prerequisite for `FEAT-LOOM-LIBRARY`.
+
+Tests:
+- `just validator-packet-complete WP-1-Structured-Collaboration-Schema-Registry-v1`: PASS
+- `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD`: PASS (warnings only; waiver applied)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test micro_task_executor_tests locus_register_mts_emits_structured_micro_task_packet_and_summary`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test role_mailbox_tests role_mailbox_index_api_`: PASS
+- `just gov-check`: FAIL (`Primitive matrix feature link points at a gap reference that is neither a Stub Backlog item nor an active official packet.`)
+
+REASON FOR FAIL:
+- The current committed merge candidate cannot receive final integration PASS while `just gov-check` fails on the branch itself. This rerun confirms the Schema WP product diff is technically ready, but the branch remains not merge-ready until `WP-1-Loom-Storage-Portability-v1` is restored as a deterministic Task Board stub-backlog item or the governing feature linkage is updated accordingly.
+
+VALIDATION REPORT - WP-1-Structured-Collaboration-Schema-Registry-v1
+Verdict: FAIL
+
+Validation Claims:
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD`): PASS
+- TEST_PLAN_PASS (packet acceptance coverage): PASS for packet-scoped backend acceptance tests; FAIL for `just gov-check`
+- SPEC_CONFORMANCE_CONFIRMED (merge-candidate level): NO
+
+Validation Scope:
+- Commit: `1d62420f140d2c33632a273e4ce1ed32f88ed939`
+- Feature branch authority: `origin/feat/WP-1-Structured-Collaboration-Schema-Registry-v1`
+- Spec authority: `Handshake_Master_Spec_v02.178.md`
+
+Findings:
+- The committed WP product requirements called out in this rerun remain satisfied. `just validator-packet-complete WP-1-Structured-Collaboration-Schema-Registry-v1` passed, `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD` passed, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test micro_task_executor_tests locus_register_mts_emits_structured_micro_task_packet_and_summary` passed, and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test role_mailbox_tests role_mailbox_index_api_` passed. The committed diff therefore continues to satisfy the required micro-task packet+summary emission, mailbox index validation, packet evidence completeness, and packet scope discipline checks for this WP.
+- The prior Task Board Loom stub linkage blocker is fixed, but final merge authority remains blocked because the committed branch still fails `just gov-check` with `[BUILD_ORDER_CHECK] .GOV/roles_shared/BUILD_ORDER.md is out of date.` The current candidate therefore still does not satisfy repository governance invariants at merge time.
+
+Tests:
+- `just validator-packet-complete WP-1-Structured-Collaboration-Schema-Registry-v1`: PASS
+- `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD`: PASS (warnings only; waiver applied)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test micro_task_executor_tests locus_register_mts_emits_structured_micro_task_packet_and_summary`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test role_mailbox_tests role_mailbox_index_api_`: PASS
+- `just gov-check`: FAIL (`[BUILD_ORDER_CHECK] .GOV/roles_shared/BUILD_ORDER.md is out of date. Run: just build-order-sync`)
+
+REASON FOR FAIL:
+- The current committed merge candidate cannot receive final integration PASS while `just gov-check` fails on the branch itself. This rerun confirms the Schema WP product diff is technically ready, but the branch remains not merge-ready until the committed build-order artifact is synced and the full governance gate passes.
+
+VALIDATION REPORT - WP-1-Structured-Collaboration-Schema-Registry-v1
+Verdict: FAIL
+
+Validation Claims:
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD`): PASS
+- TEST_PLAN_PASS (packet acceptance coverage): PASS for packet-scoped backend acceptance tests; FAIL for `just gov-check`
+- SPEC_CONFORMANCE_CONFIRMED (merge-candidate level): NO
+
+Validation Scope:
+- Commit: `40c983ca1748d44c3e3dcbf68ab5c0ebf067e9b0`
+- Feature branch authority: `origin/feat/WP-1-Structured-Collaboration-Schema-Registry-v1`
+- Spec authority: `Handshake_Master_Spec_v02.178.md`
+
+Findings:
+- The committed WP product requirements called out in this rerun remain satisfied. `just validator-packet-complete WP-1-Structured-Collaboration-Schema-Registry-v1` passed, `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD` passed, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test micro_task_executor_tests locus_register_mts_emits_structured_micro_task_packet_and_summary` passed, and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test role_mailbox_tests role_mailbox_index_api_` passed. The committed diff therefore continues to satisfy the required micro-task packet+summary emission, mailbox index validation, packet evidence completeness, and packet scope discipline checks for this WP.
+- The branch still does not satisfy repository governance invariants at merge time. `just gov-check` still fails with `[BUILD_ORDER_CHECK] .GOV/roles_shared/BUILD_ORDER.md is out of date.` In the clean detached validation worktree, `just build-order-sync` succeeded and produced a real diff in `.GOV/roles_shared/BUILD_ORDER.md`, confirming that the committed build-order sync is incomplete.
+
+Tests:
+- `just validator-packet-complete WP-1-Structured-Collaboration-Schema-Registry-v1`: PASS
+- `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD`: PASS (warnings only; waiver applied)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test micro_task_executor_tests locus_register_mts_emits_structured_micro_task_packet_and_summary`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test role_mailbox_tests role_mailbox_index_api_`: PASS
+- `just gov-check`: FAIL (`[BUILD_ORDER_CHECK] .GOV/roles_shared/BUILD_ORDER.md is out of date. Run: just build-order-sync`)
+- `just build-order-sync`: PASS in detached validation worktree, but produced a non-empty diff against the committed branch
+
+REASON FOR FAIL:
+- The current committed merge candidate cannot receive final integration PASS while `just gov-check` fails on the branch itself. This rerun confirms the Schema WP product diff is technically ready, but the branch remains not merge-ready until the committed build-order artifact matches the current generator output and the full governance gate passes.
+
+VALIDATION REPORT - WP-1-Structured-Collaboration-Schema-Registry-v1
+Verdict: FAIL
+
+Validation Claims:
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD`): PASS
+- TEST_PLAN_PASS (packet acceptance coverage): PASS for packet-scoped backend acceptance tests; FAIL for committed-state `just gov-check`
+- SPEC_CONFORMANCE_CONFIRMED (merge-candidate level): NO
+
+Validation Scope:
+- Commit: `dbe7dc90024dc52fd48d6e1be82ef73c220527db`
+- Feature branch authority: `origin/feat/WP-1-Structured-Collaboration-Schema-Registry-v1`
+- Spec authority: `Handshake_Master_Spec_v02.178.md`
+
+Findings:
+- The committed WP product requirements called out in this rerun remain satisfied. `just validator-packet-complete WP-1-Structured-Collaboration-Schema-Registry-v1` passed, `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD` passed, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test micro_task_executor_tests locus_register_mts_emits_structured_micro_task_packet_and_summary` passed, and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test role_mailbox_tests role_mailbox_index_api_` passed. The committed diff therefore continues to satisfy the required micro-task packet+summary emission, mailbox index validation, packet evidence completeness, and packet scope discipline checks for this WP.
+- The committed branch still does not satisfy repository governance invariants at merge time. `just gov-check` now stops on `FAIL: .GOV/roles_shared/GIT_TOPOLOGY_REGISTRY.json is stale; run just topology-registry-sync`. In the clean detached validation worktree, `just topology-registry-sync` marked `.GOV/roles_shared/GIT_TOPOLOGY_REGISTRY.json` modified, and a subsequent `just gov-check` passed fully. That indicates the committed branch is one stale generated governance file away from PASS.
+
+Tests:
+- `just validator-packet-complete WP-1-Structured-Collaboration-Schema-Registry-v1`: PASS
+- `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD`: PASS (warnings only; waiver applied)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test micro_task_executor_tests locus_register_mts_emits_structured_micro_task_packet_and_summary`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test role_mailbox_tests role_mailbox_index_api_`: PASS
+- `just gov-check`: FAIL (`FAIL: .GOV/roles_shared/GIT_TOPOLOGY_REGISTRY.json is stale; run just topology-registry-sync`)
+- `just topology-registry-sync`: PASS in detached validation worktree
+- `just gov-check` after detached topology sync: PASS
+
+REASON FOR FAIL:
+- The current committed merge candidate cannot receive final integration PASS while committed-state `just gov-check` fails on the branch itself. This rerun confirms the Schema WP product diff is technically ready, but the branch remains not merge-ready until the committed topology registry matches the current generator output and the full governance gate passes.
