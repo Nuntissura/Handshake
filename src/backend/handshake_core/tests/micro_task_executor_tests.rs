@@ -11,16 +11,24 @@ use handshake_core::flight_recorder::{EventFilter, FlightRecorderEventType};
 use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
 };
+use handshake_core::runtime_governance::RuntimeGovernancePaths;
 use handshake_core::storage::{
     sqlite::SqliteDatabase, AccessMode, AiJobListFilter, Database, JobKind, JobMetrics, JobState,
     NewAiJob, SafetyMode, StorageError,
 };
 use handshake_core::workflows::{
+    locus::{
+        validate_structured_collaboration_record, validate_structured_collaboration_summary_join,
+        StructuredCollaborationRecordFamily, StructuredCollaborationValidationCode,
+        StructuredCollaborationValidationResult,
+    },
     start_workflow_for_job, ModelSwapRequestV0_4, SessionRegistry, SessionSchedulerConfig,
 };
 use handshake_core::AppState;
+use once_cell::sync::Lazy;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use tempfile::tempdir;
 use uuid::Uuid;
 
 struct QueuedLlmClient {
@@ -58,6 +66,43 @@ impl QueuedLlmClient {
             .pop_front()
             .unwrap_or_else(|| "<mt_complete>yes</mt_complete>".to_string())
     }
+}
+
+static TEST_SERIAL_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+
+struct WorkspaceEnvGuard {
+    prev_workspace_root: Option<String>,
+    prev_governance_root: Option<String>,
+}
+
+impl WorkspaceEnvGuard {
+    fn activate(root: &Path) -> Self {
+        let prev_workspace_root = std::env::var("HANDSHAKE_WORKSPACE_ROOT").ok();
+        let prev_governance_root = std::env::var("HANDSHAKE_GOVERNANCE_ROOT").ok();
+        std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", root);
+        std::env::set_var("HANDSHAKE_GOVERNANCE_ROOT", ".handshake/gov");
+        Self {
+            prev_workspace_root,
+            prev_governance_root,
+        }
+    }
+}
+
+impl Drop for WorkspaceEnvGuard {
+    fn drop(&mut self) {
+        match &self.prev_workspace_root {
+            Some(value) => std::env::set_var("HANDSHAKE_WORKSPACE_ROOT", value),
+            None => std::env::remove_var("HANDSHAKE_WORKSPACE_ROOT"),
+        }
+        match &self.prev_governance_root {
+            Some(value) => std::env::set_var("HANDSHAKE_GOVERNANCE_ROOT", value),
+            None => std::env::remove_var("HANDSHAKE_GOVERNANCE_ROOT"),
+        }
+    }
+}
+
+fn test_guard() -> std::sync::MutexGuard<'static, ()> {
+    TEST_SERIAL_LOCK.lock().expect("test serial mutex poisoned")
 }
 
 #[async_trait]
@@ -159,6 +204,82 @@ async fn run_locus_job(
         .ok_or_else(|| "missing locus job outputs".into())
 }
 
+async fn run_locus_job_expect_validation_failure(
+    state: &AppState,
+    protocol_id: &str,
+    inputs: Value,
+) -> Result<Value, Box<dyn std::error::Error>> {
+    let job = state
+        .storage
+        .create_ai_job(NewAiJob {
+            trace_id: Uuid::new_v4(),
+            job_kind: JobKind::LocusOperation,
+            protocol_id: protocol_id.to_string(),
+            profile_id: "default".to_string(),
+            capability_profile_id: "Coder".to_string(),
+            access_mode: AccessMode::AnalysisOnly,
+            safety_mode: SafetyMode::Normal,
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            status_reason: "queued".to_string(),
+            metrics: JobMetrics::zero(),
+            job_inputs: Some(inputs),
+        })
+        .await?;
+    let job_id = job.job_id;
+
+    let _ = start_workflow_for_job(state, job).await;
+
+    let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+    assert!(
+        matches!(updated_job.state, JobState::Failed),
+        "expected locus job to fail validation, got {} ({:?})",
+        updated_job.state.as_str(),
+        updated_job.error_message
+    );
+    let error_message = updated_job
+        .error_message
+        .as_deref()
+        .ok_or("missing locus validation payload")?;
+    let validation_payload = error_message
+        .strip_prefix("Terminal error: ")
+        .unwrap_or(error_message);
+    serde_json::from_str(validation_payload).map_err(|e| {
+        format!("failed to parse locus validation payload {error_message:?}: {e}").into()
+    })
+}
+
+fn validate_runtime_structured_record(
+    root: &Path,
+    family: StructuredCollaborationRecordFamily,
+    value: &Value,
+) -> StructuredCollaborationValidationResult {
+    let runtime_paths = RuntimeGovernancePaths::from_workspace_root(root.to_path_buf()).unwrap();
+    let mut validation = validate_structured_collaboration_record(family, value);
+    let authority_refs = value
+        .get("authority_refs")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(|item| item.to_string())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let invalid_refs = runtime_paths.invalid_runtime_authority_refs(&authority_refs);
+    if !invalid_refs.is_empty() {
+        validation.push_issue(
+            StructuredCollaborationValidationCode::AuthorityScopeMismatch,
+            "authority_refs",
+            Some(runtime_paths.governance_root_display()),
+            Some(invalid_refs.join(",")),
+            "authority_refs must stay within the product-runtime .handshake/gov boundary",
+        );
+    }
+    validation
+}
+
 async fn seed_locus_work_packet(
     state: &AppState,
     wp_id: &str,
@@ -189,6 +310,40 @@ fn default_wp_scope(test_plan: Vec<String>) -> serde_json::Value {
         "done_means": ["DONE_MEANS placeholder"],
         "test_plan": test_plan,
         "description": "test scope",
+    })
+}
+
+fn base_tracked_micro_task_value(mt_id: &str) -> Value {
+    json!({
+        "mt_id": mt_id,
+        "wp_id": "WP-TEST",
+        "name": format!("Micro Task {mt_id}"),
+        "scope": "registry validation test",
+        "files": {
+            "read": [],
+            "modify": [],
+            "create": [],
+        },
+        "done_criteria": [],
+        "status": "pending",
+        "active_session_ids": [],
+        "iterations": [],
+        "current_iteration": 0,
+        "max_iterations": 1,
+        "validation_result": Value::Null,
+        "escalation": {
+            "current_level": 0,
+            "escalation_chain": [],
+            "escalations_count": 0,
+            "drop_backs_count": 0,
+        },
+        "started_at": Value::Null,
+        "completed_at": Value::Null,
+        "duration_ms": Value::Null,
+        "depends_on": [],
+        "metadata": {
+            "source": "micro_task_executor_tests",
+        },
     })
 }
 
@@ -237,6 +392,7 @@ fn compute_model_swap_state_hash(
 #[tokio::test]
 async fn micro_task_executor_completes_single_mt_and_emits_events(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![
         "work complete <mt_complete>yes</mt_complete>".to_string(),
     ]));
@@ -331,6 +487,7 @@ async fn micro_task_executor_completes_single_mt_and_emits_events(
 #[tokio::test]
 async fn micro_task_executor_persists_locus_lifecycle_and_session_occupancy(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![
         "work complete <mt_complete>yes</mt_complete>".to_string(),
     ]));
@@ -448,6 +605,7 @@ async fn micro_task_executor_persists_locus_lifecycle_and_session_occupancy(
 #[tokio::test]
 async fn micro_task_executor_spec_router_creates_locus_work_packet_when_routing_metadata_present(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
     let llm_client: Arc<dyn LlmClient> =
         Arc::new(QueuedLlmClient::new(vec!["# Spec Artifact".to_string()]));
     let state = setup_state(llm_client).await?;
@@ -560,8 +718,245 @@ async fn micro_task_executor_spec_router_creates_locus_work_packet_when_routing_
 }
 
 #[tokio::test]
+async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summary(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let root = dir.path().to_path_buf();
+    let _workspace_guard = WorkspaceEnvGuard::activate(&root);
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    let packet_path = root
+        .join(".handshake")
+        .join("gov")
+        .join("work_packets")
+        .join("WP-TEST")
+        .join("packet.json");
+    let summary_path = root
+        .join(".handshake")
+        .join("gov")
+        .join("work_packets")
+        .join("WP-TEST")
+        .join("summary.json");
+
+    let packet_json: Value = serde_json::from_slice(&std::fs::read(&packet_path)?)?;
+    let summary_json: Value = serde_json::from_slice(&std::fs::read(&summary_path)?)?;
+    assert_eq!(
+        packet_json.get("schema_id").and_then(Value::as_str),
+        Some("hsk.tracked_work_packet@1")
+    );
+    assert_eq!(
+        packet_json
+            .get("summary_record_path")
+            .and_then(Value::as_str),
+        Some(".handshake/gov/work_packets/WP-TEST/summary.json")
+    );
+    assert_eq!(
+        packet_json
+            .get("authority_refs")
+            .and_then(Value::as_array)
+            .and_then(|items| items.first())
+            .and_then(Value::as_str),
+        Some(".handshake/gov/work_packets/WP-TEST/packet.json")
+    );
+    assert_eq!(
+        summary_json.get("schema_id").and_then(Value::as_str),
+        Some("hsk.structured_collaboration_summary@1")
+    );
+    assert_eq!(
+        summary_json.get("status").and_then(Value::as_str),
+        Some("stub")
+    );
+
+    let packet_validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::WorkPacketPacket,
+        &packet_json,
+    );
+    assert!(packet_validation.ok, "{packet_validation:?}");
+    let summary_validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::WorkPacketSummary,
+        &summary_json,
+    );
+    assert!(summary_validation.ok, "{summary_validation:?}");
+    let join_validation = validate_structured_collaboration_summary_join(
+        StructuredCollaborationRecordFamily::WorkPacketPacket,
+        &packet_json,
+        StructuredCollaborationRecordFamily::WorkPacketSummary,
+        &summary_json,
+    );
+    assert!(join_validation.ok, "{join_validation:?}");
+
+    run_locus_job(&state, "locus_close_wp_v1", json!({ "wp_id": "WP-TEST" })).await?;
+
+    let closed_packet_json: Value = serde_json::from_slice(&std::fs::read(&packet_path)?)?;
+    let closed_summary_json: Value = serde_json::from_slice(&std::fs::read(&summary_path)?)?;
+    assert_eq!(
+        closed_packet_json.get("status").and_then(Value::as_str),
+        Some("done")
+    );
+    assert_eq!(
+        closed_packet_json
+            .get("governance")
+            .and_then(|value| value.get("task_board_status"))
+            .and_then(Value::as_str),
+        Some("DONE")
+    );
+    assert_eq!(
+        closed_summary_json.get("status").and_then(Value::as_str),
+        Some("done")
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_sync_task_board_emits_structured_index_and_view(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let root = dir.path().to_path_buf();
+    let _workspace_guard = WorkspaceEnvGuard::activate(&root);
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    let gov_root = root.join(".handshake").join("gov");
+    std::fs::create_dir_all(&gov_root)?;
+    std::fs::write(
+        gov_root.join("TASK_BOARD.md"),
+        concat!(
+            "# Task Board\n\n",
+            "## Ready for Dev\n",
+            "- **[WP-TEST]** - [ready]\n"
+        ),
+    )?;
+
+    let sync_result = run_locus_job(&state, "locus_sync_task_board_v1", json!({})).await?;
+    assert_eq!(
+        sync_result
+            .get("structured_projection_written")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        sync_result
+            .get("work_packet_artifacts_written")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        sync_result
+            .get("validation_result")
+            .and_then(|value| value.get("ok"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+
+    let index_path = gov_root.join("task_board").join("index.json");
+    let view_path = gov_root
+        .join("task_board")
+        .join("views")
+        .join("default.json");
+    let index_json: Value = serde_json::from_slice(&std::fs::read(&index_path)?)?;
+    let view_json: Value = serde_json::from_slice(&std::fs::read(&view_path)?)?;
+    assert_eq!(
+        index_json.get("schema_id").and_then(Value::as_str),
+        Some("hsk.task_board_index@1")
+    );
+    assert_eq!(
+        view_json.get("schema_id").and_then(Value::as_str),
+        Some("hsk.task_board_view@1")
+    );
+    assert_eq!(
+        view_json.get("view_id").and_then(Value::as_str),
+        Some("default")
+    );
+    let index_validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::TaskBoardIndex,
+        &index_json,
+    );
+    assert!(index_validation.ok, "{index_validation:?}");
+    let view_validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::TaskBoardView,
+        &view_json,
+    );
+    assert!(view_validation.ok, "{view_validation:?}");
+
+    let first_row = index_json
+        .get("rows")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.first())
+        .ok_or("missing task-board row")?;
+    assert_eq!(
+        first_row.get("work_packet_id").and_then(Value::as_str),
+        Some("WP-TEST")
+    );
+    assert_eq!(
+        first_row.get("lane_id").and_then(Value::as_str),
+        Some("ready")
+    );
+
+    let packet_path = gov_root
+        .join("work_packets")
+        .join("WP-TEST")
+        .join("packet.json");
+    let packet_json: Value = serde_json::from_slice(&std::fs::read(&packet_path)?)?;
+    assert_eq!(
+        packet_json.get("status").and_then(Value::as_str),
+        Some("ready")
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_sync_task_board_validation_reports_authority_scope_drift(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let root = dir.path().to_path_buf();
+    let _workspace_guard = WorkspaceEnvGuard::activate(&root);
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    let gov_root = root.join(".handshake").join("gov");
+    std::fs::create_dir_all(&gov_root)?;
+    std::fs::write(
+        gov_root.join("TASK_BOARD.md"),
+        concat!(
+            "# Task Board\n\n",
+            "## Ready for Dev\n",
+            "- **[WP-TEST]** - [ready]\n"
+        ),
+    )?;
+
+    let _ = run_locus_job(&state, "locus_sync_task_board_v1", json!({})).await?;
+
+    let index_path = gov_root.join("task_board").join("index.json");
+    let mut index_json: Value = serde_json::from_slice(&std::fs::read(&index_path)?)?;
+    index_json["authority_refs"] = json!([".GOV/roles_shared/TASK_BOARD.md"]);
+    let validation = validate_runtime_structured_record(
+        &root,
+        StructuredCollaborationRecordFamily::TaskBoardIndex,
+        &index_json,
+    );
+    assert!(!validation.ok);
+    assert!(validation.issues.iter().any(|issue| {
+        issue.code == StructuredCollaborationValidationCode::AuthorityScopeMismatch
+            && issue.field == "authority_refs"
+    }));
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn locus_bind_session_normalizes_and_deduplicates_session_ids(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
     let state = setup_state(llm_client).await?;
 
@@ -647,6 +1042,60 @@ async fn locus_bind_session_normalizes_and_deduplicates_session_ids(
         .filter_map(Value::as_str)
         .collect::<Vec<_>>();
     assert_eq!(active_session_ids, vec!["sess-occupancy"]);
+    let tracked_mt = mt_progress
+        .get("metadata")
+        .expect("tracked micro-task metadata");
+    assert_eq!(
+        tracked_mt.get("schema_id").and_then(Value::as_str),
+        Some("hsk.tracked_micro_task@1")
+    );
+    assert_eq!(
+        tracked_mt.get("schema_version").and_then(Value::as_str),
+        Some("1")
+    );
+    assert_eq!(
+        tracked_mt.get("record_id").and_then(Value::as_str),
+        Some("MT-SESSION")
+    );
+    let tracked_mt_updated_at = tracked_mt
+        .get("updated_at")
+        .and_then(Value::as_str)
+        .expect("tracked micro-task updated_at");
+    assert!(
+        chrono::DateTime::parse_from_rfc3339(tracked_mt_updated_at).is_ok(),
+        "tracked micro-task updated_at should be RFC3339, got {tracked_mt_updated_at}"
+    );
+    assert_eq!(
+        tracked_mt
+            .get("summary_record_path")
+            .and_then(Value::as_str),
+        Some(".handshake/gov/micro_tasks/WP-TEST/MT-SESSION/summary.json")
+    );
+    assert_eq!(
+        tracked_mt
+            .get("authority_refs")
+            .and_then(Value::as_array)
+            .and_then(|items| items.first())
+            .and_then(Value::as_str),
+        Some(".handshake/gov/micro_tasks/WP-TEST/MT-SESSION/packet.json")
+    );
+    let structured_metadata = tracked_mt
+        .get("metadata")
+        .and_then(Value::as_object)
+        .expect("structured metadata");
+    assert_eq!(
+        structured_metadata
+            .get("structured_collaboration_summary_path")
+            .and_then(Value::as_str),
+        Some(".handshake/gov/micro_tasks/WP-TEST/MT-SESSION/summary.json")
+    );
+    assert_eq!(
+        structured_metadata
+            .get("structured_collaboration_validation")
+            .and_then(|value| value.get("ok"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
 
     run_locus_job(
         &state,
@@ -677,8 +1126,279 @@ async fn locus_bind_session_normalizes_and_deduplicates_session_ids(
 }
 
 #[tokio::test]
+async fn locus_register_mts_emits_structured_micro_task_packet_and_summary(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let _env = WorkspaceEnvGuard::activate(dir.path());
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    run_locus_job(
+        &state,
+        "locus_register_mts_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "micro_tasks": [base_tracked_micro_task_value("MT-ARTIFACTS")],
+        }),
+    )
+    .await?;
+    run_locus_job(
+        &state,
+        "locus_bind_session_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "mt_id": "MT-ARTIFACTS",
+            "session_id": "  sess-artifacts  ",
+            "model_id": "queued-test-model",
+            "lora_id": Value::Null,
+            "escalation_level": 0,
+        }),
+    )
+    .await?;
+
+    let packet_path = dir
+        .path()
+        .join(".handshake")
+        .join("gov")
+        .join("micro_tasks")
+        .join("WP-TEST")
+        .join("MT-ARTIFACTS")
+        .join("packet.json");
+    let summary_path = dir
+        .path()
+        .join(".handshake")
+        .join("gov")
+        .join("micro_tasks")
+        .join("WP-TEST")
+        .join("MT-ARTIFACTS")
+        .join("summary.json");
+    assert!(packet_path.is_file(), "missing {}", packet_path.display());
+    assert!(summary_path.is_file(), "missing {}", summary_path.display());
+
+    let packet_json: Value = serde_json::from_slice(&std::fs::read(&packet_path)?)?;
+    let summary_json: Value = serde_json::from_slice(&std::fs::read(&summary_path)?)?;
+    assert_eq!(
+        packet_json.get("schema_id").and_then(Value::as_str),
+        Some("hsk.tracked_micro_task@1")
+    );
+    assert_eq!(
+        summary_json.get("schema_id").and_then(Value::as_str),
+        Some("hsk.structured_collaboration_summary@1")
+    );
+    let active_session_ids = packet_json
+        .get("active_session_ids")
+        .and_then(Value::as_array)
+        .expect("packet active_session_ids");
+    assert_eq!(
+        active_session_ids
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>(),
+        vec!["sess-artifacts"]
+    );
+
+    let packet_validation = validate_runtime_structured_record(
+        dir.path(),
+        StructuredCollaborationRecordFamily::MicroTaskPacket,
+        &packet_json,
+    );
+    assert!(packet_validation.ok, "{packet_validation:?}");
+    let summary_validation = validate_runtime_structured_record(
+        dir.path(),
+        StructuredCollaborationRecordFamily::MicroTaskSummary,
+        &summary_json,
+    );
+    assert!(summary_validation.ok, "{summary_validation:?}");
+    let join_validation = validate_structured_collaboration_summary_join(
+        StructuredCollaborationRecordFamily::MicroTaskPacket,
+        &packet_json,
+        StructuredCollaborationRecordFamily::MicroTaskSummary,
+        &summary_json,
+    );
+    assert!(join_validation.ok, "{join_validation:?}");
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_written_micro_task_summary_validation_reports_authority_scope_drift(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let _env = WorkspaceEnvGuard::activate(dir.path());
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    run_locus_job(
+        &state,
+        "locus_register_mts_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "micro_tasks": [base_tracked_micro_task_value("MT-ARTIFACT-DRIFT")],
+        }),
+    )
+    .await?;
+
+    let summary_path = dir
+        .path()
+        .join(".handshake")
+        .join("gov")
+        .join("micro_tasks")
+        .join("WP-TEST")
+        .join("MT-ARTIFACT-DRIFT")
+        .join("summary.json");
+    let mut summary_json: Value = serde_json::from_slice(&std::fs::read(&summary_path)?)?;
+    summary_json["authority_refs"] = json!([".GOV/roles_shared/TASK_BOARD.md"]);
+    std::fs::write(&summary_path, serde_json::to_vec_pretty(&summary_json)?)?;
+
+    let written_summary_json: Value = serde_json::from_slice(&std::fs::read(&summary_path)?)?;
+    let validation = validate_runtime_structured_record(
+        dir.path(),
+        StructuredCollaborationRecordFamily::MicroTaskSummary,
+        &written_summary_json,
+    );
+    assert!(!validation.ok);
+    assert!(validation.issues.iter().any(|issue| {
+        issue.code == StructuredCollaborationValidationCode::AuthorityScopeMismatch
+            && issue.field == "authority_refs"
+    }));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_register_mts_returns_machine_readable_validation_for_summary_detail_drift(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let _env = WorkspaceEnvGuard::activate(dir.path());
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    let mut tracked_mt = base_tracked_micro_task_value("MT-DRIFT");
+    tracked_mt["metadata"]["structured_collaboration_summary"] = json!({
+        "schema_id": "hsk.structured_collaboration_summary@1",
+        "schema_version": "1",
+        "record_id": "MT-OTHER",
+        "record_kind": "micro_task",
+        "project_profile_kind": "generic",
+        "status": "pending",
+        "title_or_objective": "Micro Task MT-DRIFT",
+        "blockers": [],
+        "next_action": "start_micro_task",
+        "updated_at": "2026-03-14T00:00:00Z",
+        "authority_refs": [".handshake/gov/micro_tasks/WP-TEST/MT-DRIFT/packet.json"],
+        "evidence_refs": [],
+    });
+
+    let validation = run_locus_job_expect_validation_failure(
+        &state,
+        "locus_register_mts_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "micro_tasks": [tracked_mt],
+        }),
+    )
+    .await?;
+
+    assert_eq!(validation.get("ok").and_then(Value::as_bool), Some(false));
+    assert_eq!(
+        validation.get("family").and_then(Value::as_str),
+        Some("micro_task_packet")
+    );
+    let issues = validation
+        .get("issues")
+        .and_then(Value::as_array)
+        .expect("validation issues");
+    assert!(issues.iter().any(|issue| {
+        issue.get("code").and_then(Value::as_str) == Some("summary_join_mismatch")
+            && issue.get("field").and_then(Value::as_str) == Some("record_id")
+    }));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_register_mts_returns_machine_readable_validation_for_unknown_schema_version(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let _env = WorkspaceEnvGuard::activate(dir.path());
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    let mut tracked_mt = base_tracked_micro_task_value("MT-BAD-SCHEMA");
+    tracked_mt["schema_version"] = Value::String("999".to_string());
+
+    let validation = run_locus_job_expect_validation_failure(
+        &state,
+        "locus_register_mts_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "micro_tasks": [tracked_mt],
+        }),
+    )
+    .await?;
+
+    assert_eq!(validation.get("ok").and_then(Value::as_bool), Some(false));
+    let issues = validation
+        .get("issues")
+        .and_then(Value::as_array)
+        .expect("validation issues");
+    assert!(issues.iter().any(|issue| {
+        issue.get("code").and_then(Value::as_str) == Some("schema_version_mismatch")
+            && issue.get("field").and_then(Value::as_str) == Some("schema_version")
+    }));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn locus_register_mts_returns_machine_readable_validation_for_incompatible_profile_extension(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
+    let dir = tempdir()?;
+    let _env = WorkspaceEnvGuard::activate(dir.path());
+    let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
+    let state = setup_state(llm_client).await?;
+
+    let mut tracked_mt = base_tracked_micro_task_value("MT-BREAKING-EXT");
+    tracked_mt["profile_extension"] = json!({
+        "extension_schema_id": "hsk.profile_extension@1",
+        "extension_schema_version": "1",
+        "compatibility": {
+            "breaking": true,
+        },
+    });
+
+    let validation = run_locus_job_expect_validation_failure(
+        &state,
+        "locus_register_mts_v1",
+        json!({
+            "wp_id": "WP-TEST",
+            "micro_tasks": [tracked_mt],
+        }),
+    )
+    .await?;
+
+    assert_eq!(validation.get("ok").and_then(Value::as_bool), Some(false));
+    let issues = validation
+        .get("issues")
+        .and_then(Value::as_array)
+        .expect("validation issues");
+    assert!(issues.iter().any(|issue| {
+        issue.get("code").and_then(Value::as_str) == Some("incompatible_profile_extension")
+            && issue.get("field").and_then(Value::as_str) == Some("profile_extension.compatibility")
+    }));
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn micro_task_executor_escalates_and_hard_gates_after_budget_exhaustion(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![
         "attempted complete <mt_complete>yes</mt_complete>".to_string(),
     ]));
@@ -734,6 +1454,7 @@ async fn micro_task_executor_escalates_and_hard_gates_after_budget_exhaustion(
 #[tokio::test]
 async fn micro_task_executor_generates_distillation_candidate_after_escalation_success(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![
         "still working".to_string(),
         r#"<mt_complete>
@@ -912,6 +1633,7 @@ EVIDENCE:
 #[tokio::test]
 async fn micro_task_executor_emits_model_swap_events_on_model_change(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
     let llm = Arc::new(QueuedLlmClient::new(vec![
         "still working".to_string(),
         "done <mt_complete>yes</mt_complete>".to_string(),
@@ -1111,6 +1833,7 @@ async fn micro_task_executor_emits_model_swap_events_on_model_change(
 #[tokio::test]
 async fn micro_task_executor_emits_model_swap_failed_when_policy_disallows_swaps(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
     let llm = Arc::new(QueuedLlmClient::new(vec![
         "still working".to_string(),
         "done <mt_complete>yes</mt_complete>".to_string(),
@@ -1237,6 +1960,7 @@ async fn micro_task_executor_emits_model_swap_failed_when_policy_disallows_swaps
 #[tokio::test]
 async fn micro_task_executor_emits_model_swap_runtime_failure_and_rollback_when_fallback_allows(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
     let llm = Arc::new(
         QueuedLlmClient::new(vec![
             "still working".to_string(),
@@ -1368,6 +2092,7 @@ async fn micro_task_executor_emits_model_swap_runtime_failure_and_rollback_when_
 #[tokio::test]
 async fn micro_task_executor_emits_model_swap_timeout_and_rollback_on_runtime_timeout(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
     let llm = Arc::new(
         QueuedLlmClient::new(vec![
             "still working".to_string(),
@@ -1504,6 +2229,7 @@ async fn micro_task_executor_emits_model_swap_timeout_and_rollback_on_runtime_ti
 #[tokio::test]
 async fn micro_task_executor_resumes_from_pause_and_emits_workflow_recovery(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![
         "resume and complete <mt_complete>yes</mt_complete>".to_string(),
     ]));
@@ -1587,6 +2313,7 @@ async fn micro_task_executor_resumes_from_pause_and_emits_workflow_recovery(
 #[tokio::test]
 async fn micro_task_executor_rejects_legacy_workflow_run_job_kind_contract(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _test_guard = test_guard();
     let llm_client: Arc<dyn LlmClient> = Arc::new(QueuedLlmClient::new(vec![]));
     let state = setup_state(llm_client).await?;
 

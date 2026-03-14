@@ -12,6 +12,9 @@ pub const RUNTIME_SPEC_CURRENT_FILE: &str = "SPEC_CURRENT.md";
 pub const RUNTIME_ROLE_MAILBOX_DIR: &str = "ROLE_MAILBOX";
 pub const RUNTIME_GOVERNANCE_DECISIONS_DIR: &str = "governance_decisions";
 pub const RUNTIME_GOVERNANCE_AUTO_SIGNATURES_DIR: &str = "auto_signatures";
+pub const RUNTIME_WORK_PACKETS_DIR: &str = "work_packets";
+pub const RUNTIME_MICRO_TASKS_DIR: &str = "micro_tasks";
+pub const RUNTIME_TASK_BOARD_STRUCTURED_DIR: &str = "task_board";
 
 #[derive(Debug, Clone)]
 pub struct RuntimeGovernancePaths {
@@ -101,6 +104,125 @@ impl RuntimeGovernancePaths {
             &self.workspace_root,
             &self.role_mailbox_export_dir(),
         ))
+    }
+
+    pub fn work_packets_dir(&self) -> PathBuf {
+        self.governance_root.join(RUNTIME_WORK_PACKETS_DIR)
+    }
+
+    pub fn work_packet_dir(&self, wp_id: &str) -> io::Result<PathBuf> {
+        Ok(self.work_packets_dir().join(safe_runtime_segment(wp_id)?))
+    }
+
+    pub fn work_packet_packet_path(&self, wp_id: &str) -> io::Result<PathBuf> {
+        Ok(self.work_packet_dir(wp_id)?.join("packet.json"))
+    }
+
+    pub fn work_packet_packet_display(&self, wp_id: &str) -> io::Result<String> {
+        Ok(display_path(
+            &self.workspace_root,
+            &self.work_packet_packet_path(wp_id)?,
+        ))
+    }
+
+    pub fn work_packet_summary_path(&self, wp_id: &str) -> io::Result<PathBuf> {
+        Ok(self.work_packet_dir(wp_id)?.join("summary.json"))
+    }
+
+    pub fn work_packet_summary_display(&self, wp_id: &str) -> io::Result<String> {
+        Ok(display_path(
+            &self.workspace_root,
+            &self.work_packet_summary_path(wp_id)?,
+        ))
+    }
+
+    pub fn micro_tasks_dir(&self) -> PathBuf {
+        self.governance_root.join(RUNTIME_MICRO_TASKS_DIR)
+    }
+
+    pub fn micro_task_dir(&self, wp_id: &str, mt_id: &str) -> io::Result<PathBuf> {
+        Ok(self
+            .micro_tasks_dir()
+            .join(safe_runtime_segment(wp_id)?)
+            .join(safe_runtime_segment(mt_id)?))
+    }
+
+    pub fn micro_task_packet_path(&self, wp_id: &str, mt_id: &str) -> io::Result<PathBuf> {
+        Ok(self.micro_task_dir(wp_id, mt_id)?.join("packet.json"))
+    }
+
+    pub fn micro_task_packet_display(&self, wp_id: &str, mt_id: &str) -> io::Result<String> {
+        Ok(display_path(
+            &self.workspace_root,
+            &self.micro_task_packet_path(wp_id, mt_id)?,
+        ))
+    }
+
+    pub fn micro_task_summary_path(&self, wp_id: &str, mt_id: &str) -> io::Result<PathBuf> {
+        Ok(self.micro_task_dir(wp_id, mt_id)?.join("summary.json"))
+    }
+
+    pub fn micro_task_summary_display(&self, wp_id: &str, mt_id: &str) -> io::Result<String> {
+        Ok(display_path(
+            &self.workspace_root,
+            &self.micro_task_summary_path(wp_id, mt_id)?,
+        ))
+    }
+
+    pub fn task_board_structured_dir(&self) -> PathBuf {
+        self.governance_root.join(RUNTIME_TASK_BOARD_STRUCTURED_DIR)
+    }
+
+    pub fn task_board_index_path(&self) -> PathBuf {
+        self.task_board_structured_dir().join("index.json")
+    }
+
+    pub fn task_board_index_display(&self) -> String {
+        display_path(&self.workspace_root, &self.task_board_index_path())
+    }
+
+    pub fn task_board_view_path(&self, view_id: &str) -> io::Result<PathBuf> {
+        Ok(self
+            .task_board_structured_dir()
+            .join("views")
+            .join(format!("{}.json", safe_runtime_segment(view_id)?)))
+    }
+
+    pub fn task_board_view_display(&self, view_id: &str) -> io::Result<String> {
+        Ok(display_path(
+            &self.workspace_root,
+            &self.task_board_view_path(view_id)?,
+        ))
+    }
+
+    pub fn is_runtime_artifact_display_path(&self, value: &str) -> bool {
+        let normalized = normalize_display_like(value);
+        if normalized.is_empty() {
+            return false;
+        }
+
+        let governance_root = normalize_display_like(&self.governance_root_display());
+        let role_mailbox_root = normalize_display_like(&self.role_mailbox_export_dir_display());
+        let task_board_root = normalize_display_like(&ensure_trailing_slash(display_path(
+            &self.workspace_root,
+            &self.task_board_structured_dir(),
+        )));
+
+        normalized.starts_with(&governance_root)
+            || normalized.starts_with(&role_mailbox_root)
+            || normalized.starts_with(&task_board_root)
+    }
+
+    pub fn invalid_runtime_authority_refs<'a>(&self, refs: &'a [String]) -> Vec<&'a str> {
+        refs.iter()
+            .filter_map(|value| {
+                if self.is_runtime_artifact_display_path(value) {
+                    None
+                } else {
+                    Some(value.as_str())
+                }
+            })
+            .collect()
     }
 
     pub fn governance_decisions_dir(&self) -> PathBuf {
@@ -201,6 +323,25 @@ fn ensure_trailing_slash(value: String) -> String {
     } else {
         format!("{value}/")
     }
+}
+
+fn safe_runtime_segment(value: &str) -> Result<String, io::Error> {
+    let trimmed = value.trim();
+    if trimmed.is_empty()
+        || trimmed.contains('/')
+        || trimmed.contains('\\')
+        || trimmed.contains("..")
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "runtime path segment must be non-empty and must not contain path separators or '..'",
+        ));
+    }
+    Ok(trimmed.to_string())
+}
+
+fn normalize_display_like(value: &str) -> String {
+    value.trim().replace('\\', "/")
 }
 
 #[cfg(test)]
