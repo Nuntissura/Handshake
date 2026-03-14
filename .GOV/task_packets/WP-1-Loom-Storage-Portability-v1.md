@@ -340,6 +340,12 @@ Next: validator review plus coder closeout on any findings
   - capability-registry publication logic unrelated to Loom storage parity
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
+- WAIVER-LIVE-SMOKETEST-GOV-SYNC-WP-1-Loom-Storage-Portability-v1-001 [CX-573F]
+  - Date: 2026-03-14
+  - Scope: `.GOV/roles_shared/BUILD_ORDER.md`, `.GOV/roles_shared/TASK_BOARD.md`, `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`, `.GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v1/RECEIPTS.jsonl`, `.GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v1/RUNTIME_STATUS.json`, `.GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v1/THREAD.md`, `.GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RECEIPTS.jsonl`, `.GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RUNTIME_STATUS.json`, `.GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/THREAD.md`, `.GOV/scripts/create-task-packet.mjs`, `.GOV/scripts/validation/spec-eof-appendices-check.mjs`, `.GOV/scripts/wp-communications-lib.mjs`, `.GOV/task_packets/WP-1-Loom-Storage-Portability-v1.md`, `.GOV/task_packets/WP-1-Structured-Collaboration-Artifact-Family-v1.md`, and `.GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v1.md`
+  - Justification: Operator explicitly authorized live-smoketest governance remediation and workflow/tooling repair while keeping product-code scope restricted to the Loom packet. These governance files are required to preserve packet truth, validator evidence, and cross-packet repository compliance for this WP branch.
+  - Approver: Operator (chat instruction on 2026-03-14)
+  - Expiry: On WP closure (validation complete).
 - NONE
 
 ## QUALITY_GATE
