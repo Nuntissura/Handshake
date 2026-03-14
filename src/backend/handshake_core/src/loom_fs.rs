@@ -33,3 +33,57 @@ pub fn loom_asset_blob_path(
         .join(content_hash)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn loom_asset_blob_path_uses_portable_workspace_layout_for_originals() {
+        let root = Path::new("C:/handshake-root");
+
+        let path = loom_asset_blob_path(root, "ws-123", "original", "abc123");
+
+        assert_eq!(
+            path,
+            root.join("data")
+                .join("workspaces")
+                .join("ws-123")
+                .join("assets")
+                .join("original")
+                .join("abc123")
+        );
+    }
+
+    #[test]
+    fn loom_asset_blob_path_routes_preview_proxy_and_fallback_kinds() {
+        let root = Path::new("C:/handshake-root");
+
+        assert_eq!(
+            loom_asset_blob_path(root, "ws-123", "thumbnail", "thumb"),
+            root.join("data")
+                .join("workspaces")
+                .join("ws-123")
+                .join("assets")
+                .join("preview")
+                .join("thumb")
+        );
+        assert_eq!(
+            loom_asset_blob_path(root, "ws-123", "proxy", "proxy-hash"),
+            root.join("data")
+                .join("workspaces")
+                .join("ws-123")
+                .join("assets")
+                .join("proxy")
+                .join("proxy-hash")
+        );
+        assert_eq!(
+            loom_asset_blob_path(root, "ws-123", "unknown", "blob-hash"),
+            root.join("data")
+                .join("workspaces")
+                .join("ws-123")
+                .join("assets")
+                .join("blobs")
+                .join("blob-hash")
+        );
+    }
+}

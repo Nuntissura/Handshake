@@ -29,8 +29,8 @@
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
-- CODER_MODEL: Coder-B
-- CODER_REASONING_STRENGTH: <unclaimed>
+- CODER_MODEL: gpt-5.4
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
 - SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
@@ -74,7 +74,7 @@
 - EXTERNAL_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT
 - EXTERNAL_VALIDATOR_DISPOSITIONS: NONE | OUTDATED_ONLY
 - EXTERNAL_VALIDATOR_LEGAL_VERDICTS: PASS | FAIL | PENDING
-- **Status:** Ready for Dev
+- **Status:** In Progress
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -122,8 +122,8 @@
 - PACKET_FORMAT_VERSION: 2026-03-12
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
-Blockers: NONE
-Next: N/A
+Blockers: validator review, packet closure sync
+Next: validator review plus coder closeout on any findings
 
 ## WP_COMMUNICATIONS (NON-AUTHORITATIVE; REQUIRED FOR NEW PACKETS)
 - RULE: The task packet remains authoritative for scope, status, branch/worktree truth, acceptance, and verdict.
@@ -425,25 +425,8 @@ rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|Loo
   - "Loom portability work widens into workflow-runtime changes" -> "packet loses file-lock isolation and becomes harder to validate"
 ## SKELETON
 - Proposed interfaces/types/contracts:
-  - `src/backend/handshake_core/src/storage/mod.rs`: keep the existing `Database` Loom method surface as the canonical portability boundary; tighten any doc comments or helper wiring only if needed to make CRUD, dedup, view, search, and source-anchor semantics explicit without expanding the public API.
-  - `src/backend/handshake_core/src/storage/loom.rs`: keep `LoomBlock`, `LoomEdge`, `LoomViewFilters`, `LoomSearchFilters`, `LoomBlockSearchResult`, and `LoomSourceAnchor` as the portable contract types; add only small shared validation/normalization helpers here if needed so both backends interpret filters and source-anchor payloads identically.
-  - `src/backend/handshake_core/src/storage/sqlite.rs`: preserve SQLite-local FTS5 and index maintenance, but align block create/update, edge metric recompute, view filtering, sorted grouping, and search filter semantics with the shared contract; keep provider-local optimization out of portable migration law.
-  - `src/backend/handshake_core/src/storage/postgres.rs`: bring PostgreSQL Loom behavior into parity with SQLite for block CRUD, dedup lookup, edge/source-anchor round-trips, derived metric updates, view filtering, and search result membership; backend-specific search implementation may differ, but filter meaning, result identity, and ordering tie-breaks must stay portable.
-  - `src/backend/handshake_core/src/api/loom.rs`: keep the API layer thin and contract-driven by validating request invariants that affect portability (`tag_hub` target rules, source-anchor bounds, dedup/import flow) while avoiding preview protocol or workflow-runtime redesign.
-  - `src/backend/handshake_core/src/loom_fs.rs`: preserve the on-disk Loom asset layout at `data/workspaces/<workspace_id>/assets/<tier>/<content_hash>` as part of the portability contract and cover it with focused tests instead of changing the layout.
-  - `src/backend/handshake_core/migrations/0013_loom_mvp.sql` and `src/backend/handshake_core/migrations/0013_loom_mvp.down.sql`: keep Loom tables and indexes replay-safe, provider-neutral, and undo-safe; portable DDL stays limited to shared tables/indexes, while backend-local search structures remain outside portable migration law.
-  - `src/backend/handshake_core/src/storage/tests.rs`: add a shared Loom storage conformance helper that seeds blocks, assets, edges, tags, mentions, and anchors once and asserts the same semantic outcomes for SQLite and PostgreSQL.
-  - `src/backend/handshake_core/tests/storage_conformance.rs`: extend the cross-backend suite to run the Loom conformance helper for both providers so parity is proven by one test shape rather than duplicated backend-specific assertions.
 - Open questions:
-  - Should PostgreSQL search remain a simpler provider-local implementation for now, with parity enforced on filter meaning and result membership only, or is the current gap large enough that this WP should move it to native PostgreSQL text-search primitives?
-  - Should the portability suite treat `LoomBlockSearchResult.score` as backend-local and assert only stable inclusion plus deterministic tie-break ordering, not score equality?
-  - Are `mention_count`, `tag_count`, and `backlink_count` intentionally defined only by `mention` and `tag` edges, or should the contract widen to include other edge types? The current code updates only those two edge families.
-  - Do we need a migration-level assertion that no provider-local search tables or virtual tables become canonical schema requirements, given SQLite currently bootstraps `loom_blocks_fts` outside `0013_loom_mvp.sql`?
 - Notes:
-  - Current code reality already matches the intended seam: `storage/mod.rs` defines one Loom API, `storage/loom.rs` holds the contract types, and both providers implement the surface independently.
-  - The main drift risk is search: SQLite uses `loom_blocks_fts` plus `bm25`, while PostgreSQL currently uses `ILIKE` against block fields/derived JSON and returns `score: 0.0`; the conformance suite should lock down portable semantics while allowing backend-local ranking.
-  - There is no Loom-specific coverage yet in `src/backend/handshake_core/src/storage/tests.rs` or `src/backend/handshake_core/tests/storage_conformance.rs`, so shared parity tests are the primary deliverable, not optional cleanup.
-  - `loom_fs.rs` already centralizes the asset-path rule; portability work should verify that storage metadata and filesystem placement continue to agree rather than introducing a new path scheme.
 
 ## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
 - UI_UX_APPLICABLE=NO in the signed refinement. No user-facing surface is in scope for this packet.
@@ -456,56 +439,260 @@ rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|Loo
 - (Coder fills after the docs-only skeleton checkpoint commit exists.)
 
 ## HYGIENE
-- (Coder fills after implementation; list activities and commands run. Outcomes may be summarized here, but detailed logs should go in ## EVIDENCE.)
+- Repaired scope after an interrupted formatter/test pass widened product diffs into out-of-scope files; preserved safety with `git stash push -m "SAFETY: before Loom scope repair after interrupted format" -- <out-of-scope files>` and returned `src/backend/handshake_core` to Loom-only dirt before resuming.
+- Trimmed formatting-only drift out of `src/backend/handshake_core/src/api/loom.rs` and `src/backend/handshake_core/src/storage/loom.rs` with a safety stash so the final packet diff stays focused on files with Loom portability value.
+- Captured deterministic SHA manifests with `just cor701-sha` for every changed non-`.GOV/` file that remains in scope.
+- Verified the Loom unit/API/migration surface with `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom` and the dual-backend parity helper with `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance`.
+- `just gov-check` initially failed on unrelated shared-governance drift (`.GOV/roles_shared/BUILD_ORDER.md` out of date); ran the minimal allowed governance repair `just build-order-sync`, then re-ran `just gov-check` to PASS. Governance edits remain unstaged and outside the packet product manifest.
 
 ## VALIDATION
-- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
-- If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha <target-file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A until implementation begins`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- **Target File**: `src/backend/handshake_core/src/loom_fs.rs`
+- **Start**: 1
+- **End**: 90
+- **Line Delta**: 54
+- **Pre-SHA1**: `a5fa14bb612e83624ad8b6f5b54e81733f1847bb`
+- **Post-SHA1**: `fef3ab6cbe0f9cb344beb2b8e20d035811f8da8e`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom` PASS; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance` PASS; `just gov-check` PASS
+- **Artifacts**: See `## EVIDENCE` log entries for command outputs and SHA256 values.
+- **Timestamp**: 2026-03-14T22:33:21.0517425+01:00
+- **Operator**: Codex CLI (Coder)
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Added Loom asset-path invariance tests for original, preview, proxy, and fallback tiers.
+
+- **Target File**: `src/backend/handshake_core/src/storage/postgres.rs`
+- **Start**: 1
+- **End**: 4879
+- **Line Delta**: 158
+- **Pre-SHA1**: `e52777c01d146c9c30d5f5696ab88d2ca3223ada`
+- **Post-SHA1**: `f105bd3fb4bfda5fb9259a330365f651038c4c03`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom` PASS; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance` PASS; `just gov-check` PASS
+- **Artifacts**: See `## EVIDENCE` log entries for command outputs and SHA256 values.
+- **Timestamp**: 2026-03-14T22:33:21.0517425+01:00
+- **Operator**: Codex CLI (Coder)
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Aligned PostgreSQL Loom search with the portable search surface, escaped literal wildcard tokens, and fixed sorted-view filter group selection.
+
+- **Target File**: `src/backend/handshake_core/src/storage/sqlite.rs`
+- **Start**: 1
+- **End**: 5515
+- **Line Delta**: 130
+- **Pre-SHA1**: `3284fe89e6d4ac792248b5496b640cffff4e4b46`
+- **Post-SHA1**: `6d815d9ff393eb7073462bcc57bd14286049c6e2`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom` PASS; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance` PASS; `just gov-check` PASS
+- **Artifacts**: See `## EVIDENCE` log entries for command outputs and SHA256 values.
+- **Timestamp**: 2026-03-14T22:33:21.0517425+01:00
+- **Operator**: Codex CLI (Coder)
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Fixed sorted-view filter semantics so SQLite and PostgreSQL select the same filtered Loom groups.
+
+- **Target File**: `src/backend/handshake_core/src/storage/tests.rs`
+- **Start**: 1
+- **End**: 2263
+- **Line Delta**: 720
+- **Pre-SHA1**: `477228885d07d32c9b7f3152435f183a2b08f0e4`
+- **Post-SHA1**: `83a3a74e37c6ddcd7c335a6cc22694eba328fbfc`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom` PASS; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance` PASS; `just gov-check` PASS
+- **Artifacts**: See `## EVIDENCE` log entries for command outputs and SHA256 values.
+- **Timestamp**: 2026-03-14T22:33:21.0517425+01:00
+- **Operator**: Codex CLI (Coder)
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Added shared Loom conformance coverage for CRUD, dedup, filtered views, search parity, source-anchor round-trips, and portable migration assertions.
+
+- **Target File**: `src/backend/handshake_core/tests/storage_conformance.rs`
+- **Start**: 1
+- **End**: 54
+- **Line Delta**: 25
+- **Pre-SHA1**: `726bb066a5eb261596002b602bb13bf5ea59bfc8`
+- **Post-SHA1**: `654cec765edf820ee71d4b3663823110f9341632`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom` PASS; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance` PASS; `just gov-check` PASS
+- **Artifacts**: See `## EVIDENCE` log entries for command outputs and SHA256 values.
+- **Timestamp**: 2026-03-14T22:33:21.0517425+01:00
+- **Operator**: Codex CLI (Coder)
+- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
+- **Notes**: Wired the shared Loom conformance helper into both SQLite and PostgreSQL integration entrypoints.
 
 ## STATUS_HANDOFF
-- (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
-- Current WP_STATUS:
-- What changed in this update:
-- Next step / handoff hint:
+- Current WP_STATUS: Implementation complete; GATES_PASS (`just post-work`) PASS; TEST_PLAN evidence recorded; ready for validator re-review on the staged packet-scoped diff
+- What changed in this update: Fixed PostgreSQL Loom search portability so the backend searches only `title`, `original_filename`, and `full_text_index`, escapes literal `%` / `_` tokens, and still applies tag/mention/mime/content filters; fixed sorted-view filter group selection parity in both backends; added shared Loom conformance coverage for CRUD, dedup, views, search filters, source-anchor round-trips, and portable migration expectations; added Loom asset-path invariance tests.
+- Next step / handoff hint: Re-run validator review against the staged Loom diff and the recorded `## VALIDATION`, `## EVIDENCE_MAPPING`, and `## EVIDENCE` blocks; the only post-work warning was that the broader worktree still has unrelated unstaged governance churn outside the staged packet diff.
 
 ## EVIDENCE_MAPPING
-- (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
-- Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `N/A until implementation begins`
+- REQUIREMENT: "Loom block, edge, view, search, and source-anchor semantics remain stable across SQLite and PostgreSQL implementations."
+- EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:1987`
+- EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:2336`
+- EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:2407`
+- EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:2755`
+- EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:573`
+- EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:1060`
+- EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:1114`
+- EVIDENCE: `src/backend/handshake_core/tests/storage_conformance.rs:32`
+- EVIDENCE: `src/backend/handshake_core/tests/storage_conformance.rs:40`
+- REQUIREMENT: "Portable migrations and down migrations for Loom tables stay replay-safe and provider-neutral."
+- EVIDENCE: `src/backend/handshake_core/migrations/0013_loom_mvp.sql:39`
+- EVIDENCE: `src/backend/handshake_core/migrations/0013_loom_mvp.sql:74`
+- EVIDENCE: `src/backend/handshake_core/migrations/0013_loom_mvp.down.sql:2`
+- EVIDENCE: `src/backend/handshake_core/migrations/0013_loom_mvp.down.sql:3`
+- EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:2108`
+- EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:2187`
+- REQUIREMENT: "Shared Loom conformance tests prove parity for CRUD, dedup, views, search filters, and source-anchor round-trips across both backends."
+- EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:573`
+- EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:1114`
+- EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:1131`
+- EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:1148`
+- EVIDENCE: `src/backend/handshake_core/tests/storage_conformance.rs:32`
+- EVIDENCE: `src/backend/handshake_core/tests/storage_conformance.rs:40`
+- REQUIREMENT: "Filesystem asset-path layout remains stable and compatible with the portable storage contract."
+- EVIDENCE: `src/backend/handshake_core/src/loom_fs.rs:41`
+- EVIDENCE: `src/backend/handshake_core/src/loom_fs.rs:58`
+- REQUIREMENT: "[ADD v02.156] LoomBlock/LoomEdge records, LoomViewFilters, LoomSearchFilters, LoomBlockSearchResult, and LoomSourceAnchor are canonical portable backend library contracts. Their meaning MUST survive SQLite-now / PostgreSQL-ready storage, export, and replay instead of being hidden behind view-only adapters."
+- EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:1987`
+- EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:2407`
+- EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:573`
+- EVIDENCE: `src/backend/handshake_core/tests/storage_conformance.rs:32`
+- REQUIREMENT: "[LM-SEARCH-001] The search API MUST be backend-agnostic. The storage trait exposes `search_loom_blocks(query, filters) -> Vec<LoomBlockSearchResult>`. The implementation varies by backend."
+- EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:2336`
+- EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:2403`
+- EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:2419`
+- EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:2431`
+- EVIDENCE: `src/backend/handshake_core/src/storage/sqlite.rs:2755`
+- EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:1114`
+- EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:1131`
+- EVIDENCE: `src/backend/handshake_core/src/storage/tests.rs:1148`
+- REQUIREMENT: "[LM-SEARCH-002] On PostgreSQL, search results MUST be filterable by graph relationships (tags, mentions, backlink depth) within the query."
+- EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:2419`
+- EVIDENCE: `src/backend/handshake_core/src/storage/postgres.rs:2431`
 
 ## EVIDENCE
-- (Coder appends logs, test outputs, and proof of work here. No verdicts.)
-- Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v1/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom`
+- EXIT_CODE: 0
+- LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v1/loom_lib.log`
+- LOG_SHA256: `8fd29dcddd38b38d688743b251add6913854d52ff4673caf438f895fe7f14f4b`
+- PROOF_LINES: `test api::loom::tests::view_and_search_emit_events ... ok`; `test api::loom::tests::import_dedup_emits_fr_evt_loom_006 ... ok`; `test storage::tests::loom_migration_schema_is_portable_postgres ... ok`; `test storage::tests::loom_migration_schema_is_portable_sqlite ... ok`; `test result: ok. 6 passed; 0 failed`
+
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance`
+- EXIT_CODE: 0
+- LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v1/storage_conformance.log`
+- LOG_SHA256: `d5cf132585d48499a5ec454e8eb92a01716a1a39914a03aaa5cfdca9623df5cf`
+- PROOF_LINES: `test postgres_loom_storage_conformance ... ok`; `test postgres_storage_conformance ... ok`; `test sqlite_loom_storage_conformance ... ok`; `test sqlite_storage_conformance ... ok`; `test result: ok. 4 passed; 0 failed`
+
+- COMMAND: `just build-order-sync`
+- EXIT_CODE: 0
+- LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v1/build_order_sync.log`
+- LOG_SHA256: `8e2785da99fde70c8d65cdf9b6908b4709b59f734b80293666a7dccea5aaa3d0`
+- PROOF_LINES: `build-order-sync ok: .GOV/roles_shared/BUILD_ORDER.md already up to date`
+
+- COMMAND: `just gov-check`
+- EXIT_CODE: 0
+- LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v1/gov_check.log`
+- LOG_SHA256: `a3843e88b44f6f6c7b21f5f041986ec5bdbabc8c58a6fdeec2e2d96e37f8efe4`
+- PROOF_LINES: `build-order-check ok`; `task-packet-claim-check ok`; `session-policy-check ok`; `session-control-runtime-check ok`; `gov-check ok`
+
+- COMMAND: `just post-work WP-1-Loom-Storage-Portability-v1`
+- EXIT_CODE: 0
+- LOG_PATH: `.handshake/logs/WP-1-Loom-Storage-Portability-v1/post_work.log`
+- LOG_SHA256: `ff9588c63f931c75036b4b63339f8d599cdf82d800217ee71e889f2423f9e405`
+- PROOF_LINES: `Post-work validation PASSED (deterministic manifest gate; not tests) with warnings`; `RESULT: PASS`; `WHY: Post-work checks passed.`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+
+## VALIDATION REPORT - WP-1-Loom-Storage-Portability-v1 (2026-03-14)
+Verdict: FAIL
+
+Validation Claims:
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Loom-Storage-Portability-v1`; not tests): FAIL
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): NO
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Loom-Storage-Portability-v1.md` (status: In Progress)
+- Spec: `Handshake_Master_Spec_v02.178.md` (`2.3.13 Storage Backend Portability Architecture`, `2.3.13.7 Loom Storage Trait + Portable Schema`, `10.12 Loom`, including `LM-SEARCH-001` and `LM-SEARCH-002`)
+
+Files Checked:
+- `src/backend/handshake_core/src/api/loom.rs`
+- `src/backend/handshake_core/src/loom_fs.rs`
+- `src/backend/handshake_core/src/storage/loom.rs`
+- `src/backend/handshake_core/src/storage/postgres.rs`
+- `src/backend/handshake_core/src/storage/sqlite.rs`
+- `src/backend/handshake_core/src/storage/tests.rs`
+- `src/backend/handshake_core/tests/storage_conformance.rs`
+- `.GOV/task_packets/WP-1-Loom-Storage-Portability-v1.md`
+- `.GOV/refinements/WP-1-Loom-Storage-Portability-v1.md`
+
+Findings:
+- Packet handoff incomplete [CX-573][COR-701]: `## VALIDATION`, `## STATUS_HANDOFF`, `## EVIDENCE_MAPPING`, and `## EVIDENCE` still contain template placeholders instead of the required manifest hashes, file windows, requirement-to-evidence mappings, and command evidence. `just post-work WP-1-Loom-Storage-Portability-v1` therefore fails before a PASS verdict can be considered.
+- PostgreSQL search token handling is not backend-agnostic for wildcard and special-character queries. `normalize_loom_search_tokens` leaves `%` and `_` intact, and `search_loom_blocks` turns each token into `ILIKE '%{token}%'` predicates. Queries such as `%` or `_` will broad-match rows on PostgreSQL while the SQLite FTS path tokenizes and quotes those inputs differently, so the portable search contract does not currently hold.
+- The new Loom conformance tests do not cover the special-character search path. Current added coverage exercises alphanumeric queries (`portable parity`, `plan`, `metadata_shadow`) but does not protect the `%` / `_` parity case that the PostgreSQL implementation now exposes.
+
+Hygiene / Forbidden Patterns:
+- `just validator-scan`: PASS
+- `just validator-dal-audit`: PASS
+- `just gov-check`: PASS
+
+Tests:
+- `cargo test -p handshake_core loom --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
+- `cargo test -p handshake_core --test storage_conformance --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
+
+Risks & Suggested Actions:
+- Fill the packet handoff sections with the real deterministic manifest, requirement-to-file evidence, and command evidence, then re-run `just post-work WP-1-Loom-Storage-Portability-v1`.
+- Escape `%` and `_` (or switch to a typed full-text search path) in PostgreSQL Loom search so user queries cannot silently change semantics by backend.
+- Add a dual-backend Loom search test that asserts identical behavior for wildcard/special-character queries.
+
+Reason for FAIL:
+- The deterministic manifest gate failed, which is a hard blocker for validation closure.
+- The PostgreSQL search implementation still permits backend-specific wildcard semantics, so the packet's portability target is not yet met.

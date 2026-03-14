@@ -328,6 +328,21 @@ fn map_loom_edge(row: PgRow) -> StorageResult<LoomEdge> {
     })
 }
 
+fn normalize_loom_search_tokens(raw: &str) -> Vec<String> {
+    raw.split_whitespace()
+        .map(|token| token.trim_matches('"').trim())
+        .filter(|token| !token.is_empty())
+        .map(|token| token.to_string())
+        .collect()
+}
+
+fn escape_like_token(token: &str) -> String {
+    token
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
+}
+
 fn map_ai_job(row: PgRow) -> StorageResult<AiJob> {
     let job_inputs = row
         .get::<Option<String>, _>("job_inputs")
@@ -1979,10 +1994,13 @@ impl super::Database for PostgresDatabase {
     ) -> StorageResult<LoomViewResponse> {
         let limit_i64 = limit as i64;
         let offset_i64 = offset as i64;
+        let select_filters = filters.clone();
 
-        let select_blocks = |extra_where: Option<&'static str>| async move {
-            let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
-                r#"
+        let select_blocks = |extra_where: Option<&'static str>| {
+            let filters = select_filters.clone();
+            async move {
+                let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
+                    r#"
                 SELECT
                     b.block_id,
                     b.workspace_id,
@@ -2008,80 +2026,81 @@ impl super::Database for PostgresDatabase {
                 LEFT JOIN assets a
                   ON a.workspace_id = b.workspace_id AND a.asset_id = b.asset_id
                 "#,
-            );
+                );
 
-            let mut has_where = false;
-            let mut push_clause = |builder: &mut sqlx::QueryBuilder<sqlx::Postgres>| {
-                if has_where {
-                    builder.push(" AND ");
-                } else {
-                    builder.push(" WHERE ");
-                    has_where = true;
+                let mut has_where = false;
+                let mut push_clause = |builder: &mut sqlx::QueryBuilder<sqlx::Postgres>| {
+                    if has_where {
+                        builder.push(" AND ");
+                    } else {
+                        builder.push(" WHERE ");
+                        has_where = true;
+                    }
+                };
+
+                push_clause(&mut qb);
+                qb.push("b.workspace_id = ").push_bind(workspace_id);
+
+                if let Some(extra) = extra_where {
+                    push_clause(&mut qb);
+                    qb.push(extra);
                 }
-            };
 
-            push_clause(&mut qb);
-            qb.push("b.workspace_id = ").push_bind(workspace_id);
+                if let Some(content_type) = filters.content_type {
+                    push_clause(&mut qb);
+                    qb.push("b.content_type = ")
+                        .push_bind(content_type.as_str());
+                }
 
-            if let Some(extra) = extra_where {
-                push_clause(&mut qb);
-                qb.push(extra);
-            }
+                if let Some(mime) = filters.mime {
+                    push_clause(&mut qb);
+                    qb.push("a.mime = ").push_bind(mime);
+                }
 
-            if let Some(content_type) = filters.content_type {
-                push_clause(&mut qb);
-                qb.push("b.content_type = ")
-                    .push_bind(content_type.as_str());
-            }
+                if let Some(from) = filters.date_from {
+                    push_clause(&mut qb);
+                    qb.push("b.updated_at >= ").push_bind(from);
+                }
+                if let Some(to) = filters.date_to {
+                    push_clause(&mut qb);
+                    qb.push("b.updated_at <= ").push_bind(to);
+                }
 
-            if let Some(mime) = filters.mime {
-                push_clause(&mut qb);
-                qb.push("a.mime = ").push_bind(mime);
-            }
-
-            if let Some(from) = filters.date_from {
-                push_clause(&mut qb);
-                qb.push("b.updated_at >= ").push_bind(from);
-            }
-            if let Some(to) = filters.date_to {
-                push_clause(&mut qb);
-                qb.push("b.updated_at <= ").push_bind(to);
-            }
-
-            if !filters.tag_ids.is_empty() {
-                push_clause(&mut qb);
-                qb.push(
+                if !filters.tag_ids.is_empty() {
+                    push_clause(&mut qb);
+                    qb.push(
                     "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'tag' AND e.target_block_id IN (",
                 );
-                let mut separated = qb.separated(", ");
-                for tag_id in &filters.tag_ids {
-                    separated.push_bind(tag_id);
+                    let mut separated = qb.separated(", ");
+                    for tag_id in &filters.tag_ids {
+                        separated.push_bind(tag_id);
+                    }
+                    separated.push_unseparated("))");
                 }
-                separated.push_unseparated("))");
-            }
 
-            if !filters.mention_ids.is_empty() {
-                push_clause(&mut qb);
-                qb.push(
+                if !filters.mention_ids.is_empty() {
+                    push_clause(&mut qb);
+                    qb.push(
                     "EXISTS (SELECT 1 FROM loom_edges e WHERE e.workspace_id = b.workspace_id AND e.source_block_id = b.block_id AND e.edge_type = 'mention' AND e.target_block_id IN (",
                 );
-                let mut separated = qb.separated(", ");
-                for mention_id in &filters.mention_ids {
-                    separated.push_bind(mention_id);
+                    let mut separated = qb.separated(", ");
+                    for mention_id in &filters.mention_ids {
+                        separated.push_bind(mention_id);
+                    }
+                    separated.push_unseparated("))");
                 }
-                separated.push_unseparated("))");
+
+                qb.push(" ORDER BY b.updated_at DESC ");
+                qb.push(" LIMIT ").push_bind(limit_i64);
+                qb.push(" OFFSET ").push_bind(offset_i64);
+
+                let rows = qb.build().fetch_all(&self.pool).await?;
+                let blocks: Vec<LoomBlock> = rows
+                    .into_iter()
+                    .map(map_loom_block)
+                    .collect::<StorageResult<Vec<_>>>()?;
+                Ok::<_, StorageError>(blocks)
             }
-
-            qb.push(" ORDER BY b.updated_at DESC ");
-            qb.push(" LIMIT ").push_bind(limit_i64);
-            qb.push(" OFFSET ").push_bind(offset_i64);
-
-            let rows = qb.build().fetch_all(&self.pool).await?;
-            let blocks: Vec<LoomBlock> = rows
-                .into_iter()
-                .map(map_loom_block)
-                .collect::<StorageResult<Vec<_>>>()?;
-            Ok::<_, StorageError>(blocks)
         };
 
         match view_type {
@@ -2109,21 +2128,86 @@ impl super::Database for PostgresDatabase {
                 Ok(LoomViewResponse::Unlinked { blocks })
             }
             LoomViewType::Sorted => {
-                let group_rows = sqlx::query(
+                let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
                     r#"
-                    SELECT DISTINCT edge_type, target_block_id
-                    FROM loom_edges
-                    WHERE workspace_id = $1
-                      AND edge_type IN ('mention', 'tag')
-                    ORDER BY edge_type ASC, target_block_id ASC
-                    LIMIT $2 OFFSET $3
+                    SELECT DISTINCT e.edge_type, e.target_block_id
+                    FROM loom_edges e
+                    JOIN loom_blocks b
+                      ON b.workspace_id = e.workspace_id AND b.block_id = e.source_block_id
+                    LEFT JOIN assets a
+                      ON a.workspace_id = b.workspace_id AND a.asset_id = b.asset_id
                     "#,
-                )
-                .bind(workspace_id)
-                .bind(limit_i64)
-                .bind(offset_i64)
-                .fetch_all(&self.pool)
-                .await?;
+                );
+
+                let mut has_where = false;
+                let mut push_clause = |builder: &mut sqlx::QueryBuilder<sqlx::Postgres>| {
+                    if has_where {
+                        builder.push(" AND ");
+                    } else {
+                        builder.push(" WHERE ");
+                        has_where = true;
+                    }
+                };
+
+                push_clause(&mut qb);
+                qb.push("e.workspace_id = ").push_bind(workspace_id);
+
+                push_clause(&mut qb);
+                qb.push("e.edge_type IN ('mention', 'tag')");
+
+                if let Some(content_type) = filters.content_type.clone() {
+                    push_clause(&mut qb);
+                    qb.push("b.content_type = ")
+                        .push_bind(content_type.as_str());
+                }
+
+                if let Some(mime) = filters.mime.clone() {
+                    push_clause(&mut qb);
+                    qb.push("a.mime = ").push_bind(mime);
+                }
+
+                if let Some(from) = filters.date_from {
+                    push_clause(&mut qb);
+                    qb.push("b.updated_at >= ").push_bind(from);
+                }
+                if let Some(to) = filters.date_to {
+                    push_clause(&mut qb);
+                    qb.push("b.updated_at <= ").push_bind(to);
+                }
+
+                if !filters.tag_ids.is_empty() {
+                    push_clause(&mut qb);
+                    qb.push(
+                        "EXISTS (SELECT 1 FROM loom_edges e2 WHERE e2.workspace_id = b.workspace_id AND e2.source_block_id = b.block_id AND e2.edge_type = 'tag' AND e2.target_block_id IN (",
+                    );
+                    let mut separated = qb.separated(", ");
+                    for tag_id in &filters.tag_ids {
+                        separated.push_bind(tag_id);
+                    }
+                    separated.push_unseparated("))");
+                }
+
+                if !filters.mention_ids.is_empty() {
+                    push_clause(&mut qb);
+                    qb.push(
+                        "EXISTS (SELECT 1 FROM loom_edges e2 WHERE e2.workspace_id = b.workspace_id AND e2.source_block_id = b.block_id AND e2.edge_type = 'mention' AND e2.target_block_id IN (",
+                    );
+                    let mut separated = qb.separated(", ");
+                    for mention_id in &filters.mention_ids {
+                        separated.push_bind(mention_id);
+                    }
+                    separated.push_unseparated("))");
+                }
+
+                qb.push(
+                    r#"
+                    ORDER BY edge_type ASC, target_block_id ASC
+                    LIMIT "#,
+                );
+                qb.push_bind(limit_i64);
+                qb.push(" OFFSET ").push_bind(offset_i64);
+
+                let group_rows = qb.build().fetch_all(&self.pool).await?;
 
                 let mut groups: Vec<LoomViewGroup> = Vec::new();
                 for row in group_rows {
@@ -2131,7 +2215,7 @@ impl super::Database for PostgresDatabase {
                     let target_block_id: String = row.get("target_block_id");
                     let edge_type = LoomEdgeType::from_str(edge_type_raw.as_str())?;
 
-                    let rows = sqlx::query(
+                    let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
                         r#"
                         SELECT
                             b.block_id,
@@ -2159,29 +2243,89 @@ impl super::Database for PostgresDatabase {
                           ON b.workspace_id = e.workspace_id AND b.block_id = e.source_block_id
                         LEFT JOIN assets a
                           ON a.workspace_id = b.workspace_id AND a.asset_id = b.asset_id
-                        WHERE e.workspace_id = $1
-                          AND e.edge_type = $2
-                          AND e.target_block_id = $3
-                        ORDER BY b.updated_at DESC
-                        LIMIT 100
                         "#,
-                    )
-                    .bind(workspace_id)
-                    .bind(edge_type.as_str())
-                    .bind(&target_block_id)
-                    .fetch_all(&self.pool)
-                    .await?;
+                    );
+
+                    let mut has_where = false;
+                    let mut push_clause = |builder: &mut sqlx::QueryBuilder<sqlx::Postgres>| {
+                        if has_where {
+                            builder.push(" AND ");
+                        } else {
+                            builder.push(" WHERE ");
+                            has_where = true;
+                        }
+                    };
+
+                    push_clause(&mut qb);
+                    qb.push("e.workspace_id = ").push_bind(workspace_id);
+
+                    push_clause(&mut qb);
+                    qb.push("e.edge_type = ").push_bind(edge_type.as_str());
+
+                    push_clause(&mut qb);
+                    qb.push("e.target_block_id = ").push_bind(&target_block_id);
+
+                    if let Some(content_type) = filters.content_type.clone() {
+                        push_clause(&mut qb);
+                        qb.push("b.content_type = ")
+                            .push_bind(content_type.as_str());
+                    }
+
+                    if let Some(mime) = filters.mime.clone() {
+                        push_clause(&mut qb);
+                        qb.push("a.mime = ").push_bind(mime);
+                    }
+
+                    if let Some(from) = filters.date_from {
+                        push_clause(&mut qb);
+                        qb.push("b.updated_at >= ").push_bind(from);
+                    }
+                    if let Some(to) = filters.date_to {
+                        push_clause(&mut qb);
+                        qb.push("b.updated_at <= ").push_bind(to);
+                    }
+
+                    if !filters.tag_ids.is_empty() {
+                        push_clause(&mut qb);
+                        qb.push(
+                            "EXISTS (SELECT 1 FROM loom_edges e2 WHERE e2.workspace_id = b.workspace_id AND e2.source_block_id = b.block_id AND e2.edge_type = 'tag' AND e2.target_block_id IN (",
+                        );
+                        let mut separated = qb.separated(", ");
+                        for tag_id in &filters.tag_ids {
+                            separated.push_bind(tag_id);
+                        }
+                        separated.push_unseparated("))");
+                    }
+
+                    if !filters.mention_ids.is_empty() {
+                        push_clause(&mut qb);
+                        qb.push(
+                            "EXISTS (SELECT 1 FROM loom_edges e2 WHERE e2.workspace_id = b.workspace_id AND e2.source_block_id = b.block_id AND e2.edge_type = 'mention' AND e2.target_block_id IN (",
+                        );
+                        let mut separated = qb.separated(", ");
+                        for mention_id in &filters.mention_ids {
+                            separated.push_bind(mention_id);
+                        }
+                        separated.push_unseparated("))");
+                    }
+
+                    qb.push(" ORDER BY b.updated_at DESC ");
+                    qb.push(" LIMIT 100");
+
+                    let rows = qb.build().fetch_all(&self.pool).await?;
 
                     let blocks: Vec<LoomBlock> = rows
                         .into_iter()
                         .map(map_loom_block)
                         .collect::<StorageResult<Vec<_>>>()?;
 
-                    groups.push(LoomViewGroup {
-                        edge_type,
-                        target_block_id,
-                        blocks,
-                    });
+                    if !blocks.is_empty() {
+                        groups.push(LoomViewGroup {
+                            edge_type,
+                            target_block_id,
+                            blocks,
+                        });
+                    }
                 }
 
                 Ok(LoomViewResponse::Sorted { groups })
@@ -2197,9 +2341,12 @@ impl super::Database for PostgresDatabase {
         limit: u32,
         offset: u32,
     ) -> StorageResult<Vec<LoomBlockSearchResult>> {
+        let tokens = normalize_loom_search_tokens(query);
+        if tokens.is_empty() {
+            return Ok(Vec::new());
+        }
         let limit_i64 = limit as i64;
         let offset_i64 = offset as i64;
-        let pattern = format!("%{}%", query);
 
         let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
             r#"
@@ -2243,10 +2390,21 @@ impl super::Database for PostgresDatabase {
         push_clause(&mut qb);
         qb.push("b.workspace_id = ").push_bind(workspace_id);
 
-        push_clause(&mut qb);
-        qb.push("(b.title ILIKE ").push_bind(&pattern);
-        qb.push(" OR b.derived_json ILIKE ").push_bind(&pattern);
-        qb.push(")");
+        for token in tokens {
+            let pattern = format!("%{}%", escape_like_token(&token));
+            push_clause(&mut qb);
+            qb.push("(");
+            qb.push("COALESCE(b.title, '') ILIKE ")
+                .push_bind(pattern.clone())
+                .push(" ESCAPE '\\'");
+            qb.push(" OR COALESCE(b.original_filename, '') ILIKE ")
+                .push_bind(pattern.clone())
+                .push(" ESCAPE '\\'");
+            qb.push(" OR COALESCE((b.derived_json::jsonb ->> 'full_text_index'), '') ILIKE ")
+                .push_bind(pattern)
+                .push(" ESCAPE '\\'");
+            qb.push(")");
+        }
 
         if let Some(content_type) = filters.content_type {
             push_clause(&mut qb);
@@ -2282,7 +2440,7 @@ impl super::Database for PostgresDatabase {
             separated.push_unseparated("))");
         }
 
-        qb.push(" ORDER BY b.updated_at DESC ");
+        qb.push(" ORDER BY b.updated_at DESC, b.block_id ASC ");
         qb.push(" LIMIT ").push_bind(limit_i64);
         qb.push(" OFFSET ").push_bind(offset_i64);
 

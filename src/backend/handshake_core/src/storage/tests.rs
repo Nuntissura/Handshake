@@ -4,9 +4,12 @@ use super::{
     CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert, CalendarEventVisibility,
     CalendarEventWindowQuery, CalendarSourceProviderType, CalendarSourceSyncState,
     CalendarSourceUpsert, CalendarSourceWritePolicy, Database, DefaultStorageGuard, EntityRef,
-    GuardError, JobKind, JobMetrics, JobState, JobStatusUpdate, NewAiJob, NewBlock, NewCanvas,
-    NewCanvasEdge, NewCanvasNode, NewDocument, NewNodeExecution, NewWorkspace, OperationType,
-    PlannedOperation, SafetyMode, StorageError, StorageGuard, StorageResult, WriteContext,
+    GuardError, JobKind, JobMetrics, JobState, JobStatusUpdate, LoomBlock, LoomBlockContentType,
+    LoomBlockSearchResult, LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters, LoomSourceAnchor,
+    LoomViewFilters, LoomViewResponse, LoomViewType, NewAiJob, NewAsset, NewBlock, NewCanvas,
+    NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock, NewLoomEdge, NewNodeExecution,
+    NewWorkspace, OperationType, PlannedOperation, SafetyMode, StorageError, StorageGuard,
+    StorageResult, WriteContext,
 };
 use chrono::Duration;
 use chrono::Utc;
@@ -14,6 +17,7 @@ use serde_json::json;
 use sqlx::Connection;
 #[cfg(test)]
 use sqlx::Row;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -528,6 +532,665 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
     db.delete_document(&ctx, &document.id).await?;
     db.delete_canvas(&ctx, &canvas.id).await?;
     db.delete_workspace(&ctx, &workspace.id).await?;
+
+    Ok(())
+}
+
+fn sorted_strings<I>(items: I) -> Vec<String>
+where
+    I: IntoIterator<Item = String>,
+{
+    let mut items: Vec<String> = items.into_iter().collect();
+    items.sort();
+    items
+}
+
+fn loom_block_ids(blocks: &[LoomBlock]) -> Vec<String> {
+    sorted_strings(blocks.iter().map(|block| block.block_id.clone()))
+}
+
+fn loom_search_ids(results: &[LoomBlockSearchResult]) -> Vec<String> {
+    sorted_strings(results.iter().map(|result| result.block.block_id.clone()))
+}
+
+fn sorted_view_groups(resp: &LoomViewResponse) -> BTreeMap<String, Vec<String>> {
+    let LoomViewResponse::Sorted { groups } = resp else {
+        panic!("expected sorted loom view response");
+    };
+
+    groups
+        .iter()
+        .map(|group| {
+            (
+                format!("{}:{}", group.edge_type.as_str(), group.target_block_id),
+                loom_block_ids(&group.blocks),
+            )
+        })
+        .collect()
+}
+
+#[allow(dead_code)]
+pub async fn run_loom_storage_conformance(db: Arc<dyn super::Database>) -> StorageResult<()> {
+    db.ping().await?;
+
+    let ctx = WriteContext::human(Some("loom-tester".into()));
+    let workspace = db
+        .create_workspace(
+            &ctx,
+            NewWorkspace {
+                name: format!("loom-ws-{}", Uuid::new_v4()),
+            },
+        )
+        .await?;
+    let document = db
+        .create_document(
+            &ctx,
+            NewDocument {
+                workspace_id: workspace.id.clone(),
+                title: "Loom Source Doc".into(),
+            },
+        )
+        .await?;
+    let source_block = db
+        .create_block(
+            &ctx,
+            NewBlock {
+                id: None,
+                document_id: document.id.clone(),
+                kind: "paragraph".into(),
+                sequence: 1,
+                raw_content: "portable anchor source".into(),
+                display_content: None,
+                derived_content: Some(json!({"loom": true})),
+                sensitivity: None,
+                exportable: None,
+            },
+        )
+        .await?;
+
+    let tag_hub = db
+        .create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: None,
+                workspace_id: workspace.id.clone(),
+                content_type: LoomBlockContentType::TagHub,
+                document_id: None,
+                asset_id: None,
+                title: Some("Portable Tag".into()),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: super::LoomBlockDerived {
+                    full_text_index: Some("portable tag hub".into()),
+                    ..Default::default()
+                },
+            },
+        )
+        .await?;
+
+    let portable_note = db
+        .create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: None,
+                workspace_id: workspace.id.clone(),
+                content_type: LoomBlockContentType::Note,
+                document_id: Some(document.id.clone()),
+                asset_id: None,
+                title: Some("Portable".into()),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: super::LoomBlockDerived {
+                    full_text_index: Some("parity notes".into()),
+                    auto_caption: Some("metadata_shadow".into()),
+                    ..Default::default()
+                },
+            },
+        )
+        .await?;
+
+    let unlinked_note = db
+        .create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: None,
+                workspace_id: workspace.id.clone(),
+                content_type: LoomBlockContentType::Note,
+                document_id: Some(document.id.clone()),
+                asset_id: None,
+                title: Some("Detached".into()),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: super::LoomBlockDerived {
+                    full_text_index: Some("orphaned note".into()),
+                    ..Default::default()
+                },
+            },
+        )
+        .await?;
+
+    let mention_target = db
+        .create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: None,
+                workspace_id: workspace.id.clone(),
+                content_type: LoomBlockContentType::Note,
+                document_id: Some(document.id.clone()),
+                asset_id: None,
+                title: Some("Anchor Target".into()),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: super::LoomBlockDerived {
+                    full_text_index: Some("anchor target".into()),
+                    ..Default::default()
+                },
+            },
+        )
+        .await?;
+
+    let file_only_target = db
+        .create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: Some("00000000-0000-0000-0000-000000000001".into()),
+                workspace_id: workspace.id.clone(),
+                content_type: LoomBlockContentType::Note,
+                document_id: Some(document.id.clone()),
+                asset_id: None,
+                title: Some("File Only Target".into()),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: super::LoomBlockDerived {
+                    full_text_index: Some("file scoped mention target".into()),
+                    ..Default::default()
+                },
+            },
+        )
+        .await?;
+
+    let asset = db
+        .create_asset(
+            &ctx,
+            NewAsset {
+                workspace_id: workspace.id.clone(),
+                kind: "original".into(),
+                mime: "text/plain".into(),
+                original_filename: Some("portable plan.txt".into()),
+                content_hash: format!("{:064x}", 42_u32),
+                size_bytes: 128,
+                width: None,
+                height: None,
+                classification: "low".into(),
+                exportable: true,
+                is_proxy_of: None,
+                proxy_asset_id: None,
+            },
+        )
+        .await?;
+
+    let file_block = db
+        .create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: None,
+                workspace_id: workspace.id.clone(),
+                content_type: LoomBlockContentType::File,
+                document_id: None,
+                asset_id: Some(asset.asset_id.clone()),
+                title: Some("Transport".into()),
+                original_filename: asset.original_filename.clone(),
+                content_hash: Some(asset.content_hash.clone()),
+                pinned: false,
+                journal_date: None,
+                imported_at: Some(Utc::now()),
+                derived: super::LoomBlockDerived {
+                    full_text_index: Some("document archive".into()),
+                    ..Default::default()
+                },
+            },
+        )
+        .await?;
+
+    let by_hash = db
+        .find_loom_block_by_content_hash(&workspace.id, &asset.content_hash)
+        .await?
+        .ok_or(StorageError::NotFound("loom_block_by_content_hash"))?;
+    assert_eq!(by_hash.block_id, file_block.block_id);
+
+    let by_asset = db
+        .find_loom_block_by_asset_id(&workspace.id, &asset.asset_id)
+        .await?
+        .ok_or(StorageError::NotFound("loom_block_by_asset_id"))?;
+    assert_eq!(by_asset.block_id, file_block.block_id);
+
+    let portable_note = db
+        .update_loom_block(
+            &ctx,
+            &workspace.id,
+            &portable_note.block_id,
+            super::LoomBlockUpdate {
+                title: Some("Portable".into()),
+                pinned: Some(true),
+                journal_date: Some("2026-03-14".into()),
+            },
+        )
+        .await?;
+    assert!(portable_note.pinned);
+    assert_eq!(portable_note.journal_date.as_deref(), Some("2026-03-14"));
+
+    let anchor = LoomSourceAnchor {
+        document_id: document.id.clone(),
+        block_id: source_block.id.clone(),
+        offset_start: 3,
+        offset_end: 12,
+    };
+
+    let tag_edge = db
+        .create_loom_edge(
+            &ctx,
+            NewLoomEdge {
+                edge_id: None,
+                workspace_id: workspace.id.clone(),
+                source_block_id: portable_note.block_id.clone(),
+                target_block_id: tag_hub.block_id.clone(),
+                edge_type: LoomEdgeType::Tag,
+                created_by: LoomEdgeCreatedBy::User,
+                crdt_site_id: Some("site-a".into()),
+                source_anchor: Some(anchor.clone()),
+            },
+        )
+        .await?;
+    let mention_edge = db
+        .create_loom_edge(
+            &ctx,
+            NewLoomEdge {
+                edge_id: None,
+                workspace_id: workspace.id.clone(),
+                source_block_id: portable_note.block_id.clone(),
+                target_block_id: mention_target.block_id.clone(),
+                edge_type: LoomEdgeType::Mention,
+                created_by: LoomEdgeCreatedBy::User,
+                crdt_site_id: None,
+                source_anchor: Some(anchor.clone()),
+            },
+        )
+        .await?;
+    let _file_tag_edge = db
+        .create_loom_edge(
+            &ctx,
+            NewLoomEdge {
+                edge_id: None,
+                workspace_id: workspace.id.clone(),
+                source_block_id: file_block.block_id.clone(),
+                target_block_id: tag_hub.block_id.clone(),
+                edge_type: LoomEdgeType::Tag,
+                created_by: LoomEdgeCreatedBy::User,
+                crdt_site_id: None,
+                source_anchor: None,
+            },
+        )
+        .await?;
+    let _file_mention_edge = db
+        .create_loom_edge(
+            &ctx,
+            NewLoomEdge {
+                edge_id: None,
+                workspace_id: workspace.id.clone(),
+                source_block_id: file_block.block_id.clone(),
+                target_block_id: file_only_target.block_id.clone(),
+                edge_type: LoomEdgeType::Mention,
+                created_by: LoomEdgeCreatedBy::User,
+                crdt_site_id: None,
+                source_anchor: None,
+            },
+        )
+        .await?;
+
+    let portable_note = db
+        .get_loom_block(&workspace.id, &portable_note.block_id)
+        .await?;
+    assert_eq!(portable_note.derived.mention_count, 1);
+    assert_eq!(portable_note.derived.tag_count, 1);
+    assert_eq!(portable_note.derived.backlink_count, 0);
+
+    let mention_target_loaded = db
+        .get_loom_block(&workspace.id, &mention_target.block_id)
+        .await?;
+    assert_eq!(mention_target_loaded.derived.backlink_count, 1);
+
+    let tag_hub_loaded = db.get_loom_block(&workspace.id, &tag_hub.block_id).await?;
+    assert_eq!(tag_hub_loaded.derived.backlink_count, 2);
+
+    let file_block_loaded = db
+        .get_loom_block(&workspace.id, &file_block.block_id)
+        .await?;
+    assert_eq!(file_block_loaded.derived.tag_count, 1);
+
+    let note_edges = db
+        .list_loom_edges_for_block(&workspace.id, &portable_note.block_id)
+        .await?;
+    assert_eq!(note_edges.len(), 2);
+    let round_tripped_anchor = note_edges
+        .iter()
+        .find(|edge| edge.edge_id == mention_edge.edge_id)
+        .and_then(|edge| edge.source_anchor.as_ref())
+        .ok_or(StorageError::NotFound("loom_source_anchor"))?;
+    assert_eq!(round_tripped_anchor.document_id, anchor.document_id);
+    assert_eq!(round_tripped_anchor.block_id, anchor.block_id);
+    assert_eq!(round_tripped_anchor.offset_start, anchor.offset_start);
+    assert_eq!(round_tripped_anchor.offset_end, anchor.offset_end);
+
+    let all_notes = db
+        .query_loom_view(
+            &workspace.id,
+            LoomViewType::All,
+            LoomViewFilters {
+                content_type: Some(LoomBlockContentType::Note),
+                ..Default::default()
+            },
+            50,
+            0,
+        )
+        .await?;
+    let LoomViewResponse::All { blocks } = all_notes else {
+        panic!("expected all view response");
+    };
+    assert_eq!(
+        loom_block_ids(&blocks),
+        sorted_strings(vec![
+            file_only_target.block_id.clone(),
+            portable_note.block_id.clone(),
+            unlinked_note.block_id.clone(),
+            mention_target.block_id.clone(),
+        ])
+    );
+
+    let future_notes = db
+        .query_loom_view(
+            &workspace.id,
+            LoomViewType::All,
+            LoomViewFilters {
+                date_from: Some(Utc::now() + Duration::days(1)),
+                ..Default::default()
+            },
+            50,
+            0,
+        )
+        .await?;
+    let LoomViewResponse::All {
+        blocks: future_blocks,
+    } = future_notes
+    else {
+        panic!("expected all view response");
+    };
+    assert!(future_blocks.is_empty());
+
+    let pinned = db
+        .query_loom_view(
+            &workspace.id,
+            LoomViewType::Pins,
+            LoomViewFilters::default(),
+            50,
+            0,
+        )
+        .await?;
+    let LoomViewResponse::Pins { blocks } = pinned else {
+        panic!("expected pins view response");
+    };
+    assert_eq!(
+        loom_block_ids(&blocks),
+        vec![portable_note.block_id.clone()]
+    );
+
+    let tagged_notes = db
+        .query_loom_view(
+            &workspace.id,
+            LoomViewType::All,
+            LoomViewFilters {
+                content_type: Some(LoomBlockContentType::Note),
+                tag_ids: vec![tag_hub.block_id.clone()],
+                ..Default::default()
+            },
+            50,
+            0,
+        )
+        .await?;
+    let LoomViewResponse::All { blocks } = tagged_notes else {
+        panic!("expected all view response");
+    };
+    assert_eq!(
+        loom_block_ids(&blocks),
+        vec![portable_note.block_id.clone()]
+    );
+
+    let mentioned_notes = db
+        .query_loom_view(
+            &workspace.id,
+            LoomViewType::All,
+            LoomViewFilters {
+                content_type: Some(LoomBlockContentType::Note),
+                mention_ids: vec![mention_target.block_id.clone()],
+                ..Default::default()
+            },
+            50,
+            0,
+        )
+        .await?;
+    let LoomViewResponse::All { blocks } = mentioned_notes else {
+        panic!("expected all view response");
+    };
+    assert_eq!(
+        loom_block_ids(&blocks),
+        vec![portable_note.block_id.clone()]
+    );
+
+    let mime_blocks = db
+        .query_loom_view(
+            &workspace.id,
+            LoomViewType::All,
+            LoomViewFilters {
+                mime: Some("text/plain".into()),
+                ..Default::default()
+            },
+            50,
+            0,
+        )
+        .await?;
+    let LoomViewResponse::All { blocks } = mime_blocks else {
+        panic!("expected all view response");
+    };
+    assert_eq!(loom_block_ids(&blocks), vec![file_block.block_id.clone()]);
+
+    let unlinked = db
+        .query_loom_view(
+            &workspace.id,
+            LoomViewType::Unlinked,
+            LoomViewFilters::default(),
+            50,
+            0,
+        )
+        .await?;
+    let LoomViewResponse::Unlinked { blocks } = unlinked else {
+        panic!("expected unlinked view response");
+    };
+    assert_eq!(
+        loom_block_ids(&blocks),
+        vec![unlinked_note.block_id.clone()]
+    );
+
+    let sorted_notes = db
+        .query_loom_view(
+            &workspace.id,
+            LoomViewType::Sorted,
+            LoomViewFilters {
+                content_type: Some(LoomBlockContentType::Note),
+                ..Default::default()
+            },
+            50,
+            0,
+        )
+        .await?;
+    let sorted_groups = sorted_view_groups(&sorted_notes);
+    assert_eq!(sorted_groups.len(), 2);
+    assert_eq!(
+        sorted_groups.get(&format!("mention:{}", mention_target.block_id)),
+        Some(&vec![portable_note.block_id.clone()])
+    );
+    assert_eq!(
+        sorted_groups.get(&format!("tag:{}", tag_hub.block_id)),
+        Some(&vec![portable_note.block_id.clone()])
+    );
+
+    let paged_sorted_notes = db
+        .query_loom_view(
+            &workspace.id,
+            LoomViewType::Sorted,
+            LoomViewFilters {
+                content_type: Some(LoomBlockContentType::Note),
+                ..Default::default()
+            },
+            1,
+            0,
+        )
+        .await?;
+    let paged_groups = sorted_view_groups(&paged_sorted_notes);
+    assert_eq!(paged_groups.len(), 1);
+    assert_eq!(
+        paged_groups.get(&format!("mention:{}", mention_target.block_id)),
+        Some(&vec![portable_note.block_id.clone()])
+    );
+
+    let tagged_note_search = db
+        .search_loom_blocks(
+            &workspace.id,
+            "portable parity",
+            LoomSearchFilters {
+                content_type: Some(LoomBlockContentType::Note),
+                tag_ids: vec![tag_hub.block_id.clone()],
+                ..Default::default()
+            },
+            50,
+            0,
+        )
+        .await?;
+    assert_eq!(
+        loom_search_ids(&tagged_note_search),
+        vec![portable_note.block_id.clone()]
+    );
+
+    let filename_search = db
+        .search_loom_blocks(
+            &workspace.id,
+            "plan",
+            LoomSearchFilters {
+                mime: Some("text/plain".into()),
+                ..Default::default()
+            },
+            50,
+            0,
+        )
+        .await?;
+    assert_eq!(
+        loom_search_ids(&filename_search),
+        vec![file_block.block_id.clone()]
+    );
+
+    let metadata_only_search = db
+        .search_loom_blocks(
+            &workspace.id,
+            "metadata_shadow",
+            LoomSearchFilters {
+                content_type: Some(LoomBlockContentType::Note),
+                ..Default::default()
+            },
+            50,
+            0,
+        )
+        .await?;
+    assert!(
+        metadata_only_search.is_empty(),
+        "metadata-only derived fields must not be searchable"
+    );
+
+    let literal_percent_search = db
+        .search_loom_blocks(
+            &workspace.id,
+            "%",
+            LoomSearchFilters {
+                content_type: Some(LoomBlockContentType::Note),
+                ..Default::default()
+            },
+            50,
+            0,
+        )
+        .await?;
+    assert!(
+        literal_percent_search.is_empty(),
+        "literal wildcard characters must not broad-match by backend"
+    );
+
+    let literal_underscore_search = db
+        .search_loom_blocks(
+            &workspace.id,
+            "_",
+            LoomSearchFilters {
+                content_type: Some(LoomBlockContentType::Note),
+                ..Default::default()
+            },
+            50,
+            0,
+        )
+        .await?;
+    assert!(
+        literal_underscore_search.is_empty(),
+        "literal wildcard characters must not broad-match by backend"
+    );
+
+    let removed_edge = db
+        .delete_loom_edge(&ctx, &workspace.id, &mention_edge.edge_id)
+        .await?;
+    assert_eq!(removed_edge.edge_id, mention_edge.edge_id);
+    let portable_note_after_delete = db
+        .get_loom_block(&workspace.id, &portable_note.block_id)
+        .await?;
+    let mention_target_after_delete = db
+        .get_loom_block(&workspace.id, &mention_target.block_id)
+        .await?;
+    assert_eq!(portable_note_after_delete.derived.mention_count, 0);
+    assert_eq!(mention_target_after_delete.derived.backlink_count, 0);
+
+    let removed_tag = db
+        .delete_loom_edge(&ctx, &workspace.id, &tag_edge.edge_id)
+        .await?;
+    assert_eq!(removed_tag.edge_id, tag_edge.edge_id);
+    let portable_note_after_tag_delete = db
+        .get_loom_block(&workspace.id, &portable_note.block_id)
+        .await?;
+    assert_eq!(portable_note_after_tag_delete.derived.tag_count, 0);
+
+    db.delete_loom_block(&ctx, &workspace.id, &unlinked_note.block_id)
+        .await?;
+    assert!(matches!(
+        db.get_loom_block(&workspace.id, &unlinked_note.block_id)
+            .await,
+        Err(StorageError::NotFound("loom_block"))
+    ));
 
     Ok(())
 }
@@ -1442,6 +2105,25 @@ async fn migrations_are_replay_safe_sqlite() -> StorageResult<()> {
 }
 
 #[tokio::test]
+async fn loom_migration_schema_is_portable_sqlite() -> StorageResult<()> {
+    let migrator = sqlx::migrate!("./migrations");
+    let mut conn = sqlx::SqliteConnection::connect("sqlite::memory:").await?;
+
+    migrator.run(&mut conn).await?;
+
+    let tables = sqlite_user_table_names(&mut conn).await?;
+    assert!(tables.iter().any(|name| name == "assets"));
+    assert!(tables.iter().any(|name| name == "loom_blocks"));
+    assert!(tables.iter().any(|name| name == "loom_edges"));
+    assert!(
+        !tables.iter().any(|name| name == "loom_blocks_fts"),
+        "provider-local SQLite FTS tables must not be part of portable migration DDL"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn migrations_can_undo_to_baseline_sqlite() -> StorageResult<()> {
     let migrator = sqlx::migrate!("./migrations");
     let mut conn = sqlx::SqliteConnection::connect("sqlite::memory:").await?;
@@ -1490,6 +2172,44 @@ async fn migrations_are_replay_safe_postgres() -> StorageResult<()> {
     let after = postgres_schema_fingerprint(&mut conn).await?;
 
     assert_eq!(before, after);
+
+    sqlx::query("SET search_path TO public")
+        .execute(&mut conn)
+        .await?;
+    sqlx::query(&format!("DROP SCHEMA IF EXISTS {schema} CASCADE"))
+        .execute(&mut conn)
+        .await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn loom_migration_schema_is_portable_postgres() -> StorageResult<()> {
+    let Some(url) = postgres_test_url() else {
+        return Ok(());
+    };
+
+    let mut conn = sqlx::PgConnection::connect(&url).await?;
+    let schema = format!("wp1_loom_mig_{}", Uuid::new_v4().simple());
+
+    sqlx::query(&format!("CREATE SCHEMA {schema}"))
+        .execute(&mut conn)
+        .await?;
+    sqlx::query(&format!("SET search_path TO {schema}"))
+        .execute(&mut conn)
+        .await?;
+
+    let migrator = sqlx::migrate!("./migrations");
+    migrator.run(&mut conn).await?;
+
+    let tables = postgres_user_table_names(&mut conn).await?;
+    assert!(tables.iter().any(|name| name == "assets"));
+    assert!(tables.iter().any(|name| name == "loom_blocks"));
+    assert!(tables.iter().any(|name| name == "loom_edges"));
+    assert!(
+        !tables.iter().any(|name| name == "loom_blocks_fts"),
+        "provider-local search structures must not be part of portable PostgreSQL migration DDL"
+    );
 
     sqlx::query("SET search_path TO public")
         .execute(&mut conn)
