@@ -696,3 +696,92 @@ Risks & Suggested Actions:
 Reason for FAIL:
 - The deterministic manifest gate failed, which is a hard blocker for validation closure.
 - The PostgreSQL search implementation still permits backend-specific wildcard semantics, so the packet's portability target is not yet met.
+
+## VALIDATION REPORT - WP-1-Loom-Storage-Portability-v1 (2026-03-14 REVALIDATION)
+Verdict: FAIL
+
+Validation Claims:
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Loom-Storage-Portability-v1`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): NO
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Loom-Storage-Portability-v1.md` (status: In Progress)
+- Spec: `Handshake_Master_Spec_v02.178.md` (`2.3.13 Storage Backend Portability Architecture`, `2.3.13.7 Loom Storage Trait + Portable Schema`, `10.12 Loom`, including `LM-SEARCH-001` and `LM-SEARCH-002`)
+- Revalidated commit: `32948835b3d9c8c7b1cbeb7b20b79ed81350acae`
+
+Files Checked:
+- `src/backend/handshake_core/src/storage/postgres.rs`
+- `src/backend/handshake_core/src/storage/tests.rs`
+- `.GOV/task_packets/WP-1-Loom-Storage-Portability-v1.md`
+- `.GOV/roles_shared/TASK_BOARD.md`
+- `Handshake_Master_Spec_v02.178.md`
+- `.GOV/scripts/validation/spec-eof-appendices-check.mjs`
+
+Findings:
+- The prior Loom blockers are fixed for the committed HEAD. The packet now contains a populated validation/evidence handoff, `just post-work WP-1-Loom-Storage-Portability-v1 --rev 32948835b3d9c8c7b1cbeb7b20b79ed81350acae` passes, PostgreSQL search now escapes `%` and `_`, and regression coverage exists for literal percent/underscore searches.
+- Final integration closure is still blocked by governance drift. `just gov-check` fails because `Handshake_Master_Spec_v02.178.md` still lists `WP-1-Structured-Collaboration-Artifact-Family-v1` under `FEAT-LOCUS-WORK-TRACKING` `gap_stub_ids`, while `.GOV/roles_shared/TASK_BOARD.md` marks that packet `[VALIDATED]`. The validator gate only accepts gap references that are `[STUB]` or active official packets (`[READY_FOR_DEV]`, `[IN_PROGRESS]`, `[BLOCKED]`, `[ACTIVE]`), so the current committed state is not merge-ready.
+
+Hygiene / Forbidden Patterns:
+- `just validator-scan`: PASS
+- `just validator-dal-audit`: PASS
+- `just gov-check`: FAIL
+
+Tests:
+- `cargo test -p handshake_core loom --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
+- `cargo test -p handshake_core --test storage_conformance --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
+- `just post-work WP-1-Loom-Storage-Portability-v1 --rev 32948835b3d9c8c7b1cbeb7b20b79ed81350acae`: PASS
+
+Risks & Suggested Actions:
+- Remove or replace the stale `WP-1-Structured-Collaboration-Artifact-Family-v1` gap reference from the spec appendix row for `FEAT-LOCUS-WORK-TRACKING`, or move the packet back into an active task-board state that matches the appendix semantics.
+- Re-run `just gov-check` after that governance correction before requesting another final integration validation.
+
+Reason for FAIL:
+- The committed Loom implementation now validates at the code and manifest levels, but the branch still fails the required merge-blocking governance gate.
+
+## VALIDATION REPORT - WP-1-Loom-Storage-Portability-v1 (2026-03-15 REVALIDATION)
+Verdict: FAIL
+
+Validation Claims:
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Loom-Storage-Portability-v1`; not tests): FAIL
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): NO
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Loom-Storage-Portability-v1.md` (status: In Progress)
+- Spec: `Handshake_Master_Spec_v02.178.md` (`2.3.13 Storage Backend Portability Architecture`, `2.3.13.7 Loom Storage Trait + Portable Schema`, `10.12 Loom`, including `LM-SEARCH-001` and `LM-SEARCH-002`)
+- Revalidated commit: `c4ba7deb57810293d4f6e4bea207eeb2e56a645b`
+
+Files Checked:
+- `src/backend/handshake_core/src/storage/postgres.rs`
+- `src/backend/handshake_core/src/storage/tests.rs`
+- `.GOV/task_packets/WP-1-Loom-Storage-Portability-v1.md`
+- `.GOV/task_packets/WP-1-Structured-Collaboration-Artifact-Family-v1.md`
+- `.GOV/roles_shared/TASK_BOARD.md`
+- `.GOV/roles_shared/BUILD_ORDER.md`
+- `.GOV/scripts/validation/spec-eof-appendices-check.mjs`
+- `.GOV/scripts/validation/task-board-check.mjs`
+
+Findings:
+- The prior Loom implementation issues remain fixed. The packet TEST_PLAN commands pass for the current head: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom` and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance`.
+- The governance fix commit resolves the previous appendix-state blocker by allowing validated and other non-active official packet states in `spec-eof-appendices-check.mjs`, and `spec-eof-appendices-check` now passes inside `just gov-check`.
+- Final integration closure is still blocked by a different governance defect. `just gov-check` now fails because `.GOV/roles_shared/TASK_BOARD.md` marks `WP-1-Structured-Collaboration-Artifact-Family-v1` as `[VALIDATED]`, while `.GOV/task_packets/WP-1-Structured-Collaboration-Artifact-Family-v1.md` only contains `Verdict: PENDING`. `task-board-check.mjs` requires a `Verdict: PASS|FAIL|OUTDATED_ONLY` line for modern packets that are marked done/validated.
+- `just post-work WP-1-Loom-Storage-Portability-v1 --rev c4ba7deb57810293d4f6e4bea207eeb2e56a645b` fails for the current committed head. The commit changes `.GOV/roles_shared/BUILD_ORDER.md`, but the Loom packet manifest is still scoped to the earlier Loom product-file set and pre-SHA chain, so the deterministic manifest gate reports an out-of-scope governance file plus stale `pre_sha1` expectations for the Loom files.
+
+Hygiene / Forbidden Patterns:
+- `just validator-scan`: PASS
+- `just validator-dal-audit`: PASS
+- `just gov-check`: FAIL
+
+Tests:
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
+- `just post-work WP-1-Loom-Storage-Portability-v1 --rev c4ba7deb57810293d4f6e4bea207eeb2e56a645b`: FAIL
+
+Risks & Suggested Actions:
+- Add the required Validator verdict line to `WP-1-Structured-Collaboration-Artifact-Family-v1` or move that packet out of `[VALIDATED]` state before expecting `just gov-check` to pass.
+- Reconcile the Loom packet manifest with the governance-only follow-up commit on this WP branch, or move the governance repair out of this WP branch so `just post-work --rev c4ba7deb57810293d4f6e4bea207eeb2e56a645b` validates the actual committed diff.
+- Re-run `just gov-check` and `just post-work WP-1-Loom-Storage-Portability-v1 --rev c4ba7deb57810293d4f6e4bea207eeb2e56a645b` before requesting another final integration validation.
+
+Reason for FAIL:
+- The current committed Loom branch state still fails both the merge-blocking governance check and the deterministic manifest gate.
