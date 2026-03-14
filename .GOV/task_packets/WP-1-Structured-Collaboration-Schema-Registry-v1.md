@@ -898,3 +898,35 @@ Tests:
 
 REASON FOR FAIL:
 - The current committed merge candidate cannot receive final integration PASS while committed-state `just gov-check` fails on the branch itself. This rerun confirms the Schema WP product diff is technically ready, but the branch remains not merge-ready until the committed topology registry matches the current generator output and the full governance gate passes.
+
+VALIDATION REPORT - WP-1-Structured-Collaboration-Schema-Registry-v1
+Verdict: PASS
+
+Validation Claims:
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD`): PASS
+- TEST_PLAN_PASS (packet acceptance coverage): PASS
+- SPEC_CONFORMANCE_CONFIRMED (merge-candidate level): YES
+
+Validation Scope:
+- Candidate range: `1a2568b0842ecc7b9b9aca4efcc9911cc2ce8cc8..ab224c1a1701736c58e9299a2ce5aa41138f6a4b`
+- Validated commit: `ab224c1a1701736c58e9299a2ce5aa41138f6a4b`
+- Feature branch authority: `origin/feat/WP-1-Structured-Collaboration-Schema-Registry-v1`
+- Spec authority: `Handshake_Master_Spec_v02.178.md`
+
+Findings:
+- The committed candidate is merge-valid in detached validation mode. `just validator-handoff-check WP-1-Structured-Collaboration-Schema-Registry-v1` passed, `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD` passed, and `just gov-check` passed in the clean detached validation worktree after the required one-time `just topology-registry-sync` preflight.
+- The topology-registry preflight did not reveal a committed content delta for the candidate: after running `just topology-registry-sync`, `git diff --ignore-cr-at-eol --exit-code -- .GOV/roles_shared/GIT_TOPOLOGY_REGISTRY.json` stayed clean, and the remaining working-copy touch was consistent with Windows line-ending normalization rather than a committed governance drift.
+- Packet-scoped product acceptance remains satisfied on the validated commit. `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test micro_task_executor_tests locus_register_mts_emits_structured_micro_task_packet_and_summary` passed, and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test role_mailbox_tests role_mailbox_index_api_` passed. The committed candidate therefore satisfies the required micro-task packet+summary emission, mailbox index validation, packet evidence completeness, and packet scope discipline checks for this WP.
+
+Tests:
+- `just validator-packet-complete WP-1-Structured-Collaboration-Schema-Registry-v1`: PASS
+- `just topology-registry-sync`: PASS (detached preflight)
+- `git diff --ignore-cr-at-eol --exit-code -- .GOV/roles_shared/GIT_TOPOLOGY_REGISTRY.json`: PASS
+- `just gov-check`: PASS
+- `just validator-handoff-check WP-1-Structured-Collaboration-Schema-Registry-v1`: PASS
+- `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD`: PASS (warnings only; waiver applied)
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test micro_task_executor_tests locus_register_mts_emits_structured_micro_task_packet_and_summary`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --target-dir D:\hct --test role_mailbox_tests role_mailbox_index_api_`: PASS
+
+REASON FOR PASS:
+- Final integration and merge-authority validation succeeded for `ab224c1a1701736c58e9299a2ce5aa41138f6a4b`. The candidate clears the required governance gates in detached validation mode, preserves the previously-validated schema implementation behavior, and is ready for merge/closure under the current WP protocol.
