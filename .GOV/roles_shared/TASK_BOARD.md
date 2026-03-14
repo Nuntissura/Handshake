@@ -52,7 +52,6 @@ Entry format (recommended):
 ---
 
 - **[WP-1-Structured-Collaboration-Schema-Registry-v1]** - [ACTIVE] - branch: feat/WP-1-Structured-Collaboration-Schema-Registry-v1 - coder: Coder-A/gpt-5.4 - last_sync: 2026-03-14
-- **[WP-1-Loom-Storage-Portability-v1]** - [ACTIVE] - branch: feat/WP-1-Loom-Storage-Portability-v1 - coder: Coder-B/gpt-5.4 - last_sync: 2026-03-14
 
 
 ## Ready for Dev
