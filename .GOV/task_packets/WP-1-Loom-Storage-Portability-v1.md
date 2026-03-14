@@ -346,7 +346,6 @@ Next: validator review plus coder closeout on any findings
   - Justification: Operator explicitly authorized live-smoketest governance remediation and workflow/tooling repair while keeping product-code scope restricted to the Loom packet. These governance files are required to preserve packet truth, validator evidence, and cross-packet repository compliance for this WP branch.
   - Approver: Operator (chat instruction on 2026-03-14)
   - Expiry: On WP closure (validation complete).
-- NONE
 
 ## QUALITY_GATE
 ### TEST_PLAN
