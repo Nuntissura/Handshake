@@ -93,6 +93,10 @@ enumerate-cleanup-targets:
 delete-local-worktree worktree_id approval:
 	node .GOV/scripts/delete-local-worktree.mjs {{worktree_id}} --approve "{{approval}}"
 
+# Generate a single-target, token-gated cleanup script for a merged WP role worktree.
+generate-worktree-cleanup-script wp-id role:
+	node .GOV/scripts/generate-worktree-cleanup-script.mjs {{wp-id}} {{role}}
+
 # Master Spec EOF appendix blocks check (Spec §12).
 spec-eof-appendices-check:
 	node .GOV/scripts/validation/spec-eof-appendices-check.mjs
@@ -138,6 +142,63 @@ launch-integration-validator-session wp-id host="AUTO" model="PRIMARY":
 
 session-registry-status wp-id="":
 	node .GOV/scripts/session-registry-status.mjs {{wp-id}}
+
+handshake-acp-bridge:
+	node .GOV/tools/handshake-acp-bridge/agent.mjs
+
+session-start role wp-id model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs START_SESSION {{role}} {{wp-id}} "" {{model}}
+
+session-send role wp-id prompt model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs SEND_PROMPT {{role}} {{wp-id}} "{{prompt}}" {{model}}
+
+session-cancel role wp-id:
+	node .GOV/scripts/session-control-cancel.mjs {{role}} {{wp-id}}
+
+session-close role wp-id:
+	node .GOV/scripts/session-control-command.mjs CLOSE_SESSION {{role}} {{wp-id}}
+
+handshake-acp-broker-status:
+	node .GOV/scripts/session-control-broker.mjs status
+
+handshake-acp-broker-stop:
+	node .GOV/scripts/session-control-broker.mjs stop
+
+start-coder-session wp-id model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs START_SESSION CODER {{wp-id}} "" {{model}}
+
+start-wp-validator-session wp-id model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs START_SESSION WP_VALIDATOR {{wp-id}} "" {{model}}
+
+start-integration-validator-session wp-id model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs START_SESSION INTEGRATION_VALIDATOR {{wp-id}} "" {{model}}
+
+steer-coder-session wp-id prompt model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs SEND_PROMPT CODER {{wp-id}} "{{prompt}}" {{model}}
+
+cancel-coder-session wp-id:
+	node .GOV/scripts/session-control-cancel.mjs CODER {{wp-id}}
+
+close-coder-session wp-id:
+	node .GOV/scripts/session-control-command.mjs CLOSE_SESSION CODER {{wp-id}}
+
+steer-wp-validator-session wp-id prompt model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs SEND_PROMPT WP_VALIDATOR {{wp-id}} "{{prompt}}" {{model}}
+
+cancel-wp-validator-session wp-id:
+	node .GOV/scripts/session-control-cancel.mjs WP_VALIDATOR {{wp-id}}
+
+close-wp-validator-session wp-id:
+	node .GOV/scripts/session-control-command.mjs CLOSE_SESSION WP_VALIDATOR {{wp-id}}
+
+steer-integration-validator-session wp-id prompt model="PRIMARY":
+	node .GOV/scripts/session-control-command.mjs SEND_PROMPT INTEGRATION_VALIDATOR {{wp-id}} "{{prompt}}" {{model}}
+
+cancel-integration-validator-session wp-id:
+	node .GOV/scripts/session-control-cancel.mjs INTEGRATION_VALIDATOR {{wp-id}}
+
+close-integration-validator-session wp-id:
+	node .GOV/scripts/session-control-command.mjs CLOSE_SESSION INTEGRATION_VALIDATOR {{wp-id}}
 
 session-launch-runtime-check:
 	node .GOV/scripts/validation/session-launch-runtime-check.mjs
@@ -322,6 +383,9 @@ wp-heartbeat wp-id actor-role actor-session current-phase runtime-status next-ex
 operator-monitor *args:
 	@node .GOV/scripts/operator-monitor-tui.mjs {{args}}
 
+operator-admin *args:
+	@node .GOV/scripts/operator-monitor-tui.mjs --admin {{args}}
+
 # Create new task packet stub from template (backlog; non-executable)
 create-task-packet-stub wp-id roadmap_pointer="" line_numbers="":
 	@echo "Creating task packet stub: {{wp-id}}..."
@@ -413,6 +477,12 @@ validator-git-hygiene:
 
 validator-hygiene-full:
 	@node .GOV/scripts/validation/validator-hygiene-full.mjs
+
+validator-handoff-check wp-id *args:
+	@node .GOV/scripts/validation/validator-handoff-check.mjs {{wp-id}} {{args}}
+
+external-validator-brief wp-id *args:
+	@node .GOV/scripts/validation/external-validator-brief.mjs {{wp-id}} {{args}}
 
 # Validator Gate Commands [CX-VAL-GATE] - Mechanical enforcement of validation sequence
 validator-gate-present wp-id verdict="":
