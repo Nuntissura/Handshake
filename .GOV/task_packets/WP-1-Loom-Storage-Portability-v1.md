@@ -425,8 +425,25 @@ rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|Loo
   - "Loom portability work widens into workflow-runtime changes" -> "packet loses file-lock isolation and becomes harder to validate"
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - `src/backend/handshake_core/src/storage/mod.rs`: keep the existing `Database` Loom method surface as the canonical portability boundary; tighten any doc comments or helper wiring only if needed to make CRUD, dedup, view, search, and source-anchor semantics explicit without expanding the public API.
+  - `src/backend/handshake_core/src/storage/loom.rs`: keep `LoomBlock`, `LoomEdge`, `LoomViewFilters`, `LoomSearchFilters`, `LoomBlockSearchResult`, and `LoomSourceAnchor` as the portable contract types; add only small shared validation/normalization helpers here if needed so both backends interpret filters and source-anchor payloads identically.
+  - `src/backend/handshake_core/src/storage/sqlite.rs`: preserve SQLite-local FTS5 and index maintenance, but align block create/update, edge metric recompute, view filtering, sorted grouping, and search filter semantics with the shared contract; keep provider-local optimization out of portable migration law.
+  - `src/backend/handshake_core/src/storage/postgres.rs`: bring PostgreSQL Loom behavior into parity with SQLite for block CRUD, dedup lookup, edge/source-anchor round-trips, derived metric updates, view filtering, and search result membership; backend-specific search implementation may differ, but filter meaning, result identity, and ordering tie-breaks must stay portable.
+  - `src/backend/handshake_core/src/api/loom.rs`: keep the API layer thin and contract-driven by validating request invariants that affect portability (`tag_hub` target rules, source-anchor bounds, dedup/import flow) while avoiding preview protocol or workflow-runtime redesign.
+  - `src/backend/handshake_core/src/loom_fs.rs`: preserve the on-disk Loom asset layout at `data/workspaces/<workspace_id>/assets/<tier>/<content_hash>` as part of the portability contract and cover it with focused tests instead of changing the layout.
+  - `src/backend/handshake_core/migrations/0013_loom_mvp.sql` and `src/backend/handshake_core/migrations/0013_loom_mvp.down.sql`: keep Loom tables and indexes replay-safe, provider-neutral, and undo-safe; portable DDL stays limited to shared tables/indexes, while backend-local search structures remain outside portable migration law.
+  - `src/backend/handshake_core/src/storage/tests.rs`: add a shared Loom storage conformance helper that seeds blocks, assets, edges, tags, mentions, and anchors once and asserts the same semantic outcomes for SQLite and PostgreSQL.
+  - `src/backend/handshake_core/tests/storage_conformance.rs`: extend the cross-backend suite to run the Loom conformance helper for both providers so parity is proven by one test shape rather than duplicated backend-specific assertions.
 - Open questions:
+  - Should PostgreSQL search remain a simpler provider-local implementation for now, with parity enforced on filter meaning and result membership only, or is the current gap large enough that this WP should move it to native PostgreSQL text-search primitives?
+  - Should the portability suite treat `LoomBlockSearchResult.score` as backend-local and assert only stable inclusion plus deterministic tie-break ordering, not score equality?
+  - Are `mention_count`, `tag_count`, and `backlink_count` intentionally defined only by `mention` and `tag` edges, or should the contract widen to include other edge types? The current code updates only those two edge families.
+  - Do we need a migration-level assertion that no provider-local search tables or virtual tables become canonical schema requirements, given SQLite currently bootstraps `loom_blocks_fts` outside `0013_loom_mvp.sql`?
 - Notes:
+  - Current code reality already matches the intended seam: `storage/mod.rs` defines one Loom API, `storage/loom.rs` holds the contract types, and both providers implement the surface independently.
+  - The main drift risk is search: SQLite uses `loom_blocks_fts` plus `bm25`, while PostgreSQL currently uses `ILIKE` against block fields/derived JSON and returns `score: 0.0`; the conformance suite should lock down portable semantics while allowing backend-local ranking.
+  - There is no Loom-specific coverage yet in `src/backend/handshake_core/src/storage/tests.rs` or `src/backend/handshake_core/tests/storage_conformance.rs`, so shared parity tests are the primary deliverable, not optional cleanup.
+  - `loom_fs.rs` already centralizes the asset-path rule; portability work should verify that storage metadata and filesystem placement continue to agree rather than introducing a new path scheme.
 
 ## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
 - UI_UX_APPLICABLE=NO in the signed refinement. No user-facing surface is in scope for this packet.
