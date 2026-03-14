@@ -410,8 +410,32 @@ rg -n "schema_id|schema_version|project_profile_kind|mirror_state|authority_refs
   - "profile extensions are not compatibility-gated" -> "future project kernels silently fork the shared record contract"
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - `src/backend/handshake_core/src/locus/types.rs`
+    - Add a canonical `StructuredCollaborationSchemaRegistry` surface plus typed descriptors for `tracked_work_packet`, `tracked_micro_task`, `task_board_entry`, `role_mailbox_index`, and `role_mailbox_thread_line`.
+    - Add machine-readable validation payloads for `unknown_schema`, `schema_version_mismatch`, `incompatible_profile_extension`, `summary_join_mismatch`, and `authority_scope_mismatch`.
+    - Add shared envelope and compact-summary helper types so workflow code validates `record_id`, `record_kind`, `project_profile_kind`, `mirror_state`, `authority_refs`, `evidence_refs`, and summary/detail linkage through one path.
+  - `src/backend/handshake_core/src/runtime_governance.rs`
+    - Add runtime artifact path and display helpers for work-packet `packet.json` and `summary.json`, micro-task `packet.json` and `summary.json`, task-board `index.json` and `views/{view_id}.json`, and mailbox `index.json` plus `threads/*.jsonl`.
+    - Add a strict runtime-authority helper that treats `.handshake/gov/**` as valid product-runtime schema authority and rejects `.GOV/**` when registry validation is checking collaboration artifact ownership.
+  - `src/backend/handshake_core/src/workflows.rs`
+    - Replace file-local schema literals in the micro-task executor and task-board sync paths with registry lookups from `locus/types.rs`.
+    - Emit deterministic validation objects into workflow results and persisted metadata when a summary/detail pair, schema version, or profile-extension posture is incompatible instead of silently accepting or skipping the check.
+  - `src/backend/handshake_core/src/locus/task_board.rs`
+    - Extend the task-board model from markdown tokens only to registry-backed projection row, index, and view builders and validators while keeping markdown rewrite behavior as a derived view.
+    - Validate task-board row identity and shared authority refs against the same registry contract used by work-packet and micro-task artifacts.
+  - `src/backend/handshake_core/src/role_mailbox.rs` and `src/backend/handshake_core/src/api/role_mailbox.rs`
+    - Replace mailbox-local export shaping (`schema_version` only today) with registry-backed `index.json` and `threads/*.jsonl` records that carry full base-envelope identity and version fields plus deterministic validation failures.
+    - Make the API `read_index` path validate the exported runtime `index.json` through the same registry before returning it.
+  - Tests
+    - `src/backend/handshake_core/tests/role_mailbox_tests.rs`: extend deterministic export coverage to assert registry fields on `index.json` and thread lines, shared authority/evidence posture, and rejection/reporting when mailbox export authority drifts toward `.GOV/**` or an incompatible schema id/version is injected.
+    - `src/backend/handshake_core/tests/micro_task_executor_tests.rs`: add executor/Locus coverage proving registry-backed micro-task validation returns machine-readable mismatch payloads for summary/detail drift, unknown schema versions, or incompatible profile-extension posture instead of silent fallback.
 - Open questions:
+  - Prefer to keep the existing persisted `TrackedWorkPacket` and `TrackedMicroTask` storage layout stable and derive the shared envelope through registry helpers first; only widen persisted structs if the current serialization path cannot express the required fields without breaking existing compatibility.
+  - Confirm the concrete runtime location for structured task-board projection JSON (`.handshake/gov/task_board/...` sibling directory versus the current `TASK_BOARD.md`-only layout) before implementation, because `runtime_governance.rs` does not expose those paths yet.
+  - Keep `export_manifest.json` as mailbox-export plumbing unless implementation proves it must join the canonical registry; the registry authority in this WP is `index.json` plus `threads/*.jsonl`, not governance-side `.GOV` ledgers.
 - Notes:
+  - No Loom portability files, `.GOV` control-plane mailbox validation surfaces, or viewer/UI work will be touched in this WP.
+  - The implementation will stay inside the packet-listed backend files plus the two listed test files, and the explicit verification target remains `cargo test -p handshake_core` plus `just gov-check`.
 
 ## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
 - UI_UX_APPLICABLE=NO in the signed refinement. No user-facing surface is in scope for this packet.
