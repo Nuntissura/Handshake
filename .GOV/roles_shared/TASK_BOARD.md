@@ -51,6 +51,9 @@ Entry format (recommended):
 
 ---
 
+- **[WP-1-Structured-Collaboration-Schema-Registry-v1]** - [ACTIVE] - branch: feat/WP-1-Structured-Collaboration-Schema-Registry-v1 - coder: Coder-A/gpt-5.4 - last_sync: 2026-03-14
+- **[WP-1-Loom-Storage-Portability-v1]** - [ACTIVE] - branch: feat/WP-1-Loom-Storage-Portability-v1 - coder: Coder-B/gpt-5.4 - last_sync: 2026-03-14
+
 
 ## Ready for Dev
 
@@ -58,10 +61,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACE
 
 - **[WP-1-Spec-Enrichment-LLM-Core-v1]** - [READY_FOR_DEV]
 - **[WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2]** - [READY_FOR_DEV]
-
-- **[WP-1-Structured-Collaboration-Schema-Registry-v1]** - [READY_FOR_DEV]
-
-- **[WP-1-Loom-Storage-Portability-v1]** - [READY_FOR_DEV]
 
 ## Stub Backlog (Not Activated)
 
@@ -171,6 +170,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
+- **[WP-1-Structured-Collaboration-Schema-Registry-v1]** - [IN_PROGRESS]
 
 
 ## Done
