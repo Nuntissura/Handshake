@@ -10,6 +10,7 @@ export const RUNTIME_STATUS_SCHEMA_PATH = ".GOV/schemas/WP_RUNTIME_STATUS.schema
 export const RECEIPT_SCHEMA_PATH = ".GOV/schemas/WP_RECEIPT.schema.json";
 
 export const WORKFLOW_LANE_VALUES = ["MANUAL_RELAY", "ORCHESTRATOR_MANAGED"];
+export { EXECUTION_OWNER_VALUES };
 export const AGENTIC_MODE_VALUES = ["YES", "NO"];
 export const PACKET_STATUS_VALUES = [
   "Ready for Dev",

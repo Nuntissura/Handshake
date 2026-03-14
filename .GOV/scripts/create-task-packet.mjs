@@ -554,8 +554,8 @@ const replaceSingleField = (text, label, value) =>
 const escapeRegExp = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const replaceSection = (text, heading, newSection) =>
   text.replace(
-    new RegExp(`##\\s+${escapeRegExp(heading)}\\b[\\s\\S]*?(?=(?:\\r?\\n)##\\s+[^#]|$)`),
-    newSection.trim(),
+    new RegExp(`(^|\\r?\\n)##\\s+${escapeRegExp(heading)}\\b[\\s\\S]*?(?=(?:\\r?\\n)##\\s+[^#]|$)`, 'm'),
+    (_match, prefix) => `${prefix}${newSection.trim()}`,
   );
 const githubTreeBase = () => {
   try {
@@ -714,7 +714,7 @@ template = replaceSingleField(template, 'EXECUTION_OWNER', normalizedExecutionOw
 template = replaceSingleField(template, 'AGENTIC_MODE', 'NO');
 template = replaceSingleField(template, 'ORCHESTRATOR_MODEL', 'N/A');
 template = replaceSingleField(template, 'ORCHESTRATION_STARTED_AT_UTC', 'N/A');
-template = replaceSingleField(template, 'CODER_MODEL', '<unclaimed>');
+template = replaceSingleField(template, 'CODER_MODEL', executionLane || '<unclaimed>');
 template = replaceSingleField(template, 'CODER_REASONING_STRENGTH', '<unclaimed>');
 template = replaceSingleField(template, 'SUB_AGENT_DELEGATION', 'DISALLOWED');
 template = replaceSingleField(template, 'OPERATOR_APPROVAL_EVIDENCE', 'N/A');
