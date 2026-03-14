@@ -51,7 +51,6 @@ Entry format (recommended):
 
 ---
 
-- **[WP-1-Structured-Collaboration-Schema-Registry-v1]** - [ACTIVE] - branch: feat/WP-1-Structured-Collaboration-Schema-Registry-v1 - coder: Coder-A/gpt-5.4 - last_sync: 2026-03-14
 
 
 ## Ready for Dev
@@ -170,10 +169,10 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 
 Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 
-- **[WP-1-Structured-Collaboration-Schema-Registry-v1]** - [IN_PROGRESS]
 
 
 ## Done
+- **[WP-1-Structured-Collaboration-Schema-Registry-v1]** - [VALIDATED]
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]
 - **[WP-1-Front-End-Memory-System-v1]** - [VALIDATED]
 - **[WP-1-Unified-Tool-Surface-Contract-v1]** - [VALIDATED]
