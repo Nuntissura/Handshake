@@ -330,7 +330,12 @@ Next: validator review plus coder closeout on any findings
   - governance-only `.GOV` mailbox ledgers or session-control schemas
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
-- NONE
+- WAIVER-LIVE-SMOKETEST-GOV-SYNC-WP-1-Structured-Collaboration-Schema-Registry-v1-001 [CX-573F]
+  - Date: 2026-03-14
+  - Scope: `.GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RECEIPTS.jsonl`, `.GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RUNTIME_STATUS.json`, `.GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/THREAD.md`, `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`, `.GOV/scripts/create-task-packet.mjs`, `.GOV/scripts/validation/external-validator-brief.mjs`, `.GOV/scripts/validation/spec-eof-appendices-check.mjs`, `.GOV/scripts/validation/validator-handoff-check.mjs`, `.GOV/scripts/wp-communications-lib.mjs`, and `justfile`.
+  - Justification: Operator explicitly authorized governance/repo-workflow patching under Orchestrator supervision during this live smoketest and instructed the Orchestrator to patch bugs/errors on the go. These committed files are governance/session-control remediation needed to keep validator handoff and packet generation truthful; they do not alter the in-scope product implementation for this WP.
+  - Approver: Operator (chat instructions on 2026-03-14)
+  - Expiry: Until final validation/merge disposition for this WP.
 
 ## QUALITY_GATE
 ### TEST_PLAN
@@ -628,15 +633,41 @@ rg -n "schema_id|schema_version|project_profile_kind|mirror_state|authority_refs
 - **Spec Target Resolved**: `.GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md`
 - **Notes**: staged diff only
 
+- **Target File**: `justfile`
+- **Start**: 96
+- **End**: 486
+- **Line Delta**: 70
+- **Pre-SHA1**: `eab695ee51bbbe00542bed602f853c0e0110b58c`
+- **Post-SHA1**: `6d5e099d6914a4a3d42fc126a0ed737a57e00740`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: `just gov-check` ok on the repaired validator-tooling sync; no product-source formatting impact
+- **Artifacts**: session-control recipe additions, validator handoff/external brief recipes, cleanup-script recipe, and the live-smoketest validator-tooling sync required by the committed branch range
+- **Timestamp**: `2026-03-14T21:58:00Z`
+- **Operator**: `ORCHESTRATOR`
+- **Spec Target Resolved**: `.GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md`
+- **Notes**: governance-only live-smoketest remediation committed after the product implementation to repair validator handoff and session-control workflow defects without changing WP-scoped backend behavior
+
 ## STATUS_HANDOFF
-- Current WP_STATUS: In Progress
+- Current WP_STATUS: Implementation complete; committed range includes a governance-only live-smoketest sync commit and is ready for validator re-review once the full committed range is used.
 - What changed in this update:
   - Implemented canonical schema registry and validation plumbing across work-packet, micro-task, task-board, and role-mailbox structured artifacts.
   - Added runtime emission and validation for work-packet packet/summary, micro-task packet/summary, task-board index/view, and mailbox index/thread-line structured exports.
   - Added packet-scoped tests for deterministic success and validation-failure paths, including API-level mailbox index reads.
   - Filled packet implementation, hygiene, validation manifest, evidence mapping, and evidence sections for deterministic post-work closure.
+  - Recorded the committed governance-only validator/session-control sync required during the live smoketest so the branch-level validator handoff remains auditable.
 - Next step / handoff hint:
-  - Run `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1` on the staged packet-scoped diff, commit the staged implementation if PASS, then rerun `just validator-handoff-check WP-1-Structured-Collaboration-Schema-Registry-v1 --rev HEAD`.
+  - Run `just post-work WP-1-Structured-Collaboration-Schema-Registry-v1 --range 1a2568b0842ecc7b9b9aca4efcc9911cc2ce8cc8..HEAD` and `just validator-handoff-check WP-1-Structured-Collaboration-Schema-Registry-v1 --range 1a2568b0842ecc7b9b9aca4efcc9911cc2ce8cc8..HEAD`.
+  - If those pass, hand off directly to Integration Validator for final technical authority on the committed branch range.
 
 ## EVIDENCE_MAPPING
 - REQUIREMENT: "One canonical registry owns schema ids, schema versions, and compatibility-reader policy for packet, summary, task-board, and mailbox collaboration artifacts."
