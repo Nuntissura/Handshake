@@ -74,7 +74,7 @@
 - EXTERNAL_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT
 - EXTERNAL_VALIDATOR_DISPOSITIONS: NONE | OUTDATED_ONLY
 - EXTERNAL_VALIDATOR_LEGAL_VERDICTS: PASS | FAIL | PENDING
-- **Status:** In Progress
+- **Status:** Done
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -121,9 +121,9 @@
 - USER_SIGNATURE: ilja140320260134
 - PACKET_FORMAT_VERSION: 2026-03-12
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
-Blockers: validator review, packet closure sync
-Next: validator review plus coder closeout on any findings
+Verdict: PASS
+Blockers: NONE
+Next: Await Gate 4 acknowledgment before merge to main.
 
 ## WP_COMMUNICATIONS (NON-AUTHORITATIVE; REQUIRED FOR NEW PACKETS)
 - RULE: The task packet remains authoritative for scope, status, branch/worktree truth, acceptance, and verdict.
@@ -790,3 +790,50 @@ Risks & Suggested Actions:
 
 Reason for FAIL:
 - The current committed Loom branch state still fails both the merge-blocking governance check and the deterministic manifest gate.
+
+## VALIDATION REPORT - WP-1-Loom-Storage-Portability-v1 (2026-03-15 FINAL REVALIDATION)
+Verdict: PASS
+
+Validation Claims:
+- GATES_PASS (deterministic manifest gate: `just post-work WP-1-Loom-Storage-Portability-v1`; not tests): PASS
+- TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS
+- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES
+
+Scope Inputs:
+- Task Packet: `.GOV/task_packets/WP-1-Loom-Storage-Portability-v1.md` (status: Done)
+- Spec: `Handshake_Master_Spec_v02.178.md` (`2.3.13 Storage Backend Portability Architecture`, `2.3.13.7 Loom Storage Trait + Portable Schema`, `10.12 Loom`, including `LM-SEARCH-001` and `LM-SEARCH-002`)
+- Revalidated range: `1a2568b0842ecc7b9b9aca4efcc9911cc2ce8cc8..def20eafe2a401587e4166463638129e3f1fa912`
+- Candidate commit: `def20eafe2a401587e4166463638129e3f1fa912`
+
+Files Checked:
+- `src/backend/handshake_core/src/loom_fs.rs`
+- `src/backend/handshake_core/src/storage/postgres.rs`
+- `src/backend/handshake_core/src/storage/sqlite.rs`
+- `src/backend/handshake_core/src/storage/tests.rs`
+- `src/backend/handshake_core/tests/storage_conformance.rs`
+- `.GOV/task_packets/WP-1-Loom-Storage-Portability-v1.md`
+- `.GOV/roles_shared/TASK_BOARD.md`
+- `.GOV/roles_shared/BUILD_ORDER.md`
+- `.GOV/scripts/validation/spec-eof-appendices-check.mjs`
+- `.GOV/scripts/validation/task-board-check.mjs`
+
+Findings:
+- No blocking technical or governance defects remain in the instructed candidate range.
+- `just topology-registry-sync` was run in the clean detached validation worktree before `just gov-check` and produced no tracked diff.
+- `just post-work WP-1-Loom-Storage-Portability-v1 --range 1a2568b0842ecc7b9b9aca4efcc9911cc2ce8cc8..def20eafe2a401587e4166463638129e3f1fa912` passes. It reports CX-573F warnings for waived out-of-scope governance/support files, but the waiver is present and the deterministic gate result is PASS.
+
+Hygiene / Forbidden Patterns:
+- `just validator-scan`: PASS
+- `just validator-dal-audit`: PASS
+- `just gov-check`: PASS
+
+Tests:
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance --target-dir "../Handshake Artifacts/handshake-cargo-target"`: PASS
+- `just post-work WP-1-Loom-Storage-Portability-v1 --range 1a2568b0842ecc7b9b9aca4efcc9911cc2ce8cc8..def20eafe2a401587e4166463638129e3f1fa912`: PASS (with CX-573F warnings only)
+
+Risks & Residual Notes:
+- The candidate range includes waived out-of-scope governance/support files in addition to the Loom portability files. That residual scope expansion is documented by the packet waiver and does not block merge.
+
+Reason for PASS:
+- The instructed committed range validates at the packet, governance, product-test, and deterministic manifest levels.
