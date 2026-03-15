@@ -5,11 +5,11 @@
 - `VALIDATOR_PROTOCOL.md`
 - `agentic/AGENTIC_PROTOCOL.md` (reference only; current repo policy keeps validator duties non-agentic)
 
-## Legacy Archive
+## Current / Legacy Gate State
 
 - `VALIDATOR_GATES.json`
-  - compatibility-only archive for older sessions
-  - current per-WP validator gate state lives under `.GOV/roles_shared/validator_gates/`
+  - compatibility-only root archive; not the canonical place for new validator state
+  - current per-WP validator gate state lives under `.GOV/roles_shared/runtime/validator_gates/`
 
 ## Role-Owned Checks / Scripts
 
@@ -34,13 +34,15 @@
 
 - `.GOV/roles_shared/checks/README.md`
 - `.GOV/roles_shared/scripts/README.md`
-- `.GOV/roles_shared/validator_gates/`
+- `.GOV/roles_shared/runtime/validator_gates/`
 - `.GOV/task_packets/`
-- `.GOV/roles_shared/SPEC_DEBT_REGISTRY.md`
-- `.GOV/roles_shared/WP_COMMUNICATIONS/`
+- `.GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md`
+- `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/`
 
 ## Role Layout
 
+- `runtime/`
+  - validator-owned machine state only; new validator-owned state belongs here
 - `scripts/`
   - validator-owned entrypoints
 - `scripts/lib/`

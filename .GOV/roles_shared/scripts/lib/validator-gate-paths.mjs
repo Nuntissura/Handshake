@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export const SHARED_VALIDATOR_GATE_DIR = path.join(".GOV", "roles_shared", "validator_gates");
+export const SHARED_VALIDATOR_GATE_DIR = path.join(".GOV", "roles_shared", "runtime", "validator_gates");
 
 function isJsonFile(name) {
   return typeof name === "string" && name.toLowerCase().endsWith(".json");

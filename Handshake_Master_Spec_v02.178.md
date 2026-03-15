@@ -102,7 +102,7 @@
 | v02.128 | 2026-02-18 | Orchestrator | **Merge:** Embedded `Spec_Creation_System_v2.2.1_merged.md` into Â§2.6.8.13 as verbatim import (heading-level shifted only). No per-spec logging system added; respects v2.2.1 boundary. | pending |
 | v02.127 | 2026-02-17 | Orchestrator | **Sidecar/DCC merge:** Added Â§10.11 Dev Command Center (Sidecar Integration) incl. DCC wiring + inline schemas (`.handshake/workspace.json`, `devcc.db`), plus Locus integration pointer and updated Â§7.6 Roadmap + Â§7.6.1 Coverage Matrix. | pending |
 | v02.126 | 2026-02-12 | Coder | **Spec-only consistency correction (runtime governance paths):** Replace stale work-tracking path examples with runtime governance root `.handshake/gov/` for Task Board, Task Packets, and related refs. | ilja120220260342 |
-| v02.125 | 2026-02-06 | Orchestrator | **Governance snapshot definition:** Added `#### 7.5.4.10 Product Governance Snapshot (HARD)` defining a deterministic, leak-safe JSON snapshot derived ONLY from canonical `.GOV/**` inputs, with default output `.GOV/roles_shared/PRODUCT_GOVERNANCE_SNAPSHOT.json`, explicit `schema_version`, and list-based validator gate summaries (no timestamps; no raw logs). | ilja060220260754 |
+| v02.125 | 2026-02-06 | Orchestrator | **Governance snapshot definition:** Added `#### 7.5.4.10 Product Governance Snapshot (HARD)` defining a deterministic, leak-safe JSON snapshot derived ONLY from canonical `.GOV/**` inputs, with default output `.GOV/roles_shared/runtime/PRODUCT_GOVERNANCE_SNAPSHOT.json`, explicit `schema_version`, and list-based validator gate summaries (no timestamps; no raw logs). | ilja060220260754 |
 | v02.124 | 2026-02-05 | Validator | **Spec enrichment (governance boundary + pack path update):** define `/.GOV/` as canonical governance workspace and `docs/` as temporary compatibility bundle only; require hard enforcement that product code MUST NOT read/write `/.GOV/`; set default runtime governance state dir to `.handshake/gov/` (configurable; runtime governance state only). Updated Governance Pack sections 7.5.4.7-7.5.4.9 to reflect `.GOV/` canonical layout and boundary rules. | ilja050220260910 |
 | v02.122 | 2026-01-29 | Orchestrator | **v02.122 merge:** merged Multi-Model Parallelism Addendum (UPDATED) and Handshake_Layerwise_Inference_SpecDraft_v0.3.md into Master Spec main body: RuntimeMode/ExecutionMode + invariants (DOCS_ONLY/AI_ENABLED, min_ready_models, strict file-scope locks), RoleExecutionIdentity + ParameterClass + largest-first routing + performance telemetry scoring, MailboxKind taxonomy, HSK_STATUS lifecycle marker, SwapRequest escalation + CX-MM code registry, plus reserved `settings.exec_policy` + Work Profile compute/approximate-waiver hooks and new FR `llm_exec_policy` + `hsk.layerwise_trace@0.1`. Updated Â§7.6 coverage matrix + roadmap (Phase 0 closed; new [ADD v02.122] entries). | pending |
 | v02.121 | 2026-01-28 | Orchestrator | **ANS-001 enrichment:** defined frontend session chat log persistence in `{APP_DATA}` (one file per session; JSONL), UI presentation rules (hidden-by-default + per-message expand + global show-inline + side-panel timeline), leak-safe runtime chat telemetry events `FR-EVT-RUNTIME-CHAT-101..103`, and clarified `EXEC-060` compliance logging semantics. | ilja260120261908 |
@@ -31739,7 +31739,7 @@ Kernel rule: precedence MUST be explicit, stable, and enforceable.
 Recommended precedence order (highest â†’ lowest):
 1. Platform/system constraints (sandbox, secrets, tool limits).
 2. Project Codex (`<PROJECT> Codex vX.Y.md`).
-3. Master Spec (`<PROJECT>_Master_Spec_vNN.NNN.md`) + `.GOV/roles_shared/SPEC_CURRENT.md`.
+3. Master Spec (`<PROJECT>_Master_Spec_vNN.NNN.md`) + `.GOV/roles_shared/records/SPEC_CURRENT.md`.
 4. Role protocols (`.GOV/roles/*/*_PROTOCOL.md`).
 5. Repo-local guardrails (`AGENTS.md`).
 6. Work authorization artifacts (task packets / refinements / board).
@@ -31760,13 +31760,13 @@ Roles are capability envelopes, not personas:
 Kernel objective: a fresh agent can reconstruct â€œwhat is trueâ€ by opening a small stable set of files.
 
 Required artifacts (canonical locations):
-- `.GOV/roles_shared/SPEC_CURRENT.md`: single pointer to the current authoritative Master Spec.
-- `.GOV/roles_shared/TASK_BOARD.md`: global execution state SSoT (minimal entries; details live in packets).
-- `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`: Base WP â†’ Active Packet mapping (prevents revision ambiguity).
+- `.GOV/roles_shared/records/SPEC_CURRENT.md`: single pointer to the current authoritative Master Spec.
+- `.GOV/roles_shared/records/TASK_BOARD.md`: global execution state SSoT (minimal entries; details live in packets).
+- `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`: Base WP â†’ Active Packet mapping (prevents revision ambiguity).
 - `.GOV/refinements/<WP_ID>.md`: Technical Refinement Block artifact (ASCII-only; spec anchors; enrichment decision; approval evidence).
 - `.GOV/task_packets/stubs/<WP_ID>.md`: non-executable backlog stub (no signature).
 - `.GOV/task_packets/<WP_ID>.md`: executable task contract (ASCII-only; required headings; validation manifests).
-- `.GOV/roles_shared/SIGNATURE_AUDIT.md`: append-only signature log.
+- `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`: append-only signature log.
 - `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`, `.GOV/validator_gates/{WP_ID}.json`: gate state (deterministic JSON).
 - `.GOV/templates/`: canonical templates for stubs/refinements/packets (prevents drift).
 
@@ -31909,7 +31909,7 @@ These templates MUST be rendered with project-specific values (no Handshake-hard
 **Hard rule (Instantiation)**
 - The Governance Pack export MUST include these templates with ALL placeholders resolved.
 - The exported repo MUST provide a single deterministic command surface (e.g., `just pre-work`, `just post-work`, `just validate-workflow`).
-- Project-specific naming/layout/tool paths MUST live in `.GOV/roles_shared/PROJECT_INVARIANTS.md` (do not hardcode in templates).
+- Project-specific naming/layout/tool paths MUST live in `.GOV/roles_shared/docs/PROJECT_INVARIANTS.md` (do not hardcode in templates).
 - Any alternate implementation MUST preserve semantics and determinism (7.5.4.8).
 - [ADD v02.154] Governance Pack export is also a product runtime surface: it MUST run through the Workflow Engine, enforce the server-side `export.governance_pack` capability profile, emit a `governance_pack_export` Flight Recorder event, and persist export artifacts/records with portable manifest semantics.
 
@@ -31927,7 +31927,7 @@ These templates MUST be rendered with project-specific values (no Handshake-hard
 - `{{CARGO_TARGET_DIR}}`: external Cargo target dir (project-specific; may be outside repo).
 - `{{POSTGRES_TEST_DB}}`: CI/test Postgres database name (project-specific).
 - `{{DEFAULT_BASE_BRANCH}}`: default base branch name for role worktrees (operator machine; e.g., `main`).
-- `{{OPERATOR_WORKTREE_DIR}}`, `{{OPERATOR_BRANCH}}`, `{{ORCHESTRATOR_WORKTREE_DIR}}`, `{{ORCHESTRATOR_BRANCH}}`, `{{VALIDATOR_WORKTREE_DIR}}`, `{{VALIDATOR_BRANCH}}`: local role worktree mapping (operator machine; see `.GOV/roles_shared/ROLE_WORKTREES.md`).
+- `{{OPERATOR_WORKTREE_DIR}}`, `{{OPERATOR_BRANCH}}`, `{{ORCHESTRATOR_WORKTREE_DIR}}`, `{{ORCHESTRATOR_BRANCH}}`, `{{VALIDATOR_WORKTREE_DIR}}`, `{{VALIDATOR_BRANCH}}`: local role worktree mapping (operator machine; see `.GOV/roles_shared/docs/ROLE_WORKTREES.md`).
 
 ##### 7.5.4.9.2 Template Index (HARD)
 | Path | Intent |
@@ -31939,19 +31939,19 @@ These templates MUST be rendered with project-specific values (no Handshake-hard
 | `.cargo/config.toml` | Deterministic build artifact location (keeps repo clean; avoids CI/worktree drift). |
 | `deny.toml` | Supply-chain policy config for cargo-deny (license/advisory/bans/sources). |
 | `.github/workflows/ci.yml` | CI parity: runs the same (or stricter) mechanical gates as local. |
-| `.GOV/roles_shared/PROJECT_INVARIANTS.md` | Project-specific invariants (identity, naming, layout profile, tool paths). REQUIRED for Governance Pack instantiation. |
-| `.GOV/roles_shared/SPEC_CURRENT.md` | Authoritative pointer to the current Master Spec and Governance Reference (drift guard target). |
-| `.GOV/roles_shared/START_HERE.md` | Navigation pack for humans and agents (canonical entry point + workflow commands). |
-| `.GOV/roles_shared/ARCHITECTURE.md` | Module/area map and allowed dependency boundaries (architecture drift control). |
-| `.GOV/roles_shared/RUNBOOK_DEBUG.md` | Debug runbook (first-5-minutes flow + CI triage map). |
+| `.GOV/roles_shared/docs/PROJECT_INVARIANTS.md` | Project-specific invariants (identity, naming, layout profile, tool paths). REQUIRED for Governance Pack instantiation. |
+| `.GOV/roles_shared/records/SPEC_CURRENT.md` | Authoritative pointer to the current Master Spec and Governance Reference (drift guard target). |
+| `.GOV/roles_shared/docs/START_HERE.md` | Navigation pack for humans and agents (canonical entry point + workflow commands). |
+| `.GOV/roles_shared/docs/ARCHITECTURE.md` | Module/area map and allowed dependency boundaries (architecture drift control). |
+| `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` | Debug runbook (first-5-minutes flow + CI triage map). |
 | `.GOV/roles_shared/PAST_WORK_INDEX.md` | Archaeology pointers (prevents guesswork when context is missing). |
-| `.GOV/roles_shared/OWNERSHIP.md` | Path ownership routing map for review/triage. |
-| `.GOV/roles_shared/TASK_BOARD.md` | Machine-checkable shared work memory (WP lifecycle; STUB/IN_PROGRESS/DONE). |
-| `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` | Single source of truth mapping Base WP -> Active Packet (keeps Master Spec WP-free). |
-| `.GOV/roles_shared/SIGNATURE_AUDIT.md` | Central registry of consumed USER_SIGNATURE tokens (anti-replay / audit trail). |
-| `.GOV/roles_shared/QUALITY_GATE.md` | Risk-tiered quality gate contract (pre/post-work expectations; validator posture). |
-| `.GOV/roles_shared/OSS_REGISTER.md` | Supply-chain manifest: dependency licenses, integration modes, and approval notes. |
-| `.GOV/roles_shared/ROLE_WORKTREES.md` | Local mapping of role -> (worktree directory, branch) for the operator machine. |
+| `.GOV/roles_shared/docs/OWNERSHIP.md` | Path ownership routing map for review/triage. |
+| `.GOV/roles_shared/records/TASK_BOARD.md` | Machine-checkable shared work memory (WP lifecycle; STUB/IN_PROGRESS/DONE). |
+| `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` | Single source of truth mapping Base WP -> Active Packet (keeps Master Spec WP-free). |
+| `.GOV/roles_shared/records/SIGNATURE_AUDIT.md` | Central registry of consumed USER_SIGNATURE tokens (anti-replay / audit trail). |
+| `.GOV/roles_shared/docs/QUALITY_GATE.md` | Risk-tiered quality gate contract (pre/post-work expectations; validator posture). |
+| `.GOV/roles_shared/records/OSS_REGISTER.md` | Supply-chain manifest: dependency licenses, integration modes, and approval notes. |
+| `.GOV/roles_shared/docs/ROLE_WORKTREES.md` | Local mapping of role -> (worktree directory, branch) for the operator machine. |
 | `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` | Mechanical Orchestrator gate state model (initial empty state). |
 | `.GOV/validator_gates/{WP_ID}.json` | Mechanical Validator gate state model (per-WP; merge-safe). |
 | `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` | Orchestrator role protocol (refinement loop, signature gate, delegation contract). |
@@ -32099,11 +32099,11 @@ Intent: Project Codex: deterministic enforcement laws and invariants (role-agnos
 [CX-208] ROOT_DOCS_CANONICAL: `/.GOV/` MUST contain canonical operational docs used for onboarding, navigation, and debugging.
 [CX-209] NAVIGATION_PACK_FILES: `/.GOV/roles_shared/` MUST include (at minimum): `START_HERE.md`, `SPEC_CURRENT.md`, `ARCHITECTURE.md`, `RUNBOOK_DEBUG.md`.
 [CX-213] TASK_PACKETS_DIR: `/.GOV/task_packets/` MUST exist and MUST contain task packet files for all active and recent work.
-[CX-214] ROOT_APP_CURRENT: If `{{FRONTEND_ROOT_DIR}}/` exists, it SHOULD be treated as the primary application root (frontend in `{{FRONTEND_SRC_DIR}}/`, backend in `{{FRONTEND_SRC_DIR}}-tauri/`) unless `.GOV/roles_shared/ARCHITECTURE.md` explicitly states otherwise.
+[CX-214] ROOT_APP_CURRENT: If `{{FRONTEND_ROOT_DIR}}/` exists, it SHOULD be treated as the primary application root (frontend in `{{FRONTEND_SRC_DIR}}/`, backend in `{{FRONTEND_SRC_DIR}}-tauri/`) unless `.GOV/roles_shared/docs/ARCHITECTURE.md` explicitly states otherwise.
 [CX-215] DOCS_LOCAL_STAGING: `/.GOV/operator/docs_local/` SHOULD be treated as staging/drafts. Assistants MUST NOT treat `/.GOV/operator/docs_local/` as canonical onboarding/debugging guidance unless a document is explicitly promoted into `/.GOV/`.
 [CX-216] PAST_WORK_INDEX: `/.GOV/roles_shared/` SHOULD include a `PAST_WORK_INDEX.md` (or equivalent) that links to older root-level specs/logs and `/.GOV/operator/docs_local/` drafts, so future maintainers can find prior work quickly without guesswork.
 
-[CX-217] TASK_BOARD: `/.GOV/roles_shared/TASK_BOARD.md` MUST exist and serve as the high-level, at-a-glance status tracker.
+[CX-217] TASK_BOARD: `/.GOV/roles_shared/records/TASK_BOARD.md` MUST exist and serve as the high-level, at-a-glance status tracker.
 - Orchestrator manages planning states (Ready for Dev/Blocked; Stub Backlog).
 - Coders manage execution state in the **task packet** (set `**Status:** In Progress` + claim fields) and produce a docs-only bootstrap commit early.
 - Validator maintains the Operator-visible `main` Task Board via docs-only "status sync" commits (update `## In Progress`; optionally also update `## Active (Cross-Branch Status)` for branch/coder visibility).
@@ -32826,7 +32826,7 @@ The following patterns are explicitly documented as anti-patterns that Handshake
 [CX-341] STORAGE_INDIRECT: Other modules SHOULD go through storage interfaces/services instead of raw DB drivers.
 [CX-342] STORAGE_DOCS: New core tables/collections SHOULD get a short note in `/.GOV/operator/docs_local/` when they affect core concepts.
 
-[CX-343] DEBUG_ANCHORS: New errors SHOULD emit stable, searchable anchors (e.g., error codes like `{{ISSUE_PREFIX}}-####` or consistent log tags). `.GOV/roles_shared/RUNBOOK_DEBUG.md` SHOULD reference those anchors and the primary entrypoints for triage.
+[CX-343] DEBUG_ANCHORS: New errors SHOULD emit stable, searchable anchors (e.g., error codes like `{{ISSUE_PREFIX}}-####` or consistent log tags). `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` SHOULD reference those anchors and the primary entrypoints for triage.
 
 ---
 
@@ -32835,7 +32835,7 @@ The following patterns are explicitly documented as anti-patterns that Handshake
 [CX-400] SPEC_PRIMARY: When Master Spec or subsystem specs are provided, they are the primary reference for product and architecture.
 [CX-401] SPEC_OVERRULE_PRIORS: Provided specs SHOULD override model priors and generic "best practices" if they conflict.
 
-[CX-402] SPEC_CURRENT_POINTER: If multiple versions of the Master Spec exist in the repo, assistants MUST treat `.GOV/roles_shared/SPEC_CURRENT.md` as the canonical pointer to the current Master Spec for the active workline/session.
+[CX-402] SPEC_CURRENT_POINTER: If multiple versions of the Master Spec exist in the repo, assistants MUST treat `.GOV/roles_shared/records/SPEC_CURRENT.md` as the canonical pointer to the current Master Spec for the active workline/session.
 
 [CX-405] SPEC_PROPOSAL_GATE: Before applying any changes to the Master Spec (LAW_2) or Codex (LAW_1), the assistant MUST present a "Spec Proposal" summary to the user.
 
@@ -32948,12 +32948,12 @@ The following patterns are explicitly documented as anti-patterns that Handshake
 
 ### 6.8 Bootstrap Navigation Protocol (Non-Negotiable)
 
-[CX-574] BOOTSTRAP_READ_SET: Before proposing changes, debugging, or reviewing, the assistant MUST read: `.GOV/roles_shared/START_HERE.md` and `.GOV/roles_shared/SPEC_CURRENT.md` (and the current logger if bootloader is active).
+[CX-574] BOOTSTRAP_READ_SET: Before proposing changes, debugging, or reviewing, the assistant MUST read: `.GOV/roles_shared/docs/START_HERE.md` and `.GOV/roles_shared/records/SPEC_CURRENT.md` (and the current logger if bootloader is active).
 [CX-575] BOOTSTRAP_TASK_TYPE: The assistant MUST classify the task as one of: `DEBUG | FEATURE | REVIEW | REFACTOR | HYGIENE`.
 [CX-576] BOOTSTRAP_FOLLOWUP_READ: After classification, the assistant MUST read the matching guide:
-- DEBUG -> `.GOV/roles_shared/RUNBOOK_DEBUG.md`
-- FEATURE/REFACTOR -> `.GOV/roles_shared/ARCHITECTURE.md`
-- REVIEW -> `.GOV/roles_shared/ARCHITECTURE.md` + the diff/patch + validation instructions
+- DEBUG -> `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
+- FEATURE/REFACTOR -> `.GOV/roles_shared/docs/ARCHITECTURE.md`
+- REVIEW -> `.GOV/roles_shared/docs/ARCHITECTURE.md` + the diff/patch + validation instructions
 [CX-577] BOOTSTRAP_OUTPUT_BLOCK: The assistant's first response in the session MUST include a short BOOTSTRAP block with:
 - FILES_TO_OPEN: 5â€“15 concrete repo paths it will inspect first.
 - SEARCH_TERMS: 5â€“20 exact strings/symbols/error codes it will grep.
@@ -32962,7 +32962,7 @@ The following patterns are explicitly documented as anti-patterns that Handshake
 [CX-577A] BOOTSTRAP_TEMPLATE: The BOOTSTRAP block SHOULD follow this shape:
 ```
 BOOTSTRAP
-- FILES_TO_OPEN: .GOV/roles_shared/START_HERE.md; .GOV/roles_shared/SPEC_CURRENT.md; .GOV/roles_shared/ARCHITECTURE.md; .GOV/roles_shared/RUNBOOK_DEBUG.md; <feature/debug-specific paths>
+- FILES_TO_OPEN: .GOV/roles_shared/docs/START_HERE.md; .GOV/roles_shared/records/SPEC_CURRENT.md; .GOV/roles_shared/docs/ARCHITECTURE.md; .GOV/roles_shared/docs/RUNBOOK_DEBUG.md; <feature/debug-specific paths>
 - SEARCH_TERMS: "<key symbol>"; "<error>"; "<command>"; "<feature name>"
 - RUN_COMMANDS: pnpm -C {{FRONTEND_ROOT_DIR}} tauri dev; pnpm -C {{FRONTEND_ROOT_DIR}} test; cargo test --manifest-path {{BACKEND_CARGO_TOML}}; (add task-specific)
 - RISK_MAP: "<risk> -> <subsystem>"; "<risk> -> <subsystem>"
@@ -32977,7 +32977,7 @@ BOOTSTRAP
 [CX-580C] ORCH_WP_ID_NAMING (HARD): Work Packet IDs and filenames MUST NOT include date/time stamps. Use `WP-{phase}-{name}` and, if a revision is required, `WP-{phase}-{name}-v{N}` (e.g., `WP-1-Tokenization-Service-v3`).
 Legacy note: historical packets may contain date-coded IDs created before this invariant; do not create new date-stamped packet IDs. All new revisions MUST use `-v{N}`.
 
-[CX-580D] WP_TRACEABILITY_REGISTRY (HARD): Base WP IDs are stable planning identifiers; when multiple packet revisions exist for the same Base WP, the Orchestrator MUST record the mapping (Base WP â†’ Active Packet) in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`. Coders and Validators MUST consult the registry; if the mapping is missing or ambiguous, work is BLOCKED until resolved.
+[CX-580D] WP_TRACEABILITY_REGISTRY (HARD): Base WP IDs are stable planning identifiers; when multiple packet revisions exist for the same Base WP, the Orchestrator MUST record the mapping (Base WP â†’ Active Packet) in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`. Coders and Validators MUST consult the registry; if the mapping is missing or ambiguous, work is BLOCKED until resolved.
 
 [CX-580E] WP_LINEAGE_AUDIT_VARIANTS (HARD): When creating a revision packet (`-v{N}`) for a Base WP, the Orchestrator MUST perform and record a **Lineage Audit** that proves the Base WP (and ALL its prior packet versions) are a correct translation of: Roadmap pointer â†’ Master Spec Main Body â†’ repo code. The audit MUST validate that no requirements were lost/forgotten across versions and that the current repo state satisfies every governing Main Body MUST/SHOULD for that Base WP. If the audit is missing or incomplete, delegation is BLOCKED.
 
@@ -33007,14 +33007,14 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 
 [CX-584] ORCH_BLOCKING_RULE: If the orchestrator cannot create a complete packet (unclear requirements, missing context, ambiguous scope), it MUST STOP and request clarification from the user. The orchestrator MUST NOT delegate incomplete or ambiguous work.
 
-[CX-585] ORCH_TASK_BOARD_UPDATE: The orchestrator SHOULD update `.GOV/roles_shared/TASK_BOARD.md` upon creating a task packet. Logger entries for task creation are OPTIONAL and generally discouraged to avoid noise.
+[CX-585] ORCH_TASK_BOARD_UPDATE: The orchestrator SHOULD update `.GOV/roles_shared/records/TASK_BOARD.md` upon creating a task packet. Logger entries for task creation are OPTIONAL and generally discouraged to avoid noise.
 
-[CX-585F] TASK_BOARD_ENTRY_FORMAT (HARD): `.GOV/roles_shared/TASK_BOARD.md` entries MUST be minimal in all non-planning states. Specifically: entries in `## In Progress`, `## Done`, and `## Superseded (Archive)` MUST include only the WP identifier and the current status token (e.g., `[IN_PROGRESS]`, `[VALIDATED]`, `[FAIL]`, `[OUTDATED_ONLY]`, `[SUPERSEDED]`). Planning/backlog lists (e.g., `## Ready for Dev`) MAY contain additional notes temporarily, but final verdict reasoning MUST live in the task packet / validator report (not the Task Board).
+[CX-585F] TASK_BOARD_ENTRY_FORMAT (HARD): `.GOV/roles_shared/records/TASK_BOARD.md` entries MUST be minimal in all non-planning states. Specifically: entries in `## In Progress`, `## Done`, and `## Superseded (Archive)` MUST include only the WP identifier and the current status token (e.g., `[IN_PROGRESS]`, `[VALIDATED]`, `[FAIL]`, `[OUTDATED_ONLY]`, `[SUPERSEDED]`). Planning/backlog lists (e.g., `## Ready for Dev`) MAY contain additional notes temporarily, but final verdict reasoning MUST live in the task packet / validator report (not the Task Board).
 
 [CX-585A] MANDATORY_SPEC_REFINEMENT (THE STRATEGIC PAUSE): The Orchestrator MUST use the "Refinement Loop" to ensure the Master Spec reflects the detailed design/requirements of the task BEFORE delegation.
 - **Spec-Version Lock:** The Orchestrator is **FORBIDDEN** from outputting a final Task Packet for delegation unless it has **first** created a new version of the Master Spec (`v02.xx+1`) that explicitly defines the technical approach (env vars, signatures, constraints).
 - **The Strategic Pause:** This pause exists to allow the user (non-coder) to enrich the Main Body, especially if methods or software choices deviate from the original plan. Document these shifts in the Main Body for hygiene and provenance.
-- **Pointer Update:** `.GOV/roles_shared/SPEC_CURRENT.md` MUST point to this new version.
+- **Pointer Update:** `.GOV/roles_shared/records/SPEC_CURRENT.md` MUST point to this new version.
 - **Delegation Block:** If the Spec does not contain the exact requirements, delegation is BLOCKED. We do not "implement then specify"; we "specify then implement".
 
 [CX-585B] RED_HAT_REVIEW: During the "Proposed" phase, the Orchestrator MUST perform a "Red Hat" review (looking for risks, security flaws, architectural debt) and refine the task packet to address them.
@@ -33027,7 +33027,7 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 
 [CX-585G] REFINEMENT_BLOCK_IN_CHAT (HARD): Before requesting any USER_SIGNATURE or delegating work, the Orchestrator MUST paste the full Technical Refinement Block into the chat for explicit user review/approval. Writing it only to disk (e.g., `.GOV/refinements/*.md`) is insufficient.
 
-[CX-586] ORCH_AUTHORITY_DOCS: Packets MUST include pointers to: `.GOV/roles_shared/START_HERE.md`, `.GOV/roles_shared/SPEC_CURRENT.md`, `.GOV/roles_shared/ARCHITECTURE.md`, `.GOV/roles_shared/RUNBOOK_DEBUG.md`, `.GOV/roles_shared/QUALITY_GATE.md` (logger pointer OPTIONAL, only if logger will be used for this WP).
+[CX-586] ORCH_AUTHORITY_DOCS: Packets MUST include pointers to: `.GOV/roles_shared/docs/START_HERE.md`, `.GOV/roles_shared/records/SPEC_CURRENT.md`, `.GOV/roles_shared/docs/ARCHITECTURE.md`, `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`, `.GOV/roles_shared/docs/QUALITY_GATE.md` (logger pointer OPTIONAL, only if logger will be used for this WP).
 
 [CX-587] ORCH_PRE_WORK_CHECK: Before delegating, the orchestrator SHOULD run (or instruct the coder to run): `just pre-work {WP_ID}` to verify the packet is complete and system is ready for work.
 
@@ -33064,12 +33064,12 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 
 ### 6.12 Determinism Anchors (large-system hygiene)
 
-[CX-640] ANCHOR_ERRORS: New errors SHOULD include stable error codes (`{{ISSUE_PREFIX}}-####`) and/or log tags; these anchors SHOULD be referenced in `.GOV/roles_shared/RUNBOOK_DEBUG.md` when adding repeatable failures.
-[CX-641] OWNERSHIP_MAP: Area/module ownership SHOULD be captured in `/.GOV/roles_shared/OWNERSHIP.md` with paths, reviewers, and notes; packets SHOULD consult/update it when adding new surface area.
-[CX-642] PRIMITIVE_TESTS: New primitives/features SHOULD ship with at least one targeted test and a short invariant note (place in `.GOV/roles_shared/ARCHITECTURE.md` or inline doc comment); silence requires an explicit reason.
+[CX-640] ANCHOR_ERRORS: New errors SHOULD include stable error codes (`{{ISSUE_PREFIX}}-####`) and/or log tags; these anchors SHOULD be referenced in `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` when adding repeatable failures.
+[CX-641] OWNERSHIP_MAP: Area/module ownership SHOULD be captured in `/.GOV/roles_shared/docs/OWNERSHIP.md` with paths, reviewers, and notes; packets SHOULD consult/update it when adding new surface area.
+[CX-642] PRIMITIVE_TESTS: New primitives/features SHOULD ship with at least one targeted test and a short invariant note (place in `.GOV/roles_shared/docs/ARCHITECTURE.md` or inline doc comment); silence requires an explicit reason.
 [CX-643] CI_GATE: Continuous integration SHOULD run `just validate` (or an equivalent subset) and block merge on failures.
-[CX-644] FLAGS: New interwoven features SHOULD use a feature flag or clearly documented toggle; note the flag/toggle location in `.GOV/roles_shared/ARCHITECTURE.md` or the relevant module doc.
-[CX-645] ERROR_CODES_REQUIRED: New errors SHOULD introduce stable error codes/log tags (e.g., `{{ISSUE_PREFIX}}-####`) and record them in `.GOV/roles_shared/RUNBOOK_DEBUG.md` when they become repeatable.
+[CX-644] FLAGS: New interwoven features SHOULD use a feature flag or clearly documented toggle; note the flag/toggle location in `.GOV/roles_shared/docs/ARCHITECTURE.md` or the relevant module doc.
+[CX-645] ERROR_CODES_REQUIRED: New errors SHOULD introduce stable error codes/log tags (e.g., `{{ISSUE_PREFIX}}-####`) and record them in `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` when they become repeatable.
 [CX-646] TEST_EXPECTATION: Logic changes SHOULD add or update at least one targeted test; if omitted, a written reason MUST be recorded in the review/task packet.
 [CX-647] REVIEW_REQUIRED: Repo-changing work SHOULD have a distinct reviewer role sign off, recording commands run and outcomes.
 [CX-648] SECRETS_AND_SUPPLY_CHAIN: CI SHOULD include secret scanning and dependency audit steps; assistants MUST avoid committing secrets and SHOULD pin critical dependencies/lockfiles.
@@ -33078,11 +33078,11 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 
 ### 6.13 Task Packets as Primary Log; Logger Milestone-Only
 
-[CX-650] TASK_LOG_PRIMARY: `.GOV/roles_shared/TASK_BOARD.md` + the task packet are the primary, mandatory micro-log for day-to-day work. Validation commands/outcomes and status updates MUST be recorded in the task packet. The {{PROJECT_DISPLAY_NAME}} logger is optional and reserved for milestones or hard bugs when explicitly requested.
+[CX-650] TASK_LOG_PRIMARY: `.GOV/roles_shared/records/TASK_BOARD.md` + the task packet are the primary, mandatory micro-log for day-to-day work. Validation commands/outcomes and status updates MUST be recorded in the task packet. The {{PROJECT_DISPLAY_NAME}} logger is optional and reserved for milestones or hard bugs when explicitly requested.
 
 [CX-651] LOGGER_USE_CASES: The {{PROJECT_DISPLAY_NAME}} logger SHOULD be used only when the user requests it or when recording major milestones/critical incidents. Routine Work Packet completion MUST NOT be blocked on a logger entry.
 
-[CX-652] TASK_PACKET_VALIDATION: Before requesting commit, the coder MUST verify the task packet contains a VALIDATION block with commands run and outcomes, and that `.GOV/roles_shared/TASK_BOARD.md` reflects the current status.
+[CX-652] TASK_PACKET_VALIDATION: Before requesting commit, the coder MUST verify the task packet contains a VALIDATION block with commands run and outcomes, and that `.GOV/roles_shared/records/TASK_BOARD.md` reflects the current status.
 
 [CX-653] TASK_PACKET_UNIQUENESS: Each Work Packet MUST have its own task packet file (do not reuse an old file for a new WP). Status/notes/validation may be updated within that WP's file as the work progresses.
 
@@ -33112,8 +33112,8 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 [CX-800] DRIFT_AWARENESS: The assistant SHOULD assume the codex may occasionally lag behind the actual repo; when mismatch is detected, it SHOULD call it out instead of forcing the repo to match a clearly stale rule.
 [CX-801] KNOWN_DEVIATIONS_SECTION: A `KNOWN_DEVIATIONS` section MAY be added by the user to document intentional gaps between codex and reality; assistants SHOULD treat that section as overriding older conflicting rules.
 
-[CX-810] KNOWN_DEVIATION_APP_LAYOUT: Repos may deviate from codex layout guidance. If codex guidance conflicts with the repo's observed layout (e.g., frontend under `{{FRONTEND_ROOT_DIR}}/` and shell under `{{FRONTEND_SRC_DIR}}-tauri/`), assistants MUST follow the observed layout and document the deviation in `.GOV/roles_shared/ARCHITECTURE.md`.
-[CX-811] KNOWN_DEVIATION_MULTI_SPECS: The repo may contain multiple `{{PROJECT_PREFIX}}_Master_Spec_v*.md` versions at root. `.GOV/roles_shared/SPEC_CURRENT.md` is the authoritative pointer for current work.
+[CX-810] KNOWN_DEVIATION_APP_LAYOUT: Repos may deviate from codex layout guidance. If codex guidance conflicts with the repo's observed layout (e.g., frontend under `{{FRONTEND_ROOT_DIR}}/` and shell under `{{FRONTEND_SRC_DIR}}-tauri/`), assistants MUST follow the observed layout and document the deviation in `.GOV/roles_shared/docs/ARCHITECTURE.md`.
+[CX-811] KNOWN_DEVIATION_MULTI_SPECS: The repo may contain multiple `{{PROJECT_PREFIX}}_Master_Spec_v*.md` versions at root. `.GOV/roles_shared/records/SPEC_CURRENT.md` is the authoritative pointer for current work.
 [CX-812] KNOWN_DEVIATION_DOC_SPLIT: `/.GOV/` is canonical operational guidance; `/.GOV/operator/docs_local/` is staging/drafts; root-level `*.md` may contain governance/history.
 
 ---
@@ -33166,7 +33166,7 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 
 [CX-961] CHANGE_SUMMARY_V08_2: v0.8 adds Â§9 "Automated Enforcement" defining required scripts, hooks, and CI checks to enforce workflow deterministically without relying on AI agent compliance alone.
 
-[CX-962] CHANGE_SUMMARY_V08_3: v0.8 clarifies workflow traceability: `.GOV/roles_shared/TASK_BOARD.md` + task packets are the primary micro-log; the {{PROJECT_DISPLAY_NAME}} logger is optional for milestones/hard bugs when explicitly requested.
+[CX-962] CHANGE_SUMMARY_V08_3: v0.8 clarifies workflow traceability: `.GOV/roles_shared/records/TASK_BOARD.md` + task packets are the primary micro-log; the {{PROJECT_DISPLAY_NAME}} logger is optional for milestones/hard bugs when explicitly requested.
 
 [CX-963] CHANGE_SUMMARY_V08_4: v0.8 adds [CX-503] explicitly stating this codex is optimized for AI-autonomous operation where the human user may not have coding expertise.
 
@@ -33188,7 +33188,7 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 1. Read `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` FIRST
 2. **Refine the Spec FIRST** [CX-585A]
 3. Create task packet (`just create-task-packet WP-{ID}`) â€” new file per WP
-4. Update `.GOV/roles_shared/TASK_BOARD.md` to "Ready for Dev"
+4. Update `.GOV/roles_shared/records/TASK_BOARD.md` to "Ready for Dev"
 5. Verify (`just pre-work WP-{ID}`)
 6. Only then delegate to coder
 
@@ -33238,7 +33238,7 @@ test:
 
 # Fail if any required docs are missing (navigation pack + past work index)
 docs-check:
-	node -e "['.GOV/roles_shared/START_HERE.md', '.GOV/roles_shared/SPEC_CURRENT.md', '.GOV/roles_shared/ARCHITECTURE.md', '.GOV/roles_shared/RUNBOOK_DEBUG.md', '.GOV/roles_shared/PAST_WORK_INDEX.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
+	node -e "['.GOV/roles_shared/docs/START_HERE.md', '.GOV/roles_shared/records/SPEC_CURRENT.md', '.GOV/roles_shared/docs/ARCHITECTURE.md', '.GOV/roles_shared/docs/RUNBOOK_DEBUG.md', '.GOV/roles_shared/PAST_WORK_INDEX.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
 
 # Format backend Rust
 fmt:
@@ -33413,14 +33413,14 @@ validator-gate-reset wp-id *confirm:
 Intent: Deterministic line-ending policy for governance artifacts (drift control).
 ````text
 .gitattributes text eol=lf
-.GOV/roles_shared/SPEC_CURRENT.md text eol=lf
-.GOV/roles_shared/START_HERE.md text eol=lf
-.GOV/roles_shared/TASK_BOARD.md text eol=lf
-.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md text eol=lf
-.GOV/roles_shared/SIGNATURE_AUDIT.md text eol=lf
-.GOV/roles_shared/QUALITY_GATE.md text eol=lf
-.GOV/roles_shared/ARCHITECTURE.md text eol=lf
-.GOV/roles_shared/RUNBOOK_DEBUG.md text eol=lf
+.GOV/roles_shared/records/SPEC_CURRENT.md text eol=lf
+.GOV/roles_shared/docs/START_HERE.md text eol=lf
+.GOV/roles_shared/records/TASK_BOARD.md text eol=lf
+.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md text eol=lf
+.GOV/roles_shared/records/SIGNATURE_AUDIT.md text eol=lf
+.GOV/roles_shared/docs/QUALITY_GATE.md text eol=lf
+.GOV/roles_shared/docs/ARCHITECTURE.md text eol=lf
+.GOV/roles_shared/docs/RUNBOOK_DEBUG.md text eol=lf
 .GOV/roles_shared/PAST_WORK_INDEX.md text eol=lf
 .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json text eol=lf
 .GOV/validator_gates/*.json text eol=lf
@@ -33516,10 +33516,10 @@ jobs:
 
       - name: Docs check
         run: |
-          test -s .GOV/roles_shared/START_HERE.md
-          test -s .GOV/roles_shared/SPEC_CURRENT.md
-          test -s .GOV/roles_shared/ARCHITECTURE.md
-          test -s .GOV/roles_shared/RUNBOOK_DEBUG.md
+          test -s .GOV/roles_shared/docs/START_HERE.md
+          test -s .GOV/roles_shared/records/SPEC_CURRENT.md
+          test -s .GOV/roles_shared/docs/ARCHITECTURE.md
+          test -s .GOV/roles_shared/docs/RUNBOOK_DEBUG.md
           test -s .GOV/roles_shared/PAST_WORK_INDEX.md
 
       - name: Codex checks
@@ -33669,7 +33669,7 @@ jobs:
 
 ````
 
-###### Template File: `.GOV/roles_shared/PROJECT_INVARIANTS.md`
+###### Template File: `.GOV/roles_shared/docs/PROJECT_INVARIANTS.md`
 Intent: Project-specific invariants (identity, naming, layout profile, tool paths). REQUIRED for Governance Pack instantiation.
 ````md
 # PROJECT_INVARIANTS (HARD)
@@ -33724,7 +33724,7 @@ It is the single place where project-specific identity, naming, layout, and tool
 
 ````
 
-###### Template File: `.GOV/roles_shared/SPEC_CURRENT.md`
+###### Template File: `.GOV/roles_shared/records/SPEC_CURRENT.md`
 Intent: Authoritative pointer to the current Master Spec and Governance Reference (drift guard target).
 ````md
 # SPEC_CURRENT
@@ -33743,18 +33743,18 @@ The current authoritative Governance Reference is:
 
 ````
 
-###### Template File: `.GOV/roles_shared/START_HERE.md`
+###### Template File: `.GOV/roles_shared/docs/START_HERE.md`
 Intent: Navigation pack for humans and agents (canonical entry point + workflow commands).
 ````md
 # {{PROJECT_DISPLAY_NAME}} Project: Start Here
 
-Authority: Master Spec (see `.GOV/roles_shared/SPEC_CURRENT.md`).
+Authority: Master Spec (see `.GOV/roles_shared/records/SPEC_CURRENT.md`).
 ---
 ## Canonical sources
-- **Spec:** `.GOV/roles_shared/SPEC_CURRENT.md` (points to the current master spec; see `.GOV/roles_shared/SPEC_CURRENT.md`)..
-- **WP Traceability:** `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` (Base WP â†’ Active Packet mapping; resolves `-vN` revisions without putting WP IDs into the Master Spec).
-- **Governance guardrails:** `{{PROJECT_DISPLAY_NAME}} Codex v{{CODEX_VERSION}}` (repo root) + `.GOV/roles_shared/TASK_BOARD.md` + task packets. {{PROJECT_DISPLAY_NAME}} logger is for milestones/hard bugs when requested.
-- **Architecture & debug:** `.GOV/roles_shared/ARCHITECTURE.md` and `.GOV/roles_shared/RUNBOOK_DEBUG.md`.
+- **Spec:** `.GOV/roles_shared/records/SPEC_CURRENT.md` (points to the current master spec; see `.GOV/roles_shared/records/SPEC_CURRENT.md`)..
+- **WP Traceability:** `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP â†’ Active Packet mapping; resolves `-vN` revisions without putting WP IDs into the Master Spec).
+- **Governance guardrails:** `{{PROJECT_DISPLAY_NAME}} Codex v{{CODEX_VERSION}}` (repo root) + `.GOV/roles_shared/records/TASK_BOARD.md` + task packets. {{PROJECT_DISPLAY_NAME}} logger is for milestones/hard bugs when requested.
+- **Architecture & debug:** `.GOV/roles_shared/docs/ARCHITECTURE.md` and `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`.
 
 ## AI Agent Workflow (Mandatory for AI-Autonomous Operation)
 
@@ -33790,7 +33790,7 @@ just validate-workflow WP-{ID}
 
 **Gate 1 (Post-Work):** All validation MUST pass `just post-work WP-{ID}` before commit. If blocked, fix issues and re-run.
 
-**See:** `.GOV/roles_shared/QUALITY_GATE.md` for Gate 0 and Gate 1 requirements.
+**See:** `.GOV/roles_shared/docs/QUALITY_GATE.md` for Gate 0 and Gate 1 requirements.
 
 ## Repo map (open in an editor and `rg`)
 - `{{FRONTEND_ROOT_DIR}}/` â€” frontend root (UI); source lives under `{{FRONTEND_SRC_DIR}}/`.
@@ -33803,7 +33803,7 @@ just validate-workflow WP-{ID}
 - `.GOV/` â€” governance workspace (canonical) + `.GOV/adr/` (accepted ADRs).
 - `.GOV/operator/docs_local/` â€” staging/non-canonical notes and diaries.
 - `log_archive/` â€” historical logger drops.
-- `.GOV/roles_shared/OWNERSHIP.md` â€” path/area owners for routing reviews.
+- `.GOV/roles_shared/docs/OWNERSHIP.md` â€” path/area owners for routing reviews.
 - Root files: `{{PROJECT_PREFIX}}_Master_Spec_v*.md`, `{{CODEX_FILENAME}}`, `{{PROJECT_PREFIX}}_logger_*`, phase/plan docs.
 - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` and `.GOV/roles/coder/CODER_PROTOCOL.md` â€” AI agent workflow protocols.
 
@@ -33844,16 +33844,16 @@ For task packets: include scope, expected behavior, in-scope paths, DONE_MEANS, 
 CI expectation: run `just validate`; manual validator review is required for MEDIUM/HIGH risk work.
 
 ## Bug triage map (jump into RUNBOOK_DEBUG)
-- UI/frontend: see `.GOV/roles_shared/RUNBOOK_DEBUG.md#ui-and-shell` (app React + Tauri window lifecycle).
-- Backend/API/logic: see `.GOV/roles_shared/RUNBOOK_DEBUG.md#backend-api-and-logic` (Rust `api/*.rs`, models, logging).
-- IPC / orchestrator (Tauri â†” Rust core): see `.GOV/roles_shared/RUNBOOK_DEBUG.md#ipc-tauri-bridge` (`{{FRONTEND_SRC_DIR}}-tauri/src/lib.rs` spawn + commands).
-- Data/migrations/storage: see `.GOV/roles_shared/RUNBOOK_DEBUG.md#data-storage-and-migrations` (`migrations/`, SQLite, RDD model).
+- UI/frontend: see `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md#ui-and-shell` (app React + Tauri window lifecycle).
+- Backend/API/logic: see `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md#backend-api-and-logic` (Rust `api/*.rs`, models, logging).
+- IPC / orchestrator (Tauri â†” Rust core): see `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md#ipc-tauri-bridge` (`{{FRONTEND_SRC_DIR}}-tauri/src/lib.rs` spawn + commands).
+- Data/migrations/storage: see `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md#data-storage-and-migrations` (`migrations/`, SQLite, RDD model).
 
 ## More context
-- Architecture table: `.GOV/roles_shared/ARCHITECTURE.md`
-- Debug runbook: `.GOV/roles_shared/RUNBOOK_DEBUG.md`
-- Current spec + governance: `.GOV/roles_shared/SPEC_CURRENT.md`
-- Quality gate (risk tiers + required checks): `.GOV/roles_shared/QUALITY_GATE.md`
+- Architecture table: `.GOV/roles_shared/docs/ARCHITECTURE.md`
+- Debug runbook: `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
+- Current spec + governance: `.GOV/roles_shared/records/SPEC_CURRENT.md`
+- Quality gate (risk tiers + required checks): `.GOV/roles_shared/docs/QUALITY_GATE.md`
 - Task packet template: `.GOV/templates/TASK_PACKET_TEMPLATE.md`
 - Workflow template for reuse: `.GOV/templates/AI_WORKFLOW_TEMPLATE.md`
 
@@ -33862,7 +33862,7 @@ Pointer to prior specs/logs/notes: `.GOV/roles_shared/PAST_WORK_INDEX.md`
 
 ````
 
-###### Template File: `.GOV/roles_shared/ARCHITECTURE.md`
+###### Template File: `.GOV/roles_shared/docs/ARCHITECTURE.md`
 Intent: Module/area map and allowed dependency boundaries (architecture drift control).
 ````md
 # ARCHITECTURE
@@ -33876,7 +33876,7 @@ Intent: Module/area map and allowed dependency boundaries (architecture drift co
 | Shared contracts | Cross-stack types and schemas | `src/shared/` | Intended for dual Rust/TS types; TBD ({{ISSUE_PREFIX}}-1002): define actual shared types | Place shared DTOs/schemas here when ready; update both stacks to consume them |
 | Tooling / scripts | Developer ergonomics, automation | `justfile`, `.GOV/scripts/` | Shell/CLI dependencies only; do not bake business logic here | Add repeatable tasks to `justfile`; helper scripts under `.GOV/scripts/` |
 
-Note: Frontend and shell live under `{{FRONTEND_ROOT_DIR}}/` and `{{FRONTEND_SRC_DIR}}-tauri/` (per `.GOV/roles_shared/PROJECT_INVARIANTS.md`). Backend crate lives under `{{BACKEND_CRATE_DIR}}/`.
+Note: Frontend and shell live under `{{FRONTEND_ROOT_DIR}}/` and `{{FRONTEND_SRC_DIR}}-tauri/` (per `.GOV/roles_shared/docs/PROJECT_INVARIANTS.md`). Backend crate lives under `{{BACKEND_CRATE_DIR}}/`.
 
 Feature flags/toggles: If introducing flags, document the flag name and location here and in relevant modules.
 
@@ -33887,7 +33887,7 @@ Feature flags/toggles: If introducing flags, document the flag name and location
 
 ````
 
-###### Template File: `.GOV/roles_shared/RUNBOOK_DEBUG.md`
+###### Template File: `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
 Intent: Debug runbook (first-5-minutes flow + CI triage map).
 ````md
 # RUNBOOK_DEBUG
@@ -33896,7 +33896,7 @@ Intent: Debug runbook (first-5-minutes flow + CI triage map).
 > **WARNING for AI Agents:** Commands like `pnpm -C {{FRONTEND_ROOT_DIR}} tauri dev` or `just dev` start a long-running development server. They MUST NOT be executed with a blocking tool (like `run_shell_command`). These commands should be run in a separate, dedicated terminal by the user or as a true background process.
 - Repro fast: `pnpm -C {{FRONTEND_ROOT_DIR}} tauri dev` (frontend + Tauri) and keep terminal output visible; note console errors.
 - Check backend health while reproing: `cargo run --bin {{BACKEND_CRATE_NAME}}` (or rely on the Tauri spawn) and watch `data/logs/{{BACKEND_CRATE_NAME}}.log`.
-- Confirm branch/spec alignment: skim `.GOV/roles_shared/SPEC_CURRENT.md` for the exact feature expectation before changing code.
+- Confirm branch/spec alignment: skim `.GOV/roles_shared/records/SPEC_CURRENT.md` for the exact feature expectation before changing code.
 - Isolate layer: decide if the failure is UI, IPC, backend, or data; jump to the matching section below.
 - Run the smallest relevant test: `pnpm -C {{FRONTEND_ROOT_DIR}} test <pattern>` for UI, `cargo test --manifest-path {{BACKEND_CARGO_TOML}}` for backend.
 
@@ -33916,7 +33916,7 @@ Intent: Debug runbook (first-5-minutes flow + CI triage map).
 | Build/test fails | `justfile`, package configs (`{{FRONTEND_ROOT_DIR}}/package.json`, `{{BACKEND_CARGO_TOML}}`) | Re-run `pnpm -C {{FRONTEND_ROOT_DIR}} test`, `cargo test --manifest-path {{BACKEND_CARGO_TOML}}` |
 
 ## If you only remember one thing
-- Use `rg "<feature or error string>" {{FRONTEND_SRC_DIR}} {{BACKEND_CRATE_DIR}}` to jump to the owning layer, then open the matching file and cross-check the expected behavior in `.GOV/roles_shared/SPEC_CURRENT.md`.
+- Use `rg "<feature or error string>" {{FRONTEND_SRC_DIR}} {{BACKEND_CRATE_DIR}}` to jump to the owning layer, then open the matching file and cross-check the expected behavior in `.GOV/roles_shared/records/SPEC_CURRENT.md`.
 - When adding new repeatable errors, assign a code/tag like `{{ISSUE_PREFIX}}-####` and note it here with the primary entrypoint to triage.
 
 ## Debugging a failed CI check
@@ -33946,7 +33946,7 @@ Intent: Archaeology pointers (prevents guesswork when context is missing).
 
 ````
 
-###### Template File: `.GOV/roles_shared/OWNERSHIP.md`
+###### Template File: `.GOV/roles_shared/docs/OWNERSHIP.md`
 Intent: Path ownership routing map for review/triage.
 ````md
 # OWNERSHIP (fill as features land)
@@ -33964,7 +33964,7 @@ Path ownership map for review and routing. Update when new areas appear.
 
 ````
 
-###### Template File: `.GOV/roles_shared/TASK_BOARD.md`
+###### Template File: `.GOV/roles_shared/records/TASK_BOARD.md`
 Intent: Machine-checkable shared work memory (WP lifecycle; STUB/IN_PROGRESS/DONE).
 ````md
 # {{PROJECT_DISPLAY_NAME}} Project Task Board (Phase 1: EXHAUSTIVE STRATEGIC AUDIT)
@@ -33982,7 +33982,7 @@ Intent: Machine-checkable shared work memory (WP lifecycle; STUB/IN_PROGRESS/DON
 
 **Why:** {{PROJECT_DISPLAY_NAME}} is complex software. Treating roadmap bullets as requirements (instead of pointers) leads to surface-level compliance, technical debt, and project failure.
 
-This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Phase 1 cannot close until every item below is validated against the current Master Spec (see `.GOV/roles_shared/SPEC_CURRENT.md`).
+This board provides an exhaustive tracking of all Roadmap items from A7.6.3. Phase 1 cannot close until every item below is validated against the current Master Spec (see `.GOV/roles_shared/records/SPEC_CURRENT.md`).
 
 **Task Board entry format (enforced for In Progress/Done/Superseded via `just task-board-check`):**
 - In Progress: `- **[WP_ID]** - [IN_PROGRESS]`
@@ -33993,7 +33993,7 @@ Keep details (failure reasons, commands, evidence, \"SUPERSEDED by ...\") in the
 **Backlog stubs (pre-activation):**
 - Track not-yet-activated work as STUB items (no USER_SIGNATURE yet). Details live in `.GOV/task_packets/stubs/`.
 - Stubs MUST be activated into official task packets before any coding starts (see `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`).
-- Base WP â†” packet revision mapping (v2/v3/v4) is tracked in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`.
+- Base WP â†” packet revision mapping (v2/v3/v4) is tracked in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`.
 
 ---
 
@@ -34014,7 +34014,7 @@ Entry format (recommended):
 
 ## Ready for Dev
 
-A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
+A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
 
 
 ## Stub Backlog (Not Activated)
@@ -34102,7 +34102,7 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 
 ````
 
-###### Template File: `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`
+###### Template File: `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
 Intent: Single source of truth mapping Base WP -> Active Packet (keeps Master Spec WP-free).
 ````md
 # Work Packet Traceability Registry (SSoT)
@@ -34140,7 +34140,7 @@ This avoids retroactively embedding WP IDs into the Master Spec and prevents dri
 3. **Task packets live in** `.GOV/task_packets/`. **Stubs live in** `.GOV/task_packets/stubs/`.
 4. If a packet must change due to audit/spec drift:
    - Create a **new packet revision** `...-v{N}` (do not edit locked history).
-   - Mark the older packet as **Superseded** on `.GOV/roles_shared/TASK_BOARD.md`.
+   - Mark the older packet as **Superseded** on `.GOV/roles_shared/records/TASK_BOARD.md`.
    - Update this registry to point the Base WP to the new Active Packet.
 
 **Registry update is mandatory whenever more than one packet exists for the same Base WP.** If mapping is missing or ambiguous, the WP is governance-blocked until resolved.
@@ -34167,7 +34167,7 @@ Format:
 
 ````
 
-###### Template File: `.GOV/roles_shared/SIGNATURE_AUDIT.md`
+###### Template File: `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`
 Intent: Central registry of consumed USER_SIGNATURE tokens (anti-replay / audit trail).
 ````md
 # SIGNATURE_AUDIT
@@ -34221,7 +34221,7 @@ Intent: Central registry of consumed USER_SIGNATURE tokens (anti-replay / audit 
    **Authority:** Master Spec v02.85, Strategic Pause approval [ilja251225032800]
    ```
 
-5. **Update .GOV/roles_shared/SPEC_CURRENT.md** to new version if enrichment occurred
+5. **Update .GOV/roles_shared/records/SPEC_CURRENT.md** to new version if enrichment occurred
 
 ---
 
@@ -34251,7 +34251,7 @@ Intent: Central registry of consumed USER_SIGNATURE tokens (anti-replay / audit 
 grep -r "ilja251225032800" .
 
 # List all signatures in audit log
-grep "^| " .GOV/roles_shared/SIGNATURE_AUDIT.md | grep -v "^| Signature"
+grep "^| " .GOV/roles_shared/records/SIGNATURE_AUDIT.md | grep -v "^| Signature"
 
 # Verify no orphaned signatures in code/docs
 grep -r "DDMMYYYYHHMM\|[a-z]*[0-9]\{12\}" . --include="*.md" | grep -v "SIGNATURE_AUDIT"
@@ -34268,7 +34268,7 @@ grep -r "Strategic Pause approval \[" .GOV/task_packets/ | awk -F'[' '{print $NF
 
 ````
 
-###### Template File: `.GOV/roles_shared/QUALITY_GATE.md`
+###### Template File: `.GOV/roles_shared/docs/QUALITY_GATE.md`
 Intent: Risk-tiered quality gate contract (pre/post-work expectations; validator posture).
 ````md
 # QUALITY_GATE
@@ -34311,8 +34311,8 @@ If uncertain, choose the higher tier.
 
 ## Definition of done (minimum)
 - Required commands run (or recorded why not).
-- Any new error codes/tags documented in `.GOV/roles_shared/RUNBOOK_DEBUG.md`.
-- New flags/toggles documented in `.GOV/roles_shared/ARCHITECTURE.md`.
+- Any new error codes/tags documented in `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`.
+- New flags/toggles documented in `.GOV/roles_shared/docs/ARCHITECTURE.md`.
 - Targeted test added for logic changes, or explicit reason recorded.
 - Manual validator review completed and recorded (status + evidence mapping); no automated review required.
 
@@ -34339,17 +34339,17 @@ just validate-workflow WP-{ID}  # Runs pre-work, validate, post-work
 
 ## Self-review checklist (required)
 1) Diff scan: every line is necessary for the task; no drive-by changes.
-2) Placement: files and functions live in the correct module (see `.GOV/roles_shared/ARCHITECTURE.md`).
-3) Errors/observability: new repeatable errors have `{{ISSUE_PREFIX}}-####` tags and `.GOV/roles_shared/RUNBOOK_DEBUG.md` updates.
+2) Placement: files and functions live in the correct module (see `.GOV/roles_shared/docs/ARCHITECTURE.md`).
+3) Errors/observability: new repeatable errors have `{{ISSUE_PREFIX}}-####` tags and `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` updates.
 4) Tests: at least one targeted test for logic changes (or a written reason).
-5) Docs drift: update `.GOV/roles_shared/START_HERE.md`, `.GOV/roles_shared/ARCHITECTURE.md`, `.GOV/roles_shared/RUNBOOK_DEBUG.md` if behavior/entrypoints changed.
+5) Docs drift: update `.GOV/roles_shared/docs/START_HERE.md`, `.GOV/roles_shared/docs/ARCHITECTURE.md`, `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` if behavior/entrypoints changed.
 
 Scaffolding: for new components or API endpoints, prefer `just new-react-component <Name>` or `just new-api-endpoint <name>` to keep structure consistent.
 For MEDIUM/HIGH tasks adding new components or endpoints, scaffolds are required unless explicitly waived; record the reason in the task packet and run `just scaffold-check` before merge.
 
 ````
 
-###### Template File: `.GOV/roles_shared/OSS_REGISTER.md`
+###### Template File: `.GOV/roles_shared/records/OSS_REGISTER.md`
 Intent: Authoritative Open Source Software register (supply-chain manifest + license/integration posture).
 ````md
 # OSS REGISTER
@@ -34392,7 +34392,7 @@ Intent: Authoritative Open Source Software register (supply-chain manifest + lic
 
 ````
 
-###### Template File: `.GOV/roles_shared/ROLE_WORKTREES.md`
+###### Template File: `.GOV/roles_shared/docs/ROLE_WORKTREES.md`
 Intent: Local worktree/branch policy for role-governed sessions (operator-machine specific).
 ````md
 # ROLE_WORKTREES (Local Worktree Policy)
@@ -34502,7 +34502,7 @@ Intent: Orchestrator role protocol (refinement loop, signature gate, delegation 
 ### [PRIORITY_3] Deterministic Enforcement [CX-585A/C]
 - Spec-Version Lock: Master Spec immutable during phase execution
 - Signature Gate: Zero implementation without technical refinement pause
-- If spec change needed: run the Spec Enrichment workflow (new spec version file + update `.GOV/roles_shared/SPEC_CURRENT.md`) under a one-time user signature and record it in `.GOV/roles_shared/SIGNATURE_AUDIT.md`. Do NOT edit locked task packets to "catch up" to the new spec; keep history immutable and create a NEW remediation WP only if new-spec deltas require new code changes.
+- If spec change needed: run the Spec Enrichment workflow (new spec version file + update `.GOV/roles_shared/records/SPEC_CURRENT.md`) under a one-time user signature and record it in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`. Do NOT edit locked task packets to "catch up" to the new spec; keep history immutable and create a NEW remediation WP only if new-spec deltas require new code changes.
 - Historical completion policy: if Validator returns **OUTDATED_ONLY** (baseline-correct but spec evolved), keep the WP archived as Done/Validated history and create a NEW remediation WP only if current-spec deltas are actually needed. Do not churn the original WP back into Ready for Dev for drift-only.
 
 ### [PRIORITY_4] Phase 1 Closure Gate [CX-585D]
@@ -34553,7 +34553,7 @@ Intent: Orchestrator role protocol (refinement loop, signature gate, delegation 
 Orchestrator work MUST be performed from the correct worktree directory and branch.
 
 Source of truth:
-- `.GOV/roles_shared/ROLE_WORKTREES.md` (default role worktrees/branches)
+- `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (default role worktrees/branches)
 - The assigned WP worktree/branch for the WP being orchestrated
 
 Required verification (run at session start and whenever context is unclear):
@@ -34564,7 +34564,7 @@ Required verification (run at session start and whenever context is unclear):
 
 If the required worktree/branch does not exist:
 - STOP and request explicit user authorization to create it (Codex [CX-108]).
-- Only after authorization, create it using the commands in `.GOV/roles_shared/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
+- Only after authorization, create it using the commands in `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
 
 Coder worktree rule:
 - CODER agents must work only in WP-assigned worktrees/branches recorded via `just record-prepare` (writes `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`).
@@ -34588,7 +34588,7 @@ Coder worktree rule:
 
 ### Step 1: Spec Currency Verification âœ‹ STOP
 ```bash
-cat .GOV/roles_shared/SPEC_CURRENT.md
+cat .GOV/roles_shared/records/SPEC_CURRENT.md
 just validator-spec-regression
 ```
 - [ ] SPEC_CURRENT.md is current
@@ -34732,7 +34732,7 @@ Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block contain
 
 
 **Hard enforcement rule (procedure; repo-enforced):**
-- If the refinement concludes **ENRICHMENT_NEEDED=YES** (or otherwise identifies unresolved ambiguity requiring new normative text), the Orchestrator MUST STOP. Do NOT record a WP packet signature and do NOT create/lock a task packet. Complete Spec Enrichment first (new spec version + update `.GOV/roles_shared/SPEC_CURRENT.md`), then create a NEW WP variant anchored to the updated spec with a fresh one-time signature.
+- If the refinement concludes **ENRICHMENT_NEEDED=YES** (or otherwise identifies unresolved ambiguity requiring new normative text), the Orchestrator MUST STOP. Do NOT record a WP packet signature and do NOT create/lock a task packet. Complete Spec Enrichment first (new spec version + update `.GOV/roles_shared/records/SPEC_CURRENT.md`), then create a NEW WP variant anchored to the updated spec with a fresh one-time signature.
 
 **Step 2: Enrich Master Spec (after user approval)**
 If gaps found:
@@ -34741,7 +34741,7 @@ If gaps found:
 3. Copy: Entire current spec
 4. Add: Required sections/clarifications (using the Proposed Spec Enrichment text)
 5. Add: CHANGELOG entry with reason for update
-6. Update: .GOV/roles_shared/SPEC_CURRENT.md to point to new version
+6. Update: .GOV/roles_shared/records/SPEC_CURRENT.md to point to new version
 
 **Step 3: Update all workflow files to reference new spec**
 
@@ -34750,9 +34750,9 @@ Orchestrator MUST update these files to point to new spec version:
 - .GOV/roles/coder/CODER_PROTOCOL.md: Update spec version references
 - .GOV/roles/validator/VALIDATOR_PROTOCOL.md: Update spec version references
 - .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md: Update spec version references
-- .GOV/roles_shared/START_HERE.md: Update spec version references
-- .GOV/roles_shared/ARCHITECTURE.md: Update spec anchors if changed
-- .GOV/roles_shared/SPEC_CURRENT.md: Point to the new spec (authoritative)
+- .GOV/roles_shared/docs/START_HERE.md: Update spec version references
+- .GOV/roles_shared/docs/ARCHITECTURE.md: Update spec anchors if changed
+- .GOV/roles_shared/records/SPEC_CURRENT.md: Point to the new spec (authoritative)
 
 Do NOT mass-edit historical/signed task packets to "catch up" to new governance/spec. Signed packets are immutable; create new variants/remediation WPs instead.
 ```
@@ -34775,8 +34775,8 @@ grep -r "Master Spec v02" .GOV/roles_shared/*.md .GOV/roles/*/*.md .GOV/task_pac
 A **Work Packet Stub** is an optional planning artifact used to track Roadmap/Main Body work before activation.
 
 - Stubs are legitimate backlog items, but they are NOT executable task packets/work packets.
-- Stubs MUST live in `.GOV/task_packets/stubs/` and should be listed on `.GOV/roles_shared/TASK_BOARD.md` under a STUB section.
-- If a Base WP has multiple packets (or a stub + official packet), the Base WP â†’ Active Packet mapping MUST be recorded in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`.
+- Stubs MUST live in `.GOV/task_packets/stubs/` and should be listed on `.GOV/roles_shared/records/TASK_BOARD.md` under a STUB section.
+- If a Base WP has multiple packets (or a stub + official packet), the Base WP â†’ Active Packet mapping MUST be recorded in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`.
 - Stubs MUST NOT be handed off to Coder/Validator and MUST NOT be used to start implementation.
 - Stubs do not require USER_SIGNATURE, a refinement file, or deterministic gates.
 - Stub template: `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
@@ -34818,7 +34818,7 @@ Each signature can only be used once. Request new signature from user.
 
 ### Part 2.5.4 Signature Audit Log [CX-585B]
 
-**Orchestrator MUST maintain `.GOV/roles_shared/SIGNATURE_AUDIT.md` as central registry.**
+**Orchestrator MUST maintain `.GOV/roles_shared/records/SIGNATURE_AUDIT.md` as central registry.**
 
 ```markdown
 # SIGNATURE_AUDIT.md
@@ -34951,7 +34951,7 @@ grep -r "{signature}" .
 ```
 
 **Recovery if error occurs:**
-1. Mark signature INVALID in `.GOV/roles_shared/SIGNATURE_AUDIT.md`
+1. Mark signature INVALID in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`
    ```markdown
    | ilja251225032800 | Orchestrator | 2025-12-25 03:28 | (INVALID - used twice by mistake) | v02.85 | Signature rejected; same timestamp used multiple times |
    ```
@@ -34978,7 +34978,7 @@ grep -r "{signature}" .
 
 **Prevention:** Verify SPEC_ANCHOR exists in Master Spec BEFORE locking:
 ```bash
-grep -n "Â§X\.X\.X" .GOV/roles_shared/SPEC_CURRENT.md
+grep -n "Â§X\.X\.X" .GOV/roles_shared/records/SPEC_CURRENT.md
 # Should return non-zero (section exists)
 ```
 
@@ -35029,13 +35029,13 @@ Mark packet with ERRATA note but keep it active (no v2 needed).
 
 **Prevention:** Use docs-only status-sync commits:
 - Coder produces a docs-only bootstrap claim commit when starting (task packet set to `In Progress` with claim fields).
-- Validator mirrors that to `main` by updating `.GOV/roles_shared/TASK_BOARD.md` -> `## Active (Cross-Branch Status)` (and later moves items on PASS/FAIL).
+- Validator mirrors that to `main` by updating `.GOV/roles_shared/records/TASK_BOARD.md` -> `## Active (Cross-Branch Status)` (and later moves items on PASS/FAIL).
 
 **Recovery if error occurs:**
 1. Compare TASK_BOARD status vs. each WP's STATUS field
    ```bash
    grep "^- STATUS:" .GOV/task_packets/WP-*.md | sort
-   # Compare with .GOV/roles_shared/TASK_BOARD.md sections
+   # Compare with .GOV/roles_shared/records/TASK_BOARD.md sections
    ```
 
 2. Identify discrepancies
@@ -35472,7 +35472,7 @@ ROLLBACK_HINT: Undo changes if needed
 **What "complete" means:**
 
 **Sub-field 10A: FILES_TO_OPEN (5-15 files)**
-- âœ… Always include: `.GOV/roles_shared/START_HERE.md`, `.GOV/roles_shared/SPEC_CURRENT.md`, `.GOV/roles_shared/ARCHITECTURE.md`
+- âœ… Always include: `.GOV/roles_shared/docs/START_HERE.md`, `.GOV/roles_shared/records/SPEC_CURRENT.md`, `.GOV/roles_shared/docs/ARCHITECTURE.md`
 - âœ… Then: 5-15 implementation files (exact paths)
 - âœ… Order matters: context first, implementation last
 
@@ -35508,9 +35508,9 @@ ROLLBACK_HINT: Undo changes if needed
 ```markdown
 ## Bootstrap (Coder Work Plan)
 - **FILES_TO_OPEN**:
-  * .GOV/roles_shared/START_HERE.md (repository overview)
-  * .GOV/roles_shared/SPEC_CURRENT.md (current spec version)
-  * .GOV/roles_shared/ARCHITECTURE.md (storage architecture)
+  * .GOV/roles_shared/docs/START_HERE.md (repository overview)
+  * .GOV/roles_shared/records/SPEC_CURRENT.md (current spec version)
+  * .GOV/roles_shared/docs/ARCHITECTURE.md (storage architecture)
   * {{BACKEND_SRC_DIR}}/lib.rs (module structure)
   * {{BACKEND_SRC_DIR}}/api/mod.rs (API layer)
   * {{BACKEND_SRC_DIR}}/api/jobs.rs (job endpoints - MODIFY)
@@ -35595,14 +35595,14 @@ Complete ALL steps before delegating. If any step fails, STOP and fix it.
 **NEW: Check for blocking dependencies:**
 ```bash
 # Verify blocker status in TASK_BOARD
-grep -A5 "## Blocked" .GOV/roles_shared/TASK_BOARD.md
+grep -A5 "## Blocked" .GOV/roles_shared/records/TASK_BOARD.md
 ```
 
 **NEW: Concurrency / File-Lock Conflict Check (multi-coder sessions) [CX-CONC-001]**
 
 When multiple Coders work in the repo concurrently, treat `IN_SCOPE_PATHS` as the exclusive file lock set for that WP.
 
-- Lock source of truth: Operator-visible Task Board on `main` (recommended: `git show main:.GOV/roles_shared/TASK_BOARD.md`) -> `## In Progress` (and `## Active (Cross-Branch Status)` if present).
+- Lock source of truth: Operator-visible Task Board on `main` (recommended: `git show main:.GOV/roles_shared/records/TASK_BOARD.md`) -> `## In Progress` (and `## Active (Cross-Branch Status)` if present).
 - Lock set definition: for each in-progress WP, its lock set is the exact file paths listed under its task packet's `IN_SCOPE_PATHS`.
 - Hard rule: do NOT delegate/start a new WP if ANY `IN_SCOPE_PATHS` entry overlaps with ANY in-progress WP's `IN_SCOPE_PATHS`.
   - If overlap is required, this is a blocker: re-scope to avoid overlap OR sequence the work (mark WP BLOCKED: "File lock conflict").
@@ -35723,9 +35723,9 @@ Use this template:
 
 ## Bootstrap (Coder Work Plan)
 - **FILES_TO_OPEN**:
-  * .GOV/roles_shared/START_HERE.md
-  * .GOV/roles_shared/SPEC_CURRENT.md
-  * .GOV/roles_shared/ARCHITECTURE.md
+  * .GOV/roles_shared/docs/START_HERE.md
+  * .GOV/roles_shared/records/SPEC_CURRENT.md
+  * .GOV/roles_shared/docs/ARCHITECTURE.md
   * {5-10 implementation-specific files}
 - **SEARCH_TERMS**:
   * "{key symbol/function}"
@@ -35745,10 +35745,10 @@ Use this template:
 
 ## Authority
 - **SPEC_BASELINE**: {{PROJECT_PREFIX}}_Master_Spec_vXX.XX.md (spec at packet creation time; provenance)
-- **SPEC_TARGET**: .GOV/roles_shared/SPEC_CURRENT.md (binding spec for closure/revalidation; resolved at validation time)
+- **SPEC_TARGET**: .GOV/roles_shared/records/SPEC_CURRENT.md (binding spec for closure/revalidation; resolved at validation time)
 - **SPEC_ANCHOR**: {master spec section(s) / anchors}
 - **Codex**: {{CODEX_FILENAME}}
-- **Task Board**: .GOV/roles_shared/TASK_BOARD.md
+- **Task Board**: .GOV/roles_shared/records/TASK_BOARD.md
 - **Logger**: (optional) latest {{PROJECT_PREFIX}}_logger_* if requested for milestone/hard bug
 - **ADRs**: {if relevant}
 
@@ -35767,13 +35767,13 @@ ls -la .GOV/task_packets/WP-*.md
 
 ### Step 3: Update Task Board âœ‹ STOP
 
-**Update `.GOV/roles_shared/TASK_BOARD.md`:**
+**Update `.GOV/roles_shared/records/TASK_BOARD.md`:**
 - Move WP-{ID} to "Ready for Dev"
 - Or "In Progress" if assigning immediately
 
 **Verify file updated:**
 ```bash
-grep "WP-{ID}" .GOV/roles_shared/TASK_BOARD.md
+grep "WP-{ID}" .GOV/roles_shared/records/TASK_BOARD.md
 ```
 
 **Note:** You DO NOT need to create a logger entry at this stage. Logger entries are reserved for work completion, milestones, or critical blockers.
@@ -35828,9 +35828,9 @@ You are a Coder agent. Before writing code:
 5. Verify packet scope matches user request
 
 Authority docs:
-- .GOV/roles_shared/START_HERE.md
-- .GOV/roles_shared/SPEC_CURRENT.md
-- .GOV/roles_shared/ARCHITECTURE.md
+- .GOV/roles_shared/docs/START_HERE.md
+- .GOV/roles_shared/records/SPEC_CURRENT.md
+- .GOV/roles_shared/docs/ARCHITECTURE.md
 - {{CODEX_FILENAME}}
 
 âœ… Orchestrator checklist complete. Task packet WP-{ID} created and verified.
@@ -35862,7 +35862,7 @@ When a task's state changes (e.g., from `Ready-for-Dev` to `In-Progress`, or to 
 
 ### Step 2: Update the Task Board
 
-Immediately after updating the packet's status, the active agent MUST also edit `.GOV/roles_shared/TASK_BOARD.md` to move the `WP-ID` to the correct column.
+Immediately after updating the packet's status, the active agent MUST also edit `.GOV/roles_shared/records/TASK_BOARD.md` to move the `WP-ID` to the correct column.
 
 **This two-step process ensures both the detailed ticket and the high-level board are always in sync.**
 
@@ -35975,8 +35975,8 @@ FILES_TO_OPEN: Some files
 **Right:**
 ```
 FILES_TO_OPEN:
-- .GOV/roles_shared/START_HERE.md
-- .GOV/roles_shared/ARCHITECTURE.md
+- .GOV/roles_shared/docs/START_HERE.md
+- .GOV/roles_shared/docs/ARCHITECTURE.md
 - {{BACKEND_SRC_DIR}}/api/jobs.rs
 - {{BACKEND_SRC_DIR}}/jobs.rs
 - {{BACKEND_SRC_DIR}}/workflows.rs
@@ -36086,7 +36086,7 @@ Every work packet MUST include these sections (in order):
 ## Authority
 - **SPEC_ANCHOR**: Â§{section} ({requirement})
 - **Codex**: {version}
-- **Task Board**: .GOV/roles_shared/TASK_BOARD.md
+- **Task Board**: .GOV/roles_shared/records/TASK_BOARD.md
 - **Logger**: {if applicable}
 
 ## Notes
@@ -36235,7 +36235,7 @@ DONE_MEANS (mapped):
 
 **Traceability rule (mandatory when variants exist):**
 - Treat `WP-1-Storage-Abstraction-Layer` as the **Base WP ID**.
-- If you create `...-v{N}`, update `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` so the Base WP maps to the single Active Packet, and mark the older packet(s) as Superseded on `.GOV/roles_shared/TASK_BOARD.md`.
+- If you create `...-v{N}`, update `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` so the Base WP maps to the single Active Packet, and mark the older packet(s) as Superseded on `.GOV/roles_shared/records/TASK_BOARD.md`.
 - When instructing Coders/Validators to run `just pre-work` / `just post-work`, always provide the **Active Packet WP_ID** (often includes `-vN`) to avoid ambiguous matches.
 
 
@@ -36287,7 +36287,7 @@ When you create a revision packet (`-v{N}`) for a Base WP, you MUST include a **
 **MANDATORY:** Add `## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]` to the new packet and include, at minimum:
 - `BASE_WP_ID` and the new `WP_ID` being created.
 - Roadmap pointer(s) (if applicable) AND the governing Master Spec Main Body anchors for â€œDoneâ€.
-- `SPEC_TARGET` resolved at creation time (from `.GOV/roles_shared/SPEC_CURRENT.md`).
+- `SPEC_TARGET` resolved at creation time (from `.GOV/roles_shared/records/SPEC_CURRENT.md`).
 - A list of ALL known prior packet files for the Base WP (v1/v2/...) and their statuses (Superseded/FAIL/Historical/etc.).
 - A requirement map showing every governing Main Body MUST/SHOULD translated to current repo evidence:
   - `SPEC_ANCHOR` (exact clause ID)
@@ -36296,7 +36296,7 @@ When you create a revision packet (`-v{N}`) for a Base WP, you MUST include a **
   - If anything is missing: declare GAP and STOP (create a remediation WP or initiate spec enrichment).
 
 **Suggested commands (examples):**
-- `cat .GOV/roles_shared/SPEC_CURRENT.md`
+- `cat .GOV/roles_shared/records/SPEC_CURRENT.md`
 - `rg -n "<forbidden symbols>" src/`
 - `git blame -n -L <line>,<line> <path>`
 - `git log --oneline --decorate -- <path>`
@@ -36306,7 +36306,7 @@ When you create a revision packet (`-v{N}`) for a Base WP, you MUST include a **
 ## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]
 - BASE_WP_ID: WP-1-...
 - WP_ID: WP-1-...-vN
-- SPEC_TARGET: {{PROJECT_PREFIX}}_Master_Spec_vXX.XXX.md (from .GOV/roles_shared/SPEC_CURRENT.md)
+- SPEC_TARGET: {{PROJECT_PREFIX}}_Master_Spec_vXX.XXX.md (from .GOV/roles_shared/records/SPEC_CURRENT.md)
 - Roadmap pointer: Â§7.6.x (pointer only; Main Body is authority)
 - Prior packets:
   - .GOV/task_packets/WP-1-....md (status: ...)
@@ -36323,7 +36323,7 @@ When you create a revision packet (`-v{N}`) for a Base WP, you MUST include a **
 
 ### 6.1 Task Board Structure (Single Source of Truth)
 
-**Orchestrator maintains `.GOV/roles_shared/TASK_BOARD.md` as the authoritative status tracker.**
+**Orchestrator maintains `.GOV/roles_shared/records/TASK_BOARD.md` as the authoritative status tracker.**
 
 **Version-tag review rule (normative):** If Task Board entries include a spec-version tag (e.g., `v02.116`), then whenever that spec version's scope is amended, Orchestrator MUST run a revision pass over those entries (status, scope, links) and revise/update them to match current spec + roadmap semantics.
 
@@ -36744,7 +36744,7 @@ All follow the structure in this protocol; use them as templates for new WPs.
 | Responsibility | Primary Document | Authority |
 |---|---|---|
 | Create work packets | `.GOV/task_packets/WP-*.md` | ORCHESTRATOR_PROTOCOL Part 4-5 |
-| Maintain task board | `.GOV/roles_shared/TASK_BOARD.md` | ORCHESTRATOR_PROTOCOL Part 6 |
+| Maintain task board | `.GOV/roles_shared/records/TASK_BOARD.md` | ORCHESTRATOR_PROTOCOL Part 6 |
 | Track dependencies | Packet + TASK_BOARD | ORCHESTRATOR_PROTOCOL Part 7 |
 | Validate before delegation | Pre-work checklist | ORCHESTRATOR_PROTOCOL Part 8 |
 | Lock packets | USER_SIGNATURE | ORCHESTRATOR_PROTOCOL Part 5.6 |
@@ -36825,7 +36825,7 @@ If the assigned WP worktree/branch does not exist locally:
 {{PROJECT_DISPLAY_NAME}} uses **Base WP IDs** for stable planning, and **packet revisions** (`-v{N}`) when packets are remediated after audits/spec drift.
 
 **Rule (blocking if ambiguous):**
-- Before you start implementation, confirm the **Active Packet** for your Base WP in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`.
+- Before you start implementation, confirm the **Active Packet** for your Base WP in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`.
 - If more than one task packet exists for the same Base WP and the registry does not clearly identify the Active Packet, STOP and escalate to the Orchestrator (governance-blocked).
 - Run `just pre-work` / `just post-work` using the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
 
@@ -36865,7 +36865,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 Task state is managed by the agent currently holding the "ball":
 1. **Orchestrator**: Creates WP -> Adds to `Ready for Dev`.
 2. **Coder**: Starts work -> Updates task packet to `In Progress` + pushes a docs-only bootstrap commit.
-3. **Validator**: Status-syncs `.GOV/roles_shared/TASK_BOARD.md` on `main` (updates `## Active (Cross-Branch Status)` for Operator visibility).
+3. **Validator**: Status-syncs `.GOV/roles_shared/records/TASK_BOARD.md` on `main` (updates `## Active (Cross-Branch Status)` for Operator visibility).
 4. **Validator**: Approves work -> Moves to `Done` (during VALIDATION).
 5. **Orchestrator**: Escalation/Blocker -> Moves to `Blocked`.
 
@@ -36895,7 +36895,7 @@ You are a **Coder** or **Debugger** agent. Your job is to:
 3. Run validation (TEST_PLAN + hygiene) and self-review
 4. Document completion for handoff
 
-**Restrictions:** You may append raw logs/evidence to `## EVIDENCE`, but **NEVER** write a verdict or validation report. Do not rely on branch-local `.GOV/roles_shared/TASK_BOARD.md` for cross-branch visibility; the Validator maintains the Operator-visible board on `main`.
+**Restrictions:** You may append raw logs/evidence to `## EVIDENCE`, but **NEVER** write a verdict or validation report. Do not rely on branch-local `.GOV/roles_shared/records/TASK_BOARD.md` for cross-branch visibility; the Validator maintains the Operator-visible board on `main`.
 
 **CRITICAL**: You MUST verify a task packet exists BEFORE writing any code. This is not optional.
 
@@ -37051,7 +37051,7 @@ When two Coders work in this repo concurrently, no two in-progress Work Packets 
 - **Low-friction rule:** Local uncommitted changes outside your WP are allowed during development, but when handing off for Validator merge/commit you MUST stage ONLY your WP's files (per `IN_SCOPE_PATHS`) so `just post-work {WP_ID}` can validate the staged diff deterministically.
 - **Waiver boundary [CX-573F]:** A user waiver is only required if the Validator cannot isolate the staged diff to the WP scope (or if out-of-scope files must be included intentionally).
 - Treat `IN_SCOPE_PATHS` as the exclusive file lock set for the WP.
-- Before editing any code, consult the Operator-visible Task Board on `main` (recommended: `git show main:.GOV/roles_shared/TASK_BOARD.md`) and review `## Active (Cross-Branch Status)`; open each listed WP packet and compare `IN_SCOPE_PATHS` to your WP.
+- Before editing any code, consult the Operator-visible Task Board on `main` (recommended: `git show main:.GOV/roles_shared/records/TASK_BOARD.md`) and review `## Active (Cross-Branch Status)`; open each listed WP packet and compare `IN_SCOPE_PATHS` to your WP.
 - If ANY overlap exists: STOP and escalate (do not edit any code).
 
 Escalation template:
@@ -37128,9 +37128,9 @@ git commit -m "docs: bootstrap claim [WP-{ID}]"
 
 **Notify the Validator** with the commit hash. The Validator will:
 - Merge the docs-only bootstrap claim commit into `main` (commit SHA only; do not fast-forward to unvalidated implementation)
-- Update `.GOV/roles_shared/TASK_BOARD.md` on `main` (move WP to `## In Progress`; optionally add metadata under `## Active (Cross-Branch Status)`)
+- Update `.GOV/roles_shared/records/TASK_BOARD.md` on `main` (move WP to `## In Progress`; optionally add metadata under `## Active (Cross-Branch Status)`)
 
-**Do NOT edit `.GOV/roles_shared/TASK_BOARD.md` for cross-branch visibility in your WP branch** unless the Validator explicitly asks. (Validator maintains the Operator-visible `main` board; `## In Progress` lines are script-checked.)
+**Do NOT edit `.GOV/roles_shared/records/TASK_BOARD.md` for cross-branch visibility in your WP branch** unless the Validator explicitly asks. (Validator maintains the Operator-visible `main` board; `## In Progress` lines are script-checked.)
 
 ---
 
@@ -37138,21 +37138,21 @@ git commit -m "docs: bootstrap claim [WP-{ID}]"
 
 **Read these files in order:**
 
-1. **.GOV/roles_shared/START_HERE.md** - Repo map, commands, how to run
-2. **.GOV/roles_shared/SPEC_CURRENT.md** - Current master spec pointer
+1. **.GOV/roles_shared/docs/START_HERE.md** - Repo map, commands, how to run
+2. **.GOV/roles_shared/records/SPEC_CURRENT.md** - Current master spec pointer
 3. **Task packet** - Your specific work scope
 4. **Task-specific docs:**
-   - FEATURE/REFACTOR â†’ `.GOV/roles_shared/ARCHITECTURE.md`
-   - DEBUG â†’ `.GOV/roles_shared/RUNBOOK_DEBUG.md`
+   - FEATURE/REFACTOR â†’ `.GOV/roles_shared/docs/ARCHITECTURE.md`
+   - DEBUG â†’ `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
    - REVIEW â†’ Architecture + diff
 
 **Read relevant sections:**
 ```bash
 # Quick scan of architecture
-cat .GOV/roles_shared/ARCHITECTURE.md
+cat .GOV/roles_shared/docs/ARCHITECTURE.md
 
 # Check runbook for debug guidance (if debugging)
-cat .GOV/roles_shared/RUNBOOK_DEBUG.md
+cat .GOV/roles_shared/docs/RUNBOOK_DEBUG.md
 ```
 
 ---
@@ -37169,9 +37169,9 @@ RISK_TIER: {LOW|MEDIUM|HIGH}
 TASK_TYPE: {DEBUG|FEATURE|REFACTOR|HYGIENE}
 
 FILES_TO_OPEN:
-- .GOV/roles_shared/START_HERE.md
-- .GOV/roles_shared/SPEC_CURRENT.md
-- .GOV/roles_shared/ARCHITECTURE.md (or RUNBOOK_DEBUG.md)
+- .GOV/roles_shared/docs/START_HERE.md
+- .GOV/roles_shared/records/SPEC_CURRENT.md
+- .GOV/roles_shared/docs/ARCHITECTURE.md (or RUNBOOK_DEBUG.md)
 - {from task packet BOOTSTRAP}
 - {5-15 implementation files}
 
@@ -38329,11 +38329,11 @@ Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Ob
 - MERGING PHASES IS FORBIDDEN: Any response that combines these phases into a single turn is an AUTO-FAIL.
 - SKELETON APPROVAL: Implementation is HARD-BLOCKED until the Validator issues the string "SKELETON APPROVED".
 - [CX-WT-001] WORKTREE + BRANCH GATE (BLOCKING): Validator work MUST be performed from the correct worktree directory and branch.
-  - Source of truth: `.GOV/roles_shared/ROLE_WORKTREES.md` (default role worktrees/branches) and the assigned WP worktree/branch.
+  - Source of truth: `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (default role worktrees/branches) and the assigned WP worktree/branch.
   - Required verification (run at session start and whenever context is unclear): `pwd`, `git rev-parse --show-toplevel`, `git rev-parse --abbrev-ref HEAD`, `git worktree list`.
-  - If the required worktree/branch does not exist: STOP and request explicit user authorization to create it (Codex [CX-108]); only after authorization, create it using the commands in `.GOV/roles_shared/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
-- Inputs required: task packet (STATUS not empty), .GOV/roles_shared/SPEC_CURRENT.md, applicable spec slices, current diff.
-- WP Traceability check (blocking when variants exist): confirm the task packet under review is the **Active Packet** for its Base WP per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).
+  - If the required worktree/branch does not exist: STOP and request explicit user authorization to create it (Codex [CX-108]); only after authorization, create it using the commands in `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
+- Inputs required: task packet (STATUS not empty), .GOV/roles_shared/records/SPEC_CURRENT.md, applicable spec slices, current diff.
+- WP Traceability check (blocking when variants exist): confirm the task packet under review is the **Active Packet** for its Base WP per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).
 - Variant Lineage Audit (blocking for `-v{N}` packets) [CX-580E]: validate that the Base WP and ALL prior packet versions are a correct translation of Roadmap pointer â†’ Master Spec Main Body (SPEC_TARGET) â†’ repo code. Do NOT validate only â€œwhat changed in v{N}â€. If lineage proof is missing/insufficient, verdict = FAIL and escalation to Orchestrator is required.
 - When running Validator commands/scripts, use the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
 - If a WP exists only as a stub (e.g., `.GOV/task_packets/stubs/WP-*.md`) and no official packet exists in `.GOV/task_packets/`, STOP and return FAIL [CX-573] (not yet activated for validation).
@@ -38364,7 +38364,7 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
    - Allowed: `.GOV/task_packets/{WP_ID}.md` (and other governance docs only if explicitly requested).
    - Forbidden: any changes under `{{BACKEND_ROOT_DIR}}/`, `{{FRONTEND_ROOT_DIR}}/`, `tests/`, or `.GOV/scripts/` (treat as FAIL; do not merge).
 4. Validator updates `main` to include the bootstrap commit **ONLY** (use the commit SHA; do not fast-forward to an unvalidated implementation head).
-5. Validator updates `.GOV/roles_shared/TASK_BOARD.md` on `main`:
+5. Validator updates `.GOV/roles_shared/records/TASK_BOARD.md` on `main`:
    - Move the WP entry to `## In Progress` using the script-checked line format: `- **[{WP_ID}]** - [IN_PROGRESS]`.
    - Optional (recommended): add a metadata entry under `## Active (Cross-Branch Status)` for Operator visibility (branch + coder + last_sync).
 6. Announce status sync in chat (no verdict implied).
@@ -38385,11 +38385,11 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - List every MUST/SHOULD from the task packet DONE_MEANS + referenced spec sections (MAIN-BODY FIRST; roadmap alone is insufficient; include A1-6 and A9-11 if governing; include tokenization A4.6, storage portability A2.3.12, determinism/repro/error-code conventions when applicable).
 - Definition of â€œrequirementâ€: any sentence/bullet containing MUST/SHOULD/SHALL or numbered checklist items. Roadmap is a pointer; Master Spec body is the authority.
 - Copy identifiers (anchors, bullet labels) to keep traceability. No assumptions from memory.
-- Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually .GOV/roles_shared/SPEC_CURRENT.md).
-- Resolve SPEC_TARGET at validation time (.GOV/roles_shared/SPEC_CURRENT.md -> {{PROJECT_PREFIX}}_Master_Spec_vXX.XX.md) and validate DONE_MEANS/evidence against the resolved spec.
+- Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually .GOV/roles_shared/records/SPEC_CURRENT.md).
+- Resolve SPEC_TARGET at validation time (.GOV/roles_shared/records/SPEC_CURRENT.md -> {{PROJECT_PREFIX}}_Master_Spec_vXX.XX.md) and validate DONE_MEANS/evidence against the resolved spec.
 - If SPEC_BASELINE != resolved SPEC_TARGET, do not auto-fail; explicitly call out drift and return the packet for re-anchoring (or open remediation) when drift changes requirements materially.
 - If a WP is correct for its SPEC_BASELINE but SPEC_TARGET has evolved, use a distinct verdict: **OUTDATED_ONLY** (historically done; no protocol/code regression proven). Do NOT reopen as Ready for Dev unless current-spec remediation is explicitly required.
-- Spec changes are governed via Spec Enrichment (new spec version file + `.GOV/roles_shared/SPEC_CURRENT.md` update) under a one-time user signature recorded in `.GOV/roles_shared/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
+- Spec changes are governed via Spec Enrichment (new spec version file + `.GOV/roles_shared/records/SPEC_CURRENT.md` update) under a one-time user signature recorded in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
 
 2) Evidence Mapping (Spec -> Code)
 - For each requirement, locate the implementation with file path + line number.
@@ -38694,15 +38694,15 @@ Each project MUST define a precedence order and keep it stable. A canonical orde
 2. **Project Codex** (`<PROJECT> Codex vX.Y.md`, repo root)
    - Behavioral constitution for agents and humans interacting with the repo.
    - Must include hard bans (destructive cleanup, unsafe sync) and a conflict/override protocol.
-3. **Master Spec** (`<PROJECT>_Master_Spec_vNN.NNN.md`, repo root) + pointer (`.GOV/roles_shared/SPEC_CURRENT.md`)
+3. **Master Spec** (`<PROJECT>_Master_Spec_vNN.NNN.md`, repo root) + pointer (`.GOV/roles_shared/records/SPEC_CURRENT.md`)
    - The authoritative product/architecture specification.
-   - `.GOV/roles_shared/SPEC_CURRENT.md` MUST be the single pointer to the current spec file.
+   - `.GOV/roles_shared/records/SPEC_CURRENT.md` MUST be the single pointer to the current spec file.
 4. **Role Protocols** (`.GOV/roles/*/*_PROTOCOL.md`)
    - Defines what each role may and may not do.
    - Must include a refinement/signature/packetization process if mechanical gates are used.
 5. **Repo-local guardrails** (`AGENTS.md`, repo root)
    - Tight, local instructions for agent execution (branch/worktree rules, safety gates, repo hygiene).
-6. **Work authorization artifacts** (`.GOV/task_packets/*.md`, `.GOV/refinements/*.md`, `.GOV/roles_shared/TASK_BOARD.md`)
+6. **Work authorization artifacts** (`.GOV/task_packets/*.md`, `.GOV/refinements/*.md`, `.GOV/roles_shared/records/TASK_BOARD.md`)
    - Make â€œwhat is allowedâ€ explicit and auditable.
 7. **Gate tooling** (`.GOV/scripts/validation/*`, `.GOV/scripts/hooks/*`, `.github/workflows/*`, `justfile`)
    - Mechanical enforcement; tools MUST not silently change the law stack.
@@ -38829,7 +38829,7 @@ The governance system is portable only if filenames are predictable.
 Minimum conventions:
 - **WP IDs** MUST be stable identifiers (no timestamps in filenames).
 - Packet revisions MUST use `-vN` suffix (example: `WP-12-Foo-v3`).
-- When revisions exist, the system MUST record which packet is active (see `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`).
+- When revisions exist, the system MUST record which packet is active (see `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`).
 
 ### A3) Append-only audit logs
 Audit logs (e.g., signatures) MUST be append-only and treated as evidence, not narrative.
@@ -38842,11 +38842,11 @@ This kernel assumes these stable locations:
 - `<PROJECT> Codex vX.Y.md` (repo root): project constitution for agents/humans.
 - `<PROJECT>_Master_Spec_vNN.NNN.md` (repo root): authoritative spec versions.
 - `.GOV/` (governance surface; canonical)
-  - `.GOV/roles_shared/START_HERE.md` (entrypoint; optional but recommended)
-  - `.GOV/roles_shared/SPEC_CURRENT.md` (pointer to current Master Spec)
-  - `.GOV/roles_shared/TASK_BOARD.md` (global execution state)
-  - `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet)
-  - `.GOV/roles_shared/SIGNATURE_AUDIT.md` (append-only signature log)
+  - `.GOV/roles_shared/docs/START_HERE.md` (entrypoint; optional but recommended)
+  - `.GOV/roles_shared/records/SPEC_CURRENT.md` (pointer to current Master Spec)
+  - `.GOV/roles_shared/records/TASK_BOARD.md` (global execution state)
+  - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet)
+  - `.GOV/roles_shared/records/SIGNATURE_AUDIT.md` (append-only signature log)
   - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/coder/CODER_PROTOCOL.md`, `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
   - `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`, `.GOV/validator_gates/{WP_ID}.json` (gate state)
   - `.GOV/templates/` (canonical templates)
@@ -38859,7 +38859,7 @@ Projects MAY add additional governance modules (runbooks, ADRs, rubrics). They m
 
 ## C. Artifact contracts (required files)
 
-### C1) `.GOV/roles_shared/SPEC_CURRENT.md` (spec pointer)
+### C1) `.GOV/roles_shared/records/SPEC_CURRENT.md` (spec pointer)
 Purpose:
 - Provides a single source of truth for the current authoritative Master Spec version.
 
@@ -38881,7 +38881,7 @@ Failure modes:
 - Shared mutable global gate ledgers cause merge conflicts and audit loss.
 - Refinements cannot create stable anchors; WPs become â€œvibe-codedâ€.
 
-### C3) `.GOV/roles_shared/TASK_BOARD.md` (execution state SSoT)
+### C3) `.GOV/roles_shared/records/TASK_BOARD.md` (execution state SSoT)
 Purpose:
 - Single source of truth for WP execution state across roles and models.
 
@@ -38892,7 +38892,7 @@ Contract (recommended minimum):
 Failure modes:
 - Parallel agents diverge on â€œwhat is activeâ€; WPs are duplicated or silently dropped.
 
-### C4) `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet)
+### C4) `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet)
 Purpose:
 - Resolves ambiguity when multiple packets exist for the same Base WP (revisions, superseded attempts).
 
@@ -38989,7 +38989,7 @@ Contract:
 Failure modes:
 - Agents cannot prove which gates were completed; â€œverdictsâ€ become social, not mechanical.
 
-### C10) Signature audit log (`.GOV/roles_shared/SIGNATURE_AUDIT.md`)
+### C10) Signature audit log (`.GOV/roles_shared/records/SIGNATURE_AUDIT.md`)
 Purpose:
 - Central append-only log of Operator signatures and what they approved.
 
@@ -39083,7 +39083,7 @@ Required writes:
 - Update refinement file:
   - `USER_REVIEW_STATUS: APPROVED`
   - `USER_SIGNATURE: <signature>`
-- Append a signature record to an append-only audit file (example: `.GOV/roles_shared/SIGNATURE_AUDIT.md`).
+- Append a signature record to an append-only audit file (example: `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`).
 - Append a `SIGNATURE` entry in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` including:
   - signature
   - refinement path
@@ -39188,7 +39188,7 @@ These checks are not always required for kernel conformance, but they harden por
 - **Task board format check**: enforces strict, machine-parseable WP state lines.
 - **Task packet claim check**: when Status is `In Progress`, require Coder claim fields (model + reasoning strength) to be non-placeholder.
 - **Worktree concurrency check**: detect multiple active WPs in one worktree (project-defined heuristic).
-- **Spec-current check**: ensures `.GOV/roles_shared/SPEC_CURRENT.md` points to the newest spec version by version parsing policy.
+- **Spec-current check**: ensures `.GOV/roles_shared/records/SPEC_CURRENT.md` points to the newest spec version by version parsing policy.
 - **Codex check**: detects forbidden patterns (architecture violations, unsafe APIs, debug prints) and codex drift across docs.
 
 
@@ -39220,8 +39220,8 @@ Rationale:
 A fresh agent should be able to start by opening a small, stable set of files.
 
 Recommended minimum set:
-- Operator: `.GOV/roles_shared/TASK_BOARD.md` + the active packet(s) being approved.
-- Orchestrator: `.GOV/roles_shared/SPEC_CURRENT.md`, `.GOV/roles_shared/TASK_BOARD.md`, `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`, refinement + packet templates, and the target WP refinement/packet.
+- Operator: `.GOV/roles_shared/records/TASK_BOARD.md` + the active packet(s) being approved.
+- Orchestrator: `.GOV/roles_shared/records/SPEC_CURRENT.md`, `.GOV/roles_shared/records/TASK_BOARD.md`, `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`, refinement + packet templates, and the target WP refinement/packet.
 - Coder: the activated packet + the referenced refinement + the in-scope code paths.
 - Validator: activated packet + refinement + spec target resolved + changed files + CI/test outputs + validator gate state.
 
@@ -39273,7 +39273,7 @@ Alternative (when milestones exceed packet size or become independent):
 ## 6. Context continuity across model swaps (mechanical)
 
 When swapping models/roles mid-flight, the outgoing agent must leave:
-- Updated `.GOV/roles_shared/TASK_BOARD.md` status (if the project uses it as SSoT).
+- Updated `.GOV/roles_shared/records/TASK_BOARD.md` status (if the project uses it as SSoT).
 - Updated packet `## STATUS_HANDOFF` (single place to read â€œwhere we areâ€).
 - Updated `## EVIDENCE` (copy/paste logs; avoid â€œran tests locally, trust meâ€).
 - Completed manifests in `## VALIDATION` for any changed files.
@@ -39319,7 +39319,7 @@ Kernel rule:
 
 Minimum recommended CI checks:
 - Governance/doc presence checks (required navigation + pointer files).
-- Spec pointer correctness (`.GOV/roles_shared/SPEC_CURRENT.md` resolves).
+- Spec pointer correctness (`.GOV/roles_shared/records/SPEC_CURRENT.md` resolves).
 - Task Board formatting check (machine-parseable state).
 - Codex checks (forbidden patterns; repo invariants).
 - Gate tooling checks (phase gate; pre-work/post-work where applicable).
@@ -39391,7 +39391,7 @@ Hazard:
 
 Mitigation (kernel recommendation):
 - Add a CI check that asserts referenced governance file names exist and match the latest version pointer(s).
-- Prefer pointers (`.GOV/roles_shared/SPEC_CURRENT.md`) over hardcoding version strings in many places.
+- Prefer pointers (`.GOV/roles_shared/records/SPEC_CURRENT.md`) over hardcoding version strings in many places.
 
 ### 5.2 Template drift
 Hazard:
@@ -39420,8 +39420,8 @@ The system therefore treats drift as a first-class failure mode.
 
 Kernel rules:
 - Master Spec files MUST be versioned (`..._vNN.NNN.md`) and immutable once superseded (append-only history).
-- `.GOV/roles_shared/SPEC_CURRENT.md` MUST be the single authoritative pointer to the current Master Spec.
-- All enforcement scripts and protocols SHOULD resolve the spec via `.GOV/roles_shared/SPEC_CURRENT.md` rather than hardcoding filenames.
+- `.GOV/roles_shared/records/SPEC_CURRENT.md` MUST be the single authoritative pointer to the current Master Spec.
+- All enforcement scripts and protocols SHOULD resolve the spec via `.GOV/roles_shared/records/SPEC_CURRENT.md` rather than hardcoding filenames.
 
 Failure modes prevented:
 - â€œCoding against old specâ€ when multiple versions exist.
@@ -39452,8 +39452,8 @@ Failure mode prevented:
 
 Add a â€œdrift guardâ€ check in CI that detects:
 - Spec pointer drift:
-  - `.GOV/roles_shared/SPEC_CURRENT.md` points to a non-existent file
-  - `.GOV/roles_shared/SPEC_CURRENT.md` does not point to the latest spec by parsed version policy
+  - `.GOV/roles_shared/records/SPEC_CURRENT.md` points to a non-existent file
+  - `.GOV/roles_shared/records/SPEC_CURRENT.md` does not point to the latest spec by parsed version policy
 - Governance reference drift:
   - docs/CI/hooks reference a Codex filename that does not exist
   - scripts reference protocol files that moved/renamed
@@ -39511,7 +39511,7 @@ The governance system is explicit about precedence. The current implemented stac
 
 1. `{{CODEX_FILENAME}}` (repo root)
    - Defines repo invariants and allowed assistant behavior (including hard bans on destructive ops and git worktree/branch rewrites without explicit consent).
-2. Master Spec: `{{PROJECT_PREFIX}}_Master_Spec_v*.md` (repo root), with pointer file `.GOV/roles_shared/SPEC_CURRENT.md`
+2. Master Spec: `{{PROJECT_PREFIX}}_Master_Spec_v*.md` (repo root), with pointer file `.GOV/roles_shared/records/SPEC_CURRENT.md`
    - Product intent + architecture + normative requirements; "Main Body first" discipline is enforced mechanically.
 3. Protocol layer in `.GOV/roles/`
    - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` (Orchestrator behavior and signature/refinement workflow)
@@ -39552,7 +39552,7 @@ This repo uses rigid roles that intentionally limit what each agent may do. The 
 - Maintains operator-visible status sync on `main` (Active cross-branch section).
 
 ### Optional roles (supported by the docs but not always active)
-- Debugger (triage; uses `.GOV/roles_shared/RUNBOOK_DEBUG.md`)
+- Debugger (triage; uses `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`)
 - Tooling agent (runs scripts / builds diagnostic bundles)
 - Red-team framing exists as a responsibility inside Validator and Refinement blocks.
 
@@ -39563,28 +39563,28 @@ This repo uses rigid roles that intentionally limit what each agent may do. The 
 This section describes the key governance artifacts and how they gate each other.
 
 ### 3.1 Navigation + orientation pack (`.GOV/roles_shared/`)
-- `.GOV/roles_shared/START_HERE.md`: canonical entry point and command surface.
-- `.GOV/roles_shared/ARCHITECTURE.md`: module map and allowed dependency boundaries.
-- `.GOV/roles_shared/RUNBOOK_DEBUG.md`: incident/CI triage, log locations, minimal debug flow.
+- `.GOV/roles_shared/docs/START_HERE.md`: canonical entry point and command surface.
+- `.GOV/roles_shared/docs/ARCHITECTURE.md`: module map and allowed dependency boundaries.
+- `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`: incident/CI triage, log locations, minimal debug flow.
 - `.GOV/roles_shared/PAST_WORK_INDEX.md`: archaeology pointers (note: this file currently contains stale references; see Section 8).
 
 Why: enables a fresh model (or human) to orient quickly and deterministically without reading the whole repo.
 
 ### 3.2 Spec pointer and spec drift guard
-- `.GOV/roles_shared/SPEC_CURRENT.md`: the single pointer to the current authoritative Master Spec.
+- `.GOV/roles_shared/records/SPEC_CURRENT.md`: the single pointer to the current authoritative Master Spec.
 - `.GOV/scripts/spec-current-check.mjs`: enforces that SPEC_CURRENT points to the latest `{{PROJECT_PREFIX}}_Master_Spec_v*.md` file by parsed version.
 
 Why: prevents silent spec drift and "coding against an old spec".
 
 ### 3.3 Task Board (execution state SSoT)
-- `.GOV/roles_shared/TASK_BOARD.md`: the global state tracker for Phase 1 WPs.
+- `.GOV/roles_shared/records/TASK_BOARD.md`: the global state tracker for Phase 1 WPs.
 - `.GOV/scripts/validation/task-board-check.mjs`: enforces strict formatting for `## In Progress`, `## Done`, `## Superseded` entries.
 
 Key rule (enforced in docs and protocols):
 - Task Board is intentionally minimal; detailed reasons live in packets.
 
 ### 3.4 Work Packet Traceability (Base WP -> Active Packet mapping)
-- `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`: resolves Base WP IDs to an Active Packet file path, especially when revisions exist (`-vN`).
+- `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`: resolves Base WP IDs to an Active Packet file path, especially when revisions exist (`-vN`).
 
 Why: the Master Spec should not embed revision packet IDs; this registry prevents ambiguity when multiple packet revisions exist.
 
@@ -39612,7 +39612,7 @@ Key implemented properties:
 Why: makes spec anchoring checkable and portable across small-context models.
 
 ### 3.7 Signatures (one-time, auditable)
-- `.GOV/roles_shared/SIGNATURE_AUDIT.md`: authoritative registry of signatures consumed.
+- `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`: authoritative registry of signatures consumed.
 - Orchestrator gate script appends entries and enforces one-time use.
 
 Why: creates a forced alignment pause and prevents autonomous drift.
@@ -39624,17 +39624,17 @@ Why: creates a forced alignment pause and prevents autonomous drift.
 Why: provides deterministic, machine-checkable proof that the workflow was followed.
 
 ### 3.9 Quality gate definition
-- `.GOV/roles_shared/QUALITY_GATE.md`: Gate 0 (pre-work) and Gate 1 (post-work) definitions; risk tier matrix; required commands.
+- `.GOV/roles_shared/docs/QUALITY_GATE.md`: Gate 0 (pre-work) and Gate 1 (post-work) definitions; risk tier matrix; required commands.
 
 Why: sets a minimum hygiene baseline; prevents "it compiled on my machine" merges.
 
 ### 3.10 Role-local worktree policy
-- `.GOV/roles_shared/ROLE_WORKTREES.md`: local mapping of role -> (worktree dir, branch) on the operator machine.
+- `.GOV/roles_shared/docs/ROLE_WORKTREES.md`: local mapping of role -> (worktree dir, branch) on the operator machine.
 
 Why: prevents role confusion and cross-WP contamination; makes "where am I?" checkable.
 
 ### 3.11 Ownership and agent identity
-- `.GOV/roles_shared/OWNERSHIP.md`: area owners for review routing.
+- `.GOV/roles_shared/docs/OWNERSHIP.md`: area owners for review routing.
 - `.GOV/agents/AGENT_REGISTRY.md`: agent IDs and role mapping.
 
 Why: provides accountability for multi-agent work and review routing.
@@ -39664,15 +39664,15 @@ Why: role work must occur in the correct worktree and branch, preventing acciden
    - In a new user turn, after explicit approval evidence exists in the refinement file:
      - Record signature: `just record-signature {WP_ID} {usernameDDMMYYYYHHMM}`
        - Updates refinement file with APPROVED status and signature
-       - Appends the signature to `.GOV/roles_shared/SIGNATURE_AUDIT.md`
+       - Appends the signature to `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`
        - Writes the signature event to `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
    - Create WP worktree/branch: `just worktree-add {WP_ID}` (creates `feat/{WP_ID}` worktree)
    - Record prepare: `just record-prepare {WP_ID} {Coder-A|Coder-B} [branch] [worktree_dir]`
    - Create the official packet: `just create-task-packet {WP_ID}`
      - Script hard-gates on signature + prepare being recorded and on ENRICHMENT_NEEDED=NO.
 3. Complete activation traceability updates (mandatory before any coding starts):
-   - Update `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` Baseâ†’Active mapping to point to `.GOV/task_packets/{WP_ID}.md` (NOT a stub).
-   - Move `.GOV/roles_shared/TASK_BOARD.md` entry out of STUB backlog to Ready for Dev.
+   - Update `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` Baseâ†’Active mapping to point to `.GOV/task_packets/{WP_ID}.md` (NOT a stub).
+   - Move `.GOV/roles_shared/records/TASK_BOARD.md` entry out of STUB backlog to Ready for Dev.
 
 Why:
 - Prevents "packet by momentum" and ensures packet activation is both human-approved and mechanically logged.
@@ -39713,16 +39713,16 @@ This table is intentionally explicit because these commands are the "mechanical 
 
 | Command | Implementation | Reads | Writes |
 |---|---|---|---|
-| `just record-refinement {WP_ID}` | `.GOV/scripts/validation/orchestrator_gates.mjs refine` | refinement file, `.GOV/roles_shared/SPEC_CURRENT.md` (+ spec file) | `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` |
-| `just record-signature {WP_ID} {sig}` | `.GOV/scripts/validation/orchestrator_gates.mjs sign` | `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`, refinement file, `.GOV/roles_shared/SIGNATURE_AUDIT.md`, repo grep for one-time signature | refinement file (sets APPROVED + signature), `.GOV/roles_shared/SIGNATURE_AUDIT.md`, `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` |
+| `just record-refinement {WP_ID}` | `.GOV/scripts/validation/orchestrator_gates.mjs refine` | refinement file, `.GOV/roles_shared/records/SPEC_CURRENT.md` (+ spec file) | `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` |
+| `just record-signature {WP_ID} {sig}` | `.GOV/scripts/validation/orchestrator_gates.mjs sign` | `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`, refinement file, `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`, repo grep for one-time signature | refinement file (sets APPROVED + signature), `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`, `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` |
 | `just worktree-add {WP_ID}` | `.GOV/scripts/worktree-add.mjs` | git refs/worktree list | creates branch/worktree dir on disk (git operation) |
 | `just record-prepare {WP_ID} ...` | `.GOV/scripts/validation/orchestrator_gates.mjs prepare` | `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`, git branch exists, `git worktree list --porcelain` | `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` |
-| `just create-task-packet {WP_ID}` | `.GOV/scripts/create-task-packet.mjs` | refinement file, `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`, `.GOV/roles_shared/SIGNATURE_AUDIT.md`, `.GOV/templates/TASK_PACKET_TEMPLATE.md`, `.GOV/roles_shared/SPEC_CURRENT.md` | `.GOV/task_packets/{WP_ID}.md` (or creates refinement scaffold and exits BLOCKED) |
+| `just create-task-packet {WP_ID}` | `.GOV/scripts/create-task-packet.mjs` | refinement file, `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`, `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`, `.GOV/templates/TASK_PACKET_TEMPLATE.md`, `.GOV/roles_shared/records/SPEC_CURRENT.md` | `.GOV/task_packets/{WP_ID}.md` (or creates refinement scaffold and exits BLOCKED) |
 | `just gate-check {WP_ID}` | `.GOV/scripts/validation/gate-check.mjs` | `.GOV/task_packets/{WP_ID}.md` | none |
 | `just pre-work {WP_ID}` | `gate-check` + `.GOV/scripts/validation/pre-work-check.mjs` | packet + refinement + signature audit; `.GOV/scripts/validation/cor701-spec.json`; git object DB for checkpoint commit gate | may create `.GOV/task_packets/` dir if missing |
 | `just post-work {WP_ID}` | `gate-check` + `.GOV/scripts/validation/post-work-check.mjs` | packet; git diff/index/worktree files; spec schema `cor701-spec.json` | none |
 | `just cor701-sha <file>` | `.GOV/scripts/validation/cor701-sha.mjs` | git blobs (HEAD/INDEX) + worktree file | none |
-| `just task-board-check` | `.GOV/scripts/validation/task-board-check.mjs` | `.GOV/roles_shared/TASK_BOARD.md` | none |
+| `just task-board-check` | `.GOV/scripts/validation/task-board-check.mjs` | `.GOV/roles_shared/records/TASK_BOARD.md` | none |
 | `just task-packet-claim-check` | `.GOV/scripts/validation/task-packet-claim-check.mjs` | `.GOV/task_packets/*.md` | none |
 | `just validator-gate-*` | `.GOV/scripts/validation/validator_gates.mjs` | `.GOV/validator_gates/{WP_ID}.json` (may read legacy `.GOV/roles/validator/VALIDATOR_GATES.json` for older sessions), (append gate checks packet exists) | `.GOV/validator_gates/{WP_ID}.json` |
 
@@ -39760,7 +39760,7 @@ Core policy:
 - One WP = one feature branch (`feat/{WP_ID}`) and (when >1 concurrent WP) one separate worktree per active WP.
 
 Implementations:
-- `.GOV/roles_shared/ROLE_WORKTREES.md`: defines role default worktrees/branches locally.
+- `.GOV/roles_shared/docs/ROLE_WORKTREES.md`: defines role default worktrees/branches locally.
 - `.GOV/scripts/worktree-add.mjs` + `just worktree-add`: creates WP worktree/branch.
 - `.GOV/scripts/validation/worktree-concurrency-check.mjs`: local-only check; requires linked worktrees when multiple WPs are in progress.
 
@@ -39798,8 +39798,8 @@ Carry context through artifacts, not chat memory:
   - deterministic manifest(s)
 
 This allows a new model to pick up work by reading:
-- `.GOV/roles_shared/START_HERE.md`
-- `.GOV/roles_shared/SPEC_CURRENT.md`
+- `.GOV/roles_shared/docs/START_HERE.md`
+- `.GOV/roles_shared/records/SPEC_CURRENT.md`
 - the task packet
 - the refinement
 
@@ -39930,7 +39930,7 @@ Generated from repo file listing; grouped by directory. This is the "no file lef
 - `.GOV/GOV_KERNEL/06_VERSIONING_AND_DRIFT_CONTROL.md`
 - `.GOV/GOV_KERNEL/90_REFERENCE_IMPLEMENTATION_HANDSHAKE.md`
 - `docs/AI_WORKFLOW_TEMPLATE.md` (compat shim; canonical under `.GOV/templates/`)
-- `.GOV/roles_shared/ARCHITECTURE.md`
+- `.GOV/roles_shared/docs/ARCHITECTURE.md`
 - `docs/CODER_IMPLEMENTATION_ROADMAP.md`
 - `.GOV/roles/coder/CODER_PROTOCOL.md`
 - `docs/CODER_PROTOCOL_GAPS.md`
@@ -39939,33 +39939,33 @@ Generated from repo file listing; grouped by directory. This is the "no file lef
 - `docs/MASTER_SPEC_INTENT_AUDIT_v02.103.md`
 - `docs/MASTER_SPEC_MVP_ROADMAP_AUDIT_v02.103.md`
 - `docs/MASTER_SPEC_SECTION_DIGEST_v02.103.md`
-- `.GOV/roles_shared/MIGRATION_GUIDE.md`
+- `.GOV/roles_shared/docs/MIGRATION_GUIDE.md`
 - `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
 - `docs/ORCHESTRATOR_IMPLEMENTATION_ROADMAP.md`
 - `docs/ORCHESTRATOR_PRIORITIES.md`
 - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
 - `docs/ORCHESTRATOR_PROTOCOL_GAPS.md`
 - `.GOV/roles/orchestrator/ORCHESTRATOR_RUBRIC.md`
-- `.GOV/roles_shared/OSS_REGISTER.md`
-- `.GOV/roles_shared/OWNERSHIP.md`
+- `.GOV/roles_shared/records/OSS_REGISTER.md`
+- `.GOV/roles_shared/docs/OWNERSHIP.md`
 - `.GOV/roles_shared/PAST_WORK_INDEX.md`
 - `docs/PHASE_1_EVIDENCE_MAP_v02.103.md`
-- `.GOV/roles_shared/QUALITY_GATE.md`
+- `.GOV/roles_shared/docs/QUALITY_GATE.md`
 - `docs/REFINEMENT_TEMPLATE.md` (compat shim; canonical under `.GOV/templates/`)
 - `docs/ROADMAP_SECTION_COVERAGE_MATRIX_v02.103.md`
 - `docs/ROADMAP_SECTION_COVERAGE_MATRIX_v02.107.md`
 - `docs/ROADMAP_VS_MASTER_SPEC_AUDIT_v02.102.md`
-- `.GOV/roles_shared/ROLE_WORKTREES.md`
-- `.GOV/roles_shared/RUNBOOK_DEBUG.md`
-- `.GOV/roles_shared/SIGNATURE_AUDIT.md`
-- `.GOV/roles_shared/SPEC_CURRENT.md`
-- `.GOV/roles_shared/START_HERE.md`
-- `.GOV/roles_shared/TASK_BOARD.md`
+- `.GOV/roles_shared/docs/ROLE_WORKTREES.md`
+- `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
+- `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`
+- `.GOV/roles_shared/records/SPEC_CURRENT.md`
+- `.GOV/roles_shared/docs/START_HERE.md`
+- `.GOV/roles_shared/records/TASK_BOARD.md`
 - `docs/TASK_PACKET_TEMPLATE.md` (compat shim; canonical under `.GOV/templates/`)
 - `.GOV/validator_gates/README.md`
 - `.GOV/roles/validator/VALIDATOR_GATES.json` (legacy archive)
 - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
-- `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`
+- `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
 - `docs/workflow_technical_paper.md`
 - `.GOV/adr/ADR-0001-handshake-architecture-and-governance.md`
 - `.GOV/agents/AGENT_REGISTRY.md`
@@ -40147,9 +40147,9 @@ Copy this into each new task packet and fill all fields.
 Requirements:
 - Keep packets ASCII-only (required by deterministic gates).
 - Use SPEC_BASELINE for provenance (spec at creation time).
-- Use SPEC_TARGET as the authoritative spec for closure/revalidation (usually .GOV/roles_shared/SPEC_CURRENT.md).
+- Use SPEC_TARGET as the authoritative spec for closure/revalidation (usually .GOV/roles_shared/records/SPEC_CURRENT.md).
 - WP_ID and filename MUST NOT include date/time stamps; use `-v{N}` for revisions (e.g., `WP-1-Tokenization-Service-v3`).
-- If multiple packets exist for the same Base WP, update `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet).
+- If multiple packets exist for the same Base WP, update `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet).
 
 ---
 
@@ -40206,11 +40206,11 @@ git revert <commit-sha>
 
 ## AUTHORITY
 - SPEC_BASELINE: {{SPEC_BASELINE}} (recorded_at: {{DATE_ISO}})
-- SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
+- SPEC_TARGET: .GOV/roles_shared/records/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
 - SPEC_ANCHOR: {{SPEC_ANCHOR}}
 - Codex: {{CODEX_FILENAME}}
-- Task Board: .GOV/roles_shared/TASK_BOARD.md
-- WP Traceability: .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
+- Task Board: .GOV/roles_shared/records/TASK_BOARD.md
+- WP Traceability: .GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md
 
 ## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]
 - Required when `WP_ID` includes `-v{N}`.
@@ -40220,9 +40220,9 @@ git revert <commit-sha>
 
 ## BOOTSTRAP
 - FILES_TO_OPEN:
-  - .GOV/roles_shared/START_HERE.md
-  - .GOV/roles_shared/SPEC_CURRENT.md
-  - .GOV/roles_shared/ARCHITECTURE.md
+  - .GOV/roles_shared/docs/START_HERE.md
+  - .GOV/roles_shared/records/SPEC_CURRENT.md
+  - .GOV/roles_shared/docs/ARCHITECTURE.md
   - path/to/file
 - SEARCH_TERMS:
   - "exact symbol"
@@ -40270,7 +40270,7 @@ git revert <commit-sha>
 - **Artifacts**:
 - **Timestamp**:
 - **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/SPEC_CURRENT.md -> {{PROJECT_PREFIX}}_Master_Spec_vXX.XX.md
+- **Spec Target Resolved**: .GOV/roles_shared/records/SPEC_CURRENT.md -> {{PROJECT_PREFIX}}_Master_Spec_vXX.XX.md
 - **Notes**:
 
 ## STATUS_HANDOFF
@@ -40299,7 +40299,7 @@ Rules:
 - No refinement file is required for stubs.
 - Coder/Validator MUST NOT start work from a stub.
 - When activating a stub into a real WP, follow `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` (Technical Refinement Block + USER_SIGNATURE + refinement + `just create-task-packet`).
-- If a Base WP later gains multiple packets (revisions), record Base WP -> Active Packet in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`.
+- If a Base WP later gains multiple packets (revisions), record Base WP -> Active Packet in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`.
 
 ---
 
@@ -40310,7 +40310,7 @@ Rules:
 - BASE_WP_ID: {{WP_ID}} (stable ID without `-vN`; equals WP_ID for stubs; if WP_ID includes `-vN`, override to the base ID)
 - CREATED_AT: {{DATE_ISO}}
 - STUB_STATUS: STUB (NOT READY FOR DEV)
-- SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
+- SPEC_TARGET: .GOV/roles_shared/records/SPEC_CURRENT.md
 - ROADMAP_POINTER: {{ROADMAP_POINTER}}
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
   - {{SPEC_ANCHOR_1}}
@@ -40342,7 +40342,7 @@ Rules:
 - [ ] Create `.GOV/refinements/{{WP_ID}}.md` (approved/signed).
 - [ ] Create the official task packet via `just create-task-packet {{WP_ID}}` (in `.GOV/task_packets/`).
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
-- [ ] Move `.GOV/roles_shared/TASK_BOARD.md` entry from STUB to Ready for Dev.
+- [ ] Move `.GOV/roles_shared/records/TASK_BOARD.md` entry from STUB to Ready for Dev.
 
 
 ````
@@ -40364,7 +40364,7 @@ Requirements (HARD):
 ### METADATA
 - WP_ID: {{WP_ID}}
 - CREATED_AT: {{DATE_ISO}}
-- SPEC_TARGET_RESOLVED: .GOV/roles_shared/SPEC_CURRENT.md -> {{SPEC_TARGET_RESOLVED}}
+- SPEC_TARGET_RESOLVED: .GOV/roles_shared/records/SPEC_CURRENT.md -> {{SPEC_TARGET_RESOLVED}}
 - SPEC_TARGET_SHA1: {{SPEC_TARGET_SHA1}}
 - USER_REVIEW_STATUS: PENDING
 - USER_SIGNATURE: <pending>
@@ -40439,7 +40439,7 @@ This document is intended to be copied into other projects as a starting point. 
 
 ## What we did (summary)
 - Created a canonical navigation pack in `/.GOV/roles_shared/` so any model can orient fast.
-- Added an explicit spec pointer (`.GOV/roles_shared/SPEC_CURRENT.md`) and a check to prevent drift.
+- Added an explicit spec pointer (`.GOV/roles_shared/records/SPEC_CURRENT.md`) and a check to prevent drift.
 - Established a debug runbook with a first-5-minutes flow and CI failure triage.
 - Added ownership + agent registry so reviews and traceability have a target.
 - Introduced a Quality Gate with risk tiers and required validation commands.
@@ -40454,9 +40454,9 @@ This document is intended to be copied into other projects as a starting point. 
 - Debuggability: stable log anchors and runbooks shorten incident triage.
 
 ## Canonical inputs and precedence (template)
-1) `.GOV/roles_shared/SPEC_CURRENT.md` (points to current master spec)
+1) `.GOV/roles_shared/records/SPEC_CURRENT.md` (points to current master spec)
 2) Codex (repo root)
-3) Task Board (`.GOV/roles_shared/TASK_BOARD.md`) + task packet for the WP
+3) Task Board (`.GOV/roles_shared/records/TASK_BOARD.md`) + task packet for the WP
 4) Logger (optional; milestones/hard bugs only, root or `log_archive/`)
 5) ADRs (`.GOV/adr/`)
 6) Past specs/logs (`.GOV/roles_shared/PAST_WORK_INDEX.md`)
@@ -40464,14 +40464,14 @@ This document is intended to be copied into other projects as a starting point. 
 ## Required navigation pack (copy these)
 | File | Purpose | Why it matters |
 | --- | --- | --- |
-| `.GOV/roles_shared/START_HERE.md` | Entry point + commands | Fast orientation for new models |
-| `.GOV/roles_shared/SPEC_CURRENT.md` | Canonical spec pointer | Prevents spec drift |
-| `.GOV/roles_shared/ARCHITECTURE.md` | Module map + allowed deps | Avoids architectural entropy |
-| `.GOV/roles_shared/RUNBOOK_DEBUG.md` | Debug flow + log map | Consistent incident handling |
+| `.GOV/roles_shared/docs/START_HERE.md` | Entry point + commands | Fast orientation for new models |
+| `.GOV/roles_shared/records/SPEC_CURRENT.md` | Canonical spec pointer | Prevents spec drift |
+| `.GOV/roles_shared/docs/ARCHITECTURE.md` | Module map + allowed deps | Avoids architectural entropy |
+| `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` | Debug flow + log map | Consistent incident handling |
 | `.GOV/roles_shared/PAST_WORK_INDEX.md` | Links to old work | Prevents archaeology guesswork |
-| `.GOV/roles_shared/QUALITY_GATE.md` | Risk tiers + required checks | Sets minimum hygiene |
+| `.GOV/roles_shared/docs/QUALITY_GATE.md` | Risk tiers + required checks | Sets minimum hygiene |
 | `.GOV/templates/TASK_PACKET_TEMPLATE.md` | Standard work packet | Keeps scope/validation consistent |
-| `.GOV/roles_shared/OWNERSHIP.md` | Review routing | Clear accountability |
+| `.GOV/roles_shared/docs/OWNERSHIP.md` | Review routing | Clear accountability |
 | `.GOV/agents/AGENT_REGISTRY.md` | Agent IDs + roles | Traceability for AI work |
 
 ## Roles (template)
@@ -40483,17 +40483,17 @@ This document is intended to be copied into other projects as a starting point. 
 
 ## Task lifecycle (deterministic flow)
 1) Orchestrator produces a task packet using `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
-2) Coder reads `.GOV/roles_shared/START_HERE.md` + `.GOV/roles_shared/SPEC_CURRENT.md`.
+2) Coder reads `.GOV/roles_shared/docs/START_HERE.md` + `.GOV/roles_shared/records/SPEC_CURRENT.md`.
 3) Coder classifies task: DEBUG / FEATURE / REVIEW / REFACTOR / HYGIENE.
-4) Coder reads `.GOV/roles_shared/ARCHITECTURE.md` or `.GOV/roles_shared/RUNBOOK_DEBUG.md` based on type.
+4) Coder reads `.GOV/roles_shared/docs/ARCHITECTURE.md` or `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` based on type.
 5) Implement change using scaffolds if adding components/endpoints.
-6) Run required commands from `.GOV/roles_shared/QUALITY_GATE.md`.
+6) Run required commands from `.GOV/roles_shared/docs/QUALITY_GATE.md`.
 7) Validator performs manual review and records evidence in the packet or validation report.
-8) Update `.GOV/roles_shared/ARCHITECTURE.md` or `.GOV/roles_shared/RUNBOOK_DEBUG.md` if new entrypoints or repeatable failures were added.
+8) Update `.GOV/roles_shared/docs/ARCHITECTURE.md` or `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` if new entrypoints or repeatable failures were added.
 9) Reviewer validates against codex + required checks.
 
 ## Commands (single source)
-Keep the authoritative commands in `.GOV/roles_shared/START_HERE.md` and the task packet. Standard set:
+Keep the authoritative commands in `.GOV/roles_shared/docs/START_HERE.md` and the task packet. Standard set:
 - `just validate` (docs check + lint/tests + depcruise + fmt/clippy + deny)
 - `just codex-check`
 - `just scaffold-check`
@@ -40525,7 +40525,7 @@ These checks are designed to run in CI or locally:
 
 ## Logging and debug anchors
 Use stable error tags like `{{ISSUE_PREFIX}}-####` for repeatable failures.
-Add those tags to `.GOV/roles_shared/RUNBOOK_DEBUG.md` with entrypoints and triage notes.
+Add those tags to `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` with entrypoints and triage notes.
 Task Board + task packet act as the micro-log; the {{PROJECT_DISPLAY_NAME}} logger is for milestones/hard bugs when requested.
 
 ## Repository layout conventions (template)
@@ -40536,9 +40536,9 @@ Task Board + task packet act as the micro-log; the {{PROJECT_DISPLAY_NAME}} logg
 
 ## How to reuse this template in a new repo
 1) Copy the navigation pack files listed above into the new repo.
-2) Create a codex and point `.GOV/roles_shared/SPEC_CURRENT.md` to the master spec.
-3) Populate `.GOV/roles_shared/ARCHITECTURE.md` with real entrypoints.
-4) Add `.GOV/roles_shared/RUNBOOK_DEBUG.md` with log locations and first-5-minutes flow.
+2) Create a codex and point `.GOV/roles_shared/records/SPEC_CURRENT.md` to the master spec.
+3) Populate `.GOV/roles_shared/docs/ARCHITECTURE.md` with real entrypoints.
+4) Add `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` with log locations and first-5-minutes flow.
 5) Add scaffolding scripts and wire `justfile` targets.
 6) Require manual validator review and evidence mapping.
 7) Add CI jobs for lint/tests/depcruise/deny/gitleaks as available.
@@ -40957,7 +40957,7 @@ try {
     console.error(`BLOCKED: ${WP_ID} refinement declares ENRICHMENT_NEEDED=YES.`);
     console.error('Do NOT create/lock a WP packet while enrichment is required.');
     console.error('Next steps (spec-agnostic):');
-    console.error('- Run the spec enrichment workflow (new spec version file + update .GOV/roles_shared/SPEC_CURRENT.md).');
+    console.error('- Run the spec enrichment workflow (new spec version file + update .GOV/roles_shared/records/SPEC_CURRENT.md).');
     console.error('- Create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).');
     process.exit(1);
   }
@@ -41023,7 +41023,7 @@ try {
     process.exit(1);
   }
 } catch {
-  console.error('BLOCKED: Unable to verify signature in .GOV/roles_shared/SIGNATURE_AUDIT.md.');
+  console.error('BLOCKED: Unable to verify signature in .GOV/roles_shared/records/SIGNATURE_AUDIT.md.');
   process.exit(1);
 }
 
@@ -41088,7 +41088,7 @@ console.log(`âœ… Task packet created: ${filePath}`);
 console.log('');
 console.log('Next steps:');
 console.log('1. Edit the file and fill in all {placeholder} values');
-console.log('2. Update .GOV/roles_shared/TASK_BOARD.md to "Ready for Dev"');
+console.log('2. Update .GOV/roles_shared/records/TASK_BOARD.md to "Ready for Dev"');
 console.log('3. Verify completeness: just pre-work ' + WP_ID);
 console.log('4. Delegate to coder with packet path');
 console.log('');
@@ -41457,7 +41457,7 @@ const latest = parsed[parsed.length - 1].name;
 
 const specCurrentPath = path.join(repoRoot, "docs", "SPEC_CURRENT.md");
 if (!fs.existsSync(specCurrentPath)) {
-  console.error(".GOV/roles_shared/SPEC_CURRENT.md not found.");
+  console.error(".GOV/roles_shared/records/SPEC_CURRENT.md not found.");
   process.exit(1);
 }
 
@@ -42298,7 +42298,7 @@ if (action === 'refine') {
         wpId,
         type: 'REFINEMENT',
         refinement_path: refinementPath.replace(/\\/g, '/'),
-        spec_target_resolved: resolved ? `.GOV/roles_shared/SPEC_CURRENT.md -> ${resolved.specFileName}` : '.GOV/roles_shared/SPEC_CURRENT.md -> <unresolved>',
+        spec_target_resolved: resolved ? `.GOV/roles_shared/records/SPEC_CURRENT.md -> ${resolved.specFileName}` : '.GOV/roles_shared/records/SPEC_CURRENT.md -> <unresolved>',
         spec_target_sha1: resolved ? resolved.sha1 : '<unresolved>',
         timestamp: new Date().toISOString(),
         turn_token: String(Date.now()),
@@ -42351,7 +42351,7 @@ if (action === 'sign') {
         const enrichmentNeeded = (m?.[1] || '').toUpperCase();
         if (enrichmentNeeded === 'YES') {
             v2Fail('Refinement declares ENRICHMENT_NEEDED=YES; packet signature is forbidden.', [
-                'Run the spec enrichment workflow first (new spec version + update .GOV/roles_shared/SPEC_CURRENT.md).',
+                'Run the spec enrichment workflow first (new spec version + update .GOV/roles_shared/records/SPEC_CURRENT.md).',
                 'Then create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).',
             ]);
         }
@@ -42438,7 +42438,7 @@ if (action === 'sign') {
         }
         fs.writeFileSync(SIGNATURE_AUDIT_PATH, updatedAudit, 'utf8');
     } catch (e) {
-        v2Fail('Failed to append to .GOV/roles_shared/SIGNATURE_AUDIT.md', [String(e?.message || e)]);
+        v2Fail('Failed to append to .GOV/roles_shared/records/SIGNATURE_AUDIT.md', [String(e?.message || e)]);
     }
 
     state.gate_logs.push({
@@ -42928,8 +42928,8 @@ if (useStaged && workingFiles.length > stagedFiles.length) {
   // Avoid warning noise for validator-only governance state.
   const stagedSet = new Set(stagedFiles.map((p) => p.replace(/\\/g, '/')));
   const allowlistedUnstaged = new Set([
-    '.GOV/roles_shared/TASK_BOARD.md',
-    '.GOV/roles_shared/SIGNATURE_AUDIT.md',
+    '.GOV/roles_shared/records/TASK_BOARD.md',
+    '.GOV/roles_shared/records/SIGNATURE_AUDIT.md',
     '.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json',
     '.GOV/roles/validator/VALIDATOR_GATES.json',
     packetPath.replace(/\\/g, '/'),
@@ -42956,8 +42956,8 @@ if (manifests) {
   // Validate scope (best-effort): changed files must be subset of IN_SCOPE_PATHS (plus allowed governance files),
   // unless a waiver is present. This only applies to the evaluated diff set (staged preferred).
   const allowlisted = new Set([
-    '.GOV/roles_shared/TASK_BOARD.md',
-    '.GOV/roles_shared/SIGNATURE_AUDIT.md',
+    '.GOV/roles_shared/records/TASK_BOARD.md',
+    '.GOV/roles_shared/records/SIGNATURE_AUDIT.md',
     '.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json',
     '.GOV/roles/validator/VALIDATOR_GATES.json',
     packetPath.replace(/\\/g, '/'),
@@ -43273,10 +43273,10 @@ if (taskPacketFiles.length === 0) {
       const auditPath = path.join('docs', 'SIGNATURE_AUDIT.md');
       const audit = fs.readFileSync(auditPath, 'utf8');
       if (packetSig && !audit.includes(`| ${packetSig} |`)) {
-        errors.push(`USER_SIGNATURE not found in .GOV/roles_shared/SIGNATURE_AUDIT.md (${packetSig})`);
+        errors.push(`USER_SIGNATURE not found in .GOV/roles_shared/records/SIGNATURE_AUDIT.md (${packetSig})`);
       }
     } catch {
-      warnings.push('Could not verify signature against .GOV/roles_shared/SIGNATURE_AUDIT.md');
+      warnings.push('Could not verify signature against .GOV/roles_shared/records/SIGNATURE_AUDIT.md');
     }
 
     // Safety checkpoint gate: packet + refinement must be committed before development starts.
@@ -43286,14 +43286,14 @@ if (taskPacketFiles.length === 0) {
       execSync(`git cat-file -e HEAD:${packetPath.replace(/\\/g, '/')}`, { stdio: 'ignore' });
     } catch {
       errors.push(`Task packet is not committed yet (checkpoint required): ${packetPath.replace(/\\/g, '/')}`);
-      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} .GOV/roles_shared/SIGNATURE_AUDIT.md .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
+      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} .GOV/roles_shared/records/SIGNATURE_AUDIT.md .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
     }
 
     try {
       execSync(`git cat-file -e HEAD:${refinementFile.replace(/\\/g, '/')}`, { stdio: 'ignore' });
     } catch {
       errors.push(`Refinement file is not committed yet (checkpoint required): ${refinementFile.replace(/\\/g, '/')}`);
-      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} .GOV/roles_shared/SIGNATURE_AUDIT.md .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
+      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} .GOV/roles_shared/records/SIGNATURE_AUDIT.md .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
     }
   } else {
     console.log('\nCheck 2.7: Technical Refinement gate (skipped for Done/Validated packets)');
@@ -43549,7 +43549,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
   }
   if (resolved) {
     const resolvedLine = getSingleField(content, 'SPEC_TARGET_RESOLVED');
-    const expectedResolvedLine = `.GOV/roles_shared/SPEC_CURRENT.md -> ${resolved.specFileName}`;
+    const expectedResolvedLine = `.GOV/roles_shared/records/SPEC_CURRENT.md -> ${resolved.specFileName}`;
     if (resolvedLine !== expectedResolvedLine) {
       errors.push(`SPEC_TARGET_RESOLVED mismatch: expected "${expectedResolvedLine}", got "${resolvedLine || '<missing>'}"`);
     }
@@ -43696,7 +43696,7 @@ Intent: Mechanical governance gate (see filename + internal docstrings).
 ````js
 import fs from "node:fs";
 
-const TASK_BOARD_PATH = ".GOV/roles_shared/TASK_BOARD.md";
+const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
 
 function fail(message, details = []) {
   console.error(`[TASK_BOARD_CHECK] ${message}`);
@@ -44444,7 +44444,7 @@ Intent: Mechanical governance gate (see filename + internal docstrings).
 import { readFileSync } from "node:fs";
 
 const phase = process.argv[2] || "Phase-1";
-const taskBoardPath = ".GOV/roles_shared/TASK_BOARD.md";
+const taskBoardPath = ".GOV/roles_shared/records/TASK_BOARD.md";
 
 function fail(msg) {
   console.error(`validator-phase-gate: FAIL - ${msg}`);
@@ -44584,7 +44584,7 @@ Intent: Mechanical governance gate (see filename + internal docstrings).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const specPointerPath = ".GOV/roles_shared/SPEC_CURRENT.md";
+const specPointerPath = ".GOV/roles_shared/records/SPEC_CURRENT.md";
 // Phase/safety-critical anchors that must exist in the current spec.
 const requiredAnchors = [
   "2.3.12", // storage portability pillars
@@ -45091,7 +45091,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-const TASK_BOARD_PATH = ".GOV/roles_shared/TASK_BOARD.md";
+const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
 
 function runGit(args) {
   return execFileSync("git", args, { stdio: "pipe" }).toString().trim();
@@ -45249,9 +45249,9 @@ RISK_TIER: {from packet}
 TASK_TYPE: {DEBUG|FEATURE|REFACTOR|HYGIENE}
 
 FILES_TO_OPEN: {verify you read all}
-- .GOV/roles_shared/START_HERE.md
-- .GOV/roles_shared/SPEC_CURRENT.md
-- .GOV/roles_shared/ARCHITECTURE.md
+- .GOV/roles_shared/docs/START_HERE.md
+- .GOV/roles_shared/records/SPEC_CURRENT.md
+- .GOV/roles_shared/docs/ARCHITECTURE.md
 - {5-15 implementation files from packet BOOTSTRAP}
 
 SEARCH_TERMS: {verify you searched all}
@@ -45993,14 +45993,14 @@ Is user request clearly covered in Master Spec Main Body?
 **Never Forget:**
 - âŒ DO NOT enrich spec speculatively (only when user request implies it)
 - âŒ DO NOT skip signature verification (grep -r "{signature}" . to prevent reuse)
-- âŒ DO NOT forget to update .GOV/roles_shared/SPEC_CURRENT.md pointer
+- âŒ DO NOT forget to update .GOV/roles_shared/records/SPEC_CURRENT.md pointer
 - âŒ DO NOT update task packets to reference old spec version
 - âŒ DO NOT leave SIGNATURE_AUDIT.md blank
 
 ---
 
 ### Pillar 3: Task Board Maintenance (SSOT)
-**What:** Keep `.GOV/roles_shared/TASK_BOARD.md` (on `main`) as the Operator-visible status tracker; task packets are the source of truth for execution state
+**What:** Keep `.GOV/roles_shared/records/TASK_BOARD.md` (on `main`) as the Operator-visible status tracker; task packets are the source of truth for execution state
 **Quality Standard:** TASK_BOARD matches reality; never drifts from actual packet statuses
 **Enforcement:** Ensure the Operator-visible Task Board on `main` is updated within the same session/1 hour when any WP status changes (Validator status-sync for In Progress/Done)
 **Success Metric:** Validator opens TASK_BOARD and can see accurate phase progression without reading 20 packets
@@ -46572,7 +46572,7 @@ A perfect Orchestrator is:
 | All gate-critical WPs VALIDATED | 100% | Count DONE + VALIDATED WPs |
 | Zero TASK_BOARD/packet status mismatches | 100% | Audit: compare TASK_BOARD vs. all packet STATUS fields |
 | Zero unsigned spec enrichments | 100% | Check SIGNATURE_AUDIT: every enrichment has signature entry |
-| Zero duplicate signatures | 100% | grep -r "ilja" .GOV/roles_shared/SIGNATURE_AUDIT.md \| sort \| uniq -d |
+| Zero duplicate signatures | 100% | grep -r "ilja" .GOV/roles_shared/records/SIGNATURE_AUDIT.md \| sort \| uniq -d |
 | All dependencies documented | 100% | Verify every WP lists blockers/blocked-by in packet |
 | No stalled WPs (>2 weeks blocked) | 100% | Audit BLOCKED status; if >2 weeks, escalate resolved |
 | Phase gate visibility clear | 100% | Read TASK_BOARD Phase Gate section; closure criteria clear |
@@ -46820,7 +46820,7 @@ A **perfect Orchestrator**:
 ````
 
 
-###### Template File: `.GOV/roles_shared/MIGRATION_GUIDE.md`
+###### Template File: `.GOV/roles_shared/docs/MIGRATION_GUIDE.md`
 Intent: Optional migration law (only applicable when the project uses Rust + sqlx; otherwise omit).
 ````md
 # MIGRATION_GUIDE (LAW) â€” Portable Migrations with sqlx::migrate!
@@ -46902,16 +46902,16 @@ Provide a deterministic, leak-safe snapshot of the current governance state for 
 
 **Definition**  
 A "Product Governance Snapshot" is a machine-readable JSON export derived ONLY from canonical governance artifacts (no repo scan; no extras):
-- `.GOV/roles_shared/SPEC_CURRENT.md`
+- `.GOV/roles_shared/records/SPEC_CURRENT.md`
 - resolved spec file referenced inside it (e.g., `Handshake_Master_Spec_v02.125.md`)
-- `.GOV/roles_shared/TASK_BOARD.md`
-- `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`
-- `.GOV/roles_shared/SIGNATURE_AUDIT.md`
+- `.GOV/roles_shared/records/TASK_BOARD.md`
+- `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
+- `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`
 - `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
 - `.GOV/validator_gates/*.json` (if present)
 
 **Output location (HARD)**  
-- Default path: `.GOV/roles_shared/PRODUCT_GOVERNANCE_SNAPSHOT.json`
+- Default path: `.GOV/roles_shared/runtime/PRODUCT_GOVERNANCE_SNAPSHOT.json`
 - The export MUST be deterministic for a given set of input files.
 - The export MUST NOT include wall-clock timestamps.
 - The export MAY include the current git HEAD sha (if available) as provenance.
@@ -79232,7 +79232,7 @@ Hard invariants:
         "src/backend/handshake_core/src/locus/task_board.rs",
         "src/backend/handshake_core/src/locus/types.rs",
         "src/backend/handshake_core/src/workflows.rs",
-        ".GOV/roles_shared/TASK_BOARD.md"
+        ".GOV/roles_shared/records/TASK_BOARD.md"
       ],
       "gap_stub_ids": [
         "WP-1-Locus-Work-Tracking-System-Phase1-v1",

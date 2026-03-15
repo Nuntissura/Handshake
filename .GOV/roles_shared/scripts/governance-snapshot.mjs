@@ -18,7 +18,7 @@ import { fileURLToPath } from 'url';
 import { listValidatorGateStateFiles } from './lib/validator-gate-paths.mjs';
 
 export const SCHEMA_VERSION = 'hsk.product_governance_snapshot@0.1';
-export const DEFAULT_OUTPUT_PATH = '.GOV/roles_shared/PRODUCT_GOVERNANCE_SNAPSHOT.json';
+export const DEFAULT_OUTPUT_PATH = '.GOV/roles_shared/runtime/PRODUCT_GOVERNANCE_SNAPSHOT.json';
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const SCRIPT_DIR = path.dirname(SCRIPT_PATH);
@@ -58,7 +58,7 @@ const listValidatorGateJsonRelPaths = () => {
 };
 
 export const computeWhitelistedInputRelPaths = () => {
-  const specCurrentRel = '.GOV/roles_shared/SPEC_CURRENT.md';
+  const specCurrentRel = '.GOV/roles_shared/records/SPEC_CURRENT.md';
   const specCurrentAbs = absFromRel(specCurrentRel);
   if (!fs.existsSync(specCurrentAbs)) {
     throw new Error(`INPUT_MISSING: ${specCurrentRel}`);
@@ -70,9 +70,9 @@ export const computeWhitelistedInputRelPaths = () => {
   const fixed = [
     specCurrentRel,
     specFileRel,
-    '.GOV/roles_shared/TASK_BOARD.md',
-    '.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md',
-    '.GOV/roles_shared/SIGNATURE_AUDIT.md',
+    '.GOV/roles_shared/records/TASK_BOARD.md',
+    '.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md',
+    '.GOV/roles_shared/records/SIGNATURE_AUDIT.md',
     '.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json',
   ].map(normalizeRelPath);
 
@@ -253,9 +253,9 @@ export const buildProductGovernanceSnapshot = ({ includeHeadSha = false } = {}) 
 
   const specSha1 = shaHex('sha1', readBufferStrict(specFileRelPath));
 
-  const taskBoardText = readTextStrict('.GOV/roles_shared/TASK_BOARD.md');
-  const traceabilityText = readTextStrict('.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md');
-  const signatureAuditText = readTextStrict('.GOV/roles_shared/SIGNATURE_AUDIT.md');
+  const taskBoardText = readTextStrict('.GOV/roles_shared/records/TASK_BOARD.md');
+  const traceabilityText = readTextStrict('.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md');
+  const signatureAuditText = readTextStrict('.GOV/roles_shared/records/SIGNATURE_AUDIT.md');
   const orchestratorGatesText = readTextStrict('.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json');
 
   const taskBoardEntries = parseTaskBoardEntries(taskBoardText);
@@ -265,7 +265,7 @@ export const buildProductGovernanceSnapshot = ({ includeHeadSha = false } = {}) 
   const orchestratorGateSummary = summarizeOrchestratorGates(orchestratorGatesText);
 
   const validatorGatePaths = inputsRelPaths
-    .filter((p) => p.startsWith('.GOV/roles_shared/validator_gates/') && p.toLowerCase().endsWith('.json'))
+    .filter((p) => p.startsWith('.GOV/roles_shared/runtime/validator_gates/') && p.toLowerCase().endsWith('.json'))
     .map(normalizeRelPath)
     .sort(compareStrings);
 

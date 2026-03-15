@@ -8,9 +8,10 @@
 - `docs/ORCHESTRATOR_PRIORITIES.md`
 - `docs/ORCHESTRATOR_PROTOCOL_GAPS.md`
 
-## Role-Owned Runtime Files
+## Current Runtime State
 
 - `ORCHESTRATOR_GATES.json`
+  - live legacy root state still consumed by current tooling; new orchestrator-owned state belongs under `runtime/`
 - `checks/orchestrator_gates.mjs`
 - `scripts/create-task-packet.mjs`
 - `scripts/create-task-packet-stub.mjs`
@@ -26,6 +27,8 @@
 
 ## Role Layout
 
+- `runtime/`
+  - orchestrator-owned machine state only; new state belongs here even while `ORCHESTRATOR_GATES.json` remains as migration residue
 - `scripts/`
   - orchestrator-owned entrypoints
 - `scripts/lib/`
@@ -41,10 +44,10 @@
 
 - `.GOV/roles_shared/checks/README.md`
 - `.GOV/roles_shared/scripts/README.md`
-- `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`
-- `.GOV/roles_shared/WP_COMMUNICATIONS/`
-- `.GOV/roles_shared/TASK_BOARD.md`
-- `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`
+- `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`
+- `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/`
+- `.GOV/roles_shared/records/TASK_BOARD.md`
+- `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
 
 ## Key Commands
 

@@ -67,10 +67,10 @@
 - MAX_CODER_REVISION_CYCLES: 3
 - MAX_VALIDATOR_REVIEW_CYCLES: 3
 - MAX_RELAY_ESCALATION_CYCLES: 2
-- WP_COMMUNICATION_DIR: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1
-- WP_THREAD_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/THREAD.md
-- WP_RUNTIME_STATUS_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/RUNTIME_STATUS.json
-- WP_RECEIPTS_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/RECEIPTS.jsonl
+- WP_COMMUNICATION_DIR: .GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1
+- WP_THREAD_FILE: .GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/THREAD.md
+- WP_RUNTIME_STATUS_FILE: .GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/RUNTIME_STATUS.json
+- WP_RECEIPTS_FILE: .GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/RECEIPTS.jsonl
 - WP_VALIDATOR_OF_RECORD: <unassigned>
 - INTEGRATION_VALIDATOR_OF_RECORD: codex-intv-smoke-20260313
 - SECONDARY_VALIDATOR_SESSIONS: NONE
@@ -290,7 +290,7 @@ Next: NONE
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
 - WAIVER-GOV-HANDOFF-SYNC-WP-1-Structured-Collaboration-Artifact-Family-v1-001 [CX-573F]
   - Date: 2026-03-13
-  - Scope: `.GOV/roles_shared/TASK_BOARD.md` and `.GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/**` to synchronize validator-ready handoff state requested by advisory validation.
+  - Scope: `.GOV/roles_shared/records/TASK_BOARD.md` and `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/**` to synchronize validator-ready handoff state requested by advisory validation.
   - Justification: Operator explicitly requested governance handoff remediation outside the original `IN_SCOPE_PATHS` so committed HEAD reflects validator-ready state in a clean checkout.
   - Approver: Operator (chat instruction on 2026-03-13)
   - Expiry: On WP closure (validation complete).
@@ -334,7 +334,7 @@ git revert <commit-sha>
 - SPEC_ADD_MARKER_TARGET: [ADD v02.167]
 - SPEC_ANCHOR: Handshake_Master_Spec_v02.178.md 2.3.15.5 Canonical structured collaboration artifact family [ADD v02.167]
 - Codex: Handshake Codex v1.4.md
-- Task Board: .GOV/roles_shared/TASK_BOARD.md
+- Task Board: .GOV/roles_shared/records/TASK_BOARD.md
 - WP Traceability: .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
 
 ## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]

@@ -52,8 +52,8 @@ process.chdir(repoRoot);
 const latestSpec = findLatestSpec(repoRoot);
 const errors = [];
 
-const specCurrentPath = path.join(".GOV", "roles_shared", "SPEC_CURRENT.md");
-const buildOrderPath = path.join(".GOV", "roles_shared", "BUILD_ORDER.md");
+const specCurrentPath = path.join(".GOV", "roles_shared", "records", "SPEC_CURRENT.md");
+const buildOrderPath = path.join(".GOV", "roles_shared", "records", "BUILD_ORDER.md");
 const pastWorkIndexPath = path.join(".GOV", "reference", "PAST_WORK_INDEX.md");
 
 const specCurrent = readRequired(specCurrentPath);

@@ -54,15 +54,15 @@ if (parsed.length === 0) {
 parsed.sort((a, b) => compareVersions(a.version, b.version));
 const latest = parsed[parsed.length - 1].name;
 
-const specCurrentCanonicalPath = path.join(repoRoot, ".GOV", "roles_shared", "SPEC_CURRENT.md");
+const specCurrentCanonicalPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "SPEC_CURRENT.md");
 if (!fs.existsSync(specCurrentCanonicalPath)) {
-  console.error(".GOV/roles_shared/SPEC_CURRENT.md not found.");
+  console.error(".GOV/roles_shared/records/SPEC_CURRENT.md not found.");
   process.exit(1);
 }
 
 const specCurrentCanonical = fs.readFileSync(specCurrentCanonicalPath, "utf8");
 if (!specCurrentCanonical.includes(latest)) {
-  console.error(`.GOV/roles_shared/SPEC_CURRENT.md does not reference latest spec: ${latest}`);
+  console.error(`.GOV/roles_shared/records/SPEC_CURRENT.md does not reference latest spec: ${latest}`);
   process.exit(1);
 }
 

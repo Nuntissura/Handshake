@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const specPointerPath = ".GOV/roles_shared/SPEC_CURRENT.md";
+const specPointerPath = ".GOV/roles_shared/records/SPEC_CURRENT.md";
 // Phase/safety-critical anchors that must exist in the current spec.
 const requiredAnchors = [
   "2.3.12", // storage portability pillars

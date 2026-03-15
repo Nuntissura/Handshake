@@ -19,10 +19,10 @@ function resolveRepoRoot() {
 const repoRoot = path.resolve(resolveRepoRoot());
 process.chdir(repoRoot);
 
-const planPath = path.join(repoRoot, ".GOV", "roles_shared", "DEPRECATION_SUNSET_PLAN.md");
+const planPath = path.join(repoRoot, ".GOV", "roles_shared", "docs", "DEPRECATION_SUNSET_PLAN.md");
 
 if (!fs.existsSync(planPath)) {
-  console.error("deprecation-sunset-check: FAIL - missing .GOV/roles_shared/DEPRECATION_SUNSET_PLAN.md");
+  console.error("deprecation-sunset-check: FAIL - missing .GOV/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md");
   process.exit(1);
 }
 

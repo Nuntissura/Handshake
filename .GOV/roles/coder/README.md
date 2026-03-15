@@ -19,6 +19,8 @@
 
 ## Role Layout
 
+- `runtime/`
+  - coder-owned machine state only; new role-owned state belongs here
 - `scripts/`
   - coder-owned entrypoints
 - `scripts/lib/`
@@ -34,8 +36,8 @@
 
 - `.GOV/roles_shared/checks/README.md`
 - `.GOV/roles_shared/scripts/README.md`
-- `.GOV/roles_shared/SPEC_DEBT_REGISTRY.md`
-- `.GOV/roles_shared/WP_COMMUNICATIONS/`
+- `.GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md`
+- `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/`
 
 ## Key Commands
 

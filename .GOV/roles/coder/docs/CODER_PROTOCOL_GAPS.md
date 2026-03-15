@@ -98,7 +98,7 @@ Add to CODER_PROTOCOL Step 5:
 Output must have ALL 4 sub-fields with minimums:
 
 - [ ] **FILES_TO_OPEN**: 5-15 files minimum
-  - Include: .GOV/roles_shared/START_HERE.md, .GOV/roles_shared/SPEC_CURRENT.md, .GOV/roles_shared/ARCHITECTURE.md
+  - Include: .GOV/roles_shared/docs/START_HERE.md, .GOV/roles_shared/records/SPEC_CURRENT.md, .GOV/roles_shared/docs/ARCHITECTURE.md
   - Then: 5-15 implementation-specific files (order: context first, details last)
 
 - [ ] **SEARCH_TERMS**: 10-20 patterns minimum

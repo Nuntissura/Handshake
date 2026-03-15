@@ -10,8 +10,8 @@ if command -v node >/dev/null 2>&1; then
   GOV_REF_FILE="$(node .GOV/roles_shared/checks/governance-reference.mjs --print-file 2>/dev/null || true)"
 fi
 
-GOV_REF_LABEL="(unresolved; see .GOV/roles_shared/SPEC_CURRENT.md)"
-GOV_REF_SEE=".GOV/roles_shared/SPEC_CURRENT.md"
+GOV_REF_LABEL="(unresolved; see .GOV/roles_shared/records/SPEC_CURRENT.md)"
+GOV_REF_SEE=".GOV/roles_shared/records/SPEC_CURRENT.md"
 if [ -n "$GOV_REF_FILE" ]; then
   GOV_REF_LABEL="$GOV_REF_FILE"
   GOV_REF_SEE="$GOV_REF_FILE"

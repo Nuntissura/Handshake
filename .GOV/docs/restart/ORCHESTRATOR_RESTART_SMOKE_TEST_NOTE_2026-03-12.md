@@ -19,8 +19,8 @@ Key rules:
 
 - Only the Orchestrator may start repo-governed Coder, WP Validator, and Integration Validator sessions.
 - Primary host is `VSCODE_EXTENSION_TERMINAL`.
-- Launch requests go to `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`.
-- Current launch/runtime projection goes to `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
+- Launch requests go to `.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl`.
+- Current launch/runtime projection goes to `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`.
 - CLI escalation is allowed only after 2 plugin failures or timeouts for the same role/WP session, unless the Operator explicitly waives plugin-first.
 - Repo-governed model policy is:
   - primary `gpt-5.4`
@@ -31,7 +31,7 @@ Key rules:
 Reference files:
 
 - `AGENTS.md`
-- `.GOV/roles_shared/ROLE_SESSION_ORCHESTRATION.md`
+- `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
 - `.GOV/scripts/session-policy.mjs`
 - `.GOV/scripts/launch-cli-session.mjs`
 - `.GOV/tools/vscode-session-bridge/extension.js`
@@ -60,9 +60,9 @@ Packet:
 
 Communications:
 
-- `.GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/THREAD.md`
-- `.GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/RUNTIME_STATUS.json`
-- `.GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/RECEIPTS.jsonl`
+- `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/THREAD.md`
+- `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/RUNTIME_STATUS.json`
+- `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Artifact-Family-v1/RECEIPTS.jsonl`
 
 WP status at note time:
 
@@ -93,7 +93,7 @@ Current runtime projection:
 4. Start the live smoke test by launching the coder session through the governed path:
    - `just launch-coder-session WP-1-Structured-Collaboration-Artifact-Family-v1`
 5. Confirm the launch request is queued/consumed:
-   - inspect `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`
+   - inspect `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`
    - run `just session-registry-status WP-1-Structured-Collaboration-Artifact-Family-v1`
 6. If the coder launch succeeds, optionally launch the WP Validator session next:
    - `just launch-wp-validator-session WP-1-Structured-Collaboration-Artifact-Family-v1`

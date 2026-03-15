@@ -9,7 +9,7 @@ export const ORCHESTRATOR_GATES_PATH = path.join(
   "orchestrator",
   "ORCHESTRATOR_GATES.json",
 );
-export const TASK_BOARD_PATH = path.join(".GOV", "roles_shared", "TASK_BOARD.md");
+export const TASK_BOARD_PATH = path.join(".GOV", "roles_shared", "records", "TASK_BOARD.md");
 export const TERMINAL_TASK_BOARD_STATUSES = ["VALIDATED", "FAIL", "OUTDATED_ONLY", "SUPERSEDED"];
 
 function safeExec(command) {
@@ -238,7 +238,7 @@ export function taskBoardEntries() {
 }
 
 function taskBoardStatusAtRepo(repoRoot, wpId) {
-  const taskBoardPath = path.join(repoRoot, ".GOV", "roles_shared", "TASK_BOARD.md");
+  const taskBoardPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md");
   if (!exists(taskBoardPath)) return "";
   const content = readUtf8(taskBoardPath);
   const match = content.match(
@@ -248,7 +248,7 @@ function taskBoardStatusAtRepo(repoRoot, wpId) {
 }
 
 function traceabilityPacketPathAtRepo(repoRoot, baseWpId) {
-  const traceabilityPath = path.join(repoRoot, ".GOV", "roles_shared", "WP_TRACEABILITY_REGISTRY.md");
+  const traceabilityPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "WP_TRACEABILITY_REGISTRY.md");
   if (!exists(traceabilityPath)) return "";
   const content = readUtf8(traceabilityPath);
   const lines = content.split(/\r?\n/);
@@ -263,7 +263,7 @@ function traceabilityPacketPathAtRepo(repoRoot, baseWpId) {
 }
 
 function resolveSpecSnapshotAtRepo(repoRoot) {
-  const specCurrentPath = path.join(repoRoot, ".GOV", "roles_shared", "SPEC_CURRENT.md");
+  const specCurrentPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "SPEC_CURRENT.md");
   if (!exists(specCurrentPath)) {
     return { ok: false, error: `Missing ${specCurrentPath}` };
   }

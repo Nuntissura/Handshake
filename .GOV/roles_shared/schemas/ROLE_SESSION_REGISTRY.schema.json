@@ -78,7 +78,7 @@
     },
     "session_control_output_dir": {
       "type": "string",
-      "pattern": "^\\.GOV/roles_shared/SESSION_CONTROL_OUTPUTS$"
+      "pattern": "^\\.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS$"
     },
     "session_wake_channel_primary": {
       "const": "VS_CODE_FILE_WATCH"

@@ -24,7 +24,7 @@ const WORKTREE_CLEANUP_TOKEN_VERSION = "worktree_cleanup_token_v1";
 const CLEANUP_MANIFEST_SCHEMA = "hsk.worktree_cleanup_script_manifest@1";
 const CLEANUP_MANIFEST_VERSION = "worktree_cleanup_script_manifest_v1";
 const GENERATED_SCRIPT_ROOT = path.join(".GOV", "generated_cleanup_scripts");
-const SESSION_REGISTRY_PATH = path.join(".GOV", "roles_shared", "ROLE_SESSION_REGISTRY.json");
+const SESSION_REGISTRY_PATH = path.join(".GOV", "roles_shared", "runtime", "ROLE_SESSION_REGISTRY.json");
 const TOKEN_TTL_DAYS = 7;
 
 function fail(message, details = []) {

@@ -4,7 +4,7 @@
 - AUDIT_ID: <AUDIT-YYYYMMDD-<short-name>>
 - DATE_UTC: <YYYY-MM-DDTHH:MM:SSZ>
 - AUDITOR: <name/role>
-- SPEC_CURRENT_POINTER: .GOV/roles_shared/SPEC_CURRENT.md
+- SPEC_CURRENT_POINTER: .GOV/roles_shared/records/SPEC_CURRENT.md
 - SPEC_TARGET_RESOLVED: <Handshake_Master_Spec_vXX.XXX.md>
 - CODE_TARGET:
   - worktree: <path>

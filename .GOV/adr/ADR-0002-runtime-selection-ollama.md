@@ -20,6 +20,6 @@
 - **Cons:** Requires local installation; port 11434 conflicts are possible; model choice impacts performance/VRAM.
 
 ## Follow-ups
-- Keep `.GOV/roles_shared/START_HERE.md` as the canonical Phase 1 setup guide for installing/running/verifying Ollama on Windows.
+- Keep `.GOV/roles_shared/docs/START_HERE.md` as the canonical Phase 1 setup guide for installing/running/verifying Ollama on Windows.
 - Add additional runtime ADRs only when a non-Ollama runtime is introduced for Phase 2+.
 

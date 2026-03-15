@@ -665,13 +665,13 @@ if (!fs.existsSync(taskPacketDir)) {
 
     // Protocol requirement: signature must be present in SIGNATURE_AUDIT.md
     try {
-      const auditPath = path.join('.GOV', 'roles_shared', 'SIGNATURE_AUDIT.md');
+      const auditPath = path.join('.GOV', 'roles_shared', 'records', 'SIGNATURE_AUDIT.md');
       const audit = fs.readFileSync(auditPath, 'utf8');
       if (packetSig && !audit.includes(`| ${packetSig} |`)) {
-        errors.push(`USER_SIGNATURE not found in .GOV/roles_shared/SIGNATURE_AUDIT.md (${packetSig})`);
+        errors.push(`USER_SIGNATURE not found in .GOV/roles_shared/records/SIGNATURE_AUDIT.md (${packetSig})`);
       }
     } catch {
-      warnings.push('Could not verify signature against .GOV/roles_shared/SIGNATURE_AUDIT.md');
+      warnings.push('Could not verify signature against .GOV/roles_shared/records/SIGNATURE_AUDIT.md');
     }
 
     const refinementProfile = parseSingleField(packetContent, 'REFINEMENT_ENFORCEMENT_PROFILE');
@@ -1018,14 +1018,14 @@ if (!fs.existsSync(taskPacketDir)) {
       execSync(`git cat-file -e HEAD:${packetPath.replace(/\\/g, '/')}`, { stdio: 'ignore' });
     } catch {
       errors.push(`Task packet is not committed yet (checkpoint required): ${packetPath.replace(/\\/g, '/')}`);
-      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} .GOV/roles_shared/SIGNATURE_AUDIT.md .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
+      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} .GOV/roles_shared/records/SIGNATURE_AUDIT.md .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
     }
 
     try {
       execSync(`git cat-file -e HEAD:${refinementFile.replace(/\\/g, '/')}`, { stdio: 'ignore' });
     } catch {
       errors.push(`Refinement file is not committed yet (checkpoint required): ${refinementFile.replace(/\\/g, '/')}`);
-      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} .GOV/roles_shared/SIGNATURE_AUDIT.md .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
+      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} .GOV/roles_shared/records/SIGNATURE_AUDIT.md .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
     }
   } else {
     console.log('\nCheck 2.7: Technical Refinement gate (skipped for Done/Validated packets)');

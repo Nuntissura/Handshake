@@ -154,7 +154,7 @@ for (const r of required) {
 if (primitiveMatrixSchema === "hs_primitive_tool_tech_matrix@2") {
   const featureRegistry = parsedById.get("HS-APPX-FEATURE-REGISTRY");
   const primitiveMatrix = parsedById.get("HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX");
-  const taskBoard = fs.readFileSync(".GOV/roles_shared/TASK_BOARD.md", "utf8");
+  const taskBoard = fs.readFileSync(".GOV/roles_shared/records/TASK_BOARD.md", "utf8");
 
   requireArray(featureRegistry?.features, "feature_registry.features");
   requireArray(primitiveMatrix?.primitives, "primitive_matrix.primitives");

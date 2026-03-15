@@ -35,11 +35,10 @@ This folder is the governed control plane for Handshake.
 ## Start Here
 
 - repo-level navigation:
-  - `.GOV/roles_shared/START_HERE.md`
+  - `.GOV/roles_shared/docs/START_HERE.md`
   - `.GOV/roles_shared/README.md`
-  - `.GOV/docs/GOVERNANCE_STRUCTURE_TARGET.md`
-  - `.GOV/roles/STRUCTURE_RULES.md`
-  - `.GOV/roles_shared/STRUCTURE_RULES.md`
+  - `Handshake Codex v1.4.md`
+  - `.GOV/roles/README.md`
 - role bundles:
   - `.GOV/roles/orchestrator/README.md`
   - `.GOV/roles/coder/README.md`
@@ -61,25 +60,34 @@ This folder is the governed control plane for Handshake.
 ## Folder Law
 
 - `roles/<role>/`
-  - root: only role protocol, role README, stable role state, and narrow role entrypoint docs
+  - root: role protocol, role README, and fixed role-local subfolders
   - `docs/`: role-local guidance, rubrics, roadmaps, protocol gap analysis, and other non-authoritative role docs
+  - `runtime/`: role-owned machine state only; new role-owned state belongs here
   - `scripts/`: role-owned executable entrypoints
   - `scripts/lib/`: helper libraries used only by that role's scripts/checks
   - `checks/`: role-owned validation/enforcement entrypoints
   - `tests/`: governance tests for that role's scripts/checks
   - `fixtures/`: role-local test fixtures and golden inputs
 - `roles_shared/`
-  - root: active shared truth, active shared runtime/state, and active shared ledgers only
+  - root: `README.md` plus the canonical shared buckets
+  - `docs/`: active shared guidance
+  - `records/`: authoritative shared ledgers, registries, and pointers
+  - `runtime/`: shared machine-written runtime state only
+  - `exports/`: canonical shared export surfaces
+  - `schemas/`: shared governance schemas
   - `scripts/`: shared executable helpers and shared libraries
   - `checks/`: cross-role/shared enforcement
-  - `schemas/`: shared machine-readable governance contracts
   - `tests/`: shared governance tests spanning multiple roles
   - `fixtures/`: shared fixtures/testdata for shared scripts/checks/tests
-  - `exports/`: canonical shared export surfaces
+- `docs/`
+  - repo-level governance docs that do not belong to a single role bundle or the shared bundle
+  - temporary/non-authoritative material belongs only in a clearly named scratch subfolder and must not affect workflow execution unless explicitly designated
+- `operator/`
+  - operator-private workspace; non-authoritative unless the Operator explicitly designates a specific file for the current task
 - `reference/`
   - superseded architecture papers, audits, roadmap studies, extracted spec digests, and other non-authoritative material
   - reference material may describe old paths/tokens and must not be treated as live workflow authority
 
 ## Deprecations
 
-- See `.GOV/roles_shared/DEPRECATION_SUNSET_PLAN.md` for active compatibility surfaces and removal triggers.
+- See `.GOV/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md` for active compatibility surfaces and removal triggers.

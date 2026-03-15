@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { EXECUTION_OWNER_RANGE_HELP } from "../scripts/session/session-policy.mjs";
 
-const TASK_BOARD_PATH = ".GOV/roles_shared/TASK_BOARD.md";
+const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
 const ORCH_GATES_PATH = ".GOV/roles/orchestrator/ORCHESTRATOR_GATES.json";
 
 function runGit(args) {

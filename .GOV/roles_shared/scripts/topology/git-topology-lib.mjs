@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 
 export const SCHEMA_VERSION = "hsk.git_topology_registry@0.1";
 export const DYNAMIC_SNAPSHOT_SCHEMA_VERSION = "hsk.git_topology_snapshot@0.1";
-export const TOPOLOGY_REGISTRY_JSON_PATH = ".GOV/roles_shared/GIT_TOPOLOGY_REGISTRY.json";
-export const TOPOLOGY_REGISTRY_MD_PATH = ".GOV/roles_shared/GIT_TOPOLOGY_REGISTRY.md";
+export const TOPOLOGY_REGISTRY_JSON_PATH = ".GOV/roles_shared/runtime/GIT_TOPOLOGY_REGISTRY.json";
+export const TOPOLOGY_REGISTRY_MD_PATH = ".GOV/roles_shared/records/GIT_TOPOLOGY_REGISTRY.md";
 export const PROTECTED_BRANCHES = ["main", "user_ilja", "role_orchestrator", "role_validator"];
 export const WORKTREE_SPECS = [
   {

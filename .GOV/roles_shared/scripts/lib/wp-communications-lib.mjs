@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { EXECUTION_OWNER_VALUES } from "../session/session-policy.mjs";
 
-export const COMM_ROOT = ".GOV/roles_shared/WP_COMMUNICATIONS";
+export const COMM_ROOT = ".GOV/roles_shared/runtime/WP_COMMUNICATIONS";
 export const THREAD_FILE_NAME = "THREAD.md";
 export const RUNTIME_STATUS_FILE_NAME = "RUNTIME_STATUS.json";
 export const RECEIPTS_FILE_NAME = "RECEIPTS.jsonl";
@@ -201,16 +201,16 @@ export function validateRuntimeStatus(data) {
   if (!isNonEmptyString(data.task_packet) || !/^\.GOV\/task_packets\/WP-.*\.md$/.test(normalize(data.task_packet))) {
     errors.push("task_packet must point to .GOV/task_packets/WP-*.md");
   }
-  if (!isNonEmptyString(data.communication_dir) || !/^\.GOV\/roles_shared\/WP_COMMUNICATIONS\/WP-/.test(normalize(data.communication_dir))) {
-    errors.push("communication_dir must point to .GOV/roles_shared/WP_COMMUNICATIONS/WP-*");
+  if (!isNonEmptyString(data.communication_dir) || !/^\.GOV\/roles_shared\/runtime\/WP_COMMUNICATIONS\/WP-/.test(normalize(data.communication_dir))) {
+    errors.push("communication_dir must point to .GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-*");
   }
-  if (!isNonEmptyString(data.thread_file) || !/^\.GOV\/roles_shared\/WP_COMMUNICATIONS\/WP-.*\/THREAD\.md$/.test(normalize(data.thread_file))) {
+  if (!isNonEmptyString(data.thread_file) || !/^\.GOV\/roles_shared\/runtime\/WP_COMMUNICATIONS\/WP-.*\/THREAD\.md$/.test(normalize(data.thread_file))) {
     errors.push("thread_file must point to THREAD.md in the declared WP communication directory");
   }
-  if (!isNonEmptyString(data.runtime_status_file) || !/^\.GOV\/roles_shared\/WP_COMMUNICATIONS\/WP-.*\/RUNTIME_STATUS\.json$/.test(normalize(data.runtime_status_file))) {
+  if (!isNonEmptyString(data.runtime_status_file) || !/^\.GOV\/roles_shared\/runtime\/WP_COMMUNICATIONS\/WP-.*\/RUNTIME_STATUS\.json$/.test(normalize(data.runtime_status_file))) {
     errors.push("runtime_status_file must point to RUNTIME_STATUS.json in the declared WP communication directory");
   }
-  if (!isNonEmptyString(data.receipts_file) || !/^\.GOV\/roles_shared\/WP_COMMUNICATIONS\/WP-.*\/RECEIPTS\.jsonl$/.test(normalize(data.receipts_file))) {
+  if (!isNonEmptyString(data.receipts_file) || !/^\.GOV\/roles_shared\/runtime\/WP_COMMUNICATIONS\/WP-.*\/RECEIPTS\.jsonl$/.test(normalize(data.receipts_file))) {
     errors.push("receipts_file must point to RECEIPTS.jsonl in the declared WP communication directory");
   }
   if (!WORKFLOW_LANE_VALUES.includes(data.workflow_lane)) errors.push(`workflow_lane invalid (${data.workflow_lane})`);

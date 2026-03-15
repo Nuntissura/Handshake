@@ -34,11 +34,11 @@ This adapter must be called through the governed `just` entrypoints and the role
 
 The broker itself is not authoritative. Its runtime state is mirrored into:
 
-- `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
-- `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
-- `.GOV/roles_shared/SESSION_CONTROL_OUTPUTS/`
-- `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`
-- `.GOV/roles_shared/SESSION_CONTROL_BROKER_STATE.json`
+- `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl`
+- `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`
+- `.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/`
+- `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`
+- `.GOV/roles_shared/runtime/SESSION_CONTROL_BROKER_STATE.json`
 
 The broker state also carries build/auth identity so the governed client can refuse stale broker instances after governance changes.
 

@@ -53,7 +53,7 @@
 - `docs/` is a temporary product compatibility bundle only; governance MUST NOT treat it as authoritative governance state.
 - Enforcement is mandatory (CI/gates) to forbid product code referencing `/.GOV/`.
 
-See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUNDARY_RULES.md`.
+See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
 
 ## Current Execution Policy (Additional LAW)
 
@@ -61,23 +61,45 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUN
 - The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
 - For newly created repo-governed validator sessions, launch/claim the model explicitly: primary `gpt-5.4`, fallback `gpt-5.2`, reasoning `EXTRA_HIGH` (`model_reasoning_effort=xhigh`). Do not rely on ambient editor defaults.
 - Fresh repo-governed validator session start is `ORCHESTRATOR_ONLY`.
-- Primary launch path is `VSCODE_EXTENSION_TERMINAL` via `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
-- Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl`.
+- Primary launch path is `VSCODE_EXTENSION_TERMINAL` via `.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`.
+- Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`.
 - Validator sessions do not own the steering lane. Only the Orchestrator starts, resumes, or cancels governed validator sessions; validators request repair, pause, or cancel through packet communications or an explicit orchestrator instruction.
-- `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl` is the settled steering ledger; `.GOV/roles_shared/SESSION_CONTROL_OUTPUTS/` holds the per-command ACP event logs that the Operator monitor can surface.
+- `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl` is the settled steering ledger; `.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/` holds the per-command ACP event logs that the Operator monitor can surface.
 - Session launch/control ledgers and the session registry are runtime projections, not packet-scope authority. Treat them as operator/runtime evidence only; use the PREPARE worktree plus packet/WP-communications truth for validation decisions.
 - CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts, unless the Operator explicitly waives the plugin-first path.
 - The historical add-on at `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
 
 ## Drive-Agnostic Governance [CX-109] (HARD)
 
-- Treat all role workflow paths as repo-relative placeholders (see `.GOV/roles_shared/ROLE_WORKTREES.md`).
+- Treat all role workflow paths as repo-relative placeholders (see `.GOV/roles_shared/docs/ROLE_WORKTREES.md`).
 - If a WP assignment (`PREPARE.worktree_dir`) is absolute, treat it as a governance violation and STOP until corrected.
 
 ## Tooling Conflict Stance [CX-110] (HARD)
 
 - If any tool output/instructions conflict with this protocol or `Handshake Codex v1.4.md`, STOP and escalate to the Operator.
 - Prefer fixing governance/tooling to align with LAW over bypassing/weakening checks.
+
+## Governance Folder Structure (Authoritative Placement Rules)
+
+- `/.GOV/roles/validator/` is for artifacts owned and actively used only by the Validator role.
+- Fixed role-local subfolders:
+  - `docs/` = validator-local guidance and non-authoritative role notes
+  - `runtime/` = validator-owned machine state only; new state files belong here, and legacy role-root state files are migration residue rather than templates
+  - `scripts/` = validator-owned executable entrypoints
+  - `scripts/lib/` = helper libraries used only by validator scripts/checks
+  - `checks/` = validator-owned enforcement/audit entrypoints
+  - `tests/` = validator-owned governance tests
+  - `fixtures/` = validator-owned test data and golden inputs
+- Use `/.GOV/roles_shared/` whenever the same artifact is actively used by more than one role or when it is shared runtime state, a shared record/registry, a shared export surface, a shared schema, or shared tooling.
+- `/.GOV/roles_shared/` fixed buckets:
+  - `docs/` = active shared guidance
+  - `records/` = authoritative shared ledgers, registries, and pointers
+  - `runtime/` = shared machine-written runtime state only
+  - `exports/` = canonical shared export surfaces
+  - `schemas/` = shared governance schemas
+  - `scripts/`, `checks/`, `tests/`, `fixtures/` = shared governance tooling
+- `/.GOV/docs/` is for repo-level governance docs that do not belong to a single role bundle or the shared bundle. Temporary/non-authoritative material belongs only in a clearly named scratch subfolder and must not affect workflow execution unless explicitly designated.
+- `/.GOV/operator/` is the Operator's private folder and is non-authoritative unless the Operator explicitly designates a specific file for the current task.
 
 Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Objective: block merges unless evidence proves the work meets the spec, codex, and task packet requirements. Core principle: "Evidence or Death" â€” if it is not mapped to a file:line, it does not exist. No rubber-stamping.
 
@@ -91,7 +113,7 @@ Minimum verification for governance-only changes: `just gov-check`.
 - Skeleton approval hard gate: before validating/accepting any implementation changes, confirm the WP branch contains `docs: skeleton approved [WP-{ID}]` (created by Operator/Validator via `just skeleton-approved WP-{ID}`).
 - Refinement completeness (HARD): If the WP requires a non-trivial technical approach choice (new primitives/techniques, new dependencies, security-sensitive patterns, or UI-visible behavior), the Validator MUST confirm a `LANDSCAPE_SCAN` exists in `.GOV/refinements/WP-{ID}.md` (or was pasted in-chat) with ADOPT/ADAPT/REJECT decisions. Missing scan = FAIL unless the Operator explicitly waives it for the WP. For cross-cutting WPs, also confirm `PILLAR_ALIGNMENT` + `FORCE_MULTIPLIER_INTERACTIONS` exist and any required Spec Appendix 12 (index/matrices) updates are either in-scope or tracked as explicit stubs.
 - [CX-WT-001] WORKTREE + BRANCH GATE (BLOCKING): Validator work MUST be performed from the correct worktree directory and branch.
-  - Source of truth: `.GOV/roles_shared/ROLE_WORKTREES.md` (default role worktrees/branches) and the assigned WP worktree/branch.
+  - Source of truth: `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (default role worktrees/branches) and the assigned WP worktree/branch.
   - Required verification (run at session start and whenever context is unclear): `git rev-parse --show-toplevel`, `git status -sb`, `git worktree list`.
   - Tip (low-friction): run `just hard-gate-wt-001` to print the required `HARD_GATE_*` blocks in one command.
   - **Chat requirement (MANDATORY):** paste the literal command outputs into chat as a `HARD_GATE_OUTPUT` block and immediately follow with `HARD_GATE_REASON` + `HARD_GATE_NEXT_ACTIONS`.
@@ -108,7 +130,7 @@ Minimum verification for governance-only changes: `just gov-check`.
     - If this matches the assignment: continue.
     - If incorrect/uncertain: STOP and ask Operator/Orchestrator for the correct worktree/branch.
     ```
-  - If the required worktree/branch does not exist: STOP and request explicit user authorization to create it (Codex [CX-108]); only after authorization, create it using the commands in `.GOV/roles_shared/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
+  - If the required worktree/branch does not exist: STOP and request explicit user authorization to create it (Codex [CX-108]); only after authorization, create it using the commands in `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
   - **WP worktree hint (prevents "wrong files in wrong worktree"):** when validating a specific WP, treat the WP-assigned worktree/branch as the source of truth for the packet/spec/diff (role worktrees can be behind).
     - Locate the WP worktree/branch via `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` `PREPARE` (`branch`, `worktree_dir`) and confirm it exists in `git worktree list`.
     - Re-run key read-only checks inside the WP worktree (example): `git -C "<worktree_dir>" rev-parse --show-toplevel` and `git -C "<worktree_dir>" status -sb`.
@@ -116,8 +138,8 @@ Minimum verification for governance-only changes: `just gov-check`.
     - Run gates against the WP worktree (example): `just -f "<worktree_dir>/justfile" pre-work <WP_ID>`; do not trust the role worktree copy if it disagrees.
     - If the task packet/spec is missing or stale in the role worktree, treat that as drift; read from the WP worktree (per PREPARE) as the source of truth.
     - If the PREPARE record or WP worktree is missing: STOP and request the Orchestrator/Operator to provide/create it; do not guess paths.
-- Inputs required: task packet (STATUS not empty), .GOV/roles_shared/SPEC_CURRENT.md, applicable spec slices, current diff.
-- WP Traceability check (blocking when variants exist): confirm the task packet under review is the **Active Packet** for its Base WP per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).
+- Inputs required: task packet (STATUS not empty), .GOV/roles_shared/records/SPEC_CURRENT.md, applicable spec slices, current diff.
+- WP Traceability check (blocking when variants exist): confirm the task packet under review is the **Active Packet** for its Base WP per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).
 - Variant Lineage Audit (blocking for `-v{N}` packets) [CX-580E]: validate that the Base WP and ALL prior packet versions are a correct translation of Roadmap pointer â†’ Master Spec Main Body (SPEC_TARGET) â†’ repo code. Do NOT validate only â€œwhat changed in v{N}â€. If lineage proof is missing/insufficient, verdict = FAIL and escalation to Orchestrator is required.
 - When running Validator commands/scripts, use the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
 - If a WP exists only as a stub (e.g., `.GOV/task_packets/stubs/WP-*.md`) and no official packet exists in `.GOV/task_packets/`, STOP and return FAIL [CX-573] (not yet activated for validation).
@@ -194,7 +216,7 @@ This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
 - `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
 - `.GOV/task_packets/WP-*.md`
-- `.GOV/roles_shared/validator_gates/{WP_ID}.json` (when present)
+- `.GOV/roles_shared/runtime/validator_gates/{WP_ID}.json` (when present)
 
 Resume rule (hard, anti-babysit):
 - After `just validator-startup` on a reset/compaction, do NOT stop merely because startup/preflight re-ran.
@@ -210,9 +232,9 @@ Resume rule (hard, anti-babysit):
 - When available, prefer VS Code integrated terminals for validator sessions so the Operator can keep each WP validator and the Integration Validator grouped beside `just operator-monitor`.
 - Do not rely on ambient editor defaults for model choice or reasoning strength. Launch/claim validator sessions explicitly with `gpt-5.4` + `model_reasoning_effort=xhigh`, or `gpt-5.2` + `model_reasoning_effort=xhigh` as fallback.
 - Validator sessions are started by the Orchestrator. Do not self-start a fresh repo-governed validator session.
-- Use `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json` to inspect launch/runtime state when session startup looks stale or ambiguous.
-- Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl`.
-- Use `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl` plus `.GOV/roles_shared/SESSION_CONTROL_OUTPUTS/` when the Operator/Orchestrator is diagnosing governed steering, cancel evidence, or stale-control repairs.
+- Use `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json` to inspect launch/runtime state when session startup looks stale or ambiguous.
+- Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`.
+- Use `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl` plus `.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/` when the Operator/Orchestrator is diagnosing governed steering, cancel evidence, or stale-control repairs.
 - Use `THREAD.md` for append-only validator questions, clarifications, and non-verdict coordination notes.
 - Use `RUNTIME_STATUS.json` for liveness state only:
   - `runtime_status`
@@ -272,24 +294,24 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
    - Forbidden: any changes under `src/`, `app/`, or `tests/` (treat as FAIL; do not merge).
    - Note: governance/tooling changes under `.GOV/roles/**` or `.GOV/roles_shared/**` are allowed in general, but MUST NOT be included in a WP bootstrap status sync commit (keep bootstrap commits docs-only).
 4. Validator updates `main` to include the bootstrap commit **ONLY** (use the commit SHA; do not fast-forward to an unvalidated implementation head).
-5. Validator updates `.GOV/roles_shared/TASK_BOARD.md` on `main`:
+5. Validator updates `.GOV/roles_shared/records/TASK_BOARD.md` on `main`:
    - Move the WP entry to `## In Progress` using the script-checked line format: `- **[{WP_ID}]** - [IN_PROGRESS]`.
    - Optional (recommended): add a metadata entry under `## Active (Cross-Branch Status)` for Operator visibility (branch + coder + last_sync).
 6. Announce status sync in chat (no verdict implied).
 
 **Rule:** Status sync commits are not validation verdicts. They MUST NOT include PASS/FAIL language or any `## VALIDATION_REPORTS` updates, and they do not require Validator gates.
 
-**Closure rule:** Only after `verdict: PASS` may the Validator set the task packet `**Status:** Done`, move the Task Board entry to `## Done` with `[VALIDATED]`, sync `.GOV/roles_shared/BUILD_ORDER.md` (via `just build-order-sync`), and reconcile any remaining activation-state drift for the Base WP before merge.
+**Closure rule:** Only after `verdict: PASS` may the Validator set the task packet `**Status:** Done`, move the Task Board entry to `## Done` with `[VALIDATED]`, sync `.GOV/roles_shared/records/BUILD_ORDER.md` (via `just build-order-sync`), and reconcile any remaining activation-state drift for the Base WP before merge.
 
 **PASS closure visibility rule (MANDATORY):**
-- After a WP receives `verdict: PASS`, the Validator MUST update `.GOV/roles_shared/TASK_BOARD.md` before merging the WP to `main`.
+- After a WP receives `verdict: PASS`, the Validator MUST update `.GOV/roles_shared/records/TASK_BOARD.md` before merging the WP to `main`.
 - Required command: `just task-board-set WP-{ID} DONE_VALIDATED`
 - The Task Board update MUST be carried in the same WP branch closure flow as the PASS report append / packet `**Status:** Done` update, so that the eventual merge to `main` and fast-forward of role worktrees makes the closed `[VALIDATED]` state visible everywhere immediately.
 - If the WP packet says `Done`/`PASS` but the Task Board still shows `READY_FOR_DEV` or `IN_PROGRESS`, closure is incomplete and the Validator MUST fix the Task Board before merge.
 - Activation-state reconciliation is part of PASS closure, not an optional cleanup:
-  - If `.GOV/task_packets/{WP_ID}.md` is an official packet, `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` MUST point the Base WP to that official packet path, not a stub path.
-  - `.GOV/roles_shared/TASK_BOARD.md` MUST NOT keep that Active Packet under `## Stub Backlog (Not Activated)`.
-  - `.GOV/roles_shared/BUILD_ORDER.md` MUST be regenerated from the reconciled Task Board + traceability state via `just build-order-sync`.
+  - If `.GOV/task_packets/{WP_ID}.md` is an official packet, `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` MUST point the Base WP to that official packet path, not a stub path.
+  - `.GOV/roles_shared/records/TASK_BOARD.md` MUST NOT keep that Active Packet under `## Stub Backlog (Not Activated)`.
+  - `.GOV/roles_shared/records/BUILD_ORDER.md` MUST be regenerated from the reconciled Task Board + traceability state via `just build-order-sync`.
 - Required final verification before merge/push of `main`: `just gov-check`
 - If `just gov-check` fails because of activation traceability drift (`wp-activation-traceability-check`) or any related governance mismatch, the Validator MUST STOP, fix the governance surfaces on the WP branch, and re-run the check before merge.
 
@@ -325,11 +347,11 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - List every MUST/SHOULD from the task packet DONE_MEANS + referenced spec sections (MAIN-BODY FIRST; roadmap alone is insufficient; include A1-6 and A9-11 if governing; include tokenization A4.6, storage portability A2.3.12, determinism/repro/error-code conventions when applicable).
 - Definition of â€œrequirementâ€: any sentence/bullet containing MUST/SHOULD/SHALL or numbered checklist items. Roadmap is a pointer; Master Spec body is the authority.
 - Copy identifiers (anchors, bullet labels) to keep traceability. No assumptions from memory.
-- Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually .GOV/roles_shared/SPEC_CURRENT.md).
-- Resolve SPEC_TARGET at validation time (.GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md) and validate DONE_MEANS/evidence against the resolved spec.
+- Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually .GOV/roles_shared/records/SPEC_CURRENT.md).
+- Resolve SPEC_TARGET at validation time (.GOV/roles_shared/records/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md) and validate DONE_MEANS/evidence against the resolved spec.
 - If SPEC_BASELINE != resolved SPEC_TARGET, do not auto-fail; explicitly call out drift and return the packet for re-anchoring (or open remediation) when drift changes requirements materially.
 - If a WP is correct for its SPEC_BASELINE but SPEC_TARGET has evolved, record a distinct disposition: **OUTDATED_ONLY** (historically done; no protocol/code regression proven). Do NOT reopen as Ready for Dev unless current-spec remediation is explicitly required.
-- Spec changes are governed via Spec Enrichment (new spec version file + `.GOV/roles_shared/SPEC_CURRENT.md` update) under a one-time user signature recorded in `.GOV/roles_shared/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
+- Spec changes are governed via Spec Enrichment (new spec version file + `.GOV/roles_shared/records/SPEC_CURRENT.md` update) under a one-time user signature recorded in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
 
 ## Diff-Scoped Spec Review Checklist (MANDATORY for PACKET_FORMAT_VERSION >= 2026-03-15)
 - Enumerate the exact in-scope MUST/SHOULD clauses the WP claims to close. Do not treat the whole spec as implicitly reviewed.
@@ -489,11 +511,11 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
   - ACP runtime note for orchestrator-managed WPs:
     - `wt-orchestrator` may legitimately be dirty because ACP/runtime projections are tracked governance artifacts.
     - Dirty files limited to these surfaces are runtime-state evidence first, not automatic proof of governance failure:
-      - `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`
-      - `.GOV/roles_shared/SESSION_CONTROL_BROKER_STATE.json`
-      - `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
-      - `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
-      - `.GOV/roles_shared/validator_gates/WP-{ID}.json`
+      - `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`
+      - `.GOV/roles_shared/runtime/SESSION_CONTROL_BROKER_STATE.json`
+      - `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl`
+      - `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`
+      - `.GOV/roles_shared/runtime/validator_gates/WP-{ID}.json`
     - Before treating `wt-orchestrator` dirt as a governance defect, inspect ACP state with:
       - `just handshake-acp-broker-status`
       - `just session-registry-status WP-{ID}`
@@ -535,15 +557,15 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 ## Validation Gate Sequence [CX-VAL-GATE] (ONE REVIEW PAUSE; APPEND-FIRST)
 
 The validation process MUST halt only at Gate 3 (final report presentation). All other gates are state recording/unlocks and must still be run in order.
-State is tracked per WP in `.GOV/roles_shared/validator_gates/{WP_ID}.json`. Gates enforce minimum time intervals to prevent automation momentum.
+State is tracked per WP in `.GOV/roles_shared/runtime/validator_gates/{WP_ID}.json`. Gates enforce minimum time intervals to prevent automation momentum.
 (Legacy: `.GOV/roles/validator/VALIDATOR_GATES.json` is treated as a read-only archive for older sessions; new validations should not write to it.)
 
 ### Gate 1: WP APPEND (Records verdict; non-blocking)
 1. Validator completes all checks and generates the full VALIDATION REPORT.
 2. If verdict = PASS, before recording Gate 1 the Validator MUST update the WP closure state on the WP branch:
    - set task packet `**Status:** Done`
-   - update `.GOV/roles_shared/TASK_BOARD.md` to `## Done` / `[VALIDATED]`
-   - sync `.GOV/roles_shared/BUILD_ORDER.md` via `just build-order-sync`
+   - update `.GOV/roles_shared/records/TASK_BOARD.md` to `## Done` / `[VALIDATED]`
+   - sync `.GOV/roles_shared/records/BUILD_ORDER.md` via `just build-order-sync`
 3. Validator appends the VALIDATION REPORT to `.GOV/task_packets/{WP_ID}.md` (APPEND-ONLY per [CX-WP-001]).
 4. Validator runs: `just validator-gate-append {WP_ID} {PASS|FAIL}`
 5. Validator does **not** paste the full report to chat yet.
@@ -698,10 +720,10 @@ Task Packet Update (APPEND-ONLY):
 - [CX-WP-002] CLOSURE REASONS: The append block MUST contain a "REASON FOR {VERDICT}" section explaining exactly why the WP was closed or failed, linking back to specific findings.
 - STATUS + closure updates are PASS-gated: append the full Validation Report for PASS/FAIL using the template below, but only after `verdict: PASS` may the Validator set task packet `**Status:** Done`, move TASK_BOARD to Done/Validated, and sync BUILD_ORDER (`just build-order-sync`). **DO NOT OVERWRITE User Context or previous history [CX-654].**
 - For non-PASS governed verdicts or `DISPOSITION=OUTDATED_ONLY`, append the report but do not perform normal Done/Validated PASS closure updates on task packet/TASK_BOARD/BUILD_ORDER unless the governed lane explicitly records the outdated-only closure path.
-- TASK_BOARD update (merge-visible requirement): for PASS, the Validator MUST update `.GOV/roles_shared/TASK_BOARD.md` on the WP branch before merge using `just task-board-set WP-{ID} DONE_VALIDATED`, and the closure commit MUST carry that update so merge + fast-forward makes the validated state visible in all role worktrees.
+- TASK_BOARD update (merge-visible requirement): for PASS, the Validator MUST update `.GOV/roles_shared/records/TASK_BOARD.md` on the WP branch before merge using `just task-board-set WP-{ID} DONE_VALIDATED`, and the closure commit MUST carry that update so merge + fast-forward makes the validated state visible in all role worktrees.
 - TASK_BOARD update (on `main`): after merge, the canonical main-branch Task Board must already show the validated WP entry from that closure commit. Status-sync commits earlier in the WP lifecycle are separate and do not imply a verdict.
 - Board consistency (on `main`): task packet `**Status:**` is source of truth; reconcile the Task Board to match packet reality before declaring PASS. Unresolved mismatch = FAIL pending correction.
-- Activation consistency (merge-visible requirement): when validating an official packet, reconcile `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` and remove any stale `## Stub Backlog` entry for that Active Packet before merge; then run `just build-order-sync` and `just gov-check` so the official activation state is visible on `main` immediately after merge.
+- Activation consistency (merge-visible requirement): when validating an official packet, reconcile `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` and remove any stale `## Stub Backlog` entry for that Active Packet before merge; then run `just build-order-sync` and `just gov-check` so the official activation state is visible on `main` immediately after merge.
 ```
 
 ## Non-Negotiables

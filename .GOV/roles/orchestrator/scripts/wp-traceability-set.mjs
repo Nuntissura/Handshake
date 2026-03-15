@@ -2,7 +2,7 @@
 /**
  * Deterministic Base WP -> Active Packet mapping updater.
  *
- * Updates `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md` without manual table editing.
+ * Updates `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` without manual table editing.
  *
  * Behavior:
  * - Prefers official packet path if present: `.GOV/task_packets/<ACTIVE>.md`
@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const REGISTRY_PATH = ".GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md";
+const REGISTRY_PATH = ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md";
 const OFFICIAL_DIR = ".GOV/task_packets";
 const STUB_DIR = ".GOV/task_packets/stubs";
 

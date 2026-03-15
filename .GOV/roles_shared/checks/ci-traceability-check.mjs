@@ -19,7 +19,7 @@ try {
 
 const bannerRef = governanceRef
   ? `Governance Reference: ${governanceRef.codexFilename}`
-  : 'Governance Reference: UNRESOLVED (see .GOV/roles_shared/SPEC_CURRENT.md)';
+  : 'Governance Reference: UNRESOLVED (see .GOV/roles_shared/records/SPEC_CURRENT.md)';
 
 console.log(`\ndY"? CI Traceability Check (${bannerRef})...\n`);
 
@@ -161,21 +161,21 @@ if (loggerFiles.length === 0) {
   console.log(`  â„¹ï¸  Logger present: ${loggerFiles[0]} (milestones/hard bugs only)`);
 }
 
-// Check 4: Governance Reference exists (derived from .GOV/roles_shared/SPEC_CURRENT.md)
-console.log('\nCheck 4: Governance Reference exists (from .GOV/roles_shared/SPEC_CURRENT.md)');
+// Check 4: Governance Reference exists (derived from .GOV/roles_shared/records/SPEC_CURRENT.md)
+console.log('\nCheck 4: Governance Reference exists (from .GOV/roles_shared/records/SPEC_CURRENT.md)');
 try {
   const ref = governanceRef || resolveGovernanceReference();
   if (!fs.existsSync(ref.codexPathAbs)) {
     errors.push(
-      `Governance Reference file not found: ${ref.codexFilename} (resolved from .GOV/roles_shared/SPEC_CURRENT.md)`
+      `Governance Reference file not found: ${ref.codexFilename} (resolved from .GOV/roles_shared/records/SPEC_CURRENT.md)`
     );
     console.log(`Æ’?O FAIL: Governance Reference missing: ${ref.codexFilename}`);
   } else {
     console.log(`  Æ’o. ${ref.codexFilename} exists`);
   }
 } catch (err) {
-  errors.push(`Could not resolve Governance Reference from .GOV/roles_shared/SPEC_CURRENT.md: ${err.message}`);
-  console.log('Æ’?O FAIL: Could not resolve Governance Reference from .GOV/roles_shared/SPEC_CURRENT.md');
+  errors.push(`Could not resolve Governance Reference from .GOV/roles_shared/records/SPEC_CURRENT.md: ${err.message}`);
+  console.log('Æ’?O FAIL: Could not resolve Governance Reference from .GOV/roles_shared/records/SPEC_CURRENT.md');
 }
 
 // Check 5: Protocol files exist
@@ -187,8 +187,8 @@ const protocolFiles = [
   '.GOV/roles/orchestrator/agentic/AGENTIC_PROTOCOL.md',
   '.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md',
   '.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md',
-  '.GOV/roles_shared/BOUNDARY_RULES.md',
-  '.GOV/roles_shared/EVIDENCE_LEDGER.md',
+  '.GOV/roles_shared/docs/BOUNDARY_RULES.md',
+  '.GOV/roles_shared/docs/EVIDENCE_LEDGER.md',
 ];
 
 protocolFiles.forEach(file => {
@@ -220,6 +220,6 @@ if (errors.length === 0 && warnings.length === 0) {
     warnings.forEach((warn, i) => console.log(`  ${i + 1}. ${warn}`));
   }
   console.log('\nFix these issues to pass CI traceability check.');
-  console.log('See: .GOV/roles_shared/SPEC_CURRENT.md');
+  console.log('See: .GOV/roles_shared/records/SPEC_CURRENT.md');
   process.exit(1);
 }
