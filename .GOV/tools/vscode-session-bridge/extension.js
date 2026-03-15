@@ -2,9 +2,9 @@ const vscode = require("vscode");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const QUEUE_REL_PATH = ".GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl";
-const REGISTRY_REL_PATH = ".GOV/roles_shared/ROLE_SESSION_REGISTRY.json";
-const CONTROL_RESULTS_REL_PATH = ".GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl";
+const QUEUE_REL_PATH = ".GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl";
+const REGISTRY_REL_PATH = ".GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json";
+const CONTROL_RESULTS_REL_PATH = ".GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl";
 
 function nowIso() {
   return new Date().toISOString();
@@ -46,7 +46,7 @@ function defaultRegistry() {
     session_watch_policy: "EVENT_WATCH_PRIMARY_HEARTBEAT_FALLBACK",
     session_plugin_bridge_id: "handshake.handshake-session-bridge",
     session_plugin_bridge_command: "handshakeSessionBridge.processLaunchQueue",
-    session_plugin_requests_file: ".GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl",
+    session_plugin_requests_file: ".GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl",
     session_wake_channel_primary: "VS_CODE_FILE_WATCH",
     session_wake_channel_fallback: "WP_HEARTBEAT",
     session_plugin_max_retries_before_escalation: 2,
@@ -237,7 +237,7 @@ function installRuntimeStatusWatcher(context) {
   if (!folder) return;
   const lastSeen = new Map();
     const watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(folder, ".GOV/roles_shared/WP_COMMUNICATIONS/**/RUNTIME_STATUS.json")
+      new vscode.RelativePattern(folder, ".GOV/roles_shared/runtime/WP_COMMUNICATIONS/**/RUNTIME_STATUS.json")
   );
   const handle = async (uri) => {
     try {

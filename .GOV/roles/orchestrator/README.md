@@ -1,5 +1,8 @@
 # Orchestrator Bundle
 
+This README is navigational only.
+Authoritative folder-placement law for the Orchestrator bundle lives in `Handshake Codex v1.4.md` plus `ORCHESTRATOR_PROTOCOL.md`.
+
 ## Primary Docs
 
 - `ORCHESTRATOR_PROTOCOL.md`
@@ -8,9 +11,10 @@
 - `docs/ORCHESTRATOR_PRIORITIES.md`
 - `docs/ORCHESTRATOR_PROTOCOL_GAPS.md`
 
-## Role-Owned Runtime Files
+## Current Runtime State
 
-- `ORCHESTRATOR_GATES.json`
+- `runtime/ORCHESTRATOR_GATES.json`
+  - live orchestrator runtime state
 - `checks/orchestrator_gates.mjs`
 - `scripts/create-task-packet.mjs`
 - `scripts/create-task-packet-stub.mjs`
@@ -24,8 +28,10 @@
 - `scripts/task-board-set.mjs`
 - `scripts/wp-traceability-set.mjs`
 
-## Role Layout
+## Role Map
 
+- `runtime/`
+  - orchestrator-owned machine state only
 - `scripts/`
   - orchestrator-owned entrypoints
 - `scripts/lib/`
@@ -41,10 +47,10 @@
 
 - `.GOV/roles_shared/checks/README.md`
 - `.GOV/roles_shared/scripts/README.md`
-- `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`
-- `.GOV/roles_shared/WP_COMMUNICATIONS/`
-- `.GOV/roles_shared/TASK_BOARD.md`
-- `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`
+- `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`
+- `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/`
+- `.GOV/roles_shared/records/TASK_BOARD.md`
+- `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
 
 ## Key Commands
 

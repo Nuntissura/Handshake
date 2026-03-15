@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const SPEC_DEBT_REGISTRY_PATH = path.join('.GOV', 'roles_shared', 'SPEC_DEBT_REGISTRY.md');
+export const SPEC_DEBT_REGISTRY_PATH = path.join('.GOV', 'roles_shared', 'records', 'SPEC_DEBT_REGISTRY.md');
 
 function parsePipeRecord(item) {
   const record = {};

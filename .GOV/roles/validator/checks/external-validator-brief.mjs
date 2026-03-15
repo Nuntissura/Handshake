@@ -99,7 +99,7 @@ function authorityRoleToBranch(authorityRole) {
 }
 
 function resolveGovernanceTarget(packetContent, repoRoot, workflowLane) {
-  const topology = loadJson(path.join(".GOV", "roles_shared", "GIT_TOPOLOGY_REGISTRY.json"), {});
+  const topology = loadJson(path.join(".GOV", "roles_shared", "runtime", "GIT_TOPOLOGY_REGISTRY.json"), {});
   const authorityRole = parseClaimField(packetContent, "WORKFLOW_AUTHORITY")
     || (String(workflowLane || "").trim().toUpperCase() === "ORCHESTRATOR_MANAGED" ? "ORCHESTRATOR" : "ORCHESTRATOR");
   const branch = authorityRoleToBranch(authorityRole);

@@ -62,7 +62,6 @@ const roots = [
   path.join(repoRoot, ".GOV", "GOV_KERNEL", "05_CI_HOOKS_AND_CONFIG.md"),
   path.join(repoRoot, ".GOV", "GOV_KERNEL", "06_VERSIONING_AND_DRIFT_CONTROL.md"),
   path.join(repoRoot, ".GOV", "roles", "README.md"),
-  path.join(repoRoot, ".GOV", "roles", "STRUCTURE_RULES.md"),
   path.join(repoRoot, ".GOV", "roles", "coder", "README.md"),
   path.join(repoRoot, ".GOV", "roles", "coder", "CODER_PROTOCOL.md"),
   path.join(repoRoot, ".GOV", "roles", "coder", "checks"),
@@ -76,22 +75,22 @@ const roots = [
   path.join(repoRoot, ".GOV", "roles", "validator", "checks"),
   path.join(repoRoot, ".GOV", "roles", "validator", "scripts"),
   path.join(repoRoot, ".GOV", "roles_shared", "README.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "ARCHITECTURE.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "BOUNDARY_RULES.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "REPO_RESILIENCE.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "ROLE_SESSION_ORCHESTRATION.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "ROLE_WORKFLOW_QUICKREF.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "ROLE_WORKTREES.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "START_HERE.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "STRUCTURE_RULES.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "DEPRECATION_SUNSET_PLAN.md"),
-  path.join(repoRoot, ".GOV", "roles_shared", "VALIDATOR_FILE_TOUCH_MAP.md"),
+  path.join(repoRoot, ".GOV", "roles_shared", "docs", "ARCHITECTURE.md"),
+  path.join(repoRoot, ".GOV", "roles_shared", "docs", "BOUNDARY_RULES.md"),
+  path.join(repoRoot, ".GOV", "roles_shared", "docs", "REPO_RESILIENCE.md"),
+  path.join(repoRoot, ".GOV", "roles_shared", "docs", "ROLE_SESSION_ORCHESTRATION.md"),
+  path.join(repoRoot, ".GOV", "roles_shared", "docs", "ROLE_WORKFLOW_QUICKREF.md"),
+  path.join(repoRoot, ".GOV", "roles_shared", "docs", "ROLE_WORKTREES.md"),
+  path.join(repoRoot, ".GOV", "roles_shared", "docs", "START_HERE.md"),
+  path.join(repoRoot, ".GOV", "roles_shared", "docs", "DEPRECATION_SUNSET_PLAN.md"),
+  path.join(repoRoot, ".GOV", "roles_shared", "docs", "VALIDATOR_FILE_TOUCH_MAP.md"),
+  path.join(repoRoot, ".GOV", "roles_shared", "records"),
   path.join(repoRoot, ".GOV", "roles_shared", "checks"),
   path.join(repoRoot, ".GOV", "roles_shared", "scripts"),
   path.join(repoRoot, ".GOV", "roles_shared", "exports"),
+  path.join(repoRoot, ".GOV", "roles_shared", "schemas"),
   path.join(repoRoot, ".GOV", "reference", "README.md"),
   path.join(repoRoot, ".GOV", "templates"),
-  path.join(repoRoot, ".GOV", "schemas"),
   path.join(repoRoot, ".GOV", "tools"),
   path.join(repoRoot, ".GOV", "docs", "vscode-session-bridge", "GOVERNED_SESSION_CONTROL_ARCHITECTURE.md"),
 ];
@@ -130,8 +129,8 @@ for (const filePath of files) {
     rel.startsWith(".GOV/refinements/") ||
     rel.startsWith(".GOV/Audits/") ||
     rel.startsWith(".GOV/operator/") ||
-    rel.startsWith(".GOV/roles_shared/WP_COMMUNICATIONS/") ||
-    rel.startsWith(".GOV/roles_shared/SESSION_CONTROL_OUTPUTS/")
+    rel.startsWith(".GOV/roles_shared/runtime/WP_COMMUNICATIONS/") ||
+    rel.startsWith(".GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/")
   ) {
     continue;
   }

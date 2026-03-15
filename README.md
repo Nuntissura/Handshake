@@ -1,17 +1,31 @@
 # Handshake
 
-Local-first desktop app that combines workspaces, documents, canvases, and (later) local AI models.
-This repo contains both the Tauri desktop shell (React + TypeScript) and the Rust backend.
+Local-first desktop app that combines workspaces, documents, canvases, governed workflows, and later local AI/model-assisted runtime features.
+
+This repo contains:
+- the desktop shell (`app/`, Tauri + React + TypeScript)
+- the Rust backend (`src/backend/handshake_core/`)
+- the governance/workflow system (`.GOV/`)
 
 ---
 
-## [Project Vision & Technical Synthesis](./.GOV/Papers/HANDSHAKE_VISION_SYNTHESIS.md)
+## Vision / Research
 
-*Explore the Handshake vision: A deep-dive into LLM architecture, deterministic governance, and the image descriptor pipeline.*
+- [Project Vision & Technical Synthesis](./.GOV/reference/research_and_papers/HANDSHAKE_VISION_SYNTHESIS.md)
+
+This is optional background reading. It is not the authoritative governance entrypoint.
 
 ---
 
-## Repository layout
+## Start Here
+
+- Product/governance entrypoint: [`.GOV/roles_shared/docs/START_HERE.md`](./.GOV/roles_shared/docs/START_HERE.md)
+- Repo law and placement rules: [`Handshake Codex v1.4.md`](./Handshake%20Codex%20v1.4.md)
+- Current product spec pointer: [`.GOV/roles_shared/records/SPEC_CURRENT.md`](./.GOV/roles_shared/records/SPEC_CURRENT.md)
+
+---
+
+## Repository Layout
 
 - **Desktop app (Tauri + React + TS)**  
   `app/`
@@ -19,62 +33,55 @@ This repo contains both the Tauri desktop shell (React + TypeScript) and the Rus
 - **Backend crate (Rust, health + API logic)**  
   `src/backend/handshake_core/`
 
-There are additional crates/modules under `src/backend/` as the project grows.
+- **Governance / workflow / tasking**  
+  `.GOV/`
+
+- **Shared product assets**  
+  `assets/`
+
+- **Top-level tests / placeholders / harnesses**  
+  `tests/`
 
 ---
 
-## Development commands (from repo root)
+## Development Commands
 
 You can use the `just` shortcuts when available, or call the underlying commands directly.
 
 ```bash
-# Start the desktop app in dev mode (recommended)
-pnpm -C app tauri dev
+# Start the desktop app in dev mode
+just dev
 ```
 
-If a `justfile` is present and configured, you can also run:
+Equivalent direct command:
 
 ```bash
-just dev
+pnpm -C app tauri dev
 ```
 
 ---
 
 ## Testing
 
-### Backend (Rust)
-
-Runs tests for the main backend crate (including health-response tests):
-
 ```bash
 cargo test --manifest-path src/backend/handshake_core/Cargo.toml
 ```
-
-### Frontend (React + TypeScript)
-
-Uses Vitest + React Testing Library:
 
 ```bash
 pnpm -C app test
 ```
 
-If a `justfile` exposes a combined test alias, you can optionally run:
-
 ```bash
-just test
+just validate
 ```
 
 ---
 
 ## Linting
 
-Frontend lint (from repo root):
-
 ```bash
 pnpm -C app run lint
 ```
-
-If a `justfile` provides lint helpers, they can be used as well, for example:
 
 ```bash
 just lint
@@ -82,15 +89,36 @@ just lint
 
 ---
 
-## Phase 0 / Phase 0.5 status (high level)
+## Governance Checks
+
+For governance-only changes:
+
+```bash
+just gov-check
+```
+
+For the human/model governance entrypoint:
+
+```bash
+Get-Content .GOV/roles_shared/docs/START_HERE.md
+```
+
+---
+
+## Runtime / Artifact Paths
+
+- External build/test artifacts live outside the repo under:
+  - `../Handshake Artifacts/`
+- Current default target for future product runtime state is:
+  - `../Handshake Runtime/`
+- Existing repo-root runtime paths such as `data/` and `.handshake/` are transitional legacy surfaces during the current early Phase 1 state.
+
+---
+
+## Current Status
 
 - **Phase 0** (diagnostic vertical slice) is complete and committed.
-- The editor vertical slice uses a Tiptap-based document editor with:
-  - Sticky toolbar and scrollable worksurface.
-  - Plain-text persistence (formatting is not yet stored).
-- A minimal automated test scaffold exists:
-  - Backend health-response unit tests.
-  - Frontend shell render test (App header / coordinator status).
+- The app and governance system are both under active restructuring and early Phase 1 development.
+- Runtime/governance/product boundaries are being tightened, but some legacy/transitional surfaces still exist.
 
-Use this README as the reference for how to run, test, and iterate on the current codebase.
-
+Use this README for a quick repo overview only. For active workflow/governance law, use the Codex and role protocols under `.GOV/roles/`.

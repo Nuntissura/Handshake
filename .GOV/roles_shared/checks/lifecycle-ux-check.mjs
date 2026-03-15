@@ -26,8 +26,8 @@ function requireFileExists(filePath) {
   path.join(".GOV", "roles", "orchestrator", "agentic", "AGENTIC_PROTOCOL.md"),
   path.join(".GOV", "roles", "coder", "agentic", "AGENTIC_PROTOCOL.md"),
   path.join(".GOV", "roles", "validator", "agentic", "AGENTIC_PROTOCOL.md"),
-  path.join(".GOV", "roles_shared", "BOUNDARY_RULES.md"),
-  path.join(".GOV", "roles_shared", "EVIDENCE_LEDGER.md"),
+  path.join(".GOV", "roles_shared", "docs", "BOUNDARY_RULES.md"),
+  path.join(".GOV", "roles_shared", "docs", "EVIDENCE_LEDGER.md"),
 ].forEach(requireFileExists);
 
 // Ensure the mechanical hard-gate helper prints operator-facing lifecycle + phase templates.

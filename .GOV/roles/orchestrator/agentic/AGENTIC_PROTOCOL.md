@@ -41,10 +41,10 @@ Rationale: makes multi-agent provenance auditable even if chat context is trunca
 Every sub-agent instruction MUST include the canonical artifact set:
 - `Handshake Codex v1.4.md`
 - `/.GOV/roles/<role>/*_PROTOCOL.md` (role protocol)
-- `/.GOV/roles_shared/SPEC_CURRENT.md` (+ the referenced Master Spec file)
+- `/.GOV/roles_shared/records/SPEC_CURRENT.md` (+ the referenced Master Spec file)
 - Active task packet in `/.GOV/task_packets/{WP_ID}.md`
 - Refinement in `/.GOV/refinements/{WP_ID}.md` (if applicable)
-- `/.GOV/roles_shared/BOUNDARY_RULES.md`
+- `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`
 
 Do not rely on "what the agent remembers". Assume each agent starts with near-zero context.
 
@@ -65,13 +65,13 @@ Do not rely on "what the agent remembers". Assume each agent starts with near-ze
 ## 3) Gate outputs are not optional (HARD)
 
 - No agent may claim PASS/FAIL without the literal tool output available to the Validator.
-- If outputs are too large for chat, record hashes + metadata per `/.GOV/roles_shared/EVIDENCE_LEDGER.md` and keep the raw output retrievable on request.
+- If outputs are too large for chat, record hashes + metadata per `/.GOV/roles_shared/docs/EVIDENCE_LEDGER.md` and keep the raw output retrievable on request.
 
 ---
 
 ## 4) Evidence ledger (HARD)
 
-- For agentic runs, maintain the evidence ledger per `/.GOV/roles_shared/EVIDENCE_LEDGER.md`.
+- For agentic runs, maintain the evidence ledger per `/.GOV/roles_shared/docs/EVIDENCE_LEDGER.md`.
 - Ensure RoleMailbox export remains leak-safe and passes `just role-mailbox-export-check`.
 
 ---
@@ -88,7 +88,7 @@ When delegating to an agent, use this exact structure:
 2) Canonical artifacts (paths):
 - Codex: `Handshake Codex v1.4.md`
 - Role protocol: `/.GOV/roles/<role>/*_PROTOCOL.md`
-- Spec pointer: `/.GOV/roles_shared/SPEC_CURRENT.md`
+- Spec pointer: `/.GOV/roles_shared/records/SPEC_CURRENT.md`
 - Task packet: `/.GOV/task_packets/<WP_ID>.md`
 - Refinement: `/.GOV/refinements/<WP_ID>.md` (if any)
 

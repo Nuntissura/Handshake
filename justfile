@@ -9,7 +9,7 @@ CARGO_TARGET_DIR := "../Handshake Artifacts/handshake-cargo-target"
 dev: preflight-ollama
 	node -e "const {execFileSync}=require('child_process'); const path=require('path'); const repo=execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim(); const cargoTarget=path.resolve(repo,'{{CARGO_TARGET_DIR}}'); execFileSync('pnpm',['-C','app','run','tauri','dev'],{stdio:'inherit', env:{...process.env, CARGO_TARGET_DIR:cargoTarget}});"
 
-# Fail fast if Ollama is missing/unreachable (Phase 1 requirement; see .GOV/roles_shared/START_HERE.md).
+# Fail fast if Ollama is missing/unreachable (Phase 1 requirement; see .GOV/roles_shared/docs/START_HERE.md).
 preflight-ollama:
 	node -e "const base=(process.env.OLLAMA_URL||'http://localhost:11434'); const normalized=base.endsWith('/')?base.slice(0,-1):base; const url=normalized + '/api/tags'; const lib=url.startsWith('https://')?require('https'):require('http'); const req=lib.get(url,(res)=>{ const ok=!!res.statusCode && res.statusCode>=200 && res.statusCode<300; if(ok){ process.exit(0); } console.error('Ollama preflight failed: GET ' + url + ' returned ' + res.statusCode + '. Install Ollama using your platform package manager or installer (for example `winget install -e --id Ollama.Ollama` on Windows), then run ollama serve (or ollama run mistral), or set OLLAMA_URL.'); process.exit(1); }); req.on('error',()=>{ console.error('Ollama preflight failed: cannot reach ' + url + '. Install Ollama using your platform package manager or installer (for example `winget install -e --id Ollama.Ollama` on Windows), then run ollama serve (or ollama run mistral), or set OLLAMA_URL.'); process.exit(1); }); req.setTimeout(3000, ()=>req.destroy(new Error('timeout')));"
 
@@ -22,7 +22,7 @@ test:
 
 # Fail if any required docs are missing (navigation pack + shared tooling guardrails + resilience)
 docs-check:
-	node -e "['.GOV/roles_shared/START_HERE.md', '.GOV/roles_shared/SPEC_CURRENT.md', '.GOV/roles_shared/ARCHITECTURE.md', '.GOV/roles_shared/RUNBOOK_DEBUG.md', '.GOV/reference/PAST_WORK_INDEX.md', '.GOV/roles_shared/REPO_RESILIENCE.md', '.GOV/roles_shared/TOOLING_GUARDRAILS.md', '.GOV/roles/STRUCTURE_RULES.md', '.GOV/roles_shared/STRUCTURE_RULES.md', '.GOV/roles_shared/DEPRECATION_SUNSET_PLAN.md', '.GOV/reference/README.md', '.GOV/docs/GOVERNANCE_STRUCTURE_TARGET.md', '.GOV/docs/vscode-session-bridge/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
+	node -e "['Handshake Codex v1.4.md', '.GOV/README.md', '.GOV/roles/README.md', '.GOV/roles_shared/README.md', '.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md', '.GOV/roles/coder/CODER_PROTOCOL.md', '.GOV/roles/validator/VALIDATOR_PROTOCOL.md', '.GOV/roles_shared/docs/START_HERE.md', '.GOV/roles_shared/records/SPEC_CURRENT.md', '.GOV/roles_shared/docs/ARCHITECTURE.md', '.GOV/roles_shared/docs/RUNBOOK_DEBUG.md', '.GOV/roles_shared/docs/REPO_RESILIENCE.md', '.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md', '.GOV/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md', '.GOV/docs/vscode-session-bridge/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
 
 # Format backend Rust
 fmt:
@@ -305,7 +305,7 @@ codex-check-test:
 close-wp-branch wp-id remote="" approval="":
 	node .GOV/roles_shared/scripts/topology/close-wp-branch.mjs {{wp-id}} {{remote}} --approve "{{approval}}"
 
-# === Workflow Enforcement Commands (see .GOV/roles_shared/SPEC_CURRENT.md) ===
+# === Workflow Enforcement Commands (see .GOV/roles_shared/records/SPEC_CURRENT.md) ===
 
 # Orchestrator preflight (condensed): worktree context + governance integrity + spec regression.
 orchestrator-preflight:
@@ -327,19 +327,19 @@ coder-preflight:
 
 # Role startup (recommended): protocol ack + condensed preflight in one command.
 orchestrator-startup:
-	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles_shared/TOOLING_GUARDRAILS.md" ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md"
+	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles_shared/docs/TOOLING_GUARDRAILS.md" ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md"
 	@just backup-status
 	@just orchestrator-preflight
 	@echo 'RESUME_HINT: After a reset/compaction, run `just orchestrator-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 validator-startup:
-	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles_shared/TOOLING_GUARDRAILS.md" ".GOV/roles/validator/VALIDATOR_PROTOCOL.md"
+	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles_shared/docs/TOOLING_GUARDRAILS.md" ".GOV/roles/validator/VALIDATOR_PROTOCOL.md"
 	@just backup-status
 	@just validator-preflight
 	@echo 'RESUME_HINT: After a reset/compaction, run `just validator-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 coder-startup:
-	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles_shared/TOOLING_GUARDRAILS.md" ".GOV/roles/coder/CODER_PROTOCOL.md"
+	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles_shared/docs/TOOLING_GUARDRAILS.md" ".GOV/roles/coder/CODER_PROTOCOL.md"
 	@just backup-status
 	@just coder-preflight
 	@echo 'RESUME_HINT: After a reset/compaction, run `just coder-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'

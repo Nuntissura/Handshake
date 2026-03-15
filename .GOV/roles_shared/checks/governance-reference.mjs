@@ -3,7 +3,7 @@
  * Governance reference resolver (SSoT).
  *
  * Single source of truth:
- * - .GOV/roles_shared/SPEC_CURRENT.md -> "The current authoritative Governance Reference is:" -> **<codex filename>**
+ * - .GOV/roles_shared/records/SPEC_CURRENT.md -> "The current authoritative Governance Reference is:" -> **<codex filename>**
  *
  * This helper is used by CI / hooks to avoid hardcoding legacy filenames (e.g. Codex v0.8).
  */
@@ -13,7 +13,7 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const SPEC_CURRENT_REL = path.join(".GOV", "roles_shared", "SPEC_CURRENT.md");
+const SPEC_CURRENT_REL = path.join(".GOV", "roles_shared", "records", "SPEC_CURRENT.md");
 
 function tryGitRepoRoot() {
   try {

@@ -12,7 +12,7 @@ It does not replace `/.GOV/roles/coder/CODER_PROTOCOL.md`; it adds constraints t
 - Product code MUST NOT read/write `/.GOV/` (hard boundary).
 - Do not "improve governance" while coding product changes unless explicitly scoped and approved.
 
-See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUNDARY_RULES.md`.
+See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
 
 ## 1.5) Drive-Agnostic Governance + Tooling Conflict Stance (HARD)
 
@@ -29,7 +29,7 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUN
   - worktree dir + branch
   - git SHA (before and after)
   - exit code
-- If outputs are too large for chat, record hashes + metadata per `/.GOV/roles_shared/EVIDENCE_LEDGER.md`.
+- If outputs are too large for chat, record hashes + metadata per `/.GOV/roles_shared/docs/EVIDENCE_LEDGER.md`.
 
 ---
 
@@ -103,7 +103,7 @@ Sub-agents MUST NOT:
 
 Only the Primary Coder may:
 - integrate sub-agent patches,
-- verify each change against `.GOV/roles_shared/SPEC_CURRENT.md` + WP acceptance criteria before applying,
+- verify each change against `.GOV/roles_shared/records/SPEC_CURRENT.md` + WP acceptance criteria before applying,
 - run the WP TEST_PLAN and required gates,
 - record canonical evidence in the task packet,
 - and perform final commit + handoff.

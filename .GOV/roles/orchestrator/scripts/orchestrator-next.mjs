@@ -28,8 +28,8 @@ import {
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { EXECUTION_OWNER_RANGE_HELP } from "../../../roles_shared/scripts/session/session-policy.mjs";
 
-const STATE_FILE = ".GOV/roles/orchestrator/ORCHESTRATOR_GATES.json";
-const TASK_BOARD_PATH = ".GOV/roles_shared/TASK_BOARD.md";
+const STATE_FILE = ".GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json";
+const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
 const EXECUTION_OWNER_USAGE = `{${EXECUTION_OWNER_RANGE_HELP}}`;
 
 function fail(message, details = []) {

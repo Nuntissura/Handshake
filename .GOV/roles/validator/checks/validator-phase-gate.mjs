@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 
 const phase = process.argv[2] || "Phase-1";
-const taskBoardPath = ".GOV/roles_shared/TASK_BOARD.md";
+const taskBoardPath = ".GOV/roles_shared/records/TASK_BOARD.md";
 
 function fail(msg) {
   console.error(`validator-phase-gate: FAIL - ${msg}`);

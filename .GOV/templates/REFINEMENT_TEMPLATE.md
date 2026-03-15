@@ -14,7 +14,7 @@ Requirements (HARD):
 - REFINEMENT_FORMAT_VERSION: 2026-03-16
 - REFINEMENT_ENFORCEMENT_PROFILE: HYDRATED_RESEARCH_V1
 - CREATED_AT: {{DATE_ISO}}
-- SPEC_TARGET_RESOLVED: .GOV/roles_shared/SPEC_CURRENT.md -> {{SPEC_TARGET_RESOLVED}}
+- SPEC_TARGET_RESOLVED: .GOV/roles_shared/records/SPEC_CURRENT.md -> {{SPEC_TARGET_RESOLVED}}
 - SPEC_TARGET_SHA1: {{SPEC_TARGET_SHA1}}
 - USER_REVIEW_STATUS: PENDING
 - USER_SIGNATURE: <pending>
@@ -307,7 +307,7 @@ Requirements (HARD):
   - "<risk>" -> "<impact>"
 - BUILD_ORDER_SYNC_REQUIRED: PENDING (YES | NO)
 - BUILD_ORDER_SYNC_NOTES:
-  - <fill; if refinement changes stubs, dependencies, execution lane sequencing, or SPEC_CURRENT, sync `.GOV/roles_shared/BUILD_ORDER.md` before approval>
+  - <fill; if refinement changes stubs, dependencies, execution lane sequencing, or SPEC_CURRENT, sync `.GOV/roles_shared/records/BUILD_ORDER.md` before approval>
 
 ### CLAUSE_PROOF_PLAN (diff-scoped spec proof seed for coder + validator; required for REFINEMENT_FORMAT_VERSION >= 2026-03-15)
 - Rule: enumerate the exact clauses this WP claims to satisfy, why they are in scope, where the implementation should land, what tests should prove them, and the failure mode if they are missed.

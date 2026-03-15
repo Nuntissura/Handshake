@@ -7,7 +7,7 @@ Rules:
 - No refinement file is required for stubs.
 - Coder/Validator MUST NOT start work from a stub.
 - When activating a stub into a real WP, follow `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` (Technical Refinement Block + USER_SIGNATURE + refinement + `just create-task-packet`).
-- If a Base WP later gains multiple packets (revisions), record Base WP -> Active Packet in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`.
+- If a Base WP later gains multiple packets (revisions), record Base WP -> Active Packet in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`.
 - A stub is the authoritative backlog contract before activation. Task Board, traceability, and Build Order are projections over this stub metadata.
 - When a real packet replaces a stub or older packet, the new active packet is whichever file the traceability registry maps for the shared `BASE_WP_ID`.
 - For any stub covering current-spec Phase 1 roadmap additions (`[ADD v<current>]`), `ROADMAP_ADD_COVERAGE` MUST enumerate the exact spec line numbers so governance checks can verify no additions were missed.
@@ -28,7 +28,7 @@ Rules:
 - BUILD_ORDER_RISK_TIER: <pending> (LOW | MEDIUM | HIGH)
 - BUILD_ORDER_DEPENDS_ON: <pending> (comma-separated Base WP IDs | NONE) (use Base IDs, no `-vN`)
 - BUILD_ORDER_BLOCKS: <pending> (comma-separated Base WP IDs | NONE) (use Base IDs, no `-vN`)
-- SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
+- SPEC_TARGET: .GOV/roles_shared/records/SPEC_CURRENT.md
 - SESSION_START_AUTHORITY: {{SESSION_START_AUTHORITY}}
 - SESSION_HOST_PREFERENCE: {{SESSION_HOST_PREFERENCE}}
 - SESSION_HOST_FALLBACK: {{SESSION_HOST_FALLBACK}}
@@ -160,6 +160,6 @@ Rules:
 - [ ] Obtain USER_SIGNATURE for the WP.
 - [ ] Create `.GOV/refinements/{{WP_ID}}.md` (approved/signed).
 - [ ] Create the official task packet via `just create-task-packet {{WP_ID}}` (in `.GOV/task_packets/`).
-- [ ] Confirm `just create-task-packet {{WP_ID}}` also created `.GOV/roles_shared/WP_COMMUNICATIONS/{{WP_ID}}/` with `THREAD.md`, `RUNTIME_STATUS.json`, and `RECEIPTS.jsonl`.
+- [ ] Confirm `just create-task-packet {{WP_ID}}` also created `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/{{WP_ID}}/` with `THREAD.md`, `RUNTIME_STATUS.json`, and `RECEIPTS.jsonl`.
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
-- [ ] Move `.GOV/roles_shared/TASK_BOARD.md` entry from STUB to Ready for Dev.
+- [ ] Move `.GOV/roles_shared/records/TASK_BOARD.md` entry from STUB to Ready for Dev.

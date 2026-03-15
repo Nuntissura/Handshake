@@ -29,7 +29,6 @@ export const rolesSharedRootRules = {
     ["ROLE_WORKTREES.md", ".GOV/roles_shared/docs/ROLE_WORKTREES.md"],
     ["RUNBOOK_DEBUG.md", ".GOV/roles_shared/docs/RUNBOOK_DEBUG.md"],
     ["START_HERE.md", ".GOV/roles_shared/docs/START_HERE.md"],
-    ["STRUCTURE_RULES.md", ".GOV/roles_shared/docs/STRUCTURE_RULES.md"],
     ["TOOLING_GUARDRAILS.md", ".GOV/roles_shared/docs/TOOLING_GUARDRAILS.md"],
     ["VALIDATOR_FILE_TOUCH_MAP.md", ".GOV/roles_shared/docs/VALIDATOR_FILE_TOUCH_MAP.md"],
   ]),

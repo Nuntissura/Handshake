@@ -23,7 +23,7 @@ import {
   writeFileNormalized,
 } from "./git-topology-lib.mjs";
 
-const OFFLINE_GIT_BACKUP_SETUP_REPO_PATH = ".GOV/roles_shared/OFFLINE_GIT_BACKUP_SETUP.md";
+const OFFLINE_GIT_BACKUP_SETUP_REPO_PATH = ".GOV/roles_shared/docs/OFFLINE_GIT_BACKUP_SETUP.md";
 
 function usage() {
   console.error("Usage: node .GOV/roles_shared/scripts/topology/backup-snapshot.mjs [--label <name>] [--out-root <dir>] [--nas-root <dir>] [--require-nas]");

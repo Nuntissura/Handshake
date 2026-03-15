@@ -1,7 +1,7 @@
 import fs from "node:fs";
 
-const TRACE_REGISTRY_PATH = ".GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md";
-const TASK_BOARD_PATH = ".GOV/roles_shared/TASK_BOARD.md";
+const TRACE_REGISTRY_PATH = ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md";
+const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
 const TASK_PACKETS_DIR = ".GOV/task_packets";
 const TASK_PACKET_STUBS_DIR = ".GOV/task_packets/stubs";
 

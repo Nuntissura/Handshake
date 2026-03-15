@@ -22,7 +22,7 @@ function resolveRepoRoot() {
 const repoRoot = path.resolve(resolveRepoRoot());
 process.chdir(repoRoot);
 
-const OSS_REGISTER_PATH = ".GOV/roles_shared/OSS_REGISTER.md";
+const OSS_REGISTER_PATH = ".GOV/roles_shared/records/OSS_REGISTER.md";
 const CARGO_LOCK_PATH = "src/backend/handshake_core/Cargo.lock";
 const PACKAGE_JSON_PATH = "app/package.json";
 

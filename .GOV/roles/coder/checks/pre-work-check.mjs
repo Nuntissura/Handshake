@@ -285,7 +285,7 @@ if (!fs.existsSync(taskPacketDir)) {
   }
 
   try {
-    const gatesPath = path.join('.GOV', 'roles', 'orchestrator', 'ORCHESTRATOR_GATES.json');
+    const gatesPath = path.join('.GOV', 'roles', 'orchestrator', 'runtime', 'ORCHESTRATOR_GATES.json');
     const gates = JSON.parse(fs.readFileSync(gatesPath, 'utf8'));
     const logs = Array.isArray(gates?.gate_logs) ? gates.gate_logs : [];
     lastPrepare = [...logs].reverse().find((l) => l?.wpId === WP_ID && l?.type === 'PREPARE') || null;
@@ -294,7 +294,7 @@ if (!fs.existsSync(taskPacketDir)) {
   }
 
   if (!lastPrepare) {
-    const msg = `Missing PREPARE record in .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json for ${WP_ID} (expected: just record-prepare ${WP_ID} {Coder-A..Coder-Z} ...)`;
+    const msg = `Missing PREPARE record in .GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json for ${WP_ID} (expected: just record-prepare ${WP_ID} {Coder-A..Coder-Z} ...)`;
     if (enforceWorktreeGate) {
       errors.push(msg);
       console.log('FAIL: ' + msg);
@@ -665,13 +665,13 @@ if (!fs.existsSync(taskPacketDir)) {
 
     // Protocol requirement: signature must be present in SIGNATURE_AUDIT.md
     try {
-      const auditPath = path.join('.GOV', 'roles_shared', 'SIGNATURE_AUDIT.md');
+      const auditPath = path.join('.GOV', 'roles_shared', 'records', 'SIGNATURE_AUDIT.md');
       const audit = fs.readFileSync(auditPath, 'utf8');
       if (packetSig && !audit.includes(`| ${packetSig} |`)) {
-        errors.push(`USER_SIGNATURE not found in .GOV/roles_shared/SIGNATURE_AUDIT.md (${packetSig})`);
+        errors.push(`USER_SIGNATURE not found in .GOV/roles_shared/records/SIGNATURE_AUDIT.md (${packetSig})`);
       }
     } catch {
-      warnings.push('Could not verify signature against .GOV/roles_shared/SIGNATURE_AUDIT.md');
+      warnings.push('Could not verify signature against .GOV/roles_shared/records/SIGNATURE_AUDIT.md');
     }
 
     const refinementProfile = parseSingleField(packetContent, 'REFINEMENT_ENFORCEMENT_PROFILE');
@@ -1018,14 +1018,14 @@ if (!fs.existsSync(taskPacketDir)) {
       execSync(`git cat-file -e HEAD:${packetPath.replace(/\\/g, '/')}`, { stdio: 'ignore' });
     } catch {
       errors.push(`Task packet is not committed yet (checkpoint required): ${packetPath.replace(/\\/g, '/')}`);
-      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} .GOV/roles_shared/SIGNATURE_AUDIT.md .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
+      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} .GOV/roles_shared/records/SIGNATURE_AUDIT.md .GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
     }
 
     try {
       execSync(`git cat-file -e HEAD:${refinementFile.replace(/\\/g, '/')}`, { stdio: 'ignore' });
     } catch {
       errors.push(`Refinement file is not committed yet (checkpoint required): ${refinementFile.replace(/\\/g, '/')}`);
-      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} .GOV/roles_shared/SIGNATURE_AUDIT.md .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
+      errors.push(`Commit it on the WP branch before handoff (example): git add ${packetPath.replace(/\\/g, '/')} ${refinementFile.replace(/\\/g, '/')} .GOV/roles_shared/records/SIGNATURE_AUDIT.md .GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json && git commit -m "docs: checkpoint packet+refinement [${WP_ID}]"`);
     }
   } else {
     console.log('\nCheck 2.7: Technical Refinement gate (skipped for Done/Validated packets)');

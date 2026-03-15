@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
-const SPEC_CURRENT_PATH = path.join('.GOV', 'roles_shared', 'SPEC_CURRENT.md');
-const TASK_BOARD_PATH = path.join('.GOV', 'roles_shared', 'TASK_BOARD.md');
+const SPEC_CURRENT_PATH = path.join('.GOV', 'roles_shared', 'records', 'SPEC_CURRENT.md');
+const TASK_BOARD_PATH = path.join('.GOV', 'roles_shared', 'records', 'TASK_BOARD.md');
 
 export function resolveSpecCurrent() {
   if (!fs.existsSync(SPEC_CURRENT_PATH)) {
@@ -785,7 +785,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
   }
   if (resolved) {
     const resolvedLine = getSingleField(content, 'SPEC_TARGET_RESOLVED');
-    const expectedResolvedLine = `.GOV/roles_shared/SPEC_CURRENT.md -> ${resolved.specFileName}`;
+    const expectedResolvedLine = `.GOV/roles_shared/records/SPEC_CURRENT.md -> ${resolved.specFileName}`;
     if (resolvedLine !== expectedResolvedLine) {
       errors.push(`SPEC_TARGET_RESOLVED mismatch: expected "${expectedResolvedLine}", got "${resolvedLine || '<missing>'}"`);
     }
@@ -857,7 +857,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     parsed.stubWpIdsRaw = stubWpIdsRaw;
     parsed.stubWpIds = validateStubIds(stubWpIdsRaw, errors, 'STUB_WP_IDS');
     if (isHydratedResearchProfile && hasRuntimeAlignmentSections && resolved?.specFileName) {
-      const buildOrderPath = path.join('.GOV', 'roles_shared', 'BUILD_ORDER.md');
+      const buildOrderPath = path.join('.GOV', 'roles_shared', 'records', 'BUILD_ORDER.md');
       try {
         const buildOrderContent = fs.readFileSync(buildOrderPath, 'utf8');
         const specTarget = (buildOrderContent.match(/^\s*-\s*SPEC_TARGET\s*:\s*(.+)\s*$/mi) || [])[1]?.trim() || '';
@@ -870,7 +870,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
           }
         }
       } catch (e) {
-        errors.push(`Could not read .GOV/roles_shared/BUILD_ORDER.md: ${String(e?.message || e)}`);
+        errors.push(`Could not read .GOV/roles_shared/records/BUILD_ORDER.md: ${String(e?.message || e)}`);
       }
     }
 

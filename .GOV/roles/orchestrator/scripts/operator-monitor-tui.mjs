@@ -11,13 +11,13 @@ import { normalize, parseJsonFile, parseJsonlFile, validateReceipt, validateRunt
 import { loadSessionRegistry, registrySessionSummary } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
 
-const TASK_BOARD_PATH = ".GOV/roles_shared/TASK_BOARD.md";
-const TRACEABILITY_PATH = ".GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md";
-const TOPOLOGY_PATH = ".GOV/roles_shared/GIT_TOPOLOGY_REGISTRY.json";
-const ORCHESTRATOR_GATES_PATH = ".GOV/roles/orchestrator/ORCHESTRATOR_GATES.json";
-const SESSION_CONTROL_REQUESTS_PATH = ".GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl";
-const SESSION_CONTROL_RESULTS_PATH = ".GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl";
-const SESSION_CONTROL_BROKER_STATE_PATH = ".GOV/roles_shared/SESSION_CONTROL_BROKER_STATE.json";
+const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
+const TRACEABILITY_PATH = ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md";
+const TOPOLOGY_PATH = ".GOV/roles_shared/runtime/GIT_TOPOLOGY_REGISTRY.json";
+const ORCHESTRATOR_GATES_PATH = ".GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json";
+const SESSION_CONTROL_REQUESTS_PATH = ".GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl";
+const SESSION_CONTROL_RESULTS_PATH = ".GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl";
+const SESSION_CONTROL_BROKER_STATE_PATH = ".GOV/roles_shared/runtime/SESSION_CONTROL_BROKER_STATE.json";
 const PACKETS_DIR = ".GOV/task_packets";
 const PACKET_STUBS_DIR = ".GOV/task_packets/stubs";
 
@@ -309,7 +309,7 @@ function loadBoardSourceInfo() {
       : null;
     if (canonical?.rel_path) {
       info.canonical_worktree_dir = normalize(path.resolve(process.cwd(), canonical.rel_path));
-      info.canonical_board_path = normalize(path.resolve(process.cwd(), canonical.rel_path, ".GOV/roles_shared/TASK_BOARD.md"));
+      info.canonical_board_path = normalize(path.resolve(process.cwd(), canonical.rel_path, ".GOV/roles_shared/records/TASK_BOARD.md"));
     }
     const isCanonical = info.canonical_worktree_dir && info.current_worktree_dir === info.canonical_worktree_dir;
     if (isCanonical) {

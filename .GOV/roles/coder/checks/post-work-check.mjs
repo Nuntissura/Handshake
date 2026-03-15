@@ -595,17 +595,16 @@ if (useStaged && workingFiles.length > stagedFiles.length) {
   // Avoid warning noise for validator-only governance state.
   const stagedSet = new Set(stagedFiles.map((p) => p.replace(/\\/g, '/')));
   const allowlistedUnstaged = new Set([
-    '.GOV/roles_shared/TASK_BOARD.md',
-    '.GOV/roles_shared/SIGNATURE_AUDIT.md',
-    '.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json',
-    '.GOV/roles/validator/VALIDATOR_GATES.json',
+    '.GOV/roles_shared/records/TASK_BOARD.md',
+    '.GOV/roles_shared/records/SIGNATURE_AUDIT.md',
+    '.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json',
     packetPath.replace(/\\/g, '/'),
     `.GOV/refinements/${WP_ID}.md`,
   ].filter(Boolean));
 
   const isAllowlistedUnstaged = (p) =>
     allowlistedUnstaged.has(p)
-    || p.startsWith('.GOV/roles_shared/validator_gates/');
+    || p.startsWith('.GOV/roles_shared/runtime/validator_gates/');
 
   const hasRelevantUnstaged = workingFiles
     .map((p) => p.replace(/\\/g, '/'))
@@ -624,10 +623,9 @@ if (manifests) {
   // Validate scope (best-effort): changed files must be subset of IN_SCOPE_PATHS (plus allowed governance files),
   // unless a waiver is present. This only applies to the evaluated diff set (staged preferred).
   const allowlisted = new Set([
-    '.GOV/roles_shared/TASK_BOARD.md',
-    '.GOV/roles_shared/SIGNATURE_AUDIT.md',
-    '.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json',
-    '.GOV/roles/validator/VALIDATOR_GATES.json',
+    '.GOV/roles_shared/records/TASK_BOARD.md',
+    '.GOV/roles_shared/records/SIGNATURE_AUDIT.md',
+    '.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json',
     packetPath.replace(/\\/g, '/'),
     `.GOV/refinements/${WP_ID}.md`,
   ].filter(Boolean));

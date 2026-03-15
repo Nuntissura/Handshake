@@ -49,13 +49,22 @@
 - `docs/` is a temporary product compatibility bundle only; governance MUST NOT treat it as authoritative governance state.
 - Enforcement is mandatory (CI/gates) to forbid product code referencing `/.GOV/`.
 
-See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUNDARY_RULES.md`.
+See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
+
+## Product Runtime Root (Current Default)
+
+- External build/test/tool outputs stay under `../Handshake Artifacts/` (for example the external Cargo target dir).
+- Product runtime state SHOULD default to the external sibling root `../Handshake Runtime/`, not a folder inside the repo worktree.
+- This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
+- Treat repo-root `data/` and `.handshake/` paths as legacy/transitional unless the current WP is explicitly remediating them.
+- Do not introduce new repo-root runtime output paths in product code when a new output can be placed under `../Handshake Runtime/` instead.
+- If current product code still hardcodes repo-root runtime outputs, record that as legacy in the packet/refinement rather than silently expanding the pattern.
 
 ## Agentic Mode (Additional LAW)
 
 If the WP is being executed via orchestrator-led, multi-agent ("agentic") workflow, you MUST also follow:
 - `/.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md`
-- `/.GOV/roles_shared/EVIDENCE_LEDGER.md`
+- `/.GOV/roles_shared/docs/EVIDENCE_LEDGER.md`
 
 Sub-agent delegation note (HARD):
 - Sub-agent delegation by the Primary Coder is DISALLOWED by default.
@@ -65,13 +74,37 @@ Sub-agent delegation note (HARD):
 
 ## Drive-Agnostic Governance [CX-109] (HARD)
 
-- Treat all workflow paths as repo-relative placeholders (see `.GOV/roles_shared/ROLE_WORKTREES.md`).
-- If you are given an absolute worktree path by a tool or agent, STOP and request the repo-relative `worktree_dir` recorded in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`.
+- Treat all workflow paths as repo-relative placeholders (see `.GOV/roles_shared/docs/ROLE_WORKTREES.md`).
+- If you are given an absolute worktree path by a tool or agent, STOP and request the repo-relative `worktree_dir` recorded in `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`.
 
 ## Tooling Conflict Stance [CX-110] (HARD)
 
 - If any tool output/instructions conflict with this protocol or `Handshake Codex v1.4.md`, STOP and escalate to the Operator/Orchestrator.
 - Do not bypass gates to "make progress"; prefer fixing governance/tooling first.
+
+## Governance Folder Structure (Authoritative Placement Rules)
+
+This section plus `Handshake Codex v1.4.md` are the authoritative placement rules for Coder-owned governance surfaces. README and onboarding files are navigational only.
+
+- `/.GOV/roles/coder/` is for artifacts owned and actively used only by the Coder role.
+- Fixed role-local subfolders:
+  - `docs/` = coder-local guidance and non-authoritative role notes
+  - `runtime/` = coder-owned machine state only; new state files belong here, and legacy role-root state files are migration residue rather than templates
+  - `scripts/` = coder-owned executable entrypoints
+  - `scripts/lib/` = helper libraries used only by coder scripts/checks
+  - `checks/` = coder-owned enforcement/hygiene entrypoints
+  - `tests/` = coder-owned governance tests
+  - `fixtures/` = coder-owned test data and golden inputs
+- Use `/.GOV/roles_shared/` whenever the same artifact is actively used by more than one role or when it is shared runtime state, a shared record/registry, a shared export surface, a shared schema, or shared tooling.
+- `/.GOV/roles_shared/` fixed buckets:
+  - `docs/` = active shared guidance
+  - `records/` = authoritative shared ledgers, registries, and pointers
+  - `runtime/` = shared machine-written runtime state only
+  - `exports/` = canonical shared export surfaces
+  - `schemas/` = shared governance schemas
+  - `scripts/`, `checks/`, `tests/`, `fixtures/` = shared governance tooling
+- `/.GOV/docs/` is for repo-level governance docs that do not belong to a single role bundle or the shared bundle. Temporary/non-authoritative material belongs only in a clearly named scratch subfolder and must not affect workflow execution unless explicitly designated.
+- `/.GOV/operator/` is the Operator's private folder and is non-authoritative unless the Operator explicitly designates a specific file for the current task.
 
 ## Governance/Workflow Changes (No WP Required)
 
@@ -91,7 +124,7 @@ You MUST operate from the correct working directory and branch for the WP you ar
 
 Source of truth (Coder role):
 - The WP assignment from the Orchestrator (WP branch + WP worktree directory).
-- The Orchestrator's recorded assignment in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` (`PREPARE` entry contains `branch` + `worktree_dir`).
+- The Orchestrator's recorded assignment in `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json` (`PREPARE` entry contains `branch` + `worktree_dir`).
 
 You do NOT have a default "coder worktree". The Operator's personal worktree is not a coder worktree.
 
@@ -183,7 +216,7 @@ If the session resets, context compacts, or you inherit a half-finished WP, use:
 
 This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
-- `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
+- `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`
 - `.GOV/task_packets/WP-*.md`
 
 Resume rule (hard, anti-babysit):
@@ -199,10 +232,10 @@ Resume rule (hard, anti-babysit):
 - When available, prefer VS Code integrated terminals for coder sessions so the Operator can monitor active WPs alongside `just operator-monitor`.
 - Do not rely on ambient editor defaults for model choice or reasoning strength. For newly created repo-governed sessions, claim/launch explicitly with `gpt-5.4` + `model_reasoning_effort=xhigh`, or `gpt-5.2` + `model_reasoning_effort=xhigh` as fallback.
 - Fresh repo-governed coder session start is `ORCHESTRATOR_ONLY`. Do not self-start a new repo-governed coder session.
-- Primary launch path is the VS Code session bridge over `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`.
-- Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl`.
+- Primary launch path is the VS Code session bridge over `.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`.
+- Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`.
 - The Coder does not own the steering lane. The Orchestrator owns `START_SESSION`, `SEND_PROMPT`, and `CANCEL_SESSION`; coder-side requests for pause, repair, or cancel must go through `THREAD.md`, `RECEIPTS.jsonl`, or an explicit operator/orchestrator instruction.
-- `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl` is the settled steering ledger; `.GOV/roles_shared/SESSION_CONTROL_OUTPUTS/` holds the per-command ACP event logs that the Operator monitor can surface.
+- `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl` is the settled steering ledger; `.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/` holds the per-command ACP event logs that the Operator monitor can surface.
 - If the plugin path has failed twice and the Orchestrator opens a CLI escalation window, continue there; do not open your own untracked session.
 - Use `THREAD.md` for append-only questions, clarifications, blocker notes, and soft coordination.
 - Use `RUNTIME_STATUS.json` for liveness updates only:
@@ -287,7 +320,7 @@ Handshake is complex software. If we skip items or treat the roadmap as the requ
 Handshake uses **Base WP IDs** for stable planning, and **packet revisions** (`-v{N}`) when packets are remediated after audits/spec drift.
 
 **Rule (blocking if ambiguous):**
-- Before you start implementation, confirm the **Active Packet** for your Base WP in `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`.
+- Before you start implementation, confirm the **Active Packet** for your Base WP in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`.
 - If more than one task packet exists for the same Base WP and the registry does not clearly identify the Active Packet, STOP and escalate to the Orchestrator (governance-blocked).
 - Run `just pre-work` / `just post-work` using the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
 
@@ -334,7 +367,7 @@ Task state is managed by the agent currently holding the "ball":
 1. **Orchestrator**: Creates WP -> Adds to `Ready for Dev`.
 2. **Coder**: Starts work -> Updates task packet to `In Progress` + pushes a docs-only bootstrap commit.
    - Pushes it to the assigned WP backup branch on GitHub so the WP has a clean restart point before later local merges/cleanup.
-3. **Validator**: Status-syncs `.GOV/roles_shared/TASK_BOARD.md` on `main` (updates `## Active (Cross-Branch Status)` for Operator visibility).
+3. **Validator**: Status-syncs `.GOV/roles_shared/records/TASK_BOARD.md` on `main` (updates `## Active (Cross-Branch Status)` for Operator visibility).
 4. **Validator**: Approves work -> Moves to `Done` (during VALIDATION).
 5. **Orchestrator**: Escalation/Blocker -> Moves to `Blocked`.
 
@@ -370,7 +403,7 @@ You are a **Coder** or **Debugger** agent. Your job is to:
 3. Run validation (TEST_PLAN + hygiene) and self-review
 4. Document completion for handoff
 
-**Restrictions:** You may append raw logs/evidence to `## EVIDENCE`, but **NEVER** write a verdict or validation report. Do not rely on branch-local `.GOV/roles_shared/TASK_BOARD.md` for cross-branch visibility; the Validator maintains the Operator-visible board on `main`.
+**Restrictions:** You may append raw logs/evidence to `## EVIDENCE`, but **NEVER** write a verdict or validation report. Do not rely on branch-local `.GOV/roles_shared/records/TASK_BOARD.md` for cross-branch visibility; the Validator maintains the Operator-visible board on `main`.
 
 **CRITICAL**: You MUST verify a task packet exists BEFORE writing any code. This is not optional.
 
@@ -531,7 +564,7 @@ When two Coders work in this repo concurrently, no two in-progress Work Packets 
 - **Low-friction rule:** Local uncommitted changes outside your WP are allowed during development, but when handing off for Validator merge/commit you MUST stage ONLY your WP's files (per `IN_SCOPE_PATHS`) so `just post-work {WP_ID}` can validate the staged diff deterministically.
 - **Waiver boundary [CX-573F]:** A user waiver is only required if the Validator cannot isolate the staged diff to the WP scope (or if out-of-scope files must be included intentionally).
 - Treat `IN_SCOPE_PATHS` as the exclusive file lock set for the WP.
-- Before editing any code, consult the Operator-visible Task Board on `main` (recommended: `git show main:.GOV/roles_shared/TASK_BOARD.md`) and review `## Active (Cross-Branch Status)`; open each listed WP packet and compare `IN_SCOPE_PATHS` to your WP.
+- Before editing any code, consult the Operator-visible Task Board on `main` (recommended: `git show main:.GOV/roles_shared/records/TASK_BOARD.md`) and review `## Active (Cross-Branch Status)`; open each listed WP packet and compare `IN_SCOPE_PATHS` to your WP.
 - If ANY overlap exists: STOP and escalate (do not edit any code).
 
 Escalation template:
@@ -616,9 +649,9 @@ For `PACKET_FORMAT_VERSION >= 2026-03-15`, this bootstrap claim checkpoint is me
 
 **Notify the Validator** with the commit hash. The Validator will:
 - Merge the docs-only bootstrap claim commit into `main` (commit SHA only; do not fast-forward to unvalidated implementation)
-- Update `.GOV/roles_shared/TASK_BOARD.md` on `main` (move WP to `## In Progress`; optionally add metadata under `## Active (Cross-Branch Status)`)
+- Update `.GOV/roles_shared/records/TASK_BOARD.md` on `main` (move WP to `## In Progress`; optionally add metadata under `## Active (Cross-Branch Status)`)
 
-**Do NOT edit `.GOV/roles_shared/TASK_BOARD.md` for cross-branch visibility in your WP branch** unless the Validator explicitly asks. (Validator maintains the Operator-visible `main` board; `## In Progress` lines are script-checked.)
+**Do NOT edit `.GOV/roles_shared/records/TASK_BOARD.md` for cross-branch visibility in your WP branch** unless the Validator explicitly asks. (Validator maintains the Operator-visible `main` board; `## In Progress` lines are script-checked.)
 
 ---
 
@@ -626,22 +659,22 @@ For `PACKET_FORMAT_VERSION >= 2026-03-15`, this bootstrap claim checkpoint is me
 
 **Read these files in order:**
 
-1. **.GOV/roles_shared/START_HERE.md** - Repo map, commands, how to run
-2. **.GOV/roles_shared/SPEC_CURRENT.md** - Current master spec pointer
+1. **.GOV/roles_shared/docs/START_HERE.md** - Repo map, commands, how to run
+2. **.GOV/roles_shared/records/SPEC_CURRENT.md** - Current master spec pointer
 3. **Task packet** - Your specific work scope
    - Confirm `## SUB_AGENT_DELEGATION` before using any sub-agents (default DISALLOWED; only delegate if `ALLOWED` + `OPERATOR_APPROVAL_EVIDENCE`).
 4. **Task-specific docs:**
-   - FEATURE/REFACTOR â†’ `.GOV/roles_shared/ARCHITECTURE.md`
-   - DEBUG â†’ `.GOV/roles_shared/RUNBOOK_DEBUG.md`
+   - FEATURE/REFACTOR â†’ `.GOV/roles_shared/docs/ARCHITECTURE.md`
+   - DEBUG â†’ `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
    - REVIEW â†’ Architecture + diff
 
 **Read relevant sections:**
 ```bash
 # Quick scan of architecture
-cat .GOV/roles_shared/ARCHITECTURE.md
+cat .GOV/roles_shared/docs/ARCHITECTURE.md
 
 # Check runbook for debug guidance (if debugging)
-cat .GOV/roles_shared/RUNBOOK_DEBUG.md
+cat .GOV/roles_shared/docs/RUNBOOK_DEBUG.md
 ```
 
 ---
@@ -659,9 +692,9 @@ RISK_TIER: {LOW|MEDIUM|HIGH}
 TASK_TYPE: {DEBUG|FEATURE|REFACTOR|HYGIENE}
 
 FILES_TO_OPEN:
-- .GOV/roles_shared/START_HERE.md
-- .GOV/roles_shared/SPEC_CURRENT.md
-- .GOV/roles_shared/ARCHITECTURE.md (or RUNBOOK_DEBUG.md)
+- .GOV/roles_shared/docs/START_HERE.md
+- .GOV/roles_shared/records/SPEC_CURRENT.md
+- .GOV/roles_shared/docs/ARCHITECTURE.md (or RUNBOOK_DEBUG.md)
 - {from task packet BOOTSTRAP}
 - {5-15 implementation files}
 

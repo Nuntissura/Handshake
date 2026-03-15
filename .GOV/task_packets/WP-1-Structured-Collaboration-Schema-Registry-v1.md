@@ -40,8 +40,8 @@
 - CLI_SESSION_TOOL: codex
 - SESSION_PLUGIN_BRIDGE_ID: handshake.handshake-session-bridge
 - SESSION_PLUGIN_BRIDGE_COMMAND: handshakeSessionBridge.processLaunchQueue
-- SESSION_PLUGIN_REQUESTS_FILE: .GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl
-- SESSION_REGISTRY_FILE: .GOV/roles_shared/ROLE_SESSION_REGISTRY.json
+- SESSION_PLUGIN_REQUESTS_FILE: .GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl
+- SESSION_REGISTRY_FILE: .GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json
 - SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION: 2
 - SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS: 20
 - SESSION_WATCH_POLICY: EVENT_WATCH_PRIMARY_HEARTBEAT_FALLBACK
@@ -109,12 +109,12 @@
 - MAX_CODER_REVISION_CYCLES: 3
 - MAX_VALIDATOR_REVIEW_CYCLES: 3
 - MAX_RELAY_ESCALATION_CYCLES: 2
-- WP_COMMUNICATION_DIR: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1
-- WP_THREAD_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/THREAD.md
-- WP_RUNTIME_STATUS_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RUNTIME_STATUS.json
-- WP_RECEIPTS_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: 019ceb10-00fb-7793-97a0-7cd9179a5688
-- INTEGRATION_VALIDATOR_OF_RECORD: 019cee0b-95a7-7872-b1bf-717ddfd72c39
+- WP_COMMUNICATION_DIR: .GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1
+- WP_THREAD_FILE: .GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/THREAD.md
+- WP_RUNTIME_STATUS_FILE: .GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RUNTIME_STATUS.json
+- WP_RECEIPTS_FILE: .GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RECEIPTS.jsonl
+- WP_VALIDATOR_OF_RECORD: <unassigned>
+- INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
 <!-- All roles MUST use the packet-declared WP communication directory. Role-local worktrees are never the communication authority. -->
@@ -373,7 +373,7 @@ git revert <commit-sha>
 - SPEC_ADD_MARKER_TARGET: [ADD v02.168]
 - SPEC_ANCHOR: Handshake_Master_Spec_v02.178.md Base structured schema and project-profile extension contract [ADD v02.168]
 - Codex: Handshake Codex v1.4.md
-- Task Board: .GOV/roles_shared/TASK_BOARD.md
+- Task Board: .GOV/roles_shared/records/TASK_BOARD.md
 - WP Traceability: .GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md
 
 ## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]

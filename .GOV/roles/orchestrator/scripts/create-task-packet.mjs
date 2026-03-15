@@ -237,7 +237,7 @@ try {
         'Do NOT create/lock a WP packet while a Main Body or appendix spec update is required.',
       ],
       nextCommands: [
-        '# Run the spec update workflow (new spec version file + update .GOV/roles_shared/SPEC_CURRENT.md).',
+        '# Run the spec update workflow (new spec version file + update .GOV/roles_shared/records/SPEC_CURRENT.md).',
         '# If the refinement expanded appendices (primitive index, feature registry, UI guidance, interaction matrix), land those changes in the new spec version first.',
         '# Create a NEW WP variant anchored to the updated spec (new WP_ID; new one-time signature).',
       ],
@@ -288,7 +288,7 @@ try {
 let signatureGate = null;
 let prepareGate = null;
 try {
-  const gatesPath = path.join('.GOV', 'roles', 'orchestrator', 'ORCHESTRATOR_GATES.json');
+  const gatesPath = path.join('.GOV', 'roles', 'orchestrator', 'runtime', 'ORCHESTRATOR_GATES.json');
   const gates = JSON.parse(fs.readFileSync(gatesPath, 'utf8'));
   const logs = Array.isArray(gates.gate_logs) ? gates.gate_logs : [];
   const lastSig = [...logs].reverse().find((l) => l.wpId === WP_ID && l.type === 'SIGNATURE');
@@ -409,10 +409,10 @@ try {
     result: 'BLOCKED',
     why: 'Unable to verify signature in ORCHESTRATOR_GATES.json; cannot proceed deterministically.',
     gateOutputLines: [
-      'BLOCKED: Unable to verify signature in .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json.',
+      'BLOCKED: Unable to verify signature in .GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json.',
     ],
     nextCommands: [
-      'cat .GOV/roles/orchestrator/ORCHESTRATOR_GATES.json',
+      'cat .GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json',
     ],
   });
   process.exit(1);
@@ -420,7 +420,7 @@ try {
 
 // Gate: signature must be present in SIGNATURE_AUDIT.md (protocol requirement).
 try {
-  const auditPath = path.join('.GOV', 'roles_shared', 'SIGNATURE_AUDIT.md');
+  const auditPath = path.join('.GOV', 'roles_shared', 'records', 'SIGNATURE_AUDIT.md');
   const audit = fs.readFileSync(auditPath, 'utf8');
   if (!audit.includes(`| ${userSignature} |`)) {
     printGateBlocks({
@@ -451,10 +451,10 @@ try {
     result: 'BLOCKED',
     why: 'Unable to verify signature in SIGNATURE_AUDIT.md; cannot proceed deterministically.',
     gateOutputLines: [
-      'BLOCKED: Unable to verify signature in .GOV/roles_shared/SIGNATURE_AUDIT.md.',
+      'BLOCKED: Unable to verify signature in .GOV/roles_shared/records/SIGNATURE_AUDIT.md.',
     ],
     nextCommands: [
-      'cat .GOV/roles_shared/SIGNATURE_AUDIT.md',
+      'cat .GOV/roles_shared/records/SIGNATURE_AUDIT.md',
     ],
   });
   process.exit(1);
@@ -560,7 +560,7 @@ const templateBody = templateStartIdx === -1
 
   let specBaseline = 'Handshake_Master_Spec_vXX.XX.md';
   try {
-    const specCurrent = fs.readFileSync(path.join('.GOV', 'roles_shared', 'SPEC_CURRENT.md'), 'utf8');
+    const specCurrent = fs.readFileSync(path.join('.GOV', 'roles_shared', 'records', 'SPEC_CURRENT.md'), 'utf8');
     const m = specCurrent.match(/Handshake_Master_Spec_v[0-9.]+\.md/);
     if (m) specBaseline = m[0];
   } catch {

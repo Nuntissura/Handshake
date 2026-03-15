@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const TASK_BOARD_PATH = ".GOV/roles_shared/TASK_BOARD.md";
+const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
 
 function fail(message, details = []) {
   console.error(`[TASK_BOARD_CHECK] ${message}`);

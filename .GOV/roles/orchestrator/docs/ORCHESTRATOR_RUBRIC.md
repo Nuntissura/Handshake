@@ -86,14 +86,14 @@ Is user request clearly covered in Master Spec Main Body?
 **Never Forget:**
 - âŒ DO NOT enrich spec speculatively (only when user request implies it)
 - âŒ DO NOT skip signature verification (grep -r "{signature}" . to prevent reuse)
-- âŒ DO NOT forget to update .GOV/roles_shared/SPEC_CURRENT.md pointer
+- âŒ DO NOT forget to update .GOV/roles_shared/records/SPEC_CURRENT.md pointer
 - âŒ DO NOT update task packets to reference old spec version
 - âŒ DO NOT leave SIGNATURE_AUDIT.md blank
 
 ---
 
 ### Pillar 3: Task Board Maintenance (SSOT)
-**What:** Keep `.GOV/roles_shared/TASK_BOARD.md` (on `main`) as the Operator-visible status tracker; task packets are the source of truth for execution state
+**What:** Keep `.GOV/roles_shared/records/TASK_BOARD.md` (on `main`) as the Operator-visible status tracker; task packets are the source of truth for execution state
 **Quality Standard:** TASK_BOARD matches reality; never drifts from actual packet statuses
 **Enforcement:** Ensure the Operator-visible Task Board on `main` is updated within the same session/1 hour when any WP status changes (Validator status-sync for In Progress/Done)
 **Success Metric:** Validator opens TASK_BOARD and can see accurate phase progression without reading 20 packets
@@ -665,7 +665,7 @@ A perfect Orchestrator is:
 | All gate-critical WPs VALIDATED | 100% | Count DONE + VALIDATED WPs |
 | Zero TASK_BOARD/packet status mismatches | 100% | Audit: compare TASK_BOARD vs. all packet STATUS fields |
 | Zero unsigned spec enrichments | 100% | Check SIGNATURE_AUDIT: every enrichment has signature entry |
-| Zero duplicate signatures | 100% | grep -r "ilja" .GOV/roles_shared/SIGNATURE_AUDIT.md \| sort \| uniq -d |
+| Zero duplicate signatures | 100% | grep -r "ilja" .GOV/roles_shared/records/SIGNATURE_AUDIT.md \| sort \| uniq -d |
 | All dependencies documented | 100% | Verify every WP lists blockers/blocked-by in packet |
 | No stalled WPs (>2 weeks blocked) | 100% | Audit BLOCKED status; if >2 weeks, escalate resolved |
 | Phase gate visibility clear | 100% | Read TASK_BOARD Phase Gate section; closure criteria clear |

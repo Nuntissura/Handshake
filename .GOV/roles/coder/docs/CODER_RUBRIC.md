@@ -83,9 +83,9 @@ RISK_TIER: {from packet}
 TASK_TYPE: {DEBUG|FEATURE|REFACTOR|HYGIENE}
 
 FILES_TO_OPEN: {verify you read all}
-- .GOV/roles_shared/START_HERE.md
-- .GOV/roles_shared/SPEC_CURRENT.md
-- .GOV/roles_shared/ARCHITECTURE.md
+- .GOV/roles_shared/docs/START_HERE.md
+- .GOV/roles_shared/records/SPEC_CURRENT.md
+- .GOV/roles_shared/docs/ARCHITECTURE.md
 - {5-15 implementation files from packet BOOTSTRAP}
 
 SEARCH_TERMS: {verify you searched all}

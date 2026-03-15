@@ -2,61 +2,46 @@
 
 This directory holds cross-role truth and the shared implementation surfaces that multiple roles rely on.
 
-## Stable Shared Truth
+Authoritative folder law lives in `Handshake Codex v1.4.md` plus the active role protocols. This README is navigational only.
 
-- `START_HERE.md`
-- `SPEC_CURRENT.md`
-- `ARCHITECTURE.md`
-- `TASK_BOARD.md`
-- `WP_TRACEABILITY_REGISTRY.md`
-- `BUILD_ORDER.md`
-- `SIGNATURE_AUDIT.md`
-- `SPEC_DEBT_REGISTRY.md`
+## Shared Bucket Map
 
-## Shared Runtime / Session State
-
-- `ROLE_SESSION_REGISTRY.json`
-- `SESSION_CONTROL_BROKER_STATE.json`
-- `SESSION_CONTROL_REQUESTS.jsonl`
-- `SESSION_CONTROL_RESULTS.jsonl`
-- `SESSION_CONTROL_OUTPUTS/`
-- `validator_gates/`
-- `WP_COMMUNICATIONS/`
-
-## Shared Implementation
-
-- `checks/`
-  - repo-shared governance checks and cross-role hard gates
-- `scripts/`
-  - repo-shared runtime helpers, topology helpers, dev scaffolds, proof/debt libraries, and WP communication tooling
+- `docs/`
+  - active shared guidance such as onboarding, architecture, debug, workflow, and quality-gate docs
+- `records/`
+  - authoritative shared ledgers, registries, and pointers
+- `runtime/`
+  - shared machine-written runtime state only
+- `exports/`
+  - canonical shared export surfaces
 - `schemas/`
-  - shared governance JSON Schemas for WP communication and session-control artifacts
+  - shared governance schemas
+- `scripts/`
+  - shared executable helpers and shared libraries
+- `checks/`
+  - cross-role/shared enforcement
 - `tests/`
   - shared governance tests spanning multiple roles
 - `fixtures/`
-  - shared fixtures and golden inputs for shared scripts/checks/tests
-- `exports/role_mailbox/`
-  - authoritative governance export path for leak-safe role-mailbox metadata
+  - shared fixtures and golden inputs
 
-## Active Shared Guidance
+## Shared Records
 
-- `ARCHITECTURE.md`
-- `BOUNDARY_RULES.md`
-- `MIGRATION_GUIDE.md`
-- `REPO_RESILIENCE.md`
-- `ROLE_SESSION_ORCHESTRATION.md`
-- `ROLE_WORKFLOW_QUICKREF.md`
-- `ROLE_WORKTREES.md`
-- `TOOLING_GUARDRAILS.md`
+- `records/SPEC_CURRENT.md`
+- `records/TASK_BOARD.md`
+- `records/WP_TRACEABILITY_REGISTRY.md`
+- `records/BUILD_ORDER.md`
+- `records/SIGNATURE_AUDIT.md`
+- `records/SPEC_DEBT_REGISTRY.md`
+- `records/AGENT_REGISTRY.md`
 
-## Shared Reference / Analysis Surfaces
+## Shared Runtime
 
-- `PROJECT_INVARIANTS.md`
-- `VALIDATOR_FILE_TOUCH_MAP.md`
+- `runtime/ROLE_SESSION_REGISTRY.json`
+- `runtime/SESSION_CONTROL_REQUESTS.jsonl`
+- `runtime/SESSION_CONTROL_RESULTS.jsonl`
+- `runtime/SESSION_CONTROL_OUTPUTS/`
+- `runtime/validator_gates/`
+- `runtime/WP_COMMUNICATIONS/`
 
 Historical/reference studies no longer belong in this directory root. Shared non-authoritative reference material belongs under `.GOV/reference/`.
-
-See:
-
-- `.GOV/roles_shared/STRUCTURE_RULES.md`
-- `.GOV/reference/README.md`
