@@ -95,7 +95,7 @@ git revert <commit-sha>
   - .GOV/roles_shared/SPEC_CURRENT.md
   - Handshake_Master_Spec_v02.112.md (7.5.4.7, 7.5.4.9.2)
   - .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md
-  - .GOV/GOV_KERNEL/90_REFERENCE_IMPLEMENTATION_HANDSHAKE.md
+  - .GOV/reference/kernel/REFERENCE_IMPLEMENTATION_HANDSHAKE.md
   - .github/workflows/ci.yml
   - .GOV/scripts/validation/ci-traceability-check.mjs
   - .GOV/scripts/hooks/pre-commit
@@ -343,5 +343,4 @@ REASON FOR PASS:
 Risks & Suggested Actions:
 - If `.GOV/roles_shared/SPEC_CURRENT.md` governance-reference formatting changes (marker or bold filename), the resolver will hard-fail; this is acceptable for governance enforcement but may warrant a future micro-test asserting the parser contract.
 - Closure work (validator-owned): after merge to `main`, move `WP-1-Governance-Kernel-Conformance-v1` on `.GOV/roles_shared/TASK_BOARD.md` from `## In Progress` to `## Done` with `[VALIDATED]` per protocol.
-
 

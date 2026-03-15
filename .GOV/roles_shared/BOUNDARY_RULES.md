@@ -13,11 +13,12 @@ Authoritative LAW: `Handshake Codex v1.4.md` ([CX-211], [CX-212]).
 ## 1) `.GOV/` = Governance Workspace (Authoritative for workflow)
 
 `.GOV/` is the canonical location for:
-- role protocols + rubrics
+- role protocols and active governance tooling
 - gate definitions + validator/orchestrator state
-- governance scripts (`.GOV/scripts/**`)
+- governance implementation (`.GOV/roles/**`, `.GOV/roles_shared/**`)
 - task packets + refinements + templates
 - governance logs and operator materials
+- non-authoritative historical/reference material under `.GOV/reference/`
 
 **Hard rule:** Product runtime MUST NOT read from or write to `.GOV/` under any circumstances.
 

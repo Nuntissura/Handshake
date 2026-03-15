@@ -30,7 +30,7 @@ It is the control transport layer. It is not the policy layer.
 
 ## Governance Rule
 
-This adapter must be called through the governed wrappers in `.GOV/scripts/` for normal Handshake operation. Direct ACP use is a tooling/debug surface only, not an authority bypass. The broker requires a repo-scoped auth token plus `ORCHESTRATOR` / `role_orchestrator` initialization claims, and repo projections remain the authoritative audit trail.
+This adapter must be called through the governed `just` entrypoints and the role/shared wrappers under `.GOV/roles/orchestrator/scripts/` and `.GOV/roles_shared/scripts/session/` for normal Handshake operation. Direct ACP use is a tooling/debug surface only, not an authority bypass. The broker requires a repo-scoped auth token plus `ORCHESTRATOR` / `role_orchestrator` initialization claims, and repo projections remain the authoritative audit trail.
 
 The broker itself is not authoritative. Its runtime state is mirrored into:
 

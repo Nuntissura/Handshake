@@ -10,8 +10,8 @@ This doc is a compact index of the role-governed workflow so the Operator can qu
 
 - Authority: `Handshake Codex v1.4.md` [CX-109], [CX-110].
 - Role worktree layout is defined in `.GOV/roles_shared/ROLE_WORKTREES.md` using placeholders:
-  - `<HANDSHAKE_ROOT>` (example: `P:\Handshake`)
-  - `<HANDSHAKE_WORKTREES>` = `<HANDSHAKE_ROOT>\Handshake Worktrees`
+  - `<HANDSHAKE_ROOT>` (example: `/workspace/handshake`)
+  - `<HANDSHAKE_WORKTREES>` = `<HANDSHAKE_ROOT>/Handshake Worktrees`
 - WP worktree assignments MUST be recorded as repo-relative paths:
   - `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` `PREPARE.worktree_dir` should be like `../wt-WP-...`
   - Absolute paths (for example `<DRIVE>:\...` or `\\server\share\...`) are forbidden for `worktree_dir` and are blocked by the Orchestrator gate.
@@ -98,9 +98,9 @@ Primary commands:
 - `just coder-worktree-add WP-...`
 - `just wp-validator-worktree-add WP-...`
 - `just integration-validator-worktree-add WP-...`
-- `just launch-coder-session WP-... [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-- `just launch-wp-validator-session WP-... [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-- `just launch-integration-validator-session WP-... [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-coder-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-wp-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-integration-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just start-coder-session WP-... [PRIMARY|FALLBACK]`
 - `just start-wp-validator-session WP-... [PRIMARY|FALLBACK]`
 - `just start-integration-validator-session WP-... [PRIMARY|FALLBACK]`

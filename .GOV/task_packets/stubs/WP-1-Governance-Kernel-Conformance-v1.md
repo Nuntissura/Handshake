@@ -24,7 +24,7 @@ This stub tracks the work required to bring repo tooling and governance surfaces
   - Product feature implementation (no `src/`, `app/`, `tests/` changes unless explicitly required by governance enforcement and approved).
 
 ## Known gaps / triggers (evidence pointers)
-- Governance drift hazards are summarized in `.GOV/GOV_KERNEL/90_REFERENCE_IMPLEMENTATION_HANDSHAKE.md`.
+- Governance drift hazards are summarized in `.GOV/reference/kernel/REFERENCE_IMPLEMENTATION_HANDSHAKE.md`.
 - CI/hook messaging and some docs reference obsolete Codex versions (example string: "Codex v0.8").
 
 ## Activation checklist (before any coding)
@@ -33,5 +33,4 @@ This stub tracks the work required to bring repo tooling and governance surfaces
 3. Create `.GOV/refinements/WP-1-Governance-Kernel-Conformance-v1.md`.
 4. Create official task packet via `just create-task-packet WP-1-Governance-Kernel-Conformance-v1`.
 5. Update `.GOV/roles_shared/TASK_BOARD.md` to move `WP-1-Governance-Kernel-Conformance-v1` out of STUB when activated.
-
 

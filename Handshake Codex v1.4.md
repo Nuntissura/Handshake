@@ -86,7 +86,7 @@ Minimum verification for governance-only changes: `just gov-check`. If any Hands
 [CX-202] ROOT_SHARED: `/src/shared/` SHOULD host shared types, DTOs, and protocol definitions.
 [CX-203] ROOT_DOCS_LOCAL: `/.GOV/operator/docs_local/` SHOULD host local design docs and subsystem (L1) specs.
 [CX-204] ROOT_ARCHIVE: `/archive/` SHOULD host experiments, throwaways, and dead ends only.
-[CX-205] ROOT_SCRIPTS: `/.GOV/scripts/` SHOULD host dev/ops scripts (setup, run, tests, maintenance).
+[CX-205] ROOT_GOVERNANCE_AUTOMATION: `justfile` plus `/.GOV/roles/<role>/{scripts,checks}/` and `/.GOV/roles_shared/{scripts,checks}/` SHOULD host governance/dev/ops automation. Legacy root `/.GOV/scripts/` is retired as an active implementation surface.
 [CX-206] ROOT_TESTS: `/tests/` SHOULD host automated tests (unit, integration, end-to-end).
 [CX-207] ROOT_DOCS: Root `*.md` files SHOULD hold Master Spec, Codex, roadmap, and other high-level docs.
 
@@ -95,16 +95,16 @@ Minimum verification for governance-only changes: `just gov-check`. If any Hands
 [CX-213] TASK_PACKETS_DIR: `/.GOV/task_packets/` MUST exist and MUST contain task packet files for all active and recent work.
 [CX-214] ROOT_APP_CURRENT: If `/app/` exists, it SHOULD be treated as the primary application root (frontend in `/app/src/`, backend in `/app/src-tauri/`) unless `.GOV/roles_shared/ARCHITECTURE.md` explicitly states otherwise.
 [CX-215] DOCS_LOCAL_STAGING: `/.GOV/operator/docs_local/` SHOULD be treated as staging/drafts. Assistants MUST NOT treat `/.GOV/operator/docs_local/` as canonical onboarding/debugging guidance unless a document is explicitly promoted into `/.GOV/`.
-[CX-216] PAST_WORK_INDEX: `/.GOV/roles_shared/` SHOULD include a `PAST_WORK_INDEX.md` (or equivalent) that links to older root-level specs/logs and `/.GOV/operator/docs_local/` drafts, so future maintainers can find prior work quickly without guesswork.
+[CX-216] PAST_WORK_INDEX: `/.GOV/reference/` SHOULD include a `PAST_WORK_INDEX.md` (or equivalent archaeology index) that links to older root-level specs/logs and `/.GOV/operator/docs_local/` drafts, so future maintainers can find prior work quickly without guesswork. Active onboarding surfaces MAY point to it, but it is non-authoritative reference material.
 
 [CX-217] TASK_BOARD: `/.GOV/roles_shared/TASK_BOARD.md` MUST exist and serve as the high-level, at-a-glance status tracker.
 - Orchestrator manages planning states (Ready for Dev/Blocked; Stub Backlog).
 - Coders manage execution state in the **task packet** (set `**Status:** In Progress` + claim fields) and produce a docs-only bootstrap commit early.
 - Validator maintains the Operator-visible `main` Task Board via docs-only "status sync" commits (update `## In Progress`; optionally also update `## Active (Cross-Branch Status)` for branch/coder visibility).
 
-[CX-218] ROLE_MAILBOX (GOV): `/.GOV/ROLE_MAILBOX/` contains leak-safe role exports (approvals/waivers/validation findings/tooling metadata) and MUST pass `just role-mailbox-export-check` when required by a role protocol or WP DONE_MEANS.
+[CX-218] ROLE_MAILBOX (GOV): The authoritative leak-safe role export path is `/.GOV/roles_shared/exports/role_mailbox/`, and it MUST pass `just role-mailbox-export-check` when required by a role protocol or WP DONE_MEANS. Retired legacy mailbox export paths MUST NOT be recreated; historical references are evidence only.
 [CX-218A] WP_COMMUNICATIONS (GOV): `/.GOV/roles_shared/WP_COMMUNICATIONS/` MAY contain per-WP `THREAD.md`, `RUNTIME_STATUS.json`, and `RECEIPTS.jsonl` artifacts. These files are non-authoritative coordination helpers only. The task packet remains authoritative for scope, status, PREPARE assignment, acceptance, and verdict.
-[CX-218B] WP_COMMUNICATION_SCHEMAS (HARD): When a task packet declares WP communication artifacts, `RUNTIME_STATUS.json` and `RECEIPTS.jsonl` MUST validate against the corresponding governance schemas in `/.GOV/schemas/`. Freeform discussion belongs only in `THREAD.md`.
+[CX-218B] WP_COMMUNICATION_SCHEMAS (HARD): When a task packet declares WP communication artifacts, `RUNTIME_STATUS.json` and `RECEIPTS.jsonl` MUST validate against the corresponding governance schemas in `/.GOV/roles_shared/schemas/`. Freeform discussion belongs only in `THREAD.md`.
 [CX-218C] NON_AGENTIC_ROLE_BOUNDARY (HARD): In current repo governance, the Orchestrator role remains one non-agentic coordinator CLI session, and Validator duties remain non-agentic. Repo governance MAY still run multiple validator CLI sessions concurrently when they are explicitly scoped as `WP Validator` and `Integration Validator` sessions. These roles may coordinate, assign, steer, validate, and update governance artifacts, but they MUST NOT spawn helper agents or delegate their core role responsibilities. Only the Primary Coder may use coder sub-agents, and only with explicit operator approval recorded in the task packet.
 [CX-218D] WP_COMMUNICATION_AUTHORITY (HARD): The task packet field `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Role-local worktrees, backup branches, or ad-hoc inbox files MUST NOT replace it.
 [CX-218E] VALIDATOR_AUTHORITY_SPLIT (HARD): When both validator layers exist, `WP Validator` is advisory only, while `Integration Validator` owns final technical verdict and merge authority unless the packet explicitly overrides that split.
@@ -113,7 +113,7 @@ Minimum verification for governance-only changes: `just gov-check`. If any Hands
 [CX-218H] ROLE_SESSION_MODEL_POLICY (HARD): For newly created repo-governed stubs, packets, and launch briefs, the default CLI session model policy is primary `gpt-5.4`, fallback `gpt-5.2`, and reasoning strength `EXTRA_HIGH` (launcher/config value `model_reasoning_effort=xhigh`). Do not rely on ambient editor or CLI defaults. Repo policy for new claim fields disallows Codex model aliases even when the CLI tool is `codex`.
 [CX-218I] SESSION_ORCHESTRATION_TRANSPORT (HARD): Repo-governed Coder/WP Validator/Integration Validator session start is `ORCHESTRATOR_ONLY`. Primary transport is the VS Code session bridge over `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`. CLI escalation windows are permitted only after 2 plugin failures or timeouts for the same role/WP session, unless the Operator explicitly waives the plugin-first path.
 
-[CX-219] AGENTIC_WRAPPER_PROTOCOLS: When running in multi-agent ("agentic") mode, roles MUST also follow their add-on protocols under `/.GOV/roles/<role>/agentic/AGENTIC_PROTOCOL.md` and maintain evidence per `/.GOV/roles_shared/EVIDENCE_LEDGER.md`.
+[CX-219] AGENTIC_WRAPPER_PROTOCOLS: When a role is explicitly operating in active multi-agent ("agentic") mode and that role protocol declares an add-on protocol under `/.GOV/roles/<role>/agentic/AGENTIC_PROTOCOL.md`, the role MUST also follow that add-on protocol and maintain evidence per the active role protocol / packet requirements. Legacy agentic add-on files MAY remain on disk as reference-only material and are not active LAW unless the role protocol says they are.
 
 [CX-210] NEW_TOP_DIR_DOC: When new top-level directories are added with user approval, they SHOULD be documented in a future codex version.
 
@@ -332,7 +332,7 @@ Legacy note: historical packets may contain date-coded IDs created before this i
 [CX-580E] WP_LINEAGE_AUDIT_VARIANTS (HARD): When creating a revision packet (`-v{N}`) for a Base WP, the Orchestrator MUST perform and record a **Lineage Audit** that proves the Base WP (and ALL its prior packet versions) are a correct translation of: Roadmap pointer -> Master Spec Main Body -> repo code. The audit MUST validate that no requirements were lost/forgotten across versions and that the current repo state satisfies every governing Main Body MUST/SHOULD for that Base WP. If the audit is missing or incomplete, delegation is BLOCKED.
 
 [CX-580A] ORCH_NO_PRODUCT_CODING_BLOCK (HARD): The Orchestrator role is **STRICTLY FORBIDDEN** from modifying Handshake product code under `src/`, `app/`, or `tests/`. This is an absolute constraint; no automated response or work can override this.
-Clarification: `.GOV/scripts/` is governance/workflow/tooling surface and MAY be modified by the Orchestrator when needed (e.g., validation gates, packet tooling), as long as no product code is modified and no gate is bypassed.
+Clarification: governance/workflow/tooling surface lives in `justfile`, `/.GOV/roles/**`, and `/.GOV/roles_shared/**` and MAY be modified by the Orchestrator when needed (e.g., validation gates, packet tooling), as long as no product code is modified and no gate is bypassed.
 
 [CX-580B] ORCH_NO_ROLE_SWITCH (HARD): The Orchestrator role is **STRICTLY FORBIDDEN** from switching to the Coder role. The Orchestrator's turn ends immediately upon task delegation. No automated response or work can override this constraint.
 
@@ -401,7 +401,7 @@ Clarification: `.GOV/scripts/` is governance/workflow/tooling surface and MAY be
 [CX-619] GOV_WORKFLOW_TASKS_NO_WP (EXCEPTION): If the task is governance/workflow/tooling-only and the planned diff is strictly limited to `.GOV/`, `justfile`, and `.github/`, a Work Packet is OPTIONAL. In that case, the coder MUST:
 - Explicitly list the intended changed paths (must not include `src/`, `app/`, or `tests/`).
 - Provide a rollback hint.
-- Run verification commands appropriate to the change (at minimum: `node .GOV/scripts/validation/codex-check.mjs`) and record outputs.
+- Run verification commands appropriate to the change (at minimum: `just gov-check`) and record outputs.
 
 [CX-620] CODER_PACKET_CHECK: Before writing any code in Handshake product code (`src/`, `app/`, `tests/`), the coder agent MUST verify a task packet exists by checking:
 1. File exists at `.GOV/task_packets/WP-*.md` (created recently), OR
@@ -422,7 +422,7 @@ Clarification: `.GOV/scripts/` is governance/workflow/tooling surface and MAY be
 2. Document results in a VALIDATION block
 3. Include command + outcome for each check
 4. For Work Packet work: run `just post-work {WP_ID}` to verify completeness.
-   For governance/workflow work without a Work Packet: run and record the agreed verification commands (at minimum: `node .GOV/scripts/validation/codex-check.mjs`).
+   For governance/workflow work without a Work Packet: run and record the agreed verification commands (at minimum: `just gov-check`).
 
 [CX-627] EVIDENCE_MAPPING_REQUIREMENT: The coder's final report MUST include an `EVIDENCE_MAPPING` block mapping every "MUST" requirement from the Spec to specific lines of code.
 
@@ -507,7 +507,7 @@ Clarification: `.GOV/scripts/` is governance/workflow/tooling surface and MAY be
 
 [CX-900] ENFORCEMENT_PURPOSE: For AI-autonomous operation, the workflow MUST be enforced by automated scripts and checks. Manual enforcement is insufficient when the human user lacks coding expertise.
 
-[CX-901] ENFORCEMENT_SCRIPTS: The repo MUST include enforcement scripts in `/.GOV/scripts/validation/`:
+[CX-901] ENFORCEMENT_SCRIPTS: The repo MUST include enforcement entrypoints in `justfile`, shared enforcement scripts in `/.GOV/roles_shared/checks/`, and role-specific enforcement scripts in `/.GOV/roles/<role>/checks/`:
 - `pre-work-check.mjs` - Verifies task packet exists before work starts (includes worktree/branch preflight)
 - `post-work-check.mjs` - Verifies completion evidence and deterministic manifest
 - `ci-traceability-check.mjs` - CI verification of workflow compliance
@@ -521,6 +521,7 @@ Clarification: `.GOV/scripts/` is governance/workflow/tooling surface and MAY be
 [CX-902] ENFORCEMENT_HOOKS: Git hooks SHOULD enforce:
 - pre-commit: Blocks commits without WP-ID traceability
 - pre-push: Verifies all commits reference valid task packets
+- install path: `git config core.hooksPath .GOV/roles_shared/scripts/hooks`
 
 [CX-903] ENFORCEMENT_JUST: The `justfile` MUST include:
 - `just create-task-packet {wp-id}` - Creates task packet from template

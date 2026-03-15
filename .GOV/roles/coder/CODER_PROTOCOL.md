@@ -75,7 +75,7 @@ Sub-agent delegation note (HARD):
 
 ## Governance/Workflow Changes (No WP Required)
 
-If the assignment is governance/workflow/tooling-only and the planned diff is strictly limited to `.GOV/`, `.GOV/scripts/`, `justfile`, and `.github/`, you MAY proceed without creating a Work Packet.
+If the assignment is governance/workflow/tooling-only and the planned diff is strictly limited to `.GOV/`, `.github/`, `justfile`, `AGENTS.md`, and `Handshake Codex v1.4.md` with work confined to governance surfaces such as `.GOV/roles/**` or `.GOV/roles_shared/**`, you MAY proceed without creating a Work Packet.
 
 Hard rules:
 - DO NOT modify Handshake product code in `src/`, `app/`, or `tests/`.
@@ -231,7 +231,7 @@ Resume rule (hard, anti-babysit):
   - `just session-registry-status [WP-{ID}]`
   - `just operator-monitor` (operator viewport for ACP-aware session/control/thread/receipt/artifact visibility)
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Coder session):
-  - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
   - `just steer-coder-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
   - `just cancel-coder-session WP-{ID}`
@@ -300,9 +300,9 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 **Blocking rule:** If the Lineage Audit is missing/unclear, STOP and escalate to the Orchestrator. Do NOT proceed to implement â€œjust the v{N} diffâ€ without a complete audit.
 
 **Supporting Documents:**
-- **CODER_RUBRIC.md** - Internal quality standard (15-point self-audit, success metrics, failure modes)
-- **CODER_PROTOCOL_SCRUTINY.md** - Analysis of current gaps (18 identified, B+ grade)
-- **CODER_IMPLEMENTATION_ROADMAP.md** - Path to 9.9/10 (3-phase improvement plan)
+- **docs/CODER_RUBRIC.md** - Internal quality standard (15-point self-audit, success metrics, failure modes)
+- **docs/CODER_PROTOCOL_SCRUTINY.md** - Analysis of current gaps (18 identified, B+ grade)
+- **docs/CODER_IMPLEMENTATION_ROADMAP.md** - Path to 9.9/10 (3-phase improvement plan)
 
 ## Deterministic Validation (COR-701 carryover, current workflow)
 - Each task packet MUST retain the manifest template in `## Validation` (target_file, start/end, line_delta, pre/post SHA1, gates checklist). Keep it ASCII-only.
@@ -611,6 +611,8 @@ git commit -m "docs: bootstrap claim [WP-{ID}]"
 ```bash
 just backup-push feat/WP-{ID} feat/WP-{ID}
 ```
+
+For `PACKET_FORMAT_VERSION >= 2026-03-15`, this bootstrap claim checkpoint is mechanically enforced before the docs-only skeleton checkpoint helper will proceed.
 
 **Notify the Validator** with the commit hash. The Validator will:
 - Merge the docs-only bootstrap claim commit into `main` (commit SHA only; do not fast-forward to unvalidated implementation)
@@ -1549,6 +1551,23 @@ This section defines what a PERFECT Coder looks like. Use this for self-evaluati
 - Capture in `## EVIDENCE` section: "Checked {criterion} at {file:line}"
 
 **Success:** All validation passes; evidence trail is complete in the packet
+
+### Responsibility 4.5: Diff-Scoped Spec Self-Check (MANDATORY for PACKET_FORMAT_VERSION >= 2026-03-15)
+
+Before handoff, explicitly re-check the exact clauses this WP claims to close.
+
+**MUST confirm:**
+- [ ] I re-read the DONE_MEANS bullets and exact SPEC_ANCHOR clauses I am claiming.
+- [ ] Required fields are emitted/serialized end-to-end, not just present in local structs or validators.
+- [ ] Shared contract names still match across producers, consumers, tests, and validators.
+- [ ] Tests cover the actual contract, not only nearby code paths.
+- [ ] I used `## SEMANTIC_PROOF_ASSETS` as the execution proof brief: tripwire tests are real, canonical examples still match emitted behavior, and any clause without tests/examples is backed by governed debt.
+- [ ] I updated `## CLAUSE_CLOSURE_MATRIX` so every in-scope clause is marked honestly (`PROVED | PARTIAL | DEFERRED | NOT_APPLICABLE`) before handoff.
+- [ ] If any clause is `PARTIAL` or `DEFERRED`, I opened/synced governed debt (`just spec-debt-open` / `just spec-debt-sync`) so `## SPEC_DEBT_STATUS` and the clause row `DEBT_IDS` are explicit instead of hidden.
+- [ ] Any clause I could not fully prove is called out in handoff notes instead of being implied as complete.
+
+**Failure pattern to avoid:**
+- Tests are green, but a required field or schema name is still missing from the final emitted artifact.
 
 ---
 

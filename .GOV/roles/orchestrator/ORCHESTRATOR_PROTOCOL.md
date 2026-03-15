@@ -345,9 +345,9 @@ To avoid manual markdown editing mistakes:
   - WP Validator: `just wp-validator-worktree-add WP-{ID}`
   - Integration Validator: `just integration-validator-worktree-add WP-{ID}`
 - Launch repo-governed CLI sessions:
-  - Coder: `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-  - WP Validator: `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-  - Integration Validator: `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - Coder: `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - WP Validator: `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - Integration Validator: `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - Steerable Coder thread: `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
   - Steerable WP Validator thread: `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
   - Steerable Integration Validator thread: `just start-integration-validator-session WP-{ID} [PRIMARY|FALLBACK]`
@@ -574,6 +574,8 @@ Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block contain
 - **roadmap phase split (if multi-phase):** If refinement discovers large additive scope that should be phased, update the Roadmap section (Spec 7.6) using the fixed per-phase fields (Goal, MUST deliver, Key risks addressed in Phase n, Acceptance criteria, Explicitly OUT of scope, Mechanical Track, Atelier Track, Distillation Track, Vertical slice). Do not invent new per-phase block types.
 - **build-order sync (MANDATORY):** Refinement is also the sequencing review point. If the refinement changes stubs, dependencies, `BUILD_ORDER_*` metadata, current spec version, or force-multiplier rollout order, the Orchestrator MUST sync `.GOV/roles_shared/BUILD_ORDER.md` before the refinement gate is considered complete.
 - **packet hydration (MANDATORY for `HYDRATED_RESEARCH_V1`):** The refinement MUST include a structured packet-hydration block that deterministically fills packet metadata, scope, test plan, done means, bootstrap commands, primary spec anchor, `[ADD v<target>]` marker, and the primitive exposure/creation lists. Packet creation should be transcription from the signed refinement, not manual reinterpretation.
+- **packet closure monitoring (MANDATORY for `PACKET_FORMAT_VERSION >= 2026-03-15`):** New packets MUST also carry live monitoring truth in `CLAUSE_CLOSURE_MATRIX`, `SPEC_DEBT_STATUS`, and `SHARED_SURFACE_MONITORING`. The Orchestrator monitors these sections as the packet-scope spec-closure dashboard; do not describe a WP as finished/spec-correct while those sections still show partial, deferred, pending, or hidden debt.
+- **semantic proof assets (MANDATORY for `PACKET_FORMAT_VERSION >= 2026-03-16`):** New packets MUST also carry `SEMANTIC_PROOF_ASSETS` plus `SEMANTIC_PROOF_PROFILE=DIFF_SCOPED_SEMANTIC_V1`. Treat this as the packet-scope semantic proof brief for Coder + Validator. If the packet claims spec closure but has no real tripwires/examples or is still missing governed debt for a partial clause, the Orchestrator must not narrate the WP as spec-correct.
 
 **Non-negotiable presentation rule:** The Technical Refinement Block MUST be pasted into the Orchestrator's chat message for user review (not only written to a file). The pasted block MUST be the FULL verbatim refinement text from `.GOV/refinements/WP-*.md`; summaries or shortened versions are forbidden. The Orchestrator MUST NOT proceed to signature or packet creation until the user explicitly approves the refinement in-chat (e.g., `APPROVE REFINEMENT {WP_ID}`) or requests edits.
 
@@ -797,8 +799,8 @@ You are an **Orchestrator** (Lead Architect / Engineering Manager). Your job is 
 
 **CRITICAL RULES:**
 1. **NO PRODUCT CODING:** You MUST NOT modify Handshake product code in `src/`, `app/`, or `tests/`.
-   - `.GOV/scripts/` is governance/workflow/tooling surface and MAY be modified when needed (e.g., gates, packet tooling), as long as product code is not modified and gates are not bypassed.
-   - Governance/workflow/tooling-only work (limited to `.GOV/`, `.GOV/scripts/`, `justfile`, `.github/`) does **not** require a Work Packet or USER_SIGNATURE.
+   - Role-owned governance tooling should live under `.GOV/roles/**`, repo-shared governance tooling under `.GOV/roles_shared/**`, and root `.GOV/scripts/` is retired as a live implementation surface.
+   - Governance/workflow/tooling-only work (limited to `.GOV/`, `justfile`, `.github/`, and not touching product code) does **not** require a Work Packet or USER_SIGNATURE.
 2. **TRANSCRIPTION NOT INVENTION:** Task packets point to SPEC_ANCHOR; they do not interpret or invent requirements.
 3. **SPEC_ANCHOR REQUIRED:** Every WP MUST reference a requirement in Master Spec Main Body (not Roadmap).
 4. **LOCK PACKETS:** Use USER_SIGNATURE to prevent post-creation edits; create NEW packets for changes (WP-{ID}-variant).
@@ -807,8 +809,9 @@ You are an **Orchestrator** (Lead Architect / Engineering Manager). Your job is 
 7. **NO COLLAPSED PASS SIGNALS:** Do not broadcast a single "PASS" label for a WP. Keep these claims explicit and separate:
    - Deterministic manifest gate (`just post-work {WP_ID}`) result (not tests)
    - Packet TEST_PLAN execution results (commands + exit codes)
-   - Spec conformance confirmation (DONE_MEANS + SPEC_ANCHOR -> evidence mapping)
+   - Spec alignment assessment (`SPEC_ALIGNMENT_VERDICT` + `CLAUSES_REVIEWED` + `NOT_PROVEN` when the packet format requires split verdicts)
    - Validator verdict (only when appended to the task packet under `## VALIDATION_REPORTS`)
+   - Orchestrator wording rule: do not describe a WP as "master-spec aligned", "fully correct", or "finished under scrutiny" unless the packet report explicitly supports that claim.
 8. **STATUS SYNC SCOPE:** Planning visibility updates MUST NOT move WPs to `## Done` with `[VALIDATED]` unless the canonical task packet contains the Validator's appended Validation Report. Status sync should prefer the `## Active (Cross-Branch Status)` section; avoid editing `## Done` as a "sync" shortcut.
 
 ---

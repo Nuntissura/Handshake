@@ -27,11 +27,11 @@ Codex authority: [CX-657] CANONICAL_EVIDENCE_IN_PACKET (HARD).
 ## Supporting ledgers (machine-owned; not canonical)
 
 1) Validator gate state (per WP)
-- Path: `/.GOV/validator_gates/{WP_ID}.json`
+- Path: `/.GOV/roles_shared/validator_gates/{WP_ID}.json`
 - Purpose: deterministic per-WP validator gate state (machine-owned, merge-safe).
 
 2) Role Mailbox export (optional helper)
-- Path: `/.GOV/ROLE_MAILBOX/index.json` and `/.GOV/ROLE_MAILBOX/export_manifest.json`
+- Path: `/.GOV/roles_shared/exports/role_mailbox/index.json` and `/.GOV/roles_shared/exports/role_mailbox/export_manifest.json`
 - Purpose: leak-safe metadata exports of role decisions, approvals/waivers, and tooling results (no raw bodies).
 - Verified by: `just role-mailbox-export-check`
 

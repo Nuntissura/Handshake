@@ -29,7 +29,7 @@ Usage rules:
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Role-local worktrees and backup branches are never the communication authority.
 - `THREAD.md` is for discussion, steering, clarifications, and soft coordination.
 - `RUNTIME_STATUS.json` is for watch state and wake-up conditions; it is not packet truth.
-- `RECEIPTS.jsonl` is the deterministic audit trail for session receipts. It is machine-readable and must validate against `/.GOV/schemas/WP_RECEIPT.schema.json`.
+- `RECEIPTS.jsonl` is the deterministic audit trail for session receipts. It is machine-readable and must validate against `/.GOV/roles_shared/schemas/WP_RECEIPT.schema.json`.
 - Validation verdicts still belong only in the packet `## VALIDATION_REPORTS` section.
 
 Runtime vocabulary:

@@ -2,26 +2,26 @@
 
 This document defines the local worktree/branch policy for role-governed sessions.
 
-This policy is intentionally drive-agnostic: use a dedicated workspace root and keep all worktrees under a single "Handshake Worktrees" directory.
+This policy is intentionally drive-agnostic: use a dedicated workspace root and keep all worktrees under a single `Handshake Worktrees` directory.
 
 ## Recommended Layout (Drive-Agnostic)
 
 Define:
-- `<HANDSHAKE_ROOT>`: your chosen workspace root (example: `P:\Handshake`)
-- `<HANDSHAKE_WORKTREES>`: `<HANDSHAKE_ROOT>\Handshake Worktrees`
+- `<HANDSHAKE_ROOT>`: your chosen workspace root (example: `/workspace/handshake`)
+- `<HANDSHAKE_WORKTREES>`: `<HANDSHAKE_ROOT>/Handshake Worktrees`
 
 Recommended structure:
 
 ```text
-<HANDSHAKE_ROOT>\
-  Handshake Worktrees\
-    handshake_main\        # main repo checkout (branch: main)
-    wt-ilja\               # Operator role worktree (branch: user_ilja)
-    wt-orchestrator\       # Orchestrator role worktree (branch: role_orchestrator)
-    wt-validator\          # Validator role worktree (branch: role_validator)
-    wt-WP-...\             # Coder WP worktrees (branch: feat/WP-...)
-    wt-WPV-WP-...\         # WP Validator worktrees (branch: validate/WP-...)
-    wt-INTV-WP-...\        # Integration Validator worktrees (branch: integrate/WP-...)
+<HANDSHAKE_ROOT>/
+  Handshake Worktrees/
+    handshake_main/        # main repo checkout (branch: main)
+    wt-ilja/               # Operator role worktree (branch: user_ilja)
+    wt-orchestrator/       # Orchestrator role worktree (branch: role_orchestrator)
+    wt-validator/          # Validator role worktree (branch: role_validator)
+    wt-WP-.../             # Coder WP worktrees (branch: feat/WP-...)
+    wt-WPV-WP-.../         # WP Validator worktrees (branch: validate/WP-...)
+    wt-INTV-WP-.../        # Integration Validator worktrees (branch: integrate/WP-...)
 ```
 
 Preferred session host:
@@ -53,9 +53,9 @@ If you are an AI assistant operating in this repo:
 
 | Role | Worktree directory | Branch | GitHub backup branch |
 | --- | --- | --- |
-| OPERATOR (human) | `<HANDSHAKE_WORKTREES>\wt-ilja` | `user_ilja` | `origin/user_ilja` |
-| ORCHESTRATOR | `<HANDSHAKE_WORKTREES>\wt-orchestrator` | `role_orchestrator` | `origin/role_orchestrator` |
-| VALIDATOR | `<HANDSHAKE_WORKTREES>\wt-validator` | `role_validator` | `origin/role_validator` |
+| OPERATOR (human) | `<HANDSHAKE_WORKTREES>/wt-ilja` | `user_ilja` | `origin/user_ilja` |
+| ORCHESTRATOR | `<HANDSHAKE_WORKTREES>/wt-orchestrator` | `role_orchestrator` | `origin/role_orchestrator` |
+| VALIDATOR | `<HANDSHAKE_WORKTREES>/wt-validator` | `role_validator` | `origin/role_validator` |
 | CODER (agent) | WP-assigned worktree only (no default) | WP branch only (no default) | matching WP backup branch on GitHub |
 
 Notes:
@@ -88,7 +88,7 @@ Next actions (CX-WT-001):
 
 Role worktrees and manual repair flows require explicit authorization in the same turn when they rely on Codex [CX-108] blocked git operations.
 
-From the main repo working tree (`<HANDSHAKE_WORKTREES>\handshake_main`):
+From the main repo working tree (`<HANDSHAKE_WORKTREES>/handshake_main`):
 
 - Ensure the permanent GitHub backup branches exist:
   - `just ensure-permanent-backup-branches`
@@ -99,19 +99,19 @@ From the main repo working tree (`<HANDSHAKE_WORKTREES>\handshake_main`):
 
 - Create ORCHESTRATOR worktree:
   - If `origin/role_orchestrator` exists:
-    - `git worktree add -b role_orchestrator ..\wt-orchestrator origin/role_orchestrator`
+    - `git worktree add -b role_orchestrator ../wt-orchestrator origin/role_orchestrator`
   - Legacy fallback (if `origin/user_orchestrator` exists):
-    - `git worktree add -b role_orchestrator ..\wt-orchestrator origin/user_orchestrator`
+    - `git worktree add -b role_orchestrator ../wt-orchestrator origin/user_orchestrator`
   - Otherwise:
-    - `git worktree add -b role_orchestrator ..\wt-orchestrator main`
+    - `git worktree add -b role_orchestrator ../wt-orchestrator main`
 - Create VALIDATOR worktree:
-  - `git worktree add -b role_validator ..\wt-validator main`
+  - `git worktree add -b role_validator ../wt-validator main`
 - Create OPERATOR worktree:
-  - `git worktree add -b user_ilja ..\wt-ilja main`
+  - `git worktree add -b user_ilja ../wt-ilja main`
 - After creating a permanent role/user branch locally, push it once to the matching GitHub backup branch and set upstream:
-  - `git -C ..\wt-orchestrator push -u origin role_orchestrator`
-  - `git -C ..\wt-validator push -u origin role_validator`
-  - `git -C ..\wt-ilja push -u origin user_ilja`
+  - `git -C ../wt-orchestrator push -u origin role_orchestrator`
+  - `git -C ../wt-validator push -u origin role_validator`
+  - `git -C ../wt-ilja push -u origin user_ilja`
 
 WP worktrees (Orchestrator action, not Coder):
 - Post-signature default: after `just record-signature WP-{ID} ...` returns PASS, create the WP worktree/branch automatically. This is deterministic setup, not a second approval boundary.
@@ -123,9 +123,9 @@ WP worktrees (Orchestrator action, not Coder):
   - `just wp-validator-worktree-add WP-{ID}`
   - `just integration-validator-worktree-add WP-{ID}`
 - Launch the repo-governed CLI sessions:
-  - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-  - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-  - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - View current launch state:
   - `just session-registry-status [WP-{ID}]`
 - Create/preserve the matching GitHub backup branch for the WP when sync is authorized for the activation turn:

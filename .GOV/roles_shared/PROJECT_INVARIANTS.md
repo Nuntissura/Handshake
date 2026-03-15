@@ -29,8 +29,8 @@ Project-specific invariants for Governance Pack instantiation (spec §7.5.4.9).
 - TEMPLATES_DIR: `.GOV/templates/`
 - GATES_STATE:
   - Orchestrator: `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
-  - Validator: `.GOV/validator_gates/{WP_ID}.json`
-- ROLE_MAILBOX_EXPORT_DIR: `.GOV/ROLE_MAILBOX/`
+  - Validator: `.GOV/roles_shared/validator_gates/{WP_ID}.json`
+- ROLE_MAILBOX_EXPORT_DIR: `.GOV/roles_shared/exports/role_mailbox/`
 
 ## 4) Compatibility bundle (repo, temporary)
 

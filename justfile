@@ -11,7 +11,7 @@ dev: preflight-ollama
 
 # Fail fast if Ollama is missing/unreachable (Phase 1 requirement; see .GOV/roles_shared/START_HERE.md).
 preflight-ollama:
-	node -e "const base=(process.env.OLLAMA_URL||'http://localhost:11434'); const normalized=base.endsWith('/')?base.slice(0,-1):base; const url=normalized + '/api/tags'; const lib=url.startsWith('https://')?require('https'):require('http'); const req=lib.get(url,(res)=>{ const ok=!!res.statusCode && res.statusCode>=200 && res.statusCode<300; if(ok){ process.exit(0); } console.error('Ollama preflight failed: GET ' + url + ' returned ' + res.statusCode + '. Install Ollama (Windows: winget install -e --id Ollama.Ollama), then run ollama serve (or ollama run mistral), or set OLLAMA_URL.'); process.exit(1); }); req.on('error',()=>{ console.error('Ollama preflight failed: cannot reach ' + url + '. Install Ollama (Windows: winget install -e --id Ollama.Ollama), then run ollama serve (or ollama run mistral), or set OLLAMA_URL.'); process.exit(1); }); req.setTimeout(3000, ()=>req.destroy(new Error('timeout')));"
+	node -e "const base=(process.env.OLLAMA_URL||'http://localhost:11434'); const normalized=base.endsWith('/')?base.slice(0,-1):base; const url=normalized + '/api/tags'; const lib=url.startsWith('https://')?require('https'):require('http'); const req=lib.get(url,(res)=>{ const ok=!!res.statusCode && res.statusCode>=200 && res.statusCode<300; if(ok){ process.exit(0); } console.error('Ollama preflight failed: GET ' + url + ' returned ' + res.statusCode + '. Install Ollama using your platform package manager or installer (for example `winget install -e --id Ollama.Ollama` on Windows), then run ollama serve (or ollama run mistral), or set OLLAMA_URL.'); process.exit(1); }); req.on('error',()=>{ console.error('Ollama preflight failed: cannot reach ' + url + '. Install Ollama using your platform package manager or installer (for example `winget install -e --id Ollama.Ollama` on Windows), then run ollama serve (or ollama run mistral), or set OLLAMA_URL.'); process.exit(1); }); req.setTimeout(3000, ()=>req.destroy(new Error('timeout')));"
 
 lint:
 	cd app; pnpm run lint
@@ -22,7 +22,7 @@ test:
 
 # Fail if any required docs are missing (navigation pack + shared tooling guardrails + resilience)
 docs-check:
-	node -e "['.GOV/roles_shared/START_HERE.md', '.GOV/roles_shared/SPEC_CURRENT.md', '.GOV/roles_shared/ARCHITECTURE.md', '.GOV/roles_shared/RUNBOOK_DEBUG.md', '.GOV/roles_shared/PAST_WORK_INDEX.md', '.GOV/roles_shared/REPO_RESILIENCE.md', '.GOV/roles_shared/TOOLING_GUARDRAILS.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
+	node -e "['.GOV/roles_shared/START_HERE.md', '.GOV/roles_shared/SPEC_CURRENT.md', '.GOV/roles_shared/ARCHITECTURE.md', '.GOV/roles_shared/RUNBOOK_DEBUG.md', '.GOV/reference/PAST_WORK_INDEX.md', '.GOV/roles_shared/REPO_RESILIENCE.md', '.GOV/roles_shared/TOOLING_GUARDRAILS.md', '.GOV/roles/STRUCTURE_RULES.md', '.GOV/roles_shared/STRUCTURE_RULES.md', '.GOV/roles_shared/DEPRECATION_SUNSET_PLAN.md', '.GOV/reference/README.md', '.GOV/docs/GOVERNANCE_STRUCTURE_TARGET.md', '.GOV/docs/vscode-session-bridge/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
 
 # Format backend Rust
 fmt:
@@ -48,58 +48,84 @@ validate:
 
 # Codex guardrails: prevent direct fetch in components, println/eprintln in backend, and doc drift.
 codex-check:
-	node .GOV/scripts/validation/codex-check.mjs
+	node .GOV/roles_shared/checks/codex-check.mjs
 
 # Governance-only checks (drive-agnostic + lifecycle UX + task board integrity).
 gov-check:
 	just docs-check
-	node .GOV/scripts/validation/gov-check.mjs
+	node .GOV/roles_shared/checks/gov-check.mjs
+
+governance-structure-audit:
+	node .GOV/roles_shared/checks/governance-structure-check.mjs
+
+governance-structure-check:
+	node .GOV/roles_shared/checks/governance-structure-check.mjs --strict
+
+governance-map:
+	@Get-Content .GOV/README.md
+
+role-bundle role:
+	@Get-Content .GOV/roles/{{role}}/README.md
+
+validation-map:
+	@Get-Content .GOV/roles_shared/checks/README.md
+
+semantic-proof-check:
+	node .GOV/roles_shared/checks/semantic-proof-check.mjs
 
 topology-registry-sync:
-	node .GOV/scripts/topology-registry-sync.mjs
+	node .GOV/roles_shared/scripts/topology/topology-registry-sync.mjs
 
 topology-registry-check:
-	node .GOV/scripts/validation/topology-registry-check.mjs
+	node .GOV/roles_shared/checks/topology-registry-check.mjs
 
 # Safety backup push: push the current committed branch state to its matching GitHub backup branch.
 backup-push local_branch="" remote_branch="":
-	node .GOV/scripts/backup-push.mjs {{local_branch}} {{remote_branch}}
+	node .GOV/roles_shared/scripts/topology/backup-push.mjs {{local_branch}} {{remote_branch}}
 
 # Ensure the permanent GitHub backup branches exist, seeded from local main when missing.
 ensure-permanent-backup-branches:
-	node .GOV/scripts/ensure-permanent-backup-branches.mjs
+	node .GOV/roles_shared/scripts/topology/ensure-permanent-backup-branches.mjs
 
 # Immutable out-of-repo snapshot: git bundles + copied working files.
 backup-snapshot label="manual" out_root="" nas_root="":
-	node .GOV/scripts/backup-snapshot.mjs --label "{{label}}" --out-root "{{out_root}}" --nas-root "{{nas_root}}"
+	node .GOV/roles_shared/scripts/topology/backup-snapshot.mjs --label "{{label}}" --out-root "{{out_root}}" --nas-root "{{nas_root}}"
 
 # Read-only status for local/NAS backup roots and latest snapshot presence.
 backup-status:
-	node .GOV/scripts/backup-status.mjs
+	node .GOV/roles_shared/scripts/topology/backup-status.mjs
 
 # Immutable snapshot using the configured HANDSHAKE_NAS_BACKUP_ROOT.
 backup-snapshot-nas label="manual":
-	node .GOV/scripts/backup-snapshot.mjs --label "{{label}}" --require-nas
+	node .GOV/roles_shared/scripts/topology/backup-snapshot.mjs --label "{{label}}" --require-nas
 
 # Fast-forward the permanent local clones from their matching remotes when all are clean.
 sync-all-role-worktrees:
-	node .GOV/scripts/sync-all-role-worktrees.mjs
+	node .GOV/roles_shared/scripts/topology/sync-all-role-worktrees.mjs
 
 # Enumerate deletable local worktrees/branches and non-protected remote branches with exact approval examples.
 enumerate-cleanup-targets:
-	node .GOV/scripts/enumerate-cleanup-targets.mjs
+	node .GOV/roles_shared/scripts/topology/enumerate-cleanup-targets.mjs
 
 # Delete a non-protected git-managed local worktree safely: immutable snapshot first, then git worktree remove only.
 delete-local-worktree worktree_id approval:
-	node .GOV/scripts/delete-local-worktree.mjs {{worktree_id}} --approve "{{approval}}"
+	node .GOV/roles_shared/scripts/topology/delete-local-worktree.mjs {{worktree_id}} --approve "{{approval}}"
+
+# Delete a non-protected git-managed local worktree using an already-created immutable snapshot root.
+delete-local-worktree-precreated worktree_id approval snapshot_root:
+	node .GOV/roles_shared/scripts/topology/delete-local-worktree.mjs {{worktree_id}} --approve "{{approval}}" --precreated-snapshot-root "{{snapshot_root}}"
+
+# Delete a non-protected git-managed local worktree using an already-created immutable snapshot root and a safety stash for dirty state.
+delete-local-worktree-precreated-stash worktree_id approval snapshot_root:
+	node .GOV/roles_shared/scripts/topology/delete-local-worktree.mjs {{worktree_id}} --approve "{{approval}}" --precreated-snapshot-root "{{snapshot_root}}" --stash-dirty
 
 # Generate a single-target, token-gated cleanup script for a merged WP role worktree.
 generate-worktree-cleanup-script wp-id role:
-	node .GOV/scripts/generate-worktree-cleanup-script.mjs {{wp-id}} {{role}}
+	node .GOV/roles_shared/scripts/topology/generate-worktree-cleanup-script.mjs {{wp-id}} {{role}}
 
 # Master Spec EOF appendix blocks check (Spec §12).
 spec-eof-appendices-check:
-	node .GOV/scripts/validation/spec-eof-appendices-check.mjs
+	node .GOV/roles_shared/checks/spec-eof-appendices-check.mjs
 
 # Governance sync helper: refresh derived governance views then validate.
 gov-sync:
@@ -107,101 +133,110 @@ gov-sync:
 	just topology-registry-sync
 	just gov-check
 
+spec-debt-open wp-id clause notes blocking="NO":
+	node .GOV/roles_shared/scripts/debt/spec-debt-open.mjs {{wp-id}} "{{clause}}" "{{notes}}" {{blocking}}
+
+spec-debt-close debt-id:
+	node .GOV/roles_shared/scripts/debt/spec-debt-close.mjs {{debt-id}}
+
+spec-debt-sync wp-id:
+	node .GOV/roles_shared/scripts/debt/spec-debt-sync.mjs {{wp-id}}
+
 # Build order (derived view) maintenance [CX-BO-001]
 build-order-sync:
-	node .GOV/scripts/build-order-sync.mjs
+	node .GOV/roles_shared/scripts/build-order-sync.mjs
 
 build-order-check:
-	node .GOV/scripts/validation/build-order-check.mjs
+	node .GOV/roles_shared/checks/build-order-check.mjs
 
 # Worktrees (recommended when >1 WP active)
 # Creates a dedicated working directory for the WP branch.
 worktree-add wp-id base="main" branch="" dir="":
-	node .GOV/scripts/worktree-add.mjs {{wp-id}} {{base}} {{branch}} {{dir}}
+	node .GOV/roles_shared/scripts/topology/worktree-add.mjs {{wp-id}} {{base}} {{branch}} {{dir}}
 
 # Role-scoped WP worktrees for ORCHESTRATOR_MANAGED CLI sessions.
 coder-worktree-add wp-id branch="" dir="":
-	node .GOV/scripts/role-session-worktree-add.mjs CODER {{wp-id}} {{branch}} {{dir}}
+	node .GOV/roles/orchestrator/scripts/role-session-worktree-add.mjs CODER {{wp-id}} {{branch}} {{dir}}
 
 wp-validator-worktree-add wp-id branch="" dir="":
-	node .GOV/scripts/role-session-worktree-add.mjs WP_VALIDATOR {{wp-id}} {{branch}} {{dir}}
+	node .GOV/roles/orchestrator/scripts/role-session-worktree-add.mjs WP_VALIDATOR {{wp-id}} {{branch}} {{dir}}
 
 integration-validator-worktree-add wp-id branch="" dir="":
-	node .GOV/scripts/role-session-worktree-add.mjs INTEGRATION_VALIDATOR {{wp-id}} {{branch}} {{dir}}
+	node .GOV/roles/orchestrator/scripts/role-session-worktree-add.mjs INTEGRATION_VALIDATOR {{wp-id}} {{branch}} {{dir}}
 
 # Repo-governed session launch helpers.
 # AUTO = Orchestrator queues a VS Code plugin launch first; CLI fallback is unlocked only after 2 plugin failures/timeouts.
 launch-coder-session wp-id host="AUTO" model="PRIMARY":
-	node .GOV/scripts/launch-cli-session.mjs CODER {{wp-id}} {{host}} {{model}}
+	node .GOV/roles/orchestrator/scripts/launch-cli-session.mjs CODER {{wp-id}} {{host}} {{model}}
 
 launch-wp-validator-session wp-id host="AUTO" model="PRIMARY":
-	node .GOV/scripts/launch-cli-session.mjs WP_VALIDATOR {{wp-id}} {{host}} {{model}}
+	node .GOV/roles/orchestrator/scripts/launch-cli-session.mjs WP_VALIDATOR {{wp-id}} {{host}} {{model}}
 
 launch-integration-validator-session wp-id host="AUTO" model="PRIMARY":
-	node .GOV/scripts/launch-cli-session.mjs INTEGRATION_VALIDATOR {{wp-id}} {{host}} {{model}}
+	node .GOV/roles/orchestrator/scripts/launch-cli-session.mjs INTEGRATION_VALIDATOR {{wp-id}} {{host}} {{model}}
 
 session-registry-status wp-id="":
-	node .GOV/scripts/session-registry-status.mjs {{wp-id}}
+	node .GOV/roles/orchestrator/scripts/session-registry-status.mjs {{wp-id}}
 
 handshake-acp-bridge:
 	node .GOV/tools/handshake-acp-bridge/agent.mjs
 
 session-start role wp-id model="PRIMARY":
-	node .GOV/scripts/session-control-command.mjs START_SESSION {{role}} {{wp-id}} "" {{model}}
+	node .GOV/roles/orchestrator/scripts/session-control-command.mjs START_SESSION {{role}} {{wp-id}} "" {{model}}
 
 session-send role wp-id prompt model="PRIMARY":
-	node .GOV/scripts/session-control-command.mjs SEND_PROMPT {{role}} {{wp-id}} "{{prompt}}" {{model}}
+	node .GOV/roles/orchestrator/scripts/session-control-command.mjs SEND_PROMPT {{role}} {{wp-id}} "{{prompt}}" {{model}}
 
 session-cancel role wp-id:
-	node .GOV/scripts/session-control-cancel.mjs {{role}} {{wp-id}}
+	node .GOV/roles/orchestrator/scripts/session-control-cancel.mjs {{role}} {{wp-id}}
 
 session-close role wp-id:
-	node .GOV/scripts/session-control-command.mjs CLOSE_SESSION {{role}} {{wp-id}}
+	node .GOV/roles/orchestrator/scripts/session-control-command.mjs CLOSE_SESSION {{role}} {{wp-id}}
 
 handshake-acp-broker-status:
-	node .GOV/scripts/session-control-broker.mjs status
+	node .GOV/roles/orchestrator/scripts/session-control-broker.mjs status
 
 handshake-acp-broker-stop:
-	node .GOV/scripts/session-control-broker.mjs stop
+	node .GOV/roles/orchestrator/scripts/session-control-broker.mjs stop
 
 start-coder-session wp-id model="PRIMARY":
-	node .GOV/scripts/session-control-command.mjs START_SESSION CODER {{wp-id}} "" {{model}}
+	node .GOV/roles/orchestrator/scripts/session-control-command.mjs START_SESSION CODER {{wp-id}} "" {{model}}
 
 start-wp-validator-session wp-id model="PRIMARY":
-	node .GOV/scripts/session-control-command.mjs START_SESSION WP_VALIDATOR {{wp-id}} "" {{model}}
+	node .GOV/roles/orchestrator/scripts/session-control-command.mjs START_SESSION WP_VALIDATOR {{wp-id}} "" {{model}}
 
 start-integration-validator-session wp-id model="PRIMARY":
-	node .GOV/scripts/session-control-command.mjs START_SESSION INTEGRATION_VALIDATOR {{wp-id}} "" {{model}}
+	node .GOV/roles/orchestrator/scripts/session-control-command.mjs START_SESSION INTEGRATION_VALIDATOR {{wp-id}} "" {{model}}
 
 steer-coder-session wp-id prompt model="PRIMARY":
-	node .GOV/scripts/session-control-command.mjs SEND_PROMPT CODER {{wp-id}} "{{prompt}}" {{model}}
+	node .GOV/roles/orchestrator/scripts/session-control-command.mjs SEND_PROMPT CODER {{wp-id}} "{{prompt}}" {{model}}
 
 cancel-coder-session wp-id:
-	node .GOV/scripts/session-control-cancel.mjs CODER {{wp-id}}
+	node .GOV/roles/orchestrator/scripts/session-control-cancel.mjs CODER {{wp-id}}
 
 close-coder-session wp-id:
-	node .GOV/scripts/session-control-command.mjs CLOSE_SESSION CODER {{wp-id}}
+	node .GOV/roles/orchestrator/scripts/session-control-command.mjs CLOSE_SESSION CODER {{wp-id}}
 
 steer-wp-validator-session wp-id prompt model="PRIMARY":
-	node .GOV/scripts/session-control-command.mjs SEND_PROMPT WP_VALIDATOR {{wp-id}} "{{prompt}}" {{model}}
+	node .GOV/roles/orchestrator/scripts/session-control-command.mjs SEND_PROMPT WP_VALIDATOR {{wp-id}} "{{prompt}}" {{model}}
 
 cancel-wp-validator-session wp-id:
-	node .GOV/scripts/session-control-cancel.mjs WP_VALIDATOR {{wp-id}}
+	node .GOV/roles/orchestrator/scripts/session-control-cancel.mjs WP_VALIDATOR {{wp-id}}
 
 close-wp-validator-session wp-id:
-	node .GOV/scripts/session-control-command.mjs CLOSE_SESSION WP_VALIDATOR {{wp-id}}
+	node .GOV/roles/orchestrator/scripts/session-control-command.mjs CLOSE_SESSION WP_VALIDATOR {{wp-id}}
 
 steer-integration-validator-session wp-id prompt model="PRIMARY":
-	node .GOV/scripts/session-control-command.mjs SEND_PROMPT INTEGRATION_VALIDATOR {{wp-id}} "{{prompt}}" {{model}}
+	node .GOV/roles/orchestrator/scripts/session-control-command.mjs SEND_PROMPT INTEGRATION_VALIDATOR {{wp-id}} "{{prompt}}" {{model}}
 
 cancel-integration-validator-session wp-id:
-	node .GOV/scripts/session-control-cancel.mjs INTEGRATION_VALIDATOR {{wp-id}}
+	node .GOV/roles/orchestrator/scripts/session-control-cancel.mjs INTEGRATION_VALIDATOR {{wp-id}}
 
 close-integration-validator-session wp-id:
-	node .GOV/scripts/session-control-command.mjs CLOSE_SESSION INTEGRATION_VALIDATOR {{wp-id}}
+	node .GOV/roles/orchestrator/scripts/session-control-command.mjs CLOSE_SESSION INTEGRATION_VALIDATOR {{wp-id}}
 
 session-launch-runtime-check:
-	node .GOV/scripts/validation/session-launch-runtime-check.mjs
+	node .GOV/roles_shared/checks/session-launch-runtime-check.mjs
 
 # Hard gate helper: Worktree + Branch Gate [CX-WT-001]
 hard-gate-wt-001:
@@ -234,16 +269,16 @@ hard-gate-wt-001:
 
 # Protocol ack helper: print first non-empty line from each required doc.
 protocol-ack codex agents shared protocol:
-	@node .GOV/scripts/protocol-ack.mjs "{{codex}}" "{{agents}}" "{{shared}}" "{{protocol}}"
+	@node .GOV/roles_shared/scripts/protocol-ack.mjs "{{codex}}" "{{agents}}" "{{shared}}" "{{protocol}}"
 
 task-board-check:
-	node .GOV/scripts/validation/task-board-check.mjs
+	node .GOV/roles_shared/checks/task-board-check.mjs
 
 task-packet-claim-check:
-	node .GOV/scripts/validation/task-packet-claim-check.mjs
+	node .GOV/roles_shared/checks/task-packet-claim-check.mjs
 
 phase1-add-coverage-check:
-	node .GOV/scripts/validation/phase1-add-coverage-check.mjs
+	node .GOV/roles_shared/checks/phase1-add-coverage-check.mjs
 
 # Dependency cruise (frontend architecture)
 depcruise:
@@ -255,20 +290,20 @@ deny:
 
 # Scaffolding
 new-react-component name:
-	node .GOV/scripts/new-react-component.mjs {{name}}
+	node .GOV/roles_shared/scripts/dev/new-react-component.mjs {{name}}
 
 new-api-endpoint name:
-	node .GOV/scripts/new-api-endpoint.mjs {{name}}
+	node .GOV/roles_shared/scripts/dev/new-api-endpoint.mjs {{name}}
 
 scaffold-check:
-	node .GOV/scripts/scaffold-check.mjs
+	node .GOV/roles_shared/scripts/dev/scaffold-check.mjs
 
 codex-check-test:
-	node .GOV/scripts/codex-check-test.mjs
+	node .GOV/roles_shared/scripts/dev/codex-check-test.mjs
 
 # Close a WP branch after it has been merged into main.
 close-wp-branch wp-id remote="" approval="":
-	node .GOV/scripts/close-wp-branch.mjs {{wp-id}} {{remote}} --approve "{{approval}}"
+	node .GOV/roles_shared/scripts/topology/close-wp-branch.mjs {{wp-id}} {{remote}} --approve "{{approval}}"
 
 # === Workflow Enforcement Commands (see .GOV/roles_shared/SPEC_CURRENT.md) ===
 
@@ -311,7 +346,7 @@ coder-startup:
 
 # Record a technical refinement for a work packet [CX-585A]
 record-refinement wp-id detail="":
-	@node .GOV/scripts/validation/orchestrator_gates.mjs refine {{wp-id}} "{{detail}}"
+	@node .GOV/roles/orchestrator/checks/orchestrator_gates.mjs refine {{wp-id}} "{{detail}}"
 
 # Record a user signature bundle for a work packet [CX-585C]
 # Current workflow requires: workflow lane + execution owner.
@@ -319,32 +354,32 @@ record-refinement wp-id detail="":
 # Allowed workflow lanes: MANUAL_RELAY | ORCHESTRATOR_MANAGED
 # Allowed execution owners for current runs: Coder-A .. Coder-Z
 record-signature wp-id signature workflow_lane="" execution_lane="":
-	@node .GOV/scripts/validation/orchestrator_gates.mjs sign {{wp-id}} {{signature}} {{workflow_lane}} {{execution_lane}}
+	@node .GOV/roles/orchestrator/checks/orchestrator_gates.mjs sign {{wp-id}} {{signature}} {{workflow_lane}} {{execution_lane}}
 
 # Record WP preparation (branch/worktree + execution owner) after signature and before packet creation.
 # If omitted, workflow lane / execution owner are inferred from the signed bundle.
 record-prepare wp-id workflow_lane="" execution_lane="" branch="" worktree_dir="":
-	@node .GOV/scripts/validation/orchestrator_gates.mjs prepare {{wp-id}} {{workflow_lane}} {{execution_lane}} {{branch}} {{worktree_dir}}
+	@node .GOV/roles/orchestrator/checks/orchestrator_gates.mjs prepare {{wp-id}} {{workflow_lane}} {{execution_lane}} {{branch}} {{worktree_dir}}
 
 # Orchestrator helper (read-only): infer next steps for a WP from gates + file state.
 orchestrator-next wp-id="":
-	@node .GOV/scripts/orchestrator-next.mjs {{wp-id}}
+	@node .GOV/roles/orchestrator/scripts/orchestrator-next.mjs {{wp-id}}
 
 # Coder helper (read-only): infer next steps for the current WP after reset/compaction.
 coder-next wp-id="":
-	@node .GOV/scripts/coder-next.mjs {{wp-id}}
+	@node .GOV/roles/coder/scripts/coder-next.mjs {{wp-id}}
 
 # Validator helper (read-only): infer next steps for the current WP after reset/compaction.
 validator-next wp-id="":
-	@node .GOV/scripts/validator-next.mjs {{wp-id}}
+	@node .GOV/roles/validator/scripts/validator-next.mjs {{wp-id}}
 
 # Deterministic Task Board updater: move a WP entry between sections.
 task-board-set wp-id status reason="":
-	@node .GOV/scripts/task-board-set.mjs {{wp-id}} {{status}} "{{reason}}"
+	@node .GOV/roles/orchestrator/scripts/task-board-set.mjs {{wp-id}} {{status}} "{{reason}}"
 
 # Deterministic traceability mapping updater: set Base WP -> Active Packet.
 wp-traceability-set base_wp_id active_wp_id:
-	@node .GOV/scripts/wp-traceability-set.mjs {{base_wp_id}} {{active_wp_id}}
+	@node .GOV/roles/orchestrator/scripts/wp-traceability-set.mjs {{base_wp_id}} {{active_wp_id}}
 
 # Orchestrator wrapper: create WP worktree + PREPARE record + task packet from the signature bundle.
 # Optional workflow lane / execution owner args are accepted for legacy recovery only.
@@ -362,56 +397,56 @@ orchestrator-worktree-and-packet wp-id:
 # Create new task packet from template [CX-580]
 create-task-packet wp-id:
 	@echo "Creating task packet: {{wp-id}}..."
-	@node .GOV/scripts/create-task-packet.mjs {{wp-id}}
+	@node .GOV/roles/orchestrator/scripts/create-task-packet.mjs {{wp-id}}
 	@just build-order-sync
 
 ensure-wp-communications wp-id:
-	@node .GOV/scripts/ensure-wp-communications.mjs {{wp-id}}
+	@node .GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs {{wp-id}}
 
 wp-communications-check:
-	@node .GOV/scripts/validation/wp-communications-check.mjs
+	@node .GOV/roles_shared/checks/wp-communications-check.mjs
 
 wp-thread-append wp-id actor-role actor-session message target='':
-	@node .GOV/scripts/wp-thread-append.mjs {{wp-id}} {{actor-role}} {{actor-session}} "{{message}}" "{{target}}"
+	@node .GOV/roles_shared/scripts/wp/wp-thread-append.mjs {{wp-id}} {{actor-role}} {{actor-session}} "{{message}}" "{{target}}"
 
 wp-receipt-append wp-id actor-role actor-session receipt-kind summary state-before='' state-after='':
-	@node .GOV/scripts/wp-receipt-append.mjs {{wp-id}} {{actor-role}} {{actor-session}} {{receipt-kind}} "{{summary}}" "{{state-before}}" "{{state-after}}"
+	@node .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs {{wp-id}} {{actor-role}} {{actor-session}} {{receipt-kind}} "{{summary}}" "{{state-before}}" "{{state-after}}"
 
 wp-heartbeat wp-id actor-role actor-session current-phase runtime-status next-expected-actor waiting-on validator-trigger='NONE' last-event='' worktree-dir='':
-	@node .GOV/scripts/wp-heartbeat.mjs {{wp-id}} {{actor-role}} {{actor-session}} {{current-phase}} {{runtime-status}} {{next-expected-actor}} "{{waiting-on}}" {{validator-trigger}} "{{last-event}}" "{{worktree-dir}}"
+	@node .GOV/roles_shared/scripts/wp/wp-heartbeat.mjs {{wp-id}} {{actor-role}} {{actor-session}} {{current-phase}} {{runtime-status}} {{next-expected-actor}} "{{waiting-on}}" {{validator-trigger}} "{{last-event}}" "{{worktree-dir}}"
 
 operator-monitor *args:
-	@node .GOV/scripts/operator-monitor-tui.mjs {{args}}
+	@node .GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs {{args}}
 
 operator-admin *args:
-	@node .GOV/scripts/operator-monitor-tui.mjs --admin {{args}}
+	@node .GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs --admin {{args}}
 
 # Create new task packet stub from template (backlog; non-executable)
 create-task-packet-stub wp-id roadmap_pointer="" line_numbers="":
 	@echo "Creating task packet stub: {{wp-id}}..."
-	@node .GOV/scripts/create-task-packet-stub.mjs {{wp-id}} "{{roadmap_pointer}}" "{{line_numbers}}"
+	@node .GOV/roles/orchestrator/scripts/create-task-packet-stub.mjs {{wp-id}} "{{roadmap_pointer}}" "{{line_numbers}}"
 	@just build-order-sync
 
 # Pre-work validation - run before starting implementation [CX-587, CX-620]
 pre-work wp-id:
-	@node .GOV/scripts/validation/pre-work.mjs {{wp-id}}
+	@node .GOV/roles/coder/checks/pre-work.mjs {{wp-id}}
 
 # Post-work validation - run before or after commit [CX-623, CX-651]
 post-work wp-id *args:
-	@node .GOV/scripts/validation/post-work.mjs {{wp-id}} {{args}}
+	@node .GOV/roles/coder/checks/post-work.mjs {{wp-id}} {{args}}
 
 # Coder helper: docs-only skeleton checkpoint commit (task packet only).
 coder-skeleton-checkpoint wp-id:
-	@node .GOV/scripts/validation/coder-skeleton-checkpoint.mjs {{wp-id}}
+	@node .GOV/roles/coder/checks/coder-skeleton-checkpoint.mjs {{wp-id}}
 
 # Workflow-authority helper: approve a WP skeleton checkpoint (unblocks implementation).
 # In ORCHESTRATOR_MANAGED this may be Orchestrator, Validator, or Operator.
 skeleton-approved wp-id:
-	@node .GOV/scripts/validation/skeleton-approved.mjs {{wp-id}}
+	@node .GOV/roles_shared/checks/skeleton-approved.mjs {{wp-id}}
 
 # Helper: compute deterministic COR-701 Pre/Post SHA1 for a file.
 cor701-sha file:
-	@node .GOV/scripts/validation/cor701-sha.mjs {{file}}
+	@node .GOV/roles_shared/checks/cor701-sha.mjs {{file}}
 
 # Automated workflow validation for a work packet
 validate-workflow wp-id:
@@ -430,75 +465,78 @@ validate-workflow wp-id:
 
 # Gate check (protocol-aligned)
 gate-check wp-id:
-	@node .GOV/scripts/validation/gate-check.mjs {{wp-id}}
+	@node .GOV/roles_shared/checks/gate-check.mjs {{wp-id}}
 
 # Role Mailbox export gate (RoleMailboxExportGate) [2.6.8.10]
 role-mailbox-export-check:
-	@node .GOV/scripts/validation/role_mailbox_export_check.mjs
+	@node .GOV/roles_shared/checks/role_mailbox_export_check.mjs
 
 # Product Governance Snapshot (Spec v02.125 7.5.4.10)
 governance-snapshot:
-	@node .GOV/scripts/governance-snapshot.mjs
+	@node .GOV/roles_shared/scripts/governance-snapshot.mjs
 
 validator-governance-snapshot:
-	@node .GOV/scripts/validation/validator-governance-snapshot.mjs
+	@node .GOV/roles/validator/checks/validator-governance-snapshot.mjs
 
 # Validator helpers (protocol-aligned)
 validator-scan:
-	@node .GOV/scripts/validation/validator-scan.mjs
+	@node .GOV/roles/validator/checks/validator-scan.mjs
 
 # Alias to clarify intent: validator-scan scans product sources.
 product-scan:
 	@just validator-scan
 
 validator-dal-audit:
-	@node .GOV/scripts/validation/validator-dal-audit.mjs
+	@node .GOV/roles/validator/checks/validator-dal-audit.mjs
 
 validator-spec-regression:
-	@node .GOV/scripts/validation/validator-spec-regression.mjs
+	@node .GOV/roles/validator/checks/validator-spec-regression.mjs
 
 validator-phase-gate phase="Phase-1":
-	@node .GOV/scripts/validation/validator-phase-gate.mjs {{phase}}
+	@node .GOV/roles/validator/checks/validator-phase-gate.mjs {{phase}}
 
 validator-packet-complete wp-id:
-	@node .GOV/scripts/validation/validator-packet-complete.mjs {{wp-id}}
+	@node .GOV/roles/validator/checks/validator-packet-complete.mjs {{wp-id}}
+
+validator-report-structure-check:
+	@node .GOV/roles/validator/checks/validator-report-structure-check.mjs
 
 validator-error-codes:
-	@node .GOV/scripts/validation/validator-error-codes.mjs
+	@node .GOV/roles/validator/checks/validator-error-codes.mjs
 
 validator-coverage-gaps *targets:
-	@node .GOV/scripts/validation/validator-coverage-gaps.mjs {{targets}}
+	@node .GOV/roles/validator/checks/validator-coverage-gaps.mjs {{targets}}
 
 validator-traceability *targets:
-	@node .GOV/scripts/validation/validator-traceability.mjs {{targets}}
+	@node .GOV/roles/validator/checks/validator-traceability.mjs {{targets}}
 
 validator-git-hygiene:
-	@node .GOV/scripts/validation/validator-git-hygiene.mjs
+	@node .GOV/roles/validator/checks/validator-git-hygiene.mjs
 
 validator-hygiene-full:
-	@node .GOV/scripts/validation/validator-hygiene-full.mjs
+	@node .GOV/roles/validator/checks/validator-hygiene-full.mjs
 
 validator-handoff-check wp-id *args:
-	@node .GOV/scripts/validation/validator-handoff-check.mjs {{wp-id}} {{args}}
+	@node .GOV/roles/validator/checks/validator-handoff-check.mjs {{wp-id}} {{args}}
 
 external-validator-brief wp-id *args:
-	@node .GOV/scripts/validation/external-validator-brief.mjs {{wp-id}} {{args}}
+	@node .GOV/roles/validator/checks/external-validator-brief.mjs {{wp-id}} {{args}}
 
 # Validator Gate Commands [CX-VAL-GATE] - Mechanical enforcement of validation sequence
 validator-gate-present wp-id verdict="":
-	@node .GOV/scripts/validation/validator_gates.mjs present-report {{wp-id}} {{verdict}}
+	@node .GOV/roles/validator/checks/validator_gates.mjs present-report {{wp-id}} {{verdict}}
 
 validator-gate-acknowledge wp-id:
-	@node .GOV/scripts/validation/validator_gates.mjs acknowledge {{wp-id}}
+	@node .GOV/roles/validator/checks/validator_gates.mjs acknowledge {{wp-id}}
 
 validator-gate-append wp-id verdict="":
-	@node .GOV/scripts/validation/validator_gates.mjs append {{wp-id}} {{verdict}}
+	@node .GOV/roles/validator/checks/validator_gates.mjs append {{wp-id}} {{verdict}}
 
 validator-gate-commit wp-id:
-	@node .GOV/scripts/validation/validator_gates.mjs commit {{wp-id}}
+	@node .GOV/roles/validator/checks/validator_gates.mjs commit {{wp-id}}
 
 validator-gate-status wp-id:
-	@node .GOV/scripts/validation/validator_gates.mjs status {{wp-id}}
+	@node .GOV/roles/validator/checks/validator_gates.mjs status {{wp-id}}
 
 validator-gate-reset wp-id *confirm:
-	@node .GOV/scripts/validation/validator_gates.mjs reset {{wp-id}} {{confirm}}
+	@node .GOV/roles/validator/checks/validator_gates.mjs reset {{wp-id}} {{confirm}}

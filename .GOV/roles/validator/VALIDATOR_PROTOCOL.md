@@ -81,7 +81,7 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/BOUN
 
 Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Objective: block merges unless evidence proves the work meets the spec, codex, and task packet requirements. Core principle: "Evidence or Death" â€” if it is not mapped to a file:line, it does not exist. No rubber-stamping.
 
-Governance/workflow/tooling note: changes limited to `.GOV/`, `.GOV/scripts/`, `justfile`, and `.github/` are considered governance surface and may be maintained without creating a Work Packet, as long as no Handshake product code (`src/`, `app/`, `tests/`) is modified.
+Governance/workflow/tooling note: changes limited to `.GOV/`, `.github/`, `justfile`, `AGENTS.md`, and `Handshake Codex v1.4.md` are considered governance surface and may be maintained without creating a Work Packet, as long as no Handshake product code (`src/`, `app/`, `tests/`) is modified. In practice, role-owned implementation lives under `.GOV/roles/**`, repo-shared implementation lives under `.GOV/roles_shared/**`, and root `.GOV/scripts/` is retired as a live implementation surface.
 
 Minimum verification for governance-only changes: `just gov-check`.
 
@@ -194,7 +194,7 @@ This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
 - `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
 - `.GOV/task_packets/WP-*.md`
-- `.GOV/validator_gates/{WP_ID}.json` (when present)
+- `.GOV/roles_shared/validator_gates/{WP_ID}.json` (when present)
 
 Resume rule (hard, anti-babysit):
 - After `just validator-startup` on a reset/compaction, do NOT stop merely because startup/preflight re-ran.
@@ -234,8 +234,8 @@ Resume rule (hard, anti-babysit):
   - `just session-registry-status [WP-{ID}]`
   - `just operator-monitor` (operator viewport for ACP-aware session/control/thread/receipt/artifact visibility)
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Validator session):
-  - `just wp-validator-worktree-add WP-{ID}` / `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-  - `just integration-validator-worktree-add WP-{ID}` / `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|WINDOWS_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `just wp-validator-worktree-add WP-{ID}` / `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `just integration-validator-worktree-add WP-{ID}` / `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
   - `just start-integration-validator-session WP-{ID} [PRIMARY|FALLBACK]`
   - `just steer-wp-validator-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
@@ -265,12 +265,12 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 
 ### Bootstrap Status Sync (Coder starts WP)
 1. Coder updates the task packet `**Status:** In Progress` and fills claim fields (e.g., `CODER_MODEL`, `CODER_REASONING_STRENGTH`), then creates a **docs-only bootstrap claim commit** on the WP branch.
-   - Fast path (allowed): the bootstrap commit MAY include the initial `## SKELETON` proposal (BOOTSTRAP + SKELETON in one docs-only commit) [CX-GATE-001]. This does NOT authorize implementation.
+   - Hard rule: the bootstrap claim commit MUST NOT include `## SKELETON` content, product code changes, or any later-phase material. BOOTSTRAP and SKELETON remain separate turns/commits [CX-GATE-001].
 2. Coder sends the Validator: `WP_ID`, bootstrap commit SHA, `branch`, `worktree_dir`, and current HEAD short SHA (and Coder ID if more than one Coder is active).
 3. Validator verifies the bootstrap commit is **docs-only**:
    - Allowed: `.GOV/task_packets/{WP_ID}.md` (and other governance docs only if explicitly requested).
    - Forbidden: any changes under `src/`, `app/`, or `tests/` (treat as FAIL; do not merge).
-   - Note: `.GOV/scripts/` changes are governance/workflow/tooling and are allowed in general, but MUST NOT be included in a WP bootstrap status sync commit (keep bootstrap commits docs-only).
+   - Note: governance/tooling changes under `.GOV/roles/**` or `.GOV/roles_shared/**` are allowed in general, but MUST NOT be included in a WP bootstrap status sync commit (keep bootstrap commits docs-only).
 4. Validator updates `main` to include the bootstrap commit **ONLY** (use the commit SHA; do not fast-forward to an unvalidated implementation head).
 5. Validator updates `.GOV/roles_shared/TASK_BOARD.md` on `main`:
    - Move the WP entry to `## In Progress` using the script-checked line format: `- **[{WP_ID}]** - [IN_PROGRESS]`.
@@ -318,6 +318,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 0) BOOTSTRAP Verification
 - Confirm Coder outputted BOOTSTRAP block per CODER_PROTOCOL [CX-577, CX-622]; if missing/incomplete, halt and request completion before proceeding.
 - Verify BOOTSTRAP fields match task packet (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP).
+- Confirm the WP branch contains `docs: bootstrap claim [WP-{ID}]` before accepting any skeleton or implementation progression.
 - Enforce [CX-GATE-001]: if the Coder included SKELETON content in the BOOTSTRAP turn, treat it as invalid phase merging; require a new, separate SKELETON turn/commit after explicit Operator authorization.
 
 1) Spec Extraction
@@ -329,6 +330,13 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - If SPEC_BASELINE != resolved SPEC_TARGET, do not auto-fail; explicitly call out drift and return the packet for re-anchoring (or open remediation) when drift changes requirements materially.
 - If a WP is correct for its SPEC_BASELINE but SPEC_TARGET has evolved, record a distinct disposition: **OUTDATED_ONLY** (historically done; no protocol/code regression proven). Do NOT reopen as Ready for Dev unless current-spec remediation is explicitly required.
 - Spec changes are governed via Spec Enrichment (new spec version file + `.GOV/roles_shared/SPEC_CURRENT.md` update) under a one-time user signature recorded in `.GOV/roles_shared/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
+
+## Diff-Scoped Spec Review Checklist (MANDATORY for PACKET_FORMAT_VERSION >= 2026-03-15)
+- Enumerate the exact in-scope MUST/SHOULD clauses the WP claims to close. Do not treat the whole spec as implicitly reviewed.
+- For each clause, record one explicit bullet under `CLAUSES_REVIEWED` with the clause identifier/text fragment plus file:line evidence.
+- If any clause is only partially proven, blocked by environment, or inferred indirectly, do not hide that in prose; record it under `NOT_PROVEN` and downgrade `SPEC_ALIGNMENT_VERDICT` accordingly.
+- `SPEC_ALIGNMENT_VERDICT=PASS` is legal only when every diff-scoped clause claimed by DONE_MEANS + SPEC_ANCHOR is listed under `CLAUSES_REVIEWED` and `NOT_PROVEN` is exactly `- NONE`.
+- Automation gates (`pre-work`, `validator-handoff-check`, `post-work`, `gov-check`) prove workflow legality and hygiene. They do not, by themselves, prove spec completeness.
 
 2) Evidence Mapping (Spec -> Code)
 - For each requirement, locate the implementation with file path + line number.
@@ -440,6 +448,15 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - PASS: Every requirement mapped to evidence, hygiene clean, tests verified (or explicitly waived by user), DAL audit clean when applicable, phase-gate satisfied when progressing.
 - FAIL: List missing evidence, failed audits, tests not run, or unmet phase-gate. No partial passes.
 
+## Validator Completion Checklist (MANDATORY for PACKET_FORMAT_VERSION >= 2026-03-15)
+- [ ] I listed the exact spec clauses reviewed, not just the feature name.
+- [ ] I recorded file:line evidence for each clause under `CLAUSES_REVIEWED`.
+- [ ] I separated automation proof from manual code/spec review in the report.
+- [ ] I recorded any blocked or unproven claims under `NOT_PROVEN` instead of implying completion.
+- [ ] I set split verdicts (`GOVERNANCE_VERDICT`, `TEST_VERDICT`, `CODE_REVIEW_VERDICT`, `SPEC_ALIGNMENT_VERDICT`, `ENVIRONMENT_VERDICT`) deliberately rather than collapsing them into one PASS.
+- [ ] If I used `SPEC_ALIGNMENT_VERDICT=PASS`, `NOT_PROVEN` is exactly `- NONE`.
+- [ ] I avoided stronger wording in chat/packet/audit than the split verdicts actually support.
+
 ## Operator UX: Explicit Verdict Line (HARD)
 - When discussing a WP where the verdict is known, every Validator chat message MUST include an explicit single-line status near the top:
   - `VERDICT: PASS` or `VERDICT: FAIL`
@@ -476,7 +493,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
       - `.GOV/roles_shared/SESSION_CONTROL_BROKER_STATE.json`
       - `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
       - `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
-      - `.GOV/validator_gates/WP-{ID}.json`
+      - `.GOV/roles_shared/validator_gates/WP-{ID}.json`
     - Before treating `wt-orchestrator` dirt as a governance defect, inspect ACP state with:
       - `just handshake-acp-broker-status`
       - `just session-registry-status WP-{ID}`
@@ -499,10 +516,26 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - If the WP remains correct for its baseline but SPEC_TARGET evolved materially, keep the legal verdict in `PASS | FAIL | PENDING` and set `DISPOSITION: OUTDATED_ONLY`.
 - `OUTDATED_ONLY` is a disposition, not a legal top-line verdict.
 
+## Governed Split Verdict Contract (MANDATORY for PACKET_FORMAT_VERSION >= 2026-03-15)
+- Governed validation reports appended under `## VALIDATION_REPORTS` MUST include these top fields:
+  - `VALIDATION_CONTEXT: OK | CONTEXT_MISMATCH`
+  - `GOVERNANCE_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
+  - `TEST_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
+  - `CODE_REVIEW_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
+  - `SPEC_ALIGNMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
+  - `ENVIRONMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
+  - `DISPOSITION: NONE | OUTDATED_ONLY`
+  - `LEGAL_VERDICT: PASS | FAIL | PENDING`
+  - `SPEC_CONFIDENCE: NONE | PARTIAL_DIFF_SCOPED | REVIEWED_DIFF_SCOPED | POST_MERGE_RECHECKED`
+- `LEGAL_VERDICT` remains the only legal top-line verdict field.
+- `SPEC_ALIGNMENT_VERDICT` is not implied by passing tests or governance gates.
+- If environment/tooling blocked full proof, reflect that explicitly with `ENVIRONMENT_VERDICT` and downgrade `SPEC_ALIGNMENT_VERDICT` rather than narrating a generic PASS.
+- For governed PASS closure on this packet format, append `CLAUSES_REVIEWED` and `NOT_PROVEN` in the packet report itself; a standalone chat summary is insufficient.
+
 ## Validation Gate Sequence [CX-VAL-GATE] (ONE REVIEW PAUSE; APPEND-FIRST)
 
 The validation process MUST halt only at Gate 3 (final report presentation). All other gates are state recording/unlocks and must still be run in order.
-State is tracked per WP in `.GOV/validator_gates/{WP_ID}.json`. Gates enforce minimum time intervals to prevent automation momentum.
+State is tracked per WP in `.GOV/roles_shared/validator_gates/{WP_ID}.json`. Gates enforce minimum time intervals to prevent automation momentum.
 (Legacy: `.GOV/roles/validator/VALIDATOR_GATES.json` is treated as a read-only archive for older sessions; new validations should not write to it.)
 
 ### Gate 1: WP APPEND (Records verdict; non-blocking)
@@ -598,12 +631,20 @@ FLOW DIAGRAM:
 ## Report Template
 ```
 VALIDATION REPORT â€” {WP_ID}
-Verdict: PASS | FAIL
+Verdict: PASS | FAIL | OUTDATED_ONLY
 
 Validation Claims (do not collapse into a single PASS):
 - GATES_PASS (deterministic manifest gate on the committed handoff state, typically via `just validator-handoff-check {WP_ID}`; not tests): PASS | FAIL
 - TEST_PLAN_PASS (packet TEST_PLAN commands, verbatim): PASS | FAIL | NOT_RUN
-- SPEC_CONFORMANCE_CONFIRMED (DONE_MEANS + SPEC_ANCHOR -> evidence mapping): YES | NO
+- VALIDATION_CONTEXT: OK | CONTEXT_MISMATCH
+- GOVERNANCE_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN
+- TEST_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN
+- CODE_REVIEW_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN
+- SPEC_ALIGNMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN
+- ENVIRONMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN
+- DISPOSITION: NONE | OUTDATED_ONLY
+- LEGAL_VERDICT: PASS | FAIL | PENDING
+- SPEC_CONFIDENCE: NONE | PARTIAL_DIFF_SCOPED | REVIEWED_DIFF_SCOPED | POST_MERGE_RECHECKED
 
 Scope Inputs:
 - Task Packet: .GOV/task_packets/{WP_ID}.md (status: {status})
@@ -611,6 +652,14 @@ Scope Inputs:
 
 Files Checked:
 - {list of every file inspected during validation}
+
+CLAUSES_REVIEWED:
+- {SPEC clause identifier/text fragment} -> {path:line evidence}
+- When `CLAUSE_CLOSURE_MONITOR_PROFILE=CLAUSE_MONITOR_V1`, use the exact clause text from `CLAUSE_CLOSURE_MATRIX` so the packet monitor and the report reconcile mechanically.
+
+NOT_PROVEN:
+- NONE
+- {or list each unresolved clause/gap explicitly}
 
 Findings:
 - Requirement X: satisfied at {path:line}; evidence snippet...
@@ -630,6 +679,19 @@ Risks & Suggested Actions:
 
 Improvements & Future Proofing:
 - {suggested improvements to the code or protocol observed during this audit}
+
+Split-Verdict Rules:
+- Use `SPEC_ALIGNMENT_VERDICT=PASS` only when every diff-scoped MUST/SHOULD clause claimed by DONE_MEANS + SPEC_ANCHOR is listed under `CLAUSES_REVIEWED` and `NOT_PROVEN` is exactly `NONE`.
+- For `PACKET_FORMAT_VERSION >= 2026-03-15`, also reconcile the packet's live monitoring sections before PASS:
+  - every `CLAUSE_CLOSURE_MATRIX` row must end `VALIDATOR_STATUS=CONFIRMED` (or `NOT_APPLICABLE`)
+  - no row may remain `PENDING`
+  - `SPEC_DEBT_STATUS` must be `OPEN_SPEC_DEBT=NO`, `BLOCKING_SPEC_DEBT=NO`, `DEBT_IDS=NONE`
+- For `PACKET_FORMAT_VERSION >= 2026-03-16`, also inspect `SEMANTIC_PROOF_ASSETS` before PASS:
+  - semantic tripwire tests must still target the landed contract
+  - canonical contract examples must still match the emitted/consumed shape
+  - each clause row must point to TESTS, EXAMPLES, or governed debt
+- If tests pass but spec proof is incomplete, keep `TEST_VERDICT=PASS` and downgrade `SPEC_ALIGNMENT_VERDICT`.
+- If the environment blocked full proof, record that in `ENVIRONMENT_VERDICT` instead of narrating an unconditional PASS.
  
 Task Packet Update (APPEND-ONLY):
 - [CX-WP-001] MANDATORY APPEND: Every validation verdict (PASS/FAIL) MUST be APPENDED to the end of the `.GOV/task_packets/{WP_ID}.md` file. OVERWRITING IS FORBIDDEN.

@@ -9,6 +9,7 @@ Authority: Master Spec (see `.GOV/roles_shared/SPEC_CURRENT.md`)
 - **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `.GOV/roles_shared/TASK_BOARD.md` + task packets. Handshake logger is for milestones/hard bugs when requested.
 - **Shared tooling guardrails:** `.GOV/roles_shared/TOOLING_GUARDRAILS.md` (shared tooling memory: short append-only `Do` / `Don't` / `Why` / `Context` notes for all roles).
 - **Architecture & debug:** `.GOV/roles_shared/ARCHITECTURE.md` and `.GOV/roles_shared/RUNBOOK_DEBUG.md`.
+- **Session/runtime law:** `.GOV/roles_shared/ROLE_SESSION_ORCHESTRATION.md` plus packet-declared `.GOV/roles_shared/WP_COMMUNICATIONS/**`.
 
 ## AI Agent Workflow (Mandatory for AI-Autonomous Operation)
 
@@ -21,6 +22,7 @@ Authority: Master Spec (see `.GOV/roles_shared/SPEC_CURRENT.md`)
 **Mandatory protocols:**
 - **Orchestrators:** Read `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` before delegating
 - **Coders:** Read `.GOV/roles/coder/CODER_PROTOCOL.md` before writing any code
+- **Validators:** Read `.GOV/roles/validator/VALIDATOR_PROTOCOL.md` before reviewing, validating, or merging
 
 **Workflow enforcement commands:**
 ```bash
@@ -65,14 +67,18 @@ Quick reference:
 - `src/backend/handshake_core/` â€” Rust backend crate (API, data, logging).
 - `src/shared/` â€” placeholder for cross-stack types/contracts (none defined yet).
 - `tests/` â€” top-level test harness placeholder.
-- `.GOV/scripts/` â€” ops/dev scripts (currently empty scaffold).
+- `.GOV/roles_shared/scripts/` â€” shared session, topology, WP, proof, debt, and dev-helper scripts.
+- `.GOV/roles_shared/checks/` â€” shared governance and repo checks.
+- `.GOV/roles/<role>/{scripts,checks}/` â€” role-owned execution helpers and role-specific checks.
+- `.GOV/roles_shared/scripts/hooks/` â€” git hook plumbing only.
+- `justfile` â€” operator-facing governance entrypoints that wrap the live role/shared scripts and checks.
 - `data/` â€” runtime artifacts; backend logs are written to `data/logs/handshake_core.log`.
 - `.GOV/` â€” canonical docs (this pack) + `.GOV/adr/` (accepted ADRs).
 - `.GOV/operator/docs_local/` â€” staging/non-canonical notes and diaries.
 - `log_archive/` â€” historical logger drops.
 - `.GOV/roles_shared/OWNERSHIP.md` â€” path/area owners for routing reviews.
 - Root files: `Handshake_Master_Spec_v*.md`, `Handshake Codex v1.4.md`, `Handshake_logger_*`, phase/plan docs.
-- `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` and `.GOV/roles/coder/CODER_PROTOCOL.md` â€” AI agent workflow protocols.
+- `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/coder/CODER_PROTOCOL.md`, and `.GOV/roles/validator/VALIDATOR_PROTOCOL.md` â€” AI role workflow protocols.
 
 ## How to run
 > **WARNING for AI Agents:** Commands like `pnpm -C app tauri dev` or `just dev` start a long-running development server. They MUST NOT be executed with a blocking tool (like `run_shell_command`). These commands should be run in a separate, dedicated terminal by the user or as a true background process.
@@ -102,7 +108,7 @@ just new-react-component <ComponentName>
 just new-api-endpoint <endpoint_name>
 
 # Git hook (pre-commit checks)
-git config core.hooksPath .GOV/scripts/hooks
+git config core.hooksPath .GOV/roles_shared/scripts/hooks
 ```
 
 ### Phase 1 prerequisite: Ollama (local model runtime)
@@ -140,4 +146,4 @@ CI expectation: run `just validate`; manual validator review is required for MED
 - Workflow template for reuse: `.GOV/templates/AI_WORKFLOW_TEMPLATE.md`
 
 ## Past work
-Pointer to prior specs/logs/notes: `.GOV/roles_shared/PAST_WORK_INDEX.md`
+Pointer to prior specs/logs/notes (reference only, not live workflow authority): `.GOV/reference/PAST_WORK_INDEX.md`

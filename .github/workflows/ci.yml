@@ -17,6 +17,39 @@ env:
   CARGO_TARGET_DIR: "${{ github.workspace }}/../Handshake Artifacts/handshake-cargo-target"
 
 jobs:
+  governance:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install just
+        uses: taiki-e/install-action@just
+
+      - name: Install ripgrep (Ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Install ripgrep (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          if (-not (Get-Command rg -ErrorAction SilentlyContinue)) {
+            choco install ripgrep -y
+          }
+
+      - name: Governance check
+        run: just gov-check
+
   validate:
     runs-on: ubuntu-latest
     steps:
@@ -59,19 +92,19 @@ jobs:
           rg -n "Codex v0\\.5|Codex v0\\.6|Codex v0\\.7|Handshake Codex v0\\.5|Handshake Codex v0\\.6|Handshake Codex v0\\.7" .GOV --glob '!.GOV/task_packets/**' --glob '!.GOV/refinements/**' && exit 1 || exit 0
           rg -n "Codex v0\\.5|Codex v0\\.6|Codex v0\\.7|Handshake Codex v0\\.5|Handshake Codex v0\\.6|Handshake Codex v0\\.7" .GOV/task_packets/README.md && exit 1 || exit 0
           echo "SPEC_CURRENT must reference latest master spec..."
-          node .GOV/scripts/spec-current-check.mjs
+          node .GOV/roles_shared/scripts/spec-current-check.mjs
           echo "Task Board entries must be minimal..."
-          node .GOV/scripts/validation/task-board-check.mjs
+          node .GOV/roles_shared/checks/task-board-check.mjs
           echo "In Progress task packets must include coder claim fields..."
-          node .GOV/scripts/validation/task-packet-claim-check.mjs
+          node .GOV/roles_shared/checks/task-packet-claim-check.mjs
           echo "TODOs must include HSK issue tags..."
-          rg -n --pcre2 "TODO(?!\\(HSK-\\d+\\))" app/src src/backend .GOV/scripts --glob "!.GOV/scripts/fixtures/**" --glob "!.GOV/scripts/codex-check-test.mjs" && exit 1 || exit 0
+          rg -n --pcre2 "TODO(?!\\(HSK-\\d+\\))" app/src src/backend .GOV/roles .GOV/roles_shared .GOV/tools --glob "!.GOV/roles_shared/scripts/fixtures/**" --glob "!.GOV/roles_shared/scripts/dev/codex-check-test.mjs" && exit 1 || exit 0
 
       - name: Git hygiene (build/cache artifacts)
-        run: node .GOV/scripts/validation/validator-git-hygiene.mjs
+        run: node .GOV/roles/validator/checks/validator-git-hygiene.mjs
 
       - name: Codex check tests
-        run: node .GOV/scripts/codex-check-test.mjs
+        run: node .GOV/roles_shared/scripts/dev/codex-check-test.mjs
 
       - name: Frontend lint
         run: pnpm -C app run lint
@@ -329,5 +362,5 @@ jobs:
           node-version: "20"
 
       - name: Traceability check
-        run: node .GOV/scripts/validation/ci-traceability-check.mjs
+        run: node .GOV/roles_shared/checks/ci-traceability-check.mjs
 
