@@ -113,7 +113,7 @@
 - WP_THREAD_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/THREAD.md
 - WP_RUNTIME_STATUS_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: <unassigned>
+- WP_VALIDATOR_OF_RECORD: 019ceb10-00fb-7793-97a0-7cd9179a5688
 - INTEGRATION_VALIDATOR_OF_RECORD: 019cee0b-95a7-7872-b1bf-717ddfd72c39
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
@@ -123,7 +123,7 @@
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PASS
 Blockers: NONE
-Next: NONE
+Next: Await Gate 4 acknowledgment before merge to main.
 
 ## WP_COMMUNICATIONS (NON-AUTHORITATIVE; REQUIRED FOR NEW PACKETS)
 - RULE: The task packet remains authoritative for scope, status, branch/worktree truth, acceptance, and verdict.
