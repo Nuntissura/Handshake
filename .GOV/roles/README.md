@@ -1,5 +1,8 @@
 # Role Bundles
 
+This README is navigational only.
+Authoritative role folder law lives in `Handshake Codex v1.4.md` plus the active role protocol for the role you are working in.
+
 Each role now has a local bundle README that groups:
 
 - protocol and rubric files
@@ -7,28 +10,6 @@ Each role now has a local bundle README that groups:
 - relevant `just` commands
 - relevant scripts/checks
 - shared files that the role relies on most
-
-Folder law:
-
-- role root:
-  - role protocol
-  - role README
-  - fixed role-local subfolders
-  - legacy root state may exist during migration, but new role-owned state belongs under `runtime/`
-- `docs/`
-  - role-local non-authoritative docs such as rubrics, roadmaps, priorities, and protocol gap analyses
-- `runtime/`
-  - role-owned machine state only
-- `scripts/`
-  - role-owned executable entrypoints
-- `scripts/lib/`
-  - helper libraries used only by that role's scripts/checks
-- `checks/`
-  - role-owned enforcement/validation entrypoints
-- `tests/`
-  - role-owned governance tests
-- `fixtures/`
-  - role-owned test fixtures/golden inputs
 
 Shared artifacts used by more than one role belong under `.GOV/roles_shared/`, not a role-local bundle.
 

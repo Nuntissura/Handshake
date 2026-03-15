@@ -1,5 +1,8 @@
 # Coder Bundle
 
+This README is navigational only.
+Authoritative folder-placement law for the Coder bundle lives in `Handshake Codex v1.4.md` plus `CODER_PROTOCOL.md`.
+
 ## Primary Docs
 
 - `CODER_PROTOCOL.md`

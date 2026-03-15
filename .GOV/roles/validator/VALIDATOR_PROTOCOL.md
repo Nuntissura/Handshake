@@ -81,6 +81,8 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs
 
 ## Governance Folder Structure (Authoritative Placement Rules)
 
+This section plus `Handshake Codex v1.4.md` are the authoritative placement rules for Validator-owned governance surfaces. README and onboarding files are navigational only.
+
 - `/.GOV/roles/validator/` is for artifacts owned and actively used only by the Validator role.
 - Fixed role-local subfolders:
   - `docs/` = validator-local guidance and non-authoritative role notes

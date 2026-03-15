@@ -75,6 +75,8 @@ Sub-agent delegation note (HARD):
 
 ## Governance Folder Structure (Authoritative Placement Rules)
 
+This section plus `Handshake Codex v1.4.md` are the authoritative placement rules for Coder-owned governance surfaces. README and onboarding files are navigational only.
+
 - `/.GOV/roles/coder/` is for artifacts owned and actively used only by the Coder role.
 - Fixed role-local subfolders:
   - `docs/` = coder-local guidance and non-authoritative role notes

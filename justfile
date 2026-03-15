@@ -22,7 +22,7 @@ test:
 
 # Fail if any required docs are missing (navigation pack + shared tooling guardrails + resilience)
 docs-check:
-	node -e "['Handshake Codex v1.4.md', '.GOV/README.md', '.GOV/roles/README.md', '.GOV/roles_shared/README.md', '.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md', '.GOV/roles/coder/CODER_PROTOCOL.md', '.GOV/roles/validator/VALIDATOR_PROTOCOL.md', '.GOV/roles_shared/docs/START_HERE.md', '.GOV/roles_shared/records/SPEC_CURRENT.md', '.GOV/roles_shared/docs/ARCHITECTURE.md', '.GOV/roles_shared/docs/RUNBOOK_DEBUG.md', '.GOV/reference/PAST_WORK_INDEX.md', '.GOV/roles_shared/docs/REPO_RESILIENCE.md', '.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md', '.GOV/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md', '.GOV/reference/README.md', '.GOV/docs/vscode-session-bridge/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
+	node -e "['Handshake Codex v1.4.md', '.GOV/README.md', '.GOV/roles/README.md', '.GOV/roles_shared/README.md', '.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md', '.GOV/roles/coder/CODER_PROTOCOL.md', '.GOV/roles/validator/VALIDATOR_PROTOCOL.md', '.GOV/roles_shared/docs/START_HERE.md', '.GOV/roles_shared/records/SPEC_CURRENT.md', '.GOV/roles_shared/docs/ARCHITECTURE.md', '.GOV/roles_shared/docs/RUNBOOK_DEBUG.md', '.GOV/roles_shared/docs/REPO_RESILIENCE.md', '.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md', '.GOV/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md', '.GOV/docs/vscode-session-bridge/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
 
 # Format backend Rust
 fmt:

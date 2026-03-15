@@ -4,7 +4,7 @@ This directory holds cross-role truth and the shared implementation surfaces tha
 
 Authoritative folder law lives in `Handshake Codex v1.4.md` plus the active role protocols. This README is navigational only.
 
-## Canonical Shared Buckets
+## Shared Bucket Map
 
 - `docs/`
   - active shared guidance such as onboarding, architecture, debug, workflow, and quality-gate docs

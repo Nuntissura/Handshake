@@ -98,6 +98,7 @@ Minimum verification for governance-only changes: `just gov-check`. If any Hands
 [CX-208] ROOT_DOCS_CANONICAL: `/.GOV/` MUST contain canonical operational docs used for onboarding, navigation, and debugging.
 [CX-208A] ROOT_GOV_DOCS: `/.GOV/docs/` SHOULD hold repo-level governance docs that do not belong to a single role bundle or the shared bundle.
 [CX-208B] ROOT_GOV_DOCS_TEMP: Temporary or non-authoritative files under `/.GOV/docs/` MUST live in a clearly named scratch subfolder (for example `/.GOV/docs/tmp/`) and MUST NOT affect workflow execution or governance checks unless explicitly designated for the current task.
+[CX-208C] GOV_NAV_DOCS_NON_NORMATIVE: `/.GOV/README.md`, `/.GOV/roles/README.md`, `/.GOV/roles_shared/README.md`, and `/.GOV/roles_shared/docs/START_HERE.md` are navigation/onboarding aids only. Folder-placement law MUST live in this Codex plus the active role protocols; navigation docs MUST NOT introduce conflicting or additional placement law.
 [CX-209] SHARED_BUNDLE_ROOT: `/.GOV/roles_shared/` uses a fixed shared structure and SHOULD contain only `README.md` plus the canonical subfolders `docs/`, `records/`, `runtime/`, `exports/`, `schemas/`, `scripts/`, `checks/`, `tests/`, and `fixtures/`.
 [CX-209A] SHARED_DOCS_BUCKET: `/.GOV/roles_shared/docs/` MUST hold active shared guidance such as onboarding, architecture, boundary, debug, quality-gate, and workflow guidance.
 [CX-209B] SHARED_RECORDS_BUCKET: `/.GOV/roles_shared/records/` MUST hold authoritative shared ledgers, registries, and pointers such as `SPEC_CURRENT.md`, `TASK_BOARD.md`, `BUILD_ORDER.md`, `WP_TRACEABILITY_REGISTRY.md`, and signature/spec-debt registries.
@@ -108,7 +109,8 @@ Minimum verification for governance-only changes: `just gov-check`. If any Hands
 [CX-213] TASK_PACKETS_DIR: `/.GOV/task_packets/` MUST exist and MUST contain task packet files for all active and recent work.
 [CX-214] ROOT_APP_CURRENT: If `/app/` exists, it SHOULD be treated as the primary application root (frontend in `/app/src/`, backend in `/app/src-tauri/`) unless `.GOV/roles_shared/docs/ARCHITECTURE.md` explicitly states otherwise.
 [CX-215] OPERATOR_PRIVATE_STAGING: `/.GOV/operator/` SHOULD be treated as operator-private staging and scratch space. Assistants MUST NOT treat it as canonical onboarding/debugging guidance unless the Operator explicitly designates a specific file for the current task.
-[CX-216] PAST_WORK_INDEX: `/.GOV/reference/` SHOULD include a `PAST_WORK_INDEX.md` (or equivalent archaeology index) that links to older root-level specs/logs and operator-private drafts, so future maintainers can find prior work quickly without guesswork. Active onboarding surfaces MAY point to it, but it is non-authoritative reference material.
+[CX-216] REFERENCE_ARCHAEOLOGY: `/.GOV/reference/` MAY hold non-authoritative archaeology and historical reference material when the Operator wants to preserve it. Such material is optional, non-binding, and MUST NOT be required for active workflow execution.
+[CX-216A] ROOT_AUDITS_BUCKET: `/.GOV/Audits/` SHOULD hold governance audit artifacts. When split buckets exist, `/.GOV/Audits/audits/` SHOULD hold general audits and `/.GOV/Audits/smoke_tests/` SHOULD hold smoke-test reviews; new audit files SHOULD use those buckets instead of the `Audits/` root.
 
 [CX-217] TASK_BOARD: `/.GOV/roles_shared/records/TASK_BOARD.md` MUST exist and serve as the high-level, at-a-glance status tracker.
 - Orchestrator manages planning states (Ready for Dev/Blocked; Stub Backlog).

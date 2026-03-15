@@ -1,9 +1,12 @@
 ﻿# Handshake Project: Start Here
 
-Authority: Master Spec (see `.GOV/roles_shared/records/SPEC_CURRENT.md`)
+Navigation entrypoint only.
+Product authority: Master Spec (see `.GOV/roles_shared/records/SPEC_CURRENT.md`)
+Governance placement law: `Handshake Codex v1.4.md` plus the active role protocols
 ---
 ## Canonical sources
 - **Spec:** `.GOV/roles_shared/records/SPEC_CURRENT.md` (points to the current Handshake master spec).
+- **Folder-placement law:** `Handshake Codex v1.4.md` + `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` + `.GOV/roles/coder/CODER_PROTOCOL.md` + `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`.
 - **Spec EOF appendices:** Master Spec Â§12 (Feature Registry, Primitive/Tool/Tech Matrix, UI Guidance, Interaction Matrix). These blocks are spec-internal and kept at end-of-file; `just gov-check` enforces presence + parseability.
 - **WP Traceability:** `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP â†’ Active Packet mapping; resolves `-vN` revisions without putting WP IDs into the Master Spec).
 - **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `.GOV/roles_shared/records/TASK_BOARD.md` + task packets. Handshake logger is for milestones/hard bugs when requested.
@@ -144,6 +147,3 @@ CI expectation: run `just validate`; manual validator review is required for MED
 - Quality gate (risk tiers + required checks): `.GOV/roles_shared/docs/QUALITY_GATE.md`
 - Task packet template: `.GOV/templates/TASK_PACKET_TEMPLATE.md`
 - Workflow template for reuse: `.GOV/templates/AI_WORKFLOW_TEMPLATE.md`
-
-## Past work
-Pointer to prior specs/logs/notes (reference only, not live workflow authority): `.GOV/reference/PAST_WORK_INDEX.md`

@@ -1,5 +1,8 @@
 # Validator Bundle
 
+This README is navigational only.
+Authoritative folder-placement law for the Validator bundle lives in `Handshake Codex v1.4.md` plus `VALIDATOR_PROTOCOL.md`.
+
 ## Primary Docs
 
 - `VALIDATOR_PROTOCOL.md`
