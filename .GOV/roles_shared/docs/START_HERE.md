@@ -76,7 +76,7 @@ Quick reference:
 - `.GOV/roles_shared/scripts/hooks/` â€” git hook plumbing only.
 - `justfile` â€” operator-facing governance entrypoints that wrap the live role/shared scripts and checks.
 - `data/` â€” runtime artifacts; backend logs are written to `data/logs/handshake_core.log`.
-- `.GOV/` â€” canonical docs (this pack) + `.GOV/adr/` (accepted ADRs).
+- `.GOV/` â€” canonical governance/docs surface.
 - `.GOV/operator/` â€” operator-private notes, drafts, and diaries; non-authoritative unless the Operator explicitly designates a specific file for the current task.
 - `log_archive/` â€” historical logger drops.
 - `.GOV/roles_shared/docs/OWNERSHIP.md` â€” path/area owners for routing reviews.

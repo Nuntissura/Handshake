@@ -56,6 +56,14 @@
 
 See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
 
+## Product Runtime Root (Current Default)
+
+- External build/test/tool outputs stay under `../Handshake Artifacts/`.
+- Product runtime state SHOULD default to the external sibling root `../Handshake Runtime/`, not a folder inside the repo worktree.
+- This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
+- Treat repo-root `data/` and `.handshake/` paths as legacy/transitional rather than the template for new work.
+- When refining/scoping new product WPs that create runtime outputs, prefer `../Handshake Runtime/` and call out any legacy repo-root runtime surfaces explicitly in the refinement/packet.
+
 ## Current Execution Policy (Additional LAW)
 
 - The Orchestrator role is one non-agentic coordinator CLI session in current repo governance.
@@ -216,7 +224,7 @@ If the required worktree/branch does not exist:
 - For the exception above, use the repo WP worktree helpers (`just worktree-add WP-{ID}`, `just orchestrator-worktree-and-packet WP-{ID}`, or `just orchestrator-prepare-and-packet WP-{ID}`) rather than ad-hoc git commands.
 
 Coder worktree rule:
-- CODER agents must work only in WP-assigned worktrees/branches recorded via `just record-prepare` (writes `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`).
+- CODER agents must work only in WP-assigned worktrees/branches recorded via `just record-prepare` (writes `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`).
 
 ## Gate Visibility Output [CX-GATE-UX-001] (MANDATORY)
 
@@ -310,7 +318,7 @@ If the session resets or you inherit a half-finished WP, use:
 - `just orchestrator-next [WP-{ID}]`
 
 This prints the inferred WP stage + the minimal next commands based on:
-- `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
+- `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`
 - `.GOV/refinements/WP-*.md`
 - `.GOV/task_packets/WP-*.md`
 - `.GOV/roles_shared/records/TASK_BOARD.md`
@@ -408,7 +416,7 @@ Rule: when a gate command is run and `GATE_STATUS` is posted, `PHASE` MUST match
 - Additional hard invariant: coder handoff is FORBIDDEN until the assigned WP worktree itself contains:
   - the official packet under `.GOV/task_packets/WP-{ID}.md`,
   - the current `SPEC_CURRENT` snapshot (resolved spec filename + SHA matches Orchestrator/main),
-  - the current `PREPARE` record in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`,
+  - the current `PREPARE` record in `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`,
   - the current Task Board + traceability mapping for that WP (no stale `[STUB]` / stale active-packet path).
 - If any of those are stale or missing, the Orchestrator must report `STAGE: STATUS_SYNC` and direct Validator to fast-forward/sync the assigned WP branch/worktree before telling the coder to run `just pre-work`.
 

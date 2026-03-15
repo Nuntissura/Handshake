@@ -25,7 +25,7 @@ This document is intended to be copied into other projects as a starting point. 
 2) Codex (repo root)
 3) Task Board (`.GOV/roles_shared/records/TASK_BOARD.md`) + task packet for the WP
 4) Logger (optional; milestones/hard bugs only, root or `log_archive/`)
-5) ADRs (`.GOV/adr/`)
+5) Optional accepted decision records (if the project chooses to keep them)
 6) Optional historical/reference material (only if the project chooses to keep it)
 
 ## Required navigation pack (copy these)
@@ -38,7 +38,7 @@ This document is intended to be copied into other projects as a starting point. 
 | `.GOV/roles_shared/docs/QUALITY_GATE.md` | Risk tiers + required checks | Sets minimum hygiene |
 | `.GOV/templates/TASK_PACKET_TEMPLATE.md` | Standard work packet | Keeps scope/validation consistent |
 | `.GOV/roles_shared/docs/OWNERSHIP.md` | Review routing | Clear accountability |
-| `.GOV/agents/AGENT_REGISTRY.md` | Agent IDs + roles | Traceability for AI work |
+| `.GOV/roles_shared/records/AGENT_REGISTRY.md` | Agent IDs + roles | Traceability for AI work |
 
 ## Roles (template)
 - Orchestrator: builds task packets; may not have repo access.

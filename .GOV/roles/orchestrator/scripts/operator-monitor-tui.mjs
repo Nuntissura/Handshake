@@ -14,7 +14,7 @@ import { resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/vali
 const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
 const TRACEABILITY_PATH = ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md";
 const TOPOLOGY_PATH = ".GOV/roles_shared/runtime/GIT_TOPOLOGY_REGISTRY.json";
-const ORCHESTRATOR_GATES_PATH = ".GOV/roles/orchestrator/ORCHESTRATOR_GATES.json";
+const ORCHESTRATOR_GATES_PATH = ".GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json";
 const SESSION_CONTROL_REQUESTS_PATH = ".GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl";
 const SESSION_CONTROL_RESULTS_PATH = ".GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl";
 const SESSION_CONTROL_BROKER_STATE_PATH = ".GOV/roles_shared/runtime/SESSION_CONTROL_BROKER_STATE.json";

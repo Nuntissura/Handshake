@@ -51,6 +51,15 @@
 
 See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
 
+## Product Runtime Root (Current Default)
+
+- External build/test/tool outputs stay under `../Handshake Artifacts/` (for example the external Cargo target dir).
+- Product runtime state SHOULD default to the external sibling root `../Handshake Runtime/`, not a folder inside the repo worktree.
+- This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
+- Treat repo-root `data/` and `.handshake/` paths as legacy/transitional unless the current WP is explicitly remediating them.
+- Do not introduce new repo-root runtime output paths in product code when a new output can be placed under `../Handshake Runtime/` instead.
+- If current product code still hardcodes repo-root runtime outputs, record that as legacy in the packet/refinement rather than silently expanding the pattern.
+
 ## Agentic Mode (Additional LAW)
 
 If the WP is being executed via orchestrator-led, multi-agent ("agentic") workflow, you MUST also follow:
@@ -66,7 +75,7 @@ Sub-agent delegation note (HARD):
 ## Drive-Agnostic Governance [CX-109] (HARD)
 
 - Treat all workflow paths as repo-relative placeholders (see `.GOV/roles_shared/docs/ROLE_WORKTREES.md`).
-- If you are given an absolute worktree path by a tool or agent, STOP and request the repo-relative `worktree_dir` recorded in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`.
+- If you are given an absolute worktree path by a tool or agent, STOP and request the repo-relative `worktree_dir` recorded in `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`.
 
 ## Tooling Conflict Stance [CX-110] (HARD)
 
@@ -115,7 +124,7 @@ You MUST operate from the correct working directory and branch for the WP you ar
 
 Source of truth (Coder role):
 - The WP assignment from the Orchestrator (WP branch + WP worktree directory).
-- The Orchestrator's recorded assignment in `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` (`PREPARE` entry contains `branch` + `worktree_dir`).
+- The Orchestrator's recorded assignment in `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json` (`PREPARE` entry contains `branch` + `worktree_dir`).
 
 You do NOT have a default "coder worktree". The Operator's personal worktree is not a coder worktree.
 
@@ -207,7 +216,7 @@ If the session resets, context compacts, or you inherit a half-finished WP, use:
 
 This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
-- `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
+- `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`
 - `.GOV/task_packets/WP-*.md`
 
 Resume rule (hard, anti-babysit):

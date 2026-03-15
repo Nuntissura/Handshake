@@ -33,6 +33,7 @@ Authoritative folder law lives in `Handshake Codex v1.4.md` plus the active role
 - `records/BUILD_ORDER.md`
 - `records/SIGNATURE_AUDIT.md`
 - `records/SPEC_DEBT_REGISTRY.md`
+- `records/AGENT_REGISTRY.md`
 
 ## Shared Runtime
 

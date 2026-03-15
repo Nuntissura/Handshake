@@ -73,7 +73,7 @@ export const computeWhitelistedInputRelPaths = () => {
     '.GOV/roles_shared/records/TASK_BOARD.md',
     '.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md',
     '.GOV/roles_shared/records/SIGNATURE_AUDIT.md',
-    '.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json',
+    '.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json',
   ].map(normalizeRelPath);
 
   const validatorGateJsons = listValidatorGateJsonRelPaths();
@@ -256,7 +256,7 @@ export const buildProductGovernanceSnapshot = ({ includeHeadSha = false } = {}) 
   const taskBoardText = readTextStrict('.GOV/roles_shared/records/TASK_BOARD.md');
   const traceabilityText = readTextStrict('.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md');
   const signatureAuditText = readTextStrict('.GOV/roles_shared/records/SIGNATURE_AUDIT.md');
-  const orchestratorGatesText = readTextStrict('.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json');
+  const orchestratorGatesText = readTextStrict('.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json');
 
   const taskBoardEntries = parseTaskBoardEntries(taskBoardText);
   const traceabilityMappings = parseTraceabilityMappings(traceabilityText);

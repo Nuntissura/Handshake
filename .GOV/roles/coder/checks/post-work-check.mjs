@@ -597,8 +597,7 @@ if (useStaged && workingFiles.length > stagedFiles.length) {
   const allowlistedUnstaged = new Set([
     '.GOV/roles_shared/records/TASK_BOARD.md',
     '.GOV/roles_shared/records/SIGNATURE_AUDIT.md',
-    '.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json',
-    '.GOV/roles/validator/VALIDATOR_GATES.json',
+    '.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json',
     packetPath.replace(/\\/g, '/'),
     `.GOV/refinements/${WP_ID}.md`,
   ].filter(Boolean));
@@ -626,8 +625,7 @@ if (manifests) {
   const allowlisted = new Set([
     '.GOV/roles_shared/records/TASK_BOARD.md',
     '.GOV/roles_shared/records/SIGNATURE_AUDIT.md',
-    '.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json',
-    '.GOV/roles/validator/VALIDATOR_GATES.json',
+    '.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json',
     packetPath.replace(/\\/g, '/'),
     `.GOV/refinements/${WP_ID}.md`,
   ].filter(Boolean));

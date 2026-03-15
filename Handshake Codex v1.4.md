@@ -92,8 +92,11 @@ Minimum verification for governance-only changes: `just gov-check`. If any Hands
 [CX-205C] ROLE_RUNTIME_BUCKET: `/.GOV/roles/<role>/runtime/` SHOULD hold role-owned machine state only. New role-owned state belongs here; legacy role-root state files are migration residue and MUST NOT be used as the template for new files.
 [CX-205D] ROLE_TOOLING_BUCKETS: `/.GOV/roles/<role>/scripts/` SHOULD hold role-owned entrypoints, `scripts/lib/` SHOULD hold helper libraries used only by that role's scripts/checks, `checks/` SHOULD hold role-owned enforcement, `tests/` SHOULD hold role-owned governance tests, and `fixtures/` SHOULD hold role-owned test data/golden inputs.
 [CX-205E] SHARED_VS_ROLE_PLACEMENT: If an active governance artifact is used by more than one role, it MUST live under `/.GOV/roles_shared/` instead of a role-local folder.
+[CX-205F] EXTERNAL_BUILD_ARTIFACT_ROOT: Build/test/tool outputs SHOULD live outside the repo working tree at the external sibling root `../Handshake Artifacts/` unless a tool requires another explicitly documented location.
 [CX-206] ROOT_TESTS: `/tests/` SHOULD host automated tests (unit, integration, end-to-end).
 [CX-207] ROOT_DOCS: Root `*.md` files SHOULD hold Master Spec, Codex, roadmap, and other high-level docs.
+[CX-207A] EXTERNAL_PRODUCT_RUNTIME_ROOT: During current early-phase development, Handshake product runtime state SHOULD default to the external sibling root `../Handshake Runtime/` rather than a folder inside the repo worktree. This root is for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
+[CX-207B] REPO_ROOT_RUNTIME_TRANSITION: Repo-root runtime paths such as `data/` and `.handshake/` are transitional legacy surfaces. Assistants MUST NOT treat them as the placement model for new product runtime outputs when the external product runtime root can be used instead.
 
 [CX-208] ROOT_DOCS_CANONICAL: `/.GOV/` MUST contain canonical operational docs used for onboarding, navigation, and debugging.
 [CX-208A] ROOT_GOV_DOCS: `/.GOV/docs/` SHOULD hold repo-level governance docs that do not belong to a single role bundle or the shared bundle.
@@ -181,7 +184,7 @@ Minimum verification for governance-only changes: `just gov-check`. If any Hands
 [CX-332] LOGGING_CONTEXT: Logs SHOULD include enough context (job IDs, doc IDs, user/session IDs where helpful) to debug issues.
 
 [CX-333] LOG_ATTRIBUTION: Work artefacts (task packets, task board entries, milestone logs, review notes, commit messages) SHOULD include a stable `AGENT_ID` and `ROLE` so "who did what" remains searchable months later.
-[CX-334] AGENT_REGISTRY: The repo SHOULD keep an `AGENT_REGISTRY` (`/.GOV/agents/AGENT_REGISTRY.md`) mapping `AGENT_ID` -> current model/tooling + responsibility; changes to mappings SHOULD be logged.
+[CX-334] AGENT_REGISTRY: The repo SHOULD keep an `AGENT_REGISTRY` (`/.GOV/roles_shared/records/AGENT_REGISTRY.md`) mapping `AGENT_ID` -> current model/tooling + responsibility; changes to mappings SHOULD be logged.
 [CX-335] LOG_MODEL_LABELS_OPTIONAL: If model/vendor names are captured for convenience, they SHOULD be treated as secondary labels (not primary identifiers) and SHOULD live in structured metadata fields (not scattered through free text), subject to any active bootloader constraints.
 
 ### 4.4 Storage and Persistence

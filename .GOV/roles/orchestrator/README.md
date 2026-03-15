@@ -13,8 +13,8 @@ Authoritative folder-placement law for the Orchestrator bundle lives in `Handsha
 
 ## Current Runtime State
 
-- `ORCHESTRATOR_GATES.json`
-  - live legacy root state still consumed by current tooling; new orchestrator-owned state belongs under `runtime/`
+- `runtime/ORCHESTRATOR_GATES.json`
+  - live orchestrator runtime state
 - `checks/orchestrator_gates.mjs`
 - `scripts/create-task-packet.mjs`
 - `scripts/create-task-packet-stub.mjs`
@@ -28,10 +28,10 @@ Authoritative folder-placement law for the Orchestrator bundle lives in `Handsha
 - `scripts/task-board-set.mjs`
 - `scripts/wp-traceability-set.mjs`
 
-## Role Layout
+## Role Map
 
 - `runtime/`
-  - orchestrator-owned machine state only; new state belongs here even while `ORCHESTRATOR_GATES.json` remains as migration residue
+  - orchestrator-owned machine state only
 - `scripts/`
   - orchestrator-owned entrypoints
 - `scripts/lib/`

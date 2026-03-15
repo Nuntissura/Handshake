@@ -13,7 +13,7 @@ import {
     normalizeExecutionOwner,
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
 
-const STATE_FILE = '.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json';
+const STATE_FILE = '.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json';
 
 function loadState() {
     if (!fs.existsSync(STATE_FILE)) {

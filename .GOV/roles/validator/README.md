@@ -10,9 +10,10 @@ Authoritative folder-placement law for the Validator bundle lives in `Handshake 
 
 ## Current / Legacy Gate State
 
-- `VALIDATOR_GATES.json`
-  - compatibility-only root archive; not the canonical place for new validator state
-  - current per-WP validator gate state lives under `.GOV/roles_shared/runtime/validator_gates/`
+- `.GOV/roles_shared/runtime/validator_gates/`
+  - current per-WP validator gate state
+- `.GOV/reference/legacy/validator/VALIDATOR_GATES.json`
+  - migrated read-only legacy archive for older sessions
 
 ## Role-Owned Checks / Scripts
 

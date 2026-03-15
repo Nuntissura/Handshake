@@ -28,7 +28,7 @@ Project-specific invariants for Governance Pack instantiation (spec §7.5.4.9).
 - REFINEMENTS_DIR: `.GOV/refinements/`
 - TEMPLATES_DIR: `.GOV/templates/`
 - GATES_STATE:
-  - Orchestrator: `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
+  - Orchestrator: `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`
   - Validator: `.GOV/roles_shared/runtime/validator_gates/{WP_ID}.json`
 - ROLE_MAILBOX_EXPORT_DIR: `.GOV/roles_shared/exports/role_mailbox/`
 
@@ -47,9 +47,15 @@ Project-specific invariants for Governance Pack instantiation (spec §7.5.4.9).
 
 ## 6) Tooling paths (Handshake defaults)
 
+- BUILD_ARTIFACTS_ROOT_DIR (external): `../Handshake Artifacts/`
 - CARGO_TARGET_DIR (external): `../Handshake Artifacts/handshake-cargo-target`
 - NODE_PACKAGE_MANAGER: `pnpm` (for `app/`)
 
-## 7) Product-owned runtime governance state (default)
+## 7) Product runtime paths (Handshake defaults)
+
+- PRODUCT_RUNTIME_ROOT_DIR (external default): `../Handshake Runtime/`
+- LEGACY_REPO_RUNTIME_DIRS (transitional): `data/`, `.handshake/`
+
+## 8) Product-owned runtime governance state (default)
 
 - RUNTIME_GOV_STATE_DIR: `.handshake/gov/` (configurable; runtime governance state only)

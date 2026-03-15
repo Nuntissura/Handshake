@@ -55,6 +55,15 @@
 
 See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
 
+## Product Runtime Root (Current Default)
+
+- External build/test/tool outputs stay under `../Handshake Artifacts/`.
+- Product runtime state SHOULD default to the external sibling root `../Handshake Runtime/`, not a folder inside the repo worktree.
+- This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
+- Treat repo-root `data/` and `.handshake/` paths as legacy/transitional unless the WP is explicitly remediating them.
+- New product work that introduces fresh repo-root runtime output paths without an explicit reason should be treated as runtime-placement drift and challenged in validation.
+- When validating such work, distinguish between tolerated legacy paths and newly introduced runtime clutter.
+
 ## Current Execution Policy (Additional LAW)
 
 - Validator duties are non-agentic in current repo governance, but repo workflows may run multiple validator CLI sessions concurrently when they are explicitly scoped as `WP Validator` and `Integration Validator`.
@@ -134,7 +143,7 @@ Minimum verification for governance-only changes: `just gov-check`.
     ```
   - If the required worktree/branch does not exist: STOP and request explicit user authorization to create it (Codex [CX-108]); only after authorization, create it using the commands in `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
   - **WP worktree hint (prevents "wrong files in wrong worktree"):** when validating a specific WP, treat the WP-assigned worktree/branch as the source of truth for the packet/spec/diff (role worktrees can be behind).
-    - Locate the WP worktree/branch via `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` `PREPARE` (`branch`, `worktree_dir`) and confirm it exists in `git worktree list`.
+    - Locate the WP worktree/branch via `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json` `PREPARE` (`branch`, `worktree_dir`) and confirm it exists in `git worktree list`.
     - Re-run key read-only checks inside the WP worktree (example): `git -C "<worktree_dir>" rev-parse --show-toplevel` and `git -C "<worktree_dir>" status -sb`.
     - **Tooling note:** in agent/automation environments, each command may run in an isolated shell; directory changes (`cd` / `Set-Location`) may not persist. Prefer explicit workdir or `git -C "<worktree_dir>" ...` so you cannot accidentally read/validate the wrong tree.
     - Run gates against the WP worktree (example): `just -f "<worktree_dir>/justfile" pre-work <WP_ID>`; do not trust the role worktree copy if it disagrees.
@@ -216,7 +225,7 @@ If the session resets, context compacts, or you inherit a half-finished WP, use:
 
 This prints the inferred WP stage + the minimal next commands based on:
 - current git branch/worktree context
-- `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
+- `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`
 - `.GOV/task_packets/WP-*.md`
 - `.GOV/roles_shared/runtime/validator_gates/{WP_ID}.json` (when present)
 
@@ -560,7 +569,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 
 The validation process MUST halt only at Gate 3 (final report presentation). All other gates are state recording/unlocks and must still be run in order.
 State is tracked per WP in `.GOV/roles_shared/runtime/validator_gates/{WP_ID}.json`. Gates enforce minimum time intervals to prevent automation momentum.
-(Legacy: `.GOV/roles/validator/VALIDATOR_GATES.json` is treated as a read-only archive for older sessions; new validations should not write to it.)
+(Legacy: `.GOV/reference/legacy/validator/VALIDATOR_GATES.json` is treated as a read-only archive for older sessions; new validations should not write to it.)
 
 ### Gate 1: WP APPEND (Records verdict; non-blocking)
 1. Validator completes all checks and generates the full VALIDATION REPORT.

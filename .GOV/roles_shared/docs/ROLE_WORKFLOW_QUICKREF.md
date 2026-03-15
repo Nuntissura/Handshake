@@ -13,7 +13,7 @@ This doc is a compact index of the role-governed workflow so the Operator can qu
   - `<HANDSHAKE_ROOT>` (example: `/workspace/handshake`)
   - `<HANDSHAKE_WORKTREES>` = `<HANDSHAKE_ROOT>/Handshake Worktrees`
 - WP worktree assignments MUST be recorded as repo-relative paths:
-  - `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` `PREPARE.worktree_dir` should be like `../wt-WP-...`
+  - `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json` `PREPARE.worktree_dir` should be like `../wt-WP-...`
   - Absolute paths (for example `<DRIVE>:\...` or `\\server\share\...`) are forbidden for `worktree_dir` and are blocked by the Orchestrator gate.
 
 ## Operator UX (Chat Output Order)
@@ -84,7 +84,7 @@ Authoritative inputs:
 - `.GOV/roles_shared/records/SPEC_CURRENT.md` (current binding spec pointer)
 - `.GOV/roles_shared/records/TASK_BOARD.md`
 - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
-- `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json` (mechanical gate state)
+- `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json` (mechanical gate state)
 - Active WP packet + `WP_COMMUNICATIONS` artifacts when declared
 
 Primary commands:

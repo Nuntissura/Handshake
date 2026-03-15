@@ -9,9 +9,9 @@ This directory contains the mechanical Validator gate state files written by:
 - `just validator-gate-reset {WP_ID} --confirm`
 
 State is stored per WP as:
-- `.GOV/roles_shared/validator_gates/{WP_ID}.json`
+- `.GOV/roles_shared/runtime/validator_gates/{WP_ID}.json`
 
 Why: avoids cross-WP merge conflicts that occur when multiple validations append to a single global JSON ledger.
 
 Legacy:
-- `.GOV/roles/validator/VALIDATOR_GATES.json` is treated as a legacy archive for older sessions; new sessions should not write to it.
+- `.GOV/reference/legacy/validator/VALIDATOR_GATES.json` is treated as a read-only legacy archive for older sessions; new sessions should not write to it.

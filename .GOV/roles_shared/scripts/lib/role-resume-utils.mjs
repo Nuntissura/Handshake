@@ -7,6 +7,7 @@ export const ORCHESTRATOR_GATES_PATH = path.join(
   ".GOV",
   "roles",
   "orchestrator",
+  "runtime",
   "ORCHESTRATOR_GATES.json",
 );
 export const TASK_BOARD_PATH = path.join(".GOV", "roles_shared", "records", "TASK_BOARD.md");
@@ -282,7 +283,7 @@ function resolveSpecSnapshotAtRepo(repoRoot) {
 }
 
 function lastPrepareEntryAtRepo(repoRoot, wpId) {
-  const gatesPath = path.join(repoRoot, ".GOV", "roles", "orchestrator", "ORCHESTRATOR_GATES.json");
+  const gatesPath = path.join(repoRoot, ".GOV", "roles", "orchestrator", "runtime", "ORCHESTRATOR_GATES.json");
   if (!exists(gatesPath)) return null;
   let state = {};
   try {
