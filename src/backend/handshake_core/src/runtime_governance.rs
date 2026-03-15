@@ -270,6 +270,28 @@ impl RuntimeGovernancePaths {
         self.auto_signatures_dir()
             .join(format!("{auto_signature_id}.json"))
     }
+
+    pub fn is_runtime_artifact_display_path(&self, value: &str) -> bool {
+        let normalized = normalize_display_like(value);
+        if normalized.is_empty() {
+            return false;
+        }
+
+        let governance_root = normalize_display_like(&self.governance_root_display());
+        normalized.starts_with(&governance_root)
+    }
+
+    pub fn invalid_runtime_authority_refs<'a>(&self, refs: &'a [String]) -> Vec<&'a str> {
+        refs.iter()
+            .filter_map(|value| {
+                if self.is_runtime_artifact_display_path(value) {
+                    None
+                } else {
+                    Some(value.as_str())
+                }
+            })
+            .collect()
+    }
 }
 
 fn absolutize(path: PathBuf) -> Result<PathBuf, io::Error> {
@@ -336,6 +358,25 @@ fn ensure_trailing_slash(value: String) -> String {
     } else {
         format!("{value}/")
     }
+}
+
+fn safe_runtime_segment(value: &str) -> Result<String, io::Error> {
+    let trimmed = value.trim();
+    if trimmed.is_empty()
+        || trimmed.contains('/')
+        || trimmed.contains('\\')
+        || trimmed.contains("..")
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "runtime path segment must be non-empty and must not contain path separators or '..'",
+        ));
+    }
+    Ok(trimmed.to_string())
+}
+
+fn normalize_display_like(value: &str) -> String {
+    value.trim().replace('\\', "/")
 }
 
 #[cfg(test)]

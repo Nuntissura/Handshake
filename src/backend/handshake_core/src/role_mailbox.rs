@@ -17,6 +17,10 @@ use crate::flight_recorder::{
     FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
 };
 use crate::runtime_governance::RuntimeGovernancePaths;
+use crate::workflows::locus::{
+    validate_structured_collaboration_record, StructuredCollaborationRecordFamily,
+    StructuredCollaborationValidationCode,
+};
 
 pub const ROLE_MAILBOX_EXPORT_SCHEMA_VERSION: &str = "role_mailbox_export_v1";
 pub const ROLE_MAILBOX_EXPORT_ROOT: &str = ".handshake/gov/ROLE_MAILBOX/";
@@ -1250,6 +1254,12 @@ impl RoleMailbox {
         actor: String,
     ) -> Result<RoleMailboxExportSummary, RoleMailboxError> {
         fs::create_dir_all(&self.export_dir)?;
+        let runtime_paths =
+            RuntimeGovernancePaths::from_workspace_root(self.root_dir.clone()).map_err(|e| {
+                RoleMailboxError::InvalidInput(format!(
+                    "failed to resolve runtime governance paths: {e}"
+                ))
+            })?;
 
         let (index_bytes, thread_files, thread_count, message_count, generated_at) = {
             let conn = self
@@ -1296,6 +1306,7 @@ impl RoleMailbox {
             let mut thread_files_out: Vec<(String, Vec<u8>, u64)> = Vec::new();
             let mut max_ts = "1970-01-01T00:00:00Z".to_string();
             let mut total_messages: u64 = 0;
+            let index_display = format!("{}index.json", self.export_root_display);
 
             for thread_row in thread_rows {
                 let (
@@ -1393,10 +1404,14 @@ impl RoleMailbox {
                     let attachments: Vec<String> = serde_json::from_str(&attachments_json)?;
                     let transcription_links: Vec<ExportTranscriptionLinkV1> =
                         serde_json::from_str(&transcription_links_json)?;
-                    let evidence_refs = transcription_links
-                        .iter()
-                        .map(|link| link.target_ref.clone())
-                        .collect::<Vec<_>>();
+                    let thread_display = format!("{}{}", self.export_root_display, thread_file_rel);
+                    let mut evidence_refs = vec![thread_display, body_ref.clone()];
+                    evidence_refs.extend(attachments.iter().cloned());
+                    evidence_refs.extend(
+                        transcription_links
+                            .iter()
+                            .map(|link| link.target_ref.clone()),
+                    );
 
                     let line = json!({
                         "schema_id": "hsk.role_mailbox_thread_line@1",
@@ -1406,16 +1421,14 @@ impl RoleMailbox {
                         "project_profile_kind": "software_delivery",
                         "mirror_state": "canonical_only",
                         "updated_at": msg_created_at,
+                        "authority_refs": [index_display.as_str()],
+                        "evidence_refs": evidence_refs,
                         "message_id": message_id,
                         "thread_id": thread_id,
                         "created_at": msg_created_at,
                         "from_role": from_role,
                         "to_roles": to_roles,
                         "message_type": message_type,
-                        "authority_refs": [
-                            format!("locus:role_mailbox:thread:{thread_id}")
-                        ],
-                        "evidence_refs": evidence_refs,
                         "body_ref": body_ref,
                         "body_sha256": body_sha256,
                         "attachments": attachments,
@@ -1423,6 +1436,11 @@ impl RoleMailbox {
                         "transcription_links": transcription_links,
                         "idempotency_key": idempotency_key,
                     });
+                    validate_runtime_mailbox_record(
+                        StructuredCollaborationRecordFamily::RoleMailboxThreadLine,
+                        &line,
+                        &runtime_paths,
+                    )?;
 
                     thread_bytes.extend(canonical_json_bytes(&line));
                     thread_message_count += 1;
@@ -1461,6 +1479,10 @@ impl RoleMailbox {
             thread_files_out.sort_by(|a, b| a.0.cmp(&b.0));
 
             let thread_count = threads_out.len() as u64;
+            let index_evidence_refs: Vec<String> = thread_files_out
+                .iter()
+                .map(|(rel_path, _, _)| format!("{}{}", self.export_root_display, rel_path))
+                .collect();
             let index = json!({
                 "schema_id": "hsk.role_mailbox_index@1",
                 "schema_version": ROLE_MAILBOX_EXPORT_SCHEMA_VERSION,
@@ -1470,12 +1492,15 @@ impl RoleMailbox {
                 "mirror_state": "canonical_only",
                 "updated_at": max_ts,
                 "generated_at": max_ts,
-                "authority_refs": [
-                    "locus:role_mailbox"
-                ],
-                "evidence_refs": [],
+                "authority_refs": [index_display.as_str()],
+                "evidence_refs": index_evidence_refs,
                 "threads": threads_out,
             });
+            validate_runtime_mailbox_record(
+                StructuredCollaborationRecordFamily::RoleMailboxIndex,
+                &index,
+                &runtime_paths,
+            )?;
             let index_bytes = canonical_json_bytes(&index);
 
             Ok::<_, RoleMailboxError>((
@@ -1595,6 +1620,45 @@ pub struct RoleMailboxExportSummary {
     pub export_manifest_sha256: String,
     pub thread_count: u64,
     pub message_count: u64,
+}
+
+fn validate_runtime_mailbox_record(
+    family: StructuredCollaborationRecordFamily,
+    value: &Value,
+    runtime_paths: &RuntimeGovernancePaths,
+) -> Result<(), RoleMailboxError> {
+    let mut validation = validate_structured_collaboration_record(family, value);
+    let authority_refs = value
+        .get("authority_refs")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(|item| item.to_string())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let invalid_refs = runtime_paths.invalid_runtime_authority_refs(&authority_refs);
+    if !invalid_refs.is_empty() {
+        validation.push_issue(
+            StructuredCollaborationValidationCode::AuthorityScopeMismatch,
+            "authority_refs",
+            Some(runtime_paths.governance_root_display()),
+            Some(invalid_refs.join(",")),
+            "authority_refs must stay within the product-runtime .handshake/gov boundary",
+        );
+    }
+
+    if validation.ok {
+        Ok(())
+    } else {
+        Err(RoleMailboxError::InvalidInput(
+            serde_json::to_string(&validation).unwrap_or_else(|_| {
+                "structured collaboration validation failed for role mailbox export".to_string()
+            }),
+        ))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -166,6 +166,11 @@ function formatText(brief) {
     for (const command of brief.required_commands) lines.push(`  - ${command}`);
   }
 
+  if (brief.optional_commands.length > 0) {
+    lines.push("- OPTIONAL_HYGIENE_COMMANDS:");
+    for (const command of brief.optional_commands) lines.push(`  - ${command}`);
+  }
+
   lines.push("- REPORT_TEMPLATE:");
   lines.push("  - VALIDATION_CONTEXT: OK | CONTEXT_MISMATCH");
   lines.push("  - CODE_VERDICT: PASS | FAIL | NOT_RUN");
@@ -241,12 +246,17 @@ const codeTargetHint = mergeBaseSha
   : `Use a clean checkout of ${packetBranch} and validate commit ${codeTargetCommit}.`;
 
 const requiredCommands = [];
+const optionalCommands = [];
 pushUnique(requiredCommands, "just validator-startup");
 pushUnique(requiredCommands, `just external-validator-brief ${parsed.wpId}`);
 pushUnique(requiredCommands, `just validator-handoff-check ${parsed.wpId}`);
 pushUnique(requiredCommands, "just gov-check");
-pushUnique(requiredCommands, "just cargo-clean");
 pushUnique(requiredCommands, `just post-work ${parsed.wpId}${mergeBaseSha ? ` --range ${mergeBaseSha}..HEAD` : ""}`);
+pushUnique(optionalCommands, "just cargo-clean");
+pushUnique(
+  contextNotes,
+  "Optional hygiene commands do not determine legal PASS/FAIL unless the packet explicitly makes them product-critical.",
+);
 
 const brief = {
   schema_id: "hsk.external_validator_brief@1",
@@ -282,6 +292,7 @@ const brief = {
     "LEGAL_VERDICT",
   ],
   required_commands: requiredCommands,
+  optional_commands: optionalCommands,
   context_notes: contextNotes,
 };
 

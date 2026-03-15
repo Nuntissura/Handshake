@@ -243,10 +243,11 @@ try {
 const preWork = runInWorktree(worktreeAbs, "just", ["pre-work", parsed.wpId]);
 const cargoClean = runInWorktree(worktreeAbs, "just", ["cargo-clean"]);
 const postWork = runInWorktree(worktreeAbs, "just", ["post-work", parsed.wpId, ...committedTarget.args]);
+const cargoCleanStatus = cargoClean.code === 0 ? "PASS" : "NON_BLOCKING_FAIL";
 
 const evidence = {
   wp_id: parsed.wpId,
-  status: preWork.code === 0 && cargoClean.code === 0 && postWork.code === 0 ? "PASS" : "FAIL",
+  status: preWork.code === 0 && postWork.code === 0 ? "PASS" : "FAIL",
   validated_at: new Date().toISOString(),
   source_truth: "PREPARE_WORKTREE",
   prepare_branch: String(prepareEntry.branch || "").trim(),
@@ -256,7 +257,8 @@ const evidence = {
   committed_validation_target: committedTarget.summary,
   target_head_sha: targetHeadSha,
   pre_work_status: preWork.code === 0 ? "PASS" : "FAIL",
-  cargo_clean_status: cargoClean.code === 0 ? "PASS" : "FAIL",
+  cargo_clean_required: false,
+  cargo_clean_status: cargoCleanStatus,
   post_work_status: postWork.code === 0 ? "PASS" : "FAIL",
   pre_work_command: `just pre-work ${parsed.wpId}`,
   cargo_clean_command: "just cargo-clean",
@@ -273,7 +275,6 @@ if (evidence.status !== "PASS") {
     `prepare_worktree_dir=${evidence.prepare_worktree_dir}`,
     `committed_validation_target=${evidence.committed_validation_target}`,
     `pre_work_status=${evidence.pre_work_status}`,
-    `cargo_clean_status=${evidence.cargo_clean_status}`,
     `post_work_status=${evidence.post_work_status}`,
     `evidence_file=${stateFilePath(parsed.wpId).replace(/\\/g, "/")}`,
   ]);
@@ -286,6 +287,10 @@ console.log(`  committed_validation_mode=${evidence.committed_validation_mode}`)
 console.log(`  committed_validation_target=${evidence.committed_validation_target}`);
 console.log(`  target_head_sha=${evidence.target_head_sha}`);
 console.log(`  evidence_file=${stateFilePath(parsed.wpId).replace(/\\/g, "/")}`);
+if (evidence.cargo_clean_status !== "PASS") {
+  console.log(`  cargo_clean_status=${evidence.cargo_clean_status}`);
+  console.log("  cargo_clean_note=non-blocking environment hygiene failure");
+}
 if (nonBlockingSyncWarnings.length > 0) {
   console.log("  sync_warnings=");
   for (const warning of nonBlockingSyncWarnings) {

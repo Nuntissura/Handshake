@@ -134,7 +134,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-FR-ModelSessionId-v1]** - [STUB]
 - **[WP-1-Session-Anti-Pattern-Registry-v1]** - [STUB]
 - **[WP-1-Layerwise-Inference-Foundations-v1]** - [STUB]
-- **[WP-1-Structured-Collaboration-Schema-Registry-v1]** - [STUB]
 - **[WP-1-Project-Profile-Extension-Registry-v1]** - [STUB]
 - **[WP-1-Project-Agnostic-Workflow-State-Registry-v1]** - [STUB]
 - **[WP-1-Workflow-Transition-Automation-Registry-v1]** - [STUB]
@@ -248,6 +247,9 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Structured-Collaboration-Artifact-Family-v1]** - [VALIDATED]
 
 - **[WP-1-Loom-Storage-Portability-v1]** - [VALIDATED]
+
+
+- **[WP-1-Structured-Collaboration-Schema-Registry-v1]** - [VALIDATED]
 
 ## Blocked
 - **[WP-1-Calendar-Storage-v1]** - [BLOCKED]
