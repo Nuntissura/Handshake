@@ -113,8 +113,8 @@
 - WP_THREAD_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v1/THREAD.md
 - WP_RUNTIME_STATUS_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v1/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: .GOV/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v1/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: <unassigned>
-- INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
+- WP_VALIDATOR_OF_RECORD: 019ceb0d-9a03-75f3-a6cc-d16396e2e8d0
+- INTEGRATION_VALIDATOR_OF_RECORD: 019cee03-c18e-7f41-b3ac-2e0819cc6be1
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
 <!-- All roles MUST use the packet-declared WP communication directory. Role-local worktrees are never the communication authority. -->
