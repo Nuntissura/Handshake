@@ -1714,6 +1714,68 @@
       "branch": "feat/WP-1-Structured-Collaboration-Artifact-Family-v1",
       "worktree_dir": "../wt-WP-1-Structured-Collaboration-Artifact-Family-v1",
       "timestamp": "2026-03-12T19:23:23.467Z"
+    },
+    {
+      "wpId": "WP-1-Structured-Collaboration-Schema-Registry-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Structured-Collaboration-Schema-Registry-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md",
+      "spec_target_sha1": "d5225e6ab7a377fd574604160b9dd29bd12009da",
+      "timestamp": "2026-03-13T22:47:36.171Z"
+    },
+    {
+      "wpId": "WP-1-Loom-Storage-Portability-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Loom-Storage-Portability-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md",
+      "spec_target_sha1": "d5225e6ab7a377fd574604160b9dd29bd12009da",
+      "timestamp": "2026-03-13T22:55:50.103Z"
+    },
+    {
+      "wpId": "WP-1-Structured-Collaboration-Schema-Registry-v1",
+      "type": "REFINEMENT",
+      "refinement_path": ".GOV/refinements/WP-1-Structured-Collaboration-Schema-Registry-v1.md",
+      "spec_target_resolved": ".GOV/roles_shared/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md",
+      "spec_target_sha1": "d5225e6ab7a377fd574604160b9dd29bd12009da",
+      "timestamp": "2026-03-13T22:55:54.365Z"
+    },
+    {
+      "wpId": "WP-1-Loom-Storage-Portability-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja140320260134",
+      "workflow_lane": "ORCHESTRATOR_MANAGED",
+      "execution_lane": "Coder-B",
+      "timestamp": "2026-03-14T00:34:28.459Z",
+      "refinement_path": ".GOV/refinements/WP-1-Loom-Storage-Portability-v1.md"
+    },
+    {
+      "wpId": "WP-1-Structured-Collaboration-Schema-Registry-v1",
+      "type": "SIGNATURE",
+      "signature": "ilja140320260133",
+      "workflow_lane": "ORCHESTRATOR_MANAGED",
+      "execution_lane": "Coder-A",
+      "timestamp": "2026-03-14T00:33:28.459Z",
+      "refinement_path": ".GOV/refinements/WP-1-Structured-Collaboration-Schema-Registry-v1.md"
+    },
+    {
+      "wpId": "WP-1-Structured-Collaboration-Schema-Registry-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-A",
+      "workflow_lane": "ORCHESTRATOR_MANAGED",
+      "execution_lane": "Coder-A",
+      "branch": "feat/WP-1-Structured-Collaboration-Schema-Registry-v1",
+      "worktree_dir": "../wt-WP-1-Structured-Collaboration-Schema-Registry-v1",
+      "timestamp": "2026-03-14T00:36:22.981Z"
+    },
+    {
+      "wpId": "WP-1-Loom-Storage-Portability-v1",
+      "type": "PREPARE",
+      "coder_id": "Coder-B",
+      "workflow_lane": "ORCHESTRATOR_MANAGED",
+      "execution_lane": "Coder-B",
+      "branch": "feat/WP-1-Loom-Storage-Portability-v1",
+      "worktree_dir": "../wt-WP-1-Loom-Storage-Portability-v1",
+      "timestamp": "2026-03-14T00:37:29.789Z"
     }
   ]
 }

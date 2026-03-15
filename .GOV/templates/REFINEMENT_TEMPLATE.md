@@ -11,7 +11,7 @@ Requirements (HARD):
 
 ### METADATA
 - WP_ID: {{WP_ID}}
-- REFINEMENT_FORMAT_VERSION: 2026-03-08
+- REFINEMENT_FORMAT_VERSION: 2026-03-16
 - REFINEMENT_ENFORCEMENT_PROFILE: HYDRATED_RESEARCH_V1
 - CREATED_AT: {{DATE_ISO}}
 - SPEC_TARGET_RESOLVED: .GOV/roles_shared/SPEC_CURRENT.md -> {{SPEC_TARGET_RESOLVED}}
@@ -309,6 +309,49 @@ Requirements (HARD):
 - BUILD_ORDER_SYNC_NOTES:
   - <fill; if refinement changes stubs, dependencies, execution lane sequencing, or SPEC_CURRENT, sync `.GOV/roles_shared/BUILD_ORDER.md` before approval>
 
+### CLAUSE_PROOF_PLAN (diff-scoped spec proof seed for coder + validator; required for REFINEMENT_FORMAT_VERSION >= 2026-03-15)
+- Rule: enumerate the exact clauses this WP claims to satisfy, why they are in scope, where the implementation should land, what tests should prove them, and the failure mode if they are missed.
+- CLAUSE_ROWS:
+  - CLAUSE: <spec clause / anchor summary> | WHY_IN_SCOPE: <fill> | EXPECTED_CODE_SURFACES: <paths/symbols> | EXPECTED_TESTS: <tests/commands> | RISK_IF_MISSED: <fill>
+
+### CONTRACT_SURFACES (serialization/producer/consumer checklist; required for REFINEMENT_FORMAT_VERSION >= 2026-03-15)
+- Rule: enumerate every contract surface likely to drift silently across producer/consumer/validator/test boundaries.
+- CONTRACT_ROWS:
+  - CONTRACT: <artifact or payload> | PRODUCER: <fill> | CONSUMER: <fill> | SERIALIZER_TRANSPORT: <fill> | VALIDATOR_READER: <fill> | TRIPWIRE_TESTS: <fill> | DRIFT_RISK: <fill>
+
+### SEMANTIC_PROOF_PLAN (diff-scoped semantic proof assets; required for REFINEMENT_FORMAT_VERSION >= 2026-03-16)
+- Rule: record the concrete semantic proof assets this WP expects to rely on so later phases do not confuse green gates with semantic closure.
+- Rule: each in-scope clause should be backed by one or more executable tripwires, canonical contract examples, or explicit governed debt if proof must remain partial.
+- SEMANTIC_TRIPWIRE_TESTS:
+  - <exact command/test/assertion target or NONE>
+- CANONICAL_CONTRACT_EXAMPLES:
+  - <fixture/example/golden payload/shape assertion target or NONE>
+
+### CODER_HANDOFF_BRIEF (execution brief copied into packet; required for REFINEMENT_FORMAT_VERSION >= 2026-03-15)
+- IMPLEMENTATION_ORDER:
+  - <fill>
+- HOT_FILES:
+  - <repo path>
+- TRIPWIRE_TESTS:
+  - <fill>
+- CARRY_FORWARD_WARNINGS:
+  - <fill>
+
+### VALIDATOR_HANDOFF_BRIEF (inspection brief copied into packet; required for REFINEMENT_FORMAT_VERSION >= 2026-03-15)
+- CLAUSES_TO_INSPECT:
+  - <fill>
+- FILES_TO_READ:
+  - <repo path>
+- COMMANDS_TO_RUN:
+  - <exact command>
+- POST_MERGE_SPOTCHECKS:
+  - <fill or NONE>
+
+### NOT_PROVEN_AT_REFINEMENT_TIME (explicit uncertainty ledger; required for REFINEMENT_FORMAT_VERSION >= 2026-03-15)
+- Rule: list what refinement cannot honestly prove yet so later phases cannot silently overclaim completeness.
+- NOT_PROVEN_ITEMS:
+  - <fill or NONE>
+
 ### CLEARLY_COVERS (5-point checklist)
 - Appears in Main Body: [ ] PASS
 - Explicitly named: [ ] PASS
@@ -331,6 +374,7 @@ Requirements (HARD):
 ```
 
 ### SPEC_ANCHORS (REQUIRED: one or more)
+- Rule: for REFINEMENT_FORMAT_VERSION >= 2026-03-15, these anchor windows are also copied into the task packet `## SPEC_CONTEXT_WINDOWS` section for coder/validator downstream use.
 
 #### ANCHOR 1
 - SPEC_ANCHOR: <fill (example: Handshake_Master_Spec_v02.99.md 2.3.12.5 [CX-DBP-030])>

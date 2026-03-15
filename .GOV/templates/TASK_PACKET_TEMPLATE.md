@@ -90,6 +90,13 @@ Requirements:
 - EXTERNAL_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT
 - EXTERNAL_VALIDATOR_DISPOSITIONS: NONE | OUTDATED_ONLY
 - EXTERNAL_VALIDATOR_LEGAL_VERDICTS: PASS | FAIL | PENDING
+- GOVERNED_VALIDATOR_REPORT_PROFILE: SPLIT_DIFF_SCOPED_V1
+- GOVERNED_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | GOVERNANCE_VERDICT | TEST_VERDICT | CODE_REVIEW_VERDICT | SPEC_ALIGNMENT_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT | SPEC_CONFIDENCE
+- CLAUSE_CLOSURE_MONITOR_PROFILE: <pending>
+<!-- Required for new packets: CLAUSE_MONITOR_V1 -->
+- SEMANTIC_PROOF_PROFILE: <pending>
+<!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
+- SPEC_DEBT_REGISTRY: .GOV/roles_shared/SPEC_DEBT_REGISTRY.md
 - **Status:** Ready for Dev
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: <pending>
@@ -141,6 +148,33 @@ Requirements:
 Verdict: PENDING
 Blockers: NONE
 Next: N/A
+
+## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
+- Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature.
+- CLAUSE_ROWS:
+  - CLAUSE: <spec clause / anchor summary> | CODE_SURFACES: <paths/symbols> | TESTS: <tests/commands or NONE> | EXAMPLES: <fixtures/examples or NONE> | DEBT_IDS: <SPECDEBT-... or NONE> | CODER_STATUS: <UNPROVEN|PROVED|PARTIAL|DEFERRED|NOT_APPLICABLE> | VALIDATOR_STATUS: <PENDING|CONFIRMED|PARTIAL|REJECTED|NOT_APPLICABLE>
+
+## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
+- OPEN_SPEC_DEBT: <YES|NO>
+- BLOCKING_SPEC_DEBT: <YES|NO>
+- DEBT_IDS: <SPECDEBT-... | NONE>
+- Rule: if any clause row is PARTIAL or DEFERRED, DEBT_IDS must not be NONE and OPEN_SPEC_DEBT must be YES.
+
+## SHARED_SURFACE_MONITORING (AUTHORITATIVE SNAPSHOT; MUTABLE)
+- SHARED_SURFACE_RISK: <YES|NO>
+- HOT_FILES:
+  - path/to/file
+- REQUIRED_TRIPWIRE_TESTS:
+  - <test or NONE>
+- POST_MERGE_SPOTCHECK_REQUIRED: <YES|NO>
+- Rule: shared registries, shared types, shared storage layers, shared workflow/runtime surfaces, and migrations default to SHARED_SURFACE_RISK=YES.
+
+## SEMANTIC_PROOF_ASSETS (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
+- SEMANTIC_TRIPWIRE_TESTS:
+  - <exact command/test/assertion target or NONE>
+- CANONICAL_CONTRACT_EXAMPLES:
+  - <fixture/example/golden payload/shape assertion target or NONE>
+- Rule: for packets using `SEMANTIC_PROOF_PROFILE=DIFF_SCOPED_SEMANTIC_V1`, each clause row must point to TESTS, EXAMPLES, or governed debt, and shared-surface packets should carry at least one concrete tripwire or canonical example.
 
 ## WP_COMMUNICATIONS (NON-AUTHORITATIVE; REQUIRED FOR NEW PACKETS)
 - RULE: The task packet remains authoritative for scope, status, branch/worktree truth, acceptance, and verdict.
@@ -198,6 +232,50 @@ Next: N/A
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 - REFINEMENT_FILE: .GOV/refinements/{{WP_ID}}.md
 - Rule: Task packet creation is blocked until refinement is complete and signed.
+
+## SPEC_CONTEXT_WINDOWS (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
+- Rule: downstream coding and validation must use the signed refinement anchor windows below as the diff-scoped spec context for this packet.
+#### ANCHOR 1
+- SPEC_ANCHOR: <fill>
+- CONTEXT_START_LINE: <fill integer>
+- CONTEXT_END_LINE: <fill integer>
+- CONTEXT_TOKEN: <fill>
+- EXCERPT_ASCII_ESCAPED:
+  ```text
+  <paste excerpt>
+  ```
+
+## CLAUSE_PROOF_PLAN (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
+- CLAUSE_ROWS:
+  - CLAUSE: <spec clause / anchor summary> | WHY_IN_SCOPE: <fill> | EXPECTED_CODE_SURFACES: <paths/symbols> | EXPECTED_TESTS: <tests/commands> | RISK_IF_MISSED: <fill>
+
+## CONTRACT_SURFACES (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
+- CONTRACT_ROWS:
+  - CONTRACT: <artifact or payload> | PRODUCER: <fill> | CONSUMER: <fill> | SERIALIZER_TRANSPORT: <fill> | VALIDATOR_READER: <fill> | TRIPWIRE_TESTS: <fill> | DRIFT_RISK: <fill>
+
+## CODER_HANDOFF_BRIEF (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
+- IMPLEMENTATION_ORDER:
+  - <fill>
+- HOT_FILES:
+  - path/to/file
+- TRIPWIRE_TESTS:
+  - <fill>
+- CARRY_FORWARD_WARNINGS:
+  - <fill>
+
+## VALIDATOR_HANDOFF_BRIEF (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
+- CLAUSES_TO_INSPECT:
+  - <fill>
+- FILES_TO_READ:
+  - path/to/file
+- COMMANDS_TO_RUN:
+  - <exact command>
+- POST_MERGE_SPOTCHECKS:
+  - <fill or NONE>
+
+## NOT_PROVEN_AT_REFINEMENT_TIME (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
+- NOT_PROVEN_ITEMS:
+  - <fill or NONE>
 
 ## RESEARCH_SIGNAL (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - RESEARCH_CURRENCY_REQUIRED: <fill> (YES | NO)
@@ -430,3 +508,21 @@ git revert <commit-sha>
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
+- For `PACKET_FORMAT_VERSION >= 2026-03-15`, every appended governed validation report MUST include these top fields:
+  - `VALIDATION_CONTEXT: OK | CONTEXT_MISMATCH`
+  - `GOVERNANCE_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
+  - `TEST_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
+  - `CODE_REVIEW_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
+  - `SPEC_ALIGNMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
+  - `ENVIRONMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
+  - `DISPOSITION: NONE | OUTDATED_ONLY`
+  - `LEGAL_VERDICT: PASS | FAIL | PENDING`
+  - `SPEC_CONFIDENCE: NONE | PARTIAL_DIFF_SCOPED | REVIEWED_DIFF_SCOPED | POST_MERGE_RECHECKED`
+- For `PACKET_FORMAT_VERSION >= 2026-03-15`, every appended governed validation report MUST also include:
+  - `CLAUSES_REVIEWED:`
+    - one bullet per in-scope MUST/SHOULD clause reviewed, each with file:line evidence or an explicit proof note
+    - when `CLAUSE_CLOSURE_MONITOR_PROFILE=CLAUSE_MONITOR_V1`, reuse the exact clause text from `CLAUSE_CLOSURE_MATRIX`
+  - `NOT_PROVEN:`
+    - `- NONE` only when nothing remains unproven
+    - otherwise list each unresolved clause/gap explicitly
+- Rule: do not claim spec correctness with a generic PASS paragraph. `SPEC_ALIGNMENT_VERDICT=PASS` is only valid when the diff-scoped clauses are listed under `CLAUSES_REVIEWED` and `NOT_PROVEN` is exactly `- NONE`.

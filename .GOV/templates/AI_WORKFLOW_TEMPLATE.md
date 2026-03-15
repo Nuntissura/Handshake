@@ -26,7 +26,7 @@ This document is intended to be copied into other projects as a starting point. 
 3) Task Board (`.GOV/roles_shared/TASK_BOARD.md`) + task packet for the WP
 4) Logger (optional; milestones/hard bugs only, root or `log_archive/`)
 5) ADRs (`.GOV/adr/`)
-6) Past specs/logs (`.GOV/roles_shared/PAST_WORK_INDEX.md`)
+6) Past specs/logs (`.GOV/reference/PAST_WORK_INDEX.md`)
 
 ## Required navigation pack (copy these)
 | File | Purpose | Why it matters |
@@ -35,7 +35,7 @@ This document is intended to be copied into other projects as a starting point. 
 | `.GOV/roles_shared/SPEC_CURRENT.md` | Canonical spec pointer | Prevents spec drift |
 | `.GOV/roles_shared/ARCHITECTURE.md` | Module map + allowed deps | Avoids architectural entropy |
 | `.GOV/roles_shared/RUNBOOK_DEBUG.md` | Debug flow + log map | Consistent incident handling |
-| `.GOV/roles_shared/PAST_WORK_INDEX.md` | Links to old work | Prevents archaeology guesswork |
+| `.GOV/reference/PAST_WORK_INDEX.md` | Links to old work | Prevents archaeology guesswork |
 | `.GOV/roles_shared/QUALITY_GATE.md` | Risk tiers + required checks | Sets minimum hygiene |
 | `.GOV/templates/TASK_PACKET_TEMPLATE.md` | Standard work packet | Keeps scope/validation consistent |
 | `.GOV/roles_shared/OWNERSHIP.md` | Review routing | Clear accountability |
@@ -79,7 +79,7 @@ Validator performs a manual evidence-based review against the codex/spec and rec
 ## Git hook (optional but recommended)
 Enable a pre-commit hook for local hygiene checks:
 ```
-git config core.hooksPath .GOV/scripts/hooks
+git config core.hooksPath .GOV/roles_shared/scripts/hooks
 ```
 
 ## Validation and enforcement (defaults)
@@ -115,5 +115,3 @@ Task Board + task packet act as the micro-log; the Handshake logger is for miles
 - Use optional automated review tooling as a secondary reviewer for high-risk changes.
 - Add custom lint rules or architecture tests for deeper enforcement.
 - Add a `KNOWN_DEVIATIONS` section in the codex for intentional layout drift.
-
-

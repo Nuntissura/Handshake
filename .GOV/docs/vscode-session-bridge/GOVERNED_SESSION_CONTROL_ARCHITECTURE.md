@@ -200,10 +200,10 @@ Responsibilities:
 
 Representative files:
 
-- `.GOV/scripts/session-policy.mjs`
-- `.GOV/scripts/session-registry-lib.mjs`
-- `.GOV/scripts/session-control-lib.mjs`
-- `.GOV/scripts/session-control-command.mjs`
+- `.GOV/roles_shared/scripts/session/session-policy.mjs`
+- `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+- `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+- `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
 
 ### 2. ACP Adapter Layer
 
@@ -243,7 +243,7 @@ The VS Code bridge is demoted from "primary runtime control plane" to "launch/bo
 
 Lives in:
 
-- `.GOV/scripts/operator-monitor-tui.mjs`
+- `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
 
 Responsibilities:
 
@@ -457,15 +457,15 @@ No single field should carry all three meanings.
 
 ### Keep And Evolve
 
-- `.GOV/scripts/session-policy.mjs`
-- `.GOV/scripts/session-registry-lib.mjs`
-- `.GOV/scripts/session-control-lib.mjs`
-- `.GOV/scripts/session-control-command.mjs`
+- `.GOV/roles_shared/scripts/session/session-policy.mjs`
+- `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+- `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+- `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
 - `.GOV/roles_shared/ROLE_SESSION_REGISTRY.json`
 - `.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
 - `.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
 - `.GOV/roles_shared/SESSION_CONTROL_OUTPUTS/`
-- `.GOV/scripts/operator-monitor-tui.mjs`
+- `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
 
 ### Add
 
@@ -475,7 +475,7 @@ No single field should carry all three meanings.
 
 ### Demote
 
-- `.GOV/scripts/launch-cli-session.mjs`
+- `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
 - `.GOV/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
 - terminal injection as the primary meaning of "session started"
 

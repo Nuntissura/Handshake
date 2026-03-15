@@ -12,14 +12,14 @@ import {
   markSessionCommandResult,
   markSessionCommandRunning,
   saveSessionRegistry,
-} from "../../scripts/session-registry-lib.mjs";
+} from "../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
   buildSessionControlResult,
   defaultSessionOutputFile,
   ensureBrokerAuthToken,
   runCodexThreadCommand,
   validateSessionControlRequestShape,
-} from "../../scripts/session-control-lib.mjs";
+} from "../../roles_shared/scripts/session/session-control-lib.mjs";
 import {
   SESSION_ACTIVE_TERMINAL_KIND_NONE,
   SESSION_CONTROL_BROKER_AUTH_MODE,
@@ -33,7 +33,7 @@ import {
   SESSION_CONTROL_TRANSPORT_PRIMARY,
   isAllowedPrimaryOrFallbackModel,
   sessionKey,
-} from "../../scripts/session-policy.mjs";
+} from "../../roles_shared/scripts/session/session-policy.mjs";
 
 const repoRoot = process.cwd();
 const brokerStatePath = path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE);

@@ -31,7 +31,8 @@ This file is the shared law for repo-governed multi-session launch behavior.
 ## Fallback Law
 - Primary launch path is plugin-first.
 - A CLI escalation window is allowed only after the same role/WP session has recorded 2 plugin failures or timeouts.
-- Default escalation host: `WINDOWS_TERMINAL`
+- Default escalation host: `SYSTEM_TERMINAL`
+- Legacy compatibility: `WINDOWS_TERMINAL` is accepted as an older token, but new packets/protocol examples should use `SYSTEM_TERMINAL`.
 - Manual `PRINT` output is a repair/debug surface, not the preferred runtime.
 
 ## Wake-Up / Notice Protocol

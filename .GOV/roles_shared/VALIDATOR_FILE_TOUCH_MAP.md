@@ -30,7 +30,7 @@ Git metadata (read-only, via `git ...`):
   - `AGENTS.md`
   - `.GOV/roles/**`
   - `.GOV/roles_shared/**`
-  - `.GOV/scripts/**`
+  - `.GOV/roles_shared/scripts/hooks/**`
   - `.github/**`
   - `justfile`
 - Writes: none
@@ -47,12 +47,12 @@ Git metadata (read-only, via `git ...`):
 - Reads:
   - `.GOV/task_packets/WP-....md`
   - `.GOV/refinements/WP-....md`
-  - `.GOV/scripts/validation/cor701-spec.json`
+  - `.GOV/roles_shared/checks/cor701-spec.json`
   - `.GOV/roles_shared/TASK_BOARD.md`
   - `.GOV/roles_shared/SIGNATURE_AUDIT.md`
   - `.GOV/roles/orchestrator/ORCHESTRATOR_GATES.json`
   - `.GOV/roles/validator/VALIDATOR_GATES.json` (legacy back-compat for validator gates)
-  - `.GOV/ROLE_MAILBOX/*` (export integrity gate)
+  - `.GOV/roles_shared/exports/role_mailbox/*` (export integrity gate)
   - `.git/*` (diff/status windows)
   - In-scope product files referenced in the packet manifest (typically under `src/` and/or `app/`)
 - Writes: none (check-only; does not modify tracked files)
@@ -90,8 +90,7 @@ Git metadata (read-only, via `git ...`):
 
 `just validator-gate-present|acknowledge|append|commit|status|reset WP-...`:
 - Reads:
-  - `.GOV/validator_gates/WP-....json` (per-WP gate state, if present)
+  - `.GOV/roles_shared/validator_gates/WP-....json` (per-WP gate state, if present)
   - `.GOV/roles/validator/VALIDATOR_GATES.json` (legacy back-compat read, if present)
 - Writes:
-  - `.GOV/validator_gates/WP-....json`
-
+  - `.GOV/roles_shared/validator_gates/WP-....json`

@@ -101,7 +101,7 @@ function upsertSession(registry, request, patch) {
       launch_authority: request.launch_authority || "ORCHESTRATOR_ONLY",
       preferred_host: request.preferred_host || "VSCODE_EXTENSION_TERMINAL",
       fallback_host: request.fallback_host || "CLI_ESCALATION_WINDOW",
-      cli_escalation_host: "WINDOWS_TERMINAL",
+      cli_escalation_host: "SYSTEM_TERMINAL",
       local_branch: request.local_branch || "",
       local_worktree_dir: request.local_worktree_dir || "",
       terminal_title: request.terminal_title || "",

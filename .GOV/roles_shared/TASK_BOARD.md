@@ -52,6 +52,7 @@ Entry format (recommended):
 ---
 
 
+
 ## Ready for Dev
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
@@ -247,7 +248,6 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Structured-Collaboration-Artifact-Family-v1]** - [VALIDATED]
 
 - **[WP-1-Loom-Storage-Portability-v1]** - [VALIDATED]
-
 
 - **[WP-1-Structured-Collaboration-Schema-Registry-v1]** - [VALIDATED]
 
