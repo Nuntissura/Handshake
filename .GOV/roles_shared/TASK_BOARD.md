@@ -65,7 +65,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Video-Archive-Loom-Integration-v1]** - [STUB]
 - **[WP-1-Media-Downloader-Loom-Bridge-v1]** - [STUB]
 - **[WP-1-Loom-Preview-VideoPosterFrames-v1]** - [STUB]
-- **[WP-1-Loom-Storage-Portability-v1]** - [STUB]
 - **[WP-1-ASR-Transcribe-Media-v1]** - [STUB]
 - **[WP-1-Stage-ASR-Transcript-Lineage-v1]** - [STUB]
 - **[WP-1-Governance-Pack-v1]** - [STUB]
@@ -247,6 +246,8 @@ Assignee/model is recorded in the task packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Locus-Phase1-Integration-Occupancy-v1]** - [VALIDATED]
 
 - **[WP-1-Structured-Collaboration-Artifact-Family-v1]** - [VALIDATED]
+
+- **[WP-1-Loom-Storage-Portability-v1]** - [VALIDATED]
 
 ## Blocked
 - **[WP-1-Calendar-Storage-v1]** - [BLOCKED]

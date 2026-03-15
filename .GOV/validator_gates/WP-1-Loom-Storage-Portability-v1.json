@@ -1,0 +1,99 @@
+{
+  "validation_sessions": {
+    "WP-1-Loom-Storage-Portability-v1": {
+      "wpId": "WP-1-Loom-Storage-Portability-v1",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-03-15T00:02:39.405Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "PASS",
+          "timestamp": "2026-03-15T00:02:39.405Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-03-15T00:02:54.440Z"
+        }
+      ]
+    }
+  },
+  "archived_sessions": [
+    {
+      "wpId": "WP-1-Loom-Storage-Portability-v1",
+      "verdict": "FAIL",
+      "status": "USER_ACKNOWLEDGED",
+      "started": "2026-03-14T20:38:31.532Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "FAIL",
+          "timestamp": "2026-03-14T20:38:31.532Z"
+        },
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-03-14T20:39:03.001Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-03-14T20:53:54.196Z"
+        }
+      ],
+      "completed": "2026-03-14T20:53:54.197Z",
+      "archived_at": "2026-03-14T23:00:55.814Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-Loom-Storage-Portability-v1",
+      "verdict": "FAIL",
+      "status": "USER_ACKNOWLEDGED",
+      "started": "2026-03-14T23:01:29.720Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "FAIL",
+          "timestamp": "2026-03-14T23:01:29.720Z"
+        },
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-03-14T23:01:44.137Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-03-14T23:16:28.783Z"
+        }
+      ],
+      "completed": "2026-03-14T23:16:28.783Z",
+      "archived_at": "2026-03-14T23:25:53.571Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-Loom-Storage-Portability-v1",
+      "verdict": "FAIL",
+      "status": "USER_ACKNOWLEDGED",
+      "started": "2026-03-14T23:26:28.042Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "FAIL",
+          "timestamp": "2026-03-14T23:26:28.042Z"
+        },
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-03-14T23:26:38.155Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-03-14T23:52:28.660Z"
+        }
+      ],
+      "completed": "2026-03-14T23:52:28.660Z",
+      "archived_at": "2026-03-15T00:02:34.813Z",
+      "archive_reason": "manual_reset"
+    }
+  ],
+  "committed_validation_evidence": {}
+}
