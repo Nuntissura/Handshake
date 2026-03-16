@@ -67,6 +67,10 @@ function extractListItemsAfterLabel(sectionText, label) {
   return items;
 }
 
+function hasOnlyNoneList(items) {
+  return items.length === 1 && String(items[0] || "").trim().toUpperCase() === "NONE";
+}
+
 function isClosedStatus(status) {
   return /\b(done|validated)\b/i.test(String(status || ""));
 }
@@ -83,6 +87,8 @@ for (const name of files) {
   const text = fs.readFileSync(rel, "utf8");
   const packetFormatVersion = parseSingleField(text, "PACKET_FORMAT_VERSION");
   if (!packetUsesStructuredValidationReport(packetFormatVersion)) continue;
+  const reportProfile = parseSingleField(text, "GOVERNED_VALIDATOR_REPORT_PROFILE");
+  const requiresRigorV2 = /^SPLIT_DIFF_SCOPED_RIGOR_V2$/i.test(reportProfile);
 
   const status = parseStatus(text);
   if (!isClosedStatus(status)) continue;
@@ -104,6 +110,9 @@ for (const name of files) {
     "LEGAL_VERDICT",
     "SPEC_CONFIDENCE",
   ];
+  if (requiresRigorV2) {
+    requiredFields.splice(4, 0, "HEURISTIC_REVIEW_VERDICT");
+  }
 
   for (const label of requiredFields) {
     const value = parseSectionField(reports, label);
@@ -126,12 +135,28 @@ for (const name of files) {
     violations.push(`${rel}: NOT_PROVEN missing bullet items in VALIDATION_REPORTS`);
   }
 
+  const mainBodyGaps = extractListItemsAfterLabel(reports, "MAIN_BODY_GAPS");
+  const qualityRisks = extractListItemsAfterLabel(reports, "QUALITY_RISKS");
+  if (requiresRigorV2 && mainBodyGaps.length === 0) {
+    violations.push(`${rel}: MAIN_BODY_GAPS missing bullet items in VALIDATION_REPORTS`);
+  }
+  if (requiresRigorV2 && qualityRisks.length === 0) {
+    violations.push(`${rel}: QUALITY_RISKS missing bullet items in VALIDATION_REPORTS`);
+  }
+
   const specAlignmentVerdict = parseSectionField(reports, "SPEC_ALIGNMENT_VERDICT").toUpperCase();
   if (specAlignmentVerdict === "PASS") {
-    const hasOnlyNone = notProven.length === 1 && notProven[0].toUpperCase() === "NONE";
-    if (!hasOnlyNone) {
+    if (!hasOnlyNoneList(notProven)) {
       violations.push(`${rel}: SPEC_ALIGNMENT_VERDICT=PASS requires NOT_PROVEN to be exactly "- NONE"`);
     }
+    if (requiresRigorV2 && !hasOnlyNoneList(mainBodyGaps)) {
+      violations.push(`${rel}: SPEC_ALIGNMENT_VERDICT=PASS requires MAIN_BODY_GAPS to be exactly "- NONE"`);
+    }
+  }
+
+  const heuristicReviewVerdict = parseSectionField(reports, "HEURISTIC_REVIEW_VERDICT").toUpperCase();
+  if (requiresRigorV2 && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(qualityRisks)) {
+    violations.push(`${rel}: HEURISTIC_REVIEW_VERDICT=PASS requires QUALITY_RISKS to be exactly "- NONE"`);
   }
 }
 
@@ -140,6 +165,5 @@ if (violations.length > 0) {
 }
 
 console.log("validator-report-structure-check ok");
-
 
 
