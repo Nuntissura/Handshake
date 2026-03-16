@@ -357,7 +357,8 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 - At start: set the task packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH`, and make a docs-only bootstrap commit on your WP branch (so the Validator can status-sync `main`). For newly created repo-governed packets, claim `gpt-5.4` + `EXTRA_HIGH`, or `gpt-5.2` + `EXTRA_HIGH` only when the primary model is unavailable.
 - **Evidence Management:** You MAY append test logs, command outputs, and proof of work to the `## EVIDENCE` section of the task packet.
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
-- **Status Updates:** Update the `## STATUS_HANDOFF` section to reflect progress (e.g., "Implementation complete, tests passing").
+- **Status Updates:** Update the `## STATUS_HANDOFF` section with a real self-audit, not a generic "tests passing" note.
+- Compare your implementation against local `main` first. Use `origin/main` only as a secondary fallback when local `main` is missing the relevant integrated context or remote drift is the subject of the WP.
 - **Branch Discipline (preferred):** Do all work on a WP branch (e.g., `feat/WP-{ID}`), optionally via `git worktree`. You MAY commit freely to your WP branch and push only the assigned WP backup branch. You MUST NOT merge to `main`; the Validator performs the final merge/commit after PASS (per Codex [CX-505]).
 - **Concurrency rule (MANDATORY when >1 Coder is active):** work only in the dedicated `git worktree` directory assigned to your WP. Do NOT share a single working tree with another active WP.
 
@@ -1241,7 +1242,14 @@ Fix errors, re-run `just post-work`.
 ### Step 11: Status Sync & Request Validator Review
 
 **1. Update task packet handoff:**
-- Ensure `## STATUS_HANDOFF` says: "Implementation complete; GATES_PASS (post-work) PASS; TEST_PLAN results recorded; ready for validation"
+- Ensure `## STATUS_HANDOFF` includes all of the following, with concrete content rather than a generic ready note:
+  - `Current WP_STATUS:`
+  - `What changed in this update:`
+  - `Main-body clauses self-audited:`
+  - `Known gaps / weak spots:`
+  - `Heuristic risks / maintainability concerns:`
+  - `Validator focus request:`
+  - `Next step / handoff hint:`
 - Do NOT write verdicts or edit `## VALIDATION_REPORTS`
 
 **2. Output final summary:**
@@ -1593,6 +1601,7 @@ Before handoff, explicitly re-check the exact clauses this WP claims to close.
 
 **MUST confirm:**
 - [ ] I re-read the DONE_MEANS bullets and exact SPEC_ANCHOR clauses I am claiming.
+- [ ] I compared the landed diff against local `main` first (or documented why `origin/main` was needed instead).
 - [ ] Required fields are emitted/serialized end-to-end, not just present in local structs or validators.
 - [ ] Shared contract names still match across producers, consumers, tests, and validators.
 - [ ] Tests cover the actual contract, not only nearby code paths.
@@ -1600,6 +1609,7 @@ Before handoff, explicitly re-check the exact clauses this WP claims to close.
 - [ ] I updated `## CLAUSE_CLOSURE_MATRIX` so every in-scope clause is marked honestly (`PROVED | PARTIAL | DEFERRED | NOT_APPLICABLE`) before handoff.
 - [ ] If any clause is `PARTIAL` or `DEFERRED`, I opened/synced governed debt (`just spec-debt-open` / `just spec-debt-sync`) so `## SPEC_DEBT_STATUS` and the clause row `DEBT_IDS` are explicit instead of hidden.
 - [ ] Any clause I could not fully prove is called out in handoff notes instead of being implied as complete.
+- [ ] I called out my own weak spots, brittle areas, and heuristic-quality concerns in `## STATUS_HANDOFF` instead of leaving them for the validator to discover blind.
 
 **Failure pattern to avoid:**
 - Tests are green, but a required field or schema name is still missing from the final emitted artifact.
