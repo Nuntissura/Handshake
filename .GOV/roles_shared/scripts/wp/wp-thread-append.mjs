@@ -28,6 +28,13 @@ function parseBooleanLike(value) {
   return ["1", "true", "yes", "y"].includes(raw.toLowerCase());
 }
 
+function nullableCliString(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (/^(?:null|none|n\/a|false)$/i.test(raw)) return "";
+  return raw;
+}
+
 function loadThreadContext(wpId) {
   const packetPath = path.join(PACKETS_DIR, `${wpId}.md`);
   if (!fs.existsSync(packetPath)) {
@@ -62,12 +69,12 @@ export function appendWpThreadEntry({
   const WP_ID = String(wpId || "").trim();
   const ACTOR_ROLE = String(actorRole || "").trim().toUpperCase();
   const ACTOR_SESSION = String(actorSession || "").trim();
-  const TARGET = String(target || "").trim();
-  const TARGET_ROLE = String(targetRole || "").trim().toUpperCase();
-  const TARGET_SESSION = String(targetSession || "").trim();
-  const CORRELATION_ID = String(correlationId || "").trim();
-  const SPEC_ANCHOR = String(specAnchor || "").trim();
-  const PACKET_ROW_REF = String(packetRowRef || "").trim();
+  const TARGET = nullableCliString(target);
+  const TARGET_ROLE = nullableCliString(targetRole).toUpperCase();
+  const TARGET_SESSION = nullableCliString(targetSession);
+  const CORRELATION_ID = nullableCliString(correlationId);
+  const SPEC_ANCHOR = nullableCliString(specAnchor);
+  const PACKET_ROW_REF = nullableCliString(packetRowRef);
   const bodyLines = normalizeMultilineMessage(message);
 
   if (!WP_ID || !/^WP-/.test(WP_ID)) throw new Error("WP_ID is required");
