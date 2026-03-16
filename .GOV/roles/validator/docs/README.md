@@ -2,6 +2,7 @@
 
 Place future Validator-local non-authoritative support docs here, for example:
 
+- `VALIDATOR_ANTI_GAMING_RUBRIC.md` for current anti-gaming review guidance
 - rubrics
 - implementation notes
 - protocol gap analysis

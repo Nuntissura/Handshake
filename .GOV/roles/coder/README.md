@@ -3,13 +3,15 @@
 This README is navigational only.
 Authoritative folder-placement law for the Coder bundle lives in `Handshake Codex v1.4.md` plus `CODER_PROTOCOL.md`.
 
-## Primary Docs
+## Primary Live Docs
 
 - `CODER_PROTOCOL.md`
-- `docs/CODER_RUBRIC.md`
-- `docs/CODER_IMPLEMENTATION_ROADMAP.md`
-- `docs/CODER_PROTOCOL_GAPS.md`
-- `docs/CODER_PROTOCOL_SCRUTINY.md`
+- `agentic/AGENTIC_PROTOCOL.md` when sub-agent delegation is explicitly allowed by the packet
+
+## Support / Analysis Docs
+
+- `docs/` is non-authoritative support material and may lag current workflow law
+- `docs/CODER_RUBRIC_V2.md` is the current deep-quality support rubric for coder self-review
 
 ## Role-Owned Checks / Scripts
 
