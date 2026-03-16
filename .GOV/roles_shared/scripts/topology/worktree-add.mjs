@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { defaultCoderWorktreeDir } from "../session/session-policy.mjs";
 
 function runGit(args) {
   return execFileSync("git", args, { stdio: "pipe" }).toString().trim();
@@ -89,13 +90,13 @@ function main() {
   const wpId = process.argv[2]?.trim();
   if (!wpId) {
     fail(
-      "Usage: node .GOV/roles_shared/scripts/topology/worktree-add.mjs <WP_ID> [base=main] [branch=feat/WP_ID] [dir=../wt-WP_ID]"
+      "Usage: node .GOV/roles_shared/scripts/topology/worktree-add.mjs <WP_ID> [base=main] [branch=feat/WP_ID] [dir=<repo-relative worktree dir>]"
     );
   }
 
   const base = (process.argv[3] ?? "main").trim() || "main";
   const branch = (process.argv[4] ?? "").trim() || `feat/${wpId}`;
-  const dir = (process.argv[5] ?? "").trim() || path.join("..", `wt-${wpId}`);
+  const dir = (process.argv[5] ?? "").trim() || defaultCoderWorktreeDir(wpId);
 
   const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
 

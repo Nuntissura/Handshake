@@ -163,6 +163,8 @@ function extractSectionBlock(text, heading) {
   const headingIdx = lines.findIndex((line) => new RegExp(`^#{2,6}\\s+${heading}\\b`, 'i').test(line));
   if (headingIdx === -1) return '';
 
+  const headingMatch = lines[headingIdx].match(/^(#{2,6})\s+/);
+  const headingLevel = headingMatch ? headingMatch[1].length : 2;
   const sectionLines = [lines[headingIdx]];
   let inFence = false;
   for (let i = headingIdx + 1; i < lines.length; i += 1) {
@@ -173,7 +175,8 @@ function extractSectionBlock(text, heading) {
       sectionLines.push(line);
       continue;
     }
-    if (!inFence && /^#{1,6}\s+\S/.test(line)) break;
+    const nextHeadingMatch = !inFence ? line.match(/^(#{1,6})\s+\S/) : null;
+    if (nextHeadingMatch && nextHeadingMatch[1].length <= headingLevel) break;
     sectionLines.push(line);
   }
   return sectionLines.join('\n').trim();
@@ -773,7 +776,9 @@ if (!fs.existsSync(taskPacketDir)) {
       const packetOutOfScope = extractIndentedListAfterLabel(packetContent, 'OUT_OF_SCOPE');
       const packetTestPlan = extractFencedBlockAfterHeading(packetContent, 'TEST_PLAN');
       const packetDoneMeans = extractBulletListAfterHeading(packetContent, 'DONE_MEANS');
-      const packetSpecAnchor = parseSingleField(packetContent, 'SPEC_ANCHOR');
+      const packetSpecAnchor =
+        parseSingleField(packetContent, 'SPEC_ANCHOR_PRIMARY')
+        || parseSingleField(packetContent, 'SPEC_ANCHOR');
       const packetFilesToOpen = extractIndentedListAfterLabel(packetContent, 'FILES_TO_OPEN', { stopLabels: ['SEARCH_TERMS'] });
       const packetSearchTerms = extractIndentedListAfterLabel(packetContent, 'SEARCH_TERMS', { stopLabels: ['RUN_COMMANDS'] });
       const packetRunCommands = extractFencedBlockAfterLabel(packetContent, 'RUN_COMMANDS');
@@ -950,7 +955,7 @@ if (!fs.existsSync(taskPacketDir)) {
       if (!sameList(packetDoneMeans, hydration.doneMeans || [])) errors.push('DONE_MEANS in the packet drifted from the signed refinement');
       if (!sameList(packetPrimitivesExposed, hydration.primitivesExposed || [])) errors.push('QUALITY_GATE PRIMITIVES_EXPOSED in the packet drifted from the signed refinement');
       if (!sameList(packetPrimitivesCreated, hydration.primitivesCreated || [])) errors.push('QUALITY_GATE PRIMITIVES_CREATED in the packet drifted from the signed refinement');
-      if ((packetSpecAnchor || '').trim() !== (hydration.specAnchorPrimary || '').trim()) errors.push('SPEC_ANCHOR in the packet drifted from the signed refinement');
+      if ((packetSpecAnchor || '').trim() !== (hydration.specAnchorPrimary || '').trim()) errors.push('SPEC_ANCHOR_PRIMARY in the packet drifted from the signed refinement');
       if (!sameList(packetFilesToOpen, hydration.filesToOpen || [])) errors.push('BOOTSTRAP FILES_TO_OPEN in the packet drifted from the signed refinement');
       if (!sameList(packetSearchTerms, hydration.searchTerms || [])) errors.push('BOOTSTRAP SEARCH_TERMS in the packet drifted from the signed refinement');
       if (normalizeBlock(packetRunCommands) !== normalizeBlock(hydration.runCommands || '')) errors.push('BOOTSTRAP RUN_COMMANDS in the packet drifted from the signed refinement');

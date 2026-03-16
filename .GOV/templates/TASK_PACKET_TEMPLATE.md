@@ -91,7 +91,7 @@ Requirements:
 - EXTERNAL_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT
 - EXTERNAL_VALIDATOR_DISPOSITIONS: NONE | OUTDATED_ONLY
 - EXTERNAL_VALIDATOR_LEGAL_VERDICTS: PASS | FAIL | PENDING
-- GOVERNED_VALIDATOR_REPORT_PROFILE: SPLIT_DIFF_SCOPED_RIGOR_V2
+- GOVERNED_VALIDATOR_REPORT_PROFILE: SPLIT_DIFF_SCOPED_RIGOR_V3
 - GOVERNED_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | GOVERNANCE_VERDICT | TEST_VERDICT | CODE_REVIEW_VERDICT | HEURISTIC_REVIEW_VERDICT | SPEC_ALIGNMENT_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT | SPEC_CONFIDENCE
 - CODER_HANDOFF_RIGOR_PROFILE: RUBRIC_SELF_AUDIT_V2
 - CLAUSE_CLOSURE_MONITOR_PROFILE: <pending>
@@ -390,7 +390,7 @@ git revert <commit-sha>
 - SPEC_BASELINE: {{SPEC_BASELINE}} (recorded_at: {{DATE_ISO}})
 - SPEC_TARGET: .GOV/roles_shared/records/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
 - SPEC_ADD_MARKER_TARGET: <pending>
-- SPEC_ANCHOR: {{SPEC_ANCHOR}}
+- SPEC_ANCHOR_PRIMARY: {{SPEC_ANCHOR}}
 - Codex: Handshake Codex v1.4.md
 - Task Board: .GOV/roles_shared/records/TASK_BOARD.md
 - WP Traceability: .GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md
@@ -541,12 +541,34 @@ git revert <commit-sha>
   - `NOT_PROVEN:`
     - `- NONE` only when nothing remains unproven
     - otherwise list each unresolved clause/gap explicitly
-- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V2`, every appended governed validation report MUST also include:
+- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`, every appended governed validation report MUST also include:
   - `MAIN_BODY_GAPS:`
     - `- NONE` only when no main-body requirement remains unproven, partial, or weakly evidenced
     - otherwise list each unresolved MUST/SHOULD gap explicitly
   - `QUALITY_RISKS:`
     - `- NONE` only when no material maintainability, brittleness, ambiguity, or heuristic-quality risk remains
     - otherwise list each residual code-quality risk explicitly
+  - `VALIDATOR_RISK_TIER: LOW | MEDIUM | HIGH`
+    - validator-assigned risk tier; MUST NOT be lower than the packet `RISK_TIER`
+  - `DIFF_ATTACK_SURFACES:`
+    - list the failure surfaces the validator derived from reading the diff directly
+  - `INDEPENDENT_CHECKS_RUN:`
+    - list validator-owned checks that were not copied from coder evidence, formatted as `what => observed`
+  - `COUNTERFACTUAL_CHECKS:`
+    - list concrete code-path / symbol counterfactuals in the form `If X were removed or altered, Y would break`
+    - naming a test only is insufficient; name the file, symbol, or code path
+  - `BOUNDARY_PROBES:`
+    - required for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`
+    - record the validator's interface / producer-consumer / storage / contract boundary checks
+  - `NEGATIVE_PATH_CHECKS:`
+    - required for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`
+    - record invalid, missing, adversarial, or failure-path checks the validator ran
+  - `INDEPENDENT_FINDINGS:`
+    - list what the validator learned independently, even if the conclusion is baseline confirmation
+  - `RESIDUAL_UNCERTAINTY:`
+    - list remaining uncertainty explicitly; for `VALIDATOR_RISK_TIER=HIGH`, `- NONE` is illegal
 - Rule: do not claim spec correctness with a generic PASS paragraph. `SPEC_ALIGNMENT_VERDICT=PASS` is only valid when the diff-scoped clauses are listed under `CLAUSES_REVIEWED` and `NOT_PROVEN` is exactly `- NONE`.
 - Rule: `HEURISTIC_REVIEW_VERDICT=PASS` is only valid when `QUALITY_RISKS` is exactly `- NONE`.
+- Rule: `LEGAL_VERDICT=PASS` is only valid when `DIFF_ATTACK_SURFACES`, `INDEPENDENT_CHECKS_RUN`, and `COUNTERFACTUAL_CHECKS` are all present and non-empty.
+- Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
+- Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
