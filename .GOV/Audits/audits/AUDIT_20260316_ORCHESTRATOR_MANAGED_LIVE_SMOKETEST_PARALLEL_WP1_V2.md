@@ -59,6 +59,13 @@ Overall judgment:
 - steady-state ACP/operator ergonomics: not proven
 - validator readiness and communication hygiene: partially proven after hotfix
 - tooling quality for a no-drama live smoke: not yet sufficient
+- authoritative packet/task-board truth maintenance: failed
+
+Post-audit correction:
+
+- both `v2` remediation WPs were genuinely started
+- the authoritative packet/task-board surfaces were not reconciled to match runtime truth
+- this audit must therefore be read as a live run with stale governance state, not as a run that never advanced beyond `READY_FOR_DEV`
 
 ---
 
@@ -66,16 +73,17 @@ Overall judgment:
 
 At the audit cut:
 
-- `CODER:WP-1-Structured-Collaboration-Schema-Registry-v2` was still running its first substantive remediation turn.
-- `CODER:WP-1-Loom-Storage-Portability-v2` was still running its first substantive remediation turn.
+- `CODER:WP-1-Structured-Collaboration-Schema-Registry-v2` had started, recorded a bootstrap claim in its worktree, and still held active uncommitted product-code changes in the assigned coder lane.
+- `CODER:WP-1-Loom-Storage-Portability-v2` had started, reached a skeleton checkpoint, and recorded the docs-only checkpoint commit `930ee53`.
 - both WP validator sessions had been normalized into explicit standby state:
   - `runtime_status=input_required`
   - `current_phase=STATUS_SYNC`
   - `next_expected_actor=ORCHESTRATOR`
   - `waiting_on="coder handoff or validator trigger"`
 - no `VALIDATION_REPORTS` closeout had been appended yet for either v2 WP.
+- the authoritative task board and task packets still incorrectly showed both WPs as `READY_FOR_DEV` despite live runtime/session evidence proving otherwise.
 
-This means the smoke was live and functioning, but not yet at a coder-handoff or validator-verdict boundary.
+This means the smoke was live and functioning, but not yet at a coder-handoff or validator-verdict boundary, and the canonical governance surfaces were already behind reality.
 
 ---
 
@@ -93,6 +101,9 @@ This means the smoke was live and functioning, but not yet at a coder-handoff or
 
 3. I had to repair validator startup mid-smoke instead of relying on pre-existing `gov-check` / startup hard-gates to keep the run clean.
    - Effect: the smoke remained valid, but operator experience was degraded and required manual ACP triage.
+
+4. I did not keep the authoritative packet/task-board state synchronized with the live ACP/runtime state.
+   - Effect: the repo later appeared to say both WPs never started even though runtime/session evidence and the WP worktrees showed that they had.
 
 #### What Worked
 
@@ -220,6 +231,24 @@ Impact:
 - patch deployment is manual and error-prone
 - ACP smoke tests are sensitive to branch-local governance skew
 
+### 4.6 Authoritative State Sync Failed
+
+The live ACP/runtime surfaces, the role worktrees, and the canonical packet/task-board surfaces drifted apart during the smoke.
+
+Concrete symptoms:
+
+- both v2 WPs remained listed as `READY_FOR_DEV` on the task board
+- both canonical task packets remained at `Ready for Dev`
+- Loom v2 had already reached a skeleton checkpoint in the coder worktree
+- Schema v2 had already started and accumulated active product-code edits in the coder worktree
+- both WP validators had active standby/runtime evidence proving the sessions were launched
+
+Impact:
+
+- later review could falsely conclude the v2 WPs never started
+- operator trust in packet/task-board truth was damaged
+- ACP/runtime truth required forensic reconstruction from worktrees and ledgers
+
 ---
 
 ## 5. WRONG TOOLING, UNCLEAR PATHS, OR UNCLEAR COMMANDS
@@ -279,6 +308,7 @@ Immediate effect:
 3. After the current smoke, decide how governance-only hotfixes should propagate into already-active role worktrees without manual copy/paste patching.
 4. Add a check or packet-generation rule that rejects repo-root Cargo commands when the packet targets `src/backend/handshake_core`.
 5. Tighten validator engagement so WP validators can receive structured review requests earlier than handoff.
+6. Add a truth-sync rule so live orchestrator-managed WPs cannot remain `READY_FOR_DEV` once coder or validator sessions have started.
 
 ---
 
@@ -292,6 +322,11 @@ This smoke did prove the parallel orchestrator-managed shape:
 - governed ACP steering
 
 It also proved that the supporting tooling still has real operational faults.
+
+It also proved a more serious governance point:
+
+- runtime truth without prompt packet/task-board reconciliation is not good enough
+- if the authoritative surfaces lag the live run, the system can look idle or orderly while real partial work is already in flight
 
 The important conclusion is not "ACP failed." The important conclusion is:
 
