@@ -13,6 +13,10 @@ import {
   normalizePath,
 } from "../scripts/session/session-policy.mjs";
 import {
+  governanceRuntimeAbsPath,
+  LEGACY_SHARED_GOV_RUNTIME_ROOT,
+} from "../scripts/lib/runtime-paths.mjs";
+import {
   loadSessionControlRequests,
   loadSessionControlResults,
   loadSessionRegistry,
@@ -45,6 +49,22 @@ function readJson(filePath, fallbackValue = null) {
 
 function toAbsNormalized(filePath) {
   return normalizePath(path.resolve(repoRoot, String(filePath || "")));
+}
+
+function resolveOutputLogPath(filePath) {
+  const raw = normalizePath(filePath || "");
+  if (!raw) return "";
+
+  const legacyPrefix = normalizePath(`${LEGACY_SHARED_GOV_RUNTIME_ROOT}/`);
+  if (raw.startsWith(legacyPrefix)) {
+    const suffixSegments = raw.slice(legacyPrefix.length).split("/").filter(Boolean);
+    const externalCandidate = normalizePath(governanceRuntimeAbsPath("roles_shared", ...suffixSegments));
+    if (fs.existsSync(externalCandidate)) {
+      return externalCandidate;
+    }
+  }
+
+  return toAbsNormalized(filePath);
 }
 
 function isProcessAlive(pid) {
@@ -300,7 +320,7 @@ for (const result of results) {
       invariantErrors.push(`result ${result.command_id} CANCEL_SESSION target does not match request`);
     }
   }
-  const outputPath = toAbsNormalized(result.output_jsonl_file);
+  const outputPath = resolveOutputLogPath(result.output_jsonl_file);
   if (!fs.existsSync(outputPath)) {
     invariantErrors.push(`result ${result.command_id} is missing output log ${outputPath}`);
   }
@@ -359,7 +379,7 @@ for (const request of requests) {
   const result = resultById.get(request.command_id);
   const session = sessionByKey.get(request.session_key);
   const brokerRun = brokerRunById.get(request.command_id);
-  const outputPath = toAbsNormalized(request.output_jsonl_file);
+  const outputPath = resolveOutputLogPath(request.output_jsonl_file);
   const outputExists = fs.existsSync(outputPath);
 
   if (result) {
@@ -402,7 +422,7 @@ for (const session of registry.sessions || []) {
     continue;
   }
 
-  const lastCommandOutputPath = toAbsNormalized(session.last_command_output_file);
+  const lastCommandOutputPath = resolveOutputLogPath(session.last_command_output_file);
   const lastCommandOutputExists = normalizePath(session.last_command_output_file || "")
     ? fs.existsSync(lastCommandOutputPath)
     : false;
@@ -451,4 +471,3 @@ if (invariantErrors.length > 0) {
 }
 
 console.log("session-control-runtime-check ok");
-
