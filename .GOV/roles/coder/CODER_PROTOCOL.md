@@ -262,7 +262,11 @@ Resume rule (hard, anti-babysit):
   - `just wp-heartbeat WP-{ID} CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
   - `just wp-receipt-append WP-{ID} CODER <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
   - `just wp-validator-query WP-{ID} CODER <session> <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
+  - `just wp-validator-response WP-{ID} CODER <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - `just wp-review-request WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
+  - `just wp-review-response WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
+  - `just wp-spec-gap WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR|ORCHESTRATOR <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
+  - `just wp-spec-confirmation WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR|ORCHESTRATOR <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - `just session-registry-status [WP-{ID}]`
   - `just operator-monitor` (operator viewport for ACP-aware session/control/thread/receipt/artifact visibility)
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Coder session):
@@ -334,10 +338,9 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 
 **Blocking rule:** If the Lineage Audit is missing/unclear, STOP and escalate to the Orchestrator. Do NOT proceed to implement â€œjust the v{N} diffâ€ without a complete audit.
 
-**Supporting Documents:**
-- **docs/CODER_RUBRIC.md** - Internal quality standard (15-point self-audit, success metrics, failure modes)
-- **docs/CODER_PROTOCOL_SCRUTINY.md** - Analysis of current gaps (18 identified, B+ grade)
-- **docs/CODER_IMPLEMENTATION_ROADMAP.md** - Path to 9.9/10 (3-phase improvement plan)
+**Support Surface:**
+- `agentic/AGENTIC_PROTOCOL.md` is the live add-on when the packet explicitly allows coder sub-agents.
+- `docs/` contains non-authoritative coder support notes and historical analysis; do not treat those files as current workflow law.
 
 ## Deterministic Validation (COR-701 carryover, current workflow)
 - Each task packet MUST retain the manifest template in `## Validation` (target_file, start/end, line_delta, pre/post SHA1, gates checklist). Keep it ASCII-only.
@@ -1339,7 +1342,7 @@ I cannot start without a task packet.
 ```
 âŒ Tests failed [CX-572]
 
-Command: cargo test
+Command: cargo test --manifest-path src/backend/handshake_core/Cargo.toml
 Result: FAIL (2 failed, 3 passed)
 
 Errors:
@@ -1412,10 +1415,10 @@ Code looks good. Work is done!
 ```
 Running validation per TEST_PLAN:
 
-$ cargo test
+$ cargo test --manifest-path src/backend/handshake_core/Cargo.toml
 âœ… 5 passed
 
-$ pnpm test
+$ pnpm -C app test
 âœ… 12 passed
 
 âœ… PASS
@@ -1862,63 +1865,3 @@ Work is stuck (can't proceed without help)
 
 **Awaiting Response By:** {date/time}
 ```
-
----
-
-# PART 3: CODER PROTOCOL GAPS & ROADMAP
-
-## Current Grade: B+ (82/100) â†’ Target: A+ (99/100)
-
-**18 identified gaps organized by impact:**
-
-### Phase 1 (P0): Critical Foundations [82 â†’ 88/100]
-- [ ] Packet Completeness Criteria (objective checklist)
-- [ ] BOOTSTRAP Completeness Checklist (4 sub-fields with minimums)
-- [ ] TEST_PLAN Completeness Check (verify concrete commands)
-- [ ] Error Recovery Procedures (6 common mistakes + solutions)
-- [ ] Validation Priority Sequence (Tests â†’ Manual Review â†’ Post-Work)
-- **Effort:** 3-4 hours | **All items IMPLEMENTED âœ…**
-
-### Phase 2 (P1): Quality Systems [88 â†’ 93/100]
-- [x] Hard Invariant Enforcement Guide (explain [CX-101-106]) - Added after Step 6
-- [x] Test Coverage Checklist (minimum % per risk tier) - Added as Step 7.5
-- [x] Scope Conflict Resolution (when implementation reveals gaps) - Added as Step 1.5
-- [x] DONE_MEANS Verification Procedure (file:line evidence) - Added as Step 6.5
-- **Effort:** 2-3 hours | **All items IMPLEMENTED âœ…**
-
-### Phase 3 (P2): Polish [93 â†’ 99/100]
-- [ ] Manual Review Severity Matrix (PASS/WARN/BLOCK criteria)
-- [ ] Packet Update Clarity (what you can/can't edit)
-- [ ] Ecosystem Links (understanding three-role system)
-- [ ] Miscellaneous Polish (branching strategy, consistency, clarity)
-- **Effort:** 2-3 hours | **Designed, ready for implementation**
-
----
-
-## Implementation Timeline
-
-**After Phase 1 (P0) - COMPLETED âœ…**
-- Packet completeness is verifiable (no subjectivity)
-- BOOTSTRAP format is crystal clear
-- Coder knows validation order
-- Coder has error recovery playbook
-- **Grade: A- (88/100)**
-
-**After Phase 2 (P1) - COMPLETED âœ…**
-- Hard invariants explained with grep commands and fix examples (Step 6 + enforcement guide)
-- Test coverage minimums clear with tarpaulin verification (Step 7.5)
-- Scope conflicts caught early with step 1.5 adequacy check
-- DONE_MEANS verified with file:line evidence during implementation (Step 6.5)
-- **Grade: A (93/100)**
-
-**After Phase 3 (P2) - Designed**
-- Manual review severity objective
-- Governance rules explicit
-- Ecosystem context clear
-- Polish complete
-- **Grade: A+ (99/100) = 9.9/10 âœ¨**
-
----
-
-**Total effort to reach 9.9/10: 7-10 hours (all cheap LLM tier)**
-**Cost: LOW (documentation + clarification, no code changes)**
