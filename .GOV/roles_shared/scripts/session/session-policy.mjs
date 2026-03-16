@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import path from "node:path";
 import {
   LEGACY_SHARED_GOV_SESSION_CONTROL_BROKER_STATE_FILE,
@@ -168,8 +169,16 @@ export function defaultCoderBranch(wpId) {
   return `feat/${wpId}`;
 }
 
+function deterministicWorktreeDir(prefix, roleKey, wpId) {
+  const digest = createHash("sha1")
+    .update(`${roleKey}:${String(wpId || "").trim()}`)
+    .digest("hex")
+    .slice(0, 10);
+  return normalizePath(path.join("..", `${prefix}-${digest}`));
+}
+
 export function defaultCoderWorktreeDir(wpId) {
-  return normalizePath(path.join("..", `wt-${wpId}`));
+  return deterministicWorktreeDir("wtc", "CODER", wpId);
 }
 
 export function defaultWpValidatorBranch(wpId) {
@@ -177,7 +186,7 @@ export function defaultWpValidatorBranch(wpId) {
 }
 
 export function defaultWpValidatorWorktreeDir(wpId) {
-  return normalizePath(path.join("..", `wt-WPV-${wpId}`));
+  return deterministicWorktreeDir("wtv", "WP_VALIDATOR", wpId);
 }
 
 export function defaultIntegrationValidatorBranch(wpId) {
@@ -185,7 +194,7 @@ export function defaultIntegrationValidatorBranch(wpId) {
 }
 
 export function defaultIntegrationValidatorWorktreeDir(wpId) {
-  return normalizePath(path.join("..", `wt-INTV-${wpId}`));
+  return deterministicWorktreeDir("wti", "INTEGRATION_VALIDATOR", wpId);
 }
 
 export function sessionKey(role, wpId) {

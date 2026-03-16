@@ -58,13 +58,13 @@
 - CODER_STARTUP_COMMAND: just coder-startup
 - CODER_RESUME_COMMAND: just coder-next WP-1-Loom-Storage-Portability-v1
 - WP_VALIDATOR_LOCAL_BRANCH: validate/WP-1-Loom-Storage-Portability-v1
-- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wt-WPV-WP-1-Loom-Storage-Portability-v1
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtv-09be9cc587
 - WP_VALIDATOR_REMOTE_BACKUP_BRANCH: validate/WP-1-Loom-Storage-Portability-v1
 - WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/validate/WP-1-Loom-Storage-Portability-v1
 - WP_VALIDATOR_STARTUP_COMMAND: just validator-startup
 - WP_VALIDATOR_RESUME_COMMAND: just validator-next WP-1-Loom-Storage-Portability-v1
 - INTEGRATION_VALIDATOR_LOCAL_BRANCH: integrate/WP-1-Loom-Storage-Portability-v1
-- INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../wt-INTV-WP-1-Loom-Storage-Portability-v1
+- INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../wti-1891e7adc2
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH: integrate/WP-1-Loom-Storage-Portability-v1
 - INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/integrate/WP-1-Loom-Storage-Portability-v1
 - INTEGRATION_VALIDATOR_STARTUP_COMMAND: just validator-startup
