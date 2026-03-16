@@ -773,7 +773,9 @@ if (!fs.existsSync(taskPacketDir)) {
       const packetOutOfScope = extractIndentedListAfterLabel(packetContent, 'OUT_OF_SCOPE');
       const packetTestPlan = extractFencedBlockAfterHeading(packetContent, 'TEST_PLAN');
       const packetDoneMeans = extractBulletListAfterHeading(packetContent, 'DONE_MEANS');
-      const packetSpecAnchor = parseSingleField(packetContent, 'SPEC_ANCHOR');
+      const packetSpecAnchor =
+        parseSingleField(packetContent, 'SPEC_ANCHOR_PRIMARY')
+        || parseSingleField(packetContent, 'SPEC_ANCHOR');
       const packetFilesToOpen = extractIndentedListAfterLabel(packetContent, 'FILES_TO_OPEN', { stopLabels: ['SEARCH_TERMS'] });
       const packetSearchTerms = extractIndentedListAfterLabel(packetContent, 'SEARCH_TERMS', { stopLabels: ['RUN_COMMANDS'] });
       const packetRunCommands = extractFencedBlockAfterLabel(packetContent, 'RUN_COMMANDS');
@@ -950,7 +952,7 @@ if (!fs.existsSync(taskPacketDir)) {
       if (!sameList(packetDoneMeans, hydration.doneMeans || [])) errors.push('DONE_MEANS in the packet drifted from the signed refinement');
       if (!sameList(packetPrimitivesExposed, hydration.primitivesExposed || [])) errors.push('QUALITY_GATE PRIMITIVES_EXPOSED in the packet drifted from the signed refinement');
       if (!sameList(packetPrimitivesCreated, hydration.primitivesCreated || [])) errors.push('QUALITY_GATE PRIMITIVES_CREATED in the packet drifted from the signed refinement');
-      if ((packetSpecAnchor || '').trim() !== (hydration.specAnchorPrimary || '').trim()) errors.push('SPEC_ANCHOR in the packet drifted from the signed refinement');
+      if ((packetSpecAnchor || '').trim() !== (hydration.specAnchorPrimary || '').trim()) errors.push('SPEC_ANCHOR_PRIMARY in the packet drifted from the signed refinement');
       if (!sameList(packetFilesToOpen, hydration.filesToOpen || [])) errors.push('BOOTSTRAP FILES_TO_OPEN in the packet drifted from the signed refinement');
       if (!sameList(packetSearchTerms, hydration.searchTerms || [])) errors.push('BOOTSTRAP SEARCH_TERMS in the packet drifted from the signed refinement');
       if (normalizeBlock(packetRunCommands) !== normalizeBlock(hydration.runCommands || '')) errors.push('BOOTSTRAP RUN_COMMANDS in the packet drifted from the signed refinement');

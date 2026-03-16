@@ -389,7 +389,7 @@ git revert <commit-sha>
 - SPEC_BASELINE: {{SPEC_BASELINE}} (recorded_at: {{DATE_ISO}})
 - SPEC_TARGET: .GOV/roles_shared/records/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
 - SPEC_ADD_MARKER_TARGET: <pending>
-- SPEC_ANCHOR: {{SPEC_ANCHOR}}
+- SPEC_ANCHOR_PRIMARY: {{SPEC_ANCHOR}}
 - Codex: Handshake Codex v1.4.md
 - Task Board: .GOV/roles_shared/records/TASK_BOARD.md
 - WP Traceability: .GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md

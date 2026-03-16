@@ -797,7 +797,7 @@ if (isHydratedProfile) {
 - SPEC_BASELINE: ${specBaseline} (recorded_at: ${timestamp})
 - SPEC_TARGET: .GOV/roles_shared/records/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
 - SPEC_ADD_MARKER_TARGET: ${specAddMarkerTarget}
-- SPEC_ANCHOR: ${primarySpecAnchor}
+- SPEC_ANCHOR_PRIMARY: ${primarySpecAnchor}
 - Codex: Handshake Codex v1.4.md
 - Task Board: .GOV/roles_shared/records/TASK_BOARD.md
 - WP Traceability: .GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md
