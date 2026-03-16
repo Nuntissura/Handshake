@@ -444,6 +444,24 @@ const extractSection = (content, heading) => {
   return section.join('\n');
 };
 
+const escapePacketRegex = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const parsePacketSingleField = (content, label) => {
+  if (!content) return '';
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${escapePacketRegex(label)}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, 'mi');
+  const match = content.match(re);
+  return match ? match[1].trim() : '';
+};
+const hasConcreteStatusField = (section, label) => {
+  const re = new RegExp(`^\\s*-\\s*${escapePacketRegex(label)}\\s*:\\s*(.+)\\s*$`, 'mi');
+  const match = String(section || '').match(re);
+  if (!match) return false;
+  const value = String(match[1] || '').trim();
+  if (!value) return false;
+  if (/^<pending>$/i.test(value)) return false;
+  if (/^n\/?a$/i.test(value)) return false;
+  return true;
+};
+
 // Check 0: Canonical evidence must live in the packet for modern packets.
 // This is intentionally mechanical to keep validation reproducible.
 if (isModernPacket) {
@@ -466,6 +484,29 @@ if (isModernPacket) {
     const hasExitCode = evidenceLines.some((l) => /EXIT_CODE\s*:\s*\d+/i.test(l));
     if (!(hasCommand && hasExitCode)) {
       errors.push('EVIDENCE must include at least one COMMAND + EXIT_CODE entry for modern packets');
+    }
+  }
+
+  const handoffRigorProfile = parsePacketSingleField(packetContent, 'CODER_HANDOFF_RIGOR_PROFILE');
+  if (/^MAIN_BODY_SELF_CRITIQUE_V1$/i.test(handoffRigorProfile)) {
+    const statusHandoff = extractSection(packetContent, 'STATUS_HANDOFF');
+    if (!statusHandoff) {
+      errors.push('Missing ## STATUS_HANDOFF section (required for MAIN_BODY_SELF_CRITIQUE_V1)');
+    } else {
+      const requiredStatusFields = [
+        'Current WP_STATUS',
+        'What changed in this update',
+        'Main-body clauses self-audited',
+        'Known gaps / weak spots',
+        'Heuristic risks / maintainability concerns',
+        'Validator focus request',
+        'Next step / handoff hint',
+      ];
+      for (const label of requiredStatusFields) {
+        if (!hasConcreteStatusField(statusHandoff, label)) {
+          errors.push(`STATUS_HANDOFF missing concrete field: ${label}`);
+        }
+      }
     }
   }
 }

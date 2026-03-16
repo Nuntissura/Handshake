@@ -91,8 +91,9 @@ Requirements:
 - EXTERNAL_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT
 - EXTERNAL_VALIDATOR_DISPOSITIONS: NONE | OUTDATED_ONLY
 - EXTERNAL_VALIDATOR_LEGAL_VERDICTS: PASS | FAIL | PENDING
-- GOVERNED_VALIDATOR_REPORT_PROFILE: SPLIT_DIFF_SCOPED_V1
-- GOVERNED_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | GOVERNANCE_VERDICT | TEST_VERDICT | CODE_REVIEW_VERDICT | SPEC_ALIGNMENT_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT | SPEC_CONFIDENCE
+- GOVERNED_VALIDATOR_REPORT_PROFILE: SPLIT_DIFF_SCOPED_RIGOR_V2
+- GOVERNED_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | GOVERNANCE_VERDICT | TEST_VERDICT | CODE_REVIEW_VERDICT | HEURISTIC_REVIEW_VERDICT | SPEC_ALIGNMENT_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT | SPEC_CONFIDENCE
+- CODER_HANDOFF_RIGOR_PROFILE: MAIN_BODY_SELF_CRITIQUE_V1
 - CLAUSE_CLOSURE_MONITOR_PROFILE: <pending>
 <!-- Required for new packets: CLAUSE_MONITOR_V1 -->
 - SEMANTIC_PROOF_PROFILE: <pending>
@@ -488,8 +489,13 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
+- Rule for `CODER_HANDOFF_RIGOR_PROFILE=MAIN_BODY_SELF_CRITIQUE_V1`: do not write a generic "ready for validation" note. Record the strongest self-critique you can defend.
 - Current WP_STATUS:
 - What changed in this update:
+- Main-body clauses self-audited:
+- Known gaps / weak spots:
+- Heuristic risks / maintainability concerns:
+- Validator focus request:
 - Next step / handoff hint:
 
 ## EVIDENCE_MAPPING
@@ -514,6 +520,7 @@ git revert <commit-sha>
   - `GOVERNANCE_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
   - `TEST_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
   - `CODE_REVIEW_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
+  - `HEURISTIC_REVIEW_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
   - `SPEC_ALIGNMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
   - `ENVIRONMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
   - `DISPOSITION: NONE | OUTDATED_ONLY`
@@ -526,4 +533,12 @@ git revert <commit-sha>
   - `NOT_PROVEN:`
     - `- NONE` only when nothing remains unproven
     - otherwise list each unresolved clause/gap explicitly
+- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V2`, every appended governed validation report MUST also include:
+  - `MAIN_BODY_GAPS:`
+    - `- NONE` only when no main-body requirement remains unproven, partial, or weakly evidenced
+    - otherwise list each unresolved MUST/SHOULD gap explicitly
+  - `QUALITY_RISKS:`
+    - `- NONE` only when no material maintainability, brittleness, ambiguity, or heuristic-quality risk remains
+    - otherwise list each residual code-quality risk explicitly
 - Rule: do not claim spec correctness with a generic PASS paragraph. `SPEC_ALIGNMENT_VERDICT=PASS` is only valid when the diff-scoped clauses are listed under `CLAUSES_REVIEWED` and `NOT_PROVEN` is exactly `- NONE`.
+- Rule: `HEURISTIC_REVIEW_VERDICT=PASS` is only valid when `QUALITY_RISKS` is exactly `- NONE`.
