@@ -4,7 +4,7 @@
 - TASK_ID: WP-1-Structured-Collaboration-Schema-Registry-v2
 - WP_ID: WP-1-Structured-Collaboration-Schema-Registry-v2
 - BASE_WP_ID: WP-1-Structured-Collaboration-Schema-Registry
-- DATE: 2026-03-16T19:36:20.514Z
+- DATE: 2026-03-16T19:38:49.963Z
 - MERGE_BASE_SHA: d8edecab4a4115736a8f58e7f7c73ffcd065b9b5 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
 - REQUESTOR: Operator
 - AGENT_ID: Orchestrator
@@ -579,10 +579,10 @@ cargo test -p handshake_core
 git revert <commit-sha>
 ```
 ## AUTHORITY
-- SPEC_BASELINE: Handshake_Master_Spec_v02.178.md (recorded_at: 2026-03-16T19:36:20.514Z)
+- SPEC_BASELINE: Handshake_Master_Spec_v02.178.md (recorded_at: 2026-03-16T19:38:49.963Z)
 - SPEC_TARGET: .GOV/roles_shared/records/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
 - SPEC_ADD_MARKER_TARGET: [ADD v02.168]
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.178.md Base structured schema and project-profile extension contract [ADD v02.168]
+- SPEC_ANCHOR_PRIMARY: Handshake_Master_Spec_v02.178.md Base structured schema and project-profile extension contract [ADD v02.168]
 - Codex: Handshake Codex v1.4.md
 - Task Board: .GOV/roles_shared/records/TASK_BOARD.md
 - WP Traceability: .GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md
