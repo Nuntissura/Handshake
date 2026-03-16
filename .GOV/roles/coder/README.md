@@ -3,7 +3,7 @@
 This README is navigational only.
 Authoritative folder-placement law for the Coder bundle lives in `Handshake Codex v1.4.md` plus `CODER_PROTOCOL.md`.
 
-## Primary Docs
+## Primary Live Docs
 
 - `CODER_PROTOCOL.md`
 - `agentic/AGENTIC_PROTOCOL.md` when sub-agent delegation is explicitly allowed by the packet
