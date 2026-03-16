@@ -4,7 +4,7 @@
 - TASK_ID: WP-1-Loom-Storage-Portability-v2
 - WP_ID: WP-1-Loom-Storage-Portability-v2
 - BASE_WP_ID: WP-1-Loom-Storage-Portability
-- DATE: 2026-03-16T19:22:51.967Z
+- DATE: 2026-03-16T19:36:20.263Z
 - MERGE_BASE_SHA: d8edecab4a4115736a8f58e7f7c73ffcd065b9b5 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)
 - REQUESTOR: Operator
 - AGENT_ID: Orchestrator
@@ -141,20 +141,11 @@ Next: N/A
   - CLAUSE: Handshake_Master_Spec_v02.178.md 2.3.13.7 Loom Storage Trait + Portable Schema (Example) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test -p handshake_core loom; cargo test -p handshake_core --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
   - CLAUSE: Handshake_Master_Spec_v02.178.md 10.12 Loom (Heaper-style Library Surface) [ADD v02.130] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test -p handshake_core loom; cargo test -p handshake_core --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
   - CLAUSE: Handshake_Master_Spec_v02.178.md Loom search API backend-agnostic contract and portable schema continuation [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/loom.rs, src/backend/handshake_core/src/storage/sqlite.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/src/api/loom.rs, src/backend/handshake_core/src/loom_fs.rs, src/backend/handshake_core/src/storage/tests.rs, src/backend/handshake_core/tests/storage_conformance.rs, src/backend/handshake_core/migrations/0013_loom_mvp.sql, src/backend/handshake_core/migrations/0013_loom_mvp.down.sql | TESTS: cargo test -p handshake_core loom; cargo test -p handshake_core --test storage_conformance; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-- Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature.
-- CLAUSE_ROWS:
-  - CLAUSE: <spec clause / anchor summary> | CODE_SURFACES: <paths/symbols> | TESTS: <tests/commands or NONE> | EXAMPLES: <fixtures/examples or NONE> | DEBT_IDS: <SPECDEBT-... or NONE> | CODER_STATUS: <UNPROVEN|PROVED|PARTIAL|DEFERRED|NOT_APPLICABLE> | VALIDATOR_STATUS: <PENDING|CONFIRMED|PARTIAL|REJECTED|NOT_APPLICABLE>
-
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
 - DEBT_IDS: NONE
 - Rule: if any clause row is PARTIAL or DEFERRED, DEBT_IDS must not be NONE and OPEN_SPEC_DEBT must be YES.
-- OPEN_SPEC_DEBT: <YES|NO>
-- BLOCKING_SPEC_DEBT: <YES|NO>
-- DEBT_IDS: <SPECDEBT-... | NONE>
-- Rule: if any clause row is PARTIAL or DEFERRED, DEBT_IDS must not be NONE and OPEN_SPEC_DEBT must be YES.
-
 ## SHARED_SURFACE_MONITORING (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - SHARED_SURFACE_RISK: YES
 - HOT_FILES:
@@ -170,26 +161,12 @@ Next: N/A
   - Legacy bridge: use packet TEST_PLAN plus validator spot-check on integrated main
 - POST_MERGE_SPOTCHECK_REQUIRED: YES
 - Rule: shared registries, shared types, shared storage layers, shared workflow/runtime surfaces, and migrations default to SHARED_SURFACE_RISK=YES.
-- SHARED_SURFACE_RISK: <YES|NO>
-- HOT_FILES:
-  - path/to/file
-- REQUIRED_TRIPWIRE_TESTS:
-  - <test or NONE>
-- POST_MERGE_SPOTCHECK_REQUIRED: <YES|NO>
-- Rule: shared registries, shared types, shared storage layers, shared workflow/runtime surfaces, and migrations default to SHARED_SURFACE_RISK=YES.
-
 ## SEMANTIC_PROOF_ASSETS (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - SEMANTIC_TRIPWIRE_TESTS:
   - cargo test -p handshake_core loom; cargo test -p handshake_core --test storage_conformance; just gov-check [LEGACY_REFINEMENT_BRIDGE]
 - CANONICAL_CONTRACT_EXAMPLES:
   - NONE
 - Rule: for packets using `SEMANTIC_PROOF_PROFILE=DIFF_SCOPED_SEMANTIC_V1`, each clause row must point to TESTS, EXAMPLES, or governed debt, and shared-surface packets should carry at least one concrete tripwire or canonical example.
-- SEMANTIC_TRIPWIRE_TESTS:
-  - <exact command/test/assertion target or NONE>
-- CANONICAL_CONTRACT_EXAMPLES:
-  - <fixture/example/golden payload/shape assertion target or NONE>
-- Rule: for packets using `SEMANTIC_PROOF_PROFILE=DIFF_SCOPED_SEMANTIC_V1`, each clause row must point to TESTS, EXAMPLES, or governed debt, and shared-surface packets should carry at least one concrete tripwire or canonical example.
-
 ## WP_COMMUNICATIONS (NON-AUTHORITATIVE; REQUIRED FOR NEW PACKETS)
 - RULE: The task packet remains authoritative for scope, status, branch/worktree truth, acceptance, and verdict.
 - PURPOSE: The per-WP communication folder holds freeform discussion, liveness state, and deterministic receipts for multi-session work.
@@ -448,54 +425,16 @@ Next: N/A
       async fn recompute_all_metrics(&self, workspace_id: UUID) -> Result<()>;
   }
   ```
-- Rule: downstream coding and validation must use the signed refinement anchor windows below as the diff-scoped spec context for this packet.
-#### ANCHOR 1
-- SPEC_ANCHOR: Handshake_Master_Spec_v02.178.md 2.3.13.7 Loom Storage Trait + Portable Schema (Example) [ADD v02.130]
-- CONTEXT_START_LINE: <fill integer>
-- CONTEXT_END_LINE: <fill integer>
-- CONTEXT_TOKEN: <fill>
-- EXCERPT_ASCII_ESCAPED:
-  ```text
-  <paste excerpt>
-  ```
-
 ## CLAUSE_PROOF_PLAN (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - COMPATIBILITY_NOTE: Signed refinement predates REFINEMENT_FORMAT_VERSION 2026-03-15. Use the signed refinement directly for clause proof planning.
-- CLAUSE_ROWS:
-  - CLAUSE: <spec clause / anchor summary> | WHY_IN_SCOPE: <fill> | EXPECTED_CODE_SURFACES: <paths/symbols> | EXPECTED_TESTS: <tests/commands> | RISK_IF_MISSED: <fill>
-
 ## CONTRACT_SURFACES (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - COMPATIBILITY_NOTE: Signed refinement predates REFINEMENT_FORMAT_VERSION 2026-03-15. Reconstruct contract-surface checks from the signed refinement when needed.
-- CONTRACT_ROWS:
-  - CONTRACT: <artifact or payload> | PRODUCER: <fill> | CONSUMER: <fill> | SERIALIZER_TRANSPORT: <fill> | VALIDATOR_READER: <fill> | TRIPWIRE_TESTS: <fill> | DRIFT_RISK: <fill>
-
 ## CODER_HANDOFF_BRIEF (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - COMPATIBILITY_NOTE: Signed refinement predates REFINEMENT_FORMAT_VERSION 2026-03-15. Read the signed refinement directly for execution guidance.
-- IMPLEMENTATION_ORDER:
-  - <fill>
-- HOT_FILES:
-  - path/to/file
-- TRIPWIRE_TESTS:
-  - <fill>
-- CARRY_FORWARD_WARNINGS:
-  - <fill>
-
 ## VALIDATOR_HANDOFF_BRIEF (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - COMPATIBILITY_NOTE: Signed refinement predates REFINEMENT_FORMAT_VERSION 2026-03-15. Read the signed refinement directly for inspection guidance.
-- CLAUSES_TO_INSPECT:
-  - <fill>
-- FILES_TO_READ:
-  - path/to/file
-- COMMANDS_TO_RUN:
-  - <exact command>
-- POST_MERGE_SPOTCHECKS:
-  - <fill or NONE>
-
 ## NOT_PROVEN_AT_REFINEMENT_TIME (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - COMPATIBILITY_NOTE: Signed refinement predates REFINEMENT_FORMAT_VERSION 2026-03-15. Uncertainty tracking remains in the signed refinement only.
-- NOT_PROVEN_ITEMS:
-  - <fill or NONE>
-
 ## RESEARCH_SIGNAL (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - RESEARCH_CURRENCY_REQUIRED: YES
 - RESEARCH_CURRENCY_VERDICT: CURRENT
@@ -519,17 +458,6 @@ Next: N/A
 - GITHUB_PROJECT_DECISIONS:
   - OpenLineage/OpenLineage -> ADAPT (NONE)
   - pgvector/pgvector -> TRACK_ONLY (NONE)
-- RESEARCH_CURRENCY_REQUIRED: <fill> (YES | NO)
-- RESEARCH_CURRENCY_VERDICT: <fill> (CURRENT | STALE | NOT_APPLICABLE)
-- RESEARCH_DEPTH_VERDICT: <fill> (PASS | NOT_APPLICABLE)
-- GITHUB_PROJECT_SCOUTING_VERDICT: <fill> (PASS | NOT_APPLICABLE)
-- SOURCE_LOG:
-  - [<KIND>] <title> | <YYYY-MM-DD> | Retrieved: <YYYY-MM-DDTHH:MM:SSZ> | <https://...> | Why: <fill>
-- RESEARCH_SYNTHESIS:
-  - <fill>
-- GITHUB_PROJECT_DECISIONS:
-  - <owner/name> -> <ADOPT|ADAPT|REJECT|TRACK_ONLY> (<impact>)
-
 ## MATRIX_RESEARCH_RUBRIC (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - MATRIX_RESEARCH_REQUIRED: YES
 - MATRIX_RESEARCH_VERDICT: PASS
@@ -548,15 +476,6 @@ Next: N/A
   - Keep provider-specific FTS and ranking logic inside backend implementations, not in portable migrations.
   - Assert semantic parity through shared Loom conformance tests rather than comparing SQL query text.
   - Treat `LoomSourceAnchor` and view/search filters as portable contract structs, not adapter-only shapes.
-- MATRIX_RESEARCH_REQUIRED: <fill> (YES | NO)
-- MATRIX_RESEARCH_VERDICT: <fill> (PASS | NOT_APPLICABLE | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
-- SOURCE_SCAN_DECISIONS:
-  - <source> -> <ADOPT|ADAPT|REJECT> (<resolution>)
-- MATRIX_GROWTH_CANDIDATES:
-  - <combo> -> <resolution> (stub: <WP-... | NONE>)
-- ENGINEERING_TRICKS_CARRIED_OVER:
-  - <fill>
-
 ## PRIMITIVES_AND_MATRIX (REFINEMENT OUTPUT; REQUIRED)
 - PRIMITIVES_TOUCHED:
   - PRIM-LoomBlock
@@ -609,30 +528,6 @@ Next: N/A
   - Shared Loom conformance tests over SQLite and PostgreSQL -> IN_THIS_WP (stub: NONE)
   - Thin API seam over portable storage behavior -> IN_THIS_WP (stub: NONE)
 - STUB_WP_IDS: NONE
-- PRIMITIVES_TOUCHED:
-  - PRIM-<fill> (or NONE)
-- PRIMITIVES_EXPOSED:
-  - PRIM-<fill> (or NONE)
-- PRIMITIVES_CREATED:
-  - PRIM-<fill> (or NONE)
-- MECHANICAL_ENGINES_TOUCHED:
-  - engine.<fill> (or NONE)
-- PRIMITIVE_INDEX_ACTION: <fill> (UPDATED | NO_CHANGE)
-- FEATURE_REGISTRY_ACTION: <fill> (UPDATED | NO_CHANGE)
-- UI_GUIDANCE_ACTION: <fill> (UPDATED | NO_CHANGE | NOT_APPLICABLE)
-- INTERACTION_MATRIX_ACTION: <fill> (UPDATED | NO_CHANGE)
-- APPENDIX_MAINTENANCE_VERDICT: <fill> (OK | NEEDS_SPEC_UPDATE | NEEDS_STUBS)
-- PILLAR_ALIGNMENT_VERDICT: <fill> (OK | NEEDS_SPEC_UPDATE | NEEDS_STUBS)
-- PILLARS_TOUCHED:
-  - <fill> (or NONE)
-- PILLARS_REQUIRING_STUBS:
-  - <fill> (or NONE)
-- PRIMITIVE_MATRIX_VERDICT: <fill> (OK | NEEDS_STUBS | NONE_FOUND)
-- FORCE_MULTIPLIER_VERDICT: <fill> (OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
-- FORCE_MULTIPLIER_RESOLUTIONS:
-  - <combo> -> <IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW> (stub: <WP-... | NONE>)
-- STUB_WP_IDS: <fill> (comma-separated WP-... IDs | NONE)
-
 ## PILLAR_DECOMPOSITION (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - PILLAR_DECOMPOSITION_VERDICT: OK
 - DECOMPOSITION_ROWS:
@@ -640,10 +535,6 @@ Next: N/A
   - PILLAR: Loom | CAPABILITY_SLICE: Portable view, search, and source-anchor contract | SUBFEATURES: `LoomViewFilters`, `LoomSearchFilters`, `LoomBlockSearchResult`, and `LoomSourceAnchor` parity | PRIMITIVES_FEATURES: PRIM-LoomViewFilters, PRIM-LoomSearchFilters, PRIM-LoomBlockSearchResult, PRIM-LoomSourceAnchor | MECHANICAL: engine.librarian, engine.dba, engine.version | ROI: HIGH | RESOLUTION: IN_THIS_WP | STUB: NONE | NOTES: the API contract should preserve the same filter meaning and source-anchor durability across both backends
   - PILLAR: SQL to PostgreSQL shift readiness | CAPABILITY_SLICE: Loom migration and DDL portability | SUBFEATURES: replay-safe migrations, down migrations, provider-local indexes outside portable DDL, and no trigger-dependent semantics | PRIMITIVES_FEATURES: PRIM-LoomBlock, PRIM-LoomEdge, PRIM-LoomSourceAnchor | MECHANICAL: engine.dba, engine.version | ROI: HIGH | RESOLUTION: IN_THIS_WP | STUB: NONE | NOTES: this is the direct portability law bridge from spec to code for the Loom surface
   - PILLAR: SQL to PostgreSQL shift readiness | CAPABILITY_SLICE: Cross-provider Loom conformance coverage | SUBFEATURES: shared test helpers for SQLite and PostgreSQL parity over CRUD, search, view, dedup, and anchor round-trips | PRIMITIVES_FEATURES: PRIM-LoomBlock, PRIM-LoomEdge, PRIM-LoomViewFilters, PRIM-LoomSearchFilters, PRIM-LoomSourceAnchor | MECHANICAL: engine.archivist, engine.librarian, engine.dba | ROI: HIGH | RESOLUTION: IN_THIS_WP | STUB: NONE | NOTES: parity should be proven by tests, not inferred from provider implementations
-- PILLAR_DECOMPOSITION_VERDICT: <fill> (OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
-- DECOMPOSITION_ROWS:
-  - PILLAR: <fill> | CAPABILITY_SLICE: <fill> | SUBFEATURES: <fill> | PRIMITIVES_FEATURES: <ids> | MECHANICAL: <engine ids> | ROI: <HIGH|MEDIUM|LOW> | RESOLUTION: <IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW> | STUB: <WP-... | NONE> | NOTES: <fill>
-
 ## EXECUTION_RUNTIME_ALIGNMENT (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - EXECUTION_RUNTIME_ALIGNMENT_VERDICT: OK
 - ALIGNMENT_ROWS:
@@ -651,10 +542,6 @@ Next: N/A
   - Capability: Loom import and dedup portability | JobModel: WORKFLOW | Workflow: loom_import | ToolSurface: UI_ONLY | ModelExposure: OPERATOR_ONLY | CommandCenter: NONE | FlightRecorder: loom_dedup_hit, loom_block_created | Locus: NONE | StoragePosture: SQLITE_NOW_POSTGRES_READY | Resolution: IN_THIS_WP | Stub: NONE | Notes: content-hash dedup, asset-path layout, and import-created blocks must preserve the same semantics across backends
   - Capability: Loom view portability | JobModel: UI_ACTION | Workflow: loom_view_query | ToolSurface: UI_ONLY | ModelExposure: OPERATOR_ONLY | CommandCenter: NONE | FlightRecorder: loom_view_queried | Locus: NONE | StoragePosture: SQLITE_NOW_POSTGRES_READY | Resolution: IN_THIS_WP | Stub: NONE | Notes: `LoomViewFilters` and grouped-view semantics must not drift when the backend changes
   - Capability: Loom search portability | JobModel: UI_ACTION | Workflow: loom_search | ToolSurface: UI_ONLY | ModelExposure: BOTH | CommandCenter: NONE | FlightRecorder: loom_search_executed | Locus: NONE | StoragePosture: SQLITE_NOW_POSTGRES_READY | Resolution: IN_THIS_WP | Stub: NONE | Notes: search scoring may differ by provider, but filter meaning, result identity, and backend-neutral contract must remain stable
-- EXECUTION_RUNTIME_ALIGNMENT_VERDICT: <fill> (OK | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
-- ALIGNMENT_ROWS:
-  - Capability: <fill> | JobModel: <AI_JOB|WORKFLOW|MECHANICAL_TOOL|UI_ACTION|NONE> | Workflow: <fill> | ToolSurface: <UNIFIED_TOOL_SURFACE|MCP|COMMAND_CENTER|UI_ONLY|NONE> | ModelExposure: <LOCAL|CLOUD|BOTH|OPERATOR_ONLY> | CommandCenter: <VISIBLE|PLANNED|NONE> | FlightRecorder: <event ids | NONE> | Locus: <VISIBLE|PLANNED|NONE> | StoragePosture: <SQLITE_NOW_POSTGRES_READY|POSTGRES_ONLY|N/A> | Resolution: <IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW> | Stub: <WP-... | NONE> | Notes: <fill>
-
 ## EXISTING_CAPABILITY_ALIGNMENT (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - EXISTING_CAPABILITY_ALIGNMENT_VERDICT: OK
 - MATCHED_ARTIFACT_RESOLUTIONS:
@@ -673,12 +560,6 @@ Next: N/A
   - src/backend/handshake_core/src/api/loom.rs -> PARTIAL (WP-1-Loom-MVP-v1)
   - src/backend/handshake_core/src/loom_fs.rs -> PARTIAL (NONE)
   - src/backend/handshake_core/migrations/0013_loom_mvp.sql -> PARTIAL (WP-1-Loom-MVP-v1)
-- EXISTING_CAPABILITY_ALIGNMENT_VERDICT: <fill> (OK | REUSE_EXISTING | NEEDS_SCOPE_EXPANSION | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
-- MATCHED_ARTIFACT_RESOLUTIONS:
-  - <artifact> -> <REUSE_EXISTING|EXPAND_IN_THIS_WP|NEW_STUB|SPEC_UPDATE_NOW|KEEP_SEPARATE>
-- CODE_REALITY_SUMMARY:
-  - <path> -> <IMPLEMENTED|PARTIAL|NOT_PRESENT> (<artifact>)
-
 ## GUI_IMPLEMENTATION_ADVICE (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - GUI_ADVICE_REQUIRED: NO
 - GUI_IMPLEMENTATION_ADVICE_VERDICT: NOT_APPLICABLE
@@ -690,17 +571,6 @@ Next: N/A
   - NONE
 - GUI_ENGINEERING_TRICKS_TO_CARRY:
   - NONE
-- GUI_ADVICE_REQUIRED: <fill> (YES | NO)
-- GUI_IMPLEMENTATION_ADVICE_VERDICT: <fill> (PASS | NOT_APPLICABLE | NEEDS_STUBS | NEEDS_SPEC_UPDATE)
-- GUI_REFERENCE_DECISIONS:
-  - <surface> <- <source> (<resolution>)
-- HANDSHAKE_GUI_ADVICE:
-  - <fill>
-- HIDDEN_GUI_REQUIREMENTS:
-  - <fill>
-- GUI_ENGINEERING_TRICKS_TO_CARRY:
-  - <fill>
-
 ## SCOPE
 - What: Harden Loom block, edge, search, view, source-anchor, migration, and asset-path behavior into one portable backend contract that preserves meaning across SQLite and PostgreSQL implementations.
 - Why: Local `main` already includes the selective Loom portability integration, but operator review still judged the implementation underperformed and the prior audit only established a narrower correctness slice. This packet re-audits and, where needed, remediates the landed storage-portability seam with stronger parity proof and validator pressure.
@@ -721,13 +591,6 @@ Next: N/A
   - preview job protocol redesign or broad workflow-runtime refactors
   - downloader-to-Loom and video-archive bridge behavior beyond the base portability contract
   - capability-registry publication logic unrelated to Loom storage parity
-- What:
-- Why:
-- IN_SCOPE_PATHS:
-  - path/to/file
-- OUT_OF_SCOPE:
-  - out/of/scope/path
-
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Include Waiver ID, Date, Scope, and Justification.)
 - NONE
@@ -763,33 +626,14 @@ cargo test -p handshake_core loom
 ```bash
 git revert <commit-sha>
 ```
-### TEST_PLAN
-```bash
-# Run before handoff:
-just pre-work WP-1-Loom-Storage-Portability-v2
-# ...task-specific commands...
-just cargo-clean
-just post-work WP-1-Loom-Storage-Portability-v2 --range d8edecab4a4115736a8f58e7f7c73ffcd065b9b5..HEAD
-```
-
-### DONE_MEANS
-- measurable criterion 1
-- measurable criterion 2
-
-### ROLLBACK_HINT
-```bash
-git revert <commit-sha>
-```
-
 ## AUTHORITY
-- SPEC_BASELINE: Handshake_Master_Spec_v02.178.md (recorded_at: 2026-03-16T19:22:51.967Z)
+- SPEC_BASELINE: Handshake_Master_Spec_v02.178.md (recorded_at: 2026-03-16T19:36:20.263Z)
 - SPEC_TARGET: .GOV/roles_shared/records/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
 - SPEC_ADD_MARKER_TARGET: [ADD v02.156]
-- SPEC_ANCHOR: <fill>
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.178.md 2.3.13.7 Loom Storage Trait + Portable Schema (Example) [ADD v02.130]
 - Codex: Handshake Codex v1.4.md
 - Task Board: .GOV/roles_shared/records/TASK_BOARD.md
 - WP Traceability: .GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md
-
 ## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]
 - Required when `WP_ID` includes `-v{N}`.
 - List every prior packet for `BASE_WP_ID` (filenames/paths) and state what is preserved vs changed.
@@ -831,21 +675,6 @@ rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|Loo
   - "source anchors fail to round-trip on one backend" -> "backlinks, context snippets, and downstream bridge packets lose stable provenance"
   - "filesystem asset-path layout drifts from storage metadata" -> "export, replay, and dedup behavior become unreliable"
   - "the remediation pass drifts into unrelated runtime families" -> "the packet loses file-lock isolation and repeats the earlier live-smoke scope failure"
-- FILES_TO_OPEN:
-  - .GOV/roles_shared/docs/START_HERE.md
-  - .GOV/roles_shared/records/SPEC_CURRENT.md
-  - .GOV/roles_shared/docs/ARCHITECTURE.md
-  - path/to/file
-- SEARCH_TERMS:
-  - "exact symbol"
-  - "error code"
-- RUN_COMMANDS:
-  ```bash
-  # task-specific commands
-  ```
-- RISK_MAP:
-  - "risk name" -> "impact"
-
 ## SKELETON
 - Proposed interfaces/types/contracts:
 - Open questions:
@@ -853,36 +682,21 @@ rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|Loo
 
 ## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
 - UI_UX_APPLICABLE=NO in the signed refinement. No user-facing surface is in scope for this packet.
-- Principle: prefer enumerating "too many" controls early, consolidate later.
-- For `PACKET_HYDRATION_PROFILE: HYDRATED_RESEARCH_V1`, this section is copied from the signed refinement and should not drift.
-- Include minimalistic in-UI explainers (prefer hover tooltips), and ensure tooltips are accessible (hover + keyboard focus; dismissible; avoid violating WCAG 1.4.13).
-- UI_SURFACES:
-  - <fill; screens/panels/dialogs/menus>
-- UI_CONTROLS (buttons/dropdowns/inputs):
-  - Control: <fill> | Type: <fill> | Tooltip: <fill> | Notes: <fill>
-- UI_STATES (empty/loading/error):
-  - <fill>
-- UI_MICROCOPY_NOTES (labels, helper text, hover explainers):
-  - <fill>
-- UI_ACCESSIBILITY_NOTES:
-  - <fill>
-
 ## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
-- END_TO_END_CLOSURE_PLAN_APPLICABLE: YES | NO
-- TRUST_BOUNDARY: <fill> (examples: client->server, server->storage, job->apply)
+- END_TO_END_CLOSURE_PLAN_APPLICABLE: NO
+- TRUST_BOUNDARY: N/A
 - SERVER_SOURCES_OF_TRUTH:
-  - <fill> (what the server loads/verifies instead of trusting the client)
+  - NONE
 - REQUIRED_PROVENANCE_FIELDS:
-  - <fill> (role_id, contract_id, model_id/tool_id, evidence refs, before/after spans, etc.)
+  - NONE
 - VERIFICATION_PLAN:
-  - <fill> (how provenance/audit is verified and recorded; include non-spoofable checks when required)
+  - Record end-to-end trust/provenance requirements only if this WP introduces a cross-boundary apply path.
 - ERROR_TAXONOMY_PLAN:
-  - <fill> (distinct error classes: stale/mismatch vs spoof attempt vs true scope violation)
+  - N/A for initial coder handoff.
 - UI_GUARDRAILS:
-  - <fill> (prevent stale apply; preview before apply; disable conditions)
+  - N/A for initial coder handoff.
 - VALIDATOR_ASSERTIONS:
-  - <fill> (what the validator must prove; spec anchors; fields present; trust boundary enforced)
-
+  - Validate the packet-scoped spec anchors, in-scope files, and deterministic evidence recorded during implementation.
 ## IMPLEMENTATION
 - (Coder fills after the docs-only skeleton checkpoint commit exists.)
 
@@ -892,13 +706,13 @@ rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|Loo
 ## VALIDATION
 - (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
-- SHA1 hint: stage your changes and run `just cor701-sha path/to/file` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `path/to/file`
-- **Start**: <line>
-- **End**: <line>
-- **Line Delta**: <adds - dels>
-- **Pre-SHA1**: `<hash>`
-- **Post-SHA1**: `<hash>`
+- SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
+- **Target File**: `N/A (fill after implementation)`
+- **Start**: N/A
+- **End**: N/A
+- **Line Delta**: N/A
+- **Pre-SHA1**: `N/A`
+- **Post-SHA1**: `N/A`
 - **Gates Passed**:
   - [ ] anchors_present
   - [ ] window_matches_plan
@@ -914,9 +728,8 @@ rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|Loo
 - **Artifacts**:
 - **Timestamp**:
 - **Operator**:
-- **Spec Target Resolved**: .GOV/roles_shared/records/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
+- **Spec Target Resolved**: .GOV/roles_shared/records/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.178.md
 - **Notes**:
-
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Current WP_STATUS:
@@ -927,8 +740,7 @@ rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|Loo
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
   - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `path/to/file:line`
-
+  - EVIDENCE: `N/A (fill during implementation)`
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
