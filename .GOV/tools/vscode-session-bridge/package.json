@@ -12,8 +12,7 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onCommand:handshakeSessionBridge.processLaunchQueue",
-    "workspaceContains:.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl"
+    "onCommand:handshakeSessionBridge.processLaunchQueue"
   ],
   "main": "./extension.js",
   "contributes": {

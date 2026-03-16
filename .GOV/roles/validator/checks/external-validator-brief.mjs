@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { TOPOLOGY_REGISTRY_JSON_PATH } from "../../../roles_shared/scripts/topology/git-topology-lib.mjs";
 import { execFileSync } from "node:child_process";
 import {
   currentGitContext,
@@ -99,7 +100,7 @@ function authorityRoleToBranch(authorityRole) {
 }
 
 function resolveGovernanceTarget(packetContent, repoRoot, workflowLane) {
-  const topology = loadJson(path.join(".GOV", "roles_shared", "runtime", "GIT_TOPOLOGY_REGISTRY.json"), {});
+  const topology = loadJson(TOPOLOGY_REGISTRY_JSON_PATH, {});
   const authorityRole = parseClaimField(packetContent, "WORKFLOW_AUTHORITY")
     || (String(workflowLane || "").trim().toUpperCase() === "ORCHESTRATOR_MANAGED" ? "ORCHESTRATOR" : "ORCHESTRATOR");
   const branch = authorityRoleToBranch(authorityRole);
@@ -302,4 +303,3 @@ if (parsed.json) {
 } else {
   process.stdout.write(formatText(brief));
 }
-

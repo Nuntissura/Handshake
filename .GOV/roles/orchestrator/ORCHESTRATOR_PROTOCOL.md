@@ -61,12 +61,12 @@ See also:
   - reasoning: `EXTRA_HIGH`
   - config: `model_reasoning_effort=xhigh`
 - Repo-governed Coder, WP Validator, and Integration Validator session start is `ORCHESTRATOR_ONLY`.
-- Primary launch path is the VS Code bridge using:
-  - `.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl`
-  - `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`
-- Primary steering path is the governed session-control ledgers:
-  - `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl`
-  - `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`
+- Primary launch path is the VS Code bridge using the external repo-governance runtime root (default repo-relative from a repo worktree: `../../Handshake Runtime/repo-governance/roles_shared/`):
+  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
+  - `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`
+- Primary steering path is the governed session-control ledgers under that same external repo-governance runtime root:
+  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
+  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
 - CLI escalation is allowed only after 2 plugin failures or timeouts for the same role/WP session unless the Operator explicitly waives that policy.
 
 ## Drive-Agnostic Governance [CX-109] (HARD)
@@ -262,15 +262,15 @@ Resume rule:
   - `RECEIPTS.jsonl` for deterministic machine-readable receipts
 - These artifacts support both `MANUAL_RELAY` and `ORCHESTRATOR_MANAGED`.
 - They never override packet truth. If they conflict with the packet, the packet wins.
-- Shared runtime/session state lives under `/.GOV/roles_shared/runtime/`.
+- Volatile session/topology/WP-communication runtime state lives under the external repo-governance runtime root; repo-local spec-coupled runtime state remains under `/.GOV/roles_shared/runtime/`.
 
 ## Deterministic Helpers
 
 - `just task-board-set WP-{ID} READY_FOR_DEV|IN_PROGRESS|DONE_VALIDATED|DONE_FAIL|DONE_OUTDATED_ONLY|STUB|BLOCKED|SUPERSEDED ["reason"]`
 - `just wp-traceability-set BASE_WP_ID ACTIVE_PACKET_WP_ID`
-- `just wp-thread-append WP-{ID} ORCHESTRATOR <session> "<message>" [target]`
-- `just wp-heartbeat WP-{ID} ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
-- `just wp-receipt-append WP-{ID} ORCHESTRATOR <session> <receipt_kind> "<summary>" [state_before] [state_after]`
+- `just wp-thread-append WP-{ID} ORCHESTRATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
+- `just wp-heartbeat WP-{ID} ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
+- `just wp-receipt-append WP-{ID} ORCHESTRATOR <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
 - `just operator-monitor`
 - `just coder-worktree-add WP-{ID}`
 - `just wp-validator-worktree-add WP-{ID}`
@@ -431,6 +431,6 @@ Do not:
 Do:
 - keep refinement, packet, traceability, build-order, and Task Board aligned
 - use the current packet template and deterministic helpers
-- keep shared runtime state under `/.GOV/roles_shared/runtime/`
+- keep external session/topology/WP-communication runtime state under the repo-governance runtime root and keep repo-local spec-coupled runtime state under `/.GOV/roles_shared/runtime/`
 - keep role-owned state under `/.GOV/roles/orchestrator/runtime/`
 - stop and escalate when tooling or docs conflict with active law

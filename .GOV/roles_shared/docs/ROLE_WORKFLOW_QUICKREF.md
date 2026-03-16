@@ -56,8 +56,8 @@ Product-scanning / product-boundary enforcement:
 - When available, prefer VS Code integrated terminals for multi-session work instead of many floating desktop terminals.
 - Do not rely on ambient editor defaults for repo-governed session model choice or reasoning strength. New packets/stubs assume `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`.
 - Repo-governed role-session start is `ORCHESTRATOR_ONLY`.
-- Primary launch path is the VS Code session bridge over `.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`.
-- Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`.
+- Primary launch path is the VS Code session bridge over the external repo-governance launch queue + session registry (default repo-relative: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`).
+- Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - CLI escalation windows are allowed only after 2 plugin failures/timeouts for the same role/WP session.
 - Recommended VS Code tabs:
   - `ORCH`
@@ -154,9 +154,9 @@ Primary commands (per WP validation):
 - `just validator-git-hygiene`
 - `just codex-check` (product boundary enforcement)
 - Session start/steering: `just start-wp-validator-session WP-...`, `just steer-wp-validator-session WP-... "<prompt>"`
-- `just wp-heartbeat WP-... VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
-- `just wp-receipt-append WP-... VALIDATOR <session> <receipt_kind> "<summary>"`
-- `just wp-thread-append WP-... VALIDATOR <session> "<message>" [target]`
+- `just wp-heartbeat WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
+- `just wp-receipt-append WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
+- `just wp-thread-append WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
 
 Governance-only work:
 - `just gov-check`

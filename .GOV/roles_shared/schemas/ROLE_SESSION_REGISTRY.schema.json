@@ -57,7 +57,7 @@
     },
     "session_plugin_requests_file": {
       "type": "string",
-      "pattern": "^\\.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS\\.jsonl$"
+      "pattern": "^(?:\\.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS\\.jsonl|(?:\\.\\.?/.*)?roles_shared/SESSION_LAUNCH_REQUESTS\\.jsonl)$"
     },
     "session_control_mode": {
       "const": "STEERABLE"
@@ -70,15 +70,15 @@
     },
     "session_control_requests_file": {
       "type": "string",
-      "pattern": "^\\.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS\\.jsonl$"
+      "pattern": "^(?:\\.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS\\.jsonl|(?:\\.\\.?/.*)?roles_shared/SESSION_CONTROL_REQUESTS\\.jsonl)$"
     },
     "session_control_results_file": {
       "type": "string",
-      "pattern": "^\\.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS\\.jsonl$"
+      "pattern": "^(?:\\.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS\\.jsonl|(?:\\.\\.?/.*)?roles_shared/SESSION_CONTROL_RESULTS\\.jsonl)$"
     },
     "session_control_output_dir": {
       "type": "string",
-      "pattern": "^\\.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS$"
+      "pattern": "^(?:\\.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS|(?:\\.\\.?/.*)?roles_shared/SESSION_CONTROL_OUTPUTS)$"
     },
     "session_wake_channel_primary": {
       "const": "VS_CODE_FILE_WATCH"

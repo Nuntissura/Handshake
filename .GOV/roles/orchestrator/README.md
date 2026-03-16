@@ -47,8 +47,8 @@ Authoritative folder-placement law for the Orchestrator bundle lives in `Handsha
 
 - `.GOV/roles_shared/checks/README.md`
 - `.GOV/roles_shared/scripts/README.md`
-- `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`
-- `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/`
+- external repo-governance `roles_shared/ROLE_SESSION_REGISTRY.json`
+- external repo-governance `roles_shared/WP_COMMUNICATIONS/`
 - `.GOV/roles_shared/records/TASK_BOARD.md`
 - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
 

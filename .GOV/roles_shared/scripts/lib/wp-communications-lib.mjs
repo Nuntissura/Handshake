@@ -1,8 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { EXECUTION_OWNER_VALUES } from "../session/session-policy.mjs";
+import {
+  LEGACY_SHARED_GOV_WP_COMMUNICATIONS_ROOT,
+  SHARED_GOV_WP_COMMUNICATIONS_ROOT,
+} from "./runtime-paths.mjs";
 
-export const COMM_ROOT = ".GOV/roles_shared/runtime/WP_COMMUNICATIONS";
+export const COMM_ROOT = SHARED_GOV_WP_COMMUNICATIONS_ROOT;
+export const LEGACY_COMM_ROOT = LEGACY_SHARED_GOV_WP_COMMUNICATIONS_ROOT;
 export const THREAD_FILE_NAME = "THREAD.md";
 export const RUNTIME_STATUS_FILE_NAME = "RUNTIME_STATUS.json";
 export const RECEIPTS_FILE_NAME = "RECEIPTS.jsonl";
@@ -29,7 +34,15 @@ export const RUNTIME_STATUS_VALUES = [
   "failed",
   "canceled",
 ];
-export const NEXT_ACTOR_VALUES = ["OPERATOR", "ORCHESTRATOR", "CODER", "VALIDATOR", "NONE"];
+export const NEXT_ACTOR_VALUES = [
+  "OPERATOR",
+  "ORCHESTRATOR",
+  "CODER",
+  "WP_VALIDATOR",
+  "INTEGRATION_VALIDATOR",
+  "VALIDATOR",
+  "NONE",
+];
 export const VALIDATOR_TRIGGER_VALUES = [
   "NONE",
   "READY_FOR_VALIDATION",
@@ -39,7 +52,7 @@ export const VALIDATOR_TRIGGER_VALUES = [
   "STALE_HEARTBEAT",
   "HANDOFF_READY",
 ];
-export const ACTIVE_ROLE_VALUES = ["OPERATOR", "ORCHESTRATOR", "CODER", "VALIDATOR"];
+export const ACTIVE_ROLE_VALUES = ["OPERATOR", "ORCHESTRATOR", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"];
 export const ACTIVE_SESSION_STATE_VALUES = ["idle", "working", "waiting", "blocked", "completed"];
 export const AUTHORITY_KIND_VALUES = [
   "SYSTEM",
@@ -51,7 +64,16 @@ export const AUTHORITY_KIND_VALUES = [
   "SECONDARY_VALIDATOR",
 ];
 export const VALIDATOR_ROLE_KIND_VALUES = ["WP_VALIDATOR", "INTEGRATION_VALIDATOR", "SECONDARY_VALIDATOR"];
-export const RECEIPT_ROLE_VALUES = ["SYSTEM", "OPERATOR", "ORCHESTRATOR", "CODER", "VALIDATOR"];
+export const RECEIPT_ROLE_VALUES = [
+  "SYSTEM",
+  "OPERATOR",
+  "ORCHESTRATOR",
+  "CODER",
+  "WP_VALIDATOR",
+  "INTEGRATION_VALIDATOR",
+  "VALIDATOR",
+];
+export const ROUTABLE_ROLE_VALUES = ["OPERATOR", "ORCHESTRATOR", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"];
 export const RECEIPT_KIND_VALUES = [
   "ASSIGNMENT",
   "STATUS",
@@ -82,6 +104,10 @@ export function isNonEmptyString(value) {
 
 export function isNullableString(value) {
   return value === null || isNonEmptyString(value);
+}
+
+export function isNullableBoolean(value) {
+  return value === null || typeof value === "boolean";
 }
 
 export function isRfc3339Utc(value) {
@@ -187,7 +213,8 @@ export function validateRuntimeStatus(data) {
     "last_backup_push_sha",
   ];
 
-  const allowedKeys = new Set(requiredKeys);
+  const optionalKeys = ["next_expected_session", "waiting_on_session"];
+  const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
     if (!(key in data)) errors.push(`missing key: ${key}`);
   }
@@ -201,16 +228,28 @@ export function validateRuntimeStatus(data) {
   if (!isNonEmptyString(data.task_packet) || !/^\.GOV\/task_packets\/WP-.*\.md$/.test(normalize(data.task_packet))) {
     errors.push("task_packet must point to .GOV/task_packets/WP-*.md");
   }
-  if (!isNonEmptyString(data.communication_dir) || !/^\.GOV\/roles_shared\/runtime\/WP_COMMUNICATIONS\/WP-/.test(normalize(data.communication_dir))) {
-    errors.push("communication_dir must point to .GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-*");
+  const currentPaths = communicationPathsForWp(data.wp_id);
+  const legacyPaths = legacyCommunicationPathsForWp(data.wp_id);
+  const declaredCommDir = normalize(data.communication_dir);
+  const declaredThreadFile = normalize(data.thread_file);
+  const declaredRuntimeStatusFile = normalize(data.runtime_status_file);
+  const declaredReceiptsFile = normalize(data.receipts_file);
+  const usesCurrentRoot = declaredCommDir === currentPaths.dir;
+  const expectedPaths = usesCurrentRoot ? currentPaths : legacyPaths;
+
+  if (!isNonEmptyString(data.communication_dir) || (
+    declaredCommDir !== currentPaths.dir
+    && declaredCommDir !== legacyPaths.dir
+  )) {
+    errors.push(`communication_dir must point to ${currentPaths.dir} or ${legacyPaths.dir}`);
   }
-  if (!isNonEmptyString(data.thread_file) || !/^\.GOV\/roles_shared\/runtime\/WP_COMMUNICATIONS\/WP-.*\/THREAD\.md$/.test(normalize(data.thread_file))) {
+  if (!isNonEmptyString(data.thread_file) || declaredThreadFile !== expectedPaths.threadFile) {
     errors.push("thread_file must point to THREAD.md in the declared WP communication directory");
   }
-  if (!isNonEmptyString(data.runtime_status_file) || !/^\.GOV\/roles_shared\/runtime\/WP_COMMUNICATIONS\/WP-.*\/RUNTIME_STATUS\.json$/.test(normalize(data.runtime_status_file))) {
+  if (!isNonEmptyString(data.runtime_status_file) || declaredRuntimeStatusFile !== expectedPaths.runtimeStatusFile) {
     errors.push("runtime_status_file must point to RUNTIME_STATUS.json in the declared WP communication directory");
   }
-  if (!isNonEmptyString(data.receipts_file) || !/^\.GOV\/roles_shared\/runtime\/WP_COMMUNICATIONS\/WP-.*\/RECEIPTS\.jsonl$/.test(normalize(data.receipts_file))) {
+  if (!isNonEmptyString(data.receipts_file) || declaredReceiptsFile !== expectedPaths.receiptsFile) {
     errors.push("receipts_file must point to RECEIPTS.jsonl in the declared WP communication directory");
   }
   if (!WORKFLOW_LANE_VALUES.includes(data.workflow_lane)) errors.push(`workflow_lane invalid (${data.workflow_lane})`);
@@ -235,7 +274,13 @@ export function validateRuntimeStatus(data) {
   if (!NEXT_ACTOR_VALUES.includes(data.next_expected_actor)) {
     errors.push(`next_expected_actor invalid (${data.next_expected_actor})`);
   }
+  if (!(data.next_expected_session === undefined || isNullableString(data.next_expected_session))) {
+    errors.push("next_expected_session must be null or a non-empty string");
+  }
   if (!isNonEmptyString(data.waiting_on)) errors.push("waiting_on must be a non-empty string");
+  if (!(data.waiting_on_session === undefined || isNullableString(data.waiting_on_session))) {
+    errors.push("waiting_on_session must be null or a non-empty string");
+  }
   if (!VALIDATOR_TRIGGER_VALUES.includes(data.validator_trigger)) {
     errors.push(`validator_trigger invalid (${data.validator_trigger})`);
   }
@@ -269,6 +314,10 @@ export function validateRuntimeStatus(data) {
       if (!AUTHORITY_KIND_VALUES.includes(entry.authority_kind)) errors.push(`active_role_sessions[${index}].authority_kind invalid (${entry.authority_kind})`);
       if (!(entry.validator_role_kind === null || VALIDATOR_ROLE_KIND_VALUES.includes(entry.validator_role_kind))) {
         errors.push(`active_role_sessions[${index}].validator_role_kind invalid (${entry.validator_role_kind})`);
+      } else if (entry.role === "WP_VALIDATOR" && entry.validator_role_kind !== "WP_VALIDATOR") {
+        errors.push(`active_role_sessions[${index}].validator_role_kind must be WP_VALIDATOR when role is WP_VALIDATOR`);
+      } else if (entry.role === "INTEGRATION_VALIDATOR" && entry.validator_role_kind !== "INTEGRATION_VALIDATOR") {
+        errors.push(`active_role_sessions[${index}].validator_role_kind must be INTEGRATION_VALIDATOR when role is INTEGRATION_VALIDATOR`);
       }
       if (!isNonEmptyString(entry.worktree_dir)) errors.push(`active_role_sessions[${index}].worktree_dir must be a non-empty string`);
       if (!ACTIVE_SESSION_STATE_VALUES.includes(entry.state)) errors.push(`active_role_sessions[${index}].state invalid (${entry.state})`);
@@ -341,7 +390,8 @@ export function validateReceipt(entry) {
     "state_after",
     "refs",
   ];
-  const allowedKeys = new Set(requiredKeys);
+  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for"];
+  const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
     if (!(key in entry)) errors.push(`missing key: ${key}`);
   }
@@ -357,6 +407,10 @@ export function validateReceipt(entry) {
   if (!AUTHORITY_KIND_VALUES.includes(entry.actor_authority_kind)) errors.push(`actor_authority_kind invalid (${entry.actor_authority_kind})`);
   if (!(entry.validator_role_kind === null || VALIDATOR_ROLE_KIND_VALUES.includes(entry.validator_role_kind))) {
     errors.push(`validator_role_kind invalid (${entry.validator_role_kind})`);
+  } else if (entry.actor_role === "WP_VALIDATOR" && entry.validator_role_kind !== "WP_VALIDATOR") {
+    errors.push("validator_role_kind must be WP_VALIDATOR when actor_role is WP_VALIDATOR");
+  } else if (entry.actor_role === "INTEGRATION_VALIDATOR" && entry.validator_role_kind !== "INTEGRATION_VALIDATOR") {
+    errors.push("validator_role_kind must be INTEGRATION_VALIDATOR when actor_role is INTEGRATION_VALIDATOR");
   }
   if (!RECEIPT_KIND_VALUES.includes(entry.receipt_kind)) errors.push(`receipt_kind invalid (${entry.receipt_kind})`);
   if (!isNonEmptyString(entry.summary)) errors.push("summary must be a non-empty string");
@@ -364,6 +418,21 @@ export function validateReceipt(entry) {
   if (!isNullableString(entry.worktree_dir)) errors.push("worktree_dir must be null or a non-empty string");
   if (!isNullableString(entry.state_before)) errors.push("state_before must be null or a non-empty string");
   if (!isNullableString(entry.state_after)) errors.push("state_after must be null or a non-empty string");
+  if (!(entry.target_role === undefined || entry.target_role === null || ROUTABLE_ROLE_VALUES.includes(entry.target_role))) {
+    errors.push(`target_role invalid (${entry.target_role})`);
+  }
+  if (!(entry.target_session === undefined || isNullableString(entry.target_session))) {
+    errors.push("target_session must be null or a non-empty string");
+  }
+  if (!(entry.correlation_id === undefined || isNullableString(entry.correlation_id))) {
+    errors.push("correlation_id must be null or a non-empty string");
+  }
+  if (!(entry.requires_ack === undefined || typeof entry.requires_ack === "boolean")) {
+    errors.push("requires_ack must be boolean");
+  }
+  if (!(entry.ack_for === undefined || isNullableString(entry.ack_for))) {
+    errors.push("ack_for must be null or a non-empty string");
+  }
   if (!Array.isArray(entry.refs) || entry.refs.some((value) => !isNonEmptyString(value))) {
     errors.push("refs must be an array of non-empty strings");
   }
@@ -371,14 +440,26 @@ export function validateReceipt(entry) {
   return errors;
 }
 
-export function communicationPathsForWp(wpId) {
-  const dir = normalize(path.join(COMM_ROOT, wpId));
+function communicationPathsForRoot(root, wpId) {
+  const dir = normalize(path.join(root, wpId));
   return {
     dir,
     threadFile: normalize(path.join(dir, THREAD_FILE_NAME)),
     runtimeStatusFile: normalize(path.join(dir, RUNTIME_STATUS_FILE_NAME)),
     receiptsFile: normalize(path.join(dir, RECEIPTS_FILE_NAME)),
   };
+}
+
+export function communicationPathsForWp(wpId) {
+  return communicationPathsForRoot(COMM_ROOT, wpId);
+}
+
+export function legacyCommunicationPathsForWp(wpId) {
+  return communicationPathsForRoot(LEGACY_COMM_ROOT, wpId);
+}
+
+export function allCommunicationRoots() {
+  return Array.from(new Set([COMM_ROOT, LEGACY_COMM_ROOT].map(normalize)));
 }
 
 export function deriveAuthorityKinds({ actorRole, actorSession, runtimeStatus }) {
@@ -388,6 +469,8 @@ export function deriveAuthorityKinds({ actorRole, actorSession, runtimeStatus })
   if (role === "OPERATOR") return { authorityKind: "OPERATOR", validatorRoleKind: null };
   if (role === "ORCHESTRATOR") return { authorityKind: "WORKFLOW_AUTHORITY", validatorRoleKind: null };
   if (role === "CODER") return { authorityKind: "PRIMARY_CODER", validatorRoleKind: null };
+  if (role === "WP_VALIDATOR") return { authorityKind: "WP_VALIDATOR", validatorRoleKind: "WP_VALIDATOR" };
+  if (role === "INTEGRATION_VALIDATOR") return { authorityKind: "INTEGRATION_VALIDATOR", validatorRoleKind: "INTEGRATION_VALIDATOR" };
   if (role === "VALIDATOR") {
     if (session && runtimeStatus?.integration_validator_of_record === session) {
       return { authorityKind: "INTEGRATION_VALIDATOR", validatorRoleKind: "INTEGRATION_VALIDATOR" };

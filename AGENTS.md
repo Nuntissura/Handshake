@@ -50,7 +50,7 @@
   - `.GOV/refinements/WP-{ID}.md`
 
 ### WP communication artifacts
-- Official packets may define `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-{ID}/`.
+- Official packets may define `WP_COMMUNICATION_DIR` under the external repo-governance runtime root (default repo-relative from a worktree: `../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/WP-{ID}/`; overridable via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`).
 - These files are governance-only collaboration helpers:
   - `THREAD.md` for append-only freeform discussion
   - `RUNTIME_STATUS.json` for liveness, validator-trigger, waiting-state, next-actor watch state, and bounded loop counters
@@ -60,13 +60,15 @@
 - These richer artifacts apply to both `MANUAL_RELAY` and `ORCHESTRATOR_MANAGED` workflow lanes.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not improvise role-local inboxes.
 - When available, prefer VS Code integrated terminals as the host for multi-session role work. Use `just operator-monitor` as the overview surface instead of treating role-local terminal buffers as authority.
-- Repo-governed multi-session launch is plugin-first: queue VS Code bridge requests through `.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl`, project current state in `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`, and keep heartbeat as fallback only.
+- Repo-governed multi-session launch is plugin-first: queue VS Code bridge requests through the external repo-governance launch queue (default repo-relative: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`), project current state in the external session registry (`../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`), and keep heartbeat as fallback only.
 - Only the Orchestrator may start repo-governed Coder, WP Validator, and Integration Validator sessions. Coder/Validator sessions may resume work, but they do not self-start a fresh repo-governed session.
 - CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts.
 - For newly created stubs/packets, repo-governed CLI session policy is explicit: primary model `gpt-5.4`, fallback `gpt-5.2`, reasoning strength `EXTRA_HIGH`, launcher config `model_reasoning_effort=xhigh`.
 - Do not rely on whatever model/reasoning defaults happen to be active in an editor or local CLI profile. Launch or claim the session explicitly.
 - Repo policy for new repo-governed sessions disallows Codex model aliases in packet claim fields; the CLI tool may still be `codex`.
 - Freeform packet-scoped messages should be appended with `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]`; this writes both the thread entry and a paired structured receipt.
+- For new WP communication writes, validator sessions must identify themselves as `WP_VALIDATOR` or `INTEGRATION_VALIDATOR` in `THREAD.md`, `RUNTIME_STATUS.json`, and `RECEIPTS.jsonl`. Legacy generic `VALIDATOR` entries are compatibility-only and should not be emitted by new governed sessions.
+- When useful for parallel governed sessions, communication receipts and thread entries may carry structured routing metadata such as `target_role`, `target_session`, `correlation_id`, `requires_ack`, and `ack_for`, and runtime status may carry `next_expected_session` / `waiting_on_session`.
 - Authority split for semi-autonomous work:
   - Orchestrator = workflow authority
   - WP Validator = advisory technical reviewer

@@ -26,8 +26,6 @@ import {
   SESSION_PLUGIN_BRIDGE_COMMAND,
   SESSION_PLUGIN_BRIDGE_ID,
   SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION,
-  SESSION_PLUGIN_REQUESTS_FILE,
-  SESSION_REGISTRY_FILE,
   SESSION_START_AUTHORITY,
   SESSION_WAKE_CHANNEL_FALLBACK,
   SESSION_WAKE_CHANNEL_PRIMARY,
@@ -36,6 +34,10 @@ import {
   SESSION_HOST_PREFERENCE,
   SESSION_LAUNCH_POLICY,
   STUB_FORMAT_VERSION,
+  sessionPluginRequestsFileForPacketVersion,
+  sessionPluginRequestsFileForStubVersion,
+  sessionRegistryFileForPacketVersion,
+  sessionRegistryFileForStubVersion,
   stubUsesSessionPolicy,
 } from "../scripts/session/session-policy.mjs";
 
@@ -120,8 +122,8 @@ function checkPacket(filePath) {
   checkExpected(errors, rel, text, "CLI_SESSION_TOOL", CLI_SESSION_TOOL);
   checkExpected(errors, rel, text, "SESSION_PLUGIN_BRIDGE_ID", SESSION_PLUGIN_BRIDGE_ID);
   checkExpected(errors, rel, text, "SESSION_PLUGIN_BRIDGE_COMMAND", SESSION_PLUGIN_BRIDGE_COMMAND);
-  checkExpected(errors, rel, text, "SESSION_PLUGIN_REQUESTS_FILE", SESSION_PLUGIN_REQUESTS_FILE);
-  checkExpected(errors, rel, text, "SESSION_REGISTRY_FILE", SESSION_REGISTRY_FILE);
+  checkExpected(errors, rel, text, "SESSION_PLUGIN_REQUESTS_FILE", sessionPluginRequestsFileForPacketVersion(version));
+  checkExpected(errors, rel, text, "SESSION_REGISTRY_FILE", sessionRegistryFileForPacketVersion(version));
   checkExpected(errors, rel, text, "SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION", String(SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION));
   checkExpected(errors, rel, text, "SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS", String(SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS));
   checkExpected(errors, rel, text, "SESSION_WATCH_POLICY", SESSION_WATCH_POLICY);
@@ -187,7 +189,10 @@ function checkStub(filePath) {
   if (!stubUsesSessionPolicy(version)) return;
 
   const errors = [];
-  checkExpected(errors, rel, text, "STUB_FORMAT_VERSION", STUB_FORMAT_VERSION);
+  const allowedStubVersions = new Set(["2026-03-12", STUB_FORMAT_VERSION]);
+  if (!allowedStubVersions.has(version)) {
+    errors.push(`${rel}: STUB_FORMAT_VERSION must be one of ${Array.from(allowedStubVersions).join(" | ")} (got: ${version || "<missing>"})`);
+  }
   checkExpected(errors, rel, text, "SESSION_START_AUTHORITY", SESSION_START_AUTHORITY);
   checkExpected(errors, rel, text, "SESSION_HOST_PREFERENCE", SESSION_HOST_PREFERENCE);
   checkExpected(errors, rel, text, "SESSION_HOST_FALLBACK", SESSION_HOST_FALLBACK);
@@ -196,8 +201,8 @@ function checkStub(filePath) {
   checkExpected(errors, rel, text, "CLI_SESSION_TOOL", CLI_SESSION_TOOL);
   checkExpected(errors, rel, text, "SESSION_PLUGIN_BRIDGE_ID", SESSION_PLUGIN_BRIDGE_ID);
   checkExpected(errors, rel, text, "SESSION_PLUGIN_BRIDGE_COMMAND", SESSION_PLUGIN_BRIDGE_COMMAND);
-  checkExpected(errors, rel, text, "SESSION_PLUGIN_REQUESTS_FILE", SESSION_PLUGIN_REQUESTS_FILE);
-  checkExpected(errors, rel, text, "SESSION_REGISTRY_FILE", SESSION_REGISTRY_FILE);
+  checkExpected(errors, rel, text, "SESSION_PLUGIN_REQUESTS_FILE", sessionPluginRequestsFileForStubVersion(version));
+  checkExpected(errors, rel, text, "SESSION_REGISTRY_FILE", sessionRegistryFileForStubVersion(version));
   checkExpected(errors, rel, text, "SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION", String(SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION));
   checkExpected(errors, rel, text, "SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS", String(SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS));
   checkExpected(errors, rel, text, "SESSION_WATCH_POLICY", SESSION_WATCH_POLICY);

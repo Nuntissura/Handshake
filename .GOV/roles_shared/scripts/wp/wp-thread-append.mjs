@@ -22,6 +22,12 @@ function normalizeMultilineMessage(message) {
     .filter((line, index, all) => !(index === 0 && line.trim() === "") && !(index === all.length - 1 && line.trim() === ""));
 }
 
+function parseBooleanLike(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return false;
+  return ["1", "true", "yes", "y"].includes(raw.toLowerCase());
+}
+
 function loadThreadContext(wpId) {
   const packetPath = path.join(PACKETS_DIR, `${wpId}.md`);
   if (!fs.existsSync(packetPath)) {
@@ -38,11 +44,26 @@ function loadThreadContext(wpId) {
   return { packetPath: normalize(packetPath), threadFile: normalize(threadFile) };
 }
 
-export function appendWpThreadEntry({ wpId, actorRole, actorSession, message, target = "", recordReceipt = true } = {}) {
+export function appendWpThreadEntry({
+  wpId,
+  actorRole,
+  actorSession,
+  message,
+  target = "",
+  recordReceipt = true,
+  targetRole = null,
+  targetSession = null,
+  correlationId = null,
+  requiresAck = false,
+  ackFor = null,
+} = {}) {
   const WP_ID = String(wpId || "").trim();
   const ACTOR_ROLE = String(actorRole || "").trim().toUpperCase();
   const ACTOR_SESSION = String(actorSession || "").trim();
   const TARGET = String(target || "").trim();
+  const TARGET_ROLE = String(targetRole || "").trim().toUpperCase();
+  const TARGET_SESSION = String(targetSession || "").trim();
+  const CORRELATION_ID = String(correlationId || "").trim();
   const bodyLines = normalizeMultilineMessage(message);
 
   if (!WP_ID || !/^WP-/.test(WP_ID)) throw new Error("WP_ID is required");
@@ -56,6 +77,11 @@ export function appendWpThreadEntry({ wpId, actorRole, actorSession, message, ta
   const timestamp = new Date().toISOString();
   const header = [`- ${timestamp}`, ACTOR_ROLE, `session=${ACTOR_SESSION}`];
   if (TARGET) header.push(`target=${TARGET}`);
+  if (TARGET_ROLE) header.push(`target_role=${TARGET_ROLE}`);
+  if (TARGET_SESSION) header.push(`target_session=${TARGET_SESSION}`);
+  if (CORRELATION_ID) header.push(`correlation_id=${CORRELATION_ID}`);
+  if (requiresAck) header.push("requires_ack=true");
+  if (ackFor) header.push(`ack_for=${ackFor}`);
   const entryLines = [header.join(" | "), ...bodyLines.map((line) => `  ${line}`), ""];
   fs.appendFileSync(context.threadFile, `${entryLines.join("\n")}\n`, "utf8");
 
@@ -68,6 +94,11 @@ export function appendWpThreadEntry({ wpId, actorRole, actorSession, message, ta
       summary: `${ACTOR_ROLE} -> ${TARGET || "thread"}: ${bodyLines[0]}`,
       refs: [context.threadFile],
       timestamp,
+      targetRole: TARGET_ROLE || null,
+      targetSession: TARGET_SESSION || null,
+      correlationId: CORRELATION_ID || null,
+      requiresAck,
+      ackFor,
     });
   }
 
@@ -80,13 +111,28 @@ export function appendWpThreadEntry({ wpId, actorRole, actorSession, message, ta
 }
 
 function runCli() {
-  const [wpId, actorRole, actorSession, message, target] = process.argv.slice(2);
+  const [wpId, actorRole, actorSession, message, target, targetRole, targetSession, correlationId, requiresAck, ackFor] = process.argv.slice(2);
   if (!wpId || !actorRole || !actorSession || !message) {
-    console.error("Usage: node .GOV/roles_shared/scripts/wp/wp-thread-append.mjs WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> \"<message>\" [target]");
+    console.error(
+      "Usage: node .GOV/roles_shared/scripts/wp/wp-thread-append.mjs"
+      + " WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> \"<message>\" [TARGET]"
+      + " [TARGET_ROLE] [TARGET_SESSION] [CORRELATION_ID] [REQUIRES_ACK] [ACK_FOR]"
+    );
     process.exit(1);
   }
 
-  const result = appendWpThreadEntry({ wpId, actorRole, actorSession, message, target });
+  const result = appendWpThreadEntry({
+    wpId,
+    actorRole,
+    actorSession,
+    message,
+    target,
+    targetRole,
+    targetSession,
+    correlationId,
+    requiresAck: parseBooleanLike(requiresAck),
+    ackFor,
+  });
   console.log(`[WP_THREAD] appended message for ${wpId}`);
   console.log(`- thread: ${result.threadFile}`);
   console.log(`- timestamp_utc: ${result.timestamp}`);
@@ -97,4 +143,3 @@ function runCli() {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   runCli();
 }
-

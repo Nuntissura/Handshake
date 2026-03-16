@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import {
   defaultCoderBranch,
@@ -45,6 +46,37 @@ function defaultsForRole(roleName, workPacketId) {
   return null;
 }
 
+function parseSingleField(text, label) {
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
+  const match = String(text || "").match(re);
+  return match ? match[1].trim() : "";
+}
+
+function loadPrepareBaseBranch(wpIdValue) {
+  const gatesPath = path.join(".GOV", "roles", "orchestrator", "runtime", "ORCHESTRATOR_GATES.json");
+  if (!fs.existsSync(gatesPath)) return "";
+  try {
+    const parsed = JSON.parse(fs.readFileSync(gatesPath, "utf8"));
+    const logs = Array.isArray(parsed?.gate_logs) ? parsed.gate_logs : [];
+    const lastPrepare = [...logs].reverse().find((entry) => entry?.wpId === wpIdValue && entry?.type === "PREPARE") || null;
+    return String(lastPrepare?.branch || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function loadPacketBaseBranch(wpIdValue) {
+  const packetPath = path.join(".GOV", "task_packets", `${wpIdValue}.md`);
+  if (!fs.existsSync(packetPath)) return "";
+  try {
+    const packetText = fs.readFileSync(packetPath, "utf8");
+    const localBranch = parseSingleField(packetText, "LOCAL_BRANCH");
+    return localBranch === "<pending>" ? "" : localBranch;
+  } catch {
+    return "";
+  }
+}
+
 const defaults = defaultsForRole(role, wpId);
 if (!defaults) {
   fail(`Unknown role: ${role}`);
@@ -52,11 +84,16 @@ if (!defaults) {
 
 const branch = branchArg || defaults.branch;
 const dir = dirArg || defaults.dir;
+const baseBranch = role === "CODER"
+  ? "main"
+  : (loadPacketBaseBranch(wpId) || loadPrepareBaseBranch(wpId));
+if (role !== "CODER" && !baseBranch) {
+  fail(`Cannot create ${role} worktree for ${wpId}: missing PREPARE/packet coder branch to base validator checkout on.`);
+}
 const scriptPath = path.join(".GOV", "roles_shared", "scripts", "topology", "worktree-add.mjs");
 
-execFileSync(process.execPath, [scriptPath, wpId, "main", branch, dir], {
+execFileSync(process.execPath, [scriptPath, wpId, baseBranch || "main", branch, dir], {
   stdio: "inherit",
 });
 
-console.log(`[ROLE_SESSION_WORKTREE_ADD] role=${role} branch=${branch} dir=${dir}`);
-
+console.log(`[ROLE_SESSION_WORKTREE_ADD] role=${role} base=${baseBranch || "main"} branch=${branch} dir=${dir}`);

@@ -9,10 +9,10 @@ import {
   ensureSessionStateFiles,
   loadSessionControlResults,
   loadSessionRegistry,
+  mutateSessionRegistrySync,
   markSessionThreadObserved,
   markSessionCommandResult,
   markSessionCommandRunning,
-  saveSessionRegistry,
 } from "../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
   buildSessionControlResult,
@@ -222,8 +222,6 @@ function settleRejectedRequest(request, reason) {
     });
   }
   appendOutputEvent(outputFile, { type: "broker.rejected", reason });
-  const { registry } = loadSessionRegistry(repoRoot);
-  const session = registry.sessions.find((entry) => entry.session_key === request.session_key);
   const result = buildSessionControlResult({
     commandId: request.command_id,
     commandKind: request.command_kind,
@@ -240,15 +238,18 @@ function settleRejectedRequest(request, reason) {
     targetCommandId: request.target_command_id || "",
     cancelStatus: request.command_kind === "CANCEL_SESSION" ? "rejected" : "",
   });
-  if (session) {
+  const persisted = mutateSessionRegistrySync(repoRoot, (registry) => {
+    const session = registry.sessions.find((entry) => entry.session_key === request.session_key);
+    if (!session) return false;
     if (request.command_kind === "CANCEL_SESSION") {
       session.last_event_at = result.processed_at;
       appendResultOnce(result);
     } else {
       ensureResultPersisted(request, session, result);
     }
-    saveSessionRegistry(repoRoot, registry);
-  } else {
+    return true;
+  });
+  if (!persisted) {
     appendResultOnce(result);
   }
   return result;
@@ -272,8 +273,6 @@ function reconcileOrphanedRuns() {
       type: "broker.repair",
       reason: "Recovered abandoned governed run after prior broker exit.",
     });
-    const { registry } = loadSessionRegistry(repoRoot);
-    const session = registry.sessions.find((entry) => entry.session_key === request.session_key);
     const result = buildSessionControlResult({
       commandId: request.command_id,
       commandKind: request.command_kind,
@@ -288,10 +287,13 @@ function reconcileOrphanedRuns() {
       error: "Handshake ACP broker restarted while the governed run was active.",
       durationMs: 0,
     });
-    if (session) {
+    const persisted = mutateSessionRegistrySync(repoRoot, (registry) => {
+      const session = registry.sessions.find((entry) => entry.session_key === request.session_key);
+      if (!session) return false;
       ensureResultPersisted(request, session, result);
-      saveSessionRegistry(repoRoot, registry);
-    } else {
+      return true;
+    });
+    if (!persisted) {
       appendJsonlLine(resultsPath, result);
     }
   }
@@ -383,7 +385,7 @@ function handleSessionClose(socket, id, params = {}) {
     return;
   }
 
-  const { registry, session, outputFile } = validation;
+  const { outputFile } = validation;
   const requestRecord = {
     ...request,
     output_jsonl_file: outputFile.replace(/\\/g, "/"),
@@ -398,30 +400,36 @@ function handleSessionClose(socket, id, params = {}) {
     appendJsonlLine(path.resolve(repoRoot, SESSION_CONTROL_REQUESTS_FILE), requestRecord);
   }
 
-  const priorThreadId = session.session_thread_id || "";
-  markSessionCommandRunning(session, requestRecord);
-  session.active_host = SESSION_CONTROL_HOST_PRIMARY;
-  session.active_terminal_kind = SESSION_ACTIVE_TERMINAL_KIND_NONE;
+  const { priorThreadId } = mutateSessionRegistrySync(repoRoot, (registry) => {
+    const session = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
+    if (!session) {
+      throw new Error(`Governed session ${requestRecord.session_key} is not registered`);
+    }
+    const priorThreadId = session.session_thread_id || "";
+    markSessionCommandRunning(session, requestRecord);
+    session.active_host = SESSION_CONTROL_HOST_PRIMARY;
+    session.active_terminal_kind = SESSION_ACTIVE_TERMINAL_KIND_NONE;
 
-  const result = buildSessionControlResult({
-    commandId: requestRecord.command_id,
-    commandKind: requestRecord.command_kind,
-    sessionKey: requestRecord.session_key,
-    wpId: requestRecord.wp_id,
-    role: requestRecord.role,
-    status: "COMPLETED",
-    threadId: "",
-    summary: priorThreadId
-      ? `Governed session closed and steerable thread ${priorThreadId} was cleared.`
-      : "Governed session closed; no steerable thread was registered.",
-    outputJsonlFile: outputFile,
-    lastAgentMessage: "",
-    error: "",
-    durationMs: 0,
+    const result = buildSessionControlResult({
+      commandId: requestRecord.command_id,
+      commandKind: requestRecord.command_kind,
+      sessionKey: requestRecord.session_key,
+      wpId: requestRecord.wp_id,
+      role: requestRecord.role,
+      status: "COMPLETED",
+      threadId: "",
+      summary: priorThreadId
+        ? `Governed session closed and steerable thread ${priorThreadId} was cleared.`
+        : "Governed session closed; no steerable thread was registered.",
+      outputJsonlFile: outputFile,
+      lastAgentMessage: "",
+      error: "",
+      durationMs: 0,
+    });
+
+    ensureResultPersisted(requestRecord, session, result);
+    return { priorThreadId, result };
   });
-
-  ensureResultPersisted(requestRecord, session, result);
-  saveSessionRegistry(repoRoot, registry);
 
   respond(socket, id, {
     command_id: requestRecord.command_id,
@@ -454,7 +462,7 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
     return;
   }
 
-  const { registry, session, absWorktreeDir, selectedModel, outputFile, threadId } = validation;
+  const { absWorktreeDir, selectedModel, outputFile, threadId } = validation;
   const requestRecord = {
     ...request,
     selected_model: selectedModel,
@@ -473,10 +481,15 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
     appendJsonlLine(path.resolve(repoRoot, SESSION_CONTROL_REQUESTS_FILE), requestRecord);
   }
 
-  markSessionCommandRunning(session, requestRecord);
-  session.active_host = SESSION_CONTROL_HOST_PRIMARY;
-  session.active_terminal_kind = SESSION_ACTIVE_TERMINAL_KIND_NONE;
-  saveSessionRegistry(repoRoot, registry);
+  mutateSessionRegistrySync(repoRoot, (registry) => {
+    const session = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
+    if (!session) {
+      throw new Error(`Governed session ${requestRecord.session_key} is not registered`);
+    }
+    markSessionCommandRunning(session, requestRecord);
+    session.active_host = SESSION_CONTROL_HOST_PRIMARY;
+    session.active_terminal_kind = SESSION_ACTIVE_TERMINAL_KIND_NONE;
+  });
 
   const runState = {
     socket,
@@ -508,29 +521,33 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
     activeRuns.delete(requestRecord.command_id);
     persistBrokerState(server.address().port);
 
-    const latest = loadSessionRegistry(repoRoot).registry;
-    const latestSession = latest.sessions.find((entry) => entry.session_key === requestRecord.session_key) || session;
     const errorMessage = runState.terminationReason || execution.stderr || "";
     const summary = execution.lastAgentMessage || (errorMessage ? errorMessage : requestRecord.summary);
-    const result = buildSessionControlResult({
-      commandId: requestRecord.command_id,
-      commandKind: requestRecord.command_kind,
-      sessionKey: requestRecord.session_key,
-      wpId: requestRecord.wp_id,
-      role: requestRecord.role,
-      status: execution.ok && !runState.terminationReason ? "COMPLETED" : "FAILED",
-      threadId: execution.threadId || latestSession.session_thread_id || "",
-      summary,
-      outputJsonlFile: outputFile,
-      lastAgentMessage: execution.lastAgentMessage || "",
-      error: execution.ok && !runState.terminationReason ? "" : (errorMessage || `codex exited with ${execution.exitCode}`),
-      durationMs: execution.durationMs,
-      targetCommandId: requestRecord.target_command_id || "",
-      cancelStatus: "",
-    });
+    const result = mutateSessionRegistrySync(repoRoot, (registry) => {
+      const latestSession = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
+      if (!latestSession) {
+        throw new Error(`Governed session ${requestRecord.session_key} is not registered`);
+      }
+      const result = buildSessionControlResult({
+        commandId: requestRecord.command_id,
+        commandKind: requestRecord.command_kind,
+        sessionKey: requestRecord.session_key,
+        wpId: requestRecord.wp_id,
+        role: requestRecord.role,
+        status: execution.ok && !runState.terminationReason ? "COMPLETED" : "FAILED",
+        threadId: execution.threadId || latestSession.session_thread_id || "",
+        summary,
+        outputJsonlFile: outputFile,
+        lastAgentMessage: execution.lastAgentMessage || "",
+        error: execution.ok && !runState.terminationReason ? "" : (errorMessage || `codex exited with ${execution.exitCode}`),
+        durationMs: execution.durationMs,
+        targetCommandId: requestRecord.target_command_id || "",
+        cancelStatus: "",
+      });
 
-    ensureResultPersisted(requestRecord, latestSession, result);
-    saveSessionRegistry(repoRoot, latest);
+      ensureResultPersisted(requestRecord, latestSession, result);
+      return result;
+    });
 
     respond(socket, id, {
       command_id: requestRecord.command_id,
@@ -573,16 +590,15 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
     },
     onEvent: (event) => {
       if (event.type === "thread.started" && event.thread_id) {
-        const { registry: liveRegistry } = loadSessionRegistry(repoRoot);
-        const liveSession = liveRegistry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
-        if (liveSession) {
+        mutateSessionRegistrySync(repoRoot, (registry) => {
+          const liveSession = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
+          if (!liveSession) return;
           markSessionThreadObserved(
             liveSession,
             event.thread_id,
             event.timestamp || nowIso(),
           );
-          saveSessionRegistry(repoRoot, liveRegistry);
-        }
+        });
       }
       notify(socket, "session/update", {
         session_id: requestRecord.session_key,
@@ -699,9 +715,11 @@ function handleSessionCancel(socket, id, params = {}) {
         targetCommandId: requestRecord.target_command_id || runId || "",
         cancelStatus: "not_running",
       });
-      requestSession.last_event_at = result.processed_at;
-      appendResultOnce(result);
-      saveSessionRegistry(repoRoot, requestRegistry);
+      mutateSessionRegistrySync(repoRoot, (registry) => {
+        const session = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
+        if (session) session.last_event_at = result.processed_at;
+        appendResultOnce(result);
+      });
       respond(socket, id, {
         command_id: result.command_id,
         status: "not_running",
@@ -759,9 +777,11 @@ function handleSessionCancel(socket, id, params = {}) {
       targetCommandId: run.request.command_id,
       cancelStatus: "cancellation_requested",
     });
-    requestSession.last_event_at = result.processed_at;
-    appendResultOnce(result);
-    saveSessionRegistry(repoRoot, requestRegistry);
+    mutateSessionRegistrySync(repoRoot, (registry) => {
+      const session = registry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
+      if (session) session.last_event_at = result.processed_at;
+      appendResultOnce(result);
+    });
   }
 
   respond(socket, id, {

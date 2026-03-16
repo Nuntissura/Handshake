@@ -10,7 +10,7 @@ import {
   getOrCreateSessionRecord,
   loadSessionControlResults,
   loadSessionRegistry,
-  saveSessionRegistry,
+  mutateSessionRegistrySync,
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
   buildSessionControlRequest,
@@ -71,18 +71,31 @@ const absWorktreeDir = path.resolve(repoRoot, roleConfig.worktreeDir);
 
 const selectedModel = selectModel(requestedModel);
 ensureSessionStateFiles(repoRoot);
-const { registry } = loadSessionRegistry(repoRoot);
-let session = getOrCreateSessionRecord(registry, {
+const sessionDescriptor = {
   wp_id: wpId,
   role,
   local_branch: roleConfig.branch,
   local_worktree_dir: roleConfig.worktreeDir,
   terminal_title: roleConfig.title,
   requested_model: selectedModel,
-});
+};
+function ensureSessionRecord() {
+  return mutateSessionRegistrySync(repoRoot, (registry) => {
+    const session = getOrCreateSessionRecord(registry, sessionDescriptor);
+    return {
+      session_key: session.session_key,
+      session_thread_id: session.session_thread_id || "",
+      last_command_status: session.last_command_status || "NONE",
+      last_command_id: session.last_command_id || "",
+      requested_model: session.requested_model || selectedModel,
+      runtime_state: session.runtime_state || "UNSTARTED",
+    };
+  });
+}
+
+let session = ensureSessionRecord();
 
 if (commandKind === "CANCEL_SESSION") {
-  session = registry.sessions.find((entry) => entry.session_key === session.session_key) || session;
   const targetCommandId = (session.last_command_status === "RUNNING" ? session.last_command_id : "") || session.last_command_id || "";
   if (!targetCommandId) {
     console.log(`[SESSION_CONTROL] session_key=${session.session_key}`);
@@ -108,8 +121,6 @@ if (commandKind === "CANCEL_SESSION") {
     outputJsonlFile: defaultSessionOutputFile(repoRoot, session.session_key, commandId),
     targetCommandId,
   });
-
-  saveSessionRegistry(repoRoot, registry);
 
   let acpResponse;
   try {
@@ -169,7 +180,6 @@ if (commandKind === "CANCEL_SESSION") {
 }
 
 if (commandKind === "CLOSE_SESSION") {
-  session = registry.sessions.find((entry) => entry.session_key === session.session_key) || session;
   const commandId = crypto.randomUUID();
   const request = buildSessionControlRequest({
     commandId,
@@ -186,8 +196,6 @@ if (commandKind === "CLOSE_SESSION") {
     summary: `Close governed ${role} session for ${wpId}`,
     outputJsonlFile: defaultSessionOutputFile(repoRoot, session.session_key, commandId),
   });
-
-  saveSessionRegistry(repoRoot, registry);
 
   let acpResponse;
   try {
@@ -275,8 +283,6 @@ const request = buildSessionControlRequest({
   outputJsonlFile: defaultSessionOutputFile(repoRoot, session.session_key, commandId),
 });
 
-saveSessionRegistry(repoRoot, registry);
-
 let acpResponse;
 try {
   acpResponse = await callHandshakeAcpMethod({
@@ -322,4 +328,3 @@ console.log(`[SESSION_CONTROL] output_jsonl=${response.output_jsonl_file || requ
 if (response.last_agent_message) {
   console.log(`[SESSION_CONTROL] last_agent_message=${response.last_agent_message}`);
 }
-

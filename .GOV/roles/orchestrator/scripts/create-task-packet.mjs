@@ -32,7 +32,11 @@ import {
   deriveSemanticProofAssets,
   formatSemanticProofAssetsSection,
 } from '../../../roles_shared/scripts/lib/semantic-proof-lib.mjs';
-import { EXECUTION_OWNER_VALUES, WORKFLOW_LANE_VALUES } from '../../../roles_shared/scripts/lib/wp-communications-lib.mjs';
+import {
+  communicationPathsForWp,
+  EXECUTION_OWNER_VALUES,
+  WORKFLOW_LANE_VALUES,
+} from '../../../roles_shared/scripts/lib/wp-communications-lib.mjs';
 import { preparedWorktreeSyncState } from '../../../roles_shared/scripts/lib/role-resume-utils.mjs';
 import {
   buildRemoteBackupUrl,
@@ -646,6 +650,7 @@ const integrationValidatorBranch = defaultIntegrationValidatorBranch(WP_ID);
 const integrationValidatorWorktreeDir = defaultIntegrationValidatorWorktreeDir(WP_ID);
 const integrationValidatorRemoteBackupBranch = remoteBackupBranch;
 const integrationValidatorRemoteBackupUrl = remoteBackupUrl;
+const packetWpCommunicationPaths = communicationPathsForWp(WP_ID);
 template = replaceSingleField(template, 'BASE_WP_ID', baseWpId);
 template = replaceSingleField(template, 'LOCAL_BRANCH', localBranch);
 template = replaceSingleField(template, 'LOCAL_WORKTREE_DIR', localWorktreeDir);
@@ -682,6 +687,10 @@ template = replaceSingleField(template, 'INTEGRATION_VALIDATOR_LOCAL_BRANCH', in
 template = replaceSingleField(template, 'INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR', integrationValidatorWorktreeDir);
 template = replaceSingleField(template, 'INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH', integrationValidatorRemoteBackupBranch);
 template = replaceSingleField(template, 'INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL', integrationValidatorRemoteBackupUrl);
+template = replaceSingleField(template, 'WP_COMMUNICATION_DIR', packetWpCommunicationPaths.dir);
+template = replaceSingleField(template, 'WP_THREAD_FILE', packetWpCommunicationPaths.threadFile);
+template = replaceSingleField(template, 'WP_RUNTIME_STATUS_FILE', packetWpCommunicationPaths.runtimeStatusFile);
+template = replaceSingleField(template, 'WP_RECEIPTS_FILE', packetWpCommunicationPaths.receiptsFile);
 template = replaceSingleField(template, 'PACKET_FORMAT_VERSION', PACKET_FORMAT_VERSION);
 const normalizedWorkflowLane = workflowLane.toUpperCase();
 const normalizedExecutionOwner = executionOwnerToPacketValue(executionLane) || executionLane.toUpperCase().replace('-', '_');
@@ -1086,4 +1095,3 @@ try {
     });
   }
 }
-

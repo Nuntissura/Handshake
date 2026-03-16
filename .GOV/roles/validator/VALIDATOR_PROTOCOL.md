@@ -76,10 +76,10 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs
 - The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
 - For newly created repo-governed validator sessions, launch/claim the model explicitly: primary `gpt-5.4`, fallback `gpt-5.2`, reasoning `EXTRA_HIGH` (`model_reasoning_effort=xhigh`). Do not rely on ambient editor defaults.
 - Fresh repo-governed validator session start is `ORCHESTRATOR_ONLY`.
-- Primary launch path is `VSCODE_EXTENSION_TERMINAL` via `.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`.
-- Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`.
+- Primary launch path is `VSCODE_EXTENSION_TERMINAL` via the external repo-governance launch queue + session registry (default repo-relative from a repo worktree: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl` + `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`).
+- Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - Validator sessions do not own the steering lane. Only the Orchestrator starts, resumes, or cancels governed validator sessions; validators request repair, pause, or cancel through packet communications or an explicit orchestrator instruction.
-- `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl` is the settled steering ledger; `.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/` holds the per-command ACP event logs that the Operator monitor can surface.
+- The external repo-governance `SESSION_CONTROL_RESULTS.jsonl` ledger is the settled steering ledger; the matching external `SESSION_CONTROL_OUTPUTS/` directory holds the per-command ACP event logs that the Operator monitor can surface.
 - Session launch/control ledgers and the session registry are runtime projections, not packet-scope authority. Treat them as operator/runtime evidence only; use the PREPARE worktree plus packet/WP-communications truth for validation decisions.
 - CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts, unless the Operator explicitly waives the plugin-first path.
 - The historical add-on at `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
@@ -249,9 +249,9 @@ Resume rule (hard, anti-babysit):
 - When available, prefer VS Code integrated terminals for validator sessions so the Operator can keep each WP validator and the Integration Validator grouped beside `just operator-monitor`.
 - Do not rely on ambient editor defaults for model choice or reasoning strength. Launch/claim validator sessions explicitly with `gpt-5.4` + `model_reasoning_effort=xhigh`, or `gpt-5.2` + `model_reasoning_effort=xhigh` as fallback.
 - Validator sessions are started by the Orchestrator. Do not self-start a fresh repo-governed validator session.
-- Use `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json` to inspect launch/runtime state when session startup looks stale or ambiguous.
-- Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`.
-- Use `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl` plus `.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/` when the Operator/Orchestrator is diagnosing governed steering, cancel evidence, or stale-control repairs.
+- Use the external repo-governance `ROLE_SESSION_REGISTRY.json` projection to inspect launch/runtime state when session startup looks stale or ambiguous.
+- Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers.
+- Use the external repo-governance `SESSION_CONTROL_RESULTS.jsonl` ledger plus the matching `SESSION_CONTROL_OUTPUTS/` directory when the Operator/Orchestrator is diagnosing governed steering, cancel evidence, or stale-control repairs.
 - Use `THREAD.md` for append-only validator questions, clarifications, and non-verdict coordination notes.
 - Use `RUNTIME_STATUS.json` for liveness state only:
   - `runtime_status`
@@ -268,9 +268,9 @@ Resume rule (hard, anti-babysit):
 - Do not poll continuously. The Validator should wake on explicit packet assignment, `ready_for_validation=true`, `validator_trigger != NONE`, a validation handoff receipt, or an explicit operator/orchestrator instruction.
 - Update runtime status and append a receipt on validation start, validation query, blocker, verdict-ready handoff, completion, and every packet heartbeat interval only while actively validating.
 - Prefer deterministic helpers over hand-editing these files:
-  - `just wp-thread-append WP-{ID} VALIDATOR <session> "<message>" [target]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
-  - `just wp-heartbeat WP-{ID} VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
-  - `just wp-receipt-append WP-{ID} VALIDATOR <session> <receipt_kind> "<summary>" [state_before] [state_after]`
+  - `just wp-thread-append WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
+  - `just wp-heartbeat WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
+  - `just wp-receipt-append WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
   - `just session-registry-status [WP-{ID}]`
   - `just operator-monitor` (operator viewport for ACP-aware session/control/thread/receipt/artifact visibility)
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Validator session):
@@ -531,12 +531,8 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
     - merge or authorize merge in place of the Classical Validator or Integration Validator
   - Default write target for this mode is a chat report or a clearly labeled external revalidation report, not the normal governed-lane closure path.
   - ACP runtime note for orchestrator-managed WPs:
-    - `wt-orchestrator` may legitimately be dirty because ACP/runtime projections are tracked governance artifacts.
+    - `wt-orchestrator` should no longer be dirtied by ACP/session/topology/WP-communication projections, because those runtime artifacts now default to the external repo-governance runtime root.
     - Dirty files limited to these surfaces are runtime-state evidence first, not automatic proof of governance failure:
-      - `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`
-      - `.GOV/roles_shared/runtime/SESSION_CONTROL_BROKER_STATE.json`
-      - `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl`
-      - `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`
       - `.GOV/roles_shared/runtime/validator_gates/WP-{ID}.json`
     - Before treating `wt-orchestrator` dirt as a governance defect, inspect ACP state with:
       - `just handshake-acp-broker-status`

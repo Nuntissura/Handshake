@@ -31,13 +31,12 @@ import {
   ensureSessionStateFiles,
   getOrCreateSessionRecord,
   loadSessionLaunchRequests,
-  loadSessionRegistry,
   markPluginResult,
   pendingRequestStatus,
   queuePluginLaunch,
   registrySessionSummary,
-  saveSessionRegistry,
   settleTimedOutPluginRequests,
+  mutateSessionRegistrySync,
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 
 const role = String(process.argv[2] || "").trim().toUpperCase();
@@ -215,10 +214,7 @@ function printOnly(reason, resolvedHost) {
 }
 
 ensureSessionStateFiles(repoRoot);
-const { registry } = loadSessionRegistry(repoRoot);
-const { requests } = loadSessionLaunchRequests(repoRoot);
-settleTimedOutPluginRequests(registry, requests);
-const session = getOrCreateSessionRecord(registry, {
+const sessionDescriptor = {
   wp_id: wpId,
   role,
   local_branch: roleConfig.branch,
@@ -227,52 +223,74 @@ const session = getOrCreateSessionRecord(registry, {
   requested_model: selectedModel,
   reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
   reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
+};
+let sessionSummary = mutateSessionRegistrySync(repoRoot, (registry) => {
+  const { requests } = loadSessionLaunchRequests(repoRoot);
+  settleTimedOutPluginRequests(registry, requests);
+  const session = getOrCreateSessionRecord(registry, sessionDescriptor);
+  return registrySessionSummary(session);
 });
-saveSessionRegistry(repoRoot, registry);
 
 function printSessionSummary() {
-  const summary = registrySessionSummary(session);
-  console.log(`[LAUNCH_CLI_SESSION] session_key=${summary.session_key}`);
-  console.log(`[LAUNCH_CLI_SESSION] runtime_state=${summary.runtime_state}`);
-  console.log(`[LAUNCH_CLI_SESSION] plugin_request_count=${summary.plugin_request_count}`);
-  console.log(`[LAUNCH_CLI_SESSION] plugin_failure_count=${summary.plugin_failure_count}`);
-  console.log(`[LAUNCH_CLI_SESSION] plugin_last_result=${summary.plugin_last_result}`);
-  console.log(`[LAUNCH_CLI_SESSION] cli_escalation_allowed=${summary.cli_escalation_allowed ? "YES" : "NO"}`);
+  console.log(`[LAUNCH_CLI_SESSION] session_key=${sessionSummary.session_key}`);
+  console.log(`[LAUNCH_CLI_SESSION] runtime_state=${sessionSummary.runtime_state}`);
+  console.log(`[LAUNCH_CLI_SESSION] plugin_request_count=${sessionSummary.plugin_request_count}`);
+  console.log(`[LAUNCH_CLI_SESSION] plugin_failure_count=${sessionSummary.plugin_failure_count}`);
+  console.log(`[LAUNCH_CLI_SESSION] plugin_last_result=${sessionSummary.plugin_last_result}`);
+  console.log(`[LAUNCH_CLI_SESSION] cli_escalation_allowed=${sessionSummary.cli_escalation_allowed ? "YES" : "NO"}`);
 }
 
 function queueVsCodePluginLaunch() {
-  const pending = session.plugin_last_request_id ? pendingRequestStatus(registry, session.plugin_last_request_id) : null;
-  const lastRequestAtMs = Date.parse(session.plugin_last_request_at || "");
-  const hasFreshPendingRequest =
-    session.plugin_last_result === "QUEUED" &&
-    !pending &&
-    !Number.isNaN(lastRequestAtMs) &&
-    (Date.now() - lastRequestAtMs) < (SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS * 1000);
-  if (hasFreshPendingRequest) {
+  const result = mutateSessionRegistrySync(repoRoot, (registry) => {
+    const { requests } = loadSessionLaunchRequests(repoRoot);
+    settleTimedOutPluginRequests(registry, requests);
+    const session = getOrCreateSessionRecord(registry, sessionDescriptor);
+    const pending = session.plugin_last_request_id ? pendingRequestStatus(registry, session.plugin_last_request_id) : null;
+    const lastRequestAtMs = Date.parse(session.plugin_last_request_at || "");
+    const hasFreshPendingRequest =
+      session.plugin_last_result === "QUEUED" &&
+      !pending &&
+      !Number.isNaN(lastRequestAtMs) &&
+      (Date.now() - lastRequestAtMs) < (SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS * 1000);
+    if (hasFreshPendingRequest) {
+      return {
+        status: "pending",
+        summary: registrySessionSummary(session),
+        requestId: session.plugin_last_request_id,
+      };
+    }
+    const request = buildLaunchRequest({
+      wpId,
+      role,
+      localBranch: roleConfig.branch,
+      localWorktreeDir: roleConfig.worktreeDir,
+      absWorktreeDir,
+      selectedModel,
+      reasoningConfigKey: ROLE_SESSION_REASONING_CONFIG_KEY,
+      reasoningConfigValue: ROLE_SESSION_REASONING_CONFIG_VALUE,
+      startupCommand: roleConfig.startupCommand,
+      nextCommand: roleConfig.nextCommand,
+      terminalTitleValue: roleConfig.title,
+      command: codexCommand,
+      pluginAttemptNumber: session.plugin_request_count + 1,
+    });
+    queuePluginLaunch(repoRoot, registry, request);
+    return {
+      status: "queued",
+      summary: registrySessionSummary(session),
+      requestId: request.request_id,
+    };
+  });
+  sessionSummary = result.summary;
+  if (result.status === "pending") {
     console.log(`[LAUNCH_CLI_SESSION] plugin launch request still pending for ${SESSION_PLUGIN_BRIDGE_ID}`);
-    console.log(`[LAUNCH_CLI_SESSION] request_id=${session.plugin_last_request_id}`);
+    console.log(`[LAUNCH_CLI_SESSION] request_id=${result.requestId}`);
     console.log(`[LAUNCH_CLI_SESSION] wait_timeout_seconds=${SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS}`);
     printSessionSummary();
     return;
   }
-  const request = buildLaunchRequest({
-    wpId,
-    role,
-    localBranch: roleConfig.branch,
-    localWorktreeDir: roleConfig.worktreeDir,
-    absWorktreeDir,
-    selectedModel,
-    reasoningConfigKey: ROLE_SESSION_REASONING_CONFIG_KEY,
-    reasoningConfigValue: ROLE_SESSION_REASONING_CONFIG_VALUE,
-    startupCommand: roleConfig.startupCommand,
-    nextCommand: roleConfig.nextCommand,
-    terminalTitleValue: roleConfig.title,
-    command: codexCommand,
-    pluginAttemptNumber: session.plugin_request_count + 1,
-  });
-  queuePluginLaunch(repoRoot, registry, request);
   console.log(`[LAUNCH_CLI_SESSION] queued plugin launch request for ${SESSION_PLUGIN_BRIDGE_ID}`);
-  console.log(`[LAUNCH_CLI_SESSION] request_id=${request.request_id}`);
+  console.log(`[LAUNCH_CLI_SESSION] request_id=${result.requestId}`);
   console.log(`[LAUNCH_CLI_SESSION] preferred_host=${SESSION_HOST_PREFERENCE}`);
   console.log(`[LAUNCH_CLI_SESSION] plugin_command=${SESSION_PLUGIN_BRIDGE_COMMAND}`);
   console.log(`[LAUNCH_CLI_SESSION] wait_timeout_seconds=${SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS}`);
@@ -280,7 +298,7 @@ function queueVsCodePluginLaunch() {
 }
 
 function cliEscalationGatePassed() {
-  return session.cli_escalation_allowed || session.plugin_failure_count >= SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION;
+  return sessionSummary.cli_escalation_allowed || sessionSummary.plugin_failure_count >= SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION;
 }
 
 function isSystemTerminalMode(host) {
@@ -288,21 +306,24 @@ function isSystemTerminalMode(host) {
 }
 
 function maybeRecordCliEscalation(hostKind) {
-  const pending = session.plugin_last_request_id ? pendingRequestStatus(registry, session.plugin_last_request_id) : null;
-  if (!pending && session.plugin_last_request_id) {
-    markPluginResult(registry, session, session.plugin_last_request_id, "CLI_ESCALATION_USED", {
-      host_kind: hostKind,
-      terminal_title: roleConfig.title,
-    });
-  } else {
-    session.runtime_state = "CLI_ESCALATION_USED";
-    session.active_host = hostKind;
-    session.active_terminal_title = roleConfig.title;
-    session.active_terminal_kind = hostKind;
-    session.cli_escalation_used = true;
-    session.last_event_at = new Date().toISOString();
-  }
-  saveSessionRegistry(repoRoot, registry);
+  sessionSummary = mutateSessionRegistrySync(repoRoot, (registry) => {
+    const session = getOrCreateSessionRecord(registry, sessionDescriptor);
+    const pending = session.plugin_last_request_id ? pendingRequestStatus(registry, session.plugin_last_request_id) : null;
+    if (!pending && session.plugin_last_request_id) {
+      markPluginResult(registry, session, session.plugin_last_request_id, "CLI_ESCALATION_USED", {
+        host_kind: hostKind,
+        terminal_title: roleConfig.title,
+      });
+    } else {
+      session.runtime_state = "CLI_ESCALATION_USED";
+      session.active_host = hostKind;
+      session.active_terminal_title = roleConfig.title;
+      session.active_terminal_kind = hostKind;
+      session.cli_escalation_used = true;
+      session.last_event_at = new Date().toISOString();
+    }
+    return registrySessionSummary(session);
+  });
 }
 
 if (requestedHost === "PRINT") {
@@ -371,5 +392,4 @@ printOnly(
   "PRINT",
 );
 printSessionSummary();
-
 

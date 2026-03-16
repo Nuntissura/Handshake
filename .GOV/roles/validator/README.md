@@ -44,7 +44,7 @@ Authoritative folder-placement law for the Validator bundle lives in `Handshake 
 - `.GOV/roles_shared/runtime/validator_gates/`
 - `.GOV/task_packets/`
 - `.GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md`
-- `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/`
+- external repo-governance `roles_shared/WP_COMMUNICATIONS/`
 
 ## Role Layout
 

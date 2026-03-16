@@ -39,6 +39,16 @@ Thumbs.db
 .handshake/
 logs/
 .GOV/roles_shared/SESSION_CONTROL_OUTPUTS/
+.GOV/roles_shared/SESSION_CONTROL_REQUESTS.jsonl
+.GOV/roles_shared/SESSION_CONTROL_RESULTS.jsonl
+.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl
+.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json
+.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl
+.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl
+.GOV/roles_shared/runtime/SESSION_CONTROL_BROKER_STATE.json
+.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/
+.GOV/roles_shared/runtime/GIT_TOPOLOGY_REGISTRY.json
+.GOV/roles_shared/runtime/WP_COMMUNICATIONS/
 
 # Existing project entries
 data/

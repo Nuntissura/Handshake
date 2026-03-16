@@ -1,18 +1,120 @@
 const vscode = require("vscode");
 const fs = require("node:fs");
 const path = require("node:path");
+const { execFileSync } = require("node:child_process");
 
-const QUEUE_REL_PATH = ".GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl";
-const REGISTRY_REL_PATH = ".GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json";
-const CONTROL_RESULTS_REL_PATH = ".GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl";
+const GOVERNANCE_RUNTIME_ROOT_ENV_VAR = "HANDSHAKE_GOV_RUNTIME_ROOT";
+const PRODUCT_RUNTIME_ROOT_ENV_VAR = "HANDSHAKE_RUNTIME_ROOT";
+const REGISTRY_LOCK_FILE_NAME = "ROLE_SESSION_REGISTRY.lock";
+const REGISTRY_LOCK_WAIT_MS = 5000;
+const REGISTRY_LOCK_STALE_MS = 60000;
+const REGISTRY_LOCK_POLL_MS = 50;
 
 function nowIso() {
   return new Date().toISOString();
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function looksLikeRepoRoot(candidate) {
+  return !!candidate
+    && fs.existsSync(path.join(candidate, ".GOV"))
+    && fs.existsSync(path.join(candidate, "justfile"));
+}
+
+function findRepoRoot(startPath) {
+  let current = startPath;
+  if (!current) return "";
+  if (fs.existsSync(current) && fs.statSync(current).isFile()) {
+    current = path.dirname(current);
+  }
+  while (current) {
+    if (looksLikeRepoRoot(current)) return current;
+    const parent = path.dirname(current);
+    if (!parent || parent === current) break;
+    current = parent;
+  }
+  return "";
+}
+
 function getRepoRoot() {
-  const folder = vscode.workspace.workspaceFolders?.[0];
-  return folder ? folder.uri.fsPath : "";
+  const candidates = [];
+  const activeFile = vscode.window.activeTextEditor?.document?.uri?.fsPath || "";
+  if (activeFile) candidates.push(activeFile);
+  for (const folder of vscode.workspace.workspaceFolders || []) {
+    candidates.push(folder.uri.fsPath);
+  }
+  for (const candidate of candidates) {
+    const repoRoot = findRepoRoot(candidate);
+    if (repoRoot) return repoRoot;
+  }
+  return "";
+}
+
+function readPersistedUserEnv(name) {
+  if (process.platform !== "win32") return "";
+  try {
+    return execFileSync(
+      "powershell.exe",
+      ["-NoLogo", "-NonInteractive", "-Command", `[Environment]::GetEnvironmentVariable('${name}','User')`],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
+    ).trim();
+  } catch {
+    return "";
+  }
+}
+
+function normalizeRelativePath(value) {
+  return String(value || "").replace(/\\/g, "/");
+}
+
+function resolveGovernanceRuntimeRoot(repoRoot) {
+  const directValue = String(
+    process.env[GOVERNANCE_RUNTIME_ROOT_ENV_VAR]
+    || readPersistedUserEnv(GOVERNANCE_RUNTIME_ROOT_ENV_VAR)
+    || ""
+  ).trim();
+  if (directValue) return path.resolve(directValue);
+
+  const productRuntimeRoot = String(
+    process.env[PRODUCT_RUNTIME_ROOT_ENV_VAR]
+    || readPersistedUserEnv(PRODUCT_RUNTIME_ROOT_ENV_VAR)
+    || ""
+  ).trim();
+  if (productRuntimeRoot) return path.resolve(productRuntimeRoot, "repo-governance");
+
+  return path.resolve(repoRoot, "..", "..", "Handshake Runtime", "repo-governance");
+}
+
+function governanceRuntimeFile(repoRoot, ...segments) {
+  return path.resolve(resolveGovernanceRuntimeRoot(repoRoot), "roles_shared", ...segments);
+}
+
+function governanceRuntimeRepoRelativePath(repoRoot, ...segments) {
+  return normalizeRelativePath(path.relative(repoRoot, governanceRuntimeFile(repoRoot, ...segments)));
+}
+
+function queuePath(repoRoot) {
+  return governanceRuntimeFile(repoRoot, "SESSION_LAUNCH_REQUESTS.jsonl");
+}
+
+function registryPath(repoRoot) {
+  return governanceRuntimeFile(repoRoot, "ROLE_SESSION_REGISTRY.json");
+}
+
+function controlResultsPath(repoRoot) {
+  return governanceRuntimeFile(repoRoot, "SESSION_CONTROL_RESULTS.jsonl");
+}
+
+function wpCommunicationsRoot(repoRoot) {
+  return governanceRuntimeFile(repoRoot, "WP_COMMUNICATIONS");
+}
+
+function ensureDirForWatcher(targetPath, isDirectory = false) {
+  const dirPath = isDirectory ? targetPath : path.dirname(targetPath);
+  fs.mkdirSync(dirPath, { recursive: true });
 }
 
 function readJson(filePath, fallbackValue) {
@@ -22,7 +124,9 @@ function readJson(filePath, fallbackValue) {
 
 function writeJson(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tempPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  fs.renameSync(tempPath, filePath);
 }
 
 function parseJsonl(filePath) {
@@ -35,7 +139,7 @@ function parseJsonl(filePath) {
     .map((line) => JSON.parse(line));
 }
 
-function defaultRegistry() {
+function defaultRegistry(repoRoot) {
   return {
     schema_id: "hsk.role_session_registry@1",
     schema_version: "role_session_registry_v1",
@@ -46,7 +150,13 @@ function defaultRegistry() {
     session_watch_policy: "EVENT_WATCH_PRIMARY_HEARTBEAT_FALLBACK",
     session_plugin_bridge_id: "handshake.handshake-session-bridge",
     session_plugin_bridge_command: "handshakeSessionBridge.processLaunchQueue",
-    session_plugin_requests_file: ".GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl",
+    session_plugin_requests_file: governanceRuntimeRepoRelativePath(repoRoot, "SESSION_LAUNCH_REQUESTS.jsonl"),
+    session_control_mode: "STEERABLE",
+    session_control_transport_primary: "CODEX_EXEC_RESUME_JSON",
+    session_control_protocol_primary: "HANDSHAKE_ACP_STDIO_V1",
+    session_control_requests_file: governanceRuntimeRepoRelativePath(repoRoot, "SESSION_CONTROL_REQUESTS.jsonl"),
+    session_control_results_file: governanceRuntimeRepoRelativePath(repoRoot, "SESSION_CONTROL_RESULTS.jsonl"),
+    session_control_output_dir: governanceRuntimeRepoRelativePath(repoRoot, "SESSION_CONTROL_OUTPUTS"),
     session_wake_channel_primary: "VS_CODE_FILE_WATCH",
     session_wake_channel_fallback: "WP_HEARTBEAT",
     session_plugin_max_retries_before_escalation: 2,
@@ -57,12 +167,73 @@ function defaultRegistry() {
 }
 
 function loadRegistry(repoRoot) {
-  return readJson(path.join(repoRoot, REGISTRY_REL_PATH), defaultRegistry());
+  return readJson(registryPath(repoRoot), defaultRegistry(repoRoot));
 }
 
 function saveRegistry(repoRoot, registry) {
   registry.updated_at = nowIso();
-  writeJson(path.join(repoRoot, REGISTRY_REL_PATH), registry);
+  writeJson(registryPath(repoRoot), registry);
+}
+
+function registryLockPath(repoRoot) {
+  return path.join(path.dirname(registryPath(repoRoot)), REGISTRY_LOCK_FILE_NAME);
+}
+
+function isLockFileStale(lockPath) {
+  try {
+    const stats = fs.statSync(lockPath);
+    return (Date.now() - stats.mtimeMs) > REGISTRY_LOCK_STALE_MS;
+  } catch {
+    return false;
+  }
+}
+
+async function withFileLock(lockPath, fn) {
+  fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+  const deadline = Date.now() + REGISTRY_LOCK_WAIT_MS;
+  while (true) {
+    try {
+      const fd = fs.openSync(lockPath, "wx");
+      try {
+        fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, created_at: nowIso() }));
+        return await fn();
+      } finally {
+        try {
+          fs.closeSync(fd);
+        } catch {
+          // ignore
+        }
+        try {
+          fs.unlinkSync(lockPath);
+        } catch {
+          // ignore
+        }
+      }
+    } catch (error) {
+      if (error?.code !== "EEXIST") throw error;
+      if (isLockFileStale(lockPath)) {
+        try {
+          fs.unlinkSync(lockPath);
+          continue;
+        } catch {
+          // another writer won the cleanup race
+        }
+      }
+      if (Date.now() >= deadline) {
+        throw new Error(`Timed out waiting for session registry lock: ${lockPath}`);
+      }
+      await sleep(REGISTRY_LOCK_POLL_MS);
+    }
+  }
+}
+
+async function mutateRegistry(repoRoot, mutator) {
+  return withFileLock(registryLockPath(repoRoot), async () => {
+    const registry = loadRegistry(repoRoot);
+    const result = await mutator(registry);
+    saveRegistry(repoRoot, registry);
+    return result;
+  });
 }
 
 function processedRequest(registry, requestId) {
@@ -162,82 +333,89 @@ async function processLaunchQueue() {
   const repoRoot = getRepoRoot();
   if (!repoRoot) return;
 
-  const queuePath = path.join(repoRoot, QUEUE_REL_PATH);
-  const registry = loadRegistry(repoRoot);
-  const requests = parseJsonl(queuePath);
+  const queueFilePath = queuePath(repoRoot);
+  ensureDirForWatcher(queueFilePath);
+  const requests = parseJsonl(queueFilePath);
+  const launchFailures = [];
 
-  for (const request of requests) {
-    if (!request || processedRequest(registry, request.request_id)) continue;
+  await mutateRegistry(repoRoot, async (registry) => {
+    for (const request of requests) {
+      if (!request || processedRequest(registry, request.request_id)) continue;
 
-    const sessionPatch = {
-      wp_id: request.wp_id,
-      role: request.role,
-      local_branch: request.local_branch || "",
-      local_worktree_dir: request.local_worktree_dir || "",
-      terminal_title: request.terminal_title || "",
-      requested_model: request.selected_model || "",
-      reasoning_config_key: request.reasoning_config_key || "",
-      reasoning_config_value: request.reasoning_config_value || "",
-      plugin_request_count: Number(request.plugin_attempt_number || 1),
-      plugin_last_request_id: request.request_id,
-      plugin_last_request_at: request.created_at || nowIso(),
-      last_event_at: nowIso()
-    };
-    const session = upsertSession(registry, request, sessionPatch);
-    const requestErrors = validateRequest(request);
+      const sessionPatch = {
+        wp_id: request.wp_id,
+        role: request.role,
+        local_branch: request.local_branch || "",
+        local_worktree_dir: request.local_worktree_dir || "",
+        terminal_title: request.terminal_title || "",
+        requested_model: request.selected_model || "",
+        reasoning_config_key: request.reasoning_config_key || "",
+        reasoning_config_value: request.reasoning_config_value || "",
+        plugin_request_count: Number(request.plugin_attempt_number || 1),
+        plugin_last_request_id: request.request_id,
+        plugin_last_request_at: request.created_at || nowIso(),
+        last_event_at: nowIso()
+      };
+      const session = upsertSession(registry, request, sessionPatch);
+      const requestErrors = validateRequest(request);
 
-    if (requestErrors.length > 0) {
-      session.plugin_failure_count += 1;
-      session.plugin_last_result = "PLUGIN_FAILED";
-      session.plugin_last_error = requestErrors.join("; ");
-      session.last_error = session.plugin_last_error;
-      session.runtime_state = session.plugin_failure_count >= 2 ? "CLI_ESCALATION_READY" : "UNSTARTED";
-      session.cli_escalation_allowed = session.plugin_failure_count >= 2;
-      upsertProcessedRequest(registry, request.request_id, "PLUGIN_FAILED", {
-        error: session.plugin_last_error
-      });
-      continue;
+      if (requestErrors.length > 0) {
+        session.plugin_failure_count += 1;
+        session.plugin_last_result = "PLUGIN_FAILED";
+        session.plugin_last_error = requestErrors.join("; ");
+        session.last_error = session.plugin_last_error;
+        session.runtime_state = session.plugin_failure_count >= 2 ? "CLI_ESCALATION_READY" : "UNSTARTED";
+        session.cli_escalation_allowed = session.plugin_failure_count >= 2;
+        upsertProcessedRequest(registry, request.request_id, "PLUGIN_FAILED", {
+          error: session.plugin_last_error
+        });
+        continue;
+      }
+
+      try {
+        const terminal = getOrCreateTerminal(request.terminal_title, resolveLaunchCwd(repoRoot, request));
+        terminal.show(true);
+        terminal.sendText(request.command, true);
+        session.plugin_last_result = "PLUGIN_DISPATCHED";
+        session.plugin_last_error = "";
+        session.runtime_state = "TERMINAL_COMMAND_DISPATCHED";
+        session.active_host = "VSCODE_EXTENSION_TERMINAL";
+        session.active_terminal_title = request.terminal_title;
+        session.active_terminal_kind = "VSCODE_EXTENSION_TERMINAL";
+        session.last_error = "";
+        session.last_event_at = nowIso();
+        upsertProcessedRequest(registry, request.request_id, "PLUGIN_DISPATCHED", {
+          terminal_title: request.terminal_title
+        });
+      } catch (error) {
+        session.plugin_failure_count += 1;
+        session.plugin_last_result = "PLUGIN_FAILED";
+        session.plugin_last_error = error && error.message ? error.message : String(error);
+        session.last_error = session.plugin_last_error;
+        session.runtime_state = session.plugin_failure_count >= 2 ? "CLI_ESCALATION_READY" : "UNSTARTED";
+        session.cli_escalation_allowed = session.plugin_failure_count >= 2;
+        session.last_event_at = nowIso();
+        upsertProcessedRequest(registry, request.request_id, "PLUGIN_FAILED", {
+          error: session.plugin_last_error
+        });
+        launchFailures.push(`Handshake session launch failed for ${request.role} ${request.wp_id}: ${session.plugin_last_error}`);
+      }
     }
+  });
 
-    try {
-      const terminal = getOrCreateTerminal(request.terminal_title, resolveLaunchCwd(repoRoot, request));
-      terminal.show(true);
-      terminal.sendText(request.command, true);
-      session.plugin_last_result = "PLUGIN_DISPATCHED";
-      session.plugin_last_error = "";
-      session.runtime_state = "TERMINAL_COMMAND_DISPATCHED";
-      session.active_host = "VSCODE_EXTENSION_TERMINAL";
-      session.active_terminal_title = request.terminal_title;
-      session.active_terminal_kind = "VSCODE_EXTENSION_TERMINAL";
-      session.last_error = "";
-      session.last_event_at = nowIso();
-      upsertProcessedRequest(registry, request.request_id, "PLUGIN_DISPATCHED", {
-        terminal_title: request.terminal_title
-      });
-    } catch (error) {
-      session.plugin_failure_count += 1;
-      session.plugin_last_result = "PLUGIN_FAILED";
-      session.plugin_last_error = error && error.message ? error.message : String(error);
-      session.last_error = session.plugin_last_error;
-      session.runtime_state = session.plugin_failure_count >= 2 ? "CLI_ESCALATION_READY" : "UNSTARTED";
-      session.cli_escalation_allowed = session.plugin_failure_count >= 2;
-      session.last_event_at = nowIso();
-      upsertProcessedRequest(registry, request.request_id, "PLUGIN_FAILED", {
-        error: session.plugin_last_error
-      });
-      void vscode.window.showWarningMessage(`Handshake session launch failed for ${request.role} ${request.wp_id}: ${session.plugin_last_error}`);
-    }
+  for (const message of launchFailures) {
+    void vscode.window.showWarningMessage(message);
   }
-
-  saveRegistry(repoRoot, registry);
 }
 
 function installRuntimeStatusWatcher(context) {
-  const folder = vscode.workspace.workspaceFolders?.[0];
-  if (!folder) return;
+  const repoRoot = getRepoRoot();
+  if (!repoRoot) return;
   const lastSeen = new Map();
-    const watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(folder, ".GOV/roles_shared/runtime/WP_COMMUNICATIONS/**/RUNTIME_STATUS.json")
+  const basePath = wpCommunicationsRoot(repoRoot);
+  ensureDirForWatcher(basePath, true);
+  const watcher = vscode.workspace.createFileSystemWatcher(
+    new vscode.RelativePattern(vscode.Uri.file(basePath), "**/RUNTIME_STATUS.json")
   );
   const handle = async (uri) => {
     try {
@@ -267,9 +445,13 @@ function installRuntimeStatusWatcher(context) {
 }
 
 function installLaunchQueueWatcher(context) {
-  const folder = vscode.workspace.workspaceFolders?.[0];
-  if (!folder) return;
-  const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, QUEUE_REL_PATH));
+  const repoRoot = getRepoRoot();
+  if (!repoRoot) return;
+  const queueFilePath = queuePath(repoRoot);
+  ensureDirForWatcher(queueFilePath);
+  const watcher = vscode.workspace.createFileSystemWatcher(
+    new vscode.RelativePattern(vscode.Uri.file(path.dirname(queueFilePath)), path.basename(queueFilePath))
+  );
   const handle = async () => {
     await processLaunchQueue();
   };
@@ -279,16 +461,17 @@ function installLaunchQueueWatcher(context) {
 }
 
 function installSessionControlResultsWatcher(context) {
-  const folder = vscode.workspace.workspaceFolders?.[0];
-  if (!folder) return;
+  const repoRoot = getRepoRoot();
+  if (!repoRoot) return;
   let lastSeenCommandId = "";
-  const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, CONTROL_RESULTS_REL_PATH));
+  const resultsFilePath = controlResultsPath(repoRoot);
+  ensureDirForWatcher(resultsFilePath);
+  const watcher = vscode.workspace.createFileSystemWatcher(
+    new vscode.RelativePattern(vscode.Uri.file(path.dirname(resultsFilePath)), path.basename(resultsFilePath))
+  );
   const handle = async () => {
     try {
-      const repoRoot = getRepoRoot();
-      if (!repoRoot) return;
-      const resultsPath = path.join(repoRoot, CONTROL_RESULTS_REL_PATH);
-      const results = parseJsonl(resultsPath);
+      const results = parseJsonl(resultsFilePath);
       const latest = results.at(-1);
       if (!latest || latest.command_id === lastSeenCommandId) return;
       lastSeenCommandId = latest.command_id;
@@ -313,7 +496,7 @@ function activate(context) {
     vscode.commands.registerCommand("handshakeSessionBridge.openSessionRegistry", async () => {
       const repoRoot = getRepoRoot();
       if (!repoRoot) return;
-      const uri = vscode.Uri.file(path.join(repoRoot, REGISTRY_REL_PATH));
+      const uri = vscode.Uri.file(registryPath(repoRoot));
       const document = await vscode.workspace.openTextDocument(uri);
       await vscode.window.showTextDocument(document, { preview: false });
     })

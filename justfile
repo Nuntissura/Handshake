@@ -409,14 +409,14 @@ ensure-wp-communications wp-id:
 wp-communications-check:
 	@node .GOV/roles_shared/checks/wp-communications-check.mjs
 
-wp-thread-append wp-id actor-role actor-session message target='':
-	@node .GOV/roles_shared/scripts/wp/wp-thread-append.mjs {{wp-id}} {{actor-role}} {{actor-session}} "{{message}}" "{{target}}"
+wp-thread-append wp-id actor-role actor-session message target='' target-role='' target-session='' correlation-id='' requires-ack='false' ack-for='':
+	@node .GOV/roles_shared/scripts/wp/wp-thread-append.mjs {{wp-id}} {{actor-role}} {{actor-session}} "{{message}}" "{{target}}" "{{target-role}}" "{{target-session}}" "{{correlation-id}}" {{requires-ack}} "{{ack-for}}"
 
-wp-receipt-append wp-id actor-role actor-session receipt-kind summary state-before='' state-after='':
-	@node .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs {{wp-id}} {{actor-role}} {{actor-session}} {{receipt-kind}} "{{summary}}" "{{state-before}}" "{{state-after}}"
+wp-receipt-append wp-id actor-role actor-session receipt-kind summary state-before='' state-after='' target-role='' target-session='' correlation-id='' requires-ack='false' ack-for='':
+	@node .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs {{wp-id}} {{actor-role}} {{actor-session}} {{receipt-kind}} "{{summary}}" "{{state-before}}" "{{state-after}}" "{{target-role}}" "{{target-session}}" "{{correlation-id}}" {{requires-ack}} "{{ack-for}}"
 
-wp-heartbeat wp-id actor-role actor-session current-phase runtime-status next-expected-actor waiting-on validator-trigger='NONE' last-event='' worktree-dir='':
-	@node .GOV/roles_shared/scripts/wp/wp-heartbeat.mjs {{wp-id}} {{actor-role}} {{actor-session}} {{current-phase}} {{runtime-status}} {{next-expected-actor}} "{{waiting-on}}" {{validator-trigger}} "{{last-event}}" "{{worktree-dir}}"
+wp-heartbeat wp-id actor-role actor-session current-phase runtime-status next-expected-actor waiting-on validator-trigger='NONE' last-event='' worktree-dir='' next-expected-session='' waiting-on-session='':
+	@node .GOV/roles_shared/scripts/wp/wp-heartbeat.mjs {{wp-id}} {{actor-role}} {{actor-session}} {{current-phase}} {{runtime-status}} {{next-expected-actor}} "{{waiting-on}}" {{validator-trigger}} "{{last-event}}" "{{worktree-dir}}" "{{next-expected-session}}" "{{waiting-on-session}}"
 
 operator-monitor *args:
 	@node .GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs {{args}}

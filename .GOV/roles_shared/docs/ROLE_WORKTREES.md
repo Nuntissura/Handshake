@@ -28,7 +28,7 @@ Preferred session host:
 - Prefer the VS Code session bridge to host repo-governed Coder, WP Validator, and Integration Validator terminals inside VS Code integrated terminals.
 - Keep one dedicated VS Code terminal tab for `just operator-monitor` so the Operator can watch active WPs, heartbeats, and packet-scoped communications without using many floating terminal windows.
 - Do not rely on ambient editor defaults for model choice or reasoning strength. New repo-governed launchers explicitly target `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`.
-- Launch requests are append-only in `.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl`; current launch state is projected in `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`.
+- Launch requests are append-only in the external repo-governance `SESSION_LAUNCH_REQUESTS.jsonl` ledger; current launch state is projected in the matching external `ROLE_SESSION_REGISTRY.json` file.
 - CLI escalation windows are allowed only after 2 plugin failures/timeouts for the same role/WP session, unless the Operator explicitly waives the plugin-first path.
 
 If you are an AI assistant operating in this repo:

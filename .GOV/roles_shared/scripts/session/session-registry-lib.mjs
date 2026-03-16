@@ -41,13 +41,29 @@ export const ROLE_SESSION_REGISTRY_SCHEMA_ID = "hsk.role_session_registry@1";
 export const ROLE_SESSION_REGISTRY_SCHEMA_VERSION = "role_session_registry_v1";
 export const SESSION_LAUNCH_REQUEST_SCHEMA_ID = "hsk.session_launch_request@1";
 export const SESSION_LAUNCH_REQUEST_SCHEMA_VERSION = "session_launch_request_v1";
+const SESSION_REGISTRY_LOCK_FILE_NAME = "ROLE_SESSION_REGISTRY.lock";
+const SESSION_REGISTRY_LOCK_WAIT_MS = 5000;
+const SESSION_REGISTRY_LOCK_STALE_MS = 60000;
+const SESSION_REGISTRY_LOCK_POLL_MS = 50;
 
 function nowIso() {
   return new Date().toISOString();
 }
 
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.max(1, Math.trunc(ms)));
+}
+
 function ensureParentDir(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
+}
+
+function removeFileIfPresent(filePath) {
+  try {
+    fs.unlinkSync(filePath);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
 }
 
 function normalizeActiveHost(value) {
@@ -120,7 +136,9 @@ export function readJsonFile(filePath, fallbackValue) {
 
 export function writeJsonFile(filePath, value) {
   ensureParentDir(filePath);
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  const tmpPath = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
+  fs.writeFileSync(tmpPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  fs.renameSync(tmpPath, filePath);
 }
 
 export function parseJsonlFile(filePath) {
@@ -157,6 +175,68 @@ export function saveSessionRegistry(repoRoot, registry) {
   };
   writeJsonFile(filePath, next);
   return filePath;
+}
+
+export function sessionRegistryLockPath(repoRoot) {
+  return path.resolve(repoRoot, path.dirname(SESSION_REGISTRY_FILE), SESSION_REGISTRY_LOCK_FILE_NAME);
+}
+
+function readLockState(lockPath) {
+  try {
+    return JSON.parse(fs.readFileSync(lockPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+export function withFileLockSync(lockPath, fn, {
+  waitMs = SESSION_REGISTRY_LOCK_WAIT_MS,
+  staleMs = SESSION_REGISTRY_LOCK_STALE_MS,
+  pollMs = SESSION_REGISTRY_LOCK_POLL_MS,
+} = {}) {
+  ensureParentDir(lockPath);
+  const startedAt = Date.now();
+  const token = {
+    pid: process.pid,
+    created_at: nowIso(),
+  };
+  while (true) {
+    try {
+      const fd = fs.openSync(lockPath, "wx");
+      fs.writeFileSync(fd, `${JSON.stringify(token)}\n`, "utf8");
+      fs.closeSync(fd);
+      break;
+    } catch (error) {
+      if (error?.code !== "EEXIST") throw error;
+      const state = readLockState(lockPath);
+      const createdAtMs = Date.parse(state?.created_at || "");
+      const isStale = Number.isNaN(createdAtMs) || ((Date.now() - createdAtMs) > staleMs);
+      if (isStale) {
+        removeFileIfPresent(lockPath);
+        continue;
+      }
+      if ((Date.now() - startedAt) > waitMs) {
+        throw new Error(`Timed out waiting for file lock ${normalizePath(lockPath)}`);
+      }
+      sleepSync(pollMs);
+    }
+  }
+
+  try {
+    return fn();
+  } finally {
+    removeFileIfPresent(lockPath);
+  }
+}
+
+export function mutateSessionRegistrySync(repoRoot, mutator) {
+  const lockPath = sessionRegistryLockPath(repoRoot);
+  return withFileLockSync(lockPath, () => {
+    const { registry } = loadSessionRegistry(repoRoot);
+    const result = mutator(registry);
+    saveSessionRegistry(repoRoot, registry);
+    return result;
+  });
 }
 
 export function loadSessionLaunchRequests(repoRoot) {

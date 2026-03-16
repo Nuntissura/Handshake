@@ -1,8 +1,26 @@
 import path from "node:path";
+import {
+  LEGACY_SHARED_GOV_SESSION_CONTROL_BROKER_STATE_FILE,
+  LEGACY_SHARED_GOV_SESSION_CONTROL_OUTPUT_DIR,
+  LEGACY_SHARED_GOV_SESSION_CONTROL_REQUESTS_FILE,
+  LEGACY_SHARED_GOV_SESSION_CONTROL_RESULTS_FILE,
+  LEGACY_SHARED_GOV_SESSION_LAUNCH_REQUESTS_FILE,
+  LEGACY_SHARED_GOV_SESSION_REGISTRY_FILE,
+  SHARED_GOV_SESSION_CONTROL_BROKER_STATE_FILE,
+  SHARED_GOV_SESSION_CONTROL_OUTPUT_DIR,
+  SHARED_GOV_SESSION_CONTROL_REQUESTS_FILE,
+  SHARED_GOV_SESSION_CONTROL_RESULTS_FILE,
+  SHARED_GOV_SESSION_LAUNCH_REQUESTS_FILE,
+  SHARED_GOV_SESSION_REGISTRY_FILE,
+} from "../lib/runtime-paths.mjs";
+import { ACP_BUILD_ID } from "./acp-build-id.mjs";
 
 export const PACKET_FORMAT_VERSION = "2026-03-16";
-export const STUB_FORMAT_VERSION = "2026-03-12";
+export const STUB_FORMAT_VERSION = "2026-03-16";
 export const SESSION_POLICY_PACKET_MIN_VERSION = "2026-03-12";
+export const SESSION_POLICY_STUB_MIN_VERSION = "2026-03-12";
+export const EXTERNAL_GOV_RUNTIME_PACKET_MIN_VERSION = "2026-03-16";
+export const EXTERNAL_GOV_RUNTIME_STUB_MIN_VERSION = "2026-03-16";
 export const STRUCTURED_VALIDATION_REPORT_MIN_VERSION = "2026-03-15";
 export const SHARED_REMOTE_WP_BACKUP_PACKET_MIN_VERSION = "2026-03-16";
 
@@ -14,18 +32,18 @@ export const ROLE_SESSION_RUNTIME = "CLI";
 export const CLI_SESSION_TOOL = "codex";
 export const SESSION_PLUGIN_BRIDGE_ID = "handshake.handshake-session-bridge";
 export const SESSION_PLUGIN_BRIDGE_COMMAND = "handshakeSessionBridge.processLaunchQueue";
-export const SESSION_PLUGIN_REQUESTS_FILE = ".GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl";
-export const SESSION_REGISTRY_FILE = ".GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json";
+export const SESSION_PLUGIN_REQUESTS_FILE = SHARED_GOV_SESSION_LAUNCH_REQUESTS_FILE;
+export const SESSION_REGISTRY_FILE = SHARED_GOV_SESSION_REGISTRY_FILE;
 export const SESSION_CONTROL_MODE = "STEERABLE";
 export const SESSION_CONTROL_TRANSPORT_PRIMARY = "CODEX_EXEC_RESUME_JSON";
 export const SESSION_CONTROL_PROTOCOL_PRIMARY = "HANDSHAKE_ACP_STDIO_V1";
 export const SESSION_CONTROL_HOST_PRIMARY = "HANDSHAKE_ACP_BROKER";
-export const SESSION_CONTROL_BROKER_BUILD_ID = "2026-03-13.6";
+export const SESSION_CONTROL_BROKER_BUILD_ID = ACP_BUILD_ID;
 export const SESSION_CONTROL_BROKER_AUTH_MODE = "LOCAL_TOKEN_FILE_V1";
-export const SESSION_CONTROL_REQUESTS_FILE = ".GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl";
-export const SESSION_CONTROL_RESULTS_FILE = ".GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl";
-export const SESSION_CONTROL_OUTPUT_DIR = ".GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS";
-export const SESSION_CONTROL_BROKER_STATE_FILE = ".GOV/roles_shared/runtime/SESSION_CONTROL_BROKER_STATE.json";
+export const SESSION_CONTROL_REQUESTS_FILE = SHARED_GOV_SESSION_CONTROL_REQUESTS_FILE;
+export const SESSION_CONTROL_RESULTS_FILE = SHARED_GOV_SESSION_CONTROL_RESULTS_FILE;
+export const SESSION_CONTROL_OUTPUT_DIR = SHARED_GOV_SESSION_CONTROL_OUTPUT_DIR;
+export const SESSION_CONTROL_BROKER_STATE_FILE = SHARED_GOV_SESSION_CONTROL_BROKER_STATE_FILE;
 export const SESSION_CONTROL_RUN_TIMEOUT_SECONDS = 5400;
 export const SESSION_CONTROL_RUN_STALE_GRACE_SECONDS = 30;
 export const SESSION_CONTROL_BROKER_SHUTDOWN_GRACE_SECONDS = 5;
@@ -223,6 +241,11 @@ export function packetUsesSessionPolicy(packetFormatVersion) {
   return version >= SESSION_POLICY_PACKET_MIN_VERSION;
 }
 
+export function packetUsesExternalGovernanceRuntime(packetFormatVersion) {
+  const version = String(packetFormatVersion || "").trim();
+  return version >= EXTERNAL_GOV_RUNTIME_PACKET_MIN_VERSION;
+}
+
 export function packetUsesStructuredValidationReport(packetFormatVersion) {
   const version = String(packetFormatVersion || "").trim();
   return version >= STRUCTURED_VALIDATION_REPORT_MIN_VERSION;
@@ -235,7 +258,60 @@ export function packetUsesSharedRemoteWpBackup(packetFormatVersion) {
 
 export function stubUsesSessionPolicy(stubFormatVersion) {
   const version = String(stubFormatVersion || "").trim();
-  return version >= STUB_FORMAT_VERSION;
+  return version >= SESSION_POLICY_STUB_MIN_VERSION;
+}
+
+export function stubUsesExternalGovernanceRuntime(stubFormatVersion) {
+  const version = String(stubFormatVersion || "").trim();
+  return version >= EXTERNAL_GOV_RUNTIME_STUB_MIN_VERSION;
+}
+
+export function sessionPluginRequestsFileForPacketVersion(packetFormatVersion) {
+  return packetUsesExternalGovernanceRuntime(packetFormatVersion)
+    ? SESSION_PLUGIN_REQUESTS_FILE
+    : LEGACY_SHARED_GOV_SESSION_LAUNCH_REQUESTS_FILE;
+}
+
+export function sessionRegistryFileForPacketVersion(packetFormatVersion) {
+  return packetUsesExternalGovernanceRuntime(packetFormatVersion)
+    ? SESSION_REGISTRY_FILE
+    : LEGACY_SHARED_GOV_SESSION_REGISTRY_FILE;
+}
+
+export function sessionControlRequestsFileForPacketVersion(packetFormatVersion) {
+  return packetUsesExternalGovernanceRuntime(packetFormatVersion)
+    ? SESSION_CONTROL_REQUESTS_FILE
+    : LEGACY_SHARED_GOV_SESSION_CONTROL_REQUESTS_FILE;
+}
+
+export function sessionControlResultsFileForPacketVersion(packetFormatVersion) {
+  return packetUsesExternalGovernanceRuntime(packetFormatVersion)
+    ? SESSION_CONTROL_RESULTS_FILE
+    : LEGACY_SHARED_GOV_SESSION_CONTROL_RESULTS_FILE;
+}
+
+export function sessionControlOutputDirForPacketVersion(packetFormatVersion) {
+  return packetUsesExternalGovernanceRuntime(packetFormatVersion)
+    ? SESSION_CONTROL_OUTPUT_DIR
+    : LEGACY_SHARED_GOV_SESSION_CONTROL_OUTPUT_DIR;
+}
+
+export function sessionControlBrokerStateFileForPacketVersion(packetFormatVersion) {
+  return packetUsesExternalGovernanceRuntime(packetFormatVersion)
+    ? SESSION_CONTROL_BROKER_STATE_FILE
+    : LEGACY_SHARED_GOV_SESSION_CONTROL_BROKER_STATE_FILE;
+}
+
+export function sessionPluginRequestsFileForStubVersion(stubFormatVersion) {
+  return stubUsesExternalGovernanceRuntime(stubFormatVersion)
+    ? SESSION_PLUGIN_REQUESTS_FILE
+    : LEGACY_SHARED_GOV_SESSION_LAUNCH_REQUESTS_FILE;
+}
+
+export function sessionRegistryFileForStubVersion(stubFormatVersion) {
+  return stubUsesExternalGovernanceRuntime(stubFormatVersion)
+    ? SESSION_REGISTRY_FILE
+    : LEGACY_SHARED_GOV_SESSION_REGISTRY_FILE;
 }
 
 export function roleStartupCommand(role) {

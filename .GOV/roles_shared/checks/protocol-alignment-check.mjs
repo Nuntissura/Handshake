@@ -371,22 +371,29 @@ requireSubstring(
   errors,
   ROLE_SESSION_REGISTRY_SCHEMA_PATH,
   roleSessionRegistrySchema,
-  '^\\\\.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS\\\\.jsonl$',
-  "runtime SESSION_LAUNCH_REQUESTS schema path",
+  'roles_shared/SESSION_LAUNCH_REQUESTS\\\\.jsonl',
+  "runtime SESSION_LAUNCH_REQUESTS schema filename",
 );
 requireSubstring(
   errors,
   ROLE_SESSION_REGISTRY_SCHEMA_PATH,
   roleSessionRegistrySchema,
-  '^\\\\.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS\\\\.jsonl$',
-  "runtime SESSION_CONTROL_REQUESTS schema path",
+  'roles_shared/SESSION_CONTROL_REQUESTS\\\\.jsonl',
+  "runtime SESSION_CONTROL_REQUESTS schema filename",
 );
 requireSubstring(
   errors,
   ROLE_SESSION_REGISTRY_SCHEMA_PATH,
   roleSessionRegistrySchema,
-  '^\\\\.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS\\\\.jsonl$',
-  "runtime SESSION_CONTROL_RESULTS schema path",
+  'roles_shared/SESSION_CONTROL_RESULTS\\\\.jsonl',
+  "runtime SESSION_CONTROL_RESULTS schema filename",
+);
+requireSubstring(
+  errors,
+  ROLE_SESSION_REGISTRY_SCHEMA_PATH,
+  roleSessionRegistrySchema,
+  'roles_shared/SESSION_CONTROL_OUTPUTS',
+  "runtime SESSION_CONTROL_OUTPUTS schema directory",
 );
 
 // Refinement scaffolding must stay on the current refinement workflow contract.

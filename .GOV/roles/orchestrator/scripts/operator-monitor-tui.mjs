@@ -7,17 +7,29 @@ import readline from "node:readline";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { appendWpThreadEntry } from "../../../roles_shared/scripts/wp/wp-thread-append.mjs";
-import { normalize, parseJsonFile, parseJsonlFile, validateReceipt, validateRuntimeStatus } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import {
+  normalize,
+  parseJsonFile as sharedParseJsonFile,
+  parseJsonlFile as sharedParseJsonlFile,
+  validateReceipt,
+  validateRuntimeStatus,
+} from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { loadSessionRegistry, registrySessionSummary } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
+import {
+  SESSION_CONTROL_BROKER_STATE_FILE,
+  SESSION_CONTROL_REQUESTS_FILE,
+  SESSION_CONTROL_RESULTS_FILE,
+} from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { TOPOLOGY_REGISTRY_JSON_PATH } from "../../../roles_shared/scripts/topology/git-topology-lib.mjs";
 
 const TASK_BOARD_PATH = ".GOV/roles_shared/records/TASK_BOARD.md";
 const TRACEABILITY_PATH = ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md";
-const TOPOLOGY_PATH = ".GOV/roles_shared/runtime/GIT_TOPOLOGY_REGISTRY.json";
+const TOPOLOGY_PATH = TOPOLOGY_REGISTRY_JSON_PATH;
 const ORCHESTRATOR_GATES_PATH = ".GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json";
-const SESSION_CONTROL_REQUESTS_PATH = ".GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl";
-const SESSION_CONTROL_RESULTS_PATH = ".GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl";
-const SESSION_CONTROL_BROKER_STATE_PATH = ".GOV/roles_shared/runtime/SESSION_CONTROL_BROKER_STATE.json";
+const SESSION_CONTROL_REQUESTS_PATH = SESSION_CONTROL_REQUESTS_FILE;
+const SESSION_CONTROL_RESULTS_PATH = SESSION_CONTROL_RESULTS_FILE;
+const SESSION_CONTROL_BROKER_STATE_PATH = SESSION_CONTROL_BROKER_STATE_FILE;
 const PACKETS_DIR = ".GOV/task_packets";
 const PACKET_STUBS_DIR = ".GOV/task_packets/stubs";
 
@@ -45,9 +57,38 @@ const ACTIVE_PACKET_SESSION_STATES = new Set([
   "waiting",
   "blocked",
 ]);
+const FILE_CACHE = new Map();
+const CURRENT_BRANCH_CACHE_TTL_MS = 5000;
+let currentBranchCache = { value: "", expiresAt: 0 };
+
+function fileSignature(filePath) {
+  if (!fs.existsSync(filePath)) return "missing";
+  const stats = fs.statSync(filePath);
+  return `${stats.size}:${stats.mtimeMs}`;
+}
+
+function readCachedFile(kind, filePath, loader) {
+  const key = `${kind}:${normalize(filePath)}`;
+  const signature = fileSignature(filePath);
+  const cached = FILE_CACHE.get(key);
+  if (cached && cached.signature === signature) {
+    return cached.value;
+  }
+  const value = loader();
+  FILE_CACHE.set(key, { signature, value });
+  return value;
+}
 
 function readText(filePath) {
-  return fs.readFileSync(filePath, "utf8");
+  return readCachedFile("text", filePath, () => fs.readFileSync(filePath, "utf8"));
+}
+
+function parseJsonFile(filePath) {
+  return readCachedFile("json", filePath, () => sharedParseJsonFile(filePath));
+}
+
+function parseJsonlFile(filePath) {
+  return readCachedFile("jsonl", filePath, () => sharedParseJsonlFile(filePath));
 }
 
 function isProcessAlive(pid) {
@@ -278,11 +319,19 @@ function parseBrokerState() {
 }
 
 function currentBranch() {
+  if (currentBranchCache.expiresAt > Date.now()) return currentBranchCache.value;
   try {
-    return execFileSync("git", ["branch", "--show-current"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    currentBranchCache = {
+      value: execFileSync("git", ["branch", "--show-current"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(),
+      expiresAt: Date.now() + CURRENT_BRANCH_CACHE_TTL_MS,
+    };
   } catch {
-    return "";
+    currentBranchCache = {
+      value: "",
+      expiresAt: Date.now() + CURRENT_BRANCH_CACHE_TTL_MS,
+    };
   }
+  return currentBranchCache.value;
 }
 
 function loadBoardSourceInfo() {
@@ -361,16 +410,32 @@ function parseThreadEntries(threadPath) {
   const entries = [];
   let current = null;
   for (const line of lines) {
-    const header = line.match(/^\s*-\s+(\d{4}-\d{2}-\d{2}T[^\s]+Z)\s+\|\s+([A-Z_]+)\s+\|\s+session=([^|]+?)(?:\s+\|\s+target=(.+))?\s*$/);
-    if (header) {
-      if (current) entries.push(current);
-      current = {
-        timestamp: header[1],
-        actorRole: header[2],
-        actorSession: header[3].trim(),
-        target: (header[4] || "").trim(),
+    if (/^\s*-\s+\d{4}-\d{2}-\d{2}T[^\s]+Z\s+\|/.test(line)) {
+      const parts = line.replace(/^\s*-\s+/, "").split("|").map((value) => value.trim()).filter(Boolean);
+      const [timestamp, actorRole, ...metadata] = parts;
+      const entry = {
+        timestamp: timestamp || "",
+        actorRole: actorRole || "",
+        actorSession: "",
+        target: "",
+        targetRole: "",
+        targetSession: "",
+        correlationId: "",
+        requiresAck: false,
+        ackFor: "",
         messageLines: [],
       };
+      for (const item of metadata) {
+        if (item.startsWith("session=")) entry.actorSession = item.slice("session=".length).trim();
+        else if (item.startsWith("target=")) entry.target = item.slice("target=".length).trim();
+        else if (item.startsWith("target_role=")) entry.targetRole = item.slice("target_role=".length).trim();
+        else if (item.startsWith("target_session=")) entry.targetSession = item.slice("target_session=".length).trim();
+        else if (item.startsWith("correlation_id=")) entry.correlationId = item.slice("correlation_id=".length).trim();
+        else if (item === "requires_ack=true") entry.requiresAck = true;
+        else if (item.startsWith("ack_for=")) entry.ackFor = item.slice("ack_for=".length).trim();
+      }
+      if (current) entries.push(current);
+      current = entry;
       continue;
     }
     if (current && /^\s{2,}\S/.test(line)) {
@@ -379,6 +444,13 @@ function parseThreadEntries(threadPath) {
   }
   if (current) entries.push(current);
   return entries;
+}
+
+function formatTarget(role, session) {
+  const targetRole = String(role || "").trim();
+  const targetSession = String(session || "").trim();
+  if (!targetRole) return "";
+  return targetSession ? `${targetRole}:${targetSession}` : targetRole;
 }
 
 function summarizeSessions(runtime) {
@@ -808,19 +880,24 @@ function buildTimelineEntries(record) {
   const entries = [];
   let sequence = 0;
   for (const entry of record.packetRecord?.threadEntries || []) {
+    const threadTarget = formatTarget(entry.targetRole, entry.targetSession) || entry.target;
     entries.push({
       timestamp: entry.timestamp || "",
       sequence: sequence += 1,
-      header: `${entry.timestamp || "<no-ts>"} | THREAD | ${entry.actorRole} | ${entry.actorSession}${entry.target ? ` | ${entry.target}` : ""}`,
+      header: `${entry.timestamp || "<no-ts>"} | THREAD | ${entry.actorRole} | ${entry.actorSession}${threadTarget ? ` | ${threadTarget}` : ""}`,
       detailLines: entry.messageLines?.length ? entry.messageLines : ["<no body>"],
     });
   }
   for (const entry of record.packetRecord?.receipts || []) {
+    const receiptRouting = [];
+    if (entry.target_role || entry.target_session) receiptRouting.push(`target=${formatTarget(entry.target_role, entry.target_session) || "<unknown>"}`);
+    if (entry.correlation_id) receiptRouting.push(`corr=${entry.correlation_id}`);
+    if (entry.requires_ack) receiptRouting.push(`ack=${entry.ack_for || "required"}`);
     entries.push({
       timestamp: entry.timestamp_utc || "",
       sequence: sequence += 1,
       header: `${entry.timestamp_utc || "<no-ts>"} | RECEIPT | ${entry.actor_role} | ${entry.receipt_kind}`,
-      detailLines: [entry.summary || "<no summary>"],
+      detailLines: [entry.summary || "<no summary>", ...receiptRouting],
     });
   }
   for (const entry of record.controlRequests || []) {
@@ -939,7 +1016,11 @@ function buildDetailLines(record, width, detailView, uiState) {
   lines.push(`canonical_entry=${formatBoardEntry(record.canonicalBoardEntry)} | current_entry=${formatBoardEntry(record.currentBoardEntry)}`);
   lines.push(`current_entry_drift=${record.currentBoardMatchesSelected === null ? "UNKNOWN" : (record.currentBoardMatchesSelected ? "NO" : "YES")}`);
   if (runtime) {
-    lines.push(`runtime=${runtime.runtime_status}/${runtime.current_phase} | next=${runtime.next_expected_actor} | waiting_on=${runtime.waiting_on}`);
+    lines.push(
+      `runtime=${runtime.runtime_status}/${runtime.current_phase}`
+      + ` | next=${formatTarget(runtime.next_expected_actor, runtime.next_expected_session) || runtime.next_expected_actor}`
+      + ` | waiting_on=${runtime.waiting_on}${runtime.waiting_on_session ? ` (${runtime.waiting_on_session})` : ""}`
+    );
     lines.push(`validator_trigger=${runtime.validator_trigger} | ready=${runtime.ready_for_validation ? "YES" : "NO"} | stale=${record.stale ? "YES" : "NO"}`);
   } else {
     lines.push("runtime=<none>");
@@ -953,7 +1034,8 @@ function buildDetailLines(record, width, detailView, uiState) {
       lines.push("No thread entries.");
     } else {
       for (const entry of recent) {
-        lines.push(`${entry.timestamp} | ${entry.actorRole} | ${entry.actorSession}${entry.target ? ` | ${entry.target}` : ""}`);
+        const threadTarget = formatTarget(entry.targetRole, entry.targetSession) || entry.target;
+        lines.push(`${entry.timestamp} | ${entry.actorRole} | ${entry.actorSession}${threadTarget ? ` | ${threadTarget}` : ""}`);
         for (const bodyLine of entry.messageLines) lines.push(`  ${bodyLine}`);
       }
     }
@@ -1132,7 +1214,11 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
   lines.push(`canonical_entry=${formatBoardEntry(record.canonicalBoardEntry)} | current_entry=${formatBoardEntry(record.currentBoardEntry)}`);
   lines.push(`current_entry_drift=${record.currentBoardMatchesSelected === null ? "UNKNOWN" : (record.currentBoardMatchesSelected ? "NO" : "YES")}`);
   if (runtime) {
-    lines.push(`runtime=${runtime.runtime_status}/${runtime.current_phase} | next=${runtime.next_expected_actor} | waiting_on=${runtime.waiting_on}`);
+    lines.push(
+      `runtime=${runtime.runtime_status}/${runtime.current_phase}`
+      + ` | next=${formatTarget(runtime.next_expected_actor, runtime.next_expected_session) || runtime.next_expected_actor}`
+      + ` | waiting_on=${runtime.waiting_on}${runtime.waiting_on_session ? ` (${runtime.waiting_on_session})` : ""}`
+    );
     lines.push(`validator_trigger=${runtime.validator_trigger} | ready=${runtime.ready_for_validation ? "YES" : "NO"} | stale=${record.stale ? "YES" : "NO"}`);
   } else {
     lines.push("runtime=<none>");
@@ -1612,5 +1698,3 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exit(1);
   });
 }
-
-

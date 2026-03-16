@@ -1,9 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  allCommunicationRoots,
   COMM_ROOT,
   communicationPathsForWp,
   ensureSchemaFilesExist,
+  legacyCommunicationPathsForWp,
   normalize,
   parseJsonFile,
   parseJsonlFile,
@@ -13,6 +15,7 @@ import {
   validateReceipt,
   validateRuntimeStatus,
 } from "../scripts/lib/wp-communications-lib.mjs";
+import { packetUsesExternalGovernanceRuntime } from "../scripts/session/session-policy.mjs";
 
 const PACKETS_DIR = path.join(".GOV", "task_packets");
 
@@ -42,6 +45,7 @@ if (fs.existsSync(PACKETS_DIR)) {
     const threadFile = parseSingleField(text, "WP_THREAD_FILE");
     const runtimeStatusFile = parseSingleField(text, "WP_RUNTIME_STATUS_FILE");
     const receiptsFile = parseSingleField(text, "WP_RECEIPTS_FILE");
+    const packetFormatVersion = parseSingleField(text, "PACKET_FORMAT_VERSION");
 
     const declared = [communicationDir, threadFile, runtimeStatusFile, receiptsFile].filter(Boolean);
     if (declared.length === 0) continue;
@@ -51,7 +55,9 @@ if (fs.existsSync(PACKETS_DIR)) {
       continue;
     }
 
-    const expected = communicationPathsForWp(wpId);
+    const expected = packetUsesExternalGovernanceRuntime(packetFormatVersion)
+      ? communicationPathsForWp(wpId)
+      : legacyCommunicationPathsForWp(wpId);
     const expectedDir = expected.dir;
     const expectedThread = expected.threadFile;
     const expectedRuntime = expected.runtimeStatusFile;
@@ -107,28 +113,29 @@ if (fs.existsSync(PACKETS_DIR)) {
   }
 }
 
-if (fs.existsSync(COMM_ROOT)) {
-  const entries = fs.readdirSync(COMM_ROOT, { withFileTypes: true });
+for (const root of allCommunicationRoots()) {
+  if (!fs.existsSync(root)) continue;
+  const entries = fs.readdirSync(root, { withFileTypes: true });
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     if (!entry.name.startsWith("WP-")) {
-      violations.push(`${COMM_ROOT}/${entry.name}: unexpected directory in WP communication root`);
+      violations.push(`${root}/${entry.name}: unexpected directory in WP communication root`);
       continue;
     }
     const packetPath = path.join(PACKETS_DIR, `${entry.name}.md`);
     if (!fs.existsSync(packetPath)) {
-      violations.push(`${COMM_ROOT}/${entry.name}: orphan communication folder with no matching official packet`);
+      violations.push(`${root}/${entry.name}: orphan communication folder with no matching official packet`);
       continue;
     }
     const packetText = fs.readFileSync(packetPath, "utf8");
     const communicationDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
     if (!communicationDir) {
-      violations.push(`${COMM_ROOT}/${entry.name}: communication folder exists but matching packet does not declare WP communication metadata`);
+      violations.push(`${root}/${entry.name}: communication folder exists but matching packet does not declare WP communication metadata`);
     }
     for (const requiredName of [THREAD_FILE_NAME, RUNTIME_STATUS_FILE_NAME, RECEIPTS_FILE_NAME]) {
-      const requiredPath = path.join(COMM_ROOT, entry.name, requiredName);
+      const requiredPath = path.join(root, entry.name, requiredName);
       if (!fs.existsSync(requiredPath)) {
-        violations.push(`${COMM_ROOT}/${entry.name}: missing required artifact ${requiredName}`);
+        violations.push(`${root}/${entry.name}: missing required artifact ${requiredName}`);
       }
     }
   }
@@ -139,5 +146,4 @@ if (violations.length > 0) {
 }
 
 console.log("wp-communications-check ok");
-
 

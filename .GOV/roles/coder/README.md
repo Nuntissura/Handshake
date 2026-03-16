@@ -40,7 +40,7 @@ Authoritative folder-placement law for the Coder bundle lives in `Handshake Code
 - `.GOV/roles_shared/checks/README.md`
 - `.GOV/roles_shared/scripts/README.md`
 - `.GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md`
-- `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/`
+- external repo-governance `roles_shared/WP_COMMUNICATIONS/`
 
 ## Key Commands
 

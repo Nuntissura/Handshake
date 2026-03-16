@@ -24,6 +24,12 @@ function nullableValue(value) {
   return raw;
 }
 
+function parseBooleanLike(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return false;
+  return ["1", "true", "yes", "y"].includes(raw.toLowerCase());
+}
+
 function loadPacketContext(wpId) {
   const packetPath = path.join(PACKETS_DIR, `${wpId}.md`);
   if (!fs.existsSync(packetPath)) {
@@ -65,6 +71,11 @@ export function appendWpReceipt({
   branch = null,
   worktreeDir = null,
   timestamp = null,
+  targetRole = null,
+  targetSession = null,
+  correlationId = null,
+  requiresAck = false,
+  ackFor = null,
 } = {}) {
   const WP_ID = String(wpId || "").trim();
   if (!WP_ID || !/^WP-/.test(WP_ID)) {
@@ -94,6 +105,11 @@ export function appendWpReceipt({
     worktree_dir: worktreeDir === undefined ? context.worktreeDir : nullableValue(worktreeDir),
     state_before: nullableValue(stateBefore),
     state_after: nullableValue(stateAfter),
+    target_role: nullableValue(targetRole),
+    target_session: nullableValue(targetSession),
+    correlation_id: nullableValue(correlationId),
+    requires_ack: Boolean(requiresAck),
+    ack_for: nullableValue(ackFor),
     refs: [context.packetPath, ...refs.filter(Boolean).map((value) => normalize(value))],
   };
 
@@ -111,9 +127,13 @@ export function appendWpReceipt({
 }
 
 function runCli() {
-  const [wpId, actorRole, actorSession, receiptKind, summary, stateBefore, stateAfter] = process.argv.slice(2);
+  const [wpId, actorRole, actorSession, receiptKind, summary, stateBefore, stateAfter, targetRole, targetSession, correlationId, requiresAck, ackFor] = process.argv.slice(2);
   if (!wpId || !actorRole || !actorSession || !receiptKind || !summary) {
-    console.error("Usage: node .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <RECEIPT_KIND> \"<SUMMARY>\" [STATE_BEFORE] [STATE_AFTER]");
+    console.error(
+      "Usage: node .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs"
+      + " WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <RECEIPT_KIND> \"<SUMMARY>\""
+      + " [STATE_BEFORE] [STATE_AFTER] [TARGET_ROLE] [TARGET_SESSION] [CORRELATION_ID] [REQUIRES_ACK] [ACK_FOR]"
+    );
     process.exit(1);
   }
 
@@ -125,6 +145,11 @@ function runCli() {
     summary,
     stateBefore,
     stateAfter,
+    targetRole,
+    targetSession,
+    correlationId,
+    requiresAck: parseBooleanLike(requiresAck),
+    ackFor,
   });
 
   console.log(`[WP_RECEIPT] appended ${entry.receipt_kind} for ${entry.wp_id}`);
@@ -135,4 +160,3 @@ function runCli() {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   runCli();
 }
-

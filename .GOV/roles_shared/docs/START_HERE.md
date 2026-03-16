@@ -12,7 +12,7 @@ Governance placement law: `Handshake Codex v1.4.md` plus the active role protoco
 - **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `.GOV/roles_shared/records/TASK_BOARD.md` + task packets. Handshake logger is for milestones/hard bugs when requested.
 - **Shared tooling guardrails:** `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` (shared tooling memory: short append-only `Do` / `Don't` / `Why` / `Context` notes for all roles).
 - **Architecture & debug:** `.GOV/roles_shared/docs/ARCHITECTURE.md` and `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`.
-- **Session/runtime law:** `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md` plus packet-declared `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/**`.
+- **Session/runtime law:** `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md` plus the packet-declared external `WP_COMMUNICATION_DIR`.
 
 ## AI Agent Workflow (Mandatory for AI-Autonomous Operation)
 

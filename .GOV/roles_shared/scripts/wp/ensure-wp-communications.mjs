@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   addMinutes,
   COMM_ROOT,
+  communicationPathsForWp,
   ensureSchemaFilesExist,
   normalize,
   parseJsonFile,
@@ -112,6 +113,10 @@ export function ensureWpCommunications({
   const MAX_CODER_REVISION_CYCLES = parseIntegerField(packetText, "MAX_CODER_REVISION_CYCLES", 3);
   const MAX_VALIDATOR_REVIEW_CYCLES = parseIntegerField(packetText, "MAX_VALIDATOR_REVIEW_CYCLES", 3);
   const MAX_RELAY_ESCALATION_CYCLES = parseIntegerField(packetText, "MAX_RELAY_ESCALATION_CYCLES", 2);
+  const declaredCommunicationDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
+  const declaredThreadFile = parseSingleField(packetText, "WP_THREAD_FILE");
+  const declaredRuntimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const declaredReceiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
 
   if (packetText) {
     const warnings = [];
@@ -136,12 +141,20 @@ export function ensureWpCommunications({
   requireTemplateFile(RECEIPTS_TEMPLATE);
 
   fs.mkdirSync(COMM_ROOT, { recursive: true });
-  const wpCommDir = path.join(COMM_ROOT, WP_ID);
+  const paths = declaredCommunicationDir && declaredThreadFile && declaredRuntimeStatusFile && declaredReceiptsFile
+    ? {
+      dir: normalize(declaredCommunicationDir),
+      threadFile: normalize(declaredThreadFile),
+      runtimeStatusFile: normalize(declaredRuntimeStatusFile),
+      receiptsFile: normalize(declaredReceiptsFile),
+    }
+    : communicationPathsForWp(WP_ID);
+  const wpCommDir = paths.dir;
   fs.mkdirSync(wpCommDir, { recursive: true });
 
-  const threadPath = path.join(wpCommDir, THREAD_FILE_NAME);
-  const runtimeStatusPath = path.join(wpCommDir, RUNTIME_STATUS_FILE_NAME);
-  const receiptsPath = path.join(wpCommDir, RECEIPTS_FILE_NAME);
+  const threadPath = paths.threadFile;
+  const runtimeStatusPath = paths.runtimeStatusFile;
+  const receiptsPath = paths.receiptsFile;
 
   if (!WORKFLOW_LANE_VALUES.includes(WORKFLOW_LANE)) {
     throw new Error(`Invalid WORKFLOW_LANE for ${WP_ID}: ${WORKFLOW_LANE}`);
@@ -172,6 +185,10 @@ export function ensureWpCommunications({
     "{{LOCAL_WORKTREE_DIR}}": LOCAL_WORKTREE_DIR,
     "{{AGENTIC_MODE}}": AGENTIC_MODE,
     "{{PACKET_STATUS}}": PACKET_STATUS,
+    "{{WP_COMMUNICATION_DIR}}": normalize(wpCommDir),
+    "{{WP_THREAD_FILE}}": normalize(threadPath),
+    "{{WP_RUNTIME_STATUS_FILE}}": normalize(runtimeStatusPath),
+    "{{WP_RECEIPTS_FILE}}": normalize(receiptsPath),
     "{{HEARTBEAT_INTERVAL_MINUTES}}": String(HEARTBEAT_INTERVAL_MINUTES),
     "{{HEARTBEAT_DUE_AT}}": addMinutes(DATE_ISO, HEARTBEAT_INTERVAL_MINUTES),
     "{{STALE_AFTER}}": addMinutes(DATE_ISO, STALE_AFTER_MINUTES),
@@ -232,4 +249,3 @@ function runCli() {
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) runCli();
-

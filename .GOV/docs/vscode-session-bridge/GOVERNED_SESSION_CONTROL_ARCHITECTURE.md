@@ -162,17 +162,17 @@ The following artifacts remain authoritative:
 - active packet or stub: scope, lifecycle, acceptance, and final packet truth
 - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`: active artifact mapping per base WP
 - `.GOV/roles_shared/records/TASK_BOARD.md` on canonical branch `main`: canonical portfolio board
-- packet-declared `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/WP-{ID}/`
+- packet-declared external repo-governance `../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/WP-{ID}/`
   - `THREAD.md`
   - `RUNTIME_STATUS.json`
   - `RECEIPTS.jsonl`
 
 The following artifacts are projections, not work-scope authority:
 
-- `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`
-- `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl`
-- `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`
-- `.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/`
+- `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`
+- `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
+- `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+- `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_OUTPUTS/`
 - ACP adapter runtime metadata under `.GOV/tools/handshake-acp-bridge/`
 
 If packet truth and session-control artifacts disagree, the packet wins.
@@ -265,16 +265,16 @@ The TUI reads repo projections. It does not own orchestration.
 
 ### Governed Session-Control Surfaces
 
-- `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`
-- `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl`
-- `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`
-- `.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/`
+- `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`
+- `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
+- `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+- `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_OUTPUTS/`
 
 These remain the repo audit trail for ACP-backed control.
 
 ### Legacy Launch Surface
 
-- `.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl`
+- `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
 
 This becomes compatibility and bootstrap only. It is no longer the preferred steering surface.
 
@@ -315,12 +315,12 @@ The registry remains the projection of that identity. ACP session ids do not rep
 
 ACP must not become a second authority. Therefore:
 
-- every governed start or prompt still writes a row to `SESSION_CONTROL_REQUESTS.jsonl`
-- every governed cancel writes a row to `SESSION_CONTROL_REQUESTS.jsonl` and settles with its own result row
-- every governed completion or failure still writes a row to `SESSION_CONTROL_RESULTS.jsonl`
-- streamed updates still land in `SESSION_CONTROL_OUTPUTS/`
-- `ROLE_SESSION_REGISTRY.json` remains the current-state projection
-- broker liveness and active-run projection live in `.GOV/roles_shared/runtime/SESSION_CONTROL_BROKER_STATE.json`
+- every governed start or prompt still writes a row to the external repo-governance `SESSION_CONTROL_REQUESTS.jsonl`
+- every governed cancel writes a row to the external repo-governance `SESSION_CONTROL_REQUESTS.jsonl` and settles with its own result row
+- every governed completion or failure still writes a row to the external repo-governance `SESSION_CONTROL_RESULTS.jsonl`
+- streamed updates still land in the external repo-governance `SESSION_CONTROL_OUTPUTS/`
+- the external repo-governance `ROLE_SESSION_REGISTRY.json` remains the current-state projection
+- broker liveness and active-run projection live in the external repo-governance `SESSION_CONTROL_BROKER_STATE.json`
 
 ACP runtime state is valid only when mirrored into repo-governed artifacts.
 
@@ -461,10 +461,10 @@ No single field should carry all three meanings.
 - `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
 - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
 - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
-- `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`
-- `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl`
-- `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`
-- `.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/`
+- external repo-governance `roles_shared/ROLE_SESSION_REGISTRY.json`
+- external repo-governance `roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
+- external repo-governance `roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+- external repo-governance `roles_shared/SESSION_CONTROL_OUTPUTS/`
 - `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
 
 ### Add
@@ -476,7 +476,7 @@ No single field should carry all three meanings.
 ### Demote
 
 - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
-- `.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl`
+- external repo-governance `roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
 - terminal injection as the primary meaning of "session started"
 
 The VS Code bridge still matters for local workflow convenience, but it is not the durable control plane.

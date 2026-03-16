@@ -81,6 +81,12 @@ function sessionStateForRuntimeStatus(runtimeStatus) {
   }
 }
 
+function nullableValue(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw || /^null$/i.test(raw) || /^none$/i.test(raw) || /^n\/a$/i.test(raw)) return null;
+  return raw;
+}
+
 export function recordWpHeartbeat({
   wpId,
   actorRole,
@@ -92,6 +98,8 @@ export function recordWpHeartbeat({
   validatorTrigger = "NONE",
   lastEvent = null,
   worktreeDir = null,
+  nextExpectedSession = null,
+  waitingOnSession = null,
 } = {}) {
   const WP_ID = String(wpId || "").trim();
   const ACTOR_ROLE = String(actorRole || "").trim().toUpperCase();
@@ -101,6 +109,8 @@ export function recordWpHeartbeat({
   const NEXT_EXPECTED_ACTOR = String(nextExpectedActor || "").trim().toUpperCase();
   const WAITING_ON = String(waitingOn || "").trim();
   const VALIDATOR_TRIGGER = String(validatorTrigger || "NONE").trim().toUpperCase();
+  const NEXT_EXPECTED_SESSION = nullableValue(nextExpectedSession);
+  const WAITING_ON_SESSION = nullableValue(waitingOnSession);
   const now = new Date().toISOString();
 
   if (!WP_ID || !/^WP-/.test(WP_ID)) throw new Error("WP_ID is required");
@@ -126,7 +136,9 @@ export function recordWpHeartbeat({
   runtime.runtime_status = RUNTIME_STATUS;
   runtime.current_phase = CURRENT_PHASE;
   runtime.next_expected_actor = NEXT_EXPECTED_ACTOR;
+  runtime.next_expected_session = NEXT_EXPECTED_SESSION;
   runtime.waiting_on = WAITING_ON;
+  runtime.waiting_on_session = WAITING_ON_SESSION;
   runtime.validator_trigger = VALIDATOR_TRIGGER;
   runtime.validator_trigger_reason = VALIDATOR_TRIGGER === "NONE" ? null : `${ACTOR_ROLE} signaled ${VALIDATOR_TRIGGER}`;
   runtime.ready_for_validation = ["READY_FOR_VALIDATION", "POST_WORK_PASS", "HANDOFF_READY"].includes(VALIDATOR_TRIGGER);
@@ -159,7 +171,9 @@ export function recordWpHeartbeat({
 
   fs.writeFileSync(runtimeStatusPath, `${JSON.stringify(runtime, null, 2)}\n`, "utf8");
 
-  const summary = `${ACTOR_ROLE} heartbeat: ${RUNTIME_STATUS}/${CURRENT_PHASE}; next=${NEXT_EXPECTED_ACTOR}; waiting_on=${WAITING_ON}; validator_trigger=${VALIDATOR_TRIGGER}`;
+  const nextDescriptor = NEXT_EXPECTED_SESSION ? `${NEXT_EXPECTED_ACTOR}:${NEXT_EXPECTED_SESSION}` : NEXT_EXPECTED_ACTOR;
+  const waitingDescriptor = WAITING_ON_SESSION ? `${WAITING_ON} (${WAITING_ON_SESSION})` : WAITING_ON;
+  const summary = `${ACTOR_ROLE} heartbeat: ${RUNTIME_STATUS}/${CURRENT_PHASE}; next=${nextDescriptor}; waiting_on=${waitingDescriptor}; validator_trigger=${VALIDATOR_TRIGGER}`;
   appendWpReceipt({
     wpId: WP_ID,
     actorRole: ACTOR_ROLE,
@@ -170,18 +184,22 @@ export function recordWpHeartbeat({
     stateAfter: `${runtime.runtime_status}/${runtime.current_phase}`,
     refs: [runtimeStatusPath],
     worktreeDir: worktreeDir || runtime.current_worktree_dir || null,
+    targetRole: runtime.next_expected_actor === "NONE" ? null : runtime.next_expected_actor,
+    targetSession: runtime.next_expected_session,
+    correlationId: `heartbeat:${WP_ID}:${ACTOR_SESSION}:${now}`,
   });
 
   return { runtimeStatusPath, runtime, summary };
 }
 
 function runCli() {
-  const [wpId, actorRole, actorSession, currentPhase, runtimeStatus, nextExpectedActor, waitingOn, validatorTrigger, lastEvent, worktreeDir] =
+  const [wpId, actorRole, actorSession, currentPhase, runtimeStatus, nextExpectedActor, waitingOn, validatorTrigger, lastEvent, worktreeDir, nextExpectedSession, waitingOnSession] =
     process.argv.slice(2);
 
   if (!wpId || !actorRole || !actorSession || !currentPhase || !runtimeStatus || !nextExpectedActor || !waitingOn) {
     console.error(
       "Usage: node .GOV/roles_shared/scripts/wp/wp-heartbeat.mjs WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <CURRENT_PHASE> <RUNTIME_STATUS> <NEXT_EXPECTED_ACTOR> <WAITING_ON> [VALIDATOR_TRIGGER] [LAST_EVENT] [WORKTREE_DIR]"
+      + " [NEXT_EXPECTED_SESSION] [WAITING_ON_SESSION]"
     );
     process.exit(1);
   }
@@ -197,6 +215,8 @@ function runCli() {
       validatorTrigger,
       lastEvent,
       worktreeDir,
+      nextExpectedSession,
+      waitingOnSession,
     });
 
   console.log(`[WP_HEARTBEAT] updated ${wpId}`);
@@ -207,4 +227,3 @@ function runCli() {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   runCli();
 }
-

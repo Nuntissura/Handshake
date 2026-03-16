@@ -2,6 +2,8 @@
 
 This file is the shared law for repo-governed multi-session launch behavior.
 
+Default external repo-governance runtime root from a repo worktree: `../../Handshake Runtime/repo-governance/roles_shared/`. This root may be overridden via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`.
+
 ## Core Rule
 - Only the Orchestrator may start repo-governed Coder, WP Validator, and Integration Validator sessions.
 - Coder and Validator sessions may resume work, but they do not self-start a fresh repo-governed session.
@@ -11,18 +13,18 @@ This file is the shared law for repo-governed multi-session launch behavior.
 - Preferred host: `VSCODE_EXTENSION_TERMINAL`
 - Bridge: `handshake.handshake-session-bridge`
 - Bridge command: `handshakeSessionBridge.processLaunchQueue`
-- Launch queue: `.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl`
-- Session registry: `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`
+- Launch queue: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
+- Session registry: `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`
 - Launch/bootstrap only: terminal creation, governed command dispatch, and bridge acknowledgment/failure projection.
 
 ## Primary steering lane
 - Control mode: `STEERABLE`
 - Control transport: `CODEX_EXEC_RESUME_JSON`
 - Control protocol: `HANDSHAKE_ACP_STDIO_V1`
-- Control requests: `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl`
-- Control results: `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`
-- Per-command event logs: `.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/`
-- Broker state: `.GOV/roles_shared/runtime/SESSION_CONTROL_BROKER_STATE.json`
+- Control requests: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
+- Control results: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+- Per-command event logs: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_OUTPUTS/`
+- Broker state: `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_BROKER_STATE.json`
 - Session steering is ACP-backed and thread-based: the Orchestrator starts a governed Codex thread once through the Handshake ACP bridge, then resumes that same thread with governed prompts.
 - A persistent Handshake ACP broker owns the active-run table, timeout settlement, and cancellation delivery for governed prompts. The wrapper client talks to that broker; it does not own command completion.
 - `START_SESSION`, `SEND_PROMPT`, `CANCEL_SESSION`, and `CLOSE_SESSION` are first-class governed control commands. Cancel rows carry a target-command reference. Close rows clear the steerable thread registration for that governed role/WP session and settle through the same append-only request/result ledgers.
@@ -39,17 +41,17 @@ This file is the shared law for repo-governed multi-session launch behavior.
 - Primary wake channel: `VS_CODE_FILE_WATCH`
 - Fallback wake channel: `WP_HEARTBEAT`
 - Launch/bootstrap watch surfaces:
-  - `.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl`
-  - `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`
+  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
+  - `../../Handshake Runtime/repo-governance/roles_shared/ROLE_SESSION_REGISTRY.json`
 - Steering watch/notice surfaces:
-  - `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl`
-  - `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`
-  - `.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/`
-  - `.GOV/roles_shared/runtime/SESSION_CONTROL_BROKER_STATE.json`
+  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
+  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
+  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_OUTPUTS/`
+  - `../../Handshake Runtime/repo-governance/roles_shared/SESSION_CONTROL_BROKER_STATE.json`
 - WP collaboration watch surfaces:
-  - `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/**/RUNTIME_STATUS.json`
-  - `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/**/RECEIPTS.jsonl`
-  - `.GOV/roles_shared/runtime/WP_COMMUNICATIONS/**/THREAD.md`
+  - `../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/**/RUNTIME_STATUS.json`
+  - `../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/**/RECEIPTS.jsonl`
+  - `../../Handshake Runtime/repo-governance/roles_shared/WP_COMMUNICATIONS/**/THREAD.md`
 - The VS Code bridge handles launch/bootstrap dispatch plus operator-facing notices. The ACP broker owns steering state, result settlement, and per-command output logs.
 - `just operator-monitor` is the ACP-aware read-only operator viewport: it merges canonical task-board source/drift, broker status, session registry state, control results/output activity, packet thread/receipt activity, and packet/runtime visibility.
 - `just operator-admin` is the explicit admin-mode console for governed lifecycle actions. It remains non-authoritative and must invoke the same governed scripts the Orchestrator would run directly.
@@ -58,7 +60,7 @@ This file is the shared law for repo-governed multi-session launch behavior.
 ## Deterministic State
 - Launch requests are append-only JSONL records.
 - Control requests and control results are append-only JSONL records.
-- Per-command ACP event logs under `.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/` are append-only detail surfaces for governed command execution, including cancel evidence and broker-settled output.
+- Per-command ACP event logs under the external repo-governance `SESSION_CONTROL_OUTPUTS/` directory are append-only detail surfaces for governed command execution, including cancel evidence and broker-settled output.
 - The session registry is the current state projection for active and historical role sessions.
 - The launch queue, control ledgers, broker state, output logs, and session registry are runtime artifacts. They are not packet/work-scope authority, and generic drive-agnostic scanning may treat them like operator evidence rather than normative governance text.
 - Packet truth still wins over session state for scope, verdict, and acceptance.

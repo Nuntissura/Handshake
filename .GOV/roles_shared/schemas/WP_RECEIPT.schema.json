@@ -37,6 +37,8 @@
         "OPERATOR",
         "ORCHESTRATOR",
         "CODER",
+        "WP_VALIDATOR",
+        "INTEGRATION_VALIDATOR",
         "VALIDATOR"
       ]
     },
@@ -104,6 +106,42 @@
       ]
     },
     "state_after": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "target_role": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "OPERATOR",
+        "ORCHESTRATOR",
+        "CODER",
+        "WP_VALIDATOR",
+        "INTEGRATION_VALIDATOR",
+        "VALIDATOR",
+        null
+      ]
+    },
+    "target_session": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "correlation_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "requires_ack": {
+      "type": "boolean"
+    },
+    "ack_for": {
       "type": [
         "string",
         "null"
