@@ -237,6 +237,25 @@ function main() {
     process.exit(1);
   }
 
+  const boardStatus = taskBoardStatus(wpId);
+  if (boardStatus && ["VALIDATED", "FAIL", "OUTDATED_ONLY", "SUPERSEDED"].includes(boardStatus)) {
+    const packetPath = path.join(".GOV", "task_packets", `${wpId}.md`).replace(/\\/g, "/");
+    printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
+    printOperatorAction("NONE");
+    printConfidence(inferred.source === "explicit" ? "HIGH" : "MEDIUM", inferred.source);
+    printState(`WP is terminal on TASK_BOARD (${boardStatus}); this is packet history, not an active orchestrator resume target.`);
+    printFindings([
+      `Packet: ${packetPath}`,
+      `Current branch: ${gitContext.branch || "<unknown>"}`,
+      `Current worktree: ${gitContext.topLevel || "<unknown>"}`,
+    ]);
+    printNextCommands([
+      `cat ${packetPath}`,
+      `just orchestrator-next WP-{ACTIVE_ID}`,
+    ]);
+    return;
+  }
+
   const confidence =
     inferred.source === "explicit" || inferred.source === "branch" || inferred.source === "prepare"
       ? { level: "HIGH", detail: inferred.source }
@@ -414,5 +433,4 @@ function main() {
 }
 
 main();
-
 

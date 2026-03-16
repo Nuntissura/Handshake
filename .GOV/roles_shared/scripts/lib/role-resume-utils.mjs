@@ -12,6 +12,7 @@ export const ORCHESTRATOR_GATES_PATH = path.join(
 );
 export const TASK_BOARD_PATH = path.join(".GOV", "roles_shared", "records", "TASK_BOARD.md");
 export const TERMINAL_TASK_BOARD_STATUSES = ["VALIDATED", "FAIL", "OUTDATED_ONLY", "SUPERSEDED"];
+export const IMPLICIT_ORCHESTRATOR_RESUME_LOOKBACK_HOURS = 168;
 
 function safeExec(command) {
   try {
@@ -183,6 +184,7 @@ export function inferWpIdFromPrepare(logs, gitContext) {
 
   for (const entry of logs) {
     if (!entry?.wpId || !String(entry.wpId).startsWith("WP-")) continue;
+    if (isTerminalTaskBoardStatus(taskBoardStatus(entry.wpId))) continue;
 
     const entryBranch = String(entry.branch || "").trim();
     if (entryBranch && gitContext.branch && entryBranch === gitContext.branch) {
@@ -220,6 +222,13 @@ export function taskBoardStatus(wpId) {
 
 export function isTerminalTaskBoardStatus(status) {
   return TERMINAL_TASK_BOARD_STATUSES.includes(String(status || "").trim().toUpperCase());
+}
+
+function isRecentImplicitResumeTimestamp(timestamp) {
+  const parsed = Date.parse(String(timestamp || ""));
+  if (Number.isNaN(parsed)) return false;
+  const ageHours = Math.max(0, (Date.now() - parsed) / (1000 * 60 * 60));
+  return ageHours <= IMPLICIT_ORCHESTRATOR_RESUME_LOOKBACK_HOURS;
 }
 
 export function taskBoardEntries() {
@@ -406,7 +415,8 @@ export function activeOrchestratorCandidates(logs) {
   return [...latestByWp.values()]
     .filter((entry) => {
       const status = taskBoardStatus(entry.wpId);
-      return !isTerminalTaskBoardStatus(status);
+      if (isTerminalTaskBoardStatus(status)) return false;
+      return isRecentImplicitResumeTimestamp(entry?.timestamp);
     })
     .sort((left, right) => String(right.timestamp || "").localeCompare(String(left.timestamp || "")));
 }

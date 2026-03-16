@@ -88,72 +88,75 @@ function loadPrepareMap() {
   return map;
 }
 
-// Local guard only; CI clones cannot/should not be required to have worktrees.
-if (process.env.CI || process.env.GITHUB_ACTIONS) {
-  console.log("worktree-concurrency-check ok (skipped in CI)");
-  process.exit(0);
-}
-
-if (!fs.existsSync(TASK_BOARD_PATH)) {
-  fail("Missing task board", [`Expected: ${TASK_BOARD_PATH}`]);
-}
-
-const taskBoard = fs.readFileSync(TASK_BOARD_PATH, "utf8");
-const inProgressWpIds = listInProgressWps(taskBoard);
-if (inProgressWpIds.length === 0) {
-  console.log("worktree-concurrency-check ok");
-  process.exit(0);
-}
-
-const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
-const worktrees = parseWorktreeList();
-const prepares = loadPrepareMap();
-const violations = [];
-const matchedPaths = new Map();
-
-for (const wpId of inProgressWpIds) {
-  const prepare = prepares.get(wpId) || null;
-  const expectedBranch = normalizeBranch(prepare?.branch || `feat/${wpId}`);
-  const worktree = worktrees.find((entry) => normalizeBranch(entry.branch) === expectedBranch);
-
-  if (!worktree) {
-    violations.push(
-      `${wpId}: no linked worktree found for expected branch ${expectedBranch} (run: just worktree-add ${wpId} && just record-prepare ${wpId} {${EXECUTION_OWNER_RANGE_HELP}})`,
-    );
-    continue;
+function main() {
+  // Local guard only; CI clones cannot/should not be required to have worktrees.
+  if (process.env.CI || process.env.GITHUB_ACTIONS) {
+    console.log("worktree-concurrency-check ok (skipped in CI)");
+    return;
   }
 
-  if (prepare?.worktree_dir) {
-    if (isAbsoluteWorktreeDir(prepare.worktree_dir)) {
+  if (!fs.existsSync(TASK_BOARD_PATH)) {
+    fail("Missing task board", [`Expected: ${TASK_BOARD_PATH}`]);
+  }
+
+  const taskBoard = fs.readFileSync(TASK_BOARD_PATH, "utf8");
+  const inProgressWpIds = listInProgressWps(taskBoard);
+  if (inProgressWpIds.length === 0) {
+    console.log("worktree-concurrency-check ok");
+    return;
+  }
+
+  const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
+  const worktrees = parseWorktreeList();
+  const prepares = loadPrepareMap();
+  const violations = [];
+  const matchedPaths = new Map();
+
+  for (const wpId of inProgressWpIds) {
+    const prepare = prepares.get(wpId) || null;
+    const expectedBranch = normalizeBranch(prepare?.branch || `feat/${wpId}`);
+    const worktree = worktrees.find((entry) => normalizeBranch(entry.branch) === expectedBranch);
+
+    if (!worktree) {
       violations.push(
-        `${wpId}: PREPARE.worktree_dir must be repo-relative, got absolute path: ${prepare.worktree_dir}`,
+        `${wpId}: no linked worktree found for expected branch ${expectedBranch} (run: just worktree-add ${wpId} && just record-prepare ${wpId} {${EXECUTION_OWNER_RANGE_HELP}})`,
       );
-    } else {
-      const expectedPath = path.resolve(repoRoot, prepare.worktree_dir);
-      if (!samePath(worktree.path, expectedPath)) {
+      continue;
+    }
+
+    if (prepare?.worktree_dir) {
+      if (isAbsoluteWorktreeDir(prepare.worktree_dir)) {
         violations.push(
-          `${wpId}: PREPARE.worktree_dir mismatch (expected ${prepare.worktree_dir} -> ${expectedPath}, git has ${worktree.path})`,
+          `${wpId}: PREPARE.worktree_dir must be repo-relative, got absolute path: ${prepare.worktree_dir}`,
         );
+      } else {
+        const expectedPath = path.resolve(repoRoot, prepare.worktree_dir);
+        if (!samePath(worktree.path, expectedPath)) {
+          violations.push(
+            `${wpId}: PREPARE.worktree_dir mismatch (expected ${prepare.worktree_dir} -> ${expectedPath}, git has ${worktree.path})`,
+          );
+        }
       }
+    }
+
+    const normalizedPath = path.resolve(worktree.path).toLowerCase();
+    const owner = matchedPaths.get(normalizedPath);
+    if (owner && owner !== wpId) {
+      violations.push(`${wpId}: shares worktree ${worktree.path} with ${owner} (one WP must map to one worktree)`);
+    } else {
+      matchedPaths.set(normalizedPath, wpId);
     }
   }
 
-  const normalizedPath = path.resolve(worktree.path).toLowerCase();
-  const owner = matchedPaths.get(normalizedPath);
-  if (owner && owner !== wpId) {
-    violations.push(`${wpId}: shares worktree ${worktree.path} with ${owner} (one WP must map to one worktree)`);
-  } else {
-    matchedPaths.set(normalizedPath, wpId);
+  if (violations.length > 0) {
+    fail("Concurrent WPs require dedicated per-WP worktree mappings (per protocols).", [
+      `In Progress WPs: ${inProgressWpIds.length}`,
+      ...violations,
+    ]);
   }
+
+  console.log("worktree-concurrency-check ok");
 }
 
-if (violations.length > 0) {
-  fail("Concurrent WPs require dedicated per-WP worktree mappings (per protocols).", [
-    `In Progress WPs: ${inProgressWpIds.length}`,
-    ...violations,
-  ]);
-}
-
-console.log("worktree-concurrency-check ok");
-
+main();
 

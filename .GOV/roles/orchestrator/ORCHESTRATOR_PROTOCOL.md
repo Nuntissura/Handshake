@@ -1,243 +1,198 @@
-﻿# ORCHESTRATOR_PROTOCOL [CX-600-616]
+# ORCHESTRATOR_PROTOCOL [CX-600-616]
 
-**MANDATORY** - Lead Architect must read this to manage Phase progression and maintain governance invariants
+MANDATORY - The Orchestrator is the workflow authority. This file defines the current orchestrator-managed governance workflow. It is intentionally concise; use the live templates, checks, and helper commands instead of stale tutorial examples.
 
 ## Safety: Data-Loss Prevention (HARD RULE)
-- This repo is **not** a disposable workspace. Untracked files may be critical work (e.g., WPs/refinements).
-- **Do not** run destructive commands that can delete/overwrite work unless the user explicitly authorizes it in the same turn:
+
+- This repo is not disposable. Untracked files may contain critical work.
+- Do not run destructive commands that can delete or overwrite work unless the user explicitly authorizes it in the same turn:
   - `git clean -fd` / `git clean -xdf`
   - `git reset --hard`
-  - `rm` / `del` / `Remove-Item` on non-temp paths
-- If a cleanup/reset is ever requested, first make it reversible: `git stash push -u -m "SAFETY: before <operation>"`, then show the user exactly what would be deleted (`git clean -nd`) and get explicit approval.
-
----
+  - `rm`, `del`, or `Remove-Item` on non-temp paths
+- If cleanup or reset is requested, make it reversible first:
+  - `git stash push -u -m "SAFETY: before <operation>"`
+  - `git clean -nd`
+  - then wait for explicit approval
 
 ## Permanent Branch + Backup Model (HARD)
 
 - `main` is the only canonical integrated branch on disk and on GitHub.
-- Permanent protected role/user branches must never be deleted by Codex: `main`, `user_ilja`, `role_orchestrator`, `role_validator`.
-- Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
-- `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches, not integration branches. They may diverge from `main`.
-- Matching backup pushes are allowed safety operations. For Orchestrator work this means pushing `role_orchestrator` to `origin/role_orchestrator` when preserving committed state before destructive local operations.
-- Before destructive or state-hiding local git actions (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the matching GitHub backup branch.
-- For WPs, the temporary remote backup branch is not only a destructive-op safety copy. Treat it as the WP phase-boundary recovery branch so the repo can restart from committed packet/refinement/bootstrap/skeleton checkpoints without reconstructing state from a dirty local worktree.
-- Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
-- Startup must surface `just backup-status` so backup configuration and recent immutable snapshots are visible before orchestration proceeds. This is safety context only, not a bypass for destructive-op approvals.
-- Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact targets, and ask for an approval command naming those targets deterministically.
-- For clearer language going forward, use these exact terms:
-  - `local branch`: a branch ref in a local checkout on disk, for example `main` or `role_validator`
-  - `remote branch` or `GitHub branch`: a branch at `origin/<name>`, for example `origin/main`
-  - `worktree`: a directory on disk, for example `handshake_main` or `wt-validator`
-  - `canonical branch`: always `main`
-  - `backup branch`: a non-canonical GitHub branch used as a safety copy, for example `origin/role_validator`
-- Broad requests like "clean up branches" or "sync everything" are insufficient for destructive or branch-moving work. Ask for deterministic approvals that name object type + exact target(s), for example:
-  - `APPROVE DELETE LOCAL WORKTREE wt-WP-1-Example`
-  - `APPROVE DELETE LOCAL BRANCH feat/WP-1-Example`
-  - `APPROVE FAST_FORWARD REMOTE BRANCH role_orchestrator TO main`
-- Use `just enumerate-cleanup-targets` before asking for cleanup approvals.
-- Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion. Never use direct filesystem deletion on worktree paths.
-- If `git worktree remove` fails, STOP immediately. Do not continue with manual cleanup inside the shared worktree root.
-- For merged orchestrator-managed WPs, prefer single-target generated cleanup scripts over ad hoc deletion commands:
-  - `just generate-worktree-cleanup-script WP-{ID} CODER`
-  - `just generate-worktree-cleanup-script WP-{ID} WP_VALIDATOR`
-  - Each generated script is hard-bound to one exact local worktree and will only run when it receives:
-    - the exact Operator approval text baked into that script
-    - the matching cleanup token from the target worktree's git admin dir
-  - Script generation is itself blocked unless the target worktree is clean and still matches the recorded branch/HEAD.
-  - Generated cleanup scripts may remove only the local worktree through `git worktree remove`. They must not delete remote backup branches and must not fall back to `Remove-Item`, `rm`, or `del`.
-- Use `just sync-all-role-worktrees` to fast-forward the permanent local clones when all are clean.
+- Permanent protected branches: `main`, `user_ilja`, `role_orchestrator`, `role_validator`.
+- Permanent protected worktrees: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
+- `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches, not integration branches.
+- Before destructive or state-hiding local git actions, first push the committed state to the matching backup branch.
+- Before deleting local branches or worktrees, create an immutable snapshot with `just backup-snapshot`.
+- Startup must surface `just backup-status`; this is safety context, not destruction authorization.
+- Only the Operator may approve:
+  - deleting local branches
+  - deleting worktrees
+  - deleting remote branches
+  - fast-forwarding remote backup branches
+- Use deterministic approval text. Broad requests like "clean up branches" are insufficient.
+- Use `just enumerate-cleanup-targets` before asking for approval.
+- Use `just delete-local-worktree <worktree_id> "<approval>"` for assistant-driven worktree deletion.
+- If `git worktree remove` fails, stop. Do not fall back to manual filesystem cleanup.
+- Use `just sync-all-role-worktrees` only when the permanent local clones are clean.
 
 ## Repo Boundary Rules (HARD)
 
-- `/.GOV/` is the repo governance workspace (authoritative for workflow/tooling).
-- Handshake product runtime (code under `/src/`, `/app/`, `/tests/`) MUST NOT read or write `/.GOV/` under any circumstances.
-- `docs/` is a temporary product compatibility bundle only; governance MUST NOT treat it as authoritative governance state.
-- Enforcement is mandatory (CI/gates) to forbid product code referencing `/.GOV/`.
+- `/.GOV/` is the governance workspace.
+- Product code under `/src/`, `/app/`, and `/tests/` must not read or write `/.GOV/`.
+- `/.GOV/docs/` is for repo-level governance docs. Temporary or non-authoritative material belongs only in a clearly named scratch subfolder.
+- `/.GOV/operator/` is Operator-private and non-authoritative unless the Operator explicitly designates a file for the current task.
 
-See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`.
+See also:
+- `Handshake Codex v1.4.md`
+- `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`
 
 ## Product Runtime Root (Current Default)
 
-- External build/test/tool outputs stay under `../Handshake Artifacts/`.
-- Product runtime state SHOULD default to the external sibling root `../Handshake Runtime/`, not a folder inside the repo worktree.
-- This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
-- Treat repo-root `data/` and `.handshake/` paths as legacy/transitional rather than the template for new work.
-- When refining/scoping new product WPs that create runtime outputs, prefer `../Handshake Runtime/` and call out any legacy repo-root runtime surfaces explicitly in the refinement/packet.
+- External build, test, and tool outputs stay under `../Handshake Artifacts/`.
+- Product runtime state should default to the external sibling root `../Handshake Runtime/`.
+- Do not treat repo-root `data/` or `.handshake/` as the template for new runtime work.
 
 ## Current Execution Policy (Additional LAW)
 
-- The Orchestrator role is one non-agentic coordinator CLI session in current repo governance.
-- The Orchestrator MAY coordinate and launch multiple external CLI sessions and roles, but MUST NOT spawn helper agents to perform Orchestrator or Validator duties.
-- For newly created repo-governed sessions, launch/claim the model explicitly: primary `gpt-5.4`, fallback `gpt-5.2`, reasoning `EXTRA_HIGH` (`model_reasoning_effort=xhigh`). Do not rely on ambient editor defaults.
+- The Orchestrator role is one non-agentic coordinator CLI session.
+- The Orchestrator may coordinate and launch multiple external CLI sessions, but must not spawn helper agents to perform Orchestrator or Validator duties.
+- New repo-governed sessions must be launched explicitly:
+  - primary model: `gpt-5.4`
+  - fallback: `gpt-5.2`
+  - reasoning: `EXTRA_HIGH`
+  - config: `model_reasoning_effort=xhigh`
 - Repo-governed Coder, WP Validator, and Integration Validator session start is `ORCHESTRATOR_ONLY`.
-- Primary launch path is `VSCODE_EXTENSION_TERMINAL` via `.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl` + `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`.
-- Primary steering lane is the governed Codex thread control path over `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl` + `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`.
-- `START_SESSION`, `SEND_PROMPT`, `CANCEL_SESSION`, and `CLOSE_SESSION` are first-class governed control commands. Cancel rows must reference the target command. Close rows intentionally clear the steerable thread registration for a governed role/WP session. Both settle through the same append-only request/result ledgers.
-- CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts, unless the Operator explicitly waives the plugin-first path.
-- Repo policy for new packet claim fields disallows Codex model aliases even when the CLI tool is `codex`.
-- The historical add-on at `/.GOV/roles/orchestrator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
+- Primary launch path is the VS Code bridge using:
+  - `.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl`
+  - `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json`
+- Primary steering path is the governed session-control ledgers:
+  - `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl`
+  - `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl`
+- CLI escalation is allowed only after 2 plugin failures or timeouts for the same role/WP session unless the Operator explicitly waives that policy.
 
 ## Drive-Agnostic Governance [CX-109] (HARD)
 
-- Treat all role workflow paths as repo-relative placeholders (see `.GOV/roles_shared/docs/ROLE_WORKTREES.md`).
-- When recording WP assignment (`just record-prepare ...`), `worktree_dir` MUST be repo-relative (example: `../wt-WP-...`). Absolute paths are forbidden.
-- If any doc/script output suggests using a drive-specific path, treat it as a governance bug and fix the governance surface (do not work around it).
+- Treat role workflow paths as repo-relative placeholders.
+- When recording WP assignment, `worktree_dir` must be repo-relative, for example `../wt-WP-...`.
+- If any doc or tool suggests a drive-specific path, treat it as a governance bug and fix the governance surface.
 
 ## Tooling Conflict Stance [CX-110] (HARD)
 
-- If any tool output/instructions conflict with this protocol or `Handshake Codex v1.4.md`, STOP and escalate to the Operator.
-- Prefer fixing the tool/governance scripts to match LAW over bypassing/weakening checks.
+- If tool output conflicts with this protocol or `Handshake Codex v1.4.md`, stop and escalate to the Operator.
+- Prefer fixing the governance tooling to match law over bypassing or weakening checks.
 
 ## Governance Folder Structure (Authoritative Placement Rules)
 
-This section plus `Handshake Codex v1.4.md` are the authoritative placement rules for Orchestrator-owned governance surfaces. README and onboarding files are navigational only.
+This section plus `Handshake Codex v1.4.md` are the authoritative placement rules for Orchestrator-owned governance surfaces. READMEs and onboarding files are navigational only.
 
 - `/.GOV/roles/orchestrator/` is for artifacts owned and actively used only by the Orchestrator role.
 - Fixed role-local subfolders:
-  - `docs/` = orchestrator-local guidance, rubrics, roadmaps, and non-authoritative role notes
-  - `runtime/` = orchestrator-owned machine state only; new state files belong here, and legacy role-root state files are migration residue rather than templates
+  - `docs/` = orchestrator-local guidance and non-authoritative notes
+  - `runtime/` = orchestrator-owned machine state only
   - `scripts/` = orchestrator-owned executable entrypoints
-  - `scripts/lib/` = helper libraries used only by orchestrator scripts/checks
-  - `checks/` = orchestrator-owned enforcement/gate entrypoints
+  - `scripts/lib/` = orchestrator-only helper libraries
+  - `checks/` = orchestrator-owned enforcement entrypoints
   - `tests/` = orchestrator-owned governance tests
-  - `fixtures/` = orchestrator-owned test data and golden inputs
-- Use `/.GOV/roles_shared/` whenever the same artifact is actively used by more than one role or when it is shared runtime state, a shared record/registry, a shared export surface, a shared schema, or shared tooling.
-- `/.GOV/roles_shared/` fixed buckets:
-  - `docs/` = active shared guidance
-  - `records/` = authoritative shared ledgers, registries, and pointers
-  - `runtime/` = shared machine-written runtime state only
-  - `exports/` = canonical shared export surfaces
-  - `schemas/` = shared governance schemas
-  - `scripts/`, `checks/`, `tests/`, `fixtures/` = shared governance tooling
-- `/.GOV/docs/` is for repo-level governance docs that do not belong to a single role bundle or the shared bundle. Temporary/non-authoritative material belongs only in a clearly named scratch subfolder and must not affect workflow execution unless explicitly designated.
-- `/.GOV/operator/` is the Operator's private folder and is non-authoritative unless the Operator explicitly designates a specific file for the current task.
+  - `fixtures/` = orchestrator-owned test data
+- Use `/.GOV/roles_shared/` whenever an artifact is shared across roles or is shared runtime state, a shared record, a shared export surface, a shared schema, or shared tooling.
+- `/.GOV/roles_shared/` buckets:
+  - `docs/`
+  - `records/`
+  - `runtime/`
+  - `exports/`
+  - `schemas/`
+  - `scripts/`
+  - `checks/`
+  - `tests/`
+  - `fixtures/`
 
-## Part 1: Strategic Priorities (Phase 1 Focus) [CX-600A]
+## Strategic Priorities [CX-600A]
 
-### [PRIORITY_1] Storage Backend Portability [CX-DBP-001]
-- Enforce the four pillars defined in Master Spec Â§2.3.12 and Trait Purity [CX-DBP-040]
-- Block all database-touching work that bypasses the `Database` trait
-- Goal: Make PostgreSQL migration a 1-week task (not 4-6 weeks)
+### Storage Backend Portability [CX-DBP-001]
 
-### [PRIORITY_2] Spec-to-Code Alignment [CX-598]
-- "Done" = 100% implementation of Main Body text, NOT just roadmap bullets
-- Reject any Work Packet that treats the Main Body as optional
-- Extract ALL MUST/SHOULD from spec section; map each to evidence (file:line)
-- Enforce Roadmap Coverage Matrix completeness (Spec Â§7.6.1; Codex [CX-598A]) so Main Body sections cannot be silently omitted from planning
+- Enforce the four portability pillars defined in the Master Spec.
+- Block database-touching work that bypasses the `Database` trait boundary.
 
-### [PRIORITY_3] Deterministic Enforcement [CX-585A/C]
-- Spec-Version Lock: Master Spec immutable during phase execution
-- Signature Gate: Zero implementation without technical refinement pause
-- If spec change needed: run the Spec Enrichment workflow (new spec version file + update `.GOV/roles_shared/records/SPEC_CURRENT.md`) under a one-time user signature and record it in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`. Do NOT edit locked task packets to "catch up" to the new spec; keep history immutable and create a NEW remediation WP only if new-spec deltas require new code changes.
-- Historical completion policy: if Validator returns **OUTDATED_ONLY** (baseline-correct but spec evolved), keep the WP archived as Done/Validated history and create a NEW remediation WP only if current-spec deltas are actually needed. Do not churn the original WP back into Ready for Dev for drift-only.
+### Spec-to-Code Alignment [CX-598]
 
-### [PRIORITY_4] Phase 1 Closure Gate [CX-585D]
-- Phase 1 only closes when ALL WPs in phase are VALIDATED (not just "done")
-- All phase-blocking dependencies resolved
-- Spec integrity check passed (run `just validator-spec-regression`)
+- "Done" means diff-scoped proof for the clauses actually claimed by the packet and refinement.
+- Reject packets that treat Main Body requirements as optional.
+- Extract the governing in-scope MUST/SHOULD clauses and map them to evidence.
 
-### [PRIORITY_5] Task Packet as Single Source of Truth [CX-573B]
-- Task packets contain SPEC_ANCHOR references (not orchestrator interpretation)
-- Coder receives ONLY the task packet (no ad-hoc requests)
-- Validator uses task packet for scope definition
-- Lock packets with USER_SIGNATURE after creation; prevent edits
+### Deterministic Enforcement [CX-585A/C]
 
-### [PRIORITY_6] Work Dependency Mapping [CX-573E]
-- Identify blocking dependencies BEFORE work starts
-- Block upstream WP work until blocker is VALIDATED
-- Document dependency chain in TASK_BOARD
+- Bump the Master Spec only when refinement changes durable product law, architecture, primitives, or shared contracts.
+- One-time signature gate remains mandatory.
+- Do not edit locked packets to "catch up" to a new spec version. Create a new remediation packet only when the new spec actually requires new work.
 
-### [PRIORITY_7] Hardened Security Enforcement [CX-VAL-HARD]
-- **Zero-Hollow implementation:** Reject any validator that only checks metadata; content-awareness is MANDATORY.
-- **Strict Evidence Mapping:** Every security guard must cite the specific substring/offset that triggered the violation.
-- **Deterministic Normalization:** All security scanning must occur on NFC-normalized, case-folded text to prevent bypasses.
+### Phase Closure [CX-585D]
 
-### Risk Management Focus [CX-600B]
-- **Anti-Vibe Guard:** Audit every Coder submission for placeholders, unwrap(), generic JSON blobs
-- **Security Gates:** Prioritize WP-1-Security-Gates (MEX runtime integrity)
-- **Supply Chain Safety:** Maintain OSS_REGISTER.md; block un-vetted dependencies
-- **Instruction Creep Prevention:** Lock packets with USER_SIGNATURE; create NEW packets for changes
-- **Spec Regression Guard:** Before phase closure run `just validator-spec-regression`
-- **Waiver Audit Trail:** All waivers logged with approval date; expire at phase boundary
+- Phase closure requires all phase-critical WPs to be validation-backed, not merely "done".
+- Spec regression must pass before phase closure.
 
----
+### Packet Truth [CX-573B]
 
-## Deterministic Manifest & Gate (current workflow, COR-701 discipline)
-- Every task packet MUST keep the deterministic manifest template in `## Validation` (target_file, start/end, line_delta, pre/post SHA1, gates checklist). Packets must stay ASCII-only.
-- Orchestrator ensures new packets are created from `.GOV/templates/TASK_PACKET_TEMPLATE.md` without stripping the manifest; reject packet creation/revision that removes it.
-- `just pre-work WP-{ID}` must pass before handoff (template present), and `just post-work WP-{ID}` is the mandatory deterministic gate before Done/commit (enforces manifest completeness, SHA1s, window bounds, gates).
-- For validator PASS clearance on orchestrator-managed WPs, steer Validators to `just validator-handoff-check WP-{ID}` so committed validation runs against the PREPARE worktree source of truth rather than a possibly dirty local mirror.
-- When involving an external/classical validator, require this start sequence:
-  - `just validator-startup`
-  - `just external-validator-brief WP-{ID}`
-- The external/classical validator brief is an audit-mode contract only. It does not grant governed-lane powers to run `validator-gate-*`, mutate closure state, or merge.
+- The packet is the authoritative workflow contract.
+- Ongoing steering must stay in packet, runtime, and thread artifacts rather than ad hoc side channels.
 
-## Branching & Concurrency (preferred; low-friction)
-- Default: one WP = one feature branch (e.g., `feat/WP-{ID}`).
-- **Concurrency rule (MANDATORY when >1 Coder is active):** use `git worktree` per active WP (separate working directories) to prevent collisions and accidental loss of uncommitted work.
-  - Orchestrator sets up worktrees and assigns each Coder a dedicated working directory.
-  - Coders MUST NOT share a single working tree when working concurrently.
-- **File-lock rule (MANDATORY when >1 WP is active):** treat each active WP's `IN_SCOPE_PATHS` as an exclusive file lock set. Do NOT activate/delegate a second WP whose `IN_SCOPE_PATHS` overlaps an in-progress WP. If overlap is required, sequence the work or re-scope (see [CX-CONC-001]).
-- Coders may commit freely on their WP branch. The Validator performs the final merge/commit to `main` after PASS (per Codex [CX-505]).
-- Every active role/user/WP branch must have a matching GitHub backup branch. For WPs, the Orchestrator must record the temporary remote backup branch and URL in the task packet. Later removal of that temporary remote branch after Operator-approved cleanup must not become a future governance blocker.
-- For WPs, the Orchestrator should ensure the remote WP backup branch is preserved at the main restart boundaries:
-  - task packet + refinement checkpoint
-  - docs-only bootstrap claim checkpoint
-  - docs-only skeleton checkpoint
-  - skeleton approval checkpoint before implementation resumes
+### Dependency Discipline [CX-573E]
+
+- Identify blockers before work starts.
+- Downstream work remains blocked until upstream blockers are validation-backed.
+
+### Security and Contract Discipline [CX-VAL-HARD]
+
+- Reject hollow validation.
+- Require real evidence mapping.
+- Normalize and audit actual content, not just metadata.
+
+## Deterministic Manifest & Gate (Current Workflow)
+
+- Every task packet must preserve the deterministic validation manifest from `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
+- `just pre-work WP-{ID}` is the blocking packet-integrity gate before handoff.
+- `just post-work WP-{ID}` is the deterministic closure gate before done/commit claims.
+- For validator PASS clearance on orchestrator-managed WPs, prefer `just validator-handoff-check WP-{ID}` so validation runs against the PREPARE worktree source of truth.
+
+## Branching & Concurrency
+
+- Default: one WP = one feature branch.
+- When more than one Coder is active, use one worktree per active WP.
+- Treat each active WP's `IN_SCOPE_PATHS` as an exclusive file-lock set.
+- Coders may commit freely on their WP branch.
+- Validators own final validation-backed merge authority to `main`.
 
 ## Worktree + Branch Gate [CX-WT-001] (BLOCKING)
 
-Orchestrator work MUST be performed from the correct worktree directory and branch.
-
-Source of truth:
-- `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (default role worktrees/branches)
-- The assigned WP worktree/branch for the WP being orchestrated
-
-Required verification (run at session start and whenever context is unclear):
+Required verification at session start and whenever context is unclear:
 - `git rev-parse --show-toplevel`
 - `git status -sb`
 - `git worktree list`
 
-Tip (low-friction): run `just hard-gate-wt-001` to print the required `HARD_GATE_*` blocks in one command.
+Tip: `just hard-gate-wt-001`
 
-**Chat requirement (MANDATORY):** paste the literal command outputs into chat as a `HARD_GATE_OUTPUT` block and immediately follow with `HARD_GATE_REASON` + `HARD_GATE_NEXT_ACTIONS`.
+Chat requirement:
 
-If the hard-gate output clearly matches the assignment, proceed automatically; do not wait for the Operator to type "proceed".
-
-Template:
 ```text
 HARD_GATE_OUTPUT [CX-WT-001]
-<paste the verbatim outputs for the commands above, in order>
+<verbatim command output>
 
 HARD_GATE_REASON [CX-WT-001]
-- Verify repo/worktree/branch context before proceeding (prevents cross-WP contamination).
+- Verify repo, worktree, and branch context before proceeding.
 
 HARD_GATE_NEXT_ACTIONS [CX-WT-001]
-- If this matches the assignment: continue.
-- If incorrect/uncertain: STOP and ask Operator for the correct worktree/branch.
+- If correct: continue.
+- If incorrect: stop and ask the Operator for the correct worktree or branch.
 ```
 
-If the required worktree/branch does not exist:
-- For missing role worktrees, manual repair flows, or any path that would require `git switch`, `git checkout`, `git merge`, `git rebase`, `git reset`, `git clean`, or other rewrite/hide operations covered by Codex [CX-108]: STOP and request explicit user authorization.
-- Exception (anti-babysit, mandatory): if the missing worktree/branch is the deterministic WP worktree for the currently signed WP and the immediate next command is `just worktree-add WP-{ID}`, `just orchestrator-worktree-and-packet WP-{ID}`, or `just orchestrator-prepare-and-packet WP-{ID}`, the Orchestrator MUST create it automatically when the latest gate shows `RESULT: PASS` and `OPERATOR_ACTION: NONE`. Do NOT ask for a second authorization after the Operator has already approved the refinement/signature bundle for that WP.
-- For the exception above, use the repo WP worktree helpers (`just worktree-add WP-{ID}`, `just orchestrator-worktree-and-packet WP-{ID}`, or `just orchestrator-prepare-and-packet WP-{ID}`) rather than ad-hoc git commands.
-
-Coder worktree rule:
-- CODER agents must work only in WP-assigned worktrees/branches recorded via `just record-prepare` (writes `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`).
+If the deterministic WP worktree is missing and the next step is `just worktree-add WP-{ID}`, `just orchestrator-worktree-and-packet WP-{ID}`, or `just orchestrator-prepare-and-packet WP-{ID}`, create it automatically when the latest gate is PASS and `OPERATOR_ACTION: NONE`.
 
 ## Gate Visibility Output [CX-GATE-UX-001] (MANDATORY)
 
-When you run any gate command (including: `just record-refinement`, `just record-signature`, `just record-prepare`, `just create-task-packet`, `just pre-work`, `just gate-check`, or any deterministic checker that blocks progress), you MUST in the SAME TURN:
+When you run a gate command, include in the same turn:
 
-1) Paste the literal output as:
 ```text
 GATE_OUTPUT [CX-GATE-UX-001]
 <verbatim output>
-```
 
-2) State where you are in the Orchestrator workflow and what happens next:
-```text
 GATE_STATUS [CX-GATE-UX-001]
 - PHASE: STUB|REFINEMENT|APPROVAL|SIGNATURE|PREPARE|PACKET_CREATE|PRE_WORK|DELEGATION|STATUS_SYNC
 - GATE_RAN: <exact command>
@@ -245,159 +200,97 @@ GATE_STATUS [CX-GATE-UX-001]
 - WHY: <1-2 sentences>
 
 NEXT_COMMANDS [CX-GATE-UX-001]
-- <2-6 copy/paste commands max>
+- <2-6 immediate next commands>
 ```
 
-Rule: keep `NEXT_COMMANDS` limited to the immediate next step(s) (required to proceed or to unblock) to stay compatible with Codex [CX-513].
-
-Operator UX rule: before posting `GATE_OUTPUT`, state `OPERATOR_ACTION: NONE` (or the single decision you need) and do not interleave questions inside `GATE_OUTPUT`.
+Before `GATE_OUTPUT`, state `OPERATOR_ACTION: NONE` unless one explicit decision is needed.
 
 Special rule for `just record-refinement`:
-- In the SAME chat message as `GATE_OUTPUT`/`GATE_STATUS`, the Orchestrator MUST paste the FULL `## TECHNICAL_REFINEMENT (MASTER SPEC)` block verbatim from `.GOV/refinements/WP-*.md`.
-- Summaries, abridgements, or "key points only" are forbidden for refinement review. The Operator must be able to review the exact refinement text directly in chat without opening the file.
-- The Orchestrator MUST NOT request or consume a one-time signature until that verbatim refinement block has been shown in chat.
+- show the refinement in chat before any signature request
+- either paste the full `## TECHNICAL_REFINEMENT (MASTER SPEC)` block from the refinement file or show enough current Master Spec anchors to prove the Orchestrator understands the relevant roadmap items, stubs, and WP context
+- do not summarize the refinement into a hand-wavy approval ask
+- do not request a one-time signature during the refinement pass
 
 ## Signature Bundle + Workflow Lane [CX-585C] (HARD)
 
-At the signature step, collect one approval bundle for the WP:
-- `USER_SIGNATURE`: `usernameDDMMYYYYHHMM`
-- `WORKFLOW_LANE`: exactly one of `MANUAL_RELAY | ORCHESTRATOR_MANAGED`
-- `EXECUTION_OWNER`: exactly one of `Coder-A .. Coder-Z`
+At the signature step collect one approval bundle:
+- `USER_SIGNATURE`
+- `WORKFLOW_LANE`
+- `EXECUTION_OWNER`
 
-Anti-babysit normalization rule:
-- Do NOT ask one question for "manual vs orchestrator-managed" and a second question for "which coder?" unless the operator explicitly wants the split discussed.
-- Normalize the decision to a single workflow bundle and record it with `just record-signature WP-{ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A..Coder-Z}`.
+Record it with:
+- `just record-signature WP-{ID} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} {Coder-A..Coder-Z}`
+
+Rules:
+- do not split this into unnecessary multiple approval questions
+- the signature must be one-time use only
+- use the refinement approval evidence before consuming the signature
 
 Workflow semantics:
-- `MANUAL_RELAY`: the human Operator remains the primary relay and hard-gate commander, but the WP still uses the richer packet metadata plus `WP_COMMUNICATIONS` artifacts for logging, receipts, heartbeat, and validator wake-up.
-- `ORCHESTRATOR_MANAGED`: the Orchestrator manages steering and session coordination, but remains non-agentic and MUST NOT implement or validate the WP directly.
-- `Coder-A .. Coder-Z`: the Primary Coder execution owner for the WP. The Orchestrator remains responsible for governance correctness, paperwork, worktree truth, steering, and status sync, but MUST NOT implement the WP itself unless separately reassigned as Coder. The Primary Coder may use coder-role sub-agents only with explicit packet approval and remains solely accountable for them. Coder-side agents MUST NOT merge, push, pull, fast-forward, or otherwise mutate repo topology.
+- `MANUAL_RELAY` = Operator remains the main relay, but governed artifacts still apply
+- `ORCHESTRATOR_MANAGED` = Orchestrator steers sessions and workflow, but remains non-agentic and non-coding
 
 ## Auto-Continue on PASS [CX-GATE-AUTO-001] (ANTI-BABYSIT)
 
-Hard rule (to prevent "babysit every gate to proceed" loops):
-- If a gate/hard-gate output is posted and it clearly shows `RESULT: PASS` (or the hard-gate context matches the assignment) **and** `OPERATOR_ACTION: NONE`, you MUST proceed to `NEXT_COMMANDS` without waiting for the Operator to say "proceed".
+- If a gate shows PASS and `OPERATOR_ACTION: NONE`, continue to `NEXT_COMMANDS` without waiting for a fresh "proceed".
+- Stop only when:
+  - the gate is not PASS
+  - an explicit decision is required
+  - the next step needs a one-time user input
 
-STOP is only required when at least one is true:
-- The gate result is not PASS (FAIL/BLOCKED/unknown).
-- `OPERATOR_ACTION` is not `NONE` (a single explicit decision is needed).
-- The next step requires a one-time user input (e.g., `USER_SIGNATURE`) or a protocol-mandated turn boundary (see [CX-585C]).
+After `just record-signature ...` returns PASS with `OPERATOR_ACTION: NONE`, continue directly to `just orchestrator-prepare-and-packet WP-{ID}`.
 
-Operator steering continuity rule (`ORCHESTRATOR_MANAGED`, hard):
-- Non-blocking Operator chat, steering nudges, status questions, or clarification messages MUST NOT create a pause boundary by themselves.
-- Treat a mid-run Operator message as non-blocking unless it explicitly says `STOP`, `PAUSE`, `WAIT`, changes scope/priority/lane/execution owner, or introduces a real approval/decision gate.
-- After replying to a non-blocking steering message, if the latest gate still implies `OPERATOR_ACTION: NONE`, continue to the deterministic next step.
-- User silence is not required for progress.
+## Preflight and Resume
 
-Docs-only bridge rule (`ORCHESTRATOR_MANAGED`, hard):
-- To keep the workflow moving, the Orchestrator MAY perform docs-only workflow commits on the assigned WP branch/worktree before implementation starts.
-- Allowed examples: docs-only bootstrap claim/status-sync edits in the task packet, docs-only skeleton approval commits, and WP communication liveness/receipt updates.
-- These actions do NOT make the Orchestrator the Coder and MUST NOT touch product code, tests, validator verdicts, or final technical approval surfaces.
-- Once the next step would touch non-governance implementation files, the Orchestrator MUST stop and hand execution back to the declared `EXECUTION_OWNER` unless separately reassigned as Coder.
-
-Post-signature setup rule (hard, anti-babysit):
-- After `just record-signature WP-{ID} ...` returns PASS with `OPERATOR_ACTION: NONE`, deterministic WP setup is auto-continue work.
-- Do NOT stop merely because the WP branch/worktree does not exist yet; creating that missing WP worktree is the expected next step after signature, not a fresh approval boundary.
-- If the signature bundle already captured the workflow lane + execution owner, the Orchestrator MUST proceed directly to `just orchestrator-prepare-and-packet WP-{ID}`.
-- If the signature was recorded without the full workflow tuple (legacy recovery only), the only allowed follow-up decision is filling the missing workflow lane and/or execution owner; branch/worktree creation remains automatic once that tuple is available.
-- `just orchestrator-worktree-and-packet WP-{ID}` is only valid when PREPARE is already recorded or packet creation is being retried after a prior PREPARE.
-
-### Condensed pre-orchestration preflight (recommended)
-
-Instead of running the Pre-Orchestration Checklist steps as separate gates, you MAY run:
+Use:
 - `just orchestrator-preflight`
-
-This is a convenience wrapper around the core deterministic checks (worktree context + governance integrity + spec regression).
-
-Optional (recommended on session start to reduce babysitting):
-- `just orchestrator-startup` (prints PROTOCOL_ACK lines + runs `just orchestrator-preflight`).
-
-### Context resume (recommended; anti-babysit)
-
-If the session resets or you inherit a half-finished WP, use:
+- `just orchestrator-startup`
 - `just orchestrator-next [WP-{ID}]`
 
-This prints the inferred WP stage + the minimal next commands based on:
-- `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`
-- `.GOV/refinements/WP-*.md`
-- `.GOV/task_packets/WP-*.md`
-- `.GOV/roles_shared/records/TASK_BOARD.md`
+Resume rule:
+- after reset or compaction, do not stop merely because startup re-ran
+- immediately run `just orchestrator-next`
+- if it prints `OPERATOR_ACTION: NONE`, continue to the next commands
+- resume inference must prefer active WPs; terminal WPs are history, not implicit resume targets
 
-Resume rule (hard, anti-babysit):
-- After `just orchestrator-startup` on a reset/compaction, do NOT stop merely because startup/preflight re-ran.
-- Immediately run `just orchestrator-next` (or `just orchestrator-next WP-{ID}` when the WP is known).
-- If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS` without waiting for a fresh "proceed".
-- STOP only if the helper requires a single explicit decision, the WP inference is ambiguous, or the next step is a sync/destructive action that still needs explicit authorization.
+## WP Communication Folder (Packet-Declared)
 
-## WP Communication Folder (when the packet defines it)
+- If the packet declares `WP_COMMUNICATION_DIR`, that directory is the only communication authority for the WP.
+- Use:
+  - `THREAD.md` for append-only steering and freeform relay
+  - `RUNTIME_STATUS.json` for structured liveness
+  - `RECEIPTS.jsonl` for deterministic machine-readable receipts
+- These artifacts support both `MANUAL_RELAY` and `ORCHESTRATOR_MANAGED`.
+- They never override packet truth. If they conflict with the packet, the packet wins.
+- Shared runtime/session state lives under `/.GOV/roles_shared/runtime/`.
 
-- If the active packet defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, the Orchestrator MUST treat those files as the canonical non-authoritative collaboration surface for that WP.
-- The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not treat any role worktree or backup branch as a competing inbox.
-- When available, prefer VS Code integrated terminals as the host for Orchestrator-managed sessions and keep one dedicated `just operator-monitor` tab open for overview.
-- Do not rely on ambient editor defaults for model choice or reasoning strength. Launch/brief each repo-governed CLI session explicitly with `gpt-5.4` + `model_reasoning_effort=xhigh`, or `gpt-5.2` + `model_reasoning_effort=xhigh` as fallback.
-- Use `.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS.jsonl` as the append-only launch queue and `.GOV/roles_shared/runtime/ROLE_SESSION_REGISTRY.json` as the current launch/session-state projection.
-- Use `.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS.jsonl` and `.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS.jsonl` as the append-only steerable session-control ledgers for governed Codex thread start/resume actions.
-- Use `.GOV/roles_shared/runtime/SESSION_CONTROL_OUTPUTS/` as the per-command ACP event-log surface and `.GOV/roles_shared/runtime/SESSION_CONTROL_BROKER_STATE.json` as the broker projection surface for active runs plus optional broker build/version identity.
-- The Orchestrator is the only role that starts repo-governed Coder/WP Validator/Integration Validator sessions.
-- The Orchestrator is also the only role that issues governed cancel commands for those sessions.
-- If the VS Code bridge path fails twice for the same role/WP session, the Orchestrator may open a CLI escalation window and must leave the packet/thread/runtime artifacts authoritative.
-- Use `THREAD.md` for append-only steering, clarifications, relay notes, and manual-lane coordination.
-- Use `RUNTIME_STATUS.json` for structured liveness only:
-  - `runtime_status`: `submitted | working | input_required | completed | failed | canceled`
-  - `next_expected_actor`, `waiting_on`, `validator_trigger`, stale-session visibility, bounded review-loop counters, validator-of-record fields, and authority metadata
-- Use `RECEIPTS.jsonl` for deterministic machine-readable receipts:
-  - assignment
-  - status
-  - heartbeat
-  - steering
-  - repair
-  - handoff
-- Authority split must be explicit in the packet and visible in runtime/receipts:
-  - Orchestrator = workflow authority
-  - WP Validator = advisory technical reviewer
-  - Integration Validator = final technical and merge authority
-- These artifacts support both `MANUAL_RELAY` and `ORCHESTRATOR_MANAGED`; they do not require agentic delegation.
-- The Orchestrator MUST update `RUNTIME_STATUS.json` and append a receipt on session start, phase change, blocker/unblock, handoff, completion, and every packet heartbeat interval only while actively steering.
-- Hard rule: do not poll continuously. Steering is event-driven first, heartbeat-backed second.
-- Wake/notice priority is: launch queue + registry for bootstrap, session-control results/output logs + broker state for steering, and WP runtime/thread/receipts for packet-scoped collaboration.
-- Hard rule: those files do not override packet scope, packet status, PREPARE assignment, Task Board projection, or validation authority. If there is any conflict, the packet wins.
+## Deterministic Helpers
 
-### Deterministic helpers (recommended)
-
-To avoid manual markdown editing mistakes:
-- Update Task Board entry: `just task-board-set WP-{ID} READY_FOR_DEV|IN_PROGRESS|DONE_VALIDATED|DONE_FAIL|DONE_OUTDATED_ONLY|STUB|BLOCKED|SUPERSEDED ["reason"]`
-- Update Base->Active mapping: `just wp-traceability-set BASE_WP_ID ACTIVE_PACKET_WP_ID`
-- Append freeform thread message: `just wp-thread-append WP-{ID} ORCHESTRATOR <session> "<message>" [target]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
-- Update WP communication liveness: `just wp-heartbeat WP-{ID} ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
-- Append deterministic receipt: `just wp-receipt-append WP-{ID} ORCHESTRATOR <session> <receipt_kind> "<summary>" [state_before] [state_after]`
-- Open the operator monitor TUI: `just operator-monitor`
-  - The monitor is an ACP-aware viewport: canonical task-board source/drift, session registry state, control results, per-command output logs, thread/receipt activity, and packet/runtime artifacts.
-- Create role-scoped worktrees:
-  - Coder: `just coder-worktree-add WP-{ID}`
-  - WP Validator: `just wp-validator-worktree-add WP-{ID}`
-  - Integration Validator: `just integration-validator-worktree-add WP-{ID}`
-- Launch repo-governed CLI sessions:
-  - Coder: `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-  - WP Validator: `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-  - Integration Validator: `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-  - Steerable Coder thread: `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
-  - Steerable WP Validator thread: `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
-  - Steerable Integration Validator thread: `just start-integration-validator-session WP-{ID} [PRIMARY|FALLBACK]`
-  - Governed prompt resume: `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
-  - Governed cancel: `just session-cancel <ROLE> WP-{ID}`
-  - Inspect launch/runtime state: `just session-registry-status [WP-{ID}]`
-  - Generate single-target post-merge cleanup scripts:
-    - `just generate-worktree-cleanup-script WP-{ID} CODER`
-    - `just generate-worktree-cleanup-script WP-{ID} WP_VALIDATOR`
-- Condense post-signature setup:
-  - Default post-signature path: `just orchestrator-prepare-and-packet WP-{ID}`
-  - Retry helper when PREPARE is already recorded: `just orchestrator-worktree-and-packet WP-{ID}`
+- `just task-board-set WP-{ID} READY_FOR_DEV|IN_PROGRESS|DONE_VALIDATED|DONE_FAIL|DONE_OUTDATED_ONLY|STUB|BLOCKED|SUPERSEDED ["reason"]`
+- `just wp-traceability-set BASE_WP_ID ACTIVE_PACKET_WP_ID`
+- `just wp-thread-append WP-{ID} ORCHESTRATOR <session> "<message>" [target]`
+- `just wp-heartbeat WP-{ID} ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
+- `just wp-receipt-append WP-{ID} ORCHESTRATOR <session> <receipt_kind> "<summary>" [state_before] [state_after]`
+- `just operator-monitor`
+- `just coder-worktree-add WP-{ID}`
+- `just wp-validator-worktree-add WP-{ID}`
+- `just integration-validator-worktree-add WP-{ID}`
+- `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
+- `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
+- `just start-integration-validator-session WP-{ID} [PRIMARY|FALLBACK]`
+- `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
+- `just session-cancel <ROLE> WP-{ID}`
+- `just session-registry-status [WP-{ID}]`
+- `just orchestrator-prepare-and-packet WP-{ID}`
+- `just orchestrator-worktree-and-packet WP-{ID}`
 
 ## Lifecycle Marker [CX-LIFE-001] (MANDATORY)
 
-In every Orchestrator message (not only gate runs), include a short lifecycle marker so reviewers can see where you are in the task/work packet creation lifecycle.
+Every Orchestrator message should include:
 
-Template:
 ```text
 LIFECYCLE [CX-LIFE-001]
 - WP_ID: <WP-... or N/A>
@@ -405,2261 +298,139 @@ LIFECYCLE [CX-LIFE-001]
 - NEXT: <next stage or STOP>
 ```
 
-Rule: when a gate command is run and `GATE_STATUS` is posted, `PHASE` MUST match `STAGE` (same token).
+## Stop-Work Gate: Assignment Before Delegation (HARD RULE)
+
+Before any product work starts, the Orchestrator must ensure:
+- the WP branch and worktree exist
+- `just record-prepare WP-{ID} {Coder-A..Coder-Z}` has been recorded
+- the assigned worktree contains:
+  - the official packet
+  - the current `SPEC_CURRENT` snapshot
+  - the current PREPARE record
+  - the current Task Board and traceability truth
+
+If any of those are stale or missing, report `STAGE: STATUS_SYNC` and fix the assigned worktree before coder handoff.
+
+## Safety Commit Gate (HARD RULE)
+
+Immediately after creating a WP task packet and refinement and obtaining `USER_SIGNATURE`, create a checkpoint commit on the WP branch containing:
+- `.GOV/task_packets/WP-{ID}.md`
+- `.GOV/refinements/WP-{ID}.md`
+
+## Current Orchestrator Workflow (Authoritative)
+
+### 1. Refinement and Approval
+
+- Pure repo-governance work does not require a Work Packet, refinement, or signature. Refinement / enrichment is required only when work touches product code or the Master Spec.
+- Every executable WP starts from a refinement / enrichment pass.
+- Refinement / enrichment is the pre-signature brake:
+  - check for technical gaps, red-team advisory issues, weak execution guidance, and direction changes
+  - keep the Master Spec current with vision by patching gaps in place and avoiding addendums when possible
+  - treat Roadmap, stubs, Work Packets, and Task Board as pointers only; the Master Spec remains source of truth
+- Use `[ADD v<target version>]` in the relevant Main Body sections and matching Roadmap phases.
+- Reuse the fixed phase fields only:
+  - `Goal`
+  - `MUST deliver`
+  - `Key risks addressed in Phase n`
+  - `Acceptance criteria`
+  - `Explicitly OUT of scope`
+  - `Mechanical Track`
+  - `Atelier Track`
+  - `Distillation Track`
+  - `Vertical slice`
+- Do not create new atomic phase blocks.
+- Run a real research pass before approval:
+  - wide-scope external research for the tool, technology, or intent
+  - semantic / intent search across GitHub and Hugging Face for better executions, better practices, and adjacent implementations
+  - feed what matters back into the spec first, then the WP
+- Maintain the end-of-file primitive coverage surfaces during refinement / enrichment:
+  - the primitive index
+  - the primitive / tool / technology matrix
+  - use them to look for high-ROI combinations, scope growth, and stub candidates
+- If a discovered combination fits the current WP, update the WP and scope. If it does not fit technically or makes the WP too large, create a stub in the same governance pass.
+- Crosscheck every WP against:
+  - the Master Spec pillars for ROI, reuse, security, and risk reduction
+  - the mechanical tools / engines, because they are easy to forget and they are what make Handshake deterministic
+  - GUI / UI needs upfront, so primitive and feature-combination growth do not outrun interface planning
+- Ordering is mandatory:
+  - Main Body first
+  - then end-of-file appendix / index / matrix updates
+  - then Roadmap phase updates
+  - then Task Board / Build Order / stub backlog synchronization
+- Show the refinement in chat before any signature request:
+  - either the full `## TECHNICAL_REFINEMENT (MASTER SPEC)` block
+  - or enough current Master Spec anchors to prove the Orchestrator understands the relevant roadmap items, stubs, and WP context
+- `just record-refinement WP-{ID}` must pass first.
+- If the refinement concludes `ENRICHMENT_NEEDED=YES`, unresolved ambiguity, or mandatory appendix/main-body sync, stop packet creation, advance the spec correctly, update `/.GOV/roles_shared/records/SPEC_CURRENT.md`, and only then create a new active packet against the updated spec.
+
+### 2. Signature Bundle, Prepare, and Packet Creation
+
+- Signature is never part of the refinement pass itself. Record it only in the next turn after the refinement / enrichment pass has been shown in chat.
+- This delay is intentional. It blocks automation momentum and forces visible spec-grounded reasoning before approval.
+- Record the signature bundle with `just record-signature ...`.
+- After signature PASS with `OPERATOR_ACTION: NONE`, continue directly to `just orchestrator-prepare-and-packet WP-{ID}`.
+- Use `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
+- Packets are transcription from the signed refinement plus current workflow metadata, not freehand reinterpretation.
+- `just pre-work WP-{ID}` is the blocking packet-integrity gate before delegation.
+
+### 3. Delegation and Monitoring
+
+- Use only the packet-declared communication artifacts for shared session/runtime coordination.
+- The Orchestrator remains workflow authority after delegation:
+  - starts governed sessions
+  - steers them
+  - notices blockers
+  - keeps packet/runtime/thread artifacts current
+- The Orchestrator does not implement the WP and does not issue technical verdicts.
+
+### 4. Status Sync and Closure Claims
+
+- The packet is authoritative for scope, mutable closure monitoring, and validation truth.
+- `TASK_BOARD.md`, `WP_TRACEABILITY_REGISTRY.md`, and `BUILD_ORDER.md` are projections and must reconcile to packet truth.
+- Orchestrator owns planning visibility and blockers.
+- Validator-owned completion states on `main` remain packet-backed only: `[VALIDATED]`, `[FAIL]`, `[OUTDATED_ONLY]`.
+- Do not narrate a WP as fully correct or spec-aligned unless the packet's validator report and split verdicts explicitly support that claim.
+- Treat `CLAUSE_CLOSURE_MATRIX`, `SPEC_DEBT_STATUS`, `SHARED_SURFACE_MONITORING`, and `SEMANTIC_PROOF_ASSETS` as live closure truth.
+
+## Packet and Dependency Rules (Authoritative)
+
+- No product coding by the Orchestrator in `src/`, `app/`, or `tests/`.
+- One active WP per coherent requirement.
+- Signed packets are immutable. If scope, anchor, or authority changes materially, create a new packet variant or remediation packet.
+- Dependencies must be explicit in the packet, Task Board, and build-order or traceability records when relevant.
+- If an upstream blocker is not validation-backed, the downstream WP is blocked.
+- Use exact file paths, concrete tests, and diff-scoped proof. Avoid vague scope, vague done-means, or placeholder bootstrap instructions.
+- Do not collapse workflow gate results, test results, and spec-alignment claims into one generic PASS label.
 
-## Stop-Work Gate: Worktree + Assignment Before Delegation (HARD RULE)
-- After a refinement is signed (`just record-signature WP-{ID} ...`), the Orchestrator MAY proceed to create the task packet.
-- However, before ANY product work starts (Coder runs `just pre-work WP-{ID}` / begins implementation), the Orchestrator MUST:
-  1) Create the WP branch/worktree (`just worktree-add WP-{ID}`), and
-  2) Record the execution owner (`just record-prepare WP-{ID} {Coder-A..Coder-Z}`).
-- Rationale: blocks coding in the wrong worktree/branch, and makes the workflow lane + execution owner + handoff deterministic (branch/worktree recorded in ORCHESTRATOR_GATES.json).
-- Additional hard invariant: coder handoff is FORBIDDEN until the assigned WP worktree itself contains:
-  - the official packet under `.GOV/task_packets/WP-{ID}.md`,
-  - the current `SPEC_CURRENT` snapshot (resolved spec filename + SHA matches Orchestrator/main),
-  - the current `PREPARE` record in `.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json`,
-  - the current Task Board + traceability mapping for that WP (no stale `[STUB]` / stale active-packet path).
-- If any of those are stale or missing, the Orchestrator must report `STAGE: STATUS_SYNC` and direct Validator to fast-forward/sync the assigned WP branch/worktree before telling the coder to run `just pre-work`.
+## Recovery Rules (Authoritative)
 
-## Safety Commit Gate (HARD RULE; prevents untracked WP loss)
-- Immediately after creating a WP task packet + refinement and obtaining `USER_SIGNATURE`, create a **checkpoint commit on the WP branch** that includes:
-  - `.GOV/task_packets/WP-{ID}.md`
-  - `.GOV/refinements/WP-{ID}.md`
-- Rationale: untracked/uncommitted packets/refinements are vulnerable to accidental deletion (e.g., a mistaken cleanup). A checkpoint commit makes the WP recoverable deterministically.
+### Signature Problems
 
-## Part 2: Pre-Orchestration Checklist [CX-600]
+- If a one-time signature is reused or recorded incorrectly, mark the bad usage clearly in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`, request a new signature, and update only the still-open artifacts that legitimately depend on it.
 
-**Complete ALL steps before creating task packets.**
+### Wrong SPEC_ANCHOR or Packet Truth
 
-### Step 1: Spec Currency Verification âœ‹ STOP
-```bash
-cat .GOV/roles_shared/records/SPEC_CURRENT.md
-just validator-spec-regression
-just spec-eof-appendices-check
-```
-- [ ] SPEC_CURRENT.md is current
-- [ ] Points to latest Master Spec version
-- [ ] Regression check returns PASS
-- [ ] Spec EOF appendices check returns PASS (Master Spec Â§12)
+- If a locked packet points at the wrong clause or wrong scope, create a correcting variant or superseding packet.
+- Do not add in-place errata to a locked packet merely because the correction feels small.
+- If Task Board or traceability projections drift from packet truth, repair the projections to match the packet.
 
-### Step 2: Task Board Review âœ‹ STOP
-- [ ] TASK_BOARD.md is current
-- [ ] No stalled WPs (>2 weeks idle)
-- [ ] All "Done" WPs show VALIDATED status (Validator approved them)
-- [ ] Blocked WPs have documented reason + ETA for unblocking
+### Spec Drift After Validation
 
-**CLARIFICATION:** Orchestrator's role is to:
-1. **CHECK** that the Operator-visible TASK_BOARD on `main` correctly reflects packet status (is it in sync?)
-2. **UPDATE** TASK_BOARD planning states (Ready for Dev/Blocked/Stub Backlog) and supersedence; Validator status-syncs `main` for In Progress/Done
-3. **RECORD** governance actions (signature usage, spec pointer updates, mapping decisions) â€” Orchestrator does NOT issue validation verdicts
+- If a previously correct WP is later behind the current spec, treat `OUTDATED_ONLY` as archival history unless the new spec actually requires fresh code work.
+- If new work is needed, create a new remediation WP instead of reopening the old packet as if it were still active execution.
 
-Orchestrator does NOT do validation (Validator does). Orchestrator just tracks status.
+## Orchestrator Non-Negotiables
 
-### Step 3: Supply Chain Audit (Conditional) âœ‹ STOP
-Run this step when at least one is true:
-- Dependency/lockfile changed (e.g., `Cargo.lock`, `app/pnpm-lock.yaml`, `package-lock.json`)
-- Operator requests it for this WP/session
-- A periodic audit is due (project hygiene)
+Do not:
+- create a packet without a real Main Body `SPEC_ANCHOR`
+- edit locked packets in place
+- delegate when `just pre-work` fails
+- let planning projections drift from packet truth
+- broadcast a collapsed single PASS claim for workflow, tests, and spec correctness
 
-If none apply, record: `SKIPPED (no dependency changes)` and proceed.
-
-```bash
-cargo deny check advisories licenses bans sources && npm audit
-```
-- [ ] If run: `cargo deny` returns 0 violations
-- [ ] If run: `npm audit` returns 0 critical/high vulnerabilities
-
-### Step 4: Phase Status âœ‹ STOP
-- [ ] Current phase identified
-- [ ] Phase-critical WPs identified
-- [ ] Dependencies documented in TASK_BOARD
-
-### Step 5: Governance Files Current âœ‹ STOP
-- [ ] ORCHESTRATOR_PROTOCOL.md is current
-- [ ] CODER_PROTOCOL.md is current
-- [ ] VALIDATOR_PROTOCOL.md is current
-- [ ] Master Spec is current
-
----
-
-## Part 2.5: Strategic Pause & Signature Gate [CX-585A/B/C]
-
-**BLOCKING GATE: Every task packet creation requires spec enrichment approval**
-
-This gate prevents autonomous spec drift and ensures user intentionality at each work cycle.
-
-### 2.5.1 Trigger: When to Pause (Decision Tree)
-
-**CLARIFICATION: Enrichment vs. Transcription**
-
-Orchestrator MUST NOT enrich speculatively. Instead, use this decision tree:
-
-#### Definition: "Clearly Covers" (Objective 5-Point Checklist)
-
-A requirement "clearly covers" (passes Main Body criteria) when it satisfies ALL 5 points:
-
-1. âœ… **Appears in Main Body** â€” Not in Roadmap, not aspirational, not "Phase 2+"
-2. âœ… **Explicitly Named** â€” Reader immediately finds it without inference (section number, title, explicit text)
-3. âœ… **Specific** â€” Not "storage SHOULD be portable" but "storage API MUST implement X trait with Y methods"
-4. âœ… **Measurable Acceptance Criteria** â€” Clear yes/no test (e.g., "trait has 6 required async methods")
-5. âœ… **No Ambiguity** â€” Single valid interpretation; no multiple ways to read it
-
-**Result:**
-- **PASS (all 5 âœ…)** â†’ Requirement clearly covered. Proceed to task packet creation (no enrichment needed).
-- **FAIL (any âŒ)** â†’ Requirement NOT clearly covered. Ask user for clarification OR enrich spec (with user signature).
-
-**Examples:**
-
-CLEARLY COVERS âœ…:
-```
-Â§2.3.12.1: Database trait MUST have these 6 async methods:
-- async fn get_blocks(&self, id: &str) -> Result<Vec<Block>>
-- async fn save_blocks(&self, blocks: Vec<Block>) -> Result<()>
-- ...etc (all 5 criteria met; unambiguous)
-```
-â†’ Proceed without enrichment
-
-DOES NOT CLEARLY COVER âŒ:
-```
-Â§2.3.12: Storage abstraction SHOULD be portable
-```
-â†’ Criteria 3 fails (not specific); criteria 4 fails (no acceptance criteria)
-â†’ Requires user clarification OR enrichment (with signature)
-
----
-
-**Decision Tree:**
-
-```
-Does Master Spec Main Body clearly cover this requirement?
-â”œâ”€ YES (all 5 criteria met)
-â”‚  â””â”€ Proceed to task packet creation (no enrichment needed)
-â”‚
-â”œâ”€ NO, but it's in Roadmap
-â”‚  â””â”€ Promote roadmap item to Main Body + enrich spec
-â”‚     (This is NECESSARY enrichment, user-intended)
-â”‚
-â”œâ”€ NO, and it's NEW or UNCLEAR
-â”‚  â””â”€ ASK USER for clarification BEFORE enriching
-â”‚     (Enrichment requires user signature; don't guess)
-â”‚
-â””â”€ CONFLICTING signals (spec says one thing, user implies another)
-   â””â”€ ESCALATE to user; get explicit decision before proceeding
-      (Don't interpret; let user clarify intent)
-```
-
-**When Enrichment is REQUIRED (after user clarification):**
-1. User request clearly implies requirement not yet in Main Body
-2. Roadmap item needs promotion to Main Body for clarity
-3. Phase gate reveals missing acceptance criteria
-4. User explicitly requests spec clarification (with signature)
-
-**When Enrichment is FORBIDDEN (DO NOT enrich speculatively):**
-- Spec seems incomplete but user hasn't asked for enrichment
-- You're guessing what the requirement "should be"
-- Timeline pressure (don't enrich to save schedule)
-- Enrichment would require major spec redesign (escalate instead)
-
-**Rule: Zero speculative enrichment. Enrichment requires user signature (approval).**
-
-### 2.5.2 Enrichment Workflow âœ‹ BLOCKING
-
-**Step 1: Identify gaps in Master Spec Main Body**
-Orchestrator MUST perform a "Technical Refinement Audit" and present the results to the user.
-
-**Step 1.1: The Technical Refinement Block (MANDATORY)**
-Before requesting a USER_SIGNATURE, the Orchestrator MUST output a block containing:
-- **Gaps Identified:** Specific sections/logic missing in the current Master Spec.
-- **Landscape scan (prior art / best available approaches):** A timeboxed scan of comparable systems (hyperscalers, model vendors, academia, OSS, and adjacent products). Must include: REFERENCES, PATTERNS_EXTRACTED, and DECISIONS (ADOPT/ADAPT/REJECT). Include a LICENSE/IP note for any code-level reuse. If not applicable: write NONE + reason.
-- **research currency (MANDATORY unless the WP is strictly internal/mechanical):** Record a current external-signal scan with explicit dated sources and adoption notes. The refinement MUST capture at least one BIG_TECH source, one UNIVERSITY/PAPER source, and one GITHUB/OSS source when research is required, and it MUST state a freshness window (`SOURCE_MAX_AGE_DAYS`) plus a verdict. If the topic is truly internal/mechanical, write `RESEARCH_CURRENCY_REQUIRED=NO` with a concrete reason instead of guessing.
-- **research depth (MANDATORY when research is required):** The refinement MUST not stop at source logging. It MUST record at least one adopted pattern, one adapted pattern, and one rejected pattern grounded in the source log so the workflow cannot satisfy the form with shallow internet research.
-- **GitHub project scouting (MANDATORY when research is required):** The refinement MUST inspect topic-adjacent GitHub projects/repos that touch the same intent, workflow, or UI surface. This is not for blind copying; it is for discovering implementation strategies, force-multiplier features, and richer execution/UI patterns. Useful findings MUST resolve back through spec/governance (`EXPAND_SCOPE`, `NEW_STUB`, `SPEC_UPDATE_NOW`, or UI enrichment). If no credible repo matches exist, the refinement must record that explicitly instead of silently skipping the scan.
-- **Interaction with flight recorder: Specific event IDs and telemetry triggers:** Specific event IDs, telemetry triggers, and log data structures.
-- **red team advisory: Architectural risks and security failure modes:** Specific architectural risks and security failure modes.
-- **proposed Spec Enrichment: The FULL, VERBATIM normative text to be added to the Master Spec:**
-    - **CRITICAL:** Summaries are FORBIDDEN.
-    - **CRITICAL:** You MUST output the exact Markdown text (headings, rules, code blocks) that will be inserted.
-    - **CRITICAL:** Appendix-only growth still counts. If the primitive index, interaction matrix, feature registry, or UI guidance must change, paste the exact appendix block updates that will go into the new spec version.
-    - **CRITICAL:** The user must be able to copy-paste this text directly into the Master Spec if they chose to do so manually.
-- **primitives:** Specific Traits, Structs, or Enums that must be implemented.
-- **high-signal orphan primitive ownership (MANDATORY):** High-signal orphan primitives created or discovered during refinement/spec-enrichment cannot remain unattached. They MUST be resolved before PASS by either attaching them to owning Appendix 12.4 feature rows or creating a detailed stub that tracks the ownership gap. Silent carry-forward is forbidden.
-- **pillar rubric + force multipliers (MANDATORY):** Explicitly assess alignment/interconnections across the Handshake pillars (Flight Recorder, Calendar, Monaco, Word/Excel clones, Locus, Loom, Work Packets, Task Board, MicroTask, Command Center, Front End Memory System, Prompt-to-Spec, Postgres readiness, LLM-friendly data, Stage/Studio, Atelier/Lens, Distillation/LoRA, ACE, RAG). This is a structured rubric (per pillar): TOUCHED | NOT_TOUCHED | UNKNOWN. If UNKNOWN: do not guess; create stubs.
-- **deeper pillar decomposition (MANDATORY):** Refinement is not allowed to stop at coarse pillar rows. It MUST decompose touched or adjacent pillars into concrete capability slices/subfeatures and record how those slices mix with primitives, tools/tech, mechanical engines, and ROI. This is where Calendar/Loom/Locus/Stage/Studio/Atelier-Lens/Command Center/Flight Recorder/RAG combinations become explicit. If a slice is valuable but out of scope: create a stub.
-- **execution / job runtime alignment (MANDATORY):** Every new or expanded capability MUST be mapped to how it becomes runtime-callable and runtime-visible inside Handshake: AI Job Model, Workflow Engine, Unified Tool Surface / Tool Registry, Mechanical Tool Bus, Command Center visibility, Flight Recorder evidence, Locus visibility, and SQLite-now / PostgreSQL-ready posture. This work happens during refinement even when Main Body enrichment is not needed.
-- **mechanical engine alignment (MANDATORY):** Inspect the spec-grade 22-engine mechanical set from §11.8 / §6.3 as first-class stand-alone features, not as an amorphous backend toolbox. The refinement MUST record a rubric line for every engine and identify where a WP can combine with those engines for force-multiplier value. If UNKNOWN: do not guess; create stubs.
-- **primitive matrix combo scan (MANDATORY):** Actively search for high-ROI combinations of:
-  - primitives, tools/tech, mechanical tools, and local+cloud model usage,
-  - and pillar-to-pillar interactions (force multipliers).
-  Use a structured scan (morphological analysis / dependency & interaction matrix mindset). If a combo is out of scope: create stubs instead of silently dropping it.
-- **matrix research rubric (MANDATORY when research is required):** The refinement MUST separate external combination research from the local primitive-matrix scan. It MUST inspect vendor docs/papers, university/lab work, official design systems, and high-signal GitHub repos when relevant; record what those systems combine; and resolve each useful pattern as `ADOPT`, `ADAPT`, or `REJECT`. This section MUST capture the engineering trick being carried into Handshake, the runtime/DCC/Flight Recorder/Locus/storage consequences, the ROI, and the final resolution (`IN_THIS_WP`, `NEW_STUB`, `SPEC_UPDATE_NOW`, `REJECT_LOW_ROI`, or `REJECT_DUPLICATE`). Link dumping is forbidden.
-- **force-multiplier expansion resolution (MANDATORY):** Every high-ROI combination discovered across pillars, mechanical engines, primitives, tools, and features MUST resolve to exactly one path: `IN_THIS_WP`, `NEW_STUB`, or `SPEC_UPDATE_NOW`. Silent drop is forbidden. The refinement should bias toward proactive expansion, not minimum-scope preservation.
-- **existing capability alignment + code reality (MANDATORY):** Before creating a new stub or activating a new packet, the refinement MUST scan existing stubs, active packets, completed packets, primitive/index coverage, interaction-matrix coverage, same-intent UI surfaces, and product code. If an equivalent capability already exists and code/UI evidence confirms it, reuse the existing artifact instead of creating a duplicate. If only partial coverage exists, expand the current WP. If the gap is real, create a stub and/or spec update. `REUSE_EXISTING` is a duplicate-prevention outcome and should block duplicate packet creation.
-- **cross-primitive interactions (Appendix 12.6):** Propose interaction edges (force multipliers) to add/update in Master Spec Appendix 12.6 (HS-APPX-INTERACTION-MATRIX). If out of scope for the current WP, create WP stubs and list them in the refinement metadata.
-- **GUI implementation advice rubric (MANDATORY when UI guidance is applicable or adjacent UI/operator surfaces are discovered):** Separate research-backed GUI implementation advice from the concrete UI surface checklist. This rubric MUST inspect reference products/repos/design systems/papers when possible, capture hidden requirements and interaction contracts, record accessibility/keyboard/focus behavior, state model, tooltip-vs-inline explanation strategy, and name the engineering trick being carried into Handshake. Each row MUST resolve as `IN_THIS_WP`, `NEW_STUB`, or `SPEC_UPDATE_NOW`; hidden semantics may not remain tribal knowledge.
-- **GUI/UI/UX rubric (MANDATORY when any UI surface is touched):** Enumerate UI surfaces, controls (buttons/dropdowns/inputs), states (empty/loading/error), and microcopy. Prefer "too many controls" early, consolidate later. Include minimalistic in-UI explainers (prefer hover tooltips) and ensure tooltips are accessible (hover + keyboard focus, dismissible; avoid violating WCAG 1.4.13 "Content on Hover or Focus").
-- **appendix/index/matrix maintenance impact:** If the WP introduces/changes a feature, technique, or UI-visible behavior, explicitly list required updates to Master Spec Appendix 12 blocks:
-  - HS-APPX-FEATURE-REGISTRY (index)
-  - HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX
-  - HS-APPX-UI-GUIDANCE (required only for new/changed features)
-  - HS-APPX-INTERACTION-MATRIX
-  Hard rule: if any of those appendix actions are `UPDATED`, that is a spec-version update boundary, not post-hoc cleanup. The Orchestrator must advance the Master Spec version, update `SPEC_CURRENT`, create required stubs/governance sync, and only then resume WP activation against the new spec.
-- **main-body/appendix reciprocity (MANDATORY):** Appendix 12 maintenance is bidirectional. If the refinement adds or changes index/matrix/feature/UI rows, the Main Body MUST be patched in place first so the canonical law explains the new ownership, interaction, or implementation intent. If the refinement adds a normative Main Body capability, interaction, or UI/runtime rule, Appendix 12 and the Roadmap/Coverage Matrix MUST be updated in the same spec version. New entries must use `[ADD v<target>]` markers inside canonical sections; addendum-style normative text is forbidden.
-- **roadmap phase split (if multi-phase):** If refinement discovers large additive scope that should be phased, update the Roadmap section (Spec 7.6) using the fixed per-phase fields (Goal, MUST deliver, Key risks addressed in Phase n, Acceptance criteria, Explicitly OUT of scope, Mechanical Track, Atelier Track, Distillation Track, Vertical slice). Do not invent new per-phase block types.
-- **build-order sync (MANDATORY):** Refinement is also the sequencing review point. If the refinement changes stubs, dependencies, `BUILD_ORDER_*` metadata, current spec version, or force-multiplier rollout order, the Orchestrator MUST sync `.GOV/roles_shared/records/BUILD_ORDER.md` before the refinement gate is considered complete.
-- **packet hydration (MANDATORY for `HYDRATED_RESEARCH_V1`):** The refinement MUST include a structured packet-hydration block that deterministically fills packet metadata, scope, test plan, done means, bootstrap commands, primary spec anchor, `[ADD v<target>]` marker, and the primitive exposure/creation lists. Packet creation should be transcription from the signed refinement, not manual reinterpretation.
-- **packet closure monitoring (MANDATORY for `PACKET_FORMAT_VERSION >= 2026-03-15`):** New packets MUST also carry live monitoring truth in `CLAUSE_CLOSURE_MATRIX`, `SPEC_DEBT_STATUS`, and `SHARED_SURFACE_MONITORING`. The Orchestrator monitors these sections as the packet-scope spec-closure dashboard; do not describe a WP as finished/spec-correct while those sections still show partial, deferred, pending, or hidden debt.
-- **semantic proof assets (MANDATORY for `PACKET_FORMAT_VERSION >= 2026-03-16`):** New packets MUST also carry `SEMANTIC_PROOF_ASSETS` plus `SEMANTIC_PROOF_PROFILE=DIFF_SCOPED_SEMANTIC_V1`. Treat this as the packet-scope semantic proof brief for Coder + Validator. If the packet claims spec closure but has no real tripwires/examples or is still missing governed debt for a partial clause, the Orchestrator must not narrate the WP as spec-correct.
-
-**Non-negotiable presentation rule:** The Technical Refinement Block MUST be pasted into the Orchestrator's chat message for user review (not only written to a file). The pasted block MUST be the FULL verbatim refinement text from `.GOV/refinements/WP-*.md`; summaries or shortened versions are forbidden. The Orchestrator MUST NOT proceed to signature or packet creation until the user explicitly approves the refinement in-chat (e.g., `APPROVE REFINEMENT {WP_ID}`) or requests edits.
-
-**Deterministic approval evidence (repo-enforced):**
-- Before consuming a one-time signature, the refinement file MUST contain: - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT {WP_ID} (exact match). This prevents signature-by-momentum and makes the approval step mechanically checkable.
-
-
-**Hard enforcement rule (procedure; repo-enforced):**
-- If the refinement concludes **ENRICHMENT_NEEDED=YES** (or otherwise identifies unresolved ambiguity requiring new normative text), the Orchestrator MUST STOP. Do NOT record a WP packet signature and do NOT create/lock a task packet. Complete Spec Enrichment first (new spec version + update `.GOV/roles_shared/records/SPEC_CURRENT.md`), then create a NEW WP variant anchored to the updated spec with a fresh one-time signature.
-- If `APPENDIX_MAINTENANCE` declares any appendix action as `UPDATED`, treat that exactly like spec enrichment even when the Main Body already clearly covers the feature. Appendix growth for the primitive index, interaction matrix, feature registry, or UI guidance MUST happen before packet creation, not during or after coding.
-- If refinement/spec-enrichment discovers high-signal orphan primitives, the refinement MUST record their resolution and the gate MUST fail unless each one is either attached to an owning feature row in Appendix 12.4 or resolved to a detailed stub listed in `STUB_WP_IDS`.
-- If refinement/spec-enrichment introduces or updates Appendix 12 feature/index/matrix/UI rows, the Main Body MUST also be patched in place in the same spec version using `[ADD v<version>]` markers. Appendix-only normative growth is forbidden.
-- If refinement/spec-enrichment introduces normative Main Body capability/runtime/UI ownership changes, the same spec version MUST update Appendix 12, the Roadmap, and the Coverage Matrix before packet creation can resume.
-- After that appendix-driven spec update, the Orchestrator MUST also complete the normal governance sync for the new scope: create required stubs, update Task Board / traceability / build-order state, advance `SPEC_CURRENT`, and only then resume activation or create a new WP variant against the updated spec.
-- If the refinement concludes `NEEDS_STUBS` for pillar alignment, primitive-matrix combos, appendix maintenance follow-through, or UI/UX follow-up, the corresponding stub files MUST exist and be listed in top-level `STUB_WP_IDS` before the refinement gate can PASS.
-- For `REFINEMENT_ENFORCEMENT_PROFILE: HYDRATED_RESEARCH_V1`, packet creation MUST auto-hydrate from the signed refinement and `just pre-work` MUST fail if the packet drifts from the refinement.
-
-**Step 2: Enrich Master Spec (after user approval)**
-If gaps found:
-1. Locate: Current Master Spec version (e.g., v02.91)
-2. Create: NEW version file (e.g., v02.92.md)
-3. Copy: Entire current spec
-4. Add: Required sections/clarifications (using the Proposed Spec Enrichment text)
-4a. If applicable: update Master Spec Â§12 end-of-file appendix blocks (Feature Registry, Primitive/Tool/Tech Matrix, UI Guidance per feature, Interaction Matrix) and keep them at end-of-file. UI guidance is REQUIRED only for new/changed features; legacy backfill is tracked as stub WPs.
-4b. If enrichment introduces new technology/direction or large additive scope: record it in the Main Body first, then (if needed) split execution across phases in the Roadmap (Spec 7.6) using the fixed per-phase fields (do not invent new per-phase block types), then create WP stubs for the new additions before resuming the normal signature -> packet -> delegation workflow.
-4c. Patch canonical sections in place. Do not create addendum-style normative text. New normative lines/blocks should use `[ADD v<version>]` markers so spec growth remains traceable while staying inside the canonical section.
-5. Add: CHANGELOG entry with reason for update
-6. Update: .GOV/roles_shared/records/SPEC_CURRENT.md to point to new version
-
-**Step 3: Update all workflow files to reference new spec**
-
-```
-Orchestrator MUST update these files to point to new spec version:
-- .GOV/roles/coder/CODER_PROTOCOL.md: Update spec version references
-- .GOV/roles/validator/VALIDATOR_PROTOCOL.md: Update spec version references
-- .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md: Update spec version references
-- .GOV/roles_shared/docs/START_HERE.md: Update spec version references
-- .GOV/roles_shared/docs/ARCHITECTURE.md: Update spec anchors if changed
-- .GOV/roles_shared/records/SPEC_CURRENT.md: Point to the new spec (authoritative)
-
-Do NOT mass-edit historical/signed task packets to "catch up" to new governance/spec. Signed packets are immutable; create new variants/remediation WPs instead.
-```
-
-**Verification:**
-```bash
-# Check all protocol files reference latest spec version
-grep -r "Master Spec v02" .GOV/roles_shared/ .GOV/roles/ .GOV/templates/ .GOV/task_packets/
-# Should all show v02.85 (or latest), no orphaned older versions in active files
-```
-
-**Rule:** Requesting a USER_SIGNATURE without first presenting the Technical Refinement Block is a **CRITICAL PROTOCOL VIOLATION**.
-
-### 2.5.3 Signature Gate (One-Time Use) âœ‹ BLOCKING
-
-**Orchestrator MUST request USER_SIGNATURE before creating work packets.**
-
-#### Work Packet Stubs (Backlog) [CX-585C]
-
-A **Work Packet Stub** is an optional planning artifact used to track Roadmap/Main Body work before activation.
-
-- Stubs are legitimate backlog items, but they are NOT executable task packets/work packets.
-- Stubs MUST live in `.GOV/task_packets/stubs/` and should be listed on `.GOV/roles_shared/records/TASK_BOARD.md` under a STUB section.
-- Stub list order is inventory-only and is NEVER a priority signal; sequencing is determined by `.GOV/roles_shared/records/BUILD_ORDER.md` and per-packet `BUILD_ORDER_*` metadata.
-- If a Base WP has multiple packets (or a stub + official packet), the Base WP â†’ Active Packet mapping MUST be recorded in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`.
-- Stubs MUST NOT be handed off to Coder/Validator and MUST NOT be used to start implementation.
-- Stubs do not require USER_SIGNATURE, a refinement file, or deterministic gates.
-- Stub template: `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
-- Holistic roadmap coverage rule (Phase 1): for every current-spec roadmap line in `7.6.3` tagged `[ADD v<current>]`, at least one stub MUST declare explicit `ROADMAP_ADD_COVERAGE` metadata (spec version + phase + exact line numbers). Missing coverage is BLOCKING.
-
-Activation rule (mandatory): Before any coding starts, activate the stub by following the normal workflow (in-chat Technical Refinement Block -> USER_SIGNATURE -> `.GOV/refinements/WP-*.md` -> `just create-task-packet WP-*` -> update `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` Baseâ†’Active mapping -> move TASK_BOARD entry out of STUB).
-
-Mechanical enforcement note: `just gov-check` (and `just codex-check`) includes a WP activation traceability guard and will BLOCK commits when an activated packet exists but the registry/Task Board still treats it as a stub. `just gov-check` also runs `phase1-add-coverage-check` to BLOCK if any current-spec `7.6.3` `[ADD v<current>]` roadmap line lacks stub coverage metadata.
-
-**Signature format:** `{username}{DDMMYYYYHHMM}`
-
-Example: `ilja251225032800` (ilja + 25/12/2025 03:28:00)
-
-**Signature rules (MANDATORY):**
-
-1. **One-time use only** â€” Each signature can be used exactly ONCE in entire repo
-2. **External clock source** â€” User must provide timestamp from external/verified source
-3. **Prevents reuse** â€” Grep repo to verify signature never appears before
-4. **Audit trail** â€” Record in SIGNATURE_AUDIT.md when signature is consumed
-5. **Blocks work** â€” Cannot create work packets without valid, unused signature
-
-**Orchestrator verification (BEFORE creating work packets):**
-
-```bash
-# Check if signature has been used before
-grep -r "ilja251225032800" .
-
-# Should return ONLY the lines you're about to add (audit log + work packet reference)
-# If it appears elsewhere, REJECT and request NEW signature
-```
-
-**If signature found elsewhere:**
-```
-âŒ BLOCKED: Signature already used [CX-585B]
-
-Signature: ilja251225032800
-First use: {file and date when first used}
-Current request: New task packet creation
-
-Each signature can only be used once. Request new signature from user.
-```
-
-### 2.5.4 Signature Audit Log [CX-585B]
-
-**Orchestrator MUST maintain `.GOV/roles_shared/records/SIGNATURE_AUDIT.md` as central registry.**
-
-```markdown
-# SIGNATURE_AUDIT.md
-
-Record of all user signatures consumed for spec enrichment and work packet creation.
-
----
-
-## Consumed Signatures
-
-| Signature | Used By | Date | Purpose | Master Spec Version | Notes |
-|-----------|---------|------|---------|-------------------|-------|
-| ilja251225032800 | Orchestrator | 2025-12-25 03:28 | Strategic Pause: Spec enrichment for Phase 1 storage foundation | v02.85 | Enriched spec with Storage Backend Portability requirements |
-| ilja251225041500 | Orchestrator | 2025-12-25 04:15 | Task packet creation: WP-1-Storage-Abstraction-Layer | v02.85 | Spec already enriched by ilja251225032800 |
-
----
-
-## How to Use This Log
-
-1. When Orchestrator receives new user signature
-2. Verify signature format: `{username}{DDMMYYYYHHMM}`
-3. Search repo: `grep -r "{signature}" .`
-4. If found anywhere except this file: REJECT (already used)
-5. If not found: Proceed with enrichment/work packet creation
-6. Add row to Consumed Signatures table
-7. Include signature in relevant docs as reference: `[Approved: ilja251225032800]`
-```
-
-### 2.5.5 Workflow Integration
-
-**Complete flow before task packet creation:**
-
-```
-Pre-Orchestration Checklist (Part 2, Steps 1-5) âœ… PASS
-    â†“
-ðŸš§ STRATEGIC PAUSE & SIGNATURE GATE (Part 2.5)
-    â†“
-1. Identify spec gaps (Master Spec Main Body coverage)
-    â†“
-2. Enrich spec if needed (version bump, update all protocol files)
-    â†“
-3. Request USER_SIGNATURE from user
-    â†“
-User provides: ilja251225032800 (name + DDMMYYYYHHMM)
-    â†“
-4. Verify signature is unused (grep repo)
-    â†“
-5. Record signature in SIGNATURE_AUDIT.md
-    â†“
-6. Reference signature in work packet metadata
-    â†“
-âœ… GATE UNLOCKED: Proceed to Task Packet Creation (Part 4)
-    â†“
-Create work packets aligned with enriched, user-approved spec
-```
-
-**Example in task packet metadata:**
-```markdown
-# Task Packet: WP-1-Storage-Abstraction-Layer
-
-**Authority:** Master Spec v02.85, Strategic Pause approval [ilja251225032800]
-```
-
-### 2.5.6 Non-Negotiables for Signature Gate [CX-585C]
-
-**âŒ DO NOT:**
-1. Create work packets without spec enrichment
-2. Use signature twice
-3. Skip signature verification (grep check)
-4. Proceed without user signature
-5. Forge signature from internal clock
-6. Update spec without bumping version
-7. Forget to update protocol files when spec changes
-8. Leave signature audit log blank
-
-**âœ… DO:**
-1. Always enrich Master Spec before task packets
-2. Verify each signature is one-time use only
-3. Run grep check to confirm signature is unused
-4. Update ALL protocol files (CODER, VALIDATOR, ORCHESTRATOR)
-5. Record signature in SIGNATURE_AUDIT.md
-6. Document Master Spec version in task packets
-7. Include signature reference in work packet authority
-8. Keep audit trail complete for all enrichments
-
-### 2.5.7 Automated Gate Enforcement (Orchestrator Gates)
-
-Goal: reduce Operator babysitting without losing correctness.
-
-The enforcement is file-based and deterministic:
-- `just record-refinement {wp-id}` is BLOCKED unless the refinement is complete (no placeholders, SPEC_ANCHOR windows/token-in-window, rubrics filled).
-- `just record-signature {wp-id} {signature}` is BLOCKED unless:
-  - Refinement exists and is complete,
-  - Refinement contains deterministic approval evidence: `- USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT {WP_ID}`,
-  - Signature is one-time-use (repo grep guard),
-  - Signature is appended to `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`.
-
-There is no time-based or turn-based lock between refinement and signature. If the Operator already provided explicit approval + the one-time signature, proceed immediately.
-
-### 2.6 Work Packet Lifecycle
-
----
-
-## Part 3: Role & Critical Rules
-
-You are an **Orchestrator** (Lead Architect / Engineering Manager). Your job is to:
-1. Translate Master Spec requirements into concrete task packets
-2. Manage phase progression (gate closure on VALIDATED work, not estimates)
-3. Prevent instruction creep and maintain spec integrity
-4. Coordinate between Coder and Validator
-5. Escalate blockers and manage risk
-
-**CRITICAL RULES:**
-1. **NO PRODUCT CODING:** You MUST NOT modify Handshake product code in `src/`, `app/`, or `tests/`.
-   - Role-owned governance tooling should live under `.GOV/roles/**`, repo-shared governance tooling under `.GOV/roles_shared/**`, and root `.GOV/scripts/` is retired as a live implementation surface.
-   - Governance/workflow/tooling-only work (limited to `.GOV/`, `justfile`, `.github/`, and not touching product code) does **not** require a Work Packet or USER_SIGNATURE.
-2. **TRANSCRIPTION NOT INVENTION:** Task packets point to SPEC_ANCHOR; they do not interpret or invent requirements.
-3. **SPEC_ANCHOR REQUIRED:** Every WP MUST reference a requirement in Master Spec Main Body (not Roadmap).
-4. **LOCK PACKETS:** Use USER_SIGNATURE to prevent post-creation edits; create NEW packets for changes (WP-{ID}-variant).
-5. **PHASE GATES MANDATORY:** Phase only closes if ALL WPs are VALIDATED (not just "done").
-6. **DEPENDENCY ENFORCEMENT:** Block upstream work until blockers are VALIDATED.
-7. **NO COLLAPSED PASS SIGNALS:** Do not broadcast a single "PASS" label for a WP. Keep these claims explicit and separate:
-   - Deterministic manifest gate (`just post-work {WP_ID}`) result (not tests)
-   - Packet TEST_PLAN execution results (commands + exit codes)
-   - Spec alignment assessment (`SPEC_ALIGNMENT_VERDICT` + `CLAUSES_REVIEWED` + `NOT_PROVEN` when the packet format requires split verdicts)
-   - Validator verdict (only when appended to the task packet under `## VALIDATION_REPORTS`)
-   - Orchestrator wording rule: do not describe a WP as "master-spec aligned", "fully correct", or "finished under scrutiny" unless the packet report explicitly supports that claim.
-8. **STATUS SYNC SCOPE:** Planning visibility updates MUST NOT move WPs to `## Done` with `[VALIDATED]` unless the canonical task packet contains the Validator's appended Validation Report. Status sync should prefer the `## Active (Cross-Branch Status)` section; avoid editing `## Done` as a "sync" shortcut.
-
----
-
-## Part 3-Error-Recovery: How to Recover from Orchestrator Mistakes [CX-611]
-
-**Governance violations happen. This section shows how to recover.**
-
-### Error 1: Signature Used Twice (Typo/Mistake)
-
-**Problem:** You used the same signature twice in the repo.
-
-**Prevention:** Always grep before using:
-```bash
-grep -r "{signature}" .
-# Should return ZERO results (except audit log entry you're about to add)
-```
-
-**Recovery if error occurs:**
-1. Mark signature INVALID in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`
-   ```markdown
-   | ilja251225032800 | Orchestrator | 2025-12-25 03:28 | (INVALID - used twice by mistake) | v02.85 | Signature rejected; same timestamp used multiple times |
-   ```
-
-2. Request NEW signature from user (different timestamp)
-   ```
-   âŒ Signature already consumed [CX-611-A]
-
-   Signature: ilja251225032800
-   First use: {file and line when first used}
-
-   Please provide a NEW signature with a different timestamp.
-   Format: {username}{DDMMYYYYHHMM}
-   ```
-
-3. Update task packets to reference new signature
-4. Document in WP NOTES: "Original signature invalid (used twice); replaced with ilja251225032801"
-
----
-
-### Error 2: Wrong SPEC_ANCHOR in Locked Packet
-
-**Problem:** Packet is locked but SPEC_ANCHOR points to wrong requirement.
-
-**Prevention:** Verify SPEC_ANCHOR exists in Master Spec BEFORE locking:
-```bash
-grep -n "Â§X\.X\.X" .GOV/roles_shared/records/SPEC_CURRENT.md
-# Should return non-zero (section exists)
-```
-
-**Recovery if error occurs:**
-
-**Step 1: Check severity**
-- **CRITICAL (wrong scope):** SPEC_ANCHOR refers to totally different requirement
-  â†’ Create variant packet (WP-{ID}-v2)
-
-- **MINOR (wrong section, same scope):** SPEC_ANCHOR points to same requirement in wrong subsection
-  â†’ Add ERRATA section (read-only)
-
-**Step 2: If CRITICAL â€” Create variant:**
-```markdown
-# Task Packet: WP-1-Storage-Abstraction-Layer-v2
-
-## Authority
-- **SPEC_ANCHOR**: Â§2.3.12.3 (CORRECTED)
-- **Note**: Original WP-1-Storage-Abstraction-Layer used wrong SPEC_ANCHOR (Â§2.3.10); superseded by this version
-
-(Copy rest of original packet, update SPEC_ANCHOR only)
-
----
-
-**User Signature Locked:** ilja251225041502 (new signature for corrected packet)
-```
-
-Update TASK_BOARD to reference v2 (remove original from active list, mark superseded).
-
-**Step 3: If MINOR â€” Add ERRATA:**
-```markdown
-## ERRATA
-
-- **Original SPEC_ANCHOR:** Â§2.3.12 (too broad)
-- **Correct SPEC_ANCHOR:** Â§2.3.12.3 (specific subsection)
-- **Reason:** Typo in section reference; scope unchanged
-- **Date corrected:** 2025-12-25
-- **Action:** No variant needed; correct the section reference mentally
-```
-
-Mark packet with ERRATA note but keep it active (no v2 needed).
-
----
-
-### Error 3: TASK_BOARD Out of Sync with Packets
-
-**Problem:** Operator-visible TASK_BOARD (on `main`) shows an incorrect state vs. the task packet `**Status:**` field (common in multi-branch worktrees).
-
-**Prevention:** Use docs-only status-sync commits:
-- Coder produces a docs-only bootstrap claim commit when starting (task packet set to `In Progress` with claim fields).
-- Validator mirrors that to `main` by updating `.GOV/roles_shared/records/TASK_BOARD.md` -> `## Active (Cross-Branch Status)` (and later moves items on PASS/FAIL).
-
-**Recovery if error occurs:**
-1. Compare TASK_BOARD status vs. each WP's STATUS field
-   ```bash
-   grep "^- STATUS:" .GOV/task_packets/WP-*.md | sort
-   # Compare with .GOV/roles_shared/records/TASK_BOARD.md sections
-   ```
-
-2. Identify discrepancies
-3. Update `main` TASK_BOARD to match packet reality (task packets are source of truth)
-4. Log in decision log (optional): "Status-sync: TASK_BOARD was {X days} out of sync"
-5. Review: Why did sync break? What to do differently?
-
----
-
-### Error 4: Blocker Status Missed in Step 1
-
-**Problem:** You created WP without checking if its blocker was VALIDATED.
-
-**Prevention:** In Part 4 Step 1, always check blocker status:
-```bash
-grep -A3 "BLOCKER" .GOV/task_packets/WP-{upstream-id}.md
-# Should show: STATUS: Done, verdict: VALIDATED
-```
-
-**Recovery if error occurs:**
-1. Immediately mark new WP as BLOCKED in TASK_BOARD
-2. Document: "Discovered blocker after creation; should have been caught in Step 1"
-3. Add to WP NOTES: "Blocker: WP-X (Status: {current status})"
-4. Review: Why was blocker missed? Improve your Step 1 checklist.
-
----
-
-### Error 5: Enrichment Without User Signature
-
-**Problem:** You enriched spec but didn't get user signature beforehand.
-
-**Prevention:** Request signature BEFORE enriching spec (Part 2.5.3).
-
-**Recovery if error occurs:**
-1. Retroactively request user signature for enrichment
-   ```
-   âš ï¸ Signature required (retroactive) [CX-611-B]
-
-   I enriched Master Spec v02.84 â†’ v02.85 with Storage Backend Portability requirements.
-
-   To complete governance, please provide user signature:
-   Format: {username}{DDMMYYYYHHMM}
-   ```
-
-2. Add to SIGNATURE_AUDIT.md once user provides signature:
-   ```markdown
-   | ilja251225050000 | Orchestrator | 2025-12-25 05:00 | (RETROACTIVE) Strategic Pause: Spec enrichment for Phase 1 storage | v02.85 | Retroactive approval for enrichment done at 2025-12-25 03:28 |
-   ```
-
-3. Update task packets to reference signature
-4. Note: "This is debt. Avoid in future by requesting signature BEFORE enriching spec."
-
----
-
-### Error 6: Missing Signature in SIGNATURE_AUDIT.md
-
-**Problem:** You recorded a signature somewhere (WP, protocol, etc.) but forgot to add it to SIGNATURE_AUDIT.md.
-
-**Prevention:** Record EVERY signature immediately upon use in SIGNATURE_AUDIT.md.
-
-**Recovery if error occurs:**
-1. Find the orphaned signature in codebase:
-   ```bash
-   grep -r "ilja251225041500" .GOV/
-   # Shows where it was used
-   ```
-
-2. Add missing entry to SIGNATURE_AUDIT.md with metadata from actual usage
-3. Verify signature format is correct: `{username}{DDMMYYYYHHMM}`
-4. Note: "Added retroactively; ensure all future signatures recorded immediately"
-
----
-
----
-
-## Part 3.5: What Orchestrator MUST Provide to Coder [CX-608]
-
-**BLOCKING REQUIREMENT: Task packets are contracts between Orchestrator and Coder. Every field is mandatory.**
-
-The CODER_PROTOCOL [CX-620-623] defines 11 steps that Coder MUST follow. This section specifies what **Orchestrator MUST provide** to enable Coder's execution. If any field is incomplete, Coder will BLOCK at Step 2 and return the packet for completion.
-
-### Overview: 10 Required Task Packet Fields
-
-Every task packet MUST include all 10 fields in this exact structure:
-
-| Field | Purpose | Completeness Criteria |
-|-------|---------|----------------------|
-| **TASK_ID + WP_ID** | Unique identifier for tracking | Format: `WP-{phase}-{short-name}` (e.g., `WP-1-Storage-DAL`) |
-| **STATUS** | Coder knows when to start | MUST be `Ready-for-Dev` or `In-Progress` (not TBD/Draft) |
-| **RISK_TIER** | Determines validation rigor | MUST be `LOW`, `MEDIUM`, or `HIGH` (with clear justification) |
-| **SCOPE** | Coder knows what to change | 1-2 sentence description + rationale (Business/technical WHY) |
-| **IN_SCOPE_PATHS** | Coder knows which files to modify | EXACT file paths or directories (5-20 entries); no vague patterns like "backend" |
-| **OUT_OF_SCOPE** | Coder knows what NOT to change | Explicit list of deferred work, related tasks, refactoring NOT included |
-| **TEST_PLAN** | Coder knows how to validate | EXACT bash commands (cargo test, pnpm test, etc.); no placeholders |
-| **DONE_MEANS** | Coder knows success criteria | Concrete checklist (3-8 items); 1:1 mapped to SPEC_ANCHOR; no "works well" vagueness |
-| **HARDENED_INVARIANTS** | Security-critical requirements | Mandatory for RISK_TIER: HIGH. Includes: Content-Awareness, NFC Normalization, Atomic Poisoning. |
-| **ROLLBACK_HINT** | Coder knows how to undo | `git revert {commit}` OR explicit undo steps (if multi-step changes) |
-| **BOOTSTRAP** | Coder knows where to start | 4 sub-fields (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP) |
-
-**Coder will verify all 10 fields exist in Step 2 of CODER_PROTOCOL. Missing = BLOCK.**
-
----
-
-### Field 1: TASK_ID & WP_ID (Unique Identifier) [CX-600]
-
-**What Coder expects:**
-- Unique identifier format: `WP-{phase}-{name}`
-- Example: `WP-1-Storage-Abstraction-Layer`
-- Used for: Task board tracking, commit messages, validation logs
-
-**What "complete" means:**
-- âœ… ID is unique (no duplicates in .GOV/task_packets/)
-- âœ… Format matches pattern `WP-{1-9}-{descriptive-name}`
-- âœ… Name reflects actual work (not generic like "Feature-A")
-
-**Example:**
-```markdown
-## Metadata
-- TASK_ID: WP-1-Storage-Abstraction-Layer
-- WP_ID: WP-1-Storage-Abstraction-Layer
-```
-
----
-
-### Field 2: STATUS (Work State) [CX-601]
-
-**What Coder expects:**
-- Coder will BLOCK if status is not clearly "Ready-for-Dev" or "In-Progress"
-- If status is TBD/Draft/Pending, Coder cannot start
-
-**What "complete" means:**
-- âœ… STATUS is `Ready-for-Dev` (packet complete, awaiting assignment)
-- âœ… OR STATUS is `In-Progress` (actively assigned)
-- âœ… NOT: Draft, TBD, Pending, Waiting, Proposed
-
-**Example:**
-```markdown
-## Metadata
-- STATUS: Ready-for-Dev
-```
-
-**Why it matters:**
-- Coder uses this as the GO/NO-GO signal
-- If status is Draft, Coder interprets as incomplete packet
-
----
-
-### Field 3: RISK_TIER (Validation Rigor) [CX-602]
-
-**What Coder expects:**
-- Clear tier that determines validation scope
-- LOW = Docs-only, no behavior change
-- MEDIUM = Code change, one module, no migrations
-- HIGH = Cross-module, migrations, IPC, security
-
-**What "complete" means:**
-- âœ… RISK_TIER is LOW, MEDIUM, or HIGH
-- âœ… Justification provided (why this tier, not lower)
-- ? Matches TEST_PLAN complexity; note manual review requirement for MEDIUM/HIGH in DONE_MEANS or NOTES
-
-**Example:**
-```markdown
-## Quality Gate
-- **RISK_TIER**: HIGH
-  - Justification: Cross-module refactor (AppState, jobs, workflows); includes migration
-  - Requires: cargo test + pnpm test; manual review required
-```
-
-**Why it matters:**
-- LOW tier: Manual review optional
-- MEDIUM tier: Manual review required
-- HIGH tier: Manual review required (blocker if issues remain)
-
----
-
-### Field 4: SCOPE (What to Change) [CX-603]
-
-**What Coder expects:**
-- Clear, unambiguous description of the work
-- Business rationale (WHY this change?)
-- No ambiguity about boundaries
-
-**What "complete" means:**
-- âœ… One-sentence summary: "Add {feature/fix/refactor}"
-- âœ… Business/technical rationale: "Because {reason}"
-- âœ… Boundary clarity: "This does NOT include {related work}"
-
-**Examples:**
-
-âŒ **Incomplete SCOPE:**
-```markdown
-SCOPE: Improve job handling
-```
-
-âœ… **Complete SCOPE:**
-```markdown
-## Scope
-- **What**: Add `/jobs/:id/cancel` endpoint to allow users to stop running jobs
-- **Why**: Users currently have no way to cancel jobs; reduces support load for stuck workflows
-- **Boundary**: This does NOT include retry logic (separate task), UI changes (separate task), or job timeout enforcement (Phase 2)
-```
-
-**Why it matters:**
-- Coder uses SCOPE to decide what's "done"
-- Ambiguous scope = scope creep (Coder implements too much or too little)
-
----
-
-### Field 5: IN_SCOPE_PATHS (Exact File Boundaries) [CX-604]
-
-**What Coder expects:**
-- EXACT file paths Coder is allowed to modify
-- No vague patterns ("backend", "api", "feature-X")
-- 5-20 entries (not 100+)
-
-**What "complete" means:**
-- âœ… Specific file paths (not directories alone): `/src/backend/handshake_core/src/api/jobs.rs`
-- âœ… OR specific directory paths (if entire directory): `/src/backend/handshake_core/migrations/`
-- âœ… 5-20 entries (if >20, likely scope creep; split into multiple WPs)
-- âœ… Paths relative to repo root
-- âœ… Every path in this list is justified by SCOPE
-
-âŒ **Incomplete IN_SCOPE_PATHS:**
-```markdown
-IN_SCOPE_PATHS:
-- src/backend/
-- app/
-```
-
-âœ… **Complete IN_SCOPE_PATHS:**
-```markdown
-## Scope
-- **IN_SCOPE_PATHS**:
-  * src/backend/handshake_core/src/api/jobs.rs (add cancel endpoint)
-  * src/backend/handshake_core/src/jobs.rs (update status enum)
-  * src/backend/handshake_core/src/workflows.rs (stop workflow on cancel)
-  * src/backend/handshake_core/migrations/0003_job_status.sql (new status value)
-  * src/backend/handshake_core/tests/job_cancel_tests.rs (new tests)
-```
-
-**Why it matters:**
-- Coder will ONLY modify these files
-- Validator will flag changes outside IN_SCOPE_PATHS as scope creep
-- Prevents "drive-by" refactoring of unrelated code
-
----
-
-### Field 6: OUT_OF_SCOPE (What NOT to Change) [CX-604B]
-
-**What Coder expects:**
-- Explicit list of what Coder should NOT touch
-- Deferred work, related tasks, refactoring NOT included
-
-**What "complete" means:**
-- âœ… List 3-8 items that sound related but are OUT_OF_SCOPE
-- âœ… Each item has brief reason ("separate task", "Phase 2", "high risk")
-- âœ… Protects against scope creep
-
-âŒ **Incomplete OUT_OF_SCOPE:**
-```markdown
-OUT_OF_SCOPE:
-- Unrelated work
-```
-
-âœ… **Complete OUT_OF_SCOPE:**
-```markdown
-## Scope
-- **OUT_OF_SCOPE**:
-  * UI changes (cancel button in Jobs view) â†’ separate WP
-  * Retry logic (failed job retry) â†’ Phase 2 task
-  * Timeout enforcement (cancel if >N seconds) â†’ Phase 2 task
-  * Job history/audit trail â†’ separate task
-  * Workspace-level job management â†’ separate WP
-```
-
-**Why it matters:**
-- Coder sees these and avoids temptation to "fix it while we're here"
-- Validator can check for scope creep against this list
-- Prevents incomplete features (UI missing when backend is done)
-
----
-
-### Field 7: TEST_PLAN (Exact Validation Commands) [CX-605]
-
-**What Coder expects:**
-- EXACT bash commands to run
-- Not "test the feature"; exact `cargo test`, `pnpm test` commands
-- Coder will copy-paste these commands
-
-**What "complete" means:**
-- âœ… For LOW tier: At least 2-3 commands (cargo test, lint)
-- âœ… For MEDIUM tier: 4-5 commands (manual review noted separately)
-- âœ… For HIGH tier: 5-6 commands (manual review noted separately, stricter checks)
-- âœ… Each command is literal (can be copy-pasted)
-- âœ… Commands are in logical order (build â†’ test â†’ review)
-- âœ… `just post-work WP-{ID}` is ALWAYS included (Step 10 of CODER_PROTOCOL)
-- âœ… `just cargo-clean` (uses ../Handshake Artifacts/handshake-cargo-target) is listed before post-work/self-eval to flush Cargo artifacts outside the repo
-
-âŒ **Incomplete TEST_PLAN:**
-```markdown
-TEST_PLAN:
-- Run tests
-- Check quality
-```
-
-âœ… **Complete TEST_PLAN:**
-```markdown
-## Quality Gate
-- **TEST_PLAN**:
-  ```bash
-  # Compile and unit test
-  cargo test --manifest-path src/backend/handshake_core/Cargo.toml
-
-  # React component tests
-  pnpm -C app test
-
-  # Linting
-  pnpm -C app run lint
-  cargo clippy --all-targets --all-features
-
-
-  # External Cargo target hygiene (keeps repo/mirror slim)
-  just cargo-clean
-
-  # Post-work validation
-  just post-work WP-1-Storage-Abstraction-Layer
-  ```
-```
-
-**Why it matters:**
-- Coder runs EVERY command in TEST_PLAN before claiming done (Step 7 of CODER_PROTOCOL)
-- Exact commands prevent misinterpretation
-- Order matters: compile first, then test, then post-work
-- `just post-work` is the final gate before commit
-
----
-
-### Field 8: DONE_MEANS (Success Criteria) [CX-606]
-
-**What Coder expects:**
-- Concrete, measurable checklist of "done"
-- 1:1 mapped to SPEC_ANCHOR requirements
-- Not vague ("works", "passes tests")
-
-**What "complete" means:**
-- âœ… 3-8 items, each testable
-- âœ… Each item maps to SPEC_ANCHOR: "per Â§2.3.12.1 storage API requirement"
-- âœ… Uses MUST/SHOULD language from spec
-- âœ… Includes validation success: "All tests pass", "manual review complete"
-- âœ… Each item has YES/NO answer (not subjective)
-
-âŒ **Incomplete DONE_MEANS:**
-```markdown
-DONE_MEANS:
-- Feature works
-- Tests pass
-```
-
-âœ… **Complete DONE_MEANS:**
-```markdown
-## Quality Gate
-- **DONE_MEANS**:
-  * âœ… Storage trait defined per Â§2.3.12.1 with 6 required methods (get_blocks, save_blocks, etc.)
-  * âœ… AppState refactored to use `Arc<dyn Database>` (not concrete SqlitePool)
-  * âœ… SqliteDatabase implements trait with all 6 methods (Â§2.3.12.2)
-  * âœ… PostgresDatabase stub created with method signatures (Â§2.3.12.3)
-  * âœ… All existing tests pass (5 units + 3 integration tests)
-  * âœ… All NEW tests pass (2 trait tests + 2 sqlite impl tests)
-  * âœ… manual review complete (PASS/FAIL); unresolved blockers must be fixed
-  * âœ… `just post-work WP-1-Storage-Abstraction-Layer` returns PASS
-```
-
-**Why it matters:**
-- Validator will check each item against code (file:line mapping)
-- Spec anchor references prove this WP is NOT inventing requirements
-- Clear success criteria prevent "done" wars
-
----
-
-### Field 9: ROLLBACK_HINT (How to Undo) [CX-607]
-
-**What Coder expects:**
-- Clear way to revert the work if something goes wrong
-- Simple: `git revert {commit}`
-- Complex: Step-by-step undo instructions
-
-**What "complete" means:**
-- âœ… Simple case: `git revert {commit-hash}` (once Coder provides commit)
-- âœ… Complex case: Multi-step undo guide:
-  ```bash
-  # Step 1: Revert migration
-  # Step 2: Revert trait definition
-  # Step 3: Restore AppState
-  ```
-- âœ… If data migration: Include restore procedure
-
-âŒ **Incomplete ROLLBACK_HINT:**
-```markdown
-ROLLBACK_HINT: Undo changes if needed
-```
-
-âœ… **Complete ROLLBACK_HINT:**
-```markdown
-## Authority
-- **ROLLBACK_HINT**:
-  ```bash
-  git revert <commit-hash>
-  # Single commit reverts:
-  # 1. Trait definition (storage.rs new file)
-  # 2. AppState refactor (app_state.rs)
-  # 3. Migration (0003_storage_api.sql)
-  # 4. Tests (new test file)
-
-  # If already deployed, manual steps:
-  # - Restore previous AppState code
-  # - Run: cargo build
-  # - Restart service
-  ```
-```
-
-**Why it matters:**
-- Validator wants to know rollback cost before approving
-- Guides incident response if WP causes regression
-
----
-
-### Field 10: BOOTSTRAP (Coder's Work Plan) [CX-608]
-
-**What Coder expects:**
-- Clear map of what to read before coding
-- List of files to open, search patterns, commands to run
-- So Coder can validate understanding (Step 5 of CODER_PROTOCOL)
-
-**What "complete" means:**
-
-**Sub-field 10A: FILES_TO_OPEN (5-15 files)**
-- âœ… Always include: `.GOV/roles_shared/docs/START_HERE.md`, `.GOV/roles_shared/records/SPEC_CURRENT.md`, `.GOV/roles_shared/docs/ARCHITECTURE.md`
-- âœ… Then: 5-15 implementation files (exact paths)
-- âœ… Order matters: context first, implementation last
-
-**Sub-field 10B: SEARCH_TERMS (10-20 grep patterns)**
-- âœ… Key symbols: "Database", "AppState", "trait"
-- âœ… Error messages: "connection failed", "pool exhausted"
-- âœ… Feature names: "storage", "migration", "backend"
-- âœ… Total: 10-20 patterns for grep -r searches
-
-**Sub-field 10C: RUN_COMMANDS (3-6 startup commands)**
-- âœ… `just dev` (start dev environment)
-- âœ… `cargo test --manifest-path ...` (verify setup)
-- âœ… `pnpm -C app test` (verify frontend setup)
-- âœ… Commands Coder can run to validate dev environment
-
-**Sub-field 10D: RISK_MAP (3-8 failure modes)**
-- âœ… "{Failure mode}" -> "{Affected subsystem}"
-- âœ… Examples:
-  - "Trait method missing" -> "Storage layer"
-  - "IPC contract breaks" -> "Tauri bridge"
-  - "Migration fails" -> "Database layer"
-
-âŒ **Incomplete BOOTSTRAP:**
-```markdown
-## Bootstrap
-- FILES_TO_OPEN: Some files
-- SEARCH_TERMS: storage, database
-- RUN_COMMANDS: cargo test
-- RISK_MAP: TBD
-```
-
-âœ… **Complete BOOTSTRAP:**
-```markdown
-## Bootstrap (Coder Work Plan)
-- **FILES_TO_OPEN**:
-  * .GOV/roles_shared/docs/START_HERE.md (repository overview)
-  * .GOV/roles_shared/records/SPEC_CURRENT.md (current spec version)
-  * .GOV/roles_shared/docs/ARCHITECTURE.md (storage architecture)
-  * src/backend/handshake_core/src/lib.rs (module structure)
-  * src/backend/handshake_core/src/api/mod.rs (API layer)
-  * src/backend/handshake_core/src/api/jobs.rs (job endpoints - MODIFY)
-  * src/backend/handshake_core/src/jobs.rs (job logic - MODIFY)
-  * src/backend/handshake_core/src/workflows.rs (workflow logic - MODIFY)
-  * src/backend/handshake_core/src/storage/ (new module - CREATE)
-  * src/backend/handshake_core/migrations/ (schema changes)
-  * app/src/components/JobsView.tsx (frontend display)
-
-- **SEARCH_TERMS**:
-  * "pub struct AppState" (current app state)
-  * "pub struct SqlitePool" (direct DB access - refactor away)
-  * "pub trait Database" (new trait we're defining)
-  * "impl Database for SqliteDatabase" (implementation)
-  * "fn get_blocks", "fn save_blocks" (trait methods)
-  * "migration", "CREATE TABLE" (schema changes)
-  * "#[tokio::test]" (test patterns)
-  * "dyn Database" (trait object usage)
-  * "Arc<dyn Database>" (correct dependency injection)
-  * "PostgreSQL", "sqlite3" (backend references)
-
-- **RUN_COMMANDS**:
-  ```bash
-  just dev          # Start dev environment (backend + frontend)
-  cargo test --manifest-path src/backend/handshake_core/Cargo.toml  # Unit/integration tests
-  pnpm -C app test  # React component tests
-  just validate     # Full hygiene check
-  ```
-
-- **RISK_MAP**:
-  * "Trait method signature mismatch" -> "Storage layer" (causes compilation failure)
-  * "AppState refactor incomplete" -> "All job/workflow endpoints" (runtime panics)
-  * "Migration doesn't match new schema" -> "Database layer" (corrupt schema)
-  * "Impl for SqliteDatabase incomplete" -> "Local storage" (missing functionality)
-  * "PostgreSQL stub not compilable" -> "Build pipeline" (compilation blocker)
-  * "Test coverage gap" -> "Validator blocks merge" (validation failure)
-```
-
-**Why it matters:**
-- Coder uses this to output BOOTSTRAP block before implementing (Step 5 of CODER_PROTOCOL)
-- Validator checks: "Did Coder read these files?" via BOOTSTRAP output
-- Risk map helps Coder understand impact of mistakes
-
----
-
-### Summary: How Orchestrator Uses This Section
-
-**Before creating task packet:**
-1. âœ… Fill all 10 fields with the completeness criteria above
-2. âœ… Validate: Every field has no TBDs, placeholders, or vagueness
-3. âœ… Run `just pre-work WP-{ID}` to verify file structure
-4. âœ… Pass to Validator if they exist, or proceed to delegation
-
-**When delegating to Coder:**
-- Coder will verify all 10 fields in Step 2 of CODER_PROTOCOL
-- If ANY field is incomplete, Coder will BLOCK and return for fixes
-- Once all 10 fields are complete, Coder can proceed confidently
-
-**When Validator reviews:**
-- Validator will check: Does task packet enable Coder's work?
-- Validator will also check: Are DONE_MEANS 1:1 with SPEC_ANCHOR?
-- Validator will verify: Is IN_SCOPE_PATHS necessary and sufficient?
-
----
-
-## Part 4: Task Packet Creation Workflow [CX-601-607]
-
----
-
-## Pre-Delegation Checklist (BLOCKING âœ‹)
-
-Complete ALL steps before delegating. If any step fails, STOP and fix it.
-
-### Step 1: Verify Understanding & Blockers âœ‹ STOP
-
-**Before creating task packet, ensure:**
-- [ ] User request is clear and unambiguous
-- [ ] Scope is well-defined (what's in/out)
-- [ ] Success criteria are measurable
-- [ ] You understand acceptance criteria
-
-**NEW: Check for blocking dependencies:**
-```bash
-# Verify blocker status in TASK_BOARD
-grep -A5 "## Blocked" .GOV/roles_shared/records/TASK_BOARD.md
-```
-
-**NEW: Concurrency / File-Lock Conflict Check (multi-coder sessions) [CX-CONC-001]**
-
-When multiple Coders work in the repo concurrently, treat `IN_SCOPE_PATHS` as the exclusive file lock set for that WP.
-
-- Lock source of truth: Operator-visible Task Board on `main` (recommended: `git show main:.GOV/roles_shared/records/TASK_BOARD.md`) -> `## In Progress` (and `## Active (Cross-Branch Status)` if present).
-- Lock set definition: for each in-progress WP, its lock set is the exact file paths listed under its task packet's `IN_SCOPE_PATHS`.
-- Hard rule: do NOT delegate/start a new WP if ANY `IN_SCOPE_PATHS` entry overlaps with ANY in-progress WP's `IN_SCOPE_PATHS`.
-  - If overlap is required, this is a blocker: re-scope to avoid overlap OR sequence the work (mark WP BLOCKED: "File lock conflict").
-- Task Board stays minimal: `## In Progress` uses script-checked lines only. Claim details live in the task packet metadata (CODER_MODEL, CODER_REASONING_STRENGTH); optional branch/coder metadata may be tracked under `## Active (Cross-Branch Status)` on `main`.
-
-Blocking template (use when overlap is detected):
-```
-Æ’?O BLOCKED: File lock conflict [CX-CONC-001]
-
-Candidate WP: {WP_ID}
-Conflicts with in-progress WP: {OTHER_WP_ID} (see task packet CODER_MODEL / CODER_REASONING_STRENGTH)
-
-Overlapping paths:
-- {path1}
-- {path2}
-
-Action required:
-1) Re-scope candidate WP to avoid overlap, OR
-2) Sequence work: wait until {OTHER_WP_ID} is VALIDATED and leaves In Progress.
-```
-- [ ] If this WP has a blocker: Is blocker VALIDATED? âœ…
-- [ ] If blocker is not VALIDATED: Mark new WP as BLOCKED (don't proceed yet)
-- [ ] If blocker failed validation (FAIL): Escalate; don't create this WP until blocker fixed
-
-**BLOCKING RULE:** Never create downstream WP if blocker is not VALIDATED.
-If blocker is READY/IN-PROGRESS/BLOCKED â†’ Mark new WP as BLOCKED in TASK_BOARD.
-
-**IF UNCLEAR (Requirements ambiguous):**
-```
-âŒ BLOCKED: Requirements unclear [CX-584]
-
-I need clarification on:
-1. [Specific ambiguity]
-2. [Missing information]
-3. [Conflicting requirements]
-
-Please provide clarification before I can create a task packet.
-```
-
-**IF BLOCKER NOT READY (Dependency not VALIDATED):**
-```
-âš ï¸ BLOCKED: Depends on unresolved blocker [CX-635]
-
-This WP depends on:
-- WP-1-Storage-Abstraction-Layer (Status: In Progress, not VALIDATED)
-
-Blocker ETA: [when do you expect this to VALIDATE?]
-
-Action: I'm marking this WP as BLOCKED in TASK_BOARD.
-When blocker VALIDATEs, I'll move this to READY FOR DEV.
-```
-
-**STOP** - Do not proceed with assumptions or unresolved blockers.
-
----
-
-### Step 2: Create Task Packet âœ‹ STOP
-
-**1. Check for ID collision:**
-```bash
-ls .GOV/task_packets/WP-{phase}-{name}*.md
-```
-*Do NOT use date/time stamps in WP IDs. If the base WP ID already exists, create a revision packet using `-v{N}`.*
-*Example: `WP-1-Tokenization-Service-v3`*
-
-**2. Use template generator:**
-```bash
-just create-task-packet "WP-{phase}-{name}-v{N}"
-```
-*If script fails -> STOP. Resolve collision.*
-
-**3. Hydration rule (default):**
-- If the signed refinement uses `REFINEMENT_ENFORCEMENT_PROFILE: HYDRATED_RESEARCH_V1`, `just create-task-packet` MUST auto-hydrate the packet from the refinement.
-- In that path, manual packet transcription is forbidden. Review the generated packet, but do not silently rewrite scope/test/bootstrap/UI/research decisions without updating the signed refinement first.
-- Legacy/manual placeholder fill is allowed only for older refinements that do not use the hydrated profile.
-
-**4. Legacy manual fill (only if packet is not hydrated):**
-Edit `.GOV/task_packets/WP-{ID}.md` to fill the remaining placeholders.
-
-Use this template:
-```markdown
-# Task Packet: WP-{phase}-{short-name}
-
-## Metadata
-- TASK_ID: WP-{phase}-{short-name}
-- DATE: {ISO 8601 timestamp}
-- REQUESTOR: {user or source}
-- AGENT_ID: {your agent ID}
-- ROLE: Orchestrator
-
-## Scope
-- **What**: {1-2 sentence description}
-- **Why**: {Business/technical rationale}
-- **IN_SCOPE_PATHS**:
-  * {specific file or directory}
-  * {another specific path}
-- **OUT_OF_SCOPE**:
-  * {what NOT to change}
-  * {deferred work}
-
-## Quality Gate
-- **RISK_TIER**: LOW | MEDIUM | HIGH
-  - LOW: Docs-only, no behavior change
-  - MEDIUM: Code change, one module, no migrations
-  - HIGH: Cross-module, migrations, IPC, security
-- **TEST_PLAN**:
-  ```bash
-  # Commands coder MUST run:
-  cargo test --manifest-path src/backend/handshake_core/Cargo.toml
-  pnpm -C app test
-  pnpm -C app run lint
-  ```
-- **DONE_MEANS**:
-  * {Specific criterion 1}
-  * {Specific criterion 2}
-  * All tests pass
-  * Validation clean
-- **ROLLBACK_HINT**:
-  ```bash
-  git revert <commit-sha>
-  # OR: Specific undo steps
-  ```
-
-## Bootstrap (Coder Work Plan)
-- **FILES_TO_OPEN**:
-  * .GOV/roles_shared/docs/START_HERE.md
-  * .GOV/roles_shared/records/SPEC_CURRENT.md
-  * .GOV/roles_shared/docs/ARCHITECTURE.md
-  * {5-10 implementation-specific files}
-- **SEARCH_TERMS**:
-  * "{key symbol/function}"
-  * "{error message}"
-  * "{feature name}"
-  * "{5-20 grep targets}"
-- **RUN_COMMANDS**:
-  ```bash
-  just dev
-  cargo test --manifest-path src/backend/handshake_core/Cargo.toml
-  pnpm -C app test
-  ```
-- **RISK_MAP**:
-  * "Database migration fails" -> Storage layer
-  * "IPC contract breaks" -> Tauri bridge
-  * "{3-8 failure modes}" -> "{affected subsystem}"
-
-## Authority
-- **SPEC_BASELINE**: Handshake_Master_Spec_vXX.XX.md (spec at packet creation time; provenance)
-- **SPEC_TARGET**: .GOV/roles_shared/records/SPEC_CURRENT.md (binding spec for closure/revalidation; resolved at validation time)
-- **SPEC_ANCHOR**: {master spec section(s) / anchors}
-- **Codex**: Handshake Codex v1.4.md (see .GOV/roles_shared/records/SPEC_CURRENT.md)
-- **Task Board**: .GOV/roles_shared/records/TASK_BOARD.md
-- **Logger**: (optional) latest Handshake_logger_* if requested for milestone/hard bug
-- **ADRs**: {if relevant}
-
-## Notes
-- **Assumptions**: {If any - mark as ASSUMPTION}
-- **Open Questions**: {If any - must resolve before coding}
-- **Dependencies**: {Other work this depends on}
-```
-
-**Verify file created:**
-```bash
-ls -la .GOV/task_packets/WP-*.md
-```
-
----
-
-### Step 3: Update Task Board âœ‹ STOP
-
-**Update `.GOV/roles_shared/records/TASK_BOARD.md`:**
-- Move WP-{ID} to "Ready for Dev"
-- Or "In Progress" if assigning immediately
-
-**Verify file updated:**
-```bash
-grep "WP-{ID}" .GOV/roles_shared/records/TASK_BOARD.md
-```
-
-**Note:** You DO NOT need to create a logger entry at this stage. Logger entries are reserved for work completion, milestones, or critical blockers.
-
----
-
-### Step 4: Verification âœ‹ STOP
-
-**Run automated check:**
-```bash
-just pre-work WP-{ID}
-```
-
-**MUST see:**
-```
-âœ… Pre-work validation PASSED
-
-You may proceed with delegation.
-```
-
-**If FAIL:**
-```
-âŒ Pre-work validation FAILED
-
-Errors:
-  1. [Error description]
-
-Fix these issues before delegating.
-```
-
-Fix errors, then re-run `just pre-work`.
-
----
-
-### Step 5: Delegate to Coder
-
-**Hand
-
-off message format:**
-```
-Task Packet: .GOV/task_packets/WP-{ID}.md
-WP_ID: WP-{ID}
-RISK_TIER: {LOW|MEDIUM|HIGH}
-
-ðŸ“‹ Task: {One line summary}
-
-You are a Coder agent. Before writing code:
-1. Read .claude/CODER_PROTOCOL.md
-2. Read the task packet above
-3. Run: just pre-work WP-{ID}
-4. Output BOOTSTRAP block per [CX-622]
-5. Verify packet scope matches user request
-
-Authority docs:
-- .GOV/roles_shared/docs/START_HERE.md
-- .GOV/roles_shared/records/SPEC_CURRENT.md
-- .GOV/roles_shared/docs/ARCHITECTURE.md
-- Handshake Codex v1.4.md
-
-âœ… Orchestrator checklist complete. Task packet WP-{ID} created and verified.
-
-Begin implementation when ready.
-```
-
----
-
-## Task State Management (Shared Responsibility)
-
-Task state is managed by the agent currently holding the "ball":
-1. **Orchestrator**: Creates WP -> Adds to `Ready for Dev`.
-2. **Coder**: Starts work -> Moves to `In Progress` (during BOOTSTRAP).
-3. **Validator**: Approves work -> Moves to `Done` (during VALIDATION).
-4. **Orchestrator**: Escalation/Blocker -> Moves to `Blocked`.
-
-### Orchestrator Board Integrity Check âœ‹
-When updating the board, the Orchestrator MUST ensure these 5 fixed sections exist (DO NOT delete them even if empty):
-- `## Ready for Dev`
-- `## In Progress`
-- `## Done`
-- `## Blocked`
-- `## Superseded (Archive)`
-
-### Step 1: Update Task Packet STATUS
-
-When a task's state changes (e.g., from `Ready-for-Dev` to `In-Progress`, or to `Done`), the active agent MUST edit the corresponding task packet markdown file to update the `STATUS` field in the metadata.
-
-### Step 2: Update the Task Board
-
-Immediately after updating the packet's status, the active agent MUST also edit `.GOV/roles_shared/records/TASK_BOARD.md` to move the `WP-ID` to the correct column.
-
-**This two-step process ensures both the detailed ticket and the high-level board are always in sync.**
-
----
-
-## BLOCKING RULES (Non-Negotiable)
-
-### âŒ DO NOT delegate if:
-1. Requirements are unclear or ambiguous [CX-584]
-2. Task packet file does not exist [CX-580]
-3. `just pre-work` validation fails [CX-587]
-4. You haven't confirmed packet completeness [CX-582]
-
-### âœ… DO delegate when:
-1. All steps complete
-2. `just pre-work WP-{ID}` returns PASS
-3. Handoff message includes all required info
-4. You've confirmed coder understands the task
-
----
-
-## If Blocked
-
-**Scenario**: User request is too vague
-
-**Response**:
-```
-âŒ BLOCKED: Cannot create task packet [CX-584]
-
-The request is ambiguous on:
-- {Specific ambiguity 1}
-- {Specific ambiguity 2}
-
-Please clarify:
-1. {Question 1}
-2. {Question 2}
-
-Once clarified, I can create a complete task packet.
-```
-
-**Scenario**: Missing context (no spec slice provided)
-
-**Response**:
-```
-âŒ BLOCKED: Missing LAW context [CX-031]
-
-This task requires information from:
-- {Spec section or context needed}
-
-Please provide this context OR narrow the task to what's feasible without it.
-```
-
-**Scenario**: Too large/complex for single packet
-
-**Response**:
-```
-âš ï¸ WARNING: Task is large [CX-584]
-
-This task touches:
-- {Multiple subsystems}
-- {High complexity areas}
-
-Recommendation: Break into smaller work packets:
-1. WP-{phase}-{part-A}: {Scope A}
-2. WP-{phase}-{part-B}: {Scope B}
-
-Proceed with breakdown? Or continue with full scope?
-```
-
----
-
-## Common Mistakes (Avoid These)
-
-### âŒ Mistake 1: Vague scope
-**Wrong:**
-```
-SCOPE: Improve the job system
-```
-**Right:**
-```
-SCOPE: Add `/jobs/:id/cancel` endpoint to allow users to cancel running jobs
-IN_SCOPE_PATHS:
-- src/backend/handshake_core/src/api/jobs.rs
-- src/backend/handshake_core/src/jobs.rs
-OUT_OF_SCOPE:
-- Job retry logic (separate task)
-- UI changes (separate task)
-```
-
-### âŒ Mistake 2: Missing DONE_MEANS
-**Wrong:**
-```
-DONE_MEANS: Feature works
-```
-**Right:**
-```
-DONE_MEANS:
-- POST /jobs/:id/cancel returns 200 for running jobs
-- Job status updates to "cancelled" in database
-- Workflow execution stops within 5 seconds
-- cargo test passes (2 new tests added)
-- pnpm test passes
-```
-
-### âŒ Mistake 3: Incomplete BOOTSTRAP
-**Wrong:**
-```
-FILES_TO_OPEN: Some files
-```
-**Right:**
-```
-FILES_TO_OPEN:
-- .GOV/roles_shared/docs/START_HERE.md
-- .GOV/roles_shared/docs/ARCHITECTURE.md
-- src/backend/handshake_core/src/api/jobs.rs
-- src/backend/handshake_core/src/jobs.rs
-- src/backend/handshake_core/src/workflows.rs
-- src/backend/handshake_core/src/models.rs
-- src/backend/handshake_core/migrations/0002_create_ai_core_tables.sql
-```
-
-### âŒ Mistake 4: Delegating without verification
-**Wrong:**
-```
-I created the packet. Coder, start coding.
-```
-**Right:**
-```
-Running verification:
-$ just pre-work WP-1-Job-Cancel
-
-âœ… Pre-work validation PASSED
-
-Task Packet: .GOV/task_packets/WP-1-Job-Cancel.md
-[Full handoff message...]
-```
-
----
-
-## Success Criteria
-
-**You succeeded if:**
-- âœ… Task packet file exists and is complete
-- âœ… `just pre-work WP-{ID}` passes
-- âœ… Coder receives clear handoff message
-- âœ… **YOU STOPPED TALKING** after the handoff message
-
-**You failed if:**
-- âŒ You wrote code in `src/` or `app/`
-- âŒ Coder asks "what should I do?"
-- âŒ Coder starts coding without packet
-- âŒ Work gets rejected at review for missing packet
-- âŒ Scope confusion leads to wrong implementation
-
----
-
-## Quick Reference
-
-**Commands:**
-```bash
-# Create packet
-just create-task-packet WP-{ID}
-
-# Verify readiness
-just pre-work WP-{ID}
-
-# Check packet exists
-ls .GOV/task_packets/WP-*.md
-```
-
-**Codex rules enforced:**
-- [CX-580]: Packet MUST be created before delegation
-- [CX-581]: Packet MUST have required structure
-- [CX-582]: Packet MUST be verified before delegation
-- [CX-584]: MUST NOT delegate ambiguous work
-- [CX-585]: Update task board; logger only if explicitly requested for milestone/hard bug
-- [CX-587]: SHOULD run pre-work check
-
-**Remember**: Better to spend 10 minutes on a good task packet than 2 hours fixing misunderstood work.
-
----
-
-## Part 5: Work Packet Lifecycle in Detail [CX-620-625]
-
-### 5.1 Required Fields in Every Work Packet
-
-Every work packet MUST include these sections (in order):
-
-```markdown
-# Task Packet: WP-{phase}-{name}
-
-## Metadata
-- TASK_ID: WP-{phase}-{name}
-- DATE: {ISO 8601 timestamp}
-- REQUESTOR: {user or source}
-- AGENT_ID: {your agent ID}
-- ROLE: Orchestrator
-- STATUS: {Ready-for-Dev|In-Progress|Done|Blocked}
-
-## Scope
-- **What**: {1-2 sentence description}
-- **Why**: {Business/technical rationale}
-- **IN_SCOPE_PATHS**: {Exact file paths - NOT vague directories}
-  * src/backend/handshake_core/src/storage/mod.rs
-  * src/backend/handshake_core/src/storage/sqlite.rs
-- **OUT_OF_SCOPE**: {What Coder CANNOT touch}
-  * Migrations rewrite (â†’ WP-1-Migration-Framework)
-
-## Quality Gate
-- **RISK_TIER**: LOW | MEDIUM | HIGH
-- **TEST_PLAN**: {Exact bash commands}
-- **DONE_MEANS**: {Measurable criteria - 1:1 mapped to SPEC_ANCHOR}
-- **ROLLBACK_HINT**: {How to undo}
-
-## BOOTSTRAP (Coder Work Plan)
-- **FILES_TO_OPEN**: {5-15 key files}
-- **SEARCH_TERMS**: {10-20 grep targets}
-- **RUN_COMMANDS**: {Startup + validation commands}
-- **RISK_MAP**: {Failure modes â†’ subsystems (3-8 items)}
-
-## Authority
-- **SPEC_ANCHOR**: Â§{section} ({requirement})
-- **Codex**: {version}
-- **Task Board**: .GOV/roles_shared/records/TASK_BOARD.md
-- **Logger**: {if applicable}
-
-## Notes
-- **Assumptions**: {Any assumptions}
-- **Open Questions**: {Questions to resolve}
-- **Dependencies**: {Other WPs this depends on}
-
----
-
-**Last Updated:** {date}
-**User Signature Locked:** {signature}
-```
-
-### 5.2 SPEC_ANCHOR Requirement (CRITICAL) [CX-601]
-
-**EVERY WP MUST reference Master Spec Main Body (NOT Roadmap).**
-
-**CLARIFICATION: Orchestrator's Role in SPEC_ANCHOR Verification**
-
-Orchestrator DOES verify (checklist below):
-- âœ… SPEC_ANCHOR cites a Main Body section (not Roadmap)
-- âœ… Cited section exists in SPEC_CURRENT.md
-- âœ… Section number is specific (Â§2.3.12.1, not Â§2.3.12 alone)
-
-Orchestrator DOES NOT verify (Validator verifies this):
-- âŒ Whether the cited requirement is the RIGHT interpretation
-- âŒ Whether this requirement is complete/correct
-- âŒ Whether all MUST/SHOULD from that section are covered
-
-**If SPEC_ANCHOR is ambiguous** (could map to multiple sections):
-â†’ ESCALATE to user; get explicit decision before proceeding.
-Do not guess which section is correct.
-
-**Valid SPEC_ANCHOR examples:**
-- `Â§2.3.12.1 (Four Portability Pillars)`
-- `Â§2.3.12.3 (Storage API Abstraction Pattern)`
-- `Â§A9.2.1 (Error Code Registry)`
-
-**Invalid (REJECT these):**
-- `Â§Future Work (Phase 2+)` â€” Not Main Body
-- `Â§Roadmap` â€” Not specific enough
-- No SPEC_ANCHOR at all â€” Every WP requires one
-- `Â§2.3.12` alone â€” Too broad; need specific subsection
-
-**Orchestrator verification checklist:**
-- [ ] SPEC_ANCHOR references MAIN BODY section (before Roadmap)
-- [ ] SPEC_ANCHOR exists in latest Master Spec version
-- [ ] Section number is specific (Â§X.X.X format)
-- [ ] If multiple valid sections exist â†’ ESCALATE to user for clarification
-
-**If FAIL:** Reject WP; request Orchestrator cite spec requirement explicitly or escalate.
-
-### 5.3 IN_SCOPE_PATHS Precision [CX-603]
-
-**Orchestrator MUST be specific (NOT vague).**
-
-```
-âŒ WRONG: IN_SCOPE_PATHS: src/backend
-âŒ WRONG: IN_SCOPE_PATHS: src/
-âŒ WRONG: IN_SCOPE_PATHS: Everything related to storage
-
-âœ… RIGHT: IN_SCOPE_PATHS:
-  - src/backend/handshake_core/src/storage/mod.rs
-  - src/backend/handshake_core/src/storage/sqlite.rs
-  - src/backend/handshake_core/src/api/jobs.rs
-```
-
-**Why:** Coder needs to know EXACTLY which files they can modify. Vague scope = scope creep.
-
-### 5.4 DONE_MEANS Mapping [CX-602]
-
-**Every DONE_MEANS MUST map 1:1 to SPEC_ANCHOR requirement.**
-
-Example:
-```markdown
-SPEC_ANCHOR: Â§2.3.12.3 (Storage API Abstraction Pattern)
-
-Spec says:
-- "MUST: Define Database trait with async methods"
-- "MUST: Implement SqliteDatabase wrapper"
-- "MUST: Create PostgresDatabase stub"
-
-DONE_MEANS (mapped):
-- [ ] MUST: Database trait defined (Â§2.3.12.3, requirement 1)
-- [ ] MUST: SqliteDatabase implemented (Â§2.3.12.3, requirement 2)
-- [ ] MUST: PostgresDatabase stub created (Â§2.3.12.3, requirement 3)
-- [ ] All tests pass
-- [ ] Validator sign-off (PASS verdict)
-```
-
-**Rule:** If DONE_MEANS doesn't map to spec, Validator rejects it.
-
-### 5.5 BOOTSTRAP Completeness [CX-606]
-
-**Orchestrator MUST provide:**
-
-1. **FILES_TO_OPEN (5-15 files minimum)**
-   - Spec docs (SPEC_CURRENT.md, Master Spec section)
-   - Architecture docs (ARCHITECTURE.md, relevant design docs)
-   - Implementation files (files Coder will modify)
-   - Related modules (dependencies, imports)
-
-2. **SEARCH_TERMS (10-20 grep targets minimum)**
-   - Key symbols to find (`SqlitePool`, `state.pool`)
-   - Error messages to look for
-   - Feature names to search
-   - Pattern names (`DefaultStorageGuard`)
-
-3. **RUN_COMMANDS (startup + validation)**
-   - Dev environment startup (`just dev`)
-   - Test commands (`cargo test`, `pnpm test`)
-   - Validation commands (`just validate`) + manual review requirement
-
-4. **RISK_MAP (3-8 failure modes)**
-   - Specific failure mode
-   - Which subsystem breaks
-   - Example: `"Hollow trait implementation" â†’ Portability Failure (Phase 1 blocker)`
-
-### 5.6 Work Packet Locking [CX-607]
-
-**Orchestrator MUST lock packet after creation:**
-
-```markdown
----
-
-**Last Updated:** 2025-12-25
-**User Signature Locked:** ilja251220250328
-
-**IMPORTANT: This packet is locked. No edits allowed.**
-**If changes needed: Create NEW packet (WP-{ID}-variant), do NOT edit this one.**
-```
-
-**Rule of Locking:**
-- âœ… Once locked, packet is immutable
-- âœ… Prevents instruction creep mid-work
-- âœ… Creates audit trail (version history)
-- âŒ Cannot edit locked packet (violates governance)
-- âŒ If changes needed, must create new packet
-
-**When to create variant packets:**
-- WP-1-Storage-Abstraction-Layer (original, locked)
-- WP-1-Storage-Abstraction-Layer-v2 (changes needed, new packet)
-- OR: WP-1-Storage-Abstraction-Layer-v3 (next revision; no date/time stamps)
-
-**Traceability rule (mandatory when variants exist):**
-- Treat `WP-1-Storage-Abstraction-Layer` as the **Base WP ID**.
-- If you create `...-v{N}`, update `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` so the Base WP maps to the single Active Packet, and mark the older packet(s) as Superseded on `.GOV/roles_shared/records/TASK_BOARD.md`.
-- When instructing Coders/Validators to run `just pre-work` / `just post-work`, always provide the **Active Packet WP_ID** (often includes `-vN`) to avoid ambiguous matches.
-
-### 5.7 Variant Lineage Audit (ALL versions) [CX-580E] (BLOCKING)
-
-When you create a revision packet (`-v{N}`) for a Base WP, you MUST include a **Lineage Audit** inside the new packet before delegation.
-
-**Goal:** Prevent â€œspecâ†’packetâ†’codeâ€ gaps caused by version churn. A `-v{N}` packet is NOT allowed to validate only â€œwhat changed in v{N}â€; it must prove the **entire Base WP requirement** is satisfied in the repo as of SPEC_TARGET.
-
-**MANDATORY:** Add `## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]` to the new packet and include, at minimum:
-- `BASE_WP_ID` and the new `WP_ID` being created.
-- Roadmap pointer(s) (if applicable) AND the governing Master Spec Main Body anchors for â€œDoneâ€.
-- `SPEC_TARGET` resolved at creation time (from `.GOV/roles_shared/records/SPEC_CURRENT.md`).
-- A list of ALL known prior packet files for the Base WP (v1/v2/...) and their statuses (Superseded/FAIL/Historical/etc.).
-- A requirement map showing every governing Main Body MUST/SHOULD translated to current repo evidence:
-  - `SPEC_ANCHOR` (exact clause ID)
-  - Code evidence (`path:line` in the repo)
-  - Provenance (introducing commit via `git blame`, or explicit â€œpresent before v{N}â€)
-  - If anything is missing: declare GAP and STOP (create a remediation WP or initiate spec enrichment).
-
-**Suggested commands (examples):**
-- `cat .GOV/roles_shared/records/SPEC_CURRENT.md`
-- `rg -n "<forbidden symbols>" src/`
-- `git blame -n -L <line>,<line> <path>`
-- `git log --oneline --decorate -- <path>`
-
-**Template (copy into the packet):**
-```markdown
-## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]
-- BASE_WP_ID: WP-1-...
-- WP_ID: WP-1-...-vN
-- SPEC_TARGET: Handshake_Master_Spec_vXX.XXX.md (from .GOV/roles_shared/records/SPEC_CURRENT.md)
-- Roadmap pointer: Â§7.6.x (pointer only; Main Body is authority)
-- Prior packets:
-  - .GOV/task_packets/WP-1-....md (status: ...)
-  - .GOV/task_packets/WP-1-....-v2.md (status: ...)
-
-| SPEC_ANCHOR | Main Body requirement (MUST/SHOULD) | Repo evidence (path:line) | Introduced (commit) | Notes |
-|---|---|---|---|---|
-| A?.?.? | ... | ... | ... | ... |
-```
-
----
-
-## Part 6: Task Board Maintenance [CX-625-630]
-
-### 6.1 Task Board Structure (Single Source of Truth)
-
-**Orchestrator maintains `.GOV/roles_shared/records/TASK_BOARD.md` as the authoritative status tracker.**
-
-```markdown
-# Handshake Project Task Board
-
-This board is a shared state file updated by the active agent (Orchestrator, Coder, Validator).
-Updated whenever WP status changes.
-
----
-
-## ðŸš¨ PHASE 1 CLOSURE GATES (BLOCKING)
-
-**Authority:** Master Spec Â§2.3.12, Architecture Decision {date}
-
-Storage Backend Portability Foundation (Sequential):
-
-1. **[WP-1-Storage-Abstraction-Layer]** - Define trait-based storage API
-   - Lead: Coder (Senior Systems Engineer)
-   - Effort: 15-20 hours
-   - Status: [READY FOR DEV ðŸ”´]
-   - Blocker: None (foundational)
-
-2. **[WP-1-AppState-Refactoring]** - Remove SqlitePool from AppState
-   - Lead: Coder (Senior Systems Engineer)
-   - Effort: 8-10 hours
-   - Status: [GAP ðŸŸ¡]
-   - Blocker: WP-1-Storage-Abstraction-Layer (MUST COMPLETE FIRST)
-
----
-
-## In Progress
-
-- **[WP_ID]** - {VALIDATION_STATUS}
-
-## Ready for Dev
-
-- **[WP_ID]** - {VALIDATION_STATUS}
-
-## Done
-
-- **[WP_ID]** - {VALIDATION_STATUS}
-
-## Blocked
-
-- **[WP_ID]** - BLOCKED: {Reason for block}
-
-## Superseded (Archive)
-
-- **[WP_ID]** - SUPERSEDED: {Reason for archival}
-```
-
-### 6.2 Status Values (CX-625)
-
-| Status | Symbol | Meaning | When to Use |
-|--------|--------|---------|------------|
-| **READY FOR DEV** | ðŸ”´ | Verified, waiting for Coder | After pre-work checklist PASS |
-| **IN PROGRESS** | ðŸŸ  | Coder is working | After Coder outputs BOOTSTRAP |
-| **BLOCKED** | ðŸŸ¡ | Waiting for dependency/clarification | Document specific reason |
-| **DONE** | âœ… | Merged to main | After Validator approves |
-| **GAP** | ðŸŸ¡ | Not yet created as packet | Before Orchestrator creates |
-
-### 6.3 Orchestrator Responsibilities for TASK_BOARD
-
-**Ensure TASK_BOARD is updated IMMEDIATELY when:**
-1. New WP created â†’ Move to "Ready for Dev"
-2. Coder starts work â†’ Ensure the Coder has produced a docs-only bootstrap claim commit; Validator status-syncs `main` (updates `## In Progress`; optionally also `## Active (Cross-Branch Status)`).
-3. Blocker discovered â†’ Move to "Blocked" + document reason
-4. Validator approves â†’ Validator moves to "Done" (Orchestrator verifies TASK_BOARD reflects reality)
-5. Dependency unblocked â†’ Move blocked WP to "Ready for Dev"
-
-**Keep TASK_BOARD in sync with reality:**
-```
-Never let TASK_BOARD drift from actual WP status.
-If the Operator-visible Task Board on `main` does not reflect packet reality, the Validator must run a docs-only status-sync commit to correct it.
-```
-
-### 6.3A Orchestrator Responsibilities for BUILD_ORDER (Advisory; upkeep is binding) [CX-BO-001]
-
-Handshake build sequencing is advisory, but maintaining the sequencing guide is a binding Orchestrator responsibility.
-
-- Build order file: `.GOV/roles_shared/records/BUILD_ORDER.md`
-- The build order MUST NOT contradict SPEC_CURRENT; the Master Spec + active task packets define "Done".
-- The Orchestrator MUST keep BUILD_ORDER current when:
-  - refinement discovers new stubs, force-multiplier combos, or runtime rollout ordering,
-  - a stub becomes activated (new official packet) or a new `-vN` revision becomes active,
-  - dependencies change (new blockers discovered / resolved),
-  - SPEC_CURRENT changes in a way that reshapes Phase 1 deliverables.
-- Dependencies MUST still be recorded concretely in:
-  - task packet `## Dependencies`, and
-  - `.GOV/roles_shared/records/TASK_BOARD.md` blocker lines.
-
-### 6.4 Phase Gate Status Tracking [CX-609]
-
-**Orchestrator must maintain Phase Gate section:**
-
-```markdown
-## ðŸš¨ PHASE 1 CLOSURE GATES (BLOCKING - MUST COMPLETE)
-
-**Status:** HOLDING - 3 of 4 gate-critical WPs not yet created
-
-Gate-critical WPs:
-1. âœ… WP-1-Storage-Abstraction-Layer [READY FOR DEV]
-2. âŒ WP-1-AppState-Refactoring [GAP - packet not yet created]
-3. âŒ WP-1-Migration-Framework [GAP - packet not yet created]
-4. âŒ WP-1-Dual-Backend-Tests [GAP - packet not yet created]
-
-Phase closure criteria:
-- [ ] All 4 gate-critical WPs are VALIDATED (not just "done")
-- [ ] Spec regression check PASS (just validator-spec-regression)
-- [ ] All dependencies resolved
-- [ ] Waivers audit complete
-- [ ] Supply chain clean (cargo deny + npm audit)
-
-Current status: 25% ready (1 of 4 packets created, 0 VALIDATED)
-```
-
-### 6.5 Phase Closure Gate (Explicit Requirements) [CX-609B]
-
-**A phase is ready to close ONLY when ALL criteria below are met.**
-
-#### MUST Criteria (All Required)
-
-- [ ] **All phase-critical WPs are VALIDATED** (Validator approved, not just "done")
-  - Meaning: Validator returned `verdict: PASS` for each WP
-  - Not: "Coder finished coding" or "work merged"
-
-- [ ] **Spec regression check passes**
-  ```bash
-  just validator-spec-regression
-  # Output: âœ… Spec regression check PASSED
-  ```
-
-- [ ] **Supply chain audit clean** (zero violations)
-  ```bash
-  cargo deny check    # Should return 0 violations
-  npm audit           # Should return 0 critical/high vulnerabilities
-  ```
-
-- [ ] **No unresolved blockers** (all dependencies satisfied)
-  - TASK_BOARD shows NO items in "Blocked" state
-  - All WPs have clear VALIDATED status for their dependencies
-
-- [ ] **Git commit audit trail complete** (all commits signed/traced)
-  - All work-related commits must have proper git metadata (author, timestamp)
-  - Optional: If using git signatures, all commits must be signed
-
-#### SHOULD Criteria (Strong Recommendations)
-
-- [ ] **No open escalations from Validator** (all escalations resolved)
-- [ ] **No "deferred work" notes in WPs** (all planned work in this phase is done)
-- [ ] **Test coverage metrics on target** (>80% for phase)
-- [ ] **Security audit clean** (if phase touches security-sensitive code)
-
-#### Example: Phase 1 Closure Gate
-
-```
-Phase 1 Closure Gate Status:
-
-MUST Criteria:
-âœ… WP-1-Storage-Abstraction-Layer: VALIDATED (PASS)
-âœ… WP-1-AppState-Refactoring: VALIDATED (PASS)
-âœ… WP-1-Migration-Framework: VALIDATED (PASS)
-âœ… WP-1-Dual-Backend-Tests: VALIDATED (PASS)
-âœ… Spec regression: PASS
-âœ… Cargo deny: 0 violations
-âœ… npm audit: 0 high vulnerabilities
-âœ… No blockers in TASK_BOARD
-âœ… All commits properly tracked
-
-SHOULD Criteria:
-âœ… No escalations pending
-âœ… No deferred work notes
-âœ… Test coverage: 84% (>80% target met)
-âœ… Security audit clean (Phase 1 touches storage layer)
-
-â†’ Phase 1 READY TO CLOSE âœ…
-```
-
-#### How to Use This Gate
-
-**Before closing phase:**
-1. âœ… Check TASK_BOARD: All critical WPs show VALIDATED?
-2. âœ… Run spec regression check
-3. âœ… Run supply chain audits
-4. âœ… Review escalations log (empty?)
-5. âœ… Review WPs for deferred work notes
-6. âœ… Confirm all dependencies resolved
-
-**If ANY MUST criterion fails:**
-â†’ Phase is NOT ready. Document blocker + ETA.
-
-**If ALL MUST criteria pass:**
-â†’ Phase ready to close (SHOULD criteria are recommendations, not blockers).
-
----
-
-## Part 7: Dependency Management [CX-630-635]
-
-### 7.1 Blocking Dependencies
-
-**Orchestrator MUST identify and document all blocking relationships:**
-
-**In work packets:**
-```markdown
-## Dependencies
-
-- Depends on: WP-1-Storage-Abstraction-Layer (MUST COMPLETE FIRST)
-- Blocks: WP-1-Dual-Backend-Tests
-- Can start independently: WP-1-Migration-Framework
-```
-
-**In TASK_BOARD:**
-```markdown
-2. **[WP-1-AppState-Refactoring]**
-   - Blocker: WP-1-Storage-Abstraction-Layer (MUST COMPLETE FIRST)
-```
-
-### 7.2 Blocking Rules (MANDATORY)
-
-**DO NOT assign WP if blocker is not VALIDATED:**
-
-```
-Scenario: WP-1-AppState-Refactoring depends on WP-1-Storage-Abstraction-Layer
-
-If WP-1-Storage-Abstraction-Layer status is:
-- âœ… VALIDATED â†’ Can assign WP-1-AppState-Refactoring
-- ðŸŸ  IN PROGRESS â†’ Mark WP-1-AppState-Refactoring as BLOCKED
-- ðŸ”´ READY FOR DEV â†’ Mark WP-1-AppState-Refactoring as BLOCKED
-- âŒ FAILS Validator â†’ Don't assign, escalate
-
-Rule: Never assign downstream work until blocker is VALIDATED.
-```
-
-**DO NOT close phase if blockers unresolved:**
-
-```
-Phase 1 closure requires:
-- ALL 4 gate-critical WPs VALIDATED
-- ALL dependencies satisfied
-- NO unresolved blockers
-
-If WP-1-Migration-Framework blocks WP-1-Dual-Backend-Tests:
-â†’ Phase cannot close until BOTH are VALIDATED
-```
-
-**Document WHY WP is BLOCKED:**
-
-```markdown
-## Blocked
-
-- WP-1-AppState-Refactoring: Waiting for WP-1-Storage-Abstraction-Layer to VALIDATE (ETA 3 days)
-- WP-1-Dual-Backend-Tests: Blocked on 2 dependencies (WP-1-Storage-Abstraction-Layer, WP-1-Migration-Framework)
-```
-
-### 7.3 SLA for Work States [CX-635B]
-
-**Orchestrator MUST enforce time-based SLAs to prevent work from stalling.**
-
-| Status | Max Duration | Action if Exceeded | Escalation |
-|--------|--------------|-------------------|------------|
-| **BLOCKED** | 5 work days | Escalate blocker | Notify user: "WP-X has been blocked for 6 days. What's the plan?" |
-| **READY FOR DEV** | 10 work days | Flag as risk | Check: Is Coder assigned? Is there a hidden blocker? |
-| **IN PROGRESS** | 30 work days | Assess estimate | Was original estimate wrong? Do we need to split the work? |
-
-#### BLOCKED Status (Max 5 work days)
-
-**Scenario:** WP-1-AppState-Refactoring depends on WP-1-Storage-Abstraction-Layer
-
-**Day 0-4:** Document blocker, leave in BLOCKED state
-
-**Day 5:** If blocker still unresolved:
-```
-âš ï¸ ESCALATION: WP-X blocked beyond SLA [CX-635-B1]
-
-WP-ID: WP-1-AppState-Refactoring
-Status: BLOCKED (5 days, SLA exceeded)
-Blocker: WP-1-Storage-Abstraction-Layer (status: {current status})
-
-This WP cannot proceed until blocker resolves.
-
-Action required:
-1. What is the updated ETA for blocker resolution?
-2. Should we split this work differently?
-3. Is there alternative work to do while we wait?
-
-Awaiting response by: {date/time}
-```
-
-#### READY FOR DEV Status (Max 10 work days)
-
-**Scenario:** Packet created and verified, waiting for Coder to start
-
-**Day 0-9:** WP sits in "Ready for Dev", waiting for Coder assignment
-
-**Day 10:** If Coder hasn't started:
-```
-ðŸš¨ RISK FLAG: WP-X idle beyond SLA [CX-635-B2]
-
-WP-ID: WP-1-Job-Cancel-Endpoint
-Status: READY FOR DEV (10 days, no progress)
-Created: {date}, assigned: {date}
-
-Risk assessment:
-- Is Coder aware of this task?
-- Is there a blocker we missed?
-- Should Coder prioritize this over other work?
-
-Action: Confirm priority and Coder assignment
-```
-
-#### IN PROGRESS Status (Max 30 work days)
-
-**Scenario:** Coder is actively working
-
-**Day 0-29:** Coder makes progress, updates task packet with partial results
-
-**Day 30:** If still IN PROGRESS with no completion in sight:
-```
-ðŸ“‹ ESTIMATE REVIEW: WP-X progress check [CX-635-B3]
-
-WP-ID: WP-1-Storage-Abstraction-Layer
-Status: IN PROGRESS (30 days, original estimate: 15-20 hours)
-
-Actual progress: {what's done, what's remaining}
-Original estimate: 15-20 hours (estimated 3-5 work days)
-Actual effort: 30+ days
-
-Analysis:
-- Was original estimate too low?
-- Did scope creep occur?
-- Are there unexpected blockers?
-- Should we split work into smaller packets?
-
-Action: Reassess estimate or break work into phases
-```
-
-#### Escalation Template (Universal)
-
-Use this template for ANY SLA-triggered escalation:
-
-```
-âš ï¸ SLA ESCALATION: {WP-ID} [CX-635]
-
-**Work Packet:** {WP-ID} ({brief description})
-**Status:** {BLOCKED|READY FOR DEV|IN PROGRESS}
-**Duration:** {X days} (SLA limit: {Y days})
-**Created:** {date}, Last update: {date}
-
-**Current State:**
-{Description of why we're escalating}
-
-**Blocker/Issue:**
-{Specific thing preventing progress}
-
-**Action Needed:**
-{What must happen to unblock}
-
-**Response Required By:** {date/time}
-**Escalation Channel:** {user|team lead|project manager}
-```
-
----
-
-## Part 8: Pre-Delegation Validation Checklist [CX-640]
-
-**Before handing off to Coder, Orchestrator MUST verify all items below (and any applicable conditional items):**
-
-- [ ] SPEC_ANCHOR references Main Body (not Roadmap)
-- [ ] SPEC_ANCHOR in latest Master Spec version
-- [ ] IN_SCOPE_PATHS are exact file paths (not "src/backend")
-- [ ] OUT_OF_SCOPE clearly lists what Coder cannot touch
-- [ ] DONE_MEANS are measurable (100% verifiable, not subjective)
-- [ ] Every DONE_MEANS maps 1:1 to SPEC_ANCHOR requirement
-- [ ] RISK_TIER assigned (LOW/MEDIUM/HIGH)
-- [ ] TEST_PLAN includes all applicable commands
-- [ ] TEST_PLAN lists `just cargo-clean` (external `../Handshake Artifacts/handshake-cargo-target`) before post-work/self-eval
-- [ ] BOOTSTRAP has 5-15 FILES_TO_OPEN
-- [ ] BOOTSTRAP has 10-20 SEARCH_TERMS
-- [ ] BOOTSTRAP has RISK_MAP (3-8 failure modes)
-- [ ] USER_SIGNATURE locked with date/timestamp
-- [ ] SUB_AGENT_DELEGATION decision recorded (default DISALLOWED; if ALLOWED, include Operator approval evidence + low-reasoning draft-only constraints)
-- [ ] Dependencies documented (blockers + what this blocks)
-- [ ] Effort estimate provided (hours)
-- [ ] Coder handoff posted (use the auto-generated `CODER_HANDOFF [CX-HANDOFF-001]` block from `just pre-work`)
-
-**Conditional (BLOCKING when applicable):**
-If the WP includes cross-boundary changes (e.g., UI/API/storage/events) OR any governing spec/DONE_MEANS includes MUST record/audit/provenance:
-
-- [ ] End-to-end closure plan captured (producer output â†’ API schema â†’ server-side verification/source-of-truth â†’ audit event/log)
-- [ ] Trust boundary decision recorded (client-provided audit/provenance is UNTRUSTED unless explicitly waived; server derives/verifies)
-- [ ] No unused plumbing (any newly introduced request/response fields are used end-to-end or removed before delegation)
-- [ ] Error taxonomy planned (stale input/hash mismatch vs invalid input vs scope violation vs provenance mismatch/spoof attempt)
-- [ ] Deterministic `just post-work` plan is explicit for multi-commit WPs (record MERGE_BASE_SHA; include `--range MERGE_BASE_SHA..HEAD` in TEST_PLAN when needed)
-- [ ] UI/action guardrails included when applicable (re-check prerequisites at click-time; block stale apply rather than generating misleading diagnostics)
-
-**If ANY check fails:** Reject WP; request Orchestrator fix specific gaps.
-
----
-
-### Execution-Lane Steering Strategy (signature-bundled) (recommended decision point)
-
-The signature bundle is the approval point for the WP coder lane. Do not re-ask the Operator later with a second standalone "which coder owns this?" question for the same WP.
-
-If the signature bundle selected `Coder-A .. Coder-Z`:
-1. The Orchestrator MUST prepare the WP worktree/branch, packet, and communication artifacts deterministically.
-2. The Orchestrator MUST remain non-agentic and is responsible for governance correctness, paperwork, and live steering.
-3. The Primary Coder remains solely accountable for any coder-role sub-agents and MUST enforce the Coder protocol + agentic add-on if such agents are used.
-4. Validator duties remain non-agentic, but repo governance may run multiple validator CLI sessions when they are explicitly scoped as `WP Validator` and `Integration Validator`; validation evidence must still stay in the assigned validator session and packet artifacts.
-
-## Part 9: Orchestrator Non-Negotiables [CX-640-650]
-
-### âŒ DO NOT:
-
-1. **Create WP without SPEC_ANCHOR** â€” Every WP must reference Master Spec Main Body
-2. **Edit locked work packets** â€” Once USER_SIGNATURE added, packet is immutable
-3. **Use vague scope** â€” IN_SCOPE_PATHS must be specific file paths
-4. **Assign WP with unresolved blocker** â€” Wait for blocker to VALIDATE first
-5. **Close phase without all WPs VALIDATED** â€” "Done" â‰  "VALIDATED"
-6. **Skip pre-orchestration checklist** â€” All 14 items must pass
-7. **Invent requirements** â€” Task packets point to SPEC_ANCHOR, period
-8. **Let TASK_BOARD drift** â€” Ensure TASK_BOARD on `main` is status-synced when WP status changes (Validator: In Progress/Done; Orchestrator: planning states)
-9. **Lump multiple features in one WP** â€” One WP per requirement
-10. **Leave dependencies undocumented** â€” TASK_BOARD must show all blocking relationships
-
-### âœ… DO:
-
-1. **Create one WP per Master Spec requirement** â€” No lumping
-2. **Lock every packet with USER_SIGNATURE** â€” Prevents instruction creep
-3. **Map every DONE_MEANS to SPEC_ANCHOR** â€” Traceability required
-4. **Document dependencies explicitly** â€” TASK_BOARD shows blockers
-5. **Maintain Phase Gate visibility** â€” Keep status current
-6. **Run pre-orchestration checklist** â€” Verify spec, board, supply chain
-7. **Keep TASK_BOARD on `main` in sync** â€” Validator status-syncs In Progress/Done; Orchestrator maintains planning states
-8. **Provide complete BOOTSTRAP** â€” Coder needs 5-15 files, 10-20 terms, risk map
-9. **Create variant packets for changes** â€” Never edit locked packets
-10. **Enforce blocking rules** â€” Don't assign downstream work prematurely
-
----
-
-## Part 10: Real Examples (Templates)
-
-See actual work packets in `.GOV/task_packets/` for patterns:
-
-- **WP-1-Storage-Abstraction-Layer.md** â€” High risk, foundational (trait-based design)
-- **WP-1-AI-Integration-Baseline.md** â€” Medium risk, feature (LLM integration)
-- **WP-1-Terminal-Integration-Baseline.md** â€” High risk, security-sensitive
-
-All follow the structure in this protocol; use them as templates for new WPs.
-
----
-
-**ORCHESTRATOR SUMMARY:**
-
-| Responsibility | Primary Document | Authority |
-|---|---|---|
-| Create work packets | `.GOV/task_packets/WP-*.md` | ORCHESTRATOR_PROTOCOL Part 4-5 |
-| Maintain task board | `.GOV/roles_shared/records/TASK_BOARD.md` | ORCHESTRATOR_PROTOCOL Part 6 |
-| Track dependencies | Packet + TASK_BOARD | ORCHESTRATOR_PROTOCOL Part 7 |
-| Validate before delegation | Pre-work checklist | ORCHESTRATOR_PROTOCOL Part 8 |
-| Lock packets | USER_SIGNATURE | ORCHESTRATOR_PROTOCOL Part 5.6 |
-| Update status immediately | TASK_BOARD sync | ORCHESTRATOR_PROTOCOL Part 6.3 |
-| Enforce phase gates | PHASE 1 CLOSURE GATES | ORCHESTRATOR_PROTOCOL Part 6.4 |
-| Manage blockers | Dependency tracking | ORCHESTRATOR_PROTOCOL Part 7 |
-
-**Orchestrator role = Precise work packets + Updated TASK_BOARD + Locked packets + Verified pre-work + Enforced dependencies + Phase gate management**
+Do:
+- keep refinement, packet, traceability, build-order, and Task Board aligned
+- use the current packet template and deterministic helpers
+- keep shared runtime state under `/.GOV/roles_shared/runtime/`
+- keep role-owned state under `/.GOV/roles/orchestrator/runtime/`
+- stop and escalate when tooling or docs conflict with active law

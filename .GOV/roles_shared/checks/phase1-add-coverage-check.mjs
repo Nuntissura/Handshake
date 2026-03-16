@@ -145,48 +145,52 @@ function collectCoverageFromStubs(versionTag) {
   return coverage;
 }
 
-const currentSpec = parseCurrentSpecTarget();
-const specContent = readText(currentSpec.fileName);
-const specLines = specContent.split(/\r?\n/);
-const phaseRange = findPhaseRange(specLines);
-const phaseAddLines = collectPhase1CurrentVersionAddLines(
-  specLines,
-  phaseRange.start,
-  phaseRange.end,
-  currentSpec.versionTag
-);
+function main() {
+  const currentSpec = parseCurrentSpecTarget();
+  const specContent = readText(currentSpec.fileName);
+  const specLines = specContent.split(/\r?\n/);
+  const phaseRange = findPhaseRange(specLines);
+  const phaseAddLines = collectPhase1CurrentVersionAddLines(
+    specLines,
+    phaseRange.start,
+    phaseRange.end,
+    currentSpec.versionTag
+  );
 
-if (phaseAddLines.length === 0) {
-  console.log(`phase1-add-coverage-check ok (no Phase 1 [ADD ${currentSpec.versionTag}] lines found)`);
-  process.exit(0);
-}
-
-const coveredByStubs = collectCoverageFromStubs(currentSpec.versionTag);
-const expectedLineNumbers = new Set(phaseAddLines.map((item) => item.lineNumber));
-
-const missing = [];
-for (const item of phaseAddLines) {
-  if (!coveredByStubs.has(item.lineNumber)) {
-    missing.push(
-      `${currentSpec.fileName}:${item.lineNumber} not covered by any stub ROADMAP_ADD_COVERAGE (text: ${item.lineText})`
-    );
+  if (phaseAddLines.length === 0) {
+    console.log(`phase1-add-coverage-check ok (no Phase 1 [ADD ${currentSpec.versionTag}] lines found)`);
+    return;
   }
-}
 
-const extra = [];
-for (const coveredLine of coveredByStubs.keys()) {
-  if (!expectedLineNumbers.has(coveredLine)) {
-    const refs = coveredByStubs.get(coveredLine) ?? [];
-    extra.push(
-      `Stub ROADMAP_ADD_COVERAGE references ${currentSpec.fileName}:${coveredLine}, but that line is not a Phase 1 [ADD ${currentSpec.versionTag}] item (${refs.join(", ")})`
-    );
+  const coveredByStubs = collectCoverageFromStubs(currentSpec.versionTag);
+  const expectedLineNumbers = new Set(phaseAddLines.map((item) => item.lineNumber));
+
+  const missing = [];
+  for (const item of phaseAddLines) {
+    if (!coveredByStubs.has(item.lineNumber)) {
+      missing.push(
+        `${currentSpec.fileName}:${item.lineNumber} not covered by any stub ROADMAP_ADD_COVERAGE (text: ${item.lineText})`
+      );
+    }
   }
+
+  const extra = [];
+  for (const coveredLine of coveredByStubs.keys()) {
+    if (!expectedLineNumbers.has(coveredLine)) {
+      const refs = coveredByStubs.get(coveredLine) ?? [];
+      extra.push(
+        `Stub ROADMAP_ADD_COVERAGE references ${currentSpec.fileName}:${coveredLine}, but that line is not a Phase 1 [ADD ${currentSpec.versionTag}] item (${refs.join(", ")})`
+      );
+    }
+  }
+
+  if (missing.length > 0 || extra.length > 0) {
+    fail("Phase 1 current-version ADD coverage mismatches detected", [...missing, ...extra]);
+  }
+
+  console.log(
+    `phase1-add-coverage-check ok (${phaseAddLines.length} Phase 1 [ADD ${currentSpec.versionTag}] lines covered)`
+  );
 }
 
-if (missing.length > 0 || extra.length > 0) {
-  fail("Phase 1 current-version ADD coverage mismatches detected", [...missing, ...extra]);
-}
-
-console.log(
-  `phase1-add-coverage-check ok (${phaseAddLines.length} Phase 1 [ADD ${currentSpec.versionTag}] lines covered)`
-);
+main();
