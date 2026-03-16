@@ -345,6 +345,7 @@ coder-startup:
 	@just protocol-ack "Handshake Codex v1.4.md" "AGENTS.md" ".GOV/roles_shared/docs/TOOLING_GUARDRAILS.md" ".GOV/roles/coder/CODER_PROTOCOL.md"
 	@just backup-status
 	@just coder-preflight
+	@echo 'RUBRIC_REQUIRED: Read `.GOV/roles/coder/docs/CODER_RUBRIC_V2.md` before the first WP-specific BOOTSTRAP or code change, and answer it in `## STATUS_HANDOFF` before validator handoff.'
 	@echo 'RESUME_HINT: After a reset/compaction, run `just coder-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
 
 # Record a technical refinement for a work packet [CX-585A]

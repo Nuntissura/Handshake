@@ -365,6 +365,26 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - Confirm the WP branch contains `docs: bootstrap claim [WP-{ID}]` before accepting any skeleton or implementation progression.
 - Enforce [CX-GATE-001]: if the Coder included SKELETON content in the BOOTSTRAP turn, treat it as invalid phase merging; require a new, separate SKELETON turn/commit after explicit Operator authorization.
 
+0A) Handoff Quality Gate
+- Before treating a coder handoff as review-ready, inspect `## STATUS_HANDOFF` rather than trusting a chat summary alone.
+- If `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, require the standard handoff core plus all rubric-proof fields:
+  - `Current WP_STATUS`
+  - `What changed in this update`
+  - `Requirements / clauses self-audited`
+  - `Checks actually run`
+  - `Known gaps / weak spots`
+  - `Heuristic risks / maintainability concerns`
+  - `Validator focus request`
+  - `Rubric contract understanding proof`
+  - `Rubric scope discipline proof`
+  - `Rubric baseline comparison`
+  - `Rubric end-to-end proof`
+  - `Rubric architecture fit self-review`
+  - `Rubric heuristic quality self-review`
+  - `Rubric anti-gaming / counterfactual check`
+  - `Next step / handoff hint`
+- If those fields are missing, generic, or evasive, do not treat the WP as technically ready; return it for completion and downgrade governance/code-review confidence accordingly.
+
 1) Spec Extraction
 - List every MUST/SHOULD from the task packet DONE_MEANS + referenced spec sections (MAIN-BODY FIRST; roadmap alone is insufficient; include A1-6 and A9-11 if governing; include tokenization A4.6, storage portability A2.3.12, determinism/repro/error-code conventions when applicable).
 - Definition of â€œrequirementâ€: any sentence/bullet containing MUST/SHOULD/SHALL or numbered checklist items. Roadmap is a pointer; Master Spec body is the authority.
