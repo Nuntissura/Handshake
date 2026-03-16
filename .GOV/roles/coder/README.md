@@ -11,6 +11,7 @@ Authoritative folder-placement law for the Coder bundle lives in `Handshake Code
 ## Support / Analysis Docs
 
 - `docs/` is non-authoritative support material and may lag current workflow law
+- `docs/CODER_RUBRIC_V2.md` is the current deep-quality support rubric for coder self-review
 
 ## Role-Owned Checks / Scripts
 
