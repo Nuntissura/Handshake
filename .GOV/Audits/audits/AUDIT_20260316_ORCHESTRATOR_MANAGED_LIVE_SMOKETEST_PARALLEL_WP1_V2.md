@@ -60,6 +60,7 @@ Overall judgment:
 - validator readiness and communication hygiene: partially proven after hotfix
 - tooling quality for a no-drama live smoke: not yet sufficient
 - authoritative packet/task-board truth maintenance: failed
+- coder <-> WP-validator direct review traffic: failed before explicit Orchestrator intervention
 
 Post-audit correction:
 
@@ -82,6 +83,7 @@ At the audit cut:
   - `waiting_on="coder handoff or validator trigger"`
 - no `VALIDATION_REPORTS` closeout had been appended yet for either v2 WP.
 - the authoritative task board and task packets still incorrectly showed both WPs as `READY_FOR_DEV` despite live runtime/session evidence proving otherwise.
+- no direct coder <-> WP-validator review receipts existed; the communication surface remained hub-and-spoke through the Orchestrator even though structured review helpers already existed.
 
 This means the smoke was live and functioning, but not yet at a coder-handoff or validator-verdict boundary, and the canonical governance surfaces were already behind reality.
 
@@ -104,6 +106,9 @@ This means the smoke was live and functioning, but not yet at a coder-handoff or
 
 4. I did not keep the authoritative packet/task-board state synchronized with the live ACP/runtime state.
    - Effect: the repo later appeared to say both WPs never started even though runtime/session evidence and the WP worktrees showed that they had.
+
+5. I allowed the live run to proceed without forcing direct coder <-> WP-validator review traffic.
+   - Effect: the collaboration model regressed into hub-and-spoke messaging through the Orchestrator, which weakens early technical correction and underuses the governed review channel.
 
 #### What Worked
 
@@ -249,6 +254,32 @@ Impact:
 - operator trust in packet/task-board truth was damaged
 - ACP/runtime truth required forensic reconstruction from worktrees and ledgers
 
+### 4.7 Direct Review Channel Existed But Was Not Used
+
+The repo already had structured coder/WP-validator review helpers and receipt kinds, but the live v2 run did not actually use them.
+
+Observed behavior:
+
+- Schema v2: only `WP_VALIDATOR -> ORCHESTRATOR` traffic existed in the WP thread/receipts
+- Loom v2: `CODER -> ORCHESTRATOR` and `WP_VALIDATOR -> ORCHESTRATOR` traffic existed, but still no direct coder <-> validator review traffic
+- searches across both v2 WP communication folders found no `VALIDATOR_QUERY`, `VALIDATOR_RESPONSE`, `REVIEW_REQUEST`, `REVIEW_RESPONSE`, `SPEC_GAP`, or `SPEC_CONFIRMATION` receipts before explicit Orchestrator intervention
+
+Impact:
+
+- WP validators did not actively steer coder thinking early
+- coders did not expose their proof surface directly to validators
+- the workflow behaved more like manual relay than the intended richer orchestrator-managed review loop
+
+### 4.8 Concurrent Steering Exposed A Session-Registry Write Collision
+
+When I attempted to steer multiple active sessions at once to correct the missing direct review traffic, one command failed with `EPERM` while renaming the external `ROLE_SESSION_REGISTRY.json` temp file into place.
+
+Impact:
+
+- concurrent Orchestrator steering can still collide at the session-registry write boundary
+- some steering attempts may fail for tooling reasons even when the intended operator action is valid
+- session-registry locking/atomic write behavior needs another hardening pass
+
 ---
 
 ## 5. WRONG TOOLING, UNCLEAR PATHS, OR UNCLEAR COMMANDS
@@ -289,6 +320,7 @@ Immediate effect:
 - `just gov-check` passed again in `wt-orchestrator`
 - `just validator-startup` passed in the active Loom validator worktree after the same fix existed locally there
 - Loom validator standby artifacts were subsequently written with proper null handling
+- follow-up governance hardening upgraded future validator closure from `SPLIT_DIFF_SCOPED_V1` to `SPLIT_DIFF_SCOPED_RIGOR_V3`, and both active `v2` packets were upgraded to that stricter report profile so future PASS claims must include independent checks, counterfactuals, and medium/high-risk boundary + negative-path review
 
 ---
 
@@ -309,6 +341,8 @@ Immediate effect:
 4. Add a check or packet-generation rule that rejects repo-root Cargo commands when the packet targets `src/backend/handshake_core`.
 5. Tighten validator engagement so WP validators can receive structured review requests earlier than handoff.
 6. Add a truth-sync rule so live orchestrator-managed WPs cannot remain `READY_FOR_DEV` once coder or validator sessions have started.
+7. Add an explicit enforcement rule that a live orchestrator-managed WP must produce direct coder <-> WP-validator review traffic before validation-ready handoff.
+8. Harden session-registry writes so concurrent steering does not fail on temp-file rename collisions.
 
 ---
 
@@ -327,6 +361,7 @@ It also proved a more serious governance point:
 
 - runtime truth without prompt packet/task-board reconciliation is not good enough
 - if the authoritative surfaces lag the live run, the system can look idle or orderly while real partial work is already in flight
+- if the direct coder/validator review lane is not actively enforced, the system falls back to hub-and-spoke relay through the Orchestrator even when better tooling already exists
 
 The important conclusion is not "ACP failed." The important conclusion is:
 
