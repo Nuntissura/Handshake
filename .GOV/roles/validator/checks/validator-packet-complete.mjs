@@ -185,6 +185,8 @@ if (packetFormatVersion) {
   const usesClauseClosureMonitor = /^CLAUSE_MONITOR_V1$/i.test(clauseClosureMonitorProfile);
   const semanticProofProfile = parseSingleField("SEMANTIC_PROOF_PROFILE");
   const usesSemanticProofProfile = /^DIFF_SCOPED_SEMANTIC_V1$/i.test(semanticProofProfile);
+  const validatorReportProfile = parseSingleField("GOVERNED_VALIDATOR_REPORT_PROFILE");
+  const usesRigorV2Report = /^SPLIT_DIFF_SCOPED_RIGOR_V2$/i.test(validatorReportProfile);
 
   if (closureStatus && packetUsesStructuredValidationReport(packetFormatVersion)) {
     if (usesClauseClosureMonitor) {
@@ -219,6 +221,9 @@ if (packetFormatVersion) {
       "LEGAL_VERDICT",
       "SPEC_CONFIDENCE",
     ];
+    if (usesRigorV2Report) {
+      requiredSingleFields.splice(4, 0, "HEURISTIC_REVIEW_VERDICT");
+    }
 
     for (const label of requiredSingleFields) {
       const re = new RegExp(`^\\s*${label}\\s*:\\s*(.+)\\s*$`, "im");
@@ -240,6 +245,12 @@ if (packetFormatVersion) {
     if (!hasListItemAfterLabel(validationReports, "NOT_PROVEN")) {
       fail("NOT_PROVEN missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
+    if (usesRigorV2Report && !hasListItemAfterLabel(validationReports, "MAIN_BODY_GAPS")) {
+      fail("MAIN_BODY_GAPS missing/placeholder list items in VALIDATION_REPORTS for closed packet");
+    }
+    if (usesRigorV2Report && !hasListItemAfterLabel(validationReports, "QUALITY_RISKS")) {
+      fail("QUALITY_RISKS missing/placeholder list items in VALIDATION_REPORTS for closed packet");
+    }
 
     if (usesClauseClosureMonitor) {
       const reportConsistency = validateClauseReportConsistency(text);
@@ -250,6 +261,16 @@ if (packetFormatVersion) {
 
     const specAlignmentVerdictMatch = validationReports.match(/^\s*SPEC_ALIGNMENT_VERDICT\s*:\s*(.+)\s*$/im);
     const specAlignmentVerdict = specAlignmentVerdictMatch ? (specAlignmentVerdictMatch[1] || "").trim().toUpperCase() : "";
+    const heuristicReviewVerdictMatch = validationReports.match(/^\s*HEURISTIC_REVIEW_VERDICT\s*:\s*(.+)\s*$/im);
+    const heuristicReviewVerdict = heuristicReviewVerdictMatch ? (heuristicReviewVerdictMatch[1] || "").trim().toUpperCase() : "";
+    const mainBodyGapsOnlyNone = /^\s*MAIN_BODY_GAPS\s*:\s*$[\r\n]+\s*-\s*NONE\s*$/im.test(validationReports);
+    const qualityRisksOnlyNone = /^\s*QUALITY_RISKS\s*:\s*$[\r\n]+\s*-\s*NONE\s*$/im.test(validationReports);
+    if (usesRigorV2Report && specAlignmentVerdict === "PASS" && !mainBodyGapsOnlyNone) {
+      fail("SPEC_ALIGNMENT_VERDICT=PASS requires MAIN_BODY_GAPS to be exactly '- NONE'");
+    }
+    if (usesRigorV2Report && heuristicReviewVerdict === "PASS" && !qualityRisksOnlyNone) {
+      fail("HEURISTIC_REVIEW_VERDICT=PASS requires QUALITY_RISKS to be exactly '- NONE'");
+    }
     if (usesClauseClosureMonitor && specAlignmentVerdict === "PASS") {
       const passConsistency = validatePacketClosureMonitoring(text, {
         requireRows: true,
@@ -264,5 +285,4 @@ if (packetFormatVersion) {
 }
 
 console.log(`validator-packet-complete: PASS - ${wpId} has required fields.`);
-
 
