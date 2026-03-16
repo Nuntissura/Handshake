@@ -52,12 +52,11 @@ if (!defaults) {
 
 const branch = branchArg || defaults.branch;
 const dir = dirArg || defaults.dir;
-const scriptPath = path.join(".GOV", "scripts", "topology", "worktree-add.mjs");
+const scriptPath = path.join(".GOV", "roles_shared", "scripts", "topology", "worktree-add.mjs");
 
 execFileSync(process.execPath, [scriptPath, wpId, "main", branch, dir], {
   stdio: "inherit",
 });
 
 console.log(`[ROLE_SESSION_WORKTREE_ADD] role=${role} branch=${branch} dir=${dir}`);
-
 

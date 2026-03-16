@@ -72,7 +72,7 @@ Example of "does not clearly cover":
 → Not clear: vague, needs interpretation, multiple valid implementations
 ```
 
-**Effort:** Add objective 5-point checklist to Part 2.5.1 decision tree
+**Effort:** Add objective 5-point checklist to the refinement decision flow
 
 ---
 
@@ -113,7 +113,7 @@ Error Recovery Procedures:
 
 4. Blocker status missed
    → Immediately mark dependent WP as BLOCKED
-   → Document "discovered after creation; should have been caught in Step 1"
+   → Document "discovered after creation; should have been caught in the initial dependency check"
    → Review your Pre-Orchestration checklist execution
 ```
 
@@ -125,8 +125,8 @@ Error Recovery Procedures:
 **Problem:** Protocol says "phase closes when all WPs VALIDATED" but doesn't define "ready to close"
 **Current State:**
 ```
-Part 1 says: "Phase only closes when ALL WPs are VALIDATED"
-Part 6.4 says: "Closure criteria: all WPs validated + spec clean + no blockers"
+Protocol says: "Phase only closes when ALL WPs are VALIDATED"
+Current closure guidance says: "Closure criteria: all WPs validated + spec clean + no blockers"
 
 But what about:
 - Performance regressions?
@@ -264,8 +264,8 @@ Orchestrator Decision Log (template):
 **Problem:** ORCHESTRATOR, CODER, VALIDATOR protocols are separate; no check they align
 **Current State:**
 ```
-ORCHESTRATOR_PROTOCOL Part 3.5 says: "Coder verifies all 10 fields in Step 2"
-CODER_PROTOCOL Step 2 says: "Verify TASK_ID, STATUS, RISK_TIER, ... (10 items)"
+Legacy ORCHESTRATOR_PROTOCOL wording says: "Coder verifies all 10 fields in the coder bootstrap verification set"
+CODER_PROTOCOL says: "Verify TASK_ID, STATUS, RISK_TIER, ... (10 items)"
 → Do they match exactly? Unknown (manual audit required)
 
 If ORCHESTRATOR_PROTOCOL is updated:
@@ -282,8 +282,8 @@ Protocol Consistency Checker:
 
 just orchestrator-check-alignment
 # Verifies:
-1. ORCHESTRATOR_PROTOCOL Part 3.5 (10 fields) == CODER_PROTOCOL Step 2 (10 fields)
-2. ORCHESTRATOR_PROTOCOL Part 8 (14-item checklist) == VALIDATOR_PROTOCOL (checklist items)
+1. ORCHESTRATOR_PROTOCOL coder bootstrap verification set (10 fields) == CODER_PROTOCOL bootstrap verification fields (10 fields)
+2. ORCHESTRATOR_PROTOCOL pre-delegation checklist == VALIDATOR_PROTOCOL checklist items
 3. All CX codes in all three protocols are consistent
 4. Status values (READY FOR DEV, etc.) match across all docs
 5. Blocker enforcement in ORCHESTRATOR == enforcement in VALIDATOR
@@ -578,4 +578,3 @@ Signature Batching Rules:
 **Current State:** A- (87/100)
 **Potential State:** A+ (99/100)
 **Gap to Close:** 12 points (7 critical + 5 important gaps)
-

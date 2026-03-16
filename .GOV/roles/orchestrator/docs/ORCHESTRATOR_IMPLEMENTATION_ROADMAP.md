@@ -35,7 +35,7 @@ These 4 items unlock clarity and prevent major ambiguities.
 
 ### P0-1: "Clearly Covers" Definition [Gap 2]
 
-**What:** Add objective 5-point checklist to Part 2.5.1 decision tree
+**What:** Add objective 5-point checklist to the refinement decision tree
 
 **Current State:**
 ```
@@ -65,7 +65,7 @@ DOES NOT CLEARLY COVER: "Â§2.3.12: Storage abstraction SHOULD be portable"
 - Requires user clarification OR enrichment
 ```
 
-**Where:** Add to ORCHESTRATOR_PROTOCOL Part 2.5.1 (replace vague decision tree)
+**Where:** Add to the ORCHESTRATOR_PROTOCOL refinement decision guidance (replace vague decision tree)
 
 ---
 
@@ -75,7 +75,7 @@ DOES NOT CLEARLY COVER: "Â§2.3.12: Storage abstraction SHOULD be portable"
 
 **Current State:**
 ```
-Part 1 says: "Phase closes when all WPs VALIDATED"
+Protocol says: "Phase closes when all WPs VALIDATED"
 Reality: What else? No other criteria defined.
 ```
 
@@ -110,7 +110,7 @@ Phase 1 Gate Status:
 ```
 ```
 
-**Where:** Add to ORCHESTRATOR_PROTOCOL Part 6 (after TASK_BOARD section)
+**Where:** Add to ORCHESTRATOR_PROTOCOL lifecycle / phase-closure guidance (after task-board status guidance)
 
 ---
 
@@ -163,7 +163,7 @@ Recovery: "Oops, can't undo. Governance violation."
 4. Log in decision log (optional): "Status-sync: TASK_BOARD was X days out of sync"
 5. Review: Why did sync break? (What to do differently?)
 
-### Error 4: Blocker Status Missed in Step 1
+### Error 4: Blocker Status Missed in Initial Dependency Check
 **Prevention:** Check TASK_BOARD blocker status before creating WP
 **If error occurs:**
 1. Immediately mark new WP as BLOCKED in TASK_BOARD
@@ -234,7 +234,7 @@ Escalation: Please respond by {date/time}
 ```
 ```
 
-**Where:** Add to ORCHESTRATOR_PROTOCOL Part 7 (Dependency Management)
+**Where:** Add to ORCHESTRATOR_PROTOCOL dependency management guidance
 
 ---
 
@@ -252,7 +252,7 @@ These 3 items add rigor and auditability.
 - Blocker status check
 - Pre-Delegation Checklist sign-off
 
-**Where:** Add to ORCHESTRATOR_PROTOCOL Part 8 or create separate ORCHESTRATOR_DECISION_LOG_TEMPLATE.md
+**Where:** Add to ORCHESTRATOR_PROTOCOL workflow checklist guidance or create separate ORCHESTRATOR_DECISION_LOG_TEMPLATE.md
 
 ---
 
@@ -281,7 +281,7 @@ Example: 10 files (MEDIUM) + 1 migration (HIGH) + security impact low (MEDIUM)
 â†’ Result: **HIGH tier** (max of all dimensions)
 ```
 
-**Where:** Add to ORCHESTRATOR_PROTOCOL Part 4 (Task Packet Creation)
+**Where:** Add to ORCHESTRATOR_PROTOCOL task-packet creation guidance
 
 ---
 
@@ -331,7 +331,7 @@ Signature will be required to enrich spec with chosen approach.
 ```
 ```
 
-**Where:** Add to ORCHESTRATOR_PROTOCOL Part "Escalation & Blockers"
+**Where:** Add to ORCHESTRATOR_PROTOCOL escalation guidance
 
 ---
 
@@ -367,7 +367,7 @@ just orchestrator-audit WP-{ID}
 - Pre-Delegation checklist items present âœ“
 ```
 
-**Where:** Create .GOV/scripts/validation/orchestrator-audit.sh
+**Where:** Create `.GOV/roles/orchestrator/checks/orchestrator-audit.mjs`
 
 ---
 
@@ -453,5 +453,4 @@ Low-impact improvements (ERRATA for minor fixes, signature batching rules, etc.)
 - No expensive LLM tier needed
 
 **This is pure coordination + clarity work. Ideal for cheaper LLM tier.**
-
 

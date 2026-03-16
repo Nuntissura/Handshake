@@ -235,7 +235,7 @@ if (commandKind === "CLOSE_SESSION") {
 if (!fs.existsSync(absWorktreeDir)) {
   execFileSync(
     process.execPath,
-    [path.join(".GOV", "scripts", "session", "role-session-worktree-add.mjs"), role, wpId, roleConfig.branch, roleConfig.worktreeDir],
+    [path.join(".GOV", "roles", "orchestrator", "scripts", "role-session-worktree-add.mjs"), role, wpId, roleConfig.branch, roleConfig.worktreeDir],
     { stdio: "inherit" },
   );
 }
@@ -322,5 +322,4 @@ console.log(`[SESSION_CONTROL] output_jsonl=${response.output_jsonl_file || requ
 if (response.last_agent_message) {
   console.log(`[SESSION_CONTROL] last_agent_message=${response.last_agent_message}`);
 }
-
 

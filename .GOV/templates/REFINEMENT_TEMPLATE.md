@@ -7,7 +7,7 @@ Requirements (HARD):
 - Even when ENRICHMENT_NEEDED=NO, you MUST include REASON_NO_ENRICHMENT and SPEC_EXCERPTS for every anchor.
 - If ENRICHMENT_NEEDED=YES, you MUST include the full Proposed Spec Enrichment text (verbatim Markdown) that could be copy-pasted into the Master Spec.
 - Keep this file ASCII-only. Non-ASCII characters must be written as \\uXXXX escapes inside the excerpt block.
-- This file is the Technical Refinement Block required by ORCHESTRATOR_PROTOCOL Part 2.5.2.
+- This file is the Technical Refinement Block required by the current ORCHESTRATOR_PROTOCOL refinement workflow.
 
 ### METADATA
 - WP_ID: {{WP_ID}}
@@ -21,7 +21,7 @@ Requirements (HARD):
 - USER_APPROVAL_EVIDENCE: <pending> (must equal: APPROVE REFINEMENT {{WP_ID}})
 - STUB_WP_IDS: <pending> (comma-separated WP-... IDs | NONE)
 
-### REQUIRED SECTIONS (per ORCHESTRATOR_PROTOCOL Part 2.5.2)
+### REQUIRED SECTIONS (per the current ORCHESTRATOR_PROTOCOL refinement workflow)
 
 ### GAPS_IDENTIFIED
 - <fill; write NONE if no gaps>

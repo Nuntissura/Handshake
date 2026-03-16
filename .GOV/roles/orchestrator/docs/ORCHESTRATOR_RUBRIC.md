@@ -64,7 +64,7 @@ An **Orchestrator** IS:
 **Success Metric:** Validator can trace every DONE_MEANS back to SPEC_ANCHOR with no gaps
 
 **Perfect Orchestrator Behavior:**
-- âœ… Runs `just validator-spec-regression` before creating packets (Part 2 Pre-Orchestration Checklist)
+- âœ… Runs `just validator-spec-regression` before creating packets (pre-orchestration checklist)
 - âœ… Reviews Master Spec Â§relevant-section to check Main Body covers requirement
 - âœ… Identifies spec gaps ONLY from user request + roadmap (never speculative)
 - âœ… When gap found: creates new spec version (v02.85), updates SPEC_CURRENT.md
@@ -313,7 +313,7 @@ Orchestrator response:
 
 ## 3. ENFORCEMENT POINTS: Where Orchestrator MUST GATE Work
 
-**âœ‹ STOP Gate 1: Pre-Orchestration Checklist (Part 2)**
+**âœ‹ STOP Gate 1: Pre-Orchestration Checklist**
 ```
 Before creating ANY task packet, verify:
 - SPEC_CURRENT.md is current
@@ -325,7 +325,7 @@ Before creating ANY task packet, verify:
 If ANY fails â†’ STOP. Fix it before proceeding.
 ```
 
-**âœ‹ STOP Gate 2: Spec Enrichment Gate (Part 2.5)**
+**âœ‹ STOP Gate 2: Spec Enrichment Gate**
 ```
 Before creating task packet, check:
 - Master Spec covers requirement clearly?
@@ -335,7 +335,7 @@ Before creating task packet, check:
 Cannot create WP without enriched spec.
 ```
 
-**âœ‹ STOP Gate 3: Signature Gate (Part 2.5.3)**
+**âœ‹ STOP Gate 3: Signature Gate**
 ```
 Before creating task packet, obtain:
 - User signature in format: {username}{DDMMYYYYHHMM}
@@ -346,7 +346,7 @@ Before creating task packet, obtain:
 Cannot create WP without valid, unused signature.
 ```
 
-**âœ‹ STOP Gate 4: Requirements Verification (Part 4 Step 1)**
+**âœ‹ STOP Gate 4: Requirements Verification**
 ```
 Before creating task packet, confirm:
 - User request is clear (not ambiguous)
@@ -357,7 +357,7 @@ Before creating task packet, confirm:
 If unclear â†’ Ask for clarification. Don't proceed with assumptions.
 ```
 
-**âœ‹ STOP Gate 5: Template Completeness (Part 4 Step 2)**
+**âœ‹ STOP Gate 5: Template Completeness**
 ```
 After filling task packet template, verify:
 - All 10 fields present
@@ -370,7 +370,7 @@ After filling task packet template, verify:
 If incomplete â†’ Fill missing gaps. Don't skip.
 ```
 
-**âœ‹ STOP Gate 6: Pre-Work Validation (Part 4 Step 4)**
+**âœ‹ STOP Gate 6: Pre-Work Validation**
 ```
 Before delegating, run:
   just pre-work WP-{ID}
@@ -380,7 +380,7 @@ Must return: âœ… Pre-work validation PASSED
 If FAIL â†’ Fix errors, re-run. Cannot proceed without PASS.
 ```
 
-**âœ‹ STOP Gate 7: Dependency Check (Part 4 Step 1)**
+**âœ‹ STOP Gate 7: Dependency Check**
 ```
 Before creating downstream WP, verify:
 - All blockers are VALIDATED (not just "done")
@@ -390,7 +390,7 @@ Before creating downstream WP, verify:
 If blocker not VALIDATED â†’ Mark new WP as BLOCKED. Don't assign.
 ```
 
-**âœ‹ STOP Gate 8: Pre-Delegation Verification (Part 8)**
+**âœ‹ STOP Gate 8: Pre-Delegation Verification**
 ```
 Before handing off to Coder, run through 14-item checklist:
 - SPEC_ANCHOR references Main Body âœ“
@@ -910,5 +910,4 @@ A **perfect Orchestrator**:
 **ORCHESTRATOR RUBRIC VERSION 1.0**
 **Effective:** 2025-12-25
 **Next Review:** After Phase 1 completion or when first failure occurs
-
 
