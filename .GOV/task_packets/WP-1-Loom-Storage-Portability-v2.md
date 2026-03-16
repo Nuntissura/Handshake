@@ -677,8 +677,19 @@ rg -n "create_loom_block|create_loom_edge|query_loom_view|search_loom_blocks|Loo
   - "the remediation pass drifts into unrelated runtime families" -> "the packet loses file-lock isolation and repeats the earlier live-smoke scope failure"
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - No new Loom primitives or public API routes are planned; keep `crate::storage::Database` plus the existing `Loom*` structs in `src/backend/handshake_core/src/storage/mod.rs` and `src/backend/handshake_core/src/storage/loom.rs` stable.
+  - Re-audit `query_loom_view` and `search_loom_blocks` in `src/backend/handshake_core/src/storage/sqlite.rs` and `src/backend/handshake_core/src/storage/postgres.rs`; patch backend internals only if semantic drift is found.
+  - Treat `run_loom_storage_conformance` in `src/backend/handshake_core/src/storage/tests.rs` plus `src/backend/handshake_core/tests/storage_conformance.rs` as the main proof surface; add or tighten only missing tripwires for literal wildcard escaping, filtered sorted-view parity, source-anchor round-trips, migration replay/down safety, and asset-path invariance.
+  - Keep `src/backend/handshake_core/migrations/0013_loom_mvp.sql` and `src/backend/handshake_core/migrations/0013_loom_mvp.down.sql` provider-neutral; backend-local search structures must remain outside portable migration DDL and inside runtime adapter setup only.
+  - Keep `src/backend/handshake_core/src/loom_fs.rs` layout stable unless a concrete portability defect requires a narrowly-scoped fix.
 - Open questions:
+  - The packet TEST_PLAN uses `cargo test -p handshake_core loom`, but this worktree is not a Cargo root and the broad filter form on Windows links unrelated heavy test binaries until `link.exe` fails with `LNK1102` out-of-memory. Practical verification will likely need the Loom-scoped manifest-path equivalents already used in prior Loom packet evidence: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib loom` and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test storage_conformance`.
+  - If the code audit confirms the current-main Loom slice is already correct, is audit-only closure acceptable for v2, or will Validator require at least one net-new tripwire beyond the landed v1 coverage? The implementation plan stays code-minimal unless a concrete gap is found.
 - Notes:
+  - This revision preserves v1 requirements and starts from the already-landed Loom portability slice on current main; v2 is a re-audit/hardening pass, not a new surface expansion.
+  - Initial code audit already found current coverage for source-anchor round-trips, filtered sorted-view parity, literal `%` / `_` search escaping, migration replay/down safety, and asset-path layout stability.
+  - Expected product diffs, if any, should stay inside `src/backend/handshake_core/src/storage/sqlite.rs`, `src/backend/handshake_core/src/storage/postgres.rs`, `src/backend/handshake_core/src/storage/tests.rs`, `src/backend/handshake_core/tests/storage_conformance.rs`, and `src/backend/handshake_core/src/loom_fs.rs`.
+  - If the audit confirms no code defect, the remaining work becomes packet evidence/handoff quality plus any narrowly missing tripwire coverage needed to make the clause-closure case durable.
 
 ## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
 - UI_UX_APPLICABLE=NO in the signed refinement. No user-facing surface is in scope for this packet.
