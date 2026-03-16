@@ -609,6 +609,22 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
   - `MAIN_BODY_GAPS:` with `- NONE` only when no unresolved main-body requirement remains
   - `QUALITY_RISKS:` with `- NONE` only when no material maintainability or heuristic-quality concern remains
 - `HEURISTIC_REVIEW_VERDICT=PASS` is legal only when `QUALITY_RISKS` is exactly `- NONE`.
+- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`, also append:
+  - `MAIN_BODY_GAPS:` with `- NONE` only when no unresolved main-body requirement remains
+  - `QUALITY_RISKS:` with `- NONE` only when no material maintainability or heuristic-quality concern remains
+  - `VALIDATOR_RISK_TIER: LOW | MEDIUM | HIGH`
+  - `DIFF_ATTACK_SURFACES:` with at least one diff-derived failure surface
+  - `INDEPENDENT_CHECKS_RUN:` with validator-owned checks not copied from coder evidence
+  - `COUNTERFACTUAL_CHECKS:` with concrete code-path / symbol references, not just test names
+  - `BOUNDARY_PROBES:` for interface / producer-consumer / storage / contract boundary checks
+  - `NEGATIVE_PATH_CHECKS:` for invalid, missing, adversarial, or failure-path checks
+  - `INDEPENDENT_FINDINGS:` with deliberate independent findings or baseline-confirmation notes
+  - `RESIDUAL_UNCERTAINTY:` with explicit remaining uncertainty; `- NONE` is illegal for `VALIDATOR_RISK_TIER=HIGH`
+- `VALIDATOR_RISK_TIER` is validator-assigned and MUST NOT be lower than the packet `RISK_TIER`.
+- `LEGAL_VERDICT=PASS` is legal only when `DIFF_ATTACK_SURFACES`, `INDEPENDENT_CHECKS_RUN`, and `COUNTERFACTUAL_CHECKS` are all present and non-empty.
+- `VALIDATOR_RISK_TIER=HIGH` requires at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
+- `VALIDATOR_RISK_TIER=MEDIUM|HIGH` requires at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
+- The lightest valid counterfactual step is still mandatory: one sentence per key changed code path in the form "if X were removed or altered, Y would break", where `X` names a concrete file, symbol, or code path.
 
 ## Validation Gate Sequence [CX-VAL-GATE] (ONE REVIEW PAUSE; APPEND-FIRST)
 
@@ -728,6 +744,7 @@ Validation Claims (do not collapse into a single PASS):
 - DISPOSITION: NONE | OUTDATED_ONLY
 - LEGAL_VERDICT: PASS | FAIL | PENDING
 - SPEC_CONFIDENCE: NONE | PARTIAL_DIFF_SCOPED | REVIEWED_DIFF_SCOPED | POST_MERGE_RECHECKED
+- VALIDATOR_RISK_TIER: LOW | MEDIUM | HIGH
 
 Scope Inputs:
 - Task Packet: .GOV/task_packets/{WP_ID}.md (status: {status})
@@ -752,6 +769,27 @@ QUALITY_RISKS:
 - NONE
 - {or list each maintainability / heuristic-quality risk explicitly}
 
+DIFF_ATTACK_SURFACES:
+- {diff-derived failure surface}
+
+INDEPENDENT_CHECKS_RUN:
+- {validator-owned check} => {observed result}
+
+COUNTERFACTUAL_CHECKS:
+- If `{path or symbol}` were removed or altered, {observable breakage / proof expectation} would break.
+
+BOUNDARY_PROBES:
+- {producer/consumer or boundary check the validator ran}
+
+NEGATIVE_PATH_CHECKS:
+- {invalid/missing/adversarial input or failure-path check}
+
+INDEPENDENT_FINDINGS:
+- {what the validator learned that was not copied from coder evidence}
+
+RESIDUAL_UNCERTAINTY:
+- {what still remains uncertain after review}
+
 Findings:
 - Requirement X: satisfied at {path:line}; evidence snippet...
 - Hygiene: {clean | issues with details}
@@ -774,6 +812,10 @@ Improvements & Future Proofing:
 Split-Verdict Rules:
 - Use `SPEC_ALIGNMENT_VERDICT=PASS` only when every diff-scoped MUST/SHOULD clause claimed by DONE_MEANS + SPEC_ANCHOR is listed under `CLAUSES_REVIEWED` and `NOT_PROVEN` is exactly `NONE`.
 - Use `HEURISTIC_REVIEW_VERDICT=PASS` only when `QUALITY_RISKS` is exactly `NONE`.
+- Use `LEGAL_VERDICT=PASS` only when the report also records diff-derived attack surfaces, validator-owned independent checks, and concrete code-path counterfactuals.
+- `VALIDATOR_RISK_TIER` is validator-assigned and must not downscope below the packet `RISK_TIER`.
+- For `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
+- For `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - For `PACKET_FORMAT_VERSION >= 2026-03-15`, also reconcile the packet's live monitoring sections before PASS:
   - every `CLAUSE_CLOSURE_MATRIX` row must end `VALIDATOR_STATUS=CONFIRMED` (or `NOT_APPLICABLE`)
   - no row may remain `PENDING`

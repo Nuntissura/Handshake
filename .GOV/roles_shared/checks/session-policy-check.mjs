@@ -73,6 +73,13 @@ function checkExpected(errors, rel, text, label, expected) {
   }
 }
 
+function checkAllowed(errors, rel, text, label, allowed) {
+  const actual = parseSingleField(text, label);
+  if (!allowed.includes(actual)) {
+    errors.push(`${rel}: ${label} must be one of ${allowed.join(" | ")} (got: ${actual || "<missing>"})`);
+  }
+}
+
 function checkExpectedWithLegacyAlias(errors, rel, text, label, expected, legacyAlias) {
   const actual = parseSingleField(text, label);
   if (actual !== expected && actual !== legacyAlias) {
@@ -160,14 +167,28 @@ function checkPacket(filePath) {
     checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL", buildRemoteBackupUrl(legacyOriginTreeBase, defaultIntegrationValidatorBranch(wpId)));
   }
   if (packetUsesStructuredValidationReport(version)) {
-    checkExpected(errors, rel, text, "GOVERNED_VALIDATOR_REPORT_PROFILE", "SPLIT_DIFF_SCOPED_V1");
-    checkExpected(
-      errors,
-      rel,
-      text,
-      "GOVERNED_VALIDATOR_SPLIT_FIELDS",
-      "VALIDATION_CONTEXT | GOVERNANCE_VERDICT | TEST_VERDICT | CODE_REVIEW_VERDICT | SPEC_ALIGNMENT_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT | SPEC_CONFIDENCE"
-    );
+    const reportProfile = parseSingleField(text, "GOVERNED_VALIDATOR_REPORT_PROFILE");
+    checkAllowed(errors, rel, text, "GOVERNED_VALIDATOR_REPORT_PROFILE", [
+      "SPLIT_DIFF_SCOPED_V1",
+      "SPLIT_DIFF_SCOPED_RIGOR_V3",
+    ]);
+    if (/^SPLIT_DIFF_SCOPED_RIGOR_V3$/i.test(reportProfile)) {
+      checkExpected(
+        errors,
+        rel,
+        text,
+        "GOVERNED_VALIDATOR_SPLIT_FIELDS",
+        "VALIDATION_CONTEXT | GOVERNANCE_VERDICT | TEST_VERDICT | CODE_REVIEW_VERDICT | HEURISTIC_REVIEW_VERDICT | SPEC_ALIGNMENT_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT | SPEC_CONFIDENCE"
+      );
+    } else {
+      checkExpected(
+        errors,
+        rel,
+        text,
+        "GOVERNED_VALIDATOR_SPLIT_FIELDS",
+        "VALIDATION_CONTEXT | GOVERNANCE_VERDICT | TEST_VERDICT | CODE_REVIEW_VERDICT | SPEC_ALIGNMENT_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT | SPEC_CONFIDENCE"
+      );
+    }
   }
 
   const coderModel = parseSingleField(text, "CODER_MODEL");

@@ -114,6 +114,52 @@ function hasListItemAfterLabel(text, label) {
   return false;
 }
 
+function extractListItemsAfterLabel(text, label) {
+  const sectionLines = String(text || "").split(/\r?\n/);
+  const labelRe = new RegExp(`^\\s*${label}\\s*:\\s*$`, "i");
+  const headingRe = /^#{1,6}\s+\S/;
+  const nextLabelRe = /^\s*[A-Z][A-Z0-9_ ()/-]*\s*:\s*$/;
+  const items = [];
+
+  const labelIdx = sectionLines.findIndex((line) => labelRe.test(line));
+  if (labelIdx === -1) return items;
+
+  for (let index = labelIdx + 1; index < sectionLines.length; index += 1) {
+    const line = sectionLines[index];
+    if (headingRe.test(line)) break;
+    if (nextLabelRe.test(line)) break;
+    const match = line.match(/^\s*-\s+(.+)\s*$/);
+    if (!match) continue;
+    const value = (match[1] ?? "").trim().replace(/^`|`$/g, "");
+    if (!isPlaceholder(value)) items.push(value);
+  }
+
+  return items;
+}
+
+function hasOnlyNoneList(items) {
+  return items.length === 1 && String(items[0] || "").trim().toUpperCase() === "NONE";
+}
+
+function riskTierRank(value) {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "LOW") return 1;
+  if (normalized === "MEDIUM") return 2;
+  if (normalized === "HIGH") return 3;
+  return 0;
+}
+
+function hasConcreteCodeReference(value) {
+  const text = String(value || "").trim();
+  if (!text) return false;
+  return (
+    /`[^`]+`/.test(text) ||
+    /\b[\w./-]+\.(?:rs|ts|tsx|js|jsx|mjs|cjs|py|go|java|cs|cpp|c|h|hpp|json|ya?ml|toml|sql)(?::\d+)?\b/i.test(text) ||
+    /\b[A-Za-z_][A-Za-z0-9_]*::[A-Za-z_][A-Za-z0-9_]*\b/.test(text) ||
+    /\b[A-Za-z_][A-Za-z0-9_]*\([^)]*\)/.test(text)
+  );
+}
+
 const statusMatch = text.match(/(?:\*\*Status:\*\*|STATUS:)\s*(Ready for Dev|In Progress|Blocked|Done(?:\s*\(Historical\))?|Validated\s*\((?:PASS|FAIL|OUTDATED_ONLY)\))\b/i);
 if (!statusMatch) {
   fail("STATUS missing or invalid (must be Ready for Dev / In Progress / Blocked / Done / Done (Historical) / Validated (PASS|FAIL|OUTDATED_ONLY))");
@@ -187,6 +233,8 @@ if (packetFormatVersion) {
   const usesSemanticProofProfile = /^DIFF_SCOPED_SEMANTIC_V1$/i.test(semanticProofProfile);
   const validatorReportProfile = parseSingleField("GOVERNED_VALIDATOR_REPORT_PROFILE");
   const usesRigorV2Report = /^SPLIT_DIFF_SCOPED_RIGOR_V2$/i.test(validatorReportProfile);
+  const usesRigorV3Report = /^SPLIT_DIFF_SCOPED_RIGOR_V3$/i.test(validatorReportProfile);
+  const usesHeuristicRigorReport = usesRigorV2Report || usesRigorV3Report;
 
   if (closureStatus && packetUsesStructuredValidationReport(packetFormatVersion)) {
     if (usesClauseClosureMonitor) {
@@ -221,8 +269,11 @@ if (packetFormatVersion) {
       "LEGAL_VERDICT",
       "SPEC_CONFIDENCE",
     ];
-    if (usesRigorV2Report) {
+    if (usesHeuristicRigorReport) {
       requiredSingleFields.splice(4, 0, "HEURISTIC_REVIEW_VERDICT");
+    }
+    if (usesRigorV3Report) {
+      requiredSingleFields.push("VALIDATOR_RISK_TIER");
     }
 
     for (const label of requiredSingleFields) {
@@ -245,11 +296,26 @@ if (packetFormatVersion) {
     if (!hasListItemAfterLabel(validationReports, "NOT_PROVEN")) {
       fail("NOT_PROVEN missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
-    if (usesRigorV2Report && !hasListItemAfterLabel(validationReports, "MAIN_BODY_GAPS")) {
+    if (usesHeuristicRigorReport && !hasListItemAfterLabel(validationReports, "MAIN_BODY_GAPS")) {
       fail("MAIN_BODY_GAPS missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
-    if (usesRigorV2Report && !hasListItemAfterLabel(validationReports, "QUALITY_RISKS")) {
+    if (usesHeuristicRigorReport && !hasListItemAfterLabel(validationReports, "QUALITY_RISKS")) {
       fail("QUALITY_RISKS missing/placeholder list items in VALIDATION_REPORTS for closed packet");
+    }
+    if (usesRigorV3Report && !hasListItemAfterLabel(validationReports, "DIFF_ATTACK_SURFACES")) {
+      fail("DIFF_ATTACK_SURFACES missing/placeholder list items in VALIDATION_REPORTS for closed packet");
+    }
+    if (usesRigorV3Report && !hasListItemAfterLabel(validationReports, "INDEPENDENT_CHECKS_RUN")) {
+      fail("INDEPENDENT_CHECKS_RUN missing/placeholder list items in VALIDATION_REPORTS for closed packet");
+    }
+    if (usesRigorV3Report && !hasListItemAfterLabel(validationReports, "COUNTERFACTUAL_CHECKS")) {
+      fail("COUNTERFACTUAL_CHECKS missing/placeholder list items in VALIDATION_REPORTS for closed packet");
+    }
+    if (usesRigorV3Report && !hasListItemAfterLabel(validationReports, "INDEPENDENT_FINDINGS")) {
+      fail("INDEPENDENT_FINDINGS missing/placeholder list items in VALIDATION_REPORTS for closed packet");
+    }
+    if (usesRigorV3Report && !hasListItemAfterLabel(validationReports, "RESIDUAL_UNCERTAINTY")) {
+      fail("RESIDUAL_UNCERTAINTY missing/placeholder list items in VALIDATION_REPORTS for closed packet");
     }
 
     if (usesClauseClosureMonitor) {
@@ -263,13 +329,68 @@ if (packetFormatVersion) {
     const specAlignmentVerdict = specAlignmentVerdictMatch ? (specAlignmentVerdictMatch[1] || "").trim().toUpperCase() : "";
     const heuristicReviewVerdictMatch = validationReports.match(/^\s*HEURISTIC_REVIEW_VERDICT\s*:\s*(.+)\s*$/im);
     const heuristicReviewVerdict = heuristicReviewVerdictMatch ? (heuristicReviewVerdictMatch[1] || "").trim().toUpperCase() : "";
-    const mainBodyGapsOnlyNone = /^\s*MAIN_BODY_GAPS\s*:\s*$[\r\n]+\s*-\s*NONE\s*$/im.test(validationReports);
-    const qualityRisksOnlyNone = /^\s*QUALITY_RISKS\s*:\s*$[\r\n]+\s*-\s*NONE\s*$/im.test(validationReports);
-    if (usesRigorV2Report && specAlignmentVerdict === "PASS" && !mainBodyGapsOnlyNone) {
+    const legalVerdictMatch = validationReports.match(/^\s*LEGAL_VERDICT\s*:\s*(.+)\s*$/im);
+    const legalVerdict = legalVerdictMatch ? (legalVerdictMatch[1] || "").trim().toUpperCase() : "";
+    const mainBodyGaps = extractListItemsAfterLabel(validationReports, "MAIN_BODY_GAPS");
+    const qualityRisks = extractListItemsAfterLabel(validationReports, "QUALITY_RISKS");
+    const attackSurfaces = extractListItemsAfterLabel(validationReports, "DIFF_ATTACK_SURFACES");
+    const independentChecks = extractListItemsAfterLabel(validationReports, "INDEPENDENT_CHECKS_RUN");
+    const counterfactualChecks = extractListItemsAfterLabel(validationReports, "COUNTERFACTUAL_CHECKS");
+    const residualUncertainty = extractListItemsAfterLabel(validationReports, "RESIDUAL_UNCERTAINTY");
+    const boundaryProbes = extractListItemsAfterLabel(validationReports, "BOUNDARY_PROBES");
+    const negativePathChecks = extractListItemsAfterLabel(validationReports, "NEGATIVE_PATH_CHECKS");
+    if (usesHeuristicRigorReport && specAlignmentVerdict === "PASS" && !hasOnlyNoneList(mainBodyGaps)) {
       fail("SPEC_ALIGNMENT_VERDICT=PASS requires MAIN_BODY_GAPS to be exactly '- NONE'");
     }
-    if (usesRigorV2Report && heuristicReviewVerdict === "PASS" && !qualityRisksOnlyNone) {
+    if (usesHeuristicRigorReport && heuristicReviewVerdict === "PASS" && !hasOnlyNoneList(qualityRisks)) {
       fail("HEURISTIC_REVIEW_VERDICT=PASS requires QUALITY_RISKS to be exactly '- NONE'");
+    }
+    if (usesRigorV3Report) {
+      const packetRiskTier = parseSingleField("RISK_TIER").toUpperCase();
+      const validatorRiskTierMatch = validationReports.match(/^\s*VALIDATOR_RISK_TIER\s*:\s*(.+)\s*$/im);
+      const validatorRiskTier = validatorRiskTierMatch ? (validatorRiskTierMatch[1] || "").trim().toUpperCase() : "";
+      const validatorRiskTierRank = riskTierRank(validatorRiskTier);
+      const packetRiskTierRank = riskTierRank(packetRiskTier);
+      if (validatorRiskTierRank === 0) {
+        fail("VALIDATOR_RISK_TIER must be LOW | MEDIUM | HIGH");
+      }
+      if (packetRiskTierRank > 0 && validatorRiskTierRank < packetRiskTierRank) {
+        fail(`VALIDATOR_RISK_TIER must not be lower than packet RISK_TIER (${packetRiskTier})`);
+      }
+
+      const requiredIndependentChecks = validatorRiskTier === "HIGH" ? 2 : 1;
+      const requiredCounterfactualChecks = validatorRiskTier === "HIGH" ? 2 : 1;
+      if (independentChecks.length < requiredIndependentChecks) {
+        fail(`VALIDATOR_RISK_TIER=${validatorRiskTier} requires at least ${requiredIndependentChecks} INDEPENDENT_CHECKS_RUN item(s)`);
+      }
+      if (counterfactualChecks.length < requiredCounterfactualChecks) {
+        fail(`VALIDATOR_RISK_TIER=${validatorRiskTier} requires at least ${requiredCounterfactualChecks} COUNTERFACTUAL_CHECKS item(s)`);
+      }
+      if (validatorRiskTier === "HIGH" && hasOnlyNoneList(residualUncertainty)) {
+        fail("VALIDATOR_RISK_TIER=HIGH requires RESIDUAL_UNCERTAINTY to list real remaining uncertainty");
+      }
+      if ((validatorRiskTier === "MEDIUM" || validatorRiskTier === "HIGH") && boundaryProbes.length === 0) {
+        fail(`VALIDATOR_RISK_TIER=${validatorRiskTier} requires BOUNDARY_PROBES`);
+      }
+      if ((validatorRiskTier === "MEDIUM" || validatorRiskTier === "HIGH") && negativePathChecks.length === 0) {
+        fail(`VALIDATOR_RISK_TIER=${validatorRiskTier} requires NEGATIVE_PATH_CHECKS`);
+      }
+      if (legalVerdict === "PASS") {
+        if (attackSurfaces.length === 0) fail("LEGAL_VERDICT=PASS requires DIFF_ATTACK_SURFACES");
+        if (independentChecks.length === 0) fail("LEGAL_VERDICT=PASS requires INDEPENDENT_CHECKS_RUN");
+        if (counterfactualChecks.length === 0) fail("LEGAL_VERDICT=PASS requires COUNTERFACTUAL_CHECKS");
+        if ((validatorRiskTier === "MEDIUM" || validatorRiskTier === "HIGH") && boundaryProbes.length === 0) {
+          fail(`LEGAL_VERDICT=PASS requires BOUNDARY_PROBES for ${validatorRiskTier} risk`);
+        }
+        if ((validatorRiskTier === "MEDIUM" || validatorRiskTier === "HIGH") && negativePathChecks.length === 0) {
+          fail(`LEGAL_VERDICT=PASS requires NEGATIVE_PATH_CHECKS for ${validatorRiskTier} risk`);
+        }
+        for (const item of counterfactualChecks) {
+          if (!hasConcreteCodeReference(item)) {
+            fail(`LEGAL_VERDICT=PASS requires COUNTERFACTUAL_CHECKS entries to name a concrete code path or symbol (${item})`);
+          }
+        }
+      }
     }
     if (usesClauseClosureMonitor && specAlignmentVerdict === "PASS") {
       const passConsistency = validatePacketClosureMonitoring(text, {
@@ -285,4 +406,3 @@ if (packetFormatVersion) {
 }
 
 console.log(`validator-packet-complete: PASS - ${wpId} has required fields.`);
-
