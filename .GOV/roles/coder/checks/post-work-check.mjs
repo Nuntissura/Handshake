@@ -508,6 +508,34 @@ if (isModernPacket) {
         }
       }
     }
+  } else if (/^RUBRIC_SELF_AUDIT_V2$/i.test(handoffRigorProfile)) {
+    const statusHandoff = extractSection(packetContent, 'STATUS_HANDOFF');
+    if (!statusHandoff) {
+      errors.push('Missing ## STATUS_HANDOFF section (required for RUBRIC_SELF_AUDIT_V2)');
+    } else {
+      const requiredStatusFields = [
+        'Current WP_STATUS',
+        'What changed in this update',
+        'Requirements / clauses self-audited',
+        'Checks actually run',
+        'Known gaps / weak spots',
+        'Heuristic risks / maintainability concerns',
+        'Validator focus request',
+        'Rubric contract understanding proof',
+        'Rubric scope discipline proof',
+        'Rubric baseline comparison',
+        'Rubric end-to-end proof',
+        'Rubric architecture fit self-review',
+        'Rubric heuristic quality self-review',
+        'Rubric anti-gaming / counterfactual check',
+        'Next step / handoff hint',
+      ];
+      for (const label of requiredStatusFields) {
+        if (!hasConcreteStatusField(statusHandoff, label)) {
+          errors.push(`STATUS_HANDOFF missing concrete field: ${label}`);
+        }
+      }
+    }
   }
 }
 

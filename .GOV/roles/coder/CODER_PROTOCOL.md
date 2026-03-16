@@ -209,6 +209,13 @@ This is a convenience wrapper around the core deterministic checks (worktree con
 Optional (recommended on session start to reduce babysitting):
 - `just coder-startup` (prints PROTOCOL_ACK lines + runs `just coder-preflight`).
 
+### Mandatory Rubric Read (HARD)
+
+- Before the first WP-specific `BOOTSTRAP` step or any code change, read `/.GOV/roles/coder/docs/CODER_RUBRIC_V2.md`.
+- The rubric remains support guidance, but this protocol adopts it as the mandatory coder quality floor.
+- Do not treat the rubric as optional background reading. Use it to shape implementation choices, self-critique, and handoff quality from the start of the WP.
+- Before handoff to the WP Validator, answer the required rubric-backed handoff fields defined by the packet `CODER_HANDOFF_RIGOR_PROFILE`.
+
 ### Context resume (recommended; anti-babysit)
 
 If the session resets, context compacts, or you inherit a half-finished WP, use:
@@ -357,7 +364,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 - At start: set the task packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH`, and make a docs-only bootstrap commit on your WP branch (so the Validator can status-sync `main`). For newly created repo-governed packets, claim `gpt-5.4` + `EXTRA_HIGH`, or `gpt-5.2` + `EXTRA_HIGH` only when the primary model is unavailable.
 - **Evidence Management:** You MAY append test logs, command outputs, and proof of work to the `## EVIDENCE` section of the task packet.
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
-- **Status Updates:** Update the `## STATUS_HANDOFF` section with a real self-audit, not a generic "tests passing" note.
+- **Status Updates:** Update the `## STATUS_HANDOFF` section with a real self-audit, not a generic "tests passing" note. When `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, include both the standard handoff core and the rubric-proof fields.
 - Compare your implementation against local `main` first. Use `origin/main` only as a secondary fallback when local `main` is missing the relevant integrated context or remote drift is the subject of the WP.
 - **Branch Discipline (preferred):** Do all work on a WP branch (e.g., `feat/WP-{ID}`), optionally via `git worktree`. You MAY commit freely to your WP branch and push only the assigned WP backup branch. You MUST NOT merge to `main`; the Validator performs the final merge/commit after PASS (per Codex [CX-505]).
 - **Concurrency rule (MANDATORY when >1 Coder is active):** work only in the dedicated `git worktree` directory assigned to your WP. Do NOT share a single working tree with another active WP.
@@ -1242,14 +1249,24 @@ Fix errors, re-run `just post-work`.
 ### Step 11: Status Sync & Request Validator Review
 
 **1. Update task packet handoff:**
-- Ensure `## STATUS_HANDOFF` includes all of the following, with concrete content rather than a generic ready note:
+- Ensure `## STATUS_HANDOFF` includes the standard handoff core, with concrete content rather than a generic ready note:
   - `Current WP_STATUS:`
   - `What changed in this update:`
-  - `Main-body clauses self-audited:`
+  - `Requirements / clauses self-audited:`
+  - `Checks actually run:`
   - `Known gaps / weak spots:`
   - `Heuristic risks / maintainability concerns:`
   - `Validator focus request:`
   - `Next step / handoff hint:`
+- If `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, `## STATUS_HANDOFF` MUST also include these rubric-proof fields:
+  - `Rubric contract understanding proof:`
+  - `Rubric scope discipline proof:`
+  - `Rubric baseline comparison:`
+  - `Rubric end-to-end proof:`
+  - `Rubric architecture fit self-review:`
+  - `Rubric heuristic quality self-review:`
+  - `Rubric anti-gaming / counterfactual check:`
+- Treat those rubric-proof fields as evidence-backed self-critique for the validator, not as motivational prose.
 - Do NOT write verdicts or edit `## VALIDATION_REPORTS`
 
 **2. Output final summary:**
@@ -1321,6 +1338,8 @@ Ready for Validator review.
 5. Document validation results for handoff (outside the task packet)
 6. Update task packet status/notes only before commit (logger only if requested; no validation logs)
 7. Run `just post-work WP-{ID}` before claiming done
+8. Read `/.GOV/roles/coder/docs/CODER_RUBRIC_V2.md` before the first WP-specific BOOTSTRAP or code change
+9. Answer the required rubric-proof fields in `## STATUS_HANDOFF` before validator handoff when the packet uses `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`
 
 ---
 
