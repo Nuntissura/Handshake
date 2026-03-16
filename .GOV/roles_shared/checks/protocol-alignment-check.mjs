@@ -22,11 +22,17 @@ const ORCHESTRATOR_PROTOCOL_PATH = path.join(".GOV", "roles", "orchestrator", "O
 const CODER_PROTOCOL_PATH = path.join(".GOV", "roles", "coder", "CODER_PROTOCOL.md");
 const VALIDATOR_PROTOCOL_PATH = path.join(".GOV", "roles", "validator", "VALIDATOR_PROTOCOL.md");
 const ORCHESTRATOR_GATES_PATH = path.join(".GOV", "roles", "orchestrator", "checks", "orchestrator_gates.mjs");
+const CREATE_TASK_PACKET_PATH = path.join(".GOV", "roles", "orchestrator", "scripts", "create-task-packet.mjs");
 const LAUNCH_CLI_SESSION_PATH = path.join(".GOV", "roles", "orchestrator", "scripts", "launch-cli-session.mjs");
 const SESSION_CONTROL_COMMAND_PATH = path.join(".GOV", "roles", "orchestrator", "scripts", "session-control-command.mjs");
 const SESSION_CONTROL_CANCEL_PATH = path.join(".GOV", "roles", "orchestrator", "scripts", "session-control-cancel.mjs");
 const ROLE_SESSION_WORKTREE_ADD_PATH = path.join(".GOV", "roles", "orchestrator", "scripts", "role-session-worktree-add.mjs");
+const PRE_WORK_CHECK_PATH = path.join(".GOV", "roles", "coder", "checks", "pre-work-check.mjs");
+const SESSION_POLICY_CHECK_PATH = path.join(".GOV", "roles_shared", "checks", "session-policy-check.mjs");
 const REFINEMENT_TEMPLATE_PATH = path.join(".GOV", "templates", "REFINEMENT_TEMPLATE.md");
+const TASK_PACKET_TEMPLATE_PATH = path.join(".GOV", "templates", "TASK_PACKET_TEMPLATE.md");
+const ROLE_WORKTREES_DOC_PATH = path.join(".GOV", "roles_shared", "docs", "ROLE_WORKTREES.md");
+const ROLE_SESSION_REGISTRY_SCHEMA_PATH = path.join(".GOV", "roles_shared", "schemas", "ROLE_SESSION_REGISTRY.schema.json");
 
 const ACTIVE_SURFACE_PATHS = [
   JUSTFILE_PATH,
@@ -34,11 +40,17 @@ const ACTIVE_SURFACE_PATHS = [
   CODER_PROTOCOL_PATH,
   VALIDATOR_PROTOCOL_PATH,
   ORCHESTRATOR_GATES_PATH,
+  CREATE_TASK_PACKET_PATH,
   LAUNCH_CLI_SESSION_PATH,
   SESSION_CONTROL_COMMAND_PATH,
   SESSION_CONTROL_CANCEL_PATH,
   ROLE_SESSION_WORKTREE_ADD_PATH,
+  PRE_WORK_CHECK_PATH,
+  SESSION_POLICY_CHECK_PATH,
   REFINEMENT_TEMPLATE_PATH,
+  TASK_PACKET_TEMPLATE_PATH,
+  ROLE_WORKTREES_DOC_PATH,
+  ROLE_SESSION_REGISTRY_SCHEMA_PATH,
 ];
 
 function resolveRepoRoot() {
@@ -131,11 +143,17 @@ const orchestratorProtocol = contents.get(ORCHESTRATOR_PROTOCOL_PATH);
 const coderProtocol = contents.get(CODER_PROTOCOL_PATH);
 const validatorProtocol = contents.get(VALIDATOR_PROTOCOL_PATH);
 const orchestratorGates = contents.get(ORCHESTRATOR_GATES_PATH);
+const createTaskPacket = contents.get(CREATE_TASK_PACKET_PATH);
 const launchCliSession = contents.get(LAUNCH_CLI_SESSION_PATH);
 const sessionControlCommand = contents.get(SESSION_CONTROL_COMMAND_PATH);
 const sessionControlCancel = contents.get(SESSION_CONTROL_CANCEL_PATH);
 const roleSessionWorktreeAdd = contents.get(ROLE_SESSION_WORKTREE_ADD_PATH);
+const preWorkCheck = contents.get(PRE_WORK_CHECK_PATH);
+const sessionPolicyCheck = contents.get(SESSION_POLICY_CHECK_PATH);
 const refinementTemplate = contents.get(REFINEMENT_TEMPLATE_PATH);
+const taskPacketTemplate = contents.get(TASK_PACKET_TEMPLATE_PATH);
+const roleWorktreesDoc = contents.get(ROLE_WORKTREES_DOC_PATH);
+const roleSessionRegistrySchema = contents.get(ROLE_SESSION_REGISTRY_SCHEMA_PATH);
 
 const roleAlternation = SESSION_ROLES.join("|");
 const commandKindAlternation = SESSION_COMMAND_KINDS.join("|");
@@ -226,6 +244,7 @@ requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just valid
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just validator-next");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launch-wp-validator-session");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launch-integration-validator-session");
+requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "shared remote WP backup branch");
 
 // Scripts must expose the current role/command contract and point at active paths.
 requireRegex(
@@ -285,6 +304,89 @@ requireSubstring(
   orchestratorGates,
   "EXECUTION_OWNER_RANGE_HELP",
   "shared execution-owner range constant",
+);
+requireRegex(
+  errors,
+  CREATE_TASK_PACKET_PATH,
+  createTaskPacket,
+  /const wpValidatorRemoteBackupBranch = remoteBackupBranch;/,
+  "shared WP backup branch assignment for WP Validator packet fields",
+);
+requireRegex(
+  errors,
+  CREATE_TASK_PACKET_PATH,
+  createTaskPacket,
+  /const integrationValidatorRemoteBackupBranch = remoteBackupBranch;/,
+  "shared WP backup branch assignment for Integration Validator packet fields",
+);
+requireSubstring(
+  errors,
+  TASK_PACKET_TEMPLATE_PATH,
+  taskPacketTemplate,
+  "Do not create separate validator-only remote WP backup branches.",
+);
+requireSubstring(
+  errors,
+  ROLE_WORKTREES_DOC_PATH,
+  roleWorktreesDoc,
+  "single packet-declared WP backup branch on GitHub",
+);
+requireSubstring(
+  errors,
+  PRE_WORK_CHECK_PATH,
+  preWorkCheck,
+  "WP_VALIDATOR_REMOTE_BACKUP_URL must mirror REMOTE_BACKUP_URL",
+);
+requireSubstring(
+  errors,
+  PRE_WORK_CHECK_PATH,
+  preWorkCheck,
+  "INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL must mirror REMOTE_BACKUP_URL",
+);
+requireSubstring(
+  errors,
+  SESSION_POLICY_CHECK_PATH,
+  sessionPolicyCheck,
+  'checkMirrorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_BRANCH", "REMOTE_BACKUP_BRANCH");',
+);
+requireSubstring(
+  errors,
+  SESSION_POLICY_CHECK_PATH,
+  sessionPolicyCheck,
+  'checkMirrorField(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH", "REMOTE_BACKUP_BRANCH");',
+);
+requireSubstring(
+  errors,
+  SESSION_POLICY_CHECK_PATH,
+  sessionPolicyCheck,
+  'checkMirrorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_URL", "REMOTE_BACKUP_URL");',
+);
+requireSubstring(
+  errors,
+  SESSION_POLICY_CHECK_PATH,
+  sessionPolicyCheck,
+  'checkMirrorField(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL", "REMOTE_BACKUP_URL");',
+);
+requireSubstring(
+  errors,
+  ROLE_SESSION_REGISTRY_SCHEMA_PATH,
+  roleSessionRegistrySchema,
+  '^\\\\.GOV/roles_shared/runtime/SESSION_LAUNCH_REQUESTS\\\\.jsonl$',
+  "runtime SESSION_LAUNCH_REQUESTS schema path",
+);
+requireSubstring(
+  errors,
+  ROLE_SESSION_REGISTRY_SCHEMA_PATH,
+  roleSessionRegistrySchema,
+  '^\\\\.GOV/roles_shared/runtime/SESSION_CONTROL_REQUESTS\\\\.jsonl$',
+  "runtime SESSION_CONTROL_REQUESTS schema path",
+);
+requireSubstring(
+  errors,
+  ROLE_SESSION_REGISTRY_SCHEMA_PATH,
+  roleSessionRegistrySchema,
+  '^\\\\.GOV/roles_shared/runtime/SESSION_CONTROL_RESULTS\\\\.jsonl$',
+  "runtime SESSION_CONTROL_RESULTS schema path",
 );
 
 // Refinement scaffolding must stay on the current refinement workflow contract.

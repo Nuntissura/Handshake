@@ -33,6 +33,8 @@ import {
   CODEX_MODEL_ALIASES_ALLOWED,
   defaultIntegrationValidatorBranch,
   defaultIntegrationValidatorWorktreeDir,
+  buildRemoteBackupUrl,
+  packetUsesSharedRemoteWpBackup,
   packetUsesStructuredValidationReport,
   defaultWpValidatorBranch,
   defaultWpValidatorWorktreeDir,
@@ -495,6 +497,8 @@ if (!fs.existsSync(taskPacketDir)) {
   if (isModernPacket && isVersionAtLeast(packetFormatVersion, '2026-03-12')) {
     console.log('\nCheck 2.6BC: Session policy');
 
+    const remoteBackupBranch = parseSingleField(packetContent, 'REMOTE_BACKUP_BRANCH');
+    const remoteBackupUrl = parseSingleField(packetContent, 'REMOTE_BACKUP_URL');
     const expectedFields = [
       ['SESSION_START_AUTHORITY', SESSION_START_AUTHORITY],
       ['SESSION_HOST_PREFERENCE', SESSION_HOST_PREFERENCE],
@@ -523,15 +527,23 @@ if (!fs.existsSync(taskPacketDir)) {
       ['CODER_RESUME_COMMAND', `just coder-next ${WP_ID}`],
       ['WP_VALIDATOR_LOCAL_BRANCH', defaultWpValidatorBranch(WP_ID)],
       ['WP_VALIDATOR_LOCAL_WORKTREE_DIR', defaultWpValidatorWorktreeDir(WP_ID)],
-      ['WP_VALIDATOR_REMOTE_BACKUP_BRANCH', defaultWpValidatorBranch(WP_ID)],
       ['WP_VALIDATOR_STARTUP_COMMAND', 'just validator-startup'],
       ['WP_VALIDATOR_RESUME_COMMAND', `just validator-next ${WP_ID}`],
       ['INTEGRATION_VALIDATOR_LOCAL_BRANCH', defaultIntegrationValidatorBranch(WP_ID)],
       ['INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR', defaultIntegrationValidatorWorktreeDir(WP_ID)],
-      ['INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH', defaultIntegrationValidatorBranch(WP_ID)],
       ['INTEGRATION_VALIDATOR_STARTUP_COMMAND', 'just validator-startup'],
       ['INTEGRATION_VALIDATOR_RESUME_COMMAND', `just validator-next ${WP_ID}`],
     ];
+
+    if (!remoteBackupBranch) {
+      errors.push('REMOTE_BACKUP_BRANCH missing/invalid for packets with PACKET_FORMAT_VERSION >= 2026-03-12');
+    } else if (packetUsesSharedRemoteWpBackup(packetFormatVersion)) {
+      expectedFields.push(['WP_VALIDATOR_REMOTE_BACKUP_BRANCH', remoteBackupBranch]);
+      expectedFields.push(['INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH', remoteBackupBranch]);
+    } else {
+      expectedFields.push(['WP_VALIDATOR_REMOTE_BACKUP_BRANCH', defaultWpValidatorBranch(WP_ID)]);
+      expectedFields.push(['INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH', defaultIntegrationValidatorBranch(WP_ID)]);
+    }
 
     for (const [label, expected] of expectedFields) {
       const actual = parseSingleField(packetContent, label);
@@ -541,16 +553,31 @@ if (!fs.existsSync(taskPacketDir)) {
     }
 
     const validatorBackupUrl = parseSingleField(packetContent, 'WP_VALIDATOR_REMOTE_BACKUP_URL');
-    if (validatorBackupUrl !== '<pending>' && !validatorBackupUrl.endsWith(`/tree/${defaultWpValidatorBranch(WP_ID)}`)) {
-      errors.push(`WP_VALIDATOR_REMOTE_BACKUP_URL must end with /tree/${defaultWpValidatorBranch(WP_ID)} or be <pending>`);
+    if (!remoteBackupUrl) {
+      errors.push('REMOTE_BACKUP_URL missing/invalid for packets with PACKET_FORMAT_VERSION >= 2026-03-12');
+    } else if (packetUsesSharedRemoteWpBackup(packetFormatVersion)) {
+      if (validatorBackupUrl !== remoteBackupUrl) {
+        errors.push(`WP_VALIDATOR_REMOTE_BACKUP_URL must mirror REMOTE_BACKUP_URL (${remoteBackupUrl}; got: ${validatorBackupUrl || '<missing>'})`);
+      }
+    } else {
+      const legacyWpValidatorRemoteBackupUrl = buildRemoteBackupUrl(remoteBackupUrl.replace(/\/tree\/.*$/, ''), defaultWpValidatorBranch(WP_ID));
+      if (validatorBackupUrl !== legacyWpValidatorRemoteBackupUrl) {
+        errors.push(`WP_VALIDATOR_REMOTE_BACKUP_URL must remain ${legacyWpValidatorRemoteBackupUrl} for packets with PACKET_FORMAT_VERSION < 2026-03-16 (got: ${validatorBackupUrl || '<missing>'})`);
+      }
     }
 
     const integrationBackupUrl = parseSingleField(packetContent, 'INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL');
-    if (
-      integrationBackupUrl !== '<pending>' &&
-      !integrationBackupUrl.endsWith(`/tree/${defaultIntegrationValidatorBranch(WP_ID)}`)
-    ) {
-      errors.push(`INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL must end with /tree/${defaultIntegrationValidatorBranch(WP_ID)} or be <pending>`);
+    if (!remoteBackupUrl) {
+      // Keep a single missing-global-field error above; no extra URL rule needed.
+    } else if (packetUsesSharedRemoteWpBackup(packetFormatVersion)) {
+      if (integrationBackupUrl !== remoteBackupUrl) {
+        errors.push(`INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL must mirror REMOTE_BACKUP_URL (${remoteBackupUrl}; got: ${integrationBackupUrl || '<missing>'})`);
+      }
+    } else {
+      const legacyIntegrationRemoteBackupUrl = buildRemoteBackupUrl(remoteBackupUrl.replace(/\/tree\/.*$/, ''), defaultIntegrationValidatorBranch(WP_ID));
+      if (integrationBackupUrl !== legacyIntegrationRemoteBackupUrl) {
+        errors.push(`INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL must remain ${legacyIntegrationRemoteBackupUrl} for packets with PACKET_FORMAT_VERSION < 2026-03-16 (got: ${integrationBackupUrl || '<missing>'})`);
+      }
     }
   }
 
@@ -1174,5 +1201,3 @@ if (errors.length === 0) {
   console.log('See: .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md or .GOV/roles/coder/CODER_PROTOCOL.md');
   process.exit(1);
 }
-
-

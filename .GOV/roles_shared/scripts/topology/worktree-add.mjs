@@ -10,6 +10,56 @@ function runGitInherit(args) {
   execFileSync("git", args, { stdio: "inherit" });
 }
 
+function normalizeWorktreePathForCompare(targetPath) {
+  const normalized = path.resolve(targetPath).replace(/\\/g, "/").replace(/\/+$/, "");
+  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+}
+
+function parseWorktreeListPorcelain(raw) {
+  const entries = [];
+  const lines = String(raw || "").split(/\r?\n/);
+  let current = null;
+
+  function flush() {
+    if (!current?.worktree) return;
+    entries.push(current);
+    current = null;
+  }
+
+  for (const line of lines) {
+    if (!line.trim()) {
+      flush();
+      continue;
+    }
+    if (line.startsWith("worktree ")) {
+      flush();
+      current = {
+        worktree: line.slice("worktree ".length).trim(),
+        branch: "",
+        prunable: false,
+      };
+      continue;
+    }
+    if (!current) continue;
+    if (line.startsWith("branch ")) {
+      current.branch = line.slice("branch ".length).trim();
+      continue;
+    }
+    if (line.startsWith("prunable")) {
+      current.prunable = true;
+    }
+  }
+
+  flush();
+  return entries;
+}
+
+function findRegisteredWorktree(targetPath) {
+  const target = normalizeWorktreePathForCompare(targetPath);
+  const entries = parseWorktreeListPorcelain(runGit(["worktree", "list", "--porcelain"]));
+  return entries.find((entry) => normalizeWorktreePathForCompare(entry.worktree) === target) || null;
+}
+
 function fail(message) {
   console.error(`[WORKTREE_ADD] ${message}`);
   process.exit(1);
@@ -54,9 +104,23 @@ function main() {
   }
 
   const absDir = path.resolve(repoRoot, dir);
+  const registeredBeforePrune = findRegisteredWorktree(absDir);
+
+  if (!fs.existsSync(absDir) && registeredBeforePrune) {
+    console.log(`[WORKTREE_ADD] Pruning stale worktree metadata before add: ${absDir}`);
+    runGitInherit(["worktree", "prune"]);
+  }
+
+  const registeredAfterPrune = findRegisteredWorktree(absDir);
 
   if (fs.existsSync(absDir)) {
     fail(`Target directory already exists: ${absDir}`);
+  }
+  if (registeredAfterPrune) {
+    fail(
+      `Target worktree path is still registered in git metadata after prune: ${absDir}. `
+      + "Inspect `git worktree list --porcelain` and clear the stale registration before retrying."
+    );
   }
 
   const alreadyHaveBranch = isBranchPresent(branch);

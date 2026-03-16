@@ -399,6 +399,22 @@ export function markSessionCommandRunning(session, command) {
   session.last_command_output_file = command.output_jsonl_file || "";
   session.last_event_at = nowIso();
   session.runtime_state = command.command_kind === "START_SESSION" ? "STARTING" : "COMMAND_RUNNING";
+  if (command.command_kind === "START_SESSION") {
+    session.startup_proof_state = "START_REQUESTED";
+  }
+  normalizeSessionRecord(session);
+}
+
+export function markSessionThreadObserved(session, threadId, observedAt = nowIso()) {
+  const normalizedThreadId = String(threadId || "").trim();
+  if (!normalizedThreadId) return;
+  session.session_thread_id = normalizedThreadId;
+  session.session_thread_started_at = session.session_thread_started_at || observedAt;
+  if (session.last_command_kind === "START_SESSION" && session.last_command_status === "RUNNING") {
+    session.startup_proof_state = "START_REQUESTED";
+    session.runtime_state = "STARTING";
+  }
+  session.last_event_at = observedAt;
   normalizeSessionRecord(session);
 }
 

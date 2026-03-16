@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  buildRemoteBackupUrl,
   CLI_ESCALATION_HOST_DEFAULT,
   CLI_ESCALATION_HOST_LEGACY_ALIAS,
   CLI_SESSION_TOOL,
@@ -12,6 +13,7 @@ import {
   EXECUTION_OWNER_RANGE_HELP,
   MODEL_FAMILY_POLICY,
   PACKET_FORMAT_VERSION,
+  packetUsesSharedRemoteWpBackup,
   packetUsesStructuredValidationReport,
   packetUsesSessionPolicy,
   ROLE_SESSION_FALLBACK_MODEL,
@@ -76,11 +78,16 @@ function checkExpectedWithLegacyAlias(errors, rel, text, label, expected, legacy
   }
 }
 
-function checkBackupUrl(errors, rel, text, label, branch) {
+function checkMirrorField(errors, rel, text, label, sourceLabel) {
+  const expected = parseSingleField(text, sourceLabel);
+  if (!expected) {
+    errors.push(`${rel}: ${sourceLabel} missing/invalid; cannot validate ${label}`);
+    return;
+  }
+
   const actual = parseSingleField(text, label);
-  if (actual === "<pending>") return;
-  if (!actual.endsWith(`/tree/${branch}`)) {
-    errors.push(`${rel}: ${label} must end with /tree/${branch} or be <pending> (got: ${actual || "<missing>"})`);
+  if (actual !== expected) {
+    errors.push(`${rel}: ${label} must mirror ${sourceLabel} (${expected}; got: ${actual || "<missing>"})`);
   }
 }
 
@@ -132,16 +139,24 @@ function checkPacket(filePath) {
   checkExpected(errors, rel, text, "CODER_RESUME_COMMAND", `just coder-next ${wpId}`);
   checkExpected(errors, rel, text, "WP_VALIDATOR_LOCAL_BRANCH", defaultWpValidatorBranch(wpId));
   checkExpected(errors, rel, text, "WP_VALIDATOR_LOCAL_WORKTREE_DIR", defaultWpValidatorWorktreeDir(wpId));
-  checkExpected(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_BRANCH", defaultWpValidatorBranch(wpId));
   checkExpected(errors, rel, text, "WP_VALIDATOR_STARTUP_COMMAND", "just validator-startup");
   checkExpected(errors, rel, text, "WP_VALIDATOR_RESUME_COMMAND", `just validator-next ${wpId}`);
   checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_LOCAL_BRANCH", defaultIntegrationValidatorBranch(wpId));
   checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR", defaultIntegrationValidatorWorktreeDir(wpId));
-  checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH", defaultIntegrationValidatorBranch(wpId));
   checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_STARTUP_COMMAND", "just validator-startup");
   checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_RESUME_COMMAND", `just validator-next ${wpId}`);
-  checkBackupUrl(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_URL", defaultWpValidatorBranch(wpId));
-  checkBackupUrl(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL", defaultIntegrationValidatorBranch(wpId));
+  if (packetUsesSharedRemoteWpBackup(version)) {
+    checkMirrorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_BRANCH", "REMOTE_BACKUP_BRANCH");
+    checkMirrorField(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH", "REMOTE_BACKUP_BRANCH");
+    checkMirrorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_URL", "REMOTE_BACKUP_URL");
+    checkMirrorField(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL", "REMOTE_BACKUP_URL");
+  } else {
+    const legacyOriginTreeBase = parseSingleField(text, "REMOTE_BACKUP_URL").replace(/\/tree\/.*$/, "");
+    checkExpected(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_BRANCH", defaultWpValidatorBranch(wpId));
+    checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH", defaultIntegrationValidatorBranch(wpId));
+    checkExpected(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_URL", buildRemoteBackupUrl(legacyOriginTreeBase, defaultWpValidatorBranch(wpId)));
+    checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL", buildRemoteBackupUrl(legacyOriginTreeBase, defaultIntegrationValidatorBranch(wpId)));
+  }
   if (packetUsesStructuredValidationReport(version)) {
     checkExpected(errors, rel, text, "GOVERNED_VALIDATOR_REPORT_PROFILE", "SPLIT_DIFF_SCOPED_V1");
     checkExpected(
@@ -205,5 +220,3 @@ for (const filePath of listMarkdownFiles(PACKETS_DIR)) checkPacket(filePath);
 for (const filePath of listMarkdownFiles(STUBS_DIR)) checkStub(filePath);
 
 console.log("session-policy-check ok");
-
-

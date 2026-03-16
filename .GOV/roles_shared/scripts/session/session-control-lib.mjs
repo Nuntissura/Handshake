@@ -144,10 +144,12 @@ export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
     `MODEL POLICY: selected ${selectedModel}; primary ${ROLE_SESSION_PRIMARY_MODEL} with ${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}; fallback ${ROLE_SESSION_FALLBACK_MODEL} with the same reasoning value if primary is unavailable.`,
     `REPO POLICY: do not switch to Codex model aliases for repo-governed sessions.`,
     `REMINDER: the Orchestrator remains workflow authority; only the Integration Validator can own merge-to-main authority.`,
-    `Execute these commands now, in order, before any other work:`,
+    `Execute only this startup bootstrap now, in order, before any other work:`,
     `1. ${roleConfig.startupCommand}`,
     `2. ${roleConfig.nextCommand}`,
-    `Do not start implementation yet. First run those commands, inspect their output, and report the resulting lifecycle/gate state.`,
+    `After those commands, report only the resulting lifecycle/gate state, blockers, and next required command(s).`,
+    `Do not run follow-on tests, validation, implementation, edits, or merge actions in this START_SESSION turn.`,
+    `Stop after reporting and wait for a later SEND_PROMPT from the Orchestrator.`,
   ].join("\n");
 }
 

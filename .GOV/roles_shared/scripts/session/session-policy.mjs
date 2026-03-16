@@ -4,6 +4,7 @@ export const PACKET_FORMAT_VERSION = "2026-03-16";
 export const STUB_FORMAT_VERSION = "2026-03-12";
 export const SESSION_POLICY_PACKET_MIN_VERSION = "2026-03-12";
 export const STRUCTURED_VALIDATION_REPORT_MIN_VERSION = "2026-03-15";
+export const SHARED_REMOTE_WP_BACKUP_PACKET_MIN_VERSION = "2026-03-16";
 
 export const SESSION_START_AUTHORITY = "ORCHESTRATOR_ONLY";
 export const SESSION_HOST_PREFERENCE = "VSCODE_EXTENSION_TERMINAL";
@@ -225,6 +226,11 @@ export function packetUsesSessionPolicy(packetFormatVersion) {
 export function packetUsesStructuredValidationReport(packetFormatVersion) {
   const version = String(packetFormatVersion || "").trim();
   return version >= STRUCTURED_VALIDATION_REPORT_MIN_VERSION;
+}
+
+export function packetUsesSharedRemoteWpBackup(packetFormatVersion) {
+  const version = String(packetFormatVersion || "").trim();
+  return version >= SHARED_REMOTE_WP_BACKUP_PACKET_MIN_VERSION;
 }
 
 export function stubUsesSessionPolicy(stubFormatVersion) {

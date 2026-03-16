@@ -9,6 +9,7 @@ import {
   ensureSessionStateFiles,
   loadSessionControlResults,
   loadSessionRegistry,
+  markSessionThreadObserved,
   markSessionCommandResult,
   markSessionCommandRunning,
   saveSessionRegistry,
@@ -571,6 +572,18 @@ async function runGovernedRequest(socket, id, request, expectedCommandKind) {
       });
     },
     onEvent: (event) => {
+      if (event.type === "thread.started" && event.thread_id) {
+        const { registry: liveRegistry } = loadSessionRegistry(repoRoot);
+        const liveSession = liveRegistry.sessions.find((entry) => entry.session_key === requestRecord.session_key);
+        if (liveSession) {
+          markSessionThreadObserved(
+            liveSession,
+            event.thread_id,
+            event.timestamp || nowIso(),
+          );
+          saveSessionRegistry(repoRoot, liveRegistry);
+        }
+      }
       notify(socket, "session/update", {
         session_id: requestRecord.session_key,
         command_id: requestRecord.command_id,

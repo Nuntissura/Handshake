@@ -639,12 +639,13 @@ const originTreeBase = githubTreeBase();
 const remoteBackupUrl = buildRemoteBackupUrl(originTreeBase, remoteBackupBranch);
 const wpValidatorBranch = defaultWpValidatorBranch(WP_ID);
 const wpValidatorWorktreeDir = defaultWpValidatorWorktreeDir(WP_ID);
-const wpValidatorRemoteBackupBranch = wpValidatorBranch;
-const wpValidatorRemoteBackupUrl = buildRemoteBackupUrl(originTreeBase, wpValidatorRemoteBackupBranch);
+// Validators keep distinct local branches/worktrees, but all WP-scoped roles share one remote WP backup branch.
+const wpValidatorRemoteBackupBranch = remoteBackupBranch;
+const wpValidatorRemoteBackupUrl = remoteBackupUrl;
 const integrationValidatorBranch = defaultIntegrationValidatorBranch(WP_ID);
 const integrationValidatorWorktreeDir = defaultIntegrationValidatorWorktreeDir(WP_ID);
-const integrationValidatorRemoteBackupBranch = integrationValidatorBranch;
-const integrationValidatorRemoteBackupUrl = buildRemoteBackupUrl(originTreeBase, integrationValidatorRemoteBackupBranch);
+const integrationValidatorRemoteBackupBranch = remoteBackupBranch;
+const integrationValidatorRemoteBackupUrl = remoteBackupUrl;
 template = replaceSingleField(template, 'BASE_WP_ID', baseWpId);
 template = replaceSingleField(template, 'LOCAL_BRANCH', localBranch);
 template = replaceSingleField(template, 'LOCAL_WORKTREE_DIR', localWorktreeDir);
@@ -1085,5 +1086,4 @@ try {
     });
   }
 }
-
 
