@@ -163,6 +163,8 @@ function extractSectionBlock(text, heading) {
   const headingIdx = lines.findIndex((line) => new RegExp(`^#{2,6}\\s+${heading}\\b`, 'i').test(line));
   if (headingIdx === -1) return '';
 
+  const headingMatch = lines[headingIdx].match(/^(#{2,6})\s+/);
+  const headingLevel = headingMatch ? headingMatch[1].length : 2;
   const sectionLines = [lines[headingIdx]];
   let inFence = false;
   for (let i = headingIdx + 1; i < lines.length; i += 1) {
@@ -173,7 +175,8 @@ function extractSectionBlock(text, heading) {
       sectionLines.push(line);
       continue;
     }
-    if (!inFence && /^#{1,6}\s+\S/.test(line)) break;
+    const nextHeadingMatch = !inFence ? line.match(/^(#{1,6})\s+\S/) : null;
+    if (nextHeadingMatch && nextHeadingMatch[1].length <= headingLevel) break;
     sectionLines.push(line);
   }
   return sectionLines.join('\n').trim();
