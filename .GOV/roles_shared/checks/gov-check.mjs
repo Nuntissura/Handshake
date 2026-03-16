@@ -35,6 +35,7 @@ await import("./wp-communications-check.mjs");
 await import("./build-order-check.mjs");
 await import("./task-packet-claim-check.mjs");
 await import("./session-policy-check.mjs");
+await import("./protocol-alignment-check.mjs");
 await import("./session-launch-runtime-check.mjs");
 await import("./session-control-runtime-check.mjs");
 await import("./wp-activation-traceability-check.mjs");
@@ -49,4 +50,3 @@ await import("./deprecation-sunset-check.mjs");
 await import("./topology-registry-check.mjs");
 
 console.log("gov-check ok");
-

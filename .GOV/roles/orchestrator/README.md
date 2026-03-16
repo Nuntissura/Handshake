@@ -6,10 +6,10 @@ Authoritative folder-placement law for the Orchestrator bundle lives in `Handsha
 ## Primary Docs
 
 - `ORCHESTRATOR_PROTOCOL.md`
-- `docs/ORCHESTRATOR_RUBRIC.md`
-- `docs/ORCHESTRATOR_IMPLEMENTATION_ROADMAP.md`
-- `docs/ORCHESTRATOR_PRIORITIES.md`
-- `docs/ORCHESTRATOR_PROTOCOL_GAPS.md`
+
+## Archived Support Docs
+
+- `../../reference/legacy/orchestrator/README.md`
 
 ## Current Runtime State
 

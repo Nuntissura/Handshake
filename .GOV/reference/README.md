@@ -18,5 +18,7 @@ Subfolders in use:
 
 - `legacy/validator/`
   - retired validator-state artifacts retained for compatibility archaeology
+- `legacy/orchestrator/`
+  - archived non-authoritative Orchestrator support docs retained for historical reference
 - `research_and_papers/`
   - non-normative synthesis and research material

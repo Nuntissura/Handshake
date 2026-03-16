@@ -55,6 +55,9 @@ gov-check:
 	just docs-check
 	node .GOV/roles_shared/checks/gov-check.mjs
 
+protocol-alignment-check:
+	node .GOV/roles_shared/checks/protocol-alignment-check.mjs
+
 governance-structure-audit:
 	node .GOV/roles_shared/checks/governance-structure-check.mjs
 

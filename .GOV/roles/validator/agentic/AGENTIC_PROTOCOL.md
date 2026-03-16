@@ -2,7 +2,7 @@
 
 LEGACY NOTICE:
 - This file remains for historical audit/reference only.
-- Current repo governance keeps the Validator single-session and non-agentic.
+- Current repo governance keeps Validator duties non-agentic. Multiple validator CLI sessions may still exist when they are explicitly scoped as `WP Validator` and `Integration Validator`, but this add-on is not active for those runs.
 - Do not use this add-on for new runs unless the Operator explicitly re-enables Validator agentic execution in governance.
 
 This is an **add-on** protocol for validators operating in orchestrator-led, multi-agent ("agentic") workflows.

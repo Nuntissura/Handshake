@@ -154,7 +154,7 @@ function formatText(brief) {
     `- DISPOSITIONS: NONE | OUTDATED_ONLY`,
     `- SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT`,
     `- RUNTIME_LEDGER_RULE: session ledgers/output logs are operator/runtime evidence only; they are not packet-scope implementation authority`,
-    `- WRITE_TARGET_RULE: external/classical revalidation writes a chat report or clearly labeled external revalidation report only; it must not run validator-gate-*, mutate closure state, or merge`,
+    `- WRITE_TARGET_RULE: independent external revalidation of an orchestrator-managed WP writes a chat report or clearly labeled external revalidation report only; it must not run validator-gate-*, mutate closure state, or replace Classical Validator / Integration Validator merge authority`,
   ];
 
   if (brief.context_notes.length > 0) {
@@ -261,9 +261,9 @@ pushUnique(
 
 const brief = {
   schema_id: "hsk.external_validator_brief@1",
-  schema_version: "external_validator_brief_v1",
+  schema_version: "external_validator_brief_v2",
   wp_id: parsed.wpId,
-  validation_mode: "EXTERNAL_CLASSICAL_REVALIDATION",
+  validation_mode: "EXTERNAL_INDEPENDENT_REVALIDATION",
   workflow_lane: workflowLane,
   validation_context: validationContext,
   code_target: {
@@ -302,5 +302,4 @@ if (parsed.json) {
 } else {
   process.stdout.write(formatText(brief));
 }
-
 

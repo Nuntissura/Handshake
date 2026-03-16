@@ -21,6 +21,8 @@
 - Permanent protected worktrees on disk must never be deleted by Codex: `handshake_main`, `wt-ilja`, `wt-orchestrator`, `wt-validator`.
 - `user_ilja`, `role_orchestrator`, and `role_validator` on GitHub are backup branches, not integration branches. They may diverge from `main`.
 - Matching backup pushes are allowed safety operations. For Validator work this means pushing `role_validator` to `origin/role_validator` when preserving committed state before destructive local operations.
+- `role_validator` is the shared validator-role backup branch. Any validator form may push it when preserving validator-owned committed state.
+- If a packet or governed validator session records a validator-specific or WP-specific backup branch, treat that recorded branch as the only additional remote backup target for that validator session. Do not improvise extra remote backup branches outside the recorded topology.
 - Before destructive or state-hiding local git actions (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the matching GitHub backup branch.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Startup must surface `just backup-status` so backup configuration and recent immutable snapshots are visible before validation proceeds. This is safety context only, not a bypass for destructive-op approvals.
@@ -66,6 +68,10 @@ See: `Handshake Codex v1.4.md` ([CX-211], [CX-212]) and `/.GOV/roles_shared/docs
 
 ## Current Execution Policy (Additional LAW)
 
+- Validator work currently has three governance forms:
+  - `Classical Validator` = manual-relay / non-orchestrator-managed validator operating from `wt-validator` (or the assigned validator checkout). This form may own final validation closure and merge-to-`main` authority when no orchestrator-managed Integration Validator lane exists.
+  - `WP Validator` = orchestrator-managed, WP-scoped advisory validator operating in the Orchestrator-provisioned validator worktree. This form may inspect live coder progress, challenge vibe-coding/spec drift, and request steering through packet communications plus Orchestrator-owned ACP controls, but it is not the final merge authority.
+  - `Integration Validator` = orchestrator-managed final validator operating in the Orchestrator-provisioned integration worktree. This form owns final technical verdict and merge-to-`main` authority for orchestrator-managed WPs unless the packet explicitly overrides it.
 - Validator duties are non-agentic in current repo governance, but repo workflows may run multiple validator CLI sessions concurrently when they are explicitly scoped as `WP Validator` and `Integration Validator`.
 - The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
 - For newly created repo-governed validator sessions, launch/claim the model explicitly: primary `gpt-5.4`, fallback `gpt-5.2`, reasoning `EXTRA_HIGH` (`model_reasoning_effort=xhigh`). Do not rely on ambient editor defaults.
@@ -234,7 +240,7 @@ Resume rule (hard, anti-babysit):
 - Immediately run `just validator-next` (or `just validator-next WP-{ID}` when the WP is known).
 - If the helper prints `OPERATOR_ACTION: NONE`, continue directly to `NEXT_COMMANDS` without waiting for a fresh "proceed".
 - STOP only if the helper requires a single explicit decision, the WP inference is ambiguous, or the next step is a sync/destructive action that still needs explicit authorization.
-- `just validator-startup` remains the universal validator startup command. It is necessary but not sufficient for external/classical revalidation; that mode requires `just external-validator-brief WP-{ID}` immediately after startup and before any verdict work.
+- `just validator-startup` remains the universal validator startup command. It is necessary but not sufficient for independent external revalidation of an orchestrator-managed WP; that audit mode requires `just external-validator-brief WP-{ID}` immediately after startup and before any verdict work.
 
 ## WP Communication Folder (when the packet defines it)
 
@@ -255,9 +261,10 @@ Resume rule (hard, anti-babysit):
   - next expected actor
 - Use `RECEIPTS.jsonl` for deterministic validation-start, validation-query, status-sync, repair, and handoff receipts.
 - Validator authority is layered:
-  - `WP Validator` = advisory technical reviewer for the WP
-  - `Integration Validator` = final technical and merge authority
-  - only the Integration Validator may own the final merge-ready verdict unless the packet explicitly says otherwise
+  - `Classical Validator` = manual-relay / non-orchestrator-managed closure authority when the repo is using the classical validator lane
+  - `WP Validator` = advisory technical reviewer for the WP; may inspect current coder work and request steering through packet communications plus Orchestrator-owned ACP controls
+  - `Integration Validator` = final technical and merge authority for orchestrator-managed WPs
+  - only the `Classical Validator` or `Integration Validator` may own the final merge-ready verdict unless the packet explicitly says otherwise
 - Do not poll continuously. The Validator should wake on explicit packet assignment, `ready_for_validation=true`, `validator_trigger != NONE`, a validation handoff receipt, or an explicit operator/orchestrator instruction.
 - Update runtime status and append a receipt on validation start, validation query, blocker, verdict-ready handoff, completion, and every packet heartbeat interval only while actively validating.
 - Prefer deterministic helpers over hand-editing these files:
@@ -499,16 +506,20 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - Strings like `accept`, `approved`, `technical pass`, or `looks good` are not legal verdicts.
 
 ## Validation Modes
-- `Governed Validation`
-  - This is the normal validator lane.
+- `Classical / Manual-Relay Validation`
+  - This is the closure lane for non-orchestrator-managed work where the validator is operating from the regular validator checkout and owns governed validation end-to-end.
   - It may run `validator-gate-*`, append the canonical packet validation report, update closure state, and merge only when the full governed gate sequence authorizes it.
+- `Governed Validation`
+  - This is the orchestrator-managed validator lane.
+  - `WP Validator` is advisory only in this lane. It may inspect code/spec drift, challenge weak reasoning, append receipts/thread guidance, and hand off or block, but it does not own final merge-to-`main` authority.
+  - `Integration Validator` is the governed closure authority in this lane. It may run `validator-gate-*`, append the canonical packet validation report, update closure state, and merge only when the full governed gate sequence authorizes it.
   - After merge-to-main succeeds, the Integration Validator may execute an Orchestrator-generated single-target cleanup script for the merged CODER or WP_VALIDATOR local worktree only when:
     - the WP merge is already complete
     - the exact Operator approval text is supplied
     - the matching cleanup token from the target worktree is supplied
   - Manual filesystem deletion remains forbidden.
-- `External / Classical Revalidation`
-  - This is an audit mode, not a second validator workflow.
+- `External / Independent Revalidation (orchestrator-managed WPs only)`
+  - This is an audit mode, not a second validator workflow and not the classical/manual-relay closure lane.
   - Required start sequence:
     - `just validator-startup`
     - `just external-validator-brief WP-{ID}`
@@ -517,7 +528,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
     - run `validator-gate-*`
     - mutate closure state
     - append normal governed-lane closure artifacts
-    - merge or authorize merge
+    - merge or authorize merge in place of the Classical Validator or Integration Validator
   - Default write target for this mode is a chat report or a clearly labeled external revalidation report, not the normal governed-lane closure path.
   - ACP runtime note for orchestrator-managed WPs:
     - `wt-orchestrator` may legitimately be dirty because ACP/runtime projections are tracked governance artifacts.
@@ -645,7 +656,11 @@ FLOW DIAGRAM:
 ```
 
 ## Merge/Commit Authority (per Codex [CX-505])
-- After issuing PASS **and completing all validation gates**, the Validator is responsible for the integration flow into `main`.
+- After issuing PASS **and completing all validation gates**, the validator form that currently owns closure authority is responsible for the integration flow into `main`.
+- Closure authority split:
+  - `Classical Validator` owns merge/push authority for classical/manual-relay validation.
+  - `Integration Validator` owns merge/push authority for orchestrator-managed validation unless the packet explicitly overrides it.
+  - `WP Validator` never owns merge-to-`main` authority.
 - Validator responsibilities after PASS:
   - merge the validated WP branch into `main`
   - commit any required closure-sync or conflict-resolution edits on `main`

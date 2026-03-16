@@ -3,10 +3,13 @@
 This README is navigational only.
 Authoritative folder-placement law for the Validator bundle lives in `Handshake Codex v1.4.md` plus `VALIDATOR_PROTOCOL.md`.
 
-## Primary Docs
+## Active Docs
 
 - `VALIDATOR_PROTOCOL.md`
-- `agentic/AGENTIC_PROTOCOL.md` (reference only; current repo policy keeps validator duties non-agentic)
+
+## Legacy Reference
+
+- `agentic/AGENTIC_PROTOCOL.md` (legacy reference only; not active validator law)
 
 ## Current / Legacy Gate State
 

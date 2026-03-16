@@ -1,0 +1,326 @@
+import fs from "node:fs";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import {
+  CLI_ESCALATION_HOST_DEFAULT,
+  CLI_ESCALATION_HOST_LEGACY_ALIAS,
+  EXECUTION_OWNER_RANGE_HELP,
+  ROLE_SESSION_FALLBACK_MODEL,
+  ROLE_SESSION_PRIMARY_MODEL,
+  ROLE_SESSION_REASONING_CONFIG_KEY,
+  ROLE_SESSION_REASONING_CONFIG_VALUE,
+  SESSION_COMMAND_KINDS,
+  SESSION_ROLES,
+  SESSION_START_AUTHORITY,
+  roleNextCommand,
+  roleStartupCommand,
+} from "../scripts/session/session-policy.mjs";
+
+const JUSTFILE_PATH = "justfile";
+const ORCHESTRATOR_PROTOCOL_PATH = path.join(".GOV", "roles", "orchestrator", "ORCHESTRATOR_PROTOCOL.md");
+const CODER_PROTOCOL_PATH = path.join(".GOV", "roles", "coder", "CODER_PROTOCOL.md");
+const VALIDATOR_PROTOCOL_PATH = path.join(".GOV", "roles", "validator", "VALIDATOR_PROTOCOL.md");
+const ORCHESTRATOR_GATES_PATH = path.join(".GOV", "roles", "orchestrator", "checks", "orchestrator_gates.mjs");
+const LAUNCH_CLI_SESSION_PATH = path.join(".GOV", "roles", "orchestrator", "scripts", "launch-cli-session.mjs");
+const SESSION_CONTROL_COMMAND_PATH = path.join(".GOV", "roles", "orchestrator", "scripts", "session-control-command.mjs");
+const SESSION_CONTROL_CANCEL_PATH = path.join(".GOV", "roles", "orchestrator", "scripts", "session-control-cancel.mjs");
+const ROLE_SESSION_WORKTREE_ADD_PATH = path.join(".GOV", "roles", "orchestrator", "scripts", "role-session-worktree-add.mjs");
+const REFINEMENT_TEMPLATE_PATH = path.join(".GOV", "templates", "REFINEMENT_TEMPLATE.md");
+
+const ACTIVE_SURFACE_PATHS = [
+  JUSTFILE_PATH,
+  ORCHESTRATOR_PROTOCOL_PATH,
+  CODER_PROTOCOL_PATH,
+  VALIDATOR_PROTOCOL_PATH,
+  ORCHESTRATOR_GATES_PATH,
+  LAUNCH_CLI_SESSION_PATH,
+  SESSION_CONTROL_COMMAND_PATH,
+  SESSION_CONTROL_CANCEL_PATH,
+  ROLE_SESSION_WORKTREE_ADD_PATH,
+  REFINEMENT_TEMPLATE_PATH,
+];
+
+function resolveRepoRoot() {
+  try {
+    const out = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    if (out) return out;
+  } catch {
+    // Fall back to relative resolution below.
+  }
+
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+}
+
+function fail(message, details = []) {
+  console.error(`[PROTOCOL_ALIGNMENT_CHECK] ${message}`);
+  for (const line of details) console.error(`  - ${line}`);
+  process.exit(1);
+}
+
+function escapeRegex(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function readUtf8(filePath) {
+  return fs.readFileSync(filePath, "utf8");
+}
+
+function requireFileExists(filePath) {
+  if (!fs.existsSync(filePath)) {
+    fail("Missing required active governance surface", [filePath]);
+  }
+}
+
+function requireSubstring(errors, filePath, content, needle, label = needle) {
+  if (!content.includes(needle)) {
+    errors.push(`${filePath}: missing ${label}`);
+  }
+}
+
+function requireRegex(errors, filePath, content, regex, label) {
+  if (!regex.test(content)) {
+    errors.push(`${filePath}: missing ${label}`);
+  }
+}
+
+function forbidRegex(errors, filePath, content, regex, label) {
+  if (regex.test(content)) {
+    errors.push(`${filePath}: contains retired/stale reference ${label}`);
+  }
+}
+
+function findRecipeBody(justfileContent, recipeName) {
+  const match = justfileContent.match(
+    new RegExp(`^${escapeRegex(recipeName)}(?:\\s[^\\n]*)?:\\s*\\n([\\s\\S]*?)(?=^\\S[^\\n]*?:\\s*$|\\Z)`, "m"),
+  );
+  return match ? (match[1] || "") : "";
+}
+
+function requireRecipe(errors, justfileContent, recipeName, fragments = []) {
+  const body = findRecipeBody(justfileContent, recipeName);
+  if (!body) {
+    errors.push(`${JUSTFILE_PATH}: missing recipe ${recipeName}`);
+    return;
+  }
+  for (const fragment of fragments) {
+    if (!body.includes(fragment)) {
+      errors.push(`${JUSTFILE_PATH}: recipe ${recipeName} missing ${fragment}`);
+    }
+  }
+}
+
+function justRecipeName(command) {
+  const match = String(command || "").trim().match(/^just\s+([^\s]+)/);
+  return match ? match[1] : "";
+}
+
+const repoRoot = path.resolve(resolveRepoRoot());
+process.chdir(repoRoot);
+
+for (const filePath of ACTIVE_SURFACE_PATHS) requireFileExists(filePath);
+
+const contents = new Map(ACTIVE_SURFACE_PATHS.map((filePath) => [filePath, readUtf8(filePath)]));
+const errors = [];
+
+const justfileContent = contents.get(JUSTFILE_PATH);
+const orchestratorProtocol = contents.get(ORCHESTRATOR_PROTOCOL_PATH);
+const coderProtocol = contents.get(CODER_PROTOCOL_PATH);
+const validatorProtocol = contents.get(VALIDATOR_PROTOCOL_PATH);
+const orchestratorGates = contents.get(ORCHESTRATOR_GATES_PATH);
+const launchCliSession = contents.get(LAUNCH_CLI_SESSION_PATH);
+const sessionControlCommand = contents.get(SESSION_CONTROL_COMMAND_PATH);
+const sessionControlCancel = contents.get(SESSION_CONTROL_CANCEL_PATH);
+const roleSessionWorktreeAdd = contents.get(ROLE_SESSION_WORKTREE_ADD_PATH);
+const refinementTemplate = contents.get(REFINEMENT_TEMPLATE_PATH);
+
+const roleAlternation = SESSION_ROLES.join("|");
+const commandKindAlternation = SESSION_COMMAND_KINDS.join("|");
+const reasoningConfigPair = `${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}`;
+const retiredRootScriptsDir = [".GOV", "scripts"].join("/");
+
+// justfile recipes must stay aligned with the active orchestrator/session tooling.
+requireRecipe(errors, justfileContent, "worktree-add", [
+  ".GOV/roles_shared/scripts/topology/worktree-add.mjs",
+]);
+requireRecipe(errors, justfileContent, "coder-worktree-add", [
+  ".GOV/roles/orchestrator/scripts/role-session-worktree-add.mjs CODER",
+]);
+requireRecipe(errors, justfileContent, "wp-validator-worktree-add", [
+  ".GOV/roles/orchestrator/scripts/role-session-worktree-add.mjs WP_VALIDATOR",
+]);
+requireRecipe(errors, justfileContent, "integration-validator-worktree-add", [
+  ".GOV/roles/orchestrator/scripts/role-session-worktree-add.mjs INTEGRATION_VALIDATOR",
+]);
+requireRecipe(errors, justfileContent, "launch-coder-session", [
+  ".GOV/roles/orchestrator/scripts/launch-cli-session.mjs CODER",
+]);
+requireRecipe(errors, justfileContent, "launch-wp-validator-session", [
+  ".GOV/roles/orchestrator/scripts/launch-cli-session.mjs WP_VALIDATOR",
+]);
+requireRecipe(errors, justfileContent, "launch-integration-validator-session", [
+  ".GOV/roles/orchestrator/scripts/launch-cli-session.mjs INTEGRATION_VALIDATOR",
+]);
+requireRecipe(errors, justfileContent, "session-start", [
+  ".GOV/roles/orchestrator/scripts/session-control-command.mjs START_SESSION",
+]);
+requireRecipe(errors, justfileContent, "session-send", [
+  ".GOV/roles/orchestrator/scripts/session-control-command.mjs SEND_PROMPT",
+]);
+requireRecipe(errors, justfileContent, "session-cancel", [
+  ".GOV/roles/orchestrator/scripts/session-control-cancel.mjs",
+]);
+requireRecipe(errors, justfileContent, "session-close", [
+  ".GOV/roles/orchestrator/scripts/session-control-command.mjs CLOSE_SESSION",
+]);
+
+for (const command of [
+  roleStartupCommand("ORCHESTRATOR"),
+  roleStartupCommand("CODER"),
+  roleStartupCommand("WP_VALIDATOR"),
+  roleNextCommand("ORCHESTRATOR"),
+  roleNextCommand("CODER", "WP-ALIGNMENT-CHECK"),
+  roleNextCommand("WP_VALIDATOR", "WP-ALIGNMENT-CHECK"),
+]) {
+  const recipeName = justRecipeName(command);
+  if (recipeName) requireRecipe(errors, justfileContent, recipeName);
+}
+
+requireRecipe(errors, justfileContent, "orchestrator-startup", [
+  ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md",
+  "just orchestrator-preflight",
+]);
+requireRecipe(errors, justfileContent, "validator-startup", [
+  ".GOV/roles/validator/VALIDATOR_PROTOCOL.md",
+  "just validator-preflight",
+]);
+requireRecipe(errors, justfileContent, "coder-startup", [
+  ".GOV/roles/coder/CODER_PROTOCOL.md",
+  "just coder-preflight",
+]);
+
+// Protocols must expose the active orchestrator-managed session contract.
+for (const protocolPath of [ORCHESTRATOR_PROTOCOL_PATH, CODER_PROTOCOL_PATH, VALIDATOR_PROTOCOL_PATH]) {
+  const content = contents.get(protocolPath);
+  requireSubstring(errors, protocolPath, content, SESSION_START_AUTHORITY);
+  requireSubstring(errors, protocolPath, content, ROLE_SESSION_PRIMARY_MODEL);
+  requireSubstring(errors, protocolPath, content, ROLE_SESSION_FALLBACK_MODEL);
+  requireSubstring(errors, protocolPath, content, reasoningConfigPair, reasoningConfigPair);
+}
+
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "MANUAL_RELAY");
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "ORCHESTRATOR_MANAGED");
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, EXECUTION_OWNER_RANGE_HELP, EXECUTION_OWNER_RANGE_HELP);
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just launch-coder-session");
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just launch-wp-validator-session");
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just launch-integration-validator-session");
+
+requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "just coder-startup");
+requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "just coder-next");
+requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "just launch-coder-session");
+
+requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just validator-startup");
+requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just validator-next");
+requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launch-wp-validator-session");
+requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "just launch-integration-validator-session");
+
+// Scripts must expose the current role/command contract and point at active paths.
+requireRegex(
+  errors,
+  LAUNCH_CLI_SESSION_PATH,
+  launchCliSession,
+  new RegExp(`<${escapeRegex(roleAlternation)}>`),
+  `role set <${roleAlternation}> in usage/help`,
+);
+requireRegex(
+  errors,
+  SESSION_CONTROL_COMMAND_PATH,
+  sessionControlCommand,
+  new RegExp(`<${escapeRegex(commandKindAlternation)}>`),
+  `command kind set <${commandKindAlternation}> in usage/help`,
+);
+requireRegex(
+  errors,
+  SESSION_CONTROL_COMMAND_PATH,
+  sessionControlCommand,
+  new RegExp(`<${escapeRegex(roleAlternation)}>`),
+  `role set <${roleAlternation}> in usage/help`,
+);
+requireRegex(
+  errors,
+  SESSION_CONTROL_CANCEL_PATH,
+  sessionControlCancel,
+  new RegExp(`<${escapeRegex(roleAlternation)}>`),
+  `role set <${roleAlternation}> in usage/help`,
+);
+requireRegex(
+  errors,
+  ROLE_SESSION_WORKTREE_ADD_PATH,
+  roleSessionWorktreeAdd,
+  new RegExp(`<${escapeRegex(roleAlternation)}>`),
+  `role set <${roleAlternation}> in usage/help`,
+);
+requireRegex(
+  errors,
+  ROLE_SESSION_WORKTREE_ADD_PATH,
+  roleSessionWorktreeAdd,
+  /path\.join\(\s*"\.GOV"\s*,\s*"roles_shared"\s*,\s*"scripts"\s*,\s*"topology"\s*,\s*"worktree-add\.mjs"\s*\)/,
+  "current roles_shared topology worktree-add path",
+);
+requireRegex(
+  errors,
+  SESSION_CONTROL_COMMAND_PATH,
+  sessionControlCommand,
+  /path\.join\(\s*"\.GOV"\s*,\s*"roles"\s*,\s*"orchestrator"\s*,\s*"scripts"\s*,\s*"role-session-worktree-add\.mjs"\s*\)/,
+  "current orchestrator role-session-worktree-add path",
+);
+
+requireSubstring(errors, ORCHESTRATOR_GATES_PATH, orchestratorGates, "MANUAL_RELAY|ORCHESTRATOR_MANAGED");
+requireSubstring(
+  errors,
+  ORCHESTRATOR_GATES_PATH,
+  orchestratorGates,
+  "EXECUTION_OWNER_RANGE_HELP",
+  "shared execution-owner range constant",
+);
+
+// Refinement scaffolding must stay on the current refinement workflow contract.
+requireSubstring(errors, REFINEMENT_TEMPLATE_PATH, refinementTemplate, "REFINEMENT_FORMAT_VERSION: 2026-03-16");
+requireSubstring(errors, REFINEMENT_TEMPLATE_PATH, refinementTemplate, "USER_APPROVAL_EVIDENCE");
+forbidRegex(
+  errors,
+  REFINEMENT_TEMPLATE_PATH,
+  refinementTemplate,
+  /ORCHESTRATOR_PROTOCOL Part/i,
+  "stale ORCHESTRATOR_PROTOCOL part-number reference",
+);
+
+// Active surfaces must not point at retired orchestrator/session paths.
+const retiredPatterns = [
+  {
+    regex: new RegExp(`${escapeRegex(retiredRootScriptsDir)}/session/role-session-worktree-add\\.mjs`),
+    label: `retired ${retiredRootScriptsDir}/session/role-session-worktree-add.mjs`,
+  },
+  {
+    regex: new RegExp(`${escapeRegex(retiredRootScriptsDir)}/topology/worktree-add\\.mjs`),
+    label: `retired ${retiredRootScriptsDir}/topology/worktree-add.mjs`,
+  },
+  { regex: /path\.join\(\s*["']\.GOV["']\s*,\s*["']scripts["']\s*,\s*["']session["']/, label: 'path.join(".GOV", "scripts", "session", ...)' },
+  { regex: /path\.join\(\s*["']\.GOV["']\s*,\s*["']scripts["']\s*,\s*["']topology["']/, label: 'path.join(".GOV", "scripts", "topology", ...)' },
+];
+
+for (const filePath of ACTIVE_SURFACE_PATHS) {
+  const content = contents.get(filePath);
+  for (const { regex, label } of retiredPatterns) {
+    forbidRegex(errors, filePath, content, regex, label);
+  }
+}
+
+if (errors.length > 0) {
+  fail("Protocol alignment violations found", errors);
+}
+
+console.log("protocol-alignment-check ok");
