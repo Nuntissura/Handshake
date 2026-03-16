@@ -327,6 +327,96 @@
         }
       }
     },
+    "open_review_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "correlation_id",
+          "receipt_kind",
+          "summary",
+          "opened_by_role",
+          "opened_by_session",
+          "target_role",
+          "target_session",
+          "spec_anchor",
+          "packet_row_ref",
+          "requires_ack",
+          "opened_at",
+          "updated_at"
+        ],
+        "properties": {
+          "correlation_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "receipt_kind": {
+            "enum": [
+              "VALIDATOR_QUERY",
+              "REVIEW_REQUEST",
+              "SPEC_GAP"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "opened_by_role": {
+            "enum": [
+              "SYSTEM",
+              "OPERATOR",
+              "ORCHESTRATOR",
+              "CODER",
+              "WP_VALIDATOR",
+              "INTEGRATION_VALIDATOR",
+              "VALIDATOR"
+            ]
+          },
+          "opened_by_session": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target_role": {
+            "enum": [
+              "OPERATOR",
+              "ORCHESTRATOR",
+              "CODER",
+              "WP_VALIDATOR",
+              "INTEGRATION_VALIDATOR",
+              "VALIDATOR"
+            ]
+          },
+          "target_session": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "spec_anchor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "packet_row_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requires_ack": {
+            "type": "boolean"
+          },
+          "opened_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "last_event": {
       "type": "string",
       "minLength": 1

@@ -7,7 +7,10 @@ import {
   deriveAuthorityKinds,
   normalize,
   parseJsonFile,
+  REVIEW_OPEN_RECEIPT_KIND_VALUES,
+  REVIEW_RESOLUTION_RECEIPT_KIND_VALUES,
   validateReceipt,
+  validateRuntimeStatus,
 } from "../lib/wp-communications-lib.mjs";
 
 const PACKETS_DIR = path.join(".GOV", "task_packets");
@@ -28,6 +31,43 @@ function parseBooleanLike(value) {
   const raw = String(value ?? "").trim();
   if (!raw) return false;
   return ["1", "true", "yes", "y"].includes(raw.toLowerCase());
+}
+
+function updateOpenReviewItems(runtimeStatus, entry) {
+  if (!runtimeStatus || typeof runtimeStatus !== "object") return;
+  const currentItems = Array.isArray(runtimeStatus.open_review_items) ? runtimeStatus.open_review_items : [];
+  const correlationId = String(entry.correlation_id || "").trim();
+  if (!correlationId) {
+    runtimeStatus.open_review_items = currentItems;
+    return;
+  }
+
+  const withoutCorrelation = currentItems.filter((item) => String(item?.correlation_id || "").trim() !== correlationId);
+  if (REVIEW_OPEN_RECEIPT_KIND_VALUES.includes(entry.receipt_kind)) {
+    withoutCorrelation.push({
+      correlation_id: correlationId,
+      receipt_kind: entry.receipt_kind,
+      summary: entry.summary,
+      opened_by_role: entry.actor_role,
+      opened_by_session: entry.actor_session,
+      target_role: entry.target_role,
+      target_session: entry.target_session ?? null,
+      spec_anchor: entry.spec_anchor ?? null,
+      packet_row_ref: entry.packet_row_ref ?? null,
+      requires_ack: entry.requires_ack,
+      opened_at: entry.timestamp_utc,
+      updated_at: entry.timestamp_utc,
+    });
+  } else if (REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(entry.receipt_kind)) {
+    // Resolution receipts close the matching open review item.
+  } else {
+    runtimeStatus.open_review_items = currentItems;
+    return;
+  }
+
+  runtimeStatus.open_review_items = withoutCorrelation.sort((left, right) =>
+    String(left.opened_at || "").localeCompare(String(right.opened_at || ""))
+  );
 }
 
 function loadPacketContext(wpId) {
@@ -76,6 +116,8 @@ export function appendWpReceipt({
   correlationId = null,
   requiresAck = false,
   ackFor = null,
+  specAnchor = null,
+  packetRowRef = null,
 } = {}) {
   const WP_ID = String(wpId || "").trim();
   if (!WP_ID || !/^WP-/.test(WP_ID)) {
@@ -110,6 +152,8 @@ export function appendWpReceipt({
     correlation_id: nullableValue(correlationId),
     requires_ack: Boolean(requiresAck),
     ack_for: nullableValue(ackFor),
+    spec_anchor: nullableValue(specAnchor),
+    packet_row_ref: nullableValue(packetRowRef),
     refs: [context.packetPath, ...refs.filter(Boolean).map((value) => normalize(value))],
   };
 
@@ -122,17 +166,28 @@ export function appendWpReceipt({
     throw new Error(`Receipt validation failed: ${errors.join("; ")}`);
   }
 
+  if (runtimeStatus) {
+    updateOpenReviewItems(runtimeStatus, entry);
+    runtimeStatus.last_event = `receipt_${entry.receipt_kind.toLowerCase()}`;
+    runtimeStatus.last_event_at = entry.timestamp_utc;
+    const runtimeErrors = validateRuntimeStatus(runtimeStatus);
+    if (runtimeErrors.length > 0) {
+      throw new Error(`Runtime status validation failed after receipt append: ${runtimeErrors.join("; ")}`);
+    }
+    fs.writeFileSync(context.runtimeStatusFile, `${JSON.stringify(runtimeStatus, null, 2)}\n`, "utf8");
+  }
+
   fs.appendFileSync(context.receiptsFile, `${JSON.stringify(entry)}\n`, "utf8");
   return { context, entry };
 }
 
 function runCli() {
-  const [wpId, actorRole, actorSession, receiptKind, summary, stateBefore, stateAfter, targetRole, targetSession, correlationId, requiresAck, ackFor] = process.argv.slice(2);
+  const [wpId, actorRole, actorSession, receiptKind, summary, stateBefore, stateAfter, targetRole, targetSession, correlationId, requiresAck, ackFor, specAnchor, packetRowRef] = process.argv.slice(2);
   if (!wpId || !actorRole || !actorSession || !receiptKind || !summary) {
     console.error(
       "Usage: node .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs"
       + " WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <RECEIPT_KIND> \"<SUMMARY>\""
-      + " [STATE_BEFORE] [STATE_AFTER] [TARGET_ROLE] [TARGET_SESSION] [CORRELATION_ID] [REQUIRES_ACK] [ACK_FOR]"
+      + " [STATE_BEFORE] [STATE_AFTER] [TARGET_ROLE] [TARGET_SESSION] [CORRELATION_ID] [REQUIRES_ACK] [ACK_FOR] [SPEC_ANCHOR] [PACKET_ROW_REF]"
     );
     process.exit(1);
   }
@@ -150,6 +205,8 @@ function runCli() {
     correlationId,
     requiresAck: parseBooleanLike(requiresAck),
     ackFor,
+    specAnchor,
+    packetRowRef,
   });
 
   console.log(`[WP_RECEIPT] appended ${entry.receipt_kind} for ${entry.wp_id}`);

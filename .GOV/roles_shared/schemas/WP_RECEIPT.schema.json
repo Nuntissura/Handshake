@@ -77,6 +77,11 @@
         "HANDOFF",
         "THREAD_MESSAGE",
         "VALIDATOR_QUERY",
+        "VALIDATOR_RESPONSE",
+        "REVIEW_REQUEST",
+        "REVIEW_RESPONSE",
+        "SPEC_GAP",
+        "SPEC_CONFIRMATION",
         "VALIDATION_START",
         "VALIDATION_STATUS_SYNC",
         "STEERING",
@@ -142,6 +147,18 @@
       "type": "boolean"
     },
     "ack_for": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "spec_anchor": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "packet_row_ref": {
       "type": [
         "string",
         "null"

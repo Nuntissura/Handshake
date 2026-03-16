@@ -81,11 +81,19 @@ export const RECEIPT_KIND_VALUES = [
   "HANDOFF",
   "THREAD_MESSAGE",
   "VALIDATOR_QUERY",
+  "VALIDATOR_RESPONSE",
+  "REVIEW_REQUEST",
+  "REVIEW_RESPONSE",
+  "SPEC_GAP",
+  "SPEC_CONFIRMATION",
   "VALIDATION_START",
   "VALIDATION_STATUS_SYNC",
   "STEERING",
   "REPAIR",
 ];
+export const REVIEW_OPEN_RECEIPT_KIND_VALUES = ["VALIDATOR_QUERY", "REVIEW_REQUEST", "SPEC_GAP"];
+export const REVIEW_RESOLUTION_RECEIPT_KIND_VALUES = ["VALIDATOR_RESPONSE", "REVIEW_RESPONSE", "SPEC_CONFIRMATION"];
+export const REVIEW_TRACKED_RECEIPT_KIND_VALUES = [...REVIEW_OPEN_RECEIPT_KIND_VALUES, ...REVIEW_RESOLUTION_RECEIPT_KIND_VALUES];
 
 const RFC3339_UTC_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const SHA_RE = /^[0-9a-f]{7,40}$/i;
@@ -213,7 +221,7 @@ export function validateRuntimeStatus(data) {
     "last_backup_push_sha",
   ];
 
-  const optionalKeys = ["next_expected_session", "waiting_on_session"];
+  const optionalKeys = ["next_expected_session", "waiting_on_session", "open_review_items"];
   const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
     if (!(key in data)) errors.push(`missing key: ${key}`);
@@ -324,6 +332,55 @@ export function validateRuntimeStatus(data) {
       if (!isRfc3339Utc(entry.last_heartbeat_at)) errors.push(`active_role_sessions[${index}].last_heartbeat_at must be RFC3339 UTC`);
     });
   }
+  if (!(data.open_review_items === undefined || Array.isArray(data.open_review_items))) {
+    errors.push("open_review_items must be an array when present");
+  } else if (Array.isArray(data.open_review_items)) {
+    data.open_review_items.forEach((entry, index) => {
+      if (!isPlainObject(entry)) {
+        errors.push(`open_review_items[${index}] must be an object`);
+        return;
+      }
+      const required = [
+        "correlation_id",
+        "receipt_kind",
+        "summary",
+        "opened_by_role",
+        "opened_by_session",
+        "target_role",
+        "target_session",
+        "spec_anchor",
+        "packet_row_ref",
+        "requires_ack",
+        "opened_at",
+        "updated_at",
+      ];
+      const allowed = new Set(required);
+      for (const key of required) {
+        if (!(key in entry)) errors.push(`open_review_items[${index}] missing key: ${key}`);
+      }
+      for (const key of Object.keys(entry)) {
+        if (!allowed.has(key)) errors.push(`open_review_items[${index}] unexpected key: ${key}`);
+      }
+      if (!isNonEmptyString(entry.correlation_id)) errors.push(`open_review_items[${index}].correlation_id must be a non-empty string`);
+      if (!REVIEW_OPEN_RECEIPT_KIND_VALUES.includes(entry.receipt_kind)) {
+        errors.push(`open_review_items[${index}].receipt_kind invalid (${entry.receipt_kind})`);
+      }
+      if (!isNonEmptyString(entry.summary)) errors.push(`open_review_items[${index}].summary must be a non-empty string`);
+      if (!RECEIPT_ROLE_VALUES.includes(entry.opened_by_role)) {
+        errors.push(`open_review_items[${index}].opened_by_role invalid (${entry.opened_by_role})`);
+      }
+      if (!isNonEmptyString(entry.opened_by_session)) errors.push(`open_review_items[${index}].opened_by_session must be a non-empty string`);
+      if (!ROUTABLE_ROLE_VALUES.includes(entry.target_role)) {
+        errors.push(`open_review_items[${index}].target_role invalid (${entry.target_role})`);
+      }
+      if (!isNullableString(entry.target_session)) errors.push(`open_review_items[${index}].target_session must be null or a non-empty string`);
+      if (!isNullableString(entry.spec_anchor)) errors.push(`open_review_items[${index}].spec_anchor must be null or a non-empty string`);
+      if (!isNullableString(entry.packet_row_ref)) errors.push(`open_review_items[${index}].packet_row_ref must be null or a non-empty string`);
+      if (typeof entry.requires_ack !== "boolean") errors.push(`open_review_items[${index}].requires_ack must be boolean`);
+      if (!isRfc3339Utc(entry.opened_at)) errors.push(`open_review_items[${index}].opened_at must be RFC3339 UTC`);
+      if (!isRfc3339Utc(entry.updated_at)) errors.push(`open_review_items[${index}].updated_at must be RFC3339 UTC`);
+    });
+  }
   if (!isNonEmptyString(data.last_event)) errors.push("last_event must be a non-empty string");
   if (!isRfc3339Utc(data.last_event_at)) errors.push("last_event_at must be RFC3339 UTC");
   if (!isRfc3339Utc(data.last_heartbeat_at)) errors.push("last_heartbeat_at must be RFC3339 UTC");
@@ -390,7 +447,7 @@ export function validateReceipt(entry) {
     "state_after",
     "refs",
   ];
-  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for"];
+  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for", "spec_anchor", "packet_row_ref"];
   const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
     if (!(key in entry)) errors.push(`missing key: ${key}`);
@@ -432,6 +489,20 @@ export function validateReceipt(entry) {
   }
   if (!(entry.ack_for === undefined || isNullableString(entry.ack_for))) {
     errors.push("ack_for must be null or a non-empty string");
+  }
+  if (!(entry.spec_anchor === undefined || isNullableString(entry.spec_anchor))) {
+    errors.push("spec_anchor must be null or a non-empty string");
+  }
+  if (!(entry.packet_row_ref === undefined || isNullableString(entry.packet_row_ref))) {
+    errors.push("packet_row_ref must be null or a non-empty string");
+  }
+  if (REVIEW_TRACKED_RECEIPT_KIND_VALUES.includes(entry.receipt_kind)) {
+    if (!isNonEmptyString(entry.correlation_id)) {
+      errors.push(`correlation_id is required for ${entry.receipt_kind}`);
+    }
+    if (!(typeof entry.target_role === "string" && ROUTABLE_ROLE_VALUES.includes(entry.target_role))) {
+      errors.push(`target_role is required for ${entry.receipt_kind}`);
+    }
   }
   if (!Array.isArray(entry.refs) || entry.refs.some((value) => !isNonEmptyString(value))) {
     errors.push("refs must be an array of non-empty strings");

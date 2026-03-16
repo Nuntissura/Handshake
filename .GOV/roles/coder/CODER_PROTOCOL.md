@@ -261,6 +261,8 @@ Resume rule (hard, anti-babysit):
   - `just wp-thread-append WP-{ID} CODER <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
   - `just wp-heartbeat WP-{ID} CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
   - `just wp-receipt-append WP-{ID} CODER <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
+  - `just wp-validator-query WP-{ID} CODER <session> <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
+  - `just wp-review-request WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
   - `just session-registry-status [WP-{ID}]`
   - `just operator-monitor` (operator viewport for ACP-aware session/control/thread/receipt/artifact visibility)
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Coder session):

@@ -271,6 +271,10 @@ Resume rule:
 - `just wp-thread-append WP-{ID} ORCHESTRATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
 - `just wp-heartbeat WP-{ID} ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
 - `just wp-receipt-append WP-{ID} ORCHESTRATOR <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
+- `just wp-validator-query WP-{ID} CODER <session> <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
+- `just wp-validator-response WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
+- `just wp-review-request WP-{ID} <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
+- `just wp-review-response WP-{ID} <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
 - `just operator-monitor`
 - `just coder-worktree-add WP-{ID}`
 - `just wp-validator-worktree-add WP-{ID}`

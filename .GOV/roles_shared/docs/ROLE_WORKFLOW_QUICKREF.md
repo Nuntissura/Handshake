@@ -157,6 +157,10 @@ Primary commands (per WP validation):
 - `just wp-heartbeat WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
 - `just wp-receipt-append WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
 - `just wp-thread-append WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
+- `just wp-validator-query WP-... CODER <session> <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
+- `just wp-validator-response WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
+- `just wp-review-request WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
+- `just wp-review-response WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
 
 Governance-only work:
 - `just gov-check`

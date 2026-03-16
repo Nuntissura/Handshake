@@ -56,6 +56,8 @@ export function appendWpThreadEntry({
   correlationId = null,
   requiresAck = false,
   ackFor = null,
+  specAnchor = null,
+  packetRowRef = null,
 } = {}) {
   const WP_ID = String(wpId || "").trim();
   const ACTOR_ROLE = String(actorRole || "").trim().toUpperCase();
@@ -64,6 +66,8 @@ export function appendWpThreadEntry({
   const TARGET_ROLE = String(targetRole || "").trim().toUpperCase();
   const TARGET_SESSION = String(targetSession || "").trim();
   const CORRELATION_ID = String(correlationId || "").trim();
+  const SPEC_ANCHOR = String(specAnchor || "").trim();
+  const PACKET_ROW_REF = String(packetRowRef || "").trim();
   const bodyLines = normalizeMultilineMessage(message);
 
   if (!WP_ID || !/^WP-/.test(WP_ID)) throw new Error("WP_ID is required");
@@ -82,6 +86,8 @@ export function appendWpThreadEntry({
   if (CORRELATION_ID) header.push(`correlation_id=${CORRELATION_ID}`);
   if (requiresAck) header.push("requires_ack=true");
   if (ackFor) header.push(`ack_for=${ackFor}`);
+  if (SPEC_ANCHOR) header.push(`spec_anchor=${SPEC_ANCHOR}`);
+  if (PACKET_ROW_REF) header.push(`packet_row_ref=${PACKET_ROW_REF}`);
   const entryLines = [header.join(" | "), ...bodyLines.map((line) => `  ${line}`), ""];
   fs.appendFileSync(context.threadFile, `${entryLines.join("\n")}\n`, "utf8");
 
@@ -99,6 +105,8 @@ export function appendWpThreadEntry({
       correlationId: CORRELATION_ID || null,
       requiresAck,
       ackFor,
+      specAnchor: SPEC_ANCHOR || null,
+      packetRowRef: PACKET_ROW_REF || null,
     });
   }
 
@@ -111,12 +119,12 @@ export function appendWpThreadEntry({
 }
 
 function runCli() {
-  const [wpId, actorRole, actorSession, message, target, targetRole, targetSession, correlationId, requiresAck, ackFor] = process.argv.slice(2);
+  const [wpId, actorRole, actorSession, message, target, targetRole, targetSession, correlationId, requiresAck, ackFor, specAnchor, packetRowRef] = process.argv.slice(2);
   if (!wpId || !actorRole || !actorSession || !message) {
     console.error(
       "Usage: node .GOV/roles_shared/scripts/wp/wp-thread-append.mjs"
       + " WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> \"<message>\" [TARGET]"
-      + " [TARGET_ROLE] [TARGET_SESSION] [CORRELATION_ID] [REQUIRES_ACK] [ACK_FOR]"
+      + " [TARGET_ROLE] [TARGET_SESSION] [CORRELATION_ID] [REQUIRES_ACK] [ACK_FOR] [SPEC_ANCHOR] [PACKET_ROW_REF]"
     );
     process.exit(1);
   }
@@ -132,6 +140,8 @@ function runCli() {
     correlationId,
     requiresAck: parseBooleanLike(requiresAck),
     ackFor,
+    specAnchor,
+    packetRowRef,
   });
   console.log(`[WP_THREAD] appended message for ${wpId}`);
   console.log(`- thread: ${result.threadFile}`);

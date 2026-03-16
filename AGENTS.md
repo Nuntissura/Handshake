@@ -68,7 +68,7 @@
 - Repo policy for new repo-governed sessions disallows Codex model aliases in packet claim fields; the CLI tool may still be `codex`.
 - Freeform packet-scoped messages should be appended with `just wp-thread-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> "<message>" [target]`; this writes both the thread entry and a paired structured receipt.
 - For new WP communication writes, validator sessions must identify themselves as `WP_VALIDATOR` or `INTEGRATION_VALIDATOR` in `THREAD.md`, `RUNTIME_STATUS.json`, and `RECEIPTS.jsonl`. Legacy generic `VALIDATOR` entries are compatibility-only and should not be emitted by new governed sessions.
-- When useful for parallel governed sessions, communication receipts and thread entries may carry structured routing metadata such as `target_role`, `target_session`, `correlation_id`, `requires_ack`, and `ack_for`, and runtime status may carry `next_expected_session` / `waiting_on_session`.
+- When useful for parallel governed sessions, communication receipts and thread entries may carry structured routing metadata such as `target_role`, `target_session`, `correlation_id`, `requires_ack`, `ack_for`, `spec_anchor`, and `packet_row_ref`, and runtime status may carry `next_expected_session`, `waiting_on_session`, and an `open_review_items` projection for unresolved coder/validator exchanges.
 - Authority split for semi-autonomous work:
   - Orchestrator = workflow authority
   - WP Validator = advisory technical reviewer

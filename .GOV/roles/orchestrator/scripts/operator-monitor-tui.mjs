@@ -11,6 +11,7 @@ import {
   normalize,
   parseJsonFile as sharedParseJsonFile,
   parseJsonlFile as sharedParseJsonlFile,
+  REVIEW_TRACKED_RECEIPT_KIND_VALUES,
   validateReceipt,
   validateRuntimeStatus,
 } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
@@ -57,9 +58,84 @@ const ACTIVE_PACKET_SESSION_STATES = new Set([
   "waiting",
   "blocked",
 ]);
+const ANSI_ESCAPE_RE = /\x1b\[[0-9;]*m/g;
+const STATUS_COLORS = {
+  ACTIVE: "\x1b[38;5;81m",
+  READY_FOR_DEV: "\x1b[38;5;117m",
+  IN_PROGRESS: "\x1b[38;5;190m",
+  BLOCKED: "\x1b[38;5;203m",
+  STUB: "\x1b[38;5;244m",
+  DONE: "\x1b[38;5;114m",
+  SUPERSEDED: "\x1b[38;5;245m",
+  OTHER: "\x1b[38;5;252m",
+};
+const ROLE_COLORS = {
+  ORCHESTRATOR: "\x1b[38;5;81m",
+  CODER: "\x1b[38;5;114m",
+  WP_VALIDATOR: "\x1b[38;5;220m",
+  INTEGRATION_VALIDATOR: "\x1b[38;5;111m",
+  VALIDATOR: "\x1b[38;5;222m",
+};
+const STATE_COLORS = {
+  working: "\x1b[38;5;114m",
+  waiting: "\x1b[38;5;220m",
+  blocked: "\x1b[38;5;203m",
+  completed: "\x1b[38;5;81m",
+  idle: "\x1b[38;5;244m",
+  ready: "\x1b[38;5;81m",
+  starting: "\x1b[38;5;117m",
+  running: "\x1b[38;5;114m",
+  failed: "\x1b[38;5;203m",
+  unstarted: "\x1b[38;5;244m",
+  none: "\x1b[38;5;240m",
+};
 const FILE_CACHE = new Map();
 const CURRENT_BRANCH_CACHE_TTL_MS = 5000;
 let currentBranchCache = { value: "", expiresAt: 0 };
+
+function stripAnsi(value) {
+  return String(value ?? "").replace(ANSI_ESCAPE_RE, "");
+}
+
+function visibleLength(value) {
+  return stripAnsi(value).length;
+}
+
+function sliceAnsi(value, width) {
+  const source = String(value ?? "");
+  let index = 0;
+  let visible = 0;
+  let result = "";
+  while (index < source.length && visible < width) {
+    if (source[index] === "\x1b") {
+      const match = source.slice(index).match(/^\x1b\[[0-9;]*m/);
+      if (match) {
+        result += match[0];
+        index += match[0].length;
+        continue;
+      }
+    }
+    result += source[index];
+    index += 1;
+    visible += 1;
+  }
+  if (result.includes("\x1b[")) result += "\x1b[0m";
+  return result;
+}
+
+function paint(text, color, options = {}) {
+  if (!process.stdout.isTTY) return String(text ?? "");
+  const prefix = `${options.bold ? "\x1b[1m" : ""}${options.dim ? "\x1b[2m" : ""}${color || ""}`;
+  return `${prefix}${text}\x1b[0m`;
+}
+
+function truncateVisible(value, width) {
+  const text = String(value ?? "");
+  if (width <= 0) return "";
+  if (visibleLength(text) <= width) return `${text}${" ".repeat(Math.max(0, width - visibleLength(text)))}`;
+  if (width === 1) return sliceAnsi(text, 1);
+  return `${sliceAnsi(text, Math.max(0, width - 3))}...`;
+}
 
 function fileSignature(filePath) {
   if (!fs.existsSync(filePath)) return "missing";
@@ -123,7 +199,7 @@ function parseArgs(argv) {
     actorRole: "OPERATOR",
     actorSession: "operator-monitor",
     wpId: "",
-    filter: "ALL",
+    filter: "ACTIVE",
     detailView: "OVERVIEW",
     refreshMs: REFRESH_INTERVAL_MS,
   };
@@ -423,6 +499,8 @@ function parseThreadEntries(threadPath) {
         correlationId: "",
         requiresAck: false,
         ackFor: "",
+        specAnchor: "",
+        packetRowRef: "",
         messageLines: [],
       };
       for (const item of metadata) {
@@ -433,6 +511,8 @@ function parseThreadEntries(threadPath) {
         else if (item.startsWith("correlation_id=")) entry.correlationId = item.slice("correlation_id=".length).trim();
         else if (item === "requires_ack=true") entry.requiresAck = true;
         else if (item.startsWith("ack_for=")) entry.ackFor = item.slice("ack_for=".length).trim();
+        else if (item.startsWith("spec_anchor=")) entry.specAnchor = item.slice("spec_anchor=".length).trim();
+        else if (item.startsWith("packet_row_ref=")) entry.packetRowRef = item.slice("packet_row_ref=".length).trim();
       }
       if (current) entries.push(current);
       current = entry;
@@ -451,6 +531,66 @@ function formatTarget(role, session) {
   const targetSession = String(session || "").trim();
   if (!targetRole) return "";
   return targetSession ? `${targetRole}:${targetSession}` : targetRole;
+}
+
+function boardBadge(section) {
+  const normalized = String(section || "OTHER").trim().toUpperCase();
+  return paint(`[${normalized}]`, STATUS_COLORS[normalized] || STATUS_COLORS.OTHER, { bold: true });
+}
+
+function shortRoleLabel(role) {
+  const normalized = String(role || "").trim().toUpperCase();
+  if (normalized === "ORCHESTRATOR") return "ORC";
+  if (normalized === "CODER") return "COD";
+  if (normalized === "WP_VALIDATOR") return "WPV";
+  if (normalized === "INTEGRATION_VALIDATOR") return "INT";
+  if (normalized === "VALIDATOR") return "VAL";
+  return normalized.slice(0, 3) || "---";
+}
+
+function normalizeLaneState(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return "none";
+  if (["working", "running", "command_running"].includes(normalized)) return "working";
+  if (["waiting", "input_required", "plugin_requested", "plugin_confirmed", "terminal_command_dispatched"].includes(normalized)) return "waiting";
+  if (["blocked", "failed", "cli_escalation_ready"].includes(normalized)) return "blocked";
+  if (["completed", "closed"].includes(normalized)) return "completed";
+  if (["ready"].includes(normalized)) return "ready";
+  if (["starting"].includes(normalized)) return "starting";
+  if (["unstarted", "none"].includes(normalized)) return "unstarted";
+  if (["idle"].includes(normalized)) return "idle";
+  return normalized;
+}
+
+function laneStateForRole(record, role) {
+  const packetSession = (record.sessions || []).find((entry) => String(entry.role || "").trim().toUpperCase() === role);
+  if (packetSession?.state) return normalizeLaneState(packetSession.state);
+  const registrySession = [...(record.registrySessions || [])]
+    .reverse()
+    .find((entry) => String(entry.role || "").trim().toUpperCase() === role);
+  if (registrySession?.runtime_state) return normalizeLaneState(registrySession.runtime_state);
+  return "none";
+}
+
+function roleLaneChip(record, role) {
+  const state = laneStateForRole(record, role);
+  const label = `${shortRoleLabel(role)}:${state.slice(0, 4).toUpperCase()}`;
+  return paint(label, ROLE_COLORS[role] || STATUS_COLORS.OTHER, { bold: state !== "none" && state !== "idle" });
+}
+
+function reviewPressureChip(record) {
+  const count = Number(record.packetRecord?.openReviewItems?.length || 0);
+  const text = `REV:${count}`;
+  if (count <= 0) return paint(text, STATE_COLORS.none, { dim: true });
+  return paint(text, count >= 3 ? STATE_COLORS.blocked : STATE_COLORS.waiting, { bold: true });
+}
+
+function latestReviewLabel(record) {
+  const entry = record.packetRecord?.lastReviewReceipt;
+  if (!entry) return paint("review:none", STATE_COLORS.none, { dim: true });
+  const target = formatTarget(entry.target_role, entry.target_session);
+  const label = `${entry.receipt_kind}:${entry.actor_role}${target ? `>${target}` : ""}`;
+  return paint(label, STATE_COLORS.waiting);
 }
 
 function summarizeSessions(runtime) {
@@ -595,6 +735,9 @@ function parsePacketRecord(packetPath, prepareAssignment = null) {
   record.threadEntries = parseThreadEntries(threadPath);
   record.lastThreadEntry = record.threadEntries.at(-1) || null;
   record.lastReceipt = record.receipts.at(-1) || null;
+  record.openReviewItems = Array.isArray(record.runtime?.open_review_items) ? record.runtime.open_review_items : [];
+  record.reviewReceipts = (record.receipts || []).filter((entry) => REVIEW_TRACKED_RECEIPT_KIND_VALUES.includes(String(entry.receipt_kind || "").trim().toUpperCase()));
+  record.lastReviewReceipt = record.reviewReceipts.at(-1) || null;
   record.lastActivityAt = [
     record.runtime?.last_event_at || null,
     record.lastThreadEntry?.timestamp || null,
@@ -825,6 +968,9 @@ function loadMonitorModel() {
     const leftIndex = BOARD_ORDER.indexOf(left.boardSection);
     const rightIndex = BOARD_ORDER.indexOf(right.boardSection);
     if (leftIndex !== rightIndex) return leftIndex - rightIndex;
+    const leftActivity = String(left.lastActivityAt || "");
+    const rightActivity = String(right.lastActivityAt || "");
+    if (leftActivity !== rightActivity) return rightActivity.localeCompare(leftActivity);
     return left.wpId.localeCompare(right.wpId);
   });
   return { records, boardSource, brokerState };
@@ -885,7 +1031,12 @@ function buildTimelineEntries(record) {
       timestamp: entry.timestamp || "",
       sequence: sequence += 1,
       header: `${entry.timestamp || "<no-ts>"} | THREAD | ${entry.actorRole} | ${entry.actorSession}${threadTarget ? ` | ${threadTarget}` : ""}`,
-      detailLines: entry.messageLines?.length ? entry.messageLines : ["<no body>"],
+      detailLines: [
+        ...(entry.messageLines?.length ? entry.messageLines : ["<no body>"]),
+        ...(entry.correlationId ? [`corr=${entry.correlationId}`] : []),
+        ...(entry.specAnchor ? [`spec=${entry.specAnchor}`] : []),
+        ...(entry.packetRowRef ? [`packet=${entry.packetRowRef}`] : []),
+      ],
     });
   }
   for (const entry of record.packetRecord?.receipts || []) {
@@ -893,6 +1044,8 @@ function buildTimelineEntries(record) {
     if (entry.target_role || entry.target_session) receiptRouting.push(`target=${formatTarget(entry.target_role, entry.target_session) || "<unknown>"}`);
     if (entry.correlation_id) receiptRouting.push(`corr=${entry.correlation_id}`);
     if (entry.requires_ack) receiptRouting.push(`ack=${entry.ack_for || "required"}`);
+    if (entry.spec_anchor) receiptRouting.push(`spec=${entry.spec_anchor}`);
+    if (entry.packet_row_ref) receiptRouting.push(`packet=${entry.packet_row_ref}`);
     entries.push({
       timestamp: entry.timestamp_utc || "",
       sequence: sequence += 1,
@@ -933,7 +1086,7 @@ function buildTimelineEntries(record) {
 function wrapText(text, width) {
   const source = String(text || "");
   if (!source) return [""];
-  if (width <= 4) return [source.slice(0, width)];
+  if (width <= 4) return [sliceAnsi(source, width)];
   const words = source.split(/\s+/).filter(Boolean);
   const lines = [];
   let current = "";
@@ -942,7 +1095,7 @@ function wrapText(text, width) {
       current = word;
       continue;
     }
-    if (`${current} ${word}`.length <= width) {
+    if (visibleLength(`${current} ${word}`) <= width) {
       current += ` ${word}`;
     } else {
       lines.push(current);
@@ -962,7 +1115,7 @@ function renderList(records, selectedIndex, width, height, listHasFocus) {
   const rows = [];
   const maxRows = Math.max(1, height);
   if (records.length === 0) {
-    rows.push(truncate("No WPs in this filter.", width));
+    rows.push(truncateVisible("No WPs in this filter.", width));
     while (rows.length < maxRows) rows.push(" ".repeat(width));
     return rows;
   }
@@ -976,16 +1129,19 @@ function renderList(records, selectedIndex, width, height, listHasFocus) {
     const drift = record.currentBoardMatchesSelected === false ? "~" : " ";
     const worktreeFlag = record.packetRecord?.localWorktreeStatus === "MISSING" ? "x" : " ";
     const latest = record.lastActivityAt ? record.lastActivityAt.slice(11, 16) : "-----";
-    const threadCount = record.packetRecord?.threadEntries?.length || 0;
-    const receiptCount = record.packetRecord?.receipts?.length || 0;
-    const sessionCount = Math.max(record.sessions?.length || 0, record.registrySessions?.length || 0);
-    const launchState = record.latestRegistrySession?.runtime_state || "NONE";
-    const line = `${marker}${stale}${drift}${worktreeFlag} ${record.wpId} [${record.boardSection}] T${threadCount} R${receiptCount} S${sessionCount} L=${launchState} ${latest}`;
+    const reviewChip = reviewPressureChip(record);
+    const latestReview = latestReviewLabel(record);
+    const laneSummary = [
+      roleLaneChip(record, "CODER"),
+      roleLaneChip(record, "WP_VALIDATOR"),
+      roleLaneChip(record, "INTEGRATION_VALIDATOR"),
+    ].join(" ");
+    const line = `${marker}${stale}${drift}${worktreeFlag} ${record.wpId} ${boardBadge(record.boardSection)} ${reviewChip} ${laneSummary} ${paint(latest, STATE_COLORS.ready, { dim: true })} ${latestReview}`;
     if (globalIndex === selectedIndex) {
-      const selectedLine = truncate(line, width);
+      const selectedLine = truncateVisible(line, width);
       rows.push(listHasFocus ? `\x1b[7m${selectedLine}\x1b[0m` : `\x1b[1m${selectedLine}\x1b[0m`);
     } else {
-      rows.push(truncate(line, width));
+      rows.push(truncateVisible(line, width));
     }
   }
   while (rows.length < maxRows) rows.push(" ".repeat(width));
@@ -1021,7 +1177,7 @@ function buildDetailLines(record, width, detailView, uiState) {
       + ` | next=${formatTarget(runtime.next_expected_actor, runtime.next_expected_session) || runtime.next_expected_actor}`
       + ` | waiting_on=${runtime.waiting_on}${runtime.waiting_on_session ? ` (${runtime.waiting_on_session})` : ""}`
     );
-    lines.push(`validator_trigger=${runtime.validator_trigger} | ready=${runtime.ready_for_validation ? "YES" : "NO"} | stale=${record.stale ? "YES" : "NO"}`);
+    lines.push(`validator_trigger=${runtime.validator_trigger} | ready=${runtime.ready_for_validation ? "YES" : "NO"} | stale=${record.stale ? "YES" : "NO"} | open_reviews=${record.packetRecord?.openReviewItems?.length || 0}`);
   } else {
     lines.push("runtime=<none>");
   }
@@ -1219,7 +1375,7 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
       + ` | next=${formatTarget(runtime.next_expected_actor, runtime.next_expected_session) || runtime.next_expected_actor}`
       + ` | waiting_on=${runtime.waiting_on}${runtime.waiting_on_session ? ` (${runtime.waiting_on_session})` : ""}`
     );
-    lines.push(`validator_trigger=${runtime.validator_trigger} | ready=${runtime.ready_for_validation ? "YES" : "NO"} | stale=${record.stale ? "YES" : "NO"}`);
+    lines.push(`validator_trigger=${runtime.validator_trigger} | ready=${runtime.ready_for_validation ? "YES" : "NO"} | stale=${record.stale ? "YES" : "NO"} | open_reviews=${record.packetRecord?.openReviewItems?.length || 0}`);
   } else {
     lines.push("runtime=<none>");
   }
@@ -1344,6 +1500,34 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
     lines.push(`focus=${uiState.focusedPane} | mode=${uiState.admin ? "ADMIN" : "VIEW"}`);
     lines.push(`docs=${docArtifacts.map((artifact) => artifact.label).join(", ") || "<none>"} | comms=${commsArtifacts.map((artifact) => artifact.label).join(", ") || "<none>"}`);
     lines.push("");
+    lines.push("ROLE LANES");
+    lines.push(`  ${roleLaneChip(record, "CODER")}  ${roleLaneChip(record, "WP_VALIDATOR")}  ${roleLaneChip(record, "INTEGRATION_VALIDATOR")}  ${reviewPressureChip(record)}`);
+    lines.push("");
+    lines.push("OPEN REVIEW ITEMS");
+    if ((record.packetRecord?.openReviewItems || []).length === 0) {
+      lines.push("No open coder/validator review items.");
+    } else {
+      for (const item of (record.packetRecord?.openReviewItems || []).slice(0, 8)) {
+        const target = formatTarget(item.target_role, item.target_session);
+        lines.push(`${item.receipt_kind} | ${item.opened_by_role} -> ${target || "<unknown>"} | ${item.correlation_id}`);
+        lines.push(`  ${item.summary}`);
+        if (item.spec_anchor || item.packet_row_ref) {
+          lines.push(`  spec=${item.spec_anchor || "<none>"} | packet=${item.packet_row_ref || "<none>"}`);
+        }
+      }
+    }
+    lines.push("");
+    lines.push("LATEST REVIEW TRAFFIC");
+    if ((record.packetRecord?.reviewReceipts || []).length === 0) {
+      lines.push("No structured coder/validator review receipts.");
+    } else {
+      for (const entry of (record.packetRecord?.reviewReceipts || []).slice(-6)) {
+        const target = formatTarget(entry.target_role, entry.target_session);
+        lines.push(`${entry.timestamp_utc} | ${entry.receipt_kind} | ${entry.actor_role}${target ? ` -> ${target}` : ""}`);
+        lines.push(`  ${entry.summary}`);
+      }
+    }
+    lines.push("");
     lines.push("GOVERNED SESSIONS");
     if ((record.registrySessions || []).length === 0) {
       lines.push("No governed sessions.");
@@ -1393,8 +1577,12 @@ function renderScreen(model, uiState) {
   const rightWidth = Math.max(40, columns - leftWidth - 3);
   const bodyHeight = Math.max(12, rows - 9);
 
-  const counts = FILTERS.map((filter) => `${filter}:${filterRecords(records, filter).length}`).join("  ");
-  const header = `Operator Monitor | mode=${uiState.admin ? "ADMIN" : "VIEW"} | focus=${uiState.focusedPane} | filter=${uiState.filter} | view=${uiState.detailView} | actor=${uiState.actorRole}/${uiState.actorSession}`;
+  const totalOpenReviews = records.reduce((sum, record) => sum + Number(record.packetRecord?.openReviewItems?.length || 0), 0);
+  const counts = FILTERS.map((filter) => {
+    const label = `${filter}:${filterRecords(records, filter).length}`;
+    return paint(label, STATUS_COLORS[filter] || STATUS_COLORS.OTHER, { bold: filter === uiState.filter });
+  }).join("  ");
+  const header = `${paint("Operator Monitor", STATUS_COLORS.ACTIVE, { bold: true })} | mode=${uiState.admin ? "ADMIN" : "VIEW"} | focus=${uiState.focusedPane} | filter=${uiState.filter} | view=${uiState.detailView} | actor=${uiState.actorRole}/${uiState.actorSession} | open_reviews=${totalOpenReviews}`;
   const board = model.boardSource?.display || "board=<unknown>";
   const boardDetail = model.boardSource?.detail || "board_paths=<unknown>";
   const broker = model.brokerState?.summary || "broker=<unknown>";
@@ -1410,7 +1598,7 @@ function renderScreen(model, uiState) {
 
   const frame = [header, counts, board, boardDetail, broker, help, "-".repeat(columns)];
   for (let index = 0; index < bodyHeight; index += 1) {
-    frame.push(`${leftLines[index]} | ${truncate(rightLines[index], rightWidth)}`);
+    frame.push(`${leftLines[index]} | ${truncateVisible(rightLines[index], rightWidth)}`);
   }
   frame.push("-".repeat(columns));
   const status = uiState.statusMessage ? ` | ${uiState.statusMessage}` : "";

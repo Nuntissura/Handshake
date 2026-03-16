@@ -33,6 +33,7 @@
   "current_worktree_dir": "{{LOCAL_WORKTREE_DIR}}",
   "current_files_touched": [],
   "active_role_sessions": [],
+  "open_review_items": [],
   "last_event": "initialized",
   "last_event_at": "{{DATE_ISO}}",
   "last_heartbeat_at": "{{DATE_ISO}}",
