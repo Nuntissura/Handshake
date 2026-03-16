@@ -93,7 +93,7 @@ Requirements:
 - EXTERNAL_VALIDATOR_LEGAL_VERDICTS: PASS | FAIL | PENDING
 - GOVERNED_VALIDATOR_REPORT_PROFILE: SPLIT_DIFF_SCOPED_RIGOR_V2
 - GOVERNED_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | GOVERNANCE_VERDICT | TEST_VERDICT | CODE_REVIEW_VERDICT | HEURISTIC_REVIEW_VERDICT | SPEC_ALIGNMENT_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT | SPEC_CONFIDENCE
-- CODER_HANDOFF_RIGOR_PROFILE: MAIN_BODY_SELF_CRITIQUE_V1
+- CODER_HANDOFF_RIGOR_PROFILE: RUBRIC_SELF_AUDIT_V2
 - CLAUSE_CLOSURE_MONITOR_PROFILE: <pending>
 <!-- Required for new packets: CLAUSE_MONITOR_V1 -->
 - SEMANTIC_PROOF_PROFILE: <pending>
@@ -489,13 +489,21 @@ git revert <commit-sha>
 
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
-- Rule for `CODER_HANDOFF_RIGOR_PROFILE=MAIN_BODY_SELF_CRITIQUE_V1`: do not write a generic "ready for validation" note. Record the strongest self-critique you can defend.
+- Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
 - Current WP_STATUS:
 - What changed in this update:
-- Main-body clauses self-audited:
+- Requirements / clauses self-audited:
+- Checks actually run:
 - Known gaps / weak spots:
 - Heuristic risks / maintainability concerns:
 - Validator focus request:
+- Rubric contract understanding proof:
+- Rubric scope discipline proof:
+- Rubric baseline comparison:
+- Rubric end-to-end proof:
+- Rubric architecture fit self-review:
+- Rubric heuristic quality self-review:
+- Rubric anti-gaming / counterfactual check:
 - Next step / handoff hint:
 
 ## EVIDENCE_MAPPING
