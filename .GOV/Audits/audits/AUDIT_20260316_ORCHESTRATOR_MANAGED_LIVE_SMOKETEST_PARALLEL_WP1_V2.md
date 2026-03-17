@@ -584,6 +584,7 @@ Later in the same live smoke, additional concrete findings surfaced:
     - The assigned integration-validator worktree carried unrelated shared governance dirt and packet/task-board overlap from the other active WP.
     - The validator had to create `wti-schema-closure-clean` solely to get a clean packet-scoped closure surface.
     - This confirms the current "one live integration worktree per packet" rule is not enough when shared governance files are modified concurrently by multiple active WPs.
+    - This worktree-sprawl pattern is not new and does not originate only from the later repo restructure. The earlier pre-restructure ACP/orchestrator-managed smoke on 2026-03-14 already recorded the same class of failure: no hard limit on temporary validation/merge worktrees, no mandatory reuse policy, and no cleanup checkpoint after detached validation or failed merge attempts.
 
 37. Schema integration topology was still stale at closure time and had to be repaired before any final closeout work was possible.
     - `integrate/WP-1-Structured-Collaboration-Schema-Registry-v2` was still parked at `5f2f483` while the validated packet-scoped candidate lived on `feat/WP-1-Structured-Collaboration-Schema-Registry-v2` at `da05d07`.
@@ -604,6 +605,7 @@ Later in the same live smoke, additional concrete findings surfaced:
     - The integration-validator looked for `D:\Projects\LLM projects\Handshake\handshake_main` instead of the real permanent checkout at `D:\Projects\LLM projects\Handshake\Handshake Worktrees\handshake_main`.
     - Because of that bad assumption, it created a temporary merge worktree `wt-main-merge-loom-v2` in the shared worktree root instead of using the permanent canonical main checkout.
     - This is not just cosmetic sprawl: it proves the merge path still lacks a single authoritative resolver for the repo's protected `main` worktree.
+    - The wrong canonical-main resolver here is partly a restructure/pathing bug, but the underlying tendency to mint extra merge/validation worktrees predates the restructure and started with ACP/orchestrator-managed workflow adoption. Before ACP/orchestrator-managed workflow, even parallel WPs were not producing this degree of temp-worktree proliferation.
 
 41. Loom was allowed to perform the `main` merge before verifying the actual integration-branch-to-main diff was packet-scoped.
     - The validator correctly preserved the packet-declared backup branch first, but then merged `integrate/WP-1-Loom-Storage-Portability-v2` into `main` immediately.
@@ -677,11 +679,37 @@ Later in the same live smoke, additional concrete findings surfaced:
     - The Orchestrator also allowed repeated closeout retries and unsafe closeout mechanics, including wrong canonical-main path assumptions and self-inflicted `index.lock` contention during packet-scoped carry.
     - The practical result is that a large share of spend in this smoke was not product implementation or honest validation; it was orchestration failure and recovery.
 
+55. A post-closeout current-main audit still found one real structured-collaboration product/spec miss in the Schema family despite the final `PASS`.
+    - The shared compact-summary builder in `src/backend/handshake_core/src/locus/types.rs` still hardcodes `blockers: []` for structured summaries instead of preserving real blocker state from the detail record.
+    - The Master Spec compact-summary contract requires `summary.json` to preserve `blockers`, `next_action`, `updated_at`, and the other compact fields for local-small-model planning and board views.
+    - This means a blocked or partially stalled Work Packet / Micro-Task can still emit a clean-looking compact summary with no blockers even though the canonical detail record is richer.
+
+56. The current structured summary/detail validator is still too shallow to catch that drift automatically.
+    - `validate_structured_collaboration_summary_join` only compares `record_id`, `record_kind`, `project_profile_kind`, `authority_refs`, and `evidence_refs`.
+    - It does not compare `status`, `title_or_objective`, `blockers`, `next_action`, or `updated_at`, even though the Master Spec says those fields MUST be preserved by the compact summary contract.
+    - So a validator can obtain a green summary-join check while the compact summary is still misleading for real planning use.
+
+57. Nested structured-record validation is also too shallow for Task Board and Role Mailbox projections.
+    - The current record validator checks that Task Board `rows`, Task Board `lane_ids`, Role Mailbox `threads`, and Role Mailbox `transcription_links` are arrays, but it does not recursively validate each nested object against the normative field set.
+    - That means projection-level drift can survive as long as the top-level record shape looks plausible.
+    - The generator currently emits the expected shapes, but the validator contract is still weaker than the spec contract.
+
+58. These post-closeout findings explain exactly how both coder and validator were able to claim `done` / `PASS` too early.
+    - The coder could satisfy visible happy-path tests, the immediate packet-scoped diff, and the top-level handoff/report structure while still leaving shared structured-collaboration artifacts weaker than the Master Spec requires.
+    - The validator could then validate that same narrow proof surface because the strongest current checks sit at the packet/report layer, while compact summaries, nested projections, and current-main artifact truth are validated more weakly.
+    - So the system allowed both roles to prove "the visible candidate passed the visible checks" without proving the stronger claim "canonical local `main` now satisfies the full relevant Master Spec contract."
+    - That is the real false-green mechanism exposed by this smoke: not a total absence of checking, but a proof surface that was too narrow and too top-level to make premature `done` / `PASS` effectively impossible.
+
+59. Loom is materially better than the original `v1` state, but backend-portability proof is still partially environment-bounded.
+    - The repaired SQLite and PostgreSQL delete/recompute parity logic is present on canonical local `main`, and the SQLite Loom conformance slice passes.
+    - PostgreSQL Loom conformance still skips when `POSTGRES_TEST_URL` is unset, so one slice of backend-portability proof remains dependent on environment rather than always-on local evidence.
+    - This is a residual proof gap, not a newly discovered Loom product defect.
+
 These later findings strengthen the original audit conclusion:
 
 - the parallel orchestrator-managed shape is viable
 - direct coder/validator review can work
-- but proactive review enforcement, packet/runtime truth sync, and ACP runtime ergonomics still need additional hardening
+- but proactive review enforcement, packet/runtime truth sync, ACP runtime ergonomics, and deeper structured-artifact validation still need additional hardening
 
 ---
 
@@ -703,6 +731,8 @@ It also proved a more serious governance point:
 - if the direct coder/validator review lane is not actively enforced, the system falls back to hub-and-spoke relay through the Orchestrator even when better tooling already exists
 - if packet-scoped runtime closeout is not explicit, the session registry and the WP runtime ledger can disagree even after both WPs are technically finished
 - if the Orchestrator keeps an unstable run alive instead of aborting and re-baselining, token cost expands nonlinearly through retries, re-steers, duplicate validation, and closeout recovery work
+- if compact summaries and nested structured projections are not validated as strictly as the main-body spec requires, coder and validator can still obtain false confidence from green happy-path checks
+- in other words: the old workflow could prove "candidate passed visible checks" without proving "canonical main satisfies the full relevant spec surface"
 
 The important conclusion is not "ACP failed." The important conclusion is:
 
@@ -712,3 +742,5 @@ The important conclusion is not "ACP failed." The important conclusion is:
 - the runtime/check/tooling layer still has failure modes that are only visible under live concurrent use
 - those failure modes are now concrete, reproducible, and documented by this audit
 - this smoke's abnormal cost came from orchestration failure and in-place recovery loops, not from the intrinsic cost of remediating two WPs
+- the remaining false-green risk is now concentrated in structured-collaboration summary/projection enforcement, not in the previously repaired Loom delete/recompute defect
+- the extra-worktree problem is not merely a side effect of the later repo restructure; it was already present in the earlier pre-restructure ACP/orchestrator-managed smoke and should be treated as an ACP/workflow lifecycle defect first, with restructure/path resolution as a secondary amplifier
