@@ -665,6 +665,18 @@ Later in the same live smoke, additional concrete findings surfaced:
     - That helper was then used on both WPs to reconcile runtime truth with the already-closed session registry and canonical packet status.
     - This is a concrete post-smoke improvement: the runtime projection layer now has a supported deterministic recovery/closeout action instead of relying on ad hoc JSON edits.
 
+53. The token and control-plane cost of this smoke was abnormally high because the run kept paying for orchestration recovery loops instead of just product execution.
+    - Across just the two `v2` remediation WPs, the external session-control request ledger recorded 72 governed control requests: 38 for Loom and 34 for Schema.
+    - The matching results ledger recorded 14 failed control actions across coder, WP-validator, and integration-validator lanes, in addition to repeated cancel and close operations.
+    - This is not a normal two-WP cost profile; it is evidence of an unstable workflow repeatedly consuming model turns for steering, retry, recovery, and closeout repair.
+
+54. The primary root cause of that cost blow-up was Orchestrator error, not inherent product complexity.
+    - The Orchestrator allowed the live run to continue after packet/task-board/runtime truth drifted, instead of stopping and re-baselining first.
+    - The Orchestrator did not force direct coder <-> WP-validator review early enough, so the collaboration model stayed hub-and-spoke through the Orchestrator and created extra steering traffic.
+    - The Orchestrator kept repairing governance and ACP behavior during the live smoke instead of freezing the product run and stabilizing the system first.
+    - The Orchestrator also allowed repeated closeout retries and unsafe closeout mechanics, including wrong canonical-main path assumptions and self-inflicted `index.lock` contention during packet-scoped carry.
+    - The practical result is that a large share of spend in this smoke was not product implementation or honest validation; it was orchestration failure and recovery.
+
 These later findings strengthen the original audit conclusion:
 
 - the parallel orchestrator-managed shape is viable
@@ -690,6 +702,7 @@ It also proved a more serious governance point:
 - if the authoritative surfaces lag the live run, the system can look idle or orderly while real partial work is already in flight
 - if the direct coder/validator review lane is not actively enforced, the system falls back to hub-and-spoke relay through the Orchestrator even when better tooling already exists
 - if packet-scoped runtime closeout is not explicit, the session registry and the WP runtime ledger can disagree even after both WPs are technically finished
+- if the Orchestrator keeps an unstable run alive instead of aborting and re-baselining, token cost expands nonlinearly through retries, re-steers, duplicate validation, and closeout recovery work
 
 The important conclusion is not "ACP failed." The important conclusion is:
 
@@ -698,3 +711,4 @@ The important conclusion is not "ACP failed." The important conclusion is:
 - packet-scoped selective integration is the safe closeout path; naive branch merge is not
 - the runtime/check/tooling layer still has failure modes that are only visible under live concurrent use
 - those failure modes are now concrete, reproducible, and documented by this audit
+- this smoke's abnormal cost came from orchestration failure and in-place recovery loops, not from the intrinsic cost of remediating two WPs
