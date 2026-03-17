@@ -1184,6 +1184,207 @@ pub async fn run_loom_storage_conformance(db: Arc<dyn super::Database>) -> Stora
         .await?;
     assert_eq!(portable_note_after_tag_delete.derived.tag_count, 0);
 
+    let delete_target_source = db
+        .create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: None,
+                workspace_id: workspace.id.clone(),
+                content_type: LoomBlockContentType::Note,
+                document_id: Some(document.id.clone()),
+                asset_id: None,
+                title: Some("Delete Target Source".into()),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: super::LoomBlockDerived {
+                    full_text_index: Some("delete target source".into()),
+                    ..Default::default()
+                },
+            },
+        )
+        .await?;
+    let delete_mention_target = db
+        .create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: None,
+                workspace_id: workspace.id.clone(),
+                content_type: LoomBlockContentType::Note,
+                document_id: Some(document.id.clone()),
+                asset_id: None,
+                title: Some("Delete Mention Target".into()),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: super::LoomBlockDerived {
+                    full_text_index: Some("delete mention target".into()),
+                    ..Default::default()
+                },
+            },
+        )
+        .await?;
+    let delete_tag_target = db
+        .create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: None,
+                workspace_id: workspace.id.clone(),
+                content_type: LoomBlockContentType::TagHub,
+                document_id: None,
+                asset_id: None,
+                title: Some("Delete Tag Target".into()),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: super::LoomBlockDerived {
+                    full_text_index: Some("delete tag target".into()),
+                    ..Default::default()
+                },
+            },
+        )
+        .await?;
+
+    db.create_loom_edge(
+        &ctx,
+        NewLoomEdge {
+            edge_id: None,
+            workspace_id: workspace.id.clone(),
+            source_block_id: delete_target_source.block_id.clone(),
+            target_block_id: delete_mention_target.block_id.clone(),
+            edge_type: LoomEdgeType::Mention,
+            created_by: LoomEdgeCreatedBy::User,
+            crdt_site_id: None,
+            source_anchor: None,
+        },
+    )
+    .await?;
+    db.create_loom_edge(
+        &ctx,
+        NewLoomEdge {
+            edge_id: None,
+            workspace_id: workspace.id.clone(),
+            source_block_id: delete_target_source.block_id.clone(),
+            target_block_id: delete_tag_target.block_id.clone(),
+            edge_type: LoomEdgeType::Tag,
+            created_by: LoomEdgeCreatedBy::User,
+            crdt_site_id: None,
+            source_anchor: None,
+        },
+    )
+    .await?;
+
+    let delete_target_source_before = db
+        .get_loom_block(&workspace.id, &delete_target_source.block_id)
+        .await?;
+    let delete_mention_target_before = db
+        .get_loom_block(&workspace.id, &delete_mention_target.block_id)
+        .await?;
+    assert_eq!(delete_target_source_before.derived.mention_count, 1);
+    assert_eq!(delete_target_source_before.derived.tag_count, 1);
+    assert_eq!(delete_mention_target_before.derived.backlink_count, 1);
+
+    db.delete_loom_block(&ctx, &workspace.id, &delete_mention_target.block_id)
+        .await?;
+    let delete_target_source_after_mention_delete = db
+        .get_loom_block(&workspace.id, &delete_target_source.block_id)
+        .await?;
+    assert_eq!(
+        delete_target_source_after_mention_delete
+            .derived
+            .mention_count,
+        0
+    );
+    assert_eq!(
+        delete_target_source_after_mention_delete.derived.tag_count,
+        1
+    );
+
+    db.delete_loom_block(&ctx, &workspace.id, &delete_tag_target.block_id)
+        .await?;
+    let delete_target_source_after_tag_delete = db
+        .get_loom_block(&workspace.id, &delete_target_source.block_id)
+        .await?;
+    assert_eq!(delete_target_source_after_tag_delete.derived.tag_count, 0);
+
+    let delete_source_block = db
+        .create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: None,
+                workspace_id: workspace.id.clone(),
+                content_type: LoomBlockContentType::Note,
+                document_id: Some(document.id.clone()),
+                asset_id: None,
+                title: Some("Delete Source Block".into()),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: super::LoomBlockDerived {
+                    full_text_index: Some("delete source block".into()),
+                    ..Default::default()
+                },
+            },
+        )
+        .await?;
+    let surviving_backlink_target = db
+        .create_loom_block(
+            &ctx,
+            NewLoomBlock {
+                block_id: None,
+                workspace_id: workspace.id.clone(),
+                content_type: LoomBlockContentType::Note,
+                document_id: Some(document.id.clone()),
+                asset_id: None,
+                title: Some("Surviving Backlink Target".into()),
+                original_filename: None,
+                content_hash: None,
+                pinned: false,
+                journal_date: None,
+                imported_at: None,
+                derived: super::LoomBlockDerived {
+                    full_text_index: Some("surviving backlink target".into()),
+                    ..Default::default()
+                },
+            },
+        )
+        .await?;
+
+    db.create_loom_edge(
+        &ctx,
+        NewLoomEdge {
+            edge_id: None,
+            workspace_id: workspace.id.clone(),
+            source_block_id: delete_source_block.block_id.clone(),
+            target_block_id: surviving_backlink_target.block_id.clone(),
+            edge_type: LoomEdgeType::Mention,
+            created_by: LoomEdgeCreatedBy::User,
+            crdt_site_id: None,
+            source_anchor: None,
+        },
+    )
+    .await?;
+
+    let surviving_backlink_target_before = db
+        .get_loom_block(&workspace.id, &surviving_backlink_target.block_id)
+        .await?;
+    assert_eq!(surviving_backlink_target_before.derived.backlink_count, 1);
+
+    db.delete_loom_block(&ctx, &workspace.id, &delete_source_block.block_id)
+        .await?;
+    let surviving_backlink_target_after = db
+        .get_loom_block(&workspace.id, &surviving_backlink_target.block_id)
+        .await?;
+    assert_eq!(surviving_backlink_target_after.derived.backlink_count, 0);
+
     db.delete_loom_block(&ctx, &workspace.id, &unlinked_note.block_id)
         .await?;
     assert!(matches!(

@@ -21,6 +21,7 @@ use sqlx::{
     postgres::{PgPool, PgPoolOptions, PgRow},
     Row,
 };
+use std::collections::BTreeSet;
 use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -1745,6 +1746,25 @@ impl super::Database for PostgresDatabase {
         block_id: &str,
     ) -> StorageResult<()> {
         self.guard.validate_write(ctx, block_id).await?;
+        let mut tx = self.pool.begin().await?;
+        let affected_rows: Vec<(String, String)> = sqlx::query_as(
+            r#"
+            SELECT source_block_id, target_block_id
+            FROM loom_edges
+            WHERE workspace_id = $1
+              AND (source_block_id = $2 OR target_block_id = $2)
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_all(&mut *tx)
+        .await?;
+        let affected_block_ids: BTreeSet<String> = affected_rows
+            .into_iter()
+            .flat_map(|(source_block_id, target_block_id)| [source_block_id, target_block_id])
+            .filter(|candidate| candidate != block_id)
+            .collect();
+
         let res = sqlx::query(
             r#"
             DELETE FROM loom_blocks
@@ -1753,12 +1773,31 @@ impl super::Database for PostgresDatabase {
         )
         .bind(workspace_id)
         .bind(block_id)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
 
         if res.rows_affected() == 0 {
             return Err(StorageError::NotFound("loom_block"));
         }
+
+        for affected_block_id in affected_block_ids {
+            sqlx::query(
+                r#"
+                UPDATE loom_blocks
+                SET
+                    mention_count = (SELECT COUNT(*)::INT FROM loom_edges WHERE workspace_id = $1 AND source_block_id = $2 AND edge_type = 'mention'),
+                    tag_count = (SELECT COUNT(*)::INT FROM loom_edges WHERE workspace_id = $1 AND source_block_id = $2 AND edge_type = 'tag'),
+                    backlink_count = (SELECT COUNT(*)::INT FROM loom_edges WHERE workspace_id = $1 AND target_block_id = $2 AND edge_type IN ('mention', 'tag'))
+                WHERE workspace_id = $1 AND block_id = $2
+                "#,
+            )
+            .bind(workspace_id)
+            .bind(&affected_block_id)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
         Ok(())
     }
 
