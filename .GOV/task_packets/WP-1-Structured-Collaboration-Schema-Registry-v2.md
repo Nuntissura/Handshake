@@ -29,8 +29,8 @@
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
-- CODER_MODEL: Coder-A
-- CODER_REASONING_STRENGTH: <unclaimed>
+- CODER_MODEL: gpt-5.4
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
 - SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
@@ -82,7 +82,7 @@
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 <!-- Required for new packets: DIFF_SCOPED_SEMANTIC_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** In Progress
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) -->
 - RISK_TIER: HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH -->
@@ -532,6 +532,7 @@ interface RoleMailboxIndexV1 {
 - IN_SCOPE_PATHS:
   - src/backend/handshake_core/src/locus/types.rs
   - src/backend/handshake_core/src/locus/task_board.rs
+  - src/backend/handshake_core/src/storage/locus_sqlite.rs
   - src/backend/handshake_core/src/runtime_governance.rs
   - src/backend/handshake_core/src/workflows.rs
   - src/backend/handshake_core/src/role_mailbox.rs
@@ -625,8 +626,13 @@ rg -n "schema_id|schema_version|project_profile_kind|mirror_state|authority_refs
   - "runtime and governance mailbox paths remain conflated" -> "the packet validates the wrong authority surface and hides real product regressions"
 ## SKELETON
 - Proposed interfaces/types/contracts:
+  - Keep one canonical task-board projection contract in `src/backend/handshake_core/src/locus/task_board.rs`: index uses `rows`, view uses `lane_ids` plus `rows`, and the runtime default view id remains `default`.
+  - Preserve `profile_extension` across the work-packet and micro-task structured record families by carrying it through `LocusCreateWpParams`, runtime tracked-record builders, SQLite metadata storage, and emitted `packet.json` artifacts.
+  - Reject unknown schema versions and incompatible profile extensions through the shared structured-collaboration validator before product writes persist invalid work-packet state.
 - Open questions:
+  - None inside the signed packet scope. The remaining uncertainty is governance closure on the committed branch range, not product API shape.
 - Notes:
+  - The committed product delta is intentionally limited to `src/backend/handshake_core/src/locus/task_board.rs`, `src/backend/handshake_core/src/locus/types.rs`, `src/backend/handshake_core/src/storage/locus_sqlite.rs`, `src/backend/handshake_core/src/workflows.rs`, and `src/backend/handshake_core/tests/micro_task_executor_tests.rs`.
 
 ## UI_UX_SPEC (REQUIRED IF UI_UX_APPLICABLE=YES)
 - UI_UX_APPLICABLE=NO in the signed refinement. No user-facing surface is in scope for this packet.
