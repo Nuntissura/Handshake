@@ -1,0 +1,89 @@
+{
+  "validation_sessions": {
+    "WP-1-Loom-Storage-Portability-v2": {
+      "wpId": "WP-1-Loom-Storage-Portability-v2",
+      "verdict": "PASS",
+      "status": "COMMITTED",
+      "started": "2026-03-17T03:52:24.154Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "PASS",
+          "timestamp": "2026-03-17T03:52:24.154Z"
+        },
+        {
+          "gate": "COMMITTED",
+          "timestamp": "2026-03-17T04:00:45.734Z"
+        }
+      ]
+    }
+  },
+  "archived_sessions": [
+    {
+      "wpId": "WP-1-Loom-Storage-Portability-v2",
+      "verdict": "FAIL",
+      "status": "REPORT_PRESENTED",
+      "started": "2026-03-17T00:22:11.263Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "FAIL",
+          "timestamp": "2026-03-17T00:22:11.263Z"
+        },
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-03-17T00:22:25.283Z"
+        }
+      ],
+      "archived_at": "2026-03-17T00:35:05.431Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-Loom-Storage-Portability-v2",
+      "verdict": "FAIL",
+      "status": "USER_ACKNOWLEDGED",
+      "started": "2026-03-17T00:45:46.066Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "FAIL",
+          "timestamp": "2026-03-17T00:45:46.066Z"
+        },
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-03-17T00:45:51.491Z"
+        },
+        {
+          "gate": "USER_ACKNOWLEDGED",
+          "timestamp": "2026-03-17T01:53:17.819Z"
+        }
+      ],
+      "completed": "2026-03-17T01:53:17.820Z",
+      "archived_at": "2026-03-17T02:00:23.051Z",
+      "archive_reason": "manual_reset"
+    },
+    {
+      "wpId": "WP-1-Loom-Storage-Portability-v2",
+      "verdict": "FAIL",
+      "status": "REPORT_PRESENTED",
+      "started": "2026-03-17T02:02:03.044Z",
+      "gates": [
+        {
+          "gate": "WP_APPENDED",
+          "verdict": "FAIL",
+          "timestamp": "2026-03-17T02:02:03.044Z"
+        },
+        {
+          "gate": "REPORT_PRESENTED",
+          "verdict": "FAIL",
+          "timestamp": "2026-03-17T02:02:08.069Z"
+        }
+      ],
+      "archived_at": "2026-03-17T03:52:20.306Z",
+      "archive_reason": "manual_reset"
+    }
+  ],
+  "committed_validation_evidence": {}
+}
