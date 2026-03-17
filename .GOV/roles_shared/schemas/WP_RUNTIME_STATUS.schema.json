@@ -217,6 +217,7 @@
         "NONE",
         "READY_FOR_VALIDATION",
         "VALIDATOR_QUERY",
+        "SPEC_GAP",
         "POST_WORK_PASS",
         "BLOCKED_NEEDS_VALIDATOR",
         "STALE_HEARTBEAT",

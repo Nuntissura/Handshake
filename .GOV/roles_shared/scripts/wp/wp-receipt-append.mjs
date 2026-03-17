@@ -33,17 +33,29 @@ function parseBooleanLike(value) {
   return ["1", "true", "yes", "y"].includes(raw.toLowerCase());
 }
 
-function updateOpenReviewItems(runtimeStatus, entry) {
+function trackedCorrelationIds(entry) {
+  const ids = new Set();
+  for (const raw of [entry?.correlation_id, entry?.ack_for]) {
+    const value = String(raw || "").trim();
+    if (value) ids.add(value);
+  }
+  return ids;
+}
+
+export function updateOpenReviewItems(runtimeStatus, entry) {
   if (!runtimeStatus || typeof runtimeStatus !== "object") return;
   const currentItems = Array.isArray(runtimeStatus.open_review_items) ? runtimeStatus.open_review_items : [];
-  const correlationId = String(entry.correlation_id || "").trim();
-  if (!correlationId) {
-    runtimeStatus.open_review_items = currentItems;
+  const correlationIds = trackedCorrelationIds(entry);
+  if (correlationIds.size === 0) {
+    runtimeStatus.open_review_items = [...currentItems].sort((left, right) =>
+      String(left.opened_at || "").localeCompare(String(right.opened_at || ""))
+    );
     return;
   }
 
-  const withoutCorrelation = currentItems.filter((item) => String(item?.correlation_id || "").trim() !== correlationId);
+  const withoutCorrelation = currentItems.filter((item) => !correlationIds.has(String(item?.correlation_id || "").trim()));
   if (REVIEW_OPEN_RECEIPT_KIND_VALUES.includes(entry.receipt_kind)) {
+    const correlationId = String(entry.correlation_id || "").trim();
     withoutCorrelation.push({
       correlation_id: correlationId,
       receipt_kind: entry.receipt_kind,
@@ -70,7 +82,7 @@ function updateOpenReviewItems(runtimeStatus, entry) {
   );
 }
 
-function loadPacketContext(wpId) {
+export function loadPacketContext(wpId) {
   const packetPath = path.join(PACKETS_DIR, `${wpId}.md`);
   if (!fs.existsSync(packetPath)) {
     throw new Error(`Official packet not found: ${normalize(packetPath)}`);

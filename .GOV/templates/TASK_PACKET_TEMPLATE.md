@@ -218,6 +218,12 @@ Next: N/A
 - HEARTBEAT RULE:
   - do not poll continuously
   - update `RUNTIME_STATUS.json` and append a receipt on session start, major phase change, blocker/unblock, handoff, completion, and every `HEARTBEAT_INTERVAL_MINUTES` only while active
+- LIVE STATUS SYNC RULE:
+  - when the first governed coder or validator session starts successfully, or the first substantive coder/validator receipt lands, change packet `**Status:**` to `In Progress`
+  - reconcile the Task Board projection to `IN_PROGRESS` immediately; authoritative packet/task-board truth must not trail live runtime truth
+- HIGH-RISK DIRECT REVIEW RULE:
+  - for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` and `RISK_TIER=HIGH`, require at least one direct coder -> WP Validator review exchange and one direct WP Validator -> coder response or query before final review-ready handoff
+  - the Orchestrator may steer this loop, but the proof must appear as direct coder/validator traffic in the packet-declared communication folder
 
 ## SUB_AGENT_DELEGATION (OPTIONAL; OPERATOR-GATED)
 - SUB_AGENT_DELEGATION: DISALLOWED

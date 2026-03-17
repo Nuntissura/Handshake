@@ -54,6 +54,20 @@ function runGit(args) {
   return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 }
 
+function requestWasAppended(repoRoot, commandId) {
+  const requestsPath = path.join(repoRoot, ".GOV", "roles_shared", "runtime", "SESSION_CONTROL_REQUESTS.jsonl");
+  if (!fs.existsSync(requestsPath)) return false;
+  const lines = fs.readFileSync(requestsPath, "utf8").split(/\r?\n/).filter(Boolean);
+  return lines.some((line) => {
+    try {
+      const parsed = JSON.parse(line);
+      return parsed.command_id === commandId;
+    } catch {
+      return false;
+    }
+  });
+}
+
 if (!["START_SESSION", "SEND_PROMPT", "CANCEL_SESSION", "CLOSE_SESSION"].includes(commandKind)) {
   fail("Usage: node .GOV/roles/orchestrator/scripts/session-control-command.mjs <START_SESSION|SEND_PROMPT|CANCEL_SESSION|CLOSE_SESSION> <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> <WP_ID> [PROMPT] [PRIMARY|FALLBACK]");
 }
@@ -128,7 +142,7 @@ if (commandKind === "CANCEL_SESSION") {
       repoRoot,
       method: "session/cancel",
       params: { request },
-      timeoutMs: 30000,
+      timeoutMs: 120000,
     });
   } catch (error) {
     const existingResult = loadSessionControlResults(repoRoot).results.find((entry) => entry.command_id === request.command_id);
@@ -143,15 +157,26 @@ if (commandKind === "CANCEL_SESSION") {
           run_id: existingResult.target_command_id || targetCommandId,
         },
       };
+    } else if (requestWasAppended(repoRoot, request.command_id)) {
+      acpResponse = {
+        result: {
+          command_id: request.command_id,
+          session_id: session.session_key,
+          status: "request_logged_timeout_waiting_for_settlement",
+          output_jsonl_file: request.output_jsonl_file,
+          error: error.message || "Handshake ACP call failed after request append",
+          run_id: targetCommandId,
+        },
+      };
     } else {
       fail(`Broker cancel dispatch failed for ${request.command_id}: ${error.message || "Handshake ACP call failed"}`);
     }
   }
 
   const response = acpResponse.result || {};
-  const settledCancel = await waitForSettledResult(repoRoot, request.command_id);
+  const settledCancel = await waitForSettledResult(repoRoot, request.command_id, 120000);
   if (!settledCancel) {
-    fail(`Cancel request ${request.command_id} did not settle within 30s`);
+    fail(`Cancel request ${request.command_id} did not settle within 120s`);
   }
 
   console.log(`[SESSION_CONTROL] command_id=${request.command_id}`);
@@ -203,7 +228,7 @@ if (commandKind === "CLOSE_SESSION") {
       repoRoot,
       method: "session/close",
       params: { request },
-      timeoutMs: 30000,
+      timeoutMs: 120000,
     });
   } catch (error) {
     const existingResult = loadSessionControlResults(repoRoot).results.find((entry) => entry.command_id === request.command_id);
@@ -218,15 +243,26 @@ if (commandKind === "CLOSE_SESSION") {
           thread_id: existingResult.thread_id || "",
         },
       };
+    } else if (requestWasAppended(repoRoot, request.command_id)) {
+      acpResponse = {
+        result: {
+          command_id: request.command_id,
+          session_id: session.session_key,
+          status: "request_logged_timeout_waiting_for_settlement",
+          output_jsonl_file: request.output_jsonl_file,
+          error: error.message || "Handshake ACP call failed after request append",
+          thread_id: session.session_thread_id || "",
+        },
+      };
     } else {
       fail(`Broker close dispatch failed for ${request.command_id}: ${error.message || "Handshake ACP call failed"}`);
     }
   }
 
   const response = acpResponse.result || {};
-  const settledClose = await waitForSettledResult(repoRoot, request.command_id);
+  const settledClose = await waitForSettledResult(repoRoot, request.command_id, 120000);
   if (!settledClose) {
-    fail(`Close request ${request.command_id} did not settle within 30s`);
+    fail(`Close request ${request.command_id} did not settle within 120s`);
   }
 
   console.log(`[SESSION_CONTROL] command_id=${request.command_id}`);

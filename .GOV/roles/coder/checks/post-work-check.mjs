@@ -253,7 +253,7 @@ const packetContent = readFileIfExists(packetPath);
 
 const parseMergeBaseSha = (content) => {
   if (!content) return null;
-  const m = content.match(/^\s*-\s*MERGE_BASE_SHA\s*:\s*([a-f0-9]{40})\s*$/mi);
+  const m = content.match(/^\s*-\s*MERGE_BASE_SHA\s*:\s*([a-f0-9]{40})\b.*$/mi);
   return m ? m[1].toLowerCase() : null;
 };
 
@@ -664,6 +664,7 @@ if (useStaged && workingFiles.length > stagedFiles.length) {
   // Avoid warning noise for validator-only governance state.
   const stagedSet = new Set(stagedFiles.map((p) => p.replace(/\\/g, '/')));
   const allowlistedUnstaged = new Set([
+    '.GOV/roles_shared/records/BUILD_ORDER.md',
     '.GOV/roles_shared/records/TASK_BOARD.md',
     '.GOV/roles_shared/records/SIGNATURE_AUDIT.md',
     '.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json',
@@ -692,6 +693,7 @@ if (manifests) {
   // Validate scope (best-effort): changed files must be subset of IN_SCOPE_PATHS (plus allowed governance files),
   // unless a waiver is present. This only applies to the evaluated diff set (staged preferred).
   const allowlisted = new Set([
+    '.GOV/roles_shared/records/BUILD_ORDER.md',
     '.GOV/roles_shared/records/TASK_BOARD.md',
     '.GOV/roles_shared/records/SIGNATURE_AUDIT.md',
     '.GOV/roles/orchestrator/runtime/ORCHESTRATOR_GATES.json',

@@ -148,7 +148,8 @@ export function buildStartupPrompt({ role, wpId, roleConfig, selectedModel }) {
     `1. ${roleConfig.startupCommand}`,
     `2. ${roleConfig.nextCommand}`,
     `After those commands, report only the resulting lifecycle/gate state, blockers, and next required command(s).`,
-    `Do not run follow-on tests, validation, implementation, edits, or merge actions in this START_SESSION turn.`,
+    `Do not run follow-on tests, validation, implementation, edits, merge actions, broad file enumeration, cargo clean/build commands, or product-code analysis in this START_SESSION turn.`,
+    `Do not load optional skills or inspect large source files during START_SESSION unless one of the two startup commands requires it directly.`,
     `Stop after reporting and wait for a later SEND_PROMPT from the Orchestrator.`,
   ].join("\n");
 }

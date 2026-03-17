@@ -267,10 +267,18 @@ Resume rule (hard, anti-babysit):
   - only the `Classical Validator` or `Integration Validator` may own the final merge-ready verdict unless the packet explicitly says otherwise
 - Do not poll continuously. The Validator should wake on explicit packet assignment, `ready_for_validation=true`, `validator_trigger != NONE`, a validation handoff receipt, or an explicit operator/orchestrator instruction.
 - Update runtime status and append a receipt on validation start, validation query, blocker, verdict-ready handoff, completion, and every packet heartbeat interval only while actively validating.
+- Proactive WP-validator rule for orchestrator-managed high-risk work:
+  - do not stay passive until final handoff if the packet is `RISK_TIER=HIGH`
+  - no later than the first substantive diff or the skeleton checkpoint, either answer the coder's direct review request or issue a direct validator query derived from the diff and spec
+  - direct coder-targeted review traffic is mandatory; do not report only to the Orchestrator when a coder-facing query or response is required
+- Before treating a high-risk orchestrator-managed WP as review-ready, require at least one real direct coder <-> WP Validator exchange in the packet-declared communication folder.
+- If a coder `REVIEW_REQUEST`, validator-owned `VALIDATOR_QUERY`, or `SPEC_GAP` remains open, your next substantive governed turn must end with a direct coder-facing `REVIEW_RESPONSE`, `SPEC_GAP`, or `SPEC_CONFIRMATION`. Do not stop at generic `PENDING`, heartbeat-only, or Orchestrator-only notes while the coder is still waiting on a technical answer.
+- If broad validation is blocked by environment/tooling noise such as linker OOM, stale packet commands, or unrelated governance drift, immediately downscope into diff-scoped independent checks and state whether the blocker is a product gap, a proof gap, or an environment-only ceiling. Do not let those blockers justify passive waiting.
 - Prefer deterministic helpers over hand-editing these files:
   - `just wp-thread-append WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
   - `just wp-heartbeat WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
   - `just wp-receipt-append WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
+  - `just wp-validator-query WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
   - `just wp-validator-response WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - `just wp-review-response WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> CODER <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - `just wp-spec-gap WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session> CODER <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`

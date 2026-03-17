@@ -29,8 +29,8 @@
 <!-- Required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
 - ORCHESTRATION_STARTED_AT_UTC: N/A
 <!-- RFC3339 UTC; required only when AGENTIC_MODE=YES and the Orchestrator is explicitly authorized to use sub-agents. -->
-- CODER_MODEL: Coder-A
-- CODER_REASONING_STRENGTH: <unclaimed>
+- CODER_MODEL: gpt-5.4
+- CODER_REASONING_STRENGTH: EXTRA_HIGH
 <!-- Allowed: LOW | MEDIUM | HIGH | EXTRA_HIGH -->
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
 - SESSION_HOST_PREFERENCE: VSCODE_EXTENSION_TERMINAL
@@ -137,10 +137,10 @@ Next: N/A
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: Handshake_Master_Spec_v02.178.md interface TrackedWorkPacket shared structured-collaboration envelope [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test -p handshake_core; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
-  - CLAUSE: Handshake_Master_Spec_v02.178.md interface TrackedMicroTask shared structured-collaboration envelope [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test -p handshake_core; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
-  - CLAUSE: Handshake_Master_Spec_v02.178.md Base structured schema and project-profile extension contract [ADD v02.168] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test -p handshake_core; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
-  - CLAUSE: Handshake_Master_Spec_v02.178.md RoleMailboxIndexV1 and RoleMailboxThreadLineV1 base envelope [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test -p handshake_core; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Handshake_Master_Spec_v02.178.md interface TrackedWorkPacket shared structured-collaboration envelope [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Handshake_Master_Spec_v02.178.md interface TrackedMicroTask shared structured-collaboration envelope [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Handshake_Master_Spec_v02.178.md Base structured schema and project-profile extension contract [ADD v02.168] [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Handshake_Master_Spec_v02.178.md RoleMailboxIndexV1 and RoleMailboxThreadLineV1 base envelope [LEGACY_REFINEMENT_BRIDGE] | CODE_SURFACES: src/backend/handshake_core/src/locus/types.rs, src/backend/handshake_core/src/locus/task_board.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/role_mailbox.rs, src/backend/handshake_core/src/api/role_mailbox.rs, src/backend/handshake_core/tests/role_mailbox_tests.rs, src/backend/handshake_core/tests/micro_task_executor_tests.rs | TESTS: cargo test --manifest-path src/backend/handshake_core/Cargo.toml; just gov-check | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -160,7 +160,7 @@ Next: N/A
 - Rule: shared registries, shared types, shared storage layers, shared workflow/runtime surfaces, and migrations default to SHARED_SURFACE_RISK=YES.
 ## SEMANTIC_PROOF_ASSETS (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - SEMANTIC_TRIPWIRE_TESTS:
-  - cargo test -p handshake_core; just gov-check [LEGACY_REFINEMENT_BRIDGE]
+  - cargo test --manifest-path src/backend/handshake_core/Cargo.toml; just gov-check [LEGACY_REFINEMENT_BRIDGE]
 - CANONICAL_CONTRACT_EXAMPLES:
   - NONE
 - Rule: for packets using `SEMANTIC_PROOF_PROFILE=DIFF_SCOPED_SEMANTIC_V1`, each clause row must point to TESTS, EXAMPLES, or governed debt, and shared-surface packets should carry at least one concrete tripwire or canonical example.
@@ -551,7 +551,7 @@ interface RoleMailboxIndexV1 {
 ## QUALITY_GATE
 ### TEST_PLAN
 ```bash
-cargo test -p handshake_core
+cargo test --manifest-path src/backend/handshake_core/Cargo.toml
   just gov-check
 ```
 
@@ -615,7 +615,7 @@ git revert <commit-sha>
 - RUN_COMMANDS:
   ```bash
 rg -n "schema_id|schema_version|project_profile_kind|mirror_state|authority_refs|evidence_refs|summary.json|profile_extension|role_mailbox_index|role_mailbox_thread_line" src/backend/handshake_core
-  cargo test -p handshake_core
+  cargo test --manifest-path src/backend/handshake_core/Cargo.toml
   just gov-check
   ```
 - RISK_MAP:
