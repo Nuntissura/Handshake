@@ -209,6 +209,13 @@ This is a convenience wrapper around the core deterministic checks (worktree con
 Optional (recommended on session start to reduce babysitting):
 - `just coder-startup` (prints PROTOCOL_ACK lines + runs `just coder-preflight`).
 
+### Mandatory Rubric Read (HARD)
+
+- Before the first WP-specific `BOOTSTRAP` step or any code change, read `/.GOV/roles/coder/docs/CODER_RUBRIC_V2.md`.
+- The rubric remains support guidance, but this protocol adopts it as the mandatory coder quality floor.
+- Do not treat the rubric as optional background reading. Use it to shape implementation choices, self-critique, and handoff quality from the start of the WP.
+- Before handoff to the WP Validator, answer the required rubric-backed handoff fields defined by the packet `CODER_HANDOFF_RIGOR_PROFILE`.
+
 ### Context resume (recommended; anti-babysit)
 
 If the session resets, context compacts, or you inherit a half-finished WP, use:
@@ -262,7 +269,11 @@ Resume rule (hard, anti-babysit):
   - `just wp-heartbeat WP-{ID} CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
   - `just wp-receipt-append WP-{ID} CODER <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
   - `just wp-validator-query WP-{ID} CODER <session> <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
+  - `just wp-validator-response WP-{ID} CODER <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - `just wp-review-request WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
+  - `just wp-review-response WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
+  - `just wp-spec-gap WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR|ORCHESTRATOR <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
+  - `just wp-spec-confirmation WP-{ID} CODER <session> WP_VALIDATOR|INTEGRATION_VALIDATOR|ORCHESTRATOR <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
   - `just session-registry-status [WP-{ID}]`
   - `just operator-monitor` (operator viewport for ACP-aware session/control/thread/receipt/artifact visibility)
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Coder session):
@@ -334,10 +345,9 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 
 **Blocking rule:** If the Lineage Audit is missing/unclear, STOP and escalate to the Orchestrator. Do NOT proceed to implement â€œjust the v{N} diffâ€ without a complete audit.
 
-**Supporting Documents:**
-- **docs/CODER_RUBRIC.md** - Internal quality standard (15-point self-audit, success metrics, failure modes)
-- **docs/CODER_PROTOCOL_SCRUTINY.md** - Analysis of current gaps (18 identified, B+ grade)
-- **docs/CODER_IMPLEMENTATION_ROADMAP.md** - Path to 9.9/10 (3-phase improvement plan)
+**Support Surface:**
+- `agentic/AGENTIC_PROTOCOL.md` is the live add-on when the packet explicitly allows coder sub-agents.
+- `docs/` contains non-authoritative coder support notes and historical analysis; do not treat those files as current workflow law.
 
 ## Deterministic Validation (COR-701 carryover, current workflow)
 - Each task packet MUST retain the manifest template in `## Validation` (target_file, start/end, line_delta, pre/post SHA1, gates checklist). Keep it ASCII-only.
@@ -357,7 +367,8 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 - At start: set the task packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH`, and make a docs-only bootstrap commit on your WP branch (so the Validator can status-sync `main`). For newly created repo-governed packets, claim `gpt-5.4` + `EXTRA_HIGH`, or `gpt-5.2` + `EXTRA_HIGH` only when the primary model is unavailable.
 - **Evidence Management:** You MAY append test logs, command outputs, and proof of work to the `## EVIDENCE` section of the task packet.
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
-- **Status Updates:** Update the `## STATUS_HANDOFF` section to reflect progress (e.g., "Implementation complete, tests passing").
+- **Status Updates:** Update the `## STATUS_HANDOFF` section with a real self-audit, not a generic "tests passing" note. When `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, include both the standard handoff core and the rubric-proof fields.
+- Compare your implementation against local `main` first. Use `origin/main` only as a secondary fallback when local `main` is missing the relevant integrated context or remote drift is the subject of the WP.
 - **Branch Discipline (preferred):** Do all work on a WP branch (e.g., `feat/WP-{ID}`), optionally via `git worktree`. You MAY commit freely to your WP branch and push only the assigned WP backup branch. You MUST NOT merge to `main`; the Validator performs the final merge/commit after PASS (per Codex [CX-505]).
 - **Concurrency rule (MANDATORY when >1 Coder is active):** work only in the dedicated `git worktree` directory assigned to your WP. Do NOT share a single working tree with another active WP.
 
@@ -1241,7 +1252,24 @@ Fix errors, re-run `just post-work`.
 ### Step 11: Status Sync & Request Validator Review
 
 **1. Update task packet handoff:**
-- Ensure `## STATUS_HANDOFF` says: "Implementation complete; GATES_PASS (post-work) PASS; TEST_PLAN results recorded; ready for validation"
+- Ensure `## STATUS_HANDOFF` includes the standard handoff core, with concrete content rather than a generic ready note:
+  - `Current WP_STATUS:`
+  - `What changed in this update:`
+  - `Requirements / clauses self-audited:`
+  - `Checks actually run:`
+  - `Known gaps / weak spots:`
+  - `Heuristic risks / maintainability concerns:`
+  - `Validator focus request:`
+  - `Next step / handoff hint:`
+- If `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, `## STATUS_HANDOFF` MUST also include these rubric-proof fields:
+  - `Rubric contract understanding proof:`
+  - `Rubric scope discipline proof:`
+  - `Rubric baseline comparison:`
+  - `Rubric end-to-end proof:`
+  - `Rubric architecture fit self-review:`
+  - `Rubric heuristic quality self-review:`
+  - `Rubric anti-gaming / counterfactual check:`
+- Treat those rubric-proof fields as evidence-backed self-critique for the validator, not as motivational prose.
 - Do NOT write verdicts or edit `## VALIDATION_REPORTS`
 
 **2. Output final summary:**
@@ -1313,6 +1341,8 @@ Ready for Validator review.
 5. Document validation results for handoff (outside the task packet)
 6. Update task packet status/notes only before commit (logger only if requested; no validation logs)
 7. Run `just post-work WP-{ID}` before claiming done
+8. Read `/.GOV/roles/coder/docs/CODER_RUBRIC_V2.md` before the first WP-specific BOOTSTRAP or code change
+9. Answer the required rubric-proof fields in `## STATUS_HANDOFF` before validator handoff when the packet uses `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`
 
 ---
 
@@ -1339,7 +1369,7 @@ I cannot start without a task packet.
 ```
 âŒ Tests failed [CX-572]
 
-Command: cargo test
+Command: cargo test --manifest-path src/backend/handshake_core/Cargo.toml
 Result: FAIL (2 failed, 3 passed)
 
 Errors:
@@ -1412,10 +1442,10 @@ Code looks good. Work is done!
 ```
 Running validation per TEST_PLAN:
 
-$ cargo test
+$ cargo test --manifest-path src/backend/handshake_core/Cargo.toml
 âœ… 5 passed
 
-$ pnpm test
+$ pnpm -C app test
 âœ… 12 passed
 
 âœ… PASS
@@ -1593,6 +1623,7 @@ Before handoff, explicitly re-check the exact clauses this WP claims to close.
 
 **MUST confirm:**
 - [ ] I re-read the DONE_MEANS bullets and exact SPEC_ANCHOR clauses I am claiming.
+- [ ] I compared the landed diff against local `main` first (or documented why `origin/main` was needed instead).
 - [ ] Required fields are emitted/serialized end-to-end, not just present in local structs or validators.
 - [ ] Shared contract names still match across producers, consumers, tests, and validators.
 - [ ] Tests cover the actual contract, not only nearby code paths.
@@ -1600,6 +1631,7 @@ Before handoff, explicitly re-check the exact clauses this WP claims to close.
 - [ ] I updated `## CLAUSE_CLOSURE_MATRIX` so every in-scope clause is marked honestly (`PROVED | PARTIAL | DEFERRED | NOT_APPLICABLE`) before handoff.
 - [ ] If any clause is `PARTIAL` or `DEFERRED`, I opened/synced governed debt (`just spec-debt-open` / `just spec-debt-sync`) so `## SPEC_DEBT_STATUS` and the clause row `DEBT_IDS` are explicit instead of hidden.
 - [ ] Any clause I could not fully prove is called out in handoff notes instead of being implied as complete.
+- [ ] I called out my own weak spots, brittle areas, and heuristic-quality concerns in `## STATUS_HANDOFF` instead of leaving them for the validator to discover blind.
 
 **Failure pattern to avoid:**
 - Tests are green, but a required field or schema name is still missing from the final emitted artifact.
@@ -1862,63 +1894,3 @@ Work is stuck (can't proceed without help)
 
 **Awaiting Response By:** {date/time}
 ```
-
----
-
-# PART 3: CODER PROTOCOL GAPS & ROADMAP
-
-## Current Grade: B+ (82/100) â†’ Target: A+ (99/100)
-
-**18 identified gaps organized by impact:**
-
-### Phase 1 (P0): Critical Foundations [82 â†’ 88/100]
-- [ ] Packet Completeness Criteria (objective checklist)
-- [ ] BOOTSTRAP Completeness Checklist (4 sub-fields with minimums)
-- [ ] TEST_PLAN Completeness Check (verify concrete commands)
-- [ ] Error Recovery Procedures (6 common mistakes + solutions)
-- [ ] Validation Priority Sequence (Tests â†’ Manual Review â†’ Post-Work)
-- **Effort:** 3-4 hours | **All items IMPLEMENTED âœ…**
-
-### Phase 2 (P1): Quality Systems [88 â†’ 93/100]
-- [x] Hard Invariant Enforcement Guide (explain [CX-101-106]) - Added after Step 6
-- [x] Test Coverage Checklist (minimum % per risk tier) - Added as Step 7.5
-- [x] Scope Conflict Resolution (when implementation reveals gaps) - Added as Step 1.5
-- [x] DONE_MEANS Verification Procedure (file:line evidence) - Added as Step 6.5
-- **Effort:** 2-3 hours | **All items IMPLEMENTED âœ…**
-
-### Phase 3 (P2): Polish [93 â†’ 99/100]
-- [ ] Manual Review Severity Matrix (PASS/WARN/BLOCK criteria)
-- [ ] Packet Update Clarity (what you can/can't edit)
-- [ ] Ecosystem Links (understanding three-role system)
-- [ ] Miscellaneous Polish (branching strategy, consistency, clarity)
-- **Effort:** 2-3 hours | **Designed, ready for implementation**
-
----
-
-## Implementation Timeline
-
-**After Phase 1 (P0) - COMPLETED âœ…**
-- Packet completeness is verifiable (no subjectivity)
-- BOOTSTRAP format is crystal clear
-- Coder knows validation order
-- Coder has error recovery playbook
-- **Grade: A- (88/100)**
-
-**After Phase 2 (P1) - COMPLETED âœ…**
-- Hard invariants explained with grep commands and fix examples (Step 6 + enforcement guide)
-- Test coverage minimums clear with tarpaulin verification (Step 7.5)
-- Scope conflicts caught early with step 1.5 adequacy check
-- DONE_MEANS verified with file:line evidence during implementation (Step 6.5)
-- **Grade: A (93/100)**
-
-**After Phase 3 (P2) - Designed**
-- Manual review severity objective
-- Governance rules explicit
-- Ecosystem context clear
-- Polish complete
-- **Grade: A+ (99/100) = 9.9/10 âœ¨**
-
----
-
-**Total effort to reach 9.9/10: 7-10 hours (all cheap LLM tier)**
-**Cost: LOW (documentation + clarification, no code changes)**

@@ -75,6 +75,7 @@ import {
 } from '../../../roles_shared/scripts/session/session-policy.mjs';
 
 const WP_ID = process.argv[2];
+const allowOverwriteExisting = process.argv.includes('--overwrite-existing') || process.env.ALLOW_PACKET_OVERWRITE === '1';
 const EXECUTION_OWNER_USAGE = `{${EXECUTION_OWNER_RANGE_HELP}}`;
 
 if (!WP_ID || !WP_ID.startsWith('WP-')) {
@@ -504,23 +505,28 @@ if (fs.existsSync(filePath)) {
     process.exit(1);
   }
 
-  printGateBlocks({
-    wpId: WP_ID,
-    stage: 'PACKET_CREATE',
-    next: 'STOP',
-    operatorAction: 'NONE',
-    gateRan: `just create-task-packet ${WP_ID}`,
-    result: 'FAIL',
-    why: 'Task packet file already exists; generator will not overwrite it.',
-    gateOutputLines: [
-      `FAIL: Task packet already exists: ${filePath.replace(/\\/g, '/')}`,
-    ],
-    nextCommands: [
-      `cat ${filePath.replace(/\\/g, '/')}`,
-      '# If you need a revision, create a new packet ID: WP-...-v{N}.',
-    ],
-  });
-  process.exit(1);
+  if (allowOverwriteExisting) {
+    console.warn(`[PACKET_CREATE] overwriting existing packet for ${WP_ID} at ${filePath.replace(/\\/g, '/')}`);
+  } else {
+
+    printGateBlocks({
+      wpId: WP_ID,
+      stage: 'PACKET_CREATE',
+      next: 'STOP',
+      operatorAction: 'NONE',
+      gateRan: `just create-task-packet ${WP_ID}`,
+      result: 'FAIL',
+      why: 'Task packet file already exists; generator will not overwrite it.',
+      gateOutputLines: [
+        `FAIL: Task packet already exists: ${filePath.replace(/\\/g, '/')}`,
+      ],
+      nextCommands: [
+        `cat ${filePath.replace(/\\/g, '/')}`,
+        '# If you need a revision, create a new packet ID: WP-...-v{N}.',
+      ],
+    });
+    process.exit(1);
+  }
 }
 
 // Get current timestamp
@@ -575,11 +581,29 @@ const fill = (text, token, value) => text.split(token).join(value);
 const replaceSingleField = (text, label, value) =>
   text.replace(new RegExp(`^(\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*).*$`, 'mi'), `$1${value}`);
 const escapeRegExp = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const replaceSection = (text, heading, newSection) =>
-  text.replace(
-    new RegExp(`(^|\\r?\\n)##\\s+${escapeRegExp(heading)}\\b[\\s\\S]*?(?=(?:\\r?\\n)##\\s+[^#]|$)`, 'm'),
-    (_match, prefix) => `${prefix}${newSection.trim()}`,
-  );
+const replaceSection = (text, heading, newSection) => {
+  const lines = String(text || '').split(/\r?\n/);
+  const headingRe = new RegExp(`^##\\s+${escapeRegExp(heading)}\\b`, 'i');
+  const startIndex = lines.findIndex((line) => headingRe.test(line));
+  if (startIndex === -1) {
+    throw new Error(`Missing packet section heading: ${heading}`);
+  }
+
+  let endIndex = lines.length;
+  for (let index = startIndex + 1; index < lines.length; index += 1) {
+    if (/^##\s+\S/.test(lines[index])) {
+      endIndex = index;
+      break;
+    }
+  }
+
+  const replacementLines = String(newSection || '').replace(/\r/g, '').trim().split('\n');
+  return [
+    ...lines.slice(0, startIndex),
+    ...replacementLines,
+    ...lines.slice(endIndex),
+  ].join('\n');
+};
 const githubTreeBase = () => {
   try {
     const raw = execSync('git remote get-url origin', { encoding: 'utf8' }).trim();
@@ -764,7 +788,20 @@ if (isHydratedProfile) {
   template = replaceSingleField(template, 'UI_UX_APPLICABLE', refinementData.uiApplicable || 'NO');
   template = replaceSingleField(template, 'UI_UX_VERDICT', refinementData.uiVerdict || 'OK');
   template = replaceSingleField(template, 'STUB_WP_IDS', refinementData.stubWpIdsRaw || 'NONE');
-  template = replaceSingleField(template, 'SPEC_ANCHOR', hydration.specAnchorPrimary || '<fill>');
+  const primarySpecAnchor =
+    (hydration.specAnchorPrimary || '').trim()
+    || String(refinementData.specAnchors?.[0]?.specAnchor || '').trim()
+    || 'See SPEC_CONTEXT_WINDOWS ANCHOR 1';
+  template = replaceSection(template, 'AUTHORITY', `
+## AUTHORITY
+- SPEC_BASELINE: ${specBaseline} (recorded_at: ${timestamp})
+- SPEC_TARGET: .GOV/roles_shared/records/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
+- SPEC_ADD_MARKER_TARGET: ${specAddMarkerTarget}
+- SPEC_ANCHOR_PRIMARY: ${primarySpecAnchor}
+- Codex: Handshake Codex v1.4.md
+- Task Board: .GOV/roles_shared/records/TASK_BOARD.md
+- WP Traceability: .GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md
+`);
 
   const clauseClosureRows = buildClauseClosureRows({
     clauseProofPlan: refinementData.clauseProofPlan,
@@ -968,6 +1005,62 @@ ${(hydration.runCommands || '').trim()}
   \`\`\`
 - RISK_MAP:
 ${formatList(hydration.riskMap)}
+`);
+
+  template = replaceSection(template, 'END_TO_END_CLOSURE_PLAN', `
+## END_TO_END_CLOSURE_PLAN [CX-E2E-001]
+- END_TO_END_CLOSURE_PLAN_APPLICABLE: NO
+- TRUST_BOUNDARY: N/A
+- SERVER_SOURCES_OF_TRUTH:
+  - NONE
+- REQUIRED_PROVENANCE_FIELDS:
+  - NONE
+- VERIFICATION_PLAN:
+  - Record end-to-end trust/provenance requirements only if this WP introduces a cross-boundary apply path.
+- ERROR_TAXONOMY_PLAN:
+  - N/A for initial coder handoff.
+- UI_GUARDRAILS:
+  - N/A for initial coder handoff.
+- VALIDATOR_ASSERTIONS:
+  - Validate the packet-scoped spec anchors, in-scope files, and deterministic evidence recorded during implementation.
+`);
+
+  template = replaceSection(template, 'VALIDATION', `
+## VALIDATION
+- (Mechanical manifest for audit. Fill real values to enable 'just post-work'. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
+- If the WP changes multiple non-\`.GOV/\` files, repeat the manifest block once per changed file (multiple \`**Target File**\` entries are supported).
+- SHA1 hint: stage your changes and run \`just cor701-sha <changed file>\` to get deterministic \`Pre-SHA1\` / \`Post-SHA1\` values.
+- **Target File**: \`N/A (fill after implementation)\`
+- **Start**: N/A
+- **End**: N/A
+- **Line Delta**: N/A
+- **Pre-SHA1**: \`N/A\`
+- **Post-SHA1**: \`N/A\`
+- **Gates Passed**:
+  - [ ] anchors_present
+  - [ ] window_matches_plan
+  - [ ] rails_untouched_outside_window
+  - [ ] filename_canonical_and_openable
+  - [ ] pre_sha1_captured
+  - [ ] post_sha1_captured
+  - [ ] line_delta_equals_expected
+  - [ ] all_links_resolvable
+  - [ ] manifest_written_and_path_returned
+  - [ ] current_file_matches_preimage
+- **Lint Results**:
+- **Artifacts**:
+- **Timestamp**:
+- **Operator**:
+- **Spec Target Resolved**: .GOV/roles_shared/records/SPEC_CURRENT.md -> ${specBaseline}
+- **Notes**:
+`);
+
+  template = replaceSection(template, 'EVIDENCE_MAPPING', `
+## EVIDENCE_MAPPING
+- (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
+- Format (repeat as needed):
+  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
+  - EVIDENCE: \`N/A (fill during implementation)\`
 `);
 
   if (/^YES$/i.test(refinementData.uiApplicable || '')) {

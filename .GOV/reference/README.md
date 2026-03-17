@@ -22,3 +22,4 @@ Subfolders in use:
   - archived non-authoritative Orchestrator support docs retained for historical reference
 - `research_and_papers/`
   - non-normative synthesis and research material
+  - includes `RESEARCH_20260316_LLM_ANTI_GAMING_VALIDATION.md`

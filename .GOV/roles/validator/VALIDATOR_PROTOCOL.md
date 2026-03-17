@@ -365,12 +365,33 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - Confirm the WP branch contains `docs: bootstrap claim [WP-{ID}]` before accepting any skeleton or implementation progression.
 - Enforce [CX-GATE-001]: if the Coder included SKELETON content in the BOOTSTRAP turn, treat it as invalid phase merging; require a new, separate SKELETON turn/commit after explicit Operator authorization.
 
+0A) Handoff Quality Gate
+- Before treating a coder handoff as review-ready, inspect `## STATUS_HANDOFF` rather than trusting a chat summary alone.
+- If `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, require the standard handoff core plus all rubric-proof fields:
+  - `Current WP_STATUS`
+  - `What changed in this update`
+  - `Requirements / clauses self-audited`
+  - `Checks actually run`
+  - `Known gaps / weak spots`
+  - `Heuristic risks / maintainability concerns`
+  - `Validator focus request`
+  - `Rubric contract understanding proof`
+  - `Rubric scope discipline proof`
+  - `Rubric baseline comparison`
+  - `Rubric end-to-end proof`
+  - `Rubric architecture fit self-review`
+  - `Rubric heuristic quality self-review`
+  - `Rubric anti-gaming / counterfactual check`
+  - `Next step / handoff hint`
+- If those fields are missing, generic, or evasive, do not treat the WP as technically ready; return it for completion and downgrade governance/code-review confidence accordingly.
+
 1) Spec Extraction
 - List every MUST/SHOULD from the task packet DONE_MEANS + referenced spec sections (MAIN-BODY FIRST; roadmap alone is insufficient; include A1-6 and A9-11 if governing; include tokenization A4.6, storage portability A2.3.12, determinism/repro/error-code conventions when applicable).
 - Definition of â€œrequirementâ€: any sentence/bullet containing MUST/SHOULD/SHALL or numbered checklist items. Roadmap is a pointer; Master Spec body is the authority.
 - Copy identifiers (anchors, bullet labels) to keep traceability. No assumptions from memory.
 - Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually .GOV/roles_shared/records/SPEC_CURRENT.md).
 - Resolve SPEC_TARGET at validation time (.GOV/roles_shared/records/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md) and validate DONE_MEANS/evidence against the resolved spec.
+- Compare the implementation against local `main` first. Use `origin/main` only as a secondary fallback when local `main` lacks the relevant integrated context or the audit is explicitly about remote drift.
 - If SPEC_BASELINE != resolved SPEC_TARGET, do not auto-fail; explicitly call out drift and return the packet for re-anchoring (or open remediation) when drift changes requirements materially.
 - If a WP is correct for its SPEC_BASELINE but SPEC_TARGET has evolved, record a distinct disposition: **OUTDATED_ONLY** (historically done; no protocol/code regression proven). Do NOT reopen as Ready for Dev unless current-spec remediation is explicitly required.
 - Spec changes are governed via Spec Enrichment (new spec version file + `.GOV/roles_shared/records/SPEC_CURRENT.md` update) under a one-time user signature recorded in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
@@ -410,6 +431,12 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - Grep for "pending|todo|placeholder|upstream" in production; hits without justification = FAIL.
 - Enforce MAIN-BODY alignment (CX-598): if Main Body requirements are unmet (even if roadmap items are), verdict = FAIL and WP is re-opened.
 - Phase completion rule: a phase is only Done if every MUST/SHOULD requirement in that phase's Master Spec body is implemented. Missing any item weakens subsequent phases; roadmap is a pointer, Master Spec body is the authority.
+
+2D) Heuristic / Code-Quality Review (MANDATORY; not optional polish)
+- Review the landed code as a maintainer, not just as a test runner.
+- Explicitly look for brittleness, hidden coupling, misleading names, hollow abstractions, partial end-to-end wiring, over-broad changes, weak failure handling, and "works for the happy path but not for the real contract" code.
+- If the code technically passes tests but still reads as under-specified, brittle, or weakly justified, downgrade `HEURISTIC_REVIEW_VERDICT` and record the risk under `QUALITY_RISKS`.
+- Do not let passing tests erase code-review concerns. Tests prove some behavior; they do not prove maintainability or architectural fit.
 
 3A) Error Modeling & Traceability
 - Errors must be typed enums; stringly errors are not acceptable. Prefer stable error codes (e.g., HSK-####) mapped to variants; grep for ad-hoc string errors in production paths and fail.
@@ -489,7 +516,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - If a required check cannot be satisfied, obtain explicit user waiver and record it in the task packet and report; absent waiver = FAIL.
 
 ## Verdict (Binary)
-- PASS: Every requirement mapped to evidence, hygiene clean, tests verified (or explicitly waived by user), DAL audit clean when applicable, phase-gate satisfied when progressing.
+- PASS: Every requirement mapped to evidence, hygiene clean, tests verified (or explicitly waived by user), DAL audit clean when applicable, heuristic/code-quality review acceptable, and phase-gate satisfied when progressing.
 - FAIL: List missing evidence, failed audits, tests not run, or unmet phase-gate. No partial passes.
 
 ## Validator Completion Checklist (MANDATORY for PACKET_FORMAT_VERSION >= 2026-03-15)
@@ -497,8 +524,10 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - [ ] I recorded file:line evidence for each clause under `CLAUSES_REVIEWED`.
 - [ ] I separated automation proof from manual code/spec review in the report.
 - [ ] I recorded any blocked or unproven claims under `NOT_PROVEN` instead of implying completion.
-- [ ] I set split verdicts (`GOVERNANCE_VERDICT`, `TEST_VERDICT`, `CODE_REVIEW_VERDICT`, `SPEC_ALIGNMENT_VERDICT`, `ENVIRONMENT_VERDICT`) deliberately rather than collapsing them into one PASS.
+- [ ] I set split verdicts (`GOVERNANCE_VERDICT`, `TEST_VERDICT`, `CODE_REVIEW_VERDICT`, `HEURISTIC_REVIEW_VERDICT`, `SPEC_ALIGNMENT_VERDICT`, `ENVIRONMENT_VERDICT`) deliberately rather than collapsing them into one PASS.
 - [ ] If I used `SPEC_ALIGNMENT_VERDICT=PASS`, `NOT_PROVEN` is exactly `- NONE`.
+- [ ] I compared against local `main` first (or documented why `origin/main` was needed instead).
+- [ ] I performed an explicit heuristic-quality review and recorded residual risks instead of letting tests stand in for code judgment.
 - [ ] I avoided stronger wording in chat/packet/audit than the split verdicts actually support.
 
 ## Operator UX: Explicit Verdict Line (HARD)
@@ -566,6 +595,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
   - `GOVERNANCE_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
   - `TEST_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
   - `CODE_REVIEW_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
+  - `HEURISTIC_REVIEW_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
   - `SPEC_ALIGNMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
   - `ENVIRONMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN`
   - `DISPOSITION: NONE | OUTDATED_ONLY`
@@ -575,6 +605,26 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - `SPEC_ALIGNMENT_VERDICT` is not implied by passing tests or governance gates.
 - If environment/tooling blocked full proof, reflect that explicitly with `ENVIRONMENT_VERDICT` and downgrade `SPEC_ALIGNMENT_VERDICT` rather than narrating a generic PASS.
 - For governed PASS closure on this packet format, append `CLAUSES_REVIEWED` and `NOT_PROVEN` in the packet report itself; a standalone chat summary is insufficient.
+- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V2`, also append:
+  - `MAIN_BODY_GAPS:` with `- NONE` only when no unresolved main-body requirement remains
+  - `QUALITY_RISKS:` with `- NONE` only when no material maintainability or heuristic-quality concern remains
+- `HEURISTIC_REVIEW_VERDICT=PASS` is legal only when `QUALITY_RISKS` is exactly `- NONE`.
+- For `GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V3`, also append:
+  - `MAIN_BODY_GAPS:` with `- NONE` only when no unresolved main-body requirement remains
+  - `QUALITY_RISKS:` with `- NONE` only when no material maintainability or heuristic-quality concern remains
+  - `VALIDATOR_RISK_TIER: LOW | MEDIUM | HIGH`
+  - `DIFF_ATTACK_SURFACES:` with at least one diff-derived failure surface
+  - `INDEPENDENT_CHECKS_RUN:` with validator-owned checks not copied from coder evidence
+  - `COUNTERFACTUAL_CHECKS:` with concrete code-path / symbol references, not just test names
+  - `BOUNDARY_PROBES:` for interface / producer-consumer / storage / contract boundary checks
+  - `NEGATIVE_PATH_CHECKS:` for invalid, missing, adversarial, or failure-path checks
+  - `INDEPENDENT_FINDINGS:` with deliberate independent findings or baseline-confirmation notes
+  - `RESIDUAL_UNCERTAINTY:` with explicit remaining uncertainty; `- NONE` is illegal for `VALIDATOR_RISK_TIER=HIGH`
+- `VALIDATOR_RISK_TIER` is validator-assigned and MUST NOT be lower than the packet `RISK_TIER`.
+- `LEGAL_VERDICT=PASS` is legal only when `DIFF_ATTACK_SURFACES`, `INDEPENDENT_CHECKS_RUN`, and `COUNTERFACTUAL_CHECKS` are all present and non-empty.
+- `VALIDATOR_RISK_TIER=HIGH` requires at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
+- `VALIDATOR_RISK_TIER=MEDIUM|HIGH` requires at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
+- The lightest valid counterfactual step is still mandatory: one sentence per key changed code path in the form "if X were removed or altered, Y would break", where `X` names a concrete file, symbol, or code path.
 
 ## Validation Gate Sequence [CX-VAL-GATE] (ONE REVIEW PAUSE; APPEND-FIRST)
 
@@ -688,11 +738,13 @@ Validation Claims (do not collapse into a single PASS):
 - GOVERNANCE_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN
 - TEST_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN
 - CODE_REVIEW_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN
+- HEURISTIC_REVIEW_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN
 - SPEC_ALIGNMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN
 - ENVIRONMENT_VERDICT: PASS | FAIL | PARTIAL | BLOCKED | NOT_RUN
 - DISPOSITION: NONE | OUTDATED_ONLY
 - LEGAL_VERDICT: PASS | FAIL | PENDING
 - SPEC_CONFIDENCE: NONE | PARTIAL_DIFF_SCOPED | REVIEWED_DIFF_SCOPED | POST_MERGE_RECHECKED
+- VALIDATOR_RISK_TIER: LOW | MEDIUM | HIGH
 
 Scope Inputs:
 - Task Packet: .GOV/task_packets/{WP_ID}.md (status: {status})
@@ -708,6 +760,35 @@ CLAUSES_REVIEWED:
 NOT_PROVEN:
 - NONE
 - {or list each unresolved clause/gap explicitly}
+
+MAIN_BODY_GAPS:
+- NONE
+- {or list each unresolved main-body MUST/SHOULD gap explicitly}
+
+QUALITY_RISKS:
+- NONE
+- {or list each maintainability / heuristic-quality risk explicitly}
+
+DIFF_ATTACK_SURFACES:
+- {diff-derived failure surface}
+
+INDEPENDENT_CHECKS_RUN:
+- {validator-owned check} => {observed result}
+
+COUNTERFACTUAL_CHECKS:
+- If `{path or symbol}` were removed or altered, {observable breakage / proof expectation} would break.
+
+BOUNDARY_PROBES:
+- {producer/consumer or boundary check the validator ran}
+
+NEGATIVE_PATH_CHECKS:
+- {invalid/missing/adversarial input or failure-path check}
+
+INDEPENDENT_FINDINGS:
+- {what the validator learned that was not copied from coder evidence}
+
+RESIDUAL_UNCERTAINTY:
+- {what still remains uncertain after review}
 
 Findings:
 - Requirement X: satisfied at {path:line}; evidence snippet...
@@ -730,6 +811,11 @@ Improvements & Future Proofing:
 
 Split-Verdict Rules:
 - Use `SPEC_ALIGNMENT_VERDICT=PASS` only when every diff-scoped MUST/SHOULD clause claimed by DONE_MEANS + SPEC_ANCHOR is listed under `CLAUSES_REVIEWED` and `NOT_PROVEN` is exactly `NONE`.
+- Use `HEURISTIC_REVIEW_VERDICT=PASS` only when `QUALITY_RISKS` is exactly `NONE`.
+- Use `LEGAL_VERDICT=PASS` only when the report also records diff-derived attack surfaces, validator-owned independent checks, and concrete code-path counterfactuals.
+- `VALIDATOR_RISK_TIER` is validator-assigned and must not downscope below the packet `RISK_TIER`.
+- For `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
+- For `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - For `PACKET_FORMAT_VERSION >= 2026-03-15`, also reconcile the packet's live monitoring sections before PASS:
   - every `CLAUSE_CLOSURE_MATRIX` row must end `VALIDATOR_STATUS=CONFIRMED` (or `NOT_APPLICABLE`)
   - no row may remain `PENDING`
